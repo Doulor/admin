@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_DEPARTMENTS, DEFAULT_TITLE_CONFIGS, DEPARTMENT_ICONS, TITLES, TITLE_IDS, TONES } from "../../app/server/src/lib/roles";
 import { isIconName } from "../../app/web/sites/portal/lib/icons";
@@ -16,7 +17,7 @@ import {
   type OrgPayload,
 } from "../../app/web/sites/portal/lib/org";
 
-const PORTAL = new URL("../../app/web/sites/portal/", import.meta.url).pathname;
+const PORTAL = fileURLToPath(new URL("../../app/web/sites/portal/", import.meta.url));
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -152,7 +153,7 @@ describe("称号名字只写在默认值里", () => {
     const names = TITLE_IDS.map((id) => TITLES[id].label);
     const hits: string[] = [];
     for (const file of sources(PORTAL)) {
-      const name = file.slice(PORTAL.length);
+      const name = relative(PORTAL, file).replace(/\\/g, "/");
       if (name === "lib/org.ts") continue;
       readFileSync(file, "utf8")
         .split("\n")

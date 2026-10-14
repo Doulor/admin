@@ -196,3 +196,47 @@ it("主屏空白处下滑搜索，横滑、多指、取消和应用内手势不�
   expect(screen.queryByRole("combobox")).toBeNull();
   expect(screen.queryByRole("button", { name: "搜索", exact: true })).toBeNull();
 });
+
+it("手机窗口呈 iOS Page Sheet 范式：渲染拖拽条、遮罩背景，点击遮罩或下滑可关闭窗口", async () => {
+  const { container } = mount();
+  fireEvent.click(icons().getByRole("button", { name: "关于极客班" }));
+  expect(screen.getByRole("dialog", { name: "关于极客班" })).not.toBeNull();
+  expect(container.querySelector(".pt-win-grabber")).not.toBeNull();
+  const backdrop = container.querySelector<HTMLElement>(".pt-win-backdrop");
+  expect(backdrop).not.toBeNull();
+
+  // 点击遮罩关闭窗口
+  fireEvent.click(backdrop!);
+  expect(screen.queryByRole("dialog")).toBeNull();
+
+  // 重新打开窗口，测试下滑手势关闭
+  fireEvent.click(icons().getByRole("button", { name: "关于极客班" }));
+  expect(screen.getByRole("dialog", { name: "关于极客班" })).not.toBeNull();
+  const grabberWrap = container.querySelector<HTMLElement>(".pt-win-grabber-wrap")!;
+  expect(grabberWrap).not.toBeNull();
+
+  // 下滑小于阈值不关闭
+  fireEvent.touchStart(grabberWrap, { touches: [{ clientY: 100 }] });
+  fireEvent.touchMove(grabberWrap, { touches: [{ clientY: 130 }] });
+  fireEvent.touchEnd(grabberWrap);
+  expect(screen.getByRole("dialog", { name: "关于极客班" })).not.toBeNull();
+
+  // 下滑超过阈值触发关闭
+  fireEvent.touchStart(grabberWrap, { touches: [{ clientY: 100 }] });
+  fireEvent.touchMove(grabberWrap, { touches: [{ clientY: 200 }] });
+  fireEvent.touchEnd(grabberWrap);
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+});
+
+it("电脑模式下窗口不渲染手机拖拽条与遮罩背景，保留 macOS 窗口控制", () => {
+  const { container } = mount();
+  act(() => { phone = false; changes.forEach((fn) => fn()); });
+  const desktopIcons = within(screen.getByRole("list", { name: "桌面上的应用" }));
+  fireEvent.doubleClick(desktopIcons.getByRole("button", { name: "关于极客班" }));
+  expect(screen.getByRole("dialog", { name: "关于极客班" })).not.toBeNull();
+  expect(container.querySelector(".pt-win-grabber")).toBeNull();
+  expect(container.querySelector(".pt-win-backdrop")).toBeNull();
+  expect(container.querySelector(".pt-win-lights")).not.toBeNull();
+  fireEvent.click(within(screen.getByRole("dialog", { name: "关于极客班" })).getByRole("button", { name: "关闭" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+});

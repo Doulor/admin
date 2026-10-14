@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { ICONS, isIconName } from "../../app/web/sites/portal/lib/icons";
 import { ORG_ICONS } from "../../app/web/sites/portal/lib/org";
@@ -7,7 +8,7 @@ import { parseMe } from "../../app/web/sites/portal/lib/account";
 import { links } from "../../app/web/sites/portal/lib/links";
 import { NEW_TAB_NOTE, OS_APPS, agoLabel, appById, appByKey, appLink, appLinkById, filterCommands, followAppLink, launcherCommands, moveSelection, opensNewTab, runTerminal, visibleApps } from "../../app/web/sites/portal/lib/osApps";
 
-const PORTAL = new URL("../../app/web/sites/portal/", import.meta.url).pathname;
+const PORTAL = fileURLToPath(new URL("../../app/web/sites/portal/", import.meta.url));
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -129,7 +130,7 @@ describe("入口直达，不再经过 3D 场景页（#185）", () => {
   it("源码里指向 /forum-3d、/github 的只剩路由表和论坛窗口里写明的「3D 版块」", () => {
     const hits = sources(PORTAL)
       .filter((file) => /["'`]\/(forum-3d|github)["'`]/.test(readFileSync(file, "utf8")))
-      .map((file) => file.slice(PORTAL.length))
+      .map((file) => relative(PORTAL, file).replace(/\\/g, "/"))
       .sort();
     // Windows.tsx 里那一处是「论坛最新」窗口的「3D 版块」按钮，渲染后点下去进 /forum-3d 由 portal-os-entries.test.tsx 核对
     expect(hits).toEqual(["App.tsx", "components/os/Windows.tsx"]);
@@ -138,7 +139,7 @@ describe("入口直达，不再经过 3D 场景页（#185）", () => {
   it("「加入我们」回执里的「去论坛看看」和桌面上的论坛应用取同一个地址：论坛首页，当前标签页", () => {
     expect(appLinkById("forum")).toEqual({ href: links.forumHome(), newTab: false });
     // 只认取地址的那一句，不认 JSX 的写法（属性顺序、换行改了不影响）
-    expect(readFileSync(`${PORTAL}pages/JoinUs.tsx`, "utf8")).toMatch(/appLinkById\("forum"\)/);
+    expect(readFileSync(join(PORTAL, "pages/JoinUs.tsx"), "utf8")).toMatch(/appLinkById\("forum"\)/);
   });
 });
 
@@ -162,7 +163,7 @@ describe("图标注册表与界面禁用字符", () => {
     const carbon = new Set<string>();
     for (const file of files) {
       const text = readFileSync(file, "utf8");
-      const org = file.slice(PORTAL.length) === "lib/org.ts";
+      const org = relative(PORTAL, file).replace(/\\/g, "/") === "lib/org.ts";
       for (const match of text.matchAll(/<Icon\s+name="([a-z0-9-]+)"/g)) used.add(match[1]);
       for (const match of text.matchAll(/\bicon:\s*"([a-z0-9-]+)"/g)) (org ? carbon : used).add(match[1]);
       for (const match of text.matchAll(/drawIcon\(\s*\w+,\s*"([a-z0-9-]+)"/g)) used.add(match[1]);
