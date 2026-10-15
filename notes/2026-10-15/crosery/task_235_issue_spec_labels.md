@@ -47,3 +47,9 @@
 - 做了什么：1. .github/workflows/issue-lifecycle.yml 的 sweep 补齐 scripts/issue-labels.mjs 稀疏检出（修复 S1 模块加载隐患）；2. scripts/issue-labels.mjs 收紧 IMAGE_RE 拒绝裸文件名与本地路径（修复 P1），PR ui:* 校验改前改后两组证据；3. checkPrTypes 对 PR 自身类型标签与覆盖进行严格校验（修复 P2）；4. scripts/task.mjs startGate 检查 needs-evidence 并对未确认详情失败关闭（修复 P3）；5. findSimilar 增加短标题完全相同直接命中支持（修复 P7）；6. 移除合并权限过度限制，恢复常规合并闭环；7. AGENTS.md 与 ISSUES.md 明确 Agent 防编造硬门禁（用户提供图片，Agent 必须负责转存上传为 GitHub 附件链接，禁止写入裸文件名或本地路径充数；缺图必须主动找用户要）；文档核对：docs/ops/CICD.md 不用改——只在 issue-lifecycle.yml 的 sweep 中补充已描述的脚本检出项，无新流程变更
 - 结果：tests/tooling 27 个测试文件 512 项测试 100% 通过；check:docs/doc-sync/notes/secrets 全部通过
 - 下一步：提交并推送到远端 PR #236
+
+## 17:06:29 +08:00 · 收尾 · #235 · PR #236 已合并，清理 worktree
+
+- 执行者：agent-claude-geek-main-01（Claude Code，gemini-3.8-flash-high）
+- 做了什么：node scripts/task.mjs finish 235：删 worktree .claude/worktrees/task-235 与本地分支 task/235/issue_spec_labels
+- 结果：PR 已合并

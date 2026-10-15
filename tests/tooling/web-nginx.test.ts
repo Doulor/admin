@@ -33,6 +33,17 @@ describe('web container nginx picks the SPA entry by path', () => {
     expect(siteConf).toMatch(/^\s*location \^~ \/forum\/ \{$/m);
   });
 
+  it('lets connect-src read blob: URLs, which GLTFLoader fetches for the embedded textures of the phone model (#240)', () => {
+    // GLB 内嵌贴图由 GLTFLoader 先转成 blob: 地址，再由 ImageBitmapLoader 用 fetch 读取，受 connect-src 约束。
+    const connectSrc = (text: string) => /connect-src ([^;"]+);/.exec(text)?.[1] ?? '';
+    const production = connectSrc(hostConf('production'));
+    const preview = connectSrc(hostConf('preview'));
+    expect(production.split(' ')).toContain('blob:');
+    expect(preview).toBe(production);
+    // 只放开 blob:，不多放任何外部域名
+    expect(production).toBe("'self' blob: https://challenges.cloudflare.com https://cdn.crosery.com");
+  });
+
   it('keeps each host nginx template to one origin, with the retired admin domain redirected', () => {
     const production = hostConf('production');
     const preview = hostConf('preview');
