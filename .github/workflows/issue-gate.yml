@@ -1,0 +1,43 @@
+# 提单检查（docs/conventions/ISSUES.md §2）：issue 创建、编辑、改标签时
+#   - 把表单「改动类型」选的值加成「组:类」标签；没有表单（CLI / API 建单）的按内容在评论里建议标签，不自动加；
+#   - 核对标签、ui 截图、func 涉及接口，缺则加 needs-evidence 并评论；
+#   - 评论里列出标题相似的已有 issue（含已关闭）。
+# 只提示和标记，不关闭、不重开 issue。
+# 权限：只写 issue；脚本取自默认分支（issues 事件本来就跑默认分支上的工作流），不执行 issue 正文里的任何内容。
+# 注意：issues 事件只触发默认分支（main）上的工作流，所以本检查要等随发布进入 main 才生效（docs/ops/CICD.md）。
+name: issue-gate
+
+on:
+  issues:
+    types: [opened, edited, labeled, unlabeled]
+
+concurrency:
+  group: issue-gate-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  gate:
+    name: gate (提单检查)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: 检出默认分支上的检查脚本
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/issue-gate.mjs
+            scripts/issue-labels.mjs
+          sparse-checkout-cone-mode: false
+
+      - name: 检查并评论
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/issue-gate.mjs --event "$GITHUB_EVENT_PATH" --apply

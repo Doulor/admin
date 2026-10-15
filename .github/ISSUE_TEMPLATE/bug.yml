@@ -42,6 +42,58 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: change_type
+    attributes:
+      label: 改动类型
+      description: |
+        至少选一个，跨类就都选（判定口径见 docs/conventions/ISSUES.md §2）。
+        ui = 线上界面看得到的；func = 接口、权限、数据、外部服务的行为；infra = 部署、CI、脚本、文档。
+        选 ui:* 必须在下面「截图证明」里放图；选 func:* 必须填「涉及接口」。
+      multiple: true
+      options:
+        - ui:layout — 版式、响应式、溢出、竖屏适配
+        - ui:visual — 配色、字体、图标、动画、3D 观感
+        - ui:interaction — 手势、键盘、焦点、触控目标、无障碍
+        - ui:content — 界面文案与可见内容
+        - func:api — 路由、请求响应约定、错误码、限流
+        - func:auth — 登录、会话、角色与权限
+        - func:data — 表结构、迁移、导入导出、存储
+        - func:external — GitHub、发信商、CDN 等外部服务对接
+        - infra:deploy — 镜像、compose、环境变量契约、部署
+        - infra:ci — 工作流、检查脚本、钩子
+        - infra:tooling — 脚本、规范文档、测试基建
+    validations:
+      required: true
+
+  - type: textarea
+    id: related
+    attributes:
+      label: 相关 issue
+      description: |
+        查过开放与已关闭的 issue 后填：`#n` 加关系（重复 / 续作 / 部分重叠），或写「已搜关键词 X、Y，无相关」。
+        处理办法见 docs/conventions/ISSUES.md §2「相关 issue」。
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图证明
+      description: 选了 ui:* 必填。直接拖进编辑框上传现状截图或录屏，注明视口与设备；没有选 ui:* 可留空。
+    validations:
+      required: false
+
+  - type: textarea
+    id: interfaces
+    attributes:
+      label: 涉及接口
+      description: |
+        选了 func:* 必填。写方法 + 路径（如 `POST /api/forum/topics`）、请求响应约定、要补的接口测试和验证方式。
+        没有接口变化写「无接口变更：<理由>」。
+    validations:
+      required: false
+
   - type: textarea
     id: symptom
     attributes:
