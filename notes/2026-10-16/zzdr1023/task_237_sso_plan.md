@@ -21,3 +21,9 @@
 - 做了什么：check exit 0；test 1034 passed / 4 failed（全在 tests/tooling/build-mirrors.test.ts，Cannot find module node:crypto，本机 /usr/bin/node 是 v12.22.9）；build exit 0；forum:check exit 0（check-styles clean 125 文件、ESLint、nuxt typecheck、30 文件 548 passed）；forum:generate exit 0
 - 结果：对照组：在干净 origin/stage 的临时 worktree 上单跑 tests/tooling/build-mirrors.test.ts，同样 4 failed / 28 passed，确认与本改动无关（该文件按 dirname(process.execPath) 拼 PATH，本轮测试进程的 node 是 v12）。文档门禁：check-doc-sync 退出码 0（6 组）、check-docs 273 份文档、docs-index --check 通过、note.mjs check 71 条链路
 - 下一步：提交并推 fork，开 PR
+
+## 01:30:29 +08:00 · 提交 · #237 · 提交 80c1c21：ADR-0005 与执行记录一起提交
+
+- 执行者：agent-omp-geek-main-26（oh-my-pi coding agent，dsf）
+- 做了什么：git commit 80c1c21：新增 docs/decisions/0005-sso-extend-core-server.md、docs/README.md 阅读地图追加 ADR-0005、docs/INDEX.md 重新生成；一并入库三条历史链路（#156、#175 的暂存记录与 #221 的放弃记录）
+- 结果：9 个文件 +219/-3（其中 4 个是 notes）；提交前 pnpm check 退出码 0、pnpm build 退出码 0、forum:check 548 passed、forum:generate 退出码 0、check-docs 273 份文档、docs-index --check 通过、note.mjs check 71 条链路
