@@ -27,3 +27,9 @@
 - 执行者：agent-omp-geek-main-26（oh-my-pi coding agent，dsf）
 - 做了什么：git commit 80c1c21：新增 docs/decisions/0005-sso-extend-core-server.md、docs/README.md 阅读地图追加 ADR-0005、docs/INDEX.md 重新生成；一并入库三条历史链路（#156、#175 的暂存记录与 #221 的放弃记录）
 - 结果：9 个文件 +219/-3（其中 4 个是 notes）；提交前 pnpm check 退出码 0、pnpm build 退出码 0、forum:check 548 passed、forum:generate 退出码 0、check-docs 273 份文档、docs-index --check 通过、note.mjs check 71 条链路
+
+## 01:30:49 +08:00 · 提交 · #237 · 更正：ADR 那条提交的 SHA 是 faa9174，不是上一条写的 80c1c21
+
+- 执行者：agent-omp-geek-main-26（oh-my-pi coding agent，dsf）
+- 做了什么：上一条记录写下的提交 SHA 是 amend 之前的临时值：那条提交 amend 了两次（先修首段的一个失效锚点、再把 docs/INDEX.md 与 ADR 一起纳入），最终 SHA 变成 faa9174。按 NOTES §3「已写的记录不改不删，写错了再追加一条说明」在这里更正
+- 结果：git rev-parse HEAD 确认：faa9174 = docs(decisions): ADR-0005 …（本 task 的改动提交），15ecbcb = docs(notes)（本条记录之前的提交）；ADR 的内容与验证结论不变
