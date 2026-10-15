@@ -2,7 +2,7 @@
 
 > 一件事从提出到关闭，每一步都以固定格式的评论留在 issue 与 PR 上；人扫一眼能看懂进展，Agent 按字段就能读出状态。
 
-状态：`current` · 更新：2026-10-02 · 适用：所有 issue、PR 的评论，人与 Agent 都遵守。
+状态：`current` · 更新：2026-10-15 · 适用：所有 issue、PR 的评论，人与 Agent 都遵守。
 
 ## §1 生命周期：一件事 = 一个 issue = 一个 task 分支 = 一个 worktree = 一个 PR
 
@@ -31,7 +31,8 @@
 | 生命周期 | 规则 | 强制在哪 | 查不到时 |
 |---|---|---|---|
 | issue | PR 合并后它 `Closes` 的 issue 必须关闭，自动化没关上由合并的人当场手工关；不走 PR 做完的当场写「关闭」再关；只剩外部等待的拆新 issue | 合并时 `issue-lifecycle` 的 `close-on-merge`；合并的人按 [CODE-REVIEW](CODE-REVIEW.md) 第 12 项核对；每天的 `sweep` 补关已合并的、给超期和缺记录的 issue 留记录 | 定时任务跑的是默认分支 `main` 上的工作流；`sweep` 只留记录、不重开，关不关由人决定 |
-| PR | 九段正文、`Closes #<issue>` 与分支号一致、issue 开着 | `issue-lifecycle` 的 `pr-contract` | 无 |
+| issue 提单 | 带「组:类」改动类型标签；`ui:*` 有截图、`func:*` 写了涉及接口；正文列出相关 issue（[ISSUES](ISSUES.md) §2） | `issue-gate`（issue 创建、编辑、改标签时评论并加 `needs-evidence`，列出相似 issue）；`task.mjs start` 拒绝不合格的 issue 开工 | issues 事件只跑默认分支 `main` 上的工作流，要随发布进入 `main` 才生效；规范生效前（编号 < 235）的 issue 不检查；关键词推测只是建议，不自动加标签 |
+| PR | 九段正文、`Closes #<issue>` 与分支号一致、issue 开着；PR 的「组:类」标签覆盖 issue 的标签，`ui:*` 有改前改后截图，`func:*` 有接口测试与接口验证 | `issue-lifecycle` 的 `pr-contract` | 无 |
 | task 分支（远端） | 合并后立即删除 | `branch-hygiene` 合并后自动删；每周巡检 14 天没提交、没有 open PR 的残留分支，只告警 | 删分支不可逆，残留的由人确认后删 |
 | task worktree（本机） | 合并或放弃后 `task.mjs finish` | `.githooks/pre-push` 运行 `node scripts/task.mjs list --check`：有该清没清的 worktree 就拒绝推送（[BRANCHING](BRANCHING.md)「task worktree」） | 钩子要每台克隆 `pnpm hooks:enable` 启用一次；gh 查不到只警告 |
 | 执行记录（`notes/`） | 开工起连续记到收尾；PR 带开工、提交、PR、审查 | `pnpm check` 的 `check:notes`；CI `branch-guard` 的执行记录检查（[NOTES](NOTES.md) §6） | 收尾写在合并之后，先暂存到主工作区，随下一个 PR 入库，没有检查拦「一直不入库」 |

@@ -2,7 +2,7 @@
 
 > 统一入口、最小变更、可审查的提交与资源隔离。
 
-状态：`current` · 更新：2026-09-26
+状态：`current` · 更新：2026-10-15
 
 ## 开始前
 
@@ -14,8 +14,8 @@ AI 先执行 [AGENT-START](AGENT-START.md) 的阅读门禁，不能先运行下�
 
 长期分支只有 `main`（正式）和 `stage`（预发布），完整规则（含不变量、禁止事项、清理要求）见 [BRANCHING](BRANCHING.md)：
 
-- 开发前先按 [ISSUES](ISSUES.md) 开 issue，再用 `node scripts/task.mjs start <issue> <slug>` 从最新 `stage` 拉 `task/<issue>/<slug>`（例 `task/12/portal_redesign`；分支名不用 `-`），**同时得到一个独立的 worktree**，所有开发都在里面做，不在主工作区切分支（见 [BRANCHING](BRANCHING.md)「task worktree」）；
-- 一次任务一条 task 分支、一个 worktree，MR 回 `stage`，正文按 [PULL-REQUESTS](PULL-REQUESTS.md) 的契约写；合并只用 merge commit（`gh pr merge <PR> --merge`），不用 squash 或 rebase（原因见 [BRANCHING](BRANCHING.md)）；
+- 开发前先按 [ISSUES](ISSUES.md) 开 issue：先查开放与已关闭的相似 issue 并在正文写「相关 issue」，带「组:类」改动类型标签（`ui:*` 要截图，`func:*` 要写涉及接口，缺了 `task.mjs start` 拒绝开工），再用 `node scripts/task.mjs start <issue> <slug>` 从最新 `stage` 拉 `task/<issue>/<slug>`（例 `task/12/portal_redesign`；分支名不用 `-`），**同时得到一个独立的 worktree**，所有开发都在里面做，不在主工作区切分支（见 [BRANCHING](BRANCHING.md)「task worktree」）；
+- 一次任务一条 task 分支、一个 worktree，MR 回 `stage`，正文按 [PULL-REQUESTS](PULL-REQUESTS.md) 的契约写，PR 的「组:类」标签要覆盖 issue 的标签（`ui:*` 放改前改后截图，`func:*` 放接口测试与接口验证）；合并只用 merge commit（`gh pr merge <PR> --merge`），不用 squash 或 rebase（原因见 [BRANCHING](BRANCHING.md)）；
 - 从开工到收尾，每一步都按 [NOTES](NOTES.md) 写进 `notes/`：`task.mjs start` / `finish` 自动记开工和收尾，中间的提交、PR、审查、返工用 `node scripts/note.mjs add` 记；
 - **MR 合并后远端分支与 issue 自动清理，本机用 `node scripts/task.mjs finish <issue>` 删 worktree 与本地分支**，不留死分支、死目录；
 - fork 来的 PR 合并时 `issue-lifecycle` 没有写权限（#137），issue 不会自动关：合并的人按 [ISSUES](ISSUES.md) §1 与 [CODE-REVIEW](CODE-REVIEW.md) 第 12 项当场手工关，并留「关闭」记录；
@@ -30,7 +30,7 @@ AI 先执行 [AGENT-START](AGENT-START.md) 的阅读门禁，不能先运行下�
 
 运行根 `pnpm verify`（其中 `check:notes` 核对执行记录）；影响浏览器行为时跑 `pnpm test:e2e`。审阅 diff，补文档，确认无密钥、真实数据或编译产物。失败和未验证项如实写入 MR，不能只截取部分成功输出。改动触及标题/摘要/路径时重新生成文档索引（`pnpm docs:index`）。
 
-提交遵循 [COMMITS](COMMITS.md)，审查按 [CODE-REVIEW](CODE-REVIEW.md) 逐项过一遍并把结论写进 MR，MR 字段要求见 [PULL-REQUESTS](PULL-REQUESTS.md)。提交、push、合并、部署分别需要对应授权；要求改代码不等于要求自动发布。
+提交遵循 [COMMITS](COMMITS.md)，审查按 [CODE-REVIEW](CODE-REVIEW.md) 逐项过一遍并把结论写进 MR，MR 字段要求见 [PULL-REQUESTS](PULL-REQUESTS.md)。提交、push、合并、部署分别需要对应授权；**所有将 PR 合入 stage 的合并操作必须由 Crosery 亲自执行**，Agent 与其他协作者禁止自行合并；要求改代码不等于要求自动发布。
 
 ## 数据与运维
 

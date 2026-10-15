@@ -2,7 +2,7 @@
 
 > 核心真实路由与上游论坛演示分别验收；类型、行为、构建和生产证据不相互替代。
 
-状态：`current` · 更新：2026-10-09
+状态：`current` · 更新：2026-10-15
 
 ## 根入口和分工
 
@@ -45,6 +45,8 @@
 分支不变量由 `scripts/check-branch-invariants.mjs` 检查（`tests/tooling/branch-invariants.test.ts` 用临时 Git 仓库覆盖不变量、命名规则与 pre-push 的发布 tag 规则：格式错误、rc 不在 stage、正式 tag 不在 main、同提交缺 rc 只告警、版本号不符、删除或移动发布 tag、附注 tag、非发布 tag 只告警）：`--require-remote-refs` 在 CI 上核对真实远端 refs，`--push` 供本地 pre-push 使用；本地也可以用同一命令自查（见 [BRANCHING](BRANCHING.md)）。这类检查只读 Git 证据，不 fetch、不改 refs。
 
 `tests/tooling/task-worktree.test.ts` 在临时 Git 仓库里建 worktree、把 `gh` 换成假的，覆盖推送前的 worktree 检查：PR 已合并或 issue 已放弃、没 finish 的 worktree 让 `task.mjs list --check` 与 `.githooks/pre-push` 失败，清理后放行，查不到 GitHub 只警告，gh 偶发失败一次会重试，主工作区停在已合并的 task 分支上时提示切回而不是 finish。
+
+`tests/tooling/issue-labels.test.ts` 覆盖 issue / PR 的改动类型标签（[ISSUES](ISSUES.md) §2）：三组十一类与标签定义；表单下拉转标签；`checkIssue` 对 `ui:*` 缺截图、`func:*` 缺涉及接口、没有「组:类」标签、编号 235 之前的旧 issue 放行；`checkPullRequest` 在关联 issue 带标签时核对 PR 标签覆盖、`ui:*` 不认「无界面变化」、`func:*` 要测试命令加方法路径加状态码或 `requestId`（或有理由的「无接口变更」）；`findSimilar` 找相似 issue、`suggestLabels` 按关键词推测、提单检查评论的内容。`tests/tooling/task-worktree.test.ts` 里的 `startGate` 用例覆盖 `task.mjs start` 对不合格 issue 的拒绝与读不到时的放行。全部用虚构的标题和正文，不连 GitHub、不运行 `--apply`；`issue-gate` 的评论更新和打标签要等工作流进入 `main` 后在真实仓库验证。
 
 `tests/tooling/issue-sweep.test.ts` 用虚构的 issue 与 PR 覆盖每天的 issue 巡检（[TRACKING](TRACKING.md) §1）：PR 已合并还开着的补关（head 是 task 分支或正文有关闭关键字，合进 `main` 的和只写 `Refs` 的不算；最近一次合并之后重开过的（按时间线上的重开时间，两次合并夹着一次重开时看最近那次合并；查不到重开时间就不关，超期记录写明是查不到）、合并后有过「关闭」记录又开着的、还有开着的 PR 关联的、PR 合并不到一小时的都不关，超期记录写明已合并的 PR 和没补关的原因），14 天没动静的留「超期」，关了却没有合并 PR 也没有「关闭」记录的留「缺记录」且只留一次，记录格式与 TRACKING 的类型表一致；命令行换成假 `gh`（只认带 `REOPENED_EVENT` 与 `last: 1` 的重开查询），核对 GraphQL 出错时不补关，不带 `--apply` 不写、带了才关闭和留言、一个失败不影响其它但以 1 退出，评论到 100 条时翻页取全。
 

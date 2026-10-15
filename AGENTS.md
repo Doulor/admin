@@ -45,8 +45,10 @@
 - 每个阶段的进展以 [TRACKING](docs/conventions/TRACKING.md) §3 的「追踪记录」格式写成 issue / PR 评论；恢复上下文先读 issue 正文和最后几条追踪记录，不凭记忆续做。
 - **执行记录前后必须写**（[NOTES](docs/conventions/NOTES.md)）：每一步按北京时间记进 `notes/<日期>/<GitHub 用户名>/<链路>.md`，入口是 `notes/INDEX.md`。开发前由 `task.mjs start` 记「开工」（要带 `GEEK_NOTES_USER` 与 `GEEK_NOTES_BY` 身份），开发中每次提交、开 PR、审查、返工都记，合并、发布、验收照记，`task.mjs finish` 记「收尾」。task PR 的链路缺「开工」「提交」「PR」「审查」时 CI 不通过，不能合并。
 - 任何进入 `stage` 的内容必须走 [CODE-REVIEW](docs/conventions/CODE-REVIEW.md)：按 [code-review 技能](.agents/skills/code-review/SKILL.md) 逐项核对 diff，并把审查结论贴进 MR。**没有审查结论的 MR 不允许合并。**
+- **合并归属硬门禁**：组织内成员具有开发、提单与标签权限，但**所有合并操作（PR 合入 stage，以及 stage 合入 main）一律只能由 Crosery 亲自执行**；任何 Agent、其他成员或机器人禁止自行合并。
 - 进入 `main` 和打正式 tag 前，必须有所有者在预发布环境对同一提交的真实验收记录；自动化 PASS 只是机器验证，不能代替人工验证。
 - 文档跟着模块改：`app/<服务>`、`deploy/`、`.github/workflows/` 改了，对应文档在同一个 PR 里跟着改，服务文档头的「更新：」不早于模块最后改动的日期；文档里的事实确实没变时，在这个 task 的执行记录里写「文档核对：<文档路径> 不用改——<理由>」。对照表与规则只在 [docs/README](docs/README.md)「文档跟着模块改」，`pnpm check` 与 CI 强制。只改日期、不改内容是假同步。PR 只用 merge commit 进 `stage`（[BRANCHING](docs/conventions/BRANCHING.md)）。
+- **issue 与 PR 必带「组:类」改动类型标签**（`ui:*` / `func:*` / `infra:*`，口径见 [ISSUES](docs/conventions/ISSUES.md) §2）：`ui:*` 的 issue 和 PR 必须有截图，`func:*` 必须有接口测试与接口验证，建单前先查开放与已关闭的相似 issue 并在正文写「相关 issue」；`task.mjs start` 与 CI 的 `pr-contract` 核对。
 - 提交信息只遵循 [COMMITS](docs/conventions/COMMITS.md)；提交、推送、合并、打 tag、部署分别需要对应授权。发版流程、tag 规则与回滚见 [RELEASES](docs/conventions/RELEASES.md)。
 
 ## 3. 部署硬门禁
@@ -80,6 +82,7 @@
 - 把 `proposed`/`historical` 文档当现行规范执行；规范冲突时自己挑一份照做而不报告。
 - 伪造审查结论、验收证据、测试结果或审批记录。
 - 不写执行记录就开发、合并或发布；改写、删除已写的记录，手填时间，或补写没发生过的事。
+- 未经授权由 AI 自行执行合并操作（合入 stage 或 main），或由非 Crosery 人员执行合并。
 - 未经所有者授权创建或推送发布 tag，或者移动、删除已推送的发布 tag。
 
 ## 6. 文档路由表

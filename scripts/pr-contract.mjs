@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // PR 正文契约（docs/conventions/PULL-REQUESTS.md「正文契约」）：一件事 = 一个 issue = 一个 task 分支 = 一个 PR。
 //
-//   node scripts/pr-contract.mjs check  --branch <head ref> --body-file <path> [--issue-state-file <path>]
+//   node scripts/pr-contract.mjs check  --branch <head ref> --body-file <path> [--issue-state-file <path>] [--labels-file <path>]
 //   node scripts/pr-contract.mjs issue  --branch <head ref>      # 只打印分支对应的 issue 号
 //
 // check 只做文本判断（纯函数 checkPullRequest，tests/tooling/pr-contract.test.ts 覆盖），不联网；
@@ -9,6 +9,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { TYPE_LABEL_SINCE, checkPrTypes } from "./issue-labels.mjs";
 
 /** task/<issue>/<slug>：slug 小写字母数字与下划线（与 check-branch-invariants.mjs 的 TASK_BRANCH_RE 一致） */
 export const TASK_BRANCH_RE = /^task\/([0-9]+)\/[a-z0-9]+(?:_[a-z0-9]+)*$/;
@@ -51,11 +52,12 @@ export function issueFromBranch(branch) {
 }
 
 /**
- * 检查一个 PR。issue 是 gh 取回的 `{ number, state, title }`（state: OPEN / CLOSED）；拿不到时传 null，
- * 只做文本检查。返回 { ok, errors[], issue }；errors 是给人看的中文句子，每条说清怎么改。
- * @param {{ branch: string, body: string, issue?: { number: number, state: string, title?: string } | null }} input
+ * 检查一个 PR。issue 是 gh 取回的 `{ number, state, title, labels? }`（state: OPEN / CLOSED）；拿不到时传 null，
+ * 只做文本检查。labels 是 PR 自己的标签；issue 编号不小于 TYPE_LABEL_SINCE 且带「组:类」标签时，
+ * 按标签组核对 PR 的标签与证据（scripts/issue-labels.mjs）。返回 { ok, errors[], issue }；errors 是给人看的中文句子，每条说清怎么改。
+ * @param {{ branch: string, body: string, labels?: Array<string | { name: string }>, issue?: { number: number, state: string, title?: string, labels?: Array<string | { name: string }> } | null }} input
  */
-export function checkPullRequest({ branch, body, issue = null }) {
+export function checkPullRequest({ branch, body, labels = [], issue = null }) {
   const errors = [];
   const number = issueFromBranch(branch);
   if (number === null) {
@@ -82,6 +84,7 @@ export function checkPullRequest({ branch, body, issue = null }) {
   if (issue) {
     if (number !== null && issue.number !== number) errors.push(`取回的 issue 是 #${issue.number}，与分支里的 #${number} 不一致。`);
     else if (String(issue.state).toUpperCase() !== "OPEN") errors.push(`issue #${issue.number} 已经关闭：先重新打开它（或新开一个 issue 并改分支名），再提 PR。`);
+    if (issue.labels && issue.number >= TYPE_LABEL_SINCE) errors.push(...checkPrTypes({ issueLabels: issue.labels, prLabels: labels, parts }));
   }
   return { ok: errors.length === 0, errors, issue: number };
 }
@@ -100,13 +103,15 @@ function main() {
     else console.log(number);
     return;
   }
-  if (command !== "check") throw new Error("用法：node scripts/pr-contract.mjs check --branch <ref> --body-file <path> [--issue-state-file <path>]");
+  if (command !== "check") throw new Error("用法：node scripts/pr-contract.mjs check --branch <ref> --body-file <path> [--issue-state-file <path>] [--labels-file <path>]");
   const bodyFile = arg("body-file");
   if (!bodyFile) throw new Error("缺少 --body-file");
   const body = readFileSync(bodyFile, "utf8");
   const stateFile = arg("issue-state-file");
   const issue = stateFile ? JSON.parse(readFileSync(stateFile, "utf8")) : null;
-  const result = checkPullRequest({ branch, body, issue });
+  const labelsFile = arg("labels-file");
+  const labels = labelsFile ? JSON.parse(readFileSync(labelsFile, "utf8")) : [];
+  const result = checkPullRequest({ branch, body, labels, issue });
   if (result.ok) {
     console.log(`PR 正文契约通过：分支 ${branch} ↔ issue #${result.issue}，${REQUIRED_SECTIONS.length} 个段落齐全，有验收证据。`);
     return;

@@ -19,7 +19,7 @@ name: Issue lifecycle
 on:
   pull_request:
     branches: [stage]
-    types: [opened, edited, synchronize, reopened, ready_for_review, closed]
+    types: [opened, edited, synchronize, reopened, ready_for_review, closed, labeled, unlabeled]
   schedule:
     # 每天 03:37 UTC（北京 11:37，错开 branch-hygiene 周一的 03:17）
     - cron: '37 3 * * *'
@@ -52,7 +52,9 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.base.ref }}
           persist-credentials: false
-          sparse-checkout: scripts/pr-contract.mjs
+          sparse-checkout: |
+            scripts/pr-contract.mjs
+            scripts/issue-labels.mjs
           sparse-checkout-cone-mode: false
 
       - name: 核对正文、分支号与 issue 状态
@@ -61,6 +63,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
           set -eu
           # 契约脚本随本工作流一起进入 stage；引入它的那一个 PR 合并前，stage 上还没有它
@@ -69,9 +72,10 @@ jobs:
             exit 0
           fi
           printf '%s' "$PR_BODY" > "${RUNNER_TEMP}/body.md"
-          args=(check --branch "$HEAD_REF" --body-file "${RUNNER_TEMP}/body.md")
+          printf '%s' "$PR_LABELS" > "${RUNNER_TEMP}/labels.json"
+          args=(check --branch "$HEAD_REF" --body-file "${RUNNER_TEMP}/body.md" --labels-file "${RUNNER_TEMP}/labels.json")
           if issue="$(node scripts/pr-contract.mjs issue --branch "$HEAD_REF")"; then
-            if gh issue view "$issue" --repo "$GITHUB_REPOSITORY" --json number,state,title > "${RUNNER_TEMP}/issue.json" 2>/dev/null; then
+            if gh issue view "$issue" --repo "$GITHUB_REPOSITORY" --json number,state,title,labels --jq '{number,state,title,labels:[.labels[].name]}' > "${RUNNER_TEMP}/issue.json" 2>/dev/null; then
               args+=(--issue-state-file "${RUNNER_TEMP}/issue.json")
             else
               echo "::error title=PR 正文契约::找不到 issue #${issue}：分支 ${HEAD_REF} 指向的 issue 不存在，先开 issue 再提 PR。"
