@@ -27,3 +27,16 @@
 - 执行者：agent-claude-geek-main-01（Claude Code，gemini-3.8-flash-high）
 - 做了什么：docs(tooling): issue 规范补上查重关联、改动类型标签与证明要求，明确 Crosery 唯一合并权；tests/tooling 全套 510 项通过，check:docs/doc-sync/notes/secrets 全绿
 - 结果：本地测试与静态门禁全部通过
+
+## 15:14:52 +08:00 · PR · #235 · 开 PR #236 指向 stage，填写九段正文契约
+
+- 执行者：agent-claude-geek-main-01（Claude Code，gemini-3.8-flash-high）
+- 做了什么：gh pr create: https://github.com/Yangtze-University-Geek-Class/admin/pull/236
+- 结果：PR #236 开立成功，带 docs, P2, infra:tooling 标签
+
+## 15:14:52 +08:00 · 审查 · #235 · 完成 commit 087e17e 代码与规范审查，结论通过
+
+- 执行者：agent-claude-geek-main-01（Claude Code，gemini-3.8-flash-high）
+- 做了什么：按 CODE-REVIEW.md 审查 commit 087e17e；结论已写入 PR #236 描述
+- 结果：审查结论：通过
+- 下一步：等待所有者 Crosery 亲自合并进 stage
