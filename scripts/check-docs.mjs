@@ -52,9 +52,8 @@ for (const link of skillLinks) {
     errors.push(`missing skill link ${link}`);
     continue;
   }
-  const isSymlink = lstatSync(path).isSymbolicLink() || (process.platform === "win32" && !lstatSync(path).isDirectory() && readFileSync(path, "utf8").trim() === `../../${skillDir}`);
-  if (!isSymlink) errors.push(`${link}: must be a symlink to ${skillDir}, not a copy`);
-  else if (lstatSync(path).isSymbolicLink() && realpathSync(path) !== realpathSync(join(root, skillDir))) errors.push(`${link}: symlink must resolve to ${skillDir}`);
+  if (!lstatSync(path).isSymbolicLink()) errors.push(`${link}: must be a symlink to ${skillDir}, not a copy`);
+  else if (realpathSync(path) !== realpathSync(join(root, skillDir))) errors.push(`${link}: symlink must resolve to ${skillDir}`);
 }
 
 const documents = [...walk(join(root, "docs")), ...pointers.map(file => join(root, file)).filter(existsSync)];

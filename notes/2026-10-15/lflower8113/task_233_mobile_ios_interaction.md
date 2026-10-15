@@ -28,3 +28,9 @@
 - 做了什么：按 CODE-REVIEW.md 清单逐项核对分支不变量、密钥安全、边界规则、移动端无障碍交互设计、DOM结构与手势逻辑、回归测试以及文档同步
 - 结果：所有清单项均合规，未发现阻塞或应修项，结论为通过；pnpm check 与 pnpm test tests/web/ 全绿
 - 下一步：提交 notes 记录并推送到远端 fork，触发 CI 流水线验证
+
+## 22:06:43 +08:00 · 返工 · #233 · 接管 #234：瘦身并修正样式
+
+- 执行者：agent-claude-geek-main-233（Claude Code，claude-sonnet-5-5，由 Crosery 授权接管 #234）
+- 做了什么：以 lFlower8113 的 f6662b7 为基合入 origin/stage（80d27d9）；还原 scripts/check-docs.mjs 与 tests/web/portal-{org,os,wallpapers}.test.ts 的 Windows 路径改动（与 #233 无关，另单处理）；os.css 去掉遮罩的全屏 backdrop-filter（违反该文件头部约定）、去掉 @media(max-width:860px) 隐藏 .pt-win-lights 的规则（会误伤宽度不足 860 的电脑模式），标题栏补 touch-action:none；docs 两处改成不带宣传语的事实描述
+- 结果：tests/web 22 文件 179 用例通过（Node 22.23.2）；文档核对：docs/services/web/ 已按本次改动改写

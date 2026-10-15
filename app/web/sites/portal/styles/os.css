@@ -311,8 +311,6 @@
 .is-phone .pt-win-backdrop {
   display: block; position: fixed; inset: 0; z-index: 20;
   background: rgb(15 23 42 / 38%);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   pointer-events: auto;
   animation: pt-win-fade-in .2s ease-out;
 }
@@ -357,7 +355,7 @@
 .is-phone .pt-win-bar {
   height: auto; min-height: 52px; padding: 2px 10px 8px; gap: 8px;
   grid-template-columns: auto minmax(0, 1fr) 44px; cursor: default;
-  align-items: center;
+  align-items: center; touch-action: none;
 }
 .is-phone .pt-win-bar b {
   font-size: 0.875rem; font-weight: 700; text-overflow: ellipsis;
@@ -383,9 +381,6 @@
   background: var(--pt-ice);
 }
 
-@media (max-width: 860px) {
-  .pt-win-lights { display: none; }
-}
 .is-phone .pt-win-body { flex: 1; min-height: 0; padding: 20px 16px; overflow-wrap: anywhere; }
 .is-phone .pt-about { grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .is-phone .pt-about img { width: 72px; height: 72px; }

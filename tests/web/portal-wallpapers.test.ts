@@ -1,14 +1,12 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import sharp from "../../app/server/node_modules/sharp";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_WALLPAPER, WALLPAPERS, canPrefetchWallpapers, resolveWallpaper, revealClipFrom, wallpaperForScreen, wallpaperPrefetchList } from "../../app/web/sites/portal/lib/wallpapers";
 
-const REPO = fileURLToPath(new URL("../..", import.meta.url)).replace(/[/\\]$/, "");
-const PUBLIC = join(REPO, "app/web/public");
+const REPO = new URL("../..", import.meta.url).pathname.replace(/\/$/, "");
+const PUBLIC = `${REPO}/app/web/public`;
 const ASSETS = "/app/web/sites/portal/assets/wallpapers/";
-const STYLES = fileURLToPath(new URL("../../app/web/sites/portal/styles", import.meta.url));
+const STYLES = new URL("../../app/web/sites/portal/styles", import.meta.url).pathname;
 
 describe("桌面壁纸", () => {
   it("每张壁纸另有独立竖图和竖屏缩略图，尺寸与体积满足手机预算", async () => {
@@ -18,9 +16,8 @@ describe("桌面壁纸", () => {
         const file = wallpaper.phone[key];
         expect(file.startsWith(ASSETS)).toBe(true);
         expect(file).not.toBe(wallpaper[key]);
-        const target = join(REPO, file.replace(/^[/\\]+/, ""));
-        expect(statSync(target).size).toBeLessThan(maxBytes);
-        const metadata = await sharp(target).metadata();
+        expect(statSync(`${REPO}${file}`).size).toBeLessThan(maxBytes);
+        const metadata = await sharp(`${REPO}${file}`).metadata();
         expect(metadata.height! / metadata.width!).toBeCloseTo(19.5 / 9, 1);
       }
     }
@@ -30,12 +27,12 @@ describe("桌面壁纸", () => {
     for (const wallpaper of WALLPAPERS) {
       for (const file of [wallpaper.image, wallpaper.thumb]) {
         // 测试里 import 的值是源文件相对仓库根的路径
-        const path = join(REPO, file.replace(/^[/\\]+/, ""));
+        const path = `${REPO}${file}`;
         expect(existsSync(path), file).toBe(true);
         expect(statSync(path).size, file).toBeLessThan(300e3);
       }
       // 缩略图是换壁纸时先顶上的占位，要小到打开面板就已经下好
-      expect(statSync(join(REPO, wallpaper.thumb.replace(/^[/\\]+/, ""))).size, wallpaper.thumb).toBeLessThan(20e3);
+      expect(statSync(`${REPO}${wallpaper.thumb}`).size, wallpaper.thumb).toBeLessThan(20e3);
     }
     expect(new Set(WALLPAPERS.map((wallpaper) => wallpaper.id)).size).toBe(WALLPAPERS.length);
   });
@@ -84,8 +81,8 @@ describe("换壁纸的动效与预取", () => {
   it("减少动态效果时全站把动画压成 .01ms，换壁纸的淡入和清晰过来保留原时长（不然旧层卸掉前根本看不到淡入）", () => {
     const strip = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
     // 被豁免的那条全局规则：一个类 + 通配符
-    expect(strip(readFileSync(join(STYLES, "portal.css"), "utf8"))).toMatch(/\.pt-root \*[^{]*\{[^}]*animation-duration: \.01ms !important;[^}]*transition-duration: \.01ms !important;/);
-    const reduced = strip(readFileSync(join(STYLES, "os.css"), "utf8"))
+    expect(strip(readFileSync(`${STYLES}/portal.css`, "utf8"))).toMatch(/\.pt-root \*[^{]*\{[^}]*animation-duration: \.01ms !important;[^}]*transition-duration: \.01ms !important;/);
+    const reduced = strip(readFileSync(`${STYLES}/os.css`, "utf8"))
       .split("@media (prefers-reduced-motion: reduce)")
       .slice(1)
       .map((part) => part.slice(0, part.indexOf("\n}")))
