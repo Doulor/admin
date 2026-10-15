@@ -43,6 +43,64 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
   const ref = useRef<HTMLElement>(null);
   const width = Math.min(meta.width, window.innerWidth - 24);
 
+  // 在移动端支持下滑手势关闭窗口（iOS Sheet 拖拽收起体验）
+  const touchStartY = useRef<number | null>(null);
+  const currentPullY = useRef<number>(0);
+
+  const onTouchStartSheet = (e: React.TouchEvent<HTMLElement>) => {
+    if (!phone) return;
+    if ((e.target as HTMLElement).closest("button")) return;
+    if (e.touches.length !== 1) return;
+    touchStartY.current = e.touches[0].clientY;
+    currentPullY.current = 0;
+  };
+
+  const onTouchMoveSheet = (e: React.TouchEvent<HTMLElement>) => {
+    if (!phone || touchStartY.current === null) return;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    if (dy > 0) {
+      currentPullY.current = dy;
+      if (ref.current) {
+        ref.current.style.transform = `translateY(${Math.min(dy, 240)}px)`;
+        ref.current.style.transition = "none";
+      }
+    } else {
+      currentPullY.current = 0;
+      if (ref.current) {
+        ref.current.style.transform = "";
+      }
+    }
+  };
+
+  const onTouchEndSheet = () => {
+    if (!phone || touchStartY.current === null) return;
+    const dy = currentPullY.current;
+    touchStartY.current = null;
+    currentPullY.current = 0;
+    if (ref.current) {
+      ref.current.style.transition = "transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)";
+    }
+    if (dy > 70) {
+      if (ref.current) ref.current.style.transform = "translateY(100%)";
+      window.setTimeout(() => {
+        onClose();
+        if (ref.current) ref.current.style.transform = "";
+      }, 180);
+    } else {
+      if (ref.current) ref.current.style.transform = "";
+    }
+  };
+
+  const onTouchCancelSheet = () => {
+    if (!phone || touchStartY.current === null) return;
+    touchStartY.current = null;
+    currentPullY.current = 0;
+    if (ref.current) {
+      ref.current.style.transition = "transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)";
+      ref.current.style.transform = "";
+    }
+  };
+
   useEffect(() => {
     if (ref.current) ref.current.inert = win.minimized || (phone && !front);
     if (!win.minimized && front) {
@@ -72,41 +130,81 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
 
   const cls = ["pt-win", front ? "is-front" : "", win.zoomed ? "is-zoomed" : "", win.minimized ? "is-min" : ""].filter(Boolean).join(" ");
   return (
-    <section
-      ref={ref}
-      className={cls}
-      role="dialog"
-      aria-label={meta.title}
-      hidden={win.minimized || (phone && !front)}
-      style={{ left: win.x, top: win.y, width, zIndex: win.z }}
-      onPointerDown={onFocus}
-    >
-      <header className="pt-win-bar" onPointerDown={startDrag} onDoubleClick={() => !phone && onZoom()}>
-        {phone ? <button type="button" className="pt-phone-back" aria-label="返回主屏幕" onClick={onMinimize}>
-          <Icon name="arrow-left-line" size={20} /> 主屏幕
-        </button> : <span className="pt-win-lights">
-          <button type="button" aria-label="关闭" onClick={onClose}>
-            <Icon name="close-line" size={10} />
-          </button>
-          <button type="button" aria-label="最小化" onClick={onMinimize}>
-            <Icon name="subtract-line" size={10} />
-          </button>
-          <button type="button" aria-label="放大" onClick={onZoom}>
-            <Icon name="fullscreen-line" size={9} />
-          </button>
-        </span>}
-        <b>
-          <Icon name={meta.icon} size={14} /> {meta.title}
-        </b>
-        {phone ? <button type="button" className="pt-phone-close" aria-label="关闭应用" onClick={onClose}><Icon name="close-line" size={20} /></button> : <span className="pt-win-path">{meta.path}</span>}
-      </header>
-      <div className="pt-win-body">
-        {win.id === "about" && <About onOpen={onOpen} />}
-        {win.id === "org" && <OrgChart />}
-        {win.id === "forum-feed" && <ForumFeed />}
-        {win.id === "terminal" && <Terminal onOpen={onOpen} apps={apps} />}
-      </div>
-    </section>
+    <>
+      {phone && front && !win.minimized && (
+        <div
+          className="pt-win-backdrop"
+          aria-hidden="true"
+          style={{ zIndex: win.z - 1 }}
+          onClick={onClose}
+        />
+      )}
+      <section
+        ref={ref}
+        className={cls}
+        role="dialog"
+        aria-label={meta.title}
+        hidden={win.minimized || (phone && !front)}
+        style={{ left: win.x, top: win.y, width, zIndex: win.z }}
+        onPointerDown={onFocus}
+      >
+        {phone && (
+          <div
+            className="pt-win-grabber-wrap"
+            onTouchStart={onTouchStartSheet}
+            onTouchMove={onTouchMoveSheet}
+            onTouchEnd={onTouchEndSheet}
+            onTouchCancel={onTouchCancelSheet}
+          >
+            <div className="pt-win-grabber" aria-hidden="true" />
+          </div>
+        )}
+        <header
+          className="pt-win-bar"
+          onPointerDown={startDrag}
+          onDoubleClick={() => !phone && onZoom()}
+          onTouchStart={onTouchStartSheet}
+          onTouchMove={onTouchMoveSheet}
+          onTouchEnd={onTouchEndSheet}
+          onTouchCancel={onTouchCancelSheet}
+        >
+          {phone ? (
+            <button type="button" className="pt-phone-back" aria-label="返回主屏幕" onClick={onMinimize}>
+              <Icon name="arrow-left-line" size={18} />
+              <span>主屏幕</span>
+            </button>
+          ) : (
+            <span className="pt-win-lights">
+              <button type="button" aria-label="关闭" onClick={onClose}>
+                <Icon name="close-line" size={10} />
+              </button>
+              <button type="button" aria-label="最小化" onClick={onMinimize}>
+                <Icon name="subtract-line" size={10} />
+              </button>
+              <button type="button" aria-label="放大" onClick={onZoom}>
+                <Icon name="fullscreen-line" size={9} />
+              </button>
+            </span>
+          )}
+          <b>
+            <Icon name={meta.icon} size={14} /> {meta.title}
+          </b>
+          {phone ? (
+            <button type="button" className="pt-phone-close" aria-label="关闭应用" onClick={onClose}>
+              <Icon name="close-line" size={18} />
+            </button>
+          ) : (
+            <span className="pt-win-path">{meta.path}</span>
+          )}
+        </header>
+        <div className="pt-win-body">
+          {win.id === "about" && <About onOpen={onOpen} />}
+          {win.id === "org" && <OrgChart />}
+          {win.id === "forum-feed" && <ForumFeed />}
+          {win.id === "terminal" && <Terminal onOpen={onOpen} apps={apps} />}
+        </div>
+      </section>
+    </>
   );
 }
 
