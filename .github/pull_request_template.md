@@ -10,6 +10,7 @@ PR 正文契约：docs/conventions/PULL-REQUESTS.md。CI 的 pr-contract 检查�
 
 ### 关联
 Closes #<!-- issue 号，必须与分支名 task/<issue>/<slug> 一致 -->
+<!-- PR 的「组:类」标签（ui:* / func:* / infra:*）要覆盖这个 issue 的标签，在右侧 Labels 里加；规则见 docs/conventions/ISSUES.md §2。 -->
 <!-- 相关但不由本 PR 关闭的 issue / PR 用 Refs #n；依赖的 PR 写 Depends on #n。 -->
 
 ### 变更范围
@@ -25,14 +26,18 @@ Closes #<!-- issue 号，必须与分支名 task/<issue>/<slug> 一致 -->
 -->
 
 ### 验证命令与结果
-<!-- 实际跑过的命令 + 真实输出摘要（pnpm verify、pnpm test:e2e……）。失败、跳过、未验证的项逐条列出。 -->
+<!--
+实际跑过的命令 + 真实输出摘要（pnpm verify、pnpm test:e2e……）。失败、跳过、未验证的项逐条列出。
+关联 issue 带 func:* 标签时必须有：接口测试命令与真实输出，加对真实接口的请求（方法 + 路径，如 POST /api/forum/topics）、状态码或 requestId。
+没有接口变化写：无接口变更：<理由>
+-->
 
 ### 验收证据
 <!--
 界面改动：改前 / 改后截图（桌面与手机各一），动画用逐帧拼图或录屏（mp4 / gif 直接拖进 GitHub 编辑框上传）。
 每个证据写编号、尺寸 / 设备、对应的验收点，例如：
 证据 1｜1440×900 Chrome｜开机画面不透出桌面｜![](https://github.com/.../assets/...)
-没有界面变化时写：无界面变化：<理由>
+没有界面变化时写：无界面变化：<理由>（关联 issue 带 ui:* 标签时不接受，必须放改前改后截图）
 -->
 
 ### 人工验收步骤
