@@ -2,7 +2,7 @@
 
 > 公开官网：3D 书桌与 YUGC OS 桌面、加入我们（信封场景）、论坛与 GitHub 场景、文档、意见箱和邀请落地；不自建登录，菜单栏显示全站 GitHub 登录的账号或登录入口。
 
-状态：`current` · 更新：2026-10-15
+状态：`current` · 更新：2026-10-16
 
 ## 范围与路由
 
@@ -127,7 +127,7 @@ three.js 只通过各页面里的 `import("../three/<scene>")` 进入，不在�
 - **出错时**（#110）：播放层分包加载失败（断网、发版后旧页面找不到新文件名）按「加载失败」直接结束（`components/PromoLazy.tsx`），不让官网跟着卸载；失败只影响这一次打开，下次打开重新加载分包，网络恢复后照常能播。失败的那个要等失败真正显示出来（`PromoUnavailable` 挂上）才换新的：直接打开 `/join-us` 时播放层和外面的页面可能一起还没提交，React 等分包时会丢掉没提交的渲染重来，在 `LazyPromoPlayer` 初始化里换的话同一次打开会多加载几遍、把重试地址用光。加载中就关掉（gate 遮罩上点了跳过）、之后分包才失败时没人会把失败显示出来：`LazyPromoPlayer` 关掉时记下，失败一到就换新的，不会让下一次打开（比如桌面「宣传片」重看）一打开就按失败关掉。浏览器会记住加载失败的模块地址（Chrome、Firefox 按 HTML 规范如此，桌面预取时断网失败也算），同一地址再 import 不发请求直接失败，所以播放层和 hls.js 分包各写死原地址加 3 个 `?retry=n` 地址（`lib/promo.ts` 的 `retryableImport`）：生产构建把每个打成文件名不同的分包（`PromoPlayer` 约 5KB、`hls.light` 约 372KB 各多 3 份，只在重来时下载），原地址失败时马上换下一个试一次，之后每次重来换一个，用完停在最后一个，要刷新页面才会再从头来；换地址只以生产构建为准。边界检查不许非字面量 import、CSP 不许 eval，所以只能是有限个写死的地址。播放层样式 `styles/promo.css` 跟官网主包由 `PromoLazy.tsx` 引入，不跟播放层分包：Vite 的分包预加载把失败过的样式表记为已加载、不再重试。`play()` 被拒时，`NotSupportedError`（片源放不了）按加载失败结束；其他原因（如 `AbortError`）gate 按加载失败结束（不记看过，下次再试），replay 停在封面等点画面；起播过程中意外抛错按加载失败结束一次。
 - **起播预取**：桌面出现、这个浏览器还没看过宣传片、没开省流量时，先 preconnect CDN，空闲时预取「加入我们」页、播放器、hls.js 分包，以及起播那一档（与播放器同一个 `startLevelIndex`）的 master、播放列表、初始化段与第一个分片。点「加入我们」后这些都从缓存来。
 - **CDN 预取**：CDN 边缘节点第一次被请求时回源（2026-09-26 实测五档 135 个分片几乎全是 `x-qnm-cache: Miss`，TTFB 0.33–0.48s；第二次请求变 `Hit`）。换片子上传后，用片子目录的 `node scripts/qiniu-promo.mjs prefetch` 让七牛预取两个 master、每档播放列表、初始化段与前 3 个分片和封面（44 个地址，七牛每天限额 100）。实测预取任务成功后边缘节点第一次请求仍是 `Miss`（七牛预取的是上层缓存），TTFB 降到 0.25–0.33s，改善有限；弱网能播主要靠低档位与缓冲。
-- **CSP 与防盗链**：宿主 nginx 的站点策略 `media-src` 与 `connect-src` 放行 `https://cdn.crosery.com`（见 [DEPLOY](../../ops/DEPLOY.md)）；CDN 按 Referer 只放行本站域名、`localhost` 与空 Referer，**本机开发要用 `http://localhost:5173` 打开**，用 `127.0.0.1` 时 CDN 返回 403，播放层按「加载失败」直接放行到信纸。
+- **CSP 与防盗链**：宿主 nginx 的站点策略 `media-src` 与 `connect-src` 放行 `https://cdn.crosery.com`，`connect-src` 另放行 `blob:`（手机模型的内嵌贴图由 `GLTFLoader` 经 `blob:` 地址读取，没有它贴图会被 CSP 拦下，#240；见 [DEPLOY](../../ops/DEPLOY.md)）；CDN 按 Referer 只放行本站域名、`localhost` 与空 Referer，**本机开发要用 `http://localhost:5173` 打开**，用 `127.0.0.1` 时 CDN 返回 403，播放层按「加载失败」直接放行到信纸。
 - **弱网实测**（#103，2026-09-26，ego-browser 内置 Chromium 模拟手机竖屏触屏，开发构建在 `localhost`，本页禁用缓存，CDP 限速 450kbps / RTT 400ms）：从请求 master 到第一帧 3.7 秒（360p 起播），之后降到 240p 连续播放，30 秒内起播后没有再卡，缓冲从 3.7 秒涨到 18.7 秒。改之前手机从 480p 以上起播，同样条件下首帧约 30 秒。
 - **2026-09-26 实测**（#77；ego-browser 内置 Chromium，M4 Pro，生产构建在 `localhost` 上，CDP 限速 Fast 4G = 9 Mbps / RTT 150ms）：在桌面停留、预取完成后按 1 打开「加入我们」，从按键到第一帧 587–628ms（三次，含 520ms 图标飞行动画），AV1，带声音。刚到桌面就立刻点（预取没做完）或直接打开 `/join-us`：播放层出现后 1.7–2.1s 出第一帧；Slow 4G（1.6 Mbps / RTT 560ms）约 8s。Safari（macOS、iOS）与微信内置浏览器未测。
 
