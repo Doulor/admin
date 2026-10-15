@@ -6,6 +6,7 @@ import { TxButton } from "@talex-touch/tuffex/button";
 import { TxAlert } from "@talex-touch/tuffex/alert";
 import logoUrl from "../assets/logo.png";
 import { isMock, signInHref, siteUrl } from "../lib/runtime";
+import { parseSignInOutcome, type OutcomeAction } from "../lib/signin";
 
 /** 未登录：只有一个 GitHub 登录按钮。登录后回到原来要去的控制台页面。 */
 const route = useRoute();
@@ -16,19 +17,14 @@ const returnPath = computed(() => {
 const href = computed(() => signInHref(`${window.location.origin}${returnPath.value}`));
 const signedOut = computed(() => route.query.signed_out === "1");
 
-/** 登录没成功的原因，由核心服务回跳时带上（见 app/server/src/routes/admin/auth.ts 的 SigninOutcome） */
-const OUTCOMES: Record<string, { type: "warning" | "info"; title: string; body?: string }> = {
-  not_member: { type: "warning", title: "只有极客班成员可以登录", body: "这个 GitHub 账号不在极客班的 GitHub 组织里，控制台只对成员开放。" },
-  invite_pending: { type: "warning", title: "还没接受组织邀请", body: "到 GitHub 的通知或邮件里接受极客班组织的邀请，再回来登录。" },
-  cancelled: { type: "info", title: "已取消登录" },
-  failed: { type: "warning", title: "登录没有完成", body: "请稍后再试一次。" },
-};
-const outcome = computed(() => {
-  const raw = route.query.signin;
-  return typeof raw === "string" ? OUTCOMES[raw] ?? null : null;
-});
+const outcome = computed(() => parseSignInOutcome(route.query.signin));
 const portal = siteUrl("portal", "/");
 const signIn = () => window.location.assign(href.value);
+const goPortal = () => window.location.assign(portal);
+const followAction = (action: OutcomeAction) => {
+  if (action.target === "_blank") window.open(action.href, "_blank", "noopener,noreferrer");
+  else window.location.assign(action.href);
+};
 </script>
 
 <template>
@@ -45,7 +41,12 @@ const signIn = () => window.location.assign(href.value);
         当前是样板数据，登录按钮会连到本地后端。要看登录后的页面，去掉地址里的 __persona=signed_out。
       </TxAlert>
       <TxButton variant="primary" size="lg" icon="i-carbon-logo-github" block @click="signIn">用 GitHub 登录</TxButton>
-      <a :href="portal" class="signin__back">回到官网</a>
+      <div class="signin__more" :class="{ 'signin__more--pair': outcome?.action }">
+        <TxButton v-if="outcome?.action" variant="secondary" :icon="outcome.action.icon" block @click="followAction(outcome.action)">
+          {{ outcome.action.label }}
+        </TxButton>
+        <TxButton variant="secondary" icon="i-carbon-arrow-left" block @click="goPortal">回到官网</TxButton>
+      </div>
     </TxCard>
   </div>
 </template>
@@ -80,9 +81,17 @@ const signIn = () => window.location.assign(href.value);
   margin-bottom: 16px;
   text-align: left;
 }
-.signin__back {
-  display: inline-block;
-  margin: 16px 0 8px;
-  font-size: 13px;
+.signin__more {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.signin__more--pair {
+  grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 440px) {
+  .signin__more--pair {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
