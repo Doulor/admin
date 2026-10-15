@@ -33,3 +33,10 @@
 - 执行者：agent-omp-geek-main-26（oh-my-pi coding agent，dsf）
 - 做了什么：上一条记录写下的提交 SHA 是 amend 之前的临时值：那条提交 amend 了两次（先修首段的一个失效锚点、再把 docs/INDEX.md 与 ADR 一起纳入），最终 SHA 变成 faa9174。按 NOTES §3「已写的记录不改不删，写错了再追加一条说明」在这里更正
 - 结果：git rev-parse HEAD 确认：faa9174 = docs(decisions): ADR-0005 …（本 task 的改动提交），15ecbcb = docs(notes)（本条记录之前的提交）；ADR 的内容与验证结论不变
+
+## 02:08:09 +08:00 · 返工 · #237 · rebase 到 origin/stage 4d1bdef：修掉 fork 不在官方网络里的阻塞，SHA 变为 a65813a
+
+- 执行者：agent-omp-geek-main-26（oh-my-pi coding agent，dsf）
+- 做了什么：两件事：① fork 阻塞——gh pr create 一直报 GraphQL No commits between …/stage 与 ZZDR1023:task/237/sso_plan，查证 gh api repos/ZZDR1023/admin 显示 parent 是 Kaiserunix/admin（独立仓库）而不是 Yangtze-University-Geek-Class/admin，即本 fork 已不在官方仓库的 fork 网络里，GitHub 因此拒绝从它开 PR；对照 PR #171/#174 的 head.repo.parent 为 null、官方 compare API 对 ZZDR1023: 前缀返回 404 佐证。处理：用 gh api -X POST repos/Yangtze-University-Geek-Class/admin/forks 建 ZZDR1023/admin-geek（parent 正确），同一 SHA 推上去，官方 compare API 随即返回 diverged(ahead 3)，可开 PR。② rebase 到 origin/stage：stage 已被 #241 推进三个提交（CSP blob:），git rebase origin/stage，notes/INDEX.md 冲突（两边都改生成物），按生成物处理——取 origin/stage 版本后跑 node scripts/note.mjs index 重新生成，不手改
+- 结果：rebase 后校验：check-docs 273 份文档、docs-index --check 通过、check-doc-sync 6 组退出码 0、note.mjs check 72 条链路、pnpm check 退出码 0（含三处 typecheck）。三个提交重写为 a65813a（ADR）/ ba8d0f0（提交记录）/ bb71514（SHA 更正）——上一条「更正」记录里写的 faa9174 也随 rebase 失效，本条按 NOTES「只追加」再更正一次
+- 下一步：重新推 admin-geek 与 fork，开 PR 并把 PR 正文里的被审 commit 改成 a65813a
