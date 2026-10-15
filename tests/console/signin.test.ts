@@ -10,6 +10,7 @@ describe("登录结果提示与行动点解析 (signin)", () => {
     expect(outcome?.body).toContain("不在极客班的 GitHub 组织里");
     expect(outcome?.action).toEqual({
       label: "申请加入极客班",
+      icon: "i-carbon-email",
       href: expect.stringContaining("/join-us"),
     });
   });
@@ -21,7 +22,8 @@ describe("登录结果提示与行动点解析 (signin)", () => {
     expect(outcome?.title).toBe("还没接受组织邀请");
     expect(outcome?.body).toContain("接受极客班组织的邀请");
     expect(outcome?.action).toEqual({
-      label: "前往 GitHub 接受组织邀请",
+      label: "前往 GitHub 接受邀请",
+      icon: "i-carbon-launch",
       href: GITHUB_INVITATION_URL,
       target: "_blank",
     });
