@@ -187,13 +187,14 @@ describe("推送前检查：该清理的 worktree（list --check 与 pre-push）
 });
 
 describe("task.mjs start 的提单检查", () => {
-  it("没有「组:类」标签、ui 缺截图的 issue 不能开工；读不到时放行", async () => {
+  it("没有「组:类」标签、ui 缺截图、带 needs-evidence 的 issue 不能开工；detail 为空拒绝", async () => {
     const { startGate } = await import("../../scripts/task.mjs");
     expect(startGate({ number: 300, labels: [{ name: "portal" }], body: "x" }).ok).toBe(false);
     expect(startGate({ number: 300, labels: [{ name: "ui:layout" }], body: "手机溢出" }).errors[0]).toContain("截图");
     expect(startGate({ number: 300, labels: [{ name: "ui:layout" }], body: "![a](https://github.com/o/r/assets/1/a.png)" }).ok).toBe(true);
     expect(startGate({ number: 300, labels: [{ name: "infra:ci" }], body: "改工作流" }).ok).toBe(true);
+    expect(startGate({ number: 300, labels: [{ name: "infra:ci" }, { name: "needs-evidence" }], body: "改工作流" }).ok).toBe(false);
     expect(startGate({ number: 12, labels: [], body: "" }).ok).toBe(true);
-    expect(startGate(null)).toMatchObject({ ok: true, unknown: true });
+    expect(startGate(null)).toMatchObject({ ok: false, unknown: true });
   });
 });

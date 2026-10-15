@@ -21,7 +21,7 @@ export const TASK_BRANCH_RE = /^task\/([0-9]+)\/[a-z0-9]+(?:_[a-z0-9]+)*$/;
 export const REQUIRED_SECTIONS = ["目的", "关联", "变更范围", "解决链路", "验证命令与结果", "验收证据", "人工验收步骤", "审查结论", "风险与回滚"];
 
 /** 验收证据里算作「证据」的东西：图片、视频、GitHub 附件链接、或明确写出的「无界面变化」理由 */
-const EVIDENCE_RE = /!\[[^\]]*\]\([^)]+\)|<img\s[^>]*src=|<video\s|https:\/\/github\.com\/[^\s)]+\/(?:assets|files)\/|https:\/\/user-images\.githubusercontent\.com\/|\.(?:png|jpe?g|webp|gif|mp4|webm|mov)\b|无界面变化[:：]/i;
+const EVIDENCE_RE = /!\[[^\]]*\]\((?:https?:\/\/|\/)[^)]+\)|<(?:img|video)\s[^>]*src=["']?(?:https?:\/\/|\/)[^"'>\s]+|https:\/\/(?:github\.com\/[^\s)]+\/(?:assets|files)\/|user-images\.githubusercontent\.com\/|github-production-user-asset-[^\s)]+)|无界面变化[:：]/i;
 
 /** 把正文按 `### 标题` 切成段落；标题里括号及之后的说明去掉，只留名字 */
 export function sections(body) {
@@ -84,7 +84,9 @@ export function checkPullRequest({ branch, body, labels = [], issue = null }) {
   if (issue) {
     if (number !== null && issue.number !== number) errors.push(`取回的 issue 是 #${issue.number}，与分支里的 #${number} 不一致。`);
     else if (String(issue.state).toUpperCase() !== "OPEN") errors.push(`issue #${issue.number} 已经关闭：先重新打开它（或新开一个 issue 并改分支名），再提 PR。`);
-    if (issue.labels && issue.number >= TYPE_LABEL_SINCE) errors.push(...checkPrTypes({ issueLabels: issue.labels, prLabels: labels, parts }));
+  }
+  if (number !== null && number >= TYPE_LABEL_SINCE) {
+    errors.push(...checkPrTypes({ issueLabels: issue?.labels ?? [], prLabels: labels, parts, issueNumber: number }));
   }
   return { ok: errors.length === 0, errors, issue: number };
 }

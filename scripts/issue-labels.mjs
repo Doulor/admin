@@ -74,7 +74,7 @@ export function groupsOf(labels) {
 }
 
 /** 截图、录屏、GitHub 附件链接 */
-export const IMAGE_RE = /!\[[^\]]*\]\([^)]+\)|<img\s[^>]*src=|<video\s|https:\/\/github\.com\/[^\s)]+\/(?:assets|files)\/|https:\/\/user-images\.githubusercontent\.com\/|\.(?:png|jpe?g|webp|gif|mp4|webm|mov)\b/i;
+export const IMAGE_RE = /!\[[^\]]*\]\((?:https?:\/\/|\/)[^)]+\)|<(?:img|video)\s[^>]*src=["']?(?:https?:\/\/|\/)[^"'>\s]+|https:\/\/(?:github\.com\/[^\s)]+\/(?:assets|files)\/|user-images\.githubusercontent\.com\/|github-production-user-asset-[^\s)]+)/i;
 
 /** 「无接口变更：<理由>」，理由要有实际文字 */
 export const NO_API_RE = /无接口变更[:：]\s*[^\s<>，。,.:：]/;
@@ -120,14 +120,18 @@ export function labelsFromForm(body) {
  */
 export function checkIssue({ number, labels, body }) {
   const errors = [];
+  const labelNames = (labels ?? []).map((l) => (typeof l === "string" ? l : l?.name)).filter(Boolean);
+  if (labelNames.includes(NEEDS_EVIDENCE_LABEL)) {
+    errors.push("issue 带有 needs-evidence 标签：证据或标签尚未补齐，不得开工。");
+  }
   const groups = groupsOf(labels);
-  if (number < TYPE_LABEL_SINCE) return { ok: true, errors, groups };
+  if (number < TYPE_LABEL_SINCE) return { ok: errors.length === 0, errors, groups };
   if (groups.size === 0) {
     errors.push(`缺少改动类型标签：从 ${TYPE_LABELS.join("、")} 里至少选一个（跨类就都选）。`);
     return { ok: false, errors, groups };
   }
   if (groups.has("ui") && !IMAGE_RE.test(visible(body))) {
-    errors.push("带 ui:* 标签的 issue 正文必须有现状截图（直接拖进编辑框上传，注明视口与设备），没有截图不得开工。");
+    errors.push("带 ui:* 标签的 issue 正文必须有现状截图（上传至 GitHub 附件或以 Markdown 图片语法提供，不接受裸文件名），没有截图不得开工。");
   }
   if (groups.has("func")) {
     const section = formSection(body, "涉及接口");
@@ -143,24 +147,41 @@ export function checkIssue({ number, labels, body }) {
  * parts 是 pr-contract 的 sections() 结果。
  * @param {{ issueLabels: Array<string | { name: string }>, prLabels: Array<string | { name: string }>, parts: Map<string, string> }} input
  */
-export function checkPrTypes({ issueLabels, prLabels, parts }) {
+export function checkPrTypes({ issueLabels = [], prLabels = [], parts, issueNumber = null }) {
   const errors = [];
   const required = typeLabels(issueLabels);
-  if (required.length === 0) return errors;
   const have = typeLabels(prLabels);
-  const missing = required.filter((name) => !have.includes(name));
-  if (missing.length) errors.push(`PR 缺少改动类型标签 ${missing.join("、")}：PR 的标签要覆盖它 Closes 的 issue 的标签。`);
-  const groups = groupsOf(issueLabels);
-  const evidence = visible(parts.get("验收证据") ?? "");
-  if (groups.has("ui")) {
-    if (/无界面变化/.test(evidence) && !IMAGE_RE.test(evidence)) errors.push("关联的 issue 带 ui:* 标签，「验收证据」不能写「无界面变化」，要放改前改后截图（桌面与手机各一）。");
-    else if (!IMAGE_RE.test(evidence)) errors.push("关联的 issue 带 ui:* 标签，「验收证据」里没有截图。");
+  if (have.length === 0) {
+    errors.push(`PR 缺少改动类型标签：必须从 ${TYPE_LABELS.join("、")} 里至少选一个（跨类就都选）。`);
   }
-  if (groups.has("func")) {
+  const missing = required.filter((name) => !have.includes(name));
+  if (missing.length) {
+    errors.push(`PR 缺少改动类型标签 ${missing.join("、")}：PR 的标签要覆盖它 Closes 的 issue 的标签。`);
+  }
+  const combinedGroups = new Set([...groupsOf(issueLabels), ...groupsOf(prLabels)]);
+  if (combinedGroups.size === 0) return errors;
+
+  const evidence = visible(parts.get("验收证据") ?? "");
+  if (combinedGroups.has("ui")) {
+    if (/无界面变化/.test(evidence)) {
+      errors.push("关联或自身带 ui:* 标签的 PR，「验收证据」不能写「无界面变化」，必须提供改前改后截图（桌面与手机各一）。");
+    } else if (!IMAGE_RE.test(evidence)) {
+      errors.push("带 ui:* 标签的 PR，「验收证据」里没有有效截图（需为 GitHub 附件链接或 Markdown 图片格式，不接受裸文件名）。");
+    } else {
+      const hasBefore = /改前|before/i.test(evidence);
+      const hasAfter = /改后|after/i.test(evidence);
+      const imageMatches = evidence.match(new RegExp(IMAGE_RE.source, "gi")) || [];
+      if ((!hasBefore || !hasAfter) && imageMatches.length < 2) {
+        errors.push("带 ui:* 标签的 PR，「验收证据」需明确包含改前与改后两组证据截图。");
+      }
+    }
+  }
+
+  if (combinedGroups.has("func")) {
     const verify = visible(parts.get("验证命令与结果") ?? "");
     const proven = TEST_RUN_RE.test(verify) && METHOD_PATH_RE.test(verify) && STATUS_RE.test(verify);
     if (!proven && !NO_API_RE.test(verify)) {
-      errors.push("关联的 issue 带 func:* 标签，「验证命令与结果」要有接口测试命令与真实输出，以及对真实接口的请求（方法 + 路径）、状态码或 requestId；确实没有接口变化写「无接口变更：<理由>」。");
+      errors.push("关联或自身带 func:* 标签的 PR，「验证命令与结果」要有接口测试命令与真实输出，以及对真实接口的请求（方法 + 路径）、状态码或 requestId；确实没有接口变化写「无接口变更：<理由>」。");
     }
   }
   return errors;
@@ -216,16 +237,27 @@ const WORD_WEIGHT = 3;
 export function findSimilar(target, candidates, { limit = 5, minWeight = 4 } = {}) {
   const mine = titleTokens(target.title);
   const prefix = /^([^：:]{1,12})[：:]/.exec(String(target.title ?? ""))?.[1];
+  const rawTargetTitle = String(target.title ?? "").replace(/^[^：:]{1,12}[：:]/, "").trim();
   const mentioned = new Set([...String(target.body ?? "").matchAll(/#([0-9]+)/g)].map((m) => Number(m[1])));
   const scored = [];
   for (const other of candidates) {
     if (other.number === target.number) continue;
+    const rawOtherTitle = String(other.title ?? "").replace(/^[^：:]{1,12}[：:]/, "").trim();
+    const isExactTitle = Boolean(rawTargetTitle && rawTargetTitle === rawOtherTitle);
     const theirs = titleTokens(other.title);
     let score = 0;
     for (const token of mine) if (theirs.has(token)) score += /^[a-z0-9_]+$/.test(token) ? WORD_WEIGHT : 1;
     if (score > 0 && prefix && String(other.title ?? "").startsWith(`${prefix}：`)) score += 1;
     const linked = mentioned.has(other.number);
-    if (score >= minWeight || linked) scored.push({ number: other.number, title: other.title, state: other.state, score, linked });
+    if (isExactTitle || score >= minWeight || linked) {
+      scored.push({
+        number: other.number,
+        title: other.title,
+        state: other.state,
+        score: isExactTitle ? Math.max(score, 100) : score,
+        linked,
+      });
+    }
   }
   return scored.sort((a, b) => Number(b.linked) - Number(a.linked) || b.score - a.score).slice(0, limit);
 }

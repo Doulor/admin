@@ -30,7 +30,7 @@ AI 先执行 [AGENT-START](AGENT-START.md) 的阅读门禁，不能先运行下�
 
 运行根 `pnpm verify`（其中 `check:notes` 核对执行记录）；影响浏览器行为时跑 `pnpm test:e2e`。审阅 diff，补文档，确认无密钥、真实数据或编译产物。失败和未验证项如实写入 MR，不能只截取部分成功输出。改动触及标题/摘要/路径时重新生成文档索引（`pnpm docs:index`）。
 
-提交遵循 [COMMITS](COMMITS.md)，审查按 [CODE-REVIEW](CODE-REVIEW.md) 逐项过一遍并把结论写进 MR，MR 字段要求见 [PULL-REQUESTS](PULL-REQUESTS.md)。提交、push、合并、部署分别需要对应授权；**所有将 PR 合入 stage 的合并操作必须由 Crosery 亲自执行**，Agent 与其他协作者禁止自行合并；要求改代码不等于要求自动发布。
+提交遵循 [COMMITS](COMMITS.md)，审查按 [CODE-REVIEW](CODE-REVIEW.md) 逐项过一遍并把结论写进 MR，MR 字段要求见 [PULL-REQUESTS](PULL-REQUESTS.md)。提交、push、合并、部署分别需要对应授权；要求改代码不等于要求自动发布。
 
 ## 数据与运维
 

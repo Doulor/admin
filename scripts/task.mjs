@@ -18,7 +18,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
-import { checkIssue } from "./issue-labels.mjs";
+import { TYPE_LABEL_SINCE, checkIssue } from "./issue-labels.mjs";
 import { addNote, branchSlug, BY_RE, collectChains, flushPending, PENDING_DIR, renderIndex, USER_RE } from "./note.mjs";
 
 /** task/<issue>/<slug>：与 check-branch-invariants.mjs、pr-contract.mjs 同一条规则 */
@@ -184,7 +184,7 @@ export function finishTitle(pr, issue) {
  * detail 是 `gh issue view --json number,labels,body` 的结果；读不到时返回 { ok: true, unknown: true }，只警告不拦。
  */
 export function startGate(detail) {
-  if (!detail || typeof detail.number !== "number") return { ok: true, errors: [], unknown: true };
+  if (!detail || typeof detail.number !== "number") return { ok: false, errors: ["无法确认 issue 详情与标签，拒绝开工"], unknown: true };
   return { ...checkIssue({ number: detail.number, labels: detail.labels, body: detail.body }), unknown: false };
 }
 
@@ -203,9 +203,14 @@ async function start(issue, slug, flags = {}) {
   const path = worktreePath(root, issue);
   const state = await issueState(issue);
   if (state !== "OPEN") throw new Error(`issue #${issue} ${state ? `状态是 ${state}` : "查不到"}：先开 issue（docs/conventions/ISSUES.md），再建 task。`);
-  const gate = startGate(await issueDetail(issue));
-  if (gate.unknown) console.warn(`警告：没读到 issue #${issue} 的标签和正文，跳过提单检查（离线或 gh 不可用）。`);
-  else if (!gate.ok) throw new Error(`issue #${issue} 还不能开工：\n${gate.errors.map((e) => `- ${e}`).join("\n")}\n补齐后再运行 start。`);
+  const detail = await issueDetail(issue);
+  const gate = startGate(detail);
+  if (Number(issue) >= TYPE_LABEL_SINCE && gate.unknown) {
+    throw new Error(`无法获取 issue #${issue} 的标签和详情，无法验证提单门禁；请确认网络和 gh 登录状态。`);
+  } else if (!gate.ok && !gate.unknown) {
+    const errText = gate.errors.map((e) => `- ${e}`).join("\n");
+    throw new Error(`issue #${issue} 还不能开工：\n${errText}\n补齐后再运行 start。`);
+  }
   if (existsSync(path)) throw new Error(`${relative(root, path)} 已经存在：一个 issue 只有一个 worktree，直接进去继续做。`);
   const existing = taskWorktrees(root).find((wt) => wt.issue === Number(issue));
   if (existing) throw new Error(`issue #${issue} 已经有 worktree：${existing.path}（分支 ${existing.branch}）。`);

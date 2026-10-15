@@ -37,8 +37,10 @@ describe("issue 检查", () => {
     expect(result.errors[0]).toContain("缺少改动类型标签");
   });
 
-  it("ui 要截图，写了文字没有图不行", () => {
+  it("ui 要截图，写了文字没有图不行；裸文件名与本机路径必须拒绝", () => {
     expect(checkIssue({ number: 300, labels: ["ui:layout"], body: "手机上溢出了" }).ok).toBe(false);
+    expect(checkIssue({ number: 300, labels: ["ui:layout"], body: "截图为 portal-phone-sheet.png 未上传" }).ok).toBe(false);
+    expect(checkIssue({ number: 300, labels: ["ui:layout"], body: "截图在 /tmp/sheet.png" }).ok).toBe(false);
     expect(checkIssue({ number: 300, labels: ["ui:layout"], body: `手机上溢出了 ${shot}` }).ok).toBe(true);
     expect(checkIssue({ number: 300, labels: ["ui:layout"], body: "<!-- ![x](a.png) -->没有图" }).ok).toBe(false);
   });
@@ -78,6 +80,11 @@ describe("相似 issue", () => {
   it("不把自己算进去", () => {
     expect(findSimilar({ number: 206, title: others[0].title, body: "" }, others).every((h: { number: number }) => h.number !== 206)).toBe(true);
   });
+  it("短标题完全相同一定命中", () => {
+    const list = [{ number: 99, title: "portal：分页", state: "CLOSED" }];
+    const hits = findSimilar({ number: 100, title: "portal：分页", body: "" }, list);
+    expect(hits.map((h: { number: number }) => h.number)).toContain(99);
+  });
 });
 
 describe("PR 与标签", () => {
@@ -99,10 +106,15 @@ describe("PR 与标签", () => {
     const result = run(["infra:ci", "func:api"], ["infra:ci"], { 验证命令与结果: "无接口变更：只改文档说明" });
     expect(result.errors.join()).toContain("func:api");
   });
-  it("ui：不接受无界面变化，也不接受没有图", () => {
+  it("ui：不接受无界面变化、裸文件名；必须具备改前改后两组证据", () => {
     expect(run(["ui:layout"], ["ui:layout"]).errors.join()).toContain("不能写「无界面变化」");
-    expect(run(["ui:layout"], ["ui:layout"], { 验收证据: "改前改后见群里" }).errors.join()).toContain("没有截图");
+    expect(run(["ui:layout"], ["ui:layout"], { 验收证据: "portal-phone-sheet.png" }).errors.join()).toContain("没有有效截图");
+    expect(run(["ui:layout"], ["ui:layout"], { 验收证据: "无界面变化：只改脚本 /tmp/before.png" }).errors.join()).toContain("不能写「无界面变化」");
+    expect(run(["ui:layout"], ["ui:layout"], { 验收证据: `只有一张改后图片 ${shot}` }).errors.join()).toContain("改前与改后两组证据");
     expect(run(["ui:layout"], ["ui:layout"], { 验收证据: `改前 ${shot} 改后 ${shot}` }).ok).toBe(true);
+  });
+  it("PR 自身没有类型标签时不通过", () => {
+    expect(run(["ui:layout"], []).errors.join()).toContain("PR 缺少改动类型标签");
   });
   it("func：要接口测试命令、方法路径和状态码；或写无接口变更的理由", () => {
     expect(run(["func:api"], ["func:api"]).ok).toBe(false);
@@ -114,8 +126,8 @@ describe("PR 与标签", () => {
     const result = checkPullRequest({ branch: "task/32/x", body: sections({ 关联: "Closes #32" }), labels: [], issue: { number: 32, state: "OPEN", labels: ["ui:layout"] } });
     expect(result.ok).toBe(true);
   });
-  it("没有取到 issue 标签时只做文本检查", () => {
-    expect(checkPullRequest({ branch: "task/300/x", body: sections(), issue: { number: 300, state: "OPEN" } }).ok).toBe(true);
+  it("没有取到 issue 标签但 PR 声明了自身标签时通过", () => {
+    expect(checkPullRequest({ branch: "task/300/x", body: sections(), labels: ["infra:ci"], issue: { number: 300, state: "OPEN" } }).ok).toBe(true);
   });
 });
 
