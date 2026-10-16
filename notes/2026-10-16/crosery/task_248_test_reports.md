@@ -49,3 +49,9 @@
 - 执行者：agent-claude-geek-248
 - 做了什么：本机重跑 13 个失败：#206 手机三条红是真 bug——#233 后 .is-phone .pt-win 的 display:flex 与 .pt-win[hidden] 同权重且写在后，盖掉 hidden，收起的窗口仍显示（截图为证），补 .is-phone .pt-win[hidden]{display:none}；1440 笔记本一条读 desk-phone 为 undefined，因 c38e2aaf 手机模型按需加载，用例改成 ?.visible；其余在本机能过、CI 上超时，加 E2E_TIMEOUT_SCALE 放大超时；test-report 恢复 PR 触发。本机负载 80，本机耗时只作参考。文档核对：docs/services/web/README.md 不用改——只补一条 CSS 规则，页面行为与文档描述一致
 - 结果：待 CI 复核剩余失败
+
+## 22:07:34 +08:00 · 开发 · #248 · 补文档核对记录
+
+- 执行者：agent-claude-geek-248
+- 做了什么：文档核对：docs/services/web/ 不用改——只给 os.css 补一条 .is-phone .pt-win[hidden]{display:none}，让已有的「收起的手机窗口不显示」行为生效，服务文档没有描述这条样式细节
+- 结果：check-doc-sync 复核
