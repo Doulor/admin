@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { SLOW } from "../../playwright.config";
 import type { Stage } from "../../app/web/sites/portal/three/stage";
 
 test.beforeEach(async ({ page, context }) => {
@@ -14,11 +15,11 @@ test.beforeEach(async ({ page, context }) => {
 
 async function idle(page: Page) {
   await page.goto("/sites/portal/");
-  await expect(page.locator(".pt-home")).toHaveAttribute("data-state", "idle", { timeout: 20_000 });
-  await expect(page.locator(".pt-loader")).toHaveCount(0, { timeout: 20_000 });
+  await expect(page.locator(".pt-home")).toHaveAttribute("data-state", "idle", { timeout: 20_000 * SLOW });
+  await expect(page.locator(".pt-loader")).toHaveCount(0, { timeout: 20_000 * SLOW });
 }
 async function home(page: Page) {
-  await expect(page.locator(".pt-home")).toHaveAttribute("data-state", "desktop", { timeout: 20_000 });
+  await expect(page.locator(".pt-home")).toHaveAttribute("data-state", "desktop", { timeout: 20_000 * SLOW });
   await expect(page.locator(".pt-os-shell")).toBeVisible();
   await expect(page.locator(".pt-boot")).toHaveCSS("opacity", "0");
   await expect(page.locator(".pt-os")).toHaveCSS("opacity", "1");
@@ -34,7 +35,7 @@ async function noOverflow(page: Page) {
 }
 
 test.describe("手机主屏幕 #206", () => {
-  test.setTimeout(60_000);
+  test.setTimeout(60_000 * SLOW);
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
   test("手机屏幕与开机交接遮罩的四角是实际几何圆角，不是矩形贴图", async ({ page }) => {
@@ -174,7 +175,7 @@ test.describe("手机主屏幕 #206", () => {
       await expect(settings).toBeVisible();
       expect(context.pages()).toHaveLength(1);
       await settings.getByRole("button", { name: "回到书桌", exact: true }).tap();
-      await expect(page.locator(".pt-home")).toHaveAttribute("data-state", "idle", { timeout: 15_000 });
+      await expect(page.locator(".pt-home")).toHaveAttribute("data-state", "idle", { timeout: 15_000 * SLOW });
       await page.getByRole("button", { name: "打开手机" }).tap();
       await home(page);
     });
@@ -225,7 +226,7 @@ test.describe("手机主屏幕 #206", () => {
     await page.getByRole("button", { name: "YUGC OS 系统设置", exact: true }).tap();
     await page.screenshot({ path: "/tmp/geek-206-phone-settings.png" });
     await page.getByRole("button", { name: "回到书桌", exact: true }).tap();
-    await expect(page.locator(".pt-home")).toHaveAttribute("data-state", "idle", { timeout: 15_000 });
+    await expect(page.locator(".pt-home")).toHaveAttribute("data-state", "idle", { timeout: 15_000 * SLOW });
     await page.getByRole("button", { name: "跳过动画" }).tap();
     await home(page);
     await stableWallpaper(page, /geek-phone\.webp/);
@@ -282,7 +283,7 @@ test.describe("手机主屏幕 #206", () => {
     await page.route("**/iphone_15_pro_max.glb", route => route.abort());
     await page.goto("/sites/portal/");
     await home(page);
-    await expect(page.locator(".pt-loader")).toHaveCount(0, { timeout: 20_000 });
+    await expect(page.locator(".pt-loader")).toHaveCount(0, { timeout: 20_000 * SLOW });
     await expect(page.getByRole("list", { name: "主屏幕上的应用" })).toBeVisible();
     expect(await page.evaluate(() => (window as unknown as { __yugcStage?: Stage }).__yugcStage === undefined)).toBe(true);
     await noOverflow(page);
@@ -372,7 +373,8 @@ test("1440×900 保留笔记本与电脑桌面，双击图标、窗口、菜单�
   await expect(page.getByRole("button", { name: "打开电脑" })).toBeVisible();
   expect(await page.evaluate(() => {
     const stage = (window as unknown as { __yugcStage: Stage }).__yugcStage;
-    return stage.scene.getObjectByName("desk-laptop")!.visible && !stage.scene.getObjectByName("desk-phone")!.visible;
+    // 手机模型按需加载（c38e2aaf）：电脑桌面上根本没有 desk-phone；将来若预加载，也必须是隐藏的。
+    return stage.scene.getObjectByName("desk-laptop")!.visible && !(stage.scene.getObjectByName("desk-phone")?.visible ?? false);
   })).toBe(true);
   await page.screenshot({ path: "/tmp/geek-206-iphone-desktop-unchanged.png" });
   await page.getByRole("button", { name: "跳过动画" }).click();
@@ -401,7 +403,7 @@ test("1440×900 保留笔记本与电脑桌面，双击图标、窗口、菜单�
 });
 
 test.describe("圆润 PC 电脑 #213", () => {
-  test.setTimeout(60_000);
+  test.setTimeout(60_000 * SLOW);
 
   for (const viewport of [{ width: 1280, height: 800 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }]) {
     test(`${viewport.width}×${viewport.height} 实际屏幕可悬停开机、退回、Enter 再开机，离开首页释放 WebGL`, async ({ page }) => {
@@ -426,7 +428,7 @@ test.describe("圆润 PC 电脑 #213", () => {
       await page.mouse.click(point.x, point.y);
       await home(page);
       await page.getByRole("button", { name: "回到书桌", exact: true }).click();
-      await expect(page.locator(".pt-home")).toHaveAttribute("data-state", "idle", { timeout: 20_000 });
+      await expect(page.locator(".pt-home")).toHaveAttribute("data-state", "idle", { timeout: 20_000 * SLOW });
       await page.evaluate(() => {
         const active = document.activeElement;
         if (active instanceof HTMLElement) active.blur();
