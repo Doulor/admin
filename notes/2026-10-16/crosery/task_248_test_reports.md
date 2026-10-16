@@ -37,3 +37,9 @@
 - 执行者：agent-claude-geek-248
 - 做了什么：CI 上 pnpm test --coverage 报 Unknown option 'coverage'（pnpm 把 test 当内置别名），改成 pnpm run test --coverage，文档同步
 - 结果：已推送，待 CI 复核
+
+## 20:53:18 +08:00 · 开发 · #248 · e2e 首跑 13 个失败，改为手动触发
+
+- 执行者：agent-claude-geek-248
+- 做了什么：PR #251 上 test-report 首跑 40 个用例 27 过 13 败（3D/WebGL 与宣传片，托管 runner 2 核无 GPU，原因未逐条查明），报告产物 playwright-report 83MB 已上传可下载；改成只手动触发，CICD.md、TESTING.md 同步说明
+- 结果：core 已通过，覆盖率可用；PR 检查不再因全量 e2e 变红

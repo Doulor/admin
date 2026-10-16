@@ -38,7 +38,7 @@
 
 同一用例还在 390px 核对概览的 GitHub 组织名不会越过自身事实列：覆盖共用截断规则把原生块元素误改成按内容撑宽的行内块时，组织名压到相邻组织角色的回归。
 
-测试报告（#248）：CI 的 `core` 用 `pnpm run test --coverage` 产出 Vitest v8 覆盖率（server、console、web），产物 `vitest-coverage`；`test-report.yml` 在托管 runner 跑 `pnpm test:e2e`，产物 `playwright-report`（HTML，含失败 trace）。两份保留 14 天，只作机器验证附件：没有覆盖率门槛，也不替代 PR 里的改前改后截图和所有者的人工验收。本机仍不跑 Playwright（见环境约定），要看报告去 CI 产物。
+测试报告（#248）：CI 的 `core` 用 `pnpm run test --coverage` 产出 Vitest v8 覆盖率（server、console、web），产物 `vitest-coverage`；`test-report.yml`（手动触发）在托管 runner 跑 `pnpm test:e2e`，产物 `playwright-report`（HTML，含失败 trace）。两份保留 14 天，只作机器验证附件：没有覆盖率门槛，也不替代 PR 里的改前改后截图和所有者的人工验收。本机仍不跑 Playwright（见环境约定），要看报告去 CI 产物。全量 e2e 在托管 runner 上目前 40 个里 13 个失败（3D/WebGL 与宣传片），所以没放进 PR 检查，PR 时的浏览器检查见截图基线（#249）。
 
 ## 分支、环境与发布门禁回归
 

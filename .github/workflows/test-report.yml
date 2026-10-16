@@ -1,20 +1,19 @@
-# 浏览器测试报告（#248）：PR 指向 stage 时在 GitHub 托管 runner 上跑 Playwright，把 HTML 报告（含 trace）作为产物留 14 天。
+# 浏览器测试报告（#248）：手动触发，在 GitHub 托管 runner 上跑全部 Playwright 用例，把 HTML 报告（含 trace）作为产物留 14 天。
+# 只手动触发：2026-10-16 在 PR #251 上首跑，40 个用例 27 过 13 败，败的都是 3D/WebGL 与宣传片（托管 runner 只有 2 核、无 GPU，原因未逐条查明），
+# 放进 PR 检查会让每个 PR 变红；PR 时的浏览器检查改由截图基线（#249）里确定性的少量用例承担。
 # 机器验证不替代人工验收，也不替代 PR 里的改前改后截图（docs/conventions/TESTING.md）。
-# 只用 pull_request，不用 pull_request_target；只读代码，不拿任何 secret。
+# 只读代码，不拿任何 secret。
 
 name: Test report
 
 on:
-  pull_request:
-    branches: [stage]
-    types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: test-report-${{ github.event.pull_request.number || github.ref }}
+  group: test-report-${{ github.ref }}
   cancel-in-progress: true
 
 env:
