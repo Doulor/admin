@@ -85,6 +85,8 @@
 
 ## 6. 文档路由表
 
+任务技能导航：[issue-intake](.agents/skills/issue-intake/SKILL.md) 用于提单与开工准备，[pr-delivery](.agents/skills/pr-delivery/SKILL.md) 用于 PR 材料与交付收尾；规则正文仍以对应 `docs/` 规范为准，diff 审查使用 [code-review](.agents/skills/code-review/SKILL.md)。
+
 服务代码与文档严格对齐，一个服务一份契约；完整地图（含 `deploy/`、`docs/`、`scripts/` 行）见 [docs/README.md](docs/README.md)，冲突时以它为准：
 
 | 服务目录 | 服务契约 | 管辖规范 |

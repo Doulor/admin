@@ -1,0 +1,4 @@
+interface:
+  display_name: "Issue 提单"
+  short_description: "按 geek_main 项目规范整理 issue 查重、正文、标签和证据"
+  default_prompt: "使用 $issue-intake，按仓库规范整理这次诉求的 issue、相关任务和证据。"
