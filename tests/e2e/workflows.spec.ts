@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { CONSOLE_ORIGIN } from "../../playwright.config";
+import { CONSOLE_ORIGIN, SLOW } from "../../playwright.config";
 
 test.beforeEach(async ({ page }) => {
   // No browser test may contact an external service or a business API.
@@ -59,7 +59,7 @@ test("legacy /apply redirects to the join-us letter", async ({ page }) => {
   await expect(page).toHaveURL(/\/sites\/portal\/join-us$/);
   await expect(page.getByRole("heading", { level: 1, name: "加入我们" })).toBeVisible();
   // 信纸在信封打开后才对辅助技术可见（此前 aria-hidden），给 3D 入场动画留足时间。
-  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 * SLOW });
 });
 
 const PROMO_CDN = "https://cdn.crosery.com/yzgc/static/promo/**";
@@ -67,7 +67,7 @@ const PROMO_CDN = "https://cdn.crosery.com/yzgc/static/promo/**";
 test("first visit to join-us never gets stuck behind the promo: whatever the player does, the letter opens", async ({ page }) => {
   // beforeEach 已经拦掉所有外部请求：能播就加载失败，播不了就直接放行，两种都必须进到信纸。
   await page.goto("/sites/portal/join-us");
-  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 * SLOW });
   await expect(page.getByRole("dialog", { name: "极客班宣传片" })).toHaveCount(0);
 });
 
@@ -85,10 +85,10 @@ test("the promo can be skipped on the first visit and does not autoplay again", 
   await expect(promo.getByRole("button")).toHaveCount(1);
   await page.getByRole("button", { name: /跳过/ }).click();
   await expect(promo).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 * SLOW });
   expect((await context.cookies()).find((cookie) => cookie.name === "yugc_promo_seen")?.value).toBe("1");
   await page.reload();
-  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 * SLOW });
   await expect(promo).toHaveCount(0);
 });
 
@@ -104,7 +104,7 @@ test("clicking the video keeps keyboard control: Esc still skips the promo", asy
   await expect(promo).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(promo).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 * SLOW });
 });
 
 test.describe("promo on a phone", () => {
@@ -371,8 +371,8 @@ test("forum 3D page resets its scene when restored from the back/forward cache (
   await expect(async () => {
     await page.mouse.move(0, 0);
     await board.hover();
-    await expect(board).toHaveClass(/is-hot/, { timeout: 500 });
-  }).toPass({ timeout: 30_000 });
+    await expect(board).toHaveClass(/is-hot/, { timeout: 500 * SLOW });
+  }).toPass({ timeout: 30_000 * SLOW });
   const pose = () =>
     page.evaluate(() => {
       const stage = (window as unknown as { __yugcStage?: { basePos: { x: number; y: number; z: number }; baseOffset: { x: number; y: number } } }).__yugcStage!;
@@ -381,7 +381,7 @@ test("forum 3D page resets its scene when restored from the back/forward cache (
   const wipeOpacity = () => page.locator(".pt-wipe").evaluate(el => Number(getComputedStyle(el).opacity));
   const start = await pose();
   await board.click();
-  await expect.poll(wipeOpacity, { timeout: 15_000 }).toBeGreaterThan(0.95);
+  await expect.poll(wipeOpacity, { timeout: 15_000 * SLOW }).toBeGreaterThan(0.95);
   const pushed = await pose();
   expect(Math.hypot(pushed.x - start.x, pushed.y - start.y, pushed.z - start.z)).toBeGreaterThan(1);
 
@@ -391,5 +391,5 @@ test("forum 3D page resets its scene when restored from the back/forward cache (
   for (const key of ["x", "y", "z", "ox", "oy"] as const) expect(back[key]).toBeCloseTo(start[key], 5);
   // 复位后场景又能响应：再点一个版块会重新推近
   await page.locator(".pt-boards a").nth(1).click();
-  await expect.poll(wipeOpacity, { timeout: 15_000 }).toBeGreaterThan(0.95);
+  await expect.poll(wipeOpacity, { timeout: 15_000 * SLOW }).toBeGreaterThan(0.95);
 });
