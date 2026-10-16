@@ -2,7 +2,7 @@
 
 > 官网 portal（React/Vite）+ shared 适配层；web 镜像同时托管控制台产物（`app/console`），是每个环境的 HTTP 入口容器。
 
-状态：`current` · 更新：2026-10-15 · 源码：`app/web/` · 镜像：`yzgc-<environment>/web:<sha12>`
+状态：`current` · 更新：2026-10-16 · 源码：`app/web/` · 镜像：`yzgc-<environment>/web:<sha12>`
 
 ## 源码地图
 
@@ -58,6 +58,7 @@ node scripts/check-site-config.mjs    # 站点配置不含域名、论坛 basePa
 ## 已知限制
 
 - 本机 mock 预览是只读样板，不操作真实 GitHub；真实数据只在连上 `app/server` 后出现。
+- PR 预览（#245）：构建时设 `VITE_PREVIEW_MOCK=1`，生产形态的构建改用样板数据（`shared/config` 的 `PREVIEW_MOCK`，`runtimeEnvironment()` 返回数据源 mock、不显示开发控制台、不允许切换），不连任何后端。只有根目录 `netlify.toml` 设置它，镜像构建与部署工作流从不设置；未设置时常量被构建替换成 `false`，样板数据代码照旧从生产产物里删掉（`tests/tooling/pr-preview.test.ts` 核对）。
 - 旧入口跳转**只存在于本机 Vite dev**（`vite.config.ts` 的开发中间件）：`/sites/forum/*` 302 到新论坛首页 `http://127.0.0.1:3456/`，`/forum`、`/forum/*` 保留路径 302 到 3456；不猜测旧帖子 ID 映射。容器栈里 `/sites/forum/*` 返回 404，`/forum/*` 由 nginx 反代到 forum 容器。
 - WCAG 2.2 AA 是目标而非已达成结论；对比度、放大、屏幕阅读器需独立测量。
 - 论坛前端（`app/forum`）与控制台（`app/console`）是 Vue/Tuffex，与本包无代码复用：Vue 组件不能当作 React 组件使用。
