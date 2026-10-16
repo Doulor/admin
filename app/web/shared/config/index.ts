@@ -53,7 +53,15 @@ type AppConfig = {
 
 export const appConfig = rawConfig as AppConfig;
 
+/**
+ * PR 预览构建（#245）：构建时设 VITE_PREVIEW_MOCK=1，生产形态的构建改用样板数据、不连任何后端。
+ * 只有 pr-preview.yml 会设置；镜像构建与两条部署工作流从不设置（tests/tooling/pr-preview.test.ts 核对），
+ * 未设置时这个常量在构建里被替换成 false，样板数据代码照旧从生产产物里删掉。
+ */
+export const PREVIEW_MOCK: boolean = import.meta.env.VITE_PREVIEW_MOCK === "1";
+
 export function runtimeEnvironment(): RuntimeEnvironment {
+  if (PREVIEW_MOCK) return { ...appConfig.environment.production, dataSource: "mock" };
   return import.meta.env.PROD ? appConfig.environment.production : appConfig.environment.development;
 }
 

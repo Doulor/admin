@@ -1,0 +1,60 @@
+# PR 预览（#245）：Netlify 的 Deploy Preview 在每个 PR 上构建官网与控制台，用样板数据，不连任何后端。
+# VITE_PREVIEW_MOCK=1 只在这里设置；镜像构建与部署工作流从不设置（tests/tooling/pr-preview.test.ts 核对）。
+# 论坛的预览还没接（要 Node 26 与 pnpm 11 的独立工具链），/forum 暂时回到官网入口。
+
+[build]
+  command = "pnpm install --frozen-lockfile --filter @yzgc/web... --filter @yzgc/console... && VITE_PREVIEW_MOCK=1 pnpm --filter @yzgc/web build && VITE_PREVIEW_MOCK=1 pnpm --filter @yzgc/console build && node scripts/pr-preview.mjs assemble --web app/web/dist --console app/console/dist --out preview-site"
+  publish = "preview-site"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NETLIFY_USE_PNPM = "true"
+
+# 预览没有后端：/api 与 /auth 一律 404（force 覆盖下面的回落）。
+[[redirects]]
+  from = "/api/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/auth/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+# 与生产 web 容器的 try_files 对齐：先找文件，找不到时控制台路由回落控制台入口，其余回落官网入口（默认不 force，不会盖住真实文件）。
+[[redirects]]
+  from = "/admin"
+  to = "/sites/console/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/sites/console/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/console"
+  to = "/sites/console/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/console/*"
+  to = "/sites/console/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/signin"
+  to = "/sites/console/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/sites/portal/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"

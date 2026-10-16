@@ -144,6 +144,15 @@
 
 要关掉：删掉 `static-cdn` 里的 `STATIC_CDN_UPLOAD_TOKEN`，下一次部署就回到同源。
 
+## PR 预览（#245）
+
+给人工验收界面改动用：每个 PR 自动得到一个官网加控制台的预览链接，数据全是样板，不连任何后端。用 Netlify 的 Deploy Preview（免费版：部署预览不限次数、不扣额度；额度制下只有正式部署每次 15 额度），不是 GitHub Actions 工作流，所以仓库里没有对应的 `.github/workflows/` 文件，也没有任何 secrets。
+
+- 配置只有根目录 `netlify.toml`：构建命令装 web 与 console 的依赖，用 `VITE_PREVIEW_MOCK=1` 各构建一次，再用 `scripts/pr-preview.mjs assemble` 合成 `preview-site/`（官网在 `/`，控制台在 `/admin`、`/console`，与生产 web 容器同路径）；`/api/*`、`/auth/*` 强制 404；其余路由回落（不 force，不盖真实文件）；全站 `X-Robots-Tag: noindex`。
+- `VITE_PREVIEW_MOCK` 只有 `netlify.toml` 会设置，镜像构建、`ci.yml` 与两条部署工作流从不设置（`tests/tooling/pr-preview.test.ts` 核对）；样板数据代码在未设置时仍被构建删掉。
+- 论坛的预览还没接：它要 Node 26 与 pnpm 11 的独立工具链，`/forum` 暂时落到官网入口。
+- 预览只证明界面；自动化 PASS 与预览链接都不是人工验收，也不是发版授权。
+
 ## 需要人工完成的前置条件
 
 1. **GitHub Environment**：创建 `preview`、`production`；`production` 必须配置 required reviewers（若计划不支持私有仓库的该能力，见下）；deployment branches and tags 建议只放行发布 tag（`v*`），只做粗筛；rc 与正式的精确区分以两条部署工作流 plan job 的正则为准，禁止自批。

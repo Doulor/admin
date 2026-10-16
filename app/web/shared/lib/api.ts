@@ -1,11 +1,12 @@
 // Unified fetch wrapper. Dispatches to mock-api.ts in dev/mock mode, otherwise
 // performs a same-origin fetch against the backend (Vite proxy in dev).
+import { PREVIEW_MOCK } from "../config";
 import { getDataSource } from "./runtime";
 import { requestJson } from "./http";
 export { ApiError } from "./http";
 
 export async function api<T = unknown>(path: string, init?: RequestInit): Promise<T> {
-  if (import.meta.env.DEV && getDataSource() === "mock") {
+  if ((import.meta.env.DEV || PREVIEW_MOCK) && getDataSource() === "mock") {
     const { mockApi } = await import("./mock-api");
     return mockApi<T>(path, init);
   }
