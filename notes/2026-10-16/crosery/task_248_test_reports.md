@@ -31,3 +31,9 @@
 - 执行者：agent-claude-geek-248
 - 做了什么：核对 diff：分支名合规；无密钥；新增依赖只有 devDependency；新工作流只读代码、不拿 secret、固定 action 摘要；文档已同步
 - 结果：有条件通过：test-report.yml 首次在 CI 的实际结果待 PR 上验证
+
+## 20:36:35 +08:00 · 提交 · #248 · 修 core 的覆盖率命令
+
+- 执行者：agent-claude-geek-248
+- 做了什么：CI 上 pnpm test --coverage 报 Unknown option 'coverage'（pnpm 把 test 当内置别名），改成 pnpm run test --coverage，文档同步
+- 结果：已推送，待 CI 复核

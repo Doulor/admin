@@ -151,9 +151,9 @@ jobs:
         shell: bash
         run: pnpm check
 
-      - name: 单元测试与覆盖率（pnpm test --coverage）
+      - name: 单元测试与覆盖率（pnpm run test --coverage）
         shell: bash
-        run: pnpm test --coverage
+        run: pnpm run test --coverage
 
       - name: 上传覆盖率报告（保留 14 天）
         if: ${{ !cancelled() }}
