@@ -2,7 +2,7 @@
 
 > 核心真实路由与上游论坛演示分别验收；类型、行为、构建和生产证据不相互替代。
 
-状态：`current` · 更新：2026-10-15
+状态：`current` · 更新：2026-10-16
 
 ## 根入口和分工
 
@@ -37,6 +37,8 @@
 邀请页历史记录版式（#211）：`tests/e2e/workflows.spec.ts` 增加 `/console/github/invitations` 用例，在 1440/1280/1024×900 与 390×844 量真实 Chromium 渲染的几何：24 字符合成 token（与线上 `randomBytes(18)` 等长，取自 `/invitations` 样板）在本格内截断、不划穿「结果」列、悬停 `title` 带全值；`pending_admin` 显示「待核对」，结果徽章与北京时间各保单行；两张表行高一致；窄屏横向滚动关在 `.tx-data-table` 自己的容器里、页面无横向溢出。根修法是 `app/console/src/styles/layout.css`：`.ellipsis` 共用溢出和单行规则，`inline-block` + `vertical-align: bottom` + `max-width: 100%` 只补到 14 处普通行内 `span.ellipsis`；概览的 `dd` 保留块布局。抽查共用页面的窄屏边界，不固定 CSS display 或日期分隔符作为行为契约。
 
 同一用例还在 390px 核对概览的 GitHub 组织名不会越过自身事实列：覆盖共用截断规则把原生块元素误改成按内容撑宽的行内块时，组织名压到相邻组织角色的回归。
+
+测试报告（#248）：CI 的 `core` 用 `pnpm test --coverage` 产出 Vitest v8 覆盖率（server、console、web），产物 `vitest-coverage`；`test-report.yml` 在托管 runner 跑 `pnpm test:e2e`，产物 `playwright-report`（HTML，含失败 trace）。两份保留 14 天，只作机器验证附件：没有覆盖率门槛，也不替代 PR 里的改前改后截图和所有者的人工验收。本机仍不跑 Playwright（见环境约定），要看报告去 CI 产物。
 
 ## 分支、环境与发布门禁回归
 

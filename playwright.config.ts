@@ -9,7 +9,8 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  reporter: "list",
+  // CI 上多出一份可下载的 HTML 报告（含 trace），本机仍只在终端看列表。
+  reporter: process.env.CI ? [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]] : "list",
   use: {
     baseURL: PORTAL_ORIGIN,
     trace: "retain-on-failure",

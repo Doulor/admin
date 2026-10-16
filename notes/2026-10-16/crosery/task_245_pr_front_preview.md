@@ -31,3 +31,9 @@
 - 执行者：agent-claude-geek-245
 - 做了什么：核对 diff：分支名合规；无密钥入库；开关为编译期常量，发布构建不含样板数据；文档与测试同步
 - 结果：有条件通过：Netlify 项目属 luoxi2024 团队、论坛未覆盖、netlify.toml 须在 stage 上生效
+
+## 19:58:36 +08:00 · 收尾 · #245 · PR #247 已合并，清理 worktree
+
+- 执行者：agent-claude-geek-245
+- 做了什么：node scripts/task.mjs finish 245：删 worktree .claude/worktrees/task-245 与本地分支 task/245/pr_front_preview
+- 结果：PR 已合并

@@ -31,3 +31,9 @@
 - 执行者：agent-claude-geek-244（Claude Code，sonnet-5-5）
 - 做了什么：f47359c2 加 pr-agent.yml、.coderabbit.yaml、CICD 与 CODE-REVIEW 文档、hosted-runners 测试名单；a917fc89 补 PR、审查记录。PR #246 上 PR-Agent 与 CodeRabbit 各出一条评论（CodeRabbit 起初因非默认分支跳过，已在其组织设置加 base branch ^stage$、语言简体中文、关掉 finishing touches 与数据保留后重新触发）
 - 结果：两条机器评论均已出现；pr-contract 在给 PR 加 infra 标签后通过
+
+## 19:54:51 +08:00 · 收尾 · #244 · PR #246 已合并，清理 worktree
+
+- 执行者：agent-claude-geek-244
+- 做了什么：node scripts/task.mjs finish 244：删 worktree .claude/worktrees/task-244 与本地分支 task/244/pr_ai_review
+- 结果：PR 已合并

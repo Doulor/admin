@@ -1,0 +1,64 @@
+# 浏览器测试报告（#248）：PR 指向 stage 时在 GitHub 托管 runner 上跑 Playwright，把 HTML 报告（含 trace）作为产物留 14 天。
+# 机器验证不替代人工验收，也不替代 PR 里的改前改后截图（docs/conventions/TESTING.md）。
+# 只用 pull_request，不用 pull_request_target；只读代码，不拿任何 secret。
+
+name: Test report
+
+on:
+  pull_request:
+    branches: [stage]
+    types: [opened, reopened, synchronize, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-report-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  npm_config_registry: ${{ vars.NPM_REGISTRY || 'https://registry.npmjs.org' }}
+  npm_config_better_sqlite3_binary_host: ${{ vars.BETTER_SQLITE3_BINARY_HOST || '' }}
+
+jobs:
+  e2e:
+    name: e2e (Playwright 报告)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 安装 pnpm（读取根 packageManager）
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: 安装 Node（读取 .nvmrc）
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: 依赖安装（锁文件不可变）
+        shell: bash
+        run: pnpm install --frozen-lockfile
+
+      - name: 安装 Chromium
+        shell: bash
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: 浏览器测试（pnpm test:e2e）
+        shell: bash
+        run: pnpm test:e2e
+
+      - name: 上传 Playwright 报告（保留 14 天）
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14
