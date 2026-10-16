@@ -1,0 +1,49 @@
+# PR 自动 AI 审查（#244）：开 PR 时用 PR-Agent（开源、MIT）出一条审查评论，只评论，不批准、不阻塞合并。
+# 机器审查不是审查结论，也不是人工验收（docs/conventions/CODE-REVIEW.md「机器审查的边界」）。
+#
+# 安全：
+#   * 只用 pull_request，不用 pull_request_target，也不检出 PR 代码；PR-Agent 只通过 API 读 diff。
+#   * 只处理同仓库分支的 PR（head 与 base 同一仓库）。fork 来的 PR 拿不到 secrets，跳过。
+#   * 模型 key 只放仓库 Actions secret PR_AGENT_LLM_KEY，网关地址与模型名写在这里（不是密钥）。
+#   * 不开 describe 与 improve：describe 会改写 PR 正文，破坏九段契约（pr-contract）。
+#   * 不监听 issue_comment：任何人评论都能触发，会被拿来耗额度或做提示注入。
+#   * 镜像按摘要固定（0.47.0-github_action）；升级要核对新摘要后改这里，走 PR 审查。
+
+name: PR AI review
+
+on:
+  pull_request:
+    branches: [stage]
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-agent-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: review (PR-Agent)
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false && github.actor != 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: PR-Agent 审查
+        uses: docker://pragent/pr-agent@sha256:31b9aac6ab067bada9a0c1b001d30ebc500ea4487e00a93c18c59b9ef5fa66db
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI__KEY: ${{ secrets.PR_AGENT_LLM_KEY }}
+          OPENAI__API_BASE: https://ai.crosery.com/v1
+          CONFIG__MODEL: openai/gemini-3.8-flash-high
+          CONFIG__FALLBACK_MODELS: '["openai/gemini-3.5-flash-lite"]'
+          CONFIG__CUSTOM_MODEL_MAX_TOKENS: '200000'
+          CONFIG__RESPONSE_LANGUAGE: zh-CN
+          github_action_config.auto_review: 'true'
+          github_action_config.auto_describe: 'false'
+          github_action_config.auto_improve: 'false'

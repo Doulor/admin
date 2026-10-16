@@ -1,0 +1,38 @@
+# CodeRabbit（公开仓库免费版）只做评论式审查，不推代码、不批准、不阻塞合并（#244）。
+# 机器审查不是审查结论，见 docs/conventions/CODE-REVIEW.md「机器审查的边界」。
+language: zh-CN
+early_access: false
+
+reviews:
+  profile: chill
+  # 摘要放进审查评论里，不改写 PR 正文（pr-contract 依赖九个段落）。
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  request_changes_workflow: false
+  poem: false
+  commit_status: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "^stage$"
+  path_filters:
+    - "!pnpm-lock.yaml"
+    - "!app/forum/pnpm-lock.yaml"
+    - "!docs/components/tuffex/snapshot/**"
+    - "!notes/**"
+  # 这些功能会往分支推提交或开新 PR，一律关掉。
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+    simplify:
+      enabled: false
+    autofix:
+      enabled: false
+    fix_ci:
+      enabled: false
+    resolve_merge_conflict:
+      enabled: false
+    custom: []
