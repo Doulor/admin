@@ -36,3 +36,27 @@
 - 做了什么：用户授权创建 PR，并要求注明 #252 是 GPT 自行建单；准备提交两个技能、入口导航、CLI 链接和执行记录。推送检查发现已关闭 #226 未收尾，确认工作区干净且 HEAD b8e397d 完整保存于 personal 远端后执行 task finish 226；按 NOTES 并入其历史与收尾记录，原记录保持原文
 - 结果：pnpm verify：check 通过，73 个测试文件通过，1051 passed、28 skipped，server/web/console 构建通过；forum:check 因缺 Node >=26 退出 1，forum:generate 未执行。两个技能结构检查、文档同步、分支不变量、密钥扫描通过。拟开草稿 PR，issue 来源注明 GPT 自行创建；未合并或发布
 - 下一步：推送个人 fork，创建指向 stage 的草稿 PR并记录审查结论
+
+## 04:01:20 +08:00 · 推送 · #252 · 技能提交推送至个人 fork
+
+- 执行者：agent-codex-issue-pr-skills（Codex）
+- 做了什么：git push -u personal task/252/issue_pr_skills
+- 结果：637574afa5dd574240bab276bac3e090a85c6a28 已推送；pre-push 分支和 worktree 检查通过
+
+## 04:01:20 +08:00 · PR · #252 · 创建草稿 PR #253，并注明 issue 是 GPT 自行创建
+
+- 执行者：agent-codex-issue-pr-skills（Codex）
+- 做了什么：gh pr create --base stage --head Kaiserunix:task/252/issue_pr_skills --draft，正文按九段契约并在目的段注明 #252 不是用户要求提的 issue
+- 结果：https://github.com/Yangtze-University-Geek-Class/admin/pull/253；论坛完整验证及标签待补，未合并
+
+## 04:01:20 +08:00 · 审查 · #252 · 作者自查结论已写入 PR #253
+
+- 执行者：agent-codex-issue-pr-skills（Codex）
+- 做了什么：按 code-review 和 CODE-REVIEW 的逐项清单读取完整改动与验证结果；审查对象 637574afa5dd574240bab276bac3e090a85c6a28，审查人为 GPT/Codex
+- 结果：结论阻塞：完整 pnpm verify 缺论坛 Node >=26，PR 类型标签待维护者补齐；核心 check、1051 测试及三端构建通过。结论已归档 PR 正文，非人工环境验收
+
+## 04:01:20 +08:00 · 提交 · #252 · 补记推送、PR 与审查的实际结果
+
+- 执行者：agent-codex-issue-pr-skills（Codex）
+- 做了什么：准备提交并推送仅 notes 的跟进记录
+- 结果：技能内容与已审查的 637574a 完全一致；新增记录对应已发生的推送、PR #253 与作者自查
