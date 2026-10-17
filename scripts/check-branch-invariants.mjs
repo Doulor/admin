@@ -11,7 +11,7 @@
  * 分支命名规范（2026-09-23 起分支名一律不用 `-`，只用 `/` 分层；每段只含小写字母与数字，段内多个词用 `_` 连接）：
  *   main / stage         长期分支，只允许这两条
  *   task/<issue>/<slug>  从 stage 拉出，PR 回 stage，合并后删除；例：task/12/portal_redesign
- *   dev/<username>       个人自由开发分支：只做验证、不部署，也不得作为进入 stage 的凭据；例：dev/crosery
+ *   dev/<username>       个人自由开发分支：只做验证、不部署，也不得作为进入 stage 的凭据；例：dev/alice
  *   其它名字             违规（含旧的 task/<issue>-<slug> 与 dev-<username>）。默认只告警（CI 上不硬失败），
  *                        --strict-long-lived 时升级为失败。
  *
@@ -141,7 +141,7 @@ function branchNamingMessage(branch) {
     return `分支 ${branch.name}（${where}）不符合 task/<issue>/<slug> 命名（分支名不用 -，只用 / 分层，slug 词间用 _，例：task/12/portal_redesign）：请按 docs/conventions/ISSUES.md 先开 issue 再改名。`;
   }
   if (kind === 'personal-malformed') {
-    return `分支 ${branch.name}（${where}）不符合 dev/<github-username> 命名（分支名不用 -，例：dev/crosery；旧名用 git branch -m 改名）：个人分支不部署，也不能作为进入 stage 的凭据。`;
+    return `分支 ${branch.name}（${where}）不符合 dev/<github-username> 命名（分支名不用 -，例：dev/alice；旧名用 git branch -m 改名）：个人分支不部署，也不能作为进入 stage 的凭据。`;
   }
   return null;
 }

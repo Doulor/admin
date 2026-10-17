@@ -6,7 +6,7 @@
 
 ## 为什么是独立的包
 
-所有者 2026-09-24 要求控制台「统一套用组件库」，用论坛同款 Tuffex（issue #13）。Tuffex 只有 Vue 3 版本，[Tuffex 使用政策](../../components/tuffex/USAGE-POLICY.md)禁止在 React 里套 Vue 组件或做同名 React 仿制品，所以控制台从 `app/web`（React）里拆出来，单独成 `@yzgc/console` 包。它和 `app/web`、`app/server` 在同一个根 pnpm 工作区（Node 22 / pnpm 9.15.9），不另起工具链；论坛那套 Node 26 / pnpm 11 与它无关。
+2026-09-24 要求控制台「统一套用组件库」，用论坛同款 Tuffex（issue #13）。Tuffex 只有 Vue 3 版本，[Tuffex 使用政策](../../components/tuffex/USAGE-POLICY.md)禁止在 React 里套 Vue 组件或做同名 React 仿制品，所以控制台从 `app/web`（React）里拆出来，单独成 `@yzgc/console` 包。它和 `app/web`、`app/server` 在同一个根 pnpm 工作区（Node 22 / pnpm 9.15.9），不另起工具链；论坛那套 Node 26 / pnpm 11 与它无关。
 
 ## 源码地图
 
@@ -130,7 +130,7 @@ pnpm dev:console                     # http://127.0.0.1:5186/console ，默认�
 
 ## 验证
 
-`tests/e2e/application-cancelled.spec.mts` 在 1440px / 390px 下由浏览器调用真实 Fastify 路由与内存库，只有身份查询和发信商是假响应，不接用户的本机验收实例、不发真实邮件；覆盖打开选项、键盘选取消、保存、刷新、保留历史、取消筛选与导出链接，以及过期画面 409 后保留备注。`tests/e2e/workflows.spec.ts` 里的邀请页用例在 1440/1280/1024 与 390×844 下量真实渲染几何：24 字符合成 token 在本格内截断（不越出单元格、不划穿「结果」列）、结果徽章与北京时间各保单行、两张表行高一致、窄屏横向滚动关在表自己的容器里（#211）。截图和自动测试不代替预发布所有者验收。
+`tests/e2e/application-cancelled.spec.mts` 在 1440px / 390px 下由浏览器调用真实 Fastify 路由与内存库，只有身份查询和发信商是假响应，不接用户的本机验收实例、不发真实邮件；覆盖打开选项、键盘选取消、保存、刷新、保留历史、取消筛选与导出链接，以及过期画面 409 后保留备注。`tests/e2e/workflows.spec.ts` 里的邀请页用例在 1440/1280/1024 与 390×844 下量真实渲染几何：24 字符合成 token 在本格内截断（不越出单元格、不划穿「结果」列）、结果徽章与北京时间各保单行、两张表行高一致、窄屏横向滚动关在表自己的容器里（#211）。截图和自动测试不代替在预发布做的人工验收。
 
 ```bash
 pnpm --filter @yzgc/console typecheck   # vue-tsc（根 pnpm typecheck 也会跑）

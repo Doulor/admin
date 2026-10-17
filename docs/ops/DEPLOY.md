@@ -6,7 +6,7 @@
 
 ## 发布前置
 
-**先遵守 [RELEASES](../conventions/RELEASES.md) 与 [BRANCHING](../conventions/BRANCHING.md)：发版只靠打 tag。`vX.Y.Z-rc.N` 打在 `stage` 的提交上部署预发布；维护者在预发布试用并明确批准后，`main` 快进到同一提交，再打 `vX.Y.Z` 部署正式。** push `stage`/`main` 不部署。发布内容由发布 tag 指向的提交决定；镜像 tag 是该提交的 `<sha12>`。
+**先遵守 [RELEASES](../conventions/RELEASES.md) 与 [BRANCHING](../conventions/BRANCHING.md)：发版只靠打 tag。`vX.Y.Z-rc.N` 打在 `stage` 的提交上部署预发布；在预发布试用并明确批准后，`main` 快进到同一提交，再打 `vX.Y.Z` 部署正式。** push `stage`/`main` 不部署。发布内容由发布 tag 指向的提交决定；镜像 tag 是该提交的 `<sha12>`。
 
 发布者明确目标环境、commit、镜像 tag、回滚对象和维护窗口。先在本地或 CI 完成 `pnpm verify` 与相关浏览器检查，再部署；不从含无关修改的工作区发布。核心与论坛使用两套工具链（Node 22/pnpm 9.15.9 与 Node ≥26/pnpm 11.24.0），镜像构建在容器内完成，不上传 Mac 原生依赖。
 
@@ -111,13 +111,13 @@ bash deploy-stack.sh --environment production \
 1. DNS：`prev.yangtzeu.work` 已有指向本机 IP 的 A 记录（2026-09-24 `dig` 核对为 `103.117.123.226`，与正式域名同一主机、不同栈）；不需要任何管理端子域记录。
 2. TLS：宿主 nginx 用 certbot 签发/续期三张证书：`yangtzeu.work`、`prev.yangtzeu.work`、`github.yangtzeu.work`（最后一张只服务 301 跳转）；命令 `certbot certonly --webroot -w /var/www/html -d <域名>`。证书准备完成前不引用，改完先 `nginx -t` 再 reload。
 3. 宿主 nginx：把 `deploy/nginx/production.conf`、`deploy/nginx/preview.conf` 分别安装到 `/etc/nginx/sites-available/` 并 symlink 进 `sites-enabled/`；TLS、ACME 挑战、安全头与旧管理端域名的 301 都由这两个文件负责，不要把两者配成同名 `server_name` 而冲突。
-4. GitHub OAuth App：Callback URL 必须是 `<origin>/auth/callback`。正式环境切换当天，维护者要把现有 OAuth App 的 Callback URL 改成 `https://yangtzeu.work/auth/callback`；预发布另建一个 Callback URL 为 `https://prev.yangtzeu.work/auth/callback` 的 OAuth App（密钥不跨环境共用）。细节见 [ENVIRONMENTS](ENVIRONMENTS.md#github-oauth-app-回调地址)。
+4. GitHub OAuth App：Callback URL 必须是 `<origin>/auth/callback`。正式环境切换当天，要把现有 OAuth App 的 Callback URL 改成 `https://yangtzeu.work/auth/callback`；预发布另建一个 Callback URL 为 `https://prev.yangtzeu.work/auth/callback` 的 OAuth App（密钥不跨环境共用）。细节见 [ENVIRONMENTS](ENVIRONMENTS.md#github-oauth-app-回调地址)。
 5. Docker 与 Compose v2 已安装；栈根目录存在且属部署用户；`<栈根>/.env.<environment>` 由部署脚本原子安装（含真实密钥，权限 600）。
 6. 环境文件里的必填项（`HOST`、`TRUST_PROXY`、`PUBLIC_ORIGIN`、`DB_PATH`、`IMAGE_TAG` 等）缺失时 compose 会直接拒绝启动；不要靠临时改 compose 文件绕过。
 
 ## 证书续期与到期监控
 
-维护者 2026-09-25：「这个签证书是要永久签哈，要一直监控着签。」
+2026-09-25：「这个签证书是要永久签哈，要一直监控着签。」
 
 - **续期**：目标机 `certbot.timer`（systemd，每天两次）对 `/etc/letsencrypt/renewal/` 下的全部证书执行 `certbot renew`；`prev.yangtzeu.work` 与 `yangtzeu.work` 都走 webroot `/var/www/html`（两个 server block 的 80 端口都放行 `/.well-known/acme-challenge/`）。
 - **续期后生效**：`/etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh` 在任何证书续期成功后执行 `nginx -t -q && systemctl reload nginx`；配置检查不过就不 reload，旧证书继续服务，由到期监控报警。
@@ -172,7 +172,7 @@ bash rollback-stack.sh --environment production --to <sha12|previous>
 
 ## 静态资源 CDN（#146）
 
-开关、工作流、凭据与维护者的操作顺序见 [CICD](CICD.md)「静态资源 CDN」。这里只写与宿主机、CDN 有关的部分。
+开关、工作流、凭据与手工操作的顺序见 [CICD](CICD.md)「静态资源 CDN」。这里只写与宿主机、CDN 有关的部分。
 
 - **先装模板，再给凭据**：部署工作流的 `cdn-plan` 在构建前 HEAD 一次环境首页，读线上 CSP；`script-src`、`style-src`、`font-src` 没有放行 `https://cdn.crosery.com/yzgc/static/site/` 就告警并同源构建。所以宿主机还是旧模板时，即使配了上传 token，页面也不会引用 CDN，不会出现样式、脚本被 CSP 拦下的情况。装模板的步骤同上文「最小权限」：只装对应环境那一份，先备份、`nginx -t` 再 reload。
 - **镜像里仍有全部文件**：开关只改页面引用的地址，web 与 forum 镜像照样带着 `/assets/`、`/console-assets/`、`/forum/_nuxt/`。CDN 回源不经过我们的源站（文件是上传进七牛存储的），源站上的这些路径只是兜底，不会自动切换。
@@ -180,7 +180,7 @@ bash rollback-stack.sh --environment production --to <sha12|previous>
 - **回滚**：`rollback-stack.sh` 切回的旧镜像如果是开关打开时构建的，它引用的 CDN 对象仍在（上传只增不改，没有任何流程删除它们）。不要手工删 `yzgc/static/site/` 下的对象。
 - **CDN 的防盗链与 CORS（2026-09-26 用 curl 实测，不需要改 CDN 配置）**：`Referer: https://prev.yangtzeu.work/` 与 `https://yangtzeu.work/` 返回 200；别的站点（如 `https://evil.example/`）返回 403；不带 Referer 返回 200。`.js` 是 `text/javascript`，`.css` 是 `text/css`，`.woff2` 是 `font/woff2`，都带 `Access-Control-Allow-Origin: *`、`Cache-Control: public, max-age=31536000`、`Vary: Origin, Accept-Encoding`。CDN 对文本做 gzip（论坛入口 CSS 626,718 → 95,554 字节），不支持 brotli。站点的 `Referrer-Policy: strict-origin-when-cross-origin` 让浏览器发出 `https://<域名>/`，正好命中白名单。
 - **本机验证**：`http://127.0.0.1:<端口>/` 不在防盗链白名单里（实测 403）。本机用开关打开的构建做预览时，让本机服务器发 `Referrer-Policy: no-referrer`（不带 Referer 是放行的），或只看 HTML 里的地址，不要去改 CDN 的白名单。
-- **源站压缩**：web 与 forum 容器的 nginx 都对文本做 gzip，级别都是 6。forum 容器原来用 nginx 默认的 1，论坛入口 CSS（626,718 字节）经源站传 128,152 字节，改成 6 后本机 nginx 1.31.6 实测 95,932 字节（web 容器反代论坛时不会再压一次，所以只能在 forum 容器改）。web 容器和宿主 nginx 模板（`deploy/nginx/preview.conf`、`production.conf`）的 `gzip_types` 还包含 `application/wasm model/gltf-binary`，官网手机模型 1.77MB→1.16MB（#217）；宿主 nginx 模板改动要维护者重新安装才生效。预压缩（`gzip_static`，`-9`）比 6 级只再少 0.2%–1.2%，`nginx:1.31-alpine` 没有 brotli 模块，所以没有做。
+- **源站压缩**：web 与 forum 容器的 nginx 都对文本做 gzip，级别都是 6。forum 容器原来用 nginx 默认的 1，论坛入口 CSS（626,718 字节）经源站传 128,152 字节，改成 6 后本机 nginx 1.31.6 实测 95,932 字节（web 容器反代论坛时不会再压一次，所以只能在 forum 容器改）。web 容器和宿主 nginx 模板（`deploy/nginx/preview.conf`、`production.conf`）的 `gzip_types` 还包含 `application/wasm model/gltf-binary`，官网手机模型 1.77MB→1.16MB（#217）；宿主 nginx 模板改动要在宿主机上重新安装才生效。预压缩（`gzip_static`，`-9`）比 6 级只再少 0.2%–1.2%，`nginx:1.31-alpine` 没有 brotli 模块，所以没有做。
 
 ## 发布和回滚验收
 

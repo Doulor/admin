@@ -65,7 +65,7 @@ describe('branch naming model', () => {
     expect(classifyBranch('stage')).toBe('long-lived');
     expect(classifyBranch('task/123/add_login')).toBe('task');
     expect(classifyBranch('task/12/portal')).toBe('task');
-    expect(classifyBranch('dev/crosery')).toBe('personal');
+    expect(classifyBranch('dev/alice')).toBe('personal');
     expect(classifyBranch('dev/joe_smith')).toBe('personal');
     expect(classifyBranch('next')).toBe('unexpected');
     expect(classifyBranch('feature/x')).toBe('unexpected');
@@ -74,11 +74,11 @@ describe('branch naming model', () => {
   });
 
   it('rejects "-" anywhere in a branch name: the old dash forms are now malformed', () => {
-    // 所有者指令（2026-09-23）：分支名一律不用 -，只用 / 分层。
+    // 2026-09-23 的指令：分支名一律不用 -，只用 / 分层。
     for (const name of ['task/123-add-login', 'task/12-foo', 'task/12/add-login', 'task-12/foo', 'task-12-foo']) {
       expect(classifyBranch(name)).toBe('task-malformed');
     }
-    for (const name of ['dev-crosery', 'dev-Joe', 'dev/joe-smith', 'dev-crosery/x']) {
+    for (const name of ['dev-alice', 'dev-Joe', 'dev/joe-smith', 'dev-alice/x']) {
       expect(classifyBranch(name)).toBe('personal-malformed');
     }
   });
@@ -87,11 +87,11 @@ describe('branch naming model', () => {
     for (const name of ['task/12/', 'task//x', 'task/12/x/y', 'task/1a/x', 'task/12/_x', 'task/12/x_', 'task/12/x__y', 'task/12/X']) {
       expect(TASK_BRANCH_RE.test(name)).toBe(false);
     }
-    for (const name of ['dev/', 'dev/crosery/x', 'dev/_x', 'dev/x_', 'dev/a__b', 'dev/Crosery']) {
+    for (const name of ['dev/', 'dev/alice/x', 'dev/_x', 'dev/x_', 'dev/a__b', 'dev/Alice']) {
       expect(DEV_BRANCH_RE.test(name)).toBe(false);
     }
     expect(TASK_BRANCH_RE.test('task/7/forum_path')).toBe(true);
-    expect(DEV_BRANCH_RE.test('dev/crosery')).toBe(true);
+    expect(DEV_BRANCH_RE.test('dev/alice')).toBe(true);
   });
 
   it('keeps the regex table in BRANCHING.md identical to the script', () => {
@@ -102,17 +102,17 @@ describe('branch naming model', () => {
 
   it('names the new form in the hygiene warning for an old dash branch', () => {
     const f = fixture();
-    git(f.cwd, 'branch', 'dev-crosery');
+    git(f.cwd, 'branch', 'dev-alice');
     git(f.cwd, 'branch', 'task/12-foo');
-    git(f.cwd, 'branch', 'dev/crosery');
+    git(f.cwd, 'branch', 'dev/alice');
     const result = checkInvariants({ repo: f.cwd });
     expect(result.ok).toBe(true);
     const warnings = result.warnings.join('\n');
-    expect(warnings).toContain('dev-crosery');
+    expect(warnings).toContain('dev-alice');
     expect(warnings).toContain('dev/<github-username>');
     expect(warnings).toContain('task/12-foo');
     expect(warnings).toContain('task/<issue>/<slug>');
-    expect(warnings).not.toMatch(/分支 dev\/crosery（/);
+    expect(warnings).not.toMatch(/分支 dev\/alice（/);
     expect(checkInvariants({ repo: f.cwd, strictLongLived: true }).ok).toBe(false);
   });
 });
@@ -181,10 +181,10 @@ describe('pre-push guard', () => {
   it('rejects a stage push from a dev branch, and one that does not contain origin/main yet', () => {
     const f = fixture({ divergent: true });
     const remoteSha = 'b'.repeat(40);
-    git(f.cwd, 'branch', 'dev/crosery');
+    git(f.cwd, 'branch', 'dev/alice');
     const fromDev = checkPushes({
       repo: f.cwd,
-      pushes: [{ localRef: 'refs/heads/dev/crosery', localSha: f.stageTip, remoteRef: 'refs/heads/stage', remoteSha }],
+      pushes: [{ localRef: 'refs/heads/dev/alice', localSha: f.stageTip, remoteRef: 'refs/heads/stage', remoteSha }],
     });
     expect(fromDev.ok).toBe(false);
     expect(fromDev.violations.join('\n')).toContain('既不是 stage 自身');
@@ -192,7 +192,7 @@ describe('pre-push guard', () => {
     // 旧的 dev-<user> 同样不能进 stage。
     const fromOldDev = checkPushes({
       repo: f.cwd,
-      pushes: [{ localRef: 'refs/heads/dev-crosery', localSha: f.stageTip, remoteRef: 'refs/heads/stage', remoteSha }],
+      pushes: [{ localRef: 'refs/heads/dev-alice', localSha: f.stageTip, remoteRef: 'refs/heads/stage', remoteSha }],
     });
     expect(fromOldDev.violations.join('\n')).toContain('既不是 stage 自身');
 
@@ -226,10 +226,10 @@ describe('pre-push guard', () => {
     const result = checkPushes({
       repo: f.cwd,
       pushes: [
-        target('dev/crosery'),
+        target('dev/alice'),
         target('task/7/forum_path'),
         target('scratch'),
-        target('dev-crosery'),
+        target('dev-alice'),
         target('task/7-forum-path'),
         { localRef: 'refs/tags/release-1.0.0', localSha: f.mainTip, remoteRef: 'refs/tags/release-1.0.0', remoteSha: 'b'.repeat(40) },
       ],
@@ -240,9 +240,9 @@ describe('pre-push guard', () => {
     // release-1.0.0 不是 v 开头的发布 tag：只告警，不参与发版。
     expect(warnings).toContain('refs/tags/release-1.0.0 不是发布 tag');
     // 旧的带 - 分支名推到自己的远端分支：不阻断，但要告警。
-    expect(warnings).toContain('refs/heads/dev-crosery');
+    expect(warnings).toContain('refs/heads/dev-alice');
     expect(warnings).toContain('refs/heads/task/7-forum-path');
-    expect(warnings).not.toContain('refs/heads/dev/crosery ');
+    expect(warnings).not.toContain('refs/heads/dev/alice ');
     expect(warnings).not.toContain('refs/heads/task/7/forum_path ');
   });
 
@@ -251,12 +251,12 @@ describe('pre-push guard', () => {
     const f = fixture({ divergent: true });
     const zero = '0'.repeat(40);
     const fresh = (name: string) => ({ localRef: `refs/heads/${name}`, localSha: f.stageTip, remoteRef: `refs/heads/${name}`, remoteSha: zero });
-    const naming = checkPushes({ repo: f.cwd, pushes: [fresh('task/12-foo'), fresh('dev-crosery'), fresh('dev/crosery'), fresh('task/12/portal_redesign')] });
+    const naming = checkPushes({ repo: f.cwd, pushes: [fresh('task/12-foo'), fresh('dev-alice'), fresh('dev/alice'), fresh('task/12/portal_redesign')] });
     expect(naming.ok).toBe(true);
     const warnings = naming.warnings.join('\n');
     expect(warnings).toContain('refs/heads/task/12-foo');
-    expect(warnings).toContain('refs/heads/dev-crosery');
-    expect(warnings).not.toContain('refs/heads/dev/crosery ');
+    expect(warnings).toContain('refs/heads/dev-alice');
+    expect(warnings).not.toContain('refs/heads/dev/alice ');
     expect(warnings).not.toContain('refs/heads/task/12/portal_redesign ');
 
     const newMain = checkPushes({
@@ -283,8 +283,8 @@ describe('pre-push guard', () => {
       expect(result.ok).toBe(false);
       expect(result.violations.join('\n')).toContain(`拒绝删除远端长期分支 refs/heads/${longLived}`);
     }
-    // 合并后删 task 分支、迁移时删旧的 dev-crosery：都是规范要求的动作，不阻断也不报命名告警。
-    const cleanup = checkPushes({ repo: f.cwd, pushes: [del('task/12/portal_redesign'), del('dev-crosery')] });
+    // 合并后删 task 分支、迁移时删旧的 dev-alice：都是规范要求的动作，不阻断也不报命名告警。
+    const cleanup = checkPushes({ repo: f.cwd, pushes: [del('task/12/portal_redesign'), del('dev-alice')] });
     expect(cleanup.ok).toBe(true);
     expect(cleanup.warnings).toEqual([]);
 
@@ -305,7 +305,7 @@ describe('pre-push guard', () => {
     expect(result.stdout).toContain(INVARIANTS[1]);
     const passing = spawnSync(process.execPath, [script, '--push', '--repo', f.cwd], {
       encoding: 'utf8',
-      input: `refs/heads/dev/crosery ${f.stageTip} refs/heads/dev/crosery ${'b'.repeat(40)}\n`,
+      input: `refs/heads/dev/alice ${f.stageTip} refs/heads/dev/alice ${'b'.repeat(40)}\n`,
     });
     expect(passing.status).toBe(0);
   });

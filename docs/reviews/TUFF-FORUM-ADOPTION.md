@@ -60,7 +60,7 @@ pnpm 子进程 PATH/新安装脚本执行位问题已通过独立工具链解决
 
 上游 README 明确没有真实后端/认证。选择示例用户不是 GitHub 登录，localStorage 不是跨设备存储，Cloudflare PRD 是 Draft。统一 GitHub 登录 Hub、认证 Provider 扩展、服务注册协议、新论坛服务器权限/持久化、旧数据迁移和 3D 游戏感品牌界面尚未实施，不能用此次前端替换代替它们。
 
-未部署生产、配置 DNS/TLS/Cloudflare、购买服务、访问真实 GitHub 写接口、读取 .env、提交或推送代码。旧凭据泄漏仍需所有者轮换，本次迁移没有解决历史泄漏。测试通过不证明所有安全问题消失或达到 WCAG/ASVS 等级。
+未部署生产、配置 DNS/TLS/Cloudflare、购买服务、访问真实 GitHub 写接口、读取 .env、提交或推送代码。旧凭据泄漏仍需轮换，本次迁移没有解决历史泄漏。测试通过不证明所有安全问题消失或达到 WCAG/ASVS 等级。
 
 后续必须在所采用的原仓上接入真实服务，不恢复平行旧论坛。规范入口为 [docs README](../README.md)，采用决策为 [ADR-0003](../decisions/0003-adopt-tuff-forum.md)。
 

@@ -71,7 +71,7 @@ describe('release tag grammar', () => {
 
   it('rejects branch names, SHAs, latest and every malformed tag', () => {
     for (const bad of [
-      'main', 'stage', 'task/7/tag_release', 'dev/crosery', 'latest', 'HEAD',
+      'main', 'stage', 'task/7/tag_release', 'dev/alice', 'latest', 'HEAD',
       'a'.repeat(40), 'abcdef123456', '0.1.0', 'v0.1', 'v0.1.0.0', 'V0.1.0', 'v01.1.0', 'v0.01.0', 'v0.1.00',
       'v0.1.0-rc', 'v0.1.0-rc.0', 'v0.1.0-rc.01', 'v0.1.0-rc1', 'v0.1.0-RC.1', 'v0.1.0-beta.1', 'v0.1.0-rc.1.1',
       'v0.1.0+build', 'v0.1.0-rc.1@abcdef123456', 'release-0.1.0', 'prev-0.1.0', ' v0.1.0', 'v0.1.0\n', '',
@@ -125,7 +125,7 @@ describe('tag → environment release identity', () => {
 
   it('plans a final tag on main as production with a bare X.Y.Z, only when an rc tag sits on the same commit', () => {
     const f = fixture();
-    // 正常流程：rc 打在 stage 的提交上 → 所有者验收 → main 快进到同一提交 → 打正式 tag。
+    // 正常流程：rc 打在 stage 的提交上 → 预发布验收 → main 快进到同一提交 → 打正式 tag。
     git(f.cwd, 'tag', 'v0.1.0-rc.1', f.mainTip);
     git(f.cwd, 'tag', '-a', 'v0.1.0-rc.2', '-m', 'annotated rc', f.mainTip);
     // 打正式 tag 之前先规划同一提交的预发布：打了正式 tag 以后这个版本不能再发 rc。

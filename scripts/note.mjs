@@ -121,7 +121,7 @@ function appendEntries(file, meta, entries) {
  */
 export function addNote(root, { user, by, chain, stage, issues, title, did, result, next, now }) {
   if (!USER_RE.test(user ?? "")) throw new Error(`--user（或 GEEK_NOTES_USER）要写替谁干活的 GitHub 用户名（小写），收到 ${JSON.stringify(user)}`);
-  if (!BY_RE.test(by ?? "")) throw new Error(`--by（或 GEEK_NOTES_BY）要写执行者，形如 agent-claude-geek-main-08（Claude Code，claude-opus-5-5）或 human-crosery，收到 ${JSON.stringify(by)}`);
+  if (!BY_RE.test(by ?? "")) throw new Error(`--by（或 GEEK_NOTES_BY）要写执行者，形如 agent-claude-geek-main-08（Claude Code，claude-opus-5-5）或 human-alice，收到 ${JSON.stringify(by)}`);
   if (!STAGES.includes(stage ?? "")) throw new Error(`--stage 只能是 ${STAGES.join("、")}，收到 ${JSON.stringify(stage)}`);
   if (!branchSlug(chain)) throw new Error("--chain 要写链路对应的分支名（默认当前分支）");
   for (const n of issues) if (!/^\d+$/.test(String(n))) throw new Error(`--issue 只写数字，收到 ${JSON.stringify(n)}`);
