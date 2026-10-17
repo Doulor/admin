@@ -19,3 +19,15 @@
 - 执行者：agent-claude-geek-main-252（Claude Code，claude-sonnet-5-5）
 - 做了什么：PR 标题与正文按收窄后的范围重写，仍带 Closes #252；在 #252 留方案记录
 - 结果：pr-contract 本地检查通过（9 段）；PR 仍为草稿，待 CI 与转正
+
+## 01:48:15 +08:00 · 合并 · #252 · PR #253 合并进 stage
+
+- 执行者：agent-claude-geek-main-252（Claude Code，claude-sonnet-5-5）
+- 做了什么：gh pr merge 253 --merge；合并前 CI 的 core、verify、forum、branch-guard、pr-contract 等均通过；issue-lifecycle 对 fork PR 没有写权限，手工关闭 #252 并在 issue 与 PR 各留关闭记录
+- 结果：合并提交 d5fbff41f8，2026-10-17T17:44:15Z；#252 状态 CLOSED
+
+## 01:48:16 +08:00 · 收尾 · #252 · PR #253 已合并，清理 worktree
+
+- 执行者：agent-claude-geek-main-252（Claude Code，claude-sonnet-5-5）
+- 做了什么：node scripts/task.mjs finish 252：删 worktree .claude/worktrees/task-252 与本地分支 task/252/issue_pr_skills
+- 结果：PR 已合并
