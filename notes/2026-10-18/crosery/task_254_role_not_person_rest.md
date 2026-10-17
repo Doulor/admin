@@ -31,3 +31,15 @@
 - 执行者：agent-claude-geek-main-254b（Claude Code，claude-sonnet-5-5）
 - 做了什么：分支上共 5 个提交：e340059c（docs 文案）、a8148096（ci 文案）、f51e8fb9（测试示例名）、91518e31（执行记录）、562e0fd7（docs(tooling)：授权句不再写角色名，删 PROJECT.md「维护者」一节，补改 SKILL.md、check-branch-invariants.mjs、note.mjs 的漏改）。前四个提交是上一轮「所有者→维护者」的写法，最后一个把它改成直接写条件，合并后的最终结果以最后一个提交为准。
 - 结果：git log origin/stage..HEAD 共 5 个提交；check-doc-sync 对 origin/stage 通过 6 组
+
+## 03:07:24 +08:00 · 审查 · #254 · 独立审查 01855c56：有条件通过，2 条应修
+
+- 执行者：agent-claude-geek-main-254b（Claude Code，claude-sonnet-5-5）
+- 做了什么：审查人是独立审查 agent（omp，crosery/deepseek-v4.1-flash，只读，不是作者本人也不是人工审查），按 code-review 技能与 docs/conventions/CODE-REVIEW.md 逐项核对，被审提交 01855c568f65d16b52b51a9a776838026907d335。对改动前提交 d5fbff41 逐句比较了 AGENTS.md、RELEASES.md、CICD.md、deploy-manual.mjs 里的发布授权与批准评论句，没有发现要求被削弱；scripts、workflows、app 只改注释与文案；GitHub 组织所有者等真实角色名没有误改。条目：应修 2 条（ISSUES.md:9 的「维护者明确声明的紧急修复」；02:30:20 那条记录里六句「文档核对：不用改」与同一 PR 改了这些文档正文的事实不符），建议 6 条（SECURITY.md:35 缺空格、AGENTS.md:61 执行人措辞放宽、RELEASES.md:77 缺依据位置、RELEASES.md:46 与 :143 的「维护者」、CONSOLE-PERMISSION-TREE.md 的负责人署名与验收产物目录名、前两个提交在同一分支内被后一个提交回退且 a8148096 缺 scope）。
+- 结果：结论：有条件通过；审查全文在 PR 正文「审查结论」一节；返工见下一条记录
+
+## 03:07:24 +08:00 · 返工 · #254 · 按审查意见返工：2 条应修与 4 条建议
+
+- 执行者：agent-claude-geek-main-254b（Claude Code，claude-sonnet-5-5）
+- 做了什么：改了：docs/conventions/ISSUES.md:9「维护者明确声明的紧急修复」改成「已明确声明的紧急修复」；docs/architecture/SECURITY.md:35 补空格；AGENTS.md:61 执行人改成「由经授权的人，或经明确授权的 agent 执行」，保留原来「谁可以运行」的限制；docs/conventions/RELEASES.md:77 补「写在对应 issue 里」，:46 与 :143 去掉「维护者」。更正 02:30:20 那条「开发」记录里的六句「文档核对：… 不用改」：它们想说的是模块行为没变、服务文档不必为此改，但 CICD.md、DEPLOY.md、ENVIRONMENTS.md、mail.md、portal.md、forum README.md 在本 PR 里确实改了正文（称呼清理），那六句「不用改」与事实不符，以本更正为准；check-doc-sync 通过靠的是这些正文改动，不是靠豁免。不改：docs/plan/CONSOLE-PERMISSION-TREE.md 里的负责人署名和验收产物目录名（historical 文档里的署名与真实目录名，改了等于改写记录）；a8148096 缺 scope 与前两个提交被后一个回退，已推送，不重写历史，在 PR 正文里说明最终结果以 562e0fd7 为准。
+- 结果：修改见下一个提交；改完重跑 check-docs、docs-index --check、check-doc-sync、tests/tooling

@@ -43,7 +43,7 @@
 
 4. `deploy-preview.yml` 的 plan job 核对 tag、版本号、「提交在 `origin/stage` 上」，再在 tag 指向的提交上核对文档同步（[CICD](../ops/CICD.md#触发与职责)「发版时在 tag 指向的提交上再核对一次文档同步」），都通过才构建三个镜像并部署到预发布栈；部署记录的 payload 带上这个 rc tag。
 5. 在预发布环境实际试用这个 rc 的产物，按 [RELEASE-ACCEPTANCE-TEMPLATE](../ops/RELEASE-ACCEPTANCE-TEMPLATE.md) 记录结论。不通过就在 `stage` 上修复，打下一个 `rc.N+1`，回到第 4 步。
-6. 验收通过后，维护者把 `main` 快进到被验收的那个提交（只允许快进；push `main` 只跑 CI，不部署）：
+6. 验收通过后，把 `main` 快进到被验收的那个提交（只允许快进；push `main` 只跑 CI，不部署）：
 
    ```bash
    git switch main && git merge --ff-only v0.2.0-rc.1 && git push origin main
@@ -74,7 +74,7 @@
 
 ## 版本号
 
-- `package.json` 的 `version` 何时改、改成多少，要先有明确的决定。修改走普通 task PR（先开 issue、经审查合入 `stage`），合入以后才能打这个版本的 rc。版本号按 SemVer 2.0.0 选择升哪一位。
+- `package.json` 的 `version` 何时改、改成多少，要先有明确的决定（写在对应 issue 里）。修改走普通 task PR（先开 issue、经审查合入 `stage`），合入以后才能打这个版本的 rc。版本号按 SemVer 2.0.0 选择升哪一位。
 - 禁止 semantic-release、版本机器人或按 commit type 推算版本的脚本；`feat`/`fix` 提交消息不是发版许可。工作流不会改版本号，也不会打 tag。
 - 发布版本只取**提交态根** `package.json` 的 `version`（`scripts/release-policy.mjs` 与两条部署工作流都读根清单）。`app/forum/package.json` 由上游溯源固定：`app/forum/UPSTREAM.json` 与 `scripts/check-forum-adoption.mjs:20,23` 禁止改动上游清单与锁文件，要动它得先单独复审一次上游升级。所以升号 PR 不改论坛清单，它与根清单版本不同不是缺陷。
 
@@ -140,7 +140,7 @@ Agent 可以整理候选改动、测试结果、差异和空白模板，**不能
 
 - 发布身份由只读规划器给出：`node scripts/release-policy.mjs plan --tag <vX.Y.Z-rc.N|vX.Y.Z> --commit <40 位 SHA>`（stdout 只输出 JSON，人类可读结论走 stderr）。它核对 tag 格式、tag 指向传入的提交、`X.Y.Z` 等于该提交的 `package.json` `version`、rc 提交在 `stage` 上且该版本还没有正式 tag、正式提交在 `main` 上且同一提交有同版本的 rc tag。输出里 `deploymentAuthorized` 恒为 `false`。脚本不创建 tag、不写文件、不连服务器，也不证明人工批准。它拒绝分支名、`latest`、短 SHA 与格式错误的 tag。
 - 「同一提交已在预发布成功部署」与「预发布站点现在就是这个提交」由 `deploy-production.yml` 的证据 job 读 GitHub Deployments 与 `https://prev.yangtzeu.work/release.json` 核对，见 [CICD](../ops/CICD.md)。
-- 分支不变量与发布 tag 的推送规则由 `scripts/check-branch-invariants.mjs` 承担（CI 的 `branch-guard` 与本地 pre-push）；**规范不等于远程保护已启用**，GitHub 计划能力需维护者实测确认（见 [CICD](../ops/CICD.md)）。
+- 分支不变量与发布 tag 的推送规则由 `scripts/check-branch-invariants.mjs` 承担（CI 的 `branch-guard` 与本地 pre-push）；**规范不等于远程保护已启用**，GitHub 计划能力需实测确认（见 [CICD](../ops/CICD.md)）。
 - 机器检查（`pnpm verify`、CI 全绿、构建成功、`release-policy` 输出）**不构成**人工验收记录，也不授权任何部署或发版动作。
 - 部署开关默认关闭：`DEPLOY_PREVIEW_ENABLED`、`DEPLOY_PRODUCTION_ENABLED` 只有取值 `enabled` 时才部署。
 - `deploy/environments.json` 只保存环境身份（`label` / `origin` / `githubEnvironment`），发布 tag 规则只在 `scripts/release-policy.mjs` 实现。旧的 `tagPrefix` / `allowCommitSuffix` 字段已删除，不要恢复。旧发布包布局（`release-bundle` + `scripts/release-bundle.mjs`）、systemd 部署与旧目标机脚本均已删除，见 [DEPLOY](../ops/DEPLOY.md) 的历史章节。
