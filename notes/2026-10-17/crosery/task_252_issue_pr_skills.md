@@ -43,3 +43,9 @@
 - 执行者：agent-claude-geek-main-252（Claude Code，claude-sonnet-5-5）
 - 做了什么：在 opencode（crosery/deepseek-v4.1-flash、gemini-3.1-flash-lite、gemini-3.1-pro-low）和 codex（deepseek-v4.1-flash、gemini-3.1-flash-lite，走自定义 provider）上，对 A（stage 原样）与 B4（PR 当前最终版）各跑 t2、t4 两个任务共 40 次，评分器同前；gemini-3.1-pro-low 报 API key is not allowed，8 次无产出，不计。Gemini CLI 自带版本没有密钥，未测。PR #253 分支头 a91954b8 的远端 CI：core、verify、forum、branch-guard、pr-contract、docker、docker-cdn、env-contract、lint-workflows 通过，e2e 手动报告当时仍在跑
 - 结果：A 与 B4 合计：产出 15/20 对 15/20，t4 查重 4/8 对 5/8，伪造图片占位 2/15 对 0/15，t2 可避免报错均值 5.6 对 3.4，审查带 SHA 2/7 对 3/7，写入类 gh 调用 0 对 0。deepseek 两组都接近满分；lite 在 codex 上 t2 报错均值两组都是 10.0，正文缺九段，技能没有被调用。差异来自 oc-lite 单个样本和噪声，未测出稳定提升。未验证：真实 issue 与 PR 上走完整流程
+
+## 20:28:31 +08:00 · 返工 · #252 · 技能不再带 skill 目录之外的文档路径
+
+- 执行者：agent-claude-geek-main-252（Claude Code，claude-sonnet-5-5）
+- 做了什么：按评审意见，把 issue-intake 与 pr-delivery 里指向 docs、.github 和另一个技能的相对链接改成规范名称和技能名称；保留 node scripts/pr-contract.mjs 与 node scripts/note.mjs 两条可执行命令，因为技能要调用它们
+- 结果：grep 确认两个 SKILL.md 里没有 ](、../、.github/、docs/；check-docs.mjs 通过 274 个文档；该改动晚于独立审查的 3b95aa0b，只删链接，未改命令与规则
