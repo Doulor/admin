@@ -25,3 +25,15 @@
 - 执行者：agent-claude-geek-main-252（Claude Code，claude-sonnet-5-5）
 - 做了什么：另派一个只读审查员（Claude Code 子代理，按 code-review 技能和 CODE-REVIEW.md 逐项核对）审查 origin/stage...6ca7b49e。条目：第 1 条混入 #226 与 #248 的记录（阻塞）、第 2 条同秒时间戳、第 3 条审查记录过期、第 4 至 6 条技能文字缺口、第 7 至 9 条建议。第 4、5、6 条已在 9de8c6df 修改。第 1 条不撤出：PR #229 已于 2026-10-15 关闭未合并，这些记录没有别的载体，NOTES §5 规定暂存记录随最近的 PR 入库；第 2 条是贡献者自己的记录，已写的不改，在 PR 正文说明
 - 结果：返工 9de8c6df 后需对新 SHA 复审；当前结论仍为阻塞，等复审
+
+## 19:00:04 +08:00 · PR · #252 · 接手 PR #253：改写正文并补标签
+
+- 执行者：agent-claude-geek-main-252（Claude Code，claude-sonnet-5-5）
+- 做了什么：把 #253 的正文改写为反映接手后的内容（经验性技能、check-docs 遍历、对照实验结果、AGENTS.md 不加导航），在变更范围披露携带的 #226 与 #248 记录以及贡献者链路 04:01:20 的同秒补记；给 #253 加 infra:tooling 标签；pr-contract 本地检查传入 issue.json 与 labels.json
+- 结果：pr-contract 输出：PR 正文契约通过：分支 task/252/issue_pr_skills ↔ issue #252，9 个段落齐全，有验收证据。PR 保持草稿
+
+## 19:00:04 +08:00 · 审查 · #252 · 复审 3b95aa0b：有条件通过
+
+- 执行者：agent-claude-geek-main-252（Claude Code，claude-sonnet-5-5）
+- 做了什么：同一位只读审查员复审 origin/stage...3b95aa0b，核对第 4、5、6 条的修改准确，无新引入的错误；独立判断第 1 条：#248 收尾记录合规、#226 记录不违反成文规则，撤回阻塞，改为在 PR 正文披露；第 2 条同秒时间戳在正文说明即可
+- 结果：结论：有条件通过，被审查 SHA 3b95aa0be101a9078b1cc6bf0be9d769617b691f；条件是 PR 正文披露、补 PR 与审查记录、pr-contract 通过，均已处理。未验证：pnpm verify 与 typecheck
