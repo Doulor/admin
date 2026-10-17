@@ -12,7 +12,7 @@
 # 部署 job 会拿到部署私钥，所以写成字面量、不读仓库变量：换 runner 要改工作流、走 PR 审查（docs/ops/CICD.md「运行位置」）。
 #
 # 边界：
-#   * 本工作流不创建、不移动、不删除 tag；正式 tag 由所有者在预发布验收并授权后手工打。
+#   * 本工作流不创建、不移动、不删除 tag；正式 tag 由维护者在预发布验收并授权后手工打。
 #   * 部署用环境级 secrets（GitHub Environment `production`，应配置人工审批），与 PR 构建、预发布完全隔离。
 #   * 构建（build job）不接触任何环境级密钥。静态资源 CDN（#146）的上传 token 只在 cdn-plan、cdn-upload
 #     两个 job 里出现（GitHub Environment `static-cdn`），这两个 job 不安装依赖；没有 token 时同源构建、不上传。

@@ -1,6 +1,6 @@
 # 证书到期监控（Certificate watch）
 #
-# 所有者 2026-09-25：「这个签证书是要永久签哈，要一直监控着签。」
+# 维护者 2026-09-25：「这个签证书是要永久签哈，要一直监控着签。」
 # 续期由目标机的 certbot.timer 负责（每天两次，续期成功后
 # /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh 在 nginx -t 通过后 reload）；
 # 这里从公网独立核对结果：每个入口的证书必须有效、名字对得上、剩余时间不少于总有效期的四分之一
