@@ -2,7 +2,7 @@
 
 > 本仓库专属的 diff 审查清单：触发时机、逐项检查、结论格式与审查记录位置。
 
-状态：`current` · 更新：2026-10-15
+状态：`current` · 更新：2026-10-18
 
 本规范规定**看什么、怎么判、写在哪**；MR 的字段要求与门禁见 [PULL-REQUESTS](PULL-REQUESTS.md)，分支模型见 [BRANCHING](BRANCHING.md)。
 
@@ -30,7 +30,7 @@
 9. **旧模型残留**：diff 中不得把 `next` 分支、`feat/|fix/|docs/` 命名、`release-*`/`prev-*` tag、「push `stage`/`main` 即部署」、systemd、`/opt/yzgc-admin`、宿主 3000 端口当成现行模型（历史章节内须显式标注历史）。发布 tag 只能是 `vX.Y.Z-rc.N` / `vX.Y.Z`（见 [RELEASES](RELEASES.md)）。
 10. **危险操作**：数据库结构变更是否有兼容与恢复路径；是否有删除数据、覆盖配置、顺带升级无关依赖、修改生产凭据的动作；是否存在「以测试通过代替人工验收」的表述。
 11. **执行记录**：本 task 的 `notes/` 链路（[NOTES](NOTES.md)）从「开工」起连续，已记录到「PR」；对照提交、PR 和 CI 核对记录内容属实，时间、SHA、结果对得上，已有记录未被删除或改写。审查进行中允许暂缺「审查」记录（此时 CI `branch-guard` 缺少审查记录是预期的，不作为审查的阻塞项）；审查结论给出后，由作者在合并前补记「审查」记录（`docs(notes): …`），届时 CI 的执行记录检查校验「审查」补齐后方可合并。
-12. **合并后清理**（合并的人在合并后当场核对；所有者 2026-09-26 定的强制规范：「完成的pr管理的issue必须清理」）：先等这次合并触发的 `issue-lifecycle` 与 `branch-hygiene` 跑完（`gh run list --workflow issue-lifecycle.yml --branch <task 分支> --limit 1`，`branch-hygiene.yml` 同样查），再核对：PR `Closes` 的 issue 已关闭（`gh issue view <issue> --json state` 是 `CLOSED`），远端 task 分支已删；只读运行 `node scripts/issue-sweep.mjs`，报告里没有「将补关」（它先不管合并不到一小时的 PR，刚合并时以上一条为准）；开发者本机 `node scripts/task.mjs list --check` 通过。只有工作流失败、issue 还开着时（例如 fork 来的 PR 合并时工作流没有写权限，#137）才当场手工关，并按 [TRACKING](TRACKING.md) §3 留「关闭」记录，不留到每天的巡检；工作流还在跑时不手工关，免得留两条「关闭」。
+12. **合并后清理**（合并的人在合并后当场核对；维护者 2026-09-26 定的强制规范：「完成的pr管理的issue必须清理」）：先等这次合并触发的 `issue-lifecycle` 与 `branch-hygiene` 跑完（`gh run list --workflow issue-lifecycle.yml --branch <task 分支> --limit 1`，`branch-hygiene.yml` 同样查），再核对：PR `Closes` 的 issue 已关闭（`gh issue view <issue> --json state` 是 `CLOSED`），远端 task 分支已删；只读运行 `node scripts/issue-sweep.mjs`，报告里没有「将补关」（它先不管合并不到一小时的 PR，刚合并时以上一条为准）；开发者本机 `node scripts/task.mjs list --check` 通过。只有工作流失败、issue 还开着时（例如 fork 来的 PR 合并时工作流没有写权限，#137）才当场手工关，并按 [TRACKING](TRACKING.md) §3 留「关闭」记录，不留到每天的巡检；工作流还在跑时不手工关，免得留两条「关闭」。
 
 13. **标签与证明**：PR 带「组:类」改动类型标签且覆盖它 `Closes` 的 issue；`ui:*` 的改动有改前改后截图，对照 diff 看图确实是这次改动的界面；`func:*` 的改动有接口测试和对真实接口的验证，接口测试确实覆盖这次改的路由与失败路径，不是只有类型检查或构建成功；写「无接口变更」「无界面变化」的，对照 diff 确认属实。`pr-contract` 只检查有没有，内容是否属实靠审查（[ISSUES](ISSUES.md) §2、[PULL-REQUESTS](PULL-REQUESTS.md)）。
 
@@ -63,6 +63,10 @@
 ## 审查记录位置
 
 **审查记录必须写在 MR 里**（MR 描述或 MR 评论），内容至少包含：审查人、时间、被审查的 commit SHA、逐条结论、最终结论。不写进被审查的代码提交本身（自引用问题），也不只存在于聊天记录或本地笔记。合入 `stage` 后，MR 就是这次审查的可追溯存档。
+
+## 机器审查的边界
+
+PR 上会自动出现两类机器审查评论：CodeRabbit（GitHub App，免费版）和 PR-Agent（`pr-agent.yml`，经 `ai.crosery.com`），见 [CICD](../ops/CICD.md)。它们只评论，不批准、不阻塞合并，也不推代码；机器评论里的条目按本规范的严重度判断，作者与审查人核对后采纳或在 MR 里写明不采纳的理由。**机器审查不是审查结论**：「审查结论」段仍由人（或按本规范逐项核对的审查人）对 diff 判断后给出，机器没发现问题不等于通过，更不代替人工验收。机器评论可能漏报、误报，也可能被 PR 内容里的提示注入误导，对外部贡献者的 PR 不运行（拿不到密钥）。
 
 ## 与人工验收的边界
 

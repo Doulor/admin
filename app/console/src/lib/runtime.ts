@@ -6,7 +6,11 @@ export type DataSource = "mock" | "live";
 const DATA_KEY = "yugc:console-data-source";
 
 /** 开发态默认真实数据（本机预览走真实 GitHub 登录）；`?__data=mock` 切到样板数据并记在本标签页（自动化测试用）。生产恒为 live。 */
+/** PR 预览构建（#245）：构建时设 VITE_PREVIEW_MOCK=1 才为 true，只有 pr-preview.yml 会设；未设置时构建里恒为 false，样板数据代码照旧被删掉。 */
+export const PREVIEW_MOCK: boolean = import.meta.env.VITE_PREVIEW_MOCK === "1";
+
 export function dataSource(): DataSource {
+  if (PREVIEW_MOCK) return "mock";
   if (!import.meta.env.DEV) return "live";
   if (typeof window === "undefined") return "live";
   const fromQuery = new URLSearchParams(window.location.search).get("__data");

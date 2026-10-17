@@ -12,10 +12,10 @@
     "check:docs": "node scripts/docs-index.mjs --check && node scripts/check-docs.mjs && node scripts/tuffex-docs.mjs check",
     "docs:tuffex": "node scripts/tuffex-docs.mjs",
     "check:tuffex-docs": "node scripts/tuffex-docs.mjs check",
-    "release:plan":"node scripts/release-policy.mjs",
-    "check:environments":"node scripts/deployment-environment.mjs --check",
-    "check:branch-invariants":"node scripts/check-branch-invariants.mjs",
-    "hooks:enable":"git config core.hooksPath .githooks",
+    "release:plan": "node scripts/release-policy.mjs",
+    "check:environments": "node scripts/deployment-environment.mjs --check",
+    "check:branch-invariants": "node scripts/check-branch-invariants.mjs",
+    "hooks:enable": "git config core.hooksPath .githooks",
     "check:secrets": "node scripts/check-secrets.mjs",
     "check:notes": "node scripts/note.mjs check",
     "check:doc-sync": "node scripts/check-doc-sync.mjs",
@@ -42,12 +42,13 @@
     "node": ">=22.13.0 <23"
   },
   "devDependencies": {
-    "vitest": "^3.2.4",
+    "@playwright/test": "^1.55.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
+    "@vitest/coverage-v8": "3.2.4",
     "jsdom": "^26.1.0",
     "typescript": "^5.7.2",
-    "@playwright/test": "^1.55.0"
+    "vitest": "^3.2.4"
   },
   "pnpm": {
     "overrides": {
