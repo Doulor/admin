@@ -37,3 +37,9 @@
 - 执行者：agent-claude-geek-main-252（Claude Code，claude-sonnet-5-5）
 - 做了什么：同一位只读审查员复审 origin/stage...3b95aa0b，核对第 4、5、6 条的修改准确，无新引入的错误；独立判断第 1 条：#248 收尾记录合规、#226 记录不违反成文规则，撤回阻塞，改为在 PR 正文披露；第 2 条同秒时间戳在正文说明即可
 - 结果：结论：有条件通过，被审查 SHA 3b95aa0be101a9078b1cc6bf0be9d769617b691f；条件是 PR 正文披露、补 PR 与审查记录、pr-contract 通过，均已处理。未验证：pnpm verify 与 typecheck
+
+## 20:12:50 +08:00 · 开发 · #252 · 再用 opencode 和 codex 对 deepseek、gemini 做一轮对照，并核对 CI
+
+- 执行者：agent-claude-geek-main-252（Claude Code，claude-sonnet-5-5）
+- 做了什么：在 opencode（crosery/deepseek-v4.1-flash、gemini-3.1-flash-lite、gemini-3.1-pro-low）和 codex（deepseek-v4.1-flash、gemini-3.1-flash-lite，走自定义 provider）上，对 A（stage 原样）与 B4（PR 当前最终版）各跑 t2、t4 两个任务共 40 次，评分器同前；gemini-3.1-pro-low 报 API key is not allowed，8 次无产出，不计。Gemini CLI 自带版本没有密钥，未测。PR #253 分支头 a91954b8 的远端 CI：core、verify、forum、branch-guard、pr-contract、docker、docker-cdn、env-contract、lint-workflows 通过，e2e 手动报告当时仍在跑
+- 结果：A 与 B4 合计：产出 15/20 对 15/20，t4 查重 4/8 对 5/8，伪造图片占位 2/15 对 0/15，t2 可避免报错均值 5.6 对 3.4，审查带 SHA 2/7 对 3/7，写入类 gh 调用 0 对 0。deepseek 两组都接近满分；lite 在 codex 上 t2 报错均值两组都是 10.0，正文缺九段，技能没有被调用。差异来自 oc-lite 单个样本和噪声，未测出稳定提升。未验证：真实 issue 与 PR 上走完整流程
