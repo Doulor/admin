@@ -20,3 +20,10 @@
 - 执行者：agent-claude-geek-main-sso（Claude Code，claude-sonnet-5-5，接手审查与返工）
 - 做了什么：20a9124 Merge branch 'stage' into task/237/sso_plan；d624d51 docs(decisions): ADR-0005 改为先建内部身份、对外授权后接，补三层改动面；本条与上两条审查、返工记录一起以 docs(notes) 提交
 - 结果：note.mjs check 与 docs-index.mjs --check 见返工记录；pnpm check 的 typecheck 未在本 worktree 跑（没有 app/ 改动，CI 会跑）
+
+## 03:18:05 +08:00 · PR · #237 · 改 PR #242 正文并补 func:api、func:auth 标签
+
+- 执行者：agent-claude-geek-main-sso（Claude Code，claude-sonnet-5-5，接手审查与返工）
+- 做了什么：gh pr edit 242 --add-label func:api --add-label func:auth；gh pr edit 242 --body-file 重写正文的变更范围、解决链路、验证（追加接手后重跑）、人工验收步骤、审查结论、风险与回滚，目的、关联（只改 #203 一行）、验收证据保持作者原文；改前用 node scripts/pr-contract.mjs check 带 issue 状态和标签文件核对
+- 结果：pr-contract：PR 正文契约通过（9 个段落齐全，有验收证据）；PR 现有标签 func:api、func:auth。审查结论段写明被审提交 f59c6b46、结论有条件通过，条件是 CI 全绿和对 ADR 的确认记录
+- 下一步：推送后在 PR 上发审查与返工评论，等 CI；确认记录由 #237 或 PR 的评论留下
