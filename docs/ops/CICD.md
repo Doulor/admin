@@ -235,7 +235,7 @@ deploy job 不用 `actions/download-artifact`，改用 `scripts/fetch-artifact.m
 
 ## 明确不做的事
 
-- 任何工作流都不自动创建/移动/删除 tag，不自动升级 `package.json` 版本，不写放行状态；发布 tag 由维护者在维护者授权后手工创建。
+- 任何工作流都不自动创建/移动/删除 tag，不自动升级 `package.json` 版本，不写放行状态；发布 tag 在维护者授权后手工创建。
 - 不从 `pull_request_target` 触发，不给 fork/PR 构建授予部署 secrets；不用自托管 runner，所有 job 只跑在 GitHub 托管 runner 上（见上文「运行位置」）。
 - 不把 `.tools`、真实数据库、`.env`、SSH 材料、内部文档或浏览器状态打进镜像、缓存或日志。
 - 机器 PASS（`pnpm verify`、CI 全绿）不构成人工验收记录，也不授权任何部署或发版动作。

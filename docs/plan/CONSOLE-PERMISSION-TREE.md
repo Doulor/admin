@@ -8,7 +8,7 @@
 
 - 主档：[issue #176](https://github.com/Yangtze-University-Geek-Class/admin/issues/176)；原文件级方案见 [方案记录](https://github.com/Yangtze-University-Geek-Class/admin/issues/176#issuecomment-5857178397)，后续实施授权与基线同步见 [实施记录](https://github.com/Yangtze-University-Geek-Class/admin/issues/176#issuecomment-5857520712)。负责人 `LYsnowQ`。
 - 分支 `task/176/permission_tree`，独立 worktree `.claude/worktrees/task-176`。初始 `stage 9b38684cee4409a309052f4aefa3673106f5c7b0`，实施前整体快进至 `origin/stage f9da30f`，保留计划与执行记录；没有在主工作区开发。
-- 经所有者授权，已保全16份任务文件后将 task 从 `f9da30f19344f04e9fc00cf991f085b477f636a6` 快进至 `origin/stage 0c32616dcfd4224c64ef13efd0d347361548d444`（含 #174 论坛状态拆分），恢复未提交实现，无冲突。15份文件哈希未变，`TESTING.md` 同时保留上游与本任务说明；下述同步轮证据覆盖新基线加本地权限树改动，不代表该功能已合入 stage。
+- 经维护者授权，已保全16份任务文件后将 task 从 `f9da30f19344f04e9fc00cf991f085b477f636a6` 快进至 `origin/stage 0c32616dcfd4224c64ef13efd0d347361548d444`（含 #174 论坛状态拆分），恢复未提交实现，无冲突。15份文件哈希未变，`TESTING.md` 同时保留上游与本任务说明；下述同步轮证据覆盖新基线加本地权限树改动，不代表该功能已合入 stage。
 - 页面为「成员与权限」第四页签 `/console/people?view=permissions`。当前接口、刷新/错误、来源与状态、执行边界和 Tuffex 交互只在 [console 服务合同](../services/console/README.md#只读权限树) 维护；不再保存一份重复的待实施规则。
 - 实现位置：[People.vue](../../app/console/src/pages/People.vue)、[PermissionTree.vue](../../app/console/src/pages/people/PermissionTree.vue)、[permission-tree.ts](../../app/console/src/lib/permission-tree.ts)、[permission-boundaries.ts](../../app/console/src/lib/permission-boundaries.ts)。样式限于页面私有 scoped CSS，没有新增基础组件库或改变全局主题。
 - 复用真实 `/me`、catalogue、departments 和现有闭包函数；不复制服务端 `computeAccess`，不新增角色、能力、写接口或真实成员模拟器，父页能力门不变。API 与安全事实仍以 [API](../architecture/API.md)、[SECURITY](../architecture/SECURITY.md) 为准。
