@@ -43,3 +43,9 @@
 - 执行者：agent-claude-geek-main-254b（Claude Code，claude-sonnet-5-5）
 - 做了什么：改了：docs/conventions/ISSUES.md:9「维护者明确声明的紧急修复」改成「已明确声明的紧急修复」；docs/architecture/SECURITY.md:35 补空格；AGENTS.md:61 执行人改成「由经授权的人，或经明确授权的 agent 执行」，保留原来「谁可以运行」的限制；docs/conventions/RELEASES.md:77 补「写在对应 issue 里」，:46 与 :143 去掉「维护者」。更正 02:30:20 那条「开发」记录里的六句「文档核对：… 不用改」：它们想说的是模块行为没变、服务文档不必为此改，但 CICD.md、DEPLOY.md、ENVIRONMENTS.md、mail.md、portal.md、forum README.md 在本 PR 里确实改了正文（称呼清理），那六句「不用改」与事实不符，以本更正为准；check-doc-sync 通过靠的是这些正文改动，不是靠豁免。不改：docs/plan/CONSOLE-PERMISSION-TREE.md 里的负责人署名和验收产物目录名（historical 文档里的署名与真实目录名，改了等于改写记录）；a8148096 缺 scope 与前两个提交被后一个回退，已推送，不重写历史，在 PR 正文里说明最终结果以 562e0fd7 为准。
 - 结果：修改见下一个提交；改完重跑 check-docs、docs-index --check、check-doc-sync、tests/tooling
+
+## 03:09:26 +08:00 · PR · #254 · 开 PR #256：授权句不再写个人名字和角色名
+
+- 执行者：agent-claude-geek-main-254b（Claude Code，claude-sonnet-5-5）
+- 做了什么：gh pr create 开出 #256，目标 stage，标签 docs、infra:tooling，Closes #254；正文九段按 pr-contract 本地检查通过（分支 task/254/role_not_person_rest ↔ issue #254，9 个段落齐全，有验收证据）。审查结论一节写明审查人是独立审查 agent（omp，crosery/deepseek-v4.1-flash，只读），被审提交 01855c568f65，结论有条件通过，两条应修已改；返工提交 708b4820。
+- 结果：PR https://github.com/Yangtze-University-Geek-Class/admin/pull/256 ；note.mjs check --pr 在补完本条后应通过
