@@ -2,7 +2,7 @@
 
 > 只有 `main`（正式）与 `stage`（预发布）两条长期分支；task 分支合并后必须立即删除，任何操作前先确认当前分支。
 
-状态：`current` · 更新：2026-10-02 · 依据：项目所有者明确指令（2026-09-23 分支模型；2026-09-24 改为打 tag 发版；2026-09-26 worktree 做完即清，推送前检查）。
+状态：`current` · 更新：2026-10-18 · 依据：项目维护者明确指令（2026-09-23 分支模型；2026-09-24 改为打 tag 发版；2026-09-26 worktree 做完即清，推送前检查）。
 
 ## 第负一步：先确认分支
 
@@ -26,7 +26,7 @@
 | `task/<issue>/<slug>` | 从 `stage` 拉出 → MR 回 `stage`，正文写 `Closes #<issue>` | **极短**：MR 合并后必须立即删除，禁止残留死分支。`branch-hygiene.yml` 会在 PR 合并后自动删除，也可以手工 `git push origin --delete` |
 | `dev/<github-username>` | 个人自由开发区，内容随意 | 个人自行维护；**不得作为任何提交进入 `stage` 的凭据**，也不部署（只在 `ci.yml` 里跑机器验证） |
 
-- 一次任务一条 task 分支；一个 task 分支只对应一个 issue，并且**在自己的 git worktree 里开发**（见下节）。进 `stage` 只用 merge commit（GitHub 的「Create a merge commit」，命令行 `gh pr merge <PR> --merge`），分支本身必须在合并后删除。原因：文档同步检查在 `stage` 上按第一父链的时间比较模块与文档（[docs/README](../README.md)「文档跟着模块改」），一个 PR 只进来一个合并提交，模块和文档同时到；rebase 合并会把 PR 的提交逐个接到第一父链上，模块提交排在文档提交后面就不通过；squash 会把审查和执行记录里引用的提交 SHA 从 `stage` 的历史里抹掉。仓库设置里关掉 squash 与 rebase 要所有者操作，关掉之前靠合并的人照这条做。
+- 一次任务一条 task 分支；一个 task 分支只对应一个 issue，并且**在自己的 git worktree 里开发**（见下节）。进 `stage` 只用 merge commit（GitHub 的「Create a merge commit」，命令行 `gh pr merge <PR> --merge`），分支本身必须在合并后删除。原因：文档同步检查在 `stage` 上按第一父链的时间比较模块与文档（[docs/README](../README.md)「文档跟着模块改」），一个 PR 只进来一个合并提交，模块和文档同时到；rebase 合并会把 PR 的提交逐个接到第一父链上，模块提交排在文档提交后面就不通过；squash 会把审查和执行记录里引用的提交 SHA 从 `stage` 的历史里抹掉。仓库设置里关掉 squash 与 rebase 要维护者操作，关掉之前靠合并的人照这条做。
 - `dev/<github-username>` 是个人实验区：可以自由提交、可以 force-push 自己的分支，但把内容送上 `stage` 的唯一合法路径是「从 `stage` 拉一条干净的 `task/<issue>/<slug>`，重新提交或 cherry-pick 经过审查的改动」。`dev/**` 的提交历史、分支名和 CI 绿标都不是审查凭据。
 - 禁止把 `dev/**`、`task/**` 直接合并进 `main`。
 
@@ -37,12 +37,12 @@
 | 类型 | 形状 | 正则（与脚本逐字一致） | 例子 |
 |---|---|---|---|
 | 任务分支 | `task/<issue>/<slug>` | `^task\/[0-9]+\/[a-z0-9]+(?:_[a-z0-9]+)*$` | `task/12/portal_redesign`、`task/7/forum` |
-| 个人分支 | `dev/<github-username>` | `^dev\/[a-z0-9]+(?:_[a-z0-9]+)*$` | `dev/crosery` |
+| 个人分支 | `dev/<github-username>` | `^dev\/[a-z0-9]+(?:_[a-z0-9]+)*$` | `dev/alice` |
 
 - `<issue>` 是纯数字的 issue 编号；`<slug>` 与用户名段都是 `[a-z0-9]+(?:_[a-z0-9]+)*`：不允许大写、`-`、首尾 `_` 或连续 `__`，也不允许再多一层 `/`。
 - GitHub 用户名里带 `-` 的，个人分支里写成 `_`（例：`joe-smith` 写成 `dev/joe_smith`）；大写一律转小写。
 - 旧写法 `task/<issue>-<slug>`、`dev-<username>`（以及 `task-…`）已**不合规**：`check-branch-invariants.mjs` 把它们归为 `task-malformed` / `personal-malformed` 并告警，pre-push 拒绝以它们为来源推 `stage`，`ci.yml` 也不再对 `dev-*` 的 push 触发。
-- 迁移（2026-09-23，所有者指令）：旧个人分支 `dev-crosery` 需改名为 `dev/crosery`，由分支所有者执行，引入本规则的提交本身不改任何本地或远端分支：本地 `git branch -m dev-crosery dev/crosery` → 推送新名 `git push -u origin dev/crosery` → 确认后删除旧远端 `git push origin --delete dev-crosery`（pre-push 对删除非长期分支放行）。Git 不允许 `dev` 与 `dev/…` 同时存在，但 `dev-crosery` 与 `dev/crosery` 可以并存。
+- 迁移（2026-09-23，维护者指令）：旧个人分支 `dev-<用户名>` 需改名为 `dev/<用户名>`，由分支所有者执行，引入本规则的提交本身不改任何本地或远端分支：本地 `git branch -m dev-<用户名> dev/<用户名>` → 推送新名 `git push -u origin dev/<用户名>` → 确认后删除旧远端 `git push origin --delete dev-<用户名>`（pre-push 对删除非长期分支放行）。Git 不允许 `dev` 与 `dev/…` 同时存在，但 `dev-<用户名>` 与 `dev/<用户名>` 可以并存。
 
 ## 不变量
 
@@ -70,7 +70,7 @@ node scripts/check-branch-invariants.mjs --strict-long-lived # 把「main/stage 
 - 禁止在新分支名里使用 `-`（见上文「命名规则」）。
 - 禁止在没有 issue 的情况下开 task 分支：开发前先在仓库开 issue，见 [ISSUES](ISSUES.md)。
 - 禁止向 `stage` 提交未审查的内容：进入 `stage` 前必须走 [CODE-REVIEW](CODE-REVIEW.md)，MR 描述里带审查结论。
-- 禁止长期保留已合并的 task 分支，禁止用分支名当版本号或发布凭据；发布凭据只有所有者授权后打的发布 tag。
+- 禁止长期保留已合并的 task 分支，禁止用分支名当版本号或发布凭据；发布凭据只有维护者授权后打的发布 tag。
 - 禁止 force-push `main`/`stage`，禁止整分支 reset 覆盖他人提交。
 
 ## 线上紧急修复（Hotfix）规约
