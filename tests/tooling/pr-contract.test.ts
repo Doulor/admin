@@ -7,7 +7,7 @@ const template = readFileSync(new URL("../../.github/pull_request_template.md", 
 /** 一份填好的正文：模板的每个段落都写了内容 */
 function filled(overrides: Record<string, string> = {}): string {
   const text: Record<string, string> = {
-    目的: "维护者反馈开机时先露出桌面。",
+    目的: "反馈开机时先露出桌面。",
     关联: "Closes #32",
     变更范围: "app/web/sites/portal/pages/Home.tsx",
     解决链路: "1. 复现：慢网下点开机。\n2. 定位：开机画面进场渐变透出桌面。\n3. 修复：开机画面不渐变、等壁纸解码。",

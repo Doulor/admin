@@ -125,7 +125,7 @@ describe('tag → environment release identity', () => {
 
   it('plans a final tag on main as production with a bare X.Y.Z, only when an rc tag sits on the same commit', () => {
     const f = fixture();
-    // 正常流程：rc 打在 stage 的提交上 → 维护者验收 → main 快进到同一提交 → 打正式 tag。
+    // 正常流程：rc 打在 stage 的提交上 → 预发布验收 → main 快进到同一提交 → 打正式 tag。
     git(f.cwd, 'tag', 'v0.1.0-rc.1', f.mainTip);
     git(f.cwd, 'tag', '-a', 'v0.1.0-rc.2', '-m', 'annotated rc', f.mainTip);
     // 打正式 tag 之前先规划同一提交的预发布：打了正式 tag 以后这个版本不能再发 rc。

@@ -155,7 +155,7 @@ issue ──▶ task/<issue>/<slug>（独立 worktree）──▶ PR → stage �
 - 长期分支只有 `main`（正式）和 `stage`（预发布）。`stage` 必须包含 `main`，`main` 只能快进到 `stage` 上已有的提交。
 - 一件事 = 一个 issue = 一条 `task/<issue>/<slug>` 分支 = 一个 worktree = 一个 PR。开工用 `node scripts/task.mjs start <issue> <slug>`，合并后分支删掉、issue 自动关闭。分支名不用 `-`，只用 `/` 分层。
 - `dev/<github-username>` 是个人随便写的地方，不部署，也不能直接进 `stage`。
-- **推分支不部署。** 发版只靠打 tag：`vX.Y.Z-rc.N` 打在 `stage` 的提交上发预发布，维护者验收通过后，在同一提交上打 `vX.Y.Z` 发正式。打 tag 要维护者授权，已推送的 tag 不移动、不删除。
+- **推分支不部署。** 发版只靠打 tag：`vX.Y.Z-rc.N` 打在 `stage` 的提交上发预发布，验收通过后，在同一提交上打 `vX.Y.Z` 发正式。打 tag 要有授权，已推送的 tag 不移动、不删除。
 - 进 `stage` 的每个 PR 都要按 [CODE-REVIEW](docs/conventions/CODE-REVIEW.md) 写审查结论，正文九段按 [PULL-REQUESTS](docs/conventions/PULL-REQUESTS.md) 写，CI 会核对。
 
 完整规则：[BRANCHING](docs/conventions/BRANCHING.md) · [RELEASES](docs/conventions/RELEASES.md) · [TRACKING](docs/conventions/TRACKING.md) · [ISSUES](docs/conventions/ISSUES.md) · [COMMITS](docs/conventions/COMMITS.md)。
@@ -173,7 +173,7 @@ issue ──▶ task/<issue>/<slug>（独立 worktree）──▶ PR → stage �
 
 - 镜像按环境分仓库：`yzgc-production/{server,web,forum}:<sha12>` 与 `yzgc-preview/{server,web,forum}:<sha12>`；回滚就是切回更早发布 tag 的镜像。
 - 环境变量只在 `deploy/env/.env.<环境>`；密钥留空，真实值只在目标机，由 CI/CD 的环境级 secrets 填。
-- 部署开关：`DEPLOY_PREVIEW_ENABLED` 已打开，打 rc tag 就部署预发布；`DEPLOY_PRODUCTION_ENABLED` 也已打开（2026-09-27 起），打正式 tag 后由 `deploy-production.yml` 经 `production` 环境的维护者审批部署；`scripts/deploy-manual.mjs` 只在 GitHub 计划让部署 job 按设计失败关闭时作退路，部署同一 tag 的 CI 产物。不用 systemd、pm2 或手工 node 进程代替 Docker 栈。
+- 部署开关：`DEPLOY_PREVIEW_ENABLED` 已打开，打 rc tag 就部署预发布；`DEPLOY_PRODUCTION_ENABLED` 也已打开（2026-09-27 起），打正式 tag 后由 `deploy-production.yml` 经 `production` 环境的审批部署；`scripts/deploy-manual.mjs` 只在 GitHub 计划让部署 job 按设计失败关闭时作退路，部署同一 tag 的 CI 产物。不用 systemd、pm2 或手工 node 进程代替 Docker 栈。
 
 操作步骤：[DEPLOY](docs/ops/DEPLOY.md) · [ENVIRONMENTS](docs/ops/ENVIRONMENTS.md) · [CICD](docs/ops/CICD.md)。
 

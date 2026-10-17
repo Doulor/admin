@@ -390,7 +390,7 @@ export function validateEnvironmentFiles({ root = repositoryRoot(), checkCompose
     }
     const recipients = values.get('MAIL_RECIPIENTS');
     if (values.has('MAIL_RECIPIENTS')) {
-      // 预发布以前只能是 allowlist；维护者 2026-09-27 14:20 要求预发布的信都发出去（「我们官方发的那些邮件，肯定必须发过去」），#169 放开。
+      // 预发布以前只能是 allowlist；2026-09-27 14:20 要求预发布的信都发出去（「我们官方发的那些邮件，肯定必须发过去」），#169 放开。
       if (!MAIL_RECIPIENT_MODES.includes(recipients)) problem(`MAIL_RECIPIENTS 只能是 ${MAIL_RECIPIENT_MODES.join(' 或 ')}：${recipients}`);
     }
     const ignored = spawnSync('git', ['-c', 'core.hooksPath=/dev/null', 'check-ignore', '--quiet', path], {

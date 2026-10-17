@@ -38,14 +38,14 @@
 
 ## 2. 工作流硬门禁
 
-**先 issue → 从 `stage` 拉 task 分支 → MR 回 `stage` → 在 `stage` 的提交上打 `vX.Y.Z-rc.N` 发预发布 → 维护者验收 → `main` 快进到同一提交 → 打 `vX.Y.Z` 发正式。**
+**先 issue → 从 `stage` 拉 task 分支 → MR 回 `stage` → 在 `stage` 的提交上打 `vX.Y.Z-rc.N` 发预发布 → 预发布验收 → `main` 快进到同一提交 → 打 `vX.Y.Z` 发正式。**
 
 - **一件事 = 一个 issue = 一个 `task/<issue>/<slug>` 分支 = 一个 git worktree = 一个 PR**，生命周期跟着 issue 走（[TRACKING](docs/conventions/TRACKING.md)）。开工用 `node scripts/task.mjs start <issue> <slug>` 从最新 `stage` 建分支和独立 worktree，所有开发都在 worktree 里做，不在主工作区切分支；合并后 `node scripts/task.mjs finish <issue>` 删 worktree 与本地分支（[BRANCHING](docs/conventions/BRANCHING.md)「task worktree」）；本机有 PR 已合并或 issue 已关、还没 finish 的 worktree 时，`pre-push` 拒绝任何推送（钩子每台克隆用 `pnpm hooks:enable` 启用一次）。开发前先按 [ISSUES](docs/conventions/ISSUES.md) 开 issue；PR 按 [PULL-REQUESTS](docs/conventions/PULL-REQUESTS.md) 的正文契约写（`Closes #<issue>`、解决链路、验收证据截图 / 录屏、人工验收步骤），CI 的 `pr-contract` 核对；**合并进 `stage` 即删分支、关 issue**，issue 与 PR 两边都要留记录。
-- issue 做完当场关（维护者 2026-09-26 定的强制规范：「完成的pr管理的issue必须清理」）：PR 合并进 `stage` 后，它 `Closes` 的 issue 必须关闭，task 分支与 worktree 必须清理；`issue-lifecycle` 自动关 issue、`branch-hygiene` 自动删远端分支，自动化没关上的（例如 fork PR 没有写权限，#137）由合并的人当场手工关并留「关闭」记录，本机 worktree 由开发者 `task.mjs finish`。不走 PR 做完的（运维操作、决定不做、被别的改动顺带解决）由做完的人当场写「关闭」记录再关；只剩外部等待的关掉原 issue，剩下的一步开成新 issue 写明负责人（例：#70 → #114）。每天的巡检补关 PR 已合并还开着的 issue，给 14 天没动静的留「超期」、给关了却没有 PR 也没有记录的留「缺记录」。每个生命周期在哪里强制见 [TRACKING](docs/conventions/TRACKING.md) §1。
+- issue 做完当场关（2026-09-26 定的强制规范：「完成的pr管理的issue必须清理」）：PR 合并进 `stage` 后，它 `Closes` 的 issue 必须关闭，task 分支与 worktree 必须清理；`issue-lifecycle` 自动关 issue、`branch-hygiene` 自动删远端分支，自动化没关上的（例如 fork PR 没有写权限，#137）由合并的人当场手工关并留「关闭」记录，本机 worktree 由开发者 `task.mjs finish`。不走 PR 做完的（运维操作、决定不做、被别的改动顺带解决）由做完的人当场写「关闭」记录再关；只剩外部等待的关掉原 issue，剩下的一步开成新 issue 写明负责人（例：#70 → #114）。每天的巡检补关 PR 已合并还开着的 issue，给 14 天没动静的留「超期」、给关了却没有 PR 也没有记录的留「缺记录」。每个生命周期在哪里强制见 [TRACKING](docs/conventions/TRACKING.md) §1。
 - 每个阶段的进展以 [TRACKING](docs/conventions/TRACKING.md) §3 的「追踪记录」格式写成 issue / PR 评论；恢复上下文先读 issue 正文和最后几条追踪记录，不凭记忆续做。
 - **执行记录前后必须写**（[NOTES](docs/conventions/NOTES.md)）：每一步按北京时间记进 `notes/<日期>/<GitHub 用户名>/<链路>.md`，入口是 `notes/INDEX.md`。开发前由 `task.mjs start` 记「开工」（要带 `GEEK_NOTES_USER` 与 `GEEK_NOTES_BY` 身份），开发中每次提交、开 PR、审查、返工都记，合并、发布、验收照记，`task.mjs finish` 记「收尾」。task PR 的链路缺「开工」「提交」「PR」「审查」时 CI 不通过，不能合并。
 - 任何进入 `stage` 的内容必须走 [CODE-REVIEW](docs/conventions/CODE-REVIEW.md)：按 [code-review 技能](.agents/skills/code-review/SKILL.md) 逐项核对 diff，并把审查结论贴进 MR。**没有审查结论的 MR 不允许合并。**
-- 进入 `main` 和打正式 tag 前，必须有维护者在预发布环境对同一提交的真实验收记录；自动化 PASS 只是机器验证，不能代替人工验证。
+- 进入 `main` 和打正式 tag 前，必须有在预发布环境对同一提交的真实验收记录；自动化 PASS 只是机器验证，不能代替人工验证。
 - 文档跟着模块改：`app/<服务>`、`deploy/`、`.github/workflows/` 改了，对应文档在同一个 PR 里跟着改，服务文档头的「更新：」不早于模块最后改动的日期；文档里的事实确实没变时，在这个 task 的执行记录里写「文档核对：<文档路径> 不用改——<理由>」。对照表与规则只在 [docs/README](docs/README.md)「文档跟着模块改」，`pnpm check` 与 CI 强制。只改日期、不改内容是假同步。PR 只用 merge commit 进 `stage`（[BRANCHING](docs/conventions/BRANCHING.md)）。
 - **issue 与 PR 必带「组:类」改动类型标签**（`ui:*` / `func:*` / `infra:*`，口径见 [ISSUES](docs/conventions/ISSUES.md) §2）：`ui:*` 的 issue 和 PR 必须有已上传至 GitHub 托管的有效截图（用户提供图片，Agent 必须负责转存上传为 GitHub 附件链接，禁止写入裸文件名或本地路径充数；缺图必须主动找用户要）；`func:*` 必须有接口测试与接口验证，建单前先查开放与已关闭的相似 issue 并在正文写「相关 issue」；`task.mjs start` 与 CI 的 `pr-contract` 核对。
 - 提交信息只遵循 [COMMITS](docs/conventions/COMMITS.md)；提交、推送、合并、打 tag、部署分别需要对应授权。发版流程、tag 规则与回滚见 [RELEASES](docs/conventions/RELEASES.md)。
@@ -58,8 +58,8 @@
 - 非密钥项（origin、host、端口、路径、开关）预填真实值；**密钥留空，真实值只存在于目标机 `.env.<环境>`**，由 CI/CD 用环境级 secrets 填充。
 - 密钥不得入库、不得进镜像、不得进日志或发布记录。
 - 部署只由发布 tag 触发（`deploy-preview.yml` / `deploy-production.yml`），部署开关默认关闭，未显式开启不部署。AI 不得自行部署、不得创建/推送/移动/删除发布 tag、不得修改版本号或镜像 tag、不得触发流水线。
-- 唯一的例外路径：GitHub 计划使部署 job 按设计失败关闭时，用 `scripts/deploy-manual.mjs` 从维护者机器部署**同一发布 tag 由 CI 构建的镜像归档**，物料取自 tag 指向的提交，核对与 CI 相同（正式还要维护者在仓库里的「批准发布」评论）。它只能在维护者已授权这次发布之后运行，由维护者或经维护者明确授权的 agent 执行；不得用它部署未打 tag 的提交或本机构建的镜像。
-- 发布 tag 不可移动、不可删除；创建发布 tag 需要维护者对该版本的明确授权，正式 tag 还需要维护者对同一提交的预发布验收记录。
+- 唯一的例外路径：GitHub 计划使部署 job 按设计失败关闭时，用 `scripts/deploy-manual.mjs` 从本机部署**同一发布 tag 由 CI 构建的镜像归档**，物料取自 tag 指向的提交，核对与 CI 相同（正式还要仓库里有「批准发布」评论）。它只能在这次发布已获授权之后运行，由人工执行，或由经明确授权的 agent 执行；不得用它部署未打 tag 的提交或本机构建的镜像。
+- 发布 tag 不可移动、不可删除；创建发布 tag 需要对该版本号的明确授权，正式 tag 还需要对同一提交的预发布验收记录。
 - 禁止用 systemd、pm2 或手工 `node` 进程替代 Docker 栈；禁止在目标机手工修改运行中的栈。
 
 ## 4. 证据硬门禁
@@ -81,7 +81,7 @@
 - 把 `proposed`/`historical` 文档当现行规范执行；规范冲突时自己挑一份照做而不报告。
 - 伪造审查结论、验收证据、测试结果或审批记录。
 - 不写执行记录就开发、合并或发布；改写、删除已写的记录，手填时间，或补写没发生过的事。
-- 未经维护者授权创建或推送发布 tag，或者移动、删除已推送的发布 tag。
+- 未经授权创建或推送发布 tag，或者移动、删除已推送的发布 tag。
 
 ## 6. 文档路由表
 

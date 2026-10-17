@@ -17,7 +17,7 @@ import {
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 const read = (path: string) => readFileSync(join(repoRoot, path), 'utf8');
 
-// 假的 AK/SK，只用来验证签名算法；真实凭据只在维护者本机，不进仓库。
+// 假的 AK/SK，只用来验证签名算法；真实凭据只在本机，不进仓库。
 const FAKE_KEYS = { accessKey: 'FAKEACCESSKEYFORTESTS0000000000000000000', secretKey: 'FAKESECRETKEYFORTESTS000000000000000000' };
 const NOW = Date.parse('2026-09-26T12:00:00Z');
 const DAY = 24 * 3600;
@@ -538,7 +538,7 @@ describe('command line', () => {
     const args = ['upload', '--web', '/nonexistent/web', '--forum', '/nonexistent/forum', '--referer', 'https://prev.yangtzeu.work/'];
     await expect(main(args, { env: {}, stdout: capture().stream as never, log, fetch: noFetch, now: NOW })).rejects.toThrow(/没有 STATIC_CDN_UPLOAD_TOKEN/);
     for (const env of [{ GITHUB_ACTIONS: 'true' }, { CI: 'true' }]) {
-      await expect(main([...args, '--owner-env-file', '/nonexistent/.env'], { env, stdout: capture().stream as never, log, fetch: noFetch, now: NOW })).rejects.toThrow(/只给维护者本机/);
+      await expect(main([...args, '--owner-env-file', '/nonexistent/.env'], { env, stdout: capture().stream as never, log, fetch: noFetch, now: NOW })).rejects.toThrow(/只给本机/);
     }
   });
 

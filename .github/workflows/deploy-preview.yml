@@ -8,7 +8,7 @@
 # 部署 job 会拿到部署私钥，所以写成字面量、不读仓库变量：换 runner 要改工作流、走 PR 审查（docs/ops/CICD.md「运行位置」）。
 #
 # 边界：
-#   * 本工作流不创建、不移动、不删除 tag；tag 由维护者授权后手工打（见 docs/conventions/RELEASES.md）。
+#   * 本工作流不创建、不移动、不删除 tag；tag 在授权后手工打（见 docs/conventions/RELEASES.md）。
 #   * 构建（build job）不接触任何环境级密钥。静态资源 CDN（#146）的上传 token 只在 cdn-plan、cdn-upload
 #     两个 job 里出现（GitHub Environment `static-cdn`），这两个 job 不安装依赖；没有 token 时同源构建、不上传。
 #   * 部署用环境级 secrets（GitHub Environment `preview`），与 PR 构建、正式环境完全隔离。
@@ -618,6 +618,6 @@ jobs:
             echo "- 栈根目录：\`${STACK_ROOT}\`"
             echo "- 入口：${ORIGIN}"
             echo ""
-            echo "机器部署成功不等于人工试用通过。维护者在预发布试用并明确批准后，才把 main 快进到这个提交并打正式 tag。"
+            echo "机器部署成功不等于人工试用通过。在预发布试用并明确批准后，才把 main 快进到这个提交并打正式 tag。"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "预发布入口：${ORIGIN}"

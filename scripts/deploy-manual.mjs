@@ -5,7 +5,7 @@
 // 2026-09-27 起 production 有审批人，正式部署照常走工作流，见 docs/ops/CICD.md）。本脚本在维护者机器上执行与 CI deploy job 相同的步骤，而且一切部署物料都取自发布 tag
 // 指向的提交，不取当前工作区：
 //   git archive <提交> 取出 deploy/、scripts/、package.json → 用这份里的 release-policy 规划、环境契约 --check
-//   → （正式）核对维护者批准记录、rc tag、预发布部署记录与 prev 的 release.json → 下载这个 tag 的 CI 运行构建的
+//   → （正式）核对批准记录、rc tag、预发布部署记录与 prev 的 release.json → 下载这个 tag 的 CI 运行构建的
 //   镜像归档并核对 sha256 → 用这份里的 render 渲染运行时 env → 分发这份里的 compose 与 deploy-stack.sh
 //   → deploy-stack.sh → 写 GitHub 部署记录。
 // 只部署 CI 构建过的产物，不在本机或目标机构建；不创建或移动任何 tag。谁可以运行见 AGENTS.md §3。
@@ -58,7 +58,7 @@ const MATERIAL_PATHS = ['deploy', 'scripts', 'package.json'];
 
 export const USAGE = `维护者机器部署（只部署 CI 为该发布 tag 构建过的镜像归档，物料取自 tag 指向的提交）：
   node scripts/deploy-manual.mjs --environment preview --tag vX.Y.Z-rc.N [--dry-run]
-  node scripts/deploy-manual.mjs --environment production --tag vX.Y.Z --acceptance <维护者批准评论的链接> [--dry-run]
+  node scripts/deploy-manual.mjs --environment production --tag vX.Y.Z --acceptance <批准评论的链接> [--dry-run]
 
 --acceptance 必须是本仓库 issue 或 PR 里的一条评论（…#issuecomment-<id>）：作者是仓库管理员、没有被编辑过也没有被折叠、
 发在预发布部署成功之后，整条评论只有一行「批准发布 vX.Y.Z」，别的一个字都不能有（见 docs/ops/CICD.md「维护者机器部署」）。
@@ -266,17 +266,17 @@ export async function deploy(options, deps = defaultDeps()) {
     log(`${tag} → ${environment}：提交 ${commit}，镜像 ${plan.imageRepository}/*:${plan.imageTag}，栈 ${plan.stackRoot}，物料取自该提交`);
 
     if (environment === 'production') {
-      // 维护者批准：本仓库里的一条未被编辑的评论，作者是仓库管理员，整条评论只有「批准发布 vX.Y.Z」一行，晚于预发布成功。
+      // 批准记录：本仓库里的一条未被编辑的评论，作者是仓库管理员，整条评论只有「批准发布 vX.Y.Z」一行，晚于预发布成功。
       const { id, number } = acceptanceComment(acceptance);
       const comment = ghJson(`repos/${repo}/issues/comments/${id}`);
       if (!String(comment.issue_url ?? '').endsWith(`/issues/${number}`)) throw new Error(`批准评论不在链接写的 #${number} 里`);
-      // 有写权限的人能编辑别人的评论而作者不变：被编辑过的评论一律不认，请维护者重新发一条。
+      // 有写权限的人能编辑别人的评论而作者不变：被编辑过的评论一律不认，请重新发一条。
       // 看 GraphQL 的 lastEditedAt，不看 REST 的 updated_at（后者会不会随表情回应变化没有文档保证）。
       const state = commentState(run('gh', ['api', 'graphql', '-f', `query=${COMMENT_STATE_QUERY}`, '-f', `id=${comment.node_id ?? ''}`]));
-      if (state.lastEditedAt !== null) throw new Error(`批准评论在 ${state.lastEditedAt} 被编辑过：请维护者重新发一条新的批准评论`);
-      if (state.isMinimized) throw new Error('批准评论在页面上被折叠隐藏了：请维护者重新发一条新的批准评论');
+      if (state.lastEditedAt !== null) throw new Error(`批准评论在 ${state.lastEditedAt} 被编辑过：请重新发一条新的批准评论`);
+      if (state.isMinimized) throw new Error('批准评论在页面上被折叠隐藏了：请重新发一条新的批准评论');
       if (!acceptanceSays(comment.body, plan.version)) {
-        throw new Error(`批准评论必须整条只有一行「批准发布 v${plan.version}」：请维护者另发一条新评论，只写这一行，试用结论等说明另发`);
+        throw new Error(`批准评论必须整条只有一行「批准发布 v${plan.version}」：请另发一条新评论，只写这一行，试用结论等说明另发`);
       }
       const permission = ghJson(`repos/${repo}/collaborators/${encodeURIComponent(comment.user?.login ?? '')}/permission`).permission;
       if (permission !== 'admin') throw new Error(`批准评论的作者 @${comment.user?.login} 不是仓库管理员`);
@@ -291,7 +291,7 @@ export async function deploy(options, deps = defaultDeps()) {
         return true;
       });
       if (!verified) throw new Error(`提交 ${commit} 没有来自 ${plan.previewTags.join('、')} 的成功预发布部署记录`);
-      // 批准必须晚于预发布部署成功：先有可试用的预发布，维护者试过之后才批准。
+      // 批准必须晚于预发布部署成功：先有可试用的预发布，试过之后才批准。
       if (!(Date.parse(comment.created_at) > Date.parse(previewDone))) throw new Error('批准评论早于预发布部署成功的时间：请在试用预发布之后再批准');
       const body = deps.fetchJson(`${PREVIEW_ORIGIN}/release.json`);
       if (!previewReleaseMatches(body, commit, plan.previewTags)) throw new Error(`${PREVIEW_ORIGIN}/release.json 不是提交 ${commit} 的 rc 版本：${JSON.stringify(body)}`);

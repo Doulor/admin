@@ -69,7 +69,7 @@ describe('deploy-manual helpers', () => {
       '> 引用\n```\nx\n```\n批准发布 v0.1.0', '````\n```\n````\n批准发布 v0.1.0', '~~~\n```\n~~~\n批准发布 v0.1.0',
       // 代码块、注释、HTML 里的，以及引用的懒续行。
       '回复下面这行：\n```\n批准发布 v0.1.0\n```', '~~~md\n批准发布 v0.1.0\n~~~', '<!-- 批准发布 v0.1.0 -->', '<!--\n批准发布 v0.1.0\n-->',
-      '<blockquote>\n批准发布 v0.1.0\n</blockquote>', '<details><summary>模板</summary>\n\n批准发布 v0.1.0\n</details>', '> 维护者说：\n批准发布 v0.1.0',
+      '<blockquote>\n批准发布 v0.1.0\n</blockquote>', '<details><summary>模板</summary>\n\n批准发布 v0.1.0\n</details>', '> 引用的话：\n批准发布 v0.1.0',
       '<strong>暂不</strong>批准发布 v0.1.0', '批准发布 v0.1.0<sup>-rc.1</sup>', '批准发布 v0.1.0<code>-rc.1</code>', '<!-- x -->批准发布 v0.1.0',
       '<a title="a>b">暂不</a>批准发布 v0.1.0', '<img alt="x>\n批准发布 v0.1.0\n">',
       '<details>\n<details>\n内层\n</details>\n批准发布 v0.1.0\n</details>', '<details>\n\n批准发布 v0.1.0', '<details><summary>模板</summary>\n\n批准发布 v0.1.0',
@@ -340,7 +340,7 @@ describe('deploy-manual orchestration', () => {
       [{ approvedAt: '2026-09-25T09:00:00Z' }, /早于预发布部署成功/],
       [{ editedAt: '2026-09-25T12:00:00Z' }, /被编辑过/],
       [{ minimized: true }, /折叠/],
-      // 批准评论里多写了试用结论：不算，报错告诉维护者另发一条只写这一行的评论。
+      // 批准评论里多写了试用结论：不算，报错告诉对方另发一条只写这一行的评论。
       [{ approval: '试过了。\n批准发布 v0.1.0' }, /另发一条新评论，只写这一行/],
     ]) {
       const world = fakeWorld({ environment: 'production', tag: 'v0.1.0', ...overrides });

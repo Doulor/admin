@@ -74,7 +74,7 @@ describe('branch naming model', () => {
   });
 
   it('rejects "-" anywhere in a branch name: the old dash forms are now malformed', () => {
-    // 维护者指令（2026-09-23）：分支名一律不用 -，只用 / 分层。
+    // 2026-09-23 的指令：分支名一律不用 -，只用 / 分层。
     for (const name of ['task/123-add-login', 'task/12-foo', 'task/12/add-login', 'task-12/foo', 'task-12-foo']) {
       expect(classifyBranch(name)).toBe('task-malformed');
     }

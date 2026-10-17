@@ -120,7 +120,7 @@ jobs:
             "<!-- yzgc:track v1 kind=closed stage=merged -->" \
             "**关闭**｜PR #${PR_NUMBER} 已合并进 \`${BASE_REF}\`，这个 issue 结束" \
             "**现状**：合并提交 ${MERGE_SHA}；task 分支 \`${HEAD_REF}\` 由 branch-hygiene 删除。" \
-            "**下一步**：随下一个 \`vX.Y.Z-rc.N\` 发到预发布，由维护者验收（docs/conventions/RELEASES.md）。" \
+            "**下一步**：随下一个 \`vX.Y.Z-rc.N\` 发到预发布后验收（docs/conventions/RELEASES.md）。" \
             "**引用**：#${PR_NUMBER} · ${sha12}")"
           pr_note="$(printf '%s\n%s\n\n%s\n%s\n' \
             "<!-- yzgc:track v1 kind=closed stage=merged -->" \

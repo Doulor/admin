@@ -86,7 +86,7 @@ node scripts/forum-migration/export-published.mjs .tools/forum-runtime/geek-2026
 
 ## 2026-09-26 增量采集（#108）
 
-维护者 2026-09-26 要求把正式环境上新发的帖子放到预发布，以后迁移正式环境时，新帖也要能补进来。本节记录这次采集，下一节是以后照做的步骤。
+2026-09-26 要求把正式环境上新发的帖子放到预发布，以后迁移正式环境时，新帖也要能补进来。本节记录这次采集，下一节是以后照做的步骤。
 
 现场（只读核对）：`yangtzeu.work` 仍由旧部署提供，nginx 反代 `127.0.0.1:3000`，进程是 systemd 服务 `yzgc-admin`（工作目录 `/opt/yzgc-admin`），它打开的论坛库仍是 `/opt/yzgc-admin/data/forum.db`，WAL 当天仍在写；`/opt/yzgc` 下只有 preview 栈。这是 2026-09-26 的现场事实，旧模型还没有从正式域名撤下，不代表现行部署结构。布局和 09-13 相同，所以 `capture.py` 的默认来源路径不用改。
 
@@ -133,7 +133,7 @@ python3 scripts/forum-migration/prepare.py --snapshot .tools/forum-migration/202
 
 完整源库包含用户私有字段以及历史会话/凭据记录，必须作为敏感备份保管；这些记录没有被激活为新论坛登录态。备份仅存于用户 Mac，不上传聊天附件、Git、CI 缓存或 Actions artifacts，不放入 Nuxt public、浏览器 localStorage、演示种子或发布包。没有抓取无关项目、组织管理库、服务器日志或应用密钥。
 
-`.tools/forum-migration` 虽然被 Git 忽略，但不是可随意删除的缓存。禁止 `git clean -fdx`、整体删除 .tools 或清理旧论坛目录而误删唯一数据副本。保留/加密存档/离机备份由维护者决定，不擅自同步到第三方存储。
+`.tools/forum-migration` 虽然被 Git 忽略，但不是可随意删除的缓存。禁止 `git clean -fdx`、整体删除 .tools 或清理旧论坛目录而误删唯一数据副本。保留/加密存档/离机备份要先有明确决定，不擅自同步到第三方存储。
 
 ## 尚未进行
 
