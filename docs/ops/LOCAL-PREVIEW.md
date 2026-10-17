@@ -91,4 +91,4 @@ GitHub 登录要从预览进程连 `github.com` 换 token、查用户和组织�
 
 不读取现有 `.env`、不连接业务数据库，不使用 Cloudflare 凭据；只在 GitHub 登录模式下使用调用方给的本机 OAuth 应用凭据。上游原代码和工具链说明见 [TUFF-FORUM](TUFF-FORUM.md)。真实部署按 [DEPLOY](DEPLOY.md) 单独实施：线上不是本机这几条命令的延伸，而是两套 Docker 栈（[ENVIRONMENTS](ENVIRONMENTS.md)），本机地址任何情况下都不能标成已在预发布环境试用。
 
-**未验证**：所有者还没有用新建的本机 OAuth 应用走完一次真实的 GitHub 登录往返（授权 → 回调 → 成员校验 → 回到原页面）；目前的证据是 `tests/server/core.test.ts` 用模拟的 GitHub 响应覆盖的回调分支。组织若开启了 OAuth App 访问限制而这个应用没被批准，成员查询会被 GitHub 拒绝（403），按代码处理为 `?signin=failed`，这条路径也没有实测。
+**未验证**：维护者还没有用新建的本机 OAuth 应用走完一次真实的 GitHub 登录往返（授权 → 回调 → 成员校验 → 回到原页面）；目前的证据是 `tests/server/core.test.ts` 用模拟的 GitHub 响应覆盖的回调分支。组织若开启了 OAuth App 访问限制而这个应用没被批准，成员查询会被 GitHub 拒绝（403），按代码处理为 `?signin=failed`，这条路径也没有实测。

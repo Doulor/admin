@@ -90,7 +90,7 @@ OAuth 的 callback URL、既有会话 Cookie 名和业务 API 路径未改名。
 
 ## 安全事件及未执行的验收
 
-旧 `deploy/forum-subdomain-setup.md` 含一处明文服务器登录凭据，已从当前工作区移除，现仅为文档指针。所有者仍需尽快轮换该凭据、检查访问记录并评估 Git 历史和已传播副本；本轮未使用凭据，也没有擅自重写历史。
+旧 `deploy/forum-subdomain-setup.md` 含一处明文服务器登录凭据，已从当前工作区移除，现仅为文档指针。维护者仍需尽快轮换该凭据、检查访问记录并评估 Git 历史和已传播副本；本轮未使用凭据，也没有擅自重写历史。
 
 未执行：生产部署、真实 OAuth/Turnstile、实际 Nginx/TLS/DNS 检查、服务用户权限演练、业务数据库迁移/恢复、压力测试和完整依赖漏洞审计。仅验证 Chromium，未完成 Safari/Firefox、屏幕阅读器和全站对比度审计。WCAG 2.2 AA 是设计目标，不是本轮认证结论。
 
