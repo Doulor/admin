@@ -25,3 +25,9 @@
 - 执行者：agent-claude-geek-main-254b（Claude Code，claude-sonnet-5-5）
 - 做了什么：上一轮把「所有者」换成「维护者」，只是换了个称呼，规则没有因此更清楚；PROJECT.md 新增的「维护者」一节还给授权加了「必须在评论里留痕」这条原本没有的要求。这一轮删掉那一节，授权、验收、批准的句子直接写需要什么，例如「创建发布 tag 需要对该版本号的明确授权」「正式 tag 还需要在预发布环境对同一提交的验收记录」；带出处的「维护者 日期：「原话」」只留日期和原话；基线里原有的「维护者机器部署」小节名和运维用法的「维护者」不动，scripts/deploy-manual.mjs 校验批准评论作者是仓库管理员的条件照旧写在脚本和 CICD 里。补改评审指出的漏改：.agents/skills/code-review/SKILL.md 的「所有者 2026-09-26」、scripts/check-branch-invariants.mjs 的示例 dev/crosery、scripts/note.mjs 的示例 human-crosery。更正上一条「开发」记录里「一并改完」的说法：当时这三处没改，这一条补上。docs/handovers/2026-09-13-geek-main-handover.md 是带日期的交接记录，不改写。
 - 结果：docs/INDEX.md 重新生成；check:docs、docs-index --check、check-boundaries、check-secrets、check-branch-invariants 通过；tests/tooling 28 个文件 525 个测试通过；check-doc-sync 在提交后再跑一次
+
+## 02:54:31 +08:00 · 提交 · #254 · 授权句去掉角色名的改动已提交
+
+- 执行者：agent-claude-geek-main-254b（Claude Code，claude-sonnet-5-5）
+- 做了什么：分支上共 5 个提交：e340059c（docs 文案）、a8148096（ci 文案）、f51e8fb9（测试示例名）、91518e31（执行记录）、562e0fd7（docs(tooling)：授权句不再写角色名，删 PROJECT.md「维护者」一节，补改 SKILL.md、check-branch-invariants.mjs、note.mjs 的漏改）。前四个提交是上一轮「所有者→维护者」的写法，最后一个把它改成直接写条件，合并后的最终结果以最后一个提交为准。
+- 结果：git log origin/stage..HEAD 共 5 个提交；check-doc-sync 对 origin/stage 通过 6 组
