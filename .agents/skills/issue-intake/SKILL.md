@@ -1,33 +1,16 @@
 ---
 name: issue-intake
-description: "按 geek_main 规范准备、补全或接手 issue，完成查重、正文、标签和证据整理。"
+description: "提 issue、建单、补全或接手 issue 之前先用：查重、标签、证据缺口。用户说「提个 issue」「帮我建单」「issue 被 needs-evidence 拦了」，或你准备执行 gh issue create 时调用。"
 ---
 
-# Issue 提单
+# 提 issue 的经验
 
-遵循根 [AGENTS](../../../AGENTS.md) 与 [ISSUES](../../../docs/conventions/ISSUES.md)，按当前任务执行以下步骤。
+规则在 [ISSUES](../../../docs/conventions/ISSUES.md)，这里只记规则里没写的做法。
 
-## 查重与接手
+1. 先搜再写。关键词取模块名加症状原文，开放和已关闭的都搜：`gh issue list --state all --search '<关键词>'`。做完的标志：正文「相关 issue」段写出搜过的两个关键词和命中的 `#n`，或「无相关」。搜到同一件事就补到原单；已取消（not planned）的先问人。
+2. 标签随建单一起给，每个标签一个 `--label`。口径看 ISSUES §2 的「组:类」表；`gh issue create` 没有表单，漏了标签会被 `issue-gate` 加 `needs-evidence`，`task.mjs start` 拒绝开工。
+3. 证据缺什么就写缺什么。`ui:*` 没有截图时，「截图证明」段写「待补：现状截图」，并在交给人的说明里列出；段里不放图片语法、占位链接或假文件名。`func:*` 写「涉及接口」：方法加路径、要补的接口测试，没有接口变化写「无接口变更：<理由>」。
+4. 正文写现象和期望，方案留到「方案」追踪记录。验收条件写成别人照着做、能看到结果的步骤。
+5. 一个 issue 只放能一起验收的事；拆开的几个互相 `Refs #n`。
 
-搜索开放和已关闭的 issue，再读取相关候选：
-
-```bash
-gh issue list --repo OWNER/REPO --state all --search '关键词' --limit 50 --json number,title,state,url
-gh issue view NUMBER --repo OWNER/REPO --json number,title,state,stateReason,body,comments,labels
-```
-
-按 ISSUES §2「相关 issue」决定补充原单、拆分或续作，在正文写出关键词、编号与关系。接手任务时按 [TRACKING §4](../../../docs/conventions/TRACKING.md) 读取最近追踪记录和关联 PR。
-
-## 整理正文
-
-使用当前 [issue 表单](../../../.github/ISSUE_TEMPLATE)，按 ISSUES §2–§3 填写标题、缺陷或需求字段、环境及验收条件。
-
-按改动类型准备证明：ui 对应现状截图，func 对应涉及接口与测试计划，infra 对应命令与输出；具体标签、证据内容、图片上传及生效范围取自 ISSUES §2。查重结果写入「相关 issue」，实施方案写入「方案」追踪记录。
-
-## 提单与交接
-
-正文保存为文件，CLI 建单使用 `gh issue create --repo OWNER/REPO --title '标题' --body-file 正文文件`，每个所选标签添加一个 `--label`。
-
-进展评论与正文「实施」段按 TRACKING 维护；进入开发时按 [BRANCHING](../../../docs/conventions/BRANCHING.md) 和 [NOTES](../../../docs/conventions/NOTES.md) 建立 worktree 与执行记录。准备 PR 使用 [pr-delivery](../pr-delivery/SKILL.md)。
-
-交付 issue 链接或正文草稿，以及当前进展。
+交付：正文、标签、查重结果、缺的证据，以及需要人确认的事。执行 `gh issue create` 之前，等人确认这一步。之后的开工与 PR 见 [pr-delivery](../pr-delivery/SKILL.md)。
