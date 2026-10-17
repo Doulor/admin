@@ -5,9 +5,9 @@ description: "准备或补全 PR 正文、开 PR、被 CI 拦住、合并后收�
 
 # 开 PR 与收尾的经验
 
-规则在 [PULL-REQUESTS](../../../docs/conventions/PULL-REQUESTS.md)、[CODE-REVIEW](../../../docs/conventions/CODE-REVIEW.md)、[NOTES](../../../docs/conventions/NOTES.md)，这里只记规则里没写的做法。
+规则见 PULL-REQUESTS、CODE-REVIEW、NOTES 三份规范，这里只记规则里没写的做法。
 
-1. 按 `.github/pull_request_template.md` 的九段把正文写到文件。
+1. 按 PR 模板的九段把正文写到文件。
 2. 用真实检查器跑自己的草稿，按报错改正文，再跑：`node scripts/pr-contract.mjs check --branch <task 分支> --body-file <正文> --issue-state-file <issue.json> --labels-file <labels.json>`。issue.json 用 `gh issue view <n> --json number,state,title,labels > issue.json` 取；labels.json 是拟设标签的数组，例如 `["infra:tooling"]`。做完的标志：报错只剩你确实没有的证据，例如截图。
 3. 缺的证据原样写「未提供」或「未验证」加原因，例如论坛检查缺 Node ≥26。证据段里不放图片语法、占位链接或假文件名；没跑的命令不写成通过。
 4. 「审查结论」段写 `**结论：通过**`、`**结论：有条件通过**` 或 `**结论：阻塞**` 其中一行，加审查人和被审查的完整 SHA；作者自查也这样写。
