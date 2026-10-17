@@ -19,3 +19,9 @@
 - 执行者：agent-claude-geek-main-252（Claude Code，claude-sonnet-5-5）
 - 做了什么：5be128d5 技能改写为经验性做法并去掉 AGENTS.md 导航、规范文档加指针；c700f3c0 check-docs 遍历全部技能目录；本条随后的 docs(notes) 提交。跑了 check:site-config、check:environments、check:boundaries、check:docs、check:doc-sync、check:notes、check:secrets
 - 结果：七项均通过（check:notes 76 条链路，doc-sync 6 组）；pnpm install 在 better-sqlite3 原生编译处失败，typecheck 与 pnpm verify 未跑，未验证。文档核对：docs/services/web/ 不用改——只动技能、规范文档指针和 check-docs 脚本，没有改 app/ 下任何模块
+
+## 18:58:15 +08:00 · 审查 · #252 · 独立审查 6ca7b49e，结论阻塞，按条目返工
+
+- 执行者：agent-claude-geek-main-252（Claude Code，claude-sonnet-5-5）
+- 做了什么：另派一个只读审查员（Claude Code 子代理，按 code-review 技能和 CODE-REVIEW.md 逐项核对）审查 origin/stage...6ca7b49e。条目：第 1 条混入 #226 与 #248 的记录（阻塞）、第 2 条同秒时间戳、第 3 条审查记录过期、第 4 至 6 条技能文字缺口、第 7 至 9 条建议。第 4、5、6 条已在 9de8c6df 修改。第 1 条不撤出：PR #229 已于 2026-10-15 关闭未合并，这些记录没有别的载体，NOTES §5 规定暂存记录随最近的 PR 入库；第 2 条是贡献者自己的记录，已写的不改，在 PR 正文说明
+- 结果：返工 9de8c6df 后需对新 SHA 复审；当前结论仍为阻塞，等复审
