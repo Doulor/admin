@@ -20,3 +20,10 @@
 - 执行者：agent-claude-geek-main-243（Claude Code，接手审查与返工）
 - 做了什么：feat/refactor 提交：按审查修构造函数与文档（提交 SHA 见下一条推送记录）
 - 结果：c183015（作者原提交）之前没有「提交」记录，本条补齐；分支当前 head 见推送记录
+
+## 13:14:12 +08:00 · 返工 · #238 · url 改为全类型可选，比赛窗口加宽到 780
+
+- 执行者：agent-claude-geek-main-243（Claude Code，接手返工）
+- 做了什么：按所有者 2026-10-18 的澄清返工：① url 从「只准 external」改为「全类型可选」（内部比赛也能挂自己的比赛官网），改 6 处——db.ts 的 CHECK 改成 url IS NULL OR url LIKE 'https://%'、competition-store.update 不再按 kind 清 url、console 路由 normalize 改成只把空串当没填、官网 readCompetition 只按 https 收、控制台 formErrors/formPayload 不再看 kind、Competitions.vue 的 url 输入框去掉 v-if；配套契约与 store 注释跟着改；三条断言反转（服务端「切 internal 保留 url」、官网「internal 的 https 链接保留」、控制台「链接对所有类型可选、填了必须 https」）。② 窗口宽度 720→780（Windows.tsx 的 META，与最宽的论坛窗口对齐）。③ 三处文档改口径：API.md、data-model.md、web/portal.md
+- 结果：pnpm check 通过；pnpm test 76 文件 1112 条全过；比赛三组 33 条。url 的 DDL 改动是合并前返工（origin/stage 上还没有 competitions 表），零数据迁移
+- 下一步：等 CI 与 Netlify 预览重建；窗口分区（我的参赛/我的组队）与内部比赛站托管是 #243 范围外的新工作量，待所有者确认后另建 issue
