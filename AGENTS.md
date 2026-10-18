@@ -18,6 +18,8 @@
 
 再按任务读取适用规范与服务契约（`docs/services/` 下的服务文档、[TESTING](docs/conventions/TESTING.md)、安全与运维文档等）。
 
+**项目定位、功能设计与 PR 审查先查[项目地图与检索入口](docs/architecture/catalog/README.md)**：按业务域找到接口、权限、数据及源码证据，再确定改动位置。Agent 按该入口读取同源 Markdown/JSON；人查看[交互地图](docs/architecture/catalog/map.html)。
+
 读完之前禁止：编辑文件、安装依赖、执行项目脚本、操作业务数据、启动或停止服务、任何 Git 写操作（提交、推送、切分支、建分支、合并）。只允许读规范必需的只读操作：`git branch --show-current`、`git status`、读取文档。
 
 文档被截断就继续读到完整；文件缺失、读不到或规范互相冲突时停下来报告阻塞，不凭记忆继续。上下文压缩或恢复后同样适用。

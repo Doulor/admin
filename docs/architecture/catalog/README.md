@@ -1,8 +1,36 @@
-# 项目目录
+# 项目地图与工程目录
 
-> 从真实路由注册、隔离数据库结构和能力定义生成的工程目录；业务归属与源码事实分开维护。
+> 人查看交互地图，Agent 检索同源文本与结构化目录；应用、接口、数据、权限和业务流程统一关联源码证据。
 
-状态：`current` · 更新：2026-10-18 · 适用：开发、设计和代码审查；内部工程材料，不加入公开文档白名单。
+状态：`current` · 更新：2026-10-19 · 适用：开发、设计和代码审查；内部工程材料，不加入公开文档白名单。
+
+本目录 `docs/architecture/catalog/` 是项目地图的固定位置。入口统一引用这里的仓库相对路径，与当前检出的代码一起更新；地图 HTML、生成的 Markdown 清单和 JSON 保持同源。
+
+## 人查看地图
+
+用浏览器打开本目录的 [map.html](map.html)，无需启动业务服务。macOS 可在仓库根运行：
+
+```bash
+open docs/architecture/catalog/map.html
+```
+
+在 GitHub 文件页下载原文件后，用本机浏览器打开即可交互；直接阅读结构与业务流程可用 [CATALOG.md](CATALOG.md)。地图中可搜索接口路径、表名、能力或业务名称，点击节点查看详情并沿关联跳转。
+
+## Agent 按需检索
+
+1. 先读 [CATALOG.md](CATALOG.md) 确定业务域及上下游，再进入下方对应的接口、数据、权限或服务文档。
+2. 用方法路径、表名、能力名或源码路径缩小范围。需要精确关联时查询 [catalog.json](catalog.json) 中的 `routes`、`flows`、`tables`、`capabilities`、`sourceOwnership`、`relations`。
+3. 沿 `source` / `evidence` 回到当前检出的源码核对。设计和审查按[宏观对齐规范](../../conventions/ARCHITECTURE-ALIGNMENT.md)完成影响声明；目录里的测试链接只是验证入口。
+
+在仓库根的检索示例（JSON 查询使用 `jq`）：
+
+```bash
+rg -n -F '/api/console/applications' docs/architecture/catalog/routes.md
+jq '.flows[] | select(.id == "flow:application.cancel") | {operation, capabilities, reads, writes, doesNotEnqueue, evidence}' docs/architecture/catalog/catalog.json
+jq '.sourceOwnership[] | select(.path == "app/server/src/routes/console/applications.ts")' docs/architecture/catalog/catalog.json
+```
+
+优先读相关 Markdown 段落或筛选后的 JSON 结果。`map.html` 内嵌查看器和完整数据，不需要整份加载到 Agent 上下文。
 
 ## 阅读入口
 

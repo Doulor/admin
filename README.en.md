@@ -23,6 +23,8 @@
   &nbsp;·&nbsp;
   <a href="docs/README.md"><b>Docs map</b></a>
   &nbsp;·&nbsp;
+  <a href="docs/architecture/catalog/README.md"><b>Project map</b></a>
+  &nbsp;·&nbsp;
   <a href="AGENTS.md"><b>Agent entry</b></a>
 </p>
 
@@ -44,6 +46,10 @@ This English page is an overview. The Chinese documents are canonical; when they
 
 > [!IMPORTANT]
 > Each environment has an isolated Docker stack with web, server (Fastify and its own SQLite), and forum. The portal, console and forum share GitHub sign-in and a host-only `sid`. Forum topics, replies, profiles and notifications use the core `/api/forum/*` backend. Local demo and read-only snapshot modes are separate and are not authentication or persistence evidence. The signed-in 3D Hub is not implemented. Check the target environment's `/release.json` and acceptance records for deployment status; this page describes source capabilities, not a live inventory.
+
+## Project map
+
+The canonical entry is [docs/architecture/catalog/](docs/architecture/catalog/README.md), maintained alongside the code. Open the [interactive map](docs/architecture/catalog/map.html) in a local browser; on GitHub, download the raw file first. The [text overview](docs/architecture/catalog/CATALOG.md) is readable directly on GitHub. Agents should follow the [retrieval guide](docs/architecture/catalog/README.md#agent-按需检索) and query the [structured catalog](docs/architecture/catalog/catalog.json) for source evidence.
 
 ## What is here
 
