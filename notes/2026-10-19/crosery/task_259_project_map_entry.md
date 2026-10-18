@@ -25,3 +25,9 @@
 - 执行者：agent-codex-map-entry（Codex）
 - 做了什么：按仓库code-review逐项自查全部文档差异、影响声明与验证输出；确认正式目录单一来源、链接和例子有效、中英文同步、无业务源码或验证器改动、无密钥及环境变化
 - 结果：代码与文档自查无待修项；分支基于stage30135b9e，主工作区保持原样。PR远端检查尚未运行，最终合并通过结论待CI核对
+
+## 00:51:01 +08:00 · PR · #259 · 创建PR260并核验Agent实际读取新入口
+
+- 执行者：agent-codex-map-entry（Codex）
+- 做了什么：703eb27实现提交经pre-push通过后推送，创建PR260回stage；运行本机OMP真实loadAgentsMd provider读取当前根AGENTS，再解析到正式检索指引
+- 结果：PR https://github.com/Yangtze-University-Geek-Class/admin/pull/260；rootLoaded、mapPointerLoaded、retrievalGuideExists均true，warnings为空。不启动模型会话；与6入口245链接及rg/jq查询结果一起作为导航验收证据
