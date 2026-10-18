@@ -206,6 +206,12 @@
 - 做了什么：根开发依赖显式声明现有锁定@types/node 22.19.19；Playwright地图测试从根cwd解析文件路径，不在CommonJS转换中使用import.meta；冻结锁安装及完整check复核
 - 结果：未新增生产依赖、未改业务逻辑、未降低检查或跳过浏览器用例；远端将以新的提交重跑
 
+## 22:49:24 +08:00 · 验收 · #257 · 远端拒绝实验与持久交付副本
+
+- 执行者：agent-codex-architecture-catalog（Codex）
+- 做了什么：真实macro缺项Actions退出1并获GitHub合并接口405；已恢复完整正文，4274334修复CI依赖与模块写法。将最终离线地图和本机验证日志保存到主工作区忽略目录.tools/task257并核对SHA256
+- 结果：已证明远端保护不是仅文件声明；主工作区原差异SHA256仍为a6e678a7e5ad37cb84b9d9c344a02f2d4458f107f4c17e6d1d22d2e50e866951。交付副本待最后CI核对，未发布
+
 ## 22:57:54 +08:00 · 返工 · #257 · 逐操作运行完整性反例避免同步批处理超时
 
 - 执行者：agent-codex-architecture-catalog（Codex）
@@ -217,3 +223,33 @@
 - 执行者：agent-codex-architecture-catalog（Codex）
 - 做了什么：上一轮远端1229断言全过但worker onTaskUpdate超时，定位为连续同步源码分析的I/O饥饿；每例结束setImmediate让出事件循环，不修改业务实现、断言或任何超时；提交本轮仅测试和记录的修复
 - 结果：本机按CI命令pnpm run test --coverage退出0：79文件1229测试通过、无Unhandled Errors，74.73秒；之前实现与CI修复提交分别ac997077、4274334，逐例回归提交40743175，均经pre-push验证推送
+
+## 23:34:48 +08:00 · 审查 · #257 · 最终远端验证与PR审查通过
+
+- 执行者：agent-codex-architecture-catalog（Codex）
+- 做了什么：核对最终head cdc07d1dc1b3ccbaa6382ee0c4c42dce88c11ae6；CI39139174384通过，浏览器39139174382通过43/43；PR258正文恢复十段并更新通过结论，独立审查记录已贴issuecomment-6251735758
+- 结果：核心1229、论坛548、浏览器43全部通过；所有已发现门禁和CI问题已修复，无未决阻塞。当前只准备合入stage，不表示预发布人工验收或发布批准
+
+## 23:34:48 +08:00 · 提交 · #257 · 记录最后测试通信修复提交及推送
+
+- 执行者：agent-codex-architecture-catalog（Codex）
+- 做了什么：最后提交cdc07d1dc1b3ccbaa6382ee0c4c42dce88c11ae6已通过pre-push并推到task/257/architecture_catalog；没有改写已推送提交或触碰main与发布tag
+- 结果：该提交的远端机器及浏览器验证均成功，后续不再改实现；提交完成后的记录按主工作区pending机制保存
+
+## 23:41:14 +08:00 · 合并 · #257 · PR258已按必需检查合入stage并完成远端清理
+
+- 执行者：agent-codex-architecture-catalog（Codex）
+- 做了什么：在最终head与全部required检查成功后调用标准merge API，无管理员绕过；合并提交30135b9ebe29045c88b8d3af172f585507a52933；fetch核对stage。误落task的两条未提交审查/提交记录用mergeEntries原文迁入规定pending，校验时间文字不变且已提交前缀逐字保留
+- 结果：PR258=MERGED、issue257=CLOSED、远端task分支不存在；Issue lifecycle39141358415与Branch hygiene39141358443成功。stage合并提交CI39141358369运行中，待通过后本机finish；未发布或改main
+
+## 23:51:26 +08:00 · 验收 · #257 · 合并提交的CI通过并保留交付证据
+
+- 执行者：agent-codex-architecture-catalog（Codex）
+- 做了什么：stage合并提交30135b9ebe29045c88b8d3af172f585507a52933的CI39141358369成功；issue-sweep只读返回没有要处理的issue；最终源码地图与持久副本逐字核对，保存最终PR审查、CI和浏览器日志
+- 结果：PR与合并后CI均成功，issue已关闭、远端task已删；没有部署或发布tag；随后执行本机task finish
+
+## 23:52:13 +08:00 · 收尾 · #257 · PR #258 已合并，清理 worktree
+
+- 执行者：agent-codex-architecture-catalog（Codex）
+- 做了什么：node scripts/task.mjs finish 257：删 worktree .claude/worktrees/task-257 与本地分支 task/257/architecture_catalog
+- 结果：PR 已合并

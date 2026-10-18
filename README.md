@@ -25,6 +25,8 @@
   &nbsp;·&nbsp;
   <a href="docs/README.md"><b>文档总入口</b></a>
   &nbsp;·&nbsp;
+  <a href="docs/architecture/catalog/README.md"><b>项目地图</b></a>
+  &nbsp;·&nbsp;
   <a href="AGENTS.md"><b>AGENTS 入口</b></a>
 </p>
 
@@ -50,6 +52,13 @@
 > **每个环境是一套互相隔离的完整 Docker 栈**：web、server（Fastify 与本环境的 SQLite）、forum。官网、控制台和论坛共用 GitHub 登录及 host-only `sid`；论坛发帖、回复、资料、通知等数据由核心 `/api/forum/*` 提供，并非只有浏览器存储。本机演示和只读快照是另外的运行模式，不作为真实认证或持久化证据。登录后的 3D Hub 尚未实现。当前线上运行的版本以目标环境 `/release.json` 和对应验收记录为准，不由当前分支或本页推断。
 
 ---
+
+## 项目地图
+
+正式入口是 [docs/architecture/catalog/](docs/architecture/catalog/README.md)，和代码一起维护：
+
+- **人看关系**：[交互地图](docs/architecture/catalog/map.html)，在本机浏览器打开；在 GitHub 文件页下载原文件后打开即可。[文本总览](docs/architecture/catalog/CATALOG.md)可直接在线阅读。
+- **Agent 查实现**：从[检索指引](docs/architecture/catalog/README.md#agent-按需检索)进入接口、数据模型、权限和业务流程，按需查询[结构化目录](docs/architecture/catalog/catalog.json)与源码证据。
 
 ## 现在有什么
 
