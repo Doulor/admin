@@ -83,7 +83,7 @@ export function compareCompetitions(
 
 /**
  * 时间的先后关系在路由里先判，不靠库上的 CHECK 抛 500。返回 null 表示合法。
- * 归一到外部比赛才留 `url` 也在写之前做掉（`kind` 是内部时把 url 清空）。
+ * `url` 与 `kind` 无关，只由输入契约保证「填了必须是 https」。
  */
 export function competitionError(draft: CompetitionDraft): "bad_range" | "deadline_after_end" | null {
   if (draft.end_at < draft.start_at) return "bad_range";
@@ -147,8 +147,8 @@ export function createCompetitionStore(db: Database.Database): CompetitionStore 
       return get(id);
     },
     /**
-     * 改一条。补丁没给的字段保持原值；`url` 只在 `kind` 是 external 时保留，
-     * 改成内部比赛就顺手清掉（表上的 CHECK 就是这么约束的，这里先归一再写，免得靠数据库报错）。
+     * 改一条。补丁没给的字段保持原值。`url` 与 `kind` 无关：内部比赛也可以挂自己的比赛官网链接，
+     * 没给就保持原值，显式传 null 才清掉（表上只约束「填了必须是 https」）。
      */
     update: (id, patch, now) => {
       const current = get(id);
@@ -157,7 +157,7 @@ export function createCompetitionStore(db: Database.Database): CompetitionStore 
       update.run({
         id, now, kind,
         // 与 signup_deadline 一样按 undefined 判「没给」：合同允许显式传 url: null 清掉官方链接
-        url: kind === "external" ? (patch.url === undefined ? current.url : patch.url) : null,
+        url: patch.url === undefined ? current.url : patch.url,
         name: patch.name ?? current.name,
         start_at: patch.start_at ?? current.start_at,
         end_at: patch.end_at ?? current.end_at,

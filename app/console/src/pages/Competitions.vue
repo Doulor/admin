@@ -152,7 +152,7 @@ async function askRemove(row: CompetitionRecord) {
             <TxInput v-model="form.deadlineDate" type="date" class="fill-width" />
             <span v-if="errors.deadlineDate" class="field-error">{{ errors.deadlineDate }}</span>
           </TxFormItem>
-          <TxFormItem v-if="form.kind === 'external'" label="官方链接（https）" class="wide">
+          <TxFormItem label="官方链接（选填，https）" class="wide">
             <TxInput v-model="form.url" class="fill-width" placeholder="https://" />
             <span v-if="errors.url" class="field-error">{{ errors.url }}</span>
           </TxFormItem>

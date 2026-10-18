@@ -125,8 +125,8 @@ it("接口给的条目缺字段就丢掉，链接只收 https，认不出的状�
   expect(readCompetition({ id: "c1", start_at: 1, end_at: 2 })).toBeNull();
   expect(readCompetition({ id: "c1", name: "A", start_at: 1 })).toBeNull();
   expect(readCompetition("nope")).toBeNull();
-  // 内部比赛即使带了链接也不给（只在外部比赛上渲染链接）
-  expect(readCompetition({ id: "c1", name: "A", start_at: 1, end_at: 2, url: "https://example.test/x" })!.url).toBeNull();
+  // 所有比赛都能挂自己的官网链接；只收 https
+  expect(readCompetition({ id: "c1", name: "A", start_at: 1, end_at: 2, url: "https://example.test/x" })!.url).toBe("https://example.test/x");
   expect(readCompetition({ id: "c2", name: "B", kind: "external", start_at: 1, end_at: 2, url: "http://example.test/x" })!.url).toBeNull();
   expect(readCompetition({ id: "c2", name: "B", kind: "external", start_at: 1, end_at: 2, url: "https://example.test/x" })!.url).toBe("https://example.test/x");
   expect(readCompetitions({ competitions: [{ id: "c1", name: "A", start_at: 1, end_at: 2 }, "junk", null] })).toHaveLength(1);

@@ -55,12 +55,14 @@ describe("form validation", () => {
     expect(formErrors(filled({ deadlineDate: "2026-10-18" })).deadlineDate).toBeUndefined();
   });
 
-  it("requires an https link for an external competition and ignores the link for an internal one", () => {
-    expect(formErrors(filled({ kind: "external" })).url).toContain("要填官方链接");
+  it("treats the link as optional for every kind, but rejects a non-https one", () => {
+    // 不填就不跳转，任何类型都不报错
+    expect(formErrors(filled({ kind: "external" })).url).toBeUndefined();
+    expect(formErrors(filled({ kind: "internal" })).url).toBeUndefined();
+    // 填了就必须是 https，与 kind 无关
     expect(formErrors(filled({ kind: "external", url: "http://example.test/c" })).url).toContain("https://");
-    expect(formErrors(filled({ kind: "external", url: "https://example.test/c" })).url).toBeUndefined();
-    // 内部比赛留着上次填的外部链接不算错——提交时会丢掉
-    expect(formErrors(filled({ url: "http://nope" })).url).toBeUndefined();
+    expect(formErrors(filled({ kind: "internal", url: "http://example.test/c" })).url).toContain("https://");
+    expect(formErrors(filled({ kind: "internal", url: "https://example.test/c" })).url).toBeUndefined();
   });
 });
 
@@ -76,11 +78,14 @@ describe("payload", () => {
     });
   });
 
-  it("sends no deadline and no url when they are not filled, and no url for internal", () => {
+  it("sends no deadline and no url when they are not filled, and trims a filled link for any kind", () => {
     expect(formPayload({ ...emptyForm(), name: "x", startDate: "2026-10-16", endDate: "2026-10-16" }))
       .toMatchObject({ signup_deadline: null, url: null });
     expect(formPayload({ ...emptyForm(), name: "x", kind: "external", url: " https://example.test/c ", startDate: "2026-10-16", endDate: "2026-10-16" }))
       .toMatchObject({ url: "https://example.test/c" });
+    // 内部比赛同样带上自己的官网链接
+    expect(formPayload({ ...emptyForm(), name: "x", kind: "internal", url: " https://example.test/in ", startDate: "2026-10-16", endDate: "2026-10-16" }))
+      .toMatchObject({ url: "https://example.test/in" });
   });
 });
 

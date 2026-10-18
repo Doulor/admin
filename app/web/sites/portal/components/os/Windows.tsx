@@ -19,7 +19,7 @@ const META: Record<WindowId, { title: string; icon: "book-2-line" | "organizatio
   org: { title: "组织架构", icon: "organization-chart", width: 760, path: "~/yugc/org" },
   terminal: { title: "nano@yugc — zsh", icon: "terminal-box-line", width: 640, path: "~/yugc" },
   "forum-feed": { title: "论坛 · 最新", icon: "fire-line", width: 780, path: "~/yugc/forum" },
-  competitions: { title: "比赛", icon: "trophy-line", width: 720, path: "~/yugc/competitions" },
+  competitions: { title: "比赛", icon: "trophy-line", width: 780, path: "~/yugc/competitions" },
 };
 /** 状态文案：与服务端 `competitionStatus` 的四个值一一对应。 */
 const STATUS_TEXT: Record<CompetitionStatus, string> = { registering: "报名中", closed: "报名已截止", ongoing: "进行中", ended: "已结束" };

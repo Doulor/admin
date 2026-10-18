@@ -23,7 +23,7 @@ const departmentFields = {
   head_capabilities: bundle, member_capabilities: bundle, sort_order: integer(0, 10000),
 };
 const applicationParams = { params: object({ application_id: { type: "string", pattern: UUID_PATTERN } }, ["application_id"]) };
-/** 比赛（#238）：时间是 UTC 毫秒时间戳，界面上按北京时间填与看；`url` 只给外部比赛。 */
+/** 比赛（#238）：时间是 UTC 毫秒时间戳，界面上按北京时间填与看；`url` 对所有类型可选，填了必须是 https。 */
 const competitionFields = {
   name: text(80, 2), kind: choices("internal", "external"),
   start_at: integer(0), end_at: integer(0),

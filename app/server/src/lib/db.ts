@@ -198,7 +198,7 @@ CREATE TABLE IF NOT EXISTS competitions (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   CHECK (end_at >= start_at),
-  CHECK (kind = 'external' OR url IS NULL),
+  CHECK (url IS NULL OR url LIKE 'https://%'),
   CHECK (signup_deadline IS NULL OR signup_deadline <= end_at)
 );
 CREATE INDEX IF NOT EXISTS idx_competitions_offline_start ON competitions(offline, start_at);

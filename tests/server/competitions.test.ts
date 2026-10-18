@@ -142,13 +142,17 @@ describe('console writes need competitions.manage', () => {
     expect(ok.json().competition).toMatchObject({ name: '极客班算法赛（第二届）', kind: 'internal' });
   });
 
-  it('drops the url when a competition is switched to internal', async () => {
+  it('keeps the url across a kind change: every competition may have its own site', async () => {
     const { app, as } = await setup();
-    const created = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: { ...DRAFT, kind: 'external', url: 'https://example.test/contest' } });
-    const id = created.json().competition.id;
-    expect(created.json().competition.url).toBe('https://example.test/contest');
-    const changed = await app.inject({ method: 'PATCH', url: `/api/console/competitions/${id}`, headers: as('alice'), payload: { kind: 'internal' } });
-    expect(changed.json().competition).toMatchObject({ kind: 'internal', url: null });
+    // 内部比赛也能挂自己的比赛官网（#238）：kind 与 url 互不影响
+    const internal = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: { ...DRAFT, kind: 'internal', url: 'https://example.test/internal-site' } });
+    expect(internal.statusCode).toBe(201);
+    expect(internal.json().competition).toMatchObject({ kind: 'internal', url: 'https://example.test/internal-site' });
+    const id = internal.json().competition.id;
+    const changed = await app.inject({ method: 'PATCH', url: `/api/console/competitions/${id}`, headers: as('alice'), payload: { kind: 'external' } });
+    expect(changed.json().competition).toMatchObject({ kind: 'external', url: 'https://example.test/internal-site' });
+    // 表上只约束「填了必须是 https」
+    expect((await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: { ...DRAFT, kind: 'internal', url: 'http://example.test/x' } })).statusCode).toBe(400);
   });
 
   it('clears the url with an explicit null, and keeps it when the patch omits it', async () => {

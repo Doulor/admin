@@ -28,7 +28,7 @@ portal 包括 /api/docs、/api/feedback、/api/join/:token、/api/portal/apply�
 |---|---|---|---|---|
 | `GET /api/public/config` | 匿名 | 无 | 200 `{ turnstile_site_key, pow_difficulty }` | — |
 | `GET /api/public/org` | 匿名 | 无 | 200 `{ tones, titles, departments }`：`tones` 是色调 id → 浅色色值；`titles` 按 admin、captain、head、member、alumni、guest 排，每项 `{ id, label, tag, icon, tone, description, rank }`，读 `titles` 表（控制台改过的名字立刻生效）；`departments` 只含未归档部门的 `{ id, name, tag, icon, tone, description }`。不含权限包，不含任何人。官网「组织架构」窗口与论坛称号读它 | — |
-| `GET /api/public/competitions` | 匿名 | 无 | 200 `{ competitions }`，按「还能赶上的在前、已结束的在后」排（分别为开始时间正序 / 倒序），每项 `{ id, name, kind, start_at, end_at, signup_deadline, url, description, status }`。`kind` 是 `internal` / `external`；`status` 是 `registering` / `closed` / `ongoing` / `ended`，由服务端按当前时间算出来，不入库；`url` 只在外部比赛上有，且只接受 https。已下线的（`offline=1`）不返回；不含任何成员信息。官网桌面「比赛」窗口读它 | — |
+| `GET /api/public/competitions` | 匿名 | 无 | 200 `{ competitions }`，按「还能赶上的在前、已结束的在后」排（分别为开始时间正序 / 倒序），每项 `{ id, name, kind, start_at, end_at, signup_deadline, url, description, status }`。`kind` 是 `internal` / `external`；`status` 是 `registering` / `closed` / `ongoing` / `ended`，由服务端按当前时间算出来，不入库；`url` 对所有比赛类型可选（内部比赛也能挂自己的比赛官网），填了只接受 https。已下线的（`offline=1`）不返回；不含任何成员信息。官网桌面「比赛」窗口读它 | — |
 | `GET /api/docs` | 匿名 | 无 | 200 `{ items }`，只列白名单文档（产品介绍、用户指南，中英各一） | — |
 | `GET /api/docs/:id` | 匿名 | 无 | 200 `{ id, label, lang, file, content }` | 404 `doc not found` / `doc file missing` |
 | `GET /api/feedback/categories` | 匿名 | 无 | 200 `{ categories, pow_difficulty, org }`；`org` 是本部署意见箱收的组织，即 `CONSOLE_ORG` 的配置写法，官网意见箱照它展示、读公开列表和提交（#129） | — |

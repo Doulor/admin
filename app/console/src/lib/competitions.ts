@@ -83,10 +83,9 @@ export function formErrors(form: CompetitionForm): Partial<Record<Field, string>
   const deadline = form.deadlineDate.trim() ? dateEdge(form.deadlineDate, "end") : null;
   if (form.deadlineDate.trim() && deadline === null) errors.deadlineDate = "报名截止的日期不对。";
   else if (deadline !== null && end !== null && deadline > end) errors.deadlineDate = "报名截止不能晚于比赛结束。";
-  // 内部比赛的表单不显示链接；用户先填了外部、又改成内部时，那个值必须不影响提交（字段是隐藏的，报错也改不了）
-  const url = form.kind === "external" ? form.url.trim() : "";
-  if (form.kind === "external" && !url) errors.url = "外部比赛要填官方链接。";
-  else if (url && !/^https:\/\/\S+$/.test(url)) errors.url = "官方链接要以 https:// 开头。";
+  // 链接对所有比赛类型都可选：不填就不跳转，填了必须是 https（比赛官网可以是站内的，也要 https 的对外地址）
+  const url = form.url.trim();
+  if (url && !/^https:\/\/\S+$/.test(url)) errors.url = "官方链接要以 https:// 开头。";
   return errors;
 }
 
@@ -94,7 +93,7 @@ export function formErrors(form: CompetitionForm): Partial<Record<Field, string>
  * 表单 → 提交给服务端的正文（UTC 时间戳）。
  * 开始取当天 00:00、结束取当天 23:59:59.999、截止取当天 23:59:59.999：
  * 「报名截止当天」整个白天都还能报，不会在当天零点就报不上名。
- * 内部比赛不带 url（服务端也会清掉，这里先不送）。
+ * 链接可选：没填送 null，服务端按「没给」处理。
  */
 export function formPayload(form: CompetitionForm) {
   return {
@@ -103,7 +102,7 @@ export function formPayload(form: CompetitionForm) {
     start_at: dateEdge(form.startDate, "start") as number,
     end_at: dateEdge(form.endDate, "end") as number,
     signup_deadline: form.deadlineDate.trim() ? dateEdge(form.deadlineDate, "end") : null,
-    url: form.kind === "external" ? form.url.trim() || null : null,
+    url: form.url.trim() || null,
     description: form.description.trim(),
   };
 }

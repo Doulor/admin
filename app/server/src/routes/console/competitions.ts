@@ -12,8 +12,8 @@ const RANGE_MESSAGE: Record<"bad_range" | "deadline_after_end", string> = {
   deadline_after_end: "报名截止不能晚于比赛结束",
 };
 
-/** 内部比赛没有站外入口；`kind` 是 internal 时把 url 丢掉，表上的 CHECK 也是这个口径。 */
-const normalize = (draft: CompetitionDraft): CompetitionDraft => ({ ...draft, url: draft.kind === "external" ? draft.url : null });
+/** 补丁归一：`url` 与 `kind` 无关（内部比赛也能挂自己的比赛官网），这里只保证空串按「没填」处理。 */
+const normalize = (draft: CompetitionDraft): CompetitionDraft => ({ ...draft, url: draft.url?.trim() ? draft.url.trim() : null });
 
 /**
  * 比赛（#238）：控制台里新建、编辑、下线。授权按 `competitions.manage` 判定，只在服务端。

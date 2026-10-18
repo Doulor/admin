@@ -44,7 +44,7 @@ export function readCompetition(value: unknown): Competition | null {
   // 服务端的 status 只当形状校验用，展示时一律重算（见 useCompetitions）
   void status;
   const link = asText(raw.url);
-  const url = kind === "external" && /^https:\/\/\S+$/.test(link) ? link : null;
+  const url = /^https:\/\/\S+$/.test(link) ? link : null;
   return { id, name, kind, start_at: start, end_at: end, signup_deadline, url, description: asText(raw.description), status };
 }
 
