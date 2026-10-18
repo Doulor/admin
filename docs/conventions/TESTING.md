@@ -18,6 +18,8 @@
 
 ## 回归矩阵
 
+项目目录（#257）：`tests/server/catalog.test.ts` 观测真实应用的根路由、循环注册和头像子插件，核对启用观测后健康、公开文档与未登录拒绝路径不变；`tests/tooling/project-catalog.test.ts` 从真实应用和内存 SQLite 提取结构，覆盖全部注册项、最终 Schema、自动 HEAD、物理外键和部分索引、能力蕴含、业务声明、Nitro 静态声明、来源摘要确定性、环境变量隔离、重复与悬空引用失败，以及入库目录过期。生成器不监听、不读 `.env`/业务库/私有快照，不发外部请求，不执行被链接的业务测试；`pnpm check:catalog` 独立核对生成物，`pnpm typecheck:catalog` 核对工具类型（也在根 typecheck 中）。目录通过不等于权限、业务或线上验收通过，维护规则见[项目目录](../architecture/catalog/README.md)。
+
 比赛信息发布（#238）：`tests/server/competitions.test.ts`、`tests/console/competitions.test.ts`、`tests/web/portal-competitions.test.tsx` 覆盖真实路由鉴权、字段与日期范围、可解析 HTTPS、空响应与损坏响应、五种状态、跨结束时刻重排、样板时钟及北京时间截止日末。`tests/e2e/competitions.spec.mts` 在 CI 的 1440×900 / 390×844 浏览器里通过真实 Fastify 路由和内存库验证 URL 失败留在表单、仅改说明不重写精确时分、刷新以及下线/恢复后的公开可见性；只模拟外部 GitHub。它不验证真实 OAuth，不访问本机验收实例；本机用 ego-browser 另做真实 HTTP 与截图验收。
 
 投递取消（#204）：`tests/console/applications.test.ts` 与 `mock-sync.test.ts` 核对五状态、取消提示与不带邮件的 PATCH；`tests/server/mail-outbox.test.ts` 用真实路由与假的发信商覆盖从四种状态取消、强带通知及信件内容仍不写信、保留简历与历史、补备注/恢复、版本冲突；`tests/server/console.test.ts` 核对取消的权限/Origin、列表/搜索/分页/全局计数、概览、目录与 CSV；`legacy-database.test.ts` 在虚构文件库重启两次核对取消状态和完整历史不被迁移覆盖。`tests/e2e/application-cancelled.spec.mts` 将浏览器业务请求交给真实 Fastify 路由和内存库，仅外部身份/发信商使用假响应，覆盖 1440px / 390px 键盘选择、保存、刷新、审核、筛选/导出链接与旧画面冲突。不访问用户验收实例、不发真实邮件，截图不代替预发布上的人工验收。
@@ -41,6 +43,10 @@
 同一用例还在 390px 核对概览的 GitHub 组织名不会越过自身事实列：覆盖共用截断规则把原生块元素误改成按内容撑宽的行内块时，组织名压到相邻组织角色的回归。
 
 测试报告（#248）：CI 的 `core` 用 `pnpm run test --coverage` 产出 Vitest v8 覆盖率（server、console、web），产物 `vitest-coverage`；`test-report.yml` 在 PR 上于托管 runner 跑 `pnpm test:e2e`，产物 `playwright-report`（HTML，含失败 trace）。两份保留 14 天，只作机器验证附件：没有覆盖率门槛，也不替代 PR 里的改前改后截图和人工验收。本机仍不跑 Playwright（见环境约定），要看报告去 CI 产物。`stage` 上的 e2e 此前不在 CI 里跑，#233 把手机窗口改成页面抽屉后 `.is-phone .pt-win` 的 `display:flex` 盖掉了 `[hidden]`，收起的窗口仍显示，用例红了没人发现，现已补 `.is-phone .pt-win[hidden]` 并让 e2e 进 PR 检查；托管 runner 比本机慢，超时用 `E2E_TIMEOUT_SCALE` 放大。
+
+宏观对齐（#257）：`architecture-alignment.test.ts` 通过公开检查接口与真实临时 Git 提交覆盖八维缺项、假 UI 分类、未覆盖文件、过宽路径、未知目录节点、生成文档冒充业务文档、漏回归、隐藏正文引用，以及固定提交不受脏工作区干扰。`catalog-map.test.ts` 核对地图与目录同源、离线和脚本数据转义。真实浏览器另测搜索定位、节点与跨页钻取、PR 报告导入、窄屏导航和详情，不把静态检查当浏览器验收。
+
+`catalog-coverage.test.ts` 核对全部业务操作及补充入口都有流程关联；删除真实接口的关联后生成必须失败。`pr-contract.test.ts` 拒绝阻塞审查、隐藏或重复标题、围栏/缩进代码中的伪结论；宏观检查共享同一正文解析，并拒绝用已删除流程证明当前源码。`catalog-map.spec.ts` 在 CI 真实 Chromium 中覆盖地图搜索、表关系、窄屏和影响报告的成功、过期摘要、未知节点及清除操作。
 
 ## 分支、环境与发布门禁回归
 
