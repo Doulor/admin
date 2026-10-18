@@ -21,7 +21,7 @@ afterEach(() => {
 });
 
 const by = "agent-claude-geek-main-08（Claude Code，claude-opus-5-5）";
-const base = { user: "crosery", by, chain: "task/91/agent_notes", issues: ["91"], did: "做了一件事", result: "有结果" };
+const base = { user: "alice", by, chain: "task/91/agent_notes", issues: ["91"], did: "做了一件事", result: "有结果" };
 const at = (iso: string) => new Date(iso);
 const writeIndex = (root: string) => writeFileSync(join(root, "notes", "INDEX.md"), renderIndex(root));
 
@@ -33,7 +33,7 @@ describe("北京时间与文件位置", () => {
 
   it("分支名变成链路文件名", () => {
     expect(branchSlug("task/91/agent_notes")).toBe("task_91_agent_notes");
-    expect(branchSlug("dev/crosery")).toBe("dev_crosery");
+    expect(branchSlug("dev/alice")).toBe("dev_alice");
   });
 });
 
@@ -41,12 +41,12 @@ describe("addNote", () => {
   it("按 日期/GitHub 用户名/分支 建文件，第一次写标题和负责人，之后往后追加", () => {
     const root = temp();
     const file = addNote(root, { ...base, stage: "开工", title: "建分支", now: at("2026-09-25T16:11:22Z") });
-    expect(file).toBe(join(root, "notes/2026-09-26/crosery/task_91_agent_notes.md"));
+    expect(file).toBe(join(root, "notes/2026-09-26/alice/task_91_agent_notes.md"));
     addNote(root, { ...base, stage: "提交", issues: ["91", "87"], title: "提交 abc", next: "开 PR", now: at("2026-09-25T16:20:00Z") });
     expect(readFileSync(file, "utf8")).toBe([
-      "# task/91/agent_notes · crosery · 2026-09-26",
+      "# task/91/agent_notes · alice · 2026-09-26",
       "",
-      "负责人：crosery",
+      "负责人：alice",
       "",
       "## 00:11:22 +08:00 · 开工 · #91 · 建分支",
       "",
@@ -68,7 +68,7 @@ describe("addNote", () => {
 
   it("缺身份、阶段不对、issue 不是数字、必填为空时拒绝写入", () => {
     const root = temp();
-    expect(() => addNote(root, { ...base, user: "Crosery Yu", stage: "开工", title: "x" })).toThrow(/GEEK_NOTES_USER/);
+    expect(() => addNote(root, { ...base, user: "Alice Yu", stage: "开工", title: "x" })).toThrow(/GEEK_NOTES_USER/);
     expect(() => addNote(root, { ...base, by: "Claude", stage: "开工", title: "x" })).toThrow(/GEEK_NOTES_BY/);
     expect(() => addNote(root, { ...base, stage: "开发中", title: "x" })).toThrow(/--stage/);
     expect(() => addNote(root, { ...base, issues: ["abc"], stage: "开工", title: "x" })).toThrow(/--issue/);
@@ -79,15 +79,15 @@ describe("addNote", () => {
     const root = temp();
     addNote(root, { ...base, stage: "开工", title: "a", now: at("2026-09-25T15:50:00Z") });
     addNote(root, { ...base, stage: "提交", title: "b", now: at("2026-09-25T16:10:00Z") });
-    const chain = collectChains(root).get("crosery/task_91_agent_notes");
+    const chain = collectChains(root).get("alice/task_91_agent_notes");
     expect(chain.files.map((file: { date: string }) => file.date)).toEqual(["2026-09-25", "2026-09-26"]);
     expect(checkChainOrder(chain)).toEqual([]);
   });
 });
 
 describe("核对", () => {
-  const rel = "notes/2026-09-26/crosery/task_91_agent_notes.md";
-  const good = `# task/91/agent_notes · crosery · 2026-09-26\n\n负责人：crosery\n\n## 09:00:00 +08:00 · 开工 · #91 · 建分支\n\n- 执行者：${by}\n- 做了什么：x\n- 结果：y\n`;
+  const rel = "notes/2026-09-26/alice/task_91_agent_notes.md";
+  const good = `# task/91/agent_notes · alice · 2026-09-26\n\n负责人：alice\n\n## 09:00:00 +08:00 · 开工 · #91 · 建分支\n\n- 执行者：${by}\n- 做了什么：x\n- 结果：y\n`;
 
   it("格式对的文件没有问题", () => {
     expect(checkChainFile(rel, good)).toEqual([]);
@@ -95,10 +95,10 @@ describe("核对", () => {
 
   it("位置、标题、负责人、执行者写错都报出来", () => {
     expect(checkChainFile("notes/2026-09-26/task_91.md", good)[0]).toMatch(/只能放在/);
-    expect(checkChainFile("notes/2026-02-30/crosery/task_91_agent_notes.md", good).join()).toMatch(/不是有效日期/);
-    expect(checkChainFile("notes/2026-09-26/Crosery/task_91_agent_notes.md", good).join()).toMatch(/GitHub 用户名/);
+    expect(checkChainFile("notes/2026-02-30/alice/task_91_agent_notes.md", good).join()).toMatch(/不是有效日期/);
+    expect(checkChainFile("notes/2026-09-26/Alice/task_91_agent_notes.md", good).join()).toMatch(/GitHub 用户名/);
     expect(checkChainFile(rel, good.replace("task/91/agent_notes ·", "task/87/exam_docs ·")).join()).toMatch(/分支/);
-    expect(checkChainFile(rel, good.replace("负责人：crosery\n", "")).join()).toMatch(/负责人/);
+    expect(checkChainFile(rel, good.replace("负责人：alice\n", "")).join()).toMatch(/负责人/);
     expect(checkChainFile(rel, good.replace(by, "Claude")).join()).toMatch(/执行者要写成/);
   });
 
@@ -144,10 +144,10 @@ describe("索引与一览表", () => {
     addNote(root, { ...base, user: "someone", chain: "task/92/other", issues: ["92"], by: "human-someone", stage: "开工", title: "b", now: at("2026-09-25T16:00:00Z") });
     addNote(root, { ...base, stage: "PR", title: "开 PR", now: at("2026-09-25T16:30:00Z") });
     const index = renderIndex(root);
-    expect(index).toContain("- 2026-09-26：[crosery](2026-09-26/crosery/)、[someone](2026-09-26/someone/)");
+    expect(index).toContain("- 2026-09-26：[alice](2026-09-26/alice/)、[someone](2026-09-26/someone/)");
     expect(index.indexOf("2026-09-26")).toBeLessThan(index.indexOf("2026-09-24："));
     const summary = renderSummary(root);
-    expect(summary).toContain("| crosery | task/91/agent_notes | #91 | agent-claude-geek-main-08 | 2 | 2026-09-24 10:00:00 | PR（2026-09-26 00:30:00） |");
+    expect(summary).toContain("| alice | task/91/agent_notes | #91 | agent-claude-geek-main-08 | 2 | 2026-09-24 10:00:00 | PR（2026-09-26 00:30:00） |");
     expect(summary).toContain("| someone | task/92/other | #92 | human-someone | 1 |");
   });
 });
@@ -159,9 +159,9 @@ describe("暂存与并入", () => {
     addNote(worktree, { ...base, chain: "task/87/exam_docs", issues: ["87"], stage: "开工", title: "a", now: at("2026-09-25T16:00:00Z") });
     addNote(pending, { ...base, chain: "task/87/exam_docs", issues: ["87"], stage: "合并", title: "PR #89 合并", now: at("2026-09-25T16:10:00Z") });
     addNote(pending, { ...base, chain: "task/87/exam_docs", issues: ["87"], stage: "收尾", title: "清理", now: at("2026-09-25T16:11:00Z") });
-    expect(flushPending(pending, worktree)).toEqual(["notes/2026-09-26/crosery/task_87_exam_docs.md"]);
+    expect(flushPending(pending, worktree)).toEqual(["notes/2026-09-26/alice/task_87_exam_docs.md"]);
     expect(existsSync(join(pending, "notes"))).toBe(false);
-    const chain = collectChains(worktree).get("crosery/task_87_exam_docs");
+    const chain = collectChains(worktree).get("alice/task_87_exam_docs");
     expect(chain.files[0].entries.map((entry: { stage: string }) => entry.stage)).toEqual(["开工", "合并", "收尾"]);
     writeIndex(worktree);
     expect(checkAll(worktree)).toEqual([]);
@@ -303,7 +303,7 @@ describe("checkPullRequest", () => {
     git(root, "checkout", "-q", "task/91/agent_notes");
 
     // 尝试篡改已有记录内容
-    const chainPath = join(root, "notes/2026-09-26/crosery/task_91_agent_notes.md");
+    const chainPath = join(root, "notes/2026-09-26/alice/task_91_agent_notes.md");
     const original = readFileSync(chainPath, "utf8");
     writeFileSync(chainPath, original.replace("有结果", "篡改的结果"));
     // 追加一条新记录以满足新增记录检查
@@ -318,10 +318,10 @@ describe("checkPullRequest", () => {
 describe("mergeEntries 与 finishTitle", () => {
   it("mergeEntries 按时间排序并去重", () => {
     const dir = temp();
-    const file = join(dir, "notes/2026-09-26/crosery/test.md");
-    const meta = { date: "2026-09-26", user: "crosery", chain: "task/1/test" };
-    const b1 = "## 10:00:00 +08:00 · 开工 · #1 · 开工\n\n- 执行者：human-crosery\n- 做了什么：x\n- 结果：y\n";
-    const b2 = "## 09:00:00 +08:00 · 方案 · #1 · 早期方案\n\n- 执行者：human-crosery\n- 做了什么：x\n- 结果：y\n";
+    const file = join(dir, "notes/2026-09-26/alice/test.md");
+    const meta = { date: "2026-09-26", user: "alice", chain: "task/1/test" };
+    const b1 = "## 10:00:00 +08:00 · 开工 · #1 · 开工\n\n- 执行者：human-alice\n- 做了什么：x\n- 结果：y\n";
+    const b2 = "## 09:00:00 +08:00 · 方案 · #1 · 早期方案\n\n- 执行者：human-alice\n- 做了什么：x\n- 结果：y\n";
     mergeEntries(file, meta, [b1, b2, b1]);
     const text = readFileSync(file, "utf8");
     expect(text.indexOf("09:00:00")).toBeLessThan(text.indexOf("10:00:00"));

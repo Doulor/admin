@@ -353,6 +353,8 @@
   flex-direction: column;
   overflow: hidden;
 }
+/* 手机窗口的 display:flex 与 .pt-win[hidden] 同权重且写在后面，会盖掉 hidden，收起的窗口仍然显示（#248 的 e2e 查出）。 */
+.is-phone .pt-win[hidden] { display: none; }
 @keyframes pt-sheet-up {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }

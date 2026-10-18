@@ -151,9 +151,18 @@ jobs:
         shell: bash
         run: pnpm check
 
-      - name: 单元测试（pnpm test）
+      - name: 单元测试与覆盖率（pnpm run test --coverage）
         shell: bash
-        run: pnpm test
+        run: pnpm run test --coverage
+
+      - name: 上传覆盖率报告（保留 14 天）
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vitest-coverage
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: 构建（pnpm build）
         shell: bash
@@ -399,7 +408,7 @@ jobs:
             echo "${image} 构建成功：healthcheck=有，user=${user}"
           done
 
-  # 静态资源 CDN 开关打开时的构建（#146）。部署工作流要等所有者在 Environment `static-cdn` 配好上传 token、
+  # 静态资源 CDN 开关打开时的构建（#146）。部署工作流要等 Environment `static-cdn` 配好上传 token、
   # 线上 CSP 放行 CDN 以后才会走这条路；这里每次都先跑一遍：web、forum 两个镜像带 STATIC_CDN_BASE 构建
   # （Dockerfile 在镜像里断言入口页引用 CDN 地址），再做部署工作流 build job 里同一步的取文件与
   # `static-cdn.mjs plan`（离线挑文件，有不带哈希的文件就失败）。只构建、不上传、不推送，不接触任何 secret：

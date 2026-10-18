@@ -2,13 +2,13 @@
 
 > issue 是一件事的主档：开发前先开 issue，写清现象、复现、环境与验收条件；之后每一步进展都以追踪记录留在评论里，PR 合并即关闭。
 
-状态：`current` · 更新：2026-10-15
+状态：`current` · 更新：2026-10-18
 
 ## §1 开发前先开 issue
 
-**任何 `task/<issue>/<slug>` 分支都必须先有对应 issue**（唯一例外是维护者明确声明的紧急修复，且事后 24 小时内补 issue）。先查重再开新 issue：在 issue 列表按模块、关键词、错误信息搜索（含已关闭），确认没有同一件事；重复的直接在原 issue 补一条「复现」记录。查重结果写进正文「相关 issue」，按 §2「相关 issue」的状态表处理。
+**任何 `task/<issue>/<slug>` 分支都必须先有对应 issue**（唯一例外是已明确声明的紧急修复，且事后 24 小时内补 issue）。先查重再开新 issue：在 issue 列表按模块、关键词、错误信息搜索（含已关闭），确认没有同一件事；重复的直接在原 issue 补一条「复现」记录。查重结果写进正文「相关 issue」，按 §2「相关 issue」的状态表处理。
 
-**一件事一个 issue**：一个 issue 只描述一件可以独立验收的事。所有者一次提了几件事（例如「去掉招人字样 + 开机闪桌面 + 换壁纸」）时，能一起验收的放一个 issue，不能一起验收的拆开，互相 `Refs #n`。
+**一件事一个 issue**：一个 issue 只描述一件可以独立验收的事。一次提出几件事（例如「去掉招人字样 + 开机闪桌面 + 换壁纸」）时，能一起验收的放一个 issue，不能一起验收的拆开，互相 `Refs #n`。
 
 生命周期、互相引用和评论格式见 [TRACKING](TRACKING.md)。要点：
 
@@ -19,7 +19,7 @@
 | issue → PR | issue 正文「实施」段 | 回填分支名、PR 链接、合并提交 |
 | 进展 | issue 评论 | 按 [TRACKING](TRACKING.md) §3 的格式，每个阶段一条 |
 
-**PR 合并进 `stage` 后，它 `Closes` 的 issue 必须关闭，task 分支与 worktree 必须清理**（所有者 2026-09-26 定的强制规范：「完成的pr管理的issue必须清理」）。`issue-lifecycle` 工作流自动关闭并在两边留「关闭」记录，`branch-hygiene` 删除远端 task 分支，本机 worktree 由开发者 `node scripts/task.mjs finish <issue>` 删。GitHub 自带的 `Closes #n` 只在合进 `main` 时生效，不能依赖它。自动化没关上的（工作流失败，或者 fork 来的 PR 合并时工作流没有写权限，#137），合并的人当场手工关闭，并按 [TRACKING](TRACKING.md) §3 的格式留「关闭」记录。已合并的分支不再提交；后续问题开新 issue。
+**PR 合并进 `stage` 后，它 `Closes` 的 issue 必须关闭，task 分支与 worktree 必须清理**（2026-09-26 定的强制规范：「完成的pr管理的issue必须清理」）。`issue-lifecycle` 工作流自动关闭并在两边留「关闭」记录，`branch-hygiene` 删除远端 task 分支，本机 worktree 由开发者 `node scripts/task.mjs finish <issue>` 删。GitHub 自带的 `Closes #n` 只在合进 `main` 时生效，不能依赖它。自动化没关上的（工作流失败，或者 fork 来的 PR 合并时工作流没有写权限，#137），合并的人当场手工关闭，并按 [TRACKING](TRACKING.md) §3 的格式留「关闭」记录。已合并的分支不再提交；后续问题开新 issue。
 
 ## §2 正文内容
 
@@ -76,7 +76,7 @@
 | 开着，同一件事 | 不新建，在原 issue 补充；想接手的在评论里说 |
 | 开着，部分重叠 | 能拆开独立验收的才新建，写 `Refs #n` 和边界；拆不开的补到原单 |
 | 已完成，同一问题又出现，或留有尾巴 | 新建续作，写 `Refs #n`、说明已做了什么和剩什么，并附当前 `stage` 上的复现证据；不重开旧单 |
-| 已取消（`not planned`） | 这是所有者取消的事项，不自动恢复，先问 Crosery |
+| 已取消（`not planned`） | 这是被明确取消的事项，不自动恢复，先在原 issue 里提出并等明确答复 |
 
 `issue-gate` 会在新 issue 下评论标题相似的开放与已关闭 issue，只供核对，不替人判断，也不自动关闭、重开或改标签。
 

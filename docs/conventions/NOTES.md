@@ -2,7 +2,7 @@
 
 > 每个人、每个 agent 做的每一步，都按北京时间写进仓库里的 `notes/<日期>/<GitHub 用户名>/<链路>.md`；开发前先记开工，开发后记到收尾，链路不完整的 PR 不能合并。
 
-状态：`current` · 更新：2026-09-26 · 适用：所有在本仓库开发的人和 agent（含委派出去的子代理），所有 `task/<issue>/<slug>` 分支。
+状态：`current` · 更新：2026-10-18 · 适用：所有在本仓库开发的人和 agent（含委派出去的子代理），所有 `task/<issue>/<slug>` 分支。
 
 ## §1 为什么要有
 
@@ -14,13 +14,13 @@ issue 和 PR 的评论（[TRACKING](TRACKING.md)）记的是「这件事走到�
 notes/
 ├── INDEX.md                          生成物：按日期列出每天有哪些人的记录
 └── 2026-09-26/                       北京时间的日期
-    └── crosery/                      负责人的 GitHub 用户名（小写）
+    └── alice/                        负责人的 GitHub 用户名（小写）
         ├── task_91_agent_notes.md    一条链路一个文件，文件名是分支名把 / 和 - 换成 _
         └── task_87_exam_docs.md
 ```
 
 - **日期**：写这条记录时的北京日期（`Asia/Shanghai`，+08:00），由脚本读系统时钟决定，不手填。一条链路跨过零点时，后面的记录落在新日期目录下的同名文件里，合起来仍是一条链路。
-- **负责人**：替谁干活就写谁的 GitHub 用户名。agent 替 crosery 干活，记录放在 `crosery/` 下；自己动手的人写自己。
+- **负责人**：替谁干活就写谁的 GitHub 用户名。agent 替 alice 干活，记录放在 `alice/` 下；自己动手的人写自己。
 - **链路**：一个 task 分支一条链路（`task/91/agent_notes` → `task_91_agent_notes.md`）。不属于任何 task 的操作（发布、验收、打 tag、排查线上问题）记在当时所在分支的链路里，比如 `stage`、`main`。
 - **执行者**：每条记录单独写，同一条链路可以有多个执行者（主 agent、子代理、人）。
 
@@ -29,9 +29,9 @@ notes/
 一个链路文件：
 
 ```markdown
-# task/91/agent_notes · crosery · 2026-09-26
+# task/91/agent_notes · alice · 2026-09-26
 
-负责人：crosery
+负责人：alice
 
 ## 00:41:07 +08:00 · 开工 · #91 · 建立 notes/ 执行记录规范
 
@@ -50,7 +50,7 @@ notes/
 - 第一行 `# <分支> · <负责人> · <日期>`，第二段 `负责人：<负责人>`，都和所在目录一致。
 - 每条记录的标题 `## HH:MM:SS +08:00 · <阶段> · #<issue> · <一句话>`；涉及多个 issue 写 `#87 #91`，确实没有 issue 写 `无 issue`。
 - 必填三项：`执行者`、`做了什么`、`结果`；`下一步` 可选。每项一行。
-- 执行者写成 `agent-<工具>-<会话>（说明）` 或 `human-<GitHub 用户名>`，例：`agent-claude-geek-main-08（Claude Code，claude-opus-5-5）`、`agent-omp-geek-main-25`、`human-crosery`。
+- 执行者写成 `agent-<工具>-<会话>（说明）` 或 `human-<GitHub 用户名>`，例：`agent-claude-geek-main-08（Claude Code，claude-opus-5-5）`、`agent-omp-geek-main-25`、`human-alice`。
 - 「结果」写能复查的东西：命令的真实输出摘要、提交 SHA、PR 号、CI 运行号、截图在 PR 里的位置。失败就写失败，没验证就写「未验证」。
 - 只能往文件末尾追加，已写的记录不改不删；写错了再追加一条说明。时间只能往后走。
 - 不写密钥、令牌、会话、真实个人信息和生产数据；需要时写「已本地核对，不公开」。
@@ -86,7 +86,7 @@ notes/
 ## §5 怎么写
 
 ```bash
-export GEEK_NOTES_USER=crosery
+export GEEK_NOTES_USER=alice
 export GEEK_NOTES_BY="agent-claude-geek-main-08（Claude Code，claude-opus-5-5）"
 
 node scripts/task.mjs start 91 agent_notes          # 写「开工」

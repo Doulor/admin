@@ -2,7 +2,7 @@
 
 > 统一入口、最小变更、可审查的提交与资源隔离。
 
-状态：`current` · 更新：2026-10-15
+状态：`current` · 更新：2026-10-18
 
 ## 开始前
 
@@ -19,10 +19,10 @@ AI 先执行 [AGENT-START](AGENT-START.md) 的阅读门禁，不能先运行下�
 - 从开工到收尾，每一步都按 [NOTES](NOTES.md) 写进 `notes/`：`task.mjs start` / `finish` 自动记开工和收尾，中间的提交、PR、审查、返工用 `node scripts/note.mjs add` 记；
 - **MR 合并后远端分支与 issue 自动清理，本机用 `node scripts/task.mjs finish <issue>` 删 worktree 与本地分支**，不留死分支、死目录；
 - fork 来的 PR 合并时 `issue-lifecycle` 没有写权限（#137），issue 不会自动关：合并的人按 [ISSUES](ISSUES.md) §1 与 [CODE-REVIEW](CODE-REVIEW.md) 第 12 项当场手工关，并留「关闭」记录；
-- `dev/<github-username>`（例 `dev/crosery`）是个人自由分支，想怎么改都行，但不得作为进入 `stage` 的凭据，也不部署；
+- `dev/<github-username>`（例 `dev/alice`）是个人自由分支，想怎么改都行，但不得作为进入 `stage` 的凭据，也不部署；
 - 禁止直接向 `main` 提交，禁止 `task/**`、`dev/**` 直接进 `main`。`main` 只接受来自 `stage` 的合并。
 
-发版与人工验收见 [RELEASES](RELEASES.md)：发版只靠打 tag（`vX.Y.Z-rc.N` 发预发布，验收通过后在同一提交上打 `vX.Y.Z` 发正式），合并进 `stage` 或 `main` 本身不部署；打 tag 需要所有者对该版本的授权。改 `package.json` 的 `version` 走普通 task PR，普通 commit 不自动升号，不把 feat/fix 消息当作发版许可。
+发版与人工验收见 [RELEASES](RELEASES.md)：发版只靠打 tag（`vX.Y.Z-rc.N` 发预发布，验收通过后在同一提交上打 `vX.Y.Z` 发正式），合并进 `stage` 或 `main` 本身不部署；打 tag 需要对该版本号的授权。改 `package.json` 的 `version` 走普通 task PR，普通 commit 不自动升号，不把 feat/fix 消息当作发版许可。
 
 先定服务、契约与验收，再改代码；修复缺陷时添加能区分修复前后的回归。新增依赖要说明目的、许可、运行环境、体积与维护代价。不要顺便升级无关框架，也不要为了纯目录偏好搬整个工程。
 

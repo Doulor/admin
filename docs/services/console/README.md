@@ -6,7 +6,7 @@
 
 ## 为什么是独立的包
 
-所有者 2026-09-24 要求控制台「统一套用组件库」，用论坛同款 Tuffex（issue #13）。Tuffex 只有 Vue 3 版本，[Tuffex 使用政策](../../components/tuffex/USAGE-POLICY.md)禁止在 React 里套 Vue 组件或做同名 React 仿制品，所以控制台从 `app/web`（React）里拆出来，单独成 `@yzgc/console` 包。它和 `app/web`、`app/server` 在同一个根 pnpm 工作区（Node 22 / pnpm 9.15.9），不另起工具链；论坛那套 Node 26 / pnpm 11 与它无关。
+2026-09-24 要求控制台「统一套用组件库」，用论坛同款 Tuffex（issue #13）。Tuffex 只有 Vue 3 版本，[Tuffex 使用政策](../../components/tuffex/USAGE-POLICY.md)禁止在 React 里套 Vue 组件或做同名 React 仿制品，所以控制台从 `app/web`（React）里拆出来，单独成 `@yzgc/console` 包。它和 `app/web`、`app/server` 在同一个根 pnpm 工作区（Node 22 / pnpm 9.15.9），不另起工具链；论坛那套 Node 26 / pnpm 11 与它无关。
 
 ## 源码地图
 
@@ -18,7 +18,7 @@
 | `src/components/` | 外壳（`ConsoleShell`、`ConsoleNav`：只显示实际持有能力的页面）、能力门 `CapabilityGate`（直接访问无权限地址仍说明原因）、状态组件（`ErrorPanel`、`ErrorAlert`、`LoadingBlock`）、`TitleBadge`/`ToneTag`/`UserCell`、`PageHeader`、`ConfirmHost` |
 | `src/lib/` | 纯逻辑（可单测，不导入 Vue）：`http`（请求与 `ApiError`）、`errors`（错误 → 文案与错误卡片的主按钮）、`signin`（登录未成原因解析与引导行动点）、`nav`（导航与能力可见性）、`people`（按部门分组、负责人与排序、撤销规则）、`titles`（称号的默认值、徽章与编辑校验）、`org-settings`（组织资料改动计算）、`applications`（处理投递：通知信的提示、字段核对、PATCH 体、信件状态的说法）、`statuses`、`format`（时间一律按北京时间）、`icons`、`types`；带 Vue 的：`session`（身份与能力清单）、`resource`（读写状态）、`confirm`、`github`、`runtime`（数据源与跨服务链接） |
 | `src/lib/permission-tree.ts`、`permission-boundaries.ts` | 前者用当前目录/部门配置解释本人 `/me` 的状态，不生成授权判断；后者维护能力的范围、实际执行点和关联页面，只作说明，随对应后端路由与契约同步 |
-| `src/mock/` | 开发预览样板数据（全部虚构），只在 DEV 且数据源为 mock 时动态导入，生产构建不含 |
+| `src/mock/` | 开发预览样板数据（全部虚构），只在数据源为 mock 且（DEV 或 PR 预览构建 `VITE_PREVIEW_MOCK=1`，#245）时动态导入，镜像构建不含；`lib/runtime.ts` 的 `PREVIEW_MOCK` 只由根目录 `netlify.toml` 设置 |
 | `src/styles/theme.css`、`layout.css` | 主题令牌覆盖与页面版式（见「设计令牌」） |
 | `scripts/tuffex-icon-classes.mjs` | 扫描已安装 Tuffex 的 dist，给 UnoCSS 列出组件自带的 `i-carbon-*` 图标类（做法同论坛） |
 | `vite.config.ts`、`uno.config.ts`、`tsconfig.json` | 构建、图标、类型检查配置 |
@@ -131,7 +131,7 @@ pnpm dev:console                     # http://127.0.0.1:5186/console ，默认�
 
 ## 验证
 
-`tests/e2e/application-cancelled.spec.mts` 在 1440px / 390px 下由浏览器调用真实 Fastify 路由与内存库，只有身份查询和发信商是假响应，不接用户的本机验收实例、不发真实邮件；覆盖打开选项、键盘选取消、保存、刷新、保留历史、取消筛选与导出链接，以及过期画面 409 后保留备注。`tests/e2e/workflows.spec.ts` 里的邀请页用例在 1440/1280/1024 与 390×844 下量真实渲染几何：24 字符合成 token 在本格内截断（不越出单元格、不划穿「结果」列）、结果徽章与北京时间各保单行、两张表行高一致、窄屏横向滚动关在表自己的容器里（#211）。截图和自动测试不代替预发布所有者验收。
+`tests/e2e/application-cancelled.spec.mts` 在 1440px / 390px 下由浏览器调用真实 Fastify 路由与内存库，只有身份查询和发信商是假响应，不接用户的本机验收实例、不发真实邮件；覆盖打开选项、键盘选取消、保存、刷新、保留历史、取消筛选与导出链接，以及过期画面 409 后保留备注。`tests/e2e/workflows.spec.ts` 里的邀请页用例在 1440/1280/1024 与 390×844 下量真实渲染几何：24 字符合成 token 在本格内截断（不越出单元格、不划穿「结果」列）、结果徽章与北京时间各保单行、两张表行高一致、窄屏横向滚动关在表自己的容器里（#211）。截图和自动测试不代替在预发布做的人工验收。
 
 ```bash
 pnpm --filter @yzgc/console typecheck   # vue-tsc（根 pnpm typecheck 也会跑）

@@ -13,7 +13,7 @@
 //        逐个上传（insertOnly），再经 CDN 带 Referer 与 Origin 逐个 HEAD 核对：200、ETag 等于本地七牛 qetag、
 //        长度、Content-Type、JS/CSS/字体的 CORS 头。任一不符即非零退出，部署不会开始。
 //   node scripts/static-cdn.mjs mint-token [--env-file <路径>] [--days 180]
-//        所有者本机用：用账号 AK/SK 签一个上传 token（只能写 yzgc/static/site/ 前缀、只增不改、有到期时间），
+//        本机用：用账号 AK/SK 签一个上传 token（只能写 yzgc/static/site/ 前缀、只增不改、有到期时间），
 //        只写进管道：node scripts/static-cdn.mjs mint-token --env-file ~/.claude/secrets/.env.cloud \
 //                      | gh secret set STATIC_CDN_UPLOAD_TOKEN --env static-cdn --repo <owner/repo>
 //
@@ -33,7 +33,7 @@ import { STATIC_CDN_BASE, STATIC_CDN_BUCKET, STATIC_CDN_ORIGIN, STATIC_CDN_PREFI
 export const UPLOAD_HOST = 'https://up-z2.qiniup.com';
 /** 单个文件上限，写进 token 策略（fsizeLimit）；现在最大的产物不到 1MB。 */
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
-/** decide 在 token 剩余有效期不足这么久时告警，提醒所有者重签。 */
+/** decide 在 token 剩余有效期不足这么久时告警，提醒重签。 */
 export const RENEW_WARNING_SECONDS = 30 * 24 * 3600;
 /** token 最长有效期（366 天）：mint-token 签不出更长的；到期时间比现在晚这么久以上的 token 一律拒绝。 */
 export const MAX_TOKEN_SECONDS = 366 * 24 * 3600;
@@ -243,7 +243,7 @@ export function readUploadPolicy(token, now = Date.now(), minRemainingSeconds = 
   return policy;
 }
 
-/** 解析 KEY=VALUE 形式的 env 文件（与所有者宣传片脚本的读法相同），只取需要的键。 */
+/** 解析 KEY=VALUE 形式的 env 文件（与宣传片脚本的读法相同），只取需要的键。 */
 export function parseEnvFile(text) {
   return Object.fromEntries(
     text.split('\n')
@@ -295,7 +295,7 @@ export async function decide({ token, origin, now = Date.now(), fetch = globalTh
   const policy = readUploadPolicy(token, now);
   const notices = [`上传 token 策略核对通过：scope=${policy.scope}，只增不改，到期 ${new Date(policy.deadline * 1000).toISOString()}`];
   const warnings = [];
-  if (policy.deadline * 1000 - now < RENEW_WARNING_SECONDS * 1000) warnings.push(`${TOKEN_ENV} 将在 ${new Date(policy.deadline * 1000).toISOString()} 到期，请所有者重签（docs/ops/CICD.md「静态资源 CDN」）。`);
+  if (policy.deadline * 1000 - now < RENEW_WARNING_SECONDS * 1000) warnings.push(`${TOKEN_ENV} 将在 ${new Date(policy.deadline * 1000).toISOString()} 到期，请重签（docs/ops/CICD.md「静态资源 CDN」）。`);
   let csp = '';
   try {
     const res = await fetch(`${site.origin}/`, { method: 'HEAD', redirect: 'manual' });
@@ -469,7 +469,7 @@ export async function main(argv, { env = process.env, stdout = process.stdout, l
   if (options.command === 'upload') {
     let token = env[TOKEN_ENV];
     if (options.ownerEnvFile) {
-      if (env.GITHUB_ACTIONS || env.CI) throw new Error('--owner-env-file 只给所有者本机证明用；CI 只用 STATIC_CDN_UPLOAD_TOKEN');
+      if (env.GITHUB_ACTIONS || env.CI) throw new Error('--owner-env-file 只给本机证明用；CI 只用 STATIC_CDN_UPLOAD_TOKEN');
       token = signUploadToken(uploadPolicy({ now, seconds: 3600 }), readOwnerKeys(options.ownerEnvFile, {}));
       log('用 --owner-env-file 的 AK/SK 在进程里签了一个 1 小时的上传 token（同样只能写 yzgc/static/site/、只增不改），不落盘、不打印');
     }

@@ -33,7 +33,7 @@ export function buildGateComment({ errors, similar, added, suggested = [], numbe
       const state = String(item.state).toUpperCase() === "OPEN" ? "开着" : "已关闭";
       lines.push(`- #${item.number} ${item.title}（${state}${item.linked ? "，正文提到" : ""}）`);
     }
-    lines.push("", "请在正文「相关 issue」写明关系：重复（不另建，补到原单）、部分重叠（写 `Refs #n` 并说明边界）、续作（`Refs #n`，不重开旧单）。已被所有者取消（not planned）的先问 Crosery。");
+    lines.push("", "请在正文「相关 issue」写明关系：重复（不另建，补到原单）、部分重叠（写 `Refs #n` 并说明边界）、续作（`Refs #n`，不重开旧单）。已被取消（not planned）的先在原 issue 里提出并等明确答复。");
   } else {
     lines.push("没有找到标题相似的 issue；若你确认查过，在正文「相关 issue」写明已搜关键词。");
   }

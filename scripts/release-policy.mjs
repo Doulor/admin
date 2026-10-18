@@ -2,7 +2,7 @@
 /**
  * 发布身份规划器（**tag 模型**，只读）：发布 tag + commit → 环境 → 镜像/产物/目录身份。
  *
- * 发布 tag 只有两种（所有者 2026-09-24 指令，SemVer 写法）：
+ * 发布 tag 只有两种（2026-09-24 指令，SemVer 写法）：
  *   vX.Y.Z-rc.N  预发布（N ≥ 1）：提交必须在 stage 上（origin/stage 的祖先或等于它）→ preview
  *   vX.Y.Z       正式：提交必须在 main 上（origin/main 的祖先或等于它）→ production
  * X.Y.Z 必须等于该提交里根 package.json 的 version。展示版本：预发布 `X.Y.Z-rc.N@<sha12>`，正式 `X.Y.Z`。

@@ -65,7 +65,7 @@ export function closeNote(pr) {
     `**关闭**｜PR #${pr.number} 已合并进 \`stage\`，巡检补关这个 issue`,
     "",
     `**现状**：PR #${pr.number}「${pr.title ?? ""}」在 ${beijing(pr.mergedAt)}（北京时间）合并${sha ? `，合并提交 ${sha}` : ""}；合并时这个 issue 没有关上（close-on-merge 没跑成，或者 PR 不是从 task 分支来的），巡检补关。`,
-    "**下一步**：随下一个 `vX.Y.Z-rc.N` 发到预发布，由所有者验收（docs/conventions/RELEASES.md）。",
+    "**下一步**：随下一个 `vX.Y.Z-rc.N` 发到预发布后验收（docs/conventions/RELEASES.md）。",
     `**引用**：#${pr.number}${sha ? ` · ${sha.slice(0, 12)}` : ""}`,
   ].join("\n");
 }

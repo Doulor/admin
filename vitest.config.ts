@@ -17,6 +17,13 @@ export default defineConfig({
     restoreMocks: true,
     testTimeout: 20000,
     hookTimeout: 20000,
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary", "html", "json-summary"],
+      reportsDirectory: "coverage",
+      include: ["app/server/src/**", "app/console/src/**", "app/web/shared/**", "app/web/sites/**"],
+      exclude: ["**/*.d.ts", "**/node_modules/**"],
+    },
     maxWorkers: 2,
     minWorkers: 1,
   },

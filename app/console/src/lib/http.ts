@@ -1,6 +1,6 @@
 // 控制台的 HTTP 层：同源 fetch + 与 app/web/shared/lib/http.ts 相同的错误形状。
 // 控制台不能导入 app/web 的实现（见 scripts/check-boundaries.mjs），所以这里按同一契约另写一份。
-import { dataSource } from "./runtime";
+import { PREVIEW_MOCK, dataSource } from "./runtime";
 
 export class ApiError extends Error {
   constructor(
@@ -45,7 +45,7 @@ export function onSignedOut(handler: ((error: ApiError) => void) | null): void {
 /** 所有接口调用的入口。开发态选了样板数据时走本地 mock；生产构建里这段分支连同 mock 模块一起被删掉。 */
 export async function api<T = unknown>(path: string, init?: RequestInit): Promise<T> {
   try {
-    if (import.meta.env.DEV && dataSource() === "mock") {
+    if ((import.meta.env.DEV || PREVIEW_MOCK) && dataSource() === "mock") {
       const { mockApi } = await import("../mock");
       return await mockApi<T>(path, init);
     }
