@@ -56,3 +56,15 @@
 - 执行者：agent-codex-geek-followup（Codex，PR 持续跟进）
 - 做了什么：提交 ADR 的403/401语义与独立审查复核记录
 - 结果：没有未决设计审查条目；最新提交的GitHub检查与所有者方案确认仍待完成，PR保持不合并
+
+## 03:34:10 +08:00 · 审查 · #237 · 完成 SSO 方案最终两轴复核
+
+- 执行者：agent-codex-geek-followup（Codex，PR 持续跟进）
+- 做了什么：Standards核对宏观声明与目录通过；Spec对0b53371复核通过，确认403 step_up_required、最后一个GitHub身份和稳定sub映射均闭合；主代理逐项复查本PR未改应用代码和真实数据
+- 结果：真实剩余审查问题0项；0b53371的verify、architecture-alignment和e2e均已成功，pr-contract仅因先前审查占位结论阻塞；完成最终记录后在对应head核对检查并更新结论，PR仍不合并
+
+## 03:34:10 +08:00 · PR · #237 · 已更新 SSO PR 正文与跟进边界
+
+- 执行者：agent-codex-geek-followup（Codex，PR 持续跟进）
+- 做了什么：将PR #242正文整理为十段，引用237.json、三项业务交付与真实验证；已推送98fed0d、277724b、0b53371等提交；创建本chat每30分钟的PR跟进提醒pr-242-243
+- 结果：PR OPEN、autoMergeRequest=null；无变化安静，后续只在有具体缺陷或人工反馈时返工并推原分支，不合并、不发布、不自动建单
