@@ -163,3 +163,45 @@
 - 执行者：agent-codex-euler
 - 做了什么：按用户要求再次实跑3项catalog-coverage；逐条核对98个flow的唯一源码锚点、文档与测试引用、OR能力处理及172条清单类别说明；仅追加本条记录，之后冻结ownership、endpoint-contracts与catalog-coverage，后续修改通过消息协调
 - 结果：22:18:39启动的Node22.23.2定向测试3/3通过，总14.83秒；92业务操作和5补充入口逐一移除flow均拒绝；98flow/97operation/11域，未覆盖0，锚点或本地链接错误0，git diff --check通过。稳定交主代理重生成、完整verify及PR；本结论不代表GitHub真实副作用、Nitro运行态、完整响应Schema或线上验收。冻结SHA256前12位：ownership 2366899ae225，endpoint-contracts f2dfd7486128，catalog-coverage 25f514df7ccd
+
+## 22:30:52 +08:00 · 验收 · #257 · 完整目录、地图与本地验证通过
+
+- 执行者：agent-codex-architecture-catalog（Codex）
+- 做了什么：完整pnpm verify；补地图精确搜索排序后重生成并运行目录地图覆盖3文件，修复Markdown状态后运行PR宏观工作流3文件；最终pnpm check、actionlint及真实浏览器复查
+- 结果：完整verify核心79文件1134测试、论坛30文件548测试及两边构建通过；地图目录25测试通过、门禁37测试通过、check与actionlint通过。98flow覆盖92/92业务操作及5/5补充入口，缺任一关联失败；桌面1440x900与390x844验收完成，截图在docs/reviews/257，未做真实外部业务副作用或发布验收
+
+## 22:31:00 +08:00 · 审查 · #257 · 关闭围栏内注释绕过并定向抽查OR与论坛契约
+
+- 执行者：agent-codex-plato
+- 做了什么：复跑已知13探针、合法flow工作流对照及围栏内注释反例共15组；核对comment-red真实失败日志；定向抽查people/assignments的OR授权和forum state/reply/edit/delete/view共7条操作，逐段对照ownership、endpoint-contracts与handler/viewer/store；直接调用requireCapability做4种隔离输入，不重跑全库
+- 结果：15组均符合预期，comment-inside-fence返回ok=false及唯一可见结论行错误，原阻塞已关闭。workflow四同版base文件一致，失效flow退出1为逻辑错误，合法flow退出0且候选哨兵未执行。OR两单能力各200、无能力403、匿名401；7条契约抽查未发现新增阻塞，作者或版务分支及GET条件写入均与源码相符。证据/tmp/task257-final-review.pvg4mt8s/results.json；未重跑完整verify、未做浏览器/真实API/线上验收，不将父报告测试数冒称本轮实跑
+
+## 22:32:08 +08:00 · 提交 · #257 · 提交统一目录地图与宏观门禁实现
+
+- 执行者：agent-codex-architecture-catalog（Codex）
+- 做了什么：完成本任务67文件实现提交，提交说明保留真实换行与Refs #257；随后继续记录PR与审查阶段
+- 结果：实现提交 ac9970772b39832cae99d2957af527222841a5b9，本机完整验证及最终定向测试见同链路记录；尚未合并或部署
+
+## 22:35:36 +08:00 · 推送 · #257 · 推送实现提交并进入远端门禁验收
+
+- 执行者：agent-codex-architecture-catalog（Codex）
+- 做了什么：git push -u origin task/257/architecture_catalog；pre-push分支与task生命周期检查通过
+- 结果：远端task分支已建立，未推送stage/main或发布tag；首个PR正文故意省略宏观段以验证required检查失败
+
+## 22:36:41 +08:00 · PR · #257 · 创建PR258并实测缺宏观声明的拒绝路径
+
+- 执行者：agent-codex-architecture-catalog（Codex）
+- 做了什么：创建task/257/architecture_catalog到stage的PR #258，正文明确记录门禁实验并故意省略宏观段；验证后恢复完整正文
+- 结果：PR https://github.com/Yangtze-University-Geek-Class/admin/pull/258，远端检查已触发，等待architecture-alignment实际失败后核对保护拦截；未合并
+
+## 22:44:08 +08:00 · 审查 · #257 · 关闭独立审查发现并记录远端实际拒绝
+
+- 执行者：agent-codex-architecture-catalog（Codex）
+- 做了什么：Plato复测15探针和合法流程对照、抽查7接口及真实OR中间件；Euler逐个移除92业务和5补充关联均被拒绝。PR258省略宏观段后architecture运行39136692232失败，标准merge API对ac997077返回405；恢复完整正文
+- 结果：已知阻塞均修复，可信base四策略文件逐字一致，候选哨兵未执行；远端拒绝明确为2/3必需检查失败，PR仍open。CI另发现Node类型依赖和测试模块写法问题，修复后继续等待全绿，尚未合并
+
+## 22:44:08 +08:00 · 返工 · #257 · 修复干净CI类型依赖与浏览器用例加载
+
+- 执行者：agent-codex-architecture-catalog（Codex）
+- 做了什么：根开发依赖显式声明现有锁定@types/node 22.19.19；Playwright地图测试从根cwd解析文件路径，不在CommonJS转换中使用import.meta；冻结锁安装及完整check复核
+- 结果：未新增生产依赖、未改业务逻辑、未降低检查或跳过浏览器用例；远端将以新的提交重跑

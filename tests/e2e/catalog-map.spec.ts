@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
+import { resolve } from "node:path";
 
-const map = pathToFileURL(fileURLToPath(new URL("../../docs/architecture/catalog/map.html", import.meta.url))).href;
+const map = pathToFileURL(resolve("docs/architecture/catalog/map.html")).href;
 
 test("工程地图可搜索业务流程并沿关联查看真实数据结构", async ({ page }) => {
   await page.goto(map);

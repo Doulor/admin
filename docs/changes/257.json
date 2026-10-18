@@ -58,11 +58,11 @@
       ]
     },
     "dependencies": {
-      "status": "unchanged",
-      "reason": "仅复用锁定工具链并增加工程命令和给定查看器，没有新增生产依赖或访问GitHub、邮件等业务上游。",
+      "status": "changed",
+      "reason": "根目录显式声明已被服务端锁定的Node类型开发依赖，修复干净CI安装时类型解析缺失；没有新增生产依赖或外部业务调用。",
       "evidence": [
         "package.json",
-        "scripts/catalog/collect.ts"
+        "pnpm-lock.yaml"
       ]
     },
     "documentation": {
@@ -160,7 +160,8 @@
         "package.json",
         "AGENTS.md",
         "tests/tooling/hosted-runners.test.ts",
-        "scripts/pr-markdown.mjs"
+        "scripts/pr-markdown.mjs",
+        "pnpm-lock.yaml"
       ],
       "domains": [
         "platform"

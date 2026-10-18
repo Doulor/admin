@@ -7836,7 +7836,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "747034a1c82867e3c4717a101fd1411da4017014f0f04cc5417dc784dd7ebcd5",
+    "fingerprint": "b0b220bda89cb7d109794932b76d44c2c827b1a12dd4ebe3a5d43a429a79a20e",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -9160,7 +9160,7 @@
       },
       {
         "path": "pnpm-lock.yaml",
-        "sha256": "86081b1f2619baf9f144c1818c372b9a74d0267b90735591b4b23bd0f8a78e19"
+        "sha256": "4e79d711c9b3e7dfe33f68e505466206655dea47bbc470f14d9514cb2cf4a033"
       },
       {
         "path": "scripts/catalog/collect.ts",

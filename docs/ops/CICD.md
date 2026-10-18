@@ -52,6 +52,8 @@
 
 这些设置跨工具生效：OMP、Claude、Codex 或人工提交都走相同检查；仓库管理员仍有修改保护配置的权限，模型是否真的理解业务由审查核对，不能从绿标推断。实际 PR 拦截实验与最终 CI 记录保存在 #257 对应的 PR。
 
+真实拒绝实验：PR #258 的 `ac9970772b39832cae99d2957af527222841a5b9` 故意省略宏观对齐段，Actions 运行 `39136692232` 明确因缺少声明引用退出 1；GitHub 返回 `mergeStateStatus=BLOCKED`，对同一 SHA 的标准合并请求返回 HTTP 405（2 of 3 required status checks are failing）。随后恢复完整正文并修复另外的 CI 问题，只有全部必需检查通过后才允许合并；拒绝实验不修改或绕过保护配置。
+
 产物 `architecture-impact.json` 带实际文件、关联节点、八维评估、base/head 和目录摘要，可本机导入项目地图；报告不构成审批。工作流只用 contents: read，不使用 pull_request_target，也不触及任何部署环境。
 
 ## 环境身份
