@@ -2,7 +2,7 @@
 
 > 模块自有 Schema、明确错误语义和外部副作用约定。
 
-状态：`current` · 更新：2026-10-04
+状态：`current` · 更新：2026-10-19
 
 ## 合同
 
@@ -28,7 +28,7 @@ portal 包括 /api/docs、/api/feedback、/api/join/:token、/api/portal/apply�
 |---|---|---|---|---|
 | `GET /api/public/config` | 匿名 | 无 | 200 `{ turnstile_site_key, pow_difficulty }` | — |
 | `GET /api/public/org` | 匿名 | 无 | 200 `{ tones, titles, departments }`：`tones` 是色调 id → 浅色色值；`titles` 按 admin、captain、head、member、alumni、guest 排，每项 `{ id, label, tag, icon, tone, description, rank }`，读 `titles` 表（控制台改过的名字立刻生效）；`departments` 只含未归档部门的 `{ id, name, tag, icon, tone, description }`。不含权限包，不含任何人。官网「组织架构」窗口与论坛称号读它 | — |
-| `GET /api/public/competitions` | 匿名 | 无 | 200 `{ competitions }`，按「还能赶上的在前、已结束的在后」排（分别为开始时间正序 / 倒序），每项 `{ id, name, kind, start_at, end_at, signup_deadline, url, description, status }`。`kind` 是 `internal` / `external`；`status` 是 `registering` / `closed` / `ongoing` / `ended`，由服务端按当前时间算出来，不入库；`url` 对所有比赛类型可选（内部比赛也能挂自己的比赛官网），填了只接受 https。已下线的（`offline=1`）不返回；不含任何成员信息。官网桌面「比赛」窗口读它 | — |
+| `GET /api/public/competitions` | 匿名 | 无 | 200 `{ competitions }`，按「还能赶上的在前、已结束的在后」排（分别为开始时间正序 / 倒序），每项 `{ id, name, kind, start_at, end_at, signup_deadline, url, description, status }`。`kind` 是 `internal` / `external`；`status` 是 `upcoming` / `registering` / `closed` / `ongoing` / `ended`，由服务端按当前时间算出来，不入库；`url` 对所有比赛类型可选（内部比赛也能挂自己的比赛官网），填了只接受 https。已下线的（`offline=1`）不返回；不含任何成员信息。官网桌面「比赛」窗口读它 | — |
 | `GET /api/docs` | 匿名 | 无 | 200 `{ items }`，只列白名单文档（产品介绍、用户指南，中英各一） | — |
 | `GET /api/docs/:id` | 匿名 | 无 | 200 `{ id, label, lang, file, content }` | 404 `doc not found` / `doc file missing` |
 | `GET /api/feedback/categories` | 匿名 | 无 | 200 `{ categories, pow_difficulty, org }`；`org` 是本部署意见箱收的组织，即 `CONSOLE_ORG` 的配置写法，官网意见箱照它展示、读公开列表和提交（#129） | — |
@@ -52,7 +52,7 @@ portal 包括 /api/docs、/api/feedback、/api/join/:token、/api/portal/apply�
 | `PATCH /api/console/departments/:department_id` | `roles.manage` 且 GitHub 组织 owner | 无 | 200 `{ department }`，审计 `department.update`（details `{ changed }`） | 403 `admiral_required`；400；404 `not_found` |
 | `DELETE /api/console/departments/:department_id` | `roles.manage` 且 GitHub 组织 owner | 无 | 200 `{ ok: true, removed }`：同一事务删除部门和它的全部 head / member 指派（`removed` 是撤掉的条数），审计 `department.delete`（details `{ name, removed: [{ github_login, role }] }`）；默认部门只在第一次启动写入（`console_seeds`），删掉后重启不会补回 | 403 `admiral_required`；404 `not_found` |
 | `GET /api/console/competitions` | `console.access` | 无 | 200 `{ competitions }`，含已下线的（多一个 `offline`），其它字段同公开列表 | 401；403 |
-| `POST /api/console/competitions` | `competitions.manage` | 30 次/分钟 | 201 `{ competition }`，审计 `competition.create` | 400 `validation_error` / `bad_range`（结束早于开始）/ `deadline_after_end`；401；403 |
+| `POST /api/console/competitions` | `competitions.manage` | 30 次/分钟 | 201 `{ competition }`，审计 `competition.create` | 400 `validation_error` / `bad_name`（去首尾空白后不足 2 字）/ `bad_url`（不能解析的 HTTPS 地址）/ `bad_range`（结束早于开始）/ `deadline_after_end`；401；403 |
 | `PATCH /api/console/competitions/:competition_id` | `competitions.manage` | 60 次/分钟 | 200 `{ competition }`，审计 `competition.update`；`offline: true` 即「下线」（公开列表不再返回，控制台仍看得到） | 400 同上；404 `not_found`；401；403 |
 | `DELETE /api/console/competitions/:competition_id` | `competitions.manage` | 30 次/分钟 | 200 `{ ok: true }`，审计 `competition.delete`。真删；只想让官网不显示用 PATCH 下线 | 404 `not_found`；401；403 |
 | `GET /api/console/assignments?department_id=&role=` | `roles.manage` 或 `roles.department.manage` | 无 | 200 `{ assignments, captain }`；只有后者时只返回本人负责部门的行 | 401；403 `missing_capability` / `out_of_department_scope` |
@@ -77,6 +77,16 @@ portal 包括 /api/docs、/api/feedback、/api/join/:token、/api/portal/apply�
 `GET /api/admin/:org/repos/:repo/issues?state=` 与 `.../pulls?state=`（`state` 默认 `open`）用 `octokit.paginate` 每页 50 条地取完全部，回答不分页（issues 去掉了 PR），按登录者、仓库和 `state` 缓存 30 秒；公共 querystring 校验收下的 `per_page`（1–999，超出回 400 `validation_error`）与 `page` 在这两个接口不起作用。用 `per_page`（默认 30，最多取 100）和 `page` 的只有 `.../commits`（`routes/admin/repos.ts`）。
 
 `GET /api/admin/:org/security` 回 200 `{ plan, two_factor_required, dependabot: { supported, alerts, reason, error? }, secret_scanning: { supported, reason }, audit_log: { supported: false, reason } }`。免费组织 `dependabot.supported` 是 false 并带 `reason`；付费组织取 Dependabot 告警失败时整个接口仍回 200，`dependabot.alerts` 是空数组，`dependabot.error` 是 Octokit 异常的 `message` 原文（GitHub 的说明加文档链接，不经下文「错误」的脱敏，`routes/admin/security.ts`）。
+
+
+### 比赛信息发布合同（#238）
+
+`competitions` 只存赛事事实；报名与组队由 #239 另行交付。新建必填 `name`、`kind`、`start_at`、`end_at`，可选 `signup_deadline`、`url`、`description`；PATCH 是非空字段子集，可另带 `offline`。名称去首尾空白后至少 2 字、最多 80 字；说明最多 1000 字；链接最多 500 字，所有类型都可不填，非空必须能解析为 HTTPS URL。请求 Schema 检查类型、范围与形状，路由调用 `competitionError` 校验名称、链接与时间关系；失败不写库、不记成功审计。
+
+时间是 UTC 毫秒整数，范围 `0..8639999971200000`（Date 有效上限减北京时间八小时偏移）；结束不早于开始，报名截止不晚于结束。控制台新建的日期取北京时间整天；编辑时只 PATCH 修改过的字段，未修改日期保留 API 原始时分。省略 `url` / `signup_deadline` 保留原值，显式 `null` 才清空。`offline` 只影响公开可见性，重新上线保留原记录；DELETE 真删，重复删除 404。
+
+状态不入库，顺序为：`now > end_at` → `ended`；有截止且 `now <= signup_deadline` → `registering`；`now >= start_at` → `ongoing`；尚未开始且没有报名截止 → `upcoming`；其余 → `closed`。未填截止不推定正在报名。官网每 60 秒重算状态与排序；控制台重读时取服务端当前结果。匿名响应仅含表中列出的公开字段，控制台读取另含 `offline`；现有 `console.access` 允许读取，写入仍需 `competitions.manage`，UI 页面也按该管理能力显示。
+
 
 ## 极客班控制台
 

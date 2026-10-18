@@ -22,7 +22,7 @@ const META: Record<WindowId, { title: string; icon: "book-2-line" | "organizatio
   competitions: { title: "比赛", icon: "trophy-line", width: 780, path: "~/yugc/competitions" },
 };
 /** 状态文案：与服务端 `competitionStatus` 的四个值一一对应。 */
-const STATUS_TEXT: Record<CompetitionStatus, string> = { registering: "报名中", closed: "报名已截止", ongoing: "进行中", ended: "已结束" };
+const STATUS_TEXT: Record<CompetitionStatus, string> = { upcoming: "未开始", registering: "报名中", closed: "报名已截止", ongoing: "进行中", ended: "已结束" };
 
 export function windowWidth(id: WindowId): number {
   return META[id].width;
@@ -212,7 +212,7 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
     </>
   );
 }
-/** 比赛（#238）窗口：还能赶上的排在前面，可按内部/外部筛；外部比赛给官方链接，内部比赛不放假按钮。 */
+/** 比赛（#238）窗口：还能赶上的排在前面，可按内部/外部筛；有有效官方链接就显示，不放尚未实现的报名按钮。 */
 export function Competitions() {
   const { items, failed, loading } = useCompetitions();
   const [filter, setFilter] = useState<"all" | CompetitionKind>("all");

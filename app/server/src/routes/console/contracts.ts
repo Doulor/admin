@@ -26,8 +26,9 @@ const applicationParams = { params: object({ application_id: { type: "string", p
 /** 比赛（#238）：时间是 UTC 毫秒时间戳，界面上按北京时间填与看；`url` 对所有类型可选，填了必须是 https。 */
 const competitionFields = {
   name: text(80, 2), kind: choices("internal", "external"),
-  start_at: integer(0), end_at: integer(0),
-  signup_deadline: { anyOf: [integer(0), { type: "null" }] },
+  // Date 的有效上限还需留出北京时间的八小时偏移，不能落库后显示 NaN。
+  start_at: integer(0, 8_640_000_000_000_000 - 8 * 3600_000), end_at: integer(0, 8_640_000_000_000_000 - 8 * 3600_000),
+  signup_deadline: { anyOf: [integer(0, 8_640_000_000_000_000 - 8 * 3600_000), { type: "null" }] },
   url: { anyOf: [{ ...text(500, 1), pattern: "^https://\\S+$" }, { type: "null" }] },
   description: text(1000),
 };

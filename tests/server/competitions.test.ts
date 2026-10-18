@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ServiceOverrides } from '../../app/server/src/services';
 import { competitionStatus, compareCompetitions } from '../../app/server/src/lib/competition-store';
+import { formFrom, formPayload } from '../../app/console/src/lib/competitions';
 import { testApp } from './helpers';
 
 const CONSOLE_ORG = 'Yangtze-University-Geek-Class';
@@ -33,10 +34,11 @@ async function setup() {
 }
 
 const HOUR = 3600_000;
+const BASE = Date.now() + 7 * 24 * HOUR;
 const DRAFT = {
   name: '极客班算法赛', kind: 'internal' as const,
-  start_at: 1_800_000_000_000, end_at: 1_800_000_000_000 + 3 * HOUR,
-  signup_deadline: 1_800_000_000_000 - 24 * HOUR, url: null as string | null, description: '班内选拔',
+  start_at: BASE, end_at: BASE + 3 * HOUR,
+  signup_deadline: BASE - 24 * HOUR, url: null as string | null, description: '班内选拔',
 };
 
 describe('competition status and ordering', () => {
@@ -50,8 +52,8 @@ describe('competition status and ordering', () => {
     // 已开场、还能补报：报名中要压过进行中
     expect(competitionStatus(at(NOW - HOUR, NOW + HOUR, NOW + 30 * 60_000), NOW)).toBe('registering');
     expect(competitionStatus(at(NOW - HOUR, NOW + HOUR, NOW - 60_000), NOW)).toBe('ongoing');
-    // 没填报名截止的：开赛前一直算报名中
-    expect(competitionStatus(at(NOW + HOUR, NOW + 2 * HOUR, null), NOW)).toBe('registering');
+    // 没有报名信息不能宣称正在接受报名；开赛前显示未开始。
+    expect(competitionStatus(at(NOW + HOUR, NOW + 2 * HOUR, null), NOW)).toBe('upcoming');
   });
 
   it('treats the end timestamp as the boundary of "ended"', () => {
@@ -104,6 +106,68 @@ describe('public list', () => {
 });
 
 describe('console writes need competitions.manage', () => {
+  it('preserves exact timestamps when the console edits only the description', async () => {
+    const { app, as } = await setup();
+    const created = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: {
+      ...DRAFT,
+      start_at: Date.parse('2026-10-18T19:00:00+08:00'),
+      end_at: Date.parse('2026-10-18T21:00:00+08:00'),
+      signup_deadline: Date.parse('2026-10-18T18:00:00+08:00'),
+    } });
+    const original = created.json().competition;
+    const form = { ...formFrom(original), description: '更新场地说明' };
+    const patch = formPayload(form, original);
+    expect(patch).toEqual({ description: '更新场地说明' });
+    const saved = await app.inject({ method: 'PATCH', url: `/api/console/competitions/${original.id}`, headers: as('alice'), payload: patch });
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json().competition).toMatchObject({
+      start_at: original.start_at, end_at: original.end_at, signup_deadline: original.signup_deadline,
+      description: '更新场地说明',
+    });
+  });
+
+  it('rejects invisible names and timestamps that cannot be displayed in Beijing time', async () => {
+    const { app, as } = await setup();
+    for (const payload of [
+      { ...DRAFT, name: '   ' },
+      { ...DRAFT, name: '  赛  ' },
+      { ...DRAFT, start_at: Number.MAX_SAFE_INTEGER, end_at: Number.MAX_SAFE_INTEGER },
+      { ...DRAFT, end_at: 8_640_000_000_000_000 },
+      { ...DRAFT, signup_deadline: Number.MAX_SAFE_INTEGER },
+    ]) {
+      const rejected = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload });
+      expect(rejected.statusCode).toBe(400);
+    }
+    expect((await app.inject({ url: '/api/public/competitions' })).json().competitions).toEqual([]);
+    const created = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: { ...DRAFT, name: '  极客班算法赛  ' } });
+    expect(created.json().competition.name).toBe('极客班算法赛');
+    const id = created.json().competition.id;
+    for (const payload of [{ name: '   ' }, { end_at: Number.MAX_SAFE_INTEGER }]) {
+      expect((await app.inject({ method: 'PATCH', url: `/api/console/competitions/${id}`, headers: as('alice'), payload })).statusCode).toBe(400);
+    }
+    const renamed = await app.inject({ method: 'PATCH', url: `/api/console/competitions/${id}`, headers: as('alice'), payload: { name: '  极客班新比赛  ' } });
+    expect(renamed.json().competition.name).toBe('极客班新比赛');
+  });
+
+  it('rejects malformed HTTPS links on creation and update for either kind', async () => {
+    const { app, as } = await setup();
+    for (const kind of ['internal', 'external']) {
+      for (const url of ['https://?', 'https://#', 'https://[bad-host]']) {
+        const rejected = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: { ...DRAFT, kind, url } });
+        expect(rejected.statusCode).toBe(400);
+        expect(rejected.json().error).toBe('bad_url');
+      }
+    }
+    const created = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: { ...DRAFT, url: 'https://example.test/contest' } });
+    const id = created.json().competition.id;
+    const rejected = await app.inject({ method: 'PATCH', url: `/api/console/competitions/${id}`, headers: as('alice'), payload: { url: 'https://?' } });
+    expect(rejected.statusCode).toBe(400);
+    expect(rejected.json().error).toBe('bad_url');
+    const listed = await app.inject({ url: '/api/public/competitions' });
+    expect(listed.json().competitions).toHaveLength(1);
+    expect(listed.json().competitions[0].url).toBe('https://example.test/contest');
+  });
+
   it('refuses an unauthenticated caller and a member without the capability', async () => {
     const { app, as } = await setup();
     const anonymous = await app.inject({ method: 'POST', url: '/api/console/competitions', payload: DRAFT });

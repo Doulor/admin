@@ -2,7 +2,7 @@
 
 > 核心 portal/admin/console 与论坛接口的应用组装、资源生命周期和真实 GitHub 适配；一个 Fastify 进程。
 
-状态：`current` · 更新：2026-10-18 · 源码：`app/server/` · 镜像：`yzgc-<environment>/server:<sha12>`
+状态：`current` · 更新：2026-10-19 · 源码：`app/server/` · 镜像：`yzgc-<environment>/server:<sha12>`
 
 ## 源码地图
 
@@ -12,11 +12,11 @@
 | `app/server/src/app.ts` | 组装 portal/admin/console/forum 路由、中间件与插件；直连时托管 `app/web/dist` 与 `app/console/dist` 两份前端产物，`resolveSiteEntry` 按路径把 `/console`、`/admin`、`/signin`（含子路径）回落到控制台入口；**不监听端口**，可注入依赖 |
 | `app/server/src/services.ts` | 每个应用实例拥有自己的 data.db、缓存、身份与外部客户端；建库后先把意见箱只与 `CONSOLE_ORG` 差大小写的旧组织名归一（#129），再读论坛内容并播种（任何一步失败都先关库、启动失败）；按发信配置建 `mail`（配置写错同样启动失败）；提供关闭方法。测试用 `ServiceOverrides.mailFetch`、`clock` 换掉发信商请求，以及发信队列与会话（建会话、判过期、定时清理）用的时钟 |
 | `app/server/src/config.ts` | 环境变量解析与校验（端口、唯一对外地址 `PUBLIC_ORIGIN`、`CONSOLE_ORG`、密钥长度、难度参数、发信的 `MAIL_*`，都不设时不发信）；不读取前端配置。`forumContentDir` 固定为 `app/forum/content`（不是环境变量，镜像里是同一个相对位置） |
-| `app/server/src/routes/portal/index.ts` | portal 路由注册入口（docs / feedback / join / apply / public config / org：`GET /api/public/org`，`org.ts`） |
+| `app/server/src/routes/portal/index.ts` | portal 路由注册入口（docs / feedback / join / apply / public config / competitions / org：`GET /api/public/org`，`org.ts`） |
 | `app/server/src/routes/portal/contracts.ts` | portal 请求 Schema（本模块输入协议源） |
 | `app/server/src/routes/admin/index.ts` | admin 路由注册入口（`/auth/*`、`/api/me/*`、`/api/admin/:org/*`） |
 | `app/server/src/routes/admin/contracts.ts` | admin 请求 Schema |
-| `app/server/src/routes/console/index.ts` | 极客班控制台路由注册入口（`/api/console/*`：me、catalogue、summary、departments、titles、assignments、people、applications、feedback、audit） |
+| `app/server/src/routes/console/index.ts` | 极客班控制台路由注册入口（`/api/console/*`：me、catalogue、summary、departments、titles、assignments、people、applications、competitions、feedback、audit） |
 | `app/server/src/routes/console/contracts.ts` | 控制台请求 Schema（拒绝未知字段；投递参数按 UUID 校验） |
 | `app/server/src/routes/forum-api/index.ts` | 论坛接口注册入口（`/api/forum/*`，#57，[ADR-0004](../../decisions/0004-forum-backend-in-core-server.md)）：`topics.ts`（state、发帖、置顶、关闭、浏览数）、`posts.ts`（回复、编辑、删除、点赞、收藏）、`people.ts`（关注、通知、账号资料、头像）、`viewer.ts`（成员 / 游客身份与 `forum.*` 能力） |
 | `app/server/src/routes/forum-api/contracts.ts` | 论坛请求 Schema（拒绝未知字段；编号按字符串格式校验）与中文校验提示；写接口回答的形状 `ForumWriteResponse`（`{ changes, viewer, guestPolicy }`，#145） |
@@ -44,6 +44,7 @@
 - **发信**（#148）：投递成功写「已收到」，控制台把投递改成待面试、已录取、未通过时写对应的一封（可以取消发信勾选，改回已收到不写）。信先写进 `mail_outbox`，同一件事只有一行；服务进程里的发信循环每 15 秒发一遍，阿里云邮件推送在前、Resend 兜底，失败按 1 分钟、5 分钟、30 分钟、2 小时、6 小时重试，第 6 次失败放弃。预发布和正式都发给所有投递人（`MAIL_RECIPIENTS=all`，#169），两家发信商都没配置时不发、记 `mail_disabled`。信到最终状态就清掉收件地址和正文，只留哈希和主题。信里的时间都按北京时间写。细节见 [mail](mail.md)。
 - **数据所有权**：论坛的线上数据（账号资料、话题、帖子、点赞、收藏、关注、通知、头像）归本服务，存在 `data.db`；`app/forum/content` 的两份公开文件只作为只读的种子输入。本服务不读取论坛私有备份或只读投影。
 - **限流**：`@fastify/rate-limit` 以 `global: false` 注册，只管写了 `config.rateLimit` 的路由（官网投递、意见箱、邀请链接、控制台导出 CSV 与指派、论坛按 IP 计的浏览类接口）；超额时都回 429 `{ error: "rate_limited", message: "操作太频繁，请稍后再试", request_id }`。`app.ts` 注册插件时把 `middleware/http-policy.ts` 的 `rateLimited()` 设成默认的 `errorResponseBuilder`，路由不另写；论坛自己数次数的限流（发帖、回复、头像）抛的也是它（#191）。插件把 `errorResponseBuilder` 的返回值当错误抛给错误处理器，错误处理器只认 `statusCode` 与 `code`，所以要返回带这两项的 Error：返回 `{ statusCode, error, message }` 这样的普通对象会被回成 `request_error`。回归测试在 `tests/server/rate-limits.test.ts`。
+- **比赛信息发布**（#238）：`competition-store` 持久化赛事事实，状态按时间计算（含未开始），不新增报名或组队表；匿名 `GET /api/public/competitions` 过滤下线记录。控制台写口校验名称、可解析 HTTPS 链接与时间范围，省略字段保持不变、null 明确清空，按 `competitions.manage` 鉴权并审计。完整字段与五种状态见 [API](../../architecture/API.md)「比赛信息发布合同」。
 - **接口清单与错误语义**见 [API](../../architecture/API.md)，安全边界见 [SECURITY](../../architecture/SECURITY.md)。
 
 ## 运行
