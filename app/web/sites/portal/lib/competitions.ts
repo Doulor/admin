@@ -129,7 +129,9 @@ export function beijingDayEdge(date: string, edge: "start" | "end"): number | nu
   return edge === "start" ? midnight : midnight + 24 * 3600_000 - 1;
 }
 
-/** 「10-18」这种短日期；列表里不重复写年份。 */
-export function shortDay(at: number): string {
-  return beijingDay(at).slice(5);
+/** 本年省略年份；跨年赛事保留年份，按北京时间判断当前年。 */
+export function shortDay(at: number, now = Date.now()): string {
+  const date = beijingDay(at);
+  const year = beijingDay(now).split("-")[0];
+  return date.startsWith(`${year}-`) ? date.slice(year.length + 1) : date;
 }

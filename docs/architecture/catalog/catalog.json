@@ -8324,7 +8324,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "e39e97773b0d939a62975c7fab3b55411bd600cfb378dbee93b01e2aa3884454",
+    "fingerprint": "4675b7559c739013f2640716a0c00a8b96744052936fcf5d4e41353ddece9531",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -9488,7 +9488,7 @@
       },
       {
         "path": "app/web/sites/portal/lib/competitions.ts",
-        "sha256": "06d6a2d46e85b498a513f008791de82a06dd9bcdc96cea06dd03aa361b6bb4fd"
+        "sha256": "5fe8f6ec9cd2d2184175c461ff8b9d71b5ae59e304de36b9f1f32f291c6b3ea5"
       },
       {
         "path": "app/web/sites/portal/lib/deskMachine.ts",
@@ -9672,11 +9672,11 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "4083fbc10c6a66bae464cb6447b71e654387e278c9dab2fee991a4d012107513"
+        "sha256": "2a483e06b7cf4e7937ee5fe2cea0dfe9ce3c99b6a2136adc61e215690c84d294"
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "8ab4ddb74bef538dd7b5ef448595bf1ce939f61e45eebc632c6bb9268f34c0b5"
+        "sha256": "8bde1f9bb020a8a18510e8fa291c2e2c5372db1f876cbca00ac192d84ecb7615"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -9776,7 +9776,7 @@
       },
       {
         "path": "tests/web/portal-competitions.test.tsx",
-        "sha256": "4bca4efb5fa70cc4060cbbf8a271f8599f791f38787f5ce67ec9ba29156f3498"
+        "sha256": "2542feb2249d5c86130e608aff15ec39a07903aca7cd216ac24eb5c92bc12595"
       }
     ]
   },

@@ -156,7 +156,16 @@ it("按北京时间显示日期，跨零点算作后一天", () => {
   expect(beijingDayEdge("2026-10-16", "start")).toBe(Date.parse("2026-10-15T16:00:00Z"));
   expect(beijingDayEdge("2026-10-16", "end")).toBe(Date.parse("2026-10-16T15:59:59.999Z"));
   expect(beijingDayEdge("2026-02-30", "start")).toBeNull();
-  expect(shortDay(Date.parse("2026-10-15T16:30:00Z"))).toBe("10-16");
+  expect(shortDay(Date.parse("2026-10-15T16:30:00Z"), Date.parse("2026-10-01T00:00:00Z"))).toBe("10-16");
+});
+
+it("跨年日期保留年份，并按北京时间判断当前年", () => {
+  const beforeNewYear = Date.parse("2026-12-31T15:59:59Z");
+  const afterNewYear = Date.parse("2026-12-31T16:00:00Z");
+  expect(shortDay(Date.parse("2025-10-20T00:00:00+08:00"), beforeNewYear)).toBe("2025-10-20");
+  expect(shortDay(afterNewYear, beforeNewYear)).toBe("2027-01-01");
+  expect(shortDay(afterNewYear, afterNewYear)).toBe("01-01");
+  expect(shortDay(beforeNewYear, afterNewYear)).toBe("2026-12-31");
 });
 
 // 服务端（competitionStatus）与官网（statusAt）各写了一份同一套口径，这里按 org 默认值那条先例逐点比对：
