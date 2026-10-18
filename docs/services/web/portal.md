@@ -2,7 +2,7 @@
 
 > 公开官网：3D 书桌与 YUGC OS 桌面、加入我们（信封场景）、论坛与 GitHub 场景、文档、意见箱和邀请落地；不自建登录，菜单栏显示全站 GitHub 登录的账号或登录入口。
 
-状态：`current` · 更新：2026-10-16
+状态：`current` · 更新：2026-10-18
 
 ## 范围与路由
 
@@ -37,7 +37,7 @@
 | `lib/promo.ts`、`components/PromoPlayer.tsx`、`components/PromoLazy.tsx`、`styles/promo.css` | 宣传片：CDN 地址、「只自动播一次」的 cookie、按浏览器能力挑编码与播放方式、起播预取（纯逻辑在 `lib/promo.ts`）；全屏播放层（见下文「宣传片」） |
 | `lib/links.ts` | 站外链接的唯一解析点：论坛首页/版块/话题、控制台、GitHub 组织 |
 | `lib/org.ts` | 「组织架构」窗口与「关于极客班」里的称号和部门：读匿名 `GET /api/public/org`（窗口打开时读一次、关掉即取消），`ORG_DEFAULTS` 是与服务端默认值一致的唯一一份兜底（`tests/web/portal-org.test.ts` 核对），读到之前和读不到时显示它；服务端的 Carbon 图标名经 `ORG_ICONS` 换成官网的 Remix 图标，认不出的用圆圈。官网静态文案不写称号名字，因为提督可以在控制台改名 |
-| `lib/competitions.ts` | 「比赛」窗口的数据：读匿名 `GET /api/public/competitions`（窗口打开时读一次、关掉即取消），状态跟着服务端给的 `status` 走、窗口开着时每 60 秒按时间戳再算一次（`statusAt` 与服务端 `competitionStatus` 同口径），读不到时窗口说「没加载出来」而不是冒充「没有比赛」；日期换算（`beijingDay`、`shortDay`）都按北京时间，`readCompetition` 丢掉缺字段的条目、只收 https 的外部链接 |
+| `lib/competitions.ts` | 「比赛」窗口的数据：读匿名 `GET /api/public/competitions`（窗口打开时读一次、关掉即取消），状态一律由本地按时间戳算（`statusAt`，与服务端 `competitionStatus` 同口径），窗口开着时每 60 秒重算一次；响应里的 `status` 只当形状校验，读不到时窗口说「没加载出来」而不是冒充「没有比赛」；日期换算（`beijingDay`、`shortDay`）都按北京时间，`readCompetition` 丢掉缺字段的条目、只收 https 的外部链接 |
 | `lib/account.ts` | 全站登录状态：`useAccount()` 读同域 `/auth/me`、`signOut()` 调 `POST /auth/signout`；`signInHref(returnTo)` 生成 `/auth/github?return_to=…`，默认回 `<当前 origin>/forum/` |
 | `lib/snapshots.ts` | 读取 `public/portal/forum-latest.json`、`repos.json` 快照 |
 | `lib/icons.ts`、`components/Icon.tsx` | Remix Icon 路径注册表与图标组件 |
@@ -55,8 +55,8 @@ three.js 只通过各页面里的 `import("../three/<scene>")` 进入，不在�
 桌面与手机主屏幕的「比赛」应用开一个窗口，读匿名 `GET /api/public/competitions`（数据只由控制台写入，见 [server 合同](../server/README.md)）。
 
 - **排序与筛选**：服务端排好序（还能赶上的在前、已结束的在后），窗口只按「全部 / 内部 / 外部」筛，不在前端重排。
-- **状态**：`status` 由服务端按当前时间算出来（报名中 / 报名已截止 / 进行中 / 已结束）。窗口开着时每 60 秒用同一套口径按时间戳再算一次，所以报名在半夜截止、或比赛当天开始时不用刷新也能跟上。
-- **外部比赛**才有官方链接（只接受 https，新标签页打开，`rel="noreferrer"`）；内部比赛不显示报名按钮——报名与组队是另一件事（#239），这里不放点不动的假按钮。
+- **状态**：报名中 / 报名已截止 / 进行中 / 已结束四个状态一律由前端按时间戳现算（`statusAt`，与服务端 `competitionStatus` 同一套口径），响应里的 `status` 只用于形状校验、不直接显示；窗口开着时每 60 秒重算一次，所以报名在半夜截止、或比赛当天开始时不用刷新也能跟上。两处实现靠各自的测试守着同一套边界。
+- **外部比赛**才有官方链接（只接受 https，新标签页打开，`rel="noopener noreferrer"`）；内部比赛不显示报名按钮——报名与组队是另一件事（#239），这里不放点不动的假按钮。
 - **时间**一律按北京时间显示（`YYYY-MM-DD` 短日期）。
 - **读不到**时窗口写「比赛列表没加载出来」，与「现在还没有登记的比赛」是两句不同的话。
 - 公开接口不含任何成员信息，也不含 `offline`、创建与更新时间这些内部字段。

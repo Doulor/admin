@@ -156,7 +156,8 @@ export function createCompetitionStore(db: Database.Database): CompetitionStore 
       const kind = patch.kind ?? current.kind;
       update.run({
         id, now, kind,
-        url: kind === "external" ? patch.url ?? current.url : null,
+        // 与 signup_deadline 一样按 undefined 判「没给」：合同允许显式传 url: null 清掉官方链接
+        url: kind === "external" ? (patch.url === undefined ? current.url : patch.url) : null,
         name: patch.name ?? current.name,
         start_at: patch.start_at ?? current.start_at,
         end_at: patch.end_at ?? current.end_at,

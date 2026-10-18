@@ -248,7 +248,7 @@ export function Competitions() {
                 {item.signup_deadline !== null && <span className="pt-comp-due">报名截止 {shortDay(item.signup_deadline)}</span>}
               </p>
               {item.url && (
-                <a className="pt-comp-link" href={item.url} target="_blank" rel="noreferrer">
+                <a className="pt-comp-link" href={item.url} target="_blank" rel="noopener noreferrer">
                   查看官方页面<Icon name="external-link-line" size={13} />
                 </a>
               )}

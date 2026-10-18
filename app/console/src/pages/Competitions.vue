@@ -9,7 +9,6 @@ import { TxForm, TxFormItem } from "@talex-touch/tuffex/form";
 import { TxInput } from "@talex-touch/tuffex/input";
 import { TxTextarea } from "@talex-touch/tuffex/textarea";
 import { TxRadio, TxRadioGroup } from "@talex-touch/tuffex/radio";
-import { TxAlert } from "@talex-touch/tuffex/alert";
 import { TxEmptyState } from "@talex-touch/tuffex/empty-state";
 import { toast } from "@talex-touch/tuffex/utils";
 import PageHeader from "../components/PageHeader.vue";
@@ -20,12 +19,8 @@ import { api, jsonBody } from "../lib/http";
 import { confirm } from "../lib/confirm";
 import { fmtDay } from "../lib/format";
 import { useAction, useResource } from "../lib/resource";
-import { useSession } from "../lib/session";
 import { KIND_TEXT, STATUS_TEXT, emptyForm, formErrors, formFrom, formPayload, type CompetitionForm } from "../lib/competitions";
 import type { CompetitionRecord, CompetitionStatus } from "../lib/types";
-
-const { can } = useSession();
-const canManage = computed(() => can("competitions.manage"));
 
 const list = useResource(() => api<{ competitions: CompetitionRecord[] }>("/api/console/competitions"), []);
 
@@ -94,7 +89,7 @@ async function askRemove(row: CompetitionRecord) {
   <div class="page">
     <PageHeader title="比赛" description="官网桌面「比赛」应用显示的赛事。时间按北京时间选，服务端按 UTC 存。">
       <template #actions>
-        <TxButton v-if="canManage" variant="primary" icon="i-carbon-add" @click="openCreate">新建比赛</TxButton>
+        <TxButton variant="primary" icon="i-carbon-add" @click="openCreate">新建比赛</TxButton>
       </template>
     </PageHeader>
     <ErrorAlert v-if="toggleOffline.error.value" :error="toggleOffline.error.value" @close="toggleOffline.reset()" />
@@ -123,12 +118,11 @@ async function askRemove(row: CompetitionRecord) {
           <TxStatusBadge :text="STATUS_TEXT[row.status]" :status="STATUS_TONE[row.status]" size="sm" />
         </template>
         <template #cell-actions="{ row }: { row: CompetitionRecord }">
-          <span v-if="canManage" class="row-actions">
+          <span class="row-actions">
             <TxButton size="sm" variant="ghost" @click="openEdit(row)">编辑</TxButton>
             <TxButton size="sm" variant="ghost" :disabled="toggleOffline.pending.value" @click="toggleOffline.execute(row)">{{ row.offline ? "上线" : "下线" }}</TxButton>
             <TxButton size="sm" variant="ghost" class="danger-text" :disabled="remove.pending.value" @click="askRemove(row)">删除</TxButton>
           </span>
-          <span v-else class="muted">只读。管理比赛需要「管理比赛」权限。</span>
         </template>
         <template #empty><TxEmptyState title="还没有比赛" description="用右上角的「新建比赛」添加第一场。" size="small" /></template>
       </TxDataTable>

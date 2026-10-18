@@ -1,7 +1,7 @@
 // 比赛（#238）的数据：官网桌面「比赛」窗口读 GET /api/public/competitions。
 //
-// 状态由服务端按时间算好（`status`），页面上的「报名中 / 进行中 / 已结束」跟着服务端走；
-// 窗口开着的时候按时间戳本地重算一次，免得在午夜前后停在旧状态上。
+// 状态一律按时间戳本地算（`statusAt`，与服务端 `competitionStatus` 同一套口径），窗口开着时每 60 秒重算一次，
+// 免得在午夜前后停在旧状态上；服务端响应里的 `status` 只当形状校验，不作为展示来源。
 // 读不到（离线、接口不通、开发预览没有这份数据）时标记失败，窗口显示「读不到」而不是冒充「没有比赛」。
 import { useEffect, useState } from "react";
 import { api } from "@shared/lib/api";
@@ -41,6 +41,8 @@ export function readCompetition(value: unknown): Competition | null {
   const status = STATUSES.includes(raw.status as CompetitionStatus)
     ? (raw.status as CompetitionStatus)
     : statusAt({ start_at: start, end_at: end, signup_deadline }, Date.now());
+  // 服务端的 status 只当形状校验用，展示时一律重算（见 useCompetitions）
+  void status;
   const link = asText(raw.url);
   const url = kind === "external" && /^https:\/\/\S+$/.test(link) ? link : null;
   return { id, name, kind, start_at: start, end_at: end, signup_deadline, url, description: asText(raw.description), status };
@@ -67,6 +69,9 @@ export type CompetitionFeed = { items: Competition[]; failed: boolean; loading: 
 /**
  * 窗口打开时读一次，关掉即取消。窗口开着时每 60 秒按当前时间重算一次状态：
  * 报名在半夜截止、或比赛当天开始时，界面不用等刷新就能跟上。
+ *
+ * 展示用的状态一律按本地时间算（`statusAt`），不看服务端给的 `status`：
+ * 两者口径相同，但服务端那条只在响应到达时算一次，窗口一直开着就不动了。
  */
 export function useCompetitions(): CompetitionFeed {
   const [items, setItems] = useState<Competition[]>([]);

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Competitions } from "../../app/web/sites/portal/components/os/Windows";
 import { COMPETITIONS_URL, beijingDay, beijingDayEdge, readCompetition, readCompetitions, shortDay, statusAt } from "../../app/web/sites/portal/lib/competitions";
+import { competitionStatus } from "../../app/server/src/lib/competition-store";
 
 // 开发态默认走只读样板数据；这里切到真实数据源，让窗口真的去请求列表（请求由 fetch 桩接住）。
 beforeEach(() => localStorage.setItem("yugc:dev-data-source", "live"));
@@ -34,7 +35,8 @@ it("列出比赛，外部比赛给官方链接，内部比赛不显示链接", a
   expect(screen.getByText("蓝桥杯省赛")).toBeTruthy();
   const link = screen.getByRole("link", { name: /查看官方页面/ });
   expect(link.getAttribute("href")).toBe("https://dasai.lanqiao.cn/");
-  expect(link.getAttribute("rel")).toBe("noreferrer");
+  expect(link.getAttribute("rel")).toContain("noopener");
+  expect(link.getAttribute("rel")).toContain("noreferrer");
   // 只有外部那条有链接；内部那条不给假按钮
   expect(screen.getAllByRole("link")).toHaveLength(1);
   expect(fetch).toHaveBeenCalledWith(COMPETITIONS_URL, expect.objectContaining({ signal: expect.any(AbortSignal) }));
@@ -91,6 +93,32 @@ it("状态由时间算出来，截止当天整天都还算报名中", () => {
   expect(statusAt(at(NOW - 2 * HOUR, NOW - 1, null), NOW)).toBe("ended");
 });
 
+it("展示的状态按本地时间算，服务端给的 status 不作数", async () => {
+  // 服务端这条说「报名中」，但时间戳说已经结束了：以时间戳为准
+  vi.stubGlobal("fetch", vi.fn(async () => json({ competitions: [{ ...INTERNAL, status: "registering", start_at: NOW - 2 * HOUR, end_at: NOW - HOUR, signup_deadline: NOW - 3 * HOUR }] })));
+  const view = render(<Competitions />);
+  await waitFor(() => expect(screen.getByText("极客班算法挑战赛")).toBeTruthy());
+  expect(screen.getByText("已结束")).toBeTruthy();
+  expect(screen.queryByText("报名中")).toBeNull();
+  view.unmount();
+});
+
+it("窗口开着时每 60 秒按时间重算：到点后不用刷新就变成已结束", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(NOW);
+    vi.stubGlobal("fetch", vi.fn(async () => json({ competitions: [{ ...INTERNAL, start_at: NOW + 30 * 60_000, end_at: NOW + 45 * 60_000, signup_deadline: NOW + 10 * 60_000 }] })));
+    render(<Competitions />);
+    await vi.waitFor(() => expect(screen.getByText("报名中")).toBeTruthy());
+    // 时间推过结束点，再等一次重算
+    vi.setSystemTime(NOW + 60 * 60_000);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await vi.waitFor(() => expect(screen.getByText("已结束")).toBeTruthy());
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it("接口给的条目缺字段就丢掉，链接只收 https，认不出的状态按时间补", () => {
   expect(readCompetition({ id: "c1", name: "A", start_at: 1, end_at: 2 })).toMatchObject({ id: "c1", kind: "internal", url: null, status: "ended" });
   expect(readCompetition({ name: "没有 id", start_at: 1, end_at: 2 })).toBeNull();
@@ -111,4 +139,26 @@ it("按北京时间显示日期，跨零点算作后一天", () => {
   expect(beijingDayEdge("2026-10-16", "end")).toBe(Date.parse("2026-10-16T15:59:59.999Z"));
   expect(beijingDayEdge("2026-02-30", "start")).toBeNull();
   expect(shortDay(Date.parse("2026-10-15T16:30:00Z"))).toBe("10-16");
+});
+
+// 服务端（competitionStatus）与官网（statusAt）各写了一份同一套口径，这里按 org 默认值那条先例逐点比对：
+// 任一侧改了边界，这条会红，不会出现「官网说报名中、控制台说已截止」的静默分叉。
+it("官网的 statusAt 与服务端的 competitionStatus 逐点一致", () => {
+  const NOW = 1_800_000_000_000;
+  const HOUR = 3600_000;
+  const rows = [
+    { start_at: NOW + HOUR, end_at: NOW + 2 * HOUR, signup_deadline: NOW + 30 * 60_000 },
+    { start_at: NOW + HOUR, end_at: NOW + 2 * HOUR, signup_deadline: null },
+    { start_at: NOW + HOUR, end_at: NOW + 2 * HOUR, signup_deadline: NOW - 1 },
+    { start_at: NOW - HOUR, end_at: NOW + HOUR, signup_deadline: NOW - 1 },
+    { start_at: NOW - HOUR, end_at: NOW + HOUR, signup_deadline: NOW + HOUR },
+    { start_at: NOW - 2 * HOUR, end_at: NOW - 1, signup_deadline: null },
+    // 边界本身：截止与结束那一刻
+    { start_at: NOW + HOUR, end_at: NOW + 2 * HOUR, signup_deadline: NOW },
+    { start_at: NOW, end_at: NOW + HOUR, signup_deadline: NOW + 1 },
+    { start_at: NOW - HOUR, end_at: NOW, signup_deadline: null },
+  ];
+  for (const row of rows) {
+    expect(statusAt(row, NOW)).toBe(competitionStatus(row, NOW));
+  }
 });

@@ -151,6 +151,18 @@ describe('console writes need competitions.manage', () => {
     expect(changed.json().competition).toMatchObject({ kind: 'internal', url: null });
   });
 
+  it('clears the url with an explicit null, and keeps it when the patch omits it', async () => {
+    const { app, as } = await setup();
+    const created = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: { ...DRAFT, kind: 'external', url: 'https://example.test/contest' } });
+    const id = created.json().competition.id;
+    // 合同允许显式传 null：外部比赛要能清掉官方链接，而不是把 null 当成「没给」
+    const cleared = await app.inject({ method: 'PATCH', url: `/api/console/competitions/${id}`, headers: as('alice'), payload: { url: null } });
+    expect(cleared.json().competition.url).toBeNull();
+    // 别的字段：没给就保持原值，不会被同一次改动顺手清掉
+    const renamed = await app.inject({ method: 'PATCH', url: `/api/console/competitions/${id}`, headers: as('alice'), payload: { name: '改个名' } });
+    expect(renamed.json().competition).toMatchObject({ name: '改个名', kind: 'external', url: null });
+  });
+
   it('deletes for real, answers 404 the second time, and audits every write', async () => {
     const { app, as } = await setup();
     const created = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: DRAFT });
