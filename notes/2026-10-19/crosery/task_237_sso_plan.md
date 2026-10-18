@@ -20,3 +20,15 @@
 - 执行者：agent-codex-geek-followup（Codex，PR 持续跟进）
 - 做了什么：提交 ADR-0005 与本轮执行记录，Refs #237
 - 结果：完整 pnpm verify 通过；方案仍为 proposed，真实 OAuth 与内部身份迁移未实施，不能当作运行验收
+
+## 01:45:05 +08:00 · 推送 · #237 · 已将 SSO 业务合同提交推送到原 PR 分支
+
+- 执行者：agent-codex-geek-followup（Codex，PR 持续跟进）
+- 做了什么：git push 原 fork 的 task/237/sso_plan，未 force push
+- 结果：98fed0d8946e527aa51192a4c6f84501f41691d3 已到 PR #242；随后发现上游 stage 已推进至 1293f892，PR mergeStateStatus=DIRTY，需要同步新项目目录门禁
+
+## 01:45:05 +08:00 · 方案 · #237 · 同步 stage 的架构目录与宏观对齐门禁
+
+- 执行者：agent-codex-geek-followup（Codex，PR 持续跟进）
+- 做了什么：完整补读当前 stage 的九份规范及 ARCHITECTURE-ALIGNMENT、项目地图检索入口和身份流程；计划只同步基线到 PR 分支并补 docs/changes/237.json
+- 结果：确认新门禁要求每个 PR 的八维影响声明与十段正文；不将 proposed 的身份表和 OAuth 接口登记为当前运行实体，不将 PR 合入 stage
