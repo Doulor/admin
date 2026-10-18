@@ -1,6 +1,7 @@
-import { beforeAll, expect, it } from "vitest";
+import { afterEach, beforeAll, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { setImmediate } from "node:timers/promises";
 import { generateCatalog as collectCatalog } from "../../scripts/project-catalog";
 import { collectRuntime, ROOT } from "../../scripts/catalog/collect";
 import { buildCatalog, OWNERSHIP_PATH, type Ownership, type Runtime } from "../../scripts/catalog/model";
@@ -16,6 +17,8 @@ beforeAll(async () => {
   runtime = await collectRuntime();
   ownership = JSON.parse(readFileSync(join(ROOT, OWNERSHIP_PATH), "utf8"));
 });
+// 每次同步源码分析后让 worker 处理进度 RPC；连续微任务会饿死托管机器的 I/O。
+afterEach(() => setImmediate());
 
 it("每个业务操作和补充入口都有可追溯的业务用例", async () => {
   const catalog = await collectCatalog();

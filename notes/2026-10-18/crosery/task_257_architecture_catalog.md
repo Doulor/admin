@@ -211,3 +211,9 @@
 - 执行者：agent-codex-architecture-catalog（Codex）
 - 做了什么：远端core在单个92反例同步循环超过60秒并阻塞Vitest通信；将92业务和5补充反例拆成独立it.each，增加入库case与真实提取结果一致断言，保留全部拒绝断言与默认单例超时
 - 结果：同CI的v8覆盖率模式下98/98通过，51.73秒，未降低门禁、未删反例、未提高全局超时；地图浏览器用例继续在远端跑
+
+## 23:08:55 +08:00 · 提交 · #257 · 提交测试worker通信修复并完成覆盖率复验
+
+- 执行者：agent-codex-architecture-catalog（Codex）
+- 做了什么：上一轮远端1229断言全过但worker onTaskUpdate超时，定位为连续同步源码分析的I/O饥饿；每例结束setImmediate让出事件循环，不修改业务实现、断言或任何超时；提交本轮仅测试和记录的修复
+- 结果：本机按CI命令pnpm run test --coverage退出0：79文件1229测试通过、无Unhandled Errors，74.73秒；之前实现与CI修复提交分别ac997077、4274334，逐例回归提交40743175，均经pre-push验证推送
