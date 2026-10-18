@@ -2,7 +2,7 @@
 
 > 所有项目规范集中于 docs；`docs/` 与 `app/` 严格对齐，根目录及工具文件只负责导航。
 
-状态：`current` · 更新：2026-10-02
+状态：`current` · 更新：2026-10-18
 
 ## AI 第一操作
 
@@ -54,6 +54,8 @@ Agent 进入仓库的第一件事是**确认当前分支**（`git branch --show-
 
 | 主题 | 规范文档 |
 |---|---|
+| 应用、业务、接口、数据结构与能力的统一入口 | [项目目录](architecture/catalog/README.md)（可重建的内部工程目录，含源码证据；不代表已部署） |
+| 每个 PR 的业务、接口、权限、数据与文档对齐 | [ARCHITECTURE-ALIGNMENT](conventions/ARCHITECTURE-ALIGNMENT.md) |
 | 分支模型、不变量、合并后删分支 | [BRANCHING](conventions/BRANCHING.md) |
 | diff 审查清单与结论格式 | [CODE-REVIEW](conventions/CODE-REVIEW.md) |
 | 打 tag 发版、人工验收、版本展示、回滚 | [RELEASES](conventions/RELEASES.md) |
