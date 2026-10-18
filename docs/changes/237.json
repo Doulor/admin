@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "issue": 237,
+  "kind": "docs-only",
+  "summary": "把统一登录及后续应用授权按完整业务能力对齐到身份模型、后端合同、前端表现与验收条件。",
+  "applications": [],
+  "domains": [
+    "identity",
+    "organization",
+    "audit",
+    "platform"
+  ],
+  "flows": [
+    "flow:identity.authorize",
+    "flow:identity.callback",
+    "flow:identity.signout",
+    "flow:identity.current"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "将统一账号与登录、渠道管理、应用授权组织为三项端到端业务交付；这次仅修订待确认方案，不把内部迁移步骤单独报完成。",
+      "evidence": [
+        "docs/decisions/0005-sso-extend-core-server.md"
+      ]
+    },
+    "backend": {
+      "status": "unchanged",
+      "reason": "现有 GitHub 回调、sid 和 /auth/me 实现未改动；新增 providers、identity 和 OAuth/OIDC 路径均在 proposed ADR 中明确为待实施合同。",
+      "evidence": [
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "app/server/src/routes/admin/auth.ts"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "当前 CONSOLE_ORG active 门槛与用户 GitHub token 权力上限保持；方案补充最后一个 GitHub 身份不可解绑和双重认证，但本 PR 未修改授权执行点。",
+      "evidence": [
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/architecture/SECURITY.md"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "没有执行建表或回填；users、identities、内部账号外键和 oauth_subjects 都是规划，文档明确迁移顺序、账号合并限制及 sub 稳定约束。",
+      "evidence": [
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/services/server/data-model.md"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "不新增认证库、容器、生产依赖或 provider 凭据；外部 OAuth/OIDC 规范仅用于方案核对。",
+      "evidence": [
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "package.json"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "ADR、导航和索引统一描述业务能力、数据库/接口/前端矩阵、兼容迁移与未实施状态；不把计划写进当前运行目录。",
+      "evidence": [
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/README.md"
+      ]
+    },
+    "verification": {
+      "status": "unchanged",
+      "reason": "运行既有文档、目录、宏观对齐与完整验证；业务代码未改，无新行为测试可执行，真实 OAuth 与方案实施验收仍未发生。",
+      "evidence": [
+        "docs/conventions/TESTING.md",
+        "docs/decisions/0005-sso-extend-core-server.md"
+      ]
+    },
+    "delivery": {
+      "status": "unchanged",
+      "reason": "仍是仓库内方案与导航交付，不改版本、环境、镜像、实际数据或发布流程；PR 保持开放供所有者验收。",
+      "evidence": [
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/conventions/RELEASES.md"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/README.md",
+        "docs/INDEX.md"
+      ],
+      "domains": [
+        "identity",
+        "organization",
+        "audit",
+        "platform"
+      ],
+      "nodes": [
+        "domain:identity",
+        "domain:platform",
+        "flow:identity.callback",
+        "table:sessions"
+      ],
+      "reason": "用现有全站会话事实说明未来统一账号及对外授权设计，更新方案导航与派生索引，不修改运行代码。"
+    }
+  ],
+  "documents": [
+    "docs/decisions/0005-sso-extend-core-server.md",
+    "docs/README.md"
+  ],
+  "tests": [],
+  "compatibility": "所有现有接口、cookie、数据库和三端行为不变；未来 /auth/me 保留 GitHub user_id 的原语义，只计划新增 account_id 与 provider。",
+  "migration": "本次不迁移数据；ADR 规定内部身份迁移的兼容回填、双写和切读步骤，并禁止把未实施的表登记为现状。",
+  "rollback": "回滚此方案文档、导航和影响声明即可，不需要回滚数据、凭据、镜像或任何已发布环境。"
+}

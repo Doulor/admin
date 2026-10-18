@@ -32,3 +32,15 @@
 - 执行者：agent-codex-geek-followup（Codex，PR 持续跟进）
 - 做了什么：完整补读当前 stage 的九份规范及 ARCHITECTURE-ALIGNMENT、项目地图检索入口和身份流程；计划只同步基线到 PR 分支并补 docs/changes/237.json
 - 结果：确认新门禁要求每个 PR 的八维影响声明与十段正文；不将 proposed 的身份表和 OAuth 接口登记为当前运行实体，不将 PR 合入 stage
+
+## 02:24:18 +08:00 · 开发 · #237 · 统一登录方案完成新目录门禁适配
+
+- 执行者：agent-codex-geek-followup（Codex，PR 持续跟进）
+- 做了什么：以 c5ed145 同步 stage 1293f892，文档和执行记录索引冲突均通过生成器解决；新增 docs/changes/237.json，关联现有 identity/organization/audit/platform 及四条身份流程；未来身份表和授权端点不登记为当前实体
+- 结果：最新基线 pnpm verify 退出0：79文件1229条核心测试、30文件548条论坛测试、构建与61路由生成通过；check:architecture通过12个变更文件、7个关联节点，check:catalog通过
+
+## 02:24:18 +08:00 · 提交 · #237 · 提交 SSO 宏观影响声明
+
+- 执行者：agent-codex-geek-followup（Codex，PR 持续跟进）
+- 做了什么：提交方案八维影响声明与基线同步后的真实验证记录
+- 结果：声明只描述方案与导航变化；运行时接口、权限、数据和交付保持，不合并PR；当前提交CI与所有者方案验收仍待完成
