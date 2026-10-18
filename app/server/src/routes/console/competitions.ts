@@ -22,7 +22,7 @@ const normalize = (draft: CompetitionDraft): CompetitionDraft => ({ ...draft, na
  */
 export default async function consoleCompetitionRoutes(app: FastifyInstance) {
   const { competitions, config } = app.services;
-  const { audit } = app.services.storage;
+  const { audit, db } = app.services.storage;
   app.addHook("preHandler", requireAuth);
 
   const manage = [requireCapability("competitions.manage")];
@@ -41,9 +41,12 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
       const invalid = competitionError(draft);
       if (invalid) return reply.code(400).send({ error: invalid, message: VALIDATION_MESSAGE[invalid] });
       const id = newCompetitionId();
-      const created = competitions.insert(id, draft, Date.now());
-      if (!created) return reply.code(500).send({ error: "not_created", message: "比赛没有建成功，请重试" });
-      audit(config.consoleOrg, req.session!.login, "competition.create", id, { name: created.name, kind: created.kind }, req.ip);
+      const created = db.transaction(() => {
+        const record = competitions.insert(id, draft, Date.now());
+        if (!record) throw new Error("Competition insert returned no row");
+        audit(config.consoleOrg, req.session!.login, "competition.create", id, { name: record.name, kind: record.kind }, req.ip);
+        return record;
+      })();
       return reply.code(201).send({ competition: toConsoleCompetition(created, Date.now()) });
     },
   );
@@ -60,9 +63,12 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
       if (invalid) return reply.code(400).send({ error: invalid, message: VALIDATION_MESSAGE[invalid] });
       const patch = { ...req.body };
       if (patch.name !== undefined) patch.name = patch.name.trim();
-      const changed = competitions.update(id, patch, Date.now());
+      const changed = db.transaction(() => {
+        const record = competitions.update(id, patch, Date.now());
+        if (record) audit(config.consoleOrg, req.session!.login, "competition.update", id, { changed: Object.keys(req.body) }, req.ip);
+        return record;
+      })();
       if (!changed) return reply.code(404).send({ error: "not_found", message: "比赛不存在" });
-      audit(config.consoleOrg, req.session!.login, "competition.update", id, { changed: Object.keys(req.body) }, req.ip);
       return { competition: toConsoleCompetition(changed, Date.now()) };
     },
   );
@@ -72,9 +78,13 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
     { preHandler: manage, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
     async (req, reply) => {
       const { competition_id: id } = req.params;
-      const record = competitions.get(id);
-      if (!record || !competitions.remove(id)) return reply.code(404).send({ error: "not_found", message: "比赛不存在" });
-      audit(config.consoleOrg, req.session!.login, "competition.delete", id, { name: record.name }, req.ip);
+      const removed = db.transaction(() => {
+        const record = competitions.get(id);
+        if (!record || !competitions.remove(id)) return false;
+        audit(config.consoleOrg, req.session!.login, "competition.delete", id, { name: record.name }, req.ip);
+        return true;
+      })();
+      if (!removed) return reply.code(404).send({ error: "not_found", message: "比赛不存在" });
       return { ok: true };
     },
   );

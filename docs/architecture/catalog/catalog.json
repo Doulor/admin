@@ -47,7 +47,7 @@
       "implies": [],
       "label": "进入控制台",
       "source": {
-        "line": 66,
+        "line": 67,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -60,7 +60,7 @@
       "implies": [],
       "label": "查看 GitHub 组织",
       "source": {
-        "line": 67,
+        "line": 68,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -75,7 +75,7 @@
       ],
       "label": "修改组织资料",
       "source": {
-        "line": 68,
+        "line": 69,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -90,7 +90,7 @@
       ],
       "label": "管理组织成员",
       "source": {
-        "line": 69,
+        "line": 70,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -105,7 +105,7 @@
       ],
       "label": "管理仓库",
       "source": {
-        "line": 70,
+        "line": 71,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -120,7 +120,7 @@
       ],
       "label": "管理团队",
       "source": {
-        "line": 71,
+        "line": 72,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -135,7 +135,7 @@
       ],
       "label": "管理邀请",
       "source": {
-        "line": 72,
+        "line": 73,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -148,7 +148,7 @@
       "implies": [],
       "label": "置顶话题",
       "source": {
-        "line": 73,
+        "line": 74,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -161,7 +161,7 @@
       "implies": [],
       "label": "关闭话题",
       "source": {
-        "line": 74,
+        "line": 75,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -174,7 +174,7 @@
       "implies": [],
       "label": "管理帖子",
       "source": {
-        "line": 75,
+        "line": 76,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -187,7 +187,7 @@
       "implies": [],
       "label": "管理分类",
       "source": {
-        "line": 76,
+        "line": 77,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -200,7 +200,7 @@
       "implies": [],
       "label": "授予论坛徽章",
       "source": {
-        "line": 77,
+        "line": 78,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -213,7 +213,7 @@
       "implies": [],
       "label": "查看投递",
       "source": {
-        "line": 78,
+        "line": 79,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -228,7 +228,7 @@
       ],
       "label": "审核投递",
       "source": {
-        "line": 79,
+        "line": 80,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -243,7 +243,7 @@
       ],
       "label": "导出投递",
       "source": {
-        "line": 80,
+        "line": 81,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -256,7 +256,7 @@
       "implies": [],
       "label": "查看意见箱",
       "source": {
-        "line": 81,
+        "line": 82,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -271,7 +271,7 @@
       ],
       "label": "处理意见",
       "source": {
-        "line": 82,
+        "line": 83,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -284,7 +284,7 @@
       "implies": [],
       "label": "查看审计日志",
       "source": {
-        "line": 83,
+        "line": 84,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -299,7 +299,7 @@
       ],
       "label": "管理称号与部门",
       "source": {
-        "line": 84,
+        "line": 85,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -312,22 +312,35 @@
       "implies": [],
       "label": "任免本部门成员",
       "source": {
-        "line": 85,
+        "line": 86,
+        "path": "app/server/src/lib/roles.ts"
+      }
+    },
+    {
+      "capability": "competitions.manage",
+      "capabilityDomain": "competitions",
+      "description": "新建、编辑、下线比赛",
+      "domain": "competitions",
+      "id": "capability:competitions.manage",
+      "implies": [],
+      "label": "管理比赛",
+      "source": {
+        "line": 87,
         "path": "app/server/src/lib/roles.ts"
       }
     }
   ],
   "coverage": {
-    "automaticHead": 51,
-    "businessOperations": 92,
-    "businessOperationsWithFlow": 92,
-    "capabilities": 20,
-    "declaredFlows": 98,
-    "responseSchemas": 0,
-    "routeMethods": 172,
+    "automaticHead": 53,
+    "businessOperations": 97,
+    "businessOperationsWithFlow": 97,
+    "capabilities": 21,
+    "declaredFlows": 103,
+    "responseSchemas": 8,
+    "routeMethods": 179,
     "supplementalInterfaces": 5,
     "supplementalInterfacesWithFlow": 5,
-    "tables": 27
+    "tables": 28
   },
   "deploymentStatus": "not-observed",
   "domains": [
@@ -465,6 +478,19 @@
         "app_state"
       ],
       "title": "基础设施与兼容入口"
+    },
+    {
+      "docs": [
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/console/README.md",
+        "docs/services/web/portal.md"
+      ],
+      "id": "competitions",
+      "tables": [
+        "competitions"
+      ],
+      "title": "比赛信息发布"
     }
   ],
   "flows": [
@@ -5959,6 +5985,368 @@
       ],
       "title": "提供话题Markdown正文",
       "writes": []
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/console/README.md",
+        "docs/services/web/portal.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "competitions",
+      "evidence": [
+        {
+          "line": 10,
+          "path": "app/server/src/routes/portal/competitions.ts"
+        },
+        {
+          "line": 6,
+          "path": "app/server/src/routes/portal/contracts.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/server/src/routes/portal/index.ts"
+        },
+        {
+          "line": 126,
+          "path": "app/server/src/lib/competition-store.ts"
+        },
+        {
+          "line": 23,
+          "path": "app/server/src/lib/competition-contract.ts"
+        },
+        {
+          "line": 82,
+          "path": "app/web/sites/portal/lib/competitions.ts"
+        },
+        {
+          "line": 216,
+          "path": "app/web/sites/portal/components/os/Windows.tsx"
+        },
+        {
+          "line": 115,
+          "path": "app/web/sites/portal/components/os/YugcOs.tsx"
+        },
+        {
+          "line": 46,
+          "path": "app/web/sites/portal/lib/osApps.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/mock-api.ts"
+        }
+      ],
+      "id": "flow:competition.public.list",
+      "invariants": [
+        "匿名只读未下线赛事，响应只含公开字段，不含offline、创建时间或成员信息。",
+        "响应200 {competitions}；五种状态按时间计算，未知报名截止的未来赛事为upcoming；未结束在前，已结束按开始时间倒序。",
+        "官网按类型筛选并每60秒重算状态与排序，损坏响应显示失败；全部类型链接可选且必须可解析HTTPS。"
+      ],
+      "operation": "GET /api/public/competitions",
+      "operationLabel": "GET /api/public/competitions",
+      "operationNodeId": "route:GET /api/public/competitions",
+      "reads": [
+        "competitions"
+      ],
+      "relatedDomains": [
+        "platform"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/competitions.test.ts",
+        "tests/console/competitions.test.ts",
+        "tests/web/portal-competitions.test.tsx",
+        "tests/e2e/competitions.spec.mts"
+      ],
+      "title": "浏览公开比赛信息",
+      "writes": []
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [
+        "console.access"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/console/README.md",
+        "docs/services/web/portal.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "competitions",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 27,
+          "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/console/src/pages/Competitions.vue"
+        },
+        {
+          "line": 120,
+          "path": "app/console/src/lib/types.ts"
+        },
+        {
+          "line": 32,
+          "path": "app/console/src/lib/nav.ts"
+        },
+        {
+          "line": 97,
+          "path": "app/console/src/lib/permission-boundaries.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 309,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "id": "flow:competition.console.list",
+      "invariants": [
+        "有效sid及console.access可读，控制台页面和导航另需competitions.manage；公开与管理读取范围分别定义。",
+        "200 {competitions}含offline；401未登录，403缺能力。列表按当前时间重算，样板重读同样更新，不冒充真实数据。",
+        "共同身份路径：读取sessions与称号/部门权限，使用本人GitHub token查角色并缓存60秒；过期会话删除，上游拒绝token时删除并审计，不代表成功读取总是写库。"
+      ],
+      "operation": "GET /api/console/competitions",
+      "operationLabel": "GET /api/console/competitions",
+      "operationNodeId": "route:GET /api/console/competitions",
+      "reads": [
+        "competitions",
+        "sessions",
+        "role_assignments",
+        "departments",
+        "titles"
+      ],
+      "relatedDomains": [
+        "identity",
+        "organization",
+        "audit",
+        "platform"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/competitions.test.ts",
+        "tests/console/competitions.test.ts",
+        "tests/web/portal-competitions.test.tsx",
+        "tests/e2e/competitions.spec.mts"
+      ],
+      "title": "控制台查看全部比赛",
+      "writes": [
+        "sessions",
+        "audit_logs"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [
+        "competitions.manage"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/console/README.md",
+        "docs/services/web/portal.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "competitions",
+      "evidence": [
+        {
+          "line": 36,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 109,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 188,
+          "path": "app/server/src/lib/db.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/server/src/lib/roles.ts"
+        },
+        {
+          "line": 31,
+          "path": "app/server/src/services.ts"
+        }
+      ],
+      "id": "flow:competition.create",
+      "invariants": [
+        "权限与资源：有效全站sid，组织固定CONSOLE_ORG，写口独立检查competitions.manage；客户端不能自报角色或org。",
+        "共同身份路径：读取sessions与称号/部门权限，使用本人GitHub token查角色并缓存60秒；过期会话删除，上游拒绝token时删除并审计，不代表成功读取总是写库。",
+        "201 {competition}；校验名称、时间范围和解析后的HTTPS地址；未知字段或错误时间/地址400，限流429。",
+        "比赛行与competition.create审计同一事务提交；审计失败一起回滚，不发邮件，不创建报名或队伍。"
+      ],
+      "operation": "POST /api/console/competitions",
+      "operationLabel": "POST /api/console/competitions",
+      "operationNodeId": "route:POST /api/console/competitions",
+      "reads": [
+        "competitions",
+        "sessions",
+        "role_assignments",
+        "departments",
+        "titles"
+      ],
+      "relatedDomains": [
+        "identity",
+        "organization",
+        "audit",
+        "platform"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/competitions.test.ts",
+        "tests/console/competitions.test.ts",
+        "tests/web/portal-competitions.test.tsx",
+        "tests/e2e/competitions.spec.mts"
+      ],
+      "title": "登记比赛信息",
+      "writes": [
+        "competitions",
+        "audit_logs",
+        "sessions"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [
+        "competitions.manage"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/console/README.md",
+        "docs/services/web/portal.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "competitions",
+      "evidence": [
+        {
+          "line": 54,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/console/src/lib/competitions.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "id": "flow:competition.update",
+      "invariants": [
+        "权限与资源：有效全站sid，组织固定CONSOLE_ORG，写口独立检查competitions.manage；客户端不能自报角色或org。",
+        "共同身份路径：读取sessions与称号/部门权限，使用本人GitHub token查角色并缓存60秒；过期会话删除，上游拒绝token时删除并审计，不代表成功读取总是写库。",
+        "200 {competition}；404不存在；合并原记录后验证时间，失败不写。省略字段保留，url和signup_deadline的null明确清空。",
+        "控制台只PATCH实际修改字段，单改说明不改原始时分；offline=true从公开列表移除，false恢复原记录。",
+        "比赛更新与competition.update审计同一事务，审计失败回滚，不发邮件。"
+      ],
+      "operation": "PATCH /api/console/competitions/:competition_id",
+      "operationLabel": "PATCH /api/console/competitions/:competition_id",
+      "operationNodeId": "route:PATCH /api/console/competitions/:competition_id",
+      "reads": [
+        "competitions",
+        "sessions",
+        "role_assignments",
+        "departments",
+        "titles"
+      ],
+      "relatedDomains": [
+        "identity",
+        "organization",
+        "audit",
+        "platform"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/competitions.test.ts",
+        "tests/console/competitions.test.ts",
+        "tests/web/portal-competitions.test.tsx",
+        "tests/e2e/competitions.spec.mts"
+      ],
+      "title": "编辑、下线和恢复比赛",
+      "writes": [
+        "competitions",
+        "audit_logs",
+        "sessions"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [
+        "competitions.manage"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/console/README.md",
+        "docs/services/web/portal.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "competitions",
+      "evidence": [
+        {
+          "line": 76,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "id": "flow:competition.delete",
+      "invariants": [
+        "权限与资源：有效全站sid，组织固定CONSOLE_ORG，写口独立检查competitions.manage；客户端不能自报角色或org。",
+        "共同身份路径：读取sessions与称号/部门权限，使用本人GitHub token查角色并缓存60秒；过期会话删除，上游拒绝token时删除并审计，不代表成功读取总是写库。",
+        "200 {ok:true}；不存在或重复删除404。DELETE真删，暂时隐藏应使用下线。",
+        "只删除本环境赛事记录，并与competition.delete审计在同一事务提交；审计失败保留赛事，业务删除不增加共同身份查询以外的外部请求。"
+      ],
+      "operation": "DELETE /api/console/competitions/:competition_id",
+      "operationLabel": "DELETE /api/console/competitions/:competition_id",
+      "operationNodeId": "route:DELETE /api/console/competitions/:competition_id",
+      "reads": [
+        "competitions",
+        "sessions",
+        "role_assignments",
+        "departments",
+        "titles"
+      ],
+      "relatedDomains": [
+        "identity",
+        "organization",
+        "audit",
+        "platform"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/competitions.test.ts",
+        "tests/console/competitions.test.ts",
+        "tests/web/portal-competitions.test.tsx",
+        "tests/e2e/competitions.spec.mts"
+      ],
+      "title": "删除比赛信息",
+      "writes": [
+        "competitions",
+        "audit_logs",
+        "sessions"
+      ]
     }
   ],
   "isolation": {
@@ -6017,6 +6405,11 @@
       "id": "capability:audit.read",
       "kind": "capability",
       "title": "查看审计日志"
+    },
+    {
+      "id": "capability:competitions.manage",
+      "kind": "capability",
+      "title": "管理比赛"
     },
     {
       "id": "capability:console.access",
@@ -6169,9 +6562,19 @@
       "title": "docs/services/web/README.md"
     },
     {
+      "id": "document:docs/services/web/portal.md",
+      "kind": "document",
+      "title": "docs/services/web/portal.md"
+    },
+    {
       "id": "domain:audit",
       "kind": "domain",
       "title": "审计"
+    },
+    {
+      "id": "domain:competitions",
+      "kind": "domain",
+      "title": "比赛信息发布"
     },
     {
       "id": "domain:feedback",
@@ -6262,6 +6665,31 @@
       "id": "flow:audit.organization.read",
       "kind": "flow",
       "title": "读取组织管理员审计"
+    },
+    {
+      "id": "flow:competition.console.list",
+      "kind": "flow",
+      "title": "控制台查看全部比赛"
+    },
+    {
+      "id": "flow:competition.create",
+      "kind": "flow",
+      "title": "登记比赛信息"
+    },
+    {
+      "id": "flow:competition.delete",
+      "kind": "flow",
+      "title": "删除比赛信息"
+    },
+    {
+      "id": "flow:competition.public.list",
+      "kind": "flow",
+      "title": "浏览公开比赛信息"
+    },
+    {
+      "id": "flow:competition.update",
+      "kind": "flow",
+      "title": "编辑、下线和恢复比赛"
     },
     {
       "id": "flow:console.identity",
@@ -6779,6 +7207,11 @@
       "title": "DELETE /api/console/assignments/:id"
     },
     {
+      "id": "route:DELETE /api/console/competitions/:competition_id",
+      "kind": "route",
+      "title": "DELETE /api/console/competitions/:competition_id"
+    },
+    {
       "id": "route:DELETE /api/console/departments/:department_id",
       "kind": "route",
       "title": "DELETE /api/console/departments/:department_id"
@@ -6954,6 +7387,11 @@
       "title": "GET /api/console/catalogue"
     },
     {
+      "id": "route:GET /api/console/competitions",
+      "kind": "route",
+      "title": "GET /api/console/competitions"
+    },
+    {
       "id": "route:GET /api/console/departments",
       "kind": "route",
       "title": "GET /api/console/departments"
@@ -7037,6 +7475,11 @@
       "id": "route:GET /api/me/orgs",
       "kind": "route",
       "title": "GET /api/me/orgs"
+    },
+    {
+      "id": "route:GET /api/public/competitions",
+      "kind": "route",
+      "title": "GET /api/public/competitions"
     },
     {
       "id": "route:GET /api/public/config",
@@ -7224,6 +7667,11 @@
       "title": "HEAD /api/console/catalogue"
     },
     {
+      "id": "route:HEAD /api/console/competitions",
+      "kind": "route",
+      "title": "HEAD /api/console/competitions"
+    },
+    {
       "id": "route:HEAD /api/console/departments",
       "kind": "route",
       "title": "HEAD /api/console/departments"
@@ -7297,6 +7745,11 @@
       "id": "route:HEAD /api/me/orgs",
       "kind": "route",
       "title": "HEAD /api/me/orgs"
+    },
+    {
+      "id": "route:HEAD /api/public/competitions",
+      "kind": "route",
+      "title": "HEAD /api/public/competitions"
     },
     {
       "id": "route:HEAD /api/public/config",
@@ -7399,6 +7852,11 @@
       "title": "PATCH /api/console/applications/:application_id"
     },
     {
+      "id": "route:PATCH /api/console/competitions/:competition_id",
+      "kind": "route",
+      "title": "PATCH /api/console/competitions/:competition_id"
+    },
+    {
       "id": "route:PATCH /api/console/departments/:department_id",
       "kind": "route",
       "title": "PATCH /api/console/departments/:department_id"
@@ -7467,6 +7925,11 @@
       "id": "route:POST /api/console/assignments",
       "kind": "route",
       "title": "POST /api/console/assignments"
+    },
+    {
+      "id": "route:POST /api/console/competitions",
+      "kind": "route",
+      "title": "POST /api/console/competitions"
     },
     {
       "id": "route:POST /api/console/departments",
@@ -7639,6 +8102,11 @@
       "title": "audit_logs"
     },
     {
+      "id": "table:competitions",
+      "kind": "table",
+      "title": "competitions"
+    },
+    {
       "id": "table:console_seeds",
       "kind": "table",
       "title": "console_seeds"
@@ -7774,9 +8242,24 @@
       "title": "app/forum/tests/site-state.test.ts"
     },
     {
+      "id": "test:tests/console/competitions.test.ts",
+      "kind": "test",
+      "title": "tests/console/competitions.test.ts"
+    },
+    {
+      "id": "test:tests/e2e/competitions.spec.mts",
+      "kind": "test",
+      "title": "tests/e2e/competitions.spec.mts"
+    },
+    {
       "id": "test:tests/server/applications.test.ts",
       "kind": "test",
       "title": "tests/server/applications.test.ts"
+    },
+    {
+      "id": "test:tests/server/competitions.test.ts",
+      "kind": "test",
+      "title": "tests/server/competitions.test.ts"
     },
     {
       "id": "test:tests/server/configuration.test.ts",
@@ -7832,11 +8315,16 @@
       "id": "test:tests/server/upstream-errors.test.ts",
       "kind": "test",
       "title": "tests/server/upstream-errors.test.ts"
+    },
+    {
+      "id": "test:tests/web/portal-competitions.test.tsx",
+      "kind": "test",
+      "title": "tests/web/portal-competitions.test.tsx"
     }
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "b0b220bda89cb7d109794932b76d44c2c827b1a12dd4ebe3a5d43a429a79a20e",
+    "fingerprint": "2c453d60f602f0aa7adf44bb1b2e55acdabfb5480fe6a87591789cc08a4a1284",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -7895,6 +8383,10 @@
         "sha256": "5aa2e6a64622ecb06128df4c52a87f8d5b8813c1aad3ec84bfc60a5d8cfb7069"
       },
       {
+        "path": "app/console/src/lib/competitions.ts",
+        "sha256": "d6c73762e204c28aa54a279f976f2a14383b0e0b9686483ef3df76dff71accdf"
+      },
+      {
         "path": "app/console/src/lib/confirm.ts",
         "sha256": "5cc47372b861ab71d5ec2824839204521d6a17902e7005a1f281865228a526db"
       },
@@ -7920,7 +8412,7 @@
       },
       {
         "path": "app/console/src/lib/nav.ts",
-        "sha256": "f5ee48d342c555ce6fd4dc3445a9f9f5b5767bda3fc71d21276ccfd3a2cf4365"
+        "sha256": "d3f1a099b566e5234ab13a3c157698a89b0caa0ade7760fd3123001650e1ebb5"
       },
       {
         "path": "app/console/src/lib/org-settings.ts",
@@ -7932,7 +8424,7 @@
       },
       {
         "path": "app/console/src/lib/permission-boundaries.ts",
-        "sha256": "fd1ef78bb3dd4b9bf4bb480cc77fbcc4373dffb7a3e00e9d9658f37951578abc"
+        "sha256": "a55824f743f3209bbd310e3c81013ae95bc701a09585704102092304ac1ffb93"
       },
       {
         "path": "app/console/src/lib/permission-tree.ts",
@@ -7964,7 +8456,7 @@
       },
       {
         "path": "app/console/src/lib/types.ts",
-        "sha256": "a28aac725495b90fc8dbfd27c8ebc0467c3ef17d46ebc5e75ea42cdc59ffabb0"
+        "sha256": "ea52cafd0730b9ae1c60ba7a2503fcbfb760961fed9183d024aea4d4ee1836f7"
       },
       {
         "path": "app/console/src/main.ts",
@@ -7972,7 +8464,7 @@
       },
       {
         "path": "app/console/src/mock/console.ts",
-        "sha256": "9e19612845f97235b7d15ede706df8e423b69e5d97334233db12385d7a43a7e2"
+        "sha256": "4d87d8dfee246443cca06308c84158bad0fc43c2f858e46579d62e632a4857c9"
       },
       {
         "path": "app/console/src/mock/github.ts",
@@ -7993,6 +8485,10 @@
       {
         "path": "app/console/src/pages/Audit.vue",
         "sha256": "12a024fb390fa68d2f72e999abb968e43c67a742098935cfccfbee15afc0903e"
+      },
+      {
+        "path": "app/console/src/pages/Competitions.vue",
+        "sha256": "6a77a1e69e0dfa5a0608bb709a29de3e93b2bcd8ac257b034bd9ba793c9c0eb7"
       },
       {
         "path": "app/console/src/pages/ConsoleRoot.vue",
@@ -8116,7 +8612,7 @@
       },
       {
         "path": "app/console/src/router.ts",
-        "sha256": "12c9753fef4c7354b424b194e93a8074d13916a411f4b16520222f0aa62e042f"
+        "sha256": "01887b6732c8d220a83f0426d389c8735bdfd2a085e1963aa798b498f927f358"
       },
       {
         "path": "app/forum/Dockerfile",
@@ -8563,12 +9059,20 @@
         "sha256": "0e213ba1a9942a245ed9ca4a01ba3cd43d082bcf593197d210501ecec5dc0249"
       },
       {
+        "path": "app/server/src/lib/competition-contract.ts",
+        "sha256": "14553929b1d7527e3a9ac5898f51760ad2f3c84e0ccb60225027de0f2b43209a"
+      },
+      {
+        "path": "app/server/src/lib/competition-store.ts",
+        "sha256": "71937e841d2166b380ca480ff4c3466b003bd58057f25b4a31f2c9f714a1fec2"
+      },
+      {
         "path": "app/server/src/lib/crypto.ts",
         "sha256": "12afeb63452d598421e9eabbe7a7ee00fae908268d4089326e9822f1575d531d"
       },
       {
         "path": "app/server/src/lib/db.ts",
-        "sha256": "3b33198a987edf77c0581386ef0d4068d5e8e861b2a7a8fbfeb69cdc8e754ceb"
+        "sha256": "24a02ecd3e9800a7c106c2340a3bed8e28526b18d08b1877b33b827c69d83ac6"
       },
       {
         "path": "app/server/src/lib/feedback-store.ts",
@@ -8636,7 +9140,7 @@
       },
       {
         "path": "app/server/src/lib/roles.ts",
-        "sha256": "81f9b974b28544b655d5e4fc5004d0e6550413d9e92fe43e71045ecca2cd578d"
+        "sha256": "05448c1f880cb182d70a32f867b7859b37bd9b5c23934875995a1afeeaed7913"
       },
       {
         "path": "app/server/src/lib/safe-return.ts",
@@ -8747,8 +9251,12 @@
         "sha256": "44c363d60ad27b702fabba87e65be3f86f1c6b04e23b7e07a2936c6f906c20f8"
       },
       {
+        "path": "app/server/src/routes/console/competitions.ts",
+        "sha256": "d878c65bd3fb74dc755a6a26049c1f522f89ce8c722eceec33f2aae3b3d8a4d0"
+      },
+      {
         "path": "app/server/src/routes/console/contracts.ts",
-        "sha256": "1e6b450896effe70d4e70c76c2d271281f47fb6c4844b5636c83d3a1d8017f08"
+        "sha256": "73e57dd9017aa6140f8a069bc87f0352f42447875b4be678ee481353ee62d518"
       },
       {
         "path": "app/server/src/routes/console/departments.ts",
@@ -8760,7 +9268,7 @@
       },
       {
         "path": "app/server/src/routes/console/index.ts",
-        "sha256": "85d5e523a672f18a8c51313feb1f4503a3ff6f6d9e87328307ffefd819de8ae3"
+        "sha256": "43b4eae1154822cc20a7e6197856c0b831842961e3028b113212df68b3bf873c"
       },
       {
         "path": "app/server/src/routes/console/me.ts",
@@ -8803,8 +9311,12 @@
         "sha256": "71b3e47b59d50b23bf57089f8ba49fed583689418e3067a57a6f7b2a3253096d"
       },
       {
+        "path": "app/server/src/routes/portal/competitions.ts",
+        "sha256": "fbf56e1afa77e06004581ea9379666a75eea3f97661dcf8bdd5f7eb609f7fe0e"
+      },
+      {
         "path": "app/server/src/routes/portal/contracts.ts",
-        "sha256": "b7454b6db9b2b56a3c9365201ce6e74d7335203a42f8eb13e6c672c29dde99b8"
+        "sha256": "56b9804419da93052e60d3cd513a10c1a97e3fa19ae6f316c050a5eecc0bffd6"
       },
       {
         "path": "app/server/src/routes/portal/docs.ts",
@@ -8816,7 +9328,7 @@
       },
       {
         "path": "app/server/src/routes/portal/index.ts",
-        "sha256": "3eedf8c724e358b11ec2f8f5f1b699e95ec02fbd33d2814675c399e384f745d8"
+        "sha256": "469dbdc088d1927ec6b25345ac1082ee1b9f75325a0e28eb85c79d5ab8b8a488"
       },
       {
         "path": "app/server/src/routes/portal/join.ts",
@@ -8828,7 +9340,7 @@
       },
       {
         "path": "app/server/src/services.ts",
-        "sha256": "b5b535868a7479a4e0e00ee34398c994511535fc859dc0a15856a9eff95caeea"
+        "sha256": "c4d7ccb9827476fa0ac5df2c3afa14c099adb36c3ede51616eccafd83cb1395f"
       },
       {
         "path": "app/web/Dockerfile",
@@ -8856,7 +9368,7 @@
       },
       {
         "path": "app/web/shared/lib/mock-api.ts",
-        "sha256": "7ac5abfdf949c7f68ae38031382f7c0245978ddb3be56186bdf2d68012085b38"
+        "sha256": "8d3aaed01992eb7426ce6104a23d5b0436336005138ced35f47c4508fb23388d"
       },
       {
         "path": "app/web/shared/lib/mount.tsx",
@@ -8956,11 +9468,11 @@
       },
       {
         "path": "app/web/sites/portal/components/os/Windows.tsx",
-        "sha256": "98b8fadb661c67909b173af23df4a54dea4bb86f15ef34c8a441f2d693670f64"
+        "sha256": "0b934150c2321b91d76d9645983bc1ef0e29e4d82d9f859ffcc081e598180a5d"
       },
       {
         "path": "app/web/sites/portal/components/os/YugcOs.tsx",
-        "sha256": "f284d9617723e839810a80d9648487ad1f86ef363702a80ce71085d303111808"
+        "sha256": "15d50e6598d8db56378e33a92f7e584c0434de7ec2107da8660caad92dfaab03"
       },
       {
         "path": "app/web/sites/portal/hls-light.d.ts",
@@ -8973,6 +9485,10 @@
       {
         "path": "app/web/sites/portal/lib/cameraMath.ts",
         "sha256": "86d52ef8683733e92c02af8e6cbbb9dde83313bdad27aff23dc7dfd6aa2784dd"
+      },
+      {
+        "path": "app/web/sites/portal/lib/competitions.ts",
+        "sha256": "06d6a2d46e85b498a513f008791de82a06dd9bcdc96cea06dd03aa361b6bb4fd"
       },
       {
         "path": "app/web/sites/portal/lib/deskMachine.ts",
@@ -9000,7 +9516,7 @@
       },
       {
         "path": "app/web/sites/portal/lib/osApps.ts",
-        "sha256": "8f95ada20b67fbd48edab00bdeb5e7686d2aed75462e4bfcba2f9a69ee350f57"
+        "sha256": "efdba56778af19d5f856a0ad579971f3ff0dfd784c55238509f7cb8ec2a5d6aa"
       },
       {
         "path": "app/web/sites/portal/lib/pixelRatio.ts",
@@ -9104,7 +9620,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "a5f1d5e34a39b892f4595a1dd3c2e0e89ab8d0e2fed76a1646af5c13cb8dc006"
+        "sha256": "56e9b8fd953193199038ddba03c6213a23a8ae5344c52483790b82bf92548c79"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -9112,11 +9628,11 @@
       },
       {
         "path": "docs/architecture/SECURITY.md",
-        "sha256": "5328682bae1e86ff1b050dcb771b2ebbb22e0fa694b0ad522ca4dba9019a6f92"
+        "sha256": "439c07280a170aeb277d7f6a74f7313e619fa26564cc62372e91120bfce42cea"
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "2366899ae2256d3f40d4c47c7557e68ddac76484bedc941ad8f2ffddde1d16a1"
+        "sha256": "89e1387de3e00c25cbf2a666354b1d91cf68fba5c43f6152ad704a0f2f5056cd"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -9132,7 +9648,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "d5dbe8433a2b1a7c5bb58e6b6ff35d685433f192ccb77fe9e6c02c485f0acd60"
+        "sha256": "2f7750fb6462119b4f6aa1f8d4283bea5d72a729f5f225c6ca3ed3f571f39961"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -9140,15 +9656,15 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "ecae3f6148a559df44cd05b522e3e32d2568a086f6194da6a63d6fcea74cf0f8"
+        "sha256": "02e65ebbc73717c46409617e2e49a172bc77e073543d44a80d33e84c2885959a"
       },
       {
         "path": "docs/services/server/data-model.md",
-        "sha256": "e2a8564847c12fdc5f53d3efce62b504cbae1888a0cca654ba67e602bac24664"
+        "sha256": "5affb805855d8ba3d04f66779eb5753af9357d1ae2173b4e6207c37eca944072"
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "f2dfd748612800b0ec9e9645881adb7a1c4121a174924d54aceced951f4f2aea"
+        "sha256": "dc5cec34c17c3d5ec3089497c88c5e8a2a76b8351cc3c2df3c008d94e93e2398"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -9156,7 +9672,11 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "7275c45bfa020d278f213893da878e5a17c35455a07d12a62d32a1ea0857a974"
+        "sha256": "4083fbc10c6a66bae464cb6447b71e654387e278c9dab2fee991a4d012107513"
+      },
+      {
+        "path": "docs/services/web/portal.md",
+        "sha256": "8ab4ddb74bef538dd7b5ef448595bf1ce939f61e45eebc632c6bb9268f34c0b5"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -9195,8 +9715,20 @@
         "sha256": "f823b76da2cb111db0e49983f3484409ff75d09d3c62a0208ef0c75bae947e9c"
       },
       {
+        "path": "tests/console/competitions.test.ts",
+        "sha256": "8287bdbd75feeaf65605158dcb78a4e84fea5439d958d9b2269c4471e156a0a5"
+      },
+      {
+        "path": "tests/e2e/competitions.spec.mts",
+        "sha256": "665ea5ac987b31cb51ee997baf847d15000f62ab1f6af0fca75fe4c21c017406"
+      },
+      {
         "path": "tests/server/applications.test.ts",
         "sha256": "b69ab46532b6872ca58ee70ca0c46996accbebe54c9b55a111d17ea23d10d91a"
+      },
+      {
+        "path": "tests/server/competitions.test.ts",
+        "sha256": "8ef16a63523571ce948bba626dae494cc974df9d8831d8de19496ecadd161d62"
       },
       {
         "path": "tests/server/configuration.test.ts",
@@ -9224,7 +9756,7 @@
       },
       {
         "path": "tests/server/legacy-database.test.ts",
-        "sha256": "6e78c579e708ff2d2107b108f367120eb6671c8be8faeb6c22bde85261ce5485"
+        "sha256": "673e984dd62df8aedfc4ef1f7f1c1a1871c67359dbd8d5fb3d66f62d7941d90c"
       },
       {
         "path": "tests/server/mail-outbox.test.ts",
@@ -9241,6 +9773,10 @@
       {
         "path": "tests/server/upstream-errors.test.ts",
         "sha256": "f1213ff0ed212fb6513a90a867e91c383760574849cbe85de3647a3c37ff2ad4"
+      },
+      {
+        "path": "tests/web/portal-competitions.test.tsx",
+        "sha256": "4bca4efb5fa70cc4060cbbf8a271f8599f791f38787f5ce67ec9ba29156f3498"
       }
     ]
   },
@@ -9429,6 +9965,18 @@
       ],
       "from": "application:server",
       "to": "route:DELETE /api/console/assignments/:id",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 76,
+          "path": "app/server/src/routes/console/competitions.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:DELETE /api/console/competitions/:competition_id",
       "type": "provides"
     },
     {
@@ -9855,6 +10403,18 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 31,
+          "path": "app/server/src/routes/console/competitions.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /api/console/competitions",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 30,
           "path": "app/server/src/routes/console/departments.ts"
         }
@@ -10053,6 +10613,18 @@
       ],
       "from": "application:server",
       "to": "route:GET /api/me/orgs",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 10,
+          "path": "app/server/src/routes/portal/competitions.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /api/public/competitions",
       "type": "provides"
     },
     {
@@ -10503,6 +11075,18 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 31,
+          "path": "app/server/src/routes/console/competitions.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /api/console/competitions",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 30,
           "path": "app/server/src/routes/console/departments.ts"
         }
@@ -10677,6 +11261,18 @@
       ],
       "from": "application:server",
       "to": "route:HEAD /api/me/orgs",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 10,
+          "path": "app/server/src/routes/portal/competitions.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /api/public/competitions",
       "type": "provides"
     },
     {
@@ -10923,6 +11519,18 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 54,
+          "path": "app/server/src/routes/console/competitions.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:PATCH /api/console/competitions/:competition_id",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 47,
           "path": "app/server/src/routes/console/departments.ts"
         }
@@ -11085,6 +11693,18 @@
       ],
       "from": "application:server",
       "to": "route:POST /api/console/assignments",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 36,
+          "path": "app/server/src/routes/console/competitions.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:POST /api/console/competitions",
       "type": "provides"
     },
     {
@@ -11427,7 +12047,7 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 80,
+          "line": 81,
           "path": "app/server/src/lib/roles.ts"
         }
       ],
@@ -11451,7 +12071,7 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 79,
+          "line": 80,
           "path": "app/server/src/lib/roles.ts"
         }
       ],
@@ -11463,6 +12083,12 @@
       "basis": "declaration",
       "from": "capability:audit.read",
       "to": "domain:audit",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "capability:competitions.manage",
+      "to": "domain:competitions",
       "type": "belongs-to"
     },
     {
@@ -11481,7 +12107,7 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 82,
+          "line": 83,
           "path": "app/server/src/lib/roles.ts"
         }
       ],
@@ -11535,7 +12161,7 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 72,
+          "line": 73,
           "path": "app/server/src/lib/roles.ts"
         }
       ],
@@ -11553,7 +12179,7 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 69,
+          "line": 70,
           "path": "app/server/src/lib/roles.ts"
         }
       ],
@@ -11571,7 +12197,7 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 68,
+          "line": 69,
           "path": "app/server/src/lib/roles.ts"
         }
       ],
@@ -11595,7 +12221,7 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 70,
+          "line": 71,
           "path": "app/server/src/lib/roles.ts"
         }
       ],
@@ -11613,7 +12239,7 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 71,
+          "line": 72,
           "path": "app/server/src/lib/roles.ts"
         }
       ],
@@ -11637,7 +12263,7 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 84,
+          "line": 85,
           "path": "app/server/src/lib/roles.ts"
         }
       ],
@@ -11661,6 +12287,30 @@
       "basis": "declaration",
       "from": "domain:audit",
       "to": "document:docs/services/server/data-model.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "domain:competitions",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "domain:competitions",
+      "to": "document:docs/services/console/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "domain:competitions",
+      "to": "document:docs/services/server/data-model.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "domain:competitions",
+      "to": "document:docs/services/web/portal.md",
       "type": "documented-by"
     },
     {
@@ -13614,6 +14264,1402 @@
         }
       ],
       "from": "flow:audit.organization.read",
+      "to": "table:sessions",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.console.list",
+      "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.console.list",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.console.list",
+      "to": "document:docs/services/console/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.console.list",
+      "to": "document:docs/services/server/data-model.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.console.list",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.console.list",
+      "to": "document:docs/services/web/portal.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 27,
+          "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/console/src/pages/Competitions.vue"
+        },
+        {
+          "line": 120,
+          "path": "app/console/src/lib/types.ts"
+        },
+        {
+          "line": 32,
+          "path": "app/console/src/lib/nav.ts"
+        },
+        {
+          "line": 97,
+          "path": "app/console/src/lib/permission-boundaries.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 309,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:competition.console.list",
+      "to": "table:competitions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 27,
+          "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/console/src/pages/Competitions.vue"
+        },
+        {
+          "line": 120,
+          "path": "app/console/src/lib/types.ts"
+        },
+        {
+          "line": 32,
+          "path": "app/console/src/lib/nav.ts"
+        },
+        {
+          "line": 97,
+          "path": "app/console/src/lib/permission-boundaries.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 309,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:competition.console.list",
+      "to": "table:departments",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 27,
+          "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/console/src/pages/Competitions.vue"
+        },
+        {
+          "line": 120,
+          "path": "app/console/src/lib/types.ts"
+        },
+        {
+          "line": 32,
+          "path": "app/console/src/lib/nav.ts"
+        },
+        {
+          "line": 97,
+          "path": "app/console/src/lib/permission-boundaries.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 309,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:competition.console.list",
+      "to": "table:role_assignments",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 27,
+          "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/console/src/pages/Competitions.vue"
+        },
+        {
+          "line": 120,
+          "path": "app/console/src/lib/types.ts"
+        },
+        {
+          "line": 32,
+          "path": "app/console/src/lib/nav.ts"
+        },
+        {
+          "line": 97,
+          "path": "app/console/src/lib/permission-boundaries.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 309,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:competition.console.list",
+      "to": "table:sessions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 27,
+          "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/console/src/pages/Competitions.vue"
+        },
+        {
+          "line": 120,
+          "path": "app/console/src/lib/types.ts"
+        },
+        {
+          "line": 32,
+          "path": "app/console/src/lib/nav.ts"
+        },
+        {
+          "line": 97,
+          "path": "app/console/src/lib/permission-boundaries.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 309,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:competition.console.list",
+      "to": "table:titles",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 27,
+          "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/console/src/pages/Competitions.vue"
+        },
+        {
+          "line": 120,
+          "path": "app/console/src/lib/types.ts"
+        },
+        {
+          "line": 32,
+          "path": "app/console/src/lib/nav.ts"
+        },
+        {
+          "line": 97,
+          "path": "app/console/src/lib/permission-boundaries.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 309,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:competition.console.list",
+      "to": "capability:console.access",
+      "type": "requires"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.console.list",
+      "to": "test:tests/console/competitions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.console.list",
+      "to": "test:tests/e2e/competitions.spec.mts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.console.list",
+      "to": "test:tests/server/competitions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.console.list",
+      "to": "test:tests/web/portal-competitions.test.tsx",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 27,
+          "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/console/src/pages/Competitions.vue"
+        },
+        {
+          "line": 120,
+          "path": "app/console/src/lib/types.ts"
+        },
+        {
+          "line": 32,
+          "path": "app/console/src/lib/nav.ts"
+        },
+        {
+          "line": 97,
+          "path": "app/console/src/lib/permission-boundaries.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 309,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:competition.console.list",
+      "to": "route:GET /api/console/competitions",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 27,
+          "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/console/src/pages/Competitions.vue"
+        },
+        {
+          "line": 120,
+          "path": "app/console/src/lib/types.ts"
+        },
+        {
+          "line": 32,
+          "path": "app/console/src/lib/nav.ts"
+        },
+        {
+          "line": 97,
+          "path": "app/console/src/lib/permission-boundaries.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 309,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:competition.console.list",
+      "to": "table:audit_logs",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 27,
+          "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/console/src/pages/Competitions.vue"
+        },
+        {
+          "line": 120,
+          "path": "app/console/src/lib/types.ts"
+        },
+        {
+          "line": 32,
+          "path": "app/console/src/lib/nav.ts"
+        },
+        {
+          "line": 97,
+          "path": "app/console/src/lib/permission-boundaries.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 309,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:competition.console.list",
+      "to": "table:sessions",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.create",
+      "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.create",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.create",
+      "to": "document:docs/services/console/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.create",
+      "to": "document:docs/services/server/data-model.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.create",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.create",
+      "to": "document:docs/services/web/portal.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 36,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 109,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 188,
+          "path": "app/server/src/lib/db.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/server/src/lib/roles.ts"
+        },
+        {
+          "line": 31,
+          "path": "app/server/src/services.ts"
+        }
+      ],
+      "from": "flow:competition.create",
+      "to": "table:competitions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 36,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 109,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 188,
+          "path": "app/server/src/lib/db.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/server/src/lib/roles.ts"
+        },
+        {
+          "line": 31,
+          "path": "app/server/src/services.ts"
+        }
+      ],
+      "from": "flow:competition.create",
+      "to": "table:departments",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 36,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 109,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 188,
+          "path": "app/server/src/lib/db.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/server/src/lib/roles.ts"
+        },
+        {
+          "line": 31,
+          "path": "app/server/src/services.ts"
+        }
+      ],
+      "from": "flow:competition.create",
+      "to": "table:role_assignments",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 36,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 109,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 188,
+          "path": "app/server/src/lib/db.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/server/src/lib/roles.ts"
+        },
+        {
+          "line": 31,
+          "path": "app/server/src/services.ts"
+        }
+      ],
+      "from": "flow:competition.create",
+      "to": "table:sessions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 36,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 109,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 188,
+          "path": "app/server/src/lib/db.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/server/src/lib/roles.ts"
+        },
+        {
+          "line": 31,
+          "path": "app/server/src/services.ts"
+        }
+      ],
+      "from": "flow:competition.create",
+      "to": "table:titles",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 36,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 109,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 188,
+          "path": "app/server/src/lib/db.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/server/src/lib/roles.ts"
+        },
+        {
+          "line": 31,
+          "path": "app/server/src/services.ts"
+        }
+      ],
+      "from": "flow:competition.create",
+      "to": "capability:competitions.manage",
+      "type": "requires"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.create",
+      "to": "test:tests/console/competitions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.create",
+      "to": "test:tests/e2e/competitions.spec.mts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.create",
+      "to": "test:tests/server/competitions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.create",
+      "to": "test:tests/web/portal-competitions.test.tsx",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 36,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 109,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 188,
+          "path": "app/server/src/lib/db.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/server/src/lib/roles.ts"
+        },
+        {
+          "line": 31,
+          "path": "app/server/src/services.ts"
+        }
+      ],
+      "from": "flow:competition.create",
+      "to": "route:POST /api/console/competitions",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 36,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 109,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 188,
+          "path": "app/server/src/lib/db.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/server/src/lib/roles.ts"
+        },
+        {
+          "line": 31,
+          "path": "app/server/src/services.ts"
+        }
+      ],
+      "from": "flow:competition.create",
+      "to": "table:audit_logs",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 36,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 109,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 188,
+          "path": "app/server/src/lib/db.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/server/src/lib/roles.ts"
+        },
+        {
+          "line": 31,
+          "path": "app/server/src/services.ts"
+        }
+      ],
+      "from": "flow:competition.create",
+      "to": "table:competitions",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 36,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 109,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 188,
+          "path": "app/server/src/lib/db.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/server/src/lib/roles.ts"
+        },
+        {
+          "line": 31,
+          "path": "app/server/src/services.ts"
+        }
+      ],
+      "from": "flow:competition.create",
+      "to": "table:sessions",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.delete",
+      "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.delete",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.delete",
+      "to": "document:docs/services/console/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.delete",
+      "to": "document:docs/services/server/data-model.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.delete",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.delete",
+      "to": "document:docs/services/web/portal.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 76,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.delete",
+      "to": "table:competitions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 76,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.delete",
+      "to": "table:departments",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 76,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.delete",
+      "to": "table:role_assignments",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 76,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.delete",
+      "to": "table:sessions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 76,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.delete",
+      "to": "table:titles",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 76,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.delete",
+      "to": "capability:competitions.manage",
+      "type": "requires"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.delete",
+      "to": "test:tests/console/competitions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.delete",
+      "to": "test:tests/e2e/competitions.spec.mts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.delete",
+      "to": "test:tests/server/competitions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.delete",
+      "to": "test:tests/web/portal-competitions.test.tsx",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 76,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.delete",
+      "to": "route:DELETE /api/console/competitions/:competition_id",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 76,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.delete",
+      "to": "table:audit_logs",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 76,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.delete",
+      "to": "table:competitions",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 76,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 87,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.delete",
+      "to": "table:sessions",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.public.list",
+      "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.public.list",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.public.list",
+      "to": "document:docs/services/console/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.public.list",
+      "to": "document:docs/services/server/data-model.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.public.list",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.public.list",
+      "to": "document:docs/services/web/portal.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 10,
+          "path": "app/server/src/routes/portal/competitions.ts"
+        },
+        {
+          "line": 6,
+          "path": "app/server/src/routes/portal/contracts.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/server/src/routes/portal/index.ts"
+        },
+        {
+          "line": 126,
+          "path": "app/server/src/lib/competition-store.ts"
+        },
+        {
+          "line": 23,
+          "path": "app/server/src/lib/competition-contract.ts"
+        },
+        {
+          "line": 82,
+          "path": "app/web/sites/portal/lib/competitions.ts"
+        },
+        {
+          "line": 216,
+          "path": "app/web/sites/portal/components/os/Windows.tsx"
+        },
+        {
+          "line": 115,
+          "path": "app/web/sites/portal/components/os/YugcOs.tsx"
+        },
+        {
+          "line": 46,
+          "path": "app/web/sites/portal/lib/osApps.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/mock-api.ts"
+        }
+      ],
+      "from": "flow:competition.public.list",
+      "to": "table:competitions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.public.list",
+      "to": "test:tests/console/competitions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.public.list",
+      "to": "test:tests/e2e/competitions.spec.mts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.public.list",
+      "to": "test:tests/server/competitions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.public.list",
+      "to": "test:tests/web/portal-competitions.test.tsx",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 10,
+          "path": "app/server/src/routes/portal/competitions.ts"
+        },
+        {
+          "line": 6,
+          "path": "app/server/src/routes/portal/contracts.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/server/src/routes/portal/index.ts"
+        },
+        {
+          "line": 126,
+          "path": "app/server/src/lib/competition-store.ts"
+        },
+        {
+          "line": 23,
+          "path": "app/server/src/lib/competition-contract.ts"
+        },
+        {
+          "line": 82,
+          "path": "app/web/sites/portal/lib/competitions.ts"
+        },
+        {
+          "line": 216,
+          "path": "app/web/sites/portal/components/os/Windows.tsx"
+        },
+        {
+          "line": 115,
+          "path": "app/web/sites/portal/components/os/YugcOs.tsx"
+        },
+        {
+          "line": 46,
+          "path": "app/web/sites/portal/lib/osApps.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/mock-api.ts"
+        }
+      ],
+      "from": "flow:competition.public.list",
+      "to": "route:GET /api/public/competitions",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.update",
+      "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.update",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.update",
+      "to": "document:docs/services/console/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.update",
+      "to": "document:docs/services/server/data-model.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.update",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.update",
+      "to": "document:docs/services/web/portal.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 54,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/console/src/lib/competitions.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.update",
+      "to": "table:competitions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 54,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/console/src/lib/competitions.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.update",
+      "to": "table:departments",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 54,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/console/src/lib/competitions.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.update",
+      "to": "table:role_assignments",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 54,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/console/src/lib/competitions.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.update",
+      "to": "table:sessions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 54,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/console/src/lib/competitions.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.update",
+      "to": "table:titles",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 54,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/console/src/lib/competitions.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.update",
+      "to": "capability:competitions.manage",
+      "type": "requires"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.update",
+      "to": "test:tests/console/competitions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.update",
+      "to": "test:tests/e2e/competitions.spec.mts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.update",
+      "to": "test:tests/server/competitions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.update",
+      "to": "test:tests/web/portal-competitions.test.tsx",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 54,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/console/src/lib/competitions.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.update",
+      "to": "route:PATCH /api/console/competitions/:competition_id",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 54,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/console/src/lib/competitions.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.update",
+      "to": "table:audit_logs",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 54,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/console/src/lib/competitions.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.update",
+      "to": "table:competitions",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 54,
+          "path": "app/server/src/routes/console/competitions.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/console/src/lib/competitions.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/console/src/pages/Competitions.vue"
+        }
+      ],
+      "from": "flow:competition.update",
       "to": "table:sessions",
       "type": "writes"
     },
@@ -30137,6 +32183,12 @@
     },
     {
       "basis": "declaration",
+      "from": "route:DELETE /api/console/competitions/:competition_id",
+      "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:DELETE /api/console/departments/:department_id",
       "to": "domain:organization",
       "type": "belongs-to"
@@ -30443,6 +32495,24 @@
     },
     {
       "basis": "declaration",
+      "from": "route:GET /api/console/competitions",
+      "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "static-evidence",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/console/competitions.ts"
+        }
+      ],
+      "from": "route:GET /api/console/competitions",
+      "to": "capability:console.access",
+      "type": "checks-capability"
+    },
+    {
+      "basis": "declaration",
       "from": "route:GET /api/console/departments",
       "to": "domain:organization",
       "type": "belongs-to"
@@ -30601,6 +32671,12 @@
       "basis": "declaration",
       "from": "route:GET /api/me/orgs",
       "to": "domain:github",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:GET /api/public/competitions",
+      "to": "domain:competitions",
       "type": "belongs-to"
     },
     {
@@ -30911,6 +32987,24 @@
     },
     {
       "basis": "declaration",
+      "from": "route:HEAD /api/console/competitions",
+      "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "static-evidence",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/console/competitions.ts"
+        }
+      ],
+      "from": "route:HEAD /api/console/competitions",
+      "to": "capability:console.access",
+      "type": "checks-capability"
+    },
+    {
+      "basis": "declaration",
       "from": "route:HEAD /api/console/departments",
       "to": "domain:organization",
       "type": "belongs-to"
@@ -31061,6 +33155,12 @@
     },
     {
       "basis": "declaration",
+      "from": "route:HEAD /api/public/competitions",
+      "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:HEAD /api/public/config",
       "to": "domain:platform",
       "type": "belongs-to"
@@ -31193,6 +33293,12 @@
     },
     {
       "basis": "declaration",
+      "from": "route:PATCH /api/console/competitions/:competition_id",
+      "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:PATCH /api/console/departments/:department_id",
       "to": "domain:organization",
       "type": "belongs-to"
@@ -31322,6 +33428,12 @@
       "from": "route:POST /api/console/assignments",
       "to": "capability:roles.manage",
       "type": "checks-capability"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:POST /api/console/competitions",
+      "to": "domain:competitions",
+      "type": "belongs-to"
     },
     {
       "basis": "declaration",
@@ -31507,7 +33619,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 345,
+          "line": 368,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31583,6 +33695,24 @@
     },
     {
       "basis": "declaration",
+      "from": "table:competitions",
+      "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 188,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:competitions",
+      "to": "database:data.db",
+      "type": "stored-in"
+    },
+    {
+      "basis": "declaration",
       "from": "table:console_seeds",
       "to": "domain:organization",
       "type": "belongs-to"
@@ -31645,7 +33775,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 193,
+          "line": 216,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31663,7 +33793,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 264,
+          "line": 287,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31675,7 +33805,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 264,
+          "line": 287,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31687,7 +33817,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 264,
+          "line": 287,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31705,7 +33835,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 188,
+          "line": 211,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31723,7 +33853,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 271,
+          "line": 294,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31735,7 +33865,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 271,
+          "line": 294,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31747,7 +33877,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 271,
+          "line": 294,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31765,7 +33895,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 257,
+          "line": 280,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31777,7 +33907,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 257,
+          "line": 280,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31789,7 +33919,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 257,
+          "line": 280,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31807,7 +33937,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 279,
+          "line": 302,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31819,7 +33949,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 279,
+          "line": 302,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31831,7 +33961,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 279,
+          "line": 302,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31849,7 +33979,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 244,
+          "line": 267,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31861,7 +33991,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 244,
+          "line": 267,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31873,7 +34003,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 244,
+          "line": 267,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31891,7 +34021,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 299,
+          "line": 322,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31909,7 +34039,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 220,
+          "line": 243,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31921,7 +34051,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 220,
+          "line": 243,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31939,7 +34069,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 291,
+          "line": 314,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31957,7 +34087,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 229,
+          "line": 252,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31969,7 +34099,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 229,
+          "line": 252,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31987,7 +34117,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 199,
+          "line": 222,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -31999,7 +34129,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 199,
+          "line": 222,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -32071,7 +34201,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 310,
+          "line": 333,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -32761,6 +34891,114 @@
       "source": {
         "line": 98,
         "path": "app/server/src/routes/console/assignments.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [
+          "requireAuth"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "competitions",
+      "id": "route:DELETE /api/console/competitions/:competition_id",
+      "key": "DELETE /api/console/competitions/:competition_id",
+      "kind": "business",
+      "method": "DELETE",
+      "path": "/api/console/competitions/:competition_id",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "competition_id": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "competition_id"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "const": true,
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          "4xx": {
+            "additionalProperties": true,
+            "properties": {
+              "capability": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          "5xx": {
+            "additionalProperties": true,
+            "properties": {
+              "capability": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 76,
+        "path": "app/server/src/routes/console/competitions.ts"
       }
     },
     {
@@ -35095,6 +37333,199 @@
           "params",
           "querystring"
         ],
+        "responseSchema": true
+      },
+      "domain": "competitions",
+      "id": "route:GET /api/console/competitions",
+      "key": "GET /api/console/competitions",
+      "kind": "business",
+      "method": "GET",
+      "path": "/api/console/competitions",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "competitions": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "description": {
+                      "maxLength": 1000,
+                      "minLength": 0,
+                      "type": "string"
+                    },
+                    "end_at": {
+                      "maximum": 8639999971200000,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "id": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "kind": {
+                      "enum": [
+                        "internal",
+                        "external"
+                      ],
+                      "type": "string"
+                    },
+                    "name": {
+                      "maxLength": 80,
+                      "minLength": 2,
+                      "type": "string"
+                    },
+                    "offline": {
+                      "type": "boolean"
+                    },
+                    "signup_deadline": {
+                      "anyOf": [
+                        {
+                          "maximum": 8639999971200000,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "start_at": {
+                      "maximum": 8639999971200000,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "status": {
+                      "enum": [
+                        "upcoming",
+                        "registering",
+                        "closed",
+                        "ongoing",
+                        "ended"
+                      ],
+                      "type": "string"
+                    },
+                    "url": {
+                      "anyOf": [
+                        {
+                          "maxLength": 500,
+                          "minLength": 1,
+                          "pattern": "^https://\\S+$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "kind",
+                    "start_at",
+                    "end_at",
+                    "signup_deadline",
+                    "url",
+                    "description",
+                    "status",
+                    "offline"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "competitions"
+            ],
+            "type": "object"
+          },
+          "4xx": {
+            "additionalProperties": true,
+            "properties": {
+              "capability": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          "5xx": {
+            "additionalProperties": true,
+            "properties": {
+              "capability": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 31,
+        "path": "app/server/src/routes/console/competitions.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [
+          [
+            "console.access"
+          ]
+        ],
+        "checks": [
+          "requireAuth",
+          "requireCapability(\"console.access\")"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
         "responseSchema": false
       },
       "domain": "organization",
@@ -36048,6 +38479,188 @@
       "source": {
         "line": 10,
         "path": "app/server/src/routes/admin/orgs.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "competitions",
+      "id": "route:GET /api/public/competitions",
+      "key": "GET /api/public/competitions",
+      "kind": "business",
+      "method": "GET",
+      "path": "/api/public/competitions",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "competitions": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "description": {
+                      "maxLength": 1000,
+                      "minLength": 0,
+                      "type": "string"
+                    },
+                    "end_at": {
+                      "maximum": 8639999971200000,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "id": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "kind": {
+                      "enum": [
+                        "internal",
+                        "external"
+                      ],
+                      "type": "string"
+                    },
+                    "name": {
+                      "maxLength": 80,
+                      "minLength": 2,
+                      "type": "string"
+                    },
+                    "signup_deadline": {
+                      "anyOf": [
+                        {
+                          "maximum": 8639999971200000,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "start_at": {
+                      "maximum": 8639999971200000,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "status": {
+                      "enum": [
+                        "upcoming",
+                        "registering",
+                        "closed",
+                        "ongoing",
+                        "ended"
+                      ],
+                      "type": "string"
+                    },
+                    "url": {
+                      "anyOf": [
+                        {
+                          "maxLength": 500,
+                          "minLength": 1,
+                          "pattern": "^https://\\S+$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "kind",
+                    "start_at",
+                    "end_at",
+                    "signup_deadline",
+                    "url",
+                    "description",
+                    "status"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "competitions"
+            ],
+            "type": "object"
+          },
+          "4xx": {
+            "additionalProperties": true,
+            "properties": {
+              "capability": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          "5xx": {
+            "additionalProperties": true,
+            "properties": {
+              "capability": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 10,
+        "path": "app/server/src/routes/portal/competitions.ts"
       }
     },
     {
@@ -38532,6 +41145,77 @@
         ],
         "responseSchema": false
       },
+      "domain": "competitions",
+      "id": "route:HEAD /api/console/competitions",
+      "key": "HEAD /api/console/competitions",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/api/console/competitions",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 31,
+        "path": "app/server/src/routes/console/competitions.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [
+          [
+            "console.access"
+          ]
+        ],
+        "checks": [
+          "requireAuth",
+          "requireCapability(\"console.access\")"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
       "domain": "organization",
       "id": "route:HEAD /api/console/departments",
       "key": "HEAD /api/console/departments",
@@ -39447,6 +42131,70 @@
       "source": {
         "line": 10,
         "path": "app/server/src/routes/admin/orgs.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "competitions",
+      "id": "route:HEAD /api/public/competitions",
+      "key": "HEAD /api/public/competitions",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/api/public/competitions",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 10,
+        "path": "app/server/src/routes/portal/competitions.ts"
       }
     },
     {
@@ -40706,7 +43454,263 @@
           "querystring",
           "body"
         ],
-        "responseSchema": false
+        "responseSchema": true
+      },
+      "domain": "competitions",
+      "id": "route:PATCH /api/console/competitions/:competition_id",
+      "key": "PATCH /api/console/competitions/:competition_id",
+      "kind": "business",
+      "method": "PATCH",
+      "path": "/api/console/competitions/:competition_id",
+      "registration": "explicit",
+      "schema": {
+        "body": {
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "description": {
+              "maxLength": 1000,
+              "minLength": 0,
+              "type": "string"
+            },
+            "end_at": {
+              "maximum": 8639999971200000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "kind": {
+              "enum": [
+                "internal",
+                "external"
+              ],
+              "type": "string"
+            },
+            "name": {
+              "maxLength": 80,
+              "minLength": 2,
+              "type": "string"
+            },
+            "offline": {
+              "type": "boolean"
+            },
+            "signup_deadline": {
+              "anyOf": [
+                {
+                  "maximum": 8639999971200000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "start_at": {
+              "maximum": 8639999971200000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "url": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "pattern": "^https://\\S+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [],
+          "type": "object"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "competition_id": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "competition_id"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "competition": {
+                "additionalProperties": false,
+                "properties": {
+                  "description": {
+                    "maxLength": 1000,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  "end_at": {
+                    "maximum": 8639999971200000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "internal",
+                      "external"
+                    ],
+                    "type": "string"
+                  },
+                  "name": {
+                    "maxLength": 80,
+                    "minLength": 2,
+                    "type": "string"
+                  },
+                  "offline": {
+                    "type": "boolean"
+                  },
+                  "signup_deadline": {
+                    "anyOf": [
+                      {
+                        "maximum": 8639999971200000,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "start_at": {
+                    "maximum": 8639999971200000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "status": {
+                    "enum": [
+                      "upcoming",
+                      "registering",
+                      "closed",
+                      "ongoing",
+                      "ended"
+                    ],
+                    "type": "string"
+                  },
+                  "url": {
+                    "anyOf": [
+                      {
+                        "maxLength": 500,
+                        "minLength": 1,
+                        "pattern": "^https://\\S+$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "kind",
+                  "start_at",
+                  "end_at",
+                  "signup_deadline",
+                  "url",
+                  "description",
+                  "status",
+                  "offline"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "competition"
+            ],
+            "type": "object"
+          },
+          "4xx": {
+            "additionalProperties": true,
+            "properties": {
+              "capability": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          "5xx": {
+            "additionalProperties": true,
+            "properties": {
+              "capability": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 54,
+        "path": "app/server/src/routes/console/competitions.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [
+          "requireAuth"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring",
+          "body"
+        ],
+        "responseSchema": true
       },
       "domain": "organization",
       "id": "route:PATCH /api/console/departments/:department_id",
@@ -40750,11 +43754,12 @@
                   "feedback.manage",
                   "audit.read",
                   "roles.manage",
-                  "roles.department.manage"
+                  "roles.department.manage",
+                  "competitions.manage"
                 ],
                 "type": "string"
               },
-              "maxItems": 40,
+              "maxItems": 42,
               "type": "array"
             },
             "icon": {
@@ -40802,11 +43807,12 @@
                   "feedback.manage",
                   "audit.read",
                   "roles.manage",
-                  "roles.department.manage"
+                  "roles.department.manage",
+                  "competitions.manage"
                 ],
                 "type": "string"
               },
-              "maxItems": 40,
+              "maxItems": 42,
               "type": "array"
             },
             "name": {
@@ -40858,6 +43864,183 @@
           "properties": {},
           "required": [],
           "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "department": {
+                "additionalProperties": false,
+                "properties": {
+                  "archived": {
+                    "type": "boolean"
+                  },
+                  "created_at": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "crew_count": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "description": {
+                    "maxLength": 200,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  "head_capabilities": {
+                    "items": {
+                      "enum": [
+                        "console.access",
+                        "github.org.read",
+                        "github.org.manage",
+                        "github.members.manage",
+                        "github.repos.manage",
+                        "github.teams.manage",
+                        "github.invites.manage",
+                        "forum.topic.pin",
+                        "forum.topic.close",
+                        "forum.post.moderate",
+                        "forum.category.manage",
+                        "forum.badge.assign",
+                        "applications.read",
+                        "applications.review",
+                        "applications.export",
+                        "feedback.read",
+                        "feedback.manage",
+                        "audit.read",
+                        "roles.manage",
+                        "roles.department.manage",
+                        "competitions.manage"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 42,
+                    "type": "array"
+                  },
+                  "heads": {
+                    "items": {
+                      "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$",
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "icon": {
+                    "enum": [
+                      "star-filled",
+                      "badge",
+                      "code",
+                      "compass",
+                      "user",
+                      "user-follow",
+                      "terminal",
+                      "forum",
+                      "application",
+                      "bullhorn",
+                      "education",
+                      "idea",
+                      "trophy",
+                      "user-favorite",
+                      "chart-network",
+                      "logo-github",
+                      "book",
+                      "user-admin"
+                    ],
+                    "type": "string"
+                  },
+                  "id": {
+                    "pattern": "^[a-z][a-z0-9-]{1,31}$",
+                    "type": "string"
+                  },
+                  "member_capabilities": {
+                    "items": {
+                      "enum": [
+                        "console.access",
+                        "github.org.read",
+                        "github.org.manage",
+                        "github.members.manage",
+                        "github.repos.manage",
+                        "github.teams.manage",
+                        "github.invites.manage",
+                        "forum.topic.pin",
+                        "forum.topic.close",
+                        "forum.post.moderate",
+                        "forum.category.manage",
+                        "forum.badge.assign",
+                        "applications.read",
+                        "applications.review",
+                        "applications.export",
+                        "feedback.read",
+                        "feedback.manage",
+                        "audit.read",
+                        "roles.manage",
+                        "roles.department.manage",
+                        "competitions.manage"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 42,
+                    "type": "array"
+                  },
+                  "name": {
+                    "maxLength": 12,
+                    "minLength": 2,
+                    "type": "string"
+                  },
+                  "sort_order": {
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "tag": {
+                    "pattern": "^[A-Z][A-Z0-9-]{1,15}$",
+                    "type": "string"
+                  },
+                  "tone": {
+                    "enum": [
+                      "amber",
+                      "cobalt",
+                      "violet",
+                      "jade",
+                      "sky",
+                      "coral",
+                      "rose",
+                      "slate"
+                    ],
+                    "type": "string"
+                  },
+                  "updated_at": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "tag",
+                  "icon",
+                  "tone",
+                  "description",
+                  "head_capabilities",
+                  "member_capabilities",
+                  "sort_order",
+                  "archived",
+                  "created_at",
+                  "updated_at",
+                  "heads",
+                  "crew_count"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "department"
+            ],
+            "type": "object"
+          }
         }
       },
       "source": {
@@ -40968,7 +44151,7 @@
           "querystring",
           "body"
         ],
-        "responseSchema": false
+        "responseSchema": true
       },
       "domain": "organization",
       "id": "route:PATCH /api/console/titles/:title_id",
@@ -41004,11 +44187,12 @@
                   "feedback.manage",
                   "audit.read",
                   "roles.manage",
-                  "roles.department.manage"
+                  "roles.department.manage",
+                  "competitions.manage"
                 ],
                 "type": "string"
               },
-              "maxItems": 40,
+              "maxItems": 42,
               "type": "array"
             },
             "description": {
@@ -41091,6 +44275,104 @@
           "properties": {},
           "required": [],
           "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "additionalProperties": false,
+                "properties": {
+                  "capabilities": {
+                    "items": {
+                      "enum": [
+                        "console.access",
+                        "github.org.read",
+                        "github.org.manage",
+                        "github.members.manage",
+                        "github.repos.manage",
+                        "github.teams.manage",
+                        "github.invites.manage",
+                        "forum.topic.pin",
+                        "forum.topic.close",
+                        "forum.post.moderate",
+                        "forum.category.manage",
+                        "forum.badge.assign",
+                        "applications.read",
+                        "applications.review",
+                        "applications.export",
+                        "feedback.read",
+                        "feedback.manage",
+                        "audit.read",
+                        "roles.manage",
+                        "roles.department.manage",
+                        "competitions.manage"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 42,
+                    "type": "array"
+                  },
+                  "description": {
+                    "maxLength": 200,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  "icon": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "enum": [
+                      "admin",
+                      "captain",
+                      "head",
+                      "member",
+                      "alumni",
+                      "guest"
+                    ],
+                    "type": "string"
+                  },
+                  "label": {
+                    "maxLength": 8,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "tag": {
+                    "maxLength": 16,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "tone": {
+                    "enum": [
+                      "amber",
+                      "cobalt",
+                      "violet",
+                      "jade",
+                      "sky",
+                      "coral",
+                      "rose",
+                      "slate"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "label",
+                  "tag",
+                  "icon",
+                  "tone",
+                  "description",
+                  "capabilities"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "title"
+            ],
+            "type": "object"
+          }
         }
       },
       "source": {
@@ -41934,7 +45216,257 @@
           "querystring",
           "body"
         ],
-        "responseSchema": false
+        "responseSchema": true
+      },
+      "domain": "competitions",
+      "id": "route:POST /api/console/competitions",
+      "key": "POST /api/console/competitions",
+      "kind": "business",
+      "method": "POST",
+      "path": "/api/console/competitions",
+      "registration": "explicit",
+      "schema": {
+        "body": {
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "maxLength": 1000,
+              "minLength": 0,
+              "type": "string"
+            },
+            "end_at": {
+              "maximum": 8639999971200000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "kind": {
+              "enum": [
+                "internal",
+                "external"
+              ],
+              "type": "string"
+            },
+            "name": {
+              "maxLength": 80,
+              "minLength": 2,
+              "type": "string"
+            },
+            "signup_deadline": {
+              "anyOf": [
+                {
+                  "maximum": 8639999971200000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "start_at": {
+              "maximum": 8639999971200000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "url": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "pattern": "^https://\\S+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "name",
+            "kind",
+            "start_at",
+            "end_at"
+          ],
+          "type": "object"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "201": {
+            "additionalProperties": false,
+            "properties": {
+              "competition": {
+                "additionalProperties": false,
+                "properties": {
+                  "description": {
+                    "maxLength": 1000,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  "end_at": {
+                    "maximum": 8639999971200000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "internal",
+                      "external"
+                    ],
+                    "type": "string"
+                  },
+                  "name": {
+                    "maxLength": 80,
+                    "minLength": 2,
+                    "type": "string"
+                  },
+                  "offline": {
+                    "type": "boolean"
+                  },
+                  "signup_deadline": {
+                    "anyOf": [
+                      {
+                        "maximum": 8639999971200000,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "start_at": {
+                    "maximum": 8639999971200000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "status": {
+                    "enum": [
+                      "upcoming",
+                      "registering",
+                      "closed",
+                      "ongoing",
+                      "ended"
+                    ],
+                    "type": "string"
+                  },
+                  "url": {
+                    "anyOf": [
+                      {
+                        "maxLength": 500,
+                        "minLength": 1,
+                        "pattern": "^https://\\S+$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "kind",
+                  "start_at",
+                  "end_at",
+                  "signup_deadline",
+                  "url",
+                  "description",
+                  "status",
+                  "offline"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "competition"
+            ],
+            "type": "object"
+          },
+          "4xx": {
+            "additionalProperties": true,
+            "properties": {
+              "capability": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          "5xx": {
+            "additionalProperties": true,
+            "properties": {
+              "capability": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 36,
+        "path": "app/server/src/routes/console/competitions.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [
+          "requireAuth"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring",
+          "body"
+        ],
+        "responseSchema": true
       },
       "domain": "organization",
       "id": "route:POST /api/console/departments",
@@ -41974,11 +45506,12 @@
                   "feedback.manage",
                   "audit.read",
                   "roles.manage",
-                  "roles.department.manage"
+                  "roles.department.manage",
+                  "competitions.manage"
                 ],
                 "type": "string"
               },
-              "maxItems": 40,
+              "maxItems": 42,
               "type": "array"
             },
             "icon": {
@@ -42030,11 +45563,12 @@
                   "feedback.manage",
                   "audit.read",
                   "roles.manage",
-                  "roles.department.manage"
+                  "roles.department.manage",
+                  "competitions.manage"
                 ],
                 "type": "string"
               },
-              "maxItems": 40,
+              "maxItems": 42,
               "type": "array"
             },
             "name": {
@@ -42086,6 +45620,183 @@
           "properties": {},
           "required": [],
           "type": "object"
+        },
+        "response": {
+          "201": {
+            "additionalProperties": false,
+            "properties": {
+              "department": {
+                "additionalProperties": false,
+                "properties": {
+                  "archived": {
+                    "type": "boolean"
+                  },
+                  "created_at": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "crew_count": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "description": {
+                    "maxLength": 200,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  "head_capabilities": {
+                    "items": {
+                      "enum": [
+                        "console.access",
+                        "github.org.read",
+                        "github.org.manage",
+                        "github.members.manage",
+                        "github.repos.manage",
+                        "github.teams.manage",
+                        "github.invites.manage",
+                        "forum.topic.pin",
+                        "forum.topic.close",
+                        "forum.post.moderate",
+                        "forum.category.manage",
+                        "forum.badge.assign",
+                        "applications.read",
+                        "applications.review",
+                        "applications.export",
+                        "feedback.read",
+                        "feedback.manage",
+                        "audit.read",
+                        "roles.manage",
+                        "roles.department.manage",
+                        "competitions.manage"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 42,
+                    "type": "array"
+                  },
+                  "heads": {
+                    "items": {
+                      "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$",
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "icon": {
+                    "enum": [
+                      "star-filled",
+                      "badge",
+                      "code",
+                      "compass",
+                      "user",
+                      "user-follow",
+                      "terminal",
+                      "forum",
+                      "application",
+                      "bullhorn",
+                      "education",
+                      "idea",
+                      "trophy",
+                      "user-favorite",
+                      "chart-network",
+                      "logo-github",
+                      "book",
+                      "user-admin"
+                    ],
+                    "type": "string"
+                  },
+                  "id": {
+                    "pattern": "^[a-z][a-z0-9-]{1,31}$",
+                    "type": "string"
+                  },
+                  "member_capabilities": {
+                    "items": {
+                      "enum": [
+                        "console.access",
+                        "github.org.read",
+                        "github.org.manage",
+                        "github.members.manage",
+                        "github.repos.manage",
+                        "github.teams.manage",
+                        "github.invites.manage",
+                        "forum.topic.pin",
+                        "forum.topic.close",
+                        "forum.post.moderate",
+                        "forum.category.manage",
+                        "forum.badge.assign",
+                        "applications.read",
+                        "applications.review",
+                        "applications.export",
+                        "feedback.read",
+                        "feedback.manage",
+                        "audit.read",
+                        "roles.manage",
+                        "roles.department.manage",
+                        "competitions.manage"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 42,
+                    "type": "array"
+                  },
+                  "name": {
+                    "maxLength": 12,
+                    "minLength": 2,
+                    "type": "string"
+                  },
+                  "sort_order": {
+                    "maximum": 10000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "tag": {
+                    "pattern": "^[A-Z][A-Z0-9-]{1,15}$",
+                    "type": "string"
+                  },
+                  "tone": {
+                    "enum": [
+                      "amber",
+                      "cobalt",
+                      "violet",
+                      "jade",
+                      "sky",
+                      "coral",
+                      "rose",
+                      "slate"
+                    ],
+                    "type": "string"
+                  },
+                  "updated_at": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "tag",
+                  "icon",
+                  "tone",
+                  "description",
+                  "head_capabilities",
+                  "member_capabilities",
+                  "sort_order",
+                  "archived",
+                  "created_at",
+                  "updated_at",
+                  "heads",
+                  "crew_count"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "department"
+            ],
+            "type": "object"
+          }
         }
       },
       "source": {
@@ -43844,6 +47555,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43854,6 +47566,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43864,6 +47577,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43874,6 +47588,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43884,6 +47599,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43894,6 +47610,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43904,6 +47621,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43914,6 +47632,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43924,6 +47643,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43934,6 +47654,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43944,6 +47665,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43954,6 +47676,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43964,6 +47687,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43973,7 +47697,14 @@
     },
     {
       "domains": [
+        "competitions"
+      ],
+      "path": "app/console/src/lib/competitions.ts"
+    },
+    {
+      "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43984,6 +47715,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -43994,6 +47726,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44004,6 +47737,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44014,6 +47748,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44024,6 +47759,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44034,6 +47770,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44044,6 +47781,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44054,6 +47792,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44064,6 +47803,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44074,6 +47814,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44084,6 +47825,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44094,6 +47836,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44104,6 +47847,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44114,6 +47858,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44124,6 +47869,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44134,6 +47880,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44144,6 +47891,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44154,6 +47902,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44164,6 +47913,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44174,6 +47924,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44184,6 +47935,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44211,7 +47963,14 @@
     },
     {
       "domains": [
+        "competitions"
+      ],
+      "path": "app/console/src/pages/Competitions.vue"
+    },
+    {
+      "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44228,6 +47987,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44238,6 +47998,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -44404,6 +48165,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
@@ -45020,6 +48782,18 @@
     },
     {
       "domains": [
+        "competitions"
+      ],
+      "path": "app/server/src/lib/competition-contract.ts"
+    },
+    {
+      "domains": [
+        "competitions"
+      ],
+      "path": "app/server/src/lib/competition-store.ts"
+    },
+    {
+      "domains": [
         "identity"
       ],
       "path": "app/server/src/lib/crypto.ts"
@@ -45027,6 +48801,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "forum",
         "identity",
@@ -45080,6 +48855,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "forum",
         "github",
@@ -45155,6 +48931,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "forum",
         "github",
@@ -45172,6 +48949,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "forum",
         "github",
@@ -45187,6 +48965,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "forum",
         "github",
@@ -45202,6 +48981,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "forum",
         "github",
@@ -45217,6 +48997,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "forum",
         "github",
@@ -45232,6 +49013,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "forum",
         "github",
@@ -45247,6 +49029,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "forum",
         "github",
@@ -45262,6 +49045,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "forum",
         "github",
@@ -45398,7 +49182,14 @@
     },
     {
       "domains": [
+        "competitions"
+      ],
+      "path": "app/server/src/routes/console/competitions.ts"
+    },
+    {
+      "domains": [
         "audit",
+        "competitions",
         "feedback",
         "organization",
         "recruitment"
@@ -45420,6 +49211,7 @@
     {
       "domains": [
         "audit",
+        "competitions",
         "feedback",
         "organization",
         "recruitment"
@@ -45488,6 +49280,13 @@
     },
     {
       "domains": [
+        "competitions"
+      ],
+      "path": "app/server/src/routes/portal/competitions.ts"
+    },
+    {
+      "domains": [
+        "competitions",
         "feedback",
         "invitations",
         "organization",
@@ -45511,6 +49310,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "invitations",
         "organization",
@@ -45649,6 +49449,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45661,6 +49462,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45673,6 +49475,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45685,6 +49488,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45697,6 +49501,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45709,6 +49514,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45721,6 +49527,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45733,6 +49540,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45745,6 +49553,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45757,6 +49566,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45769,6 +49579,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45781,6 +49592,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45793,6 +49605,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45805,6 +49618,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45817,6 +49631,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45829,6 +49644,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45841,6 +49657,13 @@
     },
     {
       "domains": [
+        "competitions"
+      ],
+      "path": "app/web/sites/portal/lib/competitions.ts"
+    },
+    {
+      "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45853,6 +49676,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45865,6 +49689,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45877,6 +49702,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45889,6 +49715,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45901,6 +49728,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45913,6 +49741,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45925,6 +49754,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45937,6 +49767,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45949,6 +49780,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45961,6 +49793,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45973,6 +49806,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45985,6 +49819,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -45997,6 +49832,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46009,6 +49845,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46021,6 +49858,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46033,6 +49871,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46045,6 +49884,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46057,6 +49897,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46069,6 +49910,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46081,6 +49923,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46093,6 +49936,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46105,6 +49949,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46117,6 +49962,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46129,6 +49975,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46141,6 +49988,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46153,6 +50001,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46165,6 +50014,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46177,6 +50027,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46189,6 +50040,7 @@
     },
     {
       "domains": [
+        "competitions",
         "feedback",
         "identity",
         "invitations",
@@ -46461,7 +50313,7 @@
       "name": "application_limits",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 345,
+        "line": 368,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE application_limits (\n  bucket TEXT NOT NULL CHECK (bucket IN ('source','device')),\n  subject_hash TEXT NOT NULL,\n  created_at INTEGER NOT NULL\n)"
@@ -46917,6 +50769,180 @@
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE audit_logs (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  org TEXT,\n  actor TEXT NOT NULL,\n  action TEXT NOT NULL,\n  target TEXT,\n  details TEXT,\n  ip TEXT,\n  created_at INTEGER NOT NULL\n)"
+    },
+    {
+      "columns": [
+        {
+          "cid": 0,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "id",
+          "notnull": 0,
+          "pk": 1,
+          "type": "TEXT"
+        },
+        {
+          "cid": 1,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "name",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 2,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "kind",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 3,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "start_at",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 4,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "end_at",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 5,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "signup_deadline",
+          "notnull": 0,
+          "pk": 0,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 6,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "url",
+          "notnull": 0,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 7,
+          "dflt_value": "''",
+          "hidden": 0,
+          "name": "description",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 8,
+          "dflt_value": "0",
+          "hidden": 0,
+          "name": "offline",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 9,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "created_at",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 10,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "updated_at",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        }
+      ],
+      "database": "data.db",
+      "domain": "competitions",
+      "foreignKeys": [],
+      "id": "table:competitions",
+      "indexes": [
+        {
+          "columns": [
+            {
+              "cid": 8,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "offline",
+              "seqno": 0
+            },
+            {
+              "cid": 3,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "start_at",
+              "seqno": 1
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 2
+            }
+          ],
+          "name": "idx_competitions_offline_start",
+          "origin": "c",
+          "partial": 0,
+          "sql": "CREATE INDEX idx_competitions_offline_start ON competitions(offline, start_at)",
+          "unique": 0
+        },
+        {
+          "columns": [
+            {
+              "cid": 0,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "id",
+              "seqno": 0
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 1
+            }
+          ],
+          "name": "sqlite_autoindex_competitions_1",
+          "origin": "pk",
+          "partial": 0,
+          "sql": null,
+          "unique": 1
+        }
+      ],
+      "name": "competitions",
+      "note": "只存赛事事实，不含参赛者或队伍；status由时间计算，offline仅控制公开可见性，删除与下线不同。报名组队尚未实现。",
+      "source": {
+        "line": 188,
+        "path": "app/server/src/lib/db.ts"
+      },
+      "sql": "CREATE TABLE competitions (\n  id TEXT PRIMARY KEY,\n  name TEXT NOT NULL,\n  kind TEXT NOT NULL CHECK (kind IN ('internal','external')),\n  start_at INTEGER NOT NULL,\n  end_at INTEGER NOT NULL,\n  signup_deadline INTEGER,\n  url TEXT,\n  description TEXT NOT NULL DEFAULT '',\n  offline INTEGER NOT NULL DEFAULT 0,\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL,\n  CHECK (end_at >= start_at),\n  CHECK (url IS NULL OR url LIKE 'https://%'),\n  CHECK (signup_deadline IS NULL OR signup_deadline <= end_at)\n)"
     },
     {
       "columns": [
@@ -47394,7 +51420,7 @@
       "name": "forum_avatars",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 193,
+        "line": 216,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_avatars (\n  hash TEXT PRIMARY KEY,\n  data BLOB NOT NULL,\n  created_at INTEGER NOT NULL\n)"
@@ -47492,7 +51518,7 @@
       "name": "forum_bookmarks",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 264,
+        "line": 287,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_bookmarks (\n  user_id TEXT NOT NULL REFERENCES forum_users(id),\n  post_id TEXT NOT NULL REFERENCES forum_posts(id),\n  created_at INTEGER NOT NULL,\n  PRIMARY KEY (user_id, post_id)\n)"
@@ -47552,7 +51578,7 @@
       "name": "forum_counters",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 188,
+        "line": 211,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_counters (\n  name TEXT PRIMARY KEY CHECK (name IN ('topic','post','notification','tag','guest')),\n  value INTEGER NOT NULL\n)"
@@ -47650,7 +51676,7 @@
       "name": "forum_follows",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 271,
+        "line": 294,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_follows (\n  follower_id TEXT NOT NULL REFERENCES forum_users(id),\n  followee_id TEXT NOT NULL REFERENCES forum_users(id),\n  created_at INTEGER NOT NULL,\n  PRIMARY KEY (follower_id, followee_id),\n  CHECK (follower_id <> followee_id)\n)"
@@ -47748,7 +51774,7 @@
       "name": "forum_likes",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 257,
+        "line": 280,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_likes (\n  post_id TEXT NOT NULL REFERENCES forum_posts(id),\n  user_id TEXT NOT NULL REFERENCES forum_users(id),\n  created_at INTEGER NOT NULL,\n  PRIMARY KEY (post_id, user_id)\n)"
@@ -47916,7 +51942,7 @@
       "name": "forum_notifications",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 279,
+        "line": 302,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_notifications (\n  id TEXT PRIMARY KEY,\n  recipient_id TEXT NOT NULL REFERENCES forum_users(id),\n  type TEXT NOT NULL CHECK (type IN ('reply','like','follow','mention','system')),\n  actor_id TEXT NOT NULL REFERENCES forum_users(id),\n  topic_id TEXT,\n  post_id TEXT,\n  created_at INTEGER NOT NULL,\n  read INTEGER NOT NULL DEFAULT 0\n)"
@@ -48117,7 +52143,7 @@
       "name": "forum_posts",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 244,
+        "line": 267,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_posts (\n  id TEXT PRIMARY KEY,\n  topic_id TEXT NOT NULL REFERENCES forum_topics(id),\n  author_id TEXT NOT NULL REFERENCES forum_users(id),\n  content TEXT NOT NULL,\n  created_at INTEGER NOT NULL,\n  edited_at INTEGER,\n  reply_to_post_id TEXT,\n  deleted INTEGER NOT NULL DEFAULT 0\n)"
@@ -48227,7 +52253,7 @@
       "name": "forum_rate_events",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 299,
+        "line": 322,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_rate_events (\n  bucket TEXT NOT NULL,\n  subject TEXT NOT NULL,\n  created_at INTEGER NOT NULL\n)"
@@ -48359,7 +52385,7 @@
       "name": "forum_tags",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 220,
+        "line": 243,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_tags (\n  id TEXT PRIMARY KEY,\n  slug TEXT NOT NULL UNIQUE,\n  name TEXT NOT NULL,\n  color TEXT NOT NULL,\n  created_by TEXT NOT NULL REFERENCES forum_users(id),\n  created_at INTEGER NOT NULL\n)"
@@ -48461,7 +52487,7 @@
       "name": "forum_topic_views",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 291,
+        "line": 314,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_topic_views (\n  topic_id TEXT NOT NULL,\n  ip TEXT NOT NULL,\n  viewed_at INTEGER NOT NULL,\n  PRIMARY KEY (topic_id, ip)\n)"
@@ -48646,7 +52672,7 @@
       "name": "forum_topics",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 229,
+        "line": 252,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_topics (\n  id TEXT PRIMARY KEY,\n  slug TEXT NOT NULL,\n  title TEXT NOT NULL,\n  category_id TEXT NOT NULL,\n  tag_ids TEXT NOT NULL DEFAULT '[]',\n  author_id TEXT NOT NULL REFERENCES forum_users(id),\n  created_at INTEGER NOT NULL,\n  last_activity_at INTEGER NOT NULL,\n  views INTEGER NOT NULL DEFAULT 0,\n  pinned INTEGER NOT NULL DEFAULT 0,\n  closed INTEGER NOT NULL DEFAULT 0\n)"
@@ -48911,7 +52937,7 @@
       "name": "forum_users",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 199,
+        "line": 222,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_users (\n  id TEXT PRIMARY KEY,\n  kind TEXT NOT NULL CHECK (kind IN ('member','guest','official')),\n  github_user_id INTEGER UNIQUE,\n  username TEXT NOT NULL UNIQUE COLLATE NOCASE,\n  display_name TEXT NOT NULL,\n  bio TEXT NOT NULL DEFAULT '',\n  location TEXT NOT NULL DEFAULT '',\n  website TEXT NOT NULL DEFAULT '',\n  avatar_color TEXT NOT NULL,\n  github_avatar_url TEXT,\n  avatar_hash TEXT REFERENCES forum_avatars(hash),\n  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin','moderator','member')),\n  title TEXT,\n  notify_reply INTEGER NOT NULL DEFAULT 1,\n  notify_like INTEGER NOT NULL DEFAULT 1,\n  notify_follow INTEGER NOT NULL DEFAULT 1,\n  joined_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL\n)"
@@ -49786,7 +53812,7 @@
       "name": "mail_outbox",
       "note": "包含发信中的个人信息；application_id、review_id 不是数据库外键。具体保留规则见 mail.md。",
       "source": {
-        "line": 310,
+        "line": 333,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE mail_outbox (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  event_key TEXT NOT NULL UNIQUE,\n  kind TEXT NOT NULL,\n  application_id TEXT,\n  review_id INTEGER,\n  recipient TEXT,\n  recipient_hash TEXT NOT NULL,\n  limit_hash TEXT NOT NULL,\n  source_hash TEXT,\n  subject TEXT NOT NULL,\n  html TEXT,\n  text TEXT,\n  reply_to TEXT,\n  status TEXT NOT NULL CHECK (status IN ('pending','sending','sent','failed','skipped')),\n  skip_reason TEXT,\n  attempts INTEGER NOT NULL DEFAULT 0,\n  next_attempt_at INTEGER NOT NULL,\n  provider TEXT,\n  provider_message_id TEXT,\n  last_error TEXT,\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL,\n  sent_at INTEGER\n)"
@@ -50284,7 +54310,7 @@
     }
   ],
   "unmappedSources": [],
-  "updated": "2026-10-18",
+  "updated": "2026-10-19",
   "version": 1,
   "visibility": "internal-engineering"
 }

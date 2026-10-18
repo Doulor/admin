@@ -2,9 +2,9 @@
 
 > 从真实建库函数产生的内存 SQLite 提取表、列、索引和物理外键；不读取业务记录。
 
-状态：`current` · 更新：2026-10-18 · 自动生成，不手工编辑。
+状态：`current` · 更新：2026-10-19 · 自动生成，不手工编辑。
 
-来源摘要：`b0b220bda89cb7d109794932b76d44c2c827b1a12dd4ebe3a5d43a429a79a20e`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`2c453d60f602f0aa7adf44bb1b2e55acdabfb5480fe6a87591789cc08a4a1284`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -19,6 +19,7 @@ flowchart LR
   application_reviews["application_reviews"]
   applications["applications"]
   audit_logs["audit_logs"]
+  competitions["competitions"]
   console_seeds["console_seeds"]
   departments["departments"]
   feedback["feedback"]
@@ -89,7 +90,7 @@ CREATE TABLE app_state (
 
 ## application_limits
 
-业务域：`recruitment`；结构来源：[app/server/src/lib/db.ts:345](../../../app/server/src/lib/db.ts#L345)。
+业务域：`recruitment`；结构来源：[app/server/src/lib/db.ts:368](../../../app/server/src/lib/db.ts#L368)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -245,6 +246,56 @@ CREATE TABLE audit_logs (
 
 </details>
 
+## competitions
+
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:188](../../../app/server/src/lib/db.ts#L188)。
+
+只存赛事事实，不含参赛者或队伍；status由时间计算，offline仅控制公开可见性，删除与下线不同。报名组队尚未实现。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `name` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `kind` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `start_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `end_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `signup_deadline` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `url` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `description` | `TEXT` | 1 | 0 | `''` | 0 |
+| `offline` | `INTEGER` | 1 | 0 | `0` | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `idx_competitions_offline_start` | `offline`、`start_at` | 0 | c | 0 | `CREATE INDEX idx_competitions_offline_start ON competitions(offline, start_at)` |
+| `sqlite_autoindex_competitions_1` | `id` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE competitions (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('internal','external')),
+  start_at INTEGER NOT NULL,
+  end_at INTEGER NOT NULL,
+  signup_deadline INTEGER,
+  url TEXT,
+  description TEXT NOT NULL DEFAULT '',
+  offline INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  CHECK (end_at >= start_at),
+  CHECK (url IS NULL OR url LIKE 'https://%'),
+  CHECK (signup_deadline IS NULL OR signup_deadline <= end_at)
+);
+```
+
+</details>
+
 ## console_seeds
 
 业务域：`organization`；结构来源：[app/server/src/lib/db.ts:122](../../../app/server/src/lib/db.ts#L122)。
@@ -379,7 +430,7 @@ CREATE TABLE feedback (
 
 ## forum_avatars
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:193](../../../app/server/src/lib/db.ts#L193)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:216](../../../app/server/src/lib/db.ts#L216)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -409,7 +460,7 @@ CREATE TABLE forum_avatars (
 
 ## forum_bookmarks
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:264](../../../app/server/src/lib/db.ts#L264)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:287](../../../app/server/src/lib/db.ts#L287)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -445,7 +496,7 @@ CREATE TABLE forum_bookmarks (
 
 ## forum_counters
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:188](../../../app/server/src/lib/db.ts#L188)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:211](../../../app/server/src/lib/db.ts#L211)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -473,7 +524,7 @@ CREATE TABLE forum_counters (
 
 ## forum_follows
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:271](../../../app/server/src/lib/db.ts#L271)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:294](../../../app/server/src/lib/db.ts#L294)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -510,7 +561,7 @@ CREATE TABLE forum_follows (
 
 ## forum_likes
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:257](../../../app/server/src/lib/db.ts#L257)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:280](../../../app/server/src/lib/db.ts#L280)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -546,7 +597,7 @@ CREATE TABLE forum_likes (
 
 ## forum_notifications
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:279](../../../app/server/src/lib/db.ts#L279)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:302](../../../app/server/src/lib/db.ts#L302)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -592,7 +643,7 @@ CREATE TABLE forum_notifications (
 
 ## forum_posts
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:244](../../../app/server/src/lib/db.ts#L244)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:267](../../../app/server/src/lib/db.ts#L267)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -639,7 +690,7 @@ CREATE TABLE forum_posts (
 
 ## forum_rate_events
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:299](../../../app/server/src/lib/db.ts#L299)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:322](../../../app/server/src/lib/db.ts#L322)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -670,7 +721,7 @@ CREATE TABLE forum_rate_events (
 
 ## forum_tags
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:220](../../../app/server/src/lib/db.ts#L220)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:243](../../../app/server/src/lib/db.ts#L243)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -711,7 +762,7 @@ CREATE TABLE forum_tags (
 
 ## forum_topic_views
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:291](../../../app/server/src/lib/db.ts#L291)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:314](../../../app/server/src/lib/db.ts#L314)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -743,7 +794,7 @@ CREATE TABLE forum_topic_views (
 
 ## forum_topics
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:229](../../../app/server/src/lib/db.ts#L229)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:252](../../../app/server/src/lib/db.ts#L252)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -794,7 +845,7 @@ CREATE TABLE forum_topics (
 
 ## forum_users
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:199](../../../app/server/src/lib/db.ts#L199)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:222](../../../app/server/src/lib/db.ts#L222)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -989,7 +1040,7 @@ CREATE TABLE invite_links (
 
 ## mail_outbox
 
-业务域：`mail`；结构来源：[app/server/src/lib/db.ts:310](../../../app/server/src/lib/db.ts#L310)。
+业务域：`mail`；结构来源：[app/server/src/lib/db.ts:333](../../../app/server/src/lib/db.ts#L333)。
 
 包含发信中的个人信息；application_id、review_id 不是数据库外键。具体保留规则见 mail.md。
 

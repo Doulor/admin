@@ -83,9 +83,9 @@ portal 包括 /api/docs、/api/feedback、/api/join/:token、/api/portal/apply�
 
 ### 比赛信息发布合同（#238）
 
-`competitions` 只存赛事事实；报名与组队由 #239 另行交付。新建必填 `name`、`kind`、`start_at`、`end_at`，可选 `signup_deadline`、`url`、`description`；PATCH 是非空字段子集，可另带 `offline`。名称去首尾空白后至少 2 字、最多 80 字；说明最多 1000 字；链接最多 500 字，所有类型都可不填，非空必须能解析为 HTTPS URL。请求 Schema 检查类型、范围与形状，路由调用 `competitionError` 校验名称、链接与时间关系；失败不写库、不记成功审计。
+`competitions` 只存赛事事实；报名与组队由 #239 另行交付。新建必填 `name`、`kind`、`start_at`、`end_at`，可选 `signup_deadline`、`url`、`description`；PATCH 是非空字段子集，可另带 `offline`。名称去首尾空白后至少 2 字、最多 80 字；说明最多 1000 字；链接最多 500 字，所有类型都可不填，非空必须能解析为 HTTPS URL。请求 Schema 检查类型、范围与形状，路由调用 `competitionError` 校验名称、链接与时间关系；失败不写库、不记成功审计。五个操作同时挂载真实成功响应及共同错误 Schema，公开 DTO 不含内部字段，详见 `app/server/src/lib/competition-contract.ts`。
 
-时间是 UTC 毫秒整数，范围 `0..8639999971200000`（Date 有效上限减北京时间八小时偏移）；结束不早于开始，报名截止不晚于结束。控制台新建的日期取北京时间整天；编辑时只 PATCH 修改过的字段，未修改日期保留 API 原始时分。省略 `url` / `signup_deadline` 保留原值，显式 `null` 才清空。`offline` 只影响公开可见性，重新上线保留原记录；DELETE 真删，重复删除 404。
+时间是 UTC 毫秒整数，范围 `0..8639999971200000`（Date 有效上限减北京时间八小时偏移）；结束不早于开始，报名截止不晚于结束。控制台新建的日期取北京时间整天；编辑时只 PATCH 修改过的字段，未修改日期保留 API 原始时分。省略 `url` / `signup_deadline` 保留原值，显式 `null` 才清空。`offline` 只影响公开可见性，重新上线保留原记录；DELETE 真删，重复删除 404。三种写操作与各自审计在同一事务内，审计失败回滚业务写入，GitHub 权限检查在事务前完成。
 
 状态不入库，顺序为：`now > end_at` → `ended`；有截止且 `now <= signup_deadline` → `registering`；`now >= start_at` → `ongoing`；尚未开始且没有报名截止 → `upcoming`；其余 → `closed`。未填截止不推定正在报名。官网每 60 秒重算状态与排序；控制台重读时取服务端当前结果。匿名响应仅含表中列出的公开字段，控制台读取另含 `offline`；现有 `console.access` 允许读取，写入仍需 `competitions.manage`，UI 页面也按该管理能力显示。
 
