@@ -7,9 +7,10 @@ const template = readFileSync(new URL("../../.github/pull_request_template.md", 
 /** 一份填好的正文：模板的每个段落都写了内容 */
 function filled(overrides: Record<string, string> = {}): string {
   const text: Record<string, string> = {
-    目的: "所有者反馈开机时先露出桌面。",
+    目的: "反馈开机时先露出桌面。",
     关联: "Closes #32",
     变更范围: "app/web/sites/portal/pages/Home.tsx",
+    宏观对齐: "影响声明：docs/changes/32.json；说明页面与业务用例的关系，接口、权限、数据不变的理由及对应验证。",
     解决链路: "1. 复现：慢网下点开机。\n2. 定位：开机画面进场渐变透出桌面。\n3. 修复：开机画面不渐变、等壁纸解码。",
     验证命令与结果: "pnpm verify 通过",
     验收证据: "改前 ![before](https://github.com/o/r/assets/1/before.png) 改后 ![after](https://github.com/o/r/assets/1/after.png)",
@@ -22,10 +23,14 @@ function filled(overrides: Record<string, string> = {}): string {
 }
 
 describe("PR 正文契约", () => {
+  it("每个 PR 必须有宏观对齐段落，不因旧 issue 编号而豁免", () => {
+    const body = filled().replace(/### 宏观对齐[\s\S]*?(?=### |$)/, "");
+    expect(checkPullRequest({ branch: "task/32/x", body }).errors.join()).toContain("宏观对齐");
+  });
   it("分支号与 issue：只认 task/<n>/<slug>", () => {
     expect(issueFromBranch("task/32/desk_boot_wallpaper")).toBe(32);
     expect(issueFromBranch("task/32-desk")).toBeNull();
-    expect(issueFromBranch("dev/crosery")).toBeNull();
+    expect(issueFromBranch("dev/alice")).toBeNull();
     expect(issueFromBranch("stage")).toBeNull();
   });
 
@@ -52,7 +57,7 @@ describe("PR 正文契约", () => {
   });
 
   it("不是 task 分支的 PR 进不了 stage", () => {
-    expect(checkPullRequest({ branch: "dev/crosery", body: filled() }).ok).toBe(false);
+    expect(checkPullRequest({ branch: "dev/alice", body: filled() }).ok).toBe(false);
   });
 
   it("缺段落、空段落（只剩模板注释）都报错", () => {
@@ -70,6 +75,27 @@ describe("PR 正文契约", () => {
 
   it("审查结论要有三种结论之一", () => {
     expect(checkPullRequest({ branch: "task/32/x", body: filled({ 审查结论: "看起来可以" }) }).errors.join()).toContain("结论：通过");
+  });
+
+  it("阻塞的审查不能通过合并检查，注释和代码块不能冒充可见结论", () => {
+    for (const review of [
+      "审查人：Reviewer\n\n**结论：阻塞**",
+      "<!-- **结论：通过** -->",
+      "```markdown\n**结论：通过**\n```",
+      "~~~markdown\n**结论：通过**\n~~~",
+      "  ````markdown\n**结论：通过**\n  ````",
+      "\n    **结论：通过**",
+      "**结论：通过**\n**结论：阻塞**",
+      "**结论：阻塞**\n\n### 审查结论\n**结论：通过**",
+      "**结论：通过**\n```text\n<!--\n```\n\n**结论：阻塞**\n\n```text\n-->\n```",
+    ]) {
+      expect(checkPullRequest({ branch: "task/32/x", body: filled({ 审查结论: review }) }).ok).toBe(false);
+    }
+  });
+
+  it("隐藏标题不能覆盖可见的阻塞结论", () => {
+    const body = filled({ 审查结论: "**结论：阻塞**" }) + "\n<!--\n### 审查结论\n**结论：通过**\n-->";
+    expect(checkPullRequest({ branch: "task/32/x", body }).ok).toBe(false);
   });
 
   it("仓库里的 PR 模板本身带齐所有必需段落，且原样提交会因为空段落被拦下", () => {

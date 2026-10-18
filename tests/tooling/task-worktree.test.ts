@@ -13,14 +13,14 @@ describe("task worktree", () => {
     expect(() => taskBranch("abc", "x")).toThrow(/数字/);
     expect(worktreePath("/repo", 35)).toBe("/repo/.claude/worktrees/task-35");
     expect(issueOfBranch("task/35/task_worktree")).toBe(35);
-    expect(issueOfBranch("dev/crosery")).toBeNull();
+    expect(issueOfBranch("dev/alice")).toBeNull();
   });
 
   it("解析 git worktree list --porcelain，含 detached 与主工作区", () => {
     const porcelain = [
       "worktree /repo",
       "HEAD 882435e",
-      "branch refs/heads/dev/crosery",
+      "branch refs/heads/dev/alice",
       "",
       "worktree /repo/.claude/worktrees/task-35",
       "HEAD 77160aa",
@@ -32,7 +32,7 @@ describe("task worktree", () => {
       "",
     ].join("\n");
     const list = parseWorktrees(porcelain);
-    expect(list.map((wt: { branch: string | null }) => wt.branch)).toEqual(["dev/crosery", "task/35/task_worktree", null]);
+    expect(list.map((wt: { branch: string | null }) => wt.branch)).toEqual(["dev/alice", "task/35/task_worktree", null]);
     expect(list[2].detached).toBe(true);
   });
 

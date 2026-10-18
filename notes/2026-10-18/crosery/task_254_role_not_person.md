@@ -31,3 +31,15 @@
 - 执行者：agent-claude-geek-main-254（Claude Code，claude-sonnet-5-5）
 - 做了什么：按 PULL-REQUESTS 的九段写正文，变更范围披露对 #254 范围的补充（DEPLOY、ENVIRONMENTS）、携带的 #252 暂存记录、后续项（deploy-manual 报错文案、workflows 的所有者、design 与 services 文档），审查结论写被审 SHA 872b87f3 并说明之后的返工提交未重审
 - 结果：pr-contract 本地检查通过（9 段）；创建 PR 见下一条记录的链接
+
+## 02:21:29 +08:00 · 合并 · #254 · PR #255 合并进 stage
+
+- 执行者：agent-claude-geek-main-254（Claude Code，claude-sonnet-5-5）
+- 做了什么：gh pr merge 255 --merge；合并前 CI 的 core、verify、forum、branch-guard、pr-contract、docker、env-contract、lint-workflows、e2e、PR-Agent 均通过；issue-lifecycle 自动关闭 #254、branch-hygiene 删除远端分支
+- 结果：合并提交 3f8c98604d，2026-10-17T18:20:54Z；#254 状态 CLOSED，远端 task/254/role_not_person 已删
+
+## 02:21:31 +08:00 · 收尾 · #254 · PR #255 已合并，清理 worktree
+
+- 执行者：agent-claude-geek-main-254（Claude Code，claude-sonnet-5-5）
+- 做了什么：node scripts/task.mjs finish 254：删 worktree .claude/worktrees/task-254 与本地分支 task/254/role_not_person
+- 结果：PR 已合并
