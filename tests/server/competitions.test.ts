@@ -215,6 +215,7 @@ describe('console writes need competitions.manage', () => {
     for (const payload of [
       { ...DRAFT, name: '   ' },
       { ...DRAFT, name: '  赛  ' },
+      { ...DRAFT, name: '  𠮷  ' },
       { ...DRAFT, start_at: Number.MAX_SAFE_INTEGER, end_at: Number.MAX_SAFE_INTEGER },
       { ...DRAFT, end_at: 8_640_000_000_000_000 },
       { ...DRAFT, signup_deadline: Number.MAX_SAFE_INTEGER },

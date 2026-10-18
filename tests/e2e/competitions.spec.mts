@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { testApp } from "../server/helpers";
+import { fileURLToPath } from "node:url";
+import { buildApp } from "../../app/server/src/app.js";
+import { createConfig } from "../../app/server/src/config.js";
 import type { ServiceOverrides } from "../../app/server/src/services";
 import { CONSOLE_ORIGIN } from "../../playwright.config";
 
-let context: Awaited<ReturnType<typeof testApp>>;
+let context: { app: Awaited<ReturnType<typeof buildApp>>; close: () => Promise<void> };
 let competition: Record<string, unknown> & { id: string };
 let headers: { cookie: string };
 let writes: number;
@@ -15,7 +17,22 @@ test.beforeEach(async ({ page }) => {
       return { data: { state: "active", role: "admin" } };
     },
   })) as unknown as ServiceOverrides["octokitFactory"];
-  context = await testApp({ octokitFactory }, false, { PUBLIC_ORIGIN: CONSOLE_ORIGIN });
+  const deny = () => { throw new Error("Unexpected external request"); };
+  const app = await buildApp({
+    config: {
+      ...createConfig({
+        NODE_ENV: "test", PUBLIC_ORIGIN: CONSOLE_ORIGIN, DB_PATH: ":memory:",
+        SESSION_SECRET: "isolated-competition-test-secret-at-least-32",
+        ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64"),
+        OAUTH_CLIENT_ID: "test-client", OAUTH_CLIENT_SECRET: "test-only-placeholder", POW_DIFFICULTY: "0",
+      }),
+      forumContentDir: fileURLToPath(new URL("../server/fixtures/forum-content", import.meta.url)),
+    },
+    staticRoot: false,
+    overrides: { octokitFactory, httpRequest: deny, mailFetch: deny },
+  });
+  await app.ready();
+  context = { app, close: () => app.close() };
   headers = { cookie: `sid=${context.app.services.auth.createSession("alice", 101, null, "test-only-token")}` };
   const now = Date.now();
   const created = await context.app.inject({

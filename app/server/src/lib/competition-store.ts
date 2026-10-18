@@ -85,7 +85,7 @@ export function compareCompetitions(
  * `url` 与 `kind` 无关；输入契约检查形状，这里解析地址，拒绝只有 https 前缀的无效链接。
  */
 export function competitionError(draft: CompetitionDraft): "bad_name" | "bad_range" | "deadline_after_end" | "bad_url" | null {
-  if (draft.name.trim().length < 2) return "bad_name";
+  if ([...draft.name.trim()].length < 2) return "bad_name";
   if (draft.end_at < draft.start_at) return "bad_range";
   if (draft.signup_deadline !== null && draft.signup_deadline > draft.end_at) return "deadline_after_end";
   if (draft.url) {

@@ -12,7 +12,7 @@
 
 JSON 写操作定义类型、长度、范围、枚举与必填项，拒绝未知字段。分页为有界正整数，验证后转换。SQL 值仍参数化。
 
-长度的数法分两层。Schema 的 `minLength` / `maxLength` 由 Fastify 自带的 Ajv 校验，按 Unicode 码点数（`app.ts` 给 Ajv 的选项只改了 `removeAdditional` 与 `coerceTypes`，`unicode` 保持默认），表情这类星平面字符算 1 个。路由里自己判断的长度用 JavaScript 的 `String.length`，按 UTF-16 码元数，星平面字符算 2 个。一个字段两层都判断时两个上限都要满足。本文写的「N 字」按做判断的那一层算；路由里另有判断、按 UTF-16 数的是：论坛的游客回复正文（2000）、游客昵称（20）与成员昵称（30）（两者都按 NFKC 并去首尾空白之后数）、新建标签的名字（20，去首尾空白之后）、搜索词（100，去首尾空白之后），投递 `POST /api/portal/apply` 的全部字段（这个接口不注册 Schema），意见箱 `POST /api/feedback` 的正文（5–5000，去首尾空白之后）。其余字段只有 Schema 一层，按码点：论坛标题写 120 个表情（240 个 UTF-16 码元）能通过，个人签名写 200 个表情也能通过；游客回复写 1001 个表情（2002 个码元）回 400 `content_too_long`。
+长度的数法分两层。Schema 的 `minLength` / `maxLength` 由 Fastify 自带的 Ajv 校验，按 Unicode 码点数（`app.ts` 给 Ajv 的选项只改了 `removeAdditional` 与 `coerceTypes`，`unicode` 保持默认），表情这类星平面字符算 1 个。以下既有路由的手工长度检查用 JavaScript 的 `String.length`，按 UTF-16 码元数，星平面字符算 2 个。一个字段两层都判断时两个上限都要满足。本文写的「N 字」按做判断的那一层算；路由里另有判断、按 UTF-16 数的是：论坛的游客回复正文（2000）、游客昵称（20）与成员昵称（30）（两者都按 NFKC 并去首尾空白之后数）、新建标签的名字（20，去首尾空白之后）、搜索词（100，去首尾空白之后），投递 `POST /api/portal/apply` 的全部字段（这个接口不注册 Schema），意见箱 `POST /api/feedback` 的正文（5–5000，去首尾空白之后）。比赛名称归一化后的最小长度及控制台名称、说明、URL 长度显式按 Unicode 码点计数，与 Schema 一致。其余只受 Schema 长度约束的字段也按码点：论坛标题写 120 个表情（240 个 UTF-16 码元）能通过，个人签名写 200 个表情也能通过；游客回复写 1001 个表情（2002 个码元）回 400 `content_too_long`。
 
 ## 接口族
 
@@ -83,7 +83,7 @@ portal 包括 /api/docs、/api/feedback、/api/join/:token、/api/portal/apply�
 
 ### 比赛信息发布合同（#238）
 
-`competitions` 只存赛事事实；报名与组队由 #239 另行交付。新建必填 `name`、`kind`、`start_at`、`end_at`，可选 `signup_deadline`、`url`、`description`；PATCH 是非空字段子集，可另带 `offline`。名称去首尾空白后至少 2 字、最多 80 字；说明最多 1000 字；链接最多 500 字，所有类型都可不填，非空必须能解析为 HTTPS URL。请求 Schema 检查类型、范围与形状，路由调用 `competitionError` 校验名称、链接与时间关系；失败不写库、不记成功审计。五个操作同时挂载真实成功响应及共同错误 Schema，公开 DTO 不含内部字段，详见 `app/server/src/lib/competition-contract.ts`。
+`competitions` 只存赛事事实；报名与组队由 #239 另行交付。新建必填 `name`、`kind`、`start_at`、`end_at`，可选 `signup_deadline`、`url`、`description`；PATCH 是非空字段子集，可另带 `offline`。名称去首尾空白后至少 2 个 Unicode 码点、最多 80 个；说明最多 1000 个码点；链接最多 500 个码点（控制台与 JSON Schema 同口径，扩展汉字不按两个 UTF-16 码元重复计数），所有类型都可不填，非空必须能解析为 HTTPS URL。请求 Schema 检查类型、范围与形状，路由调用 `competitionError` 校验名称、链接与时间关系；失败不写库、不记成功审计。五个操作同时挂载真实成功响应及共同错误 Schema，公开 DTO 不含内部字段，详见 `app/server/src/lib/competition-contract.ts`。
 
 时间是 UTC 毫秒整数，范围 `0..8639999971200000`（Date 有效上限减北京时间八小时偏移）；结束不早于开始，报名截止不晚于结束。控制台新建的日期取北京时间整天；编辑时只 PATCH 修改过的字段，未修改日期保留 API 原始时分。省略 `url` / `signup_deadline` 保留原值，显式 `null` 才清空。`offline` 只影响公开可见性，重新上线保留原记录；DELETE 真删，重复删除 404。三种写操作与各自审计在同一事务内，审计失败回滚业务写入，GitHub 权限检查在事务前完成。
 

@@ -45,6 +45,8 @@ describe("form validation", () => {
     expect(formErrors(filled({ name: "赛" })).name).toContain("至少 2 个字");
     expect(formErrors(filled({ name: "x".repeat(81) })).name).toContain("最多 80 个字");
     expect(formErrors(filled({ name: `  ${"x".repeat(80)}  ` })).name).toBeUndefined();
+    expect(formErrors(filled({ name: "𠮷" })).name).toContain("至少 2 个字");
+    expect(formErrors(filled({ name: "𠮷".repeat(80) })).name).toBeUndefined();
   });
 
   it("keeps the end not before the start, and compares dates not strings", () => {
@@ -75,6 +77,8 @@ describe("form validation", () => {
       }
     }
     expect(formErrors(filled({ description: "x".repeat(1001) }))).toHaveProperty("description");
+    expect(formErrors(filled({ description: "𠮷".repeat(1000) })).description).toBeUndefined();
+    expect(formErrors(filled({ url: `https://example.test/${"𠮷".repeat(479)}` })).url).toBeUndefined();
   });
 });
 

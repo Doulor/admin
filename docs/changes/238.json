@@ -76,8 +76,8 @@
       ]
     },
     "dependencies": {
-      "status": "unchanged",
-      "reason": "不新增包、凭据或外部服务；仅沿用鉴权所需的用户GitHub角色查询及审计。比赛维护不发邮件，不引入报名、队伍或独立SSO实现。",
+      "status": "changed",
+      "reason": "新增比赛页面、存储、现有会话/权限与审计之间的调用关联和审计事件；包、凭据和第三方服务数量保持，业务维护没有邮件、报名或队伍副作用。",
       "evidence": [
         "app/server/src/services.ts",
         "app/server/src/routes/console/competitions.ts"

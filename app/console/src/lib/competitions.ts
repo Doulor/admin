@@ -71,8 +71,10 @@ type Field = "name" | "startDate" | "endDate" | "deadlineDate" | "url" | "descri
 export function formErrors(form: CompetitionForm): Partial<Record<Field, string>> {
   const errors: Partial<Record<Field, string>> = {};
   const name = form.name.trim();
-  if (name.length < 2) errors.name = "请填比赛名称，至少 2 个字。";
-  else if (name.length > 80) errors.name = "比赛名称最多 80 个字。";
+  // JSON Schema 按 Unicode 码点计数，不能把扩展汉字的 UTF-16 代理对算成两个字。
+  const nameLength = [...name].length;
+  if (nameLength < 2) errors.name = "请填比赛名称，至少 2 个字。";
+  else if (nameLength > 80) errors.name = "比赛名称最多 80 个字。";
 
   const start = dateEdge(form.startDate, "start");
   const end = dateEdge(form.endDate, "end");
@@ -91,9 +93,9 @@ export function formErrors(form: CompetitionForm): Partial<Record<Field, string>
     } catch {
       errors.url = "请填写有效的 https:// 官方链接。";
     }
-    if (url.length > 500) errors.url = "官方链接最多 500 个字。";
+    if ([...url].length > 500) errors.url = "官方链接最多 500 个字。";
   }
-  if (form.description.trim().length > 1000) errors.description = "说明最多 1000 个字。";
+  if ([...form.description.trim()].length > 1000) errors.description = "说明最多 1000 个字。";
   return errors;
 }
 
