@@ -107,3 +107,10 @@
 - 做了什么：80638cf8 在 docs/services/web/portal.md 加了比赛应用方案链接；portal.md 是项目目录的来源文件，core 的 check:catalog 判定目录过期（run 39206401716）。运行 pnpm catalog:generate，只更新 docs/architecture/catalog 下 6 个文件里的来源摘要和 portal.md 哈希
 - 结果：本地 pnpm check 全部通过（项目目录核对通过：4 应用、179 方法路径、28 表、21 能力；宏观对齐 #238 共 69 个文件、87 个节点）；未改代码与测试
 - 下一步：推送后等 core 与 e2e 变绿，再更新 PR 正文与审查结论；不合并
+
+## 14:26:37 +08:00 · 提交 · #238 · 采纳 CodeRabbit 对比赛方案的两条意见
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：CodeRabbit 对 36de715a 的增量审查（review 5567583950）提出 2 条意见，核实均成立：① docs/plan/COMPETITION-APP.md 接口说明首句写“门户接口都要求登录”，与表中 GET /api/public/competitions 匿名可读矛盾，改为“除该接口保持匿名可读外”；② competition_signup_settings 团队赛分支的 CHECK 在 team_min/team_max 为 NULL 时结果为 NULL，SQLite 会放行，补 IS NOT NULL
+- 结果：本地 pnpm check 全部通过；只改方案文档，portal.md 未动、无需刷新项目目录；方案保持 proposed，未合并
+- 下一步：推送后在两条审查意见下回复处理结果，等同 head CI 全绿再更新 PR 正文复核结论；不合并

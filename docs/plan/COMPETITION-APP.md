@@ -154,7 +154,7 @@
 
 ## 接口
 
-门户接口都要求登录（`401 not_signed_in`）且是极客班成员（`403 not_member`）；成员资格由统一登录的资格校验给出（ADR-0005 决策 6，草稿里的 `requireOrgMember` 改为调用它），比赛模块不自己查 GitHub，资格待核验或暂不可用时原样返回 `403 membership_verification_required`、`503 membership_unavailable`；写接口每人每分钟 60 次。比赛、队伍或成员关系不存在，或比赛已下线，一律 404。「相对草稿」一列对照 90fc376。
+除 `GET /api/public/competitions` 保持匿名可读外，门户接口都要求登录（`401 not_signed_in`）且是极客班成员（`403 not_member`）；成员资格由统一登录的资格校验给出（ADR-0005 决策 6，草稿里的 `requireOrgMember` 改为调用它），比赛模块不自己查 GitHub，资格待核验或暂不可用时原样返回 `403 membership_verification_required`、`503 membership_unavailable`；写接口每人每分钟 60 次。比赛、队伍或成员关系不存在，或比赛已下线，一律 404。「相对草稿」一列对照 90fc376。
 
 | 方法与路径 | 谁 | 作用 | 相对草稿 |
 |---|---|---|---|
@@ -259,7 +259,8 @@ CREATE TABLE IF NOT EXISTS competition_signup_settings (
   updated_at INTEGER NOT NULL,
   updated_by TEXT NOT NULL,                 -- 操作人的 account_id
   CHECK ((participation = 'individual' AND team_min IS NULL AND team_max IS NULL)
-      OR (participation = 'team' AND team_min BETWEEN 1 AND 20 AND team_max BETWEEN team_min AND 20))
+      OR (participation = 'team' AND team_min IS NOT NULL AND team_max IS NOT NULL
+          AND team_min BETWEEN 1 AND 20 AND team_max BETWEEN team_min AND 20))
 );
 
 CREATE TABLE IF NOT EXISTS competition_signups (
