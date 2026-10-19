@@ -2,7 +2,7 @@
 
 > 核心 portal/admin/console 与论坛接口的应用组装、资源生命周期和真实 GitHub 适配；一个 Fastify 进程。
 
-状态：`current` · 更新：2026-10-18 · 源码：`app/server/` · 镜像：`yzgc-<environment>/server:<sha12>`
+状态：`current` · 更新：2026-10-19 · 源码：`app/server/` · 镜像：`yzgc-<environment>/server:<sha12>`
 
 ## 源码地图
 
@@ -12,11 +12,11 @@
 | `app/server/src/app.ts` | 组装 portal/admin/console/forum 路由、中间件与插件；直连时托管 `app/web/dist` 与 `app/console/dist` 两份前端产物，`resolveSiteEntry` 按路径把 `/console`、`/admin`、`/signin`（含子路径）回落到控制台入口；**不监听端口**，可注入依赖；可选 `observeRoute` 在根路由与子插件之前挂载，供隔离目录工具读取最终路由 Schema，默认不启用 |
 | `app/server/src/services.ts` | 每个应用实例拥有自己的 data.db、缓存、身份与外部客户端；建库后先把意见箱只与 `CONSOLE_ORG` 差大小写的旧组织名归一（#129），再读论坛内容并播种（任何一步失败都先关库、启动失败）；按发信配置建 `mail`（配置写错同样启动失败）；提供关闭方法。测试用 `ServiceOverrides.mailFetch`、`clock` 换掉发信商请求，以及发信队列与会话（建会话、判过期、定时清理）用的时钟 |
 | `app/server/src/config.ts` | 环境变量解析与校验（端口、唯一对外地址 `PUBLIC_ORIGIN`、`CONSOLE_ORG`、密钥长度、难度参数、发信的 `MAIL_*`，都不设时不发信）；不读取前端配置。`forumContentDir` 固定为 `app/forum/content`（不是环境变量，镜像里是同一个相对位置） |
-| `app/server/src/routes/portal/index.ts` | portal 路由注册入口（docs / feedback / join / apply / public config / org：`GET /api/public/org`，`org.ts`） |
+| `app/server/src/routes/portal/index.ts` | portal 路由注册入口（docs / feedback / join / apply / public config / competitions / org：`GET /api/public/org`，`org.ts`） |
 | `app/server/src/routes/portal/contracts.ts` | portal 请求 Schema（本模块输入协议源） |
 | `app/server/src/routes/admin/index.ts` | admin 路由注册入口（`/auth/*`、`/api/me/*`、`/api/admin/:org/*`） |
 | `app/server/src/routes/admin/contracts.ts` | admin 请求 Schema |
-| `app/server/src/routes/console/index.ts` | 极客班控制台路由注册入口（`/api/console/*`：me、catalogue、summary、departments、titles、assignments、people、applications、feedback、audit） |
+| `app/server/src/routes/console/index.ts` | 极客班控制台路由注册入口（`/api/console/*`：me、catalogue、summary、departments、titles、assignments、people、applications、competitions、feedback、audit） |
 | `app/server/src/routes/console/contracts.ts` | 控制台请求 Schema（拒绝未知字段；投递参数按 UUID 校验） |
 | `app/server/src/routes/forum-api/index.ts` | 论坛接口注册入口（`/api/forum/*`，#57，[ADR-0004](../../decisions/0004-forum-backend-in-core-server.md)）：`topics.ts`（state、发帖、置顶、关闭、浏览数）、`posts.ts`（回复、编辑、删除、点赞、收藏）、`people.ts`（关注、通知、账号资料、头像）、`viewer.ts`（成员 / 游客身份与 `forum.*` 能力） |
 | `app/server/src/routes/forum-api/contracts.ts` | 论坛请求 Schema（拒绝未知字段；编号按字符串格式校验）与中文校验提示；写接口回答的形状 `ForumWriteResponse`（`{ changes, viewer, guestPolicy }`，#145） |
@@ -32,7 +32,7 @@
 
 - **入口职责**：`buildApp` 注册真实应用但不监听；只有 `index.ts` 读取环境并监听。测试通过 `inject` 注册真实路由，只把 `DB_PATH` 指向内存库。
 - **依赖方向**：`config → lib → middleware → routes`。`middleware` 不导入 `routes`；`lib` 不反向依赖 `middleware`；身份/持久化适配器只接收普通参数，不接受 Fastify 请求/响应对象。
-- **运行时装**：`DB_PATH` 指向 SQLite（WAL，better-sqlite3，`secure_delete` 打开，#128）；`sessions`、`invite_links`、`invite_attempts`、`invitations`、`feedback`、`applications`、`application_reviews`、`application_limits`、`departments`、`role_assignments`、`titles`、`console_seeds`、`audit_logs`、`app_state`、`mail_outbox` 与论坛的 `forum_*` 表由本服务拥有，其中 `app_state` 当前无读写（预留）。每张表的写入方、读取方、个人信息字段和未使用对象见 [数据模型](data-model.md)。
+- **运行时装**：`DB_PATH` 指向 SQLite（WAL，better-sqlite3，`secure_delete` 打开，#128）；`sessions`、`invite_links`、`invite_attempts`、`invitations`、`feedback`、`applications`、`application_reviews`、`application_limits`、`departments`、`role_assignments`、`titles`、`console_seeds`、`competitions`、`audit_logs`、`app_state`、`mail_outbox` 与论坛的 `forum_*` 表由本服务拥有，其中 `app_state` 当前无读写（预留）。每张表的写入方、读取方、个人信息字段和未使用对象见 [数据模型](data-model.md)。
 - **单一 origin**：每个环境只有一个对外地址 `PUBLIC_ORIGIN`（正式 `https://yangtzeu.work`、预发布 `https://prev.yangtzeu.work`）。OAuth `redirect_uri` 是 `<PUBLIC_ORIGIN>/auth/callback`，登录后默认回 `<PUBLIC_ORIGIN>/console`，邀请链接是 `<PUBLIC_ORIGIN>/join/<token>`；`return_to` 与写请求的 `Origin` 只接受这一个 origin。
 - **SPA 入口按路径选择**：服务端直接托管前端产物时，`resolveSiteEntry` 把管理端路径（`ADMIN_SPA_PATHS`：`/admin`、`/admin/…`、`/console`、`/console/…`、`/signin`）交给管理端入口（`ADMIN_SPA_ENTRY` = `sites/console/index.html`，即 `app/console` 的产物），其余交给 portal 入口，与 Host 无关；两者各只在 `app.ts` 定义一处，web 容器 nginx 的 location 与之一致。管理端换成别的前端产物时只改入口常量。
 - **身份**：全站只有这一个登录，官网、论坛、控制台共用它签发的 `sid`（服务器会话，host-only）；会话有效期 7 天，过期行由服务主动清理（启动时一次、之后每小时一次，#128）；不签发、不桥接旧 `forum_sid`。GitHub OAuth 保留签名 state、十分钟有效期和允许列表回跳。`/auth/callback` 用刚换到的 token 查登录者自己在 `CONSOLE_ORG` 的成员状态（`lib/github.ts` 的 `getOwnMembership`，`GET /user/memberships/orgs/{org}`），只有 `active` 才签发 `sid`；不是成员或邀请没接受时不建会话、审计 `auth.signin_denied`，GitHub 出错（含 403）、用户取消时也不建会话，都 302 回到原页面并带 `?signin=not_member|invite_pending|failed|cancelled`（`routes/admin/auth.ts` 的 `SigninOutcome`）。换 token 与取 `/user` 的请求 15 秒超时。会话里存的 GitHub 令牌被 GitHub 以 401 拒绝（用户撤销了授权，或同一用户的令牌超过 10 个、最久没用的被收回）时，这个会话就结束：`middleware/http-policy.ts` 的错误处理对带会话的请求删掉会话、清 `sid`，回 401 `session_expired`，审计 `auth.session_rejected`；`/auth/me` 遇到同样情况回 `{ signed_in: false, session_expired: true }`（`middleware/require-auth.ts` 的 `endRejectedSession`，#164）。邀请链接用的是发起人的令牌，`routes/portal/join.ts` 自己处理上游错误，不影响访问者的会话。规则见 [SECURITY](../../architecture/SECURITY.md)「登录门槛」，状态码见 [API](../../architecture/API.md)。
@@ -44,6 +44,7 @@
 - **发信**（#148）：投递成功写「已收到」，控制台把投递改成待面试、已录取、未通过时写对应的一封（可以取消发信勾选，改回已收到不写）。信先写进 `mail_outbox`，同一件事只有一行；服务进程里的发信循环每 15 秒发一遍，阿里云邮件推送在前、Resend 兜底，失败按 1 分钟、5 分钟、30 分钟、2 小时、6 小时重试，第 6 次失败放弃。预发布和正式都发给所有投递人（`MAIL_RECIPIENTS=all`，#169），两家发信商都没配置时不发、记 `mail_disabled`。信到最终状态就清掉收件地址和正文，只留哈希和主题。信里的时间都按北京时间写。细节见 [mail](mail.md)。
 - **数据所有权**：论坛的线上数据（账号资料、话题、帖子、点赞、收藏、关注、通知、头像）归本服务，存在 `data.db`；`app/forum/content` 的两份公开文件只作为只读的种子输入。本服务不读取论坛私有备份或只读投影。
 - **限流**：`@fastify/rate-limit` 以 `global: false` 注册，只管写了 `config.rateLimit` 的路由（官网投递、意见箱、邀请链接、控制台导出 CSV 与指派、论坛按 IP 计的浏览类接口）；超额时都回 429 `{ error: "rate_limited", message: "操作太频繁，请稍后再试", request_id }`。`app.ts` 注册插件时把 `middleware/http-policy.ts` 的 `rateLimited()` 设成默认的 `errorResponseBuilder`，路由不另写；论坛自己数次数的限流（发帖、回复、头像）抛的也是它（#191）。插件把 `errorResponseBuilder` 的返回值当错误抛给错误处理器，错误处理器只认 `statusCode` 与 `code`，所以要返回带这两项的 Error：返回 `{ statusCode, error, message }` 这样的普通对象会被回成 `request_error`。回归测试在 `tests/server/rate-limits.test.ts`。
+- **比赛信息发布**（#238）：`competition-store` 持久化赛事事实，状态按时间计算（含未开始），不新增报名或组队表；匿名 `GET /api/public/competitions` 过滤下线记录。控制台写口校验名称、可解析 HTTPS 链接与时间范围，省略字段保持不变、null 明确清空，按 `competitions.manage` 鉴权，写入与审计同一事务。`competition-contract` 定义请求字段及公开/控制台两种响应 Schema，两个路由模块共同引用。完整字段与五种状态见 [API](../../architecture/API.md)「比赛信息发布合同」。
 - **接口清单与错误语义**见 [API](../../architecture/API.md)，安全边界见 [SECURITY](../../architecture/SECURITY.md)。
 - **工程目录**见[项目目录](../../architecture/catalog/README.md)：真实注册、内存库结构和能力由生成器提取；每个业务操作及补充入口必须关联真实用例。[接口行为契约](endpoint-contracts.md)逐项说明响应、错误、资源范围与副作用。不公开内部目录，不把结构提取当作业务或部署验收。
 

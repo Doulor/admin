@@ -94,6 +94,12 @@ const boundaries: Record<string, PermissionBoundary> = {
     execution: "GET /api/console/audit 检查 audit.read。",
     pages: [{ label: "审计日志", path: "/console/audit" }],
   },
+  "competitions.manage": {
+    reserved: false,
+    scope: "新建、编辑、下线与删除官网「比赛」应用的赛事信息。",
+    execution: "POST、PATCH、DELETE /api/console/competitions[/:competition_id] 检查 competitions.manage 并写审计。",
+    pages: [{ label: "比赛", path: "/console/competitions" }],
+  },
   "roles.manage": {
     reserved: false,
     scope: "管理称号与人员任免。部门的建立、配置、归档和删除只允许组织 owner；舰长任免另有本人/owner 限制。",

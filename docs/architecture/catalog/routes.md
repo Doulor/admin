@@ -2,9 +2,9 @@
 
 > 真实 Fastify 注册的方法、路径、Schema 与源码位置；含根路由、嵌套插件、循环注册及自动 HEAD。
 
-状态：`current` · 更新：2026-10-18 · 自动生成，不手工编辑。
+状态：`current` · 更新：2026-10-19 · 自动生成，不手工编辑。
 
-来源摘要：`4aec8c31d312b5b5a3a6a735dfd1734ecb8617032701b6fada089e940c4a7cff`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`65e0ec52f089ebb9467c1d0441c259912578edb999176462f8a50c027ec849e1`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -24,6 +24,7 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `DELETE /api/admin/:org/repos/:repo/collaborators/:login` | `github` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireOrgRole("admin")` | [app/server/src/routes/admin/repos.ts:366](../../../app/server/src/routes/admin/repos.ts#L366) |
 | `DELETE /api/admin/:org/teams/:slug` | `github` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireOrgRole("admin")` | [app/server/src/routes/admin/teams.ts:42](../../../app/server/src/routes/admin/teams.ts#L42) |
 | `DELETE /api/console/assignments/:id` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/assignments.ts:98](../../../app/server/src/routes/console/assignments.ts#L98) |
+| `DELETE /api/console/competitions/:competition_id` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | `requireAuth` | [app/server/src/routes/console/competitions.ts:76](../../../app/server/src/routes/console/competitions.ts#L76) |
 | `DELETE /api/console/departments/:department_id` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/console/departments.ts:63](../../../app/server/src/routes/console/departments.ts#L63) |
 | `DELETE /api/console/feedback/:id` | `feedback` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("feedback.manage")` | [app/server/src/routes/console/feedback.ts:31](../../../app/server/src/routes/console/feedback.ts#L31) |
 | `DELETE /api/forum/me/avatar` | `forum` | 显式 | `params`、`querystring` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/people.ts:91](../../../app/server/src/routes/forum-api/people.ts#L91) |
@@ -54,6 +55,7 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `GET /api/console/assignments` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/assignments.ts:34](../../../app/server/src/routes/console/assignments.ts#L34) |
 | `GET /api/console/audit` | `audit` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("audit.read")` | [app/server/src/routes/console/audit.ts:29](../../../app/server/src/routes/console/audit.ts#L29) |
 | `GET /api/console/catalogue` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/catalogue.ts:12](../../../app/server/src/routes/console/catalogue.ts#L12) |
+| `GET /api/console/competitions` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/competitions.ts:31](../../../app/server/src/routes/console/competitions.ts#L31) |
 | `GET /api/console/departments` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/departments.ts:30](../../../app/server/src/routes/console/departments.ts#L30) |
 | `GET /api/console/feedback` | `feedback` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("feedback.read")` | [app/server/src/routes/console/feedback.ts:12](../../../app/server/src/routes/console/feedback.ts#L12) |
 | `GET /api/console/me` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/console/me.ts:14](../../../app/server/src/routes/console/me.ts#L14) |
@@ -69,6 +71,7 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `GET /api/forum/topics/:topic_id/posts` | `forum` | 显式 | `params`、`querystring` | 未声明 | `forumViewer(req)` | [app/server/src/routes/forum-api/topics.ts:28](../../../app/server/src/routes/forum-api/topics.ts#L28) |
 | `GET /api/join/:token` | `invitations` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/join.ts:52](../../../app/server/src/routes/portal/join.ts#L52) |
 | `GET /api/me/orgs` | `github` | 显式 | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/admin/orgs.ts:10](../../../app/server/src/routes/admin/orgs.ts#L10) |
+| `GET /api/public/competitions` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competitions.ts:10](../../../app/server/src/routes/portal/competitions.ts#L10) |
 | `GET /api/public/config` | `platform` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/join.ts:47](../../../app/server/src/routes/portal/join.ts#L47) |
 | `GET /api/public/org` | `organization` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/org.ts:11](../../../app/server/src/routes/portal/org.ts#L11) |
 | `GET /auth/callback` | `identity` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:44](../../../app/server/src/routes/admin/auth.ts#L44) |
@@ -100,6 +103,7 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `HEAD /api/console/assignments` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/assignments.ts:34](../../../app/server/src/routes/console/assignments.ts#L34) |
 | `HEAD /api/console/audit` | `audit` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("audit.read")` | [app/server/src/routes/console/audit.ts:29](../../../app/server/src/routes/console/audit.ts#L29) |
 | `HEAD /api/console/catalogue` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/catalogue.ts:12](../../../app/server/src/routes/console/catalogue.ts#L12) |
+| `HEAD /api/console/competitions` | `competitions` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/competitions.ts:31](../../../app/server/src/routes/console/competitions.ts#L31) |
 | `HEAD /api/console/departments` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/departments.ts:30](../../../app/server/src/routes/console/departments.ts#L30) |
 | `HEAD /api/console/feedback` | `feedback` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("feedback.read")` | [app/server/src/routes/console/feedback.ts:12](../../../app/server/src/routes/console/feedback.ts#L12) |
 | `HEAD /api/console/me` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/console/me.ts:14](../../../app/server/src/routes/console/me.ts#L14) |
@@ -113,6 +117,7 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `HEAD /api/forum/state` | `forum` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/topics.ts:22](../../../app/server/src/routes/forum-api/topics.ts#L22) |
 | `HEAD /api/join/:token` | `invitations` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/join.ts:52](../../../app/server/src/routes/portal/join.ts#L52) |
 | `HEAD /api/me/orgs` | `github` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/admin/orgs.ts:10](../../../app/server/src/routes/admin/orgs.ts#L10) |
+| `HEAD /api/public/competitions` | `competitions` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competitions.ts:10](../../../app/server/src/routes/portal/competitions.ts#L10) |
 | `HEAD /api/public/config` | `platform` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/join.ts:47](../../../app/server/src/routes/portal/join.ts#L47) |
 | `HEAD /api/public/org` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/org.ts:11](../../../app/server/src/routes/portal/org.ts#L11) |
 | `HEAD /auth/callback` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:44](../../../app/server/src/routes/admin/auth.ts#L44) |
@@ -124,9 +129,10 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `PATCH /api/admin/:org/org` | `github` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireOrgRole("admin")` | [app/server/src/routes/admin/org.ts:30](../../../app/server/src/routes/admin/org.ts#L30) |
 | `PATCH /api/admin/:org/repos/:repo/issues/:n` | `github` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireOrgRole("member")` | [app/server/src/routes/admin/repos.ts:285](../../../app/server/src/routes/admin/repos.ts#L285) |
 | `PATCH /api/console/applications/:application_id` | `recruitment` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireCapability("applications.review")` | [app/server/src/routes/console/applications.ts:120](../../../app/server/src/routes/console/applications.ts#L120) |
-| `PATCH /api/console/departments/:department_id` | `organization` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth` | [app/server/src/routes/console/departments.ts:47](../../../app/server/src/routes/console/departments.ts#L47) |
+| `PATCH /api/console/competitions/:competition_id` | `competitions` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/competitions.ts:54](../../../app/server/src/routes/console/competitions.ts#L54) |
+| `PATCH /api/console/departments/:department_id` | `organization` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/departments.ts:47](../../../app/server/src/routes/console/departments.ts#L47) |
 | `PATCH /api/console/feedback/:id` | `feedback` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireCapability("feedback.manage")` | [app/server/src/routes/console/feedback.ts:18](../../../app/server/src/routes/console/feedback.ts#L18) |
-| `PATCH /api/console/titles/:title_id` | `organization` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireCapability("roles.manage")` | [app/server/src/routes/console/titles.ts:17](../../../app/server/src/routes/console/titles.ts#L17) |
+| `PATCH /api/console/titles/:title_id` | `organization` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth`、`requireCapability("roles.manage")` | [app/server/src/routes/console/titles.ts:17](../../../app/server/src/routes/console/titles.ts#L17) |
 | `PATCH /api/forum/me/profile` | `forum` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/people.ts:32](../../../app/server/src/routes/forum-api/people.ts#L32) |
 | `PATCH /api/forum/posts/:post_id` | `forum` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/posts.ts:78](../../../app/server/src/routes/forum-api/posts.ts#L78) |
 | `POST /api/admin/:org/create-repo` | `github` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireOrgRole("admin")` | [app/server/src/routes/admin/repos.ts:317](../../../app/server/src/routes/admin/repos.ts#L317) |
@@ -134,7 +140,8 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `POST /api/admin/:org/repos/:repo/issues/:n/comments` | `github` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireOrgRole("member")` | [app/server/src/routes/admin/repos.ts:301](../../../app/server/src/routes/admin/repos.ts#L301) |
 | `POST /api/admin/:org/teams` | `github` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireOrgRole("admin")` | [app/server/src/routes/admin/teams.ts:28](../../../app/server/src/routes/admin/teams.ts#L28) |
 | `POST /api/console/assignments` | `organization` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/assignments.ts:52](../../../app/server/src/routes/console/assignments.ts#L52) |
-| `POST /api/console/departments` | `organization` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth` | [app/server/src/routes/console/departments.ts:37](../../../app/server/src/routes/console/departments.ts#L37) |
+| `POST /api/console/competitions` | `competitions` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/competitions.ts:36](../../../app/server/src/routes/console/competitions.ts#L36) |
+| `POST /api/console/departments` | `organization` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/departments.ts:37](../../../app/server/src/routes/console/departments.ts#L37) |
 | `POST /api/feedback` | `feedback` | 显式 | `params`、`querystring`、`body` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/feedback.ts:26](../../../app/server/src/routes/portal/feedback.ts#L26) |
 | `POST /api/forum/notifications/:notification_id/read` | `forum` | 显式 | `params`、`querystring` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/people.ts:20](../../../app/server/src/routes/forum-api/people.ts#L20) |
 | `POST /api/forum/notifications/read-all` | `forum` | 显式 | `params`、`querystring` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/people.ts:26](../../../app/server/src/routes/forum-api/people.ts#L26) |
