@@ -115,6 +115,7 @@
 |---|---|---|
 | [`CONSOLE-PERMISSION-TREE.md`](./plan/CONSOLE-PERMISSION-TREE.md) | #176 的离线参考与接入计划已落实为控制台只读页签；当前契约迁回 console 服务文档。本记录是实施结论，不代替人工验收；合并、tag 与部署状态以 issue #176 的追踪记录为准。 | — |
 | [`REFACTOR.md`](./plan/REFACTOR.md) | 历史阶段记录：旧路径、版本、数量和完成声明仅供追溯。 | [EN](./plan/REFACTOR.en.md) |
+| [`UNIFIED-LOGIN.md`](./plan/UNIFIED-LOGIN.md) | #237 的实施规格（未实施）：把 ADR-0005 落到可以直接开工的颗粒度——统一登录页 `/signin`、账号页 `/account` 与控制台的界面状态，三种登录方式的后端流程，全站一套的个人资料（头像、昵称），新表与迁移，要会话的接口在邮箱或 Google 会话下怎么处理，以及各业务要改什么、怎么验收；按四个候选 issue 拆分交付。 | — |
 | [`WEB-SPLIT.md`](./plan/WEB-SPLIT.md) | 历史阶段记录：旧路径、版本、数量和完成声明仅供追溯。 | [EN](./plan/WEB-SPLIT.en.md) |
 
 ## ops/
@@ -139,7 +140,7 @@
 
 ## decisions/
 
-已接受决策及其背景、替代方案、后果和重新评估条件。
+架构决策及待确认方案的背景、替代方案、后果和重新评估条件；以各文档的状态与实施说明为准。
 
 | 文档 | 说明 | EN |
 |---|---|---|
@@ -147,6 +148,7 @@
 | [`0002-tuffex-ui-foundation.md`](./decisions/0002-tuffex-ui-foundation.md) | 记录用户指定的组件体系，并提供有固定版本、可离线检索的开发文档。 | — |
 | [`0003-adopt-tuff-forum.md`](./decisions/0003-adopt-tuff-forum.md) | 用户明确选择使用原仓代码，而不是模仿 UI 或重写一套 React 论坛。 | — |
 | [`0004-forum-backend-in-core-server.md`](./decisions/0004-forum-backend-in-core-server.md) | Tuff Forum 前端（ADR-0003）没有后端；论坛的帖子、账号资料和社区功能由核心服务 `app/server` 提供，存在同一个 `data.db` 里。 | — |
+| [`0005-sso-extend-core-server.md`](./decisions/0005-sso-extend-core-server.md) | 已接受的方案（`accepted`），尚未实施：产品上叫「长江大学极客班统一登录」，GitHub（已有）、Google、邮箱验证码（以后可能有微信）都是绑定在同一个极客班账号（内部 OpenID）上的登录方式，会话、权限和审计都以账号为主语；先在 `app/server` 里建身份表、改会话、改三端的登录界面，不引入成品 IdP 或认证库；对外授权（OIDC）等第一个下游应用出现时接在内部身份之上，内嵌在 `app/server`，不另起授权服务器。头像、昵称等个人资料也归极客班账号，官网、论坛、控制台和比赛用同一份，改一处各端同步（决策 10）。GitHub 组织门槛不动：第一次建号仍要用 GitHub 证明是组织成员。 | — |
 
 ## handovers/
 
@@ -187,4 +189,4 @@
 
 ---
 
-共 65 篇文档（另有 20 篇英文版）。索引按目录分组，组内按文件名排序。
+共 67 篇文档（另有 20 篇英文版）。索引按目录分组，组内按文件名排序。
