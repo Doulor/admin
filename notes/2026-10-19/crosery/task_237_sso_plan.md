@@ -169,3 +169,17 @@
 - 做了什么：UNIFIED-LOGIN.md 资格来源 A 引用的 GitHub 接口 GET /user/{account_id} 参数名与本文的 account_id（极客班 OpenID）同名，写明填 GitHub 身份的 identities.provider_uid；「按业务域」表 competitions 行补 #239 新流程同样只看身份、不调用 GitHub，并指向 PR #243 中 COMPETITION-APP.md 的「与其他业务的协调」
 - 结果：只改方案文档，不改应用代码；pnpm check 见本次提交正文；方案仍 proposed，未合并
 - 下一步：推送后等同 head 检查，更新 #242 正文与 #237 追踪记录；不合并
+
+## 22:05:29 +08:00 · 推送 · #237 · 补记：752c0c64 已快进推送到 PR #242 来源分支，同 head 检查全绿
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：752c0c64（澄清资格来源 A 的 GitHub 参数并链接比赛协调细则）随 5d8b6a9c 快进推送到 fork 的 task/237/sso_plan，未 force push；21:12 在 PR #242 评论 @coderabbitai review 手动触发增量审查；21:14 干净工作区 pnpm check 退出 0（283 份文档、84 条链路、172 个方法路径、27 张表、20 项能力），并逐条核对规格里 34 处 file:line 引用
+- 结果：同 head 检查全绿：CI 39255711653、architecture-alignment 39255711315、pr-contract 39255711468、e2e 39255711580（job 118070739158，43 passed (21.4m)）、Netlify 预览；CodeRabbit 21:21 完成 b44bcb2d..752c0c64 的增量审查，没有可执行意见；PR #242 正文尚未刷新
+- 下一步：PR #243 的 CodeRabbit 意见要求资格模块能查别的账号，先在本分支补上再刷新 #242 正文；不合并
+
+## 22:05:29 +08:00 · 提交 · #237 · 资格模块补充按账号查询别的账号是否成员
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：UNIFIED-LOGIN.md「成员资格（交付 2）」新增「查别的账号」：邀请对象、新队长这类检查也问资格模块的按账号查询，只读已记录的 users.status 与 org_state，两者都是 active 才回 active，其余（包括 unknown）回 not_member，不带会话、不调用 GitHub、不能用来签发或保留会话，交付 2 之前由第一个用到的业务写在共享成员守卫里；统一口径第 4 条指向它；ADR-0005 决策中 org_state、org_checked_at 的复用范围补上这项只读检查。起因是 CodeRabbit 在 PR #243 指出比赛方案直接读这两列并放行 unknown
+- 结果：只改方案文档与记录，不改应用代码；pnpm check 见本次提交正文；方案仍 proposed，未合并
+- 下一步：推送后把 #243 的规格固定链接改到新提交并改目标成员检查，等两边同 head 检查；不合并

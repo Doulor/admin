@@ -215,6 +215,7 @@ flowchart LR
 新模块 `app/server/src/lib/membership.ts`。所有业务都通过它判断「这个账号现在是不是组织 `active` 成员」，**业务模块不自己查 GitHub**。
 
 - 输入账号与会话，输出 `{ state, role }`：`state` 是 `active`、`pending`、`not_member`、`verification_required`、`unavailable` 之一，`role` 是 `admin`、`member` 或空，供称号计算（组织 owner 是提督）。
+- **查别的账号**：邀请对象、新队长这类「对方现在还算不算成员」的检查也问本模块，用按账号查询：只读已记录的 `users.status` 与 `org_state`，两者都是 `active` 才回 `active`，其余（包括 `unknown`）一律回 `not_member`。不带会话、不调用 GitHub，结果只用于这类检查，不能用来签发或保留会话；业务模块不自己读 `org_state` 判断资格。交付 2 之前还没有本模块，第一个用到的业务（#239 的报名组队）把同一条规则写进它的共享成员守卫，交付 2 再搬进来；在那之前 `org_state` 只会是 `active`，这项检查实际只看账号是否启用。
 - **GitHub 会话**：沿用现状，用本次会话的 token 查组织角色（`lib/access.ts`，60 秒缓存）。
 - **第二渠道 · 资格来源 B**：读该账号 GitHub 身份的资格凭据，调 `GET /user/memberships/orgs/{CONSOLE_ORG}`。`200` 且 `active` → `active`，`200` 且 `pending` → `pending`，`404` → `not_member`；`401` → 删除凭据并回 `verification_required`；凭据缺失或过期 → `verification_required`；超时、`403`、`429`、`5xx` → `unavailable`。凭据在每次 GitHub 登录时换新、有效 7 天，普通请求和第二渠道登录都不延长它。
 - **第二渠道 · 资格来源 A**：用只读 GitHub App 的 installation token，先按 GitHub 数字 id 取当前登录名（`GET /user/{account_id}`：这里的 `account_id` 是 GitHub 文档里的参数名，填 GitHub 身份的 `identities.provider_uid`，不是极客班 OpenID），再查 `GET /orgs/{org}/memberships/{username}`，状态映射同上（没有 `verification_required`）。`POST /webhooks/github` 校验 `X-Hub-Signature-256`，收到 `organization` 事件的 `member_removed` 就按 GitHub id 找到账号并立即撤销。
@@ -249,7 +250,7 @@ flowchart LR
 1. **认人用极客班 OpenID（`account_id`）**。新表一律引用 `users(id)`；旧表加可空的 `account_id`，旧列（`github_login`、`github_user_id`、`actor` 等）照写不删，回滚到旧镜像时旧代码照常读旧列。
 2. **不自己接登录**：新业务（包括以后的服务）只用 `/signin` 和 `sid` 会话，要知道「是谁」就读会话的 `account_id`；不自己接 OAuth、不保存渠道账号或令牌、不按 GitHub 登录名或邮箱认人。
 3. **显示用绑定 GitHub 的登录名与头像**，读取时从账号取，业务表不新增名字快照（已有的快照列不动）。
-4. **是不是成员只问资格模块**；拿到 `verification_required`、`unavailable` 时原样回 `403 membership_verification_required`、`503 membership_unavailable`，不自己降级或放行。
+4. **是不是成员只问资格模块**，检查别的账号（邀请对象、新队长）也用它的按账号查询（见[成员资格](#成员资格交付-2)）；拿到 `verification_required`、`unavailable` 时原样回 `403 membership_verification_required`、`503 membership_unavailable`，不自己降级或放行。
 5. **要本人 GitHub 令牌的操作**只在 GitHub 会话里做，否则 `403 github_session_required`；不借用资格凭据，不换组织级凭据。
 6. **审计** `actor` 继续写 GitHub 登录名（论坛靠 `auth.signin` 的 actor 挡游客冒名），新行同时写 `actor_account_id`。
 7. **账号停用、确认移出组织**时撤销该账号全部会话，业务数据保留不删；各业务不需要监听事件，下一次请求自然没有会话。
