@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-19 · 自动生成，不手工编辑。
 
-来源摘要：`c1b8b3270d503ab8913296b4daa3d35cd9c964360f50dec746b3d546d76d2fcb`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`fc27ebbb37a9f31d92f79b2a3d0aa2efcab7dc69921d0b4861c5b306179898cc`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
