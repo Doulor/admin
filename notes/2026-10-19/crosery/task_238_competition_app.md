@@ -114,3 +114,17 @@
 - 做了什么：CodeRabbit 对 36de715a 的增量审查（review 5567583950）提出 2 条意见，核实均成立：① docs/plan/COMPETITION-APP.md 接口说明首句写“门户接口都要求登录”，与表中 GET /api/public/competitions 匿名可读矛盾，改为“除该接口保持匿名可读外”；② competition_signup_settings 团队赛分支的 CHECK 在 team_min/team_max 为 NULL 时结果为 NULL，SQLite 会放行，补 IS NOT NULL
 - 结果：本地 pnpm check 全部通过；只改方案文档，portal.md 未动、无需刷新项目目录；方案保持 proposed，未合并
 - 下一步：推送后在两条审查意见下回复处理结果，等同 head CI 全绿再更新 PR 正文复核结论；不合并
+
+## 14:49:33 +08:00 · 审查 · #238 · PR #243 在 aae1a720 增量复核通过并刷新正文审查结论
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：复核 PR #243 head aae1a720（采纳 CodeRabbit 两条意见：COMPETITION-APP.md 第 157 行写明 GET /api/public/competitions 保持匿名可读的例外，第 262 行团队赛 CHECK 补 team_min、team_max 非空）：干净工作区 pnpm check 14:36:42–14:36:58 退出 0（82 条链路、179 个方法路径、28 张表、21 项能力、69 个文件 87 个节点）；核对 f64bafb0..aae1a720 共 17 个文件 +453/−14，app、tests、scripts、deploy、.github 无 diff；本地 pr-contract（带 --labels-file 与 --issue-state-file）校验新正文后，14:43:17 用 gh pr edit 刷新 #243 的验证段与审查结论
+- 结果：结论：通过。同 head 检查全绿：CI 39210053384、architecture-alignment 39210053327、pr-contract 39210053394、e2e 39210053486（job 117921198315，45 passed (11.5m)，含 competitions 1440px 与 390px）、Netlify 预览；#243 共 10 条审查讨论全部 resolved；改正文后 pr-contract 39211740053 与 architecture-alignment 39211740052 重跑通过。返工与复核是同一执行身份，不算独立审查；方案仍 proposed，未合并
+- 下一步：等所有者确认 COMPETITION-APP.md 的 7 条待确认项；#239 按对齐清单调整后再基于最新 stage 开 PR；本条随下次实质推送归档进分支；不合并
+
+## 20:58:29 +08:00 · 提交 · #238 · 补充比赛报名组队与统一登录等业务的协调细则
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：COMPETITION-APP.md 在「数据库（草图）」后新增「与其他业务的协调」：按 PR #242 统一登录规格（固定在 752c0c64a5c192312383d76777d780c429187e78）写清只用会话 account_id 认人、不用 login 或 GitHub id 兜底、不自己接登录；交付 1 与交付 2 的共享成员守卫与错误码；比赛接口不调用 GitHub；账号事件对报名与队伍的影响和队长失效处理；审计动作与 actor_account_id；不集成的业务；项目地图流程清单、文档同步与 239.json 八维应写内容；实施顺序。错误码补 target_not_member，验证补对应用例，待确认补第 8 条，现状与来源登记 PR #261；并把暂存区的 14:49:33 审查记录归档进本分支
+- 结果：只改方案文档与记录，不改应用代码；pnpm check 见本次提交正文；方案仍 proposed，未合并；未改动 PR #261
+- 下一步：推送后等同 head 检查，更新 #243 正文与 #238、#239 追踪记录；不合并
