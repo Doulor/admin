@@ -100,3 +100,10 @@
 - 做了什么：按所有者2026-10-19反馈，把比赛窗口规划为「赛事/我的参赛」应用：新增docs/plan/COMPETITION-APP.md（结构与呈现、四类身份所见、报名组队与锁定规则、个人状态与统计口径、门户与控制台接口、错误码、四张新表草图、前端落点、验证、与90fc376的13条对齐清单、7条待确认）和5张方案草图；按同日「登录改为极客班统一登录」把参赛者键从GitHub id改为account_id，依赖ADR-0005第1项；plan目录、portal合同和238.json覆盖同步
 - 结果：docs:index、check:docs、check:architecture通过；只改文档与草图，不改运行代码；方案保持proposed，未合并
 - 下一步：推送后等同head检查；所有者确认待确认项后，#239后端按对齐清单调整90fc376
+
+## 14:02:03 +08:00 · 提交 · #238 · 刷新项目目录来源摘要
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：80638cf8 在 docs/services/web/portal.md 加了比赛应用方案链接；portal.md 是项目目录的来源文件，core 的 check:catalog 判定目录过期（run 39206401716）。运行 pnpm catalog:generate，只更新 docs/architecture/catalog 下 6 个文件里的来源摘要和 portal.md 哈希
+- 结果：本地 pnpm check 全部通过（项目目录核对通过：4 应用、179 方法路径、28 表、21 能力；宏观对齐 #238 共 69 个文件、87 个节点）；未改代码与测试
+- 下一步：推送后等 core 与 e2e 变绿，再更新 PR 正文与审查结论；不合并
