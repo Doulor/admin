@@ -107,6 +107,27 @@
 - 结果：追加本记录前Node 22.23.2下pnpm check退出0（19秒；282份文档、84条执行链路、目录来源摘要4aec8c31、#237宏观对齐20文件7节点），10:17的pnpm verify已覆盖全部文档改动；未改运行代码与测试，ADR保持proposed等所有者确认
 - 下一步：推送原PR来源分支后核对同head的CI与Netlify，逐条回复三条CodeRabbit讨论；不合并
 
+## 11:15:56 +08:00 · 推送 · #237 · 推送 ADR-0005 待确认状态与资格时效撤销边界返工
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：在task-237 worktree核对分支task/237/sso_plan、工作区干净、远端仍为c3d7722d且86ba1d5c可快进后，执行git push git@github.com:ZZDR1023/admin-geek.git HEAD:refs/heads/task/237/sso_plan（未force），把86ba1d5cb2d7158cf805ade814f2059593828351推到原PR来源分支
+- 结果：pre-push分支与发布tag规则、task worktree生命周期检查通过；远端c3d7722d..86ba1d5c快进成功，PR #242 head已为86ba1d5c，仍OPEN、MERGEABLE且无自动合并，同head CI已开始重跑。本条按规范暂存在主工作区.claude/notes-pending，不为记录推送再触发CI
+- 下一步：等core与e2e跑完确认同head检查全部变绿；逐条回复三条CodeRabbit讨论，留给所有者或机器人确认；ADR-0005保持proposed，等所有者在#237或本PR留确认记录；不合并
+
+## 11:45:55 +08:00 · PR · #237 · PR #242同head检查全绿，留下CodeRabbit三条意见的返工记录
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：复核PR #242 head 86ba1d5c的同head检查：CI run 39193392459（core、forum、docker、docker-cdn、env-contract、branch-guard、lint-workflows、verify）、architecture-alignment 39193392451、pr-contract 39193392449、e2e 39193392455（job 117870830387）与Netlify预览；用GraphQL查reviewThreads；按TRACKING §3在PR #242发kind=rework stage=review评论，汇总三条CodeRabbit意见的改法与证据（issuecomment-6259181983）
+- 结果：同head 14项检查全部pass，e2e 43 passed (12.0m)；4条审查讨论均已由coderabbitai[bot]标为resolved，推送后无新review或人工意见，CodeRabbit自动审查处于暂停；PR仍OPEN、MERGEABLE、无自动合并。正文审查结论的被审commit仍为e02da730，本次未改正文
+- 下一步：所有者阅读ADR-0005后在#237或本PR留确认或修改意见，有确认记录后再改accepted；是否在86ba1d5c上重新派Standards/Spec审查并刷新正文由所有者决定；不合并
+
+## 12:05:18 +08:00 · 审查 · #237 · PR #242 在 86ba1d5c 增量复核通过并刷新正文审查结论
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：按 code-review 对 e02da730..86ba1d5c 增量复核（c3d7722d 仅执行记录，86ba1d5c 改 12 个文档与生成文件）：逐段读 ADR-0005 diff，核对决策 6 与源码（auth.ts:27 SESSION_TTL_MS 7 天、crypto.ts:5 AES-256-GCM、github.ts:41 memberships、access.ts:13 ORG_ROLE_TTL_MS 60 秒、routes/admin/auth.ts 现有错误语义）；复跑 note check --for-review、check-doc-sync、docs-index --check、check-docs 与分支不变量；本地 pr-contract 校验新正文后 gh pr edit 刷新 #242 的验证段与审查结论
+- 结果：结论：通过，另记 2 条建议（ADR 第 98 行 membership_state 补“第二渠道交付时”；第 46 行补回 lib/access.ts、require-org-role.ts、/auth/me 落点，留实现 issue）；84 条链路、6 组文档同步、282 份文档通过；12:04 改正文后 Issue lifecycle 39197642282（含 pr-contract）与 Architecture alignment 39197642291 均 success。返工与复核同一执行身份，非独立审查；ADR 仍 proposed，未合并
+- 下一步：等所有者在 #237 或本 PR 确认 ADR-0005 后再改 accepted；本条随下次实质推送归档进分支；不合并
+
 ## 13:53:41 +08:00 · 方案 · #237 · 补充GitHub、Google与邮箱验证码登录方式和绑定规则
 
 - 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
@@ -120,3 +141,17 @@
 - 做了什么：CodeRabbit 对 74ca08ad 的增量审查（review 5567606684）提出 2 条意见，按 Google 帮助文档（Manage App Audience、Unverified apps、OAuth App Verification Help Center，2026-10-19 核对）与 ADR 现文核实均成立：① Google 行把「品牌验证前最多 100 名用户并显示未验证提示」写成通用限制，实际只请求 openid email profile 时 Testing 状态也不用登记测试用户、无提示、授权不会 7 天过期，100 名上限只在加其他 scope 或敏感/受限 scope 未验证时出现，品牌验证只管同意屏幕显示名称和 Logo，改写 Google 行、所有者准备项与参考资料；② 邮箱验证码第 4 步同步发信且两路失败回 503，与第 1 步「不论是否绑定都回同样的 202」矛盾，会按状态码与耗时泄露邮箱是否绑定，改为回 202 后由进程内即时队列异步投递、失败只记日志，并在本地验证里加「已绑定/未绑定 × 投递成功/失败」四种组合。顺带采纳审查建议 1：/auth/me 行注明 membership_state 第二渠道交付时再加，与决策 7 一致
 - 结果：本地 pnpm check 全部通过；只改 ADR-0005，ADR 保持 proposed，未合并
 - 下一步：推送后在两条审查意见下回复处理结果，等同 head CI 全绿再更新 PR 正文复核结论；不合并
+
+## 17:23:19 +08:00 · 审查 · #237 · 补记：PR #242 在 b44bcb2d 增量复核通过并刷新正文审查结论
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：复核 b44bcb2d 相对 74ca08ad 的增量：Google 发布状态与验证限制按官方文档改正；邮箱验证码改为响应后异步投递，已绑定与未绑定的响应一致；/auth/me 的 membership_state 注明第二渠道交付时再加。15:01 刷新了 #242 正文的审查结论与 head（当时没有写记录，本条为补记）
+- 结果：增量复核通过；head b44bcb2d671d2bd8cc8b1c548f5eabfad5f3e2b8 的 CI 与 e2e 全部通过，PR 可合并（clean，base stage），按所有者要求保持开放、不合并
+- 下一步：按所有者 2026-10-19 的要求补统一登录实施规格与登录方案草图
+
+## 17:23:19 +08:00 · 提交 · #237 · 补充统一登录实施规格与登录方案草图
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：新增 docs/plan/UNIFIED-LOGIN.md（proposed）：一人一个极客班 OpenID，GitHub、邮箱验证码、Google 都绑定在它名下，整个服务共用一套登录与 sid 会话；写明现状、交付总览、6 张方案草图（docs/assets/unified-login/）、登录事务与回跳、step-up、绑定解绑、邮箱验证码、Google、成员资格、41 条要本人 GitHub 令牌的接口、各业务域对齐表与账号事件表、接口与错误码、审计、数据库 DDL、回填、核对 SQL 与回滚、代码落点、验收、3 个候选 issue 和 8 条待确认。ADR-0005 背景补所有者原话，失败去向与绑定路由同步后指向规格；docs/plan/README.md 与 docs/INDEX.md 登记；docs/changes/237.json 改为 ui-only（docs-only 不允许 webp 素材）并补领域与覆盖
+- 结果：没有改 app/ 代码，没有建 issue，没有合并；docs、doc-sync、catalog、architecture 检查通过，完整 pnpm check 在提交前重跑
+- 下一步：快进推送 task/237/sso_plan，等 CI；更新 #242 正文的变更范围、草图与审查结论；在 #237 留追踪评论

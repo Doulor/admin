@@ -115,6 +115,7 @@
 |---|---|---|
 | [`CONSOLE-PERMISSION-TREE.md`](./plan/CONSOLE-PERMISSION-TREE.md) | #176 的离线参考与接入计划已落实为控制台只读页签；当前契约迁回 console 服务文档。本记录是实施结论，不代替人工验收；合并、tag 与部署状态以 issue #176 的追踪记录为准。 | — |
 | [`REFACTOR.md`](./plan/REFACTOR.md) | 历史阶段记录：旧路径、版本、数量和完成声明仅供追溯。 | [EN](./plan/REFACTOR.en.md) |
+| [`UNIFIED-LOGIN.md`](./plan/UNIFIED-LOGIN.md) | #237 的实施规格（未实施）：把 ADR-0005 落到可以直接开工的颗粒度——统一登录页 `/signin`、账号页 `/account` 与控制台的界面状态，三种登录方式的后端流程，新表与迁移，要会话的接口在邮箱或 Google 会话下怎么处理，以及各业务要改什么、怎么验收；按三个候选 issue 拆分交付。 | — |
 | [`WEB-SPLIT.md`](./plan/WEB-SPLIT.md) | 历史阶段记录：旧路径、版本、数量和完成声明仅供追溯。 | [EN](./plan/WEB-SPLIT.en.md) |
 
 ## ops/
@@ -188,4 +189,4 @@
 
 ---
 
-共 66 篇文档（另有 20 篇英文版）。索引按目录分组，组内按文件名排序。
+共 67 篇文档（另有 20 篇英文版）。索引按目录分组，组内按文件名排序。

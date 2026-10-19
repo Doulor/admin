@@ -13,6 +13,8 @@
 
 2026-10-19 的会话原话：「我们的登录不再是github登录了，是长江大学极客班统一登录的，我们自己的oauth登录，然后用sso登录可以通过其他的登录去绑定我们的登录，你看看能不能支持谷歌登录，还有github登录以及邮箱认证登录」。可行性与设计见下文「登录方式：GitHub、Google 与邮箱验证码」。
 
+同日补充：「还有我们登录sso无论哪个渠道的登录，邮箱登录，还有谷歌登录，还是github登录，都统一一个openid的唯一身份信息，然后对应每个账号绑定了对应不同渠道的信息，还有我们的sso登录是对应我们的整个服务的，我们的所有的登录都是统一的」。决策 2、5、7 就是这句话的落地：一个极客班账号（内部 OpenID）挂多个渠道身份，官网、论坛、控制台和以后的业务共用一个会话；落到接口、表和各业务上的写法见 [UNIFIED-LOGIN](../plan/UNIFIED-LOGIN.md)。
+
 所以本方案同时回答三件事：数据库里身份怎么存，后端怎么签发会话、以后怎么对外授权，三端界面怎么改。
 
 **现在的事实**（来自 2026-10-18 的 `origin/stage`，不是规划）：
@@ -97,12 +99,12 @@ A 和 C 不是二选一，是先后：A 需要稳定的内部用户与独立的 
 | 方法与路径 | 会话、入参与结果 | 前端处理 |
 |---|---|---|
 | `GET /auth/providers` | 匿名；只返回已启用渠道的 `id`、`name`、本站登录路径及 `can_register`，不下发 client secret；统一账号阶段只有 GitHub，多渠道交付再加 `google` 与 `email`（`email` 没有跳转地址，登录页显示邮箱表单） | 统一登录页读取，加载/失败/无可用渠道分别显示；失败不退回写死的渠道入口 |
-| `GET /auth/github`、`GET /auth/callback` | 保留现有入口；校验 state、cookie、有效期与 return_to；组织 active 才落身份和会话；失败不留下半个账号 | 保留原页面与 `not_member`、`invite_pending`、`cancelled`、`failed` 的引导；尚未入组继续投递/接受邀请，没有开放注册按钮 |
+| `GET /auth/github`、`GET /auth/callback` | 保留现有入口；校验 state、cookie、有效期与 return_to；组织 active 才落身份和会话；失败不留下半个账号 | 失败改回统一登录页 `/signin?signin=<原因>&return_to=…`（现状是回原页面，待所有者确认），保留 `not_member`、`invite_pending`、`cancelled`、`failed` 的引导；尚未入组继续投递/接受邀请，没有开放注册按钮 |
 | `GET /auth/google`、`GET /auth/google/callback`、`POST /auth/email/start`、`POST /auth/email/verify` | 多渠道交付；匿名；只命中已绑定账号，资格校验同决策 6；细节见「登录方式」一节 | 统一登录页按 `/auth/providers` 显示；未绑定时提示先用 GitHub 登录再绑定；邮箱表单不提示邮箱是否注册 |
 | `GET /auth/me` | 未登录维持 `{ signed_in: false }`；已登录保留 `login/user_id/avatar_url/console_link`，新增内部 `account_id` 与本次 `provider`，第二渠道交付时再加 `membership_state`；`user_id` 仍是 GitHub uid，不能偷换语义。资格暂不可核验时保留有效登录，只返回 `verification_required` 或 `unavailable` 状态且 `console_link: false`；已确认退出组织并撤销会话时返回未登录 | 三端继续兼容旧字段；内部业务使用 `account_id`；资格需刷新进入 GitHub 认证，上游失败显示重试，受保护接口仍按决策 6 拒绝；展示登录名和头像不充当授权依据 |
 | `POST /auth/signout` | 有 Origin/Fetch Metadata 检查；撤销当前 `sid`，清 host-only cookie；不等于撤销 GitHub 授权或所有下游会话 | 返回原端退出态，清缓存身份；其他端的下一次请求同步失效 |
 | `GET /api/identity/me` | 有效会话；只返回本人渠道与是否可解绑，不含上游 token、微信 unionid 或他人关联 | `/account` 展示绑定状态；不要求持有控制台业务能力 |
-| `POST /api/identity/link`、`POST /api/identity/unlink` | 有效会话、近期重新认证、Origin 和限流；绑定使用与当前账号及操作绑定的一次性 state；成功重新读取本人信息；冲突 409。仅 step-up 证明缺失或过期返回 `403 step_up_required`，不撤销仍有效的 sid；`401` 只用于主会话无效 | 保留正在操作的渠道与当前登录，引导重新认证后再提交；解绑最后一个 GitHub 身份时引导先恢复资格刷新方式 |
+| `POST /api/identity/link`、`POST /api/identity/unlink`（邮箱的绑定另走 `POST /api/identity/email/start`、`/verify`） | 有效会话、近期重新认证、Origin 和限流；绑定使用与当前账号及操作绑定的一次性 state；成功重新读取本人信息；冲突 409。仅 step-up 证明缺失或过期返回 `403 step_up_required`，不撤销仍有效的 sid；`401` 只用于主会话无效 | 保留正在操作的渠道与当前登录，引导重新认证后再提交；解绑最后一个 GitHub 身份时引导先恢复资格刷新方式 |
 | `POST /api/identity/merge` | 两个账号分别重认证且用户明确确认；事务迁移可合并关联，冲突、既有下游主体或不能自动合并的记录回 409；不凭邮箱自动合并 | 先展示影响再确认；无法自动合并时保留两个账号，不显示成功 |
 | `GET /oauth/authorize`、`POST /oauth/token`、`GET /oauth/userinfo`、`GET /.well-known/openid-configuration` | 后续 OIDC 模块；token/userinfo 使用协议凭据，不复用控制台能力或 GitHub token；discovery、JWKS、撤销与登出契约一并交付 | 独立下游登录与同意/拒绝流程，不能用三端同源 `sid` 测试冒充跨应用验收 |
 
@@ -137,7 +139,7 @@ Google 登录：
 邮箱验证码登录：
 
 1. `POST /auth/email/start { email, return_to }`：规范化邮箱；同一邮箱 60 秒内不重发，按邮箱每小时 5 次、按 IP 每小时 20 次限流。只有邮箱已绑定且账号可用时才生成验证码并发信；不论是否绑定都回同样的 `202 { resend_after: 60 }`，用短期 HttpOnly cookie 绑定这次挑战——不泄露邮箱是否注册，也不向未绑定的地址发信。
-2. 验证码 6 位、10 分钟有效、库里只存带服务端密钥的 HMAC、最多试 5 次，成功即作废；重新获取会让旧码失效。挑战存在新表 `email_challenges`（随机 id、用途 `signin` / `link`、规范化邮箱、账号、`code_hmac`、尝试次数、创建、过期与使用时间），过期行定期清理。
+2. 验证码 6 位、10 分钟有效、库里只存带服务端密钥的 HMAC、最多试 5 次，成功即作废；重新获取会让旧码失效。挑战存在新表 `email_challenges`（随机 id、用途 `signin` / `link`、规范化邮箱的 HMAC（绑定挑战另存地址原文）、账号、`code_hmac`、尝试次数、创建、过期与使用时间），过期行定期清理。
 3. `POST /auth/email/verify { code }`：凭 cookie 找挑战；成功 → 资格校验 → 建会话。验证码不对回 `400 invalid_code`；过期或次数用尽回 `400 code_expired`，要求重新获取。
 4. 发送走即时通道，但请求不等发信：`start` 做完规范化、限流和建挑战就回 202；邮箱已绑定时把发信交给进程内即时队列，响应之后马上投递（阿里云邮件推送在前，失败马上改走 Resend），不进 `mail_outbox`。已绑定或未绑定、投递成功或失败，`start` 的状态码和响应体都相同，响应也不因发信变慢；两路都失败只记日志，不改变响应，用户 60 秒后可重新获取。邮件正文只有验证码、有效期和「不是本人操作请忽略」，不放登录链接（邮箱的安全扫描会预先打开链接，也便于钓鱼仿冒）。
 5. 绑定邮箱：`POST /api/identity/email/start`、`POST /api/identity/email/verify`，要求已登录、近期重新认证、Origin 检查；成功写 `identities` 与 `identity_audit`，可同步为 `users.canonical_email`，仍不作主体。
@@ -183,7 +185,7 @@ Google 登录：
 | 2 | 多渠道登录与账号管理 | 新渠道要接到同一账号且不能误绑；首批 Google 与邮箱验证码，完成绑定、解绑、冲突处理、决策 6 的资格来源、实时准入与撤销、以及 `/account` | 绑定后第二渠道回原账号；未绑定、pending、移出组织后新登录均拒绝；已有会话资格缓存的 60 秒边界、过期/重启/上游失败、7 天凭据清理（资格来源选 B）或 webhook 即时撤销（选 A）、撤销与并发旧结果逐项回归；Google 与邮箱各自的登录、绑定、冲突和失败路径通过；禁止解绑最后一个 GitHub；资格刷新和 step-up 的 403 不误退出，主会话无效才按 401 退出 | 1；Google 客户端、隐私政策与域名验证；邮件即时发送通道；资格来源的决定 |
 | 3 | 应用授权登录 | 独立应用不能使用同源 `sid`；以 OIDC 连接内部身份、客户端登记、同意页和稳定 `sub` 映射 | 至少一个独立 origin 的受控下游完整登录；拒绝、错回调、重放、PKCE 错误与撤销用例通过；密钥轮换不变 `sub`；所宣称的登出范围经过实际验证 | 1；首个下游与 scope 已确定；依赖准入另行确认 |
 
-每项都是数据库、接口、UI、迁移与验证同行的业务交付，不再按三层拆 issue。每个新事项仍需所有者确认；本次只修订现有 #237 的方案。迁移演练、带模拟上游的本地 API、PR 样板预览、真实 OAuth 往返、所有者验收分开记录。
+第 1、2 项落到字段、错误码、表、文件与测试的实施规格见 [`plan/UNIFIED-LOGIN.md`](../plan/UNIFIED-LOGIN.md)（同为 `proposed`，含方案草图与三个候选 issue）；它建议把第 2 项拆成「邮箱验证码、账号页与成员资格」和「Google 登录」两个候选，待所有者确认。每项都是数据库、接口、UI、迁移与验证同行的业务交付，不再按三层拆 issue。每个新事项仍需所有者确认；本次只修订现有 #237 的方案。迁移演练、带模拟上游的本地 API、PR 样板预览、真实 OAuth 往返、所有者验收分开记录。
 
 ## 对外授权的立项条件与重新评估
 

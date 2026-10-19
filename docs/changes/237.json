@@ -1,12 +1,17 @@
 {
   "version": 1,
   "issue": 237,
-  "kind": "docs-only",
-  "summary": "把统一登录及后续应用授权按完整业务能力对齐到身份模型、后端合同、前端表现与验收条件。",
+  "kind": "ui-only",
+  "summary": "把统一登录及后续应用授权按完整业务能力对齐到身份模型、后端合同、前端表现与验收条件，并补充可直接开工的实施规格与登录方案草图。",
   "applications": [],
   "domains": [
     "identity",
     "organization",
+    "forum",
+    "github",
+    "invitations",
+    "feedback",
+    "mail",
     "audit",
     "platform"
   ],
@@ -19,32 +24,36 @@
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "将统一账号与登录、渠道管理、应用授权组织为三项端到端业务交付；这次仅修订待确认方案，不把内部迁移步骤单独报完成。",
+      "reason": "将统一账号与登录、渠道管理、应用授权组织为三项端到端业务交付；实施规格把前两项写到可开工的颗粒度并拆成三个候选 issue，逐个业务域写明改什么、不改什么与回归；仍是待确认方案，不把内部迁移步骤单独报完成。",
       "evidence": [
-        "docs/decisions/0005-sso-extend-core-server.md"
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/plan/UNIFIED-LOGIN.md"
       ]
     },
     "backend": {
       "status": "unchanged",
-      "reason": "现有 GitHub 回调、sid 和 /auth/me 实现未改动；新增 providers、identity 和 OAuth/OIDC 路径均在 proposed ADR 中明确为待实施合同。",
+      "reason": "现有 GitHub 回调、sid 和 /auth/me 实现未改动；providers、邮箱验证码、Google、账号页接口与 github_session_required 守卫只在 proposed ADR 和实施规格里写成待实施合同。",
       "evidence": [
         "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/plan/UNIFIED-LOGIN.md",
         "app/server/src/routes/admin/auth.ts"
       ]
     },
     "permissions": {
       "status": "unchanged",
-      "reason": "运行时 CONSOLE_ORG active 门槛与用户 GitHub token 权力上限保持；待实施方案明确第二渠道新登录实时核验、已有会话60秒资格缓存、失败拒绝、撤销及并发版本检查，并保留最后一个GitHub身份；本 PR 未修改授权执行点。",
+      "reason": "运行时 CONSOLE_ORG active 门槛与用户 GitHub token 权力上限保持；方案写明第二渠道新登录实时核验、已有会话60秒资格缓存、失败拒绝、撤销与并发版本检查，并按项目地图列出41条只能用本人 GitHub 令牌的流程；本 PR 未修改授权执行点。",
       "evidence": [
         "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/plan/UNIFIED-LOGIN.md",
         "docs/architecture/SECURITY.md"
       ]
     },
     "data": {
       "status": "unchanged",
-      "reason": "没有执行建表或回填；users、identities、内部账号外键、限期加密资格凭据与资格版本、oauth_subjects 都是规划。文档明确凭据7天保留和清理、撤销事务、迁移顺序、账号合并限制及sub稳定约束。",
+      "reason": "没有执行建表或回填；users、identities、identity_audit、email_challenges、identity_credentials 与已有表加列都是规划。实施规格给出 DDL、可重跑的回填、迁移前后核对 SQL 与回滚边界，凭据7天保留与撤销事务不变。",
       "evidence": [
         "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/plan/UNIFIED-LOGIN.md",
         "docs/services/server/data-model.md"
       ]
     },
@@ -58,18 +67,20 @@
     },
     "documentation": {
       "status": "changed",
-      "reason": "ADR、导航和索引统一描述业务能力、数据库/接口/前端矩阵、兼容迁移与未实施状态；纠正将待确认ADR归为已接受的目录说明，不把计划写进当前运行目录。",
+      "reason": "ADR、实施规格、方案草图、plan 导航和索引统一描述业务能力、数据库/接口/前端矩阵、兼容迁移与未实施状态；草图标明是静态渲染的方案图而非实现截图，不把计划写进当前运行目录。",
       "evidence": [
         "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/plan/UNIFIED-LOGIN.md",
+        "docs/plan/README.md",
         "docs/README.md"
       ]
     },
     "verification": {
       "status": "unchanged",
-      "reason": "运行既有文档、目录、宏观对齐与完整验证；业务代码未改，无新行为测试可执行，真实 OAuth 与方案实施验收仍未发生。",
+      "reason": "运行既有文档、目录、宏观对齐与完整验证；草图由静态 HTML 渲染并人工核对文案与接口一致；业务代码未改，无新行为测试可执行，真实 OAuth 与方案实施验收仍未发生。",
       "evidence": [
         "docs/conventions/TESTING.md",
-        "docs/decisions/0005-sso-extend-core-server.md"
+        "docs/plan/UNIFIED-LOGIN.md"
       ]
     },
     "delivery": {
@@ -109,16 +120,52 @@
         "table:sessions"
       ],
       "reason": "用现有全站会话事实说明未来统一账号及对外授权设计，更新方案导航与派生索引；DOCUMENTATION.md 属于项目目录来源，按 pnpm catalog:generate 只重建目录来源摘要，不修改运行代码。"
+    },
+    {
+      "paths": [
+        "docs/plan/UNIFIED-LOGIN.md",
+        "docs/plan/README.md",
+        "docs/assets/unified-login/"
+      ],
+      "domains": [
+        "identity",
+        "organization",
+        "forum",
+        "github",
+        "invitations",
+        "feedback",
+        "mail",
+        "audit",
+        "platform"
+      ],
+      "nodes": [
+        "domain:identity",
+        "domain:organization",
+        "domain:forum",
+        "domain:github",
+        "domain:invitations",
+        "domain:feedback",
+        "domain:mail",
+        "table:sessions",
+        "table:role_assignments",
+        "table:forum_users",
+        "table:audit_logs",
+        "flow:identity.callback",
+        "flow:identity.current"
+      ],
+      "reason": "把 ADR-0005 展开成可开工的实施规格：登录页、账号页与控制台说明页的方案草图（静态渲染、数据虚构），接口与错误码，新表 DDL 与回填，要本人 GitHub 令牌的接口守卫，以及称号、论坛、邀请、意见箱、发信、审计各域的对齐与验收；不改任何运行代码。"
     }
   ],
   "documents": [
     "docs/decisions/0005-sso-extend-core-server.md",
     "docs/decisions/README.md",
     "docs/conventions/DOCUMENTATION.md",
-    "docs/README.md"
+    "docs/README.md",
+    "docs/plan/UNIFIED-LOGIN.md",
+    "docs/plan/README.md"
   ],
   "tests": [],
   "compatibility": "所有现有接口、cookie、数据库和三端行为不变；未来 /auth/me 保留 GitHub user_id 的原语义，只计划新增 account_id、provider，以及第二渠道交付的 membership_state。",
   "migration": "本次不迁移数据；ADR 规定内部身份迁移的兼容回填、双写和切读步骤，并禁止把未实施的表登记为现状。",
-  "rollback": "回滚此方案文档、导航和影响声明即可，不需要回滚数据、凭据、镜像或任何已发布环境。"
+  "rollback": "回滚此方案文档、实施规格与草图、导航和影响声明即可，不需要回滚数据、凭据、镜像或任何已发布环境。"
 }
