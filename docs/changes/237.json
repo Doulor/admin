@@ -34,7 +34,7 @@
     },
     "permissions": {
       "status": "unchanged",
-      "reason": "当前 CONSOLE_ORG active 门槛与用户 GitHub token 权力上限保持；方案补充最后一个 GitHub 身份不可解绑和双重认证，但本 PR 未修改授权执行点。",
+      "reason": "运行时 CONSOLE_ORG active 门槛与用户 GitHub token 权力上限保持；待实施方案明确第二渠道新登录实时核验、已有会话60秒资格缓存、失败拒绝、撤销及并发版本检查，并保留最后一个GitHub身份；本 PR 未修改授权执行点。",
       "evidence": [
         "docs/decisions/0005-sso-extend-core-server.md",
         "docs/architecture/SECURITY.md"
@@ -42,7 +42,7 @@
     },
     "data": {
       "status": "unchanged",
-      "reason": "没有执行建表或回填；users、identities、内部账号外键和 oauth_subjects 都是规划，文档明确迁移顺序、账号合并限制及 sub 稳定约束。",
+      "reason": "没有执行建表或回填；users、identities、内部账号外键、限期加密资格凭据与资格版本、oauth_subjects 都是规划。文档明确凭据7天保留和清理、撤销事务、迁移顺序、账号合并限制及sub稳定约束。",
       "evidence": [
         "docs/decisions/0005-sso-extend-core-server.md",
         "docs/services/server/data-model.md"
@@ -58,7 +58,7 @@
     },
     "documentation": {
       "status": "changed",
-      "reason": "ADR、导航和索引统一描述业务能力、数据库/接口/前端矩阵、兼容迁移与未实施状态；不把计划写进当前运行目录。",
+      "reason": "ADR、导航和索引统一描述业务能力、数据库/接口/前端矩阵、兼容迁移与未实施状态；纠正将待确认ADR归为已接受的目录说明，不把计划写进当前运行目录。",
       "evidence": [
         "docs/decisions/0005-sso-extend-core-server.md",
         "docs/README.md"
@@ -85,8 +85,16 @@
     {
       "paths": [
         "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/decisions/README.md",
+        "docs/conventions/DOCUMENTATION.md",
         "docs/README.md",
-        "docs/INDEX.md"
+        "docs/INDEX.md",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
       ],
       "domains": [
         "identity",
@@ -100,15 +108,17 @@
         "flow:identity.callback",
         "table:sessions"
       ],
-      "reason": "用现有全站会话事实说明未来统一账号及对外授权设计，更新方案导航与派生索引，不修改运行代码。"
+      "reason": "用现有全站会话事实说明未来统一账号及对外授权设计，更新方案导航与派生索引；DOCUMENTATION.md 属于项目目录来源，按 pnpm catalog:generate 只重建目录来源摘要，不修改运行代码。"
     }
   ],
   "documents": [
     "docs/decisions/0005-sso-extend-core-server.md",
+    "docs/decisions/README.md",
+    "docs/conventions/DOCUMENTATION.md",
     "docs/README.md"
   ],
   "tests": [],
-  "compatibility": "所有现有接口、cookie、数据库和三端行为不变；未来 /auth/me 保留 GitHub user_id 的原语义，只计划新增 account_id 与 provider。",
+  "compatibility": "所有现有接口、cookie、数据库和三端行为不变；未来 /auth/me 保留 GitHub user_id 的原语义，只计划新增 account_id、provider，以及第二渠道交付的 membership_state。",
   "migration": "本次不迁移数据；ADR 规定内部身份迁移的兼容回填、双写和切读步骤，并禁止把未实施的表登记为现状。",
   "rollback": "回滚此方案文档、导航和影响声明即可，不需要回滚数据、凭据、镜像或任何已发布环境。"
 }

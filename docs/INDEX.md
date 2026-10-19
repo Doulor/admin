@@ -139,7 +139,7 @@
 
 ## decisions/
 
-已接受决策及其背景、替代方案、后果和重新评估条件。
+架构决策及待确认方案的背景、替代方案、后果和重新评估条件；以各文档的状态与实施说明为准。
 
 | 文档 | 说明 | EN |
 |---|---|---|
@@ -147,7 +147,7 @@
 | [`0002-tuffex-ui-foundation.md`](./decisions/0002-tuffex-ui-foundation.md) | 记录用户指定的组件体系，并提供有固定版本、可离线检索的开发文档。 | — |
 | [`0003-adopt-tuff-forum.md`](./decisions/0003-adopt-tuff-forum.md) | 用户明确选择使用原仓代码，而不是模仿 UI 或重写一套 React 论坛。 | — |
 | [`0004-forum-backend-in-core-server.md`](./decisions/0004-forum-backend-in-core-server.md) | Tuff Forum 前端（ADR-0003）没有后端；论坛的帖子、账号资料和社区功能由核心服务 `app/server` 提供，存在同一个 `data.db` 里。 | — |
-| [`0005-sso-extend-core-server.md`](./decisions/0005-sso-extend-core-server.md) | 多个渠道（现在只有 GitHub，之后有微信等）登录后落到同一个内部 OpenID，会话、权限和审计都以它为主语；先在 `app/server` 里建身份表、改会话、改三端的登录界面，不引入成品 IdP 或认证库；对外授权（OIDC）等第一个下游应用出现时接在内部身份之上，内嵌在 `app/server`，不另起授权服务器。GitHub 组织门槛不动。 | — |
+| [`0005-sso-extend-core-server.md`](./decisions/0005-sso-extend-core-server.md) | 待确认方案（`proposed`），尚未实施：多个渠道（现在只有 GitHub，之后有微信等）登录后落到同一个内部 OpenID，会话、权限和审计都以它为主语；先在 `app/server` 里建身份表、改会话、改三端的登录界面，不引入成品 IdP 或认证库；对外授权（OIDC）等第一个下游应用出现时接在内部身份之上，内嵌在 `app/server`，不另起授权服务器。GitHub 组织门槛不动。 | — |
 
 ## handovers/
 

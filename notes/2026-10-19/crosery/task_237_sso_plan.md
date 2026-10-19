@@ -80,3 +80,29 @@
 - 执行者：agent-codex-geek-followup（Codex，PR 持续跟进）
 - 做了什么：仅提交已发生的对外跟进记录，不修改业务源码、测试或方案
 - 结果：业务与方案代码保持e02da73；当前记录格式已核对，提交后继续由现有跟进核对最新head检查，不合并
+
+## 05:13:04 +08:00 · 推送 · #237 · 最终记录提交已推送，继续等待同head检查
+
+- 执行者：agent-codex-geek-followup（Codex，PR 持续跟进）
+- 做了什么：已将c3d7722dd2c879de1bc73c7e2cf6829d9ed681ea快进推送至原PR来源分支；只追加最终跟进记录，未改业务源码
+- 结果：pre-push与worktree生命周期通过；保持PR开放且无自动合并。最后对外操作记录按规范放暂存区，随下次实质推进归档，不为记录本次推送循环触发新CI。
+
+## 05:27:10 +08:00 · 方案 · #237 · 补齐未关闭的 SSO 资格与文档状态审查意见
+
+- 执行者：agent-codex-geek-followup（Codex，PR 持续跟进）
+- 做了什么：实时核对PR #242的c3d7722、4条审查讨论及现行SECURITY和getOwnMembership；确认索引把proposed列为已接受、组织快照时效与新登录撤销未定义。计划只修订ADR和相应文档导航、影响声明，不修改runtime。
+- 结果：PR #242仍OPEN；此前0未决审查记录遗漏这两项，将追加更正。已按工具归档本task的暂存推送记录，保留其他task和验收实例。
+
+## 10:20:04 +08:00 · 返工 · #237 · 接手补齐 CodeRabbit 未决意见：方案状态与第二渠道资格时效
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：接手Codex 05:27未提交修订并逐项核对源码事实：ADR、索引与目录说明区分proposed；决策6定第二渠道新登录实时核验active、已有会话最多复用60秒资格结果、7天加密资格凭据清理、403/503/401分流及撤销版本检查；补齐决策7与影响声明的membership_state；DOCUMENTATION.md属目录来源，按catalog:generate重建来源摘要并纳入237.json覆盖
+- 结果：pnpm verify退出0（148秒；核心79文件1229条、论坛30文件548条、61路由生成）；check:architecture 20文件7节点、check:catalog、check-docs 282份通过。未改运行代码，ADR仍为proposed等所有者确认
+- 下一步：推送task/237/sso_plan后核对同head CI与Netlify，回复三条CodeRabbit讨论；不合并
+
+## 10:55:30 +08:00 · 提交 · #237 · 明确 ADR-0005 待确认状态并补齐第二渠道资格时效与撤销边界
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：提交10:20返工的文档修订：ADR-0005摘要、决策索引与目录说明标明proposed待确认；决策6定第二渠道新登录实时核验active、已有会话最多复用60秒资格结果、7天加密资格凭据清理、403/503/401分流与撤销版本检查；决策7补membership_state；按catalog:generate重建来源摘要，237.json补覆盖路径
+- 结果：追加本记录前Node 22.23.2下pnpm check退出0（19秒；282份文档、84条执行链路、目录来源摘要4aec8c31、#237宏观对齐20文件7节点），10:17的pnpm verify已覆盖全部文档改动；未改运行代码与测试，ADR保持proposed等所有者确认
+- 下一步：推送原PR来源分支后核对同head的CI与Netlify，逐条回复三条CodeRabbit讨论；不合并
