@@ -99,7 +99,7 @@ A 和 C 不是二选一，是先后：A 需要稳定的内部用户与独立的 
 | `GET /auth/providers` | 匿名；只返回已启用渠道的 `id`、`name`、本站登录路径及 `can_register`，不下发 client secret；统一账号阶段只有 GitHub，多渠道交付再加 `google` 与 `email`（`email` 没有跳转地址，登录页显示邮箱表单） | 统一登录页读取，加载/失败/无可用渠道分别显示；失败不退回写死的渠道入口 |
 | `GET /auth/github`、`GET /auth/callback` | 保留现有入口；校验 state、cookie、有效期与 return_to；组织 active 才落身份和会话；失败不留下半个账号 | 保留原页面与 `not_member`、`invite_pending`、`cancelled`、`failed` 的引导；尚未入组继续投递/接受邀请，没有开放注册按钮 |
 | `GET /auth/google`、`GET /auth/google/callback`、`POST /auth/email/start`、`POST /auth/email/verify` | 多渠道交付；匿名；只命中已绑定账号，资格校验同决策 6；细节见「登录方式」一节 | 统一登录页按 `/auth/providers` 显示；未绑定时提示先用 GitHub 登录再绑定；邮箱表单不提示邮箱是否注册 |
-| `GET /auth/me` | 未登录维持 `{ signed_in: false }`；已登录保留 `login/user_id/avatar_url/console_link`，新增内部 `account_id`、本次 `provider` 与 `membership_state`；`user_id` 仍是 GitHub uid，不能偷换语义。资格暂不可核验时保留有效登录，只返回 `verification_required` 或 `unavailable` 状态且 `console_link: false`；已确认退出组织并撤销会话时返回未登录 | 三端继续兼容旧字段；内部业务使用 `account_id`；资格需刷新进入 GitHub 认证，上游失败显示重试，受保护接口仍按决策 6 拒绝；展示登录名和头像不充当授权依据 |
+| `GET /auth/me` | 未登录维持 `{ signed_in: false }`；已登录保留 `login/user_id/avatar_url/console_link`，新增内部 `account_id` 与本次 `provider`，第二渠道交付时再加 `membership_state`；`user_id` 仍是 GitHub uid，不能偷换语义。资格暂不可核验时保留有效登录，只返回 `verification_required` 或 `unavailable` 状态且 `console_link: false`；已确认退出组织并撤销会话时返回未登录 | 三端继续兼容旧字段；内部业务使用 `account_id`；资格需刷新进入 GitHub 认证，上游失败显示重试，受保护接口仍按决策 6 拒绝；展示登录名和头像不充当授权依据 |
 | `POST /auth/signout` | 有 Origin/Fetch Metadata 检查；撤销当前 `sid`，清 host-only cookie；不等于撤销 GitHub 授权或所有下游会话 | 返回原端退出态，清缓存身份；其他端的下一次请求同步失效 |
 | `GET /api/identity/me` | 有效会话；只返回本人渠道与是否可解绑，不含上游 token、微信 unionid 或他人关联 | `/account` 展示绑定状态；不要求持有控制台业务能力 |
 | `POST /api/identity/link`、`POST /api/identity/unlink` | 有效会话、近期重新认证、Origin 和限流；绑定使用与当前账号及操作绑定的一次性 state；成功重新读取本人信息；冲突 409。仅 step-up 证明缺失或过期返回 `403 step_up_required`，不撤销仍有效的 sid；`401` 只用于主会话无效 | 保留正在操作的渠道与当前登录，引导重新认证后再提交；解绑最后一个 GitHub 身份时引导先恢复资格刷新方式 |
@@ -117,7 +117,7 @@ A 和 C 不是二选一，是先后：A 需要稳定的内部用户与独立的 
 | 方式 | 结论 | `identities` 的键 | 前置条件 | 限制 |
 |---|---|---|---|---|
 | GitHub | 已上线，保留 | `github` + GitHub 数字 id | 无：生产与开发用的 OAuth App 凭据已在所有者的凭据库 | 唯一能建号、能证明组织成员的方式；控制台 `github.*` 只认本次 GitHub 会话的本人 token |
-| Google | 可做：OIDC 授权码 + PKCE S256 + state + nonce | `google` + ID Token 的 `sub` | 所有者建 Google Cloud 项目（开发与生产分开）、外部同意屏幕和「Web 应用」客户端，登记回调 `https://<站点域名>/auth/google/callback`；凭据库目前没有 Google 凭据；官网新增隐私政策页并在首页链接；域名在 Search Console 验证后做品牌验证 | 中国大陆网络通常打不开 Google 登录页，只能作可选方式；只申请 `openid email profile`；品牌验证前最多 100 名用户并显示未验证提示 |
+| Google | 可做：OIDC 授权码 + PKCE S256 + state + nonce | `google` + ID Token 的 `sub` | 所有者建 Google Cloud 项目（开发与生产分开）、外部同意屏幕和「Web 应用」客户端，登记回调 `https://<站点域名>/auth/google/callback`；凭据库目前没有 Google 凭据；官网新增隐私政策页并在首页链接；要让同意屏幕显示应用名称和 Logo，再在 Search Console 验证域名后做品牌验证 | 中国大陆网络通常打不开 Google 登录页，只能作可选方式；只申请 `openid email profile`：只请求这几项（含 Sign in with Google）时，发布状态为 Testing 也不用登记测试用户、不显示未验证提示、授权不会 7 天过期；以后加别的 scope 就不再豁免——Testing 限 100 名测试用户、授权 7 天过期，敏感或受限 scope 未通过应用验证前限 100 名新用户；品牌验证只管同意屏幕显示应用名称和 Logo |
 | 邮箱验证码 | 可做：6 位验证码，不做密码 | `email` + 规范化邮箱（去首尾空格、转小写） | 一条即时发信通道：现有 `mail_outbox` 每 15 秒发一遍、失败按 1 分钟到 6 小时退避，而验证码 10 分钟就过期；沿用阿里云邮件推送在前、Resend 兜底和现有发件域名 | 到达率取决于收件方，QQ、163、Gmail、Outlook 要实测是否进垃圾箱 |
 
 账号与绑定：
@@ -139,7 +139,7 @@ Google 登录：
 1. `POST /auth/email/start { email, return_to }`：规范化邮箱；同一邮箱 60 秒内不重发，按邮箱每小时 5 次、按 IP 每小时 20 次限流。只有邮箱已绑定且账号可用时才生成验证码并发信；不论是否绑定都回同样的 `202 { resend_after: 60 }`，用短期 HttpOnly cookie 绑定这次挑战——不泄露邮箱是否注册，也不向未绑定的地址发信。
 2. 验证码 6 位、10 分钟有效、库里只存带服务端密钥的 HMAC、最多试 5 次，成功即作废；重新获取会让旧码失效。挑战存在新表 `email_challenges`（随机 id、用途 `signin` / `link`、规范化邮箱、账号、`code_hmac`、尝试次数、创建、过期与使用时间），过期行定期清理。
 3. `POST /auth/email/verify { code }`：凭 cookie 找挑战；成功 → 资格校验 → 建会话。验证码不对回 `400 invalid_code`；过期或次数用尽回 `400 code_expired`，要求重新获取。
-4. 发送走即时通道：同步调用阿里云邮件推送，失败马上改走 Resend，都失败回 `503 mail_unavailable`；不进 `mail_outbox`。正文只有验证码、有效期和「不是本人操作请忽略」，不放登录链接（邮箱的安全扫描会预先打开链接，也便于钓鱼仿冒）。
+4. 发送走即时通道，但请求不等发信：`start` 做完规范化、限流和建挑战就回 202；邮箱已绑定时把发信交给进程内即时队列，响应之后马上投递（阿里云邮件推送在前，失败马上改走 Resend），不进 `mail_outbox`。已绑定或未绑定、投递成功或失败，`start` 的状态码和响应体都相同，响应也不因发信变慢；两路都失败只记日志，不改变响应，用户 60 秒后可重新获取。邮件正文只有验证码、有效期和「不是本人操作请忽略」，不放登录链接（邮箱的安全扫描会预先打开链接，也便于钓鱼仿冒）。
 5. 绑定邮箱：`POST /api/identity/email/start`、`POST /api/identity/email/verify`，要求已登录、近期重新认证、Origin 检查；成功写 `identities` 与 `identity_audit`，可同步为 `users.canonical_email`，仍不作主体。
 
 资格来源（待确认 2）：Google 与邮箱会话同样必须是组织 `active` 成员（决策 4、6）。
@@ -151,14 +151,14 @@ Google 登录：
 
 所有者要准备的：
 
-1. Google：建项目、外部同意屏幕（应用名「长江大学极客班」、支持邮箱、授权域名）和「Web 应用」客户端，登记生产、预览与本地回调；client id 与 secret 存进凭据库和 CI 环境（建议 `YZGC_GOOGLE_CLIENT_ID`、`YZGC_GOOGLE_CLIENT_SECRET`）；官网新增隐私政策页并在首页链接；Search Console 验证域名后提交品牌验证。
+1. Google：建项目、外部同意屏幕（应用名「长江大学极客班」、支持邮箱、授权域名）和「Web 应用」客户端，登记生产、预览与本地回调；client id 与 secret 存进凭据库和 CI 环境（建议 `YZGC_GOOGLE_CLIENT_ID`、`YZGC_GOOGLE_CLIENT_SECRET`）；官网新增隐私政策页并在首页链接；Search Console 验证域名后提交品牌验证（让同意屏幕显示应用名称和 Logo；只用 `openid email profile` 不需要应用验证）。
 2. 邮箱：确认发件域名的 SPF、DKIM、DMARC，同意新增即时发信路径。
 3. 资格来源选 A 时：在组织安装只读 GitHub App，私钥与 webhook 密钥进凭据库和 CI。
 
 验证：
 
-- 本地：模拟 Google 的 token 与 JWKS 端点和发信服务，覆盖 state、nonce、PKCE 错误与重放，`aud` 不符，ID Token 过期，未绑定，绑定冲突 409，验证码错 5 次、过期、重发冷却、限流，邮箱大小写，并发校验，非成员与 `pending`，资格查询失败的 403 与 503。
-- 真实往返：Google 用测试用户走完登录与绑定；邮箱验证码用 crosery-ct 的收码邮箱（飞书企业邮、QQ 邮箱、两个 Gmail、Outlook）实测送达时间、是否进垃圾箱和完整登录。结果记进实施 PR，模拟结果不能代替。
+- 本地：模拟 Google 的 token 与 JWKS 端点和发信服务，覆盖 state、nonce、PKCE 错误与重放，`aud` 不符，ID Token 过期，未绑定，绑定冲突 409，验证码错 5 次、过期、重发冷却、限流，邮箱已绑定/未绑定 × 投递成功/失败四种组合下 `start` 的状态码与响应体相同，邮箱大小写，并发校验，非成员与 `pending`，资格查询失败的 403 与 503。
+- 真实往返：Google 用测试账号走完登录与绑定；邮箱验证码用 crosery-ct 的收码邮箱（飞书企业邮、QQ 邮箱、两个 Gmail、Outlook）实测送达时间、是否进垃圾箱和完整登录。结果记进实施 PR，模拟结果不能代替。
 
 待确认：
 
@@ -209,7 +209,7 @@ Google 登录：
 - [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html)：§2 的主体标识、§5.7 的声明稳定性与唯一性、§8 的 pairwise sector；2026-10-19 核对。邮箱或昵称不构成账号主键，外部身份按 issuer 与 subject 识别。
 - [RFC 9700](https://www.rfc-editor.org/rfc/rfc9700.html)：§2.1 的授权码、PKCE 与回调匹配要求；2026-10-19 核对。本项目计划对所有客户端统一要求 S256，作为自身更严格的接入策略。
 - [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect)：`sub` 在所有 Google 账号中唯一且不变，邮箱可能变化、不能作主标识；`scope` 须以 `openid` 开头；`nonce` 防重放；只有直接来自 Google 的 ID Token 才可不验签；2026-10-19 核对。
-- Google Cloud 帮助 [Brand verification requirements](https://support.google.com/cloud/answer/13464321) 与 [When is verification not needed](https://support.google.com/cloud/answer/13464323)：首页须在自有且已验证的域名上、不能只是登录页，首页与同意屏幕链接同一份隐私政策；未验证前有 100 名用户上限并显示未验证提示，开发与生产分开项目；2026-10-19 核对。
+- Google Cloud 帮助 [Brand verification requirements](https://support.google.com/cloud/answer/13464321) 与 [When is verification not needed](https://support.google.com/cloud/answer/13464323)：首页须在自有且已验证的域名上、不能只是登录页，首页与同意屏幕链接同一份隐私政策，开发与生产分开项目；[OAuth App Verification Help Center](https://support.google.com/cloud/answer/13463073)：只用非敏感 scope 不必做应用验证，要在同意屏幕显示应用名称和 Logo 才做品牌验证；[Unverified apps](https://support.google.com/cloud/answer/7454865)：未验证提示页和 100 名新用户上限针对敏感或受限 scope；[Manage App Audience](https://support.google.com/cloud/answer/15549945)：Testing 状态限 100 名测试用户、显示提示、授权 7 天过期，只请求 `openid email profile`（含 Sign in with Google）时这三条都不适用；2026-10-19 核对。
 - GitHub REST [Get organization membership for a user](https://docs.github.com/rest/orgs/members#get-organization-membership-for-a-user)：支持 GitHub App installation token，需组织「Members」读权限；[organization 事件](https://docs.github.com/webhooks/webhook-events-and-payloads#organization)的订阅同样只需 Members 读权限，含 `member_added`、`member_removed`、`member_invited`；2026-10-19 核对。
 - 本仓库发信现状：`mail_outbox` 每 15 秒发一遍，阿里云邮件推送在前、Resend 兜底，失败按 1 分钟到 6 小时退避（[server README](../services/server/README.md)「发信」）。
 - [SECURITY](../architecture/SECURITY.md)「登录门槛」、[ADR-0004](0004-forum-backend-in-core-server.md)、[ARCHITECTURE](../architecture/ARCHITECTURE.md)「目标结构，尚未完整实现」。

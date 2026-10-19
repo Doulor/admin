@@ -113,3 +113,10 @@
 - 做了什么：按所有者2026-10-19「登录改为长江大学极客班统一登录，其他登录绑定到我们的账号，看能否支持谷歌、GitHub、邮箱认证登录」修订ADR-0005：摘要与决策5改为三种登录方式绑定同一账号、建号仍需GitHub组织成员；决策6增加只读GitHub App资格来源（待确认）；登录页标题与渲染、接口表加Google与邮箱入口；新增「登录方式」一节（可行性表、绑定规则、Google与邮箱验证码流程、资格来源A/B、所有者准备项、验证、3条待确认）；交付清单与参考资料同步（Google OIDC、品牌验证、GitHub成员接口与organization事件，2026-10-19核对）
 - 结果：docs:index、check:docs、check:architecture通过；凭据库没有Google凭据，crosery-ct收码邮箱可用于邮件实测；只改文档，方案保持proposed，未合并
 - 下一步：等同head检查；所有者确认建号范围、资格来源与OIDC时机后再建实现issue
+
+## 14:33:06 +08:00 · 提交 · #237 · 采纳 CodeRabbit 对登录方式的两条意见
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：CodeRabbit 对 74ca08ad 的增量审查（review 5567606684）提出 2 条意见，按 Google 帮助文档（Manage App Audience、Unverified apps、OAuth App Verification Help Center，2026-10-19 核对）与 ADR 现文核实均成立：① Google 行把「品牌验证前最多 100 名用户并显示未验证提示」写成通用限制，实际只请求 openid email profile 时 Testing 状态也不用登记测试用户、无提示、授权不会 7 天过期，100 名上限只在加其他 scope 或敏感/受限 scope 未验证时出现，品牌验证只管同意屏幕显示名称和 Logo，改写 Google 行、所有者准备项与参考资料；② 邮箱验证码第 4 步同步发信且两路失败回 503，与第 1 步「不论是否绑定都回同样的 202」矛盾，会按状态码与耗时泄露邮箱是否绑定，改为回 202 后由进程内即时队列异步投递、失败只记日志，并在本地验证里加「已绑定/未绑定 × 投递成功/失败」四种组合。顺带采纳审查建议 1：/auth/me 行注明 membership_state 第二渠道交付时再加，与决策 7 一致
+- 结果：本地 pnpm check 全部通过；只改 ADR-0005，ADR 保持 proposed，未合并
+- 下一步：推送后在两条审查意见下回复处理结果，等同 head CI 全绿再更新 PR 正文复核结论；不合并
