@@ -1,6 +1,6 @@
 // 比赛（#238）控制台页面的纯逻辑：北京时间换算、表单校验、提交正文。不渲染组件，只测这些函数。
 import { describe, expect, it, vi } from "vitest";
-import { KIND_TEXT, STATUS_TEXT, beijingDate, dateEdge, emptyForm, formErrors, formFrom, formPayload } from "../../app/console/src/lib/competitions";
+import { KIND_TEXT, STATUS_TEXT, beijingDate, dateEdge, emptyForm, formErrors, formFrom, formPayload, isOneDay } from "../../app/console/src/lib/competitions";
 import { routeConsole } from "../../app/console/src/mock/console";
 import type { CompetitionRecord } from "../../app/console/src/lib/types";
 import { mockApi } from "../../app/web/shared/lib/mock-api";
@@ -30,6 +30,14 @@ describe("beijing date conversion", () => {
     expect(dateEdge("2026-2-3", "start")).toBeNull();
     // Date 会把 2 月 30 日进位到 3 月，换算回来对不上，必须当作非法
     expect(dateEdge("2026-02-30", "start")).toBeNull();
+  });
+
+  it("treats a competition whose start and end fall on the same Beijing day as a one-day event", () => {
+    const start = dateEdge("2026-10-26", "start") as number;
+    expect(isOneDay({ start_at: start, end_at: dateEdge("2026-10-26", "end") as number })).toBe(true);
+    expect(isOneDay({ start_at: start, end_at: dateEdge("2026-10-27", "start") as number })).toBe(false);
+    // UTC 里还是 10 月 25 日，北京时间已经是 26 日：按北京时间算同一天
+    expect(isOneDay({ start_at: Date.parse("2026-10-25T16:00:00Z"), end_at: Date.parse("2026-10-26T15:59:59.999Z") })).toBe(true);
   });
 });
 

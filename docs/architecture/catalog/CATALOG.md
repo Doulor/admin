@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-19 · 自动生成，不手工编辑。
 
-来源摘要：`9ca32bff8f09aab07464166a87954401122740a6f070a783a9f468c9dd4cba92`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`65e0ec52f089ebb9467c1d0441c259912578edb999176462f8a50c027ec849e1`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -1921,7 +1921,7 @@
 - 控制台只PATCH实际修改字段，单改说明不改原始时分；offline=true从公开列表移除，false恢复原记录。
 - 比赛更新与competition.update审计同一事务，审计失败回滚，不发邮件。
 
-源码：[app/server/src/routes/console/competitions.ts:54](../../../app/server/src/routes/console/competitions.ts#L54) · [app/console/src/lib/competitions.ts:108](../../../app/console/src/lib/competitions.ts#L108) · [app/console/src/pages/Competitions.vue:77](../../../app/console/src/pages/Competitions.vue#L77)
+源码：[app/server/src/routes/console/competitions.ts:54](../../../app/server/src/routes/console/competitions.ts#L54) · [app/console/src/lib/competitions.ts:113](../../../app/console/src/lib/competitions.ts#L113) · [app/console/src/pages/Competitions.vue:77](../../../app/console/src/pages/Competitions.vue#L77)
 
 测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts)。生成器未执行这些测试。
 

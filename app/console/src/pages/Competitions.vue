@@ -19,7 +19,7 @@ import { api, jsonBody } from "../lib/http";
 import { confirm } from "../lib/confirm";
 import { fmtDay } from "../lib/format";
 import { useAction, useResource } from "../lib/resource";
-import { KIND_TEXT, STATUS_TEXT, emptyForm, formErrors, formFrom, formPayload, type CompetitionForm } from "../lib/competitions";
+import { KIND_TEXT, STATUS_TEXT, emptyForm, formErrors, formFrom, formPayload, isOneDay, type CompetitionForm } from "../lib/competitions";
 import type { CompetitionRecord, CompetitionStatus } from "../lib/types";
 
 const list = useResource(() => api<{ competitions: CompetitionRecord[] }>("/api/console/competitions"), []);
@@ -114,8 +114,12 @@ async function askRemove(row: CompetitionRecord) {
         </template>
         <template #cell-window="{ row }: { row: CompetitionRecord }">
           <span class="cell-stack">
-            <span>{{ fmtDay(row.start_at) }} 起</span>
-            <span class="cell-sub">到 {{ fmtDay(row.end_at) }}<template v-if="row.signup_deadline"> · 截止 {{ fmtDay(row.signup_deadline) }}</template></span>
+            <span v-if="isOneDay(row)">{{ fmtDay(row.start_at) }}</span>
+            <template v-else>
+              <span>{{ fmtDay(row.start_at) }} 起</span>
+              <span class="cell-sub">到 {{ fmtDay(row.end_at) }}</span>
+            </template>
+            <span v-if="row.signup_deadline" class="cell-sub">报名截止 {{ fmtDay(row.signup_deadline) }}</span>
           </span>
         </template>
         <template #cell-status="{ row }: { row: CompetitionRecord }">

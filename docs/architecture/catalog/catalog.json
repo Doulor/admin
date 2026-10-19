@@ -6241,7 +6241,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 108,
+          "line": 113,
           "path": "app/console/src/lib/competitions.ts"
         },
         {
@@ -8324,7 +8324,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "9ca32bff8f09aab07464166a87954401122740a6f070a783a9f468c9dd4cba92",
+    "fingerprint": "65e0ec52f089ebb9467c1d0441c259912578edb999176462f8a50c027ec849e1",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -8384,7 +8384,7 @@
       },
       {
         "path": "app/console/src/lib/competitions.ts",
-        "sha256": "3e43cfaa96ddf5560733869a62e9c5fb910241d688ad8fb1210295ef4fd3886e"
+        "sha256": "861055cdda13424b5c27d4203d3f44c628cde4b28f11cb4fb3bc3f7b1aee95a0"
       },
       {
         "path": "app/console/src/lib/confirm.ts",
@@ -8464,7 +8464,7 @@
       },
       {
         "path": "app/console/src/mock/console.ts",
-        "sha256": "4d87d8dfee246443cca06308c84158bad0fc43c2f858e46579d62e632a4857c9"
+        "sha256": "f25135606e1cf49fdb9e16e66a876d88c83e40437f08ad8588adb76d5d6745ff"
       },
       {
         "path": "app/console/src/mock/github.ts",
@@ -8488,7 +8488,7 @@
       },
       {
         "path": "app/console/src/pages/Competitions.vue",
-        "sha256": "6a77a1e69e0dfa5a0608bb709a29de3e93b2bcd8ac257b034bd9ba793c9c0eb7"
+        "sha256": "eab1529f0f33b3e6ab4d295cda8e41e0b40144538e27c8b9a47e2ac060568325"
       },
       {
         "path": "app/console/src/pages/ConsoleRoot.vue",
@@ -9368,7 +9368,7 @@
       },
       {
         "path": "app/web/shared/lib/mock-api.ts",
-        "sha256": "8d3aaed01992eb7426ce6104a23d5b0436336005138ced35f47c4508fb23388d"
+        "sha256": "0b162a2b1b9e56fc712b828fe710e0dc156629cb8a805fd6ab4cc151e4e5ce45"
       },
       {
         "path": "app/web/shared/lib/mount.tsx",
@@ -9468,7 +9468,7 @@
       },
       {
         "path": "app/web/sites/portal/components/os/Windows.tsx",
-        "sha256": "0b934150c2321b91d76d9645983bc1ef0e29e4d82d9f859ffcc081e598180a5d"
+        "sha256": "1e914ceb7c4726ce0d9d4494a6dacde2f86b55e4dd360d646f8ddfb117fdb83a"
       },
       {
         "path": "app/web/sites/portal/components/os/YugcOs.tsx",
@@ -9488,7 +9488,7 @@
       },
       {
         "path": "app/web/sites/portal/lib/competitions.ts",
-        "sha256": "5fe8f6ec9cd2d2184175c461ff8b9d71b5ae59e304de36b9f1f32f291c6b3ea5"
+        "sha256": "1d8b760cc5ef688ebef940bbf768eb08803e3391b9fd9c5e0a2eadf169f71bf0"
       },
       {
         "path": "app/web/sites/portal/lib/deskMachine.ts",
@@ -9648,7 +9648,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "66082bda9a11757de04af551a0e61db749fffcce687e1f9e1c4b14ba0d11b05c"
+        "sha256": "0ae0158f9f59a729f49e84cb70e775ba3f8ed60331eb77f89ce68985e8ac0a3c"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -9672,11 +9672,11 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "2a483e06b7cf4e7937ee5fe2cea0dfe9ce3c99b6a2136adc61e215690c84d294"
+        "sha256": "73892dd0b5a789710d342e9cd6c0215f6b4e6bc8f67e05435ad59460e503bca2"
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "d3ea7520167613dd424d9cf5edab5d82b0b5b397b0d9c592e8e1a59f58dcc841"
+        "sha256": "8a20e7f046faebe53601cf1de21572d4f34d278e3b4744fc76ae0e64cb0c9f54"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -9716,7 +9716,7 @@
       },
       {
         "path": "tests/console/competitions.test.ts",
-        "sha256": "df114c33051e4ef347ce15f98dc77f452e9236fd354159b5790b0693346899cd"
+        "sha256": "8498f0d62bac733abce436ff8b91b158df457ebdd9ded01b87e4f9fdca344505"
       },
       {
         "path": "tests/e2e/competitions.spec.mts",
@@ -9776,7 +9776,7 @@
       },
       {
         "path": "tests/web/portal-competitions.test.tsx",
-        "sha256": "2542feb2249d5c86130e608aff15ec39a07903aca7cd216ac24eb5c92bc12595"
+        "sha256": "9d9c7a0a08ab01c43418bf4bd0fc6d42a14a9d0b41092481189a3fba9d67fa2d"
       }
     ]
   },
@@ -15447,7 +15447,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 108,
+          "line": 113,
           "path": "app/console/src/lib/competitions.ts"
         },
         {
@@ -15467,7 +15467,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 108,
+          "line": 113,
           "path": "app/console/src/lib/competitions.ts"
         },
         {
@@ -15487,7 +15487,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 108,
+          "line": 113,
           "path": "app/console/src/lib/competitions.ts"
         },
         {
@@ -15507,7 +15507,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 108,
+          "line": 113,
           "path": "app/console/src/lib/competitions.ts"
         },
         {
@@ -15527,7 +15527,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 108,
+          "line": 113,
           "path": "app/console/src/lib/competitions.ts"
         },
         {
@@ -15547,7 +15547,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 108,
+          "line": 113,
           "path": "app/console/src/lib/competitions.ts"
         },
         {
@@ -15591,7 +15591,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 108,
+          "line": 113,
           "path": "app/console/src/lib/competitions.ts"
         },
         {
@@ -15611,7 +15611,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 108,
+          "line": 113,
           "path": "app/console/src/lib/competitions.ts"
         },
         {
@@ -15631,7 +15631,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 108,
+          "line": 113,
           "path": "app/console/src/lib/competitions.ts"
         },
         {
@@ -15651,7 +15651,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 108,
+          "line": 113,
           "path": "app/console/src/lib/competitions.ts"
         },
         {

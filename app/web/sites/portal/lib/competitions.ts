@@ -135,3 +135,9 @@ export function shortDay(at: number, now = Date.now()): string {
   const year = beijingDay(now).split("-")[0];
   return date.startsWith(`${year}-`) ? date.slice(year.length + 1) : date;
 }
+
+/** 比赛时间：起止在北京时间同一天时只写一个日期，跨天才写「起，到」，不出现「10-26 起，到 10-26」。 */
+export function dayRange(start: number, end: number, now = Date.now()): string {
+  const from = shortDay(start, now);
+  return beijingDay(start) === beijingDay(end) ? from : `${from} 起，到 ${shortDay(end, now)}`;
+}

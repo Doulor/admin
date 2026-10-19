@@ -25,6 +25,11 @@ export function beijingDate(at: number | null | undefined): string {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 }
 
+/** 起止在北京时间同一天：列表只写一个日期，不写成「某日起，到同一日」。 */
+export function isOneDay(record: { start_at: number; end_at: number }): boolean {
+  return beijingDate(record.start_at) === beijingDate(record.end_at);
+}
+
 /**
  * 北京时间的某一天 → 时间戳。`edge: "start"` 取当天 00:00:00.000，`edge: "end"` 取 23:59:59.999。
  * 日期不存在（例如 2 月 30 日）时按 null 返回，不交给 Date 悄悄进位到下个月。
