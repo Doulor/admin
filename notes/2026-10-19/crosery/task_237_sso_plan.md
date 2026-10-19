@@ -155,3 +155,17 @@
 - 做了什么：新增 docs/plan/UNIFIED-LOGIN.md（proposed）：一人一个极客班 OpenID，GitHub、邮箱验证码、Google 都绑定在它名下，整个服务共用一套登录与 sid 会话；写明现状、交付总览、6 张方案草图（docs/assets/unified-login/）、登录事务与回跳、step-up、绑定解绑、邮箱验证码、Google、成员资格、41 条要本人 GitHub 令牌的接口、各业务域对齐表与账号事件表、接口与错误码、审计、数据库 DDL、回填、核对 SQL 与回滚、代码落点、验收、3 个候选 issue 和 8 条待确认。ADR-0005 背景补所有者原话，失败去向与绑定路由同步后指向规格；docs/plan/README.md 与 docs/INDEX.md 登记；docs/changes/237.json 改为 ui-only（docs-only 不允许 webp 素材）并补领域与覆盖
 - 结果：没有改 app/ 代码，没有建 issue，没有合并；docs、doc-sync、catalog、architecture 检查通过，完整 pnpm check 在提交前重跑
 - 下一步：快进推送 task/237/sso_plan，等 CI；更新 #242 正文的变更范围、草图与审查结论；在 #237 留追踪评论
+
+## 20:52:03 +08:00 · 推送 · #237 · 统一登录实施规格与草图已快进推送到 PR #242 来源分支
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：核对 fork 远端 task/237/sso_plan 仍为 b44bcb2d671d2bd8cc8b1c548f5eabfad5f3e2b8（等于 HEAD~1）后，把 5d8b6a9cd82bf13aed468b9aaf9c76d5a42d5fe9 快进推送到 git@github.com:ZZDR1023/admin-geek.git；未 force push，未动 stage/main 与 tag
+- 结果：pre-push 分支与发布 tag 规则、task worktree 生命周期通过；同 head 的 core、verify、architecture-alignment、pr-contract、docker、forum、env-contract 已通过，e2e 进行中；PR 仍 OPEN，方案仍 proposed
+- 下一步：补一处参数名澄清与比赛协调链接后再推送，等同 head 检查再更新 PR 正文；不合并
+
+## 20:52:04 +08:00 · 提交 · #237 · 澄清资格来源 A 的 GitHub 参数并链接比赛协调细则
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：UNIFIED-LOGIN.md 资格来源 A 引用的 GitHub 接口 GET /user/{account_id} 参数名与本文的 account_id（极客班 OpenID）同名，写明填 GitHub 身份的 identities.provider_uid；「按业务域」表 competitions 行补 #239 新流程同样只看身份、不调用 GitHub，并指向 PR #243 中 COMPETITION-APP.md 的「与其他业务的协调」
+- 结果：只改方案文档，不改应用代码；pnpm check 见本次提交正文；方案仍 proposed，未合并
+- 下一步：推送后等同 head 检查，更新 #242 正文与 #237 追踪记录；不合并

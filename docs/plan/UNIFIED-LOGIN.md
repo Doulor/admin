@@ -217,7 +217,7 @@ flowchart LR
 - 输入账号与会话，输出 `{ state, role }`：`state` 是 `active`、`pending`、`not_member`、`verification_required`、`unavailable` 之一，`role` 是 `admin`、`member` 或空，供称号计算（组织 owner 是提督）。
 - **GitHub 会话**：沿用现状，用本次会话的 token 查组织角色（`lib/access.ts`，60 秒缓存）。
 - **第二渠道 · 资格来源 B**：读该账号 GitHub 身份的资格凭据，调 `GET /user/memberships/orgs/{CONSOLE_ORG}`。`200` 且 `active` → `active`，`200` 且 `pending` → `pending`，`404` → `not_member`；`401` → 删除凭据并回 `verification_required`；凭据缺失或过期 → `verification_required`；超时、`403`、`429`、`5xx` → `unavailable`。凭据在每次 GitHub 登录时换新、有效 7 天，普通请求和第二渠道登录都不延长它。
-- **第二渠道 · 资格来源 A**：用只读 GitHub App 的 installation token，先按 GitHub id 取当前登录名（`GET /user/{account_id}`），再查 `GET /orgs/{org}/memberships/{username}`，状态映射同上（没有 `verification_required`）。`POST /webhooks/github` 校验 `X-Hub-Signature-256`，收到 `organization` 事件的 `member_removed` 就按 GitHub id 找到账号并立即撤销。
+- **第二渠道 · 资格来源 A**：用只读 GitHub App 的 installation token，先按 GitHub 数字 id 取当前登录名（`GET /user/{account_id}`：这里的 `account_id` 是 GitHub 文档里的参数名，填 GitHub 身份的 `identities.provider_uid`，不是极客班 OpenID），再查 `GET /orgs/{org}/memberships/{username}`，状态映射同上（没有 `verification_required`）。`POST /webhooks/github` 校验 `X-Hub-Signature-256`，收到 `organization` 事件的 `member_removed` 就按 GitHub id 找到账号并立即撤销。
 - **缓存**：新登录一律实时查、不读缓存；已有会话的成功结果按 `(账号, 组织, 凭据版本)` 缓存，从查询开始计时最多 60 秒；失败不缓存、不延长旧结果；进程重启即失效；时间戳在未来视为过期。
 - **撤销**：确认 `pending`、`not_member` 或账号停用时，在一个事务里 `membership_version + 1`、更新 `org_state`、删除这个账号**全部**会话（不分方式）、删除资格凭据，写 `auth.session_revoked`（`reason` 为 `membership_lost` 或 `account_disabled`）。每次异步查询带着开始时的版本号，只在版本没变时落库或签发会话，撤销之后的旧结果不能把人恢复回来。
 - **与现状不同**：现在 GitHub 会话的主人被移出组织后会话保留、论坛按游客处理（`routes/forum-api/viewer.ts` 的 `forumViewer` 注释）；交付 2 起统一为撤销该账号全部会话（待确认 8）。
@@ -268,7 +268,7 @@ flowchart LR
 | audit（审计） | `actor` 是登录名 | 加 `actor_account_id`，新行写入、旧行不回填；新事件见[审计与留痕](#审计与留痕) | 同左 | 审计页查询与 `idx_audit_signin_actor` | `tests/server/console.test.ts` 的审计用例 |
 | mail（发信） | `mail_outbox` 队列 | 不变 | 验证码走进程内即时通道，不进队列；遵守收件人白名单 | 招新四种信与退避 | `email-signin.test.ts`（新）、`tests/server/mail-outbox.test.ts` |
 | platform（网关、入口、配置） | `/admin`、`/console`、`/signin` 交给控制台 | `/signin` 改版，路径不变 | `/account` 加进 `app/web/Dockerfile:203` 与 `ADMIN_SPA_PATHS`；资格来源 A 的 App 变量；交付 3 的 Google 变量 | CSP：Google 是整页跳转、不加载 Google 脚本，不用改 | `core.test.ts:210`、`tests/tooling/web-nginx.test.ts` |
-| competitions（#243 合入后） | 赛事没有个人数据 | 不变 | 控制台 4 条只看身份，第二渠道照常；#239 的报名与队伍在交付 1 之后按 `account_id` 建表 | 公开列表匿名可读 | #239 自己的测试 |
+| competitions（#243 合入后） | 赛事没有个人数据 | 不变 | 控制台 4 条只看身份，第二渠道照常；#239 的报名与队伍在交付 1 之后按 `account_id` 建表；#239 新增的门户与控制台流程同样只看身份、不调用 GitHub，细则见 [PR #243](https://github.com/Yangtze-University-Geek-Class/admin/pull/243) 中 `docs/plan/COMPETITION-APP.md` 的「与其他业务的协调」 | 公开列表匿名可读 | #239 自己的测试 |
 | public_content（公开内容） | 不读会话 | 不变 | 不变 | 全部 | — |
 
 ### 账号事件对各业务的影响
