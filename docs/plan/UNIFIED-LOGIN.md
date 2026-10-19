@@ -1,21 +1,21 @@
 # 统一登录：极客班账号、登录页与跨业务对齐方案
 
-> #237 的实施规格（未实施）：把 ADR-0005 落到可以直接开工的颗粒度——统一登录页 `/signin`、账号页 `/account` 与控制台的界面状态，三种登录方式的后端流程，新表与迁移，要会话的接口在邮箱或 Google 会话下怎么处理，以及各业务要改什么、怎么验收；按三个候选 issue 拆分交付。
+> #237 的实施规格（未实施）：把 ADR-0005 落到可以直接开工的颗粒度——统一登录页 `/signin`、账号页 `/account` 与控制台的界面状态，三种登录方式的后端流程，全站一套的个人资料（头像、昵称），新表与迁移，要会话的接口在邮箱或 Google 会话下怎么处理，以及各业务要改什么、怎么验收；按四个候选 issue 拆分交付。
 
-状态：`proposed`（未实施，待所有者确认 ADR-0005 后开工）· 更新：2026-10-19 · 适用：`app/server` 的身份、会话、成员资格与登录接口及表，`app/console` 的 `/signin`、`/account` 与导航，官网和论坛的登录入口与头像菜单
+状态：`accepted`（所有者已接受，未实施；四个候选 issue 仍要逐个批准后才建单开工）· 更新：2026-10-20 · 适用：`app/server` 的身份、会话、成员资格、个人资料与登录接口及表，`app/console` 的 `/signin`、`/account` 与导航，官网、论坛、控制台和比赛的登录入口、头像与昵称显示
 
 **一句话**：一个人只有一个极客班 OpenID（`users.id`）。GitHub、邮箱验证码、Google 都是绑定在它名下的登录渠道，不管用哪个登录，落到的都是同一个 OpenID；官网、论坛、控制台和以后上线的业务共用这一套登录和会话，业务只认这个 OpenID。
 
-本文只是提议：下面的接口、表和界面都**还不存在**，现行行为以 [server 合同](../services/server/README.md)、[接口行为契约](../services/server/endpoint-contracts.md) 和 [SECURITY](../architecture/SECURITY.md) 为准。为什么这样选见 [ADR-0005](../decisions/0005-sso-extend-core-server.md)（`proposed`），本文只写怎么做；两者不一致时先改 ADR 再改本文。文中图片都是**方案草图**（静态 HTML 渲染，数据虚构），不是实现截图。
+本文是已接受、未实施的方案：下面的接口、表和界面都**还不存在**，现行行为以 [server 合同](../services/server/README.md)、[接口行为契约](../services/server/endpoint-contracts.md) 和 [SECURITY](../architecture/SECURITY.md) 为准。为什么这样选见 [ADR-0005](../decisions/0005-sso-extend-core-server.md)（`accepted`），本文只写怎么做；两者不一致时先改 ADR 再改本文。文中图片都是**方案草图**（静态 HTML 渲染，数据虚构），不是实现截图。
 
 ## 给开工 Agent 的读法
 
-1. 先读 ADR-0005 的「决策」1–9 和「登录方式」一节；本文把它展开到字段、错误码、文件和测试，不重复理由。
-2. 文末三个[候选 issue](#候选-issue未建单) 各对应一项交付。**Crosery 批准之前不建单、不开 task 分支、不写 `app/` 代码**（[ISSUES](../conventions/ISSUES.md) §1）。批准后按候选正文建单；PR 正文按 [PULL-REQUESTS](../conventions/PULL-REQUESTS.md)，`docs/changes/<issue>.json` 按 [ARCHITECTURE-ALIGNMENT](../conventions/ARCHITECTURE-ALIGNMENT.md) 声明 `business`。
+1. 先读 ADR-0005 的「决策」1–10 和「登录方式」一节；本文把它展开到字段、错误码、文件和测试，不重复理由。
+2. 文末四个[候选 issue](#候选-issue未建单) 各对应一项交付。**Crosery 逐个批准之前不建单、不开 task 分支、不写 `app/` 代码**（[ISSUES](../conventions/ISSUES.md) §1）。批准后按候选正文建单；PR 正文按 [PULL-REQUESTS](../conventions/PULL-REQUESTS.md)，`docs/changes/<issue>.json` 按 [ARCHITECTURE-ALIGNMENT](../conventions/ARCHITECTURE-ALIGNMENT.md) 声明 `business`。
 3. 一个交付一个 PR：数据库、接口、三端界面、文档和测试在同一个 PR 里改完；不按层拆，也不把「表建好了」单独报完成（ADR「后果」第 1 条）。
 4. 字段名和错误码是建议值，以实施时 `contracts.ts` 的 Schema 为准；改了名字同步回本文。
 5. 测试里 GitHub、Google、发信商一律只注入虚构响应（[TESTING](../conventions/TESTING.md)，`tests/server/helpers.ts`）；真实 OAuth 往返和真实收信另记在 PR 里，不能用模拟结果代替。
-6. 每个交付合并时，把本文对应小节压缩成「已实施」结论，现行契约迁回 `docs/services/*`；三项都落地后按 [plan/](./README.md) 的保质期约定删除或压缩本文。
+6. 每个交付合并时，把本文对应小节压缩成「已实施」结论，现行契约迁回 `docs/services/*`；四项都落地后按 [plan/](./README.md) 的保质期约定删除或压缩本文。
 
 ## 现状（stage 上已有什么）
 
@@ -24,6 +24,7 @@
 - **访问判定**：`createAccess`（`app/server/src/lib/access.ts:19`）每次用会话里本人 token 查组织角色，缓存键 `console:orgrole:<login>`、60 秒；`computeAccess`（`lib/roles.ts:273`）由组织角色与称号算能力，`github.*` 受本人组织角色上限（`githubCeiling`，`roles.ts:256`）。`requireCapability` 缺能力回 `403 missing_capability`（带 `reason`）；`requireOrgRole`（`middleware/require-org-role.ts`）供 `routes/admin/` 下 11 个文件使用，同样用本人 token。
 - **项目地图**（`docs/architecture/catalog/catalog.json`）：98 条业务流程里 79 条读会话——41 条要调用者本人的 GitHub token，38 条只看「是谁」和称号能力（明细见[要本人 GitHub 令牌的接口](#要本人-github-令牌的接口交付-2)）。#243 合入后多 4 条只看身份的比赛控制台流程（42）。
 - **业务数据以 GitHub 账号为主语**：`role_assignments` 存 `github_login` 与 `github_user_id`（`db.ts:154`），`assignmentsFor`（`lib/role-store.ts:182`）先按 GitHub id、没有 id 的行按小写登录名；授予称号时用调用者 token 查对方 id（`routes/console/assignments.ts:80`）。论坛 `forum_users.id = m<GitHub id>`（`db.ts:199`），`ensureMember`（`lib/forum-store.ts:394`）每次请求刷新、改名跟随。意见箱存 `submitter_login` / `submitter_id`；审计 `audit_logs.actor` 是登录名（`db.ts:98`），论坛用 `auth.signin` 的 actor 挡游客冒名（`signedInLogins`，`lib/auth.ts:117`）。
+- **资料**：只有论坛有个人资料。`forum_users`（`db.ts:199`）存昵称、个人签名、所在地、个人网站、头像底色、GitHub 头像地址和上传头像的哈希，图在 `forum_avatars`（`db.ts:193`）。改资料走 `PATCH /api/forum/me/profile`（`routes/forum-api/people.ts:32`：昵称 NFKC 后 1–30 字、不能是官方账号或别人的用户名，签名不超过 200 字、所在地不超过 60 字，网站只收 `https://`）；换头像走 `PUT /api/forum/me/avatar`（`:80`，PNG、JPEG、WebP 不超过 2 MB，`lib/forum-avatar.ts` 用 sharp 摆正、居中裁成 256×256 WebP 并去掉元数据，每小时 10 次）；图按内容哈希寻址，`GET /api/forum/avatars/:file`（`:99`）是 `/api`、`/auth` 里唯一不加 `no-store`、可以长期缓存的响应（`middleware/http-policy.ts:39`）。官网（`app/web/sites/portal/lib/account.ts:10-20`）和控制台（`components/ConsoleNav.vue:74`）只显示 `/auth/me` 的 GitHub 登录名和头像：同一个人在论坛改了昵称和头像，官网和控制台看不到。
 - **发信**：`mail_outbox` 队列每 15 秒发一次，阿里云在前、Resend 兜底，失败按 1 分钟到 6 小时退避（`lib/mail/outbox.ts`）；`MAIL_RECIPIENTS` 缺省是 `allowlist`，只发 `MAIL_ALLOWLIST` 里的地址（`app/server/src/config.ts:75`）。
 - **前端**：控制台 `/signin`（`app/console/src/pages/SignIn.vue`）只收 `/console`、`/admin` 回跳；401 文案是「请重新用 GitHub 登录。」（`lib/errors.ts:36`），任何 401 都当作退出（`lib/http.ts:56`）；`signInHref` 写死 `/auth/github`（`lib/runtime.ts:41`）。官网登录地址在 `app/web/sites/portal/lib/account.ts:14`（缺省回 `/forum/`），头像菜单在 `components/os/YugcOs.tsx:316`；论坛在 `app/forum/app/composables/useSiteLinks.ts:14`、`data/account-menu.ts`、`components/LoginModal.vue`、`shared/signin-outcomes.ts`。网关只把 `/admin`、`/console`、`/signin` 交给控制台（`app/web/Dockerfile:203`、`app/server/src/app.ts:24`）。
 - **迁移方式**：没有迁移框架，建表一律 `CREATE TABLE IF NOT EXISTS` + 启动时幂等回填 + `console_seeds` 标记（[data-model](../services/server/data-model.md)）。**至今没有 `ALTER` 过已有表**：本方案的加列与表重建是第一次，要按[数据库](#数据库)一节的做法写，并补旧库测试。
@@ -35,7 +36,8 @@
 1. **一个人一个极客班 OpenID**：就是 ADR 说的「内部 OpenID」——`users.id`，接口和业务表里叫 `account_id`，会话表里叫 `sessions.openid`，三处是同一个值，不另起第二套编号。GitHub、邮箱验证码、Google 都只是绑定在它名下的登录渠道（`identities` 一行一个渠道）；用哪个渠道登录，拿到的都是同一个 OpenID、同一份称号、帖子和记录。
 2. **整个服务一套登录**：官网、论坛、控制台、账号页和以后上线的业务（例如 #239 的比赛报名组队）共用一个登录页 `/signin` 和一个会话 `sid`：一处登录处处可用、任一处退出全部退出（现有能力保留）。业务不自己接登录、不存渠道账号或令牌、不按 GitHub 登录名认人，一律从会话拿 `account_id`，所以 GitHub 改名不丢任何东西。以后不在同一域名下的应用按 ADR 决策 8 接 OIDC，认的也是这个 OpenID（对外的 `sub` 由它映射，不直接暴露）。
 3. **统一登录页** `/signin` 按后端返回的方式列表渲染；所有登录结果（包括被拒的原因）都在这一页说明，并带回原页面。
-4. **账号页** `/account`：本人的登录方式、这次登录、成员资格、最近账号操作，以及绑定、解绑。
+4. **账号页** `/account`：本人的登录方式、这次登录、成员资格、最近账号操作，以及绑定、解绑；交付 4 起加「个人资料」（`/account/profile`）。
+5. **资料全站一套**：头像、昵称、个人签名、所在地和个人网站归极客班账号，一个账号一份（`user_profiles`）。官网、论坛、控制台和比赛显示的都是这一份，读取时按 `account_id` 取、不各存快照；在资料页改一次，各处的下一次请求就是新的，开着的其他页面自动刷新。
 
 约束：
 
@@ -44,6 +46,7 @@
 - 不新增容器、进程和生产依赖；Google ID Token 验签用 Node 自带的 `crypto`。
 - `/auth/me` 只加字段，已有字段语义不变（`user_id` 仍是 GitHub 数字 id）；`sid` cookie、7 天不续期不变。
 - 每一步迁移可以重跑；独立回滚只到「还没有非 GitHub 身份」为止，之后只向前修复（决策 3）。
+- 资料沿用论坛现有的昵称规则、长度限制与头像处理（`sharp` 已是 `app/server` 的依赖），不新增依赖；昵称只用于显示，会话、审计和权限照旧认账号与 GitHub 登录名。
 
 不做：
 
@@ -51,6 +54,7 @@
 - 不做「退出所有设备」、会话续期和「记住我」。
 - 不做账号停用的管理界面：本期只保证 `users.status='disabled'` 时拒绝登录并撤销会话，怎么设置另立事项。
 - 不改招新投递、GitHub 组织邀请与邀请链接的流程。
+- 不导入 Google 的昵称和头像，不接 Gravatar；资料里不放姓名、学号、手机号这类实名信息；用户名不能自己改（跟随 GitHub 登录名）。
 
 ## 交付总览
 
@@ -59,8 +63,9 @@
 | 1 统一账号与登录（候选 1） | 三端都进统一登录页、登录后回原页面；被拒原因在登录页说清楚；GitHub 改名不丢称号和帖子 | `users`、`identities`、`identity_audit`；`sessions`、`role_assignments`、`forum_users`、`audit_logs` 加列并回填；登录事务；`GET /auth/providers`；`/auth/me` 加字段；`/signin` 改版；官网、论坛入口改指 `/signin` | ADR-0005 确认 |
 | 2 邮箱验证码与账号页（候选 2） | 在 `/account` 绑定邮箱后可以用验证码登录；邮箱会话打开要 GitHub 的页面时有明确说明；成员资格失效时有提示 | 成员资格模块；`sessions` 重建；`email_challenges`（资格来源 B 时加 `identity_credentials`）；即时发信；`/account`；`github_session_required` 守卫与导航锁定 | 1；资格来源的决定（ADR 待确认 2）；发件域名 SPF、DKIM、DMARC |
 | 3 Google 登录（候选 3） | 在 `/account` 绑定 Google 后可以用 Google 登录 | Google OIDC 登录与绑定、`google_oauth_state` | 2；Google 凭据、官网隐私政策页、域名验证 |
+| 4 统一资料（候选 4） | 在 `/account/profile` 改一次头像和昵称，官网、论坛、控制台和比赛同时换成新的，开着的页面自动刷新 | `user_profiles` 及回填；`/api/identity/profile`、`/api/identity/avatar`、`GET /api/avatars/:file`；`/auth/me` 加 `profile`；论坛资料接口改写同一份；四端头像统一按 `avatar` 显示；管理员重置资料 | 1；可与 2 并行 |
 
-ADR 的交付 2 在这里拆成 2、3 两个候选（待确认 4）：邮箱只依赖已有的发信商，Google 要等所有者建凭据和隐私页，绑在一起会互相拖。ADR 的交付 3（对外 OIDC）不在本文。
+ADR 的交付 2 在这里拆成 2、3 两个候选（待确认 4）：邮箱只依赖已有的发信商，Google 要等所有者建凭据和隐私页，绑在一起会互相拖。ADR 的交付 3（对外 OIDC）不在本文。交付 4 对应 ADR 决策 10 与交付清单第 4 项（2026-10-19 所有者新提的要求），只依赖交付 1 的账号表，可以和 2 并行（待确认 9）。
 
 ## 结构与呈现
 
@@ -99,6 +104,20 @@ ADR 的交付 2 在这里拆成 2、3 两个候选（待确认 4）：邮箱只�
 - 「这次登录」：方式、登录时间、有效到（7 天，不续期）、适用于三端、「退出登录（三端一起退出）」。
 - 「成员资格」：组织与状态、上次确认时间；资格来源选 B 时多一行「资格凭据还剩 N 天」（每次 GitHub 登录换一份新的 7 天凭据）。
 - 「最近账号操作」：本人最近 20 条登录、绑定、解绑、冲突与会话撤销，不含验证码、令牌、IP 和他人信息。
+- 右上的账号卡片：交付 2 显示绑定 GitHub 的登录名和头像；交付 4 起显示个人资料里的头像、昵称和 @用户名，并多一个「编辑个人资料」去 `/account/profile`（[下一节](#个人资料交付-4)）；「最近账号操作」也会列出改资料和资料被重置。
+
+### 个人资料（交付 4）
+
+![桌面 · 个人资料页 /account/profile，右侧是四端显示的样子](../assets/unified-login/profile.webp)
+
+- 地址 `/account/profile`，和 `/account` 一样任何有效会话都能打开；未登录跳 `/signin?return_to=/account/profile`。官网、论坛、控制台头像菜单里的「个人资料」都到这里，左上「← 账号」回 `/account`。
+- 头像三选一：「上传的图片」「GitHub 头像」「昵称首字」，选中即预览、保存后生效。「换一张图片」打开系统的图片选择（PNG、JPEG、WebP，不超过 2 MB），上传成功立即生效并切到「上传的图片」；服务器居中裁成 256×256，预览就是最终效果。没上传过时第一项显示为「上传图片」；「删除上传的图片」删掉这张图并改用 GitHub 头像。
+- 昵称 1–30 字，标签右侧实时计数；可以和别人重名，但不能是官方账号名或别人的用户名。用户名只读，标「跟随 GitHub 登录名」，论坛个人主页 `/forum/u/<用户名>` 也用它。
+- 个人签名不超过 200 字、所在地不超过 60 字，都有计数；个人网站只收 `https://` 开头的地址。不合规则时在字段下方说明原因（文案与论坛相同），「保存」不可用。
+- 「保存」只在有改动且都合规则时可用，否则旁边显示「没有未保存的修改」；保存成功显示「已保存。官网、论坛、控制台和比赛里的头像与昵称已经换成新的；开着的其他页面会自动刷新。」和上次保存时间。有未保存的修改时离开页面要先确认。
+- 别的页面或设备在这期间改过资料时，保存回 `409 profile_conflict`：顶部提示「资料刚在别处改过，你的修改还没保存」，给「载入最新内容」（放弃这次修改）和「保留我的修改」（以最新内容为底，再点一次「保存」才覆盖）。
+- 右栏「在这些地方显示」按四端的样式预览当前草稿：官网头像菜单、论坛帖子、控制台顶栏、比赛「我的队伍」；底部说明 GitHub 组织页仍显示 GitHub 账号、审计保留当时的登录名。
+- 手机：预览排到表单下面、默认收起；头像三个选项改成竖排的单选行，按钮和选项高度不小于 44px。
 
 ### 控制台：需要 GitHub 会话的页面（交付 2）
 
@@ -144,13 +163,15 @@ flowchart LR
   oid --> sid["会话 sid<br/>sessions.openid + 本次 provider"]
   sid --> apps["官网 · 论坛 · 控制台 · 账号页 · 以后的业务"]
   oid --> rec["业务记录只存 OpenID<br/>称号 · 论坛用户 · 审计 · 报名与队伍"]
+  oid --> prof["个人资料 user_profiles（交付 4）<br/>头像 · 昵称 · 签名"]
+  prof -->|读取时取| apps
 ```
 
 - **极客班 OpenID** 是 `users` 一行的 `id`（接口里叫 `account_id`）：128 位随机、永不复用、永不删除；状态 `active`、`disabled`、`merged`（`merged` 只为以后的合并预留）。它是我们自己发的编号，不是 GitHub id、不是 Google 的 `sub`，也不是以后微信给的 `openid`——代码里叫 `account_id`，就是为了不和这些渠道自己的 id 混淆。文中的「极客班账号」「账号」都指它。
 - 登录方式（渠道）是 `identities` 的行，`(provider, provider_uid)` 唯一，所以一个 GitHub 账号、一个邮箱、一个 Google 账号只能绑定在一个 OpenID 上：GitHub 用不可变的数字 id，Google 用 ID Token 的 `sub`，邮箱用规范化地址。**每个账号每种方式最多一个**（待确认 7）；GitHub 每个账号恰好一个，不能解绑。
-- 只有 GitHub 能建号：GitHub 登录通过组织门槛、且这个 GitHub id 还没有账号时，在登录事务里同时建 `users` 与 `identities`。邮箱与 Google 只能命中已绑定的账号，未命中不建任何行。
+- 只有 GitHub 能建号：GitHub 登录通过组织门槛、且这个 GitHub id 还没有账号时，在登录事务里同时建 `users` 与 `identities`（交付 4 起还有 `user_profiles`）。邮箱与 Google 只能命中已绑定的账号，未命中不建任何行。
 - **用哪种方式登录都落到同一个 OpenID**：登录事务按渠道找到身份，再走到它所属的账号（见[下一节](#登录事务三种方式共用)），会话只记 OpenID 和本次方式。业务代码从会话拿 `account_id`，不读 `identities`（只有身份模块读写它），也不按登录方式区分权限；唯一按方式区分的是[要本人 GitHub 令牌的接口](#要本人-github-令牌的接口交付-2)。
-- 三端显示的名字和头像永远取绑定 GitHub 的当前登录名与头像（每次 GitHub 登录刷新），不显示 Google 昵称或邮箱。
+- 显示的名字和头像取账号的个人资料（见[统一资料](#统一资料交付-4)）；交付 4 之前是绑定 GitHub 的当前登录名与头像（每次 GitHub 登录刷新）。任何时候都不显示 Google 昵称或邮箱。
 - GitHub 登录名可以改，旧名字也可能被别人注册：任何地方都**不能只凭登录名认领**账号、称号或论坛用户。有 GitHub id 时按 id；没有 id 的旧记录只读、不认领（见[数据库](#数据库)）。
 - `canonical_email` 只是已绑定邮箱的副本（解绑时清空），不用于登录查找、不用于合并；Google 返回的邮箱即使相同也不会自动绑定邮箱方式。
 
@@ -158,9 +179,9 @@ flowchart LR
 
 外部请求（换 token、查 GitHub 用户与组织资格、Google token 端点与验签）全部在事务**之外**做完，然后在一个 `BEGIN IMMEDIATE` 事务里：
 
-1. 按 `(provider, provider_uid)` 查 `identities`。GitHub 未命中：新建 `users`（`org_state='active'`）和 GitHub 身份。邮箱、Google 未命中：结束，回 `identity_not_linked`，不写任何行。
+1. 按 `(provider, provider_uid)` 查 `identities`。GitHub 未命中：新建 `users`（`org_state='active'`）和 GitHub 身份（交付 4 起再建一行资料，初始值见[统一资料](#统一资料交付-4)）。邮箱、Google 未命中：结束，回 `identity_not_linked`，不写任何行。
 2. 沿 `merged_into` 走到终点，最多 8 跳；超长或成环按 `failed` 处理并写错误日志。终点 `status='disabled'` → `account_disabled`，写 `auth.signin_denied`。
-3. 只对 GitHub 登录：刷新身份的 `login`、`avatar_url`、`last_login_at`，`users.org_state='active'`、`org_checked_at=now`；把 `account_id` 为空、`github_user_id` 等于本人 id 的 `role_assignments` 与 `forum_users` 行认领到这个账号（幂等）。交付 2 选资格来源 B 时同时写入新的资格凭据。
+3. 只对 GitHub 登录：刷新身份的 `login`、`avatar_url`、`last_login_at`，`users.org_state='active'`、`org_checked_at=now`；把 `account_id` 为空、`github_user_id` 等于本人 id 的 `role_assignments` 与 `forum_users` 行认领到这个账号（幂等）。交付 2 选资格来源 B 时同时写入新的资格凭据。交付 4 起，登录名变了且新名字没被占用时，资料的用户名跟着改，昵称还等于旧用户名（没改过）的一起改。
 4. 插入新会话：新的随机 `sid`，`openid` = 账号，`provider` = 本次方式；`login`、`user_id`、`avatar_url` 一律取绑定 GitHub 的值（第二渠道也是）；只有 GitHub 会话存本次 token。
 5. 请求里带着旧 `sid` 时删除那一行（换号登录、重复登录时旧会话作废）。
 6. 写 `identity_audit`（`login`）和 `audit_logs`（`auth.signin`，`details.provider`）。
@@ -241,6 +262,23 @@ flowchart LR
 - 列成员和授予称号要的能力是 `roles.manage` / `roles.department.manage`，不是 `github.*`，`blocked` 里不会出现它们；前端在「成员与权限」页按 `/auth/me` 的 `provider` 显示锁，服务端以守卫为准。
 - `tests/server/github-session.test.ts` 遍历服务端注册的路由：`/api/admin/:org/*` 全部与上面 3 条，在邮箱会话下都回 `github_session_required`，而且**没有发出任何 GitHub 请求**；其余要会话的路由都不回这个错误。以后新增要本人 token 的路由，必须加进这份清单，并在项目地图流程的 `invariants` 里写明。
 
+### 统一资料（交付 4）
+
+所有者 2026-10-19 的原话：「还有因为统一sso登录了，所有用户是我们自己维护的一套，全局的头像还有相关的信息比赛，首页，管理后端，论坛都是用一套的，而且可以同步的更改」。
+
+- **一个账号一份资料**：`user_profiles` 一行对应一个 `account_id`（[DDL](#交付-4资料表)），存用户名、昵称、个人签名、所在地、个人网站、头像来源、上传头像的哈希和头像底色。称号和部门本来就按账号统一（`role_assignments`），资料卡片上一起显示，本人不能改。
+- **读取时取，不存快照**：业务表只存 `account_id`，显示时按它取资料，接口照旧 `no-store`。改一处，别处的下一次请求就是新的；不用通知各业务，也不会出现「这里改了、那里还是旧的」。已有的名字列（审计的 `actor`、意见箱的 `submitter_login` 等）记的是当时的事实，不动。
+- **头像一条显示规则**：服务端把头像解析成 `avatar: { url, color, initial }` 下发——来源 `upload` 时 `url` 是 `/api/avatars/<哈希>.webp`，`github` 时是绑定 GitHub 的头像地址，`initial` 时为空。前端只做三件事：有 `url` 显示图片；没有就在 `color` 底色上显示 `initial`（昵称的第一个字）；图片加载失败也退回首字。各端不再自己判断来源，三端用同一份 `/auth/me` 样例做测试。
+- **换图就换地址**：上传的图按内容哈希寻址、一年 `immutable`（沿用论坛头像），换一张图就是一个新地址，浏览器和网关不会显示旧图。没人再用的旧图删掉，判断「没人用」要同时查 `user_profiles` 与 `forum_users`。
+- **开着的页面自动刷新**：保存成功后，资料页通过 `BroadcastChannel("yzgc-account")` 发 `{ type: "profile", version }`；同一浏览器里开着的官网、论坛、控制台页面收到后重新取 `/auth/me`，换掉顶栏的头像和昵称（论坛同时刷新当前页的数据）。页面回到前台（`visibilitychange`）时也取一次 `/auth/me`，`profile.version` 变了就刷新，覆盖在别的设备上改的情况。
+- **防冒名**：昵称可以重名，但不能等于官方账号名或别人的用户名（沿用论坛的 `isAllowedName` 与 `displayNameTaken`）；帖子、队伍名单、控制台成员列表这些认人的地方，昵称旁一律显示 @用户名。用户名就是 GitHub 登录名，规则同论坛现状：GitHub 改名后新名字没被占用才跟着改，没改过的昵称（还等于旧用户名）一起改。用户名在 `user_profiles` 与 `forum_users` 里一起查重。
+- **并发**：保存带上读到的 `version`，不一致回 `409 profile_conflict` 和最新资料，不静默覆盖别处刚保存的内容；换头像、删头像同样让 `version` 加一。
+- **初始值**：交付 4 上线时，已有论坛资料的成员沿用论坛里的昵称、签名、所在地、网站、头像和底色；没有论坛资料的用 GitHub 登录名作昵称、用 GitHub 头像，底色按论坛现有做法从 `AVATAR_PALETTE`（`lib/forum-rules.ts:64`）里取。以后新建的账号同样从 GitHub 登录名和头像开始。**不导入 Google 的昵称和头像**，不接 Gravatar。
+- **不跟资料走的地方**：控制台「GitHub 组织」各页列的是 GitHub 账号，照旧显示 GitHub 登录名和头像；审计记录保留当时的登录名；招新投递人还不是账号，不显示资料；论坛游客不是账号，昵称规则和显示照旧。
+- **管理**：有 `profile.moderate` 能力的人（默认给有 `forum.post.moderate` 的称号，待确认 12）在论坛个人主页 `/forum/u/<用户名>` 可以「重置资料」：勾选要重置的项（昵称回到用户名；签名、所在地、网站清空；头像回到 GitHub 头像）并写原因。写审计 `profile.reset`，本人在「最近账号操作」里看到「资料被管理员重置」和原因。
+- **论坛怎么接**：成员的资料改从 `user_profiles` 读——论坛用户的昵称和头像地址只在 `toUser`（`lib/forum-store.ts:123`）里算，改这一处；`PATCH /api/forum/me/profile` 的资料字段与 `PUT`、`DELETE /api/forum/me/avatar` 保留路径，改为写同一份资料（同一套校验），论坛自己的通知设置照旧存 `forum_users`。论坛「偏好设置」页的资料部分换成只读卡片和「去个人资料修改」。`forum_users` 的资料列在同一个事务里同步写一份，只为回滚到旧镜像时论坛照常显示（见[交付 4：资料表](#交付-4资料表)）。
+- **以后的 OIDC**：对外授权的 `profile` scope（`name`、`preferred_username`、`picture`）直接取这一份，不另建资料。
+
 ## 各业务怎么对齐
 
 ### 统一口径
@@ -249,7 +287,7 @@ flowchart LR
 
 1. **认人用极客班 OpenID（`account_id`）**。新表一律引用 `users(id)`；旧表加可空的 `account_id`，旧列（`github_login`、`github_user_id`、`actor` 等）照写不删，回滚到旧镜像时旧代码照常读旧列。
 2. **不自己接登录**：新业务（包括以后的服务）只用 `/signin` 和 `sid` 会话，要知道「是谁」就读会话的 `account_id`；不自己接 OAuth、不保存渠道账号或令牌、不按 GitHub 登录名或邮箱认人。
-3. **显示用绑定 GitHub 的登录名与头像**，读取时从账号取，业务表不新增名字快照（已有的快照列不动）。
+3. **显示用账号的个人资料**（昵称、@用户名、头像；交付 4 之前是绑定 GitHub 的登录名与头像），读取时按 `account_id` 取，业务表不新增名字或头像快照（已有的快照列不动）；匿名可读的接口只给 `ProfileCard`，不带 `account_id`（见[统一资料](#统一资料交付-4)）。
 4. **是不是成员只问资格模块**，检查别的账号（邀请对象、新队长）也用它的按账号查询（见[成员资格](#成员资格交付-2)）；拿到 `verification_required`、`unavailable` 时原样回 `403 membership_verification_required`、`503 membership_unavailable`，不自己降级或放行。
 5. **要本人 GitHub 令牌的操作**只在 GitHub 会话里做，否则 `403 github_session_required`；不借用资格凭据，不换组织级凭据。
 6. **审计** `actor` 继续写 GitHub 登录名（论坛靠 `auth.signin` 的 actor 挡游客冒名），新行同时写 `actor_account_id`。
@@ -272,12 +310,15 @@ flowchart LR
 | competitions（#243 合入后） | 赛事没有个人数据 | 不变 | 控制台 4 条只看身份，第二渠道照常；#239 的报名与队伍在交付 1 之后按 `account_id` 建表；#239 新增的门户与控制台流程同样只看身份、不调用 GitHub，细则见 [PR #243](https://github.com/Yangtze-University-Geek-Class/admin/pull/243) 中 `docs/plan/COMPETITION-APP.md` 的「与其他业务的协调」 | 公开列表匿名可读 | #239 自己的测试 |
 | public_content（公开内容） | 不读会话 | 不变 | 不变 | 全部 | — |
 
+交付 4（统一资料）对各域的改动集中写在[统一资料](#统一资料交付-4)：论坛成员资料改读 `user_profiles`、资料接口改写同一份；官网与控制台顶栏、控制台成员单元格显示资料；比赛的队伍与名单返回 `ProfileCard`；审计加 `profile.update`、`profile.reset`；平台的缓存例外加 `/api/avatars/`。其余域不变。
+
 ### 账号事件对各业务的影响
 
 | 事件 | 身份与会话 | 称号 | 论坛 | 比赛（#239） | 审计 |
 |---|---|---|---|---|---|
 | 第一次 GitHub 登录（建号） | 建 `users` 与 GitHub 身份，签发会话 | 认领 `github_user_id` 相同、`account_id` 为空的行 | 认领 `m<id>`；没有就照旧在第一次访问时建 | 无 | `auth.signin`、`identity_audit` 的 `login` |
-| GitHub 改登录名 | 下一次 GitHub 登录刷新身份与会话的 `login` | 按账号或 id 匹配，不受影响 | 新名字没人占就跟着改（现状） | 读取时取新名字 | 新行用新名字；旧行不改 |
+| GitHub 改登录名 | 下一次 GitHub 登录刷新身份与会话的 `login`；交付 4 起资料的用户名跟着改（新名字没被占用时），没改过的昵称一起改 | 按账号或 id 匹配，不受影响 | 新名字没人占就跟着改（现状） | 读取时取新名字 | 新行用新名字；旧行不改 |
+| 改资料或头像（交付 4） | 写 `user_profiles`、`version` 加一；会话不变 | 无 | 同一事务写 `forum_users` 的镜像列；帖子作者显示新资料 | 名单读取时取新资料 | `profile.update`；本人的 `identity_audit` 记 `profile_update` |
 | 绑定、解绑邮箱或 Google | 写或删身份；解绑撤销该方式的会话 | 无 | 无 | 无 | `identity.link`、`identity.unlink`、`auth.session_revoked` |
 | 被确认移出组织或邀请撤回（交付 2 起） | 撤销全部会话、作废资格版本 | 指派保留；重新入组登录后照旧生效 | 论坛用户与帖子保留，之后按游客 | 报名与队伍保留，写操作因没有会话而失败 | `auth.session_revoked { reason: "membership_lost" }` |
 | 账号停用 | 拒绝登录、撤销全部会话 | 同上 | 同上 | 同上 | `auth.session_revoked { reason: "account_disabled" }` |
@@ -293,7 +334,7 @@ flowchart LR
 | `GET /auth/github` | 不要 | `?return_to=` | `302` 去 GitHub（现状） | — | — | 1：缺省回跳仍是 `/console` |
 | `GET /auth/callback` | 不要 | `code`、`state` | `302` 到 `return_to`，`Set-Cookie: sid` | `302 /signin?signin=<原因>&return_to=…`；`400 invalid_state`（现状） | — | 1 |
 | `POST /auth/signout` | 要 | — | 现状 | 现状 | — | 不变 |
-| `GET /auth/me` | 可选 | — | 现有字段，加 `account_id`、`provider`；交付 2 再加 `membership_state` | — | — | 1、2 |
+| `GET /auth/me` | 可选 | — | 现有字段，加 `account_id`、`provider`；交付 2 再加 `membership_state`；交付 4 再加 `profile` | — | — | 1、2、4 |
 | `POST /auth/email/start` | 不要 | `{ email, return_to? }` | `202 { resend_after: 60 }`，设 `email_challenge` | `400 bad_email`、`429 rate_limited` | 邮箱 60 秒 1 次、每小时 5 次；IP 每小时 20 次 | 2 |
 | `POST /auth/email/verify` | 不要（凭挑战 cookie） | `{ code }` | `200 { return_to }`，`Set-Cookie: sid` | `400 invalid_code`、`400 code_expired`；`403 account_disabled`、`not_member`、`invite_pending`、`membership_verification_required`；`503 membership_unavailable` | 每个挑战 5 次 | 2 |
 | `GET /auth/google` | 不要 | `?return_to=` | `302` 去 Google | `404 provider_not_enabled` | — | 3 |
@@ -304,10 +345,17 @@ flowchart LR
 | `POST /api/identity/link` | 要，step-up | `{ provider: "google" }` | `200 { authorize_url }`，设 `google_oauth_state`（`kind: "google-link"`） | `403 step_up_required`、`404 provider_not_enabled`、`409 identity_exists` | 每会话每分钟 10 次 | 3 |
 | `POST /api/identity/unlink` | 要，step-up | `{ provider }`（`github`、`google`、`email`） | `200 { ok: true, signed_out }` | `403 step_up_required`、`404 not_found`、`409 github_required` | 每会话每分钟 10 次 | 2 |
 | `POST /webhooks/github` | 不要（校验 `X-Hub-Signature-256`） | `organization` 事件 | `204` | `401 bad_signature` | — | 2，只在资格来源 A |
+| `GET /api/identity/profile` | 要 | — | `200 Profile`（类型见下） | `401` | — | 4 |
+| `PATCH /api/identity/profile` | 要 | `{ version, display_name?, bio?, location?, website?, avatar_source?, avatar_color? }` | `200 Profile` | `400 invalid_profile`（带 `field`）、`409 profile_conflict`（带最新的 `profile`）、`429 rate_limited` | 每会话每分钟 10 次 | 4 |
+| `PUT /api/identity/avatar` | 要 | 图片本身，格式与大小同论坛头像接口 | `200 Profile`（`avatar_source` 变成 `upload`） | `400 invalid_image`、`413 avatar_too_large`、`415 unsupported_media_type`、`429 rate_limited` | 每账号每小时 10 次，和论坛头像共用落库计数 | 4 |
+| `DELETE /api/identity/avatar` | 要 | — | `200 Profile`（删掉上传的图，改用 GitHub 头像） | — | 每会话每分钟 10 次 | 4 |
+| `GET /api/avatars/:file` | 不要 | `<哈希>.webp` | `200 image/webp`，一年 `immutable`，响应头同 `GET /api/forum/avatars/:file`（后者保留） | `404` | — | 4 |
+| `POST /api/console/profiles/:handle/reset` | 要，`profile.moderate` | `{ fields, reason }`，`fields` 取 `display_name`、`bio`、`location`、`website`、`avatar` | `200 { ok: true }` | `400 invalid_profile`、`403 missing_capability`、`404 not_found` | 每会话每分钟 10 次 | 4 |
 
 - 邮箱的两种限流跨进程重启也要成立，所以**从 `email_challenges` 表计数**，不用 `@fastify/rate-limit`（它在进程内存里按 IP 计）；每会话每分钟 10 次用路由的 `config.rateLimit`，`keyGenerator` 取会话 id。超限一律是现有的 `429 rate_limited` 加 `Retry-After` 头（#191）。
 - 绑定邮箱的 `verify` 不再检查 step-up（`start` 已检查），改为核对挑战里的会话指纹与当前会话一致，不一致按 `code_expired`；这样 `start` 后第 9 分钟输码不会因为跨过 10 分钟而失败。
 - `start` 里的 `return_to` 先过 `safeReturnTo` 再存进挑战行，`verify` 原样返回，前端整页跳转。
+- 资料的三个写接口（`PATCH`、`PUT`、`DELETE`）都返回完整的 `Profile`（含新的 `version`），页面用它替换本地状态，下一次保存不会误报冲突；广播由页面发，服务端不推送。资料接口只看是谁、不调用 GitHub，邮箱或 Google 会话照常可用（不在 41 条之列）。
 
 ```ts
 // GET /auth/providers：按这个顺序返回；前端不写死任何渠道
@@ -327,12 +375,13 @@ type MeAdditions = {
   account_id: string;        // 极客班 OpenID（users.id）：用 GitHub、邮箱、Google 登录都是同一个值
   provider: "github" | "google" | "email";
   membership_state?: "active" | "verification_required" | "unavailable"; // 交付 2；不是 active 时 console_link 为 false
+  profile?: ProfileCard & { version: number };  // 交付 4；官网、论坛、控制台的头像菜单都用它
 };
 
 // GET /api/identity/me：账号页的唯一数据源
 type AccountView = {
   account_id: string;        // 同上
-  github: { login: string; avatar_url: string | null };          // 三端显示的名字与头像
+  github: { login: string; avatar_url: string | null };          // 绑定的 GitHub 账号；交付 4 起显示用 profile
   identities: {
     provider: "github" | "google" | "email";
     label: string;             // GitHub 登录名；邮箱与 Google 邮箱掩码成 c***@example.com
@@ -356,6 +405,20 @@ type AccountView = {
   };
   recent: { at: number; action: string; provider: string | null; result: "ok" | "denied" | "failed" }[]; // identity_audit 最近 20 条
 };
+
+// 交付 4：个人资料。头像由服务端解析好，前端不判断来源
+type Avatar = { url: string | null; color: string; initial: string };          // url 为空时在 color 底色上显示 initial
+type ProfileCard = { handle: string; display_name: string; avatar: Avatar };   // 认人的地方显示 display_name 和 @handle；不含 account_id
+type Profile = ProfileCard & {    // GET、PATCH /api/identity/profile 与 PUT、DELETE /api/identity/avatar 都返回它
+  bio: string;
+  location: string;
+  website: string;                 // 空串或 https:// 开头
+  avatar_source: "upload" | "github" | "initial";
+  avatar_color: string;            // AVATAR_PALETTE 之一，avatar.color 就是它
+  has_upload: boolean;             // 有上传过的图，avatar_source 才能是 upload
+  version: number;                 // 保存时带回；不一致回 409 profile_conflict
+  updated_at: number;
+};
 ```
 
 交付 2 起，已有接口的变化：
@@ -371,6 +434,8 @@ type AccountView = {
 | 400 | `bad_email` | 邮箱格式不对 | — | 输入框下提示「邮箱格式不对」 |
 | 400 | `invalid_code` | 验证码不对 | `attempts_left` | 「验证码不对，还可以试 N 次」 |
 | 400 | `code_expired` | 过期、试满 5 次、已用、cookie 缺失或不是发起绑定的会话 | — | 「验证码已失效，请重新获取」，回到输邮箱一步 |
+| 400 | `invalid_profile` | 资料不合规则：昵称为空、超过 30 字、含不允许的字符，或是官方账号名、别人的用户名；签名、所在地超长或含控制字符；网址不是 `https://` | `field`、`message` | 在对应字段下方显示 `message`（文案与论坛相同） |
+| 400 | `invalid_image` | 图片解不开，或宽高超过 4096 | — | 「这张图片打不开，换一张试试」 |
 | 401 | `not_signed_in`、`session_expired` | 现状 | — | **唯一**按退出处理的状态：清身份，带 `return_to` 去 `/signin` |
 | 403 | `step_up_required` | 绑定、解绑时这次登录超过 10 分钟 | `reauth.return_to` | 去 `/signin?reauth=1&return_to=…`；不清身份 |
 | 403 | `github_session_required` | 邮箱或 Google 会话调用要本人 GitHub 令牌的接口 | — | 页面内显示「这一页需要用 GitHub 登录」与「用 GitHub 继续」（回到当前页）；不清身份 |
@@ -381,6 +446,9 @@ type AccountView = {
 | 409 | `identity_conflict` | 要绑定的邮箱或 Google 已属于别的账号 | — | 「这个邮箱（Google 账号）已经绑定了别的极客班账号」，不说是谁 |
 | 409 | `identity_exists` | 本账号已经有这种方式 | — | 「已经绑定了邮箱，想换先解绑」 |
 | 409 | `github_required` | 解绑 GitHub | — | 按钮本来就是禁用的，兜底提示「GitHub 不能解绑」 |
+| 409 | `profile_conflict` | 保存时的 `version` 不是最新 | `profile`（最新资料） | 「资料刚在别处改过，你的修改还没保存」，给「载入最新内容」与「保留我的修改」 |
+| 413 | `avatar_too_large` | 图片超过 2 MB | — | 「图片不能超过 2 MB」 |
+| 415 | `unsupported_media_type` | 不是 PNG、JPEG、WebP | — | 「只支持 PNG、JPEG 和 WebP 图片」 |
 | 429 | `rate_limited` | 超过限流 | `Retry-After` 头 | 按秒数倒计时，期间按钮禁用 |
 | 503 | `membership_unavailable` | 资格查询超时、`403`、`429` 或 `5xx` | — | 「暂时没法确认成员资格，请稍后再试」；不清身份，邮箱验证码不作废 |
 
@@ -418,9 +486,12 @@ type AccountView = {
 | `identity.link`、`identity.unlink` | 新 | `{ provider }` | 绑定、解绑成功 | 2、3 |
 | `identity.link_conflict` | 新 | `{ provider }` | 要绑定的方式已属于别的账号；不写对方账号与第三方标识 | 2、3 |
 | `identity.backfill` | 新 | 回填计数（见[数据库](#数据库)） | 启动回填第一次完成，以及之后再补到非零计数时；`actor` 为 `system` | 1 |
+| `profile.update` | 新 | `{ fields }`；改了昵称时加 `display_name: { from, to }`，换了头像时加 `avatar_hash` | 本人改资料、换或删头像 | 4 |
+| `profile.reset` | 新 | `{ account_id, handle, fields, reason }`；`actor` 是操作的管理员 | 管理员重置资料 | 4 |
 
 - 没命中任何账号的尝试（没绑定的邮箱、没绑定的 Google）**不写**审计：没有可记的账号，也不能为此落邮箱或 Google `sub`。
-- `identity_audit` 每行只有 `user_id`、`action`（`login`、`login_denied`、`logout`、`link`、`unlink`、`link_conflict`、`session_revoked`）、`provider`、`result`（`ok`、`denied`、`failed`）、`reason` 和时间；不存 IP、UA、邮箱原文和第三方标识。
+- `identity_audit` 每行只有 `user_id`、`action`（`login`、`login_denied`、`logout`、`link`、`unlink`、`link_conflict`、`session_revoked`，交付 4 加 `profile_update`、`profile_reset`）、`provider`、`result`（`ok`、`denied`、`failed`）、`reason` 和时间；不存 IP、UA、邮箱原文和第三方标识。
+- 资料审计只记改了哪些字段：签名、所在地和网址的内容不进审计，昵称记前后两个值（查冒名用）。
 - 日志里不出现验证码、邮箱原文、token、Google `sub` 与 ID Token；发信结果只记发信商、HTTP 状态和错误码。
 
 ## 数据库
@@ -591,6 +662,51 @@ DROP INDEX IF EXISTS uq_identities_github_user;
 
 不加表。Google 身份写进 `identities`；绑定用的 state 在签名 cookie 里，不落库。新增运行时变量 `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`（凭据库条目按 ADR 叫 `YZGC_GOOGLE_*`，注入进 `.env` 时用左边的名字，做法同 `OAUTH_CLIENT_*`）。
 
+### 交付 4：资料表
+
+```sql
+CREATE TABLE IF NOT EXISTS user_profiles (
+  account_id TEXT PRIMARY KEY REFERENCES users(id),
+  handle TEXT NOT NULL COLLATE NOCASE UNIQUE,     -- 用户名：GitHub 登录名；与 forum_users.username 一起查重
+  display_name TEXT NOT NULL,                     -- NFKC 后 1–30 字
+  bio TEXT NOT NULL DEFAULT '',                   -- 不超过 200 字
+  location TEXT NOT NULL DEFAULT '',              -- 不超过 60 字
+  website TEXT NOT NULL DEFAULT '',               -- 空串或 https:// 开头，不超过 200 字
+  avatar_source TEXT NOT NULL DEFAULT 'github' CHECK (avatar_source IN ('upload','github','initial')),
+  avatar_hash TEXT,                               -- 上传过的图（forum_avatars.hash）；改用 GitHub 头像或首字时也保留，方便切回
+  avatar_color TEXT NOT NULL,                     -- AVATAR_PALETTE 之一
+  version INTEGER NOT NULL DEFAULT 1,
+  updated_at INTEGER NOT NULL,
+  updated_by TEXT REFERENCES users(id),           -- 本人或重置的管理员；回填时为空
+  CHECK (avatar_source <> 'upload' OR avatar_hash IS NOT NULL)
+);
+```
+
+- 图仍存在 `forum_avatars`，不改表名、不搬数据。`avatar_hash` **不加外键**：回滚到旧镜像时，旧代码删「论坛里没人用」的旧图，不会因为这张表的引用而失败；新代码删图时两张表一起查，启动时把指向已删除图片的行改回 GitHub 头像。
+- **镜像写**：本人或管理员改资料时，同一个事务里把这个成员 `forum_users` 行的 `display_name`、`bio`、`location`、`website`、`avatar_color`、`username` 写成同样的值，`avatar_hash` 写「来源是 `upload` 时的哈希，否则 `NULL`」；论坛还没有这个成员的行时不建。
+
+**回填**（每次启动，带条件、可重跑；`console_seeds` 标记 `profile_v1`）：
+
+1. **建资料**：每个不是 `merged`、还没有资料的账号建一行。有论坛成员行（`forum_users.account_id` 是这个账号）就取它的用户名、昵称、签名、所在地、网站、头像哈希和底色，有哈希时来源是 `upload`，否则是 `github`；没有论坛行的，用户名和昵称取 GitHub 登录名，底色从调色板取。
+2. **同步回滚期间的修改**：镜像列和资料不一致时以 `forum_users` 为准写回——正常运行时两边在同一个事务里写，只有回滚期间旧代码会单独改论坛这一份。论坛的 `avatar_hash` 被清空时来源回到 `github`（原来是 `initial` 的不变）；用户名冲突时保留原值并计数。
+3. **修头像**：`avatar_hash` 指向的图已经不在 `forum_avatars` 时清空，来源是 `upload` 的改回 `github`。
+4. **报告**：计数 `profiles_created`、`profiles_from_forum`、`profiles_synced`、`handle_conflicts`、`avatars_missing` 写进 `identity.backfill` 审计，规则同交付 1（第一次写，之后只有非零时再写）。
+
+**核对**：
+
+```sql
+SELECT COUNT(*) FROM users u WHERE u.status <> 'merged'
+  AND NOT EXISTS (SELECT 1 FROM user_profiles p WHERE p.account_id = u.id);                -- 0
+SELECT COUNT(*) FROM user_profiles p JOIN forum_users f ON f.account_id = p.account_id
+  WHERE f.display_name <> p.display_name OR f.bio <> p.bio OR f.location <> p.location
+     OR f.website <> p.website OR f.avatar_color <> p.avatar_color OR f.username <> p.handle
+     OR f.avatar_hash IS NOT (CASE WHEN p.avatar_source = 'upload' THEN p.avatar_hash END);   -- 0
+SELECT COUNT(*) FROM user_profiles p WHERE p.avatar_hash IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM forum_avatars a WHERE a.hash = p.avatar_hash);             -- 0
+```
+
+**回滚**：换回交付 4 之前的镜像即可。论坛读 `forum_users`（镜像列是最新的），官网和控制台回到显示 GitHub 登录名和头像；`user_profiles` 留着不动，`/api/avatars/` 只出现在新接口的响应里。再上线时由回填第 2、3 步补上回滚期间在论坛改的资料。
+
 ## 代码落点
 
 只列要动的文件；行号是 `stage` 当前位置，开工前按函数名重新定位。
@@ -613,8 +729,13 @@ DROP INDEX IF EXISTS uq_identities_github_user;
 | `lib/role-store.ts` | `assignmentsFor`（`:182`）依次按账号、GitHub id、小写登录名（最后一种只读不认领） | 1 |
 | `routes/forum-api/viewer.ts`、`lib/forum-store.ts` | `forumViewer` 按会话的账号认人；`ensureMember`（`:394`）建用户时写 `account_id`；资格状态映射成游客、403 或 503 | 1、2 |
 | `lib/mail/` | 新增即时发送（复用 `providers.ts` 的两家发信商与 `envelope.ts` 的信封，不带 Reply-To，不写 `mail_outbox`）和验证码信模板 | 2 |
-| `app.ts` | `ADMIN_SPA_PATHS.exact`（`:24`）加 `/account`；注册新路由 | 2 |
+| `app.ts` | `ADMIN_SPA_PATHS.exact`（`:24`）加 `/account`（交付 2）与 `/account/profile`（交付 4）；注册新路由 | 2、4 |
 | `config.ts` | 交付 2 资格来源 A 的 `GITHUB_APP_ID`、`GITHUB_APP_PRIVATE_KEY`、`GITHUB_APP_INSTALLATION_ID`、`GITHUB_WEBHOOK_SECRET`；交付 3 的 `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`；邮箱方式是否启用由「配了发信商」推出，不另加开关 | 2、3 |
+| `lib/profile-store.ts`（新） | 资料读写、`version` 检查、镜像写 `forum_users`、回填与同步、按账号批量取 `ProfileCard`（给论坛、比赛和控制台用）；昵称与字段校验从 `routes/forum-api/people.ts` 抽成共用函数，论坛接口和新接口调同一个 | 4 |
+| `routes/identity/profile.ts`（新） | `GET`、`PATCH /api/identity/profile`，`PUT`、`DELETE /api/identity/avatar`，`GET /api/avatars/:file`；头像处理原样复用 `lib/forum-avatar.ts` 的 `processAvatar` | 4 |
+| `lib/forum-store.ts`、`routes/forum-api/people.ts` | `toUser`（`:123`）的成员按账号读资料；`setAvatar`（`:541`）与资料更新改走资料模块；`deleteAvatarIfUnused`（`:302`）同时查两张表；`ensureMember`（`:394`）改名跟随时同步 `handle`；`PATCH /api/forum/me/profile`（`people.ts:32`）的资料字段与头像接口（`:80`、`:91`）改调资料模块，通知设置照旧 | 4 |
+| `middleware/http-policy.ts`（`:39`） | `immutable` 例外加 `/api/avatars/` | 4 |
+| `routes/admin/auth.ts`、`routes/console/profiles.ts`（新）、`lib/roles.ts` | `/auth/me` 加 `profile`；管理员重置资料；新能力 `profile.moderate`，默认给有 `forum.post.moderate` 的称号 | 4 |
 
 **控制台 `app/console/src/`**
 
@@ -628,6 +749,8 @@ DROP INDEX IF EXISTS uq_identities_github_user;
 | `components/CapabilityGate.vue`、`components/GithubSessionRequired.vue`（新） | 被挡原因是 `github_session_required` 时渲染说明页与「用 GitHub 继续」 | 2 |
 | `lib/errors.ts`（`:36`）、`lib/http.ts`（`:56`）、`lib/runtime.ts`（`:41`） | 401 文案改「登录已失效，请重新登录。」；只有 401 退出；`signInHref` 指向 `/signin` | 1 |
 | `mock/console.ts` | 加「邮箱会话的舰长」等身份，`tests/console/mock-sync.test.ts` 跟着改 | 2 |
+| `router.ts`、`pages/Profile.vue`（新） | `/account/profile`：表单、头像三选一、四端预览、`409` 处理、离开前确认未保存的修改；保存后广播 | 4 |
+| `components/ConsoleNav.vue`（`:74`）、`components/UserCell.vue`、`lib/account-sync.ts`（新） | 顶栏头像和昵称取 `/auth/me` 的 `profile`，菜单加「个人资料」；成员单元格显示昵称和 @用户名（GitHub 组织页照旧显示 GitHub 账号）；订阅 `BroadcastChannel` 与 `visibilitychange` | 4 |
 
 **官网、论坛与网关**
 
@@ -636,10 +759,13 @@ DROP INDEX IF EXISTS uq_identities_github_user;
 | `app/web/sites/portal/lib/account.ts`（`:14`） | 登录地址改 `/signin?return_to=<当前页>` | 1 |
 | `app/web/sites/portal/components/os/YugcOs.tsx` | 菜单（`:316`）加「账号」（交付 2）；登录按钮（手机 `:341`、桌面 `:361` 起）改为「登录」，去掉 GitHub 图标 | 1、2 |
 | `app/forum/app/composables/useSiteLinks.ts`（`:14`）、`components/LoginModal.vue` | 登录入口改 `/signin`；弹窗文案不再写「用 GitHub 登录」 | 1 |
-| `app/forum/app/data/account-menu.ts` | 加 `account` 项「登录方式」（论坛已有「账号资料」，指论坛资料，不要混用） | 2 |
+| `app/forum/app/data/account-menu.ts` | 交付 2 加 `account` 项「登录方式」；交付 4 加「个人资料」（去 `/account/profile`），已有的「账号资料」改名「偏好设置」（和页面标题一致，只剩论坛自己的设置） | 2、4 |
 | `app/forum/shared/signin-outcomes.ts`、`composables/useSiteAccount.ts` | 回跳结果改由统一登录页显示，删掉这个文件和 `useSiteAccount.ts:58` 的调用；会话中途失效的提示（`server.signinLapse`、`data/access.ts` 的 `signinLapsedToast`）保留 | 1 |
-| `app/web/Dockerfile`（`:203`） | 控制台入口的正则加 `account$` | 2 |
+| `app/web/Dockerfile`（`:203`） | 控制台入口的正则加 `account$`（交付 2）与 `account/profile$`（交付 4） | 2、4 |
 | `deploy/env/.env.preview`、`.env.production`、两条部署工作流、`docs/ops/ENVIRONMENTS.md`、`docs/ops/CICD.md`、`docs/ops/ENVIRONMENT.md` | 新变量（密钥留空、由 CI 注入），`pnpm check:environments` 通过 | 2、3 |
+| `app/web/sites/portal/lib/account.ts`（`:10-20`）、`components/os/YugcOs.tsx`（`:316`） | 解析 `/auth/me` 的 `profile`；头像菜单显示资料里的头像和昵称，加「个人资料」；订阅资料变化 | 4 |
+| `app/forum/shared/site-account.ts`（`:7-20`）、`components/UserAvatar.vue`、`pages/u/[username]/preferences.vue` | 解析 `profile`；头像按 `avatar` 显示（有 `url` 用图，否则首字，加载失败退回首字）；偏好设置页的资料部分换成只读卡片和「去个人资料修改」，通知设置留着；有 `profile.moderate` 时个人主页显示「重置资料」 | 4 |
+| 比赛（#239 实现时） | 队伍成员与名单按 `account_id` 批量取 `ProfileCard`；名单 CSV 用导出那一刻的昵称和用户名 | 4 之后 |
 
 ## 项目地图与文档同步
 
@@ -655,8 +781,11 @@ DROP INDEX IF EXISTS uq_identities_github_user;
 | `identity.github.webhook` | `POST /webhooks/github`（只在资格来源 A） | 2 |
 | `identity.google.authorize`、`identity.google.callback` | `GET /auth/google`、`/auth/google/callback` | 3 |
 | `identity.link` | `POST /api/identity/link` | 3 |
+| `identity.profile.read`、`identity.profile.update` | `GET`、`PATCH /api/identity/profile` | 4 |
+| `identity.avatar.upload`、`identity.avatar.clear`、`identity.avatar.read` | `PUT`、`DELETE /api/identity/avatar`，`GET /api/avatars/:file` | 4 |
+| `identity.profile.reset` | `POST /api/console/profiles/:handle/reset` | 4 |
 
-已有流程要改 `invariants`：`identity.callback`（失败回 `/signin`、登录事务、认领）、`identity.current`（新字段）、41 条要本人令牌的流程（交付 2 起写明「第二渠道会话回 `github_session_required`，不调用 GitHub」）。
+已有流程要改 `invariants`：`identity.callback`（失败回 `/signin`、登录事务、认领）、`identity.current`（新字段）、41 条要本人令牌的流程（交付 2 起写明「第二渠道会话回 `github_session_required`，不调用 GitHub」）；交付 4 起，`forum.profile.update`、`forum.avatar.upload`、`forum.avatar.clear` 改为写统一资料，`identity` 域的 `tables` 加 `user_profiles`。
 
 **文档**：按 [docs/README](../README.md) 的对照表，同一个 PR 里改 `docs/services/server/`（`README.md`、`endpoint-contracts.md`、`data-model.md`、`mail.md`）、`docs/services/console/README.md`、`docs/services/web/`（`portal.md`、`README.md`）、`docs/services/forum/README.md`，以及 `docs/architecture/API.md` 与 `SECURITY.md`（登录门槛、会话、第二渠道），并把各自的「更新：」改成当天；动了 `deploy/` 或工作流时同步 `docs/ops/` 对应文档。`docs/changes/<issue>.json` 的 `business` 写真实的域、流程和表。
 
@@ -682,7 +811,13 @@ DROP INDEX IF EXISTS uq_identities_github_user;
 
 - `tests/server/google-signin.test.ts`（新）：state 不符、过期与重放；nonce 不符；缺 PKCE verifier；`aud` 不符；`iss` 两种写法都接受、其他拒绝；`exp` 过期与 `iat` 超前；签名错误；未知 `kid` 重取一次后成功、再失败；`email_verified` 为假时不存邮箱；未绑定时数据库没有任何新行、没有审计；绑定冲突；绑定回调的会话指纹不符；绑定后用 Google 登录得到的 `account_id` 与 GitHub 登录时相同。
 
-**真实验收**（写进 PR，不能用测试代替）：预发布环境的 GitHub 登录往返与被拒路径；交付 2 用五个真实收件箱（飞书企业邮、QQ 邮箱、两个 Gmail、Outlook）各收一次验证码，记录到达时间与是否进垃圾箱，并截邮件；交付 3 用 Google 测试账号走一遍登录与绑定。
+**候选 4**
+
+- `tests/server/profile.test.ts`（新）：回填（有论坛资料的沿用、没有的取 GitHub）与重跑后计数不变；改昵称后 `/auth/me`、论坛帖子作者、控制台成员列表读到的都是新昵称；昵称为空、超长、含控制字符、是官方账号名或别人的用户名都回 `400 invalid_profile` 和对应的 `field`；`version` 不一致回 `409 profile_conflict`；上传 PNG、JPEG、WebP 都得到 256×256 WebP 和新地址，旧图没人用时删除、另一张表还在用时不删；选首字时 `avatar.url` 为空；GitHub 改名后用户名跟随、改过的昵称不变；没有 `profile.moderate` 重置回 403，重置写 `profile.reset`、本人「最近账号操作」可见；镜像核对 SQL 为 0；模拟回滚期间在论坛改资料，再启动后补回。
+- 三端：同一份 `/auth/me` 响应样例喂给官网、论坛、控制台的解析函数，得到相同的昵称、用户名和头像；头像组件在图片加载失败时退回首字。
+- e2e：在资料页改昵称和头像后，同一浏览器里开着的官网、论坛、控制台页面不刷新就换成新的，新开的页面直接是新的；桌面 1440×900 与手机 390×844。
+
+**真实验收**（写进 PR，不能用测试代替）：预发布环境的 GitHub 登录往返与被拒路径；交付 2 用五个真实收件箱（飞书企业邮、QQ 邮箱、两个 Gmail、Outlook）各收一次验证码，记录到达时间与是否进垃圾箱，并截邮件；交付 3 用 Google 测试账号走一遍登录与绑定；交付 4 在预发布环境改一次昵称和头像，截官网、论坛、控制台（和已上线的比赛页面）的图。
 
 **PR 证据**（[ISSUES](../conventions/ISSUES.md) 标签表）：`func:auth` 给游客、成员、有称号成员各一条通过与拒绝路径；`func:data` 给迁移前后的计数输出与回滚演练；`func:external` 说明外部响应只用虚构数据注入；`ui:*` 给改前改后的桌面与手机截图（实现截图，不是本文草图）；`infra:deploy` 给 `pnpm check:environments` 的真实输出。
 
@@ -696,6 +831,8 @@ DROP INDEX IF EXISTS uq_identities_github_user;
 6. 交付 2 起，403 与 503 明确不按退出处理。
 7. 登录成功时删除请求带来的旧 `sid`。
 8. `user_id` 为空的旧会话在交付 1 上线后要重新登录。
+9. 交付 4 起，官网和控制台显示个人资料里的头像与昵称，不再是 GitHub 登录名与头像。
+10. 交付 4 起，论坛菜单的「账号资料」改名「偏好设置」，头像、昵称、签名等到 `/account/profile` 修改。
 
 ## 实施顺序（每个 PR 内）
 
@@ -709,15 +846,15 @@ DROP INDEX IF EXISTS uq_identities_github_user;
 
 ## 候选 issue（未建单）
 
-按 [ISSUES](../conventions/ISSUES.md) 需求正文的顺序写好，Crosery 批准后照抄建单，正文链接本文作为方案。三张单都要写「与现状不同的行为」里属于自己的条目。
+按 [ISSUES](../conventions/ISSUES.md) 需求正文的顺序写好，Crosery 批准后照抄建单，正文链接本文作为方案。四张单都要写「与现状不同的行为」里属于自己的条目。
 
-查重（2026-10-19）：#226、#228、#203 是 `not planned`；#229 的 PR 已关闭、只借用它的 DDL；#128（过期会话清理）、#164（GitHub 收回授权后会话失效）、#191（429 形状）已完成，本方案沿用；#237 是规划单；#239 的报名依赖候选 1。没有重复的开放 issue。
+查重（2026-10-19）：#226、#228、#203 是 `not planned`；#229 的 PR 已关闭、只借用它的 DDL；#128（过期会话清理）、#164（GitHub 收回授权后会话失效）、#191（429 形状）已完成，本方案沿用；#237 是规划单；#239 的报名依赖候选 1；#57（已完成）做了论坛资料，候选 4 把它升到账号。没有重复的开放 issue。
 
 ### 候选 1：`server：长江大学极客班统一登录——GitHub 登录落到极客班账号`
 
 标签：`enhancement`、`server`、`P1`、`func:auth`、`func:data`、`func:api`、`ui:content`、`ui:layout`
 
-- **确认依据**：建单时写 Crosery 批准本候选的原话与时间、批准的范围。本文与 ADR-0005 都是 `proposed`，不能当作确认。
+- **确认依据**：建单时写 Crosery 批准本候选的原话与时间、批准的范围。本文与 ADR-0005 已被接受（`accepted`），但那只是定了方向，不能当作对本候选的批准。
 - **现状与问题**：登录和业务数据都以 GitHub 账号为主语，称号缺 GitHub id 时按登录名匹配，改名或旧名被别人注册会认错人；官网、论坛、控制台各写一份「用 GitHub 登录」，被拒原因带回发起页各自解释；没有能挂第二种登录方式的账号。
 - **期望的结果**：GitHub 登录落到一个极客班账号；三端都进统一登录页，登录后回到原页面，被拒原因在登录页讲清楚；GitHub 改名不丢称号和帖子。
 - **范围与不做什么**：做交付 1（[交付总览](#交付总览)）。不做邮箱、Google、账号页、成员资格模块、账号合并和停用管理界面。
@@ -750,9 +887,21 @@ DROP INDEX IF EXISTS uq_identities_github_user;
 - **涉及接口**：`GET /auth/google`、`/auth/google/callback`、`POST /api/identity/link`；`/auth/providers` 出现 `google`。
 - **验收条件**：Google 测试账号走通绑定、登录、解绑与未绑定被拒，登录后与 GitHub 登录是同一个 `account_id`；`google-signin.test.ts` 覆盖的错误路径全部通过；同意屏幕显示应用名「长江大学极客班」。
 
+### 候选 4：`server：极客班统一资料——头像和昵称全站一套`
+
+标签：`enhancement`、`server`、`P1`、`func:data`、`func:api`、`ui:content`、`ui:layout`
+
+- **确认依据**：同上。需求来自所有者 2026-10-19 的原话（见[统一资料](#统一资料交付-4)），建单仍要单独批准。
+- **现状与问题**：只有论坛有个人资料；官网和控制台只显示 GitHub 登录名和头像，同一个人在论坛改了昵称和头像，别处看不到；比赛报名名单（#239）没有统一的显示来源。
+- **期望的结果**：在 `/account/profile` 改一次头像、昵称和签名，官网、论坛、控制台和比赛同时换成新的，开着的页面自动刷新；认人的地方昵称旁显示 @用户名，不能冒充官方或别人。
+- **范围与不做什么**：做交付 4。不导入 Google 昵称与头像，不接 Gravatar，不放实名信息，用户名不能自己改，论坛游客的昵称规则不变。
+- **相关 issue**：候选 1、#237、#239、#57。依赖：候选 1 已合并；可与候选 2 并行，谁先合并谁建 `/account` 页面框架。
+- **涉及接口**：`GET`、`PATCH /api/identity/profile`，`PUT`、`DELETE /api/identity/avatar`，`GET /api/avatars/:file`，`POST /api/console/profiles/:handle/reset`；`GET /auth/me` 加 `profile`；论坛 `PATCH /api/forum/me/profile` 与头像接口改写同一份资料。
+- **验收条件**：回填核对 SQL 通过；改昵称和头像后，官网头像菜单、论坛帖子、控制台顶栏（以及已上线的比赛名单）不用重新登录就显示新的，已开页面自动刷新；冲突、规则不符、图片过大或格式不对都有明确提示；回滚演练后论坛资料不丢；资料页与各端的桌面、手机截图。
+
 ## 待所有者确认
 
-前三条是 ADR-0005「登录方式」一节的待确认，后五条是本文新增的；没确认之前按括号里的默认写，确认后同步改 ADR 与本文。
+前三条是 ADR-0005「登录方式」一节的待确认，第 4–12 条是本文新增的；没确认之前按括号里的默认写，确认后同步改 ADR 与本文。
 
 1. 建号范围：只有 GitHub 能建号（默认，同 #226）。
 2. 资格来源：A 只读 GitHub App（ADR 推荐），或 B 7 天本人凭据。本文两种都写了，选定后删掉另一种。
@@ -762,9 +911,14 @@ DROP INDEX IF EXISTS uq_identities_github_user;
 6. 登录失败统一回 `/signin`，不再回发起登录的页面。
 7. 每个账号每种方式最多一个（换邮箱要先解绑）。
 8. 交付 2 起，确认移出组织即撤销这个账号的全部会话。
+9. 统一资料单列为交付 4（候选 4），只依赖交付 1，可与交付 2 并行。
+10. 用户名就是 GitHub 登录名，不能自己改，GitHub 改名后跟着改。
+11. 昵称可以和别人的昵称相同，但不能等于官方账号名或别人的用户名；认人的地方旁边显示 @用户名。
+12. 能重置别人资料的是新能力 `profile.moderate`，默认给有 `forum.post.moderate` 的称号。
 
 ## 来源
 
 - 需求：#237 正文与 ADR-0005「背景」里记录的所有者原话；本方案的颗粒度要求来自 2026-10-19 的会话（「要考虑业务逻辑和后端以及数据库模型等等的协调和颗粒度对齐」）。
+- 统一资料：2026-10-19 的会话（「还有因为统一sso登录了，所有用户是我们自己维护的一套，全局的头像还有相关的信息比赛，首页，管理后端，论坛都是用一套的，而且可以同步的更改，其他的你看看有没有更好的解决方案」）。现状在 `4e9caa24` 上核对：`app/server/src/lib/db.ts:193`、`:199`，`lib/forum-store.ts:111`、`:123`、`:302`、`:394`、`:541`，`lib/forum-avatar.ts`，`lib/forum-rules.ts:64`，`routes/forum-api/people.ts:32`、`:80`、`:91`、`:99`，`middleware/http-policy.ts:39`，`app/web/sites/portal/lib/account.ts`，`app/console/src/components/ConsoleNav.vue:74`，`app/forum/app/pages/u/[username]/preferences.vue`；#57 是论坛资料的来源。
 - 现状：文中的 `file:line` 在本分支 `b44bcb2d` 上核对（本分支只改文档，`app/` 与分出时的 `stage` 相同）；流程数量来自 `docs/architecture/catalog/catalog.json`。
 - 外部规范：同 ADR-0005「参考资料」——OpenID Connect Core 1.0、RFC 9700（PKCE 与回调）、Google OpenID Connect、GitHub REST 的组织成员资格接口与 `organization` webhook 事件。
