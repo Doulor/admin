@@ -2,16 +2,16 @@
 
 > #239 的目标方案（未实施）：把官网「比赛」窗口升级为「赛事 / 我的参赛」两个视图的应用——所有人看到同一份赛事，极客班成员在上面叠加自己的报名、组队与参赛状态；参赛者按极客班统一账号（`account_id`）识别，不按 GitHub 账号；同时约定接口、业务规则、数据库草图、控制台报名名单、内部比赛官网托管与 SDK、与统一登录等其他业务的协调，以及与后端草稿 90fc376 的对齐清单。
 
-状态：`proposed`（未实施，待所有者确认后开工）· 更新：2026-10-19 · 适用：`app/web/sites/portal` 比赛窗口、`app/server` 报名与组队接口及表、`app/console` 报名设置与名单、内部比赛官网托管与比赛 SDK
+状态：`accepted`（未实施；所有者 2026-10-19 要求合并 #243，本方案随它入库，由 #239 实现）· 更新：2026-10-20 · 适用：`app/web/sites/portal` 比赛窗口、`app/server` 报名与组队接口及表、`app/console` 报名设置与名单、内部比赛官网托管与比赛 SDK
 
-本文只是提议：下面的接口、表和界面都**还不存在**，现行行为以 [portal 合同](../services/web/portal.md#比赛窗口238) 和 [server 合同](../services/server/README.md) 为准。文中图片都是**方案草图**（静态 HTML 渲染，数据虚构），不是实现截图。
+本文是已采纳、未实施的方案：下面的接口、表和界面都**还不存在**，现行行为以 [portal 合同](../services/web/portal.md#比赛窗口238) 和 [server 合同](../services/server/README.md) 为准。文中图片都是**方案草图**（静态 HTML 渲染，数据虚构），不是实现截图。
 
 ## 现状（#238 已有什么）
 
 - 比赛由控制台登记（能力 `competitions.manage`，`app/server/src/lib/roles.ts:87`），官网匿名读 `GET /api/public/competitions`；`competitions` 表（`app/server/src/lib/db.ts:188`）只有赛事信息，没有报名、队伍或成员数据。
 - 状态现算：`competitionStatus`（`app/server/src/lib/competition-store.ts:59`）按「已结束 → 报名中 → 进行中 → 未开始 / 报名已截止」判断；**没有报名截止时间的比赛永远不会进入「报名中」**。
 - 官网窗口是只读列表：`Competitions()`（`app/web/sites/portal/components/os/Windows.tsx:216`，窗口宽 780），只能按「全部 / 内部 / 外部」筛；应用注册在 `app/web/sites/portal/lib/osApps.ts:46`。
-- 登录今天只有 GitHub 一种，会话里没有统一账号；所有者 2026-10-19 明确登录改为「长江大学极客班统一登录」，GitHub、Google、邮箱验证码都是绑定到同一账号的登录方式（[PR #242](https://github.com/Yangtze-University-Geek-Class/admin/pull/242) 的 ADR-0005，`proposed`，未实施）。
+- 登录今天只有 GitHub 一种，会话里没有统一账号；所有者 2026-10-19 明确登录改为「长江大学极客班统一登录」，GitHub、Google、邮箱验证码都是绑定到同一账号的登录方式（[ADR-0005](../decisions/0005-sso-extend-core-server.md)，`accepted`，未实施）。
 - 缺的是：报名、组队、「我报名了哪些比赛」、待处理的邀请与申请，以及组织者看名单。Yuminghuang738 在 fork 分支 `task/239/competition_signup` 有一版后端草稿（提交 `90fc376`，基于 #243 的旧提交 `a42272d6`），差异见文末[对齐清单](#与后端草稿-90fc376-的对齐清单)；2026-10-19 他按对齐清单重构后开了 [PR #261](https://github.com/Yangtze-University-Geek-Class/admin/pull/261)（目标 `stage`），合并前还要按[与其他业务的协调](#与其他业务的协调)复核。
 
 ## 目标、约束与不做
@@ -141,7 +141,7 @@
 ### 可见性与隐私
 
 - 匿名访客和非成员只看得到赛事信息和报名设置（个人或团队、人数），看不到报名人数、队伍和任何成员（见待确认 3）。
-- 极客班成员看得到：统计数字、各队的**在队**成员（账号的显示名和头像；按 ADR-0005 现阶段就是绑定的 GitHub 登录名和头像，不显示 Google 昵称或邮箱）、「找队友」列表和备注。待处理的申请和邀请**只给队长和当事人**，被拒绝、撤回、退出的历史不出现在门户里。
+- 极客班成员看得到：统计数字、各队的**在队**成员（账号个人资料里的昵称和头像，昵称旁显示 @用户名；统一资料上线之前是绑定 GitHub 的登录名和头像；不显示 Google 昵称或邮箱）、「找队友」列表和备注。待处理的申请和邀请**只给队长和当事人**，被拒绝、撤回、退出的历史不出现在门户里。
 - 组织者在控制台看完整名单（含已取消和历史状态）；导出 CSV 写审计 `competition.roster.export`（比赛 id 与导出行数），单元格沿用 `csvCell`（`app/server/src/routes/console/applications.ts:32`）防公式注入。
 - 门户的自助操作不写审计日志，靠行内的时间与操作人追溯；报名设置的修改与 #238 的比赛写入一样，与审计在同一事务里。
 
@@ -186,7 +186,7 @@
 
 ```ts
 type State = "none" | "signed_up" | "in_team" | "confirmed" | "unplaced";
-type Member = { account_id: string; name: string; avatar_url: string | null };  // 名字和头像读取时取自账号
+type Member = { account_id: string } & ProfileCard;  // ProfileCard（handle、display_name、avatar）见统一登录规格「接口」，读取时取统一资料
 type PendingItem = {
   membership_id: string;
   type: "applied" | "invited";
@@ -324,20 +324,20 @@ CREATE INDEX IF NOT EXISTS idx_team_members_account ON competition_team_members(
 迁移与回滚：
 
 - 启动时 `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`，与 `db.ts` 现有做法一致；`tests/server/legacy-database.test.ts` 补「没有这四张表的旧库」重启用例。
-- 身份键是会话里的极客班账号 `account_id`（ADR-0005：128 位随机、永不复用）。GitHub 改名、改用 Google 或邮箱验证码登录都还是同一个人；显示名和头像读取时从账号取，比赛表不存登录名快照，被别人复用的旧 GitHub 登录名也认领不到记录。
+- 身份键是会话里的极客班账号 `account_id`（ADR-0005：128 位随机、永不复用）。GitHub 改名、改用 Google 或邮箱验证码登录都还是同一个人；昵称和头像读取时取账号的统一资料，比赛表不存名字或头像快照，被别人复用的旧 GitHub 登录名也认领不到记录。
 - 这几张表引用 `users(id)`，所以排在 ADR-0005 第 1 项之后建表。账号合并（ADR-0005 的 `POST /api/identity/merge`）时在同一事务里把这几张表的 `account_id` 改到目标账号；同一场比赛两边都有报名或在队记录时合并回 409，由本人先取消其中一边。
 - 回滚运行代码时保留新表和数据（旧代码不读），不删数据，不移动发布 tag。
 
 ## 与其他业务的协调
 
-报名组队是第一个建在统一登录之上的新业务，跨业务口径以[统一登录实施规格](https://github.com/ZZDR1023/admin-geek/blob/4e9caa2438e13d1e11105d47d4cd7c89697c1f7d/docs/plan/UNIFIED-LOGIN.md)（PR #242，`proposed`，固定在 `4e9caa24`）的[统一口径](https://github.com/ZZDR1023/admin-geek/blob/4e9caa2438e13d1e11105d47d4cd7c89697c1f7d/docs/plan/UNIFIED-LOGIN.md#统一口径)为准，本节是它落到比赛上的细则；两份方案任何一份改口径，另一份同步改。[PR #261](https://github.com/Yangtze-University-Geek-Class/admin/pull/261) 写在本节之前，合并前按本节逐条复核。
+报名组队是第一个建在统一登录之上的新业务，跨业务口径以[统一登录实施规格](./UNIFIED-LOGIN.md)（`accepted`，未实施）的[统一口径](./UNIFIED-LOGIN.md#统一口径)为准，本节是它落到比赛上的细则；两份方案任何一份改口径，另一份同步改。[PR #261](https://github.com/Yangtze-University-Geek-Class/admin/pull/261) 写在本节之前，合并前按本节逐条复核。
 
 ### 认人与登录
 
 - **身份键只用会话里的极客班 OpenID**：统一登录交付 1 起会话带 `account_id`（即 `users.id`）。四张表里的 `account_id`、`leader_account_id`、`created_by`、`decided_by`、`updated_by` 都写它，`REFERENCES users(id)` 保留。
 - **不兜底**：会话里没有 `account_id` 时，不能退回 `login`、GitHub 数字 id 或邮箱。GitHub 登录名可以改，旧名还能被别人注册，按登录名记的报名和队长身份会落到新主人手里。交付 1 合并前这些路由不注册（[交付拆分](#交付拆分)第 2 条）；所有者如果选[待确认](#待所有者确认) 7 的过渡方案，也只能临时用 GitHub 数字 id（`session.user_id`），统一账号落地时回填。
-- **不自己接登录**：操作条的「统一登录」去 `/signin?return_to=<当前页面的同源路径>`，`return_to` 的规则见规格的[回跳与失败结果](https://github.com/ZZDR1023/admin-geek/blob/4e9caa2438e13d1e11105d47d4cd7c89697c1f7d/docs/plan/UNIFIED-LOGIN.md#回跳与失败结果)；比赛模块不接 OAuth，也不存渠道账号或令牌。任何一端退出后，比赛接口一律回 `401 not_signed_in`。
-- **显示名与头像**：读取时从账号取绑定 GitHub 的登录名和头像，不显示 Google 昵称和邮箱；比赛表不存名字快照，名单 CSV 用导出那一刻的名字。
+- **不自己接登录**：操作条的「统一登录」去 `/signin?return_to=<当前页面的同源路径>`，`return_to` 的规则见规格的[回跳与失败结果](./UNIFIED-LOGIN.md#回跳与失败结果)；比赛模块不接 OAuth，也不存渠道账号或令牌。任何一端退出后，比赛接口一律回 `401 not_signed_in`。
+- **昵称与头像**：队伍成员与名单按 `account_id` 批量取 `ProfileCard`（昵称、@用户名、头像），和官网、论坛、控制台显示同一份资料（规格的[统一资料](./UNIFIED-LOGIN.md#统一资料交付-4)），本人在 `/account/profile` 改了，比赛里下一次请求就是新的。统一资料上线之前，同样的形状里填绑定 GitHub 的登录名和头像，接口形状不变。不显示 Google 昵称和邮箱；比赛表不存名字或头像快照，名单 CSV 用导出那一刻的昵称和用户名。
 
 ### 成员资格与权限
 
@@ -349,11 +349,11 @@ CREATE INDEX IF NOT EXISTS idx_team_members_account ON competition_team_members(
 - 成员判断只写一个共享守卫（例如 `middleware/require-member.ts`），比赛路由只挂它，不在路由文件里直接调 `access.orgRole`；交付 2 只改这一处。
 - 比赛的门户与控制台接口只看「是谁」和称号能力，**比赛模块自己不调用 GitHub**：邮箱、Google 会话照常可用，不回 `403 github_session_required`，项目地图里归「只看身份」一类。
 - 组织者在门户里也是普通成员，`competitions.manage` 不能绕过时间窗口、一人一队和队长规则。队长、当事人是行级角色，服务端按记录判断（`403 not_team_leader`、`404 not_found`）。
-- 被邀请人、被同意的申请人和新队长必须仍是成员，否则回 `409 target_not_member`。这条判断也只写在共享成员守卫里，比赛路由不读 `users` 的列：交付 2 起调资格模块的按账号查询（规格的[成员资格](https://github.com/ZZDR1023/admin-geek/blob/4e9caa2438e13d1e11105d47d4cd7c89697c1f7d/docs/plan/UNIFIED-LOGIN.md#成员资格交付-2)），只有 `active` 放行；交付 2 之前守卫按同一规则先实现，`users.status` 与 `org_state` 都是 `active` 才放行，`unknown` 也不放行。都不为此调用 GitHub；交付 2 之前 `org_state` 只会是 `active`，这条实际只挡停用的账号。
+- 被邀请人、被同意的申请人和新队长必须仍是成员，否则回 `409 target_not_member`。这条判断也只写在共享成员守卫里，比赛路由不读 `users` 的列：交付 2 起调资格模块的按账号查询（规格的[成员资格](./UNIFIED-LOGIN.md#成员资格交付-2)），只有 `active` 放行；交付 2 之前守卫按同一规则先实现，`users.status` 与 `org_state` 都是 `active` 才放行，`unknown` 也不放行。都不为此调用 GitHub；交付 2 之前 `org_state` 只会是 `active`，这条实际只挡停用的账号。
 
 ### 账号事件
 
-各业务不监听账号事件，下一次请求自然生效（规格的[账号事件对各业务的影响](https://github.com/ZZDR1023/admin-geek/blob/4e9caa2438e13d1e11105d47d4cd7c89697c1f7d/docs/plan/UNIFIED-LOGIN.md#账号事件对各业务的影响)）。落到比赛：
+各业务不监听账号事件，下一次请求自然生效（规格的[账号事件对各业务的影响](./UNIFIED-LOGIN.md#账号事件对各业务的影响)）。落到比赛：
 
 | 事件 | 报名与队伍 | 门户 | 控制台名单 |
 |---|---|---|---|
@@ -369,7 +369,7 @@ CREATE INDEX IF NOT EXISTS idx_team_members_account ON competition_team_members(
 
 ### 审计与留痕
 
-- 沿用 `storage.audit`：`actor` 写 GitHub 登录名，统一登录交付 1 起同时写 `actor_account_id`（规格的[审计与留痕](https://github.com/ZZDR1023/admin-geek/blob/4e9caa2438e13d1e11105d47d4cd7c89697c1f7d/docs/plan/UNIFIED-LOGIN.md#审计与留痕)）。
+- 沿用 `storage.audit`：`actor` 写 GitHub 登录名，统一登录交付 1 起同时写 `actor_account_id`（规格的[审计与留痕](./UNIFIED-LOGIN.md#审计与留痕)）。
 - #238 已有 `competition.create`、`competition.update`、`competition.delete`（`routes/console/competitions.ts:47`、`:68`、`:84`）。#239 新增两种：`competition.signup_settings.update`，`details` 写改动前后的 `enabled`、`participation`、`team_min`、`team_max`，与设置写入同一事务，审计失败一起回滚；`competition.roster.export`，目标是比赛 id，`details` 为 `{ count }`，审计写成功才返回文件，限流同 `application.export`（每分钟 5 次）。
 - `details` 不写备注、留言和队名原文。门户自助操作不写 `audit_logs`，也不写 `identity_audit`（那是本人的账号操作），靠行内时间与操作人追溯。
 
@@ -541,8 +541,8 @@ console（`app/console`）：`pages/Competitions.vue` 每行加「名单」；�
 
 ## 交付拆分
 
-1. **#243（#238）**：只做比赛信息发布；本方案和草图以 `proposed` 随它入库，不改运行代码。
-2. **前置：统一账号**：ADR-0005 第 1 项（#237 方案确认后实施）。在它之前只上线 #238 的赛事浏览。
+1. **#243（#238）**：只做比赛信息发布；本方案和草图以 `accepted`（未实施）随它入库，不改报名组队的运行代码。
+2. **前置：统一账号**：ADR-0005 第 1 项（#237 方案已确认，候选 1 批准后实施）；统一资料（第 4 项）不是前置，上线之前名单按同一形状显示 GitHub 登录名和头像。在它之前只上线 #238 的赛事浏览。
 3. **#239 后端**：Yuminghuang738 按对齐清单调整 90fc376，待 #243 合并、统一账号可用后基于最新 `stage` 开 PR，同步 API、数据模型、接口行为契约和 server 合同。2026-10-19 已提前开 PR #261，合并前按[与其他业务的协调](#与其他业务的协调)复核。
 4. **#239 前端**：portal 比赛应用与控制台报名设置、名单（实施人待定；是否另开 `ui:*` issue 由所有者决定）。
 5. **内部比赛官网与 SDK**：#239 报名组队上线后做；`GET /api/public/competitions/:id` 可先做。实施人和是否单独立 issue 由所有者决定。
@@ -568,5 +568,5 @@ console（`app/console`）：`pages/Competitions.vue` 每行加「名单」；�
 - 官网托管与 SDK：所有者 2026-10-19 补充：内部比赛可以有比赛官网，由我们帮忙部署，办赛人提供部署包，部署包必须对接我们的比赛接口，因此要出 SDK 和相关文档；比赛要有报名、组队；所有内容都要有截图认证。
 - 现有实现：`app/server/src/lib/competition-store.ts:59`、`app/server/src/lib/db.ts:188`、`app/server/src/lib/roles.ts:87`、`app/web/sites/portal/components/os/Windows.tsx:216`、`app/web/sites/portal/lib/osApps.ts:46`。
 - 后端草稿：fork `Yuminghuang738/admin` 分支 `task/239/competition_signup` 的提交 `90fc376`（基于 `a42272d6`；2026-10-19 重构后开 [PR #261](https://github.com/Yangtze-University-Geek-Class/admin/pull/261)）：`app/server/src/lib/competition-signup-store.ts`、`app/server/src/routes/portal/competition-signups.ts`、`app/server/src/routes/console/competition-roster.ts`。
-- 身份：[PR #242](https://github.com/Yangtze-University-Geek-Class/admin/pull/242) 中的 ADR-0005（`proposed`）；所有者 2026-10-19：「我们的登录不再是github登录了，是长江大学极客班统一登录的」，GitHub、Google、邮箱验证码都绑定到同一个极客班账号；跨业务口径见[统一登录实施规格](https://github.com/ZZDR1023/admin-geek/blob/4e9caa2438e13d1e11105d47d4cd7c89697c1f7d/docs/plan/UNIFIED-LOGIN.md)（PR #242，`proposed`）。
+- 身份：[ADR-0005](../decisions/0005-sso-extend-core-server.md)（`accepted`，未实施；PR #242）；所有者 2026-10-19：「我们的登录不再是github登录了，是长江大学极客班统一登录的」，GitHub、Google、邮箱验证码都绑定到同一个极客班账号；跨业务口径见[统一登录实施规格](./UNIFIED-LOGIN.md)（`accepted`，未实施）；统一资料来自所有者同日的「全局的头像还有相关的信息比赛，首页，管理后端，论坛都是用一套的，而且可以同步的更改」。
 - 草图：`docs/assets/competition-app/*.webp`，由静态 HTML 渲染，数据虚构。

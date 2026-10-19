@@ -106,7 +106,7 @@
     },
     "delivery": {
       "status": "unchanged",
-      "reason": "仍由原有server与web镜像交付，不新增运行单元、环境变量或发布tag。Netlify保持只读样板，本机隔离服务才用于真实写入验收；本PR不合并、不切换线上环境。",
+      "reason": "仍由原有server与web镜像交付，不新增运行单元、环境变量或发布tag。Netlify保持只读样板，本机隔离服务才用于真实写入验收；所有者要求合并进 stage；合并只跑 CI、不部署任何环境，发到预发布要等获授权的 rc tag。",
       "evidence": [
         "docs/services/server/README.md",
         "docs/services/web/README.md"
@@ -237,7 +237,9 @@
         "docs/reviews/238/",
         "docs/plan/COMPETITION-APP.md",
         "docs/plan/README.md",
-        "docs/assets/competition-app/"
+        "docs/assets/competition-app/",
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/plan/UNIFIED-LOGIN.md"
       ],
       "domains": [
         "identity",
@@ -259,7 +261,7 @@
         "flow:competition.public.list",
         "flow:competition.console.list"
       ],
-      "reason": "业务合同、权限边界、数据模型与测试矩阵同步；ownership登记实际流程，所有派生目录由生成器重建，未把规划SSO或报名组队登记为现有能力；#239 报名组队方案只以 proposed 计划与方案草图入库，不改运行代码。"
+      "reason": "业务合同、权限边界、数据模型与测试矩阵同步；ownership登记实际流程，所有派生目录由生成器重建，未把规划SSO或报名组队登记为现有能力；#239 报名组队方案以 accepted（未实施）计划与方案草图入库，不改运行代码；ADR-0005 与统一登录规格只把指向本方案的 PR 链接改成仓库内链接。"
     },
     {
       "paths": [
@@ -314,5 +316,5 @@
   ],
   "compatibility": "既有接口、表、用户会话和已保存权限包不改；比赛新增upcoming状态与三端同时交付，所有类型URL可选。共享db、roles和入口文件因此关联已有业务域，表示兼容回归范围，不宣称改造这些业务。",
   "migration": "stage基线没有competitions，启动只新增表和索引，既有记录与权限配置保留；虚构旧库回归覆盖重启兼容。没有读取或迁移任何真实业务数据。",
-  "rollback": "在尚未合并的PR分支撤销本业务提交即可；未来回滚运行代码时保留新增赛事表和记录，不删除数据，不移动发布tag；不自动撤销已经产生的审计记录。"
+  "rollback": "合并后在 stage 上用 git revert -m 1 撤销本 PR 的合并提交；回滚运行代码时保留新增赛事表和记录，不删除数据，不移动发布tag；不自动撤销已经产生的审计记录。"
 }

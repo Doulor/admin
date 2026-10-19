@@ -8324,7 +8324,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "fc27ebbb37a9f31d92f79b2a3d0aa2efcab7dc69921d0b4861c5b306179898cc",
+    "fingerprint": "9ca32bff8f09aab07464166a87954401122740a6f070a783a9f468c9dd4cba92",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -9676,7 +9676,7 @@
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "e69b16d963bae11e4ca3616ac5e51ed2af789709dc08e0aab6170d938e2d0f7c"
+        "sha256": "d3ea7520167613dd424d9cf5edab5d82b0b5b397b0d9c592e8e1a59f58dcc841"
       },
       {
         "path": "pnpm-lock.yaml",

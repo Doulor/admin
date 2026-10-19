@@ -307,7 +307,7 @@ flowchart LR
 | audit（审计） | `actor` 是登录名 | 加 `actor_account_id`，新行写入、旧行不回填；新事件见[审计与留痕](#审计与留痕) | 同左 | 审计页查询与 `idx_audit_signin_actor` | `tests/server/console.test.ts` 的审计用例 |
 | mail（发信） | `mail_outbox` 队列 | 不变 | 验证码走进程内即时通道，不进队列；遵守收件人白名单 | 招新四种信与退避 | `email-signin.test.ts`（新）、`tests/server/mail-outbox.test.ts` |
 | platform（网关、入口、配置） | `/admin`、`/console`、`/signin` 交给控制台 | `/signin` 改版，路径不变 | `/account` 加进 `app/web/Dockerfile:203` 与 `ADMIN_SPA_PATHS`；资格来源 A 的 App 变量；交付 3 的 Google 变量 | CSP：Google 是整页跳转、不加载 Google 脚本，不用改 | `core.test.ts:210`、`tests/tooling/web-nginx.test.ts` |
-| competitions（#243 合入后） | 赛事没有个人数据 | 不变 | 控制台 4 条只看身份，第二渠道照常；#239 的报名与队伍在交付 1 之后按 `account_id` 建表；#239 新增的门户与控制台流程同样只看身份、不调用 GitHub，细则见 [PR #243](https://github.com/Yangtze-University-Geek-Class/admin/pull/243) 中 `docs/plan/COMPETITION-APP.md` 的「与其他业务的协调」 | 公开列表匿名可读 | #239 自己的测试 |
+| competitions（#243 合入后） | 赛事没有个人数据 | 不变 | 控制台 4 条只看身份，第二渠道照常；#239 的报名与队伍在交付 1 之后按 `account_id` 建表；#239 新增的门户与控制台流程同样只看身份、不调用 GitHub，细则见[比赛应用方案](./COMPETITION-APP.md#与其他业务的协调)的「与其他业务的协调」 | 公开列表匿名可读 | #239 自己的测试 |
 | public_content（公开内容） | 不读会话 | 不变 | 不变 | 全部 | — |
 
 交付 4（统一资料）对各域的改动集中写在[统一资料](#统一资料交付-4)：论坛成员资料改读 `user_profiles`、资料接口改写同一份；官网与控制台顶栏、控制台成员单元格显示资料；比赛的队伍与名单返回 `ProfileCard`；审计加 `profile.update`、`profile.reset`；平台的缓存例外加 `/api/avatars/`。其余域不变。
