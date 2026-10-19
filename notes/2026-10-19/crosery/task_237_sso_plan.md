@@ -106,3 +106,10 @@
 - 做了什么：提交10:20返工的文档修订：ADR-0005摘要、决策索引与目录说明标明proposed待确认；决策6定第二渠道新登录实时核验active、已有会话最多复用60秒资格结果、7天加密资格凭据清理、403/503/401分流与撤销版本检查；决策7补membership_state；按catalog:generate重建来源摘要，237.json补覆盖路径
 - 结果：追加本记录前Node 22.23.2下pnpm check退出0（19秒；282份文档、84条执行链路、目录来源摘要4aec8c31、#237宏观对齐20文件7节点），10:17的pnpm verify已覆盖全部文档改动；未改运行代码与测试，ADR保持proposed等所有者确认
 - 下一步：推送原PR来源分支后核对同head的CI与Netlify，逐条回复三条CodeRabbit讨论；不合并
+
+## 13:53:41 +08:00 · 方案 · #237 · 补充GitHub、Google与邮箱验证码登录方式和绑定规则
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：按所有者2026-10-19「登录改为长江大学极客班统一登录，其他登录绑定到我们的账号，看能否支持谷歌、GitHub、邮箱认证登录」修订ADR-0005：摘要与决策5改为三种登录方式绑定同一账号、建号仍需GitHub组织成员；决策6增加只读GitHub App资格来源（待确认）；登录页标题与渲染、接口表加Google与邮箱入口；新增「登录方式」一节（可行性表、绑定规则、Google与邮箱验证码流程、资格来源A/B、所有者准备项、验证、3条待确认）；交付清单与参考资料同步（Google OIDC、品牌验证、GitHub成员接口与organization事件，2026-10-19核对）
+- 结果：docs:index、check:docs、check:architecture通过；凭据库没有Google凭据，crosery-ct收码邮箱可用于邮件实测；只改文档，方案保持proposed，未合并
+- 下一步：等同head检查；所有者确认建号范围、资格来源与OIDC时机后再建实现issue
