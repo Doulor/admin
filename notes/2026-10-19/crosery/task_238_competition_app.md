@@ -80,3 +80,23 @@
 - 执行者：agent-codex-geek-followup（Codex，PR 持续跟进）
 - 做了什么：仅提交已发生的对外跟进记录，不修改业务源码、测试或方案
 - 结果：业务与方案代码保持f13bc0da；当前记录格式已核对，提交后继续由现有跟进核对最新head检查，不合并
+
+## 05:13:04 +08:00 · 推送 · #238 · 最终记录提交已推送，继续等待同head检查
+
+- 执行者：agent-codex-geek-followup（Codex，PR 持续跟进）
+- 做了什么：已将f64bafb0b7de5bbfbc1f88b46f7bbedc5a509122快进推送至原PR来源分支；只追加最终跟进记录，未改业务源码
+- 结果：pre-push与worktree生命周期通过；保持PR开放且无自动合并。最后对外操作记录按规范放暂存区，随下次实质推进归档，不为记录本次推送循环触发新CI。
+
+## 11:45:55 +08:00 · 审查 · #238 · PR #243正文审查结论收口为通过，pr-contract转绿
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：确认head f64bafb0未变（f13bc0da..f64bafb0只增执行记录），同head CI 39166397977、architecture-alignment 39166397978、e2e job 117790131423与Netlify均pass，无新人工或机器人意见；用gh pr edit 243 --body-file更新正文：验证命令与结果写明被验代码f13bc0da与当前head f64bafb0并补远端检查链接，审查结论把阻塞占位换成正式结论（保留agent-codex-geek-followup对f13bc0da的Standards/Spec复核，追加对f64bafb0的收口复核与验收命令），结论行为通过；提交前用本地pr-contract脚本自测新正文；核对本地验收服务
+- 结果：pr-contract run 39195223843 pass，architecture-alignment重跑 39195224107 pass，PR #243全部检查通过；e2e 45 passed (21.1m)，含competitions.spec 1440px与390px。本地验收服务pid 27231仍在31243运行，web与console产物已含f13bc0da跨年日期与1c5b9b7码点计数，服务端探测返回400 bad_name且条数保持4，无需重启；PR仍OPEN、无自动合并
+- 下一步：所有者在本地验收服务http://127.0.0.1:31243（/__qa/session/admin）与Netlify预览做人工验收；不合并
+
+## 13:46:22 +08:00 · 方案 · #238 #239 · 比赛应用方案与草图入库，参赛者改按极客班统一账号识别
+
+- 执行者：agent-notion-geek-handoff（Notion AI，接手 Codex PR 跟进）
+- 做了什么：按所有者2026-10-19反馈，把比赛窗口规划为「赛事/我的参赛」应用：新增docs/plan/COMPETITION-APP.md（结构与呈现、四类身份所见、报名组队与锁定规则、个人状态与统计口径、门户与控制台接口、错误码、四张新表草图、前端落点、验证、与90fc376的13条对齐清单、7条待确认）和5张方案草图；按同日「登录改为极客班统一登录」把参赛者键从GitHub id改为account_id，依赖ADR-0005第1项；plan目录、portal合同和238.json覆盖同步
+- 结果：docs:index、check:docs、check:architecture通过；只改文档与草图，不改运行代码；方案保持proposed，未合并
+- 下一步：推送后等同head检查；所有者确认待确认项后，#239后端按对齐清单调整90fc376

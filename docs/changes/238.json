@@ -234,7 +234,10 @@
         "docs/services/server/endpoint-contracts.md",
         "docs/services/web/README.md",
         "docs/services/web/portal.md",
-        "docs/reviews/238/"
+        "docs/reviews/238/",
+        "docs/plan/COMPETITION-APP.md",
+        "docs/plan/README.md",
+        "docs/assets/competition-app/"
       ],
       "domains": [
         "identity",
@@ -256,7 +259,7 @@
         "flow:competition.public.list",
         "flow:competition.console.list"
       ],
-      "reason": "业务合同、权限边界、数据模型与测试矩阵同步；ownership登记实际流程，所有派生目录由生成器重建，未把规划SSO或报名组队登记为现有能力。"
+      "reason": "业务合同、权限边界、数据模型与测试矩阵同步；ownership登记实际流程，所有派生目录由生成器重建，未把规划SSO或报名组队登记为现有能力；#239 报名组队方案只以 proposed 计划与方案草图入库，不改运行代码。"
     },
     {
       "paths": [
@@ -299,7 +302,8 @@
     "docs/services/web/README.md",
     "docs/services/web/portal.md",
     "docs/conventions/TESTING.md",
-    "docs/reviews/238/README.md"
+    "docs/reviews/238/README.md",
+    "docs/plan/COMPETITION-APP.md"
   ],
   "tests": [
     "tests/server/competitions.test.ts",
