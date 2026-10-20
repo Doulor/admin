@@ -2,9 +2,9 @@
 
 > 直接读取服务端能力定义、蕴含关系及可定位的路由检查，不复制运行时角色权限包。
 
-状态：`current` · 更新：2026-10-19 · 自动生成，不手工编辑。
+状态：`current` · 更新：2026-10-20 · 自动生成，不手工编辑。
 
-来源摘要：`78535967c3685cafbbae37b8318534fdf93cad9b377dfc972976345a268a399b`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`b4b9ca2e1534cf38ecf6649de4d35c66cd4020f2bf4739f2df1dced47136338f`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 

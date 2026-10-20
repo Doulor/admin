@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "issue": 265,
+  "kind": "business",
+  "summary": "官网比赛窗口按比赛应用方案「结构与呈现」重做浏览部分：列表加详情、可报名与内部/外部筛选和搜索、截止提醒与赛程进度、只放真能点的官网按钮，手机列表点进详情可返回；数据来源、状态口径与排序不变。",
+  "applications": [
+    "web"
+  ],
+  "domains": [
+    "competitions",
+    "platform",
+    "public_content",
+    "recruitment",
+    "mail",
+    "audit",
+    "feedback",
+    "invitations",
+    "organization",
+    "identity"
+  ],
+  "flows": [
+    "flow:competition.public.list",
+    "flow:documentation.list",
+    "flow:application.submit",
+    "flow:feedback.public.list",
+    "flow:invitation.public.inspect",
+    "flow:organization.public",
+    "flow:identity.authorize"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "比赛窗口从只按类型筛的列表改为列表加详情：新增可报名、内部/外部与关键词筛选，详情给出截止提醒、三格要点与赛程进度，操作条只放真能打开的比赛官网；五种状态口径、排序与公开字段不变，报名与组队仍归 #239。",
+      "evidence": [
+        "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx",
+        "app/web/sites/portal/lib/competitionLabels.ts",
+        "docs/plan/COMPETITION-APP.md"
+      ]
+    },
+    "backend": {
+      "status": "unchanged",
+      "reason": "仍只读匿名 GET /api/public/competitions，请求、响应形状校验与失败判断沿用原逻辑，只多了失败后由用户点「重试」再读一次；服务端代码与接口契约没有改动。",
+      "evidence": [
+        "app/server/src/routes/portal/competitions.ts",
+        "app/web/sites/portal/lib/competitions.ts"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "公开接口匿名只读，窗口不读身份、不展示成员信息，也没有新增需要登录或能力的入口；competitions.manage 与服务端执行点保持原样。",
+      "evidence": [
+        "app/server/src/lib/roles.ts",
+        "docs/architecture/SECURITY.md"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "不读写数据库与浏览器存储，competitions 表与公开字段不变；只有开发预览与 Netlify 只读样板用的 demoCompetitions 换成七场覆盖五种状态的虚构数据，不进入真实环境。",
+      "evidence": [
+        "app/server/src/lib/db.ts",
+        "app/web/shared/lib/mock-api.ts"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新增依赖包、外部服务或副作用；图标沿用官网已有的 Remix 图标注册表，比赛官网仍只在用户点击后于新标签页打开。",
+      "evidence": [
+        "app/web/package.json",
+        "app/web/sites/portal/lib/icons.ts"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "portal 合同重写比赛窗口一节（布局、筛选与搜索、卡片、详情、操作条、时间写法、四种状态、样板与测试）并在模块表补新文件；比赛应用方案标明浏览部分已由 #265 实施、报名组队仍未实施；目录归属登记新组件与流程证据。",
+      "evidence": [
+        "docs/services/web/portal.md",
+        "docs/plan/COMPETITION-APP.md",
+        "docs/architecture/catalog/ownership.json"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "单测覆盖列表与详情、筛选搜索、键盘、手机进出详情、四种状态、北京时间与赛程边界；新增桌面 1440×900 与手机 390×844 浏览器回归并存截图。未验证：预发布真实数据（rc.6 未登记比赛）与读屏软件实机朗读。",
+      "evidence": [
+        "tests/web/portal-competitions.test.tsx",
+        "tests/e2e/portal-competitions.spec.ts"
+      ]
+    },
+    "delivery": {
+      "status": "unchanged",
+      "reason": "仍由原有 web 镜像交付，不新增环境变量、路由或运行单元；合并进 stage 只跑 CI、不部署，发到预发布要等获授权的 rc tag。",
+      "evidence": [
+        "docs/services/web/README.md",
+        "app/web/Dockerfile"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/web/sites/portal/components/os/competitions/",
+        "app/web/sites/portal/lib/competitionLabels.ts",
+        "app/web/sites/portal/lib/competitions.ts"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "domain:competitions",
+        "flow:competition.public.list"
+      ],
+      "reason": "新比赛窗口组件与文案纯函数归属比赛业务；数据钩子只加失败后重读和同一屏共用的当前时间，接口调用、状态口径与排序不变。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/components/os/Windows.tsx",
+        "app/web/sites/portal/styles/os.css"
+      ],
+      "domains": [
+        "public_content",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "organization",
+        "identity",
+        "platform",
+        "competitions"
+      ],
+      "nodes": [
+        "application:web",
+        "flow:competition.public.list"
+      ],
+      "reason": "Windows.tsx 是官网各窗口共用的外壳，目录按官网模块归到八个业务域；本次只把比赛窗口换成新组件并加宽到 1100，给手机返回键加可替换的文字与动作（其他窗口仍回主屏幕），样式只新增比赛窗口类名。关联其余业务域的官网侧流程只为回归核对，不改它们的行为。"
+    },
+    {
+      "paths": [
+        "app/web/shared/lib/mock-api.ts"
+      ],
+      "domains": [
+        "platform",
+        "competitions"
+      ],
+      "nodes": [
+        "flow:competition.public.list"
+      ],
+      "reason": "开发预览共用样板只把比赛样板换成七场覆盖五种状态、内外部、有无官网、整天边界的虚构数据，并导出给 e2e 与改前改后截图共用，其余样板接口不变。"
+    },
+    {
+      "paths": [
+        "docs/services/web/portal.md",
+        "docs/plan/COMPETITION-APP.md",
+        "docs/architecture/catalog/ownership.json",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
+      ],
+      "domains": [
+        "competitions",
+        "platform"
+      ],
+      "nodes": [
+        "document:docs/services/web/portal.md",
+        "domain:competitions",
+        "flow:competition.public.list"
+      ],
+      "reason": "portal 合同记录新窗口的行为与边界，方案标明已实施与未实施的界线；ownership 只为新组件补归属并把流程证据从旧的 Competitions() 换到新组件，流程规则只补筛选与重试；其余目录文件按 pnpm catalog:generate 重建，接口、表和能力条目不变。"
+    },
+    {
+      "paths": [
+        "tests/web/portal-competitions.test.tsx",
+        "tests/e2e/portal-competitions.spec.ts"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "flow:competition.public.list"
+      ],
+      "reason": "单测按北京时间固定时钟覆盖文案、赛程边界、筛选与键盘；e2e 用同一份样板在桌面和手机两种尺寸核对布局、外链属性、操作条贴底、触控目标与无横向滚动，并存截图。"
+    }
+  ],
+  "documents": [
+    "docs/services/web/portal.md",
+    "docs/plan/COMPETITION-APP.md"
+  ],
+  "tests": [
+    "tests/web/portal-competitions.test.tsx",
+    "tests/e2e/portal-competitions.spec.ts"
+  ],
+  "compatibility": "公开接口、响应字段、状态口径与排序都不变；原有「全部 / 内部 / 外部」筛选仍在（内部 / 外部改成可与「可报名」叠加的胶囊）；只有比赛窗口变宽，其他窗口的手机返回键仍是「主屏幕」。",
+  "migration": "没有数据、接口或配置迁移；发布新的 web 镜像后窗口即换新，已登记的比赛原样显示。",
+  "rollback": "合并后在 stage 上用 git revert -m 1 撤销本 PR 的合并提交并重新构建 web 镜像即可，不涉及数据，也不移动发布 tag。"
+}

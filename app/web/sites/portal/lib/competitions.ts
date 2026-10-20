@@ -2,8 +2,9 @@
 //
 // 状态一律按时间戳本地算（`statusAt`，与服务端 `competitionStatus` 同一套口径），窗口开着时每 60 秒重算一次，
 // 免得在午夜前后停在旧状态上；服务端响应里的 `status` 只当形状校验，不作为展示来源。
-// 读不到（离线、接口不通、开发预览没有这份数据）时标记失败，窗口显示「读不到」而不是冒充「没有比赛」。
-import { useEffect, useState } from "react";
+// 读不到（离线、接口不通、开发预览没有这份数据）时标记失败，窗口显示「没加载出来」并给「重试」，而不是冒充「没有比赛」。
+// 窗口里的日期与文案（截止、赛程、操作条）在 competitionLabels.ts。
+import { useCallback, useEffect, useState } from "react";
 import { api } from "@shared/lib/api";
 
 export type CompetitionKind = "internal" | "external";
@@ -70,10 +71,18 @@ export function readCompetitions(body: unknown): Competition[] {
   return list.map(readCompetition).filter((item): item is Competition => item !== null);
 }
 
-export type CompetitionFeed = { items: Competition[]; failed: boolean; loading: boolean };
+export type CompetitionFeed = {
+  items: Competition[];
+  failed: boolean;
+  loading: boolean;
+  /** 这一次渲染用的当前时间：状态、排序和「还剩几天」都按它算，同一屏不会各算各的。 */
+  now: number;
+  /** 读失败后重读一次（「重试」按钮）。 */
+  reload: () => void;
+};
 
 /**
- * 窗口打开时读一次，关掉即取消。窗口开着时每 60 秒按当前时间重算一次状态：
+ * 窗口打开时读一次，关掉即取消；`reload` 再读一次。窗口开着时每 60 秒按当前时间重算一次状态：
  * 报名在半夜截止、或比赛当天开始时，界面不用等刷新就能跟上。
  *
  * 展示用的状态一律按本地时间算（`statusAt`），不看服务端给的 `status`：
@@ -83,6 +92,7 @@ export function useCompetitions(): CompetitionFeed {
   const [items, setItems] = useState<Competition[]>([]);
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
   const [, tick] = useState(0);
 
   useEffect(() => {
@@ -99,8 +109,18 @@ export function useCompetitions(): CompetitionFeed {
         setFailed(true);
         setLoading(false);
       });
-    const timer = window.setInterval(() => { if (!controller.signal.aborted) tick((n) => n + 1); }, 60_000);
-    return () => { controller.abort(); window.clearInterval(timer); };
+    return () => controller.abort();
+  }, [attempt]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => tick((n) => n + 1), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const reload = useCallback(() => {
+    setLoading(true);
+    setFailed(false);
+    setAttempt((n) => n + 1);
   }, []);
 
   const now = Date.now();
@@ -110,7 +130,7 @@ export function useCompetitions(): CompetitionFeed {
     if (aEnded !== bEnded) return aEnded ? 1 : -1;
     return (aEnded ? b.start_at - a.start_at : a.start_at - b.start_at) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   });
-  return { items: current, failed, loading };
+  return { items: current, failed, loading, now, reload };
 }
 
 /** 时间戳 → 北京时间的 `YYYY-MM-DD`。 */
@@ -136,8 +156,8 @@ export function shortDay(at: number, now = Date.now()): string {
   return date.startsWith(`${year}-`) ? date.slice(year.length + 1) : date;
 }
 
-/** 比赛时间：起止在北京时间同一天时只写一个日期，跨天才写「起，到」，不出现「10-26 起，到 10-26」。 */
+/** 比赛时间：起止在北京时间同一天时只写一个日期，跨天才写「10-26 至 10-28」，不出现「10-26 至 10-26」。 */
 export function dayRange(start: number, end: number, now = Date.now()): string {
   const from = shortDay(start, now);
-  return beijingDay(start) === beijingDay(end) ? from : `${from} 起，到 ${shortDay(end, now)}`;
+  return beijingDay(start) === beijingDay(end) ? from : `${from} 至 ${shortDay(end, now)}`;
 }

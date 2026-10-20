@@ -2,15 +2,15 @@
 
 > #239 的目标方案（未实施）：把官网「比赛」窗口升级为「赛事 / 我的参赛」两个视图的应用——所有人看到同一份赛事，极客班成员在上面叠加自己的报名、组队与参赛状态；参赛者按极客班统一账号（`account_id`）识别，不按 GitHub 账号；同时约定接口、业务规则、数据库草图、控制台报名名单、内部比赛官网托管与 SDK、与统一登录等其他业务的协调，以及与后端草稿 90fc376 的对齐清单。
 
-状态：`accepted`（未实施；所有者 2026-10-19 要求合并 #243，本方案随它入库，由 #239 实现）· 更新：2026-10-20 · 适用：`app/web/sites/portal` 比赛窗口、`app/server` 报名与组队接口及表、`app/console` 报名设置与名单、内部比赛官网托管与比赛 SDK
+状态：`accepted`（报名、组队与「我的参赛」未实施，由 #239 实现；比赛窗口的浏览部分已由 #265 实施；所有者 2026-10-19 要求合并 #243，本方案随它入库）· 更新：2026-10-20 · 适用：`app/web/sites/portal` 比赛窗口、`app/server` 报名与组队接口及表、`app/console` 报名设置与名单、内部比赛官网托管与比赛 SDK
 
-本文是已采纳、未实施的方案：下面的接口、表和界面都**还不存在**，现行行为以 [portal 合同](../services/web/portal.md#比赛窗口238) 和 [server 合同](../services/server/README.md) 为准。文中图片都是**方案草图**（静态 HTML 渲染，数据虚构），不是实现截图。
+本文是已采纳的方案：除比赛窗口的浏览部分（#265 已按「结构与呈现」实施列表加详情、筛选与搜索、手机进出详情，不含「我的参赛」、报名、组队与人数）外，下面的接口、表和界面都**还不存在**，现行行为以 [portal 合同](../services/web/portal.md#比赛窗口238) 和 [server 合同](../services/server/README.md) 为准。文中图片都是**方案草图**（静态 HTML 渲染，数据虚构），不是实现截图。
 
 ## 现状（#238 已有什么）
 
 - 比赛由控制台登记（能力 `competitions.manage`，`app/server/src/lib/roles.ts:87`），官网匿名读 `GET /api/public/competitions`；`competitions` 表（`app/server/src/lib/db.ts:188`）只有赛事信息，没有报名、队伍或成员数据。
 - 状态现算：`competitionStatus`（`app/server/src/lib/competition-store.ts:59`）按「已结束 → 报名中 → 进行中 → 未开始 / 报名已截止」判断；**没有报名截止时间的比赛永远不会进入「报名中」**。
-- 官网窗口是只读列表：`Competitions()`（`app/web/sites/portal/components/os/Windows.tsx:216`，窗口宽 780），只能按「全部 / 内部 / 外部」筛；应用注册在 `app/web/sites/portal/lib/osApps.ts:46`。
+- 官网窗口（#265 起）是只读的列表加详情：`CompetitionsApp`（`app/web/sites/portal/components/os/competitions/`，窗口宽 1100），有「全部 / 可报名」快捷筛选、「内部 / 外部」胶囊与搜索，详情有要点三格、介绍、赛程和只放官网按钮的操作条，手机列表点进详情；#238 时是宽 780、只能按「全部 / 内部 / 外部」筛的列表。应用注册在 `app/web/sites/portal/lib/osApps.ts:46`。
 - 登录今天只有 GitHub 一种，会话里没有统一账号；所有者 2026-10-19 明确登录改为「长江大学极客班统一登录」，GitHub、Google、邮箱验证码都是绑定到同一账号的登录方式（[ADR-0005](../decisions/0005-sso-extend-core-server.md)，`accepted`，未实施）。
 - 缺的是：报名、组队、「我报名了哪些比赛」、待处理的邀请与申请，以及组织者看名单。Yuminghuang738 在 fork 分支 `task/239/competition_signup` 有一版后端草稿（提交 `90fc376`，基于 #243 的旧提交 `a42272d6`），差异见文末[对齐清单](#与后端草稿-90fc376-的对齐清单)；2026-10-19 他按对齐清单重构后开了 [PR #261](https://github.com/Yangtze-University-Geek-Class/admin/pull/261)（目标 `stage`），合并前还要按[与其他业务的协调](#与其他业务的协调)复核。
 
@@ -44,8 +44,8 @@
 
 ![桌面 · 赛事列表与详情（已报名、待组队）](../assets/competition-app/desktop-browse.webp)
 
-- 窗口加宽到约 1100px（现为 780）。工具栏左侧是「赛事 / 我的参赛」分段控件，后者带待处理角标；右侧是搜索。
-- 左侧列表：「全部 / 可报名 / 我参与的」快捷筛选加类型下拉（内部、外部、个人、团队）。卡片显示名称、状态、内外部、个人或团队人数、截止日期；登录成员的卡片多一行**我的状态**，如「已报名 · 待组队」「意向 · 收到 1 个组队邀请」。
+- 窗口加宽到约 1100px（#265 已加宽）。工具栏左侧是「赛事 / 我的参赛」分段控件，后者带待处理角标；右侧是搜索。
+- 左侧列表：「全部 / 可报名 / 我参与的」快捷筛选加类型筛选（内部、外部、个人、团队；官网不用原生下拉框，#265 做成胶囊按钮，先有内部 / 外部，个人 / 团队与「我参与的」随 #239 加）。卡片显示名称、状态、内外部、个人或团队人数、截止日期；登录成员的卡片多一行**我的状态**，如「已报名 · 待组队」「意向 · 收到 1 个组队邀请」。
 - 右侧详情：标题与状态、要点四格（报名截止、比赛时间、报名方式、当前报名）、团队赛规则提示，页签「概览 / 队伍 / 找队友」（个人赛只有概览）。
 - 底部操作条：左边是三步进度（个人赛只有「报名」一步），右边是当前唯一的主操作与次要操作——未报名时「报名」，已报名未入队时「创建队伍 / 浏览队伍」，队长人数达标时「确认参赛」。截止后操作条只读，显示最终结果。
 
@@ -505,7 +505,7 @@ portal（`app/web/sites/portal`）：
 | `components/os/competitions/MyCompetitions.tsx` | 我的参赛与待处理 |
 | `components/os/competitions/ActionBar.tsx` | 三步进度与主操作，按接口返回的 `actions` 渲染 |
 | `lib/competition-signups.ts` | 接口调用、响应形状校验、状态文案（与「个人状态口径」表一一对应） |
-| `components/os/Windows.tsx` | 比赛窗口改为渲染 `CompetitionsApp`、宽约 1100；现有时间、状态与排序逻辑（`lib/competitions.ts` 的 `statusAt`、北京时间格式、60 秒重算）原样复用 |
+| `components/os/Windows.tsx` | 比赛窗口改为渲染 `CompetitionsApp`、宽约 1100（#265 已完成）；现有时间、状态与排序逻辑（`lib/competitions.ts` 的 `statusAt`、北京时间格式、60 秒重算）原样复用 |
 | `styles/os.css` | 新样式；手机 sheet 复用现有容器 |
 
 console（`app/console`）：`pages/Competitions.vue` 每行加「名单」；新增 `pages/CompetitionRoster.vue`（统计、页签、报名设置对话框、导出）；`router.ts` 加路由；权限沿用 `competitions.manage`。后端合并前可先对 `app/web/shared/lib/mock-api.ts` 与控制台样板开发。
@@ -566,7 +566,7 @@ console（`app/console`）：`pages/Competitions.vue` 每行加「名单」；�
 
 - 需求：[issue #239](https://github.com/Yangtze-University-Geek-Class/admin/issues/239)；所有者 2026-10-19 对比赛窗口的反馈：不应只有「内部 / 外部 / 全部」，要做成包含报名信息、组队信息和已报名赛事的应用。
 - 官网托管与 SDK：所有者 2026-10-19 补充：内部比赛可以有比赛官网，由我们帮忙部署，办赛人提供部署包，部署包必须对接我们的比赛接口，因此要出 SDK 和相关文档；比赛要有报名、组队；所有内容都要有截图认证。
-- 现有实现：`app/server/src/lib/competition-store.ts:59`、`app/server/src/lib/db.ts:188`、`app/server/src/lib/roles.ts:87`、`app/web/sites/portal/components/os/Windows.tsx:216`、`app/web/sites/portal/lib/osApps.ts:46`。
+- 现有实现：`app/server/src/lib/competition-store.ts:59`、`app/server/src/lib/db.ts:188`、`app/server/src/lib/roles.ts:87`、`app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx`（#265；#238 时在 `Windows.tsx`）、`app/web/sites/portal/lib/osApps.ts:46`。
 - 后端草稿：fork `Yuminghuang738/admin` 分支 `task/239/competition_signup` 的提交 `90fc376`（基于 `a42272d6`；2026-10-19 重构后开 [PR #261](https://github.com/Yangtze-University-Geek-Class/admin/pull/261)）：`app/server/src/lib/competition-signup-store.ts`、`app/server/src/routes/portal/competition-signups.ts`、`app/server/src/routes/console/competition-roster.ts`。
 - 身份：[ADR-0005](../decisions/0005-sso-extend-core-server.md)（`accepted`，未实施；PR #242）；所有者 2026-10-19：「我们的登录不再是github登录了，是长江大学极客班统一登录的」，GitHub、Google、邮箱验证码都绑定到同一个极客班账号；跨业务口径见[统一登录实施规格](./UNIFIED-LOGIN.md)（`accepted`，未实施）；统一资料来自所有者同日的「全局的头像还有相关的信息比赛，首页，管理后端，论坛都是用一套的，而且可以同步的更改」。
 - 草图：`docs/assets/competition-app/*.webp`，由静态 HTML 渲染，数据虚构。
