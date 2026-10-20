@@ -53,10 +53,14 @@
       "id": "identity",
       "title": "身份与会话",
       "docs": [
-        "docs/architecture/SECURITY.md"
+        "docs/architecture/SECURITY.md",
+        "docs/plan/UNIFIED-LOGIN.md"
       ],
       "tables": [
-        "sessions"
+        "sessions",
+        "users",
+        "identities",
+        "identity_audit"
       ]
     },
     {
@@ -201,6 +205,7 @@
   "routeOwners": {
     "app/server/src/app.ts": "platform",
     "app/server/src/routes/admin/auth.ts": "identity",
+    "app/server/src/routes/identity/providers.ts": "identity",
     "app/server/src/routes/admin/activity.ts": "github",
     "app/server/src/routes/admin/feedback.ts": "feedback",
     "app/server/src/routes/admin/invitations.ts": "invitations",
@@ -250,6 +255,9 @@
     "app_state": "预留表；当前没有业务读写消费者。存在表不代表已有业务能力。",
     "applications": "包含候选人个人信息。具体读取范围、字段下发和取消规则见业务文档；目录不包含记录。",
     "sessions": "包含加密会话凭据。目录仅记录列与约束，不读取会话值。",
+    "users": "极客班账号：id 就是接口里的 account_id（极客班 OpenID），随机生成、永不复用；只有身份模块（lib/identity-store.ts）读写。目录不读取记录。",
+    "identities": "每种登录方式一行；GitHub 的 provider_uid 是数字 id 的十进制串，login、avatar_url 只是展示镜像。同一 GitHub 账号只能绑定一个极客班账号。目录不读取记录。",
+    "identity_audit": "给本人看的账号记录（登录、被拒、退出），不存 IP、UA、邮箱原文和第三方标识；管理审计仍在 audit_logs。",
     "invite_links": "包含能力令牌与加密上游凭据。目录不读取记录。",
     "mail_outbox": "包含发信中的个人信息；application_id、review_id 不是数据库外键。具体保留规则见 mail.md。",
     "competitions": "只存赛事事实，不含参赛者或队伍；status由时间计算，offline仅控制公开可见性，删除与下线不同。报名组队尚未实现。"
@@ -432,25 +440,74 @@
       ]
     },
     {
+      "id": "identity.providers",
+      "title": "列出本站启用的登录方式",
+      "domain": "identity",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /auth/providers",
+      "capabilities": [],
+      "reads": [],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：匿名可读，不读会话、不需要能力。",
+        "响应与错误：200 {providers:[...]}，每项含id、name、kind、start、can_register；交付1只有GitHub（kind=redirect，start=/auth/github，can_register=true），响应Schema固定字段。",
+        "数据与副作用：只读进程内的固定列表，不读写数据库、不请求GitHub。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/identity/providers.ts",
+          "needle": "  app.get(\"/auth/providers\", async () => ({ providers: loginProviders() }));"
+        },
+        {
+          "path": "app/server/src/routes/identity/contracts.ts",
+          "needle": "  \"GET /auth/providers\": {"
+        },
+        {
+          "path": "app/server/src/routes/identity/index.ts",
+          "needle": "export default async function identityRoutes(app: FastifyInstance) {"
+        }
+      ],
+      "tests": [
+        "tests/server/identity.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/plan/UNIFIED-LOGIN.md"
+      ]
+    },
+    {
       "id": "identity.callback",
-      "title": "校验登录回调并建立统一会话",
+      "title": "校验登录回调，在一个事务里建号或找到账号并建立统一会话",
       "domain": "identity",
       "relatedDomains": [
-        "audit"
+        "audit",
+        "organization",
+        "forum"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /auth/callback",
       "capabilities": [],
-      "reads": [],
+      "reads": [
+        "identities",
+        "users"
+      ],
       "writes": [
         "sessions",
-        "audit_logs"
+        "audit_logs",
+        "users",
+        "identities",
+        "identity_audit",
+        "role_assignments",
+        "forum_users"
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：state与签名cookie必须相符且未过期；仅CONSOLE_ORG active成员成功。",
-        "响应与错误：成功302回return_to；取消/上游失败/非成员分别带signin结果回跳；缺参数或无效state为400，旧forum-state为410。",
-        "数据与副作用：调用GitHub换token、取用户、查本人组织成员状态；成功写sessions及auth.signin审计。非成员不建会话、审计拒绝并尽力撤销授权；失败日志不输出token。"
+        "权限与资源：state与签名cookie必须相符且未过期；仅CONSOLE_ORG active成员成功；只有GitHub能建号，按GitHub数字id匹配身份，不用会变的登录名。",
+        "响应与错误：成功302回return_to；取消/上游失败/非成员/账号停用分别带signin结果（cancelled、failed、not_member或invite_pending、account_disabled）回跳；合并链超过8跳、成环或事务失败按failed；缺参数或无效state为400，旧forum-state为410。",
+        "数据与副作用：外部请求在事务外做完；建号、刷新身份、沿merged_into走到终点、按GitHub id认领称号与论坛用户、写sessions（含openid、provider）、删请求带来的旧会话、写identity_audit与auth.signin在一个BEGIN IMMEDIATE事务里，失败整体回滚、旧会话照常有效。非成员与停用账号不建会话、审计拒绝并尽力撤销授权；失败日志不输出token。"
       ],
       "evidence": [
         {
@@ -460,15 +517,26 @@
         {
           "path": "app/server/src/lib/auth.ts",
           "needle": "function createSession("
+        },
+        {
+          "path": "app/server/src/lib/identity-store.ts",
+          "needle": "  function signInWithGithub(input: { github: GithubAccount;"
+        },
+        {
+          "path": "app/server/src/lib/db.ts",
+          "needle": "function audit(org: string | null, actor: AuditActor,"
         }
       ],
       "tests": [
-        "tests/server/core.test.ts"
+        "tests/server/core.test.ts",
+        "tests/server/identity.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
+        "docs/architecture/SECURITY.md",
+        "docs/services/server/data-model.md",
+        "docs/plan/UNIFIED-LOGIN.md"
       ]
     },
     {
@@ -486,23 +554,29 @@
       ],
       "writes": [
         "sessions",
-        "audit_logs"
+        "audit_logs",
+        "identity_audit"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：仅销毁cookie sid对应本站会话；允许没有会话的幂等退出，仍受共同写请求Origin校验。",
         "响应与错误：200 {ok:true}；不向调用者泄露sid是否存在。",
-        "数据与副作用：清sid和旧forum_sid cookie；实际读取到会话才写auth.signout，不撤销GitHub授权。"
+        "数据与副作用：清sid和旧forum_sid cookie；实际读取到会话才写auth.signout（带actor_account_id）和本人的identity_audit退出记录，不撤销GitHub授权。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/admin/auth.ts",
           "needle": "  app.post(\"/auth/signout\", async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/lib/identity-store.ts",
+          "needle": "  function recordSignout(accountId: string, provider: IdentityProvider): void {"
         }
       ],
       "tests": [
         "tests/server/core.test.ts",
-        "tests/server/session-cleanup.test.ts"
+        "tests/server/session-cleanup.test.ts",
+        "tests/server/identity.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -525,7 +599,8 @@
         "sessions",
         "role_assignments",
         "departments",
-        "titles"
+        "titles",
+        "users"
       ],
       "writes": [
         "sessions",
@@ -534,8 +609,8 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：只返回当前sid的身份；console_link是显示提示，不赋予后端权限。",
-        "响应与错误：200 {signed_in:false}或身份字段及console_link；GitHub拒绝token时200 {signed_in:false,session_expired:true}，其他角色查询失败仍保持登录但入口false。",
-        "数据与副作用：访问GitHub角色缓存和权限数据；过期/被拒token才删会话，拒绝token写审计；无其他业务写入。"
+        "响应与错误：200 {signed_in:false}或身份字段（login、user_id、avatar_url、account_id、provider）及console_link；GitHub拒绝token时200 {signed_in:false,session_expired:true}，其他角色查询失败仍保持登录但入口false。",
+        "数据与副作用：会话联查账号，过期、没有账号（启动回填映射不到的旧会话）或账号不是active的会话按未登录处理并删除；访问GitHub角色缓存和权限数据，被拒token才删会话并写审计；无其他业务写入。"
       ],
       "evidence": [
         {
@@ -545,16 +620,27 @@
         {
           "path": "app/server/src/lib/access.ts",
           "needle": "export function createAccess("
+        },
+        {
+          "path": "app/server/src/lib/auth.ts",
+          "needle": "function getSession(id: string): Session | null {"
+        },
+        {
+          "path": "app/server/src/lib/db.ts",
+          "needle": "const identityBackfill = backfillIdentity(db, Date.now());"
         }
       ],
       "tests": [
         "tests/server/core.test.ts",
-        "tests/server/console.test.ts"
+        "tests/server/console.test.ts",
+        "tests/server/identity.test.ts",
+        "tests/server/legacy-database.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
+        "docs/architecture/SECURITY.md",
+        "docs/services/server/data-model.md"
       ]
     },
     {
@@ -3053,7 +3139,9 @@
         "sessions",
         "role_assignments",
         "departments",
-        "titles"
+        "titles",
+        "identities",
+        "users"
       ],
       "writes": [
         "role_assignments",
@@ -5912,6 +6000,9 @@
       "organization"
     ],
     "app/server/src/lib/auth.ts": [
+      "identity"
+    ],
+    "app/server/src/lib/identity-store.ts": [
       "identity"
     ],
     "app/server/src/lib/crypto.ts": [

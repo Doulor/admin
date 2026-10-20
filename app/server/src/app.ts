@@ -2,6 +2,7 @@ import portalRoutes from "./routes/portal/index.js";
 import adminRoutes from "./routes/admin/index.js";
 import consoleRoutes from "./routes/console/index.js";
 import forumRoutes from "./routes/forum-api/index.js";
+import identityRoutes from "./routes/identity/index.js";
 import Fastify, { type RouteOptions } from "fastify";
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
@@ -67,6 +68,7 @@ export async function buildApp(options: BuildAppOptions) {
 
   await app.register(portalRoutes);
   await app.register(adminRoutes);
+  await app.register(identityRoutes);
   await app.register(consoleRoutes);
   await app.register(forumRoutes);
   // 旧论坛接口已退役，不映射成新接口：新论坛接口（routes/forum-api）注册的具体路径优先匹配，

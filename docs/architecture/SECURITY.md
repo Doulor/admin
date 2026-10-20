@@ -2,7 +2,7 @@
 
 > 区分核心后端授权、论坛服务端模式与本机演示；代码防护、真实环境配置和人工验收分别取证。
 
-状态：`current` · 更新：2026-10-18
+状态：`current` · 更新：2026-10-20
 
 ## 核心服务
 
@@ -16,8 +16,8 @@
 
 **登录门槛：只有 `CONSOLE_ORG` 的 active 成员能登录。** 官网、论坛、控制台共用这一个登录和同一个 `sid`。`/auth/callback` 通过签名 state 校验、换到 token、取到 `/user` 之后，用这个 token 调 `GET /user/memberships/orgs/{CONSOLE_ORG}`（`app/server/src/lib/github.ts` 的 `getOwnMembership`，OAuth scope 含 `read:org`），查的是登录者自己的成员状态，不按用户名查别人。结果处理（`app/server/src/routes/admin/auth.ts`）：
 
-- `active`：建会话、写 `sid`、审计 `auth.signin`，回到 `return_to`。
-- 不是成员（GitHub 返回 404）或邀请还没接受（`pending`）：不建会话、不写 `sid`、不保存 token；审计 `auth.signin_denied`（`actor` 与 `target` 是 GitHub 登录名，`details` 为 `{ org, reason }`，`reason` 取 `not_member` 或 `pending`）；尽力撤销这个用户对本应用的授权（`DELETE /applications/{client_id}/grant`，用应用自己的 client_id 与 secret 做 Basic 认证），撤销失败只记警告日志；302 回到 `return_to` 并带 `?signin=not_member` 或 `?signin=invite_pending`。这条审计的 `org` 列为空，和登录、登出一样不经任何审计接口返回，只能在数据库里查。
+- `active`：建会话、写 `sid`、审计 `auth.signin`，回到 `return_to`。会话绑定一个极客班账号（#262，`sessions.openid` = `users.id`，接口里叫 `account_id`）：按 GitHub **数字 id** 找身份，没有就建号（只有 GitHub 能建号），沿 `merged_into` 走到终点账号，按 GitHub id 认领还没认领的称号和论坛用户，插入会话、删掉请求带来的旧 `sid`、写审计，这些在一个 `BEGIN IMMEDIATE` 事务里（`lib/identity-store.ts` 的 `signInWithGithub`），任何一步失败整体回滚、回 `?signin=failed`，旧会话照常有效。只有登录名、没有 GitHub id 的旧称号**不认领**：旧登录名可能已被别人注册。终点账号已停用：不建会话，审计 `auth.signin_denied`（`reason` 为 `account_disabled`），撤销授权，回 `?signin=account_disabled`；合并链超过 8 跳或成环按 `failed`。读会话时没有账号（#262 之前留下、没有 GitHub id 的旧会话）或账号不是 `active` 的，一律按未登录处理并删掉这一行。
+- 不是成员（GitHub 返回 404）或邀请还没接受（`pending`）：不建会话、不写 `sid`、不保存 token；审计 `auth.signin_denied`（`actor` 与 `target` 是 GitHub 登录名，`details` 为 `{ org, reason, provider }`，`reason` 取 `not_member` 或 `pending`，`provider` 是 `github`；这个 GitHub id 已经有账号时另写 `actor_account_id`）；尽力撤销这个用户对本应用的授权（`DELETE /applications/{client_id}/grant`，用应用自己的 client_id 与 secret 做 Basic 认证），撤销失败只记警告日志；302 回到 `return_to` 并带 `?signin=not_member` 或 `?signin=invite_pending`。这条审计的 `org` 列为空，和登录、登出一样不经任何审计接口返回，只能在数据库里查。
 - 换 token、取 `/user` 或成员查询出错（包括组织限制 OAuth App 访问时 GitHub 返回的 403）：一律 `?signin=failed`，**不**当成「不是成员」；服务端只记一条带 `code`、`status`、request id 的错误日志，不含 token 和上游响应。
 - 用户在 GitHub 授权页取消（`error=access_denied`）回 `?signin=cancelled`，GitHub 回传其它 `error` 回 `?signin=failed`。
 - 登录之后，会话里存的令牌被 GitHub 以 401 拒绝（用户撤销了授权，或同一用户的令牌超过 10 个、最久没用的被收回）：这个会话结束，服务端删掉它、清 `sid`，回 401 `session_expired`，审计 `auth.session_rejected`；`/auth/me` 回 `{ signed_in: false, session_expired: true }`。人重新登录后拿新令牌（#164，细节见下文「失败语义」与 [API](API.md) 的上游错误映射）。

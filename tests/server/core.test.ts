@@ -6,14 +6,14 @@ import { ADMIN_SPA_ENTRY, ADMIN_SPA_PATHS, PORTAL_SPA_ENTRY, buildApp, resolveSi
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { testApp, testConfig } from './helpers';
+import { signIn, testApp, testConfig } from './helpers';
 const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
 async function setup(overrides?: ServiceOverrides, production = false) { const c = await testApp(overrides, production); contexts.push(c); return c; }
 afterEach(async () => { for (const c of contexts.splice(0)) await c.close(); });
 
 it('isolates the core database and does not instantiate any retired forum services', async () => {
   const a = await setup(); const b = await setup();
-  a.app.services.auth.createSession('isolated-user', 1, null, 'test-token');
+  signIn(a.app, 'isolated-user', 1, null, 'test-token');
   expect(b.app.services.storage.db.prepare('SELECT COUNT(*) AS n FROM sessions').get()).toEqual({ n: 0 });
   expect('forumDb' in a.app.services).toBe(false);
   expect('forumAuth' in a.app.services).toBe(false);
@@ -57,7 +57,7 @@ it('preserves authentication and cross-origin protection for organization manage
   expect((await app.inject('/auth/me')).headers['cache-control']).toBe('no-store');
 });
 it('preserves core sessions without minting or reading old forum sessions', async () => {
-  const { app } = await setup(); const sid = app.services.auth.createSession('test-user', 5, null, 'test-access');
+  const { app } = await setup(); const sid = signIn(app, 'test-user', 5, null, 'test-access');
   const headers = { cookie: `sid=${sid}` };
   expect((await app.inject({ url: '/auth/me', headers })).json().login).toBe('test-user');
   expect((await app.inject({ method: 'POST', url: '/auth/signout', headers })).statusCode).toBe(200);
@@ -132,7 +132,7 @@ it.each([
   expect(app.services.storage.db.prepare('SELECT COUNT(*) AS n FROM sessions').get()).toEqual({ n: 0 });
   const denied = app.services.storage.db.prepare("SELECT actor, details FROM audit_logs WHERE action = 'auth.signin_denied'").get() as { actor: string; details: string };
   expect(denied.actor).toBe('test-github-user');
-  expect(JSON.parse(denied.details)).toEqual({ org: 'Yangtze-University-Geek-Class', reason: membership ?? 'not_member' });
+  expect(JSON.parse(denied.details)).toEqual({ org: 'Yangtze-University-Geek-Class', reason: membership ?? 'not_member', provider: 'github' });
   // 被拒的人在 GitHub 上的授权被撤掉：用应用自己的 client_id:client_secret，撤的是这次换到的 token 所属的 grant
   const revoke = providerCalls.find(call => call.url.includes('/grant'));
   expect(revoke).toMatchObject({ method: 'DELETE', url: 'https://api.github.com/applications/test-client/grant' });
@@ -239,7 +239,7 @@ it('lists admin feedback without the submitter IP, user agent or numeric account
   const { app } = await setup({ octokitFactory }); const now = Date.now();
   app.services.storage.db.prepare('INSERT INTO feedback(org,content,category,contact,submitter_login,submitter_id,source_ip,user_agent,status,votes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
     .run('test-org', 'test feedback body', '建议', 'test-contact', 'test-student', 424242, '203.0.113.9', 'test-agent/1.0', 'open', 3, now, now);
-  const sid = app.services.auth.createSession('test-admin', 1, null, 'test-access');
+  const sid = signIn(app, 'test-admin', 1, null, 'test-access');
   const response = await app.inject({ url: '/api/admin/test-org/feedback', headers: { cookie: `sid=${sid}` } });
   expect(response.statusCode).toBe(200);
   const { items, counts } = response.json();

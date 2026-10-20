@@ -1,12 +1,14 @@
 # 统一登录：极客班账号、登录页与跨业务对齐方案
 
-> #237 的实施规格（未实施）：把 ADR-0005 落到可以直接开工的颗粒度——统一登录页 `/signin`、账号页 `/account` 与控制台的界面状态，三种登录方式的后端流程，全站一套的个人资料（头像、昵称），新表与迁移，要会话的接口在邮箱或 Google 会话下怎么处理，以及各业务要改什么、怎么验收；按四个候选 issue 拆分交付。
+> #237 的实施规格（交付 1 的账号底座与 GitHub 登录事务已由 #262 实施，其余未实施）：把 ADR-0005 落到可以直接开工的颗粒度——统一登录页 `/signin`、账号页 `/account` 与控制台的界面状态，三种登录方式的后端流程，全站一套的个人资料（头像、昵称），新表与迁移，要会话的接口在邮箱或 Google 会话下怎么处理，以及各业务要改什么、怎么验收；按四个候选 issue 拆分交付。
 
-状态：`accepted`（所有者已接受，未实施；四个候选 issue 仍要逐个批准后才建单开工）· 更新：2026-10-20 · 适用：`app/server` 的身份、会话、成员资格、个人资料与登录接口及表，`app/console` 的 `/signin`、`/account` 与导航，官网、论坛、控制台和比赛的登录入口、头像与昵称显示
+状态：`accepted`（所有者已接受；交付 1 的后端底座已由 #262 实施，登录页改版、三端入口与交付 2–4 未实施，仍要逐个批准后才建单开工）· 更新：2026-10-20 · 适用：`app/server` 的身份、会话、成员资格、个人资料与登录接口及表，`app/console` 的 `/signin`、`/account` 与导航，官网、论坛、控制台和比赛的登录入口、头像与昵称显示
 
 **一句话**：一个人只有一个极客班 OpenID（`users.id`）。GitHub、邮箱验证码、Google 都是绑定在它名下的登录渠道，不管用哪个登录，落到的都是同一个 OpenID；官网、论坛、控制台和以后上线的业务共用这一套登录和会话，业务只认这个 OpenID。
 
-本文是已接受、未实施的方案：下面的接口、表和界面都**还不存在**，现行行为以 [server 合同](../services/server/README.md)、[接口行为契约](../services/server/endpoint-contracts.md) 和 [SECURITY](../architecture/SECURITY.md) 为准。为什么这样选见 [ADR-0005](../decisions/0005-sso-extend-core-server.md)（`accepted`），本文只写怎么做；两者不一致时先改 ADR 再改本文。文中图片都是**方案草图**（静态 HTML 渲染，数据虚构），不是实现截图。
+**实施进度**：#262 实施了交付 1 的后端底座——`users`、`identities`、`identity_audit` 三张表，`sessions`、`role_assignments`、`forum_users`、`audit_logs` 加列与启动回填，GitHub 登录事务（建号、合并链、认领、停用拒绝、整体回滚），`GET /auth/providers`，`/auth/me` 加 `account_id`、`provider`。交付 1 的统一登录页 `/signin` 改版、官网与论坛入口改指 `/signin`、登录结果在登录页说明（包括 `account_disabled` 的文案）还没做：登录仍显示「用 GitHub 登录」，没登录成功仍回原页面带 `?signin=`。交付 2–4 都未实施。
+
+除上面已实施的部分外，本文是已接受、未实施的方案：其余接口、表和界面都**还不存在**，现行行为以 [server 合同](../services/server/README.md)、[接口行为契约](../services/server/endpoint-contracts.md) 和 [SECURITY](../architecture/SECURITY.md) 为准。为什么这样选见 [ADR-0005](../decisions/0005-sso-extend-core-server.md)（`accepted`），本文只写怎么做；两者不一致时先改 ADR 再改本文。文中图片都是**方案草图**（静态 HTML 渲染，数据虚构），不是实现截图。
 
 ## 给开工 Agent 的读法
 

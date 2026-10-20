@@ -1,0 +1,360 @@
+{
+  "version": 1,
+  "issue": 262,
+  "kind": "business",
+  "summary": "统一登录交付 1 的后端底座：引入极客班账号（users、identities、identity_audit），给 sessions、role_assignments、forum_users、audit_logs 加列并在启动时幂等回填，GitHub 登录改成一个事务里建号或找到账号、认领称号与论坛用户并签发会话，/auth/me 返回 account_id 与 provider，新增 GET /auth/providers；登录页改版与三端入口不在本 PR。",
+  "applications": [
+    "server"
+  ],
+  "domains": [
+    "identity",
+    "organization",
+    "recruitment",
+    "feedback",
+    "invitations",
+    "github",
+    "forum",
+    "mail",
+    "audit",
+    "public_content",
+    "platform",
+    "competitions"
+  ],
+  "flows": [
+    "flow:identity.callback",
+    "flow:identity.current",
+    "flow:identity.signout",
+    "flow:identity.providers",
+    "flow:organization.assignments.grant",
+    "flow:organization.departments.create",
+    "flow:organization.titles.update",
+    "flow:application.review",
+    "flow:feedback.admin.update",
+    "flow:feedback.console.update",
+    "flow:feedback.submit",
+    "flow:invitation.admin.cancel",
+    "flow:invitation.links.create",
+    "flow:github.members.remove",
+    "flow:github.organization.update",
+    "flow:github.repositories.delete",
+    "flow:github.teams.create",
+    "flow:forum.state",
+    "flow:forum.topics.create",
+    "flow:forum.posts.reply",
+    "flow:competition.create",
+    "flow:documentation.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "一个人从此对应一个极客班账号：GitHub 是唯一能建号的方式，按 GitHub 数字 id 而不是会变的登录名认人；改名后称号和论坛用户跟着账号走，只有登录名的旧称号不被同名新人认领；停用账号拒绝登录。组织门槛、回跳规则和登录入口文案不变。",
+      "evidence": [
+        "app/server/src/lib/identity-store.ts",
+        "app/server/src/routes/admin/auth.ts",
+        "docs/plan/UNIFIED-LOGIN.md"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "新增 lib/identity-store.ts 承担建号、合并链、认领和会话签发；/auth/callback 外部请求在事务外、写库在一个 BEGIN IMMEDIATE 事务里，失败整体回滚并回跳 failed；/auth/me 增加 account_id、provider；新增匿名 GET /auth/providers 并挂响应 Schema；回跳仍是原页面加 ?signin=，新增结果值 account_disabled。",
+      "evidence": [
+        "app/server/src/lib/identity-store.ts",
+        "app/server/src/routes/admin/auth.ts",
+        "app/server/src/routes/identity/providers.ts",
+        "app/server/src/routes/identity/contracts.ts",
+        "app/server/src/lib/auth.ts"
+      ]
+    },
+    "permissions": {
+      "status": "changed",
+      "reason": "能力模型与授权执行点不变，身份来源改为会话里的账号：称号依次按账号、GitHub id、登录名匹配，已认领的行只认账号；没有账号的旧会话和非 active 账号按未登录处理；论坛成员先按账号找论坛用户。GitHub 能力仍受组织角色上限约束。",
+      "evidence": [
+        "app/server/src/lib/role-store.ts",
+        "app/server/src/lib/access.ts",
+        "app/server/src/lib/auth.ts",
+        "app/server/src/middleware/require-capability.ts",
+        "app/server/src/routes/forum-api/viewer.ts"
+      ]
+    },
+    "data": {
+      "status": "changed",
+      "reason": "新增 users、identities、identity_audit；第一次给已有表加可空列 sessions.openid、sessions.provider、role_assignments.account_id、forum_users.account_id、audit_logs.actor_account_id 和四个索引（先查 PRAGMA table_info 再 ADD COLUMN）；每次启动在一个事务里回填并写 identity_v1 与 identity.backfill；会话新旧列一起写，回滚换旧镜像即可。",
+      "evidence": [
+        "app/server/src/lib/db.ts",
+        "app/server/src/lib/identity-store.ts",
+        "tests/server/legacy-database.test.ts",
+        "docs/services/server/data-model.md"
+      ]
+    },
+    "dependencies": {
+      "status": "changed",
+      "reason": "不新增依赖包、凭据或外部服务；services.ts 把身份模块接到会话创建与审计，审计多 actor_account_id 和 system 的 identity.backfill，登录与退出另写本人的 identity_audit；停用账号被拒时和非成员一样尽力撤销 GitHub 授权。",
+      "evidence": [
+        "app/server/src/services.ts",
+        "app/server/src/lib/identity-store.ts",
+        "app/server/src/lib/db.ts"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "server 合同、数据模型、接口行为契约、API 与 SECURITY 写明账号绑定、登录事务、新字段与新接口、加列与回填及回滚；统一登录方案标出交付 1 已实施与未实施的界线；目录登记三张新表、新路由与 identity.providers 流程。",
+      "evidence": [
+        "docs/services/server/README.md",
+        "docs/services/server/data-model.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/plan/UNIFIED-LOGIN.md",
+        "docs/architecture/catalog/ownership.json"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "新增登录事务测试（建号与复用、改名保留称号和论坛用户、旧登录名不认领、停用拒绝并撤销授权、合并链超长与成环、事务失败回滚旧会话仍有效、旧 sid 作废、/auth/providers）与旧库回填测试（计数、五条核对 SQL、回滚期间数据补齐、重跑不变）；测试改走真实登录事务签会话。未验证：预发布真实 GitHub 往返与真实库迁移计数。",
+      "evidence": [
+        "tests/server/identity.test.ts",
+        "tests/server/legacy-database.test.ts",
+        "tests/server/helpers.ts",
+        "tests/server/core.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "unchanged",
+      "reason": "仍由原有 server 镜像交付，不新增环境变量、运行单元或发布 tag；新镜像第一次启动时自动加列和回填，失败则启动失败不带半份数据上线；合并进 stage 只跑 CI，发到预发布要等获授权的 rc tag。",
+      "evidence": [
+        "docs/services/server/README.md",
+        "app/server/Dockerfile"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/server/src/lib/identity-store.ts",
+        "app/server/src/lib/db.ts",
+        "app/server/src/lib/auth.ts",
+        "app/server/src/lib/access.ts",
+        "app/server/src/routes/admin/auth.ts",
+        "app/server/src/routes/identity/",
+        "app/server/src/services.ts",
+        "app/server/src/app.ts"
+      ],
+      "domains": [
+        "identity",
+        "organization",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "github",
+        "forum",
+        "mail",
+        "audit",
+        "public_content",
+        "platform",
+        "competitions"
+      ],
+      "nodes": [
+        "domain:identity",
+        "table:users",
+        "table:identities",
+        "table:identity_audit",
+        "table:sessions",
+        "route:GET /auth/providers",
+        "route:GET /auth/callback",
+        "route:GET /auth/me",
+        "flow:identity.callback",
+        "flow:identity.current",
+        "flow:identity.providers"
+      ],
+      "reason": "账号底座与登录事务：db.ts 建三张新表、给四张已有表加列并在启动时回填，是全部业务域共用的建库文件；auth.ts 的会话读写改成带账号，access.ts 透传账号；回调、退出、/auth/me 改走身份模块；app.ts 只注册新的 identity 路由。其余表结构不变，关联各域流程用于回归核对。"
+    },
+    {
+      "paths": [
+        "app/server/src/middleware/require-auth.ts",
+        "app/server/src/middleware/require-capability.ts"
+      ],
+      "domains": [
+        "identity",
+        "organization",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "github",
+        "forum",
+        "mail",
+        "audit",
+        "public_content",
+        "platform",
+        "competitions"
+      ],
+      "nodes": [
+        "flow:github.members.remove",
+        "flow:organization.assignments.grant",
+        "flow:forum.state"
+      ],
+      "reason": "中间件是所有业务域共用的会话与能力入口：会话类型多 account_id、provider，被 GitHub 拒绝的会话按会话写审计，能力解析透传账号；授权判断、错误码与执行点不变。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/role-store.ts",
+        "app/server/src/routes/console/assignments.ts",
+        "app/server/src/routes/console/departments.ts",
+        "app/server/src/routes/console/titles.ts"
+      ],
+      "domains": [
+        "organization",
+        "identity",
+        "audit"
+      ],
+      "nodes": [
+        "domain:organization",
+        "table:role_assignments",
+        "flow:organization.assignments.grant",
+        "flow:organization.departments.create",
+        "flow:organization.titles.update"
+      ],
+      "reason": "称号按账号、GitHub id、登录名依次匹配，授予时对方已有账号就写 account_id；部门与称号设置只把审计操作者换成会话（多写 actor_account_id），规则不变。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/forum-store.ts",
+        "app/server/src/routes/forum-api/viewer.ts",
+        "app/server/src/routes/forum-api/topics.ts",
+        "app/server/src/routes/forum-api/posts.ts"
+      ],
+      "domains": [
+        "forum",
+        "identity",
+        "audit"
+      ],
+      "nodes": [
+        "domain:forum",
+        "table:forum_users",
+        "flow:forum.state",
+        "flow:forum.topics.create",
+        "flow:forum.posts.reply"
+      ],
+      "reason": "论坛成员先按账号找论坛用户，没有才按「m 加 GitHub id」建并写上账号；版务审计带 actor_account_id。游客规则、编号和帖子数据不变。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/admin/feedback.ts",
+        "app/server/src/routes/admin/invitations.ts",
+        "app/server/src/routes/admin/invite-links.ts",
+        "app/server/src/routes/admin/members.ts",
+        "app/server/src/routes/admin/org.ts",
+        "app/server/src/routes/admin/repos.ts",
+        "app/server/src/routes/admin/teams.ts",
+        "app/server/src/routes/console/applications.ts",
+        "app/server/src/routes/console/competitions.ts",
+        "app/server/src/routes/console/feedback.ts",
+        "app/server/src/routes/portal/feedback.ts"
+      ],
+      "domains": [
+        "feedback",
+        "invitations",
+        "github",
+        "recruitment",
+        "mail",
+        "competitions",
+        "platform",
+        "audit",
+        "identity"
+      ],
+      "nodes": [
+        "flow:feedback.admin.update",
+        "flow:feedback.console.update",
+        "flow:feedback.submit",
+        "flow:invitation.admin.cancel",
+        "flow:invitation.links.create",
+        "flow:github.organization.update",
+        "flow:github.repositories.delete",
+        "flow:github.teams.create",
+        "flow:application.review",
+        "flow:competition.create"
+      ],
+      "reason": "这些路由只把审计的操作者从登录名换成会话（审计 actor 仍写登录名，另写 actor_account_id），请求、响应、授权和业务写入不变；投递审核人、意见箱提交者的记法不变。"
+    },
+    {
+      "paths": [
+        "tests/server/helpers.ts",
+        "tests/server/identity.test.ts",
+        "tests/server/legacy-database.test.ts",
+        "tests/server/core.test.ts",
+        "tests/server/console.test.ts",
+        "tests/server/applications.test.ts",
+        "tests/server/competitions.test.ts",
+        "tests/server/forum.test.ts",
+        "tests/server/invitations.test.ts",
+        "tests/server/mail-outbox.test.ts",
+        "tests/server/rate-limits.test.ts",
+        "tests/server/session-cleanup.test.ts",
+        "tests/server/upstream-errors.test.ts",
+        "tests/e2e/application-cancelled.spec.mts",
+        "tests/e2e/competitions.spec.mts"
+      ],
+      "domains": [
+        "identity",
+        "organization",
+        "forum",
+        "audit"
+      ],
+      "nodes": [
+        "flow:identity.callback",
+        "flow:identity.current",
+        "flow:identity.providers"
+      ],
+      "reason": "新增登录事务与回填用例；其余用例改用 helpers 的 signIn 走真实登录事务签会话，只在审计条数与 signin_denied 详情处按新行为调整断言，被测行为不变。"
+    },
+    {
+      "paths": [
+        "docs/services/server/README.md",
+        "docs/services/server/data-model.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/plan/UNIFIED-LOGIN.md",
+        "docs/architecture/catalog/ownership.json",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md",
+        "docs/INDEX.md"
+      ],
+      "domains": [
+        "identity",
+        "platform"
+      ],
+      "nodes": [
+        "document:docs/services/server/data-model.md",
+        "domain:identity",
+        "flow:identity.providers"
+      ],
+      "reason": "人工文档同步账号绑定、登录事务、加列回填与回滚、新接口和新字段；ownership 登记新表、新路由、身份模块与 identity.providers，并更新回调、读取、退出流程的读写与证据；其余目录文件由 pnpm catalog:generate 重建，docs/INDEX.md 由 docs-index 脚本重建。"
+    }
+  ],
+  "documents": [
+    "docs/services/server/README.md",
+    "docs/services/server/data-model.md",
+    "docs/services/server/endpoint-contracts.md",
+    "docs/architecture/API.md",
+    "docs/architecture/SECURITY.md",
+    "docs/plan/UNIFIED-LOGIN.md"
+  ],
+  "tests": [
+    "tests/server/identity.test.ts",
+    "tests/server/legacy-database.test.ts",
+    "tests/server/helpers.ts",
+    "tests/server/core.test.ts",
+    "tests/server/console.test.ts",
+    "tests/server/applications.test.ts",
+    "tests/server/session-cleanup.test.ts",
+    "tests/e2e/application-cancelled.spec.mts",
+    "tests/e2e/competitions.spec.mts"
+  ],
+  "compatibility": "现有会话由启动回填映射到账号，继续有效；只有很早以前没有 GitHub id 的会话要重新登录一次。/auth/me 只增加字段，原字段语义不变（user_id 仍是 GitHub 数字 id）；登录入口、回跳方式和四种原有 signin 结果不变，新结果 account_disabled 目前没有能触发它的入口，前端也还没有专门文案。",
+  "migration": "新镜像启动时在建库阶段自动执行：先查 PRAGMA table_info 再 ADD COLUMN 加五个可空列和四个索引，再在一个事务里回填（建号、映射会话、按 GitHub id 认领称号与论坛用户），第一次写 identity_v1 与 identity.backfill 计数；可重复执行，不需要手工步骤。",
+  "rollback": "合并后在 stage 上 git revert -m 1 撤销本 PR 的合并提交并重新构建 server 镜像；已上线的库不用动：旧代码不认识新表和新列，插入时不写新列也照常成功；之后再上线时，回填补上回滚期间产生的会话、称号和论坛用户。"
+}
