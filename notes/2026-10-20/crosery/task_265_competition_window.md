@@ -39,3 +39,10 @@
 - 做了什么：按 CODE-REVIEW 14 项核对 b51bf137..fa88756a（22 个文件），另查键盘焦点、手机 Esc、矮屏高度、外链属性，以及界面上没有报名、组队、人数的入口
 - 结果：结论通过（自审，不是独立第三方审查）；未验证：预发布真实数据、读屏实机、Safari 与 Firefox
 - 下一步：CI 全绿后以 merge commit 合并，核对 #265 关闭、远端分支删除，再 task.mjs finish 265
+
+## 17:43:58 +08:00 · 返工 · #265 · CI e2e 手机用例的浮点误差
+
+- 执行者：agent-notion-geek（Notion AI，经 wanctl 操作公司 Mac）
+- 做了什么：PR #266 的 e2e（Playwright 报告）失败 1 条：手机 390×844 用例里「全部」筛选胶囊量出 43.99998px（boundingBox 坐标经 float32 换算，实际是 44px），其余 47 条通过。73c63ae9 把 atLeast44 改为不小于 44 - 0.01，并重建项目目录的来源摘要。
+- 结果：e2e portal-competitions 2 条通过；pnpm check 退出 0。界面与样式没有改。
+- 下一步：推送后等 CI 全绿，按 merge commit 合并 PR #266。
