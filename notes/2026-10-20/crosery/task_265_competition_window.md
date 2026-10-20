@@ -20,3 +20,22 @@
 - 做了什么：提交组件、文案纯函数、数据钩子、窗口外壳、样式、开发样板、单元与 e2e 测试、portal 合同、比赛应用方案、ownership.json 与 6 个项目目录生成文件、docs/changes/265.json 与本执行记录；#263 的收尾记录另一个提交
 - 结果：待 pre-push 与 CI 复核
 - 下一步：推到主仓库同名分支，开 PR 回 stage，CI 全绿后以 merge commit 合并并关闭 #265
+
+## 17:21:01 +08:00 · 推送 · #265 · 把 task/265/competition_window 推到主仓库同名分支
+
+- 执行者：agent-notion-geek（Notion AI，经 wanctl 操作公司 Mac）
+- 做了什么：git push origin task/265/competition_window:refs/heads/task/265/competition_window；fork ZZDR1023/admin-geek 对 Crosery 没有推送权限，同 #263 推主仓库同名分支，合并后由 branch-hygiene 删除
+- 结果：pre-push 检查通过，远端分支指向 fa88756a
+
+## 17:21:01 +08:00 · PR · #265 · 开 PR #266 回 stage
+
+- 执行者：agent-notion-geek（Notion AI，经 wanctl 操作公司 Mac）
+- 做了什么：gh pr create --base stage --head task/265/competition_window，标签同 #265（enhancement、P1、portal、ui:layout、ui:visual、ui:content、ui:interaction）；正文按模板 10 段，验收证据 E1–E4 是改前（rc.6 换同一份样板）与改后的桌面 1440×900、手机 390×844 截图
+- 结果：https://github.com/Yangtze-University-Geek-Class/admin/pull/266；本机 pr-contract 与宏观对齐自测通过
+
+## 17:21:02 +08:00 · 审查 · #265 · 自审 fa88756a：通过
+
+- 执行者：agent-notion-geek（Notion AI，经 wanctl 操作公司 Mac）
+- 做了什么：按 CODE-REVIEW 14 项核对 b51bf137..fa88756a（22 个文件），另查键盘焦点、手机 Esc、矮屏高度、外链属性，以及界面上没有报名、组队、人数的入口
+- 结果：结论通过（自审，不是独立第三方审查）；未验证：预发布真实数据、读屏实机、Safari 与 Firefox
+- 下一步：CI 全绿后以 merge commit 合并，核对 #265 关闭、远端分支删除，再 task.mjs finish 265
