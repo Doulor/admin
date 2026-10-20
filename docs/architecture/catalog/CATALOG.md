@@ -2,9 +2,9 @@
 
 > 应用、运行单元、业务域与源码证据的统一入口；不表示线上部署状态。
 
-状态：`current` · 更新：2026-10-19 · 自动生成，不手工编辑。
+状态：`current` · 更新：2026-10-20 · 自动生成，不手工编辑。
 
-来源摘要：`78535967c3685cafbbae37b8318534fdf93cad9b377dfc972976345a268a399b`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`33d022c2415d55846266960809ffc016f0bed8cf51249eb569fa4e6e05881955`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -1865,11 +1865,11 @@
 - 不入队：
 - 匿名只读未下线赛事，响应只含公开字段，不含offline、创建时间或成员信息。
 - 响应200 {competitions}；五种状态按时间计算，未知报名截止的未来赛事为upcoming；未结束在前，已结束按开始时间倒序。
-- 官网按类型筛选并每60秒重算状态与排序，损坏响应显示失败；全部类型链接可选且必须可解析HTTPS。
+- 官网按关键词、可报名（报名中）与内部/外部筛选，每60秒重算状态与排序，损坏响应显示失败并可重试；全部类型链接可选且必须可解析HTTPS。
 
-源码：[app/server/src/routes/portal/competitions.ts:10](../../../app/server/src/routes/portal/competitions.ts#L10) · [app/server/src/routes/portal/contracts.ts:6](../../../app/server/src/routes/portal/contracts.ts#L6) · [app/server/src/routes/portal/index.ts:9](../../../app/server/src/routes/portal/index.ts#L9) · [app/server/src/lib/competition-store.ts:126](../../../app/server/src/lib/competition-store.ts#L126) · [app/server/src/lib/competition-contract.ts:23](../../../app/server/src/lib/competition-contract.ts#L23) · [app/web/sites/portal/lib/competitions.ts:82](../../../app/web/sites/portal/lib/competitions.ts#L82) · [app/web/sites/portal/components/os/Windows.tsx:216](../../../app/web/sites/portal/components/os/Windows.tsx#L216) · [app/web/sites/portal/components/os/YugcOs.tsx:115](../../../app/web/sites/portal/components/os/YugcOs.tsx#L115) · [app/web/sites/portal/lib/osApps.ts:46](../../../app/web/sites/portal/lib/osApps.ts#L46) · [app/web/shared/lib/mock-api.ts:29](../../../app/web/shared/lib/mock-api.ts#L29)
+源码：[app/server/src/routes/portal/competitions.ts:10](../../../app/server/src/routes/portal/competitions.ts#L10) · [app/server/src/routes/portal/contracts.ts:6](../../../app/server/src/routes/portal/contracts.ts#L6) · [app/server/src/routes/portal/index.ts:9](../../../app/server/src/routes/portal/index.ts#L9) · [app/server/src/lib/competition-store.ts:126](../../../app/server/src/lib/competition-store.ts#L126) · [app/server/src/lib/competition-contract.ts:23](../../../app/server/src/lib/competition-contract.ts#L23) · [app/web/sites/portal/lib/competitions.ts:91](../../../app/web/sites/portal/lib/competitions.ts#L91) · [app/web/sites/portal/lib/competitionLabels.ts:192](../../../app/web/sites/portal/lib/competitionLabels.ts#L192) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:30](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L30) · [app/web/sites/portal/components/os/competitions/CompetitionList.tsx:21](../../../app/web/sites/portal/components/os/competitions/CompetitionList.tsx#L21) · [app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx:37](../../../app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx#L37) · [app/web/sites/portal/components/os/Windows.tsx:210](../../../app/web/sites/portal/components/os/Windows.tsx#L210) · [app/web/sites/portal/components/os/YugcOs.tsx:115](../../../app/web/sites/portal/components/os/YugcOs.tsx#L115) · [app/web/sites/portal/lib/osApps.ts:46](../../../app/web/sites/portal/lib/osApps.ts#L46) · [app/web/shared/lib/mock-api.ts:41](../../../app/web/shared/lib/mock-api.ts#L41)
 
-测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts)。生成器未执行这些测试。
+测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts) · [tests/e2e/portal-competitions.spec.ts](../../../tests/e2e/portal-competitions.spec.ts)。生成器未执行这些测试。
 
 ### 控制台查看全部比赛
 

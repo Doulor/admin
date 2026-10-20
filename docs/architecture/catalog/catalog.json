@@ -6020,11 +6020,27 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 82,
+          "line": 91,
           "path": "app/web/sites/portal/lib/competitions.ts"
         },
         {
-          "line": 216,
+          "line": 192,
+          "path": "app/web/sites/portal/lib/competitionLabels.ts"
+        },
+        {
+          "line": 30,
+          "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
+        },
+        {
+          "line": 21,
+          "path": "app/web/sites/portal/components/os/competitions/CompetitionList.tsx"
+        },
+        {
+          "line": 37,
+          "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
+        },
+        {
+          "line": 210,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
@@ -6036,7 +6052,7 @@
           "path": "app/web/sites/portal/lib/osApps.ts"
         },
         {
-          "line": 29,
+          "line": 41,
           "path": "app/web/shared/lib/mock-api.ts"
         }
       ],
@@ -6044,7 +6060,7 @@
       "invariants": [
         "匿名只读未下线赛事，响应只含公开字段，不含offline、创建时间或成员信息。",
         "响应200 {competitions}；五种状态按时间计算，未知报名截止的未来赛事为upcoming；未结束在前，已结束按开始时间倒序。",
-        "官网按类型筛选并每60秒重算状态与排序，损坏响应显示失败；全部类型链接可选且必须可解析HTTPS。"
+        "官网按关键词、可报名（报名中）与内部/外部筛选，每60秒重算状态与排序，损坏响应显示失败并可重试；全部类型链接可选且必须可解析HTTPS。"
       ],
       "operation": "GET /api/public/competitions",
       "operationLabel": "GET /api/public/competitions",
@@ -6060,7 +6076,8 @@
         "tests/server/competitions.test.ts",
         "tests/console/competitions.test.ts",
         "tests/web/portal-competitions.test.tsx",
-        "tests/e2e/competitions.spec.mts"
+        "tests/e2e/competitions.spec.mts",
+        "tests/e2e/portal-competitions.spec.ts"
       ],
       "title": "浏览公开比赛信息",
       "writes": []
@@ -8252,6 +8269,11 @@
       "title": "tests/e2e/competitions.spec.mts"
     },
     {
+      "id": "test:tests/e2e/portal-competitions.spec.ts",
+      "kind": "test",
+      "title": "tests/e2e/portal-competitions.spec.ts"
+    },
+    {
       "id": "test:tests/server/applications.test.ts",
       "kind": "test",
       "title": "tests/server/applications.test.ts"
@@ -8324,7 +8346,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "78535967c3685cafbbae37b8318534fdf93cad9b377dfc972976345a268a399b",
+    "fingerprint": "33d022c2415d55846266960809ffc016f0bed8cf51249eb569fa4e6e05881955",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -9368,7 +9390,7 @@
       },
       {
         "path": "app/web/shared/lib/mock-api.ts",
-        "sha256": "0b162a2b1b9e56fc712b828fe710e0dc156629cb8a805fd6ab4cc151e4e5ce45"
+        "sha256": "35d557682e399b1ff481dc936bbbc3295fa205a6de154f7afc27c92c3dca5eec"
       },
       {
         "path": "app/web/shared/lib/mount.tsx",
@@ -9468,11 +9490,23 @@
       },
       {
         "path": "app/web/sites/portal/components/os/Windows.tsx",
-        "sha256": "1e914ceb7c4726ce0d9d4494a6dacde2f86b55e4dd360d646f8ddfb117fdb83a"
+        "sha256": "6cbc5bca369517bee7918ff6972134622134b59c44210c471c7602d78791899c"
       },
       {
         "path": "app/web/sites/portal/components/os/YugcOs.tsx",
         "sha256": "15d50e6598d8db56378e33a92f7e584c0434de7ec2107da8660caad92dfaab03"
+      },
+      {
+        "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx",
+        "sha256": "6b4e95196d15c296d5acd3e6e0dd85ac19caea46b541e3105580b2ab0aefdb77"
+      },
+      {
+        "path": "app/web/sites/portal/components/os/competitions/CompetitionList.tsx",
+        "sha256": "e0e1cfd59e1ed3f281c4a627316d7d53b58d77e486d94cd95e90abd29a4119c6"
+      },
+      {
+        "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx",
+        "sha256": "aa9d0bf049dbb9c3653cbada462830bf1e4bacb5d230c2ca159c40d7e0d68602"
       },
       {
         "path": "app/web/sites/portal/hls-light.d.ts",
@@ -9487,8 +9521,12 @@
         "sha256": "86d52ef8683733e92c02af8e6cbbb9dde83313bdad27aff23dc7dfd6aa2784dd"
       },
       {
+        "path": "app/web/sites/portal/lib/competitionLabels.ts",
+        "sha256": "38cf2ee0fb96d069b1323dfc8d83b469694f2b2ae0bb033d84b15da324cb5fe2"
+      },
+      {
         "path": "app/web/sites/portal/lib/competitions.ts",
-        "sha256": "1d8b760cc5ef688ebef940bbf768eb08803e3391b9fd9c5e0a2eadf169f71bf0"
+        "sha256": "6bb552048947f1c499ba0d4debcd20a0723d5e195aa14bc07d6e4e647a89f343"
       },
       {
         "path": "app/web/sites/portal/lib/deskMachine.ts",
@@ -9632,7 +9670,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "89e1387de3e00c25cbf2a666354b1d91cf68fba5c43f6152ad704a0f2f5056cd"
+        "sha256": "05a8a0e439256f5a8bd2e61c5f004bfa73eb2cb59899149881806b833f9e6e2a"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -9676,7 +9714,7 @@
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "8a20e7f046faebe53601cf1de21572d4f34d278e3b4744fc76ae0e64cb0c9f54"
+        "sha256": "f827c8ec313461a7a6ee9a045881576c3e6dd68daedf824139caae65e40ef5e2"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -9721,6 +9759,10 @@
       {
         "path": "tests/e2e/competitions.spec.mts",
         "sha256": "10e6a71797d0d0c747be9118c7f2cd405b0eada27bc605466d61b6b653ffc457"
+      },
+      {
+        "path": "tests/e2e/portal-competitions.spec.ts",
+        "sha256": "5a1c004fe937ae80277ebf448c5c873db68e61637ae995a1d451aada37a9a232"
       },
       {
         "path": "tests/server/applications.test.ts",
@@ -9776,7 +9818,7 @@
       },
       {
         "path": "tests/web/portal-competitions.test.tsx",
-        "sha256": "9d9c7a0a08ab01c43418bf4bd0fc6d42a14a9d0b41092481189a3fba9d67fa2d"
+        "sha256": "5f043aea31e95917258c7b70a07a039dffde6b33baf5256e397b5f509d05a6fc"
       }
     ]
   },
@@ -15307,11 +15349,27 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 82,
+          "line": 91,
           "path": "app/web/sites/portal/lib/competitions.ts"
         },
         {
-          "line": 216,
+          "line": 192,
+          "path": "app/web/sites/portal/lib/competitionLabels.ts"
+        },
+        {
+          "line": 30,
+          "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
+        },
+        {
+          "line": 21,
+          "path": "app/web/sites/portal/components/os/competitions/CompetitionList.tsx"
+        },
+        {
+          "line": 37,
+          "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
+        },
+        {
+          "line": 210,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
@@ -15323,7 +15381,7 @@
           "path": "app/web/sites/portal/lib/osApps.ts"
         },
         {
-          "line": 29,
+          "line": 41,
           "path": "app/web/shared/lib/mock-api.ts"
         }
       ],
@@ -15341,6 +15399,12 @@
       "basis": "declaration",
       "from": "flow:competition.public.list",
       "to": "test:tests/e2e/competitions.spec.mts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:competition.public.list",
+      "to": "test:tests/e2e/portal-competitions.spec.ts",
       "type": "test-entry"
     },
     {
@@ -15379,11 +15443,27 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 82,
+          "line": 91,
           "path": "app/web/sites/portal/lib/competitions.ts"
         },
         {
-          "line": 216,
+          "line": 192,
+          "path": "app/web/sites/portal/lib/competitionLabels.ts"
+        },
+        {
+          "line": 30,
+          "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
+        },
+        {
+          "line": 21,
+          "path": "app/web/sites/portal/components/os/competitions/CompetitionList.tsx"
+        },
+        {
+          "line": 37,
+          "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
+        },
+        {
+          "line": 210,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
@@ -15395,7 +15475,7 @@
           "path": "app/web/sites/portal/lib/osApps.ts"
         },
         {
-          "line": 29,
+          "line": 41,
           "path": "app/web/shared/lib/mock-api.ts"
         }
       ],
@@ -49618,6 +49698,24 @@
     },
     {
       "domains": [
+        "competitions"
+      ],
+      "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
+    },
+    {
+      "domains": [
+        "competitions"
+      ],
+      "path": "app/web/sites/portal/components/os/competitions/CompetitionList.tsx"
+    },
+    {
+      "domains": [
+        "competitions"
+      ],
+      "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
+    },
+    {
+      "domains": [
         "competitions",
         "feedback",
         "identity",
@@ -49654,6 +49752,12 @@
         "recruitment"
       ],
       "path": "app/web/sites/portal/lib/cameraMath.ts"
+    },
+    {
+      "domains": [
+        "competitions"
+      ],
+      "path": "app/web/sites/portal/lib/competitionLabels.ts"
     },
     {
       "domains": [
@@ -54310,7 +54414,7 @@
     }
   ],
   "unmappedSources": [],
-  "updated": "2026-10-19",
+  "updated": "2026-10-20",
   "version": 1,
   "visibility": "internal-engineering"
 }

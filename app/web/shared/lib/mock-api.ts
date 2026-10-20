@@ -7,14 +7,26 @@ import { ApiError } from "./http";
 const now = Date.now();
 const HOUR = 3600_000;
 const DAY = 24 * HOUR;
-const beijingDayEnd = (at: number) => Math.floor((at + 8 * HOUR) / DAY) * DAY + DAY - 8 * HOUR - 1;
+/** 北京时间那一天的 00:00:00.000 与 23:59:59.999：控制台只填日期，存下来的就是这两个点。 */
+const dayStart = (at: number) => Math.floor((at + 8 * HOUR) / DAY) * DAY - 8 * HOUR;
+const dayEnd = (at: number) => dayStart(at) + DAY - 1;
 
-/** 比赛样板只写起止时间：状态由界面按同一套口径（`statusAt`）现算，这里不写死。 */
-const demoCompetitions = () => [
-  { id: "c1001", name: "极客班算法挑战赛", kind: "internal", start_at: now + 6 * DAY, end_at: now + 6 * DAY + 6 * HOUR, signup_deadline: beijingDayEnd(now + 4 * DAY), url: null, description: "班内选拔，前五名代表学院参加校赛。" },
-  { id: "c1002", name: "蓝桥杯省赛", kind: "external", start_at: now + 20 * DAY, end_at: now + 20 * DAY + 4 * HOUR, signup_deadline: beijingDayEnd(now + 12 * DAY), url: "https://dasai.lanqiao.cn/", description: "以学校为单位报名，官网自行注册后统一组织。" },
-  { id: "c1003", name: "上一期内测赛", kind: "internal", start_at: now - 9 * DAY, end_at: now - 8 * DAY, signup_deadline: null, url: null, description: "热身用的小比赛，不计成绩。" },
-];
+/**
+ * 比赛样板（#265）：五种状态、内部外部、有无官网各有一场，日期都落在整天边界上（与控制台存的一样）。
+ * 只写起止时间，状态由界面按同一套口径（`statusAt`）现算；e2e 与改前改后截图也用这一份（传入同一个 `at`）。
+ */
+export function demoCompetitions(at = Date.now()) {
+  const day = (offset: number, edge: "start" | "end") => (edge === "start" ? dayStart : dayEnd)(at + offset * DAY);
+  return [
+    { id: "c1001", name: "秋季黑客松", kind: "internal", start_at: day(12, "start"), end_at: day(13, "end"), signup_deadline: day(5, "end"), url: null, description: "两天一夜，三到五人一队，现场公布题目。\n还没有队伍也可以先报名，组织者会帮忙组队。" },
+    { id: "c1002", name: "2026 校内算法赛", kind: "internal", start_at: day(9, "start"), end_at: day(9, "end"), signup_deadline: day(2, "end"), url: null, description: "个人赛，三小时八道题，按 ACM 规则排名。前十名进入校队集训名单。" },
+    { id: "c1003", name: "CCPC 2026 哈尔滨站", kind: "external", start_at: day(25, "start"), end_at: day(26, "end"), signup_deadline: day(1, "end"), url: "https://ccpc.io/", description: "中国大学生程序设计竞赛区域赛，三人一队，以学校名义报名：先在官网注册队伍，再由教练审核。" },
+    { id: "c1004", name: "蓝桥杯 Web 应用开发", kind: "external", start_at: day(40, "start"), end_at: day(40, "end"), signup_deadline: null, url: "https://dasai.lanqiao.cn/", description: "省赛线上进行，个人参赛。报名时间以官网公布为准。" },
+    { id: "c1005", name: "全国大学生数学建模竞赛", kind: "external", start_at: day(3, "start"), end_at: day(5, "end"), signup_deadline: day(-3, "end"), url: null, description: "三人一队，三天内完成一篇建模论文。" },
+    { id: "c1006", name: "极客班 CTF 新生赛", kind: "internal", start_at: day(-1, "start"), end_at: day(1, "end"), signup_deadline: day(-2, "end"), url: null, description: "线上解题赛，Web、逆向、密码学都有入门题，做出一道就算入门。" },
+    { id: "c1007", name: "春季编程挑战赛", kind: "internal", start_at: day(-40, "start"), end_at: day(-40, "end"), signup_deadline: day(-45, "end"), url: null, description: "" },
+  ];
+}
 const demoOrg = "Yangtze-University-Geek-Class";
 
 function route(path: string): unknown {
@@ -26,7 +38,7 @@ function route(path: string): unknown {
   if (pathname === "/api/feedback/categories") return { categories: ["建议", "Bug", "新功能", "其他"], pow_difficulty: 1, org: demoOrg };
   if (pathname === "/api/public/config") return { turnstile_site_key: null, pow_difficulty: 1 };
   if (pathname === "/api/feedback/public") return { items: [] };
-  if (pathname === "/api/public/competitions") return { competitions: demoCompetitions() };
+  if (pathname === "/api/public/competitions") return { competitions: demoCompetitions(now) };
   if (pathname.startsWith("/api/join/")) return { valid: true, org: demoOrg, note: "开发预览邀请", expires_at: now + 864e5, remaining_uses: 23, pow_difficulty: 1 };
 
   throw new ApiError(404, "mock_route_missing", `开发预览未实现此接口：${pathname}`);

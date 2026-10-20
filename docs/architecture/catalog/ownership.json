@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-19",
+  "updated": "2026-10-20",
   "applications": [
     {
       "id": "web",
@@ -5552,7 +5552,7 @@
       "invariants": [
         "匿名只读未下线赛事，响应只含公开字段，不含offline、创建时间或成员信息。",
         "响应200 {competitions}；五种状态按时间计算，未知报名截止的未来赛事为upcoming；未结束在前，已结束按开始时间倒序。",
-        "官网按类型筛选并每60秒重算状态与排序，损坏响应显示失败；全部类型链接可选且必须可解析HTTPS。"
+        "官网按关键词、可报名（报名中）与内部/外部筛选，每60秒重算状态与排序，损坏响应显示失败并可重试；全部类型链接可选且必须可解析HTTPS。"
       ],
       "evidence": [
         {
@@ -5580,8 +5580,24 @@
           "needle": "export function useCompetitions("
         },
         {
+          "path": "app/web/sites/portal/lib/competitionLabels.ts",
+          "needle": "export function applyFilter<"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx",
+          "needle": "export default function CompetitionsApp("
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/CompetitionList.tsx",
+          "needle": "export default function CompetitionList("
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx",
+          "needle": "export default function CompetitionDetail("
+        },
+        {
           "path": "app/web/sites/portal/components/os/Windows.tsx",
-          "needle": "export function Competitions()"
+          "needle": "{win.id === \"competitions\" && <CompetitionsApp"
         },
         {
           "path": "app/web/sites/portal/components/os/YugcOs.tsx",
@@ -5600,7 +5616,8 @@
         "tests/server/competitions.test.ts",
         "tests/console/competitions.test.ts",
         "tests/web/portal-competitions.test.tsx",
-        "tests/e2e/competitions.spec.mts"
+        "tests/e2e/competitions.spec.mts",
+        "tests/e2e/portal-competitions.spec.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -6026,6 +6043,12 @@
       "competitions"
     ],
     "app/web/sites/portal/lib/competitions.ts": [
+      "competitions"
+    ],
+    "app/web/sites/portal/components/os/competitions/": [
+      "competitions"
+    ],
+    "app/web/sites/portal/lib/competitionLabels.ts": [
       "competitions"
     ]
   }
