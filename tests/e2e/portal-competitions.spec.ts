@@ -37,10 +37,11 @@ async function noSideScroll(page: Page) {
   expect(wide).toEqual([]);
 }
 
+/** 触控目标不小于 44px。boundingBox 的坐标经 float32 换算，CI 上正好 44px 的筛选胶囊量出过 43.99998，所以留 0.01px 浮点误差。 */
 async function atLeast44(controls: Locator) {
   for (const control of await controls.all()) {
     const box = (await control.boundingBox())!;
-    expect(Math.min(box.width, box.height), await control.evaluate(node => node.outerHTML.slice(0, 80))).toBeGreaterThanOrEqual(44);
+    expect(Math.min(box.width, box.height), await control.evaluate(node => node.outerHTML.slice(0, 80))).toBeGreaterThanOrEqual(44 - 0.01);
   }
 }
 

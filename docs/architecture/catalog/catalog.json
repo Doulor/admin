@@ -8346,7 +8346,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "b4b9ca2e1534cf38ecf6649de4d35c66cd4020f2bf4739f2df1dced47136338f",
+    "fingerprint": "33d022c2415d55846266960809ffc016f0bed8cf51249eb569fa4e6e05881955",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -9762,7 +9762,7 @@
       },
       {
         "path": "tests/e2e/portal-competitions.spec.ts",
-        "sha256": "7e1858af64bf7bdb6424d5b7b220042c08e35fa239654f2166b7efe9e19aa885"
+        "sha256": "5a1c004fe937ae80277ebf448c5c873db68e61637ae995a1d451aada37a9a232"
       },
       {
         "path": "tests/server/applications.test.ts",
