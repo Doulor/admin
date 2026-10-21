@@ -12,6 +12,8 @@ import { createRoleStore } from "./lib/role-store.js";
 import { createAccess } from "./lib/access.js";
 import { createFeedbackStore } from "./lib/feedback-store.js";
 import { createCompetitionStore } from "./lib/competition-store.js";
+import { createCompetitionSignupStore } from "./lib/competition-signup-store.js";
+import { createCompetitionScoreStore } from "./lib/competition-score-store.js";
 import { loadForumContent } from "./lib/forum-content.js";
 import { createForumStore } from "./lib/forum-store.js";
 import { createMailer } from "./lib/mail/mailer.js";
@@ -33,6 +35,9 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
   const device = createDeviceStore(storage.db, { clock: overrides.clock });
   const feedback = createFeedbackStore(storage.db);
   const competitions = createCompetitionStore(storage.db);
+  // 报名、组队与积分（#239）：认人用会话里的 account_id，表在 lib/db.ts 里随启动建好。
+  const competitionSignups = createCompetitionSignupStore(storage.db, competitions);
+  const competitionScores = createCompetitionScoreStore(storage.db, competitions, competitionSignups);
   // 历史数据一次性归一（#129）：把 org 只是大小写不同的旧行改成 CONSOLE_ORG 的写法，重复启动安全。
   // 改不动就让启动失败，失败前先关掉刚打开的库，与下面论坛、发信的处理一致。
   try {
@@ -66,6 +71,8 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
   })();
   return {
     competitions,
+    competitionSignups,
+    competitionScores,
     config, storage, crypto,
     auth,
     identity,

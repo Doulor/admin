@@ -452,6 +452,104 @@ CREATE TABLE IF NOT EXISTS device_grants (
 CREATE INDEX IF NOT EXISTS idx_device_grants_account ON device_grants(account_id);
 `);
 
+// 比赛报名与组队（#239，docs/plan/COMPETITION-APP.md「数据库（草图）」）：只新增表，不改 #238 的 `competitions`。
+// `account_id` 是极客班账号（#262 的 users.id）：报名、队伍与成员都按账号认人，不按 GitHub 登录名。
+// 所有状态变化只改 status 与时间列，不物理删除；外键引用 users(id)，所以这段排在统一登录的表之后。
+// 与草图的两处差异（主线要求）：报名设置多 `scoring`（积分开关），`updated_by` 允许 NULL（系统种子）。
+db.exec(`
+CREATE TABLE IF NOT EXISTS competition_signup_settings (
+  competition_id TEXT PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,
+  enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+  participation TEXT NOT NULL CHECK (participation IN ('individual', 'team')),
+  team_min INTEGER,
+  team_max INTEGER,
+  scoring TEXT NOT NULL DEFAULT 'none' CHECK (scoring IN ('none', 'contribution')),
+  updated_at INTEGER NOT NULL,
+  updated_by TEXT REFERENCES users(id),
+  CHECK ((participation = 'individual' AND team_min IS NULL AND team_max IS NULL)
+      OR (participation = 'team' AND team_min IS NOT NULL AND team_max IS NOT NULL
+          AND team_min BETWEEN 1 AND 20 AND team_max BETWEEN team_min AND 20))
+);
+
+CREATE TABLE IF NOT EXISTS competition_signups (
+  id TEXT PRIMARY KEY,
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL REFERENCES users(id),
+  status TEXT NOT NULL CHECK (status IN ('active', 'cancelled')),
+  looking_for_team INTEGER NOT NULL DEFAULT 0 CHECK (looking_for_team IN (0, 1)),
+  note TEXT NOT NULL DEFAULT '' CHECK (length(note) <= 200),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  cancelled_at INTEGER,
+  UNIQUE (competition_id, account_id)
+);
+CREATE INDEX IF NOT EXISTS idx_competition_signups_account ON competition_signups(account_id);
+
+CREATE TABLE IF NOT EXISTS competition_teams (
+  id TEXT PRIMARY KEY,
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  name_key TEXT NOT NULL,
+  slogan TEXT NOT NULL DEFAULT '',
+  leader_account_id TEXT NOT NULL REFERENCES users(id),
+  status TEXT NOT NULL CHECK (status IN ('recruiting', 'locked', 'disbanded')),
+  locked_at INTEGER,
+  disbanded_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_competition_teams_name
+  ON competition_teams(competition_id, name_key) WHERE status <> 'disbanded';
+CREATE INDEX IF NOT EXISTS idx_competition_teams_competition ON competition_teams(competition_id, status);
+
+CREATE TABLE IF NOT EXISTS competition_team_members (
+  id TEXT PRIMARY KEY,
+  team_id TEXT NOT NULL REFERENCES competition_teams(id) ON DELETE CASCADE,
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL REFERENCES users(id),
+  role TEXT NOT NULL CHECK (role IN ('leader', 'member')),
+  status TEXT NOT NULL CHECK (status IN
+    ('applied', 'invited', 'active', 'declined', 'withdrawn', 'left', 'removed', 'disbanded')),
+  message TEXT NOT NULL DEFAULT '' CHECK (length(message) <= 100),
+  created_by TEXT NOT NULL REFERENCES users(id),
+  decided_by TEXT REFERENCES users(id),
+  created_at INTEGER NOT NULL,
+  decided_at INTEGER,
+  updated_at INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_team_members_active
+  ON competition_team_members(competition_id, account_id) WHERE status = 'active';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_team_members_pending
+  ON competition_team_members(team_id, account_id) WHERE status IN ('applied', 'invited');
+CREATE INDEX IF NOT EXISTS idx_team_members_team ON competition_team_members(team_id, status);
+CREATE INDEX IF NOT EXISTS idx_team_members_account ON competition_team_members(account_id, status);
+
+CREATE TABLE IF NOT EXISTS competition_score_events (
+  id TEXT PRIMARY KEY,
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL CHECK (kind IN ('issue', 'pr', 'penalty')),
+  repo TEXT,
+  number INTEGER,
+  points INTEGER NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'revoked')),
+  created_by TEXT NOT NULL REFERENCES users(id),
+  created_at INTEGER NOT NULL,
+  revoked_by TEXT REFERENCES users(id),
+  revoked_at INTEGER,
+  revoke_reason TEXT,
+  CHECK ((kind = 'issue' AND points BETWEEN 5 AND 30)
+      OR (kind = 'pr' AND points BETWEEN 15 AND 100)
+      OR (kind = 'penalty' AND points = -50))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_competition_score_events_repo
+  ON competition_score_events(competition_id, kind, repo, number)
+  WHERE status = 'active' AND kind IN ('issue', 'pr');
+CREATE INDEX IF NOT EXISTS idx_competition_score_events_competition ON competition_score_events(competition_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_competition_score_events_account ON competition_score_events(competition_id, account_id);
+`);
+
 // 已有表加列：SQLite 的 ADD COLUMN 没有 IF NOT EXISTS，先看 PRAGMA table_info。新列都可空，换回旧镜像时
 // 旧代码的 INSERT 不写它们也照常成功；再上线时由下面的回填补齐回滚期间的数据。
 function addColumn(table: string, column: string, definition: string) {
@@ -472,6 +570,37 @@ CREATE INDEX IF NOT EXISTS idx_audit_actor_account ON audit_logs(actor_account_i
 `);
 // 每次启动都回填一遍（全是带条件的更新，可以重跑）：给还在用的旧会话建号、映射会话、认领称号和论坛用户。
 const identityBackfill = backfillIdentity(db, Date.now());
+
+// 第一期开源贡献赛（#239）：比赛与报名设置种子，用 `console_seeds` 标记，只插一次。
+// 组织者之后把比赛删掉或改掉，重启也不再补回来。
+const COMPETITION_SEED = "competition_oss_2026_1";
+const COMPETITION_SEED_ID = "oss-challenge-2026-1";
+// 截止与结束取当天 23:59:59.999，与控制台只填日期时存的日末一致（官网就写成「11-15（周日）」，不带时刻）。
+const COMPETITION_SEED_DEADLINE = Date.parse("2026-11-15T23:59:59.999+08:00");
+{
+  const seeded = db.transaction(() => {
+    if (db.prepare("SELECT 1 AS n FROM console_seeds WHERE name = ?").get(COMPETITION_SEED)) return;
+    const now = Date.now();
+    db.prepare(`INSERT OR IGNORE INTO competitions(id, name, kind, start_at, end_at, signup_deadline, url, description, offline, created_at, updated_at)
+      VALUES(?, ?, 'internal', ?, ?, ?, NULL, ?, 0, ?, ?)`).run(
+      COMPETITION_SEED_ID,
+      "极客班开源实战贡献挑战赛 · 2026 第一期",
+      Date.parse("2026-10-21T00:00:00+08:00"),
+      COMPETITION_SEED_DEADLINE,
+      COMPETITION_SEED_DEADLINE,
+      // 第一段是官网 Hero 上的一句介绍，全文在「概览」里按段显示
+      "面向极客班成员的开源实战贡献赛：在组织认可的开源仓库里提交 Issue 与 PR，按合入结果计分，积分天梯实时更新。\n"
+        + "计分：合入的 Issue +5～+30，合入的 PR +15～+100；作弊（刷量、抄袭、冒名或虚假贡献）每次 −50。分数由组织者核实后登记，可追溯、可撤销。\n"
+        + "1–3 人组队（一个人也可以自成一队），队伍积分是在队成员积分之和。比赛时间 2026-10-21 至 2026-11-15 23:59:59（北京时间）。",
+      now,
+      now,
+    );
+    db.prepare(`INSERT OR IGNORE INTO competition_signup_settings(competition_id, enabled, participation, team_min, team_max, scoring, updated_at, updated_by)
+      VALUES(?, 1, 'team', 1, 3, 'contribution', ?, NULL)`).run(COMPETITION_SEED_ID, now);
+    db.prepare("INSERT OR IGNORE INTO console_seeds(name, seeded_at) VALUES(?, ?)").run(COMPETITION_SEED, now);
+  });
+  seeded();
+}
 
 function audit(org: string | null, actor: AuditActor, action: string, target?: string, details?: unknown, ip?: string) {
   const login = typeof actor === "string" ? actor : actor.login;

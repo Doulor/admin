@@ -1,10 +1,11 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { requireCapability } from "../../middleware/require-capability.js";
 import {
   competitionError, newCompetitionId, toConsoleCompetition,
   type CompetitionDraft, type CompetitionPatch, type CompetitionRecord,
 } from "../../lib/competition-store.js";
+import { SIGNUP_ERRORS, type SignupErrorCode } from "../../lib/competition-signup-store.js";
 
 const VALIDATION_MESSAGE: Record<NonNullable<ReturnType<typeof competitionError>>, string> = {
   bad_name: "比赛名称至少需要 2 个非首尾空白字符",
@@ -16,12 +17,16 @@ const VALIDATION_MESSAGE: Record<NonNullable<ReturnType<typeof competitionError>
 /** 补丁归一：`url` 与 `kind` 无关（内部比赛也能挂自己的比赛官网），这里只保证空串按「没填」处理。 */
 const normalize = (draft: CompetitionDraft): CompetitionDraft => ({ ...draft, name: draft.name.trim(), url: draft.url?.trim() ? draft.url.trim() : null });
 
+/** #238 的比赛写入要给报名让路的三种冲突（#239）：错误码与报名设置共用一张表。 */
+const refuse = (reply: FastifyReply, error: SignupErrorCode) =>
+  reply.code(SIGNUP_ERRORS[error].status).send({ error, message: SIGNUP_ERRORS[error].message });
+
 /**
  * 比赛（#238）：控制台里新建、编辑、下线。授权按 `competitions.manage` 判定，只在服务端。
  * 「下线」是 `PATCH { offline: true }`（公开接口不再返回，控制台仍看得到）；`DELETE` 是真删。
  */
 export default async function consoleCompetitionRoutes(app: FastifyInstance) {
-  const { competitions, config } = app.services;
+  const { competitions, competitionSignups, config } = app.services;
   const { audit, db } = app.services.storage;
   app.addHook("preHandler", requireAuth);
 
@@ -58,6 +63,9 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
       const { competition_id: id } = req.params;
       const current = competitions.get(id);
       if (!current) return reply.code(404).send({ error: "not_found", message: "比赛不存在" });
+      // 有未取消的报名（#239）：不能改内外部；开放报名期间不能清空报名截止时间。
+      if (req.body.kind !== undefined && req.body.kind !== current.kind && competitionSignups.hasActiveSignups(id)) return refuse(reply, "kind_locked");
+      if (req.body.signup_deadline === null && competitionSignups.signupEnabled(id)) return refuse(reply, "deadline_required");
       // 时间关系要拿「改完之后的样子」判：只改开始时间时，结束时间取库里的，不能只看这一条补丁。
       const invalid = competitionError(normalize({ ...patchBase(current), ...req.body, kind: req.body.kind ?? current.kind }));
       if (invalid) return reply.code(400).send({ error: invalid, message: VALIDATION_MESSAGE[invalid] });
@@ -78,6 +86,8 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
     { preHandler: manage, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
     async (req, reply) => {
       const { competition_id: id } = req.params;
+      // 有报名记录的队伍与名单靠外键级联删掉，但历史不能悄悄消失：只能下线，不能删除。
+      if (competitionSignups.hasSignups(id)) return refuse(reply, "has_signups");
       const removed = db.transaction(() => {
         const record = competitions.get(id);
         if (!record || !competitions.remove(id)) return false;
