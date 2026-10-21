@@ -21,3 +21,23 @@
 - 做了什么：补齐文档与目录：ownership 登记比赛新流程与 5 张表、docs/changes/239.json、server/web/console 合同、API、SECURITY、COMPETITION-APP 实施结论与交付截图；给 GET /api/console/competitions/:competition_id/roster.csv 补 200 响应 Schema（text/csv 字符串）后重新生成目录；提交 feat(competitions)
 - 结果：pnpm test 90 个文件 1451 例全过；pnpm check 各步通过，宏观对齐按 --base origin/task/262/unified_login 核对 72 个变更文件、128 个关联节点通过（对 origin/stage 会把 #262 的改动算进来，#268 合入后消失）；pnpm build 通过
 - 下一步：推送并开 PR：base stage，Depends on #268
+
+## 14:11:58 +08:00 · 推送 · #239 · 推送 task/239/competition_hub
+
+- 执行者：agent-notion-geek-main-01（Notion AI 经 wanctl 远程操作）
+- 做了什么：git push -u origin task/239/competition_hub：1774a94e feat(competitions) 与 f0a633b0 docs(competitions) 交付截图说明
+- 结果：pre-push 分支与发布 tag 规则通过，远端分支已建
+
+## 14:11:58 +08:00 · PR · #239 · PR #269
+
+- 执行者：agent-notion-geek-main-01（Notion AI 经 wanctl 远程操作）
+- 做了什么：gh pr create --base stage，关联 Closes #239、Depends on #268；十段正文与 10 个标签，pr-contract check 通过
+- 结果：https://github.com/Yangtze-University-Geek-Class/admin/pull/269
+- 下一步：#268 合入 stage 后重跑 architecture-alignment 与 CI
+
+## 14:11:58 +08:00 · 审查 · #239 · 自审 f0a633b0
+
+- 执行者：agent-notion-geek-main-01（Notion AI 经 wanctl 远程操作）
+- 做了什么：按 CODE-REVIEW 逐项审查 9cd3157e..f0a633b0：保护项、安全、一致性、界面、执行链
+- 结果：结论：通过；未验证：真实 GitHub 往返、预发布上的新接口、Safari 与 Firefox
+- 下一步：所有者先合 #268 再合 #269，授权 rc tag 后按人工验收步骤在预发布验收
