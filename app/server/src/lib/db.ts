@@ -430,6 +430,28 @@ CREATE TABLE IF NOT EXISTS identity_audit (
 CREATE INDEX IF NOT EXISTS idx_identity_audit_user ON identity_audit(user_id, created_at DESC);
 `);
 
+// 设备授权（#262，RFC 8628，为 `geek login` 预留）：一行是一次授权。device_code 与 access_token 只存 sha256；
+// status 只写四个真实状态，`expired` 由 expires_at 现算。只有 lib/device-store.ts 读写这张表。
+db.exec(`
+CREATE TABLE IF NOT EXISTS device_grants (
+  id TEXT PRIMARY KEY,
+  device_code_hash TEXT NOT NULL UNIQUE,
+  user_code TEXT NOT NULL UNIQUE,
+  client_id TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending','approved','denied','consumed')),
+  account_id TEXT,
+  interval_s INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  last_poll_at INTEGER,
+  decided_at INTEGER,
+  token_hash TEXT UNIQUE,
+  token_expires_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_device_grants_account ON device_grants(account_id);
+`);
+
 // 已有表加列：SQLite 的 ADD COLUMN 没有 IF NOT EXISTS，先看 PRAGMA table_info。新列都可空，换回旧镜像时
 // 旧代码的 INSERT 不写它们也照常成功；再上线时由下面的回填补齐回滚期间的数据。
 function addColumn(table: string, column: string, definition: string) {

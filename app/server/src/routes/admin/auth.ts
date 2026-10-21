@@ -8,12 +8,19 @@ import type { Capability } from "../../lib/roles.js";
 /** 普通舰员、领航员默认就有的能力：只有这些时不在头像菜单里显示「控制台」。 */
 const CONSOLE_LINK_IGNORED: ReadonlySet<Capability> = new Set<Capability>(["console.access", "github.org.read", "feedback.read"]);
 
-/** 登录没成功的原因，写进回跳地址的 `signin` 参数，由回到的页面（论坛、控制台登录页）给出说明。 */
+/** 登录没成功的原因，写进统一登录页地址的 `signin` 参数，由登录页（app/console/src/pages/SignIn.vue）给出说明。 */
 export type SigninOutcome = "not_member" | "invite_pending" | "cancelled" | "failed" | "account_disabled";
 
-function withSigninOutcome(target: string, outcome: SigninOutcome): string {
-  const url = new URL(target);
+/**
+ * 登录没成功时回到统一登录页（#262）：`/signin?signin=<原因>&return_to=<原来要回的本站路径>`。
+ * 三端的「登录」都从这个页面出发，失败也回到这里说清原因、可以直接换一种方式重试；登录页会再按同源校验 return_to。
+ */
+function signinFailureUrl(publicOrigin: string, back: string, outcome: SigninOutcome): string {
+  const target = new URL(back);
+  target.searchParams.delete("signin");
+  const url = new URL("/signin", publicOrigin);
   url.searchParams.set("signin", outcome);
+  url.searchParams.set("return_to", `${target.pathname}${target.search}${target.hash}`);
   return url.toString();
 }
 
@@ -54,9 +61,9 @@ export default async function authRoutes(app: FastifyInstance) {
       if (!flow) {
         return reply.code(400).send({ error: "invalid_state" });
       }
-      // 从这里起一律回到发起登录的页面：成功就带着 sid 回去，没成功也回去并带上原因，不停在接口的错误页。
+      // 从这里起不停在接口的错误页：成功就带着 sid 回到 return_to，没成功回到统一登录页并带上原因与原来的 return_to。
       const back = safeReturnTo(flow.returnTo, config, `${config.publicOrigin}/console`);
-      const fail = (outcome: SigninOutcome) => reply.redirect(withSigninOutcome(back, outcome));
+      const fail = (outcome: SigninOutcome) => reply.redirect(signinFailureUrl(config.publicOrigin, back, outcome));
       if (error || !code) return fail(error === "access_denied" ? "cancelled" : "failed");
       const result = await signInWithGitHub(code).catch((cause: { code?: string; status?: number }) => {
         req.log.error({ code: cause?.code, status: cause?.status, requestId: req.id }, "github sign-in failed");

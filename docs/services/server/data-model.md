@@ -2,7 +2,7 @@
 
 > data.db 每张表的用途、写入方、读取方和个人信息字段，以及当前没有消费者的表、列和索引；表结构以 `app/server/src/lib/db.ts` 为唯一来源。
 
-状态：`current` · 更新：2026-10-20 · 源码：`app/server/src/lib/db.ts` · 上级合同：[server](README.md)
+状态：`current` · 更新：2026-10-21 · 源码：`app/server/src/lib/db.ts` · 上级合同：[server](README.md)
 
 ## 约定
 
@@ -14,6 +14,7 @@
 - 本文只记录表级事实和关键字段名，列类型与约束以 `db.ts` 为准。改表时同步修改本文。
 - 2026-10-16（#238）新增 `competitions` 一张表与 `idx_competitions_offline_start`：官网桌面「比赛」窗口读它，控制台维护。只新增，不改任何已有表；`status`（未开始 / 报名中 / 报名已截止 / 进行中 / 已结束）不入库，一律由 `start_at` / `end_at` / `signup_deadline` 与当前时间算出来，所以不需要定时任务去翻状态。
 - 2026-10-20（#262 交付 1，[统一登录方案](../../plan/UNIFIED-LOGIN.md)「交付 1：回填」）新增 `users`、`identities`、`identity_audit` 三张表，并**第一次给已有表加列**：`sessions.openid`、`sessions.provider`，`role_assignments.account_id`，`forum_users.account_id`，`audit_logs.actor_account_id`，外加 `idx_sessions_openid`、`idx_role_assignments_account`、`uq_forum_users_account`（部分唯一）、`idx_audit_actor_account` 四个索引。加列先查 `PRAGMA table_info`、没有才 `ALTER TABLE … ADD COLUMN`，新列都可空，可以重复执行。每次启动在一个事务里回填（`lib/identity-store.ts` 的 `backfillIdentity`，全是带条件的更新）：未过期会话里有 GitHub id、还没有身份的人各建一个账号和 GitHub 身份；会话写上账号；称号和论坛用户按 GitHub id 认领（只有登录名、没有 GitHub id 的称号不认领）；第一次跑完写 `console_seeds` 的 `identity_v1` 和一条 `identity.backfill` 审计（`actor` 为 `system`，`details` 是七个计数），之后只有补到东西才再写一条。**回滚**：直接换回旧镜像，旧代码不认识新表和新列，插入时不写新列也照常成功，数据不用动；再上线时同一段回填补上回滚期间产生的会话、称号和论坛用户（`tests/server/legacy-database.test.ts`）。
+- 2026-10-21（#262，RFC 8628 设备授权）新增 `device_grants` 一张表与 `idx_device_grants_account`：只新增，不改任何已有表。`status` 只写 `pending` / `approved` / `denied` / `consumed`，`expired` 由 `expires_at` 现算；`device_code` 与 `access_token` 明文不入库。发码请求顺带执行 `DELETE FROM device_grants WHERE expires_at < 现在 - 24 小时 AND (token_expires_at IS NULL OR token_expires_at <= 现在)`，所以过期行最多再留一天；不新增定时任务。**回滚**：换回旧镜像即可，旧代码不认识这张表，登录、论坛与其它表都不受影响；再上线时新表按 `CREATE TABLE IF NOT EXISTS` 重建，回滚期间的用户重新运行 `geek login` 即可，没有要补的历史数据。
 - 2026-10-04（#204）新增投递存储值 `cancelled`（已取消），不改表结构、不批量修改数据；仍只把旧 `reviewing` 改回 `received`，重启不覆盖 `cancelled` 或任何审核历史。取消保留原简历，追加 `to_status = cancelled` 的审核；可以补备注或恢复状态。取消这一步不写 `mail_outbox`，也不修改此前的邮件。
 
 ## 表
@@ -38,6 +39,7 @@
 | `users` | 极客班账号（#262）：一行一个人，`id` 就是接口里的 `account_id`（26 位 Crockford Base32 的 128 位随机数，不复用） | 只有 `lib/identity-store.ts`：GitHub 登录事务第一次见到这个 GitHub id 时建（只有 GitHub 能建号），每次登录刷新 `org_state`、`org_checked_at`；启动回填给有未过期会话的人建 | `lib/auth.ts` 的 `getSession`（`status`）；登录事务沿 `merged_into` 走到终点（最多 8 跳） | 无个人信息。`status` 是 `active` / `disabled` / `merged`，`merged` 时 `merged_into` 必填（CHECK）；目前没有停用或合并账号的入口 |
 | `identities` | 登录方式：一行一种绑定（目前只有 GitHub） | 只有 `lib/identity-store.ts`：建号时写，每次 GitHub 登录刷新 `login`、`avatar_url`、`last_login_at` | 登录事务（按 `provider` + `provider_uid` 找账号）；控制台授予称号时按 GitHub id 找对方账号 | `provider_uid` 是 GitHub 数字 id 的十进制串（不用会变的登录名），`UNIQUE(provider, provider_uid)`；部分唯一索引 `uq_identities_github_user` 保证一个账号只有一个 GitHub 身份；`login`、`avatar_url` 是 GitHub 的公开资料镜像 |
 | `identity_audit` | 给本人看的账号记录：登录、被拒、退出 | 只有 `lib/identity-store.ts`：登录成功（`login`）、被组织门槛或停用拒绝（`login_denied`，这个 GitHub id 已经有账号时才写）、退出（`logout`） | 目前没有读取接口（账号页在交付 2） | 不存 IP、UA、邮箱原文和第三方标识，只有账号、动作、方式、结果和原因 |
+| `device_grants` | 一次设备授权（#262，RFC 8628，为 `geek login` 预留）：一行从发码到换令牌的全过程 | 只有 `lib/device-store.ts`：发码写一行 `pending`；浏览器确认改 `approved`（写 `account_id`）或 `denied`；轮询换令牌改 `consumed`（写令牌哈希与到期时间）并更新 `last_poll_at`、轮询过快时加大 `interval_s`；发码时顺手删掉过期超过 24 小时且没有未过期令牌的旧行 | 同一个模块：按 `device_code_hash` 轮询、按 `user_code` 给确认页、按 `token_hash` 认 `GET /auth/device/userinfo`；登录事务不读它 | `device_code_hash`、`token_hash` 是 sha256（明文只在发码和换令牌的响应里出现一次，`UNIQUE`），`user_code` 8 位、字符集 `BCDFGHJKLMNPQRSTVWXZ`、`UNIQUE`；`account_id` 是确认时的极客班账号（不建外键，账号停用后令牌立即失效由 `users.status` 判断）；`status` 只有 `pending` / `approved` / `denied` / `consumed` 四个值，`expired` 由 `expires_at` 现算，不写入；`scope` 只含登记过的 `openid`、`profile`；`idx_device_grants_account` 按账号查。保留 24 小时后由发码请求清理，没有别的删除路径 |
 | `app_state` | 键值状态 | 无 | 无 | 未使用，见下节 |
 
 ### 论坛（`forum_*`，#57）

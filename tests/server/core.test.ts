@@ -122,12 +122,12 @@ it('returns a member to the page that started the sign-in', async () => {
 it.each([
   ['not a member of the organization', null, 'not_member'],
   ['invited but has not accepted yet', 'pending', 'invite_pending'],
-] as const)('refuses to sign in a GitHub user who is %s and says why on the original page', async (_case, membership, outcome) => {
+] as const)('refuses to sign in a GitHub user who is %s and says why on the unified sign-in page (#262)', async (_case, membership, outcome) => {
   const { app } = await setup({ httpRequest: stubProvider, octokitFactory: membershipStub(membership) });
   const { state, cookie } = await startSignIn(app, 'https://example.test/forum/');
   const response = await app.inject({ url: `/auth/callback?code=ok&state=${state}`, headers: { cookie } });
   expect(response.statusCode).toBe(302);
-  expect(response.headers.location).toBe(`https://example.test/forum/?signin=${outcome}`);
+  expect(response.headers.location).toBe(`https://example.test/signin?signin=${outcome}&return_to=%2Fforum%2F`);
   expect(setCookies(response).some(c => c.startsWith('sid='))).toBe(false);
   expect(app.services.storage.db.prepare('SELECT COUNT(*) AS n FROM sessions').get()).toEqual({ n: 0 });
   const denied = app.services.storage.db.prepare("SELECT actor, details FROM audit_logs WHERE action = 'auth.signin_denied'").get() as { actor: string; details: string };
@@ -147,7 +147,7 @@ it('still sends a refused user back with the reason when revoking the grant fail
   const { app } = await setup({ httpRequest: revokeFails, octokitFactory: membershipStub(null) });
   const { state, cookie } = await startSignIn(app, 'https://example.test/forum/');
   const response = await app.inject({ url: `/auth/callback?code=ok&state=${state}`, headers: { cookie } });
-  expect(response.headers.location).toBe('https://example.test/forum/?signin=not_member');
+  expect(response.headers.location).toBe('https://example.test/signin?signin=not_member&return_to=%2Fforum%2F');
   expect(setCookies(response).some(c => c.startsWith('sid='))).toBe(false);
 });
 it('gives every GitHub API call a timeout, because Octokit ignores request.timeout', async () => {
@@ -167,7 +167,7 @@ it('goes back to the original page instead of a JSON error when GitHub cannot be
   const { state, cookie } = await startSignIn(app, 'https://example.test/forum/');
   const response = await app.inject({ url: `/auth/callback?code=ok&state=${state}`, headers: { cookie } });
   expect(response.statusCode).toBe(302);
-  expect(response.headers.location).toBe('https://example.test/forum/?signin=failed');
+  expect(response.headers.location).toBe('https://example.test/signin?signin=failed&return_to=%2Fforum%2F');
   expect(setCookies(response).some(c => c.startsWith('sid='))).toBe(false);
 });
 it('does not treat a failed membership lookup as "not a member"', async () => {
@@ -176,15 +176,23 @@ it('does not treat a failed membership lookup as "not a member"', async () => {
   const { state, cookie } = await startSignIn(app, 'https://example.test/forum/');
   const response = await app.inject({ url: `/auth/callback?code=ok&state=${state}`, headers: { cookie } });
   // 403 不能当成「不是成员」：成员也会被组织的 OAuth App 限制挡住，这时只能说登录没完成
-  expect(response.headers.location).toBe('https://example.test/forum/?signin=failed');
+  expect(response.headers.location).toBe('https://example.test/signin?signin=failed&return_to=%2Fforum%2F');
   expect(setCookies(response).some(c => c.startsWith('sid='))).toBe(false);
 });
-it('takes a cancelled GitHub authorization back to the original page', async () => {
+it('keeps the original page (path, query) in return_to when sign-in fails, dropping a stale signin param', async () => {
+  const { app } = await setup();
+  const { state, cookie } = await startSignIn(app, 'https://example.test/forum/t/t84?page=2&signin=failed');
+  const response = await app.inject({ url: `/auth/callback?error=access_denied&state=${state}`, headers: { cookie } });
+  const location = new URL(String(response.headers.location));
+  expect([location.origin, location.pathname]).toEqual(['https://example.test', '/signin']);
+  expect(Object.fromEntries(location.searchParams)).toEqual({ signin: 'cancelled', return_to: '/forum/t/t84?page=2' });
+});
+it('takes a cancelled GitHub authorization back to the unified sign-in page', async () => {
   const { app } = await setup();
   const { state, cookie } = await startSignIn(app, 'https://example.test/forum/');
   const response = await app.inject({ url: `/auth/callback?error=access_denied&state=${state}`, headers: { cookie } });
   expect(response.statusCode).toBe(302);
-  expect(response.headers.location).toBe('https://example.test/forum/?signin=cancelled');
+  expect(response.headers.location).toBe('https://example.test/signin?signin=cancelled&return_to=%2Fforum%2F');
   // 没有有效 state 的错误回调仍然就地拒绝，不跳到任何地方
   expect((await app.inject('/auth/callback?error=access_denied&state=forged')).statusCode).toBe(400);
   expect((await app.inject('/auth/callback?error=access_denied')).statusCode).toBe(400);
@@ -201,14 +209,14 @@ it('keeps return targets on the single public origin', async () => {
 });
 it.each([
   ['/admin', 'admin'], ['/admin/', 'admin'], ['/admin/demo/repos', 'admin'], ['/admin/signin?return_to=/admin', 'admin'],
-  ['/console', 'admin'], ['/console/people', 'admin'], ['/signin', 'admin'],
+  ['/console', 'admin'], ['/console/people', 'admin'], ['/signin', 'admin'], ['/device', 'admin'],
   ['/', 'portal'], ['/join-us', 'portal'], ['/join/abc', 'portal'], ['/docs/usage', 'portal'], ['/administrator', 'portal'],
   ['/consoles', 'portal'], ['/signin/extra', 'portal'], ['/?next=/admin', 'portal'],
 ])('picks the SPA entry for %s by path only (%s), never by host', (url, site) => {
   expect(resolveSiteEntry(url)).toBe(site === 'admin' ? ADMIN_SPA_ENTRY : PORTAL_SPA_ENTRY);
 });
 it('keeps the admin path list and entry file in one place', () => {
-  expect(ADMIN_SPA_PATHS).toEqual({ exact: ['/signin'], prefixes: ['/admin', '/console'] });
+  expect(ADMIN_SPA_PATHS).toEqual({ exact: ['/signin', '/device'], prefixes: ['/admin', '/console'] });
   // 管理端是 Vue 控制台（app/console），入口在它自己的产物里。
   expect([ADMIN_SPA_ENTRY, PORTAL_SPA_ENTRY]).toEqual(['sites/console/index.html', 'sites/portal/index.html']);
 });

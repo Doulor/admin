@@ -2,9 +2,9 @@
 
 > 从真实建库函数产生的内存 SQLite 提取表、列、索引和物理外键；不读取业务记录。
 
-状态：`current` · 更新：2026-10-20 · 自动生成，不手工编辑。
+状态：`current` · 更新：2026-10-21 · 自动生成，不手工编辑。
 
-来源摘要：`bfbcc931022cdeb8ef0fe36ff4b94da9c9cf77b30631ac957a85f7a7ea8a54ed`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`508f709582f8a5a4d158ef6b39a20da22d90aa42ae4cb4712cd8608d13eff7da`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -22,6 +22,7 @@ flowchart LR
   competitions["competitions"]
   console_seeds["console_seeds"]
   departments["departments"]
+  device_grants["device_grants"]
   feedback["feedback"]
   forum_avatars["forum_avatars"]
   forum_bookmarks["forum_bookmarks"]
@@ -378,6 +379,62 @@ CREATE TABLE departments (
   archived INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
+);
+```
+
+</details>
+
+## device_grants
+
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:436](../../../app/server/src/lib/db.ts#L436)。
+
+命令行设备授权（RFC 8628，给 geek login）：一行是一次授权，device_code 与发出的访问令牌只存 sha256，account_id 是确认人的极客班账号；status 只存 pending/approved/denied/consumed，过期按 expires_at 现算。只有 lib/device-store.ts 读写，目录不读取记录。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `device_code_hash` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `user_code` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `client_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `scope` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `status` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `account_id` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `interval_s` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `expires_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `last_poll_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `decided_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `token_hash` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `token_expires_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `idx_device_grants_account` | `account_id` | 0 | c | 0 | `CREATE INDEX idx_device_grants_account ON device_grants(account_id)` |
+| `sqlite_autoindex_device_grants_1` | `id` | 1 | pk | 0 | `SQLite 自动索引` |
+| `sqlite_autoindex_device_grants_2` | `device_code_hash` | 1 | u | 0 | `SQLite 自动索引` |
+| `sqlite_autoindex_device_grants_3` | `user_code` | 1 | u | 0 | `SQLite 自动索引` |
+| `sqlite_autoindex_device_grants_4` | `token_hash` | 1 | u | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE device_grants (
+  id TEXT PRIMARY KEY,
+  device_code_hash TEXT NOT NULL UNIQUE,
+  user_code TEXT NOT NULL UNIQUE,
+  client_id TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending','approved','denied','consumed')),
+  account_id TEXT,
+  interval_s INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  last_poll_at INTEGER,
+  decided_at INTEGER,
+  token_hash TEXT UNIQUE,
+  token_expires_at INTEGER
 );
 ```
 

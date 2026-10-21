@@ -119,6 +119,8 @@ const APPLY_TABLES = ['application_limits'];
 const COMPETITION_TABLES = ['competitions'];
 /** 极客班账号（#262）：新表之外，只给 sessions、role_assignments、forum_users、audit_logs 加可空列，旧列不动。 */
 const IDENTITY_TABLES = ['identities', 'identity_audit', 'users'];
+/** 命令行设备授权（#262，RFC 8628）：同样只新增。 */
+const DEVICE_TABLES = ['device_grants'];
 
 const dirs: string[] = [];
 const apps: { close: () => Promise<unknown> }[] = [];
@@ -223,7 +225,7 @@ describe('booting on the existing production data.db (legacy schema, no applicat
 
     // 新表全部建好；旧表一行不少、旧列一字不变（#262 加的列和启动回填写的那条审计另外核对）。
     const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all() as { name: string }[]).map(row => row.name);
-    expect(tables).toEqual([...new Set([...LEGACY_TABLES, ...CONSOLE_TABLES, ...FORUM_TABLES, ...MAIL_TABLES, ...APPLY_TABLES, ...COMPETITION_TABLES, ...IDENTITY_TABLES])].sort());
+    expect(tables).toEqual([...new Set([...LEGACY_TABLES, ...CONSOLE_TABLES, ...FORUM_TABLES, ...MAIL_TABLES, ...APPLY_TABLES, ...COMPETITION_TABLES, ...IDENTITY_TABLES, ...DEVICE_TABLES])].sort());
     for (const [table, rows] of Object.entries(before.rows)) {
       expect(legacyColumns(db, table, rows), table).toEqual(rows);
     }

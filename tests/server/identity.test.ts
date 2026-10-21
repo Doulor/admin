@@ -95,7 +95,7 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
     expect(await me(sid)).toEqual({ signed_in: false });
     expect(count('sessions')).toBe(0);
     const result = await callback();
-    expect(result).toEqual({ location: 'https://example.test/forum/?signin=account_disabled', sid: null });
+    expect(result).toEqual({ location: 'https://example.test/signin?signin=account_disabled&return_to=%2Fforum%2F', sid: null });
     expect(count('sessions')).toBe(0);
     expect(grantRevokes).toEqual([JSON.stringify({ access_token: 'test-provider-token' })]);
     expect(db.prepare("SELECT actor_account_id, details FROM audit_logs WHERE action = 'auth.signin_denied'").get())
@@ -119,7 +119,7 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
     for (let i = chain.length - 2; i >= 0; i--) link.run(chain[i + 1], chain[i]);
     if (cycle) link.run(start, chain.at(-1));
     const before = { users: count('users'), sessions: count('sessions'), audits: count('audit_logs') };
-    expect(await callback(bob)).toEqual({ location: 'https://example.test/forum/?signin=failed', sid: null });
+    expect(await callback(bob)).toEqual({ location: 'https://example.test/signin?signin=failed&return_to=%2Fforum%2F', sid: null });
     expect({ users: count('users'), sessions: count('sessions'), audits: count('audit_logs') }).toEqual(before);
     expect((await me(bob)).login).toBe('bob');
   });
@@ -129,7 +129,7 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
     const bob = signIn(app, 'bob', 102);
     db.exec("CREATE TRIGGER reject_session BEFORE INSERT ON sessions BEGIN SELECT RAISE(ABORT, 'test: sessions are read-only'); END");
     const before = { users: count('users'), identities: count('identities'), audits: count('identity_audit') };
-    expect(await callback(bob)).toEqual({ location: 'https://example.test/forum/?signin=failed', sid: null });
+    expect(await callback(bob)).toEqual({ location: 'https://example.test/signin?signin=failed&return_to=%2Fforum%2F', sid: null });
     expect({ users: count('users'), identities: count('identities'), audits: count('identity_audit') }).toEqual(before);
     expect(accountOf(7)).toBeNull();
     db.exec('DROP TRIGGER reject_session');

@@ -5,6 +5,7 @@ import { createDatabase } from "./lib/db.js";
 import { createCrypto } from "./lib/crypto.js";
 import { createAuth } from "./lib/auth.js";
 import { createIdentityStore } from "./lib/identity-store.js";
+import { createDeviceStore } from "./lib/device-store.js";
 import { createGithub } from "./lib/github.js";
 import { createCache } from "./lib/cache.js";
 import { createRoleStore } from "./lib/role-store.js";
@@ -29,6 +30,7 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
   const roles = createRoleStore(storage.db);
   const auth = createAuth(storage.db, crypto, config, overrides.httpRequest, overrides.clock);
   const identity = createIdentityStore(storage.db, { createSession: auth.createSession, audit: storage.audit, consoleOrg: config.consoleOrg, clock: overrides.clock });
+  const device = createDeviceStore(storage.db, { clock: overrides.clock });
   const feedback = createFeedbackStore(storage.db);
   const competitions = createCompetitionStore(storage.db);
   // 历史数据一次性归一（#129）：把 org 只是大小写不同的旧行改成 CONSOLE_ORG 的写法，重复启动安全。
@@ -67,6 +69,7 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     config, storage, crypto,
     auth,
     identity,
+    device,
     github, cache, roles,
     access: createAccess({ consoleOrg: config.consoleOrg, getOrgRole: github.getOrgRole, cached: cache.cached, roles }),
     feedback,
