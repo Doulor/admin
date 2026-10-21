@@ -31,3 +31,22 @@
 - 执行者：agent-notion-geek-main-01（Notion AI 经 wanctl 远程操作）
 - 做了什么：在 task/262/unified_login 上提交 feat：三端统一登录入口、/signin 渠道页、失败回跳、RFC 8628 设备授权与 /device、文档与目录；提交尾注 Refs #262（按所有者指令不自动关单）
 - 结果：提交前 pnpm check 退出 0、pnpm test 1344 通过、pnpm build 退出 0
+
+## 08:15:42 +08:00 · 推送 · #262 · 推送 d22767ff 到 origin/task/262/unified_login
+
+- 执行者：agent-notion-geek-main-01（Notion AI 经 wanctl 远程操作）
+- 做了什么：git push origin task/262/unified_login（快进，不改写历史）
+- 结果：远端分支指向 d22767ff69f82c840a3e5a1d0cb2c32aa7a2b0cb
+
+## 08:15:42 +08:00 · PR · #262 · 更新 PR #268 正文到交付 1 全部范围
+
+- 执行者：agent-notion-geek-main-01（Notion AI 经 wanctl 远程操作）
+- 做了什么：重写 #268 十段正文：变更范围、宏观对齐（117 文件/218 节点）、解决链路、验证（含本地真实接口与线上只读请求）、E1–E5 截图（本分支 docs/assets，链接固定到 d22767ff）、人工验收与回滚；关联按所有者指令保留 Refs #262
+- 结果：node scripts/pr-contract.mjs check（带 PR 标签）：10 个段落齐全、有验收证据，通过
+- 下一步：所有者决定是否改 Closes #262；授权 rc tag 后做预发布验收
+
+## 08:15:42 +08:00 · 审查 · #262 · 自审 d22767ff：结论通过
+
+- 执行者：agent-notion-geek-main-01（Notion AI 经 wanctl 远程操作）
+- 做了什么：逐文件审阅 4beda55e..d22767ff：保护路径与 /auth/me 只增字段、return_to 同源校验、verification_uri 取 PUBLIC_ORIGIN、device_code 与 gk_ 令牌只存 sha256、状态机（consumed/denied/expired/slow_down/非 active 账号）、限流与审计、网关 /device、文档与 262.json 八维一致
+- 结果：结论：通过（自审）；未验证：真实 GitHub 往返、Safari/Firefox、geek login 客户端
