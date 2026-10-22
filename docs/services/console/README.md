@@ -2,7 +2,7 @@
 
 > 极客班控制台前端：Vue 3 + Tuffex 单页应用，按称号能力显示页面；接口全部来自 `app/server`，产物由 web 镜像托管。
 
-状态：`current` · 更新：2026-10-21 · 源码：`app/console/` · 产物：`app/console/dist/`（随 `yzgc/web:<tag>` 镜像发布）
+状态：`current` · 更新：2026-10-23 · 源码：`app/console/` · 产物：`app/console/dist/`（随 `yzgc/web:<tag>` 镜像发布）
 
 ## 为什么是独立的包
 
@@ -74,7 +74,7 @@
 
 每个读取都有加载（Tuffex 骨架）、空（TxEmptyState，写明下一步）、失败（TxErrorState + 重试，附 `HTTP 状态 · 机器码 · request id` 一行）三种状态。缺能力：页面级用 `CapabilityGate`（TxPermissionState）写明缺哪项；若称号给了、但被 GitHub 组织角色挡住，说明是这个原因。未登录（`/api/console/me` 返回 401）跳到 `/signin?return_to=<原路径>`。用到一半登录失效（#133，会话到期、别处退出）时同样处理：`lib/http.ts` 的 `api()` 拿到任何 401（`/auth/signout` 除外）就调 `lib/session.ts` 注册的处理，清掉本地身份、把这个 401 记成 `meError`，`ConsoleRoot.vue` 于是带着当前地址跳 `/signin`；读写哪一种都一样，不再停在只有「重试」的「登录已失效」上。万一某处仍显示「登录已失效」，`ErrorPanel` 给的是「重新登录」（登录后回到当前页），不是「重试」。403、5xx 和网络错误不算退出。GitHub 拒绝会话里存的令牌时，服务端结束这个会话并回 401 `session_expired`（#164，见 [API](../../architecture/API.md) 的上游错误映射），控制台照样按退出处理，重新登录会换一个新的 GitHub 授权。登录没成功时核心服务把人送回统一登录页 `/signin?signin=<原因>&return_to=<原路径>`（#262；以前是回原来的控制台地址带 `?signin=`）；`lib/signin.ts` 解析原因，页面在按钮上方说明，原来的 `return_to` 留在地址里，再登录成功后照它回去。`ConsoleRoot.vue` 仍会把残留的 `signin` 从 `return_to` 里拿掉，再次登录成功后不会带着旧原因回去。已登录但没有任何能力显示乘客说明。
 
-登录页（`SignIn.vue`）是官网、论坛、控制台共用的「极客班统一登录」页：标题「极客班统一登录」，副标题「一个极客班账号，通行全站」，下面一排列出官网、论坛、控制台、比赛，表示这个账号能进的地方。登录方式不写死：页面加载时调匿名 `GET /auth/providers`，`kind: "redirect"` 的每种方式一个按钮（「通过 <名字> 继续」），现在只有 GitHub 一个；加载中显示「正在读取可用的登录方式…」，取不到或列表为空时显示「登录方式没有加载出来，可能是网络不稳定。」和「重试」。按钮下方写明 GitHub 只是接入方式之一、全站以极客班账号认人；最后一行「登录后回到 `<return_to>`」。`return_to` 走 `safeReturnPath`：只接受同源路径，`//`、`/\`、控制字符、绝对 URL 一律换成 `/console`，也不回到 `/signin` 自己。按 `signin` 参数（通过 `lib/signin.ts` 解析，未知取值不显示）在按钮上方显示一条不可关闭的 TxAlert；带行动点的原因（`not_member`）在页脚多一个次按钮，和「回到官网」并排，宽度不足 440px 时竖排：
+登录页（`SignIn.vue`）是官网、论坛、控制台共用的「极客班统一登录」页：标题「极客班统一登录」，副标题「官网、论坛、控制台和比赛都用这个账号登录」。卡片最宽 440px：`TxCard` 自带 `width: 100%`，和页面样式同优先级，构建后谁后加载谁生效，所以页面用 `max-width` 收窄（`/device` 同理）。登录方式不写死：页面加载时调匿名 `GET /auth/providers`，`kind: "redirect"` 的每种方式一个按钮（「通过 <名字> 继续」），现在只有 GitHub 一个；加载中显示「正在读取可用的登录方式…」，取不到或列表为空时显示「登录方式没有加载出来，可能是网络不稳定。」和「重试」。按钮下方写明 GitHub 只是登录方式之一、全站认的是极客班账号；`return_to` 不是 `/` 时最后一行显示「登录后回到 <return_to>」。`return_to` 走 `safeReturnPath`：只接受同源路径，`//`、`/\`、控制字符、绝对 URL 一律换成 `/console`，也不回到 `/signin` 自己。按 `signin` 参数（通过 `lib/signin.ts` 解析，未知取值不显示）在按钮上方显示一条不可关闭的 TxAlert；带行动点的原因（`not_member`）在页脚多一个次按钮，和「回到官网」并排，宽度不足 440px 时竖排：
 
 | `signin` | 类型 | 标题 | 正文 | 行动点 |
 |---|---|---|---|---|
