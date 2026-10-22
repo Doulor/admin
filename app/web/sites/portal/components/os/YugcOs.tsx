@@ -446,6 +446,8 @@ export default function YugcOs({ active, onBack }: Props) {
                 onMinimize={() => phone ? returnHome() : patchWindow(win.id, { minimized: true })}
                 onZoom={() => patchWindow(win.id, { zoomed: !win.zoomed })}
                 onMove={(x, y) => patchWindow(win.id, { x, y })}
+                account={account}
+                accountLoaded={loaded}
                 onOpen={open}
                 apps={apps}
                 phone={phone}

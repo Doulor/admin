@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
  * consoleLink 是 /auth/me 的 console_link：登录者在控制台里能管点什么（持有 console.access、github.org.read、feedback.read
  * 之外的能力）。头像菜单只在它为 true 时放「控制台」；字段缺失当作 false。控制台自己的准入不变。
  */
-export type Account = { login: string; avatarUrl: string | null; consoleLink: boolean };
+export type Account = { login: string; avatarUrl: string | null; consoleLink: boolean; accountId: string | null };
 
 /**
  * 统一登录页地址。`returnTo` 是登录后回到的本站路径（默认当前页面）；只带路径、不带域名，
@@ -19,9 +19,11 @@ export function signInHref(returnTo = `${window.location.pathname}${window.locat
 }
 
 export function parseMe(body: unknown): Account | null {
-  const me = body as { signed_in?: boolean; login?: unknown; avatar_url?: unknown; console_link?: unknown } | null;
+  const me = body as { signed_in?: boolean; login?: unknown; avatar_url?: unknown; console_link?: unknown; account_id?: unknown } | null;
   if (!me?.signed_in || typeof me.login !== "string" || !me.login) return null;
-  return { login: me.login, avatarUrl: typeof me.avatar_url === "string" ? me.avatar_url : null, consoleLink: me.console_link === true };
+  // accountId 是极客班账号（#262）：比赛窗口用它在天梯、队伍里认出「我」；旧会话没有时是 null。
+  const accountId = typeof me.account_id === "string" && me.account_id ? me.account_id : null;
+  return { login: me.login, avatarUrl: typeof me.avatar_url === "string" ? me.avatar_url : null, consoleLink: me.console_link === true, accountId };
 }
 
 export function useAccount() {

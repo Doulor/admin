@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-21 · 自动生成，不手工编辑。
 
-来源摘要：`508f709582f8a5a4d158ef6b39a20da22d90aa42ae4cb4712cd8608d13eff7da`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`862cf35b212714e5dfab11937cde5f203a7d47f0691d7f4a4dde0958ce6362a7`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -19,6 +19,11 @@ flowchart LR
   application_reviews["application_reviews"]
   applications["applications"]
   audit_logs["audit_logs"]
+  competition_score_events["competition_score_events"]
+  competition_signup_settings["competition_signup_settings"]
+  competition_signups["competition_signups"]
+  competition_team_members["competition_team_members"]
+  competition_teams["competition_teams"]
   competitions["competitions"]
   console_seeds["console_seeds"]
   departments["departments"]
@@ -47,6 +52,21 @@ flowchart LR
   titles["titles"]
   users["users"]
   application_reviews -->|"application_id → id"| applications
+  competition_score_events -->|"revoked_by → id"| users
+  competition_score_events -->|"created_by → id"| users
+  competition_score_events -->|"account_id → id"| users
+  competition_score_events -->|"competition_id → id"| competitions
+  competition_signup_settings -->|"updated_by → id"| users
+  competition_signup_settings -->|"competition_id → id"| competitions
+  competition_signups -->|"account_id → id"| users
+  competition_signups -->|"competition_id → id"| competitions
+  competition_team_members -->|"decided_by → id"| users
+  competition_team_members -->|"created_by → id"| users
+  competition_team_members -->|"account_id → id"| users
+  competition_team_members -->|"competition_id → id"| competitions
+  competition_team_members -->|"team_id → id"| competition_teams
+  competition_teams -->|"leader_account_id → id"| users
+  competition_teams -->|"competition_id → id"| competitions
   forum_bookmarks -->|"post_id → id"| forum_posts
   forum_bookmarks -->|"user_id → id"| forum_users
   forum_follows -->|"followee_id → id"| forum_users
@@ -258,11 +278,288 @@ CREATE TABLE audit_logs (
 
 </details>
 
+## competition_score_events
+
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:527](../../../app/server/src/lib/db.ts#L527)。
+
+积分账本：issue/pr 带仓库与编号并按 CHECK 限分（5–30、15–100），penalty 固定 −50 且不带仓库编号；撤销只改 status 为 revoked 并记撤销人与原因，不删行；唯一索引防止同一条 Issue/PR 重复记分。只有 lib/competition-score-store.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `competition_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `account_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `kind` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `repo` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `number` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `points` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `reason` | `TEXT` | 1 | 0 | `''` | 0 |
+| `status` | `TEXT` | 1 | 0 | `'active'` | 0 |
+| `created_by` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `revoked_by` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `revoked_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `revoke_reason` | `TEXT` | 0 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `revoked_by` | `users.id` | NO ACTION | NO ACTION |
+| `created_by` | `users.id` | NO ACTION | NO ACTION |
+| `account_id` | `users.id` | NO ACTION | NO ACTION |
+| `competition_id` | `competitions.id` | NO ACTION | CASCADE |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `idx_competition_score_events_account` | `competition_id`、`account_id` | 0 | c | 0 | `CREATE INDEX idx_competition_score_events_account ON competition_score_events(competition_id, account_id)` |
+| `idx_competition_score_events_competition` | `competition_id`、`created_at` | 0 | c | 0 | `CREATE INDEX idx_competition_score_events_competition ON competition_score_events(competition_id, created_at)` |
+| `sqlite_autoindex_competition_score_events_1` | `id` | 1 | pk | 0 | `SQLite 自动索引` |
+| `uq_competition_score_events_repo` | `competition_id`、`kind`、`repo`、`number` | 1 | c | 1 | `CREATE UNIQUE INDEX uq_competition_score_events_repo   ON competition_score_events(competition_id, kind, repo, number)   WHERE status = 'active' AND kind IN ('issue', 'pr')` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE competition_score_events (
+  id TEXT PRIMARY KEY,
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL CHECK (kind IN ('issue', 'pr', 'penalty')),
+  repo TEXT,
+  number INTEGER,
+  points INTEGER NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'revoked')),
+  created_by TEXT NOT NULL REFERENCES users(id),
+  created_at INTEGER NOT NULL,
+  revoked_by TEXT REFERENCES users(id),
+  revoked_at INTEGER,
+  revoke_reason TEXT,
+  CHECK ((kind = 'issue' AND points BETWEEN 5 AND 30)
+      OR (kind = 'pr' AND points BETWEEN 15 AND 100)
+      OR (kind = 'penalty' AND points = -50))
+);
+```
+
+</details>
+
+## competition_signup_settings
+
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:460](../../../app/server/src/lib/db.ts#L460)。
+
+每场一行；没有行就是未开放报名（默认个人赛、不计分）。enabled、participation、team_min/team_max（团队赛才有，1–20）、scoring（none / contribution）由控制台整体写入；更新人 updated_by 是操作人的极客班账号，系统种子为 NULL。只有 lib/competition-signup-store.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `competition_id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `enabled` | `INTEGER` | 1 | 0 | `0` | 0 |
+| `participation` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `team_min` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `team_max` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `scoring` | `TEXT` | 1 | 0 | `'none'` | 0 |
+| `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `updated_by` | `TEXT` | 0 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `updated_by` | `users.id` | NO ACTION | NO ACTION |
+| `competition_id` | `competitions.id` | NO ACTION | CASCADE |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_competition_signup_settings_1` | `competition_id` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE competition_signup_settings (
+  competition_id TEXT PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,
+  enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+  participation TEXT NOT NULL CHECK (participation IN ('individual', 'team')),
+  team_min INTEGER,
+  team_max INTEGER,
+  scoring TEXT NOT NULL DEFAULT 'none' CHECK (scoring IN ('none', 'contribution')),
+  updated_at INTEGER NOT NULL,
+  updated_by TEXT REFERENCES users(id),
+  CHECK ((participation = 'individual' AND team_min IS NULL AND team_max IS NULL)
+      OR (participation = 'team' AND team_min IS NOT NULL AND team_max IS NOT NULL
+          AND team_min BETWEEN 1 AND 20 AND team_max BETWEEN team_min AND 20))
+);
+```
+
+</details>
+
+## competition_signups
+
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:474](../../../app/server/src/lib/db.ts#L474)。
+
+一人一场一行（UNIQUE(competition_id, account_id)），status 只取 active/cancelled，取消保留行与时间；note ≤200 字，成员可见，填写处提示不要写联系方式；looking_for_team 只在团队赛生效。身份键是会话里的 account_id，不按 GitHub 登录名。只有 lib/competition-signup-store.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `competition_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `account_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `status` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `looking_for_team` | `INTEGER` | 1 | 0 | `0` | 0 |
+| `note` | `TEXT` | 1 | 0 | `''` | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `cancelled_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `account_id` | `users.id` | NO ACTION | NO ACTION |
+| `competition_id` | `competitions.id` | NO ACTION | CASCADE |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `idx_competition_signups_account` | `account_id` | 0 | c | 0 | `CREATE INDEX idx_competition_signups_account ON competition_signups(account_id)` |
+| `sqlite_autoindex_competition_signups_1` | `id` | 1 | pk | 0 | `SQLite 自动索引` |
+| `sqlite_autoindex_competition_signups_2` | `competition_id`、`account_id` | 1 | u | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE competition_signups (
+  id TEXT PRIMARY KEY,
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL REFERENCES users(id),
+  status TEXT NOT NULL CHECK (status IN ('active', 'cancelled')),
+  looking_for_team INTEGER NOT NULL DEFAULT 0 CHECK (looking_for_team IN (0, 1)),
+  note TEXT NOT NULL DEFAULT '' CHECK (length(note) <= 200),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  cancelled_at INTEGER,
+  UNIQUE (competition_id, account_id)
+);
+```
+
+</details>
+
+## competition_team_members
+
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:505](../../../app/server/src/lib/db.ts#L505)。
+
+在队成员与待处理的申请、邀请同一张表：status 取 applied/invited/active/declined/withdrawn/left/removed/disbanded；两个部分唯一索引分别保证一人一队和同一队伍对同一人只有一条待处理记录。message ≤100 字，只给队伍领队与当事人看。只有 lib/competition-signup-store.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `team_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `competition_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `account_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `role` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `status` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `message` | `TEXT` | 1 | 0 | `''` | 0 |
+| `created_by` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `decided_by` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `decided_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `decided_by` | `users.id` | NO ACTION | NO ACTION |
+| `created_by` | `users.id` | NO ACTION | NO ACTION |
+| `account_id` | `users.id` | NO ACTION | NO ACTION |
+| `competition_id` | `competitions.id` | NO ACTION | CASCADE |
+| `team_id` | `competition_teams.id` | NO ACTION | CASCADE |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `idx_team_members_account` | `account_id`、`status` | 0 | c | 0 | `CREATE INDEX idx_team_members_account ON competition_team_members(account_id, status)` |
+| `idx_team_members_team` | `team_id`、`status` | 0 | c | 0 | `CREATE INDEX idx_team_members_team ON competition_team_members(team_id, status)` |
+| `sqlite_autoindex_competition_team_members_1` | `id` | 1 | pk | 0 | `SQLite 自动索引` |
+| `uq_team_members_active` | `competition_id`、`account_id` | 1 | c | 1 | `CREATE UNIQUE INDEX uq_team_members_active   ON competition_team_members(competition_id, account_id) WHERE status = 'active'` |
+| `uq_team_members_pending` | `team_id`、`account_id` | 1 | c | 1 | `CREATE UNIQUE INDEX uq_team_members_pending   ON competition_team_members(team_id, account_id) WHERE status IN ('applied', 'invited')` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE competition_team_members (
+  id TEXT PRIMARY KEY,
+  team_id TEXT NOT NULL REFERENCES competition_teams(id) ON DELETE CASCADE,
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL REFERENCES users(id),
+  role TEXT NOT NULL CHECK (role IN ('leader', 'member')),
+  status TEXT NOT NULL CHECK (status IN
+    ('applied', 'invited', 'active', 'declined', 'withdrawn', 'left', 'removed', 'disbanded')),
+  message TEXT NOT NULL DEFAULT '' CHECK (length(message) <= 100),
+  created_by TEXT NOT NULL REFERENCES users(id),
+  decided_by TEXT REFERENCES users(id),
+  created_at INTEGER NOT NULL,
+  decided_at INTEGER,
+  updated_at INTEGER NOT NULL
+);
+```
+
+</details>
+
+## competition_teams
+
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:488](../../../app/server/src/lib/db.ts#L488)。
+
+队伍事实：name_key 是 trim + NFKC + 小写后的查重键，唯一索引只约束未解散的队伍；status 只改 recruiting/locked/disbanded 并记时间，不物理删除；leader_account_id 指向极客班账号。只有 lib/competition-signup-store.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `competition_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `name` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `name_key` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `slogan` | `TEXT` | 1 | 0 | `''` | 0 |
+| `leader_account_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `status` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `locked_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `disbanded_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `leader_account_id` | `users.id` | NO ACTION | NO ACTION |
+| `competition_id` | `competitions.id` | NO ACTION | CASCADE |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `idx_competition_teams_competition` | `competition_id`、`status` | 0 | c | 0 | `CREATE INDEX idx_competition_teams_competition ON competition_teams(competition_id, status)` |
+| `sqlite_autoindex_competition_teams_1` | `id` | 1 | pk | 0 | `SQLite 自动索引` |
+| `uq_competition_teams_name` | `competition_id`、`name_key` | 1 | c | 1 | `CREATE UNIQUE INDEX uq_competition_teams_name   ON competition_teams(competition_id, name_key) WHERE status <> 'disbanded'` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE competition_teams (
+  id TEXT PRIMARY KEY,
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  name_key TEXT NOT NULL,
+  slogan TEXT NOT NULL DEFAULT '',
+  leader_account_id TEXT NOT NULL REFERENCES users(id),
+  status TEXT NOT NULL CHECK (status IN ('recruiting', 'locked', 'disbanded')),
+  locked_at INTEGER,
+  disbanded_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+```
+
+</details>
+
 ## competitions
 
 业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:192](../../../app/server/src/lib/db.ts#L192)。
 
-只存赛事事实，不含参赛者或队伍；status由时间计算，offline仅控制公开可见性，删除与下线不同。报名组队尚未实现。
+只存赛事事实，不含参赛者或队伍；status由时间计算，offline仅控制公开可见性，删除与下线不同。有未取消的报名后不能改内外部，有报名记录的比赛不能真删；旧库启动时插入一期开源贡献赛（id 为 oss-challenge-2026-1），用 console_seeds 标记，只插一次。
 
 | 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
 |---|---|---|---|---|---|

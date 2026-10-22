@@ -1759,6 +1759,53 @@ SQLite读写：无。源码：[app/forum/server/middleware/forum-markdown.ts](..
 | `PATCH /api/console/competitions/:competition_id` · `flow:competition.update` | 同一管理能力，每分钟 60 次 | 200 `{ competition }`；在原记录与补丁合并后验证，缺记录 404，其他拒绝同新建。省略字段保留，null 清空可空字段；下线不删除，恢复沿用原 id。更新与审计同一事务。 |
 | `DELETE /api/console/competitions/:competition_id` · `flow:competition.delete` | 同一管理能力，每分钟 30 次 | 200 `{ ok: true }`，真删；不存在或重复删除 404。删除与审计同一事务，审计失败返回 500 且保留赛事。 |
 
-这些操作不实现参赛、队伍或通知邮件。写入与审计任何一步失败都回滚；GitHub 身份检查在事务前完成，不把网络等待放进 SQLite 事务。源码：[console/competitions.ts](../../../app/server/src/routes/console/competitions.ts)、[portal/competitions.ts](../../../app/server/src/routes/portal/competitions.ts)、[competition-store.ts](../../../app/server/src/lib/competition-store.ts)。验证入口：[真实路由与审计故障回归](../../../tests/server/competitions.test.ts)、[两尺寸浏览器业务回归](../../../tests/e2e/competitions.spec.mts)。
+这些操作不实现参赛、队伍或通知邮件；报名与组队由下面 #239 的接口承担，比赛写入与报名设置共用同一张错误码表。写入与审计任何一步失败都回滚；GitHub 身份检查在事务前完成，不把网络等待放进 SQLite 事务。源码：[console/competitions.ts](../../../app/server/src/routes/console/competitions.ts)、[portal/competitions.ts](../../../app/server/src/routes/portal/competitions.ts)、[competition-store.ts](../../../app/server/src/lib/competition-store.ts)。验证入口：[真实路由与审计故障回归](../../../tests/server/competitions.test.ts)、[两尺寸浏览器业务回归](../../../tests/e2e/competitions.spec.mts)。
 
 新增 `competitions.manage` 同时扩展 `POST /api/console/departments`、`PATCH /api/console/departments/:department_id`、`PATCH /api/console/titles/:title_id` 的权限包枚举。这三条在原有行为上补成功响应 Schema：部门保留 `created_at`、`updated_at`、`heads`、`crew_count` 与原有全部字段；称号保留显示字段及 `capabilities`。它们的授权、存储与审计执行逻辑不变，错误仍走原处理器。既有权限包不会因能力清单新增而自动获得管理比赛权限；有权限的管理者可通过原接口明确授予，回归见 `tests/server/competitions.test.ts`。
+
+## 比赛报名、组队与积分（#239）
+
+比赛、队伍、成员与积分的请求体、成功响应和共同 `4xx` / `5xx` 错误体由 [competition-contract.ts](../../../app/server/src/lib/competition-contract.ts) 与两个 `contracts.ts` 实际挂载；门户成员接口的响应是我的状态、队伍、找队友、我的参赛或天梯，控制台接口的响应是设置、名单、积分记录或 CSV。所有写操作「已开放报名且在报名中」才可执行，截止后整场只读；写操作在事务里重读状态再写，成功都回最新状态。规则只在 [competition-signup-store.ts](../../../app/server/src/lib/competition-signup-store.ts) 与 [competition-score-store.ts](../../../app/server/src/lib/competition-score-store.ts)，路由只做鉴权、限流与错误码映射。
+
+| 方法与路径 | 谁 | 成功与副作用 |
+|---|---|---|
+| `GET /api/me/competitions` · `flow:competition.me.list` | 登录且是极客班成员 | 200 `{ items, pending_total }`：我报名的比赛与状态、队伍摘要、本人待处理数；只读，不写审计。 |
+| `GET /api/competitions/:id/my-status` · `flow:competition.my_status` | 同上 | 200 我的状态：`settings`、`writable`、`signup`、`state`、`team`、`role`、`pending`、`stats`、`actions`；`actions` 只列此刻服务端会接受的操作。 |
+| `POST /api/competitions/:id/signup` · `flow:competition.signup.upsert` | 同上，30 次/分钟 | 200 我的状态；重复报名幂等，保留 `created_at`，已取消的报名恢复为 `active`。 |
+| `DELETE /api/competitions/:id/signup` · `flow:competition.signup.cancel` | 同上，30 次/分钟 | 200 我的状态；报名改 `cancelled`、队员退出、单人的队伍解散，本人待处理项关闭；已确认的队伍要先撤销确认。 |
+| `GET /api/competitions/:id/teams` · `flow:competition.teams.list` | 同上 | 200 `{ teams }`：未解散队伍与在队成员；不含任何人的待处理项。 |
+| `GET /api/competitions/:id/free-agents` · `flow:competition.free_agents.list` | 同上 | 200 `{ people }`：已报名、在找队伍且未入队的人与本人留言。 |
+| `POST /api/competitions/:id/teams` · `flow:competition.team.create` | 同上，30 次/分钟 | 201 我的状态；建队人即领队，不隐式报名。 |
+| `POST /api/teams/:id/apply` · `flow:competition.team.apply` | 同上，30 次/分钟 | 201 我的状态；写一条 `applied` 成员关系。 |
+| `POST /api/teams/:id/invite` · `flow:competition.team.invite` | 领队，30 次/分钟 | 201 我的状态；被邀请人须已报名、未入队且账号 active。 |
+| `POST /api/teams/:id/respond` · `flow:competition.team.respond` | 领队或当事人，30 次/分钟 | 200 我的状态；`accept`、`decline`、`withdraw`，成员关系必须属于路径上的队伍。 |
+| `POST /api/teams/:id/leave` · `flow:competition.team.leave` | 队员，30 次/分钟 | 200 我的状态；领队不能直接退出。 |
+| `POST /api/teams/:id/transfer` · `flow:competition.team.transfer` | 领队，30 次/分钟 | 200 我的状态；同一事务改队伍领队与两条成员关系的角色。 |
+| `DELETE /api/teams/:id` · `flow:competition.team.disband` | 领队，30 次/分钟 | 200 我的状态；队伍与成员记录只改状态。 |
+| `POST /api/teams/:id/lock`、`DELETE /api/teams/:id/lock` · `flow:competition.team.lock`、`flow:competition.team.unlock` | 领队，30 次/分钟 | 200 我的状态；确认参赛关闭本队其余待处理项，撤销确认回到招募中。 |
+| `GET /api/competitions/:id/leaderboard` · `flow:competition.leaderboard.read` | 登录且是极客班成员 | 200 `{ updated_at, individuals, teams }`；没有开启积分 409 `scoring_not_enabled`。 |
+| `GET /api/public/competitions/:id` · `flow:competition.public.detail` | 匿名 | 200 单场公开信息与报名摘要；只在成功响应上放开 `Access-Control-Allow-Origin: *`，下线与不存在都 404。 |
+| `PUT /api/console/competitions/:competition_id/signup-settings` · `flow:competition.signup_settings.update` | `competitions.manage`，30 次/分钟 | 200 `{ settings }`；写 `competition.signup_settings.update` 审计，与写入同一事务。 |
+| `GET /api/console/competitions/:competition_id/roster` · `flow:competition.roster.read` | 同上 | 200 `{ settings, stats, signups, teams }`；报名含已取消的，队伍含已解散的。 |
+| `GET /api/console/competitions/:competition_id/roster.csv` · `flow:competition.roster.export` | 同上，5 次/分钟 | 200 `text/csv`（BOM、CRLF、北京时间列），写 `competition.roster.export` 审计（`details { rows }`）。 |
+| `GET`、`POST /api/console/competitions/:competition_id/score-events` · `flow:competition.score_events.list`、`flow:competition.score_events.create` | 同上，写 30 次/分钟 | 200 `{ events }`；201 `{ event }`，写 `competition.score.add` 审计。 |
+| `POST /api/console/competitions/:competition_id/score-events/:event_id/revoke` · `flow:competition.score_events.revoke` | 同上，30 次/分钟 | 200 `{ event }`；只改状态并记撤销人与原因，写 `competition.score.revoke` 审计。 |
+
+错误的形状与其它接口一致（`{ error, message }`）。状态冲突一律 409，输入不合法才 400：
+
+| 状态码 | `error` | 场景 |
+|---|---|---|
+| 400 | `bad_note`、`bad_team_name`、`bad_slogan`、`bad_message`、`bad_team_size`、`bad_repo`、`bad_number`、`bad_points` | 备注、队名、口号、留言、人数、仓库、编号或分值不合法 |
+| 401 | `not_signed_in` | 没有会话 |
+| 403 | `not_member`、`not_team_leader` | 不是极客班成员；不是本队领队 |
+| 404 | `not_found`、`team_not_found` | 比赛不存在或下线、队伍不存在或已解散、成员关系不属于路径上的队伍 |
+| 409 | `signup_not_enabled`、`signup_closed` | 未开放报名；不在报名中（截止后整场只读） |
+| 409 | `not_signed_up`、`individual_competition`、`already_in_team` | 未报名；个人赛不能组队；已在队 |
+| 409 | `already_applied`、`already_invited`、`invitee_not_signed_up`、`target_not_member` | 已有待处理关系；对方未报名；对方账号已停用或已不是成员 |
+| 409 | `team_full`、`team_too_small`、`team_locked`、`duplicate_team_name`、`is_team_leader`、`invalid_state` | 满员；人数不够确认；队伍已确认；队名重复；领队要先转让或解散；申请或邀请已处理 |
+| 409 | `deadline_required`、`has_signups`、`kind_locked`、`team_size_conflict` | 控制台：开报名缺截止时间；有报名后改形式或删比赛；有报名后改内外部；新人数与现有队伍冲突 |
+| 409 | `scoring_not_enabled`、`duplicate_score_event`、`already_revoked` | 没有开启积分；同一条 Issue/PR 已记分；这条积分已撤销 |
+| 429 | `rate_limited` | 成员写操作超 30 次/分钟，或名单导出超 5 次/分钟 |
+
+验证入口：[报名、组队与名单](../../../tests/server/competition-signups.test.ts)、[积分与天梯](../../../tests/server/competition-scores.test.ts)、[旧库重启与种子](../../../tests/server/legacy-database.test.ts)。
+

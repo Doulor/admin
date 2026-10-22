@@ -191,15 +191,23 @@
     },
     {
       "id": "competitions",
-      "title": "比赛信息发布",
+      "title": "比赛信息、报名组队与积分",
       "docs": [
         "docs/architecture/API.md",
+        "docs/services/server/README.md",
         "docs/services/server/data-model.md",
+        "docs/services/server/endpoint-contracts.md",
         "docs/services/console/README.md",
-        "docs/services/web/portal.md"
+        "docs/services/web/portal.md",
+        "docs/plan/COMPETITION-APP.md"
       ],
       "tables": [
-        "competitions"
+        "competitions",
+        "competition_signup_settings",
+        "competition_signups",
+        "competition_teams",
+        "competition_team_members",
+        "competition_score_events"
       ]
     }
   ],
@@ -237,7 +245,9 @@
     "app/server/src/routes/portal/join.ts": "invitations",
     "app/server/src/routes/portal/org.ts": "organization",
     "app/server/src/routes/portal/competitions.ts": "competitions",
+    "app/server/src/routes/portal/competition-signups.ts": "competitions",
     "app/server/src/routes/console/competitions.ts": "competitions",
+    "app/server/src/routes/console/competition-roster.ts": "competitions",
     "app/server/src/routes/identity/device.ts": "identity"
   },
   "routeOverrides": {
@@ -262,7 +272,12 @@
     "identity_audit": "给本人看的账号记录（登录、被拒、退出），不存 IP、UA、邮箱原文和第三方标识；管理审计仍在 audit_logs。",
     "invite_links": "包含能力令牌与加密上游凭据。目录不读取记录。",
     "mail_outbox": "包含发信中的个人信息；application_id、review_id 不是数据库外键。具体保留规则见 mail.md。",
-    "competitions": "只存赛事事实，不含参赛者或队伍；status由时间计算，offline仅控制公开可见性，删除与下线不同。报名组队尚未实现。",
+    "competitions": "只存赛事事实，不含参赛者或队伍；status由时间计算，offline仅控制公开可见性，删除与下线不同。有未取消的报名后不能改内外部，有报名记录的比赛不能真删；旧库启动时插入一期开源贡献赛（id 为 oss-challenge-2026-1），用 console_seeds 标记，只插一次。",
+    "competition_signup_settings": "每场一行；没有行就是未开放报名（默认个人赛、不计分）。enabled、participation、team_min/team_max（团队赛才有，1–20）、scoring（none / contribution）由控制台整体写入；更新人 updated_by 是操作人的极客班账号，系统种子为 NULL。只有 lib/competition-signup-store.ts 读写。",
+    "competition_signups": "一人一场一行（UNIQUE(competition_id, account_id)），status 只取 active/cancelled，取消保留行与时间；note ≤200 字，成员可见，填写处提示不要写联系方式；looking_for_team 只在团队赛生效。身份键是会话里的 account_id，不按 GitHub 登录名。只有 lib/competition-signup-store.ts 读写。",
+    "competition_teams": "队伍事实：name_key 是 trim + NFKC + 小写后的查重键，唯一索引只约束未解散的队伍；status 只改 recruiting/locked/disbanded 并记时间，不物理删除；leader_account_id 指向极客班账号。只有 lib/competition-signup-store.ts 读写。",
+    "competition_team_members": "在队成员与待处理的申请、邀请同一张表：status 取 applied/invited/active/declined/withdrawn/left/removed/disbanded；两个部分唯一索引分别保证一人一队和同一队伍对同一人只有一条待处理记录。message ≤100 字，只给队伍领队与当事人看。只有 lib/competition-signup-store.ts 读写。",
+    "competition_score_events": "积分账本：issue/pr 带仓库与编号并按 CHECK 限分（5–30、15–100），penalty 固定 −50 且不带仓库编号；撤销只改 status 为 revoked 并记撤销人与原因，不删行；唯一索引防止同一条 Issue/PR 重复记分。只有 lib/competition-score-store.ts 读写。",
     "device_grants": "命令行设备授权（RFC 8628，给 geek login）：一行是一次授权，device_code 与发出的访问令牌只存 sha256，account_id 是确认人的极客班账号；status 只存 pending/approved/denied/consumed，过期按 expires_at 现算。只有 lib/device-store.ts 读写，目录不读取记录。"
   },
   "supplementalInterfaces": [
@@ -5959,6 +5974,7 @@
       "invariants": [
         "匿名只读未下线赛事，响应只含公开字段，不含offline、创建时间或成员信息。",
         "响应200 {competitions}；五种状态按时间计算，未知报名截止的未来赛事为upcoming；未结束在前，已结束按开始时间倒序。",
+        "每场带报名摘要signup（enabled、participation、team_min、team_max、scoring），没有设置行时回默认值；摘要不含报名人数、队伍或任何成员信息。",
         "官网按关键词、可报名（报名中）与内部/外部筛选，每60秒重算状态与排序，损坏响应显示失败并可重试；全部类型链接可选且必须可解析HTTPS。"
       ],
       "evidence": [
@@ -6017,6 +6033,14 @@
         {
           "path": "app/web/shared/lib/mock-api.ts",
           "needle": "  if (pathname === \"/api/public/competitions\")"
+        },
+        {
+          "path": "app/web/sites/portal/pages/Home.tsx",
+          "needle": "import \"../styles/competitions.css\";"
+        },
+        {
+          "path": "app/web/sites/portal/lib/icons.ts",
+          "needle": "\"add-line\": [\"M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2z\"],"
         }
       ],
       "tests": [
@@ -6216,6 +6240,7 @@
         "权限与资源：有效全站sid，组织固定CONSOLE_ORG，写口独立检查competitions.manage；客户端不能自报角色或org。",
         "共同身份路径：读取sessions与称号/部门权限，使用本人GitHub token查角色并缓存60秒；过期会话删除，上游拒绝token时删除并审计，不代表成功读取总是写库。",
         "200 {competition}；404不存在；合并原记录后验证时间，失败不写。省略字段保留，url和signup_deadline的null明确清空。",
+        "有未取消的报名后不能改内外部（409 kind_locked）；已开放报名时不能清空报名截止时间（409 deadline_required）。",
         "控制台只PATCH实际修改字段，单改说明不改原始时分；offline=true从公开列表移除，false恢复原记录。",
         "比赛更新与competition.update审计同一事务，审计失败回滚，不发邮件。"
       ],
@@ -6279,6 +6304,7 @@
         "权限与资源：有效全站sid，组织固定CONSOLE_ORG，写口独立检查competitions.manage；客户端不能自报角色或org。",
         "共同身份路径：读取sessions与称号/部门权限，使用本人GitHub token查角色并缓存60秒；过期会话删除，上游拒绝token时删除并审计，不代表成功读取总是写库。",
         "200 {ok:true}；不存在或重复删除404。DELETE真删，暂时隐藏应使用下线。",
+        "有报名记录（含已取消）的比赛不能删除，回409 has_signups：历史名单要靠下线保留。",
         "只删除本环境赛事记录，并与competition.delete审计在同一事务提交；审计失败保留赛事，业务删除不增加共同身份查询以外的外部请求。"
       ],
       "evidence": [
@@ -6304,6 +6330,477 @@
         "docs/services/console/README.md",
         "docs/services/web/portal.md"
       ]
+    },
+    {
+      "id": "competition.me.list", "title": "读取我的参赛与待处理数", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/me/competitions", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": [], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：要有效会话（否则401 not_signed_in）且是极客班成员（否则403 not_member）；只按会话里的account_id取本人数据。",
+        "响应200 {items, pending_total}：每项含比赛、状态、我的state、队伍摘要（名称、状态、人数、team_max）与本人待处理数；未结束的比赛在前，已结束的在后。",
+        "角标口径是发给我的邀请加上我所在队伍收到的申请，我发出的申请不算；待处理明细只在本场相关人里下发（当事人自己的申请与邀请、本人所在队伍的待处理项），其他人看不到。",
+        "只读，不写业务表；门户自助操作不写审计。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "app.get(\"/api/me/competitions\"" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "function myCompetitions(" },
+        { "path": "app/server/src/lib/competition-contract.ts", "needle": "export const myCompetitionList =" },
+        { "path": "app/server/src/routes/portal/contracts.ts", "needle": "\"GET /api/me/competitions\"" },
+        { "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx", "needle": "const hubOn =" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.my_status", "title": "读取我在一场比赛里的状态", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/competitions/:id/my-status", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": [], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员；比赛不存在或已下线回404 not_found。",
+        "响应200 是我的状态：settings、writable、signup、state、team、role、pending、stats 与当前可执行的 actions；不做写操作。",
+        "writable 只在已开放报名且状态为报名中时为真，此时 actions 才非空；state 由报名、队伍与比赛类型现算，不单独存储。",
+        "stats 只含数字（报名、队伍、已确认队伍、已确认人数、未成队），不含其他成员的身份。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "\"/api/competitions/:id/my-status\"" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "function actionsFor(" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "function stateOf(" },
+        { "path": "app/server/src/lib/competition-contract.ts", "needle": "export const myStatus =" },
+        { "path": "app/server/src/middleware/require-member.ts", "needle": "if (access.githubRole === null) {" },
+        { "path": "app/web/sites/portal/lib/account.ts", "needle": "const accountId = typeof me.account_id === \"string\" && me.account_id ? me.account_id : null;" },
+        { "path": "app/web/sites/portal/components/os/competitions/CompetitionHero.tsx", "needle": "export default function CompetitionHero(" },
+        { "path": "app/web/sites/portal/lib/competitionHub.ts", "needle": "export const hubPaths = {" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.signup.upsert", "title": "报名或修改报名", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/competitions/:id/signup", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": ["competition_signups"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员，按account_id认人；不在报名中回409 signup_closed，未开放报名回409 signup_not_enabled，比赛不存在或下线404。",
+        "请求 {note?, looking_for_team?}：备注取首尾空白后最多200字（bad_note 400）；个人赛忽略找队伍勾选。",
+        "重复报名幂等：保留created_at，只更新备注与勾选；已取消的报名重新置为active并清cancelled_at。",
+        "写操作在一个事务里重读状态再写，成功回最新我的状态；限流每人每分钟30次（429 rate_limited）。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "Body: { note?: string; looking_for_team?: boolean }" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "reactivateSignup.run({ id: existing.id, looking_for_team: looking, note, now });" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "export function signupWritable(" },
+        { "path": "app/server/src/lib/competition-contract.ts", "needle": "export const signupBody =" },
+        { "path": "app/web/sites/portal/components/os/competitions/HubDialog.tsx", "needle": "export function SignupDialog(" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.signup.cancel", "title": "取消报名", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "DELETE /api/competitions/:id/signup", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": ["competition_signups", "competition_teams", "competition_team_members"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员；未报名回409 not_signed_up；已锁定队伍回409 team_locked，领队队里还有别人回409 is_team_leader。",
+        "取消只把报名改成cancelled并记cancelled_at，不删行；普通队员的成员关系改left，只有自己一人的队伍随之解散（成员记录改disbanded）。",
+        "本人在这场的待处理申请与邀请一并关闭（申请改withdrawn，邀请改declined）；成功回最新我的状态。",
+        "取消后报名截止前可以重新报名；限流每人每分钟30次。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "app.delete<{ Params: { id: string } }>(\"/api/competitions/:id/signup\", write" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "if (membership.role === \"leader\" && size > 1) return failure(\"is_team_leader\");" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "function cancelSignUp(" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.teams.list", "title": "读取未解散队伍", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/competitions/:id/teams", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": [], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员；比赛不存在或下线404。",
+        "响应200 {teams}：每支未解散队伍含队名、口号、状态（recruiting/locked）、领队账号、在队成员（账号、登录名、头像、角色、入队时间）、人数与建队时间。",
+        "只返回在队成员；待处理申请与邀请不在这里下发，避免把别人的申请暴露给全体成员。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "app.get<{ Params: { id: string } }>(\"/api/competitions/:id/teams\"" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "function teamView(" },
+        { "path": "app/server/src/lib/competition-contract.ts", "needle": "export const teamList =" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.free_agents.list", "title": "读取找队友名单", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/competitions/:id/free-agents", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": [], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员；比赛不存在或下线404。",
+        "响应200 {people}：已报名、勾选找队友且当前不在任何队伍的人，含账号、登录名、头像、本人留言与开始找队伍的时间；按报名先后排。",
+        "只读；邀请入口只在门户的找队友页给领队，服务端在 invite 里另行校验。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "app.get<{ Params: { id: string } }>(\"/api/competitions/:id/free-agents\"" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "const selectFreeAgents = db.prepare(" },
+        { "path": "app/server/src/lib/competition-contract.ts", "needle": "export const freeAgentList =" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.team.create", "title": "创建队伍", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/competitions/:id/teams", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": ["competition_teams", "competition_team_members"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员；未报名409 not_signed_up，个人赛409 individual_competition，已在队409 already_in_team。",
+        "队名取首尾空白后按Unicode字符计2–30（bad_team_name），口号最多60（bad_slogan）；同一比赛未解散队伍按trim+NFKC+小写查重，重复回409 duplicate_team_name。",
+        "201 建队人即领队：写一条队伍（recruiting）与一条active成员关系，回最新我的状态；不隐式报名。",
+        "写在一个事务里，唯一索引兜底并发；限流每人每分钟30次。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "Body: { name: string; slogan?: string }" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "const nameKey = teamNameKey(name);" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "if (selectTeamByName.get(record.id, nameKey)) return failure(\"duplicate_team_name\");" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "function createTeam(" },
+        { "path": "app/web/sites/portal/components/os/competitions/Avatar.tsx", "needle": "export default function Avatar(" },
+        { "path": "app/web/sites/portal/components/os/competitions/HubDialog.tsx", "needle": "export function CreateTeamDialog(" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.team.apply", "title": "申请加入队伍", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/teams/:id/apply", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": ["competition_team_members"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员；队伍不存在或已解散404 team_not_found；未报名409 not_signed_up，已在队409 already_in_team。",
+        "队伍已锁定409 team_locked，满员409 team_full，已有待处理申请或邀请409 already_applied / already_invited；留言最多100字（bad_message）。",
+        "201 写一条applied成员关系；领队同意前不影响队伍名单，同一队伍对同一人只有一条待处理记录。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "\"/api/teams/:id/apply\", write" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "if (pending) return failure(pending.status === \"invited\" ? \"already_invited\" : \"already_applied\");" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "function apply(" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.team.invite", "title": "领队邀请成员", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/teams/:id/invite", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": ["competition_team_members"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员，并且是该队领队（否则403 not_team_leader）；队伍不存在或解散404 team_not_found。",
+        "请求 {account_id}：对方须已报名本场且未入队（409 invitee_not_signed_up / already_in_team），账号须为active（409 target_not_member）；不能邀请自己。",
+        "队伍已锁定409 team_locked，满员409 team_full，已有待处理关系409 already_applied / already_invited；201 写一条invited成员关系。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "\"/api/teams/:id/invite\", write" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "if (targetAccountId === accountId) return failure(\"already_in_team\");" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "if (!target || target.status !== \"active\") return failure(\"invitee_not_signed_up\");" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "function invite(" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.team.respond", "title": "处理申请与邀请", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/teams/:id/respond", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": ["competition_team_members"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：成员关系必须属于路径上的队伍，否则404 not_found；申请只能由领队同意或拒绝、申请人撤回（否则403 not_team_leader），邀请只能由被邀请人接受或拒绝、领队撤回。",
+        "已处理的关系回409 invalid_state；接受时队伍已锁定409 team_locked、满员409 team_full，对方已不是成员409 target_not_member，对方已有队伍409 already_in_team。",
+        "接受后写active关系，并关闭这个人在本场的其他待处理关系；满员时本队其余待处理关系一并关闭。成功回最新我的状态。",
+        "限流每人每分钟30次；动作只有accept / decline / withdraw。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "\"/api/teams/:id/respond\", write" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "if (membership.status === \"applied\" && action !== \"withdraw\" && !leader) return failure(\"not_team_leader\");" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "if (size >= settings.team_max) return failure(\"team_full\");" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "function respond(" },
+        { "path": "app/web/sites/portal/components/os/competitions/TeamHub.tsx", "needle": "export function TeamPanel(" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.team.leave", "title": "队员退出队伍", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/teams/:id/leave", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": ["competition_team_members"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员，且是本队在队队员（否则404 not_found）；领队不能直接退出（409 is_team_leader），要转让或解散。",
+        "队伍已锁定（含已确认参赛）回409 team_locked；成功把成员关系改成left并回最新我的状态，报名保留、回到未组队。",
+        "可写窗口与报名一致：未开放报名409 signup_not_enabled，不在报名中409 signup_closed。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "\"/api/teams/:id/leave\", write" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "function leave(" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "if (membership.role === \"leader\") return failure(\"is_team_leader\");" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.team.transfer", "title": "转让领队", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/teams/:id/transfer", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": ["competition_teams", "competition_team_members"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员，并且是该队领队（否则403 not_team_leader）；新领队须是本队在队队员（否则404 not_found）且账号active（409 target_not_member）。",
+        "队伍已锁定回409 team_locked；成功在同一事务里改队伍的leader_account_id与两条成员关系的role，回最新我的状态。",
+        "转让不改变报名、人数与状态，也不产生审计。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "\"/api/teams/:id/transfer\", write" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "setTeamLeader.run(targetAccountId, now, teamId);" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "if (!target) return failure(\"not_found\");" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.team.disband", "title": "解散队伍", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "DELETE /api/teams/:id", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": ["competition_teams", "competition_team_members"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员，并且是该队领队（否则403 not_team_leader）；队伍不存在或已解散404 team_not_found。",
+        "解散只改状态：队伍改disbanded并记disbanded_at，在队成员改disbanded、待处理关系改declined或withdrawn，不物理删除。",
+        "成员回到已报名、未组队；截止后不可解散（409 signup_closed）。成功回最新我的状态。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "app.delete<{ Params: { id: string } }>(\"/api/teams/:id\", write" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "closeDisbandedMembers.run({ team: teamId, decided_by: accountId, now });" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "function disband(" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.team.lock", "title": "确认参赛并锁定名单", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/teams/:id/lock", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": ["competition_teams", "competition_team_members"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员，并且是该队领队（否则403 not_team_leader）；已锁定回409 invalid_state。",
+        "在队人数少于报名设置的最低人数回409 team_too_small；成功后队伍改locked并记locked_at，本队其余待处理关系关闭。",
+        "锁定后不再接受申请与邀请、成员不能退出，要调整先撤销确认；截止那一刻的名单就是最终名单，未确认的队伍不计入参赛。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "app.post<{ Params: { id: string } }>(\"/api/teams/:id/lock\", write" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "if (count(countActiveMembers, teamId) < settingsOf(context.id).team_min) return failure(\"team_too_small\");" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "setTeamStatus.run(\"locked\", now, now, teamId);" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.team.unlock", "title": "撤销确认参赛", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "DELETE /api/teams/:id/lock", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": ["competition_teams"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员，并且是该队领队（否则403 not_team_leader）；未锁定回409 invalid_state。",
+        "撤销只把队伍改回recruiting并清locked_at，成员与报名不变；截止后不可撤销（409 signup_closed）。",
+        "成功回最新我的状态；限流每人每分钟30次。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "app.delete<{ Params: { id: string } }>(\"/api/teams/:id/lock\", write" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "setTeamStatus.run(\"recruiting\", null, now, teamId);" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "function unlock(" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.leaderboard.read", "title": "读取积分天梯", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/competitions/:id/leaderboard", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "competition_score_events", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": [], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员；比赛不存在或下线404 not_found；没有开启积分回409 scoring_not_enabled。",
+        "响应200 {updated_at, individuals, teams}：个人榜含本场全部未取消报名者（0分也列）与所在队伍，队伍分是当前在队成员个人分之和。",
+        "同分并列同名次并跳号（1,1,3）：个人按积分降序、报名先后；队伍按积分降序、建队先后。撤销的记录不计分。",
+        "只读；updated_at 取本场积分记录的最后写入或撤销时间，官网每30秒刷新。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competition-signups.ts", "needle": "\"/api/competitions/:id/leaderboard\"" },
+        { "path": "app/server/src/lib/competition-score-store.ts", "needle": "const rows = signups.activeSignups(competitionId).map(person => {" },
+        { "path": "app/server/src/lib/competition-score-store.ts", "needle": "let lastPoints: number | null = null;" },
+        { "path": "app/server/src/lib/competition-contract.ts", "needle": "export const competitionLeaderboard =" },
+        { "path": "app/web/sites/portal/components/os/competitions/Leaderboard.tsx", "needle": "export default function BoardPanel(" }
+      ],
+      "tests": ["tests/server/competition-scores.test.ts", "tests/web/portal-competition-hub.test.tsx"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.public.detail", "title": "读取单场比赛公开信息", "domain": "competitions",
+      "relatedDomains": ["platform"], "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/public/competitions/:id", "capabilities": [],
+      "reads": ["competitions", "competition_signup_settings"], "writes": [], "doesNotEnqueue": [],
+      "invariants": [
+        "匿名只读；比赛不存在或已下线一律404 not_found，不区分两种原因。",
+        "响应200 与公开列表项字段一致，另带报名摘要 settings（是否开放、个人或团队、人数、积分），不含报名人数、队伍与任何成员信息。",
+        "只在这个成功响应上放开 Access-Control-Allow-Origin: *，只读、不带 cookie；为比赛官网的状态卡片预留。",
+        "不读会话、不写库、不发外部请求。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/portal/competitions.ts", "needle": "app.get<{ Params: { id: string } }>(\"/api/public/competitions/:id\"" },
+        { "path": "app/server/src/lib/competition-contract.ts", "needle": "export const publicCompetition =" },
+        { "path": "app/server/src/routes/portal/contracts.ts", "needle": "\"GET /api/public/competitions/:id\"" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/web/portal.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.signup_settings.update", "title": "设置报名与积分开关", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "audit", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "PUT /api/console/competitions/:competition_id/signup-settings", "capabilities": ["competitions.manage"],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "audit_logs"],
+      "writes": ["competition_signup_settings", "audit_logs"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效全站sid与competitions.manage；比赛不存在404。",
+        "请求 {enabled, participation, scoring, team_min, team_max} 整体写入：开开放报名但比赛没有报名截止时间回409 deadline_required；团队赛人数须1–20且min≤max（400 bad_team_size），不得小于现有最大队伍（409 team_size_conflict）。",
+        "有未取消的报名后不能改参赛形式（409 has_signups）；关闭报名保留已有数据。",
+        "写入与competition.signup_settings.update审计同一事务，details只记五个字段（是否开放、参赛形式、两个人数、计分），审计失败一起回滚；限流每分钟30次。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/console/competition-roster.ts", "needle": "\"/api/console/competitions/:competition_id/signup-settings\"" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "if (input.enabled && record.signup_deadline === null) return failure(\"deadline_required\");" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "if (input.participation !== settingsOf(competitionId).participation && count(countActiveSignups, competitionId) > 0) return failure(\"has_signups\");" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "if (input.team_max < count(largestTeam, competitionId)) return failure(\"team_size_conflict\");" },
+        { "path": "app/server/src/lib/competition-contract.ts", "needle": "export const signupSettingsResult =" },
+        { "path": "app/server/src/routes/console/contracts.ts", "needle": "\"PUT /api/console/competitions/:competition_id/signup-settings\": {" },
+        { "path": "app/console/src/lib/competition-hub.ts", "needle": "export function settingsErrors(" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/console/competition-hub.test.ts"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/console/README.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.roster.read", "title": "读取报名名单与统计", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "audit", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/competitions/:competition_id/roster", "capabilities": ["competitions.manage"],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": [], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效全站sid与competitions.manage；比赛不存在404，已下线的仍可读。",
+        "响应200 {settings, stats, signups, teams}：报名含已取消的，队伍含已解散的；每条报名带账号、登录名、头像、状态、留言、找队伍标记、队伍与角色、报名与取消时间。",
+        "统计五个数字：报名（外部比赛叫意向）、队伍、已确认队伍、已确认人数、未成队；个人赛的未成队为0。",
+        "只读，不写审计；名单含成员登录名与留言，只在控制台下发。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/console/competition-roster.ts", "needle": "\"/api/console/competitions/:competition_id/roster\"" },
+        { "path": "app/server/src/lib/competition-signup-store.ts", "needle": "function roster(" },
+        { "path": "app/server/src/lib/competition-contract.ts", "needle": "export const competitionRoster =" },
+        { "path": "app/console/src/lib/competition-hub.ts", "needle": "export function rosterStats(" },
+        { "path": "app/console/src/pages/CompetitionHub.vue", "needle": "const roster = useResource(" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/console/competition-hub.test.ts"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/console/README.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.roster.export", "title": "导出报名名单CSV", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "audit", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/competitions/:competition_id/roster.csv", "capabilities": ["competitions.manage"],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_teams", "competition_team_members", "sessions", "role_assignments", "departments", "titles", "users", "identities"],
+      "writes": ["audit_logs"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效全站sid与competitions.manage；比赛不存在404；限流每分钟5次，超出429。",
+        "响应 text/csv; charset=utf-8：UTF-8 BOM、CRLF，附件文件名带比赛id与北京时间日期；列是 account_id、login、status、note、looking_for_team、team_name、role 与三个北京时间时间列。",
+        "每个单元格走csvCell防公式注入；导出成功后写competition.roster.export审计（details {rows}），审计失败不回文件。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/console/competition-roster.ts", "needle": "\"/api/console/competitions/:competition_id/roster.csv\"" },
+        { "path": "app/server/src/routes/console/competition-roster.ts", "needle": "\"competition.roster.export\"" },
+        { "path": "app/server/src/lib/beijing-time.ts", "needle": "export function beijingCompactDate(" }
+      ],
+      "tests": ["tests/server/competition-signups.test.ts", "tests/console/competition-hub.test.ts"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/console/README.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.score_events.list", "title": "读取积分记录", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "audit", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/competitions/:competition_id/score-events", "capabilities": ["competitions.manage"],
+      "reads": ["competitions", "competition_score_events", "users", "identities", "sessions", "role_assignments", "departments", "titles"],
+      "writes": [], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效全站sid与competitions.manage；比赛不存在404。",
+        "响应200 {events}：按登记时间倒序，每条含选手、类型（issue/pr/penalty）、仓库与编号、分值、说明、登记人登录名、状态与撤销原因。",
+        "撤销的记录照常返回并标revoked，不删行；没有开启积分的比赛回空列表。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/console/competition-roster.ts", "needle": "const result = scores.list(req.params.competition_id);" },
+        { "path": "app/server/src/lib/competition-score-store.ts", "needle": "function list(competitionId: string): ScoreResult<ScoreEvent[]> {" },
+        { "path": "app/server/src/lib/competition-contract.ts", "needle": "export const scoreEventList =" }
+      ],
+      "tests": ["tests/server/competition-scores.test.ts", "tests/console/competition-hub.test.ts"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/console/README.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.score_events.create", "title": "登记积分", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "audit", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/competitions/:competition_id/score-events", "capabilities": ["competitions.manage"],
+      "reads": ["competitions", "competition_signup_settings", "competition_signups", "competition_score_events", "users", "identities", "sessions", "role_assignments", "departments", "titles"],
+      "writes": ["competition_score_events", "audit_logs"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效全站sid与competitions.manage；比赛不存在404；没有开启积分409 scoring_not_enabled。",
+        "请求 {account_id, kind, points, reason?}：选手必须已报名本场（409 not_signed_up）；issue 5–30、pr 15–100、penalty 固定 −50（400 bad_points）；issue/pr 必填 owner/name 仓库与正整数编号（400 bad_repo / bad_number），扣分不带这两个字段。",
+        "同一条Issue或PR已有有效记录回409 duplicate_score_event；201返回这条记录。",
+        "写入与competition.score.add审计同一事务，details只记比赛、选手、类型与分值；限流每分钟30次。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/console/competition-roster.ts", "needle": "Body: ScoreEventInput" },
+        { "path": "app/server/src/lib/competition-score-store.ts", "needle": "if (selectDuplicate.get(competitionId, input.kind, repo, number)) return failure(\"duplicate_score_event\");" },
+        { "path": "app/server/src/lib/competition-score-store.ts", "needle": "export const SCORE_POINTS: Record<ScoreKind, { min: number; max: number }> = {" },
+        { "path": "app/console/src/lib/competition-hub.ts", "needle": "export function scoreErrors(" }
+      ],
+      "tests": ["tests/server/competition-scores.test.ts", "tests/console/competition-hub.test.ts"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/console/README.md", "docs/plan/COMPETITION-APP.md"]
+    },
+    {
+      "id": "competition.score_events.revoke", "title": "撤销积分", "domain": "competitions",
+      "relatedDomains": ["identity", "organization", "audit", "platform"], "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/competitions/:competition_id/score-events/:event_id/revoke", "capabilities": ["competitions.manage"],
+      "reads": ["competitions", "competition_score_events", "users", "identities", "sessions", "role_assignments", "departments", "titles"],
+      "writes": ["competition_score_events", "audit_logs"], "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效全站sid与competitions.manage；记录不存在或不属于这场比赛404 not_found；已撤销409 already_revoked。",
+        "请求 {reason?}（最多200字）：只把状态改成revoked并记撤销人、时间与原因，原分值与说明保留，不删行；撤销后不再计分。",
+        "写入与competition.score.revoke审计同一事务；限流每分钟30次。"
+      ],
+      "evidence": [
+        { "path": "app/server/src/routes/console/competition-roster.ts", "needle": "Body: { reason?: string }" },
+        { "path": "app/server/src/lib/competition-score-store.ts", "needle": "if (row.status === \"revoked\") return failure(\"already_revoked\");" },
+        { "path": "app/server/src/lib/competition-score-store.ts", "needle": "revokeEvent.run(actorAccountId, now, reason.trim(), eventId);" }
+      ],
+      "tests": ["tests/server/competition-scores.test.ts", "tests/console/competition-hub.test.ts"],
+      "docs": ["docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/server/data-model.md", "docs/services/console/README.md", "docs/plan/COMPETITION-APP.md"]
     }
   ],
   "moduleOwners": {
