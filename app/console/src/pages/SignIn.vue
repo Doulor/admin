@@ -48,12 +48,6 @@ const followAction = (action: OutcomeAction) => {
   if (action.target === "_blank") window.open(action.href, "_blank", "noopener,noreferrer");
   else window.location.assign(action.href);
 };
-const SURFACES = [
-  { icon: "i-carbon-home", label: "官网" },
-  { icon: "i-carbon-forum", label: "论坛" },
-  { icon: "i-carbon-dashboard", label: "控制台" },
-  { icon: "i-carbon-trophy", label: "比赛" },
-];
 </script>
 
 <template>
@@ -63,12 +57,9 @@ const SURFACES = [
         <img :src="logoUrl" alt="" width="52" height="52" class="signin__logo">
         <div>
           <h1>极客班统一登录</h1>
-          <p class="signin__lead">一个极客班账号，通行全站</p>
+          <p class="signin__lead">官网、论坛、控制台和比赛都用这个账号登录</p>
         </div>
       </div>
-      <ul class="signin__surfaces" aria-label="这个账号可以登录">
-        <li v-for="surface in SURFACES" :key="surface.label"><span :class="surface.icon" aria-hidden="true" />{{ surface.label }}</li>
-      </ul>
 
       <TxAlert v-if="signedOut" type="success" title="你已退出登录" :closable="false" class="signin__alert">官网、论坛、控制台已一起退出。</TxAlert>
       <TxAlert v-if="outcome" :type="outcome.type" :title="outcome.title" :closable="false" class="signin__alert" data-testid="signin-outcome">
@@ -102,11 +93,11 @@ const SURFACES = [
           >通过 {{ provider.name }} 继续</TxButton>
         </div>
         <p class="signin__note">
-          GitHub 只是接入方式之一。登录后全站以你的<b>极客班账号</b>（内部 OpenID）认人，称号、帖子和参赛记录都跟着账号走。
+          GitHub 只是登录方式之一。登录后全站认的是你的极客班账号，称号、帖子和参赛记录都跟着账号走。
         </p>
       </section>
 
-      <p class="signin__return">登录后回到 <code :title="returnPath">{{ returnPath }}</code></p>
+      <p v-if="returnPath !== '/'" class="signin__return" :title="returnPath">登录后回到 {{ returnPath }}</p>
       <div class="signin__more" :class="{ 'signin__more--pair': outcome?.action }">
         <TxButton v-if="outcome?.action" variant="secondary" :icon="outcome.action.icon" block @click="followAction(outcome.action)">
           {{ outcome.action.label }}
@@ -124,14 +115,15 @@ const SURFACES = [
   min-height: 100vh;
   padding: 24px 16px;
 }
+/* TxCard 自带 width: 100%，和这里同优先级，构建后谁的样式后加载谁生效；用它没设的 max-width 收窄 */
 .signin__card {
-  width: min(440px, 100%);
+  max-width: 440px;
 }
 .signin__brand {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin: 6px 0 14px;
+  margin: 6px 0 18px;
 }
 .signin__logo {
   flex: none;
@@ -148,25 +140,6 @@ const SURFACES = [
   margin: 4px 0 0;
   color: var(--tx-text-color-secondary);
   font-size: 14px;
-}
-.signin__surfaces {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0 0 18px;
-  padding: 0;
-  list-style: none;
-}
-.signin__surfaces li {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--tx-fill-color-light, rgba(127, 127, 127, 0.1));
-  color: var(--tx-text-color-regular);
-  font-size: 12px;
-  line-height: 20px;
 }
 .signin__alert {
   margin-bottom: 14px;
@@ -212,12 +185,6 @@ const SURFACES = [
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.signin__return code {
-  padding: 1px 6px;
-  border-radius: 6px;
-  background: var(--tx-fill-color-light, rgba(127, 127, 127, 0.1));
-  font-size: 12px;
 }
 .signin__more {
   display: grid;

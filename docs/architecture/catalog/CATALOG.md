@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-21 · 自动生成，不手工编辑。
 
-来源摘要：`862cf35b212714e5dfab11937cde5f203a7d47f0691d7f4a4dde0958ce6362a7`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`c4b4b8dcd036d4696bebe71f143317faefccf985151a9428a8c290ebfe2f9640`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -94,7 +94,7 @@
 - 响应与错误：200 {providers:[...]}，每项含id、name、kind、start、can_register；交付1只有GitHub（kind=redirect，start=/auth/github，can_register=true），响应Schema固定字段。
 - 数据与副作用：只读进程内的固定列表，不读写数据库、不请求GitHub。
 
-源码：[app/server/src/routes/identity/providers.ts:23](../../../app/server/src/routes/identity/providers.ts#L23) · [app/server/src/routes/identity/contracts.ts:60](../../../app/server/src/routes/identity/contracts.ts#L60) · [app/server/src/routes/identity/index.ts:8](../../../app/server/src/routes/identity/index.ts#L8) · [app/console/src/pages/SignIn.vue:65](../../../app/console/src/pages/SignIn.vue#L65) · [app/console/src/lib/signin.ts:67](../../../app/console/src/lib/signin.ts#L67) · [app/console/src/mock/index.ts:12](../../../app/console/src/mock/index.ts#L12)
+源码：[app/server/src/routes/identity/providers.ts:23](../../../app/server/src/routes/identity/providers.ts#L23) · [app/server/src/routes/identity/contracts.ts:60](../../../app/server/src/routes/identity/contracts.ts#L60) · [app/server/src/routes/identity/index.ts:8](../../../app/server/src/routes/identity/index.ts#L8) · [app/console/src/pages/SignIn.vue:59](../../../app/console/src/pages/SignIn.vue#L59) · [app/console/src/lib/signin.ts:67](../../../app/console/src/lib/signin.ts#L67) · [app/console/src/mock/index.ts:12](../../../app/console/src/mock/index.ts#L12)
 
 测试入口：[tests/server/identity.test.ts](../../../tests/server/identity.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 

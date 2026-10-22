@@ -198,8 +198,9 @@ onBeforeUnmount(() => clearInterval(timer));
   min-height: 100vh;
   padding: 24px 16px;
 }
+/* 同 SignIn.vue：TxCard 自带 width: 100%，用 max-width 收窄才不受样式加载顺序影响 */
 .device__card {
-  width: min(440px, 100%);
+  max-width: 440px;
 }
 .device__brand {
   display: flex;
