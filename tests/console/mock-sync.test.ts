@@ -67,8 +67,9 @@ describe("console catalogue mirrors the server", () => {
   it("derives every preview persona exactly as computeAccess would", () => {
     const row = (login: string, role: AssignmentRow["role"], department_id = ""): AssignmentRow =>
       ({ id: 1, github_login: login, github_user_id: 1, role, department_id, note: null, granted_by: "x", created_at: 0 });
-    const cases: Record<string, { orgRole: OrgRole; rows: AssignmentRow[] }> = {
+    const cases: Record<string, { orgRole: OrgRole; rows: AssignmentRow[]; githubSession?: boolean }> = {
       admin: { orgRole: "admin", rows: [] },
+      admin_email: { orgRole: "admin", rows: [], githubSession: false },
       captain: { orgRole: "member", rows: [row("chen-hang", "captain")] },
       recruitment: { orgRole: "member", rows: [row("li-xiaoman", "head", "recruitment")] },
       tech: { orgRole: "member", rows: [row("wang-zhe", "head", "tech")] },
@@ -82,8 +83,9 @@ describe("console catalogue mirrors the server", () => {
     expect(Object.keys(MOCK_PERSONAS).sort()).toEqual(Object.keys(cases).sort());
     for (const [name, input] of Object.entries(cases)) {
       const persona = MOCK_PERSONAS[name];
-      const access = computeAccess({ login: persona.login, orgRole: input.orgRole, assignments: input.rows, departments });
+      const access = computeAccess({ login: persona.login, orgRole: input.orgRole, githubSession: input.githubSession, assignments: input.rows, departments });
       expect(persona.github_role, name).toBe(input.orgRole);
+      expect(persona.provider === "github", name).toBe(input.githubSession ?? true);
       expect(persona.capabilities, name).toEqual(orderedCapabilities(access.capabilities));
       expect(persona.blocked, name).toEqual(access.blocked);
       expect(persona.head_of, name).toEqual(access.headOf);

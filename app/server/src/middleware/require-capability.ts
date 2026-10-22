@@ -12,11 +12,13 @@ declare module "fastify" {
 export async function resolveAccess(req: FastifyRequest): Promise<Access> {
   if (req.access) return req.access;
   const session = req.session!;
-  req.access = await req.server.services.access.resolve({ login: session.login, userId: session.user_id, accountId: session.account_id, accessToken: session.accessToken });
+  req.access = await req.server.services.access.resolve({
+    login: session.login, userId: session.user_id, accountId: session.account_id, accessToken: session.accessToken, provider: session.provider,
+  });
   return req.access;
 }
 
-/** 缺少能力时的统一 403 体。`reason` 只在被 GitHub 上限挡掉时出现。 */
+/** 缺少能力时的统一 403 体。`reason` 只在被 GitHub 上限挡掉时出现（邮箱、Google 会话是 github_session_required）。 */
 export function missingCapability(access: Access, anyOf: Capability[]) {
   const [first] = anyOf;
   const blocked = access.blocked.find(item => anyOf.includes(item.capability));

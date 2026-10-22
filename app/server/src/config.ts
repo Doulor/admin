@@ -84,11 +84,19 @@ export function createConfig(env: Record<string, string | undefined>) {
       allowlist: [...new Set(value("MAIL_ALLOWLIST").split(",").map(item => item.trim().toLowerCase()).filter(Boolean))],
     };
   })();
+  // Google 登录（#262）：两项都设才启用，只设一项让启动失败；都不设时登录页不出现 Google（本机、测试与凭据到位之前）。
+  const google = (() => {
+    const clientId = (env.GOOGLE_CLIENT_ID ?? "").trim();
+    const clientSecret = (env.GOOGLE_CLIENT_SECRET ?? "").trim();
+    if (Boolean(clientId) !== Boolean(clientSecret)) throw new Error("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together");
+    return clientId ? { clientId, clientSecret } : null;
+  })();
   return {
     production, port, publicOrigin, host: listenHost, trustProxy, consoleOrg,
     cookieDomain: env.COOKIE_DOMAIN || undefined,
     cookieSecure: publicOrigin.startsWith("https:"),
     oauth: { clientId: required("OAUTH_CLIENT_ID"), clientSecret: required("OAUTH_CLIENT_SECRET"), scope: "read:user user:email admin:org read:org repo" },
+    google,
     sessionSecret, encryptionKey, dbPath, forumDbPath,
     uploadDir: resolve(REPO_ROOT, env.FORUM_UPLOAD_DIR ?? "data/forum-uploads"),
     // 论坛的公开内容（分类、标签、公开旧帖），启动时读来播种。不是环境变量：仓库里和镜像里都在同一个相对位置

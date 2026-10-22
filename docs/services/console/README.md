@@ -14,11 +14,11 @@
 |---|---|
 | `app/console/index.html`、`src/main.ts`、`src/App.vue` | 入口：整包引入 Tuffex 样式、UnoCSS 图标、主题；挂路由、全局确认框、TxToastHost；`index.html` 自带首次打开的加载提示（#263，见「构建与托管」） |
 | `src/router.ts` | 路由表与每页所需能力（`meta.anyOf`）；`ConsoleShell` 把它交给 `CapabilityGate`，缺能力时整页换成权限说明，没写的页面按 `console.access` 判断 |
-| `src/pages/` | 页面：`Overview`、`Applications`/`ApplicationDetail`、`Forum`、`People`（`people/` 下是添加称号、编辑部门权限包、编辑称号三个对话框、称号列表 `TitleList` 和只读权限树 `PermissionTree`）、`Feedback`、`Audit`、`Competitions`、`SignIn`（极客班统一登录页，登录方式按 `GET /auth/providers` 渲染）、`Device`（设备授权确认页，`/device`）、`ConsoleRoot`（取身份与乘客态）；`github/` 下是组织概况、成员、仓库与仓库详情（`github/repo/`）、团队、活动、安全、组织资料、邀请、邀请链接、新建仓库 |
-| `src/components/` | 外壳（`ConsoleShell`、`ConsoleNav`：只显示实际持有能力的页面）、能力门 `CapabilityGate`（直接访问无权限地址仍说明原因）、状态组件（`ErrorPanel`、`ErrorAlert`、`LoadingBlock`）、`TitleBadge`/`ToneTag`/`UserCell`、`PageHeader`、`ConfirmHost` |
-| `src/lib/` | 纯逻辑（可单测，不导入 Vue）：`http`（请求与 `ApiError`）、`errors`（错误 → 文案与错误卡片的主按钮）、`signin`（登录未成原因解析、`return_to` 同源校验 `safeReturnPath`、`/auth/providers` 的解析与跳转地址）、`device`（设备授权确认页的纯逻辑：`user_code` 格式化与校验、去登录页的路径、scope 说法、剩余时间）、`nav`（导航与能力可见性）、`people`（按部门分组、负责人与排序、撤销规则）、`titles`（称号的默认值、徽章与编辑校验）、`org-settings`（组织资料改动计算）、`applications`（处理投递：通知信的提示、字段核对、PATCH 体、信件状态的说法）、`statuses`、`format`（时间一律按北京时间）、`icons`、`types`；带 Vue 的：`session`（身份与能力清单）、`resource`（读写状态）、`confirm`、`github`、`runtime`（数据源与跨服务链接） |
+| `src/pages/` | 页面：`Overview`、`Applications`/`ApplicationDetail`、`Forum`、`People`（`people/` 下是添加称号、编辑部门权限包、编辑称号三个对话框、称号列表 `TitleList` 和只读权限树 `PermissionTree`）、`Feedback`、`Audit`、`Competitions`、`SignIn`（极客班统一登录页，登录方式按 `GET /auth/providers` 渲染）、`Device`（设备授权确认页，`/device`）、`Account`（账号页，`/account`）、`Invites`（注册邀请码）、`ConsoleRoot`（取身份与乘客态）；`github/` 下是组织概况、成员、仓库与仓库详情（`github/repo/`）、团队、活动、安全、组织资料、邀请、邀请链接、新建仓库 |
+| `src/components/` | 外壳（`ConsoleShell`、`ConsoleNav`：只显示实际持有能力的页面）、能力门 `CapabilityGate`（直接访问无权限地址仍说明原因；邮箱、Google 会话打开 GitHub 页面时说明要用 GitHub 登录）、状态组件（`ErrorPanel`、`ErrorAlert`、`LoadingBlock`）、`TitleBadge`/`ToneTag`/`UserCell`、`PageHeader`、`ConfirmHost` |
+| `src/lib/` | 纯逻辑（可单测，不导入 Vue）：`http`（请求与 `ApiError`）、`errors`（错误 → 文案与错误卡片的主按钮）、`signin`（登录未成原因解析、`return_to` 同源校验 `safeReturnPath`、`/auth/providers` 的解析与跳转地址、邮箱验证码与密码登录的请求、发码冷却秒数）、`account`（账号页的登录方式、成员资格与账号记录的说法，设密码前的本地检查）、`invites`（邀请码的状态、表单校验与提交内容）、`device`（设备授权确认页的纯逻辑：`user_code` 格式化与校验、去登录页的路径、scope 说法、剩余时间）、`nav`（导航与能力可见性）、`people`（按部门分组、负责人与排序、撤销规则）、`titles`（称号的默认值、徽章与编辑校验）、`org-settings`（组织资料改动计算）、`applications`（处理投递：通知信的提示、字段核对、PATCH 体、信件状态的说法）、`statuses`、`format`（时间一律按北京时间）、`icons`、`types`；带 Vue 的：`session`（身份与能力清单）、`resource`（读写状态）、`confirm`、`github`、`runtime`（数据源与跨服务链接） |
 | `src/lib/permission-tree.ts`、`permission-boundaries.ts` | 前者用当前目录/部门配置解释本人 `/me` 的状态，不生成授权判断；后者维护能力的范围、实际执行点和关联页面，只作说明，随对应后端路由与契约同步 |
-| `src/mock/` | 开发预览样板数据（全部虚构），只在数据源为 mock 且（DEV 或 PR 预览构建 `VITE_PREVIEW_MOCK=1`，#245）时动态导入，镜像构建不含；`lib/runtime.ts` 的 `PREVIEW_MOCK` 只由根目录 `netlify.toml` 设置。mock 的 `/auth/providers` 与服务端同形（只有 GitHub 一种），登录页在样板数据下也按它渲染；设备授权页用到的 `/auth/me`（跟随样板身份，未登录样板回 `signed_in: false`）与 `GET /api/identity/device`（任何完整的用户码都是十分钟内有效的待确认样板）也同形，允许/拒绝仍按只读回 501 |
+| `src/mock/` | 开发预览样板数据（全部虚构），只在数据源为 mock 且（DEV 或 PR 预览构建 `VITE_PREVIEW_MOCK=1`，#245）时动态导入，镜像构建不含；`lib/runtime.ts` 的 `PREVIEW_MOCK` 只由根目录 `netlify.toml` 设置。mock 的 `/auth/providers` 与服务端同形（样板列出 GitHub、Google 和带密码的邮箱三种），登录页在样板数据下也按它渲染；`/api/identity/me` 按样板身份给账号页数据（未登录样板回 401），`/api/console/invites` 给三条样板邀请码；样板身份 `admin_email` 是用邮箱登录的提督，用来看 GitHub 页面的提示；设备授权页用到的 `/auth/me`（跟随样板身份，未登录样板回 `signed_in: false`）与 `GET /api/identity/device`（任何完整的用户码都是十分钟内有效的待确认样板）也同形，允许/拒绝仍按只读回 501 |
 | `src/styles/theme.css`、`layout.css` | 主题令牌覆盖与页面版式（见「设计令牌」） |
 | `scripts/tuffex-icon-classes.mjs` | 扫描已安装 Tuffex 的 dist，给 UnoCSS 列出组件自带的 `i-carbon-*` 图标类（做法同论坛） |
 | `vite.config.ts`、`uno.config.ts`、`tsconfig.json` | 构建、图标、类型检查配置 |
@@ -29,7 +29,8 @@
 
 | 路径 | 页面 | 所需能力（任一） |
 |---|---|---|
-| `/signin` | 极客班统一登录页：调匿名 `GET /auth/providers` 渲染登录方式（目前只有 GitHub，按钮「通过 GitHub 继续」）；`?signin=<原因>` 说明上次登录为什么没成功；`return_to` 只接受同源路径（不合格回 `/console`），登录后回到它 | 无 |
+| `/signin` | 极客班统一登录页：调匿名 `GET /auth/providers` 渲染登录方式（GitHub、启用时的 Google 跳转按钮，加上邮箱验证码与密码表单）；`?signin=<原因>` 说明上次登录为什么没成功；`return_to` 只接受同源路径（不合格回 `/console`），登录后回到它 | 无 |
+| `/account` | 我的账号：登录方式、绑定邮箱、设置或修改密码、成员资格、这次登录、最近的账号记录；没登录先去 `/signin?return_to=/account` | 无（任何有效会话，页面自己读 `/api/identity/me`） |
 | `/device` | 设备授权确认页（RFC 8628）：带入或输入 8 位 `user_code`，显示客户端、权限、剩余时间与防钓鱼提示，允许或拒绝；没登录先去 `/signin?return_to=/device?user_code=…` | 无（要极客班会话，页面自己读 `/auth/me`） |
 | `/console` | 概览 | `console.access` |
 | `/console/applications`、`/console/applications/:id` | 投递管理、投递详情 | `applications.read` |
@@ -39,7 +40,8 @@
 | `/console/competitions/:id` | 报名与积分（#239）：报名设置、名单与统计、导出 CSV、积分登记与撤销；入口在内部比赛那一行的「报名与积分」 | `competitions.manage` |
 | `/console/feedback` | 意见箱 | `feedback.read` |
 | `/console/audit` | 审计日志 | `audit.read` |
-| `/console/github/**` | GitHub 组织页面；邀请与邀请链接另需 `github.invites.manage`，新建仓库另需 `github.repos.manage` | `github.org.read` |
+| `/console/invites` | 注册邀请码：列出、新建、编辑、停用与启用 | `accounts.invites.manage` |
+| `/console/github/**` | GitHub 组织页面；邀请与邀请链接另需 `github.invites.manage`，新建仓库另需 `github.repos.manage`；还要这次是用 GitHub 登录的 | `github.org.read` |
 | `/admin`、`/admin/**` | 跳到 `/console` | — |
 | `/console/signin`、`/admin/signin` | 跳到 `/signin` | — |
 
@@ -50,6 +52,22 @@
 `/device` 给命令行 `geek login` 用（#262，RFC 8628）。页面先读 `/auth/me`：没登录就跳 `/signin?return_to=/device?user_code=<代码>`，登录完带着同一串代码回来；已登录则按地址里的 `user_code`（或用户自己输入）调 `GET /api/identity/device`。代码输入对大小写、连字符和空格不敏感，输入时按服务端的字符集格式化并显示为 `XXXX-XXXX`。
 
 结果按 `status` 分：`pending` 且未过期时显示客户端名（「极客班命令行 请求登录」）、`client_id`、逐项解释过的权限、代码与剩余时间，并固定提示「只有你刚在自己的电脑上运行了 `geek login`、终端里就是这串代码时才允许。别人发给你的代码不要确认。」；允许、拒绝调 `POST /api/identity/device/approve`，成功后换成「已授权」「已拒绝这次授权」。`expired`、`denied`、`consumed` 不给按钮，只说明原因并给「输入其它代码」。读取时 401 回登录页、404 提示核对代码（「没有找到这串代码」），确认时 404/409 按「已经不能确认」处理（过期、已被拒绝或已用过），其余错误提示网络问题；`user_code` 同步到地址栏，刷新与回跳都保留。确认页在控制台壳子之外（和 `/signin` 一样），不要控制台能力。
+
+### 账号页
+
+`/account`（#262）在控制台壳子之外，和 `/signin`、`/device` 一样不要控制台能力，任何有效会话都能打开；控制台导航底部的「账号」、乘客说明里的「我的账号」都通到这里。页面读 `GET /api/identity/me`，401 跳 `/signin?return_to=/account`。分五张卡片：
+
+- **登录方式**：已绑定的 GitHub（登录名）、邮箱（打码后的地址）、Google，带绑定时间和最近一次登录；`available` 里有邮箱时显示绑定表单，发码调 `POST /api/identity/email/start`，填码调 `POST /api/identity/email/verify`。GitHub、Google 的绑定和解绑还没有。
+- **密码**：密码登录用邮箱作账号，没绑邮箱时只说明先绑邮箱。至少 15 位、UTF-8 不超过 72 字节、两次一致，先在页面检查（`lib/account.ts` 的 `passwordProblem`，与服务端 `passwordError` 同一规则），再调 `POST /api/identity/password`。已有密码且这次登录超过 10 分钟时要填当前密码；没有密码又超过 10 分钟时提示「重新登录」，按钮带着 `/account` 去登录页。
+- **成员资格**：GitHub 组织角色或「用邀请码注册」，不是成员时写明。
+- **这次登录**：登录方式、登录时间、有效期，以及「退出登录」。
+- **最近的账号记录**：`identity_audit` 里本人最近 20 条（登录、注册、绑定、设密码等），按北京时间。
+
+绑定、设密码回 403 `step_up_required` 时在卡片顶部提示要重新登录，不当成退出。
+
+### 注册邀请码
+
+`/console/invites`（#262）给持有 `accounts.invites.manage` 的人（提督默认有，其他称号要在「成员与权限」里放进权限包）。用邮箱或 Google 第一次登录、还没有极客班账号时要填邀请码；用 GitHub 登录的组织成员不需要。表格列出邀请码（带复制按钮、备注、谁在哪天建的）、已用次数、过期日期（北京时间）和状态（可用、已停用、已过期、次数用完）；邀请码不删，停用后不能再注册，随时可以重新启用。新建时默认填一个 10 位随机码（去掉 0、1、l、o），可以「换一个」或自己写 4–40 位字母、数字、`_`、`-`，不分大小写；次数、过期日期留空表示不限，过期日期当天整天都能用。编辑只提交改了的字段，邀请码本身建好后不能改。
 
 ### 只读权限树
 
@@ -66,16 +84,17 @@
 
 - `/api/console/*`：`me`、`catalogue`、`summary`、`departments`（含删除）、`titles`、`people`、`assignments`、`applications`（含 `export.csv` 下载链接）、`competitions`、`feedback`、`audit`。称号的名字、标签、图标、色调、说明和权限一律取自 `catalogue`，代码里只有加载前的默认值（`lib/titles.ts` 的 `DEFAULT_TITLES`）。契约见 [API](../../architecture/API.md)「极客班控制台」。
 - `/api/admin/:org/*`：GitHub 组织页面，`:org` 取 `/api/console/me` 返回的 `org`。
-- `/auth/providers`（匿名）列出本站启用的登录方式，`/signin` 按它渲染按钮，前端不写死渠道；`/api/identity/device` 与 `/api/identity/device/approve` 是设备授权确认页用的两个接口。
-- 登录走极客班统一登录页 `/signin?return_to=<本站路径>`：选一种登录方式（目前是 GitHub）后 302 到 `/auth/github?return_to=<完整本站地址>`，回调成功后回到 `return_to`；登录失败由核心服务送回 `/signin?signin=<原因>&return_to=<原路径>`。`POST /auth/signout` 退出。登录是全站共用的（官网、论坛、控制台同一个 `sid`），只有 `CONSOLE_ORG` 的 active 成员能登录，见 [SECURITY](../../architecture/SECURITY.md)「登录门槛」。
+- `/auth/providers`（匿名）列出本站启用的登录方式，`/signin` 按它渲染按钮，前端不写死渠道；邮箱登录调 `POST /auth/email/start`（发码）、`/auth/email/verify`（用验证码登录，没有账号时带 `invite_code` 注册）、`/auth/email/password`（用密码登录），成功都回 `{ return_to }` 后整页跳转；Google 是 `GET /auth/google?return_to=…&invite=…` 的跳转。`/api/identity/device` 与 `/api/identity/device/approve` 是设备授权确认页用的两个接口。
+- `/api/identity/me`、`/api/identity/email/start`、`/api/identity/email/verify`、`/api/identity/password` 是账号页用的接口；`/api/console/invites`（GET、POST）与 `PATCH /api/console/invites/:id` 是注册邀请码页用的接口。
+- 登录走极客班统一登录页 `/signin?return_to=<本站路径>`：选 GitHub 或 Google 后 302 到 `/auth/github`、`/auth/google`（`?return_to=<完整本站地址>`），回调成功后回到 `return_to`；用邮箱时在本页完成；登录失败由核心服务送回 `/signin?signin=<原因>&return_to=<原路径>`。`POST /auth/signout` 退出。登录是全站共用的（官网、论坛、控制台同一个 `sid`）。GitHub 登录只对 `CONSOLE_ORG` 的 active 成员开放；邮箱、Google 第一次登录要凭邀请码注册，见 [SECURITY](../../architecture/SECURITY.md)「登录门槛」。
 
 请求一律同源 `fetch`、`credentials: "same-origin"`，错误体解析成 `ApiError { status, code, message, requestId, payload }`，与 `app/web/shared/lib/http.ts` 同一契约。写操作经服务端的 Origin/Fetch Metadata 检查，控制台与接口同域，不需要额外处理。
 
 ## 状态
 
-每个读取都有加载（Tuffex 骨架）、空（TxEmptyState，写明下一步）、失败（TxErrorState + 重试，附 `HTTP 状态 · 机器码 · request id` 一行）三种状态。缺能力：页面级用 `CapabilityGate`（TxPermissionState）写明缺哪项；若称号给了、但被 GitHub 组织角色挡住，说明是这个原因。未登录（`/api/console/me` 返回 401）跳到 `/signin?return_to=<原路径>`。用到一半登录失效（#133，会话到期、别处退出）时同样处理：`lib/http.ts` 的 `api()` 拿到任何 401（`/auth/signout` 除外）就调 `lib/session.ts` 注册的处理，清掉本地身份、把这个 401 记成 `meError`，`ConsoleRoot.vue` 于是带着当前地址跳 `/signin`；读写哪一种都一样，不再停在只有「重试」的「登录已失效」上。万一某处仍显示「登录已失效」，`ErrorPanel` 给的是「重新登录」（登录后回到当前页），不是「重试」。403、5xx 和网络错误不算退出。GitHub 拒绝会话里存的令牌时，服务端结束这个会话并回 401 `session_expired`（#164，见 [API](../../architecture/API.md) 的上游错误映射），控制台照样按退出处理，重新登录会换一个新的 GitHub 授权。登录没成功时核心服务把人送回统一登录页 `/signin?signin=<原因>&return_to=<原路径>`（#262；以前是回原来的控制台地址带 `?signin=`）；`lib/signin.ts` 解析原因，页面在按钮上方说明，原来的 `return_to` 留在地址里，再登录成功后照它回去。`ConsoleRoot.vue` 仍会把残留的 `signin` 从 `return_to` 里拿掉，再次登录成功后不会带着旧原因回去。已登录但没有任何能力显示乘客说明。
+每个读取都有加载（Tuffex 骨架）、空（TxEmptyState，写明下一步）、失败（TxErrorState + 重试，附 `HTTP 状态 · 机器码 · request id` 一行）三种状态。缺能力：页面级用 `CapabilityGate`（TxPermissionState）写明缺哪项；若称号给了、但被 GitHub 组织角色挡住，说明是这个原因。用邮箱或 Google 登录时，`/api/console/me` 把 `github.*` 能力放进 `blocked`（原因 `github_session_required`，因为这次会话没有 GitHub 令牌）；导航照常显示这些页面，点进去是「这一页要用 GitHub 登录」，主按钮「用 GitHub 继续」带着当前地址去 `/auth/github`，次按钮回到概览。乘客说明按 `provider` 分开写：GitHub 会话说明组织里没有给称号，邮箱、Google 会话说明控制台按称号开放，并给「我的账号」按钮。未登录（`/api/console/me` 返回 401）跳到 `/signin?return_to=<原路径>`。用到一半登录失效（#133，会话到期、别处退出）时同样处理：`lib/http.ts` 的 `api()` 拿到任何 401（`/auth/signout` 除外）就调 `lib/session.ts` 注册的处理，清掉本地身份、把这个 401 记成 `meError`，`ConsoleRoot.vue` 于是带着当前地址跳 `/signin`；读写哪一种都一样，不再停在只有「重试」的「登录已失效」上。万一某处仍显示「登录已失效」，`ErrorPanel` 给的是「重新登录」（登录后回到当前页），不是「重试」。403、5xx 和网络错误不算退出。GitHub 拒绝会话里存的令牌时，服务端结束这个会话并回 401 `session_expired`（#164，见 [API](../../architecture/API.md) 的上游错误映射），控制台照样按退出处理，重新登录会换一个新的 GitHub 授权。登录没成功时核心服务把人送回统一登录页 `/signin?signin=<原因>&return_to=<原路径>`（#262；以前是回原来的控制台地址带 `?signin=`）；`lib/signin.ts` 解析原因，页面在按钮上方说明，原来的 `return_to` 留在地址里，再登录成功后照它回去。`ConsoleRoot.vue` 仍会把残留的 `signin` 从 `return_to` 里拿掉，再次登录成功后不会带着旧原因回去。已登录但没有任何能力显示乘客说明。
 
-登录页（`SignIn.vue`）是官网、论坛、控制台共用的「极客班统一登录」页：标题「极客班统一登录」，副标题「官网、论坛、控制台和比赛都用这个账号登录」。卡片最宽 440px：`TxCard` 自带 `width: 100%`，和页面样式同优先级，构建后谁后加载谁生效，所以页面用 `max-width` 收窄（`/device` 同理）。登录方式不写死：页面加载时调匿名 `GET /auth/providers`，`kind: "redirect"` 的每种方式一个按钮（「通过 <名字> 继续」），现在只有 GitHub 一个；加载中显示「正在读取可用的登录方式…」，取不到或列表为空时显示「登录方式没有加载出来，可能是网络不稳定。」和「重试」。按钮下方写明 GitHub 只是登录方式之一、全站认的是极客班账号；`return_to` 不是 `/` 时最后一行显示「登录后回到 <return_to>」。`return_to` 走 `safeReturnPath`：只接受同源路径，`//`、`/\`、控制字符、绝对 URL 一律换成 `/console`，也不回到 `/signin` 自己。按 `signin` 参数（通过 `lib/signin.ts` 解析，未知取值不显示）在按钮上方显示一条不可关闭的 TxAlert；带行动点的原因（`not_member`）在页脚多一个次按钮，和「回到官网」并排，宽度不足 440px 时竖排：
+登录页（`SignIn.vue`）是官网、论坛、控制台共用的「极客班统一登录」页：顶部是极客班标志、标题「极客班统一登录」和副标题「官网、论坛、控制台和比赛共用一个账号」。卡片最宽 440px：`TxCard` 自带 `width: 100%`，和页面样式同优先级，构建后谁后加载谁生效，所以页面用 `max-width` 收窄（`/device` 同理）。登录方式不写死：页面加载时调匿名 `GET /auth/providers`，`kind: "redirect"` 的每种方式一个按钮（「通过 <名字> 继续」，GitHub 在前、启用时再加 Google）；有 `kind: "email_code"` 时下面隔一条「或者用邮箱」，是一个邮箱表单，顶部切换「验证码」「密码」（列表里的邮箱方式带 `password` 时才有密码）。验证码模式：填邮箱后「获取验证码」，发出后按钮倒数「N 秒后重发」，冷却秒数取响应的 `resend_after` 或 429 的 `retry_after`；输入框只留数字、最多 6 位；邮箱还没有账号时（`invite_required`）表单里出现一条说明和邀请码输入框，按钮变成「注册并登录」，验证码不用重新获取。密码模式下提示还没设过密码就先用验证码登录，再到「我的账号」里设。邮箱表单的错误显示在提交按钮上方，保留已填内容。Google 回调因为没有账号回来（`signin=invite_required|invalid_invite&provider=google`）时，Google 按钮上方出现邀请码输入框，按钮变成「用 Google 注册」，填了邀请码才能点。加载中显示「正在读取可用的登录方式…」，取不到或列表为空时显示「登录方式没有加载出来，可能是网络不稳定。」和「重试」。登录方式下方写明全站认的是极客班账号、第一次用邮箱或 Google 登录要填邀请码；`return_to` 不是 `/` 时最后一行显示「登录后回到 <return_to>」。`return_to` 走 `safeReturnPath`：只接受同源路径，`//`、`/\`、控制字符、绝对 URL 一律换成 `/console`，也不回到 `/signin` 自己。按 `signin` 参数（通过 `lib/signin.ts` 解析，未知取值不显示）在按钮上方显示一条不可关闭的 TxAlert；带行动点的原因（`not_member`）在页脚多一个次按钮，和「回到官网」并排，宽度不足 440px 时竖排：
 
 | `signin` | 类型 | 标题 | 正文 | 行动点 |
 |---|---|---|---|---|
@@ -84,6 +103,9 @@
 | `cancelled` | info | 已取消登录 | — | — |
 | `failed` | warning | 登录没有完成 | 请稍后再试一次。 | — |
 | `account_disabled` | warning | 这个极客班账号已停用 | 账号停用后不能登录，已有的会话也已失效。如有疑问请联系组织管理员。 | — |
+| `invite_required` | info | 这个 Google 账号还没有极客班账号 | 填上邀请码，再用 Google 继续，就会用它注册一个极客班账号。 | 邀请码输入框（见上） |
+| `invalid_invite` | warning | 邀请码无效 | 邀请码不对、已停用、过期或者次数用完了。向发给你邀请码的人要一个新的。 | 邀请码输入框（见上） |
+| `email_taken` | warning | 这个邮箱已经有极客班账号 | Google 账号的邮箱已经绑定了别的极客班账号。用邮箱验证码登录那个账号就好。 | — |
 
 `?signed_out=1` 另显示「你已退出登录」（正文「官网、论坛、控制台已一起退出。」）。写操作失败用 TxAlert 内联提示，保留已填内容；401 例外，会直接跳去登录，没保存的内容不保留；危险操作一律先确认（初始焦点在「取消」）。
 

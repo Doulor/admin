@@ -32,6 +32,7 @@ watch(signedOut, value => {
 const guest = computed(() => me.value && me.value.capabilities.length === 0);
 const goPortal = () => window.location.assign(siteUrl("portal", "/"));
 const openOrg = () => window.open(`https://github.com/${me.value?.org ?? ""}`, "_blank", "noopener");
+const goAccount = () => void router.push("/account");
 </script>
 
 <template>
@@ -50,15 +51,18 @@ const openOrg = () => window.open(`https://github.com/${me.value?.org ?? ""}`, "
     <TxCard class="guest">
       <img :src="logoUrl" alt="" width="48" height="48" class="guest__logo">
       <h1>你还不能使用控制台</h1>
-      <p>
+      <p v-if="me.provider === 'github'">
         你用 GitHub 账号 <span class="mono">@{{ me.login }}</span> 登录了，但还没有加入
         <span class="mono">{{ me.org }}</span>，也没有被指派称号。
       </p>
-      <p>加入 GitHub 组织后刷新本页；或者请{{ assignerText(catalogue) }}在「成员与权限」里给你指派称号。</p>
+      <p v-else>你已经登录极客班账号 <span class="mono">{{ me.login }}</span>，还没有被指派称号。</p>
+      <p v-if="me.provider === 'github'">加入 GitHub 组织后刷新本页；或者请{{ assignerText(catalogue) }}在「成员与权限」里给你指派称号。</p>
+      <p v-else>官网、论坛和比赛不受影响。控制台要等{{ assignerText(catalogue) }}在「成员与权限」里给你指派称号。</p>
       <div class="guest__badge"><TitleBadge :title="me.title" /></div>
       <div class="guest__actions">
         <TxButton variant="secondary" @click="goPortal">回到官网</TxButton>
-        <TxButton variant="primary" icon="i-carbon-logo-github" @click="openOrg">打开 GitHub 组织</TxButton>
+        <TxButton variant="secondary" icon="i-carbon-user-avatar" @click="goAccount">我的账号</TxButton>
+        <TxButton v-if="me.provider === 'github'" variant="primary" icon="i-carbon-logo-github" @click="openOrg">打开 GitHub 组织</TxButton>
       </div>
     </TxCard>
   </div>

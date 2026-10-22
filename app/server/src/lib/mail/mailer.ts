@@ -2,8 +2,9 @@ import type Database from "better-sqlite3";
 import type { MailConfig } from "../../config.js";
 import { MAIL_LINK_HOSTS, renderEnvelope, safeAssetBase, safeReplyTo, type RenderedMail } from "./envelope.js";
 import { createAliyunProvider, createResendProvider, type FetchLike, type MailProvider } from "./providers.js";
-import { createMailOutbox, type EnqueueLimits } from "./outbox.js";
+import { createMailOutbox, normalizeAddress, type EnqueueLimits } from "./outbox.js";
 import { recruitmentMessage, type RecruitmentKind } from "./recruitment.js";
+import { loginCodeMessage, type LoginCodePurpose } from "./login-code.js";
 
 /**
  * 站内发信的组装（#148）：按配置建发信商、发信队列，并把一份投递拼成招新的信。
@@ -78,7 +79,33 @@ export function createMailer(db: Database.Database, config: MailConfig, publicOr
     return renderEnvelope(message, { assetBase });
   }
 
-  return { ...outbox, replyTo: replyTo ?? null, recruitmentLetter };
+  /** 登录、绑定用的验证码信（#262）。 */
+  function loginCodeLetter(code: string, purpose: LoginCodePurpose, minutes: number): RenderedMail {
+    return renderEnvelope(loginCodeMessage({ code, purpose, minutes, siteOrigin, sentAt: now() }), { assetBase });
+  }
+
+  const allowlist = new Set(config.allowlist.map(normalizeAddress));
+  /**
+   * 即时发一封信，不进 mail_outbox（#262 的验证码：10 分钟就过期，等不了队列 15 秒一轮和失败退避）。
+   * 发信商按顺序试（阿里云在前，失败立刻改走 Resend），每家最多等 15 秒；遵守 MAIL_RECIPIENTS / MAIL_ALLOWLIST，
+   * 没配发信商不发。结果只给调用方记日志：发信商名、错误码，不含地址和正文。
+   */
+  async function sendNow(to: string, mail: RenderedMail, idempotencyKey: string): Promise<{ status: "sent" | "skipped" | "failed"; provider?: string; error?: string }> {
+    if (!providers.length) return { status: "skipped", error: "mail_disabled" };
+    if (config.recipients !== "all" && !allowlist.has(normalizeAddress(to))) return { status: "skipped", error: "not_allowlisted" };
+    let error = "";
+    for (const provider of providers) {
+      try {
+        await provider.send({ to, subject: mail.subject, html: mail.html, text: mail.text, replyTo: null, idempotencyKey }, AbortSignal.timeout(15_000));
+        return { status: "sent", provider: provider.name };
+      } catch (cause) {
+        error = (cause as Error)?.message?.slice(0, 120) ?? "error";
+      }
+    }
+    return { status: "failed", error };
+  }
+
+  return { ...outbox, replyTo: replyTo ?? null, recruitmentLetter, loginCodeLetter, sendNow, sendingEnabled: providers.length > 0 };
 }
 
 export type Mailer = ReturnType<typeof createMailer>;

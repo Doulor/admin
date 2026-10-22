@@ -22,7 +22,7 @@ const consoleDist = resolve(APP_ROOT, "console/dist");
  * 服务端只在这里定义一次；web 镜像内 nginx 的 location 必须与之一致（app/web/Dockerfile）。
  * 管理端是独立的 Vue 包 app/console（极客班控制台），产物入口在 app/console/dist/sites/console/index.html。
  */
-export const ADMIN_SPA_PATHS = Object.freeze({ exact: ["/signin", "/device"], prefixes: ["/admin", "/console"] });
+export const ADMIN_SPA_PATHS = Object.freeze({ exact: ["/signin", "/device", "/account"], prefixes: ["/admin", "/console"] });
 export const ADMIN_SPA_ENTRY = "sites/console/index.html";
 export const PORTAL_SPA_ENTRY = "sites/portal/index.html";
 
@@ -39,12 +39,20 @@ export function resolveSiteEntry(url: string): string {
  * `mailWorker`：开发信循环（每 15 秒发一次到期的信，app.close() 时停下）；只有 index.ts 打开，测试直接调 services.mail.drain()。
  * `sessionCleanup`：定时清过期会话（启动时一次，之后每小时；app.close() 时停下）；index.ts 和本机预览（scripts/local-preview.mjs）打开，测试直接调 auth.cleanupExpiredSessions()。
  */
+/**
+ * 请求日志的字段：同 Fastify 默认，只是 `/auth/*` 不记查询串——里面有 OAuth 的 code、state 和注册邀请码（#262）。
+ */
+export function requestLogFields(req: { method: string; url: string; host?: string; ip?: string; socket?: { remotePort?: number } }) {
+  const url = req.url.startsWith("/auth/") ? req.url.split("?")[0] : req.url;
+  return { method: req.method, url, host: req.host, remoteAddress: req.ip, remotePort: req.socket?.remotePort };
+}
+
 export type BuildAppOptions = { config: AppConfig; services?: AppServices; overrides?: ServiceOverrides; staticRoot?: string | string[] | false; logger?: boolean; mailWorker?: boolean; sessionCleanup?: boolean; observeRoute?: (route: RouteOptions) => void };
 export async function buildApp(options: BuildAppOptions) {
   const config = options.config;
   const services = options.services ?? createServices(config, options.overrides);
   const app = Fastify({
-    logger: options.logger ?? false,
+    logger: options.logger ? { serializers: { req: requestLogFields } } : false,
     trustProxy: config.trustProxy,
     ajv: { customOptions: { removeAdditional: false, coerceTypes: false } },
   });

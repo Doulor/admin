@@ -93,7 +93,7 @@ describe('netlify.toml routing', () => {
   });
 
   it('sends the console routes to the console entry without forcing over real files', () => {
-    for (const from of ['/admin', '/admin/*', '/console', '/console/*', '/signin']) {
+    for (const from of ['/admin', '/admin/*', '/console', '/console/*', '/signin', '/device', '/account']) {
       expect(rules.find(rule => rule.from === from), from).toMatchObject({ to: '/sites/console/index.html', status: 200, force: false });
     }
   });

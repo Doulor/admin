@@ -2,7 +2,7 @@
 
 > 按真实 handler、授权执行点与存储实现核对现有接口；关联目录中的业务用例，区分存量人工说明与已挂载的机器响应契约。
 
-状态：`current` · 更新：2026-10-21
+状态：`current` · 更新：2026-10-23
 
 ## 口径与共同边界
 
@@ -52,9 +52,9 @@
 
 权限与资源：匿名可读，不读会话、不需要能力。
 
-响应与错误：200 {providers:[...]}，每项含id、name、kind、start、can_register；交付1只有GitHub（kind=redirect，start=/auth/github，can_register=true），响应Schema固定字段。
+响应与错误：200 {providers:[...]}，按GitHub、Google、邮箱的顺序，每项含id、name、kind、start、can_register，邮箱另有password；GitHub恒在（kind=redirect，start=/auth/github）；Google只在配了GOOGLE_CLIENT_ID与GOOGLE_CLIENT_SECRET时出现（kind=redirect，start=/auth/google）；邮箱只在配了发信商时出现（kind=email_code，start=/auth/email/start，password=/auth/email/password）。三种的can_register都是true：GitHub要是组织成员，邮箱和Google第一次登录要邀请码。响应Schema固定字段。
 
-数据与副作用：只读进程内的固定列表，不读写数据库、不请求GitHub。
+数据与副作用：只读进程内的配置，不读写数据库、不请求GitHub或Google。
 
 本地表读取：无。本地表写入：无。
 
@@ -130,6 +130,29 @@
 
 源码：[app/server/src/routes/identity/device.ts:125](../../../app/server/src/routes/identity/device.ts#L125)、[app/server/src/lib/device-store.ts](../../../app/server/src/lib/device-store.ts)（`authenticate`）。验证入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts)。
 
+## 邮箱、Google 登录、账号页与注册邀请码（#262 第二、三期）
+
+所有者 2026-10-23 定的规则：邮箱验证码和密码都能登录；用邮箱或 Google 第一次登录、还没有极客班账号时凭邀请码注册（默认邀请码只存在运维的钥匙串里，用 `dist/cli/account.js invite` 写进库）；GitHub 登录照旧只对组织成员开放、不用邀请码。邮箱、Google 会话没有 GitHub 令牌，成员资格与提督、舰员称号按账号上记下的 GitHub 组织角色给（「按站内称号认」），要本人 GitHub 令牌的接口回 403 `github_session_required`。以下接口都挂了响应 Schema；失败体保留 `attempts_left`、`retry_after`、`reauth`、`capability` 等扩展字段。
+
+| 接口 · 流程 | 权限与资源 | 响应、错误与副作用 |
+|---|---|---|
+| `POST /auth/email/start` · `flow:identity.email.start` | 匿名；每分钟 10 次（按 IP）；同一邮箱 60 秒一封、每小时 5 封，同一 IP（IPv6 按 /64）每小时 20 封，计数存在 `email_challenges`，重启不清零 | 202 `{resend_after:60}`，写签名、HttpOnly 的 `email_challenge` cookie（path=/auth/email，10 分钟）；有没有账号响应都一样，没有账号的邮箱也真的发（填邀请码就能注册）。邮箱格式不对 400 `bad_email`；太频繁 429 `rate_limited`，带 `Retry-After` 与 `retry_after`。只存验证码的 HMAC，这个浏览器上一次的码作废（别人替这个邮箱要码不影响本人手上的码）；信由 `mail.sendNow` 直接发，不进 `mail_outbox`，日志不记地址和验证码。 |
+| `POST /auth/email/verify` · `flow:identity.email.verify` | 匿名，凭挑战 cookie；每分钟 30 次；同一个码最多错 5 次 | 200 `{return_to,registered}` 并写 `sid`；验证码不对 400 `invalid_code`（带 `attempts_left`），过期、用过或错满 5 次 400 `code_expired`；没有账号又没带 `invite_code` 400 `invite_required`（验证码不作废）；邀请码不对 400 `invalid_invite`，同时记一次错；账号停用 403 `account_disabled`，不是成员 403 `not_member`。建号、兑换邀请码、占用验证码、建会话（provider=email）、删旧会话、写 `identity_audit` 与 `auth.register`/`auth.signin` 在一个 `BEGIN IMMEDIATE` 事务里，任何一步不成整体回滚。 |
+| `POST /auth/email/password` · `flow:identity.email.password` | 匿名；每分钟 10 次（按 IP），另按邮箱 15 分钟 10 次 | 200 `{return_to}` 并写 `sid`；没账号、没设密码、密码不对一律 400 `invalid_credentials`，没有账号时也跑一次 bcrypt，响应时间不泄露邮箱是否注册；按邮箱超次数 429 `rate_limited`；停用 403 `account_disabled`，不是成员 403 `not_member`。会话 provider=email。 |
+| `GET /auth/google` · `flow:identity.google.start` | 匿名；每分钟 20 次（按 IP）；没配凭据时 404 `provider_not_enabled` | 302 到 Google 授权页（openid email profile，带 state、nonce 与 PKCE S256）；state、nonce、verifier、return_to 和 `invite` 存进签名 cookie `google_oauth_state`。 |
+| `GET /auth/google/callback` · `flow:identity.google.callback` | 每分钟 10 次（按 IP）；state 与签名 cookie 相符；ID Token 用 Google JWKS 验签（RS256），核对 iss、aud、exp、nonce；按 Google `sub` 认人，不按邮箱合并账号 | 成功 302 回 `return_to`；取消、上游失败、没有账号又没带邀请码、邀请码无效、Google 邮箱已属于别的账号、停用或不是成员时 302 到 `/signin?signin=<cancelled|failed|invite_required|invalid_invite|email_taken|account_disabled|not_member>&provider=google&return_to=<原路径>`；缺参数或 state 无效 400。外部请求在事务外，建号与会话同上一个事务；日志不输出令牌。 |
+| `GET /api/identity/me` · `flow:identity.account.view` | 任何有效会话，不要控制台能力 | 200 `{account_id,login,identities,has_password,password_updated_at,membership{state,org_role,via_invite},created_at,recent,available,session{provider,created_at,expires_at,step_up_until}}`；邮箱只给打码后的样子，`recent` 是本人最近 20 条 `identity_audit`，`available` 现在只可能是 `["email"]`（GitHub、Google 的绑定没做）。没登录 401。只读。 |
+| `POST /api/identity/email/start` · `flow:identity.account.email.start` | 有效会话，这次登录不超过 10 分钟；每分钟 10 次，发码限额同登录 | 202 `{resend_after:60}`，挑战绑定这个账号与这次会话，cookie path=/api/identity/email；已绑邮箱 409 `identity_exists`；超过 10 分钟 403 `step_up_required`（带 `reauth.return_to:"/account"`）；400 `bad_email`；429 `rate_limited`。 |
+| `POST /api/identity/email/verify` · `flow:identity.account.email.verify` | 同一会话 | 200 `{ok:true}`；换了账号或会话、过期 400 `code_expired`；码不对 400 `invalid_code`；邮箱已属于别的账号 409 `identity_conflict`；已绑 409 `identity_exists`。占用验证码、插入邮箱身份、写 `identity_audit` 在一个事务里。 |
+| `POST /api/identity/password` · `flow:identity.account.password` | 有效会话，账号已绑邮箱；每分钟 10 次 | 200 `{ok:true}`；没绑邮箱 409 `email_required`；不到 15 位 400 `password_too_short`，超过 72 字节 400 `password_exceeds_bcrypt_limit`；已有密码且登录超过 10 分钟时要 `current_password`，不对 400 `invalid_credentials`，没填 403 `step_up_required`；没有密码又超过 10 分钟 403 `step_up_required`。bcrypt cost 12，写 `users.password_hash` 与 `identity_audit`（`password_set` 或 `password_change`）。 |
+| `GET /api/console/invites` · `flow:identity.invites.list` | `accounts.invites.manage`（提督默认有）；只看身份与称号，不调用 GitHub | 200 `{invites:[{id,code,note,max_uses,used_count,expires_at,disabled,created_by,created_at,updated_at,usable}]}`；401、403 `missing_capability`。只读。 |
+| `POST /api/console/invites` · `flow:identity.invites.create` | 同上；每分钟 30 次 | 201 邀请码一行；邀请码 4–40 位字母、数字、`_`、`-`，存小写，重复 409 `invite_code_taken`，其他不合格 400；写 `invite.create` 审计。 |
+| `PATCH /api/console/invites/:id` · `flow:identity.invites.update` | 同上；每分钟 30 次 | 200 邀请码一行；只改 note、max_uses、expires_at、disabled，邀请码本身不能改、不能删；没有这一行 404 `not_found`；有改动才写 `invite.update` 审计（记改了哪些字段）。 |
+
+本地表：邮箱登录读写 `email_challenges`、`users`、`identities`、`invite_codes`、`sessions`、`identity_audit`、`audit_logs`；账号页读 `users`、`identities`、`identity_audit`，写 `email_challenges`、`identities`、`users`、`identity_audit`；邀请码页只读写 `invite_codes` 与 `audit_logs`。
+
+源码：[routes/identity/email.ts](../../../app/server/src/routes/identity/email.ts)、[routes/identity/google.ts](../../../app/server/src/routes/identity/google.ts)、[routes/identity/account.ts](../../../app/server/src/routes/identity/account.ts)、[routes/console/invites.ts](../../../app/server/src/routes/console/invites.ts)、[lib/email-login.ts](../../../app/server/src/lib/email-login.ts)、[lib/google.ts](../../../app/server/src/lib/google.ts)、[lib/invite-codes.ts](../../../app/server/src/lib/invite-codes.ts)、[lib/identity-store.ts](../../../app/server/src/lib/identity-store.ts)。验证入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)、[tests/console/signin.test.ts](../../../tests/console/signin.test.ts)、[tests/console/account.test.ts](../../../tests/console/account.test.ts)。
+
 ## 校验登录回调，在一个事务里建号或找到账号并建立统一会话
 
 `GET /auth/callback` · `flow:identity.callback`
@@ -138,7 +161,7 @@
 
 响应与错误：成功302回return_to；取消/上游失败/非成员/账号停用一律302到<PUBLIC_ORIGIN>/signin?signin=<cancelled|failed|not_member|invite_pending|account_disabled>&return_to=<原来要回的本站路径>，原路径里残留的signin参数会去掉（#262）；合并链超过8跳、成环或事务失败按failed；缺参数或无效state为400，旧forum-state为410。
 
-数据与副作用：外部请求在事务外做完；建号、刷新身份、沿merged_into走到终点、按GitHub id认领称号与论坛用户、写sessions（含openid、provider）、删请求带来的旧会话、写identity_audit与auth.signin在一个BEGIN IMMEDIATE事务里，失败整体回滚、旧会话照常有效。非成员与停用账号不建会话、审计拒绝并尽力撤销授权；失败日志不输出token。
+数据与副作用：外部请求在事务外做完；建号、刷新身份、沿merged_into走到终点、按GitHub id认领称号与论坛用户、写sessions（含openid、provider）、删请求带来的旧会话、写identity_audit与auth.signin在一个BEGIN IMMEDIATE事务里，失败整体回滚、旧会话照常有效。非成员与停用账号不建会话、审计拒绝并尽力撤销授权；被组织拒绝的GitHub id已经有账号时，清掉账号记下的组织角色，不是邀请码注册的账号同时改成not_member或pending（#262审查）；失败日志不输出token。
 
 本地表读取：identities, users。本地表写入：sessions, audit_logs, users, identities, identity_audit, role_assignments, forum_users。
 

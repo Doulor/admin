@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { requireGithubSession } from "../../middleware/require-github-session.js";
 
 export default async function orgsRoutes(app: FastifyInstance) {
   const { octokitWith } = app.services.github;
@@ -7,7 +8,7 @@ export default async function orgsRoutes(app: FastifyInstance) {
   const { cached } = app.services.cache;
   app.addHook("preHandler", requireAuth);
 
-  app.get("/api/me/orgs", async (req) => {
+  app.get("/api/me/orgs", { preHandler: requireGithubSession }, async (req) => {
     const login = req.session!.login;
     return cached(`orgs:${login}`, 120_000, async () => {
       const octokit = octokitWith(req.session!.accessToken);

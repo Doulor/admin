@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import {
   ENVIRONMENTS,
   IMAGE_SERVICES,
+  GOOGLE_SECRET_PAIR,
   MAIL_ALIYUN_SECRET_PAIR,
   OPTIONAL_SECRETS,
   OPTIONAL_SECRET_PAIR,
@@ -371,12 +372,28 @@ describe('optional Turnstile pair', () => {
     expect(() => renderRuntimeEnv({ root, environment: 'production', out, imageTag: 'a1b2c3d4e5f6', env: { ...secrets, TURNSTILE_SECRET_KEY: '' } })).toThrow(/只配了一项/);
     expect(() => renderRuntimeEnv({ root, environment: 'production', out, imageTag: 'a1b2c3d4e5f6', env: { ...secrets, TURNSTILE_SITE_KEY: '' } })).toThrow(/只配了一项/);
     // Turnstile 与发信都关闭时，其余每一个密钥仍然必填。
-    const required = without(secrets, [...OPTIONAL_SECRET_PAIR, ...MAIL_ALIYUN_SECRET_PAIR, ...OPTIONAL_SECRETS]);
+    const required = without(secrets, [...OPTIONAL_SECRET_PAIR, ...MAIL_ALIYUN_SECRET_PAIR, ...GOOGLE_SECRET_PAIR, ...OPTIONAL_SECRETS]);
     expect(Object.keys(required)).toEqual([...REQUIRED_SECRET_FIELDS]);
     for (const field of REQUIRED_SECRET_FIELDS) {
       expect(() => renderRuntimeEnv({ root, environment: 'production', out, imageTag: 'a1b2c3d4e5f6', env: without(required, [field]) })).toThrow(new RegExp(field));
     }
     expect(renderRuntimeEnv({ root, environment: 'production', out, imageTag: 'a1b2c3d4e5f6', env: secrets }).turnstile).toBe('on');
+  });
+
+  it('treats the Google client as an optional pair: both empty is off, one alone is refused (#262)', () => {
+    const root = fixtureRoot();
+    const out = join(root, 'runtime/.env.preview');
+    const render = (env: Record<string, string>) => renderRuntimeEnv({ root, environment: 'preview', out, imageTag: 'a1b2c3d4e5f6', env });
+    for (const field of GOOGLE_SECRET_PAIR) {
+      expect(SECRET_FIELDS).toContain(field);
+      expect(REQUIRED_SECRET_FIELDS).not.toContain(field);
+      expect(() => render(without(secrets, [field]))).toThrow(/只配了一项/);
+    }
+    const off = render(without(secrets, GOOGLE_SECRET_PAIR));
+    expect(off.google).toBe('off');
+    expect(off.notices.some(text => text.includes('Google 登录关闭'))).toBe(true);
+    expect(parseEnvFileText(readFileSync(out, 'utf8'), 'rendered').get('GOOGLE_CLIENT_ID')).toBe('');
+    expect(render(secrets).google).toBe('on');
   });
 });
 

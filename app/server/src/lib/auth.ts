@@ -6,6 +6,7 @@ import type { createCrypto } from "./crypto.js";
 import { truncateWal } from "./db.js";
 import { GITHUB_TIMEOUT_MS } from "./github.js";
 import type { IdentityProvider, NewSession } from "./identity-store.js";
+import { CHALLENGE_RETENTION_MS } from "./email-login.js";
 /**
  * 会话（#262）：`account_id` 是极客班账号（sessions.openid），`provider` 是这次的登录方式；`login`、`user_id`、
  * `avatar_url` 是绑定的 GitHub 账号，语义不变（user_id 仍是 GitHub 数字 id）。
@@ -18,11 +19,12 @@ export type Session = {
   user_id: number | null;
   avatar_url: string | null;
   accessToken: string;
+  created_at: number;
   expires_at: number;
 };
 type SessionRow = {
   id: string; login: string; user_id: number | null; avatar_url: string | null; access_token_encrypted: string;
-  expires_at: number; openid: string | null; provider: string | null; account_status: string | null;
+  created_at: number; expires_at: number; openid: string | null; provider: string | null; account_status: string | null;
 };
 
 /** 清理循环只记日志：一次清理失败不影响服务，也不抛出（#128）。 */
@@ -41,8 +43,9 @@ export function createAuth(db: Database.Database, crypto: ReturnType<typeof crea
 const { encrypt, decrypt } = crypto;
 
 /**
- * 插入一个会话。只由登录事务调用（lib/identity-store.ts 的 signInWithGithub），和建号、认领、审计在同一个事务里；
+ * 插入一个会话。只由登录事务调用（lib/identity-store.ts），和建号、认领、审计在同一个事务里；
  * 新列 openid、provider 与旧列一起写，换回旧镜像时旧代码照样读得到登录名、GitHub id 和 token。
+ * 邮箱、Google 会话没有 GitHub 令牌，`access_token_encrypted` 存空串加密后的值（列是 NOT NULL；重建表放到以后）。
  */
 function createSession(input: NewSession): string {
   const id = randomBytes(24).toString("base64url");
@@ -73,6 +76,7 @@ function getSession(id: string): Session | null {
       user_id: row.user_id,
       avatar_url: row.avatar_url,
       accessToken: decrypt(row.access_token_encrypted),
+      created_at: row.created_at,
       expires_at: row.expires_at,
     };
   } catch {
@@ -94,6 +98,8 @@ function destroySession(id: string): boolean {
  */
 function cleanupExpiredSessions(): { deleted: number; walTruncated: boolean } {
   const deleted = db.prepare("DELETE FROM sessions WHERE expires_at < ?").run(clock()).changes;
+  // 邮箱验证码的挑战（#262）随这一趟一起清：过期一小时以上的删掉（限流按一小时窗口从这张表计数），里面有收件地址
+  db.prepare("DELETE FROM email_challenges WHERE expires_at < ?").run(clock() - CHALLENGE_RETENTION_MS);
   return { deleted, walTruncated: truncateWal(db) };
 }
 

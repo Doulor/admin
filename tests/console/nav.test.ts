@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { CONSOLE_NAV, activeNavId, navState, visibleNav } from "../../app/console/src/lib/nav";
 import { MOCK_PERSONAS } from "../../app/console/src/mock/console";
 
-const identity = (capabilities: string[], blocked: { capability: string; reason: "github_admin_required" | "github_membership_required" }[] = []) => ({ capabilities, blocked });
+type Reason = "github_admin_required" | "github_membership_required" | "github_session_required";
+const identity = (capabilities: string[], blocked: { capability: string; reason: Reason }[] = []) => ({ capabilities, blocked });
 
 describe("navState", () => {
   const item = { anyOf: ["github.invites.manage"] };
@@ -11,6 +12,9 @@ describe("navState", () => {
   });
   it("hides an item whose capability is capped by the GitHub role", () => {
     expect(navState(item, identity(["console.access"], [{ capability: "github.invites.manage", reason: "github_admin_required" }]))).toBe("hidden");
+  });
+  it("keeps an item that only needs a GitHub sign-in, so the gate can offer one (#262)", () => {
+    expect(navState(item, identity(["console.access"], [{ capability: "github.invites.manage", reason: "github_session_required" }]))).toBe("visible");
   });
   it("hides an item the title never granted", () => {
     expect(navState(item, identity(["console.access"]))).toBe("hidden");
@@ -45,6 +49,15 @@ describe("console navigation per persona", () => {
     expect(ids("recruitment")).toContain("people");
     expect(ids("recruitment")).not.toContain("audit");
     expect(ids("tech")).toContain("audit");
+  });
+  it("keeps the owner's GitHub pages in the nav when they signed in by email, and the invite codes page", () => {
+    expect(ids("admin_email")).toEqual(ids("admin"));
+    expect(ids("admin_email")).toContain("invites");
+    expect(MOCK_PERSONAS.admin_email.capabilities.some(id => id.startsWith("github."))).toBe(false);
+  });
+  it("shows invite codes only to holders of accounts.invites.manage", () => {
+    expect(ids("captain")).toContain("invites");
+    expect(ids("tech")).not.toContain("invites");
   });
   it("gives a guest nothing", () => {
     expect(ids("guest")).toEqual([]);

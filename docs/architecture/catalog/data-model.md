@@ -2,9 +2,9 @@
 
 > 从真实建库函数产生的内存 SQLite 提取表、列、索引和物理外键；不读取业务记录。
 
-状态：`current` · 更新：2026-10-21 · 自动生成，不手工编辑。
+状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`c4b4b8dcd036d4696bebe71f143317faefccf985151a9428a8c290ebfe2f9640`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`22faa2c5401d55cfaeedf8c78f89b27dc1d358c28422f760b90b7e591f95f9de`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -28,6 +28,7 @@ flowchart LR
   console_seeds["console_seeds"]
   departments["departments"]
   device_grants["device_grants"]
+  email_challenges["email_challenges"]
   feedback["feedback"]
   forum_avatars["forum_avatars"]
   forum_bookmarks["forum_bookmarks"]
@@ -45,6 +46,7 @@ flowchart LR
   identity_audit["identity_audit"]
   invitations["invitations"]
   invite_attempts["invite_attempts"]
+  invite_codes["invite_codes"]
   invite_links["invite_links"]
   mail_outbox["mail_outbox"]
   role_assignments["role_assignments"]
@@ -67,6 +69,7 @@ flowchart LR
   competition_team_members -->|"team_id → id"| competition_teams
   competition_teams -->|"leader_account_id → id"| users
   competition_teams -->|"competition_id → id"| competitions
+  email_challenges -->|"account_id → id"| users
   forum_bookmarks -->|"post_id → id"| forum_posts
   forum_bookmarks -->|"user_id → id"| forum_users
   forum_follows -->|"followee_id → id"| forum_users
@@ -85,6 +88,7 @@ flowchart LR
   identity_audit -->|"user_id → id"| users
   role_assignments -->|"account_id → id"| users
   sessions -->|"openid → id"| users
+  users -->|"invite_code_id → id"| invite_codes
   users -->|"merged_into → id"| users
 ```
 
@@ -737,6 +741,63 @@ CREATE TABLE device_grants (
 
 </details>
 
+## email_challenges
+
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:583](../../../app/server/src/lib/db.ts#L583)。
+
+邮箱验证码（#262）：一行是一次发码，只存验证码的 HMAC（密钥由 SESSION_SECRET 派生）、按邮箱的限流键和按 IP 前缀的 HMAC，不存验证码原文和 IP；10 分钟过期、最多试 5 次，用过写 used_at；过期一小时后由会话清理一起删除。只有 lib/email-login.ts 读写，目录不读取记录。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `purpose` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `email` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `limit_key` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `account_id` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `session_hash` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `return_to` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `code_hmac` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `attempts` | `INTEGER` | 1 | 0 | `0` | 0 |
+| `ip_key` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `expires_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `used_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `account_id` | `users.id` | NO ACTION | NO ACTION |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `idx_email_challenges_ip` | `ip_key`、`created_at` | 0 | c | 0 | `CREATE INDEX idx_email_challenges_ip ON email_challenges(ip_key, created_at)` |
+| `idx_email_challenges_limit` | `limit_key`、`created_at` | 0 | c | 0 | `CREATE INDEX idx_email_challenges_limit ON email_challenges(limit_key, created_at)` |
+| `sqlite_autoindex_email_challenges_1` | `id` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE email_challenges (
+  id TEXT PRIMARY KEY,
+  purpose TEXT NOT NULL CHECK (purpose IN ('signin', 'link')),
+  email TEXT NOT NULL,
+  limit_key TEXT NOT NULL,
+  account_id TEXT REFERENCES users(id),
+  session_hash TEXT,
+  return_to TEXT,
+  code_hmac TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  ip_key TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  used_at INTEGER,
+  CHECK (purpose = 'signin' OR (account_id IS NOT NULL AND session_hash IS NOT NULL))
+);
+```
+
+</details>
+
 ## feedback
 
 业务域：`feedback`；结构来源：[app/server/src/lib/db.ts:69](../../../app/server/src/lib/db.ts#L69)。
@@ -1310,6 +1371,7 @@ NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT N
 | `sqlite_autoindex_identities_1` | `id` | 1 | pk | 0 | `SQLite 自动索引` |
 | `sqlite_autoindex_identities_2` | `provider`、`provider_uid` | 1 | u | 0 | `SQLite 自动索引` |
 | `uq_identities_github_user` | `user_id` | 1 | c | 1 | `CREATE UNIQUE INDEX uq_identities_github_user ON identities(user_id) WHERE provider = 'github'` |
+| `uq_identities_user_provider` | `user_id`、`provider` | 1 | c | 0 | `CREATE UNIQUE INDEX uq_identities_user_provider ON identities(user_id, provider)` |
 
 <details><summary>建表 SQL</summary>
 
@@ -1452,6 +1514,50 @@ CREATE TABLE invite_attempts (
     state TEXT NOT NULL, github_invitation_id INTEGER, created_at INTEGER NOT NULL,
     UNIQUE(token, recipient)
   );
+```
+
+</details>
+
+## invite_codes
+
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:570](../../../app/server/src/lib/db.ts#L570)。
+
+注册邀请码（#262）：code 存小写明文（要能在控制台里复制给人），used_count 由注册事务里的条件更新加一，max_uses、expires_at 为空表示不限；不删，停用用 disabled。users.invite_code_id 记着账号是用哪一个注册的。只有 lib/invite-codes.ts 与 lib/identity-store.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `id` | `INTEGER` | 0 | 1 | 未声明 | 0 |
+| `code` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `note` | `TEXT` | 1 | 0 | `''` | 0 |
+| `max_uses` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `used_count` | `INTEGER` | 1 | 0 | `0` | 0 |
+| `expires_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `disabled` | `INTEGER` | 1 | 0 | `0` | 0 |
+| `created_by` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_invite_codes_1` | `code` | 1 | u | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE invite_codes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT NOT NULL UNIQUE,
+  note TEXT NOT NULL DEFAULT '',
+  max_uses INTEGER CHECK (max_uses IS NULL OR max_uses > 0),
+  used_count INTEGER NOT NULL DEFAULT 0,
+  expires_at INTEGER,
+  disabled INTEGER NOT NULL DEFAULT 0 CHECK (disabled IN (0, 1)),
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
 ```
 
 </details>
@@ -1735,16 +1841,23 @@ CREATE TABLE titles (
 | `membership_version` | `INTEGER` | 1 | 0 | `0` | 0 |
 | `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
 | `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `org_role` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `handle` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `invite_code_id` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `password_hash` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `password_updated_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
 
 NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
 
 | 外键列 | 引用 | ON UPDATE | ON DELETE |
 |---|---|---|---|
+| `invite_code_id` | `invite_codes.id` | NO ACTION | NO ACTION |
 | `merged_into` | `users.id` | NO ACTION | NO ACTION |
 
 | 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
 |---|---|---|---|---|---|
 | `sqlite_autoindex_users_1` | `id` | 1 | pk | 0 | `SQLite 自动索引` |
+| `uq_users_handle` | `handle` | 1 | c | 1 | `CREATE UNIQUE INDEX uq_users_handle ON users(handle) WHERE handle IS NOT NULL` |
 
 <details><summary>建表 SQL</summary>
 
@@ -1758,7 +1871,7 @@ CREATE TABLE users (
   org_checked_at INTEGER,
   membership_version INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL, org_role TEXT, handle TEXT, invite_code_id INTEGER REFERENCES invite_codes(id), password_hash TEXT, password_updated_at INTEGER,
   CHECK ((status = 'merged') = (merged_into IS NOT NULL)),
   CHECK (merged_into <> id)
 );

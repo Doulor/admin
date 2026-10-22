@@ -24,7 +24,7 @@ const hostConf = (name: string) => readFileSync(join(repoRoot, `deploy/nginx/${n
 describe('web container nginx picks the SPA entry by path', () => {
   it('declares the admin paths and entry in one location, before the image rule, with no host switch', () => {
     // 管理端路径清单与入口文件在 nginx 里各只出现一次，服务端对应的是 ADMIN_SPA_PATHS / ADMIN_SPA_ENTRY。
-    expect(siteConf.match(/^\s*location ~ \^\/\(\?:\(\?:admin\|console\)\(\?:\/\|\$\)\|signin\$\|device\$\) \{$/gm)).toHaveLength(1);
+    expect(siteConf.match(/^\s*location ~ \^\/\(\?:\(\?:admin\|console\)\(\?:\/\|\$\)\|signin\$\|device\$\|account\$\) \{$/gm)).toHaveLength(1);
     expect(siteConf.split(`/${ADMIN_SPA_ENTRY}`)).toHaveLength(2);
     expect(siteConf.indexOf(`/${ADMIN_SPA_ENTRY}`)).toBeLessThan(siteConf.indexOf('location ~* \\.(?:png'));
     expect(siteConf).toMatch(new RegExp(`location / \\{\\s*try_files \\$uri /${PORTAL_SPA_ENTRY.replaceAll('/', '\\/').replaceAll('.', '\\.')};\\s*\\}`));

@@ -300,7 +300,8 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
       AND NOT EXISTS (SELECT 1 FROM competition_team_members m WHERE m.competition_id = s.competition_id AND m.account_id = s.account_id AND m.status = 'active')`);
 
   // 身份表由 lib/identity-store.ts 写；这里只读登录名、头像与账号状态给名单和成员检查，不碰会话与账号状态机。
-  const selectProfile = db.prepare(`SELECT u.id AS id, i.login AS login, i.avatar_url AS avatar_url, u.status AS status, u.org_state AS org_state
+  // 没有绑定 GitHub 的账号（邮箱、Google 注册，#262）用账号自己的 yz_ 登录名。
+  const selectProfile = db.prepare(`SELECT u.id AS id, COALESCE(i.login, u.handle) AS login, i.avatar_url AS avatar_url, u.status AS status, u.org_state AS org_state
     FROM users u LEFT JOIN identities i ON i.user_id = u.id AND i.provider = 'github' WHERE u.id = ?`);
   const selectFreeAgents = db.prepare(`SELECT s.account_id AS account_id, s.note AS note, s.created_at AS since
     FROM competition_signups s
@@ -313,7 +314,10 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
     return { account_id: accountId, login: row?.login ?? "", avatar_url: row?.avatar_url ?? null };
   }
 
-  /** 交付 2 之前 `org_state` 只会是 `active`，这条实际只挡停用的账号；统一登录的资格模块上线后改问它。 */
+  /**
+   * 对方现在算不算成员：账号启用且成员资格是 active（GitHub 组织成员，或用邀请码注册的人，#262）。
+   * GitHub 会话查到不是组织成员时 org_state 会改成 not_member（lib/identity-store.ts 的 recordOrgRole）。
+   */
   function isActiveAccount(accountId: string): boolean {
     const row = selectProfile.get(accountId) as ProfileRow | undefined;
     return row?.status === "active" && row.org_state === "active";

@@ -1,0 +1,102 @@
+import bcrypt from "bcryptjs";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { RESEND_AFTER_S, normalizeEmail } from "../../lib/email-login.js";
+import { hashPassword, passwordError } from "../../lib/password-policy.js";
+import { sessionFingerprint } from "../../middleware/oauth-state.js";
+import { requireAuth } from "../../middleware/require-auth.js";
+import { clearChallengeCookie, readChallengeCookie, sendCode, setChallengeCookie, tooSoon } from "./email.js";
+import { loginProviders } from "./providers.js";
+
+/** 绑定邮箱、设密码前要求这次登录不超过 10 分钟（规格「重新验证」）；超时回 403 step_up_required，不是退出。 */
+export const STEP_UP_MS = 10 * 60_000;
+const CHALLENGE_PATH = "/api/identity/email";
+
+/**
+ * 账号页 `/account` 的接口（#262）：任何有效会话都能用，不要 `console.access`。
+ * - `GET /api/identity/me`：登录方式、有没有密码、成员资格、这次登录、最近账号记录。
+ * - `POST /api/identity/email/start`、`/verify`：给账号绑定邮箱（绑好才能用邮箱验证码或密码登录）。
+ * - `POST /api/identity/password`：设置或修改密码（至少 15 位）。已有密码时要填当前密码，或者 10 分钟内刚登录过
+ *   （忘了密码就用验证码登录后直接设新的）；还没有密码时要 10 分钟内刚登录过。
+ */
+export default async function accountRoutes(app: FastifyInstance) {
+  const { emailLogin, identity, mail, google } = app.services;
+  const writes = { preHandler: requireAuth, config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
+
+  const fresh = (req: FastifyRequest) => Date.now() - req.session!.created_at <= STEP_UP_MS;
+  const stepUp = (reply: FastifyReply) => reply.code(403).send({
+    error: "step_up_required", message: "这一步要求刚登录过，请重新登录后再试", reauth: { return_to: "/account" },
+  });
+
+  app.get("/api/identity/me", { preHandler: requireAuth }, async (req) => {
+    const session = req.session!;
+    const view = identity.accountView(session.account_id);
+    const bound = new Set(view.identities.map(item => item.provider));
+    // `available`：账号页上现在就能绑定的方式。只有邮箱有绑定接口；GitHub、Google 的绑定还没做，不列出来
+    const available = loginProviders({ mailEnabled: mail.sendingEnabled, googleEnabled: google.enabled })
+      .map(provider => provider.id).filter((id): id is "email" => id === "email" && !bound.has(id));
+    return {
+      account_id: session.account_id,
+      ...view,
+      available,
+      session: { provider: session.provider, created_at: session.created_at, expires_at: session.expires_at, step_up_until: session.created_at + STEP_UP_MS },
+    };
+  });
+
+  app.post<{ Body: { email: string } }>("/api/identity/email/start", writes, async (req, reply) => {
+    const session = req.session!;
+    const email = normalizeEmail(req.body.email);
+    if (!email) return reply.code(400).send({ error: "bad_email", message: "邮箱格式不对" });
+    if (!fresh(req)) return stepUp(reply);
+    if (identity.accountView(session.account_id).identities.some(item => item.provider === "email")) {
+      return reply.code(409).send({ error: "identity_exists", message: "这个账号已经绑定了邮箱" });
+    }
+    const started = emailLogin.start({ purpose: "link", email, ip: req.ip, replaces: readChallengeCookie(req), accountId: session.account_id, sessionHash: sessionFingerprint(session.id) });
+    if (!started.ok) return tooSoon(reply, started.retryAfter);
+    sendCode(req, email, started.code, "link", started.id);
+    setChallengeCookie(reply, started.id, CHALLENGE_PATH);
+    return reply.code(202).send({ resend_after: RESEND_AFTER_S });
+  });
+
+  app.post<{ Body: { code: string } }>("/api/identity/email/verify", writes, async (req, reply) => {
+    const session = req.session!;
+    const expired = () => reply.code(400).send({ error: "code_expired", message: "验证码已失效，请重新获取" });
+    const checked = emailLogin.check(readChallengeCookie(req), req.body.code, "link");
+    if (!checked.ok) {
+      return checked.error === "invalid_code"
+        ? reply.code(400).send({ error: "invalid_code", message: `验证码不对，还可以试 ${checked.attemptsLeft} 次`, attempts_left: checked.attemptsLeft })
+        : expired();
+    }
+    const { challenge } = checked;
+    // 只认发起绑定的那个会话：换了账号或重新登录过，这个验证码就不算数
+    if (challenge.account_id !== session.account_id || challenge.session_hash !== sessionFingerprint(session.id)) return expired();
+    const result = identity.linkEmail({ accountId: session.account_id, email: challenge.email, login: session.login, ip: req.ip, claim: () => emailLogin.claim(challenge.id) });
+    if (!result.ok) {
+      if (result.reason === "code_expired") return expired();
+      return reply.code(409).send(result.reason === "identity_conflict"
+        ? { error: "identity_conflict", message: "这个邮箱已经绑定了别的极客班账号" }
+        : { error: "identity_exists", message: "这个账号已经绑定了邮箱" });
+    }
+    clearChallengeCookie(reply, CHALLENGE_PATH);
+    return { ok: true };
+  });
+
+  app.post<{ Body: { password: string; current_password?: string } }>("/api/identity/password", writes, async (req, reply) => {
+    const session = req.session!;
+    const view = identity.accountView(session.account_id);
+    if (!view.identities.some(item => item.provider === "email")) {
+      return reply.code(409).send({ error: "email_required", message: "密码登录用邮箱作账号，先绑定邮箱再设密码" });
+    }
+    const invalid = passwordError(req.body.password);
+    if (invalid) {
+      return reply.code(400).send({ error: invalid, message: invalid === "password_too_short" ? "密码至少 15 位" : "密码太长了（不能超过 72 个字节）" });
+    }
+    if (!fresh(req)) {
+      const hash = identity.passwordHashOf(session.account_id);
+      const given = req.body.current_password;
+      if (!hash || typeof given !== "string" || !given) return stepUp(reply);
+      if (!(await bcrypt.compare(given, hash))) return reply.code(400).send({ error: "invalid_credentials", message: "当前密码不对" });
+    }
+    identity.setPassword(session.account_id, await hashPassword(req.body.password), { login: session.login, ip: req.ip });
+    return { ok: true };
+  });
+}

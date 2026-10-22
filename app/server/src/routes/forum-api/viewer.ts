@@ -30,11 +30,11 @@ const GUEST: ForumViewer = Object.freeze({ kind: "guest", userId: null, login: n
  */
 export async function forumViewer(req: FastifyRequest): Promise<ForumViewer> {
   if (req.forumViewer) return req.forumViewer;
-  // 会话都有极客班账号和绑定的 GitHub id（没有 user_id 的旧会话读到时已按未登录删掉，lib/auth.ts）；这里再兜一次底。
+  // 论坛用户按 GitHub id 建：没有绑定 GitHub 的账号（邮箱、Google 注册，#262）会话里 user_id 为空，在论坛按游客处理。
   if (!loadSession(req) || req.session!.user_id === null) return (req.forumViewer = GUEST);
   const session = req.session!;
   const access = await resolveAccess(req);
-  if (access.githubRole === null) return (req.forumViewer = GUEST);
+  if (!access.member) return (req.forumViewer = GUEST);
   const top = access.titles[0];
   const title: ForumTitle | null = top && top.id !== "guest" ? { id: top.id, ...(top.department ? { department: top.department.id } : {}) } : null;
   const userId = req.server.services.forum.ensureMember({

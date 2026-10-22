@@ -66,6 +66,9 @@ services:
       MAIL_ALIYUN_ACCESS_KEY_SECRET: ${MAIL_ALIYUN_ACCESS_KEY_SECRET:-}
       MAIL_RESEND_API_KEY: ${MAIL_RESEND_API_KEY:-}
       MAIL_ALLOWLIST: ${MAIL_ALLOWLIST:-}
+      # Google 登录（#262）：可选的一对，都空时登录页不出现 Google；只填一项 server 启动失败。
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     ports:
       # 宿主回环，只给本机调试与部署脚本的健康检查用。
       - "${SERVER_BIND:?}:${SERVER_PORT:?}"

@@ -37,6 +37,11 @@ function openSite(target: "portal" | "forum") {
   window.location.assign(siteUrl(target, "/"));
 }
 
+function openAccount() {
+  void router.push("/account");
+  emit("navigate");
+}
+
 function onSelect(item: SidebarNavItem) {
   const target = entries.value.find(entry => entry.id === item.value);
   if (!target) return;
@@ -80,6 +85,7 @@ function onSelect(item: SidebarNavItem) {
           <div class="console-nav__links">
             <TxButton variant="ghost" size="sm" icon="i-carbon-home" @click="openSite('portal')">官网</TxButton>
             <TxButton variant="ghost" size="sm" icon="i-carbon-forum" @click="openSite('forum')">论坛</TxButton>
+            <TxButton variant="ghost" size="sm" icon="i-carbon-user-avatar" @click="openAccount">账号</TxButton>
             <TxButton variant="ghost" size="sm" icon="i-carbon-logout" class="console-nav__signout" @click="emit('signout')">退出</TxButton>
           </div>
         </div>
@@ -148,10 +154,10 @@ function onSelect(item: SidebarNavItem) {
   white-space: nowrap;
   color: var(--tx-text-color-primary);
 }
-/* 三个按钮等宽排一行，不再按字数长短一左一右参差换行 */
+/* 四个按钮等宽排两行，不再按字数长短一左一右参差换行 */
 .console-nav__links {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
 }
 .console-nav__links :deep(.tx-button) {

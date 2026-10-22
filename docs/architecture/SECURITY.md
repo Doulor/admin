@@ -2,7 +2,7 @@
 
 > 区分核心后端授权、论坛服务端模式与本机演示；代码防护、真实环境配置和人工验收分别取证。
 
-状态：`current` · 更新：2026-10-21
+状态：`current` · 更新：2026-10-23
 
 ## 核心服务
 
@@ -14,7 +14,7 @@
 
 **还剩的**：打开 `secure_delete` 之前删掉的行（本改动上线前预发布、正式库里删过的会话），字节留在空闲空间里，要等被新数据覆盖；本机实测正常运行几趟之后 30 条里还剩 3 条，做一次 `VACUUM` 后为 0。在预发布、正式库上做 `VACUUM` 是对业务数据库的维护操作，要先获得授权，另开 issue。上面这些保证只到文件为止：`data.db`、`-wal` 和在线备份这几个文件里找不到被删会话的字节；`-wal` 截断时交还给文件系统的块并没有写成 0，文件系统释放的块、卷或磁盘的块级快照和裸盘镜像不在范围内，卷本身泄漏时这些块里可能还有旧密文。
 
-**登录门槛：只有 `CONSOLE_ORG` 的 active 成员能登录。** 官网、论坛、控制台共用这一个登录和同一个 `sid`。`/auth/callback` 通过签名 state 校验、换到 token、取到 `/user` 之后，用这个 token 调 `GET /user/memberships/orgs/{CONSOLE_ORG}`（`app/server/src/lib/github.ts` 的 `getOwnMembership`，OAuth scope 含 `read:org`），查的是登录者自己的成员状态，不按用户名查别人。结果处理（`app/server/src/routes/admin/auth.ts`）：
+**登录门槛：用 GitHub 登录只对 `CONSOLE_ORG` 的 active 成员开放；用邮箱或 Google 第一次登录要凭邀请码注册**（#262，所有者 2026-10-23，见下文「邮箱、Google 登录与邀请码注册」）。官网、论坛、控制台共用这一个登录和同一个 `sid`。以下是 GitHub 这条路：`/auth/callback` 通过签名 state 校验、换到 token、取到 `/user` 之后，用这个 token 调 `GET /user/memberships/orgs/{CONSOLE_ORG}`（`app/server/src/lib/github.ts` 的 `getOwnMembership`，OAuth scope 含 `read:org`），查的是登录者自己的成员状态，不按用户名查别人。结果处理（`app/server/src/routes/admin/auth.ts`）：
 
 - `active`：建会话、写 `sid`、审计 `auth.signin`，回到 `return_to`。会话绑定一个极客班账号（#262，`sessions.openid` = `users.id`，接口里叫 `account_id`）：按 GitHub **数字 id** 找身份，没有就建号（只有 GitHub 能建号），沿 `merged_into` 走到终点账号，按 GitHub id 认领还没认领的称号和论坛用户，插入会话、删掉请求带来的旧 `sid`、写审计，这些在一个 `BEGIN IMMEDIATE` 事务里（`lib/identity-store.ts` 的 `signInWithGithub`），任何一步失败整体回滚、按 `failed` 回登录页，旧会话照常有效。只有登录名、没有 GitHub id 的旧称号**不认领**：旧登录名可能已被别人注册。终点账号已停用：不建会话，审计 `auth.signin_denied`（`reason` 为 `account_disabled`），撤销授权，回 `signin=account_disabled`；合并链超过 8 跳或成环按 `failed`。读会话时没有账号（#262 之前留下、没有 GitHub id 的旧会话）或账号不是 `active` 的，一律按未登录处理并删掉这一行。
 - 不是成员（GitHub 返回 404）或邀请还没接受（`pending`）：不建会话、不写 `sid`、不保存 token；审计 `auth.signin_denied`（`actor` 与 `target` 是 GitHub 登录名，`details` 为 `{ org, reason, provider }`，`reason` 取 `not_member` 或 `pending`，`provider` 是 `github`；这个 GitHub id 已经有账号时另写 `actor_account_id`）；尽力撤销这个用户对本应用的授权（`DELETE /applications/{client_id}/grant`，用应用自己的 client_id 与 secret 做 Basic 认证），撤销失败只记警告日志；302 到 `/signin` 并带 `signin=not_member` 或 `signin=invite_pending` 与原来的 `return_to` 路径。这条审计的 `org` 列为空，和登录、登出一样不经任何审计接口返回，只能在数据库里查。
@@ -40,6 +40,20 @@
 - **跨站写入**：`POST /api/identity/device/approve` 是普通写请求，先经 `middleware/http-policy.ts` 的 Origin / Fetch Metadata 校验（外域 403 `invalid_origin`），会话 Cookie 是 `SameSite=Lax`，第三方站点不能带着会话替你确认。
 - **接口面最小**：设备令牌只被 `GET /auth/device/userinfo` 接受，`sub` 与 `account_id` 都是极客班账号，`login`、`avatar_url` 是绑定的 GitHub 资料；其它接口仍只认会话 Cookie，令牌换不到任何控制台、论坛或 GitHub 能力。`verification_uri` 由 `PUBLIC_ORIGIN` 拼出（`<PUBLIC_ORIGIN>/device`），不写死域名，预发布与正式各自指向自己。
 - **审计不留凭据**：允许与拒绝各写一条 `identity.device.approve` / `identity.device.deny`（`actor` 是操作者登录名、另记 `actor_account_id`），`details` 只有 `client_id` 与 `scope`，不记 `device_code`、令牌与 `user_code`；审计 `org` 列为空，不经任何接口返回。
+
+## 邮箱、Google 登录与邀请码注册（#262）
+
+所有者 2026-10-23 定：「目前开放注册，现在的github注册的都算组织成员，后续需要邀请码去注册」「验证码和密码都支持」「按站内称号认」。源码在 `lib/email-login.ts`、`lib/google.ts`、`lib/invite-codes.ts`、`lib/identity-store.ts`、`routes/identity/email.ts`、`google.ts`、`account.ts` 与 `routes/console/invites.ts`，接口见 [API](API.md)。
+
+- **建号要邀请码**：邮箱或 Google 第一次登录、还没有极客班账号时，要一个可用的邀请码（没停用、没过期、次数没用完）。建号、兑换邀请码、占用验证码、建会话在一个 `BEGIN IMMEDIATE` 事务里，任何一步不成整体回滚，邀请码不白用、验证码不白丢。邀请码无效对外只说「无效」，不区分不存在、停用、过期和用完；邮箱登录时每填错一次邀请码也算一次验证码错误。邀请码由持有 `accounts.invites.manage` 的人在控制台管理，原文存库（管理员要看得到、复制得了），比较不分大小写；默认邀请码只在运维的钥匙串里，用 `dist/cli/account.js invite` 从标准输入写进库，不进仓库、种子、环境模板和日志。
+- **验证码**：6 位数字，10 分钟有效，同一个码最多错 5 次；库里只存 HMAC（密钥派生自 `SESSION_SECRET`），不存原文，日志不记地址和验证码。挑战 id 放在签名、HttpOnly 的 cookie 里，登录用 `Path=/auth/email`，绑定用 `Path=/api/identity/email`；绑定的挑战还记着发起的账号和会话指纹，换了会话就不算数。发码限额按收件箱（60 秒一封、每小时 5 封）和来源 IP（IPv6 按 /64，每小时 20 封）计，数在 `email_challenges` 表里，重启不清零；超额 429 带 `Retry-After`。`/auth/email/start` 对有没有账号的邮箱响应一样，不泄露邮箱是否注册。
+- **密码**：只能在账号页设，至少 15 位、UTF-8 不超过 72 字节（bcrypt 上限），bcrypt cost 12。密码登录对没账号、没设密码、密码不对回同一个错误，没有账号时也跑一次 bcrypt，响应时间不随邮箱是否注册变化；按 IP 每分钟 10 次之外，按邮箱另计 15 分钟 10 次（进程内计数）。设密码、绑定邮箱要求这次登录不超过 10 分钟（`step_up_required`）；已有密码时也可以填当前密码代替。忘了密码就用验证码登录后直接设新的。
+- **日志**：请求日志不记 `/auth/*` 的查询串（`app.ts` 的 `requestLogFields`），OAuth 的 code、state 与 `/auth/google?invite=` 带的邀请码不进日志。
+- **Google**：两个接口按 IP 限流（发起每分钟 20 次，回调每分钟 10 次），挡住反复走授权试邀请码。OIDC 授权码加 PKCE S256、state 与 nonce，只申请 `openid email profile`；ID Token 用 Google 的 JWKS 验签（RS256），核对 `iss`、`aud`、`exp`、`nonce`。按 Google 的 `sub` 认人，**不按邮箱自动合并账号**：Google 邮箱已经属于别的极客班账号时拒绝（`email_taken`），要用邮箱验证码登录那个账号。没配 `GOOGLE_CLIENT_ID` 与 `GOOGLE_CLIENT_SECRET` 时两个接口都是 404，登录页也不出现 Google。
+- **没有 GitHub 令牌的会话**：邮箱、Google 会话不调用 GitHub。成员资格看账号：GitHub 组织成员（账号上记着最近一次 GitHub 会话查到的组织角色），或用邀请码注册的人；提督、舰员称号按记下的角色给，`github.*` 能力一律挡掉（`blocked` 的原因是 `github_session_required`），`/api/admin/:org/*`、`/api/me/orgs`、`GET /api/console/people`、`POST /api/console/assignments` 在调用 GitHub 之前回 403 `github_session_required`。
+- **运维建号**：`dist/cli/account.js provision` 只在服务器容器里由维护者执行，按 GitHub 数字 id 找到或建立账号、记下组织角色、绑定邮箱，不开 HTTP 接口；密码不由它设，本人用验证码登录后在账号页设。
+
+**残余风险**：账号上记的组织角色只在两种时候更新：这个人的 GitHub 会话实时查到角色，或者他再用 GitHub 登录被组织拒绝（这时角色清空，不是邀请码注册的账号同时不再是成员，邮箱、Google 会话随即失去提督、舰员称号）。被移出组织、之后再也不用 GitHub 登录的人，账号上记的旧角色不会自己过期，要马上收回只能停用账号；不设过期是因为所有者的 GitHub 账号被封期间要靠记下的角色进控制台。用邀请码注册的人成员资格不随 GitHub 变化，要停用只能停用账号。论坛按 GitHub 身份认成员，没有 GitHub 身份的账号在论坛里是游客；称号也只能授给有 GitHub 身份的人。邀请码一旦外泄，在停用前任何人都能凭它注册（次数和过期时间可以限住）。
 
 ## 极客班控制台：称号与能力
 

@@ -32,18 +32,25 @@ export const CONSOLE_NAV: NavItem[] = [
   { id: "competitions", to: "/console/competitions", label: "比赛", anyOf: ["competitions.manage"], icon: "i-carbon-trophy", group: "community" },
   { id: "feedback", to: "/console/feedback", label: "意见箱", anyOf: ["feedback.read"], icon: "i-carbon-chat", group: "class" },
   { id: "audit", to: "/console/audit", label: "审计日志", anyOf: ["audit.read"], icon: "i-carbon-catalog", group: "class" },
+  { id: "invites", to: "/console/invites", label: "注册邀请码", anyOf: ["accounts.invites.manage"], icon: "i-carbon-ticket", group: "class" },
 ];
 
-type Identity = Pick<ConsoleMe, "capabilities">;
+type Identity = Pick<ConsoleMe, "capabilities"> & Partial<Pick<ConsoleMe, "blocked">>;
 
-/** 只显示实际持有的能力；被组织角色挡住的能力不出现在导航里。 */
+/**
+ * 只显示实际持有的能力；被组织角色挡住的能力不出现在导航里。
+ * 例外是只差一次 GitHub 登录的（github_session_required）：照常显示，点进去由能力门给「用 GitHub 继续」。
+ */
 export function navState(item: Pick<NavItem, "anyOf">, me: Identity): NavState {
-  return item.anyOf.some(capability => me.capabilities.includes(capability)) ? "visible" : "hidden";
+  if (item.anyOf.some(capability => me.capabilities.includes(capability))) return "visible";
+  const needsGithub = me.blocked?.some(entry => entry.reason === "github_session_required" && item.anyOf.includes(entry.capability));
+  return needsGithub ? "visible" : "hidden";
 }
 
 export const BLOCK_REASON_TEXT: Record<BlockReason, string> = {
   github_admin_required: "需要 GitHub 组织管理员身份",
   github_membership_required: "需要先加入 GitHub 组织",
+  github_session_required: "需要用 GitHub 登录",
 };
 
 /** 按当前生效能力裁剪导航；直接访问仍由页面与服务端分别校验。 */

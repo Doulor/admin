@@ -50,7 +50,7 @@ export const TITLES: Record<TitleId, TitleDefinition> = {
 /** 部门舰员（`member` + 部门）：rank 3，中性色，徽章用 plain 变体；名字取舰员称号的名字。 */
 export const CREW_TITLE = { tag: "CREW", tone: "slate" as Tone, rank: 3 };
 
-export type CapabilityDomain = "console" | "github" | "forum" | "applications" | "feedback" | "audit" | "roles" | "competitions";
+export type CapabilityDomain = "console" | "github" | "forum" | "applications" | "feedback" | "audit" | "roles" | "competitions" | "accounts";
 export const DOMAINS: { id: CapabilityDomain; label: string }[] = [
   { id: "console", label: "控制台" },
   { id: "applications", label: "招新投递" },
@@ -60,6 +60,7 @@ export const DOMAINS: { id: CapabilityDomain; label: string }[] = [
   { id: "audit", label: "审计" },
   { id: "roles", label: "称号与权限" },
   { id: "competitions", label: "比赛" },
+  { id: "accounts", label: "账号" },
 ];
 
 /** 能力清单：扁平、按类别分组。顺序即 `/api/console/me` 下发 capabilities 的顺序。 */
@@ -85,6 +86,7 @@ export const CAPABILITIES = [
   { id: "roles.manage", domain: "roles", label: "管理称号与部门", description: "管理称号和任免；部门配置与删除另需提督身份；只能给最高两级称号" },
   { id: "roles.department.manage", domain: "roles", label: "任免本部门成员", description: "任免自己负责的部门里的成员" },
   { id: "competitions.manage", domain: "competitions", label: "管理比赛", description: "新建、编辑、下线比赛" },
+  { id: "accounts.invites.manage", domain: "accounts", label: "管理注册邀请码", description: "新建、停用注册邀请码；用邮箱或 Google 注册极客班账号要填邀请码" },
 ] as const satisfies readonly { id: string; domain: CapabilityDomain; label: string; description: string }[];
 export type Capability = (typeof CAPABILITIES)[number]["id"];
 export const CAPABILITY_IDS: Capability[] = CAPABILITIES.map(item => item.id);
@@ -200,10 +202,15 @@ export type TitleView = {
   assignment_id: number | null;
 };
 export type OrgRole = "admin" | "member" | null;
-export type BlockReason = "github_admin_required" | "github_membership_required";
+export type BlockReason = "github_admin_required" | "github_membership_required" | "github_session_required";
 export type Access = {
   login: string;
+  /** 组织角色：GitHub 会话是实时查到的，邮箱、Google 会话是账号记下的 */
   githubRole: OrgRole;
+  /** 这次是不是 GitHub 会话（只有它带 GitHub 令牌，`github.*` 只在它下面生效） */
+  githubSession: boolean;
+  /** 是不是极客班成员：GitHub 会话看实时的组织角色，其余看账号记下的成员资格（含邀请码注册） */
+  member: boolean;
   titles: TitleView[];
   capabilities: Set<Capability>;
   blocked: { capability: Capability; reason: BlockReason }[];
@@ -254,9 +261,13 @@ export function titleRank(title: Pick<TitleView, "id" | "department">): number {
   return TITLES[title.id].rank;
 }
 
-/** GitHub 上限：控制台不能授予 GitHub 权力，只能在用户自己的组织角色以内收窄。 */
-function githubCeiling(capability: Capability, orgRole: OrgRole): BlockReason | null {
+/**
+ * GitHub 上限：控制台不能授予 GitHub 权力，只能在用户自己的组织角色以内收窄。
+ * 邮箱、Google 会话没有本人的 GitHub 令牌，`github.*` 全部挡掉，优先于另外两种上限（#262）。
+ */
+function githubCeiling(capability: Capability, orgRole: OrgRole, githubSession: boolean): BlockReason | null {
   if (!capability.startsWith("github.")) return null;
+  if (!githubSession) return "github_session_required";
   if (orgRole === null) return "github_membership_required";
   if (orgRole === "member" && capability !== "github.org.read") return "github_admin_required";
   return null;
@@ -265,6 +276,10 @@ function githubCeiling(capability: Capability, orgRole: OrgRole): BlockReason | 
 export type ComputeAccessInput = {
   login: string;
   orgRole: OrgRole;
+  /** 不传按 GitHub 会话算（测试和纯函数调用） */
+  githubSession?: boolean;
+  /** 不传时按组织角色判断 */
+  member?: boolean;
   assignments: AssignmentRow[];
   departments: Department[];
   /** 数据库里的称号设置；不传时用默认值（只给测试和纯函数调用用）。 */
@@ -272,7 +287,7 @@ export type ComputeAccessInput = {
 };
 
 /** 纯函数：由 GitHub 组织角色、显式指派与部门配置算出称号和能力。 */
-export function computeAccess({ login, orgRole, assignments, departments, titles: configs = DEFAULT_TITLE_CONFIGS }: ComputeAccessInput): Access {
+export function computeAccess({ login, orgRole, githubSession = true, member = orgRole !== null, assignments, departments, titles: configs = DEFAULT_TITLE_CONFIGS }: ComputeAccessInput): Access {
   const byId = new Map(departments.filter(item => !item.archived).map(item => [item.id, item]));
   const titles: TitleView[] = [];
   const granted: Capability[] = [];
@@ -316,7 +331,7 @@ export function computeAccess({ login, orgRole, assignments, departments, titles
   const blocked: Access["blocked"] = [];
   for (const id of CAPABILITY_IDS) {
     if (!implied.has(id)) continue;
-    const reason = githubCeiling(id, orgRole);
+    const reason = githubCeiling(id, orgRole, githubSession);
     if (reason) blocked.push({ capability: id, reason });
     else capabilities.add(id);
   }
@@ -325,7 +340,7 @@ export function computeAccess({ login, orgRole, assignments, departments, titles
 
   titles.sort((a, b) => titleRank(a) - titleRank(b));
   if (titles.length === 0) titles.push(titleView("guest", null, "none", null, configs));
-  return { login, githubRole: orgRole, titles, capabilities, blocked, headOf: [...new Set(headOf)] };
+  return { login, githubRole: orgRole, githubSession, member, titles, capabilities, blocked, headOf: [...new Set(headOf)] };
 }
 
 export const orderedCapabilities = (set: ReadonlySet<Capability>): Capability[] => CAPABILITY_IDS.filter(id => set.has(id));

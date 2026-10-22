@@ -5,6 +5,9 @@ import { createDatabase } from "./lib/db.js";
 import { createCrypto } from "./lib/crypto.js";
 import { createAuth } from "./lib/auth.js";
 import { createIdentityStore } from "./lib/identity-store.js";
+import { createEmailLogin } from "./lib/email-login.js";
+import { createInviteCodeStore } from "./lib/invite-codes.js";
+import { createGoogle } from "./lib/google.js";
 import { createDeviceStore } from "./lib/device-store.js";
 import { createGithub } from "./lib/github.js";
 import { createCache } from "./lib/cache.js";
@@ -33,6 +36,10 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
   const auth = createAuth(storage.db, crypto, config, overrides.httpRequest, overrides.clock);
   const identity = createIdentityStore(storage.db, { createSession: auth.createSession, audit: storage.audit, consoleOrg: config.consoleOrg, clock: overrides.clock });
   const device = createDeviceStore(storage.db, { clock: overrides.clock });
+  // 邮箱验证码、邀请码与 Google 登录（#262，所有者 2026-10-23）
+  const emailLogin = createEmailLogin(storage.db, { sessionSecret: config.sessionSecret, clock: overrides.clock });
+  const invites = createInviteCodeStore(storage.db, overrides.clock);
+  const google = createGoogle(config.google, config.publicOrigin, overrides.httpRequest, overrides.clock);
   const feedback = createFeedbackStore(storage.db);
   const competitions = createCompetitionStore(storage.db);
   // 报名、组队与积分（#239）：认人用会话里的 account_id，表在 lib/db.ts 里随启动建好。
@@ -76,9 +83,13 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     config, storage, crypto,
     auth,
     identity,
+    emailLogin, invites, google,
     device,
     github, cache, roles,
-    access: createAccess({ consoleOrg: config.consoleOrg, getOrgRole: github.getOrgRole, cached: cache.cached, roles }),
+    access: createAccess({
+      consoleOrg: config.consoleOrg, getOrgRole: github.getOrgRole, cached: cache.cached, roles,
+      membership: { of: identity.membershipOf, record: identity.recordOrgRole },
+    }),
     feedback,
     forum,
     mail,

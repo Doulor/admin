@@ -2,7 +2,7 @@
 
 > 招新的四封信怎么拼、怎么渲染、怎么排队发出去：信先写进 data.db 的发信队列，再由服务进程里的发信循环交给阿里云邮件推送或 Resend；信封版式照官网「加入我们」的信纸，图片部件放在 CDN 上。
 
-状态：`current` · 更新：2026-10-04 · 源码：`app/server/src/lib/mail/` · 上级合同：[server](README.md) · issue：#148、#204
+状态：`current` · 更新：2026-10-23 · 源码：`app/server/src/lib/mail/` · 上级合同：[server](README.md) · issue：#148、#204、#262
 
 ## 现状
 
@@ -11,7 +11,8 @@
 - 信写进 `mail_outbox`（[数据模型](data-model.md)），同一件事只有一行。服务进程里的发信循环每 15 秒把到期的信发一遍，写进新信后立刻再发一遍。
 - 发信商按顺序是阿里云邮件推送（SingleSendMail）、Resend。两家都没配置时信照样写一行，记成 `skipped` / `mail_disabled`，不发。
 - 控制台的投递详情显示「已收到」那封和每次改状态那封的结果（`received_mail`、`reviews[].mail`），见 [API](../../architecture/API.md)。
-- 源码：`envelope.ts`（渲染）、`envelope-pieces.ts`（图片部件清单）、`recruitment.ts`（四封信的内容）、`outbox.ts`（发信队列与发信循环）、`providers.ts`（两家发信商）、`mailer.ts`（按配置组装，给路由用）。部件生成脚本 `scripts/mail-envelope/build.py`。
+- 邮箱登录与绑定邮箱的验证码信（#262）不进 `mail_outbox`：验证码 10 分钟就过期，等不了队列 15 秒一轮和失败退避，由 `mail.sendNow` 当场发——发信商按顺序试（阿里云在前，失败立刻改走 Resend），每家最多等 15 秒，同样遵守 `MAIL_RECIPIENTS` / `MAIL_ALLOWLIST`，没配发信商不发。接口不等发信结果就回 202，结果只记一条日志（发信商名、错误码），不记地址和验证码，控制台里也看不到。信里只有验证码、有效期、只能用一次和「不是你本人操作请忽略」，正文不放登录或确认链接，不带回信地址。`GET /auth/providers` 只在配了发信商时列出邮箱登录。
+- 源码：`envelope.ts`（渲染）、`envelope-pieces.ts`（图片部件清单）、`recruitment.ts`（四封信的内容）、`login-code.ts`（验证码信的内容）、`outbox.ts`（发信队列与发信循环）、`providers.ts`（两家发信商）、`mailer.ts`（按配置组装，给路由用）。部件生成脚本 `scripts/mail-envelope/build.py`。
 - 还没有：CID 内嵌图片、退信与投诉回调、真实发信商上的收发验证。成员绑定邮箱、站内通知发邮件、退订在 #149。
 
 ## 接口
@@ -22,6 +23,9 @@ recruitmentMessage(kind: "received" | "interview" | "accepted" | "rejected", inp
 
 // services.mail（mailer.ts）
 mail.recruitmentLetter(kind, application, letter?): RenderedMail   // 按投递拼信并渲染，内容不合规抛 MailTemplateError
+mail.loginCodeLetter(code, purpose, minutes): RenderedMail           // 登录（signin）或绑定（link）的验证码信（#262）
+mail.sendNow(to, mail, idempotencyKey): { status, provider?, error? } // 不进队列、当场发，验证码信用
+mail.sendingEnabled                                                  // 配了能用的发信商
 mail.enqueue({ eventKey, kind, applicationId?, reviewId?, to, mail }, limits?): { id, status, created }
 mail.summary(eventKey) / mail.reviewSummaries(reviewIds)            // 给控制台看的结果，没有地址和正文
 mail.enabled / mail.recipients / mail.deliverable(address)

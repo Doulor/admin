@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { requireCapability } from "../../middleware/require-capability.js";
+import { requireGithubSession } from "../../middleware/require-github-session.js";
 import { computeAccess, titleRank, type AssignmentRow, type OrgRole, type TitleView } from "../../lib/roles.js";
 
 type Person = { login: string; user_id: number | null; avatar_url: string | null; github_role: OrgRole; titles: TitleView[] };
@@ -17,7 +18,8 @@ export default async function consolePeopleRoutes(app: FastifyInstance) {
   const { roles, config, github } = app.services;
   app.addHook("preHandler", requireAuth);
 
-  app.get("/api/console/people", { preHandler: requireCapability("roles.manage", "roles.department.manage") }, async (req) => {
+  // 名单来自 GitHub 组织，要本人令牌：邮箱、Google 会话先回 github_session_required（#262）
+  app.get("/api/console/people", { preHandler: [requireCapability("roles.manage", "roles.department.manage"), requireGithubSession] }, async (req) => {
     const members = await github.listOrgMembers(req.session!.accessToken, config.consoleOrg);
     const departments = roles.listDepartments();
     const titles = roles.titleConfigs();

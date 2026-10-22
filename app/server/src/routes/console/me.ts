@@ -10,11 +10,15 @@ export default async function consoleMeRoutes(app: FastifyInstance) {
   const { db } = app.services.storage;
   app.addHook("preHandler", requireAuth);
 
-  /** 当前用户在极客班控制台的身份：称号、能力与被 GitHub 上限挡掉的能力。只需要登录。 */
+  /**
+   * 当前用户在极客班控制台的身份：称号、能力与被 GitHub 上限挡掉的能力。只需要登录。
+   * `provider` 是这次的登录方式；邮箱、Google 会话的 `github.*` 在 blocked 里，原因是 github_session_required。
+   */
   app.get("/api/console/me", async (req) => {
     const access = await resolveAccess(req);
     return {
       login: req.session!.login, avatar_url: req.session!.avatar_url, org: config.consoleOrg,
+      provider: req.session!.provider,
       github_role: access.githubRole,
       title: access.titles[0], titles: access.titles,
       capabilities: orderedCapabilities(access.capabilities),

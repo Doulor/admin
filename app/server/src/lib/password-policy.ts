@@ -19,7 +19,8 @@ export function createLoginThrottle() {
       for (const [name, value] of attempts) if (value.expires <= Date.now()) attempts.delete(name);
       const current = attempts.get(key);
       if (current) { current.count++; return current.count <= 10; }
-      if (attempts.size >= 5000) return false;
+      // 表满了挤掉最早的一条，不能一律拒绝：否则 5000 个不同的账号名就能让所有人都登录不了
+      if (attempts.size >= 5000) attempts.delete(attempts.keys().next().value!);
       attempts.set(key, { count: 1, expires: Date.now() + 15 * 60_000 });
       return true;
     },

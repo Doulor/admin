@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { ApiError } from "../../app/console/src/lib/http";
 import {
-  GITHUB_INVITATION_URL, parseSignInOutcome, providerHref, providerIcon, readProviders, safeReturnPath, signInOutcomes,
+  GITHUB_INVITATION_URL, cleanCode, parseSignInOutcome, providerHref, providerIcon, readProviders, retryAfter, safeReturnPath, signInOutcomes,
 } from "../../app/console/src/lib/signin";
 
 const ORIGIN = "https://yangtzeu.work";
@@ -56,7 +57,17 @@ describe("登录结果提示与行动点解析 (signin)", () => {
 
   it("signInOutcomes 完整导出所有状态定义", () => {
     const outcomes = signInOutcomes();
-    expect(Object.keys(outcomes)).toEqual(["not_member", "invite_pending", "cancelled", "failed", "account_disabled"]);
+    // 与服务端 SigninOutcome（app/server/src/lib/safe-return.ts）逐个对应
+    expect(Object.keys(outcomes)).toEqual([
+      "not_member", "invite_pending", "cancelled", "failed", "account_disabled", "invite_required", "invalid_invite", "email_taken",
+    ]);
+  });
+
+  it("Google 注册要邀请码、邀请码无效、邮箱已被别的账号用：各有一句说明，没有外链", () => {
+    expect(parseSignInOutcome("invite_required")).toMatchObject({ type: "info", title: "这个 Google 账号还没有极客班账号" });
+    expect(parseSignInOutcome("invalid_invite")?.title).toBe("邀请码无效");
+    expect(parseSignInOutcome("email_taken")?.body).toContain("用邮箱验证码登录");
+    for (const key of ["invite_required", "invalid_invite", "email_taken"]) expect(parseSignInOutcome(key)?.action, key).toBeUndefined();
   });
 
   it("account_disabled：说明账号已停用，不给重试以外的行动点", () => {
@@ -104,6 +115,17 @@ describe("登录方式按 /auth/providers 渲染 (readProviders / providerHref)"
     });
     expect(providers).toEqual([{ id: "github", name: "GitHub", kind: "redirect", start: "/auth/github", can_register: true }]);
     expect(readProviders(null)).toEqual([]);
+  });
+
+  it("邮箱方式留下本站的密码登录地址，别站的地址丢掉", () => {
+    const [email, odd] = readProviders({
+      providers: [
+        { id: "email", name: "邮箱", kind: "email_code", start: "/auth/email/start", can_register: true, password: "/auth/email/password" },
+        { id: "odd", name: "Odd", kind: "email_code", start: "/auth/odd", password: "https://evil.example/pw" },
+      ],
+    });
+    expect(email).toEqual({ id: "email", name: "邮箱", kind: "email_code", start: "/auth/email/start", can_register: true, password: "/auth/email/password" });
+    expect(odd).not.toHaveProperty("password");
     expect(readProviders({ providers: "github" })).toEqual([]);
   });
 
@@ -114,8 +136,29 @@ describe("登录方式按 /auth/providers 渲染 (readProviders / providerHref)"
       .toBe(`/auth/google?prompt=select_account&return_to=${encodeURIComponent(`${ORIGIN}/`)}`);
   });
 
+  it("Google 注册时带上邀请码，空白的不带", () => {
+    expect(providerHref({ start: "/auth/google" }, "/console", ORIGIN, " Fall-2026 "))
+      .toBe(`/auth/google?return_to=${encodeURIComponent(`${ORIGIN}/console`)}&invite=Fall-2026`);
+    expect(providerHref({ start: "/auth/google" }, "/console", ORIGIN, "  ")).toBe(`/auth/google?return_to=${encodeURIComponent(`${ORIGIN}/console`)}`);
+  });
+
   it("图标按 id 取，未知渠道用通用登录图标", () => {
     expect(providerIcon({ id: "github" })).toBe("i-carbon-logo-github");
     expect(providerIcon({ id: "wechat" })).toBe("i-carbon-login");
+  });
+});
+
+describe("邮箱登录的小工具 (retryAfter / cleanCode)", () => {
+  it("429 按服务端给的秒数倒计时，没给就按 60 秒；别的错误不算", () => {
+    expect(retryAfter(new ApiError(429, "rate_limited", "x", undefined, { retry_after: 42 }))).toBe(42);
+    expect(retryAfter(new ApiError(429, "rate_limited", "x"))).toBe(60);
+    expect(retryAfter(new ApiError(400, "bad_email", "x"))).toBeNull();
+    expect(retryAfter(new Error("offline"))).toBeNull();
+  });
+
+  it("验证码只留数字、最多 6 位", () => {
+    expect(cleanCode("123 456")).toBe("123456");
+    expect(cleanCode("12a3-4567")).toBe("123456");
+    expect(cleanCode(98765)).toBe("98765");
   });
 });

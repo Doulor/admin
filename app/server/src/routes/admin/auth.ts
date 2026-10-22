@@ -1,28 +1,12 @@
-import { safeReturnTo } from "../../lib/safe-return.js";
+import { safeReturnTo, signinFailureUrl, type SigninOutcome } from "../../lib/safe-return.js";
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { readOAuthState, setOAuthState } from "../../middleware/oauth-state.js";
-import { clearSessionCookies, endRejectedSession, isRejectedToken } from "../../middleware/require-auth.js";
+import { clearSessionCookies, endRejectedSession, isRejectedToken, setSessionCookie } from "../../middleware/require-auth.js";
 import type { Capability } from "../../lib/roles.js";
 
 /** 普通舰员、领航员默认就有的能力：只有这些时不在头像菜单里显示「控制台」。 */
 const CONSOLE_LINK_IGNORED: ReadonlySet<Capability> = new Set<Capability>(["console.access", "github.org.read", "feedback.read"]);
-
-/** 登录没成功的原因，写进统一登录页地址的 `signin` 参数，由登录页（app/console/src/pages/SignIn.vue）给出说明。 */
-export type SigninOutcome = "not_member" | "invite_pending" | "cancelled" | "failed" | "account_disabled";
-
-/**
- * 登录没成功时回到统一登录页（#262）：`/signin?signin=<原因>&return_to=<原来要回的本站路径>`。
- * 三端的「登录」都从这个页面出发，失败也回到这里说清原因、可以直接换一种方式重试；登录页会再按同源校验 return_to。
- */
-function signinFailureUrl(publicOrigin: string, back: string, outcome: SigninOutcome): string {
-  const target = new URL(back);
-  target.searchParams.delete("signin");
-  const url = new URL("/signin", publicOrigin);
-  url.searchParams.set("signin", outcome);
-  url.searchParams.set("return_to", `${target.pathname}${target.search}${target.hash}`);
-  return url.toString();
-}
 
 export default async function authRoutes(app: FastifyInstance) {
   const { buildAuthorizeUrl,
@@ -90,10 +74,7 @@ export default async function authRoutes(app: FastifyInstance) {
         await revoke(req, token);
         return fail(signin.reason);
       }
-      reply.setCookie("sid", signin.sid, {
-        httpOnly: true, secure: config.cookieSecure, sameSite: "lax", path: "/", maxAge: 7 * 24 * 60 * 60,
-        domain: config.cookieDomain,
-      });
+      setSessionCookie(reply, signin.sid);
       return reply.redirect(back);
     }
   );
@@ -123,7 +104,7 @@ export default async function authRoutes(app: FastifyInstance) {
     if (!sid) return { signed_in: false };
     const s = getSession(sid);
     if (!s) return { signed_in: false };
-    const consoleLink = await app.services.access.resolve({ login: s.login, userId: s.user_id, accountId: s.account_id, accessToken: s.accessToken })
+    const consoleLink = await app.services.access.resolve({ login: s.login, userId: s.user_id, accountId: s.account_id, accessToken: s.accessToken, provider: s.provider })
       .then(access => [...access.capabilities].some(capability => !CONSOLE_LINK_IGNORED.has(capability)))
       .catch((cause: { code?: string; status?: number }) => {
         if (isRejectedToken(cause)) return null;

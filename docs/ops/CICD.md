@@ -2,7 +2,7 @@
 
 > 持续集成、宏观对齐与 `.env` 驱动的发布控制；发版只由发布 tag 触发（`vX.Y.Z-rc.N` → 预发布，`vX.Y.Z` → 正式），push 分支只跑 CI；部署开关默认关闭，机器检查不替代人工验收。
 
-状态：`accepted` · 更新：2026-10-18 · 实施状态：工作流为 `.github/workflows/ci.yml`、`deploy-preview.yml`、`deploy-production.yml`、`branch-hygiene.yml`、`issue-lifecycle.yml`、`issue-gate.yml`、`cert-watch.yml`、`pr-agent.yml`、`test-report.yml`、`architecture-alignment.yml`，actionlint 全绿，所有 job 只跑在 GitHub 托管 runner 上（见下文「运行位置」）。两条部署工作流由 SemVer 发布 tag 触发（2026-09-24 指令），此前「push `stage`/`main` 即部署」的触发方式已删除；更早的 `preview.yml`、`release.yml`（`release-*`/`prev-*` tag）也早已删除。首次上线（2026-09-25，#63）已配置：`preview` Environment 的环境级 secrets（部署 SSH、OAuth、会话与加密密钥；Turnstile 两项未配＝关闭）与 `DEPLOY_TARGET_ENVIRONMENT=preview`，目标机 `/opt/yzgc/preview`、`prev.yangtzeu.work` 证书与站点配置。组织是 GitHub 免费版；仓库原本私有，2026-09-26 17:49 因 CI 排队决定公开（见下文「平台能力实测」的更新）。公开之后 `production` 的 required reviewers 才能配置；2026-09-27 建了 `production` Environment，配了 required reviewers 与自定义部署分支规则，并打开 `DEPLOY_PRODUCTION_ENABLED`，`v0.1.0` 的正式部署由 `deploy-production.yml` 在审批后跑完（运行 36314912545）。下文「维护者机器部署」只在部署 job 拿不到环境时作退路。这些前置条件都靠手工完成，任何工作流都不会自动创建。
+状态：`accepted` · 更新：2026-10-23 · 实施状态：工作流为 `.github/workflows/ci.yml`、`deploy-preview.yml`、`deploy-production.yml`、`branch-hygiene.yml`、`issue-lifecycle.yml`、`issue-gate.yml`、`cert-watch.yml`、`pr-agent.yml`、`test-report.yml`、`architecture-alignment.yml`，actionlint 全绿，所有 job 只跑在 GitHub 托管 runner 上（见下文「运行位置」）。两条部署工作流由 SemVer 发布 tag 触发（2026-09-24 指令），此前「push `stage`/`main` 即部署」的触发方式已删除；更早的 `preview.yml`、`release.yml`（`release-*`/`prev-*` tag）也早已删除。首次上线（2026-09-25，#63）已配置：`preview` Environment 的环境级 secrets（部署 SSH、OAuth、会话与加密密钥；Turnstile 两项未配＝关闭）与 `DEPLOY_TARGET_ENVIRONMENT=preview`，目标机 `/opt/yzgc/preview`、`prev.yangtzeu.work` 证书与站点配置。组织是 GitHub 免费版；仓库原本私有，2026-09-26 17:49 因 CI 排队决定公开（见下文「平台能力实测」的更新）。公开之后 `production` 的 required reviewers 才能配置；2026-09-27 建了 `production` Environment，配了 required reviewers 与自定义部署分支规则，并打开 `DEPLOY_PRODUCTION_ENABLED`，`v0.1.0` 的正式部署由 `deploy-production.yml` 在审批后跑完（运行 36314912545）。下文「维护者机器部署」只在部署 job 拿不到环境时作退路。这些前置条件都靠手工完成，任何工作流都不会自动创建。
 
 发布规则以 [RELEASES](../conventions/RELEASES.md) 为唯一完整规范，分支模型以 [BRANCHING](../conventions/BRANCHING.md) 为准，环境字段契约见 [ENVIRONMENTS](ENVIRONMENTS.md)。
 
@@ -88,8 +88,10 @@
 | `MAIL_ALIYUN_ACCESS_KEY_SECRET` | 阿里云邮件推送的 AccessKey Secret |
 | `MAIL_RESEND_API_KEY` | Resend 的 API Key（可选） |
 | `MAIL_ALLOWLIST` | 收件名单，英文逗号隔开的邮箱（可选；只在 `MAIL_RECIPIENTS=allowlist` 时起作用，两个环境现在都是 `all`） |
+| `GOOGLE_CLIENT_ID` | Google 登录的 OAuth 客户端 ID（可选，和下一项要么都配、要么都不配；回调地址 `<origin>/auth/google/callback`，#262） |
+| `GOOGLE_CLIENT_SECRET` | Google 登录的 OAuth 客户端密钥 |
 
-两条部署工作流的「渲染运行时 env 文件」步骤把上表从 `OAUTH_CLIENT_ID` 起的每一项按同名传给 `scripts/deployment-environment.mjs render`，`scripts/deploy-manual.mjs` 的 `SECRET_ENV` 也是同一份名单；`tests/tooling/deploy-manual.test.ts` 核对这三处与 `SECRET_FIELDS` 一致。发信四项都没配时照常部署，server 不发信，见 [ENVIRONMENTS](ENVIRONMENTS.md)。
+两条部署工作流的「渲染运行时 env 文件」步骤把上表从 `OAUTH_CLIENT_ID` 起的每一项按同名传给 `scripts/deployment-environment.mjs render`，`scripts/deploy-manual.mjs` 的 `SECRET_ENV` 也是同一份名单；`tests/tooling/deploy-manual.test.ts` 核对这三处与 `SECRET_FIELDS` 一致。发信四项都没配时照常部署，server 不发信；Google 两项都没配时照常部署，登录页不出现 Google，见 [ENVIRONMENTS](ENVIRONMENTS.md)。
 
 ### vars
 

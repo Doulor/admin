@@ -115,7 +115,8 @@ export function createDeviceStore(db: Database.Database, deps: DeviceStoreDeps =
   const deny = db.prepare("UPDATE device_grants SET status = 'denied', decided_at = ? WHERE id = ? AND status = 'pending' AND expires_at > ?");
   const consume = db.prepare("UPDATE device_grants SET status = 'consumed', token_hash = ?, token_expires_at = ? WHERE id = ?");
   // 身份表由 lib/identity-store.ts 写；这里只读登录名和头像给 userinfo，不碰会话与账号状态机。
-  const selectProfile = db.prepare(`SELECT u.status AS status, i.login AS login, i.avatar_url AS avatar_url
+  // 没有绑定 GitHub 的账号（邮箱、Google 注册）用账号自己的 yz_ 登录名
+  const selectProfile = db.prepare(`SELECT u.status AS status, COALESCE(i.login, u.handle) AS login, i.avatar_url AS avatar_url
     FROM users u LEFT JOIN identities i ON i.user_id = u.id AND i.provider = 'github' WHERE u.id = ?`);
 
   const rowByUserCode = (input: string | undefined) => {
