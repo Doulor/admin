@@ -2,7 +2,7 @@
 
 > 仅包含占位符；已有环境文件不由代码规范化任务读取或覆盖。
 
-状态：`current` · 更新：2026-10-02 · 本机开发专用；**部署**环境的字段契约见 [ENVIRONMENTS](ENVIRONMENTS.md)
+状态：`current` · 更新：2026-10-23 · 本机开发专用；**部署**环境的字段契约见 [ENVIRONMENTS](ENVIRONMENTS.md)
 
 只做 UI 预览使用根 `pnpm dev:web`，无需以下配置。需要真实本地后端时，由操作者在仓库根创建自己的 `.env`，使用本地专用 OAuth 应用和数据库，不能复制生产凭据或数据。
 
@@ -29,6 +29,9 @@ MAIL_RESEND_FROM=
 MAIL_REPLY_TO=
 MAIL_RECIPIENTS=allowlist
 MAIL_ALLOWLIST=
+# Google 登录（可选，#262）：两项都设才开启；本机的重定向 URI 是 <PUBLIC_ORIGIN>/auth/google/callback
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 COOKIE_DOMAIN=
 ALLOWED_ORGS=
 # 可不设，默认 Yangtze-University-Geek-Class

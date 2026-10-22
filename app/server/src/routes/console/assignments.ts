@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { requireGithubSession } from "../../middleware/require-github-session.js";
 import { missingCapability, requireCapability } from "../../middleware/require-capability.js";
 import type { Access, AssignableRole, AssignmentRow } from "../../lib/roles.js";
 
@@ -51,7 +52,8 @@ export default async function consoleAssignmentRoutes(app: FastifyInstance) {
 
   app.post<{ Body: AssignBody }>(
     "/api/console/assignments",
-    { preHandler: requireCapability("roles.manage", "roles.department.manage"), config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+    // 授予时用调用者的 GitHub 令牌查对方的 GitHub id：邮箱、Google 会话先回 github_session_required（#262）
+    { preHandler: [requireCapability("roles.manage", "roles.department.manage"), requireGithubSession], config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
     async (req, reply) => {
       const access = req.access!;
       const { role } = req.body;

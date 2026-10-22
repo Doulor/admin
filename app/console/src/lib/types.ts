@@ -6,7 +6,9 @@ export type Tone = "amber" | "cobalt" | "violet" | "jade" | "sky" | "coral" | "r
 /** `admin` 是 GitHub 组织的所有者，自动获得、不能指派；`guest` 是没有任何称号。名字等显示信息见 catalogue。 */
 export type TitleId = "admin" | "captain" | "head" | "member" | "alumni" | "guest";
 export type GithubRole = "admin" | "member" | null;
-export type BlockReason = "github_admin_required" | "github_membership_required";
+export type BlockReason = "github_admin_required" | "github_membership_required" | "github_session_required";
+/** 这次会话的登录方式（#262）：只有 GitHub 会话带本人的 GitHub 令牌，`github.*` 只在它下面生效。 */
+export type SessionProvider = "github" | "email" | "google";
 
 export type DepartmentView = { id: string; name: string; tag: string; icon: string; tone: Tone };
 export type TitleView = {
@@ -18,6 +20,7 @@ export type TitleView = {
 
 export type ConsoleMe = {
   login: string; avatar_url: string | null; org: string;
+  provider: SessionProvider;
   github_role: GithubRole;
   title: TitleView; titles: TitleView[];
   capabilities: Capability[];
@@ -158,3 +161,24 @@ export type ScoreEvent = {
   revoked_at: number | null; revoke_reason: string | null;
 };
 export type ScoreEventList = { events: ScoreEvent[] };
+
+/** 注册邀请码（GET /api/console/invites）：次数上限、过期时间为 null 表示不限；usable 是现在还能不能用。 */
+export type InviteCode = {
+  id: number; code: string; note: string; max_uses: number | null; used_count: number; expires_at: number | null;
+  disabled: boolean; created_by: string; created_at: number; updated_at: number; usable: boolean;
+};
+export type InviteList = { invites: InviteCode[] };
+
+/** 账号页（GET /api/identity/me）：登录方式、密码、成员资格、这次登录与最近的账号记录。邮箱只下发打码后的样子。 */
+export type AccountIdentity = { provider: SessionProvider; label: string; linked_at: number; last_login_at: number | null };
+export type AccountAction = "login" | "login_denied" | "logout" | "register" | "link" | "link_conflict" | "password_set" | "password_change";
+export type AccountView = {
+  account_id: string; login: string;
+  identities: AccountIdentity[];
+  has_password: boolean; password_updated_at: number | null;
+  membership: { state: string; org_role: GithubRole; via_invite: boolean };
+  created_at: number;
+  recent: { at: number; action: AccountAction | string; provider: string | null; result: "ok" | "denied" | "failed" }[];
+  available: "email"[];
+  session: { provider: SessionProvider; created_at: number; expires_at: number; step_up_until: number };
+};

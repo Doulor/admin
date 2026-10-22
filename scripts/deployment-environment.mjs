@@ -35,6 +35,8 @@ export const SECRET_FIELDS = Object.freeze([
   'MAIL_ALIYUN_ACCESS_KEY_SECRET',
   'MAIL_RESEND_API_KEY',
   'MAIL_ALLOWLIST',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
 ]);
 /**
  * Cloudflare Turnstile 是可选的一对：两项都为空 = 明确关闭（服务端 middleware/turnstile.ts 此时只靠工作量证明与限流），
@@ -43,14 +45,16 @@ export const SECRET_FIELDS = Object.freeze([
 export const OPTIONAL_SECRET_PAIR = Object.freeze(['TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY']);
 /** 阿里云邮件推送的 AccessKey 同样是可选的一对：都空 = 不走阿里云，只填一项拒绝渲染。 */
 export const MAIL_ALIYUN_SECRET_PAIR = Object.freeze(['MAIL_ALIYUN_ACCESS_KEY_ID', 'MAIL_ALIYUN_ACCESS_KEY_SECRET']);
+/** Google 登录（#262）的 OAuth 客户端也是可选的一对：都空 = 登录页不出现 Google，只填一项拒绝渲染（server 启动也会拒绝）。 */
+export const GOOGLE_SECRET_PAIR = Object.freeze(['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET']);
 /**
  * 可选的单项密钥：MAIL_RESEND_API_KEY 空 = 不走 Resend；MAIL_ALLOWLIST 是 MAIL_RECIPIENTS=allowlist 时的收件名单（逗号隔开的邮箱，个人信息，所以当密钥存）。
  * 阿里云与 Resend 都没配时发信关闭，server 把每封信记为「发信没有配置」，一封也不发。
  */
 export const OPTIONAL_SECRETS = Object.freeze(['MAIL_RESEND_API_KEY', 'MAIL_ALLOWLIST']);
-/** 渲染时必填的密钥：上面三类可选项之外的全部。 */
+/** 渲染时必填的密钥：上面几类可选项之外的全部。 */
 export const REQUIRED_SECRET_FIELDS = Object.freeze(
-  SECRET_FIELDS.filter(field => ![...OPTIONAL_SECRET_PAIR, ...MAIL_ALIYUN_SECRET_PAIR, ...OPTIONAL_SECRETS].includes(field)),
+  SECRET_FIELDS.filter(field => ![...OPTIONAL_SECRET_PAIR, ...MAIL_ALIYUN_SECRET_PAIR, ...GOOGLE_SECRET_PAIR, ...OPTIONAL_SECRETS].includes(field)),
 );
 /** 收件范围：all 发给所有人；allowlist 只发给 MAIL_ALLOWLIST 里的地址。两个环境现在都是 all（#169）。 */
 export const MAIL_RECIPIENT_MODES = Object.freeze(['all', 'allowlist']);
@@ -476,10 +480,11 @@ export function renderRuntimeEnv({ root = repositoryRoot(), environment, out, im
   const updated = new Map(deployment.values);
   const secretFields = [];
   const filled = field => typeof env[field] === 'string' && env[field] !== '';
-  for (const [pair, enable] of [[OPTIONAL_SECRET_PAIR, '开启 Turnstile'], [MAIL_ALIYUN_SECRET_PAIR, '开启阿里云邮件推送']]) {
+  for (const [pair, enable] of [[OPTIONAL_SECRET_PAIR, '开启 Turnstile'], [MAIL_ALIYUN_SECRET_PAIR, '开启阿里云邮件推送'], [GOOGLE_SECRET_PAIR, '开启 Google 登录']]) {
     if (filled(pair[0]) !== filled(pair[1])) fail(`${pair.join(' 与 ')} 只配了一项：要么都填（${enable}），要么都留空（关闭）`);
   }
   const turnstileOff = !filled(OPTIONAL_SECRET_PAIR[0]);
+  const googleOff = !filled(GOOGLE_SECRET_PAIR[0]);
   const mailProviders = [
     ...(filled(MAIL_ALIYUN_SECRET_PAIR[0]) ? ['aliyun'] : []),
     ...(filled('MAIL_RESEND_API_KEY') ? ['resend'] : []),
@@ -487,6 +492,7 @@ export function renderRuntimeEnv({ root = repositoryRoot(), environment, out, im
   // 没填的可选密钥照模板写空值（模板里本来就是空）；必填密钥缺一项就失败关闭。
   const skipped = new Set([
     ...(turnstileOff ? OPTIONAL_SECRET_PAIR : []),
+    ...(googleOff ? GOOGLE_SECRET_PAIR : []),
     ...[...MAIL_ALIYUN_SECRET_PAIR, ...OPTIONAL_SECRETS].filter(field => !filled(field)),
   ]);
   for (const field of SECRET_FIELDS) {
@@ -518,6 +524,7 @@ export function renderRuntimeEnv({ root = repositoryRoot(), environment, out, im
   // 给操作者的提示：只说哪些功能关着、哪些组合发不出信，不回显任何值。
   const notices = [];
   if (turnstileOff) notices.push(`${OPTIONAL_SECRET_PAIR.join('、')} 都为空：Turnstile 关闭，公开表单只靠工作量证明与限流。`);
+  if (googleOff) notices.push(`${GOOGLE_SECRET_PAIR.join('、')} 都为空：Google 登录关闭，登录页不出现 Google。`);
   if (!mailProviders.length) {
     notices.push(`${[...MAIL_ALIYUN_SECRET_PAIR, 'MAIL_RESEND_API_KEY'].join('、')} 都为空：发信关闭，server 把每封信记为「发信没有配置」，一封也不发。`);
   } else {
@@ -534,6 +541,7 @@ export function renderRuntimeEnv({ root = repositoryRoot(), environment, out, im
     imageTag: tag,
     secretFields,
     turnstile: turnstileOff ? 'off' : 'on',
+    google: googleOff ? 'off' : 'on',
     mail: mailProviders.length ? 'on' : 'off',
     mailProviders,
     notices,

@@ -1,7 +1,7 @@
 // 开发预览的接口入口：只读，写请求一律 501 mock_read_only，不伪造写成功（与 docs/architecture/API.md 的约定一致）；
 // 只有改称号的请求会先按服务端规则核对，不合法的照服务端返回 403/400。
 import { ApiError } from "../lib/http";
-import { checkConsoleWrite, mockPersona, routeConsole } from "./console";
+import { checkConsoleWrite, mockAccount, mockPersona, routeConsole } from "./console";
 import { routeGithub } from "./github";
 
 export async function mockApi<T>(path: string, init?: RequestInit): Promise<T> {
@@ -10,7 +10,13 @@ export async function mockApi<T>(path: string, init?: RequestInit): Promise<T> {
   if (url.pathname === "/auth/signout") return { ok: true } as T;
   // 与服务端 GET /auth/providers 同形（app/server/src/routes/identity/providers.ts）：登录页按它渲染登录方式
   if (url.pathname === "/auth/providers") {
-    return { providers: [{ id: "github", name: "GitHub", kind: "redirect", start: "/auth/github", can_register: true }] } as T;
+    return {
+      providers: [
+        { id: "github", name: "GitHub", kind: "redirect", start: "/auth/github", can_register: true },
+        { id: "google", name: "Google", kind: "redirect", start: "/auth/google", can_register: true },
+        { id: "email", name: "邮箱", kind: "email_code", start: "/auth/email/start", can_register: true, password: "/auth/email/password" },
+      ],
+    } as T;
   }
   // 与服务端 GET /auth/me 同形（只取设备授权页用到的字段）：未登录样板回 signed_in: false，不是 401
   if (url.pathname === "/auth/me") {
@@ -24,6 +30,12 @@ export async function mockApi<T>(path: string, init?: RequestInit): Promise<T> {
     const userCode = (url.searchParams.get("user_code") ?? "").toUpperCase();
     if (!/^[A-Z]{4}-[A-Z]{4}$/.test(userCode)) throw new ApiError(404, "device_code_not_found", "没有这个用户码", undefined, { error: "device_code_not_found" });
     return { user_code: userCode, client_id: "geek-cli", client_name: "极客班命令行", scope: "openid profile", status: "pending", expires_at: Date.now() + 10 * 60 * 1000 } as T;
+  }
+  // 与服务端 GET /api/identity/me 同形（app/server/src/routes/identity/account.ts）：账号页的样板；绑定邮箱、设密码是写请求，按只读回 501
+  if (method === "GET" && url.pathname === "/api/identity/me") {
+    const persona = mockPersona();
+    if (!persona) throw new ApiError(401, "not_signed_in", "请先登录", undefined, { error: "not_signed_in" });
+    return mockAccount(persona) as T;
   }
   if (method !== "GET") {
     if (url.pathname.startsWith("/api/console/")) checkConsoleWrite(url, method, parseBody(init?.body));

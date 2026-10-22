@@ -483,6 +483,8 @@ jobs:
           MAIL_ALIYUN_ACCESS_KEY_SECRET: ${{ secrets.MAIL_ALIYUN_ACCESS_KEY_SECRET }}
           MAIL_RESEND_API_KEY: ${{ secrets.MAIL_RESEND_API_KEY }}
           MAIL_ALLOWLIST: ${{ secrets.MAIL_ALLOWLIST }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
           set -eu
           node scripts/deployment-environment.mjs render \

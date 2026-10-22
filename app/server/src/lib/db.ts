@@ -562,7 +562,55 @@ addColumn("role_assignments", "account_id", "TEXT REFERENCES users(id)");
 addColumn("forum_users", "account_id", "TEXT REFERENCES users(id)");
 // 审计不加外键：审计行要比任何账号状态活得久
 addColumn("audit_logs", "actor_account_id", "TEXT");
+
+// 邮箱验证码、密码、Google 登录与邀请码注册（#262，所有者 2026-10-23 的决定，见 ADR-0005「2026-10-23 修订」）。
+// invite_codes：控制台管理的注册邀请码，用邮箱或 Google 第一次登录建号时要填；只有 lib/invite-codes.ts 读写。
+// email_challenges：一次「获取验证码」一行，库里只有验证码的 HMAC；只有 lib/email-login.ts 读写，过期一小时后随会话清理删掉。
 db.exec(`
+CREATE TABLE IF NOT EXISTS invite_codes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT NOT NULL UNIQUE,
+  note TEXT NOT NULL DEFAULT '',
+  max_uses INTEGER CHECK (max_uses IS NULL OR max_uses > 0),
+  used_count INTEGER NOT NULL DEFAULT 0,
+  expires_at INTEGER,
+  disabled INTEGER NOT NULL DEFAULT 0 CHECK (disabled IN (0, 1)),
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS email_challenges (
+  id TEXT PRIMARY KEY,
+  purpose TEXT NOT NULL CHECK (purpose IN ('signin', 'link')),
+  email TEXT NOT NULL,
+  limit_key TEXT NOT NULL,
+  account_id TEXT REFERENCES users(id),
+  session_hash TEXT,
+  return_to TEXT,
+  code_hmac TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  ip_key TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  used_at INTEGER,
+  CHECK (purpose = 'signin' OR (account_id IS NOT NULL AND session_hash IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS idx_email_challenges_limit ON email_challenges(limit_key, created_at);
+CREATE INDEX IF NOT EXISTS idx_email_challenges_ip ON email_challenges(ip_key, created_at);
+`);
+// org_role：最近一次查到的 GitHub 组织角色（admin、member 或空），邮箱和 Google 会话按它给提督、舰员称号；
+// handle：没有绑定 GitHub 的账号的登录名（yz_ 开头，GitHub 登录名不含下划线，撞不上）；
+// invite_code_id：用哪个邀请码注册的；password_hash：bcrypt，没设过密码为空。
+addColumn("users", "org_role", "TEXT");
+addColumn("users", "handle", "TEXT");
+addColumn("users", "invite_code_id", "INTEGER REFERENCES invite_codes(id)");
+addColumn("users", "password_hash", "TEXT");
+addColumn("users", "password_updated_at", "INTEGER");
+db.exec(`
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_handle ON users(handle) WHERE handle IS NOT NULL;
+-- 每个账号每种登录方式最多一个（规格「待确认 7」的默认）；之前只有 GitHub 身份，已经满足
+CREATE UNIQUE INDEX IF NOT EXISTS uq_identities_user_provider ON identities(user_id, provider);
 CREATE INDEX IF NOT EXISTS idx_sessions_openid ON sessions(openid);
 CREATE INDEX IF NOT EXISTS idx_role_assignments_account ON role_assignments(account_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_forum_users_account ON forum_users(account_id) WHERE account_id IS NOT NULL;

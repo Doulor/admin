@@ -12,6 +12,9 @@ declare module "fastify" {
       user_id: number | null;
       avatar_url: string | null;
       accessToken: string;
+      /** 会话签发时间：绑定邮箱、设密码前要求这次登录不超过 10 分钟（重新验证） */
+      created_at: number;
+      expires_at: number;
     };
     orgRole?: "admin" | "member" | null;
   }
@@ -37,8 +40,16 @@ export function loadSession(req: FastifyRequest): boolean {
     user_id: s.user_id,
     avatar_url: s.avatar_url,
     accessToken: s.accessToken,
+    created_at: s.created_at,
+    expires_at: s.expires_at,
   };
   return true;
+}
+
+/** 登录成功后写统一登录的 `sid`：三端同域共用，7 天、不续期（lib/auth.ts 的 SESSION_TTL_MS）。 */
+export function setSessionCookie(reply: FastifyReply, sid: string): void {
+  const { cookieDomain, cookieSecure } = reply.server.services.config;
+  reply.setCookie("sid", sid, { httpOnly: true, secure: cookieSecure, sameSite: "lax", path: "/", maxAge: 7 * 24 * 60 * 60, domain: cookieDomain });
 }
 
 /** 清掉统一登录的 cookie：退出登录时，和会话里的 GitHub 令牌失效时。`forum_sid` 是旧论坛留下的，一起清。 */

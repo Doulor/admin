@@ -15,7 +15,8 @@ export type ErrorView = {
   reason: BlockReason | null;
 };
 
-const isBlockReason = (value: unknown): value is BlockReason => value === "github_admin_required" || value === "github_membership_required";
+const isBlockReason = (value: unknown): value is BlockReason =>
+  value === "github_admin_required" || value === "github_membership_required" || value === "github_session_required";
 
 /**
  * `labelOf` 把能力 id 换成中文名（来自 catalogue）；没有 catalogue 时原样返回 id。

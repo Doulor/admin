@@ -2,9 +2,9 @@
 
 > 真实 Fastify 注册的方法、路径、Schema 与源码位置；含根路由、嵌套插件、循环注册及自动 HEAD。
 
-状态：`current` · 更新：2026-10-21 · 自动生成，不手工编辑。
+状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`c4b4b8dcd036d4696bebe71f143317faefccf985151a9428a8c290ebfe2f9640`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`22faa2c5401d55cfaeedf8c78f89b27dc1d358c28422f760b90b7e591f95f9de`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -24,7 +24,7 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `DELETE /api/admin/:org/repos/:repo/collaborators/:login` | `github` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireOrgRole("admin")` | [app/server/src/routes/admin/repos.ts:366](../../../app/server/src/routes/admin/repos.ts#L366) |
 | `DELETE /api/admin/:org/teams/:slug` | `github` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireOrgRole("admin")` | [app/server/src/routes/admin/teams.ts:42](../../../app/server/src/routes/admin/teams.ts#L42) |
 | `DELETE /api/competitions/:id/signup` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competition-signups.ts:40](../../../app/server/src/routes/portal/competition-signups.ts#L40) |
-| `DELETE /api/console/assignments/:id` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/assignments.ts:99](../../../app/server/src/routes/console/assignments.ts#L99) |
+| `DELETE /api/console/assignments/:id` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/assignments.ts:101](../../../app/server/src/routes/console/assignments.ts#L101) |
 | `DELETE /api/console/competitions/:competition_id` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | `requireAuth` | [app/server/src/routes/console/competitions.ts:84](../../../app/server/src/routes/console/competitions.ts#L84) |
 | `DELETE /api/console/departments/:department_id` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/console/departments.ts:63](../../../app/server/src/routes/console/departments.ts#L63) |
 | `DELETE /api/console/feedback/:id` | `feedback` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("feedback.manage")` | [app/server/src/routes/console/feedback.ts:31](../../../app/server/src/routes/console/feedback.ts#L31) |
@@ -59,7 +59,7 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `GET /api/console/applications` | `recruitment` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("applications.read")` | [app/server/src/routes/console/applications.ts:48](../../../app/server/src/routes/console/applications.ts#L48) |
 | `GET /api/console/applications/:application_id` | `recruitment` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("applications.read")` | [app/server/src/routes/console/applications.ts:104](../../../app/server/src/routes/console/applications.ts#L104) |
 | `GET /api/console/applications/export.csv` | `recruitment` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("applications.export")` | [app/server/src/routes/console/applications.ts:77](../../../app/server/src/routes/console/applications.ts#L77) |
-| `GET /api/console/assignments` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/assignments.ts:34](../../../app/server/src/routes/console/assignments.ts#L34) |
+| `GET /api/console/assignments` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/assignments.ts:35](../../../app/server/src/routes/console/assignments.ts#L35) |
 | `GET /api/console/audit` | `audit` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("audit.read")` | [app/server/src/routes/console/audit.ts:29](../../../app/server/src/routes/console/audit.ts#L29) |
 | `GET /api/console/catalogue` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/catalogue.ts:12](../../../app/server/src/routes/console/catalogue.ts#L12) |
 | `GET /api/console/competitions` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/competitions.ts:36](../../../app/server/src/routes/console/competitions.ts#L36) |
@@ -68,9 +68,10 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `GET /api/console/competitions/:competition_id/score-events` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | `requireAuth` | [app/server/src/routes/console/competition-roster.ts:84](../../../app/server/src/routes/console/competition-roster.ts#L84) |
 | `GET /api/console/departments` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/departments.ts:30](../../../app/server/src/routes/console/departments.ts#L30) |
 | `GET /api/console/feedback` | `feedback` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("feedback.read")` | [app/server/src/routes/console/feedback.ts:12](../../../app/server/src/routes/console/feedback.ts#L12) |
-| `GET /api/console/me` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/console/me.ts:14](../../../app/server/src/routes/console/me.ts#L14) |
-| `GET /api/console/people` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/people.ts:20](../../../app/server/src/routes/console/people.ts#L20) |
-| `GET /api/console/summary` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/me.ts:27](../../../app/server/src/routes/console/me.ts#L27) |
+| `GET /api/console/invites` | `identity` | 显式 | `params`、`querystring` | 已挂载 | `requireAuth` | [app/server/src/routes/console/invites.ts:19](../../../app/server/src/routes/console/invites.ts#L19) |
+| `GET /api/console/me` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/console/me.ts:17](../../../app/server/src/routes/console/me.ts#L17) |
+| `GET /api/console/people` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/people.ts:22](../../../app/server/src/routes/console/people.ts#L22) |
+| `GET /api/console/summary` | `organization` | 显式 | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/me.ts:31](../../../app/server/src/routes/console/me.ts#L31) |
 | `GET /api/docs` | `public_content` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/docs.ts:16](../../../app/server/src/routes/portal/docs.ts#L16) |
 | `GET /api/docs/:id` | `public_content` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/docs.ts:23](../../../app/server/src/routes/portal/docs.ts#L23) |
 | `GET /api/feedback/categories` | `feedback` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/feedback.ts:24](../../../app/server/src/routes/portal/feedback.ts#L24) |
@@ -80,18 +81,21 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `GET /api/forum/state` | `forum` | 显式 | `params`、`querystring` | 未声明 | `forumViewer(req)` | [app/server/src/routes/forum-api/topics.ts:21](../../../app/server/src/routes/forum-api/topics.ts#L21) |
 | `GET /api/forum/topics/:topic_id/posts` | `forum` | 显式 | `params`、`querystring` | 未声明 | `forumViewer(req)` | [app/server/src/routes/forum-api/topics.ts:28](../../../app/server/src/routes/forum-api/topics.ts#L28) |
 | `GET /api/identity/device` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/device.ts:90](../../../app/server/src/routes/identity/device.ts#L90) |
+| `GET /api/identity/me` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/account.ts:30](../../../app/server/src/routes/identity/account.ts#L30) |
 | `GET /api/join/:token` | `invitations` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/join.ts:52](../../../app/server/src/routes/portal/join.ts#L52) |
 | `GET /api/me/competitions` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competition-signups.ts:28](../../../app/server/src/routes/portal/competition-signups.ts#L28) |
-| `GET /api/me/orgs` | `github` | 显式 | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/admin/orgs.ts:10](../../../app/server/src/routes/admin/orgs.ts#L10) |
+| `GET /api/me/orgs` | `github` | 显式 | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/admin/orgs.ts:11](../../../app/server/src/routes/admin/orgs.ts#L11) |
 | `GET /api/public/competitions` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competitions.ts:13](../../../app/server/src/routes/portal/competitions.ts#L13) |
 | `GET /api/public/competitions/:id` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competitions.ts:24](../../../app/server/src/routes/portal/competitions.ts#L24) |
 | `GET /api/public/config` | `platform` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/join.ts:47](../../../app/server/src/routes/portal/join.ts#L47) |
 | `GET /api/public/org` | `organization` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/org.ts:11](../../../app/server/src/routes/portal/org.ts#L11) |
-| `GET /auth/callback` | `identity` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:54](../../../app/server/src/routes/admin/auth.ts#L54) |
+| `GET /auth/callback` | `identity` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:38](../../../app/server/src/routes/admin/auth.ts#L38) |
 | `GET /auth/device/userinfo` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/device.ts:125](../../../app/server/src/routes/identity/device.ts#L125) |
-| `GET /auth/github` | `identity` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:47](../../../app/server/src/routes/admin/auth.ts#L47) |
-| `GET /auth/me` | `identity` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:121](../../../app/server/src/routes/admin/auth.ts#L121) |
-| `GET /auth/providers` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/providers.ts:23](../../../app/server/src/routes/identity/providers.ts#L23) |
+| `GET /auth/github` | `identity` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:31](../../../app/server/src/routes/admin/auth.ts#L31) |
+| `GET /auth/google` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/google.ts:20](../../../app/server/src/routes/identity/google.ts#L20) |
+| `GET /auth/google/callback` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/google.ts:31](../../../app/server/src/routes/identity/google.ts#L31) |
+| `GET /auth/me` | `identity` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:102](../../../app/server/src/routes/admin/auth.ts#L102) |
+| `GET /auth/providers` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/providers.ts:30](../../../app/server/src/routes/identity/providers.ts#L30) |
 | `HEAD /api/admin/:org/activity` | `github` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireOrgRole("member")` | [app/server/src/routes/admin/activity.ts:9](../../../app/server/src/routes/admin/activity.ts#L9) |
 | `HEAD /api/admin/:org/feedback` | `feedback` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireOrgRole("admin")` | [app/server/src/routes/admin/feedback.ts:13](../../../app/server/src/routes/admin/feedback.ts#L13) |
 | `HEAD /api/admin/:org/invitations` | `invitations` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireOrgRole("admin")` | [app/server/src/routes/admin/invitations.ts:10](../../../app/server/src/routes/admin/invitations.ts#L10) |
@@ -119,7 +123,7 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `HEAD /api/console/applications` | `recruitment` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("applications.read")` | [app/server/src/routes/console/applications.ts:48](../../../app/server/src/routes/console/applications.ts#L48) |
 | `HEAD /api/console/applications/:application_id` | `recruitment` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("applications.read")` | [app/server/src/routes/console/applications.ts:104](../../../app/server/src/routes/console/applications.ts#L104) |
 | `HEAD /api/console/applications/export.csv` | `recruitment` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("applications.export")` | [app/server/src/routes/console/applications.ts:77](../../../app/server/src/routes/console/applications.ts#L77) |
-| `HEAD /api/console/assignments` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/assignments.ts:34](../../../app/server/src/routes/console/assignments.ts#L34) |
+| `HEAD /api/console/assignments` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/assignments.ts:35](../../../app/server/src/routes/console/assignments.ts#L35) |
 | `HEAD /api/console/audit` | `audit` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("audit.read")` | [app/server/src/routes/console/audit.ts:29](../../../app/server/src/routes/console/audit.ts#L29) |
 | `HEAD /api/console/catalogue` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/catalogue.ts:12](../../../app/server/src/routes/console/catalogue.ts#L12) |
 | `HEAD /api/console/competitions` | `competitions` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/competitions.ts:36](../../../app/server/src/routes/console/competitions.ts#L36) |
@@ -128,9 +132,10 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `HEAD /api/console/competitions/:competition_id/score-events` | `competitions` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/console/competition-roster.ts:84](../../../app/server/src/routes/console/competition-roster.ts#L84) |
 | `HEAD /api/console/departments` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/departments.ts:30](../../../app/server/src/routes/console/departments.ts#L30) |
 | `HEAD /api/console/feedback` | `feedback` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("feedback.read")` | [app/server/src/routes/console/feedback.ts:12](../../../app/server/src/routes/console/feedback.ts#L12) |
-| `HEAD /api/console/me` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/console/me.ts:14](../../../app/server/src/routes/console/me.ts#L14) |
-| `HEAD /api/console/people` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/people.ts:20](../../../app/server/src/routes/console/people.ts#L20) |
-| `HEAD /api/console/summary` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/me.ts:27](../../../app/server/src/routes/console/me.ts#L27) |
+| `HEAD /api/console/invites` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/console/invites.ts:19](../../../app/server/src/routes/console/invites.ts#L19) |
+| `HEAD /api/console/me` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/console/me.ts:17](../../../app/server/src/routes/console/me.ts#L17) |
+| `HEAD /api/console/people` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/people.ts:22](../../../app/server/src/routes/console/people.ts#L22) |
+| `HEAD /api/console/summary` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth`、`requireCapability("console.access")` | [app/server/src/routes/console/me.ts:31](../../../app/server/src/routes/console/me.ts#L31) |
 | `HEAD /api/docs` | `public_content` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/docs.ts:16](../../../app/server/src/routes/portal/docs.ts#L16) |
 | `HEAD /api/docs/:id` | `public_content` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/docs.ts:23](../../../app/server/src/routes/portal/docs.ts#L23) |
 | `HEAD /api/feedback/categories` | `feedback` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/feedback.ts:24](../../../app/server/src/routes/portal/feedback.ts#L24) |
@@ -138,18 +143,21 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `HEAD /api/forum/avatars/:file` | `forum` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/people.ts:99](../../../app/server/src/routes/forum-api/people.ts#L99) |
 | `HEAD /api/forum/state` | `forum` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/topics.ts:22](../../../app/server/src/routes/forum-api/topics.ts#L22) |
 | `HEAD /api/identity/device` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/device.ts:90](../../../app/server/src/routes/identity/device.ts#L90) |
+| `HEAD /api/identity/me` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/account.ts:30](../../../app/server/src/routes/identity/account.ts#L30) |
 | `HEAD /api/join/:token` | `invitations` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/join.ts:52](../../../app/server/src/routes/portal/join.ts#L52) |
 | `HEAD /api/me/competitions` | `competitions` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competition-signups.ts:28](../../../app/server/src/routes/portal/competition-signups.ts#L28) |
-| `HEAD /api/me/orgs` | `github` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/admin/orgs.ts:10](../../../app/server/src/routes/admin/orgs.ts#L10) |
+| `HEAD /api/me/orgs` | `github` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/admin/orgs.ts:11](../../../app/server/src/routes/admin/orgs.ts#L11) |
 | `HEAD /api/public/competitions` | `competitions` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competitions.ts:13](../../../app/server/src/routes/portal/competitions.ts#L13) |
 | `HEAD /api/public/competitions/:id` | `competitions` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competitions.ts:24](../../../app/server/src/routes/portal/competitions.ts#L24) |
 | `HEAD /api/public/config` | `platform` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/join.ts:47](../../../app/server/src/routes/portal/join.ts#L47) |
 | `HEAD /api/public/org` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/org.ts:11](../../../app/server/src/routes/portal/org.ts#L11) |
-| `HEAD /auth/callback` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:54](../../../app/server/src/routes/admin/auth.ts#L54) |
+| `HEAD /auth/callback` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:38](../../../app/server/src/routes/admin/auth.ts#L38) |
 | `HEAD /auth/device/userinfo` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/device.ts:125](../../../app/server/src/routes/identity/device.ts#L125) |
-| `HEAD /auth/github` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:47](../../../app/server/src/routes/admin/auth.ts#L47) |
-| `HEAD /auth/me` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:121](../../../app/server/src/routes/admin/auth.ts#L121) |
-| `HEAD /auth/providers` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/providers.ts:23](../../../app/server/src/routes/identity/providers.ts#L23) |
+| `HEAD /auth/github` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:31](../../../app/server/src/routes/admin/auth.ts#L31) |
+| `HEAD /auth/google` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/google.ts:20](../../../app/server/src/routes/identity/google.ts#L20) |
+| `HEAD /auth/google/callback` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/google.ts:31](../../../app/server/src/routes/identity/google.ts#L31) |
+| `HEAD /auth/me` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:102](../../../app/server/src/routes/admin/auth.ts#L102) |
+| `HEAD /auth/providers` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/providers.ts:30](../../../app/server/src/routes/identity/providers.ts#L30) |
 | `PATCH /api/admin/:org/feedback/:id` | `feedback` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireOrgRole("admin")` | [app/server/src/routes/admin/feedback.ts:19](../../../app/server/src/routes/admin/feedback.ts#L19) |
 | `PATCH /api/admin/:org/invite-links/:token` | `invitations` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireOrgRole("admin")` | [app/server/src/routes/admin/invite-links.ts:60](../../../app/server/src/routes/admin/invite-links.ts#L60) |
 | `PATCH /api/admin/:org/members/:login/role` | `github` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireOrgRole("admin")` | [app/server/src/routes/admin/members.ts:40](../../../app/server/src/routes/admin/members.ts#L40) |
@@ -159,6 +167,7 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `PATCH /api/console/competitions/:competition_id` | `competitions` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/competitions.ts:59](../../../app/server/src/routes/console/competitions.ts#L59) |
 | `PATCH /api/console/departments/:department_id` | `organization` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/departments.ts:47](../../../app/server/src/routes/console/departments.ts#L47) |
 | `PATCH /api/console/feedback/:id` | `feedback` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireCapability("feedback.manage")` | [app/server/src/routes/console/feedback.ts:18](../../../app/server/src/routes/console/feedback.ts#L18) |
+| `PATCH /api/console/invites/:id` | `identity` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/invites.ts:32](../../../app/server/src/routes/console/invites.ts#L32) |
 | `PATCH /api/console/titles/:title_id` | `organization` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth`、`requireCapability("roles.manage")` | [app/server/src/routes/console/titles.ts:17](../../../app/server/src/routes/console/titles.ts#L17) |
 | `PATCH /api/forum/me/profile` | `forum` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/people.ts:32](../../../app/server/src/routes/forum-api/people.ts#L32) |
 | `PATCH /api/forum/posts/:post_id` | `forum` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/posts.ts:78](../../../app/server/src/routes/forum-api/posts.ts#L78) |
@@ -168,11 +177,12 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `POST /api/admin/:org/teams` | `github` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireOrgRole("admin")` | [app/server/src/routes/admin/teams.ts:28](../../../app/server/src/routes/admin/teams.ts#L28) |
 | `POST /api/competitions/:id/signup` | `competitions` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competition-signups.ts:35](../../../app/server/src/routes/portal/competition-signups.ts#L35) |
 | `POST /api/competitions/:id/teams` | `competitions` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competition-signups.ts:53](../../../app/server/src/routes/portal/competition-signups.ts#L53) |
-| `POST /api/console/assignments` | `organization` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/assignments.ts:52](../../../app/server/src/routes/console/assignments.ts#L52) |
+| `POST /api/console/assignments` | `organization` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireCapability("roles.manage", "roles.department.manage")` | [app/server/src/routes/console/assignments.ts:53](../../../app/server/src/routes/console/assignments.ts#L53) |
 | `POST /api/console/competitions` | `competitions` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/competitions.ts:41](../../../app/server/src/routes/console/competitions.ts#L41) |
 | `POST /api/console/competitions/:competition_id/score-events` | `competitions` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/competition-roster.ts:93](../../../app/server/src/routes/console/competition-roster.ts#L93) |
 | `POST /api/console/competitions/:competition_id/score-events/:event_id/revoke` | `competitions` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/competition-roster.ts:110](../../../app/server/src/routes/console/competition-roster.ts#L110) |
 | `POST /api/console/departments` | `organization` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/departments.ts:37](../../../app/server/src/routes/console/departments.ts#L37) |
+| `POST /api/console/invites` | `identity` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/invites.ts:21](../../../app/server/src/routes/console/invites.ts#L21) |
 | `POST /api/feedback` | `feedback` | 显式 | `params`、`querystring`、`body` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/feedback.ts:26](../../../app/server/src/routes/portal/feedback.ts#L26) |
 | `POST /api/forum/notifications/:notification_id/read` | `forum` | 显式 | `params`、`querystring` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/people.ts:20](../../../app/server/src/routes/forum-api/people.ts#L20) |
 | `POST /api/forum/notifications/read-all` | `forum` | 显式 | `params`、`querystring` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/people.ts:26](../../../app/server/src/routes/forum-api/people.ts#L26) |
@@ -185,6 +195,9 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `POST /api/forum/topics/:topic_id/view` | `forum` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/topics.ts:80](../../../app/server/src/routes/forum-api/topics.ts#L80) |
 | `POST /api/forum/users/:forum_user_id/follow` | `forum` | 显式 | `params`、`querystring` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/people.ts:11](../../../app/server/src/routes/forum-api/people.ts#L11) |
 | `POST /api/identity/device/approve` | `identity` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/device.ts:101](../../../app/server/src/routes/identity/device.ts#L101) |
+| `POST /api/identity/email/start` | `identity` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/account.ts:45](../../../app/server/src/routes/identity/account.ts#L45) |
+| `POST /api/identity/email/verify` | `identity` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/account.ts:60](../../../app/server/src/routes/identity/account.ts#L60) |
+| `POST /api/identity/password` | `identity` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/account.ts:83](../../../app/server/src/routes/identity/account.ts#L83) |
 | `POST /api/join/:token` | `invitations` | 显式 | `params`、`querystring`、`body` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/join.ts:67](../../../app/server/src/routes/portal/join.ts#L67) |
 | `POST /api/portal/apply` | `recruitment` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/apply.ts:118](../../../app/server/src/routes/portal/apply.ts#L118) |
 | `POST /api/teams/:id/apply` | `competitions` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competition-signups.ts:58](../../../app/server/src/routes/portal/competition-signups.ts#L58) |
@@ -195,7 +208,10 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `POST /api/teams/:id/transfer` | `competitions` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competition-signups.ts:78](../../../app/server/src/routes/portal/competition-signups.ts#L78) |
 | `POST /auth/device/code` | `identity` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/device.ts:32](../../../app/server/src/routes/identity/device.ts#L32) |
 | `POST /auth/device/token` | `identity` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/device.ts:56](../../../app/server/src/routes/identity/device.ts#L56) |
-| `POST /auth/signout` | `identity` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:101](../../../app/server/src/routes/admin/auth.ts#L101) |
+| `POST /auth/email/password` | `identity` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/email.ts:119](../../../app/server/src/routes/identity/email.ts#L119) |
+| `POST /auth/email/start` | `identity` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/email.ts:66](../../../app/server/src/routes/identity/email.ts#L66) |
+| `POST /auth/email/verify` | `identity` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/email.ts:81](../../../app/server/src/routes/identity/email.ts#L81) |
+| `POST /auth/signout` | `identity` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:82](../../../app/server/src/routes/admin/auth.ts#L82) |
 | `PUT /api/admin/:org/repos/:repo/collaborators/:login` | `github` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireOrgRole("admin")` | [app/server/src/routes/admin/repos.ts:352](../../../app/server/src/routes/admin/repos.ts#L352) |
 | `PUT /api/admin/:org/repos/:repo/pulls/:n/merge` | `github` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth`、`requireOrgRole("member")` | [app/server/src/routes/admin/repos.ts:259](../../../app/server/src/routes/admin/repos.ts#L259) |
 | `PUT /api/console/competitions/:competition_id/signup-settings` | `competitions` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/competition-roster.ts:31](../../../app/server/src/routes/console/competition-roster.ts#L31) |
@@ -205,47 +221,47 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 
 | 方法与路径 | 业务域 | 注册 | 请求 Schema | 响应 Schema | 授权检查证据 | 源码 |
 |---|---|---|---|---|---|---|
-| `GET /` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:104](../../../app/server/src/app.ts#L104) |
-| `GET /forum` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:84](../../../app/server/src/app.ts#L84) |
-| `GET /forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:84](../../../app/server/src/app.ts#L84) |
-| `GET /healthz` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:90](../../../app/server/src/app.ts#L90) |
-| `HEAD /` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:104](../../../app/server/src/app.ts#L104) |
-| `HEAD /forum` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:84](../../../app/server/src/app.ts#L84) |
-| `HEAD /forum/*` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:84](../../../app/server/src/app.ts#L84) |
-| `HEAD /healthz` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:90](../../../app/server/src/app.ts#L90) |
+| `GET /` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:112](../../../app/server/src/app.ts#L112) |
+| `GET /forum` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:92](../../../app/server/src/app.ts#L92) |
+| `GET /forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:92](../../../app/server/src/app.ts#L92) |
+| `GET /healthz` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:98](../../../app/server/src/app.ts#L98) |
+| `HEAD /` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:112](../../../app/server/src/app.ts#L112) |
+| `HEAD /forum` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:92](../../../app/server/src/app.ts#L92) |
+| `HEAD /forum/*` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:92](../../../app/server/src/app.ts#L92) |
+| `HEAD /healthz` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:98](../../../app/server/src/app.ts#L98) |
 
 ## 退役兼容
 
 | 方法与路径 | 业务域 | 注册 | 请求 Schema | 响应 Schema | 授权检查证据 | 源码 |
 |---|---|---|---|---|---|---|
-| `DELETE /api/forum` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `DELETE /api/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `DELETE /auth/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `DELETE /forum/u/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `GET /api/forum` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `GET /api/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `GET /auth/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `GET /forum/u/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `HEAD /api/forum` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `HEAD /api/forum/*` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `HEAD /auth/forum/*` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `HEAD /forum/u/*` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `OPTIONS /api/forum` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `OPTIONS /api/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `OPTIONS /auth/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `OPTIONS /forum/u/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `PATCH /api/forum` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `PATCH /api/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `PATCH /auth/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `PATCH /forum/u/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `POST /api/forum` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `POST /api/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `POST /auth/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `POST /forum/u/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `PUT /api/forum` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `PUT /api/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `PUT /auth/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
-| `PUT /forum/u/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:80](../../../app/server/src/app.ts#L80) |
+| `DELETE /api/forum` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `DELETE /api/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `DELETE /auth/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `DELETE /forum/u/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `GET /api/forum` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `GET /api/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `GET /auth/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `GET /forum/u/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `HEAD /api/forum` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `HEAD /api/forum/*` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `HEAD /auth/forum/*` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `HEAD /forum/u/*` | `platform` | 自动 HEAD | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `OPTIONS /api/forum` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `OPTIONS /api/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `OPTIONS /auth/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `OPTIONS /forum/u/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `PATCH /api/forum` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `PATCH /api/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `PATCH /auth/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `PATCH /forum/u/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `POST /api/forum` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `POST /api/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `POST /auth/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `POST /forum/u/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `PUT /api/forum` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `PUT /api/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `PUT /auth/forum/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
+| `PUT /forum/u/*` | `platform` | 显式 | 未声明 | 未声明 | 需查看 handler 与继承策略 | [app/server/src/app.ts:88](../../../app/server/src/app.ts#L88) |
 
 ## 核心之外：Nitro 与预渲染入口
 

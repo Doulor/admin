@@ -121,7 +121,7 @@ const COMPETITION_TABLES = [
   'competition_team_members', 'competition_teams', 'competitions',
 ];
 /** 极客班账号（#262）：新表之外，只给 sessions、role_assignments、forum_users、audit_logs 加可空列，旧列不动。 */
-const IDENTITY_TABLES = ['identities', 'identity_audit', 'users'];
+const IDENTITY_TABLES = ['identities', 'identity_audit', 'users', 'invite_codes', 'email_challenges'];
 /** 命令行设备授权（#262，RFC 8628）：同样只新增。 */
 const DEVICE_TABLES = ['device_grants'];
 

@@ -3,6 +3,7 @@ import {
   APPLICATION_STATUS_IDS, ASSIGNABLE_ROLES, CAPABILITY_IDS, DEPARTMENT_ICONS, DEPARTMENT_ID_PATTERN, DEPARTMENT_TAG_PATTERN, TITLE_IDS, TITLE_TAG_PATTERN, TONE_IDS,
 } from "../../lib/roles.js";
 import { FEEDBACK_STATUSES } from "../../lib/feedback-store.js";
+import { INVITE_CODE_PATTERN } from "../../lib/invite-codes.js";
 import {
   competitionFields, competitionFailures, competitionDeleted, consoleCompetitionList, consoleCompetitionResult,
   competitionRoster, signupSettingsResult, signupBody, consoleCompetitionIdParam, scoreEventList, scoreEventResult, scoreEventParam,
@@ -21,6 +22,16 @@ const LIMIT_PATTERNS = { 200: "^(?:[1-9][0-9]?|1[0-9]{2}|200)$", 500: "^(?:[1-9]
 const limit = (max: keyof typeof LIMIT_PATTERNS) => ({ type: "string", pattern: LIMIT_PATTERNS[max] });
 const offset = { type: "string", pattern: "^[0-9]{1,8}$" };
 const noQuery = { querystring: object({}) };
+const nullableCount = { anyOf: [integer(0), { type: "null" }] };
+const inviteView = object({
+  id: integer(), code: text(40, 1), note: text(100), max_uses: nullableCount, used_count: integer(0), expires_at: nullableCount,
+  disabled: { type: "boolean" }, created_by: text(100), created_at: integer(0), updated_at: integer(0), usable: { type: "boolean" },
+}, ["id", "code", "note", "max_uses", "used_count", "expires_at", "disabled", "created_by", "created_at", "updated_at", "usable"]);
+// 失败体保留共同错误处理器的扩展字段（如 capability）
+const inviteFailures = {
+  "4xx": object({ error: { type: "string" }, message: { type: "string" }, request_id: { type: "string" }, capability: { type: "string" } }, ["error"], true),
+  "5xx": object({ error: { type: "string" }, message: { type: "string" }, request_id: { type: "string" } }, ["error"], true),
+};
 const departmentFields = {
   name: text(12, 2), tag: { type: "string", pattern: DEPARTMENT_TAG_PATTERN },
   icon: choices(...DEPARTMENT_ICONS), tone: choices(...TONE_IDS), description: text(200),
@@ -143,4 +154,22 @@ export const consoleContracts: RouteContracts = {
   },
   "DELETE /api/console/feedback/:id": noQuery,
   "GET /api/console/audit": { querystring: object({ limit: limit(200), offset, action: text(64) }) },
+  // 注册邀请码（#262）：次数上限、过期时间可以为空（不限）；邀请码本身建好后不能改
+  "GET /api/console/invites": { ...noQuery, response: { 200: object({ invites: { type: "array", items: inviteView } }, ["invites"]), ...inviteFailures } },
+  "POST /api/console/invites": {
+    ...noQuery,
+    body: object({
+      code: { type: "string", pattern: INVITE_CODE_PATTERN }, note: text(100),
+      max_uses: { anyOf: [integer(1, 100000), { type: "null" }] }, expires_at: { anyOf: [integer(0), { type: "null" }] },
+    }, ["code"]),
+    response: { 201: inviteView, ...inviteFailures },
+  },
+  "PATCH /api/console/invites/:id": {
+    ...noQuery,
+    body: object({
+      note: text(100), max_uses: { anyOf: [integer(1, 100000), { type: "null" }] },
+      expires_at: { anyOf: [integer(0), { type: "null" }] }, disabled: { type: "boolean" },
+    }),
+    response: { 200: inviteView, ...inviteFailures },
+  },
 };

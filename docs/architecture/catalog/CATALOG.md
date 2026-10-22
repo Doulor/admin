@@ -2,20 +2,20 @@
 
 > 应用、运行单元、业务域与源码证据的统一入口；不表示线上部署状态。
 
-状态：`current` · 更新：2026-10-21 · 自动生成，不手工编辑。
+状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`c4b4b8dcd036d4696bebe71f143317faefccf985151a9428a8c290ebfe2f9640`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`22faa2c5401d55cfaeedf8c78f89b27dc1d358c28422f760b90b7e591f95f9de`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
 ## 基线
 
 - 4 个源码应用，3 个运行单元。
-- 220 个已注册方法与路径，其中业务操作 126 个，自动 HEAD 65 个。
-- 37 张应用表，21 个能力，132 条显式业务流程。
-- 响应 Schema：37/220。缺失不等于没有响应；不冒充完整 OpenAPI。
+- 236 个已注册方法与路径，其中业务操作 138 个，自动 HEAD 69 个。
+- 39 张应用表，22 个能力，144 条显式业务流程。
+- 响应 Schema：49/236。缺失不等于没有响应；不冒充完整 OpenAPI。
 
-业务流程关联：126/126 个业务操作；5/5 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
+业务流程关联：138/138 个业务操作；5/5 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
 
 ## 应用与运行单元
 
@@ -32,7 +32,7 @@
 
 | 业务 | 接口注册 | 数据表 | 业务说明 |
 |---|---:|---|---|
-| 身份与会话 | 16 | `sessions`、`users`、`identities`、`identity_audit`、`device_grants` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/plan/UNIFIED-LOGIN.md](../../../docs/plan/UNIFIED-LOGIN.md) |
+| 身份与会话 | 32 | `sessions`、`users`、`identities`、`identity_audit`、`device_grants`、`invite_codes`、`email_challenges` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/plan/UNIFIED-LOGIN.md](../../../docs/plan/UNIFIED-LOGIN.md) |
 | 组织与权限 | 20 | `departments`、`titles`、`role_assignments`、`console_seeds` | [docs/services/console/README.md](../../../docs/services/console/README.md) · [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) |
 | 招新投递 | 8 | `applications`、`application_reviews`、`application_limits` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) · [docs/ops/USAGE.md](../../../docs/ops/USAGE.md) |
 | 意见反馈 | 13 | `feedback` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
@@ -77,7 +77,7 @@
 - 响应与错误：302跳到GitHub授权地址。
 - 数据与副作用：生成随机state并写签名oauth_state cookie，不创建会话；本次响应不向GitHub发送token交换请求。
 
-源码：[app/server/src/routes/admin/auth.ts:47](../../../app/server/src/routes/admin/auth.ts#L47) · [app/server/src/middleware/oauth-state.ts:18](../../../app/server/src/middleware/oauth-state.ts#L18)
+源码：[app/server/src/routes/admin/auth.ts:31](../../../app/server/src/routes/admin/auth.ts#L31) · [app/server/src/middleware/oauth-state.ts:29](../../../app/server/src/middleware/oauth-state.ts#L29)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts)。生成器未执行这些测试。
 
@@ -91,10 +91,10 @@
 - 写入：
 - 不入队：
 - 权限与资源：匿名可读，不读会话、不需要能力。
-- 响应与错误：200 {providers:[...]}，每项含id、name、kind、start、can_register；交付1只有GitHub（kind=redirect，start=/auth/github，can_register=true），响应Schema固定字段。
-- 数据与副作用：只读进程内的固定列表，不读写数据库、不请求GitHub。
+- 响应与错误：200 {providers:[...]}，每项含id、name、kind、start、can_register，邮箱另有password；按GitHub、Google、邮箱的顺序，Google只在配了GOOGLE_CLIENT_ID与GOOGLE_CLIENT_SECRET时出现，邮箱只在发信已配置时出现；响应Schema固定字段。
+- 数据与副作用：按配置算出固定列表，不读写数据库、不请求GitHub。
 
-源码：[app/server/src/routes/identity/providers.ts:23](../../../app/server/src/routes/identity/providers.ts#L23) · [app/server/src/routes/identity/contracts.ts:60](../../../app/server/src/routes/identity/contracts.ts#L60) · [app/server/src/routes/identity/index.ts:8](../../../app/server/src/routes/identity/index.ts#L8) · [app/console/src/pages/SignIn.vue:59](../../../app/console/src/pages/SignIn.vue#L59) · [app/console/src/lib/signin.ts:67](../../../app/console/src/lib/signin.ts#L67) · [app/console/src/mock/index.ts:12](../../../app/console/src/mock/index.ts#L12)
+源码：[app/server/src/routes/identity/providers.ts:30](../../../app/server/src/routes/identity/providers.ts#L30) · [app/server/src/routes/identity/contracts.ts:96](../../../app/server/src/routes/identity/contracts.ts#L96) · [app/server/src/routes/identity/index.ts:11](../../../app/server/src/routes/identity/index.ts#L11) · [app/console/src/pages/SignIn.vue:161](../../../app/console/src/pages/SignIn.vue#L161) · [app/console/src/lib/signin.ts:83](../../../app/console/src/lib/signin.ts#L83) · [app/console/src/mock/index.ts:12](../../../app/console/src/mock/index.ts#L12)
 
 测试入口：[tests/server/identity.test.ts](../../../tests/server/identity.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -111,7 +111,7 @@
 - 响应与错误：200 {device_code,user_code(XXXX-XXXX),verification_uri=<PUBLIC_ORIGIN>/device,verification_uri_complete,expires_in=600,interval=5}，Cache-Control no-store；未登记客户端 400 invalid_client，未知 scope 400 invalid_scope。
 - 数据与副作用：写一行 pending 的 device_grants，device_code 只存 sha256；顺手删掉过期超过一天且令牌已失效的旧行；不读会话、不请求 GitHub。
 
-源码：[app/server/src/routes/identity/device.ts:33](../../../app/server/src/routes/identity/device.ts#L33) · [app/server/src/routes/identity/contracts.ts:65](../../../app/server/src/routes/identity/contracts.ts#L65) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103)
+源码：[app/server/src/routes/identity/device.ts:33](../../../app/server/src/routes/identity/device.ts#L33) · [app/server/src/routes/identity/contracts.ts:101](../../../app/server/src/routes/identity/contracts.ts#L101) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103)
 
 测试入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts)。生成器未执行这些测试。
 
@@ -128,7 +128,7 @@
 - 响应与错误：按 RFC 8628 §3.5 回 400 authorization_pending、slow_down（轮询间隔加 5 秒写回）、access_denied（用户拒绝或账号不是 active）、expired_token、invalid_grant（不存在或已换过令牌）、invalid_client、unsupported_grant_type；批准后 200 {access_token(gk_…),token_type:Bearer,expires_in=2592000,scope,account_id}，Cache-Control no-store。
 - 数据与副作用：在 BEGIN IMMEDIATE 事务里判定并改状态；令牌只发一次，库里只存 sha256 与到期时间，明文只在这次响应里。
 
-源码：[app/server/src/routes/identity/device.ts:57](../../../app/server/src/routes/identity/device.ts#L57) · [app/server/src/routes/identity/contracts.ts:70](../../../app/server/src/routes/identity/contracts.ts#L70) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103)
+源码：[app/server/src/routes/identity/device.ts:57](../../../app/server/src/routes/identity/device.ts#L57) · [app/server/src/routes/identity/contracts.ts:106](../../../app/server/src/routes/identity/contracts.ts#L106) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103)
 
 测试入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts)。生成器未执行这些测试。
 
@@ -145,7 +145,7 @@
 - 响应与错误：200 {user_code,client_id,client_name,scope,status(pending|approved|denied|consumed|expired),expires_at}；user_code 不合法或不存在 404 device_code_not_found；没登录 401。
 - 数据与副作用：只读，不改状态、不续期；不返回 device_code 与令牌。
 
-源码：[app/server/src/routes/identity/device.ts:91](../../../app/server/src/routes/identity/device.ts#L91) · [app/server/src/routes/identity/contracts.ts:75](../../../app/server/src/routes/identity/contracts.ts#L75) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103) · [app/console/src/pages/Device.vue:60](../../../app/console/src/pages/Device.vue#L60) · [app/console/src/lib/device.ts:17](../../../app/console/src/lib/device.ts#L17)
+源码：[app/server/src/routes/identity/device.ts:91](../../../app/server/src/routes/identity/device.ts#L91) · [app/server/src/routes/identity/contracts.ts:111](../../../app/server/src/routes/identity/contracts.ts#L111) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103) · [app/console/src/pages/Device.vue:60](../../../app/console/src/pages/Device.vue#L60) · [app/console/src/lib/device.ts:17](../../../app/console/src/lib/device.ts#L17)
 
 测试入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts) · [tests/console/device.test.ts](../../../tests/console/device.test.ts)。生成器未执行这些测试。
 
@@ -162,7 +162,7 @@
 - 响应与错误：200 {ok:true,status:approved|denied}；不存在 404 device_code_not_found；不是 pending 或已过期 409 device_code_not_pending；decision 不合法 400。
 - 数据与副作用：条件 UPDATE 只改 pending 且未过期的行，并发的确认只有一次生效；写 audit_logs identity.device.approve 或 identity.device.deny，只含 client_id 与 scope，不含 device_code 与令牌。
 
-源码：[app/server/src/routes/identity/device.ts:102](../../../app/server/src/routes/identity/device.ts#L102) · [app/server/src/routes/identity/contracts.ts:79](../../../app/server/src/routes/identity/contracts.ts#L79) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103) · [app/console/src/pages/Device.vue:167](../../../app/console/src/pages/Device.vue#L167)
+源码：[app/server/src/routes/identity/device.ts:102](../../../app/server/src/routes/identity/device.ts#L102) · [app/server/src/routes/identity/contracts.ts:115](../../../app/server/src/routes/identity/contracts.ts#L115) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103) · [app/console/src/pages/Device.vue:167](../../../app/console/src/pages/Device.vue#L167)
 
 测试入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts) · [tests/console/device.test.ts](../../../tests/console/device.test.ts)。生成器未执行这些测试。
 
@@ -179,7 +179,7 @@
 - 响应与错误：200 {sub=account_id,account_id,login,avatar_url,scope}；令牌缺失、不存在、过期或账号不是 active 时 401 invalid_token，并带 WWW-Authenticate: Bearer error="invalid_token"。
 - 数据与副作用：只读；按令牌的 sha256 查行，不记录令牌明文。
 
-源码：[app/server/src/routes/identity/device.ts:125](../../../app/server/src/routes/identity/device.ts#L125) · [app/server/src/routes/identity/contracts.ts:84](../../../app/server/src/routes/identity/contracts.ts#L84) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103)
+源码：[app/server/src/routes/identity/device.ts:125](../../../app/server/src/routes/identity/device.ts#L125) · [app/server/src/routes/identity/contracts.ts:120](../../../app/server/src/routes/identity/contracts.ts#L120) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103)
 
 测试入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts)。生成器未执行这些测试。
 
@@ -192,11 +192,11 @@
 - 读取：`identities`、`users`
 - 写入：`sessions`、`audit_logs`、`users`、`identities`、`identity_audit`、`role_assignments`、`forum_users`
 - 不入队：
-- 权限与资源：state与签名cookie必须相符且未过期；仅CONSOLE_ORG active成员成功；只有GitHub能建号，按GitHub数字id匹配身份，不用会变的登录名。
+- 权限与资源：state与签名cookie必须相符且未过期；仅CONSOLE_ORG active成员成功；按GitHub数字id匹配身份，不用会变的登录名；查到的组织角色记到账号上（users.org_role），邮箱、Google会话按它给称号（#262）。
 - 响应与错误：成功302回return_to；取消/上游失败/非成员/账号停用一律302到统一登录页/signin，带signin结果（cancelled、failed、not_member或invite_pending、account_disabled）与原来的return_to路径（#262）；合并链超过8跳、成环或事务失败按failed；缺参数或无效state为400，旧forum-state为410。
-- 数据与副作用：外部请求在事务外做完；建号、刷新身份、沿merged_into走到终点、按GitHub id认领称号与论坛用户、写sessions（含openid、provider）、删请求带来的旧会话、写identity_audit与auth.signin在一个BEGIN IMMEDIATE事务里，失败整体回滚、旧会话照常有效。非成员与停用账号不建会话、审计拒绝并尽力撤销授权；失败日志不输出token。
+- 数据与副作用：外部请求在事务外做完；建号、刷新身份、沿merged_into走到终点、按GitHub id认领称号与论坛用户、写sessions（含openid、provider）、删请求带来的旧会话、写identity_audit与auth.signin在一个BEGIN IMMEDIATE事务里，失败整体回滚、旧会话照常有效。非成员与停用账号不建会话、审计拒绝并尽力撤销授权；被组织拒绝的GitHub id已经有账号时，清掉账号记下的组织角色，不是邀请码注册的账号同时改成not_member或pending（#262审查）；失败日志不输出token。
 
-源码：[app/server/src/routes/admin/auth.ts:54](../../../app/server/src/routes/admin/auth.ts#L54) · [app/server/src/lib/auth.ts:47](../../../app/server/src/lib/auth.ts#L47) · [app/server/src/lib/identity-store.ts:158](../../../app/server/src/lib/identity-store.ts#L158) · [app/server/src/lib/db.ts:605](../../../app/server/src/lib/db.ts#L605)
+源码：[app/server/src/routes/admin/auth.ts:38](../../../app/server/src/routes/admin/auth.ts#L38) · [app/server/src/lib/auth.ts:50](../../../app/server/src/lib/auth.ts#L50) · [app/server/src/lib/identity-store.ts:174](../../../app/server/src/lib/identity-store.ts#L174) · [app/server/src/lib/db.ts:653](../../../app/server/src/lib/db.ts#L653)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/identity.test.ts](../../../tests/server/identity.test.ts)。生成器未执行这些测试。
 
@@ -213,7 +213,7 @@
 - 响应与错误：200 {ok:true}；不向调用者泄露sid是否存在。
 - 数据与副作用：清sid和旧forum_sid cookie；实际读取到会话才写auth.signout（带actor_account_id）和本人的identity_audit退出记录，不撤销GitHub授权。
 
-源码：[app/server/src/routes/admin/auth.ts:101](../../../app/server/src/routes/admin/auth.ts#L101) · [app/server/src/lib/identity-store.ts:206](../../../app/server/src/lib/identity-store.ts#L206)
+源码：[app/server/src/routes/admin/auth.ts:82](../../../app/server/src/routes/admin/auth.ts#L82) · [app/server/src/lib/identity-store.ts:226](../../../app/server/src/lib/identity-store.ts#L226)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/session-cleanup.test.ts](../../../tests/server/session-cleanup.test.ts) · [tests/server/identity.test.ts](../../../tests/server/identity.test.ts)。生成器未执行这些测试。
 
@@ -230,9 +230,213 @@
 - 响应与错误：200 {signed_in:false}或身份字段（login、user_id、avatar_url、account_id、provider）及console_link；GitHub拒绝token时200 {signed_in:false,session_expired:true}，其他角色查询失败仍保持登录但入口false。
 - 数据与副作用：会话联查账号，过期、没有账号（启动回填映射不到的旧会话）或账号不是active的会话按未登录处理并删除；访问GitHub角色缓存和权限数据，被拒token才删会话并写审计；无其他业务写入。
 
-源码：[app/server/src/routes/admin/auth.ts:121](../../../app/server/src/routes/admin/auth.ts#L121) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/lib/db.ts:572](../../../app/server/src/lib/db.ts#L572) · [app/console/src/lib/runtime.ts:50](../../../app/console/src/lib/runtime.ts#L50) · [app/console/src/lib/errors.ts:36](../../../app/console/src/lib/errors.ts#L36) · [app/console/src/router.ts:15](../../../app/console/src/router.ts#L15) · [app/web/sites/portal/lib/account.ts:18](../../../app/web/sites/portal/lib/account.ts#L18) · [app/web/sites/portal/components/os/YugcOs.tsx:39](../../../app/web/sites/portal/components/os/YugcOs.tsx#L39) · [app/forum/app/composables/useSiteLinks.ts:17](../../../app/forum/app/composables/useSiteLinks.ts#L17) · [app/forum/app/components/ForumHeader.vue:131](../../../app/forum/app/components/ForumHeader.vue#L131) · [app/forum/app/components/LoginModal.vue:8](../../../app/forum/app/components/LoginModal.vue#L8) · [app/forum/app/components/SignInState.vue:26](../../../app/forum/app/components/SignInState.vue#L26) · [app/forum/app/composables/useSiteAccount.ts:13](../../../app/forum/app/composables/useSiteAccount.ts#L13) · [app/forum/app/data/access.ts:86](../../../app/forum/app/data/access.ts#L86) · [app/forum/app/pages/about.vue:49](../../../app/forum/app/pages/about.vue#L49) · [app/forum/app/pages/new.vue:31](../../../app/forum/app/pages/new.vue#L31) · [app/forum/shared/signin-outcomes.ts:2](../../../app/forum/shared/signin-outcomes.ts#L2) · [app/forum/shared/site-notice.ts:9](../../../app/forum/shared/site-notice.ts#L9) · [app/forum/app/components/AdoptionNotice.vue:41](../../../app/forum/app/components/AdoptionNotice.vue#L41)
+源码：[app/server/src/routes/admin/auth.ts:102](../../../app/server/src/routes/admin/auth.ts#L102) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/lib/db.ts:620](../../../app/server/src/lib/db.ts#L620) · [app/console/src/lib/runtime.ts:50](../../../app/console/src/lib/runtime.ts#L50) · [app/console/src/lib/errors.ts:37](../../../app/console/src/lib/errors.ts#L37) · [app/console/src/router.ts:15](../../../app/console/src/router.ts#L15) · [app/web/sites/portal/lib/account.ts:18](../../../app/web/sites/portal/lib/account.ts#L18) · [app/web/sites/portal/components/os/YugcOs.tsx:39](../../../app/web/sites/portal/components/os/YugcOs.tsx#L39) · [app/forum/app/composables/useSiteLinks.ts:17](../../../app/forum/app/composables/useSiteLinks.ts#L17) · [app/forum/app/components/ForumHeader.vue:131](../../../app/forum/app/components/ForumHeader.vue#L131) · [app/forum/app/components/LoginModal.vue:8](../../../app/forum/app/components/LoginModal.vue#L8) · [app/forum/app/components/SignInState.vue:26](../../../app/forum/app/components/SignInState.vue#L26) · [app/forum/app/composables/useSiteAccount.ts:13](../../../app/forum/app/composables/useSiteAccount.ts#L13) · [app/forum/app/data/access.ts:86](../../../app/forum/app/data/access.ts#L86) · [app/forum/app/pages/about.vue:49](../../../app/forum/app/pages/about.vue#L49) · [app/forum/app/pages/new.vue:31](../../../app/forum/app/pages/new.vue#L31) · [app/forum/shared/signin-outcomes.ts:2](../../../app/forum/shared/signin-outcomes.ts#L2) · [app/forum/shared/site-notice.ts:9](../../../app/forum/shared/site-notice.ts#L9) · [app/forum/app/components/AdoptionNotice.vue:41](../../../app/forum/app/components/AdoptionNotice.vue#L41)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/identity.test.ts](../../../tests/server/identity.test.ts) · [tests/server/legacy-database.test.ts](../../../tests/server/legacy-database.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts) · [tests/web/portal-phone.test.tsx](../../../tests/web/portal-phone.test.tsx) · [tests/e2e/workflows.spec.ts](../../../tests/e2e/workflows.spec.ts)。生成器未执行这些测试。
+
+### 发邮箱登录验证码
+
+标识：`flow:identity.email.start`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`POST /auth/email/start`
+- 能力：
+- 读取：`email_challenges`
+- 写入：`email_challenges`
+- 不入队：`mail_outbox`
+- 权限与资源：匿名；每分钟 10 次（按 IP），同一邮箱 60 秒一封、每小时 5 封，同一 IP 前缀（IPv6 按 /64）每小时 20 封。
+- 响应与错误：202 {resend_after:60} 并写签名、HttpOnly 的 email_challenge cookie（path=/auth/email，10 分钟）；邮箱有没有账号响应都一样；格式不对 400 bad_email；太频繁 429 rate_limited，带 Retry-After 与 retry_after 秒数。
+- 数据与副作用：写一行 email_challenges，只存验证码 HMAC，这个浏览器上一次的发码作废（别人替这个邮箱要码不影响本人手上的验证码）；验证码由 mail.sendNow 直接发（Aliyun 或 Resend，受 MAIL_RECIPIENTS 与白名单约束），不进 mail_outbox，日志不记地址和验证码。
+
+源码：[app/server/src/routes/identity/email.ts:67](../../../app/server/src/routes/identity/email.ts#L67) · [app/server/src/routes/identity/contracts.ts:124](../../../app/server/src/routes/identity/contracts.ts#L124) · [app/server/src/lib/email-login.ts:70](../../../app/server/src/lib/email-login.ts#L70) · [app/server/src/lib/mail/mailer.ts:93](../../../app/server/src/lib/mail/mailer.ts#L93) · [app/server/src/lib/mail/login-code.ts:9](../../../app/server/src/lib/mail/login-code.ts#L9)
+
+测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
+
+### 核对邮箱验证码后登录，没有账号时凭邀请码注册
+
+标识：`flow:identity.email.verify`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`POST /auth/email/verify`
+- 能力：
+- 读取：`email_challenges`、`identities`、`users`、`invite_codes`
+- 写入：`email_challenges`、`users`、`identities`、`invite_codes`、`sessions`、`identity_audit`、`audit_logs`
+- 不入队：
+- 权限与资源：匿名，凭 email_challenge cookie 与 6 位验证码；每分钟 30 次；验证码 10 分钟有效、最多试 5 次。
+- 响应与错误：200 {return_to,registered} 并写 sid；验证码不对 400 invalid_code（带 attempts_left），失效 400 code_expired；邮箱没有账号且没填邀请码 400 invite_required（验证码不作废），邀请码无效 400 invalid_invite 并记一次失败；账号停用 403 account_disabled，不再是成员 403 not_member。
+- 数据与副作用：在一个 BEGIN IMMEDIATE 事务里找身份或建号（兑换邀请码、建 users 与 email 身份、记 invite_code_id、org_state=active）、作废验证码、建会话（provider=email，GitHub 令牌为空）、写 identity_audit 与 auth.register/auth.signin；任何一步失败整体回滚，邀请码次数不扣。
+
+源码：[app/server/src/routes/identity/email.ts:82](../../../app/server/src/routes/identity/email.ts#L82) · [app/server/src/routes/identity/contracts.ts:129](../../../app/server/src/routes/identity/contracts.ts#L129) · [app/server/src/lib/identity-store.ts:326](../../../app/server/src/lib/identity-store.ts#L326) · [app/server/src/lib/invite-codes.ts:41](../../../app/server/src/lib/invite-codes.ts#L41)
+
+测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
+
+### 邮箱加密码登录
+
+标识：`flow:identity.email.password`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`POST /auth/email/password`
+- 能力：
+- 读取：`identities`、`users`
+- 写入：`sessions`、`identity_audit`、`audit_logs`
+- 不入队：
+- 权限与资源：匿名；每分钟 10 次（按 IP），另按邮箱 15 分钟 10 次；只认已绑定邮箱且设过密码的账号。
+- 响应与错误：200 {return_to} 并写 sid；没账号、没设密码、密码不对一律 400 invalid_credentials，没账号时也算一次 bcrypt，响应时间不随邮箱是否注册变化；账号停用 403 account_disabled，不再是成员 403 not_member。
+- 数据与副作用：不能注册新账号；成功时建会话（provider=email）、写 identity_audit 与 auth.signin（method=password）；密码只存 bcrypt 哈希（cost 12）。
+
+源码：[app/server/src/routes/identity/email.ts:120](../../../app/server/src/routes/identity/email.ts#L120) · [app/server/src/routes/identity/contracts.ts:134](../../../app/server/src/routes/identity/contracts.ts#L134) · [app/server/src/lib/identity-store.ts:330](../../../app/server/src/lib/identity-store.ts#L330) · [app/server/src/lib/password-policy.ts:15](../../../app/server/src/lib/password-policy.ts#L15)
+
+测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
+
+### 跳转 Google 登录
+
+标识：`flow:identity.google.start`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /auth/google`
+- 能力：
+- 读取：
+- 写入：
+- 不入队：
+- 权限与资源：匿名；每分钟 20 次（按 IP）；没配 GOOGLE_CLIENT_ID 与 GOOGLE_CLIENT_SECRET 时 404 provider_not_enabled，登录页也不出现 Google。
+- 响应与错误：302 到 Google 授权页（scope openid email profile，prompt=select_account，PKCE S256、state、nonce）；return_to 只接受本站。
+- 数据与副作用：state、nonce、PKCE verifier 与可选的邀请码存进签名 cookie google_oauth_state（path=/auth/google），不读写数据库。
+
+源码：[app/server/src/routes/identity/google.ts:20](../../../app/server/src/routes/identity/google.ts#L20) · [app/server/src/routes/identity/contracts.ts:140](../../../app/server/src/routes/identity/contracts.ts#L140) · [app/server/src/lib/google.ts:35](../../../app/server/src/lib/google.ts#L35)
+
+测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
+
+### 校验 Google 回调后登录，没有账号时凭邀请码注册
+
+标识：`flow:identity.google.callback`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /auth/google/callback`
+- 能力：
+- 读取：`identities`、`users`、`invite_codes`
+- 写入：`users`、`identities`、`invite_codes`、`sessions`、`identity_audit`、`audit_logs`
+- 不入队：
+- 权限与资源：每分钟 10 次（按 IP）；state 与签名 cookie 必须相符；ID Token 用 Google JWKS 验签（RS256），核对 iss、aud、exp、nonce，按 Google sub 认人，不按邮箱合并账号。
+- 响应与错误：成功 302 回 return_to；取消、上游失败、没有账号且没带邀请码、邀请码无效、Google 邮箱已属于别的账号、账号停用或不再是成员时 302 到 /signin?signin=<原因>&provider=google；缺参数 400，state 无效 400。
+- 数据与副作用：外部请求在事务外；建号、兑换邀请码、建会话（provider=google）、写 identity_audit 与 auth.register/auth.signin 在一个 BEGIN IMMEDIATE 事务里，失败整体回滚；失败日志不输出令牌。
+
+源码：[app/server/src/routes/identity/google.ts:31](../../../app/server/src/routes/identity/google.ts#L31) · [app/server/src/routes/identity/contracts.ts:142](../../../app/server/src/routes/identity/contracts.ts#L142) · [app/server/src/lib/identity-store.ts:334](../../../app/server/src/lib/identity-store.ts#L334) · [app/server/src/lib/safe-return.ts:25](../../../app/server/src/lib/safe-return.ts#L25)
+
+测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)。生成器未执行这些测试。
+
+### 账号页：看自己的登录方式、密码、成员资格与账号记录
+
+标识：`flow:identity.account.view`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /api/identity/me`
+- 能力：
+- 读取：`sessions`、`users`、`identities`、`identity_audit`
+- 写入：`sessions`
+- 不入队：
+- 权限与资源：任何有效会话，不要控制台能力。
+- 响应与错误：200 {account_id,login,identities(邮箱只给打码后的样子),has_password,password_updated_at,membership{state,org_role,via_invite},created_at,recent(最近 20 条本人记录),available,session{provider,created_at,expires_at,step_up_until}}；没登录 401。
+- 数据与副作用：只读；过期会话照共同规则删除。
+
+源码：[app/server/src/routes/identity/account.ts:30](../../../app/server/src/routes/identity/account.ts#L30) · [app/server/src/routes/identity/contracts.ts:143](../../../app/server/src/routes/identity/contracts.ts#L143) · [app/server/src/lib/identity-store.ts:415](../../../app/server/src/lib/identity-store.ts#L415) · [app/console/src/pages/Account.vue:28](../../../app/console/src/pages/Account.vue#L28) · [app/console/src/components/ConsoleNav.vue:40](../../../app/console/src/components/ConsoleNav.vue#L40) · [app/console/src/pages/ConsoleRoot.vue:35](../../../app/console/src/pages/ConsoleRoot.vue#L35) · [app/console/src/lib/account.ts:24](../../../app/console/src/lib/account.ts#L24)
+
+测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
+
+### 给账号绑定邮箱：发验证码
+
+标识：`flow:identity.account.email.start`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`POST /api/identity/email/start`
+- 能力：
+- 读取：`sessions`、`identities`、`email_challenges`
+- 写入：`email_challenges`、`sessions`
+- 不入队：`mail_outbox`
+- 权限与资源：有效会话，且这次登录不超过 10 分钟（否则 403 step_up_required）；每分钟 10 次；发码限流与登录发码相同。
+- 响应与错误：202 {resend_after:60} 并写 email_challenge cookie（path=/api/identity/email）；格式不对 400 bad_email；账号已有邮箱 409 identity_exists；太频繁 429。
+- 数据与副作用：写一行 purpose=link 的 email_challenges，绑定发起的账号与会话指纹；验证码直接发信，不进 mail_outbox。
+
+源码：[app/server/src/routes/identity/account.ts:45](../../../app/server/src/routes/identity/account.ts#L45) · [app/server/src/routes/identity/contracts.ts:144](../../../app/server/src/routes/identity/contracts.ts#L144)
+
+测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)。生成器未执行这些测试。
+
+### 给账号绑定邮箱：核对验证码
+
+标识：`flow:identity.account.email.verify`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`POST /api/identity/email/verify`
+- 能力：
+- 读取：`sessions`、`email_challenges`、`identities`
+- 写入：`email_challenges`、`identities`、`identity_audit`、`audit_logs`、`sessions`
+- 不入队：
+- 权限与资源：有效会话；验证码只认发起绑定的那个账号和会话，换了账号或重新登录过按 code_expired。
+- 响应与错误：200 {ok:true}；验证码不对 400 invalid_code，失效 400 code_expired；邮箱已属于别的账号 409 identity_conflict，账号已有邮箱 409 identity_exists。
+- 数据与副作用：在一个事务里作废验证码并写 email 身份、identity_audit 与 identity.link；冲突时只记 identity.link_conflict，不合并账号。
+
+源码：[app/server/src/routes/identity/account.ts:60](../../../app/server/src/routes/identity/account.ts#L60) · [app/server/src/routes/identity/contracts.ts:145](../../../app/server/src/routes/identity/contracts.ts#L145) · [app/server/src/lib/identity-store.ts:370](../../../app/server/src/lib/identity-store.ts#L370)
+
+测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)。生成器未执行这些测试。
+
+### 设置或修改密码
+
+标识：`flow:identity.account.password`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`POST /api/identity/password`
+- 能力：
+- 读取：`sessions`、`users`、`identities`
+- 写入：`users`、`identity_audit`、`audit_logs`、`sessions`
+- 不入队：
+- 权限与资源：有效会话，账号已绑定邮箱（否则 409 email_required）；已有密码时要填当前密码或 10 分钟内刚登录过，还没有密码时要 10 分钟内刚登录过（否则 403 step_up_required）。
+- 响应与错误：200 {ok:true}；不到 15 位 400 password_too_short，超过 72 字节 400 password_exceeds_bcrypt_limit，当前密码不对 400 invalid_credentials。
+- 数据与副作用：users.password_hash 存 bcrypt（cost 12）与 password_updated_at；写 identity_audit（password_set 或 password_change）与 account.password 审计，不记密码。
+
+源码：[app/server/src/routes/identity/account.ts:83](../../../app/server/src/routes/identity/account.ts#L83) · [app/server/src/routes/identity/contracts.ts:146](../../../app/server/src/routes/identity/contracts.ts#L146) · [app/server/src/lib/identity-store.ts:355](../../../app/server/src/lib/identity-store.ts#L355) · [app/console/src/lib/account.ts:35](../../../app/console/src/lib/account.ts#L35)
+
+测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
+
+### 控制台列出注册邀请码
+
+标识：`flow:identity.invites.list`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /api/console/invites`
+- 能力：`accounts.invites.manage`
+- 读取：`invite_codes`、`sessions`、`role_assignments`、`departments`、`titles`
+- 写入：`sessions`
+- 不入队：
+- 权限与资源：有效全站 sid，accounts.invites.manage；只看称号，不调用 GitHub，邮箱、Google 会话照常可用。
+- 响应与错误：200 {invites:[{id,code,note,max_uses,used_count,expires_at,disabled,created_by,created_at,updated_at,usable}]}，按建立时间倒序；没权限 403 missing_capability。
+- 数据与副作用：只读。
+
+源码：[app/server/src/routes/console/invites.ts:19](../../../app/server/src/routes/console/invites.ts#L19) · [app/server/src/routes/console/contracts.ts:158](../../../app/server/src/routes/console/contracts.ts#L158) · [app/console/src/pages/Invites.vue:29](../../../app/console/src/pages/Invites.vue#L29)
+
+测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts) · [tests/console/nav.test.ts](../../../tests/console/nav.test.ts)。生成器未执行这些测试。
+
+### 控制台新建注册邀请码
+
+标识：`flow:identity.invites.create`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`POST /api/console/invites`
+- 能力：`accounts.invites.manage`
+- 读取：`sessions`、`role_assignments`、`departments`、`titles`
+- 写入：`invite_codes`、`audit_logs`、`sessions`
+- 不入队：
+- 权限与资源：有效全站 sid，accounts.invites.manage；每分钟 30 次。
+- 响应与错误：201 {邀请码}；邀请码 4–40 位字母、数字、_、-，不分大小写，同名 409 invite_code_taken，格式不对 400；次数 1–100000 或 null（不限），过期时间可为 null（不过期）。
+- 数据与副作用：写一行 invite_codes（code 存小写）与 invite.create 审计。
+
+源码：[app/server/src/routes/console/invites.ts:21](../../../app/server/src/routes/console/invites.ts#L21) · [app/server/src/routes/console/contracts.ts:159](../../../app/server/src/routes/console/contracts.ts#L159) · [app/console/src/lib/invites.ts:57](../../../app/console/src/lib/invites.ts#L57)
+
+测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
+
+### 控制台修改或停用注册邀请码
+
+标识：`flow:identity.invites.update`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`PATCH /api/console/invites/:id`
+- 能力：`accounts.invites.manage`
+- 读取：`invite_codes`、`sessions`、`role_assignments`、`departments`、`titles`
+- 写入：`invite_codes`、`audit_logs`、`sessions`
+- 不入队：
+- 权限与资源：有效全站 sid，accounts.invites.manage；每分钟 30 次。
+- 响应与错误：200 {邀请码}；不存在 404 not_found；只改 note、max_uses、expires_at、disabled，邀请码本身不能改。
+- 数据与副作用：只写实际变化的字段，有变化才写 invite.update 审计（记字段名）；停用后注册时兑换失败，已注册的账号不受影响。邀请码不删。
+
+源码：[app/server/src/routes/console/invites.ts:32](../../../app/server/src/routes/console/invites.ts#L32) · [app/server/src/routes/console/contracts.ts:167](../../../app/server/src/routes/console/contracts.ts#L167)
+
+测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
 
 ### 列出本人组织
 
@@ -243,14 +447,14 @@
 - 读取：`sessions`
 - 写入：`sessions`、`audit_logs`
 - 不入队：
-- 权限与资源：仅有效会话，读取本人active组织并按ALLOWED_ORGS过滤。
+- 权限与资源：仅有效 GitHub 会话，读取本人active组织并按ALLOWED_ORGS过滤；邮箱、Google 会话没有 GitHub 令牌，403 github_session_required（#262）。
 - 响应与错误：200 {orgs,allowed_orgs}；仅active成员组织并按配置过滤。
 - 数据与副作用：GET /user/memberships/orgs，按登录名缓存120秒。
 - 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-源码：[app/server/src/routes/admin/orgs.ts:10](../../../app/server/src/routes/admin/orgs.ts#L10) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60)
+源码：[app/server/src/routes/admin/orgs.ts:11](../../../app/server/src/routes/admin/orgs.ts#L11) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github-session.ts:8](../../../app/server/src/middleware/require-github-session.ts#L8) · [app/console/src/components/CapabilityGate.vue:22](../../../app/console/src/components/CapabilityGate.vue#L22)
 
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
+测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts) · [tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/nav.test.ts](../../../tests/console/nav.test.ts)。生成器未执行这些测试。
 
 ### 浏览组织活动
 
@@ -268,7 +472,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/activity.ts:9](../../../app/server/src/routes/admin/activity.ts#L9) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/activity.ts:9](../../../app/server/src/routes/admin/activity.ts#L9) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -288,7 +492,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/org.ts:21](../../../app/server/src/routes/admin/org.ts#L21) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/org.ts:21](../../../app/server/src/routes/admin/org.ts#L21) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -308,7 +512,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/overview.ts:10](../../../app/server/src/routes/admin/overview.ts#L10) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/overview.ts:10](../../../app/server/src/routes/admin/overview.ts#L10) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -328,7 +532,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/security.ts:9](../../../app/server/src/routes/admin/security.ts#L9) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/security.ts:9](../../../app/server/src/routes/admin/security.ts#L9) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -348,7 +552,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/members.ts:10](../../../app/server/src/routes/admin/members.ts#L10) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/members.ts:10](../../../app/server/src/routes/admin/members.ts#L10) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -368,7 +572,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/teams.ts:10](../../../app/server/src/routes/admin/teams.ts#L10) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/teams.ts:10](../../../app/server/src/routes/admin/teams.ts#L10) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -388,7 +592,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/members.ts:29](../../../app/server/src/routes/admin/members.ts#L29) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/members.ts:29](../../../app/server/src/routes/admin/members.ts#L29) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -408,7 +612,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/members.ts:40](../../../app/server/src/routes/admin/members.ts#L40) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/members.ts:40](../../../app/server/src/routes/admin/members.ts#L40) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -428,7 +632,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/org.ts:30](../../../app/server/src/routes/admin/org.ts#L30) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/org.ts:30](../../../app/server/src/routes/admin/org.ts#L30) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -448,7 +652,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/teams.ts:28](../../../app/server/src/routes/admin/teams.ts#L28) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/teams.ts:28](../../../app/server/src/routes/admin/teams.ts#L28) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -468,7 +672,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/teams.ts:42](../../../app/server/src/routes/admin/teams.ts#L42) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/teams.ts:42](../../../app/server/src/routes/admin/teams.ts#L42) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -488,7 +692,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:11](../../../app/server/src/routes/admin/repos.ts#L11) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:11](../../../app/server/src/routes/admin/repos.ts#L11) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -508,7 +712,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:41](../../../app/server/src/routes/admin/repos.ts#L41) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:41](../../../app/server/src/routes/admin/repos.ts#L41) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -528,7 +732,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:63](../../../app/server/src/routes/admin/repos.ts#L63) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:63](../../../app/server/src/routes/admin/repos.ts#L63) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -548,7 +752,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:81](../../../app/server/src/routes/admin/repos.ts#L81) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:81](../../../app/server/src/routes/admin/repos.ts#L81) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -568,7 +772,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:98](../../../app/server/src/routes/admin/repos.ts#L98) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:98](../../../app/server/src/routes/admin/repos.ts#L98) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -588,7 +792,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:130](../../../app/server/src/routes/admin/repos.ts#L130) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:130](../../../app/server/src/routes/admin/repos.ts#L130) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -608,7 +812,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:154](../../../app/server/src/routes/admin/repos.ts#L154) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:154](../../../app/server/src/routes/admin/repos.ts#L154) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -628,7 +832,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:202](../../../app/server/src/routes/admin/repos.ts#L202) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:202](../../../app/server/src/routes/admin/repos.ts#L202) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -648,7 +852,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:177](../../../app/server/src/routes/admin/repos.ts#L177) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:177](../../../app/server/src/routes/admin/repos.ts#L177) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -668,7 +872,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:228](../../../app/server/src/routes/admin/repos.ts#L228) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:228](../../../app/server/src/routes/admin/repos.ts#L228) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -688,7 +892,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:259](../../../app/server/src/routes/admin/repos.ts#L259) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:259](../../../app/server/src/routes/admin/repos.ts#L259) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -708,7 +912,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:285](../../../app/server/src/routes/admin/repos.ts#L285) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:285](../../../app/server/src/routes/admin/repos.ts#L285) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -728,7 +932,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:301](../../../app/server/src/routes/admin/repos.ts#L301) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:301](../../../app/server/src/routes/admin/repos.ts#L301) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -748,7 +952,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:317](../../../app/server/src/routes/admin/repos.ts#L317) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:317](../../../app/server/src/routes/admin/repos.ts#L317) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -768,7 +972,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:338](../../../app/server/src/routes/admin/repos.ts#L338) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:338](../../../app/server/src/routes/admin/repos.ts#L338) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -788,7 +992,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:352](../../../app/server/src/routes/admin/repos.ts#L352) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:352](../../../app/server/src/routes/admin/repos.ts#L352) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -808,7 +1012,7 @@
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 - 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
-源码：[app/server/src/routes/admin/repos.ts:366](../../../app/server/src/routes/admin/repos.ts#L366) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/repos.ts:366](../../../app/server/src/routes/admin/repos.ts#L366) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
 
@@ -827,7 +1031,7 @@
 - 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 
-源码：[app/server/src/routes/admin/invitations.ts:10](../../../app/server/src/routes/admin/invitations.ts#L10) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/invitations.ts:10](../../../app/server/src/routes/admin/invitations.ts#L10) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/invitations.test.ts](../../../tests/server/invitations.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -846,7 +1050,7 @@
 - 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 
-源码：[app/server/src/routes/admin/invitations.ts:22](../../../app/server/src/routes/admin/invitations.ts#L22) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/invitations.ts:22](../../../app/server/src/routes/admin/invitations.ts#L22) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/invitations.test.ts](../../../tests/server/invitations.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -865,7 +1069,7 @@
 - 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 
-源码：[app/server/src/routes/admin/invite-links.ts:18](../../../app/server/src/routes/admin/invite-links.ts#L18) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/invite-links.ts:18](../../../app/server/src/routes/admin/invite-links.ts#L18) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/invitations.test.ts](../../../tests/server/invitations.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -884,7 +1088,7 @@
 - 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 
-源码：[app/server/src/routes/admin/invite-links.ts:28](../../../app/server/src/routes/admin/invite-links.ts#L28) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/invite-links.ts:28](../../../app/server/src/routes/admin/invite-links.ts#L28) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/invitations.test.ts](../../../tests/server/invitations.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -903,7 +1107,7 @@
 - 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 
-源码：[app/server/src/routes/admin/invite-links.ts:60](../../../app/server/src/routes/admin/invite-links.ts#L60) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/invite-links.ts:60](../../../app/server/src/routes/admin/invite-links.ts#L60) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/invitations.test.ts](../../../tests/server/invitations.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -922,7 +1126,7 @@
 - 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 
-源码：[app/server/src/routes/admin/invite-links.ts:74](../../../app/server/src/routes/admin/invite-links.ts#L74) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/invite-links.ts:74](../../../app/server/src/routes/admin/invite-links.ts#L74) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/invitations.test.ts](../../../tests/server/invitations.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -941,7 +1145,7 @@
 - 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 - GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
 
-源码：[app/server/src/routes/admin/logs.ts:9](../../../app/server/src/routes/admin/logs.ts#L9) · [app/server/src/middleware/require-auth.ts:20](../../../app/server/src/middleware/require-auth.ts#L20) · [app/server/src/lib/auth.ts:60](../../../app/server/src/lib/auth.ts#L60) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
+源码：[app/server/src/routes/admin/logs.ts:9](../../../app/server/src/routes/admin/logs.ts#L9) · [app/server/src/middleware/require-auth.ts:23](../../../app/server/src/middleware/require-auth.ts#L23) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-org-role.ts:5](../../../app/server/src/middleware/require-org-role.ts#L5)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts)。生成器未执行这些测试。
 
@@ -959,7 +1163,7 @@
 - 数据与副作用：只计算当前身份；查GitHub失败按错误处理，不降级为非成员；存在会话不等于拥有console.access。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/me.ts:14](../../../app/server/src/routes/console/me.ts#L14) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:12](../../../app/server/src/middleware/require-capability.ts#L12)
+源码：[app/server/src/routes/console/me.ts:17](../../../app/server/src/routes/console/me.ts#L17) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:12](../../../app/server/src/middleware/require-capability.ts#L12)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -977,7 +1181,7 @@
 - 数据与副作用：读全局投递统计、CONSOLE_ORG意见数及指派/未归档部门数；不返回无权查看的统计键。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/me.ts:27](../../../app/server/src/routes/console/me.ts#L27) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/me.ts:31](../../../app/server/src/routes/console/me.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -995,7 +1199,7 @@
 - 数据与副作用：称号显示与权限包来自titles；能力、色调、蕴含等来自源码常量，不写权限配置。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/catalogue.ts:12](../../../app/server/src/routes/console/catalogue.ts#L12) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/catalogue.ts:12](../../../app/server/src/routes/console/catalogue.ts#L12) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -1013,7 +1217,7 @@
 - 数据与副作用：读取departments和role_assignments，写权限包不在此入口。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/departments.ts:30](../../../app/server/src/routes/console/departments.ts#L30) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/departments.ts:30](../../../app/server/src/routes/console/departments.ts#L30) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -1031,7 +1235,7 @@
 - 数据与副作用：写新部门，roles.manage不得装进部门权限包；成功写department.create审计。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/departments.ts:37](../../../app/server/src/routes/console/departments.ts#L37) · [app/server/src/lib/role-store.ts:50](../../../app/server/src/lib/role-store.ts#L50) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/departments.ts:37](../../../app/server/src/routes/console/departments.ts#L37) · [app/server/src/lib/role-store.ts:50](../../../app/server/src/lib/role-store.ts#L50) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -1049,7 +1253,7 @@
 - 数据与副作用：更新传入字段/归档标记；仅实际变化时审计department.update，未直接撤销其他称号。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/departments.ts:47](../../../app/server/src/routes/console/departments.ts#L47) · [app/server/src/lib/role-store.ts:50](../../../app/server/src/lib/role-store.ts#L50) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/departments.ts:47](../../../app/server/src/routes/console/departments.ts#L47) · [app/server/src/lib/role-store.ts:50](../../../app/server/src/lib/role-store.ts#L50) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -1067,7 +1271,7 @@
 - 数据与副作用：同一数据库事务删除该部门和其head/member指派，其他指派不变；审计被撤销者，种子标记防止重启复活。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/departments.ts:63](../../../app/server/src/routes/console/departments.ts#L63) · [app/server/src/lib/role-store.ts:50](../../../app/server/src/lib/role-store.ts#L50) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/departments.ts:63](../../../app/server/src/routes/console/departments.ts#L63) · [app/server/src/lib/role-store.ts:50](../../../app/server/src/lib/role-store.ts#L50) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -1085,7 +1289,7 @@
 - 数据与副作用：只更新允许的称号字段；实际变化才写title.update（不含旧新值），下一次请求读取新权限包。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/titles.ts:17](../../../app/server/src/routes/console/titles.ts#L17) · [app/server/src/lib/role-store.ts:50](../../../app/server/src/lib/role-store.ts#L50) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/titles.ts:17](../../../app/server/src/routes/console/titles.ts#L17) · [app/server/src/lib/role-store.ts:50](../../../app/server/src/lib/role-store.ts#L50) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -1103,7 +1307,7 @@
 - 数据与副作用：读取筛选指派及现任舰长，不任命或移交。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/assignments.ts:34](../../../app/server/src/routes/console/assignments.ts#L34) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/assignments.ts:35](../../../app/server/src/routes/console/assignments.ts#L35) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -1116,12 +1320,12 @@
 - 读取：`sessions`、`role_assignments`、`departments`、`titles`、`identities`、`users`
 - 写入：`role_assignments`、`audit_logs`、`sessions`
 - 不入队：
-- 权限与资源：任一能力；队长只任免自己部门member，captain只由提督或现任舰长任命；不能借本人token以外的凭据查账号。
+- 权限与资源：任一能力；队长只任免自己部门member，captain只由提督或现任舰长任命；不能借本人token以外的凭据查账号；要 GitHub 会话，邮箱、Google 会话 403 github_session_required（#262）。
 - 响应与错误：201 {assignment}；400 部门/账号错误，403 跨部门或captain_required，409 assignment_exists；30次/分钟限流。
 - 数据与副作用：先校验部门存在且未归档、查GitHub用户数字id；captain通过事务删旧插新保持唯一；审计指派/移交，不改变GitHub membership。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/assignments.ts:52](../../../app/server/src/routes/console/assignments.ts#L52) · [app/server/src/lib/role-store.ts:50](../../../app/server/src/lib/role-store.ts#L50) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/assignments.ts:53](../../../app/server/src/routes/console/assignments.ts#L53) · [app/server/src/lib/role-store.ts:50](../../../app/server/src/lib/role-store.ts#L50) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/rate-limits.test.ts](../../../tests/server/rate-limits.test.ts)。生成器未执行这些测试。
 
@@ -1139,7 +1343,7 @@
 - 数据与副作用：删除指定指派并记role.revoke，其他指派不变；不删除GitHub组织成员。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/assignments.ts:99](../../../app/server/src/routes/console/assignments.ts#L99) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/assignments.ts:101](../../../app/server/src/routes/console/assignments.ts#L101) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -1152,12 +1356,12 @@
 - 读取：`sessions`、`role_assignments`、`departments`、`titles`
 - 写入：`sessions`、`audit_logs`
 - 不入队：
-- 权限与资源：任一能力；队长也能看组织全名单，不按部门收窄。
+- 权限与资源：任一能力；队长也能看组织全名单，不按部门收窄；名单来自 GitHub，要 GitHub 会话，邮箱、Google 会话 403 github_session_required（#262）。
 - 响应与错误：200 {people}，含login/user_id/avatar_url/github_role/titles；按最高称号层级和登录名排序。
 - 数据与副作用：用本人token取GitHub成员，再合并本地已有指派但离开组织的人；按数字id优先匹配改名用户，不同步写远端。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/people.ts:20](../../../app/server/src/routes/console/people.ts#L20) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/people.ts:22](../../../app/server/src/routes/console/people.ts#L22) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -1175,7 +1379,7 @@
 - 数据与副作用：读日志分页，不修改历史；org为空的登录/公开投递审计不在该结果中。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/audit.ts:29](../../../app/server/src/routes/console/audit.ts#L29) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/audit.ts:29](../../../app/server/src/routes/console/audit.ts#L29) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -1193,7 +1397,7 @@
 - 数据与副作用：转义q中的LIKE通配符，按姓名/班级/邮箱搜索；查询latest review，不为列表记application.view。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/applications.ts:48](../../../app/server/src/routes/console/applications.ts#L48) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/applications.ts:48](../../../app/server/src/routes/console/applications.ts#L48) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -1211,7 +1415,7 @@
 - 数据与副作用：读简历、审核历史和mail_outbox摘要，写application.view审计，不触发发信。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/applications.ts:104](../../../app/server/src/routes/console/applications.ts#L104) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/applications.ts:104](../../../app/server/src/routes/console/applications.ts#L104) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)。生成器未执行这些测试。
 
@@ -1229,7 +1433,7 @@
 - 数据与副作用：读取简历并记录application.export数量/状态；不写候选人或发信队列，文件导出后不由系统追踪。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/applications.ts:77](../../../app/server/src/routes/console/applications.ts#L77) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/applications.ts:77](../../../app/server/src/routes/console/applications.ts#L77) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/rate-limits.test.ts](../../../tests/server/rate-limits.test.ts)。生成器未执行这些测试。
 
@@ -1247,7 +1451,7 @@
 - 数据与副作用：变更到interview/accepted/rejected且notify不为false才渲染邮件；状态、审核行和邮件入队同事务，实际发送由后台worker。备注不写信或审计正文；本路由不新增任何取消规则。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/applications.ts:120](../../../app/server/src/routes/console/applications.ts#L120) · [app/server/src/lib/mail/mailer.ts:49](../../../app/server/src/lib/mail/mailer.ts#L49) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/applications.ts:120](../../../app/server/src/routes/console/applications.ts#L120) · [app/server/src/lib/mail/mailer.ts:50](../../../app/server/src/lib/mail/mailer.ts#L50) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)。生成器未执行这些测试。
 
@@ -1264,7 +1468,7 @@
 - 响应与错误：201 {id,submitted_at,message}；字段错误400附fields，429 apply_limited/rate_limited。蜜罐回相同201形状但不落库。
 - 数据与副作用：计数与投递同事务，发设备cookie；记脱敏application.received审计，尽力入队已收到邮件（每小时总量限制），入队失败仅日志不回滚投递；无需会话。
 
-源码：[app/server/src/routes/portal/apply.ts:118](../../../app/server/src/routes/portal/apply.ts#L118) · [app/server/src/lib/mail/mailer.ts:49](../../../app/server/src/lib/mail/mailer.ts#L49)
+源码：[app/server/src/routes/portal/apply.ts:118](../../../app/server/src/routes/portal/apply.ts#L118) · [app/server/src/lib/mail/mailer.ts:50](../../../app/server/src/lib/mail/mailer.ts#L50)
 
 测试入口：[tests/server/applications.test.ts](../../../tests/server/applications.test.ts) · [tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts) · [tests/server/rate-limits.test.ts](../../../tests/server/rate-limits.test.ts)。生成器未执行这些测试。
 
@@ -1486,7 +1690,7 @@
 - 数据与副作用：按org及可选status读列表与状态计数，不记查看审计。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/feedback.ts:12](../../../app/server/src/routes/console/feedback.ts#L12) · [app/server/src/lib/feedback-store.ts:22](../../../app/server/src/lib/feedback-store.ts#L22) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/feedback.ts:12](../../../app/server/src/routes/console/feedback.ts#L12) · [app/server/src/lib/feedback-store.ts:22](../../../app/server/src/lib/feedback-store.ts#L22) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/feedback-org.test.ts](../../../tests/server/feedback-org.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts)。生成器未执行这些测试。
 
@@ -1504,7 +1708,7 @@
 - 数据与副作用：更新status、reply、replied_by/replied_at及updated_at，审计feedback.update；回复将由公开列表展示，不发邮件。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/feedback.ts:18](../../../app/server/src/routes/console/feedback.ts#L18) · [app/server/src/lib/feedback-store.ts:22](../../../app/server/src/lib/feedback-store.ts#L22) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/feedback.ts:18](../../../app/server/src/routes/console/feedback.ts#L18) · [app/server/src/lib/feedback-store.ts:22](../../../app/server/src/lib/feedback-store.ts#L22) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/feedback-org.test.ts](../../../tests/server/feedback-org.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts)。生成器未执行这些测试。
 
@@ -1522,7 +1726,7 @@
 - 数据与副作用：删除反馈并审计feedback.delete，不能越过组织条件删除其他记录。
 - 共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
 
-源码：[app/server/src/routes/console/feedback.ts:31](../../../app/server/src/routes/console/feedback.ts#L31) · [app/server/src/lib/feedback-store.ts:22](../../../app/server/src/lib/feedback-store.ts#L22) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20) · [app/server/src/middleware/require-capability.ts:31](../../../app/server/src/middleware/require-capability.ts#L31)
+源码：[app/server/src/routes/console/feedback.ts:31](../../../app/server/src/routes/console/feedback.ts#L31) · [app/server/src/lib/feedback-store.ts:22](../../../app/server/src/lib/feedback-store.ts#L22) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29) · [app/server/src/middleware/require-capability.ts:33](../../../app/server/src/middleware/require-capability.ts#L33)
 
 测试入口：[tests/server/feedback-org.test.ts](../../../tests/server/feedback-org.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts)。生成器未执行这些测试。
 
@@ -1540,7 +1744,7 @@
 - 数据与副作用：读论坛表与公开内容分类；GET也可能通过forumViewer刷新本人用户；不发送邮件、不写帖子。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/topics.ts:21](../../../app/server/src/routes/forum-api/topics.ts#L21) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/topics.ts:21](../../../app/server/src/routes/forum-api/topics.ts#L21) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1558,7 +1762,7 @@
 - 数据与副作用：按话题读取帖子及点赞投影；软删正文为空；不把全论坛正文再次塞进首屏。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/topics.ts:28](../../../app/server/src/routes/forum-api/topics.ts#L28) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/topics.ts:28](../../../app/server/src/routes/forum-api/topics.ts#L28) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1576,7 +1780,7 @@
 - 数据与副作用：标题、正文、username/displayName按转义的LIKE搜索，各类限量；返回帖子命中摘要，不将%当通配符。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/topics.ts:38](../../../app/server/src/routes/forum-api/topics.ts#L38) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/topics.ts:38](../../../app/server/src/routes/forum-api/topics.ts#L38) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1594,7 +1798,7 @@
 - 数据与副作用：单事务创建话题、首帖、编号和必要新tag，处理最多10个@提及通知；成功后记topic限流事件，不发邮件。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/topics.ts:47](../../../app/server/src/routes/forum-api/topics.ts#L47) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/topics.ts:47](../../../app/server/src/routes/forum-api/topics.ts#L47) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1612,7 +1816,7 @@
 - 数据与副作用：更新pinned；以CONSOLE_ORG记forum.topic.pin审计，只含话题id及开关，不含正文。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/topics.ts:67](../../../app/server/src/routes/forum-api/topics.ts#L67) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/topics.ts:67](../../../app/server/src/routes/forum-api/topics.ts#L67) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1630,7 +1834,7 @@
 - 数据与副作用：更新closed；以CONSOLE_ORG记forum.topic.close审计，只含话题id及开关，不含正文。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/topics.ts:67](../../../app/server/src/routes/forum-api/topics.ts#L67) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/topics.ts:67](../../../app/server/src/routes/forum-api/topics.ts#L67) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1665,7 +1869,7 @@
 - 数据与副作用：事务创建回复并更新最后活动、处理回复与提及通知；游客用户与回复同事务；PoW通过就记该IP尝试额度，成功才记全站额度；冒名检查读指派、历史登录审计及会话；不发送邮件。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/posts.ts:36](../../../app/server/src/routes/forum-api/posts.ts#L36) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/posts.ts:36](../../../app/server/src/routes/forum-api/posts.ts#L36) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1683,7 +1887,7 @@
 - 数据与副作用：只更新正文/edited_at；只有编辑他人帖子才写forum.post.edit审计，不记录正文；不会因编辑重新发送提及通知。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/posts.ts:78](../../../app/server/src/routes/forum-api/posts.ts#L78) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/posts.ts:78](../../../app/server/src/routes/forum-api/posts.ts#L78) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1701,7 +1905,7 @@
 - 数据与副作用：置deleted并清正文，保留点赞和书签；只在删除他人帖子时记forum.post.delete审计；幂等重试不重复执行删除。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/posts.ts:90](../../../app/server/src/routes/forum-api/posts.ts#L90) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/posts.ts:90](../../../app/server/src/routes/forum-api/posts.ts#L90) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1719,7 +1923,7 @@
 - 数据与副作用：事务切换点赞；新点赞按作者通知设置生成一次通知（同人同帖不重复），取消不撤回已有通知，不写操作审计。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/posts.ts:101](../../../app/server/src/routes/forum-api/posts.ts#L101) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/posts.ts:101](../../../app/server/src/routes/forum-api/posts.ts#L101) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1737,7 +1941,7 @@
 - 数据与副作用：事务按userId/postId切换书签，不通知作者，不修改帖子正文。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/posts.ts:109](../../../app/server/src/routes/forum-api/posts.ts#L109) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/posts.ts:109](../../../app/server/src/routes/forum-api/posts.ts#L109) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1755,7 +1959,7 @@
 - 数据与副作用：事务切换关注；首次关注在对方允许通知且未曾通知时写通知与编号，取消关注不删除旧通知。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/people.ts:11](../../../app/server/src/routes/forum-api/people.ts#L11) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/people.ts:11](../../../app/server/src/routes/forum-api/people.ts#L11) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1773,7 +1977,7 @@
 - 数据与副作用：仅更新本人该条read=1，不删通知；其他人的通知设置不下发。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/people.ts:20](../../../app/server/src/routes/forum-api/people.ts#L20) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/people.ts:20](../../../app/server/src/routes/forum-api/people.ts#L20) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1791,7 +1995,7 @@
 - 数据与副作用：UPDATE本人未读行并RETURNING id，据此只回变动通知，不清除别人的未读数。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/people.ts:26](../../../app/server/src/routes/forum-api/people.ts#L26) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/people.ts:26](../../../app/server/src/routes/forum-api/people.ts#L26) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1809,7 +2013,7 @@
 - 数据与副作用：昵称NFKC与冒名检查后保存；冒名来源含已有成员/官方用户名、指派和登录过的组织账号；只更新提交字段，不更改GitHub资料。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/people.ts:32](../../../app/server/src/routes/forum-api/people.ts#L32) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/people.ts:32](../../../app/server/src/routes/forum-api/people.ts#L32) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1827,7 +2031,7 @@
 - 数据与副作用：PNG/JPEG/WebP最多2MB、4096×4096；sharp取首帧转256×256 WebP去元数据；按哈希写库并更新本人引用，同事务清理无人引用的旧头像。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/people.ts:80](../../../app/server/src/routes/forum-api/people.ts#L80) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/lib/forum-avatar.ts:16](../../../app/server/src/lib/forum-avatar.ts#L16) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/people.ts:80](../../../app/server/src/routes/forum-api/people.ts#L80) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/lib/forum-avatar.ts:16](../../../app/server/src/lib/forum-avatar.ts#L16) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1845,7 +2049,7 @@
 - 数据与副作用：事务移除avatar_hash引用并删除无用户引用的旧头像，保留GitHub头像字段用于回退，不删除用户。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/people.ts:91](../../../app/server/src/routes/forum-api/people.ts#L91) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:20](../../../app/server/src/lib/access.ts#L20)
+源码：[app/server/src/routes/forum-api/people.ts:91](../../../app/server/src/routes/forum-api/people.ts#L91) · [app/server/src/lib/forum-store.ts:189](../../../app/server/src/lib/forum-store.ts#L189) · [app/server/src/routes/forum-api/viewer.ts:31](../../../app/server/src/routes/forum-api/viewer.ts#L31) · [app/server/src/lib/access.ts:29](../../../app/server/src/lib/access.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1987,7 +2191,7 @@
 - 200 {competitions}含offline；401未登录，403缺能力。列表按当前时间重算，样板重读同样更新，不冒充真实数据。
 - 共同身份路径：读取sessions与称号/部门权限，使用本人GitHub token查角色并缓存60秒；过期会话删除，上游拒绝token时删除并审计，不代表成功读取总是写库。
 
-源码：[app/server/src/routes/console/competitions.ts:36](../../../app/server/src/routes/console/competitions.ts#L36) · [app/server/src/routes/console/index.ts:28](../../../app/server/src/routes/console/index.ts#L28) · [app/console/src/pages/Competitions.vue:27](../../../app/console/src/pages/Competitions.vue#L27) · [app/console/src/lib/types.ts:120](../../../app/console/src/lib/types.ts#L120) · [app/console/src/lib/nav.ts:32](../../../app/console/src/lib/nav.ts#L32) · [app/console/src/lib/permission-boundaries.ts:97](../../../app/console/src/lib/permission-boundaries.ts#L97) · [app/console/src/router.ts:28](../../../app/console/src/router.ts#L28) · [app/console/src/mock/console.ts:311](../../../app/console/src/mock/console.ts#L311)
+源码：[app/server/src/routes/console/competitions.ts:36](../../../app/server/src/routes/console/competitions.ts#L36) · [app/server/src/routes/console/index.ts:29](../../../app/server/src/routes/console/index.ts#L29) · [app/console/src/pages/Competitions.vue:27](../../../app/console/src/pages/Competitions.vue#L27) · [app/console/src/lib/types.ts:123](../../../app/console/src/lib/types.ts#L123) · [app/console/src/lib/nav.ts:32](../../../app/console/src/lib/nav.ts#L32) · [app/console/src/lib/permission-boundaries.ts:97](../../../app/console/src/lib/permission-boundaries.ts#L97) · [app/console/src/router.ts:30](../../../app/console/src/router.ts#L30) · [app/console/src/mock/console.ts:322](../../../app/console/src/mock/console.ts#L322)
 
 测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts)。生成器未执行这些测试。
 
@@ -2005,7 +2209,7 @@
 - 201 {competition}；校验名称、时间范围和解析后的HTTPS地址；未知字段或错误时间/地址400，限流429。
 - 比赛行与competition.create审计同一事务提交；审计失败一起回滚，不发邮件，不创建报名或队伍。
 
-源码：[app/server/src/routes/console/competitions.ts:41](../../../app/server/src/routes/console/competitions.ts#L41) · [app/server/src/routes/console/contracts.ts:111](../../../app/server/src/routes/console/contracts.ts#L111) · [app/server/src/lib/db.ts:192](../../../app/server/src/lib/db.ts#L192) · [app/server/src/lib/roles.ts:87](../../../app/server/src/lib/roles.ts#L87) · [app/server/src/services.ts:37](../../../app/server/src/services.ts#L37)
+源码：[app/server/src/routes/console/competitions.ts:41](../../../app/server/src/routes/console/competitions.ts#L41) · [app/server/src/routes/console/contracts.ts:122](../../../app/server/src/routes/console/contracts.ts#L122) · [app/server/src/lib/db.ts:192](../../../app/server/src/lib/db.ts#L192) · [app/server/src/lib/roles.ts:88](../../../app/server/src/lib/roles.ts#L88) · [app/server/src/services.ts:44](../../../app/server/src/services.ts#L44)
 
 测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts)。生成器未执行这些测试。
 
@@ -2062,7 +2266,7 @@
 - 角标口径是发给我的邀请加上我所在队伍收到的申请，我发出的申请不算；待处理明细只在本场相关人里下发（当事人自己的申请与邀请、本人所在队伍的待处理项），其他人看不到。
 - 只读，不写业务表；门户自助操作不写审计。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:28](../../../app/server/src/routes/portal/competition-signups.ts#L28) · [app/server/src/lib/competition-signup-store.ts:731](../../../app/server/src/lib/competition-signup-store.ts#L731) · [app/server/src/lib/competition-contract.ts:95](../../../app/server/src/lib/competition-contract.ts#L95) · [app/server/src/routes/portal/contracts.ts:19](../../../app/server/src/routes/portal/contracts.ts#L19) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:108](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L108)
+源码：[app/server/src/routes/portal/competition-signups.ts:28](../../../app/server/src/routes/portal/competition-signups.ts#L28) · [app/server/src/lib/competition-signup-store.ts:735](../../../app/server/src/lib/competition-signup-store.ts#L735) · [app/server/src/lib/competition-contract.ts:95](../../../app/server/src/lib/competition-contract.ts#L95) · [app/server/src/routes/portal/contracts.ts:19](../../../app/server/src/routes/portal/contracts.ts#L19) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:108](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L108)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2080,7 +2284,7 @@
 - writable 只在已开放报名且状态为报名中时为真，此时 actions 才非空；state 由报名、队伍与比赛类型现算，不单独存储。
 - stats 只含数字（报名、队伍、已确认队伍、已确认人数、未成队），不含其他成员的身份。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:30](../../../app/server/src/routes/portal/competition-signups.ts#L30) · [app/server/src/lib/competition-signup-store.ts:396](../../../app/server/src/lib/competition-signup-store.ts#L396) · [app/server/src/lib/competition-signup-store.ts:385](../../../app/server/src/lib/competition-signup-store.ts#L385) · [app/server/src/lib/competition-contract.ts:84](../../../app/server/src/lib/competition-contract.ts#L84) · [app/server/src/middleware/require-member.ts:14](../../../app/server/src/middleware/require-member.ts#L14) · [app/web/sites/portal/lib/account.ts:25](../../../app/web/sites/portal/lib/account.ts#L25) · [app/web/sites/portal/components/os/competitions/CompetitionHero.tsx:69](../../../app/web/sites/portal/components/os/competitions/CompetitionHero.tsx#L69) · [app/web/sites/portal/lib/competitionHub.ts:183](../../../app/web/sites/portal/lib/competitionHub.ts#L183)
+源码：[app/server/src/routes/portal/competition-signups.ts:30](../../../app/server/src/routes/portal/competition-signups.ts#L30) · [app/server/src/lib/competition-signup-store.ts:400](../../../app/server/src/lib/competition-signup-store.ts#L400) · [app/server/src/lib/competition-signup-store.ts:389](../../../app/server/src/lib/competition-signup-store.ts#L389) · [app/server/src/lib/competition-contract.ts:84](../../../app/server/src/lib/competition-contract.ts#L84) · [app/server/src/middleware/require-member.ts:14](../../../app/server/src/middleware/require-member.ts#L14) · [app/web/sites/portal/lib/account.ts:25](../../../app/web/sites/portal/lib/account.ts#L25) · [app/web/sites/portal/components/os/competitions/CompetitionHero.tsx:69](../../../app/web/sites/portal/components/os/competitions/CompetitionHero.tsx#L69) · [app/web/sites/portal/lib/competitionHub.ts:183](../../../app/web/sites/portal/lib/competitionHub.ts#L183)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2098,7 +2302,7 @@
 - 重复报名幂等：保留created_at，只更新备注与勾选；已取消的报名重新置为active并清cancelled_at。
 - 写操作在一个事务里重读状态再写，成功回最新我的状态；限流每人每分钟30次（429 rate_limited）。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:35](../../../app/server/src/routes/portal/competition-signups.ts#L35) · [app/server/src/lib/competition-signup-store.ts:473](../../../app/server/src/lib/competition-signup-store.ts#L473) · [app/server/src/lib/competition-signup-store.ts:155](../../../app/server/src/lib/competition-signup-store.ts#L155) · [app/server/src/lib/competition-contract.ts:155](../../../app/server/src/lib/competition-contract.ts#L155) · [app/web/sites/portal/components/os/competitions/HubDialog.tsx:159](../../../app/web/sites/portal/components/os/competitions/HubDialog.tsx#L159)
+源码：[app/server/src/routes/portal/competition-signups.ts:35](../../../app/server/src/routes/portal/competition-signups.ts#L35) · [app/server/src/lib/competition-signup-store.ts:477](../../../app/server/src/lib/competition-signup-store.ts#L477) · [app/server/src/lib/competition-signup-store.ts:155](../../../app/server/src/lib/competition-signup-store.ts#L155) · [app/server/src/lib/competition-contract.ts:155](../../../app/server/src/lib/competition-contract.ts#L155) · [app/web/sites/portal/components/os/competitions/HubDialog.tsx:159](../../../app/web/sites/portal/components/os/competitions/HubDialog.tsx#L159)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2116,7 +2320,7 @@
 - 本人在这场的待处理申请与邀请一并关闭（申请改withdrawn，邀请改declined）；成功回最新我的状态。
 - 取消后报名截止前可以重新报名；限流每人每分钟30次。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:40](../../../app/server/src/routes/portal/competition-signups.ts#L40) · [app/server/src/lib/competition-signup-store.ts:493](../../../app/server/src/lib/competition-signup-store.ts#L493) · [app/server/src/lib/competition-signup-store.ts:481](../../../app/server/src/lib/competition-signup-store.ts#L481)
+源码：[app/server/src/routes/portal/competition-signups.ts:40](../../../app/server/src/routes/portal/competition-signups.ts#L40) · [app/server/src/lib/competition-signup-store.ts:497](../../../app/server/src/lib/competition-signup-store.ts#L497) · [app/server/src/lib/competition-signup-store.ts:485](../../../app/server/src/lib/competition-signup-store.ts#L485)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2133,7 +2337,7 @@
 - 响应200 {teams}：每支未解散队伍含队名、口号、状态（recruiting/locked）、领队账号、在队成员（账号、登录名、头像、角色、入队时间）、人数与建队时间。
 - 只返回在队成员；待处理申请与邀请不在这里下发，避免把别人的申请暴露给全体成员。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:43](../../../app/server/src/routes/portal/competition-signups.ts#L43) · [app/server/src/lib/competition-signup-store.ts:338](../../../app/server/src/lib/competition-signup-store.ts#L338) · [app/server/src/lib/competition-contract.ts:99](../../../app/server/src/lib/competition-contract.ts#L99)
+源码：[app/server/src/routes/portal/competition-signups.ts:43](../../../app/server/src/routes/portal/competition-signups.ts#L43) · [app/server/src/lib/competition-signup-store.ts:342](../../../app/server/src/lib/competition-signup-store.ts#L342) · [app/server/src/lib/competition-contract.ts:99](../../../app/server/src/lib/competition-contract.ts#L99)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2150,7 +2354,7 @@
 - 响应200 {people}：已报名、勾选找队友且当前不在任何队伍的人，含账号、登录名、头像、本人留言与开始找队伍的时间；按报名先后排。
 - 只读；邀请入口只在门户的找队友页给领队，服务端在 invite 里另行校验。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:48](../../../app/server/src/routes/portal/competition-signups.ts#L48) · [app/server/src/lib/competition-signup-store.ts:305](../../../app/server/src/lib/competition-signup-store.ts#L305) · [app/server/src/lib/competition-contract.ts:100](../../../app/server/src/lib/competition-contract.ts#L100)
+源码：[app/server/src/routes/portal/competition-signups.ts:48](../../../app/server/src/routes/portal/competition-signups.ts#L48) · [app/server/src/lib/competition-signup-store.ts:306](../../../app/server/src/lib/competition-signup-store.ts#L306) · [app/server/src/lib/competition-contract.ts:100](../../../app/server/src/lib/competition-contract.ts#L100)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2168,7 +2372,7 @@
 - 201 建队人即领队：写一条队伍（recruiting）与一条active成员关系，回最新我的状态；不隐式报名。
 - 写在一个事务里，唯一索引兜底并发；限流每人每分钟30次。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:53](../../../app/server/src/routes/portal/competition-signups.ts#L53) · [app/server/src/lib/competition-signup-store.ts:538](../../../app/server/src/lib/competition-signup-store.ts#L538) · [app/server/src/lib/competition-signup-store.ts:539](../../../app/server/src/lib/competition-signup-store.ts#L539) · [app/server/src/lib/competition-signup-store.ts:525](../../../app/server/src/lib/competition-signup-store.ts#L525) · [app/web/sites/portal/components/os/competitions/Avatar.tsx:23](../../../app/web/sites/portal/components/os/competitions/Avatar.tsx#L23) · [app/web/sites/portal/components/os/competitions/HubDialog.tsx:193](../../../app/web/sites/portal/components/os/competitions/HubDialog.tsx#L193)
+源码：[app/server/src/routes/portal/competition-signups.ts:53](../../../app/server/src/routes/portal/competition-signups.ts#L53) · [app/server/src/lib/competition-signup-store.ts:542](../../../app/server/src/lib/competition-signup-store.ts#L542) · [app/server/src/lib/competition-signup-store.ts:543](../../../app/server/src/lib/competition-signup-store.ts#L543) · [app/server/src/lib/competition-signup-store.ts:529](../../../app/server/src/lib/competition-signup-store.ts#L529) · [app/web/sites/portal/components/os/competitions/Avatar.tsx:23](../../../app/web/sites/portal/components/os/competitions/Avatar.tsx#L23) · [app/web/sites/portal/components/os/competitions/HubDialog.tsx:193](../../../app/web/sites/portal/components/os/competitions/HubDialog.tsx#L193)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2185,7 +2389,7 @@
 - 队伍已锁定409 team_locked，满员409 team_full，已有待处理申请或邀请409 already_applied / already_invited；留言最多100字（bad_message）。
 - 201 写一条applied成员关系；领队同意前不影响队伍名单，同一队伍对同一人只有一条待处理记录。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:59](../../../app/server/src/routes/portal/competition-signups.ts#L59) · [app/server/src/lib/competition-signup-store.ts:575](../../../app/server/src/lib/competition-signup-store.ts#L575) · [app/server/src/lib/competition-signup-store.ts:560](../../../app/server/src/lib/competition-signup-store.ts#L560)
+源码：[app/server/src/routes/portal/competition-signups.ts:59](../../../app/server/src/routes/portal/competition-signups.ts#L59) · [app/server/src/lib/competition-signup-store.ts:579](../../../app/server/src/lib/competition-signup-store.ts#L579) · [app/server/src/lib/competition-signup-store.ts:564](../../../app/server/src/lib/competition-signup-store.ts#L564)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2202,7 +2406,7 @@
 - 请求 {account_id}：对方须已报名本场且未入队（409 invitee_not_signed_up / already_in_team），账号须为active（409 target_not_member）；不能邀请自己。
 - 队伍已锁定409 team_locked，满员409 team_full，已有待处理关系409 already_applied / already_invited；201 写一条invited成员关系。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:64](../../../app/server/src/routes/portal/competition-signups.ts#L64) · [app/server/src/lib/competition-signup-store.ts:596](../../../app/server/src/lib/competition-signup-store.ts#L596) · [app/server/src/lib/competition-signup-store.ts:598](../../../app/server/src/lib/competition-signup-store.ts#L598) · [app/server/src/lib/competition-signup-store.ts:586](../../../app/server/src/lib/competition-signup-store.ts#L586)
+源码：[app/server/src/routes/portal/competition-signups.ts:64](../../../app/server/src/routes/portal/competition-signups.ts#L64) · [app/server/src/lib/competition-signup-store.ts:600](../../../app/server/src/lib/competition-signup-store.ts#L600) · [app/server/src/lib/competition-signup-store.ts:602](../../../app/server/src/lib/competition-signup-store.ts#L602) · [app/server/src/lib/competition-signup-store.ts:590](../../../app/server/src/lib/competition-signup-store.ts#L590)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2220,7 +2424,7 @@
 - 接受后写active关系，并关闭这个人在本场的其他待处理关系；满员时本队其余待处理关系一并关闭。成功回最新我的状态。
 - 限流每人每分钟30次；动作只有accept / decline / withdraw。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:69](../../../app/server/src/routes/portal/competition-signups.ts#L69) · [app/server/src/lib/competition-signup-store.ts:627](../../../app/server/src/lib/competition-signup-store.ts#L627) · [app/server/src/lib/competition-signup-store.ts:638](../../../app/server/src/lib/competition-signup-store.ts#L638) · [app/server/src/lib/competition-signup-store.ts:613](../../../app/server/src/lib/competition-signup-store.ts#L613) · [app/web/sites/portal/components/os/competitions/TeamHub.tsx:64](../../../app/web/sites/portal/components/os/competitions/TeamHub.tsx#L64)
+源码：[app/server/src/routes/portal/competition-signups.ts:69](../../../app/server/src/routes/portal/competition-signups.ts#L69) · [app/server/src/lib/competition-signup-store.ts:631](../../../app/server/src/lib/competition-signup-store.ts#L631) · [app/server/src/lib/competition-signup-store.ts:642](../../../app/server/src/lib/competition-signup-store.ts#L642) · [app/server/src/lib/competition-signup-store.ts:617](../../../app/server/src/lib/competition-signup-store.ts#L617) · [app/web/sites/portal/components/os/competitions/TeamHub.tsx:64](../../../app/web/sites/portal/components/os/competitions/TeamHub.tsx#L64)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2237,7 +2441,7 @@
 - 队伍已锁定（含已确认参赛）回409 team_locked；成功把成员关系改成left并回最新我的状态，报名保留、回到未组队。
 - 可写窗口与报名一致：未开放报名409 signup_not_enabled，不在报名中409 signup_closed。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:75](../../../app/server/src/routes/portal/competition-signups.ts#L75) · [app/server/src/lib/competition-signup-store.ts:651](../../../app/server/src/lib/competition-signup-store.ts#L651) · [app/server/src/lib/competition-signup-store.ts:660](../../../app/server/src/lib/competition-signup-store.ts#L660)
+源码：[app/server/src/routes/portal/competition-signups.ts:75](../../../app/server/src/routes/portal/competition-signups.ts#L75) · [app/server/src/lib/competition-signup-store.ts:655](../../../app/server/src/lib/competition-signup-store.ts#L655) · [app/server/src/lib/competition-signup-store.ts:664](../../../app/server/src/lib/competition-signup-store.ts#L664)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2254,7 +2458,7 @@
 - 队伍已锁定回409 team_locked；成功在同一事务里改队伍的leader_account_id与两条成员关系的role，回最新我的状态。
 - 转让不改变报名、人数与状态，也不产生审计。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:79](../../../app/server/src/routes/portal/competition-signups.ts#L79) · [app/server/src/lib/competition-signup-store.ts:680](../../../app/server/src/lib/competition-signup-store.ts#L680) · [app/server/src/lib/competition-signup-store.ts:676](../../../app/server/src/lib/competition-signup-store.ts#L676)
+源码：[app/server/src/routes/portal/competition-signups.ts:79](../../../app/server/src/routes/portal/competition-signups.ts#L79) · [app/server/src/lib/competition-signup-store.ts:684](../../../app/server/src/lib/competition-signup-store.ts#L684) · [app/server/src/lib/competition-signup-store.ts:680](../../../app/server/src/lib/competition-signup-store.ts#L680)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2271,7 +2475,7 @@
 - 解散只改状态：队伍改disbanded并记disbanded_at，在队成员改disbanded、待处理关系改declined或withdrawn，不物理删除。
 - 成员回到已报名、未组队；截止后不可解散（409 signup_closed）。成功回最新我的状态。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:83](../../../app/server/src/routes/portal/competition-signups.ts#L83) · [app/server/src/lib/competition-signup-store.ts:696](../../../app/server/src/lib/competition-signup-store.ts#L696) · [app/server/src/lib/competition-signup-store.ts:687](../../../app/server/src/lib/competition-signup-store.ts#L687)
+源码：[app/server/src/routes/portal/competition-signups.ts:83](../../../app/server/src/routes/portal/competition-signups.ts#L83) · [app/server/src/lib/competition-signup-store.ts:700](../../../app/server/src/lib/competition-signup-store.ts#L700) · [app/server/src/lib/competition-signup-store.ts:691](../../../app/server/src/lib/competition-signup-store.ts#L691)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2288,7 +2492,7 @@
 - 在队人数少于报名设置的最低人数回409 team_too_small；成功后队伍改locked并记locked_at，本队其余待处理关系关闭。
 - 锁定后不再接受申请与邀请、成员不能退出，要调整先撤销确认；截止那一刻的名单就是最终名单，未确认的队伍不计入参赛。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:86](../../../app/server/src/routes/portal/competition-signups.ts#L86) · [app/server/src/lib/competition-signup-store.ts:709](../../../app/server/src/lib/competition-signup-store.ts#L709) · [app/server/src/lib/competition-signup-store.ts:711](../../../app/server/src/lib/competition-signup-store.ts#L711)
+源码：[app/server/src/routes/portal/competition-signups.ts:86](../../../app/server/src/routes/portal/competition-signups.ts#L86) · [app/server/src/lib/competition-signup-store.ts:713](../../../app/server/src/lib/competition-signup-store.ts#L713) · [app/server/src/lib/competition-signup-store.ts:715](../../../app/server/src/lib/competition-signup-store.ts#L715)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2305,7 +2509,7 @@
 - 撤销只把队伍改回recruiting并清locked_at，成员与报名不变；截止后不可撤销（409 signup_closed）。
 - 成功回最新我的状态；限流每人每分钟30次。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:89](../../../app/server/src/routes/portal/competition-signups.ts#L89) · [app/server/src/lib/competition-signup-store.ts:726](../../../app/server/src/lib/competition-signup-store.ts#L726) · [app/server/src/lib/competition-signup-store.ts:717](../../../app/server/src/lib/competition-signup-store.ts#L717)
+源码：[app/server/src/routes/portal/competition-signups.ts:89](../../../app/server/src/routes/portal/competition-signups.ts#L89) · [app/server/src/lib/competition-signup-store.ts:730](../../../app/server/src/lib/competition-signup-store.ts#L730) · [app/server/src/lib/competition-signup-store.ts:721](../../../app/server/src/lib/competition-signup-store.ts#L721)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2359,7 +2563,7 @@
 - 有未取消的报名后不能改参赛形式（409 has_signups）；关闭报名保留已有数据。
 - 写入与competition.signup_settings.update审计同一事务，details只记五个字段（是否开放、参赛形式、两个人数、计分），审计失败一起回滚；限流每分钟30次。
 
-源码：[app/server/src/routes/console/competition-roster.ts:32](../../../app/server/src/routes/console/competition-roster.ts#L32) · [app/server/src/lib/competition-signup-store.ts:810](../../../app/server/src/lib/competition-signup-store.ts#L810) · [app/server/src/lib/competition-signup-store.ts:811](../../../app/server/src/lib/competition-signup-store.ts#L811) · [app/server/src/lib/competition-signup-store.ts:813](../../../app/server/src/lib/competition-signup-store.ts#L813) · [app/server/src/lib/competition-contract.ts:123](../../../app/server/src/lib/competition-contract.ts#L123) · [app/server/src/routes/console/contracts.ts:122](../../../app/server/src/routes/console/contracts.ts#L122) · [app/console/src/lib/competition-hub.ts:67](../../../app/console/src/lib/competition-hub.ts#L67)
+源码：[app/server/src/routes/console/competition-roster.ts:32](../../../app/server/src/routes/console/competition-roster.ts#L32) · [app/server/src/lib/competition-signup-store.ts:814](../../../app/server/src/lib/competition-signup-store.ts#L814) · [app/server/src/lib/competition-signup-store.ts:815](../../../app/server/src/lib/competition-signup-store.ts#L815) · [app/server/src/lib/competition-signup-store.ts:817](../../../app/server/src/lib/competition-signup-store.ts#L817) · [app/server/src/lib/competition-contract.ts:123](../../../app/server/src/lib/competition-contract.ts#L123) · [app/server/src/routes/console/contracts.ts:133](../../../app/server/src/routes/console/contracts.ts#L133) · [app/console/src/lib/competition-hub.ts:67](../../../app/console/src/lib/competition-hub.ts#L67)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/console/competition-hub.test.ts](../../../tests/console/competition-hub.test.ts)。生成器未执行这些测试。
 
@@ -2377,7 +2581,7 @@
 - 统计五个数字：报名（外部比赛叫意向）、队伍、已确认队伍、已确认人数、未成队；个人赛的未成队为0。
 - 只读，不写审计；名单含成员登录名与留言，只在控制台下发。
 
-源码：[app/server/src/routes/console/competition-roster.ts:50](../../../app/server/src/routes/console/competition-roster.ts#L50) · [app/server/src/lib/competition-signup-store.ts:769](../../../app/server/src/lib/competition-signup-store.ts#L769) · [app/server/src/lib/competition-contract.ts:118](../../../app/server/src/lib/competition-contract.ts#L118) · [app/console/src/lib/competition-hub.ts:101](../../../app/console/src/lib/competition-hub.ts#L101) · [app/console/src/pages/CompetitionHub.vue:45](../../../app/console/src/pages/CompetitionHub.vue#L45)
+源码：[app/server/src/routes/console/competition-roster.ts:50](../../../app/server/src/routes/console/competition-roster.ts#L50) · [app/server/src/lib/competition-signup-store.ts:773](../../../app/server/src/lib/competition-signup-store.ts#L773) · [app/server/src/lib/competition-contract.ts:118](../../../app/server/src/lib/competition-contract.ts#L118) · [app/console/src/lib/competition-hub.ts:101](../../../app/console/src/lib/competition-hub.ts#L101) · [app/console/src/pages/CompetitionHub.vue:45](../../../app/console/src/pages/CompetitionHub.vue#L45)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/console/competition-hub.test.ts](../../../tests/console/competition-hub.test.ts)。生成器未执行这些测试。
 
