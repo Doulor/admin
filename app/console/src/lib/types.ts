@@ -75,6 +75,21 @@ export type Person = {
 export type PeopleResponse = { people: Person[]; github: GithubVia; github_listed: boolean };
 export type SiteRoleResponse = { account_id: string; site_role: SiteRoleChoice; changed: boolean };
 
+/** GitLab 账号同步（#270，GET /api/console/gitlab/accounts）：每个极客班账号在 GitLab 上的用户、状态和还要做的事。 */
+export type GitlabMode = "off" | "dry-run" | "on";
+export type GitlabAction =
+  | { kind: "create"; username: string; access_level: number }
+  | { kind: "block" | "unblock" | "find_and_block" }
+  | { kind: "set_access"; access_level: number };
+export type GitlabAccount = {
+  account_id: string; login: string; username: string | null; gitlab_user_id: number | null;
+  state: "pending" | "active" | "blocked" | null; access_level: number | null;
+  last_error: string | null; last_error_at: number | null; synced_at: number | null; pending: GitlabAction[];
+};
+export type GitlabAccountsResponse = { mode: GitlabMode; gitlab_url: string | null; group: string; client_registered: boolean; accounts: GitlabAccount[] };
+/** POST /api/console/gitlab/accounts/:account_id/sync：这一次做了什么、有没有出错。 */
+export type GitlabSyncOutcome = { mode: GitlabMode; account_id: string; login: string; actions: GitlabAction[]; applied: boolean; error: string | null };
+
 /** 称号在服务端存的样子；PATCH /api/console/titles/:title_id 只提交改动的字段，返回改后的整条。 */
 export type TitleConfig = { id: TitleId; label: string; tag: string; icon: string; tone: Tone; description: string; capabilities: Capability[] };
 export type TitlePatch = Partial<Omit<TitleConfig, "id">>;

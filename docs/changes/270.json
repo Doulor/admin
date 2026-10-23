@@ -43,7 +43,7 @@
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "GitHub 账号被封后改用自建 GitLab（git.yangtzeu.work）。GitLab 的登录走极客班统一登录：第一次从 GitLab 登录要本人在 /authorize 同意，之后同一账号同一应用不再问；是不是成员按极客班账号的站内成员资格（停用或改成不是成员的被拒）。每个极客班成员在 GitLab 上有一个用户，按 OIDC 身份认人；舰员 Developer、提督 Owner 进 geek 组；离开的封禁、回来的解封，从不删用户和仓库。资料在建号时从论坛资料（没有时 GitHub 公开资料）补一次。官网桌面多一个「代码仓库」应用，GitHub 组织应用留着。",
+      "reason": "GitHub 账号被封后改用自建 GitLab（git.yangtzeu.work）。GitLab 的登录走极客班统一登录：第一次从 GitLab 登录要本人在 /authorize 同意，之后同一账号同一应用不再问；是不是成员按极客班账号的站内成员资格（停用或改成不是成员的被拒）。每个极客班成员在 GitLab 上有一个用户，按 OIDC 身份认人；舰员 Developer、提督 Owner 进 geek 组；离开的封禁、回来的解封，从不删用户和仓库。资料在建号时从论坛资料（没有时 GitHub 公开资料）补一次。官网桌面多一个「代码仓库」应用，GitHub 组织应用留着。控制台「成员与权限」能看到每个人的 GitLab 账号和同步状态，同步失败可以立即重试。",
       "evidence": [
         "app/server/src/routes/oidc/index.ts",
         "app/server/src/lib/oidc-provider.ts",
@@ -121,14 +121,15 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "tests/server/oidc.test.ts 用 Fastify inject 走完整浏览器往返（带 path 的 cookie 罐）：发现文档与 JWKS、没登录去 /signin、首次同意与记住同意（换浏览器也不问）、pairwise sub、授权码重放撤销授权与令牌、未知客户端与错回调不跳转、PKCE 缺失与错误、拒绝、同意接口的 401/409/403/404、换账号、sid 结束后重新登录、不是成员与 userinfo 401、停用客户端、过期交互、没配密钥 404、限流（服务器调用与浏览器跳转分开算）、同意页详情不缓存、回调地址校验。tests/server/gitlab-sync.test.ts 用假的 GitLab 管理接口核对建号、邮箱回退、用户名加后缀、封禁解封、按身份沿用、没同步过就离开的按身份找到并封禁、立即同步与定时对账不同时做同一个账号、sector 取 gitlab 客户端、没登记客户端不建号、不合法的网站不传、停下时结束这一轮、论坛资料优先、失败与重试、dry-run 与 off、控制台两个接口、配置校验。tests/console/authorize.test.ts 核对同意页纯逻辑与样板。web、nginx、环境契约的既有回归随改动更新。未验证：真实 GitLab 的 omniauth 往返与同步（要预发布部署、生成密钥、登记客户端之后才能做），手机与 Safari 上的同意页。",
+      "reason": "tests/server/oidc.test.ts 用 Fastify inject 走完整浏览器往返（带 path 的 cookie 罐）：发现文档与 JWKS、没登录去 /signin、首次同意与记住同意（换浏览器也不问）、pairwise sub、授权码重放撤销授权与令牌、未知客户端与错回调不跳转、PKCE 缺失与错误、拒绝、同意接口的 401/409/403/404、换账号、sid 结束后重新登录、不是成员与 userinfo 401、停用客户端、过期交互、没配密钥 404、限流（服务器调用与浏览器跳转分开算）、同意页详情不缓存、回调地址校验。tests/server/gitlab-sync.test.ts 用假的 GitLab 管理接口核对建号、邮箱回退、用户名加后缀、封禁解封、按身份沿用、没同步过就离开的按身份找到并封禁、立即同步与定时对账不同时做同一个账号、sector 取 gitlab 客户端、没登记客户端不建号、不合法的网站不传、停下时结束这一轮、论坛资料优先、失败与重试、dry-run 与 off、控制台两个接口、配置校验。tests/console/authorize.test.ts 核对同意页纯逻辑与样板。web、nginx、环境契约的既有回归随改动更新。未验证：真实 GitLab 的 omniauth 往返与同步（要预发布部署、生成密钥、登记客户端之后才能做），手机与 Safari 上的同意页。 tests/console/gitlab.test.ts 核对成员页 GitLab 列（状态、错误、预演文字，立即同步只在打开且客户端登记了、有错或还有事要做时出现，样板与服务端合同同形）。",
       "evidence": [
         "tests/server/oidc.test.ts",
         "tests/server/gitlab-sync.test.ts",
         "tests/console/authorize.test.ts",
         "tests/tooling/web-nginx.test.ts",
         "tests/tooling/deployment-environment.test.ts",
-        "tests/web/portal-os-entries.test.tsx"
+        "tests/web/portal-os-entries.test.tsx",
+        "tests/console/gitlab.test.ts"
       ]
     },
     "delivery": {
@@ -264,7 +265,11 @@
         "app/console/src/lib/authorize.ts",
         "app/console/src/router.ts",
         "app/console/src/mock/index.ts",
-        "app/console/vite.config.ts"
+        "app/console/vite.config.ts",
+        "app/console/src/pages/People.vue",
+        "app/console/src/lib/gitlab.ts",
+        "app/console/src/lib/types.ts",
+        "app/console/src/mock/console.ts"
       ],
       "domains": [
         "identity",
@@ -280,9 +285,11 @@
         "flow:identity.oidc.details",
         "flow:identity.oidc.confirm",
         "flow:identity.oidc.abort",
-        "flow:github.organizations.list"
+        "flow:github.organizations.list",
+        "flow:gitlab.accounts.list",
+        "flow:gitlab.accounts.sync"
       ],
-      "reason": "同意页：读 details，允许或拒绝后整页回到应用；样板数据给一份 GitLab 请求，写请求照旧 501；开发态把 /oidc 代理到本地 server。router.ts 与 mock/index.ts 是控制台各页面共用的路由表和样板，目录按控制台模块归到多个业务域；本次只加 /authorize 一条路由和同意页的一份样板，其余页面的路由与样板不变，关联的其它业务域流程只为回归核对。"
+      "reason": "同意页：读 details，允许或拒绝后整页回到应用；样板数据给一份 GitLab 请求，写请求照旧 501；开发态把 /oidc 代理到本地 server。router.ts 与 mock/index.ts 是控制台各页面共用的路由表和样板，目录按控制台模块归到多个业务域；本次只加 /authorize 一条路由和同意页的一份样板，其余页面的路由与样板不变，关联的其它业务域流程只为回归核对。成员与权限的名单在 GitLab 同步不是 off 时多一列「GitLab」（GET /api/console/gitlab/accounts）：用户名链到 GitLab 个人页、组权限或已封禁、还要做的事（dry-run 写「预演」）、最后一次错误；能管理称号的人对有错或还有事要做的账号点「立即同步」（POST …/sync）。关着、预演、客户端没登记时名单上方各一句说明；加上这一列时其它列收窄，1440 宽不用横向滚动。lib/types.ts 只加 GitLab 的类型，mock/console.ts 只加 GitLab 状态样板（?__gitlab= 切换预演、没登记、关着）。"
     },
     {
       "paths": [
@@ -388,7 +395,8 @@
         "tests/tooling/deployment-environment.test.ts",
         "tests/web/portal-os.test.ts",
         "tests/web/portal-os-entries.test.tsx",
-        "tests/web/portal-promo.test.ts"
+        "tests/web/portal-promo.test.ts",
+        "tests/console/gitlab.test.ts"
       ],
       "domains": [
         "identity",
@@ -399,9 +407,10 @@
       "nodes": [
         "flow:identity.oidc.protocol",
         "flow:identity.oidc.confirm",
-        "flow:gitlab.accounts.sync"
+        "flow:gitlab.accounts.sync",
+        "flow:gitlab.accounts.list"
       ],
-      "reason": "新回归覆盖签发者、同意页与 GitLab 同步；既有回归随 ADMIN_SPA_PATHS、表清单、nginx 入口、环境字段与桌面应用顺序更新。"
+      "reason": "新回归覆盖签发者、同意页与 GitLab 同步；既有回归随 ADMIN_SPA_PATHS、表清单、nginx 入口、环境字段与桌面应用顺序更新。tests/console/gitlab.test.ts 核对成员页 GitLab 列的文字、立即同步的条件和样板与服务端合同同形。"
     }
   ],
   "documents": [

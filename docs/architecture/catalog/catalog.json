@@ -5050,7 +5050,7 @@
           "path": "app/server/src/lib/github-connection.ts"
         },
         {
-          "line": 47,
+          "line": 52,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -5129,7 +5129,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 462,
+          "line": 515,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -7802,7 +7802,7 @@
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 139,
+          "line": 154,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -7818,7 +7818,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 348,
+          "line": 389,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -10014,7 +10014,8 @@
       "docs": [
         "docs/services/server/oidc.md",
         "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md"
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
       ],
       "doesNotEnqueue": [],
       "domain": "gitlab",
@@ -10034,13 +10035,29 @@
         {
           "line": 33,
           "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 48,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 71,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 734,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 89,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "id": "flow:gitlab.accounts.list",
       "invariants": [
         "权限与资源：有效全站 sid，roles.manage 或 roles.department.manage；不调用 GitLab。",
         "响应与错误：200 {mode,gitlab_url,group,client_registered,accounts:[{account_id,login,username,gitlab_user_id,state,access_level,last_error,last_error_at,synced_at,pending}]}；pending 是现在还要做的事（同步关着时为空），client_registered 说明 gitlab 客户端登记了没有；没权限 403 missing_capability。",
-        "数据与副作用：只读。"
+        "数据与副作用：只读。控制台「成员与权限」在 mode 不是 off 时多一列「GitLab」，按 account_id 对上名单。"
       ],
       "operation": "GET /api/console/gitlab/accounts",
       "operationLabel": "GET /api/console/gitlab/accounts",
@@ -10062,7 +10079,8 @@
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
-        "tests/server/gitlab-sync.test.ts"
+        "tests/server/gitlab-sync.test.ts",
+        "tests/console/gitlab.test.ts"
       ],
       "title": "控制台查看每个账号在 GitLab 上的同步状态",
       "writes": [
@@ -10077,7 +10095,8 @@
       "docs": [
         "docs/services/server/oidc.md",
         "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md"
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
       ],
       "doesNotEnqueue": [],
       "domain": "gitlab",
@@ -10101,6 +10120,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "id": "flow:gitlab.accounts.sync",
@@ -10132,7 +10163,8 @@
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
-        "tests/server/gitlab-sync.test.ts"
+        "tests/server/gitlab-sync.test.ts",
+        "tests/console/gitlab.test.ts"
       ],
       "title": "控制台立即同步一个账号到 GitLab",
       "writes": [
@@ -12771,6 +12803,11 @@
       "title": "tests/console/device.test.ts"
     },
     {
+      "id": "test:tests/console/gitlab.test.ts",
+      "kind": "test",
+      "title": "tests/console/gitlab.test.ts"
+    },
+    {
       "id": "test:tests/console/nav.test.ts",
       "kind": "test",
       "title": "tests/console/nav.test.ts"
@@ -12923,7 +12960,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "c90cf8df1d65b702a4bb5a6a82d8a99eafaa9c30727aef9dfcf4f45cb72ae339",
+    "fingerprint": "9902e2b2c1810d48bbd900b833c5e129d93b5fba998c6fe4337cfee427962815",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -13018,6 +13055,10 @@
         "sha256": "543fd79c89ef8b419320f2e479f112e1875e6e212355d12665f3979faf8bd560"
       },
       {
+        "path": "app/console/src/lib/gitlab.ts",
+        "sha256": "21f2828d05e219f93e9f0cdc014b036fe3968bccd6b8cc4d7bb40b5b03203b47"
+      },
+      {
         "path": "app/console/src/lib/http.ts",
         "sha256": "b56e7b1d15b21a153daf35f7b2181cf14701d01cdf46be7f51f6048c37bcb474"
       },
@@ -13075,7 +13116,7 @@
       },
       {
         "path": "app/console/src/lib/types.ts",
-        "sha256": "2e87197de0b7b9aad06945f198a843bfc980fc5f1890e4438a35da33a806a7be"
+        "sha256": "7f4ce54a3fa286db94d97b3e2f290cbceb8ba74fb846b91b8f2e681a20248e8d"
       },
       {
         "path": "app/console/src/main.ts",
@@ -13083,7 +13124,7 @@
       },
       {
         "path": "app/console/src/mock/console.ts",
-        "sha256": "b3015b9f12185ebe651a73f40cc80924515f0aa9e6c2f4d7629a5a5b524c0518"
+        "sha256": "bac6b0a78716fb0162d82c18541e60fd03957912346a6074c16dcef78d74d2f5"
       },
       {
         "path": "app/console/src/mock/github.ts",
@@ -13147,7 +13188,7 @@
       },
       {
         "path": "app/console/src/pages/People.vue",
-        "sha256": "3f438e4e18674b44c0908b8d1d3b792df132b5151ac23f422bed5eb1d764da88"
+        "sha256": "92b7a9441da24d19178f552750a49411c9de84c56665a1ee2ca32b97c7fa741c"
       },
       {
         "path": "app/console/src/pages/SignIn.vue",
@@ -14435,7 +14476,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "0b3187e6dcf4a3fa4f4b162c5dc1a952d059e8b5cefcc2916b24ccfef81ea2bc"
+        "sha256": "b1c4982e5b2195cd9fefc5971578afdd21c58e53188489ad97eb00cd843108e7"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -14463,7 +14504,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "127f14ee2061f4d3cdf371a008397b96d850021c4072873f11fc26483ed40b58"
+        "sha256": "c65c6fbd644a2e35d0baa500466e138890df2df0feb70130698f9e0b6cacef58"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -14487,7 +14528,7 @@
       },
       {
         "path": "docs/services/server/oidc.md",
-        "sha256": "2d15807157f7845dd860ccc63bc08dd4143f992c4945780678a8abbb5301928d"
+        "sha256": "6ed213293539c147759975c26140c0e8e3f8572686e4291395ea9d50765910b8"
       },
       {
         "path": "docs/services/web/README.md",
@@ -14552,6 +14593,10 @@
       {
         "path": "tests/console/device.test.ts",
         "sha256": "62f9557d220356e7dfc17df7bad6160674dc42486be98a00368cab9bf96f11ff"
+      },
+      {
+        "path": "tests/console/gitlab.test.ts",
+        "sha256": "cc5f98e8654138ed50c11b2048680caf1ed085a49671bdaf1f86544b823928b1"
       },
       {
         "path": "tests/console/nav.test.ts",
@@ -20178,7 +20223,7 @@
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 139,
+          "line": 154,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -20194,7 +20239,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 348,
+          "line": 389,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -20218,7 +20263,7 @@
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 139,
+          "line": 154,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -20234,7 +20279,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 348,
+          "line": 389,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -20258,7 +20303,7 @@
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 139,
+          "line": 154,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -20274,7 +20319,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 348,
+          "line": 389,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -20298,7 +20343,7 @@
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 139,
+          "line": 154,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -20314,7 +20359,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 348,
+          "line": 389,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -20338,7 +20383,7 @@
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 139,
+          "line": 154,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -20354,7 +20399,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 348,
+          "line": 389,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -20378,7 +20423,7 @@
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 139,
+          "line": 154,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -20394,7 +20439,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 348,
+          "line": 389,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -20442,7 +20487,7 @@
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 139,
+          "line": 154,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -20458,7 +20503,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 348,
+          "line": 389,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -20482,7 +20527,7 @@
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 139,
+          "line": 154,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -20498,7 +20543,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 348,
+          "line": 389,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -20522,7 +20567,7 @@
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 139,
+          "line": 154,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -20538,7 +20583,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 348,
+          "line": 389,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -44667,6 +44712,12 @@
     {
       "basis": "declaration",
       "from": "flow:gitlab.accounts.list",
+      "to": "document:docs/services/console/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:gitlab.accounts.list",
       "to": "document:docs/services/server/endpoint-contracts.md",
       "type": "documented-by"
     },
@@ -44694,6 +44745,22 @@
         {
           "line": 33,
           "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 48,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 71,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 734,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 89,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.list",
@@ -44718,6 +44785,22 @@
         {
           "line": 33,
           "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 48,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 71,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 734,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 89,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.list",
@@ -44742,6 +44825,22 @@
         {
           "line": 33,
           "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 48,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 71,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 734,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 89,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.list",
@@ -44766,6 +44865,22 @@
         {
           "line": 33,
           "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 48,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 71,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 734,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 89,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.list",
@@ -44790,6 +44905,22 @@
         {
           "line": 33,
           "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 48,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 71,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 734,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 89,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.list",
@@ -44814,6 +44945,22 @@
         {
           "line": 33,
           "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 48,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 71,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 734,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 89,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.list",
@@ -44838,6 +44985,22 @@
         {
           "line": 33,
           "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 48,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 71,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 734,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 89,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.list",
@@ -44862,6 +45025,22 @@
         {
           "line": 33,
           "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 48,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 71,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 734,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 89,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.list",
@@ -44886,6 +45065,22 @@
         {
           "line": 33,
           "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 48,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 71,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 734,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 89,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.list",
@@ -44910,11 +45105,33 @@
         {
           "line": 33,
           "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 48,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 71,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 734,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 89,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.list",
       "to": "capability:roles.manage",
       "type": "requires"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:gitlab.accounts.list",
+      "to": "test:tests/console/gitlab.test.ts",
+      "type": "test-entry"
     },
     {
       "basis": "declaration",
@@ -44940,6 +45157,22 @@
         {
           "line": 33,
           "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 48,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 71,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 734,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 89,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.list",
@@ -44964,6 +45197,22 @@
         {
           "line": 33,
           "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 48,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 71,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 734,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 89,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.list",
@@ -44980,6 +45229,12 @@
       "basis": "declaration",
       "from": "flow:gitlab.accounts.sync",
       "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:gitlab.accounts.sync",
+      "to": "document:docs/services/console/README.md",
       "type": "documented-by"
     },
     {
@@ -45016,6 +45271,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -45044,6 +45311,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -45072,6 +45351,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -45100,6 +45391,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -45128,6 +45431,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -45156,6 +45471,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -45184,6 +45511,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -45212,6 +45551,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -45240,6 +45591,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -45268,6 +45631,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -45296,11 +45671,29 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
       "to": "capability:roles.manage",
       "type": "requires"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:gitlab.accounts.sync",
+      "to": "test:tests/console/gitlab.test.ts",
+      "type": "test-entry"
     },
     {
       "basis": "declaration",
@@ -45330,6 +45723,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -45358,6 +45763,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -45386,6 +45803,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -45414,6 +45843,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -45442,6 +45883,18 @@
         {
           "line": 634,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 170,
+          "path": "app/console/src/pages/People.vue"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/lib/gitlab.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
@@ -55190,7 +55643,7 @@
           "path": "app/server/src/lib/github-connection.ts"
         },
         {
-          "line": 47,
+          "line": 52,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -55226,7 +55679,7 @@
           "path": "app/server/src/lib/github-connection.ts"
         },
         {
-          "line": 47,
+          "line": 52,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -55262,7 +55715,7 @@
           "path": "app/server/src/lib/github-connection.ts"
         },
         {
-          "line": 47,
+          "line": 52,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -55298,7 +55751,7 @@
           "path": "app/server/src/lib/github-connection.ts"
         },
         {
-          "line": 47,
+          "line": 52,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -55334,7 +55787,7 @@
           "path": "app/server/src/lib/github-connection.ts"
         },
         {
-          "line": 47,
+          "line": 52,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -55370,7 +55823,7 @@
           "path": "app/server/src/lib/github-connection.ts"
         },
         {
-          "line": 47,
+          "line": 52,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -55418,7 +55871,7 @@
           "path": "app/server/src/lib/github-connection.ts"
         },
         {
-          "line": 47,
+          "line": 52,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -55454,7 +55907,7 @@
           "path": "app/server/src/lib/github-connection.ts"
         },
         {
-          "line": 47,
+          "line": 52,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -55490,7 +55943,7 @@
           "path": "app/server/src/lib/github-connection.ts"
         },
         {
-          "line": 47,
+          "line": 52,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -55554,7 +56007,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 462,
+          "line": 515,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -55586,7 +56039,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 462,
+          "line": 515,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -55618,7 +56071,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 462,
+          "line": 515,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -55650,7 +56103,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 462,
+          "line": 515,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -55682,7 +56135,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 462,
+          "line": 515,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -55714,7 +56167,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 462,
+          "line": 515,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -55758,7 +56211,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 462,
+          "line": 515,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -55790,7 +56243,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 462,
+          "line": 515,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -55822,7 +56275,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 462,
+          "line": 515,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -55854,7 +56307,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 462,
+          "line": 515,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -55886,7 +56339,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 462,
+          "line": 515,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -87086,6 +87539,17 @@
         "recruitment"
       ],
       "path": "app/console/src/lib/github.ts"
+    },
+    {
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "github",
+        "organization",
+        "recruitment"
+      ],
+      "path": "app/console/src/lib/gitlab.ts"
     },
     {
       "domains": [

@@ -36,7 +36,7 @@
 | `/console` | 概览 | `console.access` |
 | `/console/applications`、`/console/applications/:id` | 投递管理、投递详情 | `applications.read` |
 | `/console/forum` | 论坛管理 | 任一 `forum.*` |
-| `/console/people` | 成员与权限：四个文字页签「成员 / 称号 / 部门 / 权限树」；「成员」左侧宽分组栏，右侧概况与限定高度的内部滚动名单，可逐人展开来源与撤销操作；名单以极客班账号为准，列出站内角色和登录方式（还没登录过的写「还没登录过」，回填的老账号还没记过站内角色的写「还没记录」），接上 GitHub 时再多一列 GitHub 组织角色并列出组织里还没登录过本站的人，接不上时在名单上方说明；提督在账号行上多一个「站内角色」按钮，打开对话框改成管理员、成员或不是成员（#262 第四期；「还没记录」的三种都能选，默认成员）；`?view=titles` 为「称号」（只给 `roles.manage`，列出名称、说明和基础权限）；`?view=departments` 为「部门」（展示负责人、成员与两类部门权限，仅站内管理员（提督）显示编辑或删除）；`?view=permissions` 为只读能力目录与详情，按当前身份、称号或部门查看，只有有区分度的状态筛选会出现 | `roles.manage`、`roles.department.manage` |
+| `/console/people` | 成员与权限：四个文字页签「成员 / 称号 / 部门 / 权限树」；「成员」左侧宽分组栏，右侧概况与限定高度的内部滚动名单，可逐人展开来源与撤销操作；名单以极客班账号为准，列出站内角色和登录方式（还没登录过的写「还没登录过」，回填的老账号还没记过站内角色的写「还没记录」），接上 GitHub 时再多一列 GitHub 组织角色并列出组织里还没登录过本站的人，接不上时在名单上方说明；提督在账号行上多一个「站内角色」按钮，打开对话框改成管理员、成员或不是成员（#262 第四期；「还没记录」的三种都能选，默认成员）；GitLab 同步（#270）不是 off 时名单多一列「GitLab」（`GET /api/console/gitlab/accounts`）：用户名链到 GitLab 个人页，下面写组权限（开发者、所有者）或已封禁、建号没完成，还要做的事（预演时写「预演：」，打开时写「待同步：」）和最后一次错误（红字，例如「连不上 GitLab」「进组失败（500）」）；能管理称号的人（`roles.manage`）对有错或还有事要做的账号点「立即同步」（`POST /api/console/gitlab/accounts/:account_id/sync`，结果用提示说），部门负责人只看不点；同步关着、在预演、或签发者里没登记 `gitlab` 客户端时名单上方各一句说明，读不到同步状态时名单照常显示并给「重试」；有这一列时其它列收窄，1440 宽不用横向滚动；`?view=titles` 为「称号」（只给 `roles.manage`，列出名称、说明和基础权限）；`?view=departments` 为「部门」（展示负责人、成员与两类部门权限，仅站内管理员（提督）显示编辑或删除）；`?view=permissions` 为只读能力目录与详情，按当前身份、称号或部门查看，只有有区分度的状态筛选会出现 | `roles.manage`、`roles.department.manage` |
 | `/console/competitions` | 比赛：新建、编辑、下线、删除；日期按北京时间选，服务端按 UTC 存 | `competitions.manage` |
 | `/console/competitions/:id` | 报名与积分（#239）：报名设置、名单与统计、导出 CSV、积分登记与撤销；入口在内部比赛那一行的「报名与积分」 | `competitions.manage` |
 | `/console/feedback` | 意见箱 | `feedback.read` |
@@ -182,6 +182,7 @@ pnpm dev:console                     # http://127.0.0.1:5186/console ，默认�
 #   ?__data=mock      改用样板数据（自动化测试用，tests/e2e 显式带上）
 #   ?__data=live      切回本地后端
 #   ?__persona=<名>   样板数据下切换身份：admin（站内管理员）、captain、recruitment、tech、community、projects、crew、member、alumni、guest、signed_out
+#   ?__gitlab=<样子>  样板数据下成员页 GitLab 列的另外几种样子：dry-run（预演）、unregistered（客户端没登记）、off（关着）；不带是打开后的样子
 ```
 
 开发态默认 `live`，是因为本机预览可以走真实 GitHub 登录（见 [LOCAL-PREVIEW](../../ops/LOCAL-PREVIEW.md)）；本地后端没起时页面是请求失败状态。`?__data=` 的选择记在本标签页的 `sessionStorage`（`yugc:console-data-source`），换标签页回到默认。数据源只在开发构建可切换；生产构建里 `dataSource()` 恒为 `live`，mock 模块不进产物。样板数据只读，写请求返回 501 `mock_read_only`，页面会说明「开发预览是只读的」。改称号、处理投递的写请求先按服务端核对（处理投递：状态只能是五种之一，页面上的状态或最新审核记录和样板不同、改状态却没带这两项时 409，要发待面试的信时面试时间和地点必填），不合法的得到和服务端一样的 403/400/409，合法的照样 501，不假装信已经排进发信队列。投递详情的样板带 `mail`、`received_mail` 和每条审核记录的邮件，上面的说法除了三种上限（24 小时内发过、同一个网络投递太多、这一小时到上限）都能看到，这三种的说法在 `tests/console/applications.test.ts` 里核对；发信设置用白名单模式（两个真实环境现在都是发给所有人，#169），只有三个样板邮箱在白名单里，好看到白名单挡下时的说法。另有一份已取消的虚构样板，其取消审核 `mail: null`，原确认信仍是已发出。

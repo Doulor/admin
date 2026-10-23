@@ -71,7 +71,7 @@ docker compose … exec server node app/server/dist/cli/oidc.js client add --nam
 - 停用、不再是成员的封禁（`block`），回来的解封；从不删除 GitLab 用户和他们的仓库。不是同步建的 GitLab 用户（例如 root）不碰。
 - 还没同步过就离开的：只要他在 GitLab 的 sector 有过 `sub`（用极客班登录过 GitLab，GitLab 可能已经自动建了号），每一轮都按身份去 GitLab 找（还要做的事是 `find_and_block`），找到就记下这个用户并封禁；找不到、或者找的时候 GitLab 出错，这一轮什么也不改、不写审计（出错只算进这一轮的失败数），下一轮照样找，因为他可能回来、用极客班登录一次（GitLab 又自动建号）、在下一轮之前又离开。没有 `sub` 的不去找。
 - 调 GitLab 管理接口不跟随跳转（跳到别的源时管理员令牌会跟过去），遇到跳转按 `gitlab_unreachable` 记。
-- 失败写进 `last_error`（`gitlab_unreachable`、`gitlab_create_<状态码>`、`gitlab_member_<状态码>` 等），下一轮再试；写审计 `gitlab.sync`。
+- 失败写进 `last_error`（`gitlab_unreachable`、`gitlab_create_<状态码>`、`gitlab_member_<状态码>` 等），下一轮再试；写审计 `gitlab.sync`。控制台成员页的「GitLab」列显示这些状态和错误，能管理称号的人可以对有错或还有事要做的账号点「立即同步」。
 
 控制台接口：`GET /api/console/gitlab/accounts`（`roles.manage` 或 `roles.department.manage`）列出每个账号的 GitLab 用户名、状态、组权限、最后一次错误和还要做的事，`client_registered` 说明 `gitlab` 客户端登记了没有；`POST /api/console/gitlab/accounts/:account_id/sync`（`roles.manage`，每分钟 30 次）立即同步一个账号，同步关着时 409 `gitlab_sync_off`，客户端没登记时 200 带 `error: gitlab_client_missing`。
 

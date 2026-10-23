@@ -9440,7 +9440,7 @@
       "invariants": [
         "权限与资源：有效全站 sid，roles.manage 或 roles.department.manage；不调用 GitLab。",
         "响应与错误：200 {mode,gitlab_url,group,client_registered,accounts:[{account_id,login,username,gitlab_user_id,state,access_level,last_error,last_error_at,synced_at,pending}]}；pending 是现在还要做的事（同步关着时为空），client_registered 说明 gitlab 客户端登记了没有；没权限 403 missing_capability。",
-        "数据与副作用：只读。"
+        "数据与副作用：只读。控制台「成员与权限」在 mode 不是 off 时多一列「GitLab」，按 account_id 对上名单。"
       ],
       "evidence": [
         {
@@ -9458,15 +9458,33 @@
         {
           "path": "app/server/src/routes/console/index.ts",
           "needle": "await app.register(gitlab);"
+        },
+        {
+          "path": "app/console/src/pages/People.vue",
+          "needle": "const gitlab = useResource(() => api<GitlabAccountsResponse>(\"/api/console/gitlab/accounts\"));"
+        },
+        {
+          "path": "app/console/src/lib/gitlab.ts",
+          "needle": "export function gitlabNote("
+        },
+        {
+          "path": "app/console/src/mock/console.ts",
+          "needle": "if (path === \"/api/console/gitlab/accounts\") {"
+        },
+        {
+          "path": "app/console/src/lib/types.ts",
+          "needle": "export type GitlabAccountsResponse"
         }
       ],
       "tests": [
-        "tests/server/gitlab-sync.test.ts"
+        "tests/server/gitlab-sync.test.ts",
+        "tests/console/gitlab.test.ts"
       ],
       "docs": [
         "docs/services/server/oidc.md",
         "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md"
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
       ]
     },
     {
@@ -9528,15 +9546,29 @@
         {
           "path": "app/server/src/lib/identity-store.ts",
           "needle": "function listAccountsForSync("
+        },
+        {
+          "path": "app/console/src/pages/People.vue",
+          "needle": "/api/console/gitlab/accounts/${encodeURIComponent(account.account_id)}/sync"
+        },
+        {
+          "path": "app/console/src/lib/gitlab.ts",
+          "needle": "export const canSyncNow"
+        },
+        {
+          "path": "app/console/src/lib/types.ts",
+          "needle": "export type GitlabSyncOutcome"
         }
       ],
       "tests": [
-        "tests/server/gitlab-sync.test.ts"
+        "tests/server/gitlab-sync.test.ts",
+        "tests/console/gitlab.test.ts"
       ],
       "docs": [
         "docs/services/server/oidc.md",
         "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md"
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
       ]
     }
   ],
