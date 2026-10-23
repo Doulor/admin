@@ -62,14 +62,14 @@ docker compose … exec server node app/server/dist/cli/oidc.js client add --nam
 
 ## GitLab 账号同步
 
-`GITLAB_SYNC` 是 `off`（默认）、`dry-run`（只算出要做什么，不写表、不改 GitLab）或 `on`。不是 `off` 时要有 `GITLAB_URL`（GitLab 的 origin），`on` 时还要 `GITLAB_API_TOKEN`（GitLab 管理员的 `api` 令牌，密钥，只在目标机的 `.env`；`dry-run` 按本地记录算，不调用 GitLab，不要令牌）；`GITLAB_GROUP` 是成员进的组，默认 `geek`。`on` 时服务启动先对一次账，之后每 10 分钟一次，同一时间只跑一轮；同一个账号同一时间只同步一次，控制台的立即同步碰上定时对账时等它做完再算，是不是成员、什么角色按轮到这个账号时重读，不用这一轮开头的名单。服务停下时做完手上这个账号就结束这一轮。
+`GITLAB_SYNC` 是 `off`（默认）、`dry-run`（只算出要做什么，不写表、不改 GitLab）或 `on`。不是 `off` 时要有 `GITLAB_URL`（GitLab 的 origin），`on` 时还要 `GITLAB_API_TOKEN`（GitLab 管理员的 `api` 令牌，密钥，只在目标机的 `.env`；`dry-run` 按本地记录算，不调用 GitLab，不要令牌）；`GITLAB_GROUP` 是成员进的组，默认 `geek`。`on` 时服务启动先对一次账，之后每 10 分钟一次，同一时间只跑一轮；同一个账号同一时间只同步一次，控制台的立即同步碰上定时对账时等它做完再算，是不是成员、什么角色按轮到这个账号时重读，不用这一轮开头的名单；这时已经查不到的账号（被合并进别的账号）什么都不做。服务停下时做完手上这个账号就结束这一轮。
 
 - 每个是成员的极客班账号在 GitLab 上有一个用户，按 OIDC 身份认人：`provider = openid_connect`，`extern_uid` 是这个账号在 GitLab sector 的 `sub`。sector 取 client id 为 `gitlab` 的客户端的回调主机，不取 `GITLAB_URL`（它可以是内网地址）；这个客户端还没登记时 `on` 模式整轮跳过，记一条错误日志 `gitlab sync skipped`，控制台的 `client_registered` 为 `false`，立即同步回 `gitlab_client_missing`。先按身份找，找到就沿用（上次建到一半，或 GitLab 已经因为登录自动建了），找不到才建。
 - 用户名在第一次建号时定下，之后不改：有 GitHub 的用 GitHub 登录名，没有的用站内登录名；GitLab 的保留名、和组同名、或已被别人占用时依次加 `_yz`、`_yz2`。邮箱用验证过的 `canonical_email`，没有或在 GitLab 上被占用时用 `<用户名>@noreply.<sector>`（正式是 `@noreply.git.yangtzeu.work`）。建号带 `skip_confirmation` 与随机密码，成员不用密码登录。
 - 资料在建号时补一次：论坛资料优先（显示名、简介、所在地、网站、上传的头像）；没有论坛资料的 GitHub 账号匿名读一次 GitHub 公开资料和头像（头像超过 1 MB 不传）。网站不是 http(s) 网址（没写协议的补 `https://`）就不传。读不到就只用登录名，不让同步失败。
 - 组权限：舰员 Developer（30），提督 Owner（50）；角色变了就改。
 - 停用、不再是成员的封禁（`block`），回来的解封；从不删除 GitLab 用户和他们的仓库。不是同步建的 GitLab 用户（例如 root）不碰。
-- 还没同步过就离开的：只要他在 GitLab 的 sector 有过 `sub`（用极客班登录过 GitLab，GitLab 可能已经自动建了号），每一轮都按身份去 GitLab 找（还要做的事是 `find_and_block`），找到就记下这个用户并封禁；找不到这一轮什么也不改、不写审计，下一轮照样找，因为他可能回来、用极客班登录一次（GitLab 又自动建号）、在下一轮之前又离开。没有 `sub` 的不去找。
+- 还没同步过就离开的：只要他在 GitLab 的 sector 有过 `sub`（用极客班登录过 GitLab，GitLab 可能已经自动建了号），每一轮都按身份去 GitLab 找（还要做的事是 `find_and_block`），找到就记下这个用户并封禁；找不到、或者找的时候 GitLab 出错，这一轮什么也不改、不写审计（出错只算进这一轮的失败数），下一轮照样找，因为他可能回来、用极客班登录一次（GitLab 又自动建号）、在下一轮之前又离开。没有 `sub` 的不去找。
 - 调 GitLab 管理接口不跟随跳转（跳到别的源时管理员令牌会跟过去），遇到跳转按 `gitlab_unreachable` 记。
 - 失败写进 `last_error`（`gitlab_unreachable`、`gitlab_create_<状态码>`、`gitlab_member_<状态码>` 等），下一轮再试；写审计 `gitlab.sync`。
 

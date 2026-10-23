@@ -301,9 +301,11 @@ export function createGitlabSync(db: Database.Database, deps: {
   /**
    * 同步一个账号。dry-run 只返回要做什么；on 时照做，失败的原因记在 last_error，下次对账再试。
    * 是不是成员、什么角色按这一刻的账号重读，不用这一轮开头的名单：一轮跑到一半时管理员移除了某人并立即同步封了他，轮到他时不会按旧名单解封。
+   * 这一刻已经查不到的账号（被合并进别的账号）什么都不做，也不拿旧名单里的数据去建号或解封。
    */
   async function syncNow(snapshot: DirectoryAccount, actor: AuditActor): Promise<SyncOutcome> {
-    const account = deps.directory.account(snapshot.account_id) ?? snapshot;
+    const account = deps.directory.account(snapshot.account_id);
+    if (!account) return { account_id: snapshot.account_id, login: snapshot.login, actions: [], applied: false, error: null };
     const actions = plan(account);
     const outcome: SyncOutcome = { account_id: account.account_id, login: account.login, actions, applied: false, error: null };
     if (config.mode !== "on") return outcome;
@@ -318,8 +320,8 @@ export function createGitlabSync(db: Database.Database, deps: {
       outcome.error = error instanceof SyncError ? error.code : "gitlab_sync_failed";
       db.prepare("UPDATE gitlab_accounts SET last_error = ?, last_error_at = ?, updated_at = ? WHERE account_id = ?").run(outcome.error, now, now, account.account_id);
     }
-    // 只有按身份找、没找到人的那一轮不写审计
-    if (done.length || outcome.error) {
+    // 按身份找、没找到人，或者找的时候就失败了（还没有这一行，什么也没改）：不写审计，免得 GitLab 出故障时这类账号每人每轮记一条
+    if (done.length || (outcome.error && rowOf(account.account_id))) {
       deps.audit(null, actor, "gitlab.sync", rowOf(account.account_id)?.username ?? account.login,
         { account_id: account.account_id, actions: actions.map(item => item.kind), error: outcome.error });
     }

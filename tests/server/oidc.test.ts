@@ -1,5 +1,5 @@
 import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { OIDC_PROTOCOL_LIMIT } from '../../app/server/src/routes/oidc/index';
 import { signIn, testApp } from './helpers';
@@ -344,6 +344,17 @@ describe('OIDC provider for downstream apps (#270)', () => {
     const plain = await testApp();
     contexts.push(plain);
     expect((await plain.app.inject({ url: '/oidc/.well-known/openid-configuration' })).statusCode).toBe(404);
+  });
+
+  it('logs a provider failure by path, error name and code only', async () => {
+    const { app } = await setup();
+    const logged = vi.spyOn(app.log, 'error');
+    // 签发者的存储坏了：oidc-provider 回 500，日志只记在哪一步、什么错，不带请求里的参数
+    app.services.storage.db.exec('ALTER TABLE oidc_payloads RENAME TO oidc_payloads_gone');
+    const res = await app.inject({ url: authorizeUrl({ code_challenge: pkce().challenge, code_challenge_method: 'S256' }) });
+    app.services.storage.db.exec('ALTER TABLE oidc_payloads_gone RENAME TO oidc_payloads');
+    expect(res.statusCode).toBe(500);
+    expect(logged).toHaveBeenCalledWith({ path: '/auth', error: 'SqliteError', code: 'SQLITE_ERROR' }, 'oidc server error');
   });
 
   it('rate-limits the protocol endpoints, server calls and browser redirects apart, and the interaction entry', async () => {

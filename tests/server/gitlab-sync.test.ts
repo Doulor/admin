@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createConfig } from '../../app/server/src/config';
 import { gitlabUsername } from '../../app/server/src/lib/gitlab-sync';
@@ -318,6 +318,12 @@ describe('GitLab account sync (#270)', () => {
     expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 0, failed: 0 });
     expect(gitlab.calls.slice(calls)).toEqual(['GET /users']);
     expect(audit()).toEqual(audits);
+    // GitLab 不通时 erin 的查找失败：算进 failed，可她没有这一行、什么也没改，同样不写审计
+    gitlab.setUnreachable(true);
+    expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 0, failed: 1 });
+    gitlab.setUnreachable(false);
+    expect(row(105)).toBeUndefined();
+    expect(audit()).toEqual(audits);
 
     // 回来了：alice 解封沿用原来的号，erin 照常建号
     app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'member', actor: 'system' });
@@ -360,9 +366,11 @@ describe('GitLab account sync (#270)', () => {
   });
 
   it('decides on the account as it is now, not on the list taken when the round started', async () => {
-    const { app, gitlab, accountOf } = await setup();
+    const { app, gitlab, accountOf, db } = await setup();
     signIn(app, 'alice', 101);
     signIn(app, 'bob', 202);
+    // 两个号可能同一毫秒建成，对账按建号先后、再按随机的 id 排：让 bob 一定排在 alice 后面
+    db.prepare('UPDATE users SET created_at = created_at + 1000 WHERE id = ?').run(accountOf(202));
     await app.services.gitlab.reconcile();
     const bob = userNamed(gitlab, 'bob')!;
     // alice 这一轮要改组权限，停在半路；这时管理员把 bob 移出成员并立即同步
@@ -375,6 +383,28 @@ describe('GitLab account sync (#270)', () => {
     held.release();
     await round;
     expect(bob.state).toBe('blocked');
+  });
+
+  it('leaves alone an account that was merged into another while the round was running', async () => {
+    const { app, gitlab, accountOf, db } = await setup();
+    signIn(app, 'alice', 101);
+    await app.services.gitlab.reconcile();
+    signIn(app, 'bob', 202);
+    const alice = accountOf(101);
+    const bob = accountOf(202);
+    db.prepare('UPDATE users SET created_at = created_at + 1000 WHERE id = ?').run(bob);
+    // alice 这一轮要改组权限，停在半路；这时 bob 被合并进 alice，这一轮开头的名单里他还是个没建号的成员
+    app.services.identity.setSiteRole({ accountId: alice, role: 'admin', actor: 'system' });
+    const held = gitlab.hold('POST /groups/geek/members');
+    const round = app.services.gitlab.reconcile();
+    await held.hit;
+    db.prepare("UPDATE users SET status = 'merged', merged_into = ? WHERE id = ?").run(alice, bob);
+    held.release();
+    const summary = await round;
+    expect(summary.outcomes.map(item => item.login)).toEqual(['alice', 'bob']);
+    expect(summary.outcomes[1]).toEqual({ account_id: bob, login: 'bob', actions: [], applied: false, error: null });
+    expect(gitlab.users.map(user => user.username)).toEqual(['alice']);
+    expect(db.prepare('SELECT 1 FROM gitlab_accounts WHERE account_id = ?').get(bob)).toBeUndefined();
   });
 
   it('never runs a manual sync of an account at the same time as the scheduled one', async () => {
@@ -401,6 +431,11 @@ describe('GitLab account sync (#270)', () => {
     expect(await missing.app.services.gitlab.reconcile()).toMatchObject({ skipped: 'gitlab_client_missing', accounts: 0, outcomes: [] });
     expect(await missing.app.services.gitlab.syncAccount(missing.accountOf(101), 'system')).toMatchObject({ error: 'gitlab_client_missing', applied: false });
     expect(missing.app.services.gitlab.clientRegistered()).toBe(false);
+    // 定时对账每一轮记一条错误日志，说出缺的是哪个客户端
+    const logs: unknown[][] = [];
+    missing.app.services.gitlab.start({ info: (...args) => logs.push(['info', ...args]), error: (...args) => logs.push(['error', ...args]) });
+    await vi.waitFor(() => expect(logs).toEqual([['error', { reason: 'gitlab_client_missing', client_id: 'gitlab' }, 'gitlab sync skipped']]));
+    await missing.app.services.gitlab.stop();
     expect(missing.gitlab.calls).toEqual([]);
     expect(missing.db.prepare("SELECT COUNT(*) AS n FROM audit_logs WHERE action = 'gitlab.sync'").get()).toEqual({ n: 0 });
   });

@@ -12923,7 +12923,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "7faf75a601bd4849180875b5eb11e67edd0f9f6843f071f6b45f46cb4a10380d",
+    "fingerprint": "c90cf8df1d65b702a4bb5a6a82d8a99eafaa9c30727aef9dfcf4f45cb72ae339",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -13775,7 +13775,7 @@
       },
       {
         "path": "app/server/src/lib/gitlab-sync.ts",
-        "sha256": "dcb9496132663fa5daf12ef65c5fdf947a11ed6237a4a04af98f1588aa7da093"
+        "sha256": "d998383f3755a7428c134a4cd12cd4fb20f77d6c861e4e4d36686537de73bd35"
       },
       {
         "path": "app/server/src/lib/google.ts",
@@ -14487,7 +14487,7 @@
       },
       {
         "path": "docs/services/server/oidc.md",
-        "sha256": "c18381df5ae09bff4200f5d866af69c9ae68f83823ace03d6593d56949ceeb17"
+        "sha256": "2d15807157f7845dd860ccc63bc08dd4143f992c4945780678a8abbb5301928d"
       },
       {
         "path": "docs/services/web/README.md",
@@ -14619,7 +14619,7 @@
       },
       {
         "path": "tests/server/gitlab-sync.test.ts",
-        "sha256": "19e5f98070f07e4b7254feaecb1e592528ecc7aa793eacc4ad8908ca2bc4a45b"
+        "sha256": "f8e4b87ed4df87d5f7f3750f765f57c0f30aa286fefcf6fb5d3d843c89bb3206"
       },
       {
         "path": "tests/server/identity.test.ts",
@@ -14639,7 +14639,7 @@
       },
       {
         "path": "tests/server/oidc.test.ts",
-        "sha256": "38306f405af6642bcefa1f82b9fdbdae2b93639fade974b74729d2e85a123990"
+        "sha256": "4f9f039240aedc9d01ad52cc858100e00f78eeb2da7917d8fa640a5783c6fc6e"
       },
       {
         "path": "tests/server/rate-limits.test.ts",
