@@ -78,3 +78,24 @@
 - 做了什么：geek-main-56 转来所有者 13:36 的选择「现在先接预发布（推荐）」（方案 A），并按所有者 12:35 的原话「必须统一接入我们的极客班登录才能访问仓库」定下四个仓库和 geek 组改 private、已有本地 GitLab 账号绑到对应极客班账号。提交 01fd42dd（12 个文件）：deploy/env/.env.preview 的 GITLAB_SYNC 从 dry-run 改成 on；oidc.md、ENVIRONMENTS、DEPLOY 写明正式站上线前接预发布、预发布数据库不能清空重建、上线后先把 GitLab 的 sub 迁到正式库再改 issuer；deployment-environment 的用例改成预发布模板是 on、没有令牌拒绝渲染；docs/changes/270.json 与项目目录。文档核对：SECURITY.md 不用改——残余风险写的是同步不是 on 时没人封禁、令牌外泄等于交出 GitLab，接哪个环境不影响这两条。
 - 结果：pnpm test 97 个文件 1596 条通过；typecheck 通过；check:environments、check:docs、check:catalog、check:secrets、check:notes 通过；check-architecture 与 check-doc-sync 按 --base 2101fe40 通过。
 - 下一步：推送；在 GitLab 上建同步用的管理员机器人与令牌
+
+## 14:05:24 +08:00 · 推送 · #270 · 推 task/270/gitlab_sso 到 af4d05e3
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：推到自建 GitLab：0ead9e66..af4d05e3（0239136d、d8a6c73c、4c4c2de7、01fd42dd、af4d05e3）。
+- 结果：pre-push 的分支与发布 tag 规则、task worktree 生命周期都通过。
+- 下一步：改 MR 正文
+
+## 14:05:24 +08:00 · PR · #270 · 改 MR !2 正文：第三轮复核、成员页截图、预发布改 on
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：MR !2 正文：变更范围加成员页 GitLab 列与预发布 on；验证命令与结果按 af4d05e3 重写（1596 条、三份连跑 5 次、修复前后对照、e414b92c 提交说明没写验证命令的说明）；验收证据加 5 张成员页截图（上传到项目，地址 /-/project/1/uploads/…，逐个 curl 200）；人工验收步骤改成预发布 on 之后看成员页与 GitLab 登录；审查结论加第三轮；风险写明接预发布与 sub 迁移。
+- 结果：本地 node scripts/pr-contract.mjs check 通过（10 个段落齐全，有验收证据）；MR 的 sha 是 af4d05e3。
+- 下一步：在 #270 记所有者的决定，建同步令牌
+
+## 14:05:24 +08:00 · 方案 · #270 · 所有者选定 GitLab 先接预发布；建同步用的管理员机器人与令牌
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：在 #270 发追踪记录（评论 327，kind=plan）：所有者 13:36 的选择与选项说明原文、按 12:35 原话定下的仓库改 private 与绑定本地账号、分工。用凭据库里的 root 令牌只读查 GitLab：用户只有 root 和项目机器人两个，没有别的本地账号；admin_mode 关、令牌必须带有效期、社区版有 disable_password_authentication_for_users_with_sso_identities（现在 false）。建管理员用户 geek-sync（id 3，随机密码、不能建组、项目上限 0），给它建 api 令牌（到 2027-10-22），用 crosery-ct cred reveal --save 直接存进凭据库 GITLAB_SYNC_API_TOKEN，明文没有进对话和日志。从 GitLab 容器访问 prev.yangtzeu.work 的发现地址与 /signin 都是 200，网络通。
+- 结果：用 GITLAB_SYNC_API_TOKEN 只读核对：personal_access_tokens/self 是 api、到 2027-10-22、有效，用户 geek-sync 是管理员；按身份查用户 200；读 geek 组成员 200。root 不绑 SSO：它是应急密码登录的账号，开了已绑定 SSO 禁用密码之后会失去应急入口。
+- 下一步：把令牌名和新分支头告诉 geek-main-56；rc.13 部署、客户端登记后改 GitLab 的 omniauth
