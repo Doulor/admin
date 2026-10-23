@@ -1,5 +1,6 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { endRejectedSession, isRejectedToken } from "./require-auth.js";
+import type { ActivitySurface } from "../lib/activity.js";
 
 /** User-facing summaries for GitHub 4xx; the upstream text itself is never echoed. */
 const UPSTREAM_MESSAGES: Record<number, string> = {
@@ -21,6 +22,42 @@ const UPSTREAM_MESSAGES: Record<number, string> = {
  */
 export const rateLimited = () => Object.assign(new Error("操作太频繁，请稍后再试"), { statusCode: 429, code: "rate_limited" });
 
+/** 粗按 URL 前缀分 surface（SPEC §3.7 的 activity_events.surface）；只用来分类，不影响鉴权。 */
+function surfaceFor(url: string): ActivitySurface {
+  if (url.startsWith("/api/console/")) return "console";
+  if (url.startsWith("/api/forum/")) return "forum";
+  if (url.startsWith("/auth/device/") || url.startsWith("/oidc/")) return "cli";
+  if (url.startsWith("/api/events")) return "api";
+  return "portal";
+}
+
+/**
+ * 403/429 响应体里已经带了最具体的线索：权限中间件回 `{ error: "forbidden", node }`，限额回
+ * `{ error: "rate_limited", bucket }`（路由自己数的）或没有 bucket（`@fastify/rate-limit` 插件按路由限流的）。
+ * 按这个顺序取 action，取不到就退回 `http.<error>`，保证每一条都有可读的名字。
+ */
+function actionFor(body: unknown): string {
+  const b = body as { node?: unknown; bucket?: unknown; error?: unknown } | null;
+  if (typeof b?.node === "string") return b.node;
+  if (typeof b?.bucket === "string") return b.bucket;
+  if (typeof b?.error === "string") return `http.${b.error}`;
+  return "http.denied";
+}
+
+/**
+ * 所有被 403 拒绝、被 429 拦下的请求记一条操作记录（SPEC §3.7「所有被 403 拒绝的请求记 outcome = 'denied'，
+ * 被 429 拦下的记 outcome = 'limited'」），集中在这一个钩子里做，不要求每个路由自己记——这样新加的写接口
+ * 天然就有这条覆盖，不会漏。放在 onSend（有响应体可读）而不是 onResponse（没有）。
+ */
+function recordDenialOrLimit(req: FastifyRequest, statusCode: number, payload: unknown): void {
+  if (statusCode !== 403 && statusCode !== 429) return;
+  let body: unknown = null;
+  if (typeof payload === "string") { try { body = JSON.parse(payload); } catch { /* 不是 JSON，按通用名记 */ } }
+  req.server.services.activity.recordActivity(req, {
+    action: actionFor(body), surface: surfaceFor(req.url), outcome: statusCode === 429 ? "limited" : "denied",
+  });
+}
+
 /** Fail closed for browser cross-origin writes; bearer-only clients remain usable. */
 export function registerHttpPolicy(app: FastifyInstance) {
   app.addHook("onRequest", async (req, reply) => {
@@ -38,6 +75,7 @@ export function registerHttpPolicy(app: FastifyInstance) {
     // 例外：论坛头像、账号头像（#274）都按内容哈希寻址、内容永不改变，成功的响应由路由自己下发长期缓存。
     const immutable = reply.statusCode === 200 && (req.url.startsWith("/api/forum/avatars/") || req.url.startsWith("/api/identity/avatar/"));
     if ((req.url.startsWith("/auth") || req.url.startsWith("/api") || req.url.startsWith("/oidc/")) && !immutable) reply.header("Cache-Control", "no-store");
+    recordDenialOrLimit(req, reply.statusCode, payload);
     return payload;
   });
   app.setErrorHandler((cause, req, reply) => {

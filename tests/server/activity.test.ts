@@ -150,7 +150,9 @@ describe('GET /api/console/activity.csv（CONTRACT-274 §4：activity.export，5
     expect(response.body).toContain('"""quoted"",id"');
     const audited = app.services.storage.db.prepare("SELECT target, details FROM audit_logs WHERE action = 'activity.export'").get() as { target: string | null; details: string } | undefined;
     expect(audited).toBeDefined();
-    expect(JSON.parse(audited!.details)).toEqual({ rows: 1 });
+    // 2 行：手动插入的那条，加上上面那次 403（没有 activity.export）本身也被 http-policy.ts 的全局钩子记了一条
+    // outcome=denied 的操作记录（SPEC §3.7「所有被 403 拒绝的请求记 outcome = 'denied'」），导出时一起导出来了。
+    expect(JSON.parse(audited!.details)).toEqual({ rows: 2 });
   });
 });
 
