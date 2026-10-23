@@ -26,19 +26,22 @@ const MODE_STATUS = { off: "muted", "dry-run": "warning", on: "success" } as con
     <LoadingBlock v-else-if="!status.data.value" :lines="6" />
     <template v-else>
       <div class="grid-stats">
-        <TxCard class="stat">
-          <span class="stat__label">同步模式</span>
-          <TxStatusBadge :text="modeText(status.data.value.mode)" :status="MODE_STATUS[status.data.value.mode] ?? 'muted'" />
-        </TxCard>
-        <TxCard class="stat">
-          <span class="stat__label">连接</span>
-          <TxStatusBadge :text="status.data.value.healthy ? '正常' : '连不上'" :status="status.data.value.healthy ? 'success' : 'danger'" />
-        </TxCard>
-        <TxCard class="stat">
-          <span class="stat__label">上次同步</span>
-          <span v-if="status.data.value.last_run" class="stat__value" :title="fmtDate(status.data.value.last_run.at)">{{ fmtRelative(status.data.value.last_run.at) }}</span>
-          <span v-else class="stat__value muted">还没有</span>
-        </TxCard>
+        <TxStatCard value="" label="同步模式" icon-class="i-carbon-settings-adjust" class="stat">
+          <template #value>
+            <TxStatusBadge :text="modeText(status.data.value.mode)" :status="MODE_STATUS[status.data.value.mode] ?? 'muted'" />
+          </template>
+        </TxStatCard>
+        <TxStatCard value="" label="连接" icon-class="i-carbon-connection-signal" class="stat">
+          <template #value>
+            <TxStatusBadge :text="status.data.value.healthy ? '正常' : '连不上'" :status="status.data.value.healthy ? 'success' : 'danger'" />
+          </template>
+        </TxStatCard>
+        <TxStatCard value="" label="上次同步" icon-class="i-carbon-time" class="stat">
+          <template #value>
+            <span v-if="status.data.value.last_run" :title="fmtDate(status.data.value.last_run.at)">{{ fmtRelative(status.data.value.last_run.at) }}</span>
+            <span v-else class="muted">还没有</span>
+          </template>
+        </TxStatCard>
         <TxStatCard
           :value="status.data.value.errors_24h"
           label="最近 24 小时出错"
@@ -75,22 +78,14 @@ const MODE_STATUS = { off: "muted", "dry-run": "warning", on: "success" } as con
 </template>
 
 <style scoped>
-.stat {
+/* 徽章和数字放在同一行高里居中，四张卡的取值、标签上下对齐。 */
+.stat :deep(.tx-stat-card__value) {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  justify-content: center;
+  align-items: center;
+  min-height: 1.1em;
 }
 .stat--link {
   cursor: pointer;
-}
-.stat__label {
-  font-size: 13px;
-  color: var(--tx-text-color-secondary);
-}
-.stat__value {
-  font-size: 20px;
-  font-weight: 600;
 }
 .facts {
   grid-template-columns: 96px minmax(0, 1fr);

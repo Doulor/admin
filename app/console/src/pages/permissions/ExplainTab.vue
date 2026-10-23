@@ -141,9 +141,6 @@ const hitBadge = (value: boolean | null) =>
 .ask__grid > :deep(.tx-form-item) {
   margin-top: 0;
 }
-.ask__action {
-  padding-bottom: 18px;
-}
 .ask__action :deep(button),
 .group-link {
   min-height: 44px;
@@ -227,9 +224,6 @@ const hitBadge = (value: boolean | null) =>
   }
   .ask__grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .ask__action {
-    padding-bottom: 0;
   }
 }
 </style>

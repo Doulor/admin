@@ -2,6 +2,7 @@
 import { computed, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { TxCard } from "@talex-touch/tuffex/card";
+import { TxCardItem } from "@talex-touch/tuffex/card-item";
 import { TxDataTable } from "@talex-touch/tuffex/data-table";
 import { TxSearchInput } from "@talex-touch/tuffex/search-input";
 import { TxFilterChips } from "@talex-touch/tuffex/filter-chips";
@@ -116,10 +117,13 @@ const searchHref = (row: ConsoleUser) => `/console/users?q=${encodeURIComponent(
       </template>
     </PageHeader>
 
-    <div class="toolbar">
-      <TxFilterChips :model-value="filters.level" :items="levelChips" aria-label="按身份筛选" @update:model-value="value => setQuery({ level: String(value) || undefined })" />
-      <TxFilterChips :model-value="filters.status" :items="statusChips" aria-label="按状态筛选" @update:model-value="value => setQuery({ status: String(value) || undefined })" />
-      <div class="toolbar__end">
+    <!-- 左边两组筛选签，右边部门和搜索；放不下时整组换行。 -->
+    <div class="filters">
+      <div class="filters__chips">
+        <TxFilterChips :model-value="filters.level" :items="levelChips" aria-label="按身份筛选" @update:model-value="value => setQuery({ level: String(value) || undefined })" />
+        <TxFilterChips :model-value="filters.status" :items="statusChips" aria-label="按状态筛选" @update:model-value="value => setQuery({ status: String(value) || undefined })" />
+      </div>
+      <div class="filters__end">
         <!-- TxSelect 0.6.0 的 attrs 落在外层，用 label 给里面的输入框命名。 -->
         <label class="dept-filter">
           <span class="sr-only">按部门筛选</span>
@@ -135,6 +139,7 @@ const searchHref = (row: ConsoleUser) => `/console/users?q=${encodeURIComponent(
     <LoadingBlock v-else-if="!list.data.value" :lines="8" />
     <TxCard v-else :padding="0" class="table-card">
       <TxDataTable
+        class="users-table"
         style="--table-min: 900px"
         :columns="columns"
         :data="rows"
@@ -186,6 +191,45 @@ const searchHref = (row: ConsoleUser) => `/console/users?q=${encodeURIComponent(
           />
         </template>
       </TxDataTable>
+      <!-- 窄屏一人一张卡，点开同一个抽屉；宽屏只显示上面的表格。 -->
+      <div class="user-cards">
+        <ul v-if="rows.length" class="user-cards__list" :aria-busy="list.loading.value || undefined">
+          <li v-for="row in rows" :key="row.account_id">
+            <TxCardItem clickable role="button" :aria-label="`打开 ${nameOf(row)} 的详情`" class="user-card" @click="openId = row.account_id">
+              <template #avatar><TxAvatar :src="row.avatar_url ?? undefined" :name="nameOf(row)" :size="40" /></template>
+              <template #title>{{ nameOf(row) }}</template>
+              <template #subtitle><span class="mono">@{{ row.username }}</span></template>
+              <template #right>
+                <TxStatusBadge :text="USER_STATUS_TEXT[row.status] ?? row.status" :status="row.status === 'active' ? 'success' : 'muted'" size="sm" />
+              </template>
+              <template #description>
+                <span class="user-card__line">
+                  <span>{{ levelText(row.level) }}</span>
+                  <span v-if="departmentOf(row)" class="dept">
+                    <span class="dept__dot" :style="{ background: DEPT_TONE_SWATCH[deptTone(departmentOf(row)!.tone)] }" aria-hidden="true" />
+                    <span class="ellipsis">{{ departmentOf(row)!.name }}</span>
+                  </span>
+                  <span v-else>无部门</span>
+                </span>
+                <span class="user-card__line">
+                  <TitleBadge v-for="title in row.titles" :key="title.id" :label="title.name" :tone="titleTone(title, row.department)" />
+                  <span class="user-card__gitlab">
+                    GitLab
+                    <TxStatusBadge :text="GITLAB_STATE_TEXT[row.gitlab.state] ?? row.gitlab.state" :status="GITLAB_BADGE[row.gitlab.state] ?? 'muted'" size="sm" />
+                  </span>
+                </span>
+              </template>
+            </TxCardItem>
+          </li>
+        </ul>
+        <TxEmptyState
+          v-else
+          :variant="filtered ? 'search-empty' : 'no-data'"
+          :title="filtered ? '没有符合条件的用户' : '还没有人注册'"
+          :description="filtered ? '换一个身份、部门或关键词再试。' : '有人注册后会出现在这里。'"
+          size="small"
+        />
+      </div>
       <div v-if="nextCursor || more.error" class="pager">
         <span v-if="more.error" class="pager__error">没有读到更多，点按钮再试一次。</span>
         <TxButton variant="secondary" :loading="more.pending" @click="loadMore">加载更多</TxButton>
@@ -210,12 +254,38 @@ const searchHref = (row: ConsoleUser) => `/console/users?q=${encodeURIComponent(
   font-size: 13px;
   color: var(--tx-text-color-secondary);
 }
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+.filters__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  min-width: 0;
+  max-width: 100%;
+}
+/* 筛选签自带的下外边距会把它们顶得比右边的输入框高一点。 */
+.filters__chips :deep(.tx-bui-filter-chips) {
+  margin-bottom: 0;
+}
+.filters__end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
 .dept-filter {
   display: block;
-  width: 150px;
+  flex: 0 0 150px;
+  min-width: 0;
 }
 .search {
-  width: min(260px, 100%);
+  flex: 0 0 260px;
 }
 .table-card :deep(tbody tr) {
   cursor: pointer;
@@ -243,6 +313,50 @@ const searchHref = (row: ConsoleUser) => `/console/users?q=${encodeURIComponent(
   border-radius: 50%;
   flex-shrink: 0;
 }
+.user-cards {
+  display: none;
+}
+.user-cards__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.user-cards__list[aria-busy] {
+  opacity: 0.6;
+}
+.user-cards__list li + li {
+  border-top: 1px solid var(--tx-border-color-lighter);
+}
+.user-card {
+  --tx-card-item-padding: 14px 16px;
+  --tx-card-item-radius: 0;
+  min-height: 44px;
+}
+.user-card :deep(.tx-card-item__title) {
+  font-size: 15px;
+  font-weight: 500;
+}
+.user-card :deep(.tx-card-item__desc) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--tx-text-color-regular);
+}
+.user-card__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  min-width: 0;
+}
+.user-card__gitlab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tx-text-color-secondary);
+}
 .pager {
   display: flex;
   flex-wrap: wrap;
@@ -259,14 +373,23 @@ const searchHref = (row: ConsoleUser) => `/console/users?q=${encodeURIComponent(
   font-size: 13px;
   color: var(--tx-color-danger);
 }
-@media (max-width: 900px) {
-  .toolbar__end {
+@media (max-width: 640px) {
+  .filters__end {
+    width: 100%;
     margin-left: 0;
-    width: 100%;
   }
-  .dept-filter,
+  .dept-filter {
+    flex-basis: 136px;
+  }
   .search {
-    width: 100%;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .users-table {
+    display: none;
+  }
+  .user-cards {
+    display: block;
   }
 }
 </style>

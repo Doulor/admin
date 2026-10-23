@@ -14,6 +14,7 @@ import logoUrl from "../assets/logo.png";
 import { ApiError, api } from "../lib/http";
 import { isMock, siteUrl } from "../lib/runtime";
 import { PASSWORD_MIN_LENGTH } from "../lib/account";
+import { vSnapIndicator } from "../lib/tabs";
 import {
   backFromGoogleForInvite, cleanCode, codeProblem, initialSignInTab, looksLikeEmail, parseSignInOutcome, providerHref, providerIcon, readProviders,
   registerProblem, registerWithEmail, resetPasswordWithCode, resetProblem, retryAfter, safeReturnPath, sendSigninCode, signInWithPassword, verifySigninCode,
@@ -263,6 +264,7 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
         <TxTabs
           v-else-if="emailProvider"
           v-model="tab"
+          v-snap-indicator
           placement="top"
           indicator-variant="line"
           borderless

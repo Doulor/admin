@@ -24,6 +24,7 @@ import { ASSIGNABLE_LEVELS, GITLAB_STATE_TEXT, LEVEL_TEXT, PROVIDER_TEXT, levelT
 import { GROUP_KIND_TEXT, metaValueText, nodesByDomain } from "../../lib/permissions";
 import { useAction } from "../../lib/resource";
 import { useSession } from "../../lib/session";
+import { vSnapIndicator } from "../../lib/tabs";
 import { DEPT_TONE_SWATCH, deptTone } from "../../lib/tone";
 import { SITE_OWNER_TITLE, departmentChoices, departmentOf, draftFromUser, nameOf, titleChoices, titleTone, userPatch, withDepartment, type UserDraft } from "../../lib/users";
 import type { ActivityEvent, ActivityList, ConsoleUser, EffectivePermissions, PublicDepartment } from "../../lib/types";
@@ -159,7 +160,7 @@ const providerText = (user: ConsoleUser) => user.providers.map(item => PROVIDER_
         <TxStatusBadge :text="user.status === 'active' ? '正常' : '已停用'" :status="user.status === 'active' ? 'success' : 'muted'" size="sm" />
       </header>
 
-      <TxTabs v-model="tab" placement="top" indicator-variant="line" borderless :content-scrollable="false" :content-padding="0">
+      <TxTabs v-model="tab" v-snap-indicator placement="top" indicator-variant="line" borderless :content-scrollable="false" :content-padding="0">
         <TxTabItem name="profile">
           <template #name>资料</template>
           <div class="pane">

@@ -14,6 +14,7 @@ import CreateGroupDialog from "./permissions/CreateGroupDialog.vue";
 import { api } from "../lib/http";
 import { useResource } from "../lib/resource";
 import { useSession } from "../lib/session";
+import { vSnapIndicator } from "../lib/tabs";
 import type { PermissionGroupsResponse, PermissionNodesResponse } from "../lib/types";
 
 /**
@@ -55,7 +56,7 @@ const retry = () => Promise.all([groups.error.value ? groups.reload() : null, no
     <ErrorPanel v-if="error" :error="error" :retry="retry" />
     <LoadingBlock v-else-if="!ready" :lines="10" />
     <TxCard v-else :padding="0" class="perm-card">
-      <TxTabs :model-value="tab" placement="top" indicator-variant="line" borderless :content-scrollable="false" :content-padding="0" @update:model-value="setTab">
+      <TxTabs v-snap-indicator :model-value="tab" placement="top" indicator-variant="line" borderless :content-scrollable="false" :content-padding="0" @update:model-value="setTab">
         <TxTabItem v-for="item in TABS" :key="item.id" :name="item.id">
           <template #name>{{ item.label }}</template>
           <GroupsTab v-if="item.id === 'groups'" :groups="groups.data.value!.groups" :nodes="nodes.data.value!" :reload="groups.reload" />
@@ -77,7 +78,8 @@ const retry = () => Promise.all([groups.error.value ? groups.reload() : null, no
   border-bottom: 1px solid var(--tx-border-color-lighter);
   padding: 0 16px;
 }
-.perm-card :deep(.tx-tabs__nav-item) {
-  min-height: 52px;
+/* 整张卡不能点：TxCard 悬停时的主色描边在点完页签后看着像整张卡被选中，悬停时保持原来的边框。键盘焦点照旧落在页签上。 */
+.perm-card.tx-card:hover:not(.is-disabled):not(.is-plain) {
+  border-color: color-mix(in srgb, var(--tx-border-color-light) 72%, transparent);
 }
 </style>
