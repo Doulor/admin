@@ -351,9 +351,10 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
         {phone ? <header className="pt-phone-status" aria-label="手机状态栏">
           <time>{phoneTime}</time>
           <button type="button" className="pt-phone-system" aria-label="YUGC OS 系统设置" aria-haspopup="dialog" onClick={() => setPhoneSettings(true)}>YUGC OS</button>
-          {account ? <button type="button" className="pt-phone-account" aria-label={`账号：${account.login}`} aria-haspopup="dialog" aria-expanded={profile} onClick={() => setProfile(true)}>
-            <Avatar src={account.avatarUrl} />
-          </button> : loaded ? <button type="button" className="pt-phone-account" aria-haspopup="dialog" aria-expanded={profile} onClick={() => setProfile(true)}><Avatar /> 登录</button> : <span />}
+          {/* 和电脑菜单栏一样只放头像：访客点开也是资料卡（登录、注册和一句说明），不直接跳走 */}
+          {account || loaded ? <button type="button" className="pt-phone-account" aria-label={account ? `账号：${account.login}` : "登录或注册"} aria-haspopup="dialog" aria-expanded={profile} onClick={() => setProfile(true)}>
+            <Avatar src={account?.avatarUrl} />
+          </button> : <span />}
         </header> : <header className="pt-mb" aria-label="菜单栏">
           <button type="button" className="pt-mb-logo" data-menu aria-label="系统菜单" aria-haspopup="menu" aria-expanded={menu?.name === "system"} onClick={(e) => toggleMenu("system", e.currentTarget)}>
             <span className="pt-wordmark" aria-hidden="true">

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // 桌面换肤（#275，SPEC §4.2）：默认壁纸「晴空」接着开机动画的最后一帧画（极客娘的位置算法相同，手机竖屏再滑到图标下面）；
 // 菜单栏是 YUGC 四色标志、搜索、时间、28px 头像；图标和 Dock 的底色在 YUGC 四个字母色里轮换；
-// 窗口标题栏三个圆点各有 44×44 的点击区域、标题居中，打开时缩放加淡入，减少动态效果时只淡入。
+// 窗口标题栏三个圆点各有 44×44 的点击区域、标题居中，打开时缩放加淡入，减少动态效果时只淡入；
+// 终端是不透明的深色底，资料卡的可编辑字段和标签左对齐，手机上的资料卡是左右等宽留边的底部面板。
 // jsdom 没有 canvas：「晴空」换成记下参数的空元素，画面本身由主会话在真浏览器里验收。
 import { readFileSync } from "node:fs";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
@@ -31,6 +32,7 @@ import { OS_APPS, appTone } from "../../app/web/sites/portal/lib/osApps";
 
 // jsdom 环境里 import.meta.url 不是 file: 地址，按仓库根（vitest 的工作目录）读
 const OS_CSS = readFileSync(`${process.cwd()}/app/web/sites/portal/styles/os.css`, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+const PORTAL_CSS = readFileSync(`${process.cwd()}/app/web/sites/portal/styles/portal.css`, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 const ASPECT = 883 / 1676;
 const NO_INSETS = { top: 0, bottom: 0 };
 
@@ -192,6 +194,11 @@ describe("窗口外框", () => {
     expect(reduced).toContain(".pt-os-shell .pt-win { animation-name: pt-win-fade-in; animation-duration: .22s !important; }");
   });
 
+  it("终端正文用不透明的 --os-term-bg（#030914），极客娘透不过来（SPEC §4.5）", () => {
+    expect(PORTAL_CSS).toContain("--os-term-bg: #030914;");
+    expect(OS_CSS).toMatch(/\.pt-term \{[^}]*background: var\(--os-term-bg\);/);
+  });
+
   it("Dock 悬停上浮 6px；菜单栏、Dock、窗口都是半透明白加 16px 模糊", () => {
     expect(OS_CSS).toContain(".pt-dk:hover, .pt-dk:focus-visible { transform: translateY(-6px); outline: none; }");
     for (const selector of [".pt-mb", ".pt-dock", ".pt-win"]) {
@@ -199,5 +206,24 @@ describe("窗口外框", () => {
       expect(rule, selector).toContain("background: var(--os-panel)");
       expect(rule, selector).toContain("backdrop-filter: blur(16px)");
     }
+  });
+});
+
+describe("资料卡样式", () => {
+  it("可编辑字段没有左内边距，值和标签从同一处起；平时虚下划线，编辑时实线，输入框自己不再画外框", () => {
+    expect(OS_CSS).toMatch(/\.pt-profile-input \{[^}]*padding: 0; border: 0; border-bottom: 1px dashed/);
+    expect(OS_CSS).toMatch(/\.pt-profile-input input, \.pt-profile-input textarea \{[^}]*padding: 0;/);
+    expect(OS_CSS).toMatch(/\.pt-profile-input:focus-within \{ border-bottom: 1px solid var\(--os-accent\); box-shadow: 0 1px 0 var\(--os-accent\); \}/);
+    expect(OS_CSS).toContain(".pt-profile-input :is(input, textarea):focus-visible { outline: none; }");
+  });
+
+  it("手机：贴底的面板左右各留 8px（避让安全区），去掉 dialog 自带的 max-width；顶上圆角加拖拽条，内容在面板里滚，底部让出安全区", () => {
+    const sheet = OS_CSS.match(/\.pt-root\.pt-profile-modal\.is-phone \{([^}]*)\}/)?.[1] ?? "";
+    expect(sheet).toContain("inset: auto max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px));");
+    expect(sheet).toContain("box-sizing: border-box; width: auto; max-width: none;");
+    expect(sheet).toContain("max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px));");
+    expect(sheet).toContain("border-radius: 24px 24px 0 0;");
+    expect(OS_CSS).toMatch(/\.pt-root\.pt-profile-modal\.is-phone::before \{[^}]*width: 38px; height: 5px;[^}]*background: var\(--os-ink\);/);
+    expect(OS_CSS).toMatch(/\.pt-profile-modal\.is-phone > \.pt-profile \{[^}]*overflow: auto;[^}]*padding: 4px 18px calc\(18px \+ env\(safe-area-inset-bottom, 0px\)\);/);
   });
 });

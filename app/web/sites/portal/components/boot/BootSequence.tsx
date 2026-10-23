@@ -1,17 +1,18 @@
-// 开机动画的 React 外壳：挂 canvas、起步（桌面点击或按任意键，手机长按）、静音/重播/跳过三个真实按钮、
+// 开机动画的 React 外壳：挂 canvas、起步（桌面点击或按任意键，手机点按或长按）、静音/重播/跳过三个真实按钮、
 // 键盘快捷键（Esc 跳过、M 静音、R 重播）、播放期间空闲时预取桌面代码块。动画本身在 ./engine.ts。
 // 就绪（播完或跳过）时调 onReady，由首页（pages/Home.tsx）写 yugc:boot-day 并把这一层淡出、露出桌面。
 import { useEffect, useRef, useState } from "react";
 import girlSrc from "../../assets/mascot/geek-girl.webp";
+import { bootMobile } from "../../lib/bootGate";
 import { reportEvent } from "../../lib/events";
 import Icon from "../Icon";
 import { createBootEngine, type BootEngine, type BootPhase, type BootReady } from "./engine";
 
 const MUTE_KEY = "yugc:boot-muted";
 
-/** 宽度小于 768 或竖屏时用手机版（SPEC §4.1），创建时定好，播放期间不跟着旋转屏幕变 */
+/** 宽度小于 768 或竖屏时用手机版（SPEC §4.1）。起步门上跟着视口变（转屏、窗口缩放、设备模拟晚一步生效），开始播放后定住不变 */
 function detectMobile(): boolean {
-  return window.innerWidth < 768 || window.matchMedia("(orientation: portrait)").matches;
+  return bootMobile(window.innerWidth, window.innerHeight);
 }
 
 function readMuted(): boolean {
@@ -42,7 +43,7 @@ export default function BootSequence({ onReady, prefetch }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const safeRef = useRef<HTMLSpanElement>(null);
   const engineRef = useRef<BootEngine | null>(null);
-  const [mobile] = useState(detectMobile);
+  const [mobile, setMobile] = useState(detectMobile);
   const [phase, setPhase] = useState<BootPhase>("gate");
   const [muted, setMuted] = useState(readMuted);
   const handlers = useRef({ onReady, prefetch });
@@ -72,6 +73,16 @@ export default function BootSequence({ onReady, prefetch }: Props) {
       engineRef.current = null;
     };
   }, [mobile]);
+
+  // 还在起步门时视口变了就重新判断；mobile 一变，上面的 effect 按新的版本重建引擎（还没出声，重建没有代价）
+  const atGate = phase === "gate";
+  useEffect(() => {
+    if (!atGate) return;
+    const update = () => setMobile(detectMobile());
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [atGate]);
 
   const playing = phase === "dark" || phase === "light";
   const toggleMute = () => {
@@ -121,12 +132,13 @@ export default function BootSequence({ onReady, prefetch }: Props) {
           type="button"
           className="pt-bootseq-gate"
           aria-label={mobile ? "长按启动 YUGC OS" : "启动 YUGC OS"}
+          // 手机上按下开始画长按的进度环，按满 0.7 秒自动起步；没按满就松手也算点了一下，同样起步；
+          // 系统取消（手势变成了滚动之类）不算。键盘触发的 click 和电脑上的点击直接起步（start 只认第一次）
           onPointerDown={() => (mobile ? engineRef.current?.beginHold() : engineRef.current?.start())}
-          onPointerUp={() => mobile && engineRef.current?.endHold()}
+          onPointerUp={() => mobile && engineRef.current?.start()}
           onPointerCancel={() => mobile && engineRef.current?.endHold()}
           onPointerLeave={() => mobile && engineRef.current?.endHold()}
-          // 键盘触发的 click（detail 为 0）直接起步；手机上手指点按要长按满，不能一点就开始
-          onClick={(event) => (!mobile || event.detail === 0) && engineRef.current?.start()}
+          onClick={() => engineRef.current?.start()}
           onContextMenu={(event) => event.preventDefault()}
         />
       )}

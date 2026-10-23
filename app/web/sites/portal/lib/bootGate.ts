@@ -13,6 +13,11 @@ export function shouldPlayBoot({ playedDay, today, reducedMotion, force }: { pla
   return force || playedDay !== today;
 }
 
+/** 开机动画用手机版（SPEC §4.1）：宽度小于 768，或者竖屏（高不小于宽，和 CSS 的 orientation: portrait 一致） */
+export function bootMobile(width: number, height: number): boolean {
+  return width < 768 || height >= width;
+}
+
 export function forcedReplay(search: string): boolean {
   return new URLSearchParams(search).get("boot") === "1";
 }

@@ -31,7 +31,7 @@ vi.mock("../../app/web/sites/portal/lib/wallpapers", async (importOriginal) => (
 }));
 
 import Home from "../../app/web/sites/portal/pages/Home";
-import { BOOT_DAY_KEY, beijingDay, forcedReplay, shouldPlayBoot } from "../../app/web/sites/portal/lib/bootGate";
+import { BOOT_DAY_KEY, beijingDay, bootMobile, forcedReplay, shouldPlayBoot } from "../../app/web/sites/portal/lib/bootGate";
 import { particleBudget } from "../../app/web/sites/portal/components/boot/timeline";
 import { flushEvents, reportEvent } from "../../app/web/sites/portal/lib/events";
 
@@ -68,6 +68,16 @@ describe("播不播开机动画", () => {
     expect(forcedReplay("?boot=0")).toBe(false);
     expect(forcedReplay("?x=1&boot=1")).toBe(true);
     expect(forcedReplay("")).toBe(false);
+  });
+
+  it("手机版还是电脑版：宽度小于 768 或竖屏用手机版（SPEC §4.1）", () => {
+    expect(bootMobile(390, 844)).toBe(true);
+    expect(bootMobile(360, 780)).toBe(true);
+    expect(bootMobile(700, 500)).toBe(true);
+    expect(bootMobile(800, 900)).toBe(true);
+    expect(bootMobile(768, 768)).toBe(true);
+    expect(bootMobile(1440, 900)).toBe(false);
+    expect(bootMobile(1024, 700)).toBe(false);
   });
 
   it("粒子数量：手机基数是桌面的一半，核心少、3 倍屏都会再收，画面面积超出上限不再加", () => {

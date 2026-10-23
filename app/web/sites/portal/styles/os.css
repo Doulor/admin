@@ -486,11 +486,17 @@ a.pt-term-key:hover { text-decoration: underline; }
 /* ── 个人资料卡（components/os/ProfileCard.tsx）：电脑上挂在菜单栏头像下面，360px 宽，背景不变暗；手机上是从底部升起的面板 ── */
 .pt-root.pt-profile-modal:not(.is-phone) { inset: 40px 8px auto auto; width: 360px; max-height: calc(100dvh - 56px); margin: 0; overflow: auto; transform-origin: top right; animation: pt-win-in .22s var(--pt-ease); }
 .pt-profile-modal:not(.is-phone)::backdrop { background: transparent; }
+/* 手机：左右各留 8px（再避让安全区）贴底，顶上两个圆角和一根拖拽条，标题栏不动、卡片内容在里面滚；
+   dialog 自带 max-width: calc(100% - 6px - 2em)，不去掉的话右边会空出 38px */
 .pt-root.pt-profile-modal.is-phone {
-  inset: auto 0 0; width: 100%; max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px)); margin: 0; overflow: auto;
-  padding: 14px max(18px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
-  border-bottom: 0; border-radius: 24px 24px 0 0; animation: pt-sheet-up .3s cubic-bezier(.16, 1, .3, 1);
+  inset: auto max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px)); box-sizing: border-box; width: auto; max-width: none;
+  max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px)); margin: 0; padding: 0; overflow: hidden;
+  border-bottom: 0; border-radius: 24px 24px 0 0; box-shadow: 0 -8px 36px rgb(60 110 200 / 24%); animation: pt-sheet-up .3s cubic-bezier(.16, 1, .3, 1);
 }
+.pt-root.pt-profile-modal.is-phone[open] { display: flex; flex-direction: column; }
+.pt-root.pt-profile-modal.is-phone::before { content: ""; flex: none; align-self: center; width: 38px; height: 5px; margin-top: 8px; border-radius: 999px; background: var(--os-ink); opacity: .3; }
+.pt-profile-modal.is-phone > header { flex: none; margin: 0; padding: 4px 12px 8px 18px; }
+.pt-profile-modal.is-phone > .pt-profile { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 4px 18px calc(18px + env(safe-area-inset-bottom, 0px)); }
 .pt-profile { display: grid; gap: 14px; color: var(--os-ink); font-size: 13.5px; }
 .pt-profile-modal:not(.is-phone) .pt-profile {
   padding: 18px; border: 1px solid var(--os-win-border); border-radius: var(--os-radius-win); background: var(--os-panel);
@@ -511,12 +517,15 @@ a.pt-term-key:hover { text-decoration: underline; }
 .pt-profile-names { display: grid; gap: 4px; min-width: 0; }
 .pt-profile-field { display: grid; gap: 2px; min-width: 0; }
 .pt-profile-label { font-size: 11.5px; color: var(--os-ink-soft); }
-.pt-profile-input { display: flex; align-items: center; min-height: 44px; padding: 0 10px; border: 1px solid transparent; border-radius: 10px; background: rgb(255 255 255 / 60%); transition: border-color .15s, background .15s; }
-.pt-profile-input:hover { border-color: rgb(58 118 214 / 25%); }
-.pt-profile-input:focus-within { border-color: var(--os-accent); background: #fff; }
-.pt-profile-input:has([aria-invalid="true"]) { border-color: var(--os-g-line); }
+/* 可编辑的值和标签左对齐：平时一条虚下划线表示能改，悬停变深，编辑时换成 2px 实线 */
+.pt-profile-input { display: flex; align-items: center; min-height: 44px; padding: 0; border: 0; border-bottom: 1px dashed rgb(58 118 214 / 30%); transition: border-color .15s, box-shadow .15s; }
+.pt-profile-input:hover { border-bottom-color: rgb(58 118 214 / 60%); }
+.pt-profile-input:focus-within { border-bottom: 1px solid var(--os-accent); box-shadow: 0 1px 0 var(--os-accent); }
+.pt-profile-input:has([aria-invalid="true"]) { border-bottom: 1px solid var(--os-g-line); box-shadow: 0 1px 0 var(--os-g-line); }
 .pt-profile-input em { font-style: normal; color: var(--os-ink-soft); }
-.pt-profile-input input, .pt-profile-input textarea { flex: 1; min-width: 0; padding: 0; border: 0; background: none; color: var(--os-ink); font: inherit; outline: none; resize: none; }
+.pt-profile-input input, .pt-profile-input textarea { flex: 1; min-width: 0; padding: 0; border: 0; background: none; color: var(--os-ink); font: inherit; resize: none; }
+/* 焦点由上面那条 2px 实线表示；不去掉 .pt-root :focus-visible 的外框的话，框会贴着第一个字 */
+.pt-profile-input :is(input, textarea):focus-visible { outline: none; }
 .pt-profile-input textarea { padding: 10px 0; line-height: 1.5; }
 .pt-profile-field.is-name input { font-size: 17px; font-weight: 800; }
 .pt-profile-msg { font-size: 12px; line-height: 1.5; color: var(--os-ink-soft); }

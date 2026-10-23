@@ -55,11 +55,15 @@ function mount() {
 
 it("手机有状态栏、应用和四项 Dock，没有电脑菜单和默认大便签；指引按需打开，设置里能重播开机动画", async () => {
   const { container, onReplayBoot } = mount();
-  // 统一登录（#262）：右上角只写「登录」，点开是从底部升起的资料卡，里面去 /signin 并带上当前页面，不再直接连 GitHub
-  fireEvent.click(await screen.findByRole("button", { name: "登录" }));
+  // 访客右上角和电脑菜单栏一样只有头像（SPEC §4.3），点开是从底部升起的资料卡：登录、注册和一句说明，不直接跳走
+  const entry = await screen.findByRole("button", { name: "登录或注册" });
+  expect(entry.textContent).toBe("");
+  fireEvent.click(entry);
   const card = screen.getByRole("dialog", { name: "登录极客班" });
   expect(card.className).toContain("is-phone");
   expect(within(card).getByRole("link", { name: "登录" }).getAttribute("href")).toBe(`/signin?return_to=${encodeURIComponent("/")}`);
+  expect(within(card).getByRole("link", { name: "注册" })).toBeTruthy();
+  expect(within(card).getByText("注册不需要邀请码，有邀请码可以直接成为成员")).toBeTruthy();
   fireEvent.click(within(card).getByRole("button", { name: "关闭对话框" }));
   expect(screen.queryByText(/GitHub 登录/)).toBeNull();
   expect(container.querySelector(".pt-phone-status")).not.toBeNull();
@@ -84,7 +88,7 @@ it.each([null, false, true])("手机控制台沿用 console_link=%s，图标、�
     consoleLink === null ? { signed_in: false } : { signed_in: true, login: "test-member", user_id: 1, console_link: consoleLink },
   ), { status: 200, headers: { "content-type": "application/json" } })));
   mount();
-  if (consoleLink === null) await screen.findByRole("button", { name: "登录" });
+  if (consoleLink === null) await screen.findByRole("button", { name: "登录或注册" });
   else await screen.findByRole("button", { name: "账号：test-member" });
   expect(icons().queryByRole("button", { name: "控制台" }) !== null).toBe(consoleLink === true);
   fireEvent.click(screen.getByRole("button", { name: "搜索", exact: true }));
