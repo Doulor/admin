@@ -21,6 +21,12 @@ export type RecordActivityInput = {
   outcome?: ActivityOutcome;
   /** 不记密码、验证码、令牌、完整请求体（SPEC §3.7）；调用方自己按这条清单决定放什么，这里不做内容过滤。 */
   meta?: Record<string, unknown>;
+  /**
+   * 覆盖账号归属，只有登录/注册这一刻才需要：会话是这次请求的处理结果（signInWithGithub 等成功之后才有
+   * account_id），`req.session` 要等下一次带着新 cookie 的请求才会被 loadSession() 填上，这次请求本身读
+   * 不到。不传就照常按 `req.session?.account_id` 认。
+   */
+  account_id?: string | null;
 };
 
 /**
@@ -35,7 +41,7 @@ export function createActivityRecorder(db: Database.Database, clock: () => numbe
   `);
 
   function recordActivity(req: FastifyRequest, input: RecordActivityInput): void {
-    const accountId = req.session?.account_id ?? null;
+    const accountId = input.account_id !== undefined ? input.account_id : req.session?.account_id ?? null;
     insert.run({
       at: clock(),
       account_id: accountId,

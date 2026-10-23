@@ -71,9 +71,14 @@ export default async function authRoutes(app: FastifyInstance) {
       }
       if (!signin.ok) {
         await revoke(req, token);
+        app.services.activity.recordActivity(req, { action: "auth.signin_denied", surface: "portal", outcome: "denied", meta: { provider: "github", reason: signin.reason } });
         return fail(signin.reason);
       }
       setSessionCookie(reply, signin.sid);
+      app.services.activity.recordActivity(req, {
+        action: signin.registered ? "auth.register" : "auth.signin", surface: "portal", outcome: "ok",
+        meta: { provider: "github" }, account_id: signin.accountId,
+      });
       // 账号还没有登录邮箱（#273）：先到绑定邮箱页，绑好再回 return_to
       return reply.redirect(emailRequired(app.services, signin.accountId) ? bindEmailUrl(config.publicOrigin, back) : back);
     }
@@ -87,6 +92,7 @@ export default async function authRoutes(app: FastifyInstance) {
       if (s) {
         audit(null, { login: s.login, account_id: s.account_id }, "auth.signout", undefined, undefined, req.ip);
         identity.recordSignout(s.account_id, s.provider);
+        app.services.activity.recordActivity(req, { action: "auth.signout", surface: "portal", outcome: "ok", account_id: s.account_id });
       }
     }
     clearSessionCookies(reply);

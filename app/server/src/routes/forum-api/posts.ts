@@ -47,6 +47,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
       if (!forum.rateAllowed("reply", viewer.userId)) throw rateLimited();
       const postId = forum.createPost({ topicId, authorId: viewer.userId, content, replyToPostId });
       forum.rateRecord("reply", viewer.userId);
+      app.services.activity.recordActivity(req, { action: "forum.reply.create", surface: "forum", target_type: "post", target_id: postId, outcome: "ok" });
       return reply.code(201).send({ ...forumChanges(req, viewer, { posts: [postId], topics: [topicId] }, { posts: "full" }), postId });
     }
 
@@ -73,6 +74,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
     withinSiteLimit();
     const { guestId, postId } = forum.createGuestPost(name, { topicId, content, replyToPostId });
     forum.rateRecord("guestPostSite", GUEST_POST_SITE_SUBJECT);
+    app.services.activity.recordActivity(req, { action: "forum.reply.create", surface: "forum", target_type: "post", target_id: postId, outcome: "ok", meta: { guest: true } });
     return reply.code(201).send({ ...forumChanges(req, viewer, { posts: [postId], topics: [topicId], users: [guestId] }, { posts: "full" }), postId });
   });
 

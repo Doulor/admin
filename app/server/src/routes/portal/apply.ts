@@ -178,6 +178,7 @@ export default async function applyRoutes(app: FastifyInstance) {
         name_length: name.value.length,
         strengths_length: strengths.value.length,
       }, req.ip);
+      app.services.activity.recordActivity(req, { action: "apply.submit", surface: "portal", target_type: "application", target_id: id, outcome: "ok" });
 
       // 投递已经落库；「已收到」的信拼不出来或写不进队列只记日志（不记地址和正文），不让投递失败。
       // 每份投递都发一封，只有全站每小时的上限（RECEIVED_LETTER_LIMITS）；防盗刷靠上面的投递次数。

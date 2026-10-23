@@ -126,3 +126,30 @@
   新增 tests/server/events.test.ts（6 条）覆盖 POST /api/events 的访客/账号记录、cookie 复用、白名单丢弃合并计数、批次上限契约校验、限流；新增 lib/activity.ts 的 pruneExpired() 单测。
 - 结果：npx vitest run tests/server 全过，30 个文件 542 个用例；pnpm --filter server build 通过；node scripts/check-boundaries.mjs 通过（269 files, 1581 imports）。
 - 下一步：Step 3 剩下的大头还没做——recordActivity 还没接进 SPEC §3.7 列的那一长串服务端动作（auth.*、invite.redeem、forum.topic.view 等）、limit_events 支撑的 §3.8 限额表（投递、发帖/回帖/表情、论坛读/搜索等）还没按新表重写（部分已经在 idn274 的 lib/limits.ts 里做了邀请码锁定和投递限额，需要和这里的 recordActivity/pruneExpired 对齐，不要再出现第二套）；这部分量大、和 idn274 已经交付的内容重叠面广，继续做之前已经私信 team-lead 说明这次发现的重复，等确认怎么分工再往下推进，不再盲目往前赶。
+
+## 04:44:01 +08:00 · 提交 · #274 · Step 2a/2b：合并 scratch/274_console 与 scratch/274_identity，修复合并后失真的测试（beedbbc9、d332f10c、92072540）
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：
+  1. Step 2a（beedbbc9）：`git merge --no-ff scratch/274_console`（head 29095acf，con274 交付），无冲突，纯合并提交。验证：`npx vitest run tests/console` 16 files / 201 tests 全过；`pnpm --filter console typecheck`（vue-tsc）无报错；`pnpm --filter console build` 成功；`node scripts/check-boundaries.mjs` 通过（256 files, 1437 imports）。
+  2. Step 2b（d332f10c）：`git merge --no-ff scratch/274_identity`（head d7c3deec，idn274 交付）。`identity-store.ts` 自动合并无冲突，核对三处关键修复都在：`removeSyncedSiteOwner` 按 `granted_by` 认领（我的修复，行 183）、`applyOrgRole` → `syncPermissionLevel`（我的修复，行 533）、`toClaims()` 改读 `perm_members`/`level.member` 而不是 `org_state`（idn274 的真实 bug 修复，行 702-715）。手工解决 13 处冲突：`services.ts`（合并 clock/activity/limits/profiles，去掉重复的 `createAccountProfiles` 调用，复用已有的 `profiles` 常量）；6 个生成文件（`docs/architecture/catalog/{CATALOG.md,catalog.json,data-model.md,map.html,permissions.md,routes.md}`、`docs/services/server/README.md`）按团队指示先取 ours、合并提交之后再单独重新生成；5 个测试文件（`competition-scores/signups.test.ts` 去掉未使用的 `ServiceOverrides` 导入，保留新权限体系的 `grantPermGroup` 断言；`mail-outbox.test.ts` 同时保留 alice 的 `grantPermGroup` 和 idn274 新增的「投递要登录」applicant 会话；`rate-limits.test.ts` 去掉 `/api/console/assignments`（已删路由）这一行，采用 idn274 的「POST /api/portal/apply 现在要登录」`signedIn: true`；`signin-methods.test.ts` 三处，保留新版 `/api/console/me` 形状（`titles` 数组）同时吸收 idn274「论坛按账号认人，不再把没绑 GitHub 的账号当游客」的断言）。
+  3. 合并后跑全量测试发现 7 个失败，逐一排查修复（92072540）：`identity.signInWithGithub()` 在 idn274 的改动里整个换了参数形状——不再接受 `orgRole`（GitHub 组织门槛整体去掉），改成 `invite`（GitHub 登录也能兑换邀请码）；这个函数签名变化是「整段替换」式的改动，和我这边的改动没有相邻冲突行，git 自动合并时没有报冲突，但悄悄让 `tests/server/legacy-database.test.ts` 里四处「老库账号重新登录补记站内角色」的用例失真（它们还在传 `orgRole: 'admin'`）。查实际生效路径：老库账号（迁移后 `org_role IS NULL`）补记站内角色唯一走的是 `access.resolve()`（`forum-api/viewer.ts` 和 `/auth/me` 两个旧路由还在调，没有删，identity-store.ts 的 `applyOrgRole` 注释里写明了这一点），不是 `signInWithGithub`；改成先打一次 `/auth/me` 或 `/api/forum/state` 触发这次静态同步，但建库时插的旧会话 `created_at` 是一天前，写接口的 step-up（10 分钟新鲜度）过不了，所以 PATCH 类操作要用同一个 GitHub id 重新 `signInWithGithub()`（这次不传 `orgRole`，走「老账号登录」分支，只换新会话、不碰已经同步好的权限）换一个新会话。另外两处：`signin-methods.test.ts` 一条用例还在调用已经被 idn274 删掉的 `githubSigninPlan`/`recordGithubDenied`（跟着 GitHub 组织门槛一起删的，用例本身的注释已经写明「等价覆盖搬到别处」，只是函数体没跟着删），删掉这两行调用；两处遗漏的 `tick` 解构。`console-users.test.ts` 一处：`/auth/me` 未登录分支按 CONTRACT-274 §1 现在回访客身份摘要，不再是裸的 `{ signed_in: false }`，断言改成 `toMatchObject`。
+- 结果：`npx vitest run tests/server`——31 files / 555 tests 全过（34.57s）；`pnpm --filter server build`（tsc）干净；`node scripts/check-boundaries.mjs`——258 files, 1452 imports 通过。生成文件（catalog、docs/INDEX.md、notes/INDEX.md）还没有在合并后单独重新生成，留到 Step 4 统一跑 `pnpm catalog:generate`/`pnpm docs:index` 时一起处理，避免中途反复生成又作废。
+- 下一步：按 team-lead 的分工结论（idn274 已交付完毕、空闲，#274 剩余全部由我一人负责），开始 SPEC §3.7（把 `recordActivity` 接进完整的服务端动作清单，含 idn274 的 invite.redeem、apply.submit 路径）和 §3.8（`lib/limits.ts` 补齐 idn274 没覆盖的论坛/注册/验证码/CLI/IP 回复限额），再把 `limits.prune()`（idn274 发现的「有实现没调用点」）接进保留清理，最后进入 Phase 4（文档、目录、`pnpm check` 全绿）。
+
+## 04:55:24 +08:00 · 提交 · #274 · Step 3：403/429 统一记操作记录；recordActivity 接入 auth.*/invite.redeem/apply.submit/forum.topic.view/create/reply.create/search（9bb81989、本次）
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：
+  1. （9bb81989）SPEC §3.7「所有被 403 拒绝的请求记 outcome='denied'，被 429 拦下的记 outcome='limited'」这条规则适用于全站，逐路由手工加容易漏。改在 middleware/http-policy.ts 已有的 onSend 钩子里加 `recordDenialOrLimit()`：状态码是 403/429 时解析响应体，按权限中间件给的 `node`、路由自己数的限额给的 `bucket`、都没有就退回 `http.<error>` 取 action，按 URL 前缀粗分 surface，记一条 denied/limited。这样以后任何新路由只要照现有约定回 403/429，这条记录自动就有。
+  2. 给 `lib/activity.ts` 的 `RecordActivityInput` 加了一个可选的 `account_id` 覆盖参数：登录/注册成功的那一刻 `req.session` 还没被 `loadSession()` 填上（要等带着新 cookie 的下一次请求），`recordActivity` 平时按 `req.session?.account_id` 认账号在这一刻读不到，加这个参数显式传成功登录返回的 `accountId`。
+  3. 按 SPEC §3.7 必须记的服务端动作清单，把 `recordActivity` 接进已有的成功路径（新增调用，没有改动原有的 `storage.audit()` 调用——两套机制目前并存，`audit_logs`/`identity_audit` 继续服务本人安全记录和旧审计，`activity_events` 是新的统一操作记录）：
+     - `routes/admin/auth.ts`：GitHub 登录成功记 `auth.register`/`auth.signin`（按 `registered` 区分），拒绝记 `auth.signin_denied`；`/auth/signout` 记 `auth.signout`。
+     - `routes/identity/email.ts`：验证码登录记 `auth.register`/`auth.signin`，密码登录记 `auth.signin`，重设密码记 `auth.password_reset`。
+     - `routes/identity/google.ts`：同 GitHub，成功记 `auth.register`/`auth.signin`，拒绝记 `auth.signin_denied`。
+     - `routes/identity/profile.ts`：资料改动记 `profile.update`，头像改动记 `profile.avatar`，邀请码兑换成功记 `invite.redeem`（锁定触发的 429 already 由第 1 条的全局钩子记成 limited，没有重复加）。
+     - `routes/portal/apply.ts`：投递成功记 `apply.submit`（429 限额同样由全局钩子覆盖，响应体已经带 `bucket: "apply.daily"`）。
+     - `routes/forum-api/topics.ts`：发话题记 `forum.topic.create`；搜索记 `forum.search`（meta 带查询词，不在 SPEC 的禁记清单里）；浏览话题记 `forum.topic.view`——这条和既有的「同 IP 一小时只算一次」浏览计数是两回事，另开一个 `forum.topic.view.dedup` 桶，按账号或访客 id（取不到就退回 IP）10 分钟只记一次操作记录，用 `lib/limits.ts` 的 `hit()` 去重（`max:1` 当布尔开关用，不是真的限流）。
+     - `routes/forum-api/posts.ts`：成员回复和游客回复都记 `forum.reply.create`（游客那条 meta 带 `guest:true`）。
+- 结果：npx vitest run tests/server——31 files / 555 tests 全过；pnpm --filter server build 干净。activity.test.ts 一条断言从「导出 1 行」改成「导出 2 行」——同一条用例先打的那次没权限的 403 现在也被全局钩子记下来了，是预期的新行为。
+- 下一步：剩下必须记的动作——competition.*（签到/组队/打分）、perm.*（需要带改动前后 JSON）、gitlab.*（手动重新同步等）；然后是 §3.8 剩余限额（论坛读/搜索按等级、访客翻页上限、注册新账号限额、验证码按邮箱限额、命令行设备码按账号限额、回帖按 IP 总量上限）和 `limits.prune()` 接入保留清理，最后是 Phase 4。

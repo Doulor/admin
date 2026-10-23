@@ -112,6 +112,7 @@ export default async function emailRoutes(app: FastifyInstance) {
       }
       clearChallengeCookie(reply, "/auth/email");
       setSessionCookie(reply, result.sid);
+      app.services.activity.recordActivity(req, { action: result.registered ? "auth.register" : "auth.signin", surface: "portal", outcome: "ok", meta: { provider: "email", method: "code" }, account_id: result.accountId });
       return { return_to: challenge.return_to ?? fallback, registered: result.registered };
     },
   );
@@ -133,6 +134,7 @@ export default async function emailRoutes(app: FastifyInstance) {
       if (!result.ok) return refused(reply);
       throttle.reset(email);
       setSessionCookie(reply, result.sid);
+      app.services.activity.recordActivity(req, { action: "auth.signin", surface: "portal", outcome: "ok", meta: { provider: "email", method: "password" }, account_id: result.accountId });
       return { return_to: safeReturnTo(req.body.return_to, config, fallback) };
     },
   );
@@ -167,6 +169,7 @@ export default async function emailRoutes(app: FastifyInstance) {
       throttle.reset(challenge.email);
       clearChallengeCookie(reply, "/auth/email");
       setSessionCookie(reply, result.sid);
+      app.services.activity.recordActivity(req, { action: "auth.password_reset", surface: "portal", outcome: "ok", meta: { provider: "email" }, account_id: result.accountId });
       return { return_to: challenge.return_to ?? fallback };
     },
   );

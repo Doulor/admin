@@ -33,6 +33,7 @@ export default async function identityProfileRoutes(app: FastifyInstance) {
       const result = profiles.update(req.session!.account_id, req.body);
       if (!result.ok) return reply.code(409).send({ error: "username_taken", message: "这个用户名已经被用了" });
       storage.audit(null, req.session!, "profile.update", undefined, { fields: Object.keys(req.body) }, req.ip);
+      app.services.activity.recordActivity(req, { action: "profile.update", surface: "portal", outcome: "ok", meta: { fields: Object.keys(req.body) } });
       return result.profile;
     },
   );
@@ -66,6 +67,7 @@ export default async function identityProfileRoutes(app: FastifyInstance) {
           const { hash, data } = await processAccountAvatar(req.body as Buffer);
           profiles.setAvatar(req.session!.account_id, hash, data);
           storage.audit(null, req.session!, "profile.avatar", undefined, undefined, req.ip);
+          app.services.activity.recordActivity(req, { action: "profile.avatar", surface: "portal", outcome: "ok" });
           return { avatar_url: profiles.avatarUrl(hash) };
         } catch (cause) {
           if (cause instanceof AccountAvatarError) return reply.code(cause.status).send({ error: cause.code, message: cause.message });
@@ -111,6 +113,7 @@ export default async function identityProfileRoutes(app: FastifyInstance) {
       }
       permissions.bump();
       storage.audit(null, req.session!, "invite.redeem", undefined, undefined, req.ip);
+      app.services.activity.recordActivity(req, { action: "invite.redeem", surface: "portal", outcome: "ok" });
       return { level: "member" };
     },
   );

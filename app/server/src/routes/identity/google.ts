@@ -56,8 +56,12 @@ export default async function googleRoutes(app: FastifyInstance) {
       req.log.error({ code: (cause as { code?: string })?.code ?? "signin_transaction_failed", requestId: req.id }, "google sign-in transaction failed");
       return fail("failed");
     }
-    if (!result.ok) return fail(result.reason === "code_expired" ? "failed" : result.reason);
+    if (!result.ok) {
+      app.services.activity.recordActivity(req, { action: "auth.signin_denied", surface: "portal", outcome: "denied", meta: { provider: "google", reason: result.reason } });
+      return fail(result.reason === "code_expired" ? "failed" : result.reason);
+    }
     setSessionCookie(reply, result.sid);
+    app.services.activity.recordActivity(req, { action: result.registered ? "auth.register" : "auth.signin", surface: "portal", outcome: "ok", meta: { provider: "google" }, account_id: result.accountId });
     // 账号还没有登录邮箱（#273，Google 给的邮箱不算登录邮箱）：先到绑定邮箱页，绑好再回 return_to
     return reply.redirect(emailRequired(app.services, result.accountId) ? bindEmailUrl(config.publicOrigin, back) : back);
   });

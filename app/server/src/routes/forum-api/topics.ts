@@ -40,6 +40,7 @@ export default async function forumTopicRoutes(app: FastifyInstance) {
     const query = (req.query.q ?? "").trim();
     if (!query) return { results: { topics: [], posts: [], users: [] } };
     if (query.length > SEARCH_QUERY_MAX) throw new ForumError(400, "validation_error", `搜索词最长 ${SEARCH_QUERY_MAX} 个字`);
+    app.services.activity.recordActivity(req, { action: "forum.search", surface: "forum", outcome: "ok", meta: { query } });
     return { results: forum.search(viewer.userId, query) };
   });
 
@@ -56,6 +57,7 @@ export default async function forumTopicRoutes(app: FastifyInstance) {
     const { topicId, postId } = forum.createTopic({ authorId: viewer.userId, title, categoryId: req.body.categoryId, tags, content: req.body.content });
     forum.rateRecord("topic", viewer.userId);
     const tagIds = forum.topic(topicId)?.tagIds ?? [];
+    app.services.activity.recordActivity(req, { action: "forum.topic.create", surface: "forum", target_type: "topic", target_id: topicId, outcome: "ok" });
     return reply.code(201).send({ ...forumChanges(req, viewer, { topics: [topicId], posts: [postId], tags: tagIds }, { posts: "full" }), topicId, postId });
   });
 
@@ -78,8 +80,15 @@ export default async function forumTopicRoutes(app: FastifyInstance) {
 
   /** 浏览数 +1：所有人都能调，同一 IP（IPv6 按 /64）同一话题一小时只算一次。 */
   app.post<{ Params: TopicParams }>("/api/forum/topics/:topic_id/view", perIp(FORUM_REQUEST_LIMITS.view), async (req, reply) => {
-    if (!forum.topic(req.params.topic_id)) throw notFound("话题不存在");
+    const topic = forum.topic(req.params.topic_id);
+    if (!topic) throw notFound("话题不存在");
     forum.recordView(req.params.topic_id, ipSubject(req.ip));
+    // forum.topic.view 这条操作记录（SPEC §3.7）和上面的浏览计数是两回事：计数永远按 IP 一小时去重，
+    // 这里按「同一账号或同一访客」10 分钟只记一次，账号和访客分开计（同一个人同时有两者时按账号）。
+    const viewerSubject = req.session?.account_id ?? req.visitorId ?? ipSubject(req.ip);
+    if (app.services.limits.hit({ bucket: "forum.topic.view.dedup", subject: `${viewerSubject}:${topic.id}`, window: { ms: 10 * 60_000 }, max: 1 }).ok) {
+      app.services.activity.recordActivity(req, { action: "forum.topic.view", surface: "forum", target_type: "topic", target_id: topic.id, outcome: "ok" });
+    }
     return reply.code(204).send();
   });
 }
