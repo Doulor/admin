@@ -29,3 +29,10 @@
 - 做了什么：routes/oidc 把没有登录邮箱的会话记成没有极客班账号，oidc-provider 回到交互再去绑定页；重设没有账号回 invite_required、登录页转注册；官网跳转改经 followAppLink 并加 useAccount 用例；补不是成员、超过 10 分钟、允许过 GitLab 后删邮箱三条用例；email.ts 共用错误回复，authorize/device 用 bindEmailPath，writePassword 去掉嵌套三元，needsEmail 改名，绑定页离开文字、新密码串值修好；安全基线中英补两条残余风险。留着不改：倒计时代码和账号页重复（账号页邮箱一段归 #272，合并后再收）；提交不拆、不改写历史；交互 10 分钟有效期照旧，过期时错误页会请人回到应用重点登录。文档核对：docs/services/server/endpoint-contracts.md、oidc.md、docs/architecture/API.md、SECURITY.md、SECURITY.en.md、docs/services/console/README.md、docs/services/web/portal.md 都跟着改了
 - 结果：新 OIDC 用例改前失败、改后通过；check 九项、check-doc-sync、check-architecture（对 1c3f0d64）通过；typecheck 通过；pnpm test 98 个文件 1622 条通过；pnpm build 通过；论坛没改，没重跑 forum.mjs check。ego-browser 补截重设密码每一步（发码、密码太短、验证码不对、成功回到控制台）和没有账号转注册，1440×900 与 390×844，没有横向溢出；控制台 no_email 人设仍转到绑定页、已绑的人设离开绑定页
 - 下一步：推送到 GitLab，开 MR 到 stage
+
+## 20:45:43 +08:00 · PR · #273 · 开 GitLab MR !6：task/273/reset_and_bind_email → stage
+
+- 执行者：agent-claude-geek-main-8f7d12b7-273（Claude Code 分身，claude-opus-5-5）
+- 做了什么：从自己的克隆 /tmp/geek273/gl-push 推送 0dc4f5fc（pre-push 分支规则通过）；上传 20 张截图（补截了登录页与忘记密码的干净版本，真实数据模式加替换的接口回应），写十段正文，pr-contract 本地通过；开 MR !6，标签同 issue；issue #273 留进展记录，MR 留返工记录；git merge-tree 试合当前 stage a93f0843（已含 #272）：17 个文件冲突，其中 6 个是生成的目录
+- 结果：MR !6 opened，head 0dc4f5fc，目标 stage；没有合并、没有推 stage、没有打 tag、没有部署
+- 下一步：合并的人解决与 #272 的冲突、重跑检查后合并并发 rc；所有者在预发布验收
