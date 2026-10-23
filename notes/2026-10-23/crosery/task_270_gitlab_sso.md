@@ -57,3 +57,17 @@
 - 做了什么：在自建 GitLab 开 MR !2（https://git.yangtzeu.work/geek/admin/-/merge_requests/2），正文按 PULL-REQUESTS 十段写：Closes #270、宏观对齐引用 docs/changes/270.json、解决链路、验证命令与真实接口请求、6 张截图（官网桌面与手机改前改后、同意页两种宽度）、人工验收步骤、两轮审查结论、风险与回滚；标签 server、portal、admin、func:api、func:auth、func:data、func:external、infra:deploy、ui:content、ui:interaction。合并按约定由 geek-main-56 来做。
 - 结果：本地 node scripts/pr-contract.mjs check 通过（10 个段落齐全，有验收证据）；MR 建好时的 head 是 655cac48，merge_status checking。
 - 下一步：通知 geek-main-56 复核 e414b92c 并合并、发 rc
+
+## 13:48:48 +08:00 · 审查 · #270 · MR !2 复核结论：有条件通过，三条与建议在 0239136d、d8a6c73c 处理
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：geek-main-56 用两个独立子 agent 按 code-review 技能分规范、需求两条线审 e414b92c，再自己核对（MR !2 评论 311）：本机合并 2101fe40 + 0ead9e66 后树一致，pnpm test 1588 条通过，审查人的探针 P2、P3、P6 断言失败、GitLab 状态 blocked。合并前三条：1 应修，gitlab-sync.ts:306 查不到账号时退回用这一轮开头的旧数据，可能给已合并的账号建号或解封；2 应修，「按这一刻的账号判断」用例里 alice、bob 同一毫秒建号顺序随机，修复前的代码 15 次有 5 次通过；3 需求缺口，issue 写了控制台成员页要能看到 GitLab 账号和同步状态并重试，MR 只有接口。建议四条：e414b92c 提交说明没写验证命令；find_and_block 失败时没有这一行、last_error 写不进去、GitLab 出故障时每人每轮一条审计；findAndBlock 重算 sector 与 sub；两条新日志没有测试。处理：0239136d 修 1、2 和审计、日志两条建议；d8a6c73c 按第 3 条在成员页加 GitLab 列与立即同步。重算 sector 与 sub 那条不改：是一次本地查询，动作对象是对外的接口形状，不为它加字段。提交说明那条按建议在 MR 里注明，不改写旧提交。
+- 结果：1、2：新用例在修复前的代码上失败，修复后通过；用例 2 配修复前的代码连跑 15 次 0 次通过、配修复后 15 次全过。3：本地控制台样板 1440 宽打开、预演两种样子没有溢出，队长视角没有立即同步，390 宽整表横向滚动后 GitLab 列完整。pnpm test 97 个文件 1596 条通过；typecheck、build、forum:check、forum:generate、check:* 通过，check-architecture 与 check-doc-sync 按 --base 2101fe40 通过。
+- 下一步：推送，更新 MR 正文，把新分支头告诉 geek-main-56
+
+## 13:48:48 +08:00 · 提交 · #270 · 0239136d、d8a6c73c 按 MR !2 复核修服务端两处并加成员页 GitLab 列
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：提交 0239136d（服务端，10 个文件）：lib/gitlab-sync.ts、两份测试、oidc.md 与项目目录生成物。提交 d8a6c73c（控制台，14 个文件）：pages/People.vue、lib/gitlab.ts、lib/types.ts、mock/console.ts、tests/console/gitlab.test.ts、控制台 README、oidc.md、ownership.json 与生成物、docs/changes/270.json。两个提交各自生成项目目录，单独检出时 check:catalog 一致。
+- 结果：见上一条审查记录
+- 下一步：推送并更新 MR
