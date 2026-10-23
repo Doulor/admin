@@ -126,6 +126,11 @@ const IDENTITY_TABLES = ['identities', 'identity_audit', 'users', 'invite_codes'
 const DEVICE_TABLES = ['device_grants'];
 /** 对外授权与 GitLab 账号同步（#270）：同样只新增。 */
 const OIDC_TABLES = ['oauth_clients', 'oauth_subjects', 'oauth_grants', 'oidc_payloads', 'gitlab_accounts'];
+/** 账号、权限、操作记录统一（#274）：同样只新增，forum_topics 加了可空列 visibility（默认 public）。 */
+const YUGC_V2_TABLES = [
+  'perm_nodes', 'perm_groups', 'perm_group_parents', 'perm_entries', 'perm_members', 'perm_state',
+  'account_profiles', 'account_avatars', 'activity_events', 'limit_events',
+];
 
 const dirs: string[] = [];
 const apps: { close: () => Promise<unknown> }[] = [];
@@ -230,7 +235,7 @@ describe('booting on the existing production data.db (legacy schema, no applicat
 
     // 新表全部建好；旧表一行不少、旧列一字不变（#262 加的列和启动回填写的那条审计另外核对）。
     const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all() as { name: string }[]).map(row => row.name);
-    expect(tables).toEqual([...new Set([...LEGACY_TABLES, ...CONSOLE_TABLES, ...FORUM_TABLES, ...MAIL_TABLES, ...APPLY_TABLES, ...COMPETITION_TABLES, ...IDENTITY_TABLES, ...DEVICE_TABLES, ...OIDC_TABLES])].sort());
+    expect(tables).toEqual([...new Set([...LEGACY_TABLES, ...CONSOLE_TABLES, ...FORUM_TABLES, ...MAIL_TABLES, ...APPLY_TABLES, ...COMPETITION_TABLES, ...IDENTITY_TABLES, ...DEVICE_TABLES, ...OIDC_TABLES, ...YUGC_V2_TABLES])].sort());
     for (const [table, rows] of Object.entries(before.rows)) {
       expect(legacyColumns(db, table, rows), table).toEqual(rows);
     }

@@ -68,7 +68,9 @@
         "oauth_clients",
         "oauth_subjects",
         "oauth_grants",
-        "oidc_payloads"
+        "oidc_payloads",
+        "account_profiles",
+        "account_avatars"
       ]
     },
     {
@@ -83,6 +85,22 @@
         "titles",
         "role_assignments",
         "console_seeds"
+      ]
+    },
+    {
+      "id": "permissions",
+      "title": "权限",
+      "docs": [
+        "docs/architecture/SECURITY.md",
+        "docs/services/server/data-model.md"
+      ],
+      "tables": [
+        "perm_nodes",
+        "perm_groups",
+        "perm_group_parents",
+        "perm_entries",
+        "perm_members",
+        "perm_state"
       ]
     },
     {
@@ -183,7 +201,8 @@
         "docs/services/server/data-model.md"
       ],
       "tables": [
-        "audit_logs"
+        "audit_logs",
+        "activity_events"
       ]
     },
     {
@@ -204,7 +223,8 @@
         "docs/conventions/ARCHITECTURE-ALIGNMENT.md"
       ],
       "tables": [
-        "app_state"
+        "app_state",
+        "limit_events"
       ]
     },
     {

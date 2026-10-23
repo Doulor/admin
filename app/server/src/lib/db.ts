@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { backfillIdentity } from "./identity-store.js";
+import { runYugcV2Migration } from "./migrations/2026-10-yugc-v2.js";
 
 /** 审计里的操作者：GitHub 登录名，或带上极客班账号的会话（写进 actor_account_id，#262）。 */
 export type AuditActor = string | { login: string; account_id?: string | null };
@@ -697,6 +698,134 @@ UPDATE users SET org_role = 'member' WHERE org_role IS NULL AND invite_code_id I
 // 每次启动都回填一遍（全是带条件的更新，可以重跑）：给还在用的旧会话建号、映射会话、认领称号和论坛用户。
 const identityBackfill = backfillIdentity(db, Date.now());
 
+// 权限节点、组、成员、条目（#274 SPEC §3.6）：只有 lib/permissions.ts 和 lib/migrations/2026-10-yugc-v2.ts 读写。
+// perm_nodes 是代码里 permission-nodes.ts 的镜像，启动时整表同步；perm_groups/perm_entries 是种子，已存在不覆盖
+// （所有者可能在控制台改过名字、说明、条目）。身份与部门互斥（每账号最多一个 level 组、一个 department 组）
+// 由 lib/permissions.ts 的 setExclusiveGroupMembership() 在写入时保证，不用触发器。
+db.exec(`
+CREATE TABLE IF NOT EXISTS perm_nodes (
+  node TEXT PRIMARY KEY,
+  domain TEXT NOT NULL,
+  label TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  meta INTEGER NOT NULL DEFAULT 0 CHECK (meta IN (0, 1)),
+  sort INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS perm_groups (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL CHECK (kind IN ('level', 'department', 'title', 'custom')),
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  weight INTEGER NOT NULL DEFAULT 0,
+  department_id TEXT,
+  icon TEXT,
+  tone TEXT,
+  sort INTEGER NOT NULL DEFAULT 0,
+  system INTEGER NOT NULL DEFAULT 0 CHECK (system IN (0, 1)),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS perm_group_parents (
+  group_id TEXT NOT NULL REFERENCES perm_groups(id) ON DELETE CASCADE,
+  parent_id TEXT NOT NULL REFERENCES perm_groups(id) ON DELETE CASCADE,
+  PRIMARY KEY (group_id, parent_id)
+);
+
+CREATE TABLE IF NOT EXISTS perm_entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_type TEXT NOT NULL CHECK (subject_type IN ('group', 'account')),
+  subject_id TEXT NOT NULL,
+  node TEXT NOT NULL,
+  value INTEGER CHECK (value IS NULL OR value IN (0, 1)),
+  meta_value TEXT,
+  scope TEXT NOT NULL DEFAULT '{}',
+  expires_at INTEGER,
+  granted_by TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  CHECK ((value IS NULL) <> (meta_value IS NULL))
+);
+CREATE INDEX IF NOT EXISTS idx_perm_entries_subject ON perm_entries(subject_type, subject_id);
+CREATE INDEX IF NOT EXISTS idx_perm_entries_node ON perm_entries(node);
+
+CREATE TABLE IF NOT EXISTS perm_members (
+  account_id TEXT NOT NULL REFERENCES users(id),
+  group_id TEXT NOT NULL REFERENCES perm_groups(id),
+  expires_at INTEGER,
+  granted_by TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (account_id, group_id)
+);
+CREATE INDEX IF NOT EXISTS idx_perm_members_group ON perm_members(group_id);
+
+CREATE TABLE IF NOT EXISTS perm_state (
+  key TEXT PRIMARY KEY,
+  value INTEGER NOT NULL
+);
+`);
+
+// 账号资料与头像（#274）：论坛、控制台、GitLab 同步、OIDC userinfo、命令行统一读这里。
+// account_avatars 按内容寻址，和 forum_avatars 结构一致但分开存（两边迁移节奏不同）。
+db.exec(`
+CREATE TABLE IF NOT EXISTS account_profiles (
+  account_id TEXT PRIMARY KEY REFERENCES users(id),
+  username TEXT UNIQUE COLLATE NOCASE,
+  display_name TEXT NOT NULL DEFAULT '',
+  bio TEXT NOT NULL DEFAULT '',
+  avatar_hash TEXT,
+  prefs TEXT NOT NULL DEFAULT '{}',
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS account_avatars (
+  hash TEXT PRIMARY KEY,
+  data BLOB NOT NULL,
+  mime TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+`);
+
+// 操作记录与限额（#274 SPEC §3.7、§3.8）：写入只走 lib/activity.ts 的 recordActivity()；
+// limit_events 是通用计数表，取代 application_limits 那种一事一表的模式（旧表保留，不再新增同类表）。
+db.exec(`
+CREATE TABLE IF NOT EXISTS activity_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  at INTEGER NOT NULL,
+  account_id TEXT,
+  visitor_id TEXT,
+  surface TEXT NOT NULL CHECK (surface IN ('portal', 'forum', 'console', 'cli', 'api', 'system')),
+  action TEXT NOT NULL,
+  target_type TEXT,
+  target_id TEXT,
+  outcome TEXT NOT NULL CHECK (outcome IN ('ok', 'denied', 'limited', 'error')),
+  ip TEXT,
+  ua TEXT,
+  request_id TEXT,
+  meta TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_activity_events_at ON activity_events(at);
+CREATE INDEX IF NOT EXISTS idx_activity_events_account ON activity_events(account_id, at);
+CREATE INDEX IF NOT EXISTS idx_activity_events_visitor ON activity_events(visitor_id, at);
+CREATE INDEX IF NOT EXISTS idx_activity_events_action ON activity_events(action, at);
+CREATE INDEX IF NOT EXISTS idx_activity_events_outcome ON activity_events(outcome, at);
+
+CREATE TABLE IF NOT EXISTS limit_events (
+  bucket TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_limit_events_subject ON limit_events(bucket, subject, at);
+CREATE INDEX IF NOT EXISTS idx_limit_events_at ON limit_events(at);
+`);
+// 话题可见范围（#274 建表，#276 使用）：默认 public，分类、版主可调；forum_categories 现在还只是客户端常量、
+// 没有落成数据库表，等 #276 建表时再给它加同名列。forum_users.account_id 已经在 #262 加过，这里不重复加。
+addColumn("forum_topics", "visibility", "TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'registered', 'member'))");
+
+// 账号、权限、操作记录统一迁移（#274，lib/migrations/2026-10-yugc-v2.ts）：种子只增不改所有者改过的数据，
+// 账号身份与 role_assignments 映射只在账号还没有对应分组时写入，可以重复执行。报告供迁移演练与 MR 贴数用。
+const yugcV2Migration = runYugcV2Migration(db, Date.now());
+
 // 第一期开源贡献赛（#239）：比赛与报名设置种子，用 `console_seeds` 标记，只插一次。
 // 组织者之后把比赛删掉或改掉，重启也不再补回来。
 const COMPETITION_SEED = "competition_oss_2026_1";
@@ -736,7 +865,7 @@ function audit(org: string | null, actor: AuditActor, action: string, target?: s
   ).run(org, login, action, target ?? null, details ? JSON.stringify(details) : null, ip ?? null, Date.now(), accountId);
 }
 
-return { db, audit, identityBackfill };
+return { db, audit, identityBackfill, yugcV2Migration };
 }
 
 /**

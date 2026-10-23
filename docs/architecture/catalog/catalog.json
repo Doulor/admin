@@ -353,7 +353,7 @@
     "routeMethods": 200,
     "supplementalInterfaces": 5,
     "supplementalInterfacesWithFlow": 5,
-    "tables": 44
+    "tables": 54
   },
   "deploymentStatus": "not-observed",
   "domains": [
@@ -375,7 +375,9 @@
         "oauth_clients",
         "oauth_subjects",
         "oauth_grants",
-        "oidc_payloads"
+        "oidc_payloads",
+        "account_profiles",
+        "account_avatars"
       ],
       "title": "身份与会话"
     },
@@ -392,6 +394,22 @@
         "console_seeds"
       ],
       "title": "组织与权限"
+    },
+    {
+      "docs": [
+        "docs/architecture/SECURITY.md",
+        "docs/services/server/data-model.md"
+      ],
+      "id": "permissions",
+      "tables": [
+        "perm_nodes",
+        "perm_groups",
+        "perm_group_parents",
+        "perm_entries",
+        "perm_members",
+        "perm_state"
+      ],
+      "title": "权限"
     },
     {
       "docs": [
@@ -490,7 +508,8 @@
       ],
       "id": "audit",
       "tables": [
-        "audit_logs"
+        "audit_logs",
+        "activity_events"
       ],
       "title": "审计"
     },
@@ -511,7 +530,8 @@
       ],
       "id": "platform",
       "tables": [
-        "app_state"
+        "app_state",
+        "limit_events"
       ],
       "title": "基础设施与兼容入口"
     },
@@ -974,7 +994,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 731,
+          "line": 860,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -1097,7 +1117,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 698,
+          "line": 699,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -5447,7 +5467,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 192,
+          "line": 193,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -5455,7 +5475,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 58,
+          "line": 64,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -7218,7 +7238,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 461,
+          "line": 462,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -7692,7 +7712,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -8321,6 +8341,11 @@
       "id": "domain:organization",
       "kind": "domain",
       "title": "组织与权限"
+    },
+    {
+      "id": "domain:permissions",
+      "kind": "domain",
+      "title": "权限"
     },
     {
       "id": "domain:platform",
@@ -9983,6 +10008,21 @@
       "title": "静态站点与反向代理"
     },
     {
+      "id": "table:account_avatars",
+      "kind": "table",
+      "title": "account_avatars"
+    },
+    {
+      "id": "table:account_profiles",
+      "kind": "table",
+      "title": "account_profiles"
+    },
+    {
+      "id": "table:activity_events",
+      "kind": "table",
+      "title": "activity_events"
+    },
+    {
       "id": "table:app_state",
       "kind": "table",
       "title": "app_state"
@@ -10158,6 +10198,11 @@
       "title": "invite_links"
     },
     {
+      "id": "table:limit_events",
+      "kind": "table",
+      "title": "limit_events"
+    },
+    {
       "id": "table:mail_outbox",
       "kind": "table",
       "title": "mail_outbox"
@@ -10181,6 +10226,36 @@
       "id": "table:oidc_payloads",
       "kind": "table",
       "title": "oidc_payloads"
+    },
+    {
+      "id": "table:perm_entries",
+      "kind": "table",
+      "title": "perm_entries"
+    },
+    {
+      "id": "table:perm_group_parents",
+      "kind": "table",
+      "title": "perm_group_parents"
+    },
+    {
+      "id": "table:perm_groups",
+      "kind": "table",
+      "title": "perm_groups"
+    },
+    {
+      "id": "table:perm_members",
+      "kind": "table",
+      "title": "perm_members"
+    },
+    {
+      "id": "table:perm_nodes",
+      "kind": "table",
+      "title": "perm_nodes"
+    },
+    {
+      "id": "table:perm_state",
+      "kind": "table",
+      "title": "perm_state"
     },
     {
       "id": "table:role_assignments",
@@ -10415,7 +10490,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "1c3aa4883c25ae9c1c19d91b9bd5727528c16c31aac5663e36e6e452d7618523",
+    "fingerprint": "cfc0b47b915904baa83d88a8cfa0e4e37b93c018b689d2e7308b2090c02f3fe4",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -11239,7 +11314,7 @@
       },
       {
         "path": "app/server/src/lib/db.ts",
-        "sha256": "ff7ce1470dfd0b77cc2608ce4daf72903f5ff6cd3a4795bfe0cfc88f570b6cd2"
+        "sha256": "8d10504ad28afd07a650b52703a9ff94b627dce36e77581808e8e7b0cd95e16b"
       },
       {
         "path": "app/server/src/lib/device-store.ts",
@@ -11334,6 +11409,10 @@
         "sha256": "d4f5d04580c6505a7c4f20d690b2d85a736bf9fc7f40da63c3f5f4aa7bd9c8dd"
       },
       {
+        "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
+        "sha256": "cac6a989380e1ac35bc409f8985c44e61a406922fbf6679b358a8f244947de79"
+      },
+      {
         "path": "app/server/src/lib/oidc-provider.ts",
         "sha256": "a5749c64812c4f2b0cfb31d1d6c5e9ab743d6a54c88a6e4454cc70e66f822e97"
       },
@@ -11344,6 +11423,14 @@
       {
         "path": "app/server/src/lib/password-policy.ts",
         "sha256": "abaf6f264643c827423dc81b48ca3412115c8cee551a05a2cb186758860c82b1"
+      },
+      {
+        "path": "app/server/src/lib/permission-nodes.ts",
+        "sha256": "1bf49eae91120fa4e1cecbc261ae95a3f8d7f42f79d257c56ae9021fa27d27ac"
+      },
+      {
+        "path": "app/server/src/lib/permissions.ts",
+        "sha256": "5505b4f396b167e647786cfe210a42ca75d3d81cdfc11b2dae58c0e0bdac8989"
       },
       {
         "path": "app/server/src/lib/role-store.ts",
@@ -11559,7 +11646,7 @@
       },
       {
         "path": "app/server/src/services.ts",
-        "sha256": "4ab9f6c5a2c2aae4a12a24984b393e6c445b3d9a87cbc21e2e3c8eb5eaa02a7d"
+        "sha256": "bf6c2ccbf0a12732a26857fa90073e7ca0f52d89a3748cf9c251f12aa7c31230"
       },
       {
         "path": "app/web/Dockerfile",
@@ -11891,7 +11978,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "e0eca75eec647df9e3b67d5c72c6b3285497c447bd59655db0208cf0e9154856"
+        "sha256": "85091331432dcb5123d18b3348d40b589270c005a9fb967bbdc0d632d527f5d6"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -12087,7 +12174,7 @@
       },
       {
         "path": "tests/server/legacy-database.test.ts",
-        "sha256": "6ec287d977f036f8fe107302f5928ec02ebece1e9fe99aa1e3e5ac859c6d0f43"
+        "sha256": "432306f6f164c135f4dbbef2e34f1e8c550c539665951d84ec30bfaceb824e85"
       },
       {
         "path": "tests/server/mail-outbox.test.ts",
@@ -15042,6 +15129,18 @@
     },
     {
       "basis": "declaration",
+      "from": "domain:permissions",
+      "to": "document:docs/architecture/SECURITY.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "domain:permissions",
+      "to": "document:docs/services/server/data-model.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
       "from": "domain:platform",
       "to": "document:docs/architecture/ARCHITECTURE.md",
       "type": "documented-by"
@@ -17234,7 +17333,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 192,
+          "line": 193,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -17242,7 +17341,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 58,
+          "line": 64,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17262,7 +17361,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 192,
+          "line": 193,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -17270,7 +17369,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 58,
+          "line": 64,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17290,7 +17389,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 192,
+          "line": 193,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -17298,7 +17397,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 58,
+          "line": 64,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17318,7 +17417,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 192,
+          "line": 193,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -17326,7 +17425,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 58,
+          "line": 64,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17346,7 +17445,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 192,
+          "line": 193,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -17354,7 +17453,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 58,
+          "line": 64,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17374,7 +17473,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 192,
+          "line": 193,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -17382,7 +17481,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 58,
+          "line": 64,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17426,7 +17525,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 192,
+          "line": 193,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -17434,7 +17533,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 58,
+          "line": 64,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17454,7 +17553,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 192,
+          "line": 193,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -17462,7 +17561,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 58,
+          "line": 64,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17482,7 +17581,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 192,
+          "line": 193,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -17490,7 +17589,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 58,
+          "line": 64,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17510,7 +17609,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 192,
+          "line": 193,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -17518,7 +17617,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 58,
+          "line": 64,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -35458,7 +35557,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -35498,7 +35597,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -35538,7 +35637,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -35578,7 +35677,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -35618,7 +35717,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -35658,7 +35757,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -35698,7 +35797,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -35738,7 +35837,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -35778,7 +35877,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -35818,7 +35917,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -35858,7 +35957,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -35910,7 +36009,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -35950,7 +36049,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -35990,7 +36089,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -36030,7 +36129,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -36070,7 +36169,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -38348,7 +38447,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 731,
+          "line": 860,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -38380,7 +38479,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 731,
+          "line": 860,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -38430,7 +38529,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 731,
+          "line": 860,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -38462,7 +38561,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 731,
+          "line": 860,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -38494,7 +38593,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 731,
+          "line": 860,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -38526,7 +38625,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 731,
+          "line": 860,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -38558,7 +38657,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 731,
+          "line": 860,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -38590,7 +38689,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 731,
+          "line": 860,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -38622,7 +38721,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 731,
+          "line": 860,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -38654,7 +38753,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 731,
+          "line": 860,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -38734,7 +38833,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 698,
+          "line": 699,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -38842,7 +38941,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 698,
+          "line": 699,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -38950,7 +39049,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 698,
+          "line": 699,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -39058,7 +39157,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 698,
+          "line": 699,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -39166,7 +39265,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 698,
+          "line": 699,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -39346,7 +39445,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 698,
+          "line": 699,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -39454,7 +39553,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 698,
+          "line": 699,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -39562,7 +39661,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 698,
+          "line": 699,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -43332,7 +43431,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 461,
+          "line": 462,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -43380,7 +43479,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 461,
+          "line": 462,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -43428,7 +43527,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 461,
+          "line": 462,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -43476,7 +43575,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 461,
+          "line": 462,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -43524,7 +43623,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 461,
+          "line": 462,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -43572,7 +43671,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 461,
+          "line": 462,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -43620,7 +43719,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 461,
+          "line": 462,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -43668,7 +43767,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 461,
+          "line": 462,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -43722,7 +43821,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 461,
+          "line": 462,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -43770,7 +43869,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 461,
+          "line": 462,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -43818,7 +43917,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 461,
+          "line": 462,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -43866,7 +43965,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 461,
+          "line": 462,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -49408,6 +49507,72 @@
     },
     {
       "basis": "declaration",
+      "from": "table:account_avatars",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 781,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:account_avatars",
+      "to": "database:data.db",
+      "type": "stored-in"
+    },
+    {
+      "basis": "declaration",
+      "from": "table:account_profiles",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 771,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:account_profiles",
+      "to": "table:users",
+      "type": "foreign-key:account_id->id"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 771,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:account_profiles",
+      "to": "database:data.db",
+      "type": "stored-in"
+    },
+    {
+      "basis": "declaration",
+      "from": "table:activity_events",
+      "to": "domain:audit",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 792,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:activity_events",
+      "to": "database:data.db",
+      "type": "stored-in"
+    },
+    {
+      "basis": "declaration",
       "from": "table:app_state",
       "to": "domain:platform",
       "type": "belongs-to"
@@ -49416,7 +49581,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 21,
+          "line": 22,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49434,7 +49599,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 372,
+          "line": 373,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49452,7 +49617,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 175,
+          "line": 176,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49464,7 +49629,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 175,
+          "line": 176,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49482,7 +49647,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 89,
+          "line": 90,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49500,7 +49665,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 102,
+          "line": 103,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49518,7 +49683,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 594,
+          "line": 595,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49530,7 +49695,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 594,
+          "line": 595,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49542,7 +49707,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 594,
+          "line": 595,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49554,7 +49719,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 594,
+          "line": 595,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49566,7 +49731,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 594,
+          "line": 595,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49584,7 +49749,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 527,
+          "line": 528,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49596,7 +49761,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 527,
+          "line": 528,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49608,7 +49773,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 527,
+          "line": 528,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49626,7 +49791,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 541,
+          "line": 542,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49638,7 +49803,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 541,
+          "line": 542,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49650,7 +49815,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 541,
+          "line": 542,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49668,7 +49833,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 572,
+          "line": 573,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49680,7 +49845,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 572,
+          "line": 573,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49692,7 +49857,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 572,
+          "line": 573,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49704,7 +49869,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 572,
+          "line": 573,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49716,7 +49881,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 572,
+          "line": 573,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49728,7 +49893,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 572,
+          "line": 573,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49746,7 +49911,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 555,
+          "line": 556,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49758,7 +49923,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 555,
+          "line": 556,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49770,7 +49935,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 555,
+          "line": 556,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49788,7 +49953,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 192,
+          "line": 193,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49806,7 +49971,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 126,
+          "line": 127,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49824,7 +49989,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 143,
+          "line": 144,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49842,7 +50007,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 436,
+          "line": 437,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49860,7 +50025,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 650,
+          "line": 651,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49872,7 +50037,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 650,
+          "line": 651,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49890,7 +50055,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 69,
+          "line": 70,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49908,7 +50073,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 220,
+          "line": 221,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49926,7 +50091,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 291,
+          "line": 292,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49938,7 +50103,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 291,
+          "line": 292,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49950,7 +50115,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 291,
+          "line": 292,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49968,7 +50133,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 215,
+          "line": 216,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49986,7 +50151,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 298,
+          "line": 299,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49998,7 +50163,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 298,
+          "line": 299,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50010,7 +50175,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 298,
+          "line": 299,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50028,7 +50193,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 284,
+          "line": 285,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50040,7 +50205,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 284,
+          "line": 285,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50052,7 +50217,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 284,
+          "line": 285,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50070,7 +50235,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 306,
+          "line": 307,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50082,7 +50247,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 306,
+          "line": 307,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50094,7 +50259,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 306,
+          "line": 307,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50112,7 +50277,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 271,
+          "line": 272,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50124,7 +50289,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 271,
+          "line": 272,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50136,7 +50301,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 271,
+          "line": 272,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50154,7 +50319,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 326,
+          "line": 327,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50172,7 +50337,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 247,
+          "line": 248,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50184,7 +50349,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 247,
+          "line": 248,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50202,7 +50367,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 318,
+          "line": 319,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50220,7 +50385,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 256,
+          "line": 257,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50232,7 +50397,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 256,
+          "line": 257,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50250,7 +50415,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 226,
+          "line": 227,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50262,7 +50427,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 226,
+          "line": 227,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50274,7 +50439,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 226,
+          "line": 227,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50292,7 +50457,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50304,7 +50469,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 508,
+          "line": 509,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50322,7 +50487,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 403,
+          "line": 404,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50334,7 +50499,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 403,
+          "line": 404,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50352,7 +50517,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 421,
+          "line": 422,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50364,7 +50529,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 421,
+          "line": 422,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50382,7 +50547,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 53,
+          "line": 54,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50400,7 +50565,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 118,
+          "line": 119,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50418,7 +50583,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 637,
+          "line": 638,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50436,11 +50601,29 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 38,
+          "line": 39,
           "path": "app/server/src/lib/db.ts"
         }
       ],
       "from": "table:invite_links",
+      "to": "database:data.db",
+      "type": "stored-in"
+    },
+    {
+      "basis": "declaration",
+      "from": "table:limit_events",
+      "to": "domain:platform",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 813,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:limit_events",
       "to": "database:data.db",
       "type": "stored-in"
     },
@@ -50454,7 +50637,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 337,
+          "line": 338,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50472,7 +50655,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 461,
+          "line": 462,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50490,7 +50673,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 480,
+          "line": 481,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50502,7 +50685,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 480,
+          "line": 481,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50514,7 +50697,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 480,
+          "line": 481,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50532,7 +50715,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 471,
+          "line": 472,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50544,7 +50727,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 471,
+          "line": 472,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50562,11 +50745,167 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 488,
+          "line": 489,
           "path": "app/server/src/lib/db.ts"
         }
       ],
       "from": "table:oidc_payloads",
+      "to": "database:data.db",
+      "type": "stored-in"
+    },
+    {
+      "basis": "declaration",
+      "from": "table:perm_entries",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 736,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:perm_entries",
+      "to": "database:data.db",
+      "type": "stored-in"
+    },
+    {
+      "basis": "declaration",
+      "from": "table:perm_group_parents",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 730,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:perm_group_parents",
+      "to": "table:perm_groups",
+      "type": "foreign-key:group_id->id"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 730,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:perm_group_parents",
+      "to": "table:perm_groups",
+      "type": "foreign-key:parent_id->id"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 730,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:perm_group_parents",
+      "to": "database:data.db",
+      "type": "stored-in"
+    },
+    {
+      "basis": "declaration",
+      "from": "table:perm_groups",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 715,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:perm_groups",
+      "to": "database:data.db",
+      "type": "stored-in"
+    },
+    {
+      "basis": "declaration",
+      "from": "table:perm_members",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 752,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:perm_members",
+      "to": "table:users",
+      "type": "foreign-key:account_id->id"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 752,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:perm_members",
+      "to": "table:perm_groups",
+      "type": "foreign-key:group_id->id"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 752,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:perm_members",
+      "to": "database:data.db",
+      "type": "stored-in"
+    },
+    {
+      "basis": "declaration",
+      "from": "table:perm_nodes",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 706,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:perm_nodes",
+      "to": "database:data.db",
+      "type": "stored-in"
+    },
+    {
+      "basis": "declaration",
+      "from": "table:perm_state",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 762,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:perm_state",
       "to": "database:data.db",
       "type": "stored-in"
     },
@@ -50580,7 +50919,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 158,
+          "line": 159,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50592,7 +50931,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 158,
+          "line": 159,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50610,7 +50949,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 27,
+          "line": 28,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50622,7 +50961,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 27,
+          "line": 28,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50640,7 +50979,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 131,
+          "line": 132,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50658,7 +50997,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 389,
+          "line": 390,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50670,7 +51009,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 389,
+          "line": 390,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50682,7 +51021,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 389,
+          "line": 390,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -75491,6 +75830,7 @@
         "invitations",
         "mail",
         "organization",
+        "permissions",
         "platform",
         "recruitment"
       ],
@@ -76976,6 +77316,516 @@
           "cid": 0,
           "dflt_value": null,
           "hidden": 0,
+          "name": "hash",
+          "notnull": 0,
+          "pk": 1,
+          "type": "TEXT"
+        },
+        {
+          "cid": 1,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "data",
+          "notnull": 1,
+          "pk": 0,
+          "type": "BLOB"
+        },
+        {
+          "cid": 2,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "mime",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 3,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "created_at",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        }
+      ],
+      "database": "data.db",
+      "domain": "identity",
+      "foreignKeys": [],
+      "id": "table:account_avatars",
+      "indexes": [
+        {
+          "columns": [
+            {
+              "cid": 0,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "hash",
+              "seqno": 0
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 1
+            }
+          ],
+          "name": "sqlite_autoindex_account_avatars_1",
+          "origin": "pk",
+          "partial": 0,
+          "sql": null,
+          "unique": 1
+        }
+      ],
+      "name": "account_avatars",
+      "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
+      "source": {
+        "line": 781,
+        "path": "app/server/src/lib/db.ts"
+      },
+      "sql": "CREATE TABLE account_avatars (\n  hash TEXT PRIMARY KEY,\n  data BLOB NOT NULL,\n  mime TEXT NOT NULL,\n  created_at INTEGER NOT NULL\n)"
+    },
+    {
+      "columns": [
+        {
+          "cid": 0,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "account_id",
+          "notnull": 0,
+          "pk": 1,
+          "type": "TEXT"
+        },
+        {
+          "cid": 1,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "username",
+          "notnull": 0,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 2,
+          "dflt_value": "''",
+          "hidden": 0,
+          "name": "display_name",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 3,
+          "dflt_value": "''",
+          "hidden": 0,
+          "name": "bio",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 4,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "avatar_hash",
+          "notnull": 0,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 5,
+          "dflt_value": "'{}'",
+          "hidden": 0,
+          "name": "prefs",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 6,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "updated_at",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        }
+      ],
+      "database": "data.db",
+      "domain": "identity",
+      "foreignKeys": [
+        {
+          "from": "account_id",
+          "id": 0,
+          "match": "NONE",
+          "on_delete": "NO ACTION",
+          "on_update": "NO ACTION",
+          "seq": 0,
+          "table": "users",
+          "to": "id"
+        }
+      ],
+      "id": "table:account_profiles",
+      "indexes": [
+        {
+          "columns": [
+            {
+              "cid": 0,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "account_id",
+              "seqno": 0
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 1
+            }
+          ],
+          "name": "sqlite_autoindex_account_profiles_1",
+          "origin": "pk",
+          "partial": 0,
+          "sql": null,
+          "unique": 1
+        },
+        {
+          "columns": [
+            {
+              "cid": 1,
+              "coll": "NOCASE",
+              "desc": 0,
+              "key": 1,
+              "name": "username",
+              "seqno": 0
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 1
+            }
+          ],
+          "name": "sqlite_autoindex_account_profiles_2",
+          "origin": "u",
+          "partial": 0,
+          "sql": null,
+          "unique": 1
+        }
+      ],
+      "name": "account_profiles",
+      "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
+      "source": {
+        "line": 771,
+        "path": "app/server/src/lib/db.ts"
+      },
+      "sql": "CREATE TABLE account_profiles (\n  account_id TEXT PRIMARY KEY REFERENCES users(id),\n  username TEXT UNIQUE COLLATE NOCASE,\n  display_name TEXT NOT NULL DEFAULT '',\n  bio TEXT NOT NULL DEFAULT '',\n  avatar_hash TEXT,\n  prefs TEXT NOT NULL DEFAULT '{}',\n  updated_at INTEGER NOT NULL\n)"
+    },
+    {
+      "columns": [
+        {
+          "cid": 0,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "id",
+          "notnull": 0,
+          "pk": 1,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 1,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "at",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 2,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "account_id",
+          "notnull": 0,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 3,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "visitor_id",
+          "notnull": 0,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 4,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "surface",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 5,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "action",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 6,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "target_type",
+          "notnull": 0,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 7,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "target_id",
+          "notnull": 0,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 8,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "outcome",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 9,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "ip",
+          "notnull": 0,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 10,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "ua",
+          "notnull": 0,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 11,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "request_id",
+          "notnull": 0,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 12,
+          "dflt_value": "'{}'",
+          "hidden": 0,
+          "name": "meta",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        }
+      ],
+      "database": "data.db",
+      "domain": "audit",
+      "foreignKeys": [],
+      "id": "table:activity_events",
+      "indexes": [
+        {
+          "columns": [
+            {
+              "cid": 2,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "account_id",
+              "seqno": 0
+            },
+            {
+              "cid": 1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "at",
+              "seqno": 1
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 2
+            }
+          ],
+          "name": "idx_activity_events_account",
+          "origin": "c",
+          "partial": 0,
+          "sql": "CREATE INDEX idx_activity_events_account ON activity_events(account_id, at)",
+          "unique": 0
+        },
+        {
+          "columns": [
+            {
+              "cid": 5,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "action",
+              "seqno": 0
+            },
+            {
+              "cid": 1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "at",
+              "seqno": 1
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 2
+            }
+          ],
+          "name": "idx_activity_events_action",
+          "origin": "c",
+          "partial": 0,
+          "sql": "CREATE INDEX idx_activity_events_action ON activity_events(action, at)",
+          "unique": 0
+        },
+        {
+          "columns": [
+            {
+              "cid": 1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "at",
+              "seqno": 0
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 1
+            }
+          ],
+          "name": "idx_activity_events_at",
+          "origin": "c",
+          "partial": 0,
+          "sql": "CREATE INDEX idx_activity_events_at ON activity_events(at)",
+          "unique": 0
+        },
+        {
+          "columns": [
+            {
+              "cid": 8,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "outcome",
+              "seqno": 0
+            },
+            {
+              "cid": 1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "at",
+              "seqno": 1
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 2
+            }
+          ],
+          "name": "idx_activity_events_outcome",
+          "origin": "c",
+          "partial": 0,
+          "sql": "CREATE INDEX idx_activity_events_outcome ON activity_events(outcome, at)",
+          "unique": 0
+        },
+        {
+          "columns": [
+            {
+              "cid": 3,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "visitor_id",
+              "seqno": 0
+            },
+            {
+              "cid": 1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "at",
+              "seqno": 1
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 2
+            }
+          ],
+          "name": "idx_activity_events_visitor",
+          "origin": "c",
+          "partial": 0,
+          "sql": "CREATE INDEX idx_activity_events_visitor ON activity_events(visitor_id, at)",
+          "unique": 0
+        }
+      ],
+      "name": "activity_events",
+      "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
+      "source": {
+        "line": 792,
+        "path": "app/server/src/lib/db.ts"
+      },
+      "sql": "CREATE TABLE activity_events (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  at INTEGER NOT NULL,\n  account_id TEXT,\n  visitor_id TEXT,\n  surface TEXT NOT NULL CHECK (surface IN ('portal', 'forum', 'console', 'cli', 'api', 'system')),\n  action TEXT NOT NULL,\n  target_type TEXT,\n  target_id TEXT,\n  outcome TEXT NOT NULL CHECK (outcome IN ('ok', 'denied', 'limited', 'error')),\n  ip TEXT,\n  ua TEXT,\n  request_id TEXT,\n  meta TEXT NOT NULL DEFAULT '{}'\n)"
+    },
+    {
+      "columns": [
+        {
+          "cid": 0,
+          "dflt_value": null,
+          "hidden": 0,
           "name": "key",
           "notnull": 0,
           "pk": 1,
@@ -77034,7 +77884,7 @@
       "name": "app_state",
       "note": "预留表；当前没有业务读写消费者。存在表不代表已有业务能力。",
       "source": {
-        "line": 21,
+        "line": 22,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE app_state (\n  key TEXT PRIMARY KEY,\n  value TEXT NOT NULL,\n  updated_at INTEGER NOT NULL\n)"
@@ -77144,7 +77994,7 @@
       "name": "application_limits",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 372,
+        "line": 373,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE application_limits (\n  bucket TEXT NOT NULL CHECK (bucket IN ('source','device')),\n  subject_hash TEXT NOT NULL,\n  created_at INTEGER NOT NULL\n)"
@@ -77268,7 +78118,7 @@
       "name": "application_reviews",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 175,
+        "line": 176,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE application_reviews (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  application_id TEXT NOT NULL REFERENCES applications(id) ON DELETE CASCADE,\n  from_status TEXT NOT NULL,\n  to_status TEXT NOT NULL,\n  note TEXT,\n  reviewer TEXT NOT NULL,\n  created_at INTEGER NOT NULL\n)"
@@ -77449,7 +78299,7 @@
       "name": "applications",
       "note": "包含候选人个人信息。具体读取范围、字段下发和取消规则见业务文档；目录不包含记录。",
       "source": {
-        "line": 89,
+        "line": 90,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE applications (\n  id TEXT PRIMARY KEY,\n  name TEXT NOT NULL,\n  class_name TEXT NOT NULL,\n  email TEXT NOT NULL,\n  strengths TEXT NOT NULL,\n  source_ip TEXT,\n  user_agent TEXT,\n  status TEXT NOT NULL DEFAULT 'received',\n  created_at INTEGER NOT NULL\n)"
@@ -77630,7 +78480,7 @@
       "name": "audit_logs",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 102,
+        "line": 103,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE audit_logs (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  org TEXT,\n  actor TEXT NOT NULL,\n  action TEXT NOT NULL,\n  target TEXT,\n  details TEXT,\n  ip TEXT,\n  created_at INTEGER NOT NULL\n, actor_account_id TEXT)"
@@ -77954,7 +78804,7 @@
       "name": "competition_score_events",
       "note": "积分账本：issue/pr 带仓库与编号并按 CHECK 限分（5–30、15–100），penalty 固定 −50 且不带仓库编号；撤销只改 status 为 revoked 并记撤销人与原因，不删行；唯一索引防止同一条 Issue/PR 重复记分。只有 lib/competition-score-store.ts 读写。",
       "source": {
-        "line": 594,
+        "line": 595,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE competition_score_events (\n  id TEXT PRIMARY KEY,\n  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,\n  account_id TEXT NOT NULL REFERENCES users(id),\n  kind TEXT NOT NULL CHECK (kind IN ('issue', 'pr', 'penalty')),\n  repo TEXT,\n  number INTEGER,\n  points INTEGER NOT NULL,\n  reason TEXT NOT NULL DEFAULT '',\n  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'revoked')),\n  created_by TEXT NOT NULL REFERENCES users(id),\n  created_at INTEGER NOT NULL,\n  revoked_by TEXT REFERENCES users(id),\n  revoked_at INTEGER,\n  revoke_reason TEXT,\n  CHECK ((kind = 'issue' AND points BETWEEN 5 AND 30)\n      OR (kind = 'pr' AND points BETWEEN 15 AND 100)\n      OR (kind = 'penalty' AND points = -50))\n)"
@@ -78089,7 +78939,7 @@
       "name": "competition_signup_settings",
       "note": "每场一行；没有行就是未开放报名（默认个人赛、不计分）。enabled、participation、team_min/team_max（团队赛才有，1–20）、scoring（none / contribution）由控制台整体写入；更新人 updated_by 是操作人的极客班账号，系统种子为 NULL。只有 lib/competition-signup-store.ts 读写。",
       "source": {
-        "line": 527,
+        "line": 528,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE competition_signup_settings (\n  competition_id TEXT PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,\n  enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),\n  participation TEXT NOT NULL CHECK (participation IN ('individual', 'team')),\n  team_min INTEGER,\n  team_max INTEGER,\n  scoring TEXT NOT NULL DEFAULT 'none' CHECK (scoring IN ('none', 'contribution')),\n  updated_at INTEGER NOT NULL,\n  updated_by TEXT REFERENCES users(id),\n  CHECK ((participation = 'individual' AND team_min IS NULL AND team_max IS NULL)\n      OR (participation = 'team' AND team_min IS NOT NULL AND team_max IS NOT NULL\n          AND team_min BETWEEN 1 AND 20 AND team_max BETWEEN team_min AND 20))\n)"
@@ -78291,7 +79141,7 @@
       "name": "competition_signups",
       "note": "一人一场一行（UNIQUE(competition_id, account_id)），status 只取 active/cancelled，取消保留行与时间；note ≤200 字，成员可见，填写处提示不要写联系方式；looking_for_team 只在团队赛生效。身份键是会话里的 account_id，不按 GitHub 登录名。只有 lib/competition-signup-store.ts 读写。",
       "source": {
-        "line": 541,
+        "line": 542,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE competition_signups (\n  id TEXT PRIMARY KEY,\n  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,\n  account_id TEXT NOT NULL REFERENCES users(id),\n  status TEXT NOT NULL CHECK (status IN ('active', 'cancelled')),\n  looking_for_team INTEGER NOT NULL DEFAULT 0 CHECK (looking_for_team IN (0, 1)),\n  note TEXT NOT NULL DEFAULT '' CHECK (length(note) <= 200),\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL,\n  cancelled_at INTEGER,\n  UNIQUE (competition_id, account_id)\n)"
@@ -78624,7 +79474,7 @@
       "name": "competition_team_members",
       "note": "在队成员与待处理的申请、邀请同一张表：status 取 applied/invited/active/declined/withdrawn/left/removed/disbanded；两个部分唯一索引分别保证一人一队和同一队伍对同一人只有一条待处理记录。message ≤100 字，只给队伍领队与当事人看。只有 lib/competition-signup-store.ts 读写。",
       "source": {
-        "line": 572,
+        "line": 573,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE competition_team_members (\n  id TEXT PRIMARY KEY,\n  team_id TEXT NOT NULL REFERENCES competition_teams(id) ON DELETE CASCADE,\n  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,\n  account_id TEXT NOT NULL REFERENCES users(id),\n  role TEXT NOT NULL CHECK (role IN ('leader', 'member')),\n  status TEXT NOT NULL CHECK (status IN\n    ('applied', 'invited', 'active', 'declined', 'withdrawn', 'left', 'removed', 'disbanded')),\n  message TEXT NOT NULL DEFAULT '' CHECK (length(message) <= 100),\n  created_by TEXT NOT NULL REFERENCES users(id),\n  decided_by TEXT REFERENCES users(id),\n  created_at INTEGER NOT NULL,\n  decided_at INTEGER,\n  updated_at INTEGER NOT NULL\n)"
@@ -78852,7 +79702,7 @@
       "name": "competition_teams",
       "note": "队伍事实：name_key 是 trim + NFKC + 小写后的查重键，唯一索引只约束未解散的队伍；status 只改 recruiting/locked/disbanded 并记时间，不物理删除；leader_account_id 指向极客班账号。只有 lib/competition-signup-store.ts 读写。",
       "source": {
-        "line": 555,
+        "line": 556,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE competition_teams (\n  id TEXT PRIMARY KEY,\n  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,\n  name TEXT NOT NULL,\n  name_key TEXT NOT NULL,\n  slogan TEXT NOT NULL DEFAULT '',\n  leader_account_id TEXT NOT NULL REFERENCES users(id),\n  status TEXT NOT NULL CHECK (status IN ('recruiting', 'locked', 'disbanded')),\n  locked_at INTEGER,\n  disbanded_at INTEGER,\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL\n)"
@@ -79026,7 +79876,7 @@
       "name": "competitions",
       "note": "只存赛事事实，不含参赛者或队伍；status由时间计算，offline仅控制公开可见性，删除与下线不同。有未取消的报名后不能改内外部，有报名记录的比赛不能真删；旧库启动时插入一期开源贡献赛（id 为 oss-challenge-2026-1），用 console_seeds 标记，只插一次。",
       "source": {
-        "line": 192,
+        "line": 193,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE competitions (\n  id TEXT PRIMARY KEY,\n  name TEXT NOT NULL,\n  kind TEXT NOT NULL CHECK (kind IN ('internal','external')),\n  start_at INTEGER NOT NULL,\n  end_at INTEGER NOT NULL,\n  signup_deadline INTEGER,\n  url TEXT,\n  description TEXT NOT NULL DEFAULT '',\n  offline INTEGER NOT NULL DEFAULT 0,\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL,\n  CHECK (end_at >= start_at),\n  CHECK (url IS NULL OR url LIKE 'https://%'),\n  CHECK (signup_deadline IS NULL OR signup_deadline <= end_at)\n)"
@@ -79086,7 +79936,7 @@
       "name": "console_seeds",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 126,
+        "line": 127,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE console_seeds (\n  name TEXT PRIMARY KEY,\n  seeded_at INTEGER NOT NULL\n)"
@@ -79236,7 +80086,7 @@
       "name": "departments",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 143,
+        "line": 144,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE departments (\n  id TEXT PRIMARY KEY,\n  name TEXT NOT NULL,\n  tag TEXT NOT NULL,\n  icon TEXT NOT NULL,\n  tone TEXT NOT NULL,\n  description TEXT NOT NULL DEFAULT '',\n  head_capabilities TEXT NOT NULL,\n  member_capabilities TEXT NOT NULL DEFAULT '[]',\n  sort_order INTEGER NOT NULL DEFAULT 100,\n  archived INTEGER NOT NULL DEFAULT 0,\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL\n)"
@@ -79504,7 +80354,7 @@
       "name": "device_grants",
       "note": "命令行设备授权（RFC 8628，给 geek login）：一行是一次授权，device_code 与发出的访问令牌只存 sha256，account_id 是确认人的极客班账号；status 只存 pending/approved/denied/consumed，过期按 expires_at 现算。只有 lib/device-store.ts 读写，目录不读取记录。",
       "source": {
-        "line": 436,
+        "line": 437,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE device_grants (\n  id TEXT PRIMARY KEY,\n  device_code_hash TEXT NOT NULL UNIQUE,\n  user_code TEXT NOT NULL UNIQUE,\n  client_id TEXT NOT NULL,\n  scope TEXT NOT NULL,\n  status TEXT NOT NULL CHECK (status IN ('pending','approved','denied','consumed')),\n  account_id TEXT,\n  interval_s INTEGER NOT NULL,\n  created_at INTEGER NOT NULL,\n  expires_at INTEGER NOT NULL,\n  last_poll_at INTEGER,\n  decided_at INTEGER,\n  token_hash TEXT UNIQUE,\n  token_expires_at INTEGER\n)"
@@ -79740,7 +80590,7 @@
       "name": "email_challenges",
       "note": "邮箱验证码（#262）：一行是一次发码，只存验证码的 HMAC（密钥由 SESSION_SECRET 派生）、按邮箱的限流键和按 IP 前缀的 HMAC，不存验证码原文和 IP；10 分钟过期、最多试 5 次，用过写 used_at；过期一小时后由会话清理一起删除。只有 lib/email-login.ts 读写，目录不读取记录。",
       "source": {
-        "line": 650,
+        "line": 651,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE email_challenges (\n  id TEXT PRIMARY KEY,\n  purpose TEXT NOT NULL CHECK (purpose IN ('signin', 'link')),\n  email TEXT NOT NULL,\n  limit_key TEXT NOT NULL,\n  account_id TEXT REFERENCES users(id),\n  session_hash TEXT,\n  return_to TEXT,\n  code_hmac TEXT NOT NULL,\n  attempts INTEGER NOT NULL DEFAULT 0,\n  ip_key TEXT NOT NULL,\n  created_at INTEGER NOT NULL,\n  expires_at INTEGER NOT NULL,\n  used_at INTEGER,\n  CHECK (purpose = 'signin' OR (account_id IS NOT NULL AND session_hash IS NOT NULL))\n)"
@@ -79942,7 +80792,7 @@
       "name": "feedback",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 69,
+        "line": 70,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE feedback (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  org TEXT NOT NULL,\n  content TEXT NOT NULL,\n  category TEXT,\n  contact TEXT,\n  submitter_login TEXT,\n  submitter_id INTEGER,\n  source_ip TEXT,\n  user_agent TEXT,\n  status TEXT NOT NULL DEFAULT 'open',\n  reply TEXT,\n  replied_by TEXT,\n  replied_at INTEGER,\n  votes INTEGER NOT NULL DEFAULT 0,\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL\n)"
@@ -80011,7 +80861,7 @@
       "name": "forum_avatars",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 220,
+        "line": 221,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_avatars (\n  hash TEXT PRIMARY KEY,\n  data BLOB NOT NULL,\n  created_at INTEGER NOT NULL\n)"
@@ -80109,7 +80959,7 @@
       "name": "forum_bookmarks",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 291,
+        "line": 292,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_bookmarks (\n  user_id TEXT NOT NULL REFERENCES forum_users(id),\n  post_id TEXT NOT NULL REFERENCES forum_posts(id),\n  created_at INTEGER NOT NULL,\n  PRIMARY KEY (user_id, post_id)\n)"
@@ -80169,7 +81019,7 @@
       "name": "forum_counters",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 215,
+        "line": 216,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_counters (\n  name TEXT PRIMARY KEY CHECK (name IN ('topic','post','notification','tag','guest')),\n  value INTEGER NOT NULL\n)"
@@ -80267,7 +81117,7 @@
       "name": "forum_follows",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 298,
+        "line": 299,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_follows (\n  follower_id TEXT NOT NULL REFERENCES forum_users(id),\n  followee_id TEXT NOT NULL REFERENCES forum_users(id),\n  created_at INTEGER NOT NULL,\n  PRIMARY KEY (follower_id, followee_id),\n  CHECK (follower_id <> followee_id)\n)"
@@ -80365,7 +81215,7 @@
       "name": "forum_likes",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 284,
+        "line": 285,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_likes (\n  post_id TEXT NOT NULL REFERENCES forum_posts(id),\n  user_id TEXT NOT NULL REFERENCES forum_users(id),\n  created_at INTEGER NOT NULL,\n  PRIMARY KEY (post_id, user_id)\n)"
@@ -80533,7 +81383,7 @@
       "name": "forum_notifications",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 306,
+        "line": 307,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_notifications (\n  id TEXT PRIMARY KEY,\n  recipient_id TEXT NOT NULL REFERENCES forum_users(id),\n  type TEXT NOT NULL CHECK (type IN ('reply','like','follow','mention','system')),\n  actor_id TEXT NOT NULL REFERENCES forum_users(id),\n  topic_id TEXT,\n  post_id TEXT,\n  created_at INTEGER NOT NULL,\n  read INTEGER NOT NULL DEFAULT 0\n)"
@@ -80734,7 +81584,7 @@
       "name": "forum_posts",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 271,
+        "line": 272,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_posts (\n  id TEXT PRIMARY KEY,\n  topic_id TEXT NOT NULL REFERENCES forum_topics(id),\n  author_id TEXT NOT NULL REFERENCES forum_users(id),\n  content TEXT NOT NULL,\n  created_at INTEGER NOT NULL,\n  edited_at INTEGER,\n  reply_to_post_id TEXT,\n  deleted INTEGER NOT NULL DEFAULT 0\n)"
@@ -80844,7 +81694,7 @@
       "name": "forum_rate_events",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 326,
+        "line": 327,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_rate_events (\n  bucket TEXT NOT NULL,\n  subject TEXT NOT NULL,\n  created_at INTEGER NOT NULL\n)"
@@ -80976,7 +81826,7 @@
       "name": "forum_tags",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 247,
+        "line": 248,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_tags (\n  id TEXT PRIMARY KEY,\n  slug TEXT NOT NULL UNIQUE,\n  name TEXT NOT NULL,\n  color TEXT NOT NULL,\n  created_by TEXT NOT NULL REFERENCES forum_users(id),\n  created_at INTEGER NOT NULL\n)"
@@ -81078,7 +81928,7 @@
       "name": "forum_topic_views",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 318,
+        "line": 319,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_topic_views (\n  topic_id TEXT NOT NULL,\n  ip TEXT NOT NULL,\n  viewed_at INTEGER NOT NULL,\n  PRIMARY KEY (topic_id, ip)\n)"
@@ -81183,6 +82033,15 @@
           "notnull": 1,
           "pk": 0,
           "type": "INTEGER"
+        },
+        {
+          "cid": 11,
+          "dflt_value": "'public'",
+          "hidden": 0,
+          "name": "visibility",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
         }
       ],
       "database": "data.db",
@@ -81263,10 +82122,10 @@
       "name": "forum_topics",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 256,
+        "line": 257,
         "path": "app/server/src/lib/db.ts"
       },
-      "sql": "CREATE TABLE forum_topics (\n  id TEXT PRIMARY KEY,\n  slug TEXT NOT NULL,\n  title TEXT NOT NULL,\n  category_id TEXT NOT NULL,\n  tag_ids TEXT NOT NULL DEFAULT '[]',\n  author_id TEXT NOT NULL REFERENCES forum_users(id),\n  created_at INTEGER NOT NULL,\n  last_activity_at INTEGER NOT NULL,\n  views INTEGER NOT NULL DEFAULT 0,\n  pinned INTEGER NOT NULL DEFAULT 0,\n  closed INTEGER NOT NULL DEFAULT 0\n)"
+      "sql": "CREATE TABLE forum_topics (\n  id TEXT PRIMARY KEY,\n  slug TEXT NOT NULL,\n  title TEXT NOT NULL,\n  category_id TEXT NOT NULL,\n  tag_ids TEXT NOT NULL DEFAULT '[]',\n  author_id TEXT NOT NULL REFERENCES forum_users(id),\n  created_at INTEGER NOT NULL,\n  last_activity_at INTEGER NOT NULL,\n  views INTEGER NOT NULL DEFAULT 0,\n  pinned INTEGER NOT NULL DEFAULT 0,\n  closed INTEGER NOT NULL DEFAULT 0\n, visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'registered', 'member')))"
     },
     {
       "columns": [
@@ -81572,7 +82431,7 @@
       "name": "forum_users",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 226,
+        "line": 227,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE forum_users (\n  id TEXT PRIMARY KEY,\n  kind TEXT NOT NULL CHECK (kind IN ('member','guest','official')),\n  github_user_id INTEGER UNIQUE,\n  username TEXT NOT NULL UNIQUE COLLATE NOCASE,\n  display_name TEXT NOT NULL,\n  bio TEXT NOT NULL DEFAULT '',\n  location TEXT NOT NULL DEFAULT '',\n  website TEXT NOT NULL DEFAULT '',\n  avatar_color TEXT NOT NULL,\n  github_avatar_url TEXT,\n  avatar_hash TEXT REFERENCES forum_avatars(hash),\n  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin','moderator','member')),\n  title TEXT,\n  notify_reply INTEGER NOT NULL DEFAULT 1,\n  notify_like INTEGER NOT NULL DEFAULT 1,\n  notify_follow INTEGER NOT NULL DEFAULT 1,\n  joined_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL\n, account_id TEXT REFERENCES users(id))"
@@ -81783,7 +82642,7 @@
       "name": "gitlab_accounts",
       "note": "极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，从不删除；avatar_source 是传上去的头像来自哪里（forum:<散列> 或 GitHub 头像地址，#271），空是还没传过；emails_source 是上次同步过去的邮箱（JSON：主邮箱与其它邮箱，#272），空是还没同步过；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。",
       "source": {
-        "line": 508,
+        "line": 509,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE gitlab_accounts (\n  account_id TEXT PRIMARY KEY REFERENCES users(id),\n  gitlab_user_id INTEGER UNIQUE,\n  username TEXT NOT NULL UNIQUE COLLATE NOCASE,\n  state TEXT NOT NULL CHECK (state IN ('pending','active','blocked')),\n  access_level INTEGER,\n  last_error TEXT,\n  last_error_at INTEGER,\n  synced_at INTEGER,\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL\n, avatar_source TEXT, emails_source TEXT)"
@@ -82084,7 +82943,7 @@
       "name": "identities",
       "note": "每种登录方式一行；GitHub 的 provider_uid 是数字 id 的十进制串，login、avatar_url 只是展示镜像。同一 GitHub 账号只能绑定一个极客班账号；一个账号 GitHub、Google 各最多一个，邮箱最多 5 个（#272）。目录不读取记录。",
       "source": {
-        "line": 403,
+        "line": 404,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE identities (\n  id TEXT PRIMARY KEY,\n  user_id TEXT NOT NULL REFERENCES users(id),\n  provider TEXT NOT NULL CHECK (provider IN ('github','google','email')),\n  provider_uid TEXT NOT NULL,\n  provider_union_id TEXT,\n  email TEXT,\n  email_verified INTEGER NOT NULL DEFAULT 0,\n  login TEXT,\n  avatar_url TEXT,\n  created_at INTEGER NOT NULL,\n  last_login_at INTEGER,\n  UNIQUE (provider, provider_uid)\n)"
@@ -82208,7 +83067,7 @@
       "name": "identity_audit",
       "note": "给本人看的账号记录（登录、被拒、退出），不存 IP、UA、邮箱原文和第三方标识；管理审计仍在 audit_logs。",
       "source": {
-        "line": 421,
+        "line": 422,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE identity_audit (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  user_id TEXT NOT NULL REFERENCES users(id),\n  action TEXT NOT NULL,\n  provider TEXT,\n  result TEXT NOT NULL CHECK (result IN ('ok','denied','failed')),\n  reason TEXT,\n  created_at INTEGER NOT NULL\n)"
@@ -82366,7 +83225,7 @@
       "name": "invitations",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 53,
+        "line": 54,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE invitations (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  org TEXT NOT NULL,\n  invite_link_token TEXT,\n  github_login TEXT,\n  email TEXT,\n  note TEXT,\n  source_ip TEXT,\n  user_agent TEXT,\n  github_invitation_id INTEGER,\n  status TEXT NOT NULL,\n  error_message TEXT,\n  created_at INTEGER NOT NULL\n)"
@@ -82495,7 +83354,7 @@
       "name": "invite_attempts",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 118,
+        "line": 119,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE invite_attempts (\n    id TEXT PRIMARY KEY, token TEXT NOT NULL, recipient TEXT NOT NULL,\n    state TEXT NOT NULL, github_invitation_id INTEGER, created_at INTEGER NOT NULL,\n    UNIQUE(token, recipient)\n  )"
@@ -82627,7 +83486,7 @@
       "name": "invite_codes",
       "note": "注册邀请码（#262）：code 存小写明文（要能在控制台里复制给人），used_count 由注册事务里的条件更新加一，max_uses、expires_at 为空表示不限；不删，停用用 disabled。users.invite_code_id 记着账号是用哪一个注册的。只有 lib/invite-codes.ts 与 lib/identity-store.ts 读写。",
       "source": {
-        "line": 637,
+        "line": 638,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE invite_codes (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  code TEXT NOT NULL UNIQUE,\n  note TEXT NOT NULL DEFAULT '',\n  max_uses INTEGER CHECK (max_uses IS NULL OR max_uses > 0),\n  used_count INTEGER NOT NULL DEFAULT 0,\n  expires_at INTEGER,\n  disabled INTEGER NOT NULL DEFAULT 0 CHECK (disabled IN (0, 1)),\n  created_by TEXT NOT NULL,\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL\n)"
@@ -82793,10 +83652,120 @@
       "name": "invite_links",
       "note": "包含能力令牌与加密上游凭据。目录不读取记录。",
       "source": {
-        "line": 38,
+        "line": 39,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE invite_links (\n  token TEXT PRIMARY KEY,\n  org TEXT NOT NULL,\n  created_by TEXT NOT NULL,\n  created_by_token_encrypted TEXT NOT NULL,\n  note TEXT,\n  max_uses INTEGER NOT NULL,\n  current_uses INTEGER NOT NULL DEFAULT 0,\n  expires_at INTEGER NOT NULL,\n  team_slug TEXT,\n  disabled INTEGER NOT NULL DEFAULT 0,\n  created_at INTEGER NOT NULL\n)"
+    },
+    {
+      "columns": [
+        {
+          "cid": 0,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "bucket",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 1,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "subject",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 2,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "at",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        }
+      ],
+      "database": "data.db",
+      "domain": "platform",
+      "foreignKeys": [],
+      "id": "table:limit_events",
+      "indexes": [
+        {
+          "columns": [
+            {
+              "cid": 2,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "at",
+              "seqno": 0
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 1
+            }
+          ],
+          "name": "idx_limit_events_at",
+          "origin": "c",
+          "partial": 0,
+          "sql": "CREATE INDEX idx_limit_events_at ON limit_events(at)",
+          "unique": 0
+        },
+        {
+          "columns": [
+            {
+              "cid": 0,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "bucket",
+              "seqno": 0
+            },
+            {
+              "cid": 1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "subject",
+              "seqno": 1
+            },
+            {
+              "cid": 2,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "at",
+              "seqno": 2
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 3
+            }
+          ],
+          "name": "idx_limit_events_subject",
+          "origin": "c",
+          "partial": 0,
+          "sql": "CREATE INDEX idx_limit_events_subject ON limit_events(bucket, subject, at)",
+          "unique": 0
+        }
+      ],
+      "name": "limit_events",
+      "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
+      "source": {
+        "line": 813,
+        "path": "app/server/src/lib/db.ts"
+      },
+      "sql": "CREATE TABLE limit_events (\n  bucket TEXT NOT NULL,\n  subject TEXT NOT NULL,\n  at INTEGER NOT NULL\n)"
     },
     {
       "columns": [
@@ -83215,7 +84184,7 @@
       "name": "mail_outbox",
       "note": "包含发信中的个人信息；application_id、review_id 不是数据库外键。具体保留规则见 mail.md。",
       "source": {
-        "line": 337,
+        "line": 338,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE mail_outbox (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  event_key TEXT NOT NULL UNIQUE,\n  kind TEXT NOT NULL,\n  application_id TEXT,\n  review_id INTEGER,\n  recipient TEXT,\n  recipient_hash TEXT NOT NULL,\n  limit_hash TEXT NOT NULL,\n  source_hash TEXT,\n  subject TEXT NOT NULL,\n  html TEXT,\n  text TEXT,\n  reply_to TEXT,\n  status TEXT NOT NULL CHECK (status IN ('pending','sending','sent','failed','skipped')),\n  skip_reason TEXT,\n  attempts INTEGER NOT NULL DEFAULT 0,\n  next_attempt_at INTEGER NOT NULL,\n  provider TEXT,\n  provider_message_id TEXT,\n  last_error TEXT,\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL,\n  sent_at INTEGER\n)"
@@ -83320,7 +84289,7 @@
       "name": "oauth_clients",
       "note": "对外授权登记的下游应用（#270）：回调地址必须同一个主机（就是 sector），secret 只存 AES-256-GCM 密文；停用用 status，不删。只有 lib/oidc-store.ts 读写，客户端只能用 cli/oidc.ts 登记。目录不读取记录。",
       "source": {
-        "line": 461,
+        "line": 462,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE oauth_clients (\n  client_id TEXT PRIMARY KEY,\n  name TEXT NOT NULL,\n  secret_encrypted TEXT NOT NULL,\n  redirect_uris TEXT NOT NULL,\n  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled')),\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL\n)"
@@ -83427,7 +84396,7 @@
       "name": "oauth_grants",
       "note": "本人允许过的 (账号, 应用) → oidc-provider 的授权 id：之后同一应用登录不再问。授权被撤销（例如授权码重放）后这一行指向的授权不存在，下次登录重新同意并覆盖。只有 lib/oidc-store.ts 读写。",
       "source": {
-        "line": 480,
+        "line": 481,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE oauth_grants (\n  user_id TEXT NOT NULL REFERENCES users(id),\n  client_id TEXT NOT NULL REFERENCES oauth_clients(client_id),\n  grant_id TEXT NOT NULL,\n  created_at INTEGER NOT NULL,\n  PRIMARY KEY (user_id, client_id)\n)"
@@ -83557,7 +84526,7 @@
       "name": "oauth_subjects",
       "note": "下游看到的 sub（ADR-0005 决策 3）：按 sector 给每个账号一个 32 字节随机值，(sector_id,user_id) 与 (sector_id,sub) 都唯一，不随登录或换签名密钥变化；内部 account_id 不下发。只有 lib/oidc-store.ts 读写。",
       "source": {
-        "line": 471,
+        "line": 472,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE oauth_subjects (\n  sector_id TEXT NOT NULL,\n  user_id TEXT NOT NULL REFERENCES users(id),\n  sub TEXT NOT NULL,\n  created_at INTEGER NOT NULL,\n  PRIMARY KEY (sector_id, user_id),\n  UNIQUE (sector_id, sub)\n)"
@@ -83795,10 +84764,711 @@
       "name": "oidc_payloads",
       "note": "oidc-provider 的存储（会话、交互、授权码、访问令牌、授权）：payload 是它的 JSON，按 expires_at 过期，每小时顺手清一次过期行；令牌与授权码只在这里，不进日志。只有 lib/oidc-store.ts 读写，目录不读取记录。",
       "source": {
-        "line": 488,
+        "line": 489,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE oidc_payloads (\n  model TEXT NOT NULL,\n  id TEXT NOT NULL,\n  payload TEXT NOT NULL,\n  grant_id TEXT,\n  uid TEXT,\n  user_code TEXT,\n  expires_at INTEGER,\n  consumed_at INTEGER,\n  PRIMARY KEY (model, id)\n)"
+    },
+    {
+      "columns": [
+        {
+          "cid": 0,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "id",
+          "notnull": 0,
+          "pk": 1,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 1,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "subject_type",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 2,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "subject_id",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 3,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "node",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 4,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "value",
+          "notnull": 0,
+          "pk": 0,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 5,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "meta_value",
+          "notnull": 0,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 6,
+          "dflt_value": "'{}'",
+          "hidden": 0,
+          "name": "scope",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 7,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "expires_at",
+          "notnull": 0,
+          "pk": 0,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 8,
+          "dflt_value": "''",
+          "hidden": 0,
+          "name": "granted_by",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 9,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "created_at",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        }
+      ],
+      "database": "data.db",
+      "domain": "permissions",
+      "foreignKeys": [],
+      "id": "table:perm_entries",
+      "indexes": [
+        {
+          "columns": [
+            {
+              "cid": 3,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "node",
+              "seqno": 0
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 1
+            }
+          ],
+          "name": "idx_perm_entries_node",
+          "origin": "c",
+          "partial": 0,
+          "sql": "CREATE INDEX idx_perm_entries_node ON perm_entries(node)",
+          "unique": 0
+        },
+        {
+          "columns": [
+            {
+              "cid": 1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "subject_type",
+              "seqno": 0
+            },
+            {
+              "cid": 2,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "subject_id",
+              "seqno": 1
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 2
+            }
+          ],
+          "name": "idx_perm_entries_subject",
+          "origin": "c",
+          "partial": 0,
+          "sql": "CREATE INDEX idx_perm_entries_subject ON perm_entries(subject_type, subject_id)",
+          "unique": 0
+        }
+      ],
+      "name": "perm_entries",
+      "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
+      "source": {
+        "line": 736,
+        "path": "app/server/src/lib/db.ts"
+      },
+      "sql": "CREATE TABLE perm_entries (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  subject_type TEXT NOT NULL CHECK (subject_type IN ('group', 'account')),\n  subject_id TEXT NOT NULL,\n  node TEXT NOT NULL,\n  value INTEGER CHECK (value IS NULL OR value IN (0, 1)),\n  meta_value TEXT,\n  scope TEXT NOT NULL DEFAULT '{}',\n  expires_at INTEGER,\n  granted_by TEXT NOT NULL DEFAULT '',\n  created_at INTEGER NOT NULL,\n  CHECK ((value IS NULL) <> (meta_value IS NULL))\n)"
+    },
+    {
+      "columns": [
+        {
+          "cid": 0,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "group_id",
+          "notnull": 1,
+          "pk": 1,
+          "type": "TEXT"
+        },
+        {
+          "cid": 1,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "parent_id",
+          "notnull": 1,
+          "pk": 2,
+          "type": "TEXT"
+        }
+      ],
+      "database": "data.db",
+      "domain": "permissions",
+      "foreignKeys": [
+        {
+          "from": "parent_id",
+          "id": 0,
+          "match": "NONE",
+          "on_delete": "CASCADE",
+          "on_update": "NO ACTION",
+          "seq": 0,
+          "table": "perm_groups",
+          "to": "id"
+        },
+        {
+          "from": "group_id",
+          "id": 1,
+          "match": "NONE",
+          "on_delete": "CASCADE",
+          "on_update": "NO ACTION",
+          "seq": 0,
+          "table": "perm_groups",
+          "to": "id"
+        }
+      ],
+      "id": "table:perm_group_parents",
+      "indexes": [
+        {
+          "columns": [
+            {
+              "cid": 0,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "group_id",
+              "seqno": 0
+            },
+            {
+              "cid": 1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "parent_id",
+              "seqno": 1
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 2
+            }
+          ],
+          "name": "sqlite_autoindex_perm_group_parents_1",
+          "origin": "pk",
+          "partial": 0,
+          "sql": null,
+          "unique": 1
+        }
+      ],
+      "name": "perm_group_parents",
+      "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
+      "source": {
+        "line": 730,
+        "path": "app/server/src/lib/db.ts"
+      },
+      "sql": "CREATE TABLE perm_group_parents (\n  group_id TEXT NOT NULL REFERENCES perm_groups(id) ON DELETE CASCADE,\n  parent_id TEXT NOT NULL REFERENCES perm_groups(id) ON DELETE CASCADE,\n  PRIMARY KEY (group_id, parent_id)\n)"
+    },
+    {
+      "columns": [
+        {
+          "cid": 0,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "id",
+          "notnull": 0,
+          "pk": 1,
+          "type": "TEXT"
+        },
+        {
+          "cid": 1,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "kind",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 2,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "name",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 3,
+          "dflt_value": "''",
+          "hidden": 0,
+          "name": "description",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 4,
+          "dflt_value": "0",
+          "hidden": 0,
+          "name": "weight",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 5,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "department_id",
+          "notnull": 0,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 6,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "icon",
+          "notnull": 0,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 7,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "tone",
+          "notnull": 0,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 8,
+          "dflt_value": "0",
+          "hidden": 0,
+          "name": "sort",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 9,
+          "dflt_value": "0",
+          "hidden": 0,
+          "name": "system",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 10,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "created_at",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 11,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "updated_at",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        }
+      ],
+      "database": "data.db",
+      "domain": "permissions",
+      "foreignKeys": [],
+      "id": "table:perm_groups",
+      "indexes": [
+        {
+          "columns": [
+            {
+              "cid": 0,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "id",
+              "seqno": 0
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 1
+            }
+          ],
+          "name": "sqlite_autoindex_perm_groups_1",
+          "origin": "pk",
+          "partial": 0,
+          "sql": null,
+          "unique": 1
+        }
+      ],
+      "name": "perm_groups",
+      "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
+      "source": {
+        "line": 715,
+        "path": "app/server/src/lib/db.ts"
+      },
+      "sql": "CREATE TABLE perm_groups (\n  id TEXT PRIMARY KEY,\n  kind TEXT NOT NULL CHECK (kind IN ('level', 'department', 'title', 'custom')),\n  name TEXT NOT NULL,\n  description TEXT NOT NULL DEFAULT '',\n  weight INTEGER NOT NULL DEFAULT 0,\n  department_id TEXT,\n  icon TEXT,\n  tone TEXT,\n  sort INTEGER NOT NULL DEFAULT 0,\n  system INTEGER NOT NULL DEFAULT 0 CHECK (system IN (0, 1)),\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL\n)"
+    },
+    {
+      "columns": [
+        {
+          "cid": 0,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "account_id",
+          "notnull": 1,
+          "pk": 1,
+          "type": "TEXT"
+        },
+        {
+          "cid": 1,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "group_id",
+          "notnull": 1,
+          "pk": 2,
+          "type": "TEXT"
+        },
+        {
+          "cid": 2,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "expires_at",
+          "notnull": 0,
+          "pk": 0,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 3,
+          "dflt_value": "''",
+          "hidden": 0,
+          "name": "granted_by",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 4,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "created_at",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        }
+      ],
+      "database": "data.db",
+      "domain": "permissions",
+      "foreignKeys": [
+        {
+          "from": "group_id",
+          "id": 0,
+          "match": "NONE",
+          "on_delete": "NO ACTION",
+          "on_update": "NO ACTION",
+          "seq": 0,
+          "table": "perm_groups",
+          "to": "id"
+        },
+        {
+          "from": "account_id",
+          "id": 1,
+          "match": "NONE",
+          "on_delete": "NO ACTION",
+          "on_update": "NO ACTION",
+          "seq": 0,
+          "table": "users",
+          "to": "id"
+        }
+      ],
+      "id": "table:perm_members",
+      "indexes": [
+        {
+          "columns": [
+            {
+              "cid": 1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "group_id",
+              "seqno": 0
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 1
+            }
+          ],
+          "name": "idx_perm_members_group",
+          "origin": "c",
+          "partial": 0,
+          "sql": "CREATE INDEX idx_perm_members_group ON perm_members(group_id)",
+          "unique": 0
+        },
+        {
+          "columns": [
+            {
+              "cid": 0,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "account_id",
+              "seqno": 0
+            },
+            {
+              "cid": 1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "group_id",
+              "seqno": 1
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 2
+            }
+          ],
+          "name": "sqlite_autoindex_perm_members_1",
+          "origin": "pk",
+          "partial": 0,
+          "sql": null,
+          "unique": 1
+        }
+      ],
+      "name": "perm_members",
+      "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
+      "source": {
+        "line": 752,
+        "path": "app/server/src/lib/db.ts"
+      },
+      "sql": "CREATE TABLE perm_members (\n  account_id TEXT NOT NULL REFERENCES users(id),\n  group_id TEXT NOT NULL REFERENCES perm_groups(id),\n  expires_at INTEGER,\n  granted_by TEXT NOT NULL DEFAULT '',\n  created_at INTEGER NOT NULL,\n  PRIMARY KEY (account_id, group_id)\n)"
+    },
+    {
+      "columns": [
+        {
+          "cid": 0,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "node",
+          "notnull": 0,
+          "pk": 1,
+          "type": "TEXT"
+        },
+        {
+          "cid": 1,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "domain",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 2,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "label",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 3,
+          "dflt_value": "''",
+          "hidden": 0,
+          "name": "description",
+          "notnull": 1,
+          "pk": 0,
+          "type": "TEXT"
+        },
+        {
+          "cid": 4,
+          "dflt_value": "0",
+          "hidden": 0,
+          "name": "meta",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        },
+        {
+          "cid": 5,
+          "dflt_value": "0",
+          "hidden": 0,
+          "name": "sort",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        }
+      ],
+      "database": "data.db",
+      "domain": "permissions",
+      "foreignKeys": [],
+      "id": "table:perm_nodes",
+      "indexes": [
+        {
+          "columns": [
+            {
+              "cid": 0,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "node",
+              "seqno": 0
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 1
+            }
+          ],
+          "name": "sqlite_autoindex_perm_nodes_1",
+          "origin": "pk",
+          "partial": 0,
+          "sql": null,
+          "unique": 1
+        }
+      ],
+      "name": "perm_nodes",
+      "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
+      "source": {
+        "line": 706,
+        "path": "app/server/src/lib/db.ts"
+      },
+      "sql": "CREATE TABLE perm_nodes (\n  node TEXT PRIMARY KEY,\n  domain TEXT NOT NULL,\n  label TEXT NOT NULL,\n  description TEXT NOT NULL DEFAULT '',\n  meta INTEGER NOT NULL DEFAULT 0 CHECK (meta IN (0, 1)),\n  sort INTEGER NOT NULL DEFAULT 0\n)"
+    },
+    {
+      "columns": [
+        {
+          "cid": 0,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "key",
+          "notnull": 0,
+          "pk": 1,
+          "type": "TEXT"
+        },
+        {
+          "cid": 1,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "value",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        }
+      ],
+      "database": "data.db",
+      "domain": "permissions",
+      "foreignKeys": [],
+      "id": "table:perm_state",
+      "indexes": [
+        {
+          "columns": [
+            {
+              "cid": 0,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "key",
+              "seqno": 0
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 1
+            }
+          ],
+          "name": "sqlite_autoindex_perm_state_1",
+          "origin": "pk",
+          "partial": 0,
+          "sql": null,
+          "unique": 1
+        }
+      ],
+      "name": "perm_state",
+      "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
+      "source": {
+        "line": 762,
+        "path": "app/server/src/lib/db.ts"
+      },
+      "sql": "CREATE TABLE perm_state (\n  key TEXT PRIMARY KEY,\n  value INTEGER NOT NULL\n)"
     },
     {
       "columns": [
@@ -84078,7 +85748,7 @@
       "name": "role_assignments",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 158,
+        "line": 159,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE role_assignments (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  github_login TEXT NOT NULL,\n  github_user_id INTEGER,\n  role TEXT NOT NULL CHECK (role IN ('captain','head','member','alumni')),\n  department_id TEXT NOT NULL DEFAULT '',\n  note TEXT,\n  granted_by TEXT NOT NULL,\n  created_at INTEGER NOT NULL, account_id TEXT REFERENCES users(id),\n  CHECK ((role = 'head' AND department_id <> '') OR (role IN ('captain','alumni') AND department_id = '') OR role = 'member'),\n  UNIQUE (github_login, role, department_id)\n)"
@@ -84262,7 +85932,7 @@
       "name": "sessions",
       "note": "包含加密会话凭据。目录仅记录列与约束，不读取会话值。",
       "source": {
-        "line": 27,
+        "line": 28,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE sessions (\n  id TEXT PRIMARY KEY,\n  login TEXT NOT NULL,\n  user_id INTEGER,\n  avatar_url TEXT,\n  access_token_encrypted TEXT NOT NULL,\n  created_at INTEGER NOT NULL,\n  expires_at INTEGER NOT NULL\n, openid TEXT REFERENCES users(id), provider TEXT)"
@@ -84385,7 +86055,7 @@
       "name": "titles",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 131,
+        "line": 132,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE titles (\n  id TEXT PRIMARY KEY CHECK (id IN ('admin','captain','head','member','alumni','guest')),\n  label TEXT NOT NULL,\n  tag TEXT NOT NULL,\n  icon TEXT NOT NULL,\n  tone TEXT NOT NULL,\n  description TEXT NOT NULL DEFAULT '',\n  capabilities TEXT NOT NULL DEFAULT '[]',\n  updated_by TEXT,\n  updated_at INTEGER NOT NULL\n)"
@@ -84599,13 +86269,17 @@
       "name": "users",
       "note": "极客班账号：id 就是接口里的 account_id（极客班 OpenID），随机生成、永不复用；只有身份模块（lib/identity-store.ts）读写。目录不读取记录。",
       "source": {
-        "line": 389,
+        "line": 390,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE users (\n  id TEXT PRIMARY KEY,\n  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled','merged')),\n  merged_into TEXT REFERENCES users(id),\n  canonical_email TEXT,\n  org_state TEXT NOT NULL DEFAULT 'active' CHECK (org_state IN ('active','pending','not_member','unknown')),\n  org_checked_at INTEGER,\n  membership_version INTEGER NOT NULL DEFAULT 0,\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL, org_role TEXT, handle TEXT, invite_code_id INTEGER REFERENCES invite_codes(id), password_hash TEXT, password_updated_at INTEGER,\n  CHECK ((status = 'merged') = (merged_into IS NOT NULL)),\n  CHECK (merged_into <> id)\n)"
     }
   ],
-  "unmappedSources": [],
+  "unmappedSources": [
+    "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
+    "app/server/src/lib/permission-nodes.ts",
+    "app/server/src/lib/permissions.ts"
+  ],
   "updated": "2026-10-23",
   "version": 1,
   "visibility": "internal-engineering"
