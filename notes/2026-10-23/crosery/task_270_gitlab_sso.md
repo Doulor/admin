@@ -71,3 +71,10 @@
 - 做了什么：提交 0239136d（服务端，10 个文件）：lib/gitlab-sync.ts、两份测试、oidc.md 与项目目录生成物。提交 d8a6c73c（控制台，14 个文件）：pages/People.vue、lib/gitlab.ts、lib/types.ts、mock/console.ts、tests/console/gitlab.test.ts、控制台 README、oidc.md、ownership.json 与生成物、docs/changes/270.json。两个提交各自生成项目目录，单独检出时 check:catalog 一致。
 - 结果：见上一条审查记录
 - 下一步：推送并更新 MR
+
+## 13:56:44 +08:00 · 提交 · #270 · 01fd42dd 预发布 GITLAB_SYNC 改成 on，GitLab 正式站上线前接预发布
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：geek-main-56 转来所有者 13:36 的选择「现在先接预发布（推荐）」（方案 A），并按所有者 12:35 的原话「必须统一接入我们的极客班登录才能访问仓库」定下四个仓库和 geek 组改 private、已有本地 GitLab 账号绑到对应极客班账号。提交 01fd42dd（12 个文件）：deploy/env/.env.preview 的 GITLAB_SYNC 从 dry-run 改成 on；oidc.md、ENVIRONMENTS、DEPLOY 写明正式站上线前接预发布、预发布数据库不能清空重建、上线后先把 GitLab 的 sub 迁到正式库再改 issuer；deployment-environment 的用例改成预发布模板是 on、没有令牌拒绝渲染；docs/changes/270.json 与项目目录。文档核对：SECURITY.md 不用改——残余风险写的是同步不是 on 时没人封禁、令牌外泄等于交出 GitLab，接哪个环境不影响这两条。
+- 结果：pnpm test 97 个文件 1596 条通过；typecheck 通过；check:environments、check:docs、check:catalog、check:secrets、check:notes 通过；check-architecture 与 check-doc-sync 按 --base 2101fe40 通过。
+- 下一步：推送；在 GitLab 上建同步用的管理员机器人与令牌
