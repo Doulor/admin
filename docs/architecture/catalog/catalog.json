@@ -12232,7 +12232,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "eed71cc99285de35b3722e4ab9c1e4714a39d4248997ddaad99ea0c5c77f1a57",
+    "fingerprint": "d40c32512484c9c0bded345c6a0884bb146520a1d0a2631dbf54907a0a9fd1e5",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -12468,7 +12468,7 @@
       },
       {
         "path": "app/console/src/pages/github/InviteLinks.vue",
-        "sha256": "32fc060c125fb243a7fe4e219a26e23e3ed3bef4922ad13ec7e1b63665cdbec2"
+        "sha256": "3e3c3dd9a236370e2c8eef2b9b9164a7c336a4d5ed1944b7c23e323d3fb9d546"
       },
       {
         "path": "app/console/src/pages/github/Members.vue",

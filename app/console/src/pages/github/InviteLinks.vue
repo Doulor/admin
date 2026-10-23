@@ -125,7 +125,7 @@ async function askRemove(link: Link) {
             <TxButton size="sm" variant="ghost" class="danger-text" :disabled="remove.pending.value" @click="askRemove(row)">删除</TxButton>
           </span>
         </template>
-        <template #empty><TxEmptyState title="还没有邀请链接" description="用右上角的「生成链接」创建第一条。" size="small" /></template>
+        <template #empty><TxEmptyState title="还没有邀请链接" :description="connected ? '用右上角的「生成链接」创建第一条。' : '接上 GitHub 后，用右上角的「生成链接」创建第一条。'" size="small" /></template>
       </TxDataTable>
     </TxCard>
 
