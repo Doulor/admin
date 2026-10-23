@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { actionText, loginIsFresh, membershipText, passwordProblem, providerText } from "../../app/console/src/lib/account";
 import {
   INVITE_CODE_PATTERN as CONSOLE_INVITE_PATTERN, emptyInviteForm, inviteErrors, invitePayload, inviteState, randomInviteCode, usesText,
 } from "../../app/console/src/lib/invites";
 import { dateEdge } from "../../app/console/src/lib/competitions";
-import { mockAccount, MOCK_PERSONAS } from "../../app/console/src/mock/console";
+import { mockAccount, MOCK_PERSONAS, routeConsole } from "../../app/console/src/mock/console";
+import { mockApi } from "../../app/console/src/mock";
 import { INVITE_CODE_PATTERN, inviteUsable } from "../../app/server/src/lib/invite-codes";
 import { passwordError } from "../../app/server/src/lib/password-policy";
 import type { InviteCode } from "../../app/console/src/lib/types";
@@ -36,6 +37,7 @@ describe("账号页 (lib/account)", () => {
 
   it("记录与登录方式的中文名，未知的原样显示", () => {
     expect(actionText("password_set")).toBe("设置密码");
+    expect(actionText("password_reset")).toBe("重设密码");
     expect(actionText("something_new")).toBe("something_new");
     expect(providerText("google")).toBe("Google");
     expect(providerText(null)).toBe("-");
@@ -50,6 +52,22 @@ describe("账号页 (lib/account)", () => {
     const view = mockAccount(MOCK_PERSONAS.admin_email);
     expect(view.session.provider).toBe("email");
     for (const item of view.identities) if (item.provider === "email") expect(item.label).toMatch(/^.\*\*\*@/);
+  });
+
+  afterEach(() => { vi.unstubAllGlobals(); });
+  it("开发预览：没有登录邮箱的两个样板要先绑邮箱，一个刚登录、一个要先重新登录；其余样板不要求（#273）", async () => {
+    const fresh = mockAccount(MOCK_PERSONAS.no_email);
+    expect(fresh).toMatchObject({ email_required: true, available: ["email"] });
+    expect(fresh.identities.map(item => item.provider)).toEqual(["github"]);
+    expect(loginIsFresh(fresh)).toBe(true);
+    expect(loginIsFresh(mockAccount(MOCK_PERSONAS.no_email_stale))).toBe(false);
+    for (const name of ["admin", "admin_email", "member", "guest"]) expect(mockAccount(MOCK_PERSONAS[name]).email_required, name).toBe(false);
+
+    vi.stubGlobal("window", { location: { search: "?__persona=no_email" } });
+    expect(routeConsole(new URL("http://mock.local/api/console/me"))).toMatchObject({ email_required: true });
+    expect(await mockApi("/auth/me")).toMatchObject({ signed_in: true, email_required: true });
+    vi.stubGlobal("window", { location: { search: "?__persona=member" } });
+    expect(routeConsole(new URL("http://mock.local/api/console/me"))).toMatchObject({ email_required: false });
   });
 });
 

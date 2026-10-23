@@ -49,8 +49,8 @@ export type IdentityBackfillReport = {
   assignments_claimed: number; assignments_unclaimed: number; forum_claimed: number;
 };
 
-/** identity_audit 的 action：登录、被拒、退出；#262 第二期加注册、绑定、绑定冲突、设密码与改密码；第四期加站内角色被改。 */
-export type AccountAction = "login" | "login_denied" | "logout" | "register" | "link" | "link_conflict" | "password_set" | "password_change" | "role_change";
+/** identity_audit 的 action：登录、被拒、退出；#262 第二期加注册、绑定、绑定冲突、设密码与改密码；第四期加站内角色被改；#273 加忘了密码后重设。 */
+export type AccountAction = "login" | "login_denied" | "logout" | "register" | "link" | "link_conflict" | "password_set" | "password_change" | "password_reset" | "role_change";
 
 /** `merged_into` 最多走 8 跳；更长或成环说明数据坏了，登录按 `failed` 处理。 */
 export const MERGE_HOPS_MAX = 8;
@@ -321,7 +321,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
    * 建号、兑换和占用在同一个事务里，任何一步不成整体回滚：邀请码不白用，验证码不白丢。
    */
   function signInSecondChannel(input: {
-    provider: "email" | "google"; uid: string; email: string | null; method: "code" | "password" | "oidc";
+    provider: "email" | "google"; uid: string; email: string | null; method: "code" | "password" | "oidc" | "reset";
     invite?: string | null; previousSid?: string | null; ip?: string; claim?: () => boolean;
   }): SigninResult {
     try {
@@ -402,16 +402,37 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     return (accountRow.get(accountId) as { password_hash: string | null } | undefined)?.password_hash ?? null;
   }
 
+  /** 写密码哈希、identity_audit 与 account.password；调用方负责事务。`reset` 是忘了密码后用验证码重设（#273）。 */
+  function writePassword(accountId: string, hash: string, actor: { login: string; ip?: string }, reset: boolean): void {
+    const now = clock();
+    const had = (accountRow.get(accountId) as { password_hash: string | null }).password_hash !== null;
+    db.prepare("UPDATE users SET password_hash = ?, password_updated_at = ?, updated_at = ? WHERE id = ?").run(hash, now, now, accountId);
+    // 改了密码：这个账号用密码以外方式登录的会话不动，其余设备上旧密码换来的会话也不动（不做「退出所有设备」，规格「不做」）
+    const action = reset ? "password_reset" : had ? "password_change" : "password_set";
+    accountEvent(accountId, action, "email", "ok", null, now);
+    deps.audit(null, { login: actor.login, account_id: accountId }, "account.password", undefined, { action: reset ? "reset" : had ? "change" : "set" }, actor.ip);
+  }
+
   /** 设置或修改密码（哈希由路由用 lib/password-policy.ts 算好）；写 identity_audit 与 account.password。 */
   function setPassword(accountId: string, hash: string, actor: { login: string; ip?: string }): void {
-    db.transaction(() => {
-      const now = clock();
-      const had = (accountRow.get(accountId) as { password_hash: string | null }).password_hash !== null;
-      db.prepare("UPDATE users SET password_hash = ?, password_updated_at = ?, updated_at = ? WHERE id = ?").run(hash, now, now, accountId);
-      // 改了密码：这个账号用密码以外方式登录的会话不动，其余设备上旧密码换来的会话也不动（不做「退出所有设备」，规格「不做」）
-      accountEvent(accountId, had ? "password_change" : "password_set", "email", "ok", null, now);
-      deps.audit(null, { login: actor.login, account_id: accountId }, "account.password", undefined, { action: had ? "change" : "set" }, actor.ip);
-    })();
+    db.transaction(() => writePassword(accountId, hash, actor, false))();
+  }
+
+  /**
+   * 忘了密码（#273）：邮箱验证码核对过本人，在一个事务里登录（和验证码登录同一条路径：没有账号回 invite_required、
+   * 停用或不是成员照旧拒绝、占用验证码、建会话）并换上新密码。不能注册新账号；任何一步不成整体回滚，验证码不白丢。
+   */
+  function resetPassword(input: { email: string; hash: string; previousSid?: string | null; ip?: string; claim: () => boolean }): SigninResult {
+    return db.transaction((): SigninResult => {
+      const result = signInSecondChannel({ provider: "email", uid: input.email, email: input.email, method: "reset", previousSid: input.previousSid, ip: input.ip, claim: input.claim });
+      if (result.ok) writePassword(result.accountId, input.hash, { login: sessionProfile(result.accountId).login, ip: input.ip }, true);
+      return result;
+    }).immediate();
+  }
+
+  /** 账号有没有登录邮箱（#273）：没有时统一登录要先请人绑一个。 */
+  function hasEmail(accountId: string): boolean {
+    return Boolean(providerOfAccount.get(accountId, "email"));
   }
 
   /**
@@ -637,7 +658,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
 
   return {
     signInWithGithub, githubSigninPlan, recordGithubDenied, recordSignout, accountForGithub,
-    signInWithEmailCode, signInWithPassword, signInWithGoogle, passwordFor, passwordHashOf, setPassword, linkEmail,
+    signInWithEmailCode, signInWithPassword, signInWithGoogle, passwordFor, passwordHashOf, setPassword, resetPassword, hasEmail, linkEmail,
     recordOrgRole, roleUnrecorded, membershipOf, accountView, provisionAccount, listAccounts, setSiteRole, githubIdentityByLogin, accountTarget,
     getAccountClaims, listAccountsForSync,
   };

@@ -13,11 +13,13 @@ export function formatUserCode(raw: unknown): string {
 
 export const isCompleteUserCode = (code: string): boolean => formatUserCode(code) === code && code.length === USER_CODE_LENGTH + 1;
 
+const devicePath = (userCode: string) => (userCode ? `/device?user_code=${encodeURIComponent(userCode)}` : "/device");
 /** 没登录时去统一登录页；登录完带着同一串代码回到确认页（return_to 只是本站路径）。 */
 export function deviceSignInPath(userCode: string): string {
-  const back = userCode ? `/device?user_code=${encodeURIComponent(userCode)}` : "/device";
-  return `/signin?return_to=${encodeURIComponent(back)}`;
+  return `/signin?return_to=${encodeURIComponent(devicePath(userCode))}`;
 }
+/** 账号还没有登录邮箱（#273）：先去绑定邮箱页，绑好带着同一串代码回来。 */
+export const deviceBindEmailPath = (userCode: string): string => `/bind-email?return_to=${encodeURIComponent(devicePath(userCode))}`;
 
 /** 形状与服务端 `GET /api/identity/device` 一致。 */
 export type DeviceStatus = "pending" | "approved" | "denied" | "consumed" | "expired";

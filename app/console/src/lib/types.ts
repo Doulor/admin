@@ -31,6 +31,8 @@ export type ConsoleMe = {
   title: TitleView; titles: TitleView[];
   capabilities: Capability[];
   head_of: string[];
+  /** 账号还没有登录邮箱（#273）：控制台先带人去绑定邮箱页。 */
+  email_required: boolean;
 };
 
 export type CatalogueCapability = { id: Capability; domain: string; label: string; description: string };
@@ -202,7 +204,7 @@ export type InviteList = { invites: InviteCode[] };
 
 /** 账号页（GET /api/identity/me）：登录方式、密码、成员资格、这次登录与最近的账号记录。邮箱只下发打码后的样子。 */
 export type AccountIdentity = { provider: SessionProvider; label: string; linked_at: number; last_login_at: number | null };
-export type AccountAction = "login" | "login_denied" | "logout" | "register" | "link" | "link_conflict" | "password_set" | "password_change" | "role_change";
+export type AccountAction = "login" | "login_denied" | "logout" | "register" | "link" | "link_conflict" | "password_set" | "password_change" | "password_reset" | "role_change";
 export type AccountView = {
   account_id: string; login: string;
   identities: AccountIdentity[];
@@ -211,5 +213,6 @@ export type AccountView = {
   created_at: number;
   recent: { at: number; action: AccountAction | string; provider: string | null; result: "ok" | "denied" | "failed" }[];
   available: "email"[];
+  email_required: boolean;
   session: { provider: SessionProvider; created_at: number; expires_at: number; step_up_until: number };
 };

@@ -14,6 +14,7 @@ export const ACTION_TEXT: Record<string, string> = {
   link_conflict: "绑定被拒",
   password_set: "设置密码",
   password_change: "修改密码",
+  password_reset: "重设密码",
   role_change: "站内角色变更",
 };
 export const RESULT_TEXT: Record<AccountView["recent"][number]["result"], string> = { ok: "成功", denied: "被拒绝", failed: "失败" };

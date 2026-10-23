@@ -235,7 +235,7 @@ describe('email password sign-in (#262)', () => {
     const view = (await user.send('GET', '/api/identity/me')).json();
     expect(view).toMatchObject({ has_password: true, identities: [{ provider: 'email', label: 'p***@example.test' }] });
     // 响应合同不删字段：账号页用到的每一项都在
-    expect(Object.keys(view).sort()).toEqual(['account_id', 'available', 'created_at', 'has_password', 'identities', 'login', 'membership', 'password_updated_at', 'recent', 'session']);
+    expect(Object.keys(view).sort()).toEqual(['account_id', 'available', 'created_at', 'email_required', 'has_password', 'identities', 'login', 'membership', 'password_updated_at', 'recent', 'session']);
     expect(view.membership).toEqual({ state: 'active', org_role: 'member', via_invite: true });
     expect(view.session).toEqual(expect.objectContaining({ provider: 'email', step_up_until: view.session.created_at + 10 * 60 * 1000 }));
     expect(view.recent[0]).toEqual({ at: expect.any(Number), action: 'password_set', provider: 'email', result: 'ok' });
@@ -490,6 +490,16 @@ describe('GitHub sign-in: the site decides once an account is recorded (#262 第
     expect(roleOf(44)).toEqual({ org_role: 'member', org_state: 'active' });
     Object.assign(user, { id: 42, login: 'octocat' });
   });
+
+  it('sends a GitHub account without an email to the bind page first, and straight back once one is bound (#273)', async () => {
+    const context = await testApp({ httpRequest, octokitFactory: orgGate({ octocat: 'member' }, []) }, false, MAIL_ENV); contexts.push(context);
+    const { app } = context;
+    Object.assign(user, { id: 42, login: 'octocat' });
+    expect(await callback(app)).toBe('https://example.test/bind-email?return_to=%2Fforum%2F');
+    const accountId = (app.services.storage.db.prepare('SELECT id FROM users').get() as { id: string }).id;
+    app.services.identity.linkEmail({ accountId, email: 'octo@example.test', login: 'octocat', claim: () => true });
+    expect(await callback(app)).toBe('https://example.test/forum/');
+  });
 });
 
 describe('binding an email to a GitHub account (#262)', () => {
@@ -559,18 +569,22 @@ describe('Google sign-in (#262)', () => {
 
   it('asks for an invite on first use, registers with one and signs the same account in later', async () => {
     const google = googleStub();
-    const { app, db, invite } = await setup({ env: GOOGLE_ENV, google });
+    const { app, db, mail, invite } = await setup({ env: GOOGLE_ENV, google });
     invite('yugc-test-2026');
     const first = await googleFlow(app, google);
     expect(first.location).toBe('https://example.test/signin?signin=invite_required&provider=google&return_to=%2Fforum%2F');
     expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 0 });
 
+    // Google 给的邮箱不算登录邮箱（#273）：注册后先到绑定邮箱页
     const second = await googleFlow(app, google, '&invite=yugc-test-2026');
-    expect(second.location).toBe('https://example.test/forum/');
+    expect(second.location).toBe('https://example.test/bind-email?return_to=%2Fforum%2F');
     expect(google.tokenRequests.at(-1)).toContain('code_verifier=');
     const me = (await second.user.send('GET', '/auth/me')).json();
-    expect(me).toMatchObject({ signed_in: true, provider: 'google' });
+    expect(me).toMatchObject({ signed_in: true, provider: 'google', email_required: true });
     expect(db.prepare("SELECT provider_uid, email FROM identities WHERE provider = 'google'").get()).toEqual({ provider_uid: 'google-sub-1', email: 'g.user@gmail.com' });
+    // 绑上同一个 Gmail 地址就行；之后用 Google 登录直接回原页
+    expect((await second.user.send('POST', '/api/identity/email/start', { email: 'g.user@gmail.com' })).statusCode).toBe(202);
+    expect((await second.user.send('POST', '/api/identity/email/verify', { code: await mail.codeFor('g.user@gmail.com') })).json()).toEqual({ ok: true });
 
     const third = await googleFlow(app, google);
     expect(third.location).toBe('https://example.test/forum/');
@@ -590,6 +604,107 @@ describe('Google sign-in (#262)', () => {
     google.claims.email = 'other@gmail.com';
     google.claims.aud = 'someone-else';
     expect((await googleFlow(app, google, '&invite=yugc-test-2026')).location).toContain('signin=failed');
+  });
+});
+
+describe('forgot password and the bind-email gate (#273)', () => {
+  /** 用邀请码注册一个邮箱账号，passphrase 不为空时再在账号页设上密码；返回这个浏览器和账号 id。 */
+  async function emailAccount(context: Awaited<ReturnType<typeof setup>>, email: string, passphrase?: string) {
+    const user = browser(context.app);
+    await user.send('POST', '/auth/email/start', { email });
+    await user.send('POST', '/auth/email/verify', { code: await context.mail.codeFor(email), invite_code: 'yugc-test-2026' });
+    if (passphrase) expect((await user.send('POST', '/api/identity/password', { password: passphrase })).json()).toEqual({ ok: true });
+    return { user, accountId: (await user.send('GET', '/auth/me')).json().account_id as string };
+  }
+
+  it('resets a forgotten password with an emailed code, signs in, and keeps the code for a second try when the new password is too short', async () => {
+    const context = await setup();
+    const { app, db, mail, invite, tick } = context;
+    invite('yugc-test-2026');
+    const { accountId } = await emailAccount(context, 'forgot@example.test', 'old passphrase here');
+    tick(61_000);
+
+    const user = browser(app);
+    expect((await user.send('POST', '/auth/email/start', { email: 'forgot@example.test', purpose: 'reset', return_to: '/console' })).statusCode).toBe(202);
+    const code = await mail.codeFor('forgot@example.test', 2);
+    expect(mail.letters[1].subject).toBe('你的极客班重设密码验证码');
+    expect(mail.letters[1].text).toContain('你正在重设极客班账号的密码');
+
+    const short = await user.send('POST', '/auth/email/reset', { code, password: 'abc' });
+    expect([short.statusCode, short.json()]).toEqual([400, { error: 'password_too_short', message: '密码至少 8 位' }]);
+    expect((await user.send('POST', '/auth/email/reset', { code: code === '000000' ? '111111' : '000000', password: 'new passphrase here' })).json()).toMatchObject({ error: 'invalid_code', attempts_left: 4 });
+    const ok = await user.send('POST', '/auth/email/reset', { code, password: 'new passphrase here' });
+    expect([ok.statusCode, ok.json()]).toEqual([200, { return_to: 'https://example.test/console' }]);
+    expect((await user.send('GET', '/auth/me')).json()).toMatchObject({ signed_in: true, provider: 'email', account_id: accountId, email_required: false });
+    // 同一个验证码不能再用
+    expect((await user.send('POST', '/auth/email/reset', { code, password: 'third passphrase here' })).json().error).toBe('code_expired');
+
+    expect((await browser(app).send('POST', '/auth/email/password', { email: 'forgot@example.test', password: 'old passphrase here' })).json().error).toBe('invalid_credentials');
+    expect((await browser(app).send('POST', '/auth/email/password', { email: 'forgot@example.test', password: 'new passphrase here' })).statusCode).toBe(200);
+    expect(db.prepare("SELECT action, provider, result FROM identity_audit WHERE user_id = ? AND action LIKE 'password_%' ORDER BY id").all(accountId))
+      .toEqual([{ action: 'password_set', provider: 'email', result: 'ok' }, { action: 'password_reset', provider: 'email', result: 'ok' }]);
+    expect(db.prepare("SELECT details FROM audit_logs WHERE action = 'account.password' ORDER BY id").all().map(row => JSON.parse((row as { details: string }).details)))
+      .toEqual([{ action: 'set' }, { action: 'reset' }]);
+    const view = (await user.send('GET', '/api/identity/me')).json();
+    expect(view.recent[0]).toMatchObject({ action: 'login', provider: 'email' });
+    expect(view.recent.map((r: { action: string }) => r.action)).toContain('password_reset');
+  });
+
+  it('sets a first password the same way for an email account that never had one', async () => {
+    const context = await setup();
+    const { app, mail, invite, tick } = context;
+    invite('yugc-test-2026');
+    await emailAccount(context, 'nopw@example.test');
+    tick(61_000);
+    const user = browser(app);
+    await user.send('POST', '/auth/email/start', { email: 'nopw@example.test', purpose: 'reset' });
+    expect((await user.send('POST', '/auth/email/reset', { code: await mail.codeFor('nopw@example.test', 2), password: 'fresh passphrase' })).statusCode).toBe(200);
+    expect((await user.send('GET', '/api/identity/me')).json()).toMatchObject({ has_password: true });
+  });
+
+  it('cannot register or open a disabled account, and leaves the code unused when there is no account', async () => {
+    const context = await setup();
+    const { app, db, mail, invite, tick } = context;
+    invite('yugc-test-2026');
+    const stranger = browser(app);
+    await stranger.send('POST', '/auth/email/start', { email: 'ghost@example.test', purpose: 'reset' });
+    const none = await stranger.send('POST', '/auth/email/reset', { code: await mail.codeFor('ghost@example.test'), password: 'some passphrase' });
+    expect([none.statusCode, none.json().error]).toEqual([400, 'no_account']);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 0 });
+    expect(db.prepare('SELECT used_at FROM email_challenges WHERE email = ?').get('ghost@example.test')).toEqual({ used_at: null });
+
+    const { accountId } = await emailAccount(context, 'off@example.test', 'old passphrase here');
+    db.prepare("UPDATE users SET status = 'disabled' WHERE id = ?").run(accountId);
+    tick(61_000);
+    const user = browser(app);
+    await user.send('POST', '/auth/email/start', { email: 'off@example.test', purpose: 'reset' });
+    const refused = await user.send('POST', '/auth/email/reset', { code: await mail.codeFor('off@example.test', 2), password: 'new passphrase here' });
+    expect([refused.statusCode, refused.json().error]).toEqual([403, 'account_disabled']);
+    expect(user.jar.has('sid')).toBe(false);
+    expect((await browser(app).send('POST', '/auth/email/password', { email: 'off@example.test', password: 'new passphrase here' })).json().error).toBe('invalid_credentials');
+  });
+
+  it('flags an account without a login email on /auth/me, the account page and the console, until one is bound', async () => {
+    const { app, mail } = await setup({ roles: { octocat: 'member' } });
+    const user = browser(app);
+    user.jar.set('sid', signIn(app, 'octocat', 42));
+    expect((await user.send('GET', '/auth/me')).json()).toMatchObject({ signed_in: true, email_required: true });
+    expect((await user.send('GET', '/api/identity/me')).json()).toMatchObject({ email_required: true, available: ['email'] });
+    expect((await user.send('GET', '/api/console/me')).json()).toMatchObject({ email_required: true });
+
+    await user.send('POST', '/api/identity/email/start', { email: 'octo@example.test' });
+    expect((await user.send('POST', '/api/identity/email/verify', { code: await mail.codeFor('octo@example.test') })).json()).toEqual({ ok: true });
+    expect((await user.send('GET', '/auth/me')).json().email_required).toBe(false);
+    expect((await user.send('GET', '/api/identity/me')).json().email_required).toBe(false);
+    expect((await user.send('GET', '/api/console/me')).json().email_required).toBe(false);
+  });
+
+  it('does not ask for an email where this site cannot send one', async () => {
+    const context = await testApp({ octokitFactory: github({ octocat: 'member' }, []) }); contexts.push(context);
+    const headers = { cookie: `sid=${signIn(context.app, 'octocat', 42)}` };
+    expect((await context.app.inject({ url: '/auth/me', headers })).json().email_required).toBe(false);
+    expect((await context.app.inject({ url: '/api/identity/me', headers })).json().email_required).toBe(false);
+    expect((await context.app.inject({ url: '/api/console/me', headers })).json().email_required).toBe(false);
   });
 });
 

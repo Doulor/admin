@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { normalizeEmail } from "../../lib/email-login.js";
 import { normalizeInviteCode } from "../../lib/invite-codes.js";
 import { safeReturnTo, signinFailureUrl, type SigninOutcome } from "../../lib/safe-return.js";
+import { bindEmailUrl, emailRequired } from "../../lib/email-gate.js";
 import { readOAuthState, setOAuthState } from "../../middleware/oauth-state.js";
 import { setSessionCookie } from "../../middleware/require-auth.js";
 
@@ -56,6 +57,7 @@ export default async function googleRoutes(app: FastifyInstance) {
     }
     if (!result.ok) return fail(result.reason === "code_expired" ? "failed" : result.reason);
     setSessionCookie(reply, result.sid);
-    return reply.redirect(back);
+    // 账号还没有登录邮箱（#273，Google 给的邮箱不算登录邮箱）：先到绑定邮箱页，绑好再回 return_to
+    return reply.redirect(emailRequired(app.services, result.accountId) ? bindEmailUrl(config.publicOrigin, back) : back);
   });
 }

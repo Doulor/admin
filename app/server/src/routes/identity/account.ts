@@ -6,6 +6,7 @@ import { sessionFingerprint } from "../../middleware/oauth-state.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { clearChallengeCookie, readChallengeCookie, sendCode, setChallengeCookie, tooSoon } from "./email.js";
 import { loginProviders } from "./providers.js";
+import { emailRequired } from "../../lib/email-gate.js";
 
 /** 绑定邮箱、设密码前要求这次登录不超过 10 分钟（规格「重新验证」）；超时回 403 step_up_required，不是退出。 */
 export const STEP_UP_MS = 10 * 60_000;
@@ -13,7 +14,7 @@ const CHALLENGE_PATH = "/api/identity/email";
 
 /**
  * 账号页 `/account` 的接口（#262）：任何有效会话都能用，不要 `console.access`。
- * - `GET /api/identity/me`：登录方式、有没有密码、成员资格、这次登录、最近账号记录。
+ * - `GET /api/identity/me`：登录方式、有没有密码、成员资格、这次登录、最近账号记录；`email_required`：还要先绑邮箱（#273）。
  * - `POST /api/identity/email/start`、`/verify`：给账号绑定邮箱（绑好才能用邮箱验证码或密码登录）。
  * - `POST /api/identity/password`：设置或修改密码（至少 8 位）。已有密码时要填当前密码，或者 10 分钟内刚登录过
  *   （忘了密码就用验证码登录后直接设新的）；还没有密码时要 10 分钟内刚登录过。
@@ -38,6 +39,7 @@ export default async function accountRoutes(app: FastifyInstance) {
       account_id: session.account_id,
       ...view,
       available,
+      email_required: emailRequired(app.services, session.account_id),
       session: { provider: session.provider, created_at: session.created_at, expires_at: session.expires_at, step_up_until: session.created_at + STEP_UP_MS },
     };
   });

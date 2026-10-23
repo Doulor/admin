@@ -2,7 +2,7 @@ import type { SiteAccount } from '../../shared/site-account'
 import { toast } from '@talex-touch/tuffex/utils'
 import { publishedTopicIds } from '../../shared/published'
 import { signinOutcomes } from '../../shared/signin-outcomes'
-import { parseMe, sessionExpired } from '../../shared/site-account'
+import { bindEmailHref, emailRequired, parseMe, sessionExpired } from '../../shared/site-account'
 
 export type { SiteAccount } from '../../shared/site-account'
 
@@ -14,6 +14,7 @@ export type { SiteAccount } from '../../shared/site-account'
  * 只有极客班 GitHub 组织的成员能登录成功，其他人不登录照样能看论坛。
  * 论坛与官网、控制台同域（线上 `/forum/` 由 web 容器反代），所以直接读同域的 `/auth/me` 就知道是谁；
  * 本机独立端口上没有 `/auth/me`（返回 404 或 HTML），当作未登录。回答怎么读见 `shared/site-account.ts`。
+ * 账号还没有登录邮箱（`email_required`，#273）时整页跳到绑定邮箱页，绑好回到当前页。
  */
 /** 顶栏调用本组合函数；同一页面只发一次 /auth/me。 */
 let inflight: Promise<void> | null = null
@@ -39,6 +40,11 @@ export function useSiteAccount() {
       const body: unknown = response.ok && response.headers.get('content-type')?.includes('application/json')
         ? await response.json()
         : null
+      if (emailRequired(body)) {
+        const { pathname, search, hash } = window.location
+        window.location.assign(bindEmailHref(`${pathname}${search}${hash}`))
+        return
+      }
       account.value = parseMe(body)
       // 服务端刚结束了这次登录（GitHub 收回了会话里的授权，#164）：和论坛读到 session_expired 一样，页面按游客重读，由 LoginModal 说一次。
       if (serverMode && sessionExpired(body))

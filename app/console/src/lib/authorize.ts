@@ -18,6 +18,8 @@ export const detailsPath = (uid: string) => `${interactionPath(uid)}/details`;
 export const decisionPath = (uid: string, decision: "confirm" | "abort") => `${interactionPath(uid)}/${decision}`;
 /** 登录过期时去统一登录页，登录完回到交互入口，由服务端按新的登录状态继续。 */
 export const authorizeSignInPath = (uid: string) => `/signin?return_to=${encodeURIComponent(interactionPath(uid))}`;
+/** 账号还没有登录邮箱（#273，接口回 403 email_required）：先去绑定邮箱页，绑好同样回到交互入口。 */
+export const authorizeBindEmailPath = (uid: string) => `/bind-email?return_to=${encodeURIComponent(interactionPath(uid))}`;
 
 const SCOPE_TEXT: Record<string, string> = {
   openid: "确认你是哪位极客班成员（给这个应用单独的账号编号，和别的应用拿到的不同）",

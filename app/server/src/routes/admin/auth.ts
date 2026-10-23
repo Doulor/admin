@@ -1,4 +1,5 @@
 import { safeReturnTo, signinFailureUrl, type SigninOutcome } from "../../lib/safe-return.js";
+import { bindEmailUrl, emailRequired } from "../../lib/email-gate.js";
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { readOAuthState, setOAuthState } from "../../middleware/oauth-state.js";
@@ -80,7 +81,8 @@ export default async function authRoutes(app: FastifyInstance) {
         return fail(signin.reason);
       }
       setSessionCookie(reply, signin.sid);
-      return reply.redirect(back);
+      // 账号还没有登录邮箱（#273）：先到绑定邮箱页，绑好再回 return_to
+      return reply.redirect(emailRequired(app.services, signin.accountId) ? bindEmailUrl(config.publicOrigin, back) : back);
     }
   );
 
@@ -103,6 +105,7 @@ export default async function authRoutes(app: FastifyInstance) {
    * 之外的任意能力才算管理者（提督、舰长、队长、带部门权限包的舰员）；普通舰员和领航员为 false。
    * 这只决定显不显示入口，控制台的准入仍按能力判定。GitHub 角色查询失败时按 false 处理，不让 /auth/me 失败；
    * 只有 GitHub 拒绝了会话里的令牌时例外：会话已经没用，结束它并回 `{ signed_in: false, session_expired: true }`（#164）。
+   * `email_required`（#273）：账号还没有登录邮箱、这个环境又能发信，官网、论坛、控制台读到 true 就跳到绑定邮箱页。
    */
   app.get("/auth/me", async (req, reply) => {
     const sid = req.cookies?.sid;
@@ -121,6 +124,9 @@ export default async function authRoutes(app: FastifyInstance) {
       return { signed_in: false, session_expired: true };
     }
     // account_id：极客班账号（官网、论坛、控制台读到的是同一个值）；provider：这次的登录方式。user_id 仍是 GitHub 数字 id。
-    return { signed_in: true, login: s.login, user_id: s.user_id, avatar_url: s.avatar_url, account_id: s.account_id, provider: s.provider, console_link: consoleLink };
+    return {
+      signed_in: true, login: s.login, user_id: s.user_id, avatar_url: s.avatar_url, account_id: s.account_id, provider: s.provider, console_link: consoleLink,
+      email_required: emailRequired(app.services, s.account_id),
+    };
   });
 }

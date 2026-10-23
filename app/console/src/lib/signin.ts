@@ -76,6 +76,10 @@ export function parseSignInOutcome(raw: unknown): OutcomeInfo | null {
 
 export const DEFAULT_RETURN_PATH = "/console";
 
+/** 绑定邮箱页（#273）：账号还没有登录邮箱时，官网、论坛、控制台都先带人来这里，绑好回到 return_to。 */
+export const BIND_EMAIL_PATH = "/bind-email";
+export const bindEmailPath = (returnPath: string): string => `${BIND_EMAIL_PATH}?return_to=${encodeURIComponent(returnPath)}`;
+
 /**
  * 回跳地址只认本站路径（`/` 开头、不是 `//`、不带反斜杠与控制字符），解析后的 origin 必须等于本站 origin；
  * 完整的本站地址也接受，统一转成「路径 + 查询 + 锚点」。不合格的一律回 `fallback`，绝不跳到别的站点。
@@ -95,6 +99,12 @@ export function safeReturnPath(raw: unknown, origin: string, fallback = DEFAULT_
   const path = `${url.pathname}${url.search}${url.hash}`;
   // 不回到登录页自己，免得登录成功后又停在登录页
   return url.pathname === "/signin" ? fallback : path;
+}
+
+/** 绑定邮箱页绑好以后去哪：同上只认本站路径；指回绑定邮箱页自己时去控制台，免得原地打转。 */
+export function bindEmailReturn(raw: unknown, origin: string): string {
+  const path = safeReturnPath(raw, origin);
+  return new URL(path, origin).pathname === BIND_EMAIL_PATH ? DEFAULT_RETURN_PATH : path;
 }
 
 /** 一种登录方式，形状与服务端 `GET /auth/providers` 一致（app/server/src/routes/identity/providers.ts）。`password` 是邮箱加密码登录的地址。 */
@@ -137,13 +147,21 @@ export function providerHref(provider: Pick<LoginProvider, "start">, returnPath:
   return `${provider.start}${separator}return_to=${encodeURIComponent(`${origin}${returnPath}`)}${code ? `&invite=${encodeURIComponent(code)}` : ""}`;
 }
 
-/** 邮箱登录的三个接口（app/server/src/routes/identity/email.ts）。成功都已写好 `sid`，前端整页跳到 `return_to`。 */
-export const sendSigninCode = (email: string, returnPath: string, origin: string) =>
-  api<{ resend_after: number }>("/auth/email/start", { method: "POST", ...jsonBody({ email, return_to: `${origin}${returnPath}` }) });
+/**
+ * 邮箱登录的接口（app/server/src/routes/identity/email.ts）。成功都已写好 `sid`，前端整页跳到 `return_to`。
+ * 忘了密码（#273）也用 `/auth/email/start` 发验证码，`purpose: "reset"` 只换信的标题和第一句话。
+ */
+export const sendSigninCode = (email: string, returnPath: string, origin: string, purpose: "signin" | "reset" = "signin") =>
+  api<{ resend_after: number }>("/auth/email/start", {
+    method: "POST", ...jsonBody({ email, return_to: `${origin}${returnPath}`, ...(purpose === "reset" && { purpose }) }),
+  });
 export const verifySigninCode = (code: string, inviteCode?: string) =>
   api<{ return_to: string; registered: boolean }>("/auth/email/verify", { method: "POST", ...jsonBody({ code, ...(inviteCode?.trim() && { invite_code: inviteCode.trim() }) }) });
 export const signInWithPassword = (provider: Pick<LoginProvider, "password">, email: string, password: string, returnPath: string, origin: string) =>
   api<{ return_to: string }>(provider.password ?? "/auth/email/password", { method: "POST", ...jsonBody({ email, password, return_to: `${origin}${returnPath}` }) });
+/** 用邮箱验证码重设密码并登录（#273）。没有账号的邮箱回 `no_account`，不会注册。 */
+export const resetPasswordWithCode = (code: string, password: string) =>
+  api<{ return_to: string }>("/auth/email/reset", { method: "POST", ...jsonBody({ code, password }) });
 
 /** 429 里服务端给的等待秒数（`retry_after`）；没有就按 60 秒算。 */
 export function retryAfter(error: unknown, fallback = 60): number | null {
@@ -173,6 +191,12 @@ export const looksLikeEmail = (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\
 export function codeProblem(codeSent: boolean, code: string): string | null {
   if (!codeSent) return "先获取验证码";
   return code.length === 6 ? null : "验证码是 6 位数字";
+}
+
+/** 忘记密码表单提交前的本地检查，按页面上从上到下的顺序报第一处问题；新密码必填，规则同账号页。 */
+export function resetProblem(form: { email: string; codeSent: boolean; code: string; password: string }): string | null {
+  if (!looksLikeEmail(form.email)) return "邮箱格式不对";
+  return codeProblem(form.codeSent, form.code) ?? (form.password ? passwordRuleProblem(form.password) : "填上新密码");
 }
 
 /**

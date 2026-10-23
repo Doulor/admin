@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { IncomingMessage } from "node:http";
 import type Provider from "oidc-provider";
+import { bindEmailUrl, emailRequired } from "../../lib/email-gate.js";
 import { registerContracts } from "../../lib/http-contracts.js";
 import { OIDC_SCOPES, SITE_ACCOUNT, oidcErrorPage, type SiteAccountRequest } from "../../lib/oidc-provider.js";
 import { loadSession, requireAuth } from "../../middleware/require-auth.js";
@@ -18,7 +19,7 @@ export const OIDC_PROTOCOL_LIMIT = { server: 600, browser: 120 } as const;
 
 /**
  * 对外授权（#270，ADR-0005 决策 8）：`/oidc/*` 的协议端点原样交给 oidc-provider（发现文档、JWKS、授权、换令牌、userinfo、撤销），
- * 交互由这里接：没登录去 /signin，登录了用 sid 里的账号；要本人同意时去授权页，授权页经下面三个接口读取和提交。
+ * 交互由这里接：没登录去 /signin，登录了用 sid 里的账号；账号还没有登录邮箱时先去绑定邮箱页（#273）；要本人同意时去授权页，授权页经下面三个接口读取和提交。
  * 没配 OIDC_JWKS 时路由照样注册（项目地图按源码列出它们），请求一律按 404 处理。
  */
 export default async function oidcRoutes(app: FastifyInstance) {
@@ -69,6 +70,8 @@ export default async function oidcRoutes(app: FastifyInstance) {
         // 停用的、不是成员的账号：回到应用，告诉它被拒绝了
         return reply.redirect(await redirectTo(req, reply, { error: "access_denied", error_description: "the account is not an active member" }, false), 303);
       }
+      // 还没有登录邮箱的账号（#273）：先绑邮箱，绑好回到这个交互接着走
+      if (emailRequired(app.services, accountId)) return reply.redirect(bindEmailUrl(config.publicOrigin, `/oidc/interaction/${encodeURIComponent(uid)}`), 303);
       if (details.prompt.name === "login") {
         if (details.session?.accountId && details.session.accountId !== accountId) {
           // 这个浏览器换了极客班账号：oidc-provider 的会话还是上一个账号的。删掉那份会话再按现在的账号登录，
@@ -97,7 +100,15 @@ export default async function oidcRoutes(app: FastifyInstance) {
       return details;
     };
 
+    /** 授权页读详情、点允许之前同样要先有登录邮箱（#273）；拒绝不拦。 */
+    const needsEmail = (req: FastifyRequest, reply: FastifyReply) => {
+      if (!emailRequired(app.services, req.session!.account_id)) return false;
+      void reply.code(403).send({ error: "email_required", message: "先绑定邮箱，再用极客班账号登录这个应用" });
+      return true;
+    };
+
     scope.get<{ Params: { uid: string } }>("/oidc/interaction/:uid/details", { preHandler: requireAuth, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
+      if (needsEmail(req, reply)) return reply;
       const details = await consentOf(req, reply);
       if (!details) return reply;
       const clientId = String(details.params.client_id);
@@ -114,6 +125,7 @@ export default async function oidcRoutes(app: FastifyInstance) {
     });
 
     scope.post<{ Params: { uid: string } }>("/oidc/interaction/:uid/confirm", { preHandler: requireAuth, config: { rateLimit: { max: 20, timeWindow: "1 minute" } } }, async (req, reply) => {
+      if (needsEmail(req, reply)) return reply;
       const details = await consentOf(req, reply);
       if (!details) return reply;
       const accountId = req.session!.account_id;

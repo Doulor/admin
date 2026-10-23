@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  authorizeSignInPath, closedNotice, decisionPath, detailsPath, interactionUid, scopeLines, type AuthorizeView,
+  authorizeBindEmailPath, authorizeSignInPath, closedNotice, decisionPath, detailsPath, interactionUid, scopeLines, type AuthorizeView,
 } from "../../app/console/src/lib/authorize";
 import { safeReturnPath } from "../../app/console/src/lib/signin";
 import { OIDC_SCOPES } from "../../app/server/src/lib/oidc-provider";
@@ -27,6 +27,8 @@ describe("对外授权的同意页 (authorize)", () => {
     // 统一登录页按同源路径接受这个 return_to，登录完回到交互入口
     const back = new URLSearchParams(signIn.split("?")[1]).get("return_to");
     expect(safeReturnPath(back, "https://example.test")).toBe("/oidc/interaction/Ab3_-xyz0123");
+    // 还没有登录邮箱（#273）：绑好同样回到交互入口
+    expect(authorizeBindEmailPath("Ab3_-xyz0123")).toBe("/bind-email?return_to=%2Foidc%2Finteraction%2FAb3_-xyz0123");
   });
 
   it("服务端会发的每一项信息都有说明，不认识的原样列出", () => {
@@ -47,5 +49,11 @@ describe("对外授权的同意页 (authorize)", () => {
     expect(view).toMatchObject({ client: { id: "gitlab", name: "GitLab", host: "git.yangtzeu.work" }, scopes: ["openid", "profile", "email"] });
     expect(view.expires_at).toBeGreaterThan(Date.now());
     await expect(mockApi(decisionPath("Ab3_-xyz0123", "confirm"), { method: "POST" })).rejects.toMatchObject({ status: 501 });
+  });
+
+  afterEach(() => { vi.unstubAllGlobals(); });
+  it("开发预览里还没有登录邮箱的样板照服务端回 403 email_required（#273）", async () => {
+    vi.stubGlobal("window", { location: { search: "?__persona=no_email" } });
+    await expect(mockApi(detailsPath("Ab3_-xyz0123"))).rejects.toMatchObject({ status: 403, code: "email_required" });
   });
 });

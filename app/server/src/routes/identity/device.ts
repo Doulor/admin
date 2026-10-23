@@ -3,6 +3,7 @@ import {
   DEVICE_CLIENTS, DEVICE_CODE_TTL_MS, DEVICE_GRANT_TYPE,
   displayUserCode, normalizeScope, type DeviceClientId,
 } from "../../lib/device-store.js";
+import { emailRequired } from "../../lib/email-gate.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 
 type CodeBody = { client_id?: string; scope?: string };
@@ -106,6 +107,10 @@ export default async function deviceRoutes(app: FastifyInstance) {
       const body = req.body ?? {};
       const decision = body.decision === "approve" || body.decision === "deny" ? body.decision : null;
       if (!decision) return reply.code(400).send({ error: "invalid_decision" });
+      // 还没有登录邮箱的账号（#273）：先绑邮箱再允许；拒绝不拦
+      if (decision === "approve" && emailRequired(app.services, session.account_id)) {
+        return reply.code(403).send({ error: "email_required", message: "先绑定邮箱，再确认命令行的登录" });
+      }
       const result = device.decide({ userCode: body.user_code, accountId: session.account_id, decision });
       if (!result) return reply.code(404).send({ error: "device_code_not_found" });
       if (!result.ok) return reply.code(409).send({ error: "device_code_not_pending" });

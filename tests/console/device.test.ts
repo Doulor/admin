@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  USER_CODE_ALPHABET, closedNotice, deviceSignInPath, formatUserCode, isCompleteUserCode, remainingText, scopeLines,
+  USER_CODE_ALPHABET, closedNotice, deviceBindEmailPath, deviceSignInPath, formatUserCode, isCompleteUserCode, remainingText, scopeLines,
 } from "../../app/console/src/lib/device";
 import { USER_CODE_ALPHABET as SERVER_ALPHABET } from "../../app/server/src/lib/device-store";
 import type { DeviceView } from "../../app/console/src/lib/device";
@@ -32,6 +32,11 @@ describe("设备授权确认页的代码输入 (device)", () => {
   it("没登录时去 /signin，登录后带着同一串代码回来", () => {
     expect(deviceSignInPath("BCDF-GHJK")).toBe(`/signin?return_to=${encodeURIComponent("/device?user_code=BCDF-GHJK")}`);
     expect(deviceSignInPath("")).toBe(`/signin?return_to=${encodeURIComponent("/device")}`);
+  });
+
+  it("还没有登录邮箱时去绑定邮箱页，绑好带着同一串代码回来（#273）", () => {
+    expect(deviceBindEmailPath("BCDF-GHJK")).toBe(`/bind-email?return_to=${encodeURIComponent("/device?user_code=BCDF-GHJK")}`);
+    expect(deviceBindEmailPath("")).toBe(`/bind-email?return_to=${encodeURIComponent("/device")}`);
   });
 
   it("scope 说成人话，不认识的原样列出", () => {

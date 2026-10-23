@@ -18,6 +18,20 @@ export function signInHref(returnTo = `${window.location.pathname}${window.locat
   return `/signin?return_to=${encodeURIComponent(path)}`;
 }
 
+/**
+ * `/auth/me` 说这个账号还没有登录邮箱（#273）：官网整页跳到绑定邮箱页，绑好回到当前页面。
+ * 绑定邮箱页属于控制台（app/console/src/pages/BindEmail.vue），return_to 同样只带本站路径。
+ */
+export function emailRequired(body: unknown): boolean {
+  const me = body as { signed_in?: unknown; email_required?: unknown } | null;
+  return me?.signed_in === true && me.email_required === true;
+}
+
+export function bindEmailHref(returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`): string {
+  const path = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/";
+  return `/bind-email?return_to=${encodeURIComponent(path)}`;
+}
+
 export function parseMe(body: unknown): Account | null {
   const me = body as { signed_in?: boolean; login?: unknown; avatar_url?: unknown; console_link?: unknown; account_id?: unknown } | null;
   if (!me?.signed_in || typeof me.login !== "string" || !me.login) return null;
@@ -37,6 +51,10 @@ export function useAccount() {
       .catch(() => null)
       .then((body) => {
         if (cancelled) return;
+        if (emailRequired(body)) {
+          window.location.assign(bindEmailHref());
+          return;
+        }
         setAccount(parseMe(body));
         setLoaded(true);
       });

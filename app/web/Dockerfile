@@ -201,11 +201,11 @@ server {
     }
 
     # ── 管理端（控制台）SPA 入口：路径清单与入口文件都只写在这一处 ──
-    # /admin、/console 及其子路径，外加 /signin、/device（设备授权确认页）、/account（账号页）与 /authorize（对外授权的同意页）；与 app/server/src/app.ts 的
+    # /admin、/console 及其子路径，外加 /signin、/device（设备授权确认页）、/account（账号页）、/authorize（对外授权的同意页）与 /bind-email（绑定邮箱页）；与 app/server/src/app.ts 的
     # ADMIN_SPA_PATHS / ADMIN_SPA_ENTRY 一致。/administrator、/consoles 不匹配。
     # 必须放在下面的图片正则之前：nginx 取第一个匹配的正则，仓库名这类路径段
     # 即使以 .svg/.png 结尾，也要进控制台入口而不是 404。入口页每次部署都换哈希，回源校验。
-    location ~ ^/(?:(?:admin|console)(?:/|$)|signin$|device$|account$|authorize$) {
+    location ~ ^/(?:(?:admin|console)(?:/|$)|signin$|device$|account$|authorize$|bind-email$) {
         expires -1;
         try_files $uri /sites/console/index.html;
     }

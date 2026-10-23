@@ -51,10 +51,11 @@ const accountView = object({
     items: object({ at: timestamp, action: text(64, 1), provider: nullableText(20), result: choices("ok", "denied", "failed") }, ["at", "action", "provider", "result"]),
   },
   available: { type: "array", items: choices("email"), maxItems: 1 },
+  email_required: { type: "boolean" },
   session: object({
     provider: loginProvider, created_at: timestamp, expires_at: timestamp, step_up_until: timestamp,
   }, ["provider", "created_at", "expires_at", "step_up_until"]),
-}, ["account_id", "login", "identities", "has_password", "password_updated_at", "membership", "created_at", "recent", "available", "session"]);
+}, ["account_id", "login", "identities", "has_password", "password_updated_at", "membership", "created_at", "recent", "available", "email_required", "session"]);
 
 const deviceStatus = choices("pending", "approved", "denied", "expired", "consumed");
 const deviceCodeResult = object({
@@ -123,7 +124,7 @@ export const identityContracts: RouteContracts = {
   },
   "POST /auth/email/start": {
     querystring: object({}),
-    body: object({ email, return_to: returnTo }, ["email"]),
+    body: object({ email, return_to: returnTo, purpose: choices("signin", "reset") }, ["email"]),
     response: { 202: codeSent, ...failures },
   },
   "POST /auth/email/verify": {
@@ -134,6 +135,11 @@ export const identityContracts: RouteContracts = {
   "POST /auth/email/password": {
     querystring: object({}),
     body: object({ email, password: text(200, 1), return_to: returnTo }, ["email", "password"]),
+    response: { 200: signedIn, ...failures },
+  },
+  "POST /auth/email/reset": {
+    querystring: object({}),
+    body: object({ code, password: text(200, 1) }, ["code", "password"]),
     response: { 200: signedIn, ...failures },
   },
   // 两个 Google 接口成功时都是 302 跳转、没有响应体，只约束失败体

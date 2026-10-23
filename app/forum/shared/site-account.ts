@@ -20,6 +20,21 @@ export function parseMe(body: unknown): SiteAccount | null {
   return { login: me.login, avatarUrl: typeof me.avatar_url === 'string' ? me.avatar_url : null, consoleLink: me.console_link === true }
 }
 
+/**
+ * `/auth/me` 说这个账号还没有登录邮箱（#273）：论坛整页跳到绑定邮箱页（属于控制台），绑好回到当前页。
+ * 本机独立端口上没有 `/auth/me`，读不到这一项，不会跳。
+ */
+export function emailRequired(body: unknown): boolean {
+  const me = body as { signed_in?: unknown, email_required?: unknown } | null
+  return me?.signed_in === true && me.email_required === true
+}
+
+/** 绑定邮箱页地址；`back` 是浏览器里的本站路径（线上论坛的路径带 `/forum` 前缀），不是本站路径时回首页。 */
+export function bindEmailHref(back: string): string {
+  const path = back.startsWith('/') && !back.startsWith('//') ? back : '/'
+  return `/bind-email?return_to=${encodeURIComponent(path)}`
+}
+
 /** `/auth/me` ended the sign-in just now: GitHub took back the token the session held (#164). */
 export function sessionExpired(body: unknown): boolean {
   const me = body as { signed_in?: unknown, session_expired?: unknown } | null

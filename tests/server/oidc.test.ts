@@ -16,8 +16,8 @@ const CALLBACK = 'https://git.example.test/users/auth/openid_connect/callback';
 const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
 afterEach(async () => { for (const context of contexts.splice(0)) await context.close(); });
 
-async function setup() {
-  const context = await testApp({}, false, { OIDC_JWKS: JWKS });
+async function setup(env: Record<string, string> = {}) {
+  const context = await testApp({}, false, { OIDC_JWKS: JWKS, ...env });
   contexts.push(context);
   const { client, clientSecret } = context.app.services.oidcStore.registerClient({ name: 'GitLab', clientId: 'gitlab', redirectUris: [CALLBACK] });
   return { ...context, client, clientSecret };
@@ -77,7 +77,7 @@ async function follow(app: FastifyInstance, jar: Jar, url: string) {
     const location = res.headers.location as string | undefined;
     if (res.statusCode !== 303 && res.statusCode !== 302) return { res, location: null, consentUid: null };
     if (!location) throw new Error('redirect without location');
-    if (location.startsWith(CALLBACK) || location.startsWith('/signin')) return { res, location, consentUid: null };
+    if (location.startsWith(CALLBACK) || location.startsWith('/signin') || location.startsWith(`${ORIGIN}/bind-email?`)) return { res, location, consentUid: null };
     if (location.startsWith('/authorize?uid=')) return { res, location, consentUid: new URLSearchParams(location.split('?')[1]).get('uid') };
     res = await visit(app, jar, location);
   }
@@ -242,6 +242,38 @@ describe('OIDC provider for downstream apps (#270)', () => {
     const bad = await exchange(app, code, pkce().verifier, clientSecret);
     expect(bad.statusCode).toBe(400);
     expect(bad.json().error).toBe('invalid_grant');
+  });
+
+  it('sends an account without a login email to the bind page, resumes the same login after, and holds the consent page until then (#273)', async () => {
+    // 能发信的环境才要求登录邮箱；这里不会真的发信
+    const { app, clientSecret } = await setup({ MAIL_RESEND_API_KEY: 're_test_resend_key_value', MAIL_RESEND_FROM: 'notify@example.test' });
+    const jar = new Jar();
+    jar.set('sid', signIn(app, 'alice', 101));
+    const accountId = accountOf(app, 101);
+    const bind = (email: string) => app.services.identity.linkEmail({ accountId, email, login: 'alice', claim: () => true });
+    const { challenge } = pkce();
+    const first = await follow(app, jar, authorizeUrl({ code_challenge: challenge, code_challenge_method: 'S256' }));
+    expect(first.res.statusCode).toBe(303);
+    expect(first.location).toMatch(/^https:\/\/example\.test\/bind-email\?return_to=%2Foidc%2Finteraction%2F[A-Za-z0-9_-]+$/);
+
+    // 绑好邮箱后回到同一个交互，接着去授权页
+    expect(bind('alice@example.test')).toEqual({ ok: true });
+    const resumed = await follow(app, jar, new URL(first.location!).searchParams.get('return_to')!);
+    expect(resumed.consentUid).toMatch(/^[A-Za-z0-9_-]+$/);
+
+    // 授权页读详情和点允许也要有登录邮箱；拒绝不拦
+    app.services.storage.db.prepare("DELETE FROM identities WHERE provider = 'email' AND user_id = ?").run(accountId);
+    const details = await visit(app, jar, `/oidc/interaction/${resumed.consentUid}/details`);
+    expect([details.statusCode, details.json().error]).toEqual([403, 'email_required']);
+    const confirm = await visit(app, jar, `/oidc/interaction/${resumed.consentUid}/confirm`, { method: 'POST' });
+    expect([confirm.statusCode, confirm.json().error]).toEqual([403, 'email_required']);
+    const aborted = await visit(app, jar, `/oidc/interaction/${resumed.consentUid}/abort`, { method: 'POST' });
+    expect(aborted.statusCode).toBe(200);
+    expect(new URL((await follow(app, jar, aborted.json().redirect_to)).location!).searchParams.get('error')).toBe('access_denied');
+
+    expect(bind('alice@example.test')).toEqual({ ok: true });
+    const { token, consented } = await signInThroughGitlab(app, jar, clientSecret);
+    expect([token.statusCode, consented]).toEqual([200, true]);
   });
 
   it('turns a denial on the consent page into access_denied for the app', async () => {

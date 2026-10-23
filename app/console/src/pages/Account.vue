@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { TxCard } from "@talex-touch/tuffex/card";
 import { TxButton } from "@talex-touch/tuffex/button";
@@ -14,7 +14,7 @@ import { ApiError, api, jsonBody } from "../lib/http";
 import { useResource } from "../lib/resource";
 import { siteUrl } from "../lib/runtime";
 import { clearSession } from "../lib/session";
-import { cleanCode, codeProblem, looksLikeEmail, retryAfter } from "../lib/signin";
+import { bindEmailPath, cleanCode, codeProblem, looksLikeEmail, retryAfter } from "../lib/signin";
 import { fmtDate, fmtRelative } from "../lib/format";
 import { PASSWORD_MIN_LENGTH, PROVIDER_ICON, PROVIDER_TEXT, RESULT_TEXT, actionText, loginIsFresh, membershipText, passwordProblem, providerText } from "../lib/account";
 import type { AccountView } from "../lib/types";
@@ -28,6 +28,10 @@ const origin = window.location.origin;
 const account = useResource(() => api<AccountView>("/api/identity/me"));
 const signedOut = computed(() => account.error.value instanceof ApiError && account.error.value.status === 401);
 const view = computed(() => account.data.value);
+// 还没有登录邮箱（#273）：先去绑定邮箱页，绑好回到这里
+watch(() => view.value?.email_required, required => {
+  if (required) void router.replace(bindEmailPath("/account"));
+}, { immediate: true });
 const signInAgain = () => window.location.assign(`/signin?return_to=${encodeURIComponent("/account")}`);
 const now = ref(Date.now());
 const tick = setInterval(() => { now.value = Date.now(); }, 30_000);
@@ -161,7 +165,7 @@ const goPortal = () => window.location.assign(siteUrl("portal", "/"));
         <TxButton variant="primary" icon="i-carbon-login" @click="signInAgain">去登录</TxButton>
       </TxCard>
       <ErrorPanel v-else-if="account.error.value" :error="account.error.value" :retry="account.reload" />
-      <LoadingBlock v-else-if="!view" :lines="8" />
+      <LoadingBlock v-else-if="!view || view.email_required" :lines="8" />
 
       <template v-else>
         <TxAlert v-if="stepUp" type="warning" title="这一步要求刚登录过" :closable="false" class="account__alert">

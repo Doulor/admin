@@ -1,0 +1,459 @@
+{
+  "version": 1,
+  "issue": 273,
+  "kind": "business",
+  "summary": "统一登录补上忘记密码，没有登录邮箱的账号先绑邮箱（#273，所有者 2026-10-23 19:22「sso登录的时候没有忘记密码改密码相关的信息吧，还有就是之前只绑定了github账号没有绑定邮箱的再次进来或者登录的时候必须绑定邮箱」）：登录页的密码登录多「忘记密码？」，用邮箱验证码设新密码并登录，并写明改密码在「我的账号」；账号没有登录邮箱、这个环境又能发信时，GitHub 与 Google 登录、GitLab 对外授权、命令行设备授权和官网、论坛、控制台都先把人带到新的绑定邮箱页，绑好回到原来的页面。",
+  "applications": [
+    "server",
+    "console",
+    "web",
+    "forum"
+  ],
+  "domains": [
+    "identity",
+    "audit",
+    "organization",
+    "forum",
+    "mail",
+    "platform",
+    "competitions",
+    "feedback",
+    "github",
+    "recruitment",
+    "invitations",
+    "public_content"
+  ],
+  "flows": [
+    "flow:identity.email.reset",
+    "flow:identity.email.start",
+    "flow:identity.callback",
+    "flow:identity.google.callback",
+    "flow:identity.current",
+    "flow:identity.account.view",
+    "flow:console.identity",
+    "flow:identity.device.view",
+    "flow:identity.device.approve",
+    "flow:identity.oidc.interaction",
+    "flow:identity.oidc.details",
+    "flow:identity.oidc.confirm",
+    "flow:identity.oidc.abort",
+    "flow:identity.providers",
+    "flow:competition.console.list",
+    "flow:feedback.public.list",
+    "flow:github.organizations.list",
+    "flow:application.submit",
+    "flow:invitation.public.inspect",
+    "flow:documentation.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "之前登录页没有忘记密码的入口，也不说改密码在哪里；只用 GitHub 或 Google 登录过的账号没有登录邮箱，忘了 GitHub 就再也进不来。现在密码登录下面有「忘记密码？」：填邮箱、收验证码、填新密码，核对通过就换上新密码并登录，旧密码不再能用；邮箱没有账号时提示去注册，不会顺手建号。登录页写明改密码在「我的账号」。账号没有登录邮箱、这个环境能发信时，GitHub 与 Google 登录后、用极客班账号登录 GitLab 时、命令行设备授权点允许前，以及打开官网、论坛、控制台时，都先到绑定邮箱页；绑定要在登录后 10 分钟内完成，晚了先重新登录，页面上只有绑定和退出。发不出信的环境不拦，免得收不到验证码就进不来。",
+      "evidence": [
+        "app/server/src/lib/email-gate.ts",
+        "app/server/src/routes/identity/email.ts",
+        "app/console/src/pages/BindEmail.vue",
+        "app/console/src/pages/SignIn.vue",
+        "docs/services/console/README.md"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "新接口 POST /auth/email/reset：先查新密码长度，再用登录验证码挑战核对验证码（挑战种类和库里的 CHECK 不变），identity-store 的 resetPassword 在一个 immediate 事务里走验证码登录同一条路径（停用、不是成员照旧拒绝，没有账号回 no_account 且验证码不作废）并写新密码，成功后清掉这个邮箱的密码失败计数、写会话。POST /auth/email/start 多一个可选的 purpose，reset 只改信的文字。lib/email-gate.ts 的 emailRequired 在能发信且账号没有 email 身份时为 true，bindEmailUrl 拼绑定邮箱页地址且不套两层：GitHub 与 Google 回调据此跳到绑定页；/auth/me、/api/identity/me、/api/console/me 回 email_required；OIDC 交互 303 到绑定页，授权页的 details 与 confirm 回 403 email_required，abort 不拦；设备授权的 approve 回 403 email_required，deny 不拦。app.ts 把 /bind-email 交给控制台单页。",
+      "evidence": [
+        "app/server/src/routes/identity/email.ts",
+        "app/server/src/lib/identity-store.ts",
+        "app/server/src/lib/email-gate.ts",
+        "app/server/src/routes/admin/auth.ts",
+        "app/server/src/routes/identity/google.ts",
+        "app/server/src/routes/oidc/index.ts",
+        "app/server/src/routes/identity/device.ts",
+        "app/server/src/routes/identity/account.ts",
+        "app/server/src/routes/console/me.ts",
+        "app/server/src/routes/identity/contracts.ts",
+        "app/server/src/app.ts"
+      ]
+    },
+    "frontend": {
+      "status": "changed",
+      "reason": "控制台：登录页密码登录多「忘记密码？」，切到「重设密码」表单（邮箱、获取验证码、验证码、新密码、「重设密码并登录」、「返回登录」），说明文字写明改密码在「我的账号」；新页面 /bind-email（Tuffex 卡片）读 /api/identity/me，登录不到 10 分钟时给邮箱与验证码表单，否则请人重新登录，登录完回到这一页，绑好整页回到 return_to（指回绑定页本身时回 /console）。控制台首页、我的账号、授权页、设备授权读到 email_required 都转去绑定页。我的账号页的邮箱一段不动。官网 useAccount 与论坛 useSiteAccount 读 /auth/me 的 email_required，带着当前地址跳到 /bind-email。样板数据多两个人设 no_email、no_email_stale。",
+      "evidence": [
+        "app/console/src/pages/SignIn.vue",
+        "app/console/src/pages/BindEmail.vue",
+        "app/console/src/lib/signin.ts",
+        "app/console/src/pages/ConsoleRoot.vue",
+        "app/console/src/pages/Account.vue",
+        "app/console/src/pages/Authorize.vue",
+        "app/console/src/pages/Device.vue",
+        "app/console/src/router.ts",
+        "app/console/src/mock/console.ts",
+        "app/web/sites/portal/lib/account.ts",
+        "app/forum/app/composables/useSiteAccount.ts"
+      ]
+    },
+    "permissions": {
+      "status": "changed",
+      "reason": "能力和角色不变。重设密码要拿到发到这个邮箱的验证码才行，和验证码登录同一个限流（每分钟 10 次、5 次猜错作废），停用或不是成员的账号照旧拒绝，不能借它注册。没有登录邮箱的账号在能发信的环境里多一道门：对外授权的 details 与 confirm、设备授权的 approve 回 403 email_required，GitHub 与 Google 回调先跳绑定页；拒绝和取消不拦。绑定沿用账号页的接口，仍要 10 分钟内刚登录过。",
+      "evidence": [
+        "app/server/src/routes/identity/email.ts",
+        "app/server/src/routes/oidc/index.ts",
+        "app/server/src/routes/identity/device.ts",
+        "app/server/src/lib/email-gate.ts",
+        "docs/architecture/SECURITY.md"
+      ]
+    },
+    "data": {
+      "status": "changed",
+      "reason": "表结构不变，db.ts 没改。重设密码写 users.password_hash 与 password_updated_at，占用 email_challenges 里那次验证码，建 sessions，写 identity_audit（新的 action password_reset，原来的列是自由文本，不加约束）和 audit_logs 的 account.password（details.action 为 reset）。回滚换回旧镜像即可，旧代码读到 password_reset 只当一条普通记录，控制台旧版本显示原文。",
+      "evidence": [
+        "app/server/src/lib/identity-store.ts",
+        "docs/services/server/data-model.md",
+        "docs/architecture/catalog/ownership.json"
+      ]
+    },
+    "dependencies": {
+      "status": "changed",
+      "reason": "不加依赖。重设密码的验证码信走原来的发信模块（lib/mail/login-code.ts 多一种 reset 的文字），哈希用原来的 bcryptjs 与 lib/password-policy.ts；email-gate 读 mail.sendingEnabled 判断这个环境能不能发信。",
+      "evidence": [
+        "app/server/src/lib/mail/login-code.ts",
+        "app/server/src/routes/identity/email.ts",
+        "app/server/src/lib/email-gate.ts"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "接口合同（reset 一行、purpose、email_required 与绑定邮箱的拦截）、服务端说明（单页路径与模块）、数据模型（password_reset）、对外授权、API 与安全基线（中英文）、统一登录计划、控制台服务契约（路由表、「忘记密码与绑定邮箱（#273）」一节、样板人设）、官网与论坛服务文档跟着改，流程登记新增 identity.email.reset 并补相关流程的约束和证据，项目目录重新生成。",
+      "evidence": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/services/server/data-model.md",
+        "docs/services/server/oidc.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/architecture/SECURITY.en.md",
+        "docs/plan/UNIFIED-LOGIN.md",
+        "docs/services/console/README.md",
+        "docs/services/web/README.md",
+        "docs/services/web/portal.md",
+        "docs/services/forum/README.md",
+        "docs/architecture/catalog/ownership.json"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "服务端走真实路由：重设成功后旧密码登录不了、新密码可以，identity_audit 与审计记下 reset；密码太短不碰验证码；验证码错一次剩 4 次，用过的验证码再交回 code_expired；没有密码的账号也能设上；邮箱没有账号回 no_account 且验证码还能用，停用账号 403；三个 me 接口在绑邮箱前 email_required 为 true、绑后 false，发不出信的环境始终 false；GitHub 与 Google 回调先跳绑定页、绑后直接回原地址；OIDC 交互 303 到绑定页、绑后接着走，details 与 confirm 403、abort 照常；设备授权 approve 403、状态还是待确认、deny 可以、绑后能允许。控制台测试核对地址拼接、绑定页回跳、重设表单校验和样板人设；官网与论坛测试核对读到 email_required 后整页跳到绑定页；nginx 与服务端单页路由多 /bind-email。ego-browser 用样板数据在 1440×900 与 390×844 下截了登录页、重设密码、绑定邮箱和要重新登录四种页面。",
+      "evidence": [
+        "tests/server/signin-methods.test.ts",
+        "tests/server/oidc.test.ts",
+        "tests/server/device-flow.test.ts",
+        "tests/server/core.test.ts",
+        "tests/tooling/web-nginx.test.ts",
+        "tests/console/signin.test.ts",
+        "tests/console/account.test.ts",
+        "tests/console/authorize.test.ts",
+        "tests/console/device.test.ts",
+        "tests/console/mock-sync.test.ts",
+        "tests/web/portal-os.test.ts",
+        "app/forum/tests/site-account.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "随 server、web（官网与控制台）和论坛镜像发布，不改环境变量。web 镜像的 nginx 与本地开发的 vite 代理把 /bind-email 交给控制台单页，和 /signin、/account 同一条规则。预发布和正式都配了发信，部署后没有登录邮箱的账号下次打开任何一个站点都会先去绑邮箱；GitLab 对外授权只在配了 OIDC 的环境生效。",
+      "evidence": [
+        "app/web/Dockerfile",
+        "app/web/vite.config.ts",
+        "app/server/src/app.ts"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/server/src/routes/identity/email.ts",
+        "app/server/src/routes/identity/contracts.ts",
+        "app/server/src/lib/identity-store.ts"
+      ],
+      "domains": [
+        "identity",
+        "audit"
+      ],
+      "nodes": [
+        "domain:identity",
+        "route:POST /auth/email/reset",
+        "route:POST /auth/email/start",
+        "table:users",
+        "table:email_challenges",
+        "table:sessions",
+        "table:identity_audit",
+        "table:audit_logs",
+        "flow:identity.email.reset",
+        "flow:identity.email.start"
+      ],
+      "reason": "忘记密码：新接口 /auth/email/reset 与它的响应合同，start 多可选的 purpose，identity-store 多 resetPassword、hasEmail，设密码与重设共用 writePassword。contracts.ts 与 identity-store.ts 是身份域各接口共用的文件，这次只加 reset 的合同、me 的 email_required 字段和这两个函数，其它接口与查询不变。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/mail/login-code.ts"
+      ],
+      "domains": [
+        "mail",
+        "recruitment",
+        "identity"
+      ],
+      "nodes": [
+        "domain:mail",
+        "flow:identity.email.start"
+      ],
+      "reason": "重设密码的验证码信换一句开头和标题，正文照旧只有验证码、不放链接。mail 目录也发招新的信，这次只改验证码信这一个文件，招新信不变。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/email-gate.ts",
+        "app/server/src/routes/admin/auth.ts",
+        "app/server/src/routes/identity/google.ts",
+        "app/server/src/routes/identity/account.ts",
+        "app/server/src/routes/identity/device.ts",
+        "app/server/src/routes/oidc/index.ts"
+      ],
+      "domains": [
+        "identity",
+        "audit",
+        "forum",
+        "organization"
+      ],
+      "nodes": [
+        "domain:identity",
+        "route:GET /auth/callback",
+        "route:GET /auth/google/callback",
+        "route:GET /auth/me",
+        "route:GET /api/identity/me",
+        "route:POST /api/identity/device/approve",
+        "route:GET /oidc/interaction/:uid",
+        "route:GET /oidc/interaction/:uid/details",
+        "route:POST /oidc/interaction/:uid/confirm",
+        "route:POST /oidc/interaction/:uid/abort",
+        "flow:identity.callback",
+        "flow:identity.google.callback",
+        "flow:identity.current",
+        "flow:identity.account.view",
+        "flow:identity.device.approve",
+        "flow:identity.oidc.interaction",
+        "flow:identity.oidc.details",
+        "flow:identity.oidc.confirm",
+        "flow:identity.oidc.abort"
+      ],
+      "reason": "没有登录邮箱先绑：GitHub 与 Google 回调跳绑定页，/auth/me 与 /api/identity/me 回 email_required，OIDC 交互跳绑定页、details 与 confirm 403，设备授权 approve 403；拒绝与取消不拦。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/console/me.ts"
+      ],
+      "domains": [
+        "organization",
+        "identity"
+      ],
+      "nodes": [
+        "domain:organization",
+        "route:GET /api/console/me",
+        "flow:console.identity"
+      ],
+      "reason": "/api/console/me 多 email_required，控制台据此先带人去绑邮箱；能力和称号的计算不变，同文件的工作概览接口不动。"
+    },
+    {
+      "paths": [
+        "app/server/src/app.ts",
+        "app/web/Dockerfile",
+        "app/web/vite.config.ts"
+      ],
+      "domains": [
+        "platform",
+        "identity"
+      ],
+      "nodes": [
+        "domain:platform",
+        "flow:identity.account.view"
+      ],
+      "reason": "/bind-email 和 /signin、/account 一样交给控制台单页：服务端单页兜底、web 镜像的 nginx、本地开发的 vite 代理各加一项，其它路径的转发不变。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/SignIn.vue",
+        "app/console/src/pages/BindEmail.vue",
+        "app/console/src/pages/Account.vue",
+        "app/console/src/pages/Authorize.vue",
+        "app/console/src/lib/account.ts",
+        "app/console/src/lib/authorize.ts"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "domain:identity",
+        "flow:identity.email.reset",
+        "flow:identity.providers",
+        "flow:identity.account.view",
+        "flow:identity.oidc.details",
+        "flow:identity.oidc.confirm"
+      ],
+      "reason": "登录页的忘记密码表单与改密码说明、新的绑定邮箱页、我的账号和授权页读到 email_required 去绑定页、账号记录多「重设密码」。我的账号页的邮箱一段不动。"
+    },
+    {
+      "paths": [
+        "app/console/src/lib/signin.ts",
+        "app/console/src/lib/device.ts",
+        "app/console/src/lib/types.ts",
+        "app/console/src/mock/console.ts",
+        "app/console/src/mock/index.ts",
+        "app/console/src/pages/ConsoleRoot.vue",
+        "app/console/src/pages/Device.vue",
+        "app/console/src/router.ts"
+      ],
+      "domains": [
+        "identity",
+        "audit",
+        "competitions",
+        "feedback",
+        "github",
+        "organization",
+        "recruitment",
+        "platform"
+      ],
+      "nodes": [
+        "domain:identity",
+        "flow:identity.email.reset",
+        "flow:identity.current",
+        "flow:console.identity",
+        "flow:identity.device.view",
+        "flow:identity.device.approve",
+        "flow:competition.console.list"
+      ],
+      "reason": "控制台的登录工具多重设密码与绑定页地址，路由多 /bind-email，首页与设备授权读到 email_required 去绑定页，类型与样板数据多 email_required、password_reset 和两个人设。这些是控制台各页共用的文件，这次只加身份相关的字段、函数和人设，比赛、意见、GitHub、招新、组织与审计页面的数据和行为不变。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/lib/account.ts"
+      ],
+      "domains": [
+        "identity",
+        "competitions",
+        "feedback",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:identity",
+        "flow:identity.current",
+        "flow:feedback.public.list",
+        "flow:invitation.public.inspect",
+        "flow:documentation.list",
+        "flow:application.submit"
+      ],
+      "reason": "官网读 /auth/me 的 email_required，带着当前地址整页跳到绑定邮箱页。这个文件是官网各个窗口共用的账号状态，这次只加这一个判断，比赛、意见箱、邀请、文档和加入我们的读写不变。"
+    },
+    {
+      "paths": [
+        "app/forum/app/composables/useSiteAccount.ts",
+        "app/forum/shared/site-account.ts"
+      ],
+      "domains": [
+        "forum",
+        "identity"
+      ],
+      "nodes": [
+        "domain:forum",
+        "flow:identity.current"
+      ],
+      "reason": "论坛读 /auth/me 的 email_required，带着当前地址整页跳到绑定邮箱页；论坛自己的登录和数据不变。"
+    },
+    {
+      "paths": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/services/server/data-model.md",
+        "docs/services/server/oidc.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/architecture/SECURITY.en.md",
+        "docs/plan/UNIFIED-LOGIN.md",
+        "docs/services/console/README.md",
+        "docs/services/web/README.md",
+        "docs/services/web/portal.md",
+        "docs/services/forum/README.md",
+        "docs/architecture/catalog/ownership.json",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "domain:identity",
+        "flow:identity.email.reset"
+      ],
+      "reason": "文档写明忘记密码与绑定邮箱怎么走、接口与错误代码、拦在哪里和不拦什么；流程登记新增重设密码流程、登记 email-gate 与绑定页的归属，项目目录随源码重新生成。"
+    },
+    {
+      "paths": [
+        "tests/server/signin-methods.test.ts",
+        "tests/server/oidc.test.ts",
+        "tests/server/device-flow.test.ts",
+        "tests/server/core.test.ts",
+        "tests/tooling/web-nginx.test.ts",
+        "tests/console/signin.test.ts",
+        "tests/console/account.test.ts",
+        "tests/console/authorize.test.ts",
+        "tests/console/device.test.ts",
+        "tests/console/mock-sync.test.ts",
+        "tests/web/portal-os.test.ts",
+        "app/forum/tests/site-account.test.ts"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "flow:identity.email.reset",
+        "flow:identity.callback",
+        "flow:identity.current",
+        "flow:identity.device.approve",
+        "flow:identity.oidc.interaction"
+      ],
+      "reason": "回归：重设密码的成功与各种失败、三个 me 接口的 email_required、GitHub 与 Google 回调、OIDC 交互与设备授权的拦截和放行、控制台工具与样板、官网与论坛的跳转、/bind-email 的单页路由。"
+    }
+  ],
+  "documents": [
+    "docs/services/server/endpoint-contracts.md",
+    "docs/services/server/README.md",
+    "docs/services/server/data-model.md",
+    "docs/services/server/oidc.md",
+    "docs/architecture/SECURITY.md",
+    "docs/services/console/README.md",
+    "docs/services/web/README.md",
+    "docs/services/web/portal.md",
+    "docs/services/forum/README.md"
+  ],
+  "tests": [
+    "tests/server/signin-methods.test.ts",
+    "tests/server/oidc.test.ts",
+    "tests/server/device-flow.test.ts",
+    "tests/server/core.test.ts",
+    "tests/tooling/web-nginx.test.ts",
+    "tests/console/signin.test.ts",
+    "tests/console/account.test.ts",
+    "tests/console/authorize.test.ts",
+    "tests/console/device.test.ts",
+    "tests/console/mock-sync.test.ts",
+    "tests/web/portal-os.test.ts",
+    "app/forum/tests/site-account.test.ts"
+  ],
+  "compatibility": "原有接口的路径、请求和状态码不变，/auth/me、/api/identity/me、/api/console/me 只多一个 email_required 字段，/auth/email/start 多一个可选的 purpose。行为上的变化：能发信的环境里，没有登录邮箱的账号登录后先到绑定邮箱页，对外授权与设备授权在绑好前回 403 email_required。部署前打开、没刷新的旧控制台页面不认 email_required，刷新后会转去绑定页；旧的官网与论坛页面同样刷新后生效。",
+  "migration": "不涉及数据迁移：表结构不变，已有账号的数据不动。没有登录邮箱的账号不在部署时处理，等本人下次登录或打开站点时绑定。",
+  "rollback": "在 stage 上 git revert -m 1 合并提交并重新发 rc；已经重设的密码和绑好的邮箱保留，旧代码照常使用；identity_audit 里的 password_reset 记录留着，不影响旧代码。"
+}

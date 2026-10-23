@@ -699,7 +699,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：要极客班会话；授权绑定到会话的 account_id（不是 GitHub id）；每分钟 20 次。",
-        "响应与错误：200 {ok:true,status:approved|denied}；不存在 404 device_code_not_found；不是 pending 或已过期 409 device_code_not_pending；decision 不合法 400。",
+        "响应与错误：200 {ok:true,status:approved|denied}；不存在 404 device_code_not_found；不是 pending 或已过期 409 device_code_not_pending；decision 不合法 400；允许时账号还没有登录邮箱（这个环境能发信）403 email_required，拒绝不拦（#273）。",
         "数据与副作用：条件 UPDATE 只改 pending 且未过期的行，并发的确认只有一次生效；写 audit_logs identity.device.approve 或 identity.device.deny，只含 client_id 与 scope，不含 device_code 与令牌。"
       ],
       "evidence": [
@@ -718,6 +718,10 @@
         {
           "path": "app/console/src/pages/Device.vue",
           "needle": "只确认自己发起的登录"
+        },
+        {
+          "path": "app/server/src/routes/identity/device.ts",
+          "needle": "if (decision === \"approve\" && emailRequired(app.services, session.account_id)) {"
         }
       ],
       "tests": [
@@ -728,7 +732,8 @@
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/plan/UNIFIED-LOGIN.md",
-        "docs/services/console/README.md"
+        "docs/services/console/README.md",
+        "docs/architecture/SECURITY.md"
       ]
     },
     {
@@ -802,7 +807,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：state与签名cookie必须相符且未过期；按GitHub数字id匹配身份，不用会变的登录名。这个GitHub id已有账号且站内记过角色的由站内决定（停用、不是成员拒绝），不查GitHub组织；新用户和还没记过站内角色的老账号要是CONSOLE_ORG active成员才成功：新用户记为成员（站内一位管理员都没有时owner记为管理员），老账号按查到的组织角色补记（users.org_role，owner记为管理员）（#262 第四期）。",
-        "响应与错误：成功302回return_to；取消/上游失败/非成员/账号停用一律302到统一登录页/signin，带signin结果（cancelled、failed、not_member或invite_pending、account_disabled）与原来的return_to路径（#262）；合并链超过8跳、成环或事务失败按failed；缺参数或无效state为400，旧forum-state为410。",
+        "响应与错误：成功302回return_to；账号还没有登录邮箱、这个环境又能发信时改为302到/bind-email?return_to=<原路径>（#273）；取消/上游失败/非成员/账号停用一律302到统一登录页/signin，带signin结果（cancelled、failed、not_member或invite_pending、account_disabled）与原来的return_to路径（#262）；合并链超过8跳、成环或事务失败按failed；缺参数或无效state为400，旧forum-state为410。",
         "数据与副作用：外部请求在事务外做完；建号、刷新身份、沿merged_into走到终点、按GitHub id认领称号与论坛用户、写sessions（含openid、provider）、删请求带来的旧会话、写identity_audit与auth.signin在一个BEGIN IMMEDIATE事务里，失败整体回滚、旧会话照常有效。非成员与停用账号不建会话、审计拒绝并尽力撤销授权；被组织拒绝的GitHub id已经有还没记过站内角色的老账号时，把它的成员资格记成not_member或pending（#262审查）；站内记过角色的账号不受GitHub组织变动影响；失败日志不输出token。"
       ],
       "evidence": [
@@ -821,18 +826,28 @@
         {
           "path": "app/server/src/lib/db.ts",
           "needle": "function audit(org: string | null, actor: AuditActor,"
+        },
+        {
+          "path": "app/server/src/lib/email-gate.ts",
+          "needle": "export function bindEmailUrl(publicOrigin: string, back: string): string {"
+        },
+        {
+          "path": "app/server/src/routes/admin/auth.ts",
+          "needle": "emailRequired(app.services, signin.accountId) ? bindEmailUrl(config.publicOrigin, back) : back"
         }
       ],
       "tests": [
         "tests/server/core.test.ts",
-        "tests/server/identity.test.ts"
+        "tests/server/identity.test.ts",
+        "tests/server/signin-methods.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/architecture/SECURITY.md",
         "docs/services/server/data-model.md",
-        "docs/plan/UNIFIED-LOGIN.md"
+        "docs/plan/UNIFIED-LOGIN.md",
+        "docs/services/console/README.md"
       ]
     },
     {
@@ -905,7 +920,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：只返回当前sid的身份；console_link是显示提示，不赋予后端权限。",
-        "响应与错误：200 {signed_in:false}或身份字段（login、user_id、avatar_url、account_id、provider）及console_link；GitHub拒绝token时200 {signed_in:false,session_expired:true}，其他角色查询失败仍保持登录但入口false。",
+        "响应与错误：200 {signed_in:false}或身份字段（login、user_id、avatar_url、account_id、provider）及console_link、email_required（账号还没有登录邮箱、这个环境又能发信；官网、论坛、控制台读到true整页跳到/bind-email，#273）；GitHub拒绝token时200 {signed_in:false,session_expired:true}，其他角色查询失败仍保持登录但入口false。",
         "数据与副作用：会话联查账号，过期、没有账号（启动回填映射不到的旧会话）或账号不是active的会话按未登录处理并删除；按账号记下的站内角色和称号算权限（还没记过站内角色的老账号用GitHub会话第一次请求时查一次GitHub组织角色并记下），被拒token才删会话并写审计；无其他业务写入。"
       ],
       "evidence": [
@@ -988,6 +1003,26 @@
         {
           "path": "app/forum/app/components/AdoptionNotice.vue",
           "needle": "极客班成员可以在右上角登录"
+        },
+        {
+          "path": "app/server/src/lib/email-gate.ts",
+          "needle": "export function emailRequired("
+        },
+        {
+          "path": "app/web/sites/portal/lib/account.ts",
+          "needle": "window.location.assign(bindEmailHref());"
+        },
+        {
+          "path": "app/forum/shared/site-account.ts",
+          "needle": "export function emailRequired(body: unknown): boolean {"
+        },
+        {
+          "path": "app/forum/app/composables/useSiteAccount.ts",
+          "needle": "window.location.assign(bindEmailHref(`${pathname}${search}${hash}`))"
+        },
+        {
+          "path": "app/console/src/pages/Device.vue",
+          "needle": "if (me.value.email_required) return toBindEmail();"
         }
       ],
       "tests": [
@@ -997,7 +1032,11 @@
         "tests/server/legacy-database.test.ts",
         "tests/console/signin.test.ts",
         "tests/web/portal-phone.test.tsx",
-        "tests/e2e/workflows.spec.ts"
+        "tests/e2e/workflows.spec.ts",
+        "tests/server/signin-methods.test.ts",
+        "tests/web/portal-os.test.ts",
+        "app/forum/tests/site-account.test.ts",
+        "tests/console/device.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -1030,7 +1069,7 @@
       ],
       "invariants": [
         "权限与资源：匿名；每分钟 10 次（按 IP），同一邮箱 60 秒一封、每小时 5 封，同一 IP 前缀（IPv6 按 /64）每小时 20 封。",
-        "响应与错误：202 {resend_after:60} 并写签名、HttpOnly 的 email_challenge cookie（path=/auth/email，10 分钟）；邮箱有没有账号响应都一样；格式不对 400 bad_email；太频繁 429 rate_limited，带 Retry-After 与 retry_after 秒数。",
+        "响应与错误：202 {resend_after:60} 并写签名、HttpOnly 的 email_challenge cookie（path=/auth/email，10 分钟）；邮箱有没有账号响应都一样；body 可带 purpose=reset（忘了密码，#273），只换成重设密码的信，挑战还是登录用的那一种；格式不对 400 bad_email；太频繁 429 rate_limited，带 Retry-After 与 retry_after 秒数。",
         "数据与副作用：写一行 email_challenges，只存验证码 HMAC，这个浏览器上一次的发码作废（别人替这个邮箱要码不影响本人手上的验证码）；验证码由 mail.sendNow 直接发（Aliyun 或 Resend，受 MAIL_RECIPIENTS 与白名单约束），不进 mail_outbox，日志不记地址和验证码。"
       ],
       "evidence": [
@@ -1053,6 +1092,14 @@
         {
           "path": "app/server/src/lib/mail/login-code.ts",
           "needle": "export function loginCodeMessage("
+        },
+        {
+          "path": "app/server/src/lib/mail/login-code.ts",
+          "needle": "export type LoginCodePurpose = \"signin\" | \"link\" | \"reset\";"
+        },
+        {
+          "path": "app/console/src/lib/signin.ts",
+          "needle": "...(purpose === \"reset\" && { purpose })"
         }
       ],
       "tests": [
@@ -1183,6 +1230,69 @@
       ]
     },
     {
+      "id": "identity.email.reset",
+      "title": "忘了密码用邮箱验证码重设并登录",
+      "domain": "identity",
+      "relatedDomains": [
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /auth/email/reset",
+      "capabilities": [],
+      "reads": [
+        "email_challenges",
+        "identities",
+        "users"
+      ],
+      "writes": [
+        "email_challenges",
+        "users",
+        "sessions",
+        "identity_audit",
+        "audit_logs"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：匿名，凭 /auth/email/start 发的挑战 cookie（path=/auth/email）；每分钟 10 次（按 IP），同一个码最多错 5 次；只给已有账号的邮箱，不注册（#273，所有者 2026-10-23 19:22）。",
+        "响应与错误：200 {return_to} 并写 sid（provider=email）；先查新密码，不到 8 位 400 password_too_short、超过 72 字节 400 password_exceeds_bcrypt_limit，这时不碰验证码；验证码不对 400 invalid_code（带 attempts_left），失效 400 code_expired；邮箱没有账号 400 no_account（验证码不作废）；停用 403 account_disabled，不是成员 403 not_member。",
+        "数据与副作用：占用验证码、建会话、删旧会话、写 users.password_hash（bcrypt cost 12）、identity_audit（login 与 password_reset）、auth.signin（method=reset）与 account.password（action=reset）在一个 BEGIN IMMEDIATE 事务里；成功后这个邮箱的密码错误计数清零。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/identity/email.ts",
+          "needle": "    \"/auth/email/reset\","
+        },
+        {
+          "path": "app/server/src/routes/identity/contracts.ts",
+          "needle": "  \"POST /auth/email/reset\": {"
+        },
+        {
+          "path": "app/server/src/lib/identity-store.ts",
+          "needle": "  function resetPassword(input: {"
+        },
+        {
+          "path": "app/console/src/lib/signin.ts",
+          "needle": "export const resetPasswordWithCode = (code: string, password: string) =>"
+        },
+        {
+          "path": "app/console/src/pages/SignIn.vue",
+          "needle": "async function submitReset() {"
+        }
+      ],
+      "tests": [
+        "tests/server/signin-methods.test.ts",
+        "tests/console/signin.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/services/server/data-model.md",
+        "docs/services/console/README.md",
+        "docs/plan/UNIFIED-LOGIN.md"
+      ]
+    },
+    {
       "id": "identity.google.start",
       "title": "跳转 Google 登录",
       "domain": "identity",
@@ -1249,7 +1359,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：每分钟 10 次（按 IP）；state 与签名 cookie 必须相符；ID Token 用 Google JWKS 验签（RS256），核对 iss、aud、exp、nonce，按 Google sub 认人，不按邮箱合并账号。",
-        "响应与错误：成功 302 回 return_to；取消、上游失败、没有账号且没带邀请码、邀请码无效、Google 邮箱已属于别的账号、账号停用或不再是成员时 302 到 /signin?signin=<原因>&provider=google；缺参数 400，state 无效 400。",
+        "响应与错误：成功 302 回 return_to，账号还没有登录邮箱（Google 给的邮箱不算）、这个环境又能发信时改为 302 到 /bind-email?return_to=<原路径>（#273）；取消、上游失败、没有账号且没带邀请码、邀请码无效、Google 邮箱已属于别的账号、账号停用或不再是成员时 302 到 /signin?signin=<原因>&provider=google；缺参数 400，state 无效 400。",
         "数据与副作用：外部请求在事务外；建号、兑换邀请码、建会话（provider=google）、写 identity_audit 与 auth.register/auth.signin 在一个 BEGIN IMMEDIATE 事务里，失败整体回滚；失败日志不输出令牌。"
       ],
       "evidence": [
@@ -1268,6 +1378,10 @@
         {
           "path": "app/server/src/lib/safe-return.ts",
           "needle": "export function signinFailureUrl("
+        },
+        {
+          "path": "app/server/src/routes/identity/google.ts",
+          "needle": "emailRequired(app.services, result.accountId) ? bindEmailUrl(config.publicOrigin, back) : back"
         }
       ],
       "tests": [
@@ -1300,7 +1414,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：任何有效会话，不要控制台能力。",
-        "响应与错误：200 {account_id,login,identities(邮箱只给打码后的样子),has_password,password_updated_at,membership{state,org_role,via_invite},created_at,recent(最近 20 条本人记录),available,session{provider,created_at,expires_at,step_up_until}}；没登录 401。",
+        "响应与错误：200 {account_id,login,identities(邮箱只给打码后的样子),has_password,password_updated_at,membership{state,org_role,via_invite},created_at,recent(最近 20 条本人记录),available,email_required(#273，账号还没有登录邮箱、这个环境又能发信),session{provider,created_at,expires_at,step_up_until}}；没登录 401。",
         "数据与副作用：只读；过期会话照共同规则删除。"
       ],
       "evidence": [
@@ -1331,11 +1445,20 @@
         {
           "path": "app/console/src/lib/account.ts",
           "needle": "export function membershipText(membership: AccountView[\"membership\"]): string {"
+        },
+        {
+          "path": "app/console/src/pages/BindEmail.vue",
+          "needle": "view.value = await api<AccountView>(\"/api/identity/me\");"
+        },
+        {
+          "path": "app/console/src/pages/Account.vue",
+          "needle": "if (required) void router.replace(bindEmailPath(\"/account\"));"
         }
       ],
       "tests": [
         "tests/server/signin-methods.test.ts",
-        "tests/console/account.test.ts"
+        "tests/console/account.test.ts",
+        "tests/console/signin.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -4038,7 +4161,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：只需有效会话；回答当前登录者的站内角色、称号与能力，以及控制台这次经什么接GitHub（app、session或none），不接受自报role（#262 第四期）。",
-        "响应与错误：200 {login,avatar_url,org,provider,site_role,github,title,titles,capabilities,head_of}。",
+        "响应与错误：200 {login,avatar_url,org,provider,site_role,github,title,titles,capabilities,head_of,email_required}；email_required为true时控制台先带人去绑定邮箱页（#273）。",
         "数据与副作用：只计算当前身份；不是成员的账号保留称号展示但没有任何能力；补记站内角色时查GitHub失败按错误处理，不降级为非成员；存在会话不等于拥有console.access。",
         "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
       ],
@@ -4074,15 +4197,22 @@
         {
           "path": "app/console/src/components/ConsoleShell.vue",
           "needle": "const roleText = computed(() => `站内${siteRoleText(props.me.site_role)}`);"
+        },
+        {
+          "path": "app/console/src/pages/ConsoleRoot.vue",
+          "needle": "if (value) void router.replace(bindEmailPath(route.fullPath));"
         }
       ],
       "tests": [
-        "tests/server/console.test.ts"
+        "tests/server/console.test.ts",
+        "tests/server/signin-methods.test.ts",
+        "tests/console/account.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
+        "docs/architecture/SECURITY.md",
+        "docs/services/console/README.md"
       ]
     },
     {
@@ -9206,7 +9336,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：凭这次交互的 cookie（路径 /oidc/interaction/<uid>）；每个 IP 每分钟 30 次。",
-        "响应与错误：交互过期或 cookie 不对 400 中文错误页；没有 sid 303 /signin?return_to=/oidc/interaction/<uid>；不是成员带 access_denied 回到下游；要同意时 303 /authorize?uid=<uid>。",
+        "响应与错误：交互过期或 cookie 不对 400 中文错误页；没有 sid 303 /signin?return_to=/oidc/interaction/<uid>；不是成员带 access_denied 回到下游；账号还没有登录邮箱时 303 /bind-email?return_to=/oidc/interaction/<uid>，绑好回到同一个交互（#273）；要同意时 303 /authorize?uid=<uid>。",
         "数据与副作用：换过账号时先删掉签发者里旧账号的会话再按 sid 的账号登录，不走 oidc-provider 的登出确认页。"
       ],
       "evidence": [
@@ -9225,6 +9355,10 @@
         {
           "path": "app/server/src/lib/account-directory.ts",
           "needle": "export function createAccountDirectory("
+        },
+        {
+          "path": "app/server/src/routes/oidc/index.ts",
+          "needle": "if (emailRequired(app.services, accountId)) return reply.redirect(bindEmailUrl(config.publicOrigin, `/oidc/interaction/${encodeURIComponent(uid)}`), 303);"
         }
       ],
       "tests": [
@@ -9263,7 +9397,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：要 sid（requireAuth）与这次交互的 cookie；只认发起这次登录的账号；每个 IP 每分钟 30 次。",
-        "响应与错误：200 {client:{id,name,host},scopes,account:{login,name,picture},expires_at}；交互过期 404 interaction_expired；不是要同意的交互或换了账号 409 interaction_mismatch；没登录 401。",
+        "响应与错误：200 {client:{id,name,host},scopes,account:{login,name,picture},expires_at}；账号还没有登录邮箱 403 email_required（#273）；交互过期 404 interaction_expired；不是要同意的交互或换了账号 409 interaction_mismatch；没登录 401。",
         "数据与副作用：只读，不改交互。"
       ],
       "evidence": [
@@ -9294,6 +9428,10 @@
         {
           "path": "app/console/src/mock/index.ts",
           "needle": "/details$/"
+        },
+        {
+          "path": "app/console/src/pages/Authorize.vue",
+          "needle": "return window.location.assign(authorizeBindEmailPath(uid));"
         }
       ],
       "tests": [
@@ -9332,7 +9470,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：要 sid、同源 Origin 与这次交互的 cookie；只认发起这次登录的账号；每个 IP 每分钟 20 次。",
-        "响应与错误：200 {redirect_to}，前端整页跳过去继续授权；过期 404 interaction_expired，换了账号 409 interaction_mismatch。",
+        "响应与错误：200 {redirect_to}，前端整页跳过去继续授权；账号还没有登录邮箱 403 email_required（#273）；过期 404 interaction_expired，换了账号 409 interaction_mismatch。",
         "数据与副作用：把缺的 scope 与声明加进授权并保存，记进 oauth_grants（之后同一应用登录不再问）；写 audit_logs oidc.consent，只含 client_id 与 scope。"
       ],
       "evidence": [
@@ -9347,6 +9485,10 @@
         {
           "path": "app/console/src/pages/Authorize.vue",
           "needle": "decisionPath(uid, decision)"
+        },
+        {
+          "path": "app/server/src/routes/oidc/index.ts",
+          "needle": "const needsEmail = (req: FastifyRequest, reply: FastifyReply) => {"
         }
       ],
       "tests": [
@@ -9384,7 +9526,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：同 confirm：要 sid、同源 Origin 与这次交互的 cookie；每个 IP 每分钟 20 次。",
-        "响应与错误：200 {redirect_to}，下游收到 error=access_denied；过期 404，换了账号 409。",
+        "响应与错误：200 {redirect_to}，下游收到 error=access_denied；过期 404，换了账号 409；没有登录邮箱也能拒绝（#273）。",
         "数据与副作用：写 audit_logs oidc.deny；不写 oauth_grants。"
       ],
       "evidence": [
@@ -9596,6 +9738,9 @@
     "app/server/src/lib/safe-return.ts": [
       "identity"
     ],
+    "app/server/src/lib/email-gate.ts": [
+      "identity"
+    ],
     "app/server/src/lib/password-policy.ts": [
       "identity"
     ],
@@ -9774,6 +9919,9 @@
       "identity"
     ],
     "app/console/src/lib/authorize.ts": [
+      "identity"
+    ],
+    "app/console/src/pages/BindEmail.vue": [
       "identity"
     ]
   }
