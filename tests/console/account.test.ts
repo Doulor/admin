@@ -26,8 +26,9 @@ describe("账号页 (lib/account)", () => {
   });
 
   it("成员资格按组织角色或邀请码说一句话", () => {
-    expect(membershipText({ state: "active", org_role: "admin", via_invite: false })).toBe("极客班成员 · GitHub 组织管理员");
-    expect(membershipText({ state: "active", org_role: null, via_invite: true })).toBe("极客班成员 · 用邀请码注册");
+    expect(membershipText({ state: "active", org_role: "admin", via_invite: false })).toBe("极客班成员 · 站内管理员");
+    expect(membershipText({ state: "active", org_role: "member", via_invite: true })).toBe("极客班成员 · 用邀请码注册");
+    expect(membershipText({ state: "active", org_role: "member", via_invite: false })).toBe("极客班成员");
     expect(membershipText({ state: "not_member", org_role: null, via_invite: false })).toBe("已经不是极客班成员");
   });
 

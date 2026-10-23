@@ -18,15 +18,10 @@ export async function resolveAccess(req: FastifyRequest): Promise<Access> {
   return req.access;
 }
 
-/** 缺少能力时的统一 403 体。`reason` 只在被 GitHub 上限挡掉时出现（邮箱、Google 会话是 github_session_required）。 */
-export function missingCapability(access: Access, anyOf: Capability[]) {
+/** 缺少能力时的统一 403 体。能力只看站内称号（#262 第四期），没有 GitHub 上限，也就没有 `reason`。 */
+export function missingCapability(anyOf: Capability[]) {
   const [first] = anyOf;
-  const blocked = access.blocked.find(item => anyOf.includes(item.capability));
-  return {
-    error: "missing_capability", capability: first, any_of: anyOf,
-    ...(blocked ? { reason: blocked.reason } : {}),
-    message: `需要「${capabilityLabel(first)}」权限`,
-  };
+  return { error: "missing_capability", capability: first, any_of: anyOf, message: `需要「${capabilityLabel(first)}」权限` };
 }
 
 /** 要求调用者至少持有 anyOf 中的一项能力。需在 requireAuth 之后使用。 */
@@ -34,6 +29,6 @@ export function requireCapability(...anyOf: Capability[]) {
   return async (req: FastifyRequest, reply: FastifyReply) => {
     if (!req.session) return reply.code(401).send({ error: "not_signed_in" });
     const access = await resolveAccess(req);
-    if (!anyOf.some(capability => access.capabilities.has(capability))) return reply.code(403).send(missingCapability(access, anyOf));
+    if (!anyOf.some(capability => access.capabilities.has(capability))) return reply.code(403).send(missingCapability(anyOf));
   };
 }

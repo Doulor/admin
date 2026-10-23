@@ -9,9 +9,9 @@
 本文是人工维护的行为契约，不是完整 OpenAPI。`application.cancel` 保留既有取消投递不变量，公共授权依赖与其他审核分支通过同一 PATCH 的 `application.review` 及本节追溯，不另造第二套取消规则。请求字段的机器约束仍以对应 routes 下的 contracts.ts 与 handler 为准；下文响应是源码分支的形状，未把测试入口标成每个分支均已验证。业务操作按显式非 HEAD 的方法路径计数；自动 HEAD 派生于 GET，论坛显式 HEAD /api/forum/state 另为 405，不能计为第二个业务用例。补充 Nitro 入口按声明单列。
 
 - 核心写请求先由 middleware/http-policy.ts 校验 Origin / Fetch Metadata，外域拒绝 403 invalid_origin；缺 Origin 不自动拒绝所有非浏览器调用。输入 Schema 失败为 400 validation_error。全局错误体通常为 error、message、request_id，handler 自行 reply.send 的错误形状保留原样。
-- 会话型接口读取 sessions；getSession 遇过期行会删除，不能把 GET 一律标为没有任何写入。经 http-policy 处理的上游令牌 401 会删当前会话、清 cookie，并仅在实际删除时写 auth.session_rejected 审计；其他上游 4xx 为同状态 upstream_rejected，5xx 为 internal_error。PR 合并代理与 OAuth 回跳的局部 catch 另见各用例。
-- /api/admin/:org/* 以 URL 中 org、ALLOWED_ORGS 和调用者在该组织的实际 GitHub 角色为边界；不借控制台 capability 给上游授权。访问资源仍受调用者自己的 GitHub token 限制。
-- 控制台能力由 sessions、role_assignments、departments、titles 及 GitHub 组织角色计算；角色缓存 60 秒，权限包每次读取。requireCapability 的多个参数是“任一满足”，并非全部同时拥有。缺能力 403 missing_capability；部门与对象范围仍在 handler 中继续校验。
+- 会话型接口读取 sessions；getSession 遇过期行会删除，不能把 GET 一律标为没有任何写入。经 http-policy 处理的会话自身令牌 401 会删当前会话、清 cookie，并仅在实际删除时写 auth.session_rejected 审计；服务器 GitHub App 的令牌被拒为 503 github_connection_failed、不删会话，GitHub 没接上为 409 github_not_connected；其他上游 4xx 为同状态 upstream_rejected，5xx 为 internal_error。PR 合并代理与 OAuth 回跳的局部 catch 另见各用例。
+- /api/admin/:org/* 按称号给的能力授权（requireGithub / requireManagedOrg），URL 中 org 必须是 CONSOLE_ORG（否则 403 org_not_managed），不看调用者的 GitHub 组织角色（#262 第四期）。上游由服务器接入的 GitHub 执行：配了 GitHub App 用安装令牌，没配用调用者自己的 GitHub 会话令牌（这时还受他自己的 GitHub 权限限制）。
+- 控制台能力由 sessions、users（站内角色与成员资格）、role_assignments、departments、titles 计算，不调用 GitHub；只有还没记过站内角色的老账号补记一次 GitHub 组织角色（缓存 60 秒）；权限包每次读取。不是成员的账号没有任何能力。requireCapability 的多个参数是“任一满足”，并非全部同时拥有。缺能力 403 missing_capability；部门与对象范围仍在 handler 中继续校验。
 - 流程 reads/writes 包含授权依赖与可能的条件写入，不能据数组推断每次请求都会写。forumViewer 对有效成员创建或刷新 forum_users，游客不写成员记录。外部 HTTP、文件读取、缓存和通知等副作用在各用例文字中明确，不能假装成 SQLite 外键。
 - 测试路径只表示可复查入口。GitHub 代理多数尚无逐端点成功响应测试，已有 core/upstream-errors 只覆盖通用门禁和部分错误映射；Nitro 的纯函数/配置测试不等于启动服务器验证。
 
@@ -132,7 +132,7 @@
 
 ## 邮箱、Google 登录、账号页与注册邀请码（#262 第二、三期）
 
-所有者 2026-10-23 定的规则：邮箱验证码和密码都能登录；用邮箱或 Google 第一次登录、还没有极客班账号时凭邀请码注册（默认邀请码只存在运维的钥匙串里，用 `dist/cli/account.js invite` 写进库）；GitHub 登录照旧只对组织成员开放、不用邀请码。邮箱、Google 会话没有 GitHub 令牌，成员资格与提督、舰员称号按账号上记下的 GitHub 组织角色给（「按站内称号认」），要本人 GitHub 令牌的接口回 403 `github_session_required`。以下接口都挂了响应 Schema；失败体保留 `attempts_left`、`retry_after`、`reauth`、`capability` 等扩展字段。
+所有者 2026-10-23 定的规则：邮箱验证码和密码都能登录；用邮箱或 Google 第一次登录、还没有极客班账号时凭邀请码注册（默认邀请码只存在运维的钥匙串里，用 `dist/cli/account.js invite` 写进库）；GitHub 新用户第一次登录只对组织成员开放、不用邀请码。#262 第四期起权限只认极客班账号：不论用哪种方式登录，成员资格与提督、舰员称号都按账号记下的站内角色给；邮箱、Google 会话没有 GitHub 令牌，控制台的 GitHub 页面在没配 GitHub App 时回 409 `github_not_connected`，`GET /api/me/orgs` 回 403 `github_session_required`。以下接口都挂了响应 Schema；失败体保留 `attempts_left`、`retry_after`、`reauth`、`capability` 等扩展字段。
 
 | 接口 · 流程 | 权限与资源 | 响应、错误与副作用 |
 |---|---|---|
@@ -157,11 +157,11 @@
 
 `GET /auth/callback` · `flow:identity.callback`
 
-权限与资源：state与签名cookie必须相符且未过期；仅CONSOLE_ORG active成员成功；只有GitHub能建号，按GitHub数字id匹配身份，不用会变的登录名。
+权限与资源：state与签名cookie必须相符且未过期；按GitHub数字id匹配身份，不用会变的登录名。这个GitHub id已有账号且站内记过角色的由站内决定（停用、不是成员拒绝），不查GitHub组织；新用户和还没记过站内角色的老账号要是CONSOLE_ORG active成员才成功：新用户记为成员（站内一位管理员都没有时owner记为管理员），老账号按查到的组织角色补记（users.org_role，owner记为管理员）（#262 第四期）。
 
 响应与错误：成功302回return_to；取消/上游失败/非成员/账号停用一律302到<PUBLIC_ORIGIN>/signin?signin=<cancelled|failed|not_member|invite_pending|account_disabled>&return_to=<原来要回的本站路径>，原路径里残留的signin参数会去掉（#262）；合并链超过8跳、成环或事务失败按failed；缺参数或无效state为400，旧forum-state为410。
 
-数据与副作用：外部请求在事务外做完；建号、刷新身份、沿merged_into走到终点、按GitHub id认领称号与论坛用户、写sessions（含openid、provider）、删请求带来的旧会话、写identity_audit与auth.signin在一个BEGIN IMMEDIATE事务里，失败整体回滚、旧会话照常有效。非成员与停用账号不建会话、审计拒绝并尽力撤销授权；被组织拒绝的GitHub id已经有账号时，清掉账号记下的组织角色，不是邀请码注册的账号同时改成not_member或pending（#262审查）；失败日志不输出token。
+数据与副作用：外部请求在事务外做完；建号、刷新身份、沿merged_into走到终点、按GitHub id认领称号与论坛用户、写sessions（含openid、provider）、删请求带来的旧会话、写identity_audit与auth.signin在一个BEGIN IMMEDIATE事务里，失败整体回滚、旧会话照常有效。非成员与停用账号不建会话、审计拒绝并尽力撤销授权；被组织拒绝的GitHub id已经有还没记过站内角色的老账号时，把它的成员资格记成not_member或pending（#262审查）；站内记过角色的账号不受GitHub组织变动影响；失败日志不输出token。
 
 本地表读取：identities, users。本地表写入：sessions, audit_logs, users, identities, identity_audit, role_assignments, forum_users。
 
@@ -189,7 +189,7 @@
 
 响应与错误：200 {signed_in:false}或身份字段（login、user_id、avatar_url、account_id、provider）及console_link；GitHub拒绝token时200 {signed_in:false,session_expired:true}，其他角色查询失败仍保持登录但入口false。
 
-数据与副作用：会话联查账号，过期、没有账号（启动回填映射不到的旧会话）或账号不是active的会话按未登录处理并删除；访问GitHub角色缓存和权限数据，被拒token才删会话并写审计；无其他业务写入。
+数据与副作用：会话联查账号，过期、没有账号（启动回填映射不到的旧会话）或账号不是active的会话按未登录处理并删除；按账号记下的站内角色和称号算权限（还没记过站内角色的老账号用GitHub会话第一次请求时查一次GitHub组织角色并记下），被拒token才删会话并写审计；无其他业务写入。
 
 本地表读取：sessions, role_assignments, departments, titles, users。本地表写入：sessions, audit_logs。
 
@@ -215,7 +215,7 @@
 
 `GET /api/admin/:org/activity` · `flow:github.activity.read`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {events}，输出actor、repo、时间及摘要。
 
@@ -223,7 +223,7 @@
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -235,7 +235,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/org` · `flow:github.organization.read`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 GitHub组织响应对象。
 
@@ -243,7 +243,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -255,7 +255,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/overview` · `flow:github.overview.read`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {role,org,counts}；成员/邀请/仓库子查询失败各降为空数组，组织主查询失败仍抛错。
 
@@ -263,7 +263,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -275,7 +275,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/security` · `flow:github.security.read`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {plan,two_factor_required,dependabot,secret_scanning,audit_log}；Dependabot失败落入嵌套error字段。
 
@@ -283,7 +283,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -295,7 +295,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/members` · `flow:github.members.list`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {members,viewer_role}；单个成员详情失败将role/state设为?，名单请求失败仍抛错。
 
@@ -303,7 +303,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -315,7 +315,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/teams` · `flow:github.teams.list`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {teams}，每项增加member_count/repo_count；计数子请求失败记0。
 
@@ -323,7 +323,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -335,7 +335,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `DELETE /api/admin/:org/members/:login` · `flow:github.members.remove`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.members.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {ok:true}；login等于本人时400，其他失败保留上游状态映射。
 
@@ -343,7 +343,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -355,7 +355,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `PATCH /api/admin/:org/members/:login/role` · `flow:github.members.role`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.members.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {ok:true}；role不是admin/member为400。
 
@@ -363,7 +363,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -375,7 +375,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `PATCH /api/admin/:org/org` · `flow:github.organization.update`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 GitHub组织响应；没有允许编辑字段为400。
 
@@ -383,7 +383,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -395,7 +395,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `POST /api/admin/:org/teams` · `flow:github.teams.create`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.teams.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {ok:true,team}；缺name为400。
 
@@ -403,7 +403,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -415,7 +415,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `DELETE /api/admin/:org/teams/:slug` · `flow:github.teams.delete`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.teams.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {ok:true}。
 
@@ -423,7 +423,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -435,15 +435,15 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/repos` · `flow:github.repositories.list`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {repos}，仅下发列表所需字段。
 
-数据与副作用：本人token分页读取GitHub组织仓库，按login/org缓存60秒。
+数据与副作用：经接入的 GitHub（App 或本人令牌）分页读取组织仓库，按login/org缓存60秒。
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -455,15 +455,15 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/repos/:repo` · `flow:github.repositories.detail`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {info,branches,collaborators,hooks}；后三个子查询失败降为空数组。
 
-数据与副作用：本人token读取仓库、分支、协作者和hooks，按login/org/repo缓存60秒。
+数据与副作用：经接入的 GitHub 读取仓库、分支、协作者和hooks，按login/org/repo缓存60秒。
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -475,7 +475,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/repos/:repo/tree` · `flow:github.repositories.tree`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {path,entries}；目录优先排序。
 
@@ -483,7 +483,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -495,7 +495,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/repos/:repo/file` · `flow:github.repositories.file`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 文件元数据和解码content；超过1MB返回too_large且不附正文；缺path或目录为400。
 
@@ -503,7 +503,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -515,7 +515,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/repos/:repo/commits` · `flow:github.repositories.commits`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {commits}，包含摘要、完整message及作者；per_page最多100。
 
@@ -523,7 +523,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -535,7 +535,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/repos/:repo/commits/:sha` · `flow:github.repositories.commit`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {sha,message,author,actor,stats,files,html_url}；单文件patch截到30000字符。
 
@@ -543,7 +543,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -555,7 +555,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/repos/:repo/issues` · `flow:github.repositories.issues`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {issues}，过滤pull_request项。
 
@@ -563,7 +563,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -575,7 +575,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/repos/:repo/issues/:n` · `flow:github.repositories.issue`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 议题详情与comments；数字n传给GitHub。
 
@@ -583,7 +583,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -595,7 +595,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/repos/:repo/pulls` · `flow:github.repositories.pulls`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {pulls}，含head/base/draft/mergeable等上游字段。
 
@@ -603,7 +603,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -615,7 +615,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/repos/:repo/pulls/:n` · `flow:github.repositories.pull`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 PR详情、comments、files；files请求失败为空，单patch截到20000字符。
 
@@ -623,7 +623,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -635,7 +635,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `PUT /api/admin/:org/repos/:repo/pulls/:n/merge` · `flow:github.repositories.merge`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {ok:true,merged,sha,message}，merged取上游；局部catch返回上游status或500及merge_failed/message，不走同一脱敏路径。
 
@@ -643,7 +643,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -655,7 +655,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `PATCH /api/admin/:org/repos/:repo/issues/:n` · `flow:github.repositories.issue_state`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {ok:true,state}。
 
@@ -663,7 +663,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -675,7 +675,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `POST /api/admin/:org/repos/:repo/issues/:n/comments` · `flow:github.repositories.comment`
 
-权限与资源：有效会话，requireOrgRole("member")；仅URL组织，允许列表与实际成员角色双重约束，上游按本人token判断资源权限。
+权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {ok:true,id,html_url}；空白body为400 empty_body。
 
@@ -683,7 +683,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -695,7 +695,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `POST /api/admin/:org/create-repo` · `flow:github.repositories.create`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {ok:true,repo:{name,full_name,html_url}}；非法name为400。
 
@@ -703,7 +703,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -715,7 +715,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `DELETE /api/admin/:org/repos/:repo` · `flow:github.repositories.delete`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {ok:true}。
 
@@ -723,7 +723,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -735,7 +735,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `PUT /api/admin/:org/repos/:repo/collaborators/:login` · `flow:github.repositories.collaborator_put`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {ok:true}；permission默认push。
 
@@ -743,7 +743,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -755,7 +755,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `DELETE /api/admin/:org/repos/:repo/collaborators/:login` · `flow:github.repositories.collaborator_delete`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {ok:true}。
 
@@ -763,7 +763,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
 
@@ -775,15 +775,15 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/invitations` · `flow:invitation.admin.list`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
-响应与错误：200 {pending,history}；本地最近200条历史含邮箱、备注、source_ip和链接token，只对组织owner开放。
+响应与错误：200 {pending,history}；本地最近200条历史含邮箱、备注、source_ip和链接token，只对带 github.invites.manage 的称号开放。
 
 数据与副作用：分页读取GitHub待接受邀请及本组织本地历史，不发信或补发。
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 本地表读取：invitations, sessions。本地表写入：sessions, audit_logs。
 
@@ -793,7 +793,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `DELETE /api/admin/:org/invitations/:id` · `flow:invitation.admin.cancel`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {ok:true}；非有限数id为400。
 
@@ -801,7 +801,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 本地表读取：sessions。本地表写入：audit_logs, sessions。
 
@@ -811,15 +811,15 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/invite-links` · `flow:invitation.links.list`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。
 
 响应与错误：200 {links}；包含完整token及配额，不包含发起人加密token。
 
-数据与副作用：仅按URL org读取链接，持有token即可走公开邀请流程，应保留owner门槛。
+数据与副作用：仅按URL org读取链接，持有token即可走公开邀请流程，应保留 github.invites.manage 门槛。
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+这个接口不调用 GitHub，不会因 GitHub 令牌失效结束会话。
 
 本地表读取：invite_links, sessions。本地表写入：sessions, audit_logs。
 
@@ -829,15 +829,15 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `POST /api/admin/:org/invite-links` · `flow:invitation.links.create`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
 
 响应与错误：200 {ok:true,token,url,expires_at}；hours范围或max_uses整数范围不合法为400。
 
-数据与副作用：生成18字节随机token，保存发起人token密文、有效期与配额，写invite_link.create；不立即发送邀请。
+数据与副作用：生成18字节随机token，经 GitHub App 接时不存发起人令牌、兑换时也用 App，经本人会话接时保存发起人token密文、有效期与配额，写invite_link.create；不立即发送邀请。
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
 
 本地表读取：sessions。本地表写入：invite_links, audit_logs, sessions。
 
@@ -847,7 +847,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `PATCH /api/admin/:org/invite-links/:token` · `flow:invitation.links.toggle`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。
 
 响应与错误：200 {ok:true}；token不属于该org为404 not_found。
 
@@ -855,7 +855,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+这个接口不调用 GitHub，不会因 GitHub 令牌失效结束会话。
 
 本地表读取：invite_links, sessions。本地表写入：invite_links, audit_logs, sessions。
 
@@ -865,7 +865,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `DELETE /api/admin/:org/invite-links/:token` · `flow:invitation.links.delete`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。
 
 响应与错误：200 {ok:true}；没有匹配org/token为404 not_found。
 
@@ -873,7 +873,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+这个接口不调用 GitHub，不会因 GitHub 令牌失效结束会话。
 
 本地表读取：invite_links, sessions。本地表写入：invite_links, audit_logs, sessions。
 
@@ -883,15 +883,15 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/logs` · `flow:audit.organization.read`
 
-权限与资源：有效会话，requireOrgRole("admin")；仅URL组织，组织owner和允许列表校验通过后，仍由本人token操作上游资源。
+权限与资源：有效会话且是极客班成员，站内称号同时带 audit.read 与 github.invites.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。
 
 响应与错误：200 {logs}；details解析为对象，limit最多500。
 
-数据与副作用：只按URL org查询审计。与console审计不同，此处组织owner能看到完整邀请token；org为null的登录审计不返回。
+数据与副作用：只按URL org查询审计。与console审计不同，此处带 audit.read 与 github.invites.manage 的称号能看到完整邀请token；org为null的登录审计不返回。
 
 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
 
-GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并审计；普通成功读取不写操作审计。
+这个接口不调用 GitHub，不会因 GitHub 令牌失效结束会话。
 
 本地表读取：audit_logs, sessions。本地表写入：sessions, audit_logs。
 
@@ -901,13 +901,13 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/console/me` · `flow:console.identity`
 
-权限与资源：只需有效会话；回答当前登录者的称号/能力/被GitHub上限挡掉的能力，不接受自报role。
+权限与资源：只需有效会话；回答当前登录者的站内角色、称号与能力，以及控制台这次经什么接GitHub（app、session或none），不接受自报role（#262 第四期）。
 
-响应与错误：200 {login,avatar_url,org,github_role,title,titles,capabilities,blocked,head_of}。
+响应与错误：200 {login,avatar_url,org,provider,site_role,github,title,titles,capabilities,head_of}。
 
-数据与副作用：只计算当前身份；查GitHub失败按错误处理，不降级为非成员；存在会话不等于拥有console.access。
+数据与副作用：只计算当前身份；不是成员的账号保留称号展示但没有任何能力；补记站内角色时查GitHub失败按错误处理，不降级为非成员；存在会话不等于拥有console.access。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：sessions, role_assignments, departments, titles。本地表写入：sessions, audit_logs。
 
@@ -923,7 +923,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 数据与副作用：读全局投递统计、CONSOLE_ORG意见数及指派/未归档部门数；不返回无权查看的统计键。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：applications, feedback, sessions, role_assignments, departments, titles。本地表写入：sessions, audit_logs。
 
@@ -939,7 +939,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 数据与副作用：称号显示与权限包来自titles；能力、色调、蕴含等来自源码常量，不写权限配置。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：sessions, role_assignments, departments, titles。本地表写入：sessions, audit_logs。
 
@@ -955,7 +955,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 数据与副作用：读取departments和role_assignments，写权限包不在此入口。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：sessions, role_assignments, departments, titles。本地表写入：sessions, audit_logs。
 
@@ -965,13 +965,13 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `POST /api/console/departments` · `flow:organization.departments.create`
 
-权限与资源：roles.manage且GitHub组织owner（requireAdmiral）；舰长仅有roles.manage仍403 admiral_required。
+权限与资源：roles.manage且站内角色是管理员（提督，requireAdmiral）；舰长仅有roles.manage仍403 admiral_required。
 
 响应与错误：201 {department}；400 captain_only_capability，409 department_exists。
 
 数据与副作用：写新部门，roles.manage不得装进部门权限包；成功写department.create审计。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：sessions, role_assignments, departments, titles。本地表写入：departments, audit_logs, sessions。
 
@@ -981,13 +981,13 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `PATCH /api/console/departments/:department_id` · `flow:organization.departments.update`
 
-权限与资源：roles.manage且GitHub组织owner（requireAdmiral）；舰长仅有roles.manage仍403 admiral_required。
+权限与资源：roles.manage且站内角色是管理员（提督，requireAdmiral）；舰长仅有roles.manage仍403 admiral_required。
 
 响应与错误：200 {department}；未知id 404，非法舰长专属能力400。
 
 数据与副作用：更新传入字段/归档标记；仅实际变化时审计department.update，未直接撤销其他称号。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：sessions, role_assignments, departments, titles。本地表写入：departments, audit_logs, sessions。
 
@@ -997,13 +997,13 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `DELETE /api/console/departments/:department_id` · `flow:organization.departments.delete`
 
-权限与资源：roles.manage且GitHub组织owner（requireAdmiral）；舰长仅有roles.manage仍403 admiral_required。
+权限与资源：roles.manage且站内角色是管理员（提督，requireAdmiral）；舰长仅有roles.manage仍403 admiral_required。
 
 响应与错误：200 {ok:true,removed}；不存在404 not_found。
 
 数据与副作用：同一数据库事务删除该部门和其head/member指派，其他指派不变；审计被撤销者，种子标记防止重启复活。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：sessions, role_assignments, departments, titles。本地表写入：departments, role_assignments, audit_logs, sessions。
 
@@ -1019,7 +1019,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 数据与副作用：只更新允许的称号字段；实际变化才写title.update（不含旧新值），下一次请求读取新权限包。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：sessions, role_assignments, departments, titles。本地表写入：titles, audit_logs, sessions。
 
@@ -1035,7 +1035,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 数据与副作用：读取筛选指派及现任舰长，不任命或移交。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：sessions, role_assignments, departments, titles。本地表写入：sessions, audit_logs。
 
@@ -1045,17 +1045,17 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `POST /api/console/assignments` · `flow:organization.assignments.grant`
 
-权限与资源：任一能力；队长只任免自己部门member，captain只由提督或现任舰长任命；不能借本人token以外的凭据查账号。
+权限与资源：任一能力；队长只任免自己部门member，captain只由提督或现任舰长任命；指派对象给account_id（极客班账号，没绑GitHub的也行）或github_login，二选一（#262 第四期）。
 
-响应与错误：201 {assignment}；400 部门/账号错误，403 跨部门或captain_required，409 assignment_exists；30次/分钟限流。
+响应与错误：201 {assignment}；400 部门错误或github_user_not_found，404 account_not_found，403 跨部门或captain_required，409 assignment_exists；30次/分钟限流。
 
-数据与副作用：先校验部门存在且未归档、查GitHub用户数字id；captain通过事务删旧插新保持唯一；审计指派/移交，不改变GitHub membership。
+数据与副作用：先校验部门存在且未归档；github_login在接上GitHub时经接入的GitHub（App或本人令牌）查数字id再找账号（登录名会改，旧名可能被别人注册），GitHub没接上时只认本站认识的人、按他上次登录时的用户名找；captain通过事务删旧插新保持唯一；审计指派/移交，不改变GitHub membership。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
-本地表读取：sessions, role_assignments, departments, titles。本地表写入：role_assignments, audit_logs, sessions。
+本地表读取：sessions, role_assignments, departments, titles, identities, users。本地表写入：role_assignments, audit_logs, sessions。
 
-源码：[app/server/src/routes/console/assignments.ts:52](../../../app/server/src/routes/console/assignments.ts#L52)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)、[tests/server/rate-limits.test.ts](../../../tests/server/rate-limits.test.ts)。
+源码：[app/server/src/routes/console/assignments.ts:73](../../../app/server/src/routes/console/assignments.ts#L73)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)、[tests/server/rate-limits.test.ts](../../../tests/server/rate-limits.test.ts)、[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)。
 
 ## 撤销称号指派
 
@@ -1067,7 +1067,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 数据与副作用：删除指定指派并记role.revoke，其他指派不变；不删除GitHub组织成员。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：sessions, role_assignments, departments, titles。本地表写入：role_assignments, audit_logs, sessions。
 
@@ -1077,17 +1077,33 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/console/people` · `flow:organization.people`
 
-权限与资源：任一能力；队长也能看组织全名单，不按部门收窄。
+权限与资源：任一能力；队长也能看全名单，不按部门收窄；名单以极客班账号为准，接上GitHub（App或本人GitHub会话）时并上组织里还没登录过本站的人，接不上照常给名单（#262 第四期）。
 
-响应与错误：200 {people}，含login/user_id/avatar_url/github_role/titles；按最高称号层级和登录名排序。
+响应与错误：200 {people,github,github_listed}；每人含account_id/login/user_id/avatar_url/site_role/role_unrecorded/member/status/providers/last_login_at/titles（不含邮箱），列出了GitHub组织成员时带github_role；按最高称号层级和登录名排序。
 
-数据与副作用：用本人token取GitHub成员，再合并本地已有指派但离开组织的人；按数字id优先匹配改名用户，不同步写远端。
+数据与副作用：读取账号、身份与指派；接上GitHub时取组织成员（失败只记日志、github_listed为false），再合并有指派但两边都没有的人；按数字id优先匹配改名用户，不同步写远端。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
-本地表读取：sessions, role_assignments, departments, titles。本地表写入：sessions, audit_logs。
+本地表读取：sessions, role_assignments, departments, titles, users, identities。本地表写入：sessions, audit_logs。
 
-源码：[app/server/src/routes/console/people.ts:20](../../../app/server/src/routes/console/people.ts#L20)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。
+源码：[app/server/src/routes/console/people.ts:35](../../../app/server/src/routes/console/people.ts#L35)、[app/server/src/lib/github-connection.ts](../../../app/server/src/lib/github-connection.ts)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)、[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)。
+
+## 改账号的站内角色
+
+`PATCH /api/console/people/:account_id/site-role` · `flow:organization.people.site_role`
+
+权限与资源：roles.manage且站内角色是管理员（提督）；舰长仅有roles.manage仍403 admiral_required；不看GitHub组织角色（#262 第四期）。
+
+响应与错误：200 {account_id,site_role,changed}；site_role不是admin/member/none为400，账号不存在或已合并404 not_found，改掉最后一位管理员409 last_admin；30次/分钟限流。
+
+数据与副作用：在一个BEGIN IMMEDIATE事务里改users的org_role/org_state，写identity_audit的role_change与account.role审计；改成none后对方下一次请求起没有任何能力、不能再登录，称号指派保留；不改GitHub组织成员关系。
+
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
+
+本地表读取：sessions, role_assignments, departments, titles, users。本地表写入：users, identity_audit, audit_logs, sessions。
+
+源码：[app/server/src/routes/console/people.ts:91](../../../app/server/src/routes/console/people.ts#L91)、[app/server/src/lib/identity-store.ts](../../../app/server/src/lib/identity-store.ts)（`setSiteRole`）。验证入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)、[tests/server/console.test.ts](../../../tests/server/console.test.ts)。
 
 ## 按能力读取脱敏审计
 
@@ -1099,7 +1115,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 数据与副作用：读日志分页，不修改历史；org为空的登录/公开投递审计不在该结果中。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：audit_logs, sessions, role_assignments, departments, titles。本地表写入：sessions, audit_logs。
 
@@ -1115,7 +1131,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 数据与副作用：转义q中的LIKE通配符，按姓名/班级/邮箱搜索；查询latest review，不为列表记application.view。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：applications, application_reviews, sessions, role_assignments, departments, titles。本地表写入：sessions, audit_logs。
 
@@ -1131,7 +1147,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 数据与副作用：读简历、审核历史和mail_outbox摘要，写application.view审计，不触发发信。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：applications, application_reviews, mail_outbox, sessions, role_assignments, departments, titles。本地表写入：audit_logs, sessions。
 
@@ -1147,7 +1163,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 数据与副作用：读取简历并记录application.export数量/状态；不写候选人或发信队列，文件导出后不由系统追踪。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：applications, sessions, role_assignments, departments, titles。本地表写入：audit_logs, sessions。
 
@@ -1163,7 +1179,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 数据与副作用：变更到interview/accepted/rejected且notify不为false才渲染邮件；状态、审核行和邮件入队同事务，实际发送由后台worker。备注不写信或审计正文；本路由不新增任何取消规则。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：applications, application_reviews, mail_outbox, sessions, role_assignments, departments, titles。本地表写入：applications, application_reviews, mail_outbox, audit_logs, sessions。
 
@@ -1257,9 +1273,9 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `POST /api/join/:token` · `flow:invitation.public.redeem`
 
-权限与资源：持有token，PoW/蜜罐/可选Turnstile及分钟限流；额度、禁用和过期在事务预留时再次校验；使用链接发起人密文中的token。
+权限与资源：持有token，PoW/蜜罐/可选Turnstile及分钟限流；额度、禁用和过期在事务预留时再次校验；发邀请用服务器的 GitHub App，没配 App 时用链接发起人密文中的token（经 App 建的链接不存令牌，#262 第四期）。
 
-响应与错误：200 {ok:true,invitation_id,message}；404不存在，400输入/明确失败，409 invite_pending_review/invite_unavailable，503凭据失效或结果待核对。
+响应与错误：200 {ok:true,invitation_id,message}；404不存在，400输入/明确失败，409 invite_pending_review/invite_unavailable，503 GitHub App 用不了、发起人凭据失效或结果待核对。
 
 数据与副作用：先事务预留再请求GitHub（可查团队和用户名），成功写邀请/尝试/审计；sent重放不重复发送，明确失败返还额度，不确定结果保留unknown待核对，不删除访问者会话。
 
@@ -1313,7 +1329,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `GET /api/admin/:org/feedback` · `flow:feedback.admin.list`
 
-权限与资源：有效会话及URL org的GitHub admin，ALLOWED_ORGS限制；与控制台能力授权分开。
+权限与资源：有效会话且是极客班成员，站内称号带 feedback.read（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。
 
 响应与错误：200 {items,counts}；最多500条，管理DTO不下发source_ip/UA/数字账号id。
 
@@ -1327,7 +1343,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `PATCH /api/admin/:org/feedback/:id` · `flow:feedback.admin.update`
 
-权限与资源：有效会话及URL org的GitHub admin，ALLOWED_ORGS限制；与控制台能力授权分开。
+权限与资源：有效会话且是极客班成员，站内称号带 feedback.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。
 
 响应与错误：200 {ok:true}；记录不属于org返回404，非法状态被合同/handler拒绝。
 
@@ -1341,7 +1357,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 `DELETE /api/admin/:org/feedback/:id` · `flow:feedback.admin.delete`
 
-权限与资源：有效会话及URL org的GitHub admin，ALLOWED_ORGS限制；与控制台能力授权分开。
+权限与资源：有效会话且是极客班成员，站内称号带 feedback.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。
 
 响应与错误：200 {ok:true}；org/id不匹配404。
 
@@ -1361,7 +1377,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 数据与副作用：按org及可选status读列表与状态计数，不记查看审计。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：feedback, sessions, role_assignments, departments, titles。本地表写入：sessions, audit_logs。
 
@@ -1377,7 +1393,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 数据与副作用：更新status、reply、replied_by/replied_at及updated_at，审计feedback.update；回复将由公开列表展示，不发邮件。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：feedback, sessions, role_assignments, departments, titles。本地表写入：feedback, audit_logs, sessions。
 
@@ -1393,7 +1409,7 @@ GitHub 调用经全局错误处理发现令牌失效时才结束当前会话并�
 
 数据与副作用：删除反馈并审计feedback.delete，不能越过组织条件删除其他记录。
 
-共同身份路径：读取当前sid及称号权限包，GitHub角色最多缓存60秒；仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计。
+共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
 本地表读取：feedback, sessions, role_assignments, departments, titles。本地表写入：feedback, audit_logs, sessions。
 

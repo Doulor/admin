@@ -1,5 +1,5 @@
 // 控制台左侧导航：每一项声明所需能力（任一满足即可）。纯数据 + 纯函数，tests/console 直接测。
-import type { BlockReason, Capability, ConsoleMe } from "./types";
+import type { Capability, ConsoleMe } from "./types";
 
 export type NavItem = { id: string; to: string; label: string; anyOf: Capability[]; icon: string; group?: NavGroupId; end?: boolean };
 export type NavGroupId = "recruit" | "community" | "github" | "class";
@@ -24,7 +24,7 @@ export const CONSOLE_NAV: NavItem[] = [
   { id: "github-repos", to: "/console/github/repos", label: "仓库", anyOf: ["github.org.read"], icon: "i-carbon-repo-source-code", group: "github" },
   { id: "github-teams", to: "/console/github/teams", label: "团队", anyOf: ["github.org.read"], icon: "i-carbon-group", group: "github" },
   { id: "github-activity", to: "/console/github/activity", label: "活动", anyOf: ["github.org.read"], icon: "i-carbon-activity", group: "github" },
-  { id: "github-security", to: "/console/github/security", label: "安全", anyOf: ["github.org.read"], icon: "i-carbon-security", group: "github" },
+  { id: "github-security", to: "/console/github/security", label: "安全", anyOf: ["github.org.manage"], icon: "i-carbon-security", group: "github" },
   { id: "github-org", to: "/console/github/org", label: "组织资料", anyOf: ["github.org.read"], icon: "i-carbon-building", group: "github" },
   { id: "github-invitations", to: "/console/github/invitations", label: "邀请", anyOf: ["github.invites.manage"], icon: "i-carbon-email", group: "github" },
   { id: "github-invite-links", to: "/console/github/invite-links", label: "邀请链接", anyOf: ["github.invites.manage"], icon: "i-carbon-link", group: "github" },
@@ -35,23 +35,18 @@ export const CONSOLE_NAV: NavItem[] = [
   { id: "invites", to: "/console/invites", label: "注册邀请码", anyOf: ["accounts.invites.manage"], icon: "i-carbon-ticket", group: "class" },
 ];
 
-type Identity = Pick<ConsoleMe, "capabilities"> & Partial<Pick<ConsoleMe, "blocked">>;
+type Identity = Pick<ConsoleMe, "capabilities">;
 
 /**
- * 只显示实际持有的能力；被组织角色挡住的能力不出现在导航里。
- * 例外是只差一次 GitHub 登录的（github_session_required）：照常显示，点进去由能力门给「用 GitHub 继续」。
+ * 只显示实际持有的能力（站内称号给的，#262 第四期）。GitHub 组织的页面在 GitHub 还没接上时照常显示，
+ * 点进去由能力门说明（components/CapabilityGate.vue）。
  */
 export function navState(item: Pick<NavItem, "anyOf">, me: Identity): NavState {
-  if (item.anyOf.some(capability => me.capabilities.includes(capability))) return "visible";
-  const needsGithub = me.blocked?.some(entry => entry.reason === "github_session_required" && item.anyOf.includes(entry.capability));
-  return needsGithub ? "visible" : "hidden";
+  return item.anyOf.some(capability => me.capabilities.includes(capability)) ? "visible" : "hidden";
 }
 
-export const BLOCK_REASON_TEXT: Record<BlockReason, string> = {
-  github_admin_required: "需要 GitHub 组织管理员身份",
-  github_membership_required: "需要先加入 GitHub 组织",
-  github_session_required: "需要用 GitHub 登录",
-};
+/** 这一组能力是不是 GitHub 组织的：这些页面要服务器接上 GitHub 才能用。 */
+export const needsGithubConnection = (anyOf: Capability[]): boolean => anyOf.length > 0 && anyOf.every(capability => capability.startsWith("github."));
 
 /** 按当前生效能力裁剪导航；直接访问仍由页面与服务端分别校验。 */
 export function visibleNav(me: Identity, items: NavItem[] = CONSOLE_NAV): NavItem[] {

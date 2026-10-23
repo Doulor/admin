@@ -20,12 +20,14 @@ import AssignDialog from "./people/AssignDialog.vue";
 import BundleDialog from "./people/BundleDialog.vue";
 import TitleList from "./people/TitleList.vue";
 import PermissionTree from "./people/PermissionTree.vue";
+import SiteRoleDialog from "./people/SiteRoleDialog.vue";
 import { api } from "../lib/http";
 import { confirm } from "../lib/confirm";
 import { fmtDate, fmtDay } from "../lib/format";
 import { carbon } from "../lib/icons";
 import {
-  GROUP_ALL, GROUP_NONE, canAppointCaptain, githubRoleText, holdersOf, isOwnCaptainRow, leadsOf, mayRevoke, peopleGroups, peopleInGroup, sortPeople,
+  GROUP_ALL, GROUP_NONE, canAppointCaptain, githubRoleText, holdersOf, isOwnCaptainRow, leadsOf, mayRevoke, peopleGroups, peopleInGroup, personKey,
+  providersText, siteRoleText, sortPeople, UNRECORDED_ROLE_TEXT,
 } from "../lib/people";
 import { useAction, useResource } from "../lib/resource";
 import { useSession } from "../lib/session";
@@ -41,7 +43,9 @@ const assignments = useResource(() => api<AssignmentsResponse>("/api/console/ass
 const departments = useResource(() => api<{ departments: Department[] }>("/api/console/departments"));
 
 const canManageAll = computed(() => can("roles.manage"));
-const canManageDepartments = computed(() => me.value?.github_role === "admin");
+/** 部门的写操作和改站内角色只给提督（站内管理员），服务端同样核对。 */
+const isAdmiral = computed(() => me.value?.site_role === "admin");
+const canManageDepartments = isAdmiral;
 const canAppoint = computed(() => Boolean(me.value && canAppointCaptain(me.value)));
 const label = (id: Parameters<typeof titleLabel>[0]) => titleLabel(id, catalogue.value);
 const depts = computed(() => departments.data.value?.departments ?? []);
@@ -72,10 +76,11 @@ const SECTION_LABEL: Record<Section, string> = { people: "成员", titles: "称�
 
 /** 名单每一行：一个人的全部称号；指派来的称号带上指派人、时间、备注，以及当前查看者能不能撤销。 */
 type TitleLine = { key: string; title: TitleView; assignment: Assignment | null; revocable: boolean };
-type PersonRow = Person & { departmentNames: string[]; lines: TitleLine[] };
+type PersonRow = Person & { key: string; departmentNames: string[]; lines: TitleLine[] };
 const byAssignment = computed(() => new Map((assignments.data.value?.assignments ?? []).map(row => [row.id, row])));
 const rows = computed<PersonRow[]>(() => peopleInGroup(sorted.value, group.value, depts.value).map(person => ({
   ...person,
+  key: personKey(person),
   departmentNames: [...new Set(person.titles.map(title => title.department?.name).filter((name): name is string => Boolean(name)))],
   lines: person.titles.map((title, index) => {
     const assignment = title.assignment_id !== null ? byAssignment.value.get(title.assignment_id) ?? null : null;
@@ -88,29 +93,43 @@ const rows = computed<PersonRow[]>(() => peopleInGroup(sorted.value, group.value
   }),
 })));
 
+/** GitHub 组织里的角色只作参考：列出了 GitHub 组织成员时才有这一列。 */
+const githubListed = computed(() => Boolean(people.data.value?.github_listed));
+const githubNote = computed(() => {
+  const data = people.data.value;
+  if (!data || data.github_listed) return "";
+  return data.github === "none"
+    ? "GitHub 还没接上，名单里只有登录过本站的人和有称号的人。"
+    : "这次没读到 GitHub 组织的成员，名单里只有登录过本站的人和有称号的人。";
+});
 const columns = computed(() => [
   { key: "login", title: "成员", width: 190 },
   { key: "titles", title: "称号" },
   { key: "department", title: "部门", width: 130 },
-  { key: "github", title: "GitHub 身份", width: 100 },
-  { key: "actions", title: "操作", width: 108, align: "right" as const },
+  { key: "site", title: "站内角色", width: 120 },
+  ...(githubListed.value ? [{ key: "github", title: "GitHub 组织", width: 100 }] : []),
+  { key: "actions", title: "操作", width: isAdmiral.value ? 120 : 108, align: "right" as const },
 ]);
 const expandedPeople = ref<string[]>([]);
-const sourcesVisible = (login: string) => expandedPeople.value.includes(login);
-function toggleSources(login: string) {
-  expandedPeople.value = sourcesVisible(login)
-    ? expandedPeople.value.filter(item => item !== login)
-    : [...expandedPeople.value, login];
+const sourcesVisible = (key: string) => expandedPeople.value.includes(key);
+function toggleSources(key: string) {
+  expandedPeople.value = sourcesVisible(key)
+    ? expandedPeople.value.filter(item => item !== key)
+    : [...expandedPeople.value, key];
 }
 
 const noCaptain = computed(() => assignments.data.value !== undefined && assignments.data.value.captain === null);
 
 const adding = ref(false);
 const addingLogin = ref<string | null>(null);
-function openAssign(login: string | null) {
-  addingLogin.value = login;
+const addingAccount = ref<string | null>(null);
+function openAssign(person: Pick<Person, "login" | "account_id"> | null) {
+  addingLogin.value = person?.login ?? null;
+  addingAccount.value = person?.account_id ?? null;
   adding.value = true;
 }
+const roleTarget = ref<Person | null>(null);
+const roleOpen = computed({ get: () => roleTarget.value !== null, set: value => { if (!value) roleTarget.value = null; } });
 const editing = ref<Department | null>(null);
 const editOpen = computed({ get: () => editing.value !== null, set: value => { if (!value) editing.value = null; } });
 
@@ -141,10 +160,10 @@ async function askRevoke(line: TitleLine) {
 }
 const revokeText = (line: TitleLine) => (me.value && line.assignment && isOwnCaptainRow(line.assignment, me.value) ? "卸任" : "撤销");
 
-/** 称号的来历：指派来的写指派人和日期，GitHub 自动给的写组织身份。 */
+/** 称号的来历：指派来的写指派人和日期，站内角色给的写站内角色。 */
 function origin(line: TitleLine, person: Person): string {
   if (line.assignment) return `@${line.assignment.granted_by} 指派 · ${fmtDay(line.assignment.created_at)}`;
-  if (line.title.source === "github") return `GitHub 组织${githubRoleText(person.github_role)}，自动获得`;
+  if (line.title.source === "site") return `站内${siteRoleText(person.site_role)}，自动获得`;
   return "";
 }
 
@@ -171,7 +190,7 @@ const description = computed(() => {
 });
 
 function emptyText(key: string) {
-  if (key === GROUP_ALL) return { title: "名单是空的", description: "GitHub 组织里还没有成员。" };
+  if (key === GROUP_ALL) return { title: "名单是空的", description: "还没有人登录过本站。" };
   if (key === GROUP_NONE) return { title: "每个人都在部门里", description: "" };
   return { title: "这个部门还没有人", description: `用右上角的「添加称号」指派${label("head")}或${label("member")}。` };
 }
@@ -270,13 +289,13 @@ const sections = computed<Section[]>(() => (canManageAll.value ? ["people", "tit
                         <span class="dept__icon group-head__org"><i class="i-carbon-user-multiple" aria-hidden="true" /></span>
                         <div class="group-head__body">
                           <h3>全班</h3>
-                          <p class="muted">GitHub 组织里的每个人，加上有称号但已经退出组织的人。</p>
+                          <p class="muted">每个极客班账号；接上 GitHub 时再加上 GitHub 组织里还没登录过的人，以及有称号但还没有账号的人。</p>
                           <dl class="group-head__facts">
                             <div>
                               <dt>{{ label("admin") }}</dt>
                               <dd>
                                 <template v-if="admins.length"><UserCell v-for="boss in admins" :key="boss.login" :login="boss.login" :src="boss.avatar_url" link /></template>
-                                <span v-else class="muted">GitHub 组织的所有者自动成为{{ label("admin") }}</span>
+                                <span v-else class="muted">站内管理员自动成为{{ label("admin") }}</span>
                               </dd>
                             </div>
                             <div>
@@ -303,22 +322,23 @@ const sections = computed<Section[]>(() => (canManageAll.value ? ["people", "tit
                     </header>
 
                     <div class="people-table-scroll" tabindex="0" aria-label="成员名单，可滚动">
-                    <TxDataTable style="--table-min: 780px" :columns="columns" :data="rows" row-key="login" table-layout="fixed" scroll-x class="people-table">
+                    <p v-if="githubNote" class="page-note people-note">{{ githubNote }}</p>
+                    <TxDataTable style="--table-min: 820px" :columns="columns" :data="rows" row-key="key" table-layout="fixed" scroll-x class="people-table">
                       <template #cell-login="{ row }: { row: PersonRow }">
                         <UserCell :login="row.login" :src="row.avatar_url" link />
                       </template>
                       <template #cell-titles="{ row }: { row: PersonRow }">
-                        <ul class="title-lines" :class="{ 'title-lines--expanded': sourcesVisible(row.login) }">
+                        <ul class="title-lines" :class="{ 'title-lines--expanded': sourcesVisible(row.key) }">
                           <li v-for="line in row.lines" :key="line.key" class="title-line">
                             <span class="cell-stack title-line__main">
                               <TitleBadge :title="line.title" />
-                              <template v-if="sourcesVisible(row.login)">
+                              <template v-if="sourcesVisible(row.key)">
                                 <span v-if="origin(line, row)" class="cell-sub" :title="line.assignment ? fmtDate(line.assignment.created_at) : undefined">{{ origin(line, row) }}</span>
                                 <span v-if="line.assignment?.note" class="cell-sub clamp-2" :title="line.assignment.note">{{ line.assignment.note }}</span>
                               </template>
                             </span>
                             <TxButton
-                              v-if="line.revocable && sourcesVisible(row.login)"
+                              v-if="line.revocable && sourcesVisible(row.key)"
                               variant="ghost"
                               size="sm"
                               class="danger-text"
@@ -330,19 +350,29 @@ const sections = computed<Section[]>(() => (canManageAll.value ? ["people", "tit
                             </TxButton>
                           </li>
                         </ul>
-                        <TxButton v-if="row.lines.some(line => origin(line, row) || line.assignment?.note || line.revocable)" variant="bare" size="sm" :aria-expanded="sourcesVisible(row.login)" :aria-label="`${sourcesVisible(row.login) ? '收起' : '查看'} @${row.login} 的称号详情`" class="source-toggle" @click="toggleSources(row.login)">
-                          {{ sourcesVisible(row.login) ? "收起详情" : "称号详情" }}
+                        <TxButton v-if="row.lines.some(line => origin(line, row) || line.assignment?.note || line.revocable)" variant="bare" size="sm" :aria-expanded="sourcesVisible(row.key)" :aria-label="`${sourcesVisible(row.key) ? '收起' : '查看'} @${row.login} 的称号详情`" class="source-toggle" @click="toggleSources(row.key)">
+                          {{ sourcesVisible(row.key) ? "收起详情" : "称号详情" }}
                         </TxButton>
                       </template>
                       <template #cell-department="{ row }: { row: PersonRow }">
                         <span v-if="row.departmentNames.length">{{ row.departmentNames.join("、") }}</span>
                         <span v-else class="muted">不属于部门</span>
                       </template>
+                      <template #cell-site="{ row }: { row: PersonRow }">
+                        <span v-if="row.account_id" class="cell-stack">
+                          <span :class="{ muted: row.site_role === null }">{{ row.status === "disabled" ? "已停用" : row.role_unrecorded ? UNRECORDED_ROLE_TEXT : siteRoleText(row.site_role) }}</span>
+                          <span v-if="row.providers.length" class="cell-sub">{{ providersText(row.providers) }}</span>
+                        </span>
+                        <span v-else class="muted">还没登录过</span>
+                      </template>
                       <template #cell-github="{ row }: { row: PersonRow }">
-                        <span :class="{ muted: row.github_role === null }">{{ githubRoleText(row.github_role) }}</span>
+                        <span :class="{ muted: !row.github_role }">{{ githubRoleText(row.github_role ?? null) }}</span>
                       </template>
                       <template #cell-actions="{ row }: { row: PersonRow }">
-                        <TxButton variant="ghost" size="sm" icon="i-carbon-add" :aria-label="`给 @${row.login} 添加称号`" @click="openAssign(row.login)">添加称号</TxButton>
+                        <span class="row-actions">
+                          <TxButton v-if="isAdmiral && row.account_id && row.status !== 'disabled'" variant="ghost" size="sm" :aria-label="`改 @${row.login} 的站内角色`" @click="roleTarget = row">站内角色</TxButton>
+                          <TxButton variant="ghost" size="sm" icon="i-carbon-add" :aria-label="`给 @${row.login} 添加称号`" @click="openAssign(row)">添加称号</TxButton>
+                        </span>
                       </template>
                       <template #empty>
                         <TxEmptyState :title="emptyText(current.key).title" :description="emptyText(current.key).description" size="small" />
@@ -426,8 +456,10 @@ const sections = computed<Section[]>(() => (canManageAll.value ? ["people", "tit
       :can-assign-captain="canAppoint"
       :captain="assignments.data.value?.captain?.github_login ?? null"
       :initial-login="addingLogin"
+      :initial-account-id="addingAccount"
       @done="refreshAll"
     />
+    <SiteRoleDialog v-if="isAdmiral" v-model:open="roleOpen" :person="roleTarget" @done="refreshAll" />
     <BundleDialog v-if="catalogue && canManageDepartments" v-model:open="editOpen" :department="editing" :catalogue="catalogue" @done="refreshAll" />
   </div>
 </template>
@@ -437,6 +469,15 @@ const sections = computed<Section[]>(() => (canManageAll.value ? ["people", "tit
   margin: 0;
   font-size: 13px;
   color: var(--tx-text-color-secondary);
+}
+.people-note {
+  padding: 0 24px 12px;
+}
+.row-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
 }
 .people-card :deep(.tx-tabs__nav) {
   border-bottom: 1px solid var(--tx-border-color-lighter);

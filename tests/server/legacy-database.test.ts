@@ -247,11 +247,12 @@ describe('booting on the existing production data.db (legacy schema, no applicat
     expect(forum.json().state.topics.map((topic: { id: string }) => topic.id)).toEqual(['t9', 't73']);
     expect(forum.json().state.viewer).toMatchObject({ kind: 'member', capabilities: CAPABILITY_IDS.filter(id => id.startsWith('forum.')) });
 
-    // 旧会话仍然有效；GitHub 组织 owner 是提督，拥有全部能力。
+    // 旧会话仍然有效；回填的老账号还没记过站内角色，第一次用 GitHub 会话时按组织角色补记一次（#262 第四期）：
+    // GitHub 组织 owner 记成站内管理员，是提督，拥有全部能力。
     const me = await app.inject({ url: '/api/console/me', headers: as('legacy-session-alice') });
     expect(me.statusCode).toBe(200);
-    expect(me.json()).toMatchObject({ login: 'alice', github_role: 'admin', capabilities: CAPABILITY_IDS });
-    expect(me.json().title).toMatchObject({ id: 'admin', source: 'github' });
+    expect(me.json()).toMatchObject({ login: 'alice', site_role: 'admin', capabilities: CAPABILITY_IDS });
+    expect(me.json().title).toMatchObject({ id: 'admin', source: 'site' });
 
     const summary = await app.inject({ url: '/api/console/summary', headers: as('legacy-session-alice') });
     expect(summary.statusCode).toBe(200);
@@ -288,10 +289,10 @@ describe('booting on the existing production data.db (legacy schema, no applicat
     expect(db.prepare('SELECT COUNT(*) AS n FROM mail_outbox WHERE recipient IS NOT NULL OR html IS NOT NULL').get()).toEqual({ n: 0 });
     expect(db.pragma('foreign_key_check')).toEqual([]);
 
-    // 普通组织成员只是极客班成员。
+    // 普通组织成员记成站内成员，只是极客班成员。
     const bob = (await app.inject({ url: '/api/console/me', headers: as('legacy-session-bob') })).json();
-    expect(bob).toMatchObject({ github_role: 'member', capabilities: ['console.access', 'github.org.read'] });
-    expect(bob.title).toMatchObject({ id: 'member', source: 'github' });
+    expect(bob).toMatchObject({ site_role: 'member', capabilities: ['console.access', 'github.org.read'] });
+    expect(bob.title).toMatchObject({ id: 'member', source: 'site' });
 
     // 提督指定舰长后，自己仍是提督。
     const assign = await app.inject({
@@ -300,7 +301,7 @@ describe('booting on the existing production data.db (legacy schema, no applicat
     });
     expect(assign.statusCode).toBe(201);
     const after = (await app.inject({ url: '/api/console/me', headers: as('legacy-session-alice') })).json();
-    expect(after.title).toMatchObject({ id: 'admin', source: 'github' });
+    expect(after.title).toMatchObject({ id: 'admin', source: 'site' });
     expect(after.capabilities).toEqual(CAPABILITY_IDS);
   });
 
@@ -322,7 +323,7 @@ describe('booting on the existing production data.db (legacy schema, no applicat
     expect(second.services.roles.getDepartment('tech')?.description).toBe('班长改过的描述');
     expect(second.services.roles.captain()).toMatchObject({ github_login: 'carol', role: 'captain' });
     const me = (await second.inject({ url: '/api/console/me', headers: as('legacy-session-alice') })).json();
-    expect(me).toMatchObject({ github_role: 'admin', title: { id: 'admin' } });
+    expect(me).toMatchObject({ site_role: 'admin', title: { id: 'admin' } });
   });
 
   it('moves applications left in the retired 评估中 status back to 已收到 and keeps the review history', async () => {
@@ -476,5 +477,27 @@ describe('maps the existing sessions, titles and forum users to 极客班 accoun
       expect(db3.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(), table).toEqual(rows);
     }
     expect(db3.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 3 });
+  });
+});
+
+describe('site roles of earlier accounts (#262 第四期)', () => {
+  it('records invite-registered members of delivery 3 as site members at boot and leaves everyone else alone', async () => {
+    const path = legacyDatabase();
+    const first = await boot(path);
+    const db1 = first.services.storage.db;
+    const invite = first.services.invites.create({ code: 'yugc-legacy-2026', max_uses: null }, 'test');
+    const insert = db1.prepare("INSERT INTO users(id, status, org_state, org_role, org_checked_at, handle, invite_code_id, created_at, updated_at) VALUES(?, 'active', ?, NULL, 0, ?, ?, 0, 0)");
+    insert.run('01JINVITEDMEMBERAAAAAAAAAA', 'active', 'yz_invited1', invite.id);    // 第三期邀请码注册、还没记站内角色
+    insert.run('01JINVITEDREMOVEDAAAAAAAAA', 'not_member', 'yz_invited2', invite.id); // 已被移出：不补
+    insert.run('01JGITHUBUNRECORDEDAAAAAAA', 'active', 'yz_github01', null);         // 回填的老账号：等下次 GitHub 会话补记
+    await first.close();
+    apps.splice(apps.indexOf(first), 1);
+
+    const second = await boot(path);
+    expect(second.services.storage.db.prepare("SELECT id, org_state, org_role FROM users WHERE id LIKE '01J%' ORDER BY id").all()).toEqual([
+      { id: '01JGITHUBUNRECORDEDAAAAAAA', org_state: 'active', org_role: null },
+      { id: '01JINVITEDMEMBERAAAAAAAAAA', org_state: 'active', org_role: 'member' },
+      { id: '01JINVITEDREMOVEDAAAAAAAAA', org_state: 'not_member', org_role: null },
+    ]);
   });
 });

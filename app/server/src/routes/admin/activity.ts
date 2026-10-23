@@ -1,16 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { requireOrgRole } from "../../middleware/require-org-role.js";
+import { requireGithub } from "../../middleware/require-github.js";
 
 export default async function activityRoutes(app: FastifyInstance) {
-  const { octokitWith } = app.services.github;
   app.addHook("preHandler", requireAuth);
 
   app.get<{ Params: { org: string } }>("/api/admin/:org/activity", {
-    preHandler: requireOrgRole("member"),
+    preHandler: requireGithub("github.org.read"),
   }, async (req) => {
     const { org } = req.params;
-    const octokit = octokitWith(req.session!.accessToken);
+    const octokit = req.github!;
     const events = await octokit.request("GET /orgs/{org}/events", { org, per_page: 100 });
     return {
       events: (events.data as any[]).map((e) => ({

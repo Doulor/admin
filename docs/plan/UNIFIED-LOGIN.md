@@ -10,6 +10,8 @@
 
 **第二、三期（#262，2026-10-23）**：所有者定了「目前开放注册，现在的github注册的都算组织成员，后续需要邀请码去注册，在我们的admin控制台再额外加个邀请码的逻辑」「验证码和密码都支持」「按站内称号认」，与本文下面的部分规则不同，以 [ADR-0005「2026-10-23 修订」](../decisions/0005-sso-extend-core-server.md#2026-10-23-修订262-第二三期所有者决定) 为准。已实施：邮箱验证码与密码登录（`/auth/email/start`、`/verify`、`/password`，新表 `email_challenges`），Google 登录（`/auth/google`、`/callback`，没配凭据时不出现），邮箱或 Google 第一次登录凭邀请码注册（新表 `invite_codes`，控制台 `/console/invites`，能力 `accounts.invites.manage`），账号页 `/account`（登录方式、绑定邮箱、设密码、成员资格、这次登录、账号记录），邮箱、Google 会话的 `github.*` 回 `github_session_required`、控制台对应页面提示「用 GitHub 继续」，运维建号命令 `dist/cli/account.js`。没做：GitHub、Google 的绑定，解绑与合并，资格凭据与实时资格核验（`membership_verification_required` / `membership_unavailable`），统一资料（交付 4）；论坛对没有 GitHub 身份的账号仍按游客处理。
 
+**第四期（#262，2026-10-23）**：所有者说「有关 GitHub 的权限是要放权的」「后续我们可能不仅仅只连 GitHub 了」，以 [ADR-0005「2026-10-23 第二次修订」](../decisions/0005-sso-extend-core-server.md#2026-10-23-第二次修订262-第四期) 为准，本文「成员资格」「要本人 GitHub 令牌的接口」两节与「不同身份看到什么」「错误码」「代码落点」里写的 `github_session_required` 锁定、`blocked` 与 GitHub 角色上限都已不适用。已实施：权限只认账号记下的站内角色（`users.org_role`）与称号，不论用哪种方式登录；提督在「成员与权限」里改站内角色（`PATCH /api/console/people/:account_id/site-role`）；控制台的 GitHub 组织页面由服务器接入的 GitHub 执行（GitHub App，没配时本人 GitHub 会话，都没有回 409 `github_not_connected`）；`/api/me/orgs` 仍要 GitHub 会话。
+
 除上面已实施的部分外，本文是已接受、未实施的方案：其余接口、表和界面都**还不存在**，现行行为以 [server 合同](../services/server/README.md)、[接口行为契约](../services/server/endpoint-contracts.md) 和 [SECURITY](../architecture/SECURITY.md) 为准。为什么这样选见 [ADR-0005](../decisions/0005-sso-extend-core-server.md)（`accepted`），本文只写怎么做；两者不一致时先改 ADR 再改本文。文中图片都是**方案草图**（静态 HTML 渲染，数据虚构），不是实现截图。
 
 ## 给开工 Agent 的读法

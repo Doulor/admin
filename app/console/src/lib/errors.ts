@@ -1,8 +1,6 @@
 // 把接口错误翻成用户能看懂的一段话：出了什么事、下一步做什么。纯函数，tests/console 直接测。
 import { ApiError } from "./http";
-import { BLOCK_REASON_TEXT } from "./nav";
 import { assignerText } from "./titles";
-import type { BlockReason } from "./types";
 
 export type ErrorView = {
   kind: "signed_out" | "forbidden" | "not_found" | "read_only" | "rate_limited" | "invalid" | "conflict" | "server" | "network";
@@ -12,11 +10,7 @@ export type ErrorView = {
   status: number | null;
   requestId: string | null;
   capability: string | null;
-  reason: BlockReason | null;
 };
-
-const isBlockReason = (value: unknown): value is BlockReason =>
-  value === "github_admin_required" || value === "github_membership_required" || value === "github_session_required";
 
 /**
  * `labelOf` 把能力 id 换成中文名（来自 catalogue）；没有 catalogue 时原样返回 id。
@@ -26,23 +20,24 @@ export function describeError(error: unknown, labelOf: (capability: string) => s
   if (!(error instanceof ApiError)) {
     return {
       kind: "network", title: "连不上服务器", detail: "请检查网络后重试。", code: "network_error",
-      status: null, requestId: null, capability: null, reason: null,
+      status: null, requestId: null, capability: null,
     };
   }
   const payload = error.payload ?? {};
   const capability = typeof payload.capability === "string" ? payload.capability : null;
-  const reason = isBlockReason(payload.reason) ? payload.reason : null;
-  const base = { code: error.code, status: error.status, requestId: error.requestId ?? null, capability, reason };
+  const base = { code: error.code, status: error.status, requestId: error.requestId ?? null, capability };
 
   if (error.status === 401) return { ...base, kind: "signed_out", title: "登录已失效", detail: "请重新登录。" };
   if (error.status === 403 && error.code === "missing_capability" && capability) {
     const name = labelOf(capability);
-    return {
-      ...base, kind: "forbidden", title: `没有「${name}」权限`,
-      detail: reason
-        ? `你的称号包含这项权限，但${BLOCK_REASON_TEXT[reason]}才能使用。`
-        : `请联系${assigner}，为你指派包含这项权限的称号。`,
-    };
+    return { ...base, kind: "forbidden", title: `没有「${name}」权限`, detail: `请联系${assigner}，为你指派包含这项权限的称号。` };
+  }
+  // GitHub 是服务器接入的（#262 第四期）：没接上、App 用不了都不是你的权限问题
+  if (error.status === 409 && error.code === "github_not_connected") {
+    return { ...base, kind: "conflict", title: "GitHub 还没接上", detail: "服务器还没配 GitHub App。配好之前，GitHub 组织的页面只有用 GitHub 登录时才能打开。" };
+  }
+  if (error.status === 503 && error.code === "github_connection_failed") {
+    return { ...base, kind: "server", title: "GitHub App 暂时用不了", detail: "请联系管理员检查 GitHub App 的配置；其他页面不受影响。" };
   }
   if (error.status === 403) return { ...base, kind: "forbidden", title: "没有权限", detail: error.message || "当前账号不能执行这个操作。" };
   if (error.status === 404) return { ...base, kind: "not_found", title: "找不到这条记录", detail: "它可能已被删除，或者链接有误。" };

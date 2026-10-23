@@ -5,8 +5,8 @@ import { ApiError } from "../lib/http";
 import { DEPARTMENT_ICONS } from "../lib/icons";
 import { DEFAULT_CREW, DEFAULT_TITLES, kindRank, makeTitle, titleBundleError, titleKind } from "../lib/titles";
 import type {
-  AccountView, Assignment, CompetitionRoster, GithubRole, InviteCode, Person, RosterSignup, RosterStats, RosterTeam, ScoreEvent, SessionProvider, SignupSettings,
-  TitleId, TitleView, Tone,
+  AccountView, Assignment, CompetitionRoster, GithubVia, InviteCode, Person, RosterSignup, RosterStats, RosterTeam, ScoreEvent, SessionProvider, SignupSettings,
+  SiteRole, TitleId, TitleView, Tone,
 } from "../lib/types";
 
 const now = Date.now();
@@ -50,10 +50,6 @@ export const MOCK_CAPABILITIES = [
   { id: "accounts.invites.manage", domain: "accounts", label: "管理注册邀请码", description: "新建、停用注册邀请码；用邮箱或 Google 注册极客班账号要填邀请码" },
 ];
 const ALL = MOCK_CAPABILITIES.map(item => item.id);
-/** GitHub 类的管理能力：只有组织所有者能用，其他人被 GitHub 上限挡住。 */
-const GITHUB_MANAGE = ALL.filter(id => id.startsWith("github.") && id !== "github.org.read");
-/** 全部 GitHub 类能力：邮箱、Google 会话没有 GitHub 令牌，一律挡掉（github_session_required）。 */
-const GITHUB_ALL = ALL.filter(id => id.startsWith("github."));
 const DOMAINS = [
   { id: "console", label: "控制台" }, { id: "applications", label: "招新投递" }, { id: "forum", label: "论坛" },
   { id: "github", label: "GitHub 组织" }, { id: "feedback", label: "意见箱" }, { id: "audit", label: "审计" }, { id: "roles", label: "称号与权限" },
@@ -117,7 +113,7 @@ const deptView = (id: string) => {
   return { id: d.id, name: d.name, tag: d.tag, icon: d.icon, tone: d.tone };
 };
 
-/** GitHub 组织名单：xu-yan 是组织所有者；du-ke 已毕业并退出了组织，只剩称号。 */
+/** GitHub 组织名单：xu-yan 是组织所有者；du-ke 已毕业并退出了组织，只剩称号。只作参考，不决定权限。 */
 export const MOCK_MEMBERS: { login: string; id: number; role: "admin" | "member" }[] = [
   { login: "xu-yan", id: 1000, role: "admin" },
   { login: "chen-hang", id: 1001, role: "member" },
@@ -135,8 +131,8 @@ export const MOCK_MEMBERS: { login: string; id: number; role: "admin" | "member"
   { login: "lu-an", id: 1015, role: "member" },
 ];
 
-/** 虚构的称号指派：captain 一位（由组织所有者任命）、head 四位、带部门的 member 若干、不带部门的 member 两位、alumni 两位。 */
-export const MOCK_ASSIGNMENTS: Assignment[] = [
+/** 虚构的称号指派：captain 一位（由提督任命）、head 四位、带部门的 member 若干、不带部门的 member 两位、alumni 两位。 */
+export const MOCK_ASSIGNMENTS: Assignment[] = ([
   { id: 1, github_login: "chen-hang", github_user_id: 1001, role: "captain", department_id: "", note: "第三届舰长", granted_by: "xu-yan", created_at: now - 40 * DAY },
   { id: 2, github_login: "li-xiaoman", github_user_id: 1002, role: "head", department_id: "recruitment", note: null, granted_by: "chen-hang", created_at: now - 38 * DAY },
   { id: 3, github_login: "wang-zhe", github_user_id: 1003, role: "head", department_id: "tech", note: null, granted_by: "chen-hang", created_at: now - 38 * DAY },
@@ -149,86 +145,116 @@ export const MOCK_ASSIGNMENTS: Assignment[] = [
   { id: 11, github_login: "bai-shuo", github_user_id: 1011, role: "member", department_id: "", note: "转专业过来", granted_by: "chen-hang", created_at: now - 3 * DAY },
   { id: 8, github_login: "gao-yuan", github_user_id: 1008, role: "alumni", department_id: "", note: "已毕业，前技术部队长", granted_by: "chen-hang", created_at: now - 30 * DAY },
   { id: 12, github_login: "du-ke", github_user_id: 1012, role: "alumni", department_id: "", note: null, granted_by: "chen-hang", created_at: now - 25 * DAY },
-];
+] as Omit<Assignment, "account_id">[]).map(row => ({ ...row, account_id: null }));
 const ASSIGNMENTS = MOCK_ASSIGNMENTS;
 
 const origin = (source: TitleView["source"], assignment_id: number | null) => ({ source, assignment_id });
 
-/** 与服务端 computeAccess 同一规则算出一个人的称号（只算称号；能力在身份表里写明，由测试核对）。 */
-export function mockTitles(login: string, orgRole: GithubRole): TitleView[] {
+/** 与服务端 computeAccess 同一规则算出一个人的称号（只算称号；能力在身份表里写明，由测试核对）。`siteRole` 是站内角色。 */
+export function mockTitles(login: string, siteRole: SiteRole): TitleView[] {
   const rows = ASSIGNMENTS.filter(row => row.github_login === login);
   const titles: TitleView[] = rows.map(row =>
     makeTitle(row.role, row.department_id ? deptView(row.department_id) : null, null, origin("assignment", row.id)));
-  if (orgRole === "admin") titles.push(makeTitle("admin", null, null, origin("github", null)));
+  if (siteRole === "admin") titles.push(makeTitle("admin", null, null, origin("site", null)));
   const hasAlumni = rows.some(row => row.role === "alumni");
   const hasPlainMember = titles.some(title => title.id === "member" && !title.department);
-  if (orgRole === "member" && !hasAlumni && !hasPlainMember) titles.push(makeTitle("member", null, null, origin("github", null)));
+  if (siteRole === "member" && !hasAlumni && !hasPlainMember) titles.push(makeTitle("member", null, null, origin("site", null)));
   titles.sort((a, b) => kindRank(titleKind(a)) - kindRank(titleKind(b)));
   return titles.length ? titles : [makeTitle("guest", null, null, origin("none", null))];
 }
 
-/** 成员全名单：组织里的每个人，加上有称号但已不在组织里的人；按主称号层级、再按登录名排（同服务端）。 */
-export function mockPeople(): Person[] {
-  const inOrg = new Set(MOCK_MEMBERS.map(member => member.login));
-  const people: Person[] = MOCK_MEMBERS.map(member => ({
-    login: member.login, user_id: member.id, avatar_url: null, github_role: member.role, titles: mockTitles(member.login, member.role),
+/**
+ * 极客班账号（#262 第四期，权限只认账号）：GitHub 组织里登录过本站的人，站内角色按第一次登录时的组织角色记下；
+ * qin-yue、lu-an 还没登录过；bai-shuo 是回填的老账号，还没记过站内角色。yz_k3m9q2xa 是用邀请码注册的邮箱账号；
+ * mo-chen 已被移出极客班。
+ */
+export const MOCK_ACCOUNTS: { account_id: string; login: string; github_user_id: number | null; site_role: SiteRole; role_unrecorded: boolean; member: boolean; providers: SessionProvider[] }[] = [
+  ...MOCK_MEMBERS.filter(member => member.login !== "qin-yue" && member.login !== "lu-an").map((member, index) => ({
+    account_id: `01JMOCKACCOUNT${String(index).padStart(12, "0")}`, login: member.login, github_user_id: member.id,
+    site_role: member.login === "bai-shuo" ? null : member.role, role_unrecorded: member.login === "bai-shuo", member: true,
+    providers: (member.role === "admin" ? ["github", "email"] : ["github"]) as SessionProvider[],
+  })),
+  { account_id: "01JMOCKACCOUNTINVITE000001", login: "yz_k3m9q2xa", github_user_id: null, site_role: "member", role_unrecorded: false, member: true, providers: ["email"] },
+  { account_id: "01JMOCKACCOUNTREMOVED00001", login: "mo-chen", github_user_id: 1013, site_role: null, role_unrecorded: false, member: false, providers: ["github"] },
+];
+
+/**
+ * 成员全名单（同服务端 routes/console/people.ts）：每个账号；`listed` 时再加 GitHub 组织里还没登录过的人（称号按他们
+ * 登录后会记下的角色算），最后是有称号但两边都没有的人；按主称号层级、再按登录名排。
+ */
+export function mockPeople(listed = true): Person[] {
+  const githubRole = new Map(MOCK_MEMBERS.map(member => [member.id, member.role] as const));
+  const people: Person[] = MOCK_ACCOUNTS.map(account => ({
+    account_id: account.account_id, login: account.login, user_id: account.github_user_id, avatar_url: null,
+    site_role: account.site_role, role_unrecorded: account.role_unrecorded, member: account.member, status: "active", providers: account.providers,
+    last_login_at: now - 2 * DAY,
+    ...(listed ? { github_role: account.github_user_id !== null ? githubRole.get(account.github_user_id) ?? null : null } : {}),
+    titles: mockTitles(account.login, account.site_role),
   }));
+  const known = new Set(people.map(person => person.login));
+  if (listed) {
+    for (const member of MOCK_MEMBERS) {
+      if (known.has(member.login)) continue;
+      known.add(member.login);
+      people.push({
+        account_id: null, login: member.login, user_id: member.id, avatar_url: null, site_role: null, role_unrecorded: false, member: false, status: null,
+        providers: [], last_login_at: null, github_role: member.role, titles: mockTitles(member.login, member.role),
+      });
+    }
+  }
   for (const row of ASSIGNMENTS) {
-    if (inOrg.has(row.github_login) || people.some(person => person.login === row.github_login)) continue;
-    people.push({ login: row.github_login, user_id: row.github_user_id, avatar_url: null, github_role: null, titles: mockTitles(row.github_login, null) });
+    if (known.has(row.github_login)) continue;
+    known.add(row.github_login);
+    people.push({
+      account_id: null, login: row.github_login, user_id: row.github_user_id, avatar_url: null, site_role: null, role_unrecorded: false, member: false, status: null,
+      providers: [], last_login_at: null, ...(listed ? { github_role: null } : {}), titles: mockTitles(row.github_login, null),
+    });
   }
   const rank = (person: Person) => kindRank(titleKind(person.titles[0]));
   return people.sort((a, b) => rank(a) - rank(b) || a.login.localeCompare(b.login));
 }
 
 type Persona = {
-  login: string; github_role: GithubRole; head_of: string[]; provider: SessionProvider;
-  titles: TitleView[]; capabilities: string[]; blocked: { capability: string; reason: string }[];
+  login: string; site_role: SiteRole; github: GithubVia; head_of: string[]; provider: SessionProvider;
+  titles: TitleView[]; capabilities: string[];
 };
-const makePersona = (login: string, github_role: GithubRole, rest: Omit<Persona, "login" | "github_role" | "titles" | "provider"> & { provider?: SessionProvider }): Persona =>
-  ({ login, github_role, titles: mockTitles(login, github_role), provider: "github", ...rest });
-const cappedByGithub = GITHUB_MANAGE.map(capability => ({ capability, reason: "github_admin_required" }));
+const makePersona = (login: string, site_role: SiteRole, rest: Omit<Persona, "login" | "site_role" | "titles" | "provider" | "github"> & { provider?: SessionProvider }): Persona => {
+  const provider = rest.provider ?? "github";
+  return { login, site_role, titles: mockTitles(login, site_role), provider, github: provider === "github" ? "session" : "none", ...rest };
+};
 
 export const MOCK_PERSONAS: Record<string, Persona> = {
-  admin: makePersona("xu-yan", "admin", { head_of: [], capabilities: ALL, blocked: [] }),
-  // 同一位组织所有者用邮箱登录：称号照旧，GitHub 组织的页面要再用 GitHub 登录（#262）
-  admin_email: makePersona("xu-yan", "admin", {
-    provider: "email", head_of: [],
-    capabilities: ALL.filter(id => !GITHUB_ALL.includes(id)),
-    blocked: GITHUB_ALL.map(capability => ({ capability, reason: "github_session_required" })),
-  }),
-  captain: makePersona("chen-hang", "member", { head_of: [], capabilities: ALL.filter(id => !GITHUB_MANAGE.includes(id)), blocked: cappedByGithub }),
+  admin: makePersona("xu-yan", "admin", { head_of: [], capabilities: ALL }),
+  // 同一位提督用邮箱登录：权限照旧，服务器没配 GitHub App 时 GitHub 组织的页面提示还没接上（#262 第四期）
+  admin_email: makePersona("xu-yan", "admin", { provider: "email", head_of: [], capabilities: ALL }),
+  captain: makePersona("chen-hang", "member", { head_of: [], capabilities: ALL }),
   recruitment: makePersona("li-xiaoman", "member", {
     head_of: ["recruitment"],
-    capabilities: ["console.access", "github.org.read", "applications.read", "applications.review", "applications.export", "feedback.read", "roles.department.manage"],
-    blocked: [{ capability: "github.invites.manage", reason: "github_admin_required" }],
+    capabilities: ["console.access", "github.org.read", "github.invites.manage", "applications.read", "applications.review", "applications.export", "feedback.read", "roles.department.manage"],
   }),
   tech: makePersona("wang-zhe", "member", {
     head_of: ["tech"],
-    capabilities: ["console.access", "github.org.read", "feedback.read", "audit.read", "roles.department.manage"],
-    blocked: [{ capability: "github.repos.manage", reason: "github_admin_required" }, { capability: "github.teams.manage", reason: "github_admin_required" }],
+    capabilities: ["console.access", "github.org.read", "github.repos.manage", "github.teams.manage", "feedback.read", "audit.read", "roles.department.manage"],
   }),
   community: makePersona("sun-qiao", "member", {
     head_of: ["community"],
     capabilities: ["console.access", "github.org.read", "forum.topic.pin", "forum.topic.close", "forum.post.moderate", "forum.category.manage", "forum.badge.assign", "feedback.read", "feedback.manage", "roles.department.manage"],
-    blocked: [],
   }),
   projects: makePersona("zhao-yi", "member", {
     head_of: ["projects"],
-    capabilities: ["console.access", "github.org.read", "forum.topic.pin", "feedback.read", "roles.department.manage"],
-    blocked: [{ capability: "github.repos.manage", reason: "github_admin_required" }, { capability: "github.teams.manage", reason: "github_admin_required" }],
+    capabilities: ["console.access", "github.org.read", "github.repos.manage", "github.teams.manage", "forum.topic.pin", "feedback.read", "roles.department.manage"],
   }),
-  crew: makePersona("he-miao", "member", { head_of: [], capabilities: ["console.access", "github.org.read", "applications.read", "applications.review"], blocked: [] }),
-  member: makePersona("liu-xing", "member", { head_of: [], capabilities: ["console.access", "github.org.read"], blocked: [] }),
-  alumni: makePersona("gao-yuan", "member", { head_of: [], capabilities: ["console.access", "github.org.read", "feedback.read"], blocked: [] }),
-  guest: makePersona("visitor-01", null, { head_of: [], capabilities: [], blocked: [] }),
+  crew: makePersona("he-miao", "member", { head_of: [], capabilities: ["console.access", "github.org.read", "applications.read", "applications.review"] }),
+  member: makePersona("liu-xing", "member", { head_of: [], capabilities: ["console.access", "github.org.read"] }),
+  alumni: makePersona("gao-yuan", "member", { head_of: [], capabilities: ["console.access", "github.org.read", "feedback.read"] }),
+  guest: makePersona("visitor-01", null, { head_of: [], capabilities: [] }),
 };
 
 /** 不是身份的预览状态：未登录（/api/console/me 返回 401）。 */
 export const SIGNED_OUT = "signed_out";
 
 const PERSONA_KEY = "yugc:console-persona";
-/** `?__persona=` 优先，其次本标签页记住的身份，默认是组织所有者（拥有全部能力）。 */
+/** `?__persona=` 优先，其次本标签页记住的身份，默认是提督（拥有全部能力）。 */
 export function currentPersona(): string {
   if (typeof window === "undefined") return "admin";
   const valid = (value: string | null): value is string => Boolean(value && (value in MOCK_PERSONAS || value === SIGNED_OUT));
@@ -454,9 +480,8 @@ const AUDIT = [
 
 function denied(persona: Persona, anyOf: string[]): never {
   const [first] = anyOf;
-  const blocked = persona.blocked.find(item => anyOf.includes(item.capability));
   const label = MOCK_CAPABILITIES.find(item => item.id === first)?.label ?? first;
-  const payload = { error: "missing_capability", capability: first, any_of: anyOf, ...(blocked ? { reason: blocked.reason } : {}), message: `需要「${label}」权限` };
+  const payload = { error: "missing_capability", capability: first, any_of: anyOf, message: `需要「${label}」权限` };
   throw new ApiError(403, "missing_capability", payload.message, undefined, payload);
 }
 function need(persona: Persona, ...anyOf: string[]) {
@@ -488,9 +513,9 @@ const MOCK_INVITES: InviteCode[] = [
 
 /** 账号页（GET /api/identity/me）的样板：按当前身份给出登录方式、成员资格和几条账号记录。邮箱只给打码后的样子。 */
 export function mockAccount(persona: Persona): AccountView {
-  const email = persona.provider === "email" || persona.github_role === "admin";
+  const email = persona.provider === "email" || persona.site_role === "admin";
   const identities: AccountView["identities"] = [
-    ...(persona.github_role !== null ? [{ provider: "github" as const, label: persona.login, linked_at: now - 120 * DAY, last_login_at: now - 3 * DAY }] : []),
+    ...(persona.site_role !== null ? [{ provider: "github" as const, label: persona.login, linked_at: now - 120 * DAY, last_login_at: now - 3 * DAY }] : []),
     ...(email ? [{ provider: "email" as const, label: "x***@example.com", linked_at: now - 2 * DAY, last_login_at: persona.provider === "email" ? now - 4 * MIN : null }] : []),
   ];
   return {
@@ -499,7 +524,9 @@ export function mockAccount(persona: Persona): AccountView {
     identities,
     has_password: persona.provider === "email",
     password_updated_at: persona.provider === "email" ? now - DAY : null,
-    membership: { state: "active", org_role: persona.github_role, via_invite: persona.github_role === null },
+    membership: persona.site_role === null
+      ? { state: "not_member", org_role: null, via_invite: false }
+      : { state: "active", org_role: persona.site_role, via_invite: false },
     created_at: now - 120 * DAY,
     recent: [
       { at: now - 4 * MIN, action: "login", provider: persona.provider, result: "ok" },
@@ -528,8 +555,18 @@ export function checkConsoleWrite(url: URL, method: string, body: unknown): void
     const name = currentPersona();
     if (name === SIGNED_OUT) throw new ApiError(401, "not_signed_in", "请先登录", undefined, { error: "not_signed_in" });
     need(MOCK_PERSONAS[name], "roles.manage");
-    if (MOCK_PERSONAS[name].github_role !== "admin") {
+    if (MOCK_PERSONAS[name].site_role !== "admin") {
       const message = `只有${MOCK_TITLES.find(title => title.id === "admin")!.label}能管理部门`;
+      throw new ApiError(403, "admiral_required", message, undefined, { error: "admiral_required", message });
+    }
+    return;
+  }
+  if (method === "PATCH" && /^\/api\/console\/people\/[^/]+\/site-role$/.test(url.pathname)) {
+    const name = currentPersona();
+    if (name === SIGNED_OUT) throw new ApiError(401, "not_signed_in", "请先登录", undefined, { error: "not_signed_in" });
+    need(MOCK_PERSONAS[name], "roles.manage");
+    if (MOCK_PERSONAS[name].site_role !== "admin") {
+      const message = `只有${MOCK_TITLES.find(title => title.id === "admin")!.label}能改站内角色`;
       throw new ApiError(403, "admiral_required", message, undefined, { error: "admiral_required", message });
     }
     return;
@@ -610,9 +647,8 @@ export function routeConsole(url: URL): unknown {
 
   if (path === "/api/console/me") {
     return {
-      login: persona.login, avatar_url: null, org: MOCK_ORG, provider: persona.provider, github_role: persona.github_role,
-      title: persona.titles[0], titles: persona.titles, capabilities: persona.capabilities,
-      blocked: persona.blocked, head_of: persona.head_of,
+      login: persona.login, avatar_url: null, org: MOCK_ORG, provider: persona.provider, site_role: persona.site_role, github: persona.github,
+      title: persona.titles[0], titles: persona.titles, capabilities: persona.capabilities, head_of: persona.head_of,
     };
   }
   if (path === "/api/console/catalogue") {
@@ -652,7 +688,7 @@ export function routeConsole(url: URL): unknown {
   }
   if (path === "/api/console/people") {
     need(persona, "roles.manage", "roles.department.manage");
-    return { people: mockPeople() };
+    return { people: mockPeople(persona.github !== "none"), github: persona.github, github_listed: persona.github !== "none" };
   }
   if (path === "/api/console/applications") {
     need(persona, "applications.read");

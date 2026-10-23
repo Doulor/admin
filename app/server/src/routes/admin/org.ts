@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { requireOrgRole } from "../../middleware/require-org-role.js";
+import { requireGithub } from "../../middleware/require-github.js";
 
 const EDITABLE_KEYS = [
   "name", "description", "company", "email", "location", "blog", "twitter_username",
@@ -14,28 +14,27 @@ const EDITABLE_KEYS = [
 ] as const;
 
 export default async function orgRoutes(app: FastifyInstance) {
-  const { octokitWith } = app.services.github;
   const { audit } = app.services.storage;
   app.addHook("preHandler", requireAuth);
 
   app.get<{ Params: { org: string } }>("/api/admin/:org/org", {
-    preHandler: requireOrgRole("member"),
+    preHandler: requireGithub("github.org.read"),
   }, async (req) => {
     const { org } = req.params;
-    const octokit = octokitWith(req.session!.accessToken);
+    const octokit = req.github!;
     const res = await octokit.request("GET /orgs/{org}", { org });
     return res.data;
   });
 
   app.patch<{ Params: { org: string }; Body: Record<string, unknown> }>(
     "/api/admin/:org/org",
-    { preHandler: requireOrgRole("admin") },
+    { preHandler: requireGithub("github.org.manage") },
     async (req, reply) => {
       const { org } = req.params;
       const update: Record<string, unknown> = {};
       for (const k of EDITABLE_KEYS) if (k in req.body) update[k] = req.body[k];
       if (Object.keys(update).length === 0) return reply.code(400).send({ error: "no editable fields" });
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const res = await octokit.request("PATCH /orgs/{org}", { org, ...update });
       audit(org, req.session!, "org.update", org, update, req.ip);
       return res.data;

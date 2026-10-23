@@ -1,7 +1,7 @@
 // 当前登录者与能力清单。`can` 只决定显示什么；真正的授权在服务端。
 import { computed, reactive } from "vue";
 import { ApiError, api, onSignedOut } from "./http";
-import type { BlockReason, Capability, Catalogue, ConsoleMe } from "./types";
+import type { Capability, Catalogue, ConsoleMe } from "./types";
 
 const state = reactive({
   me: null as ConsoleMe | null,
@@ -74,10 +74,9 @@ export function useSession() {
   const catalogue = computed(() => state.catalogue);
   const can = (capability: Capability) => Boolean(state.me?.capabilities.includes(capability));
   const canAny = (anyOf: Capability[]) => anyOf.some(can);
-  const blocked = (capability: Capability): BlockReason | null => state.me?.blocked.find(item => item.capability === capability)?.reason ?? null;
   const capabilityLabel = (id: Capability) => state.catalogue?.capabilities.find(item => item.id === id)?.label ?? id;
   return {
-    me, catalogue, can, canAny, blocked, capabilityLabel,
+    me, catalogue, can, canAny, capabilityLabel,
     meError: computed(() => state.meError),
     meLoading: computed(() => state.meLoading),
     catalogueFailed: computed(() => state.catalogueFailed),

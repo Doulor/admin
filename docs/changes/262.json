@@ -2,11 +2,12 @@
   "version": 1,
   "issue": 262,
   "kind": "business",
-  "summary": "统一登录第二、三期（#262，所有者 2026-10-23 的决定）：登录页加邮箱验证码与密码登录、Google 登录（配了凭据才出现）；用邮箱或 Google 第一次登录、还没有极客班账号时凭邀请码注册，控制台新增注册邀请码管理（accounts.invites.manage）；新增账号页 /account（登录方式、绑定邮箱、设密码、成员资格、账号记录）；邮箱、Google 会话按站内称号给控制台能力，要本人 GitHub 令牌的页面与接口回 github_session_required 并提示用 GitHub 继续；服务器上的运维建号命令。",
+  "summary": "统一登录第二至四期（#262，所有者 2026-10-23 的决定）：登录页加邮箱验证码与密码登录、Google 登录（配了凭据才出现）；用邮箱或 Google 第一次登录、还没有极客班账号时凭邀请码注册，控制台新增注册邀请码管理（accounts.invites.manage）；新增账号页 /account；第四期起权限只认极客班账号（「有关 GitHub 的权限是要放权的」）：不论用哪种方式登录，能力都按账号记下的站内角色与称号给，没有 GitHub 上限，提督在「成员与权限」里改站内角色；控制台的 GitHub 组织页面由服务器接入的 GitHub 执行（可选的 GitHub App，没配时本人 GitHub 会话，都没有回 409 github_not_connected）；服务器上的运维建号命令。",
   "applications": [
     "server",
     "web",
-    "console"
+    "console",
+    "forum"
   ],
   "domains": [
     "identity",
@@ -52,23 +53,70 @@
     "flow:application.review",
     "flow:feedback.console.update",
     "flow:invitation.links.create",
-    "flow:documentation.list"
+    "flow:documentation.list",
+    "flow:github.activity.read",
+    "flow:github.organization.read",
+    "flow:github.security.read",
+    "flow:github.members.list",
+    "flow:github.teams.list",
+    "flow:github.members.remove",
+    "flow:github.members.role",
+    "flow:github.organization.update",
+    "flow:github.teams.create",
+    "flow:github.teams.delete",
+    "flow:github.repositories.list",
+    "flow:github.repositories.detail",
+    "flow:github.repositories.tree",
+    "flow:github.repositories.file",
+    "flow:github.repositories.commits",
+    "flow:github.repositories.commit",
+    "flow:github.repositories.issues",
+    "flow:github.repositories.issue",
+    "flow:github.repositories.pulls",
+    "flow:github.repositories.pull",
+    "flow:github.repositories.merge",
+    "flow:github.repositories.issue_state",
+    "flow:github.repositories.comment",
+    "flow:github.repositories.create",
+    "flow:github.repositories.delete",
+    "flow:github.repositories.collaborator_put",
+    "flow:github.repositories.collaborator_delete",
+    "flow:invitation.admin.list",
+    "flow:invitation.admin.cancel",
+    "flow:invitation.links.list",
+    "flow:invitation.links.toggle",
+    "flow:invitation.links.delete",
+    "flow:audit.organization.read",
+    "flow:feedback.admin.list",
+    "flow:feedback.admin.update",
+    "flow:feedback.admin.delete",
+    "flow:organization.people.site_role",
+    "flow:organization.departments.create",
+    "flow:organization.departments.update",
+    "flow:organization.departments.delete",
+    "flow:organization.titles.update",
+    "flow:audit.console.read",
+    "flow:invitation.public.redeem",
+    "flow:organization.public"
   ],
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "所有者 2026-10-23 定：「目前开放注册，现在的github注册的都算组织成员，后续需要邀请码去注册，在我们的admin控制台再额外加个邀请码的逻辑」「验证码和密码都支持」「按站内称号认」。GitHub 登录仍只对组织成员开放；邮箱、Google 第一次登录凭邀请码注册，建号、兑换、占用验证码与建会话一起成败；邮箱可以用验证码或在账号页设的密码登录；不按邮箱合并账号；邮箱、Google 会话的控制台能力按站内称号给，GitHub 组织页面要用 GitHub 登录。",
+      "reason": "所有者 2026-10-23 定：「目前开放注册，现在的github注册的都算组织成员，后续需要邀请码去注册，在我们的admin控制台再额外加个邀请码的逻辑」「验证码和密码都支持」「按站内称号认」，07:52 又定「有关 GitHub 的权限是要放权的」「后续我们可能不仅仅只连 GitHub 了」。GitHub 新用户第一次登录仍要是组织成员；邮箱、Google 第一次登录凭邀请码注册，建号、兑换、占用验证码与建会话一起成败；邮箱可以用验证码或在账号页设的密码登录；不按邮箱合并账号。注册之后成员资格与站内角色由站内决定：GitHub 组织的变化不再影响站内，提督在控制台改（管理员、成员、不是成员，至少留一位管理员）；控制台的 GitHub 组织页面由服务器去做，谁能做什么只看称号。",
       "evidence": [
         "app/server/src/lib/identity-store.ts",
         "app/server/src/lib/invite-codes.ts",
         "app/server/src/routes/identity/email.ts",
         "app/console/src/pages/SignIn.vue",
-        "docs/decisions/0005-sso-extend-core-server.md"
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "app/server/src/lib/access.ts",
+        "app/server/src/lib/github-connection.ts",
+        "app/server/src/routes/console/people.ts"
       ]
     },
     "backend": {
       "status": "changed",
-      "reason": "新增 12 个接口，全部挂请求与响应合同：/auth/email/start、/verify、/password，/auth/google 与回调，/api/identity/me、/api/identity/email/start、/verify、/api/identity/password，/api/console/invites 的 GET、POST 与 PATCH。验证码信由 mail.sendNow 当场发、不进队列；/auth/providers 按发信商与 Google 凭据列出登录方式；ADMIN_SPA_PATHS 加 /account；cli/account.ts 只在服务器容器里运行。审查后加固：GitHub 登录被组织拒绝时清掉账号记下的组织角色；两个 Google 接口按 IP 限流；请求日志不记 /auth/* 的查询串；新验证码只作废同一浏览器上一次的挑战；密码节流表满了挤掉最早一条。",
+      "reason": "新增 12 个接口，全部挂请求与响应合同：/auth/email/start、/verify、/password，/auth/google 与回调，/api/identity/me、/api/identity/email/start、/verify、/api/identity/password，/api/console/invites 的 GET、POST 与 PATCH。验证码信由 mail.sendNow 当场发、不进队列；/auth/providers 按发信商与 Google 凭据列出登录方式；ADMIN_SPA_PATHS 加 /account；cli/account.ts 只在服务器容器里运行。审查后加固：GitHub 登录被组织拒绝时清掉账号记下的组织角色；两个 Google 接口按 IP 限流；请求日志不记 /auth/* 的查询串；新验证码只作废同一浏览器上一次的挑战；密码节流表满了挤掉最早一条。第四期：新增 PATCH /api/console/people/:account_id/site-role（请求与响应合同）；GET /api/console/people 改成以账号为准、接上 GitHub 时并上组织成员，回 github 与 github_listed；POST /api/console/assignments 收 account_id 或 github_login；/api/console/me 去掉 github_role 与 blocked、加 site_role 与 github；lib/github-connection.ts 是服务器接 GitHub 的唯一入口（App JWT、安装令牌缓存与共用换取，没配 App 退回本人会话令牌），App 令牌被拒回 503 github_connection_failed、不结束会话，http-policy 不脱敏这一条；/api/admin/:org/* 改挂 require-github.ts，只管 CONSOLE_ORG；公开邀请兑换用 App。审查后：GitHub App 的安装 id 换令牌失败时重新查（App 重装不用重启），401 只丢这次用的那个令牌；公开邀请在 App 令牌被拒（401）时按明确失败记 failed、回 400，不再卡成待核对；GET /api/console/people 带 role_unrecorded。",
       "evidence": [
         "app/server/src/routes/identity/email.ts",
         "app/server/src/routes/identity/google.ts",
@@ -76,73 +124,93 @@
         "app/server/src/routes/console/invites.ts",
         "app/server/src/routes/identity/contracts.ts",
         "app/server/src/lib/mail/mailer.ts",
-        "app/server/src/app.ts"
+        "app/server/src/app.ts",
+        "app/server/src/lib/github-connection.ts",
+        "app/server/src/middleware/require-github.ts",
+        "app/server/src/middleware/http-policy.ts",
+        "app/server/src/routes/console/people.ts",
+        "app/server/src/routes/portal/join.ts"
       ]
     },
     "permissions": {
       "status": "changed",
-      "reason": "邮箱、Google 会话没有 GitHub 令牌：access.ts 不调 GitHub，成员资格与提督、舰员称号取账号记下的组织角色或邀请码注册；github.* 一律进 blocked（github_session_required），/api/admin/:org/*、/api/me/orgs、GET /api/console/people、POST /api/console/assignments 在调 GitHub 之前回 403。新能力 accounts.invites.manage 管邀请码，提督动态拥有，库里已有称号不自动加。账号页接口只要有效会话，绑定邮箱、设密码要求登录不超过 10 分钟或当前密码。论坛仍要会话里有 GitHub id。GitHub 登录被组织拒绝时清掉账号记下的组织角色，不是邀请码注册的账号同时不再是成员，邮箱、Google 会话随即失去提督、舰员称号。",
+      "reason": "权限只认极客班账号（第四期）：access.ts 不论用哪种方式登录都按账号记下的成员资格与站内角色（users.org_state、org_role）给能力，只给还没记过站内角色的老账号用 GitHub 会话补记一次；roles.ts 去掉 GitHub 上限与 blocked，不是成员的人称号照列、能力为空；/api/admin/:org/* 从 require-org-role 改为 require-github 按称号的 github.* / feedback.* / audit.read 授权，只管 CONSOLE_ORG（别的 403 org_not_managed）；安全页要 github.org.manage，合并 PR、改议题状态、评论要 github.repos.manage，旧审计接口 /api/admin/:org/logs 要 audit.read 与 github.invites.manage（下发完整邀请 token）；改站内角色只给提督（roles.manage 加站内管理员），不能改掉最后一位管理员；部门写接口同样按站内管理员；require-github-session 只剩 /api/me/orgs。新能力 accounts.invites.manage 管邀请码，提督动态拥有。账号页接口只要有效会话，绑定邮箱、设密码要求登录不超过 10 分钟或当前密码。论坛仍要会话里有 GitHub id。配了 GitHub App 后 github.* 等于把 App 的那部分权限交给持有称号的人，写在 SECURITY 的残余风险里。审查后：GitHub 新用户第一次注册一律记成员（站内一位管理员都没有时组织 owner 记管理员），持有 github.members.manage 的人经 App 把别人设成 owner 也造不出提督；名单接口去掉邮箱，只管本部门的队长不再拿到全员的打码邮箱；指派称号接上 GitHub 时按 GitHub 数字 id 找人。",
       "evidence": [
         "app/server/src/lib/access.ts",
         "app/server/src/lib/roles.ts",
+        "app/server/src/middleware/require-github.ts",
         "app/server/src/middleware/require-github-session.ts",
         "app/server/src/middleware/require-org-role.ts",
+        "app/server/src/routes/console/people.ts",
+        "app/server/src/routes/admin/logs.ts",
         "app/server/src/routes/forum-api/viewer.ts",
         "app/server/src/routes/identity/account.ts"
       ]
     },
     "data": {
       "status": "changed",
-      "reason": "新建 invite_codes 与 email_challenges（CREATE TABLE IF NOT EXISTS，两个索引）；users 加可空列 org_role、handle、invite_code_id、password_hash、password_updated_at（先查 PRAGMA table_info 再 ADD COLUMN），加 uq_users_handle 与 uq_identities_user_provider 两个唯一索引（已有数据每个账号只有 GitHub 一条身份，满足约束）。验证码只存 HMAC，过期一小时后随会话清理删掉；密码只存 bcrypt 哈希；不回填、不改旧行。",
+      "reason": "新建 invite_codes 与 email_challenges（CREATE TABLE IF NOT EXISTS，两个索引）；users 加可空列 org_role、handle、invite_code_id、password_hash、password_updated_at（先查 PRAGMA table_info 再 ADD COLUMN），加 uq_users_handle 与 uq_identities_user_provider 两个唯一索引（已有数据每个账号只有 GitHub 一条身份，满足约束）。验证码只存 HMAC，过期一小时后随会话清理删掉；密码只存 bcrypt 哈希；不回填、不改旧行。第四期：不改表结构；启动时给之前用邀请码注册、org_role 还空着的账号补上 member（可以重跑），提督、舰员的称号说明还是旧默认值的换成新默认值（改过的不动）；改站内角色在一个事务里改 users 并写 identity_audit 的 role_change；经 GitHub App 建的邀请链接不存发起人令牌（存空串密文）。",
       "evidence": [
         "app/server/src/lib/db.ts",
         "app/server/src/lib/email-login.ts",
         "app/server/src/lib/invite-codes.ts",
         "tests/server/legacy-database.test.ts",
-        "tests/server/signin-methods.test.ts"
+        "tests/server/signin-methods.test.ts",
+        "app/server/src/lib/role-store.ts",
+        "app/server/src/lib/identity-store.ts",
+        "tests/server/console.test.ts"
       ]
     },
     "dependencies": {
       "status": "changed",
-      "reason": "不新增依赖包：bcryptjs 已在 server 依赖里，Google 的 ID Token 验签用 node:crypto 与全局 fetch 取 JWKS。新增可选外部服务 Google OAuth（没配凭据不出现、不发请求）；验证码信沿用已有的阿里云与 Resend 发信商。services.ts 组装 emailLogin、invites、google 三个模块。",
+      "reason": "不新增依赖包：bcryptjs 已在 server 依赖里，Google 的 ID Token 验签用 node:crypto 与全局 fetch 取 JWKS。新增可选外部服务 Google OAuth（没配凭据不出现、不发请求）；验证码信沿用已有的阿里云与 Resend 发信商。services.ts 组装 emailLogin、invites、google 三个模块。第四期：不新增依赖包，GitHub App 的 JWT 用 node:crypto 签；新增可选外部依赖 GitHub App（没配不发请求），调 api.github.com 的 /orgs/{org}/installation 与 /app/installations/{id}/access_tokens，15 秒超时；services.ts 组装 githubConnection。",
       "evidence": [
         "app/server/src/services.ts",
         "app/server/src/lib/google.ts",
         "app/server/src/lib/mail/mailer.ts",
-        "app/server/src/config.ts"
+        "app/server/src/config.ts",
+        "app/server/src/lib/github-connection.ts"
       ]
     },
     "documentation": {
       "status": "changed",
-      "reason": "ADR-0005 加「2026-10-23 修订」，统一登录方案标出已实施与没做的部分；server、console、web、forum 合同，接口行为契约、API、SECURITY（含残余风险）、mail、数据模型与运维文档同步；目录登记新表、路由、能力与流程。",
+      "reason": "ADR-0005 加「2026-10-23 修订」与「2026-10-23 第二次修订」，统一登录方案标出已实施与没做的部分；server、console、web（含 admin 合同）、forum 合同，接口行为契约、API、SECURITY 中英（新增「权限只认极客班账号」与残余风险）、mail、数据模型与运维文档同步；目录登记新表、路由、能力与流程，改站内角色是新流程，/api/admin/:org/* 的 38 条流程改写授权与证据。审查后：API.md 的回调行与错误码列表改成现状；ADR 第二次修订分开所有者原话和 agent 的设计（第 2 到 5 条待所有者确认）。",
       "evidence": [
         "docs/decisions/0005-sso-extend-core-server.md",
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/SECURITY.md",
         "docs/services/console/README.md",
-        "docs/plan/UNIFIED-LOGIN.md"
+        "docs/plan/UNIFIED-LOGIN.md",
+        "docs/services/web/admin.md",
+        "docs/architecture/API.md",
+        "docs/ops/ENVIRONMENTS.md"
       ]
     },
     "verification": {
       "status": "changed",
-      "reason": "tests/server/signin-methods.test.ts 覆盖邮箱验证码注册与登录、邀请码缺失与无效、错 5 次失效、发码限流、密码登录与重新验证、绑定邮箱冲突、Google 的邀请码与邮箱冲突、github_session_required 与论坛成员判断、邀请码管理与响应字段；控制台纯逻辑与 mock 同形有单测；本机样板预览截图核对了登录页、账号页、邀请码页与 GitHub 提示页。未验证：真实发信商投递验证码、真实 Google 往返（预发布没配凭据）、预发布库迁移，这些在发预发布后核对。",
+      "reason": "tests/server/signin-methods.test.ts 覆盖邮箱验证码注册与登录、邀请码缺失与无效、错 5 次失效、发码限流、密码登录与重新验证、绑定邮箱冲突、Google 的邀请码与邮箱冲突、邀请码管理与响应字段，以及第四期的站内角色（邮箱登录的提督拿到全部能力、改站内角色的拒绝与成功路径、最后一位管理员、移出后再登录被拒、GitHub 登录不再查组织）；tests/server/github-connection.test.ts 覆盖 App 配置与私钥格式、JWT 验签、安装令牌缓存与共用换取、App 被拒回 503 且不结束会话、没接上回 409、只管 CONSOLE_ORG；console、forum、invitations、upstream-errors、legacy-database 用例按站内角色改写；控制台纯逻辑与 mock 同形有单测。未验证：真实 GitHub App（还没建）、真实发信商投递验证码、真实 Google 往返（预发布没配凭据）。审查后补的回归：后来的 GitHub owner 注册成成员、名单里还没记录的老账号、App 重装后重新查安装 id、慢回来的 401 不丢新令牌、公开邀请遇 App 401 记 failed、指派按 GitHub id 不按旧登录名。",
       "evidence": [
         "tests/server/signin-methods.test.ts",
         "tests/console/account.test.ts",
         "tests/console/signin.test.ts",
-        "tests/console/nav.test.ts"
+        "tests/console/nav.test.ts",
+        "tests/server/github-connection.test.ts",
+        "tests/server/console.test.ts",
+        "tests/server/forum.test.ts"
       ]
     },
     "delivery": {
       "status": "changed",
-      "reason": "仍由 server 与 web 两个镜像交付，不新增运行单元；server 新镜像启动时自动建表加列，失败则启动失败；web 镜像 nginx 与 Netlify 预览把 /account 派发给控制台；Google 凭据是可选的环境级 secret，部署工作流与 deploy-manual 透传，两项只设一项时部署前检查失败。",
+      "reason": "仍由 server 与 web 两个镜像交付，不新增运行单元；server 新镜像启动时自动建表加列，失败则启动失败；web 镜像 nginx 与 Netlify 预览把 /account 派发给控制台；Google 凭据是可选的环境级 secret，部署工作流与 deploy-manual 透传，两项只设一项时部署前检查失败。第四期：GH_APP_ID 与 GH_APP_PRIVATE_KEY 是可选的一对环境级 secret（GitHub 不允许 secret 名以 GITHUB_ 开头，所以用 GH_），两份模板留空，compose 透传，两条部署工作流与 deploy-manual 接收，只设一项时部署前检查失败，私钥写成一行 base64；两个环境现在都不配，GitHub 组织页面只在用 GitHub 登录时可用。",
       "evidence": [
         "app/web/Dockerfile",
         "app/web/vite.config.ts",
         "netlify.toml",
         "deploy/compose/preview.yml",
         ".github/workflows/deploy-preview.yml",
-        "scripts/deployment-environment.mjs"
+        "scripts/deployment-environment.mjs",
+        "deploy/env/.env.preview",
+        "scripts/deploy-manual.mjs"
       ]
     }
   },
@@ -236,7 +304,12 @@
         "app/server/src/routes/console/people.ts",
         "app/server/src/routes/console/assignments.ts",
         "app/server/src/routes/forum-api/viewer.ts",
-        "app/server/src/lib/competition-signup-store.ts"
+        "app/server/src/lib/competition-signup-store.ts",
+        "app/server/src/middleware/require-github.ts",
+        "app/server/src/middleware/http-policy.ts",
+        "app/server/src/lib/github-connection.ts",
+        "app/server/src/lib/github.ts",
+        "app/server/src/lib/role-store.ts"
       ],
       "domains": [
         "identity",
@@ -261,9 +334,49 @@
         "flow:identity.current",
         "flow:identity.authorize",
         "flow:github.overview.read",
-        "capability:accounts.invites.manage"
+        "capability:accounts.invites.manage",
+        "flow:organization.people.site_role",
+        "flow:organization.titles.update"
       ],
-      "reason": "没有 GitHub 令牌的会话怎么授权：access.ts 对邮箱、Google 会话不调 GitHub，成员资格与提督、舰员称号取账号上记下的组织角色，GitHub 会话查到的角色写回账号；roles.ts 加 accounts 域与 accounts.invites.manage，github.* 对非 GitHub 会话按 github_session_required 挡掉；require-github-session.ts 在调用 GitHub 之前回 403，挂到 /api/me/orgs、/api/console/people、POST /api/console/assignments 与 require-org-role 守卫的 /api/admin/:org/*；require-member 与论坛 viewer 改问 access.member（论坛仍要会话里有 GitHub id）；/api/console/me 多回 provider；oauth-state.ts 加 google_oauth_state，每种 cookie 只认自己的 kind；require-auth.ts 加共用的 setSessionCookie 并带出会话时间；competition-signup-store 对没有 GitHub 的账号用 yz_ 登录名。其它授权执行点与错误码不变。"
+      "reason": "谁能做什么：access.ts 不论用哪种方式登录都按账号记下的站内角色与称号算权限（第四期），只给还没记过站内角色的老账号补记一次；roles.ts 加 accounts 域与 accounts.invites.manage，去掉 GitHub 上限；require-github.ts 取代 require-org-role，给 /api/admin/:org/* 查能力、核对 CONSOLE_ORG、放上 lib/github-connection.ts 接入的 GitHub 客户端；lib/github.ts 的 getUser、listOrgMembers 改收接入的客户端，getOwnMembership 带回组织角色；http-policy 不脱敏 503 github_connection_failed；require-github-session 只剩 /api/me/orgs；people.ts 以账号为准列名单并新增改站内角色，assignments.ts 收 account_id；role-store 指派带 account_id、提督与舰员旧默认说明启动时换新；require-member 与论坛 viewer 问 access.member（论坛仍要会话里有 GitHub id）；oauth-state.ts 加 google_oauth_state；require-auth.ts 加共用的 setSessionCookie；competition-signup-store 对没有 GitHub 的账号用 yz_ 登录名。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/admin/activity.ts",
+        "app/server/src/routes/admin/feedback.ts",
+        "app/server/src/routes/admin/invitations.ts",
+        "app/server/src/routes/admin/invite-links.ts",
+        "app/server/src/routes/admin/logs.ts",
+        "app/server/src/routes/admin/members.ts",
+        "app/server/src/routes/admin/org.ts",
+        "app/server/src/routes/admin/overview.ts",
+        "app/server/src/routes/admin/repos.ts",
+        "app/server/src/routes/admin/security.ts",
+        "app/server/src/routes/admin/teams.ts",
+        "app/server/src/routes/console/audit.ts",
+        "app/server/src/routes/console/departments.ts",
+        "app/server/src/routes/portal/join.ts"
+      ],
+      "domains": [
+        "github",
+        "invitations",
+        "feedback",
+        "audit",
+        "organization",
+        "platform"
+      ],
+      "nodes": [
+        "flow:github.overview.read",
+        "flow:github.security.read",
+        "flow:github.repositories.merge",
+        "flow:invitation.links.create",
+        "flow:invitation.public.redeem",
+        "flow:audit.organization.read",
+        "flow:feedback.admin.list",
+        "flow:organization.departments.create",
+        "flow:audit.console.read"
+      ],
+      "reason": "第四期：/api/admin/:org/* 的 38 个接口改挂 requireGithub（要读写 GitHub 的）或 requireManagedOrg（意见箱、审计、邀请链接列表与开关），每个接口要的能力写在路由上，GitHub 客户端取 req.github；邀请链接经 App 建时不存发起人令牌，公开兑换用 App；旧审计接口另要 github.invites.manage；控制台审计与部门只改说明和站内管理员判定。"
     },
     {
       "paths": [
@@ -281,7 +394,8 @@
         "app/console/src/lib/types.ts",
         "app/console/src/router.ts",
         "app/console/src/mock/console.ts",
-        "app/console/src/mock/index.ts"
+        "app/console/src/mock/index.ts",
+        "app/console/src/pages/github/InviteLinks.vue"
       ],
       "domains": [
         "identity",
@@ -290,7 +404,8 @@
         "feedback",
         "github",
         "audit",
-        "competitions"
+        "competitions",
+        "invitations"
       ],
       "nodes": [
         "flow:identity.providers",
@@ -303,9 +418,44 @@
         "flow:identity.invites.create",
         "flow:github.organizations.list",
         "flow:competition.console.list",
-        "flow:identity.current"
+        "flow:identity.current",
+        "flow:invitation.links.list"
       ],
       "reason": "控制台前端：登录页加邮箱表单（验证码 / 密码、发码倒计时、没有账号时要邀请码并改成「注册并登录」）和 Google 要邀请码时的输入框；新增账号页 /account（登录方式、绑定邮箱、设密码、成员资格、这次登录、账号记录）与注册邀请码页 /console/invites（accounts.invites.manage）；邮箱、Google 会话打开 GitHub 页面时能力门说明要用 GitHub 登录并给「用 GitHub 继续」；导航与乘客说明加账号入口；mock 按服务端同形补上 provider、/api/identity/me、/api/console/invites 与 admin_email 样板身份。授权仍只在服务端。"
+    },
+    {
+      "paths": [
+        "app/console/src/components/ConsoleShell.vue",
+        "app/console/src/lib/github.ts",
+        "app/console/src/lib/people.ts",
+        "app/console/src/lib/permission-boundaries.ts",
+        "app/console/src/lib/permission-tree.ts",
+        "app/console/src/lib/session.ts",
+        "app/console/src/lib/titles.ts",
+        "app/console/src/mock/github.ts",
+        "app/console/src/pages/Overview.vue",
+        "app/console/src/pages/People.vue",
+        "app/console/src/pages/github/Overview.vue",
+        "app/console/src/pages/people/"
+      ],
+      "domains": [
+        "identity",
+        "organization",
+        "recruitment",
+        "feedback",
+        "github",
+        "audit",
+        "competitions"
+      ],
+      "nodes": [
+        "flow:organization.people",
+        "flow:organization.people.site_role",
+        "flow:organization.assignments.grant",
+        "flow:organization.titles.update",
+        "flow:console.identity",
+        "flow:github.overview.read"
+      ],
+      "reason": "第四期控制台：成员名单以账号为准，列站内角色与登录方式，接上 GitHub 时多一列 GitHub 组织角色；提督在账号行上用「站内角色」对话框改角色；按账号指派称号；权限树、概览与外壳按 site_role 显示，没有「受限」状态；GitHub 没接上时能力门说明并给「用 GitHub 继续」，GitHub 概览标出经 App 还是经本人账号接入；称号说明去掉 GitHub 上限的说法；mock 按服务端同形。授权仍只在服务端。"
     },
     {
       "paths": [
@@ -334,13 +484,15 @@
         "scripts/deployment-environment.mjs"
       ],
       "domains": [
-        "identity"
+        "identity",
+        "github"
       ],
       "nodes": [
         "flow:identity.google.start",
-        "flow:identity.google.callback"
+        "flow:identity.google.callback",
+        "flow:github.overview.read"
       ],
-      "reason": "Google 登录的可选凭据 GOOGLE_CLIENT_ID 与 GOOGLE_CLIENT_SECRET：两份环境模板留空，compose 透传，两条部署工作流从环境级 secrets 填入，deploy-manual 同样接收；部署前检查只设一项时失败、都不设时提示 Google 关闭，不列为必填。没有新增其它环境变量或运行单元。"
+      "reason": "Google 登录的可选凭据 GOOGLE_CLIENT_ID 与 GOOGLE_CLIENT_SECRET：两份环境模板留空，compose 透传，两条部署工作流从环境级 secrets 填入，deploy-manual 同样接收；部署前检查只设一项时失败、都不设时提示 Google 关闭，不列为必填。没有新增其它环境变量或运行单元。 第四期同样接上可选的 GH_APP_ID 与 GH_APP_PRIVATE_KEY（私钥写一行 base64）。"
     },
     {
       "paths": [
@@ -353,10 +505,20 @@
         "tests/console/mock-sync.test.ts",
         "tests/tooling/web-nginx.test.ts",
         "tests/tooling/pr-preview.test.ts",
-        "tests/tooling/deployment-environment.test.ts"
+        "tests/tooling/deployment-environment.test.ts",
+        "tests/server/github-connection.test.ts",
+        "tests/server/console.test.ts",
+        "tests/server/forum.test.ts",
+        "tests/server/invitations.test.ts",
+        "tests/server/upstream-errors.test.ts",
+        "tests/console/http.test.ts",
+        "tests/console/people.test.ts",
+        "tests/console/permission-tree.test.ts"
       ],
       "domains": [
-        "identity"
+        "identity",
+        "organization",
+        "github"
       ],
       "nodes": [
         "flow:identity.email.verify",
@@ -364,9 +526,11 @@
         "flow:identity.account.password",
         "flow:identity.invites.create",
         "flow:github.organizations.list",
-        "flow:forum.state"
+        "flow:forum.state",
+        "flow:organization.people.site_role",
+        "flow:github.overview.read"
       ],
-      "reason": "新增邮箱、Google、邀请码、账号页与 github_session_required 的服务端用例（含响应字段不被合同删掉、论坛成员判断）和控制台纯逻辑用例；其余用例只按新增的 /account 派发、provider 字段、旧库加列与 Google 环境变量调整断言。"
+      "reason": "新增邮箱、Google、邀请码、账号页与 github_session_required 的服务端用例（含响应字段不被合同删掉、论坛成员判断）和控制台纯逻辑用例；其余用例只按新增的 /account 派发、provider 字段、旧库加列与 Google 环境变量调整断言。 第四期新增 GitHub 接入与站内角色的用例，console、forum、invitations、upstream-errors 用例按站内角色和 CONSOLE_ORG 改写断言；部署环境用例加 GitHub App 这一对。"
     },
     {
       "paths": [
@@ -393,7 +557,8 @@
         "docs/architecture/catalog/map.html",
         "docs/architecture/catalog/permissions.md",
         "docs/architecture/catalog/routes.md",
-        "docs/INDEX.md"
+        "docs/INDEX.md",
+        "docs/services/web/admin.md"
       ],
       "domains": [
         "identity"
@@ -405,7 +570,29 @@
         "table:invite_codes",
         "table:email_challenges"
       ],
-      "reason": "文档跟着改：ADR-0005 加「2026-10-23 修订」记下所有者的三条决定和替换掉的原决策；server、console、web、forum 合同，接口行为契约、API、SECURITY（含残余风险）、mail、数据模型与运维文档写明新接口、表、页面、派发和 Google 凭据；目录登记新表、路由、能力与 12 条流程。"
+      "reason": "文档跟着改：ADR-0005 加「2026-10-23 修订」记下所有者的三条决定和替换掉的原决策；server、console、web、forum 合同，接口行为契约、API、SECURITY（含残余风险）、mail、数据模型与运维文档写明新接口、表、页面、派发和 Google 凭据；目录登记新表、路由、能力与 12 条流程。 第四期：ADR-0005 加「2026-10-23 第二次修订」，SECURITY 新增「权限只认极客班账号」，API、接口行为契约、各合同与运维文档改写 GitHub 上限、/api/admin/:org/* 授权与 GitHub App 配置，目录加改站内角色流程。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/lib/org.ts",
+        "app/forum/app/data/titles.ts",
+        "app/forum/tests/titles.test.ts"
+      ],
+      "domains": [
+        "organization",
+        "forum",
+        "identity",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "public_content",
+        "platform",
+        "competitions"
+      ],
+      "nodes": [
+        "flow:organization.public"
+      ],
+      "reason": "官网与论坛在 GET /api/public/org 回来之前（或请求失败时）用源码里的默认称号显示；提督、舰员的默认说明跟着服务端改成「站内管理员，拥有全部权限，任命舰长」「在读成员；成为极客班成员后自动获得」，论坛的同形测试核对两边一致。"
     }
   ],
   "documents": [
@@ -422,7 +609,10 @@
     "docs/architecture/SECURITY.md",
     "docs/ops/ENVIRONMENTS.md",
     "docs/ops/CICD.md",
-    "docs/ops/DEPLOY.md"
+    "docs/ops/DEPLOY.md",
+    "docs/services/web/admin.md",
+    "docs/architecture/SECURITY.en.md",
+    "docs/ops/ENVIRONMENT.md"
   ],
   "tests": [
     "tests/server/signin-methods.test.ts",
@@ -434,9 +624,37 @@
     "tests/console/mock-sync.test.ts",
     "tests/tooling/web-nginx.test.ts",
     "tests/tooling/pr-preview.test.ts",
-    "tests/tooling/deployment-environment.test.ts"
+    "tests/tooling/deployment-environment.test.ts",
+    "tests/server/github-connection.test.ts",
+    "tests/server/console.test.ts",
+    "tests/server/forum.test.ts",
+    "tests/server/invitations.test.ts",
+    "tests/server/upstream-errors.test.ts",
+    "tests/console/people.test.ts",
+    "tests/console/permission-tree.test.ts",
+    "tests/console/http.test.ts"
   ],
-  "compatibility": "只增不改：/auth/providers 多列出邮箱与 Google，旧前端按列表渲染照常可用；/api/console/me 多一个 provider，blocked 多一种原因；已有 GitHub 会话与账号不受影响，GitHub 登录规则不变。邮箱、Google 会话是新增的，打开 GitHub 页面得到 403 github_session_required 而不是退出。/account 是新路径，不和官网路由冲突。",
-  "migration": "新镜像启动时在建库阶段自动执行：CREATE TABLE IF NOT EXISTS 建 invite_codes 与 email_challenges，先查 PRAGMA table_info 再给 users ADD COLUMN 五个可空列，CREATE UNIQUE INDEX IF NOT EXISTS 建两个唯一索引；可重复执行，不回填。上线后维护者在服务器容器里用 cli/account.js 给所有者的账号绑定邮箱、写入默认邀请码（从标准输入读，不进命令行和日志）。",
-  "rollback": "在 stage 上 git revert -m 1 撤销合并提交并重新构建 server 与 web 镜像；库不用动：旧代码不认识新表与新列，插入 users 时不写新列也照常成功。回滚后邮箱、Google 会话的行在 sessions 里没有 GitHub 令牌，旧代码调用 GitHub 时会被拒并按 session_expired 结束会话，人要改用 GitHub 登录（按旧代码推断，没有演练）；邀请码与已绑定的邮箱留在库里，再上线时照常可用。"
+  "compatibility": "/auth/providers 多列出邮箱与 Google，旧前端按列表渲染照常可用；/api/console/me 去掉 github_role 与 blocked、加 provider、site_role、github，控制台同一镜像一起换；GET /api/console/people 的每人多了账号字段、外层多 github 与 github_listed；/api/admin/:org/* 只管 CONSOLE_ORG，别的组织 403 org_not_managed。已有账号的站内角色沿用账号上记下的；回填建的老账号第一次用 GitHub 会话时补记。邮箱、Google 会话在没配 GitHub App 时打开 GitHub 页面得到 409 github_not_connected 而不是退出。/account 是新路径，不和官网路由冲突。",
+  "migration": "新镜像启动时在建库阶段自动执行：CREATE TABLE IF NOT EXISTS 建 invite_codes 与 email_challenges，先查 PRAGMA table_info 再给 users ADD COLUMN 五个可空列，CREATE UNIQUE INDEX IF NOT EXISTS 建两个唯一索引；可重复执行，不回填。上线后维护者在服务器容器里用 cli/account.js 给所有者的账号绑定邮箱、写入默认邀请码（从标准输入读，不进命令行和日志）。 第四期在同一个建库阶段把之前邀请码注册、org_role 还空着的账号补成 member，把还是旧默认值的提督、舰员说明换成新默认值，都可以重跑；不改表结构。",
+  "rollback": "在 stage 上 git revert -m 1 撤销合并提交并重新构建 server 与 web 镜像；库不用动：旧代码不认识新表与新列，插入 users 时不写新列也照常成功。回滚后邮箱、Google 会话的行在 sessions 里没有 GitHub 令牌，旧代码调用 GitHub 时会被拒并按 session_expired 结束会话，人要改用 GitHub 登录（按旧代码推断，没有演练）；邀请码与已绑定的邮箱留在库里，再上线时照常可用。 第四期回滚后 GitHub 上限回来：邮箱、Google 会话的 github.* 被挡、/api/admin/:org/* 回到按 GitHub 组织角色；控制台里改过的站内角色留在 users 里，旧代码在 GitHub 会话下按 GitHub 组织角色覆盖；补成 member 的邀请码账号在旧代码里照常是成员。",
+  "removals": [
+    {
+      "path": "app/server/src/middleware/require-org-role.ts",
+      "domains": [
+        "identity",
+        "organization",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "github",
+        "forum",
+        "audit",
+        "public_content",
+        "platform",
+        "competitions"
+      ],
+      "reason": "第四期 /api/admin/:org/* 不再按本人的 GitHub 组织角色授权，改由 middleware/require-github.ts 按站内称号的能力授权并核对 CONSOLE_ORG；require-org-role 没有调用方了，整个删掉。",
+      "baseAnchor": "export function requireOrgRole("
+    }
+  ]
 }

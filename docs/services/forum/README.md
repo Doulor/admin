@@ -104,7 +104,7 @@ UI 依照 [Tuffex 使用政策](../../components/tuffex/USAGE-POLICY.md)，同�
 
 | 称号 | 默认显示 | 标签 | 图标 | 色调 | 排序 |
 |---|---|---|---|---|---|
-| `admin` | 提督（GitHub 组织 owner） | `ADMIRAL` | `user-admin` | violet | 0 |
+| `admin` | 提督（站内管理员） | `ADMIRAL` | `user-admin` | violet | 0 |
 | `captain` | 舰长 | `CAPTAIN` | `star-filled` | amber | 1 |
 | `head` + 部门 | 「{部门} · 队长」 | `LEADER` | 部门图标，未知部门用 `badge` | 部门色调，未知部门 cobalt | 2 |
 | `member` + 部门 | 「{部门} · 舰员」 | `CREW` | 部门图标 | slate | 3 |

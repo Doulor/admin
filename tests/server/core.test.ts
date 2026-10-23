@@ -244,7 +244,8 @@ it('serves the console or portal index for deep links on the same host', async (
 });
 it('lists admin feedback without the submitter IP, user agent or numeric account id', async () => {
   const octokitFactory = (() => ({ request: async () => ({ data: { state: 'active', role: 'admin' } }) })) as unknown as ServiceOverrides['octokitFactory'];
-  const { app } = await setup({ octokitFactory }); const now = Date.now();
+  const c = await testApp({ octokitFactory }, false, { CONSOLE_ORG: 'test-org' }); contexts.push(c);
+  const { app } = c; const now = Date.now();
   app.services.storage.db.prepare('INSERT INTO feedback(org,content,category,contact,submitter_login,submitter_id,source_ip,user_agent,status,votes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
     .run('test-org', 'test feedback body', '建议', 'test-contact', 'test-student', 424242, '203.0.113.9', 'test-agent/1.0', 'open', 3, now, now);
   const sid = signIn(app, 'test-admin', 1, null, 'test-access');

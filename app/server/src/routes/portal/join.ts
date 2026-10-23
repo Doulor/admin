@@ -1,5 +1,7 @@
 import { reserveInvite, failInvite } from "../../lib/invite-reservation.js";
+import { GithubConnectionFailed } from "../../lib/github-connection.js";
 import type { FastifyInstance } from "fastify";
+import type { Octokit } from "@octokit/rest";
 
 type Body = {
   github_login?: string; email?: string; note?: string;
@@ -39,6 +41,7 @@ function linkStatus(row: LinkRow): { ok: true } | { ok: false; reason: string } 
 export default async function joinRoutes(app: FastifyInstance) {
   const { audit, db } = app.services.storage;
   const { octokitWith } = app.services.github;
+  const { githubConnection } = app.services;
   const { decrypt } = app.services.crypto;
   const { verifyTurnstile } = app.services.turnstile;
   const { preflightPublicSubmission, powDifficulty } = app.services.publicSubmission;
@@ -89,17 +92,31 @@ export default async function joinRoutes(app: FastifyInstance) {
         "INSERT INTO invitations(org, invite_link_token, github_login, email, note, source_ip, user_agent, status, error_message, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       );
 
-      let token: string;
-      try {
-        token = decrypt(row.created_by_token_encrypted);
-      } catch {
-        insertStmt.run(row.org, row.token, login ?? null, mail ?? null, noteText ?? null, req.ip, req.headers["user-agent"] ?? null, "failed", "邀请链接的发起人 token 失效", Date.now());
-        return reply.code(503).send({ error: "邀请链接的发起人 token 失效，请联系管理员重新生成链接" });
+      // 发邀请用服务器的 GitHub App（#262 第四期）；没配 App 时照旧用发起人存下的 GitHub 令牌（用 App 建的链接不存令牌）
+      const failed = (message: string, error: string) => {
+        insertStmt.run(row.org, row.token, login ?? null, mail ?? null, noteText ?? null, req.ip, req.headers["user-agent"] ?? null, "failed", message, Date.now());
+        return reply.code(503).send({ error });
+      };
+      let octokit: Pick<Octokit, "request">;
+      if (githubConnection.configured) {
+        try {
+          octokit = await githubConnection.clientFor(null);
+        } catch {
+          return failed("GitHub App 暂时用不了", "现在发不出 GitHub 邀请，请稍后再试或联系管理员");
+        }
+      } else {
+        let token: string;
+        try {
+          token = decrypt(row.created_by_token_encrypted);
+        } catch {
+          return failed("邀请链接的发起人 token 失效", "邀请链接的发起人 token 失效，请联系管理员重新生成链接");
+        }
+        if (!token) return failed("GitHub 还没接上", "现在发不出 GitHub 邀请，请联系管理员");
+        octokit = octokitWith(token);
       }
 
       const attempt = reserveInvite(db, row.token, login ? `login:${login.toLowerCase()}` : `email:${mail!.toLowerCase()}`);
       if (attempt.state === "sent") return { ok: true, invitation_id: attempt.github_invitation_id, message: "邀请已发出，请查看 GitHub 通知。" };
-      const octokit = octokitWith(token);
       let invitationSubmitted = false;
       let invitationConfirmed = false;
       try {
@@ -112,7 +129,7 @@ export default async function joinRoutes(app: FastifyInstance) {
           } catch { throw new Error("invite_team_unavailable"); }
         }
         if (login) {
-          const user = await octokit.users.getByUsername({ username: login });
+          const user = await octokit.request("GET /users/{username}", { username: login });
           body = { invitee_id: user.data.id, role: "direct_member" };
           if (teamIds) body.team_ids = teamIds;
         } else {
@@ -130,7 +147,8 @@ export default async function joinRoutes(app: FastifyInstance) {
         })();
         return { ok: true, invitation_id: inv.data.id, message: "邀请已发出，请到 GitHub 邮箱或通知中心接受。" };
       } catch (e) {
-        const status = (e as { status?: number }).status;
+        // App 令牌被拒包成了 GithubConnectionFailed（不带 status，免得被当成本人会话失效），401 照样说明邀请没发出去
+        const status = e instanceof GithubConnectionFailed ? e.upstreamStatus : (e as { status?: number }).status;
         const knownFailure = !invitationConfirmed && (!invitationSubmitted || Boolean(status && status >= 400 && status < 500));
         failInvite(db, attempt.id, row.token, knownFailure);
         const message = knownFailure ? "邀请未发送" : "邀请结果待管理员核对";

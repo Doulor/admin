@@ -70,6 +70,9 @@ services:
       # Google 登录（#262）：可选的一对，都空时登录页不出现 Google；只填一项 server 启动失败。
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      # GitHub App（#262 第四期）：可选的一对，服务器用它接 CONSOLE_ORG；都空时只在 GitHub 登录时借本人令牌，只填一项 server 启动失败。
+      GH_APP_ID: ${GH_APP_ID:-}
+      GH_APP_PRIVATE_KEY: ${GH_APP_PRIVATE_KEY:-}
     ports:
       # 宿主回环，只给本机调试与部署脚本的健康检查用。
       - "${SERVER_BIND:?}:${SERVER_PORT:?}"

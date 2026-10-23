@@ -21,14 +21,18 @@ import { confirm } from "../../lib/confirm";
 import { fmtDate, fmtRelative } from "../../lib/format";
 import { useOrg } from "../../lib/github";
 import { useAction, useResource } from "../../lib/resource";
+import { useSession } from "../../lib/session";
 import { siteUrl } from "../../lib/runtime";
 
 type Link = { token: string; note: string | null; max_uses: number; current_uses: number; expires_at: number; team_slug: string | null; disabled: number; created_by: string; created_at: number };
 type Team = { name: string; slug: string };
 
 const { apiBase } = useOrg();
+const { me } = useSession();
+// 列出、停用、删除已有链接不碰 GitHub；生成新链接要查团队、发邀请，GitHub 没接上时停用并说明
+const connected = computed(() => me.value?.github !== "none");
 const links = useResource(() => api<{ links: Link[] }>(`${apiBase.value}/invite-links`), [apiBase]);
-const teams = useResource(() => api<{ teams: Team[] }>(`${apiBase.value}/teams`), [apiBase]);
+const teams = useResource(() => api<{ teams: Team[] }>(`${apiBase.value}/teams`), [apiBase], { enabled: () => connected.value });
 const joinUrl = (token: string) => new URL(siteUrl("portal", `/join/${token}`), window.location.origin).toString();
 
 function linkState(link: Link) {
@@ -85,9 +89,10 @@ async function askRemove(link: Link) {
   <div class="page">
     <PageHeader title="邀请链接" description="生成一条有时限的链接发给新同学，对方填 GitHub 用户名后会自动收到组织邀请。">
       <template #actions>
-        <TxButton variant="primary" icon="i-carbon-add" @click="openCreate">生成链接</TxButton>
+        <TxButton variant="primary" icon="i-carbon-add" :disabled="!connected" @click="openCreate">生成链接</TxButton>
       </template>
     </PageHeader>
+    <p v-if="!connected" class="page-note">GitHub 还没接上，生成新链接要等服务器配好 GitHub App，或用 GitHub 登录后再来；已有的链接照常可以停用和删除。</p>
     <ErrorAlert v-if="toggle.error.value" :error="toggle.error.value" @close="toggle.reset()" />
     <ErrorAlert v-if="remove.error.value" :error="remove.error.value" @close="remove.reset()" />
 
@@ -163,6 +168,11 @@ async function askRemove(link: Link) {
 </template>
 
 <style scoped>
+.page-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--tx-text-color-secondary);
+}
 .link-cell {
   display: flex;
   align-items: center;

@@ -10,7 +10,8 @@ async function adminFixture(failure: Record<string, unknown> = {}) {
     if (route === 'GET /orgs/{org}/memberships/{username}') return { data: { state: 'active', role: 'admin' } };
     throw Object.assign(new Error('stub upstream rejection'), failure);
   } })) as unknown as ServiceOverrides['octokitFactory'];
-  const context = await testApp({ octokitFactory }); contexts.push(context);
+  // 控制台只管 CONSOLE_ORG（#262 第四期）：夹具把它设成 test-org
+  const context = await testApp({ octokitFactory }, false, { CONSOLE_ORG: 'test-org' }); contexts.push(context);
   const sid = signIn(context.app, 'test-admin', 1, null, 'test-access');
   return { ...context, sid, headers: { cookie: `sid=${sid}` } };
 }

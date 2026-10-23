@@ -22,10 +22,14 @@ export default async function authRoutes(app: FastifyInstance) {
     req.log.warn({ code: cause?.code, status: cause?.status, requestId: req.id }, "github grant revoke failed");
   });
 
+  /**
+   * 换 token、查用户；这个 GitHub id 还没有账号、或老账号还没记过站内角色时（"github"）再查组织资格。
+   * 已经由站内记着的账号不看 GitHub 组织（#262 第四期，权限只认极客班账号），`membership` 为 undefined。
+   */
   async function signInWithGitHub(code: string) {
     const token = await exchangeCode(code);
     const user = await fetchAuthenticatedUser(token);
-    const membership = await github.getOwnMembership(token, config.consoleOrg);
+    const membership = identity.githubSigninPlan(user.id) === "github" ? await github.getOwnMembership(token, config.consoleOrg) : undefined;
     return { token, user, membership };
   }
   app.get("/auth/github", async (req, reply) => {
@@ -56,16 +60,17 @@ export default async function authRoutes(app: FastifyInstance) {
       if (!result) return fail("failed");
       const { token, user, membership } = result;
       const account = { id: user.id, login: user.login, avatarUrl: user.avatar_url || null };
-      // 只有极客班 GitHub 组织的正式成员能登录。不是成员（包括邀请还没接受）不建号、不建会话，照旧可以不登录浏览。
-      if (membership !== "active") {
-        identity.recordGithubDenied({ github: account, reason: membership ?? "not_member", ip: req.ip });
+      // 要看 GitHub 组织时（新 GitHub 用户、还没记过站内角色的老账号），只有组织的正式成员能登录。不是成员（包括邀请还没接受）
+      // 不建号、不建会话，照旧可以不登录浏览。站内记着的账号由站内决定，停用或已移出的在登录事务里拒绝。
+      if (membership !== undefined && membership?.state !== "active") {
+        identity.recordGithubDenied({ github: account, reason: membership?.state ?? "not_member", ip: req.ip });
         await revoke(req, token);
-        return fail(membership === "pending" ? "invite_pending" : "not_member");
+        return fail(membership?.state === "pending" ? "invite_pending" : "not_member");
       }
       // 外部请求到此做完；建号、认领、插入会话、删旧会话、审计在一个事务里（lib/identity-store.ts），失败整体回滚。
       let signin;
       try {
-        signin = identity.signInWithGithub({ github: account, accessToken: token, previousSid: req.cookies?.sid ?? null, ip: req.ip });
+        signin = identity.signInWithGithub({ github: account, accessToken: token, orgRole: membership?.role, previousSid: req.cookies?.sid ?? null, ip: req.ip });
       } catch (cause) {
         req.log.error({ code: (cause as { code?: string })?.code ?? "signin_transaction_failed", requestId: req.id }, "sign-in transaction failed");
         return fail("failed");

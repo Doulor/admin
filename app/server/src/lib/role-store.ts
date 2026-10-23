@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import {
-  CAPABILITY_IDS, CAPTAIN_ONLY, DEFAULT_DEPARTMENTS, DEFAULT_TITLE_CONFIGS, TITLE_IDS, isCapability, normalizeBundle,
+  CAPABILITY_IDS, CAPTAIN_ONLY, DEFAULT_DEPARTMENTS, DEFAULT_TITLE_CONFIGS, LEGACY_TITLE_DESCRIPTIONS, TITLE_IDS, isCapability, normalizeBundle,
   type AssignableRole, type AssignmentRow, type Capability, type Department, type DepartmentIcon, type TitleConfigs, type TitleId, type Tone,
 } from "./roles.js";
 
@@ -23,7 +23,7 @@ export type AssignmentInput = {
 };
 export type AssignmentFilter = { role?: AssignableRole; department_id?: string; departments?: string[] };
 
-const ASSIGNMENT_COLUMNS = "id, github_login, github_user_id, role, department_id, note, granted_by, created_at";
+const ASSIGNMENT_COLUMNS = "id, github_login, github_user_id, account_id, role, department_id, note, granted_by, created_at";
 
 function parseBundle(raw: string): Capability[] {
   try {
@@ -51,11 +51,14 @@ export function createRoleStore(db: Database.Database) {
   // 称号：代码里的默认值只在第一次启动写入，之后以数据库为准（提督在控制台改的不会被覆盖）。
   const seedTitle = db.prepare(`INSERT OR IGNORE INTO titles(id, label, tag, icon, tone, description, capabilities, updated_by, updated_at)
     VALUES(@id, @label, @tag, @icon, @tone, @description, @capabilities, NULL, @now)`);
+  // 提督、舰员的说明还是旧默认值（「GitHub 组织的所有者」「加入 GitHub 组织后」）的，换成 #262 的新默认值；改过的不动
+  const renewDescription = db.prepare("UPDATE titles SET description = ? WHERE id = ? AND description = ?");
   db.transaction(() => {
     for (const id of TITLE_IDS) {
       const title = DEFAULT_TITLE_CONFIGS[id];
       seedTitle.run({ ...title, capabilities: JSON.stringify(title.capabilities), now: Date.now() });
     }
+    for (const id of ["admin", "member"] as const) renewDescription.run(DEFAULT_TITLE_CONFIGS[id].description, id, LEGACY_TITLE_DESCRIPTIONS[id]);
   })();
 
   /** 全部称号设置。提督的权限包不管库里存了什么都是全部能力，乘客没有权限包。 */

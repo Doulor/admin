@@ -6,7 +6,8 @@ import { FORUM_CAPABILITIES, ROLE_CAPABILITIES } from "./lib/nav";
  * 一律跳到 /console（组织固定为 CONSOLE_ORG，服务端 /api/admin/:org/* 接口不变）。
  * `meta.anyOf` 是页面所需能力（任一即可），components/ConsoleShell.vue 把它交给 components/CapabilityGate.vue 显示「没有权限」。
  */
-const gated = (anyOf: string[], load: () => Promise<unknown>) => ({ component: load, meta: { anyOf } });
+// githubOptional：页面没接上 GitHub 也能打开（只有部分操作要 GitHub，页面自己说明），能力门不拦
+const gated = (anyOf: string[], load: () => Promise<unknown>, githubOptional = false) => ({ component: load, meta: { anyOf, githubOptional } });
 
 const routes: RouteRecordRaw[] = [
   { path: "/", redirect: "/console" },
@@ -40,10 +41,10 @@ const routes: RouteRecordRaw[] = [
       { path: "github/repos/:repo/:tab(issues|pulls)/:number(\\d+)", ...gated(["github.org.read"], () => import("./pages/github/RepoDetail.vue")) },
       { path: "github/teams", ...gated(["github.org.read"], () => import("./pages/github/Teams.vue")) },
       { path: "github/activity", ...gated(["github.org.read"], () => import("./pages/github/Activity.vue")) },
-      { path: "github/security", ...gated(["github.org.read"], () => import("./pages/github/Security.vue")) },
+      { path: "github/security", ...gated(["github.org.manage"], () => import("./pages/github/Security.vue")) },
       { path: "github/org", ...gated(["github.org.read"], () => import("./pages/github/OrgSettings.vue")) },
       { path: "github/invitations", ...gated(["github.invites.manage"], () => import("./pages/github/Invitations.vue")) },
-      { path: "github/invite-links", ...gated(["github.invites.manage"], () => import("./pages/github/InviteLinks.vue")) },
+      { path: "github/invite-links", ...gated(["github.invites.manage"], () => import("./pages/github/InviteLinks.vue"), true) },
       { path: ":rest(.*)*", redirect: "/console" },
     ],
   },

@@ -1,5 +1,5 @@
 import { closure } from "./titles";
-import type { BlockReason, Capability, Catalogue, CatalogueCapability, ConsoleMe, Department, TitleId } from "./types";
+import type { Capability, Catalogue, CatalogueCapability, ConsoleMe, Department, TitleId } from "./types";
 
 export type PermissionNode = {
   key: string; label: string; children?: PermissionNode[]; capability?: string; sourceKey?: string;
@@ -13,8 +13,7 @@ export type PermissionGrant = {
   sourceKey: string; label: string; active: boolean; kind: "direct" | "implied" | "automatic"; via: string[];
 };
 export interface PermissionDetail extends CatalogueCapability {
-  status: "effective" | "blocked" | "ungranted";
-  reason: BlockReason | null;
+  status: "effective" | "ungranted";
   grants: PermissionGrant[];
   implies: string[];
   impliedBy: string[];
@@ -43,7 +42,6 @@ export function configuredPerspectiveDetails(catalogue: Catalogue, direct: Capab
     return {
       ...item,
       status: effective.has(item.id) ? "effective" as const : "ungranted" as const,
-      reason: null,
       grants: isDirect || isImplied ? [{
         sourceKey, label: sourceLabel, active: true,
         kind: isDirect ? "direct" as const : "implied" as const,
@@ -55,7 +53,7 @@ export function configuredPerspectiveDetails(catalogue: Catalogue, direct: Capab
   });
 }
 
-/** 配置只解释来源；是否生效与受限原因只读 /me，不在前端再次授权。 */
+/** 配置只解释来源；是否生效只读 /me，不在前端再次授权。 */
 export function buildPermissionTree(catalogue: Catalogue, departments: Department[], me: ConsoleMe): {
   byDomain: PermissionNode[]; bySource: PermissionNode[]; details: Map<string, PermissionDetail>;
   sources: PermissionSource[]; warnings: string[];
@@ -67,7 +65,6 @@ export function buildPermissionTree(catalogue: Catalogue, departments: Departmen
   const titleDefs = new Map(catalogue.titles.map(item => [item.id, item]));
   const departmentsById = new Map(departments.map(item => [item.id, item]));
   const effective = new Set(me.capabilities);
-  const blocked = new Map(me.blocked.map(item => [item.capability, item.reason]));
   const implications = catalogue.implies ?? {};
   const closures = new Map<string, Set<string>>();
   const expand = (id: string): Set<string> => {
@@ -86,12 +83,12 @@ export function buildPermissionTree(catalogue: Catalogue, departments: Departmen
     return title?.label ?? id;
   };
 
-  // /me 已包含服务端派生的称号；不按 GitHub member、主称号或 rank 补出任何称号。
+  // /me 已包含服务端派生的称号；不按站内角色、主称号或 rank 补出任何称号。
   const validTitles = me.titles.filter(title => {
-    if (title.id === "admin") return me.github_role === "admin";
+    if (title.id === "admin") return me.site_role === "admin";
     if (title.id === "guest") return true;
-    if (title.source === "none" || (title.source === "github" &&
-      (title.id !== "member" || title.department !== null || me.github_role !== "member"))) {
+    if (title.source === "none" || (title.source === "site" &&
+      (title.id !== "member" || title.department !== null || me.site_role !== "member"))) {
       warnings.add(`身份中的 ${title.id} 没有有效来源，不用于解释授权。`);
       return false;
     }
@@ -124,11 +121,11 @@ export function buildPermissionTree(catalogue: Catalogue, departments: Departmen
     addSource({
       key: `title:${id}`, label: titleLabel(id), kind: "title", archived: false,
       description: id === "admin"
-        ? "GitHub 组织所有者自动获得全部清单能力，不读取可编辑权限包；这是固定规则，不是称号层级继承。"
+        ? "站内管理员自动获得全部清单能力，不读取可编辑权限包；这是固定规则，不是称号层级继承。"
         : id === "guest" ? "没有称号时的身份，固定不授予任何能力。"
           : `${titleDefs.get(id)?.description ?? ""} 权限取当前称号基础包；层级只用于排序，不继承其它称号。`.trim(),
       direct: id === "admin" ? knownIds : id === "guest" ? [] : catalogue.role_base[id],
-      active: id === "admin" ? me.github_role === "admin" : validTitles.some(title => title.id === id),
+      active: id === "admin" ? me.site_role === "admin" : validTitles.some(title => title.id === id),
     });
     if (fixed) {
       const expected = new Set(id === "admin" ? knownIds : []);
@@ -150,14 +147,14 @@ export function buildPermissionTree(catalogue: Catalogue, departments: Departmen
       });
     }
   }
-  // 自动入口以 /me 的其它有效能力作依据，不让受限能力或配置包自行打开入口。
-  const entryVia = [...effective].filter(id => id !== "console.access" && !blocked.has(id));
+  // 自动入口以 /me 的其它有效能力作依据，不让配置包自行打开入口。
+  const entryVia = [...effective].filter(id => id !== "console.access");
   addSource({
     key: "automatic:console.access", label: "控制台自动入口", kind: "automatic", archived: false,
-    description: "服务端在至少一项能力通过 GitHub 上限后自动补入 console.access；仅受限能力不会触发。",
+    description: "服务端在至少有一项其它能力时自动补入 console.access；不是极客班成员时没有任何能力。",
     direct: ["console.access"], active: entryVia.length > 0,
   });
-  for (const id of [...effective, ...blocked.keys()]) ensureCapability(id);
+  for (const id of effective) ensureCapability(id);
   for (const [id, implied] of Object.entries(implications)) {
     ensureCapability(id);
     for (const target of implied) ensureCapability(target);
@@ -165,13 +162,9 @@ export function buildPermissionTree(catalogue: Catalogue, departments: Departmen
 
   const details = new Map<string, PermissionDetail>();
   for (const capability of capabilities.values()) {
-    const reason = blocked.get(capability.id) ?? null;
-    if (reason && effective.has(capability.id)) {
-      warnings.add(`/me 同时将 ${capability.id} 标为生效和受限；保守显示受限，请刷新身份。`);
-    }
     details.set(capability.id, {
-      ...capability, status: reason ? "blocked" : effective.has(capability.id) ? "effective" : "ungranted",
-      reason, grants: [], implies: [...expand(capability.id)].filter(id => id !== capability.id), impliedBy: [],
+      ...capability, status: effective.has(capability.id) ? "effective" : "ungranted",
+      grants: [], implies: [...expand(capability.id)].filter(id => id !== capability.id), impliedBy: [],
     });
     if (!domains.has(capability.domain)) {
       domains.set(capability.domain, capability.domain === "unknown" ? "未识别能力" : capability.domain);
@@ -198,7 +191,7 @@ export function buildPermissionTree(catalogue: Catalogue, departments: Departmen
     if (detail.status !== "ungranted" && !explained) {
       warnings.add(`${detail.id} 的 /me 状态在当前配置中没有可对应的有效来源；保留服务端状态，请刷新身份与配置。`);
     } else if (detail.status === "ungranted" && explained) {
-      warnings.add(`当前配置可解释 ${detail.id} 的来源，但 /me 未授予也未列为受限；不将配置解释当作实际授权。`);
+      warnings.add(`当前配置可解释 ${detail.id} 的来源，但 /me 未授予；不将配置解释当作实际授权。`);
     }
   }
 

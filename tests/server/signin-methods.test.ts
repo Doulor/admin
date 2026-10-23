@@ -5,6 +5,7 @@ import type { ServiceOverrides } from '../../app/server/src/services';
 import { GOOGLE_JWKS_URL, GOOGLE_TOKEN_URL } from '../../app/server/src/lib/google';
 import { signIn, testApp } from './helpers';
 import { requestLogFields } from '../../app/server/src/app';
+import { CAPABILITY_IDS } from '../../app/server/src/lib/roles';
 import { createLoginThrottle } from '../../app/server/src/lib/password-policy';
 
 /**
@@ -158,7 +159,8 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     expect(me).toMatchObject({ signed_in: true, provider: 'email', user_id: null, console_link: false });
     expect(me.login).toMatch(/^yz_[0-9a-hjkmnp-tv-z]{8}$/);
     const account = db.prepare('SELECT org_state, org_role, invite_code_id, canonical_email, handle FROM users').get() as Record<string, unknown>;
-    expect(account).toMatchObject({ org_state: 'active', org_role: null, canonical_email: 'new.member@example.test', handle: me.login });
+    // 邀请码注册的是成员，站内角色记成 member（舰员，#262 第四期）
+    expect(account).toMatchObject({ org_state: 'active', org_role: 'member', canonical_email: 'new.member@example.test', handle: me.login });
     expect(db.prepare('SELECT used_count FROM invite_codes').get()).toEqual({ used_count: 1 });
     expect(db.prepare("SELECT action FROM audit_logs WHERE action IN ('auth.register', 'auth.signin') ORDER BY id").all()).toEqual([{ action: 'auth.register' }, { action: 'auth.signin' }]);
 
@@ -232,7 +234,7 @@ describe('email password sign-in (#262)', () => {
     expect(view).toMatchObject({ has_password: true, identities: [{ provider: 'email', label: 'p***@example.test' }] });
     // 响应合同不删字段：账号页用到的每一项都在
     expect(Object.keys(view).sort()).toEqual(['account_id', 'available', 'created_at', 'has_password', 'identities', 'login', 'membership', 'password_updated_at', 'recent', 'session']);
-    expect(view.membership).toEqual({ state: 'active', org_role: null, via_invite: true });
+    expect(view.membership).toEqual({ state: 'active', org_role: 'member', via_invite: true });
     expect(view.session).toEqual(expect.objectContaining({ provider: 'email', step_up_until: view.session.created_at + 10 * 60 * 1000 }));
     expect(view.recent[0]).toEqual({ at: expect.any(Number), action: 'password_set', provider: 'email', result: 'ok' });
 
@@ -260,8 +262,8 @@ describe('email password sign-in (#262)', () => {
   });
 });
 
-describe('console capabilities follow in-site titles; GitHub pages need a GitHub session (#262)', () => {
-  it('gives the provisioned owner 提督 through email, locks github.* and never calls GitHub', async () => {
+describe('console permissions come only from the site account; GitHub is a connection the server makes (#262 第四期)', () => {
+  it('gives the provisioned owner 提督 with every capability through email and reports GitHub as not connected without a GitHub App', async () => {
     const { app, mail, calls } = await setup();
     const owner = app.services.identity.provisionAccount({ githubId: 130495739, githubLogin: 'Crosery', orgRole: 'admin', email: 'owner@example.test' });
     expect(owner).toMatchObject({ created: true, emailLinked: true });
@@ -273,48 +275,218 @@ describe('console capabilities follow in-site titles; GitHub pages need a GitHub
     expect((await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('owner@example.test') })).json()).toMatchObject({ registered: false });
     expect((await user.send('GET', '/auth/me')).json()).toMatchObject({ login: 'Crosery', user_id: 130495739, account_id: owner.accountId, provider: 'email', console_link: true });
     const me = (await user.send('GET', '/api/console/me')).json();
-    expect(me.title.id).toBe('admin');
-    expect(me.capabilities).toEqual(expect.arrayContaining(['console.access', 'roles.manage', 'accounts.invites.manage', 'competitions.manage']));
-    expect(me.capabilities.some((c: string) => c.startsWith('github.'))).toBe(false);
-    expect(me.blocked).toEqual(expect.arrayContaining([{ capability: 'github.org.read', reason: 'github_session_required' }]));
+    expect(me).toMatchObject({ provider: 'email', site_role: 'admin', github: 'none' });
+    expect(me.title).toMatchObject({ id: 'admin', source: 'site' });
+    expect(me.capabilities).toEqual(CAPABILITY_IDS);
+    expect(me).not.toHaveProperty('blocked');
 
-    for (const url of [`/api/admin/${ORG}/overview`, '/api/console/people', '/api/me/orgs']) {
-      const response = await user.send('GET', url);
-      expect([url, response.statusCode, response.json().error]).toEqual([url, 403, 'github_session_required']);
-    }
-    expect((await user.send('POST', '/api/console/assignments', { github_login: 'someone', role: 'alumni' })).json().error).toBe('github_session_required');
+    // 有 github.* 能力，但服务器没配 GitHub App、这次也不是 GitHub 会话：GitHub 页面回 409，不是 403
+    const overview = await user.send('GET', `/api/admin/${ORG}/overview`);
+    expect([overview.statusCode, overview.json().error]).toEqual([409, 'github_not_connected']);
+    expect(overview.json().message).toMatch(/GitHub 还没接上/);
+    // 列本人加入的 GitHub 组织只对 GitHub 会话有意义
+    expect((await user.send('GET', '/api/me/orgs')).json().error).toBe('github_session_required');
+    // 成员与权限照常打开：名单来自极客班账号，GitHub 没接上就不并 GitHub 组织
+    const people = await user.send('GET', '/api/console/people');
+    expect(people.statusCode).toBe(200);
+    expect(people.json()).toMatchObject({ github: 'none', github_listed: false });
+    expect(people.json().people).toEqual([expect.objectContaining({
+      account_id: owner.accountId, login: 'Crosery', user_id: 130495739, site_role: 'admin', member: true, status: 'active',
+      providers: ['github', 'email'], role_unrecorded: false, titles: [expect.objectContaining({ id: 'admin' })],
+    })]);
+    // 名单不带邮箱：只管本部门的队长也能看名单
+    expect(people.json().people[0]).not.toHaveProperty('github_role');
+    expect(people.json().people[0]).not.toHaveProperty('email');
+    // 没登录过本站的 GitHub 用户名，GitHub 又没接上：查不到这个人
+    const unknown = await user.send('POST', '/api/console/assignments', { github_login: 'someone', role: 'alumni' });
+    expect([unknown.statusCode, unknown.json().error]).toEqual([400, 'github_user_not_found']);
     // 绑定了 GitHub 的账号用邮箱登录，在论坛里照常是成员
     expect((await user.send('GET', '/api/forum/state')).json().state.viewer.kind).toBe('member');
     expect(calls).toEqual([]);
   });
 
-  it('lets an invite-registered member sign up for competitions but not into the console', async () => {
+  it('makes an invite-registered member a 舰员 who can be given titles by account, without GitHub', async () => {
     const { app, mail, invite, calls } = await setup();
     invite('yugc-test-2026');
+    const owner = app.services.identity.provisionAccount({ githubId: 130495739, githubLogin: 'Crosery', orgRole: 'admin', email: 'owner@example.test' });
     const user = browser(app);
     await user.send('POST', '/auth/email/start', { email: 'crew@example.test' });
     await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('crew@example.test'), invite_code: 'yugc-test-2026' });
     expect((await user.send('GET', '/api/me/competitions')).statusCode).toBe(200);
     const me = (await user.send('GET', '/api/console/me')).json();
-    expect([me.title.id, me.capabilities]).toEqual(['guest', []]);
+    expect([me.site_role, me.title.id, me.capabilities]).toEqual(['member', 'member', ['console.access', 'github.org.read']]);
     // 论坛用户按 GitHub id 建：没有绑定 GitHub 的账号在论坛里是游客
     expect((await user.send('GET', '/api/forum/state')).json().state.viewer.kind).toBe('guest');
+
+    // 提督按账号给他队长称号，不用 GitHub 用户名
+    const admiral = browser(app);
+    await admiral.send('POST', '/auth/email/start', { email: 'owner@example.test' });
+    await admiral.send('POST', '/auth/email/verify', { code: await mail.codeFor('owner@example.test') });
+    const crewId = (await user.send('GET', '/auth/me')).json().account_id as string;
+    const assigned = await admiral.send('POST', '/api/console/assignments', { account_id: crewId, role: 'head', department_id: 'recruitment' });
+    expect(assigned.statusCode).toBe(201);
+    expect(assigned.json().assignment).toMatchObject({ github_login: me.login, github_user_id: null, role: 'head', department_id: 'recruitment' });
+    const after = (await user.send('GET', '/api/console/me')).json();
+    expect(after.title).toMatchObject({ id: 'head', source: 'assignment' });
+    expect(after.capabilities).toEqual(expect.arrayContaining(['applications.review', 'github.invites.manage']));
+    const missing = await admiral.send('POST', '/api/console/assignments', { account_id: '01HZZZZZZZZZZZZZZZZZZZZZZZ', role: 'alumni' });
+    expect([missing.statusCode, missing.json().error]).toEqual([404, 'account_not_found']);
+    expect(owner.accountId).not.toBe(crewId);
     expect(calls).toEqual([]);
   });
 
-  it('records the GitHub org role on the account and takes membership away when GitHub says not a member', async () => {
+  it('records the GitHub org role of an unrecorded account once, then keeps the site record whatever GitHub says later', async () => {
     const roles: Record<string, 'admin' | 'member' | null> = { octocat: 'member' };
-    const { app, db } = await setup({ roles });
+    const { app, db, calls } = await setup({ roles });
     const sid = signIn(app, 'octocat', 42);
     expect((await app.inject({ url: '/auth/me', headers: { cookie: `sid=${sid}` } })).json().signed_in).toBe(true);
     expect(db.prepare('SELECT org_role, org_state FROM users').get()).toEqual({ org_role: 'member', org_state: 'active' });
+    const asked = calls.length;
     roles.octocat = null;
     app.services.cache.invalidate('console:orgrole:');
     const accountId = (db.prepare('SELECT id FROM users').get() as { id: string }).id;
     const access = await app.services.access.resolve({ login: 'octocat', userId: 42, accountId, accessToken: 'token-octocat', provider: 'github' });
-    expect([access.member, access.githubRole]).toEqual([false, null]);
-    expect(db.prepare('SELECT org_role, org_state FROM users').get()).toEqual({ org_role: null, org_state: 'not_member' });
-    expect(app.services.identity.membershipOf(accountId)).toEqual({ member: false, orgRole: null });
+    expect([access.member, access.siteRole]).toEqual([true, 'member']);
+    expect(db.prepare('SELECT org_role, org_state FROM users').get()).toEqual({ org_role: 'member', org_state: 'active' });
+    expect(calls).toHaveLength(asked);
+  });
+
+  it('lists an unrecorded account as unrecorded rather than removed, and lets 提督 settle it as a member', async () => {
+    const { app } = await setup();
+    signIn(app, 'octocat', 42);
+    const listed = () => app.services.identity.listAccounts().find(account => account.login === 'octocat')!;
+    expect(listed()).toMatchObject({ site_role: null, role_unrecorded: true, member: true });
+    expect(app.services.identity.setSiteRole({ accountId: listed().account_id, role: 'member', actor: { login: 'boss', account_id: null } })).toEqual({ ok: true, changed: true });
+    expect(listed()).toMatchObject({ site_role: 'member', role_unrecorded: false, member: true });
+  });
+});
+
+describe('site roles in 成员与权限 (#262 第四期)', () => {
+  it('lets only 提督 change site roles, keeps one admin, and applies the change to live sessions at once', async () => {
+    const { app, db, mail, invite, tick } = await setup();
+    invite('yugc-test-2026');
+    const owner = app.services.identity.provisionAccount({ githubId: 130495739, githubLogin: 'Crosery', orgRole: 'admin', email: 'owner@example.test' });
+    const signInByEmail = async (email: string, invite_code?: string, nth = 1) => {
+      const user = browser(app);
+      await user.send('POST', '/auth/email/start', { email });
+      const verified = await user.send('POST', '/auth/email/verify', { code: await mail.codeFor(email, nth), ...(invite_code ? { invite_code } : {}) });
+      return { user, verified };
+    };
+    const { user: admiral } = await signInByEmail('owner@example.test');
+    const { user: crew } = await signInByEmail('crew@example.test', 'yugc-test-2026');
+    const { user: captain } = await signInByEmail('cap@example.test', 'yugc-test-2026');
+    const idOf = async (user: ReturnType<typeof browser>) => (await user.send('GET', '/auth/me')).json().account_id as string;
+    const [crewId, captainId] = [await idOf(crew), await idOf(captain)];
+    const patch = (user: ReturnType<typeof browser>, accountId: string, site_role: string) => user.send('PATCH', `/api/console/people/${accountId}/site-role`, { site_role });
+
+    // 舰长有 roles.manage，也改不了站内角色
+    expect((await admiral.send('POST', '/api/console/assignments', { account_id: captainId, role: 'captain' })).statusCode).toBe(201);
+    const byCaptain = await patch(captain, crewId, 'admin');
+    expect([byCaptain.statusCode, byCaptain.json().error]).toEqual([403, 'admiral_required']);
+    expect((await patch(crew, crewId, 'admin')).json().error).toBe('missing_capability');
+    expect((await patch(admiral, crewId, 'pirate')).statusCode).toBe(400);
+    expect((await patch(admiral, '01HZZZZZZZZZZZZZZZZZZZZZZZ', 'member')).statusCode).toBe(404);
+
+    // 提督把舰员升成管理员；同一个会话下一次请求就是提督
+    expect((await patch(admiral, crewId, 'admin')).json()).toEqual({ account_id: crewId, site_role: 'admin', changed: true });
+    expect((await patch(admiral, crewId, 'admin')).json()).toEqual({ account_id: crewId, site_role: 'admin', changed: false });
+    expect((await crew.send('GET', '/api/console/me')).json()).toMatchObject({ site_role: 'admin', title: { id: 'admin' } });
+
+    // 新提督把原来的移出极客班：原会话立刻没有任何能力，再登录被拒
+    expect((await patch(crew, owner.accountId, 'none')).json()).toMatchObject({ site_role: 'none', changed: true });
+    const removed = (await admiral.send('GET', '/api/console/me')).json();
+    expect([removed.site_role, removed.title.id, removed.capabilities]).toEqual([null, 'guest', []]);
+    expect((await admiral.send('GET', '/api/forum/state')).json().state.viewer.kind).toBe('guest');
+    tick(61_000);
+    const { verified: refused } = await signInByEmail('owner@example.test', undefined, 2);
+    expect([refused.statusCode, refused.json().error]).toEqual([403, 'not_member']);
+
+    // 至少留一位管理员
+    const last = await patch(crew, crewId, 'member');
+    expect([last.statusCode, last.json().error]).toEqual([409, 'last_admin']);
+    expect(db.prepare("SELECT details FROM audit_logs WHERE action = 'account.role' ORDER BY id").all().map(row => JSON.parse((row as { details: string }).details)))
+      .toEqual([{ account_id: crewId, from: 'member', to: 'admin' }, { account_id: owner.accountId, from: 'admin', to: 'none' }]);
+    expect(db.prepare("SELECT user_id, reason FROM identity_audit WHERE action = 'role_change' ORDER BY id").all())
+      .toEqual([{ user_id: crewId, reason: 'admin' }, { user_id: owner.accountId, reason: 'none' }]);
+  });
+});
+
+describe('GitHub sign-in: the site decides once an account is recorded (#262 第四期)', () => {
+  const user = { id: 42, login: 'octocat' };
+  const httpRequest = (async (url: string) => ({
+    statusCode: 200,
+    body: { json: async () => url.includes('/access_token') ? { access_token: 'test-provider-token' } : { id: user.id, login: user.login, avatar_url: '' }, dump: async () => undefined },
+  })) as unknown as ServiceOverrides['httpRequest'];
+  function orgGate(roles: Record<string, 'admin' | 'member' | undefined>, calls: string[]) {
+    return (() => ({
+      request: async (route: string) => {
+        calls.push(route);
+        if (route !== 'GET /user/memberships/orgs/{org}') throw new Error(`Unexpected GitHub call ${route}`);
+        const role = roles[user.login];
+        if (!role) throw Object.assign(new Error('Not Found'), { status: 404 });
+        return { data: { state: 'active', role } };
+      },
+    })) as unknown as ServiceOverrides['octokitFactory'];
+  }
+  async function callback(app: FastifyInstance) {
+    const start = await app.inject('/auth/github?return_to=https%3A%2F%2Fexample.test%2Fforum%2F');
+    const state = new URL(String(start.headers.location)).searchParams.get('state');
+    const response = await app.inject({ url: `/auth/callback?code=ok&state=${state}`, headers: { cookie: String(start.headers['set-cookie']).split(';')[0] } });
+    return String(response.headers.location);
+  }
+
+  it('asks GitHub only for new users, then signs a recorded member in after they leave the org, and refuses once the site removes them', async () => {
+    const roles: Record<string, 'admin' | 'member' | undefined> = { octocat: 'admin' };
+    const calls: string[] = [];
+    const context = await testApp({ httpRequest, octokitFactory: orgGate(roles, calls) }); contexts.push(context);
+    const { app } = context;
+    const db = app.services.storage.db;
+    Object.assign(user, { id: 42, login: 'octocat' });
+
+    // 新 GitHub 用户：看组织资格；站内还没有管理员，组织 owner 注册成站内管理员（空库起步）
+    expect(await callback(app)).toBe('https://example.test/forum/');
+    expect(calls).toEqual(['GET /user/memberships/orgs/{org}']);
+    expect(db.prepare('SELECT org_role, org_state FROM users').get()).toEqual({ org_role: 'admin', org_state: 'active' });
+
+    // 退出 GitHub 组织：站内记着的账号不再看 GitHub，照常登录、照常是管理员
+    roles.octocat = undefined;
+    expect(await callback(app)).toBe('https://example.test/forum/');
+    expect(calls).toHaveLength(1);
+    expect(db.prepare('SELECT org_role, org_state FROM users').get()).toEqual({ org_role: 'admin', org_state: 'active' });
+
+    // 站内移出之后再用 GitHub 登录：拒绝，不建会话
+    const accountId = (db.prepare('SELECT id FROM users').get() as { id: string }).id;
+    db.prepare("UPDATE users SET org_role = NULL, org_state = 'not_member' WHERE id = ?").run(accountId);
+    const sessions = (db.prepare('SELECT COUNT(*) AS n FROM sessions').get() as { n: number }).n;
+    expect(await callback(app)).toContain('signin=not_member');
+    expect(db.prepare('SELECT COUNT(*) AS n FROM sessions').get()).toEqual({ n: sessions });
+    expect(calls).toHaveLength(1);
+    expect(db.prepare("SELECT action, reason FROM identity_audit WHERE user_id = ? ORDER BY id DESC LIMIT 1").get(accountId)).toEqual({ action: 'login_denied', reason: 'not_member' });
+
+    // 不在组织里的新 GitHub 用户：照旧拒绝，不建号
+    Object.assign(user, { id: 43, login: 'stranger' });
+    expect(await callback(app)).toContain('signin=not_member');
+    expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 1 });
+    Object.assign(user, { id: 42, login: 'octocat' });
+  });
+
+  it('registers a later GitHub org owner as a member: once the site has an admin, GitHub ownership does not make site admins', async () => {
+    const roles: Record<string, 'admin' | 'member' | undefined> = { octocat: 'admin', newowner: 'admin' };
+    const calls: string[] = [];
+    const context = await testApp({ httpRequest, octokitFactory: orgGate(roles, calls) }); contexts.push(context);
+    const { app } = context;
+    const db = app.services.storage.db;
+    const roleOf = (githubId: number) => db.prepare(`SELECT u.org_role, u.org_state FROM users u JOIN identities i ON i.user_id = u.id
+      WHERE i.provider = 'github' AND i.provider_uid = ?`).get(String(githubId));
+    Object.assign(user, { id: 42, login: 'octocat' });
+    expect(await callback(app)).toBe('https://example.test/forum/');
+    expect(roleOf(42)).toEqual({ org_role: 'admin', org_state: 'active' });
+
+    // 能改 GitHub 组织角色的人（例如经 GitHub App 有 github.members.manage 的舰长）把别人设成 owner，也造不出站内管理员
+    Object.assign(user, { id: 44, login: 'newowner' });
+    expect(await callback(app)).toBe('https://example.test/forum/');
+    expect(roleOf(44)).toEqual({ org_role: 'member', org_state: 'active' });
+    Object.assign(user, { id: 42, login: 'octocat' });
   });
 });
 
@@ -420,24 +592,20 @@ describe('Google sign-in (#262)', () => {
 });
 
 describe('hardening from the #262 review', () => {
-  it('drops the recorded admin role when GitHub refuses the same person, so email sessions lose 提督', async () => {
-    const { app, mail, tick } = await setup();
+  it('keeps a recorded admin role when GitHub refuses the same person: GitHub no longer takes site access away', async () => {
+    const { app, mail } = await setup();
     app.services.identity.provisionAccount({ githubId: 130495739, githubLogin: 'Crosery', orgRole: 'admin', email: 'owner@example.test' });
     const user = browser(app);
     await user.send('POST', '/auth/email/start', { email: 'owner@example.test' });
     await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('owner@example.test') });
     expect((await user.send('GET', '/api/console/me')).json().title.id).toBe('admin');
 
-    // 被移出组织后再试 GitHub 登录：被拒的同时，账号上记的角色清空、不再是成员
+    // 站内记着角色的账号，GitHub 那边的拒绝只记一条 login_denied，不改站内角色；移出极客班在「成员与权限」里做
+    expect(app.services.identity.githubSigninPlan(130495739)).toBe('site');
     app.services.identity.recordGithubDenied({ github: { id: 130495739, login: 'Crosery', avatarUrl: null }, reason: 'not_member' });
     const me = (await user.send('GET', '/api/console/me')).json();
-    expect([me.title.id, me.capabilities]).toEqual(['guest', []]);
-    expect((await user.send('GET', '/api/forum/state')).json().state.viewer.kind).toBe('guest');
-    tick(61_000);
-    const again = browser(app);
-    await again.send('POST', '/auth/email/start', { email: 'owner@example.test' });
-    const refused = await again.send('POST', '/auth/email/verify', { code: await mail.codeFor('owner@example.test', 2) });
-    expect([refused.statusCode, refused.json().error]).toEqual([403, 'not_member']);
+    expect([me.site_role, me.title.id]).toEqual(['admin', 'admin']);
+    expect((await user.send('GET', '/api/forum/state')).json().state.viewer.kind).toBe('member');
   });
 
   it('lets only the same browser void an earlier code, so a stranger cannot cancel yours', async () => {

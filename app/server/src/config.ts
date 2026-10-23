@@ -1,4 +1,5 @@
 import { config as loadEnv } from "dotenv";
+import { createPrivateKey, type KeyObject } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -91,12 +92,27 @@ export function createConfig(env: Record<string, string | undefined>) {
     if (Boolean(clientId) !== Boolean(clientSecret)) throw new Error("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together");
     return clientId ? { clientId, clientSecret } : null;
   })();
+  // GitHub App（#262 第四期）：服务器用它读写 CONSOLE_ORG，控制台的 GitHub 页面不再依赖本人的 GitHub 令牌。两项都设才启用，
+  // 只设一项或私钥读不出来让启动失败（错误信息不带配置的值）。私钥可以是 PEM 原文（换行写成 \n 也行），也可以是 PEM 的 base64。
+  const githubApp = (() => {
+    const appId = (env.GH_APP_ID ?? "").trim();
+    const rawKey = (env.GH_APP_PRIVATE_KEY ?? "").trim();
+    if (Boolean(appId) !== Boolean(rawKey)) throw new Error("GH_APP_ID and GH_APP_PRIVATE_KEY must be set together");
+    if (!appId) return null;
+    if (!/^[0-9]{1,12}$/.test(appId)) throw new Error("GH_APP_ID must be the numeric App ID");
+    const pem = rawKey.includes("-----BEGIN") ? rawKey.replace(/\\n/g, "\n") : Buffer.from(rawKey, "base64").toString("utf8");
+    let privateKey: KeyObject;
+    try { privateKey = createPrivateKey(pem); } catch { throw new Error("GH_APP_PRIVATE_KEY is not a readable private key"); }
+    if (privateKey.asymmetricKeyType !== "rsa") throw new Error("GH_APP_PRIVATE_KEY must be the RSA key GitHub generated for the App");
+    return { appId, privateKey };
+  })();
   return {
     production, port, publicOrigin, host: listenHost, trustProxy, consoleOrg,
     cookieDomain: env.COOKIE_DOMAIN || undefined,
     cookieSecure: publicOrigin.startsWith("https:"),
-    oauth: { clientId: required("OAUTH_CLIENT_ID"), clientSecret: required("OAUTH_CLIENT_SECRET"), scope: "read:user user:email admin:org read:org repo" },
-    google,
+    // 接了 GitHub App 时登录只要读身份和组织资格；没接时控制台的 GitHub 页面还得借本人的令牌，照旧要管理组织和仓库的范围
+    oauth: { clientId: required("OAUTH_CLIENT_ID"), clientSecret: required("OAUTH_CLIENT_SECRET"), scope: githubApp ? "read:user user:email read:org" : "read:user user:email admin:org read:org repo" },
+    google, githubApp,
     sessionSecret, encryptionKey, dbPath, forumDbPath,
     uploadDir: resolve(REPO_ROOT, env.FORUM_UPLOAD_DIR ?? "data/forum-uploads"),
     // 论坛的公开内容（分类、标签、公开旧帖），启动时读来播种。不是环境变量：仓库里和镜像里都在同一个相对位置

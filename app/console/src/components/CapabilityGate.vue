@@ -2,46 +2,43 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { TxPermissionState } from "@talex-touch/tuffex/permission-state";
-import { BLOCK_REASON_TEXT } from "../lib/nav";
+import { needsGithubConnection } from "../lib/nav";
 import { useSession } from "../lib/session";
 import { assignerText } from "../lib/titles";
 
 /**
- * 页面级能力门：前端只做提示，服务端仍独立校验。
- * 没有任何一项所需能力时，说明缺哪项；称号给了但被 GitHub 组织角色挡住时，说明是这个原因。
- * 只差一次 GitHub 登录的（邮箱、Google 会话打开 GitHub 组织的页面）给「用 GitHub 继续」，登录后回到这一页。
+ * 页面级能力门：前端只做提示，服务端仍独立校验。能力只看站内称号（#262 第四期）。
+ * 没有所需能力时，说明缺哪项、找谁指派；GitHub 组织的页面有能力但服务器还没接上 GitHub（没配 GitHub App，
+ * 这次也不是用 GitHub 登录的）时，说明原因并给「用 GitHub 继续」，登录后回到这一页；`githubOptional` 的页面不拦，由页面自己说明。
  */
-const props = defineProps<{ anyOf: string[] }>();
+const props = defineProps<{ anyOf: string[]; githubOptional?: boolean }>();
 const { me, catalogue, canAny, capabilityLabel } = useSession();
 const route = useRoute();
 const router = useRouter();
 
-const PROVIDER_TEXT: Record<string, string> = { email: "邮箱", google: " Google " };
 const allowed = computed(() => canAny(props.anyOf));
-const blocked = computed(() => me.value?.blocked.find(item => props.anyOf.includes(item.capability)) ?? null);
-const needsGithub = computed(() => blocked.value?.reason === "github_session_required");
-const needed = computed(() => capabilityLabel(blocked.value?.capability ?? props.anyOf[0]));
-const title = computed(() => needsGithub.value ? "这一页要用 GitHub 登录" : `你没有「${needed.value}」权限`);
+const notConnected = computed(() => allowed.value && !props.githubOptional && needsGithubConnection(props.anyOf) && me.value?.github === "none");
+const open = computed(() => allowed.value && !notConnected.value);
+const needed = computed(() => capabilityLabel(props.anyOf[0]));
+const title = computed(() => notConnected.value ? "GitHub 还没接上" : `你没有「${needed.value}」权限`);
 const description = computed(() => {
-  if (needsGithub.value) {
-    const via = PROVIDER_TEXT[me.value?.provider ?? ""] ?? "其他方式";
-    return `你这次是用${via}登录的。GitHub 组织的页面要用你本人的 GitHub 账号去读写 GitHub，用 GitHub 登录一次就能打开，其他页面不受影响。`;
-  }
-  return blocked.value
-    ? `你的称号包含这项权限，但${BLOCK_REASON_TEXT[blocked.value.reason]}才能使用。控制台不能超出你在 GitHub 组织里的角色。`
-    : `请联系${assignerText(catalogue.value)}，在「成员与权限」里给你指派带有「${needed.value}」的称号。`;
+  if (!notConnected.value) return `请联系${assignerText(catalogue.value)}，在「成员与权限」里给你指派带有「${needed.value}」的称号。`;
+  const text = "服务器还没配 GitHub App。配好之前，GitHub 组织的页面要借你本人的 GitHub 授权去读写 GitHub：用 GitHub 登录一次就能打开，其他页面不受影响。";
+  return me.value?.site_role === "admin"
+    ? `${text}GitHub App 要由 GitHub 组织的一位所有者在 GitHub 上建好、装到组织上，再把 App ID 和私钥配到服务器。`
+    : text;
 });
-const primary = computed(() => needsGithub.value
+const primary = computed(() => notConnected.value
   ? { label: "用 GitHub 继续", variant: "primary" as const, icon: "i-carbon-logo-github" }
   : { label: "回到概览", variant: "secondary" as const });
-const secondary = computed(() => needsGithub.value ? { label: "回到概览", variant: "secondary" as const } : undefined);
+const secondary = computed(() => notConnected.value ? { label: "回到概览", variant: "secondary" as const } : undefined);
 const githubHref = computed(() => `/auth/github?return_to=${encodeURIComponent(`${window.location.origin}${route.fullPath}`)}`);
-const onPrimary = () => needsGithub.value ? window.location.assign(githubHref.value) : void router.push("/console");
-const trace = computed(() => needsGithub.value ? "403 github_session_required" : "403 missing_capability");
+const onPrimary = () => notConnected.value ? window.location.assign(githubHref.value) : void router.push("/console");
+const trace = computed(() => notConnected.value ? "409 github_not_connected" : "403 missing_capability");
 </script>
 
 <template>
-  <slot v-if="allowed" />
+  <slot v-if="open" />
   <div v-else class="page">
     <TxPermissionState
       :title="title"
@@ -54,7 +51,7 @@ const trace = computed(() => needsGithub.value ? "403 github_session_required" :
       @secondary="router.push('/console')"
     >
       <template #icon>
-        <i :class="needsGithub ? 'i-carbon-logo-github' : 'i-carbon-locked'" class="gate-icon" aria-hidden="true" />
+        <i :class="notConnected ? 'i-carbon-logo-github' : 'i-carbon-locked'" class="gate-icon" aria-hidden="true" />
       </template>
     </TxPermissionState>
     <p class="mono gate-trace">{{ trace }} · {{ anyOf.join(" | ") }}</p>

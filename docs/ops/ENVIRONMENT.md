@@ -32,6 +32,9 @@ MAIL_ALLOWLIST=
 # Google 登录（可选，#262）：两项都设才开启；本机的重定向 URI 是 <PUBLIC_ORIGIN>/auth/google/callback
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
+# GitHub App（可选，#262 第四期）：两项都设才开启；服务器用装在 CONSOLE_ORG 上的 App 读写组织，不设时只在用 GitHub 登录时借本人令牌
+GH_APP_ID=
+GH_APP_PRIVATE_KEY=
 COOKIE_DOMAIN=
 ALLOWED_ORGS=
 # 可不设，默认 Yangtze-University-Geek-Class

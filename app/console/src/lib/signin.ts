@@ -24,7 +24,7 @@ export function signInOutcomes(): Record<string, OutcomeInfo> {
     not_member: {
       type: "warning",
       title: "只有极客班成员可以登录",
-      body: "这个 GitHub 账号不在极客班的 GitHub 组织里。极客班账号只对组织成员开放，不登录也能浏览官网和论坛。",
+      body: "这个账号现在不是极客班成员。第一次用 GitHub 登录要先加入极客班的 GitHub 组织；已经注册过的账号，成员身份由站内管理员决定。不登录也能浏览官网和论坛。",
       action: {
         label: "申请加入极客班",
         icon: "i-carbon-email",

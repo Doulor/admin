@@ -31,24 +31,25 @@ async function getOrgRole(token: string, org: string, login: string): Promise<Or
 }
 
 /**
- * 登录用：当前用户自己在组织里的成员状态（用刚换到的 token，需要 read:org）。
- * 不是成员（404）返回 null；已受邀未接受是 "pending"。其它错误（含组织限制 OAuth App 时的 403）原样抛出，
- * 不能当成「不是成员」告诉用户。
+ * 登录用：当前用户自己在组织里的成员状态和角色（用刚换到的 token，需要 read:org）。只在这个 GitHub id 还没有账号、
+ * 或老账号还没记过站内角色时查（#262 第四期）。不是成员（404）返回 null；已受邀未接受是 "pending"。
+ * 其它错误（含组织限制 OAuth App 时的 403）原样抛出，不能当成「不是成员」告诉用户。
  */
-async function getOwnMembership(token: string, org: string): Promise<"active" | "pending" | null> {
+async function getOwnMembership(token: string, org: string): Promise<{ state: "active" | "pending"; role: "admin" | "member" } | null> {
   const octokit = octokitWith(token);
   try {
     const res = await octokit.request("GET /user/memberships/orgs/{org}", { org });
-    return res.data.state === "active" || res.data.state === "pending" ? res.data.state : null;
+    const state = res.data.state;
+    if (state !== "active" && state !== "pending") return null;
+    return { state, role: res.data.role === "admin" ? "admin" : "member" };
   } catch (e: any) {
     if (e.status === 404) return null;
     throw e;
   }
 }
 
-/** 按用户名查 GitHub 账号（用调用者自己的 token）；不存在返回 null，其它错误原样抛出。 */
-async function getUser(token: string, login: string): Promise<{ login: string; id: number } | null> {
-  const octokit = octokitWith(token);
+/** 按用户名查 GitHub 账号（用接入的 GitHub 客户端，lib/github-connection.ts）；不存在返回 null，其它错误原样抛出。 */
+async function getUser(octokit: Pick<Octokit, "request">, login: string): Promise<{ login: string; id: number } | null> {
   try {
     const res = await octokit.request("GET /users/{username}", { username: login });
     return { login: String(res.data.login), id: Number(res.data.id) };
@@ -58,9 +59,8 @@ async function getUser(token: string, login: string): Promise<{ login: string; i
   }
 }
 
-/** 组织的全部正式成员与角色（用调用者自己的 token）。按角色分两次列，省掉逐个查成员身份；错误原样抛出。 */
-async function listOrgMembers(token: string, org: string): Promise<OrgMember[]> {
-  const octokit = octokitWith(token);
+/** 组织的全部正式成员与角色（用接入的 GitHub 客户端）。按角色分两次列，省掉逐个查成员身份；错误原样抛出。 */
+async function listOrgMembers(octokit: Pick<Octokit, "request">, org: string): Promise<OrgMember[]> {
   const result: OrgMember[] = [];
   for (const role of ["admin", "member"] as const) {
     for (let page = 1; ; page += 1) {

@@ -6,23 +6,25 @@ import { APPLICATION_STATUS_IDS, orderedCapabilities } from "../../lib/roles.js"
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export default async function consoleMeRoutes(app: FastifyInstance) {
-  const { config, roles, feedback } = app.services;
+  const { config, roles, feedback, githubConnection } = app.services;
   const { db } = app.services.storage;
   app.addHook("preHandler", requireAuth);
 
   /**
-   * 当前用户在极客班控制台的身份：称号、能力与被 GitHub 上限挡掉的能力。只需要登录。
-   * `provider` 是这次的登录方式；邮箱、Google 会话的 `github.*` 在 blocked 里，原因是 github_session_required。
+   * 当前用户在极客班控制台的身份：站内角色、称号与能力。只需要登录。
+   * 权限只认极客班账号（#262 第四期）：不论用哪种方式登录（`provider`），能力都按站内角色和称号给。
+   * `github`：控制台的 GitHub 页面这次经什么接 GitHub——服务器的 GitHub App（app）、你自己的 GitHub 会话（session），
+   * 或还没接上（none，这时那些页面打不开，按钮也不用点）。
    */
   app.get("/api/console/me", async (req) => {
     const access = await resolveAccess(req);
     return {
       login: req.session!.login, avatar_url: req.session!.avatar_url, org: config.consoleOrg,
       provider: req.session!.provider,
-      github_role: access.githubRole,
+      site_role: access.siteRole,
+      github: githubConnection.via(req.session),
       title: access.titles[0], titles: access.titles,
       capabilities: orderedCapabilities(access.capabilities),
-      blocked: access.blocked,
       head_of: access.headOf,
     };
   });

@@ -1,16 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { requireOrgRole } from "../../middleware/require-org-role.js";
+import { requireGithub } from "../../middleware/require-github.js";
 
 export default async function securityRoutes(app: FastifyInstance) {
-  const { octokitWith } = app.services.github;
   app.addHook("preHandler", requireAuth);
 
   app.get<{ Params: { org: string } }>("/api/admin/:org/security", {
-    preHandler: requireOrgRole("member"),
+    preHandler: requireGithub("github.org.manage"),
   }, async (req) => {
     const { org } = req.params;
-    const octokit = octokitWith(req.session!.accessToken);
+    const octokit = req.github!;
     const orgRes = await octokit.request("GET /orgs/{org}", { org });
     const plan = (orgRes.data as any).plan?.name ?? "free";
     const isFree = plan === "free";

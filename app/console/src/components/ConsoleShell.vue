@@ -9,6 +9,7 @@ import TitleBadge from "./TitleBadge.vue";
 import logoUrl from "../assets/logo.png";
 import { api } from "../lib/http";
 import { isMock } from "../lib/runtime";
+import { siteRoleText } from "../lib/people";
 import { clearSession } from "../lib/session";
 import type { ConsoleMe } from "../lib/types";
 
@@ -17,7 +18,7 @@ const props = defineProps<{ me: ConsoleMe }>();
 const route = useRoute();
 const router = useRouter();
 const drawerOpen = ref(false);
-const roleText = computed(() => props.me.github_role === "admin" ? "组织管理员" : props.me.github_role === "member" ? "组织成员" : "未加入组织");
+const roleText = computed(() => `站内${siteRoleText(props.me.site_role)}`);
 
 watch(() => route.fullPath, () => { drawerOpen.value = false; });
 
@@ -55,7 +56,7 @@ async function signOut() {
         <span v-if="isMock()" class="shell__mock">开发预览 · 样板数据</span>
       </div>
       <RouterView v-slot="{ Component, route: current }">
-        <CapabilityGate :key="current.path" :any-of="(current.meta.anyOf as string[] | undefined) ?? ['console.access']">
+        <CapabilityGate :key="current.path" :any-of="(current.meta.anyOf as string[] | undefined) ?? ['console.access']" :github-optional="current.meta.githubOptional === true">
           <component :is="Component" />
         </CapabilityGate>
       </RouterView>

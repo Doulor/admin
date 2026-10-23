@@ -1,9 +1,8 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 
 /**
- * 要本人 GitHub 令牌的接口（#262，docs/plan/UNIFIED-LOGIN.md「要本人 GitHub 令牌的接口」）：邮箱、Google 会话没有 GitHub 令牌，
- * 在调用 GitHub 之前回 `403 github_session_required`，前端提示「这一页需要用 GitHub 登录」，不当成退出。
- * 挂在 requireAuth 之后；`requireOrgRole` 自己也先查这一条。
+ * 只对「本人的 GitHub」有意义的接口（现在只有 `GET /api/me/orgs`，列本人加入的 GitHub 组织）：邮箱、Google 会话没有 GitHub 令牌，
+ * 回 `403 github_session_required`。控制台的 GitHub 组织页面不用它：那些按站内称号放行，经服务器接入的 GitHub 执行（#262 第四期）。
  */
 export async function requireGithubSession(req: FastifyRequest, reply: FastifyReply) {
   if (!req.session) return reply.code(401).send({ error: "not_signed_in" });

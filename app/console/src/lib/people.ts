@@ -1,6 +1,6 @@
 // 「成员与权限」名单：每人一行（GET /api/console/people），像飞书通讯录一样按部门分组。纯函数，tests/console 直接测。
 import { kindRank, titleKind, type TitleKind } from "./titles";
-import type { Assignment, Catalogue, Department, GithubRole, Person } from "./types";
+import type { Assignment, Catalogue, Department, GithubRole, GithubVia, Person, SiteRole } from "./types";
 
 /** 左侧分组的两个固定键。部门 id 只能以小写字母开头（DEPARTMENT_ID_PATTERN），下划线开头的键不会和部门撞上。 */
 export const GROUP_ALL = "_all";
@@ -79,8 +79,23 @@ export function mayRevoke(row: Pick<Assignment, "id" | "role" | "department_id">
   return canManageAll || (row.role === "member" && row.department_id !== "" && me.head_of.includes(row.department_id));
 }
 
-/** GitHub 组织身份的说法。 */
+/** 名单一行的键：有账号用账号，没有的用登录名（GitHub 登录名不分大小写）。 */
+export const personKey = (person: Pick<Person, "account_id" | "login">): string => person.account_id ?? `login:${person.login.toLowerCase()}`;
+
+/** 登录方式的说法：「GitHub、邮箱」。 */
+const PROVIDER_NAME: Record<Person["providers"][number], string> = { github: "GitHub", email: "邮箱", google: "Google" };
+export const providersText = (providers: Person["providers"]): string => providers.map(provider => PROVIDER_NAME[provider]).join("、");
+
+/** GitHub 组织身份的说法：只作参考，不决定权限。 */
 export const GITHUB_ROLE_TEXT: Record<Exclude<GithubRole, null> | "none", string> = { admin: "所有者", member: "成员", none: "不在组织里" };
 export const githubRoleText = (role: GithubRole) => GITHUB_ROLE_TEXT[role ?? "none"];
+
+/** 站内角色的说法（#262 第四期，权限只认极客班账号）。 */
+export const SITE_ROLE_TEXT: Record<Exclude<SiteRole, null> | "none", string> = { admin: "管理员", member: "成员", none: "不是成员" };
+export const siteRoleText = (role: SiteRole) => SITE_ROLE_TEXT[role ?? "none"];
+/** 回填的老账号还没记过站内角色时（Person.role_unrecorded）的说法。 */
+export const UNRECORDED_ROLE_TEXT = "还没记录";
+/** 这次经什么接的 GitHub。 */
+export const GITHUB_VIA_TEXT: Record<GithubVia, string> = { app: "GitHub App", session: "你的 GitHub 账号", none: "还没接上" };
 
 export const GITHUB_LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;

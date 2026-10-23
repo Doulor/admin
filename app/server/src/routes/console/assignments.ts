@@ -1,13 +1,13 @@
-import type { FastifyInstance, FastifyReply } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { requireGithubSession } from "../../middleware/require-github-session.js";
 import { missingCapability, requireCapability } from "../../middleware/require-capability.js";
 import type { Access, AssignableRole, AssignmentRow } from "../../lib/roles.js";
 
-type AssignBody = { github_login: string; role: AssignableRole; department_id?: string; note?: string };
+/** 指派给谁：`account_id`（极客班账号，没绑 GitHub 的也行）或 `github_login`（GitHub 用户名），二选一（#262 第四期）。 */
+type AssignBody = { github_login?: string; account_id?: string; role: AssignableRole; department_id?: string; note?: string };
 type ListQuery = { department_id?: string; role?: AssignableRole };
 
-/** 提督（GitHub 组织 owner）与现任舰长可以任命、移交舰长。 */
+/** 提督（站内管理员）与现任舰长可以任命、移交舰长。 */
 const canAppointCaptain = (access: Access) => access.titles.some(title => title.id === "admin" || title.id === "captain");
 const isAdmiral = (access: Access) => access.titles.some(title => title.id === "admin");
 const outOfScope = (reply: FastifyReply, memberLabel: string) =>
@@ -18,7 +18,7 @@ const outOfScope = (reply: FastifyReply, memberLabel: string) =>
  * 只能任免自己负责部门的舰员。舰长只能由提督或现任舰长指定，已有舰长时在事务里移交。
  */
 export default async function consoleAssignmentRoutes(app: FastifyInstance) {
-  const { roles, config, github, identity } = app.services;
+  const { roles, config, github, githubConnection, identity } = app.services;
   const { audit } = app.services.storage;
   app.addHook("preHandler", requireAuth);
 
@@ -50,16 +50,34 @@ export default async function consoleAssignmentRoutes(app: FastifyInstance) {
     },
   );
 
+  /**
+   * 指派给谁（#262 第四期，不再要求用 GitHub 登录）：给了账号就用账号的资料；给了 GitHub 用户名，接上 GitHub 时按 GitHub
+   * 查到的数字 id 找人（登录名会改，旧名字也可能被别人注册）；GitHub 没接上时只认登录过本站的人，按他上次登录时的用户名找。
+   */
+  async function target(req: FastifyRequest<{ Body: AssignBody }>): Promise<{ login: string; githubUserId: number | null; accountId: string | null } | { error: string; message: string }> {
+    if (req.body.account_id) {
+      const account = identity.accountTarget(req.body.account_id);
+      return account ?? { error: "account_not_found", message: "找不到这个账号" };
+    }
+    const login = req.body.github_login!;
+    if (githubConnection.via(req.session) !== "none") {
+      const user = await github.getUser(await githubConnection.clientFor(req.session), login);
+      if (!user) return { error: "github_user_not_found", message: "GitHub 上找不到这个用户名" };
+      return { login: user.login, githubUserId: user.id, accountId: identity.accountForGithub(user.id) };
+    }
+    const known = identity.githubIdentityByLogin(login);
+    if (known) return { login: known.login, githubUserId: known.githubUserId, accountId: known.accountId };
+    return { error: "github_user_not_found", message: "这个 GitHub 用户名还没登录过本站，GitHub 也还没接上，查不到他；请让他先登录一次" };
+  }
+
   app.post<{ Body: AssignBody }>(
     "/api/console/assignments",
-    // 授予时用调用者的 GitHub 令牌查对方的 GitHub id：邮箱、Google 会话先回 github_session_required（#262）
-    { preHandler: [requireCapability("roles.manage", "roles.department.manage"), requireGithubSession], config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+    { preHandler: requireCapability("roles.manage", "roles.department.manage"), config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
     async (req, reply) => {
       const access = req.access!;
       const { role } = req.body;
       const departmentId = req.body.department_id ?? "";
       const note = req.body.note?.trim() || null;
-      const login = req.body.github_login.toLowerCase();
 
       const label = names();
       if (role === "head" && !departmentId) return reply.code(400).send({ error: "department_required", message: `${label.head}必须指定部门` });
@@ -73,16 +91,14 @@ export default async function consoleAssignmentRoutes(app: FastifyInstance) {
       if (role === "captain") {
         if (!canAppointCaptain(access)) return reply.code(403).send({ error: "captain_required", message: `只有${label.admin}或现任${label.captain}可以指定${label.captain}` });
       } else if (!access.capabilities.has("roles.manage")) {
-        if (role !== "member") return reply.code(403).send(missingCapability(access, ["roles.manage"]));
+        if (role !== "member") return reply.code(403).send(missingCapability(["roles.manage"]));
         if (!inScope(access, { role, department_id: departmentId })) return outOfScope(reply, names().member);
       }
-      if (roles.findAssignment(login, role, departmentId)) return reply.code(409).send({ error: "assignment_exists", message: "该用户已有这个称号" });
-
-      // 用调用者自己的 token 查 GitHub 账号，记录数字 id 以应对改名；绝不借用他人 token。
-      const user = await github.getUser(req.session!.accessToken, login);
-      if (!user) return reply.code(400).send({ error: "github_user_not_found", message: "GitHub 上找不到这个用户名" });
-      // 对方已经有极客班账号就直接写上（#262）；还没登录过的人第一次登录时按 GitHub id 认领
-      const input = { github_login: user.login, github_user_id: user.id, note, granted_by: req.session!.login, account_id: identity.accountForGithub(user.id) };
+      const who = await target(req);
+      if ("error" in who) return reply.code(who.error === "account_not_found" ? 404 : 400).send(who);
+      if (roles.findAssignment(who.login, role, departmentId)) return reply.code(409).send({ error: "assignment_exists", message: "该用户已有这个称号" });
+      // 对方已经有极客班账号就直接写上；还没登录过的人第一次用 GitHub 登录时按 GitHub id 认领
+      const input = { github_login: who.login, github_user_id: who.githubUserId, note, granted_by: req.session!.login, account_id: who.accountId };
       const actor = req.session!;
 
       if (role === "captain") {
@@ -114,7 +130,7 @@ export default async function consoleAssignmentRoutes(app: FastifyInstance) {
       } else if (!inScope(access, row)) {
         return access.capabilities.has("roles.department.manage") && row.role === "member"
           ? outOfScope(reply, names().member)
-          : reply.code(403).send(missingCapability(access, ["roles.manage"]));
+          : reply.code(403).send(missingCapability(["roles.manage"]));
       }
       roles.deleteAssignment(row.id);
       audit(config.consoleOrg, req.session!, "role.revoke", row.github_login, { role: row.role, department_id: row.department_id }, req.ip);
