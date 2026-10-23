@@ -7,6 +7,7 @@ import type { DirectoryAccount } from "./account-directory.js";
  * 停用或不再是成员的封禁（block），恢复后解封，从不删除。GitLab 用户按 OIDC 身份（provider = openid_connect，extern_uid =
  * 这个账号在 GitLab 那个客户端的 sector 里的 `sub`）认人，不按用户名或邮箱认。用户名在第一次同步时定下：有 GitHub 的用 GitHub 登录名，
  * 没有的用站内登录名（yz_…），被占用或是保留名时加后缀，之后不再改名。
+ * 头像（#271）：论坛上传的头像优先，没有时用 GitHub 头像；传上去后记下来源（avatar_source），来源变了再传，传失败下一轮再试。
  * 只有这个模块读写 gitlab_accounts；`mode` 为 dry-run 时只算出要做什么，不写表、不改 GitLab。
  */
 export const GITLAB_OIDC_PROVIDER = "openid_connect";
@@ -17,7 +18,13 @@ export const GITLAB_ACCESS = { developer: 30, owner: 50 } as const;
 /** on 模式下每 10 分钟对一次账（启动时先对一次）。 */
 export const GITLAB_SYNC_INTERVAL_MS = 10 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
-const AVATAR_MAX_BYTES = 1024 * 1024;
+/** GitLab 只收 200 KiB 以内的头像，超过回 400。 */
+const AVATAR_MAX_BYTES = 200 * 1024;
+/** 向 GitHub 要的头像边长（像素），原图常常超过 GitLab 的上限。 */
+const GITHUB_AVATAR_SIZE = 256;
+const AVATAR_EXTENSIONS: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" };
+const FORUM_AVATAR = "forum:";
+const GITHUB_AVATAR = /^https:\/\/avatars\.githubusercontent\.com\//;
 /** GitLab 不让用、或者会和路由撞上的用户名，碰到直接加后缀，不用等 GitLab 拒绝。 */
 const RESERVED_USERNAMES = new Set([
   "admin", "administrator", "root", "ghost", "support", "support-bot", "alert-bot", "security-bot", "automation-bot", "api", "help",
@@ -31,11 +38,12 @@ export type SyncAction =
   | { kind: "block" }
   | { kind: "find_and_block" }
   | { kind: "unblock" }
-  | { kind: "set_access"; access_level: number };
+  | { kind: "set_access"; access_level: number }
+  | { kind: "set_avatar" };
 export type GitlabAccountState = "pending" | "active" | "blocked";
 export type GitlabAccountRow = {
   account_id: string; gitlab_user_id: number | null; username: string; state: GitlabAccountState; access_level: number | null;
-  last_error: string | null; last_error_at: number | null; synced_at: number | null; created_at: number; updated_at: number;
+  avatar_source: string | null; last_error: string | null; last_error_at: number | null; synced_at: number | null; created_at: number; updated_at: number;
 };
 export type SyncOutcome = { account_id: string; login: string; actions: SyncAction[]; applied: boolean; error: string | null };
 /** `skipped` 不为空时这一轮没做：GitLab 的客户端还没登记（gitlab_client_missing）。 */
@@ -88,8 +96,17 @@ export function createGitlabSync(db: Database.Database, deps: {
     }
   }
 
+  /** 头像从哪来：论坛上传的头像（forum:<散列>），否则 GitHub 头像（没记下地址时按 GitHub 数字 id 拼）；都没有为 null。 */
+  function avatarSource(account: DirectoryAccount): string | null {
+    if (account.profile?.avatarHash) return `${FORUM_AVATAR}${account.profile.avatarHash}`;
+    if (!account.github) return null;
+    const url = account.github.avatar_url;
+    return url && GITHUB_AVATAR.test(url) ? url : `https://avatars.githubusercontent.com/u/${account.github.id}`;
+  }
+
   /**
    * 这个账号现在要做什么（不碰 GitLab）。是成员、还没建号的建号；建过的按成员资格封禁或解封、调组权限。
+   * 是成员、有头像来源、和上次传上去的来源不同（包括从没传过）时传头像。
    * 不是成员、也没有对上 GitLab 用户的：只要他在 GitLab 的 sector 有过 `sub`（用极客班登录过 GitLab，GitLab 可能已经自动建了号，
    * 例如同步关着时、或者在下一轮对账之前），每一轮都去 GitLab 按身份找，找到就封禁。找不到也不记「找过了」：他可能回来、
    * 用极客班登录一次（GitLab 又自动建号）、在下一轮之前又离开。这类账号很少，每人每轮一次只读请求。
@@ -97,8 +114,13 @@ export function createGitlabSync(db: Database.Database, deps: {
   function plan(account: DirectoryAccount): SyncAction[] {
     const row = rowOf(account.account_id);
     const access = wantedAccess(account);
+    const avatar = avatarSource(account);
     if (!row || row.state === "pending" || row.gitlab_user_id === null) {
-      if (wanted(account)) return [{ kind: "create", username: row?.username ?? freeUsername(account), access_level: access }];
+      if (wanted(account)) {
+        const actions: SyncAction[] = [{ kind: "create", username: row?.username ?? freeUsername(account), access_level: access }];
+        if (avatar) actions.push({ kind: "set_avatar" });
+        return actions;
+      }
       const sectorId = sector();
       return sectorId && deps.subjects.existingSubject(sectorId, account.account_id) ? [{ kind: "find_and_block" }] : [];
     }
@@ -106,6 +128,7 @@ export function createGitlabSync(db: Database.Database, deps: {
     const actions: SyncAction[] = [];
     if (row.state === "blocked") actions.push({ kind: "unblock" });
     if (row.access_level !== access) actions.push({ kind: "set_access", access_level: access });
+    if (avatar && avatar !== row.avatar_source) actions.push({ kind: "set_avatar" });
     return actions;
   }
 
@@ -141,8 +164,8 @@ export function createGitlabSync(db: Database.Database, deps: {
     return null;
   }
 
-  /** 建号时一次性补资料：论坛资料优先；没有论坛资料的 GitHub 账号匿名读一次 GitHub 公开资料。读不到就只用登录名，不让同步失败。 */
-  type GithubProfile = { name?: string | null; bio?: string | null; blog?: string | null; location?: string | null; avatar_url?: string | null };
+  /** 建号时一次性补资料：论坛资料优先；没有论坛资料的 GitHub 账号匿名读一次 GitHub 公开资料。读不到就只用登录名，不让同步失败。头像另算（set_avatar）。 */
+  type GithubProfile = { name?: string | null; bio?: string | null; blog?: string | null; location?: string | null };
   async function profileFor(account: DirectoryAccount) {
     let github: GithubProfile | null = null;
     if (!account.profile && account.github) {
@@ -158,7 +181,6 @@ export function createGitlabSync(db: Database.Database, deps: {
       bio: (account.profile?.bio || github?.bio || "").slice(0, 255),
       location: (account.profile?.location || github?.location || "").slice(0, 255),
       website_url: websiteOf(account.profile?.website || github?.blog || ""),
-      avatarUrl: account.profile?.avatarHash ? null : github?.avatar_url ?? account.github?.avatar_url ?? null,
     };
   }
 
@@ -175,20 +197,41 @@ export function createGitlabSync(db: Database.Database, deps: {
     }
   }
 
-  /** 头像：论坛上传的头像（webp）直接取库里的；否则下载 GitHub 头像。超过 1 MB 或下载失败就不传。 */
-  async function avatarFor(account: DirectoryAccount, url: string | null): Promise<Blob | null> {
-    if (account.profile?.avatarHash) {
-      const data = deps.avatars.avatar(account.profile.avatarHash);
+  /**
+   * 要传的头像：论坛上传的（WebP）直接取库里的；GitHub 头像下载 256 像素的。超过 200 KiB、不是图片、GitHub 说没有（4xx）
+   * 或论坛里已经没有这张图时返回 null，这个来源不再试；GitHub 连不上、回 429 或 5xx 时抛错，下一轮再试。
+   */
+  async function avatarFor(source: string): Promise<Blob | null> {
+    if (source.startsWith(FORUM_AVATAR)) {
+      const data = deps.avatars.avatar(source.slice(FORUM_AVATAR.length));
       return data && data.length <= AVATAR_MAX_BYTES ? new Blob([new Uint8Array(data)], { type: "image/webp" }) : null;
     }
-    if (!url || !/^https:\/\/avatars\.githubusercontent\.com\//.test(url)) return null;
+    const url = new URL(source);
+    url.searchParams.set("s", String(GITHUB_AVATAR_SIZE));
     try {
-      const res = await fetchGithub(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-      const type = res.headers.get("content-type") ?? "";
-      if (!res.ok || !/^image\/(png|jpeg|gif|webp)$/.test(type.split(";")[0])) return null;
+      const res = await fetchGithub(url.href, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      if (res.status === 429 || res.status >= 500) throw new SyncError(`github_avatar_${res.status}`);
+      const type = (res.headers.get("content-type") ?? "").split(";")[0];
+      if (!res.ok || !AVATAR_EXTENSIONS[type]) return null;
       const data = new Uint8Array(await res.arrayBuffer());
       return data.length <= AVATAR_MAX_BYTES ? new Blob([data], { type }) : null;
-    } catch { return null; }
+    } catch (error) {
+      throw error instanceof SyncError ? error : new SyncError("github_avatar_unreachable");
+    }
+  }
+
+  /** 传头像并记下来源；没有能传的图也记下来源，来源不变就不再试。GitLab 没收（例如 400 太大）抛错，下一轮再试。 */
+  async function setAvatar(account: DirectoryAccount, userId: number): Promise<void> {
+    const source = avatarSource(account);
+    if (!source) return;
+    const avatar = await avatarFor(source);
+    if (avatar) {
+      const form = new FormData();
+      form.append("avatar", avatar, `avatar.${AVATAR_EXTENSIONS[avatar.type]}`);
+      const result = await gitlab("PUT", `/users/${userId}`, form);
+      if (result.status !== 200) throw new SyncError(`gitlab_avatar_${result.status}`);
+    }
+    db.prepare("UPDATE gitlab_accounts SET avatar_source = ?, updated_at = ? WHERE account_id = ?").run(source, clock(), account.account_id);
   }
 
   async function ensureMembership(userId: number, accessLevel: number): Promise<void> {
@@ -250,13 +293,6 @@ export function createGitlabSync(db: Database.Database, deps: {
         db.prepare("UPDATE gitlab_accounts SET username = ?, updated_at = ? WHERE account_id = ?").run(username, clock(), account.account_id);
       }
       if (!user) throw new SyncError("gitlab_username_exhausted");
-      const avatar = await avatarFor(account, profile.avatarUrl);
-      if (avatar) {
-        const form = new FormData();
-        form.append("avatar", avatar, avatar.type === "image/webp" ? "avatar.webp" : "avatar.png");
-        // 头像传不上去不算失败：资料已经建好，下次不会再传
-        await gitlab("PUT", `/users/${user.id}`, form).catch(() => undefined);
-      }
     }
     db.prepare("UPDATE gitlab_accounts SET gitlab_user_id = ?, username = ?, state = 'active', updated_at = ? WHERE account_id = ?")
       .run(user.id, user.username, clock(), account.account_id);
@@ -286,7 +322,9 @@ export function createGitlabSync(db: Database.Database, deps: {
       if (action.kind === "create") { await create(account, action); done.push(action); continue; }
       if (action.kind === "find_and_block") { if (await findAndBlock(account)) done.push(action); continue; }
       const userId = rowOf(account.account_id)!.gitlab_user_id!;
-      if (action.kind === "block" || action.kind === "unblock") {
+      if (action.kind === "set_avatar") {
+        await setAvatar(account, userId);
+      } else if (action.kind === "block" || action.kind === "unblock") {
         await setBlocked(userId, action.kind === "block");
         db.prepare("UPDATE gitlab_accounts SET state = ?, updated_at = ? WHERE account_id = ?").run(action.kind === "block" ? "blocked" : "active", clock(), account.account_id);
       } else {

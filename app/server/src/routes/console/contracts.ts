@@ -40,7 +40,7 @@ const nullableCount = { anyOf: [integer(0), { type: "null" }] };
 const gitlabAction = {
   oneOf: [
     object({ kind: choices("create"), username: text(64, 1), access_level: integer(10, 50) }, ["kind", "username", "access_level"]),
-    object({ kind: choices("block", "unblock", "find_and_block") }, ["kind"]),
+    object({ kind: choices("block", "unblock", "find_and_block", "set_avatar") }, ["kind"]),
     object({ kind: choices("set_access"), access_level: integer(10, 50) }, ["kind", "access_level"]),
   ],
 };

@@ -1,0 +1,218 @@
+{
+  "version": 1,
+  "issue": 271,
+  "kind": "business",
+  "summary": "同步到 GitLab 的账号补上头像（#271，#270 的续作，所有者 2026-10-23 16:54「我最烦的就是交付一半然后来问我了」）：头像改成同步里单独的一步 set_avatar，论坛头像优先，没有时下载 256 像素的 GitHub 头像，200 KiB 以内才传；GitLab 没收或 GitHub 连不上时记错误、下一轮再试；gitlab_accounts 新增 avatar_source 记下传过的来源，已经建好的账号补传，来源变了再传。",
+  "applications": [
+    "server",
+    "console"
+  ],
+  "domains": [
+    "gitlab",
+    "identity",
+    "forum",
+    "audit",
+    "organization",
+    "competitions",
+    "platform",
+    "feedback",
+    "github",
+    "invitations",
+    "recruitment",
+    "mail"
+  ],
+  "flows": [
+    "flow:gitlab.accounts.list",
+    "flow:gitlab.accounts.sync",
+    "flow:competition.public.list",
+    "flow:feedback.public.list",
+    "flow:github.organizations.list",
+    "flow:invitation.public.inspect",
+    "flow:application.submit"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "#270 要求头像在建号时带到 GitLab，但 GitHub 原图常常超过 GitLab 200 KiB 的上限，上传被拒后同步不看结果，也不再传，预发布上的两个 GitLab 账号都没有头像。现在每个是成员、有论坛头像或 GitHub 账号的人，GitLab 上都有头像：论坛头像优先，没有时用 GitHub 头像；传失败的下一轮接着传，已经建好的账号补传，在论坛上换了头像下一轮同步过去。",
+      "evidence": [
+        "app/server/src/lib/gitlab-sync.ts",
+        "docs/services/server/oidc.md"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "lib/gitlab-sync.ts：plan() 在是成员、有头像来源、来源和 avatar_source 不同时加动作 set_avatar（建号的账号排在 create 后面）；建号不再顺带传头像。setAvatar 取论坛头像（forum_avatars）或下载 GitHub 头像（地址加 s=256，没记下地址的按 GitHub 数字 id 拼），按类型取文件名（png、jpg、gif、webp），PUT /users/:id 不是 200 时抛 gitlab_avatar 加状态码（例如 gitlab_avatar_400）；GitHub 回 429、5xx 时抛 github_avatar 加状态码，连不上抛 github_avatar_unreachable；超过 200 KiB、GitHub 回 4xx、不是图片时不传但记下来源。控制台接口的响应合同（routes/console/contracts.ts）允许 pending 与 actions 里出现 set_avatar；路径、权限、状态码不变。",
+      "evidence": [
+        "app/server/src/lib/gitlab-sync.ts",
+        "app/server/src/routes/console/contracts.ts"
+      ]
+    },
+    "frontend": {
+      "status": "changed",
+      "reason": "控制台成员页 GitLab 列：还要做的事多一种「传头像」，错误多「头像被拒（状态码）」「GitHub 头像下载失败（状态码）」「连不上 GitHub 头像」；样板数据里 fang-lin 显示头像被拒、待同步传头像，预演时有 GitHub 的成员多「传头像」。页面结构不变。",
+      "evidence": [
+        "app/console/src/lib/gitlab.ts",
+        "app/console/src/lib/types.ts",
+        "app/console/src/mock/console.ts"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "谁能看同步状态、谁能立即同步不变（roles.manage 或 roles.department.manage 看，roles.manage 点），响应合同只在动作种类里加了 set_avatar；GitLab 管理接口仍只用服务端的 GITLAB_API_TOKEN，GitHub 头像匿名下载，不带任何令牌。",
+      "evidence": [
+        "app/server/src/routes/console/contracts.ts",
+        "app/server/src/lib/gitlab-sync.ts",
+        "docs/services/server/endpoint-contracts.md"
+      ]
+    },
+    "data": {
+      "status": "changed",
+      "reason": "gitlab_accounts 加可空列 avatar_source（addColumn，先查 PRAGMA table_info，可以重跑）：论坛头像写 forum: 加论坛头像的散列，GitHub 头像写下载地址；已有的行是空，下一轮对账补传。db.ts 只多这一列，其它表不动。回滚换回旧镜像即可，旧代码不读这一列。",
+      "evidence": [
+        "app/server/src/lib/db.ts",
+        "docs/services/server/data-model.md",
+        "docs/architecture/catalog/ownership.json"
+      ]
+    },
+    "dependencies": {
+      "status": "changed",
+      "reason": "不加依赖。外部调用：GitHub 头像下载改成要 s=256 的版本，没记下地址时按 GitHub 数字 id 拼 avatars.githubusercontent.com/u/ 加 id；GitLab PUT /users/:id 现在检查返回码。失败照旧写 gitlab.sync 审计（audit 域）。",
+      "evidence": [
+        "app/server/src/lib/gitlab-sync.ts",
+        "docs/services/server/oidc.md"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "对外授权与 GitLab 同步（头像一段与失败代码）、数据模型（变更记录与 gitlab_accounts 一行）、接口合同（立即同步会传头像）、控制台服务契约（「待同步：传头像」「头像被拒（400）」）、流程登记（表说明与立即同步的副作用）跟着改，项目目录重新生成。",
+      "evidence": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/data-model.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/console/README.md",
+        "docs/architecture/catalog/ownership.json"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "服务端新增三条：要 256 像素的 GitHub 头像、按类型取文件名、超过 200 KiB 或 404 不传也不再试；GitLab 400、GitHub 503、429 和连不上都记错误并在下一轮传上去；上一个版本建的号（avatar_source 为空）补传一次、只发一个 PUT，论坛换了头像再传。原有用例跟着改：建号后多一步 set_avatar，假 GitLab 按 200 KiB 拒收并记下文件名。控制台测试核对新的动作与错误文字，样板数据含头像被拒的一行。故意把上限改回 1 MB、去掉 PUT 返回码检查、去掉建号时的 set_avatar，对应用例都会失败。",
+      "evidence": [
+        "tests/server/gitlab-sync.test.ts",
+        "tests/console/gitlab.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "随 server 与 web（控制台）镜像发布，不改环境变量和部署配置。预发布（GITLAB_SYNC=on）部署后的第一轮对账给已有的两个 GitLab 账号补传头像。正式 GITLAB_SYNC=off，不受影响。",
+      "evidence": [
+        "app/server/src/lib/gitlab-sync.ts",
+        "docs/services/server/oidc.md"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/server/src/lib/gitlab-sync.ts",
+        "app/server/src/lib/db.ts",
+        "app/server/src/routes/console/contracts.ts"
+      ],
+      "domains": [
+        "gitlab",
+        "identity",
+        "forum",
+        "audit",
+        "organization",
+        "competitions",
+        "platform",
+        "feedback",
+        "invitations",
+        "recruitment",
+        "mail"
+      ],
+      "nodes": [
+        "domain:gitlab",
+        "table:gitlab_accounts",
+        "table:forum_avatars",
+        "route:GET /api/console/gitlab/accounts",
+        "route:POST /api/console/gitlab/accounts/:account_id/sync",
+        "flow:gitlab.accounts.list",
+        "flow:gitlab.accounts.sync"
+      ],
+      "reason": "同步多一步 set_avatar：头像来源、256 像素与 200 KiB 上限、PUT 返回码、失败重试与 avatar_source；控制台接口的响应合同允许这一步。db.ts 与 contracts.ts 是各业务域共用的文件，这次只改 gitlab_accounts 一列和 GitLab 动作的枚举，其它业务域的表和接口不变。"
+    },
+    {
+      "paths": [
+        "app/console/src/lib/gitlab.ts",
+        "app/console/src/lib/types.ts",
+        "app/console/src/mock/console.ts"
+      ],
+      "domains": [
+        "gitlab",
+        "audit",
+        "organization",
+        "competitions",
+        "feedback",
+        "github",
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:gitlab",
+        "flow:gitlab.accounts.list",
+        "flow:gitlab.accounts.sync"
+      ],
+      "reason": "成员页 GitLab 列把 set_avatar 和头像相关的错误写成中文，样板数据含这两种样子。types.ts 与样板数据是控制台各页共用的文件，这次只改 GitLab 的动作类型和 GitLab 样板，其它页面的数据不变。"
+    },
+    {
+      "paths": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/data-model.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/console/README.md",
+        "docs/architecture/catalog/ownership.json",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
+      ],
+      "domains": [
+        "gitlab"
+      ],
+      "nodes": [
+        "domain:gitlab",
+        "table:gitlab_accounts",
+        "flow:gitlab.accounts.sync"
+      ],
+      "reason": "文档与流程登记写明头像怎么同步、新列与新错误代码；项目目录随源码重新生成。"
+    },
+    {
+      "paths": [
+        "tests/server/gitlab-sync.test.ts",
+        "tests/console/gitlab.test.ts"
+      ],
+      "domains": [
+        "gitlab"
+      ],
+      "nodes": [
+        "flow:gitlab.accounts.list",
+        "flow:gitlab.accounts.sync"
+      ],
+      "reason": "回归：上限、类型与文件名、失败重试、补传与来源变化。"
+    }
+  ],
+  "documents": [
+    "docs/services/server/oidc.md",
+    "docs/services/server/data-model.md",
+    "docs/services/server/endpoint-contracts.md",
+    "docs/services/console/README.md"
+  ],
+  "tests": [
+    "tests/server/gitlab-sync.test.ts",
+    "tests/console/gitlab.test.ts"
+  ],
+  "compatibility": "接口路径、权限、状态码不变；pending 与 actions 多一种 {kind:\"set_avatar\"}，新版本部署前打开、没刷新的旧控制台页面遇到它会显示成空白的一项，刷新后正常。数据库只加一列，旧镜像照常读写。",
+  "migration": "gitlab_accounts 加可空列 avatar_source，启动时 addColumn 自动加，不改已有数据；已有的行是空，下一轮对账按没传过补传头像。",
+  "rollback": "在 stage 上 git revert -m 1 合并提交并重新发 rc；avatar_source 列留着，旧代码不读它，已经传到 GitLab 的头像保留。"
+}

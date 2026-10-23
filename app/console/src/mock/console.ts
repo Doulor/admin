@@ -181,8 +181,8 @@ export const MOCK_ACCOUNTS: { account_id: string; login: string; github_user_id:
 
 /**
  * GitLab 同步状态（#270，同服务端 GET /api/console/gitlab/accounts）。默认是打开后的样子：大多数人已经建号进组，提督是所有者；
- * yz_k3m9q2xa 建号时连不上 GitLab，tang-yu 进组失败，mo-chen 已被移出、在 GitLab 上封禁了，bai-shuo 回来了还没解封。
- * `dry-run` 是预演时的样子（还没建过号，每个成员都待建号）；`unregistered` 是打开了但客户端没登记；`off` 是关着。
+ * yz_k3m9q2xa 建号时连不上 GitLab，tang-yu 进组失败，fang-lin 的头像被 GitLab 拒了（#271），mo-chen 已被移出、在 GitLab 上封禁了，bai-shuo 回来了还没解封。
+ * `dry-run` 是预演时的样子（还没建过号，每个成员都待建号，有 GitHub 的还要传头像）；`unregistered` 是打开了但客户端没登记；`off` 是关着。
  */
 export type MockGitlabCase = "on" | "dry-run" | "unregistered" | "off";
 export function mockGitlab(which: MockGitlabCase = "on"): GitlabAccountsResponse {
@@ -191,7 +191,8 @@ export function mockGitlab(which: MockGitlabCase = "on"): GitlabAccountsResponse
   const blank = (account: (typeof MOCK_ACCOUNTS)[number]): GitlabAccount => ({
     account_id: account.account_id, login: account.login, username: null, gitlab_user_id: null, state: null, access_level: null,
     last_error: null, last_error_at: null, synced_at: null,
-    pending: which === "off" || !account.member ? [] : [{ kind: "create", username: account.login, access_level: accessOf(account) }],
+    pending: which === "off" || !account.member ? []
+      : [{ kind: "create", username: account.login, access_level: accessOf(account) }, ...(account.github_user_id === null ? [] : [{ kind: "set_avatar" } as const])],
   });
   if (which !== "on") {
     return { ...base, mode: which === "unregistered" ? "on" : which, client_registered: which !== "unregistered", accounts: MOCK_ACCOUNTS.map(blank) };
@@ -205,6 +206,7 @@ export function mockGitlab(which: MockGitlabCase = "on"): GitlabAccountsResponse
       return { ...row, gitlab_user_id: null, state: "pending", access_level: null, last_error: "gitlab_unreachable", last_error_at: synced, pending: blank(account).pending };
     }
     if (account.login === "tang-yu") return { ...row, access_level: null, last_error: "gitlab_member_500", last_error_at: synced, pending: [{ kind: "set_access", access_level: 30 }] };
+    if (account.login === "fang-lin") return { ...row, last_error: "gitlab_avatar_400", last_error_at: synced, pending: [{ kind: "set_avatar" }] };
     if (account.login === "mo-chen") return { ...row, state: "blocked" };
     if (account.login === "bai-shuo") return { ...row, state: "blocked", pending: [{ kind: "unblock" }] };
     return row;

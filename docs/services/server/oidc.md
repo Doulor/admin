@@ -2,7 +2,7 @@
 
 > 不同源的应用用极客班账号登录：核心服务内嵌一个 OpenID Connect 签发者，第一个下游是自建的 GitLab（`https://git.yangtzeu.work`）。同一模块按极客班账号在 GitLab 上建好用户、放进 `geek` 组，离开的封禁。
 
-状态：`current` · 更新：2026-10-23 · 源码：`app/server/src/lib/oidc-store.ts`、`lib/oidc-provider.ts`、`lib/account-directory.ts`、`lib/gitlab-sync.ts`、`routes/oidc/`、`routes/console/gitlab.ts`、`cli/oidc.ts`；同意页 `app/console/src/pages/Authorize.vue` · 上级合同：[server](README.md) · issue：#270 · 决策：[ADR-0005](../../decisions/0005-sso-extend-core-server.md) 决策 3、8
+状态：`current` · 更新：2026-10-23 · 源码：`app/server/src/lib/oidc-store.ts`、`lib/oidc-provider.ts`、`lib/account-directory.ts`、`lib/gitlab-sync.ts`、`routes/oidc/`、`routes/console/gitlab.ts`、`cli/oidc.ts`；同意页 `app/console/src/pages/Authorize.vue` · 上级合同：[server](README.md) · issue：#270、#271（头像） · 决策：[ADR-0005](../../decisions/0005-sso-extend-core-server.md) 决策 3、8
 
 ## 签发者与端点
 
@@ -56,7 +56,7 @@ docker compose … exec server node app/server/dist/cli/oidc.js client add --nam
 | `oauth_subjects` | `(sector_id, user_id) → sub`，两个方向都唯一 | `lib/oidc-store.ts` |
 | `oauth_grants` | 本人允许过的 `(user_id, client_id) → grant_id` | `lib/oidc-store.ts` |
 | `oidc_payloads` | `oidc-provider` 的会话、交互、授权码、令牌、授权（按 `expires_at` 每小时顺手清一次过期行） | `lib/oidc-store.ts` |
-| `gitlab_accounts` | 极客班账号对应的 GitLab 用户 id、用户名、状态、组权限、最后一次错误 | `lib/gitlab-sync.ts` |
+| `gitlab_accounts` | 极客班账号对应的 GitLab 用户 id、用户名、状态、组权限、传上去的头像来自哪里、最后一次错误 | `lib/gitlab-sync.ts` |
 
 列与约束见 [数据模型](data-model.md)。
 
@@ -66,12 +66,13 @@ docker compose … exec server node app/server/dist/cli/oidc.js client add --nam
 
 - 每个是成员的极客班账号在 GitLab 上有一个用户，按 OIDC 身份认人：`provider = openid_connect`，`extern_uid` 是这个账号在 GitLab sector 的 `sub`。sector 取 client id 为 `gitlab` 的客户端的回调主机，不取 `GITLAB_URL`（它可以是内网地址）；这个客户端还没登记时 `on` 模式整轮跳过，记一条错误日志 `gitlab sync skipped`，控制台的 `client_registered` 为 `false`，立即同步回 `gitlab_client_missing`。先按身份找，找到就沿用（上次建到一半，或 GitLab 已经因为登录自动建了），找不到才建。
 - 用户名在第一次建号时定下，之后不改：有 GitHub 的用 GitHub 登录名，没有的用站内登录名；GitLab 的保留名、和组同名、或已被别人占用时依次加 `_yz`、`_yz2`。邮箱用验证过的 `canonical_email`，没有或在 GitLab 上被占用时用 `<用户名>@noreply.<sector>`（正式是 `@noreply.git.yangtzeu.work`）。建号带 `skip_confirmation` 与随机密码，成员不用密码登录。
-- 资料在建号时补一次：论坛资料优先（显示名、简介、所在地、网站、上传的头像）；没有论坛资料的 GitHub 账号匿名读一次 GitHub 公开资料和头像（头像超过 1 MB 不传）。网站不是 http(s) 网址（没写协议的补 `https://`）就不传。读不到就只用登录名，不让同步失败。
+- 资料在建号时补一次：论坛资料优先（显示名、简介、所在地、网站）；没有论坛资料的 GitHub 账号匿名读一次 GitHub 公开资料。网站不是 http(s) 网址（没写协议的补 `https://`）就不传。读不到就只用登录名，不让同步失败。
+- 头像（#271）单独一步（还要做的事是 `set_avatar`）：有论坛上传的头像用它（WebP），没有时用 GitHub 头像，向 GitHub 要 256 像素的（`?s=256`，没记下头像地址的按 GitHub 数字 id 取），匿名下载。传上去后在 `avatar_source` 记下来源（论坛头像是 `forum:<散列>`，GitHub 头像是地址）；来源变了（例如在论坛上换了头像）再传，没变不再传，所以已经建好、还没传过头像的账号会补传一次。GitLab 只收 200 KiB 以内的头像：超过的、GitHub 说没有（4xx）或回的不是 PNG、JPEG、GIF、WebP 的不传，也记下来源，不再试；GitHub 连不上、回 429 或 5xx（`github_avatar_unreachable`、`github_avatar_<状态码>`），或 GitLab 没收（`gitlab_avatar_<状态码>`）算失败，下一轮再试。在 GitLab 里自己换的头像，只有论坛或 GitHub 那边的来源变了才会被盖掉。
 - 组权限：舰员 Developer（30），提督 Owner（50）；角色变了就改。
 - 停用、不再是成员的封禁（`block`），回来的解封；从不删除 GitLab 用户和他们的仓库。不是同步建的 GitLab 用户（例如 root）不碰。
 - 还没同步过就离开的：只要他在 GitLab 的 sector 有过 `sub`（用极客班登录过 GitLab，GitLab 可能已经自动建了号），每一轮都按身份去 GitLab 找（还要做的事是 `find_and_block`），找到就记下这个用户并封禁；找不到、或者找的时候 GitLab 出错，这一轮什么也不改、不写审计（出错只算进这一轮的失败数），下一轮照样找，因为他可能回来、用极客班登录一次（GitLab 又自动建号）、在下一轮之前又离开。没有 `sub` 的不去找。
 - 调 GitLab 管理接口不跟随跳转（跳到别的源时管理员令牌会跟过去），遇到跳转按 `gitlab_unreachable` 记。
-- 失败写进 `last_error`（`gitlab_unreachable`、`gitlab_create_<状态码>`、`gitlab_member_<状态码>` 等），下一轮再试；写审计 `gitlab.sync`。控制台成员页的「GitLab」列显示这些状态和错误，能管理称号的人可以对有错或还有事要做的账号点「立即同步」。
+- 失败写进 `last_error`（`gitlab_unreachable`、`gitlab_create_<状态码>`、`gitlab_member_<状态码>`、`gitlab_avatar_<状态码>` 等），下一轮再试；写审计 `gitlab.sync`。控制台成员页的「GitLab」列显示这些状态和错误，能管理称号的人可以对有错或还有事要做的账号点「立即同步」。
 
 控制台接口：`GET /api/console/gitlab/accounts`（`roles.manage` 或 `roles.department.manage`）列出每个账号的 GitLab 用户名、状态、组权限、最后一次错误和还要做的事，`client_registered` 说明 `gitlab` 客户端登记了没有；`POST /api/console/gitlab/accounts/:account_id/sync`（`roles.manage`，每分钟 30 次）立即同步一个账号，同步关着时 409 `gitlab_sync_off`，客户端没登记时 200 带 `error: gitlab_client_missing`。
 

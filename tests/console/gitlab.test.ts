@@ -18,6 +18,8 @@ describe("GitLab column on the people page (#270)", () => {
     expect(actionText({ kind: "create", username: "alice", access_level: 30 })).toBe("建号，进组当开发者");
     expect(actionText({ kind: "set_access", access_level: 50 })).toBe("组权限改成所有者");
     expect(actionText({ kind: "find_and_block" })).toBe("按身份找到 GitLab 用户并封禁");
+    expect(actionText({ kind: "set_avatar" })).toBe("传头像");
+    expect(pendingText("dry-run", [{ kind: "create", username: "alice", access_level: 30 }, { kind: "set_avatar" }])).toBe("预演：建号，进组当开发者、传头像");
     expect(pendingText("dry-run", [{ kind: "create", username: "alice", access_level: 30 }])).toBe("预演：建号，进组当开发者");
     expect(pendingText("on", [{ kind: "unblock" }, { kind: "set_access", access_level: 30 }])).toBe("待同步：解封、组权限改成开发者");
     expect(pendingText("on", [])).toBe("");
@@ -34,6 +36,9 @@ describe("GitLab column on the people page (#270)", () => {
     expect(errorText("gitlab_block_403")).toBe("封禁失败（403）");
     expect(errorText("gitlab_unblock_404")).toBe("解封失败（404）");
     expect(errorText("gitlab_sync_failed")).toBe("同步出错");
+    expect(errorText("gitlab_avatar_400")).toBe("头像被拒（400）");
+    expect(errorText("github_avatar_503")).toBe("GitHub 头像下载失败（503）");
+    expect(errorText("github_avatar_unreachable")).toBe("连不上 GitHub 头像");
     expect(errorText("something_new")).toBe("something_new");
   });
 
@@ -82,6 +87,7 @@ describe("GitLab column on the people page (#270)", () => {
     expect(on.accounts.some(row => row.last_error && canSyncNow(on, row))).toBe(true);
     expect(on.accounts.some(row => row.state === "blocked")).toBe(true);
     expect(on.accounts.some(row => row.access_level === 50)).toBe(true);
+    expect(on.accounts.some(row => row.last_error === "gitlab_avatar_400" && row.pending.some(action => action.kind === "set_avatar"))).toBe(true);
     expect(mockGitlab("dry-run").accounts.every(row => row.username === null)).toBe(true);
     expect(gitlabNote(mockGitlab("unregistered"))).toContain("client id 为 gitlab");
     expect(mockGitlab("off").accounts.every(row => row.pending.length === 0)).toBe(true);
