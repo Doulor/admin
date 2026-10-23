@@ -153,3 +153,17 @@
      - `routes/forum-api/posts.ts`：成员回复和游客回复都记 `forum.reply.create`（游客那条 meta 带 `guest:true`）。
 - 结果：npx vitest run tests/server——31 files / 555 tests 全过；pnpm --filter server build 干净。activity.test.ts 一条断言从「导出 1 行」改成「导出 2 行」——同一条用例先打的那次没权限的 403 现在也被全局钩子记下来了，是预期的新行为。
 - 下一步：剩下必须记的动作——competition.*（签到/组队/打分）、perm.*（需要带改动前后 JSON）、gitlab.*（手动重新同步等）；然后是 §3.8 剩余限额（论坛读/搜索按等级、访客翻页上限、注册新账号限额、验证码按邮箱限额、命令行设备码按账号限额、回帖按 IP 总量上限）和 `limits.prune()` 接入保留清理，最后是 Phase 4。
+
+## 04:59:58 +08:00 · 提交 · #274 · Step 3：recordActivity 接入 competition.*/perm.*/users.update/gitlab.*（SPEC §3.7 剩余必记动作）
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：接着上一条提交，把 SPEC §3.7 清单里剩下的「必须记」服务端动作接进 recordActivity：
+  - `routes/portal/competition-signups.ts`：共享的 `settle()` 辅助函数改签名，加 `req` 和 `action` 两个参数，成功时统一记 `competition.<action>`（signup、signup.cancel、team.create、team.apply、team.invite、team.accept/decline/withdraw、team.leave、team.transfer、team.disband、team.lock、team.unlock），这样十来个报名/组队写接口不用每个都单独加一行。
+  - `routes/console/competitions.ts`：`competition.create/update/delete` 三个已有 `audit()` 的动作旁边加 `recordActivity`，meta 和 audit 记的一致。
+  - `routes/console/competition-roster.ts`：`competition.signup_settings.update`（meta 带 before/after）、`competition.roster.export`、`competition.score.add`、`competition.score.revoke`。
+  - `routes/console/permission-groups.ts`：SPEC §3.7「perm.*（写入前后的 JSON 都放进 meta）」——`perm.group.create`（meta 带 after）、`perm.group.update`（meta 带 before/after，各自是 `fullView()` 算出来的完整组视图，不只是改了哪些字段名）、`perm.group.delete`（meta 带 before）、`perm.group.member.add`、`perm.group.member.remove`。
+  - `routes/console/users.ts`：`PATCH /api/console/users/:id` 虽然动作名是 `users.update` 不是 `perm.*`，但改的是 level/department/titles，和权限组 CRUD 一样影响权限——按同样的 before/after 快照模式记（`snapshot()` 取 status/level/department/titles 四个字段，改之前拍一份、改完再拍一份）。
+  - `routes/console/gitlab.ts`：这个文件原来一条 `audit()` 都没有，加了 `gitlab.resync`（meta 带同步结果）和 `gitlab.settings.update`（meta 带 before/after 的 sync_mode/group_path/interval_minutes）。
+  都是新增调用，没有改动原有的 `storage.audit()`。
+- 结果：npx vitest run tests/server——31 files / 555 tests 全过；pnpm --filter server build 干净；check-boundaries 通过（258 files, 1453 imports）。
+- 下一步：SPEC §3.7 的「必须记」动作清单到这里基本走完了（auth.*、invite.redeem、apply.submit、forum.topic.view/create、forum.reply.create、forum.search、competition.*、profile.*、perm.*、gitlab.*）；没覆盖到的是 forum.react（#276 才有这个功能，#274 没有路由）。接下来转 §3.8 剩余限额（论坛读/搜索按等级、访客翻页上限、注册新账号限额、验证码按邮箱限额、命令行设备码按账号限额、回帖按 IP 总量上限）和 `limits.prune()` 接入保留清理，最后是 Phase 4。

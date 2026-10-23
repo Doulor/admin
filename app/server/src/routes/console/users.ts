@@ -140,6 +140,15 @@ export default async function consoleUsersRoutes(app: FastifyInstance) {
         }
       }
 
+      // SPEC §3.7「写入前后的 JSON 都放进 meta」：这个接口改的是 level/department/titles，和权限组 CRUD 一样
+      // 影响权限，改动前先拍一份快照，事务跑完再拍一份，两份都放进操作记录。
+      const snapshot = () => ({
+        status: (db.prepare("SELECT status FROM users WHERE id = ?").get(id) as { status: string } | undefined)?.status ?? null,
+        level: (db.prepare("SELECT pg.id AS id FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pm.account_id = ? AND pg.kind = 'level'").get(id) as { id: string } | undefined)?.id ?? null,
+        department: (db.prepare("SELECT pg.id AS id FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pm.account_id = ? AND pg.kind = 'department'").get(id) as { id: string } | undefined)?.id ?? null,
+        titles: (db.prepare("SELECT pg.id AS id FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pm.account_id = ? AND pg.kind = 'title' ORDER BY pg.id").all(id) as { id: string }[]).map(row => row.id),
+      });
+      const before = snapshot();
       const now = Date.now();
       db.transaction(() => {
         if (status !== undefined) db.prepare("UPDATE users SET status = ?, updated_at = ? WHERE id = ?").run(status, now, id);
@@ -169,6 +178,7 @@ export default async function consoleUsersRoutes(app: FastifyInstance) {
       })();
       permissions.bump();
       storage.audit(null, req.session!, "users.update", id, { fields: Object.keys(req.body) }, req.ip);
+      app.services.activity.recordActivity(req, { action: "users.update", surface: "console", target_type: "user", target_id: id, outcome: "ok", meta: { before, after: snapshot() } });
       return { account_id: id };
     },
   );

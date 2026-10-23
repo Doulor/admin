@@ -44,6 +44,10 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
         if (result.ok) {
           audit(config.consoleOrg, req.session!, "competition.signup_settings.update", id,
             { before: settingsAudit(before), after: settingsAudit(result.value) }, req.ip);
+          app.services.activity.recordActivity(req, {
+            action: "competition.signup_settings.update", surface: "console", target_type: "competition", target_id: id, outcome: "ok",
+            meta: { before: settingsAudit(before), after: settingsAudit(result.value) },
+          });
         }
         return result;
       })();
@@ -79,6 +83,7 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
         row.cancelled_at === null ? "" : beijingDateTime(row.cancelled_at),
       ].map(csvCell).join(","))];
       audit(config.consoleOrg, req.session!, "competition.roster.export", id, { rows: result.value.signups.length }, req.ip);
+      app.services.activity.recordActivity(req, { action: "competition.roster.export", surface: "console", target_type: "competition", target_id: id, outcome: "ok", meta: { rows: result.value.signups.length } });
       return reply
         .header("Content-Type", "text/csv; charset=utf-8")
         .header("Content-Disposition", `attachment; filename="competition-${id}-roster-${beijingCompactDate(Date.now())}.csv"`)
@@ -105,6 +110,10 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
         if (created.ok) {
           audit(config.consoleOrg, req.session!, "competition.score.add", created.value.id,
             { competition_id: id, account_id: created.value.person.account_id, kind: created.value.kind, points: created.value.points }, req.ip);
+          app.services.activity.recordActivity(req, {
+            action: "competition.score.add", surface: "console", target_type: "score_event", target_id: created.value.id, outcome: "ok",
+            meta: { competition_id: id, account_id: created.value.person.account_id, kind: created.value.kind, points: created.value.points },
+          });
         }
         return created;
       })();
@@ -119,7 +128,10 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
       const { competition_id: id, event_id: eventId } = req.params;
       const result = db.transaction(() => {
         const revoked = scores.revoke(id, req.session!.account_id, eventId, req.body.reason ?? "", Date.now());
-        if (revoked.ok) audit(config.consoleOrg, req.session!, "competition.score.revoke", eventId, { competition_id: id }, req.ip);
+        if (revoked.ok) {
+          audit(config.consoleOrg, req.session!, "competition.score.revoke", eventId, { competition_id: id }, req.ip);
+          app.services.activity.recordActivity(req, { action: "competition.score.revoke", surface: "console", target_type: "score_event", target_id: eventId, outcome: "ok", meta: { competition_id: id } });
+        }
         return revoked;
       })();
       return result.ok ? { event: result.value } : refuse(reply, result.error);

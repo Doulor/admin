@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { requireCompetitionAccess, requireCompetitionNode } from "../../middleware/require-member.js";
 import { SCORE_ERRORS, type ScoreErrorCode } from "../../lib/competition-score-store.js";
@@ -11,9 +11,15 @@ function refuse(reply: FastifyReply, error: SignupErrorCode | ScoreErrorCode) {
   return reply.code(ERRORS[error].status).send({ error, message: ERRORS[error].message });
 }
 
-/** 成员写操作的结果：成功回最新「我的状态」，失败回稳定的错误码与中文说明。 */
-function settle(reply: FastifyReply, result: { ok: true; value: unknown } | SignupFailure, status = 200) {
-  return result.ok ? reply.code(status).send(result.value) : refuse(reply, result.error);
+/**
+ * 成员写操作的结果：成功回最新「我的状态」并记一条 `competition.<action>` 操作记录（SPEC §3.7「必须记
+ * competition.*」），失败回稳定的错误码与中文说明（store 层的业务拒绝不是 403/429，http-policy.ts 的
+ * 全局钩子不管，这里不用另记——SPEC 只要求 403 denied / 429 limited 两种，这些不在其列）。
+ */
+function settle(req: FastifyRequest, reply: FastifyReply, action: string, competitionId: string, result: { ok: true; value: unknown } | SignupFailure, status = 200) {
+  if (!result.ok) return refuse(reply, result.error);
+  req.server.services.activity.recordActivity(req, { action: `competition.${action}`, surface: "portal", target_type: "competition", target_id: competitionId, outcome: "ok" });
+  return reply.code(status).send(result.value);
 }
 
 /**
@@ -37,11 +43,11 @@ export default async function competitionSignupRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { id: string }; Body: { note?: string; looking_for_team?: boolean } }>(
     "/api/competitions/:id/signup", signup,
-    async (req, reply) => settle(reply, signups.signUp(req.params.id, req.session!.account_id, req.body ?? {}, Date.now())),
+    async (req, reply) => settle(req, reply, "signup", req.params.id, signups.signUp(req.params.id, req.session!.account_id, req.body ?? {}, Date.now())),
   );
 
   app.delete<{ Params: { id: string } }>("/api/competitions/:id/signup", signup, async (req, reply) =>
-    settle(reply, signups.cancelSignUp(req.params.id, req.session!.account_id, Date.now())));
+    settle(req, reply, "signup.cancel", req.params.id, signups.cancelSignUp(req.params.id, req.session!.account_id, Date.now())));
 
   app.get<{ Params: { id: string } }>("/api/competitions/:id/teams", read, async (req, reply) => {
     const result = signups.teams(req.params.id);
@@ -55,42 +61,42 @@ export default async function competitionSignupRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { id: string }; Body: { name: string; slogan?: string } }>(
     "/api/competitions/:id/teams", team,
-    async (req, reply) => settle(reply, signups.createTeam(req.params.id, req.session!.account_id, req.body, Date.now()), 201),
+    async (req, reply) => settle(req, reply, "team.create", req.params.id, signups.createTeam(req.params.id, req.session!.account_id, req.body, Date.now()), 201),
   );
 
   app.post<{ Params: { id: string }; Body: { message?: string } }>(
     "/api/teams/:id/apply", team,
-    async (req, reply) => settle(reply, signups.apply(req.params.id, req.session!.account_id, req.body.message ?? "", Date.now()), 201),
+    async (req, reply) => settle(req, reply, "team.apply", req.params.id, signups.apply(req.params.id, req.session!.account_id, req.body.message ?? "", Date.now()), 201),
   );
 
   app.post<{ Params: { id: string }; Body: { account_id: string } }>(
     "/api/teams/:id/invite", team,
-    async (req, reply) => settle(reply, signups.invite(req.params.id, req.session!.account_id, req.body.account_id, Date.now()), 201),
+    async (req, reply) => settle(req, reply, "team.invite", req.params.id, signups.invite(req.params.id, req.session!.account_id, req.body.account_id, Date.now()), 201),
   );
 
   app.post<{ Params: { id: string }; Body: { membership_id: string; action: "accept" | "decline" | "withdraw" } }>(
     "/api/teams/:id/respond", team,
-    async (req, reply) => settle(reply, signups.respond(
+    async (req, reply) => settle(req, reply, `team.${req.body.action}`, req.params.id, signups.respond(
       req.params.id, req.session!.account_id, req.body.membership_id, req.body.action, Date.now(),
     )),
   );
 
   app.post<{ Params: { id: string } }>("/api/teams/:id/leave", team, async (req, reply) =>
-    settle(reply, signups.leave(req.params.id, req.session!.account_id, Date.now())));
+    settle(req, reply, "team.leave", req.params.id, signups.leave(req.params.id, req.session!.account_id, Date.now())));
 
   app.post<{ Params: { id: string }; Body: { account_id: string } }>(
     "/api/teams/:id/transfer", team,
-    async (req, reply) => settle(reply, signups.transfer(req.params.id, req.session!.account_id, req.body.account_id, Date.now())),
+    async (req, reply) => settle(req, reply, "team.transfer", req.params.id, signups.transfer(req.params.id, req.session!.account_id, req.body.account_id, Date.now())),
   );
 
   app.delete<{ Params: { id: string } }>("/api/teams/:id", team, async (req, reply) =>
-    settle(reply, signups.disband(req.params.id, req.session!.account_id, Date.now())));
+    settle(req, reply, "team.disband", req.params.id, signups.disband(req.params.id, req.session!.account_id, Date.now())));
 
   app.post<{ Params: { id: string } }>("/api/teams/:id/lock", team, async (req, reply) =>
-    settle(reply, signups.lock(req.params.id, req.session!.account_id, Date.now())));
+    settle(req, reply, "team.lock", req.params.id, signups.lock(req.params.id, req.session!.account_id, Date.now())));
 
   app.delete<{ Params: { id: string } }>("/api/teams/:id/lock", team, async (req, reply) =>
-    settle(reply, signups.unlock(req.params.id, req.session!.account_id, Date.now())));
+    settle(req, reply, "team.unlock", req.params.id, signups.unlock(req.params.id, req.session!.account_id, Date.now())));
 
   app.get<{ Params: { id: string } }>("/api/competitions/:id/leaderboard", read, async (req, reply) => {
     const result = scores.leaderboard(req.params.id);

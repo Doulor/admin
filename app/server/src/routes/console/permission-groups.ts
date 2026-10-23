@@ -103,7 +103,9 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
       })();
       permissions.bump();
       storage.audit(null, req.session!, "perm.group.create", id, { name, parents: parentIds }, req.ip);
-      return reply.code(201).send(fullView().find(group => group.id === id));
+      const created = fullView().find(group => group.id === id);
+      app.services.activity.recordActivity(req, { action: "perm.group.create", surface: "console", target_type: "perm_group", target_id: id, outcome: "ok", meta: { after: created } });
+      return reply.code(201).send(created);
     },
   );
 
@@ -114,6 +116,7 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
     const { id } = req.params;
     const group = db.prepare("SELECT id FROM perm_groups WHERE id = ?").get(id);
     if (!group) return reply.code(404).send({ error: "not_found", message: "没有这个权限组" });
+    const before = fullView().find(item => item.id === id);
     const { name, description, weight, parents, icon, tone, sort, entries } = req.body;
     if (parents !== undefined) {
       for (const parentId of parents) {
@@ -161,7 +164,10 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
     })();
     permissions.bump();
     storage.audit(null, req.session!, "perm.group.update", id, { fields: Object.keys(req.body) }, req.ip);
-    return fullView().find(item => item.id === id);
+    const after = fullView().find(item => item.id === id);
+    // SPEC §3.7「perm.*（写入前后的 JSON 都放进 meta）」：改动前后的完整组视图都放进 meta，不只是改了哪些字段。
+    app.services.activity.recordActivity(req, { action: "perm.group.update", surface: "console", target_type: "perm_group", target_id: id, outcome: "ok", meta: { before, after } });
+    return after;
   });
 
   app.delete<{ Params: { id: string } }>("/api/console/permission-groups/:id", manageWrite, async (req, reply) => {
@@ -169,6 +175,7 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
     const group = db.prepare("SELECT system FROM perm_groups WHERE id = ?").get(id) as { system: number } | undefined;
     if (!group) return reply.code(404).send({ error: "not_found", message: "没有这个权限组" });
     if (group.system === 1) return reply.code(409).send({ error: "system_group", message: "系统内置的组不能删除" });
+    const before = fullView().find(item => item.id === id);
     db.transaction(() => {
       db.prepare("DELETE FROM perm_entries WHERE subject_type = 'group' AND subject_id = ?").run(id);
       db.prepare("DELETE FROM perm_members WHERE group_id = ?").run(id);
@@ -176,6 +183,7 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
     })();
     permissions.bump();
     storage.audit(null, req.session!, "perm.group.delete", id, undefined, req.ip);
+    app.services.activity.recordActivity(req, { action: "perm.group.delete", surface: "console", target_type: "perm_group", target_id: id, outcome: "ok", meta: { before } });
     return { ok: true };
   });
 
@@ -218,6 +226,7 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
       }
       permissions.bump();
       storage.audit(null, req.session!, "perm.group.member.add", id, { account_id: req.body.account_id }, req.ip);
+      app.services.activity.recordActivity(req, { action: "perm.group.member.add", surface: "console", target_type: "perm_group", target_id: id, outcome: "ok", meta: { account_id: req.body.account_id } });
       return reply.code(201).send({ ok: true });
     },
   );
@@ -228,6 +237,7 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
       if (removed.changes === 0) return reply.code(404).send({ error: "not_found", message: "这个账号不在这个组里" });
       permissions.bump();
       storage.audit(null, req.session!, "perm.group.member.remove", req.params.id, { account_id: req.params.account_id }, req.ip);
+      app.services.activity.recordActivity(req, { action: "perm.group.member.remove", surface: "console", target_type: "perm_group", target_id: req.params.id, outcome: "ok", meta: { account_id: req.params.account_id } });
       return { ok: true };
     },
   );

@@ -24,6 +24,7 @@ export default async function consoleGitlabRoutes(app: FastifyInstance) {
     if (gitlab.mode === "off") return reply.code(409).send({ error: "gitlab_sync_off", message: "GitLab 同步没有打开" });
     const outcome = await gitlab.syncAccount(req.params.account_id, req.session!);
     if (!outcome) return reply.code(404).send({ error: "account_not_found", message: "没有这个账号" });
+    app.services.activity.recordActivity(req, { action: "gitlab.resync", surface: "console", target_type: "account", target_id: req.params.account_id, outcome: "ok", meta: outcome });
     return { mode: gitlab.mode, ...outcome };
   });
 
@@ -54,8 +55,11 @@ export default async function consoleGitlabRoutes(app: FastifyInstance) {
       // 令牌只读 env：没配置时不能把 mode 打开到需要令牌的 on，否则同步只会一直失败。
       if (sync_mode === "on" && config.gitlab.token === null) return reply.code(409).send({ error: "gitlab_token_missing", message: "GITLAB_API_TOKEN 没有配置，不能打开 on" });
       if ((sync_mode === "on" || sync_mode === "dry-run") && !gitlab.url) return reply.code(409).send({ error: "gitlab_url_missing", message: "GITLAB_URL 没有配置" });
+      const before = { sync_mode: gitlab.mode, group_path: gitlab.group, interval_minutes: gitlab.intervalMinutes };
       await gitlab.applySettings({ mode: sync_mode, group: group_path, intervalMinutes: interval_minutes });
-      return { sync_mode: gitlab.mode, group_path: gitlab.group, interval_minutes: gitlab.intervalMinutes, token_configured: config.gitlab.token !== null };
+      const after = { sync_mode: gitlab.mode, group_path: gitlab.group, interval_minutes: gitlab.intervalMinutes };
+      app.services.activity.recordActivity(req, { action: "gitlab.settings.update", surface: "console", outcome: "ok", meta: { before, after } });
+      return { ...after, token_configured: config.gitlab.token !== null };
     },
   );
 }
