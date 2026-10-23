@@ -66,7 +66,10 @@ function fakeGitlab() {
       if (method === 'GET') return json(200, user);
       if (method === 'PUT') {
         const avatar = (init.body as FormData).get('avatar') as File;
-        user.avatar = `${avatar.type} ${avatar.size}`;
+        // GitLab 只收 200 KiB 以内、扩展名是图片的头像
+        if (avatar.size > 200 * 1024) return json(400, { message: { avatar: ['is too big (should be at most 200 KiB)'] } });
+        if (!/^image\/(png|jpeg|gif|webp)$/.test(avatar.type) || !/\.(png|jpg|gif|webp)$/.test(avatar.name)) return json(400, { message: { avatar: ['file format is not supported'] } });
+        user.avatar = `${avatar.type} ${avatar.size} ${avatar.name}`;
         return json(200, user);
       }
     }
@@ -105,9 +108,10 @@ function fakeGitlab() {
   };
 }
 
-/** 假 GitHub：只回公开资料和头像，其它地址都算测试漏洞。 */
+/** 假 GitHub：只回公开资料和头像，其它地址都算测试漏洞。头像默认回 PNG，`avatar()` 换成别的回应（抛错就是连不上）。 */
 function fakeGithub(profiles: Record<number, Record<string, unknown>> = {}) {
   const calls: string[] = [];
+  let avatar = () => new Response(PNG, { status: 200, headers: { 'content-type': 'image/png' } });
   async function fetch(input: string): Promise<Response> {
     calls.push(input);
     const profile = input.match(/^https:\/\/api\.github\.com\/user\/(\d+)$/);
@@ -115,10 +119,10 @@ function fakeGithub(profiles: Record<number, Record<string, unknown>> = {}) {
       const data = profiles[Number(profile[1])];
       return data ? new Response(JSON.stringify(data), { status: 200 }) : new Response('{}', { status: 404 });
     }
-    if (input.startsWith('https://avatars.githubusercontent.com/')) return new Response(PNG, { status: 200, headers: { 'content-type': 'image/png' } });
+    if (input.startsWith('https://avatars.githubusercontent.com/')) return avatar();
     throw new Error(`unexpected GitHub request ${input}`);
   }
-  return { calls, fetch };
+  return { calls, fetch, avatar(next: () => Response) { avatar = next; } };
 }
 
 const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
@@ -158,14 +162,20 @@ describe('GitLab account sync (#270)', () => {
     const alice = userNamed(gitlab, 'alice')!;
     expect(alice).toMatchObject({
       extern_uid: subOf(101), provider: 'openid_connect', email: 'alice@noreply.git.example.test',
-      name: 'Alice Liu', bio: 'Rust 和编译器', location: '荆州', website_url: 'https://alice.dev', avatar: `image/png ${PNG.length}`,
+      name: 'Alice Liu', bio: 'Rust 和编译器', location: '荆州', website_url: 'https://alice.dev', avatar: `image/png ${PNG.length} avatar.png`,
     });
     expect(alice.extern_uid).not.toBe(accountOf(101));
     const admiral = userNamed(gitlab, 'admiral')!;
     expect(gitlab.members.get(alice.id)).toBe(30);
     expect(gitlab.members.get(admiral.id)).toBe(50);
     expect(github.calls).toContain('https://api.github.com/user/101');
-    expect(row(101)).toMatchObject({ gitlab_user_id: alice.id, username: 'alice', state: 'active', access_level: 30, last_error: null });
+    // 向 GitHub 要 256 像素的头像；没记下头像地址的按 GitHub 数字 id 取
+    expect(github.calls).toContain('https://avatars.githubusercontent.com/u/101?s=256');
+    expect(github.calls).toContain('https://avatars.githubusercontent.com/u/1?s=256');
+    expect(admiral.avatar).toBe(`image/png ${PNG.length} avatar.png`);
+    expect(row(101)).toMatchObject({
+      gitlab_user_id: alice.id, username: 'alice', state: 'active', access_level: 30, avatar_source: 'https://avatars.githubusercontent.com/u/101', last_error: null,
+    });
     expect(app.services.gitlab.gitlabUserFor(accountOf(101))).toEqual({ gitlabUserId: alice.id, username: 'alice', state: 'active' });
     expect(app.services.gitlab.accountForGitlabUser(admiral.id)).toBe(accountOf(1));
 
@@ -269,7 +279,7 @@ describe('GitLab account sync (#270)', () => {
     db.prepare(`INSERT INTO forum_users(id, kind, github_user_id, username, display_name, bio, location, website, avatar_color, avatar_hash, joined_at, updated_at, account_id)
       VALUES('fu-alice', 'member', 101, 'alice', '刘爱丽', '写编译器', '武汉', 'https://alice.dev', '#336699', ?, ?, ?, ?)`).run('a'.repeat(64), now, now, accountOf(101));
     await app.services.gitlab.reconcile();
-    expect(userNamed(gitlab, 'alice')).toMatchObject({ name: '刘爱丽', bio: '写编译器', location: '武汉', website_url: 'https://alice.dev', avatar: 'image/webp 16' });
+    expect(userNamed(gitlab, 'alice')).toMatchObject({ name: '刘爱丽', bio: '写编译器', location: '武汉', website_url: 'https://alice.dev', avatar: 'image/webp 16 avatar.webp' });
     expect(github.calls).toEqual([]);
   });
 
@@ -281,7 +291,7 @@ describe('GitLab account sync (#270)', () => {
     expect(first).toMatchObject({ changed: 0, failed: 1 });
     expect(first.outcomes[0]).toMatchObject({ login: 'alice', error: 'gitlab_member_500', applied: false });
     expect(row(101)).toMatchObject({ username: 'alice', state: 'active', access_level: null, last_error: 'gitlab_member_500' });
-    expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_access', access_level: 30 }]);
+    expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_access', access_level: 30 }, { kind: 'set_avatar' }]);
 
     gitlab.setUnreachable(true);
     expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('gitlab_unreachable');
@@ -289,8 +299,112 @@ describe('GitLab account sync (#270)', () => {
 
     const second = await app.services.gitlab.reconcile();
     expect(second).toMatchObject({ changed: 1, failed: 0 });
+    expect(second.outcomes[0].actions).toEqual([{ kind: 'set_access', access_level: 30 }, { kind: 'set_avatar' }]);
     expect(row(101)).toMatchObject({ access_level: 30, last_error: null, last_error_at: null });
     expect(gitlab.users.filter(user => user.username === 'alice')).toHaveLength(1);
+  });
+
+  it('asks GitHub for a small avatar, names the file by its type and holds back one GitLab would refuse (#271)', async () => {
+    const { app, gitlab, github, row } = await setup();
+    signIn(app, 'alice', 101, 'https://avatars.githubusercontent.com/u/101?v=4');
+    const jpeg = Buffer.alloc(1024, 1);
+    github.avatar(() => new Response(jpeg, { status: 200, headers: { 'content-type': 'image/jpeg; charset=binary' } }));
+    await app.services.gitlab.reconcile();
+    expect(github.calls).toContain('https://avatars.githubusercontent.com/u/101?v=4&s=256');
+    expect(userNamed(gitlab, 'alice')!.avatar).toBe(`image/jpeg ${jpeg.length} avatar.jpg`);
+
+    // 256 像素的还超过 200 KiB：不传，成员页看得到原因，下一轮再下载一次
+    signIn(app, 'bob', 202, 'https://avatars.githubusercontent.com/u/202?v=4');
+    github.avatar(() => new Response(Buffer.alloc(200 * 1024 + 1), { status: 200, headers: { 'content-type': 'image/png' } }));
+    const summary = await app.services.gitlab.reconcile();
+    expect(summary).toMatchObject({ changed: 0, failed: 1 });
+    expect(summary.outcomes.find(item => item.login === 'bob')).toMatchObject({ error: 'avatar_too_large', applied: false });
+    expect(userNamed(gitlab, 'bob')!.state).toBe('active');
+    expect(userNamed(gitlab, 'bob')!.avatar).toBeUndefined();
+    expect(gitlab.calls.filter(call => call.startsWith('PUT /users/'))).toHaveLength(1);
+    expect(row(202)).toMatchObject({ state: 'active', access_level: 30, avatar_source: null, last_error: 'avatar_too_large' });
+    expect(app.services.gitlab.status().find(item => item.login === 'bob')!.pending).toEqual([{ kind: 'set_avatar' }]);
+    const githubCalls = github.calls.length;
+    expect((await app.services.gitlab.reconcile()).failed).toBe(1);
+    expect(github.calls.length).toBeGreaterThan(githubCalls);
+
+    // GitHub 说没有这个头像（404）、回的不是图片：同样记下原因，下一轮再试
+    github.avatar(() => new Response('not found', { status: 404 }));
+    expect((await app.services.gitlab.reconcile()).outcomes.find(item => item.login === 'bob')!.error).toBe('github_avatar_404');
+    github.avatar(() => new Response('<html></html>', { status: 200, headers: { 'content-type': 'text/html' } }));
+    expect((await app.services.gitlab.reconcile()).outcomes.find(item => item.login === 'bob')!.error).toBe('github_avatar_not_image');
+
+    // 论坛头像指向的图已经不在库里
+    signIn(app, 'carol', 103);
+    const now = Date.now();
+    app.services.storage.db.prepare(`INSERT INTO forum_users(id, kind, github_user_id, username, display_name, avatar_color, avatar_hash, joined_at, updated_at, account_id)
+      VALUES('fu-carol', 'member', 103, 'carol', 'carol', '#336699', NULL, ?, ?, ?)`).run(now, now, app.services.identity.accountForGithub(103)!);
+    app.services.storage.db.prepare('INSERT INTO forum_avatars(hash, data, created_at) VALUES(?, ?, ?)').run('c'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), now);
+    app.services.storage.db.prepare("UPDATE forum_users SET avatar_hash = ? WHERE id = 'fu-carol'").run('c'.repeat(64));
+    app.services.storage.db.pragma('foreign_keys = OFF');
+    app.services.storage.db.prepare('DELETE FROM forum_avatars WHERE hash = ?').run('c'.repeat(64));
+    app.services.storage.db.pragma('foreign_keys = ON');
+    expect((await app.services.gitlab.reconcile()).outcomes.find(item => item.login === 'carol')!.error).toBe('forum_avatar_missing');
+
+    // 头像小下来以后，下一轮传上去，错误清掉
+    github.avatar(() => new Response(PNG, { status: 200, headers: { 'content-type': 'image/png' } }));
+    await app.services.gitlab.reconcile();
+    expect(userNamed(gitlab, 'bob')!.avatar).toBe(`image/png ${PNG.length} avatar.png`);
+    expect(row(202)).toMatchObject({ avatar_source: 'https://avatars.githubusercontent.com/u/202?v=4', last_error: null });
+  });
+
+  it('records a refused or failed avatar upload and retries it on the next round (#271)', async () => {
+    const { app, gitlab, github, row } = await setup();
+    signIn(app, 'alice', 101);
+    gitlab.fail('PUT /users/', 400);
+    const first = await app.services.gitlab.reconcile();
+    expect(first.outcomes[0]).toMatchObject({ error: 'gitlab_avatar_400', applied: false });
+    // 建号、进组已经做完，只剩头像
+    expect(row(101)).toMatchObject({ state: 'active', access_level: 30, avatar_source: null, last_error: 'gitlab_avatar_400' });
+    expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_avatar' }]);
+
+    // GitHub 回 5xx、429 或连不上：下一轮再试
+    github.avatar(() => new Response('', { status: 503 }));
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('github_avatar_503');
+    github.avatar(() => new Response('', { status: 429 }));
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('github_avatar_429');
+    github.avatar(() => { throw new TypeError('fetch failed'); });
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('github_avatar_unreachable');
+    expect(row(101)).toMatchObject({ avatar_source: null, last_error: 'github_avatar_unreachable' });
+
+    github.avatar(() => new Response(PNG, { status: 200, headers: { 'content-type': 'image/png' } }));
+    const last = await app.services.gitlab.reconcile();
+    expect(last).toMatchObject({ changed: 1, failed: 0 });
+    expect(last.outcomes[0].actions).toEqual([{ kind: 'set_avatar' }]);
+    expect(userNamed(gitlab, 'alice')!.avatar).toBe(`image/png ${PNG.length} avatar.png`);
+    expect(row(101)).toMatchObject({ avatar_source: 'https://avatars.githubusercontent.com/u/101', last_error: null });
+    expect(gitlab.users.filter(user => user.username === 'alice')).toHaveLength(1);
+  });
+
+  it('uploads the avatar for accounts synced before avatars were tracked, and again when the forum avatar changes (#271)', async () => {
+    const { app, gitlab, accountOf, row, db } = await setup();
+    signIn(app, 'alice', 101, 'https://avatars.githubusercontent.com/u/101?v=4');
+    await app.services.gitlab.reconcile();
+    const alice = userNamed(gitlab, 'alice')!;
+    // 上一个版本建的号：没有头像，也没记来源
+    db.prepare('UPDATE gitlab_accounts SET avatar_source = NULL').run();
+    alice.avatar = undefined;
+    const before = gitlab.writes().length;
+    expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_avatar' }]);
+    expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 1, failed: 0 });
+    expect(gitlab.writes().slice(before)).toEqual([`PUT /users/${alice.id}`]);
+    expect(alice.avatar).toBe(`image/png ${PNG.length} avatar.png`);
+
+    // 在论坛上换了头像：下一轮传论坛的
+    const now = Date.now();
+    db.prepare('INSERT INTO forum_avatars(hash, data, created_at) VALUES(?, ?, ?)').run('b'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), now);
+    db.prepare(`INSERT INTO forum_users(id, kind, github_user_id, username, display_name, avatar_color, avatar_hash, joined_at, updated_at, account_id)
+      VALUES('fu-alice', 'member', 101, 'alice', 'alice', '#336699', ?, ?, ?, ?)`).run('b'.repeat(64), now, now, accountOf(101));
+    expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_avatar' }]);
+    await app.services.gitlab.reconcile();
+    expect(alice.avatar).toBe('image/webp 16 avatar.webp');
+    expect(row(101)).toMatchObject({ avatar_source: `forum:${'b'.repeat(64)}` });
+    expect(app.services.gitlab.status()[0].pending).toEqual([]);
   });
 
   it('blocks the user GitLab created at sign-in when the account leaves before it was ever synced', async () => {
@@ -465,7 +579,10 @@ describe('GitLab account sync (#270)', () => {
     const dry = await setup({ GITLAB_SYNC: 'dry-run', GITLAB_URL: GITLAB });
     signIn(dry.app, 'alice', 101);
     const summary = await dry.app.services.gitlab.reconcile();
-    expect(summary.outcomes).toEqual([{ account_id: dry.accountOf(101), login: 'alice', actions: [{ kind: 'create', username: 'alice', access_level: 30 }], applied: false, error: null }]);
+    expect(summary.outcomes).toEqual([{
+      account_id: dry.accountOf(101), login: 'alice', actions: [{ kind: 'create', username: 'alice', access_level: 30 }, { kind: 'set_avatar' }], applied: false, error: null,
+    }]);
+    expect(dry.github.calls).toEqual([]);
     expect(dry.gitlab.calls).toEqual([]);
     expect(dry.db.prepare('SELECT COUNT(*) AS n FROM gitlab_accounts').get()).toEqual({ n: 0 });
 
@@ -498,7 +615,7 @@ describe('console GitLab sync endpoints (#270)', () => {
     expect(res.json()).toMatchObject({ mode: 'on', gitlab_url: GITLAB, group: 'geek', client_registered: true });
     expect(res.json().accounts).toContainEqual({
       account_id: accountOf(101), login: 'alice', username: null, gitlab_user_id: null, state: null, access_level: null,
-      last_error: null, last_error_at: null, synced_at: null, pending: [{ kind: 'create', username: 'alice', access_level: 30 }],
+      last_error: null, last_error_at: null, synced_at: null, pending: [{ kind: 'create', username: 'alice', access_level: 30 }, { kind: 'set_avatar' }],
     });
     expect((await app.inject({ url: '/api/console/gitlab/accounts', headers: member })).statusCode).toBe(403);
     expect((await app.inject({ url: '/api/console/gitlab/accounts' })).statusCode).toBe(401);
@@ -509,7 +626,9 @@ describe('console GitLab sync endpoints (#270)', () => {
     expect((await sync(app, accountOf(101), member)).statusCode).toBe(403);
     const res = await sync(app, accountOf(101), admiral);
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ mode: 'on', account_id: accountOf(101), applied: true, error: null, actions: [{ kind: 'create', username: 'alice', access_level: 30 }] });
+    expect(res.json()).toMatchObject({
+      mode: 'on', account_id: accountOf(101), applied: true, error: null, actions: [{ kind: 'create', username: 'alice', access_level: 30 }, { kind: 'set_avatar' }],
+    });
     expect(userNamed(gitlab, 'alice')).toBeDefined();
     const audit = app.services.storage.db.prepare("SELECT actor, actor_account_id FROM audit_logs WHERE action = 'gitlab.sync'").get();
     expect(audit).toEqual({ actor: 'admiral', actor_account_id: accountOf(1) });

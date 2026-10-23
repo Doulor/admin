@@ -12,6 +12,7 @@ export function actionText(action: GitlabAction): string {
     case "unblock": return "解封";
     case "set_access": return `组权限改成${accessText(action.access_level)}`;
     case "find_and_block": return "按身份找到 GitLab 用户并封禁";
+    case "set_avatar": return "传头像";
   }
 }
 
@@ -26,6 +27,10 @@ const ERROR_TEXT: Record<string, string> = {
   gitlab_client_missing: "签发者里没有 GitLab 客户端",
   gitlab_username_exhausted: "用户名都被占用了",
   gitlab_sync_failed: "同步出错",
+  github_avatar_unreachable: "连不上 GitHub 头像",
+  github_avatar_not_image: "GitHub 头像不是图片",
+  avatar_too_large: "头像超过 200 KiB",
+  forum_avatar_missing: "论坛头像找不到了",
 };
 const STATUS_ERROR: [RegExp, string][] = [
   [/^gitlab_create_(\d+)$/, "建号被拒"],
@@ -33,6 +38,8 @@ const STATUS_ERROR: [RegExp, string][] = [
   [/^gitlab_lookup_(\d+)$/, "查找失败"],
   [/^gitlab_block_(\d+)$/, "封禁失败"],
   [/^gitlab_unblock_(\d+)$/, "解封失败"],
+  [/^gitlab_avatar_(\d+)$/, "头像被拒"],
+  [/^github_avatar_(\d+)$/, "GitHub 头像下载失败"],
 ];
 /** 最后一次失败的原因；带状态码的写成「建号被拒（409）」，不认识的原样显示机器码。 */
 export function errorText(code: string): string {

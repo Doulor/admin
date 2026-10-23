@@ -79,7 +79,7 @@ export type SiteRoleResponse = { account_id: string; site_role: SiteRoleChoice; 
 export type GitlabMode = "off" | "dry-run" | "on";
 export type GitlabAction =
   | { kind: "create"; username: string; access_level: number }
-  | { kind: "block" | "unblock" | "find_and_block" }
+  | { kind: "block" | "unblock" | "find_and_block" | "set_avatar" }
   | { kind: "set_access"; access_level: number };
 export type GitlabAccount = {
   account_id: string; login: string; username: string | null; gitlab_user_id: number | null;

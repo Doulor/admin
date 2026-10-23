@@ -675,6 +675,8 @@ addColumn("users", "handle", "TEXT");
 addColumn("users", "invite_code_id", "INTEGER REFERENCES invite_codes(id)");
 addColumn("users", "password_hash", "TEXT");
 addColumn("users", "password_updated_at", "INTEGER");
+// avatar_source：传到 GitLab 的头像来自哪里（论坛头像 forum:<散列>，或 GitHub 头像地址），空是还没传过；来源变了再传（#271）。
+addColumn("gitlab_accounts", "avatar_source", "TEXT");
 db.exec(`
 CREATE UNIQUE INDEX IF NOT EXISTS uq_users_handle ON users(handle) WHERE handle IS NOT NULL;
 -- 每个账号每种登录方式最多一个（规格「待确认 7」的默认）；之前只有 GitHub 身份，已经满足

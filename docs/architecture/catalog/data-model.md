@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`e134904408c3246ceb5b659172e321dec2a5711195e6568ee4989b4b05d42d7e`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`6f1b02d58f29c982b0ea437886784b8bbbc442abca4aab5d0abd6cea152c7745`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -1351,7 +1351,7 @@ CREATE TABLE forum_users (
 
 业务域：`gitlab`；结构来源：[app/server/src/lib/db.ts:508](../../../app/server/src/lib/db.ts#L508)。
 
-极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，从不删除；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。
+极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，从不删除；avatar_source 是传上去的头像来自哪里（forum:<散列> 或 GitHub 头像地址，#271），空是还没传过；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。
 
 | 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
 |---|---|---|---|---|---|
@@ -1365,6 +1365,7 @@ CREATE TABLE forum_users (
 | `synced_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
 | `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
 | `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `avatar_source` | `TEXT` | 0 | 0 | 未声明 | 0 |
 
 NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
 
@@ -1392,7 +1393,7 @@ CREATE TABLE gitlab_accounts (
   synced_at INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
-);
+, avatar_source TEXT);
 ```
 
 </details>
