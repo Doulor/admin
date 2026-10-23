@@ -49,12 +49,12 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
   const githubConnection = createGithubConnection({ app: config.githubApp, org: config.consoleOrg, octokitWith: github.octokitWith, fetch: overrides.githubAppFetch, clock: overrides.clock });
   const cache = createCache();
   const roles = createRoleStore(storage.db);
-  // #274 迁移步骤 4（lib/migrations/2026-10-yugc-v2.ts 的 archiveOldDepartments()）故意没有在这里调用：
-  // roles.ts:286 的 computeAccess() 按「未归档部门」查 headOf 与部门权限包，现在控制台的任免、论坛版务
-  // 这些写接口仍然走这一套旧的 capabilities（Phase 2b 才会换成 perm_* 节点）。归档会让所有旧部门的
-  // head/member 权限包当场失效，在新系统接管执行权之前这是破坏性的（forum.test.ts、signin-methods.test.ts
-  // 已经验证过：归档后，社区部舰员的版务操作和队长任免立刻从 200/201 变成 403/400）。
-  // 归档必须和「requireCapability → requirePermission 切换」同一次提交完成，不能提前做。
+  // #274 迁移步骤 4（lib/migrations/2026-10-yugc-v2.ts 的 archiveOldDepartments()）仍然没有在这里调用，
+  // 原因换了：原来挡在前面的「旧 requireCapability 写接口」已经随这次 Scope B 的路由删除（见执行记录）
+  // 消失，但 GET /api/public/org（routes/portal/org.ts）读 `roles.listDepartments().filter(d => !d.archived)`
+  // 仍然是官网「组织架构」页（app/web/sites/portal/lib/org.ts）的真实数据源，是 #275 才安排退场的——
+  // 这次把四个默认部门全部标成已归档会让那个页面当场变空，是本任务范围外、面向真实用户的回归。
+  // 归档要等 #275 切完数据源、确认 /api/public/org 没有活的前端读者之后再做。
   const auth = createAuth(storage.db, crypto, config, overrides.httpRequest, overrides.clock);
   const identity = createIdentityStore(storage.db, { createSession: auth.createSession, audit: storage.audit, consoleOrg: config.consoleOrg, clock: overrides.clock });
   const device = createDeviceStore(storage.db, { clock: overrides.clock });

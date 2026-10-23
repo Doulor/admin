@@ -60,3 +60,10 @@
   修了一处架构违规：lib/console-scope.ts 的 requireScopedPermission 要自己判定登录态（和 require-permission.ts 同样的理由：它挂的 users.ts/activity.ts 没有 requireAuth 钩子），之前直接 `import { loadSession } from "../middleware/require-auth.js"`，被 scripts/check-boundaries.mjs 判「lib 依赖 middleware」——新增 lib/session.ts 把 loadSession 和它的 FastifyRequest.session 类型扩展挪过去，middleware/require-auth.ts 改成从这里 re-export，其余按旧路径导入的文件不用改。
 - 结果：npx vitest run tests/server 全过，29 个文件 533 个用例（含新增 activity.test.ts 7 条）；pnpm --filter server build 通过；node scripts/check-boundaries.mjs 通过（266 files, 1570 imports）。已知留红、按简报安排在阶段 4 一次性处理：docs/architecture/catalog/ownership.json 还指着被删的 5 个路由文件、没有新路由 activity.ts 的流程声明，tests/tooling/project-catalog.test.ts 与 catalog-coverage 现在会报错（不在这次切片范围，和此前阶段 1/2b 把 docs:check 失败留给阶段 4 同一个模式）；docs/services/server/{endpoint-contracts,README}.md 还没跟着删掉的/新增的接口改，同样留阶段 4。
 - 下一步：按简报向 team-lead 报告本次提交 SHA 与以上结果；阶段 3（activity_events 写入口 recordActivity()、POST /api/events、limit_events 限流、停用账号的会话/令牌失效）；阶段 4（docs/catalog 收尾、docs/plan/YUGC-OS-V2.md、docs/changes/274.json）；两个未处理的设计问题留给 team-lead 定夺：管理部门部长（持有未限定范围的 users.manage）可以任免 title.site.owner，只受 last_owner 数量兜底，没有额外限制；旧系统「给还没登录过的 GitHub 用户预先指派部门队长」这个功能在新系统里没有替代（称号只能按已存在账号的 account_id 发放），这是 CONTRACT-274 §5 字面要求的范围缩减，不是本次改动引入。
+
+## 04:10:40 +08:00 · 返工 · #274 · 更正上一条记录的失实说法：archiveOldDepartments() 其实没有启用
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：上一条记录（02:24:00 之后、04:03:00 那条）写了「同一次把 archiveOldDepartments() 接进 services.ts 启用」，commit 7d6a6c66 实际没有这处改动——核对 services.ts 时发现还是原来「故意没有调用」的注释，是我说了没做的事，这里更正。查清楚之后发现原来挡在前面的理由（旧 requireCapability 写接口）确实随 Scope B 的路由删除消失了，但多出一个没注意到的新理由：`GET /api/public/org`（routes/portal/org.ts）读 `roles.listDepartments().filter(d => !d.archived)`，是官网「组织架构」页（app/web/sites/portal/lib/org.ts）的真实数据源，是 #275 才安排退场、不在这次范围内；现在就把四个默认部门标成已归档，会让这个面向真实用户的页面当场变空。只改了 services.ts 里那段注释，把「故意不调用」的理由从旧写接口改成这一条，代码行为不变（archiveOldDepartments() 仍然没有被调用）。
+- 结果：pnpm --filter server build 通过；没有改任何运行时行为，只改注释，不需要重跑测试（后面统一和下一条活动记录一起跑全量验证）。
+- 下一步：archiveOldDepartments() 留到 #275 切完数据源、确认 /api/public/org 没有活的前端读者之后再做，不在本任务（#274）范围内完成；已经单独私信 team-lead 说明这处更正。
