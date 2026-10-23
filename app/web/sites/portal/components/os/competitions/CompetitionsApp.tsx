@@ -10,6 +10,7 @@ import { applyFilter, KIND_TEXT, NO_FILTER, type CompetitionFilter } from "../..
 import { hubPaths, readMine, useMemberRead, type AccountState, type HubPhase } from "../../../lib/competitionHub";
 import CompetitionList from "./CompetitionList";
 import CompetitionDetail from "./CompetitionDetail";
+import ContestSite from "./ContestSite";
 
 /** 手机详情页借用窗口标题栏左边的返回键：「比赛列表」代替「主屏幕」。 */
 export type PhoneNav = { backText: string; backLabel: string; onBack: () => void };
@@ -240,6 +241,7 @@ export default function CompetitionsApp({ phone = false, onPhoneNav, account = n
         setView("list");
       }}
     >
+      {!inDetail && !mineScope && <ContestSite />}
       {!inDetail && (
         <div className="pt-cx-bar">
           {hubOn && (

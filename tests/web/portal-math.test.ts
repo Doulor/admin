@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { containDistance, coverDistance, distanceForPixelHeight, fitInBand, letterFolds, pixelToCameraPlane, viewOffset } from "../../app/web/sites/portal/lib/cameraMath";
 import { clamp01, damp, ease, lerp, span } from "../../app/web/sites/portal/lib/motion";
-import { DAYS, LEVEL_COLORS, WEEKS, decorativeLevels } from "../../app/web/sites/portal/lib/skyline";
 
 const tanHalf = (fov: number) => Math.tan((fov * Math.PI) / 360);
 
@@ -105,17 +104,5 @@ describe("缓动与插值", () => {
     const a = damp(0, 1, 5, 1 / 60);
     const b = damp(damp(0, 1, 5, 1 / 120), 1, 5, 1 / 120);
     expect(a).toBeCloseTo(b, 6); // 帧率无关
-  });
-});
-
-describe("GitHub 天际线（示意数据）", () => {
-  it("固定种子：每次生成一致，覆盖 53 周 × 7 天，色阶在 0..4", () => {
-    const one = decorativeLevels();
-    const two = decorativeLevels();
-    expect(one.heights).toEqual(two.heights);
-    expect(one.levels.length).toBe(WEEKS * DAYS);
-    expect(Math.max(...one.levels)).toBeLessThan(LEVEL_COLORS.length);
-    expect(new Set(one.levels).size).toBeGreaterThan(2);
-    expect([...one.heights].every((h) => h > 0 && h < 1)).toBe(true);
   });
 });

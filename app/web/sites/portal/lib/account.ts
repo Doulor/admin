@@ -78,7 +78,8 @@ function readDepartment(value: unknown): Account["department"] {
   return { id, name, tone: TONES.includes(dept?.tone as DepartmentTone) ? (dept?.tone as DepartmentTone) : "ink" };
 }
 
-function readQuota(value: unknown): ApplyQuota | null {
+/** /auth/me 和投递成功回执里的 quota：两个数都在才算读到 */
+export function readQuota(value: unknown): ApplyQuota | null {
   const quota = value as { apply_left_today?: unknown; apply_daily_limit?: unknown } | null;
   const left = count(quota?.apply_left_today);
   const limit = count(quota?.apply_daily_limit);

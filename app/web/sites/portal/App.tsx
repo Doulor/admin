@@ -5,19 +5,16 @@ import Home from "./pages/Home";
 // 3D 场景页与普通页面按路由分包：首页之外的页面只在访问时下载。three.js 本身在各场景的 import() 里再次延迟。
 const JoinUs = lazy(() => import("./pages/JoinUs"));
 const Forum3D = lazy(() => import("./pages/Forum3D"));
-const GithubScene = lazy(() => import("./pages/GithubScene"));
 const Docs = lazy(() => import("./pages/Docs"));
 const Feedback = lazy(() => import("./pages/Feedback"));
 const JoinByToken = lazy(() => import("./pages/JoinByToken"));
 
 /**
- * 官网路由。全部匿名可访问，无登录态概念。
- *   /            加载动画 + 3D 书桌 + YUGC OS 桌面
- *   /join-us     加入我们（信封场景，真实提交 POST /api/portal/apply）；旧地址 /apply 重定向到这里
- *   /forum-3d    论坛版块气泡场景（主入口「进入论坛首页」）
- *   /github      GitHub 组织贡献天际线（高度为示意）
- *                这两页不再是桌面入口的中间页（#185）：桌面上的「论坛」直达论坛首页，「GitHub 组织」新标签页打开组织主页；
- *                页面保留给已收藏、已分享的旧地址，/forum-3d 另有论坛最新窗口里的「3D 版块」按钮进来
+ * 官网路由。全部匿名可访问；登录状态只用来显示资料卡、投递限额和比赛里的「我」。
+ *   /            开机动画（每天第一次进来播）+ YUGC OS 桌面
+ *   /join-us     加入我们（信封场景，真实提交 POST /api/portal/apply，要先注册登录）；旧地址 /apply 重定向到这里
+ *   /forum-3d    论坛版块气泡场景（主入口「进入论坛首页」）。不是桌面入口的中间页（#185）：桌面上的「论坛」直达论坛首页，
+ *                这页留给已收藏、已分享的旧地址和论坛最新窗口里的「3D 版块」按钮；原来的 /github 场景页已删（#275），旧地址回首页
  *   /docs /docs/:id /feedback /join/:token；/feedback/:org 是控制台意见箱页生成的分享地址（也接住旧链接），
  *                URL 里的组织名不生效，页面只发服务端下发的本部署组织（#129）
  */
@@ -29,7 +26,6 @@ export default function App() {
         <Route path="/join-us" element={<JoinUs />} />
         <Route path="/apply" element={<Navigate to="/join-us" replace />} />
         <Route path="/forum-3d" element={<Forum3D />} />
-        <Route path="/github" element={<GithubScene />} />
         <Route path="/docs" element={<Docs />} />
         <Route path="/docs/:id" element={<Docs />} />
         <Route path="/feedback" element={<Feedback />} />

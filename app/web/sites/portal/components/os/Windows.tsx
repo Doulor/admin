@@ -1,17 +1,18 @@
-// YUGC OS 的窗口：可拖动、最小化、放大、关闭、聚焦；内容有「关于」「组织架构」「论坛最新」「终端」「比赛」五种。
+// YUGC OS 的窗口：可拖动、最小化、放大、关闭、聚焦；内容有「关于」「组织架构」「论坛最新」「终端」「比赛」「代码仓库」六种。
 // 比赛窗口的内容在 competitions/（#265）：它在手机详情页会借标题栏左边的返回键回列表（PhoneNav）。
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { appConfig } from "@shared/config";
 import type { Account } from "../../lib/account";
 import { links } from "../../lib/links";
-import { agoLabel, runTerminal, type AppId, type OsApp, type TerminalLine } from "../../lib/osApps";
-import { orgChartModel, orgSummary, useOrg, type OrgBadge } from "../../lib/org";
-import { useForumSnapshot, useRepoSnapshot } from "../../lib/snapshots";
+import { useCodeRepos } from "../../lib/codeRepos";
+import { useDepartments } from "../../lib/departments";
+import { NEW_TAB_NOTE, agoLabel, runTerminal, type AppId, type OsApp, type TerminalLine } from "../../lib/osApps";
+import { useForumSnapshot } from "../../lib/snapshots";
 import CompetitionsApp, { type PhoneNav } from "./competitions/CompetitionsApp";
 import Icon from "../Icon";
 
-export type WindowId = "about" | "org" | "terminal" | "forum-feed" | "competitions";
+export type WindowId = "about" | "org" | "terminal" | "forum-feed" | "competitions" | "gitlab";
 export type WindowState = { id: WindowId; z: number; x: number; y: number; minimized: boolean; zoomed: boolean };
 
 type OpenApp = (id: AppId | "forum-feed", from?: HTMLElement | null) => void;
@@ -22,6 +23,7 @@ const META: Record<WindowId, { title: string; width: number }> = {
   terminal: { title: "nano@yugc — zsh", width: 640 },
   "forum-feed": { title: "论坛 · 最新", width: 780 },
   competitions: { title: "比赛", width: 1100 },
+  gitlab: { title: "代码仓库", width: 720 },
 };
 
 export function windowWidth(id: WindowId): number {
@@ -219,6 +221,7 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
           {win.id === "forum-feed" && <ForumFeed />}
           {win.id === "competitions" && <CompetitionsApp phone={phone} onPhoneNav={setPhoneNav} account={account} accountLoaded={accountLoaded} />}
           {win.id === "terminal" && <Terminal onOpen={onOpen} apps={apps} />}
+          {win.id === "gitlab" && <CodeRepos />}
         </div>
       </section>
     </>
@@ -227,13 +230,13 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
 
 function About({ onOpen }: { onOpen: OpenApp }) {
   const { brand } = appConfig.portal;
-  const summary = orgSummary(useOrg());
+  const departments = useDepartments().filter((department) => department.titles.length > 0);
   return (
     <div className="pt-about">
       <img src={brand.logo} alt="长江大学计算机科学学院极客班徽标" width={112} height={112} />
       <div>
         <h3>{brand.title}</h3>
-        <p>极客班在长江大学计算机科学学院。{summary.members}大家在论坛讨论课程、竞赛和求职，代码放在 GitHub 组织里。</p>
+        <p>极客班在长江大学计算机科学学院。大家在论坛讨论课程、竞赛和求职，代码放在极客班自己的代码仓库里。</p>
         <dl>
           <div>
             <dt>
@@ -247,14 +250,14 @@ function About({ onOpen }: { onOpen: OpenApp }) {
               <Icon name="team-line" size={15} />
               怎么分工
             </dt>
-            <dd>{summary.roles}</dd>
+            <dd>{departments.length ? `分成${departments.map((department) => department.name).join("、")}，每个部门有部长、副部长和部员` : "按部门分工"}</dd>
           </div>
           <div>
             <dt>
               <Icon name="mail-line" size={15} />
               怎么加入
             </dt>
-            <dd>在「加入我们」写封信，我们用邮件联系你</dd>
+            <dd>注册极客班账号，在「加入我们」写封信，我们用邮件联系你</dd>
           </div>
         </dl>
         <div className="pt-row-btns">
@@ -274,63 +277,74 @@ function About({ onOpen }: { onOpen: OpenApp }) {
 }
 
 /**
- * 组织架构。称号与部门都是数据（在控制台改名字、图标、色调和说明），这里只按称号 id 摆位置：
- * admin → captain 的直属链、每个部门一张卡片（卡片上是 head 称号）、member 一行、alumni 与 guest 在底部。
- * 数据没到之前显示默认值，见 lib/org.ts。
+ * 组织架构：AI、算法、硬件、网安、管理五个部门和「无部门」，每个部门一张卡片，底色是它的部门色（SPEC §1），
+ * 卡片上按权重列出称号。名字、图标、部门色、说明和称号都在控制台改，数据没到之前显示默认值（lib/departments.ts）。
  */
 export function OrgChart() {
-  const chart = orgChartModel(useOrg());
+  const departments = useDepartments();
   return (
     <div className="pt-orgc">
-      <ol className="pt-orgc-chain">
-        {chart.chain.map((item) => (
-          <li key={item.id}>
-            <OrgChip badge={item} className="is-lead" size={14} />
-            <small>{item.description}</small>
+      <ul className="pt-orgc-depts" aria-label="部门">
+        {departments.map((department) => (
+          <li key={department.id} data-tone={department.tone}>
+            <span className="pt-orgc-icon" aria-hidden="true">
+              <Icon name={department.icon} size={24} />
+            </span>
+            <h3>{department.name}</h3>
+            {department.description && <p>{department.description}</p>}
+            {department.titles.length > 0 && (
+              <ul className="pt-orgc-titles" aria-label={`${department.name}的称号`}>
+                {department.titles.map((title) => (
+                  <li key={title.id}>{title.name}</li>
+                ))}
+              </ul>
+            )}
           </li>
         ))}
-      </ol>
-      {chart.departments.length > 0 && (
-        <>
-          <div className="pt-orgc-line" aria-hidden="true" />
-          <div className="pt-orgc-depts">
-            {chart.departments.map((dept) => (
-              <article key={dept.id} style={{ ["--tint" as string]: dept.color }}>
-                <header>
-                  <Icon name={dept.icon} size={18} />
-                  <b>{dept.name}</b>
-                </header>
-                <OrgChip badge={dept.head} size={12} />
-                <p>{dept.description}</p>
-              </article>
-            ))}
-          </div>
-        </>
-      )}
-      <div className="pt-orgc-crew">
-        <OrgChip badge={chart.crew} className="is-soft" size={13} />
-        <small>{chart.crew.description}</small>
-      </div>
-      <div className="pt-orgc-foot">
-        {chart.foot.map((item) => (
-          <p key={item.id}>
-            <OrgChip badge={item} className={item.id === "guest" ? "is-soft" : undefined} size={13} />
-            <small>{item.description}</small>
-          </p>
-        ))}
-      </div>
+      </ul>
       <p className="pt-orgc-note">
-        <Icon name="lock-line" size={13} /> 只有 GitHub 组织里的人能登录。称号显示在论坛和控制台；称号、部门和各自的权限都在控制台里设置，这张图跟着更新。
+        <Icon name="lock-line" size={13} /> 注册后是注册用户，填邀请码成为极客班成员；部门和称号由管理员在控制台里分，资料卡上能看到自己的。
       </p>
     </div>
   );
 }
 
-function OrgChip({ badge, className, size }: { badge: OrgBadge; className?: string; size: number }) {
+/** 代码仓库：自建 GitLab 上的公开项目（#274 的 GET /api/public/gitlab/projects），点项目在新标签页打开；GitLab 连不上时照实说 */
+export function CodeRepos() {
+  const repos = useCodeRepos();
+  const now = Date.now();
+  const gitlab = links.gitlab();
   return (
-    <span className={className ? `pt-chip ${className}` : "pt-chip"} style={{ ["--c" as string]: badge.color }}>
-      <Icon name={badge.icon} size={size} /> {badge.label}
-    </span>
+    <div className="pt-repos">
+      {repos.status === "loading" && <p className="pt-empty">正在读取公开项目…</p>}
+      {repos.status === "error" && <p className="pt-empty">公开项目没加载出来，可以直接去代码仓库看。</p>}
+      {repos.status === "unavailable" && <p className="pt-empty">代码仓库暂时连不上，稍后再试，或者直接去代码仓库看。</p>}
+      {repos.status === "ready" && repos.projects.length === 0 && <p className="pt-empty">还没有公开的项目。成员登录代码仓库后能看到全部项目。</p>}
+      {repos.status === "ready" && repos.projects.length > 0 && (
+        <ul className="pt-repos-list" aria-label="公开项目">
+          {repos.projects.map((project) => (
+            <li key={project.path}>
+              <a href={project.url} target="_blank" rel="noopener noreferrer">
+                <Icon name="git-repository-line" size={18} />
+                <span>
+                  <b>{project.name}</b>
+                  <small>{project.description || project.path}</small>
+                </span>
+                {project.activeAt !== null && <time dateTime={new Date(project.activeAt).toISOString()}>{agoLabel(project.activeAt, now)}</time>}
+                <span className="pt-sr">{NEW_TAB_NOTE}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      <footer>
+        <span>极客班自己的 GitLab，成员用极客班账号登录</span>
+        <a className="pt-btn is-primary" href={gitlab} target="_blank" rel="noopener noreferrer">
+          <Icon name="gitlab-line" size={16} /> 打开代码仓库
+          <span className="pt-sr">{NEW_TAB_NOTE}</span>
+        </a>
+      </footer>
+    </div>
   );
 }
 
@@ -394,7 +408,7 @@ function ForumFeed() {
 }
 
 function Terminal({ onOpen, apps }: { onOpen: OpenApp; apps: readonly OsApp[] }) {
-  const repos = useRepoSnapshot();
+  const repos = useCodeRepos();
   const [lines, setLines] = useState<TerminalLine[]>([{ kind: "dim", text: "输入 help 查看命令" }]);
   const [value, setValue] = useState("");
   const history = useRef<string[]>([]);
@@ -405,7 +419,7 @@ function Terminal({ onOpen, apps }: { onOpen: OpenApp; apps: readonly OsApp[] })
     out.current?.scrollTo({ top: out.current.scrollHeight });
   }, [lines]);
   const run = (command: string) => {
-    const result = runTerminal(command, repos.status === "ready" ? repos.data.repos : [], apps);
+    const result = runTerminal(command, repos.status === "ready" ? repos.projects : [], apps);
     setLines((current) => (result.clear ? [] : [...current, ...result.lines]));
     if (result.open) {
       const id = result.open;

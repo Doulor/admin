@@ -119,7 +119,8 @@ describe("/auth/me 的新字段（CONTRACT-274 §1）", () => {
   it("开发预览的身份：地址带 ?__mock= 时用样板身份，形状和真接口一样；不认识的值不算", async () => {
     expect(mockPersona("?__mock=member")).toBe("member");
     expect(mockPersona("?__mock=admin")).toBeNull();
-    expect(parseMe(mockMe("member"))).toMatchObject({ login: "nano", level: "member", department: { tone: "y" }, quota: { left: 3, limit: 3 } });
+    // 成员投递不限（SPEC §3.8）：两个数都是 -1
+    expect(parseMe(mockMe("member"))).toMatchObject({ login: "nano", level: "member", department: { tone: "y" }, quota: { left: -1, limit: -1 } });
     expect(parseMe(mockMe("registered"))).toMatchObject({ level: "registered", department: null, quota: { left: 2, limit: 3 } });
     expect(parseMe(mockMe("visitor"))).toBeNull();
     expect(await devPersonaMe()).toBeNull();

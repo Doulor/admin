@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import type { ForumSnapshot, RepoList } from "../../app/web/sites/portal/lib/snapshots";
+import type { ForumSnapshot } from "../../app/web/sites/portal/lib/snapshots";
 
 const read = <T>(name: string): T => JSON.parse(readFileSync(new URL(`../../app/web/public/portal/${name}`, import.meta.url), "utf8")) as T;
 const curation = JSON.parse(readFileSync(new URL("../../app/forum/content/curation.json", import.meta.url), "utf8")) as {
@@ -30,16 +30,6 @@ describe("官网静态快照", () => {
       // 论坛话题路由是 /t/<id>（id 形如 t84），slug（topic-84）打不开
       expect(topic.id).toMatch(/^t\d+$/);
       expect(curation.topics[topic.id]?.title, topic.id).toBe(topic.title);
-    }
-  });
-
-  it("公开仓库快照只包含公开信息，链接都在本组织下", () => {
-    const list = read<RepoList>("repos.json");
-    expect(list.capturedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(list.repos.length).toBeGreaterThan(0);
-    for (const repo of list.repos) {
-      expect(repo.url.startsWith(`https://github.com/${list.org}/`)).toBe(true);
-      expect(repo.pushed).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }
   });
 });

@@ -98,13 +98,15 @@ it.each([null, false, true])("手机控制台沿用 console_link=%s，图标、�
   expect(screen.queryByText("console", { selector: ".pt-term-key" }) !== null).toBe(consoleLink === true);
 });
 
-it("手机单击直达，双击事件不重复打开；论坛当前页，GitHub 新标签", () => {
+it("手机单击直达，双击事件不重复打开；论坛当前页，代码仓库在应用里打开", () => {
   const { container } = mount();
   fireEvent.click(icons().getByRole("button", { name: "论坛" }));
-  fireEvent.click(icons().getByRole("button", { name: /GitHub 组织/ }));
-  fireEvent.doubleClick(icons().getByRole("button", { name: /GitHub 组织/ }));
-  expect(followed.calls.map((link) => link.newTab)).toEqual([false, true]);
-  expect(followed.calls[0].href).toBe("http://127.0.0.1:3456/");
+  expect(followed.calls).toEqual([{ href: "http://127.0.0.1:3456/", newTab: false }]);
+  fireEvent.click(icons().getByRole("button", { name: "代码仓库" }));
+  fireEvent.doubleClick(icons().getByRole("button", { name: "代码仓库" }));
+  expect(screen.getAllByRole("dialog", { name: "代码仓库" })).toHaveLength(1);
+  expect(followed.calls).toHaveLength(1);
+  expect(icons().queryByRole("button", { name: /GitHub/ })).toBeNull();
   expect(container.querySelector(".pt-flight")).toBeNull();
 });
 

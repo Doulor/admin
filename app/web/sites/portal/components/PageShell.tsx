@@ -44,8 +44,8 @@ export default function PageShell({ path, children }: { path: string; children: 
           <a href={links.forumHome()}>论坛</a>
           <Link to="/docs">文档</Link>
           {consoleLink && <a href={links.console()}>控制台</a>}
-          <a href={links.githubOrg()} target="_blank" rel="noreferrer">
-            GitHub 组织
+          <a href={links.gitlab()} target="_blank" rel="noreferrer">
+            代码仓库
           </a>
         </nav>
       </footer>

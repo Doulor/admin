@@ -1,8 +1,8 @@
 // YUGC OS：开机后的「极客班内部系统」，按桌面操作系统来排：菜单栏（YUGC 标志即系统菜单 / 前台应用 / 搜索 / 时钟 / 头像）、
 // 壁纸（默认「晴空」，接着开机动画的最后一帧画）、左上角一列应用图标、「新来的看这里」便签、可拖动窗口、带名字的 Dock、⌘K 启动器。
 // 头像点开是个人资料卡（ProfileCard.tsx）：访客在那里登录、注册，登录后改资料、绑定登录方式、填邀请码、退出。
-// 加入我们、论坛、代码仓库（自建 GitLab，#270）、GitHub 组织都是桌面上的应用；便签按顺序告诉新来的人怎么加入。「宣传片」在桌面上重看（#77），不影响「只自动播一次」。
-// 论坛、代码仓库和 GitHub 组织点一下直达（#185）：论坛在当前标签页进论坛首页，代码仓库与 GitHub 组织在新标签页打开，不经过 /forum-3d、/github 场景页。
+// 加入我们、论坛、代码仓库（自建 GitLab，#270）都是桌面上的应用；便签按顺序告诉新来的人怎么加入。「宣传片」在桌面上重看（#77），不影响「只自动播一次」。
+// 论坛点一下直达论坛首页（#185），不经过 /forum-3d 场景页；代码仓库是桌面里的窗口，列出公开项目（#275）。
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Modal from "@shared/ui/Modal";
@@ -10,7 +10,7 @@ import { PHONE_QUERY, PORTRAIT_QUERY, useMediaQuery } from "../../lib/useMediaQu
 import { signInHref, useAccount } from "../../lib/account";
 import { reportEvent } from "../../lib/events";
 import { noteSeenHere, rememberNoteHere, rememberNoteOnAccount } from "../../lib/startNote";
-import { NEW_TAB_NOTE, appById, appByKey, appLink, appTone, filterCommands, followAppLink, launcherCommands, moveSelection, opensNewTab, visibleApps, type AppId, type OsApp } from "../../lib/osApps";
+import { appById, appByKey, appLink, appTone, filterCommands, followAppLink, launcherCommands, moveSelection, visibleApps, type AppId, type OsApp } from "../../lib/osApps";
 import { browserEstimate, choosePlayback, detectCapabilities, hasSeenPromo, preconnectPromo, prefetchPromoStart } from "../../lib/promo";
 import Icon from "../Icon";
 import OsWindow, { windowWidth, type WindowId, type WindowState } from "./Windows";
@@ -149,7 +149,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, [phoneWallpaper, apps.length, loaded, atHome]);
-  const frontName = front ? { about: "关于极客班", org: "组织架构", competitions: "比赛", terminal: "终端", "forum-feed": "论坛" }[front.id] : "桌面";
+  const frontName = front ? { about: "关于极客班", org: "组织架构", competitions: "比赛", terminal: "终端", "forum-feed": "论坛", gitlab: "代码仓库" }[front.id] : "桌面";
   useEffect(() => {
     if (!homeFocusNeeded.current || front) return;
     homeFocusNeeded.current = false;
@@ -197,10 +197,8 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
           return openWindow(app.id as WindowId);
         case "route":
           return navigate(app.open.path);
-        case "site":
-        case "external": {
-          // 点下去当场打开，不播图标飞行：新标签页放进计时器里可能被当成弹窗拦掉。当前标签页整页跳走时
-          // （论坛、控制台）不用再记「回来直接进桌面」——桌面现在是默认状态，刷新或后退回首页照样直接进桌面
+        case "site": {
+          // 点下去当场整页跳走，不播图标飞行。不用再记「回来直接进桌面」——桌面现在是默认状态，刷新或后退回首页照样直接进桌面
           // （pages/Home.tsx 按 yugc:boot-day 判断，不读路由 state）。
           const link = appLink(app);
           if (!link) return;
@@ -271,7 +269,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
       }
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       // 按住不放时浏览器自动重复的按键不算再按一次：1/2/3 只打开一次；焦点在 Dock、便签、菜单的按钮上按住回车，
-      // 拦掉默认动作，浏览器就不会每次重复都补一次点击。GitHub 组织每打开一次就多一个新标签页
+      // 拦掉默认动作，浏览器就不会每次重复都补一次点击（不然同一个窗口要开好几次，论坛也会被跳转好几次）
       if (event.repeat) {
         if (event.key === "Enter") event.preventDefault();
         return;
@@ -321,9 +319,9 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
     window.setTimeout(() => root.current?.querySelector<HTMLElement>('[data-cta="promo"]')?.focus({ preventScroll: true }), 0);
   };
 
-  const MENUS: Record<MenuName, Array<{ label: string; run: () => void; key?: string; note?: string } | null>> = {
+  const MENUS: Record<MenuName, Array<{ label: string; run: () => void; key?: string } | null>> = {
     system: [{ label: "关于极客班", run: () => open("about") }, { label: "组织架构", run: () => open("org") }, ...(onReplayBoot ? [null, { label: "重播开机动画", run: onReplayBoot }] : [])],
-    go: apps.map((app) => ({ label: app.name, run: () => open(app.id), key: app.key, note: opensNewTab(app) ? NEW_TAB_NOTE : undefined })),
+    go: apps.map((app) => ({ label: app.name, run: () => open(app.id), key: app.key })),
     window: [
       { label: "更换壁纸…", run: () => setPicker(true) },
       { label: "全部最小化", run: () => setWins((current) => current.map((w) => ({ ...w, minimized: true }))) },
@@ -399,7 +397,6 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
                   }}
                 >
                   {item.label}
-                  {item.note && <span className="pt-sr">{item.note}</span>}
                   {item.key && <kbd>{item.key}</kbd>}
                 </button>
               ) : (
@@ -478,7 +475,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
               key={app.id}
               type="button"
               className={["pt-dk", app.key ? "" : "is-extra", wins.some((w) => w.id === app.id) ? "is-running" : ""].filter(Boolean).join(" ")}
-              aria-label={opensNewTab(app) ? app.name + NEW_TAB_NOTE : app.name}
+              aria-label={app.name}
               onClick={(e) => open(app.id, e.currentTarget)}
             >
               <AppGlyph app={app} size={20} />
@@ -568,26 +565,20 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
                 />
               </label>
               <ul id="pt-ln-list" role="listbox" aria-label="结果">
-                {shown.map((command, index) => {
-                  const app = command.id.startsWith("app:") ? appById(command.id.slice(4) as AppId) : undefined;
-                  return (
-                    <li
-                      key={command.id}
-                      id={`pt-ln-${command.id}`}
-                      role="option"
-                      aria-selected={index === selected}
-                      onPointerEnter={() => setSelected(index)}
-                      onClick={() => runCommand(command.id)}
-                    >
-                      <Icon name={command.icon} size={17} />
-                      <b>
-                        {command.label}
-                        {app && opensNewTab(app) && <span className="pt-sr">{NEW_TAB_NOTE}</span>}
-                      </b>
-                      <span>{command.hint}</span>
-                    </li>
-                  );
-                })}
+                {shown.map((command, index) => (
+                  <li
+                    key={command.id}
+                    id={`pt-ln-${command.id}`}
+                    role="option"
+                    aria-selected={index === selected}
+                    onPointerEnter={() => setSelected(index)}
+                    onClick={() => runCommand(command.id)}
+                  >
+                    <Icon name={command.icon} size={17} />
+                    <b>{command.label}</b>
+                    <span>{command.hint}</span>
+                  </li>
+                ))}
                 {shown.length === 0 && <li className="pt-empty">没找到「{query.trim()}」。试试「论坛」或「加入」</li>}
               </ul>
               <footer>

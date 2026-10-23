@@ -1,6 +1,6 @@
 // YUGC OS 桌面上的东西：左上角一列应用图标（加入我们、论坛、代码仓库在最前面），
 // 图标右边、壁纸天空里一张「新来的看这里」便签，按顺序说清怎么加入。壁纸是极客娘，桌面上不再铺组件卡片。
-import { NEW_TAB_NOTE, appById, appTone, opensNewTab, type AppId, type OsApp } from "../../lib/osApps";
+import { appTone, type AppId, type OsApp } from "../../lib/osApps";
 import Icon from "../Icon";
 
 type OpenApp = (id: AppId | "forum-feed", from?: HTMLElement | null) => void;
@@ -25,14 +25,13 @@ export function DesktopIcons({ apps, selected, onSelect, onOpen, phone = false }
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                // 按住不放时浏览器自动重复的按键不算再按一次（GitHub 组织每打开一次就多一个新标签页）
+                // 按住不放时浏览器自动重复的按键不算再按一次（不然同一个应用要打开好几次）
                 if (!event.repeat) onOpen(app.id, event.currentTarget);
               }
             }}
           >
             <AppGlyph app={app} size={28} />
             <span className="pt-dti-name">{app.name}</span>
-            {opensNewTab(app) && <span className="pt-sr">{NEW_TAB_NOTE}</span>}
           </button>
         </li>
       ))}
@@ -81,22 +80,18 @@ export function StartNote({ onOpen, onClose, phone = false }: { onOpen: OpenApp;
       <div className="pt-note-body">
         <p className="pt-note-lead">这是长江大学极客班的{phone ? "主屏幕" : "桌面"}。想加入就写封信；也可以先看看论坛和我们的代码。</p>
         <ol>
-          {steps.map((step, index) => {
-            const app = appById(step.id);
-            return (
-              <li key={step.id}>
-                <button type="button" onClick={(event) => onOpen(step.id, event.currentTarget)}>
-                  <b>{index + 1}</b>
-                  <span>
-                    <strong>{step.title}</strong>
-                    <small>{step.text}</small>
-                    {app && opensNewTab(app) && <span className="pt-sr">{NEW_TAB_NOTE}</span>}
-                  </span>
-                  <Icon name="arrow-right-s-line" size={16} />
-                </button>
-              </li>
-            );
-          })}
+          {steps.map((step, index) => (
+            <li key={step.id}>
+              <button type="button" onClick={(event) => onOpen(step.id, event.currentTarget)}>
+                <b>{index + 1}</b>
+                <span>
+                  <strong>{step.title}</strong>
+                  <small>{step.text}</small>
+                </span>
+                <Icon name="arrow-right-s-line" size={16} />
+              </button>
+            </li>
+          ))}
         </ol>
         <p className="pt-note-foot">{phone ? "点一下主屏幕上的图标就能打开应用。" : "双击桌面上的图标也能打开应用，按 ⌘K 可以搜索。"}</p>
       </div>

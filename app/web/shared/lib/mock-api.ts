@@ -66,7 +66,7 @@ export function mockMe(persona: MockPersona) {
     department: member ? { id: "dept.ai", name: "AI部门", tone: "y" } : null,
     titles: member ? [{ id: "title.ai.staff", name: "部员", department_id: "dept.ai" }] : [],
     permissions: member ? MEMBER_PERMISSIONS : REGISTERED_PERMISSIONS,
-    quota: { apply_left_today: member ? 3 : 2, apply_daily_limit: 3 },
+    quota: member ? { apply_left_today: -1, apply_daily_limit: -1 } : { apply_left_today: 2, apply_daily_limit: 3 },
     prefs: { start_note_seen_at: null, forum_theme: null },
     identities: { emails: [member ? "n***@qq.com" : "x***@163.com"], google: member, github: member ? "nano-dev" : null },
     console_link: false,
@@ -105,11 +105,11 @@ const demoDepartments = [
   titles: [{ id: `title.${id}.head`, name: "部长", weight: id === "management" ? 80 : 60 }, { id: `title.${id}.deputy`, name: "副部长", weight: 50 }, { id: `title.${id}.staff`, name: "部员", weight: 40 }],
 })).concat([{ id: "dept.none", name: "无部门", tone: "ink", icon: "user-line", description: "没有分配部门的账号（默认）", titles: [] }]);
 
-/** GET /api/public/gitlab/projects（契约 §6）：只有公开项目 */
+/** GET /api/public/gitlab/projects（契约 §6）：只有公开项目；last_activity_at 照 GitLab 给 ISO 时间字符串 */
 const demoProjects = [
-  { name: "geek_main", path_with_namespace: "geek/geek_main", description: "官网、论坛、控制台和后端", web_url: "https://git.yangtzeu.work/geek/geek_main", http_url_to_repo: "https://git.yangtzeu.work/geek/geek_main.git", last_activity_at: now - 2 * HOUR },
-  { name: "geek_bot", path_with_namespace: "geek/geek_bot", description: "合并请求审查机器人", web_url: "https://git.yangtzeu.work/geek/geek_bot", http_url_to_repo: "https://git.yangtzeu.work/geek/geek_bot.git", last_activity_at: now - 3 * DAY },
-  { name: "oj-problems", path_with_namespace: "geek/oj-problems", description: "校内算法赛题目和数据", web_url: "https://git.yangtzeu.work/geek/oj-problems", http_url_to_repo: "https://git.yangtzeu.work/geek/oj-problems.git", last_activity_at: now - 12 * DAY },
+  { name: "geek_main", path_with_namespace: "geek/geek_main", description: "官网、论坛、控制台和后端", web_url: "https://git.yangtzeu.work/geek/geek_main", http_url_to_repo: "https://git.yangtzeu.work/geek/geek_main.git", last_activity_at: new Date(now - 2 * HOUR).toISOString() },
+  { name: "geek_bot", path_with_namespace: "geek/geek_bot", description: "合并请求审查机器人", web_url: "https://git.yangtzeu.work/geek/geek_bot", http_url_to_repo: "https://git.yangtzeu.work/geek/geek_bot.git", last_activity_at: new Date(now - 3 * DAY).toISOString() },
+  { name: "oj-problems", path_with_namespace: "geek/oj-problems", description: "校内算法赛题目和数据", web_url: "https://git.yangtzeu.work/geek/oj-problems", http_url_to_repo: "https://git.yangtzeu.work/geek/oj-problems.git", last_activity_at: new Date(now - 12 * DAY).toISOString() },
 ];
 
 function route(path: string): unknown {
