@@ -36,3 +36,17 @@
 - 做了什么：提交 944bd2f4（21 个文件）：lib/gitlab-sync.ts、lib/oidc-store.ts、routes/oidc/index.ts、middleware/http-policy.ts、services.ts，测试两份，文档 oidc.md、SECURITY（中英）、API、endpoint-contracts、data-model、项目目录生成物与 docs/changes/270.json。文档核对：endpoint-contracts 原来写 GET 与 POST /oidc/* 各自计数，其实两者共用一个路由的计数，这次一并改成服务器调用与浏览器跳转两类。
 - 结果：见上一条审查记录的验证结果
 - 下一步：第二轮审查
+
+## 13:08:40 +08:00 · 审查 · #270 · 第二轮独立审查：有条件通过，三条应修在 e414b92c 修完
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：独立审查 agent 只读审 git diff 5cd82f7a 944bd2f4：第一轮 11 条里 9 条已解决，第 1、2 条部分解决。新应修三条：944bd2f4 把「找过、GitLab 上没有这个人」记成 blocked 后不再找，这个人回来登录一次（GitLab 自动建号）、下一轮前又离开就漏封（探针 P2、P3 的 GitLab 状态是 active）；按账号排队后仍用这一轮开头的名单，一轮中途管理员封禁的人会被按旧名单解封（P6 afterRound=active）；ENVIRONMENTS.md 与 docs/changes/270.json 的开启顺序仍是先开 GitLab 统一登录再开同步。建议三条：client id 不是 gitlab 时同步静默不做事、noreply 邮箱用了 GITLAB_URL 的主机、server_error 日志缺错误代码。e414b92c 全部处理：每轮按身份找（find_and_block），没找到不写表不记审计；syncNow 重读账号；客户端没登记时整轮跳过并记错误日志、控制台多 client_registered；noreply 用 sector；日志带 code；两处开启顺序改成先开同步并写明 client id 是 gitlab。
+- 结果：审查者的探针在 e414b92c 上复跑：P2、P3、P6 原来断言缺陷，现在都断言失败，输出的 GitLab 状态都是 blocked（P6 afterRound=blocked）；P1、P4、P5、P7 照常。新增回归测试 2 条（离开的人两轮之间回来登录又离开、按当下的账号判断）。pnpm test 96 个文件 1588 条通过，gitlab-sync 与 oidc 两个文件连跑 5 次每次 38 条通过；typecheck、build、forum:check（548 条）、forum:generate 通过；check:* 通过，check-architecture 与 check-doc-sync 按 --base 2101fe40 通过。
+- 下一步：开 MR，交 geek-main-56 复核与合并
+
+## 13:08:41 +08:00 · 提交 · #270 · e414b92c 按第二轮审查补齐封禁与按当下账号判断
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：提交 e414b92c（18 个文件）：lib/gitlab-sync.ts、routes/console/gitlab.ts 与 contracts.ts、routes/oidc/index.ts，测试一份，文档 oidc.md、API、endpoint-contracts、data-model、ENVIRONMENTS、项目目录生成物与 docs/changes/270.json。
+- 结果：见上一条审查记录
+- 下一步：开 MR
