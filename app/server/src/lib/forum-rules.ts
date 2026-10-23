@@ -57,8 +57,9 @@ export const FORUM_REQUEST_LIMITS = {
 /** 同一 IP 同一话题一小时只算一次浏览。 */
 export const VIEW_WINDOW_MS = 60 * 60_000;
 
-/** 新编号的起点：旧帖编号都小于 1000，新话题从 t1001、新帖子从 p10001 起。 */
-export const COUNTER_START = { topic: 1000, post: 10000, notification: 0, tag: 0, guest: 0 } as const;
+/** 新编号的起点：旧帖编号都小于 1000，新话题从 t1001、新帖子从 p10001 起。
+ *  member：没有 GitHub id 的成员（邮箱、Google 注册，#274 SPEC §3.6）论坛用户 id（a<n>），有 GitHub id 的仍用 m<GitHub id>。 */
+export const COUNTER_START = { topic: 1000, post: 10000, notification: 0, tag: 0, guest: 0, member: 0 } as const;
 export type CounterName = keyof typeof COUNTER_START;
 
 export const AVATAR_PALETTE = ["#e5484d", "#f76b15", "#f5a524", "#30a46c", "#0ea5e9", "#3e63dd", "#8e4ec6", "#d6409f"] as const;

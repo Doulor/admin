@@ -24,21 +24,24 @@ const GUEST: ForumViewer = Object.freeze({ kind: "guest", userId: null, login: n
 
 /**
  * 解析并缓存到 req.forumViewer。成员按会话的极客班账号认人（#262）：第一次来建论坛用户，之后每次请求刷新角色（站内管理员是 admin）、
- * 称号（排序最高的那个）和 GitHub 头像地址。老账号第一次补记站内角色时要查 GitHub，出错直接抛给 http-policy，不把成员降成游客。
+ * 称号（排序最高的那个）和头像地址。老账号第一次补记站内角色时要查 GitHub，出错直接抛给 http-policy，不把成员降成游客。
  * 登录后被移出极客班（控制台里把站内角色改成「不是成员」）的人：会话还在，论坛按游客处理，不建、不刷新论坛用户，
  * 显式称号给的 forum.* 能力也不算，下一次请求就生效。
+ * #274 SPEC §3.6：邮箱、Google 登录的会话没有 GitHub id（`session.user_id` 为空）——这不等于游客，论坛按
+ * `account_id` 认人；`ensureMember` 接受 `githubUserId: null`，没有 GitHub id 的成员编一个新的论坛内部 id。
+ * 这个账号以前用 GitHub 登录过、留下一条 `m<GitHub id>` 的论坛用户行时，`ensureMember` 按账号先找到那一行，
+ * 自动续用，不会另建一个空白新号。
  */
 export async function forumViewer(req: FastifyRequest): Promise<ForumViewer> {
   if (req.forumViewer) return req.forumViewer;
-  // 论坛用户按 GitHub id 建：没有绑定 GitHub 的账号（邮箱、Google 注册，#262）会话里 user_id 为空，在论坛按游客处理。
-  if (!loadSession(req) || req.session!.user_id === null) return (req.forumViewer = GUEST);
+  if (!loadSession(req)) return (req.forumViewer = GUEST);
   const session = req.session!;
   const access = await resolveAccess(req);
   if (!access.member) return (req.forumViewer = GUEST);
   const top = access.titles[0];
   const title: ForumTitle | null = top && top.id !== "guest" ? { id: top.id, ...(top.department ? { department: top.department.id } : {}) } : null;
   const userId = req.server.services.forum.ensureMember({
-    accountId: session.account_id, githubUserId: session.user_id!, login: session.login, avatarUrl: session.avatar_url,
+    accountId: session.account_id, githubUserId: session.user_id, login: session.login, avatarUrl: session.avatar_url,
     role: access.siteRole === "admin" ? "admin" : "member", title,
   });
   const capabilities = orderedCapabilities(access.capabilities).filter(capability => capability.startsWith("forum."));
