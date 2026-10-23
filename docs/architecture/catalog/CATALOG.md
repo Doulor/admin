@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`740ad91877c777f34f72fa76f20a44c991d0eec1c7d867e3d0130f7b52b25c14`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`ca0a84b9e7fd0617dd7ebdc660a91f99737d62a1327669afbda648768fc8baf2`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -95,7 +95,7 @@
 - 响应与错误：200 {providers:[...]}，每项含id、name、kind、start、can_register，邮箱另有password；按GitHub、Google、邮箱的顺序，Google只在配了GOOGLE_CLIENT_ID与GOOGLE_CLIENT_SECRET时出现，邮箱只在发信已配置时出现；响应Schema固定字段。
 - 数据与副作用：按配置算出固定列表，不读写数据库、不请求GitHub。
 
-源码：[app/server/src/routes/identity/providers.ts:30](../../../app/server/src/routes/identity/providers.ts#L30) · [app/server/src/routes/identity/contracts.ts:96](../../../app/server/src/routes/identity/contracts.ts#L96) · [app/server/src/routes/identity/index.ts:11](../../../app/server/src/routes/identity/index.ts#L11) · [app/console/src/pages/SignIn.vue:203](../../../app/console/src/pages/SignIn.vue#L203) · [app/console/src/lib/signin.ts:84](../../../app/console/src/lib/signin.ts#L84) · [app/console/src/mock/index.ts:12](../../../app/console/src/mock/index.ts#L12)
+源码：[app/server/src/routes/identity/providers.ts:30](../../../app/server/src/routes/identity/providers.ts#L30) · [app/server/src/routes/identity/contracts.ts:96](../../../app/server/src/routes/identity/contracts.ts#L96) · [app/server/src/routes/identity/index.ts:11](../../../app/server/src/routes/identity/index.ts#L11) · [app/console/src/pages/SignIn.vue:204](../../../app/console/src/pages/SignIn.vue#L204) · [app/console/src/lib/signin.ts:84](../../../app/console/src/lib/signin.ts#L84) · [app/console/src/mock/index.ts:12](../../../app/console/src/mock/index.ts#L12)
 
 测试入口：[tests/server/identity.test.ts](../../../tests/server/identity.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -282,7 +282,7 @@
 - 响应与错误：200 {return_to} 并写 sid；没账号、没设密码、密码不对一律 400 invalid_credentials，没账号时也算一次 bcrypt，响应时间不随邮箱是否注册变化；账号停用 403 account_disabled，不再是成员 403 not_member。
 - 数据与副作用：不能注册新账号；成功时建会话（provider=email）、写 identity_audit 与 auth.signin（method=password）；密码只存 bcrypt 哈希（cost 12）。
 
-源码：[app/server/src/routes/identity/email.ts:120](../../../app/server/src/routes/identity/email.ts#L120) · [app/server/src/routes/identity/contracts.ts:134](../../../app/server/src/routes/identity/contracts.ts#L134) · [app/server/src/lib/identity-store.ts:381](../../../app/server/src/lib/identity-store.ts#L381) · [app/server/src/lib/password-policy.ts:15](../../../app/server/src/lib/password-policy.ts#L15)
+源码：[app/server/src/routes/identity/email.ts:120](../../../app/server/src/routes/identity/email.ts#L120) · [app/server/src/routes/identity/contracts.ts:134](../../../app/server/src/routes/identity/contracts.ts#L134) · [app/server/src/lib/identity-store.ts:381](../../../app/server/src/lib/identity-store.ts#L381) · [app/server/src/lib/password-policy.ts:18](../../../app/server/src/lib/password-policy.ts#L18)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -381,10 +381,10 @@
 - 写入：`users`、`identity_audit`、`audit_logs`、`sessions`
 - 不入队：
 - 权限与资源：有效会话，账号已绑定邮箱（否则 409 email_required）；已有密码时要填当前密码或 10 分钟内刚登录过，还没有密码时要 10 分钟内刚登录过（否则 403 step_up_required）。
-- 响应与错误：200 {ok:true}；不到 15 位 400 password_too_short，超过 72 字节 400 password_exceeds_bcrypt_limit，当前密码不对 400 invalid_credentials。
+- 响应与错误：200 {ok:true}；不到 8 位 400 password_too_short，超过 72 字节 400 password_exceeds_bcrypt_limit，当前密码不对 400 invalid_credentials。
 - 数据与副作用：users.password_hash 存 bcrypt（cost 12）与 password_updated_at；写 identity_audit（password_set 或 password_change）与 account.password 审计，不记密码。
 
-源码：[app/server/src/routes/identity/account.ts:83](../../../app/server/src/routes/identity/account.ts#L83) · [app/server/src/routes/identity/contracts.ts:146](../../../app/server/src/routes/identity/contracts.ts#L146) · [app/server/src/lib/identity-store.ts:406](../../../app/server/src/lib/identity-store.ts#L406) · [app/console/src/lib/account.ts:43](../../../app/console/src/lib/account.ts#L43)
+源码：[app/server/src/routes/identity/account.ts:83](../../../app/server/src/routes/identity/account.ts#L83) · [app/server/src/routes/identity/contracts.ts:146](../../../app/server/src/routes/identity/contracts.ts#L146) · [app/server/src/lib/identity-store.ts:406](../../../app/server/src/lib/identity-store.ts#L406) · [app/console/src/lib/account.ts:46](../../../app/console/src/lib/account.ts#L46)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
 

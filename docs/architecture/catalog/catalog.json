@@ -664,7 +664,7 @@
           "path": "app/server/src/routes/identity/index.ts"
         },
         {
-          "line": 203,
+          "line": 204,
           "path": "app/console/src/pages/SignIn.vue"
         },
         {
@@ -1336,7 +1336,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 15,
+          "line": 18,
           "path": "app/server/src/lib/password-policy.ts"
         }
       ],
@@ -1670,14 +1670,14 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 43,
+          "line": 46,
           "path": "app/console/src/lib/account.ts"
         }
       ],
       "id": "flow:identity.account.password",
       "invariants": [
         "权限与资源：有效会话，账号已绑定邮箱（否则 409 email_required）；已有密码时要填当前密码或 10 分钟内刚登录过，还没有密码时要 10 分钟内刚登录过（否则 403 step_up_required）。",
-        "响应与错误：200 {ok:true}；不到 15 位 400 password_too_short，超过 72 字节 400 password_exceeds_bcrypt_limit，当前密码不对 400 invalid_credentials。",
+        "响应与错误：200 {ok:true}；不到 8 位 400 password_too_short，超过 72 字节 400 password_exceeds_bcrypt_limit，当前密码不对 400 invalid_credentials。",
         "数据与副作用：users.password_hash 存 bcrypt（cost 12）与 password_updated_at；写 identity_audit（password_set 或 password_change）与 account.password 审计，不记密码。"
       ],
       "operation": "POST /api/identity/password",
@@ -12960,7 +12960,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "740ad91877c777f34f72fa76f20a44c991d0eec1c7d867e3d0130f7b52b25c14",
+    "fingerprint": "ca0a84b9e7fd0617dd7ebdc660a91f99737d62a1327669afbda648768fc8baf2",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -13016,7 +13016,7 @@
       },
       {
         "path": "app/console/src/lib/account.ts",
-        "sha256": "86405d40bf82a459b010a193d4d86c4a0822291b3bfc0e5977562425a3d5c6b2"
+        "sha256": "0792bff8d33580dd90a1683c9ed92d4ce1a964abf0cc0e01c2246d21a8bceb9a"
       },
       {
         "path": "app/console/src/lib/applications.ts",
@@ -13136,7 +13136,7 @@
       },
       {
         "path": "app/console/src/pages/Account.vue",
-        "sha256": "ad40e0ad6bd7f048f97bef3a83dd65dd196004e7a7df29f0d64d2cf88c36d8c9"
+        "sha256": "5e29d31a57c81a3f8a81eea81dcd60c8d4a2488ac22acd649d1b4dd7361dfd82"
       },
       {
         "path": "app/console/src/pages/ApplicationDetail.vue",
@@ -13192,7 +13192,7 @@
       },
       {
         "path": "app/console/src/pages/SignIn.vue",
-        "sha256": "edcdd831cf497baab5c9f57fb3af429f84d85a266a948178dbc6392e3ea9e6c3"
+        "sha256": "f774a916cf8d59bdbb042c45ebe5f6accfa88a2e3425c45762d92e41b43a54c9"
       },
       {
         "path": "app/console/src/pages/github/Activity.vue",
@@ -13876,7 +13876,7 @@
       },
       {
         "path": "app/server/src/lib/password-policy.ts",
-        "sha256": "163fde32f0ad9a882e57972f7006c48b55b085336a642fb69a42d13541bdb956"
+        "sha256": "abaf6f264643c827423dc81b48ca3412115c8cee551a05a2cb186758860c82b1"
       },
       {
         "path": "app/server/src/lib/role-store.ts",
@@ -14072,7 +14072,7 @@
       },
       {
         "path": "app/server/src/routes/identity/account.ts",
-        "sha256": "95e3eaf4b386895b9d3f4ff7856b234aef9130d9f8ae79b71597b03a8af85108"
+        "sha256": "4e97ca00642c640fb95b575aff8003d88d4990cba6c73fd3898063fd31cda71f"
       },
       {
         "path": "app/server/src/routes/identity/contracts.ts",
@@ -14084,7 +14084,7 @@
       },
       {
         "path": "app/server/src/routes/identity/email.ts",
-        "sha256": "94fda35ecd6f068e273de425e408afc7760afaa3272f23de8ffac23c9d8477ec"
+        "sha256": "5509295d8688d95bb1f73203fe9eb539571693b6b1d7980a53e1394dfecf9ea9"
       },
       {
         "path": "app/server/src/routes/identity/google.ts",
@@ -14464,7 +14464,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "6609cf7004413428335d74409bb93d5807ef609c744890823faeeba45b06fd77"
+        "sha256": "a5f42521282bdf0b934d26277c8f44bf8a734414fe2b6751514f15d28e79d06b"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -14472,11 +14472,11 @@
       },
       {
         "path": "docs/architecture/SECURITY.md",
-        "sha256": "0f797f888ba2fe289f64ea65448b43cfe492c933efa9d59faa891f0be23959e3"
+        "sha256": "d78e0bec36ef53de57611a647ffcdb0e37e8cc3e7e90d992e8bf63fc3fc184f8"
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "b1c4982e5b2195cd9fefc5971578afdd21c58e53188489ad97eb00cd843108e7"
+        "sha256": "2a355988e74d40434c4f7243b4d62e3f272206d7331196097aee7321120815b9"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -14488,7 +14488,7 @@
       },
       {
         "path": "docs/decisions/0005-sso-extend-core-server.md",
-        "sha256": "a6b4f8904c1fc99c601fd905243bd5de565e2230a4f0ae1369a5b802e7a4d838"
+        "sha256": "03b2c10caf4859d71b523836fb08d77b6a9c79a69793470075e026f09233ff9b"
       },
       {
         "path": "docs/ops/USAGE.md",
@@ -14504,7 +14504,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "c65c6fbd644a2e35d0baa500466e138890df2df0feb70130698f9e0b6cacef58"
+        "sha256": "5c5d1dae706f582c11daafe7c6121489467a54df3c1fb65fdc92d0efc5ae9d5c"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -14512,7 +14512,7 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "750e50491227cf03e8fb9b32ea6729a6521b3378266db0e1c9b1fe32b32a5a0c"
+        "sha256": "ce979307d0ded3dd4565c53a80e9989091513c95c374720f0ced623d335bd4d0"
       },
       {
         "path": "docs/services/server/data-model.md",
@@ -14520,7 +14520,7 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "eb8aa37ac735a8c3111fb718be9caef16b2a8567dca67d395fa092eba216933f"
+        "sha256": "c2c093da5e12baacc98f81d5533082506857574b6a2531ca2320f15f9877034e"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -14576,7 +14576,7 @@
       },
       {
         "path": "tests/console/account.test.ts",
-        "sha256": "83215c01390e0288c8537e2b44f4f1841f565a9dc5c10240fed3a55a99cde1b6"
+        "sha256": "4390389b5c2157a1a42518511234b5564bc790aeedff5785cbe64596cafce6a6"
       },
       {
         "path": "tests/console/authorize.test.ts",
@@ -14604,7 +14604,7 @@
       },
       {
         "path": "tests/console/signin.test.ts",
-        "sha256": "466d29545ea8c74c8dc5cf3ef522ed9c473d19424eef1ff6d60e655b3c5e7e3c"
+        "sha256": "fab260b251721b47e3b1c4ae0bf81a46493b58e03b29e2f228d7f5576273e77d"
       },
       {
         "path": "tests/e2e/competitions.spec.mts",
@@ -14696,7 +14696,7 @@
       },
       {
         "path": "tests/server/signin-methods.test.ts",
-        "sha256": "b7820adc03714890008f876cb3d3ca172acec38e76d17a3ac069dc85ece9e769"
+        "sha256": "bf92eb406cb7ca28fd71e3f9d6c1d14d5ceddb6a8e0ce5d4f714f97dfd2f6f8c"
       },
       {
         "path": "tests/server/upstream-errors.test.ts",
@@ -46311,7 +46311,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 43,
+          "line": 46,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -46335,7 +46335,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 43,
+          "line": 46,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -46359,7 +46359,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 43,
+          "line": 46,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -46395,7 +46395,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 43,
+          "line": 46,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -46419,7 +46419,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 43,
+          "line": 46,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -46443,7 +46443,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 43,
+          "line": 46,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -46467,7 +46467,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 43,
+          "line": 46,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -46491,7 +46491,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 43,
+          "line": 46,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -48483,7 +48483,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 15,
+          "line": 18,
           "path": "app/server/src/lib/password-policy.ts"
         }
       ],
@@ -48507,7 +48507,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 15,
+          "line": 18,
           "path": "app/server/src/lib/password-policy.ts"
         }
       ],
@@ -48543,7 +48543,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 15,
+          "line": 18,
           "path": "app/server/src/lib/password-policy.ts"
         }
       ],
@@ -48567,7 +48567,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 15,
+          "line": 18,
           "path": "app/server/src/lib/password-policy.ts"
         }
       ],
@@ -48591,7 +48591,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 15,
+          "line": 18,
           "path": "app/server/src/lib/password-policy.ts"
         }
       ],
@@ -48615,7 +48615,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 15,
+          "line": 18,
           "path": "app/server/src/lib/password-policy.ts"
         }
       ],
@@ -51959,7 +51959,7 @@
           "path": "app/server/src/routes/identity/index.ts"
         },
         {
-          "line": 203,
+          "line": 204,
           "path": "app/console/src/pages/SignIn.vue"
         },
         {

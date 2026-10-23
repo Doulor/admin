@@ -187,14 +187,15 @@ describe("登录、注册两个标签 (initialSignInTab / registerProblem)", () 
     expect(codeProblem(true, "123456")).toBeNull();
   });
 
-  it("注册表单按从上到下的顺序报第一处问题，密码可以不填，填了至少 15 位、不超过 72 字节", () => {
+  it("注册表单按从上到下的顺序报第一处问题，密码可以不填，填了至少 8 位、不超过 72 字节", () => {
     const ok = { email: "new@example.com", invite: "Fall-2026", codeSent: true, code: "123456", password: "" };
     expect(registerProblem(ok)).toBeNull();
     expect(registerProblem({ ...ok, email: "new@" })).toBe("邮箱格式不对");
     expect(registerProblem({ ...ok, invite: "  " })).toBe("填上邀请码才能注册");
     expect(registerProblem({ ...ok, codeSent: false })).toBe("先获取验证码");
     expect(registerProblem({ ...ok, code: "12345" })).toBe("验证码是 6 位数字");
-    expect(registerProblem({ ...ok, password: "short" })).toBe("密码至少 15 位");
+    expect(registerProblem({ ...ok, password: "short" })).toBe("密码至少 8 位");
+    expect(registerProblem({ ...ok, password: "abcd1234" })).toBeNull();
     expect(registerProblem({ ...ok, password: "长".repeat(25) })).toBe("密码太长了（不能超过 72 个字节，一个汉字算 3 个）");
     expect(registerProblem({ ...ok, password: "a-long-enough-password" })).toBeNull();
   });
@@ -232,7 +233,7 @@ describe("邮箱注册提交 (registerWithEmail)", () => {
   });
 
   it("账号建好了但密码没设上：带着原因交给页面，不当作注册失败", async () => {
-    const failure = new ApiError(400, "password_too_short", "密码至少 15 位");
+    const failure = new ApiError(400, "password_too_short", "密码至少 8 位");
     const { deps } = fakes(true, async () => { throw failure; });
     await expect(registerWithEmail(input, deps)).resolves.toEqual({ kind: "password_failed", returnTo: "/console", error: failure });
   });

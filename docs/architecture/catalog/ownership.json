@@ -1468,7 +1468,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：有效会话，账号已绑定邮箱（否则 409 email_required）；已有密码时要填当前密码或 10 分钟内刚登录过，还没有密码时要 10 分钟内刚登录过（否则 403 step_up_required）。",
-        "响应与错误：200 {ok:true}；不到 15 位 400 password_too_short，超过 72 字节 400 password_exceeds_bcrypt_limit，当前密码不对 400 invalid_credentials。",
+        "响应与错误：200 {ok:true}；不到 8 位 400 password_too_short，超过 72 字节 400 password_exceeds_bcrypt_limit，当前密码不对 400 invalid_credentials。",
         "数据与副作用：users.password_hash 存 bcrypt（cost 12）与 password_updated_at；写 identity_audit（password_set 或 password_change）与 account.password 审计，不记密码。"
       ],
       "evidence": [

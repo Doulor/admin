@@ -1,8 +1,11 @@
 import bcrypt from "bcryptjs";
 
+/** 所有者 2026-10-23 定的最短长度，不要求大小写、数字或符号。 */
+export const PASSWORD_MIN_LENGTH = 8;
+
 /** New credentials only. Legacy accounts may still authenticate with their old password. */
 export function passwordError(value: unknown): string | null {
-  if (typeof value !== "string" || value.length < 15) return "password_too_short";
+  if (typeof value !== "string" || value.length < PASSWORD_MIN_LENGTH) return "password_too_short";
   if (Buffer.byteLength(value, "utf8") > 72) return "password_exceeds_bcrypt_limit";
   return null;
 }
