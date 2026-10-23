@@ -29,3 +29,10 @@
 - 做了什么：setEmails 每一轮都记下 GitLab 上实际有、由同步管的邮箱，有被拒的只记做成的；identity-store 新增 emailAddRefusal，发码前、写入时和 available 都用它；占位地址、删次邮箱、emails_source 写法各收成一个函数；控制台 EMAILS_MAX 与服务端核对；endpoint-contracts 改 available 的说法；CSS 改用 account__after，删掉复述函数名的注释。留着不改：apply 里按 kind 先判断再分派（合成一个变量后 TypeScript 收窄失效，typecheck 报错）；提交类型不回写已有提交
 - 结果：check:* 九项、check-doc-sync、check-architecture 通过；typecheck 通过；pnpm test 97 个文件 1608 条通过；server、console 构建通过；新增用例「主邮箱一直被拒时删掉的邮箱照样删」，把记录挪回失败之后有 2 条失败；issue 验收命令加上 signin-methods.test.ts 跑 19 个文件 261 条通过
 - 下一步：推 GitLab 开 MR
+
+## 20:15:04 +08:00 · PR · #272 · #272 开 MR !5
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：推 task/272/gitlab_commit_emails（c9358423）到 git.yangtzeu.work；上传 6 张截图（账号页改前改后桌面与手机、删除确认、成员页邮箱被拒）；pr-contract 本地核对后开 MR !5（目标 stage，标签 P2、admin、bug、func:api、func:auth、func:data、func:external、server、ui:content、ui:interaction）；issue #272 发进展评论 415
+- 结果：pr-contract：10 个段落齐全，有验收证据；MR !5 opened；审查结论有条件通过，条件是部署 rc.16 后用户 4、5 名下有已确认的 noreply 邮箱、再一轮不调邮箱接口
+- 下一步：等 #273 的 MR，两个一起合进 stage，发 rc.16 并核对
