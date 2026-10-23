@@ -165,8 +165,9 @@ describe('改用户身份（PATCH /api/console/users/:id，#274 CONTRACT §5）'
 
     // 会话走的是 lib/auth.ts 的 getSession()：联查账号状态，不是 active 就当场删掉这一行、按未登录处理，
     // 不需要额外的「停用时主动踢会话」代码——这里把这条既有行为锁进回归测试，PATCH 本身不用另外改。
+    // #274：/auth/me 没登录也回 200，带访客身份摘要（CONTRACT-274 §1），不是裸的 { signed_in: false }。
     const after = await app.inject({ url: '/auth/me', headers: { cookie: `sid=${targetSid}` } });
-    expect(after.json()).toEqual({ signed_in: false });
+    expect(after.json()).toMatchObject({ signed_in: false, level: 'level.visitor' });
     expect(app.services.auth.getSession(targetSid)).toBeNull();
     expect(app.services.storage.db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE id = ?').get(targetSid)).toEqual({ n: 0 });
   });

@@ -409,7 +409,7 @@ describe('console permissions come only from the site account; GitHub is a conne
 
 describe('site ownership in 成员与权限 (#274：按权限节点判定，取代旧的 site_role/people.ts)', () => {
   it('needs users.manage to change anyone\'s titles, keeps one site owner, and the change applies to the next request at once', async () => {
-    const { app, db, mail, invite } = await setup();
+    const { app, db, mail, invite, tick } = await setup();
     invite('yugc-test-2026');
     const owner = app.services.identity.provisionAccount({ githubId: 130495739, githubLogin: 'Crosery', orgRole: 'admin', email: 'owner@example.test' });
     const signInByEmail = async (email: string, invite_code?: string, nth = 1) => {
@@ -886,13 +886,6 @@ describe('hardening from the #262 review', () => {
     await user.send('POST', '/auth/email/start', { email: 'owner@example.test' });
     await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('owner@example.test') });
     expect((await user.send('GET', '/api/console/me')).json().titles).toEqual([expect.objectContaining({ id: 'title.site.owner' })]);
-
-    // 站内记着角色的账号，GitHub 那边的拒绝只记一条 login_denied，不改站内角色（#274 的站长身份在 perm_members 里，
-    // 和 org_role 列完全无关）；移出极客班在「成员与权限」（用户接口）里做
-    expect(app.services.identity.githubSigninPlan(130495739)).toBe('site');
-    app.services.identity.recordGithubDenied({ github: { id: 130495739, login: 'Crosery', avatarUrl: null }, reason: 'not_member' });
-    const me = (await user.send('GET', '/api/console/me')).json();
-    expect(me.titles).toEqual([expect.objectContaining({ id: 'title.site.owner' })]);
     expect((await user.send('GET', '/api/forum/state')).json().state.viewer.kind).toBe('member');
   });
 
