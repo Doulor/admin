@@ -7,25 +7,26 @@ import { TxAlert } from "@talex-touch/tuffex/alert";
 import { TxSpinner } from "@talex-touch/tuffex/spinner";
 import { TxInput } from "@talex-touch/tuffex/input";
 import { TxRadio, TxRadioGroup } from "@talex-touch/tuffex/radio";
+import { TxTabs, TxTabItem } from "@talex-touch/tuffex/tabs";
 import logoUrl from "../assets/logo.png";
 import { ApiError, api } from "../lib/http";
 import { isMock, siteUrl } from "../lib/runtime";
 import {
-  cleanCode, parseSignInOutcome, providerHref, providerIcon, readProviders, retryAfter, safeReturnPath, sendSigninCode, signInWithPassword,
-  verifySigninCode, type LoginProvider, type OutcomeAction,
+  cleanCode, initialSignInTab, parseSignInOutcome, providerHref, providerIcon, readProviders, registerProblem, retryAfter, safeReturnPath,
+  sendSigninCode, setFreshPassword, signInWithPassword, verifySigninCode, type LoginProvider, type OutcomeAction, type SignInTab,
 } from "../lib/signin";
 
 /**
  * 极客班统一登录页（#262）。官网、论坛、控制台的「登录」都到这里：登录方式按 GET /auth/providers 渲染，前端不写死渠道；
  * 登录后回到 return_to（只接受本站路径）；登录没成功时服务端也回到这里并带上 ?signin=<原因>，原因在这里讲清。
- * GitHub、Google 是整页跳转；邮箱在本页完成，验证码和密码两种方式（所有者 2026-10-23）。没有账号的邮箱、Google 账号
- * 要填邀请码注册：服务端回 invite_required 时才出现邀请码输入框，验证码不作废。
+ * 上面是「登录」「注册」两个标签的邮箱表单，下面隔一条「或者」是 GitHub、Google 的跳转按钮（所有者 2026-10-23 10:32）。
+ * 邮箱登录有验证码和密码两种；注册填邮箱、邀请码、验证码，密码可以顺手设。用验证码登录时邮箱还没有账号，会转到「注册」，
+ * 已填的邮箱和验证码都留着。Google 注册也要邀请码，用「注册」里填的那个。
  */
 const route = useRoute();
 const origin = window.location.origin;
 const returnPath = computed(() => safeReturnPath(route.query.return_to, origin));
 const signedOut = computed(() => route.query.signed_out === "1");
-const outcomeKey = computed(() => (typeof route.query.signin === "string" ? route.query.signin : null));
 const outcome = computed(() => parseSignInOutcome(route.query.signin));
 
 const providers = ref<LoginProvider[]>([]);
@@ -45,18 +46,22 @@ onMounted(loadProviders);
 
 const redirectProviders = computed(() => providers.value.filter(provider => provider.kind === "redirect"));
 const emailProvider = computed(() => providers.value.find(provider => provider.kind === "email_code") ?? null);
-/** Google 回来说要邀请码（或邀请码不对）时，在按钮上方放邀请码输入框，填好再用 Google 继续。 */
-const googleInviteNeeded = computed(() => route.query.provider === "google" && (outcomeKey.value === "invite_required" || outcomeKey.value === "invalid_invite"));
-const googleInvite = ref("");
-const providerVariant = (provider: LoginProvider, index: number) =>
-  (googleInviteNeeded.value ? provider.id === "google" : index === 0) ? "primary" : "secondary";
+
+const tab = ref<SignInTab>(initialSignInTab(route.query));
+const registering = computed(() => tab.value === "register");
+const TAB_LABEL: Record<SignInTab, string> = { signin: "登录", register: "注册" };
+const tabs: SignInTab[] = ["signin", "register"];
+/** 没有邮箱登录时只剩跳转按钮；从 Google 回来要邀请码时仍给一个邀请码框。 */
+const inviteOnly = computed(() => !emailProvider.value && registering.value);
+
 const providerLabel = (provider: LoginProvider) =>
-  (provider.id === "google" && googleInviteNeeded.value ? "用 Google 注册" : `通过 ${provider.name} 继续`);
+  (provider.id === "google" && registering.value ? "用 Google 注册" : `通过 ${provider.name} 继续`);
+const providerBlocked = (provider: LoginProvider) => provider.id === "google" && registering.value && !invite.value.trim();
 
 const start = (provider: LoginProvider) => {
   leaving.value = provider.id;
-  const invite = provider.id === "google" && googleInviteNeeded.value ? googleInvite.value : undefined;
-  window.location.assign(providerHref(provider, returnPath.value, origin, invite));
+  const code = provider.id === "google" && registering.value ? invite.value : undefined;
+  window.location.assign(providerHref(provider, returnPath.value, origin, code));
 };
 const goPortal = () => window.location.assign(siteUrl("portal", "/"));
 const followAction = (action: OutcomeAction) => {
@@ -64,14 +69,16 @@ const followAction = (action: OutcomeAction) => {
   else window.location.assign(action.href);
 };
 
-// ── 邮箱登录 ──
+// ── 邮箱 ──
 type Mode = "code" | "password";
 const mode = ref<Mode>("code");
 const email = ref("");
 const code = ref("");
 const password = ref("");
+const newPassword = ref("");
 const invite = ref("");
-const inviteNeeded = ref(false);
+/** 用验证码登录时服务端说这个邮箱还没有账号，转到「注册」后在表单上方说明一句。 */
+const movedToRegister = ref(false);
 const sentTo = ref<string | null>(null);
 const cooldown = ref(0);
 const sending = ref(false);
@@ -92,9 +99,9 @@ function startCooldown(seconds: number) {
   }, 1000);
 }
 onBeforeUnmount(() => clearInterval(timer));
-// 换了邮箱，之前的验证码和邀请码提示都不算数
-watch(email, () => { sentTo.value = null; inviteNeeded.value = false; emailError.value = null; });
-watch(mode, () => { emailError.value = null; });
+// 换了邮箱，之前发的验证码不算数
+watch(email, () => { sentTo.value = null; movedToRegister.value = false; emailError.value = null; });
+watch([mode, tab], () => { emailError.value = null; });
 
 const messageOf = (error: unknown) => (error instanceof ApiError ? error.message : "没有连上服务器，可能是网络不稳定，稍后再试一次。");
 /** 成功后整页跳转：服务端给的地址也只认本站路径。 */
@@ -123,14 +130,13 @@ async function submitCode() {
   emailError.value = null;
   if (!sentTo.value) { emailError.value = "先获取验证码"; return; }
   if (code.value.length !== 6) { emailError.value = "验证码是 6 位数字"; return; }
-  if (inviteNeeded.value && !invite.value.trim()) { emailError.value = "填上邀请码才能注册"; return; }
   submitting.value = true;
   try {
-    const result = await verifySigninCode(code.value, inviteNeeded.value ? invite.value : undefined);
+    const result = await verifySigninCode(code.value);
     leave(result.return_to);
   } catch (error) {
     submitting.value = false;
-    if (error instanceof ApiError && error.code === "invite_required") { inviteNeeded.value = true; return; }
+    if (error instanceof ApiError && error.code === "invite_required") { movedToRegister.value = true; tab.value = "register"; return; }
     if (error instanceof ApiError && error.code === "code_expired") { sentTo.value = null; code.value = ""; cooldown.value = 0; clearInterval(timer); }
     emailError.value = messageOf(error);
   }
@@ -149,7 +155,33 @@ async function submitPassword() {
     emailError.value = messageOf(error);
   }
 }
-const submitEmail = () => (mode.value === "code" ? submitCode() : submitPassword());
+
+async function submitRegister() {
+  emailError.value = null;
+  const problem = registerProblem({ email: email.value, invite: invite.value, codeSent: Boolean(sentTo.value), code: code.value, password: newPassword.value });
+  if (problem) { emailError.value = problem; return; }
+  submitting.value = true;
+  try {
+    const result = await verifySigninCode(code.value, invite.value);
+    // 邮箱原来就有账号时这一步只是登录，不替它改密码
+    if (result.registered && newPassword.value) {
+      try {
+        await setFreshPassword(newPassword.value);
+      } catch {
+        // 账号已经建好并登录了，密码到「我的账号」里再设
+        window.location.assign("/account");
+        return;
+      }
+    }
+    leave(result.return_to);
+  } catch (error) {
+    submitting.value = false;
+    if (error instanceof ApiError && error.code === "code_expired") { sentTo.value = null; code.value = ""; cooldown.value = 0; clearInterval(timer); }
+    emailError.value = messageOf(error);
+  }
+}
+
+const submitEmail = () => (registering.value ? submitRegister() : mode.value === "code" ? submitCode() : submitPassword());
 </script>
 
 <template>
@@ -180,84 +212,107 @@ const submitEmail = () => (mode.value === "code" ? submitCode() : submitPassword
         <TxButton variant="secondary" size="sm" icon="i-carbon-renew" @click="loadProviders">重试</TxButton>
       </div>
       <template v-else>
-        <section v-if="redirectProviders.length" class="signin__providers" aria-label="用其他网站的账号登录">
-          <div v-if="googleInviteNeeded" class="signin__field">
-            <label for="google-invite">邀请码</label>
-            <TxInput id="google-invite" v-model="googleInvite" placeholder="向邀请你的人要" autocomplete="off" spellcheck="false" />
-          </div>
-          <TxButton
-            v-for="(provider, index) in redirectProviders"
-            :key="provider.id"
-            :variant="providerVariant(provider, index)"
-            size="lg"
-            :icon="providerIcon(provider)"
-            :loading="leaving === provider.id"
-            :disabled="provider.id === 'google' && googleInviteNeeded && !googleInvite.trim()"
-            :data-provider="provider.id"
-            block
-            @click="start(provider)"
-          >{{ providerLabel(provider) }}</TxButton>
-        </section>
+        <TxTabs
+          v-if="emailProvider"
+          v-model="tab"
+          placement="top"
+          indicator-variant="line"
+          borderless
+          :content-scrollable="false"
+          :content-padding="0"
+          class="signin__tabs"
+        >
+          <TxTabItem v-for="id in tabs" :key="id" :name="id">
+            <template #name>{{ TAB_LABEL[id] }}</template>
+          </TxTabItem>
+        </TxTabs>
 
-        <div v-if="redirectProviders.length && emailProvider" class="signin__divider" role="separator"><span>或者用邮箱</span></div>
-
-        <form v-if="emailProvider" class="signin__email" data-provider="email" novalidate @submit.prevent="submitEmail">
-          <TxRadioGroup v-model="mode" type="button" class="signin__modes" aria-label="邮箱登录方式">
+        <form v-if="emailProvider" class="signin__email" data-provider="email" :data-tab="tab" novalidate @submit.prevent="submitEmail">
+          <TxRadioGroup v-if="!registering" v-model="mode" type="button" class="signin__modes" aria-label="邮箱登录方式">
             <TxRadio value="code" label="验证码" />
             <TxRadio value="password" label="密码" />
           </TxRadioGroup>
+          <TxAlert v-if="registering && movedToRegister" type="info" title="这个邮箱还没有极客班账号" :closable="false" class="signin__alert signin__alert--tight">
+            填上邀请码就能用它注册，刚才的验证码还能用。
+          </TxAlert>
 
           <div class="signin__field">
             <label for="signin-email">邮箱</label>
             <TxInput id="signin-email" v-model="email" type="email" placeholder="name@example.com" autocomplete="email" inputmode="email" spellcheck="false" />
           </div>
 
-          <template v-if="mode === 'code'">
-            <div class="signin__field">
-              <label for="signin-code">验证码</label>
-              <div class="signin__code-row">
-                <TxInput
-                  id="signin-code"
-                  v-model="codeInput"
-                  class="signin__code"
-                  placeholder="6 位数字"
-                  autocomplete="one-time-code"
-                  inputmode="numeric"
-                  maxlength="6"
-                />
-                <TxButton
-                  variant="secondary"
-                  native-type="button"
-                  class="signin__send"
-                  :loading="sending"
-                  :disabled="cooldown > 0 || sending"
-                  data-testid="send-code"
-                  @click="sendCode"
-                >{{ sendLabel }}</TxButton>
-              </div>
-              <p v-if="sentTo" class="signin__hint" data-testid="code-sent">验证码已发到 {{ sentTo }}，10 分钟内有效。没收到的话看看垃圾邮件。</p>
-            </div>
-            <div v-if="inviteNeeded" class="signin__field">
-              <TxAlert type="info" title="这个邮箱还没有极客班账号" :closable="false" class="signin__alert">填上邀请码再登录，就会用这个邮箱注册。验证码还能用，不用重新获取。</TxAlert>
-              <label for="signin-invite">邀请码</label>
-              <TxInput id="signin-invite" v-model="invite" placeholder="向邀请你的人要" autocomplete="off" spellcheck="false" />
-            </div>
-          </template>
+          <div v-if="registering" class="signin__field">
+            <label for="signin-invite">邀请码</label>
+            <TxInput id="signin-invite" v-model="invite" placeholder="向邀请你的人要" autocomplete="off" spellcheck="false" />
+          </div>
 
-          <div v-else class="signin__field">
+          <div v-if="registering || mode === 'code'" class="signin__field">
+            <label for="signin-code">验证码</label>
+            <div class="signin__code-row">
+              <TxInput
+                id="signin-code"
+                v-model="codeInput"
+                class="signin__code"
+                placeholder="6 位数字"
+                autocomplete="one-time-code"
+                inputmode="numeric"
+                maxlength="6"
+              />
+              <TxButton
+                variant="secondary"
+                native-type="button"
+                class="signin__send"
+                :loading="sending"
+                :disabled="cooldown > 0 || sending"
+                data-testid="send-code"
+                @click="sendCode"
+              >{{ sendLabel }}</TxButton>
+            </div>
+            <p v-if="sentTo" class="signin__hint" data-testid="code-sent">验证码已发到 {{ sentTo }}，10 分钟内有效。没收到的话看看垃圾邮件。</p>
+          </div>
+
+          <div v-if="registering" class="signin__field">
+            <label for="signin-new-password">密码（可以不填）</label>
+            <TxInput id="signin-new-password" v-model="newPassword" type="password" placeholder="至少 15 位" autocomplete="new-password" />
+            <p class="signin__hint">设了以后可以用邮箱加密码登录；不填就用验证码登录，以后在「我的账号」里再设。</p>
+          </div>
+          <div v-else-if="mode === 'password'" class="signin__field">
             <label for="signin-password">密码</label>
             <TxInput id="signin-password" v-model="password" type="password" placeholder="至少 15 位" autocomplete="current-password" />
             <p class="signin__hint">还没设过密码就先用验证码登录，再到「我的账号」里设置。</p>
           </div>
 
           <p v-if="emailError" class="signin__error" role="alert" data-testid="email-error">{{ emailError }}</p>
-          <TxButton variant="primary" size="lg" native-type="submit" :loading="submitting" block :icon="inviteNeeded && mode === 'code' ? 'i-carbon-user-follow' : 'i-carbon-login'">
-            {{ inviteNeeded && mode === "code" ? "注册并登录" : "登录" }}
+          <TxButton variant="primary" size="lg" native-type="submit" :loading="submitting" block :icon="registering ? 'i-carbon-user-follow' : 'i-carbon-login'">
+            {{ registering ? "注册并登录" : "登录" }}
           </TxButton>
         </form>
 
+        <div v-if="inviteOnly" class="signin__field">
+          <label for="signin-invite-only">邀请码</label>
+          <TxInput id="signin-invite-only" v-model="invite" placeholder="向邀请你的人要" autocomplete="off" spellcheck="false" />
+        </div>
+
+        <div v-if="redirectProviders.length && emailProvider" class="signin__divider" role="separator"><span>或者</span></div>
+
+        <section v-if="redirectProviders.length" class="signin__providers" :class="{ 'signin__providers--pair': redirectProviders.length === 2 }" aria-label="用其他网站的账号登录">
+          <TxButton
+            v-for="provider in redirectProviders"
+            :key="provider.id"
+            variant="secondary"
+            size="lg"
+            :icon="providerIcon(provider)"
+            :loading="leaving === provider.id"
+            :disabled="providerBlocked(provider)"
+            :data-provider="provider.id"
+            block
+            @click="start(provider)"
+          >{{ providerLabel(provider) }}</TxButton>
+        </section>
+
         <p class="signin__note">
-          登录后全站认的是你的极客班账号。第一次用邮箱或 Google 登录会注册新账号，要填邀请码。
+          <template v-if="registering">邮箱和 Google 注册要邀请码，向邀请你的人要。GitHub 组织的成员直接用 GitHub 登录，账号会自动建好。</template>
+          <template v-else>登录后全站认的是你的极客班账号。还没有账号就切到「注册」。</template>
         </p>
       </template>
 
@@ -314,9 +369,23 @@ const submitEmail = () => (mode.value === "code" ? submitCode() : submitPassword
   margin-bottom: 14px;
   text-align: left;
 }
+.signin__alert--tight {
+  margin-bottom: 0;
+}
+.signin__tabs {
+  margin: -4px 0 14px;
+}
 .signin__providers {
   display: grid;
   gap: 10px;
+}
+.signin__providers--pair {
+  grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 400px) {
+  .signin__providers--pair {
+    grid-template-columns: 1fr;
+  }
 }
 .signin__divider {
   display: flex;

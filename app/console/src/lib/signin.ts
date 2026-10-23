@@ -153,3 +153,34 @@ export function retryAfter(error: unknown, fallback = 60): number | null {
 
 /** 验证码只留数字，最多 6 位（粘贴「123 456」也能用）。 */
 export const cleanCode = (raw: string | number): string => String(raw).replace(/\D/g, "").slice(0, 6);
+
+/** 登录页的两个标签：登录、注册（所有者 2026-10-23 10:32：要有邮箱注册）。 */
+export type SignInTab = "signin" | "register";
+
+/**
+ * 先打开哪个标签：地址带 `mode=register`，或者 Google 因为没有账号、邀请码不对回来时（`signin=invite_required|invalid_invite`
+ * 且 `provider=google`）开「注册」，其余开「登录」。
+ */
+export function initialSignInTab(query: Record<string, unknown>): SignInTab {
+  if (query.mode === "register") return "register";
+  const inviteOutcome = query.signin === "invite_required" || query.signin === "invalid_invite";
+  return query.provider === "google" && inviteOutcome ? "register" : "signin";
+}
+
+/**
+ * 邮箱注册表单提交前的本地检查，按页面上从上到下的顺序报第一处问题；都对返回 null。
+ * 密码可以不填（注册后到「我的账号」再设），填了就按服务端同一条规则：至少 15 位、UTF-8 不超过 72 字节。
+ */
+export function registerProblem(form: { email: string; invite: string; codeSent: boolean; code: string; password: string }): string | null {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return "邮箱格式不对";
+  if (!form.invite.trim()) return "填上邀请码才能注册";
+  if (!form.codeSent) return "先获取验证码";
+  if (form.code.length !== 6) return "验证码是 6 位数字";
+  if (form.password && form.password.length < 15) return "密码至少 15 位，不想现在设可以留空";
+  if (form.password && new TextEncoder().encode(form.password).length > 72) return "密码太长了（不能超过 72 个字节，一个汉字算 3 个）";
+  return null;
+}
+
+/** 注册成功、会话刚建好（10 分钟内不用再验证）时顺手设上填的密码（app/server/src/routes/identity/account.ts）。 */
+export const setFreshPassword = (password: string) =>
+  api<{ ok: true }>("/api/identity/password", { method: "POST", ...jsonBody({ password }) });

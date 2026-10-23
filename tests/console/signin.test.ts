@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "../../app/console/src/lib/http";
 import {
-  GITHUB_INVITATION_URL, cleanCode, parseSignInOutcome, providerHref, providerIcon, readProviders, retryAfter, safeReturnPath, signInOutcomes,
+  GITHUB_INVITATION_URL, cleanCode, initialSignInTab, parseSignInOutcome, providerHref, providerIcon, readProviders, registerProblem, retryAfter,
+  safeReturnPath, signInOutcomes,
 } from "../../app/console/src/lib/signin";
 
 const ORIGIN = "https://yangtzeu.work";
@@ -161,5 +162,28 @@ describe("邮箱登录的小工具 (retryAfter / cleanCode)", () => {
     expect(cleanCode("123 456")).toBe("123456");
     expect(cleanCode("12a3-4567")).toBe("123456");
     expect(cleanCode(98765)).toBe("98765");
+  });
+});
+
+describe("登录、注册两个标签 (initialSignInTab / registerProblem)", () => {
+  it("默认开「登录」；mode=register，或 Google 因为没有账号、邀请码不对回来时开「注册」", () => {
+    expect(initialSignInTab({})).toBe("signin");
+    expect(initialSignInTab({ mode: "register" })).toBe("register");
+    expect(initialSignInTab({ signin: "invite_required", provider: "google" })).toBe("register");
+    expect(initialSignInTab({ signin: "invalid_invite", provider: "google" })).toBe("register");
+    expect(initialSignInTab({ signin: "invite_required" })).toBe("signin");
+    expect(initialSignInTab({ signin: "not_member", provider: "google" })).toBe("signin");
+  });
+
+  it("注册表单按从上到下的顺序报第一处问题，密码可以不填，填了至少 15 位、不超过 72 字节", () => {
+    const ok = { email: "new@example.com", invite: "Fall-2026", codeSent: true, code: "123456", password: "" };
+    expect(registerProblem(ok)).toBeNull();
+    expect(registerProblem({ ...ok, email: "new@" })).toBe("邮箱格式不对");
+    expect(registerProblem({ ...ok, invite: "  " })).toBe("填上邀请码才能注册");
+    expect(registerProblem({ ...ok, codeSent: false })).toBe("先获取验证码");
+    expect(registerProblem({ ...ok, code: "12345" })).toBe("验证码是 6 位数字");
+    expect(registerProblem({ ...ok, password: "short" })).toBe("密码至少 15 位，不想现在设可以留空");
+    expect(registerProblem({ ...ok, password: "长".repeat(25) })).toBe("密码太长了（不能超过 72 个字节，一个汉字算 3 个）");
+    expect(registerProblem({ ...ok, password: "a-long-enough-password" })).toBeNull();
   });
 });

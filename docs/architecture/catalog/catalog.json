@@ -648,7 +648,7 @@
           "path": "app/server/src/routes/identity/index.ts"
         },
         {
-          "line": 161,
+          "line": 193,
           "path": "app/console/src/pages/SignIn.vue"
         },
         {
@@ -12232,7 +12232,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "d40c32512484c9c0bded345c6a0884bb146520a1d0a2631dbf54907a0a9fd1e5",
+    "fingerprint": "b4ad9d09aae041faaebfb4f6f2b4631f07f8526cc7b7c4a4972f2d35e029cf23",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -12252,7 +12252,7 @@
       },
       {
         "path": "app/console/src/components/ConsoleNav.vue",
-        "sha256": "d16a088d7372b44b4111ea9fe63e6b9f2ef95bb520d04e9670e66c9d5ae9abe1"
+        "sha256": "7581b2a8e828ac205b656268669b4de44494fbfdc656dae2cbe8795bb1f4b758"
       },
       {
         "path": "app/console/src/components/ConsoleShell.vue",
@@ -12368,7 +12368,7 @@
       },
       {
         "path": "app/console/src/lib/signin.ts",
-        "sha256": "2bf8479c88223170c825ac7ed45350bdef8e4ff7f78e45a1ede7da50efcd7682"
+        "sha256": "6cf66c332562c4dde47c5aa19a0d75ff2b9b1419e46e184f595b507218e79ad3"
       },
       {
         "path": "app/console/src/lib/statuses.ts",
@@ -12452,7 +12452,7 @@
       },
       {
         "path": "app/console/src/pages/SignIn.vue",
-        "sha256": "f3d73fc47fb89a0216df6cea481ebe8b5c156622e2473c1c04776eeebfbd792a"
+        "sha256": "ec2e541ee42010adf03a97d4e6eaf14389121a4ccd2c07150d9499831dcbddf9"
       },
       {
         "path": "app/console/src/pages/github/Activity.vue",
@@ -13728,7 +13728,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "a807247ac85fe6a52b687883476d64961a135655436132f42591740fc4725b57"
+        "sha256": "f1f3a81747758701061d97a8c533d05f4a1fa62e6f471a88976c2bde9389b91a"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -13816,7 +13816,7 @@
       },
       {
         "path": "tests/console/signin.test.ts",
-        "sha256": "68ff91fb2d4da4274ddd3e2b909262b0ebf4a63ef7df753d6032f3bedd0f0ba5"
+        "sha256": "8e9e1d31f30f39f8c34ddaaeffdbba0767b8f6febf52ac68ac534f04d11f7f95"
       },
       {
         "path": "tests/e2e/competitions.spec.mts",
@@ -48009,7 +48009,7 @@
           "path": "app/server/src/routes/identity/index.ts"
         },
         {
-          "line": 161,
+          "line": 193,
           "path": "app/console/src/pages/SignIn.vue"
         },
         {
