@@ -9,6 +9,17 @@ export const portalContracts: RouteContracts = {
   "GET /api/public/competitions": { querystring: object({}), response: { 200: publicCompetitionList, ...competitionFailures } },
   "GET /api/public/competitions/:id": { ...competitionIdParam, response: { 200: publicCompetition, ...competitionFailures } },
   "GET /api/public/org": { querystring: object({}) },
+  // 公开的代码仓库列表（#274）：只给 visibility=public 的项目；GitLab 没配或连不上时 projects 为空、unavailable 为 true
+  "GET /api/public/gitlab/projects": {
+    querystring: object({}),
+    response: { 200: object({
+      projects: { type: "array", items: object({
+        name: text(255, 1), path_with_namespace: text(255, 1), description: { anyOf: [text(2000), { type: "null" }] },
+        web_url: text(500, 1), http_url_to_repo: text(500, 1), last_activity_at: { anyOf: [text(40), { type: "null" }] },
+      }, ["name", "path_with_namespace", "description", "web_url", "http_url_to_repo", "last_activity_at"]) },
+      unavailable: { type: "boolean" },
+    }, ["projects"]) },
+  },
   "GET /api/docs/:id": { params: object({ id: text(64, 1) }, ["id"]) },
   "POST /api/join/:token": body({ github_login: text(39), email: text(254), note: text(280), ...abuse }),
   // 重复的 org 参数会被解析成数组，在合同这里回 400，不进路由变成 500（#129）。合同整份替换公共 querystring，limit 引用公共规则。

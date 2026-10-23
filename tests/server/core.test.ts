@@ -47,9 +47,10 @@ it('serves only real allowlisted public documents', async () => {
   }
   expect((await app.inject('/api/docs/security')).statusCode).toBe(404);
 });
-it('preserves authentication and cross-origin protection for organization management', async () => {
+it('preserves authentication and cross-origin protection for the console', async () => {
   const { app } = await setup();
-  expect((await app.inject('/api/admin/example/repos')).statusCode).toBe(401);
+  // GitHub 组织管理的 /api/admin/:org/* 整组在 #274 删除；换一个仍受 requireAuth 保护的控制台接口验证同一套基础设施。
+  expect((await app.inject('/api/console/catalogue')).statusCode).toBe(401);
   expect((await app.inject({ method: 'POST', url: '/auth/signout', headers: { origin: 'https://untrusted.test' } })).statusCode).toBe(403);
   // 管理端与官网同源：只放行环境唯一的 origin，退役的管理端子域一律拒绝。
   expect((await app.inject({ method: 'POST', url: '/auth/signout', headers: { origin: 'https://admin.example.test' } })).statusCode).toBe(403);
@@ -242,14 +243,15 @@ it('serves the console or portal index for deep links on the same host', async (
     } finally { await app.close(); }
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
-it('lists admin feedback without the submitter IP, user agent or numeric account id', async () => {
+it('lists console feedback without the submitter IP, user agent or numeric account id', async () => {
+  // #274：旧的 /api/admin/:org/feedback 删掉了，控制台只剩 /api/console/feedback，SQL 仍共用 lib/feedback-store.ts。
   const octokitFactory = (() => ({ request: async () => ({ data: { state: 'active', role: 'admin' } }) })) as unknown as ServiceOverrides['octokitFactory'];
   const c = await testApp({ octokitFactory }, false, { CONSOLE_ORG: 'test-org' }); contexts.push(c);
   const { app } = c; const now = Date.now();
   app.services.storage.db.prepare('INSERT INTO feedback(org,content,category,contact,submitter_login,submitter_id,source_ip,user_agent,status,votes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
     .run('test-org', 'test feedback body', '建议', 'test-contact', 'test-student', 424242, '203.0.113.9', 'test-agent/1.0', 'open', 3, now, now);
   const sid = signIn(app, 'test-admin', 1, null, 'test-access');
-  const response = await app.inject({ url: '/api/admin/test-org/feedback', headers: { cookie: `sid=${sid}` } });
+  const response = await app.inject({ url: '/api/console/feedback', headers: { cookie: `sid=${sid}` } });
   expect(response.statusCode).toBe(200);
   const { items, counts } = response.json();
   expect(counts).toEqual({ open: 1 });

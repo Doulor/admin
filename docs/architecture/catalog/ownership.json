@@ -233,18 +233,6 @@
     "app/server/src/app.ts": "platform",
     "app/server/src/routes/admin/auth.ts": "identity",
     "app/server/src/routes/identity/providers.ts": "identity",
-    "app/server/src/routes/admin/activity.ts": "github",
-    "app/server/src/routes/admin/feedback.ts": "feedback",
-    "app/server/src/routes/admin/invitations.ts": "invitations",
-    "app/server/src/routes/admin/invite-links.ts": "invitations",
-    "app/server/src/routes/admin/logs.ts": "audit",
-    "app/server/src/routes/admin/members.ts": "github",
-    "app/server/src/routes/admin/org.ts": "github",
-    "app/server/src/routes/admin/orgs.ts": "github",
-    "app/server/src/routes/admin/overview.ts": "github",
-    "app/server/src/routes/admin/repos.ts": "github",
-    "app/server/src/routes/admin/security.ts": "github",
-    "app/server/src/routes/admin/teams.ts": "github",
     "app/server/src/routes/console/applications.ts": "recruitment",
     "app/server/src/routes/console/assignments.ts": "organization",
     "app/server/src/routes/console/audit.ts": "audit",
@@ -272,7 +260,8 @@
     "app/server/src/routes/identity/account.ts": "identity",
     "app/server/src/routes/console/invites.ts": "identity",
     "app/server/src/routes/oidc/index.ts": "identity",
-    "app/server/src/routes/console/gitlab.ts": "gitlab"
+    "app/server/src/routes/console/gitlab.ts": "gitlab",
+    "app/server/src/routes/portal/gitlab.ts": "gitlab"
   },
   "routeOverrides": {
     "GET /api/public/config": "platform"
@@ -1855,2355 +1844,6 @@
       ]
     },
     {
-      "id": "github.organizations.list",
-      "title": "列出本人组织",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/me/orgs",
-      "capabilities": [],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：仅有效 GitHub 会话，读取本人active组织并按ALLOWED_ORGS过滤；邮箱、Google 会话没有 GitHub 令牌，403 github_session_required（#262）。",
-        "响应与错误：200 {orgs,allowed_orgs}；仅active成员组织并按配置过滤。",
-        "数据与副作用：GET /user/memberships/orgs，按登录名缓存120秒。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/orgs.ts",
-          "needle": "  app.get(\"/api/me/orgs\", { preHandler: requireGithubSession }, async (req) => {"
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github-session.ts",
-          "needle": "export async function requireGithubSession(req: FastifyRequest, reply: FastifyReply) {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts",
-        "tests/server/signin-methods.test.ts",
-        "tests/console/nav.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.activity.read",
-      "title": "浏览组织活动",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/activity",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {events}，输出actor、repo、时间及摘要。",
-        "数据与副作用：请求GitHub组织最近100条事件，不写本地活动表。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/activity.ts",
-          "needle": "  app.get<{ Params: { org: string } }>(\"/api/admin/:org/activity\", {"
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.organization.read",
-      "title": "读取组织资料",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/org",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 GitHub组织响应对象。",
-        "数据与副作用：向GitHub读取URL组织资料。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/org.ts",
-          "needle": "  app.get<{ Params: { org: string } }>(\"/api/admin/:org/org\", {"
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.overview.read",
-      "title": "查看组织概览",
-      "domain": "github",
-      "relatedDomains": [
-        "invitations",
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/overview",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "invitations",
-        "invite_links",
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {role,org,counts}；成员/邀请/仓库子查询失败各降为空数组，组织主查询失败仍抛错。",
-        "数据与副作用：聚合GitHub组织、成员、邀请、仓库与本地24小时邀请数和活跃链接数，不发出邀请。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/overview.ts",
-          "needle": "  app.get<{ Params: { org: string } }>(\"/api/admin/:org/overview\", {"
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        },
-        {
-          "path": "app/console/src/pages/github/Overview.vue",
-          "needle": "经 GitHub App 接入"
-        },
-        {
-          "path": "app/console/src/mock/github.ts",
-          "needle": "if (persona.github === \"none\" && rest !== \"/invite-links\") throw new ApiError(409, \"github_not_connected\""
-        },
-        {
-          "path": "app/server/src/middleware/http-policy.ts",
-          "needle": "const masked = status >= 500 && error.code !== \"github_connection_failed\";"
-        },
-        {
-          "path": "app/console/src/components/CapabilityGate.vue",
-          "needle": "const notConnected = computed("
-        },
-        {
-          "path": "app/console/src/lib/github.ts",
-          "needle": "export function useOrg() {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts",
-        "tests/server/github-connection.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.security.read",
-      "title": "查看组织安全能力",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/security",
-      "capabilities": [
-        "github.org.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {plan,two_factor_required,dependabot,secret_scanning,audit_log}；Dependabot失败落入嵌套error字段。",
-        "数据与副作用：读取GitHub组织计划，非free再查Dependabot；此接口是摘要，不配置安全策略或购买服务。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/security.ts",
-          "needle": "  app.get<{ Params: { org: string } }>(\"/api/admin/:org/security\", {"
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.members.list",
-      "title": "查看组织成员角色",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/members",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {members,viewer_role}；单个成员详情失败将role/state设为?，名单请求失败仍抛错。",
-        "数据与副作用：分页读取GitHub成员并补角色，不改变组织成员关系。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/members.ts",
-          "needle": "  app.get<{ Params: { org: string } }>(\"/api/admin/:org/members\", {"
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.teams.list",
-      "title": "查看团队及规模",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/teams",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {teams}，每项增加member_count/repo_count；计数子请求失败记0。",
-        "数据与副作用：分页读取团队及成员/仓库计数，不缓存成数据库实体。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/teams.ts",
-          "needle": "  app.get<{ Params: { org: string } }>(\"/api/admin/:org/teams\", {"
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.members.remove",
-      "title": "移除组织成员",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "DELETE /api/admin/:org/members/:login",
-      "capabilities": [
-        "github.members.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.members.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {ok:true}；login等于本人时400，其他失败保留上游状态映射。",
-        "数据与副作用：向GitHub删除组织membership，成功写member.remove审计。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/members.ts",
-          "needle": "  app.delete<{ Params: { org: string; login: string } }>(\"/api/admin/:org/members/:login\", {"
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.members.role",
-      "title": "调整组织成员角色",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "PATCH /api/admin/:org/members/:login/role",
-      "capabilities": [
-        "github.members.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.members.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {ok:true}；role不是admin/member为400。",
-        "数据与副作用：PUT GitHub membership角色，成功写member.role审计。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/members.ts",
-          "needle": "  app.patch<{ Params: { org: string; login: string }; Body: { role: \"admin\" | \"member\" } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.organization.update",
-      "title": "修改组织资料与策略",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "PATCH /api/admin/:org/org",
-      "capabilities": [
-        "github.org.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 GitHub组织响应；没有允许编辑字段为400。",
-        "数据与副作用：仅转发EDITABLE_KEYS字段，成功写org.update审计；并不修改本地部署配置。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/org.ts",
-          "needle": "  app.patch<{ Params: { org: string }; Body: Record<string, unknown> }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.teams.create",
-      "title": "创建组织团队",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "POST /api/admin/:org/teams",
-      "capabilities": [
-        "github.teams.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.teams.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {ok:true,team}；缺name为400。",
-        "数据与副作用：调用GitHub创建团队，记录team.create审计。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/teams.ts",
-          "needle": "  app.post<{ Params: { org: string }; Body: { name: string; description?: string; privacy?: \"secret\" | \"closed\" } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.teams.delete",
-      "title": "删除组织团队",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "DELETE /api/admin/:org/teams/:slug",
-      "capabilities": [
-        "github.teams.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.teams.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {ok:true}。",
-        "数据与副作用：删除URL组织中指定slug的GitHub团队，记录team.delete审计。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/teams.ts",
-          "needle": "  app.delete<{ Params: { org: string; slug: string } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.list",
-      "title": "查看组织仓库列表",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/repos",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {repos}，仅下发列表所需字段。",
-        "数据与副作用：经接入的 GitHub（App 或本人令牌）分页读取组织仓库，按login/org缓存60秒。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.get<{ Params: { org: string } }>(\"/api/admin/:org/repos\", {"
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.detail",
-      "title": "查看仓库信息与成员",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/repos/:repo",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {info,branches,collaborators,hooks}；后三个子查询失败降为空数组。",
-        "数据与副作用：经接入的 GitHub 读取仓库、分支、协作者和hooks，按login/org/repo缓存60秒。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.get<{ Params: { org: string; repo: string } }>(\"/api/admin/:org/repos/:repo\", {"
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.tree",
-      "title": "浏览仓库目录",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/repos/:repo/tree",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {path,entries}；目录优先排序。",
-        "数据与副作用：按path/ref读取GitHub contents，不接触服务端本地文件。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.get<{ Params: { org: string; repo: string }; Querystring: { ref?: string; path?: string } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.file",
-      "title": "阅读仓库文件",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/repos/:repo/file",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 文件元数据和解码content；超过1MB返回too_large且不附正文；缺path或目录为400。",
-        "数据与副作用：按path/ref从GitHub读文件，base64仅转utf8，不执行内容。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.get<{ Params: { org: string; repo: string }; Querystring: { ref?: string; path: string } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.commits",
-      "title": "浏览提交列表",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/repos/:repo/commits",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {commits}，包含摘要、完整message及作者；per_page最多100。",
-        "数据与副作用：按sha/path/page读取GitHub提交并缓存30秒。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.get<{ Params: { org: string; repo: string }; Querystring: { sha?: string; path?: string; per_page?: string; page?: string } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.commit",
-      "title": "查看提交差异",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/repos/:repo/commits/:sha",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {sha,message,author,actor,stats,files,html_url}；单文件patch截到30000字符。",
-        "数据与副作用：从GitHub取指定提交，不本地checkout。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.get<{ Params: { org: string; repo: string; sha: string } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.issues",
-      "title": "浏览仓库议题",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/repos/:repo/issues",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {issues}，过滤pull_request项。",
-        "数据与副作用：按state分页读GitHub issues，缓存30秒；不创建issue。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.get<{ Params: { org: string; repo: string }; Querystring: { state?: \"open\" | \"closed\" | \"all\"; per_page?: string } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.issue",
-      "title": "阅读议题及评论",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/repos/:repo/issues/:n",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 议题详情与comments；数字n传给GitHub。",
-        "数据与副作用：读取GitHub议题和评论，不把评论写入本地库。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.get<{ Params: { org: string; repo: string; n: string } }>(\n    \"/api/admin/:org/repos/:repo/issues/:n\","
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.pulls",
-      "title": "浏览合并请求",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/repos/:repo/pulls",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {pulls}，含head/base/draft/mergeable等上游字段。",
-        "数据与副作用：按state读取GitHub PR并缓存30秒。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.get<{ Params: { org: string; repo: string }; Querystring: { state?: \"open\" | \"closed\" | \"all\" } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.pull",
-      "title": "阅读合并请求差异",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/repos/:repo/pulls/:n",
-      "capabilities": [
-        "github.org.read"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 PR详情、comments、files；files请求失败为空，单patch截到20000字符。",
-        "数据与副作用：读取GitHub PR/评论/文件，不执行分支内容、不合并。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.get<{ Params: { org: string; repo: string; n: string } }>(\n    \"/api/admin/:org/repos/:repo/pulls/:n\","
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.merge",
-      "title": "合并仓库请求",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "PUT /api/admin/:org/repos/:repo/pulls/:n/merge",
-      "capabilities": [
-        "github.repos.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {ok:true,merged,sha,message}，merged取上游；局部catch返回上游status或500及merge_failed/message，不走同一脱敏路径。",
-        "数据与副作用：按merge_method、可选sha调用GitHub merge，成功写pr.merge审计并清repo/repos缓存；授权和分支保护仍由GitHub决定。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.put<{ Params: { org: string; repo: string; n: string }; Body: { merge_method?: \"merge\" | \"squash\" | \"rebase\"; commit_title?: string; commit_message?: string; sha?: string } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.issue_state",
-      "title": "变更议题状态",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "PATCH /api/admin/:org/repos/:repo/issues/:n",
-      "capabilities": [
-        "github.repos.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {ok:true,state}。",
-        "数据与副作用：向GitHub PATCH open/closed状态，写issue.<state>审计并清repo缓存。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.patch<{ Params: { org: string; repo: string; n: string }; Body: { state?: \"open\" | \"closed\" } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.comment",
-      "title": "回复仓库议题",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "POST /api/admin/:org/repos/:repo/issues/:n/comments",
-      "capabilities": [
-        "github.repos.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {ok:true,id,html_url}；空白body为400 empty_body。",
-        "数据与副作用：POST GitHub评论，写issue.comment审计；评论正文不写审计。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.post<{ Params: { org: string; repo: string; n: string }; Body: { body: string } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.create",
-      "title": "创建组织仓库",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "POST /api/admin/:org/create-repo",
-      "capabilities": [
-        "github.repos.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {ok:true,repo:{name,full_name,html_url}}；非法name为400。",
-        "数据与副作用：向GitHub创建仓库（auto_init默认true），写repo.create审计并清repos缓存。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.post<{ Params: { org: string }; Body: { name: string; description?: string; visibility: \"public\" | \"private\" | \"internal\"; auto_init?: boolean; gitignore_template?: string; license_template?: string } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.delete",
-      "title": "删除组织仓库",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "DELETE /api/admin/:org/repos/:repo",
-      "capabilities": [
-        "github.repos.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {ok:true}。",
-        "数据与副作用：DELETE GitHub仓库，成功审计repo.delete，清repo/repos缓存。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.delete<{ Params: { org: string; repo: string } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.collaborator_put",
-      "title": "授权仓库协作者",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "PUT /api/admin/:org/repos/:repo/collaborators/:login",
-      "capabilities": [
-        "github.repos.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {ok:true}；permission默认push。",
-        "数据与副作用：PUT GitHub协作者权限，可能触发GitHub邀请；写repo.collab.add审计并清repo缓存。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.put<{ Params: { org: string; repo: string; login: string }; Body: { permission?: \"pull\" | \"triage\" | \"push\" | \"maintain\" | \"admin\" } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "github.repositories.collaborator_delete",
-      "title": "移除仓库协作者",
-      "domain": "github",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "DELETE /api/admin/:org/repos/:repo/collaborators/:login",
-      "capabilities": [
-        "github.repos.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {ok:true}。",
-        "数据与副作用：DELETE GitHub协作者，审计repo.collab.remove并清repo缓存。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。",
-        "验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/repos.ts",
-          "needle": "  app.delete<{ Params: { org: string; repo: string; login: string } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/core.test.ts",
-        "tests/server/upstream-errors.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "invitation.admin.list",
-      "title": "核对组织邀请与本地历史",
-      "domain": "invitations",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/invitations",
-      "capabilities": [
-        "github.invites.manage"
-      ],
-      "reads": [
-        "invitations",
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {pending,history}；本地最近200条历史含邮箱、备注、source_ip和链接token，只对带 github.invites.manage 的称号开放。",
-        "数据与副作用：分页读取GitHub待接受邀请及本组织本地历史，不发信或补发。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/invitations.ts",
-          "needle": "  app.get<{ Params: { org: string } }>(\"/api/admin/:org/invitations\", {"
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/invitations.test.ts",
-        "tests/server/core.test.ts",
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "invitation.admin.cancel",
-      "title": "取消尚未接受的组织邀请",
-      "domain": "invitations",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "DELETE /api/admin/:org/invitations/:id",
-      "capabilities": [
-        "github.invites.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {ok:true}；非有限数id为400。",
-        "数据与副作用：调用GitHub取消邀请，写invitation.cancel审计；不回写历史invitations状态或返还链接额度。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/invitations.ts",
-          "needle": "  app.delete<{ Params: { org: string; id: string } }>(\"/api/admin/:org/invitations/:id\", {"
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/invitations.test.ts",
-        "tests/server/core.test.ts",
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "invitation.links.list",
-      "title": "查看组织邀请链接",
-      "domain": "invitations",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/invite-links",
-      "capabilities": [
-        "github.invites.manage"
-      ],
-      "reads": [
-        "invite_links",
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。",
-        "响应与错误：200 {links}；包含完整token及配额，不包含发起人加密token。",
-        "数据与副作用：仅按URL org读取链接，持有token即可走公开邀请流程，应保留 github.invites.manage 门槛。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "这个接口不调用 GitHub，不会因 GitHub 令牌失效结束会话。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/invite-links.ts",
-          "needle": "  app.get<{ Params: { org: string } }>(\"/api/admin/:org/invite-links\", {"
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireManagedOrg(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/console/src/pages/github/InviteLinks.vue",
-          "needle": "const connected = computed(() => me.value?.github !== \"none\");"
-        }
-      ],
-      "tests": [
-        "tests/server/invitations.test.ts",
-        "tests/server/core.test.ts",
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "invitation.links.create",
-      "title": "创建限时组织邀请链接",
-      "domain": "invitations",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "POST /api/admin/:org/invite-links",
-      "capabilities": [
-        "github.invites.manage"
-      ],
-      "reads": [
-        "sessions"
-      ],
-      "writes": [
-        "invite_links",
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。",
-        "响应与错误：200 {ok:true,token,url,expires_at}；hours范围或max_uses整数范围不合法为400。",
-        "数据与副作用：生成18字节随机token，经 GitHub App 接时不存发起人令牌、兑换时也用 App，经本人会话接时保存发起人token密文、有效期与配额，写invite_link.create；不立即发送邀请。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/invite-links.ts",
-          "needle": "  app.post<{ Params: { org: string }; Body: CreateBody }>(\"/api/admin/:org/invite-links\", {"
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireGithub(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/invitations.test.ts",
-        "tests/server/core.test.ts",
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "invitation.links.toggle",
-      "title": "启停组织邀请链接",
-      "domain": "invitations",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "PATCH /api/admin/:org/invite-links/:token",
-      "capabilities": [
-        "github.invites.manage"
-      ],
-      "reads": [
-        "invite_links",
-        "sessions"
-      ],
-      "writes": [
-        "invite_links",
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。",
-        "响应与错误：200 {ok:true}；token不属于该org为404 not_found。",
-        "数据与副作用：按token和org找链接后更新disabled并审计，不撤回已经发出的GitHub邀请。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "这个接口不调用 GitHub，不会因 GitHub 令牌失效结束会话。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/invite-links.ts",
-          "needle": "  app.patch<{ Params: { org: string; token: string }; Body: { disabled?: boolean } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireManagedOrg(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        }
-      ],
-      "tests": [
-        "tests/server/invitations.test.ts",
-        "tests/server/core.test.ts",
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "invitation.links.delete",
-      "title": "删除组织邀请链接",
-      "domain": "invitations",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "DELETE /api/admin/:org/invite-links/:token",
-      "capabilities": [
-        "github.invites.manage"
-      ],
-      "reads": [
-        "invite_links",
-        "sessions"
-      ],
-      "writes": [
-        "invite_links",
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。",
-        "响应与错误：200 {ok:true}；没有匹配org/token为404 not_found。",
-        "数据与副作用：删除匹配链接并审计invite_link.delete；不删除邀请历史，不撤销GitHub既有邀请。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "这个接口不调用 GitHub，不会因 GitHub 令牌失效结束会话。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/invite-links.ts",
-          "needle": "  app.delete<{ Params: { org: string; token: string } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireManagedOrg(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        }
-      ],
-      "tests": [
-        "tests/server/invitations.test.ts",
-        "tests/server/core.test.ts",
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "audit.organization.read",
-      "title": "读取组织管理员审计",
-      "domain": "audit",
-      "relatedDomains": [
-        "identity"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/logs",
-      "capabilities": [
-        "audit.read",
-        "github.invites.manage"
-      ],
-      "reads": [
-        "audit_logs",
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号同时带 audit.read 与 github.invites.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。",
-        "响应与错误：200 {logs}；details解析为对象，limit最多500。",
-        "数据与副作用：只按URL org查询审计。与console审计不同，此处带 audit.read 与 github.invites.manage 的称号能看到完整邀请token；org为null的登录审计不返回。",
-        "会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。",
-        "这个接口不调用 GitHub，不会因 GitHub 令牌失效结束会话。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/logs.ts",
-          "needle": "  app.get<{ Params: { org: string }; Querystring: { limit?: string; offset?: string } }>("
-        },
-        {
-          "path": "app/server/src/middleware/require-auth.ts",
-          "needle": "export async function requireAuth("
-        },
-        {
-          "path": "app/server/src/lib/auth.ts",
-          "needle": "function getSession(id: string): Session | null {"
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireManagedOrg(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        }
-      ],
-      "tests": [
-        "tests/server/console.test.ts",
-        "tests/server/core.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
       "id": "console.identity",
       "title": "解析本人控制台身份",
       "domain": "organization",
@@ -5667,176 +3307,6 @@
         "tests/server/feedback-org.test.ts",
         "tests/server/core.test.ts",
         "tests/server/rate-limits.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "feedback.admin.list",
-      "title": "组织管理员读取待处理意见",
-      "domain": "feedback",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/admin/:org/feedback",
-      "capabilities": [
-        "feedback.read"
-      ],
-      "reads": [
-        "feedback",
-        "sessions"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 feedback.read（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。",
-        "响应与错误：200 {items,counts}；最多500条，管理DTO不下发source_ip/UA/数字账号id。",
-        "数据与副作用：按org及可选status读列表与状态计数，不记查看审计。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/feedback.ts",
-          "needle": "  app.get<{ Params: { org: string }; Querystring: { status?: string; limit?: string } }>("
-        },
-        {
-          "path": "app/server/src/lib/feedback-store.ts",
-          "needle": "export function createFeedbackStore("
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireManagedOrg(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        }
-      ],
-      "tests": [
-        "tests/server/feedback-org.test.ts",
-        "tests/server/console.test.ts",
-        "tests/server/core.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "feedback.admin.update",
-      "title": "组织管理员处理意见状态与回复",
-      "domain": "feedback",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "PATCH /api/admin/:org/feedback/:id",
-      "capabilities": [
-        "feedback.manage"
-      ],
-      "reads": [
-        "feedback",
-        "sessions"
-      ],
-      "writes": [
-        "feedback",
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 feedback.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。",
-        "响应与错误：200 {ok:true}；记录不属于org返回404，非法状态被合同/handler拒绝。",
-        "数据与副作用：更新status、reply、replied_by/replied_at及updated_at，审计feedback.update；回复将由公开列表展示，不发邮件。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/feedback.ts",
-          "needle": "  app.patch<{ Params: { org: string; id: string }; Body: { status?: string; reply?: string } }>("
-        },
-        {
-          "path": "app/server/src/lib/feedback-store.ts",
-          "needle": "export function createFeedbackStore("
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireManagedOrg(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        }
-      ],
-      "tests": [
-        "tests/server/feedback-org.test.ts",
-        "tests/server/console.test.ts",
-        "tests/server/core.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "feedback.admin.delete",
-      "title": "组织管理员删除组织意见",
-      "domain": "feedback",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "DELETE /api/admin/:org/feedback/:id",
-      "capabilities": [
-        "feedback.manage"
-      ],
-      "reads": [
-        "feedback",
-        "sessions"
-      ],
-      "writes": [
-        "feedback",
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：有效会话且是极客班成员，站内称号带 feedback.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。",
-        "响应与错误：200 {ok:true}；org/id不匹配404。",
-        "数据与副作用：删除反馈并审计feedback.delete，不能越过组织条件删除其他记录。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/admin/feedback.ts",
-          "needle": "  app.delete<{ Params: { org: string; id: string } }>("
-        },
-        {
-          "path": "app/server/src/lib/feedback-store.ts",
-          "needle": "export function createFeedbackStore("
-        },
-        {
-          "path": "app/server/src/middleware/require-github.ts",
-          "needle": "export function requireManagedOrg(...anyOf: Capability[]) {"
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        }
-      ],
-      "tests": [
-        "tests/server/feedback-org.test.ts",
-        "tests/server/console.test.ts",
-        "tests/server/core.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -9706,7 +7176,7 @@
         "audit"
       ],
       "assessment": "declared-with-source-evidence",
-      "operation": "POST /api/console/gitlab/accounts/:account_id/sync",
+      "operation": "POST /api/console/gitlab/accounts/:account_id/resync",
       "capabilities": [
         "roles.manage"
       ],
@@ -9737,11 +7207,11 @@
       "evidence": [
         {
           "path": "app/server/src/routes/console/gitlab.ts",
-          "needle": "\"/api/console/gitlab/accounts/:account_id/sync\""
+          "needle": "\"/api/console/gitlab/accounts/:account_id/resync\""
         },
         {
           "path": "app/server/src/routes/console/contracts.ts",
-          "needle": "  \"POST /api/console/gitlab/accounts/:account_id/sync\": {"
+          "needle": "  \"POST /api/console/gitlab/accounts/:account_id/resync\": {"
         },
         {
           "path": "app/server/src/lib/gitlab-sync.ts",
@@ -9771,6 +7241,268 @@
       "tests": [
         "tests/server/gitlab-sync.test.ts",
         "tests/console/gitlab.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "gitlab.status.read",
+      "title": "控制台查看 GitLab 同步的健康状态与上一轮对账小结",
+      "domain": "gitlab",
+      "relatedDomains": [
+        "identity",
+        "organization"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/gitlab/status",
+      "capabilities": [
+        "roles.manage",
+        "roles.department.manage"
+      ],
+      "reads": [
+        "gitlab_accounts",
+        "sessions",
+        "role_assignments",
+        "departments",
+        "titles"
+      ],
+      "writes": [
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效全站 sid，roles.manage 或 roles.department.manage；版本号与健康检查用服务端的 GITLAB_API_TOKEN 连 GitLab，不经调用者凭据。",
+        "响应与错误：200 {mode,url,group,token_configured,version,healthy,last_run:{at,changed,failed}|null,errors_24h}；没权限 403 missing_capability；没配 URL 或连不上时 version 为 null、healthy 为 false，不回 5xx。",
+        "数据与副作用：只读；last_run 是进程内存里上一轮 reconcile() 的小结，重启后清空；errors_24h 数的是 gitlab_accounts.last_error_at 落在过去 24 小时内的账号数，不是错误事件总数。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/gitlab.ts",
+          "needle": "\"/api/console/gitlab/status\""
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "  \"GET /api/console/gitlab/status\": {"
+        },
+        {
+          "path": "app/server/src/lib/gitlab-sync.ts",
+          "needle": "async function health("
+        },
+        {
+          "path": "app/server/src/lib/gitlab-sync.ts",
+          "needle": "function errors24h("
+        }
+      ],
+      "tests": [
+        "tests/server/gitlab-sync.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "gitlab.projects.console.list",
+      "title": "控制台查看 GitLab 组与项目清单（含私有）",
+      "domain": "gitlab",
+      "relatedDomains": [
+        "identity",
+        "organization"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/gitlab/projects",
+      "capabilities": [
+        "roles.manage",
+        "roles.department.manage"
+      ],
+      "reads": [
+        "sessions",
+        "role_assignments",
+        "departments",
+        "titles"
+      ],
+      "writes": [
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效全站 sid，roles.manage 或 roles.department.manage；用服务端的 GITLAB_API_TOKEN 读 group 本身、子组与组内全部项目（含子组）。",
+        "响应与错误：200 {groups:[{id,full_path,name,visibility}],projects:[{id,path_with_namespace,name,description,visibility,web_url,http_url_to_repo,ssh_url_to_repo,last_activity_at,star_count}]}；没权限 403 missing_capability；没配 URL、连不上或 GitLab 拒绝时给空列表，不回 5xx。",
+        "数据与副作用：只读，不落库；服务端内存缓存 5 分钟（lib/cache.ts 的 cached()），同一个键 5 分钟内不重新调 GitLab。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/gitlab.ts",
+          "needle": "\"/api/console/gitlab/projects\""
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "  \"GET /api/console/gitlab/projects\": {"
+        },
+        {
+          "path": "app/server/src/lib/gitlab-sync.ts",
+          "needle": "async function listProjects("
+        }
+      ],
+      "tests": [
+        "tests/server/gitlab-sync.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "gitlab.projects.public.list",
+      "title": "门户公开查看 GitLab 上公开的代码仓库",
+      "domain": "gitlab",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/public/gitlab/projects",
+      "capabilities": [],
+      "reads": [],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：匿名可调，不需要登录；复用控制台同一份项目清单（5 分钟缓存），只读管理令牌看到的数据，自己按 visibility 过滤后再下发。",
+        "响应与错误：200 {projects:[{name,path_with_namespace,description,web_url,http_url_to_repo,last_activity_at}]}；只给 visibility=public 的项目，不含私有项目、不含 star_count 等内部字段；GitLab 没配、连不上或拒绝时 {projects:[],unavailable:true}，不回 5xx。",
+        "数据与副作用：只读，不落库，不需要会话；门户「代码仓库」应用据此渲染。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/portal/gitlab.ts",
+          "needle": "\"/api/public/gitlab/projects\""
+        },
+        {
+          "path": "app/server/src/routes/portal/contracts.ts",
+          "needle": "  \"GET /api/public/gitlab/projects\": {"
+        },
+        {
+          "path": "app/server/src/lib/gitlab-sync.ts",
+          "needle": "available: boolean"
+        }
+      ],
+      "tests": [
+        "tests/server/gitlab-sync.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/web/portal.md"
+      ]
+    },
+    {
+      "id": "gitlab.settings.read",
+      "title": "控制台查看 GitLab 同步设置",
+      "domain": "gitlab",
+      "relatedDomains": [
+        "identity",
+        "organization"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/gitlab/settings",
+      "capabilities": [
+        "roles.manage",
+        "roles.department.manage"
+      ],
+      "reads": [
+        "sessions",
+        "role_assignments",
+        "departments",
+        "titles"
+      ],
+      "writes": [
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效全站 sid，roles.manage 或 roles.department.manage；不连 GitLab，只读进程内的当前设置。",
+        "响应与错误：200 {sync_mode,group_path,interval_minutes,token_configured}；令牌只显示「已配置/未配置」，不下发真实值；没权限 403 missing_capability。",
+        "数据与副作用：只读；当前设置来自 env 的初始值与 app_state 里持久化的覆盖值合并后的运行时状态。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/gitlab.ts",
+          "needle": "app.get(\"/api/console/gitlab/settings\""
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "  \"GET /api/console/gitlab/settings\": {"
+        },
+        {
+          "path": "app/server/src/lib/gitlab-sync.ts",
+          "needle": "function readPersisted("
+        }
+      ],
+      "tests": [
+        "tests/server/gitlab-sync.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "gitlab.settings.update",
+      "title": "控制台修改 GitLab 同步设置（开关、组路径、对账间隔）",
+      "domain": "gitlab",
+      "relatedDomains": [
+        "identity",
+        "organization",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PATCH /api/console/gitlab/settings",
+      "capabilities": [
+        "roles.manage"
+      ],
+      "reads": [
+        "sessions",
+        "role_assignments",
+        "departments",
+        "titles"
+      ],
+      "writes": [
+        "app_state",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效全站 sid、同源 Origin、roles.manage；令牌只读 env，这个接口改不了。",
+        "响应与错误：200 {sync_mode,group_path,interval_minutes,token_configured}；group_path 格式不对 400 invalid_group_path；interval_minutes 超出 5–1440 由请求体 Schema 拒绝为 400 validation_error；把 sync_mode 改成 on 但没配 GITLAB_API_TOKEN 时 409 gitlab_token_missing；改成 on 或 dry-run 但没配 GITLAB_URL 时 409 gitlab_url_missing；没权限 403 missing_capability。",
+        "数据与副作用：改动写进 app_state（键 gitlab_settings），覆盖 env 的初始值，进程重启后从这里读回来；同时让运行中的对账定时器按新设置重新排（mode 开关或间隔变化都会先停当前这一轮再决定要不要重开），不新增审计记录。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/gitlab.ts",
+          "needle": "app.patch<{ Body: { sync_mode?:"
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "  \"PATCH /api/console/gitlab/settings\": {"
+        },
+        {
+          "path": "app/server/src/lib/gitlab-sync.ts",
+          "needle": "async function applySettings("
+        },
+        {
+          "path": "app/server/src/lib/gitlab-sync.ts",
+          "needle": "function writePersisted("
+        }
+      ],
+      "tests": [
+        "tests/server/gitlab-sync.test.ts"
       ],
       "docs": [
         "docs/services/server/oidc.md",

@@ -53,15 +53,6 @@ it('leaves the visitor signed in when GitHub rejects the link creator\'s token (
   expect(app.services.auth.getSession(sid)).not.toBeNull();
   expect(([] as string[]).concat((response.headers['set-cookie'] as string[] | string | undefined) ?? []).some(cookie => cookie.startsWith('sid='))).toBe(false);
 });
-it('builds invite links on the single public origin', async () => {
-  const context = await testApp({ octokitFactory: (() => ({ request: async (method: string) => {
-    if (method !== 'GET /orgs/{org}/memberships/{username}') throw new Error('Unexpected upstream operation');
-    return { data: { state: 'active', role: 'admin' } };
-  } })) as ServiceOverrides['octokitFactory'] }, false, { CONSOLE_ORG: 'test-org' });
-  contexts.push(context);
-  const sid = signIn(context.app, 'test-admin', 9, null, 'test-stub-only');
-  const response = await context.app.inject({ method: 'POST', url: '/api/admin/test-org/invite-links', headers: { cookie: `sid=${sid}`, origin: 'https://example.test' }, payload: { hours: 1, max_uses: 1 } });
-  expect(response.statusCode).toBe(200);
-  const { token, url } = response.json();
-  expect(url).toBe(`https://example.test/join/${token}`);
-});
+// #274 删掉了创建邀请链接的 /api/admin/:org/invite-links：已存在的链接仍能通过 /api/join/:token 兑换
+// （上面几个用例直接写库构造它们），但再没有 HTTP 入口能新建一条，所以「在唯一 public origin 上拼 URL」
+// 这条用例的被测路径已经不存在，随路由一起删除。

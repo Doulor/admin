@@ -49,6 +49,9 @@ const gitlabAccountView = object({
   state: { anyOf: [choices("pending", "active", "blocked"), { type: "null" }] }, access_level: nullableInteger,
   last_error: nullableString(64), last_error_at: nullableCount, synced_at: nullableCount, pending: { type: "array", items: gitlabAction },
 }, ["account_id", "login", "username", "gitlab_user_id", "state", "access_level", "last_error", "last_error_at", "synced_at", "pending"]);
+const gitlabSettingsResult = object({
+  sync_mode: choices("off", "dry-run", "on"), group_path: text(255, 1), interval_minutes: integer(5, 1440), token_configured: { type: "boolean" },
+}, ["sync_mode", "group_path", "interval_minutes", "token_configured"]);
 const inviteView = object({
   id: integer(), code: text(40, 1), note: text(100), max_uses: nullableCount, used_count: integer(0), expires_at: nullableCount,
   disabled: { type: "boolean" }, created_by: text(100), created_at: integer(0), updated_at: integer(0), usable: { type: "boolean" },
@@ -141,13 +144,42 @@ export const consoleContracts: RouteContracts = {
       accounts: { type: "array", items: gitlabAccountView },
     }, ["mode", "gitlab_url", "group", "client_registered", "accounts"]), ...consoleFailures },
   },
-  "POST /api/console/gitlab/accounts/:account_id/sync": {
+  "POST /api/console/gitlab/accounts/:account_id/resync": {
     ...noQuery,
     params: object({ account_id: accountId }, ["account_id"]),
     response: { 200: object({
       mode: choices("dry-run", "on"), account_id: accountId, login: text(100, 1), actions: { type: "array", items: gitlabAction },
       applied: { type: "boolean" }, error: nullableString(64),
     }, ["mode", "account_id", "login", "actions", "applied", "error"]), ...consoleFailures },
+  },
+  // 控制台概览（#274）：同步开关、能不能连上、GitLab 版本号、上一轮对账小结、过去 24 小时还在失败状态的账号数
+  "GET /api/console/gitlab/status": {
+    ...noQuery,
+    response: { 200: object({
+      mode: choices("off", "dry-run", "on"), url: nullableString(255), group: text(255, 1), token_configured: { type: "boolean" },
+      version: nullableString(32), healthy: { type: "boolean" },
+      last_run: { anyOf: [object({ at: integer(0), changed: integer(0), failed: integer(0) }, ["at", "changed", "failed"]), { type: "null" }] },
+      errors_24h: integer(0),
+    }, ["mode", "url", "group", "token_configured", "version", "healthy", "last_run", "errors_24h"]), ...consoleFailures },
+  },
+  "GET /api/console/gitlab/projects": {
+    ...noQuery,
+    response: { 200: object({
+      groups: { type: "array", items: object({ id: integer(1), full_path: text(255, 1), name: text(255, 1), visibility: text(20, 1) }, ["id", "full_path", "name", "visibility"]) },
+      projects: { type: "array", items: object({
+        id: integer(1), path_with_namespace: text(255, 1), name: text(255, 1), description: nullableString(2000), visibility: text(20, 1),
+        web_url: text(500, 1), http_url_to_repo: text(500, 1), ssh_url_to_repo: text(500, 1), last_activity_at: nullableString(40), star_count: integer(0),
+      }, ["id", "path_with_namespace", "name", "description", "visibility", "web_url", "http_url_to_repo", "ssh_url_to_repo", "last_activity_at", "star_count"]) },
+    }, ["groups", "projects"]), ...consoleFailures },
+  },
+  "GET /api/console/gitlab/settings": {
+    ...noQuery,
+    response: { 200: gitlabSettingsResult, ...consoleFailures },
+  },
+  "PATCH /api/console/gitlab/settings": {
+    ...noQuery,
+    body: object({ sync_mode: choices("off", "dry-run", "on"), group_path: text(255, 1), interval_minutes: integer(5, 1440) }),
+    response: { 200: gitlabSettingsResult, ...consoleFailures },
   },
   "DELETE /api/console/assignments/:id": noQuery,
   "GET /api/console/people": noQuery,

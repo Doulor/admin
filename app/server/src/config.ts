@@ -57,11 +57,10 @@ export function createConfig(env: Record<string, string | undefined>) {
     if (/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(raw)) throw new Error("TRUST_PROXY must be true, false, a hop count (0–10) or a list of proxy addresses");
     return raw;
   })();
-  const allowedOrgs = (env.ALLOWED_ORGS ?? "").split(",").map(value => value.trim().toLowerCase()).filter(Boolean);
-  // 极客班控制台固定管理的 GitHub 组织（非密钥）；本机与测试可不设。
+  // 极客班控制台固定管理的 GitHub 组织（非密钥，只给 GitHub App、feedback.org 和审计用）；本机与测试可不设。
+  // #274 删掉了 ALLOWED_ORGS：它原来只给已删除的 /api/me/orgs 过滤「本人加入的 GitHub 组织」用，现在没有任何读者。
   const consoleOrg = (env.CONSOLE_ORG ?? "").trim() || DEFAULT_CONSOLE_ORG;
   if (!GITHUB_LOGIN_REGEX.test(consoleOrg)) throw new Error("CONSOLE_ORG must be a GitHub organization login");
-  if (allowedOrgs.length > 0 && !allowedOrgs.includes(consoleOrg.toLowerCase())) throw new Error("ALLOWED_ORGS must include CONSOLE_ORG");
   // 发信（#148，lib/mail/）：全部可选，都不设时不发信（本机与测试），投递和改状态照常，信记成 skipped/mail_disabled。
   // 发信商要同时有密钥和发件地址才算配置好；阿里云的两把密钥要么都有、要么都没有。地址格式在 lib/mail/mailer.ts 里核对。
   const mail = (() => {
@@ -153,7 +152,6 @@ export function createConfig(env: Record<string, string | undefined>) {
     // 论坛的公开内容（分类、标签、公开旧帖），启动时读来播种。不是环境变量：仓库里和镜像里都在同一个相对位置
     // （app/server/Dockerfile 把两份 JSON 复制到 /app/app/forum/content）；测试直接换成夹具目录。
     forumContentDir: resolve(APP_ROOT, "forum/content"),
-    allowedOrgs,
     turnstile: { siteKey: env.TURNSTILE_SITE_KEY ?? "", secretKey: env.TURNSTILE_SECRET_KEY ?? "" },
     powDifficulty,
     mail,

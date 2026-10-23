@@ -17,7 +17,6 @@ afterEach(async () => { for (const c of contexts.splice(0)) await c.close(); });
 
 const MAIL_ENV = { MAIL_RESEND_API_KEY: 're_test_resend_key_value', MAIL_RESEND_FROM: 'notify@example.test', MAIL_RECIPIENTS: 'all' };
 const GOOGLE_ENV = { GOOGLE_CLIENT_ID: 'google-test-client', GOOGLE_CLIENT_SECRET: 'google-test-secret' };
-const ORG = 'Yangtze-University-Geek-Class';
 
 /** 假的发信商：记下每封信的收件人和正文，验证码从正文里取。 */
 function mailbox() {
@@ -282,12 +281,8 @@ describe('console permissions come only from the site account; GitHub is a conne
     expect(me.capabilities).toEqual(CAPABILITY_IDS);
     expect(me).not.toHaveProperty('blocked');
 
-    // 有 github.* 能力，但服务器没配 GitHub App、这次也不是 GitHub 会话：GitHub 页面回 409，不是 403
-    const overview = await user.send('GET', `/api/admin/${ORG}/overview`);
-    expect([overview.statusCode, overview.json().error]).toEqual([409, 'github_not_connected']);
-    expect(overview.json().message).toMatch(/GitHub 还没接上/);
-    // 列本人加入的 GitHub 组织只对 GitHub 会话有意义
-    expect((await user.send('GET', '/api/me/orgs')).json().error).toBe('github_session_required');
+    // #274 删掉了通用的「GitHub 组织页面」（/api/admin/:org/overview）和 /api/me/orgs：没配 GitHub App、
+    // 这次也不是 GitHub 会话时，唯一还会去接 GitHub 的称号指派也不会白跑一趟去连接，见 github-connection.test.ts。
     // 成员与权限照常打开：名单来自极客班账号，GitHub 没接上就不并 GitHub 组织
     const people = await user.send('GET', '/api/console/people');
     expect(people.statusCode).toBe(200);

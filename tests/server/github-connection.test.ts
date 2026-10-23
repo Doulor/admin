@@ -179,15 +179,14 @@ describe('createGithubConnection', () => {
   });
 });
 
-describe('console GitHub pages through the GitHub App', () => {
-  async function setup(options: { appFail?: number; orgStatus?: number; inviteStatus?: number } = {}) {
+describe('console pages that still reach GitHub through the App (#274: GitHub org pages retired, 称号指派 is the remaining caller)', () => {
+  async function setup(options: { appFail?: number; userStatus?: number; inviteStatus?: number } = {}) {
     const tokens: string[] = [];
     const clock = () => Date.now();
     const octokitFactory = ((token: string) => ({
       request: async (route: string) => {
         tokens.push(token);
-        if (options.orgStatus) throw Object.assign(new Error('stub rejection'), { status: options.orgStatus });
-        if (route === 'GET /orgs/{org}') return { data: { login: ORG, name: '极客班', public_repos: 3, created_at: '2024-09-01T00:00:00Z' } };
+        if (options.userStatus) throw Object.assign(new Error('stub rejection'), { status: options.userStatus });
         if (route === 'GET /users/{username}') return { data: { login: 'alpha', id: 7 } };
         if (route === 'POST /orgs/{org}/invitations') {
           if (options.inviteStatus) throw Object.assign(new Error('stub rejection'), { status: options.inviteStatus });
@@ -206,16 +205,16 @@ describe('console GitHub pages through the GitHub App', () => {
     return { app, tokens, headers: { cookie: `sid=${sid}` }, sid };
   }
 
-  it('serves an email-signed-in 提督 the GitHub org through the App installation token', async () => {
+  it('resolves a GitHub login through the App installation token when assigning a title (#274)', async () => {
+    // #274 删掉了 /api/admin/:org/overview 这类通用「GitHub 组织页面」；lib/github-connection.ts 在称号指派
+    // （POST /api/console/assignments 的 github_login 查找，routes/console/assignments.ts）里仍是唯一调用方，
+    // 这里换成它验证同一套 App 安装令牌行为。
     const { app, tokens, headers } = await setup();
     expect((await app.inject({ url: '/api/console/me', headers })).json()).toMatchObject({ provider: 'email', site_role: 'admin', github: 'app' });
-    const overview = await app.inject({ url: `/api/admin/${ORG}/overview`, headers });
-    expect(overview.statusCode).toBe(200);
-    expect(overview.json()).toMatchObject({ via: 'app', org: { login: ORG, name: '极客班' } });
+    const assign = await app.inject({ method: 'POST', url: '/api/console/assignments', headers, payload: { github_login: 'alpha', role: 'member' } });
+    expect(assign.statusCode).toBe(201);
+    expect(assign.json()).toMatchObject({ assignment: { github_login: 'alpha', github_user_id: 7, role: 'member' } });
     expect(new Set(tokens)).toEqual(new Set(['ghs_installation_1']));
-    // 控制台只管 CONSOLE_ORG：别的组织在调 GitHub 之前就拒绝
-    const other = await app.inject({ url: '/api/admin/other-org/overview', headers });
-    expect([other.statusCode, other.json().error]).toEqual([403, 'org_not_managed']);
   });
 
   it('records a join request as failed, not as waiting for review, when GitHub refuses the App token at the invitation', async () => {
@@ -230,9 +229,9 @@ describe('console GitHub pages through the GitHub App', () => {
   });
 
   it('says plainly that the GitHub App is not working and keeps the session when the App or its token is refused', async () => {
-    for (const options of [{ appFail: 401 }, { orgStatus: 401 }]) {
+    for (const options of [{ appFail: 401 }, { userStatus: 401 }]) {
       const { app, headers, sid } = await setup(options);
-      const response = await app.inject({ url: `/api/admin/${ORG}/overview`, headers });
+      const response = await app.inject({ method: 'POST', url: '/api/console/assignments', headers, payload: { github_login: 'alpha', role: 'member' } });
       expect(response.statusCode).toBe(503);
       expect(response.json()).toMatchObject({ error: 'github_connection_failed', message: 'GitHub App 暂时用不了，请联系管理员检查 App 的配置' });
       expect(app.services.auth.getSession(sid)).not.toBeNull();

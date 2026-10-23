@@ -75,7 +75,7 @@ export const MAIL_RECIPIENT_MODES = Object.freeze(['all', 'allowlist']);
 /** GitLab 账号同步（#270）：off 不同步，dry-run 只算出要做什么（不要令牌），on 照做。 */
 export const GITLAB_SYNC_MODES = Object.freeze(['off', 'dry-run', 'on']);
 /** 允许为空但不属于密钥的字段（留空是明确的语义）。MAIL_REPLY_TO 空 = 信里不带 Reply-To，改指向官网意见箱。 */
-const EMPTY_IS_MEANINGFUL = Object.freeze(new Set([...SECRET_FIELDS, 'COOKIE_DOMAIN', 'ALLOWED_ORGS', 'MAIL_REPLY_TO']));
+const EMPTY_IS_MEANINGFUL = Object.freeze(new Set([...SECRET_FIELDS, 'COOKIE_DOMAIN', 'MAIL_REPLY_TO']));
 /** 模板里必须存在的非密钥字段。 */
 const REQUIRED_FIELDS = Object.freeze([
   'GEEK_DEPLOYMENT_ENVIRONMENT',

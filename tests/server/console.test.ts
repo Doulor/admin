@@ -583,10 +583,14 @@ describe('summary, feedback and audit', () => {
 
   it('never hands a live invite-link token to an audit reader who cannot manage invites', async () => {
     // frank 是技术部负责人（部门包里有 audit.read），但没有 github.invites.manage：控制台不能让他拿到可用的邀请凭据。
+    // #274 删掉了创建邀请链接的 /api/admin/:org/invite-links 和原样下发 token 的旧审计入口 /api/admin/:org/logs；
+    // 这里直接按原路由曾经做的样子插入一条链接记录和它的审计，只验证剩下的 /api/console/audit 仍然打码。
     const { app, as, assign } = await setup({ alice: 'admin', frank: 'member' });
-    const created = await app.inject({ method: 'POST', url: `/api/admin/${CONSOLE_ORG}/invite-links`, headers: as('alice'), payload: { hours: 24, max_uses: 5 } });
-    expect(created.statusCode).toBe(200);
-    const token = created.json().token as string;
+    const token = 'test-invite-link-token';
+    app.services.storage.db.prepare(
+      'INSERT INTO invite_links(token,org,created_by,created_by_token_encrypted,max_uses,current_uses,expires_at,disabled,created_at) VALUES(?,?,?,?,?,0,?,0,?)'
+    ).run(token, CONSOLE_ORG, 'alice', app.services.crypto.encrypt(''), 5, Date.now() + 24 * 60 * 60 * 1000, Date.now());
+    app.services.storage.audit(CONSOLE_ORG, 'alice', 'invite_link.create', token, { hours: 24, max_uses: 5 }, '127.0.0.1');
     app.services.storage.audit(CONSOLE_ORG, `public:${token}`, 'invite.sent', 'newcomer', { invitation_id: 7 }, '203.0.113.5');
     assign('frank', 'head', 'tech');
 
@@ -597,11 +601,6 @@ describe('summary, feedback and audit', () => {
     expect(response.body).not.toContain(token);
     expect(logs.find(row => row.action === 'invite_link.create')!.target).toBe(`${token.slice(0, 6)}…`);
     expect(logs.find(row => row.action === 'invite.sent')!.actor).toBe(`public:${token.slice(0, 6)}…`);
-    // 旧入口原样下发 token，另要 github.invites.manage：frank 进不去，本来就能列出链接的提督照常。
-    const legacy = await app.inject({ url: `/api/admin/${CONSOLE_ORG}/logs`, headers: as('frank') });
-    expect(legacy.statusCode).toBe(403);
-    expect(legacy.json()).toMatchObject({ error: 'missing_capability', capability: 'github.invites.manage' });
-    expect((await app.inject({ url: `/api/admin/${CONSOLE_ORG}/logs`, headers: as('alice') })).body).toContain(token);
   });
 
   it('publishes the catalogue with the captain-only list and the navigator title', async () => {
@@ -787,10 +786,10 @@ describe('configuration', () => {
     SESSION_SECRET: 'console-config-test-secret-at-least-32', ENCRYPTION_KEY: Buffer.alloc(32, 3).toString('base64'),
     OAUTH_CLIENT_ID: 'test-client', OAUTH_CLIENT_SECRET: 'test-secret',
   };
-  it('defaults CONSOLE_ORG, validates its shape and requires it inside ALLOWED_ORGS', () => {
+  // #274 删掉了 ALLOWED_ORGS（唯一的读者 /api/me/orgs 随 GitHub 组织管理一起删除了），只剩 CONSOLE_ORG 自己的形状校验。
+  it('defaults and validates the shape of CONSOLE_ORG', () => {
     expect(createConfig(env).consoleOrg).toBe(CONSOLE_ORG);
-    expect(createConfig({ ...env, CONSOLE_ORG: 'other-org', ALLOWED_ORGS: 'Other-Org' }).consoleOrg).toBe('other-org');
+    expect(createConfig({ ...env, CONSOLE_ORG: 'other-org' }).consoleOrg).toBe('other-org');
     expect(() => createConfig({ ...env, CONSOLE_ORG: 'bad org' })).toThrow('CONSOLE_ORG');
-    expect(() => createConfig({ ...env, ALLOWED_ORGS: 'someone-else' })).toThrow('ALLOWED_ORGS must include CONSOLE_ORG');
   });
 });

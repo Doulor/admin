@@ -4,18 +4,18 @@
 
 状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`1e2f0ea7f745b5eddf977be959a17e9227101a5dc1dabc28b70a7b03e8314fcb`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`1c3aa4883c25ae9c1c19d91b9bd5727528c16c31aac5663e36e6e452d7618523`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
 ## 基线
 
 - 4 个源码应用，3 个运行单元。
-- 251 个已注册方法与路径，其中业务操作 149 个，自动 HEAD 73 个。
-- 44 张应用表，22 个能力，155 条显式业务流程。
-- 响应 Schema：62/251。缺失不等于没有响应；不冒充完整 OpenAPI。
+- 200 个已注册方法与路径，其中业务操作 115 个，自动 HEAD 56 个。
+- 44 张应用表，22 个能力，121 条显式业务流程。
+- 响应 Schema：67/200。缺失不等于没有响应；不冒充完整 OpenAPI。
 
-业务流程关联：149/149 个业务操作；5/5 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
+业务流程关联：115/115 个业务操作；5/5 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
 
 ## 应用与运行单元
 
@@ -35,13 +35,13 @@
 | 身份与会话 | 43 | `sessions`、`users`、`identities`、`identity_audit`、`device_grants`、`invite_codes`、`email_challenges`、`oauth_clients`、`oauth_subjects`、`oauth_grants`、`oidc_payloads` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/plan/UNIFIED-LOGIN.md](../../../docs/plan/UNIFIED-LOGIN.md) · [docs/services/server/oidc.md](../../../docs/services/server/oidc.md) |
 | 组织与权限 | 21 | `departments`、`titles`、`role_assignments`、`console_seeds` | [docs/services/console/README.md](../../../docs/services/console/README.md) · [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) |
 | 招新投递 | 8 | `applications`、`application_reviews`、`application_limits` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) · [docs/ops/USAGE.md](../../../docs/ops/USAGE.md) |
-| 意见反馈 | 13 | `feedback` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
-| 组织邀请 | 11 | `invite_links`、`invite_attempts`、`invitations` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
-| GitHub 组织代理 | 46 | 无本地表 | [docs/services/console/README.md](../../../docs/services/console/README.md) · [docs/architecture/API.md](../../../docs/architecture/API.md) |
-| GitLab 账号同步 | 3 | `gitlab_accounts` | [docs/services/server/oidc.md](../../../docs/services/server/oidc.md) · [docs/decisions/0005-sso-extend-core-server.md](../../../docs/decisions/0005-sso-extend-core-server.md) |
+| 意见反馈 | 9 | `feedback` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
+| 组织邀请 | 3 | `invite_links`、`invite_attempts`、`invitations` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
+| GitHub 组织代理 | 0 | 无本地表 | [docs/services/console/README.md](../../../docs/services/console/README.md) · [docs/architecture/API.md](../../../docs/architecture/API.md) |
+| GitLab 账号同步 | 12 | `gitlab_accounts` | [docs/services/server/oidc.md](../../../docs/services/server/oidc.md) · [docs/decisions/0005-sso-extend-core-server.md](../../../docs/decisions/0005-sso-extend-core-server.md) |
 | 论坛交流 | 21 | `forum_counters`、`forum_avatars`、`forum_users`、`forum_tags`、`forum_topics`、`forum_posts`、`forum_likes`、`forum_bookmarks`、`forum_follows`、`forum_notifications`、`forum_topic_views`、`forum_rate_events` | [docs/services/forum/README.md](../../../docs/services/forum/README.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
 | 通知邮件 | 0 | `mail_outbox` | [docs/services/server/mail.md](../../../docs/services/server/mail.md) |
-| 审计 | 4 | `audit_logs` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
+| 审计 | 2 | `audit_logs` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
 | 公开文档 | 4 | 无本地表 | [docs/conventions/DOCUMENTATION.md](../../../docs/conventions/DOCUMENTATION.md) · [docs/architecture/API.md](../../../docs/architecture/API.md) |
 | 基础设施与兼容入口 | 38 | `app_state` | [docs/architecture/ARCHITECTURE.md](../../../docs/architecture/ARCHITECTURE.md) · [docs/services/server/README.md](../../../docs/services/server/README.md) · [docs/conventions/ARCHITECTURE-ALIGNMENT.md](../../../docs/conventions/ARCHITECTURE-ALIGNMENT.md) |
 | 比赛信息、报名组队与积分 | 39 | `competitions`、`competition_signup_settings`、`competition_signups`、`competition_teams`、`competition_team_members`、`competition_score_events` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/README.md](../../../docs/services/server/README.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) · [docs/services/server/endpoint-contracts.md](../../../docs/services/server/endpoint-contracts.md) · [docs/services/console/README.md](../../../docs/services/console/README.md) · [docs/services/web/portal.md](../../../docs/services/web/portal.md) · [docs/plan/COMPETITION-APP.md](../../../docs/plan/COMPETITION-APP.md) |
@@ -435,7 +435,7 @@
 - 响应与错误：200 {invites:[{id,code,note,max_uses,used_count,expires_at,disabled,created_by,created_at,updated_at,usable}]}，按建立时间倒序；没权限 403 missing_capability。
 - 数据与副作用：只读。
 
-源码：[app/server/src/routes/console/invites.ts:19](../../../app/server/src/routes/console/invites.ts#L19) · [app/server/src/routes/console/contracts.ts:212](../../../app/server/src/routes/console/contracts.ts#L212) · [app/console/src/pages/Invites.vue:29](../../../app/console/src/pages/Invites.vue#L29)
+源码：[app/server/src/routes/console/invites.ts:19](../../../app/server/src/routes/console/invites.ts#L19) · [app/server/src/routes/console/contracts.ts:244](../../../app/server/src/routes/console/contracts.ts#L244) · [app/console/src/pages/Invites.vue:29](../../../app/console/src/pages/Invites.vue#L29)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts) · [tests/console/nav.test.ts](../../../tests/console/nav.test.ts)。生成器未执行这些测试。
 
@@ -452,7 +452,7 @@
 - 响应与错误：201 {邀请码}；邀请码 4–40 位字母、数字、_、-，不分大小写，同名 409 invite_code_taken，格式不对 400；次数 1–100000 或 null（不限），过期时间可为 null（不过期）。
 - 数据与副作用：写一行 invite_codes（code 存小写）与 invite.create 审计。
 
-源码：[app/server/src/routes/console/invites.ts:21](../../../app/server/src/routes/console/invites.ts#L21) · [app/server/src/routes/console/contracts.ts:213](../../../app/server/src/routes/console/contracts.ts#L213) · [app/console/src/lib/invites.ts:57](../../../app/console/src/lib/invites.ts#L57)
+源码：[app/server/src/routes/console/invites.ts:21](../../../app/server/src/routes/console/invites.ts#L21) · [app/server/src/routes/console/contracts.ts:245](../../../app/server/src/routes/console/contracts.ts#L245) · [app/console/src/lib/invites.ts:57](../../../app/console/src/lib/invites.ts#L57)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
 
@@ -469,720 +469,9 @@
 - 响应与错误：200 {邀请码}；不存在 404 not_found；只改 note、max_uses、expires_at、disabled，邀请码本身不能改。
 - 数据与副作用：只写实际变化的字段，有变化才写 invite.update 审计（记字段名）；停用后注册时兑换失败，已注册的账号不受影响。邀请码不删。
 
-源码：[app/server/src/routes/console/invites.ts:32](../../../app/server/src/routes/console/invites.ts#L32) · [app/server/src/routes/console/contracts.ts:221](../../../app/server/src/routes/console/contracts.ts#L221)
+源码：[app/server/src/routes/console/invites.ts:32](../../../app/server/src/routes/console/invites.ts#L32) · [app/server/src/routes/console/contracts.ts:253](../../../app/server/src/routes/console/contracts.ts#L253)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
-
-### 列出本人组织
-
-标识：`flow:github.organizations.list`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/me/orgs`
-- 能力：
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：仅有效 GitHub 会话，读取本人active组织并按ALLOWED_ORGS过滤；邮箱、Google 会话没有 GitHub 令牌，403 github_session_required（#262）。
-- 响应与错误：200 {orgs,allowed_orgs}；仅active成员组织并按配置过滤。
-- 数据与副作用：GET /user/memberships/orgs，按登录名缓存120秒。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-
-源码：[app/server/src/routes/admin/orgs.ts:11](../../../app/server/src/routes/admin/orgs.ts#L11) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github-session.ts:7](../../../app/server/src/middleware/require-github-session.ts#L7)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts) · [tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/nav.test.ts](../../../tests/console/nav.test.ts)。生成器未执行这些测试。
-
-### 浏览组织活动
-
-标识：`flow:github.activity.read`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/activity`
-- 能力：`github.org.read`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {events}，输出actor、repo、时间及摘要。
-- 数据与副作用：请求GitHub组织最近100条事件，不写本地活动表。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/activity.ts:8](../../../app/server/src/routes/admin/activity.ts#L8) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 读取组织资料
-
-标识：`flow:github.organization.read`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/org`
-- 能力：`github.org.read`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 GitHub组织响应对象。
-- 数据与副作用：向GitHub读取URL组织资料。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/org.ts:20](../../../app/server/src/routes/admin/org.ts#L20) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 查看组织概览
-
-标识：`flow:github.overview.read`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/overview`
-- 能力：`github.org.read`
-- 读取：`invitations`、`invite_links`、`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {role,org,counts}；成员/邀请/仓库子查询失败各降为空数组，组织主查询失败仍抛错。
-- 数据与副作用：聚合GitHub组织、成员、邀请、仓库与本地24小时邀请数和活跃链接数，不发出邀请。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/overview.ts:9](../../../app/server/src/routes/admin/overview.ts#L9) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46) · [app/console/src/pages/github/Overview.vue:57](../../../app/console/src/pages/github/Overview.vue#L57) · [app/console/src/mock/github.ts:89](../../../app/console/src/mock/github.ts#L89) · [app/server/src/middleware/http-policy.ts:58](../../../app/server/src/middleware/http-policy.ts#L58) · [app/console/src/components/CapabilityGate.vue:20](../../../app/console/src/components/CapabilityGate.vue#L20) · [app/console/src/lib/github.ts:6](../../../app/console/src/lib/github.ts#L6)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts) · [tests/server/github-connection.test.ts](../../../tests/server/github-connection.test.ts)。生成器未执行这些测试。
-
-### 查看组织安全能力
-
-标识：`flow:github.security.read`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/security`
-- 能力：`github.org.manage`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {plan,two_factor_required,dependabot,secret_scanning,audit_log}；Dependabot失败落入嵌套error字段。
-- 数据与副作用：读取GitHub组织计划，非free再查Dependabot；此接口是摘要，不配置安全策略或购买服务。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/security.ts:8](../../../app/server/src/routes/admin/security.ts#L8) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 查看组织成员角色
-
-标识：`flow:github.members.list`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/members`
-- 能力：`github.org.read`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {members,viewer_role}；单个成员详情失败将role/state设为?，名单请求失败仍抛错。
-- 数据与副作用：分页读取GitHub成员并补角色，不改变组织成员关系。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/members.ts:9](../../../app/server/src/routes/admin/members.ts#L9) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 查看团队及规模
-
-标识：`flow:github.teams.list`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/teams`
-- 能力：`github.org.read`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {teams}，每项增加member_count/repo_count；计数子请求失败记0。
-- 数据与副作用：分页读取团队及成员/仓库计数，不缓存成数据库实体。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/teams.ts:9](../../../app/server/src/routes/admin/teams.ts#L9) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 移除组织成员
-
-标识：`flow:github.members.remove`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`DELETE /api/admin/:org/members/:login`
-- 能力：`github.members.manage`
-- 读取：`sessions`
-- 写入：`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.members.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {ok:true}；login等于本人时400，其他失败保留上游状态映射。
-- 数据与副作用：向GitHub删除组织membership，成功写member.remove审计。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/members.ts:28](../../../app/server/src/routes/admin/members.ts#L28) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 调整组织成员角色
-
-标识：`flow:github.members.role`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`PATCH /api/admin/:org/members/:login/role`
-- 能力：`github.members.manage`
-- 读取：`sessions`
-- 写入：`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.members.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {ok:true}；role不是admin/member为400。
-- 数据与副作用：PUT GitHub membership角色，成功写member.role审计。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/members.ts:39](../../../app/server/src/routes/admin/members.ts#L39) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 修改组织资料与策略
-
-标识：`flow:github.organization.update`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`PATCH /api/admin/:org/org`
-- 能力：`github.org.manage`
-- 读取：`sessions`
-- 写入：`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 GitHub组织响应；没有允许编辑字段为400。
-- 数据与副作用：仅转发EDITABLE_KEYS字段，成功写org.update审计；并不修改本地部署配置。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/org.ts:29](../../../app/server/src/routes/admin/org.ts#L29) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 创建组织团队
-
-标识：`flow:github.teams.create`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`POST /api/admin/:org/teams`
-- 能力：`github.teams.manage`
-- 读取：`sessions`
-- 写入：`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.teams.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {ok:true,team}；缺name为400。
-- 数据与副作用：调用GitHub创建团队，记录team.create审计。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/teams.ts:27](../../../app/server/src/routes/admin/teams.ts#L27) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 删除组织团队
-
-标识：`flow:github.teams.delete`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`DELETE /api/admin/:org/teams/:slug`
-- 能力：`github.teams.manage`
-- 读取：`sessions`
-- 写入：`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.teams.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {ok:true}。
-- 数据与副作用：删除URL组织中指定slug的GitHub团队，记录team.delete审计。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/teams.ts:41](../../../app/server/src/routes/admin/teams.ts#L41) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 查看组织仓库列表
-
-标识：`flow:github.repositories.list`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/repos`
-- 能力：`github.org.read`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {repos}，仅下发列表所需字段。
-- 数据与副作用：经接入的 GitHub（App 或本人令牌）分页读取组织仓库，按login/org缓存60秒。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:10](../../../app/server/src/routes/admin/repos.ts#L10) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 查看仓库信息与成员
-
-标识：`flow:github.repositories.detail`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/repos/:repo`
-- 能力：`github.org.read`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {info,branches,collaborators,hooks}；后三个子查询失败降为空数组。
-- 数据与副作用：经接入的 GitHub 读取仓库、分支、协作者和hooks，按login/org/repo缓存60秒。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:40](../../../app/server/src/routes/admin/repos.ts#L40) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 浏览仓库目录
-
-标识：`flow:github.repositories.tree`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/repos/:repo/tree`
-- 能力：`github.org.read`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {path,entries}；目录优先排序。
-- 数据与副作用：按path/ref读取GitHub contents，不接触服务端本地文件。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:62](../../../app/server/src/routes/admin/repos.ts#L62) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 阅读仓库文件
-
-标识：`flow:github.repositories.file`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/repos/:repo/file`
-- 能力：`github.org.read`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 文件元数据和解码content；超过1MB返回too_large且不附正文；缺path或目录为400。
-- 数据与副作用：按path/ref从GitHub读文件，base64仅转utf8，不执行内容。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:80](../../../app/server/src/routes/admin/repos.ts#L80) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 浏览提交列表
-
-标识：`flow:github.repositories.commits`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/repos/:repo/commits`
-- 能力：`github.org.read`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {commits}，包含摘要、完整message及作者；per_page最多100。
-- 数据与副作用：按sha/path/page读取GitHub提交并缓存30秒。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:97](../../../app/server/src/routes/admin/repos.ts#L97) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 查看提交差异
-
-标识：`flow:github.repositories.commit`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/repos/:repo/commits/:sha`
-- 能力：`github.org.read`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {sha,message,author,actor,stats,files,html_url}；单文件patch截到30000字符。
-- 数据与副作用：从GitHub取指定提交，不本地checkout。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:129](../../../app/server/src/routes/admin/repos.ts#L129) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 浏览仓库议题
-
-标识：`flow:github.repositories.issues`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/repos/:repo/issues`
-- 能力：`github.org.read`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {issues}，过滤pull_request项。
-- 数据与副作用：按state分页读GitHub issues，缓存30秒；不创建issue。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:153](../../../app/server/src/routes/admin/repos.ts#L153) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 阅读议题及评论
-
-标识：`flow:github.repositories.issue`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/repos/:repo/issues/:n`
-- 能力：`github.org.read`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 议题详情与comments；数字n传给GitHub。
-- 数据与副作用：读取GitHub议题和评论，不把评论写入本地库。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:201](../../../app/server/src/routes/admin/repos.ts#L201) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 浏览合并请求
-
-标识：`flow:github.repositories.pulls`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/repos/:repo/pulls`
-- 能力：`github.org.read`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {pulls}，含head/base/draft/mergeable等上游字段。
-- 数据与副作用：按state读取GitHub PR并缓存30秒。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:176](../../../app/server/src/routes/admin/repos.ts#L176) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 阅读合并请求差异
-
-标识：`flow:github.repositories.pull`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/repos/:repo/pulls/:n`
-- 能力：`github.org.read`
-- 读取：`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.org.read（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 PR详情、comments、files；files请求失败为空，单patch截到20000字符。
-- 数据与副作用：读取GitHub PR/评论/文件，不执行分支内容、不合并。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:227](../../../app/server/src/routes/admin/repos.ts#L227) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 合并仓库请求
-
-标识：`flow:github.repositories.merge`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`PUT /api/admin/:org/repos/:repo/pulls/:n/merge`
-- 能力：`github.repos.manage`
-- 读取：`sessions`
-- 写入：`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {ok:true,merged,sha,message}，merged取上游；局部catch返回上游status或500及merge_failed/message，不走同一脱敏路径。
-- 数据与副作用：按merge_method、可选sha调用GitHub merge，成功写pr.merge审计并清repo/repos缓存；授权和分支保护仍由GitHub决定。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:258](../../../app/server/src/routes/admin/repos.ts#L258) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 变更议题状态
-
-标识：`flow:github.repositories.issue_state`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`PATCH /api/admin/:org/repos/:repo/issues/:n`
-- 能力：`github.repos.manage`
-- 读取：`sessions`
-- 写入：`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {ok:true,state}。
-- 数据与副作用：向GitHub PATCH open/closed状态，写issue.<state>审计并清repo缓存。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:284](../../../app/server/src/routes/admin/repos.ts#L284) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 回复仓库议题
-
-标识：`flow:github.repositories.comment`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`POST /api/admin/:org/repos/:repo/issues/:n/comments`
-- 能力：`github.repos.manage`
-- 读取：`sessions`
-- 写入：`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {ok:true,id,html_url}；空白body为400 empty_body。
-- 数据与副作用：POST GitHub评论，写issue.comment审计；评论正文不写审计。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:300](../../../app/server/src/routes/admin/repos.ts#L300) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 创建组织仓库
-
-标识：`flow:github.repositories.create`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`POST /api/admin/:org/create-repo`
-- 能力：`github.repos.manage`
-- 读取：`sessions`
-- 写入：`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {ok:true,repo:{name,full_name,html_url}}；非法name为400。
-- 数据与副作用：向GitHub创建仓库（auto_init默认true），写repo.create审计并清repos缓存。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:316](../../../app/server/src/routes/admin/repos.ts#L316) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 删除组织仓库
-
-标识：`flow:github.repositories.delete`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`DELETE /api/admin/:org/repos/:repo`
-- 能力：`github.repos.manage`
-- 读取：`sessions`
-- 写入：`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {ok:true}。
-- 数据与副作用：DELETE GitHub仓库，成功审计repo.delete，清repo/repos缓存。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:337](../../../app/server/src/routes/admin/repos.ts#L337) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 授权仓库协作者
-
-标识：`flow:github.repositories.collaborator_put`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`PUT /api/admin/:org/repos/:repo/collaborators/:login`
-- 能力：`github.repos.manage`
-- 读取：`sessions`
-- 写入：`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {ok:true}；permission默认push。
-- 数据与副作用：PUT GitHub协作者权限，可能触发GitHub邀请；写repo.collab.add审计并清repo缓存。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:351](../../../app/server/src/routes/admin/repos.ts#L351) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 移除仓库协作者
-
-标识：`flow:github.repositories.collaborator_delete`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`DELETE /api/admin/:org/repos/:repo/collaborators/:login`
-- 能力：`github.repos.manage`
-- 读取：`sessions`
-- 写入：`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.repos.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {ok:true}。
-- 数据与副作用：DELETE GitHub协作者，审计repo.collab.remove并清repo缓存。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-- 验证边界：core/upstream-errors 是通用鉴权或部分上游错误回归；本接口专属的成功负载与GitHub真实副作用尚未由这些测试完整证明。
-
-源码：[app/server/src/routes/admin/repos.ts:365](../../../app/server/src/routes/admin/repos.ts#L365) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/upstream-errors.test.ts](../../../tests/server/upstream-errors.test.ts)。生成器未执行这些测试。
-
-### 核对组织邀请与本地历史
-
-标识：`flow:invitation.admin.list`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/invitations`
-- 能力：`github.invites.manage`
-- 读取：`invitations`、`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {pending,history}；本地最近200条历史含邮箱、备注、source_ip和链接token，只对带 github.invites.manage 的称号开放。
-- 数据与副作用：分页读取GitHub待接受邀请及本组织本地历史，不发信或补发。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-
-源码：[app/server/src/routes/admin/invitations.ts:9](../../../app/server/src/routes/admin/invitations.ts#L9) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/invitations.test.ts](../../../tests/server/invitations.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
-
-### 取消尚未接受的组织邀请
-
-标识：`flow:invitation.admin.cancel`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`DELETE /api/admin/:org/invitations/:id`
-- 能力：`github.invites.manage`
-- 读取：`sessions`
-- 写入：`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {ok:true}；非有限数id为400。
-- 数据与副作用：调用GitHub取消邀请，写invitation.cancel审计；不回写历史invitations状态或返还链接额度。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-
-源码：[app/server/src/routes/admin/invitations.ts:21](../../../app/server/src/routes/admin/invitations.ts#L21) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/invitations.test.ts](../../../tests/server/invitations.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
-
-### 查看组织邀请链接
-
-标识：`flow:invitation.links.list`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/invite-links`
-- 能力：`github.invites.manage`
-- 读取：`invite_links`、`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。
-- 响应与错误：200 {links}；包含完整token及配额，不包含发起人加密token。
-- 数据与副作用：仅按URL org读取链接，持有token即可走公开邀请流程，应保留 github.invites.manage 门槛。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- 这个接口不调用 GitHub，不会因 GitHub 令牌失效结束会话。
-
-源码：[app/server/src/routes/admin/invite-links.ts:18](../../../app/server/src/routes/admin/invite-links.ts#L18) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:28](../../../app/server/src/middleware/require-github.ts#L28) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/console/src/pages/github/InviteLinks.vue:33](../../../app/console/src/pages/github/InviteLinks.vue#L33)
-
-测试入口：[tests/server/invitations.test.ts](../../../tests/server/invitations.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
-
-### 创建限时组织邀请链接
-
-标识：`flow:invitation.links.create`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`POST /api/admin/:org/invite-links`
-- 能力：`github.invites.manage`
-- 读取：`sessions`
-- 写入：`invite_links`、`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireGithub）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看本人在 GitHub 组织里的角色。上游用服务器 GitHub App 的安装令牌，没配 App 时用本人的 GitHub 会话令牌（GitHub 再按本人权限限制一层），都没有 409 github_not_connected（#262 第四期）。
-- 响应与错误：200 {ok:true,token,url,expires_at}；hours范围或max_uses整数范围不合法为400。
-- 数据与副作用：生成18字节随机token，经 GitHub App 接时不存发起人令牌、兑换时也用 App，经本人会话接时保存发起人token密文、有效期与配额，写invite_link.create；不立即发送邀请。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结束当前会话并审计；服务器 GitHub App 的令牌被拒回 503 github_connection_failed，不结束会话；普通成功读取不写操作审计。
-
-源码：[app/server/src/routes/admin/invite-links.ts:28](../../../app/server/src/routes/admin/invite-links.ts#L28) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:18](../../../app/server/src/middleware/require-github.ts#L18) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/server/src/lib/github-connection.ts:46](../../../app/server/src/lib/github-connection.ts#L46)
-
-测试入口：[tests/server/invitations.test.ts](../../../tests/server/invitations.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
-
-### 启停组织邀请链接
-
-标识：`flow:invitation.links.toggle`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`PATCH /api/admin/:org/invite-links/:token`
-- 能力：`github.invites.manage`
-- 读取：`invite_links`、`sessions`
-- 写入：`invite_links`、`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。
-- 响应与错误：200 {ok:true}；token不属于该org为404 not_found。
-- 数据与副作用：按token和org找链接后更新disabled并审计，不撤回已经发出的GitHub邀请。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- 这个接口不调用 GitHub，不会因 GitHub 令牌失效结束会话。
-
-源码：[app/server/src/routes/admin/invite-links.ts:61](../../../app/server/src/routes/admin/invite-links.ts#L61) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:28](../../../app/server/src/middleware/require-github.ts#L28) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28)
-
-测试入口：[tests/server/invitations.test.ts](../../../tests/server/invitations.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
-
-### 删除组织邀请链接
-
-标识：`flow:invitation.links.delete`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`DELETE /api/admin/:org/invite-links/:token`
-- 能力：`github.invites.manage`
-- 读取：`invite_links`、`sessions`
-- 写入：`invite_links`、`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 github.invites.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。
-- 响应与错误：200 {ok:true}；没有匹配org/token为404 not_found。
-- 数据与副作用：删除匹配链接并审计invite_link.delete；不删除邀请历史，不撤销GitHub既有邀请。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- 这个接口不调用 GitHub，不会因 GitHub 令牌失效结束会话。
-
-源码：[app/server/src/routes/admin/invite-links.ts:75](../../../app/server/src/routes/admin/invite-links.ts#L75) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:28](../../../app/server/src/middleware/require-github.ts#L28) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28)
-
-测试入口：[tests/server/invitations.test.ts](../../../tests/server/invitations.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
-
-### 读取组织管理员审计
-
-标识：`flow:audit.organization.read`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/logs`
-- 能力：`audit.read`、`github.invites.manage`
-- 读取：`audit_logs`、`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号同时带 audit.read 与 github.invites.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。
-- 响应与错误：200 {logs}；details解析为对象，limit最多500。
-- 数据与副作用：只按URL org查询审计。与console审计不同，此处带 audit.read 与 github.invites.manage 的称号能看到完整邀请token；org为null的登录审计不返回。
-- 会话读取遇到过期会话才删除 sessions；没有有效会话返回401，不把界面显隐作为授权。
-- 这个接口不调用 GitHub，不会因 GitHub 令牌失效结束会话。
-
-源码：[app/server/src/routes/admin/logs.ts:14](../../../app/server/src/routes/admin/logs.ts#L14) · [app/server/src/middleware/require-auth.ts:22](../../../app/server/src/middleware/require-auth.ts#L22) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/middleware/require-github.ts:28](../../../app/server/src/middleware/require-github.ts#L28) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28)
-
-测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts)。生成器未执行这些测试。
 
 ### 解析本人控制台身份
 
@@ -1677,57 +966,6 @@
 源码：[app/server/src/routes/portal/feedback.ts:26](../../../app/server/src/routes/portal/feedback.ts#L26)
 
 测试入口：[tests/server/feedback-org.test.ts](../../../tests/server/feedback-org.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/rate-limits.test.ts](../../../tests/server/rate-limits.test.ts)。生成器未执行这些测试。
-
-### 组织管理员读取待处理意见
-
-标识：`flow:feedback.admin.list`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/admin/:org/feedback`
-- 能力：`feedback.read`
-- 读取：`feedback`、`sessions`
-- 写入：`sessions`、`audit_logs`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 feedback.read（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。
-- 响应与错误：200 {items,counts}；最多500条，管理DTO不下发source_ip/UA/数字账号id。
-- 数据与副作用：按org及可选status读列表与状态计数，不记查看审计。
-
-源码：[app/server/src/routes/admin/feedback.ts:13](../../../app/server/src/routes/admin/feedback.ts#L13) · [app/server/src/lib/feedback-store.ts:22](../../../app/server/src/lib/feedback-store.ts#L22) · [app/server/src/middleware/require-github.ts:28](../../../app/server/src/middleware/require-github.ts#L28) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28)
-
-测试入口：[tests/server/feedback-org.test.ts](../../../tests/server/feedback-org.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts)。生成器未执行这些测试。
-
-### 组织管理员处理意见状态与回复
-
-标识：`flow:feedback.admin.update`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`PATCH /api/admin/:org/feedback/:id`
-- 能力：`feedback.manage`
-- 读取：`feedback`、`sessions`
-- 写入：`feedback`、`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 feedback.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。
-- 响应与错误：200 {ok:true}；记录不属于org返回404，非法状态被合同/handler拒绝。
-- 数据与副作用：更新status、reply、replied_by/replied_at及updated_at，审计feedback.update；回复将由公开列表展示，不发邮件。
-
-源码：[app/server/src/routes/admin/feedback.ts:19](../../../app/server/src/routes/admin/feedback.ts#L19) · [app/server/src/lib/feedback-store.ts:22](../../../app/server/src/lib/feedback-store.ts#L22) · [app/server/src/middleware/require-github.ts:28](../../../app/server/src/middleware/require-github.ts#L28) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28)
-
-测试入口：[tests/server/feedback-org.test.ts](../../../tests/server/feedback-org.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts)。生成器未执行这些测试。
-
-### 组织管理员删除组织意见
-
-标识：`flow:feedback.admin.delete`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`DELETE /api/admin/:org/feedback/:id`
-- 能力：`feedback.manage`
-- 读取：`feedback`、`sessions`
-- 写入：`feedback`、`audit_logs`、`sessions`
-- 不入队：
-- 权限与资源：有效会话且是极客班成员，站内称号带 feedback.manage（requireManagedOrg）；URL 组织必须是 CONSOLE_ORG，否则 403 org_not_managed；不看 GitHub 组织角色，不调用 GitHub（#262 第四期）。
-- 响应与错误：200 {ok:true}；org/id不匹配404。
-- 数据与副作用：删除反馈并审计feedback.delete，不能越过组织条件删除其他记录。
-
-源码：[app/server/src/routes/admin/feedback.ts:32](../../../app/server/src/routes/admin/feedback.ts#L32) · [app/server/src/lib/feedback-store.ts:22](../../../app/server/src/lib/feedback-store.ts#L22) · [app/server/src/middleware/require-github.ts:28](../../../app/server/src/middleware/require-github.ts#L28) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28)
-
-测试入口：[tests/server/feedback-org.test.ts](../../../tests/server/feedback-org.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts)。生成器未执行这些测试。
 
 ### 控制台读取待处理意见
 
@@ -2262,7 +1500,7 @@
 - 201 {competition}；校验名称、时间范围和解析后的HTTPS地址；未知字段或错误时间/地址400，限流429。
 - 比赛行与competition.create审计同一事务提交；审计失败一起回滚，不发邮件，不创建报名或队伍。
 
-源码：[app/server/src/routes/console/competitions.ts:41](../../../app/server/src/routes/console/competitions.ts#L41) · [app/server/src/routes/console/contracts.ts:176](../../../app/server/src/routes/console/contracts.ts#L176) · [app/server/src/lib/db.ts:192](../../../app/server/src/lib/db.ts#L192) · [app/server/src/lib/roles.ts:94](../../../app/server/src/lib/roles.ts#L94) · [app/server/src/services.ts:58](../../../app/server/src/services.ts#L58)
+源码：[app/server/src/routes/console/competitions.ts:41](../../../app/server/src/routes/console/competitions.ts#L41) · [app/server/src/routes/console/contracts.ts:208](../../../app/server/src/routes/console/contracts.ts#L208) · [app/server/src/lib/db.ts:192](../../../app/server/src/lib/db.ts#L192) · [app/server/src/lib/roles.ts:94](../../../app/server/src/lib/roles.ts#L94) · [app/server/src/services.ts:58](../../../app/server/src/services.ts#L58)
 
 测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts)。生成器未执行这些测试。
 
@@ -2319,7 +1557,7 @@
 - 角标口径是发给我的邀请加上我所在队伍收到的申请，我发出的申请不算；待处理明细只在本场相关人里下发（当事人自己的申请与邀请、本人所在队伍的待处理项），其他人看不到。
 - 只读，不写业务表；门户自助操作不写审计。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:28](../../../app/server/src/routes/portal/competition-signups.ts#L28) · [app/server/src/lib/competition-signup-store.ts:735](../../../app/server/src/lib/competition-signup-store.ts#L735) · [app/server/src/lib/competition-contract.ts:95](../../../app/server/src/lib/competition-contract.ts#L95) · [app/server/src/routes/portal/contracts.ts:19](../../../app/server/src/routes/portal/contracts.ts#L19) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:108](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L108)
+源码：[app/server/src/routes/portal/competition-signups.ts:28](../../../app/server/src/routes/portal/competition-signups.ts#L28) · [app/server/src/lib/competition-signup-store.ts:735](../../../app/server/src/lib/competition-signup-store.ts#L735) · [app/server/src/lib/competition-contract.ts:95](../../../app/server/src/lib/competition-contract.ts#L95) · [app/server/src/routes/portal/contracts.ts:30](../../../app/server/src/routes/portal/contracts.ts#L30) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:108](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L108)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2616,7 +1854,7 @@
 - 有未取消的报名后不能改参赛形式（409 has_signups）；关闭报名保留已有数据。
 - 写入与competition.signup_settings.update审计同一事务，details只记五个字段（是否开放、参赛形式、两个人数、计分），审计失败一起回滚；限流每分钟30次。
 
-源码：[app/server/src/routes/console/competition-roster.ts:32](../../../app/server/src/routes/console/competition-roster.ts#L32) · [app/server/src/lib/competition-signup-store.ts:814](../../../app/server/src/lib/competition-signup-store.ts#L814) · [app/server/src/lib/competition-signup-store.ts:815](../../../app/server/src/lib/competition-signup-store.ts#L815) · [app/server/src/lib/competition-signup-store.ts:817](../../../app/server/src/lib/competition-signup-store.ts#L817) · [app/server/src/lib/competition-contract.ts:123](../../../app/server/src/lib/competition-contract.ts#L123) · [app/server/src/routes/console/contracts.ts:187](../../../app/server/src/routes/console/contracts.ts#L187) · [app/console/src/lib/competition-hub.ts:67](../../../app/console/src/lib/competition-hub.ts#L67)
+源码：[app/server/src/routes/console/competition-roster.ts:32](../../../app/server/src/routes/console/competition-roster.ts#L32) · [app/server/src/lib/competition-signup-store.ts:814](../../../app/server/src/lib/competition-signup-store.ts#L814) · [app/server/src/lib/competition-signup-store.ts:815](../../../app/server/src/lib/competition-signup-store.ts#L815) · [app/server/src/lib/competition-signup-store.ts:817](../../../app/server/src/lib/competition-signup-store.ts#L817) · [app/server/src/lib/competition-contract.ts:123](../../../app/server/src/lib/competition-contract.ts#L123) · [app/server/src/routes/console/contracts.ts:219](../../../app/server/src/routes/console/contracts.ts#L219) · [app/console/src/lib/competition-hub.ts:67](../../../app/console/src/lib/competition-hub.ts#L67)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/console/competition-hub.test.ts](../../../tests/console/competition-hub.test.ts)。生成器未执行这些测试。
 
@@ -2822,7 +2060,7 @@
 - 响应与错误：200 {mode,gitlab_url,group,client_registered,accounts:[{account_id,login,username,gitlab_user_id,state,access_level,last_error,last_error_at,synced_at,pending}]}；pending 是现在还要做的事（同步关着时为空），client_registered 说明 gitlab 客户端登记了没有；没权限 403 missing_capability。
 - 数据与副作用：只读。控制台「成员与权限」在 mode 不是 off 时多一列「GitLab」，按 account_id 对上名单。
 
-源码：[app/server/src/routes/console/gitlab.ts:13](../../../app/server/src/routes/console/gitlab.ts#L13) · [app/server/src/routes/console/contracts.ts:137](../../../app/server/src/routes/console/contracts.ts#L137) · [app/server/src/lib/gitlab-sync.ts:72](../../../app/server/src/lib/gitlab-sync.ts#L72) · [app/server/src/routes/console/index.ts:33](../../../app/server/src/routes/console/index.ts#L33) · [app/console/src/pages/People.vue:48](../../../app/console/src/pages/People.vue#L48) · [app/console/src/lib/gitlab.ts:80](../../../app/console/src/lib/gitlab.ts#L80) · [app/console/src/mock/console.ts:757](../../../app/console/src/mock/console.ts#L757) · [app/console/src/lib/types.ts:91](../../../app/console/src/lib/types.ts#L91)
+源码：[app/server/src/routes/console/gitlab.ts:20](../../../app/server/src/routes/console/gitlab.ts#L20) · [app/server/src/routes/console/contracts.ts:140](../../../app/server/src/routes/console/contracts.ts#L140) · [app/server/src/lib/gitlab-sync.ts:81](../../../app/server/src/lib/gitlab-sync.ts#L81) · [app/server/src/routes/console/index.ts:33](../../../app/server/src/routes/console/index.ts#L33) · [app/console/src/pages/People.vue:48](../../../app/console/src/pages/People.vue#L48) · [app/console/src/lib/gitlab.ts:80](../../../app/console/src/lib/gitlab.ts#L80) · [app/console/src/mock/console.ts:757](../../../app/console/src/mock/console.ts#L757) · [app/console/src/lib/types.ts:91](../../../app/console/src/lib/types.ts#L91)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts) · [tests/console/gitlab.test.ts](../../../tests/console/gitlab.test.ts)。生成器未执行这些测试。
 
@@ -2830,7 +2068,7 @@
 
 标识：`flow:gitlab.accounts.sync`；性质：显式声明并关联源码，不是自动证明业务正确。
 
-- 操作：`POST /api/console/gitlab/accounts/:account_id/sync`
+- 操作：`POST /api/console/gitlab/accounts/:account_id/resync`
 - 能力：`roles.manage`
 - 读取：`gitlab_accounts`、`users`、`identities`、`forum_users`、`forum_avatars`、`oauth_subjects`、`sessions`、`role_assignments`、`departments`、`titles`
 - 写入：`gitlab_accounts`、`oauth_subjects`、`audit_logs`、`sessions`
@@ -2839,9 +2077,94 @@
 - 响应与错误：200 {mode,account_id,login,actions,applied,error}；GITLAB_SYNC=off 时 409 gitlab_sync_off；账号不存在 404 account_not_found；GitLab 出错不回 5xx，写进 error 与 last_error。
 - 数据与副作用：按 OIDC 身份（provider=openid_connect，extern_uid=gitlab 客户端 sector 的 sub）找或建 GitLab 用户、调组权限、封禁或解封、传头像（论坛头像或 256 像素的 GitHub 头像，200 KiB 以内，来源记进 avatar_source，#271）、同步邮箱（主邮箱、账号页绑的其它邮箱和 GitHub noreply 邮箱以已确认的加到 GitLab 用户名下，在极客班删掉的从 GitLab 删掉，记进 emails_source，#272），从不删除 GitLab 用户；dry-run 只返回 actions 不写；写 audit_logs gitlab.sync，操作人是会话账号。
 
-源码：[app/server/src/routes/console/gitlab.ts:17](../../../app/server/src/routes/console/gitlab.ts#L17) · [app/server/src/routes/console/contracts.ts:144](../../../app/server/src/routes/console/contracts.ts#L144) · [app/server/src/lib/gitlab-sync.ts:72](../../../app/server/src/lib/gitlab-sync.ts#L72) · [app/server/src/lib/db.ts:508](../../../app/server/src/lib/db.ts#L508) · [app/server/src/lib/identity-store.ts:702](../../../app/server/src/lib/identity-store.ts#L702) · [app/console/src/pages/People.vue:182](../../../app/console/src/pages/People.vue#L182) · [app/console/src/lib/gitlab.ts:76](../../../app/console/src/lib/gitlab.ts#L76) · [app/console/src/lib/types.ts:93](../../../app/console/src/lib/types.ts#L93)
+源码：[app/server/src/routes/console/gitlab.ts:24](../../../app/server/src/routes/console/gitlab.ts#L24) · [app/server/src/routes/console/contracts.ts:147](../../../app/server/src/routes/console/contracts.ts#L147) · [app/server/src/lib/gitlab-sync.ts:81](../../../app/server/src/lib/gitlab-sync.ts#L81) · [app/server/src/lib/db.ts:508](../../../app/server/src/lib/db.ts#L508) · [app/server/src/lib/identity-store.ts:702](../../../app/server/src/lib/identity-store.ts#L702) · [app/console/src/pages/People.vue:182](../../../app/console/src/pages/People.vue#L182) · [app/console/src/lib/gitlab.ts:76](../../../app/console/src/lib/gitlab.ts#L76) · [app/console/src/lib/types.ts:93](../../../app/console/src/lib/types.ts#L93)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts) · [tests/console/gitlab.test.ts](../../../tests/console/gitlab.test.ts)。生成器未执行这些测试。
+
+### 控制台查看 GitLab 同步的健康状态与上一轮对账小结
+
+标识：`flow:gitlab.status.read`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /api/console/gitlab/status`
+- 能力：`roles.manage`、`roles.department.manage`
+- 读取：`gitlab_accounts`、`sessions`、`role_assignments`、`departments`、`titles`
+- 写入：`sessions`
+- 不入队：
+- 权限与资源：有效全站 sid，roles.manage 或 roles.department.manage；版本号与健康检查用服务端的 GITLAB_API_TOKEN 连 GitLab，不经调用者凭据。
+- 响应与错误：200 {mode,url,group,token_configured,version,healthy,last_run:{at,changed,failed}|null,errors_24h}；没权限 403 missing_capability；没配 URL 或连不上时 version 为 null、healthy 为 false，不回 5xx。
+- 数据与副作用：只读；last_run 是进程内存里上一轮 reconcile() 的小结，重启后清空；errors_24h 数的是 gitlab_accounts.last_error_at 落在过去 24 小时内的账号数，不是错误事件总数。
+
+源码：[app/server/src/routes/console/gitlab.ts:32](../../../app/server/src/routes/console/gitlab.ts#L32) · [app/server/src/routes/console/contracts.ts:156](../../../app/server/src/routes/console/contracts.ts#L156) · [app/server/src/lib/gitlab-sync.ts:593](../../../app/server/src/lib/gitlab-sync.ts#L593) · [app/server/src/lib/gitlab-sync.ts:587](../../../app/server/src/lib/gitlab-sync.ts#L587)
+
+测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
+
+### 控制台查看 GitLab 组与项目清单（含私有）
+
+标识：`flow:gitlab.projects.console.list`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /api/console/gitlab/projects`
+- 能力：`roles.manage`、`roles.department.manage`
+- 读取：`sessions`、`role_assignments`、`departments`、`titles`
+- 写入：`sessions`
+- 不入队：
+- 权限与资源：有效全站 sid，roles.manage 或 roles.department.manage；用服务端的 GITLAB_API_TOKEN 读 group 本身、子组与组内全部项目（含子组）。
+- 响应与错误：200 {groups:[{id,full_path,name,visibility}],projects:[{id,path_with_namespace,name,description,visibility,web_url,http_url_to_repo,ssh_url_to_repo,last_activity_at,star_count}]}；没权限 403 missing_capability；没配 URL、连不上或 GitLab 拒绝时给空列表，不回 5xx。
+- 数据与副作用：只读，不落库；服务端内存缓存 5 分钟（lib/cache.ts 的 cached()），同一个键 5 分钟内不重新调 GitLab。
+
+源码：[app/server/src/routes/console/gitlab.ts:41](../../../app/server/src/routes/console/gitlab.ts#L41) · [app/server/src/routes/console/contracts.ts:165](../../../app/server/src/routes/console/contracts.ts#L165) · [app/server/src/lib/gitlab-sync.ts:610](../../../app/server/src/lib/gitlab-sync.ts#L610)
+
+测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
+
+### 门户公开查看 GitLab 上公开的代码仓库
+
+标识：`flow:gitlab.projects.public.list`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /api/public/gitlab/projects`
+- 能力：
+- 读取：
+- 写入：
+- 不入队：
+- 权限与资源：匿名可调，不需要登录；复用控制台同一份项目清单（5 分钟缓存），只读管理令牌看到的数据，自己按 visibility 过滤后再下发。
+- 响应与错误：200 {projects:[{name,path_with_namespace,description,web_url,http_url_to_repo,last_activity_at}]}；只给 visibility=public 的项目，不含私有项目、不含 star_count 等内部字段；GitLab 没配、连不上或拒绝时 {projects:[],unavailable:true}，不回 5xx。
+- 数据与副作用：只读，不落库，不需要会话；门户「代码仓库」应用据此渲染。
+
+源码：[app/server/src/routes/portal/gitlab.ts:12](../../../app/server/src/routes/portal/gitlab.ts#L12) · [app/server/src/routes/portal/contracts.ts:13](../../../app/server/src/routes/portal/contracts.ts#L13) · [app/server/src/lib/gitlab-sync.ts:69](../../../app/server/src/lib/gitlab-sync.ts#L69)
+
+测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
+
+### 控制台查看 GitLab 同步设置
+
+标识：`flow:gitlab.settings.read`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /api/console/gitlab/settings`
+- 能力：`roles.manage`、`roles.department.manage`
+- 读取：`sessions`、`role_assignments`、`departments`、`titles`
+- 写入：`sessions`
+- 不入队：
+- 权限与资源：有效全站 sid，roles.manage 或 roles.department.manage；不连 GitLab，只读进程内的当前设置。
+- 响应与错误：200 {sync_mode,group_path,interval_minutes,token_configured}；令牌只显示「已配置/未配置」，不下发真实值；没权限 403 missing_capability。
+- 数据与副作用：只读；当前设置来自 env 的初始值与 app_state 里持久化的覆盖值合并后的运行时状态。
+
+源码：[app/server/src/routes/console/gitlab.ts:43](../../../app/server/src/routes/console/gitlab.ts#L43) · [app/server/src/routes/console/contracts.ts:175](../../../app/server/src/routes/console/contracts.ts#L175) · [app/server/src/lib/gitlab-sync.ts:96](../../../app/server/src/lib/gitlab-sync.ts#L96)
+
+测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
+
+### 控制台修改 GitLab 同步设置（开关、组路径、对账间隔）
+
+标识：`flow:gitlab.settings.update`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`PATCH /api/console/gitlab/settings`
+- 能力：`roles.manage`
+- 读取：`sessions`、`role_assignments`、`departments`、`titles`
+- 写入：`app_state`、`sessions`
+- 不入队：
+- 权限与资源：有效全站 sid、同源 Origin、roles.manage；令牌只读 env，这个接口改不了。
+- 响应与错误：200 {sync_mode,group_path,interval_minutes,token_configured}；group_path 格式不对 400 invalid_group_path；interval_minutes 超出 5–1440 由请求体 Schema 拒绝为 400 validation_error；把 sync_mode 改成 on 但没配 GITLAB_API_TOKEN 时 409 gitlab_token_missing；改成 on 或 dry-run 但没配 GITLAB_URL 时 409 gitlab_url_missing；没权限 403 missing_capability。
+- 数据与副作用：改动写进 app_state（键 gitlab_settings），覆盖 env 的初始值，进程重启后从这里读回来；同时让运行中的对账定时器按新设置重新排（mode 开关或间隔变化都会先停当前这一轮再决定要不要重开），不新增审计记录。
+
+源码：[app/server/src/routes/console/gitlab.ts:47](../../../app/server/src/routes/console/gitlab.ts#L47) · [app/server/src/routes/console/contracts.ts:179](../../../app/server/src/routes/console/contracts.ts#L179) · [app/server/src/lib/gitlab-sync.ts:652](../../../app/server/src/lib/gitlab-sync.ts#L652) · [app/server/src/lib/gitlab-sync.ts:101](../../../app/server/src/lib/gitlab-sync.ts#L101)
+
+测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
 
 ## 核验边界
 

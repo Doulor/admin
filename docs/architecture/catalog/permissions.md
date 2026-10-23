@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`1e2f0ea7f745b5eddf977be959a17e9227101a5dc1dabc28b70a7b03e8314fcb`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`1c3aa4883c25ae9c1c19d91b9bd5727528c16c31aac5663e36e6e452d7618523`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -18,7 +18,7 @@
 | `github.members.manage` | 管理组织成员 | `github` | `github.org.read` | [app/server/src/lib/roles.ts:77](../../../app/server/src/lib/roles.ts#L77) | 0 |
 | `github.repos.manage` | 管理仓库 | `github` | `github.org.read` | [app/server/src/lib/roles.ts:78](../../../app/server/src/lib/roles.ts#L78) | 0 |
 | `github.teams.manage` | 管理团队 | `github` | `github.org.read` | [app/server/src/lib/roles.ts:79](../../../app/server/src/lib/roles.ts#L79) | 0 |
-| `github.invites.manage` | 管理邀请 | `github` | `github.org.read` | [app/server/src/lib/roles.ts:80](../../../app/server/src/lib/roles.ts#L80) | 1 |
+| `github.invites.manage` | 管理邀请 | `github` | `github.org.read` | [app/server/src/lib/roles.ts:80](../../../app/server/src/lib/roles.ts#L80) | 0 |
 | `forum.topic.pin` | 置顶话题 | `forum` |  | [app/server/src/lib/roles.ts:81](../../../app/server/src/lib/roles.ts#L81) | 0 |
 | `forum.topic.close` | 关闭话题 | `forum` |  | [app/server/src/lib/roles.ts:82](../../../app/server/src/lib/roles.ts#L82) | 0 |
 | `forum.post.moderate` | 管理帖子 | `forum` |  | [app/server/src/lib/roles.ts:83](../../../app/server/src/lib/roles.ts#L83) | 0 |
@@ -30,8 +30,8 @@
 | `feedback.read` | 查看意见箱 | `feedback` |  | [app/server/src/lib/roles.ts:89](../../../app/server/src/lib/roles.ts#L89) | 1 |
 | `feedback.manage` | 处理意见 | `feedback` | `feedback.read` | [app/server/src/lib/roles.ts:90](../../../app/server/src/lib/roles.ts#L90) | 2 |
 | `audit.read` | 查看审计日志 | `audit` |  | [app/server/src/lib/roles.ts:91](../../../app/server/src/lib/roles.ts#L91) | 1 |
-| `roles.manage` | 管理称号与部门 | `organization` | `roles.department.manage` | [app/server/src/lib/roles.ts:92](../../../app/server/src/lib/roles.ts#L92) | 8 |
-| `roles.department.manage` | 任免本部门成员 | `organization` |  | [app/server/src/lib/roles.ts:93](../../../app/server/src/lib/roles.ts#L93) | 5 |
+| `roles.manage` | 管理称号与部门 | `organization` | `roles.department.manage` | [app/server/src/lib/roles.ts:92](../../../app/server/src/lib/roles.ts#L92) | 6 |
+| `roles.department.manage` | 任免本部门成员 | `organization` |  | [app/server/src/lib/roles.ts:93](../../../app/server/src/lib/roles.ts#L93) | 4 |
 | `competitions.manage` | 管理比赛 | `competitions` |  | [app/server/src/lib/roles.ts:94](../../../app/server/src/lib/roles.ts#L94) | 0 |
 | `accounts.invites.manage` | 管理注册邀请码 | `identity` |  | [app/server/src/lib/roles.ts:95](../../../app/server/src/lib/roles.ts#L95) | 0 |
 
