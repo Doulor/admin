@@ -66,8 +66,9 @@ function fakeGitlab() {
       if (method === 'GET') return json(200, user);
       if (method === 'PUT') {
         const avatar = (init.body as FormData).get('avatar') as File;
-        // GitLab 只收 200 KiB 以内的头像
+        // GitLab 只收 200 KiB 以内、扩展名是图片的头像
         if (avatar.size > 200 * 1024) return json(400, { message: { avatar: ['is too big (should be at most 200 KiB)'] } });
+        if (!/^image\/(png|jpeg|gif|webp)$/.test(avatar.type) || !/\.(png|jpg|gif|webp)$/.test(avatar.name)) return json(400, { message: { avatar: ['file format is not supported'] } });
         user.avatar = `${avatar.type} ${avatar.size} ${avatar.name}`;
         return json(200, user);
       }
@@ -303,7 +304,7 @@ describe('GitLab account sync (#270)', () => {
     expect(gitlab.users.filter(user => user.username === 'alice')).toHaveLength(1);
   });
 
-  it('asks GitHub for a small avatar, names the file by its type and skips one GitLab would refuse (#271)', async () => {
+  it('asks GitHub for a small avatar, names the file by its type and holds back one GitLab would refuse (#271)', async () => {
     const { app, gitlab, github, row } = await setup();
     signIn(app, 'alice', 101, 'https://avatars.githubusercontent.com/u/101?v=4');
     const jpeg = Buffer.alloc(1024, 1);
@@ -312,23 +313,44 @@ describe('GitLab account sync (#270)', () => {
     expect(github.calls).toContain('https://avatars.githubusercontent.com/u/101?v=4&s=256');
     expect(userNamed(gitlab, 'alice')!.avatar).toBe(`image/jpeg ${jpeg.length} avatar.jpg`);
 
-    // 256 像素的还超过 200 KiB：不传，记下这个来源，之后不再下载
+    // 256 像素的还超过 200 KiB：不传，成员页看得到原因，下一轮再下载一次
     signIn(app, 'bob', 202, 'https://avatars.githubusercontent.com/u/202?v=4');
     github.avatar(() => new Response(Buffer.alloc(200 * 1024 + 1), { status: 200, headers: { 'content-type': 'image/png' } }));
     const summary = await app.services.gitlab.reconcile();
-    expect(summary).toMatchObject({ changed: 1, failed: 0 });
+    expect(summary).toMatchObject({ changed: 0, failed: 1 });
+    expect(summary.outcomes.find(item => item.login === 'bob')).toMatchObject({ error: 'avatar_too_large', applied: false });
+    expect(userNamed(gitlab, 'bob')!.state).toBe('active');
     expect(userNamed(gitlab, 'bob')!.avatar).toBeUndefined();
     expect(gitlab.calls.filter(call => call.startsWith('PUT /users/'))).toHaveLength(1);
-    expect(row(202)).toMatchObject({ avatar_source: 'https://avatars.githubusercontent.com/u/202?v=4', last_error: null });
+    expect(row(202)).toMatchObject({ state: 'active', access_level: 30, avatar_source: null, last_error: 'avatar_too_large' });
+    expect(app.services.gitlab.status().find(item => item.login === 'bob')!.pending).toEqual([{ kind: 'set_avatar' }]);
     const githubCalls = github.calls.length;
-    await app.services.gitlab.reconcile();
-    expect(github.calls).toHaveLength(githubCalls);
+    expect((await app.services.gitlab.reconcile()).failed).toBe(1);
+    expect(github.calls.length).toBeGreaterThan(githubCalls);
 
-    // GitHub 说没有这个头像（404）或回的不是图片：同样不传、不再试
-    signIn(app, 'carol', 103);
+    // GitHub 说没有这个头像（404）、回的不是图片：同样记下原因，下一轮再试
     github.avatar(() => new Response('not found', { status: 404 }));
-    expect((await app.services.gitlab.reconcile()).failed).toBe(0);
-    expect(row(103)).toMatchObject({ avatar_source: 'https://avatars.githubusercontent.com/u/103' });
+    expect((await app.services.gitlab.reconcile()).outcomes.find(item => item.login === 'bob')!.error).toBe('github_avatar_404');
+    github.avatar(() => new Response('<html></html>', { status: 200, headers: { 'content-type': 'text/html' } }));
+    expect((await app.services.gitlab.reconcile()).outcomes.find(item => item.login === 'bob')!.error).toBe('github_avatar_not_image');
+
+    // 论坛头像指向的图已经不在库里
+    signIn(app, 'carol', 103);
+    const now = Date.now();
+    app.services.storage.db.prepare(`INSERT INTO forum_users(id, kind, github_user_id, username, display_name, avatar_color, avatar_hash, joined_at, updated_at, account_id)
+      VALUES('fu-carol', 'member', 103, 'carol', 'carol', '#336699', NULL, ?, ?, ?)`).run(now, now, app.services.identity.accountForGithub(103)!);
+    app.services.storage.db.prepare('INSERT INTO forum_avatars(hash, data, created_at) VALUES(?, ?, ?)').run('c'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), now);
+    app.services.storage.db.prepare("UPDATE forum_users SET avatar_hash = ? WHERE id = 'fu-carol'").run('c'.repeat(64));
+    app.services.storage.db.pragma('foreign_keys = OFF');
+    app.services.storage.db.prepare('DELETE FROM forum_avatars WHERE hash = ?').run('c'.repeat(64));
+    app.services.storage.db.pragma('foreign_keys = ON');
+    expect((await app.services.gitlab.reconcile()).outcomes.find(item => item.login === 'carol')!.error).toBe('forum_avatar_missing');
+
+    // 头像小下来以后，下一轮传上去，错误清掉
+    github.avatar(() => new Response(PNG, { status: 200, headers: { 'content-type': 'image/png' } }));
+    await app.services.gitlab.reconcile();
+    expect(userNamed(gitlab, 'bob')!.avatar).toBe(`image/png ${PNG.length} avatar.png`);
+    expect(row(202)).toMatchObject({ avatar_source: 'https://avatars.githubusercontent.com/u/202?v=4', last_error: null });
   });
 
   it('records a refused or failed avatar upload and retries it on the next round (#271)', async () => {

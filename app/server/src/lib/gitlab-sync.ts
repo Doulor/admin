@@ -7,7 +7,8 @@ import type { DirectoryAccount } from "./account-directory.js";
  * 停用或不再是成员的封禁（block），恢复后解封，从不删除。GitLab 用户按 OIDC 身份（provider = openid_connect，extern_uid =
  * 这个账号在 GitLab 那个客户端的 sector 里的 `sub`）认人，不按用户名或邮箱认。用户名在第一次同步时定下：有 GitHub 的用 GitHub 登录名，
  * 没有的用站内登录名（yz_…），被占用或是保留名时加后缀，之后不再改名。
- * 头像（#271）：论坛上传的头像优先，没有时用 GitHub 头像；传上去后记下来源（avatar_source），来源变了再传，传失败下一轮再试。
+ * 头像（#271）：论坛上传的头像优先，没有时用 GitHub 头像；GitLab 收下后记下来源（avatar_source），来源变了再传，传失败下一轮再试。
+ * 还没记过来源的（以前建的号、GitLab 在登录时自动建的号）会传一次，盖掉 GitLab 上原来的头像。
  * 只有这个模块读写 gitlab_accounts；`mode` 为 dry-run 时只算出要做什么，不写表、不改 GitLab。
  */
 export const GITLAB_OIDC_PROVIDER = "openid_connect";
@@ -23,8 +24,9 @@ const AVATAR_MAX_BYTES = 200 * 1024;
 /** 向 GitHub 要的头像边长（像素），原图常常超过 GitLab 的上限。 */
 const GITHUB_AVATAR_SIZE = 256;
 const AVATAR_EXTENSIONS: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" };
-const FORUM_AVATAR = "forum:";
-const GITHUB_AVATAR = /^https:\/\/avatars\.githubusercontent\.com\//;
+/** avatar_source 里论坛头像的写法：前缀加图的散列；GitHub 头像直接写地址。 */
+const FORUM_AVATAR_PREFIX = "forum:";
+const GITHUB_AVATAR_BASE = "https://avatars.githubusercontent.com/";
 /** GitLab 不让用、或者会和路由撞上的用户名，碰到直接加后缀，不用等 GitLab 拒绝。 */
 const RESERVED_USERNAMES = new Set([
   "admin", "administrator", "root", "ghost", "support", "support-bot", "alert-bot", "security-bot", "automation-bot", "api", "help",
@@ -98,10 +100,10 @@ export function createGitlabSync(db: Database.Database, deps: {
 
   /** 头像从哪来：论坛上传的头像（forum:<散列>），否则 GitHub 头像（没记下地址时按 GitHub 数字 id 拼）；都没有为 null。 */
   function avatarSource(account: DirectoryAccount): string | null {
-    if (account.profile?.avatarHash) return `${FORUM_AVATAR}${account.profile.avatarHash}`;
+    if (account.profile?.avatarHash) return `${FORUM_AVATAR_PREFIX}${account.profile.avatarHash}`;
     if (!account.github) return null;
     const url = account.github.avatar_url;
-    return url && GITHUB_AVATAR.test(url) ? url : `https://avatars.githubusercontent.com/u/${account.github.id}`;
+    return url?.startsWith(GITHUB_AVATAR_BASE) ? url : `${GITHUB_AVATAR_BASE}u/${account.github.id}`;
   }
 
   /**
@@ -198,39 +200,43 @@ export function createGitlabSync(db: Database.Database, deps: {
   }
 
   /**
-   * 要传的头像：论坛上传的（WebP）直接取库里的；GitHub 头像下载 256 像素的。超过 200 KiB、不是图片、GitHub 说没有（4xx）
-   * 或论坛里已经没有这张图时返回 null，这个来源不再试；GitHub 连不上、回 429 或 5xx 时抛错，下一轮再试。
+   * 要传的头像：论坛上传的（WebP）直接取库里的；GitHub 头像下载 256 像素的。拿不到能传的图都抛错、记进 last_error，下一轮再试：
+   * GitHub 连不上（github_avatar_unreachable）或不是 200（github_avatar_<状态码>）、不是图片（github_avatar_not_image）、
+   * 超过 GitLab 的 200 KiB（avatar_too_large）、论坛里已经没有这张图（forum_avatar_missing）。在论坛上换个头像，来源变了就按新的来。
    */
-  async function avatarFor(source: string): Promise<Blob | null> {
-    if (source.startsWith(FORUM_AVATAR)) {
-      const data = deps.avatars.avatar(source.slice(FORUM_AVATAR.length));
-      return data && data.length <= AVATAR_MAX_BYTES ? new Blob([new Uint8Array(data)], { type: "image/webp" }) : null;
+  async function avatarFor(source: string): Promise<Blob> {
+    if (source.startsWith(FORUM_AVATAR_PREFIX)) {
+      const data = deps.avatars.avatar(source.slice(FORUM_AVATAR_PREFIX.length));
+      if (!data) throw new SyncError("forum_avatar_missing");
+      if (data.length > AVATAR_MAX_BYTES) throw new SyncError("avatar_too_large");
+      return new Blob([new Uint8Array(data)], { type: "image/webp" });
     }
     const url = new URL(source);
     url.searchParams.set("s", String(GITHUB_AVATAR_SIZE));
+    let res: Response;
+    let data: ArrayBuffer;
     try {
-      const res = await fetchGithub(url.href, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-      if (res.status === 429 || res.status >= 500) throw new SyncError(`github_avatar_${res.status}`);
-      const type = (res.headers.get("content-type") ?? "").split(";")[0];
-      if (!res.ok || !AVATAR_EXTENSIONS[type]) return null;
-      const data = new Uint8Array(await res.arrayBuffer());
-      return data.length <= AVATAR_MAX_BYTES ? new Blob([data], { type }) : null;
-    } catch (error) {
-      throw error instanceof SyncError ? error : new SyncError("github_avatar_unreachable");
+      res = await fetchGithub(url.href, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      data = res.ok ? await res.arrayBuffer() : new ArrayBuffer(0);
+    } catch {
+      throw new SyncError("github_avatar_unreachable");
     }
+    if (!res.ok) throw new SyncError(`github_avatar_${res.status}`);
+    const type = (res.headers.get("content-type") ?? "").split(";")[0];
+    if (!AVATAR_EXTENSIONS[type]) throw new SyncError("github_avatar_not_image");
+    if (data.byteLength > AVATAR_MAX_BYTES) throw new SyncError("avatar_too_large");
+    return new Blob([data], { type });
   }
 
-  /** 传头像并记下来源；没有能传的图也记下来源，来源不变就不再试。GitLab 没收（例如 400 太大）抛错，下一轮再试。 */
+  /** 传头像，GitLab 收下（200）后记下来源，来源不变就不再传；GitLab 没收（例如 400 太大）抛错，下一轮再试。 */
   async function setAvatar(account: DirectoryAccount, userId: number): Promise<void> {
     const source = avatarSource(account);
     if (!source) return;
     const avatar = await avatarFor(source);
-    if (avatar) {
-      const form = new FormData();
-      form.append("avatar", avatar, `avatar.${AVATAR_EXTENSIONS[avatar.type]}`);
-      const result = await gitlab("PUT", `/users/${userId}`, form);
-      if (result.status !== 200) throw new SyncError(`gitlab_avatar_${result.status}`);
-    }
+    const form = new FormData();
+    form.append("avatar", avatar, `avatar.${AVATAR_EXTENSIONS[avatar.type]}`);
+    const result = await gitlab("PUT", `/users/${userId}`, form);
+    if (result.status !== 200) throw new SyncError(`gitlab_avatar_${result.status}`);
     db.prepare("UPDATE gitlab_accounts SET avatar_source = ?, updated_at = ? WHERE account_id = ?").run(source, clock(), account.account_id);
   }
 

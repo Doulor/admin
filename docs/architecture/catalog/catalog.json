@@ -10029,7 +10029,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -10041,7 +10041,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 75,
+          "line": 78,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -10110,7 +10110,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -10126,7 +10126,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -12960,7 +12960,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "b10e7da06929b7cb44e94c3f85d4a481e649b76d25f45d14bb433fd1a21bc111",
+    "fingerprint": "6f1b02d58f29c982b0ea437886784b8bbbc442abca4aab5d0abd6cea152c7745",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -13056,7 +13056,7 @@
       },
       {
         "path": "app/console/src/lib/gitlab.ts",
-        "sha256": "df2202f888a2fcdda1e83dc7244cd39b3024a75f34e1629cb95a8f0c82040f9f"
+        "sha256": "c7640f691a68b81488764b5ba239af1e7187267be9f3756e12fcbd4b3af17992"
       },
       {
         "path": "app/console/src/lib/http.ts",
@@ -13816,7 +13816,7 @@
       },
       {
         "path": "app/server/src/lib/gitlab-sync.ts",
-        "sha256": "45bddf8c24a1efc6cc3f66b2e541679205253b77346ed404b582d0178a14c9b2"
+        "sha256": "d6cf41ca64f42a263a9d6cf05f9bb01655fc782eab07d4b31b654fbf16126d8c"
       },
       {
         "path": "app/server/src/lib/google.ts",
@@ -14528,7 +14528,7 @@
       },
       {
         "path": "docs/services/server/oidc.md",
-        "sha256": "f55c2ea122eab9105aa7f2593db21207c1547bb3afa1147a680926cd54153348"
+        "sha256": "ef28bb662578a2e0847b15bdb83d5bbe4d6af7c97ff3a5bdde76252ec2fb7c55"
       },
       {
         "path": "docs/services/web/README.md",
@@ -14596,7 +14596,7 @@
       },
       {
         "path": "tests/console/gitlab.test.ts",
-        "sha256": "058c4da1be1e088cf0838489ab7bf1563e4adf23b0f5422fc3e9ec3dc7b2a9e8"
+        "sha256": "57c2dfef746f9dab8121ba8caf95583a540cda6b8227ce1001d95d0a54b9a52c"
       },
       {
         "path": "tests/console/nav.test.ts",
@@ -14664,7 +14664,7 @@
       },
       {
         "path": "tests/server/gitlab-sync.test.ts",
-        "sha256": "4f8973bca32de159f175c9f3a7956318526821e2798f84712f2f61814f8b0c79"
+        "sha256": "3afc7d21887ce35dfd7860ecfafe85c331fc0dd8de06772692831c503c39243c"
       },
       {
         "path": "tests/server/identity.test.ts",
@@ -44739,7 +44739,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44751,7 +44751,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 75,
+          "line": 78,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -44779,7 +44779,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44791,7 +44791,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 75,
+          "line": 78,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -44819,7 +44819,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44831,7 +44831,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 75,
+          "line": 78,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -44859,7 +44859,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44871,7 +44871,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 75,
+          "line": 78,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -44899,7 +44899,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44911,7 +44911,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 75,
+          "line": 78,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -44939,7 +44939,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44951,7 +44951,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 75,
+          "line": 78,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -44979,7 +44979,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44991,7 +44991,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 75,
+          "line": 78,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45019,7 +45019,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45031,7 +45031,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 75,
+          "line": 78,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45059,7 +45059,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45071,7 +45071,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 75,
+          "line": 78,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45099,7 +45099,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45111,7 +45111,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 75,
+          "line": 78,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45151,7 +45151,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45163,7 +45163,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 75,
+          "line": 78,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45191,7 +45191,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45203,7 +45203,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 75,
+          "line": 78,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45261,7 +45261,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45277,7 +45277,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45301,7 +45301,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45317,7 +45317,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45341,7 +45341,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45357,7 +45357,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45381,7 +45381,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45397,7 +45397,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45421,7 +45421,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45437,7 +45437,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45461,7 +45461,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45477,7 +45477,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45501,7 +45501,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45517,7 +45517,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45541,7 +45541,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45557,7 +45557,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45581,7 +45581,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45597,7 +45597,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45621,7 +45621,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45637,7 +45637,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45661,7 +45661,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45677,7 +45677,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45713,7 +45713,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45729,7 +45729,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45753,7 +45753,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45769,7 +45769,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45793,7 +45793,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45809,7 +45809,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45833,7 +45833,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45849,7 +45849,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
@@ -45873,7 +45873,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 63,
+          "line": 65,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45889,7 +45889,7 @@
           "path": "app/console/src/pages/People.vue"
         },
         {
-          "line": 71,
+          "line": 74,
           "path": "app/console/src/lib/gitlab.ts"
         },
         {

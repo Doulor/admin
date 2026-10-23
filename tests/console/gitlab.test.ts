@@ -39,6 +39,9 @@ describe("GitLab column on the people page (#270)", () => {
     expect(errorText("gitlab_avatar_400")).toBe("头像被拒（400）");
     expect(errorText("github_avatar_503")).toBe("GitHub 头像下载失败（503）");
     expect(errorText("github_avatar_unreachable")).toBe("连不上 GitHub 头像");
+    expect(errorText("github_avatar_not_image")).toBe("GitHub 头像不是图片");
+    expect(errorText("avatar_too_large")).toBe("头像超过 200 KiB");
+    expect(errorText("forum_avatar_missing")).toBe("论坛头像找不到了");
     expect(errorText("something_new")).toBe("something_new");
   });
 

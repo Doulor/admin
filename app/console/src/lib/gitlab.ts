@@ -28,6 +28,9 @@ const ERROR_TEXT: Record<string, string> = {
   gitlab_username_exhausted: "用户名都被占用了",
   gitlab_sync_failed: "同步出错",
   github_avatar_unreachable: "连不上 GitHub 头像",
+  github_avatar_not_image: "GitHub 头像不是图片",
+  avatar_too_large: "头像超过 200 KiB",
+  forum_avatar_missing: "论坛头像找不到了",
 };
 const STATUS_ERROR: [RegExp, string][] = [
   [/^gitlab_create_(\d+)$/, "建号被拒"],
