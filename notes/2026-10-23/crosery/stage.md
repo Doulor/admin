@@ -45,3 +45,16 @@
 - 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
 - 做了什么：ego-browser 用浏览器里已有的所有者预发布会话只读访问（先确认会话是邮箱登录：/auth/me provider email，/api/console/me site_role admin、github none、22 项能力，所以 GitHub 页面不会拿被封账号的令牌去调 GitHub）：/console/people、/console/github、/console/github/invite-links，1440 宽截图；没有点任何保存、生成、停用或删除。curl 匿名打 /healthz、/release.json、/auth/providers、/auth/me、/api/console/me、/api/admin/<org>/overview、/api/public/org
 - 结果：所有者邮箱会话是提督，导航里 GitHub 组织的 9 页都在；成员表 1 人（@Crosery，提督，站内角色「管理员」，登录方式 GitHub、邮箱），表上方提示「GitHub 还没接上，名单里只有登录过本站的人和有称号的人」；/console/github 显示「GitHub 还没接上」和要由组织所有者建 App 的说明，409 github_not_connected；邀请链接页能打开，「生成链接」置灰并有说明，但空状态仍写「用右上角的「生成链接」创建第一条。」，与置灰的按钮矛盾，回到 task 分支改；页面都没有横向溢出。匿名 /api/console/me 与 /api/admin/... 回 401 not_signed_in。未验证：真实 GitHub App（没有凭据）、GitHub 会话下的组织页面、改站内角色的保存（没在所有者数据上做写操作）、真实发信、Google。所有者验收：未进行
+
+## 10:23:17 +08:00 · 发布 · #262 · 本机构建并部署预发布 0.1.1-rc.11（b542b3be2eb5）：邀请链接空状态修正
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：本地 tag v0.1.1-rc.11 → b542b3be（未推送）；同 rc.10 的步骤构建三个 amd64 镜像（版本串 0.1.1-rc.11@b542b3be2eb5，均 exit 0），归档 sha256 0112a6159bcc81687d335137323d4c762926b974beec99f296448f2a640faeeb；部署前备份预发布库到 /root/yzgc-backups/preview-20261023-101421-b69740157437.db（integrity_check ok）；env 仍用目标机 .env.preview 只换 IMAGE_TAG（diff 只有这一行）
+- 结果：部署成功：deploy-history 2026-10-23T02:22:28Z preview b542b3be2eb5 OK，sha256 校验通过，健康检查 18201/18200 ok；release.json 为 0.1.1-rc.11@b542b3be2eb5；库 integrity_check ok，users 仍是 1 行 admin、active；server 日志 5 分钟内除 MODULE_TYPELESS_PACKAGE_JSON 警告外没有 warn、error。正式环境仍是 0.1.0（d4a24749），未触碰
+
+## 10:23:17 +08:00 · 验收 · #262 · agent 在预发布 rc.11 上核对邀请链接页（不是所有者验收）
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：ego-browser 用浏览器里已有的所有者邮箱会话只读打开 /console/github/invite-links，1440 宽截图，没有点任何按钮；之后关掉这次的浏览器任务
+- 结果：页面读到的 release.json 是 0.1.1-rc.11@b542b3be2eb5；「生成链接」置灰，说明「GitHub 还没接上，生成新链接要等服务器配好 GitHub App，或用 GitHub 登录后再来；已有的链接照常可以停用和删除。」，空状态改成「接上 GitHub 后，用右上角的「生成链接」创建第一条。」，没有横向溢出。所有者验收：未进行
+- 下一步：所有者在预发布用邮箱会话看控制台；确认 ADR-0005 第二次修订第 2–5 条与审查里交给所有者定的几项；GitHub App 要由没被封的组织所有者建；正式 0.1.1 等所有者明确批准，部署前备份正式库

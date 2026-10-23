@@ -648,11 +648,11 @@
           "path": "app/server/src/routes/identity/index.ts"
         },
         {
-          "line": 161,
+          "line": 203,
           "path": "app/console/src/pages/SignIn.vue"
         },
         {
-          "line": 83,
+          "line": 84,
           "path": "app/console/src/lib/signin.ts"
         },
         {
@@ -1654,7 +1654,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 36,
+          "line": 43,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -12232,7 +12232,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "d40c32512484c9c0bded345c6a0884bb146520a1d0a2631dbf54907a0a9fd1e5",
+    "fingerprint": "31387762565aa7fa68875185eee33d39a410f41cf7828817144a2e39ee34bc7c",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -12252,7 +12252,7 @@
       },
       {
         "path": "app/console/src/components/ConsoleNav.vue",
-        "sha256": "d16a088d7372b44b4111ea9fe63e6b9f2ef95bb520d04e9670e66c9d5ae9abe1"
+        "sha256": "ba25e062b5fb627146f0549f7353ed5a4bc7d97c160260af3ee2235ea39cd16e"
       },
       {
         "path": "app/console/src/components/ConsoleShell.vue",
@@ -12288,7 +12288,7 @@
       },
       {
         "path": "app/console/src/lib/account.ts",
-        "sha256": "6a8d17f28c4f88817265137615113e7c4b3e242872bb3c7dd93b6dc2074a750b"
+        "sha256": "86405d40bf82a459b010a193d4d86c4a0822291b3bfc0e5977562425a3d5c6b2"
       },
       {
         "path": "app/console/src/lib/applications.ts",
@@ -12368,7 +12368,7 @@
       },
       {
         "path": "app/console/src/lib/signin.ts",
-        "sha256": "2bf8479c88223170c825ac7ed45350bdef8e4ff7f78e45a1ede7da50efcd7682"
+        "sha256": "f9bb614adeb267a08afbd5138bd5db455d8622c8b9a479c09d9679d14238ac42"
       },
       {
         "path": "app/console/src/lib/statuses.ts",
@@ -12400,7 +12400,7 @@
       },
       {
         "path": "app/console/src/pages/Account.vue",
-        "sha256": "db5e7f442f917921dc7adc8f44879c804ae8cfbed34b1a6c033c7ec1c6999378"
+        "sha256": "ad40e0ad6bd7f048f97bef3a83dd65dd196004e7a7df29f0d64d2cf88c36d8c9"
       },
       {
         "path": "app/console/src/pages/ApplicationDetail.vue",
@@ -12428,7 +12428,7 @@
       },
       {
         "path": "app/console/src/pages/Device.vue",
-        "sha256": "e1b5c3c9c8df18df7d3c339169f0ff89ea621cfe452134ca67778b04cfa18a96"
+        "sha256": "0e22f2c332f204752c65e16aeaeb80d5fb9e40a6a9bbb4c0c70a1a3993fd4548"
       },
       {
         "path": "app/console/src/pages/Feedback.vue",
@@ -12452,7 +12452,7 @@
       },
       {
         "path": "app/console/src/pages/SignIn.vue",
-        "sha256": "f3d73fc47fb89a0216df6cea481ebe8b5c156622e2473c1c04776eeebfbd792a"
+        "sha256": "edcdd831cf497baab5c9f57fb3af429f84d85a266a948178dbc6392e3ea9e6c3"
       },
       {
         "path": "app/console/src/pages/github/Activity.vue",
@@ -13728,7 +13728,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "a807247ac85fe6a52b687883476d64961a135655436132f42591740fc4725b57"
+        "sha256": "3ab9972386bfd3c81dccf726c3315b845eb8c84d5255656fb5605b9ebb47edf9"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -13816,7 +13816,7 @@
       },
       {
         "path": "tests/console/signin.test.ts",
-        "sha256": "68ff91fb2d4da4274ddd3e2b909262b0ebf4a63ef7df753d6032f3bedd0f0ba5"
+        "sha256": "466d29545ea8c74c8dc5cf3ef522ed9c473d19424eef1ff6d60e655b3c5e7e3c"
       },
       {
         "path": "tests/e2e/competitions.spec.mts",
@@ -44149,7 +44149,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 36,
+          "line": 43,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -44173,7 +44173,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 36,
+          "line": 43,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -44197,7 +44197,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 36,
+          "line": 43,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -44233,7 +44233,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 36,
+          "line": 43,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -44257,7 +44257,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 36,
+          "line": 43,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -44281,7 +44281,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 36,
+          "line": 43,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -44305,7 +44305,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 36,
+          "line": 43,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -44329,7 +44329,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 36,
+          "line": 43,
           "path": "app/console/src/lib/account.ts"
         }
       ],
@@ -48009,11 +48009,11 @@
           "path": "app/server/src/routes/identity/index.ts"
         },
         {
-          "line": 161,
+          "line": 203,
           "path": "app/console/src/pages/SignIn.vue"
         },
         {
-          "line": 83,
+          "line": 84,
           "path": "app/console/src/lib/signin.ts"
         },
         {

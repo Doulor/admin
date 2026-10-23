@@ -14,7 +14,7 @@ import { ApiError, api, jsonBody } from "../lib/http";
 import { useResource } from "../lib/resource";
 import { siteUrl } from "../lib/runtime";
 import { clearSession } from "../lib/session";
-import { cleanCode, retryAfter } from "../lib/signin";
+import { cleanCode, codeProblem, looksLikeEmail, retryAfter } from "../lib/signin";
 import { fmtDate, fmtRelative } from "../lib/format";
 import { PROVIDER_ICON, PROVIDER_TEXT, RESULT_TEXT, actionText, loginIsFresh, membershipText, passwordProblem, providerText } from "../lib/account";
 import type { AccountView } from "../lib/types";
@@ -60,7 +60,7 @@ const stepUp = ref(false);
 async function sendBindCode() {
   bindError.value = null;
   const target = bindEmail.value.trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) { bindError.value = "邮箱格式不对"; return; }
+  if (!looksLikeEmail(target)) { bindError.value = "邮箱格式不对"; return; }
   bindBusy.value = "send";
   try {
     const result = await api<{ resend_after: number }>("/api/identity/email/start", { method: "POST", ...jsonBody({ email: target }) });
@@ -78,7 +78,8 @@ async function sendBindCode() {
 }
 async function verifyBindCode() {
   bindError.value = null;
-  if (bindCode.value.length !== 6) { bindError.value = "验证码是 6 位数字"; return; }
+  const problem = codeProblem(Boolean(bindSentTo.value), bindCode.value);
+  if (problem) { bindError.value = problem; return; }
   bindBusy.value = "verify";
   try {
     await api("/api/identity/email/verify", { method: "POST", ...jsonBody({ code: bindCode.value }) });
@@ -343,7 +344,7 @@ const goPortal = () => window.location.assign(siteUrl("portal", "/"));
   gap: 2px 10px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: var(--tx-fill-color-lighter, rgba(127, 127, 127, 0.06));
+  background: var(--tx-fill-color-lighter);
 }
 .account__identity-icon {
   grid-row: span 2;

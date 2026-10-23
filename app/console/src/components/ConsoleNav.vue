@@ -62,11 +62,13 @@ function onSelect(item: SidebarNavItem) {
       @select="onSelect"
     >
       <template #workspace>
-        <TxCardItem clickable role="link" :title="workspace.name" :subtitle="workspace.description" class="console-nav__brand" @click="onSelect({ value: 'overview', label: '概览' })">
-          <template #avatar>
-            <img :src="logoUrl" alt="" class="console-nav__logo" width="32" height="32">
-          </template>
-        </TxCardItem>
+        <div class="console-nav__head">
+          <TxCardItem clickable role="link" :title="workspace.name" :subtitle="workspace.description" class="console-nav__brand" @click="onSelect({ value: 'overview', label: '概览' })">
+            <template #avatar>
+              <img :src="logoUrl" alt="" class="console-nav__logo" width="32" height="32">
+            </template>
+          </TxCardItem>
+        </div>
       </template>
 
       <template #item-icon="{ item }">
@@ -100,21 +102,32 @@ function onSelect(item: SidebarNavItem) {
   --tx-bui-sidebar-nav-width: 100%;
 }
 /* TxSidebarNav 的根是一列普通块：品牌、导航、footer 依次往下排，footer 会跟在最后一项后面悬在半中间。
-   改成满高的纵向 flex：导航区吃掉剩余高度并在超出时自己滚动，账号区钉在底部。 */
+   改成满高的纵向 flex，账号区钉在底部。超出时滚动的是根而不是 __body：悬停高亮是 __body 里的绝对定位块，
+   位置按「条目框 − __body 框」算、不加 scrollTop，__body 自己滚动后高亮会比鼠标所在的条目高出滚动的距离。
+   根滚动时 __body 和条目一起移动，高亮跟得上；品牌和账号区用 sticky 留在上下两端。 */
 .console-nav :deep(.tx-bui-sidebar-nav) {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
-}
-.console-nav :deep(.tx-bui-sidebar-nav__body) {
-  flex: 1 1 auto;
-  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+.console-nav :deep(.tx-bui-sidebar-nav__body) {
+  flex: 1 0 auto;
+}
+.console-nav__head {
+  position: sticky;
+  top: 0;
+  /* 条目行自带 z-index: 1（压在悬停高亮上面），同级时后出现的盖住前面的，品牌和账号区要高一级 */
+  z-index: 2;
+  flex: none;
+  padding: 8px 0;
+  background: var(--tx-bui-surface);
+}
 .console-nav__brand {
-  margin-bottom: 8px;
   --tx-card-item-gap: 10px;
   --tx-card-item-padding: 6px;
 }
@@ -126,13 +139,17 @@ function onSelect(item: SidebarNavItem) {
   object-fit: contain;
 }
 .console-nav__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   flex: none;
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-top: 8px;
-  padding: 12px 4px 2px;
+  padding: 12px 4px 10px;
   border-top: 1px solid var(--tx-border-color-light);
+  background: var(--tx-bui-surface);
 }
 .console-nav__me {
   display: flex;
