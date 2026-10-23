@@ -6,7 +6,11 @@ import { ApiError, api } from "../../app/console/src/lib/http";
 import { clearSession, loadMe, useSession } from "../../app/console/src/lib/session";
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-const ME = { login: "xu", avatar_url: null, org: "Org", titles: [], title: "admin", capabilities: ["feedback.read"], blocked: [], github_role: "admin" };
+const ME = {
+  account_id: "mock-xu", login: "xu", username: "xu", display_name: "徐", avatar_url: null,
+  level: "member", level_name: "极客班成员", department: null, titles: [],
+  permissions: ["feedback.view"], provider: "github", email_required: false,
+};
 
 /** 先让 /api/console/me 登录成功，之后的请求按 `next` 返回 */
 function server(next: () => Response) {
@@ -32,17 +36,17 @@ describe("接口拿到 401 时登录态失效", () => {
     expect((meError.value as ApiError).status).toBe(401);
   });
 
-  it("几个请求先后拿到 401 只处理最先到的那个：身份与称号清单一起清掉，后到的 401 不再改动 meError", async () => {
-    // 身份带 console.access，loadMe 会顺带读 catalogue；其余请求挂起，由测试决定谁的 401 先到。
+  it("几个请求先后拿到 401 只处理最先到的那个：身份清单清掉，后到的 401 不再改动 meError", async () => {
+    // 身份带 console.access，但 loadMe 只读 /api/console/me 一个接口（#274 没有独立的 catalogue 接口了）；
+    // 其余请求挂起，由测试决定谁的 401 先到。
     const waiting: Array<(response: Response) => void> = [];
     vi.stubGlobal("fetch", vi.fn((path: string) => {
-      if (String(path).endsWith("/api/console/me")) return Promise.resolve(json(200, { ...ME, capabilities: ["console.access", "feedback.read"] }));
-      if (String(path).endsWith("/api/console/catalogue")) return Promise.resolve(json(200, { titles: [], capabilities: [] }));
+      if (String(path).endsWith("/api/console/me")) return Promise.resolve(json(200, { ...ME, permissions: ["console.access", "feedback.view"] }));
       return new Promise<Response>(resolve => waiting.push(resolve));
     }));
     await loadMe();
-    const { me, meError, catalogue } = useSession();
-    expect(catalogue.value).not.toBeNull();
+    const { me, meError } = useSession();
+    expect(me.value?.permissions).toContain("console.access");
 
     const calls = [api("/api/console/feedback"), api("/api/console/summary"), api("/api/console/feedback/1", { method: "PATCH", body: "{}" })];
     expect(waiting).toHaveLength(3);
@@ -55,7 +59,6 @@ describe("接口拿到 401 时登录态失效", () => {
     expect(errors.every(error => error instanceof ApiError && error.status === 401)).toBe(true);
     expect(meError.value).toBe(errors[1]);
     expect(me.value).toBeNull();
-    expect(catalogue.value).toBeNull();
   });
 
   it("写请求拿到 401 同样算退出", async () => {
@@ -66,7 +69,7 @@ describe("接口拿到 401 时登录态失效", () => {
   });
 
   it("403、500 与网络错误不算退出：身份保留，页面照常显示错误和重试", async () => {
-    for (const make of [() => json(403, { error: "missing_capability" }), () => json(500, { error: "internal_error" })]) {
+    for (const make of [() => json(403, { error: "forbidden" }), () => json(500, { error: "internal_error" })]) {
       server(make);
       await loadMe(true);
       await expect(api("/api/console/feedback")).rejects.toBeInstanceOf(ApiError);

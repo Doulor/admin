@@ -6,16 +6,21 @@ import { TxSpinner } from "@talex-touch/tuffex/spinner";
 import { TxButton } from "@talex-touch/tuffex/button";
 import ConsoleShell from "../components/ConsoleShell.vue";
 import ErrorPanel from "../components/ErrorPanel.vue";
+import { primaryTitle as pickTitle, titleTone } from "../lib/users";
 import TitleBadge from "../components/TitleBadge.vue";
 import logoUrl from "../assets/logo.png";
 import { ApiError } from "../lib/http";
+import { ASSIGNER_TEXT } from "../lib/levels";
 import { loadMe, useSession } from "../lib/session";
 import { siteUrl } from "../lib/runtime";
-import { assignerText } from "../lib/titles";
 import { bindEmailPath } from "../lib/signin";
 
-/** /console 下所有页面的入口：先取身份，未登录去 /signin，还没有登录邮箱去 /bind-email（#273），没有任何能力显示 guest 的说明。 */
-const { me, meError, meLoading, catalogue, reload } = useSession();
+/**
+ * /console 下所有页面的入口：先取身份，未登录去 /signin，还没有登录邮箱去 /bind-email（#273），
+ * 没有「进入控制台」（console.access）时说明原因。CONTRACT §5 约定这种账号的 /api/console/me 照样回 200，
+ * 服务端要是回了 403 forbidden（缺 console.access）也按同一种情况说明。
+ */
+const { me, meError, meLoading, reload } = useSession();
 const route = useRoute();
 const router = useRouter();
 
@@ -35,7 +40,9 @@ watch(emailRequired, value => {
   if (value) void router.replace(bindEmailPath(route.fullPath));
 }, { immediate: true });
 
-const guest = computed(() => me.value && me.value.capabilities.length === 0);
+const noAccess = computed(() => meError.value instanceof ApiError && meError.value.status === 403 && meError.value.code === "forbidden");
+const guest = computed(() => noAccess.value || Boolean(me.value && !me.value.permissions.includes("console.access")));
+const primaryTitle = computed(() => (me.value ? pickTitle(me.value.titles) : null));
 const goPortal = () => window.location.assign(siteUrl("portal", "/"));
 const goAccount = () => void router.push("/account");
 </script>
@@ -46,25 +53,29 @@ const goAccount = () => void router.push("/account");
     <span class="muted">正在确认登录状态</span>
   </div>
 
-  <div v-else-if="meError && !me" class="root-state console-ground">
+  <div v-else-if="meError && !me && !noAccess" class="root-state console-ground">
     <div class="root-state__box">
       <ErrorPanel :error="meError" :retry="reload" size="large" />
     </div>
   </div>
 
-  <div v-else-if="guest && me" class="root-state console-ground">
+  <div v-else-if="guest" class="root-state console-ground">
     <TxCard class="guest">
       <img :src="logoUrl" alt="" width="48" height="48" class="guest__logo">
       <h1>你还不能使用控制台</h1>
-      <template v-if="me.site_role === null">
-        <p>你已经登录 <span class="mono">{{ me.login }}</span>，但这个账号现在不是极客班成员。</p>
-        <p>如果是弄错了，请联系{{ assignerText(catalogue) }}在「成员与权限」里把你改回成员。</p>
+      <template v-if="!me">
+        <p>你已经登录，但这个账号没有「进入控制台」权限。</p>
+        <p>官网、论坛和比赛不受影响。需要用控制台的话，请联系{{ ASSIGNER_TEXT }}。</p>
+      </template>
+      <template v-else-if="me.level === 'visitor' || me.level === 'registered'">
+        <p>你已经登录 <span class="mono">@{{ me.username }}</span>，这个账号现在是{{ me.level_name }}，没有「进入控制台」权限。</p>
+        <p>如果身份不对，请联系{{ ASSIGNER_TEXT }}，在「用户」里改成正确的身份。</p>
       </template>
       <template v-else>
-        <p>你已经登录极客班账号 <span class="mono">{{ me.login }}</span>，还没有被指派带控制台权限的称号。</p>
-        <p>官网、论坛和比赛不受影响。控制台要等{{ assignerText(catalogue) }}在「成员与权限」里给你指派称号。</p>
+        <p>你已经登录 <span class="mono">@{{ me.username }}</span>，你所在的组里还没有「进入控制台」权限。</p>
+        <p>官网、论坛和比赛不受影响。需要用控制台的话，请联系{{ ASSIGNER_TEXT }}。</p>
       </template>
-      <div class="guest__badge"><TitleBadge :title="me.title" /></div>
+      <div v-if="me && primaryTitle" class="guest__badge"><TitleBadge :label="primaryTitle.name" :tone="titleTone(primaryTitle, me.department)" /></div>
       <div class="guest__actions">
         <TxButton variant="secondary" @click="goPortal">回到官网</TxButton>
         <TxButton variant="secondary" icon="i-carbon-user-avatar" @click="goAccount">我的账号</TxButton>

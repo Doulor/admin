@@ -1,70 +1,63 @@
 import { describe, expect, it } from "vitest";
-import { CONSOLE_NAV, activeNavId, navState, needsGithubConnection, visibleNav } from "../../app/console/src/lib/nav";
-import { MOCK_PERSONAS } from "../../app/console/src/mock/console";
+import { CONSOLE_NAV, NAV_GROUPS, activeNavId, navState, visibleNav } from "../../app/console/src/lib/nav";
+import { MOCK_PERSONAS, mockMe } from "../../app/console/src/mock/console";
 
-const identity = (capabilities: string[]) => ({ capabilities });
+const identity = (permissions: string[]) => ({ permissions });
 
 describe("navState", () => {
-  const item = { anyOf: ["github.invites.manage"] };
-  it("shows an item whose capability is held", () => {
-    expect(navState(item, identity(["console.access", "github.invites.manage"]))).toBe("visible");
+  const item = { anyOf: ["invite.manage"] };
+  it("shows an item whose node is held", () => {
+    expect(navState(item, identity(["console.access", "invite.manage"]))).toBe("visible");
   });
-  it("tells GitHub organisation pages apart: they need the server to be connected to GitHub (#262 第四期)", () => {
-    expect(needsGithubConnection(["github.invites.manage"])).toBe(true);
-    expect(needsGithubConnection(["github.org.read", "github.org.manage"])).toBe(true);
-    expect(needsGithubConnection(["roles.manage", "roles.department.manage"])).toBe(false);
-    expect(needsGithubConnection([])).toBe(false);
-  });
-  it("hides an item the title never granted", () => {
+  it("hides an item whose node is missing", () => {
     expect(navState(item, identity(["console.access"]))).toBe("hidden");
   });
   it("treats anyOf as a union", () => {
-    expect(navState({ anyOf: ["roles.manage", "roles.department.manage"] }, identity(["roles.department.manage"]))).toBe("visible");
+    expect(navState({ anyOf: ["perm.view", "perm.manage"] }, identity(["perm.manage"]))).toBe("visible");
   });
 });
 
-describe("console navigation per persona", () => {
-  const ids = (name: string) => visibleNav(MOCK_PERSONAS[name] as never).map(item => item.id);
-  const groups = (name: string) => [...new Set(visibleNav(MOCK_PERSONAS[name] as never).map(item => item.group ?? "home"))];
+describe("console navigation per persona (#274)", () => {
+  const me = (name: string) => mockMe(MOCK_PERSONAS[name]);
+  const ids = (name: string) => visibleNav(me(name)).map(item => item.id);
 
-  it("gives the admin (GitHub organisation owner) every page", () => {
-    expect(ids("admin")).toEqual(CONSOLE_NAV.map(item => item.id));
+  it("follows SPEC §3.9: 概览, then 招新, 社区, 用户, GitLab, 记录, with no GitHub organisation pages", () => {
+    expect(NAV_GROUPS.map(group => group.label)).toEqual(["招新", "社区", "用户", "GitLab", "记录"]);
+    expect(CONSOLE_NAV.map(item => item.id)).toEqual([
+      "overview", "applications", "forum", "competitions", "users", "permissions", "invites",
+      "gitlab-overview", "gitlab-accounts", "gitlab-projects", "gitlab-settings", "activity", "feedback",
+    ]);
+    for (const item of CONSOLE_NAV) {
+      expect(item.to.startsWith("/console")).toBe(true);
+      expect(`${item.id} ${item.to} ${item.label}`).not.toMatch(/github/i);
+    }
   });
-  it("gives the captain every GitHub page from the title alone, whatever the GitHub org role", () => {
-    expect(ids("captain")).toContain("github-invitations");
-    expect(ids("captain")).toContain("github-security");
-    expect(MOCK_PERSONAS.captain.site_role).toBe("member");
+  it("gives the site owner every page, whichever way they signed in", () => {
+    expect(ids("owner")).toEqual(CONSOLE_NAV.map(item => item.id));
+    expect(ids("owner_email")).toEqual(ids("owner"));
   });
-  it("gives a plain member only the overview and the GitHub read pages", () => {
-    expect(groups("member")).toEqual(["home", "github"]);
-    expect(ids("member")).not.toContain("github-invitations");
-    expect(ids("member")).not.toContain("people");
+  it("gives the management head users, permissions (read only), invites, GitLab and the activity log", () => {
+    const list = ids("management_head");
+    for (const id of ["overview", "users", "permissions", "invites", "gitlab-overview", "gitlab-settings", "activity", "competitions"]) expect(list, id).toContain(id);
+    expect(list).not.toContain("applications");
+    expect(list).not.toContain("feedback");
+    expect(me("management_head").permissions).toContain("perm.view");
+    expect(me("management_head").permissions).not.toContain("perm.manage");
   });
-  it("gives a recruitment head the invitation pages but not the security page, which needs github.org.manage", () => {
-    expect(ids("recruitment")).toContain("github-invitations");
-    expect(ids("recruitment")).toContain("github-invite-links");
-    expect(ids("recruitment")).not.toContain("github-security");
+  it("gives a department head the overview, applications, users and the activity log of their own department", () => {
+    const list = ids("ai_head");
+    for (const id of ["overview", "applications", "users", "activity"]) expect(list, id).toContain(id);
+    for (const id of ["permissions", "invites", "gitlab-overview", "feedback"]) expect(list, id).not.toContain(id);
   });
-  it("gives a department head the people page but not the audit log unless the bundle grants it", () => {
-    expect(ids("recruitment")).toContain("people");
-    expect(ids("recruitment")).not.toContain("audit");
-    expect(ids("tech")).toContain("audit");
+  it("lets a custom group open the console for one job: the AI staff member in 活动志愿者 sees competitions", () => {
+    expect(me("ai_staff").permissions).toContain("console.access");
+    expect(ids("ai_staff")).toContain("competitions");
+    expect(ids("ai_staff")).not.toContain("users");
   });
-  it("keeps the owner's every page when they signed in by email; GitHub pages explain the missing connection on open", () => {
-    expect(ids("admin_email")).toEqual(ids("admin"));
-    expect(ids("admin_email")).toContain("invites");
-    expect(MOCK_PERSONAS.admin_email.capabilities).toEqual(MOCK_PERSONAS.admin.capabilities);
-    expect(MOCK_PERSONAS.admin_email.github).toBe("none");
-  });
-  it("shows invite codes only to holders of accounts.invites.manage", () => {
-    expect(ids("captain")).toContain("invites");
-    expect(ids("tech")).not.toContain("invites");
-  });
-  it("gives a guest nothing", () => {
-    expect(ids("guest")).toEqual([]);
-  });
-  it("only links to console routes", () => {
-    for (const item of CONSOLE_NAV) expect(item.to.startsWith("/console")).toBe(true);
+  it("keeps members, alumni and registered users out: /api/console/me answers but without console.access", () => {
+    for (const name of ["member", "alumni", "registered"]) expect(me(name).permissions, name).not.toContain("console.access");
+    expect(me("registered").level).toBe("registered");
+    expect(me("registered").permissions).toContain("apply.submit");
   });
 });
 
@@ -74,10 +67,10 @@ describe("activeNavId", () => {
     expect(activeNavId("/console/")).toBe("overview");
     expect(activeNavId("/console/applications/abc")).toBe("applications");
   });
-  it("prefers the longest prefix and keeps the GitHub overview exact", () => {
-    expect(activeNavId("/console/github")).toBe("github-overview");
-    expect(activeNavId("/console/github/repos/geek-main/issues/3")).toBe("github-repos");
-    expect(activeNavId("/console/github/invite-links")).toBe("github-invite-links");
+  it("keeps the GitLab overview exact and picks the longest prefix below it", () => {
+    expect(activeNavId("/console/gitlab")).toBe("gitlab-overview");
+    expect(activeNavId("/console/gitlab/accounts")).toBe("gitlab-accounts");
+    expect(activeNavId("/console/gitlab/settings")).toBe("gitlab-settings");
   });
   it("returns null outside the console", () => {
     expect(activeNavId("/signin")).toBeNull();

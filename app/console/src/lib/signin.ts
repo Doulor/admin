@@ -18,29 +18,16 @@ export interface OutcomeInfo {
   action?: OutcomeAction;
 }
 
-export const GITHUB_INVITATION_URL = "https://github.com/orgs/Yangtze-University-Geek-Class/invitation";
-
 export function signInOutcomes(): Record<string, OutcomeInfo> {
   return {
     not_member: {
       type: "warning",
       title: "只有极客班成员可以登录",
-      body: "这个账号现在不是极客班成员。第一次用 GitHub 登录要先加入极客班的 GitHub 组织；已经注册过的账号，成员身份由站内管理员决定。不登录也能浏览官网和论坛。",
+      body: "这个账号现在不是极客班成员。身份由站长或有权限的部门负责人在控制台里改；有邀请码的话，登录后可以兑换。不登录也能浏览官网和论坛。",
       action: {
         label: "申请加入极客班",
         icon: "i-carbon-email",
         href: siteUrl("portal", "/join-us"),
-      },
-    },
-    invite_pending: {
-      type: "warning",
-      title: "还没接受组织邀请",
-      body: "到 GitHub 的通知或邮件里接受极客班组织的邀请，再回来登录。",
-      action: {
-        label: "前往 GitHub 接受邀请",
-        icon: "i-carbon-launch",
-        href: GITHUB_INVITATION_URL,
-        target: "_blank",
       },
     },
     cancelled: { type: "info", title: "已取消登录" },
@@ -48,12 +35,12 @@ export function signInOutcomes(): Record<string, OutcomeInfo> {
     account_disabled: {
       type: "warning",
       title: "这个极客班账号已停用",
-      body: "账号停用后不能登录，已有的会话也已失效。如有疑问请联系组织管理员。",
+      body: "账号停用后不能登录，已有的会话也已失效。如有疑问请联系站长。",
     },
     invite_required: {
       type: "info",
       title: "这个 Google 账号还没有极客班账号",
-      body: "在下面填上邀请码，再点「用 Google 注册」，就会用这个 Google 账号注册一个极客班账号。",
+      body: "点「用 Google 注册」，就会用这个 Google 账号注册一个极客班账号。有邀请码的话先填在下面，注册后就是极客班成员。",
     },
     invalid_invite: {
       type: "warning",
@@ -201,11 +188,11 @@ export function resetProblem(form: { email: string; codeSent: boolean; code: str
 
 /**
  * 邮箱注册表单提交前的本地检查，按页面上从上到下的顺序报第一处问题；都对返回 null。
+ * 邀请码选填（CONTRACT-274 §2：填了有效的进极客班成员，不填进注册用户，填错了服务端回 invite_invalid）。
  * 密码可以不填（注册后到「我的账号」再设），填了就按账号页同一条规则。
  */
 export function registerProblem(form: { email: string; invite: string; codeSent: boolean; code: string; password: string }): string | null {
   if (!looksLikeEmail(form.email)) return "邮箱格式不对";
-  if (!form.invite.trim()) return "填上邀请码才能注册";
   return codeProblem(form.codeSent, form.code) ?? (form.password ? passwordRuleProblem(form.password) : null);
 }
 

@@ -52,7 +52,7 @@ describe("账号页 (lib/account)", () => {
   });
 
   it("开发预览的账号样板只给打码后的邮箱", () => {
-    const view = mockAccount(MOCK_PERSONAS.admin_email);
+    const view = mockAccount(MOCK_PERSONAS.owner_email);
     expect(view.session.provider).toBe("email");
     for (const item of view.identities) if (item.provider === "email") expect(item.label).toMatch(/^.\*\*\*@/);
     // 和服务端一样：邮箱带 id，主邮箱在前（#272）
@@ -68,7 +68,7 @@ describe("账号页 (lib/account)", () => {
     expect(fresh.identities.map(item => item.provider)).toEqual(["github"]);
     expect(loginIsFresh(fresh)).toBe(true);
     expect(loginIsFresh(mockAccount(MOCK_PERSONAS.no_email_stale))).toBe(false);
-    for (const name of ["admin", "admin_email", "member", "guest"]) expect(mockAccount(MOCK_PERSONAS[name]).email_required, name).toBe(false);
+    for (const name of ["owner", "owner_email", "member", "alumni", "registered"]) expect(mockAccount(MOCK_PERSONAS[name]).email_required, name).toBe(false);
 
     vi.stubGlobal("window", { location: { search: "?__persona=no_email" } });
     expect(routeConsole(new URL("http://mock.local/api/console/me"))).toMatchObject({ email_required: true });

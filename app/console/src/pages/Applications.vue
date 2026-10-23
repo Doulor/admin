@@ -19,14 +19,14 @@ import { fmtDate, fmtRelative } from "../lib/format";
 import { isMock } from "../lib/runtime";
 import { useResource } from "../lib/resource";
 import { useSession } from "../lib/session";
-import { toneColor } from "../lib/titles";
+import { toneColor } from "../lib/tone";
 import { APPLICATION_STATUS, APPLICATION_STATUSES, isApplicationStatus, statusMeta } from "../lib/statuses";
 import type { ApplicationItem, ApplicationList } from "../lib/types";
 
 const PAGE_SIZE = 20;
 const route = useRoute();
 const router = useRouter();
-const { can, catalogue } = useSession();
+const { can } = useSession();
 
 const status = computed(() => (isApplicationStatus(route.query.status) ? route.query.status : ""));
 const q = computed(() => (typeof route.query.q === "string" ? route.query.q : ""));
@@ -50,7 +50,7 @@ function setQuery(next: Record<string, string | undefined>) {
 const total = computed(() => Object.values(list.data.value?.counts ?? {}).reduce((sum, n) => sum + n, 0));
 const chips = computed(() => [
   { value: "", label: "全部", count: total.value },
-  ...APPLICATION_STATUSES.map(id => ({ value: id, label: APPLICATION_STATUS[id].label, count: list.data.value?.counts[id] ?? 0, dot: toneColor(APPLICATION_STATUS[id].tone, catalogue.value) })),
+  ...APPLICATION_STATUSES.map(id => ({ value: id, label: APPLICATION_STATUS[id].label, count: list.data.value?.counts[id] ?? 0, dot: toneColor(APPLICATION_STATUS[id].tone) })),
 ]);
 
 const columns = [
@@ -66,9 +66,9 @@ const exportHref = computed(() => `/api/console/applications/export.csv${status.
 
 <template>
   <div class="page">
-    <PageHeader title="投递管理" description="官网「投递简历」收到的投递。打开详情和导出都会记入审计日志。">
+    <PageHeader title="投递管理" description="官网「投递简历」收到的投递。打开详情和导出都会记入操作记录。">
       <template #actions>
-        <template v-if="can('applications.export')">
+        <template v-if="can('apply.export')">
           <TxTooltip v-if="isMock()" content="开发预览不能导出，请连接本地后端">
             <TxButton icon="i-carbon-download" disabled>导出 CSV</TxButton>
           </TxTooltip>

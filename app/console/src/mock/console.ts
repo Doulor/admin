@@ -1,13 +1,14 @@
-// 开发预览：`/api/console/*` 的只读样板数据（全部虚构）。
+// 开发预览：`/api/console/*` 与 `/api/public/departments` 的只读样板数据（全部虚构）。
 // 只在 DEV 且数据源为 mock 时由 lib/http.ts 动态导入；生产构建里这段导入被删掉，不进产物。
-// 称号、能力与部门必须与 app/server/src/lib/roles.ts 的默认值一致，tests/console/mock-sync.test.ts 会逐项核对。
+// 组、条目和求值照 SPEC §3.3–§3.5 做了一份简化版：通配会展开、拒绝优先、meta 取权重最高的组；
+// 范围只认 department 一个键（部长的「查看用户」「查看操作记录」只看到本部门的人），其余键不判断。
 import { ApiError } from "../lib/http";
-import { DEPARTMENT_ICONS } from "../lib/icons";
-import { DEFAULT_CREW, DEFAULT_TITLES, kindRank, makeTitle, titleBundleError, titleKind } from "../lib/titles";
+import { NODE_LABELS, PERMISSION_DOMAINS, nodeDomain } from "../lib/permission-nodes";
 import type {
-  AccountView, Assignment, CompetitionRoster, GithubVia, GitlabAccount, GitlabAccountsResponse, InviteCode, Person, RosterSignup, RosterStats, RosterTeam, ScoreEvent,
-  SessionProvider, SignupSettings,
-  SiteRole, TitleId, TitleView, Tone,
+  ActivityEvent, ActivityList, ConsoleMe, ConsoleUser, DepartmentRef, EffectivePermissions, GitlabAccount, GitlabAccountsResponse, GitlabProjectsResponse,
+  GitlabSettings, GitlabStatus, InviteCode, Level, PermissionEntry, PermissionExplain, PermissionExplainHit, PermissionGroup, PermissionGroupMember,
+  PermissionNodesResponse, PublicDepartment, RosterSignup, RosterStats, RosterTeam, ScoreEvent, SessionProvider, SignupSettings, SiteRole, Summary,
+  UserPatch, UsersResponse,
 } from "../lib/types";
 
 const now = Date.now();
@@ -15,69 +16,8 @@ const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 const beijingDayEnd = (at: number) => Math.floor((at + 8 * HOUR) / DAY) * DAY + DAY - 8 * HOUR - 1;
-export const MOCK_ORG = "Yangtze-University-Geek-Class";
+const beijingDayStart = (at: number) => Math.floor((at + 8 * HOUR) / DAY) * DAY - 8 * HOUR;
 
-export const MOCK_TONES: Record<Tone, string> = {
-  amber: "#855700", cobalt: "#3346C8", violet: "#6E44C9", jade: "#18694A",
-  sky: "#08609A", coral: "#A63F16", rose: "#B4235A", slate: "#5B6475",
-};
-
-/** 样板数据只读，称号就是服务端的默认值（与控制台兜底用的是同一张表）。 */
-export const MOCK_TITLES = DEFAULT_TITLES;
-const CREW = DEFAULT_CREW;
-
-export const MOCK_CAPABILITIES = [
-  { id: "console.access", domain: "console", label: "进入控制台", description: "进入控制台；持有任意一项能力就自动获得" },
-  { id: "github.org.read", domain: "github", label: "查看 GitHub 组织", description: "查看组织概况、成员、仓库、团队、活动、安全" },
-  { id: "github.org.manage", domain: "github", label: "修改组织资料", description: "修改组织资料与设置" },
-  { id: "github.members.manage", domain: "github", label: "管理组织成员", description: "移除成员、修改成员角色" },
-  { id: "github.repos.manage", domain: "github", label: "管理仓库", description: "新建或删除仓库、管理协作者" },
-  { id: "github.teams.manage", domain: "github", label: "管理团队", description: "新建或删除团队" },
-  { id: "github.invites.manage", domain: "github", label: "管理邀请", description: "管理邀请和邀请链接" },
-  { id: "forum.topic.pin", domain: "forum", label: "置顶话题", description: "置顶话题" },
-  { id: "forum.topic.close", domain: "forum", label: "关闭话题", description: "关闭话题" },
-  { id: "forum.post.moderate", domain: "forum", label: "管理帖子", description: "编辑或删除他人帖子；在已关闭的话题里回复" },
-  { id: "forum.category.manage", domain: "forum", label: "管理分类", description: "管理论坛分类" },
-  { id: "forum.badge.assign", domain: "forum", label: "授予论坛徽章", description: "授予论坛专属徽章（预留，本期没有接口）" },
-  { id: "applications.read", domain: "applications", label: "查看投递", description: "查看投递" },
-  { id: "applications.review", domain: "applications", label: "审核投递", description: "修改投递状态、写备注" },
-  { id: "applications.export", domain: "applications", label: "导出投递", description: "导出 CSV" },
-  { id: "feedback.read", domain: "feedback", label: "查看意见箱", description: "查看意见箱" },
-  { id: "feedback.manage", domain: "feedback", label: "处理意见", description: "修改意见状态、回复、删除" },
-  { id: "audit.read", domain: "audit", label: "查看审计日志", description: "查看审计日志（含 IP）" },
-  { id: "roles.manage", domain: "roles", label: "管理称号与部门", description: "管理称号和任免；部门配置与删除另需提督身份；只能给最高两级称号" },
-  { id: "roles.department.manage", domain: "roles", label: "任免本部门成员", description: "任免自己负责的部门里的成员" },
-  { id: "competitions.manage", domain: "competitions", label: "管理比赛", description: "新建、编辑、下线比赛" },
-  { id: "accounts.invites.manage", domain: "accounts", label: "管理注册邀请码", description: "新建、停用注册邀请码；用邮箱或 Google 注册极客班账号要填邀请码" },
-];
-const ALL = MOCK_CAPABILITIES.map(item => item.id);
-const DOMAINS = [
-  { id: "console", label: "控制台" }, { id: "applications", label: "招新投递" }, { id: "forum", label: "论坛" },
-  { id: "github", label: "GitHub 组织" }, { id: "feedback", label: "意见箱" }, { id: "audit", label: "审计" }, { id: "roles", label: "称号与权限" },
-  { id: "competitions", label: "比赛" },
-  { id: "accounts", label: "账号" },
-];
-export const MOCK_IMPLIES: Record<string, string[]> = {
-  "github.org.manage": ["github.org.read"],
-  "github.members.manage": ["github.org.read"],
-  "github.repos.manage": ["github.org.read"],
-  "github.teams.manage": ["github.org.read"],
-  "github.invites.manage": ["github.org.read"],
-  "applications.review": ["applications.read"],
-  "applications.export": ["applications.read"],
-  "feedback.manage": ["feedback.read"],
-  "roles.manage": ["roles.department.manage"],
-};
-export const MOCK_CAPTAIN_ONLY = ["roles.manage"];
-/** 各称号的权限包默认值（服务端 ROLE_BASE）。 */
-export const MOCK_ROLE_BASE: Record<TitleId, string[]> = {
-  admin: ALL,
-  captain: ALL,
-  head: ["console.access", "github.org.read", "feedback.read", "roles.department.manage"],
-  member: ["console.access", "github.org.read"],
-  alumni: ["console.access", "github.org.read", "feedback.read"],
-  guest: [],
-};
 /** 投递状态（服务端 APPLICATION_STATUSES），测试核对。 */
 export const MOCK_APPLICATION_STATUSES = [
   { id: "received", label: "已收到" }, { id: "interview", label: "待面试" }, { id: "accepted", label: "已录取" }, { id: "rejected", label: "未通过" },
@@ -85,235 +25,312 @@ export const MOCK_APPLICATION_STATUSES = [
 ];
 const STATUSES = MOCK_APPLICATION_STATUSES;
 
-export const MOCK_DEPARTMENTS = [
-  {
-    id: "recruitment", name: "招新部", tag: "RECRUIT", icon: "user-follow", tone: "coral" as Tone, sort_order: 10,
-    description: "负责招新宣传、投递评估与面试安排",
-    head_capabilities: ["applications.read", "applications.review", "applications.export", "github.invites.manage"],
-    member_capabilities: ["applications.read", "applications.review"],
-  },
-  {
-    id: "tech", name: "技术部", tag: "TECH", icon: "terminal", tone: "jade" as Tone, sort_order: 20,
-    description: "负责组织仓库、基础设施与技术规范",
-    head_capabilities: ["github.repos.manage", "github.teams.manage", "audit.read"], member_capabilities: [],
-  },
-  {
-    id: "community", name: "社区部", tag: "COMMUNITY", icon: "forum", tone: "rose" as Tone, sort_order: 30,
-    description: "负责论坛版务、意见箱与社区氛围",
-    head_capabilities: ["forum.topic.pin", "forum.topic.close", "forum.post.moderate", "forum.category.manage", "forum.badge.assign", "feedback.manage"],
-    member_capabilities: ["forum.topic.pin", "forum.topic.close", "forum.post.moderate"],
-  },
-  {
-    id: "projects", name: "项目部", tag: "PROJECTS", icon: "application", tone: "cobalt" as Tone, sort_order: 40,
-    description: "负责项目立项、协作仓库与项目展示",
-    head_capabilities: ["github.repos.manage", "github.teams.manage", "forum.topic.pin"], member_capabilities: [],
-  },
+// ---- 部门与称号（SPEC §3.4）----
+
+const deptTitles = (slug: string, headWeight = 60) => [
+  { id: `title.${slug}.head`, name: "部长", weight: headWeight },
+  { id: `title.${slug}.deputy`, name: "副部长", weight: 50 },
+  { id: `title.${slug}.staff`, name: "部员", weight: 40 },
 ];
-const deptView = (id: string) => {
+export const MOCK_DEPARTMENTS: PublicDepartment[] = [
+  { id: "dept.ai", name: "AI部门", tone: "y", icon: "chart-network", description: "AI 方向的项目与培训", titles: deptTitles("ai") },
+  { id: "dept.algo", name: "算法部门", tone: "u", icon: "code", description: "算法竞赛与刷题训练", titles: deptTitles("algo") },
+  { id: "dept.hardware", name: "硬件部门", tone: "c", icon: "terminal", description: "硬件与嵌入式项目", titles: deptTitles("hardware") },
+  { id: "dept.security", name: "网安部门", tone: "g", icon: "badge", description: "网络安全方向的培训与比赛", titles: deptTitles("security") },
+  { id: "dept.management", name: "管理部门", tone: "pill", icon: "user-admin", description: "班级日常管理与控制台运维", titles: deptTitles("management", 80) },
+  { id: "dept.none", name: "无部门", tone: "ink", icon: "user", description: "还没分部门的人", titles: [] },
+];
+const REAL_DEPARTMENT_IDS = MOCK_DEPARTMENTS.filter(item => item.id !== "dept.none").map(item => item.id);
+const deptRef = (id: string): DepartmentRef => {
   const d = MOCK_DEPARTMENTS.find(item => item.id === id)!;
-  return { id: d.id, name: d.name, tag: d.tag, icon: d.icon, tone: d.tone };
+  return { id: d.id, name: d.name, tone: d.tone };
+};
+const SITE_OWNER = { id: "title.site.owner", name: "站长", department_id: null } as const;
+const titleRef = (id: string) => {
+  if (id === SITE_OWNER.id) return { ...SITE_OWNER };
+  const department = MOCK_DEPARTMENTS.find(d => d.titles.some(t => t.id === id))!;
+  return { id, name: department.titles.find(t => t.id === id)!.name, department_id: department.id };
 };
 
-/** GitHub 组织名单：xu-yan 是组织所有者；du-ke 已毕业并退出了组织，只剩称号。只作参考，不决定权限。 */
-export const MOCK_MEMBERS: { login: string; id: number; role: "admin" | "member" }[] = [
-  { login: "xu-yan", id: 1000, role: "admin" },
-  { login: "chen-hang", id: 1001, role: "member" },
-  { login: "li-xiaoman", id: 1002, role: "member" },
-  { login: "wang-zhe", id: 1003, role: "member" },
-  { login: "sun-qiao", id: 1004, role: "member" },
-  { login: "zhao-yi", id: 1005, role: "member" },
-  { login: "he-miao", id: 1006, role: "member" },
-  { login: "liu-xing", id: 1007, role: "member" },
-  { login: "gao-yuan", id: 1008, role: "member" },
-  { login: "tang-yu", id: 1009, role: "member" },
-  { login: "fang-lin", id: 1010, role: "member" },
-  { login: "bai-shuo", id: 1011, role: "member" },
-  { login: "qin-yue", id: 1014, role: "member" },
-  { login: "lu-an", id: 1015, role: "member" },
-];
+// ---- 权限节点（SPEC §3.3）----
 
-/** 虚构的称号指派：captain 一位（由提督任命）、head 四位、带部门的 member 若干、不带部门的 member 两位、alumni 两位。 */
-export const MOCK_ASSIGNMENTS: Assignment[] = ([
-  { id: 1, github_login: "chen-hang", github_user_id: 1001, role: "captain", department_id: "", note: "第三届舰长", granted_by: "xu-yan", created_at: now - 40 * DAY },
-  { id: 2, github_login: "li-xiaoman", github_user_id: 1002, role: "head", department_id: "recruitment", note: null, granted_by: "chen-hang", created_at: now - 38 * DAY },
-  { id: 3, github_login: "wang-zhe", github_user_id: 1003, role: "head", department_id: "tech", note: null, granted_by: "chen-hang", created_at: now - 38 * DAY },
-  { id: 4, github_login: "sun-qiao", github_user_id: 1004, role: "head", department_id: "community", note: "兼管意见箱", granted_by: "chen-hang", created_at: now - 37 * DAY },
-  { id: 5, github_login: "zhao-yi", github_user_id: 1005, role: "head", department_id: "projects", note: null, granted_by: "chen-hang", created_at: now - 37 * DAY },
-  { id: 6, github_login: "he-miao", github_user_id: 1006, role: "member", department_id: "recruitment", note: "负责面试排期", granted_by: "li-xiaoman", created_at: now - 12 * DAY },
-  { id: 9, github_login: "tang-yu", github_user_id: 1009, role: "member", department_id: "community", note: null, granted_by: "sun-qiao", created_at: now - 10 * DAY },
-  { id: 10, github_login: "fang-lin", github_user_id: 1010, role: "member", department_id: "recruitment", note: "宣传海报", granted_by: "li-xiaoman", created_at: now - 8 * DAY },
-  { id: 7, github_login: "liu-xing", github_user_id: 1007, role: "member", department_id: "", note: null, granted_by: "chen-hang", created_at: now - 9 * DAY },
-  { id: 11, github_login: "bai-shuo", github_user_id: 1011, role: "member", department_id: "", note: "转专业过来", granted_by: "chen-hang", created_at: now - 3 * DAY },
-  { id: 8, github_login: "gao-yuan", github_user_id: 1008, role: "alumni", department_id: "", note: "已毕业，前技术部队长", granted_by: "chen-hang", created_at: now - 30 * DAY },
-  { id: 12, github_login: "du-ke", github_user_id: 1012, role: "alumni", department_id: "", note: null, granted_by: "chen-hang", created_at: now - 25 * DAY },
-] as Omit<Assignment, "account_id">[]).map(row => ({ ...row, account_id: null }));
-const ASSIGNMENTS = MOCK_ASSIGNMENTS;
-
-const origin = (source: TitleView["source"], assignment_id: number | null) => ({ source, assignment_id });
-
-/** 与服务端 computeAccess 同一规则算出一个人的称号（只算称号；能力在身份表里写明，由测试核对）。`siteRole` 是站内角色。 */
-export function mockTitles(login: string, siteRole: SiteRole): TitleView[] {
-  const rows = ASSIGNMENTS.filter(row => row.github_login === login);
-  const titles: TitleView[] = rows.map(row =>
-    makeTitle(row.role, row.department_id ? deptView(row.department_id) : null, null, origin("assignment", row.id)));
-  if (siteRole === "admin") titles.push(makeTitle("admin", null, null, origin("site", null)));
-  const hasAlumni = rows.some(row => row.role === "alumni");
-  const hasPlainMember = titles.some(title => title.id === "member" && !title.department);
-  if (siteRole === "member" && !hasAlumni && !hasPlainMember) titles.push(makeTitle("member", null, null, origin("site", null)));
-  titles.sort((a, b) => kindRank(titleKind(a)) - kindRank(titleKind(b)));
-  return titles.length ? titles : [makeTitle("guest", null, null, origin("none", null))];
-}
-
-/**
- * 极客班账号（#262 第四期，权限只认账号）：GitHub 组织里登录过本站的人，站内角色按第一次登录时的组织角色记下；
- * qin-yue、lu-an 还没登录过；bai-shuo 是回填的老账号，还没记过站内角色。yz_k3m9q2xa 是用邀请码注册的邮箱账号；
- * mo-chen 已被移出极客班。
- */
-export const MOCK_ACCOUNTS: { account_id: string; login: string; github_user_id: number | null; site_role: SiteRole; role_unrecorded: boolean; member: boolean; providers: SessionProvider[] }[] = [
-  ...MOCK_MEMBERS.filter(member => member.login !== "qin-yue" && member.login !== "lu-an").map((member, index) => ({
-    account_id: `01JMOCKACCOUNT${String(index).padStart(12, "0")}`, login: member.login, github_user_id: member.id,
-    site_role: member.login === "bai-shuo" ? null : member.role, role_unrecorded: member.login === "bai-shuo", member: true,
-    providers: (member.role === "admin" ? ["github", "email"] : ["github"]) as SessionProvider[],
+export const ALL_NODES = Object.keys(NODE_LABELS);
+const NODE_DESCRIPTIONS: Record<string, string> = {
+  "console.access": "能打开控制台。没有它，其他控制台权限也用不上。",
+  "users.view": "看「用户」名单和每个人的详情。",
+  "users.manage": "改别人的身份、部门和称号。",
+  "users.disable": "停用或重新启用账号；停用后马上退出所有设备。",
+  "perm.view": "看组、条目、成员和求值解释。",
+  "perm.manage": "改组的条目、继承和成员，新建或删除自定义组。",
+  "activity.read": "看操作记录。IP 只显示前两段。",
+  "activity.read.ip": "在操作记录里看完整 IP。",
+  "activity.export": "把操作记录导出成 CSV。",
+  "dept.manage": "管理本部门的人和部门资料。",
+  "gitlab.sync": "让某个账号立即重新同步到 GitLab。",
+  "gitlab.settings": "改同步模式、群组路径和同步间隔。",
+  "forum.moderate.delete": "删除别人的帖子和回复。",
+};
+export const MOCK_NODES: PermissionNodesResponse = {
+  nodes: ALL_NODES.map(node => ({
+    node, domain: nodeDomain(node), label: NODE_LABELS[node],
+    description: NODE_DESCRIPTIONS[node] ?? (node.startsWith("meta.") ? "取值是次数，-1 表示不限。" : ""), meta: node.startsWith("meta."),
   })),
-  { account_id: "01JMOCKACCOUNTINVITE000001", login: "yz_k3m9q2xa", github_user_id: null, site_role: "member", role_unrecorded: false, member: true, providers: ["email"] },
-  { account_id: "01JMOCKACCOUNTREMOVED00001", login: "mo-chen", github_user_id: 1013, site_role: null, role_unrecorded: false, member: false, providers: ["github"] },
-];
+  domains: PERMISSION_DOMAINS,
+};
 
-/**
- * GitLab 同步状态（#270，同服务端 GET /api/console/gitlab/accounts）。默认是打开后的样子：大多数人已经建号进组，提督是所有者；
- * yz_k3m9q2xa 建号时连不上 GitLab，tang-yu 进组失败，fang-lin 的头像被 GitLab 拒了（#271），mo-chen 已被移出、在 GitLab 上封禁了，bai-shuo 回来了还没解封。
- * `dry-run` 是预演时的样子（还没建过号，每个成员都待建号、同步邮箱，有 GitHub 的还要传头像）；`unregistered` 是打开了但客户端没登记；`off` 是关着。
- */
-export type MockGitlabCase = "on" | "dry-run" | "unregistered" | "off";
-export function mockGitlab(which: MockGitlabCase = "on"): GitlabAccountsResponse {
-  const base = { gitlab_url: "https://git.yangtzeu.work", group: "geek" };
-  const accessOf = (account: (typeof MOCK_ACCOUNTS)[number]) => account.site_role === "admin" ? 50 : 30;
-  const blank = (account: (typeof MOCK_ACCOUNTS)[number]): GitlabAccount => ({
-    account_id: account.account_id, login: account.login, username: null, gitlab_user_id: null, state: null, access_level: null,
-    last_error: null, last_error_at: null, synced_at: null,
-    pending: which === "off" || !account.member ? []
-      : [
-        { kind: "create", username: account.login, access_level: accessOf(account) },
-        ...(account.github_user_id === null ? [] : [{ kind: "set_avatar" } as const]),
-        { kind: "set_emails" },
-      ],
-  });
-  if (which !== "on") {
-    return { ...base, mode: which === "unregistered" ? "on" : which, client_registered: which !== "unregistered", accounts: MOCK_ACCOUNTS.map(blank) };
-  }
-  const synced = now - 8 * MIN;
-  const accounts = MOCK_ACCOUNTS.map((account, index): GitlabAccount => {
-    const row: GitlabAccount = {
-      ...blank(account), username: account.login, gitlab_user_id: 2 + index, state: "active", access_level: accessOf(account), synced_at: synced, pending: [],
-    };
-    if (account.login === "yz_k3m9q2xa") {
-      return { ...row, gitlab_user_id: null, state: "pending", access_level: null, last_error: "gitlab_unreachable", last_error_at: synced, pending: blank(account).pending };
-    }
-    if (account.login === "tang-yu") return { ...row, access_level: null, last_error: "gitlab_member_500", last_error_at: synced, pending: [{ kind: "set_access", access_level: 30 }] };
-    if (account.login === "fang-lin") return { ...row, last_error: "gitlab_avatar_400", last_error_at: synced, pending: [{ kind: "set_avatar" }] };
-    if (account.login === "liu-xing") return { ...row, last_error: "gitlab_email_400", last_error_at: synced, pending: [{ kind: "set_emails" }] };
-    if (account.login === "mo-chen") return { ...row, state: "blocked" };
-    if (account.login === "bai-shuo") return { ...row, state: "blocked", pending: [{ kind: "unblock" }] };
-    return row;
-  });
-  return { ...base, mode: "on", client_registered: true, accounts };
+// ---- 组（SPEC §3.4）----
+
+let entrySeq = 1;
+type EntryInit = { node: string; value?: boolean; meta?: string; scope?: Record<string, unknown>; expires_at?: number | null };
+const entry = ({ node, value = true, meta, scope = {}, expires_at = null }: EntryInit): PermissionEntry => ({
+  id: entrySeq++, node, value: meta === undefined ? value : null, meta_value: meta ?? null, scope, expires_at,
+});
+const allow = (node: string, scope: Record<string, unknown> = {}) => entry({ node, scope });
+type GroupInit = Omit<PermissionGroup, "member_count" | "icon" | "tone" | "sort" | "system" | "description" | "department_id" | "parents"> &
+  Partial<Pick<PermissionGroup, "icon" | "tone" | "sort" | "system" | "description" | "department_id" | "parents">>;
+const group = (init: GroupInit): PermissionGroup => ({
+  icon: "user", tone: "ink", sort: 0, system: true, description: "", department_id: null, parents: [], member_count: 0, ...init,
+});
+
+function titleGroups(deptId: string): PermissionGroup[] {
+  const slug = deptId.replace("dept.", "");
+  const own = { department: [deptId] };
+  const head = deptId === "dept.management"
+    ? ["console.access", "users.*", "perm.view", "activity.*", "gitlab.*", "competition.*", "invite.manage"].map(node => allow(node))
+    : [
+      allow("console.access"),
+      ...["users.view", "apply.view", "apply.review", "activity.read", "dept.manage"].map(node => allow(node, own)),
+    ];
+  return [
+    group({ id: `title.${slug}.head`, kind: "title", name: "部长", description: "负责部门事务", weight: deptId === "dept.management" ? 80 : 60, department_id: deptId, sort: 1, parents: [deptId], entries: head }),
+    group({ id: `title.${slug}.deputy`, kind: "title", name: "副部长", description: "协助部长", weight: 50, department_id: deptId, sort: 2, parents: [deptId], entries: [] }),
+    group({ id: `title.${slug}.staff`, kind: "title", name: "部员", description: "部门成员", weight: 40, department_id: deptId, sort: 3, parents: [deptId], entries: [] }),
+  ];
 }
 
-/** 开发预览看 GitLab 列的另外几种样子：地址加 `?__gitlab=dry-run`、`unregistered` 或 `off`。 */
-function mockGitlabCase(): MockGitlabCase {
-  if (typeof window === "undefined") return "on";
-  const value = new URLSearchParams(window.location.search).get("__gitlab");
-  return value === "dry-run" || value === "unregistered" || value === "off" ? value : "on";
-}
-
-/**
- * 成员全名单（同服务端 routes/console/people.ts）：每个账号；`listed` 时再加 GitHub 组织里还没登录过的人（称号按他们
- * 登录后会记下的角色算），最后是有称号但两边都没有的人；按主称号层级、再按登录名排。
- */
-export function mockPeople(listed = true): Person[] {
-  const githubRole = new Map(MOCK_MEMBERS.map(member => [member.id, member.role] as const));
-  const people: Person[] = MOCK_ACCOUNTS.map(account => ({
-    account_id: account.account_id, login: account.login, user_id: account.github_user_id, avatar_url: null,
-    site_role: account.site_role, role_unrecorded: account.role_unrecorded, member: account.member, status: "active", providers: account.providers,
-    last_login_at: now - 2 * DAY,
-    ...(listed ? { github_role: account.github_user_id !== null ? githubRole.get(account.github_user_id) ?? null : null } : {}),
-    titles: mockTitles(account.login, account.site_role),
-  }));
-  const known = new Set(people.map(person => person.login));
-  if (listed) {
-    for (const member of MOCK_MEMBERS) {
-      if (known.has(member.login)) continue;
-      known.add(member.login);
-      people.push({
-        account_id: null, login: member.login, user_id: member.id, avatar_url: null, site_role: null, role_unrecorded: false, member: false, status: null,
-        providers: [], last_login_at: null, github_role: member.role, titles: mockTitles(member.login, member.role),
-      });
-    }
-  }
-  for (const row of ASSIGNMENTS) {
-    if (known.has(row.github_login)) continue;
-    known.add(row.github_login);
-    people.push({
-      account_id: null, login: row.github_login, user_id: row.github_user_id, avatar_url: null, site_role: null, role_unrecorded: false, member: false, status: null,
-      providers: [], last_login_at: null, ...(listed ? { github_role: null } : {}), titles: mockTitles(row.github_login, null),
+export const MOCK_GROUPS: PermissionGroup[] = [
+  group({
+    id: "level.visitor", kind: "level", name: "访客", description: "没有登录的人", weight: 0, sort: 1,
+    entries: [allow("forum.read.public"), entry({ node: "meta.limit.read.per_minute", meta: "60" }), entry({ node: "meta.limit.search.per_minute", meta: "10" })],
+  }),
+  group({
+    id: "level.registered", kind: "level", name: "注册用户", description: "注册了极客班账号、还没成为成员的人", weight: 10, sort: 2, parents: ["level.visitor"],
+    entries: [
+      allow("forum.read.registered"), allow("apply.submit"), allow("account.*"),
+      entry({ node: "meta.limit.apply.daily", meta: "3" }), entry({ node: "meta.limit.read.per_minute", meta: "120" }), entry({ node: "meta.limit.search.per_minute", meta: "20" }),
+    ],
+  }),
+  group({
+    id: "level.member", kind: "level", name: "极客班成员", description: "注册时填了邀请码，或者后来兑换了邀请码", weight: 20, sort: 3, parents: ["level.registered"],
+    entries: [
+      ...["forum.read.member", "forum.topic.create", "forum.reply.create", "forum.react", "forum.sticker.use", "forum.upload.image", "competition.signup", "competition.team"].map(node => allow(node)),
+      ...([["apply.daily", "-1"], ["read.per_minute", "300"], ["search.per_minute", "60"], ["forum.topic.hourly", "20"], ["forum.reply.hourly", "60"], ["forum.react.hourly", "300"], ["forum.upload.hourly", "60"]] as const)
+        .map(([node, meta]) => entry({ node: `meta.limit.${node}`, meta })),
+    ],
+  }),
+  group({ id: "level.alumni", kind: "level", name: "往届成员", description: "已经毕业的学长学姐", weight: 15, sort: 4, parents: ["level.registered"], entries: [allow("forum.read.member")] }),
+  group({ id: "dept.none", kind: "department", name: "无部门", description: "账号没分部门时隐含属于它", weight: 30, sort: 6, entries: [] }),
+  ...REAL_DEPARTMENT_IDS.map((id, index): PermissionGroup => {
+    const def = MOCK_DEPARTMENTS.find(d => d.id === id)!;
+    return group({
+      id, kind: "department", name: def.name, description: def.description, weight: 30, department_id: null, icon: def.icon, tone: def.tone, sort: index + 1,
+      entries: [allow("forum.moderate.*", { category: [id.replace("dept.", "")] })],
     });
-  }
-  const rank = (person: Person) => kindRank(titleKind(person.titles[0]));
-  return people.sort((a, b) => rank(a) - rank(b) || a.login.localeCompare(b.login));
+  }),
+  ...REAL_DEPARTMENT_IDS.flatMap(titleGroups),
+  group({ id: "title.site.owner", kind: "title", name: "站长", description: "拥有全部权限。系统里最后一位站长不能被降级或停用", weight: 100, tone: "pill", sort: 0, entries: [allow("*")] }),
+  group({
+    id: "custom.event_staff", kind: "custom", name: "活动志愿者", description: "秋季黑客松期间帮忙管理比赛和报名", weight: 25, system: false,
+    entries: [allow("console.access"), allow("competition.manage"), entry({ node: "meta.limit.forum.topic.hourly", meta: "40", expires_at: beijingDayEnd(now + 30 * DAY) })],
+  }),
+  group({
+    id: "custom.muted", kind: "custom", name: "暂停发帖", description: "违反社区规则后暂停发帖和回帖", weight: 90, system: false,
+    entries: [entry({ node: "forum.topic.create", value: false, expires_at: beijingDayEnd(now + 7 * DAY) }), entry({ node: "forum.reply.create", value: false, expires_at: beijingDayEnd(now + 7 * DAY) })],
+  }),
+];
+const groupById = (id: string) => MOCK_GROUPS.find(g => g.id === id);
+
+// ---- 用户 ----
+
+type UserInit = {
+  username: string; display_name: string; level: Exclude<Level, "visitor">; department?: string; titles?: string[];
+  providers?: SessionProvider[]; gitlab?: ConsoleUser["gitlab"]; last_login?: number | null; created?: number; disabled?: boolean;
+};
+let gitlabSeq = 2;
+const user = (init: UserInit): ConsoleUser => ({
+  account_id: `mock-${init.username}`, username: init.username, display_name: init.display_name, avatar_url: null,
+  status: init.disabled ? "disabled" : "active", level: init.level, department: init.department ? deptRef(init.department) : null,
+  titles: (init.titles ?? []).map(titleRef), providers: init.providers ?? ["email"],
+  gitlab: init.gitlab ?? (init.level === "member" ? { state: "synced", gitlab_user_id: gitlabSeq++ } : { state: "none", gitlab_user_id: null }),
+  last_login_at: init.last_login === undefined ? now - 3 * DAY : init.last_login, created_at: init.created ?? now - 120 * DAY,
+});
+
+/** 「用户」页名单：各身份、各部门、几种 GitLab 状态、停用、昵称很长、从没登录过的都有。 */
+export const MOCK_USERS: ConsoleUser[] = [
+  user({ username: "xu_yan", display_name: "徐言", level: "member", titles: [SITE_OWNER.id], providers: ["github", "email"], last_login: now - 10 * MIN, created: now - 300 * DAY }),
+  user({ username: "chen_hang", display_name: "陈航", level: "member", department: "dept.management", titles: ["title.management.head"], providers: ["github", "email"], last_login: now - 2 * HOUR, created: now - 260 * DAY }),
+  user({ username: "li_xiaoman", display_name: "李晓曼", level: "member", department: "dept.ai", titles: ["title.ai.head"], providers: ["github", "email"], last_login: now - 5 * HOUR, created: now - 240 * DAY }),
+  user({ username: "wang_zhe", display_name: "王哲", level: "member", department: "dept.algo", titles: ["title.algo.head"], last_login: now - DAY, created: now - 230 * DAY }),
+  user({ username: "sun_qiao", display_name: "孙乔", level: "member", department: "dept.security", titles: ["title.security.head"], last_login: now - 3 * DAY, created: now - 220 * DAY }),
+  user({ username: "zhao_yi", display_name: "赵毅", level: "member", department: "dept.hardware", titles: ["title.hardware.head"], last_login: now - 4 * DAY, created: now - 210 * DAY }),
+  user({ username: "qin_lan", display_name: "秦岚", level: "member", department: "dept.ai", titles: ["title.ai.deputy"], providers: ["google"], last_login: now - 6 * HOUR, created: now - 90 * DAY }),
+  user({ username: "he_miao", display_name: "何苗", level: "member", department: "dept.ai", titles: ["title.ai.staff"], providers: ["github", "email"], last_login: now - 12 * HOUR, created: now - 40 * DAY }),
+  user({ username: "fang_lin", display_name: "方林", level: "member", department: "dept.ai", titles: ["title.ai.staff"], gitlab: { state: "failed", gitlab_user_id: 31 }, last_login: now - 8 * DAY, created: now - 30 * DAY }),
+  user({ username: "tang_yu", display_name: "唐宇", level: "member", department: "dept.security", titles: ["title.security.staff"], gitlab: { state: "failed", gitlab_user_id: null }, last_login: now - 10 * DAY, created: now - 10 * DAY }),
+  user({ username: "lu_mingyuan", display_name: "陆明远（大二·嵌入式方向·常驻实验室 302）", level: "member", department: "dept.hardware", titles: ["title.hardware.staff"], providers: ["google", "email"], last_login: now - 2 * DAY, created: now - 50 * DAY }),
+  user({ username: "liu_xing", display_name: "刘星", level: "member", providers: ["github", "email"], last_login: now - 9 * HOUR, created: now - 9 * DAY }),
+  user({ username: "bai_shuo", display_name: "白硕", level: "member", gitlab: { state: "blocked", gitlab_user_id: 33 }, last_login: now - 3 * DAY, created: now - 60 * DAY }),
+  user({ username: "yz_k3m9q2xa", display_name: "新同学", level: "member", gitlab: { state: "pending", gitlab_user_id: null }, last_login: now - 4 * HOUR, created: now - 4 * HOUR }),
+  user({ username: "gao_yuan", display_name: "高远", level: "alumni", providers: ["github"], last_login: now - 30 * DAY, created: now - 300 * DAY }),
+  user({ username: "zhou_zihan", display_name: "周子涵", level: "registered", last_login: now - 25 * MIN, created: now - 2 * HOUR }),
+  user({ username: "wu_yifan", display_name: "吴一凡", level: "registered", providers: ["google"], last_login: null, created: now - 30 * MIN }),
+  user({ username: "mo_chen", display_name: "莫辰", level: "registered", providers: ["github"], gitlab: { state: "blocked", gitlab_user_id: 34 }, last_login: now - 60 * DAY, created: now - 200 * DAY, disabled: true }),
+];
+const userById = (id: string) => MOCK_USERS.find(u => u.account_id === id);
+const userByName = (username: string) => MOCK_USERS.find(u => u.username === username);
+
+/** 自定义组的成员（身份、部门、称号组的成员由账号本身决定）。 */
+const CUSTOM_MEMBERS: Record<string, { username: string; expires_at: number | null; granted_by: string; created_at: number }[]> = {
+  "custom.event_staff": [
+    { username: "he_miao", expires_at: beijingDayEnd(now + 30 * DAY), granted_by: "mock-chen_hang", created_at: now - 2 * DAY },
+    { username: "qin_lan", expires_at: null, granted_by: "mock-chen_hang", created_at: now - 2 * DAY },
+  ],
+  "custom.muted": [{ username: "bai_shuo", expires_at: beijingDayEnd(now + 7 * DAY), granted_by: "mock-xu_yan", created_at: now - DAY }],
+};
+
+/** 这个账号直接所在的组：身份、部门（没有就是无部门）、称号、自定义组。 */
+function directGroups(account: ConsoleUser): string[] {
+  const custom = Object.entries(CUSTOM_MEMBERS).filter(([, list]) => list.some(m => m.username === account.username)).map(([id]) => id);
+  return [`level.${account.level}`, account.department?.id ?? "dept.none", ...account.titles.map(t => t.id), ...custom];
 }
+/** 所在的组加上递归继承到的组；`via` 是从直接所在的组一路走到这个组经过的组。 */
+function groupChain(account: ConsoleUser): { id: string; via: string[] }[] {
+  const seen = new Map<string, string[]>();
+  const queue = directGroups(account).map(id => ({ id, via: [] as string[] }));
+  while (queue.length) {
+    const next = queue.shift()!;
+    if (seen.has(next.id)) continue;
+    seen.set(next.id, next.via);
+    for (const parent of groupById(next.id)?.parents ?? []) queue.push({ id: parent, via: [...next.via, next.id] });
+  }
+  return [...seen.entries()].map(([id, via]) => ({ id, via }));
+}
+const matches = (pattern: string, node: string) => pattern === "*" || pattern === node || (pattern.endsWith(".*") && node.startsWith(pattern.slice(0, -1)));
+const unexpired = (at: number | null) => at === null || at > now;
+/** 账号自己的条目（source: "account"）：刘星临时帮忙置顶「通知」分类的话题。 */
+const ACCOUNT_ENTRIES: Record<string, PermissionEntry[]> = {
+  "mock-liu_xing": [entry({ node: "forum.moderate.pin", scope: { category: ["notice"] }, expires_at: beijingDayEnd(now + 14 * DAY) })],
+};
+/** 同权重时取更宽松的值：-1 不限最宽，其余数字越大越宽。 */
+const looser = (a: string, b: string) => (a === "-1" || (b !== "-1" && Number(a) >= Number(b)) ? a : b);
+
+/**
+ * 求值（SPEC §3.5 的简化版）：命中里有拒绝就是拒绝，否则有允许就是允许；过期的条目不算。
+ * meta 取值：账号自己有就用账号的，否则取权重最高的组，同权重取更宽松的。
+ */
+function evaluate(account: ConsoleUser, node: string): PermissionExplain {
+  const hits: PermissionExplainHit[] = [];
+  const pick = ({ node: pattern, value, scope, expires_at }: PermissionEntry) => ({ node: pattern, value, scope, expires_at });
+  let meta: { value: string; weight: number } | null = null;
+  for (const item of ACCOUNT_ENTRIES[account.account_id] ?? []) {
+    if (!matches(item.node, node) || !unexpired(item.expires_at)) continue;
+    hits.push({ source: "account", group: null, via: [], entry: pick(item) });
+    if (item.meta_value !== null) meta = { value: item.meta_value, weight: Infinity };
+  }
+  for (const { id, via } of groupChain(account)) {
+    const g = groupById(id)!;
+    for (const item of g.entries) {
+      if (!matches(item.node, node) || !unexpired(item.expires_at)) continue;
+      hits.push({ source: "group", group: { id: g.id, name: g.name }, via: [...via, g.id], entry: pick(item) });
+      if (item.meta_value === null) continue;
+      if (!meta || g.weight > meta.weight) meta = { value: item.meta_value, weight: g.weight };
+      else if (g.weight === meta.weight) meta = { value: looser(meta.value, item.meta_value), weight: g.weight };
+    }
+  }
+  const decided = hits.filter(hit => hit.entry.value !== null);
+  const result = decided.some(hit => hit.entry.value === false) ? "deny" : decided.length ? "allow" : "unset";
+  return { node, result, hits, ...(meta && { meta_value: meta.value }) };
+}
+function effectiveOf(account: ConsoleUser): EffectivePermissions {
+  const allowList: string[] = [];
+  const denyList: string[] = [];
+  const metaValues: Record<string, string> = {};
+  for (const node of ALL_NODES) {
+    const verdict = evaluate(account, node);
+    if (node.startsWith("meta.")) { if (verdict.meta_value !== undefined) metaValues[node] = verdict.meta_value; continue; }
+    if (verdict.result === "allow") allowList.push(node);
+    if (verdict.result === "deny") denyList.push(node);
+  }
+  const groups = groupChain(account).map(({ id, via }) => {
+    const g = groupById(id)!;
+    return { id, name: g.name, kind: g.kind, via };
+  });
+  return { account_id: account.account_id, groups, allow: allowList, deny: denyList, meta: metaValues };
+}
+/** 某个节点只在带 department 范围的条目里允许时，这个人只能看哪些部门；不限范围回 null。 */
+function departmentScope(account: ConsoleUser, node: string): string[] | null {
+  const allowed = evaluate(account, node).hits.filter(hit => hit.entry.value === true);
+  if (allowed.some(hit => !Array.isArray(hit.entry.scope.department))) return null;
+  return [...new Set(allowed.flatMap(hit => hit.entry.scope.department as string[]))];
+}
+function memberCount(groupId: string): number {
+  if (groupId === "level.visitor") return 0;
+  return MOCK_USERS.filter(u => directGroups(u).includes(groupId)).length;
+}
+function membersOf(groupId: string): PermissionGroupMember[] {
+  const custom = CUSTOM_MEMBERS[groupId];
+  return MOCK_USERS.filter(u => directGroups(u).includes(groupId)).map(u => {
+    const extra = custom?.find(m => m.username === u.username);
+    return {
+      account_id: u.account_id, username: u.username, display_name: u.display_name, avatar_url: u.avatar_url,
+      expires_at: extra?.expires_at ?? null, granted_by: extra?.granted_by ?? null, created_at: extra?.created_at ?? u.created_at,
+    };
+  });
+}
+
+// ---- 预览身份（?__persona=）----
 
 type Persona = {
-  login: string; site_role: SiteRole; github: GithubVia; head_of: string[]; provider: SessionProvider;
-  titles: TitleView[]; capabilities: string[];
-  /** 还没有登录邮箱（#273）：控制台、账号页、授权页先去绑定邮箱页。其余样板为 false，照常看各个页面。 */
-  email_required: boolean;
-  /** 这次登录过去了几分钟；超过 10 分钟时绑定邮箱、设密码要先重新登录。 */
+  username: string; display_name: string; provider: SessionProvider; email_required: boolean;
+  /** 几分钟前登录的；超过 10 分钟就过了 step-up 窗口，控制台的写操作会回 403 step_up_required。 */
   signed_in_min: number;
+  /** 只给 /api/identity/me 的账号页样板用，与控制台权限模型无关。 */
+  legacySiteRole: SiteRole;
 };
-type PersonaInput = Omit<Persona, "login" | "site_role" | "titles" | "provider" | "github" | "email_required" | "signed_in_min">
-  & Partial<Pick<Persona, "provider" | "email_required" | "signed_in_min">>;
-const makePersona = (login: string, site_role: SiteRole, rest: PersonaInput): Persona => {
-  const provider = rest.provider ?? "github";
-  return { login, site_role, titles: mockTitles(login, site_role), provider, github: provider === "github" ? "session" : "none", email_required: false, signed_in_min: 4, ...rest };
+const persona = (username: string, extra: Partial<Persona> = {}): Persona => {
+  const account = userByName(username)!;
+  return {
+    username, display_name: account.display_name, provider: account.providers.includes("github") ? "github" : account.providers[0], email_required: false, signed_in_min: 4,
+    legacySiteRole: username === "xu_yan" ? "admin" : account.level === "member" ? "member" : null, ...extra,
+  };
 };
 
+/**
+ * `?__persona=` 可选的身份：站长（全部权限）、管理部部长、AI部门部长（只管本部门）、AI部门部员（在「活动志愿者」组里，
+ * 只能管比赛）、极客班成员、往届成员、注册用户（后三个没有「进入控制台」）；另有站长用邮箱登录、站长登录超过 10 分钟
+ * （写操作要重新登录）、两个还没绑邮箱的成员（#273）和未登录。
+ */
 export const MOCK_PERSONAS: Record<string, Persona> = {
-  admin: makePersona("xu-yan", "admin", { head_of: [], capabilities: ALL }),
-  // 同一位提督用邮箱登录：权限照旧，服务器没配 GitHub App 时 GitHub 组织的页面提示还没接上（#262 第四期）
-  admin_email: makePersona("xu-yan", "admin", { provider: "email", head_of: [], capabilities: ALL }),
-  captain: makePersona("chen-hang", "member", { head_of: [], capabilities: ALL }),
-  recruitment: makePersona("li-xiaoman", "member", {
-    head_of: ["recruitment"],
-    capabilities: ["console.access", "github.org.read", "github.invites.manage", "applications.read", "applications.review", "applications.export", "feedback.read", "roles.department.manage"],
-  }),
-  tech: makePersona("wang-zhe", "member", {
-    head_of: ["tech"],
-    capabilities: ["console.access", "github.org.read", "github.repos.manage", "github.teams.manage", "feedback.read", "audit.read", "roles.department.manage"],
-  }),
-  community: makePersona("sun-qiao", "member", {
-    head_of: ["community"],
-    capabilities: ["console.access", "github.org.read", "forum.topic.pin", "forum.topic.close", "forum.post.moderate", "forum.category.manage", "forum.badge.assign", "feedback.read", "feedback.manage", "roles.department.manage"],
-  }),
-  projects: makePersona("zhao-yi", "member", {
-    head_of: ["projects"],
-    capabilities: ["console.access", "github.org.read", "github.repos.manage", "github.teams.manage", "forum.topic.pin", "feedback.read", "roles.department.manage"],
-  }),
-  crew: makePersona("he-miao", "member", { head_of: [], capabilities: ["console.access", "github.org.read", "applications.read", "applications.review"] }),
-  member: makePersona("liu-xing", "member", { head_of: [], capabilities: ["console.access", "github.org.read"] }),
-  alumni: makePersona("gao-yuan", "member", { head_of: [], capabilities: ["console.access", "github.org.read", "feedback.read"] }),
-  guest: makePersona("visitor-01", null, { head_of: [], capabilities: [] }),
-  // 只绑了 GitHub、还没有登录邮箱的舰员（#273）：刚登录，绑定邮箱页直接能绑；登录超过 10 分钟的先要重新登录
-  no_email: makePersona("liu-xing", "member", { head_of: [], capabilities: ["console.access", "github.org.read"], email_required: true }),
-  no_email_stale: makePersona("liu-xing", "member", { head_of: [], capabilities: ["console.access", "github.org.read"], email_required: true, signed_in_min: 25 }),
+  owner: persona("xu_yan"),
+  owner_email: persona("xu_yan", { provider: "email" }),
+  owner_stale: persona("xu_yan", { signed_in_min: 25 }),
+  management_head: persona("chen_hang"),
+  ai_head: persona("li_xiaoman"),
+  ai_staff: persona("he_miao"),
+  member: persona("liu_xing"),
+  alumni: persona("gao_yuan"),
+  registered: persona("zhou_zihan", { provider: "email" }),
+  no_email: persona("liu_xing", { email_required: true }),
+  no_email_stale: persona("liu_xing", { email_required: true, signed_in_min: 25 }),
 };
 
 /** 不是身份的预览状态：未登录（/api/console/me 返回 401）。 */
 export const SIGNED_OUT = "signed_out";
 
 const PERSONA_KEY = "yugc:console-persona";
-/** `?__persona=` 优先，其次本标签页记住的身份，默认是提督（拥有全部能力）。 */
+/** `?__persona=` 优先，其次本标签页记住的身份，默认是站长（拥有全部权限）。 */
 export function currentPersona(): string {
-  if (typeof window === "undefined") return "admin";
+  if (typeof window === "undefined") return "owner";
   const valid = (value: string | null): value is string => Boolean(value && (value in MOCK_PERSONAS || value === SIGNED_OUT));
   const fromQuery = new URLSearchParams(window.location.search).get("__persona");
   if (valid(fromQuery)) {
@@ -324,8 +341,149 @@ export function currentPersona(): string {
     const stored = sessionStorage.getItem(PERSONA_KEY);
     if (valid(stored)) return stored;
   } catch { /* 忽略 */ }
-  return "admin";
+  return "owner";
 }
+export function mockPersona(): Persona | null {
+  const name = currentPersona();
+  return name === SIGNED_OUT ? null : MOCK_PERSONAS[name];
+}
+const LEVEL_NAME: Record<Level, string> = { visitor: "访客", registered: "注册用户", member: "极客班成员", alumni: "往届成员" };
+const accountOf = (p: Persona) => userByName(p.username)!;
+const permissionsOf = (p: Persona) => effectiveOf(accountOf(p)).allow;
+
+/** GET /api/console/me：permissions 是展开通配后的具体节点。 */
+export function mockMe(p: Persona): ConsoleMe {
+  const account = accountOf(p);
+  return {
+    account_id: account.account_id, login: account.username, username: account.username, display_name: account.display_name,
+    avatar_url: account.avatar_url, level: account.level, level_name: LEVEL_NAME[account.level], department: account.department, titles: account.titles,
+    permissions: permissionsOf(p), provider: p.provider, email_required: p.email_required,
+  };
+}
+
+function usersCounts(visible: ConsoleUser[]): UsersResponse["counts"] {
+  return {
+    visitor_today: 46,
+    registered: visible.filter(u => u.level === "registered").length,
+    member: visible.filter(u => u.level === "member").length,
+    alumni: visible.filter(u => u.level === "alumni").length,
+  };
+}
+
+// ---- 操作记录（SPEC §3.7）----
+
+const UA_DESKTOP = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
+const UA_PHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
+const UA_CLI = "geek-cli/0.4.0 (darwin arm64)";
+type EventInit = Partial<Omit<ActivityEvent, "account">> & { who?: string | null; visitor?: string };
+let eventSeq = 0;
+const event = (minutesAgo: number, surface: ActivityEvent["surface"], action: string, outcome: ActivityEvent["outcome"], init: EventInit = {}): ActivityEvent => {
+  const account = init.who ? userByName(init.who) : undefined;
+  eventSeq += 1;
+  return {
+    id: 5000 - eventSeq, at: now - minutesAgo * MIN,
+    account: account ? { id: account.account_id, username: account.username, display_name: account.display_name, avatar_url: account.avatar_url } : null,
+    visitor_id: init.visitor ?? null, surface, action, target_type: init.target_type ?? null, target_id: init.target_id ?? null, outcome,
+    ip: init.ip ?? `10.21.${(eventSeq * 7) % 200}.${(eventSeq * 13) % 250}`, ua: init.ua ?? UA_DESKTOP,
+    request_id: `req_${(0x5a17 + eventSeq * 977).toString(16)}${eventSeq.toString(36)}`, meta: init.meta ?? {},
+  };
+};
+const V1 = "v_8f3a2c61e0b94d7a";
+const V2 = "v_1d07e5b2a9c84f36";
+export const MOCK_ACTIVITY: ActivityEvent[] = [
+  event(3, "console", "perm.group.update", "ok", { who: "xu_yan", target_type: "permission_group", target_id: "title.ai.head", meta: { before: { entries: 5 }, after: { entries: 6, added: ["apply.export"] } } }),
+  event(6, "portal", "os.boot.played", "ok", { visitor: V1, ua: UA_PHONE }),
+  event(7, "portal", "page.view", "ok", { visitor: V1, ua: UA_PHONE, target_type: "page", target_id: "/join-us" }),
+  event(12, "forum", "forum.topic.view", "ok", { who: "he_miao", target_type: "topic", target_id: "128" }),
+  event(18, "forum", "forum.reply.create", "denied", { who: "bai_shuo", target_type: "topic", target_id: "128", meta: { node: "forum.reply.create" } }),
+  event(25, "portal", "auth.signin", "ok", { who: "zhou_zihan", meta: { provider: "email", email_domain: "qq.com" } }),
+  event(31, "portal", "auth.register", "ok", { who: "wu_yifan", meta: { provider: "google", invite: false } }),
+  event(40, "console", "apply.review", "ok", { who: "li_xiaoman", target_type: "application", target_id: "9e8d7c6b" }),
+  event(52, "forum", "forum.reply.create", "limited", { visitor: V2, meta: { bucket: "forum.reply.hourly", retry_after: 1800 } }),
+  event(64, "portal", "apply.submit", "ok", { who: "zhou_zihan", target_type: "application", target_id: "2f9d6b1a" }),
+  event(70, "portal", "apply.submit", "limited", { who: "zhou_zihan", meta: { bucket: "apply.daily", retry_after: 35_000 } }),
+  event(95, "cli", "auth.signin", "ok", { who: "he_miao", ua: UA_CLI, meta: { provider: "device" } }),
+  event(120, "console", "users.update", "ok", { who: "chen_hang", target_type: "account", target_id: "mock-qin_lan", meta: { before: { titles: [] }, after: { titles: ["title.ai.deputy"] } } }),
+  event(150, "console", "gitlab.resync", "error", { who: "chen_hang", target_type: "account", target_id: "mock-fang_lin", meta: { error: "gitlab_avatar_400" } }),
+  event(200, "api", "events.rejected", "denied", { visitor: V2, meta: { action: "os.debug.dump" } }),
+  event(240, "portal", "auth.signin_denied", "denied", { who: "mo_chen", meta: { reason: "account_disabled" } }),
+  event(300, "forum", "forum.search", "limited", { visitor: V1, ua: UA_PHONE, meta: { bucket: "search.per_minute" } }),
+  event(360, "portal", "invite.redeem", "ok", { who: "yz_k3m9q2xa" }),
+  event(420, "console", "activity.export", "ok", { who: "xu_yan", meta: { rows: 240 } }),
+  event(9 * 60, "forum", "forum.topic.create", "ok", { who: "liu_xing", target_type: "topic", target_id: "131" }),
+  event(26 * 60, "console", "users.disable", "ok", { who: "xu_yan", target_type: "account", target_id: "mock-mo_chen" }),
+  event(28 * 60, "portal", "auth.register", "limited", { visitor: V2, meta: { bucket: "register.ip" } }),
+  event(2 * 24 * 60, "forum", "forum.react", "ok", { who: "sun_qiao", target_type: "post", target_id: "877" }),
+  event(3 * 24 * 60, "console", "perm.group.create", "ok", { who: "chen_hang", target_type: "permission_group", target_id: "custom.event_staff", meta: { after: { name: "活动志愿者", weight: 25 } } }),
+  event(4 * 24 * 60, "system", "activity.cleanup", "ok", { meta: { removed: 812 } }),
+  // 再往前是成批的浏览记录，「加载更多」有东西可翻
+  ...Array.from({ length: 40 }, (_, i) => i % 3 === 0
+    ? event(5 * 24 * 60 + i * 97, "forum", "forum.topic.view", "ok", { who: ["he_miao", "liu_xing", "qin_lan", "gao_yuan"][i % 4], target_type: "topic", target_id: String(100 + i) })
+    : event(5 * 24 * 60 + i * 97, "portal", "page.view", "ok", { visitor: i % 2 ? V1 : V2, ua: i % 2 ? UA_PHONE : UA_DESKTOP, target_type: "page", target_id: ["/", "/join-us", "/projects", "/feedback"][i % 4] })),
+].sort((a, b) => b.at - a.at);
+const todayStart = beijingDayStart(now);
+const MOCK_BLOCKED_TODAY = (() => {
+  const counts = new Map<string, number>([["read.per_minute", 14]]);
+  for (const row of MOCK_ACTIVITY) {
+    const bucket = row.meta.bucket;
+    if (row.outcome === "limited" && typeof bucket === "string" && row.at >= todayStart) counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
+  }
+  return [...counts.entries()].map(([bucket, count]) => ({ bucket, count }));
+})();
+/** 没有「查看完整 IP」时 IP 只留前两段（IPv6 留前 4 组），和服务端一样。 */
+const maskIp = (ip: string | null) => {
+  if (!ip) return ip;
+  if (ip.includes(":")) return `${ip.split(":").slice(0, 4).join(":")}::*`;
+  const parts = ip.split(".");
+  return `${parts[0]}.${parts[1]}.*.*`;
+};
+const PAGE = 50;
+function activityPage(rows: ActivityEvent[], cursor: string | null, limit: number, fullIp: boolean): { items: ActivityEvent[]; next_cursor: string | null } {
+  const start = Number(cursor ?? 0) || 0;
+  const size = Math.min(Math.max(limit, 1), PAGE);
+  const items = rows.slice(start, start + size).map(row => (fullIp ? row : { ...row, ip: maskIp(row.ip) }));
+  return { items, next_cursor: start + size < rows.length ? String(start + size) : null };
+}
+
+// ---- GitLab ----
+
+const MOCK_GITLAB_STATUS: GitlabStatus = {
+  mode: "on", url: "https://git.yangtzeu.work", group: "geek", token_configured: true, version: "17.6.1", healthy: true,
+  last_run: { at: now - 8 * MIN, changed: 2, failed: 1 }, errors_24h: 1,
+};
+const MOCK_GITLAB_PROJECTS: GitlabProjectsResponse = {
+  groups: [{ id: 1, full_path: "geek", name: "geek", visibility: "private" }, { id: 2, full_path: "geek/courses", name: "courses", visibility: "internal" }],
+  projects: [
+    { id: 101, path_with_namespace: "geek/portal", name: "portal", description: "官网、控制台和论坛", visibility: "private", web_url: "https://git.yangtzeu.work/geek/portal", http_url_to_repo: "https://git.yangtzeu.work/geek/portal.git", ssh_url_to_repo: "git@git.yangtzeu.work:geek/portal.git", last_activity_at: now - 2 * HOUR, star_count: 6 },
+    { id: 102, path_with_namespace: "geek/geek-cli", name: "geek-cli", description: "命令行工具", visibility: "internal", web_url: "https://git.yangtzeu.work/geek/geek-cli", http_url_to_repo: "https://git.yangtzeu.work/geek/geek-cli.git", ssh_url_to_repo: "git@git.yangtzeu.work:geek/geek-cli.git", last_activity_at: now - DAY, star_count: 3 },
+    { id: 103, path_with_namespace: "geek/courses/ai-bootcamp-2026-autumn-handouts", name: "ai-bootcamp-2026-autumn-handouts", description: "2026 秋季 AI 训练营讲义和作业，按周整理", visibility: "public", web_url: "https://git.yangtzeu.work/geek/courses/ai-bootcamp-2026-autumn-handouts", http_url_to_repo: "https://git.yangtzeu.work/geek/courses/ai-bootcamp-2026-autumn-handouts.git", ssh_url_to_repo: "git@git.yangtzeu.work:geek/courses/ai-bootcamp-2026-autumn-handouts.git", last_activity_at: now - 3 * DAY, star_count: 12 },
+    { id: 104, path_with_namespace: "geek/sandbox", name: "sandbox", description: null, visibility: "private", web_url: "https://git.yangtzeu.work/geek/sandbox", http_url_to_repo: "https://git.yangtzeu.work/geek/sandbox.git", ssh_url_to_repo: "git@git.yangtzeu.work:geek/sandbox.git", last_activity_at: null, star_count: 0 },
+  ],
+};
+const MOCK_GITLAB_SETTINGS: GitlabSettings = { sync_mode: "on", group_path: "geek", interval_minutes: 10, token_configured: true };
+
+/** GitLab 账号同步：极客班成员都要进组，几种常见错误各留一个样本。 */
+export function mockGitlabAccounts(): GitlabAccountsResponse {
+  const synced = now - 8 * MIN;
+  const accounts: GitlabAccount[] = MOCK_USERS.filter(u => u.level === "member" || u.gitlab.state !== "none").map((account): GitlabAccount => {
+    const base: GitlabAccount = {
+      // GitLab 上还没建号时不知道用户名
+      account_id: account.account_id, login: account.username, username: account.gitlab.gitlab_user_id !== null ? account.username : null, gitlab_user_id: account.gitlab.gitlab_user_id,
+      state: account.gitlab.state === "blocked" ? "blocked" : account.gitlab.gitlab_user_id !== null ? "active" : "pending",
+      access_level: account.gitlab.gitlab_user_id !== null ? (account.titles.some(t => t.id === SITE_OWNER.id) ? 50 : 30) : null,
+      last_error: null, last_error_at: null, synced_at: account.gitlab.gitlab_user_id !== null ? synced : null, pending: [],
+    };
+    if (account.gitlab.state === "failed" && account.gitlab.gitlab_user_id === null) return { ...base, last_error: "gitlab_unreachable", last_error_at: synced, pending: [{ kind: "create", username: account.username, access_level: 30 }] };
+    if (account.gitlab.state === "failed") return { ...base, access_level: null, last_error: "gitlab_avatar_400", last_error_at: synced, pending: [{ kind: "set_avatar" }] };
+    if (account.gitlab.state === "pending") return { ...base, pending: [{ kind: "create", username: account.username, access_level: 30 }, { kind: "set_emails" }] };
+    if (account.gitlab.state === "blocked" && account.status === "disabled") return base;
+    if (account.gitlab.state === "blocked") return { ...base, pending: [{ kind: "unblock" }] };
+    return base;
+  });
+  return { mode: "on", gitlab_url: "https://git.yangtzeu.work", group: "geek", client_registered: true, accounts };
+}
+
+// ---- 投递样板（#148，照旧）----
 
 const APPLICATIONS = [
   { id: "7c1e4a2b-3d5f-4a6b-8c7d-9e0f1a2b3c4d", name: "褚明哲", class_name: "信安2402", email: "chu.mingzhe@example.test", status: "received", created_at: now - 25 * MIN,
@@ -343,35 +501,28 @@ const APPLICATIONS = [
   { id: "3b4c5d6e-7f80-4123-9456-7890abcdef12", name: "林晓", class_name: "计科2401", email: "lin.xiao@example.test", status: "cancelled", created_at: now - 9 * DAY,
     strengths: "熟悉 JavaScript，做过班级活动报名页，希望学习后端开发和协作。" },
 ];
-/** 发信队列里一封信的摘要（同服务端 MailSummary）；只有主题，没有地址和正文。 */
 type MockMail = { status: string; skip_reason: string | null; attempts: number; subject: string; sent_at: number | null; updated_at: number };
 const sent = (subject: string, at: number): MockMail => ({ status: "sent", skip_reason: null, attempts: 1, subject, sent_at: at, updated_at: at });
 const skipped = (subject: string, reason: string, at: number): MockMail => ({ status: "skipped", skip_reason: reason, attempts: 0, subject, sent_at: null, updated_at: at });
 
-/**
- * 审核记录。`reviewing`（评估中）已经退役，只留在历史里；每种信件状态都有一条，页面上的说法都能看到：
- * 已发出、正在发、失败后等重试、重试用完、预发布白名单挡下、发信没配置、没有发信。
- */
 const REVIEWS: Record<string, { id: number; from_status: string; to_status: string; note: string | null; reviewer: string; created_at: number; mail: MockMail | null }[]> = {
-  "3b4c5d6e-7f80-4123-9456-7890abcdef12": [{ id: 19, from_status: "received", to_status: "cancelled", note: "投递人撤回这份简历", reviewer: "li-xiaoman", created_at: now - 8 * DAY, mail: null }],
-  "5a3b8c2d-1e4f-4b6a-9c8d-7e6f5a4b3c2d": [{ id: 11, from_status: "received", to_status: "reviewing", note: "算法方向，转给技术部一起看", reviewer: "li-xiaoman", created_at: now - 20 * HOUR, mail: null }],
+  "3b4c5d6e-7f80-4123-9456-7890abcdef12": [{ id: 19, from_status: "received", to_status: "cancelled", note: "投递人撤回这份简历", reviewer: "li_xiaoman", created_at: now - 8 * DAY, mail: null }],
+  "5a3b8c2d-1e4f-4b6a-9c8d-7e6f5a4b3c2d": [{ id: 11, from_status: "received", to_status: "reviewing", note: "算法方向，转给技术部一起看", reviewer: "li_xiaoman", created_at: now - 20 * HOUR, mail: null }],
   "9e8d7c6b-5a4f-4e3d-8c2b-1a0f9e8d7c6b": [
-    { id: 13, from_status: "reviewing", to_status: "interview", note: "何苗负责面试排期", reviewer: "he-miao", created_at: now - 1 * DAY,
+    { id: 13, from_status: "reviewing", to_status: "interview", note: "何苗负责面试排期", reviewer: "he_miao", created_at: now - 1 * DAY,
       mail: { status: "pending", skip_reason: null, attempts: 2, subject: "极客班面试安排：9 月 30 日（周三）19:00", sent_at: null, updated_at: now - 1 * DAY + 6 * MIN } },
-    { id: 12, from_status: "received", to_status: "reviewing", note: null, reviewer: "li-xiaoman", created_at: now - 2 * DAY, mail: null },
+    { id: 12, from_status: "received", to_status: "reviewing", note: null, reviewer: "li_xiaoman", created_at: now - 2 * DAY, mail: null },
   ],
   "1b2c3d4e-5f6a-4b7c-8d9e-0f1a2b3c4d5e": [
-    { id: 16, from_status: "interview", to_status: "accepted", note: "面试表现好，已加入项目部", reviewer: "li-xiaoman", created_at: now - 2 * DAY, mail: sent("你已通过极客班招新", now - 2 * DAY + MIN) },
-    { id: 18, from_status: "interview", to_status: "interview", note: "改到周五晚上，已电话确认", reviewer: "he-miao", created_at: now - 3 * DAY, mail: null },
-    { id: 15, from_status: "reviewing", to_status: "interview", note: null, reviewer: "he-miao", created_at: now - 4 * DAY,
+    { id: 16, from_status: "interview", to_status: "accepted", note: "面试表现好，已加入项目部", reviewer: "li_xiaoman", created_at: now - 2 * DAY, mail: sent("你已通过极客班招新", now - 2 * DAY + MIN) },
+    { id: 18, from_status: "interview", to_status: "interview", note: "改到周五晚上，已电话确认", reviewer: "he_miao", created_at: now - 3 * DAY, mail: null },
+    { id: 15, from_status: "reviewing", to_status: "interview", note: null, reviewer: "he_miao", created_at: now - 4 * DAY,
       mail: skipped("极客班面试安排：9 月 26 日（周五）19:30", "not_allowlisted", now - 4 * DAY) },
-    { id: 14, from_status: "received", to_status: "reviewing", note: null, reviewer: "li-xiaoman", created_at: now - 5 * DAY, mail: null },
+    { id: 14, from_status: "received", to_status: "reviewing", note: null, reviewer: "li_xiaoman", created_at: now - 5 * DAY, mail: null },
   ],
-  "6d5c4b3a-2f1e-4d0c-9b8a-7f6e5d4c3b2a": [{ id: 17, from_status: "received", to_status: "rejected", note: "方向暂不匹配，已建议先参加公开分享会", reviewer: "li-xiaoman", created_at: now - 7 * DAY,
+  "6d5c4b3a-2f1e-4d0c-9b8a-7f6e5d4c3b2a": [{ id: 17, from_status: "received", to_status: "rejected", note: "方向暂不匹配，已建议先参加公开分享会", reviewer: "li_xiaoman", created_at: now - 7 * DAY,
     mail: { status: "failed", skip_reason: null, attempts: 6, subject: "极客班招新结果", sent_at: null, updated_at: now - 6 * DAY } }],
 };
-
-/** 投递时自动发的「已收到」确认信；吴一凡那封没有记录（null）。 */
 const RECEIVED_MAIL: Record<string, MockMail | null> = {
   "3b4c5d6e-7f80-4123-9456-7890abcdef12": sent("极客班收到了你的报名信", now - 9 * DAY + MIN),
   "7c1e4a2b-3d5f-4a6b-8c7d-9e0f1a2b3c4d": { status: "sending", skip_reason: null, attempts: 0, subject: "极客班收到了你的报名信", sent_at: null, updated_at: now - 25 * MIN },
@@ -381,21 +532,16 @@ const RECEIVED_MAIL: Record<string, MockMail | null> = {
   "1b2c3d4e-5f6a-4b7c-8d9e-0f1a2b3c4d5e": skipped("极客班收到了你的报名信", "not_allowlisted", now - 6 * DAY),
   "6d5c4b3a-2f1e-4d0c-9b8a-7f6e5d4c3b2a": skipped("极客班收到了你的报名信", "mail_disabled", now - 8 * DAY),
 };
-
-/** 发信设置用白名单模式（真实环境现在都发给所有人，#169），好看到白名单挡下时的说法：只给这三个邮箱发，其余投递人在「处理这份投递」里会看到「这封不会发出」。 */
 const MAIL_ALLOWLIST = new Set(["zhou.zihan@example.test", "zheng.kexin@example.test", "chu.mingzhe@example.test"]);
 const mailSettings = (email: string) => ({ enabled: true, recipients: "allowlist", deliverable: MAIL_ALLOWLIST.has(email.toLowerCase()) });
 
-/**
- * 比赛样板（#238）：开发预览的「比赛」页读这里。状态由时间现算（与服务端 `competitionStatus` 同口径），
- * 所以样板只写死起止与截止，不写状态字段。
- */
+// ---- 比赛样板（#238/#239，照旧）----
+
 const MOCK_COMPETITIONS = [
   { id: "c1001", name: "极客班算法挑战赛", kind: "internal", start_at: now + 6 * DAY, end_at: now + 6 * DAY + 6 * HOUR, signup_deadline: beijingDayEnd(now + 4 * DAY), url: null, description: "班内选拔，前五名进校赛。", offline: false },
   { id: "c1002", name: "蓝桥杯省赛", kind: "external", start_at: now + 20 * DAY, end_at: now + 20 * DAY + 4 * HOUR, signup_deadline: beijingDayEnd(now + 12 * DAY), url: "https://dasai.lanqiao.cn/", description: "以学校为单位报名。", offline: false },
   { id: "c1003", name: "上一期内测赛", kind: "internal", start_at: now - 9 * DAY, end_at: now - 8 * DAY, signup_deadline: null, url: null, description: "热身用的小比赛，不计成绩。", offline: false },
 ];
-/** 状态的算法与服务端 `competitionStatus` 保持一致，样板不另外写一份结果。 */
 function mockCompetitionStatus(row: { start_at: number; end_at: number; signup_deadline: number | null }, at: number) {
   if (at > row.end_at) return "ended";
   if (row.signup_deadline !== null && at <= row.signup_deadline) return "registering";
@@ -413,12 +559,8 @@ const competitionView = () => {
       return (aEnded ? b.start_at - a.start_at : a.start_at - b.start_at) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
     });
 };
-
-/** 报名与积分样板（#239）：只读；设置、名单与 CSV 读这里，写请求仍按 mock 约定回 501。 */
 const DEFAULT_ROSTER_SETTINGS: SignupSettings = { enabled: false, participation: "individual", team_min: 1, team_max: 1, scoring: "none" };
-const MOCK_ROSTER_SETTINGS: Record<string, SignupSettings> = {
-  c1001: { enabled: true, participation: "team", team_min: 2, team_max: 3, scoring: "contribution" },
-};
+const MOCK_ROSTER_SETTINGS: Record<string, SignupSettings> = { c1001: { enabled: true, participation: "team", team_min: 2, team_max: 3, scoring: "contribution" } };
 const mockPerson = (login: string) => ({ account_id: `mock-${login}`, login, avatar_url: null });
 const mockSignup = (login: string, patch: Partial<RosterSignup> = {}): RosterSignup => ({
   ...mockPerson(login), status: "active", note: "", looking_for_team: false,
@@ -426,59 +568,29 @@ const mockSignup = (login: string, patch: Partial<RosterSignup> = {}): RosterSig
 });
 const MOCK_ROSTER_TEAMS: Record<string, RosterTeam[]> = {
   c1001: [
-    {
-      id: "t1001", name: "夜航星", slogan: "把每一道题当最后一次提交。", status: "locked",
-      leader_account_id: "mock-chen-hang", member_count: 3, created_at: now - 2 * DAY, disbanded_at: null,
-      members: [
-        { ...mockPerson("chen-hang"), role: "leader", joined_at: now - 2 * DAY },
-        { ...mockPerson("li-xiaoman"), role: "member", joined_at: now - 2 * DAY + HOUR },
-        { ...mockPerson("wang-zhe"), role: "member", joined_at: now - 2 * DAY + 2 * HOUR },
-      ],
-    },
-    {
-      id: "t1002", name: "打字机", slogan: "", status: "recruiting",
-      leader_account_id: "mock-sun-qiao", member_count: 1, created_at: now - DAY, disbanded_at: null,
-      members: [{ ...mockPerson("sun-qiao"), role: "leader", joined_at: now - DAY }],
-    },
+    { id: "t1001", name: "夜航星", slogan: "把每一道题当最后一次提交。", status: "locked", leader_account_id: "mock-chen-hang", member_count: 3, created_at: now - 2 * DAY, disbanded_at: null,
+      members: [{ ...mockPerson("chen_hang"), role: "leader", joined_at: now - 2 * DAY }, { ...mockPerson("li_xiaoman"), role: "member", joined_at: now - 2 * DAY + HOUR }, { ...mockPerson("wang_zhe"), role: "member", joined_at: now - 2 * DAY + 2 * HOUR }] },
+    { id: "t1002", name: "打字机", slogan: "", status: "recruiting", leader_account_id: "mock-sun-qiao", member_count: 1, created_at: now - DAY, disbanded_at: null, members: [{ ...mockPerson("sun_qiao"), role: "leader", joined_at: now - DAY }] },
   ],
 };
 const MOCK_SIGNUPS: Record<string, RosterSignup[]> = {
   c1001: [
-    mockSignup("chen-hang", { team_id: "t1001", team_name: "夜航星", role: "leader" }),
-    mockSignup("li-xiaoman", { team_id: "t1001", team_name: "夜航星", role: "member" }),
-    mockSignup("wang-zhe", { team_id: "t1001", team_name: "夜航星", role: "member" }),
-    mockSignup("sun-qiao", { team_id: "t1002", team_name: "打字机", role: "leader", created_at: now - 2 * DAY }),
-    mockSignup("zhao-yi", { note: "会一点 Rust，想找后端方向。", looking_for_team: true, created_at: now - DAY }),
-    mockSignup("he-miao", { status: "cancelled", created_at: now - 2 * DAY, cancelled_at: now - HOUR }),
+    mockSignup("chen_hang", { team_id: "t1001", team_name: "夜航星", role: "leader" }),
+    mockSignup("li_xiaoman", { team_id: "t1001", team_name: "夜航星", role: "member" }),
+    mockSignup("wang_zhe", { team_id: "t1001", team_name: "夜航星", role: "member" }),
+    mockSignup("sun_qiao", { team_id: "t1002", team_name: "打字机", role: "leader", created_at: now - 2 * DAY }),
+    mockSignup("zhao_yi", { note: "会一点 Rust，想找后端方向。", looking_for_team: true, created_at: now - DAY }),
+    mockSignup("he_miao", { status: "cancelled", created_at: now - 2 * DAY, cancelled_at: now - HOUR }),
   ],
 };
 const MOCK_SCORE_EVENTS: Record<string, ScoreEvent[]> = {
   c1001: [
-    {
-      id: "s1001", competition_id: "c1001", person: mockPerson("chen-hang"), kind: "pr",
-      repo: "Yangtze-University-Geek-Class/portal", number: 265, points: 60,
-      reason: "比赛窗口的列表、详情与手机布局。", status: "active", created_by_login: "xu-yan",
-      created_at: now - 6 * HOUR, revoked_at: null, revoke_reason: null,
-    },
-    {
-      id: "s1002", competition_id: "c1001", person: mockPerson("li-xiaoman"), kind: "issue",
-      repo: "Yangtze-University-Geek-Class/admin", number: 239, points: 20,
-      reason: "补上名单导出与积分登记的接口。", status: "active", created_by_login: "xu-yan",
-      created_at: now - DAY, revoked_at: null, revoke_reason: null,
-    },
-    {
-      id: "s1003", competition_id: "c1001", person: mockPerson("wang-zhe"), kind: "penalty",
-      repo: null, number: null, points: -50, reason: "提交里带了别人的代码。", status: "revoked",
-      created_by_login: "xu-yan", created_at: now - 2 * DAY, revoked_at: now - 2 * HOUR, revoke_reason: "误判：改动是结对完成的。",
-    },
+    { id: "s1001", competition_id: "c1001", person: mockPerson("chen_hang"), kind: "pr", repo: "geek/portal", number: 265, points: 60, reason: "比赛窗口的列表、详情与手机布局。", status: "active", created_by_login: "xu_yan", created_at: now - 6 * HOUR, revoked_at: null, revoke_reason: null },
+    { id: "s1002", competition_id: "c1001", person: mockPerson("li_xiaoman"), kind: "issue", repo: "geek/portal", number: 239, points: 20, reason: "补上名单导出与积分登记的接口。", status: "active", created_by_login: "xu_yan", created_at: now - DAY, revoked_at: null, revoke_reason: null },
+    { id: "s1003", competition_id: "c1001", person: mockPerson("wang_zhe"), kind: "penalty", repo: null, number: null, points: -50, reason: "提交里带了别人的代码。", status: "revoked", created_by_login: "xu_yan", created_at: now - 2 * DAY, revoked_at: now - 2 * HOUR, revoke_reason: "误判：改动是结对完成的。" },
   ],
 };
-
-/**
- * 名单的样板口径与服务端 `statsOf` 一致：报名只算未取消的；个人赛的确认人数等于报名人数、
- * 没有「未成队」；团队赛的确认人数是已确认队伍的在队人数之和。
- */
-function mockRoster(competitionId: string): CompetitionRoster {
+function mockRoster(competitionId: string) {
   const competition = MOCK_COMPETITIONS.find(row => row.id === competitionId);
   if (!competition) throw new ApiError(404, "not_found", "比赛不存在或已下线");
   const settings = MOCK_ROSTER_SETTINGS[competitionId] ?? DEFAULT_ROSTER_SETTINGS;
@@ -489,106 +601,60 @@ function mockRoster(competitionId: string): CompetitionRoster {
   const locked = live.filter(team => team.status === "locked");
   const inTeam = new Set(live.flatMap(team => team.members.map(member => member.account_id)));
   const stats: RosterStats = {
-    signups: active.length,
-    teams: live.length,
-    locked_teams: locked.length,
+    signups: active.length, teams: live.length, locked_teams: locked.length,
     confirmed_people: settings.participation === "individual" ? active.length : locked.reduce((sum, team) => sum + team.member_count, 0),
     unplaced: settings.participation === "team" ? active.filter(row => !inTeam.has(row.account_id)).length : 0,
   };
   return { settings, stats, signups, teams };
 }
-
 const csvCell = (value: string | number) => {
   const text = String(value);
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 };
 const beijingStamp = (at: number) => new Date(at + 8 * HOUR).toISOString().slice(0, 16).replace("T", " ");
-
-/** 导出的样板：列与服务端 roster.csv 一致，时间按北京时间写。 */
 function mockRosterCsv(competitionId: string): string {
   const header = ["account_id", "login", "status", "note", "looking_for_team", "team_name", "role", "created_at_beijing", "updated_at_beijing", "cancelled_at_beijing"];
   const rows = mockRoster(competitionId).signups.map(row => [
     row.account_id, row.login, row.status, row.note, row.looking_for_team ? "1" : "0",
-    row.team_name ?? "", row.role ?? "", beijingStamp(row.created_at), beijingStamp(row.updated_at),
-    row.cancelled_at === null ? "" : beijingStamp(row.cancelled_at),
+    row.team_name ?? "", row.role ?? "", beijingStamp(row.created_at), beijingStamp(row.updated_at), row.cancelled_at === null ? "" : beijingStamp(row.cancelled_at),
   ].map(csvCell).join(","));
-  return `\ufeff${[header.join(","), ...rows].join("\r\n")}\r\n`;
+  return `﻿${[header.join(","), ...rows].join("\r\n")}\r\n`;
 }
 
 const FEEDBACK = [
-  { id: 21, category: "建议", status: "open", submitter_login: "liu-xing", contact: "", content: "希望每月有一次项目复盘分享，录屏放到论坛里，方便没到场的同学补看。", reply: null, replied_by: null, replied_at: null, created_at: now - 5 * HOUR },
-  { id: 20, category: "Bug", status: "in_progress", submitter_login: null, contact: "wechat: example", content: "官网投递页在手机上提交按钮被输入法挡住了。", reply: "已复现，正在修。", replied_by: "wang-zhe", replied_at: now - 1 * DAY, created_at: now - 2 * DAY },
-  { id: 19, category: "新功能", status: "done", submitter_login: "gao-yuan", contact: "", content: "论坛能不能给毕业的学长学姐一个单独的标识？", reply: "已上线「领航员」称号。", replied_by: "sun-qiao", replied_at: now - 3 * DAY, created_at: now - 6 * DAY },
+  { id: 21, category: "建议", status: "open", submitter_login: "liu_xing", contact: "", content: "希望每月有一次项目复盘分享，录屏放到论坛里，方便没到场的同学补看。", reply: null, replied_by: null, replied_at: null, created_at: now - 5 * HOUR },
+  { id: 20, category: "Bug", status: "in_progress", submitter_login: null, contact: "wechat: example", content: "官网投递页在手机上提交按钮被输入法挡住了。", reply: "已复现，正在修。", replied_by: "wang_zhe", replied_at: now - 1 * DAY, created_at: now - 2 * DAY },
+  { id: 19, category: "新功能", status: "done", submitter_login: "gao_yuan", contact: "", content: "论坛能不能给毕业的学长学姐一个单独的标识？", reply: "已上线「往届成员」身份。", replied_by: "sun_qiao", replied_at: now - 3 * DAY, created_at: now - 6 * DAY },
 ];
-const AUDIT = [
-  { id: 31, created_at: now - 40 * MIN, actor: "li-xiaoman", action: "application.review", target: "9e8d7c6b-5a4f-4e3d-8c2b-1a0f9e8d7c6b", ip: "10.0.0.12", details: { from: "reviewing", to: "interview", has_note: true } },
-  { id: 30, created_at: now - 3 * HOUR, actor: "li-xiaoman", action: "application.export", target: "all", ip: "10.0.0.12", details: { count: 6, status: null } },
-  { id: 38, created_at: now - 5 * HOUR, actor: "he-miao", action: "application.view", target: "2f9d6b1a-8e3c-4d7f-a1b2-c3d4e5f6a7b8", ip: "10.0.0.21", details: null },
-  { id: 37, created_at: now - 20 * HOUR, actor: "li-xiaoman", action: "application.review", target: "5a3b8c2d-1e4f-4b6a-9c8d-7e6f5a4b3c2d", ip: "10.0.0.12", details: { from: "received", to: "reviewing", has_note: true } },
-  { id: 36, created_at: now - 1 * DAY - 2 * HOUR, actor: "wang-zhe", action: "feedback.update", target: "20", ip: "10.0.0.15", details: { status: "in_progress", has_reply: true } },
-  { id: 35, created_at: now - 2 * DAY, actor: "wang-zhe", action: "repo.create", target: "mcp-lab", ip: "10.0.0.15", details: { visibility: "public" } },
-  { id: 34, created_at: now - 3 * DAY, actor: "sun-qiao", action: "feedback.update", target: "19", ip: "10.0.0.17", details: { status: "done", has_reply: true } },
-  { id: 33, created_at: now - 5 * DAY, actor: "zhao-yi", action: "team.create", target: "ai-native", ip: "10.0.0.19", details: { name: "AI Native" } },
-  { id: 32, created_at: now - 7 * DAY, actor: "chen-hang", action: "role.assign", target: "gao-yuan", ip: "10.0.0.8", details: { role: "alumni", department_id: "", note_length: 14 } },
-  { id: 29, created_at: now - 12 * DAY, actor: "li-xiaoman", action: "role.assign", target: "he-miao", ip: "10.0.0.12", details: { role: "member", department_id: "recruitment", note_length: 6 } },
-  { id: 28, created_at: now - 14 * DAY, actor: "xu-yan", action: "invite_link.create", target: "develo…", /* 服务端只下发邀请 token 前 6 位 */ ip: "10.0.0.8", details: { hours: 72, max_uses: 30, note: "新生群", team_slug: null } },
-  { id: 27, created_at: now - 20 * DAY, actor: "chen-hang", action: "department.update", target: "community", ip: "10.0.0.8", details: { changed: ["member_capabilities"] } },
-].sort((a, b) => b.created_at - a.created_at);
 
-function denied(persona: Persona, anyOf: string[]): never {
-  const [first] = anyOf;
-  const label = MOCK_CAPABILITIES.find(item => item.id === first)?.label ?? first;
-  const payload = { error: "missing_capability", capability: first, any_of: anyOf, message: `需要「${label}」权限` };
-  throw new ApiError(403, "missing_capability", payload.message, undefined, payload);
-}
-function need(persona: Persona, ...anyOf: string[]) {
-  if (!anyOf.some(capability => persona.capabilities.includes(capability))) denied(persona, anyOf);
-}
-
-function departmentsView() {
-  return MOCK_DEPARTMENTS.map(d => ({
-    ...d, archived: false, created_at: now - 60 * DAY, updated_at: now - 20 * DAY,
-    heads: ASSIGNMENTS.filter(a => a.role === "head" && a.department_id === d.id).map(a => a.github_login),
-    crew_count: ASSIGNMENTS.filter(a => a.role === "member" && a.department_id === d.id).length,
-  }));
-}
-function lastReview(id: string) {
-  const [latest] = REVIEWS[id] ?? [];
-  return latest ? { to_status: latest.to_status, reviewer: latest.reviewer, created_at: latest.created_at } : null;
-}
-const excerpt = (text: string) => (text.length > 120 ? `${text.slice(0, 120)}…` : text);
-function counts() {
-  return Object.fromEntries(STATUSES.map(s => [s.id, APPLICATIONS.filter(a => a.status === s.id).length]));
-}
-
-/** 注册邀请码（GET /api/console/invites）：一条不限次数的、一条用完的、一条停用的。 */
 const MOCK_INVITES: InviteCode[] = [
-  { id: 3, code: "fall2026-recruit", note: "2026 秋季招新群", max_uses: 200, used_count: 37, expires_at: beijingDayEnd(now + 40 * DAY), disabled: false, created_by: "xu-yan", created_at: now - 6 * DAY, updated_at: now - 2 * HOUR, usable: true },
-  { id: 2, code: "hackathon-guests", note: "黑客松外校嘉宾", max_uses: 12, used_count: 12, expires_at: null, disabled: false, created_by: "chen-hang", created_at: now - 20 * DAY, updated_at: now - 9 * DAY, usable: false },
-  { id: 1, code: "spring-trial", note: "", max_uses: null, used_count: 4, expires_at: null, disabled: true, created_by: "xu-yan", created_at: now - 70 * DAY, updated_at: now - 30 * DAY, usable: false },
+  { id: 3, code: "fall2026-recruit", note: "2026 秋季招新群", max_uses: 200, used_count: 37, expires_at: beijingDayEnd(now + 40 * DAY), disabled: false, created_by: "xu_yan", created_at: now - 6 * DAY, updated_at: now - 2 * HOUR, usable: true },
+  { id: 2, code: "hackathon-guests", note: "黑客松外校嘉宾", max_uses: 12, used_count: 12, expires_at: null, disabled: false, created_by: "chen_hang", created_at: now - 20 * DAY, updated_at: now - 9 * DAY, usable: false },
+  { id: 1, code: "spring-trial", note: "", max_uses: null, used_count: 4, expires_at: null, disabled: true, created_by: "xu_yan", created_at: now - 70 * DAY, updated_at: now - 30 * DAY, usable: false },
 ];
 
 /**
- * 账号页（GET /api/identity/me）的样板：按当前身份给出登录方式、成员资格和几条账号记录。邮箱只给打码后的样子。
- * 管理员另有一个提交用的邮箱（#272），用来看邮箱列表和「删除」。
+ * 账号页（GET /api/identity/me）的样板：按当前身份给出登录方式、成员资格和几条账号记录。
+ * 这个接口不受 #274 权限改版影响，membership.org_role 只用 legacySiteRole，和控制台权限是两套概念。
  */
-export function mockAccount(persona: Persona): AccountView {
-  const email = !persona.email_required && (persona.provider === "email" || persona.site_role === "admin");
+export function mockAccount(persona: Persona) {
+  const email = !persona.email_required && (persona.provider === "email" || persona.legacySiteRole === "admin");
   const signedInAt = now - persona.signed_in_min * MIN;
-  const identities: AccountView["identities"] = [
-    ...(persona.site_role !== null ? [{ provider: "github" as const, label: persona.login, linked_at: now - 120 * DAY, last_login_at: now - 3 * DAY }] : []),
-    ...(email ? [{ provider: "email" as const, label: "x***@example.com", linked_at: now - 2 * DAY, last_login_at: persona.provider === "email" ? now - 4 * MIN : null, id: "mock-email-1", primary: true }] : []),
-    ...(persona.site_role === "admin" ? [{ provider: "email" as const, label: "c***@example.org", linked_at: now - DAY, last_login_at: null, id: "mock-email-2", primary: false }] : []),
+  const identities = [
+    ...(persona.legacySiteRole !== null ? [{ provider: "github" as const, label: persona.username, linked_at: now - 120 * DAY, last_login_at: now - 3 * DAY }] : []),
+    ...(email ? [
+      { provider: "email" as const, label: "x***@example.com", linked_at: now - 2 * DAY, last_login_at: persona.provider === "email" ? now - 4 * MIN : null, id: "mock-email-1", primary: true },
+      // 站长额外留一个备用邮箱（#272）：主邮箱收验证码，备用邮箱丢密码时联系站长本人。
+      ...(persona.legacySiteRole === "admin" ? [{ provider: "email" as const, label: "y***@example.com", linked_at: now - 40 * DAY, last_login_at: now - 20 * DAY, id: "mock-email-2", primary: false }] : []),
+    ] : []),
   ];
   return {
-    account_id: `mock-${persona.login}`,
-    login: persona.login,
+    account_id: `mock-${persona.username}`,
+    login: persona.username,
     identities,
     has_password: persona.provider === "email",
     password_updated_at: persona.provider === "email" ? now - DAY : null,
-    membership: persona.site_role === null
-      ? { state: "not_member", org_role: null, via_invite: false }
-      : { state: "active", org_role: persona.site_role, via_invite: false },
+    membership: persona.legacySiteRole === null ? { state: "not_member", org_role: null, via_invite: false } : { state: "active", org_role: persona.legacySiteRole, via_invite: false },
     created_at: now - 120 * DAY,
     recent: [
       { at: signedInAt, action: "login", provider: persona.provider, result: "ok" },
@@ -601,77 +667,123 @@ export function mockAccount(persona: Persona): AccountView {
   };
 }
 
-/** 当前身份（给 GitHub 组织接口的样板用）；未登录返回 null。 */
-export function mockPersona(): Persona | null {
+
+function denied(anyOf: string[]): never {
+  const [first] = anyOf;
+  const label = NODE_LABELS[first] ?? first;
+  const payload = { error: "forbidden", node: first, message: `需要「${label}」权限` };
+  throw new ApiError(403, "forbidden", payload.message, undefined, payload);
+}
+function need(persona: Persona, ...anyOf: string[]) {
+  const permissions = permissionsOf(persona);
+  if (!anyOf.some(node => permissions.includes(node))) denied(anyOf);
+}
+/** 控制台接口先要「进入控制台」，再要具体节点（/api/console/me 除外）。 */
+function gate(persona: Persona, ...anyOf: string[]) {
+  need(persona, "console.access");
+  if (anyOf.length) need(persona, ...anyOf);
+}
+function requireSignedIn(): Persona {
   const name = currentPersona();
-  return name === SIGNED_OUT ? null : MOCK_PERSONAS[name];
+  if (name === SIGNED_OUT) throw new ApiError(401, "unauthenticated", "请先登录", undefined, { error: "unauthenticated" });
+  return MOCK_PERSONAS[name];
+}
+function fail(status: number, code: string, message: string): never {
+  throw new ApiError(status, code, message, undefined, { error: code, message });
+}
+/** 写操作要求刚登录过（CONTRACT §5，沿用 #273 的 step_up_until：登录后 10 分钟内）。 */
+function requireStepUp(persona: Persona) {
+  if (persona.signed_in_min > 10) fail(403, "step_up_required", "这个操作要求刚登录过，重新登录后再试");
+}
+
+function checkUserPatch(persona: Persona, id: string, body: unknown) {
+  const patch = (body && typeof body === "object" ? body : {}) as UserPatch;
+  gate(persona, "users.manage");
+  if (patch.status !== undefined) need(persona, "users.disable");
+  requireStepUp(persona);
+  const target = userById(id);
+  if (!target) fail(404, "not_found", "账号不存在");
+  const owners = MOCK_USERS.filter(u => u.status === "active" && u.titles.some(t => t.id === SITE_OWNER.id));
+  const losesOwner = patch.status === "disabled" || (patch.titles !== undefined && !patch.titles.includes(SITE_OWNER.id));
+  if (losesOwner && owners.length === 1 && owners[0].account_id === target.account_id) fail(409, "last_owner", "这是最后一位站长，不能降级或停用");
+}
+const knownPattern = (node: string) => node === "*" || ALL_NODES.includes(node) || (node.endsWith(".*") && ALL_NODES.some(item => item.startsWith(node.slice(0, -1))));
+const ancestors = (id: string, seen = new Set<string>()): Set<string> => {
+  for (const parent of groupById(id)?.parents ?? []) {
+    if (seen.has(parent)) continue;
+    seen.add(parent);
+    ancestors(parent, seen);
+  }
+  return seen;
+};
+function checkGroupWrite(persona: Persona, method: string, id: string | null, body: unknown) {
+  gate(persona, "perm.manage");
+  requireStepUp(persona);
+  const input = (body && typeof body === "object" ? body : {}) as { id?: string; parents?: string[]; entries?: { add?: { node?: string }[] } };
+  if (method === "POST") {
+    if (typeof input.id !== "string" || !/^custom\.[a-z0-9]+(?:_[a-z0-9]+)*$/.test(input.id)) fail(400, "invalid_group_id", "组 id 要写成 custom.英文小写");
+    if (groupById(input.id)) fail(409, "group_exists", "已经有这个 id 的组");
+    return;
+  }
+  const target = id ? groupById(id) : undefined;
+  if (!target) fail(404, "not_found", "组不存在");
+  if (method === "DELETE") {
+    if (target.system) fail(409, "system_group", "系统组不能删除");
+    return;
+  }
+  for (const parent of input.parents ?? []) {
+    if (parent === target.id || ancestors(parent).has(target.id)) fail(400, "group_cycle", "继承关系成环了");
+  }
+  const unknown = (input.entries?.add ?? []).find(item => typeof item.node !== "string" || !knownPattern(item.node));
+  if (unknown) fail(400, "unknown_node", `没有这个节点：${unknown.node ?? ""}`);
 }
 
 /**
  * 写请求不伪造成功（见 docs/architecture/API.md），由上层一律返回 501 mock_read_only。
- * 改称号、处理投递的请求先按服务端的顺序核对能力和字段，不合法的得到与服务端相同的 403/400。
+ * 这里先按服务端的顺序核对权限、step-up 和字段，不合法的得到和服务端相同的 401/403/400/409，
+ * 页面上的出错提示（包括「重新登录」）在开发预览里也能看到。
  */
 export function checkConsoleWrite(url: URL, method: string, body: unknown): void {
-  const application = url.pathname.match(/^\/api\/console\/applications\/([0-9a-f-]{36})$/);
+  const path = url.pathname;
+  const persona = requireSignedIn();
+  const application = path.match(/^\/api\/console\/applications\/([0-9a-f-]{36})$/);
   if (method === "PATCH" && application) return checkApplicationReview(application[1], body);
-  if (/^\/api\/console\/departments(?:\/[^/]+)?$/.test(url.pathname) && ["POST", "PATCH", "DELETE"].includes(method)) {
-    const name = currentPersona();
-    if (name === SIGNED_OUT) throw new ApiError(401, "not_signed_in", "请先登录", undefined, { error: "not_signed_in" });
-    need(MOCK_PERSONAS[name], "roles.manage");
-    if (MOCK_PERSONAS[name].site_role !== "admin") {
-      const message = `只有${MOCK_TITLES.find(title => title.id === "admin")!.label}能管理部门`;
-      throw new ApiError(403, "admiral_required", message, undefined, { error: "admiral_required", message });
-    }
+  if (/^\/api\/console\/competitions(?:\/[^/]+)?$/.test(path) && ["POST", "PATCH", "DELETE"].includes(method)) {
+    gate(persona, "competition.manage");
     return;
   }
-  if (method === "PATCH" && /^\/api\/console\/people\/[^/]+\/site-role$/.test(url.pathname)) {
-    const name = currentPersona();
-    if (name === SIGNED_OUT) throw new ApiError(401, "not_signed_in", "请先登录", undefined, { error: "not_signed_in" });
-    need(MOCK_PERSONAS[name], "roles.manage");
-    if (MOCK_PERSONAS[name].site_role !== "admin") {
-      const message = `只有${MOCK_TITLES.find(title => title.id === "admin")!.label}能改站内角色`;
-      throw new ApiError(403, "admiral_required", message, undefined, { error: "admiral_required", message });
-    }
+  const userPatch = path.match(/^\/api\/console\/users\/([^/]+)$/);
+  if (userPatch && method === "PATCH") return checkUserPatch(persona, decodeURIComponent(userPatch[1]), body);
+  const members = path.match(/^\/api\/console\/permission-groups\/([^/]+)\/members(?:\/([^/]+))?$/);
+  if (members && ["POST", "DELETE"].includes(method)) {
+    gate(persona, "perm.manage");
+    requireStepUp(persona);
+    if (!groupById(decodeURIComponent(members[1]))) fail(404, "not_found", "组不存在");
     return;
   }
-  if (/^\/api\/console\/competitions(?:\/[^/]+)?$/.test(url.pathname) && ["POST", "PATCH", "DELETE"].includes(method)) {
-    const name = currentPersona();
-    if (name === SIGNED_OUT) throw new ApiError(401, "not_signed_in", "请先登录", undefined, { error: "not_signed_in" });
-    need(MOCK_PERSONAS[name], "competitions.manage");
+  const groupWrite = path.match(/^\/api\/console\/permission-groups(?:\/([^/]+))?$/);
+  if (groupWrite && ["POST", "PATCH", "DELETE"].includes(method)) return checkGroupWrite(persona, method, groupWrite[1] ? decodeURIComponent(groupWrite[1]) : null, body);
+  if (/^\/api\/console\/invites/.test(path) && ["POST", "PATCH"].includes(method)) {
+    gate(persona, "invite.manage");
+    requireStepUp(persona);
     return;
   }
-  const match = url.pathname.match(/^\/api\/console\/titles\/([^/]+)$/);
-  if (method !== "PATCH" || !match) return;
-  const name = currentPersona();
-  if (name === SIGNED_OUT) throw new ApiError(401, "not_signed_in", "请先登录", undefined, { error: "not_signed_in" });
-  need(MOCK_PERSONAS[name], "roles.manage");
-  const title = MOCK_TITLES.find(item => item.id === match[1]);
-  if (!title) throw new ApiError(400, "validation_error", "称号不存在", undefined, { error: "validation_error" });
-  const label = (id: TitleId) => MOCK_TITLES.find(item => item.id === id)!.label;
-  if ((title.id === "admin" || title.id === "captain") && !MOCK_PERSONAS[name].titles.some(item => item.id === "admin")) {
-    const message = `只有${label("admin")}能修改「${label("admin")}」和「${label("captain")}」这两个称号`;
-    throw new ApiError(403, "admiral_required", message, undefined, { error: "admiral_required", message });
+  if (path === "/api/console/gitlab/settings" && method === "PATCH") {
+    gate(persona, "gitlab.settings");
+    requireStepUp(persona);
+    return;
   }
-  const capabilities = body && typeof body === "object" ? (body as { capabilities?: unknown }).capabilities : undefined;
-  if (!Array.isArray(capabilities)) return;
-  const error = titleBundleError(title.id, capabilities.filter((item): item is string => typeof item === "string"), MOCK_CAPTAIN_ONLY);
-  if (!error) return;
-  const capability = MOCK_CAPABILITIES.find(item => item.id === MOCK_CAPTAIN_ONLY[0])!.label;
-  const message = error === "title_capabilities_fixed"
-    ? `${label("admin")}永远拥有全部权限，${label("guest")}没有权限，这两个称号的权限不能改`
-    : `「${capability}」只能放进${label("captain")}的权限`;
-  throw new ApiError(400, error, message, undefined, { error, message });
+  if (/^\/api\/console\/gitlab\/accounts\/[^/]+\/resync$/.test(path) && method === "POST") {
+    gate(persona, "gitlab.sync");
+    requireStepUp(persona);
+    return;
+  }
+  if (/^\/api\/console\/feedback\/\d+$/.test(path) && method === "PATCH") gate(persona, "feedback.handle");
 }
 
-/**
- * PATCH /api/console/applications/:id：状态只能是五种之一；页面上看到的状态和审核记录的版本号（expected_status、expected_review_id）
- * 和样板不同时 409，要改状态却没带这两项时也 409；
- * 改到「待面试」并且要发信时，面试时间和地点必填。通过核对的照样 501，不假装信已经排进发信队列。
- */
 function checkApplicationReview(id: string, body: unknown): void {
-  const name = currentPersona();
-  if (name === SIGNED_OUT) throw new ApiError(401, "not_signed_in", "请先登录", undefined, { error: "not_signed_in" });
-  need(MOCK_PERSONAS[name], "applications.review");
+  const persona = requireSignedIn();
+  need(persona, "apply.review");
   const application = APPLICATIONS.find(a => a.id === id);
   if (!application) throw new ApiError(404, "not_found", "投递不存在");
   const input = (body && typeof body === "object" ? body : {}) as { status?: unknown; expected_status?: unknown; expected_review_id?: unknown; notify?: unknown; letter?: unknown };
@@ -680,7 +792,7 @@ function checkApplicationReview(id: string, body: unknown): void {
     throw new ApiError(400, "invalid_status", message, undefined, { error: "invalid_status", message });
   }
   const changed = (message: string) => new ApiError(409, "status_changed", message, undefined, { error: "status_changed", message, application });
-  const latestReviewId = Math.max(0, ...(REVIEWS[id] ?? []).map(review => review.id)); // 同服务端：最大的 id
+  const latestReviewId = Math.max(0, ...(REVIEWS[id] ?? []).map(review => review.id));
   if ((input.expected_status !== undefined && input.expected_status !== application.status)
     || (input.expected_review_id !== undefined && input.expected_review_id !== latestReviewId)) {
     const label = STATUSES.find(s => s.id === application.status)?.label ?? application.status;
@@ -699,116 +811,157 @@ function checkApplicationReview(id: string, body: unknown): void {
   const message = "要发待面试的信，请填面试时间和地点";
   throw new ApiError(400, "letter_required", message, undefined, { error: "letter_required", message, fields });
 }
+const lastReview = (id: string) => {
+  const [latest] = REVIEWS[id] ?? [];
+  return latest ? { to_status: latest.to_status, reviewer: latest.reviewer, created_at: latest.created_at } : null;
+};
+const excerpt = (text: string) => (text.length > 120 ? `${text.slice(0, 120)}…` : text);
+const counts = () => Object.fromEntries(STATUSES.map(s => [s.id, APPLICATIONS.filter(a => a.status === s.id).length]));
 
-/** 处理 `/api/console/*` 的 GET；未知路径返回 undefined，交回上层报 404。 */
+
+/** 带 department 范围的查看权限只看得到本部门的人；不限范围时全部可见。 */
+const visibleTo = (persona: Persona, node: string) => {
+  const scope = departmentScope(accountOf(persona), node);
+  return (account: { department: DepartmentRef | null } | undefined) => scope === null || Boolean(account?.department && scope.includes(account.department.id));
+};
+
+function routeUsers(persona: Persona, search: URLSearchParams): UsersResponse {
+  gate(persona, "users.view");
+  const visible = MOCK_USERS.filter(visibleTo(persona, "users.view"));
+  const q = (search.get("q") ?? "").trim().toLowerCase();
+  const level = search.get("level");
+  const department = search.get("department");
+  const status = search.get("status");
+  const filtered = visible.filter(u =>
+    (!q || [u.username, u.display_name].some(v => v.toLowerCase().includes(q)))
+    && (!level || u.level === level)
+    && (!department || (u.department?.id ?? "dept.none") === department)
+    && (!status || u.status === status));
+  const start = Number(search.get("cursor") ?? 0) || 0;
+  const size = 20;
+  return { items: filtered.slice(start, start + size), next_cursor: start + size < filtered.length ? String(start + size) : null, counts: usersCounts(visible) };
+}
+
+function routeActivity(persona: Persona, search: URLSearchParams): ActivityList {
+  gate(persona, "activity.read");
+  const canSee = visibleTo(persona, "activity.read");
+  const scoped = departmentScope(accountOf(persona), "activity.read") !== null;
+  const get = (key: string) => (search.get(key) ?? "").trim();
+  const from = Number(get("from")) || null;
+  const to = Number(get("to")) || null;
+  const rows = MOCK_ACTIVITY.filter(row =>
+    (!scoped || canSee(row.account ? userById(row.account.id) : undefined))
+    && (!get("account") || row.account?.id === get("account"))
+    && (!get("visitor") || row.visitor_id === get("visitor"))
+    && (!get("action") || row.action.startsWith(get("action")))
+    && (!get("surface") || row.surface === get("surface"))
+    && (!get("outcome") || row.outcome === get("outcome"))
+    && (from === null || row.at >= from)
+    && (to === null || row.at <= to));
+  const page = activityPage(rows, search.get("cursor"), Number(search.get("limit") ?? 50) || 50, permissionsOf(persona).includes("activity.read.ip"));
+  return { ...page, blocked_today: scoped ? [] : MOCK_BLOCKED_TODAY };
+}
+
+function routeSummary(persona: Persona): Summary {
+  gate(persona);
+  const can = (node: string) => permissionsOf(persona).includes(node);
+  const result: Summary = {};
+  if (can("apply.view")) result.applications = { total: APPLICATIONS.length, by_status: counts(), last_7d: APPLICATIONS.filter(a => a.created_at >= now - 7 * DAY).length };
+  if (can("competition.score.review")) result.candidates_pending = 0;
+  if (can("users.view")) result.registrations_today = MOCK_USERS.filter(u => u.created_at >= todayStart).length;
+  if (can("activity.read")) result.blocked_today = MOCK_BLOCKED_TODAY.reduce((sum, b) => sum + b.count, 0);
+  if (can("gitlab.view")) result.gitlab = { mode: MOCK_GITLAB_STATUS.mode, healthy: MOCK_GITLAB_STATUS.healthy, last_run: MOCK_GITLAB_STATUS.last_run };
+  if (can("feedback.view")) result.feedback = { open: FEEDBACK.filter(f => f.status === "open").length, total: FEEDBACK.length };
+  return result;
+}
+
+/** 处理 `/api/console/*` 与 `/api/public/departments` 的 GET；未知路径返回 undefined，交回上层报 404。 */
 export function routeConsole(url: URL): unknown {
   const path = url.pathname;
-  const name = currentPersona();
-  if (name === SIGNED_OUT) throw new ApiError(401, "not_signed_in", "请先登录", undefined, { error: "not_signed_in" });
-  const persona = MOCK_PERSONAS[name];
   const search = url.searchParams;
+  if (path === "/api/public/departments") return { departments: MOCK_DEPARTMENTS };
 
-  if (path === "/api/console/me") {
-    return {
-      login: persona.login, avatar_url: null, org: MOCK_ORG, provider: persona.provider, site_role: persona.site_role, github: persona.github,
-      title: persona.titles[0], titles: persona.titles, capabilities: persona.capabilities, head_of: persona.head_of,
-      email_required: persona.email_required,
-    };
-  }
-  if (path === "/api/console/catalogue") {
-    need(persona, "console.access");
-    return {
-      titles: MOCK_TITLES, crew: CREW, tones: MOCK_TONES, capabilities: MOCK_CAPABILITIES, domains: DOMAINS,
-      role_base: MOCK_ROLE_BASE, implies: MOCK_IMPLIES, captain_only: MOCK_CAPTAIN_ONLY,
-      department_icons: [...DEPARTMENT_ICONS], application_statuses: STATUSES,
-    };
-  }
-  if (path === "/api/console/summary") {
-    need(persona, "console.access");
-    const result: Record<string, unknown> = {};
-    if (persona.capabilities.includes("applications.read")) {
-      result.applications = { total: APPLICATIONS.length, by_status: counts(), last_7d: APPLICATIONS.filter(a => a.created_at >= now - 7 * DAY).length };
+  const persona = requireSignedIn();
+  if (path === "/api/console/me") return mockMe(persona);
+  if (path === "/api/console/summary") return routeSummary(persona);
+  if (path === "/api/console/users") return routeUsers(persona, search);
+
+  const account = path.match(/^\/api\/console\/accounts\/([^/]+)\/(activity|effective)$/);
+  if (account) {
+    const target = userById(decodeURIComponent(account[1]));
+    if (account[2] === "effective") {
+      gate(persona, "perm.view");
+      if (!target) fail(404, "not_found", "账号不存在");
+      return effectiveOf(target);
     }
-    if (persona.capabilities.includes("feedback.read")) result.feedback = { open: FEEDBACK.filter(f => f.status === "open").length, total: FEEDBACK.length };
-    if (persona.capabilities.some(c => c === "roles.manage" || c === "roles.department.manage")) {
-      result.people = { assignments: ASSIGNMENTS.length, departments: MOCK_DEPARTMENTS.length };
-    }
-    return result;
+    gate(persona, "activity.read");
+    if (!target || !visibleTo(persona, "activity.read")(target)) fail(404, "not_found", "账号不存在");
+    const rows = MOCK_ACTIVITY.filter(row => row.account?.id === target.account_id);
+    return { ...activityPage(rows, search.get("cursor"), 20, permissionsOf(persona).includes("activity.read.ip")), blocked_today: [] };
   }
-  if (path === "/api/console/departments") {
-    need(persona, "console.access");
-    return { departments: departmentsView() };
+  if (path === "/api/console/permissions/nodes") { gate(persona, "perm.view"); return MOCK_NODES; }
+  if (path === "/api/console/permission-groups") {
+    gate(persona, "perm.view");
+    return { groups: MOCK_GROUPS.map(g => ({ ...g, member_count: memberCount(g.id) })) };
   }
-  if (path === "/api/console/assignments") {
-    need(persona, "roles.manage", "roles.department.manage");
-    let rows = ASSIGNMENTS;
-    if (!persona.capabilities.includes("roles.manage")) rows = rows.filter(a => persona.head_of.includes(a.department_id));
-    const role = search.get("role");
-    const department = search.get("department_id");
-    if (role) rows = rows.filter(a => a.role === role);
-    if (department) rows = rows.filter(a => a.department_id === department);
-    const captain = ASSIGNMENTS.find(a => a.role === "captain");
-    return { assignments: rows, captain: captain ? { github_login: captain.github_login } : null };
+  const members = path.match(/^\/api\/console\/permission-groups\/([^/]+)\/members$/);
+  if (members) {
+    gate(persona, "perm.view");
+    const id = decodeURIComponent(members[1]);
+    if (!groupById(id)) fail(404, "not_found", "组不存在");
+    return { members: membersOf(id) };
   }
-  if (path === "/api/console/people") {
-    need(persona, "roles.manage", "roles.department.manage");
-    return { people: mockPeople(persona.github !== "none"), github: persona.github, github_listed: persona.github !== "none" };
+  if (path === "/api/console/permissions/explain") {
+    gate(persona, "perm.view");
+    const node = search.get("node") ?? "";
+    const target = userById(search.get("account") ?? "");
+    if (!target) fail(404, "not_found", "账号不存在");
+    if (!ALL_NODES.includes(node)) fail(400, "unknown_node", "要填一个具体的节点");
+    return evaluate(target, node);
   }
-  if (path === "/api/console/gitlab/accounts") {
-    need(persona, "roles.manage", "roles.department.manage");
-    return mockGitlab(mockGitlabCase());
-  }
+  if (path === "/api/console/activity") return routeActivity(persona, search);
+
+  if (path === "/api/console/gitlab/status") { gate(persona, "gitlab.view"); return MOCK_GITLAB_STATUS; }
+  if (path === "/api/console/gitlab/accounts") { gate(persona, "gitlab.view"); return mockGitlabAccounts(); }
+  if (path === "/api/console/gitlab/projects") { gate(persona, "gitlab.view"); return MOCK_GITLAB_PROJECTS; }
+  if (path === "/api/console/gitlab/settings") { gate(persona, "gitlab.settings"); return MOCK_GITLAB_SETTINGS; }
+
   if (path === "/api/console/applications") {
-    need(persona, "applications.read");
+    gate(persona, "apply.view");
     const status = search.get("status");
     const q = (search.get("q") ?? "").trim().toLowerCase();
     const limit = Number(search.get("limit") ?? 50);
     const offset = Number(search.get("offset") ?? 0);
     const filtered = APPLICATIONS.filter(a => (!status || a.status === status) && (!q || [a.name, a.class_name, a.email].some(v => v.toLowerCase().includes(q))));
     return {
-      items: filtered.slice(offset, offset + limit).map(a => ({
-        id: a.id, name: a.name, class_name: a.class_name, email: a.email, strengths_excerpt: excerpt(a.strengths),
-        status: a.status, created_at: a.created_at, last_review: lastReview(a.id),
-      })),
+      items: filtered.slice(offset, offset + limit).map(a => ({ id: a.id, name: a.name, class_name: a.class_name, email: a.email, strengths_excerpt: excerpt(a.strengths), status: a.status, created_at: a.created_at, last_review: lastReview(a.id) })),
       total: filtered.length, counts: counts(),
     };
   }
   const detail = path.match(/^\/api\/console\/applications\/([0-9a-f-]{36})$/);
   if (detail) {
-    need(persona, "applications.read");
+    gate(persona, "apply.view");
     const application = APPLICATIONS.find(a => a.id === detail[1]);
-    if (!application) throw new ApiError(404, "not_found", "投递不存在");
+    if (!application) fail(404, "not_found", "投递不存在");
     return { application, reviews: REVIEWS[application.id] ?? [], received_mail: RECEIVED_MAIL[application.id] ?? null, mail: mailSettings(application.email) };
   }
   if (path === "/api/console/feedback") {
-    need(persona, "feedback.read");
+    gate(persona, "feedback.view");
     const status = search.get("status");
     const items = FEEDBACK.filter(f => !status || f.status === status);
     const statusCounts: Record<string, number> = { open: 0, triaged: 0, in_progress: 0, done: 0, wont_do: 0, spam: 0 };
     for (const f of FEEDBACK) statusCounts[f.status] += 1;
     return { items, counts: statusCounts };
   }
-  if (path === "/api/console/competitions") {
-    need(persona, "console.access");
-    return { competitions: competitionView() };
-  }
+  if (path === "/api/console/competitions") { gate(persona); return { competitions: competitionView() }; }
   const roster = path.match(/^\/api\/console\/competitions\/([^/]+)\/(roster|roster\.csv|score-events)$/);
   if (roster) {
-    need(persona, "competitions.manage");
+    gate(persona, "competition.manage");
     const competitionId = decodeURIComponent(roster[1]);
     if (roster[2] === "roster") return mockRoster(competitionId);
     if (roster[2] === "roster.csv") return mockRosterCsv(competitionId);
     return { events: MOCK_SCORE_EVENTS[competitionId] ?? [] };
   }
-  if (path === "/api/console/invites") {
-    need(persona, "accounts.invites.manage");
-    return { invites: MOCK_INVITES };
-  }
-  if (path === "/api/console/audit") {
-    need(persona, "audit.read");
-    const action = search.get("action");
-    const limit = Number(search.get("limit") ?? 100);
-    return { logs: AUDIT.filter(row => !action || row.action.startsWith(action)).slice(0, limit) };
-  }
+  if (path === "/api/console/invites") { gate(persona, "invite.manage"); return { invites: MOCK_INVITES }; }
   return undefined;
 }

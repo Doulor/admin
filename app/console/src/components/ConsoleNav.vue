@@ -6,6 +6,7 @@ import type { SidebarNavItem } from "@talex-touch/tuffex/sidebar-nav";
 import { TxCardItem } from "@talex-touch/tuffex/card-item";
 import { TxButton } from "@talex-touch/tuffex/button";
 import { TxAvatar } from "@talex-touch/tuffex/avatar";
+import { primaryTitle as pickTitle, titleTone } from "../lib/users";
 import TitleBadge from "./TitleBadge.vue";
 import logoUrl from "../assets/logo.png";
 import { NAV_GROUPS, activeNavId, visibleNav } from "../lib/nav";
@@ -31,7 +32,8 @@ const items = computed<SidebarNavItem[]>(() => entries.value.map(item => ({
 })));
 const groups = computed(() => NAV_GROUPS);
 const active = computed(() => activeNavId(route.path) ?? "");
-const workspace = computed(() => ({ name: "极客班控制台", description: props.me.org }));
+const workspace = computed(() => ({ name: "极客班控制台", description: props.me.level_name }));
+const primaryTitle = computed(() => pickTitle(props.me.titles));
 
 function openSite(target: "portal" | "forum") {
   window.location.assign(siteUrl(target, "/"));
@@ -78,10 +80,10 @@ function onSelect(item: SidebarNavItem) {
       <template #footer>
         <div class="console-nav__footer">
           <div class="console-nav__me">
-            <TxAvatar :src="me.avatar_url ?? undefined" :name="me.login" :size="36" />
+            <TxAvatar :src="me.avatar_url ?? undefined" :name="me.display_name || me.username" :size="36" />
             <div class="console-nav__me-text">
-              <span class="mono console-nav__login" :title="`@${me.login}`">@{{ me.login }}</span>
-              <TitleBadge :title="me.title" />
+              <span class="mono console-nav__login" :title="`@${me.username}`">@{{ me.username }}</span>
+              <TitleBadge v-if="primaryTitle" :label="primaryTitle.name" :tone="titleTone(primaryTitle, me.department)" />
             </div>
           </div>
           <div class="console-nav__links">

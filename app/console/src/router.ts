@@ -1,18 +1,16 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
-import { FORUM_CAPABILITIES, ROLE_CAPABILITIES } from "./lib/nav";
+import { COMPETITION_MANAGE_PERMISSIONS, FORUM_PERMISSIONS, GITLAB_PERMISSIONS, USERS_PERMISSIONS } from "./lib/nav";
 
 /**
- * 路由。控制台拥有 /console/**、/signin、/device、/account、/authorize、/bind-email；旧的 /admin 与 /admin/:org/** 不再保留多组织页面，
- * 一律跳到 /console（组织固定为 CONSOLE_ORG，服务端 /api/admin/:org/* 接口不变）。
- * `meta.anyOf` 是页面所需能力（任一即可），components/ConsoleShell.vue 把它交给 components/CapabilityGate.vue 显示「没有权限」。
+ * 路由。控制台拥有 /console/**、/signin、/device、/account、/authorize、/bind-email。
+ * `meta.anyOf` 是页面所需权限节点（任一即可），components/ConsoleShell.vue 把它交给 components/CapabilityGate.vue 显示「没有权限」。
  */
-// githubOptional：页面没接上 GitHub 也能打开（只有部分操作要 GitHub，页面自己说明），能力门不拦
-const gated = (anyOf: string[], load: () => Promise<unknown>, githubOptional = false) => ({ component: load, meta: { anyOf, githubOptional } });
+const gated = (anyOf: string[], load: () => Promise<unknown>) => ({ component: load, meta: { anyOf } });
 
 const routes: RouteRecordRaw[] = [
   { path: "/", redirect: "/console" },
   { path: "/signin", component: () => import("./pages/SignIn.vue") },
-  // 设备授权确认页（RFC 8628，给 `geek login`）：和 /signin 一样不在控制台壳子里，只要登录、不要控制台能力。
+  // 设备授权确认页（RFC 8628，给 `geek login`）：和 /signin 一样不在控制台壳子里，只要登录、不要控制台权限。
   { path: "/device", component: () => import("./pages/Device.vue") },
   // 对外授权的同意页（#270，GitLab 等不同源的应用第一次用极客班账号登录时）：同样不在控制台壳子里，只要登录。
   { path: "/authorize", component: () => import("./pages/Authorize.vue") },
@@ -28,27 +26,23 @@ const routes: RouteRecordRaw[] = [
     component: () => import("./pages/ConsoleRoot.vue"),
     children: [
       { path: "", ...gated(["console.access"], () => import("./pages/Overview.vue")) },
-      { path: "applications", ...gated(["applications.read"], () => import("./pages/Applications.vue")) },
-      { path: "applications/:applicationId", ...gated(["applications.read"], () => import("./pages/ApplicationDetail.vue")) },
-      { path: "forum", ...gated(FORUM_CAPABILITIES, () => import("./pages/Forum.vue")) },
-      { path: "people", ...gated(ROLE_CAPABILITIES, () => import("./pages/People.vue")) },
-      { path: "competitions", ...gated(["competitions.manage"], () => import("./pages/Competitions.vue")) },
-      { path: "competitions/:id", ...gated(["competitions.manage"], () => import("./pages/CompetitionHub.vue")) },
-      { path: "feedback", ...gated(["feedback.read"], () => import("./pages/Feedback.vue")) },
-      { path: "audit", ...gated(["audit.read"], () => import("./pages/Audit.vue")) },
-      { path: "invites", ...gated(["accounts.invites.manage"], () => import("./pages/Invites.vue")) },
-      { path: "github", ...gated(["github.org.read"], () => import("./pages/github/Overview.vue")) },
-      { path: "github/members", ...gated(["github.org.read"], () => import("./pages/github/Members.vue")) },
-      { path: "github/repos", ...gated(["github.org.read"], () => import("./pages/github/Repos.vue")) },
-      { path: "github/repos/new", ...gated(["github.repos.manage"], () => import("./pages/github/CreateRepo.vue")) },
-      { path: "github/repos/:repo/:tab(commits|issues|pulls|settings)?", ...gated(["github.org.read"], () => import("./pages/github/RepoDetail.vue")) },
-      { path: "github/repos/:repo/:tab(issues|pulls)/:number(\\d+)", ...gated(["github.org.read"], () => import("./pages/github/RepoDetail.vue")) },
-      { path: "github/teams", ...gated(["github.org.read"], () => import("./pages/github/Teams.vue")) },
-      { path: "github/activity", ...gated(["github.org.read"], () => import("./pages/github/Activity.vue")) },
-      { path: "github/security", ...gated(["github.org.manage"], () => import("./pages/github/Security.vue")) },
-      { path: "github/org", ...gated(["github.org.read"], () => import("./pages/github/OrgSettings.vue")) },
-      { path: "github/invitations", ...gated(["github.invites.manage"], () => import("./pages/github/Invitations.vue")) },
-      { path: "github/invite-links", ...gated(["github.invites.manage"], () => import("./pages/github/InviteLinks.vue"), true) },
+      { path: "applications", ...gated(["apply.view"], () => import("./pages/Applications.vue")) },
+      { path: "applications/:applicationId", ...gated(["apply.view"], () => import("./pages/ApplicationDetail.vue")) },
+      { path: "forum", ...gated(FORUM_PERMISSIONS, () => import("./pages/Forum.vue")) },
+      { path: "competitions", ...gated(COMPETITION_MANAGE_PERMISSIONS, () => import("./pages/Competitions.vue")) },
+      { path: "competitions/:id", ...gated(COMPETITION_MANAGE_PERMISSIONS, () => import("./pages/CompetitionHub.vue")) },
+      { path: "users", ...gated(USERS_PERMISSIONS, () => import("./pages/Users.vue")) },
+      { path: "permissions", ...gated(["perm.view", "perm.manage"], () => import("./pages/Permissions.vue")) },
+      { path: "invites", ...gated(["invite.manage"], () => import("./pages/Invites.vue")) },
+      { path: "gitlab", ...gated(GITLAB_PERMISSIONS, () => import("./pages/gitlab/Overview.vue")) },
+      { path: "gitlab/accounts", ...gated(GITLAB_PERMISSIONS, () => import("./pages/gitlab/Accounts.vue")) },
+      { path: "gitlab/projects", ...gated(GITLAB_PERMISSIONS, () => import("./pages/gitlab/Projects.vue")) },
+      { path: "gitlab/settings", ...gated(["gitlab.settings"], () => import("./pages/gitlab/Settings.vue")) },
+      { path: "activity", ...gated(["activity.read"], () => import("./pages/Activity.vue")) },
+      { path: "feedback", ...gated(["feedback.view"], () => import("./pages/Feedback.vue")) },
+      // 改版前的地址（#274）：成员与权限、审计日志拆成了用户、权限、操作记录；GitHub 组织整组去掉了。
+      { path: "people", redirect: to => ({ path: "/console/users", query: to.query }) },
+      { path: "audit", redirect: to => ({ path: "/console/activity", query: to.query }) },
       { path: ":rest(.*)*", redirect: "/console" },
     ],
   },

@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { CONSOLE_ORIGIN, SLOW } from "../../playwright.config";
 
 test.beforeEach(async ({ page }) => {
@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 /** 控制台开发预览：样板数据（只读、全部虚构）+ 指定身份。 */
-async function openConsole(page: Page, path: string, persona = "captain") {
+async function openConsole(page: Page, path: string, persona = "owner") {
   const url = new URL(path, CONSOLE_ORIGIN);
   url.searchParams.set("__data", "mock");
   url.searchParams.set("__persona", persona);
@@ -129,45 +129,35 @@ test.describe("promo on a phone", () => {
   });
 });
 
-test("console navigation follows the persona's capabilities", async ({ page }) => {
+test("console navigation follows the persona's permissions, with no GitHub organisation pages (#274)", async ({ page }) => {
   const nav = page.getByRole("navigation", { name: "控制台导航" });
-  await openConsole(page, "/console", "captain");
-  await expect(nav.getByRole("button", { name: "审计日志" })).toBeVisible();
-  await expect(nav.getByRole("button", { name: /邀请/ })).toHaveCount(0);
+  await openConsole(page, "/console", "owner");
   await expect(page.getByRole("heading", { name: "概览", level: 1 })).toBeVisible();
+  for (const name of ["投递管理", "用户", "权限", "邀请码", "账号同步", "群组与项目", "操作记录", "意见箱"]) await expect(nav.getByRole("button", { name, exact: true })).toBeVisible();
+  await expect(nav.getByText(/GitHub/)).toHaveCount(0);
 
-  await openConsole(page, "/console", "member");
-  await expect(nav.getByRole("button", { name: "概览" })).toBeVisible();
-  await expect(nav.getByRole("button", { name: "投递管理" })).toHaveCount(0);
-  await expect(nav.getByRole("button", { name: "成员与权限" })).toHaveCount(0);
+  await openConsole(page, "/console", "ai_head");
+  for (const name of ["投递管理", "用户", "操作记录"]) await expect(nav.getByRole("button", { name, exact: true })).toBeVisible();
+  for (const name of ["权限", "邀请码", "账号同步", "意见箱"]) await expect(nav.getByRole("button", { name, exact: true })).toHaveCount(0);
 
-  await openConsole(page, "/console", "recruitment");
-  await expect(nav.getByRole("button", { name: /邀请/ })).toHaveCount(0);
-
-  await openConsole(page, "/console/github/invite-links", "captain");
-  await expect(page.getByText("你没有「管理邀请」权限")).toBeVisible();
-
-  await openConsole(page, "/console", "admin");
-  await expect(nav.getByRole("button", { name: "邀请", exact: true })).toBeVisible();
-  await expect(nav.getByRole("button", { name: "邀请链接", exact: true })).toBeVisible();
-
-  await openConsole(page, "/console", "guest");
-  await expect(page.getByRole("heading", { name: "你还不能使用控制台" })).toBeVisible();
-  await expect(nav).toHaveCount(0);
+  for (const persona of ["member", "registered"]) {
+    await openConsole(page, "/console", persona);
+    await expect(page.getByRole("heading", { name: "你还不能使用控制台" })).toBeVisible();
+    await expect(nav).toHaveCount(0);
+  }
 });
 
-test("console pages explain a missing capability instead of rendering data", async ({ page }) => {
-  await openConsole(page, "/console/audit", "crew");
-  await expect(page.getByText("你没有「查看审计日志」权限")).toBeVisible();
-  await expect(page.getByText("403 missing_capability · audit.read")).toBeVisible();
+test("console pages explain a missing node instead of rendering data", async ({ page }) => {
+  await openConsole(page, "/console/permissions", "ai_head");
+  await expect(page.getByText("你没有「查看权限」权限")).toBeVisible();
 });
 
 test("signed-out visitors land on the unified sign-in page with a return path and server-listed providers (#262)", async ({ page }) => {
-  await openConsole(page, "/console/people", "signed_out");
+  await openConsole(page, "/console/users", "signed_out");
   await expect(page).toHaveURL(/\/signin\?return_to=/);
   await expect(page.getByRole("heading", { name: "极客班统一登录" })).toBeVisible();
   await expect(page.getByRole("button", { name: "通过 GitHub 继续" })).toBeVisible();
-  await expect(page.getByText("/console/people")).toBeVisible();
+  await expect(page.getByText("/console/users")).toBeVisible();
 });
 
 test("before the console script arrives the entry page already says 正在加载控制台, and hides it once the console renders (#263)", async ({ page }) => {
@@ -176,7 +166,7 @@ test("before the console script arrives the entry page already says 正在加载
   await page.route("**/src/main.ts", async route => { await held; await route.continue(); });
   const url = new URL("/console", CONSOLE_ORIGIN);
   url.searchParams.set("__data", "mock");
-  url.searchParams.set("__persona", "captain");
+  url.searchParams.set("__persona", "owner");
   // 模块脚本还没到，load 与 DOMContentLoaded 都不会发生，只等入口页开始到达。
   await page.goto(url.toString(), { waitUntil: "commit" });
   const boot = page.getByRole("status").filter({ hasText: "正在加载控制台" });
@@ -188,65 +178,39 @@ test("before the console script arrives the entry page already says 正在加载
   await expect(boot).toBeHidden();
 });
 
-test("people are grouped by department like a contacts list, with lead and superior, and no in-page search", async ({ page }) => {
-  await openConsole(page, "/console/people");
-  await expect(page.getByRole("heading", { name: "成员与权限", level: 1 })).toBeVisible();
-  for (const name of ["成员", "称号", "部门", "权限树"]) await expect(page.getByRole("tab", { name, exact: true })).toBeVisible();
-  const groups = page.getByRole("navigation", { name: "按部门查看" });
-  for (const name of ["全部成员", "招新部", "技术部", "社区部", "项目部", "没有部门"]) await expect(groups.getByRole("button", { name: new RegExp(`^${name}`) })).toBeVisible();
-  await expect(page.getByRole("searchbox")).toHaveCount(0);
-  await groups.getByRole("button", { name: /^招新部/ }).click();
-  await expect(page).toHaveURL(/group=recruitment/);
-  const head = page.locator(".group-head");
-  await expect(head.getByRole("heading", { name: "招新部" })).toBeVisible();
-  await expect(head.getByText("上级")).toBeVisible();
-  await expect(head.getByText("@li-xiaoman")).toBeVisible();
-  const logins = await page.locator("tbody tr .user-cell__login").allTextContents();
-  expect(logins).toEqual(["@li-xiaoman", "@fang-lin", "@he-miao"]);
+test("the user list filters by level and opens a drawer with profile, activity and effective permissions (#274)", async ({ page }) => {
+  await openConsole(page, "/console/users", "owner");
+  await expect(page.getByRole("heading", { name: "用户", level: 1 })).toBeVisible();
+  await page.getByRole("toolbar", { name: "按身份筛选" }).getByRole("button", { name: /^往届成员/ }).click();
+  await expect(page).toHaveURL(/level=alumni/);
+  await expect(page.getByRole("link", { name: "打开 高远 的详情" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "打开 李晓曼 的详情" })).toHaveCount(0);
+
+  await openConsole(page, "/console/users", "owner");
+  await page.getByRole("link", { name: "打开 李晓曼 的详情" }).click();
+  for (const name of ["资料", "操作记录", "有效权限"]) await expect(page.getByRole("tab", { name, exact: true })).toBeVisible();
+  // 部门是 6 个单选，称号只列 AI部门 的
+  await expect(page.getByRole("radiogroup", { name: "部门" }).getByRole("radio")).toHaveCount(6);
+  await expect(page.getByRole("radiogroup", { name: "称号" }).getByRole("radio", { name: "部长" })).toBeChecked();
 });
 
-test("captain can inspect departments but only the admiral sees department write actions", async ({ page }) => {
-  await openConsole(page, "/console/people?view=departments", "captain");
-  await expect(page.getByRole("button", { name: "编辑权限" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "删除部门" })).toHaveCount(0);
-  await openConsole(page, "/console/people?view=departments", "admin");
-  await expect(page.getByRole("button", { name: "编辑权限" }).first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "删除部门" }).first()).toBeVisible();
+test("a department head only sees their own department in the user list", async ({ page }) => {
+  await openConsole(page, "/console/users", "ai_head");
+  await expect(page.getByRole("link", { name: /^打开 .+ 的详情$/ })).toHaveCount(4);
+  await expect(page.getByRole("link", { name: "打开 陈航 的详情" })).toHaveCount(0);
 });
 
-test("member groups are spacious and the roster scrolls inside a bounded panel", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await openConsole(page, "/console/people");
-  await expect(page.locator(".people-table-scroll")).toBeVisible();
-  const layout = await page.evaluate(() => {
-    const groups = document.querySelector<HTMLElement>(".group-list")!;
-    const panel = document.querySelector<HTMLElement>(".group-panel")!;
-    const roster = document.querySelector<HTMLElement>(".people-table-scroll")!;
-    return { groupWidth: groups.getBoundingClientRect().width, panelHeight: panel.getBoundingClientRect().height, rosterHeight: roster.clientHeight, rosterContentHeight: roster.scrollHeight };
-  });
-  expect(layout.groupWidth).toBeGreaterThanOrEqual(270);
-  expect(layout.panelHeight).toBeLessThanOrEqual(720);
-  expect(layout.rosterContentHeight).toBeGreaterThan(layout.rosterHeight);
-});
+test("permission groups are listed by kind; system groups cannot be deleted, deleting a custom one starts on Cancel", async ({ page }) => {
+  await openConsole(page, "/console/permissions", "owner");
+  for (const name of ["组", "节点", "解释"]) await expect(page.getByRole("tab", { name, exact: true })).toBeVisible();
+  const list = page.getByRole("navigation", { name: "全部组" });
+  for (const heading of ["身份", "部门", "称号", "自定义"]) await expect(list.getByText(heading, { exact: true })).toBeVisible();
+  await list.getByRole("button", { name: /AI部门 · 部长/ }).click();
+  await expect(page).toHaveURL(/group=title\.ai\.head/);
+  await expect(page.getByRole("button", { name: "删除", exact: true })).toHaveCount(0);
 
-test("no native select or checkbox is visible; permission bundles use Tuffex checkboxes", async ({ page }) => {
-  await openConsole(page, "/console/people?view=departments", "admin");
-  await page.getByRole("button", { name: "编辑权限" }).first().click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("checkbox").first()).toBeVisible();
-  const native = await page.evaluate(() => [...document.querySelectorAll("select, input[type=checkbox]")].filter(el => {
-    const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
-    return r.width > 1 && r.height > 1 && s.visibility !== "hidden" && s.display !== "none" && s.opacity !== "0";
-  }).length);
-  expect(native).toBe(0);
-});
-
-test("destructive confirmation starts on Cancel and cancelling sends nothing", async ({ page }) => {
-  await openConsole(page, "/console/people");
-  const details = page.getByRole("button", { name: "查看 @li-xiaoman 的称号详情" });
-  await expect(page.getByRole("button", { name: /撤销 @li-xiaoman/ })).toHaveCount(0);
-  await details.click();
-  await page.getByRole("button", { name: /撤销 @li-xiaoman/ }).click();
+  await openConsole(page, "/console/permissions?group=custom.muted", "owner");
+  await page.getByRole("button", { name: "删除", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("button", { name: "取消" })).toBeFocused();
   await page.keyboard.press("Escape");
@@ -254,132 +218,47 @@ test("destructive confirmation starts on Cancel and cancelling sends nothing", a
   await expect(page.getByText("开发预览是只读的")).toHaveCount(0);
 });
 
+test("a write after the step-up window offers 重新登录 instead of 重试", async ({ page }) => {
+  await openConsole(page, "/console/gitlab/settings", "owner_stale");
+  await page.getByRole("radiogroup", { name: "同步模式" }).getByText("预演").click();
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page.getByText("需要重新登录")).toBeVisible();
+  await expect(page.getByRole("link", { name: "重新登录" }).or(page.getByRole("button", { name: "重新登录" }))).toBeVisible();
+});
+
+test("the activity log filters by outcome and shows today's blocked count", async ({ page }) => {
+  await openConsole(page, "/console/activity?outcome=limited", "owner");
+  await expect(page.getByRole("heading", { name: "操作记录", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^今天被拦下 \d+ 次$/ })).toBeVisible();
+  const outcomes = await page.locator("tbody tr .tx-status-badge").allTextContents();
+  expect(outcomes.length).toBeGreaterThan(0);
+  for (const text of outcomes) expect(text.trim()).toBe("限流");
+});
+
+test("no native select or checkbox is visible on the rebuilt console pages", async ({ page }) => {
+  const countNative = () => page.evaluate(() => [...document.querySelectorAll("select, input[type=checkbox]")].filter(el => {
+    const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
+    return r.width > 1 && r.height > 1 && s.visibility !== "hidden" && s.display !== "none" && s.opacity !== "0";
+  }).length);
+  for (const path of ["/console/users", "/console/permissions", "/console/permissions?tab=explain", "/console/activity", "/console/gitlab/settings", "/console/gitlab/projects"]) {
+    await openConsole(page, path, "owner");
+    await expect(page.locator("main h1")).toBeVisible();
+    expect(await countNative(), path).toBe(0);
+  }
+});
+
 test("mobile console keeps navigation in a drawer and has no page-level horizontal overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await openConsole(page, "/console/people");
-  await expect(page.getByRole("heading", { name: "成员与权限", level: 1 })).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  for (const path of ["/console/users", "/console/permissions", "/console/activity", "/console/gitlab/projects"]) {
+    await openConsole(page, path, "owner");
+    await expect(page.locator("main h1")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), path).toBeLessThanOrEqual(390);
+  }
   await page.getByRole("button", { name: "打开导航" }).click();
   const nav = page.getByRole("navigation", { name: "控制台导航" }).last();
   await nav.getByRole("button", { name: "投递管理" }).click();
   await expect(page).toHaveURL(/\/console\/applications/);
   await expect(page.getByRole("heading", { name: "投递管理", level: 1 })).toBeVisible();
-});
-
-// #211：邀请页「本站发出的记录」。样板数据里的 invite_link_token 是 24 字符合成 token（与线上等长：
-// 服务端 `randomBytes(18).toString("base64url")` 正好 24 字），这里断言的是真实 Chromium 渲染出的几何。
-type HistoryRow = {
-  token: string;
-  tokenTitle: string | null;
-  ellipsisShown: boolean;
-  pastOwnCell: number;
-  overlapsStatus: boolean;
-  badgeText: string;
-  badgeHeight: number;
-  timeHeight: number;
-  rowHeight: number;
-};
-
-const invitationCard = (page: Page, title: string): Locator => page.locator(".tx-card").filter({ has: page.getByRole("heading", { name: title }) });
-
-async function measureInvitationHistory(card: Locator): Promise<HistoryRow[]> {
-  return card.evaluate((root: HTMLElement) =>
-    [...root.querySelectorAll("tbody tr")].map(row => {
-      const cells = [...row.querySelectorAll("td")] as HTMLTableCellElement[];
-      const token = cells[2].querySelector("span") as HTMLElement;
-      const badge = cells[3].querySelector(".tx-status-badge") as HTMLElement;
-      const badgeText = badge.querySelector(".tx-status-badge__text") ?? badge;
-      const time = cells[5].querySelector("span") as HTMLElement;
-      return {
-        token: token.textContent ?? "",
-        tokenTitle: token.getAttribute("title"),
-        ellipsisShown: token.scrollWidth > token.clientWidth,
-        pastOwnCell: token.getBoundingClientRect().right - cells[2].getBoundingClientRect().right,
-        overlapsStatus: token.getBoundingClientRect().right > cells[3].getBoundingClientRect().left,
-        badgeText: badgeText.textContent?.trim() ?? "",
-        badgeHeight: badgeText.getBoundingClientRect().height, // 只量 .tx-status-badge__text：徽章容器里的图标是独立的盒，整盒高度会把单行文字误报成多行
-        timeHeight: time.getBoundingClientRect().height,
-        rowHeight: row.getBoundingClientRect().height,
-      };
-    }));
-}
-
-async function expectInvitationHeadingInset(card: Locator) {
-  const bounds = await card.evaluate(root => {
-    const cardRect = root.getBoundingClientRect();
-    const headingRect = root.querySelector("h2")!.getBoundingClientRect();
-    const column = root.querySelector("thead th")!;
-    return {
-      left: headingRect.left - cardRect.left,
-      top: headingRect.top - cardRect.top,
-      right: cardRect.right - headingRect.right,
-      columnAlignment: Math.abs(headingRect.left - column.getBoundingClientRect().left - Number.parseFloat(getComputedStyle(column).paddingLeft)),
-    };
-  });
-  expect(bounds.left).toBeGreaterThanOrEqual(12);
-  expect(bounds.top).toBeGreaterThanOrEqual(12);
-  expect(bounds.right).toBeGreaterThanOrEqual(12);
-  expect(bounds.columnAlignment).toBeLessThanOrEqual(1);
-}
-
-test("console invitations: the 24-char token truncates inside its cell, badges and Beijing time stay single-line, both tables share the row height (#211)", async ({ page }) => {
-  for (const width of [1440, 1280, 1024]) {
-    await page.setViewportSize({ width, height: 900 });
-    await openConsole(page, "/console/github/invitations", "admin");
-    const history = invitationCard(page, "本站发出的记录");
-    const pending = invitationCard(page, "待接受");
-    await expect(history.locator("tbody tr")).toHaveCount(3);
-    await expect(pending.locator("tbody tr")).toHaveCount(2);
-    await expectInvitationHeadingInset(pending);
-    await expectInvitationHeadingInset(history);
-
-    const rows = await measureInvitationHistory(history);
-    // 三枚徽章都在：sent / pending_admin / failed
-    expect(rows.map(r => r.badgeText)).toEqual(["已发出", "待核对", "失败"]);
-    for (const row of rows) {
-      expect(row.tokenTitle).toBe(row.token); // 截断后悬停看全值（对齐 InviteLinks 的做法）
-      expect(row.ellipsisShown).toBe(true); // 24 字在 130px 列里必须出现「…」
-      expect(row.pastOwnCell).toBeLessThanOrEqual(0); // 不越过本格（修前实测 61px）
-      expect(row.overlapsStatus).toBe(false); // 不划穿「结果」列左缘
-      expect(row.badgeHeight).toBeLessThanOrEqual(24); // 单行文字 ~20px；折成两行 ~40px（修前徽章整盒 30px、行高 60px）
-      expect(row.timeHeight).toBeLessThanOrEqual(24);
-    }
-    // 两张表行高一致（修前 60px vs 47px 参差）
-    const pendingHeight = await pending.locator("tbody tr").first().evaluate(el => el.getBoundingClientRect().height);
-    for (const row of rows) expect(Math.abs(row.rowHeight - pendingHeight)).toBeLessThanOrEqual(1);
-  }
-
-  // 390×844：滚动关在表自己的容器里（--table-min 720 > 可用宽），页面不横向溢出，token 仍不越出本格
-  await page.setViewportSize({ width: 390, height: 844 });
-  await openConsole(page, "/console/github/invitations", "admin");
-  const history = invitationCard(page, "本站发出的记录");
-  await expect(history.locator("tbody tr")).toHaveCount(3);
-  await expectInvitationHeadingInset(invitationCard(page, "待接受"));
-  await expectInvitationHeadingInset(history);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-  const scroller = await history.locator(".tx-data-table").first().evaluate(el => ({
-    scrolls: (el as HTMLElement).scrollWidth > el.clientWidth,
-    overflowX: getComputedStyle(el).overflowX,
-  }));
-  expect(scroller.scrolls).toBe(true);
-  expect(["auto", "scroll"]).toContain(scroller.overflowX);
-  for (const row of await measureInvitationHistory(history)) {
-    expect(row.ellipsisShown).toBe(true);
-    expect(row.pastOwnCell).toBeLessThanOrEqual(0);
-    expect(row.badgeHeight).toBeLessThanOrEqual(24);
-    expect(row.overlapsStatus).toBe(false);
-    expect(row.tokenTitle).toBe(row.token);
-    expect(row.timeHeight).toBeLessThanOrEqual(24);
-  }
-
-  await openConsole(page, "/console", "admin");
-  const org = page.locator(".identity__facts dd.ellipsis");
-  await expect(org).toBeVisible();
-  const bounds = await org.evaluate(el => ({
-    textRight: el.getBoundingClientRect().right,
-    columnRight: el.parentElement!.getBoundingClientRect().right,
-  }));
-  expect(bounds.textRight).toBeLessThanOrEqual(bounds.columnRight + 0.5);
 });
 
 test("forum 3D page resets its scene when restored from the back/forward cache (#109)", async ({ page }) => {

@@ -5,11 +5,11 @@ import { TxDrawer } from "@talex-touch/tuffex/drawer";
 import { TxButton } from "@talex-touch/tuffex/button";
 import ConsoleNav from "./ConsoleNav.vue";
 import CapabilityGate from "./CapabilityGate.vue";
+import { primaryTitle as pickTitle, titleTone } from "../lib/users";
 import TitleBadge from "./TitleBadge.vue";
 import logoUrl from "../assets/logo.png";
 import { api } from "../lib/http";
 import { isMock } from "../lib/runtime";
-import { siteRoleText } from "../lib/people";
 import { clearSession } from "../lib/session";
 import type { ConsoleMe } from "../lib/types";
 
@@ -18,7 +18,8 @@ const props = defineProps<{ me: ConsoleMe }>();
 const route = useRoute();
 const router = useRouter();
 const drawerOpen = ref(false);
-const roleText = computed(() => `站内${siteRoleText(props.me.site_role)}`);
+const roleText = computed(() => props.me.level_name);
+const primaryTitle = computed(() => pickTitle(props.me.titles));
 
 watch(() => route.fullPath, () => { drawerOpen.value = false; });
 
@@ -42,7 +43,7 @@ async function signOut() {
         <img :src="logoUrl" alt="" width="24" height="24">
         极客班控制台
       </span>
-      <TitleBadge :title="me.title" />
+      <TitleBadge v-if="primaryTitle" :label="primaryTitle.name" :tone="titleTone(primaryTitle, me.department)" />
     </header>
 
     <TxDrawer v-model:visible="drawerOpen" title="导航" direction="left" size="min(320px, 86vw)" :mobile-adapt="false" :show-footer="false">
@@ -51,12 +52,11 @@ async function signOut() {
 
     <main class="shell__main console-ground">
       <div class="shell__context">
-        <span class="mono">{{ me.org }}</span>
         <span class="shell__role">{{ roleText }}</span>
         <span v-if="isMock()" class="shell__mock">开发预览 · 样板数据</span>
       </div>
       <RouterView v-slot="{ Component, route: current }">
-        <CapabilityGate :key="current.path" :any-of="(current.meta.anyOf as string[] | undefined) ?? ['console.access']" :github-optional="current.meta.githubOptional === true">
+        <CapabilityGate :key="current.path" :any-of="(current.meta.anyOf as string[] | undefined) ?? ['console.access']">
           <component :is="Component" />
         </CapabilityGate>
       </RouterView>
