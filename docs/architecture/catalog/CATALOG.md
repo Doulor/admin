@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`b2697fe070cf90b76b27af798a6e52a5288a73e34c6650e76f16c1d9ce0b4136`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`31387762565aa7fa68875185eee33d39a410f41cf7828817144a2e39ee34bc7c`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -94,7 +94,7 @@
 - 响应与错误：200 {providers:[...]}，每项含id、name、kind、start、can_register，邮箱另有password；按GitHub、Google、邮箱的顺序，Google只在配了GOOGLE_CLIENT_ID与GOOGLE_CLIENT_SECRET时出现，邮箱只在发信已配置时出现；响应Schema固定字段。
 - 数据与副作用：按配置算出固定列表，不读写数据库、不请求GitHub。
 
-源码：[app/server/src/routes/identity/providers.ts:30](../../../app/server/src/routes/identity/providers.ts#L30) · [app/server/src/routes/identity/contracts.ts:96](../../../app/server/src/routes/identity/contracts.ts#L96) · [app/server/src/routes/identity/index.ts:11](../../../app/server/src/routes/identity/index.ts#L11) · [app/console/src/pages/SignIn.vue:198](../../../app/console/src/pages/SignIn.vue#L198) · [app/console/src/lib/signin.ts:84](../../../app/console/src/lib/signin.ts#L84) · [app/console/src/mock/index.ts:12](../../../app/console/src/mock/index.ts#L12)
+源码：[app/server/src/routes/identity/providers.ts:30](../../../app/server/src/routes/identity/providers.ts#L30) · [app/server/src/routes/identity/contracts.ts:96](../../../app/server/src/routes/identity/contracts.ts#L96) · [app/server/src/routes/identity/index.ts:11](../../../app/server/src/routes/identity/index.ts#L11) · [app/console/src/pages/SignIn.vue:203](../../../app/console/src/pages/SignIn.vue#L203) · [app/console/src/lib/signin.ts:84](../../../app/console/src/lib/signin.ts#L84) · [app/console/src/mock/index.ts:12](../../../app/console/src/mock/index.ts#L12)
 
 测试入口：[tests/server/identity.test.ts](../../../tests/server/identity.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 

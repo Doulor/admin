@@ -57,8 +57,8 @@ const TAB_LABEL: Record<SignInTab, string> = { signin: "登录", register: "注�
 const tabs: SignInTab[] = ["signin", "register"];
 /** 没有邮箱登录时只剩跳转按钮；从 Google 回来要邀请码时仍给一个邀请码框。 */
 const inviteWithoutEmail = computed(() => !emailProvider.value && registering.value);
-/** 从 Google 回来填邀请码时，主按钮让给「用 Google 注册」，免得点成邮箱注册；已经发了验证码就是在走邮箱，主按钮还给邮箱。 */
-const googleFirst = computed(() => registering.value && backFromGoogleForInvite(route.query) && !sentTo.value);
+/** 从 Google 回来填邀请码时，主按钮让给「用 Google 注册」，免得点成邮箱注册；点过「获取验证码」就是在走邮箱，主按钮还给邮箱。 */
+const googleFirst = computed(() => registering.value && backFromGoogleForInvite(route.query) && !usingEmail.value);
 
 const googleRegister = (provider: LoginProvider) => provider.id === "google" && registering.value;
 const providerLabel = (provider: LoginProvider) => (googleRegister(provider) ? "用 Google 注册" : `通过 ${provider.name} 继续`);
@@ -86,7 +86,11 @@ const invite = ref("");
 const movedToRegister = ref(false);
 /** 注册后要先说一句再走的两种情况（见 lib/signin.ts 的 RegisterOutcome）。 */
 const registerNotice = ref<Exclude<RegisterOutcome, { kind: "done" }> | null>(null);
+/** 注册后的说明出现时，上次登录没成功的原因和它的按钮都收起来：人已经登录了。 */
+const shownOutcome = computed(() => (registerNotice.value ? null : outcome.value));
 const sentTo = ref<string | null>(null);
+/** 点过「获取验证码」：换邮箱、验证码过期都不再变回去。 */
+const usingEmail = ref(false);
 const cooldown = ref(0);
 const sending = ref(false);
 const submitting = ref(false);
@@ -123,6 +127,7 @@ const leave = (target: string) => window.location.assign(safeReturnPath(target, 
 async function sendCode() {
   emailError.value = null;
   if (!looksLikeEmail(email.value)) { emailError.value = "邮箱格式不对"; return; }
+  usingEmail.value = true;
   sending.value = true;
   try {
     const target = email.value.trim();
@@ -201,8 +206,8 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
       </div>
 
       <TxAlert v-if="signedOut" type="success" title="你已退出登录" :closable="false" class="signin__alert">官网、论坛、控制台已一起退出。</TxAlert>
-      <TxAlert v-if="outcome && !registerNotice" :type="outcome.type" :title="outcome.title" :closable="false" class="signin__alert" data-testid="signin-outcome">
-        <template v-if="outcome.body">{{ outcome.body }}</template>
+      <TxAlert v-if="shownOutcome" :type="shownOutcome.type" :title="shownOutcome.title" :closable="false" class="signin__alert" data-testid="signin-outcome">
+        <template v-if="shownOutcome.body">{{ shownOutcome.body }}</template>
       </TxAlert>
       <TxAlert v-if="isMock()" type="info" title="开发预览" :closable="false" class="signin__alert">
         当前是样板数据，登录按钮会连到本地后端。要看登录后的页面，去掉地址里的 __persona=signed_out。
@@ -330,9 +335,9 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
       </template>
 
       <p v-if="returnPath !== '/'" class="signin__return" :title="returnPath">登录后回到 {{ returnPath }}</p>
-      <div class="signin__more" :class="{ 'signin__more--pair': outcome?.action }">
-        <TxButton v-if="outcome?.action" variant="secondary" :icon="outcome.action.icon" block @click="followAction(outcome.action)">
-          {{ outcome.action.label }}
+      <div class="signin__more" :class="{ 'signin__more--pair': shownOutcome?.action }">
+        <TxButton v-if="shownOutcome?.action" variant="secondary" :icon="shownOutcome.action.icon" block @click="followAction(shownOutcome.action)">
+          {{ shownOutcome.action.label }}
         </TxButton>
         <TxButton variant="ghost" icon="i-carbon-arrow-left" block @click="goPortal">回到官网</TxButton>
       </div>
