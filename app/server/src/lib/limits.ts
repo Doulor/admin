@@ -17,6 +17,7 @@ export type LimitCheck = { bucket: string; subject: string; window: LimitWindow;
 export type LimitOutcome = LimitCheck & HitResult;
 
 const DAY_MS = 24 * 3600_000;
+const HOUR_MS = 3600_000;
 const BJ_OFFSET_MS = 8 * 3600_000;
 
 /** `now` 所在的北京日历日边界（两端都是 UTC 毫秒时间戳），零点重置用它算下一次零点。 */
@@ -77,6 +78,36 @@ export function createLimits(db: Database.Database, deps: LimitDeps = {}) {
     return pruneStmt.run(bucket, before).changes;
   }
 
-  return { hit, hitAll, count, prune, beijingDayBounds };
+  /**
+   * 按 BUCKET_RETENTION_MS 把全部已知桶清一遍（idn274 发现的缺口：prune() 实现了却没有调用点）。
+   * 没登记在表里的桶（比如以后新加的）不会被这里清掉，加新桶时记得在 BUCKET_RETENTION_MS 里补一行，
+   * 不然只涨不消；没登记不是致命问题，只是那个桶会一直占地方，不会被误删或误留生效中的计数。
+   */
+  function pruneAll(now: number = clock()): number {
+    let deleted = 0;
+    for (const [bucket, retentionMs] of Object.entries(BUCKET_RETENTION_MS)) deleted += prune(bucket, now - retentionMs);
+    return deleted;
+  }
+
+  return { hit, hitAll, count, prune, pruneAll, beijingDayBounds };
 }
 export type LimitsService = ReturnType<typeof createLimits>;
+
+/**
+ * 每个桶的留存时长：比窗口本身多留一截余量（排查用），不是必须精确——这张表每天清一次，桶即使多留几小时
+ * 也不会让表无限变大。新加一个桶就在这里补一行，不然它只会一直涨，不会被这个清理任务碰到。
+ */
+export const BUCKET_RETENTION_MS: Record<string, number> = {
+  "apply.daily": 2 * DAY_MS,
+  "apply.daily.ip": 2 * DAY_MS,
+  "apply.daily.device": 2 * DAY_MS,
+  "account.cli.login.daily": 2 * DAY_MS,
+  "invite.redeem.fail.account": 2 * HOUR_MS,
+  "invite.redeem.fail.ip": 2 * HOUR_MS,
+  "forum.topic.hourly": 2 * HOUR_MS,
+  "forum.reply.hourly": 2 * HOUR_MS,
+  "forum.reply.ip.hourly": 2 * HOUR_MS,
+  "forum.topic.view.dedup": HOUR_MS,
+  "read.per_minute": HOUR_MS,
+  "search.per_minute": HOUR_MS,
+};

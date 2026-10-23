@@ -106,3 +106,22 @@ describe('lib/activity.ts 的保留策略（SPEC §3.7：IP 存 90 天，记录�
     expect(left).toEqual([{ action: 'recent', ip: '203.0.113.9' }, { action: 'ip_should_be_cleared', ip: null }]);
   });
 });
+
+describe('lib/limits.ts 的 pruneAll（SPEC §3.8：limit_events 按桶各自的留存时长清理）', () => {
+  it('只清掉登记过的桶里早于留存期的行，按桶各自的时长判断，没登记的桶原样留着', async () => {
+    const start = Date.UTC(2026, 5, 1);
+    const { app } = await testApp({ clock: () => start }).then(async context => { contexts.push(context); return context; });
+    const db = app.services.storage.db;
+    const insert = (bucket: string, ageMs: number) => db.prepare('INSERT INTO limit_events(bucket, subject, at) VALUES (?, ?, ?)').run(bucket, 's', start - ageMs);
+    insert('apply.daily', 1 * 24 * 60 * 60 * 1000); // 1 天前，留存 2 天，留着
+    insert('apply.daily', 3 * 24 * 60 * 60 * 1000); // 3 天前，超过留存，删
+    insert('forum.topic.hourly', 30 * 60 * 1000); // 半小时前，留存 2 小时，留着
+    insert('forum.topic.hourly', 3 * 60 * 60 * 1000); // 3 小时前，超过留存，删
+    insert('some.unregistered.bucket', 365 * 24 * 60 * 60 * 1000); // 没登记在 BUCKET_RETENTION_MS 里，不碰
+
+    const deleted = app.services.limits.pruneAll(start);
+    expect(deleted).toBe(2);
+    const left = db.prepare('SELECT bucket, at FROM limit_events ORDER BY bucket, at').all() as { bucket: string; at: number }[];
+    expect(left.map(row => row.bucket)).toEqual(['apply.daily', 'forum.topic.hourly', 'some.unregistered.bucket']);
+  });
+});

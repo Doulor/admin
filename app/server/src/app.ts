@@ -80,8 +80,9 @@ export async function buildApp(options: BuildAppOptions) {
   if (options.mailWorker) app.addHook("onReady", async () => { services.mail.start(app.log); });
   if (options.sessionCleanup) app.addHook("onReady", async () => { services.auth.startCleanup(app.log); });
   if (options.gitlabSync) app.addHook("onReady", async () => { services.gitlab.start(app.log); });
-  // 操作记录每天清一次过期行、按 90 天打码 IP（lib/activity.ts，SPEC §3.7）；测试直接调 services.activity.pruneExpired()。
-  if (options.activityCleanup) app.addHook("onReady", async () => { stopActivityCleanup = startActivityCleanup(services.activity, app.log); });
+  // 操作记录每天清一次过期行、按 90 天打码 IP（lib/activity.ts，SPEC §3.7），顺带清 lib/limits.ts 的
+  // limit_events（SPEC §3.8）；测试直接调 services.activity.pruneExpired() / services.limits.pruneAll()。
+  if (options.activityCleanup) app.addHook("onReady", async () => { stopActivityCleanup = startActivityCleanup(services.activity, app.log, services.limits); });
   registerHttpPolicy(app);
   await app.register(cookie, { secret: config.sessionSecret });
   // 只限写了 config.rateLimit 的路由；超额一律 429 rate_limited，路由不另写 errorResponseBuilder（#191）

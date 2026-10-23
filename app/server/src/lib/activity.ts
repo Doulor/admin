@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { FastifyRequest } from "fastify";
+import type { LimitsService } from "./limits.js";
 
 // req.visitorId（匿名访客编号）由 middleware/visitor.ts 的 attachVisitorId 挂在 portal/forum-api 两个插件作用域上，
 // 这里只读，不重复定义一套（两个人各自做过一版，这是收敛成一份之后留下的，见执行记录）。不在这里 import 那个
@@ -78,13 +79,24 @@ export const ACTIVITY_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 export type ActivityCleanupLogger = { info(details: Record<string, unknown>, message: string): void; error(details: Record<string, unknown>, message: string): void };
 
-export function startActivityCleanup(recorder: ActivityRecorder, logger: ActivityCleanupLogger): () => void {
+/**
+ * `limits` 可选：既有调用方（测试里只传 recorder）不用跟着改；真正启动服务时 app.ts 会传，顺带把
+ * lib/limits.ts 的 `limit_events` 也清一遍（idn274 发现的缺口：`prune()` 实现了却没有调用点，和
+ * 操作记录共用同一个「启动清一次 + 每天一次」定时器，不用另起一个）。
+ */
+export function startActivityCleanup(recorder: ActivityRecorder, logger: ActivityCleanupLogger, limits?: LimitsService): () => void {
   const run = () => {
     try {
       const { deleted, ipMasked } = recorder.pruneExpired();
       if (deleted > 0 || ipMasked > 0) logger.info({ deleted, ipMasked }, "activity events pruned");
     } catch (error) {
       logger.error({ error: (error as Error)?.name ?? "error", code: (error as { code?: unknown })?.code }, "activity cleanup failed");
+    }
+    try {
+      const deleted = limits?.pruneAll() ?? 0;
+      if (deleted > 0) logger.info({ deleted }, "limit events pruned");
+    } catch (error) {
+      logger.error({ error: (error as Error)?.name ?? "error", code: (error as { code?: unknown })?.code }, "limit events cleanup failed");
     }
   };
   run();

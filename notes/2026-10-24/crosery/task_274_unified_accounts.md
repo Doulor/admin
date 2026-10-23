@@ -182,3 +182,10 @@
 - 结果：npx vitest run tests/server——31 files / 559 tests 全过；pnpm --filter server build 干净；check-boundaries 通过（259 files, 1458 imports）。
 - 残留与未验证：成员等级的论坛读/搜索档位（300/60）没有专门的端到端测试去验证「确实比访客的 60/10 更宽松」，只验证了访客档位；forum.reply.ip.hourly 和账号自己的 hourly 两条线谁先触发取决于调用顺序，没有专门测两条同时逼近临界值时的行为。§3.8 表里其余各项（投递、注册、命令行发码本身）idn274 已经做了，这次没有重复验证。
 - 下一步：`limits.prune()`（idn274 发现的「有实现没调用点」）接进保留清理，然后 Phase 4（docs、catalog、notes/INDEX 重新生成，tooling 测试转绿）。
+
+## 05:19:58 +08:00 · 提交 · #274 · Step 3 收尾：limits.prune() 接入保留清理（idn274 发现的缺口）
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：idn274 在 d7c3deec 的交付报告里提到 `limit_events` 的 `prune()` 实现了但没有调用点，一直在涨。lib/limits.ts 新增 `BUCKET_RETENTION_MS`（按桶各自登记留存时长：daily 类 2 天、hourly 类 2 小时、per_minute/dedup 类 1 小时，比窗口本身多留一截排查余量）和 `pruneAll(now)`（按这张表把全部已登记的桶清一遍，没登记的桶不碰，不会误删也不会无限涨）。lib/activity.ts 的 `startActivityCleanup()` 加一个可选的 `limits` 参数，和操作记录共用同一个「启动清一次 + 每天一次」定时器，不用另起一个；app.ts 的调用点补上 `services.limits`。
+- 结果：新增 tests/server/events.test.ts 一条，直接插 `limit_events` 行验证 `pruneAll()` 按桶各自的留存期判断、没登记的桶原样留着。npx vitest run tests/server——31 files / 560 tests 全过；pnpm --filter server build 干净；check-boundaries 通过（259 files, 1459 imports）。
+- 下一步：Step 3 到这里全部完成（recordActivity 接入全部必记动作、403/429 统一记录、§3.8 限额补齐、limits.prune 接入清理）。进入 Phase 4：更新 docs/architecture/catalog/ownership.json（删掉的 6 个旧控制台路由、新增 console/activity.ts、portal/events.ts、forum-api/forum-limits.ts、lib/activity.ts、lib/limits.ts 这些 flow）、docs/services/server/{endpoint-contracts,README}.md、docs/changes/274.json、docs/plan/YUGC-OS-V2.md，跑 pnpm catalog:generate 和 pnpm docs:index，把 tooling 测试和 pnpm check 转绿，最后给 team-lead 发完整报告。
