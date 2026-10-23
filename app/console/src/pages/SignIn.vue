@@ -8,12 +8,15 @@ import { TxSpinner } from "@talex-touch/tuffex/spinner";
 import { TxInput } from "@talex-touch/tuffex/input";
 import { TxRadio, TxRadioGroup } from "@talex-touch/tuffex/radio";
 import { TxTabs, TxTabItem } from "@talex-touch/tuffex/tabs";
+import { TxForm, TxFormItem } from "@talex-touch/tuffex/form";
+import { TxDivider } from "@talex-touch/tuffex/divider";
 import logoUrl from "../assets/logo.png";
 import { ApiError, api } from "../lib/http";
 import { isMock, siteUrl } from "../lib/runtime";
 import {
-  cleanCode, initialSignInTab, parseSignInOutcome, providerHref, providerIcon, readProviders, registerProblem, retryAfter, safeReturnPath,
-  sendSigninCode, setFreshPassword, signInWithPassword, verifySigninCode, type LoginProvider, type OutcomeAction, type SignInTab,
+  backFromGoogleForInvite, cleanCode, codeProblem, initialSignInTab, looksLikeEmail, parseSignInOutcome, providerHref, providerIcon, readProviders,
+  registerProblem, registerWithEmail, retryAfter, safeReturnPath, sendSigninCode, signInWithPassword, verifySigninCode,
+  type LoginProvider, type OutcomeAction, type RegisterOutcome, type SignInTab,
 } from "../lib/signin";
 
 /**
@@ -22,6 +25,7 @@ import {
  * 上面是「登录」「注册」两个标签的邮箱表单，下面隔一条「或者」是 GitHub、Google 的跳转按钮（所有者 2026-10-23 10:32）。
  * 邮箱登录有验证码和密码两种；注册填邮箱、邀请码、验证码，密码可以顺手设。用验证码登录时邮箱还没有账号，会转到「注册」，
  * 已填的邮箱和验证码都留着。Google 注册也要邀请码，用「注册」里填的那个。
+ * 注册后邮箱原来就有账号、或者填的密码没设上，先在页面上说一句，再让人选继续还是去「我的账号」。
  */
 const route = useRoute();
 const origin = window.location.origin;
@@ -52,16 +56,17 @@ const registering = computed(() => tab.value === "register");
 const TAB_LABEL: Record<SignInTab, string> = { signin: "登录", register: "注册" };
 const tabs: SignInTab[] = ["signin", "register"];
 /** 没有邮箱登录时只剩跳转按钮；从 Google 回来要邀请码时仍给一个邀请码框。 */
-const inviteOnly = computed(() => !emailProvider.value && registering.value);
+const inviteWithoutEmail = computed(() => !emailProvider.value && registering.value);
+/** 从 Google 回来填邀请码时，主按钮让给「用 Google 注册」，免得点成邮箱注册。 */
+const googleFirst = computed(() => registering.value && backFromGoogleForInvite(route.query));
 
-const providerLabel = (provider: LoginProvider) =>
-  (provider.id === "google" && registering.value ? "用 Google 注册" : `通过 ${provider.name} 继续`);
-const providerBlocked = (provider: LoginProvider) => provider.id === "google" && registering.value && !invite.value.trim();
+const googleRegister = (provider: LoginProvider) => provider.id === "google" && registering.value;
+const providerLabel = (provider: LoginProvider) => (googleRegister(provider) ? "用 Google 注册" : `通过 ${provider.name} 继续`);
+const providerBlocked = (provider: LoginProvider) => googleRegister(provider) && !invite.value.trim();
 
 const start = (provider: LoginProvider) => {
   leaving.value = provider.id;
-  const code = provider.id === "google" && registering.value ? invite.value : undefined;
-  window.location.assign(providerHref(provider, returnPath.value, origin, code));
+  window.location.assign(providerHref(provider, returnPath.value, origin, googleRegister(provider) ? invite.value : undefined));
 };
 const goPortal = () => window.location.assign(siteUrl("portal", "/"));
 const followAction = (action: OutcomeAction) => {
@@ -79,6 +84,8 @@ const newPassword = ref("");
 const invite = ref("");
 /** 用验证码登录时服务端说这个邮箱还没有账号，转到「注册」后在表单上方说明一句。 */
 const movedToRegister = ref(false);
+/** 注册后要先说一句再走的两种情况（见 lib/signin.ts 的 RegisterOutcome）。 */
+const registerNotice = ref<Exclude<RegisterOutcome, { kind: "done" }> | null>(null);
 const sentTo = ref<string | null>(null);
 const cooldown = ref(0);
 const sending = ref(false);
@@ -87,7 +94,6 @@ const emailError = ref<string | null>(null);
 let timer: ReturnType<typeof setInterval> | undefined;
 
 const codeInput = computed({ get: () => code.value, set: (value: string | number) => { code.value = cleanCode(value); } });
-const emailLooksValid = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()));
 const sendLabel = computed(() => (cooldown.value > 0 ? `${cooldown.value} 秒后重发` : sentTo.value ? "重新发送" : "获取验证码"));
 
 function startCooldown(seconds: number) {
@@ -99,6 +105,13 @@ function startCooldown(seconds: number) {
   }, 1000);
 }
 onBeforeUnmount(() => clearInterval(timer));
+/** 验证码过期了：清掉，按钮回到「获取验证码」。 */
+function resetCode() {
+  sentTo.value = null;
+  code.value = "";
+  cooldown.value = 0;
+  clearInterval(timer);
+}
 // 换了邮箱，之前发的验证码不算数
 watch(email, () => { sentTo.value = null; movedToRegister.value = false; emailError.value = null; });
 watch([mode, tab], () => { emailError.value = null; });
@@ -109,7 +122,7 @@ const leave = (target: string) => window.location.assign(safeReturnPath(target, 
 
 async function sendCode() {
   emailError.value = null;
-  if (!emailLooksValid.value) { emailError.value = "邮箱格式不对"; return; }
+  if (!looksLikeEmail(email.value)) { emailError.value = "邮箱格式不对"; return; }
   sending.value = true;
   try {
     const target = email.value.trim();
@@ -128,8 +141,8 @@ async function sendCode() {
 
 async function submitCode() {
   emailError.value = null;
-  if (!sentTo.value) { emailError.value = "先获取验证码"; return; }
-  if (code.value.length !== 6) { emailError.value = "验证码是 6 位数字"; return; }
+  const problem = codeProblem(Boolean(sentTo.value), code.value);
+  if (problem) { emailError.value = problem; return; }
   submitting.value = true;
   try {
     const result = await verifySigninCode(code.value);
@@ -137,14 +150,14 @@ async function submitCode() {
   } catch (error) {
     submitting.value = false;
     if (error instanceof ApiError && error.code === "invite_required") { movedToRegister.value = true; tab.value = "register"; return; }
-    if (error instanceof ApiError && error.code === "code_expired") { sentTo.value = null; code.value = ""; cooldown.value = 0; clearInterval(timer); }
+    if (error instanceof ApiError && error.code === "code_expired") resetCode();
     emailError.value = messageOf(error);
   }
 }
 
 async function submitPassword() {
   emailError.value = null;
-  if (!emailLooksValid.value) { emailError.value = "邮箱格式不对"; return; }
+  if (!looksLikeEmail(email.value)) { emailError.value = "邮箱格式不对"; return; }
   if (!password.value) { emailError.value = "填上密码"; return; }
   submitting.value = true;
   try {
@@ -162,21 +175,13 @@ async function submitRegister() {
   if (problem) { emailError.value = problem; return; }
   submitting.value = true;
   try {
-    const result = await verifySigninCode(code.value, invite.value);
-    // 邮箱原来就有账号时这一步只是登录，不替它改密码
-    if (result.registered && newPassword.value) {
-      try {
-        await setFreshPassword(newPassword.value);
-      } catch {
-        // 账号已经建好并登录了，密码到「我的账号」里再设
-        window.location.assign("/account");
-        return;
-      }
-    }
-    leave(result.return_to);
+    const outcome = await registerWithEmail({ code: code.value, invite: invite.value, password: newPassword.value });
+    if (outcome.kind === "done") { leave(outcome.returnTo); return; }
+    submitting.value = false;
+    registerNotice.value = outcome;
   } catch (error) {
     submitting.value = false;
-    if (error instanceof ApiError && error.code === "code_expired") { sentTo.value = null; code.value = ""; cooldown.value = 0; clearInterval(timer); }
+    if (error instanceof ApiError && error.code === "code_expired") resetCode();
     emailError.value = messageOf(error);
   }
 }
@@ -203,7 +208,19 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
         当前是样板数据，登录按钮会连到本地后端。要看登录后的页面，去掉地址里的 __persona=signed_out。
       </TxAlert>
 
-      <div v-if="state === 'loading'" class="signin__loading" role="status">
+      <template v-if="registerNotice">
+        <TxAlert v-if="registerNotice.kind === 'existing'" type="info" title="这个邮箱原来就有极客班账号，已经登录" :closable="false" class="signin__alert" data-testid="register-notice">
+          密码没有改。要设或改密码，到「我的账号」里操作。
+        </TxAlert>
+        <TxAlert v-else type="warning" title="账号已经建好并登录了，密码没设上" :closable="false" class="signin__alert" data-testid="register-notice">
+          {{ messageOf(registerNotice.error) }} 到「我的账号」里可以再设。
+        </TxAlert>
+        <div class="signin__more signin__more--pair">
+          <TxButton variant="primary" icon="i-carbon-arrow-right" block @click="leave(registerNotice.returnTo)">继续</TxButton>
+          <TxButton variant="secondary" icon="i-carbon-user-avatar" block @click="leave('/account')">去我的账号</TxButton>
+        </div>
+      </template>
+      <div v-else-if="state === 'loading'" class="signin__loading" role="status">
         <TxSpinner :size="18" label="正在读取登录方式" />
         <span>正在读取可用的登录方式…</span>
       </div>
@@ -227,7 +244,7 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
           </TxTabItem>
         </TxTabs>
 
-        <form v-if="emailProvider" class="signin__email" data-provider="email" :data-tab="tab" novalidate @submit.prevent="submitEmail">
+        <TxForm v-if="emailProvider" label-position="top" class="signin__email" data-provider="email" :data-tab="tab" novalidate @submit="submitEmail">
           <TxRadioGroup v-if="!registering" v-model="mode" type="button" class="signin__modes" aria-label="邮箱登录方式">
             <TxRadio value="code" label="验证码" />
             <TxRadio value="password" label="密码" />
@@ -236,21 +253,18 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
             填上邀请码就能用它注册，刚才的验证码还能用。
           </TxAlert>
 
-          <div class="signin__field">
-            <label for="signin-email">邮箱</label>
-            <TxInput id="signin-email" v-model="email" type="email" placeholder="name@example.com" autocomplete="email" inputmode="email" spellcheck="false" />
-          </div>
+          <TxFormItem v-slot="{ id }" label="邮箱">
+            <TxInput :id="id" v-model="email" type="email" placeholder="name@example.com" autocomplete="email" inputmode="email" spellcheck="false" />
+          </TxFormItem>
 
-          <div v-if="registering" class="signin__field">
-            <label for="signin-invite">邀请码</label>
-            <TxInput id="signin-invite" v-model="invite" placeholder="向邀请你的人要" autocomplete="off" spellcheck="false" />
-          </div>
+          <TxFormItem v-if="registering" v-slot="{ id }" label="邀请码">
+            <TxInput :id="id" v-model="invite" placeholder="向邀请你的人要" autocomplete="off" spellcheck="false" />
+          </TxFormItem>
 
-          <div v-if="registering || mode === 'code'" class="signin__field">
-            <label for="signin-code">验证码</label>
+          <TxFormItem v-if="registering || mode === 'code'" v-slot="{ id }" label="验证码">
             <div class="signin__code-row">
               <TxInput
-                id="signin-code"
+                :id="id"
                 v-model="codeInput"
                 class="signin__code"
                 placeholder="6 位数字"
@@ -269,37 +283,36 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
               >{{ sendLabel }}</TxButton>
             </div>
             <p v-if="sentTo" class="signin__hint" data-testid="code-sent">验证码已发到 {{ sentTo }}，10 分钟内有效。没收到的话看看垃圾邮件。</p>
-          </div>
+          </TxFormItem>
 
-          <div v-if="registering" class="signin__field">
-            <label for="signin-new-password">密码（可以不填）</label>
-            <TxInput id="signin-new-password" v-model="newPassword" type="password" placeholder="至少 15 位" autocomplete="new-password" />
+          <TxFormItem v-if="registering" v-slot="{ id }" label="密码（可以不填）">
+            <TxInput :id="id" v-model="newPassword" type="password" placeholder="至少 15 位" autocomplete="new-password" />
             <p class="signin__hint">设了以后可以用邮箱加密码登录；不填就用验证码登录，以后在「我的账号」里再设。</p>
-          </div>
-          <div v-else-if="mode === 'password'" class="signin__field">
-            <label for="signin-password">密码</label>
-            <TxInput id="signin-password" v-model="password" type="password" placeholder="至少 15 位" autocomplete="current-password" />
+          </TxFormItem>
+          <TxFormItem v-else-if="mode === 'password'" v-slot="{ id }" label="密码">
+            <TxInput :id="id" v-model="password" type="password" placeholder="至少 15 位" autocomplete="current-password" />
             <p class="signin__hint">还没设过密码就先用验证码登录，再到「我的账号」里设置。</p>
-          </div>
+          </TxFormItem>
 
           <p v-if="emailError" class="signin__error" role="alert" data-testid="email-error">{{ emailError }}</p>
-          <TxButton variant="primary" size="lg" native-type="submit" :loading="submitting" block :icon="registering ? 'i-carbon-user-follow' : 'i-carbon-login'">
+          <TxButton :variant="googleFirst ? 'secondary' : 'primary'" size="lg" native-type="submit" :loading="submitting" block :icon="registering ? 'i-carbon-user-follow' : 'i-carbon-login'">
             {{ registering ? "注册并登录" : "登录" }}
           </TxButton>
-        </form>
+        </TxForm>
 
-        <div v-if="inviteOnly" class="signin__field">
-          <label for="signin-invite-only">邀请码</label>
-          <TxInput id="signin-invite-only" v-model="invite" placeholder="向邀请你的人要" autocomplete="off" spellcheck="false" />
-        </div>
+        <TxForm v-if="inviteWithoutEmail" label-position="top" class="signin__email">
+          <TxFormItem v-slot="{ id }" label="邀请码">
+            <TxInput :id="id" v-model="invite" placeholder="向邀请你的人要" autocomplete="off" spellcheck="false" />
+          </TxFormItem>
+        </TxForm>
 
-        <div v-if="redirectProviders.length && emailProvider" class="signin__divider" role="separator"><span>或者</span></div>
+        <TxDivider v-if="redirectProviders.length && emailProvider" class="signin__divider">或者</TxDivider>
 
-        <section v-if="redirectProviders.length" class="signin__providers" :class="{ 'signin__providers--pair': redirectProviders.length === 2 }" aria-label="用其他网站的账号登录">
+        <section v-if="redirectProviders.length" class="signin__providers" aria-label="用其他网站的账号登录">
           <TxButton
             v-for="provider in redirectProviders"
             :key="provider.id"
-            variant="secondary"
+            :variant="googleFirst && provider.id === 'google' ? 'primary' : 'secondary'"
             size="lg"
             :icon="providerIcon(provider)"
             :loading="leaving === provider.id"
@@ -375,51 +388,24 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
 .signin__tabs {
   margin: -4px 0 14px;
 }
+/* 按卡片里的实际宽度排：放得下两个完整的大按钮才并排，不按窗口宽度猜 */
 .signin__providers {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
 }
-.signin__providers--pair {
-  grid-template-columns: 1fr 1fr;
-}
-@media (max-width: 400px) {
-  .signin__providers--pair {
-    grid-template-columns: 1fr;
-  }
-}
 .signin__divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   margin: 18px 0 14px;
   font-size: 12px;
-  color: var(--tx-text-color-secondary);
-}
-.signin__divider::before,
-.signin__divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--tx-border-color-light);
-}
-.signin__email {
-  display: grid;
-  gap: 14px;
 }
 .signin__modes {
-  justify-self: start;
+  align-self: flex-start;
 }
-.signin__field {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
+/* layout.css 给相邻的表单项再加 14px 上边距，叠在 TxForm 自己的 14px 间距上；登录卡片的字段和其它控件一样只隔 14px */
+.signin__email > .tx-form-item + .tx-form-item {
+  margin-top: 0;
 }
-.signin__field label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--tx-text-color-regular);
-}
-.signin__field :deep(.tx-input) {
+.signin__email :deep(.tx-input) {
   min-height: 44px;
 }
 .signin__code-row {

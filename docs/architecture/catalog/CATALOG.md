@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`b4ad9d09aae041faaebfb4f6f2b4631f07f8526cc7b7c4a4972f2d35e029cf23`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`5cc52e57bd6b4fbd89303e6c6defc6889ed4846b468e9ee18683b55ac5082441`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -94,7 +94,7 @@
 - 响应与错误：200 {providers:[...]}，每项含id、name、kind、start、can_register，邮箱另有password；按GitHub、Google、邮箱的顺序，Google只在配了GOOGLE_CLIENT_ID与GOOGLE_CLIENT_SECRET时出现，邮箱只在发信已配置时出现；响应Schema固定字段。
 - 数据与副作用：按配置算出固定列表，不读写数据库、不请求GitHub。
 
-源码：[app/server/src/routes/identity/providers.ts:30](../../../app/server/src/routes/identity/providers.ts#L30) · [app/server/src/routes/identity/contracts.ts:96](../../../app/server/src/routes/identity/contracts.ts#L96) · [app/server/src/routes/identity/index.ts:11](../../../app/server/src/routes/identity/index.ts#L11) · [app/console/src/pages/SignIn.vue:193](../../../app/console/src/pages/SignIn.vue#L193) · [app/console/src/lib/signin.ts:83](../../../app/console/src/lib/signin.ts#L83) · [app/console/src/mock/index.ts:12](../../../app/console/src/mock/index.ts#L12)
+源码：[app/server/src/routes/identity/providers.ts:30](../../../app/server/src/routes/identity/providers.ts#L30) · [app/server/src/routes/identity/contracts.ts:96](../../../app/server/src/routes/identity/contracts.ts#L96) · [app/server/src/routes/identity/index.ts:11](../../../app/server/src/routes/identity/index.ts#L11) · [app/console/src/pages/SignIn.vue:198](../../../app/console/src/pages/SignIn.vue#L198) · [app/console/src/lib/signin.ts:84](../../../app/console/src/lib/signin.ts#L84) · [app/console/src/mock/index.ts:12](../../../app/console/src/mock/index.ts#L12)
 
 测试入口：[tests/server/identity.test.ts](../../../tests/server/identity.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -383,7 +383,7 @@
 - 响应与错误：200 {ok:true}；不到 15 位 400 password_too_short，超过 72 字节 400 password_exceeds_bcrypt_limit，当前密码不对 400 invalid_credentials。
 - 数据与副作用：users.password_hash 存 bcrypt（cost 12）与 password_updated_at；写 identity_audit（password_set 或 password_change）与 account.password 审计，不记密码。
 
-源码：[app/server/src/routes/identity/account.ts:83](../../../app/server/src/routes/identity/account.ts#L83) · [app/server/src/routes/identity/contracts.ts:146](../../../app/server/src/routes/identity/contracts.ts#L146) · [app/server/src/lib/identity-store.ts:398](../../../app/server/src/lib/identity-store.ts#L398) · [app/console/src/lib/account.ts:36](../../../app/console/src/lib/account.ts#L36)
+源码：[app/server/src/routes/identity/account.ts:83](../../../app/server/src/routes/identity/account.ts#L83) · [app/server/src/routes/identity/contracts.ts:146](../../../app/server/src/routes/identity/contracts.ts#L146) · [app/server/src/lib/identity-store.ts:398](../../../app/server/src/lib/identity-store.ts#L398) · [app/console/src/lib/account.ts:43](../../../app/console/src/lib/account.ts#L43)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
 
