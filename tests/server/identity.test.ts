@@ -54,13 +54,19 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
     const second = await callback(first.sid!);
     expect(accountOf(7)).toBe(accountId);
     expect(count('users')).toBe(1);
-    expect(await me(first.sid!)).toEqual({ signed_in: false });
+    // 作废的旧会话按访客处理（#274）：signed_in 为 false，但仍然回 200 带访客的 level/permissions/quota
+    expect(await me(first.sid!)).toMatchObject({ signed_in: false, level: 'level.visitor' });
     expect((await me(second.sid!)).account_id).toBe(accountId);
     // 审计带上账号；本人可见的账号记录不存 IP
     expect(db.prepare("SELECT actor, actor_account_id, details FROM audit_logs WHERE action = 'auth.signin'").all())
       .toEqual([1, 2].map(() => ({ actor: 'test-github-user', actor_account_id: accountId, details: JSON.stringify({ provider: 'github' }) })));
+    // 第一次登录是新账号：多写一条 register（#274，GitHub 现在和邮箱、Google 一样会「注册」）
     expect(db.prepare('SELECT user_id, action, provider, result FROM identity_audit ORDER BY id').all())
-      .toEqual([1, 2].map(() => ({ user_id: accountId, action: 'login', provider: 'github', result: 'ok' })));
+      .toEqual([
+        { user_id: accountId, action: 'register', provider: 'github', result: 'ok' },
+        { user_id: accountId, action: 'login', provider: 'github', result: 'ok' },
+        { user_id: accountId, action: 'login', provider: 'github', result: 'ok' },
+      ]);
     expect((await app.inject({ method: 'POST', url: '/auth/signout', headers: { cookie: `sid=${second.sid}`, origin: 'https://example.test' } })).statusCode).toBe(200);
     expect(db.prepare("SELECT actor_account_id FROM audit_logs WHERE action = 'auth.signout'").get()).toEqual({ actor_account_id: accountId });
     expect(db.prepare("SELECT action FROM identity_audit ORDER BY id DESC LIMIT 1").get()).toEqual({ action: 'logout' });
@@ -92,7 +98,8 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
     const sid = signIn(app, 'test-github-user', 7);
     const accountId = accountOf(7);
     db.prepare("UPDATE users SET status = 'disabled' WHERE id = ?").run(accountId);
-    expect(await me(sid)).toEqual({ signed_in: false });
+    // 停用账号的旧会话读不到人了，按访客处理（#274），不再是裸 { signed_in: false }
+    expect(await me(sid)).toMatchObject({ signed_in: false, level: 'level.visitor' });
     expect(count('sessions')).toBe(0);
     const result = await callback();
     expect(result).toEqual({ location: 'https://example.test/signin?signin=account_disabled&return_to=%2Fforum%2F', sid: null });

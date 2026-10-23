@@ -184,7 +184,8 @@ describe('state', () => {
     expect(again.statusCode).toBe(200);
     expect(again.json().state.viewer).toEqual({ userId: null, kind: 'guest', capabilities: [] });
     expect((await s.app.inject({ method: 'POST', url: '/api/forum/posts/body-9/bookmark', headers: bob })).json().error).toBe('signin_required');
-    expect((await s.app.inject({ url: '/auth/me', headers: bob })).json()).toEqual({ signed_in: false });
+    // 会话被结束后按访客处理（#274），不再是裸 { signed_in: false }
+    expect((await s.app.inject({ url: '/auth/me', headers: bob })).json()).toMatchObject({ signed_in: false, level: 'level.visitor' });
     // 只结束这一个会话：别人的会话照常。
     expect((await s.app.inject({ method: 'GET', url: '/api/forum/state', headers: alice })).json().state.viewer.kind).toBe('member');
     expect(s.db.prepare("SELECT COUNT(*) AS n FROM audit_logs WHERE action = 'auth.session_rejected'").get()).toEqual({ n: 1 });

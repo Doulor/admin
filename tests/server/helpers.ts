@@ -31,16 +31,15 @@ export async function testApp(overrides: ServiceOverrides = {}, production = fal
 }
 
 /**
- * 测试里签一个 GitHub 会话（#262）：走真实的登录事务（找到或建立极客班账号、认领、写会话和审计），
- * 代替原来直接调 auth.createSession(login, userId, avatarUrl, token)。会话从此都带账号，没有 GitHub id 的会话按未登录处理。
- * `orgRole: null`（而不是省略）：和真实路由（admin/auth.ts 对一个「还没记过站内角色」的账号总会带上
- * `membership?.role`）一致，让新建的测试账号在 #274 的新权限引擎里也能分到 level.registered——
- * 不这样做的话，这里建的账号在 perm_members 里什么分组都没有，requirePermission 一律 403。
- * 这对 org_role/org_state 的最终取值没有影响（本来就是 null/active），只是多做了这一步同步。
+ * 测试里签一个 GitHub 会话（#262；#274 不再查组织，邀请码选填）：走真实的登录事务（找到或建立极客班账号、
+ * 认领、写会话和审计），代替原来直接调 auth.createSession(login, userId, avatarUrl, token)。会话从此都带账号，
+ * 没有 GitHub id 的会话按未登录处理。不传邀请码：新建的测试账号进 level.registered（signInWithGithub 现在
+ * 不论有没有邀请码都会调用 syncPermissionLevel，不会出现「perm_members 里什么分组都没有，requirePermission
+ * 一律 403」的情况）。
  */
 export function signIn(app: FastifyInstance, login: string, githubId: number, avatarUrl: string | null = null, accessToken = `token-${login}`): string {
   if (!Number.isInteger(githubId)) throw new Error(`test sign-in needs a GitHub id for ${login}`);
-  const result = app.services.identity.signInWithGithub({ github: { id: githubId, login, avatarUrl }, accessToken, orgRole: null });
+  const result = app.services.identity.signInWithGithub({ github: { id: githubId, login, avatarUrl }, accessToken });
   if (!result.ok) throw new Error(`test sign-in refused for ${login}: ${result.reason}`);
   return result.sid;
 }
