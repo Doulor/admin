@@ -67,7 +67,7 @@ function DevControlPanel() {
         <span className="dev-control-label">页面</span>
         <button type="button" onClick={() => openPath(site === "admin" ? "/console" : "/")}>首页</button>
         {site === "forum" && <><button type="button" onClick={() => openPath("/categories")}>分类</button><button type="button" onClick={() => openPath("/t/101")}>帖子</button><button type="button" onClick={() => openPath("/admin")}>论坛管理</button></>}
-        {site === "admin" && <><button type="button" onClick={() => openPath("/console/people")}>成员与权限</button><button type="button" onClick={() => openPath("/console/github/repos")}>仓库</button></>}
+        {site === "admin" && <><button type="button" onClick={() => openPath("/console/users")}>用户</button><button type="button" onClick={() => openPath("/console/gitlab/projects")}>群组与项目</button></>}
       </div>
       <p>开发环境默认拦截前端请求并返回本地样板数据；生产构建始终使用真实 API。</p>
     </aside>

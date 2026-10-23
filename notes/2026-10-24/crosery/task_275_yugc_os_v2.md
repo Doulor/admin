@@ -43,3 +43,9 @@
 - 执行者：agent-claude-geek-main-3c2a7a67-os275o（Claude Code 子 agent，claude-opus-5-5）
 - 做了什么：docs/services/web/README.md 与 portal.md 按 ①–⑤ 的结果改写，「更新：」改成 2026-10-24：删掉三维书桌、加载动画、iPhone 模型首页、电脑笔记本、GitHub 天际线场景、/github 路由、repos.json 快照、旧吉祥物、账号下拉菜单和 RESUME_DESKTOP 的说法；新增「开机动画与进站」「个人资料卡」「新来的看这里」「组织架构与代码仓库窗口」「埋点」几节，模块地图换成现在的文件，桌面入口直达、手机首页、登录入口、加入我们（要登录、每日限额、401/429）、壁纸（默认晴空）、比赛窗口（官网入口、夜空 Hero）跟着改；性能预算里书桌与天际线的实测标成删除前的记录。docs/design/DESIGN.md 的官网一节换成「YUGC OS v2」：新增「YUGC OS v2 视觉令牌」表（SPEC §1 的全部令牌，加上 --os-progress、--os-ok-press、--os-bios-glow/text/dim/key/cyan/ok/pink/line、圆角、投影、描边），首页、桌面与窗口、手机形态按现状重写，场景页与普通页面的 --pt-* 色板、宣传片、加入我们、论坛、普通页面段落保留，GitHub 场景删掉，已知不足补上 --os-ink-soft 在白底约 4.1:1。文档核对：docs/INDEX.md 是生成物，portal.md 摘要变了以后它的第 62 行要跟着重新生成，不在本任务可改范围，留给合并前跑 node scripts/docs-index.mjs；docs/conventions/TESTING.md 第 37 行仍写已删除的 tests/e2e/portal-phone.spec.ts，同样不在可改范围
 - 结果：node scripts/check-docs.mjs：Documentation links, routes and skill links passed: 286 documents.；node scripts/check-doc-sync.mjs：文档同步通过：6 组模块与文档，按 PR 核对（对 origin/stage）。；node scripts/docs-index.mjs --check：docs/INDEX.md 已过期。运行 `node scripts/docs-index.mjs` 重新生成。（预览过生成结果：只有第 62 行 portal.md 的摘要变化，未写入）
+
+## 02:08:56 +08:00 · 提交 · #275 · #275 开发态总控的控制台快捷按钮改到 #274 的新页面
+
+- 执行者：agent-claude-geek-main-3c2a7a67-os275o（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：主会话追加：app/web/shared/ui/DevControlCenter.tsx 在控制台站点下的两个快捷按钮指向 #274 已删除的 /console/people 和 /console/github/repos，改成 /console/users（按钮名「用户」）和 /console/gitlab/projects（按钮名「群组与项目」），名字取自 #274 控制台 lib/nav.ts 的导航文案。这个组件只在开发态渲染。文档核对：docs/services/web/portal.md「界面规则」只写总控的位置和收起方式，没写这两个按钮，不用改
+- 结果：rtk proxy npx tsc -p app/web/tsconfig.json --noEmit 退出 0；npx vitest run tests/web：Test Files 30 passed，Tests 283 passed；check-boundaries：Boundaries passed: 273 files；check-site-config 通过；check-doc-sync：文档同步通过；app/web build ✓ built in 3.10s，dist/assets/*.js 里 console/people、console/github/repos 0 命中（grep 退出 1）
