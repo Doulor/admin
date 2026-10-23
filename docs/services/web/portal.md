@@ -1,8 +1,8 @@
 # Portal 模块合同（`app/web/sites/portal`）
 
-> 公开官网：3D 书桌与 YUGC OS 桌面、加入我们（信封场景）、论坛与 GitHub 场景、文档、意见箱和邀请落地；不自建登录，菜单栏显示全站 GitHub 登录的账号或登录入口。
+> 公开官网：开机动画与 YUGC OS 桌面、加入我们（信封场景，要登录）、论坛 3D 场景、文档、意见箱和邀请落地；不自建登录，菜单栏头像打开个人资料卡。
 
-状态：`current` · 更新：2026-10-23
+状态：`current` · 更新：2026-10-24
 
 ## 范围与路由
 
@@ -10,61 +10,100 @@
 
 | 路由 | 页面 | 说明 |
 |---|---|---|
-| `/` | `pages/Home.tsx` | 加载动画 → 3D 书桌 → 点设备开机 → YUGC OS；电脑端保留笔记本、菜单栏与便签，竖屏书桌与移动主屏幕规则见下文 |
-| `/join-us` | `pages/JoinUs.tsx` | 加入我们：信封场景，DOM 信纸就是表单，真实提交 `POST /api/portal/apply` |
+| `/` | `pages/Home.tsx` | 今天（北京时间）没播过就先播开机动画，播完或跳过淡出到 YUGC OS 桌面；播过了或开了减少动态效果直接进桌面（见下文「开机动画与进站」） |
+| `/join-us` | `pages/JoinUs.tsx` | 加入我们：信封场景，DOM 信纸就是表单，真实提交 `POST /api/portal/apply`；没登录时信纸上只有「先注册再投递」（见下文「加入我们（投递）」） |
 | `/apply` | — | 旧地址，`<Navigate replace>` 到 `/join-us`，已发出的链接不失效 |
 | `/forum-3d` | `pages/Forum3D.tsx` | 论坛版块气泡场景，主入口「进入论坛首页」一直可见，版块图标为 Remix 线性图标；进论坛前镜头推近、遮罩盖满，从论坛按后退回来时浏览器可能从往返缓存（bfcache）恢复整页，`pageshow.persisted` 时调场景的 `reset()` 回到进场的样子（#109）。桌面上的「论坛」已直达论坛首页，不再经过这页（#185，见下文「桌面入口直达」）；这页留给旧地址和「论坛最新」窗口里的「3D 版块」按钮 |
-| `/github` | `pages/GithubScene.tsx` | GitHub 组织贡献天际线（方块高度是装饰）+ 公开仓库列表。桌面上的「GitHub 组织」已直接在新标签页打开组织主页，不再经过这页（#185）；这页只留给旧地址 |
 | `/docs`、`/docs/:id` | `pages/Docs.tsx` | 公开产品介绍与用户指南（白名单由 `/api/docs` 决定） |
 | `/feedback`、`/feedback/:org` | `pages/Feedback.tsx` | 匿名意见箱；只发本部署的组织（#129）：组织框只读（浅灰底、悬停不变色，说明「这里改不了」用 `aria-describedby` 挂在框上），展示 `GET /api/feedback/categories` 下发的 `org`（`CONSOLE_ORG`），读公开列表和提交都用同一个值；接口回来之前或失败时组织框先显示站点配置 `urls.githubOrg` 的最后一段，但提交按钮是灰的：组织名、分类和 PoW 难度都要等这个接口读到才能提交，失败时分类处显示「没读到分类和发往的组织，暂时不能提交」和「重新读取」按钮，已经写的正文不清空（`tests/web/portal-feedback-org.test.tsx`）。`/feedback/:org` 是控制台意见箱页生成的分享地址（`app/console/src/pages/Feedback.vue`），也接住旧链接，不能删；URL 里的组织名不生效 |
 | `/join/:token` | `pages/JoinByToken.tsx` | GitHub 组织邀请链接（能力令牌）落地页 |
 
-`/join-us` 与 `/join/:token` 是两件事：前者是招新投递，后者是已有邀请链接的组织加入。首页之外的页面按路由懒加载。3D 书桌里的 iPhone 模型（`.glb`，1.77MB）只在手机壳层（`band()` 非空）启动时加载，电脑端不下载；窗口变窄时 `ensurePhone()` 按需下载后重排（#217）。`base.css` 不引远程字体（`cdn.jsdelivr.net` 的 Maple Mono 被站点 CSP 拦截），等宽字体走系统栈。
+`/join-us` 与 `/join/:token` 是两件事：前者是招新投递，后者是已有邀请链接的组织加入。首页之外的页面按路由懒加载。`/github`（GitHub 天际线场景页）在 #275 删掉，旧地址落到兜底路由回首页。`base.css` 不引远程字体（`cdn.jsdelivr.net` 的 Maple Mono 被站点 CSP 拦截），等宽字体走系统栈。
 
 ## 模块地图
 
 | 路径 | 职责 |
 |---|---|
-| `three/stage.ts` | 三个 3D 场景共用的「摄影棚」：渲染器、按需渲染循环、指针视差、环境动画节流、资源释放 |
-| `three/desk.ts`、`join.ts`、`forum.ts`、`github.ts` | 各场景的几何与动画，纯 three.js + TypeScript（strict），不依赖 React；竖屏手机由 `three/phone.ts` 接入本地 iPhone 模型 |
-| `three/phone.ts`、`assets/models/` | polyman 的 iPhone 15 Pro Max Black 模型（CC BY 4.0），统一缩放、实际显示屏网格与拾取部件；来源、固定版本、加工命令与哈希见素材目录的 README，「关于极客班」提供作者和许可链接 |
-| `lib/deskMachine.ts` | 首页状态机 `loading → idle → focusing → booting → desktop → returning` 与各层可见性 |
-| `lib/useMediaQuery.ts` | 响应式媒体查询订阅；首页文案跟随 `STACKED_QUERY`，OS 用 `PHONE_QUERY`，变化时保留组件状态 |
-| `lib/loaderProgress.ts` | 加载动画的真实进度模型（步骤权重、最短展示时长、平滑趋近） |
-| `lib/cameraMath.ts`、`lib/motion.ts` | 相机距离（cover/contain）、像素 ↔ 相机平面换算、缓动与插值 |
+| `components/boot/*` | 开机动画（#275）：`engine.ts` 是 Canvas 2D 引擎，移植自 `YUGC_OS_Boot_{Desktop,Mobile}_v2.html`；`timeline.ts` 时间轴、日志行与粒子预算，`background.ts` 天空、网格、云、粉窗口和极客娘（桌面「晴空」壁纸共用），`layout.ts` 电脑与手机两套构图，`shapes.ts` 矢量符号，`BootSequence.tsx` 是 React 外壳（起步、静音 / 重播 / 跳过、快捷键、预取桌面） |
+| `lib/bootGate.ts` | 进站规则：北京日期 `beijingDay`、`localStorage["yugc:boot-day"]`、`shouldPlayBoot`（减少动态效果优先，其次 `?boot=1`，再看今天播过没有） |
+| `three/stage.ts` | 两个 3D 场景（加入我们、论坛）共用的「摄影棚」：渲染器、按需渲染循环、指针视差、环境动画节流、资源释放 |
+| `three/join.ts`、`three/forum.ts` | 信封与论坛气泡场景的几何与动画，纯 three.js + TypeScript（strict），不依赖 React |
+| `lib/useMediaQuery.ts` | 响应式媒体查询订阅；OS 用 `PHONE_QUERY` 与 `PORTRAIT_QUERY`，变化时保留组件状态 |
+| `lib/cameraMath.ts`、`lib/motion.ts` | 相机距离（cover/contain）、像素 ↔ 相机平面换算、竖屏横带取景、缓动与插值 |
 | `lib/pixelRatio.ts` | 3D 像素比调速器：起步档位、降档规则、帧间隔预算（纯逻辑） |
-| `lib/osApps.ts` | YUGC OS 应用清单（每个应用打开什么只写在这里；「比赛」是 `{ kind: "window" }`）、站外应用的地址与打开方式（`appLink`、`followAppLink`）、启动器过滤、终端命令、时间文案 |
+| `lib/osApps.ts` | YUGC OS 应用清单（每个应用打开什么只写在这里：`scene`、`window`、`panel`、`route`、`site` 五种；「代码仓库」「比赛」是 `{ kind: "window" }`）、站外应用的地址（`appLink`、`followAppLink`，只剩论坛和控制台）、启动器过滤、终端命令、时间文案、读屏用的 `NEW_TAB_NOTE` |
 | `lib/promo.ts`、`components/PromoPlayer.tsx`、`components/PromoLazy.tsx`、`styles/promo.css` | 宣传片：CDN 地址、「只自动播一次」的 cookie、按浏览器能力挑编码与播放方式、起播预取（纯逻辑在 `lib/promo.ts`）；全屏播放层（见下文「宣传片」） |
-| `lib/links.ts` | 站外链接的唯一解析点：论坛首页/版块/话题、控制台、代码仓库（自建 GitLab）、GitHub 组织 |
-| `lib/org.ts` | 「组织架构」窗口与「关于极客班」里的称号和部门：读匿名 `GET /api/public/org`（窗口打开时读一次、关掉即取消），`ORG_DEFAULTS` 是与服务端默认值一致的唯一一份兜底（`tests/web/portal-org.test.ts` 核对），读到之前和读不到时显示它；服务端的 Carbon 图标名经 `ORG_ICONS` 换成官网的 Remix 图标，认不出的用圆圈。官网静态文案不写称号名字，因为提督可以在控制台改名 |
+| `lib/links.ts` | 站外链接的唯一解析点：论坛首页/版块/话题、控制台、账号设置 `/account`、代码仓库（自建 GitLab，站点配置 `urls.gitlab`）、第一期比赛官网 `/c/oss-challenge-2026-1/`（#278） |
+| `lib/departments.ts` | 「组织架构」窗口和「关于极客班」里的部门：读匿名 `GET /api/public/departments`（窗口打开时读一次、关掉即取消），`DEFAULT_DEPARTMENTS` 与 #274 迁移的初始数据一致（AI、算法、硬件、网安、管理五个部门加「无部门」），读到之前和读不到时显示它；`readDepartments` 把认不出的部门色换成次要文字色、认不出的图标换成 `team-line`，称号按 `weight` 从高到低 |
+| `lib/codeRepos.ts` | 「代码仓库」窗口和终端 `repos` 读的公开项目：`GET /api/public/gitlab/projects`，`readCodeRepos` 只留有名字和 http(s) 地址的项目，`last_activity_at` 认 ISO 字符串（也认毫秒），按最近活动从新到旧；`unavailable: true` 单独成一种状态 |
+| `lib/org.ts` | 旧的 `GET /api/public/org` 读取与 `ORG_DEFAULTS`。#275 以后官网界面不再用它；文件和 `tests/web/portal-org.test.ts` 留着，因为 `docs/architecture/catalog/ownership.json` 的 `organization.public` 证据锚点指向它，等目录重新生成时一起清 |
 | `lib/competitions.ts` | 「比赛」窗口的数据：读匿名 `GET /api/public/competitions`（窗口打开时读一次、关掉即取消，`reload` 再读一次），状态一律由本地按时间戳算（`statusAt`，与服务端 `competitionStatus` 同口径），窗口开着时每 60 秒重算状态与排序；响应里的 `status` 只当形状校验，读不到时窗口说「没加载出来」并给「重试」，而不是冒充「没有比赛」；日期换算（`beijingDay`、`shortDay`、`dayRange`）都按北京时间，`readCompetition` 丢掉缺字段的条目、只收可解析的 https 链接（所有类型可选） |
 | `lib/competitionLabels.ts` | 比赛窗口的文案与日期纯函数（北京时间）：状态与类型文案、星期与钟点、「还剩几天」、卡片上的日期、详情要点、赛程节点、操作条、搜索与筛选 |
 | `lib/competitionHub.ts` | 报名与组队的客户端（#239）：`hubPaths` 是成员接口的唯一路径集合（比赛 id 与队伍 id 都做路径段编码），`useHub` 负责写操作、失败文案与统一重读，`useMemberRead` 负责成员接口的读取、轮询（天梯 30 秒、页面不可见时不发）与响应形状校验；`readMyStatus` 等读出函数丢掉认不出的状态、未知操作与缺账号 id 的成员，`entryText`、`hubSentence`、`journey`、`pendingView`、`teamSlots`、`nextMilestone` 是状态文案、底部进度与槽位的纯函数，`failText` 把限流、登录过期与服务端中文说明分开说 |
-| `components/os/competitions/*` | 比赛窗口：#265 的浏览部分是 `CompetitionsApp`（筛选、搜索、选中、手机进出详情、读取中 / 没有 / 筛空 / 读不到四种状态）、`CompetitionList`（卡片、方向键与我的状态）、`CompetitionDetail`（Hero、概览、页签、操作条与弹窗入口）；#239 新增 `CompetitionHero`（渐变、光斑、倒计时、一键直达）、`TeamHub`（我的队伍、槽位、待处理、其他队伍与找队友）、`HubDialog`（报名、建队、申请、邀请、转让与确认的弹窗与表单）、`Leaderboard`（领奖台与个人 / 队伍榜）、`Avatar`（成员头像、领队金圈与队伍徽章） |
-| `lib/account.ts` | 全站登录状态：`useAccount()` 读同域 `/auth/me`、`signOut()` 调 `POST /auth/signout`，`accountId` 是极客班账号（#262），比赛窗口用它认出「我」；`signInHref(returnTo)` 生成 `/signin?return_to=…`（#262，统一登录页，登录方式由它按 `/auth/providers` 渲染），默认回当前页面的 pathname + search + hash；`/auth/me` 带 `email_required: true`（账号还没有登录邮箱，#273）时不显示登录状态，经 `lib/osApps.ts` 的 `followAppLink` 整页跳到 `bindEmailHref()` 给的 `/bind-email?return_to=<当前页面>`，绑好回来（用例 `tests/web/portal-account.test.tsx`） |
-| `lib/snapshots.ts` | 读取 `public/portal/forum-latest.json`、`repos.json` 快照 |
+| `components/os/competitions/*` | 比赛窗口：#265 的浏览部分是 `CompetitionsApp`（筛选、搜索、选中、手机进出详情、读取中 / 没有 / 筛空 / 读不到四种状态）、`CompetitionList`（卡片、方向键与我的状态）、`CompetitionDetail`（Hero、概览、页签、操作条与弹窗入口）；#239 新增 `CompetitionHero`（夜空头图、倒计时、一键直达）、`TeamHub`（我的队伍、槽位、待处理、其他队伍与找队友）、`HubDialog`（报名、建队、申请、邀请、转让与确认的弹窗与表单）、`Leaderboard`（领奖台与个人 / 队伍榜）、`Avatar`（成员头像、领队金圈与队伍徽章）；#275 新增 `ContestSite`（比赛官网入口横幅）与 `NightSky`（按种子撒星星的夜空，横幅和 Hero 共用） |
+| `lib/account.ts` | 全站登录状态：`useAccount()` 读同域 `/auth/me`，按 CONTRACT-274 读出用户名、昵称、简介、身份、部门、称号、权限、投递限额（`readQuota`）、偏好与登录方式，`patch` 合并资料卡保存后的新值，`reload` 重读；`signOut()` 调 `POST /auth/signout`；`accountId` 是极客班账号（#262），比赛窗口用它认出「我」；`signInHref(returnTo)` 生成 `/signin?return_to=…`，`registerHref` 再加 `&tab=register`；`/auth/me` 带 `email_required: true`（#273）时经 `followAppLink` 整页跳到 `bindEmailHref()` 给的 `/bind-email?return_to=<当前页面>`（用例 `tests/web/portal-account.test.tsx`）。开发态和 PR 预览构建里地址带 `?__mock=member|registered|visitor` 时用 `@shared/lib/api` 的 `devPersonaMe()` 给的样板身份，正式构建里整段删掉 |
+| `lib/startNote.ts` | 「新来的看这里」便签看过没有：本机 `localStorage["yugc:start-note-seen"]`，登录后再 `PATCH /api/identity/profile` 的 `prefs.start_note_seen_at` |
+| `lib/events.ts` | 埋点：`reportEvent` 攒批 `POST /api/events`（见下文「埋点」） |
+| `lib/snapshots.ts` | 读取 `public/portal/forum-latest.json` 论坛快照 |
 | `lib/icons.ts`、`components/Icon.tsx` | Remix Icon 路径注册表与图标组件 |
-| `components/os/*` | YUGC OS 桌面：应用图标与「新来的看这里」便签（`Widgets.tsx`）、窗口、菜单栏、Dock、启动器；换壁纸面板在 `YugcOs.tsx`，壁纸图层与换壁纸动效在 `Wallpaper.tsx`；壁纸清单、下载解码与空闲预取在 `lib/wallpapers.ts`（图片地址只写在这里），文件在 `assets/wallpapers/`，由清单 import（每张有1920×1080桌面版、900×1950独立手机竖屏版和对应缩略图），见下文「壁纸」 |
-| `components/Loader.tsx`、`Emblem.tsx`、`SceneBar.tsx`、`PageShell.tsx` | 加载动画、校徽几何、场景页顶栏、普通页外壳 |
+| `components/os/*` | YUGC OS 桌面：`YugcOs.tsx`（菜单栏、Dock、启动器、换壁纸面板、手机状态栏与弹层）、`Widgets.tsx`（应用图标与「新来的看这里」便签）、`Windows.tsx`（窗口外框与关于、组织架构、代码仓库、论坛最新、终端等窗口正文）、`ProfileCard.tsx`（个人资料卡）、`SkyWallpaper.tsx`（默认壁纸「晴空」）、`Wallpaper.tsx`（壁纸图层与换壁纸动效）；壁纸清单、下载解码与空闲预取在 `lib/wallpapers.ts`（图片地址只写在这里），文件在 `assets/wallpapers/`，见下文「壁纸」 |
+| `components/Emblem.tsx`、`SceneBar.tsx`、`PageShell.tsx` | 校徽几何、场景页顶栏、普通页外壳 |
 | `components/ChoiceChips.tsx` | 少量选项的单选胶囊（原生 radio，方向键切换）；官网表单不用原生下拉框 |
-| `styles/*.css` | 视觉令牌与组件样式（`.pt-root` 作用域），规范见 [DESIGN](../../design/DESIGN.md)「官网视觉语言」 |
+| `styles/*.css` | 视觉令牌与组件样式（`.pt-root` 作用域）：`portal.css` 定义 `--pt-*`（场景页、普通页）与 `--os-*`（YUGC OS v2）两套令牌，`boot.css` 开机动画层，`os.css` 桌面与窗口，`competitions.css` 比赛窗口，`scenes.css` 场景页；规范见 [DESIGN](../../design/DESIGN.md)「YUGC OS v2 视觉令牌」 |
 
 文档 API 仅允许公开产品介绍和用户指南；内部规范、部署、安全与审查材料不在白名单。反馈写入 data.db，管理侧由服务端 admin/console 接口读取、控制台（`app/console`）页面处理；两侧通过一致数据模型协作，不互相 import 路由。
 
-three.js 只通过各页面里的 `import("../three/<scene>")` 进入，不在首屏包里；卸载时 `Stage.dispose()` 释放几何体、材质、贴图、环境贴图并丢弃 WebGL 上下文。没有 WebGL 时首页直接给系统桌面，场景页的 DOM 入口（信纸、版块列表、仓库列表）照常可用。
+three.js 只通过 `/join-us`、`/forum-3d` 两页里的 `import("../three/<scene>")` 进入，首页不再下载 three；卸载时 `Stage.dispose()` 释放几何体、材质、贴图、环境贴图并丢弃 WebGL 上下文。没有 WebGL 时场景页的 DOM 入口（信纸、版块列表）照常可用。`assets/models/iphone_15_pro_max.glb` 在 #275 以后没有页面加载，只作为 `tests/tooling/static-cdn.test.ts` 的夹具留着。
+
+## 开机动画与进站（#275）
+
+- **什么时候播**：`pages/Home.tsx` 挂载时按 `lib/bootGate.ts` 决定：开了减少动态效果直接进桌面；地址带 `?boot=1` 强制重播且不写记录（验收和录屏用）；否则看 `localStorage["yugc:boot-day"]` 是不是今天的北京日期，不是就播。播完或跳过时写今天的日期。桌面菜单「系统 → 重播开机动画」和手机「系统设置」里的同名按钮也不写记录。
+- **按需加载**：开机动画（`BootSequence`）和桌面（`YugcOs`）都是懒加载分包；直接进桌面的人不下载开机动画，播动画期间浏览器空闲时预取桌面分包。用户选了图片壁纸时，首页挂载就开始下载解码那张图；默认的「晴空」是画出来的，不用下。
+- **起步**：电脑上点画面或按任意键开始，手机上长按屏幕开始；画面上盖一个透明按钮（「启动 YUGC OS」，手机写「长按启动 YUGC OS」），键盘和读屏也能起步。右上角静音、重播，右下角跳过，都是 44px 的真实按钮；Esc 跳过、M 静音、R 重播，静音记在 `localStorage["yugc:boot-muted"]`。宽度小于 768 或竖屏时用手机版构图，播放中不跟着旋转换。
+- **交接**：就绪后在最后一帧停 0.8 秒（跳过时 0.3 秒），桌面分包没下完就等它，再用 320ms 淡出开机动画层，露出底下已经挂好的桌面；开机动画盖着时桌面是 `inert`。默认壁纸「晴空」用开机动画的起点当时间零点接上最后一帧，看不出接缝。直接进桌面时桌面淡入 300ms。开机动画层卸掉后焦点在 `<body>` 上就放进「加入我们」图标。
+- **埋点**：播完报 `os.boot.played`，跳过报 `os.boot.skipped`，`meta.mobile` 记是不是手机版。
+- **单测**：`tests/web/portal-boot.test.tsx`（北京日期、进站规则、粒子预算、首页进站与交接、`?boot=1` 与重播不改记录、埋点攒批）。
+
+## 个人资料卡（#275）
+
+菜单栏右上角的头像（手机在状态栏右上角）打开 `components/os/ProfileCard.tsx`，原来的账号下拉菜单去掉了。电脑上是挂在头像下面的 360px 卡片，手机上是从底部升起的面板；都复用 `shared/ui/Modal`，Esc 关闭后焦点回到头像。头像按钮的读屏名称是「账号：<login>」，没登录时是「登录或注册」，手机状态栏上写「登录」。
+
+- **没登录**：写「还没有登录」，给「登录」（`signInHref()`，回当前页面）和「注册」（`registerHref()`），下面一句「注册不需要邀请码，有邀请码可以直接成为成员」。
+- **登录后**：换头像（选图后裁成方形、最长边 1024px、转 webp，`PUT /api/identity/avatar`，失败原因写在头像下面）；昵称、@用户名（小写，`^[a-z0-9_]{3,24}$`）、简介（最多 200 字）在失焦或回车时 `PATCH /api/identity/profile`，前端先按契约校验；身份行写「身份 · 部门 · 称号」，没有部门写「无部门」，旧服务端没有身份字段时整行不显示。
+- **登录方式**：邮箱列表来自 `GET /api/identity/me`（主邮箱不能删；删除要点两次，`POST /api/identity/email/remove`；服务端回 `step_up_required` 时给「重新登录」链接）；添加邮箱走 `email/start` 再 `email/verify`；Google 绑定是 `/auth/google?return_to=%2F`；GitHub 只显示已绑定的账号。
+- **邀请码**：只有注册用户看到输入框，`POST /api/identity/invite/redeem` 成功后重读 `/auth/me`，身份变成成员。
+- **底部**：账号设置（`/account`，控制台产物里的账号页）、控制台（只在 `console_link` 为 true 时出现）、退出（`POST /auth/signout`，服务端确认后才显示已退出）。
+- **单测**：`tests/web/portal-profile-card.test.tsx`。
+
+## 新来的看这里（便签，#275）
+
+- 便签换成窗口外框：粉色标题栏、一个关闭圆点（读屏名称「收起这张便签」）和标题，下面三行：在「加入我们」写封信（实色主行）、去「论坛」看看、去「代码仓库」看我们的代码，每行点下去打开那个应用。
+- 什么时候自动出现：本机 `yugc:start-note-seen` 和账号的 `prefs.start_note_seen_at` 都没有记录时出现；收起或点了其中一行，两处一起记（账号那一处失败不影响界面）。账号里有记录时同步到本机。点了某一行之后便签这次照样开着，下次不再自动出现。菜单栏「帮助」能再打开；手机上不默认展开，「新来的看这里」按需打开。
+- 收起报 `os.note.dismissed`。
+
+## 组织架构与代码仓库窗口（#275）
+
+- **组织架构**：按 `GET /api/public/departments` 的顺序画部门卡片：部门图标（Remix 图标名，服务端可以不给）、部门名、说明、按权重排的称号。部门色走 `data-tone`：AI = Y 青绿、算法 = U 蓝、硬件 = C 靛蓝、网安 = G 粉、管理 = 胶囊蓝（`pill`）、无部门 = 次要文字色（`ink`）。读到之前和读不到时显示默认值，不出错误提示。窗口底部一句说明身份怎么来：注册后是注册用户，填邀请码成为极客班成员，部门和称号由管理员在控制台里分。「关于极客班」里的部门名同样来自这份数据。单测 `tests/web/portal-org-window.test.tsx`。
+- **代码仓库**：原来的「代码仓库」应用在新标签页打开 GitLab，「GitHub 组织」应用另开 GitHub 组织页；#275 删掉 GitHub 组织应用，「代码仓库」改成桌面窗口，列 `GET /api/public/gitlab/projects` 给的公开项目（名字、说明或路径、最近活动），点项目在新标签页打开。读取中写「正在读取公开项目…」，服务端回 `unavailable: true` 写「代码仓库暂时连不上」，接口读不到写「公开项目没加载出来」，没有公开项目也照实说；窗口底部始终有「打开代码仓库」（`links.gitlab()`，新标签页）。终端 `repos` 列同一份数据，没有项目时写「没有公开项目」。单测 `tests/web/portal-code-repos.test.tsx`。
+- **窗口正文的令牌**：窗口和桌面弹层里（`:is(.pt-win, .pt-os-modal)`）把 `--pt-*` 映射到 `--os-*`，用 `--pt-*` 写的旧样式（比赛窗口等）进了窗口也是 OS 的颜色；正文链接用 `--os-accent`，卡片圆角 14px，终端底色 `--os-term-bg`、文字用 `--os-bios-*`。
+
+## 埋点（#275）
+
+`lib/events.ts` 的 `reportEvent(action, extra)` 把事件攒成一批 `POST /api/events`（`{ events: [...] }`，CONTRACT-274 §4）：一批最多 20 条，2 秒或页面隐藏时发出，`keepalive`；失败一律静默，不重试、不影响界面。单测在 `tests/web/portal-boot.test.tsx`「前端埋点」。动作只用服务端白名单里的：`os.boot.played`、`os.boot.skipped`、`os.app.open`（`target_type: "app"`、`target_id: <应用 id>`）、`os.note.dismissed`、`forum.theme.change`、`page.view`。
 
 ## 比赛窗口（#238，报名与组队 #239）
 
 桌面与手机主屏幕的「比赛」应用开一个窗口，读匿名 `GET /api/public/competitions`（数据由控制台写入，见 [server 合同](../server/README.md)）。#265 重做了浏览部分；#239 把内部比赛的报名、组队、找队友、确认参赛与积分天梯接进同一个窗口，顶部多出「赛事 / 我的参赛」两个视图。外部比赛没有在线报名，卡片与详情与 #265 一致。界面结构见 [比赛应用方案](../../plan/COMPETITION-APP.md)「实施结论」。
 
 - **两个视图**：只要有一场比赛开放报名，或「我的参赛」有条目，工具栏左侧就出现「赛事 / 我的参赛」分段（后者带待处理角标）；没有这种情况时窗口与 #265 完全一致。切到「我的参赛」后列表只保留我报名的比赛，筛选与搜索收起，卡片多一行「报名到哪一步 · 哪支队伍」；已结束的比赛保留为历史。未登录、非成员、读失败与没报名各有自己的空态与下一步按钮。
-- **内部比赛的详情**：Hero（按比赛 id 生成的渐变与光斑、类型与状态、介绍第一行、倒计时与主按钮）、概览里的介绍、赛程时间线与参赛规则，页签按报名设置组合：个人赛只有概览，团队赛多「队伍」与「找队友」，开启积分时多「天梯」。要点从三格变四格，读到我的状态后加「当前报名」（个人赛人数，团队赛人数与队伍数）。
+- **内部比赛的详情**：Hero（夜空头图、类型与状态、介绍第一行、倒计时与主按钮）、概览里的介绍、赛程时间线与参赛规则，页签按报名设置组合：个人赛只有概览，团队赛多「队伍」与「找队友」，开启积分时多「天梯」。要点从三格变四格，读到我的状态后加「当前报名」（个人赛人数，团队赛人数与队伍数）。
 - **操作条**按接口返回的 `actions` 渲染，只放服务端此刻会接受的主操作：立即报名、创建队伍、邀请队友、确认参赛，或在我的队伍 / 天梯页签之间跳转；次要操作是修改报名、取消报名、浏览队伍与重试。写操作进行中按钮禁用，成功提示 5 秒后消失。报名截止后 `writable` 为假、`actions` 为空，操作条的写按钮全部不渲染。
 - **队伍与找队友**：我的队伍显示队名、状态、口号、成员槽位（领队在前，空位补到每队上限）与待处理申请和邀请；领队可以邀请、确认参赛、撤销确认、转让、解散，队员可以退出。其他队伍只显示在队成员、人数与「申请加入」。「找队友」列出已报名、勾选在找队伍且未入队的人与留言，领队可直接邀请，本人可以把自己从名单里撤下。
 - **弹窗**：报名、建队、申请、邀请、转让、确认参赛、退出与解散都在窗口内弹窗完成，危险操作初始焦点在「取消」；失败原因写在弹窗里且保留已填内容，成功在操作条提示。
 - **天梯**：个人榜前三名上领奖台，第四名起进表格（名次、选手、队伍、Issue 与 PR 数、积分），我的行高亮；队伍榜按在队成员积分之和排。并列同名次并跳号，0 分也列出；页面可见时每 30 秒刷新，刷新失败保留上一份并说明会重试。没有开启积分的比赛不显示天梯页签。
 - **不同身份看到什么**：未登录能看全部赛事，报名按钮变成「登录后报名」并带 `return_to` 去统一登录；登录但不是成员只得到「报名与组队只对极客班成员开放」的说明，没有登录链接；成员看到统计数字、队伍与找队友，只能处理自己的报名与自己队伍的事；组织者在门户也是普通成员，名单与积分在控制台。
 - **手机**：同一套组件按窗口宽度切换，详情是推入式的（标题栏返回键变成「比赛列表」，Esc 也回列表），操作条固定在底部，弹窗从底下弹出；天梯表在手机上隐藏队伍与贡献两列，390×844 下不出现横向滚动。
+- **比赛官网入口**（#275，链到 #278）：列表视图顶上是第一期比赛官网首屏的缩小版：深夜到靛蓝的渐变、按种子撒的星星（`NightSky`，同一个种子每次一样，亮的几颗慢慢呼吸，减少动态效果时不动）、按 YUGC 四色轮换的「OSS CHALLENGE」字标和一行「极客班开源实战贡献挑战赛 · 2026 第一期」；右边「打开官网」在新标签页打开 `/c/oss-challenge-2026-1/`。「我的参赛」视图和手机详情里不显示。详情的 Hero 用同一片夜空，星星按比赛 id 撒，状态点用 `--os-bios-*`。
 - **布局**：桌面窗口宽 1100，左边列表、右边详情，筛选在左上、搜索在右上；列表与详情各自滚动，底部操作条固定在详情下面。手机是全屏 sheet：先看列表，点卡片进详情，标题栏左边的返回键变成「比赛列表」（`PhoneNav`，Esc 也回列表），返回后焦点回到刚才那张卡片；搜索框在窗口打开时不抢焦点（`data-no-autofocus`，免得一打开就弹键盘）。桌面打开窗口、数据到了以后焦点进搜索框。
 - **筛选与搜索**：「全部 N / 可报名 N」快捷筛选带总数（不随搜索和类型变），「内部 / 外部」可与之叠加；都是胶囊按钮（`aria-pressed`），官网不用原生下拉框。搜索比对名称和介绍，不分大小写，空格隔开的词都要命中（`matchesQuery`）。筛空时写「没有符合条件的比赛」并给「清除筛选」。
 - **卡片**写名称、状态、内部/外部和最要紧的那个日期（报名中写截止日，没开赛写开赛日，进行中写结束日，已结束写起止，`cardWhen`）。桌面上选中的那张高亮（`aria-current`），筛掉了就换成剩下的第一场；Tab 一次进列表，上下方向键、Home、End 换比赛，再 Tab 到详情里的链接。
@@ -82,62 +121,63 @@ three.js 只通过各页面里的 `import("../three/<scene>")` 进入，不在�
 
 - 论坛首页 `externalUrl("forum", "/")`：生产为 `https://yangtzeu.work/forum/`，本机开发为 `http://127.0.0.1:3456/`；版块 `/c/<slug>`，话题 `/t/<id>`（论坛按话题 id 解析，例如 `/t/t84`；`topic-84` 这类 slug 打不开）。
 - 控制台 `externalUrl("admin", "/console")`：生产与预发布都是本域名下的 `/console`（每个环境只有一个域名，管理端按路径进入），本机开发为 `/sites/admin/console`。意见箱是站内 `/feedback`。
-- 论坛最新与公开仓库在生产官网拿不到实时接口（论坛的本地状态接口只在开发时存在），因此随构建发布静态快照 `public/portal/forum-latest.json`、`public/portal/repos.json`。界面上不写「快照」「示意」这类给开发者看的说明（`tests/web/portal-os.test.ts` 扫描拦截），数字只写数据里真有的（话题数、用户数、仓库数）。论坛快照只收录已在仓库里公开编辑过的话题（`app/forum/content/curation.json` 的 `topics`），字段白名单为 id、标题、分类、颜色、回复数、浏览数、时间，**不带作者或任何用户名**：论坛私有投影里的用户名含真实姓名，不得进入公开官网包。更新快照 = 替换这两个文件并跑 `tests/web/portal-snapshots.test.ts`（它校验字段白名单与话题 id）。
-- GitHub 天际线的方块高度由固定种子生成（`lib/skyline.ts`），只是造型：页面上不做色阶图例、不标数值，也不在任何地方把它说成提交统计。
+- 代码仓库是站点配置 `urls.gitlab`（现在是 `https://git.yangtzeu.work/geek`），公开项目列表读 `GET /api/public/gitlab/projects`；部门读 `GET /api/public/departments`。原来随构建发布的 `public/portal/repos.json` 仓库快照与 GitHub 天际线（`lib/skyline.ts`）在 #275 删除。
+- 论坛最新在生产官网拿不到实时接口（论坛的本地状态接口只在开发时存在），因此随构建发布静态快照 `public/portal/forum-latest.json`。界面上不写「快照」「示意」这类给开发者看的说明（`tests/web/portal-os.test.ts` 扫描拦截），数字只写数据里真有的（话题数、用户数）。论坛快照只收录已在仓库里公开编辑过的话题（`app/forum/content/curation.json` 的 `topics`），字段白名单为 id、标题、分类、颜色、回复数、浏览数、时间，**不带作者或任何用户名**：论坛私有投影里的用户名含真实姓名，不得进入公开官网包。更新快照 = 替换这个文件并跑 `tests/web/portal-snapshots.test.ts`（它校验字段白名单与话题 id）。
 
 ## 桌面入口直达
 
-#185（2026-10-02）：「桌面点「论坛」「GitHub」等入口要再跳一层 3D 场景页才进得去，改成一跳直达」。原来论坛和 GitHub 组织在桌面上先进 `/forum-3d`、`/github` 场景页，要在场景页里再点一次才出站；「加入我们」本来就是直达的。
+#185（2026-10-02）：「桌面点「论坛」「GitHub」等入口要再跳一层 3D 场景页才进得去，改成一跳直达」。原来论坛和 GitHub 组织在桌面上先进 `/forum-3d`、`/github` 场景页，要在场景页里再点一次才出站；「加入我们」本来就是直达的。#270 加了在新标签页打开自建 GitLab 的「代码仓库」应用；#275 删掉 GitHub 组织应用和 `/github` 场景页，「代码仓库」改成桌面窗口（见上文「组织架构与代码仓库窗口」）。
 
-- **去处只写在 `lib/osApps.ts`**：论坛是 `{ kind: "site", link: "forumHome" }`，在当前标签页进论坛首页（`links.forumHome()`）；GitHub 组织是 `{ kind: "external", link: "githubOrg" }`，在新标签页打开组织主页（`noopener`、不带 referrer）。打开方式沿用官网已有的外链：论坛和控制台是本域名下的另一个端，和页头、页脚、场景页里的论坛链接一样在当前标签页；GitHub 是别人的网站，和页脚、GitHub 场景页、终端 `repos` 里的 GitHub 链接一样在新标签页。`appLink` 把这两种写法解析成地址，`followAppLink` 负责打开。
-- **走这一处的入口**：桌面图标、Dock、2 / 3 键、菜单栏「前往」、⌘K 启动器、「新来的看这里」便签的第 2、3 行、终端 `open forum` / `open gitlab` / `open github`，以及「加入我们」回执里的「去论坛看看」（`appLinkById("forum")`，原来是指向 `/forum-3d` 的站内链接）。启动器原来单独有一条「进入论坛首页」，和论坛应用去同一个地方，已经去掉，它的搜索词 home、首页、bbs 并进了论坛应用。头像菜单里的「论坛」本来就直达论坛首页，没有改。
-- **代码仓库**（#270，2026-10-23）：GitHub 账号被封后改用自建 GitLab，桌面上加「代码仓库」应用（`{ kind: "external", link: "gitlab" }`，地址是站点配置 `urls.gitlab`，现在是 `https://git.yangtzeu.work/geek`），排在加入我们、论坛之后，接过 3 键、Dock 主位和便签第 3 行；成员在 GitLab 上点「极客班统一登录」用极客班账号登录（[server 的对外授权](../server/oidc.md)）。GitHub 组织应用留着，不再占快捷键和手机 Dock。
-- **点下去当场打开，不播图标飞行**：新标签页要在这次点击或按键里打开，等 520ms 飞行动画之后再开，浏览器可能当成弹窗拦掉；去论坛是整页跳走，也不播，从论坛后退、浏览器从往返缓存恢复整页时，飞行图标不会停在屏幕上。终端是先输出「打开 …」、350ms 后再打开，仍在这次按键的有效时间里。
-- **按住不放只算一次**：代码仓库和 GitHub 组织每打开一次就多一个新标签页，按住 3、或者焦点在桌面图标、Dock、便签、菜单的按钮上按住回车，浏览器的自动重复会一口气开好几个。`YugcOs.tsx` 的全局按键处理遇到 `event.repeat` 直接返回，回车还要拦掉默认动作（浏览器不再把每次重复变成一次点击）；桌面图标自己处理回车和空格，同样只认按下去的那一次。
-- **从论坛后退直接回到桌面**：在当前标签页去论坛、控制台之前，`open()` 先用 `navigate(".", { replace: true, state: RESUME_DESKTOP })` 在这条历史记录上记下「回来直接进桌面」。浏览器没用往返缓存、后退时重新加载首页，`Home` 读到它就跳过加载动画和书桌，和从场景页返回一样，再清掉 state；用了往返缓存时桌面原样还在，`YugcOs` 在 `pageshow`（`persisted`）里清掉 state，之后刷新照常从书桌开始。代码仓库和 GitHub 组织在新标签页打开，官网这页不动，不记。
-- **读屏提示**：会在新标签页打开的应用（`opensNewTab`，现在是代码仓库和 GitHub 组织）在 Dock 的 `aria-label` 后面、桌面图标、菜单栏「前往」、⌘K 结果、便签的按钮里补一句「（新标签页打开）」（`NEW_TAB_NOTE`，放在视觉上隐藏的 `.pt-sr` 里），界面上看不到，读屏点下去之前就知道焦点会跑到新标签页。
-- **实测**（ego-browser，Chromium）：从论坛按后退，往返缓存恢复与不走往返缓存（重新请求 `/`）两种情况回到的都是桌面；按住 3、在 Dock 或便签上按住回车只开一个新标签页；终端 `open github` 能开出新标签页。Safari 与微信内置浏览器未测。
-- **旧地址**：`/forum-3d`、`/github` 两页与路由都不动，直接打开照常能用，#109 的往返缓存复位也还在。`/forum-3d` 另外还能从「论坛最新」窗口里的「3D 版块」按钮进（它原来借用论坛应用的去处，论坛直达以后改成直接链到 `/forum-3d`）；`/github` 没有桌面入口。
-- **单测**：`tests/web/portal-os.test.ts` 核对每个应用的去处、`appLink` 与 `followAppLink`、`opensNewTab`、启动器的搜索词，以及源码里指向两个场景页的只剩路由表和「3D 版块」、回执按钮取论坛应用的地址（`appLinkById("forum")`）；`tests/web/portal-os-entries.test.tsx`（jsdom）渲染桌面，逐个入口点下去，核对去处、当场打开、路由不动、没有飞行图标，「加入我们」照旧飞图标后进 `/join-us`，另外核对按住不放只算一次、去论坛前记下 `RESUME_DESKTOP` 并在往返缓存恢复时清掉、「论坛最新」窗口的「3D 版块」进 `/forum-3d`、读屏提示。
+- **去处只写在 `lib/osApps.ts`**：论坛是 `{ kind: "site", link: "forumHome" }`，在当前标签页进论坛首页（`links.forumHome()`）；控制台是 `{ kind: "site", link: "console" }`。论坛和控制台是本域名下的另一个端，和页头、页脚、场景页里的论坛链接一样在当前标签页。`appLink` 把 `site` 解析成地址，`followAppLink` 负责打开；其余应用留在官网里，`appLink` 返回 null。
+- **走这一处的入口**：桌面图标、Dock、2 键、菜单栏「前往」、⌘K 启动器、「新来的看这里」便签的第 2 行、终端 `open forum`，以及「加入我们」回执里的「去论坛看看」（`appLinkById("forum")`）。启动器原来单独有一条「进入论坛首页」，和论坛应用去同一个地方，已经去掉，它的搜索词 home、首页、bbs 并进了论坛应用。「代码仓库」的同一批入口（含 3 键、便签第 3 行、终端 `open gitlab`）打开桌面窗口，不离开官网。
+- **点下去当场打开，不播图标飞行**：去论坛是整页跳走，不播 520ms 的飞行动画；从论坛后退、浏览器从往返缓存恢复整页时，飞行图标不会停在屏幕上。终端是先输出「打开 …」、350ms 后再打开。
+- **按住不放只算一次**：按住 2、或者焦点在桌面图标、Dock、便签、菜单的按钮上按住回车，浏览器的自动重复会一口气触发好几次。`YugcOs.tsx` 的全局按键处理遇到 `event.repeat` 直接返回，回车还要拦掉默认动作（浏览器不再把每次重复变成一次点击）；桌面图标自己处理回车和空格，同样只认按下去的那一次。
+- **从论坛后退**：桌面是首页的默认状态，去论坛前不在历史记录上记 state；从论坛后退回首页时，是否播开机动画只按 `yugc:boot-day` 判断（今天播过就直接进桌面）。
+- **读屏提示**：桌面上已经没有在新标签页打开的应用。窗口里在新标签页打开的链接（代码仓库窗口的项目与「打开代码仓库」、比赛窗口的「打开官网」）在视觉上隐藏的 `.pt-sr` 里补一句「（新标签页打开）」（`NEW_TAB_NOTE`）。
+- **旧地址**：`/forum-3d` 页与路由都不动，直接打开照常能用，#109 的往返缓存复位也还在；它另外还能从「论坛最新」窗口里的「3D 版块」按钮进。`/github` 已删除，落到兜底路由回首页。
+- **单测**：`tests/web/portal-os.test.ts` 核对每个应用的去处、`appLink` 与 `followAppLink`、启动器的搜索词、终端命令，以及源码里指向 `/forum-3d` 的只剩路由表和「3D 版块」、回执按钮取论坛应用的地址；`tests/web/portal-os-entries.test.tsx`（jsdom）渲染桌面，逐个入口点下去，核对论坛当场直达、代码仓库每个入口都开同一个窗口、路由不动、没有飞行图标、GitHub 组织应用不在，「加入我们」照旧飞图标后进 `/join-us`，另外核对按住不放只算一次、「论坛最新」窗口的「3D 版块」进 `/forum-3d`、读屏提示。
 
 ## 手机首页与主屏幕
 
-#206：竖屏书桌使用 polyman 的 iPhone 15 Pro Max Black 3D 模型（CC BY 4.0），屏幕朝上、平放桌面；电脑端保留原笔记本。#213：电脑端笔记本由 `three/laptop.ts` 的 `createLaptop()` 原创建模，大圆角铝壳与独立倒角的屏幕边框，深色错列变宽键盘、圆角触控板与铰链；屏幕按全面屏做：`LAPTOP_DISPLAY` 为 1.2×0.75（16:10，仍是 1280×800 贴图），黑玻璃只比屏幕宽一圈，上下黑边约 12mm、无厚下巴；屏幕与遮罩层级沿用原值，镜头取景按新尺寸，开机交接与手机场景不变；键盘拾取。桌面小物在 `three/props.ts`：马克杯（车削杯壁、杯口、杯把管、咖啡与油脂）带软木杯垫，盆栽有托盘、盆沿、土面碎石与三圈放样叶片，硬壳笔记本有纸页、松紧带、封面标签与书签带，六棱柱铅笔；墙上去掉相框，挂一幅极客娘画像（`public/portal/geek-girl-portrait.webp`，用图像模型以现有立绘为参考重新生成的不透明竖幅插画，整幅铺满画板，加载失败回退校徽）；便签带卷边与贴地柔影。材质一律 Standard，不用 clearcoat按真实键矩形命中，不再按网格换算。模型随构建作为本地带哈希资源发布，不在运行时访问 Sketchfab，不增加生产依赖或线上 Draco 解码器。保留真实机身、玻璃、按键、摄像头和 Dynamic Island；屏幕与推镜遮罩复用模型自带的圆角显示屏网格，不用薄盒倒角或矩形面片冒充正面圆角。统一缩放不改变长宽比；取景按整个机身包围盒，拾取使用实际屏幕、玻璃和边框。`STACKED_QUERY` 与 DOM 横带取景保持一致，设备切换时屏幕拾取、悬停提示与推镜目标一起切换，隐藏设备不参与拾取。首屏说明与主按钮分别写「手机」「打开手机」；点真实屏幕、按钮、跳过动画均复用原首页状态机。无 WebGL 或模型加载失败时直接进系统，减少动态效果仍跳过加载与镜头飞行。
+#206 的竖屏书桌与 iPhone 模型、#213 的电脑笔记本都随三维书桌在 #275 删除；手机先看开机动画的手机版构图（宽度小于 768 或竖屏），再进移动 YUGC OS。
 
-- **手机壳层**：`PHONE_QUERY` 为宽 ≤860px，或粗指针、宽 ≤1024px 且高 ≤600px（手机横屏仍用手机壳层）。手机状态栏显示真实时间和全站登录入口；四列应用网格、四项 Dock（主屏幕、加入我们、论坛、代码仓库）。不在应用区摆「搜索 / 壁纸 / 书桌」三按钮工具条；搜索是 Dock 上方的单个紧凑入口，也可在主屏空白处下滑打开；壁纸沿用「壁纸」应用，回书桌放在顶部 YUGC OS 的「系统设置」弹层内。不显示电脑「前往 / 窗口 / 帮助」菜单与默认欢迎便签，指引由「新来的看这里」按需打开。
+- **手机壳层**：`PHONE_QUERY` 为宽 ≤860px，或粗指针、宽 ≤1024px 且高 ≤600px（手机横屏仍用手机壳层）。手机状态栏显示真实时间和头像（没登录写「登录」），点开是个人资料卡的底部面板；四列应用网格、Dock 是主屏幕加三个主入口（加入我们、论坛、代码仓库）。不在应用区摆工具条；搜索是 Dock 上方的单个紧凑入口，也可在主屏空白处下滑打开；壁纸沿用「壁纸」应用；顶部「YUGC OS」打开「系统设置」，里面能换壁纸、重播开机动画。不显示电脑「前往 / 窗口 / 帮助」菜单与默认便签，指引由「新来的看这里」按需打开。
 - **下滑搜索**：仅主屏幕且滚动位置为顶部时响应单指、短距离纵向下滑；横滑、多指、取消、长按、应用内和按钮/输入框上的手势不响应，不阻止内容正常滚动。搜索进入及关闭复用 Modal，关闭返回搜索入口焦点，不用手势作为唯一入口。
-- **手机交接**：跳过开机直接进入已准备好的主屏幕，系统外层进场不做透明淡入，避免首帧透出书桌与机身；正常开机画面的退场与电脑端动效保留。首帧不透明和慢图等待分别做浏览器回归，不把最终稳定截图当作没有闪烁的证明。
-- **应用操作**：单击打开。手机一次只显示前台面板，其余面板 `hidden` / `inert` 但不卸载；返回主屏幕最小化全部面板，保留终端输入和输出，关闭应用才卸载该面板并回主屏幕。手机不提供电脑拖动与放大控件；面板内容在状态栏与 Dock 之间独立滚动，触控控件 ≥44px，输入字号16px。安全区使用 `env(safe-area-inset-*)`，面板、Dock、账号菜单和弹层同时避让左右 inset；Dock 按两侧分别留边后在安全宽度内居中，支持不对称 inset。
-- **共用状态和权限**：不是两套站点。旋转或改变窗口大小不重播整页加载、不重新挂载终端；应用清单、`visibleApps(consoleLink)`、`open()`、壁纸与登录协议沿用电脑端。论坛当前标签页、GitHub 新标签页仍当场一跳直达（#185）。
-- **弹层**：搜索、壁纸、手机指引和系统设置用 shared Modal 的原生 dialog 顶层、焦点循环及关闭后焦点返回；弹层打开时隔离 OS 全局应用和搜索快捷键，避免从弹层按钮触发背景跳转。壁纸支持方向键选择，竖屏面板预览对应竖图；设置可换壁纸或回书桌。搜索回车阻止默认按钮点击，避免焦点进入应用后误触「主屏幕」。电脑端保留原壁纸面板560px与启动器640px、顶部14vh位置，不增加启动器标题栏。
-- **自动回归**：`tests/web/portal-phone.test.tsx` 覆盖手机结构、权限、直达、隐藏面板、返回主屏幕与窗口内容保留；`tests/e2e/portal-phone.spec.ts` 覆盖实际显示屏与交接遮罩的四角轮廓、三种手机尺寸的整个模型投影和真实触点、应用、旋转、搜索、壁纸、触控尺寸、回书桌再开机、减少动态效果、无 WebGL 与1440×900电脑布局。外部接口使用虚构响应，不操作业务数据。Chromium 模拟不代表 iPhone Safari 真机。
+- **晴空壁纸**：手机竖屏上，开机动画层卸掉以后极客娘从开机动画里的位置滑到主屏幕图标下面、搜索框上面那一段，不压着图标。
+- **应用操作**：单击打开。手机一次只显示前台面板，其余面板 `hidden` / `inert` 但不卸载；返回主屏幕最小化全部面板，保留终端输入和输出，关闭应用才卸载该面板并回主屏幕。手机不提供电脑拖动与放大控件；面板内容在状态栏与 Dock 之间独立滚动，触控控件 ≥44px，输入字号16px。安全区使用 `env(safe-area-inset-*)`，面板、Dock、资料卡和弹层同时避让左右 inset；Dock 按两侧分别留边后在安全宽度内居中，支持不对称 inset。
+- **共用状态和权限**：不是两套站点。旋转或改变窗口大小不重新挂载终端；应用清单、`visibleApps(consoleLink)`、`open()`、壁纸与登录协议沿用电脑端。论坛当前标签页一跳直达（#185），代码仓库开应用面板。
+- **弹层**：搜索、壁纸、手机指引、系统设置和资料卡用 shared Modal 的原生 dialog 顶层、焦点循环及关闭后焦点返回；弹层打开时隔离 OS 全局应用和搜索快捷键，避免从弹层按钮触发背景跳转。壁纸支持方向键选择，竖屏面板预览对应竖图。搜索回车阻止默认按钮点击，避免焦点进入应用后误触「主屏幕」。电脑端保留原壁纸面板560px与启动器640px、顶部14vh位置，不增加启动器标题栏。
+- **自动回归**：`tests/web/portal-phone.test.tsx` 覆盖手机结构、权限、直达、隐藏面板、返回主屏幕与窗口内容保留。原来的 `tests/e2e/portal-phone.spec.ts`（量 iPhone 模型投影与触点）随模型一起删除，手机主屏幕现在没有浏览器自动回归，改版后的手机画面只在真实浏览器里人工验收。
 
 ## 登录入口（菜单栏 / 手机状态栏）
 
-官网不自建登录态，只显示核心服务的全站登录（官网、论坛、控制台共用同一个 `sid` 和一个极客班账号，只有 `CONSOLE_ORG` 的 active 成员能登录，见 [SECURITY](../../architecture/SECURITY.md)「登录门槛」）。`components/os/YugcOs.tsx` 在菜单栏时钟左边放这个入口，`lib/account.ts` 读完 `/auth/me` 之前不显示：
+官网不自建登录态，只显示核心服务的全站登录（官网、论坛、控制台共用同一个 `sid` 和一个极客班账号，见 [SECURITY](../../architecture/SECURITY.md)「登录门槛」）。菜单栏时钟右边、手机状态栏右上角是头像按钮，`lib/account.ts` 读完 `/auth/me` 之前不显示；点开是个人资料卡（见上文「个人资料卡」），登录、注册、退出、账号设置、控制台都在卡里。登录去 `/signin?return_to=<当前页面的 pathname + search + hash>`（#262），登录方式在统一登录页按 `/auth/providers` 列出。本机开发时 5173 把 `/auth`、`/signin` 转给核心后端与控制台 dev server（见 [LOCAL-PREVIEW](../../ops/LOCAL-PREVIEW.md)）。
 
-- 未登录：「登录」链接（用户图标 + 文字，钴蓝底），指向 `/signin?return_to=<当前页面的 pathname + search + hash>`（#262；以前直接去 `/auth/github`，文案是「用 GitHub 登录」）。登录方式在统一登录页按 `/auth/providers` 列出，GitHub 只是现在唯一的一种。链接随路由变化重算（`useLocation()`），登录后回到当前页面。本机开发时 5173 把 `/auth`、`/signin` 转给核心后端与控制台 dev server（见 [LOCAL-PREVIEW](../../ops/LOCAL-PREVIEW.md)）。
-- 已登录：头像与 GitHub 登录名（最长 120px，超出省略），点开是「论坛」「控制台」「退出」菜单，「控制台」只在 `/auth/me` 的 `console_link` 为 true 时出现；退出调 `POST /auth/signout`，官网、论坛、控制台一起变成未登录。菜单宽约 220px，靠右时往左收，不出屏幕。手机状态栏的入口同样写「登录」、去同一个地址。
+**控制台入口只给管理者**：`/auth/me` 的 `console_link` 为 true 时，桌面图标、Dock、「前往」菜单、启动器（⌘K）、终端的 `ls` / `open console`、资料卡和普通页面页脚才出现「控制台」；没登录和没有管理能力的人看不到。`lib/osApps.ts` 的 `visibleApps(consoleLink)` 是桌面这几处唯一的过滤，`components/PageShell.tsx` 的页脚同样按它显示。这只决定入口显不显示，控制台自己的准入不变（直接打开 `/console` 仍按能力判定）。单测 `tests/web/portal-os.test.ts`，浏览器用例 `tests/e2e/workflows.spec.ts`（页脚按 `console_link` 出现）。
 
-**控制台入口只给管理者**：`/auth/me` 的 `console_link`（持有 `console.access`、`github.org.read`、`feedback.read` 之外任一能力的人：提督、舰长、队长、带部门权限包的舰员）为 true 时，桌面图标、Dock、「前往」菜单、启动器（⌘K）、终端的 `ls` / `open console`、头像菜单和普通页面页脚才出现「控制台」；没登录、普通舰员和领航员都看不到。`lib/osApps.ts` 的 `visibleApps(consoleLink)` 是桌面这几处唯一的过滤，`components/PageShell.tsx` 的页脚同样按它显示。这只决定入口显不显示，控制台自己的准入不变（直接打开 `/console` 仍按能力判定）。单测 `tests/web/portal-os.test.ts`，浏览器用例 `tests/e2e/workflows.spec.ts`（页脚按 `console_link` 出现）。
-
-官网不读 `?signin=`：从官网登录没成功时，核心服务把人送到统一登录页 `/signin?signin=<原因>&return_to=<刚才的官网路径>` 说明原因，登录页再回官网或重试（#262；以前回到论坛首页由论坛说明）。预发布与正式的论坛镜像是极客班论坛（自己的站名、分类和标签，帖子与回复存在核心服务，见 [forum 合同](../forum/README.md)「服务端模式」），登录方式是统一登录，从官网登录后回到的页面顶部显示同一个账号；从论坛登录则回论坛（`/signin?return_to=/forum/…`）。退出等服务端确认后才显示未登录。
+官网不读 `?signin=`：从官网登录没成功时，核心服务把人送到统一登录页 `/signin?signin=<原因>&return_to=<刚才的官网路径>` 说明原因，登录页再回官网或重试（#262）。预发布与正式的论坛镜像是极客班论坛（见 [forum 合同](../forum/README.md)「服务端模式」），登录方式是统一登录，从官网登录后回到的页面顶部显示同一个账号；从论坛登录则回论坛（`/signin?return_to=/forum/…`）。退出等服务端确认后才显示未登录。
 
 ## 加入我们（投递）
 
-`POST /api/portal/apply` 匿名可提交，准入与邀请落地共用（蜜罐 + PoW + 可选 Turnstile），落库 `applications` 表并写审计；接口细节见 [API](../../architecture/API.md)。前端 PoW 指纹与后端逐字一致：`apply:<姓名>:<邮箱>`（均为 trim 后取值），`pow` 只发 `{ timestamp, nonce }`（`powProof`）。表单的邮箱校验和后端用同一条正则（不收末尾带点、连续的点、引号、反斜杠和 IP 字面量，这些写法会绕开确认信的按收件箱限量，#148），`tests/web/portal-join.test.ts` 核对两边逐字一致。提交成功后才开始折信、封口、投递动画，回执显示服务端返回的编号、时间和原文消息；失败时信纸留在原位并显示错误，不做假成功；同一台设备或同一个网络 24 小时内投满 5 份时，服务端回 429 `apply_limited`，信纸下面显示服务端给的原话（#169）。
+`POST /api/portal/apply` 要登录（#274：没登录 401 `unauthenticated`，要 `apply.submit`），准入与邀请落地共用（蜜罐 + PoW + 可选 Turnstile），落库 `applications` 表并写审计；接口细节见 [API](../../architecture/API.md)。前端 PoW 指纹与后端逐字一致：`apply:<姓名>:<邮箱>`（均为 trim 后取值），`pow` 只发 `{ timestamp, nonce }`（`powProof`）。表单的邮箱校验和后端用同一条正则（不收末尾带点、连续的点、引号、反斜杠和 IP 字面量，这些写法会绕开确认信的按收件箱限量，#148），`tests/web/portal-join.test.ts` 核对两边逐字一致。提交成功后才开始折信、封口、投递动画，回执显示服务端返回的编号、时间和原文消息；失败时信纸留在原位并显示错误，不做假成功。
+
+- **没登录**（#275）：读完 `/auth/me` 发现没登录时，信纸上只有「先注册再投递」、一句说明和「注册」「登录」两个按钮，都带 `return_to=/join-us`，注册或登录后回到这封信；不显示表单，免得写完了才发现要登录、跳走时内容丢掉。
+- **限额**：注册用户每天 3 份，成员不限（SPEC §3.8，数字是服务端 meta 的初始值）。登录后信纸底部按 `/auth/me` 的 `quota` 写「今天还能投 N 份」；成员 `apply_daily_limit` 为 -1 时不写。今天投完了按钮变灰，写「今天的投递次数用完了，明天再来」。寄出成功后用 201 回执里的 `quota` 更新。
+- **失败**：写到一半登录失效（401）时信纸留着，寄出按钮换成「重新登录」，提示先把写好的内容复制下来；被每日限额挡下（429 `rate_limited`、`bucket: "apply.daily"`）照服务端的 message 说并把按钮置灰；按 IP 或设备的限额（429）同样照服务端原话显示（#169）。
+- **单测**：`tests/web/portal-join-gate.test.tsx`（没登录、限额显示与更新、投完、成员不限、401、429）。
 
 ## 壁纸
 
 2026-09-26：「切换壁纸的时候不会马上切换，会卡很久，切换壁纸的时候有个对应的动效」（#147）。原来点下去要等 1920×1080 的大图下载、解码完才换，弱网时要等好几秒，这期间桌面没有任何变化。
 
+- **晴空**（#275）：默认壁纸是画出来的「晴空」（`components/os/SkyWallpaper.tsx`，和开机动画共用 `components/boot/background.ts` 的绘制函数），不用下载；刚播完开机动画时接着最后一帧画，没播时直接画在最终位置，开了减少动态效果只画一帧。两张极客娘图片壁纸留作可选。
 - **清单与地址**：`lib/wallpapers.ts` 是壁纸图片地址唯一出现的地方。图片放在 `sites/portal/assets/wallpapers/`，由清单 import，构建时文件名带内容哈希、进 `/assets/`：静态资源 CDN 开关（#146，见 [README](README.md)）为空时从源站取，打开时从 CDN 取，缓存一年；换图就是换文件，哈希跟着变。每张壁纸有桌面大图（1920×1080 webp，123KB、238KB）、桌面缩略图（320×180，8KB、13KB）、独立生成的手机竖图（900×1950，约80KB、125KB）、竖屏缩略图（180×390，约6.4KB、8.6KB）和主色 `tint`。生成提示词、编码参数与哈希见 `app/web/sites/portal/assets/wallpapers/README.md`；原桌面图不替换。
-- **形态与开机**：`wallpaperForScreen` 选择资源：手机壳层且 `PORTRAIT_QUERY` 命中时用独立竖图，横屏用宽版，不再按78%偏移裁切桌面图。选择仍按同一ID保存；壁纸层按实际URL换图，同ID旋转也更新，旧层等动画结束才卸。`Home` 按当前选择与形态下载解码，下载期间旋转时继续等待新形态；不能用模块级「第一张已解码」标志放行后来的另一张或另一版本。失败仍放行，不把开机无限卡住。
+- **形态与开机**：`wallpaperForScreen` 选择资源：手机壳层且 `PORTRAIT_QUERY` 命中时用独立竖图，横屏用宽版，不再按78%偏移裁切桌面图。选择仍按同一ID保存；壁纸层按实际URL换图，同ID旋转也更新，旧层等动画结束才卸。选的是图片壁纸时，`Home` 挂载就按当前选择与形态开始下载解码那张图（要播开机动画时和它并行）；失败不影响进桌面。
 - **点下去**：`components/os/Wallpaper.tsx` 马上压上新的一层：底色加放大、模糊的缩略图（选择面板里已经加载好，不用等网络）。这一层从点的那张缩略图的位置展开到整个桌面：起点是缩略图在壁纸层里的矩形（`revealClipFrom` 算成 `clip-path: inset(… round 9px)`，和缩略图圆角一样），终点是整个桌面，640ms，缓出曲线 `cubic-bezier(.22, 1, .36, 1)`。大图下载、解码好（`loadWallpaperImage`，`image.decode()`）以后在这一层里淡入 480ms，模糊的画面清晰过来；淡入播完（`transitionend`）再卸掉下面的缩略图。已经解码过的大图（开机那张、换过的、预取过的）直接给大图，不先顶缩略图。
 - **减少动态效果**：开了系统的「减少动态效果」时不展开，整层淡入 360ms；拿不到缩略图位置时也走淡入。全站这时把动画和过渡压成 .01ms（`styles/portal.css` 的 `.pt-root *`），整层淡入和清晰过来只改透明度、不位移，`styles/os.css` 用两个类的选择器保留原时长，不看样式表的先后。
 - **旧层什么时候卸**：某一层的展开（淡入）动画真正播完（这一层自己的 `animationend`，里面元素冒上来的不算）就整片盖住了它下面的层，这时只卸它下面的层，它上面还在展开的新层不动。不按固定计时卸：主线程卡住、标签页在后台或浏览器限帧时动画会晚开始，按计时卸会在新层盖住之前卸掉旧层、露出空桌面（限速验收时实测到过）。连点几次时每一层只管自己的动画和解码，桌面最后停在最后点的那张，不会闪回先点的；全程没有空白帧，桌面不滚动。
 - **大图下载失败**（离线、被拦）：停在底色加模糊缩略图，不闪回旧壁纸。失败不记住，下次换过去重新下载。
-- **空闲预取**：桌面出现后等浏览器空闲（`requestIdleCallback`，最多等 4 秒；Safari 没有它，等 1.5 秒），按顺序一张一张、低优先级（`fetchPriority = "low"`）下载：只取当前形态，先全部缩略图，再当前这张以外的大图。和换壁纸、开机画面共用同一份下载，同一地址只下一次，预取到一半时点了就接着等这一次。开了省流量（`navigator.connection.saveData`）或网络是 2G、slow-2g 时不预取；退回书桌或旋转换形态时停下旧队列里还没开始的那几张。
+- **空闲预取**：桌面出现后等浏览器空闲（`requestIdleCallback`，最多等 4 秒；Safari 没有它，等 1.5 秒），按顺序一张一张、低优先级（`fetchPriority = "low"`）下载：只取当前形态，先全部缩略图，再当前这张以外的大图。和换壁纸、开机画面共用同一份下载，同一地址只下一次，预取到一半时点了就接着等这一次。开了省流量（`navigator.connection.saveData`）或网络是 2G、slow-2g 时不预取；旋转换形态时停下旧队列里还没开始的那几张；选的是「晴空」时没有大图要预取。
 - **单测**：`tests/web/portal-wallpapers.test.ts`（清单、展开起点、预取顺序与条件），`tests/web/portal-wallpaper-switch.test.tsx`（jsdom：占位立刻出现、解码后换上大图、旧层和缩略图等动画事件才卸（时间再久也不卸）、连点停在最后一张且不提前卸层、减少动态效果走淡入、下载失败停在占位、开机那张只下一次；预取的顺序、取消、去重与省流量不预取）；`portal-wallpapers.test.ts` 还核对减少动态效果时淡入的时长豁免。
 
 ## 宣传片
@@ -157,11 +197,13 @@ three.js 只通过各页面里的 `import("../three/<scene>")` 进入，不在�
 - **出错时**（#110）：播放层分包加载失败（断网、发版后旧页面找不到新文件名）按「加载失败」直接结束（`components/PromoLazy.tsx`），不让官网跟着卸载；失败只影响这一次打开，下次打开重新加载分包，网络恢复后照常能播。失败的那个要等失败真正显示出来（`PromoUnavailable` 挂上）才换新的：直接打开 `/join-us` 时播放层和外面的页面可能一起还没提交，React 等分包时会丢掉没提交的渲染重来，在 `LazyPromoPlayer` 初始化里换的话同一次打开会多加载几遍、把重试地址用光。加载中就关掉（gate 遮罩上点了跳过）、之后分包才失败时没人会把失败显示出来：`LazyPromoPlayer` 关掉时记下，失败一到就换新的，不会让下一次打开（比如桌面「宣传片」重看）一打开就按失败关掉。浏览器会记住加载失败的模块地址（Chrome、Firefox 按 HTML 规范如此，桌面预取时断网失败也算），同一地址再 import 不发请求直接失败，所以播放层和 hls.js 分包各写死原地址加 3 个 `?retry=n` 地址（`lib/promo.ts` 的 `retryableImport`）：生产构建把每个打成文件名不同的分包（`PromoPlayer` 约 5KB、`hls.light` 约 372KB 各多 3 份，只在重来时下载），原地址失败时马上换下一个试一次，之后每次重来换一个，用完停在最后一个，要刷新页面才会再从头来；换地址只以生产构建为准。边界检查不许非字面量 import、CSP 不许 eval，所以只能是有限个写死的地址。播放层样式 `styles/promo.css` 跟官网主包由 `PromoLazy.tsx` 引入，不跟播放层分包：Vite 的分包预加载把失败过的样式表记为已加载、不再重试。`play()` 被拒时，`NotSupportedError`（片源放不了）按加载失败结束；其他原因（如 `AbortError`）gate 按加载失败结束（不记看过，下次再试），replay 停在封面等点画面；起播过程中意外抛错按加载失败结束一次。
 - **起播预取**：桌面出现、这个浏览器还没看过宣传片、没开省流量时，先 preconnect CDN，空闲时预取「加入我们」页、播放器、hls.js 分包，以及起播那一档（与播放器同一个 `startLevelIndex`）的 master、播放列表、初始化段与第一个分片。点「加入我们」后这些都从缓存来。
 - **CDN 预取**：CDN 边缘节点第一次被请求时回源（2026-09-26 实测五档 135 个分片几乎全是 `x-qnm-cache: Miss`，TTFB 0.33–0.48s；第二次请求变 `Hit`）。换片子上传后，用片子目录的 `node scripts/qiniu-promo.mjs prefetch` 让七牛预取两个 master、每档播放列表、初始化段与前 3 个分片和封面（44 个地址，七牛每天限额 100）。实测预取任务成功后边缘节点第一次请求仍是 `Miss`（七牛预取的是上层缓存），TTFB 降到 0.25–0.33s，改善有限；弱网能播主要靠低档位与缓冲。
-- **CSP 与防盗链**：宿主 nginx 的站点策略 `media-src` 与 `connect-src` 放行 `https://cdn.crosery.com`，`connect-src` 另放行 `blob:`（手机模型的内嵌贴图由 `GLTFLoader` 经 `blob:` 地址读取，没有它贴图会被 CSP 拦下，#240；见 [DEPLOY](../../ops/DEPLOY.md)）；CDN 按 Referer 只放行本站域名、`localhost` 与空 Referer，**本机开发要用 `http://localhost:5173` 打开**，用 `127.0.0.1` 时 CDN 返回 403，播放层按「加载失败」直接放行到信纸。
+- **CSP 与防盗链**：宿主 nginx 的站点策略 `media-src` 与 `connect-src` 放行 `https://cdn.crosery.com`，`connect-src` 另放行 `blob:`（原为手机模型的内嵌贴图经 `GLTFLoader` 的 `blob:` 地址读取而加，#240；模型在 #275 停用，放行仍在宿主配置里，见 [DEPLOY](../../ops/DEPLOY.md)）；CDN 按 Referer 只放行本站域名、`localhost` 与空 Referer，**本机开发要用 `http://localhost:5173` 打开**，用 `127.0.0.1` 时 CDN 返回 403，播放层按「加载失败」直接放行到信纸。
 - **弱网实测**（#103，2026-09-26，ego-browser 内置 Chromium 模拟手机竖屏触屏，开发构建在 `localhost`，本页禁用缓存，CDP 限速 450kbps / RTT 400ms）：从请求 master 到第一帧 3.7 秒（360p 起播），之后降到 240p 连续播放，30 秒内起播后没有再卡，缓冲从 3.7 秒涨到 18.7 秒。改之前手机从 480p 以上起播，同样条件下首帧约 30 秒。
 - **2026-09-26 实测**（#77；ego-browser 内置 Chromium，M4 Pro，生产构建在 `localhost` 上，CDP 限速 Fast 4G = 9 Mbps / RTT 150ms）：在桌面停留、预取完成后按 1 打开「加入我们」，从按键到第一帧 587–628ms（三次，含 520ms 图标飞行动画），AV1，带声音。刚到桌面就立刻点（预取没做完）或直接打开 `/join-us`：播放层出现后 1.7–2.1s 出第一帧；Slow 4G（1.6 Mbps / RTT 560ms）约 8s。Safari（macOS、iOS）与微信内置浏览器未测。
 
 ## 性能预算
+
+三维书桌、加载动画与 GitHub 天际线在 #275 删除，现存的 3D 场景只有加入我们和论坛；下面涉及书桌、笔记本、加载动画、天际线的条目和表格行是删除前的实测记录，留作对照。开机动画是 Canvas 2D（`components/boot/engine.ts`），粒子数按设备核心数和像素比收紧（`timeline.ts` 的 `particleBudget`），还没有在真实浏览器里测帧率。
 
 在 1440×900、DPR 2 的 M4 Pro 上验收（ego-browser，rAF 采样 120 帧 + WebGL 帧耗时插桩）：
 
@@ -214,12 +256,12 @@ three.js 只通过各页面里的 `import("../three/<scene>")` 进入，不在�
 - 界面里禁止 emoji 与装饰性 unicode 箭头/符号（↵ ↗ ✓ ▶ ← → ● 之类），图标一律用 `components/Icon.tsx`；允许 ⌘、·、…、×。`tests/web/portal-os.test.ts` 扫描官网源码拦截违规，并检查每个用到的图标名都在注册表里。
 - 用户可见的招新入口统一叫「加入我们」。
 - 开发态总控（`shared/ui/DevControlCenter.tsx`）默认收起成左下角小胶囊，点开才展开；生产配置下不渲染。窄屏（≤860px）官网里改放右上角顶栏下方，不压住 Dock 与底部固定栏。
-- 竖屏（`lib/cameraMath.ts` 的 `STACKED_QUERY`：宽 ≤760px 或宽高比 <0.9，CSS 用同一条媒体查询）：文案叠在画面上下，3D 主体放进文案之间留出的横带。横带由页面量 DOM 得出（首页：顶栏下沿到文案上沿；场景页：主按钮下沿到底部列表上沿），`three/stage.ts` 的 `bandPose` 取主体贴身的角点、按透视投影算相机距离与 `setViewOffset` 偏移（纯数学在 `fitInBand`，有单测），文案尺寸变化时重新取景。不再为每种屏幕比例手调相机坐标。竖屏时首页不挂墙上的海报（会落在顶栏品牌后面）；触屏（`hover: none`）不显示 Enter 之类的按键提示。
+- 竖屏（`lib/cameraMath.ts` 的 `STACKED_QUERY`：宽 ≤760px 或宽高比 <0.9，CSS 用同一条媒体查询）：文案叠在画面上下，3D 主体放进文案之间留出的横带。横带由页面量 DOM 得出（场景页：主按钮下沿到底部列表上沿），`three/stage.ts` 的 `bandPose` 取主体贴身的角点、按透视投影算相机距离与 `setViewOffset` 偏移（纯数学在 `fitInBand`，有单测），文案尺寸变化时重新取景。不再为每种屏幕比例手调相机坐标。触屏（`hover: none`）不显示 Enter 之类的按键提示。
 - 移动 YUGC OS 的 Dock 在应用操作区下面、包含底部安全区，不覆盖内容；手机上的应用窗口从底部升起成页面卡片（#233）：顶部拖拽条，背后半透明遮罩（不做模糊，遵守本站不铺全屏 backdrop-filter 的约定），点遮罩或在拖拽条、标题栏下拉超过 70px 关闭，不足则弹回；窗口内的按钮不起拖动；电脑端窗口与红黄绿按钮不变；状态栏、四列应用、按需指引与窗口规则见上文「手机首页与主屏幕」。
-- 文案：像班里的人在说话，短、具体，说清这是什么、给谁用、接下来会怎样；不写口号式标题和装饰性英文大写标签（RECRUITING、YUGC POST 之类），终端提示符只出现在真的终端里（终端窗口、终端组件、GitHub 场景里的小终端）。只写仓库里有出处的事实（部门与称号取自 `/api/public/org`，默认值与 `app/server/src/lib/roles.ts` 一致，版块说明取自 `app/forum/content/curation.json`）；服务端返回的文案（投递、意见箱、邀请的回执）原样显示。
+- 文案：像班里的人在说话，短、具体，说清这是什么、给谁用、接下来会怎样；不写口号式标题和装饰性英文大写标签（RECRUITING、YUGC POST 之类），终端提示符只出现在真的终端里（终端窗口、终端组件）。只写仓库里有出处的事实（部门与称号取自 `/api/public/departments`，默认值与 #274 迁移的初始数据一致，版块说明取自 `app/forum/content/curation.json`）；服务端返回的文案（投递、意见箱、邀请的回执）原样显示。
 - 浏览器自带的表面也用官网颜色：文字选中、光标、滚动条、焦点环、`accent-color`；计数、时钟、百分比用等宽数字（`font-variant-numeric: tabular-nums`）。卡片只有一种层级：细描边 + 贴身短投影；浮层（窗口、菜单、启动器、Dock）只用有偏移的投影。弱化文字 `--pt-ink-mute: #646b8a`，在纸色与冰白底上 ≥4.5:1。
 - 官网表单不用原生下拉框：选项只有几个时用 `components/ChoiceChips.tsx`（意见箱分类）。
 
 ## 验收
 
-`pnpm check && pnpm test && pnpm build`；浏览器验证见 [TESTING](../../conventions/TESTING.md)。单测覆盖状态机、加载进度、相机与摆放数学、像素比调速器、启动器过滤、终端、时间文案、快照结构、图标注册表与禁用字符。3D 画面、动画节奏与帧率只能在真实浏览器里验收，截图与测量结果写进 MR。
+`pnpm check && pnpm test && pnpm build`；浏览器验证见 [TESTING](../../conventions/TESTING.md)。单测覆盖进站规则与开机动画外壳、个人资料卡、便签、组织架构与代码仓库窗口、投递登录与限额、相机数学、像素比调速器、启动器过滤、终端、时间文案、快照结构、图标注册表与禁用字符。开机动画、3D 画面、动画节奏与帧率只能在真实浏览器里验收，截图与测量结果写进 MR。
