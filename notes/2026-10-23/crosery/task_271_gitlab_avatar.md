@@ -29,3 +29,10 @@
 - 做了什么：avatarFor 改成拿不到能传的图都抛错（avatar_too_large、github_avatar_ 加状态码、github_avatar_not_image、forum_avatar_missing），GitLab 回 200 才写 avatar_source；控制台加三种说法；oidc.md 与模块注释写明补传、接管自动建的号时会盖掉一次；常量改名、GitHub 头像地址只写一处；假 GitLab 校验图片类型与扩展名，补不是图片、论坛图不在了的用例；271.json 跟着改，项目目录重新生成
 - 结果：合并人自己逐行复核 git diff 5d927747 5ae01174，三条应修都落实；check 九项、check-doc-sync、check-architecture 通过；typecheck 通过；pnpm test 1599 条通过；两个构建通过；去掉图片类型检查、上限改回 1 MB、去掉 PUT 返回码检查都有用例失败。判断留着不改：GitLab 4xx 照样重试（issue 要求直到传上去为止，持续失败每轮一条审计和其它失败一致）；先读完响应再比大小（256 像素的图很小）；头像来源规则和 account-directory 的 picture 形式不同（一个是对外地址），不合并
 - 下一步：推分支、开 GitLab MR !4
+
+## 17:34:20 +08:00 · PR · #271 · 开 GitLab MR !4：task/271/gitlab_avatar → stage
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：推 task/271/gitlab_avatar（410095ae）到 git.yangtzeu.work，开 MR !4，标签 P2、admin、bug、func:api、func:data、func:external、server、ui:content；正文十段，证据 1 是 GitLab 上 LYsnowQ 的默认头像（ego 1488×1004），证据 2、3 是控制台成员页样板数据「待同步：传头像」「头像被拒（400）」（1440×900、390×844）
+- 结果：本地 node scripts/pr-contract.mjs check 通过：10 个段落齐全，有验收证据；审查结论有条件通过，条件是 rc.15 上用户 4、5 头像补上且下一轮不再 PUT
+- 下一步：合并人合进 stage，发 rc.15，部署前备份预发布库
