@@ -9,6 +9,7 @@ import r4 from "./org.js";
 import r5 from "./competitions.js";
 import r6 from "./competition-signups.js";
 import r7 from "./gitlab.js";
+import r8 from "./departments.js";
 export default async function portalRoutes(app: FastifyInstance) {
   registerContracts(app, portalContracts);
   await app.register(r0);
@@ -19,4 +20,5 @@ export default async function portalRoutes(app: FastifyInstance) {
   await app.register(r5);
   await app.register(r6);
   await app.register(r7);
+  await app.register(r8);
 }

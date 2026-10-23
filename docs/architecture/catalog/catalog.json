@@ -344,13 +344,13 @@
     }
   ],
   "coverage": {
-    "automaticHead": 56,
-    "businessOperations": 115,
-    "businessOperationsWithFlow": 115,
+    "automaticHead": 59,
+    "businessOperations": 121,
+    "businessOperationsWithFlow": 121,
     "capabilities": 22,
-    "declaredFlows": 121,
-    "responseSchemas": 67,
-    "routeMethods": 200,
+    "declaredFlows": 127,
+    "responseSchemas": 72,
+    "routeMethods": 209,
     "supplementalInterfaces": 5,
     "supplementalInterfacesWithFlow": 5,
     "tables": 54
@@ -676,11 +676,11 @@
           "path": "app/server/src/routes/identity/providers.ts"
         },
         {
-          "line": 101,
+          "line": 111,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 11,
+          "line": 12,
           "path": "app/server/src/routes/identity/index.ts"
         },
         {
@@ -731,7 +731,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 106,
+          "line": 116,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -775,7 +775,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 111,
+          "line": 121,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -824,7 +824,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 116,
+          "line": 126,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -879,7 +879,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 120,
+          "line": 130,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -937,7 +937,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 125,
+          "line": 135,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -990,7 +990,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 220,
+          "line": 240,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -1057,7 +1057,7 @@
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
-          "line": 281,
+          "line": 302,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -1266,7 +1266,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 129,
+          "line": 139,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -1333,11 +1333,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 134,
+          "line": 144,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 382,
+          "line": 404,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -1396,11 +1396,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 139,
+          "line": 149,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 386,
+          "line": 408,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -1455,11 +1455,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 144,
+          "line": 154,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 430,
+          "line": 452,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -1519,7 +1519,7 @@
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 150,
+          "line": 160,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -1563,11 +1563,11 @@
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 152,
+          "line": 162,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 390,
+          "line": 412,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -1628,11 +1628,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 153,
+          "line": 163,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 525,
+          "line": 547,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -1710,11 +1710,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 154,
+          "line": 164,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -1762,11 +1762,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 155,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 448,
+          "line": 470,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -1818,11 +1818,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 156,
+          "line": 166,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 482,
+          "line": 504,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -1877,11 +1877,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 157,
+          "line": 167,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 422,
+          "line": 444,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -2878,7 +2878,7 @@
           "path": "app/server/src/routes/console/people.ts"
         },
         {
-          "line": 631,
+          "line": 654,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -5475,7 +5475,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 64,
+          "line": 66,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -5671,7 +5671,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 30,
+          "line": 37,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -7242,7 +7242,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 696,
+          "line": 720,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -7716,7 +7716,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -7906,7 +7906,7 @@
           "path": "app/server/src/routes/portal/gitlab.ts"
         },
         {
-          "line": 13,
+          "line": 20,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -8048,6 +8048,260 @@
         "app_state",
         "sessions"
       ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "identity",
+      "evidence": [
+        {
+          "line": 18,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/server/src/lib/account-profiles.ts"
+        }
+      ],
+      "id": "flow:identity.profile.view",
+      "invariants": [
+        "权限与资源：任何有效会话都能读，不要控制台能力；没登录 401 unauthenticated。",
+        "响应与错误：200 {username,display_name,bio,avatar_url,prefs}；账号第一次读时 account_profiles 没有行，由 ensure() 兜底插入一行默认资料（用户名按账号 id 派生并转小写），不是 500。",
+        "数据与副作用：读 account_profiles，缺行时顺带写一行默认资料；不触发权限判定、不审计。"
+      ],
+      "operation": "GET /api/identity/profile",
+      "operationLabel": "GET /api/identity/profile",
+      "operationNodeId": "route:GET /api/identity/profile",
+      "reads": [
+        "account_profiles"
+      ],
+      "relatedDomains": [],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/profile.test.ts"
+      ],
+      "title": "登录账号读取自己的资料",
+      "writes": [
+        "account_profiles"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "identity",
+      "evidence": [
+        {
+          "line": 22,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 39,
+          "path": "app/server/src/lib/account-profiles.ts"
+        }
+      ],
+      "id": "flow:identity.profile.update",
+      "invariants": [
+        "权限与资源：需要新权限体系的节点 account.profile.edit（由 require-permission.ts 判定，不是旧的 Capability）；每账号每小时 30 次，按账号限流（config.rateLimit.hook 设成 preHandler，在 requirePermission 填好 req.session 之后才取 key，否则 @fastify/rate-limit 默认的 onRequest 比它早）。",
+        "响应与错误：body 任选 display_name/bio/username/prefs，回同 GET 形状；prefs 是合并写不是整份替换；username 必须 ^[a-z0-9_]{3,24}$，被别的账号占用（不分大小写）409 username_taken，改回自己原来的名字不算占用。",
+        "数据与副作用：写 account_profiles 与审计 profile.update（记改了哪些字段）。"
+      ],
+      "operation": "PATCH /api/identity/profile",
+      "operationLabel": "PATCH /api/identity/profile",
+      "operationNodeId": "route:PATCH /api/identity/profile",
+      "reads": [
+        "account_profiles"
+      ],
+      "relatedDomains": [],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/profile.test.ts"
+      ],
+      "title": "改昵称、简介、用户名与偏好",
+      "writes": [
+        "account_profiles"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "identity",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 39,
+          "path": "app/server/src/middleware/http-policy.ts"
+        }
+      ],
+      "id": "flow:identity.avatar.read",
+      "invariants": [
+        "权限与资源：匿名；:file 必须匹配 ^[0-9a-f]{64}\\.webp$，不接受别的路径形式。",
+        "响应与错误：200 image/webp 二进制，Cache-Control: public, max-age=31536000, immutable、Content-Security-Policy: default-src 'none'；哈希不存在 404 not_found；这条路径和 /api/forum/avatars/ 一样是 Cache-Control: no-store 的例外（middleware/http-policy.ts）。",
+        "数据与副作用：只读 account_avatars，不解析会话、不审计。"
+      ],
+      "operation": "GET /api/identity/avatar/:file",
+      "operationLabel": "GET /api/identity/avatar/:file",
+      "operationNodeId": "route:GET /api/identity/avatar/:file",
+      "reads": [
+        "account_avatars"
+      ],
+      "relatedDomains": [],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/profile.test.ts"
+      ],
+      "title": "按内容哈希公开取回账号头像",
+      "writes": []
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "identity",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/server/src/lib/account-avatar.ts"
+        }
+      ],
+      "id": "flow:identity.avatar.upload",
+      "invariants": [
+        "权限与资源：需要节点 account.profile.edit；每账号每小时 10 次（同 PATCH 资料的 preHandler 限流写法）；请求体就是图片本身（png/jpeg/webp/gif），≤2MB，超限由内容类型解析器 413 avatar_too_large。",
+        "响应与错误：sharp 转正方形 512×512 webp、按内容 sha256 寻址，回 {avatar_url}；类型不支持 415 unsupported_media_type；字节解不出图片 400 invalid_image；超过 4096×4096 像素 400 image_too_large。",
+        "数据与副作用：写 account_avatars（按哈希去重）与 account_profiles.avatar_hash，审计 profile.avatar。"
+      ],
+      "operation": "PUT /api/identity/avatar",
+      "operationLabel": "PUT /api/identity/avatar",
+      "operationNodeId": "route:PUT /api/identity/avatar",
+      "reads": [
+        "account_profiles"
+      ],
+      "relatedDomains": [],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/profile.test.ts"
+      ],
+      "title": "上传账号头像，转码后按内容哈希存",
+      "writes": [
+        "account_profiles",
+        "account_avatars"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "identity",
+      "evidence": [
+        {
+          "line": 70,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 215,
+          "path": "app/server/src/lib/permissions.ts"
+        }
+      ],
+      "id": "flow:identity.invite.redeem",
+      "invariants": [
+        "权限与资源：需要节点 account.invite.redeem；每账号每小时 10 次。",
+        "响应与错误：body {code}；成功 200 {level:\"member\"}；码不对或用完 400 invite_invalid；已经是成员 409 already_member，不碰邀请码计数。",
+        "数据与副作用：一个事务里先查 perm_members 是否已是 level.member、兑换 invite_codes、按 setExclusiveGroupMembership 换组（同类分组唯一，换组前先删旧的），事务外再让权限引擎的 revision 失效（permissions.bump()），写审计 invite.redeem。"
+      ],
+      "operation": "POST /api/identity/invite/redeem",
+      "operationLabel": "POST /api/identity/invite/redeem",
+      "operationNodeId": "route:POST /api/identity/invite/redeem",
+      "reads": [
+        "perm_members"
+      ],
+      "relatedDomains": [
+        "permissions"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/profile.test.ts"
+      ],
+      "title": "注册用户凭邀请码换成极客班成员",
+      "writes": [
+        "perm_members",
+        "invite_codes"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "identity",
+      "evidence": [
+        {
+          "line": 17,
+          "path": "app/server/src/routes/portal/departments.ts"
+        },
+        {
+          "line": 13,
+          "path": "app/server/src/routes/portal/contracts.ts"
+        }
+      ],
+      "id": "flow:identity.departments.public",
+      "invariants": [
+        "权限与资源：匿名可读；60 秒缓存。",
+        "响应与错误：200 {departments:[{id,name,tone,icon,description,titles:[{id,name,weight}]}]}；按 perm_groups.sort 升序（6 个新部门，dept.none 固定排最后），称号按 weight 升序。",
+        "数据与副作用：只读 perm_groups（kind=department/title），和 GET /api/public/org 读的旧 departments/titles 表并存，不互相影响；不需要会话。"
+      ],
+      "operation": "GET /api/public/departments",
+      "operationLabel": "GET /api/public/departments",
+      "operationNodeId": "route:GET /api/public/departments",
+      "reads": [
+        "perm_groups"
+      ],
+      "relatedDomains": [
+        "permissions"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/profile.test.ts"
+      ],
+      "title": "门户公开查看新权限体系的部门与称号",
+      "writes": []
     }
   ],
   "isolation": {
@@ -8773,6 +9027,16 @@
       "title": "发起 GitHub 登录"
     },
     {
+      "id": "flow:identity.avatar.read",
+      "kind": "flow",
+      "title": "按内容哈希公开取回账号头像"
+    },
+    {
+      "id": "flow:identity.avatar.upload",
+      "kind": "flow",
+      "title": "上传账号头像，转码后按内容哈希存"
+    },
+    {
       "id": "flow:identity.callback",
       "kind": "flow",
       "title": "校验登录回调，在一个事务里建号或找到账号并建立统一会话"
@@ -8781,6 +9045,11 @@
       "id": "flow:identity.current",
       "kind": "flow",
       "title": "读取统一登录状态与控制台入口"
+    },
+    {
+      "id": "flow:identity.departments.public",
+      "kind": "flow",
+      "title": "门户公开查看新权限体系的部门与称号"
     },
     {
       "id": "flow:identity.device.approve",
@@ -8838,6 +9107,11 @@
       "title": "跳转 Google 登录"
     },
     {
+      "id": "flow:identity.invite.redeem",
+      "kind": "flow",
+      "title": "注册用户凭邀请码换成极客班成员"
+    },
+    {
       "id": "flow:identity.invites.create",
       "kind": "flow",
       "title": "控制台新建注册邀请码"
@@ -8881,6 +9155,16 @@
       "id": "flow:identity.oidc.token",
       "kind": "flow",
       "title": "下游应用换令牌、撤销令牌（OIDC）"
+    },
+    {
+      "id": "flow:identity.profile.update",
+      "kind": "flow",
+      "title": "改昵称、简介、用户名与偏好"
+    },
+    {
+      "id": "flow:identity.profile.view",
+      "kind": "flow",
+      "title": "登录账号读取自己的资料"
     },
     {
       "id": "flow:identity.providers",
@@ -9233,6 +9517,11 @@
       "title": "GET /api/forum/topics/:topic_id/posts"
     },
     {
+      "id": "route:GET /api/identity/avatar/:file",
+      "kind": "route",
+      "title": "GET /api/identity/avatar/:file"
+    },
+    {
       "id": "route:GET /api/identity/device",
       "kind": "route",
       "title": "GET /api/identity/device"
@@ -9241,6 +9530,11 @@
       "id": "route:GET /api/identity/me",
       "kind": "route",
       "title": "GET /api/identity/me"
+    },
+    {
+      "id": "route:GET /api/identity/profile",
+      "kind": "route",
+      "title": "GET /api/identity/profile"
     },
     {
       "id": "route:GET /api/join/:token",
@@ -9266,6 +9560,11 @@
       "id": "route:GET /api/public/config",
       "kind": "route",
       "title": "GET /api/public/config"
+    },
+    {
+      "id": "route:GET /api/public/departments",
+      "kind": "route",
+      "title": "GET /api/public/departments"
     },
     {
       "id": "route:GET /api/public/gitlab/projects",
@@ -9518,6 +9817,11 @@
       "title": "HEAD /api/forum/state"
     },
     {
+      "id": "route:HEAD /api/identity/avatar/:file",
+      "kind": "route",
+      "title": "HEAD /api/identity/avatar/:file"
+    },
+    {
       "id": "route:HEAD /api/identity/device",
       "kind": "route",
       "title": "HEAD /api/identity/device"
@@ -9526,6 +9830,11 @@
       "id": "route:HEAD /api/identity/me",
       "kind": "route",
       "title": "HEAD /api/identity/me"
+    },
+    {
+      "id": "route:HEAD /api/identity/profile",
+      "kind": "route",
+      "title": "HEAD /api/identity/profile"
     },
     {
       "id": "route:HEAD /api/join/:token",
@@ -9551,6 +9860,11 @@
       "id": "route:HEAD /api/public/config",
       "kind": "route",
       "title": "HEAD /api/public/config"
+    },
+    {
+      "id": "route:HEAD /api/public/departments",
+      "kind": "route",
+      "title": "HEAD /api/public/departments"
     },
     {
       "id": "route:HEAD /api/public/gitlab/projects",
@@ -9718,6 +10032,11 @@
       "title": "PATCH /api/forum/posts/:post_id"
     },
     {
+      "id": "route:PATCH /api/identity/profile",
+      "kind": "route",
+      "title": "PATCH /api/identity/profile"
+    },
+    {
       "id": "route:PATCH /auth/forum/*",
       "kind": "route",
       "title": "PATCH /auth/forum/*"
@@ -9858,6 +10177,11 @@
       "title": "POST /api/identity/email/verify"
     },
     {
+      "id": "route:POST /api/identity/invite/redeem",
+      "kind": "route",
+      "title": "POST /api/identity/invite/redeem"
+    },
+    {
       "id": "route:POST /api/identity/password",
       "kind": "route",
       "title": "POST /api/identity/password"
@@ -9981,6 +10305,11 @@
       "id": "route:PUT /api/forum/me/avatar",
       "kind": "route",
       "title": "PUT /api/forum/me/avatar"
+    },
+    {
+      "id": "route:PUT /api/identity/avatar",
+      "kind": "route",
+      "title": "PUT /api/identity/avatar"
     },
     {
       "id": "route:PUT /auth/forum/*",
@@ -10443,6 +10772,11 @@
       "title": "tests/server/oidc.test.ts"
     },
     {
+      "id": "test:tests/server/profile.test.ts",
+      "kind": "test",
+      "title": "tests/server/profile.test.ts"
+    },
+    {
       "id": "test:tests/server/rate-limits.test.ts",
       "kind": "test",
       "title": "tests/server/rate-limits.test.ts"
@@ -10490,7 +10824,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "cfc0b47b915904baa83d88a8cfa0e4e37b93c018b689d2e7308b2090c02f3fe4",
+    "fingerprint": "0a037d1416222a8db08ea88a11a83dede8339e4213d80ff2bc4a2e4d1d945e24",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -11277,8 +11611,16 @@
         "sha256": "9f30e0d260533c8e2327609c20f0ab0e4daf65297bec9b87cb6daf7d87e8c9ef"
       },
       {
+        "path": "app/server/src/lib/account-avatar.ts",
+        "sha256": "caff679d0ee29081a94441a0d0c28552a3bca85498aa4714ce168c893a2b2a9a"
+      },
+      {
         "path": "app/server/src/lib/account-directory.ts",
         "sha256": "cb96661a651e17f75b4df3032d4e138422e1315ec9db7aeb82af2bbc9deeca20"
+      },
+      {
+        "path": "app/server/src/lib/account-profiles.ts",
+        "sha256": "c5ebcc6124472ddac16e206c06bafd6be2be9170d5afdd81d006dbcee9389ed9"
       },
       {
         "path": "app/server/src/lib/auth.ts",
@@ -11370,7 +11712,7 @@
       },
       {
         "path": "app/server/src/lib/identity-store.ts",
-        "sha256": "b9a697c21771b1ee6b5d562fced171c0a23a51b91fb219fb12bed4b51dc83c38"
+        "sha256": "ce17506de1a444dfe28c73221d16423d5873bd4eb94e3e4920d6f842eb51fcd7"
       },
       {
         "path": "app/server/src/lib/invite-codes.ts",
@@ -11410,7 +11752,7 @@
       },
       {
         "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
-        "sha256": "cac6a989380e1ac35bc409f8985c44e61a406922fbf6679b358a8f244947de79"
+        "sha256": "29a8a8946047ffd715a408ad355222301057dfc123962bf4720a3822e4e2f886"
       },
       {
         "path": "app/server/src/lib/oidc-provider.ts",
@@ -11446,7 +11788,7 @@
       },
       {
         "path": "app/server/src/middleware/http-policy.ts",
-        "sha256": "ac61eaccba972c6da96be4efb76e60ab34a953ae9f5c1351de99f63115eb730c"
+        "sha256": "402da8f1cd5fd984aeabd310f5839aee100e98b4aa7e7ae25d7a68ec040f613b"
       },
       {
         "path": "app/server/src/middleware/oauth-state.ts",
@@ -11467,6 +11809,10 @@
       {
         "path": "app/server/src/middleware/require-member.ts",
         "sha256": "4d544d45dc38b0807bb82e455b21c64f856f26c41f494a147b18555282facc2d"
+      },
+      {
+        "path": "app/server/src/middleware/require-permission.ts",
+        "sha256": "6de6ebc6307d753c78c77bf230ec7d220b4b7fd4784e489993a11055920eec30"
       },
       {
         "path": "app/server/src/middleware/turnstile.ts",
@@ -11574,7 +11920,7 @@
       },
       {
         "path": "app/server/src/routes/identity/contracts.ts",
-        "sha256": "8ff2005d006a30457edc3cc186dc2c9223786b3108404a19a5ea2843a747bf9f"
+        "sha256": "57fae45201f0df25798f348be9977b2a33de3592add4449cead6263dd1b3923e"
       },
       {
         "path": "app/server/src/routes/identity/device.ts",
@@ -11590,7 +11936,11 @@
       },
       {
         "path": "app/server/src/routes/identity/index.ts",
-        "sha256": "768f6c4e1ee6e57072b17fb386db161ed6364bb7721ad6b6e4eff0dbe98bfc3d"
+        "sha256": "35b88ca445d50461d02ec06adfe95ef79b784d324927b0afc9f13a16155d1b25"
+      },
+      {
+        "path": "app/server/src/routes/identity/profile.ts",
+        "sha256": "79601e4db9f275dc66cbb70e359fef30293ede5ef2f69891f7a1d2e0700f58f4"
       },
       {
         "path": "app/server/src/routes/identity/providers.ts",
@@ -11618,7 +11968,11 @@
       },
       {
         "path": "app/server/src/routes/portal/contracts.ts",
-        "sha256": "9e24eedb584d8776f5b2a1fd80f74f9e788745f7eeaf63dde7a46c5c7a019482"
+        "sha256": "8bd00719693d88a1f02c539d62636d8bd65af682c8d6dfe252f7925b5de104fe"
+      },
+      {
+        "path": "app/server/src/routes/portal/departments.ts",
+        "sha256": "99faf9e2f6460a329ccb7f8c55d5b3c9e9689e9b978a47a1e61d0cdd69e028bd"
       },
       {
         "path": "app/server/src/routes/portal/docs.ts",
@@ -11634,7 +11988,7 @@
       },
       {
         "path": "app/server/src/routes/portal/index.ts",
-        "sha256": "8f3a3e9b1114c48f740167975d8d0b70c9a04fb418af6fceb585696104eb9d69"
+        "sha256": "c9824b0a6ba097978366917fbd62349ce9636fd153e241467761e41150b28575"
       },
       {
         "path": "app/server/src/routes/portal/join.ts",
@@ -11646,7 +12000,7 @@
       },
       {
         "path": "app/server/src/services.ts",
-        "sha256": "bf6c2ccbf0a12732a26857fa90073e7ca0f52d89a3748cf9c251f12aa7c31230"
+        "sha256": "65a2469937df7e37cc2eaf64a39f34326e8c9c902d46ef11d1a9b2a75a57f819"
       },
       {
         "path": "app/web/Dockerfile",
@@ -11978,7 +12332,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "85091331432dcb5123d18b3348d40b589270c005a9fb967bbdc0d632d527f5d6"
+        "sha256": "c4c563a2f3ff6c0d0cd631fd85f70fb859958757f3e4598b70d1db18c9c9af0d"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -12014,7 +12368,7 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "f9ef6d742c42c7e44ad8a3b5d9e74ef400369e419791474c185ea16374fda63d"
+        "sha256": "ccf2acfe70919719469f66ab403f84f1cfe131a29c571a5124a0680115bb4a33"
       },
       {
         "path": "docs/services/server/data-model.md",
@@ -12022,7 +12376,7 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "ddd7353355cd2d8319fb72eb2007c45617e0a93db8410d7e04aedff952a7b373"
+        "sha256": "17ac1f1ef20a45127364b9d3ccb539b1a73392253b5d0fa3e6c84b269c3b366a"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -12183,6 +12537,10 @@
       {
         "path": "tests/server/oidc.test.ts",
         "sha256": "1fef6b02ea69d0aba40fe5693705a00fa3f779910a5f470a181fe54bf82ccfd8"
+      },
+      {
+        "path": "tests/server/profile.test.ts",
+        "sha256": "bea9ac68aafebbe9205e56bce57b07f34da86a64abd0dd6a3e7d2ff9a14b7d2b"
       },
       {
         "path": "tests/server/rate-limits.test.ts",
@@ -12893,6 +13251,18 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 31,
+          "path": "app/server/src/routes/identity/profile.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /api/identity/avatar/:file",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 91,
           "path": "app/server/src/routes/identity/device.ts"
         }
@@ -12911,6 +13281,18 @@
       ],
       "from": "application:server",
       "to": "route:GET /api/identity/me",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 18,
+          "path": "app/server/src/routes/identity/profile.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /api/identity/profile",
       "type": "provides"
     },
     {
@@ -12971,6 +13353,18 @@
       ],
       "from": "application:server",
       "to": "route:GET /api/public/config",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 17,
+          "path": "app/server/src/routes/portal/departments.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /api/public/departments",
       "type": "provides"
     },
     {
@@ -13577,6 +13971,18 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 31,
+          "path": "app/server/src/routes/identity/profile.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /api/identity/avatar/:file",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 91,
           "path": "app/server/src/routes/identity/device.ts"
         }
@@ -13595,6 +14001,18 @@
       ],
       "from": "application:server",
       "to": "route:HEAD /api/identity/me",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 18,
+          "path": "app/server/src/routes/identity/profile.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /api/identity/profile",
       "type": "provides"
     },
     {
@@ -13655,6 +14073,18 @@
       ],
       "from": "application:server",
       "to": "route:HEAD /api/public/config",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 17,
+          "path": "app/server/src/routes/portal/departments.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /api/public/departments",
       "type": "provides"
     },
     {
@@ -14057,6 +14487,18 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 20,
+          "path": "app/server/src/routes/identity/profile.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:PATCH /api/identity/profile",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 97,
           "path": "app/server/src/app.ts"
         }
@@ -14393,6 +14835,18 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 69,
+          "path": "app/server/src/routes/identity/profile.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:POST /api/identity/invite/redeem",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 100,
           "path": "app/server/src/routes/identity/account.ts"
         }
@@ -14687,6 +15141,18 @@
       ],
       "from": "application:server",
       "to": "route:PUT /api/forum/me/avatar",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 48,
+          "path": "app/server/src/routes/identity/profile.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:PUT /api/identity/avatar",
       "type": "provides"
     },
     {
@@ -17341,7 +17807,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 64,
+          "line": 66,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17369,7 +17835,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 64,
+          "line": 66,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17397,7 +17863,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 64,
+          "line": 66,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17425,7 +17891,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 64,
+          "line": 66,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17453,7 +17919,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 64,
+          "line": 66,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17481,7 +17947,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 64,
+          "line": 66,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17533,7 +17999,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 64,
+          "line": 66,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17561,7 +18027,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 64,
+          "line": 66,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17589,7 +18055,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 64,
+          "line": 66,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -17617,7 +18083,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 64,
+          "line": 66,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -18603,7 +19069,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 30,
+          "line": 37,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -18631,7 +19097,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 30,
+          "line": 37,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -18659,7 +19125,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 30,
+          "line": 37,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -18687,7 +19153,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 30,
+          "line": 37,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -18715,7 +19181,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 30,
+          "line": 37,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -18743,7 +19209,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 30,
+          "line": 37,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -18771,7 +19237,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 30,
+          "line": 37,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -18799,7 +19265,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 30,
+          "line": 37,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -18827,7 +19293,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 30,
+          "line": 37,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -18855,7 +19321,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 30,
+          "line": 37,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -18883,7 +19349,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 30,
+          "line": 37,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -18929,7 +19395,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 30,
+          "line": 37,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -35561,7 +36027,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -35601,7 +36067,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -35641,7 +36107,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -35681,7 +36147,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -35721,7 +36187,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -35761,7 +36227,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -35801,7 +36267,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -35841,7 +36307,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -35881,7 +36347,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -35921,7 +36387,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -35961,7 +36427,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36013,7 +36479,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36053,7 +36519,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36093,7 +36559,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36133,7 +36599,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36173,7 +36639,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 702,
+          "line": 726,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36433,7 +36899,7 @@
           "path": "app/server/src/routes/portal/gitlab.ts"
         },
         {
-          "line": 13,
+          "line": 20,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -37159,11 +37625,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 156,
+          "line": 166,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 482,
+          "line": 504,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37183,11 +37649,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 156,
+          "line": 166,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 482,
+          "line": 504,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37207,11 +37673,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 156,
+          "line": 166,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 482,
+          "line": 504,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37243,11 +37709,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 156,
+          "line": 166,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 482,
+          "line": 504,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37267,11 +37733,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 156,
+          "line": 166,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 482,
+          "line": 504,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37291,11 +37757,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 156,
+          "line": 166,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 482,
+          "line": 504,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37315,11 +37781,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 156,
+          "line": 166,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 482,
+          "line": 504,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37339,11 +37805,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 156,
+          "line": 166,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 482,
+          "line": 504,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37393,11 +37859,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 154,
+          "line": 164,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37413,11 +37879,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 154,
+          "line": 164,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37433,11 +37899,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 154,
+          "line": 164,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37453,11 +37919,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 154,
+          "line": 164,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37479,11 +37945,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 154,
+          "line": 164,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37499,11 +37965,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 154,
+          "line": 164,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37519,11 +37985,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 154,
+          "line": 164,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37569,11 +38035,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 155,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 448,
+          "line": 470,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37589,11 +38055,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 155,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 448,
+          "line": 470,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37609,11 +38075,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 155,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 448,
+          "line": 470,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37635,11 +38101,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 155,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 448,
+          "line": 470,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37655,11 +38121,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 155,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 448,
+          "line": 470,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37675,11 +38141,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 155,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 448,
+          "line": 470,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37695,11 +38161,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 155,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 448,
+          "line": 470,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37715,11 +38181,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 155,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 448,
+          "line": 470,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37735,11 +38201,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 155,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 448,
+          "line": 470,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37755,11 +38221,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 155,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 448,
+          "line": 470,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -37805,11 +38271,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 157,
+          "line": 167,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 422,
+          "line": 444,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37829,11 +38295,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 157,
+          "line": 167,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 422,
+          "line": 444,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37853,11 +38319,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 157,
+          "line": 167,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 422,
+          "line": 444,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37889,11 +38355,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 157,
+          "line": 167,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 422,
+          "line": 444,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37913,11 +38379,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 157,
+          "line": 167,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 422,
+          "line": 444,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37937,11 +38403,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 157,
+          "line": 167,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 422,
+          "line": 444,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37961,11 +38427,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 157,
+          "line": 167,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 422,
+          "line": 444,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -37985,11 +38451,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 157,
+          "line": 167,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 422,
+          "line": 444,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38045,11 +38511,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 153,
+          "line": 163,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 525,
+          "line": 547,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38093,11 +38559,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 153,
+          "line": 163,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 525,
+          "line": 547,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38141,11 +38607,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 153,
+          "line": 163,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 525,
+          "line": 547,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38189,11 +38655,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 153,
+          "line": 163,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 525,
+          "line": 547,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38255,11 +38721,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 153,
+          "line": 163,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 525,
+          "line": 547,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38303,11 +38769,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 153,
+          "line": 163,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 525,
+          "line": 547,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38391,6 +38857,162 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:identity.avatar.read",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.avatar.read",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.avatar.read",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.avatar.read",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 39,
+          "path": "app/server/src/middleware/http-policy.ts"
+        }
+      ],
+      "from": "flow:identity.avatar.read",
+      "to": "table:account_avatars",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.avatar.read",
+      "to": "test:tests/server/profile.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 31,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 39,
+          "path": "app/server/src/middleware/http-policy.ts"
+        }
+      ],
+      "from": "flow:identity.avatar.read",
+      "to": "route:GET /api/identity/avatar/:file",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.avatar.upload",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.avatar.upload",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.avatar.upload",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.avatar.upload",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/server/src/lib/account-avatar.ts"
+        }
+      ],
+      "from": "flow:identity.avatar.upload",
+      "to": "table:account_profiles",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.avatar.upload",
+      "to": "test:tests/server/profile.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/server/src/lib/account-avatar.ts"
+        }
+      ],
+      "from": "flow:identity.avatar.upload",
+      "to": "route:PUT /api/identity/avatar",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/server/src/lib/account-avatar.ts"
+        }
+      ],
+      "from": "flow:identity.avatar.upload",
+      "to": "table:account_avatars",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/server/src/lib/account-avatar.ts"
+        }
+      ],
+      "from": "flow:identity.avatar.upload",
+      "to": "table:account_profiles",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
       "from": "flow:identity.callback",
       "to": "domain:identity",
       "type": "belongs-to"
@@ -38443,7 +39065,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 220,
+          "line": 240,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38475,7 +39097,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 220,
+          "line": 240,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38525,7 +39147,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 220,
+          "line": 240,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38557,7 +39179,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 220,
+          "line": 240,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38589,7 +39211,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 220,
+          "line": 240,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38621,7 +39243,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 220,
+          "line": 240,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38653,7 +39275,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 220,
+          "line": 240,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38685,7 +39307,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 220,
+          "line": 240,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38717,7 +39339,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 220,
+          "line": 240,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -38749,7 +39371,7 @@
           "path": "app/server/src/lib/auth.ts"
         },
         {
-          "line": 220,
+          "line": 240,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -39755,6 +40377,68 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:identity.departments.public",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.departments.public",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.departments.public",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.departments.public",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 17,
+          "path": "app/server/src/routes/portal/departments.ts"
+        },
+        {
+          "line": 13,
+          "path": "app/server/src/routes/portal/contracts.ts"
+        }
+      ],
+      "from": "flow:identity.departments.public",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.departments.public",
+      "to": "test:tests/server/profile.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 17,
+          "path": "app/server/src/routes/portal/departments.ts"
+        },
+        {
+          "line": 13,
+          "path": "app/server/src/routes/portal/contracts.ts"
+        }
+      ],
+      "from": "flow:identity.departments.public",
+      "to": "route:GET /api/public/departments",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
       "from": "flow:identity.device.approve",
       "to": "domain:identity",
       "type": "belongs-to"
@@ -39797,7 +40481,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 120,
+          "line": 130,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -39837,7 +40521,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 120,
+          "line": 130,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -39865,7 +40549,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 120,
+          "line": 130,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -39893,7 +40577,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 120,
+          "line": 130,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -39951,7 +40635,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 106,
+          "line": 116,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -39971,7 +40655,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 106,
+          "line": 116,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40015,7 +40699,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 111,
+          "line": 121,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40035,7 +40719,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 111,
+          "line": 121,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40055,7 +40739,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 111,
+          "line": 121,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40081,7 +40765,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 111,
+          "line": 121,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40101,7 +40785,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 111,
+          "line": 121,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40145,7 +40829,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 125,
+          "line": 135,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40165,7 +40849,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 125,
+          "line": 135,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40185,7 +40869,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 125,
+          "line": 135,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40211,7 +40895,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 125,
+          "line": 135,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40261,7 +40945,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 116,
+          "line": 126,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40301,7 +40985,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 116,
+          "line": 126,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40359,11 +41043,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 139,
+          "line": 149,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 386,
+          "line": 408,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40383,11 +41067,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 139,
+          "line": 149,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 386,
+          "line": 408,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40419,11 +41103,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 139,
+          "line": 149,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 386,
+          "line": 408,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40443,11 +41127,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 139,
+          "line": 149,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 386,
+          "line": 408,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40467,11 +41151,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 139,
+          "line": 149,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 386,
+          "line": 408,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40491,11 +41175,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 139,
+          "line": 149,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 386,
+          "line": 408,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40557,11 +41241,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 144,
+          "line": 154,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 430,
+          "line": 452,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40585,11 +41269,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 144,
+          "line": 154,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 430,
+          "line": 452,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40613,11 +41297,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 144,
+          "line": 154,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 430,
+          "line": 452,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40653,11 +41337,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 144,
+          "line": 154,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 430,
+          "line": 452,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40681,11 +41365,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 144,
+          "line": 154,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 430,
+          "line": 452,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40709,11 +41393,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 144,
+          "line": 154,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 430,
+          "line": 452,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40737,11 +41421,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 144,
+          "line": 154,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 430,
+          "line": 452,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40765,11 +41449,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 144,
+          "line": 154,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 430,
+          "line": 452,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40793,11 +41477,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 144,
+          "line": 154,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 430,
+          "line": 452,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -40857,7 +41541,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 129,
+          "line": 139,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40893,7 +41577,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 129,
+          "line": 139,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40941,7 +41625,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 129,
+          "line": 139,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -40977,7 +41661,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 129,
+          "line": 139,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -41049,11 +41733,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 134,
+          "line": 144,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 382,
+          "line": 404,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41073,11 +41757,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 134,
+          "line": 144,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 382,
+          "line": 404,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41097,11 +41781,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 134,
+          "line": 144,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 382,
+          "line": 404,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41121,11 +41805,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 134,
+          "line": 144,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 382,
+          "line": 404,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41157,11 +41841,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 134,
+          "line": 144,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 382,
+          "line": 404,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41181,11 +41865,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 134,
+          "line": 144,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 382,
+          "line": 404,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41205,11 +41889,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 134,
+          "line": 144,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 382,
+          "line": 404,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41229,11 +41913,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 134,
+          "line": 144,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 382,
+          "line": 404,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41253,11 +41937,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 134,
+          "line": 144,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 382,
+          "line": 404,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41277,11 +41961,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 134,
+          "line": 144,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 382,
+          "line": 404,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41301,11 +41985,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 134,
+          "line": 144,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 382,
+          "line": 404,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41325,11 +42009,11 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 134,
+          "line": 144,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 382,
+          "line": 404,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41379,11 +42063,11 @@
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 152,
+          "line": 162,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 390,
+          "line": 412,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41407,11 +42091,11 @@
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 152,
+          "line": 162,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 390,
+          "line": 412,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41435,11 +42119,11 @@
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 152,
+          "line": 162,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 390,
+          "line": 412,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41469,11 +42153,11 @@
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 152,
+          "line": 162,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 390,
+          "line": 412,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41497,11 +42181,11 @@
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 152,
+          "line": 162,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 390,
+          "line": 412,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41525,11 +42209,11 @@
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 152,
+          "line": 162,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 390,
+          "line": 412,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41553,11 +42237,11 @@
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 152,
+          "line": 162,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 390,
+          "line": 412,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41581,11 +42265,11 @@
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 152,
+          "line": 162,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 390,
+          "line": 412,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41609,11 +42293,11 @@
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 152,
+          "line": 162,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 390,
+          "line": 412,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41637,11 +42321,11 @@
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 152,
+          "line": 162,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 390,
+          "line": 412,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -41707,7 +42391,7 @@
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 150,
+          "line": 160,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -41718,6 +42402,100 @@
       "from": "flow:identity.google.start",
       "to": "route:GET /auth/google",
       "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.invite.redeem",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.invite.redeem",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.invite.redeem",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.invite.redeem",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 70,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 215,
+          "path": "app/server/src/lib/permissions.ts"
+        }
+      ],
+      "from": "flow:identity.invite.redeem",
+      "to": "table:perm_members",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.invite.redeem",
+      "to": "test:tests/server/profile.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 70,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 215,
+          "path": "app/server/src/lib/permissions.ts"
+        }
+      ],
+      "from": "flow:identity.invite.redeem",
+      "to": "route:POST /api/identity/invite/redeem",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 70,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 215,
+          "path": "app/server/src/lib/permissions.ts"
+        }
+      ],
+      "from": "flow:identity.invite.redeem",
+      "to": "table:invite_codes",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 70,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 215,
+          "path": "app/server/src/lib/permissions.ts"
+        }
+      ],
+      "from": "flow:identity.invite.redeem",
+      "to": "table:perm_members",
+      "type": "writes"
     },
     {
       "basis": "declaration",
@@ -43435,7 +44213,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 696,
+          "line": 720,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -43483,7 +44261,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 696,
+          "line": 720,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -43531,7 +44309,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 696,
+          "line": 720,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -43579,7 +44357,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 696,
+          "line": 720,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -43627,7 +44405,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 696,
+          "line": 720,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -43675,7 +44453,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 696,
+          "line": 720,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -43723,7 +44501,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 696,
+          "line": 720,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -43771,7 +44549,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 696,
+          "line": 720,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -43825,7 +44603,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 696,
+          "line": 720,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -43873,7 +44651,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 696,
+          "line": 720,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -43921,7 +44699,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 696,
+          "line": 720,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -43969,7 +44747,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 696,
+          "line": 720,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -44257,6 +45035,162 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:identity.profile.update",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.profile.update",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.profile.update",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.profile.update",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 22,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 39,
+          "path": "app/server/src/lib/account-profiles.ts"
+        }
+      ],
+      "from": "flow:identity.profile.update",
+      "to": "table:account_profiles",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.profile.update",
+      "to": "test:tests/server/profile.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 22,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 39,
+          "path": "app/server/src/lib/account-profiles.ts"
+        }
+      ],
+      "from": "flow:identity.profile.update",
+      "to": "route:PATCH /api/identity/profile",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 22,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 39,
+          "path": "app/server/src/lib/account-profiles.ts"
+        }
+      ],
+      "from": "flow:identity.profile.update",
+      "to": "table:account_profiles",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.profile.view",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.profile.view",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.profile.view",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.profile.view",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 18,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/server/src/lib/account-profiles.ts"
+        }
+      ],
+      "from": "flow:identity.profile.view",
+      "to": "table:account_profiles",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.profile.view",
+      "to": "test:tests/server/profile.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 18,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/server/src/lib/account-profiles.ts"
+        }
+      ],
+      "from": "flow:identity.profile.view",
+      "to": "route:GET /api/identity/profile",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 18,
+          "path": "app/server/src/routes/identity/profile.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/server/src/lib/account-profiles.ts"
+        }
+      ],
+      "from": "flow:identity.profile.view",
+      "to": "table:account_profiles",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
       "from": "flow:identity.providers",
       "to": "domain:identity",
       "type": "belongs-to"
@@ -44305,11 +45239,11 @@
           "path": "app/server/src/routes/identity/providers.ts"
         },
         {
-          "line": 101,
+          "line": 111,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 11,
+          "line": 12,
           "path": "app/server/src/routes/identity/index.ts"
         },
         {
@@ -44361,7 +45295,7 @@
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
-          "line": 281,
+          "line": 302,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -44395,7 +45329,7 @@
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
-          "line": 281,
+          "line": 302,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -44411,7 +45345,7 @@
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
-          "line": 281,
+          "line": 302,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -44427,7 +45361,7 @@
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
-          "line": 281,
+          "line": 302,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -44443,7 +45377,7 @@
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
-          "line": 281,
+          "line": 302,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -46965,7 +47899,7 @@
           "path": "app/server/src/routes/console/people.ts"
         },
         {
-          "line": 631,
+          "line": 654,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -46997,7 +47931,7 @@
           "path": "app/server/src/routes/console/people.ts"
         },
         {
-          "line": 631,
+          "line": 654,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -47029,7 +47963,7 @@
           "path": "app/server/src/routes/console/people.ts"
         },
         {
-          "line": 631,
+          "line": 654,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -47061,7 +47995,7 @@
           "path": "app/server/src/routes/console/people.ts"
         },
         {
-          "line": 631,
+          "line": 654,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -47093,7 +48027,7 @@
           "path": "app/server/src/routes/console/people.ts"
         },
         {
-          "line": 631,
+          "line": 654,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -47125,7 +48059,7 @@
           "path": "app/server/src/routes/console/people.ts"
         },
         {
-          "line": 631,
+          "line": 654,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -47169,7 +48103,7 @@
           "path": "app/server/src/routes/console/people.ts"
         },
         {
-          "line": 631,
+          "line": 654,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -47201,7 +48135,7 @@
           "path": "app/server/src/routes/console/people.ts"
         },
         {
-          "line": 631,
+          "line": 654,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -47233,7 +48167,7 @@
           "path": "app/server/src/routes/console/people.ts"
         },
         {
-          "line": 631,
+          "line": 654,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -47265,7 +48199,7 @@
           "path": "app/server/src/routes/console/people.ts"
         },
         {
-          "line": 631,
+          "line": 654,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -47297,7 +48231,7 @@
           "path": "app/server/src/routes/console/people.ts"
         },
         {
-          "line": 631,
+          "line": 654,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -48367,6 +49301,12 @@
     },
     {
       "basis": "declaration",
+      "from": "route:GET /api/identity/avatar/:file",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:GET /api/identity/device",
       "to": "domain:identity",
       "type": "belongs-to"
@@ -48374,6 +49314,12 @@
     {
       "basis": "declaration",
       "from": "route:GET /api/identity/me",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:GET /api/identity/profile",
       "to": "domain:identity",
       "type": "belongs-to"
     },
@@ -48405,6 +49351,12 @@
       "basis": "declaration",
       "from": "route:GET /api/public/config",
       "to": "domain:platform",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:GET /api/public/departments",
+      "to": "domain:identity",
       "type": "belongs-to"
     },
     {
@@ -48865,6 +49817,12 @@
     },
     {
       "basis": "declaration",
+      "from": "route:HEAD /api/identity/avatar/:file",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:HEAD /api/identity/device",
       "to": "domain:identity",
       "type": "belongs-to"
@@ -48872,6 +49830,12 @@
     {
       "basis": "declaration",
       "from": "route:HEAD /api/identity/me",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:HEAD /api/identity/profile",
       "to": "domain:identity",
       "type": "belongs-to"
     },
@@ -48903,6 +49867,12 @@
       "basis": "declaration",
       "from": "route:HEAD /api/public/config",
       "to": "domain:platform",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:HEAD /api/public/departments",
+      "to": "domain:identity",
       "type": "belongs-to"
     },
     {
@@ -49153,6 +50123,12 @@
     },
     {
       "basis": "declaration",
+      "from": "route:PATCH /api/identity/profile",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:PATCH /auth/forum/*",
       "to": "domain:platform",
       "type": "belongs-to"
@@ -49345,6 +50321,12 @@
     },
     {
       "basis": "declaration",
+      "from": "route:POST /api/identity/invite/redeem",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:POST /api/identity/password",
       "to": "domain:identity",
       "type": "belongs-to"
@@ -49491,6 +50473,12 @@
       "basis": "declaration",
       "from": "route:PUT /api/forum/me/avatar",
       "to": "domain:forum",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:PUT /api/identity/avatar",
+      "to": "domain:identity",
       "type": "belongs-to"
     },
     {
@@ -57304,6 +58292,77 @@
           "params",
           "querystring"
         ],
+        "responseSchema": false
+      },
+      "domain": "identity",
+      "id": "route:GET /api/identity/avatar/:file",
+      "key": "GET /api/identity/avatar/:file",
+      "kind": "business",
+      "method": "GET",
+      "path": "/api/identity/avatar/:file",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "pattern": "^[0-9a-f]{64}\\.webp$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "file"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 31,
+        "path": "app/server/src/routes/identity/profile.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
         "responseSchema": true
       },
       "domain": "identity",
@@ -57747,6 +58806,136 @@
       "source": {
         "line": 36,
         "path": "app/server/src/routes/identity/account.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "identity",
+      "id": "route:GET /api/identity/profile",
+      "key": "GET /api/identity/profile",
+      "kind": "business",
+      "method": "GET",
+      "path": "/api/identity/profile",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "avatar_url": {
+                "anyOf": [
+                  {
+                    "maxLength": 500,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "bio": {
+                "maxLength": 200,
+                "minLength": 0,
+                "type": "string"
+              },
+              "display_name": {
+                "maxLength": 32,
+                "minLength": 1,
+                "type": "string"
+              },
+              "prefs": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "username": {
+                "maxLength": 24,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "username",
+              "display_name",
+              "bio",
+              "avatar_url",
+              "prefs"
+            ],
+            "type": "object"
+          },
+          "4xx": {
+            "additionalProperties": true,
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "error_description": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          "5xx": {
+            "additionalProperties": true,
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "error_description": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 18,
+        "path": "app/server/src/routes/identity/profile.ts"
       }
     },
     {
@@ -58588,6 +59777,142 @@
       "source": {
         "line": 50,
         "path": "app/server/src/routes/portal/join.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "identity",
+      "id": "route:GET /api/public/departments",
+      "key": "GET /api/public/departments",
+      "kind": "business",
+      "method": "GET",
+      "path": "/api/public/departments",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "departments": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "description": {
+                      "maxLength": 500,
+                      "minLength": 0,
+                      "type": "string"
+                    },
+                    "icon": {
+                      "anyOf": [
+                        {
+                          "maxLength": 64,
+                          "minLength": 0,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "id": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "name": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "titles": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "maxLength": 64,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "name": {
+                            "maxLength": 64,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "weight": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "weight"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "tone": {
+                      "anyOf": [
+                        {
+                          "maxLength": 20,
+                          "minLength": 0,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "tone",
+                    "icon",
+                    "description",
+                    "titles"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "departments"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 17,
+        "path": "app/server/src/routes/portal/departments.ts"
       }
     },
     {
@@ -62036,6 +63361,78 @@
         "responseSchema": false
       },
       "domain": "identity",
+      "id": "route:HEAD /api/identity/avatar/:file",
+      "key": "HEAD /api/identity/avatar/:file",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/api/identity/avatar/:file",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "file"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 31,
+        "path": "app/server/src/routes/identity/profile.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "identity",
       "id": "route:HEAD /api/identity/device",
       "key": "HEAD /api/identity/device",
       "kind": "business",
@@ -62145,6 +63542,70 @@
       "source": {
         "line": 36,
         "path": "app/server/src/routes/identity/account.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "identity",
+      "id": "route:HEAD /api/identity/profile",
+      "key": "HEAD /api/identity/profile",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/api/identity/profile",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 18,
+        "path": "app/server/src/routes/identity/profile.ts"
       }
     },
     {
@@ -62480,6 +63941,70 @@
       "source": {
         "line": 50,
         "path": "app/server/src/routes/portal/join.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "identity",
+      "id": "route:HEAD /api/public/departments",
+      "key": "HEAD /api/public/departments",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/api/public/departments",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 17,
+        "path": "app/server/src/routes/portal/departments.ts"
       }
     },
     {
@@ -65338,6 +66863,192 @@
       "source": {
         "line": 78,
         "path": "app/server/src/routes/forum-api/posts.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring",
+          "body"
+        ],
+        "responseSchema": true
+      },
+      "domain": "identity",
+      "id": "route:PATCH /api/identity/profile",
+      "key": "PATCH /api/identity/profile",
+      "kind": "business",
+      "method": "PATCH",
+      "path": "/api/identity/profile",
+      "registration": "explicit",
+      "schema": {
+        "body": {
+          "additionalProperties": false,
+          "properties": {
+            "bio": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            },
+            "display_name": {
+              "maxLength": 32,
+              "minLength": 1,
+              "type": "string"
+            },
+            "prefs": {
+              "additionalProperties": true,
+              "properties": {
+                "forum_theme": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "sky",
+                        "light",
+                        "dark"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "start_note_seen_at": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "type": "object"
+            },
+            "username": {
+              "pattern": "^[a-z0-9_]{3,24}$",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "avatar_url": {
+                "anyOf": [
+                  {
+                    "maxLength": 500,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "bio": {
+                "maxLength": 200,
+                "minLength": 0,
+                "type": "string"
+              },
+              "display_name": {
+                "maxLength": 32,
+                "minLength": 1,
+                "type": "string"
+              },
+              "prefs": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "username": {
+                "maxLength": 24,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "username",
+              "display_name",
+              "bio",
+              "avatar_url",
+              "prefs"
+            ],
+            "type": "object"
+          },
+          "4xx": {
+            "additionalProperties": true,
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "error_description": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          "5xx": {
+            "additionalProperties": true,
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "error_description": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 20,
+        "path": "app/server/src/routes/identity/profile.ts"
       }
     },
     {
@@ -69680,6 +71391,120 @@
       "source": {
         "line": 65,
         "path": "app/server/src/routes/identity/account.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring",
+          "body"
+        ],
+        "responseSchema": true
+      },
+      "domain": "identity",
+      "id": "route:POST /api/identity/invite/redeem",
+      "key": "POST /api/identity/invite/redeem",
+      "kind": "business",
+      "method": "POST",
+      "path": "/api/identity/invite/redeem",
+      "registration": "explicit",
+      "schema": {
+        "body": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "maxLength": 40,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [
+            "code"
+          ],
+          "type": "object"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "level": {
+                "const": "member",
+                "type": "string"
+              }
+            },
+            "required": [
+              "level"
+            ],
+            "type": "object"
+          },
+          "4xx": {
+            "additionalProperties": true,
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "error_description": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          "5xx": {
+            "additionalProperties": true,
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "error_description": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 69,
+        "path": "app/server/src/routes/identity/profile.ts"
       }
     },
     {
@@ -74375,6 +76200,113 @@
       },
       "contractCoverage": {
         "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "identity",
+      "id": "route:PUT /api/identity/avatar",
+      "key": "PUT /api/identity/avatar",
+      "kind": "business",
+      "method": "PUT",
+      "path": "/api/identity/avatar",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "avatar_url": {
+                "anyOf": [
+                  {
+                    "maxLength": 500,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "avatar_url"
+            ],
+            "type": "object"
+          },
+          "4xx": {
+            "additionalProperties": true,
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "error_description": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          "5xx": {
+            "additionalProperties": true,
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "error_description": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 48,
+        "path": "app/server/src/routes/identity/profile.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
         "requestSections": [],
         "responseSchema": false
       },
@@ -76150,6 +78082,22 @@
         "public_content",
         "recruitment"
       ],
+      "path": "app/server/src/middleware/require-permission.ts"
+    },
+    {
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "github",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
       "path": "app/server/src/middleware/turnstile.ts"
     },
     {
@@ -76348,6 +78296,12 @@
       "domains": [
         "identity"
       ],
+      "path": "app/server/src/routes/identity/profile.ts"
+    },
+    {
+      "domains": [
+        "identity"
+      ],
       "path": "app/server/src/routes/identity/providers.ts"
     },
     {
@@ -76385,6 +78339,7 @@
         "competitions",
         "feedback",
         "gitlab",
+        "identity",
         "invitations",
         "organization",
         "platform",
@@ -76392,6 +78347,12 @@
         "recruitment"
       ],
       "path": "app/server/src/routes/portal/contracts.ts"
+    },
+    {
+      "domains": [
+        "identity"
+      ],
+      "path": "app/server/src/routes/portal/departments.ts"
     },
     {
       "domains": [
@@ -76416,6 +78377,7 @@
         "competitions",
         "feedback",
         "gitlab",
+        "identity",
         "invitations",
         "organization",
         "platform",
@@ -86276,6 +88238,8 @@
     }
   ],
   "unmappedSources": [
+    "app/server/src/lib/account-avatar.ts",
+    "app/server/src/lib/account-profiles.ts",
     "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
     "app/server/src/lib/permission-nodes.ts",
     "app/server/src/lib/permissions.ts"

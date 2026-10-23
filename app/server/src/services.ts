@@ -13,6 +13,8 @@ import { createGithub } from "./lib/github.js";
 import { createGithubConnection } from "./lib/github-connection.js";
 import { createCache } from "./lib/cache.js";
 import { createRoleStore } from "./lib/role-store.js";
+import { createPermissionEngine } from "./lib/permissions.js";
+import { createAccountProfiles } from "./lib/account-profiles.js";
 import { createAccess } from "./lib/access.js";
 import { createFeedbackStore } from "./lib/feedback-store.js";
 import { createCompetitionStore } from "./lib/competition-store.js";
@@ -120,6 +122,9 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
       consoleOrg: config.consoleOrg, getOrgRole: github.getOrgRole, cached: cache.cached, roles,
       membership: { of: identity.membershipOf, unrecorded: identity.roleUnrecorded, record: identity.recordOrgRole },
     }),
+    // #274 新权限引擎：和上面的 access（旧 capabilities）并存，中间件/路由逐步切过去，见 lib/permissions.ts。
+    permissions: createPermissionEngine(storage.db, overrides.clock),
+    profiles: createAccountProfiles(storage.db, { clock: overrides.clock }),
     feedback,
     forum,
     mail,

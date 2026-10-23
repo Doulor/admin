@@ -281,7 +281,9 @@
     "app/server/src/routes/console/invites.ts": "identity",
     "app/server/src/routes/oidc/index.ts": "identity",
     "app/server/src/routes/console/gitlab.ts": "gitlab",
-    "app/server/src/routes/portal/gitlab.ts": "gitlab"
+    "app/server/src/routes/portal/gitlab.ts": "gitlab",
+    "app/server/src/routes/portal/departments.ts": "identity",
+    "app/server/src/routes/identity/profile.ts": "identity"
   },
   "routeOverrides": {
     "GET /api/public/config": "platform"
@@ -7529,6 +7531,242 @@
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "identity.profile.view",
+      "title": "登录账号读取自己的资料",
+      "domain": "identity",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/identity/profile",
+      "capabilities": [],
+      "reads": [
+        "account_profiles"
+      ],
+      "writes": [
+        "account_profiles"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：任何有效会话都能读，不要控制台能力；没登录 401 unauthenticated。",
+        "响应与错误：200 {username,display_name,bio,avatar_url,prefs}；账号第一次读时 account_profiles 没有行，由 ensure() 兜底插入一行默认资料（用户名按账号 id 派生并转小写），不是 500。",
+        "数据与副作用：读 account_profiles，缺行时顺带写一行默认资料；不触发权限判定、不审计。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/identity/profile.ts",
+          "needle": "app.get(\"/api/identity/profile\", { preHandler: requireAuth }, async req => profiles.get(req.session!.account_id));"
+        },
+        {
+          "path": "app/server/src/lib/account-profiles.ts",
+          "needle": "export function createAccountProfiles("
+        }
+      ],
+      "tests": [
+        "tests/server/profile.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "identity.profile.update",
+      "title": "改昵称、简介、用户名与偏好",
+      "domain": "identity",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PATCH /api/identity/profile",
+      "capabilities": [],
+      "reads": [
+        "account_profiles"
+      ],
+      "writes": [
+        "account_profiles"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要新权限体系的节点 account.profile.edit（由 require-permission.ts 判定，不是旧的 Capability）；每账号每小时 30 次，按账号限流（config.rateLimit.hook 设成 preHandler，在 requirePermission 填好 req.session 之后才取 key，否则 @fastify/rate-limit 默认的 onRequest 比它早）。",
+        "响应与错误：body 任选 display_name/bio/username/prefs，回同 GET 形状；prefs 是合并写不是整份替换；username 必须 ^[a-z0-9_]{3,24}$，被别的账号占用（不分大小写）409 username_taken，改回自己原来的名字不算占用。",
+        "数据与副作用：写 account_profiles 与审计 profile.update（记改了哪些字段）。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/identity/profile.ts",
+          "needle": "{ preHandler: requirePermission(\"account.profile.edit\"), config: { rateLimit: { max: 30, timeWindow: \"1 hour\", keyGenerator: byAccount, hook: \"preHandler\" } } },"
+        },
+        {
+          "path": "app/server/src/lib/account-profiles.ts",
+          "needle": "function update(accountId: string, patch: ProfilePatch): ProfileUpdateResult {"
+        }
+      ],
+      "tests": [
+        "tests/server/profile.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "identity.avatar.read",
+      "title": "按内容哈希公开取回账号头像",
+      "domain": "identity",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/identity/avatar/:file",
+      "capabilities": [],
+      "reads": [
+        "account_avatars"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：匿名；:file 必须匹配 ^[0-9a-f]{64}\\.webp$，不接受别的路径形式。",
+        "响应与错误：200 image/webp 二进制，Cache-Control: public, max-age=31536000, immutable、Content-Security-Policy: default-src 'none'；哈希不存在 404 not_found；这条路径和 /api/forum/avatars/ 一样是 Cache-Control: no-store 的例外（middleware/http-policy.ts）。",
+        "数据与副作用：只读 account_avatars，不解析会话、不审计。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/identity/profile.ts",
+          "needle": "app.get<{ Params: { file: string } }>(\"/api/identity/avatar/:file\", async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/middleware/http-policy.ts",
+          "needle": "req.url.startsWith(\"/api/forum/avatars/\") || req.url.startsWith(\"/api/identity/avatar/\")"
+        }
+      ],
+      "tests": [
+        "tests/server/profile.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "identity.avatar.upload",
+      "title": "上传账号头像，转码后按内容哈希存",
+      "domain": "identity",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PUT /api/identity/avatar",
+      "capabilities": [],
+      "reads": [
+        "account_profiles"
+      ],
+      "writes": [
+        "account_profiles",
+        "account_avatars"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 account.profile.edit；每账号每小时 10 次（同 PATCH 资料的 preHandler 限流写法）；请求体就是图片本身（png/jpeg/webp/gif），≤2MB，超限由内容类型解析器 413 avatar_too_large。",
+        "响应与错误：sharp 转正方形 512×512 webp、按内容 sha256 寻址，回 {avatar_url}；类型不支持 415 unsupported_media_type；字节解不出图片 400 invalid_image；超过 4096×4096 像素 400 image_too_large。",
+        "数据与副作用：写 account_avatars（按哈希去重）与 account_profiles.avatar_hash，审计 profile.avatar。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/identity/profile.ts",
+          "needle": "{ preHandler: requirePermission(\"account.profile.edit\"), errorHandler: tooLarge, config: { rateLimit: { max: 10, timeWindow: \"1 hour\", keyGenerator: byAccount, hook: \"preHandler\" } } },"
+        },
+        {
+          "path": "app/server/src/lib/account-avatar.ts",
+          "needle": "export async function processAccountAvatar(input: Buffer): Promise<{ hash: string; data: Buffer }> {"
+        }
+      ],
+      "tests": [
+        "tests/server/profile.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "identity.invite.redeem",
+      "title": "注册用户凭邀请码换成极客班成员",
+      "domain": "identity",
+      "relatedDomains": [
+        "permissions"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/identity/invite/redeem",
+      "capabilities": [],
+      "reads": [
+        "perm_members"
+      ],
+      "writes": [
+        "perm_members",
+        "invite_codes"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 account.invite.redeem；每账号每小时 10 次。",
+        "响应与错误：body {code}；成功 200 {level:\"member\"}；码不对或用完 400 invite_invalid；已经是成员 409 already_member，不碰邀请码计数。",
+        "数据与副作用：一个事务里先查 perm_members 是否已是 level.member、兑换 invite_codes、按 setExclusiveGroupMembership 换组（同类分组唯一，换组前先删旧的），事务外再让权限引擎的 revision 失效（permissions.bump()），写审计 invite.redeem。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/identity/profile.ts",
+          "needle": "\"/api/identity/invite/redeem\","
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function setExclusiveGroupMembership("
+        }
+      ],
+      "tests": [
+        "tests/server/profile.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "identity.departments.public",
+      "title": "门户公开查看新权限体系的部门与称号",
+      "domain": "identity",
+      "relatedDomains": [
+        "permissions"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/public/departments",
+      "capabilities": [],
+      "reads": [
+        "perm_groups"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：匿名可读；60 秒缓存。",
+        "响应与错误：200 {departments:[{id,name,tone,icon,description,titles:[{id,name,weight}]}]}；按 perm_groups.sort 升序（6 个新部门，dept.none 固定排最后），称号按 weight 升序。",
+        "数据与副作用：只读 perm_groups（kind=department/title），和 GET /api/public/org 读的旧 departments/titles 表并存，不互相影响；不需要会话。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/portal/departments.ts",
+          "needle": "app.get(\"/api/public/departments\", async () => cache.cached(CACHE_KEY, CACHE_TTL_MS, async () => {"
+        },
+        {
+          "path": "app/server/src/routes/portal/contracts.ts",
+          "needle": "\"GET /api/public/departments\": { querystring: object({}), response: { 200: object({"
+        }
+      ],
+      "tests": [
+        "tests/server/profile.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
       ]
     }
   ],

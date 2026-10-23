@@ -3,6 +3,7 @@ import type Database from "better-sqlite3";
 import type { AuditActor } from "./db.js";
 import { redeemInvite } from "./invite-codes.js";
 import { maskEmail } from "./email-login.js";
+import { bumpPermRevision, setExclusiveGroupMembership } from "./permissions.js";
 
 /**
  * 极客班账号（#262，docs/plan/UNIFIED-LOGIN.md）：`users` 一行是一个账号，`id` 就是接口里的 `account_id`（极客班 OpenID）；
@@ -171,6 +172,25 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   const roleRow = db.prepare("SELECT status, org_state, org_role, invite_code_id FROM users WHERE id = ?");
   const countAdmins = db.prepare("SELECT COUNT(*) AS n FROM users WHERE status = 'active' AND org_state = 'active' AND org_role = 'admin'");
   const adminCount = () => (countAdmins.get() as { n: number }).n;
+  const addSiteOwner = db.prepare("INSERT OR IGNORE INTO perm_members(account_id, group_id, granted_by, created_at) VALUES (?, 'title.site.owner', ?, ?)");
+  const removeSiteOwner = db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id = 'title.site.owner'");
+
+  /**
+   * #274：按站内角色把账号放进新权限系统的 level 组（perm_members），迁移脚本只在启动时跑一次，
+   * 这里补上运行时新建号/改角色的那一刻——否则这之后新建或改角色的账号在新引擎里是「没有任何条目」，
+   * 所有权限判定都会落到 unset（按拒绝处理），包括这次改动本身新加的 account.profile.edit 等接口。
+   * 口径和 lib/migrations/2026-10-yugc-v2.ts 的 assignAccountIdentities() 一致：admin 进 level.member 且是站长，
+   * member 进 level.member，其余（null，含被设成「不是成员」）进 level.registered——新模型里没有登录就完全没权限这回事，
+   * 「不是成员」只是不再是极客班成员，账号还在、还是注册用户。
+   * 被从 admin 改成别的角色时要把 title.site.owner 收回；是不是「最后一个站长」的保护是阶段 2b 控制台接口自己的事，
+   * 这里只负责让 perm_members 跟 org_role 对齐，不单独判断。
+   */
+  function syncPermissionLevel(accountId: string, role: RecordedOrgRole, grantedBy: string, now: number): void {
+    setExclusiveGroupMembership(db, accountId, role === null ? "level.registered" : "level.member", now, grantedBy);
+    if (role === "admin") addSiteOwner.run(accountId, grantedBy, now);
+    else removeSiteOwner.run(accountId);
+    bumpPermRevision(db);
+  }
 
   /**
    * 回填建的老账号还没记过站内角色（#262 第四期）：账号正常、是成员、没有角色、也不是邀请码注册的。只有这种账号
@@ -245,6 +265,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
         markActive.run(now, now, account.id);
         const role = created && input.orgRole === "admin" && adminCount() > 0 ? "member" : input.orgRole;
         if (role !== null) setOrgRole.run(role, now, now, account.id);
+        syncPermissionLevel(account.id, role, "github-signin", now);
       } else if ((roleRow.get(account.id) as { org_state: string }).org_state !== "active") {
         return denied("not_member");
       }
@@ -347,6 +368,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
             id: identity.id, user_id: accountId, provider: input.provider, uid: input.uid, email: input.email,
             verified: input.email ? 1 : 0, now, last_login_at: null,
           });
+          syncPermissionLevel(accountId, "member", `invite:${invite.id}`, now);
           registered = true;
         }
         const account = terminalAccount(db, identity.user_id);
@@ -569,6 +591,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
       }
       const account = terminalAccount(db, identity.user_id);
       db.prepare("UPDATE users SET org_state = 'active', org_role = ?, org_checked_at = ?, updated_at = ? WHERE id = ?").run(input.orgRole, now, now, account.id);
+      syncPermissionLevel(account.id, input.orgRole, "cli:provision", now);
       claimAssignments.run(account.id, input.githubId);
       claimForumUser.run(account.id, input.githubId, account.id);
       const owner = identityOf.get("email", input.email) as { user_id: string } | undefined;
@@ -638,6 +661,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
       const now = clock();
       if (input.role === "none") db.prepare("UPDATE users SET org_role = NULL, org_state = 'not_member', org_checked_at = ?, updated_at = ? WHERE id = ?").run(now, now, input.accountId);
       else db.prepare("UPDATE users SET org_role = ?, org_state = 'active', org_checked_at = ?, updated_at = ? WHERE id = ?").run(input.role, now, now, input.accountId);
+      syncPermissionLevel(input.accountId, input.role === "none" ? null : input.role, "console:set-site-role", now);
       accountEvent(input.accountId, "role_change", null, "ok", input.role, now);
       deps.audit(null, input.actor, "account.role", sessionProfile(input.accountId).login, { account_id: input.accountId, from: before, to: input.role }, input.ip);
       return { ok: true as const, changed: true };

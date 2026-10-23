@@ -50,34 +50,36 @@ export function syncPermissionNodes(db: Database.Database) {
 type GroupKind = "level" | "department" | "title" | "custom";
 type GroupSeed = {
   id: string; kind: GroupKind; name: string; description: string; weight: number;
-  departmentId: string | null; tone: string | null; sort: number; parents: string[];
+  departmentId: string | null; icon: string | null; tone: string | null; sort: number; parents: string[];
 };
 type EntrySeed = { subjectId: string; node: string; value?: boolean; metaValue?: string; scope?: Record<string, unknown> };
 
-/** 部门的字母色对照 SPEC §1：AI=Y 青绿，算法=U 蓝，硬件=C 靛蓝，网安=G 粉，管理=pill。 */
+/** 部门的字母色对照 SPEC §1：AI=Y 青绿，算法=U 蓝，硬件=C 靛蓝，网安=G 粉，管理=pill。图标只用 Remix，默认值，控制台可改。 */
 const DEPARTMENTS = [
-  { id: "ai", name: "AI部门", tone: "y" },
-  { id: "algo", name: "算法部门", tone: "u" },
-  { id: "hardware", name: "硬件部门", tone: "c" },
-  { id: "security", name: "网安部门", tone: "g" },
-  { id: "management", name: "管理部门", tone: "pill" },
+  { id: "ai", name: "AI部门", tone: "y", icon: "robot-2-line" },
+  { id: "algo", name: "算法部门", tone: "u", icon: "code-s-slash-line" },
+  { id: "hardware", name: "硬件部门", tone: "c", icon: "cpu-line" },
+  { id: "security", name: "网安部门", tone: "g", icon: "shield-keyhole-line" },
+  { id: "management", name: "管理部门", tone: "pill", icon: "government-line" },
 ] as const;
 
 export function groupSeeds(): GroupSeed[] {
   const groups: GroupSeed[] = [
-    { id: "level.visitor", kind: "level", name: "访客", description: "没登录，只读公开内容", weight: 0, departmentId: null, tone: "ink", sort: 0, parents: [] },
-    { id: "level.registered", kind: "level", name: "注册用户", description: "登录过，还没用邀请码升级", weight: 10, departmentId: null, tone: "ink", sort: 10, parents: ["level.visitor"] },
-    { id: "level.member", kind: "level", name: "极客班成员", description: "注册时或注册后用了邀请码", weight: 20, departmentId: null, tone: "pill", sort: 20, parents: ["level.registered"] },
-    { id: "level.alumni", kind: "level", name: "往届成员", description: "已毕业的学长学姐，读权限和成员一样，写权限由管理员配置", weight: 15, departmentId: null, tone: "ink", sort: 15, parents: ["level.registered"] },
-    { id: "dept.none", kind: "department", name: "无部门", description: "没有分配部门的账号（默认）", weight: 0, departmentId: null, tone: "ink", sort: 0, parents: [] },
+    { id: "level.visitor", kind: "level", name: "访客", description: "没登录，只读公开内容", weight: 0, departmentId: null, icon: null, tone: "ink", sort: 0, parents: [] },
+    { id: "level.registered", kind: "level", name: "注册用户", description: "登录过，还没用邀请码升级", weight: 10, departmentId: null, icon: null, tone: "ink", sort: 10, parents: ["level.visitor"] },
+    { id: "level.member", kind: "level", name: "极客班成员", description: "注册时或注册后用了邀请码", weight: 20, departmentId: null, icon: null, tone: "pill", sort: 20, parents: ["level.registered"] },
+    { id: "level.alumni", kind: "level", name: "往届成员", description: "已毕业的学长学姐，读权限和成员一样，写权限由管理员配置", weight: 15, departmentId: null, icon: null, tone: "ink", sort: 15, parents: ["level.registered"] },
+    // sort 排在 5 个真部门之后（CONTRACT-274 §1「GET /api/public/departments」要求的显示顺序：
+    // AI、算法、硬件、网安、管理、无部门），不是 0。
+    { id: "dept.none", kind: "department", name: "无部门", description: "没有分配部门的账号（默认）", weight: 0, departmentId: null, icon: "user-line", tone: "ink", sort: 99, parents: [] },
   ];
   DEPARTMENTS.forEach((dept, index) => {
-    groups.push({ id: `dept.${dept.id}`, kind: "department", name: dept.name, description: `${dept.name}成员`, weight: 30, departmentId: null, tone: dept.tone, sort: 10 + index, parents: [] });
-    groups.push({ id: `title.${dept.id}.staff`, kind: "title", name: "部员", description: `${dept.name}部员`, weight: 40, departmentId: `dept.${dept.id}`, tone: dept.tone, sort: 40 + index, parents: [`dept.${dept.id}`] });
-    groups.push({ id: `title.${dept.id}.deputy`, kind: "title", name: "副部长", description: `${dept.name}副部长`, weight: 50, departmentId: `dept.${dept.id}`, tone: dept.tone, sort: 50 + index, parents: [`dept.${dept.id}`] });
-    groups.push({ id: `title.${dept.id}.head`, kind: "title", name: "部长", description: `${dept.name}部长`, weight: dept.id === "management" ? 80 : 60, departmentId: `dept.${dept.id}`, tone: dept.tone, sort: 60 + index, parents: [`dept.${dept.id}`] });
+    groups.push({ id: `dept.${dept.id}`, kind: "department", name: dept.name, description: `${dept.name}成员`, weight: 30, departmentId: null, icon: dept.icon, tone: dept.tone, sort: 10 + index, parents: [] });
+    groups.push({ id: `title.${dept.id}.staff`, kind: "title", name: "部员", description: `${dept.name}部员`, weight: 40, departmentId: `dept.${dept.id}`, icon: dept.icon, tone: dept.tone, sort: 40 + index, parents: [`dept.${dept.id}`] });
+    groups.push({ id: `title.${dept.id}.deputy`, kind: "title", name: "副部长", description: `${dept.name}副部长`, weight: 50, departmentId: `dept.${dept.id}`, icon: dept.icon, tone: dept.tone, sort: 50 + index, parents: [`dept.${dept.id}`] });
+    groups.push({ id: `title.${dept.id}.head`, kind: "title", name: "部长", description: `${dept.name}部长`, weight: dept.id === "management" ? 80 : 60, departmentId: `dept.${dept.id}`, icon: dept.icon, tone: dept.tone, sort: 60 + index, parents: [`dept.${dept.id}`] });
   });
-  groups.push({ id: "title.site.owner", kind: "title", name: "站长", description: "全站最高权限，不能被收回或删除", weight: 100, departmentId: null, tone: "pill", sort: 100, parents: [] });
+  groups.push({ id: "title.site.owner", kind: "title", name: "站长", description: "全站最高权限，不能被收回或删除", weight: 100, departmentId: null, icon: "vip-crown-2-line", tone: "pill", sort: 100, parents: [] });
   return groups;
 }
 
@@ -155,7 +157,7 @@ export function entrySeeds(): EntrySeed[] {
 export function seedGroupsAndEntries(db: Database.Database, now: number) {
   const insertGroup = db.prepare(`
     INSERT OR IGNORE INTO perm_groups(id, kind, name, description, weight, department_id, icon, tone, sort, system, created_at, updated_at)
-    VALUES (@id, @kind, @name, @description, @weight, @departmentId, NULL, @tone, @sort, 1, @now, @now)
+    VALUES (@id, @kind, @name, @description, @weight, @departmentId, @icon, @tone, @sort, 1, @now, @now)
   `);
   const insertParent = db.prepare("INSERT OR IGNORE INTO perm_group_parents(group_id, parent_id) VALUES (?, ?)");
   const findExisting = db.prepare(`
@@ -168,7 +170,7 @@ export function seedGroupsAndEntries(db: Database.Database, now: number) {
   `);
   const tx = db.transaction(() => {
     for (const group of groupSeeds()) {
-      insertGroup.run({ id: group.id, kind: group.kind, name: group.name, description: group.description, weight: group.weight, departmentId: group.departmentId, tone: group.tone, sort: group.sort, now });
+      insertGroup.run({ id: group.id, kind: group.kind, name: group.name, description: group.description, weight: group.weight, departmentId: group.departmentId, icon: group.icon, tone: group.tone, sort: group.sort, now });
       for (const parent of group.parents) insertParent.run(group.id, parent);
     }
     for (const entry of entrySeeds()) {

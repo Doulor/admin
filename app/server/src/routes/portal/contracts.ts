@@ -9,6 +9,13 @@ export const portalContracts: RouteContracts = {
   "GET /api/public/competitions": { querystring: object({}), response: { 200: publicCompetitionList, ...competitionFailures } },
   "GET /api/public/competitions/:id": { ...competitionIdParam, response: { 200: publicCompetition, ...competitionFailures } },
   "GET /api/public/org": { querystring: object({}) },
+  // 公开的部门与称号列表（#274）：给门户「组织架构」用，6 个新部门，不含任何人
+  "GET /api/public/departments": { querystring: object({}), response: { 200: object({
+    departments: { type: "array", items: object({
+      id: text(64, 1), name: text(64, 1), tone: { anyOf: [text(20), { type: "null" }] }, icon: { anyOf: [text(64), { type: "null" }] }, description: text(500),
+      titles: { type: "array", items: object({ id: text(64, 1), name: text(64, 1), weight: { type: "integer" } }, ["id", "name", "weight"]) },
+    }, ["id", "name", "tone", "icon", "description", "titles"]) },
+  }, ["departments"]) } },
   // 公开的代码仓库列表（#274）：只给 visibility=public 的项目；GitLab 没配或连不上时 projects 为空、unavailable 为 true
   "GET /api/public/gitlab/projects": {
     querystring: object({}),
