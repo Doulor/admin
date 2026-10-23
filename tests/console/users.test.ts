@@ -38,10 +38,11 @@ describe("user drawer draft", () => {
     expect(userPatch(target, { ...draft, title: "title.ai.deputy" })).toEqual({ titles: ["title.ai.deputy"] });
     expect(userPatch(target, { ...draft, owner: true })).toEqual({ titles: ["title.ai.staff", SITE_OWNER_TITLE.id] });
   });
-  it("shows one title in the header: the site owner first, coloured by department only when the title belongs to it", () => {
+  it("shows one title in the header: the site owner first, in its own fixed colour, department titles coloured by their department", () => {
     const owner = user("xu_yan");
     expect(primaryTitle(owner.titles)?.id).toBe(SITE_OWNER_TITLE.id);
-    expect(titleTone(owner.titles[0], owner.department)).toBeNull();
+    // 站长固定 pill 色（SPEC §1 / 服务端迁移种子），不跟着「无部门」的 ink 色走。
+    expect(titleTone(owner.titles[0], owner.department)).toBe("pill");
     const head = user("li_xiaoman");
     expect(titleTone(head.titles[0], head.department)).toBe("y");
     expect(nameOf({ display_name: " ", username: "wu_yifan" })).toBe("wu_yifan");

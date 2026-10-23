@@ -32,13 +32,15 @@ const deptTitles = (slug: string, headWeight = 60) => [
   { id: `title.${slug}.deputy`, name: "副部长", weight: 50 },
   { id: `title.${slug}.staff`, name: "部员", weight: 40 },
 ];
+// 图标值照服务端迁移种子（app/server/src/lib/migrations/2026-10-yugc-v2.ts:59-82）：是 Remix 图标名，
+// 不是控制台目前唯一支持渲染的 i-carbon-*；这个字段现在没有页面拿它画图标，只是和服务端对齐数据。
 export const MOCK_DEPARTMENTS: PublicDepartment[] = [
-  { id: "dept.ai", name: "AI部门", tone: "y", icon: "chart-network", description: "AI 方向的项目与培训", titles: deptTitles("ai") },
-  { id: "dept.algo", name: "算法部门", tone: "u", icon: "code", description: "算法竞赛与刷题训练", titles: deptTitles("algo") },
-  { id: "dept.hardware", name: "硬件部门", tone: "c", icon: "terminal", description: "硬件与嵌入式项目", titles: deptTitles("hardware") },
-  { id: "dept.security", name: "网安部门", tone: "g", icon: "badge", description: "网络安全方向的培训与比赛", titles: deptTitles("security") },
-  { id: "dept.management", name: "管理部门", tone: "pill", icon: "user-admin", description: "班级日常管理与控制台运维", titles: deptTitles("management", 80) },
-  { id: "dept.none", name: "无部门", tone: "ink", icon: "user", description: "还没分部门的人", titles: [] },
+  { id: "dept.ai", name: "AI部门", tone: "y", icon: "robot-2-line", description: "AI 方向的项目与培训", titles: deptTitles("ai") },
+  { id: "dept.algo", name: "算法部门", tone: "u", icon: "code-s-slash-line", description: "算法竞赛与刷题训练", titles: deptTitles("algo") },
+  { id: "dept.hardware", name: "硬件部门", tone: "c", icon: "cpu-line", description: "硬件与嵌入式项目", titles: deptTitles("hardware") },
+  { id: "dept.security", name: "网安部门", tone: "g", icon: "shield-keyhole-line", description: "网络安全方向的培训与比赛", titles: deptTitles("security") },
+  { id: "dept.management", name: "管理部门", tone: "pill", icon: "government-line", description: "班级日常管理与控制台运维", titles: deptTitles("management", 80) },
+  { id: "dept.none", name: "无部门", tone: "ink", icon: "user-line", description: "还没分部门的人", titles: [] },
 ];
 const REAL_DEPARTMENT_IDS = MOCK_DEPARTMENTS.filter(item => item.id !== "dept.none").map(item => item.id);
 const deptRef = (id: string): DepartmentRef => {

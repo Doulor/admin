@@ -88,6 +88,8 @@ export const nameOf = (user: { display_name: string; username: string }): string
 export const primaryTitle = <T extends { id: string }>(titles: T[]): T | null =>
   titles.find(item => item.id === SITE_OWNER_TITLE.id) ?? titles[0] ?? null;
 
-/** 称号徽章的色调：部门里的称号用部门色，站长这类不属于部门的用「无部门」色。 */
-export const titleTone = (title: { department_id: string | null }, department: DepartmentRef | null): DepartmentRef["tone"] | null =>
-  title.department_id && department && department.id === title.department_id ? department.tone : null;
+/** 称号徽章的色调：站长固定 pill 色（SPEC §1），部门里的称号用部门色，其余（没有部门信息时）交给徽章自己的默认色。 */
+export const titleTone = (title: { id?: string; department_id: string | null }, department: DepartmentRef | null): DepartmentRef["tone"] | null => {
+  if (title.id === SITE_OWNER_TITLE.id) return "pill";
+  return title.department_id && department && department.id === title.department_id ? department.tone : null;
+};
