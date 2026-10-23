@@ -15,6 +15,7 @@ import { createCache } from "./lib/cache.js";
 import { createRoleStore } from "./lib/role-store.js";
 import { createPermissionEngine } from "./lib/permissions.js";
 import { createAccountProfiles } from "./lib/account-profiles.js";
+import { createActivityRecorder } from "./lib/activity.js";
 import { createAccess } from "./lib/access.js";
 import { createFeedbackStore } from "./lib/feedback-store.js";
 import { createCompetitionStore } from "./lib/competition-store.js";
@@ -128,6 +129,8 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     // （由 auth.ts 的 createSession 用这同一个 clock 盖的时间戳），不能各用各的，测试拨慢/拨快时钟时才站得住。
     clock: overrides.clock ?? Date.now,
     profiles: createAccountProfiles(storage.db, { clock: overrides.clock }),
+    // 操作记录唯一写入口（#274 SPEC §3.7）：lib/activity.ts 的 recordActivity，路由自己调用；清理定时器由 buildApp 的 activityCleanup 决定开不开。
+    activity: createActivityRecorder(storage.db, overrides.clock),
     feedback,
     forum,
     mail,

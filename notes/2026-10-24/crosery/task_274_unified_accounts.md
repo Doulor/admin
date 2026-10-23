@@ -67,3 +67,62 @@
 - 做了什么：上一条记录（02:24:00 之后、04:03:00 那条）写了「同一次把 archiveOldDepartments() 接进 services.ts 启用」，commit 7d6a6c66 实际没有这处改动——核对 services.ts 时发现还是原来「故意没有调用」的注释，是我说了没做的事，这里更正。查清楚之后发现原来挡在前面的理由（旧 requireCapability 写接口）确实随 Scope B 的路由删除消失了，但多出一个没注意到的新理由：`GET /api/public/org`（routes/portal/org.ts）读 `roles.listDepartments().filter(d => !d.archived)`，是官网「组织架构」页（app/web/sites/portal/lib/org.ts）的真实数据源，是 #275 才安排退场、不在这次范围内；现在就把四个默认部门标成已归档，会让这个面向真实用户的页面当场变空。只改了 services.ts 里那段注释，把「故意不调用」的理由从旧写接口改成这一条，代码行为不变（archiveOldDepartments() 仍然没有被调用）。
 - 结果：pnpm --filter server build 通过；没有改任何运行时行为，只改注释，不需要重跑测试（后面统一和下一条活动记录一起跑全量验证）。
 - 下一步：archiveOldDepartments() 留到 #275 切完数据源、确认 /api/public/org 没有活的前端读者之后再做，不在本任务（#274）范围内完成；已经单独私信 team-lead 说明这处更正。
+
+## 04:11:37 +08:00 · 提交 · #274 · GitHub/邮箱/Google 登录邀请码改选填，/auth/me 给访客身份摘要，新增访客 cookie（57130185）
+
+- 执行者：agent-claude-geek-main-3c2a7a67-idn274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：三种登录方式第一次登录都不再要求邀请码：没填或无效仍注册成功进 level.registered，有效邀请码进 level.member；GitHub 组织资格那道门去掉（/auth/github、/auth/callback 不再查 CONSOLE_ORG），org_state/org_role 标记弃用但保留列；/auth/me 按 CONTRACT-274 §1 改形状，没登录也回 200 给访客身份摘要（level/level_name/permissions/quota），登录了在旧字段上加 level/level_name/department/titles/permissions/quota/prefs/username/display_name/bio/identities；lib/permissions.ts 的 accountGroupsView/entriesForAccount 支持 accountId 为 null；新增 middleware/visitor.ts 发 yugc_vid 访客 cookie（HttpOnly、SameSite=Lax、生产 Secure、一年），只挂在 portal 与 forum-api 两组路由。
+- 结果：新增 tests/server/visitor.test.ts（59 行）；改 core/console/forum/identity/signin-methods 等测试文件配合新形状；本次提交先不含完整回归（在后续切片合并后一起跑），单独改动点经本地针对性验证。
+- 下一步：统一资料作为 OIDC/GitLab 同步来源，邀请码兑换加锁定。
+
+## 04:11:37 +08:00 · 提交 · #274 · 统一资料作为 OIDC/GitLab 同步来源，邀请码兑换加锁定，CLI 登录权限节点化（331969f0）
+
+- 执行者：agent-claude-geek-main-3c2a7a67-idn274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：OIDC userinfo 与 GitLab 账号同步改读 lib/account-profiles.ts 的统一资料（account_profiles/account_avatars），不再读论坛自己的资料；修正 lib/identity-store.ts 的 toClaims() 用 org_state==='active' 误判「是不是成员」的 bug（org_state 建号时已一律写 active，这个判断对任何注册账号都成立，会让没邀请码的注册用户也拿到 OIDC 声明、被 GitLab 同步建号）——改成读权限引擎的 perm_members（level.member 组），和报名/组队/`/auth/me` 的 level 口径一致。POST /api/identity/invite/redeem 加锁定（#274 SPEC §3.5）：本账号每小时错 10 次、本 IP（IPv6 按 /64）每小时错 20 次锁 1 小时，429 invite_locked 带 retry_after，失败计数写新增的 lib/limits.ts（hit/hitAll/count/beijingDayBounds，IP 只存 sha256）。POST /api/identity/device/approve（CLI 登录批准）preHandler 加 requirePermission("account.cli.login")，改成权限节点判定。
+- 结果：新增 tests/server/profile.test.ts 用例；改 gitlab-sync.test.ts、oidc.test.ts 配合新资料来源与成员判定。
+- 下一步：投递要求登录并按权限节点判定，按账号/IP/设备分别限额。
+
+## 04:11:37 +08:00 · 提交 · #274 · 投递要求登录并按权限节点判定，按账号/IP/设备分别限额（88d75bce）
+
+- 执行者：agent-claude-geek-main-3c2a7a67-idn274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：POST /api/portal/apply 的 preHandler 改成 [requireAuth, requirePermission("apply.submit")]，不再接受匿名投递；三条每日限额（北京时间零点重置）在同一个事务里用 lib/limits.ts 的 hitAll() 一次核对一次写入（全有或全没有）：账号按 meta.limit.apply.daily（注册用户 3 份、极客班成员不限，没配 meta 时兜底按 3 份）、来源 IP 每天 10 份、投递设备（这个接口自己发的 cookie）每天 5 份；超限统一回 429 {error:"apply_limited", bucket:"apply.daily", retry_after}，不细分哪条线触发；201 响应新增 quota 字段。IP、设备只存 sha256。application_limits 表不再被这个接口读写，留给历史数据，新计数走 limit_events。
+- 结果：改 tests/server/applications.test.ts（286 行）、legacy-database.test.ts、mail-outbox.test.ts、rate-limits.test.ts 配合登录要求与分维度限额；已知未同步：官网「加入我们」页面还是匿名表单，匿名提交会先收到 401，页面改造是 #275 范围，部署前要确认两边同步上线。
+- 下一步：论坛按账号认人，邮箱/Google 登录不再被当成游客。
+
+## 04:11:37 +08:00 · 提交 · #274 · 论坛按账号认人，邮箱/Google 登录不再被当成游客（2fea6267）
+
+- 执行者：agent-claude-geek-main-3c2a7a67-idn274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：routes/forum-api/viewer.ts 的 forumViewer() 曾经把 session.user_id（GitHub 数字 id）为空直接当成游客——邮箱、Google 登录的会话没有 GitHub id，永远进不了论坛「成员」身份，只能按游客发帖；去掉这条判断，改成只看会话有没有 account_id 与 access.member（#274 SPEC §3.6）。lib/forum-store.ts 的 MemberIdentity.githubUserId 改成 number | null；ensureMember() 没有 GitHub id 时用新的 member 计数器编 a<序号> 内部 id，有 GitHub id 的仍是 m<GitHub id>。forum_counters.name 列的 CHECK 原来不认 member，db.ts 加了一次性表重建迁移（按 sqlite_master 探测，新库跳过）；SQLite CHECK 约束改不了，只能重建表——这个 bug 是 INSERT OR IGNORE 静默吞掉 CHECK 违例查出来的。
+- 结果：回归用例在上一提交随账号登录测试一起提交（signin-methods.test.ts 新增邮箱注册账号发帖用例，并修正一条把这个 bug 当预期行为的旧断言 guest→member）。
+- 下一步：比赛报名与组队改按权限节点判定。
+
+## 04:11:37 +08:00 · 提交 · #274 · 比赛报名与组队改按权限节点判定，不再查 GitHub 组织资格（04123d0d）
+
+- 执行者：agent-claude-geek-main-3c2a7a67-idn274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：middleware/require-member.ts 完全重写：旧的 requireMember 查 access.member（GitHub 组织资格），改成按权限引擎的节点判定——requireCompetitionNode(node) 认报名用 competition.signup、组队用 competition.team（level.member 天然持有两者，注册用户都没有）；requireCompetitionAccess 给只读接口，持有任一权限都能看。routes/portal/competition-signups.ts 把共用的 write preHandler 拆成 signup/team 两个；lib/competition-signup-store.ts 的 isActiveAccount() 改查 perm_members 的 level.member 组（原来查已弃用的 profile.org_state==='active'）。测试改用 setSiteRole({role}) 同步账号进 level.member，不再依赖 octokitFactory 模拟组织成员查询——顺带发现 competition-signups.test.ts 原来的 GitHub mock 是死代码（测试直连 signInWithGithub()，没走真实回调，mock 从没被调用过，能过是 lib/access.ts 旧补查机制意外生效）。
+- 结果：改 tests/server/competition-scores.test.ts（43 行）、competition-signups.test.ts（36 行）配合新判定方式，端到端走新权限节点，不留偶然依赖。
+- 下一步：补齐身份/邀请码/投递/论坛这几条链路的接口契约与数据模型文档。
+
+## 04:11:37 +08:00 · 提交 · #274 · 补齐 #274 身份/邀请码/投递/论坛这几条链路的接口契约与数据模型（1b8915a9）
+
+- 执行者：agent-claude-geek-main-3c2a7a67-idn274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：endpoint-contracts.md、API.md：GET /auth/github、/auth/callback、/auth/providers、邮箱/Google 登录表格、/auth/me、POST /api/identity/invite/redeem、POST /api/identity/device/approve、POST /api/portal/apply、论坛各接口的 forumViewer 身份副作用说明，按本批改动改成邀请码选填、org_state/org_role 已弃用、权限节点判定、按账号/IP/设备分限额、论坛不再要求绑定 GitHub 的真实行为；顺带修掉 routes/identity/google.ts 一条和实际行为不符的旧注释。data-model.md：limit_events（新表）、forum_counters（新增 member 计数器）、forum_users（github_user_id 允许为空）、application_limits（标记弃用）、users/invite_codes 按 org_state 弃用、邀请码选填改写。docs/architecture/catalog/* 随代码改动重新生成，证据锚点全部核对唯一匹配。文档核对：docs/plan/COMPETITION-APP.md 不用改——报名/组队鉴权方式变了但对外行为没变，这份计划文档不描述鉴权实现细节。
+- 结果：已知但不在本次范围：endpoint-contracts.md/API.md/docs/services/server/README.md/data-model.md 里仍有大量 2026-10-24 00:13 的 873c48f（#274 阶段 1，删 GitHub 组织管理接口）遗留的过期内容（例如已删接口的完整契约仍写着存在），以及 deploy/ 与 docs/ops/{DEPLOY,ENVIRONMENTS,CICD}.md 的同一批不同步（pnpm check:doc-sync 报的那一条）——这些是阶段 1 的文档债务，不是本次身份/邀请码/投递/论坛改动引入的，本次只改了被直接波及的段落，其余留给阶段 1 的作者或团队另行处理。
+- 下一步：重新生成一遍目录，确认 google.ts 注释改动没有漏改生成物。
+
+## 04:11:37 +08:00 · 提交 · #274 · 重新生成目录，补上 google.ts 注释改动漏掉的一次重新生成（d7c3deec）
+
+- 执行者：agent-claude-geek-main-3c2a7a67-idn274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：上一个提交改了 routes/identity/google.ts 的模块注释（多了一行），但那次 pnpm catalog:generate 是在改注释之前跑的，catalog.json 里这个文件几处 evidence 的行号停在旧的，project-catalog.test.ts 的「产出决定性产物」检查据此判定目录过期；重新生成，两次连续运行指纹一致（6e89996389c2b64c77b43ac8e1ee4788b2da485aa4343fe1a70337e3e33a774a），证据锚点全部核对通过。至此 scratch/274_identity 分支（#274 身份/邀请码/访客/投递/论坛/比赛鉴权范围）7 个提交全部完成。
+- 结果：全仓库最终验证：npx vitest run 102 个文件 1717 个用例全过（75.40s）；pnpm typecheck（server+web+console+catalog 脚本）无报错；pnpm --filter @yzgc/server build 通过；node scripts/check-boundaries.mjs 通过（266 files, 1578 imports）。未验证：浏览器实测（本次未改前端页面，官网「加入我们」表单仍是旧的匿名提交 UI，#275 范围）；limit_events.prune() 虽已实现但没有任何调用点接入清理计划，是个发现的缺口，未修。
+- 下一步：向主线程交付本切片的最终中文报告（提交 SHA、逐切片改动、验证证据、决策与未验证/超范围事项）。
+
+## 04:27:11 +08:00 · 提交 · #274 · 阶段 3（一部分）：操作记录写入口 recordActivity、POST /api/events、保留清理；发现并收敛了和 idn274 重复的访客 cookie
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：按 SPEC §3.7 新增 lib/activity.ts：`createActivityRecorder(db, clock)` 暴露 `recordActivity(req, {action, surface, target_type?, target_id?, outcome?, meta?})`（唯一写入口，写 activity_events）和 `pruneExpired()`（IP 90 天后清空、整行 180 天后删除，和 lib/auth.ts 的会话清理用同一种「启动清一次 + 定时器」模式，`startActivityCleanup()` 挂 `buildApp({activityCleanup:true})`，index.ts 已打开）。新增 routes/portal/events.ts：`POST /api/events`，白名单 `os.boot.played/os.boot.skipped/os.app.open/os.note.dismissed/forum.theme.change/page.view`，批量最多 20 条，不在白名单的直接丢弃、合并计一条 `events.rejected`（outcome=denied），按账号或访客限流 30 次/分钟；契约加进 routes/portal/contracts.ts。
+  中途发现一处重复建设：检查 notes 文件时看到 idn274（并行在 scratch/274_identity 做身份改造）已经交付了一套访客 cookie 机制（middleware/visitor.ts 的 `attachVisitorId`，cookie 名 `yugc_vid`，挂在 portalRoutes/forum-api 两个插件作用域），和我刚写的 lib/activity.ts 里的 `ensureVisitorId`（cookie 名 `yugc_visitor`）是同一个概念的两份实现——两个人各自在不知道对方进度的情况下做了一遍。核对后收敛成一份：直接从 scratch/274_identity 把 middleware/visitor.ts 原样拷进本分支（内容逐字节相同，以后真正 merge 这个文件时不会冲突），routes/portal/index.ts 按它的方式挂 `attachVisitorId`，删掉 lib/activity.ts 里我自己写的那一份 cookie 逻辑，events.ts 改成只读 `req.visitorId`。中途踩了一个坑：第一版我把访客 cookie 挂在 middleware/http-policy.ts 的全局 onRequest 钩子上（所有路由都发），导致 identity.test.ts、signin-methods.test.ts 一批走 `/auth/callback` 的用例失败——这些测试用 `String(response.headers['set-cookie']).split(';')[0]` 这种只认「唯一一个 Set-Cookie」的写法取 `oauth_state`，我的新 cookie 一旦和它同一个响应出现、又排在数组第一个，就把 `oauth_state` 挤没了，回调验证状态失败。改成只在 portalRoutes 这一个插件作用域挂（和 idn274 的做法一致）之后问题消失——`/auth/callback` 在 adminRoutes 插件作用域，不受影响。另外 lib/activity.ts 一度直接 `import "../middleware/visitor.js"` 只为了把它的 `declare module` 类型扩展带进来，被 check-boundaries.mjs 判「lib 依赖 middleware」（和这次改动早些时候 lib/session.ts 那次一样的规则）；改成不 import，只写一行注释说明——`declare module` 是全局类型扩展，只要 routes/portal/index.ts 引入过那个文件，对整个编译单元都生效，不需要 lib/activity.ts 自己也 import 一遍。
+  新增回归测试锁住一条之前没人验证过、但代码读下来已经成立的行为（SPEC §3.8「停用后，这个账号的会话、命令行令牌、OIDC 令牌全部失效」）：console-users.test.ts 加一条「停用已登录账号后他的会话立刻失效」（走真实的 PATCH /api/console/users/:id，核对 lib/auth.ts 的 getSession() 联查账号状态这个既有机制已经够用，不用另外写「停用时踢会话」的代码）；device-flow.test.ts 加一条「已经发出去的命令行令牌在账号停用后失效」；oidc.test.ts 加一条「已经发出去的 OIDC 令牌在账号停用后 userinfo 拒绝」——三条都是纯验证性质，没有改任何生产代码，只是把隐式正确的行为显式锁定。
+  新增 tests/server/events.test.ts（6 条）覆盖 POST /api/events 的访客/账号记录、cookie 复用、白名单丢弃合并计数、批次上限契约校验、限流；新增 lib/activity.ts 的 pruneExpired() 单测。
+- 结果：npx vitest run tests/server 全过，30 个文件 542 个用例；pnpm --filter server build 通过；node scripts/check-boundaries.mjs 通过（269 files, 1581 imports）。
+- 下一步：Step 3 剩下的大头还没做——recordActivity 还没接进 SPEC §3.7 列的那一长串服务端动作（auth.*、invite.redeem、forum.topic.view 等）、limit_events 支撑的 §3.8 限额表（投递、发帖/回帖/表情、论坛读/搜索等）还没按新表重写（部分已经在 idn274 的 lib/limits.ts 里做了邀请码锁定和投递限额，需要和这里的 recordActivity/pruneExpired 对齐，不要再出现第二套）；这部分量大、和 idn274 已经交付的内容重叠面广，继续做之前已经私信 team-lead 说明这次发现的重复，等确认怎么分工再往下推进，不再盲目往前赶。

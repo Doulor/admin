@@ -205,6 +205,25 @@ describe('OIDC provider for downstream apps (#270)', () => {
     expect(userinfo.json()).toMatchObject({ email: 'alice@example.test', email_verified: true });
   });
 
+  it('stops serving userinfo for an already-issued token once the account is disabled (SPEC §3.8：停用后 OIDC 令牌全部失效)', async () => {
+    const { app, clientSecret } = await setup();
+    const sid = signIn(app, 'alice', 101);
+    const accountId = accountOf(app, 101);
+    const jar = new Jar();
+    jar.set('sid', sid);
+    const { token } = await signInThroughGitlab(app, jar, clientSecret);
+    const accessToken = token.json().access_token;
+    // 停用前，这个令牌还能正常用
+    const before = await app.inject({ url: '/oidc/me', headers: { authorization: `Bearer ${accessToken}` } });
+    expect(before.statusCode).toBe(200);
+
+    app.services.storage.db.prepare("UPDATE users SET status = 'disabled' WHERE id = ?").run(accountId);
+    // findAccount（lib/oidc-provider.ts）经 account-directory.ts 的 oidcAccount() 每次都查 getAccountClaims()，
+    // member 需要 status === 'active'；这里把这条既有行为锁进回归测试，停用这个动作本身不用另外去撤销令牌。
+    const after = await app.inject({ url: '/oidc/me', headers: { authorization: `Bearer ${accessToken}` } });
+    expect(after.statusCode).toBe(401);
+  });
+
   it('refuses an unknown client and a redirect URI that was not registered, without redirecting', async () => {
     const { app } = await setup();
     const jar = new Jar();

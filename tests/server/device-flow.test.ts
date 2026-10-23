@@ -238,6 +238,26 @@ describe('device authorization (#262, RFC 8628)', () => {
     expect((await pollToken(app, code.device_code)).json().error).toBe('access_denied');
   });
 
+  it('stops accepting an already-issued token once the account is disabled afterwards (SPEC §3.8：停用后命令行令牌全部失效)', async () => {
+    const { app } = await setup();
+    const db = app.services.storage.db;
+    const sid = signIn(app, 'octocat', 4242);
+    const accountId = accountOfGithub(db, '4242');
+    const code = (await issueCode(app)).json();
+    expect((await decide(app, sid, code.user_code, 'approve')).statusCode).toBe(200);
+    const token = (await pollToken(app, code.device_code)).json();
+    // 停用前，这个令牌还能正常用
+    const before = await app.inject({ url: '/auth/device/userinfo', headers: { authorization: `Bearer ${token.access_token}` } });
+    expect(before.statusCode).toBe(200);
+
+    db.prepare("UPDATE users SET status = 'disabled' WHERE id = ?").run(accountId);
+    // device.authenticate() 每次都联查账号状态（lib/device-store.ts），不是靠令牌本身过期或被撤销——
+    // 这里把这条既有行为锁进回归测试，停用这个动作本身不用另外去吊销已经发出去的令牌。
+    const after = await app.inject({ url: '/auth/device/userinfo', headers: { authorization: `Bearer ${token.access_token}` } });
+    expect(after.statusCode).toBe(401);
+    expect(after.json().error).toBe('invalid_token');
+  });
+
   it('stops accepting a token after its 30 days', async () => {
     const { app } = await setup();
     const sid = signIn(app, 'octocat', 4242);
