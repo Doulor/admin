@@ -12960,7 +12960,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "9902e2b2c1810d48bbd900b833c5e129d93b5fba998c6fe4337cfee427962815",
+    "fingerprint": "740ad91877c777f34f72fa76f20a44c991d0eec1c7d867e3d0130f7b52b25c14",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -14528,7 +14528,7 @@
       },
       {
         "path": "docs/services/server/oidc.md",
-        "sha256": "6ed213293539c147759975c26140c0e8e3f8572686e4291395ea9d50765910b8"
+        "sha256": "7ff7cc11fe5eed65157bf261fed6aee863f33c7c35afc0ae66e1aca7d969fc9b"
       },
       {
         "path": "docs/services/web/README.md",

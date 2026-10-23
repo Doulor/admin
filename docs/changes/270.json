@@ -2,7 +2,7 @@
   "version": 1,
   "issue": 270,
   "kind": "business",
-  "summary": "自建 GitLab 接极客班统一登录（#270，所有者 2026-10-23：「gitlab那边的登录可以走极客班的sso统一登录，因为毕竟数据都要一起统计」「所有有极客班登录身份的都有对应的gitlab账号」）：核心服务内嵌 OpenID Connect 签发者（/oidc/*，oidc-provider 9.12.2，ADR-0005 决策 8 与交付第 3 项），控制台新增同意页 /authorize；按极客班账号在 GitLab 上建号、进组、封禁（GITLAB_SYNC，正式 off、预发布 dry-run），控制台加 GitLab 账号状态与立即同步两个接口；官网桌面加「代码仓库」应用，接过 3 键与便签第 3 行。",
+  "summary": "自建 GitLab 接极客班统一登录（#270，所有者 2026-10-23：「gitlab那边的登录可以走极客班的sso统一登录，因为毕竟数据都要一起统计」「所有有极客班登录身份的都有对应的gitlab账号」）：核心服务内嵌 OpenID Connect 签发者（/oidc/*，oidc-provider 9.12.2，ADR-0005 决策 8 与交付第 3 项），控制台新增同意页 /authorize；按极客班账号在 GitLab 上建号、进组、封禁（GITLAB_SYNC，正式 off；正式站上线前 GitLab 接预发布，预发布 on，所有者 2026-10-23 13:36 选定），控制台加 GitLab 账号状态与立即同步两个接口；官网桌面加「代码仓库」应用，接过 3 键与便签第 3 行。",
   "applications": [
     "server",
     "web",
@@ -134,7 +134,7 @@
     },
     "delivery": {
       "status": "changed",
-      "reason": "server 镜像多一个生产依赖；web 镜像的 nginx 把 /oidc/ 转给 server、/authorize 回落到控制台入口。两套 compose 给 server 加 OIDC_JWKS、GITLAB_SYNC、GITLAB_URL、GITLAB_GROUP、GITLAB_API_TOKEN；环境模板正式 GITLAB_SYNC=off、预发布 dry-run，两个密钥留空；deployment-environment.mjs 校验取值、OIDC_JWKS 为空时提示对外授权关闭、GITLAB_SYNC=on 而没有令牌时拒绝渲染；两条部署工作流与 deploy-manual.mjs 按同名传这两个密钥。上线后要在目标机生成签名密钥、登记 GitLab 客户端、配 GitLab 的 omniauth；正式开 GITLAB_SYNC=on 要所有者验收与批准、先备份数据库。",
+      "reason": "server 镜像多一个生产依赖；web 镜像的 nginx 把 /oidc/ 转给 server、/authorize 回落到控制台入口。两套 compose 给 server 加 OIDC_JWKS、GITLAB_SYNC、GITLAB_URL、GITLAB_GROUP、GITLAB_API_TOKEN；环境模板正式 GITLAB_SYNC=off、预发布 on（GitLab 正式站上线前接预发布的签发者，预发布的数据库从此不能清空重建；正式站上线后把 GitLab 的 sub 迁到正式库再改接），两个密钥留空；deployment-environment.mjs 校验取值、OIDC_JWKS 为空时提示对外授权关闭、GITLAB_SYNC=on 而没有令牌时拒绝渲染；两条部署工作流与 deploy-manual.mjs 按同名传这两个密钥。上线后要在目标机生成签名密钥、登记 GitLab 客户端、配 GitLab 的 omniauth；预发布的 GITLAB_API_TOKEN 用专门的 GitLab 管理员机器人账号的令牌；正式开 GITLAB_SYNC=on 要所有者批准、先备份数据库。",
       "evidence": [
         "app/web/Dockerfile",
         "deploy/compose/production.yml",
@@ -344,7 +344,7 @@
       "nodes": [
         "application:server"
       ],
-      "reason": "两个环境的 GITLAB_* 取值与两个密钥的传递、校验、渲染；部署工作流与维护者机器部署按同名传密钥。"
+      "reason": "两个环境的 GITLAB_* 取值与两个密钥的传递、校验、渲染；部署工作流与维护者机器部署按同名传密钥。 预发布的 GITLAB_SYNC 从 dry-run 改成 on（所有者 2026-10-23 13:36 选定 GitLab 先接预发布）。"
     },
     {
       "paths": [

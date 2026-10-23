@@ -77,7 +77,7 @@ docker compose … exec server node app/server/dist/cli/oidc.js client add --nam
 
 ## GitLab 一侧的配置
 
-GitLab 只有一台，接正式环境的签发者；预发布用一个不同源的测试客户端验收，同步用 `dry-run`。顺序是先在正式环境登记 `gitlab` 客户端、把 `GITLAB_SYNC` 改成 `on` 并看到第一轮对账成功，再改 GitLab：同步没开时成员离开不会被封禁。`/etc/gitlab/gitlab.rb` 里加（secret 放在 root 0600 的文件里由 `File.read` 读入，不写进仓库）：
+GitLab 只有一台。正式站上线前它接预发布的签发者 `https://prev.yangtzeu.work/oidc`（所有者 2026-10-23 选定）：预发布 `GITLAB_SYNC=on`，成员和角色以预发布为准；预发布的数据库因此不能清空重建，否则 `oauth_subjects` 里的 `sub` 没了，GitLab 上的身份对不上。正式站上线后改接正式签发者：先把预发布 `oauth_subjects` 里 GitLab sector 的行按同一个人（GitHub 账号或验证过的邮箱）对到正式库的账号上写过去，`sub` 不变，大家的 GitLab 账号也不变，再改 GitLab 的 `issuer`。顺序是先在接 GitLab 的那个环境登记 `gitlab` 客户端、把 `GITLAB_SYNC` 改成 `on` 并看到第一轮对账成功，再改 GitLab：同步没开时成员离开不会被封禁。`/etc/gitlab/gitlab.rb` 里加（secret 放在 root 0600 的文件里由 `File.read` 读入，不写进仓库）：
 
 ```ruby
 gitlab_rails['omniauth_enabled'] = true

@@ -438,7 +438,7 @@ describe('OIDC signing key and GitLab sync (#270)', () => {
   };
 
   it('keeps the switch, origin and group visible, and the key and token secret', () => {
-    expect(readEnvironment(repoRoot, 'preview').values.get('GITLAB_SYNC')).toBe('dry-run');
+    expect(readEnvironment(repoRoot, 'preview').values.get('GITLAB_SYNC')).toBe('on');
     expect(readEnvironment(repoRoot, 'production').values.get('GITLAB_SYNC')).toBe('off');
     for (const name of ['preview', 'production']) {
       const values = readEnvironment(repoRoot, name).values;
@@ -450,7 +450,7 @@ describe('OIDC signing key and GitLab sync (#270)', () => {
       expect(REQUIRED_SECRET_FIELDS).not.toContain(field);
     }
     const failing: Array<[string, string, string, RegExp]> = [
-      ['preview', '\nGITLAB_SYNC=dry-run\n', '\nGITLAB_SYNC=yes\n', /GITLAB_SYNC 只能是 off \/ dry-run \/ on/],
+      ['preview', '\nGITLAB_SYNC=on\n', '\nGITLAB_SYNC=yes\n', /GITLAB_SYNC 只能是 off \/ dry-run \/ on/],
       ['production', '\nGITLAB_SYNC=off\n', '\n', /缺少字段 GITLAB_SYNC/],
       ['production', '\nGITLAB_URL=https://git.yangtzeu.work\n', '\nGITLAB_URL=http://git.yangtzeu.work\n', /GITLAB_URL 必须是 https/],
       ['preview', '\nGITLAB_URL=https://git.yangtzeu.work\n', '\nGITLAB_URL=https://git.yangtzeu.work/geek\n', /GITLAB_URL 不得包含路径/],
@@ -485,8 +485,10 @@ describe('OIDC signing key and GitLab sync (#270)', () => {
     for (const field of OIDC_GITLAB_SECRETS) expect(off.values.get(field)).toBe('');
     // JWK Set 的 JSON 原文带引号，环境文件不收
     expect(() => render({ ...secrets, OIDC_JWKS: '{"keys":[]}' })).toThrow(/OIDC_JWKS 含非法字符/);
-    // 预发布是 dry-run，不要令牌；正式改成 on 时必须有令牌
-    expect(render(without(secrets, ['GITLAB_API_TOKEN']), 'preview').result.gitlabSync).toBe('dry-run');
+    // 预发布是 on，没有令牌拒绝渲染；dry-run 不要令牌；正式改成 on 时同样必须有令牌
+    expect(() => render(without(secrets, ['GITLAB_API_TOKEN']), 'preview')).toThrow(/GITLAB_SYNC=on 要 GITLAB_API_TOKEN/);
+    expect(render(secrets, 'preview').result.gitlabSync).toBe('on');
+    expect(render(without(secrets, ['GITLAB_API_TOKEN']), 'preview', ['\nGITLAB_SYNC=on\n', '\nGITLAB_SYNC=dry-run\n']).result.gitlabSync).toBe('dry-run');
     expect(() => render(without(secrets, ['GITLAB_API_TOKEN']), 'production', ['\nGITLAB_SYNC=off\n', '\nGITLAB_SYNC=on\n'])).toThrow(/GITLAB_SYNC=on 要 GITLAB_API_TOKEN/);
     expect(render(secrets, 'production', ['\nGITLAB_SYNC=off\n', '\nGITLAB_SYNC=on\n']).result.gitlabSync).toBe('on');
   });
