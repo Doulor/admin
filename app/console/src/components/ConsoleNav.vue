@@ -125,7 +125,7 @@ function onSelect(item: SidebarNavItem) {
   z-index: 2;
   flex: none;
   padding: 8px 0;
-  background: var(--tx-bui-surface, #fff);
+  background: var(--tx-bui-surface);
 }
 .console-nav__brand {
   --tx-card-item-gap: 10px;
@@ -149,7 +149,7 @@ function onSelect(item: SidebarNavItem) {
   margin-top: 8px;
   padding: 12px 4px 10px;
   border-top: 1px solid var(--tx-border-color-light);
-  background: var(--tx-bui-surface, #fff);
+  background: var(--tx-bui-surface);
 }
 .console-nav__me {
   display: flex;
