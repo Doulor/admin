@@ -16,7 +16,7 @@ import { siteUrl } from "../lib/runtime";
 import { clearSession } from "../lib/session";
 import { cleanCode, codeProblem, looksLikeEmail, retryAfter } from "../lib/signin";
 import { fmtDate, fmtRelative } from "../lib/format";
-import { PROVIDER_ICON, PROVIDER_TEXT, RESULT_TEXT, actionText, loginIsFresh, membershipText, passwordProblem, providerText } from "../lib/account";
+import { PASSWORD_MIN_LENGTH, PROVIDER_ICON, PROVIDER_TEXT, RESULT_TEXT, actionText, loginIsFresh, membershipText, passwordProblem, providerText } from "../lib/account";
 import type { AccountView } from "../lib/types";
 
 /**
@@ -218,7 +218,7 @@ const goPortal = () => window.location.assign(siteUrl("portal", "/"));
                 <TxInput v-model="currentPassword" type="password" autocomplete="current-password" />
               </label>
               <label class="account__field">
-                <span>{{ view.has_password ? "新密码" : "密码" }}（至少 15 位）</span>
+                <span>{{ view.has_password ? "新密码" : "密码" }}（至少 {{ PASSWORD_MIN_LENGTH }} 位）</span>
                 <TxInput v-model="password" type="password" autocomplete="new-password" />
               </label>
               <label class="account__field">

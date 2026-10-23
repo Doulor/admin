@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { RESEND_AFTER_S, normalizeEmail } from "../../lib/email-login.js";
-import { hashPassword, passwordError } from "../../lib/password-policy.js";
+import { PASSWORD_MIN_LENGTH, hashPassword, passwordError } from "../../lib/password-policy.js";
 import { sessionFingerprint } from "../../middleware/oauth-state.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { clearChallengeCookie, readChallengeCookie, sendCode, setChallengeCookie, tooSoon } from "./email.js";
@@ -15,7 +15,7 @@ const CHALLENGE_PATH = "/api/identity/email";
  * 账号页 `/account` 的接口（#262）：任何有效会话都能用，不要 `console.access`。
  * - `GET /api/identity/me`：登录方式、有没有密码、成员资格、这次登录、最近账号记录。
  * - `POST /api/identity/email/start`、`/verify`：给账号绑定邮箱（绑好才能用邮箱验证码或密码登录）。
- * - `POST /api/identity/password`：设置或修改密码（至少 15 位）。已有密码时要填当前密码，或者 10 分钟内刚登录过
+ * - `POST /api/identity/password`：设置或修改密码（至少 8 位）。已有密码时要填当前密码，或者 10 分钟内刚登录过
  *   （忘了密码就用验证码登录后直接设新的）；还没有密码时要 10 分钟内刚登录过。
  */
 export default async function accountRoutes(app: FastifyInstance) {
@@ -88,7 +88,7 @@ export default async function accountRoutes(app: FastifyInstance) {
     }
     const invalid = passwordError(req.body.password);
     if (invalid) {
-      return reply.code(400).send({ error: invalid, message: invalid === "password_too_short" ? "密码至少 15 位" : "密码太长了（不能超过 72 个字节）" });
+      return reply.code(400).send({ error: invalid, message: invalid === "password_too_short" ? `密码至少 ${PASSWORD_MIN_LENGTH} 位` : "密码太长了（不能超过 72 个字节）" });
     }
     if (!fresh(req)) {
       const hash = identity.passwordHashOf(session.account_id);
