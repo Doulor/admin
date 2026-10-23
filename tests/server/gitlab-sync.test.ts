@@ -157,8 +157,9 @@ describe('GitLab account sync (#270)', () => {
     expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 0, failed: 0 });
     expect(gitlab.writes()).toHaveLength(writes);
     expect(github.calls).toHaveLength(githubCalls);
-    const audit = app.services.storage.db.prepare("SELECT actor, target FROM audit_logs WHERE action = 'gitlab.sync' ORDER BY id").all();
-    expect(audit).toEqual([{ actor: 'system', target: 'alice' }, { actor: 'system', target: 'admiral' }]);
+    // 两个账号同一毫秒建号，对账顺序由 ULID 的随机部分决定，这里不比较先后
+    const audit = app.services.storage.db.prepare("SELECT actor, target FROM audit_logs WHERE action = 'gitlab.sync' ORDER BY target").all();
+    expect(audit).toEqual([{ actor: 'system', target: 'admiral' }, { actor: 'system', target: 'alice' }]);
   });
 
   it('uses the verified email, and falls back to a noreply address when GitLab already has it', async () => {
