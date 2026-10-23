@@ -52,6 +52,11 @@ export function signInOutcomes(): Record<string, OutcomeInfo> {
       title: "这个邮箱已经有极客班账号",
       body: "Google 账号的邮箱已经绑定了别的极客班账号。用邮箱验证码登录那个账号就好。",
     },
+    registration_limited: {
+      type: "warning",
+      title: "今天新注册的账号太多了",
+      body: "同一个网络或同一台设备今天新建账号的次数到上限了，北京时间零点以后可以再注册。已有账号登录不受影响。",
+    },
   };
 }
 

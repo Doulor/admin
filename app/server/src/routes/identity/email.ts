@@ -3,15 +3,19 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { CODE_TTL_MS, RESEND_AFTER_S, normalizeEmail, type CheckResult } from "../../lib/email-login.js";
 import type { LoginCodePurpose } from "../../lib/mail/login-code.js";
 import { PASSWORD_MIN_LENGTH, createLoginThrottle, hashPassword, passwordError } from "../../lib/password-policy.js";
+import { registrationGuardFor, registrationLimitedBody } from "../../lib/register-limits.js";
 import { safeReturnTo } from "../../lib/safe-return.js";
 import { rateLimited } from "../../middleware/http-policy.js";
 import { setSessionCookie } from "../../middleware/require-auth.js";
+import { attachVisitorId } from "../../middleware/visitor.js";
 
 /**
  * 邮箱登录（#262，所有者 2026-10-23：「验证码和密码都支持」；#274 邀请码改选填，SPEC §3.2）：
  * - `POST /auth/email/start`：发 6 位验证码。不论邮箱有没有账号响应都一样（202 + 挑战 cookie），没有账号的邮箱也真的发。
  * - `POST /auth/email/verify`：核对验证码后登录；没有账号时不填邀请码就注册成注册用户，填了且有效注册成成员，
- *   填了但无效回 `invite_invalid` 并记一次失败（验证码不作废，还可以再试）。
+ *   填了但无效回 `invite_invalid` 并记一次失败（验证码不作废，还可以再试）。只在真的要新建账号这一步，
+ *   同一 IP 今天已建满 5 个、同一设备已建满 3 个（lib/register-limits.ts）回 429 `auth.register.daily`，
+ *   登录到已有账号不受影响（#274 SPEC §3.8）。
  * - `POST /auth/email/password`：邮箱加密码登录。密码在账号页设（至少 8 位）；没账号、没设密码、密码不对一律回同一个错误。
  * - `POST /auth/email/reset`（#273，忘了密码）：用 `/auth/email/start` 发的验证码（`purpose: "reset"` 只改信的文字，
  *   挑战还是登录用的那一种）核对邮箱，设新密码并登录。不能注册：邮箱没有账号回 `no_account`，验证码不作废。
@@ -94,9 +98,11 @@ export default async function emailRoutes(app: FastifyInstance) {
       const checked = emailLogin.check(id, req.body.code, "signin");
       if (!checked.ok) return codeFailure(reply, checked);
       const { challenge } = checked;
+      await attachVisitorId(req, reply);
+      const registrationLimit = registrationGuardFor(app.services.limits, req.ip, req.visitorId!);
       const result = identity.signInWithEmailCode({
         email: challenge.email, invite: req.body.invite_code?.trim() || null,
-        previousSid: req.cookies?.sid ?? null, ip: req.ip, claim: () => emailLogin.claim(challenge.id),
+        previousSid: req.cookies?.sid ?? null, ip: req.ip, claim: () => emailLogin.claim(challenge.id), registrationLimit,
       });
       if (!result.ok) {
         switch (result.reason) {
@@ -106,6 +112,10 @@ export default async function emailRoutes(app: FastifyInstance) {
           }
           case "account_disabled":
             return refused(reply);
+          case "registration_limited": {
+            const { retryAfter, body } = registrationLimitedBody(app.services.limits, Date.now());
+            return reply.code(429).header("Retry-After", String(retryAfter)).send(body);
+          }
           default:
             return reply.code(400).send({ error: "code_expired", message: "验证码已失效，请重新获取" });
         }

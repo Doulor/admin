@@ -24,9 +24,10 @@ export type SiteRoleChoice = "admin" | "member" | "none";
  * `not_member`、`invite_required` 不会再被抛出：GitHub 组织那道门已经去掉，没填邀请码就注册成注册用户
  * （SPEC §3.2）。`invite_invalid` 取代旧名字「invalid_invite」，和 CONTRACT-274 的错误码一致。
  * `no_account`：忘了密码（resetPassword）核对的邮箱还没有账号——这条路径不能顺手注册，邀请码选填只对
- * 真正的注册路径生效。
+ * 真正的注册路径生效。`registration_limited`（#274 残留修复，SPEC §3.8）：这次会真的新建账号，但同一 IP
+ * 今天已经建满 5 个、或同一设备已经建满 3 个——登录到已有账号永远不会撞到这条。
  */
-export type SigninRefusal = "account_disabled" | "invite_invalid" | "email_taken" | "code_expired" | "no_account";
+export type SigninRefusal = "account_disabled" | "invite_invalid" | "email_taken" | "code_expired" | "no_account" | "registration_limited";
 export type SigninResult =
   | { ok: true; sid: string; accountId: string; registered: boolean }
   | { ok: false; reason: SigninRefusal };
@@ -239,7 +240,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
    * 这个 GitHub 账号以前登记过的旧论坛作者，这次自动关联）、插入会话、删请求带来的旧会话、写 identity_audit 与 auth.signin。
    * 任何一步抛错整体回滚：不留半个账号，请求带来的旧会话照常有效；调用方回跳 `failed`。
    */
-  function signInWithGithub(input: { github: GithubAccount; accessToken: string; invite?: string | null; previousSid?: string | null; ip?: string }): GithubSigninResult {
+  function signInWithGithub(input: { github: GithubAccount; accessToken: string; invite?: string | null; previousSid?: string | null; ip?: string; registrationLimit?: () => boolean }): GithubSigninResult {
     const { github } = input;
     const avatarUrl = github.avatarUrl || null;
     try {
@@ -250,6 +251,8 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
         if (!identity) {
           const invite = input.invite ? redeemInvite(db, input.invite, now) : null;
           if (input.invite && !invite?.ok) throw new Refused("invite_invalid");
+          // 注册限额（#274 SPEC §3.8）：只在确认要新建账号（走到这里）才核对，登录到已有账号不会调这个闭包。
+          if (input.registrationLimit && !input.registrationLimit()) throw new Refused("registration_limited");
           const accountId = newAccountId();
           insertUser.run(accountId, now, now, now);
           identity = { id: newUlid(now), user_id: accountId };
@@ -340,6 +343,8 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     invite?: string | null; previousSid?: string | null; ip?: string; claim?: () => boolean;
     /** 默认 true；忘了密码核对（resetPassword）传 false，这条路径不能顺手注册新账号（SPEC「不能注册」）。 */
     register?: boolean;
+    /** 注册限额（#274 SPEC §3.8）：只在确认要新建账号才调，登录到已有账号不会调这个闭包。 */
+    registrationLimit?: () => boolean;
   }): SigninResult {
     try {
       return db.transaction((): SigninResult => {
@@ -352,6 +357,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
           if (input.provider === "google" && input.email && emailTaken.get(input.email, input.email)) throw new Refused("email_taken");
           const invite = input.invite ? redeemInvite(db, input.invite, now) : null;
           if (input.invite && !invite?.ok) throw new Refused("invite_invalid");
+          if (input.registrationLimit && !input.registrationLimit()) throw new Refused("registration_limited");
           const accountId = newAccountId();
           insertAccount.run({
             id: accountId, now, handle: newHandle(), org_role: invite?.ok ? "member" : null,
@@ -392,8 +398,8 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   }
 
   /** 邮箱验证码登录；没有账号时凭邀请码注册。`claim` 在事务里占用验证码。 */
-  function signInWithEmailCode(input: { email: string; invite?: string | null; previousSid?: string | null; ip?: string; claim: () => boolean }): SigninResult {
-    return signInSecondChannel({ provider: "email", uid: input.email, email: input.email, method: "code", invite: input.invite, previousSid: input.previousSid, ip: input.ip, claim: input.claim });
+  function signInWithEmailCode(input: { email: string; invite?: string | null; previousSid?: string | null; ip?: string; claim: () => boolean; registrationLimit?: () => boolean }): SigninResult {
+    return signInSecondChannel({ provider: "email", uid: input.email, email: input.email, method: "code", invite: input.invite, previousSid: input.previousSid, ip: input.ip, claim: input.claim, registrationLimit: input.registrationLimit });
   }
   /** 邮箱密码登录：路由已经核对过密码（passwordFor + bcrypt），这里只建会话；没有账号不会走到这里。 */
   function signInWithPassword(input: { email: string; previousSid?: string | null; ip?: string }): SigninResult {
@@ -401,8 +407,8 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     return signInSecondChannel({ provider: "email", uid: input.email, email: input.email, method: "password", previousSid: input.previousSid, ip: input.ip, register: false });
   }
   /** Google 登录；`email` 只在 email_verified 为真时传。没有账号时凭邀请码注册。 */
-  function signInWithGoogle(input: { sub: string; email: string | null; invite?: string | null; previousSid?: string | null; ip?: string }): SigninResult {
-    return signInSecondChannel({ provider: "google", uid: input.sub, email: input.email, method: "oidc", invite: input.invite, previousSid: input.previousSid, ip: input.ip });
+  function signInWithGoogle(input: { sub: string; email: string | null; invite?: string | null; previousSid?: string | null; ip?: string; registrationLimit?: () => boolean }): SigninResult {
+    return signInSecondChannel({ provider: "google", uid: input.sub, email: input.email, method: "oidc", invite: input.invite, previousSid: input.previousSid, ip: input.ip, registrationLimit: input.registrationLimit });
   }
 
   /** 这个邮箱绑定的账号（走到合并链终点）和它的密码哈希；邮箱没绑定、账号没设密码时 hash 为空。 */

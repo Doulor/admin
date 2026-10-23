@@ -55,9 +55,10 @@ describe("登录结果提示与行动点解析 (signin)", () => {
 
   it("signInOutcomes 完整导出所有状态定义", () => {
     const outcomes = signInOutcomes();
-    // 与服务端 SigninOutcome（app/server/src/lib/safe-return.ts）逐个对应；invite_pending 随 GitHub 组织那道门一起去掉（#274）
+    // 与服务端 SigninOutcome（app/server/src/lib/safe-return.ts）逐个对应；invite_pending 随 GitHub 组织那道门一起去掉（#274）；
+    // registration_limited 是 #274 残留修复加的（SPEC §3.8：同一 IP/设备每天新建账号的次数到了上限）。
     expect(Object.keys(outcomes)).toEqual([
-      "not_member", "cancelled", "failed", "account_disabled", "invite_required", "invalid_invite", "email_taken",
+      "not_member", "cancelled", "failed", "account_disabled", "invite_required", "invalid_invite", "email_taken", "registration_limited",
     ]);
   });
 

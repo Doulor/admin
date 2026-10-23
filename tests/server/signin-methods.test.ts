@@ -101,12 +101,15 @@ async function setup(options: { env?: Record<string, string>; roles?: Record<str
   return { app, db, mail, calls, invite, tick };
 }
 
-/** 带 cookie 的请求：把响应里的 Set-Cookie 合进一个小罐子，后面的请求自动带上。 */
-function browser(app: FastifyInstance) {
+/**
+ * 带 cookie 的请求：把响应里的 Set-Cookie 合进一个小罐子，后面的请求自动带上。`remoteAddress` 给注册限额
+ * 的测试模拟「同一个人换 IP」或「同一个 IP 换设备」，不传就用 Fastify 的默认值（和原来一样）。
+ */
+function browser(app: FastifyInstance, remoteAddress?: string) {
   const jar = new Map<string, string>();
   async function send(method: 'GET' | 'POST' | 'PATCH', url: string, payload?: unknown) {
     const response = await app.inject({
-      method, url, payload: payload as object | undefined,
+      method, url, payload: payload as object | undefined, remoteAddress,
       headers: { cookie: [...jar].map(([k, v]) => `${k}=${v}`).join('; '), ...(method === 'GET' ? {} : { origin: 'https://example.test' }) },
     });
     for (const raw of ([] as string[]).concat((response.headers['set-cookie'] as string[] | string | undefined) ?? [])) {
@@ -168,7 +171,7 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     expect((await again.send('POST', '/auth/email/verify', { code })).json().error).toBe('code_expired');
   });
 
-  it('lets a plain registered email account (no invite, no GitHub id) post in the forum as a real member, not a guest (#274 SPEC §3.6)', async () => {
+  it('lets a plain registered email account (no invite, no GitHub id) be recognized as a real forum member, not a guest — but it still cannot post without forum.topic.create (#274 SPEC §3.2/§3.6)', async () => {
     const { app, mail } = await setup();
     const user = browser(app);
     await user.send('POST', '/auth/email/start', { email: 'no.invite.member@example.test' });
@@ -177,7 +180,9 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     expect(me).toMatchObject({ signed_in: true, provider: 'email', user_id: null, level: 'level.registered' });
 
     // 之前的 bug：论坛只按 session.user_id（GitHub 数字 id）认人，没有它就按游客处理；
-    // 修复后按账号（account_id）认人，邮箱注册也是真实成员，不用游客昵称和 PoW。
+    // 修复后按账号（account_id）认人，邮箱注册也是真实成员（viewer.kind），不用游客昵称和 PoW——
+    // 但「论坛认不认识你」和「有没有权限写」是两回事：没用邀请码的注册用户没有 forum.topic.create，
+    // 发帖仍然 403（SPEC §3.2），这条只测前者，权限矩阵见 forum.test.ts。
     const state = (await user.send('GET', '/api/forum/state')).json().state;
     expect(state.viewer.kind).toBe('member');
     expect(state.viewer.userId).toMatch(/^a\d+$/);
@@ -185,10 +190,11 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     expect(forumUser).toMatchObject({ username: me.login, kind: 'member' });
 
     const posted = await user.send('POST', '/api/forum/topics', { title: '邮箱注册也能发帖', categoryId: 'c-ai', content: '不用游客昵称和验证码' });
-    expect(posted.statusCode).toBe(201);
-    expect(posted.json().changes.topics[0].authorId).toBe(state.viewer.userId);
+    expect(posted.statusCode).toBe(403);
+    expect(posted.json().error).toBe('forbidden');
 
-    // 论坛用户行落了账号、没有 GitHub id；同一账号再来续用同一行，不会另建一个空号。
+    // 论坛用户行落了账号、没有 GitHub id（GET /state 已经建过这一行，不需要真的发成帖才有）；
+    // 同一账号再来续用同一行，不会另建一个空号。
     const row = app.services.storage.db.prepare('SELECT account_id, github_user_id FROM forum_users WHERE id = ?').get(state.viewer.userId);
     expect(row).toEqual({ account_id: me.account_id, github_user_id: null });
     const again = (await user.send('GET', '/api/forum/state')).json().state;
@@ -259,6 +265,80 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     const b = browser(app);
     await b.send('POST', '/auth/email/start', { email: 'b@example.test' });
     expect((await b.send('POST', '/auth/email/verify', { code: await mail.codeFor('b@example.test'), invite_code: 'one-shot' })).json().error).toBe('invite_invalid');
+  });
+});
+
+/**
+ * 注册限额（#274 残留修复，SPEC §3.8）：同一 IP 每天最多新建 5 个账号、同一设备（yugc_vid）每天最多 3 个，
+ * 只在真的要新建账号那一刻计数——登录到已有账号不占额度。用邮箱验证码这条链路测（lib/register-limits.ts
+ * 是三种注册方式共用的，GitHub、Google 走同一个 hitAll，这里不重复测三遍）。
+ */
+describe('registration limits: 5/IP/day, 3/device/day, only when a new account is created (#274 SPEC §3.8)', () => {
+  const FIXED_VID = '11111111-1111-4111-8111-111111111111';
+  const deviceOf = (n: number) => `${FIXED_VID.slice(0, -1)}${n}`;
+
+  it('limits new accounts to 5 a day from the same IP, even across different devices', async () => {
+    const { app, mail } = await setup();
+    const register = async (email: string, vid: string) => {
+      const b = browser(app, '198.51.100.9');
+      b.jar.set('yugc_vid', vid);
+      await b.send('POST', '/auth/email/start', { email });
+      return b.send('POST', '/auth/email/verify', { code: await mail.codeFor(email) });
+    };
+    for (let i = 0; i < 5; i++) {
+      const response = await register(`ip-bucket-${i}@example.test`, deviceOf(i));
+      expect(response.statusCode).toBe(200);
+      expect(response.json().registered).toBe(true);
+    }
+    const sixth = await register('ip-bucket-5@example.test', deviceOf(5));
+    expect(sixth.statusCode).toBe(429);
+    expect(sixth.json()).toMatchObject({ error: 'rate_limited', bucket: 'auth.register.daily' });
+    expect(typeof sixth.json().retry_after).toBe('number');
+    expect(sixth.json().retry_after).toBeGreaterThan(0);
+  });
+
+  it('limits new accounts to 3 a day from the same device, even across different IPs', async () => {
+    const { app, mail } = await setup();
+    const register = async (email: string, ip: string) => {
+      const b = browser(app, ip);
+      b.jar.set('yugc_vid', FIXED_VID);
+      await b.send('POST', '/auth/email/start', { email });
+      return b.send('POST', '/auth/email/verify', { code: await mail.codeFor(email) });
+    };
+    for (let i = 0; i < 3; i++) {
+      const response = await register(`device-bucket-${i}@example.test`, `203.0.113.${i + 1}`);
+      expect(response.statusCode).toBe(200);
+      expect(response.json().registered).toBe(true);
+    }
+    const fourth = await register('device-bucket-3@example.test', '203.0.113.200');
+    expect(fourth.statusCode).toBe(429);
+    expect(fourth.json()).toMatchObject({ error: 'rate_limited', bucket: 'auth.register.daily' });
+  });
+
+  it('never counts logging into an existing account, even after the daily registration limit is hit on the same IP and device', async () => {
+    const { app, mail, tick } = await setup();
+    const ip = '198.51.100.50';
+    const vid = FIXED_VID;
+    const freshBrowser = () => { const b = browser(app, ip); b.jar.set('yugc_vid', vid); return b; };
+    // 固定同一个 IP、同一台设备连续注册：设备那条线（3/天）比 IP 那条线（5/天）先到上限，用满 3 个就够了。
+    for (let i = 0; i < 3; i++) {
+      const b = freshBrowser();
+      const email = `fill-${i}@example.test`;
+      await b.send('POST', '/auth/email/start', { email });
+      expect((await b.send('POST', '/auth/email/verify', { code: await mail.codeFor(email) })).statusCode).toBe(200);
+    }
+    // 新账号确实到了上限：第 6 个真的要注册的邮箱被拒。
+    const blocked = freshBrowser();
+    await blocked.send('POST', '/auth/email/start', { email: 'blocked@example.test' });
+    const blockedResult = await blocked.send('POST', '/auth/email/verify', { code: await mail.codeFor('blocked@example.test') });
+    expect(blockedResult.statusCode).toBe(429);
+    // 登录回上面已经注册过的账号（fill-0），同一个 IP、同一台设备，不受影响——这不是「新建账号」，不占额度。
+    tick(61_000); // 同一个邮箱 60 秒内只能再要一次验证码，跳过这个冷却期
+    const back = freshBrowser();
+    await back.send('POST', '/auth/email/start', { email: 'fill-0@example.test' });
+    const signedIn = await back.send('POST', '/auth/email/verify', { code: await mail.codeFor('fill-0@example.test', 2) });
+    expect(signedIn.statusCode).toBe(200);
+    expect(signedIn.json().registered).toBe(false);
   });
 });
 
