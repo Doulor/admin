@@ -179,7 +179,11 @@ export const identityContracts: RouteContracts = {
     }),
     response: { 200: profileView, ...failures },
   },
-  "GET /api/identity/avatar/:file": { params: object({ file: pattern("^[0-9a-f]{64}\\.webp$") }, ["file"]) },
+  // 响应是 webp 字节流，不是 JSON；caching、公开读取见 lib/account-avatar.ts。
+  "GET /api/identity/avatar/:file": {
+    params: object({ file: pattern("^[0-9a-f]{64}\\.webp$") }, ["file"]),
+    response: { 200: { type: "string", description: "image/webp; binary" } },
+  },
   "PUT /api/identity/avatar": { querystring: object({}), response: { 200: object({ avatar_url: { anyOf: [text(500), { type: "null" }] } }, ["avatar_url"]), ...failures } },
   "POST /api/identity/invite/redeem": {
     querystring: object({}),

@@ -1,4 +1,4 @@
-import { body, limitParam, nullableText, object, text, type RouteContracts } from "../../lib/http-contracts.js";
+import { body, integer, limitParam, nullableText, object, text, type RouteContracts } from "../../lib/http-contracts.js";
 import {
   competitionFailures, competitionIdParam, competitionLeaderboard, freeAgentList, myCompetitionList, myStatus,
   publicCompetition, publicCompetitionList, signupBody, teamIdParam, teamList,
@@ -30,12 +30,15 @@ export const portalContracts: RouteContracts = {
   "GET /api/docs/:id": { params: object({ id: text(64, 1) }, ["id"]) },
   "POST /api/join/:token": body({ github_login: text(39), email: text(254), note: text(280), ...abuse }),
   // 前端批量上报动作（#274 SPEC §3.7）：访客也能调，最多 20 条；白名单在 lib/activity.ts，不在契约里重复列。
-  "POST /api/events": body({
-    events: {
-      type: "array", minItems: 1, maxItems: 20,
-      items: object({ action: text(64, 1), target_type: nullableText(64), target_id: nullableText(128), meta: { type: "object" } }, ["action"]),
-    },
-  }, ["events"]),
+  "POST /api/events": {
+    ...body({
+      events: {
+        type: "array", minItems: 1, maxItems: 20,
+        items: object({ action: text(64, 1), target_type: nullableText(64), target_id: nullableText(128), meta: { type: "object" } }, ["action"]),
+      },
+    }, ["events"]),
+    response: { 200: object({ accepted: integer(0), rejected: integer(0) }, ["accepted", "rejected"]) },
+  },
   // 重复的 org 参数会被解析成数组，在合同这里回 400，不进路由变成 500（#129）。合同整份替换公共 querystring，limit 引用公共规则。
   "GET /api/feedback/public": { querystring: object({ org: text(39), limit: limitParam }, [], true) },
   "POST /api/feedback": body({ org: text(39, 1), content: text(5000, 5), category: text(20), contact: text(200), ...abuse }, ["org", "content"]),

@@ -307,7 +307,10 @@ export const consoleContracts: RouteContracts = {
     }),
     response: { 200: groupView },
   },
-  "DELETE /api/console/permission-groups/:id": { querystring: object({}), params: object({ id: groupId }, ["id"]) },
+  "DELETE /api/console/permission-groups/:id": {
+    querystring: object({}), params: object({ id: groupId }, ["id"]),
+    response: { 200: object({ ok: { type: "boolean" } }, ["ok"]) },
+  },
   "GET /api/console/permission-groups/:id/members": {
     ...noQuery,
     params: object({ id: groupId }, ["id"]),
@@ -317,10 +320,12 @@ export const consoleContracts: RouteContracts = {
     querystring: object({}),
     params: object({ id: groupId }, ["id"]),
     body: object({ account_id: accountId, expires_at: integer(0) }, ["account_id"]),
+    response: { 201: object({ ok: { type: "boolean" } }, ["ok"]) },
   },
   "DELETE /api/console/permission-groups/:id/members/:account_id": {
     querystring: object({}),
     params: object({ id: groupId, account_id: accountId }, ["id", "account_id"]),
+    response: { 200: object({ ok: { type: "boolean" } }, ["ok"]) },
   },
   "GET /api/console/users": {
     querystring: object({

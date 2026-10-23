@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-23",
+  "updated": "2026-10-24",
   "applications": [
     {
       "id": "web",
@@ -254,19 +254,16 @@
     "app/server/src/routes/admin/auth.ts": "identity",
     "app/server/src/routes/identity/providers.ts": "identity",
     "app/server/src/routes/console/applications.ts": "recruitment",
-    "app/server/src/routes/console/assignments.ts": "organization",
-    "app/server/src/routes/console/audit.ts": "audit",
-    "app/server/src/routes/console/catalogue.ts": "organization",
+    "app/server/src/routes/console/activity.ts": "audit",
     "app/server/src/routes/console/departments.ts": "organization",
     "app/server/src/routes/console/feedback.ts": "feedback",
     "app/server/src/routes/console/me.ts": "organization",
-    "app/server/src/routes/console/people.ts": "organization",
-    "app/server/src/routes/console/titles.ts": "organization",
     "app/server/src/routes/forum-api/people.ts": "forum",
     "app/server/src/routes/forum-api/posts.ts": "forum",
     "app/server/src/routes/forum-api/topics.ts": "forum",
     "app/server/src/routes/portal/apply.ts": "recruitment",
     "app/server/src/routes/portal/docs.ts": "public_content",
+    "app/server/src/routes/portal/events.ts": "audit",
     "app/server/src/routes/portal/feedback.ts": "feedback",
     "app/server/src/routes/portal/join.ts": "invitations",
     "app/server/src/routes/portal/org.ts": "organization",
@@ -415,9 +412,7 @@
       "domain": "recruitment",
       "assessment": "declared-with-source-evidence",
       "operation": "PATCH /api/console/applications/:application_id",
-      "capabilities": [
-        "applications.review"
-      ],
+      "capabilities": [],
       "reads": [
         "applications",
         "application_reviews"
@@ -431,14 +426,14 @@
         "mail_outbox"
       ],
       "invariants": [
-        "取消保留简历并追加审核历史；需要 applications.review。",
+        "取消保留简历并追加审核历史；需要节点 apply.review 且刚登录过（step-up，#274 切到权限节点体系）。",
         "修改状态必须带 expected_status 与 expected_review_id；版本冲突拒绝写入。",
         "取消不生成通知邮件；已经排队或发出的其他邮件不撤回。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/console/applications.ts",
-          "needle": "\"/api/console/applications/:application_id\",\n    { preHandler: requireCapability(\"applications.review\")"
+          "needle": "\"/api/console/applications/:application_id\",\n    { preHandler: [requirePermission(\"apply.review\"), requireStepUp] },"
         },
         {
           "path": "app/server/src/routes/console/applications.ts",
@@ -801,7 +796,8 @@
       "relatedDomains": [
         "audit",
         "organization",
-        "forum"
+        "forum",
+        "github"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /auth/callback",
@@ -849,6 +845,14 @@
         {
           "path": "app/server/src/routes/admin/auth.ts",
           "needle": "emailRequired(app.services, signin.accountId) ? bindEmailUrl(config.publicOrigin, back) : back"
+        },
+        {
+          "path": "app/server/src/routes/admin/contracts.ts",
+          "needle": "* `routes/admin/auth.ts` 的接口（`/auth/github`、`/auth/callback`、`/auth/signout`、`/auth/me`）不接受"
+        },
+        {
+          "path": "app/server/src/routes/admin/index.ts",
+          "needle": "* 登录与会话（`/auth/*`、`/api/me/*`）：GitHub 登录、回调、退出、`/auth/me`。GitHub 组织管理"
         }
       ],
       "tests": [
@@ -1875,64 +1879,49 @@
       "domain": "organization",
       "relatedDomains": [
         "identity",
-        "audit"
+        "permissions"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /api/console/me",
       "capabilities": [],
       "reads": [
-        "sessions",
-        "role_assignments",
-        "departments",
-        "titles"
+        "users",
+        "account_profiles",
+        "perm_members",
+        "perm_groups"
       ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
+      "writes": [],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：只需有效会话；回答当前登录者的站内角色、称号与能力，以及控制台这次经什么接GitHub（app、session或none），不接受自报role（#262 第四期）。",
-        "响应与错误：200 {login,avatar_url,org,provider,site_role,github,title,titles,capabilities,head_of,email_required}；email_required为true时控制台先带人去绑定邮箱页（#273）。",
-        "数据与副作用：只计算当前身份；不是成员的账号保留称号展示但没有任何能力；补记站内角色时查GitHub失败按错误处理，不降级为非成员；存在会话不等于拥有console.access。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
+        "权限与资源：只需有效会话（requireAuth）；不接受自报身份，全部由服务端按账号现查。",
+        "响应与错误：200 {account_id,login,username,display_name,avatar_url,level,level_name,department,titles,permissions,provider,email_required}；email_required为true时控制台先带人去绑定邮箱页（#273）。",
+        "数据与副作用：只读；level/department/titles 来自 perm_members/perm_groups（不再是 role_assignments），permissions 是 effective().allow 加上「只在本部门范围内允许」的节点（SCOPE_AWARE_NODES：users.view、apply.view、apply.review、activity.read、dept.manage），给前端判断导航显隐用，范围由各接口自己再收窄。",
+        "CONTRACT-274 §5 把旧的 site_role、capabilities、head_of、github 字段整体下线：旧的 people/departments/titles/assignments/catalogue/audit 路由已删，是唯一读过旧形状的地方，确认没有别的调用方。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/console/me.ts",
-          "needle": "  app.get(\"/api/console/me\", async (req) => {"
+          "needle": "app.get(\"/api/console/me\", async (req) => {"
         },
         {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export async function resolveAccess("
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "function effective("
         },
         {
           "path": "app/console/src/pages/Overview.vue",
-          "needle": "const roleText = computed(() => siteRoleText(me.value?.site_role ?? null));"
+          "needle": "<div><dt>身份</dt><dd>{{ me.level_name }}</dd></div>"
         },
         {
           "path": "app/console/src/lib/session.ts",
           "needle": "export function useSession() {"
         },
         {
-          "path": "app/console/src/lib/permission-tree.ts",
-          "needle": "export function buildPermissionTree("
-        },
-        {
-          "path": "app/console/src/pages/people/PermissionTree.vue",
-          "needle": "isOwner: me.value?.site_role === \"admin\","
-        },
-        {
           "path": "app/console/src/components/ConsoleShell.vue",
-          "needle": "const roleText = computed(() => `站内${siteRoleText(props.me.site_role)}`);"
+          "needle": "const roleText = computed(() => props.me.level_name);"
         },
         {
           "path": "app/console/src/pages/ConsoleRoot.vue",
-          "needle": "if (value) void router.replace(bindEmailPath(route.fullPath));"
+          "needle": "const emailRequired = computed(() => me.value?.email_required === true);"
         }
       ],
       "tests": [
@@ -1954,98 +1943,35 @@
       "relatedDomains": [
         "recruitment",
         "feedback",
+        "audit",
         "identity",
-        "audit"
+        "competitions",
+        "gitlab"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /api/console/summary",
-      "capabilities": [
-        "console.access"
-      ],
+      "capabilities": [],
       "reads": [
         "applications",
         "feedback",
-        "sessions",
-        "role_assignments",
-        "departments",
-        "titles"
+        "activity_events",
+        "users"
       ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
+      "writes": [],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：console.access；applications、feedback、people三块分别再按applications.read、feedback.read及roles.manage或roles.department.manage过滤。",
-        "响应与错误：200 只含获授权的统计键；投递计数含全部五状态和7日数。",
-        "数据与副作用：读全局投递统计、CONSOLE_ORG意见数及指派/未归档部门数；不返回无权查看的统计键。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
+        "权限与资源：只需有效会话（requireAuth，和 GET /api/console/me 共用）；每一块按自己的节点单独判断是否下发——apply.view（投递统计）、competition.score.review（candidates_pending）、users.view（今日注册）、activity.read（今日被限流次数）、gitlab.view（GitLab 同步健康）、feedback.view（意见反馈计数），没有对应节点的键直接不出现在响应里。",
+        "响应与错误：200 只含获授权的统计键。",
+        "数据与副作用：只读；candidates_pending 在 #278 落地前固定回 0；今日注册、今日被限流分别按北京时间当天零点起统计（beijingDayStart）。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/console/me.ts",
-          "needle": "  app.get(\"/api/console/summary\", { preHandler: requireCapability(\"console.access\") }, async (req) => {"
+          "needle": "app.get(\"/api/console/summary\", async (req) => {"
         },
         {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        }
-      ],
-      "tests": [
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "organization.catalogue",
-      "title": "读取称号与能力目录",
-      "domain": "organization",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/console/catalogue",
-      "capabilities": [
-        "console.access"
-      ],
-      "reads": [
-        "sessions",
-        "role_assignments",
-        "departments",
-        "titles"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：console.access；供渲染的能力清单不能替代服务端授权。",
-        "响应与错误：200 {titles,crew,tones,capabilities,domains,role_base,implies,captain_only,department_icons,application_statuses}。",
-        "数据与副作用：称号显示与权限包来自titles；能力、色调、蕴含等来自源码常量，不写权限配置。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/console/catalogue.ts",
-          "needle": "  app.get(\"/api/console/catalogue\", { preHandler: requireCapability(\"console.access\") }, async () => {"
-        },
-        {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
+          "path": "app/server/src/lib/beijing-time.ts",
+          "needle": "export function beijingDayStart("
         }
       ],
       "tests": [
@@ -2061,102 +1987,29 @@
       "id": "organization.departments.list",
       "title": "读取部门及成员计数",
       "domain": "organization",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
+      "relatedDomains": [],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /api/console/departments",
-      "capabilities": [
-        "console.access"
-      ],
+      "capabilities": [],
       "reads": [
-        "sessions",
-        "role_assignments",
         "departments",
-        "titles"
+        "role_assignments"
       ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
+      "writes": [],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：console.access，读取全部部门配置；不是仅本人部门。",
+        "权限与资源：需要节点 console.access（#274 切到权限节点体系，不再是 requireCapability 的旧能力）。",
         "响应与错误：200 {departments}，含heads和crew_count，也保留归档标记。",
-        "数据与副作用：读取departments和role_assignments，写权限包不在此入口。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
+        "数据与副作用：只读 departments 与 role_assignments（固定清单，#274 起控制台不再支持新建/改名/归档/删除，见 departments.ts 头部注释）；写权限包不在此入口。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/console/departments.ts",
-          "needle": "  app.get(\"/api/console/departments\", { preHandler: requireCapability(\"console.access\") }, async () => ({ departments: view() }));"
-        },
-        {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        }
-      ],
-      "tests": [
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "organization.departments.create",
-      "title": "新建组织部门",
-      "domain": "organization",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "POST /api/console/departments",
-      "capabilities": [
-        "roles.manage"
-      ],
-      "reads": [
-        "sessions",
-        "role_assignments",
-        "departments",
-        "titles"
-      ],
-      "writes": [
-        "departments",
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：roles.manage且站内角色是管理员（提督，requireAdmiral）；舰长仅有roles.manage仍403 admiral_required。",
-        "响应与错误：201 {department}；400 captain_only_capability，409 department_exists。",
-        "数据与副作用：写新部门，roles.manage不得装进部门权限包；成功写department.create审计。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/console/departments.ts",
-          "needle": "  app.post<{ Body: DepartmentInput }>(\"/api/console/departments\", { preHandler: departmentWrite }, async (req, reply) => {"
+          "needle": "app.get(\"/api/console/departments\", { preHandler: requirePermission(\"console.access\") }, async () => {"
         },
         {
           "path": "app/server/src/lib/role-store.ts",
-          "needle": "export function createRoleStore("
-        },
-        {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
+          "needle": "function crewCounts("
         }
       ],
       "tests": [
@@ -2169,605 +2022,210 @@
       ]
     },
     {
-      "id": "organization.departments.update",
-      "title": "修改或归档组织部门",
-      "domain": "organization",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "PATCH /api/console/departments/:department_id",
-      "capabilities": [
-        "roles.manage"
-      ],
-      "reads": [
-        "sessions",
-        "role_assignments",
-        "departments",
-        "titles"
-      ],
-      "writes": [
-        "departments",
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：roles.manage且站内角色是管理员（提督，requireAdmiral）；舰长仅有roles.manage仍403 admiral_required。",
-        "响应与错误：200 {department}；未知id 404，非法舰长专属能力400。",
-        "数据与副作用：更新传入字段/归档标记；仅实际变化时审计department.update，未直接撤销其他称号。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/console/departments.ts",
-          "needle": "  app.patch<{ Params: { department_id: string }; Body: DepartmentPatch }>("
-        },
-        {
-          "path": "app/server/src/lib/role-store.ts",
-          "needle": "export function createRoleStore("
-        },
-        {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        }
-      ],
-      "tests": [
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "organization.departments.delete",
-      "title": "删除部门并撤销该部门指派",
-      "domain": "organization",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "DELETE /api/console/departments/:department_id",
-      "capabilities": [
-        "roles.manage"
-      ],
-      "reads": [
-        "sessions",
-        "role_assignments",
-        "departments",
-        "titles"
-      ],
-      "writes": [
-        "departments",
-        "role_assignments",
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：roles.manage且站内角色是管理员（提督，requireAdmiral）；舰长仅有roles.manage仍403 admiral_required。",
-        "响应与错误：200 {ok:true,removed}；不存在404 not_found。",
-        "数据与副作用：同一数据库事务删除该部门和其head/member指派，其他指派不变；审计被撤销者，种子标记防止重启复活。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/console/departments.ts",
-          "needle": "  app.delete<{ Params: { department_id: string } }>("
-        },
-        {
-          "path": "app/server/src/lib/role-store.ts",
-          "needle": "export function createRoleStore("
-        },
-        {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        }
-      ],
-      "tests": [
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "organization.titles.update",
-      "title": "修改称号显示与权限包",
-      "domain": "organization",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "PATCH /api/console/titles/:title_id",
-      "capabilities": [
-        "roles.manage"
-      ],
-      "reads": [
-        "sessions",
-        "role_assignments",
-        "departments",
-        "titles"
-      ],
-      "writes": [
-        "titles",
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：roles.manage；admin/captain两级只有提督能改；提督固定全能力、乘客固定无能力，roles.manage只能进captain包。",
-        "响应与错误：200 {title}；400 title_capabilities_fixed/captain_only_capability，403 admiral_required，404 not_found。",
-        "数据与副作用：只更新允许的称号字段；实际变化才写title.update（不含旧新值），下一次请求读取新权限包。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/console/titles.ts",
-          "needle": "  app.patch<{ Params: { title_id: TitleId }; Body: TitlePatch }>("
-        },
-        {
-          "path": "app/server/src/lib/role-store.ts",
-          "needle": "export function createRoleStore("
-        },
-        {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/console/src/pages/people/TitleDialog.vue",
-          "needle": "GitHub 类权限在 GitHub 上由服务器接入的 GitHub 执行。"
-        },
-        {
-          "path": "app/console/src/pages/people/BundleDialog.vue",
-          "needle": "GitHub 类权限在 GitHub 上由服务器接入的 GitHub 执行。"
-        },
-        {
-          "path": "app/console/src/pages/people/TitleList.vue",
-          "needle": "if (title.id === \"admin\") return \"由站内管理员自动获得"
-        },
-        {
-          "path": "app/console/src/lib/titles.ts",
-          "needle": "export const DEFAULT_TITLES: readonly CatalogueTitle[] = ["
-        }
-      ],
-      "tests": [
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "organization.assignments.list",
-      "title": "查看可管理的称号指派",
-      "domain": "organization",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/console/assignments",
-      "capabilities": [],
-      "reads": [
-        "sessions",
-        "role_assignments",
-        "departments",
-        "titles"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：任一能力即可；roles.manage查全部，部门队长仅headOf范围，显式查询其他部门403 out_of_department_scope。",
-        "响应与错误：200 {assignments,captain}；captain只给登录名。",
-        "数据与副作用：读取筛选指派及现任舰长，不任命或移交。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/console/assignments.ts",
-          "needle": "  app.get<{ Querystring: ListQuery }>("
-        },
-        {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        }
-      ],
-      "tests": [
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "organization.assignments.grant",
-      "title": "指派称号或移交舰长",
-      "domain": "organization",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "POST /api/console/assignments",
-      "capabilities": [],
-      "reads": [
-        "sessions",
-        "role_assignments",
-        "departments",
-        "titles",
-        "identities",
-        "users"
-      ],
-      "writes": [
-        "role_assignments",
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：任一能力；队长只任免自己部门member，captain只由提督或现任舰长任命；指派对象给account_id（极客班账号，没绑GitHub的也行）或github_login，二选一（#262 第四期）。",
-        "响应与错误：201 {assignment}；400 部门错误或github_user_not_found，404 account_not_found，403 跨部门或captain_required，409 assignment_exists；30次/分钟限流。",
-        "数据与副作用：先校验部门存在且未归档；github_login在接上GitHub时经接入的GitHub（App或本人令牌）查数字id再找账号（登录名会改，旧名可能被别人注册），GitHub没接上时只认本站认识的人、按他上次登录时的用户名找；captain通过事务删旧插新保持唯一；审计指派/移交，不改变GitHub membership。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/console/assignments.ts",
-          "needle": "  app.post<{ Body: AssignBody }>("
-        },
-        {
-          "path": "app/server/src/lib/role-store.ts",
-          "needle": "export function createRoleStore("
-        },
-        {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/console/src/pages/people/AssignDialog.vue",
-          "needle": "...(accountId.value ? { account_id: accountId.value } : { github_login: login.value.trim() }),"
-        },
-        {
-          "path": "app/server/src/lib/github.ts",
-          "needle": "async function getUser(octokit: Pick<Octokit, \"request\">, login: string)"
-        }
-      ],
-      "tests": [
-        "tests/server/console.test.ts",
-        "tests/server/rate-limits.test.ts",
-        "tests/server/signin-methods.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "organization.assignments.revoke",
-      "title": "撤销称号指派",
-      "domain": "organization",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "DELETE /api/console/assignments/:id",
-      "capabilities": [],
-      "reads": [
-        "sessions",
-        "role_assignments",
-        "departments",
-        "titles"
-      ],
-      "writes": [
-        "role_assignments",
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：任一能力；队长只能撤自己部门member；captain仅提督或该行对应舰长本人可撤。",
-        "响应与错误：200 {ok:true}；404 not_found，403 out_of_department_scope/missing_capability，409 captain_transfer_required。",
-        "数据与副作用：删除指定指派并记role.revoke，其他指派不变；不删除GitHub组织成员。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/console/assignments.ts",
-          "needle": "  app.delete<{ Params: { id: string } }>("
-        },
-        {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        }
-      ],
-      "tests": [
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "organization.people",
-      "title": "查看组织成员与称号持有者",
-      "domain": "organization",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/console/people",
-      "capabilities": [],
-      "reads": [
-        "sessions",
-        "role_assignments",
-        "departments",
-        "titles",
-        "users",
-        "identities"
-      ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：任一能力；队长也能看全名单，不按部门收窄；名单以极客班账号为准，接上GitHub（App或本人GitHub会话）时并上组织里还没登录过本站的人，接不上照常给名单（#262 第四期）。",
-        "响应与错误：200 {people,github,github_listed}；每人含account_id/login/user_id/avatar_url/site_role/role_unrecorded/member/status/providers/last_login_at/titles（不含邮箱），列出了GitHub组织成员时带github_role；按最高称号层级和登录名排序。",
-        "数据与副作用：读取账号、身份与指派；接上GitHub时取组织成员（失败只记日志、github_listed为false），再合并有指派但两边都没有的人；按数字id优先匹配改名用户，不同步写远端。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/console/people.ts",
-          "needle": "  app.get(\"/api/console/people\", { preHandler: requireCapability(\"roles.manage\", \"roles.department.manage\") }, async (req) => {"
-        },
-        {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        },
-        {
-          "path": "app/console/src/pages/People.vue",
-          "needle": "const isAdmiral = computed(() => me.value?.site_role === \"admin\");"
-        },
-        {
-          "path": "app/console/src/lib/people.ts",
-          "needle": "export const personKey = ("
-        },
-        {
-          "path": "app/server/src/lib/github.ts",
-          "needle": "async function listOrgMembers(octokit: Pick<Octokit, \"request\">, org: string): Promise<OrgMember[]> {"
-        }
-      ],
-      "tests": [
-        "tests/server/console.test.ts",
-        "tests/server/signin-methods.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "organization.people.site_role",
-      "title": "改账号的站内角色",
-      "domain": "organization",
-      "relatedDomains": [
-        "identity",
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "PATCH /api/console/people/:account_id/site-role",
-      "capabilities": [
-        "roles.manage"
-      ],
-      "reads": [
-        "sessions",
-        "role_assignments",
-        "departments",
-        "titles",
-        "users"
-      ],
-      "writes": [
-        "users",
-        "identity_audit",
-        "audit_logs",
-        "sessions"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：roles.manage且站内角色是管理员（提督）；舰长仅有roles.manage仍403 admiral_required；不看GitHub组织角色（#262 第四期）。",
-        "响应与错误：200 {account_id,site_role,changed}；site_role不是admin/member/none为400，账号不存在或已合并404 not_found，改掉最后一位管理员409 last_admin；30次/分钟限流。",
-        "数据与副作用：在一个BEGIN IMMEDIATE事务里改users的org_role/org_state，写identity_audit的role_change与account.role审计；改成none后对方下一次请求起没有任何能力、不能再登录，称号指派保留；不改GitHub组织成员关系。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/console/people.ts",
-          "needle": "    \"/api/console/people/:account_id/site-role\","
-        },
-        {
-          "path": "app/server/src/lib/identity-store.ts",
-          "needle": "  function setSiteRole("
-        },
-        {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
-          "path": "app/console/src/pages/people/SiteRoleDialog.vue",
-          "needle": "const save = useAction(async () => {"
-        },
-        {
-          "path": "app/console/src/pages/People.vue",
-          "needle": "<SiteRoleDialog v-if=\"isAdmiral\""
-        }
-      ],
-      "tests": [
-        "tests/server/signin-methods.test.ts",
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "audit.console.read",
-      "title": "按能力读取脱敏审计",
+      "id": "audit.console.activity.list",
+      "title": "控制台查看操作记录（取代旧的 /api/console/audit）",
       "domain": "audit",
       "relatedDomains": [
-        "identity",
-        "organization"
+        "permissions",
+        "identity"
       ],
       "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/console/audit",
-      "capabilities": [
-        "audit.read"
-      ],
+      "operation": "GET /api/console/activity",
+      "capabilities": [],
       "reads": [
-        "audit_logs",
-        "sessions",
-        "role_assignments",
-        "departments",
-        "titles"
+        "activity_events",
+        "account_profiles",
+        "perm_members",
+        "perm_groups"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 activity.read；部长只有按部门 scope 的 allow 时只看本部门范围（含 dept.none：没有部门成员资格的账号），见 lib/console-scope.ts 的 requireScopedPermission。",
+        "响应与错误：200 {items:[{id,at,account,visitor_id,surface,action,target_type,target_id,outcome,ip,ua,request_id,meta}],next_cursor,blocked_today:[{bucket,count}]}；cursor 按 at,id 倒序，固定 50 条一页。",
+        "数据与副作用：只读；没有 activity.read.ip 时 IP 按 maskIp() 打码（IPv4 留前两段、IPv6 留前 4 组），有这个节点才给全量；blocked_today 统计今天北京时间以来 outcome=limited 的记录按 bucket 分组计数。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/activity.ts",
+          "needle": "app.get(\"/api/console/activity\", { preHandler: requireScopedPermission(\"activity.read\") }, async (req) => {"
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/activity\": { querystring: activityQuery, response: { 200: activityListResult } },"
+        },
+        {
+          "path": "app/console/src/pages/Activity.vue",
+          "needle": "ACTIVITY_OUTCOMES, ACTIVITY_SURFACES, OUTCOME_STATUS, OUTCOME_TEXT, SURFACE_TEXT, actionText, activityParams, actorText, bucketText,"
+        },
+        {
+          "path": "app/console/src/lib/activity.ts",
+          "needle": "// 操作记录（SPEC §3.7）：筛选条件 ↔ 地址参数 ↔ 接口参数，以及来源、结果、动作、限流桶的说法。纯函数，tests/console 直接测。"
+        }
+      ],
+      "tests": [
+        "tests/server/activity.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "audit.console.activity.export",
+      "title": "控制台导出操作记录 CSV",
+      "domain": "audit",
+      "relatedDomains": [
+        "permissions",
+        "identity"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/activity.csv",
+      "capabilities": [],
+      "reads": [
+        "activity_events",
+        "account_profiles"
       ],
       "writes": [
-        "sessions",
         "audit_logs"
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：audit.read；仅CONSOLE_ORG，action按转义后的字面前缀筛选；不是全库日志。",
-        "响应与错误：200 {logs}；details解析为对象；invite_link目标token及public:token操作者只保留前6位。",
-        "数据与副作用：读日志分页，不修改历史；org为空的登录/公开投递审计不在该结果中。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
+        "权限与资源：需要节点 activity.export（比 activity.read 更高一级，不经部门 scope，能导出全量）。",
+        "响应与错误：200 text/csv；最多 5000 行，不分页；表头 id,at,account_id,username,visitor_id,surface,action,target_type,target_id,outcome,ip,request_id。",
+        "数据与副作用：只读 activity_events；没有 activity.read.ip 时 IP 同样打码；每次导出写一条 audit_logs（action=activity.export，details 记导出行数），导出动作本身不写进 activity_events。"
       ],
       "evidence": [
         {
-          "path": "app/server/src/routes/console/audit.ts",
-          "needle": "  app.get<{ Querystring: { limit?: string; offset?: string; action?: string } }>("
+          "path": "app/server/src/routes/console/activity.ts",
+          "needle": "app.get(\"/api/console/activity.csv\", { preHandler: requirePermission(\"activity.export\") }, async (req, reply) => {"
         },
         {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/activity.csv\": { querystring: activityQuery, response: { 200: { type: \"string\", description: \"text/csv; charset=utf-8\" } } },"
         }
       ],
       "tests": [
-        "tests/server/console.test.ts"
+        "tests/server/activity.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "audit.console.activity.account",
+      "title": "控制台查看单个账号的操作记录",
+      "domain": "audit",
+      "relatedDomains": [
+        "permissions",
+        "identity"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/accounts/:id/activity",
+      "capabilities": [],
+      "reads": [
+        "activity_events",
+        "account_profiles",
+        "perm_members",
+        "perm_groups"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 activity.read；部长按部门 scope 时，目标账号不在自己范围内（不属于 scope 里任何一个部门）403 forbidden，不是查不到当空列表处理。",
+        "响应与错误：200 {items:[...同 /api/console/activity 的单条形状],next_cursor}；账号不存在不特判，查询本身按 account_id 过滤，没有记录就是空列表，不是 404。",
+        "数据与副作用：只读；IP 打码规则与 /api/console/activity 相同。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/activity.ts",
+          "needle": "app.get<{ Params: { id: string } }>(\"/api/console/accounts/:id/activity\", { preHandler: requireScopedPermission(\"activity.read\") }, async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/accounts/:id/activity\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/activity.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "audit.events.report",
+      "title": "前端批量上报白名单动作（访客也能调）",
+      "domain": "audit",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/events",
+      "capabilities": [],
+      "reads": [],
+      "writes": [
+        "activity_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：不要求登录，访客也能调；按账号或访客编号（不是 IP）限流 30 次每分钟，同一人多个标签页共享同一份配额。",
+        "响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，多余字段 400 validation_error（契约在 routes/portal/contracts.ts）。",
+        "数据与副作用：只有 lib/activity.ts 的 EVENT_WHITELIST 里的动作才记一行 activity_events；白名单外的全部丢弃，合并计一条 outcome=denied 的 events.rejected（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌等敏感字段（调用方自己决定 meta 放什么）。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/portal/events.ts",
+          "needle": "app.post<{ Body: { events: EventItem[] } }>("
+        },
+        {
+          "path": "app/server/src/routes/portal/contracts.ts",
+          "needle": "\"POST /api/events\": {"
+        },
+        {
+          "path": "app/server/src/lib/activity.ts",
+          "needle": "export const EVENT_WHITELIST ="
+        }
+      ],
+      "tests": [
+        "tests/server/events.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
       ]
     },
     {
       "id": "application.list",
       "title": "筛选招新投递列表",
       "domain": "recruitment",
-      "relatedDomains": [
-        "identity",
-        "organization",
-        "audit"
-      ],
+      "relatedDomains": [],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /api/console/applications",
-      "capabilities": [
-        "applications.read"
-      ],
+      "capabilities": [],
       "reads": [
         "applications",
-        "application_reviews",
-        "sessions",
-        "role_assignments",
-        "departments",
-        "titles"
+        "application_reviews"
       ],
-      "writes": [
-        "sessions",
-        "audit_logs"
-      ],
+      "writes": [],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：applications.read；无部门/个人记录限制，有此能力可读全部候选人列表。",
+        "权限与资源：需要节点 apply.view（#274 切到权限节点体系）；无部门/个人记录限制，有此节点可读全部候选人列表。",
         "响应与错误：200 {items,total,counts}；特长摘要120字、last_review可空，来源IP/UA不下发；counts为未筛选的全局五状态计数。",
-        "数据与副作用：转义q中的LIKE通配符，按姓名/班级/邮箱搜索；查询latest review，不为列表记application.view。",
-        "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
+        "数据与副作用：只读；转义q中的LIKE通配符，按姓名/班级/邮箱搜索；查询latest review，不为列表记application.view。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/console/applications.ts",
-          "needle": "  app.get<{ Querystring: ListQuery }>(\"/api/console/applications\", { preHandler: requireCapability(\"applications.read\") }, async (req) => {"
+          "needle": "app.get<{ Querystring: ListQuery }>(\"/api/console/applications\", { preHandler: requirePermission(\"apply.view\") }, async (req) => {"
         },
         {
-          "path": "app/server/src/lib/access.ts",
-          "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
+          "path": "app/console/src/pages/Applications.vue",
+          "needle": "const PAGE_SIZE = 20;"
         }
       ],
       "tests": [
@@ -2826,6 +2284,10 @@
         {
           "path": "app/server/src/middleware/require-capability.ts",
           "needle": "export function requireCapability("
+        },
+        {
+          "path": "app/console/src/pages/ApplicationDetail.vue",
+          "needle": "LETTER_LIMITS, emptyLetterDraft, letterErrors, mailState, newestReviewId, noticePlan, reviewPatch, savedMessage, serverFieldErrors, statusChangedMessage,"
         }
       ],
       "tests": [
@@ -2995,6 +2457,14 @@
         {
           "path": "app/server/src/lib/mail/mailer.ts",
           "needle": "export function createMailer("
+        },
+        {
+          "path": "app/server/src/lib/limits.ts",
+          "needle": "* 防盗刷计数的唯一入口（#274 SPEC §3.8）：写在通用的 `limit_events` 表（db.ts），按 `bucket`（哪条规则）"
+        },
+        {
+          "path": "app/server/src/lib/apply-quota.ts",
+          "needle": "export type ApplyQuota = { apply_left_today: number; apply_daily_limit: number };"
         }
       ],
       "tests": [
@@ -3388,6 +2858,10 @@
         {
           "path": "app/server/src/middleware/require-capability.ts",
           "needle": "export function requireCapability("
+        },
+        {
+          "path": "app/console/src/pages/Feedback.vue",
+          "needle": "const route = useRoute();"
         }
       ],
       "tests": [
@@ -3532,7 +3006,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "audit"
+        "audit",
+        "platform"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /api/forum/state",
@@ -3555,19 +3030,20 @@
       "writes": [
         "forum_users",
         "sessions",
-        "audit_logs"
+        "audit_logs",
+        "limit_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：游客与成员均可读；通知、书签和真实通知设置仅本人可见，其他用户设置给默认值；关注关系公开。",
-        "响应与错误：200 {state}，帖子只有字段和摘要、没有正文；每IP(/64)分钟120次，超额429；显式HEAD回405且不计算state。",
+        "响应与错误：200 {state}，帖子只有字段和摘要、没有正文；每IP(/64)分钟120次（路由自带的 FORUM_REQUEST_LIMITS），游客还另外按 SPEC §3.8 的 meta.limit.read.per_minute 限到每分钟60次（成员按等级更松，见 lib/limits.ts），哪个先触发就回哪个 bucket；超额429；显式HEAD回405且不计算state。",
         "数据与副作用：读论坛表与公开内容分类；GET也可能通过forumViewer刷新本人用户；不发送邮件、不写帖子。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/forum-api/topics.ts",
-          "needle": "  app.get(\"/api/forum/state\", { ...perIp(FORUM_REQUEST_LIMITS.state), exposeHeadRoute: false }, async req => ({ state: forumState(req, await forumViewer(req)) }));"
+          "needle": "app.get(\"/api/forum/state\", { ...perIp(FORUM_REQUEST_LIMITS.state), exposeHeadRoute: false }, async (req, reply) => {"
         },
         {
           "path": "app/server/src/lib/forum-store.ts",
@@ -3598,7 +3074,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "audit"
+        "audit",
+        "platform"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /api/forum/topics/:topic_id/posts",
@@ -3616,19 +3093,20 @@
       "writes": [
         "forum_users",
         "sessions",
-        "audit_logs"
+        "audit_logs",
+        "limit_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：游客与成员均可读，无额外帖子级权限；与state可见性一致。",
-        "响应与错误：200 {posts}含正文；话题不存在404；每IP分钟60次。",
+        "响应与错误：200 {posts}含正文；话题不存在404；每IP分钟60次（路由自带），游客另按 SPEC §3.8 的 meta.limit.read.per_minute 限额（同 /state）。",
         "数据与副作用：按话题读取帖子及点赞投影；软删正文为空；不把全论坛正文再次塞进首屏。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/forum-api/topics.ts",
-          "needle": "  app.get<{ Params: TopicParams }>(\"/api/forum/topics/:topic_id/posts\", { ...perIp(FORUM_REQUEST_LIMITS.topicPosts), exposeHeadRoute: false }, async req => {"
+          "needle": "app.get<{ Params: TopicParams }>(\"/api/forum/topics/:topic_id/posts\", { ...perIp(FORUM_REQUEST_LIMITS.topicPosts), exposeHeadRoute: false }, async (req, reply) => {"
         },
         {
           "path": "app/server/src/lib/forum-store.ts",
@@ -3659,7 +3137,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "audit"
+        "audit",
+        "platform"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /api/forum/search",
@@ -3677,19 +3156,21 @@
       "writes": [
         "forum_users",
         "sessions",
-        "audit_logs"
+        "audit_logs",
+        "limit_events",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：游客与成员均可搜索；只本人用户记录显示真实通知设置，不搜索已删帖子正文。",
-        "响应与错误：200 {results:{topics,posts,users}}；空词空结果；词过长400 validation_error，每IP分钟60次。",
+        "响应与错误：200 {results:{topics,posts,users}}；空词空结果；词过长400 validation_error，每IP分钟60次（路由自带），游客另按 SPEC §3.8 的 meta.limit.search.per_minute 限额；每次真正搜索（非空词）记一条 forum.search 操作记录。",
         "数据与副作用：标题、正文、username/displayName按转义的LIKE搜索，各类限量；返回帖子命中摘要，不将%当通配符。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/forum-api/topics.ts",
-          "needle": "  app.get<{ Querystring: { q?: string } }>(\"/api/forum/search\", { ...perIp(FORUM_REQUEST_LIMITS.search), exposeHeadRoute: false }, async req => {"
+          "needle": "app.get<{ Querystring: { q?: string } }>(\"/api/forum/search\", { ...perIp(FORUM_REQUEST_LIMITS.search), exposeHeadRoute: false }, async (req, reply) => {"
         },
         {
           "path": "app/server/src/lib/forum-store.ts",
@@ -4010,6 +3491,18 @@
         {
           "path": "app/server/src/lib/access.ts",
           "needle": "export function createAccess("
+        },
+        {
+          "path": "app/server/src/lib/forum-rules.ts",
+          "needle": "* 论坛的纯规则（#57）：长度上限、提及、标签 slug、头像底色、文本检查、按 IP 计数的主体。"
+        },
+        {
+          "path": "app/server/src/routes/forum-api/forum-limits.ts",
+          "needle": "* 按等级的每小时上限（SPEC §3.8），meta 节点 `meta.limit.forum.<action>.hourly`，-1 为不限（控制台可在"
+        },
+        {
+          "path": "app/server/src/routes/forum-api/index.ts",
+          "needle": "* 论坛接口 `/api/forum/*`（#57，ADR-0004）：存储在 data.db，身份只认核心 `sid`，"
         }
       ],
       "tests": [
@@ -5022,8 +4515,8 @@
           "needle": "  { id: \"competitions\", to:"
         },
         {
-          "path": "app/console/src/lib/permission-boundaries.ts",
-          "needle": "  \"competitions.manage\": {"
+          "path": "app/console/src/lib/permission-nodes.ts",
+          "needle": "\"competition.manage\": \"管理比赛\","
         },
         {
           "path": "app/console/src/router.ts",
@@ -6529,7 +6022,7 @@
         },
         {
           "path": "app/server/src/routes/console/competition-roster.ts",
-          "needle": "\"competition.roster.export\""
+          "needle": "audit(config.consoleOrg, req.session!, \"competition.roster.export\", id, { rows: result.value.signups.length }, req.ip);"
         },
         {
           "path": "app/server/src/lib/beijing-time.ts",
@@ -7164,7 +6657,7 @@
           "needle": "await app.register(gitlab);"
         },
         {
-          "path": "app/console/src/pages/People.vue",
+          "path": "app/console/src/pages/gitlab/Accounts.vue",
           "needle": "const gitlab = useResource(() => api<GitlabAccountsResponse>(\"/api/console/gitlab/accounts\"));"
         },
         {
@@ -7252,8 +6745,8 @@
           "needle": "function listAccountsForSync("
         },
         {
-          "path": "app/console/src/pages/People.vue",
-          "needle": "/api/console/gitlab/accounts/${encodeURIComponent(account.account_id)}/sync"
+          "path": "app/console/src/pages/gitlab/Accounts.vue",
+          "needle": "/api/console/gitlab/accounts/${encodeURIComponent(account.account_id)}/resync"
         },
         {
           "path": "app/console/src/lib/gitlab.ts",
@@ -7321,6 +6814,10 @@
         {
           "path": "app/server/src/lib/gitlab-sync.ts",
           "needle": "function errors24h("
+        },
+        {
+          "path": "app/console/src/pages/gitlab/Overview.vue",
+          "needle": "/** GitLab 概览（SPEC §3.9）：同步模式、版本、连接状况、上次同步和最近 24 小时的错误数。令牌只说配没配。 */"
         }
       ],
       "tests": [
@@ -7374,6 +6871,10 @@
         {
           "path": "app/server/src/lib/gitlab-sync.ts",
           "needle": "async function listProjects("
+        },
+        {
+          "path": "app/console/src/pages/gitlab/Projects.vue",
+          "needle": "const data = useResource(() => api<GitlabProjectsResponse>(\"/api/console/gitlab/projects\"));"
         }
       ],
       "tests": [
@@ -7467,6 +6968,10 @@
         {
           "path": "app/server/src/lib/gitlab-sync.ts",
           "needle": "function readPersisted("
+        },
+        {
+          "path": "app/console/src/pages/gitlab/Settings.vue",
+          "needle": "/** GitLab 设置（CONTRACT §6）：同步模式、群组路径、同步间隔存在数据库里；令牌只在目标机的环境变量里，这里只显示配没配。 */"
         }
       ],
       "tests": [
@@ -7797,6 +7302,26 @@
         {
           "path": "app/server/src/routes/console/contracts.ts",
           "needle": "\"GET /api/console/permissions/nodes\": {"
+        },
+        {
+          "path": "app/console/src/pages/Permissions.vue",
+          "needle": "* 权限（SPEC §3.3–§3.5）：组（身份、部门、称号、自定义）的条目与成员、全部节点、某个账号某个节点的求值解释。"
+        },
+        {
+          "path": "app/console/src/pages/permissions/NodesTab.vue",
+          "needle": "const props = defineProps<{ nodes: PermissionNodesResponse; groups: PermissionGroup[] }>();"
+        },
+        {
+          "path": "app/console/src/lib/permissions.ts",
+          "needle": "// 「权限」页（SPEC §3.3–§3.5、CONTRACT §5）：组的分类排序、条目与范围的说法、新建与修改的请求体、解释结果的来源链。"
+        },
+        {
+          "path": "app/server/src/lib/permission-nodes.ts",
+          "needle": "* 权限节点目录（#274 SPEC §3.3）：点分节点，启动时同步到 `perm_nodes` 表供控制台展示。"
+        },
+        {
+          "path": "app/console/src/pages/Forum.vue",
+          "needle": "const FORUM_ACTIONS: Record<string, string> = {"
         }
       ],
       "tests": [
@@ -7840,6 +7365,10 @@
         {
           "path": "app/server/src/routes/console/contracts.ts",
           "needle": "\"GET /api/console/permissions/explain\": {"
+        },
+        {
+          "path": "app/console/src/pages/permissions/ExplainTab.vue",
+          "needle": "* 账号和节点写在地址栏（`?tab=explain&account=…&node=…`），用户详情里的链接直接带过来。"
         }
       ],
       "tests": [
@@ -7923,6 +7452,26 @@
         {
           "path": "app/server/src/routes/console/contracts.ts",
           "needle": "\"GET /api/console/permission-groups\": {"
+        },
+        {
+          "path": "app/console/src/pages/permissions/GroupsTab.vue",
+          "needle": "const props = defineProps<{ groups: PermissionGroup[]; nodes: PermissionNodesResponse; reload: () => Promise<void> }>();"
+        },
+        {
+          "path": "app/console/src/pages/permissions/GroupDetail.vue",
+          "needle": "GROUP_KIND_TEXT, entryNodeLabel, entryValueText, groupForm, groupLabel, groupPatch, isExpired, scopeText, type GroupForm,"
+        },
+        {
+          "path": "app/console/src/pages/permissions/CreateGroupDialog.vue",
+          "needle": "/** 新建自定义组：编号 custom.<小写字母、数字、下划线>，建好后不能改编号。条目和成员建好后在组详情里加。 */"
+        },
+        {
+          "path": "app/console/src/pages/permissions/EntryDialog.vue",
+          "needle": "/** 给一个组添加一条权限条目：节点、允许或拒绝（meta 节点填取值）、范围、到期日期。 */"
+        },
+        {
+          "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
+          "needle": "* #274 账号/权限/操作记录统一迁移（SPEC §3.6「迁移步骤」）。可以重复执行："
         }
       ],
       "tests": [
@@ -8206,7 +7755,7 @@
       "evidence": [
         {
           "path": "app/server/src/routes/console/users.ts",
-          "needle": "app.get(\"/api/console/users\", { preHandler: requireViewScope }, async (req) => {"
+          "needle": "app.get(\"/api/console/users\", { preHandler: requireScopedPermission(\"users.view\") }, async (req) => {"
         },
         {
           "path": "app/server/src/routes/console/contracts.ts",
@@ -8215,6 +7764,58 @@
         {
           "path": "app/server/src/lib/console-scope.ts",
           "needle": "export function departmentScopedAccess("
+        },
+        {
+          "path": "app/console/src/pages/Users.vue",
+          "needle": "const route = useRoute();"
+        },
+        {
+          "path": "app/console/src/lib/users.ts",
+          "needle": "// 「用户」页（SPEC §3.9）：筛选条件、详情抽屉里的编辑稿和 PATCH /api/console/users/:id 的请求体。纯函数，tests/console 直接测。"
+        },
+        {
+          "path": "app/console/src/lib/levels.ts",
+          "needle": "// 身份（Level）、账号状态、登录方式与 GitLab 同步状态的中文名（SPEC §3.2）。服务端 /api/console/me 另下发 level_name，"
+        },
+        {
+          "path": "app/console/src/lib/statuses.ts",
+          "needle": "// 投递与意见的状态名和色调。色调固定在 lib/tone.ts。"
+        },
+        {
+          "path": "app/console/src/lib/tone.ts",
+          "needle": "// 色调 → 实际颜色。两套独立取值（见 lib/types.ts）："
+        },
+        {
+          "path": "app/console/src/lib/tabs.ts",
+          "needle": "* 用在 TxTabs 上：首次显示时指示条直接停在当前页签下面。"
+        },
+        {
+          "path": "app/console/src/components/AccountPicker.vue",
+          "needle": "* 选一个账号：按用户名或昵称搜 GET /api/console/users?q=（要「查看用户」权限），值是 account_id。"
+        },
+        {
+          "path": "app/console/src/components/CapabilityGate.vue",
+          "needle": "* 页面级权限门：前端只做提示，服务端仍独立校验。权限只看权限节点（SPEC §3.3）。"
+        },
+        {
+          "path": "app/console/src/components/UserCell.vue",
+          "needle": "/** 成员：头像 + 等宽 @用户名，可选一行说明。没有头像时 TxAvatar 用用户名首字母。 */"
+        },
+        {
+          "path": "app/console/src/components/ErrorAlert.vue",
+          "needle": "* 写操作失败：内联横幅，保留用户已填的内容。登录失效或要求重新确认身份（step_up_required）时"
+        },
+        {
+          "path": "app/console/src/components/ErrorPanel.vue",
+          "needle": "* 读取失败：说清楚出了什么事、下一步做什么；缺权限时改用权限不足状态。`retry` 给了才显示「重试」。"
+        },
+        {
+          "path": "app/console/src/components/TitleBadge.vue",
+          "needle": "/** 部门或称号徽章：TxTag + 名字，颜色取所在部门的色调（SPEC §1），没有部门时用「无部门」的色调。 */"
+        },
+        {
+          "path": "app/console/src/components/ToneTag.vue",
+          "needle": "/** 状态标签：带色点的 TxTag，色调固定（lib/tone.ts），与称号/部门徽章用的色调是另一套取值。 */"
         }
       ],
       "tests": [
@@ -8259,6 +7860,30 @@
         {
           "path": "app/server/src/routes/console/contracts.ts",
           "needle": "\"PATCH /api/console/users/:id\": {"
+        },
+        {
+          "path": "app/console/src/pages/users/UserDrawer.vue",
+          "needle": "* 改动用 PATCH /api/console/users/:id，成功后把服务端回的那一行交给列表。"
+        },
+        {
+          "path": "app/server/src/middleware/require-auth.ts",
+          "needle": "// loadSession 与 FastifyRequest.session 的类型扩展挪进了 lib/session.ts（#274：lib/console-scope.ts 也要用，"
+        },
+        {
+          "path": "app/server/src/middleware/require-permission.ts",
+          "needle": "* 新权限中间件（#274）：按权限节点判定，取代按 Capability 判定的 require-capability.ts。"
+        },
+        {
+          "path": "app/server/src/middleware/require-step-up.ts",
+          "needle": "* 控制台的写操作要求「刚登录过」（CONTRACT-274 §5：「所有写操作需要 step-up」），和账号页绑定邮箱/设密码"
+        },
+        {
+          "path": "app/server/src/middleware/visitor.ts",
+          "needle": "declare module \"fastify\" {"
+        },
+        {
+          "path": "app/server/src/lib/session.ts",
+          "needle": "declare module \"fastify\" {"
         }
       ],
       "tests": [
@@ -8398,21 +8023,6 @@
     "app/console/src/pages/Feedback.vue": [
       "feedback"
     ],
-    "app/console/src/pages/Audit.vue": [
-      "audit"
-    ],
-    "app/console/src/pages/People.vue": [
-      "organization"
-    ],
-    "app/console/src/pages/people/": [
-      "organization"
-    ],
-    "app/console/src/pages/github/": [
-      "github"
-    ],
-    "app/console/src/pages/github/Invit": [
-      "invitations"
-    ],
     "app/console/src/pages/SignIn.vue": [
       "identity"
     ],
@@ -8479,6 +8089,54 @@
       "identity"
     ],
     "app/console/src/pages/BindEmail.vue": [
+      "identity"
+    ],
+    "app/console/src/pages/Activity.vue": [
+      "audit"
+    ],
+    "app/console/src/pages/Users.vue": [
+      "permissions"
+    ],
+    "app/console/src/pages/users/": [
+      "permissions"
+    ],
+    "app/console/src/pages/gitlab/": [
+      "gitlab"
+    ],
+    "app/console/src/pages/Permissions.vue": [
+      "permissions"
+    ],
+    "app/console/src/pages/permissions/": [
+      "permissions"
+    ],
+    "app/server/src/lib/account-avatar.ts": [
+      "identity"
+    ],
+    "app/server/src/lib/account-profiles.ts": [
+      "identity"
+    ],
+    "app/server/src/lib/activity.ts": [
+      "audit"
+    ],
+    "app/server/src/lib/apply-quota.ts": [
+      "recruitment"
+    ],
+    "app/server/src/lib/console-scope.ts": [
+      "permissions"
+    ],
+    "app/server/src/lib/limits.ts": [
+      "platform"
+    ],
+    "app/server/src/lib/migrations/2026-10-yugc-v2.ts": [
+      "permissions"
+    ],
+    "app/server/src/lib/permission-nodes.ts": [
+      "permissions"
+    ],
+    "app/server/src/lib/permissions.ts": [
+      "permissions"
+    ],
+    "app/server/src/lib/session.ts": [
       "identity"
     ]
   }

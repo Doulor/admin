@@ -130,7 +130,7 @@
 ## 04:44:01 +08:00 · 提交 · #274 · Step 2a/2b：合并 scratch/274_console 与 scratch/274_identity，修复合并后失真的测试（beedbbc9、d332f10c、92072540）
 
 - 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
-- 做了什么：
+- 做了什么：合并 scratch/274_console 与 scratch/274_identity 两条并行分支进 task-274，修复合并后失真的测试，细节见下面三步。
   1. Step 2a（beedbbc9）：`git merge --no-ff scratch/274_console`（head 29095acf，con274 交付），无冲突，纯合并提交。验证：`npx vitest run tests/console` 16 files / 201 tests 全过；`pnpm --filter console typecheck`（vue-tsc）无报错；`pnpm --filter console build` 成功；`node scripts/check-boundaries.mjs` 通过（256 files, 1437 imports）。
   2. Step 2b（d332f10c）：`git merge --no-ff scratch/274_identity`（head d7c3deec，idn274 交付）。`identity-store.ts` 自动合并无冲突，核对三处关键修复都在：`removeSyncedSiteOwner` 按 `granted_by` 认领（我的修复，行 183）、`applyOrgRole` → `syncPermissionLevel`（我的修复，行 533）、`toClaims()` 改读 `perm_members`/`level.member` 而不是 `org_state`（idn274 的真实 bug 修复，行 702-715）。手工解决 13 处冲突：`services.ts`（合并 clock/activity/limits/profiles，去掉重复的 `createAccountProfiles` 调用，复用已有的 `profiles` 常量）；6 个生成文件（`docs/architecture/catalog/{CATALOG.md,catalog.json,data-model.md,map.html,permissions.md,routes.md}`、`docs/services/server/README.md`）按团队指示先取 ours、合并提交之后再单独重新生成；5 个测试文件（`competition-scores/signups.test.ts` 去掉未使用的 `ServiceOverrides` 导入，保留新权限体系的 `grantPermGroup` 断言；`mail-outbox.test.ts` 同时保留 alice 的 `grantPermGroup` 和 idn274 新增的「投递要登录」applicant 会话；`rate-limits.test.ts` 去掉 `/api/console/assignments`（已删路由）这一行，采用 idn274 的「POST /api/portal/apply 现在要登录」`signedIn: true`；`signin-methods.test.ts` 三处，保留新版 `/api/console/me` 形状（`titles` 数组）同时吸收 idn274「论坛按账号认人，不再把没绑 GitHub 的账号当游客」的断言）。
   3. 合并后跑全量测试发现 7 个失败，逐一排查修复（92072540）：`identity.signInWithGithub()` 在 idn274 的改动里整个换了参数形状——不再接受 `orgRole`（GitHub 组织门槛整体去掉），改成 `invite`（GitHub 登录也能兑换邀请码）；这个函数签名变化是「整段替换」式的改动，和我这边的改动没有相邻冲突行，git 自动合并时没有报冲突，但悄悄让 `tests/server/legacy-database.test.ts` 里四处「老库账号重新登录补记站内角色」的用例失真（它们还在传 `orgRole: 'admin'`）。查实际生效路径：老库账号（迁移后 `org_role IS NULL`）补记站内角色唯一走的是 `access.resolve()`（`forum-api/viewer.ts` 和 `/auth/me` 两个旧路由还在调，没有删，identity-store.ts 的 `applyOrgRole` 注释里写明了这一点），不是 `signInWithGithub`；改成先打一次 `/auth/me` 或 `/api/forum/state` 触发这次静态同步，但建库时插的旧会话 `created_at` 是一天前，写接口的 step-up（10 分钟新鲜度）过不了，所以 PATCH 类操作要用同一个 GitHub id 重新 `signInWithGithub()`（这次不传 `orgRole`，走「老账号登录」分支，只换新会话、不碰已经同步好的权限）换一个新会话。另外两处：`signin-methods.test.ts` 一条用例还在调用已经被 idn274 删掉的 `githubSigninPlan`/`recordGithubDenied`（跟着 GitHub 组织门槛一起删的，用例本身的注释已经写明「等价覆盖搬到别处」，只是函数体没跟着删），删掉这两行调用；两处遗漏的 `tick` 解构。`console-users.test.ts` 一处：`/auth/me` 未登录分支按 CONTRACT-274 §1 现在回访客身份摘要，不再是裸的 `{ signed_in: false }`，断言改成 `toMatchObject`。
@@ -140,7 +140,7 @@
 ## 04:55:24 +08:00 · 提交 · #274 · Step 3：403/429 统一记操作记录；recordActivity 接入 auth.*/invite.redeem/apply.submit/forum.topic.view/create/reply.create/search（9bb81989、本次）
 
 - 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
-- 做了什么：
+- 做了什么：全局钩子统一记 403/429，recordActivity 接入 auth.*/invite.redeem/apply.submit/forum.topic.view/create/reply.create/search，细节见下面三条。
   1. （9bb81989）SPEC §3.7「所有被 403 拒绝的请求记 outcome='denied'，被 429 拦下的记 outcome='limited'」这条规则适用于全站，逐路由手工加容易漏。改在 middleware/http-policy.ts 已有的 onSend 钩子里加 `recordDenialOrLimit()`：状态码是 403/429 时解析响应体，按权限中间件给的 `node`、路由自己数的限额给的 `bucket`、都没有就退回 `http.<error>` 取 action，按 URL 前缀粗分 surface，记一条 denied/limited。这样以后任何新路由只要照现有约定回 403/429，这条记录自动就有。
   2. 给 `lib/activity.ts` 的 `RecordActivityInput` 加了一个可选的 `account_id` 覆盖参数：登录/注册成功的那一刻 `req.session` 还没被 `loadSession()` 填上（要等带着新 cookie 的下一次请求），`recordActivity` 平时按 `req.session?.account_id` 认账号在这一刻读不到，加这个参数显式传成功登录返回的 `accountId`。
   3. 按 SPEC §3.7 必须记的服务端动作清单，把 `recordActivity` 接进已有的成功路径（新增调用，没有改动原有的 `storage.audit()` 调用——两套机制目前并存，`audit_logs`/`identity_audit` 继续服务本人安全记录和旧审计，`activity_events` 是新的统一操作记录）：
@@ -171,7 +171,7 @@
 ## 05:15:48 +08:00 · 提交 · #274 · Step 3：SPEC §3.8 剩余限额——论坛读/搜索按等级、发帖/回帖按等级每小时、回帖按 IP 总量、命令行按账号每天
 
 - 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
-- 做了什么：
+- 做了什么：SPEC §3.8 剩余限额——论坛读/搜索按等级、发帖/回帖按等级每小时、回帖按 IP 总量、命令行按账号每天，细节见下面几条。
   - 新增 `routes/forum-api/forum-limits.ts`：两个共享辅助函数。`hourlyLimited()` 按 `meta.limit.forum.<topic|reply>.hourly`（idn274 的迁移已经按等级种好：访客/注册用户 0，成员 20/60）核对一个账号这一小时发得够不够多，和既有的每分钟洪泛保护（`forum.rateAllowed`）是两条独立的线。`levelRateLimited()` 按 `meta.limit.<read|search>.per_minute`（访客 60/10、注册用户 120/20、成员 300/60）核对论坛读/搜索，账号按 account_id 认、访客按 IP 认，和已有的 `FORUM_REQUEST_LIMITS`（@fastify/rate-limit，纯按 IP、不分等级）并存，后者继续当兜底。两者命中时都回 `{error:"rate_limited", bucket, retry_after}`，http-policy.ts 的全局钩子据此记一条 `outcome=limited`。
   - 接进 `forum-api/topics.ts`（发话题、`/api/forum/state`、`/topics/:id/posts`、`/search`）和 `forum-api/posts.ts`（回复，含游客回复）。
   - `hourlyLimited` 里 `max <= 0` 当「这条不管」处理，不是硬拦截：SPEC 表里「访客/注册用户默认不允许发帖」要靠 `forum.topic.create`/`forum.reply.create` 这两个权限节点本身要不要发给他们（控制台决定，forum-api 目前仍是旧的 GitHub 组织能力体系，没有切到新权限节点，是 #276 或后续的事），不该让这条每小时计数器替它们做「谁都发不了」的判断——写死成硬拦截会把一条已有、测试覆盖过的回归行为（`signin-methods.test.ts`「邮箱注册的普通注册用户能发帖」）当场打破。
@@ -222,3 +222,19 @@
 - 下一步：这项 team-lead 交代的「真 bug」修复到这里完成。接下来转 Phase 4（ownership.json、
   endpoint-contracts、README、data-model、docs/changes/274.json、docs/plan/YUGC-OS-V2.md、
   catalog:generate、docs:index、tooling 测试转绿、pnpm check 全绿）。
+
+## 06:40:12 +08:00 · 提交 · #274 · Phase 4：目录归属核对、接口契约改写、docs/changes/274.json 与 YUGC-OS-V2 计划、整体转绿
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：核对并改写目录归属与接口契约、补齐响应 Schema、写宏观对齐声明与批次计划、收尾产物重新生成。
+  1. docs/architecture/catalog/ownership.json 全量核对：删 5 条 routeOwners（console/{assignments,audit,catalogue,people,titles}.ts）与 8 条死 flow，加 2 条 routeOwners（portal/events.ts→audit、console/activity.ts→audit）与 4 条新 flow（audit.console.activity.{list,export,account}、audit.events.report），修正约 10 条 flow 的证据锚点与 capabilities/invariants 跟上 #274 权限节点迁移；给 45 个此前没有流程证据的控制台前端文件（用户/权限三页签/操作记录页/GitLab 三页/组件库）与服务端文件（requirePermission 等中间件、lib/session.ts、迁移脚本、限额引擎、forum-limits.ts）补齐进已有 flow 的 evidence；补 moduleOwners 精确条目（Permissions.vue/permissions/ → permissions；10 个此前完全未登记归属的 lib 文件 → 各自域）。
+  2. docs/services/server/endpoint-contracts.md 删掉已退役的 `/api/admin/:org/*`、`/api/me/orgs`、catalogue/titles/assignments/people/audit 共 39+7 个小节，改写「解析本人控制台身份」「按能力读取工作概览」「读取部门及成员计数」三节，新增「新权限体系」表的 4 行与「前端批量上报白名单动作」(POST /api/events)一节；docs/services/server/{README,data-model}.md、docs/services/console/README.md、docs/architecture/{API,SECURITY}.md、docs/ops/{ENVIRONMENTS,DEPLOY,CICD}.md 同步（ENVIRONMENTS.md 删 ALLOWED_ORGS 条目）；docs/plan/CONSOLE-PERMISSION-TREE.md 的死链接改成纯文本（文件已随本次改造删除，标注不是当前契约）。
+  3. 补了 3 个服务端接口缺的响应 Schema（check:architecture 的真实代码缺口，不是文档问题）：app/server/src/routes/console/contracts.ts 给 `DELETE /api/console/permission-groups/:id`、`POST .../members`、`DELETE .../members/:account_id` 加 `{ok:boolean}`；app/server/src/routes/identity/contracts.ts 给 `GET /api/identity/avatar/:file` 加 `image/webp` 说明；app/server/src/routes/portal/contracts.ts 给 `POST /api/events` 加 `{accepted,rejected}`。
+  4. 新写 docs/changes/274.json（宏观对齐声明）：覆盖 236 个 material 文件（50 个 coverage 分组）、54 条 removals（GitHub 组织管理路由与页面、旧 assignments/audit/catalogue/people/titles 路由、旧成员与权限页面，每条真实 base 内容的唯一锚点）、117 个 flow、8 个评估维度。**发现并确认了 base 问题**：本任务分支的真实起点不是 `origin/stage`（GitHub 账号封禁后一直停在 PR #266 的 `4beda55e`），而是 SPEC.md §3.1 自己写明的「基线 9c5b74f7」——`task/273/.../9c5b74f7` 正是 `d3fe7c26`（#274 开工提交）的直接父提交，`git diff 9c5b74f7..HEAD` 236 个文件对得上 SPEC 范围；用 origin/stage 当 base 会把 #239/#262/#270-273 四个已经各自有自己 docs/changes/*.json 的 issue 也拖进来，还会报一堆跟 #274 无关的旧错误（People.vue 二次删除、require-org-role.ts 等早就不存在的文件）。写了 docs/plan/YUGC-OS-V2.md 记录这个发现与 #274-#278 批次总览，登记进 docs/plan/README.md。
+  5. `pnpm catalog:generate` + `node scripts/docs-index.mjs` + `node scripts/note.mjs index` 作为收尾单独跑过，产物随本次提交一起入库。
+- 结果：命令与输出如下。
+  - `node scripts/check-architecture.mjs --base 9c5b74f7 --branch task/274/unified_accounts` → `宏观对齐通过：#274，244 个变更文件，359 个关联节点。`
+  - `pnpm check:runtime/check:site-config/check:environments/check:boundaries/check:docs/check:doc-sync/check:notes/check:secrets/check:catalog` 全部通过；`pnpm typecheck` 无报错。
+  - `npx vitest run tests/server` → 31 files / 561 tests 全过；`npx vitest run tests/console` → 16 files / 201 tests 全过；`npx vitest run tests/tooling` → 33 files / 722 tests 全过。
+  - 裸 `pnpm check:architecture`（默认 base=origin/stage）仍会失败：这是环境本身的已知问题（GitHub 账号封禁阻断 fetch 导致 origin/stage 停更），不是本次改动引入的回归，已如实记录，未通过放宽校验或改脚本掩盖。
+- 下一步：#274 全部四个阶段（GitHub 组织退役、权限引擎与迁移、身份/操作记录/限额、Phase 4 文档与目录）完成，已向 team-lead 报告 SHA 与完整命令输出。#275-#278 由批次内其他分支继续，不在本任务范围。
