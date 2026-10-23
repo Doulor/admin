@@ -717,6 +717,7 @@
       "paths": [
         "app/server/src/routes/forum-api/forum-limits.ts",
         "app/server/src/routes/forum-api/index.ts",
+        "app/server/src/routes/forum-api/people.ts",
         "app/server/src/routes/forum-api/posts.ts",
         "app/server/src/routes/forum-api/topics.ts",
         "app/server/src/routes/forum-api/viewer.ts"
@@ -727,7 +728,7 @@
       "nodes": [
         "domain:forum"
       ],
-      "reason": "新增 forum-limits.ts 按等级实现论坛读/搜索/发帖/回帖/表情/上传的每小时与每分钟限额（SPEC §3.8），posts/topics/viewer 接入账号认人与限流判定。"
+      "reason": "新增 forum-limits.ts 按等级实现论坛读/搜索/发帖/回帖/表情/上传的每小时与每分钟限额（SPEC §3.8），posts/topics/viewer 接入账号认人与限流判定；残留修复：话题/回复/点赞/收藏/关注改按权限节点（forum.topic.create/forum.reply.create/forum.react）判定写权限，取代旧的 access.member/access.capabilities（people.ts 的 follow 端点也改用 requireWriter）。"
     },
     {
       "paths": [
@@ -795,6 +796,7 @@
         "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
         "app/server/src/lib/permission-nodes.ts",
         "app/server/src/lib/permissions.ts",
+        "app/server/src/lib/register-limits.ts",
         "app/server/src/lib/safe-return.ts",
         "app/server/src/lib/session.ts"
       ],
@@ -817,7 +819,7 @@
         "domain:audit",
         "domain:identity"
       ],
-      "reason": "新增权限引擎（permission-nodes.ts/permissions.ts）、统一迁移（migrations/2026-10-yugc-v2.ts）、账号资料/头像/邀请码目录（account-profiles.ts/account-avatar.ts/account-directory.ts）、操作记录写入口（activity.ts）、防盗刷计数引擎（limits.ts/apply-quota.ts）；db.ts 接入新迁移与 perm_* 建表。"
+      "reason": "新增权限引擎（permission-nodes.ts/permissions.ts）、统一迁移（migrations/2026-10-yugc-v2.ts）、账号资料/头像/邀请码目录（account-profiles.ts/account-avatar.ts/account-directory.ts）、操作记录写入口（activity.ts）、防盗刷计数引擎（limits.ts/apply-quota.ts）；db.ts 接入新迁移与 perm_* 建表。残留修复：新增 register-limits.ts（注册限额，按 IP/设备各走 hitAll），identity-store.ts 的 signInWithGithub/signInSecondChannel 在真的要建号那一步接入它。"
     },
     {
       "paths": [
