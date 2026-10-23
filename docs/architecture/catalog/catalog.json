@@ -1515,7 +1515,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 21,
+          "line": 22,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
@@ -1559,7 +1559,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
@@ -1575,7 +1575,7 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 61,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -10824,7 +10824,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "b354504b61569d2ed9294bf181d8e71a98aa6128f5b5e110ea0fcc307a53d736",
+    "fingerprint": "6e89996389c2b64c77b43ac8e1ee4788b2da485aa4343fe1a70337e3e33a774a",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -11944,7 +11944,7 @@
       },
       {
         "path": "app/server/src/routes/identity/google.ts",
-        "sha256": "85912126bd83c46d28072edfaa2276fe55f947833dbb1b9668fbeabcc1dd71cd"
+        "sha256": "d523b8673f398ee1d611d98ee09dfa32f80a2e3b4b3d29158052ff1d846d53e4"
       },
       {
         "path": "app/server/src/routes/identity/index.ts",
@@ -12332,7 +12332,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "16f4ef34cf1b4c282c52e0281a84a0ea2e7755b65a793e4bffdf7df3724250fa"
+        "sha256": "bc2c058cbdac7fb1c53a7be27fa796e87c09386f2e4008e9bbbc8f101fc66703"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -12380,15 +12380,15 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "ccf2acfe70919719469f66ab403f84f1cfe131a29c571a5124a0680115bb4a33"
+        "sha256": "d2395901ccba34d1c24a23240b6978c319239ad3b37b3cabdc8d86835778584e"
       },
       {
         "path": "docs/services/server/data-model.md",
-        "sha256": "0f8e8431a0b49b5d8e4bb75f5c8cfff3a5b1799b27661a0ce6f70eed7cd58be6"
+        "sha256": "96fc756fa48d70c3f7d91cd1818a8022b1fdb59e808fd1c111b1a00c2f669439"
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "17ac1f1ef20a45127364b9d3ccb539b1a73392253b5d0fa3e6c84b269c3b366a"
+        "sha256": "e6897e7a165e2895e71de59659ea0b91d7eabec99b5673602b108ea2478155c5"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -13455,7 +13455,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 21,
+          "line": 22,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -13467,7 +13467,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -14175,7 +14175,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 21,
+          "line": 22,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -14187,7 +14187,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -42071,7 +42071,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
@@ -42087,7 +42087,7 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 61,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -42099,7 +42099,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
@@ -42115,7 +42115,7 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 61,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -42127,7 +42127,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
@@ -42143,7 +42143,7 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 61,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -42161,7 +42161,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
@@ -42177,7 +42177,7 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 61,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -42189,7 +42189,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
@@ -42205,7 +42205,7 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 61,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -42217,7 +42217,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
@@ -42233,7 +42233,7 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 61,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -42245,7 +42245,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
@@ -42261,7 +42261,7 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 61,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -42273,7 +42273,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
@@ -42289,7 +42289,7 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 61,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -42301,7 +42301,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
@@ -42317,7 +42317,7 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 61,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -42329,7 +42329,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
@@ -42345,7 +42345,7 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 61,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -42399,7 +42399,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 21,
+          "line": 22,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
@@ -60464,7 +60464,7 @@
         }
       },
       "source": {
-        "line": 21,
+        "line": 22,
         "path": "app/server/src/routes/identity/google.ts"
       }
     },
@@ -60566,7 +60566,7 @@
         }
       },
       "source": {
-        "line": 32,
+        "line": 33,
         "path": "app/server/src/routes/identity/google.ts"
       }
     },
@@ -64425,7 +64425,7 @@
         }
       },
       "source": {
-        "line": 21,
+        "line": 22,
         "path": "app/server/src/routes/identity/google.ts"
       }
     },
@@ -64489,7 +64489,7 @@
         }
       },
       "source": {
-        "line": 32,
+        "line": 33,
         "path": "app/server/src/routes/identity/google.ts"
       }
     },
