@@ -58,3 +58,16 @@
 - 做了什么：ego-browser 用浏览器里已有的所有者邮箱会话只读打开 /console/github/invite-links，1440 宽截图，没有点任何按钮；之后关掉这次的浏览器任务
 - 结果：页面读到的 release.json 是 0.1.1-rc.11@b542b3be2eb5；「生成链接」置灰，说明「GitHub 还没接上，生成新链接要等服务器配好 GitHub App，或用 GitHub 登录后再来；已有的链接照常可以停用和删除。」，空状态改成「接上 GitHub 后，用右上角的「生成链接」创建第一条。」，没有横向溢出。所有者验收：未进行
 - 下一步：所有者在预发布用邮箱会话看控制台；确认 ADR-0005 第二次修订第 2–5 条与审查里交给所有者定的几项；GitHub App 要由没被封的组织所有者建；正式 0.1.1 等所有者明确批准，部署前备份正式库
+
+## 12:08:35 +08:00 · 发布 · #262 · 本机构建并部署预发布 0.1.1-rc.12（2101fe40448a）：登录页注册标签、Google 登录、侧栏悬停高亮
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：本地 tag v0.1.1-rc.12 → 2101fe40（未推送）；同 rc.7 的步骤构建三个 amd64 镜像（版本串 0.1.1-rc.12@2101fe40448a），docker save | gzip -9，sha256 24683660…；部署前备份预发布库到 /root/yzgc-backups/preview-20261023-034510-b542b3be2eb5.db（integrity_check ok）；scp 归档、.sha256、deploy-stack.sh 与两份 compose；env 用目标机现有 .env.preview：换 IMAGE_TAG，加 GOOGLE_CLIENT_ID 与 GOOGLE_CLIENT_SECRET（值从本机钥匙串经标准输入写入，不进命令行、日志和记录；diff 只有这三项）；运行 deploy-stack.sh。Google OAuth 客户端建在所有者已有的 Google Cloud 项目里，应用是 Testing 状态，测试用户只有所有者的 Google 账号
+- 结果：部署成功：deploy-history 2026-10-23T03:57:39Z preview 2101fe40448a OK；release.json 为 0.1.1-rc.12@2101fe40448a；/auth/providers 为 github、google、email；GET /auth/google 302 到 accounts.google.com，redirect_uri 为 https://prev.yangtzeu.work/auth/google/callback，带 PKCE S256。正式环境仍是 0.1.0（d4a24749），未触碰
+
+## 12:08:35 +08:00 · 验收 · #262 · agent 在预发布 rc.12 上核对登录页与控制台侧栏（不是所有者验收）
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：ego-browser 打开 https://prev.yangtzeu.work/signin，1440×900 与 390×844 各截「登录」「注册」两个标签，读按钮文字、宽度与表单标签；用浏览器里已有的所有者会话打开 /console，1440×560 把侧栏滚到 200，悬停「邀请」「邀请链接」读条目上沿与高亮上沿。注册后两种说明与按钮换行宽度是在本机开发服务器 127.0.0.1:5196 上拦接口返回值核对的，不在预发布上
+- 结果：注册标签：邮箱、邀请码、验证码、「密码（可以不填）」；桌面「通过 GitHub 继续」「用 Google 注册」各 202px，没填邀请码时 Google 按钮是灰的；手机两个按钮竖排各 332px，横向无溢出。侧栏：根滚动 200、__body 滚动 0，「邀请」条目 311 = 高亮 311，「邀请链接」342 = 342（rc.11 上同样操作是 311 对 111）。没验证：真实发验证码与收信、真实 Google 授权往返、注册真实账号。所有者验收：未进行
+- 下一步：所有者在预发布验收；正式 0.1.1 等所有者明确批准，部署前备份正式库
