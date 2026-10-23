@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from 'vitest';
 import type { ServiceOverrides } from '../../app/server/src/services';
-import { signIn, testApp } from './helpers';
+import { accountIdOf, grantPermGroup, signIn, testApp } from './helpers';
 
 const CONSOLE_ORG = 'Yangtze-University-Geek-Class';
 const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
@@ -21,7 +21,8 @@ const github = (() => ({
 it.each([
   { name: 'POST /api/join/:token', method: 'POST', url: '/api/join/no-such-link', payload: {}, max: 5, within: 404, signedIn: false },
   { name: 'GET /api/console/applications/export.csv', method: 'GET', url: '/api/console/applications/export.csv', max: 5, within: 200, signedIn: true },
-  { name: 'POST /api/console/assignments', method: 'POST', url: '/api/console/assignments', payload: { github_login: '-bad-', role: 'member' }, max: 30, within: 400, signedIn: true },
+  // #274 删掉了 /api/console/assignments；邀请码写接口（invite.manage + step-up）沿用同样的 30/分钟限额。
+  { name: 'POST /api/console/invites', method: 'POST', url: '/api/console/invites', payload: {}, max: 30, within: 400, signedIn: false },
   { name: 'POST /api/portal/apply', method: 'POST', url: '/api/portal/apply', payload: {}, max: 5, within: 400, signedIn: false },
   { name: 'POST /api/feedback', method: 'POST', url: '/api/feedback', payload: {}, max: 10, within: 400, signedIn: false },
 ] as const)('answers $name over its $max-a-minute limit with 429 rate_limited, a Chinese message and the request_id', async ({ method, url, max, within, signedIn, ...rest }) => {
@@ -29,6 +30,7 @@ it.each([
   contexts.push(context);
   const { app } = context;
   const headers = signedIn ? { cookie: `sid=${signIn(app, 'alice', 101, null, 'token-alice')}` } : {};
+  if (signedIn) grantPermGroup(app, accountIdOf(app, 'alice'), 'title.site.owner'); // #274：apply.export 等按新权限体系判定
   const send = () => app.inject({ method, url, headers, remoteAddress: '198.51.100.20', ...('payload' in rest ? { payload: rest.payload } : {}) });
   const statuses: number[] = [];
   for (let i = 0; i < max; i += 1) statuses.push((await send()).statusCode);

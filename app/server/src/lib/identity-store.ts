@@ -173,7 +173,8 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   const countAdmins = db.prepare("SELECT COUNT(*) AS n FROM users WHERE status = 'active' AND org_state = 'active' AND org_role = 'admin'");
   const adminCount = () => (countAdmins.get() as { n: number }).n;
   const addSiteOwner = db.prepare("INSERT OR IGNORE INTO perm_members(account_id, group_id, granted_by, created_at) VALUES (?, 'title.site.owner', ?, ?)");
-  const removeSiteOwner = db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id = 'title.site.owner'");
+  // 只收回「这条同步自己发过的」站长资格（按 granted_by 认领），不动控制台单独发的——见下面函数注释。
+  const removeSyncedSiteOwner = db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id = 'title.site.owner' AND granted_by = ?");
 
   /**
    * #274：按站内角色把账号放进新权限系统的 level 组（perm_members），迁移脚本只在启动时跑一次，
@@ -182,13 +183,18 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
    * 口径和 lib/migrations/2026-10-yugc-v2.ts 的 assignAccountIdentities() 一致：admin 进 level.member 且是站长，
    * member 进 level.member，其余（null，含被设成「不是成员」）进 level.registered——新模型里没有登录就完全没权限这回事，
    * 「不是成员」只是不再是极客班成员，账号还在、还是注册用户。
-   * 被从 admin 改成别的角色时要把 title.site.owner 收回；是不是「最后一个站长」的保护是阶段 2b 控制台接口自己的事，
-   * 这里只负责让 perm_members 跟 org_role 对齐，不单独判断。
+   * 被从 admin 改成别的角色时把这次同步自己发的站长资格收回；但 `roleUnrecorded()` 对 role=null 的账号永远成立
+   * （`org_role` 列在角色是 null 时不会被写，和「从没查过」没法区分，这是 #262 就有的设计，查过一次不代表以后
+   * 不再查），意味着 GitHub 登录每次都会重新跑到这里——如果不分青红皂白地 DELETE，控制台用新权限体系（§5 的
+   * users.ts/permission-groups.ts）单独给某个 GitHub 登录账号加的站长身份，会在这个人下次用 GitHub 登录时被
+   * 这里悄悄收回（已经在测试里复现过这个失败模式）。只删「granted_by 等于这次调用自己」的那一行，不碰别的来源
+   * 发的站长资格，按 ibuki 式「只清理自己发的，不碰别人发的」的幂等同步原则——`console:set-site-role`（旧
+   * people.ts 的站内角色接口）本来就是另一个 grantedBy 值，降级时仍然只收它自己发的那份，行为不变。
    */
   function syncPermissionLevel(accountId: string, role: RecordedOrgRole, grantedBy: string, now: number): void {
     setExclusiveGroupMembership(db, accountId, role === null ? "level.registered" : "level.member", now, grantedBy);
     if (role === "admin") addSiteOwner.run(accountId, grantedBy, now);
-    else removeSiteOwner.run(accountId);
+    else removeSyncedSiteOwner.run(accountId, grantedBy);
     bumpPermRevision(db);
   }
 
@@ -522,7 +528,15 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   function recordOrgRole(accountId: string, role: RecordedOrgRole): void {
     applyOrgRole(accountId, role, "not_member");
   }
-  /** `lost`：查到不是成员时，不是靠邀请码注册的账号改成哪种成员资格（not_member，或邀请还没接受的 pending）。 */
+  /**
+   * `lost`：查到不是成员时，不是靠邀请码注册的账号改成哪种成员资格（not_member，或邀请还没接受的 pending）。
+   * #274 之前这里只更新 `users.org_role`；这次改动发现，forum-api/viewer.ts 和 /auth/me（routes/admin/auth.ts）
+   * 还在走这条旧的 access.resolve → recordOrgRole 路径（还没切到 requirePermission），只要这两个路由任何一个
+   * 先于一次真正的 GitHub 登录（signInWithGithub）被这个账号用到，`roleUnrecorded` 就会被它提前标记为
+   * false——而 signInWithGithub 的同步只在 `roleUnrecorded` 为 true 时才补 perm_members，account 就会永远停在
+   * 迁移脚本给的默认 level.registered，再也没有路径把它补成 level.member/title.site.owner（除非控制台手动改）。
+   * 两个口径都在改账号记的站内角色，就都要在这里同步新权限系统，和 signInWithGithub 用同一个函数。
+   */
   function applyOrgRole(accountId: string, role: RecordedOrgRole, lost: "not_member" | "pending"): void {
     const row = accountRow.get(accountId) as { org_role: string | null; org_state: string; invite_code_id: number | null } | undefined;
     if (!row) return;
@@ -530,6 +544,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     if (row.org_role === role && row.org_state === state) return;
     const now = clock();
     db.prepare("UPDATE users SET org_role = ?, org_state = ?, org_checked_at = ?, updated_at = ? WHERE id = ?").run(role, state, now, now, accountId);
+    syncPermissionLevel(accountId, role, "access-resolve", now);
   }
 
   /** 账号记下的成员资格与站内角色：不论用哪种方式登录，判成员和称号都用它（不调用 GitHub）。 */

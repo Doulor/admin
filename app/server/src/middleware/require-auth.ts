@@ -1,48 +1,14 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { IdentityProvider } from "../lib/identity-store.js";
+import { loadSession } from "../lib/session.js";
 
-declare module "fastify" {
-  interface FastifyRequest {
-    /** `account_id` 是极客班账号（#262）；`login`、`user_id`、`avatar_url` 是绑定的 GitHub 账号。 */
-    session?: {
-      id: string;
-      account_id: string;
-      provider: IdentityProvider;
-      login: string;
-      user_id: number | null;
-      avatar_url: string | null;
-      accessToken: string;
-      /** 会话签发时间：绑定邮箱、设密码前要求这次登录不超过 10 分钟（重新验证） */
-      created_at: number;
-      expires_at: number;
-    };
-  }
-}
+// loadSession 与 FastifyRequest.session 的类型扩展挪进了 lib/session.ts（#274：lib/console-scope.ts 也要用，
+// 但 lib/* 不能依赖 middleware/*，见 scripts/check-boundaries.mjs）；这里保留原路径的 re-export，不用改别处的导入。
+export { loadSession };
 
 export async function requireAuth(req: FastifyRequest, reply: FastifyReply) {
   const sid = req.cookies?.sid;
   if (!sid) return reply.code(401).send({ error: "not_signed_in" });
   if (!loadSession(req)) return reply.code(401).send({ error: "session_expired" });
-}
-
-/** 有有效的 `sid` 就挂到 req.session 并返回 true；没有或已过期返回 false，不回复。给「游客也能用」的接口（论坛）用。 */
-export function loadSession(req: FastifyRequest): boolean {
-  if (req.session) return true;
-  const sid = req.cookies?.sid;
-  const s = sid ? req.server.services.auth.getSession(sid) : null;
-  if (!s) return false;
-  req.session = {
-    id: s.id,
-    account_id: s.account_id,
-    provider: s.provider,
-    login: s.login,
-    user_id: s.user_id,
-    avatar_url: s.avatar_url,
-    accessToken: s.accessToken,
-    created_at: s.created_at,
-    expires_at: s.expires_at,
-  };
-  return true;
 }
 
 /** 登录成功后写统一登录的 `sid`：三端同域共用，7 天、不续期（lib/auth.ts 的 SESSION_TTL_MS）。 */

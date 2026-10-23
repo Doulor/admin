@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { FORUM_REQUEST_LIMITS, ForumError, SEARCH_QUERY_MAX, hasControlChars, ipSubject } from "../../lib/forum-rules.js";
-import { can, forbidden, forumChanges, forumState, forumViewer, notFound, rateLimited, requireMember } from "./viewer.js";
+import { canModerate, forbidden, forumChanges, forumState, forumViewer, notFound, rateLimited, requireMember } from "./viewer.js";
 
 type TopicParams = { topic_id: string };
 
@@ -59,16 +59,16 @@ export default async function forumTopicRoutes(app: FastifyInstance) {
     return reply.code(201).send({ ...forumChanges(req, viewer, { topics: [topicId], posts: [postId], tags: tagIds }, { posts: "full" }), topicId, postId });
   });
 
-  /** 置顶与关闭：按 forum.topic.pin / forum.topic.close 授权，写审计（只记开关，不记正文）。 */
-  for (const [action, field, capability, label] of [
-    ["pin", "pinned", "forum.topic.pin", "置顶话题"],
-    ["close", "closed", "forum.topic.close", "关闭话题"],
+  /** 置顶与关闭：按 forum.moderate.pin / forum.moderate.close 授权（按话题分类限定 scope，#274），写审计（只记开关，不记正文）。 */
+  for (const [action, field, node, label] of [
+    ["pin", "pinned", "forum.moderate.pin", "置顶话题"],
+    ["close", "closed", "forum.moderate.close", "关闭话题"],
   ] as const) {
     app.post<{ Params: TopicParams; Body: Record<typeof field, boolean> }>(`/api/forum/topics/:topic_id/${action}`, async req => {
       const viewer = await requireMember(req);
-      if (!can(viewer, capability)) throw forbidden(`需要「${label}」权限`);
       const topic = forum.topic(req.params.topic_id);
       if (!topic) throw notFound("话题不存在");
+      if (!canModerate(req, viewer, node, topic.categoryId)) throw forbidden(`需要「${label}」权限`);
       const value = req.body[field];
       if (action === "pin") forum.setPinned(topic.id, value); else forum.setClosed(topic.id, value);
       audit(config.consoleOrg, { login: viewer.login, account_id: viewer.accountId }, `forum.topic.${action}`, topic.id, { [field]: value }, req.ip);

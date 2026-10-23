@@ -4,7 +4,7 @@ import type { ServiceOverrides } from '../../app/server/src/services';
 import { competitionStatus, compareCompetitions } from '../../app/server/src/lib/competition-store';
 import { formFrom, formPayload } from '../../app/console/src/lib/competitions';
 import { buildApp, type BuildAppOptions } from '../../app/server/src/app';
-import { signIn, testApp, testConfig } from './helpers';
+import { accountIdOf, grantPermGroup, signIn, testApp, testConfig } from './helpers';
 
 const CONSOLE_ORG = 'Yangtze-University-Geek-Class';
 const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
@@ -25,12 +25,15 @@ function github(roles: Record<string, 'admin' | 'member'>) {
   })) as unknown as ServiceOverrides['octokitFactory'];
 }
 
-/** alice 是提督（全部能力），bob 是没登录管理的舰员（有 console.access，没有 competitions.manage）。 */
+/** alice 是提督（全部能力），bob 是没登录管理的舰员（有 console.access，没有 competitions.manage）。
+ * #274：站长身份按新权限体系的 perm_members 判定，不再靠 GitHub 组织角色桩动态认出，显式放进 title.site.owner。 */
 async function setup() {
   const context = await testApp({ octokitFactory: github({ alice: 'admin', bob: 'member' }) });
   contexts.push(context);
   const { app } = context;
   const as = (login: string) => ({ cookie: `sid=${signIn(app, login, USERS[login], null, `token-${login}`)}` });
+  signIn(app, 'alice', USERS.alice); // 先建号，才能查到 account_id 去加站长组
+  grantPermGroup(app, accountIdOf(app, 'alice'), 'title.site.owner');
   return { app, as };
 }
 
@@ -66,9 +69,11 @@ it('registers response contracts for competition and capability configuration op
       ['POST', '/api/console/competitions', 201],
       ['PATCH', '/api/console/competitions/:competition_id', 200],
       ['DELETE', '/api/console/competitions/:competition_id', 200],
-      ['POST', '/api/console/departments', 201],
-      ['PATCH', '/api/console/departments/:department_id', 200],
-      ['PATCH', '/api/console/titles/:title_id', 200],
+      // #274 删掉了 /api/console/departments 的写路由和 /api/console/titles/:title_id；换成同样「创建/编辑一个
+      // 控制台配置资源」形状的权限组与用户接口，验证同一套 registerContracts 合并机制。
+      ['POST', '/api/console/permission-groups', 201],
+      ['PATCH', '/api/console/permission-groups/:id', 200],
+      ['PATCH', '/api/console/users/:id', 200],
     ] as const) {
       const route = routes.find(item => item.url === path && [item.method].flat().includes(method));
       expect(route?.schema, `${method} ${path}`).toHaveProperty(`response.${status}`);
@@ -144,35 +149,42 @@ describe('public list', () => {
 });
 
 describe('console writes need competitions.manage', () => {
-  it('keeps capability configuration responses complete and grants competition access explicitly', async () => {
+  it('keeps permission group responses complete and grants competition access through a custom group, not a blanket title edit', async () => {
     const { app, as } = await setup();
     const before = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('bob'), payload: DRAFT });
     expect(before.statusCode).toBe(403);
-    const catalogue = (await app.inject({ url: '/api/console/catalogue', headers: as('alice') })).json();
-    const granted = await app.inject({
-      method: 'PATCH', url: '/api/console/titles/member', headers: as('alice'),
-      payload: { capabilities: [...catalogue.role_base.member, 'competitions.manage'] },
-    });
-    expect(granted.statusCode).toBe(200);
-    expect(Object.keys(granted.json().title).sort()).toEqual(['capabilities', 'description', 'icon', 'id', 'label', 'tag', 'tone']);
-    expect(granted.json().title.capabilities).toContain('competitions.manage');
-    expect((await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('bob'), payload: DRAFT })).statusCode).toBe(201);
+    expect(before.json()).toMatchObject({ error: 'forbidden', node: 'competition.manage' });
 
+    // #274：称号的权限包（旧 PATCH /api/console/titles/:title_id）已经删掉，新系统按权限组授权；
+    // 自定义组 + 一条 competition.manage 条目，只加给 bob，不像旧的「给 member 称号整体加能力」那样影响所有成员。
     const created = await app.inject({
-      method: 'POST', url: '/api/console/departments', headers: as('alice'),
-      payload: { id: 'contests', name: '赛事部', tag: 'CONTEST', icon: 'trophy', tone: 'cobalt', head_capabilities: ['competitions.manage'] },
+      method: 'POST', url: '/api/console/permission-groups', headers: as('alice'),
+      payload: { id: 'custom.contest_crew', name: '赛事干事', weight: 10 },
     });
     expect(created.statusCode).toBe(201);
-    const readDepartment = async () => (await app.inject({ url: '/api/console/departments', headers: as('alice') })).json().departments.find((row: { id: string }) => row.id === 'contests');
-    expect(created.json().department).toEqual(await readDepartment());
-    expect(created.json().department).toMatchObject({ archived: false, heads: [], crew_count: 0, created_at: expect.any(Number), updated_at: expect.any(Number) });
-    const updated = await app.inject({
-      method: 'PATCH', url: '/api/console/departments/contests', headers: as('alice'),
-      payload: { member_capabilities: ['competitions.manage'] },
+    expect(Object.keys(created.json()).sort()).toEqual([
+      'department_id', 'description', 'entries', 'icon', 'id', 'kind', 'member_count', 'name', 'parents', 'sort', 'system', 'tone', 'weight',
+    ]);
+    expect(created.json()).toMatchObject({ id: 'custom.contest_crew', kind: 'custom', name: '赛事干事', member_count: 0, entries: [] });
+
+    const granted = await app.inject({
+      method: 'PATCH', url: '/api/console/permission-groups/custom.contest_crew', headers: as('alice'),
+      payload: { entries: { add: [{ node: 'competition.manage', value: true }] } },
     });
-    expect(updated.statusCode).toBe(200);
-    expect(updated.json().department).toEqual(await readDepartment());
-    expect(updated.json().department.created_at).toBe(created.json().department.created_at);
+    expect(granted.statusCode).toBe(200);
+    expect(granted.json().entries).toEqual([expect.objectContaining({ node: 'competition.manage', value: true })]);
+
+    const bobId = accountIdOf(app, 'bob');
+    const addedMember = await app.inject({
+      method: 'POST', url: '/api/console/permission-groups/custom.contest_crew/members', headers: as('alice'),
+      payload: { account_id: bobId },
+    });
+    expect(addedMember.statusCode).toBe(201);
+
+    expect((await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('bob'), payload: DRAFT })).statusCode).toBe(201);
+    // 没拿到这个组的人仍然没有这个权限
+    const carol = { cookie: `sid=${signIn(app, 'carol', 103, null, 'token-carol')}` };
+    expect((await app.inject({ method: 'POST', url: '/api/console/competitions', headers: carol, payload: DRAFT })).statusCode).toBe(403);
   });
 
   it('rolls back competition writes when their audit record cannot be saved', async () => {
@@ -266,9 +278,12 @@ describe('console writes need competitions.manage', () => {
 
     const member = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('bob'), payload: DRAFT });
     expect(member.statusCode).toBe(403);
-    expect(member.json()).toMatchObject({ error: 'missing_capability', capability: 'competitions.manage' });
-    // 舰员连读都要 console.access，这里他确实有；确认没有写入发生
-    expect(own((await app.inject({ url: '/api/console/competitions', headers: as('bob') })).json().competitions)).toEqual([]);
+    expect(member.json()).toMatchObject({ error: 'forbidden', node: 'competition.manage' });
+    // #274：console.access 只默认发给部门部长和站长（CONTRACT-274 §5），普通成员进不了控制台，连列表都读不到；确认没有写入发生。
+    const listAsMember = await app.inject({ url: '/api/console/competitions', headers: as('bob') });
+    expect(listAsMember.statusCode).toBe(403);
+    expect(listAsMember.json()).toMatchObject({ error: 'forbidden', node: 'console.access' });
+    expect(own((await app.inject({ url: '/api/console/competitions', headers: as('alice') })).json().competitions)).toEqual([]);
   });
 
   it('rejects an end before the start and a deadline after the end', async () => {

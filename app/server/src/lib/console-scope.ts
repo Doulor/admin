@@ -1,4 +1,6 @@
 import type Database from "better-sqlite3";
+import type { FastifyReply, FastifyRequest } from "fastify";
+import { loadSession } from "./session.js";
 import { entriesForAccount, explain, nodeMatches, type ResolvedEntry } from "./permissions.js";
 
 /**
@@ -32,4 +34,26 @@ export function departmentScopedAccess(entries: ResolvedEntry[], node: string): 
 
 export function departmentScopedAccessFor(db: Database.Database, accountId: string, node: string, now = Date.now()): DepartmentScopedAccess {
   return departmentScopedAccess(entriesForAccount(db, accountId, now), node);
+}
+
+declare module "fastify" {
+  interface FastifyRequest {
+    /** requireScopedPermission 算出来的部门范围：null 是全站不过滤，数组是只能看这些部门。 */
+    departmentScope?: string[] | null;
+  }
+}
+
+/**
+ * 按部门范围判定的门禁（CONTRACT-274 §5：部长的 users.view、apply.view、apply.review、activity.read
+ * 都是这一种——没有全站 allow，只有本部门 scope 的 allow）。用于列表类接口：命中就把范围写进
+ * `req.departmentScope`，由路由处理函数在 SQL 里过滤；两种都没有命中时回 403。
+ */
+export function requireScopedPermission(node: string) {
+  return async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!loadSession(req)) return reply.code(401).send({ error: "unauthenticated", message: "请先登录" });
+    const db = req.server.services.storage.db;
+    const access = departmentScopedAccess(entriesForAccount(db, req.session!.account_id, Date.now()), node);
+    if (access.kind === "none") return reply.code(403).send({ error: "forbidden", node, message: `需要「${node}」权限` });
+    req.departmentScope = access.kind === "scoped" ? access.departments : null;
+  };
 }

@@ -1,27 +1,26 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { requireCapability } from "../../middleware/require-capability.js";
+import { requirePermission } from "../../middleware/require-permission.js";
+import { requireStepUp } from "../../middleware/require-step-up.js";
 
 const PROJECTS_CACHE_KEY = "gitlab:projects";
 const PROJECTS_CACHE_TTL_MS = 5 * 60_000;
 const GROUP_PATH_PATTERN = /^[A-Za-z0-9_.-]{1,255}$/;
 
-/**
- * GitLab：账号同步的状态与重试（#270），加上控制台概览、项目列表与设置（#274）。谁能看、谁能改暂时沿用现有的
- * 称号能力（roles.manage / roles.department.manage）——#274 第二阶段把权限换成节点系统后，这里改成
- * requirePermission("gitlab.view" / "gitlab.sync" / "gitlab.settings")，节点名已经在 CONTRACT §6 里定好。
- */
+/** GitLab：账号同步的状态与重试（#270），加上控制台概览、项目列表与设置（#274，CONTRACT §6）。 */
 export default async function consoleGitlabRoutes(app: FastifyInstance) {
   const { gitlab, config, cache } = app.services;
   app.addHook("preHandler", requireAuth);
-  const canView = requireCapability("roles.manage", "roles.department.manage");
-  const canManage = requireCapability("roles.manage");
+  const canView = requirePermission("gitlab.view");
+  const canSync = [requirePermission("gitlab.sync"), requireStepUp];
+  const canSettings = requirePermission("gitlab.settings");
+  const canSettingsWrite = [requirePermission("gitlab.settings"), requireStepUp];
 
   app.get("/api/console/gitlab/accounts", { preHandler: canView }, async () => ({
     mode: gitlab.mode, gitlab_url: config.gitlab.url, group: config.gitlab.group, client_registered: gitlab.clientRegistered(), accounts: gitlab.status(),
   }));
 
-  app.post<{ Params: { account_id: string } }>("/api/console/gitlab/accounts/:account_id/resync", { preHandler: canManage, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
+  app.post<{ Params: { account_id: string } }>("/api/console/gitlab/accounts/:account_id/resync", { preHandler: canSync, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
     if (gitlab.mode === "off") return reply.code(409).send({ error: "gitlab_sync_off", message: "GitLab 同步没有打开" });
     const outcome = await gitlab.syncAccount(req.params.account_id, req.session!);
     if (!outcome) return reply.code(404).send({ error: "account_not_found", message: "没有这个账号" });
@@ -40,13 +39,13 @@ export default async function consoleGitlabRoutes(app: FastifyInstance) {
   /** 代码仓库应用、控制台「代码仓库」页的来源：group 本身、子组与全部项目（含私有），5 分钟缓存。 */
   app.get("/api/console/gitlab/projects", { preHandler: canView }, async () => cache.cached(PROJECTS_CACHE_KEY, PROJECTS_CACHE_TTL_MS, () => gitlab.listProjects()));
 
-  app.get("/api/console/gitlab/settings", { preHandler: canView }, async () => ({
+  app.get("/api/console/gitlab/settings", { preHandler: canSettings }, async () => ({
     sync_mode: gitlab.mode, group_path: gitlab.group, interval_minutes: gitlab.intervalMinutes, token_configured: config.gitlab.token !== null,
   }));
 
   app.patch<{ Body: { sync_mode?: "off" | "dry-run" | "on"; group_path?: string; interval_minutes?: number } }>(
     "/api/console/gitlab/settings",
-    { preHandler: canManage },
+    { preHandler: canSettingsWrite },
     async (req, reply) => {
       const { sync_mode, group_path, interval_minutes } = req.body;
       // interval_minutes 的 5–1440 范围已经在请求体 Schema 里校验（console/contracts.ts）；group_path 的字符规则

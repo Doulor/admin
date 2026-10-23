@@ -179,43 +179,28 @@ describe('createGithubConnection', () => {
   });
 });
 
-describe('console pages that still reach GitHub through the App (#274: GitHub org pages retired, 称号指派 is the remaining caller)', () => {
-  async function setup(options: { appFail?: number; userStatus?: number; inviteStatus?: number } = {}) {
-    const tokens: string[] = [];
+describe('console pages that still reach GitHub through the App (#274: GitHub org pages and 称号指派 both retired, /api/join/:token is the only remaining caller)', () => {
+  // #274 删掉了 /api/admin/:org/overview 这类通用「GitHub 组织页面」和称号指派（POST /api/console/assignments，
+  // routes/console/assignments.ts 整个文件删掉）：lib/github-connection.ts 在产品代码里现在只剩 /api/join/:token
+  // （routes/portal/join.ts）这一个调用方，而且它只走 clientFor(null) 的纯 App 路径，从不加载会话、自己接住每一种
+  // 上游失败。App 令牌本身的铸造/缓存/续期/401 丢弃行为已经在上面 `createGithubConnection` 这组直接测库函数的用例
+  // 里钉住了，不必再找一个业务路由当「还会调用 GitHub 的会话路由」的载体——产品里已经没有这种路由了。
+  async function setup(options: { appFail?: number; inviteStatus?: number } = {}) {
     const clock = () => Date.now();
     const octokitFactory = ((token: string) => ({
       request: async (route: string) => {
-        tokens.push(token);
-        if (options.userStatus) throw Object.assign(new Error('stub rejection'), { status: options.userStatus });
-        if (route === 'GET /users/{username}') return { data: { login: 'alpha', id: 7 } };
         if (route === 'POST /orgs/{org}/invitations') {
           if (options.inviteStatus) throw Object.assign(new Error('stub rejection'), { status: options.inviteStatus });
           return { data: { id: 99 } };
         }
         throw new Error(`Unexpected GitHub call ${route}`);
       },
-      paginate: async () => { tokens.push(token); return []; },
+      paginate: async () => [],
     })) as unknown as ServiceOverrides['octokitFactory'];
     const context = await testApp({ octokitFactory, githubAppFetch: appEndpoints({ clock, fail: options.appFail }).fetch }, false, APP_ENV);
     contexts.push(context);
-    const { app } = context;
-    // 所有者的账号由运维命令预置（cli/account.ts provision）；这里不走邮件，直接签一个邮箱会话
-    const owner = app.services.identity.provisionAccount({ githubId: 130495739, githubLogin: 'Crosery', orgRole: 'admin', email: 'owner@example.test' });
-    const sid = app.services.auth.createSession({ accountId: owner.accountId, provider: 'email', login: 'Crosery', userId: 130495739, avatarUrl: null, accessToken: '' });
-    return { app, tokens, headers: { cookie: `sid=${sid}` }, sid };
+    return context;
   }
-
-  it('resolves a GitHub login through the App installation token when assigning a title (#274)', async () => {
-    // #274 删掉了 /api/admin/:org/overview 这类通用「GitHub 组织页面」；lib/github-connection.ts 在称号指派
-    // （POST /api/console/assignments 的 github_login 查找，routes/console/assignments.ts）里仍是唯一调用方，
-    // 这里换成它验证同一套 App 安装令牌行为。
-    const { app, tokens, headers } = await setup();
-    expect((await app.inject({ url: '/api/console/me', headers })).json()).toMatchObject({ provider: 'email', site_role: 'admin', github: 'app' });
-    const assign = await app.inject({ method: 'POST', url: '/api/console/assignments', headers, payload: { github_login: 'alpha', role: 'member' } });
-    expect(assign.statusCode).toBe(201);
-    expect(assign.json()).toMatchObject({ assignment: { github_login: 'alpha', github_user_id: 7, role: 'member' } });
-    expect(new Set(tokens)).toEqual(new Set(['ghs_installation_1']));
-  });
 
   it('records a join request as failed, not as waiting for review, when GitHub refuses the App token at the invitation', async () => {
     const { app } = await setup({ inviteStatus: 401 });
@@ -228,13 +213,13 @@ describe('console pages that still reach GitHub through the App (#274: GitHub or
     expect(db.prepare('SELECT current_uses FROM invite_links').get()).toEqual({ current_uses: 0 });
   });
 
-  it('says plainly that the GitHub App is not working and keeps the session when the App or its token is refused', async () => {
-    for (const options of [{ appFail: 401 }, { userStatus: 401 }]) {
-      const { app, headers, sid } = await setup(options);
-      const response = await app.inject({ method: 'POST', url: '/api/console/assignments', headers, payload: { github_login: 'alpha', role: 'member' } });
-      expect(response.statusCode).toBe(503);
-      expect(response.json()).toMatchObject({ error: 'github_connection_failed', message: 'GitHub App 暂时用不了，请联系管理员检查 App 的配置' });
-      expect(app.services.auth.getSession(sid)).not.toBeNull();
-    }
+  it('records a join request as failed, not as waiting for review, when the App itself is refused', async () => {
+    const { app } = await setup({ appFail: 401 });
+    const db = app.services.storage.db;
+    db.prepare('INSERT INTO invite_links(token,org,created_by,created_by_token_encrypted,max_uses,current_uses,expires_at,disabled,created_at) VALUES(?,?,?,?,5,0,?,0,?)')
+      .run('app-link-2', ORG, 'Crosery', app.services.crypto.encrypt(''), Date.now() + 60_000, Date.now());
+    const response = await app.inject({ method: 'POST', url: '/api/join/app-link-2', payload: { github_login: 'alpha', pow: { timestamp: Date.now(), nonce: 'test' } } });
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({ error: '现在发不出 GitHub 邀请，请稍后再试或联系管理员' });
   });
 });

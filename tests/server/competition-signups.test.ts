@@ -2,7 +2,7 @@
 // 认人是会话里的极客班账号（#262）；组织成员资格由假 GitHub 回答，非成员回 404，守卫据此回 403 not_member。
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ServiceOverrides } from '../../app/server/src/services';
-import { signIn, testApp } from './helpers';
+import { grantPermGroup, signIn, testApp } from './helpers';
 
 /** 测试里只需要 `app.inject`；不直接依赖 fastify 的类型（测试包没有装它）。 */
 type TestServer = Awaited<ReturnType<typeof testApp>>['app'];
@@ -43,6 +43,7 @@ async function setup() {
   };
   const as = (login: string): Headers => ({ cookie: `sid=${sign(login)}` });
   const accountId = (login: string) => app.services.auth.getSession(sign(login))!.account_id;
+  grantPermGroup(app, accountId('alice'), 'title.site.owner'); // #274：控制台比赛接口按新权限体系判定
   let seq = 0;
   const makeCompetition = async (input: Record<string, unknown> = {}) => {
     const now = Date.now();

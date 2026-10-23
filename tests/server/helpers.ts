@@ -44,3 +44,28 @@ export function signIn(app: FastifyInstance, login: string, githubId: number, av
   if (!result.ok) throw new Error(`test sign-in refused for ${login}: ${result.reason}`);
   return result.sid;
 }
+
+/**
+ * #274 新权限体系的账号 id：按登录名查 `sessions` 表（signIn() 已经写过）。requirePermission 系的路由
+ * 测试不再靠「GitHub 组织角色桩」间接认出管理员——那一套只喂给旧 requireCapability 背后的动态查询，
+ * 新系统完全是静态存储，测试要显式把账号放进对应的组（见下面 grantPermGroup）。
+ */
+export function accountIdOf(app: FastifyInstance, login: string): string {
+  return (app.services.storage.db.prepare('SELECT openid FROM sessions WHERE login = ?').get(login) as { openid: string }).openid;
+}
+
+/** 把账号放进一个权限组（level、department、title 或 custom 组），例如 grantPermGroup(app, accountId, 'title.site.owner') 让它变成站长。 */
+export function grantPermGroup(app: FastifyInstance, accountId: string, groupId: string): void {
+  app.services.storage.db.prepare(
+    "INSERT OR IGNORE INTO perm_members(account_id, group_id, granted_by, created_at) VALUES (?, ?, 'test', ?)",
+  ).run(accountId, groupId, Date.now());
+  app.services.permissions.bump();
+}
+
+/** 给账号的 perm_entries 直接加一条允许条目（可选 scope），不经过任何组。 */
+export function grantPermNode(app: FastifyInstance, accountId: string, node: string, scope: Record<string, unknown> = {}): void {
+  app.services.storage.db.prepare(
+    "INSERT INTO perm_entries(subject_type, subject_id, node, value, scope, granted_by, created_at) VALUES ('account', ?, ?, 1, ?, 'test', ?)",
+  ).run(accountId, node, JSON.stringify(scope), Date.now());
+  app.services.permissions.bump();
+}

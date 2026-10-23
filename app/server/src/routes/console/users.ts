@@ -1,16 +1,7 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { loadSession } from "../../middleware/require-auth.js";
+import type { FastifyInstance } from "fastify";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { requireStepUp } from "../../middleware/require-step-up.js";
-import { departmentScopedAccess } from "../../lib/console-scope.js";
-import { entriesForAccount } from "../../lib/permissions.js";
-
-declare module "fastify" {
-  interface FastifyRequest {
-    /** requireViewScope 算出来的部门范围：null 是全站不过滤，数组是只能看这些部门。 */
-    departmentScope?: string[] | null;
-  }
-}
+import { requireScopedPermission } from "../../lib/console-scope.js";
 
 const PAGE_SIZE = 50;
 
@@ -39,15 +30,7 @@ export default async function consoleUsersRoutes(app: FastifyInstance) {
   const { permissions, storage } = app.services;
   const db = storage.db;
 
-  /** users.view、activity.read 这类接口的门禁：有全站 allow 就不过滤，只有部门范围的 allow 就按部门过滤，都没有 403。 */
-  async function requireViewScope(req: FastifyRequest, reply: FastifyReply) {
-    if (!loadSession(req)) return reply.code(401).send({ error: "unauthenticated", message: "请先登录" });
-    const access = departmentScopedAccess(entriesForAccount(db, req.session!.account_id, Date.now()), "users.view");
-    if (access.kind === "none") return reply.code(403).send({ error: "forbidden", node: "users.view", message: "需要「users.view」权限" });
-    req.departmentScope = access.kind === "scoped" ? access.departments : null;
-  }
-
-  app.get("/api/console/users", { preHandler: requireViewScope }, async (req) => {
+  app.get("/api/console/users", { preHandler: requireScopedPermission("users.view") }, async (req) => {
     const { q, level, department, status, cursor: cursorParam } = req.query as { q?: string; level?: string; department?: string; status?: string; cursor?: string };
     const cursor = decodeCursor(cursorParam);
     const conditions: string[] = ["u.status <> 'merged'"];

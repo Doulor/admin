@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { requireCapability } from "../../middleware/require-capability.js";
+import { requirePermission } from "../../middleware/require-permission.js";
+import { requireStepUp } from "../../middleware/require-step-up.js";
 import { beijingCompactDate, beijingDateTime } from "../../lib/beijing-time.js";
 import { SCORE_ERRORS, type ScoreErrorCode, type ScoreEventInput } from "../../lib/competition-score-store.js";
 import { SIGNUP_ERRORS, type SignupErrorCode, type SignupSettings } from "../../lib/competition-signup-store.js";
@@ -19,14 +20,18 @@ const settingsAudit = (settings: SignupSettings) => ({
 });
 
 /**
- * 控制台的比赛报名：报名设置、名单与导出、积分登记与撤销（#239）。全部要 `competitions.manage`。
- * 写操作与审计在同一个事务里；报名设置与 #238 的比赛写入共用同一张错误码表。
+ * 控制台的比赛报名：报名设置、名单与导出（#239，节点 `competition.manage`）、积分登记与撤销
+ * （节点 `competition.score.review`，CONTRACT-274 §5）。写操作与审计在同一个事务里；报名设置
+ * 与 #238 的比赛写入共用同一张错误码表。
  */
 export default async function consoleCompetitionRosterRoutes(app: FastifyInstance) {
   const { competitionSignups: signups, competitionScores: scores, config } = app.services;
   const { audit, db } = app.services.storage;
   app.addHook("preHandler", requireAuth);
-  const manage = [requireCapability("competitions.manage")];
+  const manage = [requirePermission("competition.manage"), requireStepUp];
+  const viewRoster = requirePermission("competition.manage");
+  const reviewScore = requirePermission("competition.score.review");
+  const reviewScoreWrite = [requirePermission("competition.score.review"), requireStepUp];
 
   app.put<{ Params: { competition_id: string }; Body: SignupSettings }>(
     "/api/console/competitions/:competition_id/signup-settings",
@@ -48,7 +53,7 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
 
   app.get<{ Params: { competition_id: string } }>(
     "/api/console/competitions/:competition_id/roster",
-    { preHandler: manage },
+    { preHandler: viewRoster },
     async (req, reply) => {
       const result = signups.roster(req.params.competition_id);
       return result.ok ? result.value : refuse(reply, result.error);
@@ -58,7 +63,7 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
   // 静态路径排在 roster 之后不影响匹配：Fastify 按段匹配，`roster.csv` 是字面量段。
   app.get<{ Params: { competition_id: string } }>(
     "/api/console/competitions/:competition_id/roster.csv",
-    { preHandler: manage, config: { rateLimit: { max: 5, timeWindow: "1 minute" } } },
+    { preHandler: viewRoster, config: { rateLimit: { max: 5, timeWindow: "1 minute" } } },
     async (req, reply) => {
       const id = req.params.competition_id;
       const result = signups.roster(id);
@@ -83,7 +88,7 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
 
   app.get<{ Params: { competition_id: string } }>(
     "/api/console/competitions/:competition_id/score-events",
-    { preHandler: manage },
+    { preHandler: reviewScore },
     async (req, reply) => {
       const result = scores.list(req.params.competition_id);
       return result.ok ? { events: result.value } : refuse(reply, result.error);
@@ -92,7 +97,7 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
 
   app.post<{ Params: { competition_id: string }; Body: ScoreEventInput }>(
     "/api/console/competitions/:competition_id/score-events",
-    { preHandler: manage, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+    { preHandler: reviewScoreWrite, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
     async (req, reply) => {
       const id = req.params.competition_id;
       const result = db.transaction(() => {
@@ -109,7 +114,7 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
 
   app.post<{ Params: { competition_id: string; event_id: string }; Body: { reason?: string } }>(
     "/api/console/competitions/:competition_id/score-events/:event_id/revoke",
-    { preHandler: manage, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+    { preHandler: reviewScoreWrite, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
     async (req, reply) => {
       const { competition_id: id, event_id: eventId } = req.params;
       const result = db.transaction(() => {

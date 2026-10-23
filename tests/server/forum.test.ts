@@ -12,7 +12,7 @@ import { loadForumContent } from '../../app/server/src/lib/forum-content';
 import { ipSubject, nameKey } from '../../app/server/src/lib/forum-rules';
 import { createForumStore } from '../../app/server/src/lib/forum-store';
 import type { ServiceOverrides } from '../../app/server/src/services';
-import { FORUM_FIXTURE_DIR, signIn, testApp, testConfig } from './helpers';
+import { FORUM_FIXTURE_DIR, accountIdOf, grantPermNode, signIn, testApp, testConfig } from './helpers';
 
 /** sharp 是 app/server 的依赖，根目录没有它；从 server 包里取，用来生成真实的测试图片和核对输出。 */
 const sharp = createRequire(join(REPO_ROOT, 'app/server/package.json'))('sharp') as typeof import('../../app/server/node_modules/sharp');
@@ -67,6 +67,16 @@ async function setup(options: { failing?: { failing: boolean; rejected?: Set<str
   assign('carol', 'member', 'community');
   assign('dave', 'head', 'projects');
   assign('erin', 'alumni');
+  // #274：版务权限不再经旧的 role_assignments/capabilities（那一套留着只影响上面 state().viewer.capabilities
+  // 的展示，#276 才会迁走），版面行为（置顶/关闭/编辑删帖）按新权限节点判定。SPEC §3.4「部门」行是不分部员/
+  // 部长的统一授权：部门组本身就带 forum.moderate.*，哪一级称号都继承。department→forum 分类的对照要等
+  // #276 建好论坛分类表才能定下来（见 lib/migrations/2026-10-yugc-v2.ts 的注释），这里直接按夹具话题实际
+  // 用到的两个分类（c-exam、c-ai）发放，不依赖那个还没对齐的占位映射。carol、dave 两个部门账号拿到同一份
+  // 权限，不再有「队长只能置顶、舰员才能关闭/删帖」的分级。
+  as('carol'); as('dave');
+  for (const login of ['carol', 'dave']) {
+    grantPermNode(app, accountIdOf(app, login), 'forum.moderate.*', { category: ['c-exam', 'c-ai'] });
+  }
   const call = (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, who?: string, payload?: object) =>
     app.inject({ method, url, ...(payload === undefined ? {} : { payload }), headers: who ? as(who) : {} });
   const state = async (who?: string) => (await call('GET', '/api/forum/state', who)).json().state;
@@ -434,16 +444,17 @@ describe('topics', () => {
     const denied = await s.call('POST', '/api/forum/topics/t9/pin', 'bob', { pinned: true });
     expect(denied.statusCode).toBe(403);
     expect(denied.json()).toMatchObject({ error: 'forbidden', message: '需要「置顶话题」权限' });
-    // 项目部队长能置顶、不能关闭；社区部舰员两样都能。
+    // #274：部门的版务权限不分部员/部长，项目部的 dave 和社区部的 carol 都能置顶、也都能关闭（SPEC §3.4）。
     const pinned = await s.call('POST', '/api/forum/topics/t9/pin', 'dave', { pinned: true });
     expect(pinned.statusCode).toBe(200);
     expect(pinned.json().changes.topics.find((t: { id: string }) => t.id === 't9').pinned).toBe(true);
-    expect((await s.call('POST', '/api/forum/topics/t9/close', 'dave', { closed: true })).statusCode).toBe(403);
+    expect((await s.call('POST', '/api/forum/topics/t9/close', 'dave', { closed: true })).json().changes.topics.find((t: { id: string }) => t.id === 't9').closed).toBe(true);
     expect((await s.call('POST', '/api/forum/topics/t9/close', 'carol', { closed: true })).json().changes.topics.find((t: { id: string }) => t.id === 't9').closed).toBe(true);
     expect((await s.call('POST', '/api/forum/topics/t404/close', 'carol', { closed: true })).statusCode).toBe(404);
     expect((await s.call('POST', '/api/forum/topics/t9/close', 'carol', { closed: 'yes' })).statusCode).toBe(400);
     expect(s.audits()).toEqual([
       { org: CONSOLE_ORG, actor: 'dave', action: 'forum.topic.pin', target: 't9', details: '{"pinned":true}' },
+      { org: CONSOLE_ORG, actor: 'dave', action: 'forum.topic.close', target: 't9', details: '{"closed":true}' },
       { org: CONSOLE_ORG, actor: 'carol', action: 'forum.topic.close', target: 't9', details: '{"closed":true}' },
     ]);
   });
@@ -764,7 +775,8 @@ describe('replies', () => {
     expect(member.statusCode).toBe(403);
     expect(member.json()).toMatchObject({ error: 'forbidden', message: '话题已关闭\uFF0C不能回复' });
     expect((await s.call('POST', '/api/forum/posts', undefined, guestReply('t9', '游客呢'))).statusCode).toBe(403);
-    expect((await s.call('POST', '/api/forum/posts', 'dave', { topicId: 't9', content: '队长呢' })).statusCode).toBe(403);
+    // #274：dave 所在的项目部一样拿到 forum.moderate.edit（统一授权，不分部员/部长），关闭的话题里也能回。
+    expect((await s.call('POST', '/api/forum/posts', 'dave', { topicId: 't9', content: '队长也能说' })).statusCode).toBe(201);
     expect((await s.call('POST', '/api/forum/posts', 'carol', { topicId: 't9', content: '版务说明' })).statusCode).toBe(201);
     expect((await s.call('POST', '/api/forum/posts', 'alice', { topicId: 't9', content: '提督补充' })).statusCode).toBe(201);
   });
@@ -788,7 +800,8 @@ describe('editing and deleting', () => {
     const edited = await s.call('PATCH', `/api/forum/posts/${reply}`, 'bob', { content: '第二版' });
     expect(edited.statusCode).toBe(200);
     expect(edited.json().changes.posts.find((p: { id: string }) => p.id === reply)).toMatchObject({ content: '第二版', editedAt: expect.any(Number) });
-    const other = await s.call('PATCH', `/api/forum/posts/${reply}`, 'dave', { content: '改别人的' });
+    // erin 没有任何部门的版务权限（只是往届成员/alumni），改不了别人的帖子。
+    const other = await s.call('PATCH', `/api/forum/posts/${reply}`, 'erin', { content: '改别人的' });
     expect(other.statusCode).toBe(403);
     expect(other.json()).toMatchObject({ error: 'forbidden', message: '只能编辑自己的帖子' });
     expect((await s.call('DELETE', `/api/forum/posts/${reply}`, 'erin')).statusCode).toBe(403);

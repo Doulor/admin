@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ServiceOverrides } from '../../app/server/src/services';
-import { signIn, testApp } from './helpers';
+import { grantPermGroup, signIn, testApp } from './helpers';
 
 const CONSOLE_ORG = 'Yangtze-University-Geek-Class';
 const SEED_ID = 'oss-challenge-2026-1';
@@ -43,6 +43,7 @@ async function setup() {
     as(login);
     return app.services.auth.getSession(sessions.get(login)!)!.account_id;
   };
+  grantPermGroup(app, accountId('alice'), 'title.site.owner'); // #274：控制台比赛/积分接口按新权限体系判定
   /** 一场已开放报名、可组队、可计分的比赛（1–3 人）。 */
   const scoreCompetition = async (settings: Record<string, unknown> = {}) => {
     const now = Date.now();
@@ -96,7 +97,9 @@ describe('seeded competition', () => {
 
     const first = await testApp({ octokitFactory: github() }, false, { DB_PATH: dbPath });
     try {
-      const headers = { cookie: `sid=${signIn(first.app, 'alice', 101)}` };
+      const sid1 = signIn(first.app, 'alice', 101);
+      const headers = { cookie: `sid=${sid1}` };
+      grantPermGroup(first.app, first.app.services.auth.getSession(sid1)!.account_id, 'title.site.owner'); // #274：控制台比赛接口按新权限体系判定
       const listed = (await first.app.inject({ url: '/api/console/competitions', headers })).json().competitions;
       const seed = listed.find((row: { id: string }) => row.id === SEED_ID);
       expect(seed).toMatchObject({ name: '极客班开源实战贡献挑战赛 · 2026 第一期', kind: 'internal' });

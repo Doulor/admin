@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { requireCapability } from "../../middleware/require-capability.js";
+import { requirePermission } from "../../middleware/require-permission.js";
+import { requireStepUp } from "../../middleware/require-step-up.js";
 import {
   competitionError, newCompetitionId, toConsoleCompetition,
   type CompetitionDraft, type CompetitionPatch, type CompetitionRecord,
@@ -30,10 +31,10 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
   const { audit, db } = app.services.storage;
   app.addHook("preHandler", requireAuth);
 
-  const manage = [requireCapability("competitions.manage")];
+  const manage = [requirePermission("competition.manage"), requireStepUp];
 
   /** 控制台看全部，含已下线的；公开接口把 `offline` 的滤掉。 */
-  app.get("/api/console/competitions", { preHandler: requireCapability("console.access") }, async () => {
+  app.get("/api/console/competitions", { preHandler: requirePermission("console.access") }, async () => {
     const now = Date.now();
     return { competitions: competitions.list(now).map(record => toConsoleCompetition(record, now)) };
   });

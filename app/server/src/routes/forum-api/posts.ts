@@ -1,6 +1,6 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { FORUM_LIMITS, ForumError, GUEST_POST_SITE_SUBJECT, NAME_RULE_MESSAGE, ipSubject, isAllowedName, normalizeName } from "../../lib/forum-rules.js";
-import { can, forbidden, forumChanges, forumViewer, guestRepliesPaused, notFound, rateLimited, requireMember, type MemberViewer } from "./viewer.js";
+import { canModerate, forbidden, forumChanges, forumViewer, guestRepliesPaused, notFound, rateLimited, requireMember, type MemberViewer } from "./viewer.js";
 
 type PostParams = { post_id: string };
 type ReplyBody = {
@@ -22,10 +22,11 @@ export default async function forumPostRoutes(app: FastifyInstance) {
   const assertNotDeleted = (post: { deleted: boolean }) => {
     if (post.deleted) throw new ForumError(409, "post_deleted", "这条帖子已被删除");
   };
-  /** 作者本人或持有 forum.post.moderate 的人；返回是不是在动别人的帖子（要审计）。 */
-  function authorOrModerator(viewer: MemberViewer, post: { authorId: string }, action: string): boolean {
+  /** 作者本人或持有对应版务节点（按帖子所在话题的分类限定 scope，#274）的人；返回是不是在动别人的帖子（要审计）。 */
+  function authorOrModerator(req: FastifyRequest, viewer: MemberViewer, post: { authorId: string; topicId: string }, node: string, action: string): boolean {
     if (post.authorId === viewer.userId) return false;
-    if (!can(viewer, "forum.post.moderate")) throw forbidden(`只能${action}自己的帖子`);
+    const categoryId = forum.topic(post.topicId)?.categoryId;
+    if (!canModerate(req, viewer, node, categoryId)) throw forbidden(`只能${action}自己的帖子`);
     return true;
   }
 
@@ -38,7 +39,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
     const { topicId, content, replyToPostId } = req.body;
     const topic = forum.topic(topicId);
     if (!topic) throw notFound("话题不存在");
-    if (topic.closed && !can(viewer, "forum.post.moderate")) throw forbidden("话题已关闭，不能回复");
+    if (topic.closed && !canModerate(req, viewer, "forum.moderate.edit", topic.categoryId)) throw forbidden("话题已关闭，不能回复");
     if (replyToPostId && forum.post(replyToPostId)?.topicId !== topic.id) throw new ForumError(400, "invalid_reply_target", "被回复的帖子不在这个话题里");
     if (!content.trim()) throw new ForumError(400, "empty_content", "正文不能为空");
 
@@ -78,7 +79,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
   app.patch<{ Params: PostParams; Body: { content: string } }>("/api/forum/posts/:post_id", async req => {
     const viewer = await requireMember(req);
     const post = existingPost(req.params.post_id);
-    const moderated = authorOrModerator(viewer, post, "编辑");
+    const moderated = authorOrModerator(req, viewer, post, "forum.moderate.edit", "编辑");
     assertNotDeleted(post);
     if (!req.body.content.trim()) throw new ForumError(400, "empty_content", "正文不能为空");
     forum.editPost(post.id, req.body.content);
@@ -90,7 +91,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
   app.delete<{ Params: PostParams }>("/api/forum/posts/:post_id", async req => {
     const viewer = await requireMember(req);
     const post = existingPost(req.params.post_id);
-    const moderated = authorOrModerator(viewer, post, "删除");
+    const moderated = authorOrModerator(req, viewer, post, "forum.moderate.delete", "删除");
     if (post.deleted) return forumChanges(req, viewer, { posts: [post.id] }, { posts: "full" });
     if (forum.isFirstPost(post.id, post.topicId)) throw new ForumError(400, "first_post", "话题的第一帖不能删除");
     forum.deletePost(post.id);

@@ -1,57 +1,83 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { requireCapability, resolveAccess } from "../../middleware/require-capability.js";
-import { APPLICATION_STATUS_IDS, orderedCapabilities } from "../../lib/roles.js";
 import { emailRequired } from "../../lib/email-gate.js";
+import { entriesForAccount } from "../../lib/permissions.js";
+import { departmentScopedAccess } from "../../lib/console-scope.js";
+import { beijingDayStart } from "../../lib/beijing-time.js";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const LEVEL_NAME: Record<string, string> = { visitor: "访客", registered: "注册用户", member: "极客班成员", alumni: "往届成员" };
+/** 没有全站 allow、只有部门范围 allow 的节点也要算「有」：#274 的 permissions 字段给前端判断导航显隐用，
+ * 部长看不到全站数据，但应该看到「用户」「操作记录」这些导航项（范围由各接口自己再收窄）。 */
+const SCOPE_AWARE_NODES = ["users.view", "apply.view", "apply.review", "activity.read", "dept.manage"];
 
+/**
+ * 控制台身份与概览（CONTRACT-274 §5、§7）：按新权限节点体系重写，取代旧的站内角色/能力形状。
+ * 旧控制台前端（site_role、capabilities、head_of、github 字段）随这次改动一起下线，由新控制台
+ * （权限节点驱动的 permissions 数组）接手，两边不再共存——旧形状没有调用方了（人工审查确认：
+ * 旧的 people/departments/titles/assignments/catalogue/audit 路由已删，是唯一读过旧形状的地方）。
+ */
 export default async function consoleMeRoutes(app: FastifyInstance) {
-  const { config, roles, feedback, githubConnection } = app.services;
-  const { db } = app.services.storage;
+  const { permissions, profiles, storage } = app.services;
+  const db = storage.db;
   app.addHook("preHandler", requireAuth);
 
-  /**
-   * 当前用户在极客班控制台的身份：站内角色、称号与能力。只需要登录。
-   * 权限只认极客班账号（#262 第四期）：不论用哪种方式登录（`provider`），能力都按站内角色和称号给。
-   * `github`：控制台的 GitHub 页面这次经什么接 GitHub——服务器的 GitHub App（app）、你自己的 GitHub 会话（session），
-   * 或还没接上（none，这时那些页面打不开，按钮也不用点）。
-   * `email_required`（#273）：账号还没有登录邮箱，控制台先带人去绑定邮箱页。
-   */
   app.get("/api/console/me", async (req) => {
-    const access = await resolveAccess(req);
+    const accountId = req.session!.account_id;
+    const profile = profiles.get(accountId);
+    const row = db.prepare(`
+      SELECT lvl.suffix AS level, dept.id AS department_id, dept.name AS department_name, dept.tone AS department_tone
+      FROM users u
+      LEFT JOIN (SELECT pm.account_id, SUBSTR(pg.id, 7) AS suffix FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pg.kind = 'level') lvl ON lvl.account_id = u.id
+      LEFT JOIN (SELECT pm.account_id, pg.id, pg.name, pg.tone FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pg.kind = 'department') dept ON dept.account_id = u.id
+      WHERE u.id = ?
+    `).get(accountId) as { level: string | null; department_id: string | null; department_name: string | null; department_tone: string | null } | undefined;
+    const level = row?.level ?? "registered";
+    const titles = (db.prepare(
+      "SELECT pg.id AS id, pg.name AS name, pg.department_id AS department_id FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pg.kind = 'title' AND pm.account_id = ?",
+    ).all(accountId) as { id: string; name: string; department_id: string | null }[]);
+
+    const effective = permissions.effective(accountId);
+    const entries = entriesForAccount(db, accountId, Date.now());
+    const extra = SCOPE_AWARE_NODES.filter(node => !effective.allow.includes(node) && departmentScopedAccess(entries, node).kind === "scoped");
+
     return {
-      login: req.session!.login, avatar_url: req.session!.avatar_url, org: config.consoleOrg,
-      provider: req.session!.provider,
-      site_role: access.siteRole,
-      github: githubConnection.via(req.session),
-      title: access.titles[0], titles: access.titles,
-      capabilities: orderedCapabilities(access.capabilities),
-      head_of: access.headOf,
-      email_required: emailRequired(app.services, req.session!.account_id),
+      account_id: accountId, login: req.session!.login, username: profile.username, display_name: profile.display_name,
+      avatar_url: profile.avatar_url, level, level_name: LEVEL_NAME[level] ?? level,
+      department: row?.department_id ? { id: row.department_id, name: row.department_name, tone: row.department_tone } : null,
+      titles, permissions: [...effective.allow, ...extra],
+      provider: req.session!.provider, email_required: emailRequired(app.services, accountId),
     };
   });
 
-  /** 概览统计：只返回调用者有权限看的键。 */
-  app.get("/api/console/summary", { preHandler: requireCapability("console.access") }, async (req) => {
-    const access = req.access!;
+  /** 概览（CONTRACT-274 §7）：去掉所有 GitHub 字段，只回调用者有权看的键；candidates_pending 在 #278 落地前固定回 0。 */
+  app.get("/api/console/summary", async (req) => {
+    const accountId = req.session!.account_id;
+    const check = (node: string) => permissions.check(accountId, node);
     const result: Record<string, unknown> = {};
-    if (access.capabilities.has("applications.read")) {
+
+    if (check("apply.view")) {
+      const DAY_MS = 24 * 60 * 60 * 1000;
       const rows = db.prepare("SELECT status, COUNT(*) AS n FROM applications GROUP BY status").all() as { status: string; n: number }[];
-      const byStatus: Record<string, number> = Object.fromEntries(APPLICATION_STATUS_IDS.map(id => [id, 0]));
+      const byStatus: Record<string, number> = {};
       for (const row of rows) byStatus[row.status] = row.n;
       const lastWeek = db.prepare("SELECT COUNT(*) AS n FROM applications WHERE created_at >= ?").get(Date.now() - 7 * DAY_MS) as { n: number };
       result.applications = { total: rows.reduce((sum, row) => sum + row.n, 0), by_status: byStatus, last_7d: lastWeek.n };
     }
-    if (access.capabilities.has("feedback.read")) result.feedback = feedback.countFeedback(config.consoleOrg);
-    if (access.capabilities.has("roles.manage") || access.capabilities.has("roles.department.manage")) {
-      result.people = { assignments: roles.countAssignments(), departments: roles.listDepartments().filter(item => !item.archived).length };
+    if (check("competition.score.review")) result.candidates_pending = 0; // #278 之前先固定回 0
+    const todayStart = beijingDayStart(Date.now());
+    if (check("users.view")) {
+      const registrations = db.prepare("SELECT COUNT(*) AS n FROM users WHERE created_at >= ?").get(todayStart) as { n: number };
+      result.registrations_today = registrations.n;
     }
-    // #274 新权限体系的键，和上面的旧 Capability 键并存（两套系统还没切换完）：candidates_pending 在 #278
-    // 落地前先回 0（CONTRACT-274 §7），门槛用新节点 competition.score.review，不是旧的 capabilities。
-    if (req.server.services.permissions.check(req.session!.account_id, "competition.score.review")) {
-      result.candidates_pending = 0;
+    if (check("activity.read")) {
+      const blocked = db.prepare("SELECT COUNT(*) AS n FROM activity_events WHERE outcome = 'limited' AND at >= ?").get(todayStart) as { n: number };
+      result.blocked_today = blocked.n;
     }
+    if (check("gitlab.view")) {
+      const { healthy } = await app.services.gitlab.health();
+      result.gitlab = { mode: app.services.gitlab.mode, healthy, last_run: app.services.gitlab.lastRun() };
+    }
+    if (check("feedback.view")) result.feedback = app.services.feedback.countFeedback(app.services.config.consoleOrg);
     return result;
   });
 }

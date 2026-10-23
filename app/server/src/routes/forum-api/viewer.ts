@@ -52,6 +52,15 @@ export async function requireMember(req: FastifyRequest): Promise<MemberViewer> 
 }
 
 export const can = (viewer: ForumViewer, capability: Capability) => viewer.capabilities.includes(capability);
+/**
+ * #274 版务授权：按新权限节点判定（取代 can() 走的旧 Capability），版主的 forum.moderate.* 是按分类限定的
+ * scope（SPEC §3.4：部门组的 scope 是 `{category:[本部门分类]}`），所以这里要把目标话题的分类传进去，
+ * 不能只判「有没有这个节点」。访客没有账号，一律 false。
+ */
+export function canModerate(req: FastifyRequest, viewer: ForumViewer, node: string, categoryId?: string): boolean {
+  if (viewer.kind !== "member") return false;
+  return req.server.services.permissions.check(viewer.accountId, node, categoryId ? { category: [categoryId] } : {});
+}
 export const forbidden = (message: string) => new ForumError(403, "forbidden", message);
 export const notFound = (message: string) => new ForumError(404, "not_found", message);
 export { rateLimited } from "../../middleware/http-policy.js";

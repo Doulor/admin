@@ -124,6 +124,9 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     }),
     // #274 新权限引擎：和上面的 access（旧 capabilities）并存，中间件/路由逐步切过去，见 lib/permissions.ts。
     permissions: createPermissionEngine(storage.db, overrides.clock),
+    // 和别的服务用同一个可注入时钟：require-step-up.ts 判定「刚登录过」要用它比对 session.created_at
+    // （由 auth.ts 的 createSession 用这同一个 clock 盖的时间戳），不能各用各的，测试拨慢/拨快时钟时才站得住。
+    clock: overrides.clock ?? Date.now,
     profiles: createAccountProfiles(storage.db, { clock: overrides.clock }),
     feedback,
     forum,

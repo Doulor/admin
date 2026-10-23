@@ -2,6 +2,7 @@
 // 用在信里的日期（lib/mail/envelope.ts）和控制台导出的 CSV（routes/console/applications.ts）。
 
 const OFFSET_MS = 8 * 3600_000;
+const DAY_MS = 24 * 3600_000;
 const pad = (value: number) => String(value).padStart(2, "0");
 
 /** 北京时间的年月日时分秒；时间不合法时抛 RangeError。 */
@@ -22,4 +23,9 @@ export function beijingDateTime(at: Date | number): string {
 export function beijingCompactDate(at: Date | number): string {
   const p = beijingParts(at);
   return `${p.y}${pad(p.m)}${pad(p.day)}`;
+}
+
+/** 这一刻所在的北京时间那一天的零点（毫秒时间戳）。「每天」的限额与统计一律按这个重置，不是 UTC 零点（#274）。 */
+export function beijingDayStart(at: number): number {
+  return Math.floor((at + OFFSET_MS) / DAY_MS) * DAY_MS - OFFSET_MS;
 }

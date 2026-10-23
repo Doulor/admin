@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { requireCapability } from "../../middleware/require-capability.js";
+import { requirePermission } from "../../middleware/require-permission.js";
+import { requireStepUp } from "../../middleware/require-step-up.js";
 import { beijingCompactDate, beijingDateTime } from "../../lib/beijing-time.js";
 import { APPLICATION_STATUSES, APPLICATION_STATUS_IDS, type ApplicationStatus } from "../../lib/roles.js";
 import { MailTemplateError, oneLine, type RenderedMail } from "../../lib/mail/envelope.js";
@@ -45,7 +46,7 @@ export default async function consoleApplicationRoutes(app: FastifyInstance) {
   // 审核记录的版本号取最大的 id：id 自增，只会变大；created_at 跟着服务器时钟，时钟往回拨时最新一条不一定排第一
   const lastReviewId = db.prepare("SELECT COALESCE(MAX(id), 0) AS id FROM application_reviews WHERE application_id = ?");
 
-  app.get<{ Querystring: ListQuery }>("/api/console/applications", { preHandler: requireCapability("applications.read") }, async (req) => {
+  app.get<{ Querystring: ListQuery }>("/api/console/applications", { preHandler: requirePermission("apply.view") }, async (req) => {
     const { status, q } = req.query;
     const limit = Number(req.query.limit ?? 50);
     const offset = Number(req.query.offset ?? 0);
@@ -76,7 +77,7 @@ export default async function consoleApplicationRoutes(app: FastifyInstance) {
   // 静态路由优先于 /:application_id，Fastify 不会把 export.csv 当成 id。
   app.get<{ Querystring: { status?: ApplicationStatus } }>(
     "/api/console/applications/export.csv",
-    { preHandler: requireCapability("applications.export"), config: { rateLimit: { max: 5, timeWindow: "1 minute" } } },
+    { preHandler: requirePermission("apply.export"), config: { rateLimit: { max: 5, timeWindow: "1 minute" } } },
     async (req, reply) => {
       const { status } = req.query;
       const rows = (status
@@ -103,7 +104,7 @@ export default async function consoleApplicationRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { application_id: string } }>(
     "/api/console/applications/:application_id",
-    { preHandler: requireCapability("applications.read") },
+    { preHandler: requirePermission("apply.view") },
     async (req, reply) => {
       const application = findApplication(req.params.application_id);
       if (!application) return reply.code(404).send({ error: "not_found", message: "投递不存在" });
@@ -119,7 +120,7 @@ export default async function consoleApplicationRoutes(app: FastifyInstance) {
 
   app.patch<{ Params: { application_id: string }; Body: ReviewBody }>(
     "/api/console/applications/:application_id",
-    { preHandler: requireCapability("applications.review") },
+    { preHandler: [requirePermission("apply.review"), requireStepUp] },
     async (req, reply) => {
       const current = findApplication(req.params.application_id);
       if (!current) return reply.code(404).send({ error: "not_found", message: "投递不存在" });

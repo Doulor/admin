@@ -3,9 +3,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { ServiceOverrides } from '../../app/server/src/services';
 import { GOOGLE_JWKS_URL, GOOGLE_TOKEN_URL } from '../../app/server/src/lib/google';
-import { signIn, testApp } from './helpers';
+import { accountIdOf, grantPermGroup, signIn, testApp } from './helpers';
 import { requestLogFields } from '../../app/server/src/app';
-import { CAPABILITY_IDS } from '../../app/server/src/lib/roles';
+import { PERMISSION_NODES } from '../../app/server/src/lib/permission-nodes';
 import { createLoginThrottle } from '../../app/server/src/lib/password-policy';
 
 /**
@@ -264,7 +264,7 @@ describe('email password sign-in (#262)', () => {
 });
 
 describe('console permissions come only from the site account; GitHub is a connection the server makes (#262 第四期)', () => {
-  it('gives the provisioned owner 提督 with every capability through email and reports GitHub as not connected without a GitHub App', async () => {
+  it('gives the provisioned owner 站长 every permission node through email and reports GitHub as not connected without a GitHub App', async () => {
     const { app, mail, calls } = await setup();
     const owner = app.services.identity.provisionAccount({ githubId: 130495739, githubLogin: 'Crosery', orgRole: 'admin', email: 'owner@example.test' });
     expect(owner).toMatchObject({ created: true, emailLinked: true });
@@ -276,33 +276,33 @@ describe('console permissions come only from the site account; GitHub is a conne
     expect((await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('owner@example.test') })).json()).toMatchObject({ registered: false });
     expect((await user.send('GET', '/auth/me')).json()).toMatchObject({ login: 'Crosery', user_id: 130495739, account_id: owner.accountId, provider: 'email', console_link: true });
     const me = (await user.send('GET', '/api/console/me')).json();
-    expect(me).toMatchObject({ provider: 'email', site_role: 'admin', github: 'none' });
-    expect(me.title).toMatchObject({ id: 'admin', source: 'site' });
-    expect(me.capabilities).toEqual(CAPABILITY_IDS);
-    expect(me).not.toHaveProperty('blocked');
+    expect(me).toMatchObject({ account_id: owner.accountId, provider: 'email', level: 'member', level_name: '极客班成员', department: null });
+    expect(me.titles).toEqual([expect.objectContaining({ id: 'title.site.owner', department_id: null })]);
+    // 站长的权限组条目是通配 `*`（lib/migrations/2026-10-yugc-v2.ts），effective() 展开成目录里的每一个非 meta 节点
+    expect(me.permissions).toEqual(PERMISSION_NODES.filter(def => !def.meta).map(def => def.node));
 
-    // #274 删掉了通用的「GitHub 组织页面」（/api/admin/:org/overview）和 /api/me/orgs：没配 GitHub App、
-    // 这次也不是 GitHub 会话时，唯一还会去接 GitHub 的称号指派也不会白跑一趟去连接，见 github-connection.test.ts。
-    // 成员与权限照常打开：名单来自极客班账号，GitHub 没接上就不并 GitHub 组织
-    const people = await user.send('GET', '/api/console/people');
-    expect(people.statusCode).toBe(200);
-    expect(people.json()).toMatchObject({ github: 'none', github_listed: false });
-    expect(people.json().people).toEqual([expect.objectContaining({
-      account_id: owner.accountId, login: 'Crosery', user_id: 130495739, site_role: 'admin', member: true, status: 'active',
-      providers: ['github', 'email'], role_unrecorded: false, titles: [expect.objectContaining({ id: 'admin' })],
+    // #274 删掉了通用的「GitHub 组织页面」（/api/admin/:org/overview）和 /api/me/orgs、旧的 /api/console/people
+    // 与称号指派：没配 GitHub App、这次也不是 GitHub 会话时，没有任何控制台路由会去接 GitHub（见 github-connection.test.ts）。
+    // 新的用户列表（/api/console/users，节点 users.view）来自极客班账号，不并 GitHub 组织。
+    const users = await user.send('GET', '/api/console/users');
+    expect(users.statusCode).toBe(200);
+    expect(users.json().items).toEqual([expect.objectContaining({
+      account_id: owner.accountId, status: 'active', level: 'member', providers: expect.arrayContaining(['github', 'email']),
+      titles: [expect.objectContaining({ id: 'title.site.owner' })],
     })]);
-    // 名单不带邮箱：只管本部门的队长也能看名单
-    expect(people.json().people[0]).not.toHaveProperty('github_role');
-    expect(people.json().people[0]).not.toHaveProperty('email');
-    // 没登录过本站的 GitHub 用户名，GitHub 又没接上：查不到这个人
-    const unknown = await user.send('POST', '/api/console/assignments', { github_login: 'someone', role: 'alumni' });
-    expect([unknown.statusCode, unknown.json().error]).toEqual([400, 'github_user_not_found']);
+    // 名单不带邮箱
+    expect(users.json().items[0]).not.toHaveProperty('email');
+    // 没登录过本站的账号 id：权限组加成员查不到这个人
+    const unknownGroup = await user.send('POST', '/api/console/permission-groups', { id: 'custom.probe', name: '探测', weight: 1 });
+    expect(unknownGroup.statusCode).toBe(201);
+    const unknown = await user.send('POST', '/api/console/permission-groups/custom.probe/members', { account_id: '01HZZZZZZZZZZZZZZZZZZZZZZZ' });
+    expect([unknown.statusCode, unknown.json().error]).toEqual([404, 'account_not_found']);
     // 绑定了 GitHub 的账号用邮箱登录，在论坛里照常是成员
     expect((await user.send('GET', '/api/forum/state')).json().state.viewer.kind).toBe('member');
     expect(calls).toEqual([]);
   });
 
-  it('makes an invite-registered member a 舰员 who can be given titles by account, without GitHub', async () => {
+  it('makes an invite-registered member a 舰员 who can be given a department head title by account, without GitHub', async () => {
     const { app, mail, invite, calls } = await setup();
     invite('yugc-test-2026');
     const owner = app.services.identity.provisionAccount({ githubId: 130495739, githubLogin: 'Crosery', orgRole: 'admin', email: 'owner@example.test' });
@@ -311,23 +311,27 @@ describe('console permissions come only from the site account; GitHub is a conne
     await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('crew@example.test'), invite_code: 'yugc-test-2026' });
     expect((await user.send('GET', '/api/me/competitions')).statusCode).toBe(200);
     const me = (await user.send('GET', '/api/console/me')).json();
-    expect([me.site_role, me.title.id, me.capabilities]).toEqual(['member', 'member', ['console.access', 'github.org.read']]);
+    expect(me).toMatchObject({ level: 'member', department: null, titles: [] });
+    // 普通成员没有 console.access，进不了控制台
+    expect(me.permissions).not.toContain('console.access');
+    expect((await user.send('GET', '/api/console/users')).statusCode).toBe(403);
     // 论坛用户按 GitHub id 建：没有绑定 GitHub 的账号在论坛里是游客
     expect((await user.send('GET', '/api/forum/state')).json().state.viewer.kind).toBe('guest');
 
-    // 提督按账号给他队长称号，不用 GitHub 用户名
+    // 提督按账号给他部门部长称号，不用 GitHub 用户名（#274 的用户/权限组接口都按 account_id）
     const admiral = browser(app);
     await admiral.send('POST', '/auth/email/start', { email: 'owner@example.test' });
     await admiral.send('POST', '/auth/email/verify', { code: await mail.codeFor('owner@example.test') });
     const crewId = (await user.send('GET', '/auth/me')).json().account_id as string;
-    const assigned = await admiral.send('POST', '/api/console/assignments', { account_id: crewId, role: 'head', department_id: 'recruitment' });
-    expect(assigned.statusCode).toBe(201);
-    expect(assigned.json().assignment).toMatchObject({ github_login: me.login, github_user_id: null, role: 'head', department_id: 'recruitment' });
+    const assigned = await admiral.send('PATCH', `/api/console/users/${crewId}`, { titles: ['title.ai.head'] });
+    expect(assigned.statusCode).toBe(200);
+    expect(assigned.json()).toEqual({ account_id: crewId });
     const after = (await user.send('GET', '/api/console/me')).json();
-    expect(after.title).toMatchObject({ id: 'head', source: 'assignment' });
-    expect(after.capabilities).toEqual(expect.arrayContaining(['applications.review', 'github.invites.manage']));
-    const missing = await admiral.send('POST', '/api/console/assignments', { account_id: '01HZZZZZZZZZZZZZZZZZZZZZZZ', role: 'alumni' });
-    expect([missing.statusCode, missing.json().error]).toEqual([404, 'account_not_found']);
+    expect(after.titles).toEqual([expect.objectContaining({ id: 'title.ai.head', department_id: 'dept.ai' })]);
+    // 部门部长的权限按 SPEC §3.4 限定在本部门范围（scope.department = ["dept.ai"]），但 console.access 不带范围
+    expect(after.permissions).toEqual(expect.arrayContaining(['console.access', 'apply.review', 'users.view', 'activity.read', 'dept.manage']));
+    const missing = await admiral.send('PATCH', '/api/console/users/01HZZZZZZZZZZZZZZZZZZZZZZZ', { level: 'alumni' });
+    expect([missing.statusCode, missing.json().error]).toEqual([404, 'not_found']);
     expect(owner.accountId).not.toBe(crewId);
     expect(calls).toEqual([]);
   });
@@ -358,9 +362,9 @@ describe('console permissions come only from the site account; GitHub is a conne
   });
 });
 
-describe('site roles in 成员与权限 (#262 第四期)', () => {
-  it('lets only 提督 change site roles, keeps one admin, and applies the change to live sessions at once', async () => {
-    const { app, db, mail, invite, tick } = await setup();
+describe('site ownership in 成员与权限 (#274：按权限节点判定，取代旧的 site_role/people.ts)', () => {
+  it('needs users.manage to change anyone\'s titles, keeps one site owner, and the change applies to the next request at once', async () => {
+    const { app, db, mail, invite } = await setup();
     invite('yugc-test-2026');
     const owner = app.services.identity.provisionAccount({ githubId: 130495739, githubLogin: 'Crosery', orgRole: 'admin', email: 'owner@example.test' });
     const signInByEmail = async (email: string, invite_code?: string, nth = 1) => {
@@ -371,40 +375,39 @@ describe('site roles in 成员与权限 (#262 第四期)', () => {
     };
     const { user: admiral } = await signInByEmail('owner@example.test');
     const { user: crew } = await signInByEmail('crew@example.test', 'yugc-test-2026');
-    const { user: captain } = await signInByEmail('cap@example.test', 'yugc-test-2026');
     const idOf = async (user: ReturnType<typeof browser>) => (await user.send('GET', '/auth/me')).json().account_id as string;
-    const [crewId, captainId] = [await idOf(crew), await idOf(captain)];
-    const patch = (user: ReturnType<typeof browser>, accountId: string, site_role: string) => user.send('PATCH', `/api/console/people/${accountId}/site-role`, { site_role });
+    const crewId = await idOf(crew);
+    const patch = (user: ReturnType<typeof browser>, accountId: string, body: Record<string, unknown>) => user.send('PATCH', `/api/console/users/${accountId}`, body);
 
-    // 舰长有 roles.manage，也改不了站内角色
-    expect((await admiral.send('POST', '/api/console/assignments', { account_id: captainId, role: 'captain' })).statusCode).toBe(201);
-    const byCaptain = await patch(captain, crewId, 'admin');
-    expect([byCaptain.statusCode, byCaptain.json().error]).toEqual([403, 'admiral_required']);
-    expect((await patch(crew, crewId, 'admin')).json().error).toBe('missing_capability');
-    expect((await patch(admiral, crewId, 'pirate')).statusCode).toBe(400);
-    expect((await patch(admiral, '01HZZZZZZZZZZZZZZZZZZZZZZZ', 'member')).statusCode).toBe(404);
+    // 普通成员没有 users.manage，改不了任何人的称号
+    const byCrew = await patch(crew, crewId, { titles: ['title.site.owner'] });
+    expect(byCrew.statusCode).toBe(403);
+    expect(byCrew.json()).toMatchObject({ error: 'forbidden', node: 'users.manage' });
+    expect((await patch(admiral, '01HZZZZZZZZZZZZZZZZZZZZZZZ', { level: 'member' })).statusCode).toBe(404);
 
-    // 提督把舰员升成管理员；同一个会话下一次请求就是提督
-    expect((await patch(admiral, crewId, 'admin')).json()).toEqual({ account_id: crewId, site_role: 'admin', changed: true });
-    expect((await patch(admiral, crewId, 'admin')).json()).toEqual({ account_id: crewId, site_role: 'admin', changed: false });
-    expect((await crew.send('GET', '/api/console/me')).json()).toMatchObject({ site_role: 'admin', title: { id: 'admin' } });
+    // 提督把舰员也加成站长；响应只回 account_id（CONTRACT-274 §5），不回旧的 site_role/changed
+    expect((await patch(admiral, crewId, { titles: ['title.site.owner'] })).json()).toEqual({ account_id: crewId });
+    const crewMe = (await crew.send('GET', '/api/console/me')).json();
+    expect(crewMe.titles).toEqual([expect.objectContaining({ id: 'title.site.owner' })]);
+    expect(crewMe.permissions).toContain('users.manage');
 
-    // 新提督把原来的移出极客班：原会话立刻没有任何能力，再登录被拒
-    expect((await patch(crew, owner.accountId, 'none')).json()).toMatchObject({ site_role: 'none', changed: true });
-    const removed = (await admiral.send('GET', '/api/console/me')).json();
-    expect([removed.site_role, removed.title.id, removed.capabilities]).toEqual([null, 'guest', []]);
-    expect((await admiral.send('GET', '/api/forum/state')).json().state.viewer.kind).toBe('guest');
-    tick(61_000);
-    const { verified: refused } = await signInByEmail('owner@example.test', undefined, 2);
-    expect([refused.statusCode, refused.json().error]).toEqual([403, 'not_member']);
+    // 现在有两位站长，新站长可以把原来那位的站长称号摘掉（不是最后一位，不触发 last_owner）；
+    // 下一个请求立刻按新的权限判定——没有缓存失效的延迟（lib/permissions.ts 的 revision + bump()）
+    expect((await patch(crew, owner.accountId, { titles: [] })).json()).toEqual({ account_id: owner.accountId });
+    const removedMe = (await admiral.send('GET', '/api/console/me')).json();
+    expect(removedMe.titles).toEqual([]);
+    expect(removedMe.permissions).not.toContain('console.access');
+    // 账号本身没有被停用，论坛照常是成员（只是不再是站长）
+    expect((await admiral.send('GET', '/api/forum/state')).json().state.viewer.kind).toBe('member');
 
-    // 至少留一位管理员
-    const last = await patch(crew, crewId, 'member');
-    expect([last.statusCode, last.json().error]).toEqual([409, 'last_admin']);
-    expect(db.prepare("SELECT details FROM audit_logs WHERE action = 'account.role' ORDER BY id").all().map(row => JSON.parse((row as { details: string }).details)))
-      .toEqual([{ account_id: crewId, from: 'member', to: 'admin' }, { account_id: owner.accountId, from: 'admin', to: 'none' }]);
-    expect(db.prepare("SELECT user_id, reason FROM identity_audit WHERE action = 'role_change' ORDER BY id").all())
-      .toEqual([{ user_id: crewId, reason: 'admin' }, { user_id: owner.accountId, reason: 'none' }]);
+    // 至少留一位站长：原提督已经没有 users.manage 了，只有新站长自己能试——摘自己的站长称号也会被拒绝
+    const last = await patch(crew, crewId, { titles: [] });
+    expect([last.statusCode, last.json().error]).toEqual([409, 'last_owner']);
+    const lastByDisable = await patch(crew, crewId, { status: 'disabled' });
+    expect([lastByDisable.statusCode, lastByDisable.json().error]).toEqual([409, 'last_owner']);
+
+    expect(db.prepare("SELECT target FROM audit_logs WHERE action = 'users.update' ORDER BY id").all())
+      .toEqual([{ target: crewId }, { target: owner.accountId }]);
   });
 });
 
@@ -620,9 +623,11 @@ describe('invite codes in the console (#262)', () => {
     const { app } = await setup({ roles: { boss: 'admin', crew: 'member' } });
     const boss = browser(app); boss.jar.set('sid', signIn(app, 'boss', 1));
     const crew = browser(app); crew.jar.set('sid', signIn(app, 'crew', 2));
+    // #274：invite.manage 按新权限节点判定，不再跟着旧的 GitHub 组织角色桩走，站长要显式放进 title.site.owner。
+    grantPermGroup(app, accountIdOf(app, 'boss'), 'title.site.owner');
     const refused = await crew.send('GET', '/api/console/invites');
     expect(refused.statusCode).toBe(403);
-    expect(refused.json()).toMatchObject({ capability: 'accounts.invites.manage' });
+    expect(refused.json()).toMatchObject({ node: 'invite.manage' });
     const created = await boss.send('POST', '/api/console/invites', { code: 'Spring-2027', note: '春季招新', max_uses: 30 });
     expect(created.statusCode).toBe(201);
     expect(created.json()).toMatchObject({ code: 'spring-2027', note: '春季招新', max_uses: 30, used_count: 0, disabled: false, usable: true });
@@ -826,13 +831,14 @@ describe('hardening from the #262 review', () => {
     const user = browser(app);
     await user.send('POST', '/auth/email/start', { email: 'owner@example.test' });
     await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('owner@example.test') });
-    expect((await user.send('GET', '/api/console/me')).json().title.id).toBe('admin');
+    expect((await user.send('GET', '/api/console/me')).json().titles).toEqual([expect.objectContaining({ id: 'title.site.owner' })]);
 
-    // 站内记着角色的账号，GitHub 那边的拒绝只记一条 login_denied，不改站内角色；移出极客班在「成员与权限」里做
+    // 站内记着角色的账号，GitHub 那边的拒绝只记一条 login_denied，不改站内角色（#274 的站长身份在 perm_members 里，
+    // 和 org_role 列完全无关）；移出极客班在「成员与权限」（用户接口）里做
     expect(app.services.identity.githubSigninPlan(130495739)).toBe('site');
     app.services.identity.recordGithubDenied({ github: { id: 130495739, login: 'Crosery', avatarUrl: null }, reason: 'not_member' });
     const me = (await user.send('GET', '/api/console/me')).json();
-    expect([me.site_role, me.title.id]).toEqual(['admin', 'admin']);
+    expect(me.titles).toEqual([expect.objectContaining({ id: 'title.site.owner' })]);
     expect((await user.send('GET', '/api/forum/state')).json().state.viewer.kind).toBe('member');
   });
 
