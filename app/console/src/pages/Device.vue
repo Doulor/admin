@@ -11,7 +11,7 @@ import logoUrl from "../assets/logo.png";
 import { ApiError, api } from "../lib/http";
 import { siteUrl } from "../lib/runtime";
 import {
-  closedNotice, deviceSignInPath, formatUserCode, isCompleteUserCode, remainingText, scopeLines,
+  closedNotice, deviceBindEmailPath, deviceSignInPath, formatUserCode, isCompleteUserCode, remainingText, scopeLines,
   type DeviceView,
 } from "../lib/device";
 
@@ -19,7 +19,7 @@ import {
  * 设备授权确认页（#262，RFC 8628）。`geek login` 在终端里给出一串代码和本页地址，用户在这里用极客班账号登录后允许或拒绝。
  * 授权绑定到会话里的 account_id（内部 OpenID）；没登录就去 /signin，登录完带着同一串代码回来。
  */
-type Me = { signed_in: boolean; login?: string; avatar_url?: string | null; account_id?: string };
+type Me = { signed_in: boolean; login?: string; avatar_url?: string | null; account_id?: string; email_required?: boolean };
 type Phase = "session" | "enter" | "loading" | "review" | "approved" | "denied" | "closed";
 
 const route = useRoute();
@@ -38,6 +38,8 @@ const NETWORK = { title: "没有连上服务器", body: "可能是网络不稳�
 const NOT_FOUND = { title: "没有找到这串代码", body: "核对一下终端里显示的 8 位代码；代码只在 10 分钟内有效。" };
 
 const toSignIn = () => window.location.assign(deviceSignInPath(code.value));
+/** 还没有登录邮箱（#273）：先去绑，绑好带着这串代码回来。 */
+const toBindEmail = () => window.location.assign(deviceBindEmailPath(code.value));
 const goPortal = () => window.location.assign(siteUrl("portal", "/"));
 const remaining = computed(() => (view.value ? remainingText(view.value.expires_at, now.value) : ""));
 const scopes = computed(() => (view.value ? scopeLines(view.value.scope) : []));
@@ -75,6 +77,7 @@ async function decide(decision: "approve" | "deny") {
     phase.value = decision === "approve" ? "approved" : "denied";
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) return toSignIn();
+    if (error instanceof ApiError && error.code === "email_required") return toBindEmail();
     if (error instanceof ApiError && (error.status === 409 || error.status === 404)) close("expired");
     else notice.value = NETWORK;
   } finally {
@@ -103,6 +106,7 @@ onMounted(async () => {
     return;
   }
   if (!me.value.signed_in) return toSignIn();
+  if (me.value.email_required) return toBindEmail();
   if (isCompleteUserCode(code.value)) await lookup();
   else phase.value = "enter";
 });

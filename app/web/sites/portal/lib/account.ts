@@ -2,6 +2,7 @@
 // /signin?return_to=<本站路径> → 选登录方式（GET /auth/providers，GitHub 只是其一）→ /auth/callback → 回到 return_to。
 // 同域读 /auth/me 就知道是谁；本机开发时 5173 把 /auth 代理给核心后端、把 /signin 转给控制台 dev server，127.0.0.1 上各端口共用这个 cookie。
 import { useCallback, useEffect, useState } from "react";
+import { followAppLink } from "./osApps";
 
 /**
  * consoleLink 是 /auth/me 的 console_link：登录者在控制台里能管点什么（持有 console.access、github.org.read、feedback.read
@@ -16,6 +17,20 @@ export type Account = { login: string; avatarUrl: string | null; consoleLink: bo
 export function signInHref(returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`): string {
   const path = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/";
   return `/signin?return_to=${encodeURIComponent(path)}`;
+}
+
+/**
+ * `/auth/me` 说这个账号还没有登录邮箱（#273）：官网整页跳到绑定邮箱页，绑好回到当前页面。
+ * 绑定邮箱页属于控制台（app/console/src/pages/BindEmail.vue），return_to 同样只带本站路径。
+ */
+export function emailRequired(body: unknown): boolean {
+  const me = body as { signed_in?: unknown; email_required?: unknown } | null;
+  return me?.signed_in === true && me.email_required === true;
+}
+
+export function bindEmailHref(returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`): string {
+  const path = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/";
+  return `/bind-email?return_to=${encodeURIComponent(path)}`;
 }
 
 export function parseMe(body: unknown): Account | null {
@@ -37,6 +52,10 @@ export function useAccount() {
       .catch(() => null)
       .then((body) => {
         if (cancelled) return;
+        if (emailRequired(body)) {
+          followAppLink({ href: bindEmailHref(), newTab: false });
+          return;
+        }
         setAccount(parseMe(body));
         setLoaded(true);
       });

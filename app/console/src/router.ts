@@ -2,7 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router"
 import { FORUM_CAPABILITIES, ROLE_CAPABILITIES } from "./lib/nav";
 
 /**
- * 路由。控制台拥有 /console/**、/signin、/device、/account、/authorize；旧的 /admin 与 /admin/:org/** 不再保留多组织页面，
+ * 路由。控制台拥有 /console/**、/signin、/device、/account、/authorize、/bind-email；旧的 /admin 与 /admin/:org/** 不再保留多组织页面，
  * 一律跳到 /console（组织固定为 CONSOLE_ORG，服务端 /api/admin/:org/* 接口不变）。
  * `meta.anyOf` 是页面所需能力（任一即可），components/ConsoleShell.vue 把它交给 components/CapabilityGate.vue 显示「没有权限」。
  */
@@ -18,6 +18,8 @@ const routes: RouteRecordRaw[] = [
   { path: "/authorize", component: () => import("./pages/Authorize.vue") },
   // 账号页（#262）：登录方式、绑定邮箱、密码、成员资格。任何登录的人都能来，不在控制台壳子里。
   { path: "/account", component: () => import("./pages/Account.vue") },
+  // 绑定邮箱页（#273）：账号还没有登录邮箱时官网、论坛、控制台都先带人来这里。只有绑定和退出，不在控制台壳子里。
+  { path: "/bind-email", component: () => import("./pages/BindEmail.vue") },
   { path: "/console/signin", redirect: to => ({ path: "/signin", query: to.query }) },
   { path: "/admin/signin", redirect: to => ({ path: "/signin", query: to.query }) },
   { path: "/admin/:rest(.*)*", redirect: "/console" },

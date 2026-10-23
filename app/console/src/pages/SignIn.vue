@@ -16,7 +16,7 @@ import { isMock, siteUrl } from "../lib/runtime";
 import { PASSWORD_MIN_LENGTH } from "../lib/account";
 import {
   backFromGoogleForInvite, cleanCode, codeProblem, initialSignInTab, looksLikeEmail, parseSignInOutcome, providerHref, providerIcon, readProviders,
-  registerProblem, registerWithEmail, retryAfter, safeReturnPath, sendSigninCode, signInWithPassword, verifySigninCode,
+  registerProblem, registerWithEmail, resetPasswordWithCode, resetProblem, retryAfter, safeReturnPath, sendSigninCode, signInWithPassword, verifySigninCode,
   type LoginProvider, type OutcomeAction, type RegisterOutcome, type SignInTab,
 } from "../lib/signin";
 
@@ -27,6 +27,7 @@ import {
  * 邮箱登录有验证码和密码两种；注册填邮箱、邀请码、验证码，密码可以顺手设。用验证码登录时邮箱还没有账号，会转到「注册」，
  * 已填的邮箱和验证码都留着。Google 注册也要邀请码，用「注册」里填的那个。
  * 注册后邮箱原来就有账号、或者填的密码没设上，先在页面上说一句，再让人选继续还是去「我的账号」。
+ * 密码登录下面有「忘记密码？」（#273）：用邮箱验证码设新密码并直接登录；记得旧密码、只想换一个的，登录后到「我的账号」里改。
  */
 const route = useRoute();
 const origin = window.location.origin;
@@ -83,6 +84,8 @@ const code = ref("");
 const password = ref("");
 const newPassword = ref("");
 const invite = ref("");
+/** 忘记密码（#273）：换成「邮箱、验证码、新密码」的表单，标签和登录方式先收起来。 */
+const forgot = ref(false);
 /** 用验证码登录时服务端说这个邮箱还没有账号，转到「注册」后在表单上方说明一句。 */
 const movedToRegister = ref(false);
 /** 注册后要先说一句再走的两种情况（见 lib/signin.ts 的 RegisterOutcome）。 */
@@ -119,7 +122,9 @@ function resetCode() {
 }
 // 换了邮箱，之前发的验证码不算数
 watch(email, () => { sentTo.value = null; movedToRegister.value = false; emailError.value = null; });
-watch([mode, tab], () => { emailError.value = null; });
+watch([mode, tab, forgot], () => { emailError.value = null; });
+// 重设和注册共用「新密码」一栏：进出重设表单时清掉，不把一边填的密码带到另一边
+watch(forgot, () => { newPassword.value = ""; });
 
 const messageOf = (error: unknown) => (error instanceof ApiError ? error.message : "没有连上服务器，可能是网络不稳定，稍后再试一次。");
 /** 成功后整页跳转：服务端给的地址也只认本站路径。 */
@@ -132,7 +137,7 @@ async function sendCode() {
   sending.value = true;
   try {
     const target = email.value.trim();
-    const result = await sendSigninCode(target, returnPath.value, origin);
+    const result = await sendSigninCode(target, returnPath.value, origin, forgot.value ? "reset" : "signin");
     sentTo.value = target;
     code.value = "";
     startCooldown(result.resend_after);
@@ -192,7 +197,24 @@ async function submitRegister() {
   }
 }
 
-const submitEmail = () => (registering.value ? submitRegister() : mode.value === "code" ? submitCode() : submitPassword());
+async function submitReset() {
+  emailError.value = null;
+  const problem = resetProblem({ email: email.value, codeSent: Boolean(sentTo.value), code: code.value, password: newPassword.value });
+  if (problem) { emailError.value = problem; return; }
+  submitting.value = true;
+  try {
+    const result = await resetPasswordWithCode(code.value, newPassword.value);
+    leave(result.return_to);
+  } catch (error) {
+    submitting.value = false;
+    // 这个邮箱还没有账号：和验证码登录一样转到「注册」，验证码还能用
+    if (error instanceof ApiError && error.code === "invite_required") { forgot.value = false; movedToRegister.value = true; tab.value = "register"; return; }
+    if (error instanceof ApiError && error.code === "code_expired") resetCode();
+    emailError.value = messageOf(error);
+  }
+}
+
+const submitEmail = () => (forgot.value ? submitReset() : registering.value ? submitRegister() : mode.value === "code" ? submitCode() : submitPassword());
 </script>
 
 <template>
@@ -235,8 +257,12 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
         <TxButton variant="secondary" size="sm" icon="i-carbon-renew" @click="loadProviders">重试</TxButton>
       </div>
       <template v-else>
+        <div v-if="emailProvider && forgot" class="signin__forgot-head">
+          <h2>重设密码</h2>
+          <TxButton variant="bare" size="sm" icon="i-carbon-arrow-left" native-type="button" data-testid="forgot-back" @click="forgot = false">返回登录</TxButton>
+        </div>
         <TxTabs
-          v-if="emailProvider"
+          v-else-if="emailProvider"
           v-model="tab"
           placement="top"
           indicator-variant="line"
@@ -251,7 +277,7 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
         </TxTabs>
 
         <TxForm v-if="emailProvider" label-position="top" class="signin__form" data-provider="email" :data-tab="tab" novalidate @submit="submitEmail">
-          <TxRadioGroup v-if="!registering" v-model="mode" type="button" class="signin__modes" aria-label="邮箱登录方式">
+          <TxRadioGroup v-if="!registering && !forgot" v-model="mode" type="button" class="signin__modes" aria-label="邮箱登录方式">
             <TxRadio value="code" label="验证码" />
             <TxRadio value="password" label="密码" />
           </TxRadioGroup>
@@ -267,7 +293,7 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
             <TxInput :id="id" v-model="invite" placeholder="向邀请你的人要" autocomplete="off" spellcheck="false" />
           </TxFormItem>
 
-          <TxFormItem v-if="registering || mode === 'code'" v-slot="{ id }" label="验证码">
+          <TxFormItem v-if="registering || forgot || mode === 'code'" v-slot="{ id }" label="验证码">
             <div class="signin__code-row">
               <TxInput
                 :id="id"
@@ -291,17 +317,25 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
             <p v-if="sentTo" class="signin__hint" data-testid="code-sent">验证码已发到 {{ sentTo }}，10 分钟内有效。没收到的话看看垃圾邮件。</p>
           </TxFormItem>
 
-          <TxFormItem v-if="registering" v-slot="{ id }" label="密码（可以不填）">
+          <TxFormItem v-if="forgot" v-slot="{ id }" label="新密码">
+            <TxInput :id="id" v-model="newPassword" type="password" :placeholder="`至少 ${PASSWORD_MIN_LENGTH} 位`" autocomplete="new-password" />
+            <p class="signin__hint">验证码对了就换成新密码并登录，旧密码不再能用。</p>
+          </TxFormItem>
+          <TxFormItem v-else-if="registering" v-slot="{ id }" label="密码（可以不填）">
             <TxInput :id="id" v-model="newPassword" type="password" :placeholder="`至少 ${PASSWORD_MIN_LENGTH} 位`" autocomplete="new-password" />
             <p class="signin__hint">设了以后可以用邮箱加密码登录；不填就用验证码登录，以后在「我的账号」里再设。</p>
           </TxFormItem>
           <TxFormItem v-else-if="mode === 'password'" v-slot="{ id }" label="密码">
             <TxInput :id="id" v-model="password" type="password" :placeholder="`至少 ${PASSWORD_MIN_LENGTH} 位`" autocomplete="current-password" />
-            <p class="signin__hint">还没设过密码就先用验证码登录，再到「我的账号」里设置。</p>
+            <div class="signin__password-foot">
+              <p class="signin__hint">还没设过密码就先用验证码登录，再到「我的账号」里设置。</p>
+              <TxButton variant="bare" size="sm" native-type="button" class="signin__forgot" data-testid="forgot-password" @click="forgot = true">忘记密码？</TxButton>
+            </div>
           </TxFormItem>
 
           <p v-if="emailError" class="signin__error" role="alert" data-testid="email-error">{{ emailError }}</p>
-          <TxButton :variant="googleFirst ? 'secondary' : 'primary'" size="lg" native-type="submit" :loading="submitting" block :icon="registering ? 'i-carbon-user-follow' : 'i-carbon-login'">
+          <TxButton v-if="forgot" variant="primary" size="lg" native-type="submit" :loading="submitting" block icon="i-carbon-password">重设密码并登录</TxButton>
+          <TxButton v-else :variant="googleFirst ? 'secondary' : 'primary'" size="lg" native-type="submit" :loading="submitting" block :icon="registering ? 'i-carbon-user-follow' : 'i-carbon-login'">
             {{ registering ? "注册并登录" : "登录" }}
           </TxButton>
         </TxForm>
@@ -312,9 +346,9 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
           </TxFormItem>
         </TxForm>
 
-        <TxDivider v-if="redirectProviders.length && emailProvider" class="signin__divider">或者</TxDivider>
+        <TxDivider v-if="redirectProviders.length && emailProvider && !forgot" class="signin__divider">或者</TxDivider>
 
-        <section v-if="redirectProviders.length" class="signin__providers" aria-label="用其他网站的账号登录">
+        <section v-if="redirectProviders.length && !(emailProvider && forgot)" class="signin__providers" aria-label="用其他网站的账号登录">
           <TxButton
             v-for="provider in redirectProviders"
             :key="provider.id"
@@ -330,8 +364,9 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
         </section>
 
         <p class="signin__note">
-          <template v-if="registering">邮箱和 Google 注册要邀请码，向邀请你的人要。GitHub 组织的成员直接用 GitHub 登录，账号会自动建好。</template>
-          <template v-else>登录后全站认的是你的极客班账号。还没有账号就切到「注册」。</template>
+          <template v-if="forgot">验证码发到账号绑定的邮箱。记得旧密码、只想换一个的话，登录后到「我的账号」里改。只用 GitHub 或 Google 登录、还没绑邮箱的账号，先用原来的方式登录再绑邮箱。</template>
+          <template v-else-if="registering">邮箱和 Google 注册要邀请码，向邀请你的人要。GitHub 组织的成员直接用 GitHub 登录，账号会自动建好。</template>
+          <template v-else>登录后全站认的是你的极客班账号，改密码在「我的账号」里。还没有账号就切到「注册」。</template>
         </p>
       </template>
 
@@ -406,6 +441,28 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
 }
 .signin__modes {
   align-self: flex-start;
+}
+.signin__forgot-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: -4px 0 14px;
+}
+.signin__forgot-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.signin__password-foot {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.signin__forgot {
+  flex: none;
+  margin-top: -2px;
 }
 /* layout.css 给相邻的表单项再加 14px 上边距，叠在 TxForm 自己的 14px 间距上；登录卡片的字段和其它控件一样只隔 14px */
 .signin__form > .tx-form-item + .tx-form-item {

@@ -1,7 +1,8 @@
 import bcrypt from "bcryptjs";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { CODE_TTL_MS, RESEND_AFTER_S, normalizeEmail, type ChallengePurpose } from "../../lib/email-login.js";
-import { createLoginThrottle } from "../../lib/password-policy.js";
+import { CODE_TTL_MS, RESEND_AFTER_S, normalizeEmail, type CheckResult } from "../../lib/email-login.js";
+import type { LoginCodePurpose } from "../../lib/mail/login-code.js";
+import { PASSWORD_MIN_LENGTH, createLoginThrottle, hashPassword, passwordError } from "../../lib/password-policy.js";
 import { safeReturnTo } from "../../lib/safe-return.js";
 import { rateLimited } from "../../middleware/http-policy.js";
 import { setSessionCookie } from "../../middleware/require-auth.js";
@@ -13,6 +14,8 @@ import { setSessionCookie } from "../../middleware/require-auth.js";
  * - `POST /auth/email/verify`：核对验证码后登录；没有账号时要 `invite_code`，缺了回 `invite_required`（验证码不作废，
  *   填上邀请码再交一次），邀请码不对回 `invalid_invite` 并记一次失败。
  * - `POST /auth/email/password`：邮箱加密码登录。密码在账号页设（至少 8 位）；没账号、没设密码、密码不对一律回同一个错误。
+ * - `POST /auth/email/reset`（#273，忘了密码）：用 `/auth/email/start` 发的验证码（`purpose: "reset"` 只改信的文字，
+ *   挑战还是登录用的那一种）核对邮箱，设新密码并登录。不能注册：邮箱没有账号时和验证码登录一样回 `invite_required`，验证码不作废。
  * 成功都写 `sid` 并回 `{ return_to }`，前端整页跳转。
  */
 export const CHALLENGE_COOKIE = "email_challenge";
@@ -39,7 +42,7 @@ export function clearChallengeCookie(reply: FastifyReply, path: string): void {
  * 发验证码信：不等发信就回响应（`void`），投递结果只记日志（发信商、错误码），不记地址和验证码。
  * 验证码原文只在这里交给发信模块，不落库、不进日志。
  */
-export function sendCode(req: FastifyRequest, to: string, code: string, purpose: ChallengePurpose, challengeId: string): void {
+export function sendCode(req: FastifyRequest, to: string, code: string, purpose: LoginCodePurpose, challengeId: string): void {
   const { mail } = req.server.services;
   const letter = mail.loginCodeLetter(code, purpose, CODE_TTL_MS / 60_000);
   void mail.sendNow(to, letter, `yzgc-code-${challengeId}`)
@@ -62,8 +65,16 @@ export default async function emailRoutes(app: FastifyInstance) {
   const { config, emailLogin, identity } = app.services;
   const throttle = createLoginThrottle();
   const fallback = `${config.publicOrigin}/console`;
+  /** 验证码核对不过：验证码登录和重设密码回同样的错误。 */
+  const codeFailure = (reply: FastifyReply, checked: Exclude<CheckResult, { ok: true }>) => checked.error === "invalid_code"
+    ? reply.code(400).send({ error: "invalid_code", message: `验证码不对，还可以试 ${checked.attemptsLeft} 次`, attempts_left: checked.attemptsLeft })
+    : reply.code(400).send({ error: "code_expired", message: "验证码已失效，请重新获取" });
+  /** 账号停用或已经不是成员：三种邮箱登录回同样的 403。 */
+  const refused = (reply: FastifyReply, reason: "account_disabled" | "not_member") => reason === "account_disabled"
+    ? reply.code(403).send({ error: "account_disabled", message: "这个极客班账号已停用" })
+    : reply.code(403).send({ error: "not_member", message: "这个账号已经不是极客班成员" });
 
-  app.post<{ Body: { email: string; return_to?: string } }>(
+  app.post<{ Body: { email: string; return_to?: string; purpose?: "signin" | "reset" } }>(
     "/auth/email/start",
     { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
     async (req, reply) => {
@@ -72,7 +83,7 @@ export default async function emailRoutes(app: FastifyInstance) {
       const returnTo = safeReturnTo(req.body.return_to, config, fallback);
       const started = emailLogin.start({ purpose: "signin", email, ip: req.ip, replaces: readChallengeCookie(req), returnTo });
       if (!started.ok) return tooSoon(reply, started.retryAfter);
-      sendCode(req, email, started.code, "signin", started.id);
+      sendCode(req, email, started.code, req.body.purpose === "reset" ? "reset" : "signin", started.id);
       setChallengeCookie(reply, started.id, "/auth/email");
       return reply.code(202).send({ resend_after: RESEND_AFTER_S });
     },
@@ -84,11 +95,7 @@ export default async function emailRoutes(app: FastifyInstance) {
     async (req, reply) => {
       const id = readChallengeCookie(req);
       const checked = emailLogin.check(id, req.body.code, "signin");
-      if (!checked.ok) {
-        return checked.error === "invalid_code"
-          ? reply.code(400).send({ error: "invalid_code", message: `验证码不对，还可以试 ${checked.attemptsLeft} 次`, attempts_left: checked.attemptsLeft })
-          : reply.code(400).send({ error: "code_expired", message: "验证码已失效，请重新获取" });
-      }
+      if (!checked.ok) return codeFailure(reply, checked);
       const { challenge } = checked;
       const result = identity.signInWithEmailCode({
         email: challenge.email, invite: req.body.invite_code?.trim() || null,
@@ -103,9 +110,8 @@ export default async function emailRoutes(app: FastifyInstance) {
             return reply.code(400).send({ error: "invalid_invite", message: left > 0 ? `邀请码无效，还可以试 ${left} 次` : "邀请码无效，验证码已失效，请重新获取", attempts_left: left });
           }
           case "account_disabled":
-            return reply.code(403).send({ error: "account_disabled", message: "这个极客班账号已停用" });
           case "not_member":
-            return reply.code(403).send({ error: "not_member", message: "这个账号已经不是极客班成员" });
+            return refused(reply, result.reason);
           default:
             return reply.code(400).send({ error: "code_expired", message: "验证码已失效，请重新获取" });
         }
@@ -129,14 +135,46 @@ export default async function emailRoutes(app: FastifyInstance) {
       const matched = await bcrypt.compare(req.body.password, record?.hash ?? await dummy());
       if (!record?.hash || !matched) return wrong();
       const result = identity.signInWithPassword({ email, previousSid: req.cookies?.sid ?? null, ip: req.ip });
-      if (!result.ok) {
-        return result.reason === "account_disabled"
-          ? reply.code(403).send({ error: "account_disabled", message: "这个极客班账号已停用" })
-          : reply.code(403).send({ error: "not_member", message: "这个账号已经不是极客班成员" });
-      }
+      // 密码登录不建号，没成功只会是停用或不是成员
+      if (!result.ok) return refused(reply, result.reason === "account_disabled" ? "account_disabled" : "not_member");
       throttle.reset(email);
       setSessionCookie(reply, result.sid);
       return { return_to: safeReturnTo(req.body.return_to, config, fallback) };
+    },
+  );
+
+  app.post<{ Body: { code: string; password: string } }>(
+    "/auth/email/reset",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (req, reply) => {
+      // 先看新密码合不合规：不合规不碰验证码，免得白白用掉一次尝试
+      const invalid = passwordError(req.body.password);
+      if (invalid) {
+        return reply.code(400).send({ error: invalid, message: invalid === "password_too_short" ? `密码至少 ${PASSWORD_MIN_LENGTH} 位` : "密码太长了（不能超过 72 个字节）" });
+      }
+      const checked = emailLogin.check(readChallengeCookie(req), req.body.code, "signin");
+      if (!checked.ok) return codeFailure(reply, checked);
+      const { challenge } = checked;
+      const hash = await hashPassword(req.body.password);
+      const result = identity.resetPassword({
+        email: challenge.email, hash, previousSid: req.cookies?.sid ?? null, ip: req.ip, claim: () => emailLogin.claim(challenge.id),
+      });
+      if (!result.ok) {
+        switch (result.reason) {
+          case "invite_required":
+            return reply.code(400).send({ error: "invite_required", message: "这个邮箱还没有极客班账号，填邀请码就能注册" });
+          case "account_disabled":
+          case "not_member":
+            return refused(reply, result.reason);
+          default:
+            return reply.code(400).send({ error: "code_expired", message: "验证码已失效，请重新获取" });
+        }
+      }
+      // 新密码已经生效：这个邮箱之前猜错的次数清零
+      throttle.reset(challenge.email);
+      clearChallengeCookie(reply, "/auth/email");
+      setSessionCookie(reply, result.sid);
+      return { return_to: challenge.return_to ?? fallback };
     },
   );
 }

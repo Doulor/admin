@@ -80,6 +80,9 @@ describe("console catalogue mirrors the server", () => {
       member: { siteRole: "member", rows: [row("liu-xing", "member")] },
       alumni: { siteRole: "member", rows: [row("gao-yuan", "alumni")] },
       guest: { siteRole: null, rows: [] },
+      // 还没有登录邮箱（#273）：权限照旧，只是先要绑邮箱
+      no_email: { siteRole: "member", rows: [row("liu-xing", "member")] },
+      no_email_stale: { siteRole: "member", rows: [row("liu-xing", "member")] },
     };
     expect(Object.keys(MOCK_PERSONAS).sort()).toEqual(Object.keys(cases).sort());
     for (const [name, input] of Object.entries(cases)) {

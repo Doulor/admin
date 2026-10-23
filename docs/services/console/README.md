@@ -18,7 +18,7 @@
 | `src/components/` | 外壳（`ConsoleShell`、`ConsoleNav`：只显示实际持有能力的页面；导航超出高度时整列滚动、品牌和账号区钉在上下两端，不让 `TxSidebarNav` 的列表区自己滚动，否则悬停高亮会比鼠标所在的条目高出滚动的距离）、能力门 `CapabilityGate`（直接访问无权限地址仍说明原因；GitHub 还没接上时说明这个原因，给「用 GitHub 继续」）、状态组件（`ErrorPanel`、`ErrorAlert`、`LoadingBlock`）、`TitleBadge`/`ToneTag`/`UserCell`、`PageHeader`、`ConfirmHost` |
 | `src/lib/` | 纯逻辑（可单测，不导入 Vue）：`http`（请求与 `ApiError`）、`errors`（错误 → 文案与错误卡片的主按钮）、`signin`（登录未成原因解析、`return_to` 同源校验 `safeReturnPath`、`/auth/providers` 的解析与跳转地址、邮箱验证码与密码登录的请求、发码冷却秒数、先开哪个标签 `initialSignInTab`、注册表单的本地检查 `registerProblem` 与提交流程 `registerWithEmail`；邮箱与验证码的检查 `looksLikeEmail`、`codeProblem` 账号页绑定邮箱也用）、`account`（账号页的登录方式、成员资格与账号记录的说法，设密码前的本地检查；密码规则 `passwordRuleProblem` 登录页的注册也用）、`invites`（邀请码的状态、表单校验与提交内容）、`device`（设备授权确认页的纯逻辑：`user_code` 格式化与校验、去登录页的路径、scope 说法、剩余时间）、`authorize`（同意页的纯逻辑：交互编号、接口地址、登录回跳、scope 说法与关闭原因）、`nav`（导航与能力可见性）、`people`（按部门分组、负责人与排序、撤销规则）、`titles`（称号的默认值、徽章与编辑校验）、`org-settings`（组织资料改动计算）、`applications`（处理投递：通知信的提示、字段核对、PATCH 体、信件状态的说法）、`statuses`、`format`（时间一律按北京时间）、`icons`、`types`；带 Vue 的：`session`（身份与能力清单）、`resource`（读写状态）、`confirm`、`github`、`runtime`（数据源与跨服务链接） |
 | `src/lib/permission-tree.ts`、`permission-boundaries.ts` | 前者用当前目录/部门配置解释本人 `/me` 的状态，不生成授权判断；后者维护能力的范围、实际执行点和关联页面，只作说明，随对应后端路由与契约同步 |
-| `src/mock/` | 开发预览样板数据（全部虚构），只在数据源为 mock 且（DEV 或 PR 预览构建 `VITE_PREVIEW_MOCK=1`，#245）时动态导入，镜像构建不含；`lib/runtime.ts` 的 `PREVIEW_MOCK` 只由根目录 `netlify.toml` 设置。mock 的 `/auth/providers` 与服务端同形（样板列出 GitHub、Google 和带密码的邮箱三种），登录页在样板数据下也按它渲染；`/api/identity/me` 按样板身份给账号页数据（未登录样板回 401），`/api/console/invites` 给三条样板邀请码；样板身份 `admin_email` 是用邮箱登录的提督，用来看 GitHub 页面的提示；设备授权页用到的 `/auth/me`（跟随样板身份，未登录样板回 `signed_in: false`）与 `GET /api/identity/device`（任何完整的用户码都是十分钟内有效的待确认样板）也同形，允许/拒绝仍按只读回 501；同意页的 `GET /oidc/interaction/<uid>/details` 给一份 GitLab 请求登录的样板（未登录样板回 401），允许、拒绝同样回 501 |
+| `src/mock/` | 开发预览样板数据（全部虚构），只在数据源为 mock 且（DEV 或 PR 预览构建 `VITE_PREVIEW_MOCK=1`，#245）时动态导入，镜像构建不含；`lib/runtime.ts` 的 `PREVIEW_MOCK` 只由根目录 `netlify.toml` 设置。mock 的 `/auth/providers` 与服务端同形（样板列出 GitHub、Google 和带密码的邮箱三种），登录页在样板数据下也按它渲染；`/api/identity/me` 按样板身份给账号页数据（未登录样板回 401），`/api/console/invites` 给三条样板邀请码；样板身份 `admin_email` 是用邮箱登录的提督，用来看 GitHub 页面的提示；设备授权页用到的 `/auth/me`（跟随样板身份，未登录样板回 `signed_in: false`）与 `GET /api/identity/device`（任何完整的用户码都是十分钟内有效的待确认样板）也同形，允许/拒绝仍按只读回 501；同意页的 `GET /oidc/interaction/<uid>/details` 给一份 GitLab 请求登录的样板（未登录样板回 401），允许、拒绝同样回 501；样板身份 `no_email`、`no_email_stale` 的 `/auth/me`、`/api/console/me`、`/api/identity/me` 带 `email_required: true`，同意页详情回 403 `email_required`，用来看绑定邮箱页（#273），其余样板都是 false |
 | `src/styles/theme.css`、`layout.css` | 主题令牌覆盖与页面版式（见「设计令牌」） |
 | `scripts/tuffex-icon-classes.mjs` | 扫描已安装 Tuffex 的 dist，给 UnoCSS 列出组件自带的 `i-carbon-*` 图标类（做法同论坛） |
 | `vite.config.ts`、`uno.config.ts`、`tsconfig.json` | 构建、图标、类型检查配置 |
@@ -29,7 +29,8 @@
 
 | 路径 | 页面 | 所需能力（任一） |
 |---|---|---|
-| `/signin` | 极客班统一登录页：调匿名 `GET /auth/providers` 渲染登录方式（上面是「登录」「注册」两个标签的邮箱表单，下面是 GitHub、启用时的 Google 跳转按钮）；`?signin=<原因>` 说明上次登录为什么没成功；`return_to` 只接受同源路径（不合格回 `/console`），登录后回到它 | 无 |
+| `/signin` | 极客班统一登录页：调匿名 `GET /auth/providers` 渲染登录方式（上面是「登录」「注册」两个标签的邮箱表单，下面是 GitHub、启用时的 Google 跳转按钮）；`?signin=<原因>` 说明上次登录为什么没成功；`return_to` 只接受同源路径（不合格回 `/console`），登录后回到它；邮箱的密码登录下有「忘记密码？」，换成「邮箱、验证码、新密码」的表单，用验证码设新密码并登录（#273） | 无 |
+| `/bind-email` | 绑定邮箱页（#273）：只绑了 GitHub 或 Google、还没有登录邮箱的账号先到这里，绑好回到 `return_to`；只有绑定和退出登录两件事 | 无（任何有效会话，页面自己读 `/api/identity/me`） |
 | `/account` | 我的账号：登录方式、绑定和删除邮箱、设置或修改密码、成员资格、这次登录、最近的账号记录；没登录先去 `/signin?return_to=/account` | 无（任何有效会话，页面自己读 `/api/identity/me`） |
 | `/device` | 设备授权确认页（RFC 8628）：带入或输入 8 位 `user_code`，显示客户端、权限、剩余时间与防钓鱼提示，允许或拒绝；没登录先去 `/signin?return_to=/device?user_code=…` | 无（要极客班会话，页面自己读 `/auth/me`） |
 | `/authorize` | 对外授权的同意页（#270）：GitLab 这样的应用第一次用极客班账号登录时，服务端带着 `?uid=<交互编号>` 跳来；显示当前账号、应用名、回到哪个主机、要哪些信息和剩余时间，允许或拒绝后回到应用 | 无（要极客班会话，页面自己读 `/oidc/interaction/<uid>/details`） |
@@ -59,6 +60,14 @@
 `/authorize`（#270，ADR-0005 决策 8）给不同源的应用用：GitLab 等下游第一次用极客班账号登录时，服务端的交互入口把浏览器带到 `/authorize?uid=<交互编号>`。页面按 `uid` 调 `GET /oidc/interaction/<uid>/details`，显示「授权登录 / 用极客班账号登录其它应用」、当前极客班账号（头像、显示名、`@登录名`）、「<应用名> 请求用你的极客班账号登录」和「允许后回到 <主机>」、逐项解释过的信息（`openid`、`profile`、`email`），以及「以后从这个应用登录不再问 · m:ss 后这次请求失效」。允许、拒绝调 `POST /oidc/interaction/<uid>/confirm` / `abort`，拿到 `redirect_to` 后整页跳回应用。
 
 读取或提交时 401 去 `/signin?return_to=/oidc/interaction/<uid>`（登录完由服务端按新的登录状态继续），404 说「这次登录已经过期」，409 说「当前账号和发起登录的不一致」，地址里没有合格的交互编号说「缺少登录请求」，这三种都只留「回到官网」；网络错误给「再试一次」。剩余时间走完自动换成过期说明。卡片最宽 440px，与 `/device` 同一写法。
+
+### 忘记密码与绑定邮箱（#273）
+
+所有者 2026-10-23 19:22：「sso登录的时候没有忘记密码改密码相关的信息吧，还有就是之前只绑定了github账号没有绑定邮箱的再次进来或者登录的时候必须绑定邮箱」。
+
+- **忘记密码**：`/signin` 的「登录 → 密码」下面有「忘记密码？」。点了以后标签、登录方式和跳转按钮收起，换成「重设密码」：邮箱、验证码（「获取验证码」发 `purpose: "reset"` 的信）、新密码和「重设密码并登录」，右上角「返回登录」。先在页面按从上到下检查（`lib/signin.ts` 的 `resetProblem`，新密码规则同账号页），再调 `POST /auth/email/reset`；成功整页跳回 `return_to`，验证码过期时清掉重新获取，邮箱没有账号时（`invite_required`）和验证码登录一样转到「注册」，刚才的验证码还能用。页面底部写明：记得旧密码只想换一个的，登录后到「我的账号」里改；只用 GitHub 或 Google 登录、还没绑邮箱的，先用原来的方式登录再绑邮箱。登录页的说明也加了「改密码在「我的账号」里」。
+- **绑定邮箱页**：`/bind-email?return_to=<本站路径>`，和 `/signin` 一样在控制台壳子之外。页面读 `GET /api/identity/me`：401 去登录页，`email_required` 为 false（已经绑好，或这个环境发不出信）直接整页跳回 `return_to`（`lib/signin.ts` 的 `bindEmailReturn`，只认本站路径，指回自己时去 `/console`）。要绑时显示当前账号、一句说明和「邮箱、获取验证码、验证码、绑定并继续」，调账号页同一组 `POST /api/identity/email/start`、`/verify`；这次登录超过 10 分钟（`session.step_up_until`）或服务端回 `step_up_required` 时，先换成「先重新登录一次」和「重新登录」，登录页的 `return_to` 是这一页本身，登录完回来接着绑。页面上另外只有「退出登录」。
+- **谁带人过来**：服务端的 GitHub、Google 登录回调和对外授权的交互入口直接跳来；`ConsoleRoot`（`/console/**`）读 `/api/console/me`、账号页读 `/api/identity/me`、设备授权页读 `/auth/me`，`email_required` 为 true 时都带着当前地址跳到 `/bind-email`；同意页和设备授权页在接口回 403 `email_required` 时也跳过来，绑好回到交互入口或同一串代码。官网、论坛读 `/auth/me` 自己跳。
 
 ### 账号页
 
@@ -91,7 +100,7 @@
 
 - `/api/console/*`：`me`、`catalogue`、`summary`、`departments`（含删除）、`titles`、`people`、`assignments`、`applications`（含 `export.csv` 下载链接）、`competitions`、`feedback`、`audit`。称号的名字、标签、图标、色调、说明和权限一律取自 `catalogue`，代码里只有加载前的默认值（`lib/titles.ts` 的 `DEFAULT_TITLES`）。契约见 [API](../../architecture/API.md)「极客班控制台」。
 - `/api/admin/:org/*`：GitHub 组织页面，`:org` 取 `/api/console/me` 返回的 `org`。
-- `/auth/providers`（匿名）列出本站启用的登录方式，`/signin` 按它渲染按钮，前端不写死渠道；邮箱登录调 `POST /auth/email/start`（发码）、`/auth/email/verify`（用验证码登录，没有账号时带 `invite_code` 注册）、`/auth/email/password`（用密码登录），成功都回 `{ return_to }` 后整页跳转；Google 是 `GET /auth/google?return_to=…&invite=…` 的跳转。`/api/identity/device` 与 `/api/identity/device/approve` 是设备授权确认页用的两个接口。
+- `/auth/providers`（匿名）列出本站启用的登录方式，`/signin` 按它渲染按钮，前端不写死渠道；邮箱登录调 `POST /auth/email/start`（发码，忘了密码时带 `purpose: "reset"`）、`/auth/email/verify`（用验证码登录，没有账号时带 `invite_code` 注册）、`/auth/email/password`（用密码登录）、`/auth/email/reset`（忘了密码，用验证码设新密码并登录，#273），成功都回 `{ return_to }` 后整页跳转；Google 是 `GET /auth/google?return_to=…&invite=…` 的跳转。`/api/identity/device` 与 `/api/identity/device/approve` 是设备授权确认页用的两个接口。
 - `/api/identity/me`、`/api/identity/email/start`、`/api/identity/email/verify`、`/api/identity/email/remove`、`/api/identity/password` 是账号页用的接口；`/api/console/invites`（GET、POST）与 `PATCH /api/console/invites/:id` 是注册邀请码页用的接口。
 - 登录走极客班统一登录页 `/signin?return_to=<本站路径>`：选 GitHub 或 Google 后 302 到 `/auth/github`、`/auth/google`（`?return_to=<完整本站地址>`），回调成功后回到 `return_to`；用邮箱时在本页完成；登录失败由核心服务送回 `/signin?signin=<原因>&return_to=<原路径>`。`POST /auth/signout` 退出。登录是全站共用的（官网、论坛、控制台同一个 `sid`）。GitHub 登录只对 `CONSOLE_ORG` 的 active 成员开放；邮箱、Google 第一次登录要凭邀请码注册，见 [SECURITY](../../architecture/SECURITY.md)「登录门槛」。
 
@@ -170,7 +179,7 @@ app/console/dist/
   console-assets/*.js|css|png   # 带哈希的资源，不与官网的 /assets/ 重名
 ```
 
-`base` 是 `/`，不读 `public/`（favicon 与 logo 作为模块导入进 `console-assets/`）。静态资源 CDN 开关（#146，构建参数 `STATIC_CDN_BASE`）打开时，`vite.config.ts` 用 `experimental.renderBuiltUrl` 把 `console-assets/` 下的文件改写到 `https://cdn.crosery.com/yzgc/static/site/console-assets/…`，入口页与路由仍走源站；为空时同源。规则与 web 相同，见 [web 合同](../web/README.md)「静态资源 CDN 开关」。web 镜像把这份 dist 叠进 nginx 站点根，`/console`、`/console/…`、`/admin`、`/admin/…`、`/signin`、`/device`、`/account`、`/authorize` 回落到 `sites/console/index.html`；服务端 `resolveSiteEntry` 与开发态 Vite 的 `/device` 代理同一规则（直连 server 时）。详见 [web 合同](../web/README.md) 与 [DEPLOY](../../ops/DEPLOY.md)。
+`base` 是 `/`，不读 `public/`（favicon 与 logo 作为模块导入进 `console-assets/`）。静态资源 CDN 开关（#146，构建参数 `STATIC_CDN_BASE`）打开时，`vite.config.ts` 用 `experimental.renderBuiltUrl` 把 `console-assets/` 下的文件改写到 `https://cdn.crosery.com/yzgc/static/site/console-assets/…`，入口页与路由仍走源站；为空时同源。规则与 web 相同，见 [web 合同](../web/README.md)「静态资源 CDN 开关」。web 镜像把这份 dist 叠进 nginx 站点根，`/console`、`/console/…`、`/admin`、`/admin/…`、`/signin`、`/device`、`/account`、`/authorize`、`/bind-email` 回落到 `sites/console/index.html`；服务端 `resolveSiteEntry` 与开发态 Vite 的 `/device` 代理同一规则（直连 server 时）。详见 [web 合同](../web/README.md) 与 [DEPLOY](../../ops/DEPLOY.md)。
 
 首次打开的加载提示（#263）：`index.html` 在 `#app` 后面放了一段 `.console-boot`（转圈 +「正在加载控制台」）和它的内联样式，入口页一到就画出来，不等控制台的样式表和脚本；样子和位置照 `ConsoleRoot` 的「正在确认登录状态」，颜色、字体取 `src/styles/theme.css` 的令牌，改令牌时一起改（`tests/console/boot-placeholder.test.ts` 核对）。Vue 挂载后 `#app` 不再为空，`#app:not(:empty) ~ .console-boot` 把提示藏起，交接时不闪白；10 秒后还没挂载，在下方补一句「网络较慢，长时间没有反应可以刷新页面」；减少动态效果时不转圈；禁用 JavaScript 时只显示「控制台需要开启 JavaScript 才能使用。」。线上 CSP 允许内联样式、不允许内联脚本，所以提示只用样式。Vite 默认把样式表链接放进 `<head>`，浏览器要等它下完才开始画（Fast 3G 下约 1.2 秒），所以构建时 `vite.config.ts` 的 `moveStylesheetsToBodyEnd` 把它挪到 `</body>` 前：预加载扫描器照常并行下载，模块脚本按 HTML 规范仍等样式表就绪才执行，挂载时样式已经齐了。开发态（`pnpm dev:console`）样式由脚本注入，不经过这一步。
 
@@ -181,7 +190,8 @@ pnpm dev:console                     # http://127.0.0.1:5186/console ，默认�
 # 地址参数（仅开发态）：
 #   ?__data=mock      改用样板数据（自动化测试用，tests/e2e 显式带上）
 #   ?__data=live      切回本地后端
-#   ?__persona=<名>   样板数据下切换身份：admin（站内管理员）、captain、recruitment、tech、community、projects、crew、member、alumni、guest、signed_out
+#   ?__persona=<名>   样板数据下切换身份：admin（站内管理员）、captain、recruitment、tech、community、projects、crew、member、alumni、guest、signed_out；
+#                     no_email、no_email_stale 是还没有登录邮箱的舰员（#273），后者这次登录已超过 10 分钟
 #   ?__gitlab=<样子>  样板数据下成员页 GitLab 列的另外几种样子：dry-run（预演）、unregistered（客户端没登记）、off（关着）；不带是打开后的样子
 ```
 

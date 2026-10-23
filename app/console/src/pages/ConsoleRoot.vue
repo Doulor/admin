@@ -12,8 +12,9 @@ import { ApiError } from "../lib/http";
 import { loadMe, useSession } from "../lib/session";
 import { siteUrl } from "../lib/runtime";
 import { assignerText } from "../lib/titles";
+import { bindEmailPath } from "../lib/signin";
 
-/** /console 下所有页面的入口：先取身份，未登录去 /signin，没有任何能力显示 guest 的说明。 */
+/** /console 下所有页面的入口：先取身份，未登录去 /signin，还没有登录邮箱去 /bind-email（#273），没有任何能力显示 guest 的说明。 */
 const { me, meError, meLoading, catalogue, reload } = useSession();
 const route = useRoute();
 const router = useRouter();
@@ -29,13 +30,18 @@ watch(signedOut, value => {
   void router.replace({ path: "/signin", query: { return_to: returnTo, ...(typeof signin === "string" && { signin }) } });
 }, { immediate: true });
 
+const emailRequired = computed(() => me.value?.email_required === true);
+watch(emailRequired, value => {
+  if (value) void router.replace(bindEmailPath(route.fullPath));
+}, { immediate: true });
+
 const guest = computed(() => me.value && me.value.capabilities.length === 0);
 const goPortal = () => window.location.assign(siteUrl("portal", "/"));
 const goAccount = () => void router.push("/account");
 </script>
 
 <template>
-  <div v-if="(meLoading && !me) || signedOut" class="root-state" role="status">
+  <div v-if="(meLoading && !me) || signedOut || emailRequired" class="root-state" role="status">
     <TxSpinner :size="24" label="正在确认登录状态" />
     <span class="muted">正在确认登录状态</span>
   </div>

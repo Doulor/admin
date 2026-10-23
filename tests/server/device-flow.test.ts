@@ -15,8 +15,8 @@ const clock = () => now;
 beforeEach(() => { now = START; });
 afterEach(async () => { for (const context of contexts.splice(0)) await context.close(); });
 
-async function setup() {
-  const context = await testApp({ clock });
+async function setup(env: Record<string, string> = {}) {
+  const context = await testApp({ clock }, false, env);
   contexts.push(context);
   return context;
 }
@@ -248,5 +248,22 @@ describe('device authorization (#262, RFC 8628)', () => {
     const expired = await app.inject({ url: '/auth/device/userinfo', headers: { authorization: `Bearer ${token.access_token}` } });
     expect(expired.statusCode).toBe(401);
     expect(expired.json().error).toBe('invalid_token');
+  });
+
+  it('asks an account without a login email to bind one before approving, and still lets it deny (#273)', async () => {
+    // 能发信的环境才要求登录邮箱；这里不会真的发信
+    const { app } = await setup({ MAIL_RESEND_API_KEY: 're_test_resend_key_value', MAIL_RESEND_FROM: 'notify@example.test' });
+    const db = app.services.storage.db;
+    const sid = signIn(app, 'octocat', 4242);
+    const accountId = accountOfGithub(db, '4242');
+    const first = (await issueCode(app)).json();
+    const held = await decide(app, sid, first.user_code, 'approve');
+    expect([held.statusCode, held.json().error]).toEqual([403, 'email_required']);
+    expect((await detail(app, sid, first.user_code)).json().status).toBe('pending');
+    expect((await decide(app, sid, first.user_code, 'deny')).statusCode).toBe(200);
+
+    app.services.identity.linkEmail({ accountId, email: 'octo@example.test', login: 'octocat', claim: () => true });
+    const second = (await issueCode(app)).json();
+    expect((await decide(app, sid, second.user_code, 'approve')).statusCode).toBe(200);
   });
 });

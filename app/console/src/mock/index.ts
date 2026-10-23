@@ -21,7 +21,9 @@ export async function mockApi<T>(path: string, init?: RequestInit): Promise<T> {
   // 与服务端 GET /auth/me 同形（只取设备授权页用到的字段）：未登录样板回 signed_in: false，不是 401
   if (url.pathname === "/auth/me") {
     const persona = mockPersona();
-    return (persona ? { signed_in: true, login: persona.login, avatar_url: null, account_id: `mock-${persona.login}` } : { signed_in: false }) as T;
+    return (persona
+      ? { signed_in: true, login: persona.login, avatar_url: null, account_id: `mock-${persona.login}`, email_required: persona.email_required }
+      : { signed_in: false }) as T;
   }
   const method = (init?.method ?? "GET").toUpperCase();
   // 与服务端 GET /api/identity/device 同形（app/server/src/routes/identity/device.ts）：设备授权确认页的样板，
@@ -33,10 +35,12 @@ export async function mockApi<T>(path: string, init?: RequestInit): Promise<T> {
   }
   // 与服务端 GET /oidc/interaction/:uid/details 同形（app/server/src/routes/oidc/index.ts）：对外授权同意页的样板，
   // 任何格式正确的交互编号都当作 GitLab 十分钟内有效的登录请求；允许/拒绝是写请求，仍按只读回 501。
+  // 还没有登录邮箱的样板照服务端回 403 email_required（#273）。
   const interaction = method === "GET" ? /^\/oidc\/interaction\/([A-Za-z0-9_-]{10,64})\/details$/.exec(url.pathname) : null;
   if (interaction) {
     const persona = mockPersona();
     if (!persona) throw new ApiError(401, "not_signed_in", "请先登录", undefined, { error: "not_signed_in" });
+    if (persona.email_required) throw new ApiError(403, "email_required", "先绑定邮箱，再用极客班账号登录这个应用", undefined, { error: "email_required" });
     return {
       client: { id: "gitlab", name: "GitLab", host: "git.yangtzeu.work" }, scopes: ["openid", "profile", "email"],
       account: { login: persona.login, name: persona.login, picture: null }, expires_at: Date.now() + 10 * 60 * 1000,

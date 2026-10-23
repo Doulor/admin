@@ -265,10 +265,16 @@ export function mockPeople(listed = true): Person[] {
 type Persona = {
   login: string; site_role: SiteRole; github: GithubVia; head_of: string[]; provider: SessionProvider;
   titles: TitleView[]; capabilities: string[];
+  /** 还没有登录邮箱（#273）：控制台、账号页、授权页先去绑定邮箱页。其余样板为 false，照常看各个页面。 */
+  email_required: boolean;
+  /** 这次登录过去了几分钟；超过 10 分钟时绑定邮箱、设密码要先重新登录。 */
+  signed_in_min: number;
 };
-const makePersona = (login: string, site_role: SiteRole, rest: Omit<Persona, "login" | "site_role" | "titles" | "provider" | "github"> & { provider?: SessionProvider }): Persona => {
+type PersonaInput = Omit<Persona, "login" | "site_role" | "titles" | "provider" | "github" | "email_required" | "signed_in_min">
+  & Partial<Pick<Persona, "provider" | "email_required" | "signed_in_min">>;
+const makePersona = (login: string, site_role: SiteRole, rest: PersonaInput): Persona => {
   const provider = rest.provider ?? "github";
-  return { login, site_role, titles: mockTitles(login, site_role), provider, github: provider === "github" ? "session" : "none", ...rest };
+  return { login, site_role, titles: mockTitles(login, site_role), provider, github: provider === "github" ? "session" : "none", email_required: false, signed_in_min: 4, ...rest };
 };
 
 export const MOCK_PERSONAS: Record<string, Persona> = {
@@ -296,6 +302,9 @@ export const MOCK_PERSONAS: Record<string, Persona> = {
   member: makePersona("liu-xing", "member", { head_of: [], capabilities: ["console.access", "github.org.read"] }),
   alumni: makePersona("gao-yuan", "member", { head_of: [], capabilities: ["console.access", "github.org.read", "feedback.read"] }),
   guest: makePersona("visitor-01", null, { head_of: [], capabilities: [] }),
+  // 只绑了 GitHub、还没有登录邮箱的舰员（#273）：刚登录，绑定邮箱页直接能绑；登录超过 10 分钟的先要重新登录
+  no_email: makePersona("liu-xing", "member", { head_of: [], capabilities: ["console.access", "github.org.read"], email_required: true }),
+  no_email_stale: makePersona("liu-xing", "member", { head_of: [], capabilities: ["console.access", "github.org.read"], email_required: true, signed_in_min: 25 }),
 };
 
 /** 不是身份的预览状态：未登录（/api/console/me 返回 401）。 */
@@ -564,7 +573,8 @@ const MOCK_INVITES: InviteCode[] = [
  * 管理员另有一个提交用的邮箱（#272），用来看邮箱列表和「删除」。
  */
 export function mockAccount(persona: Persona): AccountView {
-  const email = persona.provider === "email" || persona.site_role === "admin";
+  const email = !persona.email_required && (persona.provider === "email" || persona.site_role === "admin");
+  const signedInAt = now - persona.signed_in_min * MIN;
   const identities: AccountView["identities"] = [
     ...(persona.site_role !== null ? [{ provider: "github" as const, label: persona.login, linked_at: now - 120 * DAY, last_login_at: now - 3 * DAY }] : []),
     ...(email ? [{ provider: "email" as const, label: "x***@example.com", linked_at: now - 2 * DAY, last_login_at: persona.provider === "email" ? now - 4 * MIN : null, id: "mock-email-1", primary: true }] : []),
@@ -581,12 +591,13 @@ export function mockAccount(persona: Persona): AccountView {
       : { state: "active", org_role: persona.site_role, via_invite: false },
     created_at: now - 120 * DAY,
     recent: [
-      { at: now - 4 * MIN, action: "login", provider: persona.provider, result: "ok" },
+      { at: signedInAt, action: "login", provider: persona.provider, result: "ok" },
       ...(email ? [{ at: now - DAY, action: "password_set", provider: "email", result: "ok" as const }, { at: now - 2 * DAY, action: "link", provider: "email", result: "ok" as const }] : []),
       { at: now - 3 * DAY, action: "logout", provider: "github", result: "ok" },
     ],
     available: ["email"],
-    session: { provider: persona.provider, created_at: now - 4 * MIN, expires_at: now + 7 * DAY, step_up_until: now + 6 * MIN },
+    email_required: persona.email_required,
+    session: { provider: persona.provider, created_at: signedInAt, expires_at: now + 7 * DAY, step_up_until: signedInAt + 10 * MIN },
   };
 }
 
@@ -701,6 +712,7 @@ export function routeConsole(url: URL): unknown {
     return {
       login: persona.login, avatar_url: null, org: MOCK_ORG, provider: persona.provider, site_role: persona.site_role, github: persona.github,
       title: persona.titles[0], titles: persona.titles, capabilities: persona.capabilities, head_of: persona.head_of,
+      email_required: persona.email_required,
     };
   }
   if (path === "/api/console/catalogue") {

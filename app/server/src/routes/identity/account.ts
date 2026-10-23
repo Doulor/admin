@@ -7,6 +7,7 @@ import { requireAuth } from "../../middleware/require-auth.js";
 import { EMAILS_MAX } from "../../lib/identity-store.js";
 import { clearChallengeCookie, readChallengeCookie, sendCode, setChallengeCookie, tooSoon } from "./email.js";
 import { loginProviders } from "./providers.js";
+import { emailRequired } from "../../lib/email-gate.js";
 
 /** 绑定邮箱、设密码前要求这次登录不超过 10 分钟（规格「重新验证」）；超时回 403 step_up_required，不是退出。 */
 export const STEP_UP_MS = 10 * 60_000;
@@ -14,7 +15,7 @@ const CHALLENGE_PATH = "/api/identity/email";
 
 /**
  * 账号页 `/account` 的接口（#262）：任何有效会话都能用，不要 `console.access`。
- * - `GET /api/identity/me`：登录方式、有没有密码、成员资格、这次登录、最近账号记录。
+ * - `GET /api/identity/me`：登录方式、有没有密码、成员资格、这次登录、最近账号记录；`email_required`：还要先绑邮箱（#273）。
  * - `POST /api/identity/email/start`、`/verify`：给账号绑定邮箱（绑好才能用邮箱验证码或密码登录）。一个账号最多绑 `EMAILS_MAX` 个，
  *   第一个是主邮箱；GitLab 同步把它们都加到 GitLab 用户名下，按提交里的邮箱认人（#272）。
  * - `POST /api/identity/email/remove`：删掉一个不是主邮箱的邮箱，同样要求 10 分钟内刚登录过。
@@ -42,6 +43,7 @@ export default async function accountRoutes(app: FastifyInstance) {
       account_id: session.account_id,
       ...view,
       available,
+      email_required: emailRequired(app.services, session.account_id),
       session: { provider: session.provider, created_at: session.created_at, expires_at: session.expires_at, step_up_until: session.created_at + STEP_UP_MS },
     };
   });

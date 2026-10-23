@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ICONS, isIconName } from "../../app/web/sites/portal/lib/icons";
 import { ORG_ICONS } from "../../app/web/sites/portal/lib/org";
-import { parseMe } from "../../app/web/sites/portal/lib/account";
+import { bindEmailHref, emailRequired, parseMe } from "../../app/web/sites/portal/lib/account";
 import { links } from "../../app/web/sites/portal/lib/links";
 import { NEW_TAB_NOTE, OS_APPS, agoLabel, appById, appByKey, appLink, appLinkById, filterCommands, followAppLink, launcherCommands, moveSelection, opensNewTab, runTerminal, visibleApps } from "../../app/web/sites/portal/lib/osApps";
 
@@ -31,6 +31,15 @@ describe("控制台入口只给 console_link 为 true 的人", () => {
     expect(parseMe({ signed_in: true, login: "ada", avatar_url: null })?.consoleLink).toBe(false);
     expect(parseMe({ signed_in: true, login: "ada", console_link: "true" })?.consoleLink).toBe(false);
     expect(parseMe({ signed_in: false })).toBeNull();
+  });
+
+  it("账号还没有登录邮箱（#273）：只认已登录且 email_required 为 true，跳到绑定邮箱页时带上本站路径", () => {
+    expect(emailRequired({ signed_in: true, login: "ada", email_required: true })).toBe(true);
+    for (const body of [null, {}, { signed_in: true, login: "ada" }, { signed_in: true, login: "ada", email_required: "true" }, { signed_in: false, email_required: true }]) {
+      expect(emailRequired(body)).toBe(false);
+    }
+    expect(bindEmailHref("/competitions/7?tab=teams#me")).toBe("/bind-email?return_to=%2Fcompetitions%2F7%3Ftab%3Dteams%23me");
+    expect(bindEmailHref("//evil.test/")).toBe("/bind-email?return_to=%2F");
   });
 
   it("没有 console_link：桌面、Dock、启动器、终端里都没有控制台，其余应用照旧", () => {

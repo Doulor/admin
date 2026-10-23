@@ -108,7 +108,7 @@
 
 权限与资源：要极客班会话；授权绑定到会话的account_id（极客班账号，不是GitHub id）；每分钟20次；跨站写入受共同Origin校验与SameSite=Lax会话Cookie限制。
 
-响应与错误：200 {ok:true,status:approved|denied}；不存在404 device_code_not_found；不是pending或已过期409 device_code_not_pending；decision不合法400 invalid_decision。
+响应与错误：200 {ok:true,status:approved|denied}；不存在404 device_code_not_found；不是pending或已过期409 device_code_not_pending；decision不合法400 invalid_decision；允许时账号还没有登录邮箱（这个环境能发信）403 email_required，拒绝不拦（#273）。
 
 数据与副作用：条件UPDATE只改pending且未过期的行，并发的确认只有一次生效；拒绝不写account_id；写audit_logs的identity.device.approve或identity.device.deny，只含client_id与scope，不含device_code与令牌。
 
@@ -136,12 +136,13 @@
 
 | 接口 · 流程 | 权限与资源 | 响应、错误与副作用 |
 |---|---|---|
-| `POST /auth/email/start` · `flow:identity.email.start` | 匿名；每分钟 10 次（按 IP）；同一邮箱 60 秒一封、每小时 5 封，同一 IP（IPv6 按 /64）每小时 20 封，计数存在 `email_challenges`，重启不清零 | 202 `{resend_after:60}`，写签名、HttpOnly 的 `email_challenge` cookie（path=/auth/email，10 分钟）；有没有账号响应都一样，没有账号的邮箱也真的发（填邀请码就能注册）。邮箱格式不对 400 `bad_email`；太频繁 429 `rate_limited`，带 `Retry-After` 与 `retry_after`。只存验证码的 HMAC，这个浏览器上一次的码作废（别人替这个邮箱要码不影响本人手上的码）；信由 `mail.sendNow` 直接发，不进 `mail_outbox`，日志不记地址和验证码。 |
+| `POST /auth/email/start` · `flow:identity.email.start` | 匿名；每分钟 10 次（按 IP）；同一邮箱 60 秒一封、每小时 5 封，同一 IP（IPv6 按 /64）每小时 20 封，计数存在 `email_challenges`，重启不清零 | 202 `{resend_after:60}`，写签名、HttpOnly 的 `email_challenge` cookie（path=/auth/email，10 分钟）；有没有账号响应都一样，没有账号的邮箱也真的发（填邀请码就能注册）。body 可带 `purpose:"reset"`（忘了密码，#273）：只把信换成「你的极客班重设密码验证码」，挑战还是登录用的那一种。邮箱格式不对 400 `bad_email`；太频繁 429 `rate_limited`，带 `Retry-After` 与 `retry_after`。只存验证码的 HMAC，这个浏览器上一次的码作废（别人替这个邮箱要码不影响本人手上的码）；信由 `mail.sendNow` 直接发，不进 `mail_outbox`，日志不记地址和验证码。 |
 | `POST /auth/email/verify` · `flow:identity.email.verify` | 匿名，凭挑战 cookie；每分钟 30 次；同一个码最多错 5 次 | 200 `{return_to,registered}` 并写 `sid`；验证码不对 400 `invalid_code`（带 `attempts_left`），过期、用过或错满 5 次 400 `code_expired`；没有账号又没带 `invite_code` 400 `invite_required`（验证码不作废）；邀请码不对 400 `invalid_invite`，同时记一次错；账号停用 403 `account_disabled`，不是成员 403 `not_member`。建号、兑换邀请码、占用验证码、建会话（provider=email）、删旧会话、写 `identity_audit` 与 `auth.register`/`auth.signin` 在一个 `BEGIN IMMEDIATE` 事务里，任何一步不成整体回滚。 |
 | `POST /auth/email/password` · `flow:identity.email.password` | 匿名；每分钟 10 次（按 IP），另按邮箱 15 分钟 10 次 | 200 `{return_to}` 并写 `sid`；没账号、没设密码、密码不对一律 400 `invalid_credentials`，没有账号时也跑一次 bcrypt，响应时间不泄露邮箱是否注册；按邮箱超次数 429 `rate_limited`；停用 403 `account_disabled`，不是成员 403 `not_member`。会话 provider=email。 |
+| `POST /auth/email/reset` · `flow:identity.email.reset` | 匿名，凭 `/auth/email/start` 发的挑战 cookie；每分钟 10 次；同一个码最多错 5 次（#273，忘了密码） | body `{code,password}`；200 `{return_to}` 并写 `sid`（provider=email）。先看新密码：不到 8 位 400 `password_too_short`、超过 72 字节 400 `password_exceeds_bcrypt_limit`，这时不碰验证码；验证码不对 400 `invalid_code`（带 `attempts_left`），过期、用过或错满 400 `code_expired`；邮箱没有账号时和验证码登录一样 400 `invite_required`（不注册，验证码不作废，登录页转到「注册」）；停用 403 `account_disabled`，不是成员 403 `not_member`。占用验证码、建会话、删旧会话、写 `users.password_hash`、`identity_audit`（`login` 与 `password_reset`）、审计 `auth.signin`（method=reset）与 `account.password`（action=reset）在一个 `BEGIN IMMEDIATE` 事务里；成功后这个邮箱的密码错误计数清零。 |
 | `GET /auth/google` · `flow:identity.google.start` | 匿名；每分钟 20 次（按 IP）；没配凭据时 404 `provider_not_enabled` | 302 到 Google 授权页（openid email profile，带 state、nonce 与 PKCE S256）；state、nonce、verifier、return_to 和 `invite` 存进签名 cookie `google_oauth_state`。 |
-| `GET /auth/google/callback` · `flow:identity.google.callback` | 每分钟 10 次（按 IP）；state 与签名 cookie 相符；ID Token 用 Google JWKS 验签（RS256），核对 iss、aud、exp、nonce；按 Google `sub` 认人，不按邮箱合并账号 | 成功 302 回 `return_to`；取消、上游失败、没有账号又没带邀请码、邀请码无效、Google 邮箱已属于别的账号、停用或不是成员时 302 到 `/signin?signin=<cancelled|failed|invite_required|invalid_invite|email_taken|account_disabled|not_member>&provider=google&return_to=<原路径>`；缺参数或 state 无效 400。外部请求在事务外，建号与会话同上一个事务；日志不输出令牌。 |
-| `GET /api/identity/me` · `flow:identity.account.view` | 任何有效会话，不要控制台能力 | 200 `{account_id,login,identities,has_password,password_updated_at,membership{state,org_role,via_invite},created_at,recent,available,session{provider,created_at,expires_at,step_up_until}}`；邮箱只给打码后的样子，每个邮箱另带身份 `id`（删邮箱用）和 `primary`（主邮箱，排在别的邮箱前面，#272）；`recent` 是本人最近 20 条 `identity_audit`；`available` 只可能是 `["email"]` 或 `[]`：发信打开、还不到 5 个邮箱时是 `["email"]`，满了或发信关着时是 `[]`（GitHub、Google 的绑定没做，不列）。没登录 401。只读。 |
+| `GET /auth/google/callback` · `flow:identity.google.callback` | 每分钟 10 次（按 IP）；state 与签名 cookie 相符；ID Token 用 Google JWKS 验签（RS256），核对 iss、aud、exp、nonce；按 Google `sub` 认人，不按邮箱合并账号 | 成功 302 回 `return_to`，账号还没有登录邮箱、这个环境又能发信时改为 302 到 `/bind-email?return_to=<原路径>`（#273，Google 给的邮箱不算登录邮箱）；取消、上游失败、没有账号又没带邀请码、邀请码无效、Google 邮箱已属于别的账号、停用或不是成员时 302 到 `/signin?signin=<cancelled|failed|invite_required|invalid_invite|email_taken|account_disabled|not_member>&provider=google&return_to=<原路径>`；缺参数或 state 无效 400。外部请求在事务外，建号与会话同上一个事务；日志不输出令牌。 |
+| `GET /api/identity/me` · `flow:identity.account.view` | 任何有效会话，不要控制台能力 | 200 `{account_id,login,identities,has_password,password_updated_at,membership{state,org_role,via_invite},created_at,recent,available,email_required,session{provider,created_at,expires_at,step_up_until}}`；`email_required`（#273）是账号还没有邮箱登录方式、这个环境又能发信，绑定邮箱页 `/bind-email` 读它；邮箱只给打码后的样子，每个邮箱另带身份 `id`（删邮箱用）和 `primary`（主邮箱，排在别的邮箱前面，#272）；`recent` 是本人最近 20 条 `identity_audit`；`available` 只可能是 `["email"]` 或 `[]`：发信打开、还不到 5 个邮箱时是 `["email"]`，满了或发信关着时是 `[]`（GitHub、Google 的绑定没做，不列）。没登录 401。只读。 |
 | `POST /api/identity/email/start` · `flow:identity.account.email.start` | 有效会话，这次登录不超过 10 分钟；每分钟 10 次，发码限额同登录 | 202 `{resend_after:60}`，挑战绑定这个账号与这次会话，cookie path=/api/identity/email；一个账号最多 5 个邮箱（#272），这个邮箱已经绑在本账号上 409 `identity_exists`、已经有 5 个 409 `email_limit`，都不发信；超过 10 分钟 403 `step_up_required`（带 `reauth.return_to:"/account"`）；400 `bad_email`；429 `rate_limited`。 |
 | `POST /api/identity/email/verify` · `flow:identity.account.email.verify` | 同一会话 | 200 `{ok:true}`；换了账号或会话、过期 400 `code_expired`；码不对 400 `invalid_code`；邮箱已属于别的账号 409 `identity_conflict`；已经绑在本账号上 409 `identity_exists`；已经有 5 个 409 `email_limit`。占用验证码、插入邮箱身份、写 `identity_audit` 在一个事务里；账号还没有主邮箱时这个就是主邮箱（`canonical_email`）。 |
 | `POST /api/identity/email/remove` · `flow:identity.account.email.remove` | 有效会话，这次登录不超过 10 分钟；每分钟 10 次 | 200 `{ok:true}`：body `{identity_id}`（`GET /api/identity/me` 给的邮箱 `id`），删掉这个邮箱，之后不能再用它登录，下一轮 GitLab 同步从 GitLab 上删掉（#272）；主邮箱 409 `primary_email`，不是本账号的邮箱 404 `not_found`；超过 10 分钟 403 `step_up_required`。删身份、写 `identity_audit`（`unlink`）与 `identity.unlink` 在一个事务里，用这个邮箱登录的会话不动。 |
@@ -152,7 +153,9 @@
 
 本地表：邮箱登录读写 `email_challenges`、`users`、`identities`、`invite_codes`、`sessions`、`identity_audit`、`audit_logs`；账号页读 `users`、`identities`、`identity_audit`，删邮箱时删 `identities`，写 `email_challenges`、`identities`、`users`、`identity_audit`；邀请码页只读写 `invite_codes` 与 `audit_logs`。
 
-源码：[routes/identity/email.ts](../../../app/server/src/routes/identity/email.ts)、[routes/identity/google.ts](../../../app/server/src/routes/identity/google.ts)、[routes/identity/account.ts](../../../app/server/src/routes/identity/account.ts)、[routes/console/invites.ts](../../../app/server/src/routes/console/invites.ts)、[lib/email-login.ts](../../../app/server/src/lib/email-login.ts)、[lib/google.ts](../../../app/server/src/lib/google.ts)、[lib/invite-codes.ts](../../../app/server/src/lib/invite-codes.ts)、[lib/identity-store.ts](../../../app/server/src/lib/identity-store.ts)。验证入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)、[tests/console/signin.test.ts](../../../tests/console/signin.test.ts)、[tests/console/account.test.ts](../../../tests/console/account.test.ts)。
+没有登录邮箱的账号（#273，所有者 2026-10-23 19:22：「之前只绑定了github账号没有绑定邮箱的再次进来或者登录的时候必须绑定邮箱」）：判定在 [lib/email-gate.ts](../../../app/server/src/lib/email-gate.ts)，只在这个环境能发信时要求。GitHub、Google 登录回调跳绑定邮箱页，对外授权的交互入口与同意页、设备授权的允许在服务端拦，`/auth/me`、`/api/identity/me`、`/api/console/me` 的 `email_required` 交给官网、论坛、控制台自己跳。
+
+源码：[routes/identity/email.ts](../../../app/server/src/routes/identity/email.ts)、[routes/identity/google.ts](../../../app/server/src/routes/identity/google.ts)、[routes/identity/account.ts](../../../app/server/src/routes/identity/account.ts)、[routes/console/invites.ts](../../../app/server/src/routes/console/invites.ts)、[lib/email-gate.ts](../../../app/server/src/lib/email-gate.ts)、[lib/email-login.ts](../../../app/server/src/lib/email-login.ts)、[lib/google.ts](../../../app/server/src/lib/google.ts)、[lib/invite-codes.ts](../../../app/server/src/lib/invite-codes.ts)、[lib/identity-store.ts](../../../app/server/src/lib/identity-store.ts)。验证入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)、[tests/console/signin.test.ts](../../../tests/console/signin.test.ts)、[tests/console/account.test.ts](../../../tests/console/account.test.ts)。
 
 ## 对外授权（OIDC）与 GitLab 账号同步（#270）
 
@@ -162,10 +165,10 @@
 |---|---|---|
 | `GET /oidc/*` · `flow:identity.oidc.protocol` | 匿名或带 `sid`；按 IP 每分钟计数，发现文档、JWKS、userinfo 与 `POST /oidc/*` 合计 600 次，授权端点另计 120 次；授权端点只认登记过的 `client_id` 和完全一致的回调地址，PKCE 必须 `S256` | 原样交给 `oidc-provider`：发现文档、JWKS（只有公钥）、授权端点、userinfo。授权端点按本站 `sid` 判断是否登录：`sid` 账号与签发者会话一致且仍是成员时直接 303 回下游带 `code`，否则 303 到 `/oidc/interaction/<uid>`；未知客户端、错回调不跳转，回 400 的 HTML 错误页。读写 `oidc_payloads`，首次给某 sector 的账号写 `oauth_subjects`。 |
 | `POST /oidc/*` · `flow:identity.oidc.token` | 下游服务器凭 `client_secret_basic` 或 `client_secret_post`；与发现文档、JWKS、userinfo 合计每个 IP 每分钟 600 次 | 换令牌 200 `{access_token,id_token,token_type,expires_in,scope}`（不发 refresh token）；客户端认证失败 401 `invalid_client`，授权码过期、用过或 PKCE 不对 400 `invalid_grant`；授权码重放时撤销这份授权和它发出的令牌。userinfo 对已停用或不再是成员的账号 401。另有 `POST /oidc/token/revocation`。读写 `oidc_payloads`，读 `oauth_clients`、`oauth_subjects`、`users`。 |
-| `GET /oidc/interaction/:uid` · `flow:identity.oidc.interaction` | 浏览器；每分钟 30 次；交互按签名 cookie `oidc_interaction` 找，不认就回 400 HTML 错误页 `session_not_found` | 没 `sid` 303 到 `/signin?return_to=/oidc/interaction/<uid>`；账号不是成员时 303 回下游带 `error=access_denied`；要登录时按 `sid` 账号登录（换过账号先删掉签发者里旧账号的会话），要同意时 303 到 `/authorize?uid=<uid>`。写 `oidc_payloads`。 |
-| `GET /oidc/interaction/:uid/details` · `flow:identity.oidc.details` | 有效会话，且就是发起这次登录的账号；每分钟 30 次 | 200 `{client:{id,name,host},scopes,account:{login,name,picture},expires_at}`；没会话 401，交互过期或客户端已停用 404 `interaction_expired`，不是要同意的交互或换了账号 409 `interaction_mismatch`。只读。 |
-| `POST /oidc/interaction/:uid/confirm` · `flow:identity.oidc.confirm` | 同上；每分钟 20 次 | 200 `{redirect_to}`（浏览器去这里，由签发者 303 回下游带 `code`）；错误同 details。保存授权（`oidc_payloads`），记进 `oauth_grants`，写审计 `oidc.consent`。 |
-| `POST /oidc/interaction/:uid/abort` · `flow:identity.oidc.abort` | 同上；每分钟 20 次 | 200 `{redirect_to}`，下游收到 `error=access_denied`；错误同 details。把拒绝结果存进交互（`oidc_payloads`），写审计 `oidc.deny`。 |
+| `GET /oidc/interaction/:uid` · `flow:identity.oidc.interaction` | 浏览器；每分钟 30 次；交互按签名 cookie `oidc_interaction` 找，不认就回 400 HTML 错误页 `session_not_found` | 没 `sid` 303 到 `/signin?return_to=/oidc/interaction/<uid>`；账号不是成员时 303 回下游带 `error=access_denied`；账号还没有登录邮箱时 303 到 `/bind-email?return_to=/oidc/interaction/<uid>`（#273，绑好回到同一个交互；允许过这个应用、签发者会话还在时也先进交互，不直接发码）；要登录时按 `sid` 账号登录（换过账号先删掉签发者里旧账号的会话），要同意时 303 到 `/authorize?uid=<uid>`。写 `oidc_payloads`。 |
+| `GET /oidc/interaction/:uid/details` · `flow:identity.oidc.details` | 有效会话，且就是发起这次登录的账号；每分钟 30 次 | 200 `{client:{id,name,host},scopes,account:{login,name,picture},expires_at}`；没会话 401，账号还没有登录邮箱 403 `email_required`（#273），交互过期或客户端已停用 404 `interaction_expired`，不是要同意的交互或换了账号 409 `interaction_mismatch`。只读。 |
+| `POST /oidc/interaction/:uid/confirm` · `flow:identity.oidc.confirm` | 同上；每分钟 20 次 | 200 `{redirect_to}`（浏览器去这里，由签发者 303 回下游带 `code`）；错误同 details，含 403 `email_required`。保存授权（`oidc_payloads`），记进 `oauth_grants`，写审计 `oidc.consent`。 |
+| `POST /oidc/interaction/:uid/abort` · `flow:identity.oidc.abort` | 同上；每分钟 20 次 | 200 `{redirect_to}`，下游收到 `error=access_denied`；错误同 details，但没有登录邮箱也能拒绝。把拒绝结果存进交互（`oidc_payloads`），写审计 `oidc.deny`。 |
 | `GET /api/console/gitlab/accounts` · `flow:gitlab.accounts.list` | `roles.manage` 或 `roles.department.manage` | 200 `{mode,gitlab_url,group,client_registered,accounts:[…]}`（`client_registered`：`gitlab` 客户端登记了没有），每行是一个极客班账号的 GitLab 用户 id、用户名、状态、组权限、最后一次错误和还要做的事（`dry-run` 时就是会做什么）；`off` 时照样列出。只读。 |
 | `POST /api/console/gitlab/accounts/:account_id/sync` · `flow:gitlab.accounts.sync` | `roles.manage`；每分钟 30 次 | 200 `{mode,…这个账号同步后的状态}`；同步关着 409 `gitlab_sync_off`，没有这个账号 404 `account_not_found`。`on` 时调用 GitLab 管理接口建号、改组权限、封禁或解封、传头像（下载 GitHub 头像，#271）、同步邮箱（#272），写 `gitlab_accounts` 与审计 `gitlab.sync`，账号还没有 GitLab sector 的 `sub` 时写 `oauth_subjects`；`dry-run` 不写表、不调 GitLab。 |
 
@@ -179,7 +182,7 @@
 
 权限与资源：state与签名cookie必须相符且未过期；按GitHub数字id匹配身份，不用会变的登录名。这个GitHub id已有账号且站内记过角色的由站内决定（停用、不是成员拒绝），不查GitHub组织；新用户和还没记过站内角色的老账号要是CONSOLE_ORG active成员才成功：新用户记为成员（站内一位管理员都没有时owner记为管理员），老账号按查到的组织角色补记（users.org_role，owner记为管理员）（#262 第四期）。
 
-响应与错误：成功302回return_to；取消/上游失败/非成员/账号停用一律302到<PUBLIC_ORIGIN>/signin?signin=<cancelled|failed|not_member|invite_pending|account_disabled>&return_to=<原来要回的本站路径>，原路径里残留的signin参数会去掉（#262）；合并链超过8跳、成环或事务失败按failed；缺参数或无效state为400，旧forum-state为410。
+响应与错误：成功302回return_to；账号还没有登录邮箱、这个环境又能发信时改为302到<PUBLIC_ORIGIN>/bind-email?return_to=<原来要回的本站路径>，绑好再回去（#273）；取消/上游失败/非成员/账号停用一律302到<PUBLIC_ORIGIN>/signin?signin=<cancelled|failed|not_member|invite_pending|account_disabled>&return_to=<原来要回的本站路径>，原路径里残留的signin参数会去掉（#262）；合并链超过8跳、成环或事务失败按failed；缺参数或无效state为400，旧forum-state为410。
 
 数据与副作用：外部请求在事务外做完；建号、刷新身份、沿merged_into走到终点、按GitHub id认领称号与论坛用户、写sessions（含openid、provider）、删请求带来的旧会话、写identity_audit与auth.signin在一个BEGIN IMMEDIATE事务里，失败整体回滚、旧会话照常有效。非成员与停用账号不建会话、审计拒绝并尽力撤销授权；被组织拒绝的GitHub id已经有还没记过站内角色的老账号时，把它的成员资格记成not_member或pending（#262审查）；站内记过角色的账号不受GitHub组织变动影响；失败日志不输出token。
 
@@ -207,7 +210,7 @@
 
 权限与资源：只返回当前sid的身份；console_link是显示提示，不赋予后端权限。
 
-响应与错误：200 {signed_in:false}或身份字段（login、user_id、avatar_url、account_id、provider）及console_link；GitHub拒绝token时200 {signed_in:false,session_expired:true}，其他角色查询失败仍保持登录但入口false。
+响应与错误：200 {signed_in:false}或身份字段（login、user_id、avatar_url、account_id、provider）及console_link、email_required（账号还没有登录邮箱、这个环境又能发信，官网、论坛、控制台读到true就跳绑定邮箱页，#273）；GitHub拒绝token时200 {signed_in:false,session_expired:true}，其他角色查询失败仍保持登录但入口false。
 
 数据与副作用：会话联查账号，过期、没有账号（启动回填映射不到的旧会话）或账号不是active的会话按未登录处理并删除；按账号记下的站内角色和称号算权限（还没记过站内角色的老账号用GitHub会话第一次请求时查一次GitHub组织角色并记下），被拒token才删会话并写审计；无其他业务写入。
 
@@ -923,7 +926,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 权限与资源：只需有效会话；回答当前登录者的站内角色、称号与能力，以及控制台这次经什么接GitHub（app、session或none），不接受自报role（#262 第四期）。
 
-响应与错误：200 {login,avatar_url,org,provider,site_role,github,title,titles,capabilities,head_of}。
+响应与错误：200 {login,avatar_url,org,provider,site_role,github,title,titles,capabilities,head_of,email_required}；email_required为true时控制台先带人去绑定邮箱页（#273）。
 
 数据与副作用：只计算当前身份；不是成员的账号保留称号展示但没有任何能力；补记站内角色时查GitHub失败按错误处理，不降级为非成员；存在会话不等于拥有console.access。
 

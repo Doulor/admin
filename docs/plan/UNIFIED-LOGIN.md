@@ -12,6 +12,8 @@
 
 **第四期（#262，2026-10-23）**：所有者说「有关 GitHub 的权限是要放权的」「后续我们可能不仅仅只连 GitHub 了」，以 [ADR-0005「2026-10-23 第二次修订」](../decisions/0005-sso-extend-core-server.md#2026-10-23-第二次修订262-第四期) 为准，本文「成员资格」「要本人 GitHub 令牌的接口」两节与「不同身份看到什么」「错误码」「代码落点」里写的 `github_session_required` 锁定、`blocked` 与 GitHub 角色上限都已不适用。已实施：权限只认账号记下的站内角色（`users.org_role`）与称号，不论用哪种方式登录；提督在「成员与权限」里改站内角色（`PATCH /api/console/people/:account_id/site-role`）；控制台的 GitHub 组织页面由服务器接入的 GitHub 执行（GitHub App，没配时本人 GitHub 会话，都没有回 409 `github_not_connected`）；`/api/me/orgs` 仍要 GitHub 会话。
 
+**忘记密码与必绑邮箱（#273，2026-10-23）**：所有者 19:22 说「sso登录的时候没有忘记密码改密码相关的信息吧，还有就是之前只绑定了github账号没有绑定邮箱的再次进来或者登录的时候必须绑定邮箱」。已实施：登录页「忘记密码？」用邮箱验证码重设密码并登录（`POST /auth/email/reset`）；能发信的环境里，没有邮箱登录方式的账号登录后先到 `/bind-email` 绑邮箱，`/auth/me`、`/api/identity/me`、`/api/console/me` 带 `email_required`。行为见 [接口行为契约](../services/server/endpoint-contracts.md) 与 [SECURITY](../architecture/SECURITY.md)「邮箱、Google 登录与邀请码注册」。
+
 除上面已实施的部分外，本文是已接受、未实施的方案：其余接口、表和界面都**还不存在**，现行行为以 [server 合同](../services/server/README.md)、[接口行为契约](../services/server/endpoint-contracts.md) 和 [SECURITY](../architecture/SECURITY.md) 为准。为什么这样选见 [ADR-0005](../decisions/0005-sso-extend-core-server.md)（`accepted`），本文只写怎么做；两者不一致时先改 ADR 再改本文。文中图片都是**方案草图**（静态 HTML 渲染，数据虚构），不是实现截图。
 
 ## 给开工 Agent 的读法

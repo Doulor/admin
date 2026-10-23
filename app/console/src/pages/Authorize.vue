@@ -11,7 +11,7 @@ import { ApiError, api } from "../lib/http";
 import { siteUrl } from "../lib/runtime";
 import { remainingText } from "../lib/device";
 import {
-  authorizeSignInPath, closedNotice, decisionPath, detailsPath, interactionUid, scopeLines, type AuthorizeView,
+  authorizeBindEmailPath, authorizeSignInPath, closedNotice, decisionPath, detailsPath, interactionUid, scopeLines, type AuthorizeView,
 } from "../lib/authorize";
 
 /**
@@ -40,9 +40,10 @@ function close(reason: Parameters<typeof closedNotice>[0]) {
   phase.value = "closed";
 }
 
-/** 交互接口的错误：没登录去登录页，过期 404，换了账号 409，其它当作网络问题。 */
+/** 交互接口的错误：没登录去登录页，还没有登录邮箱去绑定邮箱页（#273），过期 404，换了账号 409，其它当作网络问题。 */
 function failed(error: unknown): void {
   if (error instanceof ApiError && error.status === 401 && uid) return window.location.assign(authorizeSignInPath(uid));
+  if (error instanceof ApiError && error.code === "email_required" && uid) return window.location.assign(authorizeBindEmailPath(uid));
   if (error instanceof ApiError && error.status === 404) return close("expired");
   if (error instanceof ApiError && error.status === 409) return close("mismatch");
   notice.value = NETWORK;

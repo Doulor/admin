@@ -1,5 +1,6 @@
 // 对外授权的同意页（/authorize，#270）的纯逻辑：GitLab 这样的应用用极客班账号登录时，第一次要本人在这里允许。
 // 页面经服务端的三个交互接口（app/server/src/routes/oidc/index.ts）读取和提交；地址里只有交互编号 uid。
+import { bindEmailPath } from "./signin";
 
 /** 形状与服务端 `GET /oidc/interaction/:uid/details` 一致。 */
 export type AuthorizeView = {
@@ -18,6 +19,8 @@ export const detailsPath = (uid: string) => `${interactionPath(uid)}/details`;
 export const decisionPath = (uid: string, decision: "confirm" | "abort") => `${interactionPath(uid)}/${decision}`;
 /** 登录过期时去统一登录页，登录完回到交互入口，由服务端按新的登录状态继续。 */
 export const authorizeSignInPath = (uid: string) => `/signin?return_to=${encodeURIComponent(interactionPath(uid))}`;
+/** 账号还没有登录邮箱（#273，接口回 403 email_required）：先去绑定邮箱页，绑好同样回到交互入口。 */
+export const authorizeBindEmailPath = (uid: string) => bindEmailPath(interactionPath(uid));
 
 const SCOPE_TEXT: Record<string, string> = {
   openid: "确认你是哪位极客班成员（给这个应用单独的账号编号，和别的应用拿到的不同）",

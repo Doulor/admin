@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "../../app/console/src/lib/http";
 import {
-  GITHUB_INVITATION_URL, backFromGoogleForInvite, cleanCode, codeProblem, initialSignInTab, looksLikeEmail, parseSignInOutcome, providerHref,
-  providerIcon, readProviders, registerProblem, registerWithEmail, retryAfter, safeReturnPath, signInOutcomes,
+  BIND_EMAIL_PATH, GITHUB_INVITATION_URL, backFromGoogleForInvite, bindEmailPath, bindEmailReturn, cleanCode, codeProblem, initialSignInTab, looksLikeEmail,
+  parseSignInOutcome, providerHref, providerIcon, readProviders, registerProblem, registerWithEmail, resetProblem, retryAfter, safeReturnPath, signInOutcomes,
 } from "../../app/console/src/lib/signin";
+import { BIND_EMAIL_PATH as SERVER_BIND_EMAIL_PATH, bindEmailUrl } from "../../app/server/src/lib/email-gate";
 
 const ORIGIN = "https://yangtzeu.work";
 
@@ -242,5 +243,34 @@ describe("邮箱注册提交 (registerWithEmail)", () => {
     const expired = new ApiError(400, "code_expired", "验证码过期了");
     const deps = { verify: async () => { throw expired; }, setPassword: async () => ({}) };
     await expect(registerWithEmail(input, deps)).rejects.toBe(expired);
+  });
+});
+
+describe("忘记密码与绑定邮箱 (#273)", () => {
+  it("忘记密码表单按从上到下的顺序报第一处问题，新密码必填、规则同账号页", () => {
+    const ok = { email: "me@example.com", codeSent: true, code: "123456", password: "a-long-enough-password" };
+    expect(resetProblem(ok)).toBeNull();
+    expect(resetProblem({ ...ok, email: "me@" })).toBe("邮箱格式不对");
+    expect(resetProblem({ ...ok, codeSent: false })).toBe("先获取验证码");
+    expect(resetProblem({ ...ok, code: "12345" })).toBe("验证码是 6 位数字");
+    expect(resetProblem({ ...ok, password: "" })).toBe("填上新密码");
+    expect(resetProblem({ ...ok, password: "short" })).toBe("密码至少 8 位");
+  });
+
+  it("绑定邮箱页的地址与服务端一致，服务端给的 return_to 原样回到原页面", () => {
+    expect(BIND_EMAIL_PATH).toBe(SERVER_BIND_EMAIL_PATH);
+    expect(bindEmailPath("/forum/t/1?page=2")).toBe("/bind-email?return_to=%2Fforum%2Ft%2F1%3Fpage%3D2");
+    const fromServer = new URL(bindEmailUrl(ORIGIN, `${ORIGIN}/forum/t/1?page=2#c3`));
+    expect(fromServer.pathname).toBe(BIND_EMAIL_PATH);
+    expect(bindEmailReturn(fromServer.searchParams.get("return_to"), ORIGIN)).toBe("/forum/t/1?page=2#c3");
+    expect(bindEmailReturn(new URLSearchParams(bindEmailPath("/account").split("?")[1]).get("return_to"), ORIGIN)).toBe("/account");
+  });
+
+  it("绑好以后不回到绑定邮箱页自己，也不去别的站点；登录页仍可以回到绑定邮箱页", () => {
+    expect(bindEmailReturn("/bind-email?return_to=%2Fforum%2F", ORIGIN)).toBe("/console");
+    expect(bindEmailReturn("https://evil.example/", ORIGIN)).toBe("/console");
+    expect(bindEmailReturn(undefined, ORIGIN)).toBe("/console");
+    // 绑定邮箱页请人重新登录时，登录完要回到它
+    expect(safeReturnPath("/bind-email?return_to=%2Fforum%2F", ORIGIN)).toBe("/bind-email?return_to=%2Fforum%2F");
   });
 });
