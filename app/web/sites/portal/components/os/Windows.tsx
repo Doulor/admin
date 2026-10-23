@@ -16,12 +16,12 @@ export type WindowState = { id: WindowId; z: number; x: number; y: number; minim
 
 type OpenApp = (id: AppId | "forum-feed", from?: HTMLElement | null) => void;
 
-const META: Record<WindowId, { title: string; icon: "book-2-line" | "organization-chart" | "terminal-box-line" | "fire-line" | "trophy-line"; width: number; path: string }> = {
-  about: { title: "关于极客班", icon: "book-2-line", width: 640, path: "~/yugc/about" },
-  org: { title: "组织架构", icon: "organization-chart", width: 760, path: "~/yugc/org" },
-  terminal: { title: "nano@yugc — zsh", icon: "terminal-box-line", width: 640, path: "~/yugc" },
-  "forum-feed": { title: "论坛 · 最新", icon: "fire-line", width: 780, path: "~/yugc/forum" },
-  competitions: { title: "比赛", icon: "trophy-line", width: 1100, path: "~/yugc/competitions" },
+const META: Record<WindowId, { title: string; width: number }> = {
+  about: { title: "关于极客班", width: 640 },
+  org: { title: "组织架构", width: 760 },
+  terminal: { title: "nano@yugc — zsh", width: 640 },
+  "forum-feed": { title: "论坛 · 最新", width: 780 },
+  competitions: { title: "比赛", width: 1100 },
 };
 
 export function windowWidth(id: WindowId): number {
@@ -184,27 +184,33 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
               <span>{phoneNav?.backText ?? "主屏幕"}</span>
             </button>
           ) : (
+            // 三个 12px 的圆点，每个按钮的点击区域是 44×44（styles/os.css 的 .pt-win-lights）
             <span className="pt-win-lights">
               <button type="button" aria-label="关闭" onClick={onClose}>
-                <Icon name="close-line" size={10} />
+                <i>
+                  <Icon name="close-line" size={8} />
+                </i>
               </button>
               <button type="button" aria-label="最小化" onClick={onMinimize}>
-                <Icon name="subtract-line" size={10} />
+                <i>
+                  <Icon name="subtract-line" size={8} />
+                </i>
               </button>
               <button type="button" aria-label="放大" onClick={onZoom}>
-                <Icon name="fullscreen-line" size={9} />
+                <i>
+                  <Icon name="fullscreen-line" size={7} />
+                </i>
               </button>
             </span>
           )}
-          <b>
-            <Icon name={meta.icon} size={14} /> {meta.title}
-          </b>
+          <b>{meta.title}</b>
           {phone ? (
             <button type="button" className="pt-phone-close" aria-label="关闭应用" onClick={onClose}>
               <Icon name="close-line" size={18} />
             </button>
           ) : (
-            <span className="pt-win-path">{meta.path}</span>
+            // 和左边三个圆点一样宽，标题才在标题栏正中
+            <span aria-hidden="true" />
           )}
         </header>
         <div className={win.id === "competitions" ? "pt-win-body is-flush" : "pt-win-body"}>

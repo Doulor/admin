@@ -1,20 +1,20 @@
-// YUGC OS：开机后的「极客班内部系统」，按桌面操作系统来排：菜单栏（系统菜单 / 前台应用 / 搜索 / 时钟）、
-// 极客娘壁纸、左上角一列应用图标、右上角「新来的看这里」便签、可拖动窗口、带名字的 Dock、⌘K 启动器。
+// YUGC OS：开机后的「极客班内部系统」，按桌面操作系统来排：菜单栏（YUGC 标志即系统菜单 / 前台应用 / 搜索 / 时钟 / 头像）、
+// 壁纸（默认「晴空」，接着开机动画的最后一帧画）、左上角一列应用图标、「新来的看这里」便签、可拖动窗口、带名字的 Dock、⌘K 启动器。
 // 加入我们、论坛、代码仓库（自建 GitLab，#270）、GitHub 组织都是桌面上的应用；便签按顺序告诉新来的人怎么加入。「宣传片」在桌面上重看（#77），不影响「只自动播一次」。
 // 论坛、代码仓库和 GitHub 组织点一下直达（#185）：论坛在当前标签页进论坛首页，代码仓库与 GitHub 组织在新标签页打开，不经过 /forum-3d、/github 场景页。
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { appConfig } from "@shared/config";
 import Modal from "@shared/ui/Modal";
 import { PHONE_QUERY, PORTRAIT_QUERY, useMediaQuery } from "../../lib/useMediaQuery";
 import { signInHref, useAccount } from "../../lib/account";
 import { links } from "../../lib/links";
-import { NEW_TAB_NOTE, appById, appByKey, appLink, filterCommands, followAppLink, launcherCommands, moveSelection, opensNewTab, visibleApps, type AppId, type OsApp } from "../../lib/osApps";
+import { NEW_TAB_NOTE, appById, appByKey, appLink, appTone, filterCommands, followAppLink, launcherCommands, moveSelection, opensNewTab, visibleApps, type AppId, type OsApp } from "../../lib/osApps";
 import { browserEstimate, choosePlayback, detectCapabilities, hasSeenPromo, preconnectPromo, prefetchPromoStart } from "../../lib/promo";
 import Icon from "../Icon";
 import OsWindow, { windowWidth, type WindowId, type WindowState } from "./Windows";
 import { WALLPAPERS, prefetchWallpapersWhenIdle, readWallpaperChoice, saveWallpaperChoice, wallpaperForScreen, type Box, type Wallpaper } from "../../lib/wallpapers";
 import WallpaperLayer from "./Wallpaper";
+import { SkyThumb, type SkyBand } from "./SkyWallpaper";
 import { AppGlyph, DesktopIcons, StartNote } from "./Widgets";
 import { LazyPromoPlayer } from "../PromoLazy";
 import "../../styles/os.css";
@@ -26,10 +26,15 @@ const NOTE_KEY = "yugc:start-note";
 type Props = {
   /** 系统菜单和手机设置里的「重播开机动画」 */
   onReplayBoot?: () => void;
+  /** 刚播完开机动画时：它的起点和它卸掉没有，「晴空」壁纸用来接上最后一帧 */
+  boot?: { epoch: number; settled: boolean } | null;
 };
 
+/** YUGC 标志：四个字母用各自的品牌色（SPEC §1） */
+const WORDMARK = ["Y", "U", "G", "C"] as const;
+
 /** 首页（pages/Home.tsx）在开机动画就绪后或直接进站时挂载；开机动画还盖在上面时外层是 inert。 */
-export default function YugcOs({ onReplayBoot }: Props) {
+export default function YugcOs({ onReplayBoot, boot = null }: Props) {
   const phone = useMediaQuery(PHONE_QUERY);
   const portrait = useMediaQuery(PORTRAIT_QUERY);
   const phoneWallpaper = phone && portrait;
@@ -73,7 +78,7 @@ export default function YugcOs({ onReplayBoot }: Props) {
     if (picker) pickerBox.current?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus({ preventScroll: true });
   }, [picker]);
   const chooseWallpaper = (next: Wallpaper, button: HTMLElement) => {
-    const { left, top, width, height } = (button.querySelector("img") ?? button).getBoundingClientRect();
+    const { left, top, width, height } = (button.querySelector("img, canvas") ?? button).getBoundingClientRect();
     setWallpaperFrom({ left, top, width, height });
     setWallpaper(next);
     saveWallpaperChoice(next.id);
@@ -112,6 +117,26 @@ export default function YugcOs({ onReplayBoot }: Props) {
   }, []);
 
   const front = useMemo(() => wins.filter((w) => !w.minimized).sort((a, b) => b.z - a.z)[0] ?? null, [wins]);
+  const atHome = front === null;
+  // 手机竖屏主屏上留给极客娘的一段：图标下沿到搜索框上沿，「晴空」壁纸里她滑到这里，不压着图标
+  const [band, setBand] = useState<SkyBand | null>(null);
+  useLayoutEffect(() => {
+    if (!phoneWallpaper) {
+      setBand(null);
+      return;
+    }
+    const measure = () => {
+      const icons = root.current?.querySelector(".pt-icons")?.getBoundingClientRect();
+      const floor = root.current?.querySelector(".pt-phone-search, .pt-dock")?.getBoundingClientRect();
+      // 开着应用时主屏是收起的（量不到），回到主屏再量
+      if (!icons || !floor || (icons.height === 0 && icons.bottom === 0 && floor.top > 0)) return;
+      const next = { top: Math.round(icons.bottom + 12), bottom: Math.round(floor.top - 4) };
+      setBand((current) => (current && current.top === next.top && current.bottom === next.bottom ? current : next));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [phoneWallpaper, apps.length, loaded, atHome]);
   const frontName = front ? { about: "关于极客班", org: "组织架构", competitions: "比赛", terminal: "终端", "forum-feed": "论坛" }[front.id] : "桌面";
   useEffect(() => {
     if (!homeFocusNeeded.current || front) return;
@@ -317,15 +342,21 @@ export default function YugcOs({ onReplayBoot }: Props) {
   return (
     <>
       <div className={phone ? "pt-os-shell is-phone" : "pt-os-shell"} ref={root} onPointerDown={(event) => !(event.target as HTMLElement).closest(".pt-menu, [data-menu]") && setMenu(null)}>
+        {/* 壁纸铺满整个屏幕（菜单栏是半透明的），和开机动画的画布一样大，最后一帧才对得上 */}
+        <WallpaperLayer wallpaper={wallpaperForScreen(wallpaper, phoneWallpaper)} from={wallpaperFrom} sky={{ epoch: boot?.epoch ?? null, settled: boot?.settled ?? true, band }} />
         {phone ? <header className="pt-phone-status" aria-label="手机状态栏">
           <time>{phoneTime}</time>
           <button type="button" className="pt-phone-system" aria-label="YUGC OS 系统设置" aria-haspopup="dialog" onClick={() => setPhoneSettings(true)}>YUGC OS</button>
           {account ? <button type="button" className="pt-phone-account" data-menu aria-label={`账号：${account.login}`} aria-haspopup="menu" aria-expanded={menu?.name === "account"} onClick={(e) => toggleMenu("account", e.currentTarget)}>
-            {account.avatarUrl ? <img src={account.avatarUrl} alt="" /> : <Icon name="user-line" size={18} />}
-          </button> : loaded ? <a className="pt-phone-signin" href={signInLink}><Icon name="user-line" size={18} /> 登录</a> : <span />}
+            <Avatar src={account.avatarUrl} />
+          </button> : loaded ? <a className="pt-phone-account" href={signInLink}><Avatar /> 登录</a> : <span />}
         </header> : <header className="pt-mb" aria-label="菜单栏">
           <button type="button" className="pt-mb-logo" data-menu aria-label="系统菜单" aria-haspopup="menu" aria-expanded={menu?.name === "system"} onClick={(e) => toggleMenu("system", e.currentTarget)}>
-            <img src={appConfig.portal.brand.logo} alt="" />
+            <span className="pt-wordmark" aria-hidden="true">
+              {WORDMARK.map((letter) => (
+                <span key={letter} data-tone={letter.toLowerCase()}>{letter}</span>
+              ))}
+            </span>
           </button>
           <b className="pt-mb-app">{frontName}</b>
           {(["go", "window", "help"] as const).map((name) => (
@@ -339,24 +370,19 @@ export default function YugcOs({ onReplayBoot }: Props) {
             <span>搜索</span>
             <kbd>⌘K</kbd>
           </button>
-          <span className="pt-mb-stat" aria-hidden="true">
-            <Icon name="wifi-line" size={15} />
-          </span>
-          {/* 全站唯一的登录入口：去极客班统一登录页（GitHub 只是登录方式之一），登录后回到当前页面；登录后换成头像菜单（论坛 / 控制台（仅 console_link）/ 退出） */}
+          <span className="pt-mb-clock">{time}</span>
+          {/* 头像：全站唯一的登录入口（去极客班统一登录页，登录后回到当前页面）；登录后是账号菜单 */}
           {account ? (
-            <button type="button" className="pt-mb-account" data-menu aria-haspopup="menu" aria-expanded={menu?.name === "account"} onClick={(e) => toggleMenu("account", e.currentTarget)}>
-              {account.avatarUrl ? <img src={account.avatarUrl} alt="" /> : <Icon name="user-line" size={15} />}
-              <span>{account.login}</span>
+            <button type="button" className="pt-mb-avatar" data-menu aria-label={`账号：${account.login}`} aria-haspopup="menu" aria-expanded={menu?.name === "account"} onClick={(e) => toggleMenu("account", e.currentTarget)}>
+              <Avatar src={account.avatarUrl} />
             </button>
           ) : (
             loaded && (
-              <a className="pt-mb-signin" href={signInLink}>
-                <Icon name="user-line" size={15} />
-                <span>登录</span>
+              <a className="pt-mb-avatar" href={signInLink} aria-label="登录">
+                <Avatar />
               </a>
             )
           )}
-          <span className="pt-mb-clock">{time}</span>
         </header>}
         {menu && (
           <div className="pt-menu" role="menu" style={{ left: menu.left }}>
@@ -402,7 +428,6 @@ export default function YugcOs({ onReplayBoot }: Props) {
             searchFocus.current?.focus({ preventScroll: true });
             search();
           }}>
-          <WallpaperLayer wallpaper={wallpaperForScreen(wallpaper, phoneWallpaper)} from={wallpaperFrom} />
           <h1 className="pt-sr">长江大学极客班 · YUGC OS</h1>
           <div className="pt-home-apps" ref={(node) => { if (node) node.inert = phone && !!front; }}>
             {phone && <div className="pt-phone-heading"><h2>极客班</h2><button type="button" onClick={() => setPhoneGuide(true)}>新来的看这里 <Icon name="arrow-right-s-line" size={14} /></button></div>}
@@ -494,7 +519,11 @@ export default function YugcOs({ onReplayBoot }: Props) {
                       className={wallpaper.id === item.id ? "is-on" : undefined}
                       onClick={(event) => chooseWallpaper(item, event.currentTarget)}
                     >
-                      <img src={wallpaperForScreen(item, phoneWallpaper).thumb} alt="" width={phoneWallpaper ? 90 : 160} height={phoneWallpaper ? 195 : 90} loading="lazy" />
+                      {item.kind === "sky" ? (
+                        <SkyThumb width={phoneWallpaper ? 90 : 160} height={phoneWallpaper ? 195 : 90} />
+                      ) : (
+                        <img src={phoneWallpaper ? item.phone.thumb : item.thumb} alt="" width={phoneWallpaper ? 90 : 160} height={phoneWallpaper ? 195 : 90} loading="lazy" />
+                      )}
                       <span>{item.name}</span>
                     </button>
                   </li>
@@ -592,7 +621,7 @@ export default function YugcOs({ onReplayBoot }: Props) {
         </Modal>}
 
         {flight && (
-          <div className="pt-flight" aria-hidden="true" style={{ left: flight.x - 36, top: flight.y - 36, ["--tint" as string]: flight.app.tint }}>
+          <div className="pt-flight" aria-hidden="true" data-tone={appTone(flight.app)} style={{ left: flight.x - 36, top: flight.y - 36 }}>
             <Icon name={flight.app.icon} size={30} />
           </div>
         )}
@@ -600,4 +629,9 @@ export default function YugcOs({ onReplayBoot }: Props) {
       {promo && <LazyPromoPlayer mode="replay" onClose={closePromo} />}
     </>
   );
+}
+
+/** 菜单栏和手机状态栏上的头像（28px 圆）：没有头像图时是一个人形图标 */
+function Avatar({ src }: { src?: string | null }) {
+  return <span className="pt-avatar">{src ? <img src={src} alt="" /> : <Icon name="user-3-line" size={16} />}</span>;
 }

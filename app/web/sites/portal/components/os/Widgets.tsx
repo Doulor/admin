@@ -1,6 +1,6 @@
 // YUGC OS 桌面上的东西：左上角一列应用图标（加入我们、论坛、代码仓库在最前面），
 // 图标右边、壁纸天空里一张「新来的看这里」便签，按顺序说清怎么加入。壁纸是极客娘，桌面上不再铺组件卡片。
-import { NEW_TAB_NOTE, appById, opensNewTab, type AppId, type OsApp } from "../../lib/osApps";
+import { NEW_TAB_NOTE, appById, appTone, opensNewTab, type AppId, type OsApp } from "../../lib/osApps";
 import Icon from "../Icon";
 
 type OpenApp = (id: AppId | "forum-feed", from?: HTMLElement | null) => void;
@@ -30,7 +30,7 @@ export function DesktopIcons({ apps, selected, onSelect, onOpen, phone = false }
               }
             }}
           >
-            <AppGlyph app={app} size={26} />
+            <AppGlyph app={app} size={28} />
             <span className="pt-dti-name">{app.name}</span>
             {opensNewTab(app) && <span className="pt-sr">{NEW_TAB_NOTE}</span>}
           </button>
@@ -40,9 +40,10 @@ export function DesktopIcons({ apps, selected, onSelect, onOpen, phone = false }
   );
 }
 
+/** 应用图标：圆角方块，底色是 YUGC 四个字母色之一（亮面到主色的渐变），上面一个白色线性图标 */
 export function AppGlyph({ app, size = 24 }: { app: OsApp; size?: number }) {
   return (
-    <span className="pt-glyph" style={{ ["--tint" as string]: app.tint }}>
+    <span className="pt-glyph" data-tone={appTone(app)}>
       <Icon name={app.icon} size={size} />
       {app.lock && (
         <em>

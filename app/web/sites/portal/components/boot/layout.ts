@@ -1,7 +1,18 @@
-// 开机动画的构图：极客娘、YUGC 字标、boot.log 面板、开机日志的位置。系数来自原版（见 math.ts 的移植说明）。
-// 单独放一个文件，是因为桌面的「晴空」壁纸要知道开机动画最后一帧极客娘在哪，好从同一个位置接上。
+// 开机动画的构图（极客娘、YUGC 字标、boot.log 面板、开机日志的位置）和时间轴。系数来自原版（见 math.ts 的移植说明）。
+// 单独放一个文件，是因为桌面的「晴空」壁纸要知道开机动画最后一帧极客娘在哪、什么时候就绪，好从同一个位置、同一句话接上。
 import { bandGirl, figureAt, landGirl, type Figure, type Rect } from "./background";
 import { clamp } from "./math";
+
+/** 时间轴（秒）：解体 → 粒子汇聚 → 扫描重组 → 闪光变身 → 窗口弹出 → 字标 → OS 徽章 → 标语 → 进度条 → 就绪 */
+export const TL = { dis: 2.45, conv: 2.5, dur: 1.6, scan0: 4.3, scan1: 5.1, flash: 5.3, iris: 0.8, win: 5.4, logo: 5.85, os: 6.85, tag: 7.0, p0: 5.95, p1: 9.0, ready: 9.15 } as const;
+
+/** 就绪后极客娘头顶那句话（background.ts 的 READY_LINE）什么时候冒出来、说多久；开机动画淡出后壁纸接着说完 */
+export const READY_BUBBLE = { at: TL.ready + 0.2, seconds: 4.6 } as const;
+
+/** 横屏构图的判定：宽高比大于 1.15 */
+export function isLand(w: number, h: number): boolean {
+  return w / h > 1.15;
+}
 
 /** YUGC 四个气泡字母各自的宽度（相对字高） */
 export const GLYPH_WIDTHS = { Y: 0.92, U: 0.88, G: 1.0, C: 0.94 } as const;
@@ -12,7 +23,7 @@ export type BootLayout = { land: boolean; fig: Figure; logo: LogoLayout; panel: 
 
 /** sat / sab 是安全区上下内边距（刘海、底部横条） */
 export function bootLayout(w: number, h: number, aspect: number, sat = 0, sab = 0): BootLayout {
-  const land = w / h > 1.15;
+  const land = isLand(w, h);
   let girl: Rect;
   let logo: LogoLayout;
   let panel: Rect;

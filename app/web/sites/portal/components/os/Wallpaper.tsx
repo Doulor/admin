@@ -1,11 +1,12 @@
-// 桌面壁纸：一张壁纸一层，换壁纸时新的一层压在上面（#147）。
+// 桌面壁纸：一张壁纸一层，换壁纸时新的一层压在上面（#147）。默认的「晴空」这一层是 canvas（./SkyWallpaper.tsx），其余是图片。
 // 点下去立刻有反应：新层先用底色 + 放大模糊的缩略图（选择面板里已经加载好）顶上，从点的那张缩略图的位置展开到整个桌面；
 // 大图下载解码好后在这一层里淡入，模糊的画面清晰过来。开了「减少动态效果」时不展开，整层直接淡入。
 // 新层的动画真正播完（animationend）才卸掉它下面的层，全程没有空白帧；不按固定计时卸，主线程卡一下或标签页在后台时
 // 动画会晚开始，按计时卸会露出空桌面。连点几次时每一层只管自己的动画和解码，桌面最后停在最后点的那张。
 import { useCallback, useEffect, useRef, useState, type AnimationEvent, type CSSProperties } from "react";
-import { isWallpaperDecoded, loadWallpaperImage, revealClipFrom, type Box, type WallpaperSurface } from "../../lib/wallpapers";
+import { isWallpaperDecoded, loadWallpaperImage, revealClipFrom, sameSurface, type Box, type WallpaperSurface } from "../../lib/wallpapers";
 import { useReducedMotion } from "../../lib/useReducedMotion";
+import SkyWallpaper, { type SkyScene } from "./SkyWallpaper";
 
 /** 从缩略图展开到整个桌面的时长（毫秒） */
 export const WALLPAPER_REVEAL_MS = 640;
@@ -27,9 +28,13 @@ type Props = {
   wallpaper: WallpaperSurface;
   /** 点的那张缩略图在屏幕上的位置；没有时直接淡入 */
   from?: Box | null;
+  /** 「晴空」接开机动画用：开机动画的起点、它卸掉没有、手机主屏上留给极客娘的一段 */
+  sky?: SkyScene;
 };
 
-export default function WallpaperLayer({ wallpaper, from }: Props) {
+const NO_BOOT: SkyScene = { epoch: null, settled: true, band: null };
+
+export default function WallpaperLayer({ wallpaper, from, sky = NO_BOOT }: Props) {
   const reduced = useReducedMotion();
   const box = useRef<HTMLDivElement>(null);
   const counter = useRef(0);
@@ -40,9 +45,9 @@ export default function WallpaperLayer({ wallpaper, from }: Props) {
 
   // 开机时那张记进共用的下载：之后换回来直接给大图，不再顶缩略图。
   // 首页开机画面已经用同一份下载等它解码完（pages/Home.tsx），这里只是命中；没经过开机画面挂上时在这里下载
-  const initial = useRef(wallpaper.image);
+  const initial = useRef(wallpaper);
   useEffect(() => {
-    void loadWallpaperImage(initial.current);
+    if (initial.current.kind === "image") void loadWallpaperImage(initial.current.image);
   }, []);
 
   useEffect(() => {
@@ -51,7 +56,7 @@ export default function WallpaperLayer({ wallpaper, from }: Props) {
     const clip = !still && thumb && rect ? revealClipFrom(thumb, rect) : undefined;
     setLayers((current) => {
       const previous = current[current.length - 1].wallpaper;
-      if (previous.image === wallpaper.image) return current;
+      if (sameSurface(previous, wallpaper)) return current;
       const reveal = previous.id !== wallpaper.id && clip;
       counter.current += 1;
       return [...current, { key: counter.current, wallpaper, enter: reveal ? "reveal" : "fade", clip: reveal || undefined }];
@@ -69,29 +74,14 @@ export default function WallpaperLayer({ wallpaper, from }: Props) {
   return (
     <div className="pt-walls" ref={box} aria-hidden="true">
       {layers.map((layer) => (
-        <WallpaperFace key={layer.key} layer={layer} onEntered={onEntered} />
+        <WallpaperFace key={layer.key} layer={layer} sky={sky} onEntered={onEntered} />
       ))}
     </div>
   );
 }
 
-function WallpaperFace({ layer, onEntered }: { layer: Layer; onEntered: (key: number) => void }) {
+function WallpaperFace({ layer, sky, onEntered }: { layer: Layer; sky: SkyScene; onEntered: (key: number) => void }) {
   const { key, wallpaper, enter, clip } = layer;
-  // sharp：大图已经解码，可以换上；blurred：模糊的缩略图还在（清晰过来以后卸掉）
-  const [sharp, setSharp] = useState(() => enter === "none" || isWallpaperDecoded(wallpaper.image));
-  const [blurred, setBlurred] = useState(() => !sharp);
-
-  // 大图下载解码好才换上，之前一直是底色 + 模糊的缩略图；失败（离线）就停在这里，不闪回旧壁纸
-  useEffect(() => {
-    if (sharp) return;
-    let cancelled = false;
-    void loadWallpaperImage(wallpaper.image).then((ok) => {
-      if (ok && !cancelled) setSharp(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [sharp, wallpaper.image]);
 
   // 这一层的展开（淡入）动画播完：只认这一层自己的动画，不认里面元素冒上来的
   const entered = (event: AnimationEvent<HTMLDivElement>) => {
@@ -107,13 +97,38 @@ function WallpaperFace({ layer, onEntered }: { layer: Layer; onEntered: (key: nu
 
   return (
     <div className="pt-wall" data-wallpaper={wallpaper.id} data-enter={enter} style={style} onAnimationEnd={enter === "none" ? undefined : entered}>
-      {blurred && <div className="pt-wall-thumb" style={{ backgroundImage: `url("${wallpaper.thumb}")` }} />}
+      {wallpaper.kind === "sky" ? <SkyWallpaper {...sky} /> : <ImageFace image={wallpaper.image} thumb={wallpaper.thumb} first={enter === "none"} />}
+    </div>
+  );
+}
+
+/** 图片壁纸：底色 + 放大模糊的缩略图先顶上，大图下载解码好后淡入 */
+function ImageFace({ image, thumb, first }: { image: string; thumb: string; first: boolean }) {
+  // sharp：大图已经解码，可以换上；blurred：模糊的缩略图还在（清晰过来以后卸掉）
+  const [sharp, setSharp] = useState(() => first || isWallpaperDecoded(image));
+  const [blurred, setBlurred] = useState(() => !sharp);
+
+  // 大图下载解码好才换上，之前一直是底色 + 模糊的缩略图；失败（离线）就停在这里，不闪回旧壁纸
+  useEffect(() => {
+    if (sharp) return;
+    let cancelled = false;
+    void loadWallpaperImage(image).then((ok) => {
+      if (ok && !cancelled) setSharp(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sharp, image]);
+
+  return (
+    <>
+      {blurred && <div className="pt-wall-thumb" style={{ backgroundImage: `url("${thumb}")` }} />}
       <div
         className={sharp ? "pt-wall-full is-sharp" : "pt-wall-full"}
-        style={sharp ? { backgroundImage: `url("${wallpaper.image}")` } : undefined}
+        style={sharp ? { backgroundImage: `url("${image}")` } : undefined}
         // 大图淡入播完才卸掉下面模糊的缩略图（它已经看不见，留着只占合成开销）；按计时卸，淡入晚开始时会露出底色
         onTransitionEnd={sharp ? () => setBlurred(false) : undefined}
       />
-    </div>
+    </>
   );
 }

@@ -11,8 +11,10 @@ vi.mock("../../app/web/sites/portal/lib/osApps", async (original) => ({
   followAppLink: (link: AppLink) => followed.calls.push(link),
 }));
 vi.mock("../../app/web/sites/portal/components/os/Wallpaper", () => ({
-  default: ({ wallpaper }: { wallpaper: { image: string } }) => <div data-testid="wallpaper" data-image={wallpaper.image} />,
+  default: ({ wallpaper }: { wallpaper: { id: string; image?: string } }) => <div data-testid="wallpaper" data-id={wallpaper.id} data-image={wallpaper.image} />,
 }));
+// jsdom 没有 canvas：壁纸面板里「晴空」的缩略图换成空元素
+vi.mock("../../app/web/sites/portal/components/os/SkyWallpaper", () => ({ SkyThumb: () => <canvas /> }));
 vi.mock("../../app/web/sites/portal/components/PromoLazy", () => ({ LazyPromoPlayer: () => null }));
 vi.mock("../../app/web/sites/portal/lib/wallpapers", async (original) => ({
   ...(await original<typeof import("../../app/web/sites/portal/lib/wallpapers")>()),
@@ -159,13 +161,15 @@ it("手机一次只显示前台面板，关闭回主屏幕；搜索可打开应�
   expect(document.activeElement).toBe(choices[1]);
 });
 
-it("手机壁纸和选择预览使用独立竖图，切电脑时同一选择切回横图", () => {
+it("默认「晴空」；手机上图片壁纸和选择预览使用独立竖图，切电脑时同一选择切回横图", () => {
   mount();
-  expect(screen.getByTestId("wallpaper").dataset.image).toContain("yugc-phone.webp");
+  expect(screen.getByTestId("wallpaper").dataset.id).toBe("sky");
   fireEvent.click(icons().getByRole("button", { name: "壁纸" }));
   const choices = screen.getAllByRole("radio");
-  expect(choices[0].querySelector("img")?.getAttribute("src")).toContain("yugc-phone-thumb.webp");
-  fireEvent.click(choices[1]);
+  expect(choices.map((choice) => choice.textContent)).toEqual(["晴空", "极客娘 1", "极客娘 2"]);
+  expect(choices[0].querySelector("canvas")).not.toBeNull();
+  expect(choices[1].querySelector("img")?.getAttribute("src")).toContain("yugc-phone-thumb.webp");
+  fireEvent.click(choices[2]);
   expect(screen.getByTestId("wallpaper").dataset.image).toContain("geek-phone.webp");
   fireEvent.click(screen.getByRole("button", { name: "关闭对话框" }));
   act(() => { phone = false; changes.forEach((fn) => fn()); });

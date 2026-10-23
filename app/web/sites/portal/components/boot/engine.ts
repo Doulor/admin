@@ -10,7 +10,7 @@
 //   - 符号按 SPEC §1 换成矢量图形（shapes.ts），颜文字删掉，气泡改成平实中文；
 //   - 粒子数量再按核心数和像素比收一收（timeline.ts 的 particleBudget）。
 import { drawBubble, drawClouds, drawDecor, drawGirl, drawSeatShadow, drawSky, drawWindow, makeDecor, MONO, READY_LINE, UI_FONT, type DecorItem } from "./background";
-import { bootLayout, type BootLayout, type TermLayout } from "./layout";
+import { bootLayout, READY_BUBBLE, type BootLayout, type TermLayout } from "./layout";
 import { clamp, easeBack, easeElastic, easeInOut, easeOut, hash, lerp, makeRng, smoothstep, TAU } from "./math";
 import { drawSegments, heartPath, measureSegments, paint, roundRectPath, segmentsLength, sliceSegments, sparklePath, type Segment } from "./shapes";
 import { buildBootLog, drawBurst, drawGlyphBubble, LOADING_MESSAGES, logLineTime, logoGlyphs, particleBudget, readDeviceInfo, TL } from "./timeline";
@@ -838,7 +838,7 @@ export function createBootEngine(canvas: HTMLCanvasElement, opts: BootEngineOpti
       drawLogo(T);
       drawPanel(T);
       confetti(T);
-      drawBubble(c, fig, READY_LINE, T, TL.ready + 0.2, 4.6, W, DPR, OX, OY);
+      drawBubble(c, fig, READY_LINE, T, READY_BUBBLE.at, READY_BUBBLE.seconds, W, DPR, OX, OY);
       c.restore();
     }
     drawFlash(T);

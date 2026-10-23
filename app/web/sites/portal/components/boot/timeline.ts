@@ -1,11 +1,10 @@
 // 开机动画专属的东西：时间轴常量、BIOS 风格日志文案、YUGC 气泡字母、粒子预算。
 // 这些只在播放期间出现，播完就跟着开机动画一起淡出，和「晴空」画面（background.ts）分开。
 import { clamp, easeOut, hash, TAU } from "./math";
-import { GLYPH_WIDTHS } from "./layout";
+import { GLYPH_WIDTHS, TL } from "./layout";
 import { sparklePath, type RichPart } from "./shapes";
 
-/** 时间轴（秒）：解体 → 粒子汇聚 → 扫描重组 → 闪光变身 → 窗口弹出 → 字标 → OS 徽章 → 标语 → 进度条 → 就绪 */
-export const TL = { dis: 2.45, conv: 2.5, dur: 1.6, scan0: 4.3, scan1: 5.1, flash: 5.3, iris: 0.8, win: 5.4, logo: 5.85, os: 6.85, tag: 7.0, p0: 5.95, p1: 9.0, ready: 9.15 } as const;
+export { TL };
 
 type Glyph = { w: number; path: Path2D; colors: readonly [string, string, string] };
 

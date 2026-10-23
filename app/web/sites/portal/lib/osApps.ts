@@ -24,8 +24,6 @@ export type OsApp = {
   id: AppId;
   name: string;
   icon: IconName;
-  /** 桌面图标底色（只用于图标方块） */
-  tint: string;
   blurb: string;
   open: AppOpen;
   /** 单键快捷键，只给三个主入口 */
@@ -37,19 +35,28 @@ export type OsApp = {
 };
 
 export const OS_APPS: readonly OsApp[] = [
-  { id: "join", name: "加入我们", icon: "mail-send-line", tint: "#3346c8", key: "1", primary: true, open: { kind: "scene", path: "/join-us" }, blurb: "写封信报名，我们用邮件联系你" },
-  { id: "forum", name: "论坛", icon: "discuss-line", tint: "#5b5fd6", key: "2", open: { kind: "site", link: "forumHome" }, blurb: "班级公告，课程、竞赛和求职讨论", keywords: "bbs home 首页" },
-  { id: "gitlab", name: "代码仓库", icon: "git-repository-line", tint: "#c2552b", key: "3", open: { kind: "external", link: "gitlab" }, blurb: "极客班自己的 GitLab，用极客班账号登录", keywords: "gitlab git repo code 代码 仓库" },
-  { id: "github", name: "GitHub 组织", icon: "github-line", tint: "#1b2140", open: { kind: "external", link: "githubOrg" }, blurb: "极客班在 GitHub 上的公开仓库" },
-  { id: "promo", name: "宣传片", icon: "film-line", tint: "#d4478a", open: { kind: "panel", panel: "promo" }, blurb: "极客班宣传片，1 分 45 秒" },
-  { id: "about", name: "关于极客班", icon: "book-2-line", tint: "#0e8fc9", open: { kind: "window" }, blurb: "极客班是做什么的" },
-  { id: "org", name: "组织架构", icon: "organization-chart", tint: "#128a7e", open: { kind: "window" }, blurb: "有哪些部门，谁负责什么" },
-  { id: "competitions", name: "比赛", icon: "trophy-line", tint: "#b4761f", open: { kind: "window" }, blurb: "近期有什么比赛，哪天截止", keywords: "contest 赛事 竞赛 报名" },
-  { id: "terminal", name: "终端", icon: "terminal-box-line", tint: "#2b3150", open: { kind: "window" }, blurb: "输入 help 查看命令" },
-  { id: "wallpaper", name: "壁纸", icon: "image-line", tint: "#0e9f8f", open: { kind: "panel", panel: "wallpaper" }, blurb: "换一张桌面壁纸" },
-  { id: "feedback", name: "意见箱", icon: "feedback-line", tint: "#c9821a", open: { kind: "route", path: "/feedback" }, blurb: "提建议或报 bug，不用登录" },
-  { id: "console", name: "控制台", icon: "shield-user-line", tint: "#c9453c", lock: true, open: { kind: "site", link: "console" }, blurb: "管理组织、成员和论坛" },
+  { id: "join", name: "加入我们", icon: "mail-send-line", key: "1", primary: true, open: { kind: "scene", path: "/join-us" }, blurb: "写封信报名，我们用邮件联系你" },
+  { id: "forum", name: "论坛", icon: "discuss-line", key: "2", open: { kind: "site", link: "forumHome" }, blurb: "班级公告，课程、竞赛和求职讨论", keywords: "bbs home 首页" },
+  { id: "gitlab", name: "代码仓库", icon: "git-repository-line", key: "3", open: { kind: "external", link: "gitlab" }, blurb: "极客班自己的 GitLab，用极客班账号登录", keywords: "gitlab git repo code 代码 仓库" },
+  { id: "github", name: "GitHub 组织", icon: "github-line", open: { kind: "external", link: "githubOrg" }, blurb: "极客班在 GitHub 上的公开仓库" },
+  { id: "promo", name: "宣传片", icon: "film-line", open: { kind: "panel", panel: "promo" }, blurb: "极客班宣传片，1 分 45 秒" },
+  { id: "about", name: "关于极客班", icon: "book-2-line", open: { kind: "window" }, blurb: "极客班是做什么的" },
+  { id: "org", name: "组织架构", icon: "organization-chart", open: { kind: "window" }, blurb: "有哪些部门，谁负责什么" },
+  { id: "competitions", name: "比赛", icon: "trophy-line", open: { kind: "window" }, blurb: "近期有什么比赛，哪天截止", keywords: "contest 赛事 竞赛 报名" },
+  { id: "terminal", name: "终端", icon: "terminal-box-line", open: { kind: "window" }, blurb: "输入 help 查看命令" },
+  { id: "wallpaper", name: "壁纸", icon: "image-line", open: { kind: "panel", panel: "wallpaper" }, blurb: "换一张桌面壁纸" },
+  { id: "feedback", name: "意见箱", icon: "feedback-line", open: { kind: "route", path: "/feedback" }, blurb: "提建议或报 bug，不用登录" },
+  { id: "console", name: "控制台", icon: "shield-user-line", lock: true, open: { kind: "site", link: "console" }, blurb: "管理组织、成员和论坛" },
 ];
+
+/** 图标方块的底色：YUGC 四个字母的品牌色（styles/portal.css 的 --os-y/-u/-g/-c） */
+export type AppTone = "y" | "u" | "g" | "c";
+const TONES: readonly AppTone[] = ["y", "u", "g", "c"];
+
+/** 按应用在 OS_APPS 里的顺序在四个字母色里轮换（SPEC §4.2）；同一个应用在桌面、Dock、启动动画里颜色一样 */
+export function appTone(app: OsApp): AppTone {
+  return TONES[Math.max(0, OS_APPS.findIndex((candidate) => candidate.id === app.id)) % TONES.length];
+}
 
 /**
  * 这个人能看到的应用：控制台只给在里面能管点什么的人（`/auth/me` 的 `console_link`）；没登录和没有管理能力的人，

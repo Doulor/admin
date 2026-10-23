@@ -1,16 +1,18 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import sharp from "../../app/server/node_modules/sharp";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_WALLPAPER, WALLPAPERS, canPrefetchWallpapers, resolveWallpaper, revealClipFrom, wallpaperForScreen, wallpaperPrefetchList } from "../../app/web/sites/portal/lib/wallpapers";
+import { DEFAULT_WALLPAPER, SKY_WALLPAPER, WALLPAPERS, canPrefetchWallpapers, resolveWallpaper, revealClipFrom, sameSurface, wallpaperForScreen, wallpaperPrefetchList, type ImageWallpaper } from "../../app/web/sites/portal/lib/wallpapers";
 
 const REPO = new URL("../..", import.meta.url).pathname.replace(/\/$/, "");
 const PUBLIC = `${REPO}/app/web/public`;
 const ASSETS = "/app/web/sites/portal/assets/wallpapers/";
 const STYLES = new URL("../../app/web/sites/portal/styles", import.meta.url).pathname;
+/** 图片壁纸（「晴空」是画出来的，没有图片） */
+const IMAGES = WALLPAPERS.filter((wallpaper): wallpaper is ImageWallpaper => wallpaper.kind === "image");
 
 describe("桌面壁纸", () => {
   it("每张壁纸另有独立竖图和竖屏缩略图，尺寸与体积满足手机预算", async () => {
-    for (const wallpaper of WALLPAPERS) {
+    for (const wallpaper of IMAGES) {
       expect(wallpaper.phone).toBeDefined();
       for (const [key, maxBytes] of [["image", 300e3], ["thumb", 20e3]] as const) {
         const file = wallpaper.phone[key];
@@ -24,7 +26,7 @@ describe("桌面壁纸", () => {
   });
 
   it("每张壁纸的图都在，体积有上限（开机画面要等它解码完）", () => {
-    for (const wallpaper of WALLPAPERS) {
+    for (const wallpaper of IMAGES) {
       for (const file of [wallpaper.image, wallpaper.thumb]) {
         // 测试里 import 的值是源文件相对仓库根的路径
         const path = `${REPO}${file}`;
@@ -38,16 +40,22 @@ describe("桌面壁纸", () => {
   });
 
   it("图片由清单 import，不放 public/：构建时带内容哈希，跟静态资源 CDN 开关走（#146）", () => {
-    for (const wallpaper of WALLPAPERS) {
+    for (const wallpaper of IMAGES) {
       expect(wallpaper.image.startsWith(ASSETS), wallpaper.image).toBe(true);
       expect(wallpaper.thumb.startsWith(ASSETS), wallpaper.thumb).toBe(true);
     }
     expect(existsSync(`${PUBLIC}/portal/wallpapers`)).toBe(false);
   });
 
-  it("两张静态壁纸，名字是极客娘 1、极客娘 2，默认用第一张", () => {
-    expect(WALLPAPERS.map((wallpaper) => wallpaper.name)).toEqual(["极客娘 1", "极客娘 2"]);
-    expect(DEFAULT_WALLPAPER).toBe(WALLPAPERS[0].id);
+  it("默认是画出来的「晴空」，另有两张图片壁纸极客娘 1、极客娘 2 可选（SPEC §4.2）", () => {
+    expect(WALLPAPERS.map((wallpaper) => [wallpaper.kind, wallpaper.name])).toEqual([["sky", "晴空"], ["image", "极客娘 1"], ["image", "极客娘 2"]]);
+    expect(DEFAULT_WALLPAPER).toBe("sky");
+    expect(WALLPAPERS[0]).toBe(SKY_WALLPAPER);
+    // 「晴空」横竖屏是同一个画面（构图跟着屏幕算），换横竖屏不追加新层
+    expect(wallpaperForScreen(SKY_WALLPAPER, true)).toBe(SKY_WALLPAPER);
+    expect(sameSurface(wallpaperForScreen(SKY_WALLPAPER, true), wallpaperForScreen(SKY_WALLPAPER, false))).toBe(true);
+    expect(sameSurface(SKY_WALLPAPER, IMAGES[0])).toBe(false);
+    expect(sameSurface(wallpaperForScreen(IMAGES[0], true), wallpaperForScreen(IMAGES[0], false))).toBe(false);
   });
 
   it("存下来的选择不认识时回到默认", () => {
@@ -66,13 +74,14 @@ describe("换壁纸的动效与预取", () => {
     expect(revealClipFrom({ left: 10, top: 20, width: 100, height: 50 }, layer)).toBe("inset(-14px 1330px 830px 10px round 9px)");
   });
 
-  it("预取先全部缩略图，再当前这张以外的大图；不重复预取当前大图", () => {
-    const [yugc, geek] = WALLPAPERS;
+  it("预取先全部缩略图，再当前这张以外的大图；不重复预取当前大图；「晴空」不用下载", () => {
+    const [yugc, geek] = IMAGES;
     expect(wallpaperPrefetchList("yugc")).toEqual([yugc.thumb, geek.thumb, geek.image]);
     expect(wallpaperPrefetchList("geek")).toEqual([yugc.thumb, geek.thumb, yugc.image]);
+    expect(wallpaperPrefetchList("sky")).toEqual([yugc.thumb, geek.thumb, yugc.image, geek.image]);
   });
   it("竖屏预取只下载手机版本，选择id不变，横屏仍用原资源", () => {
-    const [yugc, geek] = WALLPAPERS;
+    const [yugc, geek] = IMAGES;
     expect(wallpaperPrefetchList("yugc", true)).toEqual([yugc.phone.thumb, geek.phone.thumb, geek.phone.image]);
     expect(wallpaperForScreen(yugc, true)).toMatchObject({ id: "yugc", image: yugc.phone.image, thumb: yugc.phone.thumb });
     expect(wallpaperForScreen(geek, false)).toBe(geek);

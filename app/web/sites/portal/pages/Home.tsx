@@ -30,20 +30,24 @@ export default function Home() {
     return { force, play: shouldPlayBoot({ playedDay: readBootDay(), today: beijingDay(), reducedMotion, force }) };
   });
   const [stage, setStage] = useState<Stage>(plan.play ? "boot" : "desktop");
+  /** 刚播完的开机动画的起点：桌面的「晴空」壁纸按它接上最后一帧 */
+  const [bootEpoch, setBootEpoch] = useState<number | null>(null);
   const desktopRef = useRef<HTMLDivElement | null>(null);
   /** 开机动画还盖着桌面时，桌面不可聚焦、不可点 */
   const covered = stage === "handoff" || stage === "fading";
   const timers = useRef<number[]>([]);
   useEffect(() => () => timers.current.forEach((id) => window.clearTimeout(id)), []);
 
-  // 用户选的是图片壁纸时，桌面出现前先把图下好
+  // 用户选的是图片壁纸时，桌面出现前先把图下好（默认的「晴空」是画出来的，不用下）
   useEffect(() => {
     const phonePortrait = window.matchMedia(PHONE_QUERY).matches && window.matchMedia(PORTRAIT_QUERY).matches;
-    void loadWallpaperImage(wallpaperForScreen(readWallpaperChoice(), phonePortrait).image);
+    const surface = wallpaperForScreen(readWallpaperChoice(), phonePortrait);
+    if (surface.kind === "image") void loadWallpaperImage(surface.image);
   }, []);
 
   const onReady = (info: BootReady) => {
     if (!plan.force) writeBootDay(beijingDay());
+    setBootEpoch(info.epoch);
     setStage("handoff");
     const hold = new Promise((resolve) => timers.current.push(window.setTimeout(resolve, info.skipped ? HOLD_MS.skipped : HOLD_MS.played)));
     // 桌面代码块没下完就等它下完再淡出，不露出空白
@@ -77,7 +81,7 @@ export default function Home() {
           }}
           className={plan.play ? "pt-desktop-layer" : "pt-desktop-layer is-entering"}>
           <Suspense fallback={null}>
-            <YugcOs onReplayBoot={replayBoot} />
+            <YugcOs onReplayBoot={replayBoot} boot={bootEpoch === null ? null : { epoch: bootEpoch, settled: stage === "desktop" }} />
           </Suspense>
         </div>
       )}

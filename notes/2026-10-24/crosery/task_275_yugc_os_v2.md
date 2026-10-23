@@ -19,3 +19,9 @@
 - 执行者：agent-claude-geek-main-3c2a7a67-os275o（Claude Code 子 agent，claude-opus-5-5）
 - 做了什么：按 SPEC §4.6 删除 app/web/public/mascot/ 八张姿势图、shared/ui/Mascot.tsx、shared/styles/mascot.css、app.config.json 的 mascot 段和 features.mascot/forumMascot/mascotPreview、shared/config/index.ts 里对应的类型；这几样在删之前已经没有任何引用；把验收 grep 写成 tests/web/old-character-removed.test.ts
 - 结果：grep -rn 'mascot/pose-\|Mascot' app tests（排除 node_modules/dist/.nuxt/.output）输出 0 行；npx vitest run tests/web：Test Files 26 passed，Tests 242 passed；tsc 退出 0；check-site-config 通过；app/web 构建通过，首屏 portal 分包 7.72 kB gzip（上一步 8.70 kB，吉祥物配置原来打在首屏里）
+
+## 01:09:46 +08:00 · 提交 · #275 · #275 ③ 桌面换肤：晴空壁纸、菜单栏、图标、Dock、窗口外框
+
+- 执行者：agent-claude-geek-main-3c2a7a67-os275o（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：默认壁纸改成画出来的「晴空」（components/os/SkyWallpaper.tsx，复用 boot/background.ts 和 layout.ts 的构图），刚播完开机动画时用它的起点当时间零点接上最后一帧，手机竖屏在开机动画层卸掉后把极客娘滑到图标下面；yugc、geek 两张图片壁纸留作可选。壁纸铺到整个外壳。菜单栏换成 YUGC 四色标志、搜索胶囊、时间、28px 头像；图标 60px、底色按 OS_APPS 顺序在 Y/U/G/C 里轮换；Dock 改成半透明胶囊、悬停上浮 6px；窗口改成 18px 圆角、粉色描边和标题栏、三个 12px 圆点各 44×44 点击区、标题居中、220ms 缩放淡入（减少动态效果只淡入）；桌面里的按钮改成胶囊。TL 挪到 layout.ts，就绪气泡的时间写成 READY_BUBBLE 两边共用。新增 tests/web/portal-desktop-skin.test.tsx（12 条），改了壁纸、手机、开机三份测试
+- 结果：tsc -p app/web/tsconfig.json --noEmit 退出 0；npx vitest run tests/web：Test Files 27 passed，Tests 254 passed；全量 npx vitest run：1 failed | 1644 passed，失败的仍是 tests/tooling/project-catalog.test.ts（目录生成物要 pnpm catalog:generate，不在本任务可改范围）；check-boundaries：Boundaries passed: 270 files；check-site-config 通过；vite build ✓ built in 3.03s，portal 7.89 kB gzip、共用的 layout 分包 4.61 kB、BootSequence 13.04 kB、YugcOs 34.10 kB；没有在浏览器里看过，画面留给主会话验收

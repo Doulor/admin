@@ -7,14 +7,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../app/web/sites/portal/components/boot/BootSequence", () => ({
   default: ({ onReady }: { onReady: (info: { epoch: number; skipped: boolean }) => void }) => (
-    <button type="button" onClick={() => onReady({ epoch: 0, skipped: true })}>
+    <button type="button" onClick={() => onReady({ epoch: 42.5, skipped: true })}>
       假开机动画
     </button>
   ),
 }));
 vi.mock("../../app/web/sites/portal/components/os/YugcOs", () => ({
-  default: ({ onReplayBoot }: { onReplayBoot?: () => void }) => (
-    <div data-testid="desktop">
+  default: ({ onReplayBoot, boot }: { onReplayBoot?: () => void; boot?: { epoch: number; settled: boolean } | null }) => (
+    <div data-testid="desktop" data-boot={JSON.stringify(boot ?? null)}>
       <button type="button" data-cta="join">
         加入我们
       </button>
@@ -96,6 +96,8 @@ describe("首页进站", () => {
     expect(await screen.findByTestId("desktop")).not.toBeNull();
     expect(screen.queryByText("假开机动画")).toBeNull();
     expect(container.querySelector(".pt-desktop-layer.is-entering")).not.toBeNull();
+    // 没播开机动画：壁纸不用接最后一帧
+    expect(screen.getByTestId("desktop").dataset.boot).toBe("null");
   });
 
   it("开了减少动态效果：没播过也直接进桌面", async () => {
@@ -113,9 +115,12 @@ describe("首页进站", () => {
     const layer = container.querySelector<HTMLElement>(".pt-desktop-layer");
     expect(layer?.inert).toBe(true);
     expect(container.querySelector(".pt-desktop-layer.is-entering")).toBeNull();
+    // 桌面的「晴空」壁纸拿到开机动画的起点，开机动画层还在上面时不动
+    expect(JSON.parse((await screen.findByTestId("desktop")).dataset.boot ?? "null")).toEqual({ epoch: 42.5, settled: false });
     await waitFor(() => expect(container.querySelector(".pt-boot-layer.is-leaving")).not.toBeNull());
     await waitFor(() => expect(container.querySelector(".pt-boot-layer")).toBeNull());
     expect(layer?.inert).toBe(false);
+    expect(JSON.parse(screen.getByTestId("desktop").dataset.boot ?? "null")).toEqual({ epoch: 42.5, settled: true });
     expect(document.activeElement?.getAttribute("data-cta")).toBe("join");
   });
 
