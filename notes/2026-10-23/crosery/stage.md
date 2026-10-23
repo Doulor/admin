@@ -33,3 +33,15 @@
 - 做了什么：ego-browser 匿名访问 https://prev.yangtzeu.work：/signin 在 1440×900 与 390×844 截图；密码方式填所有者邮箱和一个错误密码；验证码方式填错邮箱格式点「获取验证码」；/account 未登录点「去登录」。curl 只打不发信的接口
 - 结果：登录页有「通过 GitHub 继续」、「或者用邮箱」和验证码、密码两种方式，没有 Google 按钮；错误密码提示「邮箱或密码不对」，错邮箱提示「邮箱格式不对」；390 宽无横向溢出；/account 未登录显示「还没有登录」，点「去登录」到 /signin?return_to=%2Faccount。/auth/email/verify 没有挑战回 400 code_expired，/auth/email/password 不存在的邮箱回 400 invalid_credentials，/api/console/invites 与 /api/identity/me 匿名 401，/auth/google 404 provider_not_enabled；server 日志 30 分钟内没有 warn 和 error。未验证：真实发验证码与收信（没有给任何邮箱发信）、登录后的账号页、设密码、邀请码注册、控制台邀请码页、Google 登录（没有凭据）。登录页说明文字提到 Google，预发布却没有 Google 按钮，未改。所有者验收：未进行
 - 下一步：所有者在预发布用邮箱验证码登录，在「我的账号」设至少 15 位的密码，看控制台的邀请码；正式 0.1.1 等所有者明确批准，部署前备份正式库
+
+## 10:13:42 +08:00 · 发布 · #262 · 本机构建并部署预发布 0.1.1-rc.10（b69740157437）：权限只认极客班账号，GitHub 改由服务器接入
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：本地 tag v0.1.1-rc.10 → b6974015（未推送）；同 rc.9 的步骤构建三个 amd64 镜像（版本串 0.1.1-rc.10@b69740157437，三个 docker build 均 exit 0），docker save | gzip -9，sha256 43bb94b0737469d99b5dd95fcb0f6b5148e9ea0c08ae1a82fe836560a65a5cb5；部署前备份预发布库到 /root/yzgc-backups/preview-20261023-095632-02003548efa6.db（integrity_check ok）；scp 归档、.sha256、deploy-stack.sh 与两份 compose（preview.yml 两边 sha256 都是 cc97039b…），目标机 sha256sum -c OK；env 用目标机现有 .env.preview 只换 IMAGE_TAG（diff 只有这一行），目标机 env 里没有 GH_APP_*，compose 默认留空
+- 结果：部署成功：deploy-history 2026-10-23T02:08:15Z preview b69740157437 OK，健康检查 18201/18200 ok，清掉 471d3dbfda3e 的旧镜像（保留最近 5 个 tag）；release.json 为 0.1.1-rc.10@b69740157437；/auth/providers 只有 github 与 email；库里表 40 张、integrity_check ok，users 1 行（admin、active），提督、舰员的称号说明已换成新默认（「站内管理员，拥有全部权限，任命舰长」「在读成员；成为极客班成员后自动获得」）；server 日志 15 分钟内只有 Node 的 MODULE_TYPELESS_PACKAGE_JSON 警告（package.json 与 Dockerfile 这次没改）。正式环境仍是 0.1.0（d4a24749），未触碰
+
+## 10:13:42 +08:00 · 验收 · #262 · agent 在预发布 rc.10 上核对控制台（不是所有者验收）
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：ego-browser 用浏览器里已有的所有者预发布会话只读访问（先确认会话是邮箱登录：/auth/me provider email，/api/console/me site_role admin、github none、22 项能力，所以 GitHub 页面不会拿被封账号的令牌去调 GitHub）：/console/people、/console/github、/console/github/invite-links，1440 宽截图；没有点任何保存、生成、停用或删除。curl 匿名打 /healthz、/release.json、/auth/providers、/auth/me、/api/console/me、/api/admin/<org>/overview、/api/public/org
+- 结果：所有者邮箱会话是提督，导航里 GitHub 组织的 9 页都在；成员表 1 人（@Crosery，提督，站内角色「管理员」，登录方式 GitHub、邮箱），表上方提示「GitHub 还没接上，名单里只有登录过本站的人和有称号的人」；/console/github 显示「GitHub 还没接上」和要由组织所有者建 App 的说明，409 github_not_connected；邀请链接页能打开，「生成链接」置灰并有说明，但空状态仍写「用右上角的「生成链接」创建第一条。」，与置灰的按钮矛盾，回到 task 分支改；页面都没有横向溢出。匿名 /api/console/me 与 /api/admin/... 回 401 not_signed_in。未验证：真实 GitHub App（没有凭据）、GitHub 会话下的组织页面、改站内角色的保存（没在所有者数据上做写操作）、真实发信、Google。所有者验收：未进行

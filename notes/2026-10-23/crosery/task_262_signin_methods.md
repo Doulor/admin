@@ -39,3 +39,28 @@
 - 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
 - 做了什么：按 .agents/skills/code-review 审 92baf969 上第四期的未提交改动：另起两个只读子 agent 分别按仓库规范与所有者 07:52、01:30 的原话独立审（09:19 发出，09:24 回来），我逐条对照代码核实。规范一路：[阻塞] 持有 github.members.manage 的人经 App 把一个 GitHub 用户设成组织所有者，对方首次 GitHub 登录就成提督，绕过 admiral_required → 首次登录最多记成员，只有站内没有管理员时才记管理员；[应修] join.ts 把 App 令牌 401 记成待核对 → 按 upstreamStatus 记发送失败；[应修] installationId 永久缓存、迟到的 401 会清掉新令牌 → 取令牌失败重置安装号，401 只清同一个令牌；[应修] 部署工作流用 secrets.GITHUB_APP_*，GitHub 不许这种名字 → 全链路改名 GH_APP_ID、GH_APP_PRIVATE_KEY；[应修] 还没记过站内角色的老账号在成员表显示「不是成员」、对话框保存是灰的 → 下发 role_unrecorded，显示「还没记录」并说明；[应修] 接上 GitHub 时称号指派仍先按本地旧登录名找人 → 按 GitHub 用户 id 找；[应修] API.md 的错误码与 /auth/callback 说明没跟上 → 已改；[建议] Person.email 多下发给队长 → 去掉；sourcesVisible 参数名 → 改成 key。需求一路：GitHub 页面没说要由组织所有者建 App → 门禁说明补一句；邀请链接页被整页挡住 → 不接 GitHub 也能打开，已有链接可停用、删除；ADR 第二次修订把 agent 的设计写成所有者决定 → 只有第 1 条是所有者原话，第 2–5 条标为待确认；默认权限包没重审 → 写进 SECURITY 的残余风险
 - 结果：结论：有条件通过。每条修复都有回归测试（signin-methods 新增 2 例、github-connection 新增 2 例、console.test 新增 1 例），修复后 vitest server 375、console 185、tooling 727、web 237 例通过，ego-browser 看过修后的控制台。留着没改、交所有者定：启动时改写库里提督、舰员的称号说明；邀请码账号回填成舰员（多了 console.access 与 github.org.read）；配了 App 时缩小 OAuth scope；安全页改要 github.org.manage；ADR 第 2–5 条。留作建议不改：OrgRole 命名、people.push 三处同组字段、appToken 只给测试用、注释引用所有者原话（与周围一致）、ConsoleRoot 对非 GitHub 会话的未记录老账号仍显示「不是成员」（几乎碰不到）。未验证：真实 GitHub App（没有凭据）、真实 Google 往返、真实发信、正式环境。条件：发 rc.10 到预发布核对，所有者验收并确认上面几项
+
+## 09:57:36 +08:00 · 合并 · #262 · 本机把 task/262/signin_methods（c0db1999）合进 stage 候选 b6974015
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：账号被封期间按所有者 2026-10-23 00:37「本机发预发布」在本地合并：在 stage 候选 02003548 上 git merge --no-ff task/262/signin_methods 得到 merge commit b6974015，没有 PR、没有推送。git diff --quiet task/262/signin_methods b6974015 为 0（合并树与 task 分支的树相同），沿用 task 分支上 555477f3 提交前的验证
+- 结果：stage 候选 b6974015，本地 tag v0.1.1-rc.10（未推送）。缺 GitHub PR 和 PR 上的审查结论，账号恢复后补
+- 下一步：账号恢复后按 .tools/pending/RECOVERY-CHECKLIST.md 推 task 分支、开 PR、再快进 stage
+
+## 10:13:57 +08:00 · 返工 · #262 · 按 rc.10 上的核对改邀请链接页的空状态
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：rc.10 预发布上看到：没接上 GitHub 时「生成链接」已置灰，空状态却写「用右上角的「生成链接」创建第一条。」。app/console/src/pages/github/InviteLinks.vue 的空状态说明按 connected 分两句，没接上时写「接上 GitHub 后，用右上角的「生成链接」创建第一条。」；pnpm catalog:generate 只改了六个生成文件里的来源摘要
+- 结果：改动一行；文档核对：docs/services/console/README.md 不用改——它写的是没接 GitHub 时邀请链接页能打开、生成要等 App，这一行只是空状态说明
+
+## 10:13:57 +08:00 · 提交 · #262 · 提交邀请链接空状态的修正 325e98c2
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：git commit 325e98c2（fix(console)，7 个文件：InviteLinks.vue 与重新生成的项目目录）
+- 结果：check:docs、catalog、doc-sync、boundaries、secrets 与 check-architecture --base bba4b066（152 个变更文件）为 0；pnpm typecheck 为 0；vitest console 185、tooling 727 例通过（重新生成目录前 tooling 的目录同步用例失败 1 例，生成后通过）；pnpm --filter @yzgc/console build 为 0
+
+## 10:13:57 +08:00 · 审查 · #262 · 325e98c2 的审查：通过
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：按 .agents/skills/code-review 的「无需逐项审查」处理：改动只有一句界面文案按已有的 connected 计算属性分支，加上生成目录的摘要，不碰接口、权限、密钥、部署与数据；我（作者）对照 diff 核对：三元表达式两支文案都是平实中文、没有 emoji，connected 为真时文案与原来一致，生成文件只差来源摘要
+- 结果：结论：通过。未验证：空状态在浏览器里的显示要等 rc.11 部署到预发布后看（样板数据里有链接，看不到空状态）
