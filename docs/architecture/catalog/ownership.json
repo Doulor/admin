@@ -477,14 +477,14 @@
       "writes": [],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：匿名可发起；return_to仅接受PUBLIC_ORIGIN，否则回控制台。",
+        "权限与资源：匿名可发起；return_to仅接受PUBLIC_ORIGIN，否则回控制台；邀请码选填（#274 SPEC §3.2），格式不对的invite查询参数直接丢弃，不报错。",
         "响应与错误：302跳到GitHub授权地址。",
-        "数据与副作用：生成随机state并写签名oauth_state cookie，不创建会话；本次响应不向GitHub发送token交换请求。"
+        "数据与副作用：生成随机state并写签名oauth_state cookie（校验过的邀请码一并存入），不创建会话；本次响应不向GitHub发送token交换请求。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/admin/auth.ts",
-          "needle": "  app.get(\"/auth/github\", async (req, reply) => {"
+          "needle": "  app.get<{ Querystring: { return_to?: string; invite?: string } }>(\"/auth/github\", async (req, reply) => {"
         },
         {
           "path": "app/server/src/middleware/oauth-state.ts",
@@ -5357,7 +5357,7 @@
         },
         {
           "path": "app/server/src/middleware/require-member.ts",
-          "needle": "  if (!access.member) {"
+          "needle": "if (!permissions.check(accountId, \"competition.signup\") && !permissions.check(accountId, \"competition.team\")) return refuseNotMember(reply);"
         },
         {
           "path": "app/web/sites/portal/lib/account.ts",
@@ -5495,7 +5495,7 @@
       "evidence": [
         {
           "path": "app/server/src/routes/portal/competition-signups.ts",
-          "needle": "app.delete<{ Params: { id: string } }>(\"/api/competitions/:id/signup\", write"
+          "needle": "app.delete<{ Params: { id: string } }>(\"/api/competitions/:id/signup\", signup"
         },
         {
           "path": "app/server/src/lib/competition-signup-store.ts",
@@ -5749,7 +5749,7 @@
       "evidence": [
         {
           "path": "app/server/src/routes/portal/competition-signups.ts",
-          "needle": "\"/api/teams/:id/apply\", write"
+          "needle": "\"/api/teams/:id/apply\", team"
         },
         {
           "path": "app/server/src/lib/competition-signup-store.ts",
@@ -5810,7 +5810,7 @@
       "evidence": [
         {
           "path": "app/server/src/routes/portal/competition-signups.ts",
-          "needle": "\"/api/teams/:id/invite\", write"
+          "needle": "\"/api/teams/:id/invite\", team"
         },
         {
           "path": "app/server/src/lib/competition-signup-store.ts",
@@ -5876,7 +5876,7 @@
       "evidence": [
         {
           "path": "app/server/src/routes/portal/competition-signups.ts",
-          "needle": "\"/api/teams/:id/respond\", write"
+          "needle": "\"/api/teams/:id/respond\", team"
         },
         {
           "path": "app/server/src/lib/competition-signup-store.ts",
@@ -5945,7 +5945,7 @@
       "evidence": [
         {
           "path": "app/server/src/routes/portal/competition-signups.ts",
-          "needle": "\"/api/teams/:id/leave\", write"
+          "needle": "\"/api/teams/:id/leave\", team"
         },
         {
           "path": "app/server/src/lib/competition-signup-store.ts",
@@ -6007,7 +6007,7 @@
       "evidence": [
         {
           "path": "app/server/src/routes/portal/competition-signups.ts",
-          "needle": "\"/api/teams/:id/transfer\", write"
+          "needle": "\"/api/teams/:id/transfer\", team"
         },
         {
           "path": "app/server/src/lib/competition-signup-store.ts",
@@ -6069,7 +6069,7 @@
       "evidence": [
         {
           "path": "app/server/src/routes/portal/competition-signups.ts",
-          "needle": "app.delete<{ Params: { id: string } }>(\"/api/teams/:id\", write"
+          "needle": "app.delete<{ Params: { id: string } }>(\"/api/teams/:id\", team"
         },
         {
           "path": "app/server/src/lib/competition-signup-store.ts",
@@ -6131,7 +6131,7 @@
       "evidence": [
         {
           "path": "app/server/src/routes/portal/competition-signups.ts",
-          "needle": "app.post<{ Params: { id: string } }>(\"/api/teams/:id/lock\", write"
+          "needle": "app.post<{ Params: { id: string } }>(\"/api/teams/:id/lock\", team"
         },
         {
           "path": "app/server/src/lib/competition-signup-store.ts",
@@ -6192,7 +6192,7 @@
       "evidence": [
         {
           "path": "app/server/src/routes/portal/competition-signups.ts",
-          "needle": "app.delete<{ Params: { id: string } }>(\"/api/teams/:id/lock\", write"
+          "needle": "app.delete<{ Params: { id: string } }>(\"/api/teams/:id/lock\", team"
         },
         {
           "path": "app/server/src/lib/competition-signup-store.ts",

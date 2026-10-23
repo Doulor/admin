@@ -2,7 +2,7 @@
 
 > 按真实 handler、授权执行点与存储实现核对现有接口；关联目录中的业务用例，区分存量人工说明与已挂载的机器响应契约。
 
-状态：`current` · 更新：2026-10-23
+状态：`current` · 更新：2026-10-24
 
 ## 口径与共同边界
 
@@ -36,11 +36,11 @@
 
 `GET /auth/github` · `flow:identity.authorize`
 
-权限与资源：匿名可发起；return_to仅接受PUBLIC_ORIGIN，否则回控制台。
+权限与资源：匿名可发起；return_to仅接受PUBLIC_ORIGIN，否则回控制台；邀请码选填（#274 SPEC §3.2），query 带的 `invite` 格式不对直接丢弃，不报错，留给回调时再校验真假。
 
 响应与错误：302跳到GitHub授权地址。
 
-数据与副作用：生成随机state并写签名oauth_state cookie，不创建会话；本次响应不向GitHub发送token交换请求。
+数据与副作用：生成随机state并写签名oauth_state cookie（校验过格式的邀请码一并存入），不创建会话；本次响应不向GitHub发送token交换请求。
 
 本地表读取：无。本地表写入：无。
 
@@ -52,7 +52,7 @@
 
 权限与资源：匿名可读，不读会话、不需要能力。
 
-响应与错误：200 {providers:[...]}，按GitHub、Google、邮箱的顺序，每项含id、name、kind、start、can_register，邮箱另有password；GitHub恒在（kind=redirect，start=/auth/github）；Google只在配了GOOGLE_CLIENT_ID与GOOGLE_CLIENT_SECRET时出现（kind=redirect，start=/auth/google）；邮箱只在配了发信商时出现（kind=email_code，start=/auth/email/start，password=/auth/email/password）。三种的can_register都是true：GitHub要是组织成员，邮箱和Google第一次登录要邀请码。响应Schema固定字段。
+响应与错误：200 {providers:[...]}，按GitHub、Google、邮箱的顺序，每项含id、name、kind、start、can_register，邮箱另有password；GitHub恒在（kind=redirect，start=/auth/github）；Google只在配了GOOGLE_CLIENT_ID与GOOGLE_CLIENT_SECRET时出现（kind=redirect，start=/auth/google）；邮箱只在配了发信商时出现（kind=email_code，start=/auth/email/start，password=/auth/email/password）。三种的can_register都是true：三种第一次登录都不用邀请码就能注册成注册用户（`level.registered`），邀请码选填，有效邀请码直接进极客班成员（`level.member`）；GitHub 那道「要是组织成员」的门已经去掉（#274 SPEC §3.2）。响应Schema固定字段。
 
 数据与副作用：只读进程内的配置，不读写数据库、不请求GitHub或Google。
 
@@ -106,13 +106,13 @@
 
 `POST /api/identity/device/approve` · `flow:identity.device.approve`
 
-权限与资源：要极客班会话；授权绑定到会话的account_id（极客班账号，不是GitHub id）；每分钟20次；跨站写入受共同Origin校验与SameSite=Lax会话Cookie限制。
+权限与资源：要极客班会话，且持有 `account.cli.login`（#274 SPEC §3.6，`level.registered` 就有，访客没有会话自然也没有）；授权绑定到会话的account_id（极客班账号，不是GitHub id）；每分钟20次；跨站写入受共同Origin校验与SameSite=Lax会话Cookie限制。
 
-响应与错误：200 {ok:true,status:approved|denied}；不存在404 device_code_not_found；不是pending或已过期409 device_code_not_pending；decision不合法400 invalid_decision；允许时账号还没有登录邮箱（这个环境能发信）403 email_required，拒绝不拦（#273）。
+响应与错误：200 {ok:true,status:approved|denied}；没有会话401 not_signed_in；没有 `account.cli.login`403 {error:forbidden,node:"account.cli.login"}；不存在404 device_code_not_found；不是pending或已过期409 device_code_not_pending；decision不合法400 invalid_decision；允许时账号还没有登录邮箱（这个环境能发信）403 email_required，拒绝不拦（#273）。
 
 数据与副作用：条件UPDATE只改pending且未过期的行，并发的确认只有一次生效；拒绝不写account_id；写audit_logs的identity.device.approve或identity.device.deny，只含client_id与scope，不含device_code与令牌。
 
-本地表读取：device_grants。本地表写入：device_grants、audit_logs。
+本地表读取：device_grants, perm_members, perm_entries。本地表写入：device_grants、audit_logs。
 
 源码：[app/server/src/routes/identity/device.ts:102](../../../app/server/src/routes/identity/device.ts#L102)、[app/server/src/lib/device-store.ts](../../../app/server/src/lib/device-store.ts)（`decide`）。验证入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts)。
 
@@ -132,16 +132,16 @@
 
 ## 邮箱、Google 登录、账号页与注册邀请码（#262 第二、三期；资料/头像/邀请码兑换见 #274）
 
-所有者 2026-10-23 定的规则：邮箱验证码和密码都能登录；用邮箱或 Google 第一次登录、还没有极客班账号时凭邀请码注册（默认邀请码只存在运维的钥匙串里，用 `dist/cli/account.js invite` 写进库）；GitHub 新用户第一次登录只对组织成员开放、不用邀请码。#262 第四期起权限只认极客班账号：不论用哪种方式登录，成员资格与提督、舰员称号都按账号记下的站内角色给；邮箱、Google 会话没有 GitHub 令牌，控制台的 GitHub 页面在没配 GitHub App 时回 409 `github_not_connected`，`GET /api/me/orgs` 回 403 `github_session_required`。以下接口都挂了响应 Schema；失败体保留 `attempts_left`、`retry_after`、`reauth`、`capability` 等扩展字段。
+邮箱验证码和密码都能登录。GitHub、邮箱、Google 三种登录方式第一次登录都不用邀请码就能注册——邀请码选填（#274 SPEC §3.2，GitHub 组织资格那道门已经去掉）：不填或邀请码无效仍然注册成功，进 `level.registered`；邀请码有效时直接进 `level.member`（默认邀请码只存在运维的钥匙串里，用 `dist/cli/account.js invite` 写进库，控制台邀请码页也能建）。权限只认极客班账号：不论用哪种方式登录，成员资格（`level.*`）与权限节点都按账号记下的给；邮箱、Google 会话没有 GitHub 令牌，控制台的 GitHub 页面在没配 GitHub App 时回 409 `github_not_connected`。以下接口都挂了响应 Schema；失败体保留 `attempts_left`、`retry_after`、`reauth`、`capability` 等扩展字段。
 
 | 接口 · 流程 | 权限与资源 | 响应、错误与副作用 |
 |---|---|---|
 | `POST /auth/email/start` · `flow:identity.email.start` | 匿名；每分钟 10 次（按 IP）；同一邮箱 60 秒一封、每小时 5 封，同一 IP（IPv6 按 /64）每小时 20 封，计数存在 `email_challenges`，重启不清零 | 202 `{resend_after:60}`，写签名、HttpOnly 的 `email_challenge` cookie（path=/auth/email，10 分钟）；有没有账号响应都一样，没有账号的邮箱也真的发（填邀请码就能注册）。body 可带 `purpose:"reset"`（忘了密码，#273）：只把信换成「你的极客班重设密码验证码」，挑战还是登录用的那一种。邮箱格式不对 400 `bad_email`；太频繁 429 `rate_limited`，带 `Retry-After` 与 `retry_after`。只存验证码的 HMAC，这个浏览器上一次的码作废（别人替这个邮箱要码不影响本人手上的码）；信由 `mail.sendNow` 直接发，不进 `mail_outbox`，日志不记地址和验证码。 |
-| `POST /auth/email/verify` · `flow:identity.email.verify` | 匿名，凭挑战 cookie；每分钟 30 次；同一个码最多错 5 次 | 200 `{return_to,registered}` 并写 `sid`；验证码不对 400 `invalid_code`（带 `attempts_left`），过期、用过或错满 5 次 400 `code_expired`；没有账号又没带 `invite_code` 400 `invite_required`（验证码不作废）；邀请码不对 400 `invalid_invite`，同时记一次错；账号停用 403 `account_disabled`，不是成员 403 `not_member`。建号、兑换邀请码、占用验证码、建会话（provider=email）、删旧会话、写 `identity_audit` 与 `auth.register`/`auth.signin` 在一个 `BEGIN IMMEDIATE` 事务里，任何一步不成整体回滚。 |
-| `POST /auth/email/password` · `flow:identity.email.password` | 匿名；每分钟 10 次（按 IP），另按邮箱 15 分钟 10 次 | 200 `{return_to}` 并写 `sid`；没账号、没设密码、密码不对一律 400 `invalid_credentials`，没有账号时也跑一次 bcrypt，响应时间不泄露邮箱是否注册；按邮箱超次数 429 `rate_limited`；停用 403 `account_disabled`，不是成员 403 `not_member`。会话 provider=email。 |
-| `POST /auth/email/reset` · `flow:identity.email.reset` | 匿名，凭 `/auth/email/start` 发的挑战 cookie；每分钟 10 次；同一个码最多错 5 次（#273，忘了密码） | body `{code,password}`；200 `{return_to}` 并写 `sid`（provider=email）。先看新密码：不到 8 位 400 `password_too_short`、超过 72 字节 400 `password_exceeds_bcrypt_limit`，这时不碰验证码；验证码不对 400 `invalid_code`（带 `attempts_left`），过期、用过或错满 400 `code_expired`；邮箱没有账号时和验证码登录一样 400 `invite_required`（不注册，验证码不作废，登录页转到「注册」）；停用 403 `account_disabled`，不是成员 403 `not_member`。占用验证码、建会话、删旧会话、写 `users.password_hash`、`identity_audit`（`login` 与 `password_reset`）、审计 `auth.signin`（method=reset）与 `account.password`（action=reset）在一个 `BEGIN IMMEDIATE` 事务里；成功后这个邮箱的密码错误计数清零。 |
-| `GET /auth/google` · `flow:identity.google.start` | 匿名；每分钟 20 次（按 IP）；没配凭据时 404 `provider_not_enabled` | 302 到 Google 授权页（openid email profile，带 state、nonce 与 PKCE S256）；state、nonce、verifier、return_to 和 `invite` 存进签名 cookie `google_oauth_state`。 |
-| `GET /auth/google/callback` · `flow:identity.google.callback` | 每分钟 10 次（按 IP）；state 与签名 cookie 相符；ID Token 用 Google JWKS 验签（RS256），核对 iss、aud、exp、nonce；按 Google `sub` 认人，不按邮箱合并账号 | 成功 302 回 `return_to`，账号还没有登录邮箱、这个环境又能发信时改为 302 到 `/bind-email?return_to=<原路径>`（#273，Google 给的邮箱不算登录邮箱）；取消、上游失败、没有账号又没带邀请码、邀请码无效、Google 邮箱已属于别的账号、停用或不是成员时 302 到 `/signin?signin=<cancelled|failed|invite_required|invalid_invite|email_taken|account_disabled|not_member>&provider=google&return_to=<原路径>`；缺参数或 state 无效 400。外部请求在事务外，建号与会话同上一个事务；日志不输出令牌。 |
+| `POST /auth/email/verify` · `flow:identity.email.verify` | 匿名，凭挑战 cookie；每分钟 30 次；同一个码最多错 5 次 | 200 `{return_to,registered}` 并写 `sid`；验证码不对 400 `invalid_code`（带 `attempts_left`），过期、用过或错满 5 次 400 `code_expired`；没有账号时不填 `invite_code` 就注册成注册用户，不是错误（#274 SPEC §3.2）；邀请码不对 400 `invite_invalid`，同时记一次错（验证码不作废，还能再试）；账号停用 403 `account_disabled`。建号、兑换邀请码、占用验证码、建会话（provider=email）、删旧会话、写 `identity_audit` 与 `auth.register`/`auth.signin` 在一个 `BEGIN IMMEDIATE` 事务里，任何一步不成整体回滚。 |
+| `POST /auth/email/password` · `flow:identity.email.password` | 匿名；每分钟 10 次（按 IP），另按邮箱 15 分钟 10 次 | 200 `{return_to}` 并写 `sid`；没账号、没设密码、密码不对一律 400 `invalid_credentials`，没有账号时也跑一次 bcrypt，响应时间不泄露邮箱是否注册；按邮箱超次数 429 `rate_limited`；停用 403 `account_disabled`。会话 provider=email。 |
+| `POST /auth/email/reset` · `flow:identity.email.reset` | 匿名，凭 `/auth/email/start` 发的挑战 cookie；每分钟 10 次；同一个码最多错 5 次（#273，忘了密码） | body `{code,password}`；200 `{return_to}` 并写 `sid`（provider=email）。先看新密码：不到 8 位 400 `password_too_short`、超过 72 字节 400 `password_exceeds_bcrypt_limit`，这时不碰验证码；验证码不对 400 `invalid_code`（带 `attempts_left`），过期、用过或错满 400 `code_expired`；邮箱没有账号时不能顺手注册，回 400 `no_account`（不注册，验证码不作废，登录页转到「注册」）；停用 403 `account_disabled`。占用验证码、建会话、删旧会话、写 `users.password_hash`、`identity_audit`（`login` 与 `password_reset`）、审计 `auth.signin`（method=reset）与 `account.password`（action=reset）在一个 `BEGIN IMMEDIATE` 事务里；成功后这个邮箱的密码错误计数清零。 |
+| `GET /auth/google` · `flow:identity.google.start` | 匿名；每分钟 20 次（按 IP）；没配凭据时 404 `provider_not_enabled` | 302 到 Google 授权页（openid email profile，带 state、nonce 与 PKCE S256）；state、nonce、verifier、return_to 和 `invite`（选填，#274 SPEC §3.2）存进签名 cookie `google_oauth_state`。 |
+| `GET /auth/google/callback` · `flow:identity.google.callback` | 每分钟 10 次（按 IP）；state 与签名 cookie 相符；ID Token 用 Google JWKS 验签（RS256），核对 iss、aud、exp、nonce；按 Google `sub` 认人，不按邮箱合并账号 | 成功 302 回 `return_to`，账号还没有登录邮箱、这个环境又能发信时改为 302 到 `/bind-email?return_to=<原路径>`（#273，Google 给的邮箱不算登录邮箱）；没有账号时不带邀请码也注册成功，不是错误；取消、上游失败、邀请码无效、Google 邮箱已属于别的账号、停用时 302 到 `/signin?signin=<cancelled|failed|invite_invalid|email_taken|account_disabled>&provider=google&return_to=<原路径>`；缺参数或 state 无效 400。外部请求在事务外，建号与会话同上一个事务；日志不输出令牌。 |
 | `GET /api/identity/me` · `flow:identity.account.view` | 任何有效会话，不要控制台能力 | 200 `{account_id,login,identities,has_password,password_updated_at,membership{state,org_role,via_invite},created_at,recent,available,email_required,session{provider,created_at,expires_at,step_up_until}}`；`email_required`（#273）是账号还没有邮箱登录方式、这个环境又能发信，绑定邮箱页 `/bind-email` 读它；邮箱只给打码后的样子，每个邮箱另带身份 `id`（删邮箱用）和 `primary`（主邮箱，排在别的邮箱前面，#272）；`recent` 是本人最近 20 条 `identity_audit`；`available` 只可能是 `["email"]` 或 `[]`：发信打开、还不到 5 个邮箱时是 `["email"]`，满了或发信关着时是 `[]`（GitHub、Google 的绑定没做，不列）。没登录 401。只读。 |
 | `POST /api/identity/email/start` · `flow:identity.account.email.start` | 有效会话，这次登录不超过 10 分钟；每分钟 10 次，发码限额同登录 | 202 `{resend_after:60}`，挑战绑定这个账号与这次会话，cookie path=/api/identity/email；一个账号最多 5 个邮箱（#272），这个邮箱已经绑在本账号上 409 `identity_exists`、已经有 5 个 409 `email_limit`，都不发信；超过 10 分钟 403 `step_up_required`（带 `reauth.return_to:"/account"`）；400 `bad_email`；429 `rate_limited`。 |
 | `POST /api/identity/email/verify` · `flow:identity.account.email.verify` | 同一会话 | 200 `{ok:true}`；换了账号或会话、过期 400 `code_expired`；码不对 400 `invalid_code`；邮箱已属于别的账号 409 `identity_conflict`；已经绑在本账号上 409 `identity_exists`；已经有 5 个 409 `email_limit`。占用验证码、插入邮箱身份、写 `identity_audit` 在一个事务里；账号还没有主邮箱时这个就是主邮箱（`canonical_email`）。 |
@@ -154,9 +154,9 @@
 | `PATCH /api/identity/profile` · `flow:identity.profile.update` | 需要 `account.profile.edit`；每账号每小时 30 次 | body 任选 `{display_name(1–32),bio(0–200),username(3–24，`^[a-z0-9_]+$`，不分大小写唯一),prefs:{start_note_seen_at,forum_theme}}`，回同 GET 形状；`prefs` 是合并写，不是整份替换；`username` 已被别的账号占用（不分大小写）409 `username_taken`，改回自己原来的名字不算占用。写 `account_profiles` 与审计 `profile.update`。 |
 | `GET /api/identity/avatar/:file` · `flow:identity.avatar.read` | 匿名；`:file` 必须是 `^[0-9a-f]{64}\.webp$` | 200 `image/webp` 二进制，`Cache-Control: public, max-age=31536000, immutable`、`Content-Security-Policy: default-src 'none'`；哈希不存在 404。只读 `account_avatars`。 |
 | `PUT /api/identity/avatar` · `flow:identity.avatar.upload` | 需要 `account.profile.edit`；每账号每小时 10 次 | 请求体就是图片本身（png/jpeg/webp/gif，≤2MB，像素 ≤4096×4096），sharp 转正方形 512×512 webp 后按内容 sha256 寻址存 `account_avatars`，回 `{avatar_url}`；类型不支持 415，字节解不出图片 400 `invalid_image`，超过像素上限 400 `image_too_large`，超过 2MB 由内容类型解析器直接 413 `avatar_too_large`。写 `account_profiles.avatar_hash` 与审计 `profile.avatar`。 |
-| `POST /api/identity/invite/redeem` · `flow:identity.invite.redeem` | 需要 `account.invite.redeem`；每账号每小时 10 次 | body `{code}`；成功 200 `{level:"member"}`，把账号换成 `level.member`（事务里先查重、兑换邀请码、换组、提交后再让权限引擎的 revision 失效）；码不对或已用完 400 `invite_invalid`；已经是成员 409 `already_member`。写 `perm_members`、`invite_codes` 与审计 `invite.redeem`。 |
+| `POST /api/identity/invite/redeem` · `flow:identity.invite.redeem` | 需要 `account.invite.redeem` | body `{code}`；成功 200 `{level:"member"}`，把账号换成 `level.member`（事务里先查重、兑换邀请码、换组、提交后再让权限引擎的 revision 失效）；码不对或已用完 400 `invite_invalid`（计一次失败）；已经是成员 409 `already_member`；本账号过去一小时错够 10 次或本 IP（IPv6 按 /64）错够 20 次时 429 `invite_locked`，带 `Retry-After` 与 `retry_after`（锁 1 小时），不再往下核对邀请码本身。写 `perm_members`、`invite_codes`、`limit_events`（失败计次，按 `invite.redeem.fail.account`/`invite.redeem.fail.ip` 两个桶，IP 只存 sha256）与审计 `invite.redeem`。 |
 
-本地表：邮箱登录读写 `email_challenges`、`users`、`identities`、`invite_codes`、`sessions`、`identity_audit`、`audit_logs`；账号页读 `users`、`identities`、`identity_audit`，删邮箱时删 `identities`，写 `email_challenges`、`identities`、`users`、`identity_audit`；邀请码页只读写 `invite_codes` 与 `audit_logs`；账号资料与头像（#274）读写 `account_profiles`、`account_avatars`，邀请码兑换另外读写 `perm_members`。
+本地表：邮箱登录读写 `email_challenges`、`users`、`identities`、`invite_codes`、`sessions`、`identity_audit`、`audit_logs`；账号页读 `users`、`identities`、`identity_audit`，删邮箱时删 `identities`，写 `email_challenges`、`identities`、`users`、`identity_audit`；邀请码页只读写 `invite_codes` 与 `audit_logs`；账号资料与头像（#274）读写 `account_profiles`、`account_avatars`，邀请码兑换另外读写 `perm_members`、`limit_events`。
 
 没有登录邮箱的账号（#273，所有者 2026-10-23 19:22：「之前只绑定了github账号没有绑定邮箱的再次进来或者登录的时候必须绑定邮箱」）：判定在 [lib/email-gate.ts](../../../app/server/src/lib/email-gate.ts)，只在这个环境能发信时要求。GitHub、Google 登录回调跳绑定邮箱页，对外授权的交互入口与同意页、设备授权的允许在服务端拦，`/auth/me`、`/api/identity/me`、`/api/console/me` 的 `email_required` 交给官网、论坛、控制台自己跳。
 
@@ -185,15 +185,15 @@
 
 `GET /auth/callback` · `flow:identity.callback`
 
-权限与资源：state与签名cookie必须相符且未过期；按GitHub数字id匹配身份，不用会变的登录名。这个GitHub id已有账号且站内记过角色的由站内决定（停用、不是成员拒绝），不查GitHub组织；新用户和还没记过站内角色的老账号要是CONSOLE_ORG active成员才成功：新用户记为成员（站内一位管理员都没有时owner记为管理员），老账号按查到的组织角色补记（users.org_role，owner记为管理员）（#262 第四期）。
+权限与资源：state与签名cookie必须相符且未过期；按GitHub数字id匹配身份，不用会变的登录名。#274 SPEC §3.2 去掉了 GitHub 组织资格那道门：不论新用户还是老账号都不查 GitHub 组织，`/auth/github` 带来的 `invite` 选填——没有或无效仍然登录成功并建号（进 `level.registered`），有效时进 `level.member`（事务里核对、兑换，见 `lib/identity-store.ts` 的 `signInWithGithub`）。已停用的账号拒绝。
 
-响应与错误：成功302回return_to；账号还没有登录邮箱、这个环境又能发信时改为302到<PUBLIC_ORIGIN>/bind-email?return_to=<原来要回的本站路径>，绑好再回去（#273）；取消/上游失败/非成员/账号停用一律302到<PUBLIC_ORIGIN>/signin?signin=<cancelled|failed|not_member|invite_pending|account_disabled>&return_to=<原来要回的本站路径>，原路径里残留的signin参数会去掉（#262）；合并链超过8跳、成环或事务失败按failed；缺参数或无效state为400，旧forum-state为410。
+响应与错误：成功302回return_to；账号还没有登录邮箱、这个环境又能发信时改为302到<PUBLIC_ORIGIN>/bind-email?return_to=<原来要回的本站路径>，绑好再回去（#273）；取消/上游失败302到<PUBLIC_ORIGIN>/signin?signin=<cancelled|failed>&return_to=<原来要回的本站路径>；邀请码无效302到同一个地址带 `signin=invite_invalid`（不建号，还能带着正确的码重新发起）；账号停用302到同一个地址带 `signin=account_disabled`；原路径里残留的signin参数会去掉（#262）；缺参数或无效state为400，旧forum-state为410。`not_member`、`invite_pending` 不会再被这条流程抛出（#274：`org_state` 已弃用，见 `/auth/me` 一节）。
 
-数据与副作用：外部请求在事务外做完；建号、刷新身份、沿merged_into走到终点、按GitHub id认领称号与论坛用户、写sessions（含openid、provider）、删请求带来的旧会话、写identity_audit与auth.signin在一个BEGIN IMMEDIATE事务里，失败整体回滚、旧会话照常有效。非成员与停用账号不建会话、审计拒绝并尽力撤销授权；被组织拒绝的GitHub id已经有还没记过站内角色的老账号时，把它的成员资格记成not_member或pending（#262审查）；站内记过角色的账号不受GitHub组织变动影响；失败日志不输出token。
+数据与副作用：外部请求在事务外做完；建号（邀请码选填）、刷新身份、沿merged_into走到终点、按GitHub id认领称号与论坛用户、写sessions（含openid、provider）、删请求带来的旧会话、写identity_audit与auth.signin/auth.register在一个BEGIN IMMEDIATE事务里，失败整体回滚、旧会话照常有效。邀请码无效时不建会话、不建号、尽力撤销这次 GitHub 授权；停用账号同样不建会话、审计拒绝；失败日志不输出token。
 
-本地表读取：identities, users。本地表写入：sessions, audit_logs, users, identities, identity_audit, role_assignments, forum_users。
+本地表读取：identities, users, invite_codes。本地表写入：sessions, audit_logs, users, identities, identity_audit, role_assignments, forum_users, perm_members, perm_state, invite_codes, site_owners。
 
-源码：[app/server/src/routes/admin/auth.ts:47](../../../app/server/src/routes/admin/auth.ts#L47)、[app/server/src/lib/identity-store.ts](../../../app/server/src/lib/identity-store.ts)（`signInWithGithub`）。验证入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts)、[tests/server/identity.test.ts](../../../tests/server/identity.test.ts)。
+源码：[app/server/src/routes/admin/auth.ts:35](../../../app/server/src/routes/admin/auth.ts#L35)、[app/server/src/lib/identity-store.ts](../../../app/server/src/lib/identity-store.ts)（`signInWithGithub`）。验证入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts)、[tests/server/identity.test.ts](../../../tests/server/identity.test.ts)、[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)。
 
 ## 退出当前会话
 
@@ -213,15 +213,17 @@
 
 `GET /auth/me` · `flow:identity.current`
 
-权限与资源：只返回当前sid的身份；console_link是显示提示，不赋予后端权限。
+权限与资源：匿名也能读（CONTRACT-274 §1）；console_link是显示提示，不赋予后端权限。
 
-响应与错误：200 {signed_in:false}或身份字段（login、user_id、avatar_url、account_id、provider）及console_link、email_required（账号还没有登录邮箱、这个环境又能发信，官网、论坛、控制台读到true就跳绑定邮箱页，#273）；GitHub拒绝token时200 {signed_in:false,session_expired:true}，其他角色查询失败仍保持登录但入口false。
+响应与错误：没有有效会话时 200 `{signed_in:false,level,level_name,permissions,quota}`（访客身份摘要，不是401）：`level`/`level_name` 来自 `level.visitor`；`permissions` 把 `UI_NODES` 挨个判一遍，通配符已展开成具体节点的布尔值；`quota` 是投递每日额度（访客为 0）。GitHub拒绝token时 200 `{signed_in:false,session_expired:true,...访客身份摘要}`。登录了在旧字段（login、user_id、avatar_url、account_id、provider、console_link、email_required）基础上再加 `level`/`level_name`/`department{id,name,tone}|null`/`titles[{id,name,department_id}]`（按账号算的权限分组，lib/permissions.ts 的 `groupsOf`）、`permissions`/`quota`（同上但按本账号判）、账号资料的 `prefs`/`username`/`display_name`/`bio`（`account_profiles`，第一次读时兜底建一行）、打码邮箱的 `identities`（`identity.accountView` 已脱敏）；其他角色查询失败仍保持登录但 `console_link` 为 false。
 
-数据与副作用：会话联查账号，过期、没有账号（启动回填映射不到的旧会话）或账号不是active的会话按未登录处理并删除；按账号记下的站内角色和称号算权限（还没记过站内角色的老账号用GitHub会话第一次请求时查一次GitHub组织角色并记下），被拒token才删会话并写审计；无其他业务写入。
+数据与副作用：会话联查账号，过期、没有账号（启动回填映射不到的旧会话）或账号不是active的会话按未登录处理并删除；`console_link` 仍按旧能力系统（`access.resolve`）算，还没记过站内角色的老账号用GitHub会话第一次请求时查一次GitHub组织角色并记下（这一步不影响 `level`——`level` 只认权限引擎的 `perm_members`，不读 `org_state`/`org_role`，见下方「`org_state` 已弃用」）；被拒token才删会话并写审计；无其他业务写入。
 
-本地表读取：sessions, role_assignments, departments, titles, users。本地表写入：sessions, audit_logs。
+本地表读取：sessions, users, perm_members, perm_entries, account_profiles, identities。本地表写入：sessions, audit_logs。
 
-源码：[app/server/src/routes/admin/auth.ts:114](../../../app/server/src/routes/admin/auth.ts#L114)、[app/server/src/lib/auth.ts](../../../app/server/src/lib/auth.ts)（`getSession`）。验证入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts)、[tests/server/console.test.ts](../../../tests/server/console.test.ts)、[tests/server/identity.test.ts](../../../tests/server/identity.test.ts)、[tests/server/legacy-database.test.ts](../../../tests/server/legacy-database.test.ts)。
+源码：[app/server/src/routes/admin/auth.ts:118](../../../app/server/src/routes/admin/auth.ts#L118)、[app/server/src/lib/permissions.ts](../../../app/server/src/lib/permissions.ts)（`groupsOf`、`check`、`meta`）、[app/server/src/lib/apply-quota.ts](../../../app/server/src/lib/apply-quota.ts)。验证入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts)、[tests/server/console.test.ts](../../../tests/server/console.test.ts)、[tests/server/identity.test.ts](../../../tests/server/identity.test.ts)、[tests/server/legacy-database.test.ts](../../../tests/server/legacy-database.test.ts)。
+
+`org_state`/`org_role` 已弃用（#274 SPEC §3.2）：GitHub 组织资格那道门已经去掉，这两列不再决定能不能登录、算不算极客班成员；只留给历史数据与控制台的旧能力系统（`access.resolve`，决定 `console_link` 与 `/api/console/*` 的能力，阶段 2 还没切换）过渡用。「是不是成员」统一看权限引擎的 `level.member` 组（`perm_members`），`GET /auth/me` 的 `level`、对外授权（OIDC、GitLab 同步）与比赛报名/组队的鉴权都读它，不读 `org_state`。
 
 ## 列出本人组织
 
@@ -1125,11 +1127,11 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 响应与错误：200 {account_id,site_role,changed}；site_role不是admin/member/none为400，账号不存在或已合并404 not_found，改掉最后一位管理员409 last_admin；30次/分钟限流。
 
-数据与副作用：在一个BEGIN IMMEDIATE事务里改users的org_role/org_state，写identity_audit的role_change与account.role审计；改成none后对方下一次请求起没有任何能力、不能再登录，称号指派保留；不改GitHub组织成员关系。
+数据与副作用：在一个BEGIN IMMEDIATE事务里改users的org_role/org_state（#274 起这两列已弃用，只给旧能力系统和控制台展示用，见「读取统一登录状态」一节）并同步权限引擎的分组（`syncPermissionLevel`：admin/member 进 `level.member`，none 回落到 `level.registered`），写identity_audit的role_change与account.role审计；改成none后对方下一次请求起没有旧能力系统给的任何能力（console.access 等）、比赛报名/组队与对外授权（OIDC、GitLab 同步）也跟着失去 level.member 的资格，但账号本身不停用，仍然能照常登录、投递、兑换邀请码——「不能再登录」是 #274 之前的旧说法；称号指派保留；不改GitHub组织成员关系。
 
 共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
-本地表读取：sessions, role_assignments, departments, titles, users。本地表写入：users, identity_audit, audit_logs, sessions。
+本地表读取：sessions, role_assignments, departments, titles, users。本地表写入：users, identity_audit, audit_logs, sessions, perm_members, perm_state, site_owners。
 
 源码：[app/server/src/routes/console/people.ts:91](../../../app/server/src/routes/console/people.ts#L91)、[app/server/src/lib/identity-store.ts](../../../app/server/src/lib/identity-store.ts)（`setSiteRole`）。验证入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)、[tests/server/console.test.ts](../../../tests/server/console.test.ts)。
 
@@ -1217,15 +1219,17 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 `POST /api/portal/apply` · `flow:application.submit`
 
-权限与资源：匿名；蜜罐、PoW、可选Turnstile、每IP分钟5次和IP(/64)/设备24小时各5份。
+权限与资源：#274 SPEC §3 起要先登录并持有 `apply.submit`（`level.registered` 天然有，访客没有）——不再接受匿名投递；蜜罐、PoW、可选Turnstile之外，按账号每天（北京时间零点重置）核对 `meta.limit.apply.daily`（注册用户 3 份、极客班成员 `level.member` 不限，没有这个 meta 时兜底按 3 份算），另按来源 IP（IPv6 按 /64）每天最多 10 份、按设备（这个接口自己发的 cookie）每天最多 5 份；每IP每分钟 5 次的旧限流不变。
 
-响应与错误：201 {id,submitted_at,message}；字段错误400附fields，429 apply_limited/rate_limited。蜜罐回相同201形状但不落库。
+响应与错误：201 {id,submitted_at,message,quota:{apply_left_today,apply_daily_limit}}；字段错误400附fields；没登录401 `not_signed_in`，没有 `apply.submit`403 `forbidden`；三条限额任一超限统一 429 `{error:"apply_limited",bucket:"apply.daily",message,retry_after}`（到下一个北京零点），不细分是哪条线触发；429 rate_limited 走旧的路由级限流。蜜罐回相同201形状但不落库，也不计数。
 
-数据与副作用：计数与投递同事务，发设备cookie；记脱敏application.received审计，尽力入队已收到邮件（每小时总量限制），入队失败仅日志不回滚投递；无需会话。
+数据与副作用：三条限额核对与写投递在同一个事务里（`limits.hitAll`，全有或全没有，中间没有 await），超限不留半份投递；续发或换发设备 cookie（1 年，仅本接口路径）；记脱敏application.received审计（含 `account_id`），尽力入队已收到邮件（每小时总量限制），入队失败仅日志不回滚投递。IP、设备只存 sha256（`lib/limits.ts` 的 `limit_events`），不存原文。
 
-本地表读取：application_limits, mail_outbox。本地表写入：applications, application_limits, mail_outbox, audit_logs。
+本地表读取：limit_events, mail_outbox。本地表写入：applications, limit_events, mail_outbox, audit_logs。`application_limits` 表已不再由这个接口读写，留给历史数据（#274，新计数统一走 `limit_events`）。
 
-源码：[app/server/src/routes/portal/apply.ts:118](../../../app/server/src/routes/portal/apply.ts#L118)。验证入口：[tests/server/applications.test.ts](../../../tests/server/applications.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)、[tests/server/rate-limits.test.ts](../../../tests/server/rate-limits.test.ts)。
+源码：[app/server/src/routes/portal/apply.ts:110](../../../app/server/src/routes/portal/apply.ts#L110)、[app/server/src/lib/limits.ts](../../../app/server/src/lib/limits.ts)、[app/server/src/lib/apply-quota.ts](../../../app/server/src/lib/apply-quota.ts)。验证入口：[tests/server/applications.test.ts](../../../tests/server/applications.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)、[tests/server/rate-limits.test.ts](../../../tests/server/rate-limits.test.ts)。
+
+**已知未同步的下游**（#275 待办）：官网「加入我们」页面（`app/web/sites/portal/pages/JoinUs.tsx`）目前还是给匿名访客填写的表单；本次只保证这个接口本身的类型兼容（匿名提交会先收到 401），页面改成先登录再投递、把「访客 0 份/注册用户 3 份/成员不限」的额度显示出来，是 #275 的范围，部署前要确认这两边同步上线，否则匿名访客会在真实环境看到一直提交失败。
 
 ## 读取公开防滥用配置
 
@@ -1467,7 +1471,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：读论坛表与公开内容分类；GET也可能通过forumViewer刷新本人用户；不发送邮件、不写帖子。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_counters, forum_users, forum_tags, forum_topics, forum_posts, forum_likes, forum_notifications, forum_bookmarks, forum_follows, sessions, role_assignments, departments, titles。本地表写入：forum_users, sessions, audit_logs。
 
@@ -1483,7 +1487,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：按话题读取帖子及点赞投影；软删正文为空；不把全论坛正文再次塞进首屏。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_topics, forum_posts, forum_likes, sessions, role_assignments, departments, titles, forum_users。本地表写入：forum_users, sessions, audit_logs。
 
@@ -1499,7 +1503,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：标题、正文、username/displayName按转义的LIKE搜索，各类限量；返回帖子命中摘要，不将%当通配符。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_topics, forum_posts, forum_users, forum_likes, sessions, role_assignments, departments, titles。本地表写入：forum_users, sessions, audit_logs。
 
@@ -1515,7 +1519,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：单事务创建话题、首帖、编号和必要新tag，处理最多10个@提及通知；成功后记topic限流事件，不发邮件。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_topics, forum_posts, forum_tags, forum_users, forum_notifications, forum_counters, forum_rate_events, sessions, role_assignments, departments, titles, forum_likes。本地表写入：forum_topics, forum_posts, forum_tags, forum_notifications, forum_counters, forum_rate_events, forum_users, sessions, audit_logs。
 
@@ -1531,7 +1535,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：更新pinned；以CONSOLE_ORG记forum.topic.pin审计，只含话题id及开关，不含正文。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_topics, sessions, role_assignments, departments, titles, forum_users, forum_likes。本地表写入：forum_topics, audit_logs, forum_users, sessions。
 
@@ -1547,7 +1551,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：更新closed；以CONSOLE_ORG记forum.topic.close审计，只含话题id及开关，不含正文。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_topics, sessions, role_assignments, departments, titles, forum_users, forum_likes。本地表写入：forum_topics, audit_logs, forum_users, sessions。
 
@@ -1577,7 +1581,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：事务创建回复并更新最后活动、处理回复与提及通知；游客用户与回复同事务；PoW通过就记该IP尝试额度，成功才记全站额度；冒名检查读指派、历史登录审计及会话；不发送邮件。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_topics, forum_posts, forum_users, forum_notifications, forum_counters, forum_rate_events, role_assignments, audit_logs, sessions, departments, titles, forum_likes。本地表写入：forum_posts, forum_topics, forum_users, forum_notifications, forum_counters, forum_rate_events, sessions, audit_logs。
 
@@ -1593,7 +1597,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：只更新正文/edited_at；只有编辑他人帖子才写forum.post.edit审计，不记录正文；不会因编辑重新发送提及通知。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_posts, sessions, role_assignments, departments, titles, forum_users, forum_likes。本地表写入：forum_posts, audit_logs, forum_users, sessions。
 
@@ -1609,7 +1613,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：置deleted并清正文，保留点赞和书签；只在删除他人帖子时记forum.post.delete审计；幂等重试不重复执行删除。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_posts, sessions, role_assignments, departments, titles, forum_users, forum_likes。本地表写入：forum_posts, audit_logs, forum_users, sessions。
 
@@ -1625,7 +1629,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：事务切换点赞；新点赞按作者通知设置生成一次通知（同人同帖不重复），取消不撤回已有通知，不写操作审计。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_posts, forum_likes, forum_users, forum_notifications, forum_counters, sessions, role_assignments, departments, titles。本地表写入：forum_likes, forum_notifications, forum_counters, forum_users, sessions, audit_logs。
 
@@ -1641,7 +1645,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：事务按userId/postId切换书签，不通知作者，不修改帖子正文。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_posts, forum_bookmarks, sessions, role_assignments, departments, titles, forum_users, forum_likes。本地表写入：forum_bookmarks, forum_users, sessions, audit_logs。
 
@@ -1657,7 +1661,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：事务切换关注；首次关注在对方允许通知且未曾通知时写通知与编号，取消关注不删除旧通知。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_users, forum_follows, forum_notifications, forum_counters, sessions, role_assignments, departments, titles, forum_likes。本地表写入：forum_follows, forum_notifications, forum_counters, forum_users, sessions, audit_logs。
 
@@ -1673,7 +1677,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：仅更新本人该条read=1，不删通知；其他人的通知设置不下发。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_notifications, sessions, role_assignments, departments, titles, forum_users, forum_likes。本地表写入：forum_notifications, forum_users, sessions, audit_logs。
 
@@ -1689,7 +1693,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：UPDATE本人未读行并RETURNING id，据此只回变动通知，不清除别人的未读数。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_notifications, sessions, role_assignments, departments, titles, forum_users, forum_likes。本地表写入：forum_notifications, forum_users, sessions, audit_logs。
 
@@ -1705,7 +1709,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：昵称NFKC与冒名检查后保存；冒名来源含已有成员/官方用户名、指派和登录过的组织账号；只更新提交字段，不更改GitHub资料。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_users, role_assignments, sessions, audit_logs, departments, titles, forum_likes。本地表写入：forum_users, sessions, audit_logs。
 
@@ -1721,7 +1725,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：PNG/JPEG/WebP最多2MB、4096×4096；sharp取首帧转256×256 WebP去元数据；按哈希写库并更新本人引用，同事务清理无人引用的旧头像。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_avatars, forum_users, forum_rate_events, sessions, role_assignments, departments, titles, forum_likes。本地表写入：forum_avatars, forum_users, forum_rate_events, sessions, audit_logs。
 
@@ -1737,7 +1741,7 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 数据与副作用：事务移除avatar_hash引用并删除无用户引用的旧头像，保留GitHub头像字段用于回退，不删除用户。
 
-身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
+身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 本地表读取：forum_users, forum_avatars, sessions, role_assignments, departments, titles, forum_likes。本地表写入：forum_users, forum_avatars, sessions, audit_logs。
 
