@@ -24,9 +24,9 @@ export const OIDC_PROTOCOL_LIMIT = { server: 600, browser: 120 } as const;
 export default async function oidcRoutes(app: FastifyInstance) {
   const { oidc, directory, oidcStore, storage, config } = app.services;
   const provider = oidc?.provider as Provider;
-  // 协议端点的回复不经 Fastify 的错误处理器，oidc-provider 内部出错只发这个事件；只记路径和错误类型，不记查询串
-  provider?.on("server_error", (ctx: { path?: string }, error: Error) => {
-    app.log.error({ path: ctx.path, error: error?.name ?? "error" }, "oidc server error");
+  // 协议端点的回复不经 Fastify 的错误处理器，oidc-provider 内部出错只发这个事件；只记路径、错误类型与错误代码，不记查询串
+  provider?.on("server_error", (ctx: { path?: string }, error: Error & { code?: unknown }) => {
+    app.log.error({ path: ctx.path, error: error?.name ?? "error", code: typeof error?.code === "string" ? error.code : undefined }, "oidc server error");
   });
   const origin = new URL(config.publicOrigin);
   const enabled = async (_req: FastifyRequest, reply: FastifyReply) => {

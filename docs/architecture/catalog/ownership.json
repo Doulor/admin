@@ -310,7 +310,7 @@
     "oauth_subjects": "下游看到的 sub（ADR-0005 决策 3）：按 sector 给每个账号一个 32 字节随机值，(sector_id,user_id) 与 (sector_id,sub) 都唯一，不随登录或换签名密钥变化；内部 account_id 不下发。只有 lib/oidc-store.ts 读写。",
     "oauth_grants": "本人允许过的 (账号, 应用) → oidc-provider 的授权 id：之后同一应用登录不再问。授权被撤销（例如授权码重放）后这一行指向的授权不存在，下次登录重新同意并覆盖。只有 lib/oidc-store.ts 读写。",
     "oidc_payloads": "oidc-provider 的存储（会话、交互、授权码、访问令牌、授权）：payload 是它的 JSON，按 expires_at 过期，每小时顺手清一次过期行；令牌与授权码只在这里，不进日志。只有 lib/oidc-store.ts 读写，目录不读取记录。",
-    "gitlab_accounts": "极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，blocked 而 gitlab_user_id 为空表示离开时去 GitLab 找过、没有这个人；从不删除；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。"
+    "gitlab_accounts": "极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，从不删除；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。"
   },
   "supplementalInterfaces": [
     {
@@ -9439,7 +9439,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：有效全站 sid，roles.manage 或 roles.department.manage；不调用 GitLab。",
-        "响应与错误：200 {mode,gitlab_url,group,accounts:[{account_id,login,username,gitlab_user_id,state,access_level,last_error,last_error_at,synced_at,pending}]}；pending 是现在还要做的事（同步关着时为空）；没权限 403 missing_capability。",
+        "响应与错误：200 {mode,gitlab_url,group,client_registered,accounts:[{account_id,login,username,gitlab_user_id,state,access_level,last_error,last_error_at,synced_at,pending}]}；pending 是现在还要做的事（同步关着时为空），client_registered 说明 gitlab 客户端登记了没有；没权限 403 missing_capability。",
         "数据与副作用：只读。"
       ],
       "evidence": [

@@ -11,7 +11,7 @@ export default async function consoleGitlabRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
 
   app.get("/api/console/gitlab/accounts", { preHandler: requireCapability("roles.manage", "roles.department.manage") }, async () => ({
-    mode: gitlab.mode, gitlab_url: config.gitlab.url, group: config.gitlab.group, accounts: gitlab.status(),
+    mode: gitlab.mode, gitlab_url: config.gitlab.url, group: config.gitlab.group, client_registered: gitlab.clientRegistered(), accounts: gitlab.status(),
   }));
 
   app.post<{ Params: { account_id: string } }>("/api/console/gitlab/accounts/:account_id/sync", { preHandler: requireCapability("roles.manage"), config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {

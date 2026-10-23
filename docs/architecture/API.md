@@ -100,7 +100,7 @@ portal 包括 /api/docs、/api/feedback、/api/join/:token、/api/portal/apply�
 | `GET /api/console/invites` | `accounts.invites.manage` | 无 | 200 `{ invites: [{ id, code, note, max_uses, used_count, expires_at, disabled, created_by, created_at, updated_at, usable }] }`：注册邀请码（#262），不调用 GitHub | 401；403 `missing_capability` |
 | `POST /api/console/invites` | `accounts.invites.manage` | 30 次/分钟 | 201 邀请码一行：body `{ code, note?, max_uses?, expires_at? }`，`code` 4–40 位字母、数字、`_`、`-`，存小写；`max_uses`、`expires_at` 为 `null` 表示不限；审计 `invite.create` | 400；409 `invite_code_taken` |
 | `PATCH /api/console/invites/:id` | `accounts.invites.manage` | 30 次/分钟 | 200 邀请码一行：只改 `note`、`max_uses`、`expires_at`、`disabled`，邀请码本身不能改、不能删；有改动才审计 `invite.update` | 404 `not_found` |
-| `GET /api/console/gitlab/accounts` | `roles.manage` 或 `roles.department.manage` | 无 | 200 `{ mode, gitlab_url, group, accounts }`：每个极客班账号对应的 GitLab 用户 id、用户名、状态、组权限、最后一次错误和还要做的事（#270） | 401；403 `missing_capability` |
+| `GET /api/console/gitlab/accounts` | `roles.manage` 或 `roles.department.manage` | 无 | 200 `{ mode, gitlab_url, group, client_registered, accounts }`：每个极客班账号对应的 GitLab 用户 id、用户名、状态、组权限、最后一次错误和还要做的事（#270） | 401；403 `missing_capability` |
 | `POST /api/console/gitlab/accounts/:account_id/sync` | `roles.manage` | 30 次/分钟 | 200 `{ mode, …同步后的状态 }`：立即同步一个账号；`dry-run` 只返回要做什么 | 404 `account_not_found`；409 `gitlab_sync_off` |
 | `/api/forum/*` | 可选 `sid`（按端点区分成员与游客） | 按端点 | 见下方「论坛」 | 见下方「论坛」 |
 | `GET /healthz` | 匿名 | 无 | 200 `{ ok: true, ts }` | — |

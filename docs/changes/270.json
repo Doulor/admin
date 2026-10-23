@@ -433,6 +433,6 @@
     "tests/web/portal-promo.test.ts"
   ],
   "compatibility": "全是新增：/oidc/*、/authorize 与两个控制台接口是新路径，不和官网、论坛、控制台既有路由冲突；没配 OIDC_JWKS 时 /oidc/* 一律 404，行为和以前一样。GITLAB_SYNC 默认 off，正式环境照旧不调用 GitLab。官网桌面的 3 键从「GitHub 组织」换成「代码仓库」，GitHub 组织应用留在桌面和启动器里。已有接口的形状不变。",
-  "migration": "新镜像启动时在建库阶段 CREATE TABLE IF NOT EXISTS 建 oauth_clients、oauth_subjects、oauth_grants、oidc_payloads、gitlab_accounts 和它们的索引，可重复执行，不改已有表、不回填。上线后的手工步骤（只在目标机的 server 容器里）：keygen 生成签名密钥写进 .env.preview / .env.production 的 OIDC_JWKS 并重新部署，client add 登记 GitLab（client_secret 只输出一次，写进 GitLab 机器上 root 0600 的文件），再配 GitLab 的 omniauth；正式改 GITLAB_SYNC=on 前先备份数据库、填好 GITLAB_API_TOKEN。",
+  "migration": "新镜像启动时在建库阶段 CREATE TABLE IF NOT EXISTS 建 oauth_clients、oauth_subjects、oauth_grants、oidc_payloads、gitlab_accounts 和它们的索引，可重复执行，不改已有表、不回填。上线后的手工步骤（只在目标机的 server 容器里）：keygen 生成签名密钥写进 .env.preview / .env.production 的 OIDC_JWKS 并重新部署，client add --client-id gitlab 登记 GitLab（client id 必须是 gitlab，同步按它的回调主机算 sub；client_secret 只输出一次，写进 GitLab 机器上 root 0600 的文件），再把 GITLAB_SYNC 改成 on、填好 GITLAB_API_TOKEN，看到第一轮对账成功后才配 GitLab 的 omniauth（同步没开时成员离开不会被封禁）；正式改 GITLAB_SYNC=on 前先备份数据库。",
   "rollback": "在 stage 上 git revert -m 1 撤销合并提交并重新构建 server 与 web 镜像；库不用动：旧代码不认识这 5 张表，留着不影响。回滚后 GitLab 的极客班统一登录失效（/oidc/* 404），GitLab 上已经建好的用户与仓库留着，root 用密码照常登录；同步停下，不会封禁或解封任何人。下游拿到 sub 之后，回滚只能向前修复（ADR-0005），不要删 oauth_subjects，否则再上线时 GitLab 认不出原来的人。"
 }

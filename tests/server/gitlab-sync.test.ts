@@ -20,6 +20,7 @@ function fakeGitlab() {
   const members = new Map<number, number>();
   const calls: string[] = [];
   const failures: { match: string; status: number }[] = [];
+  const holds: { match: string; reached: () => void; released: Promise<void> }[] = [];
   let unreachable = false;
   let nextId = 100;
   const json = (status: number, data: unknown) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
@@ -33,6 +34,12 @@ function fakeGitlab() {
     const path = url.pathname.replace(/^\/api\/v4/, '');
     const call = `${method} ${path}`;
     calls.push(call);
+    const hold = holds.findIndex(item => call.startsWith(item.match));
+    if (hold >= 0) {
+      const [held] = holds.splice(hold, 1);
+      held.reached();
+      await held.released;
+    }
     const failure = failures.findIndex(item => call.startsWith(item.match));
     if (failure >= 0) return json(failures.splice(failure, 1)[0].status, { message: 'injected failure' });
     const body = typeof init.body === 'string' ? JSON.parse(init.body) as Record<string, unknown> : null;
@@ -85,6 +92,14 @@ function fakeGitlab() {
   return {
     users, members, calls, fetch,
     fail(match: string, status: number) { failures.push({ match, status }); },
+    /** 下一次匹配的请求停在半路：`reached` 在它到达时兑现，`release()` 之后才继续。 */
+    hold(match: string) {
+      let reached!: () => void;
+      let release!: () => void;
+      const hit = new Promise<void>(resolve => { reached = resolve; });
+      holds.push({ match, reached, released: new Promise<void>(resolve => { release = resolve; }) });
+      return { hit, release: () => release() };
+    },
     setUnreachable(value: boolean) { unreachable = value; },
     writes: () => calls.filter(call => !call.startsWith('GET ')),
   };
@@ -288,18 +303,21 @@ describe('GitLab account sync (#270)', () => {
     subOf(105);
     app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
     app.services.identity.setSiteRole({ accountId: accountOf(105), role: 'none', actor: 'system' });
-    expect(app.services.gitlab.status().find(item => item.login === 'alice')!.pending).toEqual([{ kind: 'block' }]);
+    expect(app.services.gitlab.status().find(item => item.login === 'alice')!.pending).toEqual([{ kind: 'find_and_block' }]);
 
-    expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 2, failed: 0 });
+    expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 1, failed: 0 });
     expect(gitlab.users.find(user => user.id === 61)!.state).toBe('blocked');
     expect(row(101)).toMatchObject({ gitlab_user_id: 61, username: 'alice', state: 'blocked', last_error: null });
-    expect(row(105)).toMatchObject({ gitlab_user_id: null, username: 'erin', state: 'blocked' });
+    expect(row(105)).toBeUndefined();
     expect(gitlab.calls.filter(call => call === 'POST /users')).toEqual([]);
 
-    // 找过一次就不再找；没有 sub 的、不是成员的账号从来不去 GitLab 找
+    // 对上了的不再找；没对上的 erin 每轮照样按身份找一次，没找到就不写也不记审计
+    const audit = () => app.services.storage.db.prepare("SELECT COUNT(*) AS n FROM audit_logs WHERE action = 'gitlab.sync'").get();
+    const audits = audit();
     const calls = gitlab.calls.length;
     expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 0, failed: 0 });
-    expect(gitlab.calls).toHaveLength(calls);
+    expect(gitlab.calls.slice(calls)).toEqual(['GET /users']);
+    expect(audit()).toEqual(audits);
 
     // 回来了：alice 解封沿用原来的号，erin 照常建号
     app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'member', actor: 'system' });
@@ -309,6 +327,54 @@ describe('GitLab account sync (#270)', () => {
     expect(row(101)).toMatchObject({ gitlab_user_id: 61, state: 'active', access_level: 30 });
     expect(userNamed(gitlab, 'erin')).toMatchObject({ extern_uid: subOf(105), state: 'active' });
     expect(row(105)).toMatchObject({ username: 'erin', state: 'active', access_level: 30 });
+  });
+
+  it('keeps looking for a departed account that signs in to GitLab again between two rounds', async () => {
+    const { app, gitlab, accountOf, subOf, row } = await setup();
+    signIn(app, 'erin', 105);
+    const sub = subOf(105);
+    const role = (value: 'member' | 'none') => app.services.identity.setSiteRole({ accountId: accountOf(105), role: value, actor: 'system' });
+    role('none');
+    await app.services.gitlab.reconcile();
+    expect(gitlab.users).toEqual([]);
+
+    // 她回来，回来那一轮 GitLab 不通；这期间她用极客班登录了一次 GitLab（GitLab 自动建号），下一轮之前又离开
+    role('member');
+    gitlab.setUnreachable(true);
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('gitlab_unreachable');
+    gitlab.setUnreachable(false);
+    gitlab.users.push({ id: 71, username: 'erin', email: 'erin@example.test', name: 'Erin', state: 'active', extern_uid: sub, provider: 'openid_connect' });
+    role('none');
+    expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 1, failed: 0 });
+    expect(gitlab.users[0].state).toBe('blocked');
+    expect(row(105)).toMatchObject({ gitlab_user_id: 71, state: 'blocked', last_error: null });
+
+    // 同样的事不经过失败的那一轮也一样：离开、没找到，回来登录、下一轮之前又离开
+    signIn(app, 'finn', 106);
+    const finnSub = subOf(106);
+    app.services.identity.setSiteRole({ accountId: accountOf(106), role: 'none', actor: 'system' });
+    await app.services.gitlab.reconcile();
+    gitlab.users.push({ id: 72, username: 'finn', email: 'finn@example.test', name: 'Finn', state: 'active', extern_uid: finnSub, provider: 'openid_connect' });
+    await app.services.gitlab.reconcile();
+    expect(gitlab.users.find(user => user.id === 72)!.state).toBe('blocked');
+  });
+
+  it('decides on the account as it is now, not on the list taken when the round started', async () => {
+    const { app, gitlab, accountOf } = await setup();
+    signIn(app, 'alice', 101);
+    signIn(app, 'bob', 202);
+    await app.services.gitlab.reconcile();
+    const bob = userNamed(gitlab, 'bob')!;
+    // alice 这一轮要改组权限，停在半路；这时管理员把 bob 移出成员并立即同步
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'admin', actor: 'system' });
+    const held = gitlab.hold('POST /groups/geek/members');
+    const round = app.services.gitlab.reconcile();
+    await held.hit;
+    app.services.identity.setSiteRole({ accountId: accountOf(202), role: 'none', actor: 'system' });
+    expect(await app.services.gitlab.syncAccount(accountOf(202), 'system')).toMatchObject({ actions: [{ kind: 'block' }], error: null });
+    held.release();
+    await round;
+    expect(bob.state).toBe('blocked');
   });
 
   it('never runs a manual sync of an account at the same time as the scheduled one', async () => {
@@ -327,14 +393,16 @@ describe('GitLab account sync (#270)', () => {
     signIn(internal.app, 'alice', 101);
     await internal.app.services.gitlab.reconcile();
     const sub = internal.app.services.oidcStore.subjectFor('code.example.test', internal.accountOf(101));
-    expect(userNamed(internal.gitlab, 'alice')).toMatchObject({ extern_uid: sub, email: 'alice@noreply.git.example.test' });
+    expect(userNamed(internal.gitlab, 'alice')).toMatchObject({ extern_uid: sub, email: 'alice@noreply.code.example.test' });
     expect(internal.app.services.oidcStore.existingSubject('git.example.test', internal.accountOf(101))).toBeNull();
 
     const missing = await setup(SYNC_ENV, {}, null);
     signIn(missing.app, 'alice', 101);
-    const summary = await missing.app.services.gitlab.reconcile();
-    expect(summary.outcomes[0]).toMatchObject({ error: 'gitlab_client_missing', applied: false });
+    expect(await missing.app.services.gitlab.reconcile()).toMatchObject({ skipped: 'gitlab_client_missing', accounts: 0, outcomes: [] });
+    expect(await missing.app.services.gitlab.syncAccount(missing.accountOf(101), 'system')).toMatchObject({ error: 'gitlab_client_missing', applied: false });
+    expect(missing.app.services.gitlab.clientRegistered()).toBe(false);
     expect(missing.gitlab.calls).toEqual([]);
+    expect(missing.db.prepare("SELECT COUNT(*) AS n FROM audit_logs WHERE action = 'gitlab.sync'").get()).toEqual({ n: 0 });
   });
 
   it('drops a GitHub blog that is not a web address', async () => {
@@ -392,7 +460,7 @@ describe('console GitLab sync endpoints (#270)', () => {
     const { app, admiral, member, accountOf } = await consoleSetup();
     const res = await app.inject({ url: '/api/console/gitlab/accounts', headers: admiral });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ mode: 'on', gitlab_url: GITLAB, group: 'geek' });
+    expect(res.json()).toMatchObject({ mode: 'on', gitlab_url: GITLAB, group: 'geek', client_registered: true });
     expect(res.json().accounts).toContainEqual({
       account_id: accountOf(101), login: 'alice', username: null, gitlab_user_id: null, state: null, access_level: null,
       last_error: null, last_error_at: null, synced_at: null, pending: [{ kind: 'create', username: 'alice', access_level: 30 }],

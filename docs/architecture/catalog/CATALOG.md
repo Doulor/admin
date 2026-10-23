@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`63e0a35d8bdfa3ca7809e2d5364d75844f5ec84996e0a977f05e3e72f02091d9`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`7faf75a601bd4849180875b5eb11e67edd0f9f6843f071f6b45f46cb4a10380d`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -2785,10 +2785,10 @@
 - 写入：`sessions`
 - 不入队：
 - 权限与资源：有效全站 sid，roles.manage 或 roles.department.manage；不调用 GitLab。
-- 响应与错误：200 {mode,gitlab_url,group,accounts:[{account_id,login,username,gitlab_user_id,state,access_level,last_error,last_error_at,synced_at,pending}]}；pending 是现在还要做的事（同步关着时为空）；没权限 403 missing_capability。
+- 响应与错误：200 {mode,gitlab_url,group,client_registered,accounts:[{account_id,login,username,gitlab_user_id,state,access_level,last_error,last_error_at,synced_at,pending}]}；pending 是现在还要做的事（同步关着时为空），client_registered 说明 gitlab 客户端登记了没有；没权限 403 missing_capability。
 - 数据与副作用：只读。
 
-源码：[app/server/src/routes/console/gitlab.ts:13](../../../app/server/src/routes/console/gitlab.ts#L13) · [app/server/src/routes/console/contracts.ts:137](../../../app/server/src/routes/console/contracts.ts#L137) · [app/server/src/lib/gitlab-sync.ts:53](../../../app/server/src/lib/gitlab-sync.ts#L53) · [app/server/src/routes/console/index.ts:33](../../../app/server/src/routes/console/index.ts#L33)
+源码：[app/server/src/routes/console/gitlab.ts:13](../../../app/server/src/routes/console/gitlab.ts#L13) · [app/server/src/routes/console/contracts.ts:137](../../../app/server/src/routes/console/contracts.ts#L137) · [app/server/src/lib/gitlab-sync.ts:55](../../../app/server/src/lib/gitlab-sync.ts#L55) · [app/server/src/routes/console/index.ts:33](../../../app/server/src/routes/console/index.ts#L33)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
 
@@ -2805,7 +2805,7 @@
 - 响应与错误：200 {mode,account_id,login,actions,applied,error}；GITLAB_SYNC=off 时 409 gitlab_sync_off；账号不存在 404 account_not_found；GitLab 出错不回 5xx，写进 error 与 last_error。
 - 数据与副作用：按 OIDC 身份（provider=openid_connect，extern_uid=gitlab 客户端 sector 的 sub）找或建 GitLab 用户、调组权限、封禁或解封，从不删除；dry-run 只返回 actions 不写；写 audit_logs gitlab.sync，操作人是会话账号。
 
-源码：[app/server/src/routes/console/gitlab.ts:17](../../../app/server/src/routes/console/gitlab.ts#L17) · [app/server/src/routes/console/contracts.ts:144](../../../app/server/src/routes/console/contracts.ts#L144) · [app/server/src/lib/gitlab-sync.ts:53](../../../app/server/src/lib/gitlab-sync.ts#L53) · [app/server/src/lib/db.ts:508](../../../app/server/src/lib/db.ts#L508) · [app/server/src/lib/identity-store.ts:634](../../../app/server/src/lib/identity-store.ts#L634)
+源码：[app/server/src/routes/console/gitlab.ts:17](../../../app/server/src/routes/console/gitlab.ts#L17) · [app/server/src/routes/console/contracts.ts:144](../../../app/server/src/routes/console/contracts.ts#L144) · [app/server/src/lib/gitlab-sync.ts:55](../../../app/server/src/lib/gitlab-sync.ts#L55) · [app/server/src/lib/db.ts:508](../../../app/server/src/lib/db.ts#L508) · [app/server/src/lib/identity-store.ts:634](../../../app/server/src/lib/identity-store.ts#L634)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
 

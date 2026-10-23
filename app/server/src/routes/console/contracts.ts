@@ -40,7 +40,7 @@ const nullableCount = { anyOf: [integer(0), { type: "null" }] };
 const gitlabAction = {
   oneOf: [
     object({ kind: choices("create"), username: text(64, 1), access_level: integer(10, 50) }, ["kind", "username", "access_level"]),
-    object({ kind: choices("block", "unblock") }, ["kind"]),
+    object({ kind: choices("block", "unblock", "find_and_block") }, ["kind"]),
     object({ kind: choices("set_access"), access_level: integer(10, 50) }, ["kind", "access_level"]),
   ],
 };
@@ -137,9 +137,9 @@ export const consoleContracts: RouteContracts = {
   "GET /api/console/gitlab/accounts": {
     ...noQuery,
     response: { 200: object({
-      mode: choices("off", "dry-run", "on"), gitlab_url: nullableString(255), group: text(255, 1),
+      mode: choices("off", "dry-run", "on"), gitlab_url: nullableString(255), group: text(255, 1), client_registered: { type: "boolean" },
       accounts: { type: "array", items: gitlabAccountView },
-    }, ["mode", "gitlab_url", "group", "accounts"]), ...consoleFailures },
+    }, ["mode", "gitlab_url", "group", "client_registered", "accounts"]), ...consoleFailures },
   },
   "POST /api/console/gitlab/accounts/:account_id/sync": {
     ...noQuery,

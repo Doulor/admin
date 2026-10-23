@@ -109,7 +109,7 @@ Google 登录的两项也是可选的一对（同一脚本的 `GOOGLE_SECRET_PAI
 
 GitHub App 的两项也是可选的一对（`GITHUB_APP_SECRET_PAIR`，#262 第四期）：都为空时控制台的 GitHub 组织页面只在用 GitHub 登录时借本人的令牌读写，用邮箱、Google 登录的人看到「GitHub 还没接上」；只填一项拒绝渲染，server 启动也会拒绝，私钥不对、不是 RSA 时启动失败，错误信息不带私钥。两个环境现在都没配。要开启时由 `CONSOLE_ORG` 的 owner 在组织设置里建一个 GitHub App（不要回调地址和 webhook），按控制台要做的事给组织与仓库权限（成员、管理、内容、议题、PR），装到组织上，生成私钥；把 App ID 和一行 base64 的私钥写进目标机的 `.env.<环境>`（或环境级 secrets）并重新部署。配了之后谁能读写 GitHub 只看站内称号，见 [SECURITY](../architecture/SECURITY.md)「权限只认极客班账号」。
 
-对外授权与 GitLab 同步的两项（同一脚本的 `OIDC_GITLAB_SECRETS`，#270）：`OIDC_JWKS` 为空时对外授权关闭，`/oidc/*` 一律 404，渲染时提示，照常部署；`GITLAB_API_TOKEN` 只在 `GITLAB_SYNC=on` 时必填，缺了拒绝渲染，server 启动也会拒绝。`GITLAB_SYNC` 只能是 `off`、`dry-run`、`on`，`GITLAB_URL` 是不带尾斜杠的 https origin，`GITLAB_GROUP` 是 GitLab 的组路径，`pnpm check:environments` 核对。两个环境现在都没配这两项。开启顺序：在目标机 server 容器里生成签名密钥写进 `.env.<环境>` 的 `OIDC_JWKS`、重新部署，再用同一个 CLI 登记 GitLab 客户端，把 GitLab 的 omniauth 配好（[对外授权与 GitLab 账号同步](../services/server/oidc.md)「客户端与密钥」「GitLab 一侧的配置」）；正式环境改 `GITLAB_SYNC=on` 要所有者先在预发布验收并批准，改之前先备份数据库。
+对外授权与 GitLab 同步的两项（同一脚本的 `OIDC_GITLAB_SECRETS`，#270）：`OIDC_JWKS` 为空时对外授权关闭，`/oidc/*` 一律 404，渲染时提示，照常部署；`GITLAB_API_TOKEN` 只在 `GITLAB_SYNC=on` 时必填，缺了拒绝渲染，server 启动也会拒绝。`GITLAB_SYNC` 只能是 `off`、`dry-run`、`on`，`GITLAB_URL` 是不带尾斜杠的 https origin，`GITLAB_GROUP` 是 GitLab 的组路径，`pnpm check:environments` 核对。两个环境现在都没配这两项。开启顺序：在目标机 server 容器里生成签名密钥写进 `.env.<环境>` 的 `OIDC_JWKS`、重新部署；再用同一个 CLI 登记 GitLab 客户端，client id 必须是 `gitlab`（同步按它的回调主机算 `sub`）；然后把 `GITLAB_SYNC` 改成 `on`、填 `GITLAB_API_TOKEN`、重新部署，看到第一轮对账成功（控制台 `client_registered` 为 `true`、没有 `last_error`）；最后才配 GitLab 的 omniauth。同步没开时成员离开不会被封禁，所以 GitLab 的统一登录不能先开（[对外授权与 GitLab 账号同步](../services/server/oidc.md)「客户端与密钥」「GitLab 一侧的配置」）。正式环境改 `GITLAB_SYNC=on` 要所有者先在预发布验收并批准，改之前先备份数据库。
 
 ### vars
 
