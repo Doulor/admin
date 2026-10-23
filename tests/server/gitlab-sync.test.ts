@@ -12,11 +12,22 @@ const GITLAB = 'https://git.example.test';
 const SYNC_ENV = { GITLAB_SYNC: 'on', GITLAB_URL: GITLAB, GITLAB_API_TOKEN: 'test-gitlab-token', GITLAB_GROUP: 'geek' };
 const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
 
-type FakeUser = { id: number; username: string; email: string; name: string; state: 'active' | 'blocked'; extern_uid: string | null; provider: string | null; bio?: string; location?: string; website_url?: string; avatar?: string };
+type FakeEmail = { id: number; email: string; confirmed_at: string | null };
+type FakeUser = {
+  id: number; username: string; email: string; name: string; state: 'active' | 'blocked'; extern_uid: string | null; provider: string | null;
+  bio?: string; location?: string; website_url?: string; avatar?: string; emails?: FakeEmail[];
+};
+const CONFIRMED = '2026-10-23T12:00:00.000Z';
 
-/** 假 GitLab：只认管理员令牌，用户名和邮箱不分大小写唯一，组成员按 user id 记权限。`fail` 让下一次匹配的请求失败。 */
+/**
+ * 假 GitLab：只认管理员令牌，用户名和邮箱不分大小写唯一（主邮箱和次邮箱一起算），组成员按 user id 记权限。`fail` 让下一次匹配的请求失败。
+ * 邮箱列表和真的 GitLab 一样连主邮箱也列出来（`emails` 只放次邮箱），主邮箱删不掉；换主邮箱后旧的留成已确认的次邮箱。
+ */
 function fakeGitlab() {
   const users: FakeUser[] = [];
+  let nextEmailId = 900;
+  const owns = (user: FakeUser, email: string) => [user.email, ...(user.emails ?? []).map(item => item.email)].some(item => item.toLowerCase() === email.toLowerCase());
+  const primaryEntry = (user: FakeUser): FakeEmail => ({ id: user.id * 1000, email: user.email, confirmed_at: CONFIRMED });
   const members = new Map<number, number>();
   const calls: string[] = [];
   const failures: { match: string; status: number }[] = [];
@@ -51,7 +62,7 @@ function fakeGitlab() {
       const username = String(body!.username);
       const email = String(body!.email);
       if (users.some(user => user.username.toLowerCase() === username.toLowerCase())) return json(409, { message: 'Username has already been taken' });
-      if (users.some(user => user.email.toLowerCase() === email.toLowerCase())) return json(409, { message: 'Email has already been taken' });
+      if (users.some(user => owns(user, email))) return json(409, { message: 'Email has already been taken' });
       expect(body).toMatchObject({ skip_confirmation: true, force_random_password: true, provider: 'openid_connect' });
       const user: FakeUser = {
         id: nextId++, username, email, name: String(body!.name), state: 'active', extern_uid: String(body!.extern_uid), provider: String(body!.provider),
@@ -64,6 +75,15 @@ function fakeGitlab() {
       const user = users.find(item => item.id === Number(match![1]));
       if (!user) return json(404, { message: '404 User Not Found' });
       if (method === 'GET') return json(200, user);
+      if (method === 'PUT' && body) {
+        expect(body).toEqual({ email: expect.any(String), skip_reconfirmation: true });
+        const email = String(body.email);
+        if (users.some(other => other !== user && owns(other, email))) return json(409, { message: 'Email has already been taken' });
+        const secondaries = (user.emails ?? []).filter(item => item.email.toLowerCase() !== email.toLowerCase());
+        user.emails = [...secondaries, { id: nextEmailId++, email: user.email, confirmed_at: CONFIRMED }];
+        user.email = email;
+        return json(200, user);
+      }
       if (method === 'PUT') {
         const avatar = (init.body as FormData).get('avatar') as File;
         // GitLab 只收 200 KiB 以内、扩展名是图片的头像
@@ -71,6 +91,27 @@ function fakeGitlab() {
         if (!/^image\/(png|jpeg|gif|webp)$/.test(avatar.type) || !/\.(png|jpg|gif|webp)$/.test(avatar.name)) return json(400, { message: { avatar: ['file format is not supported'] } });
         user.avatar = `${avatar.type} ${avatar.size} ${avatar.name}`;
         return json(200, user);
+      }
+    }
+    if ((match = path.match(/^\/users\/(\d+)\/emails(?:\/(\d+))?$/))) {
+      const user = users.find(item => item.id === Number(match![1]));
+      if (!user) return json(404, { message: '404 User Not Found' });
+      user.emails ??= [];
+      if (method === 'GET' && !match[2]) return json(200, [primaryEntry(user), ...user.emails]);
+      if (method === 'POST' && !match[2]) {
+        expect(body).toEqual({ email: expect.any(String), skip_confirmation: true });
+        const email = String(body!.email);
+        if (users.some(other => owns(other, email))) return json(400, { message: { email: ['has already been taken'] } });
+        const entry = { id: nextEmailId++, email, confirmed_at: CONFIRMED };
+        user.emails.push(entry);
+        return json(201, entry);
+      }
+      if (method === 'DELETE' && match[2]) {
+        if (Number(match[2]) === primaryEntry(user).id) return json(400, { message: 'Cannot delete primary email' });
+        const index = user.emails.findIndex(item => item.id === Number(match![2]));
+        if (index < 0) return json(404, { message: '404 Email Not Found' });
+        user.emails.splice(index, 1);
+        return new Response(null, { status: 204 });
       }
     }
     if (method === 'POST' && (match = path.match(/^\/users\/(\d+)\/(block|unblock)$/))) {
@@ -147,6 +188,12 @@ function userNamed(gitlab: ReturnType<typeof fakeGitlab>, username: string) {
   return gitlab.users.find(user => user.username === username);
 }
 
+/** GitLab 用户名下的邮箱：主邮箱在前，次邮箱按字母排。 */
+function emailsOn(gitlab: ReturnType<typeof fakeGitlab>, username: string) {
+  const user = userNamed(gitlab, username)!;
+  return [user.email, ...(user.emails ?? []).map(item => item.email).sort()];
+}
+
 describe('GitLab account sync (#270)', () => {
   it('creates one GitLab user per member with the OIDC identity, profile, avatar and group access', async () => {
     const { app, gitlab, github, accountOf, promote, subOf, row } = await setup(SYNC_ENV, {
@@ -176,6 +223,10 @@ describe('GitLab account sync (#270)', () => {
     expect(row(101)).toMatchObject({
       gitlab_user_id: alice.id, username: 'alice', state: 'active', access_level: 30, avatar_source: 'https://avatars.githubusercontent.com/u/101', last_error: null,
     });
+    // GitHub noreply 邮箱以「已确认」加到名下，提交里用它的能认出是谁（#272）
+    expect(emailsOn(gitlab, 'alice')).toEqual(['alice@noreply.git.example.test', '101+alice@users.noreply.github.com', 'alice@users.noreply.github.com']);
+    expect(alice.emails!.every(item => item.confirmed_at)).toBe(true);
+    expect(JSON.parse(String(row(101)!.emails_source))).toEqual({ primary: null, others: ['101+alice@users.noreply.github.com', 'alice@users.noreply.github.com'] });
     expect(app.services.gitlab.gitlabUserFor(accountOf(101))).toEqual({ gitlabUserId: alice.id, username: 'alice', state: 'active' });
     expect(app.services.gitlab.accountForGitlabUser(admiral.id)).toBe(accountOf(1));
 
@@ -197,9 +248,13 @@ describe('GitLab account sync (#270)', () => {
     db.prepare('UPDATE users SET canonical_email = ? WHERE id = ?').run('carol@example.test', accountOf(103));
     db.prepare('UPDATE users SET canonical_email = ? WHERE id = ?').run('dave@example.test', accountOf(104));
     gitlab.users.push({ id: 7, username: 'someone', email: 'dave@example.test', name: 'someone', state: 'active', extern_uid: null, provider: null });
-    await app.services.gitlab.reconcile();
+    const summary = await app.services.gitlab.reconcile();
     expect(userNamed(gitlab, 'carol')!.email).toBe('carol@example.test');
     expect(userNamed(gitlab, 'dave')!.email).toBe('dave@noreply.git.example.test');
+    // dave 的邮箱在别的 GitLab 用户名下：改不成主邮箱，成员页看得到原因；noreply 邮箱照样加上（#272）
+    expect(summary.outcomes.find(item => item.login === 'dave')).toMatchObject({ error: 'gitlab_email_409', applied: false });
+    expect(emailsOn(gitlab, 'dave')).toEqual(['dave@noreply.git.example.test', '104+dave@users.noreply.github.com', 'dave@users.noreply.github.com']);
+    expect(summary.outcomes.find(item => item.login === 'carol')).toMatchObject({ error: null });
   });
 
   it('adds a suffix when the username is reserved, the group name or taken on GitLab, and keeps it afterwards', async () => {
@@ -291,7 +346,7 @@ describe('GitLab account sync (#270)', () => {
     expect(first).toMatchObject({ changed: 0, failed: 1 });
     expect(first.outcomes[0]).toMatchObject({ login: 'alice', error: 'gitlab_member_500', applied: false });
     expect(row(101)).toMatchObject({ username: 'alice', state: 'active', access_level: null, last_error: 'gitlab_member_500' });
-    expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_access', access_level: 30 }, { kind: 'set_avatar' }]);
+    expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_access', access_level: 30 }, { kind: 'set_avatar' }, { kind: 'set_emails' }]);
 
     gitlab.setUnreachable(true);
     expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('gitlab_unreachable');
@@ -299,7 +354,7 @@ describe('GitLab account sync (#270)', () => {
 
     const second = await app.services.gitlab.reconcile();
     expect(second).toMatchObject({ changed: 1, failed: 0 });
-    expect(second.outcomes[0].actions).toEqual([{ kind: 'set_access', access_level: 30 }, { kind: 'set_avatar' }]);
+    expect(second.outcomes[0].actions).toEqual([{ kind: 'set_access', access_level: 30 }, { kind: 'set_avatar' }, { kind: 'set_emails' }]);
     expect(row(101)).toMatchObject({ access_level: 30, last_error: null, last_error_at: null });
     expect(gitlab.users.filter(user => user.username === 'alice')).toHaveLength(1);
   });
@@ -580,7 +635,7 @@ describe('GitLab account sync (#270)', () => {
     signIn(dry.app, 'alice', 101);
     const summary = await dry.app.services.gitlab.reconcile();
     expect(summary.outcomes).toEqual([{
-      account_id: dry.accountOf(101), login: 'alice', actions: [{ kind: 'create', username: 'alice', access_level: 30 }, { kind: 'set_avatar' }], applied: false, error: null,
+      account_id: dry.accountOf(101), login: 'alice', actions: [{ kind: 'create', username: 'alice', access_level: 30 }, { kind: 'set_avatar' }, { kind: 'set_emails' }], applied: false, error: null,
     }]);
     expect(dry.github.calls).toEqual([]);
     expect(dry.gitlab.calls).toEqual([]);
@@ -591,6 +646,116 @@ describe('GitLab account sync (#270)', () => {
     expect(await off.app.services.gitlab.reconcile()).toMatchObject({ mode: 'off', accounts: 0 });
     expect(off.app.services.gitlab.status()[0].pending).toEqual([]);
     expect(off.gitlab.calls).toEqual([]);
+  });
+});
+
+describe('GitLab commit emails (#272)', () => {
+  const link = (app: FastifyInstance, accountId: string, email: string) =>
+    expect(app.services.identity.linkEmail({ accountId, email, login: 'test', claim: () => true })).toEqual({ ok: true });
+  const emailIds = (app: FastifyInstance, accountId: string) =>
+    app.services.identity.accountView(accountId).identities.filter(item => item.provider === 'email') as { id: string; label: string }[];
+
+  it('swaps the placeholder for the bound email, adds the others confirmed, drops removed ones and leaves GitLab alone when nothing changed', async () => {
+    const { app, gitlab, accountOf, row } = await setup();
+    signIn(app, 'alice', 101);
+    await app.services.gitlab.reconcile();
+    const alice = userNamed(gitlab, 'alice')!;
+    const placeholder = alice.emails!.length;
+    expect(placeholder).toBe(2);
+
+    link(app, accountOf(101), 'alice@example.test');
+    link(app, accountOf(101), 'alice@work.example.test');
+    expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_emails' }]);
+    let before = gitlab.calls.length;
+    expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 1, failed: 0 });
+    expect(emailsOn(gitlab, 'alice')).toEqual(['alice@example.test', '101+alice@users.noreply.github.com', 'alice@users.noreply.github.com', 'alice@work.example.test']);
+    expect(gitlab.calls.slice(before)).toEqual([
+      `GET /users/${alice.id}`, `PUT /users/${alice.id}`, `GET /users/${alice.id}/emails`, `POST /users/${alice.id}/emails`, expect.stringMatching(new RegExp(`^DELETE /users/${alice.id}/emails/\\d+$`)),
+    ]);
+    expect(JSON.parse(String(row(101)!.emails_source))).toEqual({
+      primary: 'alice@example.test', others: ['101+alice@users.noreply.github.com', 'alice@users.noreply.github.com', 'alice@work.example.test'],
+    });
+
+    // 没变：下一轮一个 GitLab 请求都不发
+    before = gitlab.calls.length;
+    expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 0, failed: 0 });
+    expect(gitlab.calls).toHaveLength(before);
+
+    // 在极客班删掉工作邮箱：GitLab 上也删掉，别的不动
+    const work = emailIds(app, accountOf(101)).find(item => item.label.startsWith('a***@work'))!;
+    expect(app.services.identity.unlinkEmail({ accountId: accountOf(101), identityId: work.id, login: 'alice' })).toEqual({ ok: true });
+    expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_emails' }]);
+    await app.services.gitlab.reconcile();
+    expect(emailsOn(gitlab, 'alice')).toEqual(['alice@example.test', '101+alice@users.noreply.github.com', 'alice@users.noreply.github.com']);
+    expect(gitlab.calls.filter(call => call.startsWith('PUT '))).toHaveLength(2);
+  });
+
+  it('records a refused email, still uploads the avatar and the other emails, and retries on the next round', async () => {
+    const { app, gitlab, github, accountOf, row } = await setup();
+    signIn(app, 'alice', 101);
+    gitlab.users.push({ id: 9, username: 'someone', email: 'someone@example.test', name: 'someone', state: 'active', extern_uid: null, provider: null,
+      emails: [{ id: 1, email: 'alice@work.example.test', confirmed_at: CONFIRMED }] });
+    link(app, accountOf(101), 'alice@example.test');
+    link(app, accountOf(101), 'alice@work.example.test');
+    const first = await app.services.gitlab.reconcile();
+    expect(first.outcomes[0]).toMatchObject({ error: 'gitlab_email_400', applied: false });
+    const alice = userNamed(gitlab, 'alice')!;
+    expect(alice.avatar).toBe(`image/png ${PNG.length} avatar.png`);
+    expect(emailsOn(gitlab, 'alice')).toEqual(['alice@example.test', '101+alice@users.noreply.github.com', 'alice@users.noreply.github.com']);
+    // 只记做成的：工作邮箱不在里面，和要有的不一样，下一轮再试
+    expect(row(101)).toMatchObject({ last_error: 'gitlab_email_400', avatar_source: 'https://avatars.githubusercontent.com/u/101' });
+    expect(JSON.parse(String(row(101)!.emails_source))).toEqual({ primary: 'alice@example.test', others: ['101+alice@users.noreply.github.com', 'alice@users.noreply.github.com'] });
+    expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_emails' }]);
+
+    // 头像下载失败也不耽误邮箱：两边都试过，报先失败的那个
+    gitlab.users[0].emails = [];
+    app.services.storage.db.prepare('UPDATE gitlab_accounts SET avatar_source = NULL').run();
+    github.avatar(() => new Response('', { status: 503 }));
+    const second = await app.services.gitlab.reconcile();
+    expect(second.outcomes[0]).toMatchObject({ actions: [{ kind: 'set_avatar' }, { kind: 'set_emails' }], error: 'github_avatar_503' });
+    expect(emailsOn(gitlab, 'alice')).toContain('alice@work.example.test');
+    expect(row(101)).toMatchObject({ avatar_source: null, last_error: 'github_avatar_503' });
+    expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_avatar' }]);
+  });
+
+  it('still drops an email removed on the site while another email keeps being refused', async () => {
+    const { app, gitlab, accountOf, row } = await setup();
+    signIn(app, 'alice', 101);
+    // 主邮箱在别的 GitLab 用户名下：每一轮改主邮箱都回 409
+    gitlab.users.push({ id: 9, username: 'someone', email: 'alice@example.test', name: 'someone', state: 'active', extern_uid: null, provider: null });
+    link(app, accountOf(101), 'alice@example.test');
+    link(app, accountOf(101), 'alice@work.example.test');
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('gitlab_email_409');
+    expect(emailsOn(gitlab, 'alice')).toContain('alice@work.example.test');
+
+    // 失败的那一轮加上去的工作邮箱，在极客班删掉以后照样从 GitLab 删掉
+    const work = emailIds(app, accountOf(101)).find(item => item.label.startsWith('a***@work'))!;
+    app.services.identity.unlinkEmail({ accountId: accountOf(101), identityId: work.id, login: 'alice' });
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('gitlab_email_409');
+    expect(emailsOn(gitlab, 'alice')).toEqual(['alice@noreply.git.example.test', '101+alice@users.noreply.github.com', 'alice@users.noreply.github.com']);
+    expect(JSON.parse(String(row(101)!.emails_source))).toEqual({ primary: null, others: ['101+alice@users.noreply.github.com', 'alice@users.noreply.github.com'] });
+
+    // 占用的人把邮箱让出来：下一轮换上主邮箱，删掉占位地址，之后不再调 GitLab
+    gitlab.users.find(user => user.id === 9)!.email = 'someone@example.test';
+    expect(await app.services.gitlab.reconcile()).toMatchObject({ failed: 0 });
+    expect(emailsOn(gitlab, 'alice')).toEqual(['alice@example.test', '101+alice@users.noreply.github.com', 'alice@users.noreply.github.com']);
+    const calls = gitlab.calls.length;
+    await app.services.gitlab.reconcile();
+    expect(gitlab.calls).toHaveLength(calls);
+  });
+
+  it('replaces an email someone added on GitLab but could not confirm', async () => {
+    const { app, gitlab } = await setup();
+    signIn(app, 'alice', 101);
+    gitlab.users.push({ id: 42, username: 'alice', email: 'alice@noreply.git.example.test', name: 'Alice', state: 'active', extern_uid: null, provider: null,
+      emails: [{ id: 5, email: 'Alice@users.noreply.github.com', confirmed_at: null }] });
+    gitlab.users[0].extern_uid = app.services.oidcStore.subjectFor('git.example.test', app.services.identity.accountForGithub(101)!);
+    gitlab.users[0].provider = 'openid_connect';
+    await app.services.gitlab.reconcile();
+    const emails = gitlab.users[0].emails!;
+    expect(emails.map(item => item.email).sort()).toEqual(['101+alice@users.noreply.github.com', 'alice@users.noreply.github.com']);
+    expect(emails.every(item => item.confirmed_at)).toBe(true);
+    expect(gitlab.calls).toContain('DELETE /users/42/emails/5');
   });
 });
 
@@ -615,7 +780,7 @@ describe('console GitLab sync endpoints (#270)', () => {
     expect(res.json()).toMatchObject({ mode: 'on', gitlab_url: GITLAB, group: 'geek', client_registered: true });
     expect(res.json().accounts).toContainEqual({
       account_id: accountOf(101), login: 'alice', username: null, gitlab_user_id: null, state: null, access_level: null,
-      last_error: null, last_error_at: null, synced_at: null, pending: [{ kind: 'create', username: 'alice', access_level: 30 }, { kind: 'set_avatar' }],
+      last_error: null, last_error_at: null, synced_at: null, pending: [{ kind: 'create', username: 'alice', access_level: 30 }, { kind: 'set_avatar' }, { kind: 'set_emails' }],
     });
     expect((await app.inject({ url: '/api/console/gitlab/accounts', headers: member })).statusCode).toBe(403);
     expect((await app.inject({ url: '/api/console/gitlab/accounts' })).statusCode).toBe(401);
@@ -627,7 +792,7 @@ describe('console GitLab sync endpoints (#270)', () => {
     const res = await sync(app, accountOf(101), admiral);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({
-      mode: 'on', account_id: accountOf(101), applied: true, error: null, actions: [{ kind: 'create', username: 'alice', access_level: 30 }, { kind: 'set_avatar' }],
+      mode: 'on', account_id: accountOf(101), applied: true, error: null, actions: [{ kind: 'create', username: 'alice', access_level: 30 }, { kind: 'set_avatar' }, { kind: 'set_emails' }],
     });
     expect(userNamed(gitlab, 'alice')).toBeDefined();
     const audit = app.services.storage.db.prepare("SELECT actor, actor_account_id FROM audit_logs WHERE action = 'gitlab.sync'").get();

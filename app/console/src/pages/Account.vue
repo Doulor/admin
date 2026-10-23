@@ -14,14 +14,16 @@ import { ApiError, api, jsonBody } from "../lib/http";
 import { useResource } from "../lib/resource";
 import { siteUrl } from "../lib/runtime";
 import { clearSession } from "../lib/session";
+import { confirm } from "../lib/confirm";
 import { bindEmailPath, cleanCode, codeProblem, looksLikeEmail, retryAfter } from "../lib/signin";
 import { fmtDate, fmtRelative } from "../lib/format";
-import { PASSWORD_MIN_LENGTH, PROVIDER_ICON, PROVIDER_TEXT, RESULT_TEXT, actionText, loginIsFresh, membershipText, passwordProblem, providerText } from "../lib/account";
-import type { AccountView } from "../lib/types";
+import { EMAILS_MAX, PASSWORD_MIN_LENGTH, PROVIDER_ICON, PROVIDER_TEXT, RESULT_TEXT, actionText, loginIsFresh, membershipText, passwordProblem, providerText } from "../lib/account";
+import type { AccountIdentity, AccountView } from "../lib/types";
 
 /**
  * 账号页（#262）：任何登录的人都能来，不要控制台能力。看登录方式、绑定邮箱、设置或修改密码、成员资格、这次登录和最近的账号记录。
- * 绑定邮箱、第一次设密码要求 10 分钟内刚登录过；超时了就请人重新登录再回到这里。
+ * 绑定邮箱、删除邮箱、第一次设密码要求 10 分钟内刚登录过；超时了就请人重新登录再回到这里。
+ * 邮箱可以绑几个（#272）：第一个是主邮箱，不能删；GitLab 按提交里的邮箱认人，git 提交用的邮箱加在这里，提交就会显示本人的头像。
  */
 const router = useRouter();
 const origin = window.location.origin;
@@ -87,7 +89,7 @@ async function verifyBindCode() {
   bindBusy.value = "verify";
   try {
     await api("/api/identity/email/verify", { method: "POST", ...jsonBody({ code: bindCode.value }) });
-    toast({ title: "邮箱已绑定，现在可以用它登录", variant: "success" });
+    toast({ title: hasEmail.value ? "邮箱已添加，也可以用它登录" : "邮箱已绑定，现在可以用它登录", variant: "success" });
     bindSentTo.value = null;
     bindEmail.value = "";
     bindCode.value = "";
@@ -97,6 +99,32 @@ async function verifyBindCode() {
     bindError.value = messageOf(error);
   } finally {
     bindBusy.value = null;
+  }
+}
+
+// ── 删除邮箱（主邮箱不能删）──
+const removing = ref<string | null>(null);
+const removeError = ref<string | null>(null);
+async function removeEmail(item: AccountIdentity) {
+  if (!item.id || item.primary) return;
+  const ok = await confirm({
+    title: `删除邮箱 ${item.label}？`,
+    body: "删掉以后不能再用它登录，GitLab 上用这个邮箱的提交也不再显示你的头像。以后可以重新添加。",
+    confirmText: "删除",
+    danger: true,
+  });
+  if (!ok) return;
+  removeError.value = null;
+  removing.value = item.id;
+  try {
+    await api("/api/identity/email/remove", { method: "POST", ...jsonBody({ identity_id: item.id }) });
+    toast({ title: "邮箱已删除", variant: "success" });
+    await account.reload();
+  } catch (error) {
+    if (stepUpNeeded(error)) stepUp.value = true;
+    removeError.value = messageOf(error);
+  } finally {
+    removing.value = null;
   }
 }
 
@@ -169,30 +197,42 @@ const goPortal = () => window.location.assign(siteUrl("portal", "/"));
 
       <template v-else>
         <TxAlert v-if="stepUp" type="warning" title="这一步要求刚登录过" :closable="false" class="account__alert">
-          <span>为了安全，绑定邮箱和设置密码要在登录后 10 分钟内完成。重新登录一次就会回到这里。</span>
+          <span>为了安全，绑定或删除邮箱、设置密码要在登录后 10 分钟内完成。重新登录一次就会回到这里。</span>
           <span class="account__alert-action"><TxButton size="sm" variant="primary" @click="signInAgain">重新登录</TxButton></span>
         </TxAlert>
 
         <TxCard class="account__card" data-testid="account-identities">
           <h2>登录方式</h2>
           <ul class="account__identities">
-            <li v-for="item in view.identities" :key="item.provider" class="account__identity">
+            <li v-for="item in view.identities" :key="item.id ?? item.provider" class="account__identity">
               <i :class="PROVIDER_ICON[item.provider]" class="account__identity-icon" aria-hidden="true" />
               <span class="account__identity-text">
                 <b>{{ PROVIDER_TEXT[item.provider] }}</b>
                 <span class="mono">{{ item.label }}</span>
               </span>
               <span class="account__identity-meta">
-                绑定于 {{ fmtDate(item.linked_at) }}<template v-if="item.last_login_at"> · 上次登录 {{ fmtRelative(item.last_login_at, now) }}</template>
+                <template v-if="item.primary">主邮箱 · </template>绑定于 {{ fmtDate(item.linked_at) }}<template v-if="item.last_login_at"> · 上次登录 {{ fmtRelative(item.last_login_at, now) }}</template>
               </span>
+              <TxButton
+                v-if="item.provider === 'email' && item.id && !item.primary"
+                class="account__identity-action"
+                variant="ghost"
+                size="sm"
+                icon="i-carbon-trash-can"
+                :loading="removing === item.id"
+                :aria-label="`删除邮箱 ${item.label}`"
+                @click="removeEmail(item)"
+              >删除</TxButton>
             </li>
           </ul>
+          <p v-if="removeError" class="account__error account__after" role="alert">{{ removeError }}</p>
+          <p v-if="hasEmail" class="account__hint account__after">GitLab 按提交里的邮箱认人：git 提交用的邮箱加在这里并验证以后，GitLab 上这些提交会显示你的头像。每个邮箱都能用来登录，主邮箱用来收验证码和通知。</p>
 
           <form v-if="view.available.includes('email')" class="account__form" novalidate @submit.prevent="bindSentTo ? verifyBindCode() : sendBindCode()">
-            <h3>绑定邮箱</h3>
-            <p class="account__hint">绑好以后可以用邮箱验证码登录，也可以设密码。</p>
+            <h3>{{ hasEmail ? "添加邮箱" : "绑定邮箱" }}</h3>
+            <p class="account__hint">{{ hasEmail ? `最多 ${EMAILS_MAX} 个邮箱。填上邮箱，用收到的验证码确认。` : "绑好以后可以用邮箱验证码登录，也可以设密码。" }}</p>
             <div class="account__row">
-              <TxInput v-model="bindEmail" type="email" placeholder="name@example.com" autocomplete="email" inputmode="email" spellcheck="false" aria-label="要绑定的邮箱" />
+              <TxInput v-model="bindEmail" type="email" placeholder="name@example.com" autocomplete="email" inputmode="email" spellcheck="false" :aria-label="hasEmail ? '要添加的邮箱' : '要绑定的邮箱'" />
               <TxButton variant="secondary" native-type="button" :loading="bindBusy === 'send'" :disabled="cooldown > 0 || bindBusy !== null" @click="sendBindCode">
                 {{ cooldown > 0 ? `${cooldown} 秒后重发` : bindSentTo ? "重新发送" : "获取验证码" }}
               </TxButton>
@@ -201,7 +241,7 @@ const goPortal = () => window.location.assign(siteUrl("portal", "/"));
               <p class="account__hint">验证码已发到 {{ bindSentTo }}，10 分钟内有效。</p>
               <div class="account__row">
                 <TxInput v-model="bindCodeInput" placeholder="6 位验证码" autocomplete="one-time-code" inputmode="numeric" maxlength="6" aria-label="验证码" />
-                <TxButton variant="primary" native-type="submit" :loading="bindBusy === 'verify'">绑定</TxButton>
+                <TxButton variant="primary" native-type="submit" :loading="bindBusy === 'verify'">{{ hasEmail ? "添加" : "绑定" }}</TxButton>
               </div>
             </template>
             <p v-if="bindError" class="account__error" role="alert">{{ bindError }}</p>
@@ -343,7 +383,7 @@ const goPortal = () => window.location.assign(siteUrl("portal", "/"));
 }
 .account__identity {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 2px 10px;
   padding: 10px 12px;
@@ -362,8 +402,16 @@ const goPortal = () => window.location.assign(siteUrl("portal", "/"));
   overflow-wrap: anywhere;
 }
 .account__identity-meta {
+  grid-column: 2;
   font-size: 12px;
   color: var(--tx-text-color-secondary);
+}
+.account__identity-action {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+.account__after {
+  margin-top: 10px;
 }
 .account__form {
   display: grid;

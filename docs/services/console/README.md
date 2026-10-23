@@ -31,13 +31,13 @@
 |---|---|---|
 | `/signin` | 极客班统一登录页：调匿名 `GET /auth/providers` 渲染登录方式（上面是「登录」「注册」两个标签的邮箱表单，下面是 GitHub、启用时的 Google 跳转按钮）；`?signin=<原因>` 说明上次登录为什么没成功；`return_to` 只接受同源路径（不合格回 `/console`），登录后回到它；邮箱的密码登录下有「忘记密码？」，换成「邮箱、验证码、新密码」的表单，用验证码设新密码并登录（#273） | 无 |
 | `/bind-email` | 绑定邮箱页（#273）：只绑了 GitHub 或 Google、还没有登录邮箱的账号先到这里，绑好回到 `return_to`；只有绑定和退出登录两件事 | 无（任何有效会话，页面自己读 `/api/identity/me`） |
-| `/account` | 我的账号：登录方式、绑定邮箱、设置或修改密码、成员资格、这次登录、最近的账号记录；没登录先去 `/signin?return_to=/account` | 无（任何有效会话，页面自己读 `/api/identity/me`） |
+| `/account` | 我的账号：登录方式、绑定和删除邮箱、设置或修改密码、成员资格、这次登录、最近的账号记录；没登录先去 `/signin?return_to=/account` | 无（任何有效会话，页面自己读 `/api/identity/me`） |
 | `/device` | 设备授权确认页（RFC 8628）：带入或输入 8 位 `user_code`，显示客户端、权限、剩余时间与防钓鱼提示，允许或拒绝；没登录先去 `/signin?return_to=/device?user_code=…` | 无（要极客班会话，页面自己读 `/auth/me`） |
 | `/authorize` | 对外授权的同意页（#270）：GitLab 这样的应用第一次用极客班账号登录时，服务端带着 `?uid=<交互编号>` 跳来；显示当前账号、应用名、回到哪个主机、要哪些信息和剩余时间，允许或拒绝后回到应用 | 无（要极客班会话，页面自己读 `/oidc/interaction/<uid>/details`） |
 | `/console` | 概览 | `console.access` |
 | `/console/applications`、`/console/applications/:id` | 投递管理、投递详情 | `applications.read` |
 | `/console/forum` | 论坛管理 | 任一 `forum.*` |
-| `/console/people` | 成员与权限：四个文字页签「成员 / 称号 / 部门 / 权限树」；「成员」左侧宽分组栏，右侧概况与限定高度的内部滚动名单，可逐人展开来源与撤销操作；名单以极客班账号为准，列出站内角色和登录方式（还没登录过的写「还没登录过」，回填的老账号还没记过站内角色的写「还没记录」），接上 GitHub 时再多一列 GitHub 组织角色并列出组织里还没登录过本站的人，接不上时在名单上方说明；提督在账号行上多一个「站内角色」按钮，打开对话框改成管理员、成员或不是成员（#262 第四期；「还没记录」的三种都能选，默认成员）；GitLab 同步（#270）不是 off 时名单多一列「GitLab」（`GET /api/console/gitlab/accounts`）：用户名链到 GitLab 个人页，下面写组权限（开发者、所有者）或已封禁、建号没完成，还要做的事（预演时写「预演：」，打开时写「待同步：」，例如「待同步：传头像」，#271）和最后一次错误（红字，例如「连不上 GitLab」「进组失败（500）」「头像被拒（400）」）；能管理称号的人（`roles.manage`）对有错或还有事要做的账号点「立即同步」（`POST /api/console/gitlab/accounts/:account_id/sync`，结果用提示说），部门负责人只看不点；同步关着、在预演、或签发者里没登记 `gitlab` 客户端时名单上方各一句说明，读不到同步状态时名单照常显示并给「重试」；有这一列时其它列收窄，1440 宽不用横向滚动；`?view=titles` 为「称号」（只给 `roles.manage`，列出名称、说明和基础权限）；`?view=departments` 为「部门」（展示负责人、成员与两类部门权限，仅站内管理员（提督）显示编辑或删除）；`?view=permissions` 为只读能力目录与详情，按当前身份、称号或部门查看，只有有区分度的状态筛选会出现 | `roles.manage`、`roles.department.manage` |
+| `/console/people` | 成员与权限：四个文字页签「成员 / 称号 / 部门 / 权限树」；「成员」左侧宽分组栏，右侧概况与限定高度的内部滚动名单，可逐人展开来源与撤销操作；名单以极客班账号为准，列出站内角色和登录方式（还没登录过的写「还没登录过」，回填的老账号还没记过站内角色的写「还没记录」），接上 GitHub 时再多一列 GitHub 组织角色并列出组织里还没登录过本站的人，接不上时在名单上方说明；提督在账号行上多一个「站内角色」按钮，打开对话框改成管理员、成员或不是成员（#262 第四期；「还没记录」的三种都能选，默认成员）；GitLab 同步（#270）不是 off 时名单多一列「GitLab」（`GET /api/console/gitlab/accounts`）：用户名链到 GitLab 个人页，下面写组权限（开发者、所有者）或已封禁、建号没完成，还要做的事（预演时写「预演：」，打开时写「待同步：」，例如「待同步：传头像」，#271；「同步邮箱」，#272）和最后一次错误（红字，例如「连不上 GitLab」「进组失败（500）」「头像被拒（400）」「邮箱被拒（400）」）；能管理称号的人（`roles.manage`）对有错或还有事要做的账号点「立即同步」（`POST /api/console/gitlab/accounts/:account_id/sync`，结果用提示说），部门负责人只看不点；同步关着、在预演、或签发者里没登记 `gitlab` 客户端时名单上方各一句说明，读不到同步状态时名单照常显示并给「重试」；有这一列时其它列收窄，1440 宽不用横向滚动；`?view=titles` 为「称号」（只给 `roles.manage`，列出名称、说明和基础权限）；`?view=departments` 为「部门」（展示负责人、成员与两类部门权限，仅站内管理员（提督）显示编辑或删除）；`?view=permissions` 为只读能力目录与详情，按当前身份、称号或部门查看，只有有区分度的状态筛选会出现 | `roles.manage`、`roles.department.manage` |
 | `/console/competitions` | 比赛：新建、编辑、下线、删除；日期按北京时间选，服务端按 UTC 存 | `competitions.manage` |
 | `/console/competitions/:id` | 报名与积分（#239）：报名设置、名单与统计、导出 CSV、积分登记与撤销；入口在内部比赛那一行的「报名与积分」 | `competitions.manage` |
 | `/console/feedback` | 意见箱 | `feedback.read` |
@@ -73,13 +73,13 @@
 
 `/account`（#262）在控制台壳子之外，和 `/signin`、`/device` 一样不要控制台能力，任何有效会话都能打开；控制台导航底部的「账号」、乘客说明里的「我的账号」都通到这里。页面读 `GET /api/identity/me`，401 跳 `/signin?return_to=/account`。分五张卡片：
 
-- **登录方式**：已绑定的 GitHub（登录名）、邮箱（打码后的地址）、Google，带绑定时间和最近一次登录；`available` 里有邮箱时显示绑定表单，发码调 `POST /api/identity/email/start`，填码调 `POST /api/identity/email/verify`。GitHub、Google 的绑定和解绑还没有。
+- **登录方式**：已绑定的 GitHub（登录名）、邮箱（打码后的地址）、Google，带绑定时间和最近一次登录；`available` 里有邮箱时显示绑定表单，发码调 `POST /api/identity/email/start`，填码调 `POST /api/identity/email/verify`。邮箱可以绑几个（#272，最多 5 个）：第一个标「主邮箱」，不能删；已有邮箱时表单叫「添加邮箱」，其它邮箱行尾有「删除」，确认后调 `POST /api/identity/email/remove`。列表下面说明 GitLab 按提交里的邮箱认人，git 提交用的邮箱加在这里，GitLab 上的提交就显示本人头像。GitHub、Google 的绑定和解绑还没有。
 - **密码**：密码登录用邮箱作账号，没绑邮箱时只说明先绑邮箱。至少 8 位、UTF-8 不超过 72 字节、两次一致，不要求大小写、数字或符号，先在页面检查（`lib/account.ts` 的 `passwordProblem`，与服务端 `passwordError` 同一规则），再调 `POST /api/identity/password`。已有密码且这次登录超过 10 分钟时要填当前密码；没有密码又超过 10 分钟时提示「重新登录」，按钮带着 `/account` 去登录页。
 - **成员资格**：「极客班成员」，站内管理员写「极客班成员 · 站内管理员」，用邀请码注册的写「极客班成员 · 用邀请码注册」，不是成员时写明。
 - **这次登录**：登录方式、登录时间、有效期，以及「退出登录」。
 - **最近的账号记录**：`identity_audit` 里本人最近 20 条（登录、注册、绑定、设密码等），按北京时间。
 
-绑定、设密码回 403 `step_up_required` 时在卡片顶部提示要重新登录，不当成退出。
+绑定、删除邮箱、设密码回 403 `step_up_required` 时在卡片顶部提示要重新登录，不当成退出。
 
 ### 注册邀请码
 
@@ -101,7 +101,7 @@
 - `/api/console/*`：`me`、`catalogue`、`summary`、`departments`（含删除）、`titles`、`people`、`assignments`、`applications`（含 `export.csv` 下载链接）、`competitions`、`feedback`、`audit`。称号的名字、标签、图标、色调、说明和权限一律取自 `catalogue`，代码里只有加载前的默认值（`lib/titles.ts` 的 `DEFAULT_TITLES`）。契约见 [API](../../architecture/API.md)「极客班控制台」。
 - `/api/admin/:org/*`：GitHub 组织页面，`:org` 取 `/api/console/me` 返回的 `org`。
 - `/auth/providers`（匿名）列出本站启用的登录方式，`/signin` 按它渲染按钮，前端不写死渠道；邮箱登录调 `POST /auth/email/start`（发码，忘了密码时带 `purpose: "reset"`）、`/auth/email/verify`（用验证码登录，没有账号时带 `invite_code` 注册）、`/auth/email/password`（用密码登录）、`/auth/email/reset`（忘了密码，用验证码设新密码并登录，#273），成功都回 `{ return_to }` 后整页跳转；Google 是 `GET /auth/google?return_to=…&invite=…` 的跳转。`/api/identity/device` 与 `/api/identity/device/approve` 是设备授权确认页用的两个接口。
-- `/api/identity/me`、`/api/identity/email/start`、`/api/identity/email/verify`、`/api/identity/password` 是账号页用的接口；`/api/console/invites`（GET、POST）与 `PATCH /api/console/invites/:id` 是注册邀请码页用的接口。
+- `/api/identity/me`、`/api/identity/email/start`、`/api/identity/email/verify`、`/api/identity/email/remove`、`/api/identity/password` 是账号页用的接口；`/api/console/invites`（GET、POST）与 `PATCH /api/console/invites/:id` 是注册邀请码页用的接口。
 - 登录走极客班统一登录页 `/signin?return_to=<本站路径>`：选 GitHub 或 Google 后 302 到 `/auth/github`、`/auth/google`（`?return_to=<完整本站地址>`），回调成功后回到 `return_to`；用邮箱时在本页完成；登录失败由核心服务送回 `/signin?signin=<原因>&return_to=<原路径>`。`POST /auth/signout` 退出。登录是全站共用的（官网、论坛、控制台同一个 `sid`）。GitHub 登录只对 `CONSOLE_ORG` 的 active 成员开放；邮箱、Google 第一次登录要凭邀请码注册，见 [SECURITY](../../architecture/SECURITY.md)「登录门槛」。
 
 请求一律同源 `fetch`、`credentials: "same-origin"`，错误体解析成 `ApiError { status, code, message, requestId, payload }`，与 `app/web/shared/lib/http.ts` 同一契约。写操作经服务端的 Origin/Fetch Metadata 检查，控制台与接口同域，不需要额外处理。

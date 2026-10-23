@@ -525,6 +525,99 @@ describe('binding an email to a GitHub account (#262)', () => {
     await later.send('POST', '/auth/email/verify', { code: await mail.codeFor('octo@example.test', 2) });
     expect((await later.send('GET', '/auth/me')).json()).toMatchObject({ login: 'octocat', user_id: 42, provider: 'email' });
   });
+
+  it('binds up to five emails, keeps the first as primary, removes the others and signs in with any of them (#272)', async () => {
+    const { app, mail, tick } = await setup({ roles: { octocat: 'member' } });
+    const user = browser(app);
+    user.jar.set('sid', signIn(app, 'octocat', 42));
+    const bind = async (email: string) => {
+      expect((await user.send('POST', '/api/identity/email/start', { email })).statusCode).toBe(202);
+      return (await user.send('POST', '/api/identity/email/verify', { code: await mail.codeFor(email) })).json();
+    };
+    expect(await bind('first@example.test')).toEqual({ ok: true });
+    expect(await bind('work@example.test')).toEqual({ ok: true });
+    // 已经绑在自己账号上的邮箱不再发信
+    const again = await user.send('POST', '/api/identity/email/start', { email: 'Work@example.test' });
+    expect([again.statusCode, again.json().error]).toEqual([409, 'identity_exists']);
+    expect(mail.letters.filter(letter => letter.to === 'work@example.test')).toHaveLength(1);
+
+    const view = (await user.send('GET', '/api/identity/me')).json();
+    expect(view.identities).toEqual([
+      expect.objectContaining({ provider: 'github', label: 'octocat' }),
+      expect.objectContaining({ provider: 'email', label: 'f***@example.test', id: expect.any(String), primary: true }),
+      expect.objectContaining({ provider: 'email', label: 'w***@example.test', id: expect.any(String), primary: false }),
+    ]);
+    expect(view.identities[0]).not.toHaveProperty('id');
+    expect(view.available).toEqual(['email']);
+    const accountId = view.account_id as string;
+    expect(app.services.identity.getAccountClaims(accountId)).toMatchObject({ email: 'first@example.test', emails: ['first@example.test', 'work@example.test'] });
+
+    // 用第二个邮箱也能登录同一个账号
+    tick(61_000);
+    const later = browser(app);
+    await later.send('POST', '/auth/email/start', { email: 'work@example.test' });
+    await later.send('POST', '/auth/email/verify', { code: await mail.codeFor('work@example.test', 2) });
+    expect((await later.send('GET', '/auth/me')).json()).toMatchObject({ login: 'octocat', account_id: accountId, provider: 'email' });
+
+    for (const email of ['c@example.test', 'd@example.test', 'e@example.test']) expect(await bind(email)).toEqual({ ok: true });
+    const full = await user.send('POST', '/api/identity/email/start', { email: 'sixth@example.test' });
+    expect([full.statusCode, full.json().error]).toEqual([409, 'email_limit']);
+    expect(full.json().message).toBe('一个账号最多绑 5 个邮箱，先删掉一个再加');
+    expect((await user.send('GET', '/api/identity/me')).json().available).toEqual([]);
+
+    const emails = (await user.send('GET', '/api/identity/me')).json().identities.filter((item: { provider: string }) => item.provider === 'email') as { id: string; primary: boolean }[];
+    const primary = await user.send('POST', '/api/identity/email/remove', { identity_id: emails[0].id });
+    expect([primary.statusCode, primary.json().error]).toEqual([409, 'primary_email']);
+    expect((await user.send('POST', '/api/identity/email/remove', { identity_id: emails[1].id })).json()).toEqual({ ok: true });
+    const gone = await user.send('POST', '/api/identity/email/remove', { identity_id: emails[1].id });
+    expect([gone.statusCode, gone.json().error]).toEqual([404, 'not_found']);
+    expect(app.services.identity.getAccountClaims(accountId)!.emails).toEqual(['first@example.test', 'c@example.test', 'd@example.test', 'e@example.test']);
+    const after = (await user.send('GET', '/api/identity/me')).json();
+    expect(after.available).toEqual(['email']);
+    expect(after.recent[0]).toEqual({ at: expect.any(Number), action: 'unlink', provider: 'email', result: 'ok' });
+
+    // 删掉的邮箱不能再登录，别的账号也删不了这个账号的邮箱
+    tick(61_000);
+    const removed = browser(app);
+    await removed.send('POST', '/auth/email/start', { email: 'work@example.test' });
+    expect((await removed.send('POST', '/auth/email/verify', { code: await mail.codeFor('work@example.test', 3) })).json().error).toBe('invite_required');
+    const stranger = browser(app);
+    stranger.jar.set('sid', signIn(app, 'hubot', 7));
+    expect((await stranger.send('POST', '/api/identity/email/remove', { identity_id: emails[2].id })).statusCode).toBe(404);
+  });
+
+  it('refuses the sixth email at verify time when another session filled the account after the code was sent (#272)', async () => {
+    const { app, mail } = await setup({ roles: { octocat: 'member' } });
+    const first = browser(app);
+    first.jar.set('sid', signIn(app, 'octocat', 42));
+    const second = browser(app);
+    second.jar.set('sid', signIn(app, 'octocat', 42));
+    for (const email of ['a@example.test', 'b@example.test', 'c@example.test', 'd@example.test']) {
+      await first.send('POST', '/api/identity/email/start', { email });
+      await first.send('POST', '/api/identity/email/verify', { code: await mail.codeFor(email) });
+    }
+    // 两个会话都在还差一个时发了码；一个先填满，另一个填码时按上限拒绝
+    expect((await first.send('POST', '/api/identity/email/start', { email: 'e@example.test' })).statusCode).toBe(202);
+    expect((await second.send('POST', '/api/identity/email/start', { email: 'f@example.test' })).statusCode).toBe(202);
+    expect((await second.send('POST', '/api/identity/email/verify', { code: await mail.codeFor('f@example.test') })).json()).toEqual({ ok: true });
+    const late = await first.send('POST', '/api/identity/email/verify', { code: await mail.codeFor('e@example.test') });
+    expect([late.statusCode, late.json().error]).toEqual([409, 'email_limit']);
+    expect((await first.send('GET', '/api/identity/me')).json().identities.filter((item: { provider: string }) => item.provider === 'email')).toHaveLength(5);
+  });
+
+  it('asks a stale session to sign in again before removing an email (#272)', async () => {
+    const { app, db, mail } = await setup({ roles: { octocat: 'member' } });
+    const user = browser(app);
+    user.jar.set('sid', signIn(app, 'octocat', 42));
+    for (const email of ['first@example.test', 'second@example.test']) {
+      await user.send('POST', '/api/identity/email/start', { email });
+      await user.send('POST', '/api/identity/email/verify', { code: await mail.codeFor(email) });
+    }
+    const second = (await user.send('GET', '/api/identity/me')).json().identities.find((item: { primary?: boolean }) => item.primary === false);
+    db.prepare('UPDATE sessions SET created_at = created_at - 11 * 60 * 1000').run();
+    expect((await user.send('POST', '/api/identity/email/remove', { identity_id: second.id })).json()).toMatchObject({ error: 'step_up_required', reauth: { return_to: '/account' } });
+    expect((await user.send('GET', '/api/identity/me')).json().identities.filter((item: { provider: string }) => item.provider === 'email')).toHaveLength(2);
+  });
 });
 
 describe('invite codes in the console (#262)', () => {
