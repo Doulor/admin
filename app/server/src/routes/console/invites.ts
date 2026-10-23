@@ -5,8 +5,12 @@ import { InviteCodeError, inviteUsable, type InviteInput, type InvitePatch } fro
 
 /**
  * 注册邀请码（#262，所有者 2026-10-23「在我们的admin控制台再额外加个邀请码的逻辑」）：控制台列出、新建、修改、停用。
- * 授权按 `accounts.invites.manage`（提督默认就有，其他称号由提督在「成员与权限」里放进权限包）。邀请码不删，停用即可，
- * 账号上记着是用哪个邀请码注册的。只看身份与称号，不调用 GitHub，邮箱、Google 会话照常可用。
+ * 授权仍按旧 Capability `accounts.invites.manage`——CONTRACT-274 §5 要求节点改成 `invite.manage`，但旧的
+ * `admin` 站内角色在测试与现网都是靠 requireCapability 背后对 GitHub 组织的动态查询认出来的（见
+ * tests/server/signin-methods.test.ts 的 `setup({roles:{boss:'admin'}})`），不是靠 #274 新权限体系的
+ * `perm_members` 静态存储；在旧系统整体切到新系统之前单独换这一个接口的授权，"提督" 类账号会在这里丢权限
+ * （已经在本地验证过这个失败模式，不是假设）。和 archiveOldDepartments() 一样，留到 requireCapability→
+ * requirePermission 整体切换那一次再一起换。
  */
 export default async function consoleInviteRoutes(app: FastifyInstance) {
   const { invites } = app.services;

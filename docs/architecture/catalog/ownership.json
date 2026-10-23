@@ -283,7 +283,11 @@
     "app/server/src/routes/console/gitlab.ts": "gitlab",
     "app/server/src/routes/portal/gitlab.ts": "gitlab",
     "app/server/src/routes/portal/departments.ts": "identity",
-    "app/server/src/routes/identity/profile.ts": "identity"
+    "app/server/src/routes/identity/profile.ts": "identity",
+    "app/server/src/routes/console/permissions.ts": "permissions",
+    "app/server/src/routes/console/permission-groups.ts": "permissions",
+    "app/server/src/routes/console/accounts.ts": "permissions",
+    "app/server/src/routes/console/users.ts": "permissions"
   },
   "routeOverrides": {
     "GET /api/public/config": "platform"
@@ -7762,6 +7766,503 @@
       ],
       "tests": [
         "tests/server/profile.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "permissions.nodes.list",
+      "title": "控制台查看权限节点目录",
+      "domain": "permissions",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/permissions/nodes",
+      "capabilities": [],
+      "reads": [],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 perm.view。",
+        "响应与错误：200 {nodes:[{node,domain,label,description,meta}],domains:[{id,label}]}；节点目录是代码里 permission-nodes.ts 的只读镜像，不查数据库。",
+        "数据与副作用：纯内存常量，不读不写。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/permissions.ts",
+          "needle": "app.get(\"/api/console/permissions/nodes\", view, async () => ({"
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/permissions/nodes\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "permissions.explain",
+      "title": "控制台解释一个账号对一个节点的判定过程",
+      "domain": "permissions",
+      "relatedDomains": [
+        "identity"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/permissions/explain",
+      "capabilities": [],
+      "reads": [
+        "users",
+        "perm_members",
+        "perm_group_parents",
+        "perm_entries",
+        "perm_groups"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 perm.view；node 必须是已登记的具体节点，通配或未知节点 400 unknown_node。",
+        "响应与错误：200 {node,result:allow|deny|unset,hits:[{source,group,via,entry}],meta_value?}；账号不存在 404 not_found；直接复用求值引擎的 explainFor，不重复实现判定。",
+        "数据与副作用：只读，按账号与其所在组的继承链收集条目（lib/permissions.ts 的 entriesForAccount）。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/permissions.ts",
+          "needle": "app.get<{ Querystring: { account: string; node: string } }>(\"/api/console/permissions/explain\", view, async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/permissions/explain\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "permissions.accounts.effective",
+      "title": "控制台查看一个账号的全部有效权限",
+      "domain": "permissions",
+      "relatedDomains": [
+        "identity"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/accounts/:id/effective",
+      "capabilities": [],
+      "reads": [
+        "users",
+        "perm_members",
+        "perm_group_parents",
+        "perm_entries",
+        "perm_groups"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 perm.view。",
+        "响应与错误：200 {account_id,groups:[{id,name,kind,via}],allow:[nodes],deny:[nodes],meta:{...}}；账号不存在 404 not_found；复用求值引擎的 effective()。",
+        "数据与副作用：只读，展开通配后的具体节点列表，给「用户详情」的「有效权限」页签用。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/accounts.ts",
+          "needle": "app.get<{ Params: { id: string } }>("
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/accounts/:id/effective\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "permissions.groups.list",
+      "title": "控制台查看全部权限组",
+      "domain": "permissions",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/permission-groups",
+      "capabilities": [],
+      "reads": [
+        "perm_groups",
+        "perm_group_parents",
+        "perm_entries",
+        "perm_members"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 perm.view。",
+        "响应与错误：200 {groups:[{id,kind,name,description,weight,department_id,icon,tone,sort,system,parents,member_count,entries}]}，按 sort 升序。",
+        "数据与副作用：只读；entries 的 value 保留原始三态（true/false/null，null 配 meta_value），不像判定引擎那样把 null 当 false。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/permission-groups.ts",
+          "needle": "app.get(\"/api/console/permission-groups\", view, async () => ({ groups: fullView() }));"
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/permission-groups\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "permissions.groups.create",
+      "title": "控制台新建自定义权限组",
+      "domain": "permissions",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/permission-groups",
+      "capabilities": [],
+      "reads": [
+        "perm_groups"
+      ],
+      "writes": [
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 perm.manage 且刚登录过（step-up，没有 403 step_up_required）；每分钟 30 次。",
+        "响应与错误：201 权限组一行；id 必须是 custom.<字母数字下划线> 格式，不对 400 invalid_group_id；已存在 409 group_exists；继承的父组不存在 400 invalid_parent。",
+        "数据与副作用：写一行 perm_groups（kind=custom、system=0）与继承边，调用后 bump() 权限引擎 revision 使缓存失效，写审计 perm.group.create。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/permission-groups.ts",
+          "needle": "\"/api/console/permission-groups\", manageWrite, async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"POST /api/console/permission-groups\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "permissions.groups.update",
+      "title": "控制台修改权限组资料、继承与条目",
+      "domain": "permissions",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PATCH /api/console/permission-groups/:id",
+      "capabilities": [],
+      "reads": [
+        "perm_groups"
+      ],
+      "writes": [
+        "perm_groups",
+        "perm_group_parents",
+        "perm_entries"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 perm.manage 且刚登录过（step-up）；对 system=1 的种子组（部门、称号、身份等级）同样可改，不限于自定义组。",
+        "响应与错误：200 权限组一行；不存在 404 not_found；继承成环 400 group_cycle；父组不存在 400 invalid_parent；entries.add 的节点不是已登记节点或匹配不到任何已登记节点的通配前缀 400 unknown_node；一条条目必须只给 value 或只给 meta_value 400 invalid_entry。",
+        "数据与副作用：按传入字段做部分更新；parents 给了就整份替换继承边；entries.remove 先删、entries.add 再插，都在一个事务里；写完 bump() revision、写审计 perm.group.update。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/permission-groups.ts",
+          "needle": "app.patch<{ Params: { id: string }; Body: {"
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"PATCH /api/console/permission-groups/:id\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "permissions.groups.delete",
+      "title": "控制台删除自定义权限组",
+      "domain": "permissions",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "DELETE /api/console/permission-groups/:id",
+      "capabilities": [],
+      "reads": [
+        "perm_groups"
+      ],
+      "writes": [
+        "perm_entries",
+        "perm_members",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 perm.manage 且刚登录过（step-up）。",
+        "响应与错误：200 {ok:true}；不存在 404 not_found；system=1 的种子组 409 system_group，不能删。",
+        "数据与副作用：一个事务里先删这个组的全部条目与成员资格，继承边由外键级联删除，最后删组本身；写完 bump() revision、写审计 perm.group.delete；删组会让仍在组里的账号失去这个组带来的权限，不另行提示。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/permission-groups.ts",
+          "needle": "app.delete<{ Params: { id: string } }>(\"/api/console/permission-groups/:id\", manageWrite, async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"DELETE /api/console/permission-groups/:id\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "permissions.groups.members.list",
+      "title": "控制台查看一个权限组的成员",
+      "domain": "permissions",
+      "relatedDomains": [
+        "identity"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/permission-groups/:id/members",
+      "capabilities": [],
+      "reads": [
+        "perm_groups",
+        "perm_members",
+        "account_profiles"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 perm.view。",
+        "响应与错误：200 {members:[{account_id,username,display_name,avatar_url,expires_at,granted_by,created_at}]}；组不存在 404 not_found。",
+        "数据与副作用：只读，按 created_at 升序。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/permission-groups.ts",
+          "needle": "app.get<{ Params: { id: string } }>(\"/api/console/permission-groups/:id/members\", view, async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/permission-groups/:id/members\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "permissions.groups.members.add",
+      "title": "控制台把账号加进一个权限组",
+      "domain": "permissions",
+      "relatedDomains": [
+        "identity"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/permission-groups/:id/members",
+      "capabilities": [],
+      "reads": [
+        "perm_groups",
+        "users"
+      ],
+      "writes": [
+        "perm_members"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 perm.manage 且刚登录过（step-up）。",
+        "响应与错误：201 {ok:true}；组不存在 404 not_found；账号不存在 404 account_not_found。",
+        "数据与副作用：level、department 组每账号最多一个，同一事务里先删旧的再插入新的（和 lib/permissions.ts 的 setExclusiveGroupMembership 同一条规则）；其余组直接 INSERT OR REPLACE；写完 bump() revision、写审计 perm.group.member.add。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/permission-groups.ts",
+          "needle": "\"/api/console/permission-groups/:id/members\", manageWrite, async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"POST /api/console/permission-groups/:id/members\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "permissions.groups.members.remove",
+      "title": "控制台把账号移出一个权限组",
+      "domain": "permissions",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "DELETE /api/console/permission-groups/:id/members/:account_id",
+      "capabilities": [],
+      "reads": [],
+      "writes": [
+        "perm_members"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 perm.manage 且刚登录过（step-up）。",
+        "响应与错误：200 {ok:true}；这个账号本来就不在这个组里 404 not_found。",
+        "数据与副作用：删一行 perm_members，写完 bump() revision、写审计 perm.group.member.remove。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/permission-groups.ts",
+          "needle": "\"/api/console/permission-groups/:id/members/:account_id\", manageWrite, async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"DELETE /api/console/permission-groups/:id/members/:account_id\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "users.list",
+      "title": "控制台按新权限体系查看用户列表",
+      "domain": "permissions",
+      "relatedDomains": [
+        "identity",
+        "gitlab"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/users",
+      "capabilities": [],
+      "reads": [
+        "users",
+        "account_profiles",
+        "identities",
+        "perm_members",
+        "perm_groups",
+        "gitlab_accounts"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有全站 users.view 的 allow 就看全部；只有按部门限定 scope 的 allow（部长）就只看本部门；都没有 403 forbidden——不是单纯 requirePermission 门禁，因为部长的条目本身带 scope，空 scope 查询查不到它（见 lib/console-scope.ts 的说明）。",
+        "响应与错误：200 {items:[{account_id,username,display_name,avatar_url,status,level,department,titles,providers,gitlab,last_login_at,created_at}],next_cursor,counts}；department=dept.none 筛出没有部门成员资格的账号；cursor 是按 created_at,id 的不透明游标，固定 50 条一页。",
+        "数据与副作用：只读；gitlab 字段的 state 由 gitlab_accounts.state/last_error 映射成 synced|pending|failed|blocked|none；counts.visitor_today 在 #274 阶段 3（operation 记录）落地前固定 0。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/users.ts",
+          "needle": "app.get(\"/api/console/users\", { preHandler: requireViewScope }, async (req) => {"
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/users\": {"
+        },
+        {
+          "path": "app/server/src/lib/console-scope.ts",
+          "needle": "export function departmentScopedAccess("
+        }
+      ],
+      "tests": [
+        "tests/server/console-users.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "users.update",
+      "title": "控制台改用户的身份、部门与称号",
+      "domain": "permissions",
+      "relatedDomains": [
+        "identity"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PATCH /api/console/users/:id",
+      "capabilities": [],
+      "reads": [
+        "users",
+        "perm_members",
+        "perm_groups"
+      ],
+      "writes": [
+        "users",
+        "perm_members"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 users.manage 且刚登录过（step-up）；改 status 另外需要 users.disable。",
+        "响应与错误：200 {account_id}；账号不存在 404 not_found；部门不存在 400 invalid_department；称号不存在 400 invalid_title；会让站长一个不剩（停用或从 titles 里去掉最后一位站长）409 last_owner。",
+        "数据与副作用：level/department 按唯一约束换组（先删旧的）；department 变了且没有同时传 titles 时，自动去掉不属于新部门的称号（站长等无部门称号不受影响）；写完 bump() revision、写审计 users.update。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/users.ts",
+          "needle": "\"/api/console/users/:id\","
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"PATCH /api/console/users/:id\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/console-users.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",

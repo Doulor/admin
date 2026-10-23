@@ -1149,6 +1149,36 @@ GitHub 调用：本人会话令牌被 GitHub 拒绝时经全局错误处理结�
 
 源码：[app/server/src/routes/console/audit.ts:29](../../../app/server/src/routes/console/audit.ts#L29)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。
 
+## 新权限体系：节点、权限组与用户列表（控制台，#274 CONTRACT §5）
+
+和上面「读取部门及成员计数」「修改称号显示与权限包」「查看组织成员与称号持有者」「改账号的站内角色」几节描述的旧
+Capability 体系（`departments`/`titles`/`role_assignments`，`routes/console/{departments,titles,assignments,people}.ts`）
+并存，不是替换：这批新接口按 #274 的权限节点判定（`perm_nodes`/`perm_groups`/`perm_group_parents`/`perm_entries`/
+`perm_members`），旧接口继续服务旧控制台前端，两边同时能用；等新控制台前端（独立开发中）合并进来后再把旧的一起删掉。
+`GET /api/console/summary` 额外加了 `candidates_pending`（固定 0，#278 之前）键，门槛是新节点
+`competition.score.review`，和这节同一批改动，但端点本身还是旧的 `routes/console/me.ts`，不在下表里。
+
+| 接口 · 流程 | 权限与资源 | 响应、错误与副作用 |
+|---|---|---|
+| `GET /api/console/permissions/nodes` · `flow:permissions.nodes.list` | 需要节点 `perm.view` | 200 `{nodes:[{node,domain,label,description,meta}],domains:[{id,label}]}`；节点目录是代码里 `lib/permission-nodes.ts` 的只读镜像，不查库。 |
+| `GET /api/console/permissions/explain?account=&node=` · `flow:permissions.explain` | 同上 | 200 `{node,result:allow\|deny\|unset,hits:[{source,group,via,entry}],meta_value?}`；`node` 是通配或未登记节点 400 `unknown_node`；账号不存在 404。直接复用求值引擎自带的 `explainFor`（`lib/permissions.ts`），不重复判定逻辑。 |
+| `GET /api/console/accounts/:id/effective` · `flow:permissions.accounts.effective` | 同上 | 200 `{account_id,groups:[{id,name,kind,via}],allow:[nodes],deny:[nodes],meta:{...}}`；账号不存在 404；复用引擎的 `effective()`。 |
+| `GET /api/console/permission-groups` · `flow:permissions.groups.list` | 同上 | 200 `{groups:[{id,kind,name,description,weight,department_id,icon,tone,sort,system,parents,member_count,entries}]}`，按 `sort` 升序；`entries[].value` 保留原始三态（`true`/`false`/`null`，`null` 配 `meta_value`），不像判定引擎那样把 `null` 当 `false`。 |
+| `POST /api/console/permission-groups` · `flow:permissions.groups.create` | 需要节点 `perm.manage` 且刚登录过（step-up，#273 同一个 10 分钟窗口，没有 403 `step_up_required`）；每分钟 30 次 | body `{id(custom.<slug>),name,description?,weight,parents?,icon?,tone?}`；201 权限组一行；`id` 格式不对 400 `invalid_group_id`；已存在 409 `group_exists`；父组不存在 400 `invalid_parent`。只能新建 `kind=custom`、`system=0` 的组。 |
+| `PATCH /api/console/permission-groups/:id` · `flow:permissions.groups.update` | 同上 | body 任选 `{name,description,weight,parents,icon,tone,sort,entries:{add:[{node,value?,meta_value?,scope?,expires_at?}],remove:[entry_id]}}`；对 `system=1` 的种子组（部门、称号、身份等级）同样能改，不限自定义组；继承成环 400 `group_cycle`；父组不存在 400 `invalid_parent`；`entries.add` 的节点不是已登记节点、也匹配不到任何已登记节点的通配前缀 400 `unknown_node`；一条条目必须只给 `value` 或只给 `meta_value` 400 `invalid_entry`。 |
+| `DELETE /api/console/permission-groups/:id` · `flow:permissions.groups.delete` | 同上 | `system=1` 的种子组 409 `system_group`，不能删；自定义组删除时一并删掉这个组的全部条目与成员资格（不另行提示在组里的账号）。 |
+| `GET /api/console/permission-groups/:id/members` · `flow:permissions.groups.members.list` | 需要节点 `perm.view` | 200 `{members:[{account_id,username,display_name,avatar_url,expires_at,granted_by,created_at}]}`，按加入时间升序；组不存在 404。 |
+| `POST /api/console/permission-groups/:id/members` · `flow:permissions.groups.members.add` | 需要节点 `perm.manage` 且刚登录过；body `{account_id,expires_at?}` | 组或账号不存在 404（`not_found`/`account_not_found`）；`level`、`department` 组每账号最多一个，同一事务里先删旧的再插入新的（和 `setExclusiveGroupMembership` 同一条规则）。 |
+| `DELETE /api/console/permission-groups/:id/members/:account_id` · `flow:permissions.groups.members.remove` | 同上 | 这个账号本来就不在这个组里 404 `not_found`。 |
+| `GET /api/console/users?q=&level=&department=&status=&cursor=` · `flow:users.list` | 有全站 `users.view` 的 allow 就看全部账号；只有按部门限定 scope 的 allow（部长）就只看本部门，查询参数改不了范围；两种都没有 403 `forbidden` | 200 `{items:[{account_id,username,display_name,avatar_url,status,level,department,titles,providers,gitlab,last_login_at,created_at}],next_cursor,counts:{visitor_today,registered,member,alumni}}`；`department=dept.none` 筛出没有部门成员资格的账号；`cursor` 是按 `created_at,id` 的不透明游标，固定 50 条一页；`gitlab.state` 由 `gitlab_accounts.state`/`last_error` 映射成 `synced\|pending\|failed\|blocked\|none`；`counts.visitor_today` 在操作记录（阶段 3）落地前固定 0。 |
+| `PATCH /api/console/users/:id` · `flow:users.update` | 需要节点 `users.manage` 且刚登录过；改 `status` 另外需要 `users.disable` | body 任选 `{status,level,department,titles}`；账号不存在 404；部门不存在 400 `invalid_department`；称号不存在 400 `invalid_title`；会让站长一个不剩（停用最后一个站长，或把 `titles` 改成不含 `title.site.owner`）409 `last_owner`。`level`/`department` 按唯一约束换组；`department` 变了且这次请求没有同时给 `titles` 时，自动去掉不属于新部门的称号（站长等无部门称号不受影响）。 |
+
+本地表：这批接口都只读写 #274 新权限体系自己的表——`perm_nodes`（只读，代码镜像）、`perm_groups`、`perm_group_parents`、`perm_entries`、`perm_members`；用户列表另外读 `users`、`account_profiles`、`identities`、`gitlab_accounts`，改身份另外写 `users.status`；成员列表再读 `account_profiles` 取用户名/头像。所有写操作都调用 `permissions.bump()` 让判定引擎的进程内缓存失效，并写一条 `perm.group.*`/`users.update` 审计。
+
+权限范围的实现细节：`requirePermission` 中间件按「不给 scope 就查全局」判定，命中的是全站无限定条目；但部长拿到的条目本身带了 `scope:{department:[...]}}`，用空 scope 去查永远查不到。所以 `GET /api/console/users` 不能只靠 `requirePermission` 当门禁，改用 `lib/console-scope.ts` 的 `departmentScopedAccess()`：先查有没有全站 allow，没有再查有没有按部门限定的 allow，两种都没有才真的是没权限；只处理 `department` 这一个 scope 维度，不是通用的 scope 求交实现。
+
+源码：[routes/console/permissions.ts](../../../app/server/src/routes/console/permissions.ts)、[routes/console/permission-groups.ts](../../../app/server/src/routes/console/permission-groups.ts)、[routes/console/accounts.ts](../../../app/server/src/routes/console/accounts.ts)、[routes/console/users.ts](../../../app/server/src/routes/console/users.ts)、[lib/console-scope.ts](../../../app/server/src/lib/console-scope.ts)、[middleware/require-step-up.ts](../../../app/server/src/middleware/require-step-up.ts)、[lib/permissions.ts](../../../app/server/src/lib/permissions.ts)（`explainFor`、`effective`）。验证入口：[tests/server/console-permissions.test.ts](../../../tests/server/console-permissions.test.ts)、[tests/server/console-users.test.ts](../../../tests/server/console-users.test.ts)。
+
 ## 筛选招新投递列表
 
 `GET /api/console/applications` · `flow:application.list`

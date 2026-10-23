@@ -344,13 +344,13 @@
     }
   ],
   "coverage": {
-    "automaticHead": 59,
-    "businessOperations": 121,
-    "businessOperationsWithFlow": 121,
+    "automaticHead": 65,
+    "businessOperations": 133,
+    "businessOperationsWithFlow": 133,
     "capabilities": 22,
-    "declaredFlows": 127,
-    "responseSchemas": 72,
-    "routeMethods": 209,
+    "declaredFlows": 139,
+    "responseSchemas": 81,
+    "routeMethods": 227,
     "supplementalInterfaces": 5,
     "supplementalInterfacesWithFlow": 5,
     "tables": 54
@@ -1935,11 +1935,11 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 19,
+          "line": 23,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 244,
+          "line": 298,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -1994,11 +1994,11 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 21,
+          "line": 25,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 245,
+          "line": 299,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -2053,11 +2053,11 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 32,
+          "line": 36,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 253,
+          "line": 307,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -5380,7 +5380,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -5463,7 +5463,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 208,
+          "line": 262,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -6826,7 +6826,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -7623,7 +7623,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 140,
+          "line": 194,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -7631,7 +7631,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 33,
+          "line": 37,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -7704,7 +7704,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -7792,7 +7792,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 156,
+          "line": 210,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -7853,7 +7853,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 165,
+          "line": 219,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -7952,7 +7952,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 175,
+          "line": 229,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -8007,7 +8007,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 179,
+          "line": 233,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -8302,6 +8302,539 @@
       ],
       "title": "门户公开查看新权限体系的部门与称号",
       "writes": []
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "permissions",
+      "evidence": [
+        {
+          "line": 15,
+          "path": "app/server/src/routes/console/permissions.ts"
+        },
+        {
+          "line": 316,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "id": "flow:permissions.nodes.list",
+      "invariants": [
+        "权限与资源：需要节点 perm.view。",
+        "响应与错误：200 {nodes:[{node,domain,label,description,meta}],domains:[{id,label}]}；节点目录是代码里 permission-nodes.ts 的只读镜像，不查数据库。",
+        "数据与副作用：纯内存常量，不读不写。"
+      ],
+      "operation": "GET /api/console/permissions/nodes",
+      "operationLabel": "GET /api/console/permissions/nodes",
+      "operationNodeId": "route:GET /api/console/permissions/nodes",
+      "reads": [],
+      "relatedDomains": [],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "title": "控制台查看权限节点目录",
+      "writes": []
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "permissions",
+      "evidence": [
+        {
+          "line": 20,
+          "path": "app/server/src/routes/console/permissions.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "id": "flow:permissions.explain",
+      "invariants": [
+        "权限与资源：需要节点 perm.view；node 必须是已登记的具体节点，通配或未知节点 400 unknown_node。",
+        "响应与错误：200 {node,result:allow|deny|unset,hits:[{source,group,via,entry}],meta_value?}；账号不存在 404 not_found；直接复用求值引擎的 explainFor，不重复实现判定。",
+        "数据与副作用：只读，按账号与其所在组的继承链收集条目（lib/permissions.ts 的 entriesForAccount）。"
+      ],
+      "operation": "GET /api/console/permissions/explain",
+      "operationLabel": "GET /api/console/permissions/explain",
+      "operationNodeId": "route:GET /api/console/permissions/explain",
+      "reads": [
+        "users",
+        "perm_members",
+        "perm_group_parents",
+        "perm_entries",
+        "perm_groups"
+      ],
+      "relatedDomains": [
+        "identity"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "title": "控制台解释一个账号对一个节点的判定过程",
+      "writes": []
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "permissions",
+      "evidence": [
+        {
+          "line": 12,
+          "path": "app/server/src/routes/console/accounts.ts"
+        },
+        {
+          "line": 324,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "id": "flow:permissions.accounts.effective",
+      "invariants": [
+        "权限与资源：需要节点 perm.view。",
+        "响应与错误：200 {account_id,groups:[{id,name,kind,via}],allow:[nodes],deny:[nodes],meta:{...}}；账号不存在 404 not_found；复用求值引擎的 effective()。",
+        "数据与副作用：只读，展开通配后的具体节点列表，给「用户详情」的「有效权限」页签用。"
+      ],
+      "operation": "GET /api/console/accounts/:id/effective",
+      "operationLabel": "GET /api/console/accounts/:id/effective",
+      "operationNodeId": "route:GET /api/console/accounts/:id/effective",
+      "reads": [
+        "users",
+        "perm_members",
+        "perm_group_parents",
+        "perm_entries",
+        "perm_groups"
+      ],
+      "relatedDomains": [
+        "identity"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "title": "控制台查看一个账号的全部有效权限",
+      "writes": []
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "permissions",
+      "evidence": [
+        {
+          "line": 86,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 325,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "id": "flow:permissions.groups.list",
+      "invariants": [
+        "权限与资源：需要节点 perm.view。",
+        "响应与错误：200 {groups:[{id,kind,name,description,weight,department_id,icon,tone,sort,system,parents,member_count,entries}]}，按 sort 升序。",
+        "数据与副作用：只读；entries 的 value 保留原始三态（true/false/null，null 配 meta_value），不像判定引擎那样把 null 当 false。"
+      ],
+      "operation": "GET /api/console/permission-groups",
+      "operationLabel": "GET /api/console/permission-groups",
+      "operationNodeId": "route:GET /api/console/permission-groups",
+      "reads": [
+        "perm_groups",
+        "perm_group_parents",
+        "perm_entries",
+        "perm_members"
+      ],
+      "relatedDomains": [],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "title": "控制台查看全部权限组",
+      "writes": []
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "permissions",
+      "evidence": [
+        {
+          "line": 89,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 326,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "id": "flow:permissions.groups.create",
+      "invariants": [
+        "权限与资源：需要节点 perm.manage 且刚登录过（step-up，没有 403 step_up_required）；每分钟 30 次。",
+        "响应与错误：201 权限组一行；id 必须是 custom.<字母数字下划线> 格式，不对 400 invalid_group_id；已存在 409 group_exists；继承的父组不存在 400 invalid_parent。",
+        "数据与副作用：写一行 perm_groups（kind=custom、system=0）与继承边，调用后 bump() 权限引擎 revision 使缓存失效，写审计 perm.group.create。"
+      ],
+      "operation": "POST /api/console/permission-groups",
+      "operationLabel": "POST /api/console/permission-groups",
+      "operationNodeId": "route:POST /api/console/permission-groups",
+      "reads": [
+        "perm_groups"
+      ],
+      "relatedDomains": [],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "title": "控制台新建自定义权限组",
+      "writes": [
+        "perm_groups",
+        "perm_group_parents"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "permissions",
+      "evidence": [
+        {
+          "line": 110,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 336,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "id": "flow:permissions.groups.update",
+      "invariants": [
+        "权限与资源：需要节点 perm.manage 且刚登录过（step-up）；对 system=1 的种子组（部门、称号、身份等级）同样可改，不限于自定义组。",
+        "响应与错误：200 权限组一行；不存在 404 not_found；继承成环 400 group_cycle；父组不存在 400 invalid_parent；entries.add 的节点不是已登记节点或匹配不到任何已登记节点的通配前缀 400 unknown_node；一条条目必须只给 value 或只给 meta_value 400 invalid_entry。",
+        "数据与副作用：按传入字段做部分更新；parents 给了就整份替换继承边；entries.remove 先删、entries.add 再插，都在一个事务里；写完 bump() revision、写审计 perm.group.update。"
+      ],
+      "operation": "PATCH /api/console/permission-groups/:id",
+      "operationLabel": "PATCH /api/console/permission-groups/:id",
+      "operationNodeId": "route:PATCH /api/console/permission-groups/:id",
+      "reads": [
+        "perm_groups"
+      ],
+      "relatedDomains": [],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "title": "控制台修改权限组资料、继承与条目",
+      "writes": [
+        "perm_groups",
+        "perm_group_parents",
+        "perm_entries"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "permissions",
+      "evidence": [
+        {
+          "line": 167,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 349,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "id": "flow:permissions.groups.delete",
+      "invariants": [
+        "权限与资源：需要节点 perm.manage 且刚登录过（step-up）。",
+        "响应与错误：200 {ok:true}；不存在 404 not_found；system=1 的种子组 409 system_group，不能删。",
+        "数据与副作用：一个事务里先删这个组的全部条目与成员资格，继承边由外键级联删除，最后删组本身；写完 bump() revision、写审计 perm.group.delete；删组会让仍在组里的账号失去这个组带来的权限，不另行提示。"
+      ],
+      "operation": "DELETE /api/console/permission-groups/:id",
+      "operationLabel": "DELETE /api/console/permission-groups/:id",
+      "operationNodeId": "route:DELETE /api/console/permission-groups/:id",
+      "reads": [
+        "perm_groups"
+      ],
+      "relatedDomains": [],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "title": "控制台删除自定义权限组",
+      "writes": [
+        "perm_entries",
+        "perm_members",
+        "perm_groups",
+        "perm_group_parents"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "permissions",
+      "evidence": [
+        {
+          "line": 182,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 350,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "id": "flow:permissions.groups.members.list",
+      "invariants": [
+        "权限与资源：需要节点 perm.view。",
+        "响应与错误：200 {members:[{account_id,username,display_name,avatar_url,expires_at,granted_by,created_at}]}；组不存在 404 not_found。",
+        "数据与副作用：只读，按 created_at 升序。"
+      ],
+      "operation": "GET /api/console/permission-groups/:id/members",
+      "operationLabel": "GET /api/console/permission-groups/:id/members",
+      "operationNodeId": "route:GET /api/console/permission-groups/:id/members",
+      "reads": [
+        "perm_groups",
+        "perm_members",
+        "account_profiles"
+      ],
+      "relatedDomains": [
+        "identity"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "title": "控制台查看一个权限组的成员",
+      "writes": []
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "permissions",
+      "evidence": [
+        {
+          "line": 200,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 355,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "id": "flow:permissions.groups.members.add",
+      "invariants": [
+        "权限与资源：需要节点 perm.manage 且刚登录过（step-up）。",
+        "响应与错误：201 {ok:true}；组不存在 404 not_found；账号不存在 404 account_not_found。",
+        "数据与副作用：level、department 组每账号最多一个，同一事务里先删旧的再插入新的（和 lib/permissions.ts 的 setExclusiveGroupMembership 同一条规则）；其余组直接 INSERT OR REPLACE；写完 bump() revision、写审计 perm.group.member.add。"
+      ],
+      "operation": "POST /api/console/permission-groups/:id/members",
+      "operationLabel": "POST /api/console/permission-groups/:id/members",
+      "operationNodeId": "route:POST /api/console/permission-groups/:id/members",
+      "reads": [
+        "perm_groups",
+        "users"
+      ],
+      "relatedDomains": [
+        "identity"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "title": "控制台把账号加进一个权限组",
+      "writes": [
+        "perm_members"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "permissions",
+      "evidence": [
+        {
+          "line": 226,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 360,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "id": "flow:permissions.groups.members.remove",
+      "invariants": [
+        "权限与资源：需要节点 perm.manage 且刚登录过（step-up）。",
+        "响应与错误：200 {ok:true}；这个账号本来就不在这个组里 404 not_found。",
+        "数据与副作用：删一行 perm_members，写完 bump() revision、写审计 perm.group.member.remove。"
+      ],
+      "operation": "DELETE /api/console/permission-groups/:id/members/:account_id",
+      "operationLabel": "DELETE /api/console/permission-groups/:id/members/:account_id",
+      "operationNodeId": "route:DELETE /api/console/permission-groups/:id/members/:account_id",
+      "reads": [],
+      "relatedDomains": [],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/console-permissions.test.ts"
+      ],
+      "title": "控制台把账号移出一个权限组",
+      "writes": [
+        "perm_members"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "permissions",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 364,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/server/src/lib/console-scope.ts"
+        }
+      ],
+      "id": "flow:users.list",
+      "invariants": [
+        "权限与资源：有全站 users.view 的 allow 就看全部；只有按部门限定 scope 的 allow（部长）就只看本部门；都没有 403 forbidden——不是单纯 requirePermission 门禁，因为部长的条目本身带 scope，空 scope 查询查不到它（见 lib/console-scope.ts 的说明）。",
+        "响应与错误：200 {items:[{account_id,username,display_name,avatar_url,status,level,department,titles,providers,gitlab,last_login_at,created_at}],next_cursor,counts}；department=dept.none 筛出没有部门成员资格的账号；cursor 是按 created_at,id 的不透明游标，固定 50 条一页。",
+        "数据与副作用：只读；gitlab 字段的 state 由 gitlab_accounts.state/last_error 映射成 synced|pending|failed|blocked|none；counts.visitor_today 在 #274 阶段 3（operation 记录）落地前固定 0。"
+      ],
+      "operation": "GET /api/console/users",
+      "operationLabel": "GET /api/console/users",
+      "operationNodeId": "route:GET /api/console/users",
+      "reads": [
+        "users",
+        "account_profiles",
+        "identities",
+        "perm_members",
+        "perm_groups",
+        "gitlab_accounts"
+      ],
+      "relatedDomains": [
+        "identity",
+        "gitlab"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/console-users.test.ts"
+      ],
+      "title": "控制台按新权限体系查看用户列表",
+      "writes": []
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/architecture/API.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "permissions",
+      "evidence": [
+        {
+          "line": 131,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 371,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "id": "flow:users.update",
+      "invariants": [
+        "权限与资源：需要节点 users.manage 且刚登录过（step-up）；改 status 另外需要 users.disable。",
+        "响应与错误：200 {account_id}；账号不存在 404 not_found；部门不存在 400 invalid_department；称号不存在 400 invalid_title；会让站长一个不剩（停用或从 titles 里去掉最后一位站长）409 last_owner。",
+        "数据与副作用：level/department 按唯一约束换组（先删旧的）；department 变了且没有同时传 titles 时，自动去掉不属于新部门的称号（站长等无部门称号不受影响）；写完 bump() revision、写审计 users.update。"
+      ],
+      "operation": "PATCH /api/console/users/:id",
+      "operationLabel": "PATCH /api/console/users/:id",
+      "operationNodeId": "route:PATCH /api/console/users/:id",
+      "reads": [
+        "users",
+        "perm_members",
+        "perm_groups"
+      ],
+      "relatedDomains": [
+        "identity"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/console-users.test.ts"
+      ],
+      "title": "控制台改用户的身份、部门与称号",
+      "writes": [
+        "users",
+        "perm_members"
+      ]
     }
   ],
   "isolation": {
@@ -9247,9 +9780,69 @@
       "title": "修改称号显示与权限包"
     },
     {
+      "id": "flow:permissions.accounts.effective",
+      "kind": "flow",
+      "title": "控制台查看一个账号的全部有效权限"
+    },
+    {
+      "id": "flow:permissions.explain",
+      "kind": "flow",
+      "title": "控制台解释一个账号对一个节点的判定过程"
+    },
+    {
+      "id": "flow:permissions.groups.create",
+      "kind": "flow",
+      "title": "控制台新建自定义权限组"
+    },
+    {
+      "id": "flow:permissions.groups.delete",
+      "kind": "flow",
+      "title": "控制台删除自定义权限组"
+    },
+    {
+      "id": "flow:permissions.groups.list",
+      "kind": "flow",
+      "title": "控制台查看全部权限组"
+    },
+    {
+      "id": "flow:permissions.groups.members.add",
+      "kind": "flow",
+      "title": "控制台把账号加进一个权限组"
+    },
+    {
+      "id": "flow:permissions.groups.members.list",
+      "kind": "flow",
+      "title": "控制台查看一个权限组的成员"
+    },
+    {
+      "id": "flow:permissions.groups.members.remove",
+      "kind": "flow",
+      "title": "控制台把账号移出一个权限组"
+    },
+    {
+      "id": "flow:permissions.groups.update",
+      "kind": "flow",
+      "title": "控制台修改权限组资料、继承与条目"
+    },
+    {
+      "id": "flow:permissions.nodes.list",
+      "kind": "flow",
+      "title": "控制台查看权限节点目录"
+    },
+    {
       "id": "flow:platform.public_config",
       "kind": "flow",
       "title": "读取公开防滥用配置"
+    },
+    {
+      "id": "flow:users.list",
+      "kind": "flow",
+      "title": "控制台按新权限体系查看用户列表"
+    },
+    {
+      "id": "flow:users.update",
+      "kind": "flow",
+      "title": "控制台改用户的身份、部门与称号"
     },
     {
       "id": "interface:forum.llms",
@@ -9300,6 +9893,16 @@
       "id": "route:DELETE /api/console/feedback/:id",
       "kind": "route",
       "title": "DELETE /api/console/feedback/:id"
+    },
+    {
+      "id": "route:DELETE /api/console/permission-groups/:id",
+      "kind": "route",
+      "title": "DELETE /api/console/permission-groups/:id"
+    },
+    {
+      "id": "route:DELETE /api/console/permission-groups/:id/members/:account_id",
+      "kind": "route",
+      "title": "DELETE /api/console/permission-groups/:id/members/:account_id"
     },
     {
       "id": "route:DELETE /api/forum",
@@ -9365,6 +9968,11 @@
       "id": "route:GET /api/competitions/:id/teams",
       "kind": "route",
       "title": "GET /api/competitions/:id/teams"
+    },
+    {
+      "id": "route:GET /api/console/accounts/:id/effective",
+      "kind": "route",
+      "title": "GET /api/console/accounts/:id/effective"
     },
     {
       "id": "route:GET /api/console/applications",
@@ -9462,9 +10070,34 @@
       "title": "GET /api/console/people"
     },
     {
+      "id": "route:GET /api/console/permission-groups",
+      "kind": "route",
+      "title": "GET /api/console/permission-groups"
+    },
+    {
+      "id": "route:GET /api/console/permission-groups/:id/members",
+      "kind": "route",
+      "title": "GET /api/console/permission-groups/:id/members"
+    },
+    {
+      "id": "route:GET /api/console/permissions/explain",
+      "kind": "route",
+      "title": "GET /api/console/permissions/explain"
+    },
+    {
+      "id": "route:GET /api/console/permissions/nodes",
+      "kind": "route",
+      "title": "GET /api/console/permissions/nodes"
+    },
+    {
       "id": "route:GET /api/console/summary",
       "kind": "route",
       "title": "GET /api/console/summary"
+    },
+    {
+      "id": "route:GET /api/console/users",
+      "kind": "route",
+      "title": "GET /api/console/users"
     },
     {
       "id": "route:GET /api/docs",
@@ -9677,6 +10310,11 @@
       "title": "HEAD /api/competitions/:id/teams"
     },
     {
+      "id": "route:HEAD /api/console/accounts/:id/effective",
+      "kind": "route",
+      "title": "HEAD /api/console/accounts/:id/effective"
+    },
+    {
       "id": "route:HEAD /api/console/applications",
       "kind": "route",
       "title": "HEAD /api/console/applications"
@@ -9772,9 +10410,34 @@
       "title": "HEAD /api/console/people"
     },
     {
+      "id": "route:HEAD /api/console/permission-groups",
+      "kind": "route",
+      "title": "HEAD /api/console/permission-groups"
+    },
+    {
+      "id": "route:HEAD /api/console/permission-groups/:id/members",
+      "kind": "route",
+      "title": "HEAD /api/console/permission-groups/:id/members"
+    },
+    {
+      "id": "route:HEAD /api/console/permissions/explain",
+      "kind": "route",
+      "title": "HEAD /api/console/permissions/explain"
+    },
+    {
+      "id": "route:HEAD /api/console/permissions/nodes",
+      "kind": "route",
+      "title": "HEAD /api/console/permissions/nodes"
+    },
+    {
       "id": "route:HEAD /api/console/summary",
       "kind": "route",
       "title": "HEAD /api/console/summary"
+    },
+    {
+      "id": "route:HEAD /api/console/users",
+      "kind": "route",
+      "title": "HEAD /api/console/users"
     },
     {
       "id": "route:HEAD /api/docs",
@@ -10007,9 +10670,19 @@
       "title": "PATCH /api/console/people/:account_id/site-role"
     },
     {
+      "id": "route:PATCH /api/console/permission-groups/:id",
+      "kind": "route",
+      "title": "PATCH /api/console/permission-groups/:id"
+    },
+    {
       "id": "route:PATCH /api/console/titles/:title_id",
       "kind": "route",
       "title": "PATCH /api/console/titles/:title_id"
+    },
+    {
+      "id": "route:PATCH /api/console/users/:id",
+      "kind": "route",
+      "title": "PATCH /api/console/users/:id"
     },
     {
       "id": "route:PATCH /api/forum",
@@ -10090,6 +10763,16 @@
       "id": "route:POST /api/console/invites",
       "kind": "route",
       "title": "POST /api/console/invites"
+    },
+    {
+      "id": "route:POST /api/console/permission-groups",
+      "kind": "route",
+      "title": "POST /api/console/permission-groups"
+    },
+    {
+      "id": "route:POST /api/console/permission-groups/:id/members",
+      "kind": "route",
+      "title": "POST /api/console/permission-groups/:id/members"
     },
     {
       "id": "route:POST /api/feedback",
@@ -10717,6 +11400,16 @@
       "title": "tests/server/configuration.test.ts"
     },
     {
+      "id": "test:tests/server/console-permissions.test.ts",
+      "kind": "test",
+      "title": "tests/server/console-permissions.test.ts"
+    },
+    {
+      "id": "test:tests/server/console-users.test.ts",
+      "kind": "test",
+      "title": "tests/server/console-users.test.ts"
+    },
+    {
       "id": "test:tests/server/console.test.ts",
       "kind": "test",
       "title": "tests/server/console.test.ts"
@@ -10824,7 +11517,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "0a037d1416222a8db08ea88a11a83dede8339e4213d80ff2bc4a2e4d1d945e24",
+    "fingerprint": "78001c044ddc8a5bd21187f68692acbad2efb24b0aa413b69ca4079c203b665a",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -11651,6 +12344,10 @@
         "sha256": "5e238306c8036129e8a547108d258c18df0f9950d5d744f462117e6fb2a33abd"
       },
       {
+        "path": "app/server/src/lib/console-scope.ts",
+        "sha256": "76e51b3c06be93dd132cb61e51308c23f902b60fc15168ed99eed569b0a175d5"
+      },
+      {
         "path": "app/server/src/lib/crypto.ts",
         "sha256": "12afeb63452d598421e9eabbe7a7ee00fae908268d4089326e9822f1575d531d"
       },
@@ -11815,6 +12512,10 @@
         "sha256": "6de6ebc6307d753c78c77bf230ec7d220b4b7fd4784e489993a11055920eec30"
       },
       {
+        "path": "app/server/src/middleware/require-step-up.ts",
+        "sha256": "4d741b63c4554ed0ab70d798eeecabc35d732ddd09da668e54b79880f7b21068"
+      },
+      {
         "path": "app/server/src/middleware/turnstile.ts",
         "sha256": "610dd0a22481edb68ac39e8781102aa57def74cbdc21a1290125b3835113a5b9"
       },
@@ -11829,6 +12530,10 @@
       {
         "path": "app/server/src/routes/admin/index.ts",
         "sha256": "ccd071ae4170c10dbaf2fd6f74747a036cf45be82ebe32f5f7c02d621aef0664"
+      },
+      {
+        "path": "app/server/src/routes/console/accounts.ts",
+        "sha256": "5aa2d34eaf50b7cc750e7b1769fea44cbe297a7cc5d957c5b8b1673ed38d30a7"
       },
       {
         "path": "app/server/src/routes/console/applications.ts",
@@ -11856,7 +12561,7 @@
       },
       {
         "path": "app/server/src/routes/console/contracts.ts",
-        "sha256": "ffd21d0a4f3317a1cab1f61e7ddcec58dfb0cd82a43e00420e45c6339ea4ed79"
+        "sha256": "8e85be501924f68b56d2210e9e9e78295561e66b49f0c7435e38a99c726cdb1d"
       },
       {
         "path": "app/server/src/routes/console/departments.ts",
@@ -11872,23 +12577,35 @@
       },
       {
         "path": "app/server/src/routes/console/index.ts",
-        "sha256": "c68e763f9e4028d09ab499af801e553b0c0683da0334db13b6d49094520642d0"
+        "sha256": "5acedc2ce2fa29fd5b16b781ed69b20d90f5d4508bf1d115b6e3c2718d9b1575"
       },
       {
         "path": "app/server/src/routes/console/invites.ts",
-        "sha256": "993426c84e9159276f5cac4a377c399134479c20ef4469723837e2dd028414b9"
+        "sha256": "247491f0e457a56dd03a67c4e5f74a4d56ec073d712f9f950a3e4eac55d34a4c"
       },
       {
         "path": "app/server/src/routes/console/me.ts",
-        "sha256": "a63cd6a04c5dedc6c1c32e1a44a85eda470e8873a571a1873ae3d43024773789"
+        "sha256": "b9a92dda36429d1d389a5065d8fd2e5c596f8a3306d51117b27d02c5ea54eeb7"
       },
       {
         "path": "app/server/src/routes/console/people.ts",
         "sha256": "6ef11c5df38aa6b49aad69dd3eb4df854ba5d520c337702063a30c49ae95ce12"
       },
       {
+        "path": "app/server/src/routes/console/permission-groups.ts",
+        "sha256": "55969f337c73aa16b04f5ee58267fcb2fdaba8c5f1c497ecd68176ad935920b6"
+      },
+      {
+        "path": "app/server/src/routes/console/permissions.ts",
+        "sha256": "31026eb552449e00ca3da532ab00b405f67bbada6eb89222a84975f411938b78"
+      },
+      {
         "path": "app/server/src/routes/console/titles.ts",
         "sha256": "6935b45fd1fc9395821e5a73efaf9f549991fc9cc01cb8a44c59938e3497c07f"
+      },
+      {
+        "path": "app/server/src/routes/console/users.ts",
+        "sha256": "68819abcb68c9aa3d7dad948d0a046fa67533f2e1950a89198a47d2bfbf1f255"
       },
       {
         "path": "app/server/src/routes/forum-api/contracts.ts",
@@ -12332,7 +13049,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "c4c563a2f3ff6c0d0cd631fd85f70fb859958757f3e4598b70d1db18c9c9af0d"
+        "sha256": "b3a6e2367d915b08b7f6727a0155dd0521631ec5f28e32edee94bb768625295c"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -12368,7 +13085,7 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "ccf2acfe70919719469f66ab403f84f1cfe131a29c571a5124a0680115bb4a33"
+        "sha256": "8fa137d070faca67f1c982e196a6f398d2279a573913bc1be64a30c49cee1d8e"
       },
       {
         "path": "docs/services/server/data-model.md",
@@ -12376,7 +13093,7 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "17ac1f1ef20a45127364b9d3ccb539b1a73392253b5d0fa3e6c84b269c3b366a"
+        "sha256": "b5bf44cb6ef7c3649afdc2699cd1a52f693facd24e8b5e52b72b9c3887c4ad1e"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -12493,6 +13210,14 @@
       {
         "path": "tests/server/configuration.test.ts",
         "sha256": "bb23d36715b76d2e65eb9599552d0456916e8e0a9c3c44f72422d3f498d011d6"
+      },
+      {
+        "path": "tests/server/console-permissions.test.ts",
+        "sha256": "4d5ca2fe6eb4f58a773e785e05a5d813ab8783d080d4f756d520df4fc5fc8ba2"
+      },
+      {
+        "path": "tests/server/console-users.test.ts",
+        "sha256": "068d0235f996094b39f73e50fc058185ae57ca1c6cd1c684a1c48b6d9e761936"
       },
       {
         "path": "tests/server/console.test.ts",
@@ -12735,6 +13460,30 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 167,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:DELETE /api/console/permission-groups/:id",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 225,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:DELETE /api/console/permission-groups/:id/members/:account_id",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 97,
           "path": "app/server/src/app.ts"
         }
@@ -12885,6 +13634,18 @@
       ],
       "from": "application:server",
       "to": "route:GET /api/competitions/:id/teams",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 12,
+          "path": "app/server/src/routes/console/accounts.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /api/console/accounts/:id/effective",
       "type": "provides"
     },
     {
@@ -13083,7 +13844,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 19,
+          "line": 23,
           "path": "app/server/src/routes/console/invites.ts"
         }
       ],
@@ -13119,12 +13880,72 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 86,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /api/console/permission-groups",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 182,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /api/console/permission-groups/:id/members",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 20,
+          "path": "app/server/src/routes/console/permissions.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /api/console/permissions/explain",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 15,
+          "path": "app/server/src/routes/console/permissions.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /api/console/permissions/nodes",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 36,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
       "from": "application:server",
       "to": "route:GET /api/console/summary",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/console/users.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /api/console/users",
       "type": "provides"
     },
     {
@@ -13635,6 +14456,18 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 12,
+          "path": "app/server/src/routes/console/accounts.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /api/console/accounts/:id/effective",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 48,
           "path": "app/server/src/routes/console/applications.ts"
         }
@@ -13827,7 +14660,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 19,
+          "line": 23,
           "path": "app/server/src/routes/console/invites.ts"
         }
       ],
@@ -13863,12 +14696,72 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 86,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /api/console/permission-groups",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 182,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /api/console/permission-groups/:id/members",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 20,
+          "path": "app/server/src/routes/console/permissions.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /api/console/permissions/explain",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 15,
+          "path": "app/server/src/routes/console/permissions.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /api/console/permissions/nodes",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 36,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
       "from": "application:server",
       "to": "route:HEAD /api/console/summary",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/console/users.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /api/console/users",
       "type": "provides"
     },
     {
@@ -14403,7 +15296,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 32,
+          "line": 36,
           "path": "app/server/src/routes/console/invites.ts"
         }
       ],
@@ -14427,12 +15320,36 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 110,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:PATCH /api/console/permission-groups/:id",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 17,
           "path": "app/server/src/routes/console/titles.ts"
         }
       ],
       "from": "application:server",
       "to": "route:PATCH /api/console/titles/:title_id",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 130,
+          "path": "app/server/src/routes/console/users.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:PATCH /api/console/users/:id",
       "type": "provides"
     },
     {
@@ -14619,12 +15536,36 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 21,
+          "line": 25,
           "path": "app/server/src/routes/console/invites.ts"
         }
       ],
       "from": "application:server",
       "to": "route:POST /api/console/invites",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 88,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:POST /api/console/permission-groups",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 199,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:POST /api/console/permission-groups/:id/members",
       "type": "provides"
     },
     {
@@ -17375,7 +18316,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -17415,7 +18356,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -17455,7 +18396,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -17495,7 +18436,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -17535,7 +18476,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -17575,7 +18516,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -17639,7 +18580,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -17679,7 +18620,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -17719,7 +18660,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -17795,7 +18736,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 208,
+          "line": 262,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -17823,7 +18764,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 208,
+          "line": 262,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -17851,7 +18792,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 208,
+          "line": 262,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -17879,7 +18820,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 208,
+          "line": 262,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -17907,7 +18848,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 208,
+          "line": 262,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -17935,7 +18876,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 208,
+          "line": 262,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -17987,7 +18928,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 208,
+          "line": 262,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -18015,7 +18956,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 208,
+          "line": 262,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -18043,7 +18984,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 208,
+          "line": 262,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -18071,7 +19012,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 208,
+          "line": 262,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -22745,7 +23686,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -22781,7 +23722,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -22817,7 +23758,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -22853,7 +23794,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -22889,7 +23830,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -22925,7 +23866,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -22961,7 +23902,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -22997,7 +23938,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -23033,7 +23974,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -23069,7 +24010,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -23105,7 +24046,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -23153,7 +24094,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -23189,7 +24130,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -23225,7 +24166,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 219,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -35493,7 +36434,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 140,
+          "line": 194,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -35501,7 +36442,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 33,
+          "line": 37,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -35533,7 +36474,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 140,
+          "line": 194,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -35541,7 +36482,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 33,
+          "line": 37,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -35573,7 +36514,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 140,
+          "line": 194,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -35581,7 +36522,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 33,
+          "line": 37,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -35613,7 +36554,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 140,
+          "line": 194,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -35621,7 +36562,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 33,
+          "line": 37,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -35653,7 +36594,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 140,
+          "line": 194,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -35661,7 +36602,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 33,
+          "line": 37,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -35693,7 +36634,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 140,
+          "line": 194,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -35701,7 +36642,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 33,
+          "line": 37,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -35733,7 +36674,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 140,
+          "line": 194,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -35741,7 +36682,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 33,
+          "line": 37,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -35773,7 +36714,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 140,
+          "line": 194,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -35781,7 +36722,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 33,
+          "line": 37,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -35813,7 +36754,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 140,
+          "line": 194,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -35821,7 +36762,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 33,
+          "line": 37,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -35853,7 +36794,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 140,
+          "line": 194,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -35861,7 +36802,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 33,
+          "line": 37,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -35905,7 +36846,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 140,
+          "line": 194,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -35913,7 +36854,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 33,
+          "line": 37,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -35945,7 +36886,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 140,
+          "line": 194,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -35953,7 +36894,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 33,
+          "line": 37,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -36015,7 +36956,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36055,7 +36996,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36095,7 +37036,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36135,7 +37076,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36175,7 +37116,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36215,7 +37156,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36255,7 +37196,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36295,7 +37236,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36335,7 +37276,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36375,7 +37316,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36415,7 +37356,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36467,7 +37408,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36507,7 +37448,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36547,7 +37488,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36587,7 +37528,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36627,7 +37568,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 147,
+          "line": 201,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36697,7 +37638,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 165,
+          "line": 219,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36717,7 +37658,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 165,
+          "line": 219,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36737,7 +37678,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 165,
+          "line": 219,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36757,7 +37698,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 165,
+          "line": 219,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36777,7 +37718,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 165,
+          "line": 219,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36797,7 +37738,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 165,
+          "line": 219,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36823,7 +37764,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 165,
+          "line": 219,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36843,7 +37784,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 165,
+          "line": 219,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36949,7 +37890,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 175,
+          "line": 229,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36969,7 +37910,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 175,
+          "line": 229,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36989,7 +37930,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 175,
+          "line": 229,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37009,7 +37950,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 175,
+          "line": 229,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37029,7 +37970,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 175,
+          "line": 229,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37049,7 +37990,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 175,
+          "line": 229,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37075,7 +38016,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 175,
+          "line": 229,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37095,7 +38036,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 175,
+          "line": 229,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37145,7 +38086,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 179,
+          "line": 233,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37169,7 +38110,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 179,
+          "line": 233,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37193,7 +38134,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 179,
+          "line": 233,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37217,7 +38158,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 179,
+          "line": 233,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37241,7 +38182,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 179,
+          "line": 233,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37271,7 +38212,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 179,
+          "line": 233,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37295,7 +38236,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 179,
+          "line": 233,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37319,7 +38260,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 179,
+          "line": 233,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37373,7 +38314,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 156,
+          "line": 210,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37397,7 +38338,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 156,
+          "line": 210,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37421,7 +38362,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 156,
+          "line": 210,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37445,7 +38386,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 156,
+          "line": 210,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37469,7 +38410,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 156,
+          "line": 210,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37493,7 +38434,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 156,
+          "line": 210,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37517,7 +38458,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 156,
+          "line": 210,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37547,7 +38488,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 156,
+          "line": 210,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37571,7 +38512,7 @@
           "path": "app/server/src/routes/console/gitlab.ts"
         },
         {
-          "line": 156,
+          "line": 210,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42543,11 +43484,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 21,
+          "line": 25,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 245,
+          "line": 299,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42563,11 +43504,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 21,
+          "line": 25,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 245,
+          "line": 299,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42583,11 +43524,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 21,
+          "line": 25,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 245,
+          "line": 299,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42603,11 +43544,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 21,
+          "line": 25,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 245,
+          "line": 299,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42623,11 +43564,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 21,
+          "line": 25,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 245,
+          "line": 299,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42655,11 +43596,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 21,
+          "line": 25,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 245,
+          "line": 299,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42675,11 +43616,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 21,
+          "line": 25,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 245,
+          "line": 299,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42695,11 +43636,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 21,
+          "line": 25,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 245,
+          "line": 299,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42715,11 +43656,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 21,
+          "line": 25,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 245,
+          "line": 299,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42771,11 +43712,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 19,
+          "line": 23,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 244,
+          "line": 298,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42791,11 +43732,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 19,
+          "line": 23,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 244,
+          "line": 298,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42811,11 +43752,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 19,
+          "line": 23,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 244,
+          "line": 298,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42831,11 +43772,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 19,
+          "line": 23,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 244,
+          "line": 298,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42851,11 +43792,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 19,
+          "line": 23,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 244,
+          "line": 298,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42871,11 +43812,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 19,
+          "line": 23,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 244,
+          "line": 298,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42909,11 +43850,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 19,
+          "line": 23,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 244,
+          "line": 298,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42929,11 +43870,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 19,
+          "line": 23,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 244,
+          "line": 298,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42985,11 +43926,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 36,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 253,
+          "line": 307,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -43001,11 +43942,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 36,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 253,
+          "line": 307,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -43017,11 +43958,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 36,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 253,
+          "line": 307,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -43033,11 +43974,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 36,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 253,
+          "line": 307,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -43049,11 +43990,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 36,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 253,
+          "line": 307,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -43065,11 +44006,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 36,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 253,
+          "line": 307,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -43093,11 +44034,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 36,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 253,
+          "line": 307,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -43109,11 +44050,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 36,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 253,
+          "line": 307,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -43125,11 +44066,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 36,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 253,
+          "line": 307,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -43141,11 +44082,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 32,
+          "line": 36,
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 253,
+          "line": 307,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -48743,6 +49684,994 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:permissions.accounts.effective",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.accounts.effective",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.accounts.effective",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.accounts.effective",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 12,
+          "path": "app/server/src/routes/console/accounts.ts"
+        },
+        {
+          "line": 324,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.accounts.effective",
+      "to": "table:perm_entries",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 12,
+          "path": "app/server/src/routes/console/accounts.ts"
+        },
+        {
+          "line": 324,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.accounts.effective",
+      "to": "table:perm_group_parents",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 12,
+          "path": "app/server/src/routes/console/accounts.ts"
+        },
+        {
+          "line": 324,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.accounts.effective",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 12,
+          "path": "app/server/src/routes/console/accounts.ts"
+        },
+        {
+          "line": 324,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.accounts.effective",
+      "to": "table:perm_members",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 12,
+          "path": "app/server/src/routes/console/accounts.ts"
+        },
+        {
+          "line": 324,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.accounts.effective",
+      "to": "table:users",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.accounts.effective",
+      "to": "test:tests/server/console-permissions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 12,
+          "path": "app/server/src/routes/console/accounts.ts"
+        },
+        {
+          "line": 324,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.accounts.effective",
+      "to": "route:GET /api/console/accounts/:id/effective",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.explain",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.explain",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.explain",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.explain",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 20,
+          "path": "app/server/src/routes/console/permissions.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.explain",
+      "to": "table:perm_entries",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 20,
+          "path": "app/server/src/routes/console/permissions.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.explain",
+      "to": "table:perm_group_parents",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 20,
+          "path": "app/server/src/routes/console/permissions.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.explain",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 20,
+          "path": "app/server/src/routes/console/permissions.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.explain",
+      "to": "table:perm_members",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 20,
+          "path": "app/server/src/routes/console/permissions.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.explain",
+      "to": "table:users",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.explain",
+      "to": "test:tests/server/console-permissions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 20,
+          "path": "app/server/src/routes/console/permissions.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.explain",
+      "to": "route:GET /api/console/permissions/explain",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.create",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.create",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.create",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.create",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 89,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 326,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.create",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.create",
+      "to": "test:tests/server/console-permissions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 89,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 326,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.create",
+      "to": "route:POST /api/console/permission-groups",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 89,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 326,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.create",
+      "to": "table:perm_group_parents",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 89,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 326,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.create",
+      "to": "table:perm_groups",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.delete",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.delete",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.delete",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.delete",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 167,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 349,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.delete",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.delete",
+      "to": "test:tests/server/console-permissions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 167,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 349,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.delete",
+      "to": "route:DELETE /api/console/permission-groups/:id",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 167,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 349,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.delete",
+      "to": "table:perm_entries",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 167,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 349,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.delete",
+      "to": "table:perm_group_parents",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 167,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 349,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.delete",
+      "to": "table:perm_groups",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 167,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 349,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.delete",
+      "to": "table:perm_members",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.list",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.list",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.list",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.list",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 86,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 325,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.list",
+      "to": "table:perm_entries",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 86,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 325,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.list",
+      "to": "table:perm_group_parents",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 86,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 325,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.list",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 86,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 325,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.list",
+      "to": "table:perm_members",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.list",
+      "to": "test:tests/server/console-permissions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 86,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 325,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.list",
+      "to": "route:GET /api/console/permission-groups",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.add",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.add",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.add",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.add",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 200,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 355,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.members.add",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 200,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 355,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.members.add",
+      "to": "table:users",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.add",
+      "to": "test:tests/server/console-permissions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 200,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 355,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.members.add",
+      "to": "route:POST /api/console/permission-groups/:id/members",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 200,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 355,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.members.add",
+      "to": "table:perm_members",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.list",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.list",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.list",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.list",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 182,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 350,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.members.list",
+      "to": "table:account_profiles",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 182,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 350,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.members.list",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 182,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 350,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.members.list",
+      "to": "table:perm_members",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.list",
+      "to": "test:tests/server/console-permissions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 182,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 350,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.members.list",
+      "to": "route:GET /api/console/permission-groups/:id/members",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.remove",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.remove",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.remove",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.remove",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.members.remove",
+      "to": "test:tests/server/console-permissions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 226,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 360,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.members.remove",
+      "to": "route:DELETE /api/console/permission-groups/:id/members/:account_id",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 226,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 360,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.members.remove",
+      "to": "table:perm_members",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.update",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.update",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.update",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.update",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 110,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 336,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.update",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.groups.update",
+      "to": "test:tests/server/console-permissions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 110,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 336,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.update",
+      "to": "route:PATCH /api/console/permission-groups/:id",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 110,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 336,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.update",
+      "to": "table:perm_entries",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 110,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 336,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.update",
+      "to": "table:perm_group_parents",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 110,
+          "path": "app/server/src/routes/console/permission-groups.ts"
+        },
+        {
+          "line": 336,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.groups.update",
+      "to": "table:perm_groups",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.nodes.list",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.nodes.list",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.nodes.list",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.nodes.list",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:permissions.nodes.list",
+      "to": "test:tests/server/console-permissions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 15,
+          "path": "app/server/src/routes/console/permissions.ts"
+        },
+        {
+          "line": 316,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:permissions.nodes.list",
+      "to": "route:GET /api/console/permissions/nodes",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
       "from": "flow:platform.public_config",
       "to": "domain:platform",
       "type": "belongs-to"
@@ -48788,6 +50717,302 @@
       "from": "flow:platform.public_config",
       "to": "route:GET /api/public/config",
       "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:users.list",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:users.list",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:users.list",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:users.list",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 364,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/server/src/lib/console-scope.ts"
+        }
+      ],
+      "from": "flow:users.list",
+      "to": "table:account_profiles",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 364,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/server/src/lib/console-scope.ts"
+        }
+      ],
+      "from": "flow:users.list",
+      "to": "table:gitlab_accounts",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 364,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/server/src/lib/console-scope.ts"
+        }
+      ],
+      "from": "flow:users.list",
+      "to": "table:identities",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 364,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/server/src/lib/console-scope.ts"
+        }
+      ],
+      "from": "flow:users.list",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 364,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/server/src/lib/console-scope.ts"
+        }
+      ],
+      "from": "flow:users.list",
+      "to": "table:perm_members",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 364,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/server/src/lib/console-scope.ts"
+        }
+      ],
+      "from": "flow:users.list",
+      "to": "table:users",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:users.list",
+      "to": "test:tests/server/console-users.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 50,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 364,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/server/src/lib/console-scope.ts"
+        }
+      ],
+      "from": "flow:users.list",
+      "to": "route:GET /api/console/users",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:users.update",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:users.update",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:users.update",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:users.update",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 131,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 371,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:users.update",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 131,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 371,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:users.update",
+      "to": "table:perm_members",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 131,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 371,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:users.update",
+      "to": "table:users",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:users.update",
+      "to": "test:tests/server/console-users.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 131,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 371,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:users.update",
+      "to": "route:PATCH /api/console/users/:id",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 131,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 371,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:users.update",
+      "to": "table:perm_members",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 131,
+          "path": "app/server/src/routes/console/users.ts"
+        },
+        {
+          "line": 371,
+          "path": "app/server/src/routes/console/contracts.ts"
+        }
+      ],
+      "from": "flow:users.update",
+      "to": "table:users",
+      "type": "writes"
     },
     {
       "basis": "declaration",
@@ -48887,6 +51112,18 @@
     },
     {
       "basis": "declaration",
+      "from": "route:DELETE /api/console/permission-groups/:id",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:DELETE /api/console/permission-groups/:id/members/:account_id",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:DELETE /api/forum",
       "to": "domain:platform",
       "type": "belongs-to"
@@ -48961,6 +51198,12 @@
       "basis": "declaration",
       "from": "route:GET /api/competitions/:id/teams",
       "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:GET /api/console/accounts/:id/effective",
+      "to": "domain:permissions",
       "type": "belongs-to"
     },
     {
@@ -49223,6 +51466,30 @@
     },
     {
       "basis": "declaration",
+      "from": "route:GET /api/console/permission-groups",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:GET /api/console/permission-groups/:id/members",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:GET /api/console/permissions/explain",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:GET /api/console/permissions/nodes",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:GET /api/console/summary",
       "to": "domain:organization",
       "type": "belongs-to"
@@ -49238,6 +51505,12 @@
       "from": "route:GET /api/console/summary",
       "to": "capability:console.access",
       "type": "checks-capability"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:GET /api/console/users",
+      "to": "domain:permissions",
+      "type": "belongs-to"
     },
     {
       "basis": "declaration",
@@ -49489,6 +51762,12 @@
       "basis": "declaration",
       "from": "route:HEAD /api/competitions/:id/teams",
       "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:HEAD /api/console/accounts/:id/effective",
+      "to": "domain:permissions",
       "type": "belongs-to"
     },
     {
@@ -49751,6 +52030,30 @@
     },
     {
       "basis": "declaration",
+      "from": "route:HEAD /api/console/permission-groups",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:HEAD /api/console/permission-groups/:id/members",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:HEAD /api/console/permissions/explain",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:HEAD /api/console/permissions/nodes",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:HEAD /api/console/summary",
       "to": "domain:organization",
       "type": "belongs-to"
@@ -49766,6 +52069,12 @@
       "from": "route:HEAD /api/console/summary",
       "to": "capability:console.access",
       "type": "checks-capability"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:HEAD /api/console/users",
+      "to": "domain:permissions",
+      "type": "belongs-to"
     },
     {
       "basis": "declaration",
@@ -50081,6 +52390,12 @@
     },
     {
       "basis": "declaration",
+      "from": "route:PATCH /api/console/permission-groups/:id",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:PATCH /api/console/titles/:title_id",
       "to": "domain:organization",
       "type": "belongs-to"
@@ -50096,6 +52411,12 @@
       "from": "route:PATCH /api/console/titles/:title_id",
       "to": "capability:roles.manage",
       "type": "checks-capability"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:PATCH /api/console/users/:id",
+      "to": "domain:permissions",
+      "type": "belongs-to"
     },
     {
       "basis": "declaration",
@@ -50215,6 +52536,18 @@
       "basis": "declaration",
       "from": "route:POST /api/console/invites",
       "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:POST /api/console/permission-groups",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:POST /api/console/permission-groups/:id/members",
+      "to": "domain:permissions",
       "type": "belongs-to"
     },
     {
@@ -52768,6 +55101,109 @@
       },
       "contractCoverage": {
         "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "permissions",
+      "id": "route:DELETE /api/console/permission-groups/:id",
+      "key": "DELETE /api/console/permission-groups/:id",
+      "kind": "business",
+      "method": "DELETE",
+      "path": "/api/console/permission-groups/:id",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 167,
+        "path": "app/server/src/routes/console/permission-groups.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "permissions",
+      "id": "route:DELETE /api/console/permission-groups/:id/members/:account_id",
+      "key": "DELETE /api/console/permission-groups/:id/members/:account_id",
+      "kind": "business",
+      "method": "DELETE",
+      "path": "/api/console/permission-groups/:id/members/:account_id",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "account_id": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "account_id"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 225,
+        "path": "app/server/src/routes/console/permission-groups.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
         "requestSections": [],
         "responseSchema": false
       },
@@ -55094,6 +57530,126 @@
       "source": {
         "line": 43,
         "path": "app/server/src/routes/portal/competition-signups.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "permissions",
+      "id": "route:GET /api/console/accounts/:id/effective",
+      "key": "GET /api/console/accounts/:id/effective",
+      "kind": "business",
+      "method": "GET",
+      "path": "/api/console/accounts/:id/effective",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                "type": "string"
+              },
+              "allow": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "deny": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "groups": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                      "type": "string"
+                    },
+                    "kind": {
+                      "maxLength": 16,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "name": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "via": {
+                      "items": {
+                        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "kind",
+                    "via"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "meta": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            },
+            "required": [
+              "account_id",
+              "groups",
+              "allow",
+              "deny",
+              "meta"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 12,
+        "path": "app/server/src/routes/console/accounts.ts"
       }
     },
     {
@@ -57550,7 +60106,7 @@
         }
       },
       "source": {
-        "line": 19,
+        "line": 23,
         "path": "app/server/src/routes/console/invites.ts"
       }
     },
@@ -57652,6 +60208,659 @@
       "application": "server",
       "authorization": {
         "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "permissions",
+      "id": "route:GET /api/console/permission-groups",
+      "key": "GET /api/console/permission-groups",
+      "kind": "business",
+      "method": "GET",
+      "path": "/api/console/permission-groups",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "groups": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "department_id": {
+                      "anyOf": [
+                        {
+                          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "description": {
+                      "maxLength": 200,
+                      "minLength": 0,
+                      "type": "string"
+                    },
+                    "entries": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "expires_at": {
+                            "anyOf": [
+                              {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "id": {
+                            "maximum": 9007199254740991,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "meta_value": {
+                            "anyOf": [
+                              {
+                                "maxLength": 200,
+                                "minLength": 0,
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "node": {
+                            "type": "string"
+                          },
+                          "scope": {
+                            "additionalProperties": true,
+                            "type": "object"
+                          },
+                          "value": {
+                            "anyOf": [
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "node",
+                          "value",
+                          "meta_value",
+                          "scope",
+                          "expires_at"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "icon": {
+                      "anyOf": [
+                        {
+                          "maxLength": 64,
+                          "minLength": 0,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "id": {
+                      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                      "type": "string"
+                    },
+                    "kind": {
+                      "enum": [
+                        "level",
+                        "department",
+                        "title",
+                        "custom"
+                      ],
+                      "type": "string"
+                    },
+                    "member_count": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "parents": {
+                      "items": {
+                        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "sort": {
+                      "maximum": 100000,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "system": {
+                      "type": "boolean"
+                    },
+                    "tone": {
+                      "anyOf": [
+                        {
+                          "maxLength": 32,
+                          "minLength": 0,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "weight": {
+                      "maximum": 100000,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "kind",
+                    "name",
+                    "description",
+                    "weight",
+                    "department_id",
+                    "icon",
+                    "tone",
+                    "sort",
+                    "system",
+                    "parents",
+                    "member_count",
+                    "entries"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "groups"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 86,
+        "path": "app/server/src/routes/console/permission-groups.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "permissions",
+      "id": "route:GET /api/console/permission-groups/:id/members",
+      "key": "GET /api/console/permission-groups/:id/members",
+      "kind": "business",
+      "method": "GET",
+      "path": "/api/console/permission-groups/:id/members",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "members": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "account_id": {
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                      "type": "string"
+                    },
+                    "avatar_url": {
+                      "anyOf": [
+                        {
+                          "maxLength": 500,
+                          "minLength": 0,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "created_at": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "display_name": {
+                      "anyOf": [
+                        {
+                          "maxLength": 32,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "expires_at": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "granted_by": {
+                      "maxLength": 100,
+                      "minLength": 0,
+                      "type": "string"
+                    },
+                    "username": {
+                      "anyOf": [
+                        {
+                          "maxLength": 24,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "account_id",
+                    "username",
+                    "display_name",
+                    "avatar_url",
+                    "expires_at",
+                    "granted_by",
+                    "created_at"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "members"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 182,
+        "path": "app/server/src/routes/console/permission-groups.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "permissions",
+      "id": "route:GET /api/console/permissions/explain",
+      "key": "GET /api/console/permissions/explain",
+      "kind": "business",
+      "method": "GET",
+      "path": "/api/console/permissions/explain",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {
+            "account": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "node": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "account",
+            "node"
+          ],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "hits": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "entry": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expires_at": {
+                          "anyOf": [
+                            {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "node": {
+                          "type": "string"
+                        },
+                        "scope": {
+                          "additionalProperties": true,
+                          "type": "object"
+                        },
+                        "value": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "value",
+                        "scope",
+                        "expires_at"
+                      ],
+                      "type": "object"
+                    },
+                    "group": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                              "type": "string"
+                            },
+                            "name": {
+                              "maxLength": 64,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "enum": [
+                        "account",
+                        "group"
+                      ],
+                      "type": "string"
+                    },
+                    "via": {
+                      "items": {
+                        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "group",
+                    "via",
+                    "entry"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "meta_value": {
+                "anyOf": [
+                  {
+                    "maxLength": 200,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "node": {
+                "type": "string"
+              },
+              "result": {
+                "enum": [
+                  "allow",
+                  "deny",
+                  "unset"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "node",
+              "result",
+              "hits"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 20,
+        "path": "app/server/src/routes/console/permissions.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "permissions",
+      "id": "route:GET /api/console/permissions/nodes",
+      "key": "GET /api/console/permissions/nodes",
+      "kind": "business",
+      "method": "GET",
+      "path": "/api/console/permissions/nodes",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "domains": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "maxLength": 32,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "label"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "nodes": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "description": {
+                      "maxLength": 300,
+                      "minLength": 0,
+                      "type": "string"
+                    },
+                    "domain": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "meta": {
+                      "type": "boolean"
+                    },
+                    "node": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "node",
+                    "domain",
+                    "label",
+                    "description",
+                    "meta"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "nodes",
+              "domains"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 15,
+        "path": "app/server/src/routes/console/permissions.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
         "capabilityGroups": [
           [
             "console.access"
@@ -57695,6 +60904,346 @@
       "source": {
         "line": 36,
         "path": "app/server/src/routes/console/me.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "permissions",
+      "id": "route:GET /api/console/users",
+      "key": "GET /api/console/users",
+      "kind": "business",
+      "method": "GET",
+      "path": "/api/console/users",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {
+            "cursor": {
+              "maxLength": 2000,
+              "minLength": 0,
+              "type": "string"
+            },
+            "department": {
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+              "type": "string"
+            },
+            "level": {
+              "enum": [
+                "registered",
+                "member",
+                "alumni"
+              ],
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 100,
+              "minLength": 0,
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "active",
+                "disabled"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "counts": {
+                "additionalProperties": false,
+                "properties": {
+                  "alumni": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "member": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "registered": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "visitor_today": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "visitor_today",
+                  "registered",
+                  "member",
+                  "alumni"
+                ],
+                "type": "object"
+              },
+              "items": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "account_id": {
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                      "type": "string"
+                    },
+                    "avatar_url": {
+                      "anyOf": [
+                        {
+                          "maxLength": 500,
+                          "minLength": 0,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "created_at": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "department": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                              "type": "string"
+                            },
+                            "name": {
+                              "maxLength": 64,
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "tone": {
+                              "anyOf": [
+                                {
+                                  "maxLength": 32,
+                                  "minLength": 0,
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "tone"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "display_name": {
+                      "anyOf": [
+                        {
+                          "maxLength": 32,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "gitlab": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "gitlab_user_id": {
+                          "anyOf": [
+                            {
+                              "maximum": 9007199254740991,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "state": {
+                          "enum": [
+                            "synced",
+                            "pending",
+                            "failed",
+                            "blocked",
+                            "none"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "gitlab_user_id"
+                      ],
+                      "type": "object"
+                    },
+                    "last_login_at": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "level": {
+                      "enum": [
+                        "registered",
+                        "member",
+                        "alumni"
+                      ],
+                      "type": "string"
+                    },
+                    "providers": {
+                      "items": {
+                        "enum": [
+                          "email",
+                          "google",
+                          "github"
+                        ],
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "status": {
+                      "enum": [
+                        "active",
+                        "disabled"
+                      ],
+                      "type": "string"
+                    },
+                    "titles": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "department_id": {
+                            "anyOf": [
+                              {
+                                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "id": {
+                            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                            "type": "string"
+                          },
+                          "name": {
+                            "maxLength": 64,
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "department_id"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "username": {
+                      "anyOf": [
+                        {
+                          "maxLength": 24,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "account_id",
+                    "username",
+                    "display_name",
+                    "avatar_url",
+                    "status",
+                    "level",
+                    "department",
+                    "titles",
+                    "providers",
+                    "gitlab",
+                    "last_login_at",
+                    "created_at"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "next_cursor": {
+                "anyOf": [
+                  {
+                    "maxLength": 2000,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "items",
+              "next_cursor",
+              "counts"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 50,
+        "path": "app/server/src/routes/console/users.ts"
       }
     },
     {
@@ -61488,6 +65037,77 @@
       "application": "server",
       "authorization": {
         "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "permissions",
+      "id": "route:HEAD /api/console/accounts/:id/effective",
+      "key": "HEAD /api/console/accounts/:id/effective",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/api/console/accounts/:id/effective",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[1-9][0-9]{0,14}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 12,
+        "path": "app/server/src/routes/console/accounts.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
         "capabilityGroups": [
           [
             "applications.read"
@@ -62680,7 +66300,7 @@
         }
       },
       "source": {
-        "line": 19,
+        "line": 23,
         "path": "app/server/src/routes/console/invites.ts"
       }
     },
@@ -62826,6 +66446,269 @@
       "application": "server",
       "authorization": {
         "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "permissions",
+      "id": "route:HEAD /api/console/permission-groups",
+      "key": "HEAD /api/console/permission-groups",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/api/console/permission-groups",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 86,
+        "path": "app/server/src/routes/console/permission-groups.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "permissions",
+      "id": "route:HEAD /api/console/permission-groups/:id/members",
+      "key": "HEAD /api/console/permission-groups/:id/members",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/api/console/permission-groups/:id/members",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[1-9][0-9]{0,14}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 182,
+        "path": "app/server/src/routes/console/permission-groups.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "permissions",
+      "id": "route:HEAD /api/console/permissions/explain",
+      "key": "HEAD /api/console/permissions/explain",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/api/console/permissions/explain",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 20,
+        "path": "app/server/src/routes/console/permissions.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "permissions",
+      "id": "route:HEAD /api/console/permissions/nodes",
+      "key": "HEAD /api/console/permissions/nodes",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/api/console/permissions/nodes",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 15,
+        "path": "app/server/src/routes/console/permissions.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
         "capabilityGroups": [
           [
             "console.access"
@@ -62891,6 +66774,70 @@
       "source": {
         "line": 36,
         "path": "app/server/src/routes/console/me.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "permissions",
+      "id": "route:HEAD /api/console/users",
+      "key": "HEAD /api/console/users",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/api/console/users",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 50,
+        "path": "app/server/src/routes/console/users.ts"
       }
     },
     {
@@ -66210,7 +70157,7 @@
         }
       },
       "source": {
-        "line": 32,
+        "line": 36,
         "path": "app/server/src/routes/console/invites.ts"
       }
     },
@@ -66359,6 +70306,330 @@
       "source": {
         "line": 90,
         "path": "app/server/src/routes/console/people.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring",
+          "body"
+        ],
+        "responseSchema": true
+      },
+      "domain": "permissions",
+      "id": "route:PATCH /api/console/permission-groups/:id",
+      "key": "PATCH /api/console/permission-groups/:id",
+      "kind": "business",
+      "method": "PATCH",
+      "path": "/api/console/permission-groups/:id",
+      "registration": "explicit",
+      "schema": {
+        "body": {
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            },
+            "entries": {
+              "additionalProperties": false,
+              "properties": {
+                "add": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "expires_at": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "meta_value": {
+                        "maxLength": 200,
+                        "minLength": 0,
+                        "type": "string"
+                      },
+                      "node": {
+                        "type": "string"
+                      },
+                      "scope": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "value": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "node"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "remove": {
+                  "items": {
+                    "maximum": 9007199254740991,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [],
+              "type": "object"
+            },
+            "icon": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 0,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "name": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "parents": {
+              "items": {
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "sort": {
+              "maximum": 100000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "tone": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "minLength": 0,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "weight": {
+              "maximum": 100000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [],
+          "type": "object"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "department_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "description": {
+                "maxLength": 200,
+                "minLength": 0,
+                "type": "string"
+              },
+              "entries": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "expires_at": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "id": {
+                      "maximum": 9007199254740991,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "meta_value": {
+                      "anyOf": [
+                        {
+                          "maxLength": 200,
+                          "minLength": 0,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "node": {
+                      "type": "string"
+                    },
+                    "scope": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "node",
+                    "value",
+                    "meta_value",
+                    "scope",
+                    "expires_at"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "icon": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "id": {
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "level",
+                  "department",
+                  "title",
+                  "custom"
+                ],
+                "type": "string"
+              },
+              "member_count": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "name": {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              "parents": {
+                "items": {
+                  "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sort": {
+                "maximum": 100000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "system": {
+                "type": "boolean"
+              },
+              "tone": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "weight": {
+                "maximum": 100000,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "name",
+              "description",
+              "weight",
+              "department_id",
+              "icon",
+              "tone",
+              "sort",
+              "system",
+              "parents",
+              "member_count",
+              "entries"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 110,
+        "path": "app/server/src/routes/console/permission-groups.ts"
       }
     },
     {
@@ -66612,6 +70883,111 @@
       "source": {
         "line": 17,
         "path": "app/server/src/routes/console/titles.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring",
+          "body"
+        ],
+        "responseSchema": true
+      },
+      "domain": "permissions",
+      "id": "route:PATCH /api/console/users/:id",
+      "key": "PATCH /api/console/users/:id",
+      "kind": "business",
+      "method": "PATCH",
+      "path": "/api/console/users/:id",
+      "registration": "explicit",
+      "schema": {
+        "body": {
+          "additionalProperties": false,
+          "properties": {
+            "department": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "level": {
+              "enum": [
+                "registered",
+                "member",
+                "alumni"
+              ],
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "active",
+                "disabled"
+              ],
+              "type": "string"
+            },
+            "titles": {
+              "items": {
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [],
+          "type": "object"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "account_id"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 130,
+        "path": "app/server/src/routes/console/users.ts"
       }
     },
     {
@@ -69897,8 +74273,336 @@
         }
       },
       "source": {
-        "line": 21,
+        "line": 25,
         "path": "app/server/src/routes/console/invites.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring",
+          "body"
+        ],
+        "responseSchema": true
+      },
+      "domain": "permissions",
+      "id": "route:POST /api/console/permission-groups",
+      "key": "POST /api/console/permission-groups",
+      "kind": "business",
+      "method": "POST",
+      "path": "/api/console/permission-groups",
+      "registration": "explicit",
+      "schema": {
+        "body": {
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            },
+            "icon": {
+              "maxLength": 64,
+              "minLength": 0,
+              "type": "string"
+            },
+            "id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "name": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "parents": {
+              "items": {
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "tone": {
+              "maxLength": 32,
+              "minLength": 0,
+              "type": "string"
+            },
+            "weight": {
+              "maximum": 100000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "weight"
+          ],
+          "type": "object"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "201": {
+            "additionalProperties": false,
+            "properties": {
+              "department_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "description": {
+                "maxLength": 200,
+                "minLength": 0,
+                "type": "string"
+              },
+              "entries": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "expires_at": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "id": {
+                      "maximum": 9007199254740991,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "meta_value": {
+                      "anyOf": [
+                        {
+                          "maxLength": 200,
+                          "minLength": 0,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "node": {
+                      "type": "string"
+                    },
+                    "scope": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "node",
+                    "value",
+                    "meta_value",
+                    "scope",
+                    "expires_at"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "icon": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "id": {
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "level",
+                  "department",
+                  "title",
+                  "custom"
+                ],
+                "type": "string"
+              },
+              "member_count": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "name": {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              "parents": {
+                "items": {
+                  "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sort": {
+                "maximum": 100000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "system": {
+                "type": "boolean"
+              },
+              "tone": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "weight": {
+                "maximum": 100000,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "name",
+              "description",
+              "weight",
+              "department_id",
+              "icon",
+              "tone",
+              "sort",
+              "system",
+              "parents",
+              "member_count",
+              "entries"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 88,
+        "path": "app/server/src/routes/console/permission-groups.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring",
+          "body"
+        ],
+        "responseSchema": false
+      },
+      "domain": "permissions",
+      "id": "route:POST /api/console/permission-groups/:id/members",
+      "key": "POST /api/console/permission-groups/:id/members",
+      "kind": "business",
+      "method": "POST",
+      "path": "/api/console/permission-groups/:id/members",
+      "registration": "explicit",
+      "schema": {
+        "body": {
+          "additionalProperties": false,
+          "properties": {
+            "account_id": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "expires_at": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "account_id"
+          ],
+          "type": "object"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 199,
+        "path": "app/server/src/routes/console/permission-groups.ts"
       }
     },
     {
@@ -78098,6 +82802,22 @@
         "public_content",
         "recruitment"
       ],
+      "path": "app/server/src/middleware/require-step-up.ts"
+    },
+    {
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "github",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
       "path": "app/server/src/middleware/turnstile.ts"
     },
     {
@@ -78117,6 +82837,12 @@
         "identity"
       ],
       "path": "app/server/src/routes/admin/index.ts"
+    },
+    {
+      "domains": [
+        "permissions"
+      ],
+      "path": "app/server/src/routes/console/accounts.ts"
     },
     {
       "domains": [
@@ -78162,6 +82888,7 @@
         "gitlab",
         "identity",
         "organization",
+        "permissions",
         "recruitment"
       ],
       "path": "app/server/src/routes/console/contracts.ts"
@@ -78192,6 +82919,7 @@
         "gitlab",
         "identity",
         "organization",
+        "permissions",
         "recruitment"
       ],
       "path": "app/server/src/routes/console/index.ts"
@@ -78216,9 +82944,27 @@
     },
     {
       "domains": [
+        "permissions"
+      ],
+      "path": "app/server/src/routes/console/permission-groups.ts"
+    },
+    {
+      "domains": [
+        "permissions"
+      ],
+      "path": "app/server/src/routes/console/permissions.ts"
+    },
+    {
+      "domains": [
         "organization"
       ],
       "path": "app/server/src/routes/console/titles.ts"
+    },
+    {
+      "domains": [
+        "permissions"
+      ],
+      "path": "app/server/src/routes/console/users.ts"
     },
     {
       "domains": [
@@ -88240,6 +92986,7 @@
   "unmappedSources": [
     "app/server/src/lib/account-avatar.ts",
     "app/server/src/lib/account-profiles.ts",
+    "app/server/src/lib/console-scope.ts",
     "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
     "app/server/src/lib/permission-nodes.ts",
     "app/server/src/lib/permissions.ts"

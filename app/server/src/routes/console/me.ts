@@ -47,6 +47,11 @@ export default async function consoleMeRoutes(app: FastifyInstance) {
     if (access.capabilities.has("roles.manage") || access.capabilities.has("roles.department.manage")) {
       result.people = { assignments: roles.countAssignments(), departments: roles.listDepartments().filter(item => !item.archived).length };
     }
+    // #274 新权限体系的键，和上面的旧 Capability 键并存（两套系统还没切换完）：candidates_pending 在 #278
+    // 落地前先回 0（CONTRACT-274 §7），门槛用新节点 competition.score.review，不是旧的 capabilities。
+    if (req.server.services.permissions.check(req.session!.account_id, "competition.score.review")) {
+      result.candidates_pending = 0;
+    }
     return result;
   });
 }

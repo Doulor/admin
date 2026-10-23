@@ -4,18 +4,18 @@
 
 状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`0a037d1416222a8db08ea88a11a83dede8339e4213d80ff2bc4a2e4d1d945e24`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`78001c044ddc8a5bd21187f68692acbad2efb24b0aa413b69ca4079c203b665a`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
 ## 基线
 
 - 4 个源码应用，3 个运行单元。
-- 209 个已注册方法与路径，其中业务操作 121 个，自动 HEAD 59 个。
-- 54 张应用表，22 个能力，127 条显式业务流程。
-- 响应 Schema：72/209。缺失不等于没有响应；不冒充完整 OpenAPI。
+- 227 个已注册方法与路径，其中业务操作 133 个，自动 HEAD 65 个。
+- 54 张应用表，22 个能力，139 条显式业务流程。
+- 响应 Schema：81/227。缺失不等于没有响应；不冒充完整 OpenAPI。
 
-业务流程关联：121/121 个业务操作；5/5 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
+业务流程关联：133/133 个业务操作；5/5 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
 
 ## 应用与运行单元
 
@@ -34,7 +34,7 @@
 |---|---:|---|---|
 | 身份与会话 | 52 | `sessions`、`users`、`identities`、`identity_audit`、`device_grants`、`invite_codes`、`email_challenges`、`oauth_clients`、`oauth_subjects`、`oauth_grants`、`oidc_payloads`、`account_profiles`、`account_avatars` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/plan/UNIFIED-LOGIN.md](../../../docs/plan/UNIFIED-LOGIN.md) · [docs/services/server/oidc.md](../../../docs/services/server/oidc.md) |
 | 组织与权限 | 21 | `departments`、`titles`、`role_assignments`、`console_seeds` | [docs/services/console/README.md](../../../docs/services/console/README.md) · [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) |
-| 权限 | 0 | `perm_nodes`、`perm_groups`、`perm_group_parents`、`perm_entries`、`perm_members`、`perm_state` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
+| 权限 | 18 | `perm_nodes`、`perm_groups`、`perm_group_parents`、`perm_entries`、`perm_members`、`perm_state` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
 | 招新投递 | 8 | `applications`、`application_reviews`、`application_limits` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) · [docs/ops/USAGE.md](../../../docs/ops/USAGE.md) |
 | 意见反馈 | 9 | `feedback` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
 | 组织邀请 | 3 | `invite_links`、`invite_attempts`、`invitations` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
@@ -436,7 +436,7 @@
 - 响应与错误：200 {invites:[{id,code,note,max_uses,used_count,expires_at,disabled,created_by,created_at,updated_at,usable}]}，按建立时间倒序；没权限 403 missing_capability。
 - 数据与副作用：只读。
 
-源码：[app/server/src/routes/console/invites.ts:19](../../../app/server/src/routes/console/invites.ts#L19) · [app/server/src/routes/console/contracts.ts:244](../../../app/server/src/routes/console/contracts.ts#L244) · [app/console/src/pages/Invites.vue:29](../../../app/console/src/pages/Invites.vue#L29)
+源码：[app/server/src/routes/console/invites.ts:23](../../../app/server/src/routes/console/invites.ts#L23) · [app/server/src/routes/console/contracts.ts:298](../../../app/server/src/routes/console/contracts.ts#L298) · [app/console/src/pages/Invites.vue:29](../../../app/console/src/pages/Invites.vue#L29)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts) · [tests/console/nav.test.ts](../../../tests/console/nav.test.ts)。生成器未执行这些测试。
 
@@ -453,7 +453,7 @@
 - 响应与错误：201 {邀请码}；邀请码 4–40 位字母、数字、_、-，不分大小写，同名 409 invite_code_taken，格式不对 400；次数 1–100000 或 null（不限），过期时间可为 null（不过期）。
 - 数据与副作用：写一行 invite_codes（code 存小写）与 invite.create 审计。
 
-源码：[app/server/src/routes/console/invites.ts:21](../../../app/server/src/routes/console/invites.ts#L21) · [app/server/src/routes/console/contracts.ts:245](../../../app/server/src/routes/console/contracts.ts#L245) · [app/console/src/lib/invites.ts:57](../../../app/console/src/lib/invites.ts#L57)
+源码：[app/server/src/routes/console/invites.ts:25](../../../app/server/src/routes/console/invites.ts#L25) · [app/server/src/routes/console/contracts.ts:299](../../../app/server/src/routes/console/contracts.ts#L299) · [app/console/src/lib/invites.ts:57](../../../app/console/src/lib/invites.ts#L57)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
 
@@ -470,7 +470,7 @@
 - 响应与错误：200 {邀请码}；不存在 404 not_found；只改 note、max_uses、expires_at、disabled，邀请码本身不能改。
 - 数据与副作用：只写实际变化的字段，有变化才写 invite.update 审计（记字段名）；停用后注册时兑换失败，已注册的账号不受影响。邀请码不删。
 
-源码：[app/server/src/routes/console/invites.ts:32](../../../app/server/src/routes/console/invites.ts#L32) · [app/server/src/routes/console/contracts.ts:253](../../../app/server/src/routes/console/contracts.ts#L253)
+源码：[app/server/src/routes/console/invites.ts:36](../../../app/server/src/routes/console/invites.ts#L36) · [app/server/src/routes/console/contracts.ts:307](../../../app/server/src/routes/console/contracts.ts#L307)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
 
@@ -1483,7 +1483,7 @@
 - 200 {competitions}含offline；401未登录，403缺能力。列表按当前时间重算，样板重读同样更新，不冒充真实数据。
 - 共同身份路径：读取sessions与称号/部门权限，使用本人GitHub token查角色并缓存60秒；过期会话删除，上游拒绝token时删除并审计，不代表成功读取总是写库。
 
-源码：[app/server/src/routes/console/competitions.ts:36](../../../app/server/src/routes/console/competitions.ts#L36) · [app/server/src/routes/console/index.ts:30](../../../app/server/src/routes/console/index.ts#L30) · [app/console/src/pages/Competitions.vue:27](../../../app/console/src/pages/Competitions.vue#L27) · [app/console/src/lib/types.ts:156](../../../app/console/src/lib/types.ts#L156) · [app/console/src/lib/nav.ts:32](../../../app/console/src/lib/nav.ts#L32) · [app/console/src/lib/permission-boundaries.ts:97](../../../app/console/src/lib/permission-boundaries.ts#L97) · [app/console/src/router.ts:35](../../../app/console/src/router.ts#L35) · [app/console/src/mock/console.ts:405](../../../app/console/src/mock/console.ts#L405)
+源码：[app/server/src/routes/console/competitions.ts:36](../../../app/server/src/routes/console/competitions.ts#L36) · [app/server/src/routes/console/index.ts:34](../../../app/server/src/routes/console/index.ts#L34) · [app/console/src/pages/Competitions.vue:27](../../../app/console/src/pages/Competitions.vue#L27) · [app/console/src/lib/types.ts:156](../../../app/console/src/lib/types.ts#L156) · [app/console/src/lib/nav.ts:32](../../../app/console/src/lib/nav.ts#L32) · [app/console/src/lib/permission-boundaries.ts:97](../../../app/console/src/lib/permission-boundaries.ts#L97) · [app/console/src/router.ts:35](../../../app/console/src/router.ts#L35) · [app/console/src/mock/console.ts:405](../../../app/console/src/mock/console.ts#L405)
 
 测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts)。生成器未执行这些测试。
 
@@ -1501,7 +1501,7 @@
 - 201 {competition}；校验名称、时间范围和解析后的HTTPS地址；未知字段或错误时间/地址400，限流429。
 - 比赛行与competition.create审计同一事务提交；审计失败一起回滚，不发邮件，不创建报名或队伍。
 
-源码：[app/server/src/routes/console/competitions.ts:41](../../../app/server/src/routes/console/competitions.ts#L41) · [app/server/src/routes/console/contracts.ts:208](../../../app/server/src/routes/console/contracts.ts#L208) · [app/server/src/lib/db.ts:193](../../../app/server/src/lib/db.ts#L193) · [app/server/src/lib/roles.ts:94](../../../app/server/src/lib/roles.ts#L94) · [app/server/src/services.ts:66](../../../app/server/src/services.ts#L66)
+源码：[app/server/src/routes/console/competitions.ts:41](../../../app/server/src/routes/console/competitions.ts#L41) · [app/server/src/routes/console/contracts.ts:262](../../../app/server/src/routes/console/contracts.ts#L262) · [app/server/src/lib/db.ts:193](../../../app/server/src/lib/db.ts#L193) · [app/server/src/lib/roles.ts:94](../../../app/server/src/lib/roles.ts#L94) · [app/server/src/services.ts:66](../../../app/server/src/services.ts#L66)
 
 测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts)。生成器未执行这些测试。
 
@@ -1855,7 +1855,7 @@
 - 有未取消的报名后不能改参赛形式（409 has_signups）；关闭报名保留已有数据。
 - 写入与competition.signup_settings.update审计同一事务，details只记五个字段（是否开放、参赛形式、两个人数、计分），审计失败一起回滚；限流每分钟30次。
 
-源码：[app/server/src/routes/console/competition-roster.ts:32](../../../app/server/src/routes/console/competition-roster.ts#L32) · [app/server/src/lib/competition-signup-store.ts:814](../../../app/server/src/lib/competition-signup-store.ts#L814) · [app/server/src/lib/competition-signup-store.ts:815](../../../app/server/src/lib/competition-signup-store.ts#L815) · [app/server/src/lib/competition-signup-store.ts:817](../../../app/server/src/lib/competition-signup-store.ts#L817) · [app/server/src/lib/competition-contract.ts:123](../../../app/server/src/lib/competition-contract.ts#L123) · [app/server/src/routes/console/contracts.ts:219](../../../app/server/src/routes/console/contracts.ts#L219) · [app/console/src/lib/competition-hub.ts:67](../../../app/console/src/lib/competition-hub.ts#L67)
+源码：[app/server/src/routes/console/competition-roster.ts:32](../../../app/server/src/routes/console/competition-roster.ts#L32) · [app/server/src/lib/competition-signup-store.ts:814](../../../app/server/src/lib/competition-signup-store.ts#L814) · [app/server/src/lib/competition-signup-store.ts:815](../../../app/server/src/lib/competition-signup-store.ts#L815) · [app/server/src/lib/competition-signup-store.ts:817](../../../app/server/src/lib/competition-signup-store.ts#L817) · [app/server/src/lib/competition-contract.ts:123](../../../app/server/src/lib/competition-contract.ts#L123) · [app/server/src/routes/console/contracts.ts:273](../../../app/server/src/routes/console/contracts.ts#L273) · [app/console/src/lib/competition-hub.ts:67](../../../app/console/src/lib/competition-hub.ts#L67)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/console/competition-hub.test.ts](../../../tests/console/competition-hub.test.ts)。生成器未执行这些测试。
 
@@ -2061,7 +2061,7 @@
 - 响应与错误：200 {mode,gitlab_url,group,client_registered,accounts:[{account_id,login,username,gitlab_user_id,state,access_level,last_error,last_error_at,synced_at,pending}]}；pending 是现在还要做的事（同步关着时为空），client_registered 说明 gitlab 客户端登记了没有；没权限 403 missing_capability。
 - 数据与副作用：只读。控制台「成员与权限」在 mode 不是 off 时多一列「GitLab」，按 account_id 对上名单。
 
-源码：[app/server/src/routes/console/gitlab.ts:20](../../../app/server/src/routes/console/gitlab.ts#L20) · [app/server/src/routes/console/contracts.ts:140](../../../app/server/src/routes/console/contracts.ts#L140) · [app/server/src/lib/gitlab-sync.ts:81](../../../app/server/src/lib/gitlab-sync.ts#L81) · [app/server/src/routes/console/index.ts:33](../../../app/server/src/routes/console/index.ts#L33) · [app/console/src/pages/People.vue:48](../../../app/console/src/pages/People.vue#L48) · [app/console/src/lib/gitlab.ts:80](../../../app/console/src/lib/gitlab.ts#L80) · [app/console/src/mock/console.ts:757](../../../app/console/src/mock/console.ts#L757) · [app/console/src/lib/types.ts:91](../../../app/console/src/lib/types.ts#L91)
+源码：[app/server/src/routes/console/gitlab.ts:20](../../../app/server/src/routes/console/gitlab.ts#L20) · [app/server/src/routes/console/contracts.ts:194](../../../app/server/src/routes/console/contracts.ts#L194) · [app/server/src/lib/gitlab-sync.ts:81](../../../app/server/src/lib/gitlab-sync.ts#L81) · [app/server/src/routes/console/index.ts:37](../../../app/server/src/routes/console/index.ts#L37) · [app/console/src/pages/People.vue:48](../../../app/console/src/pages/People.vue#L48) · [app/console/src/lib/gitlab.ts:80](../../../app/console/src/lib/gitlab.ts#L80) · [app/console/src/mock/console.ts:757](../../../app/console/src/mock/console.ts#L757) · [app/console/src/lib/types.ts:91](../../../app/console/src/lib/types.ts#L91)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts) · [tests/console/gitlab.test.ts](../../../tests/console/gitlab.test.ts)。生成器未执行这些测试。
 
@@ -2078,7 +2078,7 @@
 - 响应与错误：200 {mode,account_id,login,actions,applied,error}；GITLAB_SYNC=off 时 409 gitlab_sync_off；账号不存在 404 account_not_found；GitLab 出错不回 5xx，写进 error 与 last_error。
 - 数据与副作用：按 OIDC 身份（provider=openid_connect，extern_uid=gitlab 客户端 sector 的 sub）找或建 GitLab 用户、调组权限、封禁或解封、传头像（论坛头像或 256 像素的 GitHub 头像，200 KiB 以内，来源记进 avatar_source，#271）、同步邮箱（主邮箱、账号页绑的其它邮箱和 GitHub noreply 邮箱以已确认的加到 GitLab 用户名下，在极客班删掉的从 GitLab 删掉，记进 emails_source，#272），从不删除 GitLab 用户；dry-run 只返回 actions 不写；写 audit_logs gitlab.sync，操作人是会话账号。
 
-源码：[app/server/src/routes/console/gitlab.ts:24](../../../app/server/src/routes/console/gitlab.ts#L24) · [app/server/src/routes/console/contracts.ts:147](../../../app/server/src/routes/console/contracts.ts#L147) · [app/server/src/lib/gitlab-sync.ts:81](../../../app/server/src/lib/gitlab-sync.ts#L81) · [app/server/src/lib/db.ts:509](../../../app/server/src/lib/db.ts#L509) · [app/server/src/lib/identity-store.ts:726](../../../app/server/src/lib/identity-store.ts#L726) · [app/console/src/pages/People.vue:182](../../../app/console/src/pages/People.vue#L182) · [app/console/src/lib/gitlab.ts:76](../../../app/console/src/lib/gitlab.ts#L76) · [app/console/src/lib/types.ts:93](../../../app/console/src/lib/types.ts#L93)
+源码：[app/server/src/routes/console/gitlab.ts:24](../../../app/server/src/routes/console/gitlab.ts#L24) · [app/server/src/routes/console/contracts.ts:201](../../../app/server/src/routes/console/contracts.ts#L201) · [app/server/src/lib/gitlab-sync.ts:81](../../../app/server/src/lib/gitlab-sync.ts#L81) · [app/server/src/lib/db.ts:509](../../../app/server/src/lib/db.ts#L509) · [app/server/src/lib/identity-store.ts:726](../../../app/server/src/lib/identity-store.ts#L726) · [app/console/src/pages/People.vue:182](../../../app/console/src/pages/People.vue#L182) · [app/console/src/lib/gitlab.ts:76](../../../app/console/src/lib/gitlab.ts#L76) · [app/console/src/lib/types.ts:93](../../../app/console/src/lib/types.ts#L93)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts) · [tests/console/gitlab.test.ts](../../../tests/console/gitlab.test.ts)。生成器未执行这些测试。
 
@@ -2095,7 +2095,7 @@
 - 响应与错误：200 {mode,url,group,token_configured,version,healthy,last_run:{at,changed,failed}|null,errors_24h}；没权限 403 missing_capability；没配 URL 或连不上时 version 为 null、healthy 为 false，不回 5xx。
 - 数据与副作用：只读；last_run 是进程内存里上一轮 reconcile() 的小结，重启后清空；errors_24h 数的是 gitlab_accounts.last_error_at 落在过去 24 小时内的账号数，不是错误事件总数。
 
-源码：[app/server/src/routes/console/gitlab.ts:32](../../../app/server/src/routes/console/gitlab.ts#L32) · [app/server/src/routes/console/contracts.ts:156](../../../app/server/src/routes/console/contracts.ts#L156) · [app/server/src/lib/gitlab-sync.ts:593](../../../app/server/src/lib/gitlab-sync.ts#L593) · [app/server/src/lib/gitlab-sync.ts:587](../../../app/server/src/lib/gitlab-sync.ts#L587)
+源码：[app/server/src/routes/console/gitlab.ts:32](../../../app/server/src/routes/console/gitlab.ts#L32) · [app/server/src/routes/console/contracts.ts:210](../../../app/server/src/routes/console/contracts.ts#L210) · [app/server/src/lib/gitlab-sync.ts:593](../../../app/server/src/lib/gitlab-sync.ts#L593) · [app/server/src/lib/gitlab-sync.ts:587](../../../app/server/src/lib/gitlab-sync.ts#L587)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
 
@@ -2112,7 +2112,7 @@
 - 响应与错误：200 {groups:[{id,full_path,name,visibility}],projects:[{id,path_with_namespace,name,description,visibility,web_url,http_url_to_repo,ssh_url_to_repo,last_activity_at,star_count}]}；没权限 403 missing_capability；没配 URL、连不上或 GitLab 拒绝时给空列表，不回 5xx。
 - 数据与副作用：只读，不落库；服务端内存缓存 5 分钟（lib/cache.ts 的 cached()），同一个键 5 分钟内不重新调 GitLab。
 
-源码：[app/server/src/routes/console/gitlab.ts:41](../../../app/server/src/routes/console/gitlab.ts#L41) · [app/server/src/routes/console/contracts.ts:165](../../../app/server/src/routes/console/contracts.ts#L165) · [app/server/src/lib/gitlab-sync.ts:610](../../../app/server/src/lib/gitlab-sync.ts#L610)
+源码：[app/server/src/routes/console/gitlab.ts:41](../../../app/server/src/routes/console/gitlab.ts#L41) · [app/server/src/routes/console/contracts.ts:219](../../../app/server/src/routes/console/contracts.ts#L219) · [app/server/src/lib/gitlab-sync.ts:610](../../../app/server/src/lib/gitlab-sync.ts#L610)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
 
@@ -2146,7 +2146,7 @@
 - 响应与错误：200 {sync_mode,group_path,interval_minutes,token_configured}；令牌只显示「已配置/未配置」，不下发真实值；没权限 403 missing_capability。
 - 数据与副作用：只读；当前设置来自 env 的初始值与 app_state 里持久化的覆盖值合并后的运行时状态。
 
-源码：[app/server/src/routes/console/gitlab.ts:43](../../../app/server/src/routes/console/gitlab.ts#L43) · [app/server/src/routes/console/contracts.ts:175](../../../app/server/src/routes/console/contracts.ts#L175) · [app/server/src/lib/gitlab-sync.ts:96](../../../app/server/src/lib/gitlab-sync.ts#L96)
+源码：[app/server/src/routes/console/gitlab.ts:43](../../../app/server/src/routes/console/gitlab.ts#L43) · [app/server/src/routes/console/contracts.ts:229](../../../app/server/src/routes/console/contracts.ts#L229) · [app/server/src/lib/gitlab-sync.ts:96](../../../app/server/src/lib/gitlab-sync.ts#L96)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
 
@@ -2163,7 +2163,7 @@
 - 响应与错误：200 {sync_mode,group_path,interval_minutes,token_configured}；group_path 格式不对 400 invalid_group_path；interval_minutes 超出 5–1440 由请求体 Schema 拒绝为 400 validation_error；把 sync_mode 改成 on 但没配 GITLAB_API_TOKEN 时 409 gitlab_token_missing；改成 on 或 dry-run 但没配 GITLAB_URL 时 409 gitlab_url_missing；没权限 403 missing_capability。
 - 数据与副作用：改动写进 app_state（键 gitlab_settings），覆盖 env 的初始值，进程重启后从这里读回来；同时让运行中的对账定时器按新设置重新排（mode 开关或间隔变化都会先停当前这一轮再决定要不要重开），不新增审计记录。
 
-源码：[app/server/src/routes/console/gitlab.ts:47](../../../app/server/src/routes/console/gitlab.ts#L47) · [app/server/src/routes/console/contracts.ts:179](../../../app/server/src/routes/console/contracts.ts#L179) · [app/server/src/lib/gitlab-sync.ts:652](../../../app/server/src/lib/gitlab-sync.ts#L652) · [app/server/src/lib/gitlab-sync.ts:101](../../../app/server/src/lib/gitlab-sync.ts#L101)
+源码：[app/server/src/routes/console/gitlab.ts:47](../../../app/server/src/routes/console/gitlab.ts#L47) · [app/server/src/routes/console/contracts.ts:233](../../../app/server/src/routes/console/contracts.ts#L233) · [app/server/src/lib/gitlab-sync.ts:652](../../../app/server/src/lib/gitlab-sync.ts#L652) · [app/server/src/lib/gitlab-sync.ts:101](../../../app/server/src/lib/gitlab-sync.ts#L101)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
 
@@ -2268,6 +2268,210 @@
 源码：[app/server/src/routes/portal/departments.ts:17](../../../app/server/src/routes/portal/departments.ts#L17) · [app/server/src/routes/portal/contracts.ts:13](../../../app/server/src/routes/portal/contracts.ts#L13)
 
 测试入口：[tests/server/profile.test.ts](../../../tests/server/profile.test.ts)。生成器未执行这些测试。
+
+### 控制台查看权限节点目录
+
+标识：`flow:permissions.nodes.list`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /api/console/permissions/nodes`
+- 能力：
+- 读取：
+- 写入：
+- 不入队：
+- 权限与资源：需要节点 perm.view。
+- 响应与错误：200 {nodes:[{node,domain,label,description,meta}],domains:[{id,label}]}；节点目录是代码里 permission-nodes.ts 的只读镜像，不查数据库。
+- 数据与副作用：纯内存常量，不读不写。
+
+源码：[app/server/src/routes/console/permissions.ts:15](../../../app/server/src/routes/console/permissions.ts#L15) · [app/server/src/routes/console/contracts.ts:316](../../../app/server/src/routes/console/contracts.ts#L316)
+
+测试入口：[tests/server/console-permissions.test.ts](../../../tests/server/console-permissions.test.ts)。生成器未执行这些测试。
+
+### 控制台解释一个账号对一个节点的判定过程
+
+标识：`flow:permissions.explain`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /api/console/permissions/explain`
+- 能力：
+- 读取：`users`、`perm_members`、`perm_group_parents`、`perm_entries`、`perm_groups`
+- 写入：
+- 不入队：
+- 权限与资源：需要节点 perm.view；node 必须是已登记的具体节点，通配或未知节点 400 unknown_node。
+- 响应与错误：200 {node,result:allow|deny|unset,hits:[{source,group,via,entry}],meta_value?}；账号不存在 404 not_found；直接复用求值引擎的 explainFor，不重复实现判定。
+- 数据与副作用：只读，按账号与其所在组的继承链收集条目（lib/permissions.ts 的 entriesForAccount）。
+
+源码：[app/server/src/routes/console/permissions.ts:20](../../../app/server/src/routes/console/permissions.ts#L20) · [app/server/src/routes/console/contracts.ts:320](../../../app/server/src/routes/console/contracts.ts#L320)
+
+测试入口：[tests/server/console-permissions.test.ts](../../../tests/server/console-permissions.test.ts)。生成器未执行这些测试。
+
+### 控制台查看一个账号的全部有效权限
+
+标识：`flow:permissions.accounts.effective`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /api/console/accounts/:id/effective`
+- 能力：
+- 读取：`users`、`perm_members`、`perm_group_parents`、`perm_entries`、`perm_groups`
+- 写入：
+- 不入队：
+- 权限与资源：需要节点 perm.view。
+- 响应与错误：200 {account_id,groups:[{id,name,kind,via}],allow:[nodes],deny:[nodes],meta:{...}}；账号不存在 404 not_found；复用求值引擎的 effective()。
+- 数据与副作用：只读，展开通配后的具体节点列表，给「用户详情」的「有效权限」页签用。
+
+源码：[app/server/src/routes/console/accounts.ts:12](../../../app/server/src/routes/console/accounts.ts#L12) · [app/server/src/routes/console/contracts.ts:324](../../../app/server/src/routes/console/contracts.ts#L324)
+
+测试入口：[tests/server/console-permissions.test.ts](../../../tests/server/console-permissions.test.ts)。生成器未执行这些测试。
+
+### 控制台查看全部权限组
+
+标识：`flow:permissions.groups.list`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /api/console/permission-groups`
+- 能力：
+- 读取：`perm_groups`、`perm_group_parents`、`perm_entries`、`perm_members`
+- 写入：
+- 不入队：
+- 权限与资源：需要节点 perm.view。
+- 响应与错误：200 {groups:[{id,kind,name,description,weight,department_id,icon,tone,sort,system,parents,member_count,entries}]}，按 sort 升序。
+- 数据与副作用：只读；entries 的 value 保留原始三态（true/false/null，null 配 meta_value），不像判定引擎那样把 null 当 false。
+
+源码：[app/server/src/routes/console/permission-groups.ts:86](../../../app/server/src/routes/console/permission-groups.ts#L86) · [app/server/src/routes/console/contracts.ts:325](../../../app/server/src/routes/console/contracts.ts#L325)
+
+测试入口：[tests/server/console-permissions.test.ts](../../../tests/server/console-permissions.test.ts)。生成器未执行这些测试。
+
+### 控制台新建自定义权限组
+
+标识：`flow:permissions.groups.create`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`POST /api/console/permission-groups`
+- 能力：
+- 读取：`perm_groups`
+- 写入：`perm_groups`、`perm_group_parents`
+- 不入队：
+- 权限与资源：需要节点 perm.manage 且刚登录过（step-up，没有 403 step_up_required）；每分钟 30 次。
+- 响应与错误：201 权限组一行；id 必须是 custom.<字母数字下划线> 格式，不对 400 invalid_group_id；已存在 409 group_exists；继承的父组不存在 400 invalid_parent。
+- 数据与副作用：写一行 perm_groups（kind=custom、system=0）与继承边，调用后 bump() 权限引擎 revision 使缓存失效，写审计 perm.group.create。
+
+源码：[app/server/src/routes/console/permission-groups.ts:89](../../../app/server/src/routes/console/permission-groups.ts#L89) · [app/server/src/routes/console/contracts.ts:326](../../../app/server/src/routes/console/contracts.ts#L326)
+
+测试入口：[tests/server/console-permissions.test.ts](../../../tests/server/console-permissions.test.ts)。生成器未执行这些测试。
+
+### 控制台修改权限组资料、继承与条目
+
+标识：`flow:permissions.groups.update`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`PATCH /api/console/permission-groups/:id`
+- 能力：
+- 读取：`perm_groups`
+- 写入：`perm_groups`、`perm_group_parents`、`perm_entries`
+- 不入队：
+- 权限与资源：需要节点 perm.manage 且刚登录过（step-up）；对 system=1 的种子组（部门、称号、身份等级）同样可改，不限于自定义组。
+- 响应与错误：200 权限组一行；不存在 404 not_found；继承成环 400 group_cycle；父组不存在 400 invalid_parent；entries.add 的节点不是已登记节点或匹配不到任何已登记节点的通配前缀 400 unknown_node；一条条目必须只给 value 或只给 meta_value 400 invalid_entry。
+- 数据与副作用：按传入字段做部分更新；parents 给了就整份替换继承边；entries.remove 先删、entries.add 再插，都在一个事务里；写完 bump() revision、写审计 perm.group.update。
+
+源码：[app/server/src/routes/console/permission-groups.ts:110](../../../app/server/src/routes/console/permission-groups.ts#L110) · [app/server/src/routes/console/contracts.ts:336](../../../app/server/src/routes/console/contracts.ts#L336)
+
+测试入口：[tests/server/console-permissions.test.ts](../../../tests/server/console-permissions.test.ts)。生成器未执行这些测试。
+
+### 控制台删除自定义权限组
+
+标识：`flow:permissions.groups.delete`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`DELETE /api/console/permission-groups/:id`
+- 能力：
+- 读取：`perm_groups`
+- 写入：`perm_entries`、`perm_members`、`perm_groups`、`perm_group_parents`
+- 不入队：
+- 权限与资源：需要节点 perm.manage 且刚登录过（step-up）。
+- 响应与错误：200 {ok:true}；不存在 404 not_found；system=1 的种子组 409 system_group，不能删。
+- 数据与副作用：一个事务里先删这个组的全部条目与成员资格，继承边由外键级联删除，最后删组本身；写完 bump() revision、写审计 perm.group.delete；删组会让仍在组里的账号失去这个组带来的权限，不另行提示。
+
+源码：[app/server/src/routes/console/permission-groups.ts:167](../../../app/server/src/routes/console/permission-groups.ts#L167) · [app/server/src/routes/console/contracts.ts:349](../../../app/server/src/routes/console/contracts.ts#L349)
+
+测试入口：[tests/server/console-permissions.test.ts](../../../tests/server/console-permissions.test.ts)。生成器未执行这些测试。
+
+### 控制台查看一个权限组的成员
+
+标识：`flow:permissions.groups.members.list`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /api/console/permission-groups/:id/members`
+- 能力：
+- 读取：`perm_groups`、`perm_members`、`account_profiles`
+- 写入：
+- 不入队：
+- 权限与资源：需要节点 perm.view。
+- 响应与错误：200 {members:[{account_id,username,display_name,avatar_url,expires_at,granted_by,created_at}]}；组不存在 404 not_found。
+- 数据与副作用：只读，按 created_at 升序。
+
+源码：[app/server/src/routes/console/permission-groups.ts:182](../../../app/server/src/routes/console/permission-groups.ts#L182) · [app/server/src/routes/console/contracts.ts:350](../../../app/server/src/routes/console/contracts.ts#L350)
+
+测试入口：[tests/server/console-permissions.test.ts](../../../tests/server/console-permissions.test.ts)。生成器未执行这些测试。
+
+### 控制台把账号加进一个权限组
+
+标识：`flow:permissions.groups.members.add`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`POST /api/console/permission-groups/:id/members`
+- 能力：
+- 读取：`perm_groups`、`users`
+- 写入：`perm_members`
+- 不入队：
+- 权限与资源：需要节点 perm.manage 且刚登录过（step-up）。
+- 响应与错误：201 {ok:true}；组不存在 404 not_found；账号不存在 404 account_not_found。
+- 数据与副作用：level、department 组每账号最多一个，同一事务里先删旧的再插入新的（和 lib/permissions.ts 的 setExclusiveGroupMembership 同一条规则）；其余组直接 INSERT OR REPLACE；写完 bump() revision、写审计 perm.group.member.add。
+
+源码：[app/server/src/routes/console/permission-groups.ts:200](../../../app/server/src/routes/console/permission-groups.ts#L200) · [app/server/src/routes/console/contracts.ts:355](../../../app/server/src/routes/console/contracts.ts#L355)
+
+测试入口：[tests/server/console-permissions.test.ts](../../../tests/server/console-permissions.test.ts)。生成器未执行这些测试。
+
+### 控制台把账号移出一个权限组
+
+标识：`flow:permissions.groups.members.remove`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`DELETE /api/console/permission-groups/:id/members/:account_id`
+- 能力：
+- 读取：
+- 写入：`perm_members`
+- 不入队：
+- 权限与资源：需要节点 perm.manage 且刚登录过（step-up）。
+- 响应与错误：200 {ok:true}；这个账号本来就不在这个组里 404 not_found。
+- 数据与副作用：删一行 perm_members，写完 bump() revision、写审计 perm.group.member.remove。
+
+源码：[app/server/src/routes/console/permission-groups.ts:226](../../../app/server/src/routes/console/permission-groups.ts#L226) · [app/server/src/routes/console/contracts.ts:360](../../../app/server/src/routes/console/contracts.ts#L360)
+
+测试入口：[tests/server/console-permissions.test.ts](../../../tests/server/console-permissions.test.ts)。生成器未执行这些测试。
+
+### 控制台按新权限体系查看用户列表
+
+标识：`flow:users.list`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /api/console/users`
+- 能力：
+- 读取：`users`、`account_profiles`、`identities`、`perm_members`、`perm_groups`、`gitlab_accounts`
+- 写入：
+- 不入队：
+- 权限与资源：有全站 users.view 的 allow 就看全部；只有按部门限定 scope 的 allow（部长）就只看本部门；都没有 403 forbidden——不是单纯 requirePermission 门禁，因为部长的条目本身带 scope，空 scope 查询查不到它（见 lib/console-scope.ts 的说明）。
+- 响应与错误：200 {items:[{account_id,username,display_name,avatar_url,status,level,department,titles,providers,gitlab,last_login_at,created_at}],next_cursor,counts}；department=dept.none 筛出没有部门成员资格的账号；cursor 是按 created_at,id 的不透明游标，固定 50 条一页。
+- 数据与副作用：只读；gitlab 字段的 state 由 gitlab_accounts.state/last_error 映射成 synced|pending|failed|blocked|none；counts.visitor_today 在 #274 阶段 3（operation 记录）落地前固定 0。
+
+源码：[app/server/src/routes/console/users.ts:50](../../../app/server/src/routes/console/users.ts#L50) · [app/server/src/routes/console/contracts.ts:364](../../../app/server/src/routes/console/contracts.ts#L364) · [app/server/src/lib/console-scope.ts:24](../../../app/server/src/lib/console-scope.ts#L24)
+
+测试入口：[tests/server/console-users.test.ts](../../../tests/server/console-users.test.ts)。生成器未执行这些测试。
+
+### 控制台改用户的身份、部门与称号
+
+标识：`flow:users.update`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`PATCH /api/console/users/:id`
+- 能力：
+- 读取：`users`、`perm_members`、`perm_groups`
+- 写入：`users`、`perm_members`
+- 不入队：
+- 权限与资源：需要节点 users.manage 且刚登录过（step-up）；改 status 另外需要 users.disable。
+- 响应与错误：200 {account_id}；账号不存在 404 not_found；部门不存在 400 invalid_department；称号不存在 400 invalid_title；会让站长一个不剩（停用或从 titles 里去掉最后一位站长）409 last_owner。
+- 数据与副作用：level/department 按唯一约束换组（先删旧的）；department 变了且没有同时传 titles 时，自动去掉不属于新部门的称号（站长等无部门称号不受影响）；写完 bump() revision、写审计 users.update。
+
+源码：[app/server/src/routes/console/users.ts:131](../../../app/server/src/routes/console/users.ts#L131) · [app/server/src/routes/console/contracts.ts:371](../../../app/server/src/routes/console/contracts.ts#L371)
+
+测试入口：[tests/server/console-users.test.ts](../../../tests/server/console-users.test.ts)。生成器未执行这些测试。
 
 ## 核验边界
 

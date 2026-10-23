@@ -84,6 +84,60 @@ const applicationParams = { params: object({ application_id: { type: "string", p
 // 比赛 id 是 UUID，但种子比赛用的是可读 slug（oss-challenge-2026-1），路径参数不能只收 UUID。
 const competitionParams = consoleCompetitionIdParam;
 
+// #274 新权限体系（CONTRACT-274 §5）：权限节点、权限组、按节点算出来的用户列表。
+// 权限组 id 不是数字（level.member、dept.ai、title.ai.staff、custom.<slug>……），`:id` 不能用
+// registerContracts 默认给 `:id` 的数字正则，这里的每个路由都要显式覆盖 params。
+const groupId = { type: "string", pattern: "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$" };
+// 自由形态的对象（scope、meta、条目的 meta）：响应序列化用 fast-json-stringify，裸 `{type:"object"}`
+// 没有 additionalProperties:true 会被序列化成空对象（这次改动里已经踩过一次这个坑，profile.ts 的 prefs 字段）。
+const freeObject = { type: "object", additionalProperties: true };
+const nodeView = object({
+  node: { type: "string" }, domain: { type: "string" }, label: text(64, 1), description: text(300), meta: { type: "boolean" },
+}, ["node", "domain", "label", "description", "meta"]);
+const entryView = object({
+  id: integer(), node: { type: "string" }, value: { anyOf: [{ type: "boolean" }, { type: "null" }] },
+  meta_value: { anyOf: [text(200), { type: "null" }] }, scope: freeObject, expires_at: nullableCount,
+}, ["id", "node", "value", "meta_value", "scope", "expires_at"]);
+const groupView = object({
+  id: groupId, kind: choices("level", "department", "title", "custom"), name: text(64, 1), description: text(200),
+  weight: integer(0, 100000), department_id: { anyOf: [groupId, { type: "null" }] },
+  icon: { anyOf: [text(64), { type: "null" }] }, tone: { anyOf: [text(32), { type: "null" }] },
+  sort: integer(0, 100000), system: { type: "boolean" }, parents: { type: "array", items: groupId },
+  member_count: integer(0), entries: { type: "array", items: entryView },
+}, ["id", "kind", "name", "description", "weight", "department_id", "icon", "tone", "sort", "system", "parents", "member_count", "entries"]);
+const groupMemberView = object({
+  account_id: accountId, username: { anyOf: [text(24, 1), { type: "null" }] }, display_name: { anyOf: [text(32, 1), { type: "null" }] },
+  avatar_url: { anyOf: [text(500), { type: "null" }] }, expires_at: nullableCount, granted_by: text(100), created_at: integer(0),
+}, ["account_id", "username", "display_name", "avatar_url", "expires_at", "granted_by", "created_at"]);
+const explainHit = object({
+  source: choices("account", "group"), group: { anyOf: [object({ id: groupId, name: text(64, 1) }, ["id", "name"]), { type: "null" }] },
+  via: { type: "array", items: groupId },
+  entry: object({ node: { type: "string" }, value: { type: "boolean" }, scope: freeObject, expires_at: nullableCount }, ["node", "value", "scope", "expires_at"]),
+}, ["source", "group", "via", "entry"]);
+const explainResult = object({
+  node: { type: "string" }, result: choices("allow", "deny", "unset"), hits: { type: "array", items: explainHit },
+  meta_value: { anyOf: [text(200), { type: "null" }] },
+}, ["node", "result", "hits"]);
+const effectiveResult = object({
+  account_id: accountId,
+  groups: { type: "array", items: object({ id: groupId, name: text(64, 1), kind: text(16, 1), via: { type: "array", items: groupId } }, ["id", "name", "kind", "via"]) },
+  allow: { type: "array", items: { type: "string" } }, deny: { type: "array", items: { type: "string" } }, meta: freeObject,
+}, ["account_id", "groups", "allow", "deny", "meta"]);
+const userDepartmentView = { anyOf: [object({ id: groupId, name: text(64, 1), tone: { anyOf: [text(32), { type: "null" }] } }, ["id", "name", "tone"]), { type: "null" }] };
+const userTitleView = object({ id: groupId, name: text(64, 1), department_id: { anyOf: [groupId, { type: "null" }] } }, ["id", "name", "department_id"]);
+const gitlabStateView = object({ state: choices("synced", "pending", "failed", "blocked", "none"), gitlab_user_id: { anyOf: [integer(1), { type: "null" }] } }, ["state", "gitlab_user_id"]);
+const userView = object({
+  account_id: accountId, username: { anyOf: [text(24, 1), { type: "null" }] }, display_name: { anyOf: [text(32, 1), { type: "null" }] },
+  avatar_url: { anyOf: [text(500), { type: "null" }] }, status: choices("active", "disabled"), level: choices("registered", "member", "alumni"),
+  department: userDepartmentView, titles: { type: "array", items: userTitleView },
+  providers: { type: "array", items: choices("email", "google", "github") }, gitlab: gitlabStateView,
+  last_login_at: nullableCount, created_at: integer(0),
+}, ["account_id", "username", "display_name", "avatar_url", "status", "level", "department", "titles", "providers", "gitlab", "last_login_at", "created_at"]);
+const usersListResult = object({
+  items: { type: "array", items: userView }, next_cursor: { anyOf: [text(2000), { type: "null" }] },
+  counts: object({ visitor_today: integer(0), registered: integer(0), member: integer(0), alumni: integer(0) }, ["visitor_today", "registered", "member", "alumni"]),
+}, ["items", "next_cursor", "counts"]);
+
 /** `/api/console/*` 的输入协议源。所有 body 与 query 都拒绝未知字段。 */
 export const consoleContracts: RouteContracts = {
   "GET /api/console/me": noQuery,
@@ -257,5 +311,70 @@ export const consoleContracts: RouteContracts = {
       expires_at: { anyOf: [integer(0), { type: "null" }] }, disabled: { type: "boolean" },
     }),
     response: { 200: inviteView, ...inviteFailures },
+  },
+  // #274 新权限体系（CONTRACT-274 §5）
+  "GET /api/console/permissions/nodes": {
+    ...noQuery,
+    response: { 200: object({ nodes: { type: "array", items: nodeView }, domains: { type: "array", items: object({ id: { type: "string" }, label: text(32, 1) }, ["id", "label"]) } }, ["nodes", "domains"]) },
+  },
+  "GET /api/console/permissions/explain": {
+    querystring: object({ account: accountId, node: { type: "string", minLength: 1, maxLength: 128 } }, ["account", "node"]),
+    response: { 200: explainResult },
+  },
+  "GET /api/console/accounts/:id/effective": { ...noQuery, params: object({ id: accountId }, ["id"]), response: { 200: effectiveResult } },
+  "GET /api/console/permission-groups": { ...noQuery, response: { 200: object({ groups: { type: "array", items: groupView } }, ["groups"]) } },
+  "POST /api/console/permission-groups": {
+    ...noQuery,
+    // id 的 custom.<slug> 格式校验留给路由自己做（回具体的 invalid_group_id），这里只管长度，
+    // 不然格式不对会先被 Schema 挡成笼统的 validation_error。
+    body: object({
+      id: text(64, 1), name: text(64, 1), description: text(200),
+      weight: integer(0, 100000), parents: { type: "array", items: groupId }, icon: text(64), tone: text(32),
+    }, ["id", "name", "weight"]),
+    response: { 201: groupView },
+  },
+  "PATCH /api/console/permission-groups/:id": {
+    querystring: object({}),
+    params: object({ id: groupId }, ["id"]),
+    body: object({
+      name: text(64, 1), description: text(200), weight: integer(0, 100000), parents: { type: "array", items: groupId },
+      icon: { anyOf: [text(64), { type: "null" }] }, tone: { anyOf: [text(32), { type: "null" }] }, sort: integer(0, 100000),
+      entries: object({
+        add: { type: "array", items: object({ node: { type: "string" }, value: { type: "boolean" }, meta_value: text(200), scope: freeObject, expires_at: integer(0) }, ["node"]) },
+        remove: { type: "array", items: integer(1) },
+      }),
+    }),
+    response: { 200: groupView },
+  },
+  "DELETE /api/console/permission-groups/:id": { querystring: object({}), params: object({ id: groupId }, ["id"]) },
+  "GET /api/console/permission-groups/:id/members": {
+    ...noQuery,
+    params: object({ id: groupId }, ["id"]),
+    response: { 200: object({ members: { type: "array", items: groupMemberView } }, ["members"]) },
+  },
+  "POST /api/console/permission-groups/:id/members": {
+    querystring: object({}),
+    params: object({ id: groupId }, ["id"]),
+    body: object({ account_id: accountId, expires_at: integer(0) }, ["account_id"]),
+  },
+  "DELETE /api/console/permission-groups/:id/members/:account_id": {
+    querystring: object({}),
+    params: object({ id: groupId, account_id: accountId }, ["id", "account_id"]),
+  },
+  "GET /api/console/users": {
+    querystring: object({
+      q: text(100), level: choices("registered", "member", "alumni"), department: groupId,
+      status: choices("active", "disabled"), cursor: text(2000),
+    }),
+    response: { 200: usersListResult },
+  },
+  "PATCH /api/console/users/:id": {
+    querystring: object({}),
+    params: object({ id: accountId }, ["id"]),
+    body: object({
+      status: choices("active", "disabled"), level: choices("registered", "member", "alumni"),
+      department: { anyOf: [groupId, { type: "null" }] }, titles: { type: "array", items: groupId },
+    }),
+    response: { 200: object({ account_id: accountId }, ["account_id"]) },
   },
 };

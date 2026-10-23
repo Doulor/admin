@@ -14,6 +14,10 @@ import competitions from "./competitions.js";
 import competitionRoster from "./competition-roster.js";
 import invites from "./invites.js";
 import gitlab from "./gitlab.js";
+import permissions from "./permissions.js";
+import permissionGroups from "./permission-groups.js";
+import accounts from "./accounts.js";
+import users from "./users.js";
 
 /** 极客班控制台 `/api/console/*`：组织固定为 CONSOLE_ORG，授权按能力判定。不导入 routes/admin。 */
 export default async function consoleRoutes(app: FastifyInstance) {
@@ -31,4 +35,10 @@ export default async function consoleRoutes(app: FastifyInstance) {
   await app.register(competitionRoster);
   await app.register(invites);
   await app.register(gitlab);
+  // #274 新权限体系（节点、权限组、按节点算出来的用户列表）；旧的 departments/titles/assignments/people
+  // 先保留给旧控制台前端用，和控制台一起整体切换时再删（见执行记录的范围说明）。
+  await app.register(permissions);
+  await app.register(permissionGroups);
+  await app.register(accounts);
+  await app.register(users);
 }
