@@ -12232,7 +12232,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "5cc52e57bd6b4fbd89303e6c6defc6889ed4846b468e9ee18683b55ac5082441",
+    "fingerprint": "b2697fe070cf90b76b27af798a6e52a5288a73e34c6650e76f16c1d9ce0b4136",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -12400,7 +12400,7 @@
       },
       {
         "path": "app/console/src/pages/Account.vue",
-        "sha256": "db5e7f442f917921dc7adc8f44879c804ae8cfbed34b1a6c033c7ec1c6999378"
+        "sha256": "ad40e0ad6bd7f048f97bef3a83dd65dd196004e7a7df29f0d64d2cf88c36d8c9"
       },
       {
         "path": "app/console/src/pages/ApplicationDetail.vue",
@@ -12428,7 +12428,7 @@
       },
       {
         "path": "app/console/src/pages/Device.vue",
-        "sha256": "e1b5c3c9c8df18df7d3c339169f0ff89ea621cfe452134ca67778b04cfa18a96"
+        "sha256": "0e22f2c332f204752c65e16aeaeb80d5fb9e40a6a9bbb4c0c70a1a3993fd4548"
       },
       {
         "path": "app/console/src/pages/Feedback.vue",
@@ -12452,7 +12452,7 @@
       },
       {
         "path": "app/console/src/pages/SignIn.vue",
-        "sha256": "fc9f819b4a426ae1eeb7e1d3cc96938d3fa21a73082b0910e6cc440fcfb7170a"
+        "sha256": "fbf50e1e57efce1c62f3afcf3b546d437d7f3cf5dd5c9f69fbbdbe54a4ee1033"
       },
       {
         "path": "app/console/src/pages/github/Activity.vue",
@@ -13728,7 +13728,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "a561b225cbb741a777444a7ace872f7f5f1c5e9f7189f154145038bda362cbfd"
+        "sha256": "d4e98fbd035909cd75b220f981498c0c0846a113e34e92a63d8e1de2bc8ce0bc"
       },
       {
         "path": "docs/services/forum/README.md",

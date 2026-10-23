@@ -57,8 +57,8 @@ const TAB_LABEL: Record<SignInTab, string> = { signin: "登录", register: "注�
 const tabs: SignInTab[] = ["signin", "register"];
 /** 没有邮箱登录时只剩跳转按钮；从 Google 回来要邀请码时仍给一个邀请码框。 */
 const inviteWithoutEmail = computed(() => !emailProvider.value && registering.value);
-/** 从 Google 回来填邀请码时，主按钮让给「用 Google 注册」，免得点成邮箱注册。 */
-const googleFirst = computed(() => registering.value && backFromGoogleForInvite(route.query));
+/** 从 Google 回来填邀请码时，主按钮让给「用 Google 注册」，免得点成邮箱注册；已经发了验证码就是在走邮箱，主按钮还给邮箱。 */
+const googleFirst = computed(() => registering.value && backFromGoogleForInvite(route.query) && !sentTo.value);
 
 const googleRegister = (provider: LoginProvider) => provider.id === "google" && registering.value;
 const providerLabel = (provider: LoginProvider) => (googleRegister(provider) ? "用 Google 注册" : `通过 ${provider.name} 继续`);
@@ -201,7 +201,7 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
       </div>
 
       <TxAlert v-if="signedOut" type="success" title="你已退出登录" :closable="false" class="signin__alert">官网、论坛、控制台已一起退出。</TxAlert>
-      <TxAlert v-if="outcome" :type="outcome.type" :title="outcome.title" :closable="false" class="signin__alert" data-testid="signin-outcome">
+      <TxAlert v-if="outcome && !registerNotice" :type="outcome.type" :title="outcome.title" :closable="false" class="signin__alert" data-testid="signin-outcome">
         <template v-if="outcome.body">{{ outcome.body }}</template>
       </TxAlert>
       <TxAlert v-if="isMock()" type="info" title="开发预览" :closable="false" class="signin__alert">
@@ -213,7 +213,7 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
           密码没有改。要设或改密码，到「我的账号」里操作。
         </TxAlert>
         <TxAlert v-else type="warning" title="账号已经建好并登录了，密码没设上" :closable="false" class="signin__alert" data-testid="register-notice">
-          {{ messageOf(registerNotice.error) }} 到「我的账号」里可以再设。
+          {{ messageOf(registerNotice.error) }}到「我的账号」里可以再设。
         </TxAlert>
         <div class="signin__more signin__more--pair">
           <TxButton variant="primary" icon="i-carbon-arrow-right" block @click="leave(registerNotice.returnTo)">继续</TxButton>
@@ -244,7 +244,7 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
           </TxTabItem>
         </TxTabs>
 
-        <TxForm v-if="emailProvider" label-position="top" class="signin__email" data-provider="email" :data-tab="tab" novalidate @submit="submitEmail">
+        <TxForm v-if="emailProvider" label-position="top" class="signin__form" data-provider="email" :data-tab="tab" novalidate @submit="submitEmail">
           <TxRadioGroup v-if="!registering" v-model="mode" type="button" class="signin__modes" aria-label="邮箱登录方式">
             <TxRadio value="code" label="验证码" />
             <TxRadio value="password" label="密码" />
@@ -300,7 +300,7 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
           </TxButton>
         </TxForm>
 
-        <TxForm v-if="inviteWithoutEmail" label-position="top" class="signin__email">
+        <TxForm v-if="inviteWithoutEmail" label-position="top" class="signin__form">
           <TxFormItem v-slot="{ id }" label="邀请码">
             <TxInput :id="id" v-model="invite" placeholder="向邀请你的人要" autocomplete="off" spellcheck="false" />
           </TxFormItem>
@@ -312,7 +312,7 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
           <TxButton
             v-for="provider in redirectProviders"
             :key="provider.id"
-            :variant="googleFirst && provider.id === 'google' ? 'primary' : 'secondary'"
+            :variant="googleFirst && googleRegister(provider) ? 'primary' : 'secondary'"
             size="lg"
             :icon="providerIcon(provider)"
             :loading="leaving === provider.id"
@@ -402,10 +402,10 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
   align-self: flex-start;
 }
 /* layout.css 给相邻的表单项再加 14px 上边距，叠在 TxForm 自己的 14px 间距上；登录卡片的字段和其它控件一样只隔 14px */
-.signin__email > .tx-form-item + .tx-form-item {
+.signin__form > .tx-form-item + .tx-form-item {
   margin-top: 0;
 }
-.signin__email :deep(.tx-input) {
+.signin__form :deep(.tx-input) {
   min-height: 44px;
 }
 .signin__code-row {
