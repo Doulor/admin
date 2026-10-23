@@ -69,9 +69,11 @@ async function setup(options: { failing?: { failing: boolean; rejected?: Set<str
   assign('erin', 'alumni');
   // #274：版务权限不再经旧的 role_assignments/capabilities（那一套留着只影响上面 state().viewer.capabilities
   // 的展示，#276 才会迁走），版面行为（置顶/关闭/编辑删帖）按新权限节点判定。SPEC §3.4「部门」行是不分部员/
-  // 部长的统一授权：部门组本身就带 forum.moderate.*，哪一级称号都继承。department→forum 分类的对照要等
-  // #276 建好论坛分类表才能定下来（见 lib/migrations/2026-10-yugc-v2.ts 的注释），这里直接按夹具话题实际
-  // 用到的两个分类（c-exam、c-ai）发放，不依赖那个还没对齐的占位映射。carol、dave 两个部门账号拿到同一份
+  // 部长的统一授权：部门组本身就带 forum.moderate.*，哪一级称号都继承。department→真实论坛分类的对照已经
+  // 落在 lib/migrations/2026-10-yugc-v2.ts 的 DEPARTMENT_FORUM_CATEGORIES 里（该映射本身另有专门测试，见
+  // tests/server/permissions.test.ts「部门的 scope 通配只覆盖本部门对应的真实论坛分类」），但现实里没有
+  // 任何一个部门同时覆盖夹具用到的 c-exam 和 c-ai 两个分类，这里按夹具话题实际用到的两个分类直接发放，
+  // 只是为了让这份版面行为测试不依赖账号具体分到哪个部门。carol、dave 两个部门账号拿到同一份
   // 权限，不再有「队长只能置顶、舰员才能关闭/删帖」的分级。
   as('carol'); as('dave');
   for (const login of ['carol', 'dave']) {

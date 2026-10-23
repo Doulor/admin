@@ -74,15 +74,31 @@ describe("组继承（真实种子数据：level.member → level.registered →
     expect(engine.check(account, "forum.topic.create")).toBe(false);
   });
 
-  it("部门的 scope 通配只覆盖本部门分类", () => {
+  // 迁移种子（lib/migrations/2026-10-yugc-v2.ts 的 DEPARTMENT_FORUM_CATEGORIES）按
+  // app/forum/content/curation.json 的真实分类 id 发放，不再是部门 id 占位。
+  it("部门的 scope 通配只覆盖本部门对应的真实论坛分类", () => {
     const db = makeDb();
     const now = Date.now();
     const account = makeAccount(db, now);
     setExclusiveGroupMembership(db, account, "level.member", now, "test");
     setExclusiveGroupMembership(db, account, "dept.ai", now, "test");
     const engine = createPermissionEngine(db);
-    expect(engine.check(account, "forum.moderate.pin", { category: "ai" })).toBe(true);
-    expect(engine.check(account, "forum.moderate.pin", { category: "algo" })).toBe(false);
+    expect(engine.check(account, "forum.moderate.pin", { category: "c-ai" })).toBe(true);
+    expect(engine.check(account, "forum.moderate.pin", { category: "c-exam" })).toBe(false);
+  });
+
+  it("账号级 deny 盖过部门组继承来的分类版务权限（deny-first）", () => {
+    const db = makeDb();
+    const now = Date.now();
+    const account = makeAccount(db, now);
+    setExclusiveGroupMembership(db, account, "level.member", now, "test");
+    setExclusiveGroupMembership(db, account, "dept.ai", now, "test");
+    const engine = createPermissionEngine(db);
+    expect(engine.check(account, "forum.moderate.pin", { category: "c-ai" })).toBe(true); // 部门组本来允许
+    // 这个账号被单独禁了版务权限（例如滥权后收回）：账号自己的 deny 不限分类，盖过部门组按分类的 allow。
+    db.prepare("INSERT INTO perm_entries(subject_type, subject_id, node, value, scope, granted_by, created_at) VALUES ('account', ?, 'forum.moderate.*', 0, '{}', 'test', ?)").run(account, now);
+    engine.bump();
+    expect(engine.check(account, "forum.moderate.pin", { category: "c-ai" })).toBe(false);
   });
 
   it("部门部长在本部门拿到用户与投递查看、操作记录与部门管理", () => {

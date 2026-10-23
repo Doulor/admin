@@ -189,3 +189,36 @@
 - 做了什么：idn274 在 d7c3deec 的交付报告里提到 `limit_events` 的 `prune()` 实现了但没有调用点，一直在涨。lib/limits.ts 新增 `BUCKET_RETENTION_MS`（按桶各自登记留存时长：daily 类 2 天、hourly 类 2 小时、per_minute/dedup 类 1 小时，比窗口本身多留一截排查余量）和 `pruneAll(now)`（按这张表把全部已登记的桶清一遍，没登记的桶不碰，不会误删也不会无限涨）。lib/activity.ts 的 `startActivityCleanup()` 加一个可选的 `limits` 参数，和操作记录共用同一个「启动清一次 + 每天一次」定时器，不用另起一个；app.ts 的调用点补上 `services.limits`。
 - 结果：新增 tests/server/events.test.ts 一条，直接插 `limit_events` 行验证 `pruneAll()` 按桶各自的留存期判断、没登记的桶原样留着。npx vitest run tests/server——31 files / 560 tests 全过；pnpm --filter server build 干净；check-boundaries 通过（259 files, 1459 imports）。
 - 下一步：Step 3 到这里全部完成（recordActivity 接入全部必记动作、403/429 统一记录、§3.8 限额补齐、limits.prune 接入清理）。进入 Phase 4：更新 docs/architecture/catalog/ownership.json（删掉的 6 个旧控制台路由、新增 console/activity.ts、portal/events.ts、forum-api/forum-limits.ts、lib/activity.ts、lib/limits.ts 这些 flow）、docs/services/server/{endpoint-contracts,README}.md、docs/changes/274.json、docs/plan/YUGC-OS-V2.md，跑 pnpm catalog:generate 和 pnpm docs:index，把 tooling 测试和 pnpm check 转绿，最后给 team-lead 发完整报告。
+
+## 05:29:21 +08:00 · 提交 · #274 · 修复 migration 种子里的部门→论坛分类占位（team-lead 指出的真 bug）
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：lib/migrations/2026-10-yugc-v2.ts:135 原来把每个部门的 forum.moderate.* 权限 scope 写成
+  `{category: [dept.id]}`（比如 `{category: ["ai"]}`），dept.id 只是部门自己的 id，根本不是论坛分类 id，
+  对不上 app/forum/content/curation.json 里真实的分类（`c-ai`、`c-competitions` 等）——按这条种子授权，
+  部门成员实际上一个论坛分类都管不了。改成按 team-lead 给的对照表查 DEPARTMENT_FORUM_CATEGORIES：
+  dept.ai→["c-ai"]、dept.algo/hardware/security→["c-competitions"]（三个部门共管同一个分类，这是
+  team-lead 定的）、dept.management→["c-announcements","c-exam","c-courses","c-careers"]、
+  dept.none 没有对应分类，不发这条权限。
+- 顺带改的测试：tests/server/permissions.test.ts「部门的 scope 通配只覆盖本部门分类」原来断言
+  `{category:"ai"}` 通过、`{category:"algo"}` 不通过——这其实是在断言那个 bug 本身。改成断言真实分类
+  `{category:"c-ai"}` 通过、`{category:"c-exam"}` 不通过，并新增一条「账号级 deny 盖过部门组继承来的
+  分类版务权限（deny-first）」：给同一个账号单独插一条不限分类的账号级 deny（例如账号被单独禁了版务权限），
+  验证它盖过部门组按分类给的 allow。tests/server/forum.test.ts 的 setup() 注释同步更新（不再说分类对照
+  「还没对齐」），carol/dave 两个测试账号仍然用 grantPermNode 手动发两个分类的权限，因为现实里没有任何
+  一个部门同时覆盖夹具用到的 c-exam 和 c-ai——这是测试选择，不是遗留 bug。
+- 迁移演练：复制一份 .tools/yugc-v2/db/preview-copy.db（预发布真实数据，#274 迁移还没跑过的旧库）到
+  本机临时目录，用修复后的代码跑两遍 createDatabase()：
+  - 第一遍：perm_nodes +50、perm_groups +26、perm_group_parents +18、perm_entries +75、perm_members +3、
+    account_profiles +2、activity_events +123（来自 audit_logs 的 123 条全量复制），其余旧表（users、
+    identities、forum_users、role_assignments、departments、invite_codes、audit_logs、applications）
+    全部 before=after（迁移不碰旧数据）；查了 forum.moderate.* 的部门种子，scope 确实是
+    `c-ai`/`c-competitions`/`c-announcements,c-exam,c-courses,c-careers` 这些真实分类 id，不是部门 id。
+  - 第二遍（同一份库再跑一次）：全部字段 delta=0，包括 account_profiles_created_this_run 和
+    activity_events_copied_this_run 都是 0——确认幂等。
+  - 演练用的临时拷贝已删除，没有写回 .tools/yugc-v2/db/preview-copy.db 本体。
+- 结果：npx vitest run tests/server —— 31 files / 561 tests 全过（+1，新增的 deny-first 用例）；
+  pnpm --filter server build 干净；check-boundaries 通过（259 files, 1459 imports）。
+- 下一步：这项 team-lead 交代的「真 bug」修复到这里完成。接下来转 Phase 4（ownership.json、
+  endpoint-contracts、README、data-model、docs/changes/274.json、docs/plan/YUGC-OS-V2.md、
+  catalog:generate、docs:index、tooling 测试转绿、pnpm check 全绿）。

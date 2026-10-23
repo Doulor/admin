@@ -129,10 +129,20 @@ export function entrySeeds(): EntrySeed[] {
     { subjectId: "level.alumni", node: "meta.limit.read.per_minute", metaValue: "300" },
     { subjectId: "level.alumni", node: "meta.limit.search.per_minute", metaValue: "60" },
   ];
-  // 部门：成员只靠部门组拿到「本部门分类」范围内的版务权限（SPEC §3.4 部门行）。
-  // #276 的论坛分类表还没落地，分类 slug 暂用部门 id 占位，#276 建表时需要核对对齐。
+  // 部门：成员只靠部门组拿到「本部门分类」范围内的版务权限（SPEC §3.4 部门行）。分类 id 是
+  // app/forum/content/curation.json 里真实的论坛分类（#276 正式建分类表之前，这张对照表是唯一来源，
+  // 改分类要连这里一起改）。dept.none 没有对应分类，不发这条权限。
+  const DEPARTMENT_FORUM_CATEGORIES: Record<string, string[]> = {
+    ai: ["c-ai"],
+    algo: ["c-competitions"],
+    hardware: ["c-competitions"],
+    security: ["c-competitions"],
+    management: ["c-announcements", "c-exam", "c-courses", "c-careers"],
+  };
   for (const dept of DEPARTMENTS) {
-    entries.push({ subjectId: `dept.${dept.id}`, node: "forum.moderate.*", value: true, scope: { category: [dept.id] } });
+    const categories = DEPARTMENT_FORUM_CATEGORIES[dept.id];
+    if (!categories) continue;
+    entries.push({ subjectId: `dept.${dept.id}`, node: "forum.moderate.*", value: true, scope: { category: categories } });
   }
   // 各部门部长（管理部门除外，见下）：本部门的用户与投递查看、操作记录、部门管理
   for (const dept of DEPARTMENTS) {
