@@ -188,7 +188,7 @@ flowchart LR
 ```
 
 - **极客班 OpenID** 是 `users` 一行的 `id`（接口里叫 `account_id`）：128 位随机、永不复用、永不删除；状态 `active`、`disabled`、`merged`（`merged` 只为以后的合并预留）。它是我们自己发的编号，不是 GitHub id、不是 Google 的 `sub`，也不是以后微信给的 `openid`——代码里叫 `account_id`，就是为了不和这些渠道自己的 id 混淆。文中的「极客班账号」「账号」都指它。
-- 登录方式（渠道）是 `identities` 的行，`(provider, provider_uid)` 唯一，所以一个 GitHub 账号、一个邮箱、一个 Google 账号只能绑定在一个 OpenID 上：GitHub 用不可变的数字 id，Google 用 ID Token 的 `sub`，邮箱用规范化地址。**每个账号每种方式最多一个**（待确认 7）；GitHub 每个账号恰好一个，不能解绑。
+- 登录方式（渠道）是 `identities` 的行，`(provider, provider_uid)` 唯一，所以一个 GitHub 账号、一个邮箱、一个 Google 账号只能绑定在一个 OpenID 上：GitHub 用不可变的数字 id，Google 用 ID Token 的 `sub`，邮箱用规范化地址。**每个账号每种方式最多一个**（待确认 7）；GitHub 每个账号恰好一个，不能解绑。邮箱例外（#272）：GitLab 按提交里的作者邮箱认人，一个人的提交常常用好几个邮箱，所以一个账号最多绑 5 个邮箱，第一个是主邮箱（`canonical_email`），不能删，其它的可以在账号页删。
 - 只有 GitHub 能建号：GitHub 登录通过组织门槛、且这个 GitHub id 还没有账号时，在登录事务里同时建 `users` 与 `identities`（交付 4 起还有 `user_profiles`）。邮箱与 Google 只能命中已绑定的账号，未命中不建任何行。
 - **用哪种方式登录都落到同一个 OpenID**：登录事务按渠道找到身份，再走到它所属的账号（见[下一节](#登录事务三种方式共用)），会话只记 OpenID 和本次方式。业务代码从会话拿 `account_id`，不读 `identities`（只有身份模块读写它），也不按登录方式区分权限；唯一按方式区分的是[要本人 GitHub 令牌的接口](#要本人-github-令牌的接口交付-2)。
 - 显示的名字和头像取账号的个人资料（见[统一资料](#统一资料交付-4)）；交付 4 之前是绑定 GitHub 的当前登录名与头像（每次 GitHub 登录刷新）。任何时候都不显示 Google 昵称或邮箱。
@@ -669,7 +669,7 @@ CREATE TABLE IF NOT EXISTS identity_credentials (
   credential_expires_at INTEGER NOT NULL  -- obtained_at + 7 天；只在 GitHub 登录时换新
 );
 
--- 每个账号每种方式一个（待确认 7），取代交付 1 只管 GitHub 的那条
+-- 每个账号每种方式一个（待确认 7），取代交付 1 只管 GitHub 的那条；#272 起邮箱除外（加 WHERE provider <> 'email'，见 data-model.md）
 CREATE UNIQUE INDEX IF NOT EXISTS uq_identities_user_provider ON identities(user_id, provider);
 DROP INDEX IF EXISTS uq_identities_github_user;
 ```
@@ -929,7 +929,7 @@ SELECT COUNT(*) FROM user_profiles p WHERE p.avatar_hash IS NOT NULL
 4. 把 ADR 的交付 2 拆成候选 2（邮箱、账号页、资格）与候选 3（Google）。
 5. 绑定、解绑前的重新验证窗口 10 分钟。
 6. 登录失败统一回 `/signin`，不再回发起登录的页面。
-7. 每个账号每种方式最多一个（换邮箱要先解绑）。
+7. 每个账号每种方式最多一个（换邮箱要先解绑）。#272 起邮箱改成最多 5 个（第一个是主邮箱），起因是所有者 2026-10-23 19:22 要 GitLab 上的提交显示提交人的头像；GitHub、Google 仍按这条默认。
 8. 交付 2 起，确认移出组织即撤销这个账号的全部会话。
 9. 统一资料单列为交付 4（候选 4），只依赖交付 1，可与交付 2 并行。
 10. 用户名就是 GitHub 登录名，不能自己改，GitHub 改名后跟着改。

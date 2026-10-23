@@ -9,6 +9,9 @@ import type { DirectoryAccount } from "./account-directory.js";
  * 没有的用站内登录名（yz_…），被占用或是保留名时加后缀，之后不再改名。
  * 头像（#271）：论坛上传的头像优先，没有时用 GitHub 头像；GitLab 收下后记下来源（avatar_source），来源变了再传，传失败下一轮再试。
  * 还没记过来源的（以前建的号、GitLab 在登录时自动建的号）会传一次，盖掉 GitLab 上原来的头像。
+ * 邮箱（#272）：GitLab 按提交里的作者邮箱认人，只认用户名下已确认的邮箱。主邮箱写成 GitLab 的主邮箱，其它绑定的邮箱和 GitHub 给的
+ * noreply 邮箱以「已确认」加到用户名下（GitLab 没配发信，成员自己加的邮箱确认不了）；在极客班删掉的从 GitLab 删掉。
+ * 记下同步过去的邮箱（emails_source），变了再同步，失败下一轮再试。
  * 只有这个模块读写 gitlab_accounts；`mode` 为 dry-run 时只算出要做什么，不写表、不改 GitLab。
  */
 export const GITLAB_OIDC_PROVIDER = "openid_connect";
@@ -27,6 +30,7 @@ const AVATAR_EXTENSIONS: Record<string, string> = { "image/png": "png", "image/j
 /** avatar_source 里论坛头像的写法：前缀加图的散列；GitHub 头像直接写地址。 */
 const FORUM_AVATAR_PREFIX = "forum:";
 const GITHUB_AVATAR_BASE = "https://avatars.githubusercontent.com/";
+const GITHUB_NOREPLY_DOMAIN = "users.noreply.github.com";
 /** GitLab 不让用、或者会和路由撞上的用户名，碰到直接加后缀，不用等 GitLab 拒绝。 */
 const RESERVED_USERNAMES = new Set([
   "admin", "administrator", "root", "ghost", "support", "support-bot", "alert-bot", "security-bot", "automation-bot", "api", "help",
@@ -41,11 +45,12 @@ export type SyncAction =
   | { kind: "find_and_block" }
   | { kind: "unblock" }
   | { kind: "set_access"; access_level: number }
-  | { kind: "set_avatar" };
+  | { kind: "set_avatar" }
+  | { kind: "set_emails" };
 export type GitlabAccountState = "pending" | "active" | "blocked";
 export type GitlabAccountRow = {
   account_id: string; gitlab_user_id: number | null; username: string; state: GitlabAccountState; access_level: number | null;
-  avatar_source: string | null; last_error: string | null; last_error_at: number | null; synced_at: number | null; created_at: number; updated_at: number;
+  avatar_source: string | null; emails_source: string | null; last_error: string | null; last_error_at: number | null; synced_at: number | null; created_at: number; updated_at: number;
 };
 export type SyncOutcome = { account_id: string; login: string; actions: SyncAction[]; applied: boolean; error: string | null };
 /** `skipped` 不为空时这一轮没做：GitLab 的客户端还没登记（gitlab_client_missing）。 */
@@ -107,8 +112,22 @@ export function createGitlabSync(db: Database.Database, deps: {
   }
 
   /**
+   * GitLab 上要有的邮箱（都转小写）：主邮箱（没有时为 null，GitLab 上留着建号时的占位地址），其它绑定的邮箱加上 GitHub noreply 邮箱。
+   * GitHub 的 noreply 邮箱有按数字 id 的新式和按登录名的旧式两种，在 GitHub 网页上提交、或者打开了邮箱保护时提交里用的就是它。
+   */
+  type WantedEmails = { primary: string | null; others: string[] };
+  function wantedEmails(account: DirectoryAccount): WantedEmails {
+    const primary = account.email?.toLowerCase() ?? null;
+    const noreply = account.github ? [`${account.github.id}+${account.github.login}@${GITHUB_NOREPLY_DOMAIN}`, `${account.github.login}@${GITHUB_NOREPLY_DOMAIN}`] : [];
+    const others = new Set([...account.emails, ...noreply].map(email => email.toLowerCase()));
+    if (primary) others.delete(primary);
+    return { primary, others: [...others].sort() };
+  }
+  const emailsSource = (account: DirectoryAccount) => JSON.stringify(wantedEmails(account));
+
+  /**
    * 这个账号现在要做什么（不碰 GitLab）。是成员、还没建号的建号；建过的按成员资格封禁或解封、调组权限。
-   * 是成员、有头像来源、和上次传上去的来源不同（包括从没传过）时传头像。
+   * 是成员、有头像来源、和上次传上去的来源不同（包括从没传过）时传头像；要有的邮箱和上次同步过去的不同（包括从没同步过）时同步邮箱。
    * 不是成员、也没有对上 GitLab 用户的：只要他在 GitLab 的 sector 有过 `sub`（用极客班登录过 GitLab，GitLab 可能已经自动建了号，
    * 例如同步关着时、或者在下一轮对账之前），每一轮都去 GitLab 按身份找，找到就封禁。找不到也不记「找过了」：他可能回来、
    * 用极客班登录一次（GitLab 又自动建号）、在下一轮之前又离开。这类账号很少，每人每轮一次只读请求。
@@ -121,6 +140,7 @@ export function createGitlabSync(db: Database.Database, deps: {
       if (wanted(account)) {
         const actions: SyncAction[] = [{ kind: "create", username: row?.username ?? freeUsername(account), access_level: access }];
         if (avatar) actions.push({ kind: "set_avatar" });
+        if (emailsSource(account) !== row?.emails_source) actions.push({ kind: "set_emails" });
         return actions;
       }
       const sectorId = sector();
@@ -131,6 +151,7 @@ export function createGitlabSync(db: Database.Database, deps: {
     if (row.state === "blocked") actions.push({ kind: "unblock" });
     if (row.access_level !== access) actions.push({ kind: "set_access", access_level: access });
     if (avatar && avatar !== row.avatar_source) actions.push({ kind: "set_avatar" });
+    if (emailsSource(account) !== row.emails_source) actions.push({ kind: "set_emails" });
     return actions;
   }
 
@@ -240,6 +261,52 @@ export function createGitlabSync(db: Database.Database, deps: {
     db.prepare("UPDATE gitlab_accounts SET avatar_source = ?, updated_at = ? WHERE account_id = ?").run(source, clock(), account.account_id);
   }
 
+  /**
+   * 同步邮箱：主邮箱和 GitLab 的不同时改过去（不再发确认信），其它邮箱缺的以「已确认」加上，GitLab 上有但没确认的删掉重加；
+   * 以前同步过去、现在不要的，和建号时用过的占位地址（换成真的主邮箱后 GitLab 会把它留成次邮箱），从 GitLab 删掉，GitLab 现在的主邮箱不动。
+   * 每一项都试一遍，有被拒的（例如邮箱已经是别的 GitLab 用户的，400）抛 gitlab_email_<状态码>，不记 emails_source，下一轮再试。
+   */
+  async function setEmails(account: DirectoryAccount, userId: number): Promise<void> {
+    const wanted = wantedEmails(account);
+    const row = rowOf(account.account_id)!;
+    const before = row.emails_source ? JSON.parse(row.emails_source) as WantedEmails : null;
+    const refused: number[] = [];
+    const user = await gitlab("GET", `/users/${userId}`);
+    if (user.status !== 200) throw new SyncError(`gitlab_lookup_${user.status}`);
+    let primary = String((user.data as { email?: unknown } | null)?.email ?? "").toLowerCase();
+    if (wanted.primary && wanted.primary !== primary) {
+      const updated = await gitlab("PUT", `/users/${userId}`, { email: wanted.primary, skip_reconfirmation: true });
+      if (updated.status === 200) primary = wanted.primary;
+      else refused.push(updated.status);
+    }
+    const listed = await gitlab("GET", `/users/${userId}/emails`);
+    if (listed.status !== 200 || !Array.isArray(listed.data)) throw new SyncError(`gitlab_email_${listed.status}`);
+    const have = new Map((listed.data as { id: number; email: string; confirmed_at?: string | null }[])
+      .map(item => [item.email.toLowerCase(), { id: item.id, confirmed: Boolean(item.confirmed_at) }]));
+    for (const email of wanted.others) {
+      const existing = have.get(email);
+      if (email === primary || existing?.confirmed) continue;
+      if (existing) {
+        const removed = await gitlab("DELETE", `/users/${userId}/emails/${existing.id}`);
+        if (removed.status !== 204) { refused.push(removed.status); continue; }
+      }
+      const added = await gitlab("POST", `/users/${userId}/emails`, { email, skip_confirmation: true });
+      if (added.status !== 201) refused.push(added.status);
+    }
+    const sectorId = sector();
+    const stale = new Set([
+      ...(before?.primary ? [before.primary] : []), ...(before?.others ?? []), ...(sectorId ? [`${row.username.toLowerCase()}@noreply.${sectorId}`] : []),
+    ]);
+    for (const email of stale) {
+      const existing = have.get(email);
+      if (!existing || email === primary || email === wanted.primary || wanted.others.includes(email)) continue;
+      const removed = await gitlab("DELETE", `/users/${userId}/emails/${existing.id}`);
+      if (removed.status !== 204) refused.push(removed.status);
+    }
+    if (refused.length) throw new SyncError(`gitlab_email_${refused[0]}`);
+    db.prepare("UPDATE gitlab_accounts SET emails_source = ?, updated_at = ? WHERE account_id = ?").run(JSON.stringify(wanted), clock(), account.account_id);
+  }
+
   async function ensureMembership(userId: number, accessLevel: number): Promise<void> {
     const group = encodeURIComponent(config.group);
     const added = await gitlab("POST", `/groups/${group}/members`, { user_id: userId, access_level: accessLevel });
@@ -321,15 +388,24 @@ export function createGitlabSync(db: Database.Database, deps: {
     return true;
   }
 
-  /** 按顺序做完这些事，返回真正做了的（find_and_block 没找到人不算）。 */
+  /**
+   * 按顺序做完这些事，返回真正做了的（find_and_block 没找到人不算）。头像和邮箱互不依赖：一个失败不耽误另一个，
+   * 都试过以后再报先失败的那个。
+   */
   async function apply(account: DirectoryAccount, actions: SyncAction[]): Promise<SyncAction[]> {
     const done: SyncAction[] = [];
+    const failures: unknown[] = [];
     for (const action of actions) {
       if (action.kind === "create") { await create(account, action); done.push(action); continue; }
       if (action.kind === "find_and_block") { if (await findAndBlock(account)) done.push(action); continue; }
       const userId = rowOf(account.account_id)!.gitlab_user_id!;
-      if (action.kind === "set_avatar") {
-        await setAvatar(account, userId);
+      if (action.kind === "set_avatar" || action.kind === "set_emails") {
+        try {
+          await (action.kind === "set_avatar" ? setAvatar(account, userId) : setEmails(account, userId));
+        } catch (error) {
+          failures.push(error);
+          continue;
+        }
       } else if (action.kind === "block" || action.kind === "unblock") {
         await setBlocked(userId, action.kind === "block");
         db.prepare("UPDATE gitlab_accounts SET state = ?, updated_at = ? WHERE account_id = ?").run(action.kind === "block" ? "blocked" : "active", clock(), account.account_id);
@@ -339,6 +415,7 @@ export function createGitlabSync(db: Database.Database, deps: {
       }
       done.push(action);
     }
+    if (failures.length) throw failures[0];
     return done;
   }
 

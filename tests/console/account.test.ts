@@ -36,6 +36,7 @@ describe("账号页 (lib/account)", () => {
 
   it("记录与登录方式的中文名，未知的原样显示", () => {
     expect(actionText("password_set")).toBe("设置密码");
+    expect(actionText("unlink")).toBe("解绑登录方式");
     expect(actionText("something_new")).toBe("something_new");
     expect(providerText("google")).toBe("Google");
     expect(providerText(null)).toBe("-");
@@ -50,6 +51,10 @@ describe("账号页 (lib/account)", () => {
     const view = mockAccount(MOCK_PERSONAS.admin_email);
     expect(view.session.provider).toBe("email");
     for (const item of view.identities) if (item.provider === "email") expect(item.label).toMatch(/^.\*\*\*@/);
+    // 和服务端一样：邮箱带 id，主邮箱在前（#272）
+    const emails = view.identities.filter(item => item.provider === "email");
+    expect(emails.map(item => item.primary)).toEqual([true, false]);
+    expect(new Set(emails.map(item => item.id)).size).toBe(emails.length);
   });
 });
 

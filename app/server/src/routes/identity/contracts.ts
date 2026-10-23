@@ -1,6 +1,7 @@
 import {
   choices, integer, nullableText, object, text, type RouteContracts,
 } from "../../lib/http-contracts.js";
+import { EMAILS_MAX } from "../../lib/identity-store.js";
 
 /** 一种登录方式（规格「接口」的 Providers）：前端按这个列表渲染按钮，不写死任何渠道。 */
 const provider = object({
@@ -36,9 +37,12 @@ const done = object({ ok: { type: "boolean", const: true } }, ["ok"]);
 const accountView = object({
   account_id: text(64, 1),
   login: text(100, 1),
+  // GitHub、Google 各一个，邮箱最多 EMAILS_MAX 个（#272）；邮箱另带身份 id（删邮箱用）与是不是主邮箱
   identities: {
-    type: "array", maxItems: 3,
-    items: object({ provider: loginProvider, label: text(254), linked_at: timestamp, last_login_at: nullableTimestamp }, ["provider", "label", "linked_at", "last_login_at"]),
+    type: "array", maxItems: 2 + EMAILS_MAX,
+    items: object({
+      provider: loginProvider, label: text(254), linked_at: timestamp, last_login_at: nullableTimestamp, id: text(64, 1), primary: { type: "boolean" },
+    }, ["provider", "label", "linked_at", "last_login_at"]),
   },
   has_password: { type: "boolean" },
   password_updated_at: nullableTimestamp,
@@ -143,6 +147,7 @@ export const identityContracts: RouteContracts = {
   "GET /api/identity/me": { querystring: object({}), response: { 200: accountView, ...failures } },
   "POST /api/identity/email/start": { querystring: object({}), body: object({ email }, ["email"]), response: { 202: codeSent, ...failures } },
   "POST /api/identity/email/verify": { querystring: object({}), body: object({ code }, ["code"]), response: { 200: done, ...failures } },
+  "POST /api/identity/email/remove": { querystring: object({}), body: object({ identity_id: text(64, 1) }, ["identity_id"]), response: { 200: done, ...failures } },
   "POST /api/identity/password": {
     querystring: object({}),
     body: object({ password: text(200, 1), current_password: text(200) }, ["password"]),

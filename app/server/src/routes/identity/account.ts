@@ -4,6 +4,7 @@ import { RESEND_AFTER_S, normalizeEmail } from "../../lib/email-login.js";
 import { PASSWORD_MIN_LENGTH, hashPassword, passwordError } from "../../lib/password-policy.js";
 import { sessionFingerprint } from "../../middleware/oauth-state.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { EMAILS_MAX } from "../../lib/identity-store.js";
 import { clearChallengeCookie, readChallengeCookie, sendCode, setChallengeCookie, tooSoon } from "./email.js";
 import { loginProviders } from "./providers.js";
 
@@ -14,7 +15,9 @@ const CHALLENGE_PATH = "/api/identity/email";
 /**
  * 账号页 `/account` 的接口（#262）：任何有效会话都能用，不要 `console.access`。
  * - `GET /api/identity/me`：登录方式、有没有密码、成员资格、这次登录、最近账号记录。
- * - `POST /api/identity/email/start`、`/verify`：给账号绑定邮箱（绑好才能用邮箱验证码或密码登录）。
+ * - `POST /api/identity/email/start`、`/verify`：给账号绑定邮箱（绑好才能用邮箱验证码或密码登录）。一个账号最多绑 5 个，
+ *   第一个是主邮箱；GitLab 同步把它们都加到 GitLab 用户名下，按提交里的邮箱认人（#272）。
+ * - `POST /api/identity/email/remove`：删掉一个不是主邮箱的邮箱，同样要求 10 分钟内刚登录过。
  * - `POST /api/identity/password`：设置或修改密码（至少 8 位）。已有密码时要填当前密码，或者 10 分钟内刚登录过
  *   （忘了密码就用验证码登录后直接设新的）；还没有密码时要 10 分钟内刚登录过。
  */
@@ -23,6 +26,8 @@ export default async function accountRoutes(app: FastifyInstance) {
   const writes = { preHandler: requireAuth, config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
 
   const fresh = (req: FastifyRequest) => Date.now() - req.session!.created_at <= STEP_UP_MS;
+  const emailExists = (reply: FastifyReply) => reply.code(409).send({ error: "identity_exists", message: "这个邮箱已经绑在你的账号上了" });
+  const emailLimit = (reply: FastifyReply) => reply.code(409).send({ error: "email_limit", message: `一个账号最多绑 ${EMAILS_MAX} 个邮箱，先删掉一个再加` });
   const stepUp = (reply: FastifyReply) => reply.code(403).send({
     error: "step_up_required", message: "这一步要求刚登录过，请重新登录后再试", reauth: { return_to: "/account" },
   });
@@ -30,10 +35,10 @@ export default async function accountRoutes(app: FastifyInstance) {
   app.get("/api/identity/me", { preHandler: requireAuth }, async (req) => {
     const session = req.session!;
     const view = identity.accountView(session.account_id);
-    const bound = new Set(view.identities.map(item => item.provider));
-    // `available`：账号页上现在就能绑定的方式。只有邮箱有绑定接口；GitHub、Google 的绑定还没做，不列出来
+    const emails = view.identities.filter(item => item.provider === "email").length;
+    // `available`：账号页上现在就能绑定的方式。只有邮箱有绑定接口，没到上限就还能再加；GitHub、Google 的绑定还没做，不列出来
     const available = loginProviders({ mailEnabled: mail.sendingEnabled, googleEnabled: google.enabled })
-      .map(provider => provider.id).filter((id): id is "email" => id === "email" && !bound.has(id));
+      .map(provider => provider.id).filter((id): id is "email" => id === "email" && emails < EMAILS_MAX);
     return {
       account_id: session.account_id,
       ...view,
@@ -47,9 +52,8 @@ export default async function accountRoutes(app: FastifyInstance) {
     const email = normalizeEmail(req.body.email);
     if (!email) return reply.code(400).send({ error: "bad_email", message: "邮箱格式不对" });
     if (!fresh(req)) return stepUp(reply);
-    if (identity.accountView(session.account_id).identities.some(item => item.provider === "email")) {
-      return reply.code(409).send({ error: "identity_exists", message: "这个账号已经绑定了邮箱" });
-    }
+    if (identity.passwordFor(email)?.accountId === session.account_id) return emailExists(reply);
+    if (identity.emailCount(session.account_id) >= EMAILS_MAX) return emailLimit(reply);
     const started = emailLogin.start({ purpose: "link", email, ip: req.ip, replaces: readChallengeCookie(req), accountId: session.account_id, sessionHash: sessionFingerprint(session.id) });
     if (!started.ok) return tooSoon(reply, started.retryAfter);
     sendCode(req, email, started.code, "link", started.id);
@@ -72,11 +76,23 @@ export default async function accountRoutes(app: FastifyInstance) {
     const result = identity.linkEmail({ accountId: session.account_id, email: challenge.email, login: session.login, ip: req.ip, claim: () => emailLogin.claim(challenge.id) });
     if (!result.ok) {
       if (result.reason === "code_expired") return expired();
-      return reply.code(409).send(result.reason === "identity_conflict"
-        ? { error: "identity_conflict", message: "这个邮箱已经绑定了别的极客班账号" }
-        : { error: "identity_exists", message: "这个账号已经绑定了邮箱" });
+      if (result.reason === "email_limit") return emailLimit(reply);
+      if (result.reason === "identity_exists") return emailExists(reply);
+      return reply.code(409).send({ error: "identity_conflict", message: "这个邮箱已经绑定了别的极客班账号" });
     }
     clearChallengeCookie(reply, CHALLENGE_PATH);
+    return { ok: true };
+  });
+
+  app.post<{ Body: { identity_id: string } }>("/api/identity/email/remove", writes, async (req, reply) => {
+    const session = req.session!;
+    if (!fresh(req)) return stepUp(reply);
+    const result = identity.unlinkEmail({ accountId: session.account_id, identityId: req.body.identity_id, login: session.login, ip: req.ip });
+    if (!result.ok) {
+      return result.reason === "primary_email"
+        ? reply.code(409).send({ error: "primary_email", message: "主邮箱用来收验证码和通知，不能删" })
+        : reply.code(404).send({ error: "not_found", message: "这个邮箱已经不在你的账号上了" });
+    }
     return { ok: true };
   });
 

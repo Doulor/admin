@@ -12,6 +12,7 @@ export const ACTION_TEXT: Record<string, string> = {
   register: "注册",
   link: "绑定登录方式",
   link_conflict: "绑定被拒",
+  unlink: "解绑登录方式",
   password_set: "设置密码",
   password_change: "修改密码",
   role_change: "站内角色变更",
