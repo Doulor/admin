@@ -47,12 +47,12 @@ afterEach(() => {
 const icons = () => within(screen.getByRole("list", { name: "主屏幕上的应用" }));
 const dock = () => within(screen.getByRole("navigation", { name: "Dock" }));
 function mount() {
-  const onBack = vi.fn();
-  return { ...render(<MemoryRouter><YugcOs active onBack={onBack} /></MemoryRouter>), onBack };
+  const onReplayBoot = vi.fn();
+  return { ...render(<MemoryRouter><YugcOs onReplayBoot={onReplayBoot} /></MemoryRouter>), onReplayBoot };
 }
 
-it("手机有状态栏、应用和四项 Dock，没有电脑菜单和默认大便签；指引按需打开，书桌仍可到达", async () => {
-  const { container, onBack } = mount();
+it("手机有状态栏、应用和四项 Dock，没有电脑菜单和默认大便签；指引按需打开，设置里能重播开机动画", async () => {
+  const { container, onReplayBoot } = mount();
   // 统一登录（#262）：右上角只写「登录」，去 /signin 并带上当前页面，不再直接连 GitHub
   expect((await screen.findByRole("link", { name: "登录" })).getAttribute("href")).toBe(`/signin?return_to=${encodeURIComponent("/")}`);
   expect(screen.queryByText(/GitHub 登录/)).toBeNull();
@@ -68,8 +68,9 @@ it("手机有状态栏、应用和四项 Dock，没有电脑菜单和默认大�
   const settings = screen.getByRole("button", { name: "YUGC OS 系统设置", exact: true });
   expect(settings.textContent).toBe("YUGC OS");
   fireEvent.click(settings);
-  fireEvent.click(screen.getByRole("button", { name: "回到书桌", exact: true }));
-  expect(onBack).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole("button", { name: "重播开机动画", exact: true }));
+  expect(onReplayBoot).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("dialog", { name: "系统设置" })).toBeNull();
 });
 
 it.each([null, false, true])("手机控制台沿用 console_link=%s，图标、搜索、终端都一致", async (consoleLink) => {

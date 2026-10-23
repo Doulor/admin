@@ -8,7 +8,7 @@ import { appConfig } from "@shared/config";
 import Modal from "@shared/ui/Modal";
 import { PHONE_QUERY, PORTRAIT_QUERY, useMediaQuery } from "../../lib/useMediaQuery";
 import { signInHref, useAccount } from "../../lib/account";
-import { RESUME_DESKTOP, links } from "../../lib/links";
+import { links } from "../../lib/links";
 import { NEW_TAB_NOTE, appById, appByKey, appLink, filterCommands, followAppLink, launcherCommands, moveSelection, opensNewTab, visibleApps, type AppId, type OsApp } from "../../lib/osApps";
 import { browserEstimate, choosePlayback, detectCapabilities, hasSeenPromo, preconnectPromo, prefetchPromoStart } from "../../lib/promo";
 import Icon from "../Icon";
@@ -17,19 +17,19 @@ import { WALLPAPERS, prefetchWallpapersWhenIdle, readWallpaperChoice, saveWallpa
 import WallpaperLayer from "./Wallpaper";
 import { AppGlyph, DesktopIcons, StartNote } from "./Widgets";
 import { LazyPromoPlayer } from "../PromoLazy";
-
-
-type Props = {
-  /** 桌面是否在前台（开机画面播完）；为 false 时不响应快捷键 */
-  active: boolean;
-  onBack: () => void;
-};
+import "../../styles/os.css";
 
 type MenuName = "system" | "go" | "window" | "help" | "account";
 
 const NOTE_KEY = "yugc:start-note";
 
-export default function YugcOs({ active, onBack }: Props) {
+type Props = {
+  /** 系统菜单和手机设置里的「重播开机动画」 */
+  onReplayBoot?: () => void;
+};
+
+/** 首页（pages/Home.tsx）在开机动画就绪后或直接进站时挂载；开机动画还盖在上面时外层是 inert。 */
+export default function YugcOs({ onReplayBoot }: Props) {
   const phone = useMediaQuery(PHONE_QUERY);
   const portrait = useMediaQuery(PORTRAIT_QUERY);
   const phoneWallpaper = phone && portrait;
@@ -68,8 +68,6 @@ export default function YugcOs({ active, onBack }: Props) {
   const swipe = useRef<{ x: number; y: number; at: number } | null>(null);
   const wallpaperFocus = useRef<HTMLButtonElement>(null);
   const pickerBox = useRef<HTMLDivElement>(null);
-  /** 当前标签页去了论坛或控制台，离开前在历史记录上记了「回来直接进桌面」 */
-  const leftForSite = useRef(false);
   // 打开面板时把焦点放到当前壁纸上；preventScroll：autoFocus 会让浏览器滚动整个桌面去「露出」按钮，桌面整体上移
   useEffect(() => {
     if (picker) pickerBox.current?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus({ preventScroll: true });
@@ -83,7 +81,7 @@ export default function YugcOs({ active, onBack }: Props) {
   // 桌面空闲后预取其余壁纸，之后换壁纸不用等下载；开了省流量或 2G 时不预取（lib/wallpapers.ts）
   const wallpaperId = useRef(wallpaper.id);
   wallpaperId.current = wallpaper.id;
-  useEffect(() => (active ? prefetchWallpapersWhenIdle(wallpaperId.current, phoneWallpaper) : undefined), [active, phoneWallpaper]);
+  useEffect(() => prefetchWallpapersWhenIdle(wallpaperId.current, phoneWallpaper), [phoneWallpaper]);
   const toggleNote = (show: boolean) => {
     setNote(show);
     try {
@@ -98,21 +96,20 @@ export default function YugcOs({ active, onBack }: Props) {
   const launcherInput = useRef<HTMLInputElement>(null);
   const homeFocusNeeded = useRef(false);
 
-  // 桌面变为可交互时（开机结束、跳过动画、从场景页返回），把焦点放进桌面：
-  // 触发开机的按钮所在的书桌层此时已 inert，不移焦点的话键盘用户会落在 <body> 上。
+  // 桌面一挂载（开机结束、跳过动画）就把焦点放进去：触发开机的按钮所在的开机动画层这时已经卸载，
+  // 不移焦点的话键盘用户会落在 <body> 上。
   useEffect(() => {
-    if (!active) return;
     const current = document.activeElement;
     if (current && current !== document.body && root.current?.contains(current)) return;
     root.current?.querySelector<HTMLElement>('[data-cta="join"]')?.focus({ preventScroll: true });
-  }, [active]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 只在挂载时对焦一次
+  }, []);
 
   useEffect(() => {
-    if (!active) return;
     setNow(new Date());
     const timer = window.setInterval(() => setNow(new Date()), 15000);
     return () => window.clearInterval(timer);
-  }, [active]);
+  }, []);
 
   const front = useMemo(() => wins.filter((w) => !w.minimized).sort((a, b) => b.z - a.z)[0] ?? null, [wins]);
   const frontName = front ? { about: "关于极客班", org: "组织架构", competitions: "比赛", terminal: "终端", "forum-feed": "论坛" }[front.id] : "桌面";
@@ -164,16 +161,11 @@ export default function YugcOs({ active, onBack }: Props) {
           return navigate(app.open.path);
         case "site":
         case "external": {
-          // 点下去当场打开，不播图标飞行：新标签页放进计时器里可能被当成弹窗拦掉；整页跳走后从论坛后退、
-          // 页面从往返缓存恢复时，飞行图标也不会停在屏幕上
+          // 点下去当场打开，不播图标飞行：新标签页放进计时器里可能被当成弹窗拦掉。当前标签页整页跳走时
+          // （论坛、控制台）不用再记「回来直接进桌面」——桌面现在是默认状态，刷新或后退回首页照样直接进桌面
+          // （pages/Home.tsx 按 yugc:boot-day 判断，不读路由 state）。
           const link = appLink(app);
           if (!link) return;
-          // 当前标签页整页跳走（论坛、控制台）：先在这条历史记录上记下「回来直接进桌面」。浏览器没用往返缓存时，
-          // 后退会重新加载首页，Home 读到它就跳过加载动画和书桌，和从场景页返回一样；用了往返缓存时由下面的 pageshow 清掉
-          if (!link.newTab) {
-            navigate(".", { replace: true, state: RESUME_DESKTOP });
-            leftForSite.current = true;
-          }
           followAppLink(link);
           return;
         }
@@ -188,17 +180,6 @@ export default function YugcOs({ active, onBack }: Props) {
     [launchScene, navigate, openWindow],
   );
 
-  // 去论坛后从往返缓存回来：桌面原样还在，把离开前记下的「回来直接进桌面」清掉，之后刷新照常从书桌开始
-  useEffect(() => {
-    const onShow = (event: PageTransitionEvent) => {
-      if (!event.persisted || !leftForSite.current) return;
-      leftForSite.current = false;
-      navigate(".", { replace: true, state: null });
-    };
-    window.addEventListener("pageshow", onShow);
-    return () => window.removeEventListener("pageshow", onShow);
-  }, [navigate]);
-
   const commands = useMemo(() => launcherCommands(apps), [apps]);
   const shown = useMemo(() => filterCommands(commands, query), [commands, query]);
   const runCommand = (id: string) => {
@@ -206,7 +187,6 @@ export default function YugcOs({ active, onBack }: Props) {
     if (id.startsWith("app:")) return open(id.slice(4) as AppId);
     if (id === "forum-feed") return open("forum-feed");
     if (id === "docs") return navigate("/docs");
-    if (id === "back") return onBack();
   };
 
   const closeWindow = (id: WindowId) => setWins((current) => current.filter((w) => w.id !== id));
@@ -227,7 +207,7 @@ export default function YugcOs({ active, onBack }: Props) {
 
   // 键盘：⌘K 启动器、Esc 逐层关闭、1/2/3 打开主入口
   useEffect(() => {
-    if (!active || promo) return;
+    if (promo) return;
     const onKey = (event: KeyboardEvent) => {
       // 原生 dialog 的 inert 不会阻止 window 监听器，弹层快捷键交给弹层自身。
       if (launcher || picker || phoneGuide || phoneSettings) return;
@@ -249,7 +229,7 @@ export default function YugcOs({ active, onBack }: Props) {
           if (phone) return returnHome();
           return closeWindow(front.id);
         }
-        return onBack();
+        return;
       }
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       // 按住不放时浏览器自动重复的按键不算再按一次：1/2/3 只打开一次；焦点在 Dock、便签、菜单的按钮上按住回车，
@@ -263,7 +243,7 @@ export default function YugcOs({ active, onBack }: Props) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, front, launcher, menu, onBack, open, phone, phoneGuide, phoneSettings, picker, promo]);
+  }, [front, launcher, menu, open, phone, phoneGuide, phoneSettings, picker, promo]);
 
   useEffect(() => {
     if (launcher) launcherInput.current?.focus();
@@ -272,7 +252,7 @@ export default function YugcOs({ active, onBack }: Props) {
   // 还没看过宣传片的人接下来多半点「加入我们」：桌面出现时就和 CDN 握手，空闲时预取「加入我们」页、播放器、
   // hls.js 分包和起播那一段（#77 验收：点下去 1 秒内出第一帧）。开了省流量就只握手。
   useEffect(() => {
-    if (!active || hasSeenPromo(document.cookie)) return;
+    if (hasSeenPromo(document.cookie)) return;
     preconnectPromo();
     const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
     if (connection?.saveData) return;
@@ -291,7 +271,8 @@ export default function YugcOs({ active, onBack }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [active]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 只在挂载时判断一次要不要预取
+  }, []);
 
   // 宣传片盖住桌面时桌面不可聚焦、不可点（播放层挂在桌面外面）
   useEffect(() => {
@@ -303,7 +284,7 @@ export default function YugcOs({ active, onBack }: Props) {
   };
 
   const MENUS: Record<MenuName, Array<{ label: string; run: () => void; key?: string; note?: string } | null>> = {
-    system: [{ label: "关于极客班", run: () => open("about") }, { label: "组织架构", run: () => open("org") }, null, { label: "回到书桌", run: onBack, key: "Esc" }],
+    system: [{ label: "关于极客班", run: () => open("about") }, { label: "组织架构", run: () => open("org") }, ...(onReplayBoot ? [null, { label: "重播开机动画", run: onReplayBoot }] : [])],
     go: apps.map((app) => ({ label: app.name, run: () => open(app.id), key: app.key, note: opensNewTab(app) ? NEW_TAB_NOTE : undefined })),
     window: [
       { label: "更换壁纸…", run: () => setPicker(true) },
@@ -406,7 +387,7 @@ export default function YugcOs({ active, onBack }: Props) {
           onPointerDown={(event) => event.target === event.currentTarget && setSelectedIcon(null)}
           onTouchStart={(event) => {
             swipe.current = null;
-            if (!phone || !active || front || launcher || picker || phoneGuide || phoneSettings || promo || event.touches.length !== 1 || event.currentTarget.scrollTop !== 0) return;
+            if (!phone || front || launcher || picker || phoneGuide || phoneSettings || promo || event.touches.length !== 1 || event.currentTarget.scrollTop !== 0) return;
             if ((event.target as HTMLElement).closest("button, a, input, textarea, dialog")) return;
             const touch = event.touches[0];
             swipe.current = { x: touch.clientX, y: touch.clientY, at: performance.now() };
@@ -458,13 +439,15 @@ export default function YugcOs({ active, onBack }: Props) {
 
         {phone && !front && <button ref={searchFocus} type="button" className="pt-phone-search" onClick={search}><span><Icon name="search-line" size={14} /> 搜索</span></button>}
         <nav className="pt-dock" aria-label="Dock">
-          <button type="button" className="pt-dk is-back" aria-label={phone ? "返回主屏幕" : "回到书桌"} onClick={phone ? returnHome : onBack}>
-            <Icon name={phone ? "home-4-line" : "arrow-left-line"} size={20} />
-            <span className="pt-dk-label" aria-hidden="true">
-              {phone ? "主屏幕" : <>回到书桌 <kbd>Esc</kbd></>}
-            </span>
-          </button>
-          <span className="pt-dk-sep" aria-hidden="true" />
+          {phone && (
+            <>
+              <button type="button" className="pt-dk is-back" aria-label="返回主屏幕" onClick={returnHome}>
+                <Icon name="home-4-line" size={20} />
+                <span className="pt-dk-label" aria-hidden="true">主屏幕</span>
+              </button>
+              <span className="pt-dk-sep" aria-hidden="true" />
+            </>
+          )}
           {(phone ? apps.filter((app) => app.key) : apps).map((app) => (
             <button
               key={app.id}
@@ -604,7 +587,7 @@ export default function YugcOs({ active, onBack }: Props) {
         {phoneSettings && <Modal title="系统设置" className={`pt-root pt-os-modal pt-phone-settings${phone ? " is-phone" : ""}`} onClose={() => setPhoneSettings(false)}>
           <div className="pt-phone-settings-list">
             <button type="button" onClick={() => { setPhoneSettings(false); setPicker(true); }}><Icon name="image-line" size={20} /> 更换壁纸 <Icon name="arrow-right-s-line" size={18} /></button>
-            <button type="button" onClick={() => { setPhoneSettings(false); onBack(); }}><Icon name="arrow-left-line" size={20} /> 回到书桌 <Icon name="arrow-right-s-line" size={18} /></button>
+            {onReplayBoot && <button type="button" onClick={() => { setPhoneSettings(false); onReplayBoot(); }}><Icon name="restart-line" size={20} /> 重播开机动画 <Icon name="arrow-right-s-line" size={18} /></button>}
           </div>
         </Modal>}
 

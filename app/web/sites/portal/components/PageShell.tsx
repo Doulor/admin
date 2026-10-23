@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { appConfig } from "@shared/config";
 import { useAccount } from "../lib/account";
-import { RESUME_DESKTOP, links } from "../lib/links";
+import { links } from "../lib/links";
 import Icon from "./Icon";
 import "../styles/portal.css";
 import "../styles/pages.css";
@@ -39,9 +39,7 @@ export default function PageShell({ path, children }: { path: string; children: 
           © {brand.title} · {brand.subtitle}
         </span>
         <nav aria-label="页脚导航">
-          <Link to="/" state={RESUME_DESKTOP}>
-            回到桌面
-          </Link>
+          <Link to="/">回到桌面</Link>
           <Link to="/join-us">加入我们</Link>
           <a href={links.forumHome()}>论坛</a>
           <Link to="/docs">文档</Link>

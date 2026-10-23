@@ -262,15 +262,6 @@ function About({ onOpen }: { onOpen: OpenApp }) {
             <Icon name="file-text-line" size={16} /> 文档
           </Link>
         </div>
-        <p>3D 手机模型为 Apple iPhone 15 Pro Max Black，已轻量化并替换屏幕内容。</p>
-        <div className="pt-row-btns">
-          <a className="pt-btn" href="https://sketchfab.com/3d-models/apple-iphone-15-pro-max-black-df17520841214c1792fb8a44c6783ee7" target="_blank" rel="noopener noreferrer">
-            模型作者：polyman<span className="pt-sr">（新标签页打开）</span>
-          </a>
-          <a className="pt-btn" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">
-            CC BY 4.0<span className="pt-sr">（新标签页打开）</span>
-          </a>
-        </div>
       </div>
     </div>
   );

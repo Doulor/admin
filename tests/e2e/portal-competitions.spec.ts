@@ -14,19 +14,15 @@ test.beforeEach(async ({ page, context }) => {
     if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/")) return route.fulfill({ status: 503, json: { error: "unexpected_live_request_in_test" } });
     return route.continue();
   });
-  // 不进 3D 书桌：没有 WebGL 时官网直接进 YUGC OS 桌面
+  // 今天（北京时间）已经播过开机动画：首页直接进 YUGC OS 桌面（#275，lib/bootGate.ts）
   await page.addInitScript(() => {
-    const original = HTMLCanvasElement.prototype.getContext;
-    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", { value: function (this: HTMLCanvasElement, type: string, ...args: unknown[]) {
-      return type.startsWith("webgl") ? null : Reflect.apply(original, this, [type, ...args]);
-    } });
+    localStorage.setItem("yugc:boot-day", new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10));
   });
 });
 
 async function home(page: Page) {
   await page.goto("/sites/portal/");
-  await expect(page.locator(".pt-home")).toHaveAttribute("data-state", "desktop", { timeout: 20_000 * SLOW });
-  await expect(page.locator(".pt-os-shell")).toBeVisible();
+  await expect(page.locator(".pt-os-shell")).toBeVisible({ timeout: 20_000 * SLOW });
 }
 
 /** 页面和窗口里几个滚动区都没有横向滚动。 */

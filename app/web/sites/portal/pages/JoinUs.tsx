@@ -15,7 +15,6 @@ import { computePow, powProof } from "@shared/lib/pow";
 import Icon from "../components/Icon";
 import { LazyPromoPlayer } from "../components/PromoLazy";
 import SceneBar from "../components/SceneBar";
-import { RESUME_DESKTOP } from "../lib/links";
 import { appLinkById } from "../lib/osApps";
 import { hasSeenPromo, promoCookie } from "../lib/promo";
 import { useInert, useReducedMotion } from "../lib/useReducedMotion";
@@ -320,7 +319,7 @@ export default function JoinUs() {
               </dl>
               <p className="pt-receipt-note">记下编号，之后联系我们时报上它。网站上查不到进度，请留意邮箱。</p>
               <div className="pt-row-btns">
-                <Link className="pt-btn is-primary" to="/" state={RESUME_DESKTOP}>
+                <Link className="pt-btn is-primary" to="/">
                   回到桌面
                 </Link>
                 <a className="pt-btn" href={forumLink.href} target={forumLink.newTab ? "_blank" : undefined} rel={forumLink.newTab ? "noreferrer" : undefined}>

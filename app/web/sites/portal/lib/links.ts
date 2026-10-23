@@ -13,10 +13,3 @@ export const links = {
   githubOrg: (): string => appConfig.urls.githubOrg,
   gitlab: (): string => appConfig.urls.gitlab,
 };
-
-/** 首页回到系统桌面时用的路由 state：从 3D 场景页返回时直接回到桌面，不再从书桌开始 */
-export const RESUME_DESKTOP = { resume: "desktop" } as const;
-
-export function wantsDesktop(state: unknown): boolean {
-  return typeof state === "object" && state !== null && (state as { resume?: unknown }).resume === "desktop";
-}

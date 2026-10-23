@@ -48,6 +48,56 @@ html[data-site="portal"] body { background: #f5f4f0 !important; }
   --pt-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --pt-mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
 
+  /* YUGC OS v2 视觉令牌（docs/plan/YUGC-OS-V2.md §1，同一份表也写进 docs/design/DESIGN.md）：
+     取自开机动画最后一帧，只给 YUGC OS 桌面、开机动画、窗口用；外层官网页面（/join-us、/feedback、/docs）仍用上面的 --pt-*。
+     canvas 里不能读 CSS 变量，components/boot/background.ts 的 SKY 有一份同值的 TS 常量，改这里要一起改那边。 */
+  --os-sky-0: #9fd6ff;
+  --os-sky-1: #cfeaff;
+  --os-sky-2: #f4faff;
+  --os-grid: rgb(255 255 255 / 55%);
+  --os-win-top: #ffdcec;
+  --os-win-bottom: #ffbad8;
+  --os-win-border: #f3a2c6;
+  --os-dot-close: #ff7fb3;
+  --os-dot-min: #ffd36e;
+  --os-dot-max: #6fe0b9;
+  --os-panel: rgb(255 255 255 / 80%);
+  --os-ink: #1d2b53;
+  --os-ink-soft: #5b7fb5;
+  --os-accent: #3a76d6;
+  --os-pill-from: #6fb8ff;
+  --os-pill-to: #3a78f0;
+  --os-y-light: #c8fdec;
+  --os-y: #3fd0a5;
+  --os-y-line: #1a9a7b;
+  --os-u-light: #cdeaff;
+  --os-u: #4aa6ff;
+  --os-u-line: #2a6fd6;
+  --os-g-light: #ffd7e9;
+  --os-g: #ff83bb;
+  --os-g-line: #dc4d93;
+  --os-c-light: #dcdfff;
+  --os-c: #8b93ff;
+  --os-c-line: #565de0;
+  --os-heart: #ffa9d2;
+  --os-ok: #1fb487;
+  --os-ok-press: #17a77a;
+  --os-progress: linear-gradient(90deg, #7cc8ff, #a99cff 55%, #ff9fd0);
+  --os-term-bg: #030914;
+  /* 开机动画前段与终端窗口的 BIOS 配色（取自开机日志） */
+  --os-bios-glow: #0d2347;
+  --os-bios-text: #cfe6ff;
+  --os-bios-dim: #3d67a3;
+  --os-bios-key: #6fb0ff;
+  --os-bios-cyan: #9fd8ff;
+  --os-bios-ok: #5ef2c2;
+  --os-bios-pink: #ff8fd0;
+  --os-bios-line: rgb(120 190 255 / 60%);
+  --os-radius-win: 18px;
+  --os-radius-card: 14px;
+  --os-shadow: 0 12px 32px rgb(60 110 200 / 18%);
+  --os-stroke: rgb(255 255 255 / 75%);
+
   position: relative;
   min-height: 100vh;
   min-height: 100svh;
