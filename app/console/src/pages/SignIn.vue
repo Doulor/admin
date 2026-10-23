@@ -363,7 +363,7 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
 .signin__logo {
   flex: none;
   border-radius: 14px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--tx-box-shadow-light);
 }
 .signin h1 {
   margin: 0;
@@ -444,7 +444,7 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
   min-height: 44px;
   padding: 0 12px;
   border-radius: 10px;
-  background: var(--tx-fill-color-lighter, rgba(127, 127, 127, 0.06));
+  background: var(--tx-fill-color-lighter);
   color: var(--tx-text-color-secondary);
   font-size: 13px;
 }

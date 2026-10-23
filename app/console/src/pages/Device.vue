@@ -211,7 +211,7 @@ onBeforeUnmount(() => clearInterval(timer));
 .device__logo {
   flex: none;
   border-radius: 14px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--tx-box-shadow-light);
 }
 .device h1 {
   margin: 0;
@@ -231,7 +231,7 @@ onBeforeUnmount(() => clearInterval(timer));
   min-height: 44px;
   padding: 0 12px;
   border-radius: 10px;
-  background: var(--tx-fill-color-lighter, rgba(127, 127, 127, 0.06));
+  background: var(--tx-fill-color-lighter);
   color: var(--tx-text-color-secondary);
   font-size: 13px;
 }
@@ -242,7 +242,7 @@ onBeforeUnmount(() => clearInterval(timer));
   margin-bottom: 14px;
   padding: 8px 12px;
   border-radius: 10px;
-  background: var(--tx-fill-color-lighter, rgba(127, 127, 127, 0.06));
+  background: var(--tx-fill-color-lighter);
 }
 .device__who > div {
   display: grid;
@@ -281,7 +281,7 @@ onBeforeUnmount(() => clearInterval(timer));
 .device__hint code {
   padding: 1px 6px;
   border-radius: 6px;
-  background: var(--tx-fill-color-light, rgba(127, 127, 127, 0.1));
+  background: var(--tx-fill-color-light);
 }
 .device__client {
   display: flex;
@@ -294,8 +294,8 @@ onBeforeUnmount(() => clearInterval(timer));
   height: 40px;
   padding: 8px;
   border-radius: 12px;
-  background: var(--tx-color-primary-light-9, rgba(64, 128, 255, 0.12));
-  color: var(--tx-color-primary, #4080ff);
+  background: var(--tx-color-primary-light-9);
+  color: var(--tx-color-primary);
   box-sizing: border-box;
 }
 .device__client h2 {
@@ -310,7 +310,7 @@ onBeforeUnmount(() => clearInterval(timer));
 .device__code {
   margin: 16px 0 6px;
   padding: 12px 0;
-  border: 1px dashed var(--tx-border-color, rgba(127, 127, 127, 0.35));
+  border: 1px dashed var(--tx-border-color);
   border-radius: 12px;
   font-size: 28px;
   font-weight: 650;
@@ -341,7 +341,7 @@ onBeforeUnmount(() => clearInterval(timer));
   gap: 8px;
 }
 .device__scopes span {
-  color: var(--tx-color-success, #00b42a);
+  color: var(--tx-color-success);
 }
 .device__actions {
   display: grid;

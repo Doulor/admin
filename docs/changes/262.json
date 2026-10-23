@@ -382,6 +382,7 @@
       "paths": [
         "app/console/src/pages/SignIn.vue",
         "app/console/src/pages/Account.vue",
+        "app/console/src/pages/Device.vue",
         "app/console/src/pages/Invites.vue",
         "app/console/src/pages/ConsoleRoot.vue",
         "app/console/src/components/CapabilityGate.vue",
@@ -421,7 +422,7 @@
         "flow:identity.current",
         "flow:invitation.links.list"
       ],
-      "reason": "控制台前端：登录页加邮箱表单（验证码 / 密码、发码倒计时、没有账号时要邀请码并改成「注册并登录」）和 Google 要邀请码时的输入框；新增账号页 /account（登录方式、绑定邮箱、设密码、成员资格、这次登录、账号记录）与注册邀请码页 /console/invites（accounts.invites.manage）；邮箱、Google 会话打开 GitHub 页面时能力门说明要用 GitHub 登录并给「用 GitHub 继续」；导航与乘客说明加账号入口；mock 按服务端同形补上 provider、/api/identity/me、/api/console/invites 与 admin_email 样板身份。授权仍只在服务端。"
+      "reason": "控制台前端：登录页加邮箱表单（验证码 / 密码、发码倒计时、没有账号时要邀请码并改成「注册并登录」）和 Google 要邀请码时的输入框；新增账号页 /account（登录方式、绑定邮箱、设密码、成员资格、这次登录、账号记录）与注册邀请码页 /console/invites（accounts.invites.manage）；邮箱、Google 会话打开 GitHub 页面时能力门说明要用 GitHub 登录并给「用 GitHub 继续」；导航与乘客说明加账号入口；mock 按服务端同形补上 provider、/api/identity/me、/api/console/invites 与 admin_email 样板身份。授权仍只在服务端。 第五轮审查后：登录页、账号页、设备授权页的颜色只用 theme.css 里的令牌，不再写兜底色值，设备授权页只改了这一处写法。"
     },
     {
       "paths": [

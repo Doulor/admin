@@ -343,7 +343,7 @@ const goPortal = () => window.location.assign(siteUrl("portal", "/"));
   gap: 2px 10px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: var(--tx-fill-color-lighter, rgba(127, 127, 127, 0.06));
+  background: var(--tx-fill-color-lighter);
 }
 .account__identity-icon {
   grid-row: span 2;
