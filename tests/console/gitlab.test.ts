@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { accessText, actionText, canSyncNow, errorText, gitlabNote, pendingText, profileUrl, stateText, usernameOf } from "../../app/console/src/lib/gitlab";
 import type { GitlabAccount, GitlabAccountsResponse } from "../../app/console/src/lib/types";
-import { mockGitlab } from "../../app/console/src/mock/console";
+import { mockGitlabAccounts } from "../../app/console/src/mock/console";
+// GitLab 账号列表的形状是 #270 留下的老接口，#274 没有改（CONTRACT-274.md："沿用 #270 的形状」），
+// 服务端的 contracts.ts 里这段也还没被改过，继续和它对一次形状没有风险。
 import { consoleContracts } from "../../app/server/src/routes/console/contracts";
 
 const account = (patch: Partial<GitlabAccount> = {}): GitlabAccount => ({
@@ -80,22 +82,18 @@ describe("GitLab column on the people page (#270)", () => {
     expect(gitlabNote(data())).toBe("");
   });
 
-  it("keeps the preview samples in the server's shape and shows every state", () => {
+  it("keeps the preview sample in the server's shape and shows a mix of states (#274：同步模式是全局设置，样板不再按 mode 分组)", () => {
     type Schema = { required: string[]; properties: Record<string, { items?: Schema } & Partial<Schema>> };
     const schema = (consoleContracts["GET /api/console/gitlab/accounts"].response as Record<number, Schema>)[200];
     const item = schema.properties.accounts.items!;
-    for (const which of ["on", "dry-run", "unregistered", "off"] as const) {
-      const sample = mockGitlab(which);
-      expect(Object.keys(sample).sort(), which).toEqual([...schema.required].sort());
-      for (const row of sample.accounts) expect(Object.keys(row).sort(), `${which} ${row.login}`).toEqual([...item.required].sort());
-    }
-    const on = mockGitlab("on");
-    expect(on.accounts.some(row => row.last_error && canSyncNow(on, row))).toBe(true);
-    expect(on.accounts.some(row => row.state === "blocked")).toBe(true);
-    expect(on.accounts.some(row => row.access_level === 50)).toBe(true);
-    expect(on.accounts.some(row => row.last_error === "gitlab_avatar_400" && row.pending.some(action => action.kind === "set_avatar"))).toBe(true);
-    expect(mockGitlab("dry-run").accounts.every(row => row.username === null)).toBe(true);
-    expect(gitlabNote(mockGitlab("unregistered"))).toContain("client id 为 gitlab");
-    expect(mockGitlab("off").accounts.every(row => row.pending.length === 0)).toBe(true);
+    const sample = mockGitlabAccounts();
+    expect(Object.keys(sample).sort()).toEqual([...schema.required].sort());
+    for (const row of sample.accounts) expect(Object.keys(row).sort(), row.login).toEqual([...item.required].sort());
+
+    expect(sample.accounts.some(row => row.last_error && canSyncNow(sample, row))).toBe(true);
+    expect(sample.accounts.some(row => row.state === "blocked")).toBe(true);
+    expect(sample.accounts.some(row => row.access_level === 50)).toBe(true);
+    expect(sample.accounts.some(row => row.last_error === "gitlab_avatar_400" && row.pending.some(action => action.kind === "set_avatar"))).toBe(true);
+    expect(sample.accounts.some(row => row.username === null && row.pending.some(action => action.kind === "create"))).toBe(true);
   });
 });

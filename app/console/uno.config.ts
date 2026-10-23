@@ -1,10 +1,8 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig, presetIcons } from "unocss";
 import { tuffexIconClasses } from "./scripts/tuffex-icon-classes.mjs";
-import { RUNTIME_ICON_CLASSES } from "./src/lib/icons";
 
 const iconClassesScript = fileURLToPath(new URL("./scripts/tuffex-icon-classes.mjs", import.meta.url));
-const runtimeIcons = fileURLToPath(new URL("./src/lib/icons.ts", import.meta.url));
 
 /**
  * 控制台只用 UnoCSS 的图标预设（`i-carbon-*`），不引入工具类样式体系：
@@ -14,9 +12,8 @@ export default defineConfig({
   // 图标是 <i>，默认 inline 时宽高不生效；统一按行内块显示并与文字基线对齐。
   presets: [presetIcons({ scale: 1.2, extraProperties: { display: "inline-block", "vertical-align": "-0.2em", "flex-shrink": "0" } })],
 
-  // Tuffex 在 node_modules 里渲染 `<i class="i-carbon-…">`；称号与部门图标是接口下发的数据。
-  // 这两类类名扫描不到，必须显式列出。
-  safelist: [...new Set([...tuffexIconClasses(), ...RUNTIME_ICON_CLASSES])],
+  // Tuffex 在 node_modules 里渲染 `<i class="i-carbon-…">`，扫描不到，必须显式列出。
+  safelist: [...new Set(tuffexIconClasses())],
 
   content: {
     pipeline: {
@@ -28,5 +25,5 @@ export default defineConfig({
     },
   },
 
-  configDeps: [iconClassesScript, runtimeIcons],
+  configDeps: [iconClassesScript],
 });

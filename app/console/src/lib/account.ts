@@ -23,10 +23,10 @@ export const RESULT_TEXT: Record<AccountView["recent"][number]["result"], string
 export const providerText = (id: string | null): string => (id && id in PROVIDER_TEXT ? PROVIDER_TEXT[id as SessionProvider] : "-");
 export const actionText = (action: string): string => ACTION_TEXT[action] ?? action;
 
-/** 成员资格的一句话：GitHub 组织里的角色，或者用邀请码注册。 */
+/** 成员资格的一句话：站内角色，或者用邀请码注册。 */
 export function membershipText(membership: AccountView["membership"]): string {
   if (membership.state !== "active") return "已经不是极客班成员";
-  // 站内角色（#262 第四期）：管理员是提督；成员只说是怎么加入的
+  // 站内角色（#262 第四期）：管理员单独说；成员只说是怎么加入的
   if (membership.org_role === "admin") return "极客班成员 · 站内管理员";
   return membership.via_invite ? "极客班成员 · 用邀请码注册" : "极客班成员";
 }

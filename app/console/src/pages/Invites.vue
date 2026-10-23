@@ -23,8 +23,8 @@ import {
 import type { InviteCode, InviteList } from "../lib/types";
 
 /**
- * 注册邀请码（#262）：用邮箱或 Google 注册极客班账号时要填。邀请码不删，不用了就停用；账号上记着用的是哪一个。
- * 用 GitHub 登录的组织成员不需要邀请码。
+ * 注册邀请码（#262、CONTRACT-274 §2）：注册时选填，填了有效的就成为极客班成员，不填是注册用户，之后还能兑换。
+ * 邀请码不删，不用了就停用；账号上记着用的是哪一个。
  */
 const list = useResource(() => api<InviteList>("/api/console/invites"), []);
 
@@ -86,7 +86,7 @@ async function copy(code: string) {
 
 <template>
   <div class="page">
-    <PageHeader title="注册邀请码" description="用邮箱或 Google 注册极客班账号要填邀请码；用 GitHub 登录的组织成员不需要。邀请码不能删，不用了就停用。">
+    <PageHeader title="注册邀请码" description="注册时填了有效的邀请码就是极客班成员；不填也能注册，是注册用户，以后再兑换邀请码。邀请码不能删，不用了就停用。">
       <template #actions>
         <TxButton class="invite-create" variant="primary" icon="i-carbon-add" @click="openCreate">新建邀请码</TxButton>
       </template>

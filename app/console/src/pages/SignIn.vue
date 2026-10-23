@@ -14,6 +14,7 @@ import logoUrl from "../assets/logo.png";
 import { ApiError, api } from "../lib/http";
 import { isMock, siteUrl } from "../lib/runtime";
 import { PASSWORD_MIN_LENGTH } from "../lib/account";
+import { vSnapIndicator } from "../lib/tabs";
 import {
   backFromGoogleForInvite, cleanCode, codeProblem, initialSignInTab, looksLikeEmail, parseSignInOutcome, providerHref, providerIcon, readProviders,
   registerProblem, registerWithEmail, resetPasswordWithCode, resetProblem, retryAfter, safeReturnPath, sendSigninCode, signInWithPassword, verifySigninCode,
@@ -64,7 +65,6 @@ const googleFirst = computed(() => registering.value && backFromGoogleForInvite(
 
 const googleRegister = (provider: LoginProvider) => provider.id === "google" && registering.value;
 const providerLabel = (provider: LoginProvider) => (googleRegister(provider) ? "用 Google 注册" : `通过 ${provider.name} 继续`);
-const providerBlocked = (provider: LoginProvider) => googleRegister(provider) && !invite.value.trim();
 
 const start = (provider: LoginProvider) => {
   leaving.value = provider.id;
@@ -264,6 +264,7 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
         <TxTabs
           v-else-if="emailProvider"
           v-model="tab"
+          v-snap-indicator
           placement="top"
           indicator-variant="line"
           borderless
@@ -282,15 +283,15 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
             <TxRadio value="password" label="密码" />
           </TxRadioGroup>
           <TxAlert v-if="registering && movedToRegister" type="info" title="这个邮箱还没有极客班账号" :closable="false" class="signin__alert signin__alert--tight">
-            填上邀请码就能用它注册，刚才的验证码还能用。
+            可以直接用它注册，刚才的验证码还能用。
           </TxAlert>
 
           <TxFormItem v-slot="{ id }" label="邮箱">
             <TxInput :id="id" v-model="email" type="email" placeholder="name@example.com" autocomplete="email" inputmode="email" spellcheck="false" />
           </TxFormItem>
 
-          <TxFormItem v-if="registering" v-slot="{ id }" label="邀请码">
-            <TxInput :id="id" v-model="invite" placeholder="向邀请你的人要" autocomplete="off" spellcheck="false" />
+          <TxFormItem v-if="registering" v-slot="{ id }" label="邀请码（选填）">
+            <TxInput :id="id" v-model="invite" placeholder="有的话填上" autocomplete="off" spellcheck="false" />
           </TxFormItem>
 
           <TxFormItem v-if="registering || forgot || mode === 'code'" v-slot="{ id }" label="验证码">
@@ -341,8 +342,8 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
         </TxForm>
 
         <TxForm v-if="inviteWithoutEmail" label-position="top" class="signin__form">
-          <TxFormItem v-slot="{ id }" label="邀请码">
-            <TxInput :id="id" v-model="invite" placeholder="向邀请你的人要" autocomplete="off" spellcheck="false" />
+          <TxFormItem v-slot="{ id }" label="邀请码（选填）">
+            <TxInput :id="id" v-model="invite" placeholder="有的话填上" autocomplete="off" spellcheck="false" />
           </TxFormItem>
         </TxForm>
 
@@ -356,7 +357,6 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
             size="lg"
             :icon="providerIcon(provider)"
             :loading="leaving === provider.id"
-            :disabled="providerBlocked(provider)"
             :data-provider="provider.id"
             block
             @click="start(provider)"
@@ -365,7 +365,7 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
 
         <p class="signin__note">
           <template v-if="forgot">验证码发到账号绑定的邮箱。记得旧密码、只想换一个的话，登录后到「我的账号」里改。只用 GitHub 或 Google 登录、还没绑邮箱的账号，先用原来的方式登录再绑邮箱。</template>
-          <template v-else-if="registering">邮箱和 Google 注册要邀请码，向邀请你的人要。GitHub 组织的成员直接用 GitHub 登录，账号会自动建好。</template>
+          <template v-else-if="registering">邀请码选填：填了有效的邀请码，注册后就是极客班成员；不填也能注册，先是注册用户，以后拿到邀请码再兑换。</template>
           <template v-else>登录后全站认的是你的极客班账号，改密码在「我的账号」里。还没有账号就切到「注册」。</template>
         </p>
       </template>

@@ -170,7 +170,7 @@ async function submit() {
               <h2 class="section-title">处理这份投递</h2>
             </template>
             <!-- 面试时间、地点是单行输入框：按回车会隐式提交表单并马上发信，所以回车在这两个框里不提交。 -->
-            <TxForm v-if="can('applications.review')" :model="{ status, note, notify, ...letter }" label-position="top" class="review-form" @submit="submit">
+            <TxForm v-if="can('apply.review')" :model="{ status, note, notify, ...letter }" label-position="top" class="review-form" @submit="submit">
               <TxFormItem label="状态">
                 <!-- TxSelect 0.6.0 的 attrs 落在外层，原生 label 给内层输入框命名。 -->
                 <label class="fill-width">
