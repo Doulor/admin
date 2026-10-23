@@ -36,3 +36,17 @@
 - 做了什么：从自己的克隆 /tmp/geek273/gl-push 推送 0dc4f5fc（pre-push 分支规则通过）；上传 20 张截图（补截了登录页与忘记密码的干净版本，真实数据模式加替换的接口回应），写十段正文，pr-contract 本地通过；开 MR !6，标签同 issue；issue #273 留进展记录，MR 留返工记录；git merge-tree 试合当前 stage a93f0843（已含 #272）：17 个文件冲突，其中 6 个是生成的目录
 - 结果：MR !6 opened，head 0dc4f5fc，目标 stage；没有合并、没有推 stage、没有打 tag、没有部署
 - 下一步：合并的人解决与 #272 的冲突、重跑检查后合并并发 rc；所有者在预发布验收
+
+## 20:52:53 +08:00 · 提交 · #273 · 合 stage a93f0843（#272）进 task 分支并补一处文档
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：在 task-273 worktree 把 stage a93f0843 以 merge commit 合进来（9bf49ec7）：17 个冲突文件都取两边（#272 的删邮箱、邮箱上限与 #273 的重设密码、先绑邮箱并存），项目目录的生成文件按合并后的源码重新生成；另提交 6544d07e，data-model 里 identity_audit 补上 #272 删邮箱写的 unlink
+- 结果：pnpm typecheck 通过；pnpm test 98 个文件 1631 条通过；九项 pnpm check、check-doc-sync（对 a93f0843）、check-architecture（#273，66 个变更文件，114 个节点）通过；server、console、web 构建通过
+- 下一步：推 task 分支，更新 MR !6 正文，合进 stage
+
+## 20:52:53 +08:00 · 审查 · #273 · 合并人核对冲突处理与 #273 服务端要点
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：git show --remerge-diff 9bf49ec7 逐个看冲突块；读 resetPassword、writePassword、/auth/email/reset、email-gate.ts；核对 #272 与 #273 放在一起时的行为：重设按任一绑定邮箱找账号，绑定页对没有邮箱的账号不受 5 个上限影响，主邮箱删不掉所以账号不会删到没有邮箱
+- 结果：冲突块都是两边并集，没有夹带别的改动；重设先校验新密码再核对验证码，和验证码登录同一事务，改密码不退出其他会话与 #262 的约定一致；没有新的应修。沿用 fork 的两轴审查结论（有条件通过）：控制台四处跳转没有组件测试，靠样板数据的浏览器点检
+- 下一步：合进 stage 后发 rc.17，在预发布看 LYsnowQ 是否被带到绑定页、忘记密码流程
