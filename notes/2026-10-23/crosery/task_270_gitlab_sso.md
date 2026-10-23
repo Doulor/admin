@@ -120,3 +120,17 @@
 - 做了什么：提交（13 个文件，记录和代码在同一个提交里）：app/console/src/pages/People.vue、app/server/src/lib/gitlab-sync.ts、deploy/env/.env.production、docs/ops/ENVIRONMENTS.md、docs/services/server/oidc.md、docs/changes/270.json、项目目录生成物 6 个、本条执行记录。提交说明写了为什么改、改了什么和下面的验证命令。之前还有合并提交 8c5ed80e（合并 stage 6f574328）。
 - 结果：pnpm test 97 个文件 1596 条通过；pnpm typecheck、pnpm build、forum:check（548 条）、forum:generate 通过；check:runtime、site-config、environments、boundaries、docs、secrets、catalog、tuffex-docs、notes 通过；check-architecture 与 check-doc-sync 按 --base 6f574328 通过（80 个变更文件，124 个关联节点）；tests/tooling 740 条通过；浏览器核对见上一条返工记录。
 - 下一步：推送，改 MR 正文，把新分支头发给 geek-main-56
+
+## 15:05:24 +08:00 · 推送 · #270 · 推 task/270/gitlab_sso 到 bb576862
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：推到自建 GitLab：b521261c..bb576862（8c5ed80e 合并 stage 6f574328、bb576862 第四轮复核的修改与记录）。
+- 结果：pre-push 的分支与发布 tag 规则、task worktree 生命周期都通过。
+- 下一步：改 MR 正文
+
+## 15:05:24 +08:00 · PR · #270 · 改 MR !2 正文：第四轮复核、验收 3 的变化、正式改接顺序
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：MR !2 正文：关联写明合进了 stage 6f574328；变更范围写明立即同步只给 roles.manage（比 issue 严）、改站内角色后 GitLab 列重新读、正式改接 GitLab 的顺序；验证按 bb576862 重写，加隔离后端上的对照核对；验收证据加截图 12、13（上传到项目，地址 /-/project/1/uploads/…，逐个 curl 200）；人工验收第 5 步改成合并人先 dry-run 上线、核对预发布账号名单、记下预演结果再改 on，并加改站内角色后 GitLab 列当场变化的一步；正式环境按先预发布 off、再迁 sub 改 issuer、最后正式 on 的顺序；审查结论加第四轮（三条应修、需求对齐、建议、记录偏差、两条剩余风险）；风险加两条剩余风险。
+- 结果：本地 node scripts/pr-contract.mjs check 通过（10 个段落齐全，有验收证据）；MR 的 sha 是 bb576862。
+- 下一步：把新分支头发给 geek-main-56 复核、合并、发 rc.14
