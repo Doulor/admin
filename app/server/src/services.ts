@@ -97,7 +97,7 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     ? { issuer: config.oidc.issuer, provider: createOidcProvider({ issuer: config.oidc.issuer, jwks: config.oidc.jwks, sessionSecret: config.sessionSecret, store: oidcStore, accounts: directory }) }
     : null;
   const gitlab = createGitlabSync(storage.db, {
-    config: config.gitlab, directory, subjects: oidcStore, avatars: forum, audit: storage.audit,
+    config: config.gitlab, directory, subjects: oidcStore, clients: oidcStore, avatars: forum, audit: storage.audit,
     fetch: overrides.gitlabFetch, githubFetch: overrides.githubProfileFetch, clock: overrides.clock,
   });
   return {

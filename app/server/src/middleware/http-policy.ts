@@ -37,7 +37,7 @@ export function registerHttpPolicy(app: FastifyInstance) {
     reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
     // 唯一的例外：论坛头像按内容哈希寻址、内容永不改变，成功的响应由路由自己下发长期缓存。
     const immutable = reply.statusCode === 200 && req.url.startsWith("/api/forum/avatars/");
-    if ((req.url.startsWith("/auth") || req.url.startsWith("/api")) && !immutable) reply.header("Cache-Control", "no-store");
+    if ((req.url.startsWith("/auth") || req.url.startsWith("/api") || req.url.startsWith("/oidc/")) && !immutable) reply.header("Cache-Control", "no-store");
     return payload;
   });
   app.setErrorHandler((cause, req, reply) => {

@@ -9636,7 +9636,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 138,
+          "line": 149,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -9678,7 +9678,7 @@
       ],
       "id": "flow:identity.oidc.protocol",
       "invariants": [
-        "权限与资源：发现文档与 JWKS 匿名；授权端点按登记的 client_id 与完全一致的 redirect_uri，只收 response_type=code 与 PKCE S256；userinfo 凭 Bearer 访问令牌。每个 IP 每分钟 120 次；没配 OIDC_JWKS 时 404。",
+        "权限与资源：发现文档与 JWKS 匿名；授权端点按登记的 client_id 与完全一致的 redirect_uri，只收 response_type=code 与 PKCE S256；userinfo 凭 Bearer 访问令牌。按 IP 每分钟计数：发现文档、JWKS、userinfo 与换令牌、撤销合计 600 次，授权端点另计 120 次；没配 OIDC_JWKS 时 404。",
         "响应与错误：签发者 <PUBLIC_ORIGIN>/oidc，协议与主机按 PUBLIC_ORIGIN，不信请求头；未知客户端、错回调 400 中文错误页且不跳转；缺 PKCE 等带 error 回到下游；userinfo 只给 sub（pairwise）、name、preferred_username、picture，有 email scope 时给验证过的 email；账号不再是成员时 401。",
         "数据与副作用：是否登录以本站 sid 为准，不是成员或换了账号时进交互；交互、会话与授权码写 oidc_payloads；第一次给某 sector 发 sub 时写 oauth_subjects；不发 refresh token。"
       ],
@@ -9723,7 +9723,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 133,
+          "line": 144,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -9737,7 +9737,7 @@
       ],
       "id": "flow:identity.oidc.token",
       "invariants": [
-        "权限与资源：换令牌与撤销要客户端认证（client_secret_basic 或 client_secret_post），停用的客户端 invalid_client；每个 IP 每分钟 120 次（和 GET 共用）。",
+        "权限与资源：换令牌与撤销要客户端认证（client_secret_basic 或 client_secret_post），停用的客户端 invalid_client；每个 IP 每分钟 600 次（和发现文档、JWKS、userinfo 共用，不和授权端点共用）。",
         "响应与错误：授权码只能用一次、10 分钟有效，code_verifier 不对 invalid_grant；重放时撤销这份授权与它发出的令牌；200 回 access_token（1 小时）与 RS256 签名的 id_token，不发 refresh_token。",
         "数据与副作用：请求体由 oidc-provider 自己读（这一层不挂 Fastify 的解析器）；令牌与授权码只存 oidc_payloads，不进日志。"
       ],
@@ -9781,7 +9781,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 51,
+          "line": 62,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -9841,8 +9841,12 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 89,
+          "line": 100,
           "path": "app/server/src/routes/oidc/index.ts"
+        },
+        {
+          "line": 40,
+          "path": "app/server/src/middleware/http-policy.ts"
         },
         {
           "line": 19,
@@ -9911,7 +9915,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 105,
+          "line": 116,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -9966,7 +9970,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 121,
+          "line": 132,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -10024,7 +10028,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -10087,7 +10091,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -10103,7 +10107,7 @@
       "invariants": [
         "权限与资源：有效全站 sid、同源 Origin、roles.manage；每个 IP 每分钟 30 次；用服务端的 GITLAB_API_TOKEN 调 GitLab 管理接口，不用操作人的凭据。",
         "响应与错误：200 {mode,account_id,login,actions,applied,error}；GITLAB_SYNC=off 时 409 gitlab_sync_off；账号不存在 404 account_not_found；GitLab 出错不回 5xx，写进 error 与 last_error。",
-        "数据与副作用：按 OIDC 身份（provider=openid_connect，extern_uid=GitLab sector 的 sub）找或建 GitLab 用户、调组权限、封禁或解封，从不删除；dry-run 只返回 actions 不写；写 audit_logs gitlab.sync，操作人是会话账号。"
+        "数据与副作用：按 OIDC 身份（provider=openid_connect，extern_uid=gitlab 客户端 sector 的 sub）找或建 GitLab 用户、调组权限、封禁或解封，从不删除；dry-run 只返回 actions 不写；写 audit_logs gitlab.sync，操作人是会话账号。"
       ],
       "operation": "POST /api/console/gitlab/accounts/:account_id/sync",
       "operationLabel": "POST /api/console/gitlab/accounts/:account_id/sync",
@@ -12919,7 +12923,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "38edfb27cb7ace2f58a197ae427b37e81217664b7461c683f282cb8aa9b4717f",
+    "fingerprint": "63e0a35d8bdfa3ca7809e2d5364d75844f5ec84996e0a977f05e3e72f02091d9",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -13771,7 +13775,7 @@
       },
       {
         "path": "app/server/src/lib/gitlab-sync.ts",
-        "sha256": "7d3d1e64c2538c30ad76adbcfecb5bd5b6ce8143dad567e79ecd75f722917fc5"
+        "sha256": "792bf3b11df7f971084390ec5f5c9e8b14b0db7b505f02f6a634a398a20fa065"
       },
       {
         "path": "app/server/src/lib/google.ts",
@@ -13827,7 +13831,7 @@
       },
       {
         "path": "app/server/src/lib/oidc-store.ts",
-        "sha256": "0f0ed39435590fa3e0cbb39753f1d3d977d22b723cfa3d5639f21a18a4b4a0d9"
+        "sha256": "beb667db24005ce5d96e1589efb8e2674f6a8fbf9598166c35208f19c48e9a91"
       },
       {
         "path": "app/server/src/lib/password-policy.ts",
@@ -13847,7 +13851,7 @@
       },
       {
         "path": "app/server/src/middleware/http-policy.ts",
-        "sha256": "1a92b0ee8f223bd6bd9f482acfb0422eaf0a9f322d7c6de62022970844c0e226"
+        "sha256": "ac61eaccba972c6da96be4efb76e60ab34a953ae9f5c1351de99f63115eb730c"
       },
       {
         "path": "app/server/src/middleware/oauth-state.ts",
@@ -14059,7 +14063,7 @@
       },
       {
         "path": "app/server/src/routes/oidc/index.ts",
-        "sha256": "979f1d5a0c342e87fe24be26530d58bcaba30b859eacdb214f75698603fdfd34"
+        "sha256": "252e8c55ed0a14a1f709408b9143beebd8680187b7cb36df9caa8ca9c92cbc80"
       },
       {
         "path": "app/server/src/routes/portal/apply.ts",
@@ -14099,7 +14103,7 @@
       },
       {
         "path": "app/server/src/services.ts",
-        "sha256": "1140349c4dbc555e24844a84b6d4960fec674587d9ced577e7e6495963cadf46"
+        "sha256": "4ab9f6c5a2c2aae4a12a24984b393e6c445b3d9a87cbc21e2e3c8eb5eaa02a7d"
       },
       {
         "path": "app/web/Dockerfile",
@@ -14419,7 +14423,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "11c883b4d601ca44b06e0f3e76d7afa7d360e02f72ccfe457638a3563b0e8c23"
+        "sha256": "7be7cb104471e9475d383f072cabb16f41f252dfdf7d4dd9b112c2a936d66306"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -14427,11 +14431,11 @@
       },
       {
         "path": "docs/architecture/SECURITY.md",
-        "sha256": "16370b243b2318e7aa7cd1ed7a12c5731b6d1ceb48aad236aa7aca72ecf9dcf5"
+        "sha256": "0f797f888ba2fe289f64ea65448b43cfe492c933efa9d59faa891f0be23959e3"
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "edf55d465682cc83fda6758e9ed116532c1b972035eac25f610b602578f53089"
+        "sha256": "14dd47fd8bc3ca628189d1337e23f4faad05a1e8ddae4eb858f133b823ae695a"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -14471,11 +14475,11 @@
       },
       {
         "path": "docs/services/server/data-model.md",
-        "sha256": "3078fe8603bb63f218e41ab03a65fd043cd44ae93e0987c4611b8215add3a41e"
+        "sha256": "9314d683ff3068f59d6eaf9a5a94e0b7d41ee3c090c8dc1611501f962dce860e"
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "207dde76165e175d0ff65bb47db381f6ad6b04f3ef8c1836788e8fcde6143412"
+        "sha256": "8d09125afb4b542e0f500045008c4d24c8d00414bb96ebcec424c4ed83d65d76"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -14483,7 +14487,7 @@
       },
       {
         "path": "docs/services/server/oidc.md",
-        "sha256": "65da2a51234267c0397fbd0eed4169b5cd2ca41c4ecbd6babf1ddf712491ed1a"
+        "sha256": "8174d204f55d44a9b824cb1a416ead52062321104b07c4ddca8f3641ca38f68a"
       },
       {
         "path": "docs/services/web/README.md",
@@ -14615,7 +14619,7 @@
       },
       {
         "path": "tests/server/gitlab-sync.test.ts",
-        "sha256": "fc6a3e4aeca51fe6cd87207c6ca4492d2a6f2a83b12a8f3213b34e89f25f1cfc"
+        "sha256": "7c3daadd0ea9ab438e6dc26e6e8139fa3ceb9e2f4bad3241fc233cca9f9831e3"
       },
       {
         "path": "tests/server/identity.test.ts",
@@ -14635,7 +14639,7 @@
       },
       {
         "path": "tests/server/oidc.test.ts",
-        "sha256": "4b3a5b2a1b48b63b61cbffa97d2685a157990613ec7451910d4068160aa39744"
+        "sha256": "38306f405af6642bcefa1f82b9fdbdae2b93639fade974b74729d2e85a123990"
       },
       {
         "path": "tests/server/rate-limits.test.ts",
@@ -15882,7 +15886,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 136,
+          "line": 147,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -15894,7 +15898,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 51,
+          "line": 62,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -15906,7 +15910,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 89,
+          "line": 100,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -16770,7 +16774,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 136,
+          "line": 147,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -16782,7 +16786,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 51,
+          "line": 62,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -16794,7 +16798,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 89,
+          "line": 100,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -17622,7 +17626,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 136,
+          "line": 147,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -17634,7 +17638,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 121,
+          "line": 132,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -17646,7 +17650,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 105,
+          "line": 116,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -44684,7 +44688,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44708,7 +44712,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44732,7 +44736,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44756,7 +44760,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44780,7 +44784,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44804,7 +44808,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44828,7 +44832,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44852,7 +44856,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44876,7 +44880,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44900,7 +44904,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44930,7 +44934,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -44954,7 +44958,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45002,7 +45006,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45030,7 +45034,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45058,7 +45062,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45086,7 +45090,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45114,7 +45118,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45142,7 +45146,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45170,7 +45174,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45198,7 +45202,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45226,7 +45230,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45254,7 +45258,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45282,7 +45286,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45316,7 +45320,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45344,7 +45348,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45372,7 +45376,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45400,7 +45404,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -45428,7 +45432,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -49696,7 +49700,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 121,
+          "line": 132,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -49712,7 +49716,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 121,
+          "line": 132,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -49734,7 +49738,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 121,
+          "line": 132,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -49750,7 +49754,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 121,
+          "line": 132,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -49766,7 +49770,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 121,
+          "line": 132,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -49782,7 +49786,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 121,
+          "line": 132,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -49840,7 +49844,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 105,
+          "line": 116,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -49860,7 +49864,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 105,
+          "line": 116,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -49892,7 +49896,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 105,
+          "line": 116,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -49912,7 +49916,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 105,
+          "line": 116,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -49932,7 +49936,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 105,
+          "line": 116,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -49952,7 +49956,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 105,
+          "line": 116,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -49972,7 +49976,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 105,
+          "line": 116,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50034,8 +50038,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 89,
+          "line": 100,
           "path": "app/server/src/routes/oidc/index.ts"
+        },
+        {
+          "line": 40,
+          "path": "app/server/src/middleware/http-policy.ts"
         },
         {
           "line": 19,
@@ -50066,8 +50074,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 89,
+          "line": 100,
           "path": "app/server/src/routes/oidc/index.ts"
+        },
+        {
+          "line": 40,
+          "path": "app/server/src/middleware/http-policy.ts"
         },
         {
           "line": 19,
@@ -50098,8 +50110,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 89,
+          "line": 100,
           "path": "app/server/src/routes/oidc/index.ts"
+        },
+        {
+          "line": 40,
+          "path": "app/server/src/middleware/http-policy.ts"
         },
         {
           "line": 19,
@@ -50130,8 +50146,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 89,
+          "line": 100,
           "path": "app/server/src/routes/oidc/index.ts"
+        },
+        {
+          "line": 40,
+          "path": "app/server/src/middleware/http-policy.ts"
         },
         {
           "line": 19,
@@ -50162,8 +50182,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 89,
+          "line": 100,
           "path": "app/server/src/routes/oidc/index.ts"
+        },
+        {
+          "line": 40,
+          "path": "app/server/src/middleware/http-policy.ts"
         },
         {
           "line": 19,
@@ -50194,8 +50218,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 89,
+          "line": 100,
           "path": "app/server/src/routes/oidc/index.ts"
+        },
+        {
+          "line": 40,
+          "path": "app/server/src/middleware/http-policy.ts"
         },
         {
           "line": 19,
@@ -50238,8 +50266,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 89,
+          "line": 100,
           "path": "app/server/src/routes/oidc/index.ts"
+        },
+        {
+          "line": 40,
+          "path": "app/server/src/middleware/http-policy.ts"
         },
         {
           "line": 19,
@@ -50270,8 +50302,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 89,
+          "line": 100,
           "path": "app/server/src/routes/oidc/index.ts"
+        },
+        {
+          "line": 40,
+          "path": "app/server/src/middleware/http-policy.ts"
         },
         {
           "line": 19,
@@ -50338,7 +50374,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 51,
+          "line": 62,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50362,7 +50398,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 51,
+          "line": 62,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50386,7 +50422,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 51,
+          "line": 62,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50410,7 +50446,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 51,
+          "line": 62,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50434,7 +50470,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 51,
+          "line": 62,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50464,7 +50500,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 51,
+          "line": 62,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50488,7 +50524,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 51,
+          "line": 62,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50512,7 +50548,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 51,
+          "line": 62,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50572,7 +50608,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 138,
+          "line": 149,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50620,7 +50656,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 138,
+          "line": 149,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50668,7 +50704,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 138,
+          "line": 149,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50716,7 +50752,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 138,
+          "line": 149,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50764,7 +50800,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 138,
+          "line": 149,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50812,7 +50848,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 138,
+          "line": 149,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50860,7 +50896,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 138,
+          "line": 149,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50908,7 +50944,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 138,
+          "line": 149,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -50962,7 +50998,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 138,
+          "line": 149,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51010,7 +51046,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 138,
+          "line": 149,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51058,7 +51094,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 138,
+          "line": 149,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51106,7 +51142,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 138,
+          "line": 149,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51190,7 +51226,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 133,
+          "line": 144,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51210,7 +51246,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 133,
+          "line": 144,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51230,7 +51266,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 133,
+          "line": 144,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51250,7 +51286,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 133,
+          "line": 144,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51270,7 +51306,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 133,
+          "line": 144,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51290,7 +51326,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 133,
+          "line": 144,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51310,7 +51346,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 133,
+          "line": 144,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51336,7 +51372,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 133,
+          "line": 144,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51356,7 +51392,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 133,
+          "line": 144,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51376,7 +51412,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 133,
+          "line": 144,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51396,7 +51432,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 133,
+          "line": 144,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -69768,7 +69804,7 @@
         }
       },
       "source": {
-        "line": 136,
+        "line": 147,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -69861,7 +69897,7 @@
         }
       },
       "source": {
-        "line": 51,
+        "line": 62,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -70042,7 +70078,7 @@
         }
       },
       "source": {
-        "line": 89,
+        "line": 100,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -74817,7 +74853,7 @@
         }
       },
       "source": {
-        "line": 136,
+        "line": 147,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -74889,7 +74925,7 @@
         }
       },
       "source": {
-        "line": 51,
+        "line": 62,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -74961,7 +74997,7 @@
         }
       },
       "source": {
-        "line": 89,
+        "line": 100,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -86003,7 +86039,7 @@
         }
       },
       "source": {
-        "line": 136,
+        "line": 147,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -86110,7 +86146,7 @@
         }
       },
       "source": {
-        "line": 121,
+        "line": 132,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -86217,7 +86253,7 @@
         }
       },
       "source": {
-        "line": 105,
+        "line": 116,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -94562,7 +94598,7 @@
         }
       ],
       "name": "gitlab_accounts",
-      "note": "极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，从不删除；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。",
+      "note": "极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，blocked 而 gitlab_user_id 为空表示离开时去 GitLab 找过、没有这个人；从不删除；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。",
       "source": {
         "line": 508,
         "path": "app/server/src/lib/db.ts"

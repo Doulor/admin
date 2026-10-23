@@ -75,10 +75,10 @@ GitHub 账号被封后改用自建 GitLab，所有者 2026-10-23 定：「gitlab
 - **同意**：第一次登录某个应用要本人在 `/authorize` 允许，页面写明应用名、回到哪个主机和要的信息；同意与拒绝接口要 `sid`，只认发起这次登录的账号（别人 409），经核心写请求的 Origin 门禁（外域 403），写审计 `oidc.consent` / `oidc.deny`。
 - **主体标识**：`sub` 按下游 sector（回调主机）生成 32 字节随机值存 `oauth_subjects`，不同下游拿到的不同，内部 `account_id` 不下发；换签名密钥不变。声明只有 `openid`、`profile`、`email`，邮箱只给验证过的。
 - **密钥**：签名私钥 `OIDC_JWKS` 与 GitLab 管理员令牌 `GITLAB_API_TOKEN` 是环境级密钥，只在目标机 `.env.<环境>` 与 CI 的环境 secrets；JWKS 端点只发公钥。客户端只能在服务器容器里用 `dist/cli/oidc.js` 登记，`client_secret` 只输出一次，库里存 AES-256-GCM 密文。签发者的 cookie 用 `SESSION_SECRET` 派生的密钥签名。
-- **限流**：协议端点每个 IP 每分钟 120 次，交互入口与详情 30 次，同意与拒绝 20 次，控制台的立即同步 30 次。
-- **GitLab 同步**：`GITLAB_SYNC=on` 时按极客班账号在 GitLab 上建号（随机密码、`skip_confirmation`）、放进组（舰员 Developer、提督 Owner）、停用与不再是成员的封禁；按 OIDC 身份（`extern_uid` = GitLab sector 的 `sub`）认人，不按邮箱或用户名合并；不删除用户和仓库，不碰不是同步建的用户（如 root）。管理员令牌只在服务端用，失败只记错误码（如 `gitlab_create_409`、`gitlab_unreachable`），不记 GitLab 的响应体。
+- **限流**：协议端点按 IP 每分钟计数，下游服务器调用（发现文档、JWKS、换令牌、撤销、userinfo）合计 600 次，浏览器跳转（授权端点）另计 120 次，GitLab 一个 IP 上的调用不挤占校园网共用出口的浏览器；交互入口与详情 30 次，同意与拒绝 20 次，控制台的立即同步 30 次。交互入口与同意页接口的回复不缓存（`no-store`）。
+- **GitLab 同步**：`GITLAB_SYNC=on` 时按极客班账号在 GitLab 上建号（随机密码、`skip_confirmation`）、放进组（舰员 Developer、提督 Owner）、停用与不再是成员的封禁；按 OIDC 身份（`extern_uid` = 这个账号在 `gitlab` 客户端 sector 的 `sub`，sector 取客户端的回调主机，不取 `GITLAB_URL`）认人，不按邮箱或用户名合并；还没同步过就离开、但用极客班登录过 GitLab 的，按身份找到 GitLab 自动建的号并封禁。不删除用户和仓库，不碰不是同步建的用户（如 root）。管理员令牌只在服务端用，调 GitLab 不跟随跳转，失败只记错误码（如 `gitlab_create_409`、`gitlab_unreachable`），不记 GitLab 的响应体。
 
-**残余风险**：GitLab 侧已登录的会话不随极客班退出或停用立即结束，靠同步封禁收口，最长差一个同步周期（10 分钟）。`GITLAB_API_TOKEN` 是 GitLab 管理员级 `api` 令牌，外泄等于交出整台 GitLab，只放目标机与 CI secrets，按 GitLab 的令牌有效期轮换。`oidc-provider` 依赖的 `jose` 6.2.13 发布时间很近，升级要跟着看安全公告。GitLab 的 SSH 不对外开放，成员用个人访问令牌走 HTTPS 推拉，这个令牌由本人在 GitLab 上管理，不受极客班停用的即时影响（账号被封禁后令牌随之不能用）。
+**残余风险**：GitLab 侧已登录的会话不随极客班退出或停用立即结束，靠同步封禁收口：`GITLAB_SYNC=on` 时最长差一个同步周期（10 分钟）；不是 `on` 时没有人封禁，所以 GitLab 的统一登录要在同步开成 `on` 之后再打开。`GITLAB_API_TOKEN` 是 GitLab 管理员级 `api` 令牌，外泄等于交出整台 GitLab，只放目标机与 CI secrets，按 GitLab 的令牌有效期轮换。`oidc-provider` 依赖的 `jose` 6.2.13 发布时间很近，升级要跟着看安全公告。GitLab 的 SSH 不对外开放，成员用个人访问令牌走 HTTPS 推拉，这个令牌由本人在 GitLab 上管理，不受极客班停用的即时影响（账号被封禁后令牌随之不能用）。
 
 ## 极客班控制台：称号与能力
 

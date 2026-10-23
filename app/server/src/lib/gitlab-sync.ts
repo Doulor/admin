@@ -5,11 +5,13 @@ import type { DirectoryAccount } from "./account-directory.js";
 /**
  * GitLab 账号同步（#270）：每个是成员的极客班账号在自建 GitLab 上有一个用户，进 `GITLAB_GROUP` 组（舰员 Developer，提督 Owner）；
  * 停用或不再是成员的封禁（block），恢复后解封，从不删除。GitLab 用户按 OIDC 身份（provider = openid_connect，extern_uid =
- * 这个账号在 GitLab sector 的 `sub`）认人，不按用户名或邮箱认。用户名在第一次同步时定下：有 GitHub 的用 GitHub 登录名，
+ * 这个账号在 GitLab 那个客户端的 sector 里的 `sub`）认人，不按用户名或邮箱认。用户名在第一次同步时定下：有 GitHub 的用 GitHub 登录名，
  * 没有的用站内登录名（yz_…），被占用或是保留名时加后缀，之后不再改名。
  * 只有这个模块读写 gitlab_accounts；`mode` 为 dry-run 时只算出要做什么，不写表、不改 GitLab。
  */
 export const GITLAB_OIDC_PROVIDER = "openid_connect";
+/** GitLab 在签发者那里登记的 client id（oidc.js client add --client-id gitlab）。sector 取它的回调地址的主机，和签发者给 GitLab 的 `sub` 是同一个。 */
+export const GITLAB_OIDC_CLIENT_ID = "gitlab";
 /** GitLab 组成员的权限级别：Developer 30，Owner 50。 */
 export const GITLAB_ACCESS = { developer: 30, owner: 50 } as const;
 /** on 模式下每 10 分钟对一次账（启动时先对一次）。 */
@@ -51,7 +53,8 @@ export function gitlabUsername(base: string): string {
 export function createGitlabSync(db: Database.Database, deps: {
   config: GitlabSyncConfig;
   directory: { listForSync(): DirectoryAccount[]; account(accountId: string): DirectoryAccount | null };
-  subjects: { subjectFor(sectorId: string, accountId: string): string };
+  subjects: { subjectFor(sectorId: string, accountId: string): string; existingSubject(sectorId: string, accountId: string): string | null };
+  clients: { sectorOf(clientId: string): string | null };
   avatars: { avatar(hash: string): Buffer | null };
   audit: (org: string | null, actor: AuditActor, action: string, target?: string, details?: unknown, ip?: string) => void;
   fetch?: FetchLike;
@@ -62,7 +65,9 @@ export function createGitlabSync(db: Database.Database, deps: {
   const clock = deps.clock ?? Date.now;
   const fetchGitlab = deps.fetch ?? fetch;
   const fetchGithub = deps.githubFetch ?? fetch;
-  const sector = config.url ? new URL(config.url).host : null;
+  const gitlabHost = config.url ? new URL(config.url).host : null;
+  // GITLAB_URL 可以是内网地址，不能拿它的主机当 sector；客户端还没登记时为 null，这时不建号
+  const sector = () => deps.clients.sectorOf(GITLAB_OIDC_CLIENT_ID);
   const selectRow = db.prepare("SELECT * FROM gitlab_accounts WHERE account_id = ?");
   const usernameTaken = db.prepare("SELECT 1 FROM gitlab_accounts WHERE username = ? COLLATE NOCASE AND account_id <> ?");
 
@@ -82,12 +87,18 @@ export function createGitlabSync(db: Database.Database, deps: {
     }
   }
 
-  /** 这个账号现在要做什么（不碰 GitLab）。还没建号的、不是成员的账号不建号；建过的按成员资格封禁或解封、调组权限。 */
+  /**
+   * 这个账号现在要做什么（不碰 GitLab）。是成员、还没建号的建号；建过的按成员资格封禁或解封、调组权限。
+   * 不是成员、也没有对上 GitLab 用户的：只要他在 GitLab 的 sector 有过 `sub`（用极客班登录过 GitLab，GitLab 可能已经自动建了号，
+   * 例如同步关着时、或者在下一轮对账之前），就去 GitLab 按身份找一次，找到就封禁。
+   */
   function plan(account: DirectoryAccount): SyncAction[] {
     const row = rowOf(account.account_id);
     const access = wantedAccess(account);
     if (!row || row.state === "pending" || row.gitlab_user_id === null) {
-      return wanted(account) ? [{ kind: "create", username: row?.username ?? freeUsername(account), access_level: access }] : [];
+      if (wanted(account)) return [{ kind: "create", username: row?.username ?? freeUsername(account), access_level: access }];
+      const sectorId = sector();
+      return row?.state !== "blocked" && sectorId && deps.subjects.existingSubject(sectorId, account.account_id) ? [{ kind: "block" }] : [];
     }
     if (!wanted(account)) return row.state === "blocked" ? [] : [{ kind: "block" }];
     const actions: SyncAction[] = [];
@@ -104,6 +115,8 @@ export function createGitlabSync(db: Database.Database, deps: {
         method,
         headers: { "PRIVATE-TOKEN": config.token ?? "", Accept: "application/json", ...(body && !form ? { "Content-Type": "application/json" } : {}) },
         body: body === undefined ? undefined : form ? body : JSON.stringify(body),
+        // 不跟随跳转：跳到别的源时管理员令牌会跟着过去
+        redirect: "error",
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch {
@@ -138,14 +151,26 @@ export function createGitlabSync(db: Database.Database, deps: {
         if (res.ok) github = await res.json() as GithubProfile;
       } catch { github = null; }
     }
-    const website = (account.profile?.website || github?.blog || "").trim();
     return {
       name: (account.profile?.displayName.trim() || github?.name?.trim() || account.name || account.login).slice(0, 255),
       bio: (account.profile?.bio || github?.bio || "").slice(0, 255),
       location: (account.profile?.location || github?.location || "").slice(0, 255),
-      website_url: website && !/^https?:\/\//i.test(website) ? `https://${website}` : website,
+      website_url: websiteOf(account.profile?.website || github?.blog || ""),
       avatarUrl: account.profile?.avatarHash ? null : github?.avatar_url ?? account.github?.avatar_url ?? null,
     };
+  }
+
+  /** GitHub 的 blog 是随手填的文字：没写协议的补 https://，补完还不是带点号主机名、不带账号口令的 http(s) 网址就不传，免得 GitLab 因为它拒绝建号。 */
+  function websiteOf(raw: string): string {
+    const value = raw.trim();
+    if (!value) return "";
+    const withScheme = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    try {
+      const url = new URL(withScheme);
+      return /^https?:$/.test(url.protocol) && url.hostname.includes(".") && !url.username && !url.password && withScheme.length <= 255 ? withScheme : "";
+    } catch {
+      return "";
+    }
   }
 
   /** 头像：论坛上传的头像（webp）直接取库里的；否则下载 GitHub 头像。超过 1 MB 或下载失败就不传。 */
@@ -183,17 +208,24 @@ export function createGitlabSync(db: Database.Database, deps: {
     throw new SyncError(`gitlab_${blocked ? "block" : "unblock"}_${result.status}`);
   }
 
+  /** 按 OIDC 身份找 GitLab 用户：同步建的，或者他用极客班登录时 GitLab 自动建的。 */
+  async function userByIdentity(sub: string): Promise<{ id: number; username: string } | undefined> {
+    const found = await gitlab("GET", `/users?extern_uid=${encodeURIComponent(sub)}&provider=${GITLAB_OIDC_PROVIDER}`);
+    if (found.status !== 200) throw new SyncError(`gitlab_lookup_${found.status}`);
+    return Array.isArray(found.data) ? found.data[0] as { id: number; username: string } | undefined : undefined;
+  }
+
   /** 建号：先按 OIDC 身份找（上次建到一半、或者 GitLab 上已经有了），找不到再建；用户名、邮箱被占用时换一个再试。 */
   async function create(account: DirectoryAccount, action: Extract<SyncAction, { kind: "create" }>): Promise<void> {
+    const sectorId = sector();
+    if (!sectorId) throw new SyncError("gitlab_client_missing");
     const now = clock();
     let username = action.username;
     // 先占下用户名：建到一半失败时，下次沿用同一个名字
     db.prepare(`INSERT INTO gitlab_accounts(account_id, gitlab_user_id, username, state, access_level, created_at, updated_at)
       VALUES(?, NULL, ?, 'pending', NULL, ?, ?) ON CONFLICT(account_id) DO NOTHING`).run(account.account_id, username, now, now);
-    const sub = deps.subjects.subjectFor(sector!, account.account_id);
-    const found = await gitlab("GET", `/users?extern_uid=${encodeURIComponent(sub)}&provider=${GITLAB_OIDC_PROVIDER}`);
-    if (found.status !== 200) throw new SyncError(`gitlab_lookup_${found.status}`);
-    let user = Array.isArray(found.data) ? found.data[0] as { id: number; username: string } | undefined : undefined;
+    const sub = deps.subjects.subjectFor(sectorId, account.account_id);
+    let user = await userByIdentity(sub);
     if (!user) {
       const profile = await profileFor(account);
       const tried = new Set<string>();
@@ -201,7 +233,7 @@ export function createGitlabSync(db: Database.Database, deps: {
       for (let attempt = 0; attempt < 6 && !user; attempt++) {
         tried.add(username.toLowerCase());
         const created = await gitlab("POST", "/users", {
-          username, name: profile.name, email: useNoreply ? `${username.toLowerCase()}@noreply.${sector}` : account.email,
+          username, name: profile.name, email: useNoreply ? `${username.toLowerCase()}@noreply.${gitlabHost}` : account.email,
           extern_uid: sub, provider: GITLAB_OIDC_PROVIDER, skip_confirmation: true, force_random_password: true,
           bio: profile.bio, location: profile.location, website_url: profile.website_url,
         });
@@ -227,11 +259,30 @@ export function createGitlabSync(db: Database.Database, deps: {
     db.prepare("UPDATE gitlab_accounts SET access_level = ?, updated_at = ? WHERE account_id = ?").run(action.access_level, clock(), account.account_id);
   }
 
+  /**
+   * 封禁一个还没对上 GitLab 用户的账号（见 plan）：按身份找到就记下这个用户再封禁；找不到也记一行 blocked（gitlab_user_id 为空），
+   * 之后不再去找。他回来时这一行按建号处理，建号前同样先按身份找。
+   */
+  async function blockUnlinked(account: DirectoryAccount): Promise<void> {
+    const sectorId = sector();
+    const sub = sectorId ? deps.subjects.existingSubject(sectorId, account.account_id) : null;
+    const user = sub ? await userByIdentity(sub) : undefined;
+    const now = clock();
+    db.prepare(`INSERT INTO gitlab_accounts(account_id, gitlab_user_id, username, state, access_level, created_at, updated_at)
+      VALUES(?, ?, ?, ?, NULL, ?, ?) ON CONFLICT(account_id) DO UPDATE SET gitlab_user_id = excluded.gitlab_user_id,
+        username = excluded.username, state = excluded.state, updated_at = excluded.updated_at`)
+      .run(account.account_id, user?.id ?? null, user?.username ?? rowOf(account.account_id)?.username ?? freeUsername(account), user ? "active" : "blocked", now, now);
+    if (!user) return;
+    await setBlocked(user.id, true);
+    db.prepare("UPDATE gitlab_accounts SET state = 'blocked', updated_at = ? WHERE account_id = ?").run(clock(), account.account_id);
+  }
+
   async function apply(account: DirectoryAccount, actions: SyncAction[]): Promise<void> {
     for (const action of actions) {
       if (action.kind === "create") { await create(account, action); continue; }
-      const row = rowOf(account.account_id)!;
-      const userId = row.gitlab_user_id!;
+      const row = rowOf(account.account_id);
+      if (action.kind === "block" && (!row || row.gitlab_user_id === null)) { await blockUnlinked(account); continue; }
+      const userId = row!.gitlab_user_id!;
       if (action.kind === "block" || action.kind === "unblock") {
         await setBlocked(userId, action.kind === "block");
         db.prepare("UPDATE gitlab_accounts SET state = ?, updated_at = ? WHERE account_id = ?").run(action.kind === "block" ? "blocked" : "active", clock(), account.account_id);
@@ -243,7 +294,7 @@ export function createGitlabSync(db: Database.Database, deps: {
   }
 
   /** 同步一个账号。dry-run 只返回要做什么；on 时照做，失败的原因记在 last_error，下次对账再试。 */
-  async function syncOne(account: DirectoryAccount, actor: AuditActor = "system"): Promise<SyncOutcome> {
+  async function syncNow(account: DirectoryAccount, actor: AuditActor): Promise<SyncOutcome> {
     const actions = plan(account);
     const outcome: SyncOutcome = { account_id: account.account_id, login: account.login, actions, applied: false, error: null };
     if (config.mode !== "on") return outcome;
@@ -263,14 +314,26 @@ export function createGitlabSync(db: Database.Database, deps: {
     return outcome;
   }
 
+  const inFlight = new Map<string, Promise<SyncOutcome>>();
+  /** 同一个账号同一时间只同步一次：定时对账和控制台的「立即同步」碰上时，后来的等前一次做完，再按那时的记录重新算要做什么。 */
+  function syncOne(account: DirectoryAccount, actor: AuditActor = "system"): Promise<SyncOutcome> {
+    const id = account.account_id;
+    const next = (inFlight.get(id) ?? Promise.resolve()).catch(() => undefined).then(() => syncNow(account, actor));
+    inFlight.set(id, next);
+    const release = () => { if (inFlight.get(id) === next) inFlight.delete(id); };
+    next.then(release, release);
+    return next;
+  }
+
   let running: Promise<SyncSummary> | null = null;
-  /** 全部账号对一次账；上一次还没跑完时返回同一个结果，不并发改 GitLab。 */
+  let stopping = false;
+  /** 全部账号对一次账；上一次还没跑完时返回同一个结果，不同时跑两轮。停下（stop）时做完手上这个账号就结束。 */
   function reconcile(): Promise<SyncSummary> {
     if (running) return running;
     running = (async () => {
       const outcomes: SyncOutcome[] = [];
       for (const account of deps.directory.listForSync()) {
-        if (config.mode === "off") break;
+        if (config.mode === "off" || stopping) break;
         outcomes.push(await syncOne(account));
       }
       return {
@@ -316,6 +379,7 @@ export function createGitlabSync(db: Database.Database, deps: {
   /** on 模式才开定时对账（buildApp 的 gitlabSync，index.ts 打开）；立即对一次，之后每 10 分钟。出错只记日志。 */
   function start(logger: SyncLogger): void {
     if (timer || config.mode !== "on") return;
+    stopping = false;
     const run = () => {
       reconcile().then(summary => {
         if (summary.changed || summary.failed) logger.info({ changed: summary.changed, failed: summary.failed }, "gitlab sync finished");
@@ -326,6 +390,7 @@ export function createGitlabSync(db: Database.Database, deps: {
     timer.unref();
   }
   async function stop(): Promise<void> {
+    stopping = true;
     if (timer) clearInterval(timer);
     timer = null;
     await running?.catch(() => undefined);

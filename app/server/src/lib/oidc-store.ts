@@ -90,6 +90,12 @@ export function createOidcStore(db: Database.Database, crypto: ReturnType<typeof
     if (!changed) throw new Error(`client ${clientId} not found`);
   }
 
+  /** 这个应用的 sector：回调地址的主机，和 oidc-provider 按 redirect_uris[0] 算出的一致；停用的照样算，没登记为 null。 */
+  function sectorOf(clientId: string): string | null {
+    const client = getClient(clientId);
+    return client ? new URL(client.redirect_uris[0]).host : null;
+  }
+
   function listClients(): OidcClient[] {
     return (db.prepare("SELECT * FROM oauth_clients ORDER BY created_at, client_id").all() as ClientRow[]).map(toClient);
   }
@@ -126,6 +132,11 @@ export function createOidcStore(db: Database.Database, crypto: ReturnType<typeof
     if (existing) return existing.sub;
     insertSubject.run(sectorId, accountId, newSubject(), clock());
     return (selectSubject.get(sectorId, accountId) as { sub: string }).sub;
+  }
+
+  /** 只读：这个账号在这个 sector 有没有 `sub`（有过就说明下游拿到过他的身份），没有时不生成。 */
+  function existingSubject(sectorId: string, accountId: string): string | null {
+    return (selectSubject.get(sectorId, accountId) as { sub: string } | undefined)?.sub ?? null;
   }
 
   /** 按 `sub` 反查账号（GitLab 同步对账用）；不是本 sector 的 sub 查不到。 */
@@ -190,14 +201,14 @@ export function createOidcStore(db: Database.Database, crypto: ReturnType<typeof
       },
       async consume(id) { db.prepare("UPDATE oidc_payloads SET consumed_at = ? WHERE model = ? AND id = ?").run(clock(), model, id); },
       async destroy(id) { db.prepare("DELETE FROM oidc_payloads WHERE model = ? AND id = ?").run(model, id); },
-      // 一次授权（grant）下发的授权码、令牌一起作废：授权码重放、撤销授权时由 oidc-provider 调用
-      async revokeByGrantId(grantId) { db.prepare("DELETE FROM oidc_payloads WHERE grant_id = ?").run(grantId); },
+      // 一次授权（grant）下发的授权码、令牌一起作废：授权码重放、撤销授权时 oidc-provider 对每种模型各调一次，授权本身另外删
+      async revokeByGrantId(grantId) { db.prepare("DELETE FROM oidc_payloads WHERE model = ? AND grant_id = ?").run(model, grantId); },
     };
   }
 
   return {
-    registerClient, rotateSecret, setClientStatus, listClients, getClient, clientMetadata,
-    subjectFor, accountForSubject, rememberGrant, rememberedGrant, sweepExpired, adapterFor,
+    registerClient, rotateSecret, setClientStatus, listClients, getClient, sectorOf, clientMetadata,
+    subjectFor, existingSubject, accountForSubject, rememberGrant, rememberedGrant, sweepExpired, adapterFor,
   };
 }
 export type OidcStore = ReturnType<typeof createOidcStore>;

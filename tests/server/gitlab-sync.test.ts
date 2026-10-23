@@ -28,6 +28,7 @@ function fakeGitlab() {
     const url = new URL(input);
     expect(url.origin).toBe(GITLAB);
     expect((init.headers as Record<string, string>)['PRIVATE-TOKEN']).toBe('test-gitlab-token');
+    expect(init.redirect).toBe('error');
     const method = init.method ?? 'GET';
     const path = url.pathname.replace(/^\/api\/v4/, '');
     const call = `${method} ${path}`;
@@ -108,12 +109,14 @@ function fakeGithub(profiles: Record<number, Record<string, unknown>> = {}) {
 const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
 afterEach(async () => { for (const context of contexts.splice(0)) await context.close(); });
 
-async function setup(env: Record<string, string> = SYNC_ENV, profiles: Record<number, Record<string, unknown>> = {}) {
+async function setup(env: Record<string, string> = SYNC_ENV, profiles: Record<number, Record<string, unknown>> = {}, callback: string | null = `${GITLAB}/users/auth/openid_connect/callback`) {
   const gitlab = fakeGitlab();
   const github = fakeGithub(profiles);
   const context = await testApp({ gitlabFetch: gitlab.fetch, githubProfileFetch: github.fetch }, false, env);
   contexts.push(context);
   const { app } = context;
+  // GitLab 在签发者那里登记的客户端：同步按它的回调主机算 sector
+  if (callback) app.services.oidcStore.registerClient({ name: 'GitLab', clientId: 'gitlab', redirectUris: [callback] });
   const accountOf = (githubId: number) => app.services.identity.accountForGithub(githubId)!;
   const promote = (githubId: number) => app.services.identity.setSiteRole({ accountId: accountOf(githubId), role: 'admin', actor: 'system' });
   const subOf = (githubId: number) => app.services.oidcStore.subjectFor('git.example.test', accountOf(githubId));
@@ -273,6 +276,86 @@ describe('GitLab account sync (#270)', () => {
     expect(second).toMatchObject({ changed: 1, failed: 0 });
     expect(row(101)).toMatchObject({ access_level: 30, last_error: null, last_error_at: null });
     expect(gitlab.users.filter(user => user.username === 'alice')).toHaveLength(1);
+  });
+
+  it('blocks the user GitLab created at sign-in when the account leaves before it was ever synced', async () => {
+    const { app, gitlab, accountOf, subOf, row } = await setup();
+    signIn(app, 'alice', 101);
+    signIn(app, 'erin', 105);
+    // 同步关着、或者在下一轮对账之前：alice 用极客班登录过 GitLab，GitLab 按她的 sub 自动建了号
+    gitlab.users.push({ id: 61, username: 'alice', email: 'alice@example.test', name: 'Alice', state: 'active', extern_uid: subOf(101), provider: 'openid_connect' });
+    // erin 走到过 GitLab 的登录，有 sub，但 GitLab 上没有她
+    subOf(105);
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
+    app.services.identity.setSiteRole({ accountId: accountOf(105), role: 'none', actor: 'system' });
+    expect(app.services.gitlab.status().find(item => item.login === 'alice')!.pending).toEqual([{ kind: 'block' }]);
+
+    expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 2, failed: 0 });
+    expect(gitlab.users.find(user => user.id === 61)!.state).toBe('blocked');
+    expect(row(101)).toMatchObject({ gitlab_user_id: 61, username: 'alice', state: 'blocked', last_error: null });
+    expect(row(105)).toMatchObject({ gitlab_user_id: null, username: 'erin', state: 'blocked' });
+    expect(gitlab.calls.filter(call => call === 'POST /users')).toEqual([]);
+
+    // 找过一次就不再找；没有 sub 的、不是成员的账号从来不去 GitLab 找
+    const calls = gitlab.calls.length;
+    expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 0, failed: 0 });
+    expect(gitlab.calls).toHaveLength(calls);
+
+    // 回来了：alice 解封沿用原来的号，erin 照常建号
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'member', actor: 'system' });
+    app.services.identity.setSiteRole({ accountId: accountOf(105), role: 'member', actor: 'system' });
+    expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 2, failed: 0 });
+    expect(gitlab.users.find(user => user.id === 61)!.state).toBe('active');
+    expect(row(101)).toMatchObject({ gitlab_user_id: 61, state: 'active', access_level: 30 });
+    expect(userNamed(gitlab, 'erin')).toMatchObject({ extern_uid: subOf(105), state: 'active' });
+    expect(row(105)).toMatchObject({ username: 'erin', state: 'active', access_level: 30 });
+  });
+
+  it('never runs a manual sync of an account at the same time as the scheduled one', async () => {
+    const { app, gitlab, accountOf, row } = await setup();
+    signIn(app, 'bob', 202);
+    const [summary, manual] = await Promise.all([app.services.gitlab.reconcile(), app.services.gitlab.syncAccount(accountOf(202), 'system')]);
+    expect(summary.failed).toBe(0);
+    expect(manual).toMatchObject({ actions: [], error: null });
+    expect(gitlab.calls.filter(call => call === 'POST /users')).toHaveLength(1);
+    expect(gitlab.users.map(user => user.username)).toEqual(['bob']);
+    expect(row(202)).toMatchObject({ gitlab_user_id: gitlab.users[0].id, username: 'bob', state: 'active', last_error: null });
+  });
+
+  it('takes the sector from the GitLab client, not from GITLAB_URL, and creates nobody until the client is registered', async () => {
+    const internal = await setup({ ...SYNC_ENV }, {}, 'https://code.example.test/users/auth/openid_connect/callback');
+    signIn(internal.app, 'alice', 101);
+    await internal.app.services.gitlab.reconcile();
+    const sub = internal.app.services.oidcStore.subjectFor('code.example.test', internal.accountOf(101));
+    expect(userNamed(internal.gitlab, 'alice')).toMatchObject({ extern_uid: sub, email: 'alice@noreply.git.example.test' });
+    expect(internal.app.services.oidcStore.existingSubject('git.example.test', internal.accountOf(101))).toBeNull();
+
+    const missing = await setup(SYNC_ENV, {}, null);
+    signIn(missing.app, 'alice', 101);
+    const summary = await missing.app.services.gitlab.reconcile();
+    expect(summary.outcomes[0]).toMatchObject({ error: 'gitlab_client_missing', applied: false });
+    expect(missing.gitlab.calls).toEqual([]);
+  });
+
+  it('drops a GitHub blog that is not a web address', async () => {
+    const { app, gitlab } = await setup(SYNC_ENV, { 101: { blog: 'my blog' }, 102: { blog: 'http://bob.dev/posts' }, 103: { blog: 'mailto:c@example.test' } });
+    signIn(app, 'alice', 101);
+    signIn(app, 'bob', 102);
+    signIn(app, 'carol', 103);
+    await app.services.gitlab.reconcile();
+    expect(userNamed(gitlab, 'alice')!.website_url).toBe('');
+    expect(userNamed(gitlab, 'bob')!.website_url).toBe('http://bob.dev/posts');
+    expect(userNamed(gitlab, 'carol')!.website_url).toBe('');
+  });
+
+  it('finishes the account at hand and stops the round when the server shuts down', async () => {
+    const { app, gitlab } = await setup();
+    signIn(app, 'alice', 101);
+    signIn(app, 'bob', 202);
+    const round = app.services.gitlab.reconcile();
+    await app.services.gitlab.stop();
+    expect((await round).accounts).toBe(1);
+    expect(gitlab.users).toHaveLength(1);
   });
 
   it('only plans in dry-run mode and does nothing when off', async () => {

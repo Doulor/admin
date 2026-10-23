@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`38edfb27cb7ace2f58a197ae427b37e81217664b7461c683f282cb8aa9b4717f`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`63e0a35d8bdfa3ca7809e2d5364d75844f5ec84996e0a977f05e3e72f02091d9`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -2682,11 +2682,11 @@
 - 读取：`oauth_clients`、`oidc_payloads`、`oauth_grants`、`oauth_subjects`、`sessions`、`users`、`identities`、`forum_users`
 - 写入：`oidc_payloads`、`oauth_subjects`、`sessions`
 - 不入队：
-- 权限与资源：发现文档与 JWKS 匿名；授权端点按登记的 client_id 与完全一致的 redirect_uri，只收 response_type=code 与 PKCE S256；userinfo 凭 Bearer 访问令牌。每个 IP 每分钟 120 次；没配 OIDC_JWKS 时 404。
+- 权限与资源：发现文档与 JWKS 匿名；授权端点按登记的 client_id 与完全一致的 redirect_uri，只收 response_type=code 与 PKCE S256；userinfo 凭 Bearer 访问令牌。按 IP 每分钟计数：发现文档、JWKS、userinfo 与换令牌、撤销合计 600 次，授权端点另计 120 次；没配 OIDC_JWKS 时 404。
 - 响应与错误：签发者 <PUBLIC_ORIGIN>/oidc，协议与主机按 PUBLIC_ORIGIN，不信请求头；未知客户端、错回调 400 中文错误页且不跳转；缺 PKCE 等带 error 回到下游；userinfo 只给 sub（pairwise）、name、preferred_username、picture，有 email scope 时给验证过的 email；账号不再是成员时 401。
 - 数据与副作用：是否登录以本站 sid 为准，不是成员或换了账号时进交互；交互、会话与授权码写 oidc_payloads；第一次给某 sector 发 sub 时写 oauth_subjects；不发 refresh token。
 
-源码：[app/server/src/routes/oidc/index.ts:138](../../../app/server/src/routes/oidc/index.ts#L138) · [app/server/src/lib/oidc-provider.ts:74](../../../app/server/src/lib/oidc-provider.ts#L74) · [app/server/src/lib/oidc-store.ts:52](../../../app/server/src/lib/oidc-store.ts#L52) · [app/server/src/lib/account-directory.ts:18](../../../app/server/src/lib/account-directory.ts#L18) · [app/server/src/lib/db.ts:461](../../../app/server/src/lib/db.ts#L461) · [app/server/src/lib/identity-store.ts:628](../../../app/server/src/lib/identity-store.ts#L628) · [app/server/src/lib/forum-store.ts:564](../../../app/server/src/lib/forum-store.ts#L564) · [app/web/sites/portal/lib/links.ts:14](../../../app/web/sites/portal/lib/links.ts#L14) · [app/web/shared/config/index.ts:33](../../../app/web/shared/config/index.ts#L33) · [app/web/sites/portal/components/os/Widgets.tsx:64](../../../app/web/sites/portal/components/os/Widgets.tsx#L64)
+源码：[app/server/src/routes/oidc/index.ts:149](../../../app/server/src/routes/oidc/index.ts#L149) · [app/server/src/lib/oidc-provider.ts:74](../../../app/server/src/lib/oidc-provider.ts#L74) · [app/server/src/lib/oidc-store.ts:52](../../../app/server/src/lib/oidc-store.ts#L52) · [app/server/src/lib/account-directory.ts:18](../../../app/server/src/lib/account-directory.ts#L18) · [app/server/src/lib/db.ts:461](../../../app/server/src/lib/db.ts#L461) · [app/server/src/lib/identity-store.ts:628](../../../app/server/src/lib/identity-store.ts#L628) · [app/server/src/lib/forum-store.ts:564](../../../app/server/src/lib/forum-store.ts#L564) · [app/web/sites/portal/lib/links.ts:14](../../../app/web/sites/portal/lib/links.ts#L14) · [app/web/shared/config/index.ts:33](../../../app/web/shared/config/index.ts#L33) · [app/web/sites/portal/components/os/Widgets.tsx:64](../../../app/web/sites/portal/components/os/Widgets.tsx#L64)
 
 测试入口：[tests/server/oidc.test.ts](../../../tests/server/oidc.test.ts)。生成器未执行这些测试。
 
@@ -2699,11 +2699,11 @@
 - 读取：`oauth_clients`、`oidc_payloads`、`oauth_subjects`、`sessions`、`users`、`identities`、`forum_users`
 - 写入：`oidc_payloads`、`oauth_subjects`、`sessions`
 - 不入队：
-- 权限与资源：换令牌与撤销要客户端认证（client_secret_basic 或 client_secret_post），停用的客户端 invalid_client；每个 IP 每分钟 120 次（和 GET 共用）。
+- 权限与资源：换令牌与撤销要客户端认证（client_secret_basic 或 client_secret_post），停用的客户端 invalid_client；每个 IP 每分钟 600 次（和发现文档、JWKS、userinfo 共用，不和授权端点共用）。
 - 响应与错误：授权码只能用一次、10 分钟有效，code_verifier 不对 invalid_grant；重放时撤销这份授权与它发出的令牌；200 回 access_token（1 小时）与 RS256 签名的 id_token，不发 refresh_token。
 - 数据与副作用：请求体由 oidc-provider 自己读（这一层不挂 Fastify 的解析器）；令牌与授权码只存 oidc_payloads，不进日志。
 
-源码：[app/server/src/routes/oidc/index.ts:133](../../../app/server/src/routes/oidc/index.ts#L133) · [app/server/src/lib/oidc-provider.ts:74](../../../app/server/src/lib/oidc-provider.ts#L74) · [app/server/src/lib/oidc-store.ts:52](../../../app/server/src/lib/oidc-store.ts#L52)
+源码：[app/server/src/routes/oidc/index.ts:144](../../../app/server/src/routes/oidc/index.ts#L144) · [app/server/src/lib/oidc-provider.ts:74](../../../app/server/src/lib/oidc-provider.ts#L74) · [app/server/src/lib/oidc-store.ts:52](../../../app/server/src/lib/oidc-store.ts#L52)
 
 测试入口：[tests/server/oidc.test.ts](../../../tests/server/oidc.test.ts)。生成器未执行这些测试。
 
@@ -2720,7 +2720,7 @@
 - 响应与错误：交互过期或 cookie 不对 400 中文错误页；没有 sid 303 /signin?return_to=/oidc/interaction/<uid>；不是成员带 access_denied 回到下游；要同意时 303 /authorize?uid=<uid>。
 - 数据与副作用：换过账号时先删掉签发者里旧账号的会话再按 sid 的账号登录，不走 oidc-provider 的登出确认页。
 
-源码：[app/server/src/routes/oidc/index.ts:51](../../../app/server/src/routes/oidc/index.ts#L51) · [app/server/src/routes/oidc/contracts.ts:18](../../../app/server/src/routes/oidc/contracts.ts#L18) · [app/server/src/lib/oidc-provider.ts:74](../../../app/server/src/lib/oidc-provider.ts#L74) · [app/server/src/lib/account-directory.ts:18](../../../app/server/src/lib/account-directory.ts#L18)
+源码：[app/server/src/routes/oidc/index.ts:62](../../../app/server/src/routes/oidc/index.ts#L62) · [app/server/src/routes/oidc/contracts.ts:18](../../../app/server/src/routes/oidc/contracts.ts#L18) · [app/server/src/lib/oidc-provider.ts:74](../../../app/server/src/lib/oidc-provider.ts#L74) · [app/server/src/lib/account-directory.ts:18](../../../app/server/src/lib/account-directory.ts#L18)
 
 测试入口：[tests/server/oidc.test.ts](../../../tests/server/oidc.test.ts)。生成器未执行这些测试。
 
@@ -2737,7 +2737,7 @@
 - 响应与错误：200 {client:{id,name,host},scopes,account:{login,name,picture},expires_at}；交互过期 404 interaction_expired；不是要同意的交互或换了账号 409 interaction_mismatch；没登录 401。
 - 数据与副作用：只读，不改交互。
 
-源码：[app/server/src/routes/oidc/index.ts:89](../../../app/server/src/routes/oidc/index.ts#L89) · [app/server/src/routes/oidc/contracts.ts:19](../../../app/server/src/routes/oidc/contracts.ts#L19) · [app/console/src/pages/Authorize.vue:56](../../../app/console/src/pages/Authorize.vue#L56) · [app/console/src/lib/authorize.ts:17](../../../app/console/src/lib/authorize.ts#L17) · [app/console/src/router.ts:18](../../../app/console/src/router.ts#L18) · [app/console/src/mock/index.ts:36](../../../app/console/src/mock/index.ts#L36)
+源码：[app/server/src/routes/oidc/index.ts:100](../../../app/server/src/routes/oidc/index.ts#L100) · [app/server/src/middleware/http-policy.ts:40](../../../app/server/src/middleware/http-policy.ts#L40) · [app/server/src/routes/oidc/contracts.ts:19](../../../app/server/src/routes/oidc/contracts.ts#L19) · [app/console/src/pages/Authorize.vue:56](../../../app/console/src/pages/Authorize.vue#L56) · [app/console/src/lib/authorize.ts:17](../../../app/console/src/lib/authorize.ts#L17) · [app/console/src/router.ts:18](../../../app/console/src/router.ts#L18) · [app/console/src/mock/index.ts:36](../../../app/console/src/mock/index.ts#L36)
 
 测试入口：[tests/server/oidc.test.ts](../../../tests/server/oidc.test.ts) · [tests/console/authorize.test.ts](../../../tests/console/authorize.test.ts)。生成器未执行这些测试。
 
@@ -2754,7 +2754,7 @@
 - 响应与错误：200 {redirect_to}，前端整页跳过去继续授权；过期 404 interaction_expired，换了账号 409 interaction_mismatch。
 - 数据与副作用：把缺的 scope 与声明加进授权并保存，记进 oauth_grants（之后同一应用登录不再问）；写 audit_logs oidc.consent，只含 client_id 与 scope。
 
-源码：[app/server/src/routes/oidc/index.ts:105](../../../app/server/src/routes/oidc/index.ts#L105) · [app/server/src/routes/oidc/contracts.ts:32](../../../app/server/src/routes/oidc/contracts.ts#L32) · [app/console/src/pages/Authorize.vue:70](../../../app/console/src/pages/Authorize.vue#L70)
+源码：[app/server/src/routes/oidc/index.ts:116](../../../app/server/src/routes/oidc/index.ts#L116) · [app/server/src/routes/oidc/contracts.ts:32](../../../app/server/src/routes/oidc/contracts.ts#L32) · [app/console/src/pages/Authorize.vue:70](../../../app/console/src/pages/Authorize.vue#L70)
 
 测试入口：[tests/server/oidc.test.ts](../../../tests/server/oidc.test.ts) · [tests/console/authorize.test.ts](../../../tests/console/authorize.test.ts)。生成器未执行这些测试。
 
@@ -2771,7 +2771,7 @@
 - 响应与错误：200 {redirect_to}，下游收到 error=access_denied；过期 404，换了账号 409。
 - 数据与副作用：写 audit_logs oidc.deny；不写 oauth_grants。
 
-源码：[app/server/src/routes/oidc/index.ts:121](../../../app/server/src/routes/oidc/index.ts#L121) · [app/server/src/routes/oidc/contracts.ts:33](../../../app/server/src/routes/oidc/contracts.ts#L33)
+源码：[app/server/src/routes/oidc/index.ts:132](../../../app/server/src/routes/oidc/index.ts#L132) · [app/server/src/routes/oidc/contracts.ts:33](../../../app/server/src/routes/oidc/contracts.ts#L33)
 
 测试入口：[tests/server/oidc.test.ts](../../../tests/server/oidc.test.ts)。生成器未执行这些测试。
 
@@ -2788,7 +2788,7 @@
 - 响应与错误：200 {mode,gitlab_url,group,accounts:[{account_id,login,username,gitlab_user_id,state,access_level,last_error,last_error_at,synced_at,pending}]}；pending 是现在还要做的事（同步关着时为空）；没权限 403 missing_capability。
 - 数据与副作用：只读。
 
-源码：[app/server/src/routes/console/gitlab.ts:13](../../../app/server/src/routes/console/gitlab.ts#L13) · [app/server/src/routes/console/contracts.ts:137](../../../app/server/src/routes/console/contracts.ts#L137) · [app/server/src/lib/gitlab-sync.ts:51](../../../app/server/src/lib/gitlab-sync.ts#L51) · [app/server/src/routes/console/index.ts:33](../../../app/server/src/routes/console/index.ts#L33)
+源码：[app/server/src/routes/console/gitlab.ts:13](../../../app/server/src/routes/console/gitlab.ts#L13) · [app/server/src/routes/console/contracts.ts:137](../../../app/server/src/routes/console/contracts.ts#L137) · [app/server/src/lib/gitlab-sync.ts:53](../../../app/server/src/lib/gitlab-sync.ts#L53) · [app/server/src/routes/console/index.ts:33](../../../app/server/src/routes/console/index.ts#L33)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
 
@@ -2803,9 +2803,9 @@
 - 不入队：
 - 权限与资源：有效全站 sid、同源 Origin、roles.manage；每个 IP 每分钟 30 次；用服务端的 GITLAB_API_TOKEN 调 GitLab 管理接口，不用操作人的凭据。
 - 响应与错误：200 {mode,account_id,login,actions,applied,error}；GITLAB_SYNC=off 时 409 gitlab_sync_off；账号不存在 404 account_not_found；GitLab 出错不回 5xx，写进 error 与 last_error。
-- 数据与副作用：按 OIDC 身份（provider=openid_connect，extern_uid=GitLab sector 的 sub）找或建 GitLab 用户、调组权限、封禁或解封，从不删除；dry-run 只返回 actions 不写；写 audit_logs gitlab.sync，操作人是会话账号。
+- 数据与副作用：按 OIDC 身份（provider=openid_connect，extern_uid=gitlab 客户端 sector 的 sub）找或建 GitLab 用户、调组权限、封禁或解封，从不删除；dry-run 只返回 actions 不写；写 audit_logs gitlab.sync，操作人是会话账号。
 
-源码：[app/server/src/routes/console/gitlab.ts:17](../../../app/server/src/routes/console/gitlab.ts#L17) · [app/server/src/routes/console/contracts.ts:144](../../../app/server/src/routes/console/contracts.ts#L144) · [app/server/src/lib/gitlab-sync.ts:51](../../../app/server/src/lib/gitlab-sync.ts#L51) · [app/server/src/lib/db.ts:508](../../../app/server/src/lib/db.ts#L508) · [app/server/src/lib/identity-store.ts:634](../../../app/server/src/lib/identity-store.ts#L634)
+源码：[app/server/src/routes/console/gitlab.ts:17](../../../app/server/src/routes/console/gitlab.ts#L17) · [app/server/src/routes/console/contracts.ts:144](../../../app/server/src/routes/console/contracts.ts#L144) · [app/server/src/lib/gitlab-sync.ts:53](../../../app/server/src/lib/gitlab-sync.ts#L53) · [app/server/src/lib/db.ts:508](../../../app/server/src/lib/db.ts#L508) · [app/server/src/lib/identity-store.ts:634](../../../app/server/src/lib/identity-store.ts#L634)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
 

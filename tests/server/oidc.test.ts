@@ -1,6 +1,7 @@
 import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
+import { OIDC_PROTOCOL_LIMIT } from '../../app/server/src/routes/oidc/index';
 import { signIn, testApp } from './helpers';
 
 /**
@@ -251,6 +252,7 @@ describe('OIDC provider for downstream apps (#270)', () => {
     const { consentUid } = await follow(app, jar, authorizeUrl({ code_challenge: challenge, code_challenge_method: 'S256' }));
     const details = await visit(app, jar, `/oidc/interaction/${consentUid}/details`);
     expect(details.statusCode).toBe(200);
+    expect(details.headers['cache-control']).toBe('no-store');
     expect(details.json()).toMatchObject({ client: { id: 'gitlab', name: 'GitLab', host: 'git.example.test' }, scopes: ['openid', 'profile', 'email'], account: { login: 'alice' } });
     const aborted = await visit(app, jar, `/oidc/interaction/${consentUid}/abort`, { method: 'POST' });
     const { location } = await follow(app, jar, aborted.json().redirect_to);
@@ -344,15 +346,20 @@ describe('OIDC provider for downstream apps (#270)', () => {
     expect((await plain.app.inject({ url: '/oidc/.well-known/openid-configuration' })).statusCode).toBe(404);
   });
 
-  it('rate-limits the protocol endpoints and the interaction entry', async () => {
+  it('rate-limits the protocol endpoints, server calls and browser redirects apart, and the interaction entry', async () => {
     const { app } = await setup();
     const codes: number[] = [];
-    for (let i = 0; i < 121; i++) codes.push((await app.inject({ url: '/oidc/jwks' })).statusCode);
-    expect(codes.slice(0, 120).every(code => code === 200)).toBe(true);
-    expect(codes[120]).toBe(429);
+    for (let i = 0; i <= OIDC_PROTOCOL_LIMIT.server; i++) codes.push((await app.inject({ url: '/oidc/jwks' })).statusCode);
+    expect(codes.slice(0, OIDC_PROTOCOL_LIMIT.server).every(code => code === 200)).toBe(true);
+    expect(codes[OIDC_PROTOCOL_LIMIT.server]).toBe(429);
     const limited = await app.inject({ url: '/oidc/token', method: 'POST' });
     expect(limited.statusCode).toBe(429);
     expect(limited.json().error).toBe('rate_limited');
+    // 浏览器跳转另算：GitLab 的服务器用完了它的额度，成员照样能从浏览器开始登录
+    const browser: number[] = [];
+    for (let i = 0; i <= OIDC_PROTOCOL_LIMIT.browser; i++) browser.push((await app.inject({ url: authorizeUrl({ code_challenge: pkce().challenge, code_challenge_method: 'S256' }) })).statusCode);
+    expect(browser.slice(0, OIDC_PROTOCOL_LIMIT.browser).every(code => code === 303)).toBe(true);
+    expect(browser[OIDC_PROTOCOL_LIMIT.browser]).toBe(429);
     for (let i = 0; i < 30; i++) await app.inject({ url: '/oidc/interaction/AAAAAAAAAAAAAAAAAAAAA' });
     expect((await app.inject({ url: '/oidc/interaction/AAAAAAAAAAAAAAAAAAAAA' })).statusCode).toBe(429);
   });

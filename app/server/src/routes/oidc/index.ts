@@ -8,6 +8,13 @@ import { oidcContracts, oidcProtocolResponse } from "./contracts.js";
 
 /** 授权页（控制台前端包 app/console/src/pages/Authorize.vue）；与 app.ts 的 ADMIN_SPA_PATHS、web 镜像里 nginx 的入口一致。 */
 export const AUTHORIZE_PAGE = "/authorize";
+/** 下游的服务器调的协议端点：发现文档、公钥、换令牌、撤销、userinfo。浏览器只来 /oidc/auth。 */
+const SERVER_ENDPOINT = /^\/oidc\/(?:\.well-known\/openid-configuration|jwks|token(?:\/revocation)?|me)(?:[/?]|$)/;
+/**
+ * 协议端点每个 IP 每分钟的次数，服务器调用和浏览器跳转分开算：GitLab 每次登录要从它自己的服务器调好几次（发现文档、公钥、换令牌、
+ * userinfo），一个班同时登录都算在它一个 IP 上，不能和校园网里共用出口的浏览器抢同一份额度。
+ */
+export const OIDC_PROTOCOL_LIMIT = { server: 600, browser: 120 } as const;
 
 /**
  * 对外授权（#270，ADR-0005 决策 8）：`/oidc/*` 的协议端点原样交给 oidc-provider（发现文档、JWKS、授权、换令牌、userinfo、撤销），
@@ -17,6 +24,10 @@ export const AUTHORIZE_PAGE = "/authorize";
 export default async function oidcRoutes(app: FastifyInstance) {
   const { oidc, directory, oidcStore, storage, config } = app.services;
   const provider = oidc?.provider as Provider;
+  // 协议端点的回复不经 Fastify 的错误处理器，oidc-provider 内部出错只发这个事件；只记路径和错误类型，不记查询串
+  provider?.on("server_error", (ctx: { path?: string }, error: Error) => {
+    app.log.error({ path: ctx.path, error: error?.name ?? "error" }, "oidc server error");
+  });
   const origin = new URL(config.publicOrigin);
   const enabled = async (_req: FastifyRequest, reply: FastifyReply) => {
     if (!oidc) return reply.callNotFound();
@@ -137,8 +148,13 @@ export default async function oidcRoutes(app: FastifyInstance) {
       method: ["GET", "POST"],
       url: "/oidc/*",
       schema: { response: oidcProtocolResponse },
-      // GitLab 换令牌、读 userinfo 都从它自己的服务器发出，同一个 IP；按一个班的人数留足余量
-      config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
+      config: {
+        rateLimit: {
+          timeWindow: "1 minute",
+          keyGenerator: (req: FastifyRequest) => `${SERVER_ENDPOINT.test(req.url) ? "server" : "browser"}:${req.ip}`,
+          max: (_req: FastifyRequest, key: string) => key.startsWith("server:") ? OIDC_PROTOCOL_LIMIT.server : OIDC_PROTOCOL_LIMIT.browser,
+        },
+      },
       handler(req, reply) {
         loadSession(req);
         const raw = prepared(req) as IncomingMessage & { originalUrl?: string };

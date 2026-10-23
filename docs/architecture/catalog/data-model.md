@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`38edfb27cb7ace2f58a197ae427b37e81217664b7461c683f282cb8aa9b4717f`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`63e0a35d8bdfa3ca7809e2d5364d75844f5ec84996e0a977f05e3e72f02091d9`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -1351,7 +1351,7 @@ CREATE TABLE forum_users (
 
 业务域：`gitlab`；结构来源：[app/server/src/lib/db.ts:508](../../../app/server/src/lib/db.ts#L508)。
 
-极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，从不删除；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。
+极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，blocked 而 gitlab_user_id 为空表示离开时去 GitLab 找过、没有这个人；从不删除；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。
 
 | 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
 |---|---|---|---|---|---|

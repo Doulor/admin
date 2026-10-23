@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`38edfb27cb7ace2f58a197ae427b37e81217664b7461c683f282cb8aa9b4717f`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`63e0a35d8bdfa3ca7809e2d5364d75844f5ec84996e0a977f05e3e72f02091d9`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -97,9 +97,9 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `GET /auth/google/callback` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/google.ts:31](../../../app/server/src/routes/identity/google.ts#L31) |
 | `GET /auth/me` | `identity` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:107](../../../app/server/src/routes/admin/auth.ts#L107) |
 | `GET /auth/providers` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/providers.ts:30](../../../app/server/src/routes/identity/providers.ts#L30) |
-| `GET /oidc/*` | `identity` | 显式 | 未声明 | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:136](../../../app/server/src/routes/oidc/index.ts#L136) |
-| `GET /oidc/interaction/:uid` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:51](../../../app/server/src/routes/oidc/index.ts#L51) |
-| `GET /oidc/interaction/:uid/details` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:89](../../../app/server/src/routes/oidc/index.ts#L89) |
+| `GET /oidc/*` | `identity` | 显式 | 未声明 | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:147](../../../app/server/src/routes/oidc/index.ts#L147) |
+| `GET /oidc/interaction/:uid` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:62](../../../app/server/src/routes/oidc/index.ts#L62) |
+| `GET /oidc/interaction/:uid/details` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:100](../../../app/server/src/routes/oidc/index.ts#L100) |
 | `HEAD /api/admin/:org/activity` | `github` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/admin/activity.ts:8](../../../app/server/src/routes/admin/activity.ts#L8) |
 | `HEAD /api/admin/:org/feedback` | `feedback` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/admin/feedback.ts:13](../../../app/server/src/routes/admin/feedback.ts#L13) |
 | `HEAD /api/admin/:org/invitations` | `invitations` | 自动 HEAD | `params`、`querystring` | 未声明 | `requireAuth` | [app/server/src/routes/admin/invitations.ts:9](../../../app/server/src/routes/admin/invitations.ts#L9) |
@@ -163,9 +163,9 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `HEAD /auth/google/callback` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/google.ts:31](../../../app/server/src/routes/identity/google.ts#L31) |
 | `HEAD /auth/me` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:107](../../../app/server/src/routes/admin/auth.ts#L107) |
 | `HEAD /auth/providers` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/providers.ts:30](../../../app/server/src/routes/identity/providers.ts#L30) |
-| `HEAD /oidc/*` | `identity` | 自动 HEAD | 未声明 | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:136](../../../app/server/src/routes/oidc/index.ts#L136) |
-| `HEAD /oidc/interaction/:uid` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:51](../../../app/server/src/routes/oidc/index.ts#L51) |
-| `HEAD /oidc/interaction/:uid/details` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:89](../../../app/server/src/routes/oidc/index.ts#L89) |
+| `HEAD /oidc/*` | `identity` | 自动 HEAD | 未声明 | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:147](../../../app/server/src/routes/oidc/index.ts#L147) |
+| `HEAD /oidc/interaction/:uid` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:62](../../../app/server/src/routes/oidc/index.ts#L62) |
+| `HEAD /oidc/interaction/:uid/details` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:100](../../../app/server/src/routes/oidc/index.ts#L100) |
 | `PATCH /api/admin/:org/feedback/:id` | `feedback` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth` | [app/server/src/routes/admin/feedback.ts:19](../../../app/server/src/routes/admin/feedback.ts#L19) |
 | `PATCH /api/admin/:org/invite-links/:token` | `invitations` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth` | [app/server/src/routes/admin/invite-links.ts:61](../../../app/server/src/routes/admin/invite-links.ts#L61) |
 | `PATCH /api/admin/:org/members/:login/role` | `github` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth` | [app/server/src/routes/admin/members.ts:39](../../../app/server/src/routes/admin/members.ts#L39) |
@@ -222,9 +222,9 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `POST /auth/email/start` | `identity` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/email.ts:66](../../../app/server/src/routes/identity/email.ts#L66) |
 | `POST /auth/email/verify` | `identity` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/email.ts:81](../../../app/server/src/routes/identity/email.ts#L81) |
 | `POST /auth/signout` | `identity` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:87](../../../app/server/src/routes/admin/auth.ts#L87) |
-| `POST /oidc/*` | `identity` | 显式 | 未声明 | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:136](../../../app/server/src/routes/oidc/index.ts#L136) |
-| `POST /oidc/interaction/:uid/abort` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:121](../../../app/server/src/routes/oidc/index.ts#L121) |
-| `POST /oidc/interaction/:uid/confirm` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:105](../../../app/server/src/routes/oidc/index.ts#L105) |
+| `POST /oidc/*` | `identity` | 显式 | 未声明 | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:147](../../../app/server/src/routes/oidc/index.ts#L147) |
+| `POST /oidc/interaction/:uid/abort` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:132](../../../app/server/src/routes/oidc/index.ts#L132) |
+| `POST /oidc/interaction/:uid/confirm` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/oidc/index.ts:116](../../../app/server/src/routes/oidc/index.ts#L116) |
 | `PUT /api/admin/:org/repos/:repo/collaborators/:login` | `github` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth` | [app/server/src/routes/admin/repos.ts:351](../../../app/server/src/routes/admin/repos.ts#L351) |
 | `PUT /api/admin/:org/repos/:repo/pulls/:n/merge` | `github` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireAuth` | [app/server/src/routes/admin/repos.ts:258](../../../app/server/src/routes/admin/repos.ts#L258) |
 | `PUT /api/console/competitions/:competition_id/signup-settings` | `competitions` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/competition-roster.ts:31](../../../app/server/src/routes/console/competition-roster.ts#L31) |

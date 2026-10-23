@@ -74,7 +74,7 @@
     },
     "permissions": {
       "status": "changed",
-      "reason": "协议端点：授权端点只认登记过的客户端与完全一致的回调地址，PKCE 必须 S256，换令牌要客户端密钥；userinfo 每次按账号当前状态判断，停用或不再是成员 401。交互入口没有 sid 去 /signin，不是成员的带 access_denied 回下游；同意页三个接口要 sid，且只认发起这次登录的账号（别人 409 interaction_mismatch），confirm/abort 经核心写请求的 Origin 门禁。限流：/oidc/* 每 IP 每分钟 120，交互入口与 details 30，confirm/abort 20。控制台的 GitLab 账号列表要 roles.manage 或 roles.department.manage（同成员页），立即同步只给 roles.manage。客户端只能在服务器容器里用 CLI 登记，没有 HTTP 接口。",
+      "reason": "协议端点：授权端点只认登记过的客户端与完全一致的回调地址，PKCE 必须 S256，换令牌要客户端密钥；userinfo 每次按账号当前状态判断，停用或不再是成员 401。交互入口没有 sid 去 /signin，不是成员的带 access_denied 回下游；同意页三个接口要 sid，且只认发起这次登录的账号（别人 409 interaction_mismatch），confirm/abort 经核心写请求的 Origin 门禁。限流：/oidc/* 按 IP 每分钟计数，下游服务器调用（发现文档、JWKS、换令牌、撤销、userinfo）合计 600，授权端点另计 120，交互入口与 details 30，confirm/abort 20。控制台的 GitLab 账号列表要 roles.manage 或 roles.department.manage（同成员页），立即同步只给 roles.manage。客户端只能在服务器容器里用 CLI 登记，没有 HTTP 接口。",
       "evidence": [
         "app/server/src/routes/oidc/index.ts",
         "app/server/src/lib/oidc-provider.ts",
@@ -121,7 +121,7 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "tests/server/oidc.test.ts 用 Fastify inject 走完整浏览器往返（带 path 的 cookie 罐）：发现文档与 JWKS、没登录去 /signin、首次同意与记住同意（换浏览器也不问）、pairwise sub、授权码重放撤销授权与令牌、未知客户端与错回调不跳转、PKCE 缺失与错误、拒绝、同意接口的 401/409/403/404、换账号、sid 结束后重新登录、不是成员与 userinfo 401、停用客户端、过期交互、没配密钥 404、限流、回调地址校验。tests/server/gitlab-sync.test.ts 用假的 GitLab 管理接口核对建号、邮箱回退、用户名加后缀、封禁解封、按身份沿用、论坛资料优先、失败与重试、dry-run 与 off、控制台两个接口、配置校验。tests/console/authorize.test.ts 核对同意页纯逻辑与样板。web、nginx、环境契约的既有回归随改动更新。未验证：真实 GitLab 的 omniauth 往返与同步（要预发布部署、生成密钥、登记客户端之后才能做），手机与 Safari 上的同意页。",
+      "reason": "tests/server/oidc.test.ts 用 Fastify inject 走完整浏览器往返（带 path 的 cookie 罐）：发现文档与 JWKS、没登录去 /signin、首次同意与记住同意（换浏览器也不问）、pairwise sub、授权码重放撤销授权与令牌、未知客户端与错回调不跳转、PKCE 缺失与错误、拒绝、同意接口的 401/409/403/404、换账号、sid 结束后重新登录、不是成员与 userinfo 401、停用客户端、过期交互、没配密钥 404、限流（服务器调用与浏览器跳转分开算）、同意页详情不缓存、回调地址校验。tests/server/gitlab-sync.test.ts 用假的 GitLab 管理接口核对建号、邮箱回退、用户名加后缀、封禁解封、按身份沿用、没同步过就离开的按身份找到并封禁、立即同步与定时对账不同时做同一个账号、sector 取 gitlab 客户端、没登记客户端不建号、不合法的网站不传、停下时结束这一轮、论坛资料优先、失败与重试、dry-run 与 off、控制台两个接口、配置校验。tests/console/authorize.test.ts 核对同意页纯逻辑与样板。web、nginx、环境契约的既有回归随改动更新。未验证：真实 GitLab 的 omniauth 往返与同步（要预发布部署、生成密钥、登记客户端之后才能做），手机与 Safari 上的同意页。",
       "evidence": [
         "tests/server/oidc.test.ts",
         "tests/server/gitlab-sync.test.ts",
@@ -222,6 +222,7 @@
         "app/server/src/config.ts",
         "app/server/src/app.ts",
         "app/server/src/index.ts",
+        "app/server/src/middleware/http-policy.ts",
         "app/server/package.json",
         "pnpm-lock.yaml"
       ],
@@ -236,7 +237,9 @@
         "invitations",
         "mail",
         "organization",
-        "recruitment"
+        "recruitment",
+        "github",
+        "public_content"
       ],
       "nodes": [
         "application:server",
@@ -248,9 +251,12 @@
         "flow:feedback.public.list",
         "flow:invitation.public.inspect",
         "flow:organization.public",
-        "flow:competition.public.list"
+        "flow:competition.public.list",
+        "flow:identity.oidc.details",
+        "flow:documentation.list",
+        "flow:github.organizations.list"
       ],
-      "reason": "建表、服务装配（oidc 为 null 时关闭）、OIDC_JWKS 与 GITLAB_* 的配置校验、注册 /oidc 路由与 /authorize 入口、定时同步只在 index.ts 打开；新增依赖 oidc-provider。db.ts 是各业务域共用的建库文件，本次只新增 5 张表，不改已有表；关联的其它业务域流程只为回归核对。"
+      "reason": "建表、服务装配（oidc 为 null 时关闭）、OIDC_JWKS 与 GITLAB_* 的配置校验、注册 /oidc 路由与 /authorize 入口、定时同步只在 index.ts 打开；新增依赖 oidc-provider；http-policy.ts 让 /oidc/ 下经 Fastify 回复的（交互入口与同意页接口）带 Cache-Control: no-store。db.ts 是各业务域共用的建库文件，本次只新增 5 张表，不改已有表；http-policy.ts 是所有路由共用的响应头与错误处理，本次只多一个不缓存的前缀，/auth 与 /api 不变；关联的其它业务域流程只为回归核对。"
     },
     {
       "paths": [
