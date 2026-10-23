@@ -50,3 +50,10 @@
 - 做了什么：提交 e414b92c（18 个文件）：lib/gitlab-sync.ts、routes/console/gitlab.ts 与 contracts.ts、routes/oidc/index.ts，测试一份，文档 oidc.md、API、endpoint-contracts、data-model、ENVIRONMENTS、项目目录生成物与 docs/changes/270.json。
 - 结果：见上一条审查记录
 - 下一步：开 MR
+
+## 13:10:17 +08:00 · PR · #270 · 开 MR !2：task/270/gitlab_sso → stage
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：在自建 GitLab 开 MR !2（https://git.yangtzeu.work/geek/admin/-/merge_requests/2），正文按 PULL-REQUESTS 十段写：Closes #270、宏观对齐引用 docs/changes/270.json、解决链路、验证命令与真实接口请求、6 张截图（官网桌面与手机改前改后、同意页两种宽度）、人工验收步骤、两轮审查结论、风险与回滚；标签 server、portal、admin、func:api、func:auth、func:data、func:external、infra:deploy、ui:content、ui:interaction。合并按约定由 geek-main-56 来做。
+- 结果：本地 node scripts/pr-contract.mjs check 通过（10 个段落齐全，有验收证据）；MR 建好时的 head 是 655cac48，merge_status checking。
+- 下一步：通知 geek-main-56 复核 e414b92c 并合并、发 rc
