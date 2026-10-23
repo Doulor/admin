@@ -599,7 +599,8 @@ CREATE TABLE IF NOT EXISTS email_challenges (
 CREATE INDEX IF NOT EXISTS idx_email_challenges_limit ON email_challenges(limit_key, created_at);
 CREATE INDEX IF NOT EXISTS idx_email_challenges_ip ON email_challenges(ip_key, created_at);
 `);
-// org_role：最近一次查到的 GitHub 组织角色（admin、member 或空），邮箱和 Google 会话按它给提督、舰员称号；
+// org_role：站内角色（admin 是提督、member 是舰员、空是还没有角色），不论用哪种方式登录都按它给称号（#262 第四期，
+// 权限只认极客班账号）；回填建的老账号第一次用 GitHub 会话时按 GitHub 组织角色补记一次，之后只由控制台改；
 // handle：没有绑定 GitHub 的账号的登录名（yz_ 开头，GitHub 登录名不含下划线，撞不上）；
 // invite_code_id：用哪个邀请码注册的；password_hash：bcrypt，没设过密码为空。
 addColumn("users", "org_role", "TEXT");
@@ -615,6 +616,8 @@ CREATE INDEX IF NOT EXISTS idx_sessions_openid ON sessions(openid);
 CREATE INDEX IF NOT EXISTS idx_role_assignments_account ON role_assignments(account_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_forum_users_account ON forum_users(account_id) WHERE account_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_audit_actor_account ON audit_logs(actor_account_id) WHERE actor_account_id IS NOT NULL;
+-- 邀请码注册的成员：第四期起站内角色记成 member（舰员），之前注册的补上；可以重跑
+UPDATE users SET org_role = 'member' WHERE org_role IS NULL AND invite_code_id IS NOT NULL AND org_state = 'active';
 `);
 // 每次启动都回填一遍（全是带条件的更新，可以重跑）：给还在用的旧会话建号、映射会话、认领称号和论坛用户。
 const identityBackfill = backfillIdentity(db, Date.now());

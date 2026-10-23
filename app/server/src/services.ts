@@ -10,6 +10,7 @@ import { createInviteCodeStore } from "./lib/invite-codes.js";
 import { createGoogle } from "./lib/google.js";
 import { createDeviceStore } from "./lib/device-store.js";
 import { createGithub } from "./lib/github.js";
+import { createGithubConnection } from "./lib/github-connection.js";
 import { createCache } from "./lib/cache.js";
 import { createRoleStore } from "./lib/role-store.js";
 import { createAccess } from "./lib/access.js";
@@ -24,13 +25,18 @@ import type { FetchLike } from "./lib/mail/providers.js";
 import { createPublicSubmission } from "./middleware/pow.js";
 import { createTurnstile } from "./middleware/turnstile.js";
 
-/** `mailFetch`、`clock`：测试换掉发信商的 HTTP 请求，以及发信队列与会话清理用的时钟，都不连真实时间。 */
-export type ServiceOverrides = { httpRequest?: typeof request; octokitFactory?: (token: string) => Octokit; mailFetch?: FetchLike; clock?: () => number };
+/**
+ * `mailFetch`、`clock`：测试换掉发信商的 HTTP 请求，以及发信队列与会话清理用的时钟，都不连真实时间。
+ * `githubAppFetch`：测试换掉 GitHub App 换安装令牌的请求（lib/github-connection.ts）。
+ */
+export type ServiceOverrides = { httpRequest?: typeof request; octokitFactory?: (token: string) => Octokit; mailFetch?: FetchLike; githubAppFetch?: (input: string, init?: RequestInit) => Promise<Response>; clock?: () => number };
 /** Composition root. Only this module owns dependencies and database lifetimes. */
 export function createServices(config: AppConfig, overrides: ServiceOverrides = {}) {
   const crypto = createCrypto(config.encryptionKey);
   const storage = createDatabase(config.dbPath);
   const github = createGithub(overrides.octokitFactory);
+  // 服务器接入的 GitHub（#262 第四期）：控制台的 GitHub 页面经它读写 CONSOLE_ORG，谁能做什么按站内称号
+  const githubConnection = createGithubConnection({ app: config.githubApp, org: config.consoleOrg, octokitWith: github.octokitWith, fetch: overrides.githubAppFetch, clock: overrides.clock });
   const cache = createCache();
   const roles = createRoleStore(storage.db);
   const auth = createAuth(storage.db, crypto, config, overrides.httpRequest, overrides.clock);
@@ -85,10 +91,10 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     identity,
     emailLogin, invites, google,
     device,
-    github, cache, roles,
+    github, githubConnection, cache, roles,
     access: createAccess({
       consoleOrg: config.consoleOrg, getOrgRole: github.getOrgRole, cached: cache.cached, roles,
-      membership: { of: identity.membershipOf, record: identity.recordOrgRole },
+      membership: { of: identity.membershipOf, unrecorded: identity.roleUnrecorded, record: identity.recordOrgRole },
     }),
     feedback,
     forum,

@@ -1,17 +1,16 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { requireOrgRole } from "../../middleware/require-org-role.js";
+import { requireGithub } from "../../middleware/require-github.js";
 
 export default async function overviewRoutes(app: FastifyInstance) {
-  const { octokitWith } = app.services.github;
   const { db } = app.services.storage;
   app.addHook("preHandler", requireAuth);
 
   app.get<{ Params: { org: string } }>("/api/admin/:org/overview", {
-    preHandler: requireOrgRole("member"),
+    preHandler: requireGithub("github.org.read"),
   }, async (req) => {
     const { org } = req.params;
-    const octokit = octokitWith(req.session!.accessToken);
+    const octokit = req.github!;
     const [orgRes, members, invites, repos] = await Promise.all([
       octokit.request("GET /orgs/{org}", { org }),
       octokit.paginate("GET /orgs/{org}/members", { org, per_page: 100 }).catch(() => []),
@@ -28,7 +27,8 @@ export default async function overviewRoutes(app: FastifyInstance) {
     ).get(org, Date.now()) as { n: number };
 
     return {
-      role: req.orgRole,
+      // 这次经什么接的 GitHub：服务器的 GitHub App，或你自己的 GitHub 账号（#262 第四期）
+      via: req.github!.via,
       org: {
         login: orgRes.data.login,
         name: orgRes.data.name,

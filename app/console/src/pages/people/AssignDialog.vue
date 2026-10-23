@@ -18,7 +18,8 @@ import type { AssignableRole, Department } from "../../lib/types";
 /**
  * 添加称号。能管理全部称号的人能指派 captain 以外的全部称号；captain 一项只有 admin 和现任 captain 能选，
  * 已有 captain 时等于移交。只管本部门的人只能把人设为本部门的 crew。称号名字取 catalogue。
- * 服务端会用你自己的 GitHub 授权核对用户名是否存在。`initialLogin` 给了就预先填好用户名（从名单某一行打开时）。
+ * 从名单里有账号的一行打开（`initialAccountId`）时按极客班账号指派，不用 GitHub；其余填 GitHub 用户名，
+ * 服务端先找登录过本站的人，找不到再经服务器接入的 GitHub 核对（#262 第四期）。`initialLogin` 给了就预先填好。
  */
 const props = withDefaults(defineProps<{
   open: boolean;
@@ -27,7 +28,8 @@ const props = withDefaults(defineProps<{
   canAssignCaptain: boolean;
   captain: string | null;
   initialLogin?: string | null;
-}>(), { initialLogin: null });
+  initialAccountId?: string | null;
+}>(), { initialLogin: null, initialAccountId: null });
 const emit = defineEmits<{ "update:open": [value: boolean]; done: [] }>();
 const { me, catalogue } = useSession();
 const label = (id: Parameters<typeof titleLabel>[0]) => titleLabel(id, catalogue.value);
@@ -56,6 +58,7 @@ const roleOptions = computed(() => limited.value
   ]);
 
 const login = ref("");
+const accountId = ref<string | null>(null);
 const role = ref<RoleChoice>("crew");
 const department = ref("");
 const note = ref("");
@@ -64,6 +67,7 @@ const touched = ref(false);
 watch(() => props.open, open => {
   if (!open) return;
   login.value = props.initialLogin ?? "";
+  accountId.value = props.initialAccountId;
   note.value = "";
   touched.value = false;
   role.value = limited.value ? "crew" : "head";
@@ -72,7 +76,7 @@ watch(() => props.open, open => {
 });
 
 const needsDepartment = computed(() => role.value === "head" || role.value === "crew");
-const loginValid = computed(() => GITHUB_LOGIN.test(login.value.trim()));
+const loginValid = computed(() => accountId.value !== null || GITHUB_LOGIN.test(login.value.trim()));
 const departmentOptions = computed(() => allowedDepartments.value.map(d => ({ value: d.id, label: d.name })));
 const canSubmit = computed(() => loginValid.value && (!needsDepartment.value || Boolean(department.value)));
 
@@ -81,7 +85,7 @@ const create = useAction(async () => {
   await api("/api/console/assignments", {
     method: "POST",
     ...jsonBody({
-      github_login: login.value.trim(),
+      ...(accountId.value ? { account_id: accountId.value } : { github_login: login.value.trim() }),
       role: apiRole,
       ...(needsDepartment.value ? { department_id: department.value } : {}),
       ...(note.value.trim() ? { note: note.value.trim() } : {}),
@@ -119,7 +123,7 @@ async function submit() {
 <template>
   <TxModal :model-value="open" title="添加称号" width="min(92vw, 520px)" @update:model-value="value => emit('update:open', value)">
     <TxForm :model="{ login, role, department, note }" label-position="top" class="assign-form" @submit="submit">
-      <TxFormItem label="GitHub 用户名" required>
+      <TxFormItem :label="accountId ? '成员' : 'GitHub 用户名'" required>
         <template #default="field">
           <TxInput
             v-bind="field"
@@ -128,6 +132,7 @@ async function submit() {
             placeholder="例如 octocat"
             autocomplete="off"
             spellcheck="false"
+            :disabled="accountId !== null"
             :aria-invalid="touched && !loginValid"
           />
           <span v-if="touched && !loginValid" class="field-error">只能包含字母、数字和单个连字符，不超过 39 个字符。</span>

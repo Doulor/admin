@@ -14,6 +14,19 @@ const GITHUB_LOGIN_PATTERN = "^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}
 const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$";
 
 const login = { type: "string", pattern: GITHUB_LOGIN_PATTERN };
+/** 极客班账号 id：26 位 Crockford Base32（lib/identity-store.ts 的 newAccountId）。 */
+const accountId = { type: "string", pattern: "^[0-9A-HJKMNP-TV-Z]{26}$" };
+const nullableInteger = { anyOf: [integer(), { type: "null" }] };
+const nullableString = (max: number) => ({ anyOf: [text(max), { type: "null" }] });
+const assignmentView = object({
+  id: integer(), github_login: text(64, 1), github_user_id: nullableInteger, account_id: { anyOf: [accountId, { type: "null" }] },
+  role: choices(...ASSIGNABLE_ROLES), department_id: text(64), note: nullableString(200), granted_by: text(100), created_at: integer(0),
+}, ["id", "github_login", "github_user_id", "account_id", "role", "department_id", "note", "granted_by", "created_at"]);
+// 失败体保留共同错误处理器的扩展字段（capability、any_of）
+const consoleFailures = {
+  "4xx": object({ error: { type: "string" }, message: { type: "string" }, request_id: { type: "string" }, capability: { type: "string" }, any_of: { type: "array", items: { type: "string" } } }, ["error"], true),
+  "5xx": object({ error: { type: "string" }, message: { type: "string" }, request_id: { type: "string" } }, ["error"], true),
+};
 const departmentId = { type: "string", pattern: DEPARTMENT_ID_PATTERN };
 /** 权限包：只接受清单内的能力 id；仅舰长能力在路由里单独拒绝（captain_only_capability），重复项在存储时去重。 */
 const bundle = { type: "array", items: choices(...CAPABILITY_IDS), maxItems: CAPABILITY_IDS.length * 2 };
@@ -91,9 +104,21 @@ export const consoleContracts: RouteContracts = {
   "GET /api/console/assignments": {
     querystring: object({ department_id: departmentId, role: choices(...ASSIGNABLE_ROLES) }),
   },
+  // 指派给极客班账号（account_id）或 GitHub 用户名（github_login），二选一（#262 第四期）
   "POST /api/console/assignments": {
     ...noQuery,
-    body: object({ github_login: login, role: choices(...ASSIGNABLE_ROLES), department_id: departmentId, note: text(200) }, ["github_login", "role"]),
+    body: {
+      ...object({ github_login: login, account_id: accountId, role: choices(...ASSIGNABLE_ROLES), department_id: departmentId, note: text(200) }, ["role"]),
+      oneOf: [{ required: ["github_login"] }, { required: ["account_id"] }],
+    },
+    response: { 201: object({ assignment: assignmentView }, ["assignment"]), ...consoleFailures },
+  },
+  // 站内角色：管理员（提督）、成员（舰员）、不是成员（移出极客班）；只有提督能改
+  "PATCH /api/console/people/:account_id/site-role": {
+    ...noQuery,
+    params: object({ account_id: accountId }, ["account_id"]),
+    body: object({ site_role: choices("admin", "member", "none") }, ["site_role"]),
+    response: { 200: object({ account_id: accountId, site_role: choices("admin", "member", "none"), changed: { type: "boolean" } }, ["account_id", "site_role", "changed"]), ...consoleFailures },
   },
   "DELETE /api/console/assignments/:id": noQuery,
   "GET /api/console/people": noQuery,

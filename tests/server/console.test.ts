@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ServiceOverrides } from '../../app/server/src/services';
 import { createConfig } from '../../app/server/src/config';
-import { CAPABILITY_IDS, computeAccess, DEFAULT_DEPARTMENTS } from '../../app/server/src/lib/roles';
+import { CAPABILITY_IDS, computeAccess, DEFAULT_DEPARTMENTS, DEFAULT_TITLE_CONFIGS, LEGACY_TITLE_DESCRIPTIONS } from '../../app/server/src/lib/roles';
+import { createRoleStore } from '../../app/server/src/lib/role-store';
 import { signIn, testApp } from './helpers';
 
 const CONSOLE_ORG = 'Yangtze-University-Geek-Class';
@@ -41,11 +42,17 @@ async function setup(roles: Record<string, Role> = {}, calls: string[] = []) {
   const context = await testApp({ octokitFactory: github(roles, USERS, calls) });
   contexts.push(context);
   const { app } = context;
-  const as = (login: string) => ({ cookie: `sid=${signIn(app, login, USERS[login], null, `token-${login}`)}` });
+  // 每人登录一次、之后复用会话：不是成员的人第二次 GitHub 登录会被站内拒绝（#262 第四期）
+  const sids = new Map<string, string>();
+  const as = (login: string) => {
+    if (!sids.has(login)) sids.set(login, signIn(app, login, USERS[login], null, `token-${login}`));
+    return { cookie: `sid=${sids.get(login)}` };
+  };
   const assign = (login: string, role: 'captain' | 'head' | 'member' | 'alumni', department_id = '') =>
     app.services.roles.insertAssignment({ github_login: login, github_user_id: USERS[login], role, department_id, note: null, granted_by: 'fixture' });
   const audits = () => app.services.storage.db.prepare('SELECT org, actor, action, target, details FROM audit_logs ORDER BY id').all() as { org: string | null; actor: string; action: string; target: string; details: string | null }[];
-  return { app, as, assign, audits, db: app.services.storage.db };
+  const accountOf = (login: string) => app.services.identity.accountForGithub(USERS[login])!;
+  return { app, as, assign, audits, accountOf, db: app.services.storage.db };
 }
 function insertApplication(db: import('better-sqlite3').Database, patch: Record<string, unknown> = {}) {
   const row = {
@@ -67,17 +74,23 @@ describe('identity and capabilities', () => {
     }
   });
 
-  it('makes a GitHub org owner the 提督 with every capability', async () => {
+  it('records a GitHub org owner as site admin once, then serves 提督 with every capability from the site record', async () => {
     const calls: string[] = [];
     const { app, as } = await setup({ alice: 'admin' }, calls);
     const response = await app.inject({ url: '/api/console/me', headers: as('alice') });
     expect(response.statusCode).toBe(200);
     const me = response.json();
-    expect(me).toMatchObject({ login: 'alice', org: CONSOLE_ORG, github_role: 'admin', blocked: [] });
+    expect(me).toMatchObject({ login: 'alice', org: CONSOLE_ORG, provider: 'github', site_role: 'admin', github: 'session' });
     expect(me).not.toHaveProperty('bootstrap');
-    expect(me.title).toMatchObject({ id: 'admin', label: '提督', tag: 'ADMIRAL', tone: 'violet', source: 'github', assignment_id: null });
+    expect(me).not.toHaveProperty('blocked');
+    expect(me.title).toMatchObject({ id: 'admin', label: '提督', tag: 'ADMIRAL', tone: 'violet', source: 'site', assignment_id: null });
     expect(me.capabilities).toEqual(CAPABILITY_IDS);
     expect(calls.every(call => call.includes(CONSOLE_ORG))).toBe(true);
+    // 记下之后只认站内记录：再来不问 GitHub，缓存过期也一样
+    const asked = calls.length;
+    app.services.cache.invalidate('console:orgrole:');
+    expect((await app.inject({ url: '/api/console/me', headers: as('alice') })).json().site_role).toBe('admin');
+    expect(calls).toHaveLength(asked);
   });
 
   it('keeps org owners as 提督 above the explicitly appointed 舰长', async () => {
@@ -100,32 +113,38 @@ describe('identity and capabilities', () => {
   it('treats a non-member without titles as a guest with no capabilities', async () => {
     const { app, as } = await setup();
     const me = (await app.inject({ url: '/api/console/me', headers: as('dave') })).json();
-    expect(me).toMatchObject({ github_role: null, capabilities: [], blocked: [] });
+    expect(me).toMatchObject({ site_role: null, capabilities: [] });
     expect(me.title).toMatchObject({ id: 'guest', label: '乘客', source: 'none' });
     const denied = await app.inject({ url: '/api/console/catalogue', headers: as('dave') });
     expect(denied.statusCode).toBe(403);
     expect(denied.json()).toMatchObject({ error: 'missing_capability', capability: 'console.access' });
   });
 
-  it('lets a non-admin recruitment head review applications while GitHub invites stay blocked', async () => {
+  it('gives a recruitment head who is a plain GitHub member the GitHub invite capability from the title alone', async () => {
     const { app, as, assign } = await setup({ erin: 'member' });
     assign('erin', 'head', 'recruitment');
     const me = (await app.inject({ url: '/api/console/me', headers: as('erin') })).json();
     expect(me.title).toMatchObject({ id: 'head', label: '招新部 · 队长', tone: 'coral', icon: 'user-follow', source: 'assignment' });
     expect(me.title.department).toMatchObject({ id: 'recruitment', name: '招新部' });
     expect(me.capabilities).toEqual(expect.arrayContaining(['applications.read', 'applications.review', 'applications.export', 'feedback.read', 'roles.department.manage']));
-    expect(me.capabilities).not.toContain('github.invites.manage');
-    expect(me.blocked).toEqual([{ capability: 'github.invites.manage', reason: 'github_admin_required' }]);
+    // 没有 GitHub 上限（#262 第四期）：称号给了就有，在 GitHub 上由服务器接入的 GitHub 去做
+    expect(me.capabilities).toContain('github.invites.manage');
+    expect(me).not.toHaveProperty('blocked');
     expect(me.head_of).toEqual(['recruitment']);
   });
 
-  it('blocks all GitHub capabilities for a head who is not in the organization', async () => {
-    const { app, as, assign } = await setup();
+  it('gives a title holder who is not a site member no capabilities until the 提督 makes them a member', async () => {
+    const { app, as, assign, accountOf } = await setup({ alice: 'admin' });
     assign('frank', 'head', 'tech');
-    const me = (await app.inject({ url: '/api/console/me', headers: as('frank') })).json();
-    expect(me.capabilities).toEqual(['console.access', 'feedback.read', 'audit.read', 'roles.department.manage']);
-    expect(me.blocked).toEqual(['github.org.read', 'github.repos.manage', 'github.teams.manage']
-      .map(capability => ({ capability, reason: 'github_membership_required' })));
+    const before = (await app.inject({ url: '/api/console/me', headers: as('frank') })).json();
+    expect(before).toMatchObject({ site_role: null, capabilities: [] });
+    expect(before.title).toMatchObject({ id: 'head', label: '技术部 · 队长' });
+    const made = await app.inject({ method: 'PATCH', url: `/api/console/people/${accountOf('frank')}/site-role`, headers: as('alice'), payload: { site_role: 'member' } });
+    expect(made.statusCode).toBe(200);
+    expect(made.json()).toEqual({ account_id: accountOf('frank'), site_role: 'member', changed: true });
+    const after = (await app.inject({ url: '/api/console/me', headers: as('frank') })).json();
+    expect(after.site_role).toBe('member');
+    expect(after.capabilities).toEqual(['console.access', 'github.org.read', 'github.repos.manage', 'github.teams.manage', 'feedback.read', 'audit.read', 'roles.department.manage']);
   });
 
   it('answers 403 missing_capability with the Chinese label and never treats a GitHub failure as non-membership', async () => {
@@ -145,8 +164,8 @@ describe('identity and capabilities', () => {
 
   it('keeps explicit alumni from also deriving the member title', () => {
     const access = computeAccess({
-      login: 'gina', orgRole: 'member', captainExists: true, departments: DEFAULT_DEPARTMENTS.map(item => ({ ...item, archived: false })),
-      assignments: [{ id: 1, github_login: 'gina', github_user_id: 107, role: 'alumni', department_id: '', note: null, granted_by: 'x', created_at: 0 }],
+      login: 'gina', siteRole: 'member', departments: DEFAULT_DEPARTMENTS.map(item => ({ ...item, archived: false })),
+      assignments: [{ id: 1, github_login: 'gina', github_user_id: 107, account_id: null, role: 'alumni', department_id: '', note: null, granted_by: 'x', created_at: 0 }],
     });
     expect(access.titles.map(title => title.label)).toEqual(['领航员']);
     expect([...access.capabilities]).toEqual(['console.access', 'github.org.read', 'feedback.read']);
@@ -228,6 +247,17 @@ describe('assignments', () => {
     expect((await app.inject({ url: '/api/console/applications/not-a-uuid', headers })).statusCode).toBe(400);
   });
 
+  it('finds the person by GitHub id when GitHub is connected, not by a login an earlier account used to have', async () => {
+    const { app, as } = await setup({ alice: 'admin' });
+    const headers = as('alice');
+    // 本站记得一个以前叫 dave 的人（GitHub id 999，后来改了名）；dave 这个名字现在在 GitHub 上属于 id 104
+    signIn(app, 'dave', 999, null, 'token-old-dave');
+    const created = await app.inject({ method: 'POST', url: '/api/console/assignments', headers, payload: { github_login: 'dave', role: 'alumni' } });
+    expect(created.statusCode).toBe(201);
+    expect(created.json().assignment).toMatchObject({ github_login: 'dave', github_user_id: 104 });
+    expect(app.services.roles.listAssignments().find(row => row.github_login === 'dave')).toMatchObject({ github_user_id: 104, account_id: null });
+  });
+
   it('reports department_required, department_not_allowed, unknown_department, github_user_not_found and assignment_exists', async () => {
     const { app, as, audits } = await setup({ alice: 'admin' });
     const headers = as('alice');
@@ -251,7 +281,7 @@ describe('assignments', () => {
   });
 
   it('transfers the captain in one transaction and enforces a single explicit captain', async () => {
-    const { app, as, audits, db } = await setup({ alice: 'admin', bob: 'member' });
+    const { app, as, audits, db } = await setup({ alice: 'admin', bob: 'member', carol: 'member' });
     const post = (headers: Record<string, string>, login: string) => app.inject({ method: 'POST', url: '/api/console/assignments', headers, payload: { github_login: login, role: 'captain' } });
     expect((await post(as('bob'), 'bob')).json().error).toBe('missing_capability');
 
@@ -505,7 +535,7 @@ describe('applications', () => {
 
 describe('summary, feedback and audit', () => {
   it('returns only the summary keys the caller may read', async () => {
-    const { app, as, assign, db } = await setup({ alice: 'admin', bob: 'member' });
+    const { app, as, assign, db } = await setup({ alice: 'admin', bob: 'member', gina: 'member' });
     insertApplication(db);
     assign('gina', 'alumni');
     const captain = (await app.inject({ url: '/api/console/summary', headers: as('alice') })).json();
@@ -516,7 +546,7 @@ describe('summary, feedback and audit', () => {
   });
 
   it('serves the console feedback box for CONSOLE_ORG only and audits every write under it', async () => {
-    const { app, as, assign, audits, db } = await setup({ alice: 'admin' });
+    const { app, as, assign, audits, db } = await setup({ alice: 'admin', gina: 'member' });
     const now = Date.now();
     const insert = db.prepare('INSERT INTO feedback(org, content, status, source_ip, user_agent, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?)');
     const ours = Number(insert.run(CONSOLE_ORG, '希望多一些项目复盘', 'open', '203.0.113.9', 'agent', now, now).lastInsertRowid);
@@ -551,9 +581,9 @@ describe('summary, feedback and audit', () => {
     expect(db.prepare('SELECT COUNT(*) AS n FROM audit_logs').get()).toEqual(before);
   });
 
-  it('never hands a live invite-link token to an audit reader who is not a GitHub org admin', async () => {
-    // frank 是技术部负责人（部门包里有 audit.read），但不在 GitHub 组织里：控制台不能让他拿到可用的邀请凭据。
-    const { app, as, assign } = await setup({ alice: 'admin' });
+  it('never hands a live invite-link token to an audit reader who cannot manage invites', async () => {
+    // frank 是技术部负责人（部门包里有 audit.read），但没有 github.invites.manage：控制台不能让他拿到可用的邀请凭据。
+    const { app, as, assign } = await setup({ alice: 'admin', frank: 'member' });
     const created = await app.inject({ method: 'POST', url: `/api/admin/${CONSOLE_ORG}/invite-links`, headers: as('alice'), payload: { hours: 24, max_uses: 5 } });
     expect(created.statusCode).toBe(200);
     const token = created.json().token as string;
@@ -567,7 +597,10 @@ describe('summary, feedback and audit', () => {
     expect(response.body).not.toContain(token);
     expect(logs.find(row => row.action === 'invite_link.create')!.target).toBe(`${token.slice(0, 6)}…`);
     expect(logs.find(row => row.action === 'invite.sent')!.actor).toBe(`public:${token.slice(0, 6)}…`);
-    // 旧入口只给组织管理员，他们本来就能列出链接，行为不变。
+    // 旧入口原样下发 token，另要 github.invites.manage：frank 进不去，本来就能列出链接的提督照常。
+    const legacy = await app.inject({ url: `/api/admin/${CONSOLE_ORG}/logs`, headers: as('frank') });
+    expect(legacy.statusCode).toBe(403);
+    expect(legacy.json()).toMatchObject({ error: 'missing_capability', capability: 'github.invites.manage' });
     expect((await app.inject({ url: `/api/admin/${CONSOLE_ORG}/logs`, headers: as('alice') })).body).toContain(token);
   });
 
@@ -583,6 +616,18 @@ describe('summary, feedback and audit', () => {
 });
 
 describe('titles are data the 提督 can edit', () => {
+  it('renews the old GitHub wording of the 提督 and 舰员 descriptions on boot and keeps edited ones (#262 第四期)', async () => {
+    const { db } = await setup();
+    db.prepare("UPDATE titles SET description = ? WHERE id = 'admin'").run(LEGACY_TITLE_DESCRIPTIONS.admin);
+    db.prepare("UPDATE titles SET description = '班长改过的说明' WHERE id = 'member'").run();
+    createRoleStore(db);
+    expect(db.prepare("SELECT id, description FROM titles WHERE id IN ('admin', 'member') ORDER BY id").all()).toEqual([
+      { id: 'admin', description: DEFAULT_TITLE_CONFIGS.admin.description },
+      { id: 'member', description: '班长改过的说明' },
+    ]);
+    expect(DEFAULT_TITLE_CONFIGS.admin.description).not.toMatch(/GitHub/);
+  });
+
   it('renames a title and changes its permissions without touching code', async () => {
     const { app, as, assign, audits } = await setup({ alice: 'admin', bob: 'member' });
     assign('bob', 'alumni');
@@ -664,21 +709,23 @@ describe('titles are data the 提督 can edit', () => {
     expect((await app.inject({ method: 'PATCH', url: '/api/console/titles/member', headers: as('alice'), payload: { label: '这个名字实在是太长了不行' } })).statusCode).toBe(400);
   });
 
-  it('lists every org member with the title they would see, plus title holders who left the org', async () => {
+  it('lists every account and every org member with the title they would see, plus title holders who never signed in', async () => {
     const { app, as, assign } = await setup({ alice: 'admin', bob: 'member', carol: 'member', dave: 'member' });
     assign('bob', 'head', 'tech');
     assign('carol', 'captain');
-    assign('gina', 'alumni'); // 已不在组织里
+    assign('gina', 'alumni'); // 不在组织里，也没登录过
     await app.inject({ method: 'PATCH', url: '/api/console/titles/member', headers: as('alice'), payload: { label: '水手' } });
     const response = await app.inject({ url: '/api/console/people', headers: as('alice') });
     expect(response.statusCode).toBe(200);
-    const people = response.json().people as { login: string; github_role: string | null; titles: { id: string; label: string }[] }[];
-    expect(people.map(p => [p.login, p.github_role, p.titles[0].id, p.titles[0].label])).toEqual([
-      ['alice', 'admin', 'admin', '提督'],
-      ['carol', 'member', 'captain', '舰长'],
-      ['bob', 'member', 'head', '技术部 · 队长'],
-      ['gina', null, 'alumni', '领航员'],
-      ['dave', 'member', 'member', '水手'],
+    expect(response.json()).toMatchObject({ github: 'session', github_listed: true });
+    const people = response.json().people as { login: string; account_id: string | null; site_role: string | null; github_role: string | null; titles: { id: string; label: string }[] }[];
+    // 只有 alice 登录过（有账号、记了站内角色）；其余是 GitHub 组织里还没登录的人和只有称号的人
+    expect(people.map(p => [p.login, p.account_id !== null, p.site_role, p.github_role, p.titles[0].id, p.titles[0].label])).toEqual([
+      ['alice', true, 'admin', 'admin', 'admin', '提督'],
+      ['carol', false, null, 'member', 'captain', '舰长'],
+      ['bob', false, null, 'member', 'head', '技术部 · 队长'],
+      ['gina', false, null, null, 'alumni', '领航员'],
+      ['dave', false, null, 'member', 'member', '水手'],
     ]);
     // 队长能看名单（任免本部门舰员要挑人）；只有组织成员身份的舰员不能。
     expect((await app.inject({ url: '/api/console/people', headers: as('bob') })).statusCode).toBe(200);

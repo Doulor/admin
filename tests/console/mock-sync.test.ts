@@ -6,7 +6,7 @@ import { DEPARTMENT_ICONS as CONSOLE_DEPARTMENT_ICONS } from "../../app/console/
 import { DEFAULT_CREW, DEFAULT_TITLES, FALLBACK_TONES, TONE_NAMES, titleBundleError as consoleBundleError } from "../../app/console/src/lib/titles";
 import { APPLICATION_STATUS } from "../../app/console/src/lib/statuses";
 import {
-  MOCK_APPLICATION_STATUSES, MOCK_ASSIGNMENTS, MOCK_CAPABILITIES, MOCK_CAPTAIN_ONLY, MOCK_DEPARTMENTS, MOCK_IMPLIES, MOCK_MEMBERS, MOCK_PERSONAS, MOCK_ROLE_BASE, MOCK_TITLES,
+  MOCK_ACCOUNTS, MOCK_APPLICATION_STATUSES, MOCK_ASSIGNMENTS, MOCK_CAPABILITIES, MOCK_CAPTAIN_ONLY, MOCK_DEPARTMENTS, MOCK_IMPLIES, MOCK_MEMBERS, MOCK_PERSONAS, MOCK_ROLE_BASE, MOCK_TITLES,
   MOCK_TONES, checkConsoleWrite, mockPeople, routeConsole,
 } from "../../app/console/src/mock/console";
 import {
@@ -66,28 +66,29 @@ describe("console catalogue mirrors the server", () => {
 
   it("derives every preview persona exactly as computeAccess would", () => {
     const row = (login: string, role: AssignmentRow["role"], department_id = ""): AssignmentRow =>
-      ({ id: 1, github_login: login, github_user_id: 1, role, department_id, note: null, granted_by: "x", created_at: 0 });
-    const cases: Record<string, { orgRole: OrgRole; rows: AssignmentRow[]; githubSession?: boolean }> = {
-      admin: { orgRole: "admin", rows: [] },
-      admin_email: { orgRole: "admin", rows: [], githubSession: false },
-      captain: { orgRole: "member", rows: [row("chen-hang", "captain")] },
-      recruitment: { orgRole: "member", rows: [row("li-xiaoman", "head", "recruitment")] },
-      tech: { orgRole: "member", rows: [row("wang-zhe", "head", "tech")] },
-      community: { orgRole: "member", rows: [row("sun-qiao", "head", "community")] },
-      projects: { orgRole: "member", rows: [row("zhao-yi", "head", "projects")] },
-      crew: { orgRole: "member", rows: [row("he-miao", "member", "recruitment")] },
-      member: { orgRole: "member", rows: [row("liu-xing", "member")] },
-      alumni: { orgRole: "member", rows: [row("gao-yuan", "alumni")] },
-      guest: { orgRole: null, rows: [] },
+      ({ id: 1, github_login: login, github_user_id: 1, account_id: null, role, department_id, note: null, granted_by: "x", created_at: 0 });
+    // 权限只认站内角色和称号（#262 第四期）；登录方式只决定这次能不能借本人的 GitHub 授权
+    const cases: Record<string, { siteRole: OrgRole; rows: AssignmentRow[]; provider?: "email" }> = {
+      admin: { siteRole: "admin", rows: [] },
+      admin_email: { siteRole: "admin", rows: [], provider: "email" },
+      captain: { siteRole: "member", rows: [row("chen-hang", "captain")] },
+      recruitment: { siteRole: "member", rows: [row("li-xiaoman", "head", "recruitment")] },
+      tech: { siteRole: "member", rows: [row("wang-zhe", "head", "tech")] },
+      community: { siteRole: "member", rows: [row("sun-qiao", "head", "community")] },
+      projects: { siteRole: "member", rows: [row("zhao-yi", "head", "projects")] },
+      crew: { siteRole: "member", rows: [row("he-miao", "member", "recruitment")] },
+      member: { siteRole: "member", rows: [row("liu-xing", "member")] },
+      alumni: { siteRole: "member", rows: [row("gao-yuan", "alumni")] },
+      guest: { siteRole: null, rows: [] },
     };
     expect(Object.keys(MOCK_PERSONAS).sort()).toEqual(Object.keys(cases).sort());
     for (const [name, input] of Object.entries(cases)) {
       const persona = MOCK_PERSONAS[name];
-      const access = computeAccess({ login: persona.login, orgRole: input.orgRole, githubSession: input.githubSession, assignments: input.rows, departments });
-      expect(persona.github_role, name).toBe(input.orgRole);
-      expect(persona.provider === "github", name).toBe(input.githubSession ?? true);
+      const access = computeAccess({ login: persona.login, siteRole: input.siteRole, assignments: input.rows, departments });
+      expect(persona.site_role, name).toBe(input.siteRole);
+      expect(persona.provider, name).toBe(input.provider ?? "github");
+      expect(persona.github, name).toBe(input.provider ? "none" : "session");
       expect(persona.capabilities, name).toEqual(orderedCapabilities(access.capabilities));
-      expect(persona.blocked, name).toEqual(access.blocked);
       expect(persona.head_of, name).toEqual(access.headOf);
       expect(persona.titles.map(titleShape), name).toEqual(access.titles.map(titleShape));
     }
@@ -96,26 +97,45 @@ describe("console catalogue mirrors the server", () => {
 
   it("lists preview people exactly as the server's people route would", () => {
     const rows: AssignmentRow[] = MOCK_ASSIGNMENTS.map(a => ({ ...a }));
-    const belongsTo = (row: AssignmentRow, login: string, userId: number | null) =>
-      row.github_user_id !== null ? row.github_user_id === userId : row.github_login === login.toLowerCase();
     const claimed = new Set<number>();
-    const person = (login: string, userId: number | null, orgRole: OrgRole) => {
-      const mine = rows.filter(row => belongsTo(row, login, userId));
+    // 同 routes/console/people.ts：先按账号认（样板指派都还没认领，按 GitHub 数字 id），再按登录名
+    const titlesOf = (login: string, userId: number | null, siteRole: OrgRole, member: boolean) => {
+      const mine = rows.filter(row => row.github_user_id !== null ? row.github_user_id === userId : row.github_login === login.toLowerCase());
       for (const row of mine) claimed.add(row.id);
-      return { login, github_role: orgRole, titles: computeAccess({ login, orgRole, assignments: mine, departments }).titles };
+      return computeAccess({ login, siteRole, member, assignments: mine, departments }).titles;
     };
-    const expected = MOCK_MEMBERS.map(member => person(member.login, member.id, member.role));
-    for (const row of rows) if (!claimed.has(row.id)) expected.push(person(row.github_login, row.github_user_id, null));
+    const githubRole = new Map(MOCK_MEMBERS.map(member => [member.id, member.role]));
+    const expected = MOCK_ACCOUNTS.map(account => ({
+      login: account.login, account_id: account.account_id as string | null, site_role: account.site_role,
+      github_role: account.github_user_id !== null ? githubRole.get(account.github_user_id) ?? null : null,
+      titles: titlesOf(account.login, account.github_user_id, account.site_role, account.member),
+    }));
+    const known = new Set(MOCK_ACCOUNTS.flatMap(account => account.github_user_id === null ? [] : [account.github_user_id]));
+    for (const member of MOCK_MEMBERS) {
+      if (known.has(member.id)) continue;
+      expected.push({ login: member.login, account_id: null, site_role: null, github_role: member.role, titles: titlesOf(member.login, member.id, member.role, true) });
+    }
+    for (const row of rows) {
+      if (claimed.has(row.id)) continue;
+      expected.push({ login: row.github_login, account_id: null, site_role: null, github_role: null, titles: titlesOf(row.github_login, row.github_user_id, null, false) });
+    }
     expected.sort((a, b) => titleRank(a.titles[0]) - titleRank(b.titles[0]) || a.login.localeCompare(b.login));
 
     const people = mockPeople();
-    expect(people.map(p => [p.login, p.github_role])).toEqual(expected.map(p => [p.login, p.github_role]));
+    expect(people.map(p => [p.login, p.account_id, p.site_role, p.github_role])).toEqual(expected.map(p => [p.login, p.account_id, p.site_role, p.github_role]));
     people.forEach((p, index) => {
       expect(p.titles.map(titleShape), p.login).toEqual(expected[index].titles.map(titleShape));
       expect(p.titles.map(t => t.assignment_id), p.login).toEqual(expected[index].titles.map(t => t.assignment_id));
     });
-    // 预览里要有一位不在组织里、只剩称号的人，名单才能展示这种情况。
-    expect(people.some(p => p.github_role === null)).toBe(true);
+    // 预览要能展示每种情况：没绑 GitHub 的邀请码账号、被移出的账号、还没登录过的组织成员、只剩称号的人
+    expect(people.some(p => p.account_id && p.user_id === null)).toBe(true);
+    expect(people.some(p => p.account_id && !p.member)).toBe(true);
+    expect(people.some(p => !p.account_id && p.github_role)).toBe(true);
+    expect(people.some(p => !p.account_id && p.github_role === null)).toBe(true);
+    // GitHub 没接上：只有账号和只剩称号的人，不下发 github_role
+    const unlisted = mockPeople(false);
+    expect(unlisted.every(p => p.account_id || p.titles.some(t => t.source === "assignment"))).toBe(true);
+    expect(unlisted.some(p => "github_role" in p)).toBe(false);
   });
 
   it("gives every preview application the detail shape of #148: mail per review, the received letter and mail settings", () => {

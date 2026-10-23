@@ -2,7 +2,7 @@
  * 极客班控制台的称号、部门与能力清单（纯数据 + 纯函数）。
  *
  * 这里是服务端的唯一来源：接口 `/api/console/catalogue` 原样下发，授权中间件据此判定。
- * 不导入 Fastify，也不接触数据库；持久化见 `role-store.ts`，GitHub 角色查询见 `access.ts`。
+ * 不导入 Fastify，也不接触数据库；持久化见 `role-store.ts`，账号记下的站内角色见 `access.ts`。
  */
 
 /** 徽章色调（浅色）。对比度按 WCAG 公式在白底与 12% 同色浅底上计算，均 ≥5.0:1。 */
@@ -26,7 +26,7 @@ export const DEPARTMENT_ICONS = [
 ] as const;
 export type DepartmentIcon = (typeof DEPARTMENT_ICONS)[number];
 
-/** `admin`（提督）不能指派：GitHub 组织的 owner 自动获得；`guest`（乘客）是没有任何称号。 */
+/** `admin`（提督）不能指派：站内角色是管理员的账号自动获得；`guest`（乘客）是没有任何称号。 */
 export type TitleId = "admin" | "captain" | "head" | "member" | "alumni" | "guest";
 export type AssignableRole = Exclude<TitleId, "admin" | "guest">;
 export const ASSIGNABLE_ROLES: AssignableRole[] = ["captain", "head", "member", "alumni"];
@@ -34,16 +34,22 @@ export const ASSIGNABLE_ROLES: AssignableRole[] = ["captain", "head", "member", 
 export type TitleDefinition = { id: TitleId; label: string; tag: string; icon: string; tone: Tone; rank: number; description: string };
 
 /**
+ * 提督、舰员以前的默认说明。#262 起权限只认极客班账号，不再看 GitHub 组织角色；旧库里还是这两句的，
+ * 启动时换成 TITLES 里的新说明（lib/role-store.ts，改过的不动）。
+ */
+export const LEGACY_TITLE_DESCRIPTIONS = { admin: "GitHub 组织的所有者，拥有全部权限，任命舰长", member: "在读成员；加入 GitHub 组织后自动获得" } as const;
+
+/**
  * 称号的**默认值**：第一次启动写进 `titles` 表（INSERT OR IGNORE），之后名字、标签、图标、色调、说明和权限包
  * 都以数据库为准，由提督（和持有 roles.manage 的舰长）在控制台改，不改代码。代码里固定的只有层级：
- * id 与 rank（提督 > 舰长 > 队长 > 带部门的舰员 > 领航员 > 舰员 > 乘客），因为「提督 = GitHub 组织 owner」
+ * id 与 rank（提督 > 舰长 > 队长 > 带部门的舰员 > 领航员 > 舰员 > 乘客），因为「提督 = 站内管理员」
  * 「舰长只有一个」「队长属于部门」这些规则靠它执行。一个人可以有多个称号；主称号取 rank 最小者。
  */
 export const TITLES: Record<TitleId, TitleDefinition> = {
-  admin: { id: "admin", label: "提督", tag: "ADMIRAL", icon: "user-admin", tone: "violet", rank: 0, description: "GitHub 组织的所有者，拥有全部权限，任命舰长" },
+  admin: { id: "admin", label: "提督", tag: "ADMIRAL", icon: "user-admin", tone: "violet", rank: 0, description: "站内管理员，拥有全部权限，任命舰长" },
   captain: { id: "captain", label: "舰长", tag: "CAPTAIN", icon: "star-filled", tone: "amber", rank: 1, description: "带领全班，权限仅次于提督" },
   head: { id: "head", label: "队长", tag: "LEADER", icon: "badge", tone: "cobalt", rank: 2, description: "负责一个部门的日常事务" },
-  member: { id: "member", label: "舰员", tag: "CREW", icon: "code", tone: "sky", rank: 5, description: "在读成员；加入 GitHub 组织后自动获得" },
+  member: { id: "member", label: "舰员", tag: "CREW", icon: "code", tone: "sky", rank: 5, description: "在读成员；成为极客班成员后自动获得" },
   alumni: { id: "alumni", label: "领航员", tag: "NAVIGATOR", icon: "compass", tone: "jade", rank: 4, description: "已毕业的学长学姐" },
   guest: { id: "guest", label: "乘客", tag: "PASSENGER", icon: "user", tone: "slate", rank: 9, description: "没登录的人，只能看帖子" },
 };
@@ -190,30 +196,29 @@ export const DEFAULT_DEPARTMENTS: Omit<Department, "archived">[] = [
   },
 ];
 
+/** `account_id`：指派给的极客班账号（#262）；还没登录过本站的人为空，第一次登录时按 GitHub id 认领。 */
 export type AssignmentRow = {
-  id: number; github_login: string; github_user_id: number | null; role: AssignableRole; department_id: string;
+  id: number; github_login: string; github_user_id: number | null; account_id: string | null; role: AssignableRole; department_id: string;
   note: string | null; granted_by: string; created_at: number;
 };
 export type DepartmentView = { id: string; name: string; tag: string; icon: string; tone: Tone };
 export type TitleView = {
   id: TitleId; label: string; tag: string; icon: string; tone: Tone;
   department: DepartmentView | null;
-  source: "assignment" | "github" | "none";
+  /** assignment：指派来的；site：站内角色自动给的（提督、舰员）；none：乘客 */
+  source: "assignment" | "site" | "none";
   assignment_id: number | null;
 };
+/** 站内角色：账号记下的（users.org_role），管理员是提督，成员是舰员；null 是还没有角色。 */
 export type OrgRole = "admin" | "member" | null;
-export type BlockReason = "github_admin_required" | "github_membership_required" | "github_session_required";
 export type Access = {
   login: string;
-  /** 组织角色：GitHub 会话是实时查到的，邮箱、Google 会话是账号记下的 */
-  githubRole: OrgRole;
-  /** 这次是不是 GitHub 会话（只有它带 GitHub 令牌，`github.*` 只在它下面生效） */
-  githubSession: boolean;
-  /** 是不是极客班成员：GitHub 会话看实时的组织角色，其余看账号记下的成员资格（含邀请码注册） */
+  /** 站内角色，不论这次用哪种方式登录（#262，所有者 2026-10-23「有关 GitHub 的权限是要放权的」） */
+  siteRole: OrgRole;
+  /** 是不是极客班成员：账号记下的成员资格 */
   member: boolean;
   titles: TitleView[];
   capabilities: Set<Capability>;
-  blocked: { capability: Capability; reason: BlockReason }[];
   /** 该用户担任负责人的部门 id（仅未归档部门）。 */
   headOf: string[];
 };
@@ -261,24 +266,10 @@ export function titleRank(title: Pick<TitleView, "id" | "department">): number {
   return TITLES[title.id].rank;
 }
 
-/**
- * GitHub 上限：控制台不能授予 GitHub 权力，只能在用户自己的组织角色以内收窄。
- * 邮箱、Google 会话没有本人的 GitHub 令牌，`github.*` 全部挡掉，优先于另外两种上限（#262）。
- */
-function githubCeiling(capability: Capability, orgRole: OrgRole, githubSession: boolean): BlockReason | null {
-  if (!capability.startsWith("github.")) return null;
-  if (!githubSession) return "github_session_required";
-  if (orgRole === null) return "github_membership_required";
-  if (orgRole === "member" && capability !== "github.org.read") return "github_admin_required";
-  return null;
-}
-
 export type ComputeAccessInput = {
   login: string;
-  orgRole: OrgRole;
-  /** 不传按 GitHub 会话算（测试和纯函数调用） */
-  githubSession?: boolean;
-  /** 不传时按组织角色判断 */
+  siteRole: OrgRole;
+  /** 不传时按站内角色判断 */
   member?: boolean;
   assignments: AssignmentRow[];
   departments: Department[];
@@ -286,8 +277,12 @@ export type ComputeAccessInput = {
   titles?: TitleConfigs;
 };
 
-/** 纯函数：由 GitHub 组织角色、显式指派与部门配置算出称号和能力。 */
-export function computeAccess({ login, orgRole, githubSession = true, member = orgRole !== null, assignments, departments, titles: configs = DEFAULT_TITLE_CONFIGS }: ComputeAccessInput): Access {
+/**
+ * 纯函数：由站内角色、显式指派与部门配置算出称号和能力。没有 GitHub 上限：`github.*` 和别的能力一样按称号给，
+ * 在 GitHub 上真正去做由服务器接入的 GitHub（lib/github-connection.ts）执行。不是成员的人（站内角色改成「不是成员」、
+ * 或还没有账号）称号照常列出，方便控制台收回，但没有任何能力。
+ */
+export function computeAccess({ login, siteRole, member = siteRole !== null, assignments, departments, titles: configs = DEFAULT_TITLE_CONFIGS }: ComputeAccessInput): Access {
   const byId = new Map(departments.filter(item => !item.archived).map(item => [item.id, item]));
   const titles: TitleView[] = [];
   const granted: Capability[] = [];
@@ -314,33 +309,26 @@ export function computeAccess({ login, orgRole, githubSession = true, member = o
     }
   }
 
-  // 提督：GitHub 组织的 owner 自动获得，拥有全部能力；有没有指定舰长都一样（舰长由提督任命）。
-  if (orgRole === "admin") {
-    titles.push(titleView("admin", null, "github", null, configs));
+  // 提督：站内管理员自动获得，拥有全部能力；有没有指定舰长都一样（舰长由提督任命）。
+  if (siteRole === "admin") {
+    titles.push(titleView("admin", null, "site", null, configs));
     granted.push(...CAPABILITY_IDS); // 提督永远是全部，不读数据库
   }
   const hasAlumni = assignments.some(row => row.role === "alumni");
   const hasPlainMember = titles.some(title => title.id === "member" && !title.department);
-  if (orgRole === "member" && !hasAlumni && !hasPlainMember) {
-    titles.push(titleView("member", null, "github", null, configs));
+  if (siteRole === "member" && !hasAlumni && !hasPlainMember) {
+    titles.push(titleView("member", null, "site", null, configs));
     granted.push(...configs.member.capabilities);
   }
 
   const implied = closure(granted);
-  const capabilities = new Set<Capability>();
-  const blocked: Access["blocked"] = [];
-  for (const id of CAPABILITY_IDS) {
-    if (!implied.has(id)) continue;
-    const reason = githubCeiling(id, orgRole, githubSession);
-    if (reason) blocked.push({ capability: id, reason });
-    else capabilities.add(id);
-  }
+  const capabilities = new Set<Capability>(member ? CAPABILITY_IDS.filter(id => implied.has(id)) : []);
   if (capabilities.size > 0) capabilities.add("console.access");
   else capabilities.clear();
 
   titles.sort((a, b) => titleRank(a) - titleRank(b));
   if (titles.length === 0) titles.push(titleView("guest", null, "none", null, configs));
-  return { login, githubRole: orgRole, githubSession, member, titles, capabilities, blocked, headOf: [...new Set(headOf)] };
+  return { login, siteRole, member, titles, capabilities, headOf: [...new Set(headOf)] };
 }
 
 export const orderedCapabilities = (set: ReadonlySet<Capability>): Capability[] => CAPABILITY_IDS.filter(id => set.has(id));

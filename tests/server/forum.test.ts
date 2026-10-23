@@ -164,15 +164,14 @@ describe('state', () => {
     expect((await s.call('GET', '/api/forum/state')).statusCode).toBe(200);
   });
 
-  it('ends a session whose GitHub token was rejected, and reads as a guest after that (#164)', async () => {
+  it('ends a session whose GitHub token was rejected while recording its site role, and reads as a guest after that (#164)', async () => {
     const github = { failing: false, rejected: new Set<string>() };
     const s = await setup({ failing: github });
     const bob = s.as('bob');
     const alice = s.as('alice');
-    expect((await s.state('bob')).viewer.kind).toBe('member');
-    // bob 的令牌被 GitHub 收回；组织角色缓存过期后下一次请求才去问 GitHub。
+    expect((await s.state('alice')).viewer.kind).toBe('member');
+    // bob 的账号还没记过站内角色（#262 第四期），第一次用到时要用他的令牌问一次 GitHub；令牌已被 GitHub 收回。
     github.rejected.add('token-bob');
-    s.app.services.cache.invalidate('console:orgrole:');
     const rejected = await s.app.inject({ method: 'GET', url: '/api/forum/state', headers: bob });
     expect(rejected.statusCode).toBe(401);
     expect(rejected.json()).toMatchObject({ error: 'session_expired', message: '登录已失效，请重新登录' });
@@ -191,12 +190,10 @@ describe('state', () => {
     expect(s.db.prepare("SELECT COUNT(*) AS n FROM audit_logs WHERE action = 'auth.session_rejected'").get()).toEqual({ n: 1 });
   });
 
-  it('ends the session when a write finds the token rejected (#164)', async () => {
+  it('ends the session when a write finds the token rejected while recording its site role (#164)', async () => {
     const github = { failing: false, rejected: new Set<string>() };
     const s = await setup({ failing: github });
-    expect((await s.state('bob')).viewer.kind).toBe('member');
     github.rejected.add('token-bob');
-    s.app.services.cache.invalidate('console:orgrole:');
     const response = await s.call('POST', '/api/forum/posts/body-9/bookmark', 'bob');
     expect(response.statusCode).toBe(401);
     expect(response.json().error).toBe('session_expired');
@@ -204,17 +201,36 @@ describe('state', () => {
     expect(s.db.prepare("SELECT COUNT(*) AS n FROM forum_bookmarks").get()).toEqual({ n: 0 });
   });
 
-  it('treats a signed-in user who is no longer in the organization as a guest, whatever titles they hold', async () => {
+  it('keeps a recorded member a member when GitHub later rejects the token or drops them: the site account decides (#262)', async () => {
+    const github = { failing: false, rejected: new Set<string>() };
+    const s = await setup({ failing: github });
+    expect((await s.state('bob')).viewer.kind).toBe('member');
+    // 站内角色记下之后，论坛不再问 GitHub：令牌被收回、GitHub 出错、退出组织都不影响站内身份。
+    github.rejected.add('token-bob');
+    delete s.roles.bob;
+    s.app.services.cache.invalidate('console:orgrole:');
+    expect((await s.state('bob')).viewer.kind).toBe('member');
+    github.failing = true;
+    const bookmark = await s.call('POST', '/api/forum/posts/body-9/bookmark', 'bob');
+    expect(bookmark.statusCode).toBe(200);
+    expect(s.db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE login = 'bob'").get()).toEqual({ n: 1 });
+  });
+
+  it('treats a signed-in user who is not a member on the site as a guest, whatever titles they hold', async () => {
     const s = await setup();
     // frank 有会话但不在组织里：看到的是游客，不建论坛用户。
     const frank = await s.state('frank');
     expect(frank.viewer).toEqual({ userId: null, kind: 'guest', capabilities: [] });
     expect(frank.users.map((u: { id: string }) => u.id)).not.toContain('m106');
 
-    // carol 是社区部舰员（能置顶、关闭、管帖子），之后被移出组织；组织角色缓存 60 秒过期后就只是游客。
+    // carol 是社区部舰员（能置顶、关闭、管帖子）。退出 GitHub 组织不影响站内身份（#262 第四期）；
+    // 提督在控制台把她的站内角色改成「不是成员」后，下一次请求就只是游客。
     expect((await s.state('carol')).viewer.capabilities).toEqual(['forum.topic.pin', 'forum.topic.close', 'forum.post.moderate']);
     delete s.roles.carol;
     s.app.services.cache.invalidate('console:orgrole:');
+    expect((await s.state('carol')).viewer.kind).toBe('member');
+    const accountId = s.app.services.identity.accountForGithub(USERS.carol)!;
+    expect(s.app.services.identity.setSiteRole({ accountId, role: 'none', actor: { login: 'alice', account_id: null } })).toEqual({ ok: true, changed: true });
     const carol = await s.state('carol');
     expect(carol.viewer).toEqual({ userId: null, kind: 'guest', capabilities: [] });
     expect([carol.notifications, carol.bookmarks]).toEqual([[], []]);

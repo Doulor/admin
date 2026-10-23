@@ -197,7 +197,7 @@ async function submit() {
         <h3 id="title-caps-heading" class="caps__heading">权限</h3>
         <p class="caps__intro">
           <template v-if="fixedReason">{{ fixedReason }}</template>
-          <template v-else>{{ capsIntro }}GitHub 类权限仍受成员自己在 GitHub 组织里的角色限制。</template>
+          <template v-else>{{ capsIntro }}GitHub 类权限在 GitHub 上由服务器接入的 GitHub 执行。</template>
         </p>
         <div class="caps__list">
           <fieldset v-for="group in groups" :key="group.id" class="caps__group">

@@ -3,28 +3,33 @@
 
 export type Capability = string;
 export type Tone = "amber" | "cobalt" | "violet" | "jade" | "sky" | "coral" | "rose" | "slate";
-/** `admin` 是 GitHub 组织的所有者，自动获得、不能指派；`guest` 是没有任何称号。名字等显示信息见 catalogue。 */
+/** `admin` 是站内管理员，由站内角色自动获得、不能指派；`guest` 是没有任何称号。名字等显示信息见 catalogue。 */
 export type TitleId = "admin" | "captain" | "head" | "member" | "alumni" | "guest";
+/** GitHub 组织里的角色：只在「成员与权限」的名单里作参考，不决定任何权限。 */
 export type GithubRole = "admin" | "member" | null;
-export type BlockReason = "github_admin_required" | "github_membership_required" | "github_session_required";
-/** 这次会话的登录方式（#262）：只有 GitHub 会话带本人的 GitHub 令牌，`github.*` 只在它下面生效。 */
+/** 站内角色（#262 第四期，权限只认极客班账号）：管理员（提督）、成员（舰员）；null 是不是成员。 */
+export type SiteRole = "admin" | "member" | null;
+export type SiteRoleChoice = "admin" | "member" | "none";
+/** 这次请求接 GitHub 的方式：服务器的 GitHub App、你这次 GitHub 登录的本人令牌，或还没接上。 */
+export type GithubVia = "app" | "session" | "none";
+/** 这次会话的登录方式（#262）。权限与登录方式无关，只看账号。 */
 export type SessionProvider = "github" | "email" | "google";
 
 export type DepartmentView = { id: string; name: string; tag: string; icon: string; tone: Tone };
 export type TitleView = {
   id: TitleId; label: string; tag: string; icon: string; tone: Tone;
   department: DepartmentView | null;
-  source: "assignment" | "github" | "none";
+  source: "assignment" | "site" | "none";
   assignment_id: number | null;
 };
 
 export type ConsoleMe = {
   login: string; avatar_url: string | null; org: string;
   provider: SessionProvider;
-  github_role: GithubRole;
+  site_role: SiteRole;
+  github: GithubVia;
   title: TitleView; titles: TitleView[];
   capabilities: Capability[];
-  blocked: { capability: Capability; reason: BlockReason }[];
   head_of: string[];
 };
 
@@ -50,14 +55,25 @@ export type Department = DepartmentView & {
 
 export type AssignableRole = Exclude<TitleId, "admin" | "guest">;
 export type Assignment = {
-  id: number; github_login: string; github_user_id: number | null;
+  id: number; github_login: string; github_user_id: number | null; account_id: string | null;
   role: AssignableRole; department_id: string; note: string | null; granted_by: string; created_at: number;
 };
 export type AssignmentsResponse = { assignments: Assignment[]; captain: { github_login: string } | null };
 
-/** GET /api/console/people：GitHub 组织里的每个人，加上有称号但已经不在组织里的人（github_role 为 null）。 */
-export type Person = { login: string; user_id: number | null; avatar_url: string | null; github_role: GithubRole; titles: TitleView[] };
-export type PeopleResponse = { people: Person[] };
+/**
+ * GET /api/console/people：每个极客班账号，接上 GitHub 时再加 GitHub 组织里还没登录过的人（account_id 为 null），
+ * 最后是有称号但两边都没有的人。`github_role` 只在列出了 GitHub 组织成员时下发；`role_unrecorded` 是以前用 GitHub
+ * 登录时建的老账号还没记过站内角色（下次用 GitHub 时按 GitHub 组织补记）。
+ */
+export type Person = {
+  account_id: string | null; login: string; user_id: number | null; avatar_url: string | null;
+  site_role: SiteRole; role_unrecorded: boolean; member: boolean; status: "active" | "disabled" | null;
+  providers: SessionProvider[]; last_login_at: number | null;
+  github_role?: GithubRole;
+  titles: TitleView[];
+};
+export type PeopleResponse = { people: Person[]; github: GithubVia; github_listed: boolean };
+export type SiteRoleResponse = { account_id: string; site_role: SiteRoleChoice; changed: boolean };
 
 /** 称号在服务端存的样子；PATCH /api/console/titles/:title_id 只提交改动的字段，返回改后的整条。 */
 export type TitleConfig = { id: TitleId; label: string; tag: string; icon: string; tone: Tone; description: string; capabilities: Capability[] };
@@ -171,12 +187,12 @@ export type InviteList = { invites: InviteCode[] };
 
 /** 账号页（GET /api/identity/me）：登录方式、密码、成员资格、这次登录与最近的账号记录。邮箱只下发打码后的样子。 */
 export type AccountIdentity = { provider: SessionProvider; label: string; linked_at: number; last_login_at: number | null };
-export type AccountAction = "login" | "login_denied" | "logout" | "register" | "link" | "link_conflict" | "password_set" | "password_change";
+export type AccountAction = "login" | "login_denied" | "logout" | "register" | "link" | "link_conflict" | "password_set" | "password_change" | "role_change";
 export type AccountView = {
   account_id: string; login: string;
   identities: AccountIdentity[];
   has_password: boolean; password_updated_at: number | null;
-  membership: { state: string; org_role: GithubRole; via_invite: boolean };
+  membership: { state: string; org_role: SiteRole; via_invite: boolean };
   created_at: number;
   recent: { at: number; action: AccountAction | string; provider: string | null; result: "ok" | "denied" | "failed" }[];
   available: "email"[];

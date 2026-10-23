@@ -14,6 +14,7 @@ export const ACTION_TEXT: Record<string, string> = {
   link_conflict: "绑定被拒",
   password_set: "设置密码",
   password_change: "修改密码",
+  role_change: "站内角色变更",
 };
 export const RESULT_TEXT: Record<AccountView["recent"][number]["result"], string> = { ok: "成功", denied: "被拒绝", failed: "失败" };
 
@@ -23,8 +24,8 @@ export const actionText = (action: string): string => ACTION_TEXT[action] ?? act
 /** 成员资格的一句话：GitHub 组织里的角色，或者用邀请码注册。 */
 export function membershipText(membership: AccountView["membership"]): string {
   if (membership.state !== "active") return "已经不是极客班成员";
-  if (membership.org_role === "admin") return "极客班成员 · GitHub 组织管理员";
-  if (membership.org_role === "member") return "极客班成员 · GitHub 组织成员";
+  // 站内角色（#262 第四期）：管理员是提督；成员只说是怎么加入的
+  if (membership.org_role === "admin") return "极客班成员 · 站内管理员";
   return membership.via_invite ? "极客班成员 · 用邀请码注册" : "极客班成员";
 }
 

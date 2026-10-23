@@ -77,12 +77,19 @@ export function routeGithub(url: URL): unknown {
   if (!match) return undefined;
   const persona = mockPersona();
   if (!persona) throw new ApiError(401, "not_signed_in", "请先登录");
-  if (!persona.github_role) throw new ApiError(403, "not_a_member_of_org", "你不是该组织的成员");
-  const role = persona.github_role;
   const rest = match[2] ?? "";
-  const adminOnly = () => { if (role !== "admin") throw new ApiError(403, "requires_org_admin", "需要组织管理员权限"); };
+  // 同服务端 middleware/require-github.ts：先按站内称号查能力，再看服务器有没有接上 GitHub（#262 第四期）
+  const need = (capability: string) => {
+    if (persona.capabilities.includes(capability)) return;
+    const payload = { error: "missing_capability", capability, any_of: [capability], message: "没有这项权限" };
+    throw new ApiError(403, "missing_capability", payload.message, undefined, payload);
+  };
+  need(rest === "/security" ? "github.org.manage" : rest === "/invitations" || rest === "/invite-links" ? "github.invites.manage" : "github.org.read");
+  // 邀请链接的列表不碰 GitHub（服务端 requireManagedOrg）
+  if (persona.github === "none" && rest !== "/invite-links") throw new ApiError(409, "github_not_connected", "GitHub 还没接上：服务器还没配 GitHub App，这次也不是用 GitHub 登录的");
+  const via = persona.github;
 
-  if (rest === "/overview") return { role, org: orgInfo, counts: { members: members.length, repos: repos.length, pending_invites: 2, invites_24h: 5, active_invite_links: 1 } };
+  if (rest === "/overview") return { via, org: orgInfo, counts: { members: members.length, repos: repos.length, pending_invites: 2, invites_24h: 5, active_invite_links: 1 } };
   if (rest === "/members") return { members };
   if (rest === "/teams") return { teams };
   if (rest === "/activity") return { events: activity };
@@ -98,7 +105,6 @@ export function routeGithub(url: URL): unknown {
     };
   }
   if (rest === "/invitations") {
-    adminOnly();
     return {
       pending: [
         { id: 1, login: "new-builder", email: null, role: "direct_member", inviter: { login: "xu-yan" }, created_at: iso(1 * HOUR) },
@@ -114,7 +120,6 @@ export function routeGithub(url: URL): unknown {
     };
   }
   if (rest === "/invite-links") {
-    adminOnly();
     return {
       links: [
         { token: "dev-preview-link", org: MOCK_ORG, created_by: "xu-yan", note: "新生群", max_uses: 30, current_uses: 7, expires_at: now + 2 * DAY, team_slug: "ai-native", disabled: 0, created_at: now - 1 * DAY },

@@ -69,7 +69,7 @@ const save = useAction(async () => {
     width="min(94vw, 720px)"
     @update:model-value="value => emit('update:open', value)"
   >
-    <p class="intro">勾选的权限会加在对应称号的基础权限上。GitHub 类权限仍受成员自己在 GitHub 组织里的角色限制。</p>
+    <p class="intro">勾选的权限会加在对应称号的基础权限上。GitHub 类权限在 GitHub 上由服务器接入的 GitHub 执行。</p>
     <div class="bundle">
       <div class="bundle__head" aria-hidden="true">
         <span />

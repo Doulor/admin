@@ -5,10 +5,10 @@ import { requireCapability } from "../../middleware/require-capability.js";
 type AuditRow = { id: number; actor: string; action: string; target: string | null; details: string | null; ip: string | null; created_at: number };
 
 /**
- * 邀请链接 token 是「持有即可用」的凭据：`POST /api/join/:token` 会用链接发起人的 GitHub 授权发出组织邀请。
- * 控制台的 `audit.read` 不要求 GitHub 组织管理员（可以放进任何部门权限包），所以这里只下发前几位用于对照，
- * 否则持有审计能力的人就能拿到完整 token，绕过「控制台不能授予任何 GitHub 权力」的上限。
- * 旧 `/api/admin/:org/logs` 只给组织管理员，他们本来就能列出邀请链接，不在此处理。
+ * 邀请链接 token 是「持有即可用」的凭据：`POST /api/join/:token` 会经服务器接入的 GitHub 发出组织邀请。
+ * `audit.read` 可以放进任何部门权限包，不等于 `github.invites.manage`，所以这里只下发前几位用于对照，
+ * 否则持有审计能力的人就能拿到完整 token，凭它发组织邀请。
+ * 旧 `/api/admin/:org/logs` 另要 `github.invites.manage`，那些人本来就能列出邀请链接，不在此处理。
  */
 const TOKEN_PREVIEW_LENGTH = 6;
 const maskToken = (token: string) => `${token.slice(0, TOKEN_PREVIEW_LENGTH)}…`;

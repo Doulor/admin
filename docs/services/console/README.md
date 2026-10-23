@@ -13,9 +13,9 @@
 | 路径 | 职责 |
 |---|---|
 | `app/console/index.html`、`src/main.ts`、`src/App.vue` | 入口：整包引入 Tuffex 样式、UnoCSS 图标、主题；挂路由、全局确认框、TxToastHost；`index.html` 自带首次打开的加载提示（#263，见「构建与托管」） |
-| `src/router.ts` | 路由表与每页所需能力（`meta.anyOf`）；`ConsoleShell` 把它交给 `CapabilityGate`，缺能力时整页换成权限说明，没写的页面按 `console.access` 判断 |
+| `src/router.ts` | 路由表与每页所需能力（`meta.anyOf`）；`ConsoleShell` 把它交给 `CapabilityGate`，缺能力时整页换成权限说明，没写的页面按 `console.access` 判断；`meta.githubOptional` 的页面（邀请链接）没接上 GitHub 也能打开 |
 | `src/pages/` | 页面：`Overview`、`Applications`/`ApplicationDetail`、`Forum`、`People`（`people/` 下是添加称号、编辑部门权限包、编辑称号三个对话框、称号列表 `TitleList` 和只读权限树 `PermissionTree`）、`Feedback`、`Audit`、`Competitions`、`SignIn`（极客班统一登录页，登录方式按 `GET /auth/providers` 渲染）、`Device`（设备授权确认页，`/device`）、`Account`（账号页，`/account`）、`Invites`（注册邀请码）、`ConsoleRoot`（取身份与乘客态）；`github/` 下是组织概况、成员、仓库与仓库详情（`github/repo/`）、团队、活动、安全、组织资料、邀请、邀请链接、新建仓库 |
-| `src/components/` | 外壳（`ConsoleShell`、`ConsoleNav`：只显示实际持有能力的页面）、能力门 `CapabilityGate`（直接访问无权限地址仍说明原因；邮箱、Google 会话打开 GitHub 页面时说明要用 GitHub 登录）、状态组件（`ErrorPanel`、`ErrorAlert`、`LoadingBlock`）、`TitleBadge`/`ToneTag`/`UserCell`、`PageHeader`、`ConfirmHost` |
+| `src/components/` | 外壳（`ConsoleShell`、`ConsoleNav`：只显示实际持有能力的页面）、能力门 `CapabilityGate`（直接访问无权限地址仍说明原因；GitHub 还没接上时说明这个原因，给「用 GitHub 继续」）、状态组件（`ErrorPanel`、`ErrorAlert`、`LoadingBlock`）、`TitleBadge`/`ToneTag`/`UserCell`、`PageHeader`、`ConfirmHost` |
 | `src/lib/` | 纯逻辑（可单测，不导入 Vue）：`http`（请求与 `ApiError`）、`errors`（错误 → 文案与错误卡片的主按钮）、`signin`（登录未成原因解析、`return_to` 同源校验 `safeReturnPath`、`/auth/providers` 的解析与跳转地址、邮箱验证码与密码登录的请求、发码冷却秒数）、`account`（账号页的登录方式、成员资格与账号记录的说法，设密码前的本地检查）、`invites`（邀请码的状态、表单校验与提交内容）、`device`（设备授权确认页的纯逻辑：`user_code` 格式化与校验、去登录页的路径、scope 说法、剩余时间）、`nav`（导航与能力可见性）、`people`（按部门分组、负责人与排序、撤销规则）、`titles`（称号的默认值、徽章与编辑校验）、`org-settings`（组织资料改动计算）、`applications`（处理投递：通知信的提示、字段核对、PATCH 体、信件状态的说法）、`statuses`、`format`（时间一律按北京时间）、`icons`、`types`；带 Vue 的：`session`（身份与能力清单）、`resource`（读写状态）、`confirm`、`github`、`runtime`（数据源与跨服务链接） |
 | `src/lib/permission-tree.ts`、`permission-boundaries.ts` | 前者用当前目录/部门配置解释本人 `/me` 的状态，不生成授权判断；后者维护能力的范围、实际执行点和关联页面，只作说明，随对应后端路由与契约同步 |
 | `src/mock/` | 开发预览样板数据（全部虚构），只在数据源为 mock 且（DEV 或 PR 预览构建 `VITE_PREVIEW_MOCK=1`，#245）时动态导入，镜像构建不含；`lib/runtime.ts` 的 `PREVIEW_MOCK` 只由根目录 `netlify.toml` 设置。mock 的 `/auth/providers` 与服务端同形（样板列出 GitHub、Google 和带密码的邮箱三种），登录页在样板数据下也按它渲染；`/api/identity/me` 按样板身份给账号页数据（未登录样板回 401），`/api/console/invites` 给三条样板邀请码；样板身份 `admin_email` 是用邮箱登录的提督，用来看 GitHub 页面的提示；设备授权页用到的 `/auth/me`（跟随样板身份，未登录样板回 `signed_in: false`）与 `GET /api/identity/device`（任何完整的用户码都是十分钟内有效的待确认样板）也同形，允许/拒绝仍按只读回 501 |
@@ -35,13 +35,13 @@
 | `/console` | 概览 | `console.access` |
 | `/console/applications`、`/console/applications/:id` | 投递管理、投递详情 | `applications.read` |
 | `/console/forum` | 论坛管理 | 任一 `forum.*` |
-| `/console/people` | 成员与权限：四个文字页签「成员 / 称号 / 部门 / 权限树」；「成员」左侧宽分组栏，右侧概况与限定高度的内部滚动名单，可逐人展开来源与撤销操作；`?view=titles` 为「称号」（只给 `roles.manage`，列出名称、说明和基础权限）；`?view=departments` 为「部门」（展示负责人、成员与两类部门权限，仅组织 owner 显示编辑或删除）；`?view=permissions` 为只读能力目录与详情，按当前身份、称号或部门查看，只有有区分度的状态筛选会出现 | `roles.manage`、`roles.department.manage` |
+| `/console/people` | 成员与权限：四个文字页签「成员 / 称号 / 部门 / 权限树」；「成员」左侧宽分组栏，右侧概况与限定高度的内部滚动名单，可逐人展开来源与撤销操作；名单以极客班账号为准，列出站内角色和登录方式（还没登录过的写「还没登录过」，回填的老账号还没记过站内角色的写「还没记录」），接上 GitHub 时再多一列 GitHub 组织角色并列出组织里还没登录过本站的人，接不上时在名单上方说明；提督在账号行上多一个「站内角色」按钮，打开对话框改成管理员、成员或不是成员（#262 第四期；「还没记录」的三种都能选，默认成员）；`?view=titles` 为「称号」（只给 `roles.manage`，列出名称、说明和基础权限）；`?view=departments` 为「部门」（展示负责人、成员与两类部门权限，仅站内管理员（提督）显示编辑或删除）；`?view=permissions` 为只读能力目录与详情，按当前身份、称号或部门查看，只有有区分度的状态筛选会出现 | `roles.manage`、`roles.department.manage` |
 | `/console/competitions` | 比赛：新建、编辑、下线、删除；日期按北京时间选，服务端按 UTC 存 | `competitions.manage` |
 | `/console/competitions/:id` | 报名与积分（#239）：报名设置、名单与统计、导出 CSV、积分登记与撤销；入口在内部比赛那一行的「报名与积分」 | `competitions.manage` |
 | `/console/feedback` | 意见箱 | `feedback.read` |
 | `/console/audit` | 审计日志 | `audit.read` |
 | `/console/invites` | 注册邀请码：列出、新建、编辑、停用与启用 | `accounts.invites.manage` |
-| `/console/github/**` | GitHub 组织页面；邀请与邀请链接另需 `github.invites.manage`，新建仓库另需 `github.repos.manage`；还要这次是用 GitHub 登录的 | `github.org.read` |
+| `/console/github/**` | GitHub 组织页面；安全页另需 `github.org.manage`，邀请与邀请链接另需 `github.invites.manage`，新建仓库另需 `github.repos.manage`；还要服务器接上了 GitHub（GitHub App，或这次是用 GitHub 登录的，#262 第四期） | `github.org.read` |
 | `/admin`、`/admin/**` | 跳到 `/console` | — |
 | `/console/signin`、`/admin/signin` | 跳到 `/signin` | — |
 
@@ -59,7 +59,7 @@
 
 - **登录方式**：已绑定的 GitHub（登录名）、邮箱（打码后的地址）、Google，带绑定时间和最近一次登录；`available` 里有邮箱时显示绑定表单，发码调 `POST /api/identity/email/start`，填码调 `POST /api/identity/email/verify`。GitHub、Google 的绑定和解绑还没有。
 - **密码**：密码登录用邮箱作账号，没绑邮箱时只说明先绑邮箱。至少 15 位、UTF-8 不超过 72 字节、两次一致，先在页面检查（`lib/account.ts` 的 `passwordProblem`，与服务端 `passwordError` 同一规则），再调 `POST /api/identity/password`。已有密码且这次登录超过 10 分钟时要填当前密码；没有密码又超过 10 分钟时提示「重新登录」，按钮带着 `/account` 去登录页。
-- **成员资格**：GitHub 组织角色或「用邀请码注册」，不是成员时写明。
+- **成员资格**：「极客班成员」，站内管理员写「极客班成员 · 站内管理员」，用邀请码注册的写「极客班成员 · 用邀请码注册」，不是成员时写明。
 - **这次登录**：登录方式、登录时间、有效期，以及「退出登录」。
 - **最近的账号记录**：`identity_audit` 里本人最近 20 条（登录、注册、绑定、设密码等），按北京时间。
 
@@ -74,8 +74,8 @@
 「成员与权限」第四页签 **权限树**（`/console/people?view=permissions`，[issue #176](https://github.com/Yangtze-University-Geek-Class/admin/issues/176)）沿用父页能力门，不向普通舰员开放。页签切换用路由历史，刷新、前进后退保留 `view` 和原有 `group`；仅当前页签挂载树，不显示「添加称号」等写按钮。原计划已压缩为 [实施结论](../../plan/CONSOLE-PERMISSION-TREE.md)；合并、tag 与部署状态以 [issue #176](https://github.com/Yangtze-University-Geek-Class/admin/issues/176) 的追踪记录为准。
 
 - **读取**：复用父页的 departments Resource；进入或返回页签、手工刷新时读取当前 catalogue、部门与本人 `/me`。树单独保留 catalogue 的准确错误，不使用普通徽章的默认标签回落证明成功。任何加载或错误期间隐藏旧树、统计和授权结论；401 走统一登录回跳，403/上游失败显示 HTTP、机器码与 request id，可刷新重读。各接口不是事务快照；来源和结果不一致时显示警告，不覆盖 `/me`。
-- **结论与来源**：本人视角的有效/受限/未授予只取 `/me.capabilities` 与 `blocked`；称号基础包、部门队长/舰员包与现有 `closure` 只解释来源。业务域名称取当前 catalogue，图标为前端映射；称号与未归档部门视角展示对应配置并标「已包含」，不模拟其他人的实际权限。多称号保留多条路径，rank 不继承，领航员不推导普通舰员；归档/缺失部门不参与来源。owner 自动全能力、自动补充 `console.access` 单列说明。配置或身份中的未知 id 原样保留并警告，不据此赋权。
-- **边界**：详情区分直接、蕴含与自动授予，并给出 GitHub 上限原因、任免作用域、能力关系与关联页面。`roles.department.manage` 单独持有时的普通任免限于本人负责部门；同时持有 `roles.manage` 时按全局范围处理，现任舰长通过能力门后的移交与卸任另按本人身份核对。`forum.category.manage`、`forum.badge.assign` 单独标记预留，不因「已生效」而显示执行动作；论坛另需当前组织成员身份；旧 `/api/admin/:org/*` 仍按 GitHub 角色鉴权而非 capability。关联链接不承诺能进入或执行。
+- **结论与来源**：本人视角的有效/未授予只取 `/me.capabilities`（#262 第四期起没有 GitHub 上限，也就没有「受限」）；称号基础包、部门队长/舰员包与现有 `closure` 只解释来源。业务域名称取当前 catalogue，图标为前端映射；称号与未归档部门视角展示对应配置并标「已包含」，不模拟其他人的实际权限。多称号保留多条路径，rank 不继承，领航员不推导普通舰员；归档/缺失部门不参与来源。站内管理员自动全能力、自动补充 `console.access` 单列说明。配置或身份中的未知 id 原样保留并警告，不据此赋权。
+- **边界**：详情区分直接、蕴含与自动授予，并给出 GitHub 由服务器接入的说明、任免作用域、能力关系与关联页面。`roles.department.manage` 单独持有时的普通任免限于本人负责部门；同时持有 `roles.manage` 时按全局范围处理，现任舰长通过能力门后的移交与卸任另按本人身份核对。`forum.category.manage`、`forum.badge.assign` 单独标记预留，不因「已生效」而显示执行动作；论坛另需当前是极客班成员；`/api/admin/:org/*` 同样按 capability 鉴权，只管 `CONSOLE_ORG`。关联链接不承诺能进入或执行。
 - **交互**：`TxSelect` 切换本人、称号与部门配置视角；`TxFilterChips` 只在状态结果不同时出现，切换视角后重置筛选；`TxSearchInput` 搜索能力名称、id 与说明。能力按业务域分组为只读选择列表，点击后显示来源、范围与关联页面；`/` 聚焦搜索，Esc 清空。窄屏上下布局，选择后焦点跳到详情，「返回权限列表」返回原节点。无授权复选框、拖拽、保存、真实成员模拟器或新写接口。
 
 ## 接口
@@ -92,13 +92,13 @@
 
 ## 状态
 
-每个读取都有加载（Tuffex 骨架）、空（TxEmptyState，写明下一步）、失败（TxErrorState + 重试，附 `HTTP 状态 · 机器码 · request id` 一行）三种状态。缺能力：页面级用 `CapabilityGate`（TxPermissionState）写明缺哪项；若称号给了、但被 GitHub 组织角色挡住，说明是这个原因。用邮箱或 Google 登录时，`/api/console/me` 把 `github.*` 能力放进 `blocked`（原因 `github_session_required`，因为这次会话没有 GitHub 令牌）；导航照常显示这些页面，点进去是「这一页要用 GitHub 登录」，主按钮「用 GitHub 继续」带着当前地址去 `/auth/github`，次按钮回到概览。乘客说明按 `provider` 分开写：GitHub 会话说明组织里没有给称号，邮箱、Google 会话说明控制台按称号开放，并给「我的账号」按钮。未登录（`/api/console/me` 返回 401）跳到 `/signin?return_to=<原路径>`。用到一半登录失效（#133，会话到期、别处退出）时同样处理：`lib/http.ts` 的 `api()` 拿到任何 401（`/auth/signout` 除外）就调 `lib/session.ts` 注册的处理，清掉本地身份、把这个 401 记成 `meError`，`ConsoleRoot.vue` 于是带着当前地址跳 `/signin`；读写哪一种都一样，不再停在只有「重试」的「登录已失效」上。万一某处仍显示「登录已失效」，`ErrorPanel` 给的是「重新登录」（登录后回到当前页），不是「重试」。403、5xx 和网络错误不算退出。GitHub 拒绝会话里存的令牌时，服务端结束这个会话并回 401 `session_expired`（#164，见 [API](../../architecture/API.md) 的上游错误映射），控制台照样按退出处理，重新登录会换一个新的 GitHub 授权。登录没成功时核心服务把人送回统一登录页 `/signin?signin=<原因>&return_to=<原路径>`（#262；以前是回原来的控制台地址带 `?signin=`）；`lib/signin.ts` 解析原因，页面在按钮上方说明，原来的 `return_to` 留在地址里，再登录成功后照它回去。`ConsoleRoot.vue` 仍会把残留的 `signin` 从 `return_to` 里拿掉，再次登录成功后不会带着旧原因回去。已登录但没有任何能力显示乘客说明。
+每个读取都有加载（Tuffex 骨架）、空（TxEmptyState，写明下一步）、失败（TxErrorState + 重试，附 `HTTP 状态 · 机器码 · request id` 一行）三种状态。缺能力：页面级用 `CapabilityGate`（TxPermissionState）写明缺哪项。GitHub 页面要服务器接上 GitHub（#262 第四期）：`/api/console/me` 的 `github` 是 `none`（没配 GitHub App，这次也不是用 GitHub 登录的）时，导航照常显示有权限的页面，点进去是「GitHub 还没接上」，附 `409 github_not_connected`，主按钮「用 GitHub 继续」带着当前地址去 `/auth/github`，次按钮回到概览；提督看到的说明多一句「GitHub App 要由 GitHub 组织的一位所有者在 GitHub 上建好、装到组织上，再把 App ID 和私钥配到服务器」。邀请链接页例外：列出、停用、删除已有链接不碰 GitHub，没接上时照常打开，只把「生成链接」停用并在页头下说明；接口回 409 `github_not_connected` 时错误面板也这样说明，回 503 `github_connection_failed` 时说明「GitHub App 暂时用不了」。概览写明站内角色和 GitHub 经什么接入（GitHub App、你的 GitHub 账号或还没接上），GitHub 组织概览的标签写「经 GitHub App 接入」或「经你的 GitHub 账号接入」。乘客说明按站内角色写：不是成员的说明这个账号现在不是极客班成员、弄错了请任命者在「成员与权限」里改回成员；是成员但没有控制台能力的说明还没有被指派带控制台权限的称号；都给「回到官网」和「我的账号」。未登录（`/api/console/me` 返回 401）跳到 `/signin?return_to=<原路径>`。用到一半登录失效（#133，会话到期、别处退出）时同样处理：`lib/http.ts` 的 `api()` 拿到任何 401（`/auth/signout` 除外）就调 `lib/session.ts` 注册的处理，清掉本地身份、把这个 401 记成 `meError`，`ConsoleRoot.vue` 于是带着当前地址跳 `/signin`；读写哪一种都一样，不再停在只有「重试」的「登录已失效」上。万一某处仍显示「登录已失效」，`ErrorPanel` 给的是「重新登录」（登录后回到当前页），不是「重试」。403、5xx 和网络错误不算退出。GitHub 拒绝会话里存的令牌时，服务端结束这个会话并回 401 `session_expired`（#164，见 [API](../../architecture/API.md) 的上游错误映射），控制台照样按退出处理，重新登录会换一个新的 GitHub 授权。登录没成功时核心服务把人送回统一登录页 `/signin?signin=<原因>&return_to=<原路径>`（#262；以前是回原来的控制台地址带 `?signin=`）；`lib/signin.ts` 解析原因，页面在按钮上方说明，原来的 `return_to` 留在地址里，再登录成功后照它回去。`ConsoleRoot.vue` 仍会把残留的 `signin` 从 `return_to` 里拿掉，再次登录成功后不会带着旧原因回去。已登录但没有任何能力显示乘客说明。
 
 登录页（`SignIn.vue`）是官网、论坛、控制台共用的「极客班统一登录」页：顶部是极客班标志、标题「极客班统一登录」和副标题「官网、论坛、控制台和比赛共用一个账号」。卡片最宽 440px：`TxCard` 自带 `width: 100%`，和页面样式同优先级，构建后谁后加载谁生效，所以页面用 `max-width` 收窄（`/device` 同理）。登录方式不写死：页面加载时调匿名 `GET /auth/providers`，`kind: "redirect"` 的每种方式一个按钮（「通过 <名字> 继续」，GitHub 在前、启用时再加 Google）；有 `kind: "email_code"` 时下面隔一条「或者用邮箱」，是一个邮箱表单，顶部切换「验证码」「密码」（列表里的邮箱方式带 `password` 时才有密码）。验证码模式：填邮箱后「获取验证码」，发出后按钮倒数「N 秒后重发」，冷却秒数取响应的 `resend_after` 或 429 的 `retry_after`；输入框只留数字、最多 6 位；邮箱还没有账号时（`invite_required`）表单里出现一条说明和邀请码输入框，按钮变成「注册并登录」，验证码不用重新获取。密码模式下提示还没设过密码就先用验证码登录，再到「我的账号」里设。邮箱表单的错误显示在提交按钮上方，保留已填内容。Google 回调因为没有账号回来（`signin=invite_required|invalid_invite&provider=google`）时，Google 按钮上方出现邀请码输入框，按钮变成「用 Google 注册」，填了邀请码才能点。加载中显示「正在读取可用的登录方式…」，取不到或列表为空时显示「登录方式没有加载出来，可能是网络不稳定。」和「重试」。登录方式下方写明全站认的是极客班账号、第一次用邮箱或 Google 登录要填邀请码；`return_to` 不是 `/` 时最后一行显示「登录后回到 <return_to>」。`return_to` 走 `safeReturnPath`：只接受同源路径，`//`、`/\`、控制字符、绝对 URL 一律换成 `/console`，也不回到 `/signin` 自己。按 `signin` 参数（通过 `lib/signin.ts` 解析，未知取值不显示）在按钮上方显示一条不可关闭的 TxAlert；带行动点的原因（`not_member`）在页脚多一个次按钮，和「回到官网」并排，宽度不足 440px 时竖排：
 
 | `signin` | 类型 | 标题 | 正文 | 行动点 |
 |---|---|---|---|---|
-| `not_member` | warning | 只有极客班成员可以登录 | 这个 GitHub 账号不在极客班的 GitHub 组织里。极客班账号只对组织成员开放，不登录也能浏览官网和论坛。 | 次按钮「申请加入极客班」（信封图标，当前标签页打开官网 `/join-us`） |
+| `not_member` | warning | 只有极客班成员可以登录 | 这个账号现在不是极客班成员。第一次用 GitHub 登录要先加入极客班的 GitHub 组织；已经注册过的账号，成员身份由站内管理员决定。不登录也能浏览官网和论坛。 | 次按钮「申请加入极客班」（信封图标，当前标签页打开官网 `/join-us`） |
 | `invite_pending` | warning | 还没接受组织邀请 | 到 GitHub 的通知或邮件里接受极客班组织的邀请，再回来登录。 | — |
 | `cancelled` | info | 已取消登录 | — | — |
 | `failed` | warning | 登录没有完成 | 请稍后再试一次。 | — |
@@ -174,7 +174,7 @@ pnpm dev:console                     # http://127.0.0.1:5186/console ，默认�
 # 地址参数（仅开发态）：
 #   ?__data=mock      改用样板数据（自动化测试用，tests/e2e 显式带上）
 #   ?__data=live      切回本地后端
-#   ?__persona=<名>   样板数据下切换身份：admin（组织 owner）、captain、recruitment、tech、community、projects、crew、member、alumni、guest、signed_out
+#   ?__persona=<名>   样板数据下切换身份：admin（站内管理员）、captain、recruitment、tech、community、projects、crew、member、alumni、guest、signed_out
 ```
 
 开发态默认 `live`，是因为本机预览可以走真实 GitHub 登录（见 [LOCAL-PREVIEW](../../ops/LOCAL-PREVIEW.md)）；本地后端没起时页面是请求失败状态。`?__data=` 的选择记在本标签页的 `sessionStorage`（`yugc:console-data-source`），换标签页回到默认。数据源只在开发构建可切换；生产构建里 `dataSource()` 恒为 `live`，mock 模块不进产物。样板数据只读，写请求返回 501 `mock_read_only`，页面会说明「开发预览是只读的」。改称号、处理投递的写请求先按服务端核对（处理投递：状态只能是五种之一，页面上的状态或最新审核记录和样板不同、改状态却没带这两项时 409，要发待面试的信时面试时间和地点必填），不合法的得到和服务端一样的 403/400/409，合法的照样 501，不假装信已经排进发信队列。投递详情的样板带 `mail`、`received_mail` 和每条审核记录的邮件，上面的说法除了三种上限（24 小时内发过、同一个网络投递太多、这一小时到上限）都能看到，这三种的说法在 `tests/console/applications.test.ts` 里核对；发信设置用白名单模式（两个真实环境现在都是发给所有人，#169），只有三个样板邮箱在白名单里，好看到白名单挡下时的说法。另有一份已取消的虚构样板，其取消审核 `mail: null`，原确认信仍是已发出。

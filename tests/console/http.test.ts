@@ -49,11 +49,16 @@ describe("describeError", () => {
     expect(describeError(error, labelOf, "提督或船长").detail).toContain("请联系提督或船长");
   });
 
-  it("says when the GitHub organisation role is what blocks the capability", () => {
-    const error = new ApiError(403, "missing_capability", "x", undefined, { capability: "github.invites.manage", reason: "github_admin_required" });
-    const view = describeError(error, labelOf);
-    expect(view.reason).toBe("github_admin_required");
-    expect(view.detail).toContain("GitHub 组织管理员");
+  it("tells a missing GitHub connection and a broken GitHub App apart from a missing capability (#262 第四期)", () => {
+    const missing = describeError(new ApiError(409, "github_not_connected", "x"), labelOf);
+    expect(missing).toMatchObject({ kind: "conflict", title: "GitHub 还没接上" });
+    expect(missing.detail).toContain("GitHub App");
+    const broken = describeError(new ApiError(503, "github_connection_failed", "x"), labelOf);
+    expect(broken).toMatchObject({ kind: "server", title: "GitHub App 暂时用不了" });
+    // 能力缺失不再带 GitHub 原因：只说找谁指派
+    const denied = describeError(new ApiError(403, "missing_capability", "x", undefined, { capability: "github.invites.manage" }), labelOf);
+    expect(denied).not.toHaveProperty("reason");
+    expect(denied.detail).toContain("指派");
   });
 
   it("maps sign-out, not found, read-only preview, rate limit and server errors", () => {

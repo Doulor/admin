@@ -7,12 +7,13 @@ import {
 const ORIGIN = "https://yangtzeu.work";
 
 describe("登录结果提示与行动点解析 (signin)", () => {
-  it("not_member：提示未加入组织，并提供「申请加入极客班」引导链接", () => {
+  it("not_member：提示不是成员（新用户要先加入组织，老账号由站内管理员决定），并提供「申请加入极客班」引导链接", () => {
     const outcome = parseSignInOutcome("not_member");
     expect(outcome).not.toBeNull();
     expect(outcome?.type).toBe("warning");
     expect(outcome?.title).toBe("只有极客班成员可以登录");
-    expect(outcome?.body).toContain("不在极客班的 GitHub 组织里");
+    expect(outcome?.body).toContain("先加入极客班的 GitHub 组织");
+    expect(outcome?.body).toContain("由站内管理员决定");
     expect(outcome?.action).toEqual({
       label: "申请加入极客班",
       icon: "i-carbon-email",

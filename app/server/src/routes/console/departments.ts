@@ -7,14 +7,14 @@ import type { DepartmentInput, DepartmentPatch } from "../../lib/role-store.js";
 const includesCaptainOnly = (...bundles: (Capability[] | undefined)[]) =>
   bundles.some(bundle => bundle?.some(capability => CAPTAIN_ONLY.includes(capability)));
 
-/** 部门是数据：只有组织 owner 能新建、编辑、归档、删除，不改代码。 */
+/** 部门是数据：只有提督（站内管理员）能新建、编辑、归档、删除，不改代码。 */
 export default async function consoleDepartmentRoutes(app: FastifyInstance) {
   const { roles, config } = app.services;
   const { audit } = app.services.storage;
   app.addHook("preHandler", requireAuth);
 
   const requireAdmiral = async (req: FastifyRequest, reply: FastifyReply) => {
-    if (req.access?.githubRole !== "admin") {
+    if (req.access?.siteRole !== "admin") {
       return reply.code(403).send({ error: "admiral_required", message: `只有${roles.titleConfigs().admin.label}能管理部门` });
     }
   };

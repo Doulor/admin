@@ -24,9 +24,9 @@ const permissions = (title: CatalogueTitle) => {
 
 /** 代码里固定的规则（名字和说明可以改，这些不随之改变）。 */
 function note(title: CatalogueTitle): string {
-  if (title.id === "admin") return "由 GitHub 组织所有者自动获得，不能指派。";
+  if (title.id === "admin") return "由站内管理员自动获得，不能指派；在成员名单里改站内角色。";
   if (title.id === "head") return "任职部门的权限会叠加在此称号之上。";
-  if (title.id === "member") return "组织成员自动获得；加入部门后叠加部门权限。";
+  if (title.id === "member") return "极客班成员自动获得；加入部门后叠加部门权限。";
   if (title.id === "guest") return "没有称号和权限，不能指派。";
   return "";
 }

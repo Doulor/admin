@@ -32,8 +32,8 @@ function title(id: TitleId, team: Department | null = null): TitleView {
 }
 function me(titles: TitleView[], capabilities: string[] = []): ConsoleMe {
   return {
-    login: "fixture", avatar_url: null, org: "fixture-org", github_role: "member", title: titles[0] ?? title("guest"),
-    titles, capabilities, blocked: [], head_of: [],
+    login: "fixture", avatar_url: null, org: "fixture-org", provider: "github", site_role: "member", github: "session", title: titles[0] ?? title("guest"),
+    titles, capabilities, head_of: [],
   };
 }
 function keys(nodes: PermissionNode[]): string[] {
@@ -53,19 +53,19 @@ describe("permission explanation tree", () => {
     expect(details.find(detail => detail.id === "work.read")).toMatchObject({ status: "effective", grants: [{ kind: "implied", via: ["work.edit"] }] });
     expect(details.find(detail => detail.id === "work.export")?.status).toBe("ungranted");
   });
-  it("keeps provider status authoritative when current packs disagree, including blocked overlap", () => {
+  it("keeps provider status authoritative when current packs disagree, with no GitHub ceiling (#262 第四期)", () => {
     const config = catalogue();
     config.role_base.member = ["github.org.manage", "work.edit"];
     const identity = me([title("member")], ["github.org.manage", "work.export", "console.access"]);
-    identity.blocked = [{ capability: "github.org.manage", reason: "github_admin_required" }];
     const tree = buildPermissionTree(config, [], identity);
-    expect(tree.details.get("github.org.manage")).toMatchObject({ status: "blocked", reason: "github_admin_required" });
+    expect(tree.details.get("github.org.manage")).toMatchObject({ status: "effective" });
+    expect(tree.details.get("github.org.manage")).not.toHaveProperty("reason");
     expect(tree.details.get("work.export")?.status).toBe("effective");
     expect(tree.details.get("work.edit")?.status).toBe("ungranted");
     expect(tree.details.get("work.edit")?.grants).toContainEqual({ sourceKey: "title:member", label: "当前member", active: true, kind: "direct", via: [] });
     expect(tree.warnings.some(warning => warning.includes("work.export"))).toBe(true);
     expect(tree.warnings.some(warning => warning.includes("work.edit"))).toBe(true);
-    expect(tree.warnings.some(warning => warning.includes("github.org.manage"))).toBe(true);
+    expect(tree.warnings.some(warning => warning.includes("github.org.manage"))).toBe(false);
   });
 
   it("explains multiple direct roots and transitive cycles without duplicate contextual keys or input mutation", () => {
@@ -110,7 +110,7 @@ describe("permission explanation tree", () => {
     expect(tree.warnings.some(warning => warning.includes("lab"))).toBe(true);
   });
 
-  it("never derives member from alumni, GitHub membership or rank; explicit valid member still contributes", () => {
+  it("never derives member from alumni, the site role or rank; explicit valid member still contributes", () => {
     const config = catalogue();
     const identity = me([title("alumni")], ["github.org.read", "console.access"]);
     let tree = buildPermissionTree(config, [], identity);
@@ -133,7 +133,7 @@ describe("permission explanation tree", () => {
     config.role_base.admin = [];
     config.role_base.guest = ["work.edit"];
     const identity = me([], ["work.read", "console.access"]);
-    identity.github_role = "admin";
+    identity.site_role = "admin";
     const tree = buildPermissionTree(config, [], identity);
     expect(tree.sources.find(source => source.key === "title:admin")).toMatchObject({ active: true, direct: config.capabilities.map(capability => capability.id) });
     expect(tree.details.get("work.edit")?.status).toBe("ungranted");
@@ -143,14 +143,13 @@ describe("permission explanation tree", () => {
     expect(guest.sources.find(source => source.key === "title:admin")?.active).toBe(false);
   });
 
-  it("keeps raw unknown IDs visible and separates automatic entry from blocked-only grants", () => {
+  it("keeps raw unknown IDs visible and opens the automatic entry only from capabilities /me grants", () => {
     const config = catalogue();
     config.role_base.head = ["github.org.manage", "future.write"];
     config.implies = { "future.write": ["future.read"] };
     const team = department("lab");
     team.head_capabilities = [];
     const identity = me([title("head", team)]);
-    identity.blocked = [{ capability: "github.org.manage", reason: "github_admin_required" }];
     let tree = buildPermissionTree(config, [team], identity);
     expect(tree.sources.find(source => source.key === "automatic:console.access")?.active).toBe(false);
     expect(tree.details.get("console.access")?.status).toBe("ungranted");

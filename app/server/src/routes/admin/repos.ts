@@ -1,20 +1,19 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { requireOrgRole } from "../../middleware/require-org-role.js";
+import { requireGithub } from "../../middleware/require-github.js";
 
 export default async function reposRoutes(app: FastifyInstance) {
-  const { octokitWith } = app.services.github;
   const { audit } = app.services.storage;
   const { cached, invalidate } = app.services.cache;
   app.addHook("preHandler", requireAuth);
 
   app.get<{ Params: { org: string } }>("/api/admin/:org/repos", {
-    preHandler: requireOrgRole("member"),
+    preHandler: requireGithub("github.org.read"),
   }, async (req) => {
     const { org } = req.params;
     const login = req.session!.login;
     return cached(`repos:${login}:${org}`, 60_000, async () => {
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const repos = await octokit.paginate("GET /orgs/{org}/repos", { org, per_page: 100, type: "all" });
       return {
         repos: repos.map((r) => ({
@@ -39,12 +38,12 @@ export default async function reposRoutes(app: FastifyInstance) {
   });
 
   app.get<{ Params: { org: string; repo: string } }>("/api/admin/:org/repos/:repo", {
-    preHandler: requireOrgRole("member"),
+    preHandler: requireGithub("github.org.read"),
   }, async (req) => {
     const { org, repo } = req.params;
     const login = req.session!.login;
     return cached(`repo:${login}:${org}/${repo}`, 60_000, async () => {
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const [info, branches, collabs, hooks] = await Promise.all([
         octokit.request("GET /repos/{owner}/{repo}", { owner: org, repo }),
         octokit.paginate("GET /repos/{owner}/{repo}/branches", { owner: org, repo, per_page: 100 }).catch(() => []),
@@ -62,11 +61,11 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { org: string; repo: string }; Querystring: { ref?: string; path?: string } }>(
     "/api/admin/:org/repos/:repo/tree",
-    { preHandler: requireOrgRole("member") },
+    { preHandler: requireGithub("github.org.read") },
     async (req) => {
       const { org, repo } = req.params;
       const { ref, path = "" } = req.query;
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const res = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", { owner: org, repo, path, ref });
       const entries = Array.isArray(res.data) ? res.data : [res.data];
       return {
@@ -80,12 +79,12 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { org: string; repo: string }; Querystring: { ref?: string; path: string } }>(
     "/api/admin/:org/repos/:repo/file",
-    { preHandler: requireOrgRole("member") },
+    { preHandler: requireGithub("github.org.read") },
     async (req, reply) => {
       const { org, repo } = req.params;
       const { ref, path } = req.query;
       if (!path) return reply.code(400).send({ error: "missing path" });
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const res = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", { owner: org, repo, path, ref });
       const data: any = res.data;
       if (Array.isArray(data)) return reply.code(400).send({ error: "path is a directory" });
@@ -97,13 +96,13 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { org: string; repo: string }; Querystring: { sha?: string; path?: string; per_page?: string; page?: string } }>(
     "/api/admin/:org/repos/:repo/commits",
-    { preHandler: requireOrgRole("member") },
+    { preHandler: requireGithub("github.org.read") },
     async (req) => {
       const { org, repo } = req.params;
       const login = req.session!.login;
       const ckey = `repo:${login}:${org}/${repo}:commits:${req.query.sha ?? ""}:${req.query.path ?? ""}:${req.query.per_page ?? 30}:${req.query.page ?? 1}`;
       return cached(ckey, 30_000, async () => {
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const res = await octokit.request("GET /repos/{owner}/{repo}/commits", {
         owner: org, repo,
         sha: req.query.sha,
@@ -129,10 +128,10 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { org: string; repo: string; sha: string } }>(
     "/api/admin/:org/repos/:repo/commits/:sha",
-    { preHandler: requireOrgRole("member") },
+    { preHandler: requireGithub("github.org.read") },
     async (req) => {
       const { org, repo, sha } = req.params;
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const res = await octokit.request("GET /repos/{owner}/{repo}/commits/{ref}", { owner: org, repo, ref: sha });
       const c = res.data as any;
       return {
@@ -153,12 +152,12 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { org: string; repo: string }; Querystring: { state?: "open" | "closed" | "all"; per_page?: string } }>(
     "/api/admin/:org/repos/:repo/issues",
-    { preHandler: requireOrgRole("member") },
+    { preHandler: requireGithub("github.org.read") },
     async (req) => {
       const { org, repo } = req.params;
       const login = req.session!.login;
       return cached(`repo:${login}:${org}/${repo}:issues:${req.query.state ?? "open"}`, 30_000, async () => {
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const issues = await octokit.paginate("GET /repos/{owner}/{repo}/issues", {
         owner: org, repo, state: req.query.state ?? "open", per_page: 50,
       });
@@ -176,12 +175,12 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { org: string; repo: string }; Querystring: { state?: "open" | "closed" | "all" } }>(
     "/api/admin/:org/repos/:repo/pulls",
-    { preHandler: requireOrgRole("member") },
+    { preHandler: requireGithub("github.org.read") },
     async (req) => {
       const { org, repo } = req.params;
       const login = req.session!.login;
       return cached(`repo:${login}:${org}/${repo}:pulls:${req.query.state ?? "open"}`, 30_000, async () => {
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const pulls = await octokit.paginate("GET /repos/{owner}/{repo}/pulls", {
         owner: org, repo, state: req.query.state ?? "open", per_page: 50, sort: "updated", direction: "desc",
       });
@@ -201,10 +200,10 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { org: string; repo: string; n: string } }>(
     "/api/admin/:org/repos/:repo/issues/:n",
-    { preHandler: requireOrgRole("member") },
+    { preHandler: requireGithub("github.org.read") },
     async (req) => {
       const { org, repo, n } = req.params;
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const num = Number(n);
       const [issue, comments] = await Promise.all([
         octokit.request("GET /repos/{owner}/{repo}/issues/{issue_number}", { owner: org, repo, issue_number: num }),
@@ -227,10 +226,10 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { org: string; repo: string; n: string } }>(
     "/api/admin/:org/repos/:repo/pulls/:n",
-    { preHandler: requireOrgRole("member") },
+    { preHandler: requireGithub("github.org.read") },
     async (req) => {
       const { org, repo, n } = req.params;
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const num = Number(n);
       const [pr, comments, files] = await Promise.all([
         octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", { owner: org, repo, pull_number: num }),
@@ -258,10 +257,10 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.put<{ Params: { org: string; repo: string; n: string }; Body: { merge_method?: "merge" | "squash" | "rebase"; commit_title?: string; commit_message?: string; sha?: string } }>(
     "/api/admin/:org/repos/:repo/pulls/:n/merge",
-    { preHandler: requireOrgRole("member") },
+    { preHandler: requireGithub("github.repos.manage") },
     async (req, reply) => {
       const { org, repo, n } = req.params;
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const num = Number(n);
       try {
         const r = await octokit.request("PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge", {
@@ -284,10 +283,10 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.patch<{ Params: { org: string; repo: string; n: string }; Body: { state?: "open" | "closed" } }>(
     "/api/admin/:org/repos/:repo/issues/:n",
-    { preHandler: requireOrgRole("member") },
+    { preHandler: requireGithub("github.repos.manage") },
     async (req) => {
       const { org, repo, n } = req.params;
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const num = Number(n);
       const r = await octokit.request("PATCH /repos/{owner}/{repo}/issues/{issue_number}", {
         owner: org, repo, issue_number: num, state: req.body?.state as any,
@@ -300,11 +299,11 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { org: string; repo: string; n: string }; Body: { body: string } }>(
     "/api/admin/:org/repos/:repo/issues/:n/comments",
-    { preHandler: requireOrgRole("member") },
+    { preHandler: requireGithub("github.repos.manage") },
     async (req, reply) => {
       const { org, repo, n } = req.params;
       if (!req.body?.body || !req.body.body.trim()) return reply.code(400).send({ error: "empty_body" });
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const num = Number(n);
       const r = await octokit.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
         owner: org, repo, issue_number: num, body: req.body.body,
@@ -316,12 +315,12 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { org: string }; Body: { name: string; description?: string; visibility: "public" | "private" | "internal"; auto_init?: boolean; gitignore_template?: string; license_template?: string } }>(
     "/api/admin/:org/create-repo",
-    { preHandler: requireOrgRole("admin") },
+    { preHandler: requireGithub("github.repos.manage") },
     async (req, reply) => {
       const { org } = req.params;
       const { name, description, visibility, auto_init, gitignore_template, license_template } = req.body;
       if (!name || !/^[a-zA-Z0-9._-]+$/.test(name)) return reply.code(400).send({ error: "仓库名只能含字母数字 . _ -" });
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       const res = await octokit.request("POST /orgs/{org}/repos", {
         org, name, description,
         visibility: visibility as any,
@@ -337,10 +336,10 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.delete<{ Params: { org: string; repo: string } }>(
     "/api/admin/:org/repos/:repo",
-    { preHandler: requireOrgRole("admin") },
+    { preHandler: requireGithub("github.repos.manage") },
     async (req, reply) => {
       const { org, repo } = req.params;
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       await octokit.request("DELETE /repos/{owner}/{repo}", { owner: org, repo });
       audit(org, req.session!, "repo.delete", repo, undefined, req.ip);
       invalidate(`repo:`);
@@ -351,11 +350,11 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.put<{ Params: { org: string; repo: string; login: string }; Body: { permission?: "pull" | "triage" | "push" | "maintain" | "admin" } }>(
     "/api/admin/:org/repos/:repo/collaborators/:login",
-    { preHandler: requireOrgRole("admin") },
+    { preHandler: requireGithub("github.repos.manage") },
     async (req, reply) => {
       const { org, repo, login } = req.params;
       const permission = req.body?.permission ?? "push";
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       await octokit.request("PUT /repos/{owner}/{repo}/collaborators/{username}", { owner: org, repo, username: login, permission });
       audit(org, req.session!, "repo.collab.add", `${repo}/${login}`, { permission }, req.ip);
       invalidate(`repo:`);
@@ -365,10 +364,10 @@ export default async function reposRoutes(app: FastifyInstance) {
 
   app.delete<{ Params: { org: string; repo: string; login: string } }>(
     "/api/admin/:org/repos/:repo/collaborators/:login",
-    { preHandler: requireOrgRole("admin") },
+    { preHandler: requireGithub("github.repos.manage") },
     async (req) => {
       const { org, repo, login } = req.params;
-      const octokit = octokitWith(req.session!.accessToken);
+      const octokit = req.github!;
       await octokit.request("DELETE /repos/{owner}/{repo}/collaborators/{username}", { owner: org, repo, username: login });
       audit(org, req.session!, "repo.collab.remove", `${repo}/${login}`, undefined, req.ip);
       invalidate(`repo:`);

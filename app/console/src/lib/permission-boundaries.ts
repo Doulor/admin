@@ -6,9 +6,9 @@ export type PermissionBoundary = {
   pages: { label: string; path: string }[];
 };
 
-const githubScope = "使用你自己的 GitHub 授权；组织 owner 可管理，member 只保留查看能力，非成员没有 GitHub 能力。站内称号不能提升 GitHub 权力。";
-const githubExecution = "关联的 /api/admin/:org/* 接口仍按 GitHub 组织角色和组织白名单鉴权，不检查这里的 capability。页面关联不是接口放行承诺。";
-const forumScope = "论坛另外要求当前仍是 GitHub 组织成员。离组但仍持有控制台会话和 forum.* 能力的人，在论坛按游客处理。";
+const githubScope = "按站内称号授予，和你在 GitHub 组织里的角色无关。在 GitHub 上由服务器接入的 GitHub 去做：配了 GitHub App 时用 App 的授权，没配时用你这次 GitHub 登录的本人授权，GitHub 再按你自己的组织角色限制一层；两样都没有时页面提示 GitHub 还没接上。";
+const githubExecution = "关联的 /api/admin/:org/* 接口检查这里的 capability，并且只接受控制台管理的组织（CONSOLE_ORG）。页面关联不是接口放行承诺。";
+const forumScope = "论坛另外要求是极客班成员，并且账号绑定了 GitHub。被移出极客班但还留着会话和 forum.* 能力的人，在论坛按游客处理。";
 const forumPages = [{ label: "论坛管理", path: "/console/forum" }];
 const applicationPages = [{ label: "投递管理", path: "/console/applications" }];
 const feedbackPages = [{ label: "意见箱", path: "/console/feedback" }];
@@ -102,13 +102,13 @@ const boundaries: Record<string, PermissionBoundary> = {
   },
   "roles.manage": {
     reserved: false,
-    scope: "管理称号与人员任免。部门的建立、配置、归档和删除只允许组织 owner；舰长任免另有本人/owner 限制。",
-    execution: "称号 PATCH 与称号指派检查 roles.manage；部门写接口还检查组织 owner 身份，不能只凭此能力操作。",
+    scope: "管理称号与人员任免。部门的建立、配置、归档和删除，以及改站内角色，只允许站内管理员；舰长任免另有本人/管理员限制。",
+    execution: "称号 PATCH 与称号指派检查 roles.manage；部门写接口和 PATCH /api/console/people/:account_id/site-role 还检查站内管理员身份，不能只凭此能力操作。",
     pages: [{ label: "称号", path: "/console/people?view=titles" }, { label: "部门", path: "/console/people?view=departments" }],
   },
   "roles.department.manage": {
     reserved: false, scope: "仅持有此能力时，普通任免限于自己负责部门的舰员；同时持有 roles.manage 时不受此部门范围限制。现任舰长通过接口能力门后，仍可按本人身份移交或卸任。",
-    execution: "GET /api/console/people 可读全名单；GET /assignments 无 roles.manage 时按负责部门收窄。普通指派与撤销检查全局管理能力或部门作用域；舰长指派与撤销另检查现任舰长/组织 owner 身份。",
+    execution: "GET /api/console/people 可读全名单；GET /assignments 无 roles.manage 时按负责部门收窄。普通指派与撤销检查全局管理能力或部门作用域；舰长指派与撤销另检查现任舰长/站内管理员身份。",
     pages: [{ label: "成员", path: "/console/people" }],
   },
 };

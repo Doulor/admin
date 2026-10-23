@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { requireOrgRole } from "../../middleware/require-org-role.js";
+import { requireGithub, requireManagedOrg } from "../../middleware/require-github.js";
 
 type CreateBody = {
   hours: number;
@@ -16,7 +16,7 @@ export default async function inviteLinksRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
 
   app.get<{ Params: { org: string } }>("/api/admin/:org/invite-links", {
-    preHandler: requireOrgRole("admin"),
+    preHandler: requireManagedOrg("github.invites.manage"),
   }, async (req) => {
     const { org } = req.params;
     const rows = db.prepare(
@@ -26,7 +26,7 @@ export default async function inviteLinksRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Params: { org: string }; Body: CreateBody }>("/api/admin/:org/invite-links", {
-    preHandler: requireOrgRole("admin"),
+    preHandler: requireGithub("github.invites.manage"),
   }, async (req, reply) => {
     const { org } = req.params;
     const { hours, max_uses, note, team_slug } = req.body;
@@ -45,7 +45,8 @@ export default async function inviteLinksRoutes(app: FastifyInstance) {
       token,
       org,
       req.session!.login,
-      encrypt(req.session!.accessToken),
+      // 用 GitHub App 接的就不存人的令牌，兑换时也用 App；用本人会话接的照旧存他的令牌，兑换时代他发邀请（portal/join.ts）
+      encrypt(req.github!.via === "session" ? req.session!.accessToken : ""),
       note ?? null,
       max_uses,
       expires,
@@ -59,7 +60,7 @@ export default async function inviteLinksRoutes(app: FastifyInstance) {
 
   app.patch<{ Params: { org: string; token: string }; Body: { disabled?: boolean } }>(
     "/api/admin/:org/invite-links/:token",
-    { preHandler: requireOrgRole("admin") },
+    { preHandler: requireManagedOrg("github.invites.manage") },
     async (req, reply) => {
       const { org, token } = req.params;
       const { disabled } = req.body;
@@ -73,7 +74,7 @@ export default async function inviteLinksRoutes(app: FastifyInstance) {
 
   app.delete<{ Params: { org: string; token: string } }>(
     "/api/admin/:org/invite-links/:token",
-    { preHandler: requireOrgRole("admin") },
+    { preHandler: requireManagedOrg("github.invites.manage") },
     async (req, reply) => {
       const { org, token } = req.params;
       const r = db.prepare("DELETE FROM invite_links WHERE token = ? AND org = ?").run(token, org);

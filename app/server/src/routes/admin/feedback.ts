@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { requireOrgRole } from "../../middleware/require-org-role.js";
+import { requireManagedOrg } from "../../middleware/require-github.js";
 import { FEEDBACK_STATUSES } from "../../lib/feedback-store.js";
 
 const VALID_STATUS: readonly string[] = FEEDBACK_STATUSES;
@@ -12,13 +12,13 @@ export default async function adminFeedbackRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { org: string }; Querystring: { status?: string; limit?: string } }>(
     "/api/admin/:org/feedback",
-    { preHandler: requireOrgRole("admin") },
+    { preHandler: requireManagedOrg("feedback.read") },
     async (req) => listFeedback(req.params.org, { status: req.query.status, limit: Number(req.query.limit ?? 200) }),
   );
 
   app.patch<{ Params: { org: string; id: string }; Body: { status?: string; reply?: string } }>(
     "/api/admin/:org/feedback/:id",
-    { preHandler: requireOrgRole("admin") },
+    { preHandler: requireManagedOrg("feedback.manage") },
     async (req, reply) => {
       const { org, id } = req.params;
       const { status, reply: replyText } = req.body;
@@ -31,7 +31,7 @@ export default async function adminFeedbackRoutes(app: FastifyInstance) {
 
   app.delete<{ Params: { org: string; id: string } }>(
     "/api/admin/:org/feedback/:id",
-    { preHandler: requireOrgRole("admin") },
+    { preHandler: requireManagedOrg("feedback.manage") },
     async (req, reply) => {
       const { org, id } = req.params;
       if (!deleteFeedback(org, Number(id))) return reply.code(404).send({ error: "意见不存在" });

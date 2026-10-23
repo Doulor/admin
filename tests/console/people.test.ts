@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  GROUP_ALL, GROUP_NONE, canAppointCaptain, departmentIdsOf, githubRoleText, holdersOf, isOwnCaptainRow, leadsOf, mayRevoke, peopleGroups, peopleInGroup,
-  primaryKind, sortPeople,
+  GROUP_ALL, GROUP_NONE, GITHUB_VIA_TEXT, canAppointCaptain, departmentIdsOf, githubRoleText, holdersOf, isOwnCaptainRow, leadsOf, mayRevoke, peopleGroups, peopleInGroup,
+  personKey, primaryKind, providersText, siteRoleText, sortPeople,
 } from "../../app/console/src/lib/people";
 import {
   DEFAULT_TITLES, assignerText, badgeTone, closure, kindLabel, makeTitle, titleDraftErrors, titleLabel, titlePatch,
@@ -20,7 +20,8 @@ const view = (id: string): DepartmentView => {
 
 /** 与服务端一样按层级排好称号：第一个是主称号。 */
 const person = (login: string, titles: [TitleId, string?][], github_role: Person["github_role"] = "member"): Person => ({
-  login, user_id: null, avatar_url: null, github_role,
+  account_id: null, login, user_id: null, avatar_url: null, site_role: null, member: false, status: null,
+  providers: [], email: null, last_login_at: null, github_role,
   titles: titles.map(([id, departmentId], index) => makeTitle(id, departmentId ? view(departmentId) : null, null, { source: "assignment", assignment_id: index + 1 })),
 });
 
@@ -190,5 +191,18 @@ describe("title editing", () => {
     expect([...closure(["github.repos.manage", "roles.manage"], implies)].sort())
       .toEqual(["github.org.read", "github.repos.manage", "roles.department.manage", "roles.manage"]);
     expect([...closure(["feedback.read"])]).toEqual(["feedback.read"]);
+  });
+});
+
+describe("site roles and accounts in the people list (#262 第四期)", () => {
+  it("names site roles, login methods and the GitHub connection plainly", () => {
+    expect([siteRoleText("admin"), siteRoleText("member"), siteRoleText(null)]).toEqual(["管理员", "成员", "不是成员"]);
+    expect(providersText(["github", "email"])).toBe("GitHub、邮箱");
+    expect(providersText(["google"])).toBe("Google");
+    expect(GITHUB_VIA_TEXT).toEqual({ app: "GitHub App", session: "你的 GitHub 账号", none: "还没接上" });
+  });
+  it("keys a row by account, and by lower-cased login when there is no account yet", () => {
+    expect(personKey({ account_id: "01JMOCKACCOUNT000000000001", login: "Octo" })).toBe("01JMOCKACCOUNT000000000001");
+    expect(personKey({ account_id: null, login: "Octo" })).toBe("login:octo");
   });
 });

@@ -16,7 +16,6 @@ declare module "fastify" {
       created_at: number;
       expires_at: number;
     };
-    orgRole?: "admin" | "member" | null;
   }
 }
 

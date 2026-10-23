@@ -78,7 +78,7 @@ const currentPerspectiveInfo = computed(() => {
       type: "me" as const,
       title: `@${me.value?.login ?? ""}`,
       sub: me.value?.titles.map(t => t.label).join(" · ") || "当前成员",
-      isOwner: me.value?.github_role === "admin",
+      isOwner: me.value?.site_role === "admin",
     };
   }
 
@@ -109,7 +109,7 @@ const currentPerspectiveInfo = computed(() => {
 });
 
 // 状态筛选
-const statusFilter = ref<"all" | "effective" | "blocked" | "ungranted">("all");
+const statusFilter = ref<"all" | "effective" | "ungranted">("all");
 const query = ref("");
 watch(selectedPerspective, () => { statusFilter.value = "all"; query.value = ""; });
 
@@ -151,7 +151,7 @@ const currentPerspectiveItems = computed<PermissionDetail[]>(() => {
 
 // 统计
 const counts = computed(() => {
-  const res = { effective: 0, blocked: 0, ungranted: 0, total: 0 };
+  const res = { effective: 0, ungranted: 0, total: 0 };
   for (const item of currentPerspectiveItems.value) {
     res.total++;
     res[item.status]++;
@@ -162,14 +162,13 @@ const effectiveLabel = computed(() => selectedPerspective.value === "me" ? "已�
 const filters = computed(() => [
   { value: "all", label: "全部", count: counts.value.total },
   ...(counts.value.effective > 0 && counts.value.effective < counts.value.total ? [{ value: "effective", label: effectiveLabel.value, count: counts.value.effective }] : []),
-  ...(counts.value.blocked > 0 && counts.value.blocked < counts.value.total ? [{ value: "blocked", label: "受限", count: counts.value.blocked }] : []),
   ...(counts.value.ungranted > 0 && counts.value.ungranted < counts.value.total ? [{ value: "ungranted", label: "未包含", count: counts.value.ungranted }] : []),
 ]);
 watch(filters, options => {
   if (!options.some(option => option.value === statusFilter.value)) statusFilter.value = "all";
 });
 function setFilter(value: unknown) {
-  if (value === "all" || value === "effective" || value === "blocked" || value === "ungranted") statusFilter.value = value;
+  if (value === "all" || value === "effective" || value === "ungranted") statusFilter.value = value;
 }
 
 // 按业务域分组的能力列表
@@ -180,7 +179,6 @@ const groupedCapabilities = computed(() => {
   for (const item of currentPerspectiveItems.value) {
     // 状态过滤
     if (statusFilter.value === "effective" && item.status !== "effective") continue;
-    if (statusFilter.value === "blocked" && item.status !== "blocked") continue;
     if (statusFilter.value === "ungranted" && item.status !== "ungranted") continue;
 
     // 搜索过滤
@@ -301,9 +299,6 @@ onBeforeUnmount(() => {
             <span class="stat-item stat-item--success">
               {{ counts.effective }} 项{{ selectedPerspective === 'me' ? '生效' : '包含' }}
             </span>
-            <span v-if="counts.blocked" class="stat-item stat-item--warning">
-              {{ counts.blocked }} 项受限
-            </span>
             <span v-if="counts.ungranted" class="stat-item stat-item--muted">
               {{ counts.ungranted }} 项未包含
             </span>
@@ -352,10 +347,7 @@ onBeforeUnmount(() => {
                   :key="item.id"
                   type="button"
                   class="permission-tree__item-row"
-                  :class="{
-                    'permission-tree__item-row--active': selectedId === item.id,
-                    'permission-tree__item-row--blocked': item.status === 'blocked',
-                  }"
+                  :class="{ 'permission-tree__item-row--active': selectedId === item.id }"
                   :aria-current="selectedId === item.id ? 'true' : undefined"
                   aria-controls="permission-detail-panel"
                   :data-capability-id="item.id"
@@ -370,13 +362,6 @@ onBeforeUnmount(() => {
                       v-if="item.status === 'effective'"
                       :label="selectedPerspective === 'me' ? '生效' : '包含'"
                       color="var(--tx-color-success)"
-                      variant="soft"
-                      size="sm"
-                    />
-                    <TxTag
-                      v-else-if="item.status === 'blocked'"
-                      label="受限"
-                      color="var(--tx-color-warning)"
                       variant="soft"
                       size="sm"
                     />
@@ -419,12 +404,6 @@ onBeforeUnmount(() => {
                     variant="soft"
                   />
                   <TxTag
-                    v-else-if="currentDetail.status === 'blocked'"
-                    label="受 GitHub 限制"
-                    color="var(--tx-color-warning)"
-                    variant="soft"
-                  />
-                  <TxTag
                     v-else
                     label="当前视角未包含"
                     variant="plain"
@@ -436,17 +415,6 @@ onBeforeUnmount(() => {
               <p class="permission-detail__desc">{{ currentDetail.description || '当前能力暂无详细说明。' }}</p>
             </header>
 
-            <!-- 受 GitHub 限制警示 -->
-            <div v-if="currentDetail.reason" class="permission-detail__alert-box permission-detail__alert-box--warning">
-              <span class="i-carbon-warning-alt-filled permission-detail__alert-icon" />
-              <div>
-                <strong>受 GitHub 身份限制</strong>
-                <p>
-                  {{ currentDetail.reason === 'github_admin_required' ? '此操作需要 GitHub 组织所有者身份。当前账号无法执行。' : '此操作需要 GitHub 组织成员身份。' }}
-                </p>
-              </div>
-            </div>
-
             <!-- 权限来源归属 -->
             <div class="permission-detail__card">
               <h4 class="permission-detail__card-title">
@@ -455,10 +423,10 @@ onBeforeUnmount(() => {
 
               <!-- 提督全局规则 -->
               <div v-if="currentPerspectiveInfo.isOwner" class="permission-detail__source-row">
-                <span class="permission-detail__source-tag">组织所有者</span>
+                <span class="permission-detail__source-tag">站内管理员</span>
                 <div class="permission-detail__source-desc">
                   <strong>全部权限</strong>
-                  <p>由 GitHub 组织身份自动获得。</p>
+                  <p>由站内管理员角色自动获得。</p>
                 </div>
               </div>
 
@@ -797,35 +765,6 @@ onBeforeUnmount(() => {
   font-size: .875rem;
   line-height: 1.6;
   color: var(--tx-text-color-regular);
-}
-
-/* 警示框 */
-.permission-detail__alert-box {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: 6px;
-  font-size: .8125rem;
-  line-height: 1.5;
-}
-.permission-detail__alert-box--warning {
-  background: color-mix(in srgb, var(--tx-color-warning) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--tx-color-warning) 30%, transparent);
-  color: var(--tx-text-color-primary);
-}
-.permission-detail__alert-icon {
-  font-size: 1rem;
-  color: var(--tx-color-warning);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.permission-detail__alert-box strong {
-  display: block;
-  margin-bottom: 2px;
-}
-.permission-detail__alert-box p {
-  margin: 0;
 }
 
 /* 详情卡片 */

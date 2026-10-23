@@ -14,8 +14,8 @@ import TitleBadge from "../components/TitleBadge.vue";
 import ErrorPanel from "../components/ErrorPanel.vue";
 import { api } from "../lib/http";
 import { fmtDate, fmtRelative } from "../lib/format";
-import { BLOCK_REASON_TEXT } from "../lib/nav";
 import { useResource } from "../lib/resource";
+import { GITHUB_VIA_TEXT, siteRoleText } from "../lib/people";
 import { useSession } from "../lib/session";
 import { assignerText } from "../lib/titles";
 import type { AuditRow, Summary } from "../lib/types";
@@ -25,21 +25,19 @@ const { me, catalogue, can } = useSession();
 const summary = useResource(() => api<Summary>("/api/console/summary"));
 const audit = useResource(() => api<{ logs: AuditRow[] }>("/api/console/audit?limit=6"), [], { enabled: () => can("audit.read") });
 
-const roleText = computed(() => me.value?.github_role === "admin" ? "管理员" : me.value?.github_role === "member" ? "成员" : "未加入");
+const roleText = computed(() => siteRoleText(me.value?.site_role ?? null));
 const held = computed(() => (me.value?.capabilities ?? []).filter(id => id !== "console.access"));
 
-/** 按能力类别列出：我有的、被 GitHub 组织角色挡住的。没有任何能力的类别不列。 */
+/** 按能力类别列出我有的；没有任何能力的类别不列。 */
 const domains = computed(() => {
   const cat = catalogue.value;
   if (!cat || !me.value) return [];
   return cat.domains.filter(domain => domain.id !== "console").map(domain => {
-    const inDomain = cat.capabilities.filter(item => item.domain === domain.id);
-    const granted = inDomain.filter(item => me.value!.capabilities.includes(item.id));
-    const blocked = inDomain.filter(item => me.value!.blocked.some(b => b.capability === item.id));
-    const reason = me.value!.blocked.find(b => blocked.some(item => item.id === b.capability))?.reason ?? null;
-    return { ...domain, granted, blocked, reason };
-  }).filter(domain => domain.granted.length + domain.blocked.length > 0);
+    const granted = cat.capabilities.filter(item => item.domain === domain.id && me.value!.capabilities.includes(item.id));
+    return { ...domain, granted };
+  }).filter(domain => domain.granted.length > 0);
 });
+const githubNote = computed(() => me.value?.github === "none" && domains.value.some(domain => domain.id === "github"));
 
 type Stat = { label: string; value: number; meta: string; to: string; icon: string };
 const stats = computed<Stat[]>(() => {
@@ -71,7 +69,8 @@ const stats = computed<Stat[]>(() => {
         </div>
         <dl class="identity__facts">
           <div><dt>GitHub 组织</dt><dd class="mono ellipsis" :title="me.org">{{ me.org }}</dd></div>
-          <div><dt>组织角色</dt><dd>{{ roleText }}</dd></div>
+          <div><dt>站内角色</dt><dd>{{ roleText }}</dd></div>
+          <div><dt>GitHub 接入</dt><dd>{{ GITHUB_VIA_TEXT[me.github] }}</dd></div>
           <div><dt>权限</dt><dd>{{ held.length }} 项</dd></div>
         </dl>
       </div>
@@ -116,9 +115,8 @@ const stats = computed<Stat[]>(() => {
             <h3>{{ domain.label }}</h3>
             <div class="tags">
               <TxTag v-for="item in domain.granted" :key="item.id" :label="item.label" variant="soft" size="sm" />
-              <TxTag v-for="item in domain.blocked" :key="item.id" :label="item.label" icon="i-carbon-locked" variant="plain" size="sm" />
             </div>
-            <p v-if="domain.reason" class="domain__note">带锁的一项{{ BLOCK_REASON_TEXT[domain.reason] }}才能使用。</p>
+            <p v-if="domain.id === 'github' && githubNote" class="domain__note">GitHub 还没接上：服务器配好 GitHub App 之前，这些只有用 GitHub 登录时能用。</p>
           </section>
           <p class="domain__note">需要更多权限，请联系{{ assignerText(catalogue) }}指派称号。</p>
         </div>
@@ -192,7 +190,7 @@ const stats = computed<Stat[]>(() => {
 }
 .identity__facts {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, auto));
+  grid-template-columns: repeat(4, minmax(0, auto));
   gap: 8px 28px;
   margin: 0;
   min-width: 0;

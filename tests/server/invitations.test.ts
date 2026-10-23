@@ -5,10 +5,11 @@ const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
 afterEach(async () => { for (const c of contexts.splice(0)) await c.close(); });
 async function fixture(failure?: number, options: { message?: string; lookup?: number } = {}) {
   let sends = 0;
-  const context = await testApp({ octokitFactory: (() => ({ users: { getByUsername: async () => {
-    if (options.lookup) throw Object.assign(new Error('stub lookup rejection'), { status: options.lookup });
-    return { data: { id: 1 } };
-  } }, request: async (method: string) => {
+  const context = await testApp({ octokitFactory: (() => ({ request: async (method: string) => {
+    if (method === 'GET /users/{username}') {
+      if (options.lookup) throw Object.assign(new Error('stub lookup rejection'), { status: options.lookup });
+      return { data: { id: 1 } };
+    }
     if (!method.startsWith('POST')) throw new Error('Unexpected upstream operation');
     sends++; await new Promise(resolve => setTimeout(resolve, 15));
     if (failure) throw Object.assign(new Error(options.message ?? 'stub rejection'), { status: failure });
@@ -56,7 +57,7 @@ it('builds invite links on the single public origin', async () => {
   const context = await testApp({ octokitFactory: (() => ({ request: async (method: string) => {
     if (method !== 'GET /orgs/{org}/memberships/{username}') throw new Error('Unexpected upstream operation');
     return { data: { state: 'active', role: 'admin' } };
-  } })) as ServiceOverrides['octokitFactory'] });
+  } })) as ServiceOverrides['octokitFactory'] }, false, { CONSOLE_ORG: 'test-org' });
   contexts.push(context);
   const sid = signIn(context.app, 'test-admin', 9, null, 'test-stub-only');
   const response = await context.app.inject({ method: 'POST', url: '/api/admin/test-org/invite-links', headers: { cookie: `sid=${sid}`, origin: 'https://example.test' }, payload: { hours: 1, max_uses: 1 } });

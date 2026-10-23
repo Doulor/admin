@@ -16,9 +16,10 @@ import { api } from "../../lib/http";
 import { fmtDay, fmtRelative } from "../../lib/format";
 import { useOrg } from "../../lib/github";
 import { useResource } from "../../lib/resource";
+import type { GithubVia } from "../../lib/types";
 
 type OrgInfo = { login: string; name: string | null; avatar_url: string | null; html_url: string; description: string | null; plan: string | null; public_repos: number; total_private_repos: number; two_factor_required: boolean; disk_usage_mb: number; created_at: string };
-type OverviewResponse = { role: string; org: OrgInfo; counts: { members: number; repos: number; pending_invites: number; invites_24h: number; active_invite_links: number } };
+type OverviewResponse = { via: GithubVia; org: OrgInfo; counts: { members: number; repos: number; pending_invites: number; invites_24h: number; active_invite_links: number } };
 type Repo = { name: string; description: string | null; visibility: string; pushed_at: string };
 type Event = { id: string; actor: string; payload_summary: string; repo: string | null; created_at: string };
 
@@ -53,7 +54,7 @@ const stats = computed(() => {
           <p class="org-meta">
             <TxAvatar :src="overview.data.value.org.avatar_url ?? undefined" :name="org" :size="20" shape="rounded" />
             <span class="mono">@{{ org }}</span>
-            <TxTag :label="overview.data.value.role === 'admin' ? '你是组织管理员' : '你是组织成员'" size="sm" variant="soft" />
+            <TxTag :label="overview.data.value.via === 'app' ? '经 GitHub App 接入' : '经你的 GitHub 账号接入'" size="sm" variant="soft" />
           </p>
         </template>
         <template #actions>

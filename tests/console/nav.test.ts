@@ -1,20 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { CONSOLE_NAV, activeNavId, navState, visibleNav } from "../../app/console/src/lib/nav";
+import { CONSOLE_NAV, activeNavId, navState, needsGithubConnection, visibleNav } from "../../app/console/src/lib/nav";
 import { MOCK_PERSONAS } from "../../app/console/src/mock/console";
 
-type Reason = "github_admin_required" | "github_membership_required" | "github_session_required";
-const identity = (capabilities: string[], blocked: { capability: string; reason: Reason }[] = []) => ({ capabilities, blocked });
+const identity = (capabilities: string[]) => ({ capabilities });
 
 describe("navState", () => {
   const item = { anyOf: ["github.invites.manage"] };
   it("shows an item whose capability is held", () => {
     expect(navState(item, identity(["console.access", "github.invites.manage"]))).toBe("visible");
   });
-  it("hides an item whose capability is capped by the GitHub role", () => {
-    expect(navState(item, identity(["console.access"], [{ capability: "github.invites.manage", reason: "github_admin_required" }]))).toBe("hidden");
-  });
-  it("keeps an item that only needs a GitHub sign-in, so the gate can offer one (#262)", () => {
-    expect(navState(item, identity(["console.access"], [{ capability: "github.invites.manage", reason: "github_session_required" }]))).toBe("visible");
+  it("tells GitHub organisation pages apart: they need the server to be connected to GitHub (#262 第四期)", () => {
+    expect(needsGithubConnection(["github.invites.manage"])).toBe(true);
+    expect(needsGithubConnection(["github.org.read", "github.org.manage"])).toBe(true);
+    expect(needsGithubConnection(["roles.manage", "roles.department.manage"])).toBe(false);
+    expect(needsGithubConnection([])).toBe(false);
   });
   it("hides an item the title never granted", () => {
     expect(navState(item, identity(["console.access"]))).toBe("hidden");
@@ -31,29 +30,31 @@ describe("console navigation per persona", () => {
   it("gives the admin (GitHub organisation owner) every page", () => {
     expect(ids("admin")).toEqual(CONSOLE_NAV.map(item => item.id));
   });
-  it("hides GitHub management pages from a captain whose org role caps those capabilities", () => {
-    expect(ids("captain")).not.toContain("github-invitations");
-    expect(ids("captain")).not.toContain("github-invite-links");
-    expect(ids("captain")).toContain("github-overview");
+  it("gives the captain every GitHub page from the title alone, whatever the GitHub org role", () => {
+    expect(ids("captain")).toContain("github-invitations");
+    expect(ids("captain")).toContain("github-security");
+    expect(MOCK_PERSONAS.captain.site_role).toBe("member");
   });
   it("gives a plain member only the overview and the GitHub read pages", () => {
     expect(groups("member")).toEqual(["home", "github"]);
     expect(ids("member")).not.toContain("github-invitations");
     expect(ids("member")).not.toContain("people");
   });
-  it("hides capped invitation pages for a recruitment head who is not an org admin", () => {
-    expect(ids("recruitment")).not.toContain("github-invitations");
-    expect(ids("recruitment")).not.toContain("github-invite-links");
+  it("gives a recruitment head the invitation pages but not the security page, which needs github.org.manage", () => {
+    expect(ids("recruitment")).toContain("github-invitations");
+    expect(ids("recruitment")).toContain("github-invite-links");
+    expect(ids("recruitment")).not.toContain("github-security");
   });
   it("gives a department head the people page but not the audit log unless the bundle grants it", () => {
     expect(ids("recruitment")).toContain("people");
     expect(ids("recruitment")).not.toContain("audit");
     expect(ids("tech")).toContain("audit");
   });
-  it("keeps the owner's GitHub pages in the nav when they signed in by email, and the invite codes page", () => {
+  it("keeps the owner's every page when they signed in by email; GitHub pages explain the missing connection on open", () => {
     expect(ids("admin_email")).toEqual(ids("admin"));
     expect(ids("admin_email")).toContain("invites");
-    expect(MOCK_PERSONAS.admin_email.capabilities.some(id => id.startsWith("github."))).toBe(false);
+    expect(MOCK_PERSONAS.admin_email.capabilities).toEqual(MOCK_PERSONAS.admin.capabilities);
+    expect(MOCK_PERSONAS.admin_email.github).toBe("none");
   });
   it("shows invite codes only to holders of accounts.invites.manage", () => {
     expect(ids("captain")).toContain("invites");
