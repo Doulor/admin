@@ -123,7 +123,7 @@ describe("桌面", () => {
     spy.mockRestore();
   });
 
-  it("菜单栏：左边 YUGC 四色标志打开系统菜单，右边搜索、时间、头像；没登录时头像去统一登录页", async () => {
+  it("菜单栏：左边 YUGC 四色标志打开系统菜单，右边搜索、时间、头像；没登录时头像打开资料卡，里面去统一登录页", async () => {
     mount();
     const bar = within(screen.getByRole("banner", { name: "菜单栏" }));
     const logo = bar.getByRole("button", { name: "系统菜单" });
@@ -131,11 +131,14 @@ describe("桌面", () => {
     fireEvent.click(logo);
     expect(screen.getByRole("menuitem", { name: "关于极客班" })).not.toBeNull();
     expect(bar.getByRole("button", { name: /搜索/ })).not.toBeNull();
-    const avatar = await bar.findByRole("link", { name: "登录" });
-    expect(avatar.getAttribute("href")).toBe(`/signin?return_to=${encodeURIComponent("/")}`);
+    const avatar = await bar.findByRole("button", { name: "登录或注册" });
+    expect(avatar.getAttribute("aria-haspopup")).toBe("dialog");
     expect(avatar.querySelector(".pt-avatar")).not.toBeNull();
     // 头像在最右边
     expect(avatar.parentElement?.lastElementChild).toBe(avatar);
+    fireEvent.click(avatar);
+    const card = within(screen.getByRole("dialog", { name: "登录极客班" }));
+    expect(card.getByRole("link", { name: "登录" }).getAttribute("href")).toBe(`/signin?return_to=${encodeURIComponent("/")}`);
   });
 
   it("登录后头像换成账号按钮，有头像图就显示图", async () => {

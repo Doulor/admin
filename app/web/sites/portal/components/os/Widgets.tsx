@@ -56,7 +56,7 @@ export function AppGlyph({ app, size = 24 }: { app: OsApp; size?: number }) {
 
 /**
  * 「新来的看这里」：像贴在桌面上的便签，说清怎么加入、另外两个应用是什么；每一行点下去就打开写着的那个应用。
- * 可以收起；收起后只在菜单栏「帮助」里重新打开，本次浏览不再自动出现。
+ * 只在这个浏览器第一次进来时自动出现，收起或点过其中一步就算看过（lib/startNote.ts）；之后在菜单栏「帮助」里重新打开。
  */
 export function StartNote({ onOpen, onClose, phone = false }: { onOpen: OpenApp; onClose: () => void; phone?: boolean }) {
   const steps: Array<{ id: AppId; title: string; text: string }> = [
@@ -66,32 +66,40 @@ export function StartNote({ onOpen, onClose, phone = false }: { onOpen: OpenApp;
   ];
   return (
     <aside className="pt-note" aria-label={phone ? "加入指引" : undefined} aria-labelledby={phone ? undefined : "pt-note-title"}>
-      {!phone && <header>
+      {/* 和窗口一样的粉色标题栏，只有一个关闭圆点（styles/os.css 的 .pt-win-lights） */}
+      {!phone && <header className="pt-note-bar">
+        <span className="pt-win-lights">
+          <button type="button" aria-label="收起这张便签" onClick={onClose}>
+            <i>
+              <Icon name="close-line" size={8} />
+            </i>
+          </button>
+        </span>
         <h2 id="pt-note-title">新来的看这里</h2>
-        <button type="button" className="pt-note-close" aria-label="收起这张便签" onClick={onClose}>
-          <Icon name="close-line" size={14} />
-        </button>
+        <span aria-hidden="true" />
       </header>}
-      <p className="pt-note-lead">这是长江大学极客班的{phone ? "主屏幕" : "桌面"}。想加入就写封信；也可以先看看论坛和我们的代码。</p>
-      <ol>
-        {steps.map((step, index) => {
-          const app = appById(step.id);
-          return (
-            <li key={step.id}>
-              <button type="button" onClick={(event) => onOpen(step.id, event.currentTarget)}>
-                <b>{index + 1}</b>
-                <span>
-                  <strong>{step.title}</strong>
-                  <small>{step.text}</small>
-                  {app && opensNewTab(app) && <span className="pt-sr">{NEW_TAB_NOTE}</span>}
-                </span>
-                <Icon name="arrow-right-s-line" size={16} />
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-      <p className="pt-note-foot">{phone ? "点一下主屏幕上的图标就能打开应用。" : "双击桌面上的图标也能打开应用，按 ⌘K 可以搜索。"}</p>
+      <div className="pt-note-body">
+        <p className="pt-note-lead">这是长江大学极客班的{phone ? "主屏幕" : "桌面"}。想加入就写封信；也可以先看看论坛和我们的代码。</p>
+        <ol>
+          {steps.map((step, index) => {
+            const app = appById(step.id);
+            return (
+              <li key={step.id}>
+                <button type="button" onClick={(event) => onOpen(step.id, event.currentTarget)}>
+                  <b>{index + 1}</b>
+                  <span>
+                    <strong>{step.title}</strong>
+                    <small>{step.text}</small>
+                    {app && opensNewTab(app) && <span className="pt-sr">{NEW_TAB_NOTE}</span>}
+                  </span>
+                  <Icon name="arrow-right-s-line" size={16} />
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+        <p className="pt-note-foot">{phone ? "点一下主屏幕上的图标就能打开应用。" : "双击桌面上的图标也能打开应用，按 ⌘K 可以搜索。"}</p>
+      </div>
     </aside>
   );
 }

@@ -45,6 +45,8 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   sessionStorage.clear();
+  // 点过便签的步骤就记下「看过」（lib/startNote.ts），不清掉的话后面的用例里便签不再出现
+  localStorage.clear();
 });
 
 function Where() {

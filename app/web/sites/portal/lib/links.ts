@@ -10,6 +10,8 @@ export const links = {
   // 论坛话题页按话题 id 解析（/t/<id>，例如 /t/t84），不是 slug
   forumTopic: (id: string): string => externalUrl("forum", `/t/${encodeURIComponent(id)}`),
   console: (): string => externalUrl("admin", "/console"),
+  // 账号设置页属于控制台，但和 /signin 一样挂在官网域名根路径下（本机开发由 5173 转给控制台 dev server）
+  account: (): string => "/account",
   githubOrg: (): string => appConfig.urls.githubOrg,
   gitlab: (): string => appConfig.urls.gitlab,
 };

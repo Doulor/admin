@@ -8,6 +8,9 @@
 [data-tone="u"] { --tone-light: var(--os-u-light); --tone: var(--os-u); --tone-line: var(--os-u-line); }
 [data-tone="g"] { --tone-light: var(--os-g-light); --tone: var(--os-g); --tone-line: var(--os-g-line); }
 [data-tone="c"] { --tone-light: var(--os-c-light); --tone: var(--os-c); --tone-line: var(--os-c-line); }
+/* 部门色另外两档：管理部门用胶囊蓝，无部门用次要文字色 */
+[data-tone="pill"] { --tone-light: var(--os-u-light); --tone: var(--os-pill-to); --tone-line: var(--os-u-line); }
+[data-tone="ink"] { --tone-light: var(--os-sky-1); --tone: var(--os-ink-soft); --tone-line: var(--os-ink); }
 
 .pt-os-shell {
   position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden; overflow: clip;
@@ -116,37 +119,41 @@
 .pt-glyph > .pt-icon { filter: drop-shadow(0 1px 0 var(--tone-line)); }
 .pt-glyph em { position: absolute; right: -4px; bottom: -4px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: #fff; color: var(--os-ink); box-shadow: 0 2px 6px rgb(60 110 200 / 30%); }
 
-/* 「新来的看这里」便签：贴在图标右边的天空里（壁纸左半边是留白，极客娘在右边，不能被挡住），
-   白底半透明 + 小面积模糊 */
+/* 「新来的看这里」便签：和窗口同一套外框（粉色描边、粉色标题栏，只有一个关闭圆点），贴在图标右边的天空里
+   （壁纸左半边是留白，极客娘在右边，不能被挡住） */
 .pt-note {
-  position: absolute; z-index: 3; top: 22px; left: clamp(250px, 17vw, 320px); width: min(380px, calc(100% - 48px));
-  padding: 18px 18px 14px; border-radius: 18px; background: rgb(255 255 255 / 86%);
-  backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
-  box-shadow: 0 0 0 1px rgb(255 255 255 / 70%) inset, 0 2px 6px rgb(27 33 64 / 8%), 0 24px 48px -28px rgb(27 33 64 / 45%);
-  animation: pt-rise .6s var(--pt-ease) .15s both;
+  position: absolute; z-index: 3; top: 22px; left: clamp(250px, 17vw, 320px); width: min(380px, calc(100% - 48px)); overflow: hidden;
+  border: 1px solid var(--os-win-border); border-radius: var(--os-radius-win); background: var(--os-panel); color: var(--os-ink);
+  backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); box-shadow: var(--os-shadow);
+  animation: pt-win-in .22s var(--pt-ease) .15s both;
 }
-@keyframes pt-rise { from { opacity: 0; transform: translateY(12px); } }
-.pt-note header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.pt-note h2 { font-size: 17px; font-weight: 800; }
-.pt-note-close { display: grid; place-items: center; width: 30px; height: 30px; margin: -4px -6px 0 0; border: 0; border-radius: 8px; background: none; color: var(--pt-ink-soft); cursor: pointer; }
-.pt-note-close:hover { background: rgb(27 33 64 / 7%); color: var(--pt-ink); }
-.pt-note-lead { margin: 6px 0 12px; font-size: 13.5px; line-height: 1.6; color: var(--pt-ink-soft); }
+.pt-note-bar {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; height: 44px;
+  border-bottom: 1px solid var(--os-win-border); background: linear-gradient(var(--os-win-top), var(--os-win-bottom));
+}
+.pt-note-bar h2 { justify-self: center; font-size: 13.5px; font-weight: 700; }
+.pt-note-body { padding: 14px 16px; }
+/* 壁纸面板标题栏上的关闭按钮 */
+.pt-note-close { display: grid; place-items: center; width: 44px; height: 44px; margin: -10px -12px -10px 0; border: 0; border-radius: 10px; background: none; color: var(--os-ink-soft); cursor: pointer; }
+.pt-note-close:hover { background: rgb(58 118 214 / 10%); color: var(--os-ink); }
+.pt-note-lead { margin: 0 0 12px; font-size: 13.5px; line-height: 1.6; color: var(--os-ink-soft); }
 .pt-note ol { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .pt-note li button {
-  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 10px 10px 10px 8px;
-  border: 1px solid var(--pt-line-soft); border-radius: 12px; background: #fff; text-align: left; color: var(--pt-ink); cursor: pointer;
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 10px 10px 10px 8px;
+  border: 1px solid rgb(58 118 214 / 18%); border-radius: var(--os-radius-card); background: #fff; text-align: left; color: var(--os-ink); cursor: pointer;
   transition: border-color .18s, transform .18s var(--pt-ease);
 }
-.pt-note li button:hover { border-color: rgb(51 70 200 / 40%); transform: translateY(-1px); }
-.pt-note li button > b { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--pt-cobalt-soft); color: var(--pt-cobalt); font: 700 13px var(--pt-sans); font-variant-numeric: tabular-nums; }
-.pt-note li:first-child button { border-color: transparent; background: var(--pt-cobalt); color: #fff; box-shadow: 0 8px 18px -10px rgb(51 70 200 / 80%); }
-.pt-note li:first-child button:hover { background: var(--pt-cobalt-deep); }
-.pt-note li:first-child button > b { background: rgb(255 255 255 / 18%); color: #fff; }
-.pt-note li:first-child small { color: #dbe0ff; }
+.pt-note li button:hover { border-color: rgb(58 118 214 / 45%); transform: translateY(-1px); }
+.pt-note li button > b { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--os-u-light); color: var(--os-accent); font: 700 13px var(--pt-sans); font-variant-numeric: tabular-nums; }
+/* 第一步是主操作：胶囊蓝渐变 */
+.pt-note li:first-child button { border-color: transparent; background: linear-gradient(var(--os-pill-from), var(--os-pill-to)); color: #fff; box-shadow: 0 8px 18px -10px var(--os-pill-to); }
+.pt-note li:first-child button:hover { filter: brightness(1.06); }
+.pt-note li:first-child button > b { background: rgb(255 255 255 / 22%); color: #fff; }
+.pt-note li:first-child small { color: rgb(255 255 255 / 86%); }
 .pt-note li span { display: grid; gap: 2px; min-width: 0; }
 .pt-note li strong { font-size: 14px; }
-.pt-note li small { font-size: 12px; line-height: 1.45; color: var(--pt-ink-soft); }
-.pt-note-foot { margin-top: 10px; font-size: 12px; color: var(--pt-ink-mute); }
+.pt-note li small { font-size: 12px; line-height: 1.45; color: var(--os-ink-soft); }
+.pt-note-foot { margin-top: 10px; font-size: 12px; color: var(--os-ink-soft); }
 
 /* ── Dock：白色 80% 半透明的胶囊，每个图标下面有名字；悬停上浮 6px ── */
 .pt-dock {
@@ -285,8 +292,9 @@
   .pt-dt { padding: 30px 34px var(--dock-room); }
   .pt-icons { grid-template-rows: repeat(auto-fill, 112px); grid-auto-columns: 108px; }
   .pt-dti { font-size: 14px; }
-  .pt-note { top: 30px; left: 300px; width: 440px; padding: 22px 22px 16px; }
-  .pt-note h2 { font-size: 19px; }
+  .pt-note { top: 30px; left: 300px; width: 440px; }
+  .pt-note-bar h2 { font-size: 14.5px; }
+  .pt-note-body { padding: 16px 20px; }
   .pt-note-lead { font-size: 14.5px; }
   .pt-note li strong { font-size: 15px; }
   .pt-note li small { font-size: 13px; }
@@ -307,8 +315,6 @@
 /* 右上角头像：资料入口；没登录时头像旁边写「登录」 */
 .pt-phone-account { justify-self: end; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 4px 8px; border: 0; border-radius: 999px; background: none; color: var(--os-ink); font-size: 0.8125rem; font-weight: 600; text-decoration: none; cursor: pointer; }
 .pt-phone-account:hover { background: var(--os-panel); }
-.is-phone .pt-menu { left: auto !important; right: max(12px, env(safe-area-inset-right, 0px)); top: calc(56px + env(safe-area-inset-top, 0px)); max-height: calc(100% - 160px); overflow: auto; }
-.is-phone .pt-menu button { min-height: 44px; }
 .is-phone .pt-dt { padding: 12px max(12px, env(safe-area-inset-right, 0px)) 16px max(12px, env(safe-area-inset-left, 0px)); overflow-y: auto; overscroll-behavior-y: contain; background: none; }
 .is-phone .pt-walls { position: fixed; }
 .is-phone .pt-home-apps { position: relative; z-index: 2; height: auto; }
@@ -443,11 +449,76 @@
 .pt-os-modal.is-phone .pt-picker-box, .pt-os-modal.is-phone .pt-ln-box { padding: 0; border-radius: 0; box-shadow: none; animation: none; }
 .pt-os-modal.is-phone .pt-ln-input { padding: 12px 4px; }
 .pt-os-modal.is-phone .pt-ln-box li { min-height: 44px; }
-.pt-os-modal .pt-note { position: relative; top: auto; left: auto; width: 100%; padding: 0; background: none; backdrop-filter: none; box-shadow: none; animation: none; }
+.pt-os-modal .pt-note { position: relative; top: auto; left: auto; width: 100%; overflow: visible; border: 0; border-radius: 0; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; animation: none; }
+.pt-os-modal .pt-note-body { padding: 0; }
 .pt-os-modal.is-phone .pt-picker-box ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .pt-picker-modal.is-phone .pt-picker-box img { aspect-ratio: auto; max-height: min(48dvh, 320px); object-fit: contain; }
 .pt-os-modal.is-phone .pt-ln-box ul { max-height: min(340px, 48dvh); }
 .pt-os-modal.is-phone .pt-ln-box footer { display: none; }
+
+/* ── 个人资料卡（components/os/ProfileCard.tsx）：电脑上挂在菜单栏头像下面，360px 宽，背景不变暗；手机上是从底部升起的面板 ── */
+.pt-root.pt-profile-modal:not(.is-phone) { inset: 40px 8px auto auto; width: 360px; max-height: calc(100dvh - 56px); margin: 0; overflow: auto; transform-origin: top right; animation: pt-win-in .22s var(--pt-ease); }
+.pt-profile-modal:not(.is-phone)::backdrop { background: transparent; }
+.pt-root.pt-profile-modal.is-phone {
+  inset: auto 0 0; width: 100%; max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px)); margin: 0; overflow: auto;
+  padding: 14px max(18px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
+  border-bottom: 0; border-radius: 24px 24px 0 0; animation: pt-sheet-up .3s cubic-bezier(.16, 1, .3, 1);
+}
+.pt-profile { display: grid; gap: 14px; color: var(--os-ink); font-size: 13.5px; }
+.pt-profile-modal:not(.is-phone) .pt-profile {
+  padding: 18px; border: 1px solid var(--os-win-border); border-radius: var(--os-radius-win); background: var(--os-panel);
+  backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); box-shadow: var(--os-shadow);
+}
+.pt-profile.is-guest { justify-items: center; text-align: center; }
+.pt-profile-lead { font-size: 15px; font-weight: 700; }
+.pt-profile-actions { display: flex; gap: 10px; width: 100%; }
+.pt-profile-actions > .pt-btn { flex: 1; }
+.pt-profile-hint { font-size: 12.5px; line-height: 1.5; color: var(--os-ink-soft); }
+.pt-avatar.is-lg { width: 64px; height: 64px; }
+.pt-profile-head { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 14px; align-items: start; }
+.pt-profile-avatar > button { position: relative; display: grid; place-items: center; width: 64px; height: 64px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.pt-profile-avatar > button > i { position: absolute; right: -2px; bottom: -2px; display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--os-stroke); border-radius: 50%; background: var(--os-accent); color: #fff; }
+.pt-profile-avatar > button:hover .pt-avatar, .pt-profile-avatar > button:focus-visible .pt-avatar { box-shadow: 0 0 0 2px var(--os-accent); }
+.pt-profile-avatar > button:focus-visible { outline: none; }
+.pt-profile-avatar > button:disabled { cursor: progress; opacity: .7; }
+.pt-profile-names { display: grid; gap: 4px; min-width: 0; }
+.pt-profile-field { display: grid; gap: 2px; min-width: 0; }
+.pt-profile-label { font-size: 11.5px; color: var(--os-ink-soft); }
+.pt-profile-input { display: flex; align-items: center; min-height: 44px; padding: 0 10px; border: 1px solid transparent; border-radius: 10px; background: rgb(255 255 255 / 60%); transition: border-color .15s, background .15s; }
+.pt-profile-input:hover { border-color: rgb(58 118 214 / 25%); }
+.pt-profile-input:focus-within { border-color: var(--os-accent); background: #fff; }
+.pt-profile-input:has([aria-invalid="true"]) { border-color: var(--os-g-line); }
+.pt-profile-input em { font-style: normal; color: var(--os-ink-soft); }
+.pt-profile-input input, .pt-profile-input textarea { flex: 1; min-width: 0; padding: 0; border: 0; background: none; color: var(--os-ink); font: inherit; outline: none; resize: none; }
+.pt-profile-input textarea { padding: 10px 0; line-height: 1.5; }
+.pt-profile-field.is-name input { font-size: 17px; font-weight: 800; }
+.pt-profile-msg { font-size: 12px; line-height: 1.5; color: var(--os-ink-soft); }
+.pt-profile-msg.is-error { color: var(--os-g-line); }
+.pt-profile-msg.is-ok { color: var(--os-ok); }
+.pt-profile-msg a { color: var(--os-accent); }
+/* 身份 · 部门 · 称号：部门前面是部门色的圆点 */
+.pt-profile-meta { display: flex; flex-wrap: wrap; align-items: center; row-gap: 4px; color: var(--os-ink-soft); font-size: 12.5px; }
+.pt-profile-meta > span + span::before { content: "·"; margin: 0 6px; }
+.pt-profile-dept i { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; background: var(--tone); vertical-align: 1px; }
+.pt-profile-bind, .pt-profile-invite { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid rgb(58 118 214 / 12%); }
+.pt-profile-bind h3, .pt-profile-invite label { font-size: 12px; font-weight: 700; color: var(--os-ink-soft); }
+.pt-profile-bind ul { display: grid; margin: 0; padding: 0; list-style: none; }
+.pt-profile-bind li { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 2px; border-bottom: 1px solid rgb(58 118 214 / 8%); }
+.pt-profile-bind li > .pt-icon { flex: none; color: var(--os-ink-soft); }
+.pt-profile-bind li small { color: var(--os-ink-soft); font-size: 12px; }
+.pt-profile-bind-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-profile-link { display: inline-flex; align-items: center; gap: 4px; justify-self: start; min-height: 44px; padding: 0 6px; border: 0; border-radius: 10px; background: none; color: var(--os-accent); font: 600 13px var(--pt-sans); text-decoration: none; cursor: pointer; }
+.pt-profile-link:hover { background: rgb(58 118 214 / 8%); }
+.pt-profile-link.is-danger { color: var(--os-g-line); }
+.pt-profile-link:disabled { opacity: .6; cursor: progress; }
+.pt-profile-add { display: grid; gap: 8px; }
+.pt-profile-row { display: flex; gap: 8px; }
+.pt-profile-row input { flex: 1; min-width: 0; min-height: 44px; padding: 0 14px; border: 1px solid rgb(58 118 214 / 25%); border-radius: 999px; background: #fff; color: var(--os-ink); font: inherit; }
+.pt-profile-row input:focus { border-color: var(--os-accent); outline: none; }
+.pt-profile-foot { display: flex; align-items: center; gap: 4px; padding-top: 10px; border-top: 1px solid rgb(58 118 214 / 12%); }
+.pt-profile-foot > a, .pt-profile-foot > button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 10px; border: 0; border-radius: 10px; background: none; color: var(--os-ink); font: 600 13px var(--pt-sans); text-decoration: none; cursor: pointer; }
+.pt-profile-foot > a:hover, .pt-profile-foot > button:hover { background: rgb(58 118 214 / 10%); }
+.pt-profile-foot > button { margin-left: auto; }
 
 /* ── 桌面里的按钮：主按钮是胶囊蓝渐变，其余按钮也是胶囊（SPEC §1）；官网外层页面的 .pt-btn 不受影响 ── */
 :is(.pt-os-shell, .pt-os-modal) .pt-btn { border-radius: 999px; }
@@ -458,5 +529,6 @@
 /* 减少动态效果：全站把动画压成 .01ms（styles/portal.css 的 .pt-root *）；窗口打开改成只淡入，保留原时长 */
 @media (prefers-reduced-motion: reduce) {
   .pt-os-shell .pt-win { animation-name: pt-win-fade-in; animation-duration: .22s !important; }
+  .pt-root.pt-profile-modal { animation-name: pt-win-fade-in !important; }
   .pt-dk:hover, .pt-dk:focus-visible { transform: none; }
 }

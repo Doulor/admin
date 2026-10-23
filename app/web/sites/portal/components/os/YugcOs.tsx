@@ -1,5 +1,6 @@
 // YUGC OS：开机后的「极客班内部系统」，按桌面操作系统来排：菜单栏（YUGC 标志即系统菜单 / 前台应用 / 搜索 / 时钟 / 头像）、
 // 壁纸（默认「晴空」，接着开机动画的最后一帧画）、左上角一列应用图标、「新来的看这里」便签、可拖动窗口、带名字的 Dock、⌘K 启动器。
+// 头像点开是个人资料卡（ProfileCard.tsx）：访客在那里登录、注册，登录后改资料、绑定登录方式、填邀请码、退出。
 // 加入我们、论坛、代码仓库（自建 GitLab，#270）、GitHub 组织都是桌面上的应用；便签按顺序告诉新来的人怎么加入。「宣传片」在桌面上重看（#77），不影响「只自动播一次」。
 // 论坛、代码仓库和 GitHub 组织点一下直达（#185）：论坛在当前标签页进论坛首页，代码仓库与 GitHub 组织在新标签页打开，不经过 /forum-3d、/github 场景页。
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -7,7 +8,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Modal from "@shared/ui/Modal";
 import { PHONE_QUERY, PORTRAIT_QUERY, useMediaQuery } from "../../lib/useMediaQuery";
 import { signInHref, useAccount } from "../../lib/account";
-import { links } from "../../lib/links";
+import { reportEvent } from "../../lib/events";
+import { noteSeenHere, rememberNoteHere, rememberNoteOnAccount } from "../../lib/startNote";
 import { NEW_TAB_NOTE, appById, appByKey, appLink, appTone, filterCommands, followAppLink, launcherCommands, moveSelection, opensNewTab, visibleApps, type AppId, type OsApp } from "../../lib/osApps";
 import { browserEstimate, choosePlayback, detectCapabilities, hasSeenPromo, preconnectPromo, prefetchPromoStart } from "../../lib/promo";
 import Icon from "../Icon";
@@ -16,12 +18,11 @@ import { WALLPAPERS, prefetchWallpapersWhenIdle, readWallpaperChoice, saveWallpa
 import WallpaperLayer from "./Wallpaper";
 import { SkyThumb, type SkyBand } from "./SkyWallpaper";
 import { AppGlyph, DesktopIcons, StartNote } from "./Widgets";
+import ProfileCard from "./ProfileCard";
 import { LazyPromoPlayer } from "../PromoLazy";
 import "../../styles/os.css";
 
-type MenuName = "system" | "go" | "window" | "help" | "account";
-
-const NOTE_KEY = "yugc:start-note";
+type MenuName = "system" | "go" | "window" | "help";
 
 type Props = {
   /** 系统菜单和手机设置里的「重播开机动画」 */
@@ -39,11 +40,11 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
   const portrait = useMediaQuery(PORTRAIT_QUERY);
   const phoneWallpaper = phone && portrait;
   const navigate = useNavigate();
-  // 登录后回到当前页面：订阅路由变化，让 signInHref() 按浏览器当前地址（含开发态的 /sites/portal 前缀）重算 return_to
+  // 登录后回到当前页面：订阅路由变化，让 signInHref() 按浏览器当前地址（含开发态的 /sites/portal 前缀）重算 return_to，交给资料卡
   useLocation();
   const signInLink = signInHref();
-  const { account, loaded, signOut } = useAccount();
-  // 控制台只给 console_link 为 true 的人：其他人的桌面、Dock、菜单、启动器、终端里都没有它。
+  const { account, loaded, signOut, patch, reload } = useAccount();
+  // 控制台只给 console_link 为 true 的人：其他人的桌面、Dock、资料卡、启动器、终端里都没有它。
   const consoleLink = account?.consoleLink === true;
   const apps = useMemo(() => visibleApps(consoleLink), [consoleLink]);
   const [now, setNow] = useState(() => new Date());
@@ -54,14 +55,10 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
   const [selected, setSelected] = useState(0);
   const [flight, setFlight] = useState<{ app: OsApp; x: number; y: number } | null>(null);
   const [selectedIcon, setSelectedIcon] = useState<AppId | null>(null);
-  // 便签收起后本次浏览不再自动出现（菜单栏「帮助」里能重新打开）
-  const [note, setNote] = useState(() => {
-    try {
-      return sessionStorage.getItem(NOTE_KEY) !== "closed";
-    } catch {
-      return true;
-    }
-  });
+  // 便签：auto 是还没看过、按账号上的记录决定；open 是「帮助」里打开或点过其中一步（点完不收起）；closed 是收起了
+  const [noteMode, setNoteMode] = useState<"auto" | "open" | "closed">(() => (noteSeenHere() ? "closed" : "auto"));
+  const note = noteMode === "open" || (noteMode === "auto" && !account?.prefs.startNoteSeenAt);
+  const [profile, setProfile] = useState(false);
   const [wallpaper, setWallpaper] = useState<Wallpaper>(() => readWallpaperChoice());
   // 新壁纸从点的那张缩略图展开（#147）
   const [wallpaperFrom, setWallpaperFrom] = useState<Box | null>(null);
@@ -87,13 +84,28 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
   const wallpaperId = useRef(wallpaper.id);
   wallpaperId.current = wallpaper.id;
   useEffect(() => prefetchWallpapersWhenIdle(wallpaperId.current, phoneWallpaper), [phoneWallpaper]);
-  const toggleNote = (show: boolean) => {
-    setNote(show);
-    try {
-      sessionStorage.setItem(NOTE_KEY, show ? "open" : "closed");
-    } catch {
-      /* 隐私模式下写不了：只影响刷新后是否再次显示 */
-    }
+  // 账号上记过、这个浏览器还没记：补记到本地，下次在这里打开时登录信息回来之前也不会先闪出便签
+  const seenOnAccount = account?.prefs.startNoteSeenAt ?? null;
+  useEffect(() => {
+    if (seenOnAccount && !noteSeenHere()) rememberNoteHere(seenOnAccount);
+  }, [seenOnAccount]);
+  /** 关掉便签或点了其中一步都算看过：本地和账号（已登录时）一起记 */
+  const markNoteSeen = () => {
+    const at = Date.now();
+    rememberNoteHere(at);
+    if (!account || account.prefs.startNoteSeenAt) return;
+    patch({ prefs: { startNoteSeenAt: at } });
+    void rememberNoteOnAccount(at);
+  };
+  const closeNote = () => {
+    markNoteSeen();
+    setNoteMode("closed");
+    reportEvent("os.note.dismissed");
+  };
+  const openFromNote = (id: AppId | "forum-feed", from?: HTMLElement | null) => {
+    markNoteSeen();
+    setNoteMode((mode) => (mode === "closed" ? mode : "open"));
+    open(id, from);
   };
   const zTop = useRef(20);
   const cascade = useRef(0);
@@ -176,6 +188,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
   const open = useCallback(
     (id: AppId | "forum-feed", from?: HTMLElement | null) => {
       setMenu(null);
+      reportEvent("os.app.open", { target_type: "app", target_id: id });
       if (id === "forum-feed") return openWindow("forum-feed");
       const app = appById(id);
       if (!app) return;
@@ -235,7 +248,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
     if (promo) return;
     const onKey = (event: KeyboardEvent) => {
       // 原生 dialog 的 inert 不会阻止 window 监听器，弹层快捷键交给弹层自身。
-      if (launcher || picker || phoneGuide || phoneSettings) return;
+      if (launcher || picker || phoneGuide || phoneSettings || profile) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setLauncher((value) => !value);
@@ -268,7 +281,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [front, launcher, menu, open, phone, phoneGuide, phoneSettings, picker, promo]);
+  }, [front, launcher, menu, open, phone, phoneGuide, phoneSettings, picker, profile, promo]);
 
   useEffect(() => {
     if (launcher) launcherInput.current?.focus();
@@ -317,21 +330,14 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
       { label: "关闭全部", run: () => setWins([]) },
     ],
     help: [
-      { label: "新来的看这里", run: () => toggleNote(true) },
+      { label: "新来的看这里", run: () => setNoteMode("open") },
       { label: "打开终端", run: () => open("terminal") },
       { label: "文档", run: () => navigate("/docs") },
       { label: "搜索应用和命令", run: () => setLauncher(true), key: "⌘K" },
     ],
-    // 控制台只给在里面能管点什么的人（/auth/me 的 console_link），普通成员的菜单里没有这一项。
-    account: [
-      { label: "论坛", run: () => window.location.assign(links.forumHome()) },
-      ...(consoleLink ? [{ label: "控制台", run: () => window.location.assign(links.console()) }] : []),
-      null,
-      { label: "退出", run: () => void signOut() },
-    ],
   };
   const toggleMenu = (name: MenuName, anchor: HTMLElement) => {
-    // 菜单宽约 220px：靠右的菜单（头像）往左收，不出屏幕
+    // 菜单宽约 220px：靠右时往左收，不出屏幕
     const left = Math.min(anchor.getBoundingClientRect().left, window.innerWidth - 228);
     setMenu((current) => (current?.name === name ? null : { name, left }));
   };
@@ -347,9 +353,9 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
         {phone ? <header className="pt-phone-status" aria-label="手机状态栏">
           <time>{phoneTime}</time>
           <button type="button" className="pt-phone-system" aria-label="YUGC OS 系统设置" aria-haspopup="dialog" onClick={() => setPhoneSettings(true)}>YUGC OS</button>
-          {account ? <button type="button" className="pt-phone-account" data-menu aria-label={`账号：${account.login}`} aria-haspopup="menu" aria-expanded={menu?.name === "account"} onClick={(e) => toggleMenu("account", e.currentTarget)}>
+          {account ? <button type="button" className="pt-phone-account" aria-label={`账号：${account.login}`} aria-haspopup="dialog" aria-expanded={profile} onClick={() => setProfile(true)}>
             <Avatar src={account.avatarUrl} />
-          </button> : loaded ? <a className="pt-phone-account" href={signInLink}><Avatar /> 登录</a> : <span />}
+          </button> : loaded ? <button type="button" className="pt-phone-account" aria-haspopup="dialog" aria-expanded={profile} onClick={() => setProfile(true)}><Avatar /> 登录</button> : <span />}
         </header> : <header className="pt-mb" aria-label="菜单栏">
           <button type="button" className="pt-mb-logo" data-menu aria-label="系统菜单" aria-haspopup="menu" aria-expanded={menu?.name === "system"} onClick={(e) => toggleMenu("system", e.currentTarget)}>
             <span className="pt-wordmark" aria-hidden="true">
@@ -371,17 +377,11 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
             <kbd>⌘K</kbd>
           </button>
           <span className="pt-mb-clock">{time}</span>
-          {/* 头像：全站唯一的登录入口（去极客班统一登录页，登录后回到当前页面）；登录后是账号菜单 */}
-          {account ? (
-            <button type="button" className="pt-mb-avatar" data-menu aria-label={`账号：${account.login}`} aria-haspopup="menu" aria-expanded={menu?.name === "account"} onClick={(e) => toggleMenu("account", e.currentTarget)}>
-              <Avatar src={account.avatarUrl} />
+          {/* 头像：资料卡的入口，也是全站唯一的登录入口（资料卡里去极客班统一登录页，登录后回到当前页面） */}
+          {(account || loaded) && (
+            <button type="button" className="pt-mb-avatar" aria-label={account ? `账号：${account.login}` : "登录或注册"} aria-haspopup="dialog" aria-expanded={profile} onClick={() => setProfile(true)}>
+              <Avatar src={account?.avatarUrl} />
             </button>
-          ) : (
-            loaded && (
-              <a className="pt-mb-avatar" href={signInLink} aria-label="登录">
-                <Avatar />
-              </a>
-            )
           )}
         </header>}
         {menu && (
@@ -432,7 +432,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
           <div className="pt-home-apps" ref={(node) => { if (node) node.inert = phone && !!front; }}>
             {phone && <div className="pt-phone-heading"><h2>极客班</h2><button type="button" onClick={() => setPhoneGuide(true)}>新来的看这里 <Icon name="arrow-right-s-line" size={14} /></button></div>}
             <DesktopIcons apps={apps} selected={selectedIcon} onSelect={setSelectedIcon} onOpen={open} phone={phone} />
-            {!phone && note && <StartNote onOpen={open} onClose={() => toggleNote(false)} />}
+            {!phone && note && <StartNote onOpen={openFromNote} onClose={closeNote} />}
           </div>
 
           <div className="pt-windows">
@@ -610,8 +610,11 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
             </div>
           </Modal>
         )}
-        {phoneGuide && <Modal title="新来的看这里" className="pt-root pt-os-modal pt-phone-guide is-phone" onClose={() => setPhoneGuide(false)}>
-          <StartNote phone onOpen={(id, from) => { setPhoneGuide(false); open(id, from); }} onClose={() => setPhoneGuide(false)} />
+        {phoneGuide && <Modal title="新来的看这里" className="pt-root pt-os-modal pt-phone-guide is-phone" onClose={() => { setPhoneGuide(false); markNoteSeen(); reportEvent("os.note.dismissed"); }}>
+          <StartNote phone onOpen={(id, from) => { setPhoneGuide(false); markNoteSeen(); open(id, from); }} onClose={() => setPhoneGuide(false)} />
+        </Modal>}
+        {profile && <Modal title={account ? "个人资料" : "登录极客班"} className={`pt-root pt-os-modal pt-profile-modal${phone ? " is-phone" : ""}`} onClose={() => setProfile(false)}>
+          <ProfileCard account={account} signInLink={signInLink} onPatch={patch} onReload={reload} onSignOut={() => void signOut().then(() => setProfile(false))} />
         </Modal>}
         {phoneSettings && <Modal title="系统设置" className={`pt-root pt-os-modal pt-phone-settings${phone ? " is-phone" : ""}`} onClose={() => setPhoneSettings(false)}>
           <div className="pt-phone-settings-list">

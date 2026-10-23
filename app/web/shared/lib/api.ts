@@ -13,6 +13,17 @@ export async function api<T = unknown>(path: string, init?: RequestInit): Promis
   return requestJson<T>(path, init);
 }
 
+/**
+ * 开发态和 PR 预览构建里地址带 `?__mock=member|registered|visitor` 时，返回那个样板身份（/auth/me 的形状，mock-api.ts）；
+ * 没带时返回 null，调用方照旧读真接口。调用方自己也要用 `import.meta.env.DEV || PREVIEW_MOCK` 包住，正式构建里整段删掉。
+ */
+export async function devPersonaMe(): Promise<unknown> {
+  if (!(import.meta.env.DEV || PREVIEW_MOCK)) return null;
+  const { mockMe, mockPersona } = await import("./mock-api");
+  const persona = mockPersona();
+  return persona ? mockMe(persona) : null;
+}
+
 export const fmtDate = (iso: string | number | null | undefined) => {
   if (!iso) return "—";
   const d = typeof iso === "number" ? new Date(iso) : new Date(iso);

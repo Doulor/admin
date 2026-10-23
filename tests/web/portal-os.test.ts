@@ -19,10 +19,10 @@ function sources(dir: string): string[] {
 
 describe("控制台入口只给 console_link 为 true 的人", () => {
   it("/auth/me 的 console_link 原样读出，缺失或不是 true 都当作 false；account_id 读出极客班账号", () => {
-    expect(parseMe({ signed_in: true, login: "ada", avatar_url: null, console_link: true, account_id: "acc_1" })).toEqual({
+    expect(parseMe({ signed_in: true, login: "ada", avatar_url: null, console_link: true, account_id: "acc_1" })).toMatchObject({
       login: "ada", avatarUrl: null, consoleLink: true, accountId: "acc_1",
     });
-    expect(parseMe({ signed_in: true, login: "ada", avatar_url: null, console_link: true })).toEqual({
+    expect(parseMe({ signed_in: true, login: "ada", avatar_url: null, console_link: true })).toMatchObject({
       login: "ada", avatarUrl: null, consoleLink: true, accountId: null,
     });
     // 旧会话没有 account_id：比赛窗口靠它为 null 判断认不出「我」，不当成空字符串
@@ -58,11 +58,12 @@ describe("控制台入口只给 console_link 为 true 的人", () => {
     expect(runTerminal("open console", [], apps).open).toBe("console");
   });
 
-  it("页脚与头像菜单里的控制台链接都看 consoleLink", () => {
+  it("页脚与资料卡里的控制台链接都看 consoleLink", () => {
     const shell = readFileSync(`${PORTAL}components/PageShell.tsx`, "utf8");
+    const card = readFileSync(`${PORTAL}components/os/ProfileCard.tsx`, "utf8");
     const os = readFileSync(`${PORTAL}components/os/YugcOs.tsx`, "utf8");
     expect(shell).toMatch(/consoleLink && <a href=\{links\.console\(\)\}>控制台<\/a>/);
-    expect(os).toMatch(/\.\.\.\(consoleLink \? \[\{ label: "控制台"/);
+    expect(card).toMatch(/account\.consoleLink && <a href=\{links\.console\(\)\}>控制台<\/a>/);
     expect(os).not.toMatch(/OS_APPS\.map/);
   });
 });
