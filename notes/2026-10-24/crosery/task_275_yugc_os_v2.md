@@ -13,3 +13,9 @@
 - 执行者：agent-claude-geek-main-3c2a7a67-os275o（Claude Code 子 agent，claude-opus-5-5）
 - 做了什么：上一条写的「pnpm test 全量 4 个 tooling 测试文件失败」是恢复 iPhone 模型夹具、把 competitions.css 留在 Home.tsx（项目目录有一条证据锚点指向这行）之前的结果；两处改完后重跑
 - 结果：pnpm test：Test Files 1 failed | 97 passed (98)，Tests 1 failed | 1630 passed (1631)；唯一失败是 tests/tooling/project-catalog.test.ts「keeps the checked-in directory synchronized」，pnpm check:catalog 报「项目目录缺失或过期：catalog.json、CATALOG.md、routes.md、data-model.md、permissions.md、map.html；运行 pnpm catalog:generate」，需要合并前重新生成项目目录
+
+## 00:46:50 +08:00 · 提交 · #275 · #275 ② 删除旧吉祥物
+
+- 执行者：agent-claude-geek-main-3c2a7a67-os275o（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：按 SPEC §4.6 删除 app/web/public/mascot/ 八张姿势图、shared/ui/Mascot.tsx、shared/styles/mascot.css、app.config.json 的 mascot 段和 features.mascot/forumMascot/mascotPreview、shared/config/index.ts 里对应的类型；这几样在删之前已经没有任何引用；把验收 grep 写成 tests/web/old-character-removed.test.ts
+- 结果：grep -rn 'mascot/pose-\|Mascot' app tests（排除 node_modules/dist/.nuxt/.output）输出 0 行；npx vitest run tests/web：Test Files 26 passed，Tests 242 passed；tsc 退出 0；check-site-config 通过；app/web 构建通过，首屏 portal 分包 7.72 kB gzip（上一步 8.70 kB，吉祥物配置原来打在首屏里）

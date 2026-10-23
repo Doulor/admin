@@ -35,16 +35,10 @@
   },
   "features": {
     "development": {
-      "mascot": true,
-      "forumMascot": true,
-      "mascotPreview": true,
       "portalMotionEffects": true,
       "feedbackFab": true
     },
     "production": {
-      "mascot": true,
-      "forumMascot": true,
-      "mascotPreview": false,
       "portalMotionEffects": true,
       "feedbackFab": true
     }
@@ -56,104 +50,6 @@
       "logoAlt": "YUGC",
       "title": "长江大学极客班",
       "subtitle": "YANGTZE UNIVERSITY GEEK CLASS"
-    }
-  },
-  "mascot": {
-    "defaultPose": "welcome",
-    "width": 154,
-    "height": 245,
-    "poses": {
-      "welcome": {
-        "file": "/mascot/pose-01-welcome.webp",
-        "label": "欢迎",
-        "fit": "contain",
-        "position": "center bottom",
-        "scale": 1
-      },
-      "coding": {
-        "file": "/mascot/pose-02-coding.webp",
-        "label": "编码",
-        "fit": "contain",
-        "position": "center center",
-        "scale": 0.96
-      },
-      "ai": {
-        "file": "/mascot/pose-03-ai.webp",
-        "label": "AI",
-        "fit": "contain",
-        "position": "center center",
-        "scale": 0.92
-      },
-      "security": {
-        "file": "/mascot/pose-04-security.webp",
-        "label": "信安",
-        "fit": "contain",
-        "position": "center bottom",
-        "scale": 1
-      },
-      "question": {
-        "file": "/mascot/pose-05-question.webp",
-        "label": "提问",
-        "fit": "contain",
-        "position": "center bottom",
-        "scale": 0.98
-      },
-      "resource": {
-        "file": "/mascot/pose-06-resource.webp",
-        "label": "资源",
-        "fit": "contain",
-        "position": "center bottom",
-        "scale": 1
-      },
-      "intro": {
-        "file": "/mascot/pose-07-intro.webp",
-        "label": "介绍",
-        "fit": "contain",
-        "position": "center bottom",
-        "scale": 1
-      },
-      "sleep": {
-        "file": "/mascot/pose-08-sleep.webp",
-        "label": "休息",
-        "fit": "contain",
-        "position": "center center",
-        "scale": 0.9
-      }
-    },
-    "dialogs": {
-      "welcome": [
-        "欢迎来到长江大学极客班。",
-        "今天想探索什么技术？",
-        "从一个真实项目开始吧。"
-      ],
-      "coding": [
-        "代码先跑起来，再把问题拆小。",
-        "编译器没有情绪，报错都是线索。"
-      ],
-      "ai": [
-        "Agent、MCP、上下文工程，这里都有人聊。",
-        "让 AI 成为工作流，而不只是聊天框。"
-      ],
-      "security": [
-        "先确认边界，再开始测试。",
-        "安全不是功能上线后的补丁。"
-      ],
-      "question": [
-        "问题描述越清楚，答案来得越快。",
-        "贴上复现步骤和报错信息吧。"
-      ],
-      "resource": [
-        "好资料要分享，也要写清适用范围。",
-        "这里收集课程、论文与开源项目。"
-      ],
-      "intro": [
-        "我们用项目连接同学、技术与开源。",
-        "想认识极客班？从方向组开始。"
-      ],
-      "sleep": [
-        "页面走丢了，先休息一下。",
-        "这里暂时没有内容。"
-      ]
     }
   }
 }
