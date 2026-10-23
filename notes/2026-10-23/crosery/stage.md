@@ -71,3 +71,17 @@
 - 做了什么：ego-browser 打开 https://prev.yangtzeu.work/signin，1440×900 与 390×844 各截「登录」「注册」两个标签，读按钮文字、宽度与表单标签；用浏览器里已有的所有者会话打开 /console，1440×560 把侧栏滚到 200，悬停「邀请」「邀请链接」读条目上沿与高亮上沿。注册后两种说明与按钮换行宽度是在本机开发服务器 127.0.0.1:5196 上拦接口返回值核对的，不在预发布上
 - 结果：注册标签：邮箱、邀请码、验证码、「密码（可以不填）」；桌面「通过 GitHub 继续」「用 Google 注册」各 202px，没填邀请码时 Google 按钮是灰的；手机两个按钮竖排各 332px，横向无溢出。侧栏：根滚动 200、__body 滚动 0，「邀请」条目 311 = 高亮 311，「邀请链接」342 = 342（rc.11 上同样操作是 311 对 111）。没验证：真实发验证码与收信、真实 Google 授权往返、注册真实账号。所有者验收：未进行
 - 下一步：所有者在预发布验收；正式 0.1.1 等所有者明确批准，部署前备份正式库
+
+## 15:54:16 +08:00 · 发布 · #270 · GitLab 一侧接上统一登录、自动跳转、仓库改私有（geek-main-1c 执行，合并人复核），发现建号时头像没带过去
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：geek-main-1c 15:3x–15:4x 在 GitLab 主机：备份 gitlab.rb，secret 从凭据库经 stdin 写进 root 0600 文件，追加 omniauth（issuer https://prev.yangtzeu.work/oidc，client gitlab，pkce，uid_field sub），reconfigure；用所有者账号的邮箱验证码在 ego-browser 走真实往返，进的是 GitLab 用户 4 Crosery、没有另建号；再开自动跳转、disable_password_authentication_for_users_with_sso_identities，把 geek 组和 4 个仓库改私有，root 不绑统一登录。合并人 15:5x 独立核对：匿名访问、登录页表单、用户与身份、可见性、应用设置、4 张截图下载；又查了两个号的资料与头像
+- 结果：未登录 /geek、/geek/admin 302 到 sign_in，项目接口 404，git info/refs 401，公开项目 []；/users/sign_in 只剩提交到 /users/auth/openid_connect 的表单，?auto_sign_in=false 有密码框；用户 4 Crosery、5 LYsnowQ 各一个 openid_connect 身份，6 GitLabDuo 是 GitLab 自建 bot；组和 geek/admin、geek-cli、geek_bot、github 都是 private；SSO 用户禁用密码为 true、注册关闭。证据贴 MR !2 评论 366。缺口：两个号都是默认 identicon 头像——LYsnowQ 的 GitHub 头像在预发布容器能下载（200 image/png 约 280 KB），是建号后 PUT /users/5 传头像没成功，代码不记这一步的错误且只传一次；Crosery 的 GitHub 被封、库里没有头像来源。作为候选交给所有者，不在 #270 改
+- 下一步：所有者验收；头像缺口由所有者决定是否修，原因先由 geek-main-1c 查 GitLab 日志里 PUT /api/v4/users/5 的返回码
+
+## 15:56:41 +08:00 · 发布 · #270 · 头像没带过去的原因：GitLab 头像上限 200 KiB，我们按 1 MB 放行
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：geek-main-1c 只读查 GitLab api_json.log：15:25:24 PUT /api/v4/users/5 回 400（correlation_id 01M5KTCWKKM9VXC0WD6CTSEFXQ），api_error avatar is too big (should be at most 200 KiB)，avatar.png 282806 字节；没有对用户 4 发过 PUT。合并人匿名核对 LYsnowQ 的 GitHub 头像：原图与 s=460 都是 282806 字节，s=256 是 107154 字节
+- 结果：原因确认：gitlab-sync.ts:20 的 AVATAR_MAX_BYTES 是 1 MB，大于 GitLab 的 200 KiB。写进 MR !2 评论 367 前后的进展记录；作为候选交给所有者（取 s=256、上限 200 KiB、失败记错误并重试、补传现有账号），不在 #270 里改
+- 下一步：所有者决定是否修
