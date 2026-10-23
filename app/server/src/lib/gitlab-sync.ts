@@ -321,8 +321,9 @@ export function createGitlabSync(db: Database.Database, deps: {
       db.prepare("UPDATE gitlab_accounts SET last_error = ?, last_error_at = ?, updated_at = ? WHERE account_id = ?").run(outcome.error, now, now, account.account_id);
     }
     // 按身份找、没找到人，或者找的时候就失败了（还没有这一行，什么也没改）：不写审计，免得 GitLab 出故障时这类账号每人每轮记一条
-    if (done.length || (outcome.error && rowOf(account.account_id))) {
-      deps.audit(null, actor, "gitlab.sync", rowOf(account.account_id)?.username ?? account.login,
+    const row = rowOf(account.account_id);
+    if (done.length || (outcome.error && row)) {
+      deps.audit(null, actor, "gitlab.sync", row?.username ?? account.login,
         { account_id: account.account_id, actions: actions.map(item => item.kind), error: outcome.error });
     }
     return outcome;

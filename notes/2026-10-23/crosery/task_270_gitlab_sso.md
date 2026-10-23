@@ -99,3 +99,24 @@
 - 做了什么：在 #270 发追踪记录（评论 327，kind=plan）：所有者 13:36 的选择与选项说明原文、按 12:35 原话定下的仓库改 private 与绑定本地账号、分工。用凭据库里的 root 令牌只读查 GitLab：用户只有 root 和项目机器人两个，没有别的本地账号；admin_mode 关、令牌必须带有效期、社区版有 disable_password_authentication_for_users_with_sso_identities（现在 false）。建管理员用户 geek-sync（id 3，随机密码、不能建组、项目上限 0），给它建 api 令牌（到 2027-10-22），用 crosery-ct cred reveal --save 直接存进凭据库 GITLAB_SYNC_API_TOKEN，明文没有进对话和日志。从 GitLab 容器访问 prev.yangtzeu.work 的发现地址与 /signin 都是 200，网络通。
 - 结果：用 GITLAB_SYNC_API_TOKEN 只读核对：personal_access_tokens/self 是 api、到 2027-10-22、有效，用户 geek-sync 是管理员；按身份查用户 200；读 geek 组成员 200。root 不绑 SSO：它是应急密码登录的账号，开了已绑定 SSO 禁用密码之后会失去应急入口。
 - 下一步：把令牌名和新分支头告诉 geek-main-56；rc.13 部署、客户端登记后改 GitLab 的 omniauth
+
+## 15:01:08 +08:00 · 审查 · #270 · MR !2 合并人复核 b521261c：三条应修与建议在本次提交处理
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：geek-main-56（审查人 agent-claude-geek-main-8f7d12b7）14:44 在 MR !2 评论 344 复核 0ead9e66..b521261c，规范、需求两条线各一个只读子 agent，再自己核对：本机合到 stage 6f574328 后 pnpm check、typecheck、pnpm test 97 个文件 1596 条、server 与 console 构建通过；上次三条都落实（副本里改回 ?? snapshot，合并账号的新用例 5 次全失败；换回修复前的代码，排序用例 12 次全失败；成员页有了 GitLab 列）。应修三条：People.vue:154 的 refreshAll 不重新读 gitlab，改站内角色后 GitLab 列是旧状态；正式改 on 的前提没写全，.env.production:66-68、ENVIRONMENTS.md:50、oidc.md:80 要写明先把预发布改 off、再迁 sub 改 issuer、最后正式改 on；270.json 的成员页测试那句接在「未验证：」后面，未验证里缺「成员页只在样板数据下看过」。需求对齐：验收 3 改成合并人先用 dry-run 上线、登记客户端、记下预演结果再改 on。建议：立即同步只认 roles.manage，比 issue 严，写进 MR；rows 里先算好、去掉三个包装函数、立即同步别借 source-toggle、rowOf 只调一次、gitlab.ts 用正则复刻错误码。偏差：0239136d、d8a6c73c、01fd42dd 的提交记录是后补的单独提交。剩余风险：预发布的提督会成为真实 geek 组的 Owner、预发布的邀请与测试账号拿到 Developer；identity-store.ts:635 对账不列已合并账号，被合并账号已建的 GitLab 用户一直活跃。
+- 结果：三条应修全改；建议里 rows 先算好、去掉包装函数、独立类名 gitlab-sync、rowOf 只调一次照改。gitlab.ts 的错误码正则不改：服务端的码是 gitlab_<动作>_<HTTP 状态>，前端按动作给说法，不认识的原样显示，以后新加的码不会被藏起来。立即同步的权限、验收 3 的变化、记录偏差、两条剩余风险写进 MR 正文；identity-store.ts:635 已核对属实（listAccountsForSync 按 status <> 'merged' 过滤），不在本次差异里，作为候选交给所有者，不在本 MR 改。从这次起提交记录和代码放在同一个提交里。
+- 下一步：返工
+
+## 15:01:08 +08:00 · 返工 · #270 · 合并 stage 6f574328，改三条应修与四条建议，隔离后端核对成员页刷新
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：8c5ed80e 合并 stage 6f574328（#262 密码最短 8 位）：只有 docs/architecture/API.md 设密码那一行冲突，按 stage 留「至少 8 位」，保留本 MR 的 /oidc 与 GitLab 几行，项目目录重新生成。People.vue 的 refreshAll 加 gitlab.reload()；GitLab 一格在 rows 里先算好（GitlabCell），去掉三个包装函数，立即同步用自己的类 gitlab-sync；gitlab-sync.ts 写审计前 rowOf 只调一次。.env.production 注释、ENVIRONMENTS.md 正式那一格与开启顺序一段、oidc.md「GitLab 一侧的配置」写明先把预发布的 GITLAB_SYNC 改 off，再迁 GitLab sector 的 sub、改 GitLab 的 issuer，最后正式改 on，两边同时 on 会反复封禁、解封同一批人。270.json 把成员页测试那句挪到「未验证：」前面，未验证加成员页 GitLab 列只在样板数据和隔离本地后端（dry-run）下看过、没对预发布的真实数据和 on 时的真实 GitLab 看过（审查原话是「只在样板数据下看过」，下面的隔离后端核对之后改成这样）。
+- 结果：ego-browser 1440 宽：样板数据下 GitLab 列与改前一致（17 行，3 个立即同步，进组失败（500）、连不上 GitLab 两条错误）。样板只读，改站内角色回 501，走不到 refreshAll，于是临时起了隔离后端（testApp，内存库，GITLAB_SYNC=dry-run，登记 gitlab 客户端，GitLab 与 GitHub 请求一律拒绝，127.0.0.1:3287）和连它的控制台（5287，会话由 Vite 代理带上，不动浏览器里的 cookie）：把 alice 改成不是成员，GitLab 列不刷新页面就从「预演：建号，进组当开发者」变成「没有 GitLab 账号」；临时去掉 gitlab.reload() 再把 alice 改回成员，GitLab 列停在「没有 GitLab 账号」，接口里已经是 create；恢复后再改一次，又当场刷新。核对完删掉两个临时文件、停掉两个进程，3287、5287 不再监听。
+- 下一步：提交、推送
+
+## 15:02:28 +08:00 · 提交 · #270 · fix(console): 改站内角色后重新读 GitLab 状态，写明正式改接 GitLab 的顺序
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：提交（13 个文件，记录和代码在同一个提交里）：app/console/src/pages/People.vue、app/server/src/lib/gitlab-sync.ts、deploy/env/.env.production、docs/ops/ENVIRONMENTS.md、docs/services/server/oidc.md、docs/changes/270.json、项目目录生成物 6 个、本条执行记录。提交说明写了为什么改、改了什么和下面的验证命令。之前还有合并提交 8c5ed80e（合并 stage 6f574328）。
+- 结果：pnpm test 97 个文件 1596 条通过；pnpm typecheck、pnpm build、forum:check（548 条）、forum:generate 通过；check:runtime、site-config、environments、boundaries、docs、secrets、catalog、tuffex-docs、notes 通过；check-architecture 与 check-doc-sync 按 --base 6f574328 通过（80 个变更文件，124 个关联节点）；tests/tooling 740 条通过；浏览器核对见上一条返工记录。
+- 下一步：推送，改 MR 正文，把新分支头发给 geek-main-56

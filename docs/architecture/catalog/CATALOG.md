@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`ca0a84b9e7fd0617dd7ebdc660a91f99737d62a1327669afbda648768fc8baf2`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`e134904408c3246ceb5b659172e321dec2a5711195e6568ee4989b4b05d42d7e`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -1380,7 +1380,7 @@
 - 数据与副作用：在一个BEGIN IMMEDIATE事务里改users的org_role/org_state，写identity_audit的role_change与account.role审计；改成none后对方下一次请求起没有任何能力、不能再登录，称号指派保留；不改GitHub组织成员关系。
 - 共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
-源码：[app/server/src/routes/console/people.ts:91](../../../app/server/src/routes/console/people.ts#L91) · [app/server/src/lib/identity-store.ts:570](../../../app/server/src/lib/identity-store.ts#L570) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/console/src/pages/people/SiteRoleDialog.vue:44](../../../app/console/src/pages/people/SiteRoleDialog.vue#L44) · [app/console/src/pages/People.vue:515](../../../app/console/src/pages/People.vue#L515)
+源码：[app/server/src/routes/console/people.ts:91](../../../app/server/src/routes/console/people.ts#L91) · [app/server/src/lib/identity-store.ts:570](../../../app/server/src/lib/identity-store.ts#L570) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/server/src/middleware/require-capability.ts:28](../../../app/server/src/middleware/require-capability.ts#L28) · [app/console/src/pages/people/SiteRoleDialog.vue:44](../../../app/console/src/pages/people/SiteRoleDialog.vue#L44) · [app/console/src/pages/People.vue:527](../../../app/console/src/pages/People.vue#L527)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -2805,7 +2805,7 @@
 - 响应与错误：200 {mode,account_id,login,actions,applied,error}；GITLAB_SYNC=off 时 409 gitlab_sync_off；账号不存在 404 account_not_found；GitLab 出错不回 5xx，写进 error 与 last_error。
 - 数据与副作用：按 OIDC 身份（provider=openid_connect，extern_uid=gitlab 客户端 sector 的 sub）找或建 GitLab 用户、调组权限、封禁或解封，从不删除；dry-run 只返回 actions 不写；写 audit_logs gitlab.sync，操作人是会话账号。
 
-源码：[app/server/src/routes/console/gitlab.ts:17](../../../app/server/src/routes/console/gitlab.ts#L17) · [app/server/src/routes/console/contracts.ts:144](../../../app/server/src/routes/console/contracts.ts#L144) · [app/server/src/lib/gitlab-sync.ts:55](../../../app/server/src/lib/gitlab-sync.ts#L55) · [app/server/src/lib/db.ts:508](../../../app/server/src/lib/db.ts#L508) · [app/server/src/lib/identity-store.ts:634](../../../app/server/src/lib/identity-store.ts#L634) · [app/console/src/pages/People.vue:170](../../../app/console/src/pages/People.vue#L170) · [app/console/src/lib/gitlab.ts:67](../../../app/console/src/lib/gitlab.ts#L67) · [app/console/src/lib/types.ts:91](../../../app/console/src/lib/types.ts#L91)
+源码：[app/server/src/routes/console/gitlab.ts:17](../../../app/server/src/routes/console/gitlab.ts#L17) · [app/server/src/routes/console/contracts.ts:144](../../../app/server/src/routes/console/contracts.ts#L144) · [app/server/src/lib/gitlab-sync.ts:55](../../../app/server/src/lib/gitlab-sync.ts#L55) · [app/server/src/lib/db.ts:508](../../../app/server/src/lib/db.ts#L508) · [app/server/src/lib/identity-store.ts:634](../../../app/server/src/lib/identity-store.ts#L634) · [app/console/src/pages/People.vue:182](../../../app/console/src/pages/People.vue#L182) · [app/console/src/lib/gitlab.ts:67](../../../app/console/src/lib/gitlab.ts#L67) · [app/console/src/lib/types.ts:91](../../../app/console/src/lib/types.ts#L91)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts) · [tests/console/gitlab.test.ts](../../../tests/console/gitlab.test.ts)。生成器未执行这些测试。
 

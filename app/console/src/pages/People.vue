@@ -81,9 +81,24 @@ const SECTION_LABEL: Record<Section, string> = { people: "成员", titles: "称�
 
 /** 名单每一行：一个人的全部称号；指派来的称号带上指派人、时间、备注，以及当前查看者能不能撤销。 */
 type TitleLine = { key: string; title: TitleView; assignment: Assignment | null; revocable: boolean };
-type PersonRow = Person & { key: string; departmentNames: string[]; lines: TitleLine[]; gitlab: GitlabAccount | null };
+/** GitLab 列一格要显示的东西，建行时算好。 */
+type GitlabCell = { account: GitlabAccount; link: string | null; username: string | null; state: string; pending: string; error: string; errorAt: string | undefined; syncable: boolean };
+type PersonRow = Person & { key: string; departmentNames: string[]; lines: TitleLine[]; gitlab: GitlabCell | null };
 const byAssignment = computed(() => new Map((assignments.data.value?.assignments ?? []).map(row => [row.id, row])));
-const gitlabByAccount = computed(() => new Map((gitlab.data.value?.accounts ?? []).map(item => [item.account_id, item])));
+const gitlabByAccount = computed(() => {
+  const data = gitlab.data.value;
+  if (!data) return new Map<string, GitlabCell>();
+  return new Map(data.accounts.map(account => [account.account_id, {
+    account,
+    link: profileUrl(data, account),
+    username: usernameOf(account),
+    state: stateText(account),
+    pending: pendingText(data.mode, account.pending),
+    error: account.last_error ? errorText(account.last_error) : "",
+    errorAt: account.last_error_at ? fmtDate(account.last_error_at) : undefined,
+    syncable: canManageAll.value && canSyncNow(data, account),
+  }]));
+});
 const rows = computed<PersonRow[]>(() => peopleInGroup(sorted.value, group.value, depts.value).map(person => ({
   ...person,
   key: personKey(person),
@@ -125,9 +140,6 @@ const columns = computed(() => {
   ];
 });
 const tableMin = computed(() => (gitlabShown.value ? "840px" : "820px"));
-const gitlabLink = (account: GitlabAccount) => (gitlab.data.value ? profileUrl(gitlab.data.value, account) : null);
-const gitlabSyncable = (account: GitlabAccount) => Boolean(canManageAll.value && gitlab.data.value && canSyncNow(gitlab.data.value, account));
-const gitlabPending = (account: GitlabAccount) => (gitlab.data.value ? pendingText(gitlab.data.value.mode, account.pending) : "");
 const expandedPeople = ref<string[]>([]);
 const sourcesVisible = (key: string) => expandedPeople.value.includes(key);
 function toggleSources(key: string) {
@@ -152,7 +164,7 @@ const editing = ref<Department | null>(null);
 const editOpen = computed({ get: () => editing.value !== null, set: value => { if (!value) editing.value = null; } });
 
 async function refreshAll() {
-  await Promise.all([people.reload(), assignments.reload(), departments.reload(), reloadMe()]);
+  await Promise.all([people.reload(), assignments.reload(), departments.reload(), gitlab.reload(), reloadMe()]);
 }
 /** 改了称号的名字或权限：catalogue、自己的身份和名单都要重新读，所有徽章才会跟着变。 */
 async function refreshTitles() {
@@ -402,19 +414,19 @@ const sections = computed<Section[]>(() => (canManageAll.value ? ["people", "tit
                       </template>
                       <template #cell-gitlab="{ row }: { row: PersonRow }">
                         <span v-if="row.gitlab" class="cell-stack">
-                          <a v-if="gitlabLink(row.gitlab)" class="mono" :href="gitlabLink(row.gitlab)!" target="_blank" rel="noreferrer">@{{ row.gitlab.username }}</a>
-                          <span v-else-if="usernameOf(row.gitlab)" class="mono">@{{ usernameOf(row.gitlab) }}</span>
-                          <span v-if="stateText(row.gitlab)" :class="usernameOf(row.gitlab) ? 'cell-sub' : 'muted'">{{ stateText(row.gitlab) }}</span>
-                          <span v-if="gitlabPending(row.gitlab)" class="cell-sub">{{ gitlabPending(row.gitlab) }}</span>
-                          <span v-if="row.gitlab.last_error" class="cell-sub danger-text" :title="row.gitlab.last_error_at ? fmtDate(row.gitlab.last_error_at) : undefined">{{ errorText(row.gitlab.last_error) }}</span>
+                          <a v-if="row.gitlab.link" class="mono" :href="row.gitlab.link" target="_blank" rel="noreferrer">@{{ row.gitlab.username }}</a>
+                          <span v-else-if="row.gitlab.username" class="mono">@{{ row.gitlab.username }}</span>
+                          <span v-if="row.gitlab.state" :class="row.gitlab.username ? 'cell-sub' : 'muted'">{{ row.gitlab.state }}</span>
+                          <span v-if="row.gitlab.pending" class="cell-sub">{{ row.gitlab.pending }}</span>
+                          <span v-if="row.gitlab.error" class="cell-sub danger-text" :title="row.gitlab.errorAt">{{ row.gitlab.error }}</span>
                           <TxButton
-                            v-if="gitlabSyncable(row.gitlab)"
+                            v-if="row.gitlab.syncable"
                             variant="bare"
                             size="sm"
-                            class="source-toggle"
+                            class="gitlab-sync"
                             :aria-label="`立即把 @${row.login} 同步到 GitLab`"
                             :disabled="syncGitlab.pending.value"
-                            @click="syncGitlab.execute(row.gitlab)"
+                            @click="syncGitlab.execute(row.gitlab.account)"
                           >
                             立即同步
                           </TxButton>
@@ -697,6 +709,10 @@ const sections = computed<Section[]>(() => (canManageAll.value ? ["people", "tit
   justify-content: space-between;
 }
 .source-toggle {
+  margin-top: 4px;
+  font-size: 12px;
+}
+.gitlab-sync {
   margin-top: 4px;
   font-size: 12px;
 }

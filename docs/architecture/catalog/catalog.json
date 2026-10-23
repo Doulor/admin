@@ -5129,7 +5129,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 515,
+          "line": 527,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -10122,7 +10122,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -12960,7 +12960,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "ca0a84b9e7fd0617dd7ebdc660a91f99737d62a1327669afbda648768fc8baf2",
+    "fingerprint": "e134904408c3246ceb5b659172e321dec2a5711195e6568ee4989b4b05d42d7e",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -13188,7 +13188,7 @@
       },
       {
         "path": "app/console/src/pages/People.vue",
-        "sha256": "92b7a9441da24d19178f552750a49411c9de84c56665a1ee2ca32b97c7fa741c"
+        "sha256": "6e39ae132f9ebf5d144c2f3ea44624a97985fc0a0eba67b7f449393e6ba59522"
       },
       {
         "path": "app/console/src/pages/SignIn.vue",
@@ -13816,7 +13816,7 @@
       },
       {
         "path": "app/server/src/lib/gitlab-sync.ts",
-        "sha256": "d998383f3755a7428c134a4cd12cd4fb20f77d6c861e4e4d36686537de73bd35"
+        "sha256": "87711ebf3b607993a20eef48d155a1ff2bab00f04014244d6b7bb1253214cecd"
       },
       {
         "path": "app/server/src/lib/google.ts",
@@ -14528,7 +14528,7 @@
       },
       {
         "path": "docs/services/server/oidc.md",
-        "sha256": "7ff7cc11fe5eed65157bf261fed6aee863f33c7c35afc0ae66e1aca7d969fc9b"
+        "sha256": "c22440fa65f2682aaf0cd0d6638db77dacc9bfb39251847abb50510215cc7354"
       },
       {
         "path": "docs/services/web/README.md",
@@ -45273,7 +45273,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45313,7 +45313,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45353,7 +45353,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45393,7 +45393,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45433,7 +45433,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45473,7 +45473,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45513,7 +45513,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45553,7 +45553,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45593,7 +45593,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45633,7 +45633,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45673,7 +45673,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45725,7 +45725,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45765,7 +45765,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45805,7 +45805,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45845,7 +45845,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -45885,7 +45885,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 170,
+          "line": 182,
           "path": "app/console/src/pages/People.vue"
         },
         {
@@ -56007,7 +56007,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 515,
+          "line": 527,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -56039,7 +56039,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 515,
+          "line": 527,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -56071,7 +56071,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 515,
+          "line": 527,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -56103,7 +56103,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 515,
+          "line": 527,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -56135,7 +56135,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 515,
+          "line": 527,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -56167,7 +56167,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 515,
+          "line": 527,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -56211,7 +56211,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 515,
+          "line": 527,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -56243,7 +56243,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 515,
+          "line": 527,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -56275,7 +56275,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 515,
+          "line": 527,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -56307,7 +56307,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 515,
+          "line": 527,
           "path": "app/console/src/pages/People.vue"
         }
       ],
@@ -56339,7 +56339,7 @@
           "path": "app/console/src/pages/people/SiteRoleDialog.vue"
         },
         {
-          "line": 515,
+          "line": 527,
           "path": "app/console/src/pages/People.vue"
         }
       ],

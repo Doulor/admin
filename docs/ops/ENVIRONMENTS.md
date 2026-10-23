@@ -47,7 +47,7 @@
 | `MAIL_ASSET_BASE` | 可见 | `https://cdn.crosery.com/yzgc/mail/v1/`（信里图片的地址前缀：https，以 `/` 结尾，不带查询串） | 同左 |
 | `MAIL_REPLY_TO` | 可见·留空 | 空 = 信里不带 Reply-To，改请对方到官网意见箱留言；要填就写一个不带显示名的地址 | 空 |
 | `MAIL_RECIPIENTS` | 可见 | `all`：发给每一个投递的人 | `all`（#169 起；以前只能是 `allowlist`）；改成 `allowlist` 就只发 `MAIL_ALLOWLIST` 里的地址 |
-| `GITLAB_SYNC` | 可见 | `off`：不在 GitLab 上建号（所有者在预发布验收、填好 `GITLAB_API_TOKEN` 后改 `on`） | `on`：正式站上线前 GitLab 接预发布的签发者，按预发布的账号建号、封禁（所有者 2026-10-23 选定；#270） |
+| `GITLAB_SYNC` | 可见 | `off`：不在 GitLab 上建号。改 `on` 要所有者在预发布验收、填好 `GITLAB_API_TOKEN`，并且按顺序来：先把预发布改 `off`，再迁 GitLab 的 `sub`、改 GitLab 的 `issuer`，最后正式改 `on`；两边同时 `on` 会反复封禁、解封同一批人 | `on`：正式站上线前 GitLab 接预发布的签发者，按预发布的账号建号、封禁（所有者 2026-10-23 选定；#270） |
 | `GITLAB_URL` | 可见 | `https://git.yangtzeu.work`（自建 GitLab 的 origin，https、不带尾斜杠） | 同左 |
 | `GITLAB_GROUP` | 可见 | `geek`（成员进的组） | 同左 |
 | `GEEK_RELEASE_DISPLAY_SUFFIX` | **已移除** | 不再出现在 env 文件里：它是 `BUILD_ONLY_FIELDS`（发布身份只走 build args），写进 `.env` 不会被读取 | 同左 |
@@ -109,7 +109,7 @@ Google 登录的两项也是可选的一对（同一脚本的 `GOOGLE_SECRET_PAI
 
 GitHub App 的两项也是可选的一对（`GITHUB_APP_SECRET_PAIR`，#262 第四期）：都为空时控制台的 GitHub 组织页面只在用 GitHub 登录时借本人的令牌读写，用邮箱、Google 登录的人看到「GitHub 还没接上」；只填一项拒绝渲染，server 启动也会拒绝，私钥不对、不是 RSA 时启动失败，错误信息不带私钥。两个环境现在都没配。要开启时由 `CONSOLE_ORG` 的 owner 在组织设置里建一个 GitHub App（不要回调地址和 webhook），按控制台要做的事给组织与仓库权限（成员、管理、内容、议题、PR），装到组织上，生成私钥；把 App ID 和一行 base64 的私钥写进目标机的 `.env.<环境>`（或环境级 secrets）并重新部署。配了之后谁能读写 GitHub 只看站内称号，见 [SECURITY](../architecture/SECURITY.md)「权限只认极客班账号」。
 
-对外授权与 GitLab 同步的两项（同一脚本的 `OIDC_GITLAB_SECRETS`，#270）：`OIDC_JWKS` 为空时对外授权关闭，`/oidc/*` 一律 404，渲染时提示，照常部署；`GITLAB_API_TOKEN` 只在 `GITLAB_SYNC=on` 时必填，缺了拒绝渲染，server 启动也会拒绝。`GITLAB_SYNC` 只能是 `off`、`dry-run`、`on`，`GITLAB_URL` 是不带尾斜杠的 https origin，`GITLAB_GROUP` 是 GitLab 的组路径，`pnpm check:environments` 核对。两个环境的 `.env` 现在都还没填这两项。GitLab 只有一台，正式站上线前接预发布（所有者 2026-10-23 选定），所以先在预发布按下面的顺序开；预发布的数据库从此不能清空重建，否则 GitLab 上的身份（`sub`）对不上；正式站上线后改接正式环境前，把预发布里 GitLab 的 `sub` 迁到正式库，大家的 GitLab 账号不变。开启顺序：在目标机 server 容器里生成签名密钥写进 `.env.<环境>` 的 `OIDC_JWKS`、重新部署；再用同一个 CLI 登记 GitLab 客户端，client id 必须是 `gitlab`（同步按它的回调主机算 `sub`）；然后把 `GITLAB_SYNC` 改成 `on`、填 `GITLAB_API_TOKEN`、重新部署，看到第一轮对账成功（控制台 `client_registered` 为 `true`、没有 `last_error`）；最后才配 GitLab 的 omniauth。同步没开时成员离开不会被封禁，所以 GitLab 的统一登录不能先开（[对外授权与 GitLab 账号同步](../services/server/oidc.md)「客户端与密钥」「GitLab 一侧的配置」）。正式环境改 `GITLAB_SYNC=on` 要所有者先在预发布验收并批准，改之前先备份数据库。
+对外授权与 GitLab 同步的两项（同一脚本的 `OIDC_GITLAB_SECRETS`，#270）：`OIDC_JWKS` 为空时对外授权关闭，`/oidc/*` 一律 404，渲染时提示，照常部署；`GITLAB_API_TOKEN` 只在 `GITLAB_SYNC=on` 时必填，缺了拒绝渲染，server 启动也会拒绝。`GITLAB_SYNC` 只能是 `off`、`dry-run`、`on`，`GITLAB_URL` 是不带尾斜杠的 https origin，`GITLAB_GROUP` 是 GitLab 的组路径，`pnpm check:environments` 核对。两个环境的 `.env` 现在都还没填这两项。GitLab 只有一台，正式站上线前接预发布（所有者 2026-10-23 选定），所以先在预发布按下面的顺序开；预发布的数据库从此不能清空重建，否则 GitLab 上的身份（`sub`）对不上；正式站上线后改接正式环境，按这个顺序：先把预发布的 `GITLAB_SYNC` 改成 `off`，再把预发布里 GitLab 的 `sub` 迁到正式库、改 GitLab 的 `issuer`，最后正式改 `on`，大家的 GitLab 账号不变；两边同时 `on` 时两份名单对不上，会反复封禁、解封同一批人。开启顺序：在目标机 server 容器里生成签名密钥写进 `.env.<环境>` 的 `OIDC_JWKS`、重新部署；再用同一个 CLI 登记 GitLab 客户端，client id 必须是 `gitlab`（同步按它的回调主机算 `sub`）；然后把 `GITLAB_SYNC` 改成 `on`、填 `GITLAB_API_TOKEN`、重新部署，看到第一轮对账成功（控制台 `client_registered` 为 `true`、没有 `last_error`）；最后才配 GitLab 的 omniauth。同步没开时成员离开不会被封禁，所以 GitLab 的统一登录不能先开（[对外授权与 GitLab 账号同步](../services/server/oidc.md)「客户端与密钥」「GitLab 一侧的配置」）。正式环境改 `GITLAB_SYNC=on` 要所有者先在预发布验收并批准，改之前先备份数据库。
 
 ### vars
 

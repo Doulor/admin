@@ -121,7 +121,7 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "tests/server/oidc.test.ts 用 Fastify inject 走完整浏览器往返（带 path 的 cookie 罐）：发现文档与 JWKS、没登录去 /signin、首次同意与记住同意（换浏览器也不问）、pairwise sub、授权码重放撤销授权与令牌、未知客户端与错回调不跳转、PKCE 缺失与错误、拒绝、同意接口的 401/409/403/404、换账号、sid 结束后重新登录、不是成员与 userinfo 401、停用客户端、过期交互、没配密钥 404、限流（服务器调用与浏览器跳转分开算）、同意页详情不缓存、回调地址校验。tests/server/gitlab-sync.test.ts 用假的 GitLab 管理接口核对建号、邮箱回退、用户名加后缀、封禁解封、按身份沿用、没同步过就离开的按身份找到并封禁、立即同步与定时对账不同时做同一个账号、sector 取 gitlab 客户端、没登记客户端不建号、不合法的网站不传、停下时结束这一轮、论坛资料优先、失败与重试、dry-run 与 off、控制台两个接口、配置校验。tests/console/authorize.test.ts 核对同意页纯逻辑与样板。web、nginx、环境契约的既有回归随改动更新。未验证：真实 GitLab 的 omniauth 往返与同步（要预发布部署、生成密钥、登记客户端之后才能做），手机与 Safari 上的同意页。 tests/console/gitlab.test.ts 核对成员页 GitLab 列（状态、错误、预演文字，立即同步只在打开且客户端登记了、有错或还有事要做时出现，样板与服务端合同同形）。",
+      "reason": "tests/server/oidc.test.ts 用 Fastify inject 走完整浏览器往返（带 path 的 cookie 罐）：发现文档与 JWKS、没登录去 /signin、首次同意与记住同意（换浏览器也不问）、pairwise sub、授权码重放撤销授权与令牌、未知客户端与错回调不跳转、PKCE 缺失与错误、拒绝、同意接口的 401/409/403/404、换账号、sid 结束后重新登录、不是成员与 userinfo 401、停用客户端、过期交互、没配密钥 404、限流（服务器调用与浏览器跳转分开算）、同意页详情不缓存、回调地址校验。tests/server/gitlab-sync.test.ts 用假的 GitLab 管理接口核对建号、邮箱回退、用户名加后缀、封禁解封、按身份沿用、没同步过就离开的按身份找到并封禁、立即同步与定时对账不同时做同一个账号、sector 取 gitlab 客户端、没登记客户端不建号、不合法的网站不传、停下时结束这一轮、论坛资料优先、失败与重试、dry-run 与 off、控制台两个接口、配置校验。tests/console/authorize.test.ts 核对同意页纯逻辑与样板。tests/console/gitlab.test.ts 核对成员页 GitLab 列（状态、错误、预演文字，立即同步只在打开且客户端登记了、有错或还有事要做时出现，样板与服务端合同同形）。web、nginx、环境契约的既有回归随改动更新。未验证：真实 GitLab 的 omniauth 往返与同步（要预发布部署、生成密钥、登记客户端之后才能做），手机与 Safari 上的同意页，成员页 GitLab 列只在样板数据和隔离本地后端（dry-run）下看过，没对预发布的真实数据和 on 时的真实 GitLab 看过。",
       "evidence": [
         "tests/server/oidc.test.ts",
         "tests/server/gitlab-sync.test.ts",
