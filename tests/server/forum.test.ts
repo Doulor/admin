@@ -268,13 +268,15 @@ describe('state', () => {
     expect((await s.state('bob')).users.find((u: { id: string }) => u.id === 'u-geekclass').notifyPrefs).toEqual({ reply: false, like: false, follow: false });
   });
 
-  it('limits /api/forum/state to 120 requests a minute per IP', async () => {
+  // SPEC §3.8: anonymous read is capped at 60/min (meta.limit.read.per_minute), tighter than the
+  // route's own flat 120/min IP limit (FORUM_REQUEST_LIMITS), so the new check fires first.
+  it('limits an anonymous /api/forum/state caller to 60 requests a minute per IP (SPEC §3.8 visitor tier)', async () => {
     const s = await setup();
     const get = (remoteAddress: string) => s.app.inject({ method: 'GET', url: '/api/forum/state', remoteAddress });
-    for (let i = 0; i < 120; i += 1) expect((await get('198.51.100.40')).statusCode).toBe(200);
+    for (let i = 0; i < 60; i += 1) expect((await get('198.51.100.40')).statusCode).toBe(200);
     const limited = await get('198.51.100.40');
     expect(limited.statusCode).toBe(429);
-    expect(limited.json()).toMatchObject({ error: 'rate_limited', message: '操作太频繁\uFF0C请稍后再试' });
+    expect(limited.json()).toMatchObject({ error: 'rate_limited', bucket: 'read.per_minute', message: '操作太频繁\uFF0C请稍后再试' });
     expect(limited.headers['cache-control']).toBe('no-store');
     expect((await get('198.51.100.41')).statusCode).toBe(200);
   });
@@ -378,14 +380,17 @@ describe('list state without bodies (#156)', () => {
     expect((await s.app.inject({ method: 'GET', url: '/api/forum/search?q=%E6%90%9C%E7%B4%A2%E7%94%A8%E7%9A%84%E7%AD%BE%E5%90%8D' })).json().results.users).toEqual([]);
   });
 
-  it('limits the topic posts and search reads per IP', async () => {
+  // SPEC §3.8: anonymous read is capped at 60/min and search at 10/min (meta.limit.read.per_minute /
+  // meta.limit.search.per_minute), both tighter than the routes' own flat IP limits (120/30 per min), so
+  // the new per-level check fires first.
+  it('limits an anonymous caller to 60 topic-post reads and 10 searches a minute per IP (SPEC §3.8 visitor tier)', async () => {
     const s = await setup();
     const address = '198.51.100.43';
     const posts = (n: number) => s.app.inject({ method: 'GET', url: '/api/forum/topics/t9/posts', remoteAddress: address, headers: { 'x-forwarded-for': `198.51.100.${n}` } });
-    for (let i = 0; i < 120; i += 1) expect((await posts(i)).statusCode).toBe(200);
+    for (let i = 0; i < 60; i += 1) expect((await posts(i)).statusCode).toBe(200);
     expect((await posts(1)).statusCode).toBe(429);
     const search = () => s.app.inject({ method: 'GET', url: '/api/forum/search?q=a', remoteAddress: address });
-    for (let i = 0; i < 30; i += 1) expect((await search()).statusCode).toBe(200);
+    for (let i = 0; i < 10; i += 1) expect((await search()).statusCode).toBe(200);
     expect((await search()).statusCode).toBe(429);
   });
 });
@@ -437,6 +442,19 @@ describe('topics', () => {
     expect(response.statusCode).toBe(429);
     expect(response.json()).toMatchObject({ error: 'rate_limited', message: '操作太频繁\uFF0C请稍后再试' });
     await newTopic(s, 'carol');
+  });
+
+  it('also limits a level.member to 20 topics an hour (SPEC §3.8 meta.limit.forum.topic.hourly), independent of the per-minute flood guard', async () => {
+    const s = await setup();
+    s.as('bob');
+    const bobId = accountIdOf(s.app, 'bob');
+    grantPermNode(s.app, bobId, 'level.member');
+    // 垫 19 次（不占每分钟 10 次的额度），第 20 次真的发出去，第 21 次按小时上限拦下。
+    for (let i = 0; i < 19; i += 1) s.app.services.limits.hit({ bucket: 'forum.topic.hourly', subject: bobId, window: { ms: 3600_000 }, max: 20 });
+    await newTopic(s);
+    const blocked = await s.call('POST', '/api/forum/topics', 'bob', { title: '超额的第 21 个', categoryId: 'c-ai', content: '正文' });
+    expect(blocked.statusCode).toBe(429);
+    expect(blocked.json()).toMatchObject({ error: 'rate_limited', bucket: 'forum.topic.hourly' });
   });
 
   it('pins and closes only with the forum capability, and audits without any post text', async () => {
@@ -602,6 +620,31 @@ describe('replies', () => {
     // 一小时之后恢复。
     s.db.prepare("UPDATE forum_rate_events SET created_at = created_at - 3600001 WHERE bucket = 'guestPostSite'").run();
     expect((await send('203.0.113.71')).statusCode).toBe(201);
+  });
+
+  it('also limits a level.member to 60 replies an hour (SPEC §3.8 meta.limit.forum.reply.hourly), independent of the per-minute flood guard', async () => {
+    const s = await setup();
+    s.as('bob');
+    const bobId = accountIdOf(s.app, 'bob');
+    grantPermNode(s.app, bobId, 'level.member');
+    for (let i = 0; i < 59; i += 1) s.app.services.limits.hit({ bucket: 'forum.reply.hourly', subject: bobId, window: { ms: 3600_000 }, max: 60 });
+    expect((await s.call('POST', '/api/forum/posts', 'bob', { topicId: 't9', content: '第 60 条' })).statusCode).toBe(201);
+    const blocked = await s.call('POST', '/api/forum/posts', 'bob', { topicId: 't9', content: '超额的第 61 条' });
+    expect(blocked.statusCode).toBe(429);
+    expect(blocked.json()).toMatchObject({ error: 'rate_limited', bucket: 'forum.reply.hourly' });
+  });
+
+  it('caps all accounts on one IP combined to 200 replies an hour (SPEC §3.8), on top of each account\'s own hourly cap', async () => {
+    const s = await setup();
+    const address = '198.51.100.90';
+    const ipKey = createHash('sha256').update(ipSubject(address)).digest('hex');
+    for (let i = 0; i < 199; i += 1) s.app.services.limits.hit({ bucket: 'forum.reply.ip.hourly', subject: ipKey, window: { ms: 3600_000 }, max: 200 });
+    const post = (who: string) => s.app.inject({ method: 'POST', url: '/api/forum/posts', remoteAddress: address, headers: s.as(who), payload: { topicId: 't9', content: `${who} 的回复` } });
+    expect((await post('bob')).statusCode).toBe(201);
+    // 换另一个账号，同一个 IP ：这条上限按 IP 算所有账号加起来，不按单个账号。
+    const blocked = await post('carol');
+    expect(blocked.statusCode).toBe(429);
+    expect(blocked.json()).toMatchObject({ error: 'rate_limited', bucket: 'forum.reply.ip.hourly' });
   });
 
   it('takes only allowlisted characters in guest names, and every probe from earlier rounds is refused', async () => {

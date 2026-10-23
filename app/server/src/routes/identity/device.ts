@@ -114,6 +114,16 @@ export default async function deviceRoutes(app: FastifyInstance) {
       if (decision === "approve" && emailRequired(app.services, session.account_id)) {
         return reply.code(403).send({ error: "email_required", message: "先绑定邮箱，再确认命令行的登录" });
       }
+      // 命令行设备码另加每个账号每天 20 次（SPEC §3.8），沿用现有的每分钟 20 次路由限流；只数真的确认登录的
+      // （approve），拒绝（deny）不占这个额度。
+      if (decision === "approve") {
+        const cliDaily = app.services.limits.hit({ bucket: "account.cli.login.daily", subject: session.account_id, window: "day-bj", max: 20 });
+        if (!cliDaily.ok) {
+          return reply.code(429).header("Retry-After", String(cliDaily.retry_after)).send({
+            error: "rate_limited", bucket: "account.cli.login.daily", message: "今天命令行登录次数太多了，明天再试", retry_after: cliDaily.retry_after,
+          });
+        }
+      }
       const result = device.decide({ userCode: body.user_code, accountId: session.account_id, decision });
       if (!result) return reply.code(404).send({ error: "device_code_not_found" });
       if (!result.ok) return reply.code(409).send({ error: "device_code_not_pending" });

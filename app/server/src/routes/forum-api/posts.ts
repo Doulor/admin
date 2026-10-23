@@ -1,6 +1,12 @@
+import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { FORUM_LIMITS, ForumError, GUEST_POST_SITE_SUBJECT, NAME_RULE_MESSAGE, ipSubject, isAllowedName, normalizeName } from "../../lib/forum-rules.js";
 import { canModerate, forbidden, forumChanges, forumViewer, guestRepliesPaused, notFound, rateLimited, requireMember, type MemberViewer } from "./viewer.js";
+import { hourlyLimited } from "./forum-limits.js";
+
+/** 同一 IP 上所有账号加起来，回帖每小时 200 次（SPEC §3.8），防止一个 IP 换着账号刷。只存哈希，不存原文。 */
+const REPLY_IP_HOURLY_MAX = 200;
+const ipHash = (ip: string) => createHash("sha256").update(ipSubject(ip)).digest("hex");
 
 type PostParams = { post_id: string };
 type ReplyBody = {
@@ -45,6 +51,13 @@ export default async function forumPostRoutes(app: FastifyInstance) {
 
     if (viewer.kind === "member") {
       if (!forum.rateAllowed("reply", viewer.userId)) throw rateLimited();
+      if (hourlyLimited(req, reply, "reply", viewer.accountId)) return;
+      const ipResult = app.services.limits.hit({ bucket: "forum.reply.ip.hourly", subject: ipHash(req.ip), window: { ms: 60 * 60_000 }, max: REPLY_IP_HOURLY_MAX });
+      if (!ipResult.ok) {
+        return reply.code(429).header("Retry-After", String(ipResult.retry_after)).send({
+          error: "rate_limited", bucket: "forum.reply.ip.hourly", message: "这个网络这小时的回复太多了，晚点再试", retry_after: ipResult.retry_after,
+        });
+      }
       const postId = forum.createPost({ topicId, authorId: viewer.userId, content, replyToPostId });
       forum.rateRecord("reply", viewer.userId);
       app.services.activity.recordActivity(req, { action: "forum.reply.create", surface: "forum", target_type: "post", target_id: postId, outcome: "ok" });

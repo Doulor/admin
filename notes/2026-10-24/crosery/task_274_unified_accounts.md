@@ -167,3 +167,18 @@
   都是新增调用，没有改动原有的 `storage.audit()`。
 - 结果：npx vitest run tests/server——31 files / 555 tests 全过；pnpm --filter server build 干净；check-boundaries 通过（258 files, 1453 imports）。
 - 下一步：SPEC §3.7 的「必须记」动作清单到这里基本走完了（auth.*、invite.redeem、apply.submit、forum.topic.view/create、forum.reply.create、forum.search、competition.*、profile.*、perm.*、gitlab.*）；没覆盖到的是 forum.react（#276 才有这个功能，#274 没有路由）。接下来转 §3.8 剩余限额（论坛读/搜索按等级、访客翻页上限、注册新账号限额、验证码按邮箱限额、命令行设备码按账号限额、回帖按 IP 总量上限）和 `limits.prune()` 接入保留清理，最后是 Phase 4。
+
+## 05:15:48 +08:00 · 提交 · #274 · Step 3：SPEC §3.8 剩余限额——论坛读/搜索按等级、发帖/回帖按等级每小时、回帖按 IP 总量、命令行按账号每天
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：
+  - 新增 `routes/forum-api/forum-limits.ts`：两个共享辅助函数。`hourlyLimited()` 按 `meta.limit.forum.<topic|reply>.hourly`（idn274 的迁移已经按等级种好：访客/注册用户 0，成员 20/60）核对一个账号这一小时发得够不够多，和既有的每分钟洪泛保护（`forum.rateAllowed`）是两条独立的线。`levelRateLimited()` 按 `meta.limit.<read|search>.per_minute`（访客 60/10、注册用户 120/20、成员 300/60）核对论坛读/搜索，账号按 account_id 认、访客按 IP 认，和已有的 `FORUM_REQUEST_LIMITS`（@fastify/rate-limit，纯按 IP、不分等级）并存，后者继续当兜底。两者命中时都回 `{error:"rate_limited", bucket, retry_after}`，http-policy.ts 的全局钩子据此记一条 `outcome=limited`。
+  - 接进 `forum-api/topics.ts`（发话题、`/api/forum/state`、`/topics/:id/posts`、`/search`）和 `forum-api/posts.ts`（回复，含游客回复）。
+  - `hourlyLimited` 里 `max <= 0` 当「这条不管」处理，不是硬拦截：SPEC 表里「访客/注册用户默认不允许发帖」要靠 `forum.topic.create`/`forum.reply.create` 这两个权限节点本身要不要发给他们（控制台决定，forum-api 目前仍是旧的 GitHub 组织能力体系，没有切到新权限节点，是 #276 或后续的事），不该让这条每小时计数器替它们做「谁都发不了」的判断——写死成硬拦截会把一条已有、测试覆盖过的回归行为（`signin-methods.test.ts`「邮箱注册的普通注册用户能发帖」）当场打破。
+  - `routes/forum-api/posts.ts` 另加「同一 IP 上所有账号加起来，回帖每小时 200 次」（`forum.reply.ip.hourly`，IP 只存 sha256，不存原文），和账号自己的小时上限叠加，拦任何一条都算。
+  - `routes/identity/device.ts`：`POST /api/identity/device/approve` 的 `decision: 'approve'` 分支加「每个账号每天 20 次」（`account.cli.login.daily`），`deny` 不占这条额度；和路由自己原有的每分钟 20 次限流是两条线。
+  - 核对「发验证码每邮箱每小时 5 次」：`lib/email-login.ts` 的 `PER_INBOX_HOUR = 5` 早就实现了，不用再加。「访客翻页最多 10 页」：现在服务端论坛接口完全没有分页/游标概念（`/state` 一次性给全部，`/topics/:id/posts` 一次性给一个话题的全部帖子），没有「页」可拦，这条留给以后真的做分页时再接，不伪造一个不存在的分页限额。
+  - 新增回归测试：`tests/server/forum.test.ts` 两条「访客每分钟 60/10 次」改用新机制的数字（原先按旧的纯 IP 120/30 次写的两条测试跟着改，用 `limits.hit()` 直接垫计数而不是真循环 120/200 次）；新增「成员每小时 20 条话题/60 条回复」「同一 IP 回帖每小时 200 条」三条直接验证新限额真的生效，不只是没把别的弄坏。`tests/server/device-flow.test.ts` 新增「每账号每天 20 次确认登录，拒绝不占额度」。
+- 结果：npx vitest run tests/server——31 files / 559 tests 全过；pnpm --filter server build 干净；check-boundaries 通过（259 files, 1458 imports）。
+- 残留与未验证：成员等级的论坛读/搜索档位（300/60）没有专门的端到端测试去验证「确实比访客的 60/10 更宽松」，只验证了访客档位；forum.reply.ip.hourly 和账号自己的 hourly 两条线谁先触发取决于调用顺序，没有专门测两条同时逼近临界值时的行为。§3.8 表里其余各项（投递、注册、命令行发码本身）idn274 已经做了，这次没有重复验证。
+- 下一步：`limits.prune()`（idn274 发现的「有实现没调用点」）接进保留清理，然后 Phase 4（docs、catalog、notes/INDEX 重新生成，tooling 测试转绿）。

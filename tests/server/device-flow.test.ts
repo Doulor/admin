@@ -286,4 +286,21 @@ describe('device authorization (#262, RFC 8628)', () => {
     const second = (await issueCode(app)).json();
     expect((await decide(app, sid, second.user_code, 'approve')).statusCode).toBe(200);
   });
+
+  it('limits approving a device code to 20 a day per account (SPEC §3.8), but never blocks a denial', async () => {
+    const { app } = await setup();
+    const sid = signIn(app, 'octocat', 4242);
+    const accountId = accountOfGithub(app.services.storage.db, '4242');
+    // 预先垫 19 次，不占用路由自己每分钟 20 次的额度（否则分不清是哪条线拦下来的）。
+    for (let i = 0; i < 19; i += 1) app.services.limits.hit({ bucket: 'account.cli.login.daily', subject: accountId, window: 'day-bj', max: 20 });
+    const ok = (await issueCode(app)).json();
+    expect((await decide(app, sid, ok.user_code, 'approve')).statusCode).toBe(200);
+    const blocked = (await issueCode(app)).json();
+    const refused = await decide(app, sid, blocked.user_code, 'approve');
+    expect(refused.statusCode).toBe(429);
+    expect(refused.json()).toMatchObject({ error: 'rate_limited', bucket: 'account.cli.login.daily' });
+    // 这个码没有被 approve 耗掉（账号停在 pending），拒绝（deny）不占这条额度，照常能用。
+    expect((await detail(app, sid, blocked.user_code)).json().status).toBe('pending');
+    expect((await decide(app, sid, blocked.user_code, 'deny')).statusCode).toBe(200);
+  });
 });
