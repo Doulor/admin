@@ -174,6 +174,11 @@ server {
         proxy_pass http://server:3000;
         include /etc/nginx/conf.d/90-proxy-headers.conf;
     }
+    # 对外授权（#270）：发现文档、JWKS、授权、换令牌与登录交互；^~ 同 /api/，不让下面的正则截走
+    location ^~ /oidc/ {
+        proxy_pass http://server:3000;
+        include /etc/nginx/conf.d/90-proxy-headers.conf;
+    }
     # 健康检查：让部署脚本能从 web 入口验证「web → server」整条链路。
     location = /healthz {
         proxy_pass http://server:3000;
@@ -196,11 +201,11 @@ server {
     }
 
     # ── 管理端（控制台）SPA 入口：路径清单与入口文件都只写在这一处 ──
-    # /admin、/console 及其子路径，外加 /signin、/device（设备授权确认页）与 /account（账号页）；与 app/server/src/app.ts 的
+    # /admin、/console 及其子路径，外加 /signin、/device（设备授权确认页）、/account（账号页）与 /authorize（对外授权的同意页）；与 app/server/src/app.ts 的
     # ADMIN_SPA_PATHS / ADMIN_SPA_ENTRY 一致。/administrator、/consoles 不匹配。
     # 必须放在下面的图片正则之前：nginx 取第一个匹配的正则，仓库名这类路径段
     # 即使以 .svg/.png 结尾，也要进控制台入口而不是 404。入口页每次部署都换哈希，回源校验。
-    location ~ ^/(?:(?:admin|console)(?:/|$)|signin$|device$|account$) {
+    location ~ ^/(?:(?:admin|console)(?:/|$)|signin$|device$|account$|authorize$) {
         expires -1;
         try_files $uri /sites/console/index.html;
     }

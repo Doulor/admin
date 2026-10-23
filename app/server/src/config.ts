@@ -106,8 +106,43 @@ export function createConfig(env: Record<string, string | undefined>) {
     if (privateKey.asymmetricKeyType !== "rsa") throw new Error("GH_APP_PRIVATE_KEY must be the RSA key GitHub generated for the App");
     return { appId, privateKey };
   })();
+  // 对外授权（#270，ADR-0005 决策 8）：OIDC_JWKS 是签名私钥（JWK Set 的 JSON，或它的 base64，`node dist/cli/oidc.js keygen` 生成）。
+  // 没设时不开 /oidc（本机与测试）；设了但读不出来让启动失败，错误信息不带配置的值。签发者固定是 PUBLIC_ORIGIN + /oidc。
+  const oidc = (() => {
+    const raw = (env.OIDC_JWKS ?? "").trim();
+    if (!raw) return null;
+    let jwks: { keys?: unknown };
+    try { jwks = JSON.parse(raw.startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8")) as { keys?: unknown }; } catch { throw new Error("OIDC_JWKS is not a readable JWK Set"); }
+    const keys = Array.isArray(jwks.keys) ? jwks.keys as Record<string, unknown>[] : [];
+    if (keys.length === 0 || keys.some(key => typeof key?.kty !== "string" || typeof key?.d !== "string")) throw new Error("OIDC_JWKS must be a JWK Set of private keys");
+    if (!keys.some(key => key.kty === "RSA")) throw new Error("OIDC_JWKS must contain an RSA key (ID tokens are signed with RS256)");
+    return { issuer: `${publicOrigin}/oidc`, jwks: { keys } };
+  })();
+  // GitLab 账号同步（#270）：GITLAB_SYNC 是 off（不同步）、dry-run（只算出要做什么，不调 GitLab）或 on。不是 off 时要有
+  // GITLAB_URL（GitLab 的 origin），on 时还要 GITLAB_API_TOKEN（管理员令牌，api 范围）；GITLAB_GROUP 是成员进的组，默认 geek。
+  const gitlab = (() => {
+    const value = (key: string) => (env[key] ?? "").trim();
+    const mode = value("GITLAB_SYNC").toLowerCase() || "off";
+    if (mode !== "off" && mode !== "dry-run" && mode !== "on") throw new Error("GITLAB_SYNC must be off, dry-run or on");
+    const rawUrl = value("GITLAB_URL");
+    let url: string | null = null;
+    if (rawUrl) {
+      const parsed = (() => { try { return new URL(rawUrl); } catch { return null; } })();
+      if (!parsed || !["http:", "https:"].includes(parsed.protocol) || parsed.pathname !== "/" || parsed.search || parsed.hash || parsed.username) {
+        throw new Error("GITLAB_URL must be a plain HTTP(S) origin");
+      }
+      url = parsed.origin;
+    }
+    const token = value("GITLAB_API_TOKEN") || null;
+    const group = value("GITLAB_GROUP") || "geek";
+    if (!/^[A-Za-z0-9_.-]{1,255}$/.test(group)) throw new Error("GITLAB_GROUP must be a group path");
+    if (mode !== "off" && !url) throw new Error("GITLAB_SYNC needs GITLAB_URL");
+    if (mode === "on" && !token) throw new Error("GITLAB_SYNC=on needs GITLAB_API_TOKEN");
+    return { mode: mode as "off" | "dry-run" | "on", url, token, group };
+  })();
   return {
     production, port, publicOrigin, host: listenHost, trustProxy, consoleOrg,
+    oidc, gitlab,
     cookieDomain: env.COOKIE_DOMAIN || undefined,
     cookieSecure: publicOrigin.startsWith("https:"),
     // 接了 GitHub App 时登录只要读身份和组织资格；没接时控制台的 GitHub 页面还得借本人的令牌，照旧要管理组织和仓库的范围

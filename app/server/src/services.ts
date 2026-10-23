@@ -21,6 +21,10 @@ import { createCompetitionScoreStore } from "./lib/competition-score-store.js";
 import { loadForumContent } from "./lib/forum-content.js";
 import { createForumStore } from "./lib/forum-store.js";
 import { createMailer } from "./lib/mail/mailer.js";
+import { createOidcStore } from "./lib/oidc-store.js";
+import { createOidcProvider } from "./lib/oidc-provider.js";
+import { createAccountDirectory } from "./lib/account-directory.js";
+import { createGitlabSync, type FetchLike as GitlabFetch } from "./lib/gitlab-sync.js";
 import type { FetchLike } from "./lib/mail/providers.js";
 import { createPublicSubmission } from "./middleware/pow.js";
 import { createTurnstile } from "./middleware/turnstile.js";
@@ -28,8 +32,12 @@ import { createTurnstile } from "./middleware/turnstile.js";
 /**
  * `mailFetch`、`clock`：测试换掉发信商的 HTTP 请求，以及发信队列与会话清理用的时钟，都不连真实时间。
  * `githubAppFetch`：测试换掉 GitHub App 换安装令牌的请求（lib/github-connection.ts）。
+ * `gitlabFetch`、`githubProfileFetch`：测试换掉 GitLab 管理接口与建号时读 GitHub 公开资料、头像的请求（lib/gitlab-sync.ts）。
  */
-export type ServiceOverrides = { httpRequest?: typeof request; octokitFactory?: (token: string) => Octokit; mailFetch?: FetchLike; githubAppFetch?: (input: string, init?: RequestInit) => Promise<Response>; clock?: () => number };
+export type ServiceOverrides = {
+  httpRequest?: typeof request; octokitFactory?: (token: string) => Octokit; mailFetch?: FetchLike; githubAppFetch?: (input: string, init?: RequestInit) => Promise<Response>;
+  gitlabFetch?: GitlabFetch; githubProfileFetch?: GitlabFetch; clock?: () => number;
+};
 /** Composition root. Only this module owns dependencies and database lifetimes. */
 export function createServices(config: AppConfig, overrides: ServiceOverrides = {}) {
   const crypto = createCrypto(config.encryptionKey);
@@ -82,6 +90,16 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
       throw error;
     }
   })();
+  // 对外授权与 GitLab 同步（#270）：账号目录把账号和论坛资料拼起来；OIDC_JWKS 没设时不开 /oidc（oidc 为 null）
+  const oidcStore = createOidcStore(storage.db, crypto, overrides.clock);
+  const directory = createAccountDirectory({ identity, forum, publicOrigin: config.publicOrigin });
+  const oidc = config.oidc
+    ? { issuer: config.oidc.issuer, provider: createOidcProvider({ issuer: config.oidc.issuer, jwks: config.oidc.jwks, sessionSecret: config.sessionSecret, store: oidcStore, accounts: directory }) }
+    : null;
+  const gitlab = createGitlabSync(storage.db, {
+    config: config.gitlab, directory, subjects: oidcStore, clients: oidcStore, avatars: forum, audit: storage.audit,
+    fetch: overrides.gitlabFetch, githubFetch: overrides.githubProfileFetch, clock: overrides.clock,
+  });
   return {
     competitions,
     competitionSignups,
@@ -99,9 +117,10 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     feedback,
     forum,
     mail,
+    oidcStore, directory, oidc, gitlab,
     publicSubmission: createPublicSubmission(config.powDifficulty),
     turnstile: createTurnstile(config, overrides.httpRequest),
-    close() { void mail.stop(); auth.stopCleanup(); storage.db.close(); },
+    close() { void mail.stop(); void gitlab.stop(); auth.stopCleanup(); storage.db.close(); },
   };
 }
 export type AppServices = ReturnType<typeof createServices>;

@@ -3,6 +3,7 @@ import adminRoutes from "./routes/admin/index.js";
 import consoleRoutes from "./routes/console/index.js";
 import forumRoutes from "./routes/forum-api/index.js";
 import identityRoutes from "./routes/identity/index.js";
+import oidcRoutes from "./routes/oidc/index.js";
 import Fastify, { type RouteOptions } from "fastify";
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
@@ -22,7 +23,7 @@ const consoleDist = resolve(APP_ROOT, "console/dist");
  * 服务端只在这里定义一次；web 镜像内 nginx 的 location 必须与之一致（app/web/Dockerfile）。
  * 管理端是独立的 Vue 包 app/console（极客班控制台），产物入口在 app/console/dist/sites/console/index.html。
  */
-export const ADMIN_SPA_PATHS = Object.freeze({ exact: ["/signin", "/device", "/account"], prefixes: ["/admin", "/console"] });
+export const ADMIN_SPA_PATHS = Object.freeze({ exact: ["/signin", "/device", "/account", "/authorize"], prefixes: ["/admin", "/console"] });
 export const ADMIN_SPA_ENTRY = "sites/console/index.html";
 export const PORTAL_SPA_ENTRY = "sites/portal/index.html";
 
@@ -38,16 +39,21 @@ export function resolveSiteEntry(url: string): string {
  * `staticRoot`：false 关闭静态托管；不传时依次查找 app/web/dist 与 app/console/dist。
  * `mailWorker`：开发信循环（每 15 秒发一次到期的信，app.close() 时停下）；只有 index.ts 打开，测试直接调 services.mail.drain()。
  * `sessionCleanup`：定时清过期会话（启动时一次，之后每小时；app.close() 时停下）；index.ts 和本机预览（scripts/local-preview.mjs）打开，测试直接调 auth.cleanupExpiredSessions()。
+ * `gitlabSync`：GITLAB_SYNC=on 时定时对一次 GitLab 账号（启动时一次，之后每 10 分钟；app.close() 时等它停下）；只有 index.ts 打开，测试直接调 gitlab.reconcile()。
  */
 /**
- * 请求日志的字段：同 Fastify 默认，只是 `/auth/*` 不记查询串——里面有 OAuth 的 code、state 和注册邀请码（#262）。
+ * 请求日志的字段：同 Fastify 默认，只是 `/auth/*` 不记查询串——里面有 OAuth 的 code、state 和注册邀请码（#262）；
+ * `/oidc/*` 同样不记（下游应用带来的 state、nonce 与 PKCE 参数，#270）。
  */
 export function requestLogFields(req: { method: string; url: string; host?: string; ip?: string; socket?: { remotePort?: number } }) {
-  const url = req.url.startsWith("/auth/") ? req.url.split("?")[0] : req.url;
+  const url = req.url.startsWith("/auth/") || req.url.startsWith("/oidc/") ? req.url.split("?")[0] : req.url;
   return { method: req.method, url, host: req.host, remoteAddress: req.ip, remotePort: req.socket?.remotePort };
 }
 
-export type BuildAppOptions = { config: AppConfig; services?: AppServices; overrides?: ServiceOverrides; staticRoot?: string | string[] | false; logger?: boolean; mailWorker?: boolean; sessionCleanup?: boolean; observeRoute?: (route: RouteOptions) => void };
+export type BuildAppOptions = {
+  config: AppConfig; services?: AppServices; overrides?: ServiceOverrides; staticRoot?: string | string[] | false; logger?: boolean;
+  mailWorker?: boolean; sessionCleanup?: boolean; gitlabSync?: boolean; observeRoute?: (route: RouteOptions) => void;
+};
 export async function buildApp(options: BuildAppOptions) {
   const config = options.config;
   const services = options.services ?? createServices(config, options.overrides);
@@ -64,11 +70,13 @@ export async function buildApp(options: BuildAppOptions) {
     // 先等发信循环收尾，再关库
     if (options.mailWorker) await services.mail.stop();
     if (options.sessionCleanup) services.auth.stopCleanup();
+    if (options.gitlabSync) await services.gitlab.stop();
     if (!options.services) services.close();
   });
   // 应用就绪（listen 之前）才开发信循环：路由注册失败时不会留下一个没人关的定时器
   if (options.mailWorker) app.addHook("onReady", async () => { services.mail.start(app.log); });
   if (options.sessionCleanup) app.addHook("onReady", async () => { services.auth.startCleanup(app.log); });
+  if (options.gitlabSync) app.addHook("onReady", async () => { services.gitlab.start(app.log); });
   registerHttpPolicy(app);
   await app.register(cookie, { secret: config.sessionSecret });
   // 只限写了 config.rateLimit 的路由；超额一律 429 rate_limited，路由不另写 errorResponseBuilder（#191）
@@ -79,6 +87,7 @@ export async function buildApp(options: BuildAppOptions) {
   await app.register(identityRoutes);
   await app.register(consoleRoutes);
   await app.register(forumRoutes);
+  await app.register(oidcRoutes);
   // 旧论坛接口已退役，不映射成新接口：新论坛接口（routes/forum-api）注册的具体路径优先匹配，
   // /api/forum 下其余的旧路径，以及 /auth/forum/*、/forum/u/*，一律 410。
   const retired = async (_req: unknown, reply: import("fastify").FastifyReply) => reply.code(410).send({
@@ -101,7 +110,7 @@ export async function buildApp(options: BuildAppOptions) {
   if (staticRoots.length) {
     await app.register(fastifyStatic, { root: staticRoots, prefix: "/" });
     app.setNotFoundHandler((req, reply) => {
-      if (req.url.startsWith("/api") || req.url.startsWith("/auth") || req.url.startsWith("/healthz")) {
+      if (req.url.startsWith("/api") || req.url.startsWith("/auth") || req.url.startsWith("/oidc") || req.url.startsWith("/healthz")) {
         return reply.code(404).send({ error: "not_found" });
       }
       if (/\.[a-z0-9]+(?:\?|$)/i.test(req.url) || !["GET", "HEAD"].includes(req.method)) return reply.code(404).send({ error: "not_found" });

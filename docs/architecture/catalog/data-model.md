@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`9cbea583529440159f9eb257d8868c7b3ecec70e7a1d7d243fac3ff5b38dba24`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`e134904408c3246ceb5b659172e321dec2a5711195e6568ee4989b4b05d42d7e`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -42,6 +42,7 @@ flowchart LR
   forum_topic_views["forum_topic_views"]
   forum_topics["forum_topics"]
   forum_users["forum_users"]
+  gitlab_accounts["gitlab_accounts"]
   identities["identities"]
   identity_audit["identity_audit"]
   invitations["invitations"]
@@ -49,6 +50,10 @@ flowchart LR
   invite_codes["invite_codes"]
   invite_links["invite_links"]
   mail_outbox["mail_outbox"]
+  oauth_clients["oauth_clients"]
+  oauth_grants["oauth_grants"]
+  oauth_subjects["oauth_subjects"]
+  oidc_payloads["oidc_payloads"]
   role_assignments["role_assignments"]
   sessions["sessions"]
   titles["titles"]
@@ -84,8 +89,12 @@ flowchart LR
   forum_topics -->|"author_id → id"| forum_users
   forum_users -->|"account_id → id"| users
   forum_users -->|"avatar_hash → hash"| forum_avatars
+  gitlab_accounts -->|"account_id → id"| users
   identities -->|"user_id → id"| users
   identity_audit -->|"user_id → id"| users
+  oauth_grants -->|"client_id → client_id"| oauth_clients
+  oauth_grants -->|"user_id → id"| users
+  oauth_subjects -->|"user_id → id"| users
   role_assignments -->|"account_id → id"| users
   sessions -->|"openid → id"| users
   users -->|"invite_code_id → id"| invite_codes
@@ -284,7 +293,7 @@ CREATE TABLE audit_logs (
 
 ## competition_score_events
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:527](../../../app/server/src/lib/db.ts#L527)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:594](../../../app/server/src/lib/db.ts#L594)。
 
 积分账本：issue/pr 带仓库与编号并按 CHECK 限分（5–30、15–100），penalty 固定 −50 且不带仓库编号；撤销只改 status 为 revoked 并记撤销人与原因，不删行；唯一索引防止同一条 Issue/PR 重复记分。只有 lib/competition-score-store.ts 读写。
 
@@ -349,7 +358,7 @@ CREATE TABLE competition_score_events (
 
 ## competition_signup_settings
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:460](../../../app/server/src/lib/db.ts#L460)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:527](../../../app/server/src/lib/db.ts#L527)。
 
 每场一行；没有行就是未开放报名（默认个人赛、不计分）。enabled、participation、team_min/team_max（团队赛才有，1–20）、scoring（none / contribution）由控制台整体写入；更新人 updated_by 是操作人的极客班账号，系统种子为 NULL。只有 lib/competition-signup-store.ts 读写。
 
@@ -397,7 +406,7 @@ CREATE TABLE competition_signup_settings (
 
 ## competition_signups
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:474](../../../app/server/src/lib/db.ts#L474)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:541](../../../app/server/src/lib/db.ts#L541)。
 
 一人一场一行（UNIQUE(competition_id, account_id)），status 只取 active/cancelled，取消保留行与时间；note ≤200 字，成员可见，填写处提示不要写联系方式；looking_for_team 只在团队赛生效。身份键是会话里的 account_id，不按 GitHub 登录名。只有 lib/competition-signup-store.ts 读写。
 
@@ -447,7 +456,7 @@ CREATE TABLE competition_signups (
 
 ## competition_team_members
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:505](../../../app/server/src/lib/db.ts#L505)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:572](../../../app/server/src/lib/db.ts#L572)。
 
 在队成员与待处理的申请、邀请同一张表：status 取 applied/invited/active/declined/withdrawn/left/removed/disbanded；两个部分唯一索引分别保证一人一队和同一队伍对同一人只有一条待处理记录。message ≤100 字，只给队伍领队与当事人看。只有 lib/competition-signup-store.ts 读写。
 
@@ -508,7 +517,7 @@ CREATE TABLE competition_team_members (
 
 ## competition_teams
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:488](../../../app/server/src/lib/db.ts#L488)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:555](../../../app/server/src/lib/db.ts#L555)。
 
 队伍事实：name_key 是 trim + NFKC + 小写后的查重键，唯一索引只约束未解散的队伍；status 只改 recruiting/locked/disbanded 并记时间，不物理删除；leader_account_id 指向极客班账号。只有 lib/competition-signup-store.ts 读写。
 
@@ -743,7 +752,7 @@ CREATE TABLE device_grants (
 
 ## email_challenges
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:583](../../../app/server/src/lib/db.ts#L583)。
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:650](../../../app/server/src/lib/db.ts#L650)。
 
 邮箱验证码（#262）：一行是一次发码，只存验证码的 HMAC（密钥由 SESSION_SECRET 派生）、按邮箱的限流键和按 IP 前缀的 HMAC，不存验证码原文和 IP；10 分钟过期、最多试 5 次，用过写 used_at；过期一小时后由会话清理一起删除。只有 lib/email-login.ts 读写，目录不读取记录。
 
@@ -1338,6 +1347,56 @@ CREATE TABLE forum_users (
 
 </details>
 
+## gitlab_accounts
+
+业务域：`gitlab`；结构来源：[app/server/src/lib/db.ts:508](../../../app/server/src/lib/db.ts#L508)。
+
+极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，从不删除；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `account_id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `gitlab_user_id` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `username` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `state` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `access_level` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `last_error` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `last_error_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `synced_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `account_id` | `users.id` | NO ACTION | NO ACTION |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_gitlab_accounts_1` | `account_id` | 1 | pk | 0 | `SQLite 自动索引` |
+| `sqlite_autoindex_gitlab_accounts_2` | `gitlab_user_id` | 1 | u | 0 | `SQLite 自动索引` |
+| `sqlite_autoindex_gitlab_accounts_3` | `username` | 1 | u | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE gitlab_accounts (
+  account_id TEXT PRIMARY KEY REFERENCES users(id),
+  gitlab_user_id INTEGER UNIQUE,
+  username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  state TEXT NOT NULL CHECK (state IN ('pending','active','blocked')),
+  access_level INTEGER,
+  last_error TEXT,
+  last_error_at INTEGER,
+  synced_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+```
+
+</details>
+
 ## identities
 
 业务域：`identity`；结构来源：[app/server/src/lib/db.ts:403](../../../app/server/src/lib/db.ts#L403)。
@@ -1520,7 +1579,7 @@ CREATE TABLE invite_attempts (
 
 ## invite_codes
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:570](../../../app/server/src/lib/db.ts#L570)。
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:637](../../../app/server/src/lib/db.ts#L637)。
 
 注册邀请码（#262）：code 存小写明文（要能在控制台里复制给人），used_count 由注册事务里的条件更新加一，max_uses、expires_at 为空表示不限；不删，停用用 disabled。users.invite_code_id 记着账号是用哪一个注册的。只有 lib/invite-codes.ts 与 lib/identity-store.ts 读写。
 
@@ -1679,6 +1738,166 @@ CREATE TABLE mail_outbox (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   sent_at INTEGER
+);
+```
+
+</details>
+
+## oauth_clients
+
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:461](../../../app/server/src/lib/db.ts#L461)。
+
+对外授权登记的下游应用（#270）：回调地址必须同一个主机（就是 sector），secret 只存 AES-256-GCM 密文；停用用 status，不删。只有 lib/oidc-store.ts 读写，客户端只能用 cli/oidc.ts 登记。目录不读取记录。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `client_id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `name` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `secret_encrypted` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `redirect_uris` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `status` | `TEXT` | 1 | 0 | `'active'` | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_oauth_clients_1` | `client_id` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE oauth_clients (
+  client_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  secret_encrypted TEXT NOT NULL,
+  redirect_uris TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled')),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+```
+
+</details>
+
+## oauth_grants
+
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:480](../../../app/server/src/lib/db.ts#L480)。
+
+本人允许过的 (账号, 应用) → oidc-provider 的授权 id：之后同一应用登录不再问。授权被撤销（例如授权码重放）后这一行指向的授权不存在，下次登录重新同意并覆盖。只有 lib/oidc-store.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `user_id` | `TEXT` | 1 | 1 | 未声明 | 0 |
+| `client_id` | `TEXT` | 1 | 2 | 未声明 | 0 |
+| `grant_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `client_id` | `oauth_clients.client_id` | NO ACTION | NO ACTION |
+| `user_id` | `users.id` | NO ACTION | NO ACTION |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_oauth_grants_1` | `user_id`、`client_id` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE oauth_grants (
+  user_id TEXT NOT NULL REFERENCES users(id),
+  client_id TEXT NOT NULL REFERENCES oauth_clients(client_id),
+  grant_id TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, client_id)
+);
+```
+
+</details>
+
+## oauth_subjects
+
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:471](../../../app/server/src/lib/db.ts#L471)。
+
+下游看到的 sub（ADR-0005 决策 3）：按 sector 给每个账号一个 32 字节随机值，(sector_id,user_id) 与 (sector_id,sub) 都唯一，不随登录或换签名密钥变化；内部 account_id 不下发。只有 lib/oidc-store.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `sector_id` | `TEXT` | 1 | 1 | 未声明 | 0 |
+| `user_id` | `TEXT` | 1 | 2 | 未声明 | 0 |
+| `sub` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `user_id` | `users.id` | NO ACTION | NO ACTION |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_oauth_subjects_1` | `sector_id`、`user_id` | 1 | pk | 0 | `SQLite 自动索引` |
+| `sqlite_autoindex_oauth_subjects_2` | `sector_id`、`sub` | 1 | u | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE oauth_subjects (
+  sector_id TEXT NOT NULL,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  sub TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (sector_id, user_id),
+  UNIQUE (sector_id, sub)
+);
+```
+
+</details>
+
+## oidc_payloads
+
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:488](../../../app/server/src/lib/db.ts#L488)。
+
+oidc-provider 的存储（会话、交互、授权码、访问令牌、授权）：payload 是它的 JSON，按 expires_at 过期，每小时顺手清一次过期行；令牌与授权码只在这里，不进日志。只有 lib/oidc-store.ts 读写，目录不读取记录。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `model` | `TEXT` | 1 | 1 | 未声明 | 0 |
+| `id` | `TEXT` | 1 | 2 | 未声明 | 0 |
+| `payload` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `grant_id` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `uid` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `user_code` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `expires_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `consumed_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `idx_oidc_payloads_expires` | `expires_at` | 0 | c | 1 | `CREATE INDEX idx_oidc_payloads_expires ON oidc_payloads(expires_at) WHERE expires_at IS NOT NULL` |
+| `idx_oidc_payloads_grant` | `grant_id` | 0 | c | 1 | `CREATE INDEX idx_oidc_payloads_grant ON oidc_payloads(grant_id) WHERE grant_id IS NOT NULL` |
+| `idx_oidc_payloads_uid` | `model`、`uid` | 0 | c | 1 | `CREATE INDEX idx_oidc_payloads_uid ON oidc_payloads(model, uid) WHERE uid IS NOT NULL` |
+| `idx_oidc_payloads_user_code` | `model`、`user_code` | 0 | c | 1 | `CREATE INDEX idx_oidc_payloads_user_code ON oidc_payloads(model, user_code) WHERE user_code IS NOT NULL` |
+| `sqlite_autoindex_oidc_payloads_1` | `model`、`id` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE oidc_payloads (
+  model TEXT NOT NULL,
+  id TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  grant_id TEXT,
+  uid TEXT,
+  user_code TEXT,
+  expires_at INTEGER,
+  consumed_at INTEGER,
+  PRIMARY KEY (model, id)
 );
 ```
 

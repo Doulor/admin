@@ -11,6 +11,7 @@ import {
   GITHUB_APP_SECRET_PAIR,
   GOOGLE_SECRET_PAIR,
   MAIL_ALIYUN_SECRET_PAIR,
+  OIDC_GITLAB_SECRETS,
   OPTIONAL_SECRETS,
   OPTIONAL_SECRET_PAIR,
   PROXY_HOPS,
@@ -374,7 +375,7 @@ describe('optional Turnstile pair', () => {
     expect(() => renderRuntimeEnv({ root, environment: 'production', out, imageTag: 'a1b2c3d4e5f6', env: { ...secrets, TURNSTILE_SECRET_KEY: '' } })).toThrow(/只配了一项/);
     expect(() => renderRuntimeEnv({ root, environment: 'production', out, imageTag: 'a1b2c3d4e5f6', env: { ...secrets, TURNSTILE_SITE_KEY: '' } })).toThrow(/只配了一项/);
     // Turnstile 与发信都关闭时，其余每一个密钥仍然必填。
-    const required = without(secrets, [...OPTIONAL_SECRET_PAIR, ...MAIL_ALIYUN_SECRET_PAIR, ...GOOGLE_SECRET_PAIR, ...GITHUB_APP_SECRET_PAIR, ...OPTIONAL_SECRETS]);
+    const required = without(secrets, [...OPTIONAL_SECRET_PAIR, ...MAIL_ALIYUN_SECRET_PAIR, ...GOOGLE_SECRET_PAIR, ...GITHUB_APP_SECRET_PAIR, ...OPTIONAL_SECRETS, ...OIDC_GITLAB_SECRETS]);
     expect(Object.keys(required)).toEqual([...REQUIRED_SECRET_FIELDS]);
     for (const field of REQUIRED_SECRET_FIELDS) {
       expect(() => renderRuntimeEnv({ root, environment: 'production', out, imageTag: 'a1b2c3d4e5f6', env: without(required, [field]) })).toThrow(new RegExp(field));
@@ -421,6 +422,75 @@ describe('optional Turnstile pair', () => {
     expect(values.get('GH_APP_PRIVATE_KEY')).toBe(key);
     // 多行 PEM 原样贴进来会被拒绝（换行与空格不是合法的密钥字符）。
     expect(() => render({ ...secrets, GH_APP_ID: '123456', GH_APP_PRIVATE_KEY: pem })).toThrow(/GH_APP_PRIVATE_KEY 含非法字符/);
+  });
+});
+
+describe('OIDC signing key and GitLab sync (#270)', () => {
+  const fixture = (environment: string, edit?: [string, string]) => {
+    const root = fixtureRoot();
+    const path = join(root, `deploy/env/.env.${environment}`);
+    if (edit) {
+      const before = readFileSync(path, 'utf8');
+      expect(before).toContain(edit[0]);
+      writeFileSync(path, before.replace(edit[0], edit[1]));
+    }
+    return root;
+  };
+
+  it('keeps the switch, origin and group visible, and the key and token secret', () => {
+    expect(readEnvironment(repoRoot, 'preview').values.get('GITLAB_SYNC')).toBe('on');
+    expect(readEnvironment(repoRoot, 'production').values.get('GITLAB_SYNC')).toBe('off');
+    for (const name of ['preview', 'production']) {
+      const values = readEnvironment(repoRoot, name).values;
+      expect(values.get('GITLAB_URL')).toBe('https://git.yangtzeu.work');
+      expect(values.get('GITLAB_GROUP')).toBe('geek');
+    }
+    for (const field of OIDC_GITLAB_SECRETS) {
+      expect(SECRET_FIELDS).toContain(field);
+      expect(REQUIRED_SECRET_FIELDS).not.toContain(field);
+    }
+    const failing: Array<[string, string, string, RegExp]> = [
+      ['preview', '\nGITLAB_SYNC=on\n', '\nGITLAB_SYNC=yes\n', /GITLAB_SYNC 只能是 off \/ dry-run \/ on/],
+      ['production', '\nGITLAB_SYNC=off\n', '\n', /缺少字段 GITLAB_SYNC/],
+      ['production', '\nGITLAB_URL=https://git.yangtzeu.work\n', '\nGITLAB_URL=http://git.yangtzeu.work\n', /GITLAB_URL 必须是 https/],
+      ['preview', '\nGITLAB_URL=https://git.yangtzeu.work\n', '\nGITLAB_URL=https://git.yangtzeu.work/geek\n', /GITLAB_URL 不得包含路径/],
+      ['preview', '\nGITLAB_URL=https://git.yangtzeu.work\n', '\nGITLAB_URL=https://git.yangtzeu.work/\n', /GITLAB_URL 必须写成不带结尾 \/ 的 origin/],
+      ['production', '\nGITLAB_GROUP=geek\n', '\nGITLAB_GROUP=geek group\n', /GITLAB_GROUP 必须是 GitLab 的组路径/],
+      ['production', '\nOIDC_JWKS=\n', '\nOIDC_JWKS=eyJrZXlzIjpbXX0=\n', /OIDC_JWKS 必须在入库模板里留空/],
+      ['preview', '\nGITLAB_API_TOKEN=\n', '\nGITLAB_API_TOKEN=glpat-committed\n', /GITLAB_API_TOKEN 必须在入库模板里留空/],
+    ];
+    for (const [name, from, to, message] of failing) {
+      const report = validateEnvironmentFiles({ root: fixture(name, [from, to]), checkCompose: false });
+      expect(report.ok, `${name}: ${to}`).toBe(false);
+      expect(report.problems.join('\n')).toMatch(message);
+    }
+  });
+
+  it('renders both secrets when given, leaves them empty when not, and refuses GITLAB_SYNC=on without the token', () => {
+    const render = (env: Record<string, string>, environment = 'production', edit?: [string, string]) => {
+      const root = fixture(environment, edit);
+      const out = join(root, `runtime/.env.${environment}`);
+      const result = renderRuntimeEnv({ root, environment, out, imageTag: 'a1b2c3d4e5f6', env });
+      return { result, values: parseEnvFileText(readFileSync(out, 'utf8'), 'rendered') };
+    };
+    // keygen 的输出是一行 base64，原样写入
+    const jwks = Buffer.from(JSON.stringify({ keys: [{ kty: 'RSA', d: 'x', n: 'y', e: 'AQAB' }] })).toString('base64');
+    const on = render({ ...secrets, OIDC_JWKS: jwks, GITLAB_API_TOKEN: 'glpat-fixture-token' });
+    expect(on.result).toMatchObject({ oidc: 'on', gitlabSync: 'off' });
+    expect(on.values.get('OIDC_JWKS')).toBe(jwks);
+    expect(on.values.get('GITLAB_API_TOKEN')).toBe('glpat-fixture-token');
+    const off = render(without(secrets, [...OIDC_GITLAB_SECRETS]));
+    expect(off.result.oidc).toBe('off');
+    expect(off.result.notices.join('\n')).toMatch(/OIDC_JWKS 为空：对外授权关闭/);
+    for (const field of OIDC_GITLAB_SECRETS) expect(off.values.get(field)).toBe('');
+    // JWK Set 的 JSON 原文带引号，环境文件不收
+    expect(() => render({ ...secrets, OIDC_JWKS: '{"keys":[]}' })).toThrow(/OIDC_JWKS 含非法字符/);
+    // 预发布是 on，没有令牌拒绝渲染；dry-run 不要令牌；正式改成 on 时同样必须有令牌
+    expect(() => render(without(secrets, ['GITLAB_API_TOKEN']), 'preview')).toThrow(/GITLAB_SYNC=on 要 GITLAB_API_TOKEN/);
+    expect(render(secrets, 'preview').result.gitlabSync).toBe('on');
+    expect(render(without(secrets, ['GITLAB_API_TOKEN']), 'preview', ['\nGITLAB_SYNC=on\n', '\nGITLAB_SYNC=dry-run\n']).result.gitlabSync).toBe('dry-run');
+    expect(() => render(without(secrets, ['GITLAB_API_TOKEN']), 'production', ['\nGITLAB_SYNC=off\n', '\nGITLAB_SYNC=on\n'])).toThrow(/GITLAB_SYNC=on 要 GITLAB_API_TOKEN/);
+    expect(render(secrets, 'production', ['\nGITLAB_SYNC=off\n', '\nGITLAB_SYNC=on\n']).result.gitlabSync).toBe('on');
   });
 });
 

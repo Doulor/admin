@@ -24,13 +24,15 @@ const hostConf = (name: string) => readFileSync(join(repoRoot, `deploy/nginx/${n
 describe('web container nginx picks the SPA entry by path', () => {
   it('declares the admin paths and entry in one location, before the image rule, with no host switch', () => {
     // 管理端路径清单与入口文件在 nginx 里各只出现一次，服务端对应的是 ADMIN_SPA_PATHS / ADMIN_SPA_ENTRY。
-    expect(siteConf.match(/^\s*location ~ \^\/\(\?:\(\?:admin\|console\)\(\?:\/\|\$\)\|signin\$\|device\$\|account\$\) \{$/gm)).toHaveLength(1);
+    expect(siteConf.match(/^\s*location ~ \^\/\(\?:\(\?:admin\|console\)\(\?:\/\|\$\)\|signin\$\|device\$\|account\$\|authorize\$\) \{$/gm)).toHaveLength(1);
     expect(siteConf.split(`/${ADMIN_SPA_ENTRY}`)).toHaveLength(2);
     expect(siteConf.indexOf(`/${ADMIN_SPA_ENTRY}`)).toBeLessThan(siteConf.indexOf('location ~* \\.(?:png'));
     expect(siteConf).toMatch(new RegExp(`location / \\{\\s*try_files \\$uri /${PORTAL_SPA_ENTRY.replaceAll('/', '\\/').replaceAll('.', '\\.')};\\s*\\}`));
     expect(dockerfile).not.toMatch(/X-YZGC|x_yzgc|yzgc_spa_entry|render-web-config/i);
     // 论坛前缀必须是 ^~，否则下面的图片正则会截走 /forum/ 下的图片（#81）。
     expect(siteConf).toMatch(/^\s*location \^~ \/forum\/ \{$/m);
+    // 对外授权的端点整段交给 server（#270）
+    expect(siteConf).toMatch(/^\s*location \^~ \/oidc\/ \{\n\s*proxy_pass http:\/\/server:3000;$/m);
   });
 
   it('lets connect-src read blob: URLs, which GLTFLoader fetches for the embedded textures of the phone model (#240)', () => {
@@ -156,9 +158,9 @@ describe.skipIf(!nginxBinary)('web container nginx routing (live nginx on loopba
   it.each([
     ['/admin', 'admin'], ['/admin/', 'admin'], ['/admin/demo/repos', 'admin'], ['/admin/demo/repos/icons.svg', 'admin'],
     ['/console', 'admin'], ['/console/people', 'admin'], ['/signin', 'admin'], ['/admin/signin?return_to=/admin', 'admin'],
-    ['/device', 'admin'], ['/device?user_code=BCDF-GHJK', 'admin'],
+    ['/device', 'admin'], ['/device?user_code=BCDF-GHJK', 'admin'], ['/authorize', 'admin'], ['/authorize?uid=Ab3_-xyz0123', 'admin'],
     ['/', 'portal'], ['/join-us', 'portal'], ['/join/abc123', 'portal'], ['/docs/usage', 'portal'],
-    ['/administrator', 'portal'], ['/consoles', 'portal'], ['/signin/extra', 'portal'], ['/device/extra', 'portal'], ['/devices', 'portal'],
+    ['/administrator', 'portal'], ['/consoles', 'portal'], ['/signin/extra', 'portal'], ['/device/extra', 'portal'], ['/devices', 'portal'], ['/authorize/extra', 'portal'],
   ])('%s → %s', async (path, site) => {
     expect(await entryOf(path)).toEqual({ status: 200, entry: site });
     // 服务端直连时（resolveSiteEntry）必须给出同一个入口。

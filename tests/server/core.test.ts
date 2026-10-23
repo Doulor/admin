@@ -216,7 +216,7 @@ it.each([
   expect(resolveSiteEntry(url)).toBe(site === 'admin' ? ADMIN_SPA_ENTRY : PORTAL_SPA_ENTRY);
 });
 it('keeps the admin path list and entry file in one place', () => {
-  expect(ADMIN_SPA_PATHS).toEqual({ exact: ['/signin', '/device', '/account'], prefixes: ['/admin', '/console'] });
+  expect(ADMIN_SPA_PATHS).toEqual({ exact: ['/signin', '/device', '/account', '/authorize'], prefixes: ['/admin', '/console'] });
   // 管理端是 Vue 控制台（app/console），入口在它自己的产物里。
   expect([ADMIN_SPA_ENTRY, PORTAL_SPA_ENTRY]).toEqual(['sites/console/index.html', 'sites/portal/index.html']);
 });

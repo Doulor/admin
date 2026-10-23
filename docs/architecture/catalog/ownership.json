@@ -54,7 +54,8 @@
       "title": "身份与会话",
       "docs": [
         "docs/architecture/SECURITY.md",
-        "docs/plan/UNIFIED-LOGIN.md"
+        "docs/plan/UNIFIED-LOGIN.md",
+        "docs/services/server/oidc.md"
       ],
       "tables": [
         "sessions",
@@ -63,7 +64,11 @@
         "identity_audit",
         "device_grants",
         "invite_codes",
-        "email_challenges"
+        "email_challenges",
+        "oauth_clients",
+        "oauth_subjects",
+        "oauth_grants",
+        "oidc_payloads"
       ]
     },
     {
@@ -126,6 +131,17 @@
         "docs/architecture/API.md"
       ],
       "tables": []
+    },
+    {
+      "id": "gitlab",
+      "title": "GitLab 账号同步",
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/decisions/0005-sso-extend-core-server.md"
+      ],
+      "tables": [
+        "gitlab_accounts"
+      ]
     },
     {
       "id": "forum",
@@ -254,7 +270,9 @@
     "app/server/src/routes/identity/email.ts": "identity",
     "app/server/src/routes/identity/google.ts": "identity",
     "app/server/src/routes/identity/account.ts": "identity",
-    "app/server/src/routes/console/invites.ts": "identity"
+    "app/server/src/routes/console/invites.ts": "identity",
+    "app/server/src/routes/oidc/index.ts": "identity",
+    "app/server/src/routes/console/gitlab.ts": "gitlab"
   },
   "routeOverrides": {
     "GET /api/public/config": "platform"
@@ -287,7 +305,12 @@
     "competition_score_events": "积分账本：issue/pr 带仓库与编号并按 CHECK 限分（5–30、15–100），penalty 固定 −50 且不带仓库编号；撤销只改 status 为 revoked 并记撤销人与原因，不删行；唯一索引防止同一条 Issue/PR 重复记分。只有 lib/competition-score-store.ts 读写。",
     "device_grants": "命令行设备授权（RFC 8628，给 geek login）：一行是一次授权，device_code 与发出的访问令牌只存 sha256，account_id 是确认人的极客班账号；status 只存 pending/approved/denied/consumed，过期按 expires_at 现算。只有 lib/device-store.ts 读写，目录不读取记录。",
     "invite_codes": "注册邀请码（#262）：code 存小写明文（要能在控制台里复制给人），used_count 由注册事务里的条件更新加一，max_uses、expires_at 为空表示不限；不删，停用用 disabled。users.invite_code_id 记着账号是用哪一个注册的。只有 lib/invite-codes.ts 与 lib/identity-store.ts 读写。",
-    "email_challenges": "邮箱验证码（#262）：一行是一次发码，只存验证码的 HMAC（密钥由 SESSION_SECRET 派生）、按邮箱的限流键和按 IP 前缀的 HMAC，不存验证码原文和 IP；10 分钟过期、最多试 5 次，用过写 used_at；过期一小时后由会话清理一起删除。只有 lib/email-login.ts 读写，目录不读取记录。"
+    "email_challenges": "邮箱验证码（#262）：一行是一次发码，只存验证码的 HMAC（密钥由 SESSION_SECRET 派生）、按邮箱的限流键和按 IP 前缀的 HMAC，不存验证码原文和 IP；10 分钟过期、最多试 5 次，用过写 used_at；过期一小时后由会话清理一起删除。只有 lib/email-login.ts 读写，目录不读取记录。",
+    "oauth_clients": "对外授权登记的下游应用（#270）：回调地址必须同一个主机（就是 sector），secret 只存 AES-256-GCM 密文；停用用 status，不删。只有 lib/oidc-store.ts 读写，客户端只能用 cli/oidc.ts 登记。目录不读取记录。",
+    "oauth_subjects": "下游看到的 sub（ADR-0005 决策 3）：按 sector 给每个账号一个 32 字节随机值，(sector_id,user_id) 与 (sector_id,sub) 都唯一，不随登录或换签名密钥变化；内部 account_id 不下发。只有 lib/oidc-store.ts 读写。",
+    "oauth_grants": "本人允许过的 (账号, 应用) → oidc-provider 的授权 id：之后同一应用登录不再问。授权被撤销（例如授权码重放）后这一行指向的授权不存在，下次登录重新同意并覆盖。只有 lib/oidc-store.ts 读写。",
+    "oidc_payloads": "oidc-provider 的存储（会话、交互、授权码、访问令牌、授权）：payload 是它的 JSON，按 expires_at 过期，每小时顺手清一次过期行；令牌与授权码只在这里，不进日志。只有 lib/oidc-store.ts 读写，目录不读取记录。",
+    "gitlab_accounts": "极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，从不删除；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。"
   },
   "supplementalInterfaces": [
     {
@@ -9019,6 +9042,534 @@
         "docs/services/console/README.md",
         "docs/plan/COMPETITION-APP.md"
       ]
+    },
+    {
+      "id": "identity.oidc.protocol",
+      "title": "下游应用读发现文档与公钥、发起授权、读 userinfo（OIDC）",
+      "domain": "identity",
+      "relatedDomains": [
+        "forum"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /oidc/*",
+      "capabilities": [],
+      "reads": [
+        "oauth_clients",
+        "oidc_payloads",
+        "oauth_grants",
+        "oauth_subjects",
+        "sessions",
+        "users",
+        "identities",
+        "forum_users"
+      ],
+      "writes": [
+        "oidc_payloads",
+        "oauth_subjects",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：发现文档与 JWKS 匿名；授权端点按登记的 client_id 与完全一致的 redirect_uri，只收 response_type=code 与 PKCE S256；userinfo 凭 Bearer 访问令牌。按 IP 每分钟计数：发现文档、JWKS、userinfo 与换令牌、撤销合计 600 次，授权端点另计 120 次；没配 OIDC_JWKS 时 404。",
+        "响应与错误：签发者 <PUBLIC_ORIGIN>/oidc，协议与主机按 PUBLIC_ORIGIN，不信请求头；未知客户端、错回调 400 中文错误页且不跳转；缺 PKCE 等带 error 回到下游；userinfo 只给 sub（pairwise）、name、preferred_username、picture，有 email scope 时给验证过的 email；账号不再是成员时 401。",
+        "数据与副作用：是否登录以本站 sid 为准，不是成员或换了账号时进交互；交互、会话与授权码写 oidc_payloads；第一次给某 sector 发 sub 时写 oauth_subjects；不发 refresh token。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/oidc/index.ts",
+          "needle": "      url: \"/oidc/*\","
+        },
+        {
+          "path": "app/server/src/lib/oidc-provider.ts",
+          "needle": "export function createOidcProvider("
+        },
+        {
+          "path": "app/server/src/lib/oidc-store.ts",
+          "needle": "export function createOidcStore("
+        },
+        {
+          "path": "app/server/src/lib/account-directory.ts",
+          "needle": "export function createAccountDirectory("
+        },
+        {
+          "path": "app/server/src/lib/db.ts",
+          "needle": "CREATE TABLE IF NOT EXISTS oauth_clients"
+        },
+        {
+          "path": "app/server/src/lib/identity-store.ts",
+          "needle": "function getAccountClaims("
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "profileForAccount(accountId: string)"
+        },
+        {
+          "path": "app/web/sites/portal/lib/links.ts",
+          "needle": "gitlab: (): string => appConfig.urls.gitlab"
+        },
+        {
+          "path": "app/web/shared/config/index.ts",
+          "needle": "gitlab: string"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/Widgets.tsx",
+          "needle": "{ id: \"gitlab\", title:"
+        }
+      ],
+      "tests": [
+        "tests/server/oidc.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/decisions/0005-sso-extend-core-server.md"
+      ]
+    },
+    {
+      "id": "identity.oidc.token",
+      "title": "下游应用换令牌、撤销令牌（OIDC）",
+      "domain": "identity",
+      "relatedDomains": [
+        "forum"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /oidc/*",
+      "capabilities": [],
+      "reads": [
+        "oauth_clients",
+        "oidc_payloads",
+        "oauth_subjects",
+        "sessions",
+        "users",
+        "identities",
+        "forum_users"
+      ],
+      "writes": [
+        "oidc_payloads",
+        "oauth_subjects",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：换令牌与撤销要客户端认证（client_secret_basic 或 client_secret_post），停用的客户端 invalid_client；每个 IP 每分钟 600 次（和发现文档、JWKS、userinfo 共用，不和授权端点共用）。",
+        "响应与错误：授权码只能用一次、10 分钟有效，code_verifier 不对 invalid_grant；重放时撤销这份授权与它发出的令牌；200 回 access_token（1 小时）与 RS256 签名的 id_token，不发 refresh_token。",
+        "数据与副作用：请求体由 oidc-provider 自己读（这一层不挂 Fastify 的解析器）；令牌与授权码只存 oidc_payloads，不进日志。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/oidc/index.ts",
+          "needle": "    scope.removeAllContentTypeParsers();"
+        },
+        {
+          "path": "app/server/src/lib/oidc-provider.ts",
+          "needle": "export function createOidcProvider("
+        },
+        {
+          "path": "app/server/src/lib/oidc-store.ts",
+          "needle": "export function createOidcStore("
+        }
+      ],
+      "tests": [
+        "tests/server/oidc.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/decisions/0005-sso-extend-core-server.md"
+      ]
+    },
+    {
+      "id": "identity.oidc.interaction",
+      "title": "签发者把浏览器带到交互入口：去登录、按 sid 登录或去同意页",
+      "domain": "identity",
+      "relatedDomains": [
+        "forum"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /oidc/interaction/:uid",
+      "capabilities": [],
+      "reads": [
+        "oidc_payloads",
+        "sessions",
+        "users",
+        "identities",
+        "forum_users"
+      ],
+      "writes": [
+        "oidc_payloads",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：凭这次交互的 cookie（路径 /oidc/interaction/<uid>）；每个 IP 每分钟 30 次。",
+        "响应与错误：交互过期或 cookie 不对 400 中文错误页；没有 sid 303 /signin?return_to=/oidc/interaction/<uid>；不是成员带 access_denied 回到下游；要同意时 303 /authorize?uid=<uid>。",
+        "数据与副作用：换过账号时先删掉签发者里旧账号的会话再按 sid 的账号登录，不走 oidc-provider 的登出确认页。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/oidc/index.ts",
+          "needle": "\"/oidc/interaction/:uid\", { config"
+        },
+        {
+          "path": "app/server/src/routes/oidc/contracts.ts",
+          "needle": "  \"GET /oidc/interaction/:uid\": {"
+        },
+        {
+          "path": "app/server/src/lib/oidc-provider.ts",
+          "needle": "export function createOidcProvider("
+        },
+        {
+          "path": "app/server/src/lib/account-directory.ts",
+          "needle": "export function createAccountDirectory("
+        }
+      ],
+      "tests": [
+        "tests/server/oidc.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/decisions/0005-sso-extend-core-server.md"
+      ]
+    },
+    {
+      "id": "identity.oidc.details",
+      "title": "同意页读这次登录要什么",
+      "domain": "identity",
+      "relatedDomains": [
+        "forum",
+        "organization"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /oidc/interaction/:uid/details",
+      "capabilities": [],
+      "reads": [
+        "oidc_payloads",
+        "oauth_clients",
+        "sessions",
+        "users",
+        "identities",
+        "forum_users"
+      ],
+      "writes": [
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：要 sid（requireAuth）与这次交互的 cookie；只认发起这次登录的账号；每个 IP 每分钟 30 次。",
+        "响应与错误：200 {client:{id,name,host},scopes,account:{login,name,picture},expires_at}；交互过期 404 interaction_expired；不是要同意的交互或换了账号 409 interaction_mismatch；没登录 401。",
+        "数据与副作用：只读，不改交互。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/oidc/index.ts",
+          "needle": "\"/oidc/interaction/:uid/details\""
+        },
+        {
+          "path": "app/server/src/middleware/http-policy.ts",
+          "needle": "req.url.startsWith(\"/oidc/\")"
+        },
+        {
+          "path": "app/server/src/routes/oidc/contracts.ts",
+          "needle": "  \"GET /oidc/interaction/:uid/details\": {"
+        },
+        {
+          "path": "app/console/src/pages/Authorize.vue",
+          "needle": "view.value = await api<AuthorizeView>(detailsPath(uid));"
+        },
+        {
+          "path": "app/console/src/lib/authorize.ts",
+          "needle": "export const detailsPath"
+        },
+        {
+          "path": "app/console/src/router.ts",
+          "needle": "path: \"/authorize\""
+        },
+        {
+          "path": "app/console/src/mock/index.ts",
+          "needle": "/details$/"
+        }
+      ],
+      "tests": [
+        "tests/server/oidc.test.ts",
+        "tests/console/authorize.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "identity.oidc.confirm",
+      "title": "本人允许一个应用用极客班账号登录",
+      "domain": "identity",
+      "relatedDomains": [
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /oidc/interaction/:uid/confirm",
+      "capabilities": [],
+      "reads": [
+        "oidc_payloads",
+        "sessions"
+      ],
+      "writes": [
+        "oidc_payloads",
+        "oauth_grants",
+        "audit_logs",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：要 sid、同源 Origin 与这次交互的 cookie；只认发起这次登录的账号；每个 IP 每分钟 20 次。",
+        "响应与错误：200 {redirect_to}，前端整页跳过去继续授权；过期 404 interaction_expired，换了账号 409 interaction_mismatch。",
+        "数据与副作用：把缺的 scope 与声明加进授权并保存，记进 oauth_grants（之后同一应用登录不再问）；写 audit_logs oidc.consent，只含 client_id 与 scope。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/oidc/index.ts",
+          "needle": "\"/oidc/interaction/:uid/confirm\""
+        },
+        {
+          "path": "app/server/src/routes/oidc/contracts.ts",
+          "needle": "  \"POST /oidc/interaction/:uid/confirm\": {"
+        },
+        {
+          "path": "app/console/src/pages/Authorize.vue",
+          "needle": "decisionPath(uid, decision)"
+        }
+      ],
+      "tests": [
+        "tests/server/oidc.test.ts",
+        "tests/console/authorize.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "identity.oidc.abort",
+      "title": "本人拒绝一个应用的登录请求",
+      "domain": "identity",
+      "relatedDomains": [
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /oidc/interaction/:uid/abort",
+      "capabilities": [],
+      "reads": [
+        "oidc_payloads",
+        "sessions"
+      ],
+      "writes": [
+        "oidc_payloads",
+        "audit_logs",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：同 confirm：要 sid、同源 Origin 与这次交互的 cookie；每个 IP 每分钟 20 次。",
+        "响应与错误：200 {redirect_to}，下游收到 error=access_denied；过期 404，换了账号 409。",
+        "数据与副作用：写 audit_logs oidc.deny；不写 oauth_grants。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/oidc/index.ts",
+          "needle": "\"/oidc/interaction/:uid/abort\""
+        },
+        {
+          "path": "app/server/src/routes/oidc/contracts.ts",
+          "needle": "  \"POST /oidc/interaction/:uid/abort\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/oidc.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/decisions/0005-sso-extend-core-server.md"
+      ]
+    },
+    {
+      "id": "gitlab.accounts.list",
+      "title": "控制台查看每个账号在 GitLab 上的同步状态",
+      "domain": "gitlab",
+      "relatedDomains": [
+        "identity",
+        "organization",
+        "forum"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/gitlab/accounts",
+      "capabilities": [
+        "roles.manage",
+        "roles.department.manage"
+      ],
+      "reads": [
+        "gitlab_accounts",
+        "users",
+        "identities",
+        "forum_users",
+        "sessions",
+        "role_assignments",
+        "departments",
+        "titles"
+      ],
+      "writes": [
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效全站 sid，roles.manage 或 roles.department.manage；不调用 GitLab。",
+        "响应与错误：200 {mode,gitlab_url,group,client_registered,accounts:[{account_id,login,username,gitlab_user_id,state,access_level,last_error,last_error_at,synced_at,pending}]}；pending 是现在还要做的事（同步关着时为空），client_registered 说明 gitlab 客户端登记了没有；没权限 403 missing_capability。",
+        "数据与副作用：只读。控制台「成员与权限」在 mode 不是 off 时多一列「GitLab」，按 account_id 对上名单。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/gitlab.ts",
+          "needle": "  app.get(\"/api/console/gitlab/accounts\""
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "  \"GET /api/console/gitlab/accounts\": {"
+        },
+        {
+          "path": "app/server/src/lib/gitlab-sync.ts",
+          "needle": "export function createGitlabSync("
+        },
+        {
+          "path": "app/server/src/routes/console/index.ts",
+          "needle": "await app.register(gitlab);"
+        },
+        {
+          "path": "app/console/src/pages/People.vue",
+          "needle": "const gitlab = useResource(() => api<GitlabAccountsResponse>(\"/api/console/gitlab/accounts\"));"
+        },
+        {
+          "path": "app/console/src/lib/gitlab.ts",
+          "needle": "export function gitlabNote("
+        },
+        {
+          "path": "app/console/src/mock/console.ts",
+          "needle": "if (path === \"/api/console/gitlab/accounts\") {"
+        },
+        {
+          "path": "app/console/src/lib/types.ts",
+          "needle": "export type GitlabAccountsResponse"
+        }
+      ],
+      "tests": [
+        "tests/server/gitlab-sync.test.ts",
+        "tests/console/gitlab.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "gitlab.accounts.sync",
+      "title": "控制台立即同步一个账号到 GitLab",
+      "domain": "gitlab",
+      "relatedDomains": [
+        "identity",
+        "organization",
+        "forum",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/gitlab/accounts/:account_id/sync",
+      "capabilities": [
+        "roles.manage"
+      ],
+      "reads": [
+        "gitlab_accounts",
+        "users",
+        "identities",
+        "forum_users",
+        "forum_avatars",
+        "oauth_subjects",
+        "sessions",
+        "role_assignments",
+        "departments",
+        "titles"
+      ],
+      "writes": [
+        "gitlab_accounts",
+        "oauth_subjects",
+        "audit_logs",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效全站 sid、同源 Origin、roles.manage；每个 IP 每分钟 30 次；用服务端的 GITLAB_API_TOKEN 调 GitLab 管理接口，不用操作人的凭据。",
+        "响应与错误：200 {mode,account_id,login,actions,applied,error}；GITLAB_SYNC=off 时 409 gitlab_sync_off；账号不存在 404 account_not_found；GitLab 出错不回 5xx，写进 error 与 last_error。",
+        "数据与副作用：按 OIDC 身份（provider=openid_connect，extern_uid=gitlab 客户端 sector 的 sub）找或建 GitLab 用户、调组权限、封禁或解封，从不删除；dry-run 只返回 actions 不写；写 audit_logs gitlab.sync，操作人是会话账号。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/gitlab.ts",
+          "needle": "\"/api/console/gitlab/accounts/:account_id/sync\""
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "  \"POST /api/console/gitlab/accounts/:account_id/sync\": {"
+        },
+        {
+          "path": "app/server/src/lib/gitlab-sync.ts",
+          "needle": "export function createGitlabSync("
+        },
+        {
+          "path": "app/server/src/lib/db.ts",
+          "needle": "CREATE TABLE IF NOT EXISTS gitlab_accounts"
+        },
+        {
+          "path": "app/server/src/lib/identity-store.ts",
+          "needle": "function listAccountsForSync("
+        },
+        {
+          "path": "app/console/src/pages/People.vue",
+          "needle": "/api/console/gitlab/accounts/${encodeURIComponent(account.account_id)}/sync"
+        },
+        {
+          "path": "app/console/src/lib/gitlab.ts",
+          "needle": "export const canSyncNow"
+        },
+        {
+          "path": "app/console/src/lib/types.ts",
+          "needle": "export type GitlabSyncOutcome"
+        }
+      ],
+      "tests": [
+        "tests/server/gitlab-sync.test.ts",
+        "tests/console/gitlab.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ]
     }
   ],
   "moduleOwners": {
@@ -9206,6 +9757,23 @@
       "identity"
     ],
     "app/console/src/lib/invites.ts": [
+      "identity"
+    ],
+    "app/server/src/lib/oidc-": [
+      "identity"
+    ],
+    "app/server/src/lib/account-directory.ts": [
+      "identity",
+      "forum"
+    ],
+    "app/server/src/lib/gitlab-sync.ts": [
+      "gitlab",
+      "identity"
+    ],
+    "app/console/src/pages/Authorize.vue": [
+      "identity"
+    ],
+    "app/console/src/lib/authorize.ts": [
       "identity"
     ]
   }

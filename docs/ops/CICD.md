@@ -92,8 +92,10 @@
 | `GOOGLE_CLIENT_SECRET` | Google 登录的 OAuth 客户端密钥 |
 | `GH_APP_ID` | 服务器接 GitHub 用的 GitHub App 的数字 ID（可选，和下一项要么都配、要么都不配，#262 第四期）。GitHub 不允许 secret 名以 `GITHUB_` 开头，所以这两项用 `GH_`，GitHub OAuth 那两项也因此叫 `OAUTH_CLIENT_*` |
 | `GH_APP_PRIVATE_KEY` | 这个 App 的私钥：整份 PEM 再 base64 成一行 |
+| `OIDC_JWKS` | 对外授权的签名私钥（可选，#270）：`dist/cli/oidc.js keygen` 输出的一行 base64；为空时 `/oidc/*` 一律 404 |
+| `GITLAB_API_TOKEN` | 自建 GitLab 管理员的 `api` 令牌（#270）：只在 `GITLAB_SYNC=on` 时必填 |
 
-两条部署工作流的「渲染运行时 env 文件」步骤把上表从 `OAUTH_CLIENT_ID` 起的每一项按同名传给 `scripts/deployment-environment.mjs render`，`scripts/deploy-manual.mjs` 的 `SECRET_ENV` 也是同一份名单；`tests/tooling/deploy-manual.test.ts` 核对这三处与 `SECRET_FIELDS` 一致。发信四项都没配时照常部署，server 不发信；Google 两项都没配时照常部署，登录页不出现 Google；GitHub App 两项都没配时照常部署，控制台的 GitHub 组织页面只在用 GitHub 登录时借本人令牌，见 [ENVIRONMENTS](ENVIRONMENTS.md)。
+两条部署工作流的「渲染运行时 env 文件」步骤把上表从 `OAUTH_CLIENT_ID` 起的每一项按同名传给 `scripts/deployment-environment.mjs render`，`scripts/deploy-manual.mjs` 的 `SECRET_ENV` 也是同一份名单；`tests/tooling/deploy-manual.test.ts` 核对这三处与 `SECRET_FIELDS` 一致。发信四项都没配时照常部署，server 不发信；Google 两项都没配时照常部署，登录页不出现 Google；GitHub App 两项都没配时照常部署，控制台的 GitHub 组织页面只在用 GitHub 登录时借本人令牌；`OIDC_JWKS` 没配时照常部署，对外授权关闭，`GITLAB_API_TOKEN` 没配而 `GITLAB_SYNC=on` 时渲染失败、不部署，见 [ENVIRONMENTS](ENVIRONMENTS.md)。
 
 ### vars
 

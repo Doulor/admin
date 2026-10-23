@@ -24,6 +24,7 @@ import SiteRoleDialog from "./people/SiteRoleDialog.vue";
 import { api } from "../lib/http";
 import { confirm } from "../lib/confirm";
 import { fmtDate, fmtDay } from "../lib/format";
+import { canSyncNow, errorText, gitlabNote, pendingText, profileUrl, stateText, usernameOf } from "../lib/gitlab";
 import { carbon } from "../lib/icons";
 import {
   GROUP_ALL, GROUP_NONE, canAppointCaptain, githubRoleText, holdersOf, isOwnCaptainRow, leadsOf, mayRevoke, peopleGroups, peopleInGroup, personKey,
@@ -32,7 +33,9 @@ import {
 import { useAction, useResource } from "../lib/resource";
 import { useSession } from "../lib/session";
 import { titleLabel, toneColor } from "../lib/titles";
-import type { Assignment, AssignmentsResponse, Department, PeopleResponse, Person, TitleView } from "../lib/types";
+import type {
+  Assignment, AssignmentsResponse, Department, GitlabAccount, GitlabAccountsResponse, GitlabSyncOutcome, PeopleResponse, Person, TitleView,
+} from "../lib/types";
 
 const route = useRoute();
 const router = useRouter();
@@ -41,6 +44,8 @@ const { me, catalogue, catalogueFailed, can, capabilityLabel, reload: reloadMe, 
 const people = useResource(() => api<PeopleResponse>("/api/console/people"));
 const assignments = useResource(() => api<AssignmentsResponse>("/api/console/assignments"));
 const departments = useResource(() => api<{ departments: Department[] }>("/api/console/departments"));
+/** GitLab 账号同步（#270）：名单上多一列 GitLab 账号和同步状态；读不到时名单照常显示，只在上方说明。 */
+const gitlab = useResource(() => api<GitlabAccountsResponse>("/api/console/gitlab/accounts"));
 
 const canManageAll = computed(() => can("roles.manage"));
 /** 部门的写操作和改站内角色只给提督（站内管理员），服务端同样核对。 */
@@ -76,11 +81,28 @@ const SECTION_LABEL: Record<Section, string> = { people: "成员", titles: "称�
 
 /** 名单每一行：一个人的全部称号；指派来的称号带上指派人、时间、备注，以及当前查看者能不能撤销。 */
 type TitleLine = { key: string; title: TitleView; assignment: Assignment | null; revocable: boolean };
-type PersonRow = Person & { key: string; departmentNames: string[]; lines: TitleLine[] };
+/** GitLab 列一格要显示的东西，建行时算好。 */
+type GitlabCell = { account: GitlabAccount; link: string | null; username: string | null; state: string; pending: string; error: string; errorAt: string | undefined; syncable: boolean };
+type PersonRow = Person & { key: string; departmentNames: string[]; lines: TitleLine[]; gitlab: GitlabCell | null };
 const byAssignment = computed(() => new Map((assignments.data.value?.assignments ?? []).map(row => [row.id, row])));
+const gitlabByAccount = computed(() => {
+  const data = gitlab.data.value;
+  if (!data) return new Map<string, GitlabCell>();
+  return new Map(data.accounts.map(account => [account.account_id, {
+    account,
+    link: profileUrl(data, account),
+    username: usernameOf(account),
+    state: stateText(account),
+    pending: pendingText(data.mode, account.pending),
+    error: account.last_error ? errorText(account.last_error) : "",
+    errorAt: account.last_error_at ? fmtDate(account.last_error_at) : undefined,
+    syncable: canManageAll.value && canSyncNow(data, account),
+  }]));
+});
 const rows = computed<PersonRow[]>(() => peopleInGroup(sorted.value, group.value, depts.value).map(person => ({
   ...person,
   key: personKey(person),
+  gitlab: person.account_id ? gitlabByAccount.value.get(person.account_id) ?? null : null,
   departmentNames: [...new Set(person.titles.map(title => title.department?.name).filter((name): name is string => Boolean(name)))],
   lines: person.titles.map((title, index) => {
     const assignment = title.assignment_id !== null ? byAssignment.value.get(title.assignment_id) ?? null : null;
@@ -102,14 +124,22 @@ const githubNote = computed(() => {
     ? "GitHub 还没接上，名单里只有登录过本站的人和有称号的人。"
     : "这次没读到 GitHub 组织的成员，名单里只有登录过本站的人和有称号的人。";
 });
-const columns = computed(() => [
-  { key: "login", title: "成员", width: 190 },
-  { key: "titles", title: "称号" },
-  { key: "department", title: "部门", width: 130 },
-  { key: "site", title: "站内角色", width: 120 },
-  ...(githubListed.value ? [{ key: "github", title: "GitHub 组织", width: 100 }] : []),
-  { key: "actions", title: "操作", width: isAdmiral.value ? 120 : 108, align: "right" as const },
-]);
+const gitlabShown = computed(() => Boolean(gitlab.data.value && gitlab.data.value.mode !== "off"));
+const gitlabPageNote = computed(() => (gitlab.data.value ? gitlabNote(gitlab.data.value) : ""));
+/** 加上 GitLab 列后，其它列收窄一些，让 1440 宽的屏幕不用横向滚动。 */
+const columns = computed(() => {
+  const narrow = gitlabShown.value;
+  return [
+    { key: "login", title: "成员", width: narrow ? 160 : 190 },
+    { key: "titles", title: "称号" },
+    { key: "department", title: "部门", width: narrow ? 96 : 130 },
+    { key: "site", title: "站内角色", width: narrow ? 104 : 120 },
+    ...(githubListed.value ? [{ key: "github", title: "GitHub 组织", width: narrow ? 96 : 100 }] : []),
+    ...(narrow ? [{ key: "gitlab", title: "GitLab", width: 130 }] : []),
+    { key: "actions", title: "操作", width: isAdmiral.value ? 120 : 108, align: "right" as const },
+  ];
+});
+const tableMin = computed(() => (gitlabShown.value ? "840px" : "820px"));
 const expandedPeople = ref<string[]>([]);
 const sourcesVisible = (key: string) => expandedPeople.value.includes(key);
 function toggleSources(key: string) {
@@ -134,7 +164,7 @@ const editing = ref<Department | null>(null);
 const editOpen = computed({ get: () => editing.value !== null, set: value => { if (!value) editing.value = null; } });
 
 async function refreshAll() {
-  await Promise.all([people.reload(), assignments.reload(), departments.reload(), reloadMe()]);
+  await Promise.all([people.reload(), assignments.reload(), departments.reload(), gitlab.reload(), reloadMe()]);
 }
 /** 改了称号的名字或权限：catalogue、自己的身份和名单都要重新读，所有徽章才会跟着变。 */
 async function refreshTitles() {
@@ -145,6 +175,14 @@ const revoke = useAction(async (row: Assignment, own: boolean) => {
   await api(`/api/console/assignments/${row.id}`, { method: "DELETE" });
   toast({ title: own ? `已卸任${label("captain")}` : "已撤销称号", description: `@${row.github_login}`, variant: "success" });
   await refreshAll();
+});
+
+/** 立即同步一个账号：结果用提示说，之后重新读同步状态。 */
+const syncGitlab = useAction(async (account: GitlabAccount) => {
+  const outcome = await api<GitlabSyncOutcome>(`/api/console/gitlab/accounts/${encodeURIComponent(account.account_id)}/sync`, { method: "POST" });
+  if (outcome.error) toast({ title: "GitLab 同步没成功", description: `@${account.login} · ${errorText(outcome.error)}`, variant: "warning" });
+  else toast({ title: outcome.applied ? "已同步到 GitLab" : "GitLab 上没有要改的", description: `@${account.login}`, variant: "success" });
+  await gitlab.reload();
 });
 
 async function askRevoke(line: TitleLine) {
@@ -221,6 +259,7 @@ const sections = computed<Section[]>(() => (canManageAll.value ? ["people", "tit
     <p v-if="section !== 'permissions' && noCaptain && canAppoint" class="page-note">现在没有{{ label("captain") }}，可以用「添加称号」指定一位。</p>
     <ErrorAlert v-if="revoke.error.value" :error="revoke.error.value" @close="revoke.reset()" />
     <ErrorAlert v-if="removeDept.error.value" :error="removeDept.error.value" @close="removeDept.reset()" />
+    <ErrorAlert v-if="syncGitlab.error.value" :error="syncGitlab.error.value" @close="syncGitlab.reset()" />
 
     <ErrorPanel v-if="section !== 'permissions' && departments.error.value" :error="departments.error.value" :retry="departments.reload" />
     <LoadingBlock v-else-if="section !== 'permissions' && !departments.data.value" :lines="8" />
@@ -323,7 +362,12 @@ const sections = computed<Section[]>(() => (canManageAll.value ? ["people", "tit
 
                     <div class="people-table-scroll" tabindex="0" aria-label="成员名单，可滚动">
                     <p v-if="githubNote" class="page-note people-note">{{ githubNote }}</p>
-                    <TxDataTable style="--table-min: 820px" :columns="columns" :data="rows" row-key="key" table-layout="fixed" scroll-x class="people-table">
+                    <p v-if="gitlabPageNote" class="page-note people-note">{{ gitlabPageNote }}</p>
+                    <p v-else-if="gitlab.error.value" class="page-note people-note">
+                      没有读到 GitLab 同步状态，名单里先不显示 GitLab 账号。
+                      <TxButton variant="bare" size="sm" :disabled="gitlab.loading.value" @click="gitlab.reload()">重试</TxButton>
+                    </p>
+                    <TxDataTable :style="{ '--table-min': tableMin }" :columns="columns" :data="rows" row-key="key" table-layout="fixed" scroll-x class="people-table">
                       <template #cell-login="{ row }: { row: PersonRow }">
                         <UserCell :login="row.login" :src="row.avatar_url" link />
                       </template>
@@ -367,6 +411,27 @@ const sections = computed<Section[]>(() => (canManageAll.value ? ["people", "tit
                       </template>
                       <template #cell-github="{ row }: { row: PersonRow }">
                         <span :class="{ muted: !row.github_role }">{{ githubRoleText(row.github_role ?? null) }}</span>
+                      </template>
+                      <template #cell-gitlab="{ row }: { row: PersonRow }">
+                        <span v-if="row.gitlab" class="cell-stack">
+                          <a v-if="row.gitlab.link" class="mono" :href="row.gitlab.link" target="_blank" rel="noreferrer">@{{ row.gitlab.username }}</a>
+                          <span v-else-if="row.gitlab.username" class="mono">@{{ row.gitlab.username }}</span>
+                          <span v-if="row.gitlab.state" :class="row.gitlab.username ? 'cell-sub' : 'muted'">{{ row.gitlab.state }}</span>
+                          <span v-if="row.gitlab.pending" class="cell-sub">{{ row.gitlab.pending }}</span>
+                          <span v-if="row.gitlab.error" class="cell-sub danger-text" :title="row.gitlab.errorAt">{{ row.gitlab.error }}</span>
+                          <TxButton
+                            v-if="row.gitlab.syncable"
+                            variant="bare"
+                            size="sm"
+                            class="gitlab-sync"
+                            :aria-label="`立即把 @${row.login} 同步到 GitLab`"
+                            :disabled="syncGitlab.pending.value"
+                            @click="syncGitlab.execute(row.gitlab.account)"
+                          >
+                            立即同步
+                          </TxButton>
+                        </span>
+                        <span v-else class="muted">{{ row.account_id ? "没有同步记录" : "还没有账号" }}</span>
                       </template>
                       <template #cell-actions="{ row }: { row: PersonRow }">
                         <span class="row-actions">
@@ -644,6 +709,10 @@ const sections = computed<Section[]>(() => (canManageAll.value ? ["people", "tit
   justify-content: space-between;
 }
 .source-toggle {
+  margin-top: 4px;
+  font-size: 12px;
+}
+.gitlab-sync {
   margin-top: 4px;
   font-size: 12px;
 }

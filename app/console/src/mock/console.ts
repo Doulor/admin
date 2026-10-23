@@ -5,7 +5,8 @@ import { ApiError } from "../lib/http";
 import { DEPARTMENT_ICONS } from "../lib/icons";
 import { DEFAULT_CREW, DEFAULT_TITLES, kindRank, makeTitle, titleBundleError, titleKind } from "../lib/titles";
 import type {
-  AccountView, Assignment, CompetitionRoster, GithubVia, InviteCode, Person, RosterSignup, RosterStats, RosterTeam, ScoreEvent, SessionProvider, SignupSettings,
+  AccountView, Assignment, CompetitionRoster, GithubVia, GitlabAccount, GitlabAccountsResponse, InviteCode, Person, RosterSignup, RosterStats, RosterTeam, ScoreEvent,
+  SessionProvider, SignupSettings,
   SiteRole, TitleId, TitleView, Tone,
 } from "../lib/types";
 
@@ -177,6 +178,46 @@ export const MOCK_ACCOUNTS: { account_id: string; login: string; github_user_id:
   { account_id: "01JMOCKACCOUNTINVITE000001", login: "yz_k3m9q2xa", github_user_id: null, site_role: "member", role_unrecorded: false, member: true, providers: ["email"] },
   { account_id: "01JMOCKACCOUNTREMOVED00001", login: "mo-chen", github_user_id: 1013, site_role: null, role_unrecorded: false, member: false, providers: ["github"] },
 ];
+
+/**
+ * GitLab 同步状态（#270，同服务端 GET /api/console/gitlab/accounts）。默认是打开后的样子：大多数人已经建号进组，提督是所有者；
+ * yz_k3m9q2xa 建号时连不上 GitLab，tang-yu 进组失败，mo-chen 已被移出、在 GitLab 上封禁了，bai-shuo 回来了还没解封。
+ * `dry-run` 是预演时的样子（还没建过号，每个成员都待建号）；`unregistered` 是打开了但客户端没登记；`off` 是关着。
+ */
+export type MockGitlabCase = "on" | "dry-run" | "unregistered" | "off";
+export function mockGitlab(which: MockGitlabCase = "on"): GitlabAccountsResponse {
+  const base = { gitlab_url: "https://git.yangtzeu.work", group: "geek" };
+  const accessOf = (account: (typeof MOCK_ACCOUNTS)[number]) => account.site_role === "admin" ? 50 : 30;
+  const blank = (account: (typeof MOCK_ACCOUNTS)[number]): GitlabAccount => ({
+    account_id: account.account_id, login: account.login, username: null, gitlab_user_id: null, state: null, access_level: null,
+    last_error: null, last_error_at: null, synced_at: null,
+    pending: which === "off" || !account.member ? [] : [{ kind: "create", username: account.login, access_level: accessOf(account) }],
+  });
+  if (which !== "on") {
+    return { ...base, mode: which === "unregistered" ? "on" : which, client_registered: which !== "unregistered", accounts: MOCK_ACCOUNTS.map(blank) };
+  }
+  const synced = now - 8 * MIN;
+  const accounts = MOCK_ACCOUNTS.map((account, index): GitlabAccount => {
+    const row: GitlabAccount = {
+      ...blank(account), username: account.login, gitlab_user_id: 2 + index, state: "active", access_level: accessOf(account), synced_at: synced, pending: [],
+    };
+    if (account.login === "yz_k3m9q2xa") {
+      return { ...row, gitlab_user_id: null, state: "pending", access_level: null, last_error: "gitlab_unreachable", last_error_at: synced, pending: blank(account).pending };
+    }
+    if (account.login === "tang-yu") return { ...row, access_level: null, last_error: "gitlab_member_500", last_error_at: synced, pending: [{ kind: "set_access", access_level: 30 }] };
+    if (account.login === "mo-chen") return { ...row, state: "blocked" };
+    if (account.login === "bai-shuo") return { ...row, state: "blocked", pending: [{ kind: "unblock" }] };
+    return row;
+  });
+  return { ...base, mode: "on", client_registered: true, accounts };
+}
+
+/** 开发预览看 GitLab 列的另外几种样子：地址加 `?__gitlab=dry-run`、`unregistered` 或 `off`。 */
+function mockGitlabCase(): MockGitlabCase {
+  if (typeof window === "undefined") return "on";
+  const value = new URLSearchParams(window.location.search).get("__gitlab");
+  return value === "dry-run" || value === "unregistered" || value === "off" ? value : "on";
+}
 
 /**
  * 成员全名单（同服务端 routes/console/people.ts）：每个账号；`listed` 时再加 GitHub 组织里还没登录过的人（称号按他们
@@ -689,6 +730,10 @@ export function routeConsole(url: URL): unknown {
   if (path === "/api/console/people") {
     need(persona, "roles.manage", "roles.department.manage");
     return { people: mockPeople(persona.github !== "none"), github: persona.github, github_listed: persona.github !== "none" };
+  }
+  if (path === "/api/console/gitlab/accounts") {
+    need(persona, "roles.manage", "roles.department.manage");
+    return mockGitlab(mockGitlabCase());
   }
   if (path === "/api/console/applications") {
     need(persona, "applications.read");
