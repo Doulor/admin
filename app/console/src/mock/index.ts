@@ -42,7 +42,7 @@ export async function mockApi<T>(path: string, init?: RequestInit): Promise<T> {
       account: { login: persona.login, name: persona.login, picture: null }, expires_at: Date.now() + 10 * 60 * 1000,
     } as T;
   }
-  // 与服务端 GET /api/identity/me 同形（app/server/src/routes/identity/account.ts）：账号页的样板；绑定邮箱、设密码是写请求，按只读回 501
+  // 与服务端 GET /api/identity/me 同形（app/server/src/routes/identity/account.ts）：账号页的样板；绑定或删除邮箱、设密码是写请求，按只读回 501
   if (method === "GET" && url.pathname === "/api/identity/me") {
     const persona = mockPersona();
     if (!persona) throw new ApiError(401, "not_signed_in", "请先登录", undefined, { error: "not_signed_in" });

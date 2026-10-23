@@ -13,6 +13,7 @@ export function actionText(action: GitlabAction): string {
     case "set_access": return `组权限改成${accessText(action.access_level)}`;
     case "find_and_block": return "按身份找到 GitLab 用户并封禁";
     case "set_avatar": return "传头像";
+    case "set_emails": return "同步邮箱";
   }
 }
 
@@ -40,6 +41,7 @@ const STATUS_ERROR: [RegExp, string][] = [
   [/^gitlab_unblock_(\d+)$/, "解封失败"],
   [/^gitlab_avatar_(\d+)$/, "头像被拒"],
   [/^github_avatar_(\d+)$/, "GitHub 头像下载失败"],
+  [/^gitlab_email_(\d+)$/, "邮箱被拒"],
 ];
 /** 最后一次失败的原因；带状态码的写成「建号被拒（409）」，不认识的原样显示机器码。 */
 export function errorText(code: string): string {

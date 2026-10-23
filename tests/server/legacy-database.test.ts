@@ -503,3 +503,31 @@ describe('site roles of earlier accounts (#262 第四期)', () => {
     ]);
   });
 });
+
+describe('several emails per account (#272)', () => {
+  it('redefines the one-login-per-provider index of #262 so an account can keep several emails, and keeps its name for a rolled-back image', async () => {
+    const path = legacyDatabase();
+    const first = await boot(path);
+    const db1 = first.services.storage.db;
+    // 上一个版本（#262）建的索引：每个账号每种登录方式只能一个，连邮箱也只能一个
+    db1.exec('DROP INDEX uq_identities_user_provider; CREATE UNIQUE INDEX uq_identities_user_provider ON identities(user_id, provider);');
+    db1.prepare("INSERT INTO users(id, status, org_state, created_at, updated_at) VALUES('01JEMAILSAAAAAAAAAAAAAAAAA', 'active', 'active', 0, 0)").run();
+    const identity = db1.prepare("INSERT INTO identities(id, user_id, provider, provider_uid, email, email_verified, created_at) VALUES(?, '01JEMAILSAAAAAAAAAAAAAAAAA', ?, ?, ?, 1, 0)");
+    identity.run('01JEMAILID1AAAAAAAAAAAAAAA', 'email', 'first@example.test', 'first@example.test');
+    await first.close();
+    apps.splice(apps.indexOf(first), 1);
+
+    const second = await boot(path);
+    const db2 = second.services.storage.db;
+    const indexes = db2.prepare("SELECT name, sql FROM sqlite_master WHERE type = 'index' AND name LIKE 'uq_identities_%' ORDER BY name").all() as { name: string; sql: string }[];
+    expect(indexes.map(row => row.name)).toEqual(['uq_identities_github_user', 'uq_identities_user_provider']);
+    expect(indexes[1].sql).toMatch(/WHERE provider <> 'email'$/);
+    const again = db2.prepare("INSERT INTO identities(id, user_id, provider, provider_uid, email, email_verified, created_at) VALUES(?, '01JEMAILSAAAAAAAAAAAAAAAAA', ?, ?, ?, 1, 0)");
+    again.run('01JEMAILID2AAAAAAAAAAAAAAA', 'email', 'second@example.test', 'second@example.test');
+    again.run('01JGOOGLEID1AAAAAAAAAAAAAA', 'google', 'google-sub-1', 'g@example.test');
+    expect(() => again.run('01JGOOGLEID2AAAAAAAAAAAAAA', 'google', 'google-sub-2', 'h@example.test')).toThrow(/UNIQUE constraint failed/);
+    expect(db2.prepare("SELECT COUNT(*) AS n FROM identities WHERE user_id = '01JEMAILSAAAAAAAAAAAAAAAAA' AND provider = 'email'").get()).toEqual({ n: 2 });
+    // 换回 #262 的镜像：它的建索引语句因为同名索引已经在而跳过，两个邮箱都留着也能启动
+    expect(() => db2.exec('CREATE UNIQUE INDEX IF NOT EXISTS uq_identities_user_provider ON identities(user_id, provider);')).not.toThrow();
+  });
+});

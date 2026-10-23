@@ -182,7 +182,7 @@ export const MOCK_ACCOUNTS: { account_id: string; login: string; github_user_id:
 /**
  * GitLab 同步状态（#270，同服务端 GET /api/console/gitlab/accounts）。默认是打开后的样子：大多数人已经建号进组，提督是所有者；
  * yz_k3m9q2xa 建号时连不上 GitLab，tang-yu 进组失败，fang-lin 的头像被 GitLab 拒了（#271），mo-chen 已被移出、在 GitLab 上封禁了，bai-shuo 回来了还没解封。
- * `dry-run` 是预演时的样子（还没建过号，每个成员都待建号，有 GitHub 的还要传头像）；`unregistered` 是打开了但客户端没登记；`off` 是关着。
+ * `dry-run` 是预演时的样子（还没建过号，每个成员都待建号、同步邮箱，有 GitHub 的还要传头像）；`unregistered` 是打开了但客户端没登记；`off` 是关着。
  */
 export type MockGitlabCase = "on" | "dry-run" | "unregistered" | "off";
 export function mockGitlab(which: MockGitlabCase = "on"): GitlabAccountsResponse {
@@ -192,7 +192,11 @@ export function mockGitlab(which: MockGitlabCase = "on"): GitlabAccountsResponse
     account_id: account.account_id, login: account.login, username: null, gitlab_user_id: null, state: null, access_level: null,
     last_error: null, last_error_at: null, synced_at: null,
     pending: which === "off" || !account.member ? []
-      : [{ kind: "create", username: account.login, access_level: accessOf(account) }, ...(account.github_user_id === null ? [] : [{ kind: "set_avatar" } as const])],
+      : [
+        { kind: "create", username: account.login, access_level: accessOf(account) },
+        ...(account.github_user_id === null ? [] : [{ kind: "set_avatar" } as const]),
+        { kind: "set_emails" },
+      ],
   });
   if (which !== "on") {
     return { ...base, mode: which === "unregistered" ? "on" : which, client_registered: which !== "unregistered", accounts: MOCK_ACCOUNTS.map(blank) };
@@ -207,6 +211,7 @@ export function mockGitlab(which: MockGitlabCase = "on"): GitlabAccountsResponse
     }
     if (account.login === "tang-yu") return { ...row, access_level: null, last_error: "gitlab_member_500", last_error_at: synced, pending: [{ kind: "set_access", access_level: 30 }] };
     if (account.login === "fang-lin") return { ...row, last_error: "gitlab_avatar_400", last_error_at: synced, pending: [{ kind: "set_avatar" }] };
+    if (account.login === "liu-xing") return { ...row, last_error: "gitlab_email_400", last_error_at: synced, pending: [{ kind: "set_emails" }] };
     if (account.login === "mo-chen") return { ...row, state: "blocked" };
     if (account.login === "bai-shuo") return { ...row, state: "blocked", pending: [{ kind: "unblock" }] };
     return row;
@@ -554,12 +559,16 @@ const MOCK_INVITES: InviteCode[] = [
   { id: 1, code: "spring-trial", note: "", max_uses: null, used_count: 4, expires_at: null, disabled: true, created_by: "xu-yan", created_at: now - 70 * DAY, updated_at: now - 30 * DAY, usable: false },
 ];
 
-/** 账号页（GET /api/identity/me）的样板：按当前身份给出登录方式、成员资格和几条账号记录。邮箱只给打码后的样子。 */
+/**
+ * 账号页（GET /api/identity/me）的样板：按当前身份给出登录方式、成员资格和几条账号记录。邮箱只给打码后的样子。
+ * 管理员另有一个提交用的邮箱（#272），用来看邮箱列表和「删除」。
+ */
 export function mockAccount(persona: Persona): AccountView {
   const email = persona.provider === "email" || persona.site_role === "admin";
   const identities: AccountView["identities"] = [
     ...(persona.site_role !== null ? [{ provider: "github" as const, label: persona.login, linked_at: now - 120 * DAY, last_login_at: now - 3 * DAY }] : []),
-    ...(email ? [{ provider: "email" as const, label: "x***@example.com", linked_at: now - 2 * DAY, last_login_at: persona.provider === "email" ? now - 4 * MIN : null }] : []),
+    ...(email ? [{ provider: "email" as const, label: "x***@example.com", linked_at: now - 2 * DAY, last_login_at: persona.provider === "email" ? now - 4 * MIN : null, id: "mock-email-1", primary: true }] : []),
+    ...(persona.site_role === "admin" ? [{ provider: "email" as const, label: "c***@example.org", linked_at: now - DAY, last_login_at: null, id: "mock-email-2", primary: false }] : []),
   ];
   return {
     account_id: `mock-${persona.login}`,
@@ -576,7 +585,7 @@ export function mockAccount(persona: Persona): AccountView {
       ...(email ? [{ at: now - DAY, action: "password_set", provider: "email", result: "ok" as const }, { at: now - 2 * DAY, action: "link", provider: "email", result: "ok" as const }] : []),
       { at: now - 3 * DAY, action: "logout", provider: "github", result: "ok" },
     ],
-    available: email ? [] : ["email"],
+    available: ["email"],
     session: { provider: persona.provider, created_at: now - 4 * MIN, expires_at: now + 7 * DAY, step_up_until: now + 6 * MIN },
   };
 }

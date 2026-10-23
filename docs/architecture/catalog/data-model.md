@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
 
-来源摘要：`6f1b02d58f29c982b0ea437886784b8bbbc442abca4aab5d0abd6cea152c7745`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`81b5868f55513abcf74b0c0d5df429520e4c9033ccca8506fd1639503b0475cb`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -1351,7 +1351,7 @@ CREATE TABLE forum_users (
 
 业务域：`gitlab`；结构来源：[app/server/src/lib/db.ts:508](../../../app/server/src/lib/db.ts#L508)。
 
-极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，从不删除；avatar_source 是传上去的头像来自哪里（forum:<散列> 或 GitHub 头像地址，#271），空是还没传过；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。
+极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，从不删除；avatar_source 是传上去的头像来自哪里（forum:<散列> 或 GitHub 头像地址，#271），空是还没传过；emails_source 是上次同步过去的邮箱（JSON：主邮箱与其它邮箱，#272），空是还没同步过；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。
 
 | 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
 |---|---|---|---|---|---|
@@ -1366,6 +1366,7 @@ CREATE TABLE forum_users (
 | `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
 | `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
 | `avatar_source` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `emails_source` | `TEXT` | 0 | 0 | 未声明 | 0 |
 
 NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
 
@@ -1393,7 +1394,7 @@ CREATE TABLE gitlab_accounts (
   synced_at INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
-, avatar_source TEXT);
+, avatar_source TEXT, emails_source TEXT);
 ```
 
 </details>
@@ -1402,7 +1403,7 @@ CREATE TABLE gitlab_accounts (
 
 业务域：`identity`；结构来源：[app/server/src/lib/db.ts:403](../../../app/server/src/lib/db.ts#L403)。
 
-每种登录方式一行；GitHub 的 provider_uid 是数字 id 的十进制串，login、avatar_url 只是展示镜像。同一 GitHub 账号只能绑定一个极客班账号。目录不读取记录。
+每种登录方式一行；GitHub 的 provider_uid 是数字 id 的十进制串，login、avatar_url 只是展示镜像。同一 GitHub 账号只能绑定一个极客班账号；一个账号 GitHub、Google 各最多一个，邮箱最多 5 个（#272）。目录不读取记录。
 
 | 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
 |---|---|---|---|---|---|
@@ -1431,7 +1432,7 @@ NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT N
 | `sqlite_autoindex_identities_1` | `id` | 1 | pk | 0 | `SQLite 自动索引` |
 | `sqlite_autoindex_identities_2` | `provider`、`provider_uid` | 1 | u | 0 | `SQLite 自动索引` |
 | `uq_identities_github_user` | `user_id` | 1 | c | 1 | `CREATE UNIQUE INDEX uq_identities_github_user ON identities(user_id) WHERE provider = 'github'` |
-| `uq_identities_user_provider` | `user_id`、`provider` | 1 | c | 0 | `CREATE UNIQUE INDEX uq_identities_user_provider ON identities(user_id, provider)` |
+| `uq_identities_user_provider` | `user_id`、`provider` | 1 | c | 1 | `CREATE UNIQUE INDEX uq_identities_user_provider ON identities(user_id, provider) WHERE provider <> 'email'` |
 
 <details><summary>建表 SQL</summary>
 

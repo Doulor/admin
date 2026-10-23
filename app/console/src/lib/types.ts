@@ -79,7 +79,7 @@ export type SiteRoleResponse = { account_id: string; site_role: SiteRoleChoice; 
 export type GitlabMode = "off" | "dry-run" | "on";
 export type GitlabAction =
   | { kind: "create"; username: string; access_level: number }
-  | { kind: "block" | "unblock" | "find_and_block" | "set_avatar" }
+  | { kind: "block" | "unblock" | "find_and_block" | "set_avatar" | "set_emails" }
   | { kind: "set_access"; access_level: number };
 export type GitlabAccount = {
   account_id: string; login: string; username: string | null; gitlab_user_id: number | null;
@@ -200,9 +200,12 @@ export type InviteCode = {
 };
 export type InviteList = { invites: InviteCode[] };
 
-/** 账号页（GET /api/identity/me）：登录方式、密码、成员资格、这次登录与最近的账号记录。邮箱只下发打码后的样子。 */
-export type AccountIdentity = { provider: SessionProvider; label: string; linked_at: number; last_login_at: number | null };
-export type AccountAction = "login" | "login_denied" | "logout" | "register" | "link" | "link_conflict" | "password_set" | "password_change" | "role_change";
+/**
+ * 账号页（GET /api/identity/me）：登录方式、密码、成员资格、这次登录与最近的账号记录。邮箱只下发打码后的样子，
+ * 另带身份 `id`（删邮箱用）和是不是主邮箱 `primary`（#272）。
+ */
+export type AccountIdentity = { provider: SessionProvider; label: string; linked_at: number; last_login_at: number | null; id?: string; primary?: boolean };
+export type AccountAction = "login" | "login_denied" | "logout" | "register" | "link" | "link_conflict" | "unlink" | "password_set" | "password_change" | "role_change";
 export type AccountView = {
   account_id: string; login: string;
   identities: AccountIdentity[];

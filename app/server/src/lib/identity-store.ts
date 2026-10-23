@@ -25,7 +25,10 @@ export type SigninRefusal = "account_disabled" | "not_member" | "invite_required
 export type SigninResult =
   | { ok: true; sid: string; accountId: string; registered: boolean }
   | { ok: false; reason: SigninRefusal };
-export type LinkResult = { ok: true } | { ok: false; reason: "identity_conflict" | "identity_exists" | "code_expired" };
+export type LinkResult = { ok: true } | { ok: false; reason: "identity_conflict" | "identity_exists" | "email_limit" | "code_expired" };
+export type UnlinkResult = { ok: true } | { ok: false; reason: "not_found" | "primary_email" };
+/** 一个账号最多绑几个邮箱（#272）：每个都能登录，GitLab 按它们认提交人。 */
+export const EMAILS_MAX = 5;
 /** 「成员与权限」名单里的一个账号（listAccounts）。`role_unrecorded`：回填的老账号，还没记过站内角色。 */
 export type AccountSummary = {
   account_id: string; login: string; github_login: string | null; github_user_id: number | null; avatar_url: string | null;
@@ -34,11 +37,13 @@ export type AccountSummary = {
 };
 /**
  * 给对外授权与 GitLab 同步用的账号信息（#270，getAccountClaims / listAccountsForSync）：成员资格、站内角色、登录名、
- * 绑定的 GitHub 身份和已验证的邮箱（canonical_email）。只读，不含密码、第三方令牌与登录记录。
+ * 绑定的 GitHub 身份和已验证的邮箱：`email` 是主邮箱（canonical_email），`emails` 是绑定的全部邮箱，主邮箱在前（#272）。
+ * 只读，不含密码、第三方令牌与登录记录。
  */
 export type AccountClaims = {
   account_id: string; status: "active" | "disabled"; member: boolean; site_role: RecordedOrgRole;
   login: string; handle: string | null; github: { id: number; login: string; avatar_url: string | null } | null; email: string | null;
+  emails: string[];
 };
 export type GithubSigninResult =
   | { ok: true; sid: string; accountId: string }
@@ -50,7 +55,7 @@ export type IdentityBackfillReport = {
 };
 
 /** identity_audit 的 action：登录、被拒、退出；#262 第二期加注册、绑定、绑定冲突、设密码与改密码；第四期加站内角色被改。 */
-export type AccountAction = "login" | "login_denied" | "logout" | "register" | "link" | "link_conflict" | "password_set" | "password_change" | "role_change";
+export type AccountAction = "login" | "login_denied" | "logout" | "register" | "link" | "link_conflict" | "unlink" | "password_set" | "password_change" | "role_change";
 
 /** `merged_into` 最多走 8 跳；更长或成环说明数据坏了，登录按 `failed` 处理。 */
 export const MERGE_HOPS_MAX = 8;
@@ -415,8 +420,9 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   }
 
   /**
-   * 绑定邮箱（账号页）：`claim` 在事务里占用验证码。这个邮箱已属于别的账号回 identity_conflict（不说是谁），
-   * 本账号已有邮箱回 identity_exists（想换邮箱先解绑，本期不做解绑）。成功写身份、canonical_email、identity_audit 与 identity.link。
+   * 绑定邮箱（账号页）：`claim` 在事务里占用验证码。这个邮箱已属于别的账号回 identity_conflict（不说是谁），已经绑在本账号上回
+   * identity_exists，本账号已有 EMAILS_MAX 个邮箱回 email_limit（#272：一个账号可以绑几个邮箱，第一个是主邮箱）。
+   * 成功写身份、identity_audit 与 identity.link；还没有主邮箱时这个就是主邮箱（canonical_email）。
    */
   function linkEmail(input: { accountId: string; email: string; login: string; ip?: string; claim: () => boolean }): LinkResult {
     return db.transaction((): LinkResult => {
@@ -427,12 +433,41 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
         deps.audit(null, { login: input.login, account_id: input.accountId }, "identity.link_conflict", undefined, { provider: "email" }, input.ip);
         return { ok: false, reason: "identity_conflict" };
       }
-      if (owner || providerOfAccount.get(input.accountId, "email")) return { ok: false, reason: "identity_exists" };
+      const refusal = emailAddRefusal(input.accountId, input.email);
+      if (refusal) return { ok: false, reason: refusal };
       if (!input.claim()) return { ok: false, reason: "code_expired" };
       insertChannel.run({ id: newUlid(now), user_id: input.accountId, provider: "email", uid: input.email, email: input.email, verified: 1, now, last_login_at: null });
       setCanonicalEmail.run(input.email, now, input.accountId);
       accountEvent(input.accountId, "link", "email", "ok", null, now);
       deps.audit(null, { login: input.login, account_id: input.accountId }, "identity.link", undefined, { provider: "email" }, input.ip);
+      return { ok: true };
+    }).immediate();
+  }
+
+  /**
+   * 本账号还能不能加这个邮箱（#272）：已经绑在本账号上回 identity_exists，已经有 EMAILS_MAX 个回 email_limit，能加回 null。
+   * 不给邮箱时只看个数。发码前（账号页接口）和写入时（linkEmail 的事务里）都按它判断。
+   */
+  function emailAddRefusal(accountId: string, email?: string): "identity_exists" | "email_limit" | null {
+    if (email && (identityOf.get("email", email) as { user_id: string } | undefined)?.user_id === accountId) return "identity_exists";
+    const { n } = db.prepare("SELECT COUNT(*) AS n FROM identities WHERE user_id = ? AND provider = 'email'").get(accountId) as { n: number };
+    return n >= EMAILS_MAX ? "email_limit" : null;
+  }
+
+  /**
+   * 删掉本账号的一个邮箱（#272，账号页）：`identityId` 是 accountView 给的邮箱身份 id。不是本账号的邮箱回 not_found，
+   * 主邮箱（canonical_email，收验证码和通知的那个）回 primary_email，不能删。用这个邮箱登录的会话不动。
+   */
+  function unlinkEmail(input: { accountId: string; identityId: string; login: string; ip?: string }): UnlinkResult {
+    return db.transaction((): UnlinkResult => {
+      const now = clock();
+      const row = db.prepare("SELECT i.provider_uid, u.canonical_email FROM identities i JOIN users u ON u.id = i.user_id WHERE i.id = ? AND i.user_id = ? AND i.provider = 'email'")
+        .get(input.identityId, input.accountId) as { provider_uid: string; canonical_email: string | null } | undefined;
+      if (!row) return { ok: false, reason: "not_found" };
+      if (row.provider_uid === row.canonical_email) return { ok: false, reason: "primary_email" };
+      db.prepare("DELETE FROM identities WHERE id = ?").run(input.identityId);
+      accountEvent(input.accountId, "unlink", "email", "ok", null, now);
+      deps.audit(null, { login: input.login, account_id: input.accountId }, "identity.unlink", undefined, { provider: "email" }, input.ip);
       return { ok: true };
     }).immediate();
   }
@@ -462,19 +497,24 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     return { member, orgRole };
   }
 
-  /** 账号页的数据：登录方式（邮箱掩码）、有没有密码、成员资格、最近 20 条账号记录。不含 IP、第三方标识和他人信息。 */
+  /**
+   * 账号页的数据：登录方式（邮箱掩码）、有没有密码、成员资格、最近 20 条账号记录。不含 IP、第三方标识和他人信息。
+   * 邮箱另带身份 `id`（删邮箱用）和 `primary`（主邮箱），主邮箱排在别的邮箱前面（#272）。
+   */
   function accountView(accountId: string) {
     const row = accountRow.get(accountId) as {
-      org_state: string; org_role: string | null; handle: string | null; invite_code_id: number | null; password_hash: string | null; password_updated_at: number | null; created_at: number;
+      org_state: string; org_role: string | null; handle: string | null; invite_code_id: number | null; canonical_email: string | null;
+      password_hash: string | null; password_updated_at: number | null; created_at: number;
     };
-    const identities = (db.prepare(`SELECT provider, provider_uid, email, login, created_at, last_login_at FROM identities WHERE user_id = ?
-      ORDER BY CASE provider WHEN 'github' THEN 0 WHEN 'email' THEN 1 ELSE 2 END`).all(accountId) as {
-      provider: IdentityProvider; provider_uid: string; email: string | null; login: string | null; created_at: number; last_login_at: number | null;
+    const identities = (db.prepare(`SELECT id, provider, provider_uid, email, login, created_at, last_login_at FROM identities WHERE user_id = ?
+      ORDER BY CASE provider WHEN 'github' THEN 0 WHEN 'email' THEN 1 ELSE 2 END, CASE WHEN provider_uid = ? THEN 0 ELSE 1 END, created_at, rowid`).all(accountId, row.canonical_email) as {
+      id: string; provider: IdentityProvider; provider_uid: string; email: string | null; login: string | null; created_at: number; last_login_at: number | null;
     }[]).map(item => ({
       provider: item.provider,
       label: item.provider === "github" ? item.login ?? "" : item.email ? maskEmail(item.email) : "",
       linked_at: item.created_at,
       last_login_at: item.last_login_at,
+      ...(item.provider === "email" && { id: item.id, primary: item.provider_uid === row.canonical_email }),
     }));
     const recent = db.prepare("SELECT created_at AS at, action, provider, result FROM identity_audit WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 20")
       .all(accountId) as { at: number; action: string; provider: string | null; result: "ok" | "denied" | "failed" }[];
@@ -620,9 +660,16 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
       handle: row.handle,
       github: row.github_id !== null && row.github_login ? { id: Number(row.github_id), login: row.github_login, avatar_url: row.avatar_url } : null,
       email: row.canonical_email,
+      emails: emailsOf(row.id, row.canonical_email),
     };
   };
   const claimsOf = db.prepare(`${claimsSelect} WHERE u.id = ?`);
+  const emailsSelect = db.prepare("SELECT provider_uid FROM identities WHERE user_id = ? AND provider = 'email' ORDER BY created_at, rowid");
+  /** 绑定的全部邮箱，主邮箱在前（#272）。 */
+  function emailsOf(accountId: string, primary: string | null): string[] {
+    const all = (emailsSelect.all(accountId) as { provider_uid: string }[]).map(item => item.provider_uid);
+    return primary && all.includes(primary) ? [primary, ...all.filter(email => email !== primary)] : all;
+  }
 
   /** 一个账号的信息；账号不存在或已被合并（不是终点账号）时为 null。 */
   function getAccountClaims(accountId: string): AccountClaims | null {
@@ -637,7 +684,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
 
   return {
     signInWithGithub, githubSigninPlan, recordGithubDenied, recordSignout, accountForGithub,
-    signInWithEmailCode, signInWithPassword, signInWithGoogle, passwordFor, passwordHashOf, setPassword, linkEmail,
+    signInWithEmailCode, signInWithPassword, signInWithGoogle, passwordFor, passwordHashOf, setPassword, linkEmail, unlinkEmail, emailAddRefusal,
     recordOrgRole, roleUnrecorded, membershipOf, accountView, provisionAccount, listAccounts, setSiteRole, githubIdentityByLogin, accountTarget,
     getAccountClaims, listAccountsForSync,
   };

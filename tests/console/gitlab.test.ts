@@ -19,6 +19,8 @@ describe("GitLab column on the people page (#270)", () => {
     expect(actionText({ kind: "set_access", access_level: 50 })).toBe("组权限改成所有者");
     expect(actionText({ kind: "find_and_block" })).toBe("按身份找到 GitLab 用户并封禁");
     expect(actionText({ kind: "set_avatar" })).toBe("传头像");
+    expect(actionText({ kind: "set_emails" })).toBe("同步邮箱");
+    expect(pendingText("on", [{ kind: "set_avatar" }, { kind: "set_emails" }])).toBe("待同步：传头像、同步邮箱");
     expect(pendingText("dry-run", [{ kind: "create", username: "alice", access_level: 30 }, { kind: "set_avatar" }])).toBe("预演：建号，进组当开发者、传头像");
     expect(pendingText("dry-run", [{ kind: "create", username: "alice", access_level: 30 }])).toBe("预演：建号，进组当开发者");
     expect(pendingText("on", [{ kind: "unblock" }, { kind: "set_access", access_level: 30 }])).toBe("待同步：解封、组权限改成开发者");
@@ -42,6 +44,7 @@ describe("GitLab column on the people page (#270)", () => {
     expect(errorText("github_avatar_not_image")).toBe("GitHub 头像不是图片");
     expect(errorText("avatar_too_large")).toBe("头像超过 200 KiB");
     expect(errorText("forum_avatar_missing")).toBe("论坛头像找不到了");
+    expect(errorText("gitlab_email_409")).toBe("邮箱被拒（409）");
     expect(errorText("something_new")).toBe("something_new");
   });
 

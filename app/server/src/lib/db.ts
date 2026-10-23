@@ -677,10 +677,16 @@ addColumn("users", "password_hash", "TEXT");
 addColumn("users", "password_updated_at", "INTEGER");
 // avatar_source：传到 GitLab 的头像来自哪里（论坛头像 forum:<散列>，或 GitHub 头像地址），空是还没传过；来源变了再传（#271）。
 addColumn("gitlab_accounts", "avatar_source", "TEXT");
+// emails_source：上次同步到 GitLab 的邮箱（JSON：主邮箱与其它邮箱），空是还没同步过；绑定的邮箱变了再同步（#272）。
+addColumn("gitlab_accounts", "emails_source", "TEXT");
+// 每个账号 GitHub、Google 各最多一个身份，邮箱可以有几个（#272，上限是 identity-store 的 EMAILS_MAX）。#262 建的同名索引连邮箱也只许一个，
+// 没有 WHERE 的就是它，删掉按新定义重建；名字不变，换回旧镜像时它的 CREATE UNIQUE INDEX IF NOT EXISTS 跳过，不会因为多出来的邮箱启动失败
+const userProviderIndex = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'uq_identities_user_provider'").get() as { sql: string } | undefined;
+if (userProviderIndex && !/\bWHERE\b/i.test(userProviderIndex.sql)) db.exec("DROP INDEX uq_identities_user_provider");
 db.exec(`
 CREATE UNIQUE INDEX IF NOT EXISTS uq_users_handle ON users(handle) WHERE handle IS NOT NULL;
--- 每个账号每种登录方式最多一个（规格「待确认 7」的默认）；之前只有 GitHub 身份，已经满足
-CREATE UNIQUE INDEX IF NOT EXISTS uq_identities_user_provider ON identities(user_id, provider);
+-- 每个账号每种登录方式最多一个（规格「待确认 7」的默认），邮箱除外（#272，见上面）
+CREATE UNIQUE INDEX IF NOT EXISTS uq_identities_user_provider ON identities(user_id, provider) WHERE provider <> 'email';
 CREATE INDEX IF NOT EXISTS idx_sessions_openid ON sessions(openid);
 CREATE INDEX IF NOT EXISTS idx_role_assignments_account ON role_assignments(account_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_forum_users_account ON forum_users(account_id) WHERE account_id IS NOT NULL;
