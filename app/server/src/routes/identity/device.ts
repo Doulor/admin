@@ -5,6 +5,7 @@ import {
 } from "../../lib/device-store.js";
 import { emailRequired } from "../../lib/email-gate.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { requirePermission } from "../../middleware/require-permission.js";
 
 type CodeBody = { client_id?: string; scope?: string };
 type TokenBody = { grant_type?: string; device_code?: string; client_id?: string };
@@ -101,7 +102,9 @@ export default async function deviceRoutes(app: FastifyInstance) {
 
   app.post<{ Body: ApproveBody }>(
     "/api/identity/device/approve",
-    { preHandler: requireAuth, config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
+    // #274 SPEC §3.2：命令行登录按权限节点 account.cli.login 判定（注册用户起步就有，不再是「登录就行」的隐性放行）；
+    // requireAuth 先把会话挂到 req.session，requirePermission 内部的 loadSession 看到已经挂过就不重复判一次 401。
+    { preHandler: [requireAuth, requirePermission("account.cli.login")], config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
     async (req, reply) => {
       const session = req.session!;
       const body = req.body ?? {};

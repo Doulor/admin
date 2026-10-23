@@ -1,9 +1,11 @@
+import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { ACCOUNT_AVATAR_BYTES_MAX, ACCOUNT_AVATAR_TYPES, AccountAvatarError, processAccountAvatar } from "../../lib/account-avatar.js";
 import { redeemInvite } from "../../lib/invite-codes.js";
 import { setExclusiveGroupMembership } from "../../lib/permissions.js";
+import { ipSubject } from "../../lib/forum-rules.js";
 
 const byAccount = (req: FastifyRequest) => req.session!.account_id;
 
@@ -11,8 +13,15 @@ const byAccount = (req: FastifyRequest) => req.session!.account_id;
  * 账号资料、头像与邀请码兑换（#274 CONTRACT-274 §2）。资料和头像统一存 account_profiles/account_avatars，
  * 论坛、控制台、GitLab 同步、OIDC userinfo、命令行都读这里，不再各自存一份。
  */
+/** 兑换失败的锁定窗口：1 小时内账号累计 10 次、或同一个 IP 累计 20 次无效邀请码，锁 1 小时（#274 SPEC §3.x）。 */
+const REDEEM_LOCK_WINDOW_MS = 60 * 60_000;
+const REDEEM_LOCK_MAX_ACCOUNT = 10;
+const REDEEM_LOCK_MAX_IP = 20;
+/** limit_events 只存 IP 的哈希，不存原文（IPv6 先按 /64 归一，和 apply.ts 的投递次数同一个口径）。 */
+const ipHash = (ip: string) => createHash("sha256").update(ipSubject(ip)).digest("hex");
+
 export default async function identityProfileRoutes(app: FastifyInstance) {
-  const { profiles, storage, permissions } = app.services;
+  const { profiles, storage, permissions, limits } = app.services;
   const db = storage.db;
 
   app.get("/api/identity/profile", { preHandler: requireAuth }, async req => profiles.get(req.session!.account_id));
@@ -71,12 +80,28 @@ export default async function identityProfileRoutes(app: FastifyInstance) {
     { preHandler: requirePermission("account.invite.redeem"), config: { rateLimit: { max: 10, timeWindow: "1 hour", keyGenerator: byAccount, hook: "preHandler" } } },
     async (req, reply) => {
       const accountId = req.session!.account_id;
+      const ip = ipHash(req.ip);
+      const now = Date.now();
+      // 猜码锁定：按账号、按 IP 各自数「无效邀请码」的次数，到了上限直接拒绝，不再碰兑换逻辑——
+      // 和上面 requirePermission 的通用限流（10 次/小时，不分成败）是两条独立的线，这条只认失败次数。
+      const accountLocked = limits.count({ bucket: "invite.redeem.fail.account", subject: accountId, window: { ms: REDEEM_LOCK_WINDOW_MS }, now }) >= REDEEM_LOCK_MAX_ACCOUNT;
+      const ipLocked = limits.count({ bucket: "invite.redeem.fail.ip", subject: ip, window: { ms: REDEEM_LOCK_WINDOW_MS }, now }) >= REDEEM_LOCK_MAX_IP;
+      if (accountLocked || ipLocked) {
+        return reply.code(429).header("Retry-After", String(REDEEM_LOCK_WINDOW_MS / 1000)).send({
+          error: "invite_locked", message: "无效邀请码次数太多，1 小时后再试", retry_after: REDEEM_LOCK_WINDOW_MS / 1000,
+        });
+      }
+      // 核对邀请码、记失败次数（猜错才记）、改权限等级在同一个事务里：失败不白算一次锁定名额，成功不漏记等级变化。
       const outcome = db.transaction((): { ok: true } | { ok: false; reason: "already_member" | "invite_invalid" } => {
         const alreadyMember = db.prepare("SELECT 1 FROM perm_members WHERE account_id = ? AND group_id = 'level.member'").get(accountId);
         if (alreadyMember) return { ok: false, reason: "already_member" };
-        const redeemed = redeemInvite(db, req.body.code, Date.now());
-        if (!redeemed.ok) return { ok: false, reason: "invite_invalid" };
-        setExclusiveGroupMembership(db, accountId, "level.member", Date.now(), `invite:${redeemed.id}`);
+        const redeemed = redeemInvite(db, req.body.code, now);
+        if (!redeemed.ok) {
+          limits.hit({ bucket: "invite.redeem.fail.account", subject: accountId, window: { ms: REDEEM_LOCK_WINDOW_MS }, max: REDEEM_LOCK_MAX_ACCOUNT, now });
+          limits.hit({ bucket: "invite.redeem.fail.ip", subject: ip, window: { ms: REDEEM_LOCK_WINDOW_MS }, max: REDEEM_LOCK_MAX_IP, now });
+          return { ok: false, reason: "invite_invalid" };
+        }
+        setExclusiveGroupMembership(db, accountId, "level.member", now, `invite:${redeemed.id}`);
         return { ok: true };
       })();
       if (!outcome.ok) {

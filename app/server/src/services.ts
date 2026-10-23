@@ -14,6 +14,7 @@ import { createGithubConnection } from "./lib/github-connection.js";
 import { createCache } from "./lib/cache.js";
 import { createRoleStore } from "./lib/role-store.js";
 import { createPermissionEngine } from "./lib/permissions.js";
+import { createLimits } from "./lib/limits.js";
 import { createAccountProfiles } from "./lib/account-profiles.js";
 import { createAccess } from "./lib/access.js";
 import { createFeedbackStore } from "./lib/feedback-store.js";
@@ -98,14 +99,16 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
       throw error;
     }
   })();
-  // 对外授权与 GitLab 同步（#270）：账号目录把账号和论坛资料拼起来；OIDC_JWKS 没设时不开 /oidc（oidc 为 null）
+  const profiles = createAccountProfiles(storage.db, { clock: overrides.clock });
+  // 对外授权与 GitLab 同步（#270，#274 改成读统一资料 account_profiles）：账号目录把账号和统一资料拼起来；
+  // OIDC_JWKS 没设时不开 /oidc（oidc 为 null）。
   const oidcStore = createOidcStore(storage.db, crypto, overrides.clock);
-  const directory = createAccountDirectory({ identity, forum, publicOrigin: config.publicOrigin });
+  const directory = createAccountDirectory({ identity, profiles, publicOrigin: config.publicOrigin });
   const oidc = config.oidc
     ? { issuer: config.oidc.issuer, provider: createOidcProvider({ issuer: config.oidc.issuer, jwks: config.oidc.jwks, sessionSecret: config.sessionSecret, store: oidcStore, accounts: directory }) }
     : null;
   const gitlab = createGitlabSync(storage.db, {
-    config: config.gitlab, directory, subjects: oidcStore, clients: oidcStore, avatars: forum, audit: storage.audit,
+    config: config.gitlab, directory, subjects: oidcStore, clients: oidcStore, avatars: profiles, audit: storage.audit,
     fetch: overrides.gitlabFetch, githubFetch: overrides.githubProfileFetch, clock: overrides.clock,
   });
   return {
@@ -124,7 +127,9 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     }),
     // #274 新权限引擎：和上面的 access（旧 capabilities）并存，中间件/路由逐步切过去，见 lib/permissions.ts。
     permissions: createPermissionEngine(storage.db, overrides.clock),
-    profiles: createAccountProfiles(storage.db, { clock: overrides.clock }),
+    // #274 SPEC §3.8：防盗刷计数唯一入口，见 lib/limits.ts。
+    limits: createLimits(storage.db, { clock: overrides.clock }),
+    profiles,
     feedback,
     forum,
     mail,

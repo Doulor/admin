@@ -9,6 +9,9 @@ export type AccountProfile = { username: string; display_name: string; bio: stri
 export type ProfilePatch = { display_name?: string; bio?: string; username?: string; prefs?: Record<string, unknown> };
 export type ProfileUpdateResult = { ok: true; profile: AccountProfile } | { ok: false; reason: "username_taken" };
 
+/** 和 routes/identity/profile.ts 的 `GET /api/identity/avatar/:file` 逐字一致；account-directory.ts 用它拼 OIDC/GitLab 要的完整地址。 */
+export const avatarPath = (hash: string) => `/api/identity/avatar/${hash}.webp`;
+
 export function createAccountProfiles(db: Database.Database, deps: { clock?: () => number } = {}) {
   const clock = deps.clock ?? Date.now;
   const selectRow = db.prepare("SELECT username, display_name, bio, avatar_hash, prefs FROM account_profiles WHERE account_id = ?");
@@ -20,7 +23,7 @@ export function createAccountProfiles(db: Database.Database, deps: { clock?: () 
   const avatarDataStmt = db.prepare("SELECT data FROM account_avatars WHERE hash = ?");
 
   function avatarUrl(hash: string | null): string | null {
-    return hash ? `/api/identity/avatar/${hash}.webp` : null;
+    return hash ? avatarPath(hash) : null;
   }
 
   function ensure(accountId: string): void {
