@@ -12,7 +12,8 @@ import { loadForumContent } from '../../app/server/src/lib/forum-content';
 import { ipSubject, nameKey } from '../../app/server/src/lib/forum-rules';
 import { createForumStore } from '../../app/server/src/lib/forum-store';
 import type { ServiceOverrides } from '../../app/server/src/services';
-import { FORUM_FIXTURE_DIR, accountIdOf, grantPermNode, signIn, testApp, testConfig } from './helpers';
+import { setExclusiveGroupMembership } from '../../app/server/src/lib/permissions';
+import { FORUM_FIXTURE_DIR, accountIdOf, grantPermGroup, grantPermNode, signIn, testApp, testConfig } from './helpers';
 
 /** sharp 是 app/server 的依赖，根目录没有它；从 server 包里取，用来生成真实的测试图片和核对输出。 */
 const sharp = createRequire(join(REPO_ROOT, 'app/server/package.json'))('sharp') as typeof import('../../app/server/node_modules/sharp');
@@ -79,6 +80,24 @@ async function setup(options: { failing?: { failing: boolean; rejected?: Set<str
   for (const login of ['carol', 'dave']) {
     grantPermNode(app, accountIdOf(app, login), 'forum.moderate.*', { category: ['c-exam', 'c-ai'] });
   }
+  // #274：能不能发帖回帖按权限节点判定（forum.topic.create 等只在 level.member 才有，见迁移种子），
+  // 不再是「登录就算数」（access.member 那套的老口径，这正是 SPEC §3.2 要堵的洞）。这份夹具里 alice、
+  // bob、carol、dave、da-ve 都是文档注释说的「普通成员」，erin 是往届成员，都要显式放进对应的 level 组，
+  // 不能只靠 signIn()（没有邀请码默认落在 level.registered，没有发帖权限）。frank 不在组织里，留在
+  // level.registered，不升级。
+  for (const login of ['alice', 'bob', 'carol', 'dave', 'erin', 'da-ve']) as(login);
+  const setLevel = (login: string, groupId: string) => {
+    setExclusiveGroupMembership(app.services.storage.db, accountIdOf(app, login), groupId, Date.now(), 'test');
+    app.services.permissions.bump();
+  };
+  for (const login of ['alice', 'bob', 'carol', 'dave', 'da-ve']) setLevel(login, 'level.member');
+  setLevel('erin', 'level.alumni');
+  grantPermGroup(app, accountIdOf(app, 'alice'), 'title.site.owner');
+  // 论坛第一次请求仍会跑一次 access.resolve()（老账号回填站内角色，见 forum-api/viewer.ts 的说明），
+  // `roleUnrecorded()` 只看 `org_role` 是不是 NULL（identity-store.ts 的既有设计，不是这次改的）——
+  // erin 的 GitHub 角色桩是 'member'，不先把 org_role 填成非空，这次回填会把刚手动设的 level.alumni
+  // 按 GitHub 角色桩重新同步回 level.member，和这份夹具要测的「往届成员」对不上。
+  app.services.storage.db.prepare("UPDATE users SET org_role = 'member', org_checked_at = ? WHERE id = ?").run(Date.now(), accountIdOf(app, 'erin'));
   const call = (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, who?: string, payload?: object) =>
     app.inject({ method, url, ...(payload === undefined ? {} : { payload }), headers: who ? as(who) : {} });
   const state = async (who?: string) => (await call('GET', '/api/forum/state', who)).json().state;
@@ -150,19 +169,28 @@ describe('state', () => {
     expect(alice).toMatchObject({ username: 'alice', displayName: 'alice', role: 'admin', title: { id: 'admin' }, avatarUrl: 'https://avatars.example.test/alice', kind: 'member', notifyPrefs: { reply: true, like: true, follow: true } });
     expect(Object.keys(alice)).not.toContain('github_user_id');
 
+    // carol、dave 都是部门账号，拿到同一份 forum.moderate.* 授权（见上面 setup() 的注释：新权限体系不再有
+    // 「队长只能置顶、舰员才能关闭/删帖」的分级），capabilities 这个显隐提示现在也从权限引擎算，和 dave 一样。
+    // 称号徽章只保真 title.site.owner 和 level.alumni 两件事（#274，CONTRACT-276.md §9 之前不读部门称号），
+    // carol、dave 都没有 title.* 组，徽章是 null，不再是 role_assignments 给的「舰员/队长」。
     const carol = (await s.state('carol'));
     expect(carol.viewer.capabilities).toEqual(['forum.topic.pin', 'forum.topic.close', 'forum.post.moderate']);
-    expect(carol.users.find((u: { id: string }) => u.id === 'm103')).toMatchObject({ role: 'member', title: { id: 'member', department: 'community' } });
-    expect((await s.state('dave')).viewer.capabilities).toEqual(['forum.topic.pin']);
+    // 没有称号徽章时 title 列在 DB 里是 NULL，读出来是 undefined，JSON 序列化直接丢掉这个键，不是 "title": null。
+    const carolUser = carol.users.find((u: { id: string }) => u.id === 'm103');
+    expect(carolUser).toMatchObject({ role: 'member' });
+    expect(carolUser.title).toBeUndefined();
+    expect((await s.state('dave')).viewer.capabilities).toEqual(['forum.topic.pin', 'forum.topic.close', 'forum.post.moderate']);
     expect((await s.state('bob')).viewer.capabilities).toEqual([]);
     expect((await s.state('erin')).users.find((u: { id: string }) => u.id === 'm105').title).toEqual({ id: 'alumni' });
 
     expect((await s.call('PATCH', '/api/forum/me/profile', 'bob', { displayName: '小博' })).statusCode).toBe(200);
-    // 称号变了、GitHub 头像换了：下一次请求就刷新，自己改的昵称不动。
+    // GitHub 头像换了：下一次请求就刷新，自己改的昵称不动。往 role_assignments 里插一条称号指派
+    // 不再影响论坛徽章——那张表迁移后只给控制台旧页面读，论坛称号只认 title.site.owner / level.alumni。
     s.app.services.roles.insertAssignment({ github_login: 'bob', github_user_id: 102, role: 'head', department_id: 'tech', note: null, granted_by: 'fixture' });
     s.db.prepare("UPDATE sessions SET avatar_url = 'https://avatars.example.test/bob-new' WHERE login = 'bob'").run();
     const bob = (await s.state('bob')).users.find((u: { id: string }) => u.id === 'm102');
-    expect(bob).toMatchObject({ displayName: '小博', title: { id: 'head', department: 'tech' }, avatarUrl: 'https://avatars.example.test/bob-new' });
+    expect(bob).toMatchObject({ displayName: '小博', avatarUrl: 'https://avatars.example.test/bob-new' });
+    expect(bob.title).toBeUndefined();
   });
 
   it('does not turn a GitHub failure into a guest view', async () => {
@@ -229,32 +257,33 @@ describe('state', () => {
     expect(s.db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE login = 'bob'").get()).toEqual({ n: 1 });
   });
 
-  it('treats a signed-in user who is not a member on the site as a guest, whatever titles they hold', async () => {
+  it('treats a signed-in user who was never a recorded org member as a registered viewer, not a guest, and a demoted member keeps their forum identity but loses write nodes (#274 SPEC §3.2/§3.6)', async () => {
     const s = await setup();
-    // frank 有会话但不在组织里：看到的是游客，不建论坛用户。
+    // frank 有会话、从没在 GitHub 组织里：论坛现在按账号认人（perm_members/level），不再按 org_state 判游客——
+    // 他是「注册用户」，有自己的论坛身份和用户行，但没有 forum.topic.create 这些写节点，发帖仍然 403。
     const frank = await s.state('frank');
-    expect(frank.viewer).toEqual({ userId: null, kind: 'guest', capabilities: [] });
-    expect(frank.users.map((u: { id: string }) => u.id)).not.toContain('m106');
+    expect(frank.viewer).toMatchObject({ kind: 'member', userId: 'm106', capabilities: [] });
+    expect(frank.users.map((u: { id: string }) => u.id)).toContain('m106');
+    expect((await s.call('POST', '/api/forum/topics', 'frank', { title: '注册用户发帖', categoryId: 'c-ai', content: '正文' })).statusCode).toBe(403);
 
-    // carol 是社区部舰员（能置顶、关闭、管帖子）。退出 GitHub 组织不影响站内身份（#262 第四期）；
-    // 提督在控制台把她的站内角色改成「不是成员」后，下一次请求就只是游客。
+    // carol 是社区部舰员（能置顶、关闭、管帖子）。退出 GitHub 组织不影响站内身份（#262 第四期，org_state 已弃用，
+    // 这条 GitHub 查询只在老账号第一次补记角色时才跑，已经记过的账号不再问 GitHub）。
     expect((await s.state('carol')).viewer.capabilities).toEqual(['forum.topic.pin', 'forum.topic.close', 'forum.post.moderate']);
     delete s.roles.carol;
     s.app.services.cache.invalidate('console:orgrole:');
     expect((await s.state('carol')).viewer.kind).toBe('member');
-    const accountId = s.app.services.identity.accountForGithub(USERS.carol)!;
+
+    // 提督在控制台把 bob 的站内角色改成「不是成员」：level 组降回 level.registered（syncPermissionLevel），
+    // 论坛身份还在、不是游客，只是重新落回「注册用户不能发帖回帖」（SPEC §3.2）——不会悄悄滑进游客的 PoW 回帖口子，
+    // 自己的资料（昵称等）仍然能改，那是账号自己的事，不是论坛写权限。
+    const accountId = s.app.services.identity.accountForGithub(USERS.bob)!;
     expect(s.app.services.identity.setSiteRole({ accountId, role: 'none', actor: { login: 'alice', account_id: null } })).toEqual({ ok: true, changed: true });
-    const carol = await s.state('carol');
-    expect(carol.viewer).toEqual({ userId: null, kind: 'guest', capabilities: [] });
-    expect([carol.notifications, carol.bookmarks]).toEqual([[], []]);
-    expect((await s.call('POST', '/api/forum/topics/t9/pin', 'carol', { pinned: true })).json().error).toBe('signin_required');
-    expect((await s.call('POST', '/api/forum/topics', 'carol', { title: '还能发吗', categoryId: 'c-ai', content: '正文' })).statusCode).toBe(401);
-    expect((await s.call('PATCH', '/api/forum/me/profile', 'carol', { displayName: '还能改吗' })).statusCode).toBe(401);
-    // 回复只能走游客那条路：要游客昵称和 PoW，发出去的是一个游客用户。
-    expect((await s.call('POST', '/api/forum/posts', 'carol', { topicId: 't9', content: '按成员回复' })).json().error).toBe('invalid_guest_name');
-    const asGuest = await s.call('POST', '/api/forum/posts', 'carol', guestReply('t9', '按游客回复'));
-    expect(asGuest.statusCode).toBe(201);
-    expect(asGuest.json().changes.posts.find((p: { id: string }) => p.id === asGuest.json().postId).authorId).toBe('g1');
+    const demoted = await s.state('bob');
+    expect(demoted.viewer).toMatchObject({ kind: 'member', capabilities: [] });
+    expect((await s.call('POST', '/api/forum/topics/t9/pin', 'bob', { pinned: true })).json().error).toBe('forbidden');
+    expect((await s.call('POST', '/api/forum/topics', 'bob', { title: '还能发吗', categoryId: 'c-ai', content: '正文' })).statusCode).toBe(403);
+    expect((await s.call('PATCH', '/api/forum/me/profile', 'bob', { displayName: '还能改吗' })).statusCode).toBe(200);
+    expect((await s.call('POST', '/api/forum/posts', 'bob', { topicId: 't9', content: '按成员回复' })).json().error).toBe('forbidden');
     expect(s.audits()).toEqual([]);
   });
 
@@ -833,6 +862,42 @@ describe('replies', () => {
     expect(response.statusCode).toBe(403);
     expect(response.json().error).toBe('invalid_origin');
     expect((await s.state()).posts).toHaveLength(2);
+  });
+});
+
+/**
+ * #274 残留修复：访客 × 注册用户 × 成员，三档身份各试一遍话题、回复、点赞，确认允许/拒绝都对（SPEC §3.2/§3.11）。
+ * 访客没有会话，topic/like 直接 401（回复另有专门的游客 PoW 路径，不在这个矩阵里，见上面「replies」）；
+ * 注册用户（frank，没有邀请码、没有 forum.topic.create/forum.reply.create/forum.react）一律 403，
+ * 403 在限额判断之前就拦住；成员（bob，level.member）三件事都允许。
+ */
+describe('write gate by permission node: visitor × registered × member (#274 SPEC §3.2/§3.11)', () => {
+  it('topic create: 401 for a visitor, 403 for a registered account, 201 for a member', async () => {
+    const s = await setup();
+    expect((await s.call('POST', '/api/forum/topics', undefined, { title: '访客发帖', categoryId: 'c-ai', content: '正文' })).statusCode).toBe(401);
+    const registered = await s.call('POST', '/api/forum/topics', 'frank', { title: '注册用户发帖', categoryId: 'c-ai', content: '正文' });
+    expect(registered.statusCode).toBe(403);
+    expect(registered.json().error).toBe('forbidden');
+    const member = await s.call('POST', '/api/forum/topics', 'bob', { title: '成员发帖', categoryId: 'c-ai', content: '正文' });
+    expect(member.statusCode).toBe(201);
+  });
+
+  it('reply: 403 for a registered account (not the guest PoW path), 201 for a member', async () => {
+    const s = await setup();
+    const registered = await s.call('POST', '/api/forum/posts', 'frank', { topicId: 't9', content: '注册用户回复' });
+    expect(registered.statusCode).toBe(403);
+    expect(registered.json().error).toBe('forbidden');
+    const member = await s.call('POST', '/api/forum/posts', 'bob', { topicId: 't9', content: '成员回复' });
+    expect(member.statusCode).toBe(201);
+  });
+
+  it('like: 401 for a visitor, 403 for a registered account, 200 for a member', async () => {
+    const s = await setup();
+    expect((await s.call('POST', '/api/forum/posts/body-9/like', undefined)).statusCode).toBe(401);
+    const registered = await s.call('POST', '/api/forum/posts/body-9/like', 'frank');
+    expect(registered.statusCode).toBe(403);
+    expect(registered.json().error).toBe('forbidden');
+    expect((await s.call('POST', '/api/forum/posts/body-9/like', 'bob')).statusCode).toBe(200);
   });
 });
 

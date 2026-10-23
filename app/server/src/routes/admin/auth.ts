@@ -2,15 +2,13 @@ import { safeReturnTo, signinFailureUrl, type SigninOutcome } from "../../lib/sa
 import { bindEmailUrl, emailRequired } from "../../lib/email-gate.js";
 import { normalizeInviteCode } from "../../lib/invite-codes.js";
 import { applyQuota } from "../../lib/apply-quota.js";
+import { registrationGuardFor } from "../../lib/register-limits.js";
 import { UI_NODES } from "../../lib/permission-nodes.js";
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { readOAuthState, setOAuthState } from "../../middleware/oauth-state.js";
 import { clearSessionCookies, endRejectedSession, isRejectedToken, setSessionCookie } from "../../middleware/require-auth.js";
-import type { Capability } from "../../lib/roles.js";
-
-/** 普通舰员、领航员默认就有的能力：只有这些时不在头像菜单里显示「控制台」。 */
-const CONSOLE_LINK_IGNORED: ReadonlySet<Capability> = new Set<Capability>(["console.access", "github.org.read", "feedback.read"]);
+import { attachVisitorId } from "../../middleware/visitor.js";
 
 export default async function authRoutes(app: FastifyInstance) {
   const { buildAuthorizeUrl,
@@ -26,7 +24,11 @@ export default async function authRoutes(app: FastifyInstance) {
     req.log.warn({ code: cause?.code, status: cause?.status, requestId: req.id }, "github grant revoke failed");
   });
 
-  /** 换 token、查用户。#274：不再查 GitHub 组织资格——组织那道门已经去掉（SPEC §3.2），邀请码和邮箱、Google 一样选填。 */
+  /**
+   * 换 token、查用户。#274：不再查 GitHub 组织资格——组织那道门已经去掉（SPEC §3.2），邀请码和邮箱、Google 一样选填。
+   * 只在真的要新建账号这一步，同一 IP 今天已建满 5 个、同一设备已建满 3 个（lib/register-limits.ts）回
+   * `registration_limited`，登录到已有账号不受影响（#274 残留修复，SPEC §3.8）。
+   */
   async function signInWithGitHub(code: string) {
     const token = await exchangeCode(code);
     const user = await fetchAuthenticatedUser(token);
@@ -64,7 +66,9 @@ export default async function authRoutes(app: FastifyInstance) {
       // 外部请求到此做完；建号（邀请码选填）、认领、插入会话、删旧会话、审计在一个事务里（lib/identity-store.ts），失败整体回滚。
       let signin;
       try {
-        signin = identity.signInWithGithub({ github: account, accessToken: token, invite: flow.invite ?? null, previousSid: req.cookies?.sid ?? null, ip: req.ip });
+        await attachVisitorId(req, reply);
+        const registrationLimit = registrationGuardFor(app.services.limits, req.ip, req.visitorId!);
+        signin = identity.signInWithGithub({ github: account, accessToken: token, invite: flow.invite ?? null, previousSid: req.cookies?.sid ?? null, ip: req.ip, registrationLimit });
       } catch (cause) {
         req.log.error({ code: (cause as { code?: string })?.code ?? "signin_transaction_failed", requestId: req.id }, "sign-in transaction failed");
         return fail("failed");
@@ -100,10 +104,12 @@ export default async function authRoutes(app: FastifyInstance) {
   });
 
   /**
-   * `console_link`：官网与论坛的头像菜单是否显示「控制台」。持有 console.access、github.org.read、feedback.read
-   * 之外的任意能力才算管理者（提督、舰长、队长、带部门权限包的舰员）；普通舰员和领航员为 false。
-   * 这只决定显不显示入口，控制台的准入仍按能力判定。GitHub 角色查询失败时按 false 处理，不让 /auth/me 失败；
-   * 只有 GitHub 拒绝了会话里的令牌时例外：会话已经没用，结束它并回 `{ signed_in: false, session_expired: true }`（#164）。
+   * `console_link`：官网与论坛的头像菜单是否显示「控制台」，按新权限引擎的 `console.access` 节点直接判定
+   * （#274 起取代旧的 `access.resolve()` 返回的 capabilities 读法——`role_assignments` 迁移后不再有写入，
+   * 继续读会让刚靠 perm_groups 拿到控制台权限的人一直看不到入口）。这只决定显不显示入口，控制台的准入仍按
+   * 权限节点判定。`access.resolve()` 仍然要调用一次：老账号（#262 之前就用 GitHub 登录、从没记过站内角色的）
+   * 第一次来时靠它补查一次 GitHub 组织角色并同步进新权限表（lib/access.ts 的 membership.unrecorded 分支），
+   * 只是不再用它返回的 capabilities——GitHub 拒绝了令牌时这里仍然要结束会话（#164），和取 consoleLink 无关。
    * `email_required`（#273）：账号还没有登录邮箱、这个环境又能发信，官网、论坛、控制台读到 true 就跳到绑定邮箱页。
    *
    * #274 CONTRACT-274 §1：没登录也回 200（不是 401），当「访客」给出一致的身份摘要——`level`/`level_name`、
@@ -126,18 +132,19 @@ export default async function authRoutes(app: FastifyInstance) {
     if (!sid) return { signed_in: false, ...visitorIdentity() };
     const s = getSession(sid);
     if (!s) return { signed_in: false, ...visitorIdentity() };
-    const consoleLink = await app.services.access.resolve({ login: s.login, userId: s.user_id, accountId: s.account_id, accessToken: s.accessToken, provider: s.provider })
-      .then(access => [...access.capabilities].some(capability => !CONSOLE_LINK_IGNORED.has(capability)))
+    const sessionRejected = await app.services.access.resolve({ login: s.login, userId: s.user_id, accountId: s.account_id, accessToken: s.accessToken, provider: s.provider })
+      .then(() => false)
       .catch((cause: { code?: string; status?: number }) => {
-        if (isRejectedToken(cause)) return null;
-        req.log.warn({ code: cause?.code, status: cause?.status, requestId: req.id }, "console link access check failed");
+        if (isRejectedToken(cause)) return true;
+        req.log.warn({ code: cause?.code, status: cause?.status, requestId: req.id }, "unrecorded org role backfill failed");
         return false;
       });
-    if (consoleLink === null) {
+    if (sessionRejected) {
       endRejectedSession(req, reply, s);
       return { signed_in: false, session_expired: true, ...visitorIdentity() };
     }
     const { permissions, limits, profiles, identity } = app.services;
+    const consoleLink = permissions.check(s.account_id, "console.access");
     const groups = permissions.groupsOf(s.account_id);
     const profile = profiles.get(s.account_id);
     // account_id：极客班账号（官网、论坛、控制台读到的是同一个值）；provider：这次的登录方式。user_id 仍是 GitHub 数字 id。

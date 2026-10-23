@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { FORUM_LIMITS, ForumError, GUEST_POST_SITE_SUBJECT, NAME_RULE_MESSAGE, ipSubject, isAllowedName, normalizeName } from "../../lib/forum-rules.js";
-import { canModerate, forbidden, forumChanges, forumViewer, guestRepliesPaused, notFound, rateLimited, requireMember, type MemberViewer } from "./viewer.js";
+import { canModerate, forbidden, forumChanges, forumViewer, guestRepliesPaused, notFound, rateLimited, requireMember, requireWriter, type MemberViewer } from "./viewer.js";
 import { hourlyLimited } from "./forum-limits.js";
 
 /** 同一 IP 上所有账号加起来，回帖每小时 200 次（SPEC §3.8），防止一个 IP 换着账号刷。只存哈希，不存原文。 */
@@ -37,7 +37,8 @@ export default async function forumPostRoutes(app: FastifyInstance) {
   }
 
   /**
-   * 回复。成员直接发；游客（没有有效 sid，或已不是组织成员）另带昵称、PoW 与空的蜜罐字段，正文上限 2000 字，
+   * 回复。成员直接发（需要持 forum.reply.create，#274 起登录但没有邀请码的注册用户没有这个节点，403 在限额判断
+   * 之前就拦住，SPEC §3.11）；游客（没有有效 sid）另带昵称、PoW 与空的蜜罐字段，正文上限 2000 字，
    * 每个 IP（IPv6 按 /64）每分钟 5 次、每天 30 次，全站游客回复每小时 200 次。话题已关闭时只有持 forum.post.moderate 的人能回。
    */
   app.post<{ Body: ReplyBody }>("/api/forum/posts", async (req, reply) => {
@@ -50,6 +51,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
     if (!content.trim()) throw new ForumError(400, "empty_content", "正文不能为空");
 
     if (viewer.kind === "member") {
+      if (!req.server.services.permissions.check(viewer.accountId, "forum.reply.create")) throw forbidden("需要「发回复」权限");
       if (!forum.rateAllowed("reply", viewer.userId)) throw rateLimited();
       if (hourlyLimited(req, reply, "reply", viewer.accountId)) return;
       const ipResult = app.services.limits.hit({ bucket: "forum.reply.ip.hourly", subject: ipHash(req.ip), window: { ms: 60 * 60_000 }, max: REPLY_IP_HOURLY_MAX });
@@ -115,7 +117,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Params: PostParams }>("/api/forum/posts/:post_id/like", async req => {
-    const viewer = await requireMember(req);
+    const viewer = await requireWriter(req, "forum.react");
     const post = existingPost(req.params.post_id);
     assertNotDeleted(post);
     forum.toggleLike(post.id, viewer.userId);
@@ -123,7 +125,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Params: PostParams }>("/api/forum/posts/:post_id/bookmark", async req => {
-    const viewer = await requireMember(req);
+    const viewer = await requireWriter(req, "forum.react");
     const post = existingPost(req.params.post_id);
     forum.toggleBookmark(viewer.userId, post.id);
     return forumChanges(req, viewer, { bookmarks: [post.id] });

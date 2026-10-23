@@ -92,9 +92,10 @@ describe('GET /api/console/me、/api/console/summary（CONTRACT-274 §5、§7：
 
 describe('/auth/me console_link', () => {
   type Role = 'admin' | 'member';
-  /** /auth/me 的 console_link 仍然整段走旧的 GitHub 组织角色 + role_assignments（lib/access.ts、routes/admin/auth.ts），
-   * 和这次 #274 切换的新权限节点体系是两套并存的东西：forum-api/viewer.ts 和这里都还没切到 requirePermission，
-   * 不在 Scope B 范围内（见执行记录里的说明）。这里仍然模拟 GitHub 成员角色表，不走 setupConsole()。 */
+  /** #274 残留修复：console_link 改按权限引擎的 console.access 节点判定（routes/admin/auth.ts），不再读
+   * `access.resolve()` 返回的旧 capabilities。`access.resolve()` 本身仍然会调用一次——老账号第一次来
+   * （roleUnrecorded）时靠它补查 GitHub 组织角色、同步进新权限表，这里的 GitHub 角色桩就是为了测这个
+   * 副作用和它失败时的会话处理（#164），不是为了算 console_link。仍然模拟 GitHub 成员角色表，不走 setupConsole()。 */
   function github(roles: Record<string, Role>, users: Record<string, number> = {}, calls: string[] = []) {
     return (() => ({
       request: async (route: string, params: Record<string, string>) => {
@@ -123,16 +124,22 @@ describe('/auth/me console_link', () => {
     return { app, as, assign };
   }
 
-  it('shows the console link to managers only: 提督, 队长, crew with a department bundle', async () => {
-    const { app, as, assign } = await setupLegacyRoles({ alice: 'admin', bob: 'member', carol: 'member', dave: 'member', erin: 'member' });
-    assign('carol', 'member', 'community');
-    assign('dave', 'head', 'projects');
-    assign('erin', 'alumni');
+  it('shows the console link to site owners and department heads, not plain crew, alumni or non-members (console_link now reads console.access off the permission engine)', async () => {
+    const { app, as } = await setupLegacyRoles({ alice: 'admin', bob: 'member', carol: 'member', dave: 'member', erin: 'member' });
+    // #274 残留修复：console_link 不再走 role_assignments/旧 capabilities（「持有任何能力就自动获得
+    // console.access」），改按权限引擎的 console.access 节点判定。部门舰员（dept.ai）只拿到
+    // forum.moderate.*，没有 console.access；部门部长（title.ai.head）才有（见迁移种子）。
+    as('alice'); as('carol'); as('dave'); as('erin');
+    grantPermGroup(app, accountIdOf(app, 'alice'), 'title.site.owner');
+    grantPermGroup(app, accountIdOf(app, 'carol'), 'dept.ai');
+    grantPermGroup(app, accountIdOf(app, 'dave'), 'dept.ai');
+    grantPermGroup(app, accountIdOf(app, 'dave'), 'title.ai.head');
+    grantPermGroup(app, accountIdOf(app, 'erin'), 'level.alumni');
     const me = async (login: string) => (await app.inject({ url: '/auth/me', headers: as(login) })).json();
     expect(await me('alice')).toMatchObject({ signed_in: true, login: 'alice', user_id: 101, console_link: true });
-    expect((await me('carol')).console_link).toBe(true);
     expect((await me('dave')).console_link).toBe(true);
-    // 普通舰员（console.access + github.org.read）、领航员（再加 feedback.read）、不在组织里的人都不显示。
+    // 普通部门舰员（只有 forum.moderate.*）、往届成员、普通注册舰员、不在组织里的人都不显示。
+    expect((await me('carol')).console_link).toBe(false);
     expect((await me('bob')).console_link).toBe(false);
     expect((await me('erin')).console_link).toBe(false);
     expect((await me('frank')).console_link).toBe(false);
