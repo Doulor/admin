@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "../../app/console/src/lib/http";
 import {
-  GITHUB_INVITATION_URL, cleanCode, parseSignInOutcome, providerHref, providerIcon, readProviders, retryAfter, safeReturnPath, signInOutcomes,
+  GITHUB_INVITATION_URL, backFromGoogleForInvite, cleanCode, codeProblem, initialSignInTab, looksLikeEmail, parseSignInOutcome, providerHref,
+  providerIcon, readProviders, registerProblem, registerWithEmail, retryAfter, safeReturnPath, signInOutcomes,
 } from "../../app/console/src/lib/signin";
 
 const ORIGIN = "https://yangtzeu.work";
@@ -66,6 +67,8 @@ describe("登录结果提示与行动点解析 (signin)", () => {
 
   it("Google 注册要邀请码、邀请码无效、邮箱已被别的账号用：各有一句说明，没有外链", () => {
     expect(parseSignInOutcome("invite_required")).toMatchObject({ type: "info", title: "这个 Google 账号还没有极客班账号" });
+    // 说明里点的按钮名要和「注册」标签里的 Google 按钮一样
+    expect(parseSignInOutcome("invite_required")?.body).toContain("「用 Google 注册」");
     expect(parseSignInOutcome("invalid_invite")?.title).toBe("邀请码无效");
     expect(parseSignInOutcome("email_taken")?.body).toContain("用邮箱验证码登录");
     for (const key of ["invite_required", "invalid_invite", "email_taken"]) expect(parseSignInOutcome(key)?.action, key).toBeUndefined();
@@ -161,5 +164,82 @@ describe("邮箱登录的小工具 (retryAfter / cleanCode)", () => {
     expect(cleanCode("123 456")).toBe("123456");
     expect(cleanCode("12a3-4567")).toBe("123456");
     expect(cleanCode(98765)).toBe("98765");
+  });
+});
+
+describe("登录、注册两个标签 (initialSignInTab / registerProblem)", () => {
+  it("默认开「登录」；Google 因为没有账号、邀请码不对回来时开「注册」", () => {
+    expect(initialSignInTab({})).toBe("signin");
+    expect(initialSignInTab({ signin: "invite_required", provider: "google" })).toBe("register");
+    expect(initialSignInTab({ signin: "invalid_invite", provider: "google" })).toBe("register");
+    expect(initialSignInTab({ signin: "invite_required" })).toBe("signin");
+    expect(initialSignInTab({ signin: "not_member", provider: "google" })).toBe("signin");
+    expect(initialSignInTab({ mode: "register" })).toBe("signin");
+    expect(backFromGoogleForInvite({ signin: "invalid_invite", provider: "google" })).toBe(true);
+    expect(backFromGoogleForInvite({ signin: "invalid_invite", provider: "github" })).toBe(false);
+  });
+
+  it("邮箱只挡明显填错的；验证码要先发过、再填满 6 位", () => {
+    expect(looksLikeEmail(" new@example.com ")).toBe(true);
+    for (const bad of ["new@", "@example.com", "new example@x.com", ""]) expect(looksLikeEmail(bad), bad).toBe(false);
+    expect(codeProblem(false, "123456")).toBe("先获取验证码");
+    expect(codeProblem(true, "12345")).toBe("验证码是 6 位数字");
+    expect(codeProblem(true, "123456")).toBeNull();
+  });
+
+  it("注册表单按从上到下的顺序报第一处问题，密码可以不填，填了至少 15 位、不超过 72 字节", () => {
+    const ok = { email: "new@example.com", invite: "Fall-2026", codeSent: true, code: "123456", password: "" };
+    expect(registerProblem(ok)).toBeNull();
+    expect(registerProblem({ ...ok, email: "new@" })).toBe("邮箱格式不对");
+    expect(registerProblem({ ...ok, invite: "  " })).toBe("填上邀请码才能注册");
+    expect(registerProblem({ ...ok, codeSent: false })).toBe("先获取验证码");
+    expect(registerProblem({ ...ok, code: "12345" })).toBe("验证码是 6 位数字");
+    expect(registerProblem({ ...ok, password: "short" })).toBe("密码至少 15 位");
+    expect(registerProblem({ ...ok, password: "长".repeat(25) })).toBe("密码太长了（不能超过 72 个字节，一个汉字算 3 个）");
+    expect(registerProblem({ ...ok, password: "a-long-enough-password" })).toBeNull();
+  });
+});
+
+describe("邮箱注册提交 (registerWithEmail)", () => {
+  const input = { code: "123456", invite: "Fall-2026", password: "a-long-enough-password" };
+  const fakes = (registered: boolean, setPassword: (password: string) => Promise<unknown> = async () => ({ ok: true })) => {
+    const calls: unknown[][] = [];
+    return {
+      calls,
+      deps: {
+        verify: async (code: string, invite?: string) => { calls.push(["verify", code, invite]); return { return_to: "/console", registered }; },
+        setPassword: async (password: string) => { calls.push(["password", password]); return setPassword(password); },
+      },
+    };
+  };
+
+  it("新账号：带邀请码验证，再设上填的密码，然后回 return_to", async () => {
+    const { calls, deps } = fakes(true);
+    await expect(registerWithEmail(input, deps)).resolves.toEqual({ kind: "done", returnTo: "/console" });
+    expect(calls).toEqual([["verify", "123456", "Fall-2026"], ["password", "a-long-enough-password"]]);
+  });
+
+  it("没填密码就不设，直接回 return_to", async () => {
+    const { calls, deps } = fakes(true);
+    await expect(registerWithEmail({ ...input, password: "" }, deps)).resolves.toEqual({ kind: "done", returnTo: "/console" });
+    expect(calls).toHaveLength(1);
+  });
+
+  it("邮箱原来就有账号：只登录，不改它的密码，交给页面说一句", async () => {
+    const { calls, deps } = fakes(false);
+    await expect(registerWithEmail(input, deps)).resolves.toEqual({ kind: "existing", returnTo: "/console" });
+    expect(calls).toEqual([["verify", "123456", "Fall-2026"]]);
+  });
+
+  it("账号建好了但密码没设上：带着原因交给页面，不当作注册失败", async () => {
+    const failure = new ApiError(400, "password_too_short", "密码至少 15 位");
+    const { deps } = fakes(true, async () => { throw failure; });
+    await expect(registerWithEmail(input, deps)).resolves.toEqual({ kind: "password_failed", returnTo: "/console", error: failure });
+  });
+
+  it("验证码这一步的错误照常抛出，由页面按错误码处理", async () => {
+    const expired = new ApiError(400, "code_expired", "验证码过期了");
+    const deps = { verify: async () => { throw expired; }, setPassword: async () => ({}) };
+    await expect(registerWithEmail(input, deps)).rejects.toBe(expired);
   });
 });

@@ -102,7 +102,7 @@
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "所有者 2026-10-23 定：「目前开放注册，现在的github注册的都算组织成员，后续需要邀请码去注册，在我们的admin控制台再额外加个邀请码的逻辑」「验证码和密码都支持」「按站内称号认」，07:52 又定「有关 GitHub 的权限是要放权的」「后续我们可能不仅仅只连 GitHub 了」。GitHub 新用户第一次登录仍要是组织成员；邮箱、Google 第一次登录凭邀请码注册，建号、兑换、占用验证码与建会话一起成败；邮箱可以用验证码或在账号页设的密码登录；不按邮箱合并账号。注册之后成员资格与站内角色由站内决定：GitHub 组织的变化不再影响站内，提督在控制台改（管理员、成员、不是成员，至少留一位管理员）；控制台的 GitHub 组织页面由服务器去做，谁能做什么只看称号。",
+      "reason": "所有者 2026-10-23 定：「目前开放注册，现在的github注册的都算组织成员，后续需要邀请码去注册，在我们的admin控制台再额外加个邀请码的逻辑」「验证码和密码都支持」「按站内称号认」，07:52 又定「有关 GitHub 的权限是要放权的」「后续我们可能不仅仅只连 GitHub 了」。GitHub 新用户第一次登录仍要是组织成员；邮箱、Google 第一次登录凭邀请码注册，建号、兑换、占用验证码与建会话一起成败；邮箱可以用验证码或在账号页设的密码登录；不按邮箱合并账号。注册之后成员资格与站内角色由站内决定：GitHub 组织的变化不再影响站内，提督在控制台改（管理员、成员、不是成员，至少留一位管理员）；控制台的 GitHub 组织页面由服务器去做，谁能做什么只看称号。第五轮（所有者 10:32）：登录页邮箱表单在上、GitHub 与 Google 按钮在下，加「注册」标签（邮箱、邀请码、验证码、可选密码），用验证码登录时邮箱没有账号会转到「注册」；控制台侧栏滚动后悬停高亮对不上鼠标的问题修掉。审查后返工：注册时邮箱原来就有账号、或填的密码没设上，先在页面上说明再走；从 Google 回来填邀请码时主按钮让给「用 Google 注册」；表单改用 TxForm、TxFormItem，分隔线用 TxDivider。",
       "evidence": [
         "app/server/src/lib/identity-store.ts",
         "app/server/src/lib/invite-codes.ts",
@@ -188,7 +188,7 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "tests/server/signin-methods.test.ts 覆盖邮箱验证码注册与登录、邀请码缺失与无效、错 5 次失效、发码限流、密码登录与重新验证、绑定邮箱冲突、Google 的邀请码与邮箱冲突、邀请码管理与响应字段，以及第四期的站内角色（邮箱登录的提督拿到全部能力、改站内角色的拒绝与成功路径、最后一位管理员、移出后再登录被拒、GitHub 登录不再查组织）；tests/server/github-connection.test.ts 覆盖 App 配置与私钥格式、JWT 验签、安装令牌缓存与共用换取、App 被拒回 503 且不结束会话、没接上回 409、只管 CONSOLE_ORG；console、forum、invitations、upstream-errors、legacy-database 用例按站内角色改写；控制台纯逻辑与 mock 同形有单测。未验证：真实 GitHub App（还没建）、真实发信商投递验证码、真实 Google 往返（预发布没配凭据）。审查后补的回归：后来的 GitHub owner 注册成成员、名单里还没记录的老账号、App 重装后重新查安装 id、慢回来的 401 不丢新令牌、公开邀请遇 App 401 记 failed、指派按 GitHub id 不按旧登录名。",
+      "reason": "tests/server/signin-methods.test.ts 覆盖邮箱验证码注册与登录、邀请码缺失与无效、错 5 次失效、发码限流、密码登录与重新验证、绑定邮箱冲突、Google 的邀请码与邮箱冲突、邀请码管理与响应字段，以及第四期的站内角色（邮箱登录的提督拿到全部能力、改站内角色的拒绝与成功路径、最后一位管理员、移出后再登录被拒、GitHub 登录不再查组织）；tests/server/github-connection.test.ts 覆盖 App 配置与私钥格式、JWT 验签、安装令牌缓存与共用换取、App 被拒回 503 且不结束会话、没接上回 409、只管 CONSOLE_ORG；console、forum、invitations、upstream-errors、legacy-database 用例按站内角色改写；控制台纯逻辑与 mock 同形有单测。未验证：真实 GitHub App（还没建）、真实发信商投递验证码、真实 Google 往返（预发布没配凭据）。审查后补的回归：后来的 GitHub owner 注册成成员、名单里还没记录的老账号、App 重装后重新查安装 id、慢回来的 401 不丢新令牌、公开邀请遇 App 401 记 failed、指派按 GitHub id 不按旧登录名。第五轮：tests/console/signin.test.ts 加先开哪个标签与注册表单本地检查两例；ego-browser 在样板数据里看了登录与注册两个标签（1440×900、390×844，无横向溢出），以及 1440×560 下侧栏滚到 120 与 318 时悬停三个条目，高亮上沿与条目上沿相同。审查后返工：注册提交流程挪到 lib/signin.ts 的 registerWithEmail，加五例（新账号设密码、不填密码、邮箱原来就有账号、密码没设上、验证码错误照常抛出），另加邮箱与验证码检查一例。",
       "evidence": [
         "tests/server/signin-methods.test.ts",
         "tests/console/account.test.ts",
@@ -382,6 +382,7 @@
       "paths": [
         "app/console/src/pages/SignIn.vue",
         "app/console/src/pages/Account.vue",
+        "app/console/src/pages/Device.vue",
         "app/console/src/pages/Invites.vue",
         "app/console/src/pages/ConsoleRoot.vue",
         "app/console/src/components/CapabilityGate.vue",
@@ -419,9 +420,10 @@
         "flow:github.organizations.list",
         "flow:competition.console.list",
         "flow:identity.current",
-        "flow:invitation.links.list"
+        "flow:invitation.links.list",
+        "flow:identity.device.view"
       ],
-      "reason": "控制台前端：登录页加邮箱表单（验证码 / 密码、发码倒计时、没有账号时要邀请码并改成「注册并登录」）和 Google 要邀请码时的输入框；新增账号页 /account（登录方式、绑定邮箱、设密码、成员资格、这次登录、账号记录）与注册邀请码页 /console/invites（accounts.invites.manage）；邮箱、Google 会话打开 GitHub 页面时能力门说明要用 GitHub 登录并给「用 GitHub 继续」；导航与乘客说明加账号入口；mock 按服务端同形补上 provider、/api/identity/me、/api/console/invites 与 admin_email 样板身份。授权仍只在服务端。"
+      "reason": "控制台前端：登录页加邮箱表单（验证码 / 密码、发码倒计时、没有账号时要邀请码并改成「注册并登录」）和 Google 要邀请码时的输入框；新增账号页 /account（登录方式、绑定邮箱、设密码、成员资格、这次登录、账号记录）与注册邀请码页 /console/invites（accounts.invites.manage）；邮箱、Google 会话打开 GitHub 页面时能力门说明要用 GitHub 登录并给「用 GitHub 继续」；导航与乘客说明加账号入口；mock 按服务端同形补上 provider、/api/identity/me、/api/console/invites 与 admin_email 样板身份。授权仍只在服务端。 第五轮审查后：登录页、账号页、设备授权页的颜色只用 theme.css 里的令牌，不再写兜底色值，设备授权页只改了这一处写法。"
     },
     {
       "paths": [

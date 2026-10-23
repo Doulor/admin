@@ -64,3 +64,69 @@
 - 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
 - 做了什么：按 .agents/skills/code-review 的「无需逐项审查」处理：改动只有一句界面文案按已有的 connected 计算属性分支，加上生成目录的摘要，不碰接口、权限、密钥、部署与数据；我（作者）对照 diff 核对：三元表达式两支文案都是平实中文、没有 emoji，connected 为真时文案与原来一致，生成文件只差来源摘要
 - 结果：结论：通过。未验证：空状态在浏览器里的显示要等 rc.11 部署到预发布后看（样板数据里有链接，看不到空状态）
+
+## 10:14:21 +08:00 · 合并 · #262 · 本机把 task/262/signin_methods（a0f3365f）合进 stage 候选 b542b3be
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：在 stage 候选 b6974015 上 git merge --no-ff task/262/signin_methods 得到 b542b3be（带进 325e98c2 空状态修正与 a0f3365f 执行记录），没有 PR、没有推送；git diff --quiet task/262/signin_methods b542b3be 为 0，沿用 325e98c2 提交前的验证
+- 结果：stage 候选 b542b3be，本地 tag v0.1.1-rc.11（未推送）
+
+## 11:04:35 +08:00 · 返工 · #262 · 按所有者 10:32 的三条意见返工：侧栏悬停高亮、登录页注册标签、跳转登录挪到下面
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：所有者 2026-10-23 10:32：「admin端这边的侧边居中背景色不会跟随鼠标的热点」「目前这个没有谷歌登录，而且谷歌登录和github登录常规的登录窗口逻辑是在下面，还有就是没有邮箱注册的逻辑」。侧栏：TxSidebarNav 的悬停高亮是 __body 里的绝对定位块，位置按条目框减 __body 框算、不加 scrollTop，之前让 __body 自己滚动，滚过之后高亮比鼠标所在条目高出滚动距离；改成根滚动、__body 随条目一起移动，品牌和账号区用 sticky 留在两端（z-index 2，盖住 z-index 1 的条目行）。登录页：TxTabs 分「登录」「注册」两个标签；注册是邮箱、邀请码、验证码、可不填的密码，按钮「注册并登录」；登录用验证码时邮箱还没有账号会切到注册标签并提示；「或者」分隔线下面放 GitHub、Google 按钮（Google 只在服务器配了凭据时出现，注册标签里写「用 Google 注册」，要先填邀请码）。lib/signin.ts 加 initialSignInTab、registerProblem、setFreshPassword，tests/console/signin.test.ts 加两例
+- 结果：样板数据下在 ego-browser 里看过：侧栏滚到 120 和 318 时悬停仓库、邀请链接、注册邀请码，高亮的 top 与条目 top 相同；登录页 1440×900 与 390×844 顺序为标签、邮箱表单、分隔线、跳转登录、说明，横向溢出 0。Google 按钮要等预发布配上凭据才出现，这一轮未在真实环境验证
+
+## 11:04:35 +08:00 · 提交 · #262 · 提交 4cb4c44b：登录页注册标签与侧栏悬停高亮
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：提交 4cb4c44b feat(console): 登录页加注册标签、跳转登录放到下面，侧栏滚动后悬停高亮对准鼠标；改 ConsoleNav.vue、SignIn.vue、lib/signin.ts、tests/console/signin.test.ts、docs/services/console/README.md、docs/changes/262.json，重新生成 docs/architecture/catalog
+- 结果：pnpm check 各步（architecture 用 --base bba4b066）、pnpm typecheck、控制台构建均为 0；vitest console 187、tooling 727、web 237、server 375 例通过
+
+## 11:23:47 +08:00 · 审查 · #262 · 审查 4cb4c44b：需返工
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：按 code-review 技能对 git diff 4cb4c44b^ 4cb4c44b 做两轴审查，两个子 agent 并行：规范轴对照 .agents/skills/code-review/SKILL.md、CODE-REVIEW、COMMITS、DESIGN、TESTING 与控制台服务契约；需求轴对照所有者 10:32 与 01:30 的原话，并读服务端 /auth/email/*、/auth/providers、/api/identity/password 核对前后端
+- 结果：需返工。规范轴：新表单项手写 div+label、分隔线手写，DESIGN「组件对应」要求 TxForm/TxFormItem、Tuffex 有的不自己写；ConsoleNav 的 var(--tx-bui-surface, #fff) 写了颜色兜底，DESIGN 规定组件不写颜色值；README 的 src/lib 地图没补 signin 新函数；重复的邮箱正则、验证码检查、密码规则、验证码过期的重置，三处重复的 google && registering 判断，inviteOnly、setFreshPassword 名字不清楚；一个提交装了注册与侧栏两件事（COMMITS 原子性），已提交不回写，返工按目的分开提交；侧栏修法只有 ego-browser 证据，没有自动回归（控制台测试是 node 环境，量不了布局）。需求轴：注册时邮箱原来就有账号、填的密码会被不声不响丢掉，设密码失败直接跳 /account、丢了 return_to；从 Google 回来填邀请码时邮箱表单的主按钮夹在中间容易点错，invite_required 的说明还写「再用 Google 继续」，和按钮「用 Google 注册」对不上；?mode=register 没有入口，算多做的；两个跳转按钮在 401–440px 可能放不下；样板数据不处理写请求，注册提交没跑过；侧栏按代码确认任何滚动位置都对得上，抽屉没截图。预发布没配 Google 凭据，提交说明没提
+
+## 11:24:23 +08:00 · 返工 · #262 · 按 4cb4c44b 的审查意见返工登录页与侧栏
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：注册提交流程收进 lib/signin.ts 的 registerWithEmail（done、existing、password_failed），邮箱原来就有账号或密码没设上时在页面上说明并给「继续」「去我的账号」；从 Google 回来填邀请码时主按钮让给「用 Google 注册」，invite_required 的说明改成和按钮同名；去掉 ?mode=register；表单改用 TxForm、TxFormItem，分隔线用 TxDivider，layout.css 叠加的 14px 在登录卡片里抵掉；跳转按钮按 auto-fit 最小 180px 排；looksLikeEmail、codeProblem、passwordRuleProblem 共用，去掉 setFreshPassword；ConsoleNav 去掉 #fff 兜底；控制台服务文档、262.json 跟着改。文档核对：docs/services/console/README.md 的 ConsoleNav 一行不用改——这次只去掉颜色兜底，导航的滚动与 sticky 说法不变
+- 结果：样板数据下 ego-browser：1440、440 宽两个跳转按钮并排（440 时各 186px），420、390 宽竖排，横向溢出 0；四个表单标签的 for 都指向 input；从 Google 回来时「用 Google 注册」是主按钮、「注册并登录」是次按钮；800×560 抽屉里侧栏滚到 150、399 时悬停三个条目，高亮上沿等于条目上沿。注册后的两种说明只有单测（样板对写请求回 501）
+
+## 11:24:23 +08:00 · 提交 · #262 · 提交 2420a928 与 127fa22e：侧栏颜色兜底、登录页返工
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：2420a928 fix(console): 侧栏品牌与账号区的底色只用令牌；127fa22e fix(console): 注册后邮箱已有账号或密码没设上时先说明，表单改用 TxForm（lib/account.ts、lib/signin.ts、SignIn.vue、tests/console/signin.test.ts、控制台服务文档、262.json、项目目录生成物）。按目的分成两个提交
+- 结果：pnpm check 各步（architecture 用 --base bba4b066）、pnpm typecheck、控制台构建均为 0；vitest console 193、tooling 727、web 237、server 375 例通过
+
+## 11:38:17 +08:00 · 审查 · #262 · 审查 2420a928、127fa22e（返工）：小问题再返工
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：按 code-review 技能对 git diff 3ce99fd9 127fa22e 做两轴审查，两个子 agent 并行；逐条核对上一轮（4cb4c44b）的问题
+- 结果：需求轴：上一轮五条改好（已有账号与密码失败的说明、Google 回来时的主按钮、说明与按钮同名、去掉 ?mode=register），按钮宽度一条要截图核对；新提出注册说明出现后上方 Google 提示还在、发了验证码后邮箱提交仍是次按钮。规范轴：TxForm/TxFormItem/TxDivider、ConsoleNav 颜色、src/lib 地图、命名、google && registering 已改好；没改好的是账号页还各有一份邮箱正则和验证码检查（127fa22e 说明写「两页共用」不属实），以及本分支 SignIn、Account、Device 里还有 var(--tx-*, 色值) 兜底和 rgba 阴影（DESIGN「组件不写颜色值」）；判断：只邀请码的表单借用 signin__email 类名、:315 又手写 provider.id === 'google'、登录卡片字段间距 14px 与其它页的 28px 不同（根子在 layout.css 叠加的 14px，作为候选提给所有者，不在这里改全局）、127fa22e 一个提交装了几件事；注册后两种说明只有单测。TxForm 的 @submit 透传可靠，lib/signin.ts 导入 lib/account.ts 不违约
+
+## 11:38:17 +08:00 · 返工 · #262 · 按 127fa22e 的审查意见返工
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：三页颜色只用令牌（标志阴影用 --tx-box-shadow-light），设备授权页登记进 262.json；账号页改用 looksLikeEmail、codeProblem；注册说明出现时收起上方 signin 提示，发了验证码主按钮还给「注册并登录」，两个表单共用 signin__form，主次判断用 googleRegister，去掉原因后多出的空格；控制台服务文档跟着改，项目目录重新生成。登录卡片字段间距保持 14px（layout.css 全局叠加的 14px 作为候选，不在这里改）
+- 结果：ego-browser 用 __data=live 加页面加载前注入的 fetch 桩走完注册：已有账号显示说明且没调设密码，设密码 503 显示说明与原因、调了一次，verify 请求体都带 invite_code，横向溢出 0；430–442 宽两个按钮 181–187px 并排、文字完整，426 起竖排；样板数据的设备授权页颜色正常，标志阴影为 rgba(0,0,0,0.12) 2px 4px 12px
+
+## 11:38:17 +08:00 · 提交 · #262 · 提交 bb2dfb18、41654963、d4bdfb4e：颜色令牌、账号页共用检查、登录页跟进
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：bb2dfb18 fix(console): 登录、账号、设备授权页的颜色只用令牌；41654963 refactor(console): 账号页绑定邮箱用登录页同一套邮箱与验证码检查；d4bdfb4e fix(console): 登录页注册后的说明收起上方提示，发了验证码主按钮还给邮箱。按目的分开，用暂存区按片提交
+- 结果：pnpm check 各步（architecture 用 --base bba4b066）、pnpm typecheck、控制台构建均为 0；vitest console 193、tooling 727、web 237、server 375 例通过
+
+## 11:43:20 +08:00 · 审查 · #262 · 复核 bb2dfb18、41654963、d4bdfb4e，返工 a176b3db、提交 b0 后通过
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：按 code-review 技能对 git diff 127fa22e d4bdfb4e 做两轴复核，两个子 agent 并行。需求轴提出换邮箱、验证码过期后主按钮跳回 Google，以及 not_member 的「申请加入极客班」在注册说明出来后还在：a176b3db 改成点过「获取验证码」就记住在走邮箱，并用 shownOutcome 一起收起原因提示和它的按钮，ego-browser 加 fetch 桩核对过。规范轴提出 262.json 里 Device.vue 那条缺 flow:identity.device.view：另一个 docs(changes) 提交补上
+- 结果：有条件通过，可以合进 stage。上一轮的颜色值、账号页共用检查、类名、googleRegister 都已改好；--tx-box-shadow-light 是 Tuffex 的 :root 令牌，标志阴影比原来略小、偏右 2px，可以接受。留下的偏差：bb2dfb18、41654963 两个中间提交没重新生成项目目录，单独检出时 check:catalog 会失败（d4bdfb4e 起补上，分支头通过），两者正文没写验证命令；4cb4c44b、127fa22e、d4bdfb4e 各装了不止一件事；以上都已提交，不回写历史。判断留着不改：账号页与 registerProblem 各写一次「邮箱格式不对」的文案；登录卡片字段间距 14px、其它页 28px（layout.css 在 TxForm 自带间距上又叠了 14px，作为候选交给所有者）。未验证：真实发信、真实 Google 往返（rc.12 才配凭据）、控制台侧栏没有自动回归（控制台测试是 node 环境）
+
+## 11:43:57 +08:00 · 审查 · #262 · 更正上一条审查记录的标题
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：上一条标题里的「提交 b0」是笔误，指的是 d467a2a6 docs(changes): #262 控制台前端这一条补上设备授权页的流程节点
+- 结果：审查结论不变：有条件通过，可以合进 stage

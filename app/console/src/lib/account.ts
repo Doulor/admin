@@ -32,10 +32,14 @@ export function membershipText(membership: AccountView["membership"]): string {
 /** 绑定邮箱、设密码要求这次登录不超过 10 分钟；这里只决定提示，服务端仍会核对。 */
 export const loginIsFresh = (view: Pick<AccountView, "session">, now = Date.now()): boolean => now < view.session.step_up_until;
 
-/** 和服务端 passwordError 同一条规则：至少 15 位，UTF-8 不超过 72 字节；两次要一样。 */
-export function passwordProblem(password: string, again: string): string | null {
+/** 和服务端 passwordError 同一条规则：至少 15 位，UTF-8 不超过 72 字节。账号页和登录页的注册共用。 */
+export function passwordRuleProblem(password: string): string | null {
   if (password.length < 15) return "密码至少 15 位";
   if (new TextEncoder().encode(password).length > 72) return "密码太长了（不能超过 72 个字节，一个汉字算 3 个）";
-  if (password !== again) return "两次输入的密码不一样";
   return null;
+}
+
+/** 账号页设密码：先按上面的规则，再要求两次一样。 */
+export function passwordProblem(password: string, again: string): string | null {
+  return passwordRuleProblem(password) ?? (password !== again ? "两次输入的密码不一样" : null);
 }
