@@ -13,6 +13,7 @@ import { TxDivider } from "@talex-touch/tuffex/divider";
 import logoUrl from "../assets/logo.png";
 import { ApiError, api } from "../lib/http";
 import { isMock, siteUrl } from "../lib/runtime";
+import { PASSWORD_MIN_LENGTH } from "../lib/account";
 import {
   backFromGoogleForInvite, cleanCode, codeProblem, initialSignInTab, looksLikeEmail, parseSignInOutcome, providerHref, providerIcon, readProviders,
   registerProblem, registerWithEmail, retryAfter, safeReturnPath, sendSigninCode, signInWithPassword, verifySigninCode,
@@ -291,11 +292,11 @@ const submitEmail = () => (registering.value ? submitRegister() : mode.value ===
           </TxFormItem>
 
           <TxFormItem v-if="registering" v-slot="{ id }" label="密码（可以不填）">
-            <TxInput :id="id" v-model="newPassword" type="password" placeholder="至少 15 位" autocomplete="new-password" />
+            <TxInput :id="id" v-model="newPassword" type="password" :placeholder="`至少 ${PASSWORD_MIN_LENGTH} 位`" autocomplete="new-password" />
             <p class="signin__hint">设了以后可以用邮箱加密码登录；不填就用验证码登录，以后在「我的账号」里再设。</p>
           </TxFormItem>
           <TxFormItem v-else-if="mode === 'password'" v-slot="{ id }" label="密码">
-            <TxInput :id="id" v-model="password" type="password" placeholder="至少 15 位" autocomplete="current-password" />
+            <TxInput :id="id" v-model="password" type="password" :placeholder="`至少 ${PASSWORD_MIN_LENGTH} 位`" autocomplete="current-password" />
             <p class="signin__hint">还没设过密码就先用验证码登录，再到「我的账号」里设置。</p>
           </TxFormItem>
 

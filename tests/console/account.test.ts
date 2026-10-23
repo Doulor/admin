@@ -16,12 +16,14 @@ const invite = (patch: Partial<InviteCode> = {}): InviteCode => ({
 });
 
 describe("账号页 (lib/account)", () => {
-  it("密码规则与服务端一样：至少 15 位、不超过 72 字节，两次一致", () => {
-    for (const candidate of ["short", "a".repeat(15), "汉".repeat(24), "汉".repeat(25), "a".repeat(72), "a".repeat(73)]) {
+  it("密码规则与服务端一样：至少 8 位、不超过 72 字节，两次一致", () => {
+    for (const candidate of ["short", "abcd123", "abcd1234", "abcdefgh", "a".repeat(15), "汉".repeat(24), "汉".repeat(25), "a".repeat(72), "a".repeat(73)]) {
       const server = passwordError(candidate);
       const local = passwordProblem(candidate, candidate);
       expect(local === null, candidate.slice(0, 8)).toBe(server === null);
     }
+    expect(passwordProblem("abcd123", "abcd123")).toBe("密码至少 8 位");
+    expect(passwordProblem("abcd1234", "abcd1234")).toBeNull();
     expect(passwordProblem("a".repeat(15), "a".repeat(16))).toBe("两次输入的密码不一样");
   });
 

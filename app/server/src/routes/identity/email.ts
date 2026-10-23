@@ -12,7 +12,7 @@ import { setSessionCookie } from "../../middleware/require-auth.js";
  *   填了邀请码就能用它注册。
  * - `POST /auth/email/verify`：核对验证码后登录；没有账号时要 `invite_code`，缺了回 `invite_required`（验证码不作废，
  *   填上邀请码再交一次），邀请码不对回 `invalid_invite` 并记一次失败。
- * - `POST /auth/email/password`：邮箱加密码登录。密码在账号页设（至少 15 位）；没账号、没设密码、密码不对一律回同一个错误。
+ * - `POST /auth/email/password`：邮箱加密码登录。密码在账号页设（至少 8 位）；没账号、没设密码、密码不对一律回同一个错误。
  * 成功都写 `sid` 并回 `{ return_to }`，前端整页跳转。
  */
 export const CHALLENGE_COOKIE = "email_challenge";

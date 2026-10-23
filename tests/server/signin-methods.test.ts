@@ -229,7 +229,9 @@ describe('email password sign-in (#262)', () => {
     await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('pw@example.test'), invite_code: 'yugc-test-2026' });
 
     expect((await user.send('POST', '/api/identity/password', { password: 'short' })).json().error).toBe('password_too_short');
-    expect((await user.send('POST', '/api/identity/password', { password: 'a long enough passphrase' })).json()).toEqual({ ok: true });
+    expect((await user.send('POST', '/api/identity/password', { password: 'abcd123' })).json()).toMatchObject({ error: 'password_too_short', message: '密码至少 8 位' });
+    // 8 位以上就行，不要求大小写、数字或符号
+    expect((await user.send('POST', '/api/identity/password', { password: 'abcd1234' })).json()).toEqual({ ok: true });
     const view = (await user.send('GET', '/api/identity/me')).json();
     expect(view).toMatchObject({ has_password: true, identities: [{ provider: 'email', label: 'p***@example.test' }] });
     // 响应合同不删字段：账号页用到的每一项都在
@@ -240,10 +242,10 @@ describe('email password sign-in (#262)', () => {
 
     const wrong = await browser(app).send('POST', '/auth/email/password', { email: 'pw@example.test', password: 'not the passphrase!!' });
     expect(wrong.json()).toEqual(expect.objectContaining({ error: 'invalid_credentials' }));
-    const unknown = await browser(app).send('POST', '/auth/email/password', { email: 'ghost@example.test', password: 'a long enough passphrase' });
+    const unknown = await browser(app).send('POST', '/auth/email/password', { email: 'ghost@example.test', password: 'abcd1234' });
     expect(unknown.json().error).toBe('invalid_credentials');
     const other = browser(app);
-    const ok = await other.send('POST', '/auth/email/password', { email: 'PW@example.test', password: 'a long enough passphrase', return_to: '/console' });
+    const ok = await other.send('POST', '/auth/email/password', { email: 'PW@example.test', password: 'abcd1234', return_to: '/console' });
     expect(ok.json()).toEqual({ return_to: 'https://example.test/console' });
     expect((await other.send('GET', '/auth/me')).json()).toMatchObject({ signed_in: true, provider: 'email' });
   });
