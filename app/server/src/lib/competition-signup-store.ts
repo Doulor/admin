@@ -139,7 +139,7 @@ type MemberRow = {
   message: string; created_by: string; decided_by: string | null; created_at: number; decided_at: number | null;
   updated_at: number;
 };
-type ProfileRow = { id: string; login: string | null; avatar_url: string | null; status: string; org_state: string };
+type ProfileRow = { id: string; login: string | null; avatar_url: string | null; status: string };
 type CountRow = { n: number };
 
 const SIGNUP_COLUMNS = "id, competition_id, account_id, status, looking_for_team, note, created_at, updated_at, cancelled_at";
@@ -301,8 +301,10 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
 
   // 身份表由 lib/identity-store.ts 写；这里只读登录名、头像与账号状态给名单和成员检查，不碰会话与账号状态机。
   // 没有绑定 GitHub 的账号（邮箱、Google 注册，#262）用账号自己的 yz_ 登录名。
-  const selectProfile = db.prepare(`SELECT u.id AS id, COALESCE(i.login, u.handle) AS login, i.avatar_url AS avatar_url, u.status AS status, u.org_state AS org_state
+  const selectProfile = db.prepare(`SELECT u.id AS id, COALESCE(i.login, u.handle) AS login, i.avatar_url AS avatar_url, u.status AS status
     FROM users u LEFT JOIN identities i ON i.user_id = u.id AND i.provider = 'github' WHERE u.id = ?`);
+  // #274 SPEC §3.2：成员资格不再看 org_state，看权限引擎的 level.member 组（perm_members），和 requireCompetitionNode 同一个口径。
+  const selectLevelMember = db.prepare("SELECT 1 FROM perm_members WHERE account_id = ? AND group_id = 'level.member' AND (expires_at IS NULL OR expires_at > ?)");
   const selectFreeAgents = db.prepare(`SELECT s.account_id AS account_id, s.note AS note, s.created_at AS since
     FROM competition_signups s
     WHERE s.competition_id = ? AND s.status = 'active' AND s.looking_for_team = 1
@@ -315,12 +317,12 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
   }
 
   /**
-   * 对方现在算不算成员：账号启用且成员资格是 active（GitHub 组织成员，或用邀请码注册的人，#262）。
-   * GitHub 会话查到不是组织成员时 org_state 会改成 not_member（lib/identity-store.ts 的 recordOrgRole）。
+   * 对方现在算不算成员：账号启用，且还在 `level.member` 组里（#274 SPEC §3.2，不再看 GitHub 组织资格）。
+   * 被邀请、被转让队长的人要是已经被站长改成「注册用户」（不再是成员），这里挡住，不留半成的队伍状态。
    */
-  function isActiveAccount(accountId: string): boolean {
+  function isActiveAccount(accountId: string, now: number): boolean {
     const row = selectProfile.get(accountId) as ProfileRow | undefined;
-    return row?.status === "active" && row.org_state === "active";
+    return row?.status === "active" && Boolean(selectLevelMember.get(accountId, now));
   }
 
   function settingsOf(competitionId: string): SignupSettings {
@@ -600,7 +602,7 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
       if (targetAccountId === accountId) return failure("already_in_team");
       const target = selectSignup.get(context.id, targetAccountId) as SignupRow | undefined;
       if (!target || target.status !== "active") return failure("invitee_not_signed_up");
-      if (!isActiveAccount(targetAccountId)) return failure("target_not_member");
+      if (!isActiveAccount(targetAccountId, now)) return failure("target_not_member");
       if (selectActiveMembership.get(context.id, targetAccountId)) return failure("already_in_team");
       if (team.status === "locked") return failure("team_locked");
       if (count(countActiveMembers, team.id) >= settings.team_max) return failure("team_full");
@@ -642,7 +644,7 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
       if (size >= settings.team_max) return failure("team_full");
       const subject = selectSignup.get(context.id, membership.account_id) as SignupRow | undefined;
       if (!subject || subject.status !== "active") return failure("not_signed_up");
-      if (!isActiveAccount(membership.account_id)) return failure("target_not_member");
+      if (!isActiveAccount(membership.account_id, now)) return failure("target_not_member");
       if (selectActiveMembership.get(context.id, membership.account_id)) return failure("already_in_team");
       decideMember.run({ id: membership.id, status: "active", decided_by: accountId, now });
       // 入队成功后，这个人在本场其他待处理申请与邀请自动关闭；满员时本队其余待处理项也关闭。
@@ -678,7 +680,7 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
     if (team.status === "locked") return failure("team_locked");
     const target = selectMembershipOfAccount.get(teamId, targetAccountId) as MemberRow | undefined;
     if (!target) return failure("not_found");
-    if (!isActiveAccount(targetAccountId)) return failure("target_not_member");
+    if (!isActiveAccount(targetAccountId, now)) return failure("target_not_member");
     return mutate(context.id, accountId, now, () => {
       const current = selectMembershipOfAccount.get(teamId, accountId) as MemberRow | undefined;
       setTeamLeader.run(targetAccountId, now, teamId);

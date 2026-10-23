@@ -136,7 +136,8 @@ describe('/auth/me console_link', () => {
     expect((await me('bob')).console_link).toBe(false);
     expect((await me('erin')).console_link).toBe(false);
     expect((await me('frank')).console_link).toBe(false);
-    expect((await app.inject('/auth/me')).json()).toEqual({ signed_in: false });
+    // 没登录按访客处理（#274）：仍是 200，带 level/permissions/quota，不再是裸 { signed_in: false }
+    expect((await app.inject('/auth/me')).json()).toMatchObject({ signed_in: false, level: 'level.visitor' });
   });
 
   it('stays signed in without the link when GitHub cannot be reached', async () => {
@@ -154,7 +155,8 @@ describe('/auth/me console_link', () => {
     const sid = signIn(broken.app, 'alice', 101, null, 'revoked-token');
     const response = await broken.app.inject({ url: '/auth/me', headers: { cookie: `sid=${sid}` } });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ signed_in: false, session_expired: true });
+    // 会话被结束后按访客处理（#274），不再是裸 { signed_in: false, session_expired: true }
+    expect(response.json()).toMatchObject({ signed_in: false, session_expired: true, level: 'level.visitor' });
     expect(([] as string[]).concat((response.headers['set-cookie'] as string[] | string | undefined) ?? []).some(cookie => cookie.startsWith('sid=;'))).toBe(true);
     expect(broken.app.services.auth.getSession(sid)).toBeNull();
     // 论坛同样按会话失效回答，前端据此带人去重新登录（#133）。#274 的 /api/console/me 不再现查 GitHub
@@ -182,7 +184,7 @@ describe('/auth/me console_link', () => {
     ]);
     expect(state.statusCode).toBe(401);
     expect(state.json().error).toBe('session_expired');
-    expect(me.json()).toEqual({ signed_in: false, session_expired: true });
+    expect(me.json()).toMatchObject({ signed_in: false, session_expired: true, level: 'level.visitor' });
     expect(broken.app.services.storage.db.prepare("SELECT COUNT(*) AS n FROM audit_logs WHERE action = 'auth.session_rejected'").get()).toEqual({ n: 1 });
   });
 });

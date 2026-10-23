@@ -215,11 +215,16 @@ export function createGitlabSync(db: Database.Database, deps: {
     return null;
   }
 
-  /** 建号时一次性补资料：论坛资料优先；没有论坛资料的 GitHub 账号匿名读一次 GitHub 公开资料。读不到就只用登录名，不让同步失败。头像另算（set_avatar）。 */
+  /**
+   * 建号时一次性补资料（#274 改成统一资料 account_profiles 优先）：显示名、简介有本地值就用本地的；
+   * account_profiles 没有「所在地」「网站」这两项（统一资料只有用户名、显示名、简介、头像，SPEC §3.6），
+   * 这两项、以及本地简介还没填时的兜底，都读一次 GitHub 公开资料（匿名，只在有 GitHub 身份时读）。
+   * 读不到就只用登录名，不让同步失败。头像另算（set_avatar）。
+   */
   type GithubProfile = { name?: string | null; bio?: string | null; blog?: string | null; location?: string | null };
   async function profileFor(account: DirectoryAccount) {
     let github: GithubProfile | null = null;
-    if (!account.profile && account.github) {
+    if (account.github && !account.profile?.bio) {
       try {
         const res = await fetchGithub(`https://api.github.com/user/${account.github.id}`, {
           headers: { Accept: "application/vnd.github+json", "User-Agent": "yzgc-gitlab-sync" }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -230,8 +235,8 @@ export function createGitlabSync(db: Database.Database, deps: {
     return {
       name: (account.profile?.displayName.trim() || github?.name?.trim() || account.name || account.login).slice(0, 255),
       bio: (account.profile?.bio || github?.bio || "").slice(0, 255),
-      location: (account.profile?.location || github?.location || "").slice(0, 255),
-      website_url: websiteOf(account.profile?.website || github?.blog || ""),
+      location: (github?.location || "").slice(0, 255),
+      website_url: websiteOf(github?.blog || ""),
     };
   }
 

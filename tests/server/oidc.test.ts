@@ -2,7 +2,18 @@ import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { OIDC_PROTOCOL_LIMIT } from '../../app/server/src/routes/oidc/index';
-import { signIn, testApp } from './helpers';
+import { signIn as rawSignIn, testApp } from './helpers';
+
+/**
+ * 对外授权只发给成员（lib/account-directory.ts 的 oidcAccount()，#274 按 level.member 判定，不再是
+ * 「登录了就算」）：这个文件测的是 OIDC 协议本身，不是成员资格判定，所以登录顺手设成成员，和 #262 之前
+ * 「GitHub 组织成员」同义；要测「不是成员」在这之后自己再调一次 setSiteRole('none')。
+ */
+function signIn(app: FastifyInstance, login: string, githubId: number, avatarUrl: string | null = null): string {
+  const sid = rawSignIn(app, login, githubId, avatarUrl);
+  app.services.identity.setSiteRole({ accountId: app.services.identity.accountForGithub(githubId)!, role: 'member', actor: 'system' });
+  return sid;
+}
 
 /**
  * 对外授权（#270，ADR-0005 决策 3、8）：GitLab 这样不同源的应用用极客班账号登录。用 app.inject 走完整的授权码 + PKCE 往返，

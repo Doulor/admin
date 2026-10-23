@@ -78,25 +78,20 @@ const stubProvider = (async (url: string, options: { method?: string; headers?: 
   return { statusCode: 200, body: { json: async () => url.includes('/access_token') ? { access_token: 'test-provider-token' } : { id: 7, login: 'test-github-user', avatar_url: '' } } };
 }) as unknown as ServiceOverrides['httpRequest'];
 beforeEach(() => { providerCalls.length = 0; });
-/** 登录时查的是「当前用户自己在组织里的成员状态」；state 为 null 表示 404（不是成员） */
-const membershipStub = (state: 'active' | 'pending' | null, seen: string[] = []) => (() => ({
-  request: async (route: string, params: { org?: string }) => {
-    seen.push(`${route} ${params.org}`);
-    if (state === null) throw Object.assign(new Error('Not Found'), { status: 404 });
-    return { data: { state, role: 'member' } };
-  },
-})) as unknown as ServiceOverrides['octokitFactory'];
-async function startSignIn(app: Awaited<ReturnType<typeof setup>>['app'], returnTo?: string) {
-  const start = await app.inject(returnTo ? `/auth/github?return_to=${encodeURIComponent(returnTo)}` : '/auth/github');
+async function startSignIn(app: Awaited<ReturnType<typeof setup>>['app'], returnTo?: string, invite?: string) {
+  const query = new URLSearchParams();
+  if (returnTo) query.set('return_to', returnTo);
+  if (invite) query.set('invite', invite);
+  const start = await app.inject(query.size ? `/auth/github?${query}` : '/auth/github');
   const state = new URL(String(start.headers.location)).searchParams.get('state');
   return { state, cookie: String(start.headers['set-cookie']).split(';')[0] };
 }
 const setCookies = (response: { headers: Record<string, unknown> }) => ([] as string[]).concat((response.headers['set-cookie'] as string[] | string | undefined) ?? []);
 
-it('completes the real core callback with a stub provider and issues only sid', async () => {
+it('completes the real core callback with a stub provider and issues only sid, never touching the GitHub org API (#274)', async () => {
   const httpRequest = stubProvider;
-  const seen: string[] = [];
-  const { app } = await setup({ httpRequest, octokitFactory: membershipStub('active', seen) }); const start = await app.inject('/auth/github');
+  // octokitFactory 不传：默认 deny（helpers.ts），真的调了组织成员接口这个用例就会报错——证明登录事务不再碰它。
+  const { app } = await setup({ httpRequest }); const start = await app.inject('/auth/github');
   const authorize = new URL(String(start.headers.location));
   // OAuth 回调固定在环境唯一的 origin 下：GitHub OAuth App 登记的就是这一条。
   expect(authorize.searchParams.get('redirect_uri')).toBe('https://example.test/auth/callback');
@@ -108,33 +103,27 @@ it('completes the real core callback with a stub provider and issues only sid', 
   const cookies = ([] as string[]).concat(response.headers['set-cookie'] || []);
   expect(cookies.some(c => c.startsWith('sid='))).toBe(true);
   expect(cookies.some(c => c.startsWith('forum_sid='))).toBe(false);
-  // 成员身份按 CONSOLE_ORG 查，而且查的是用户自己（/user/memberships），不是按用户名去查别人
-  expect(seen).toEqual(['GET /user/memberships/orgs/{org} Yangtze-University-Geek-Class']);
 });
-it('returns a member to the page that started the sign-in', async () => {
-  const { app } = await setup({ httpRequest: stubProvider, octokitFactory: membershipStub('active') });
+it('returns a signed-in user to the page that started the sign-in, without revoking the grant (#274)', async () => {
+  const { app } = await setup({ httpRequest: stubProvider });
   const { state, cookie } = await startSignIn(app, 'https://example.test/forum/t/12?page=2');
   const response = await app.inject({ url: `/auth/callback?code=ok&state=${state}`, headers: { cookie } });
   expect(response.statusCode).toBe(302);
   expect(response.headers.location).toBe('https://example.test/forum/t/12?page=2');
   expect(setCookies(response).some(c => c.startsWith('sid='))).toBe(true);
-  // 成员的授权不撤销
+  // 登录成功的授权不撤销
   expect(providerCalls.some(call => call.url.includes('/grant'))).toBe(false);
 });
-it.each([
-  ['not a member of the organization', null, 'not_member'],
-  ['invited but has not accepted yet', 'pending', 'invite_pending'],
-] as const)('refuses to sign in a GitHub user who is %s and says why on the unified sign-in page (#262)', async (_case, membership, outcome) => {
-  const { app } = await setup({ httpRequest: stubProvider, octokitFactory: membershipStub(membership) });
-  const { state, cookie } = await startSignIn(app, 'https://example.test/forum/');
+it('refuses to sign in a brand-new GitHub user who gave an invalid invite code, and revokes the grant (#274，SPEC §3.2)', async () => {
+  const { app } = await setup({ httpRequest: stubProvider });
+  const { state, cookie } = await startSignIn(app, 'https://example.test/forum/', 'bad-invite');
   const response = await app.inject({ url: `/auth/callback?code=ok&state=${state}`, headers: { cookie } });
   expect(response.statusCode).toBe(302);
-  expect(response.headers.location).toBe(`https://example.test/signin?signin=${outcome}&return_to=%2Fforum%2F`);
+  expect(response.headers.location).toBe('https://example.test/signin?signin=invite_invalid&return_to=%2Fforum%2F');
   expect(setCookies(response).some(c => c.startsWith('sid='))).toBe(false);
+  // 邀请码无效直接拒绝：不建号、不悄悄降级成注册用户
+  expect(app.services.storage.db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 0 });
   expect(app.services.storage.db.prepare('SELECT COUNT(*) AS n FROM sessions').get()).toEqual({ n: 0 });
-  const denied = app.services.storage.db.prepare("SELECT actor, details FROM audit_logs WHERE action = 'auth.signin_denied'").get() as { actor: string; details: string };
-  expect(denied.actor).toBe('test-github-user');
-  expect(JSON.parse(denied.details)).toEqual({ org: 'Yangtze-University-Geek-Class', reason: membership ?? 'not_member', provider: 'github' });
   // 被拒的人在 GitHub 上的授权被撤掉：用应用自己的 client_id:client_secret，撤的是这次换到的 token 所属的 grant
   const revoke = providerCalls.find(call => call.url.includes('/grant'));
   expect(revoke).toMatchObject({ method: 'DELETE', url: 'https://api.github.com/applications/test-client/grant' });
@@ -146,10 +135,10 @@ it('still sends a refused user back with the reason when revoking the grant fail
     if (url.includes('/grant')) throw Object.assign(new Error('connect timeout'), { code: 'UND_ERR_CONNECT_TIMEOUT', method: options.method });
     return { statusCode: 200, body: { json: async () => url.includes('/access_token') ? { access_token: 'test-provider-token' } : { id: 7, login: 'test-github-user', avatar_url: '' } } };
   }) as unknown as ServiceOverrides['httpRequest'];
-  const { app } = await setup({ httpRequest: revokeFails, octokitFactory: membershipStub(null) });
-  const { state, cookie } = await startSignIn(app, 'https://example.test/forum/');
+  const { app } = await setup({ httpRequest: revokeFails });
+  const { state, cookie } = await startSignIn(app, 'https://example.test/forum/', 'bad-invite');
   const response = await app.inject({ url: `/auth/callback?code=ok&state=${state}`, headers: { cookie } });
-  expect(response.headers.location).toBe('https://example.test/signin?signin=not_member&return_to=%2Fforum%2F');
+  expect(response.headers.location).toBe('https://example.test/signin?signin=invite_invalid&return_to=%2Fforum%2F');
   expect(setCookies(response).some(c => c.startsWith('sid='))).toBe(false);
 });
 it('gives every GitHub API call a timeout, because Octokit ignores request.timeout', async () => {
@@ -169,15 +158,6 @@ it('goes back to the original page instead of a JSON error when GitHub cannot be
   const { state, cookie } = await startSignIn(app, 'https://example.test/forum/');
   const response = await app.inject({ url: `/auth/callback?code=ok&state=${state}`, headers: { cookie } });
   expect(response.statusCode).toBe(302);
-  expect(response.headers.location).toBe('https://example.test/signin?signin=failed&return_to=%2Fforum%2F');
-  expect(setCookies(response).some(c => c.startsWith('sid='))).toBe(false);
-});
-it('does not treat a failed membership lookup as "not a member"', async () => {
-  const forbidden = (() => ({ request: async () => { throw Object.assign(new Error('OAuth App access restricted'), { status: 403 }); } })) as unknown as ServiceOverrides['octokitFactory'];
-  const { app } = await setup({ httpRequest: stubProvider, octokitFactory: forbidden });
-  const { state, cookie } = await startSignIn(app, 'https://example.test/forum/');
-  const response = await app.inject({ url: `/auth/callback?code=ok&state=${state}`, headers: { cookie } });
-  // 403 不能当成「不是成员」：成员也会被组织的 OAuth App 限制挡住，这时只能说登录没完成
   expect(response.headers.location).toBe('https://example.test/signin?signin=failed&return_to=%2Fforum%2F');
   expect(setCookies(response).some(c => c.startsWith('sid='))).toBe(false);
 });

@@ -143,6 +143,18 @@ function groupInfoMap(db: Database.Database, ids: string[]): Map<string, GroupIn
   return map;
 }
 
+/**
+ * 没有账号的真访客（没登录，CONTRACT-274 §1）：按 `level.visitor` 组自己的条目求值，不走继承——
+ * 它是最底层的组，没有父组，也没有 perm_members 行（访客不是「成员」，没有账号可以挂在组上）。
+ */
+export function visitorEntries(db: Database.Database, now: number): ResolvedEntry[] {
+  const rows = db.prepare(
+    "SELECT * FROM perm_entries WHERE subject_type = 'group' AND subject_id = 'level.visitor' AND (expires_at IS NULL OR expires_at > ?)",
+  ).all(now) as EntryRow[];
+  const group = groupInfoMap(db, ["level.visitor"]).get("level.visitor") ?? null;
+  return rows.map(row => ({ ...parseEntryRow(row), group, via: ["level.visitor"] }));
+}
+
 /** 账号自己 + 所在组（递归继承）的全部未过期条目，按 SPEC §3.5 第 1 条收集。 */
 export function entriesForAccount(db: Database.Database, accountId: string, now: number): ResolvedEntry[] {
   const own = (db.prepare(
@@ -239,21 +251,56 @@ export type EffectivePermissions = {
   meta: Record<string, string>;
 };
 
+export type AccountDepartmentView = { id: string; name: string; tone: string | null } | null;
+export type AccountTitleView = { id: string; name: string; department_id: string | null };
+/** `/auth/me`、`/api/console/me` 用的账号身份摘要（CONTRACT-274 §1）。 */
+export type AccountGroupsView = { level: string; level_name: string; department: AccountDepartmentView; titles: AccountTitleView[] };
+
+/** 没登录时的身份摘要：固定是「访客」，没有部门和称号。 */
+const VISITOR_GROUPS: AccountGroupsView = { level: "level.visitor", level_name: "访客", department: null, titles: [] };
+
+/**
+ * 这个账号直接所在的 level / department / title 组（CONTRACT-274 §1「身份」）：只看直接成员资格，不展开继承——
+ * 继承只影响权限判定（explain/evaluate），给本人看的身份要的是「实际在哪几个组」，不是「因此拿到了哪些权限」。
+ * `accountId` 为 null 时是没登录的访客，直接回「访客」，不查表。查不到 level 组（数据不一致，正常情况下
+ * `syncPermissionLevel` 保证每个账号都在恰好一个 level 组里）时按「注册用户」兜底，不让 `/auth/me` 崩掉。
+ */
+export function accountGroupsView(db: Database.Database, accountId: string | null, now: number): AccountGroupsView {
+  if (accountId === null) return VISITOR_GROUPS;
+  const rows = db.prepare(`SELECT g.id, g.kind, g.name, g.department_id AS department_id, g.tone
+    FROM perm_members m JOIN perm_groups g ON g.id = m.group_id
+    WHERE m.account_id = ? AND (m.expires_at IS NULL OR m.expires_at > ?)`).all(accountId, now) as
+    { id: string; kind: string; name: string; department_id: string | null; tone: string | null }[];
+  const levelRow = rows.find(row => row.kind === "level");
+  const deptRow = rows.find(row => row.kind === "department");
+  const titles = rows.filter(row => row.kind === "title").map(row => ({ id: row.id, name: row.name, department_id: row.department_id }));
+  return {
+    level: levelRow?.id ?? "level.registered",
+    level_name: levelRow?.name ?? "注册用户",
+    department: deptRow ? { id: deptRow.id, name: deptRow.name, tone: deptRow.tone } : null,
+    titles,
+  };
+}
+
 export type PermissionEngine = ReturnType<typeof createPermissionEngine>;
 
 /**
  * DB 支撑的求值引擎，带 (account_id, revision) 进程内缓存。`clock` 可注入，测试用。
  * 写操作（新增/删除组、成员、条目）一律要在写完之后调用 `bump()`，否则缓存不会失效。
  */
+const VISITOR_CACHE_KEY = "\x00visitor";
+
 export function createPermissionEngine(db: Database.Database, clock: () => number = Date.now) {
   const cache = new Map<string, { revision: number; entries: ResolvedEntry[] }>();
 
-  function entriesFor(accountId: string): ResolvedEntry[] {
+  /** `accountId` 为 null 时是没登录的访客（CONTRACT-274 §1），按 `level.visitor` 组自己的条目求值。 */
+  function entriesFor(accountId: string | null): ResolvedEntry[] {
     const revision = getPermRevision(db);
-    const hit = cache.get(accountId);
+    const key = accountId ?? VISITOR_CACHE_KEY;
+    const hit = cache.get(key);
     if (hit && hit.revision === revision) return hit.entries;
-    const entries = entriesForAccount(db, accountId, clock());
-    cache.set(accountId, { revision, entries });
+    const entries = accountId === null ? visitorEntries(db, clock()) : entriesForAccount(db, accountId, clock());
+    cache.set(key, { revision, entries });
     return entries;
   }
 
@@ -267,11 +314,11 @@ export function createPermissionEngine(db: Database.Database, clock: () => numbe
     return revision;
   }
 
-  function check(accountId: string, node: string, scope: Scope = {}): boolean {
+  function check(accountId: string | null, node: string, scope: Scope = {}): boolean {
     return evaluate(entriesFor(accountId), node, scope);
   }
 
-  function meta(accountId: string, node: string): string | null {
+  function meta(accountId: string | null, node: string): string | null {
     return metaValueFromEntries(entriesFor(accountId), node);
   }
 
@@ -316,5 +363,9 @@ export function createPermissionEngine(db: Database.Database, clock: () => numbe
     };
   }
 
-  return { entriesFor, check, meta, explainFor, effective, invalidate, bump, revision: () => getPermRevision(db) };
+  function groupsOf(accountId: string | null): AccountGroupsView {
+    return accountGroupsView(db, accountId, clock());
+  }
+
+  return { entriesFor, check, meta, explainFor, effective, groupsOf, invalidate, bump, revision: () => getPermRevision(db) };
 }

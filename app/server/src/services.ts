@@ -14,6 +14,7 @@ import { createGithubConnection } from "./lib/github-connection.js";
 import { createCache } from "./lib/cache.js";
 import { createRoleStore } from "./lib/role-store.js";
 import { createPermissionEngine } from "./lib/permissions.js";
+import { createLimits } from "./lib/limits.js";
 import { createAccountProfiles } from "./lib/account-profiles.js";
 import { createActivityRecorder } from "./lib/activity.js";
 import { createAccess } from "./lib/access.js";
@@ -99,14 +100,16 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
       throw error;
     }
   })();
-  // 对外授权与 GitLab 同步（#270）：账号目录把账号和论坛资料拼起来；OIDC_JWKS 没设时不开 /oidc（oidc 为 null）
+  const profiles = createAccountProfiles(storage.db, { clock: overrides.clock });
+  // 对外授权与 GitLab 同步（#270，#274 改成读统一资料 account_profiles）：账号目录把账号和统一资料拼起来；
+  // OIDC_JWKS 没设时不开 /oidc（oidc 为 null）。
   const oidcStore = createOidcStore(storage.db, crypto, overrides.clock);
-  const directory = createAccountDirectory({ identity, forum, publicOrigin: config.publicOrigin });
+  const directory = createAccountDirectory({ identity, profiles, publicOrigin: config.publicOrigin });
   const oidc = config.oidc
     ? { issuer: config.oidc.issuer, provider: createOidcProvider({ issuer: config.oidc.issuer, jwks: config.oidc.jwks, sessionSecret: config.sessionSecret, store: oidcStore, accounts: directory }) }
     : null;
   const gitlab = createGitlabSync(storage.db, {
-    config: config.gitlab, directory, subjects: oidcStore, clients: oidcStore, avatars: forum, audit: storage.audit,
+    config: config.gitlab, directory, subjects: oidcStore, clients: oidcStore, avatars: profiles, audit: storage.audit,
     fetch: overrides.gitlabFetch, githubFetch: overrides.githubProfileFetch, clock: overrides.clock,
   });
   return {
@@ -128,9 +131,11 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     // 和别的服务用同一个可注入时钟：require-step-up.ts 判定「刚登录过」要用它比对 session.created_at
     // （由 auth.ts 的 createSession 用这同一个 clock 盖的时间戳），不能各用各的，测试拨慢/拨快时钟时才站得住。
     clock: overrides.clock ?? Date.now,
-    profiles: createAccountProfiles(storage.db, { clock: overrides.clock }),
+    profiles,
     // 操作记录唯一写入口（#274 SPEC §3.7）：lib/activity.ts 的 recordActivity，路由自己调用；清理定时器由 buildApp 的 activityCleanup 决定开不开。
     activity: createActivityRecorder(storage.db, overrides.clock),
+    // #274 SPEC §3.8：防盗刷计数唯一入口，见 lib/limits.ts。
+    limits: createLimits(storage.db, { clock: overrides.clock }),
     feedback,
     forum,
     mail,

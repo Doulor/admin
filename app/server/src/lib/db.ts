@@ -214,7 +214,8 @@ CREATE INDEX IF NOT EXISTS idx_competitions_offline_start ON competitions(offlin
 // 新编号从 forum_counters 取，不用时间或随机数。
 db.exec(`
 CREATE TABLE IF NOT EXISTS forum_counters (
-  name TEXT PRIMARY KEY CHECK (name IN ('topic','post','notification','tag','guest')),
+  -- member：没有 GitHub id 的成员论坛用户 id（a<n>，#274 SPEC §3.6）。
+  name TEXT PRIMARY KEY CHECK (name IN ('topic','post','notification','tag','guest','member')),
   value INTEGER NOT NULL
 );
 
@@ -332,6 +333,26 @@ CREATE TABLE IF NOT EXISTS forum_rate_events (
 CREATE INDEX IF NOT EXISTS idx_forum_rate_events_subject ON forum_rate_events(bucket, subject, created_at);
 CREATE INDEX IF NOT EXISTS idx_forum_rate_events_at ON forum_rate_events(created_at);
 `);
+
+// forum_counters.name 的 CHECK 原来不认 'member'（#274 SPEC §3.6 新增，没有 GitHub id 的成员论坛用户编号）：
+// 已经建过表的库（CREATE TABLE IF NOT EXISTS 不会补）要重建表才能放开；SQLite 不能直接改 CHECK。
+// 新库的 CREATE TABLE 已经带 'member'，这里按 sqlite_master 的建表语句判断，不用重建时原样跳过。
+(() => {
+  const existing = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'forum_counters'").get() as { sql: string } | undefined;
+  if (existing && !existing.sql.includes("'member'")) {
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE forum_counters_new (
+          name TEXT PRIMARY KEY CHECK (name IN ('topic','post','notification','tag','guest','member')),
+          value INTEGER NOT NULL
+        );
+        INSERT INTO forum_counters_new SELECT * FROM forum_counters;
+        DROP TABLE forum_counters;
+        ALTER TABLE forum_counters_new RENAME TO forum_counters;
+      `);
+    })();
+  }
+})();
 
 // 发信队列（#148，lib/mail/outbox.ts）：一个事件一行（event_key 唯一），发出、放弃或跳过之后清掉收件地址和正文，只留哈希和主题。
 db.exec(`

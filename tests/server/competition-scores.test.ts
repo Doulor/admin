@@ -1,12 +1,12 @@
 // 比赛积分账本与天梯（#239 第二部分）：分值边界、重复与撤销、审计，以及天梯的排序与并列名次。
+// 认人是会话里的极客班账号（#262）；#274 SPEC §3.2 去掉 GitHub 组织那道门之后，成员资格按权限节点
+// competition.signup/competition.team/competitions.manage 判定，不再查 GitHub 组织成员资格。
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { ServiceOverrides } from '../../app/server/src/services';
 import { grantPermGroup, signIn, testApp } from './helpers';
 
-const CONSOLE_ORG = 'Yangtze-University-Geek-Class';
 const SEED_ID = 'oss-challenge-2026-1';
 const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
 const dirs: string[] = [];
@@ -19,24 +19,26 @@ const USERS: Record<string, number> = { alice: 101, bob: 102, carol: 103, dave: 
 const HOUR = 3600_000;
 const DAY = 24 * HOUR;
 
-function github() {
-  return (() => ({
-    request: async (route: string, params: Record<string, string>) => {
-      if (route !== 'GET /orgs/{org}/memberships/{username}' || params.org !== CONSOLE_ORG) {
-        throw new Error(`Unexpected GitHub call ${route}`);
-      }
-      return { data: { state: 'active', role: params.username === 'alice' ? 'admin' : 'member' } };
-    },
-  })) as unknown as ServiceOverrides['octokitFactory'];
-}
-
 async function setup() {
-  const context = await testApp({ octokitFactory: github() });
+  // 不传 octokitFactory：默认拒绝（helpers.ts），这组接口真的调了 GitHub 这个用例就会报错——
+  // 证明新的权限节点守卫不依赖 GitHub 组织资格。
+  const context = await testApp();
   contexts.push(context);
   const { app } = context;
   const sessions = new Map<string, string>();
+  const granted = new Set<string>();
   const as = (login: string) => {
-    if (!sessions.has(login)) sessions.set(login, signIn(app, login, USERS[login], null));
+    if (!sessions.has(login)) {
+      const sid = signIn(app, login, USERS[login], null);
+      sessions.set(login, sid);
+      // alice 是提督（控制台建比赛、登记积分要 competitions.manage，旧能力系统）；bob/carol/dave 是普通成员；
+      // 两者都会被 syncPermissionLevel 同步进新权限引擎的 level.member 组（报名、组队都要它）。
+      if (!granted.has(login)) {
+        granted.add(login);
+        const accountId = app.services.auth.getSession(sid)!.account_id;
+        app.services.identity.setSiteRole({ accountId, role: login === 'alice' ? 'admin' : 'member', actor: 'system' });
+      }
+    }
     return { cookie: `sid=${sessions.get(login)!}` };
   };
   const accountId = (login: string) => {
@@ -95,7 +97,7 @@ describe('seeded competition', () => {
     dirs.push(dir);
     const dbPath = join(dir, 'data.db');
 
-    const first = await testApp({ octokitFactory: github() }, false, { DB_PATH: dbPath });
+    const first = await testApp({}, false, { DB_PATH: dbPath });
     try {
       const sid1 = signIn(first.app, 'alice', 101);
       const headers = { cookie: `sid=${sid1}` };
@@ -118,7 +120,8 @@ describe('seeded competition', () => {
       await first.close();
     }
 
-    const second = await testApp({ octokitFactory: github() }, false, { DB_PATH: dbPath });
+    // 同一份数据库文件：alice 的站内管理员角色已经落了盘，第二次打开不用再设。
+    const second = await testApp({}, false, { DB_PATH: dbPath });
     try {
       const headers = { cookie: `sid=${signIn(second.app, 'alice', 101)}` };
       const listed = (await second.app.inject({ url: '/api/console/competitions', headers })).json().competitions;

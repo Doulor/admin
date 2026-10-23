@@ -8,9 +8,10 @@ import { readOAuthState, setOAuthState } from "../../middleware/oauth-state.js";
 import { setSessionCookie } from "../../middleware/require-auth.js";
 
 /**
- * Google 登录（#262，ADR-0005「Google 登录」）：`GET /auth/google` 生成 state、nonce 与 PKCE，存进签名 cookie 后跳 Google；
- * `GET /auth/google/callback` 换 token、验 ID Token、按 Google 的 `sub` 登录。没有账号时用 `/auth/google?invite=` 带来的
- * 邀请码注册（所有者 2026-10-23）；没带邀请码回登录页 `signin=invite_required&provider=google`，填好再来一次。
+ * Google 登录（#262，ADR-0005「Google 登录」；#274 邀请码改选填，SPEC §3.2）：`GET /auth/google` 生成 state、nonce
+ * 与 PKCE，存进签名 cookie 后跳 Google；`GET /auth/google/callback` 换 token、验 ID Token、按 Google 的 `sub` 登录。
+ * 没有账号时不填 `/auth/google?invite=` 就注册成注册用户，填了且有效注册成成员，填了但无效回登录页
+ * `signin=invite_invalid&provider=google`（不建号，还能重新发起）。
  * 没配 GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET 时两个接口都回 404 provider_not_enabled，登录页也不出现 Google。
  */
 export default async function googleRoutes(app: FastifyInstance) {

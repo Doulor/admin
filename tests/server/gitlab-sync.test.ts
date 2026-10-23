@@ -2,7 +2,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createConfig } from '../../app/server/src/config';
 import { gitlabUsername } from '../../app/server/src/lib/gitlab-sync';
-import { signIn, testApp } from './helpers';
+import { signIn as rawSignIn, testApp } from './helpers';
+
+/**
+ * 这个文件里登录的每一个人都是在测「同步给成员做的事」（GitLab 账号、OIDC 身份、头像、组权限），
+ * 和 #262 之前「GitHub 组织成员」同义——#274 去掉组织那道门之后，登录不再自动是成员，这里补上
+ * setSiteRole('member')，让本文件的 signIn() 仍然按「这是个成员」的前提工作，不用改每一处调用。
+ * 要测「不是成员」「从成员变回注册用户」的用例，在这之后自己再调一次 setSiteRole('none')。
+ */
+function signIn(app: FastifyInstance, login: string, githubId: number, avatarUrl: string | null = null): string {
+  const sid = rawSignIn(app, login, githubId, avatarUrl);
+  app.services.identity.setSiteRole({ accountId: app.services.identity.accountForGithub(githubId)!, role: 'member', actor: 'system' });
+  return sid;
+}
 
 /**
  * GitLab 账号同步（#270）：每个成员在 GitLab 上有一个按 OIDC 身份认人的用户，进 geek 组；离开的封禁，回来的解封，从不删除。
@@ -340,15 +352,17 @@ describe('GitLab account sync (#270)', () => {
     expect(gitlab.members.get(42)).toBe(30);
   });
 
-  it('prefers the forum profile and its uploaded avatar over GitHub', async () => {
+  it('prefers the unified account profile and its uploaded avatar over GitHub (#274: profile source moved from forum_users to account_profiles)', async () => {
     const { app, gitlab, github, accountOf, db } = await setup();
     signIn(app, 'alice', 101, 'https://avatars.githubusercontent.com/u/101');
     const now = Date.now();
-    db.prepare('INSERT INTO forum_avatars(hash, data, created_at) VALUES(?, ?, ?)').run('a'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), now);
-    db.prepare(`INSERT INTO forum_users(id, kind, github_user_id, username, display_name, bio, location, website, avatar_color, avatar_hash, joined_at, updated_at, account_id)
-      VALUES('fu-alice', 'member', 101, 'alice', '刘爱丽', '写编译器', '武汉', 'https://alice.dev', '#336699', ?, ?, ?, ?)`).run('a'.repeat(64), now, now, accountOf(101));
+    db.prepare('INSERT INTO account_avatars(hash, data, mime, created_at) VALUES(?, ?, ?, ?)').run('a'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), 'image/webp', now);
+    db.prepare('INSERT INTO account_profiles(account_id, username, display_name, bio, avatar_hash, updated_at) VALUES(?, ?, ?, ?, ?, ?)')
+      .run(accountOf(101), 'alice', '刘爱丽', '写编译器', 'a'.repeat(64), now);
     await app.services.gitlab.reconcile();
-    expect(userNamed(gitlab, 'alice')).toMatchObject({ name: '刘爱丽', bio: '写编译器', location: '武汉', website_url: 'https://alice.dev', avatar: 'image/webp 16 avatar.webp' });
+    // account_profiles 没有「所在地」「网站」这两项（统一资料只剩用户名、显示名、简介、头像，SPEC §3.6）：本地已经有简介时
+    // 不再去读 GitHub 公开资料补这两项，所以这里是空的——这是模型简化后的真实行为，不是漏填。
+    expect(userNamed(gitlab, 'alice')).toMatchObject({ name: '刘爱丽', bio: '写编译器', location: '', website_url: '', avatar: 'image/webp 16 avatar.webp' });
     expect(github.calls).toEqual([]);
   });
 
@@ -403,16 +417,13 @@ describe('GitLab account sync (#270)', () => {
     github.avatar(() => new Response('<html></html>', { status: 200, headers: { 'content-type': 'text/html' } }));
     expect((await app.services.gitlab.reconcile()).outcomes.find(item => item.login === 'bob')!.error).toBe('github_avatar_not_image');
 
-    // 论坛头像指向的图已经不在库里
+    // 账号资料指向的头像已经不在库里（#274：头像来源换成 account_avatars，没有外键约束，不用切 foreign_keys）
     signIn(app, 'carol', 103);
     const now = Date.now();
-    app.services.storage.db.prepare(`INSERT INTO forum_users(id, kind, github_user_id, username, display_name, avatar_color, avatar_hash, joined_at, updated_at, account_id)
-      VALUES('fu-carol', 'member', 103, 'carol', 'carol', '#336699', NULL, ?, ?, ?)`).run(now, now, app.services.identity.accountForGithub(103)!);
-    app.services.storage.db.prepare('INSERT INTO forum_avatars(hash, data, created_at) VALUES(?, ?, ?)').run('c'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), now);
-    app.services.storage.db.prepare("UPDATE forum_users SET avatar_hash = ? WHERE id = 'fu-carol'").run('c'.repeat(64));
-    app.services.storage.db.pragma('foreign_keys = OFF');
-    app.services.storage.db.prepare('DELETE FROM forum_avatars WHERE hash = ?').run('c'.repeat(64));
-    app.services.storage.db.pragma('foreign_keys = ON');
+    const carolAccountId = app.services.identity.accountForGithub(103)!;
+    app.services.storage.db.prepare('INSERT INTO account_avatars(hash, data, mime, created_at) VALUES(?, ?, ?, ?)').run('c'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), 'image/webp', now);
+    app.services.storage.db.prepare('INSERT INTO account_profiles(account_id, username, display_name, avatar_hash, updated_at) VALUES(?, ?, ?, ?, ?)').run(carolAccountId, 'carol', 'carol', 'c'.repeat(64), now);
+    app.services.storage.db.prepare('DELETE FROM account_avatars WHERE hash = ?').run('c'.repeat(64));
     expect((await app.services.gitlab.reconcile()).outcomes.find(item => item.login === 'carol')!.error).toBe('forum_avatar_missing');
 
     // 头像小下来以后，下一轮传上去，错误清掉
@@ -450,7 +461,7 @@ describe('GitLab account sync (#270)', () => {
     expect(gitlab.users.filter(user => user.username === 'alice')).toHaveLength(1);
   });
 
-  it('uploads the avatar for accounts synced before avatars were tracked, and again when the forum avatar changes (#271)', async () => {
+  it('uploads the avatar for accounts synced before avatars were tracked, and again when the account avatar changes (#271, #274)', async () => {
     const { app, gitlab, accountOf, row, db } = await setup();
     signIn(app, 'alice', 101, 'https://avatars.githubusercontent.com/u/101?v=4');
     await app.services.gitlab.reconcile();
@@ -464,11 +475,11 @@ describe('GitLab account sync (#270)', () => {
     expect(gitlab.writes().slice(before)).toEqual([`PUT /users/${alice.id}`]);
     expect(alice.avatar).toBe(`image/png ${PNG.length} avatar.png`);
 
-    // 在论坛上换了头像：下一轮传论坛的
+    // 账号换了头像（#274：头像来源从 forum_users/forum_avatars 换成 account_profiles/account_avatars）：下一轮传新的
     const now = Date.now();
-    db.prepare('INSERT INTO forum_avatars(hash, data, created_at) VALUES(?, ?, ?)').run('b'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), now);
-    db.prepare(`INSERT INTO forum_users(id, kind, github_user_id, username, display_name, avatar_color, avatar_hash, joined_at, updated_at, account_id)
-      VALUES('fu-alice', 'member', 101, 'alice', 'alice', '#336699', ?, ?, ?, ?)`).run('b'.repeat(64), now, now, accountOf(101));
+    db.prepare('INSERT INTO account_avatars(hash, data, mime, created_at) VALUES(?, ?, ?, ?)').run('b'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), 'image/webp', now);
+    // 第一轮 reconcile 已经 ensure() 过这一行（account-profiles.ts 的兜底）：这里是改头像，不是建新资料
+    db.prepare('UPDATE account_profiles SET avatar_hash = ?, updated_at = ? WHERE account_id = ?').run('b'.repeat(64), now, accountOf(101));
     expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_avatar' }]);
     await app.services.gitlab.reconcile();
     expect(alice.avatar).toBe('image/webp 16 avatar.webp');

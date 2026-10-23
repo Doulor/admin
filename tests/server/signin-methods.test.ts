@@ -133,7 +133,7 @@ describe('GET /auth/providers lists what this site has enabled (#262)', () => {
 });
 
 describe('email code sign-in and invite-code registration (#262)', () => {
-  it('registers a new account only with a valid invite code and never wastes the code on a missing invite', async () => {
+  it('registers a plain registered user without an invite, never wasting the code on an invalid one (#274: invite code is optional)', async () => {
     const { app, db, mail, invite } = await setup();
     invite('yugc-test-2026');
     const user = browser(app);
@@ -144,29 +144,72 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     expect(mail.letters[0].subject).toBe('你的极客班登录验证码');
     expect(mail.letters[0].text).not.toMatch(/https?:\/\/\S*(signin|auth)/);
 
-    const missing = await user.send('POST', '/auth/email/verify', { code });
-    expect(missing.statusCode).toBe(400);
-    expect(missing.json().error).toBe('invite_required');
+    // 邀请码不对：拒绝、不建号、不白丢验证码（还能再试）
     const wrong = await user.send('POST', '/auth/email/verify', { code, invite_code: 'not-a-real-code' });
-    expect(wrong.json()).toMatchObject({ error: 'invalid_invite', attempts_left: 4 });
+    expect(wrong.json()).toMatchObject({ error: 'invite_invalid', attempts_left: 4 });
     expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 0 });
 
-    const ok = await user.send('POST', '/auth/email/verify', { code, invite_code: ' YUGC-test-2026 ' });
+    // 不填邀请码：注册成注册用户，不是错误（SPEC §3.2）
+    const ok = await user.send('POST', '/auth/email/verify', { code });
     expect(ok.statusCode).toBe(200);
     expect(ok.json()).toEqual({ return_to: 'https://example.test/forum/', registered: true });
     const me = (await user.send('GET', '/auth/me')).json();
-    expect(me).toMatchObject({ signed_in: true, provider: 'email', user_id: null, console_link: false });
+    expect(me).toMatchObject({ signed_in: true, provider: 'email', user_id: null, console_link: false, level: 'level.registered' });
     expect(me.login).toMatch(/^yz_[0-9a-hjkmnp-tv-z]{8}$/);
     const account = db.prepare('SELECT org_state, org_role, invite_code_id, canonical_email, handle FROM users').get() as Record<string, unknown>;
-    // 邀请码注册的是成员，站内角色记成 member（舰员，#262 第四期）
-    expect(account).toMatchObject({ org_state: 'active', org_role: 'member', canonical_email: 'new.member@example.test', handle: me.login });
-    expect(db.prepare('SELECT used_count FROM invite_codes').get()).toEqual({ used_count: 1 });
+    // 没填邀请码：没有站内角色、没有邀请码记录，只是普通注册用户
+    expect(account).toMatchObject({ org_state: 'active', org_role: null, invite_code_id: null, canonical_email: 'new.member@example.test', handle: me.login });
+    expect(db.prepare('SELECT used_count FROM invite_codes').get()).toEqual({ used_count: 0 });
     expect(db.prepare("SELECT action FROM audit_logs WHERE action IN ('auth.register', 'auth.signin') ORDER BY id").all()).toEqual([{ action: 'auth.register' }, { action: 'auth.signin' }]);
 
     // 同一个验证码不能再用
     const again = browser(app);
     for (const [k, v] of user.jar) if (k === 'email_challenge') again.jar.set(k, v);
     expect((await again.send('POST', '/auth/email/verify', { code })).json().error).toBe('code_expired');
+  });
+
+  it('lets a plain registered email account (no invite, no GitHub id) post in the forum as a real member, not a guest (#274 SPEC §3.6)', async () => {
+    const { app, mail } = await setup();
+    const user = browser(app);
+    await user.send('POST', '/auth/email/start', { email: 'no.invite.member@example.test' });
+    await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('no.invite.member@example.test') });
+    const me = (await user.send('GET', '/auth/me')).json();
+    expect(me).toMatchObject({ signed_in: true, provider: 'email', user_id: null, level: 'level.registered' });
+
+    // 之前的 bug：论坛只按 session.user_id（GitHub 数字 id）认人，没有它就按游客处理；
+    // 修复后按账号（account_id）认人，邮箱注册也是真实成员，不用游客昵称和 PoW。
+    const state = (await user.send('GET', '/api/forum/state')).json().state;
+    expect(state.viewer.kind).toBe('member');
+    expect(state.viewer.userId).toMatch(/^a\d+$/);
+    const forumUser = state.users.find((u: { id: string }) => u.id === state.viewer.userId);
+    expect(forumUser).toMatchObject({ username: me.login, kind: 'member' });
+
+    const posted = await user.send('POST', '/api/forum/topics', { title: '邮箱注册也能发帖', categoryId: 'c-ai', content: '不用游客昵称和验证码' });
+    expect(posted.statusCode).toBe(201);
+    expect(posted.json().changes.topics[0].authorId).toBe(state.viewer.userId);
+
+    // 论坛用户行落了账号、没有 GitHub id；同一账号再来续用同一行，不会另建一个空号。
+    const row = app.services.storage.db.prepare('SELECT account_id, github_user_id FROM forum_users WHERE id = ?').get(state.viewer.userId);
+    expect(row).toEqual({ account_id: me.account_id, github_user_id: null });
+    const again = (await user.send('GET', '/api/forum/state')).json().state;
+    expect(again.viewer.userId).toBe(state.viewer.userId);
+  });
+
+  it('registers a member with a valid invite code, consuming it exactly once', async () => {
+    const { app, db, mail, invite } = await setup();
+    invite('yugc-test-2026');
+    const user = browser(app);
+    await user.send('POST', '/auth/email/start', { email: 'future.member@example.test', return_to: '/forum/' });
+    const code = await mail.codeFor('future.member@example.test');
+    const ok = await user.send('POST', '/auth/email/verify', { code, invite_code: ' YUGC-test-2026 ' });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json()).toEqual({ return_to: 'https://example.test/forum/', registered: true });
+    const me = (await user.send('GET', '/auth/me')).json();
+    expect(me).toMatchObject({ signed_in: true, provider: 'email', level: 'level.member' });
+    const account = db.prepare('SELECT org_state, org_role, canonical_email FROM users').get() as Record<string, unknown>;
+    // 邀请码注册的是成员，站内角色记成 member（舰员，#262 第四期）
+    expect(account).toMatchObject({ org_state: 'active', org_role: 'member', canonical_email: 'future.member@example.test' });
+    expect(db.prepare('SELECT used_count FROM invite_codes').get()).toEqual({ used_count: 1 });
   });
 
   it('signs an existing account in without an invite and answers start the same for unknown addresses', async () => {
@@ -211,11 +254,11 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     const a = browser(app);
     await a.send('POST', '/auth/email/start', { email: 'a@example.test' });
     const codeA = await mail.codeFor('a@example.test');
-    expect((await a.send('POST', '/auth/email/verify', { code: codeA, invite_code: 'closed-code' })).json().error).toBe('invalid_invite');
+    expect((await a.send('POST', '/auth/email/verify', { code: codeA, invite_code: 'closed-code' })).json().error).toBe('invite_invalid');
     expect((await a.send('POST', '/auth/email/verify', { code: codeA, invite_code: 'one-shot' })).statusCode).toBe(200);
     const b = browser(app);
     await b.send('POST', '/auth/email/start', { email: 'b@example.test' });
-    expect((await b.send('POST', '/auth/email/verify', { code: await mail.codeFor('b@example.test'), invite_code: 'one-shot' })).json().error).toBe('invalid_invite');
+    expect((await b.send('POST', '/auth/email/verify', { code: await mail.codeFor('b@example.test'), invite_code: 'one-shot' })).json().error).toBe('invite_invalid');
   });
 });
 
@@ -315,8 +358,10 @@ describe('console permissions come only from the site account; GitHub is a conne
     // 普通成员没有 console.access，进不了控制台
     expect(me.permissions).not.toContain('console.access');
     expect((await user.send('GET', '/api/console/users')).statusCode).toBe(403);
-    // 论坛用户按 GitHub id 建：没有绑定 GitHub 的账号在论坛里是游客
-    expect((await user.send('GET', '/api/forum/state')).json().state.viewer.kind).toBe('guest');
+    // 没有绑定 GitHub 不是游客：论坛按账号认人（#274 SPEC §3.6），邀请码兑换的成员照常是成员。
+    const crewState = (await user.send('GET', '/api/forum/state')).json().state;
+    expect(crewState.viewer.kind).toBe('member');
+    expect(crewState.viewer.userId).toMatch(/^a\d+$/);
 
     // 提督按账号给他部门部长称号，不用 GitHub 用户名（#274 的用户/权限组接口都按 account_id）
     const admiral = browser(app);
@@ -399,6 +444,10 @@ describe('site ownership in 成员与权限 (#274：按权限节点判定，取�
     expect(removedMe.permissions).not.toContain('console.access');
     // 账号本身没有被停用，论坛照常是成员（只是不再是站长）
     expect((await admiral.send('GET', '/api/forum/state')).json().state.viewer.kind).toBe('member');
+    tick(61_000);
+    // #274：org_state 不再参与登录判断，不是站长了也能照常登录，只是没有站长权限
+    const { verified: signedBackIn } = await signInByEmail('owner@example.test', undefined, 2);
+    expect(signedBackIn.statusCode).toBe(200);
 
     // 至少留一位站长：原提督已经没有 users.manage 了，只有新站长自己能试——摘自己的站长称号也会被拒绝
     const last = await patch(crew, crewId, { titles: [] });
@@ -411,92 +460,88 @@ describe('site ownership in 成员与权限 (#274：按权限节点判定，取�
   });
 });
 
-describe('GitHub sign-in: the site decides once an account is recorded (#262 第四期)', () => {
+describe('GitHub sign-in: invite optional, no organization check (#274 rewrite of #262 第四期)', () => {
   const user = { id: 42, login: 'octocat' };
   const httpRequest = (async (url: string) => ({
     statusCode: 200,
     body: { json: async () => url.includes('/access_token') ? { access_token: 'test-provider-token' } : { id: user.id, login: user.login, avatar_url: '' }, dump: async () => undefined },
   })) as unknown as ServiceOverrides['httpRequest'];
-  function orgGate(roles: Record<string, 'admin' | 'member' | undefined>, calls: string[]) {
-    return (() => ({
-      request: async (route: string) => {
-        calls.push(route);
-        if (route !== 'GET /user/memberships/orgs/{org}') throw new Error(`Unexpected GitHub call ${route}`);
-        const role = roles[user.login];
-        if (!role) throw Object.assign(new Error('Not Found'), { status: 404 });
-        return { data: { state: 'active', role } };
-      },
-    })) as unknown as ServiceOverrides['octokitFactory'];
+  /** 只用来证明「从没被调用过」：GitHub 组织那道门已经去掉（SPEC §3.2），任何调用都是意外。 */
+  function noGithubCalls(calls: string[]) {
+    return (() => ({ request: async (route: string) => { calls.push(route); throw new Error(`unexpected GitHub call ${route}`); } })) as unknown as ServiceOverrides['octokitFactory'];
   }
-  async function callback(app: FastifyInstance) {
-    const start = await app.inject('/auth/github?return_to=https%3A%2F%2Fexample.test%2Fforum%2F');
+  async function callback(app: FastifyInstance, invite?: string) {
+    const start = await app.inject(`/auth/github?return_to=https%3A%2F%2Fexample.test%2Fforum%2F${invite ? `&invite=${invite}` : ''}`);
     const state = new URL(String(start.headers.location)).searchParams.get('state');
     const response = await app.inject({ url: `/auth/callback?code=ok&state=${state}`, headers: { cookie: String(start.headers['set-cookie']).split(';')[0] } });
     return String(response.headers.location);
   }
 
-  it('asks GitHub only for new users, then signs a recorded member in after they leave the org, and refuses once the site removes them', async () => {
-    const roles: Record<string, 'admin' | 'member' | undefined> = { octocat: 'admin' };
+  it('registers a new GitHub user as a plain registered user without an invite, never calling the GitHub org API', async () => {
     const calls: string[] = [];
-    const context = await testApp({ httpRequest, octokitFactory: orgGate(roles, calls) }); contexts.push(context);
+    const context = await testApp({ httpRequest, octokitFactory: noGithubCalls(calls) }); contexts.push(context);
     const { app } = context;
     const db = app.services.storage.db;
     Object.assign(user, { id: 42, login: 'octocat' });
-
-    // 新 GitHub 用户：看组织资格；站内还没有管理员，组织 owner 注册成站内管理员（空库起步）
     expect(await callback(app)).toBe('https://example.test/forum/');
-    expect(calls).toEqual(['GET /user/memberships/orgs/{org}']);
-    expect(db.prepare('SELECT org_role, org_state FROM users').get()).toEqual({ org_role: 'admin', org_state: 'active' });
+    expect(calls).toEqual([]);
+    expect(db.prepare('SELECT org_role, org_state FROM users').get()).toEqual({ org_role: null, org_state: 'active' });
 
-    // 退出 GitHub 组织：站内记着的账号不再看 GitHub，照常登录、照常是管理员
-    roles.octocat = undefined;
+    // 再登录一次：同一个账号，不重新注册
     expect(await callback(app)).toBe('https://example.test/forum/');
-    expect(calls).toHaveLength(1);
-    expect(db.prepare('SELECT org_role, org_state FROM users').get()).toEqual({ org_role: 'admin', org_state: 'active' });
-
-    // 站内移出之后再用 GitHub 登录：拒绝，不建会话
-    const accountId = (db.prepare('SELECT id FROM users').get() as { id: string }).id;
-    db.prepare("UPDATE users SET org_role = NULL, org_state = 'not_member' WHERE id = ?").run(accountId);
-    const sessions = (db.prepare('SELECT COUNT(*) AS n FROM sessions').get() as { n: number }).n;
-    expect(await callback(app)).toContain('signin=not_member');
-    expect(db.prepare('SELECT COUNT(*) AS n FROM sessions').get()).toEqual({ n: sessions });
-    expect(calls).toHaveLength(1);
-    expect(db.prepare("SELECT action, reason FROM identity_audit WHERE user_id = ? ORDER BY id DESC LIMIT 1").get(accountId)).toEqual({ action: 'login_denied', reason: 'not_member' });
-
-    // 不在组织里的新 GitHub 用户：照旧拒绝，不建号
-    Object.assign(user, { id: 43, login: 'stranger' });
-    expect(await callback(app)).toContain('signin=not_member');
     expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 1 });
-    Object.assign(user, { id: 42, login: 'octocat' });
   });
 
-  it('registers a later GitHub org owner as a member: once the site has an admin, GitHub ownership does not make site admins', async () => {
-    const roles: Record<string, 'admin' | 'member' | undefined> = { octocat: 'admin', newowner: 'admin' };
+  it('registers a new GitHub user as a member with a valid invite, and refuses an invalid one without creating an account', async () => {
     const calls: string[] = [];
-    const context = await testApp({ httpRequest, octokitFactory: orgGate(roles, calls) }); contexts.push(context);
+    const context = await testApp({ httpRequest, octokitFactory: noGithubCalls(calls) }); contexts.push(context);
     const { app } = context;
     const db = app.services.storage.db;
-    const roleOf = (githubId: number) => db.prepare(`SELECT u.org_role, u.org_state FROM users u JOIN identities i ON i.user_id = u.id
-      WHERE i.provider = 'github' AND i.provider_uid = ?`).get(String(githubId));
-    Object.assign(user, { id: 42, login: 'octocat' });
-    expect(await callback(app)).toBe('https://example.test/forum/');
-    expect(roleOf(42)).toEqual({ org_role: 'admin', org_state: 'active' });
+    app.services.invites.create({ code: 'yugc-test-2026', max_uses: null }, 'test');
+    Object.assign(user, { id: 43, login: 'newmember' });
+    expect(await callback(app, 'not-a-real-code')).toContain('signin=invite_invalid');
+    expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 0 });
+    expect(await callback(app, 'yugc-test-2026')).toBe('https://example.test/forum/');
+    expect(db.prepare('SELECT org_role, org_state FROM users').get()).toEqual({ org_role: 'member', org_state: 'active' });
+    expect(calls).toEqual([]);
+  });
 
-    // 能改 GitHub 组织角色的人（例如经 GitHub App 有 github.members.manage 的舰长）把别人设成 owner，也造不出站内管理员
-    Object.assign(user, { id: 44, login: 'newowner' });
+  it('never makes a GitHub sign-in a site admin automatically; only the console or CLI provisioning can', async () => {
+    const calls: string[] = [];
+    const context = await testApp({ httpRequest, octokitFactory: noGithubCalls(calls) }); contexts.push(context);
+    const { app } = context;
+    const db = app.services.storage.db;
+    Object.assign(user, { id: 44, login: 'firstuser' });
     expect(await callback(app)).toBe('https://example.test/forum/');
-    expect(roleOf(44)).toEqual({ org_role: 'member', org_state: 'active' });
+    // #262 时代「空库第一个 GitHub 组织 owner 自动变站内管理员」已经去掉（SPEC §3.2）：第一个 GitHub 用户也只是注册用户
+    expect(db.prepare('SELECT org_role FROM users').get()).toEqual({ org_role: null });
+  });
+
+  it('refuses a disabled account and keeps a recorded site role untouched on repeat sign-in; the organization gate cannot take access away anymore', async () => {
+    const calls: string[] = [];
+    const context = await testApp({ httpRequest, octokitFactory: noGithubCalls(calls) }); contexts.push(context);
+    const { app } = context;
+    const db = app.services.storage.db;
+    const owner = app.services.identity.provisionAccount({ githubId: 42, githubLogin: 'octocat', orgRole: 'admin', email: 'owner@example.test' });
     Object.assign(user, { id: 42, login: 'octocat' });
+    expect(await callback(app)).toBe('https://example.test/forum/');
+    expect(db.prepare('SELECT org_role FROM users WHERE id = ?').get(owner.accountId)).toEqual({ org_role: 'admin' });
+    expect(calls).toEqual([]);
+
+    db.prepare("UPDATE users SET status = 'disabled' WHERE id = ?").run(owner.accountId);
+    expect(await callback(app)).toContain('signin=account_disabled');
   });
 
   it('sends a GitHub account without an email to the bind page first, and straight back once one is bound (#273)', async () => {
-    const context = await testApp({ httpRequest, octokitFactory: orgGate({ octocat: 'member' }, []) }, false, MAIL_ENV); contexts.push(context);
+    const calls: string[] = [];
+    const context = await testApp({ httpRequest, octokitFactory: noGithubCalls(calls) }, false, MAIL_ENV); contexts.push(context);
     const { app } = context;
-    Object.assign(user, { id: 42, login: 'octocat' });
+    Object.assign(user, { id: 45, login: 'needsemail' });
     expect(await callback(app)).toBe('https://example.test/bind-email?return_to=%2Fforum%2F');
-    const accountId = (app.services.storage.db.prepare('SELECT id FROM users').get() as { id: string }).id;
-    app.services.identity.linkEmail({ accountId, email: 'octo@example.test', login: 'octocat', claim: () => true });
+    const accountId = (app.services.storage.db.prepare("SELECT user_id FROM identities WHERE provider = 'github' AND provider_uid = '45'").get() as { user_id: string }).user_id;
+    app.services.identity.linkEmail({ accountId, email: 'needs@example.test', login: 'needsemail', claim: () => true });
     expect(await callback(app)).toBe('https://example.test/forum/');
+    expect(calls).toEqual([]);
   });
 });
 
@@ -574,11 +619,13 @@ describe('binding an email to a GitHub account (#262)', () => {
     expect(after.available).toEqual(['email']);
     expect(after.recent[0]).toEqual({ at: expect.any(Number), action: 'unlink', provider: 'email', result: 'ok' });
 
-    // 删掉的邮箱不能再登录，别的账号也删不了这个账号的邮箱
+    // 删掉的邮箱不再属于原账号：这个地址不填邀请码也能登录，但登进的是一个全新的注册用户，不是原账号（#274）
     tick(61_000);
     const removed = browser(app);
     await removed.send('POST', '/auth/email/start', { email: 'work@example.test' });
-    expect((await removed.send('POST', '/auth/email/verify', { code: await mail.codeFor('work@example.test', 3) })).json().error).toBe('invite_required');
+    const rejoined = await removed.send('POST', '/auth/email/verify', { code: await mail.codeFor('work@example.test', 3) });
+    expect(rejoined.json()).toMatchObject({ registered: true });
+    expect((await removed.send('GET', '/auth/me')).json().account_id).not.toBe(accountId);
     const stranger = browser(app);
     stranger.jar.set('sid', signIn(app, 'hubot', 7));
     expect((await stranger.send('POST', '/api/identity/email/remove', { identity_id: emails[2].id })).statusCode).toBe(404);
@@ -660,28 +707,32 @@ describe('Google sign-in (#262)', () => {
     expect((await app.inject('/auth/google')).json().error).toBe('provider_not_enabled');
   });
 
-  it('asks for an invite on first use, registers with one and signs the same account in later', async () => {
+  it('registers a plain registered user without an invite, then upgrades to member through the redeem endpoint (#274)', async () => {
     const google = googleStub();
     const { app, db, mail, invite } = await setup({ env: GOOGLE_ENV, google });
     invite('yugc-test-2026');
     const first = await googleFlow(app, google);
-    expect(first.location).toBe('https://example.test/signin?signin=invite_required&provider=google&return_to=%2Fforum%2F');
-    expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 0 });
-
-    // Google 给的邮箱不算登录邮箱（#273）：注册后先到绑定邮箱页
-    const second = await googleFlow(app, google, '&invite=yugc-test-2026');
-    expect(second.location).toBe('https://example.test/bind-email?return_to=%2Fforum%2F');
+    // 没填邀请码：注册成注册用户，不是错误（SPEC §3.2）；Google 给的邮箱不算登录邮箱（#273），注册后先到绑定邮箱页
+    expect(first.location).toBe('https://example.test/bind-email?return_to=%2Fforum%2F');
+    expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 1 });
+    expect(db.prepare('SELECT org_role FROM users').get()).toEqual({ org_role: null });
     expect(google.tokenRequests.at(-1)).toContain('code_verifier=');
-    const me = (await second.user.send('GET', '/auth/me')).json();
-    expect(me).toMatchObject({ signed_in: true, provider: 'google', email_required: true });
+    const me = (await first.user.send('GET', '/auth/me')).json();
+    expect(me).toMatchObject({ signed_in: true, provider: 'google', email_required: true, level: 'level.registered' });
     expect(db.prepare("SELECT provider_uid, email FROM identities WHERE provider = 'google'").get()).toEqual({ provider_uid: 'google-sub-1', email: 'g.user@gmail.com' });
-    // 绑上同一个 Gmail 地址就行；之后用 Google 登录直接回原页
-    expect((await second.user.send('POST', '/api/identity/email/start', { email: 'g.user@gmail.com' })).statusCode).toBe(202);
-    expect((await second.user.send('POST', '/api/identity/email/verify', { code: await mail.codeFor('g.user@gmail.com') })).json()).toEqual({ ok: true });
+    // 绑上同一个 Gmail 地址就行；之后用 Google 登录直接回原页，同一个账号
+    expect((await first.user.send('POST', '/api/identity/email/start', { email: 'g.user@gmail.com' })).statusCode).toBe(202);
+    expect((await first.user.send('POST', '/api/identity/email/verify', { code: await mail.codeFor('g.user@gmail.com') })).json()).toEqual({ ok: true });
+    const again = await googleFlow(app, google);
+    expect(again.location).toBe('https://example.test/forum/');
+    expect((await again.user.send('GET', '/auth/me')).json().account_id).toBe(me.account_id);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 1 });
 
-    const third = await googleFlow(app, google);
-    expect(third.location).toBe('https://example.test/forum/');
-    expect((await third.user.send('GET', '/auth/me')).json().account_id).toBe(me.account_id);
+    // 资料卡/账号页兑换邀请码升级成成员，不用重新登录（CONTRACT-274 §2）
+    const redeemed = await first.user.send('POST', '/api/identity/invite/redeem', { code: 'yugc-test-2026' });
+    expect(redeemed.json()).toEqual({ level: 'member' });
+    expect((await first.user.send('GET', '/auth/me')).json().level).toBe('level.member');
+    expect(db.prepare('SELECT org_role FROM users').get()).toEqual({ org_role: null }); // org_role 不再由兑换邀请码改，只有 perm_members 变
   });
 
   it('does not create a second account for an email that already has one, and fails closed on a bad token', async () => {
@@ -762,7 +813,7 @@ describe('forgot password and the bind-email gate (#273)', () => {
     const stranger = browser(app);
     await stranger.send('POST', '/auth/email/start', { email: 'ghost@example.test', purpose: 'reset' });
     const none = await stranger.send('POST', '/auth/email/reset', { code: await mail.codeFor('ghost@example.test'), password: 'some passphrase' });
-    expect([none.statusCode, none.json().error]).toEqual([400, 'invite_required']);
+    expect([none.statusCode, none.json().error]).toEqual([400, 'no_account']);
     expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 0 });
     expect(db.prepare('SELECT used_at FROM email_challenges WHERE email = ?').get('ghost@example.test')).toEqual({ used_at: null });
 
@@ -777,7 +828,7 @@ describe('forgot password and the bind-email gate (#273)', () => {
     expect((await browser(app).send('POST', '/auth/email/password', { email: 'off@example.test', password: 'new passphrase here' })).json().error).toBe('invalid_credentials');
   });
 
-  it('refuses an account that is no longer a member, and a code older than 10 minutes', async () => {
+  it('resets a password for an account that is no longer a geek-class member, and expires a code older than 10 minutes (#274: org_state no longer gates sign-in)', async () => {
     const context = await setup();
     const { app, db, mail, invite, tick } = context;
     invite('yugc-test-2026');
@@ -786,18 +837,18 @@ describe('forgot password and the bind-email gate (#273)', () => {
     tick(61_000);
     const user = browser(app);
     await user.send('POST', '/auth/email/start', { email: 'left@example.test', purpose: 'reset' });
-    const refused = await user.send('POST', '/auth/email/reset', { code: await mail.codeFor('left@example.test', 2), password: 'new passphrase here' });
-    expect([refused.statusCode, refused.json().error]).toEqual([403, 'not_member']);
-    expect(user.jar.has('sid')).toBe(false);
+    const ok = await user.send('POST', '/auth/email/reset', { code: await mail.codeFor('left@example.test', 2), password: 'new passphrase here' });
+    expect(ok.statusCode).toBe(200);
+    expect(user.jar.has('sid')).toBe(true);
+    expect((await user.send('GET', '/auth/me')).json()).toMatchObject({ signed_in: true, account_id: accountId });
 
-    db.prepare("UPDATE users SET org_role = 'member', org_state = 'active' WHERE id = ?").run(accountId);
     tick(61_000);
     await user.send('POST', '/auth/email/start', { email: 'left@example.test', purpose: 'reset' });
     const code = await mail.codeFor('left@example.test', 3);
     tick(10 * 60_000 + 1_000);
-    const late = await user.send('POST', '/auth/email/reset', { code, password: 'new passphrase here' });
+    const late = await user.send('POST', '/auth/email/reset', { code, password: 'yet another passphrase' });
     expect([late.statusCode, late.json().error]).toEqual([400, 'code_expired']);
-    expect((await browser(app).send('POST', '/auth/email/password', { email: 'left@example.test', password: 'old passphrase here' })).statusCode).toBe(200);
+    expect((await browser(app).send('POST', '/auth/email/password', { email: 'left@example.test', password: 'new passphrase here' })).statusCode).toBe(200);
   });
 
   it('flags an account without a login email on /auth/me, the account page and the console, until one is bound', async () => {
@@ -825,7 +876,10 @@ describe('forgot password and the bind-email gate (#273)', () => {
 });
 
 describe('hardening from the #262 review', () => {
-  it('keeps a recorded admin role when GitHub refuses the same person: GitHub no longer takes site access away', async () => {
+  // #274：「GitHub 拒绝时站内角色不变」这条用例测的 githubSigninPlan/recordGithubDenied 已经随组织门槛一起删掉
+  // （SPEC §3.2，不再查 GitHub 组织），等价覆盖搬到了「GitHub sign-in: invite optional, no organization check」
+  // 的「refuses a disabled account and keeps a recorded site role untouched on repeat sign-in」。
+  it('shows a GitHub-linked admin signed in by email as a forum member, not a guest', async () => {
     const { app, mail } = await setup();
     app.services.identity.provisionAccount({ githubId: 130495739, githubLogin: 'Crosery', orgRole: 'admin', email: 'owner@example.test' });
     const user = browser(app);

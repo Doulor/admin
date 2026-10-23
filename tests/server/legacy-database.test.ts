@@ -280,8 +280,9 @@ describe('booting on the existing production data.db (legacy schema, no applicat
     expect(JSON.parse(legacyAudit[1].details!)).toEqual({ hours: 168, max_uses: 10 });
 
     // 新建的 applications / application_reviews 真能写：投递、列表、审核（外键指向刚建的 applications）。
+    // #274：投递要登录、要有 apply.submit 权限，不再接受匿名投递；借用上面已经在线的旧会话。
     const apply = await app.inject({
-      method: 'POST', url: '/api/portal/apply',
+      method: 'POST', url: '/api/portal/apply', headers: as('legacy-session-alice'),
       payload: { name: '测试同学', className: '计科2301', email: 'student@example.test', strengths: '做过课程设计的前后端，愿意参与社区维护。', pow: { timestamp: Date.now(), nonce: 'x' } },
     });
     expect(apply.statusCode).toBe(201);
@@ -465,7 +466,8 @@ describe('maps the existing sessions, titles and forum users to 极客班 accoun
     const me = (await first.inject({ url: '/auth/me', headers: as('legacy-session-alice') })).json();
     expect(me).toMatchObject({ signed_in: true, login: 'alice', user_id: 101, provider: 'github' });
     expect(me.account_id).toBe((db1.prepare("SELECT user_id FROM identities WHERE provider_uid = '101'").get() as { user_id: string }).user_id);
-    expect((await first.inject({ url: '/auth/me', headers: as('legacy-session-no-id') })).json()).toEqual({ signed_in: false });
+    // 没有 GitHub id 映射不到账号，按访客处理（#274），不再是裸 { signed_in: false }
+    expect((await first.inject({ url: '/auth/me', headers: as('legacy-session-no-id') })).json()).toMatchObject({ signed_in: false, level: 'level.visitor' });
     expect(db1.prepare("SELECT COUNT(*) AS n FROM sessions WHERE id = 'legacy-session-no-id'").get()).toEqual({ n: 0 });
     expect((await first.inject({ url: '/api/forum/state', headers: as('legacy-session-alice') })).statusCode).toBe(200);
 

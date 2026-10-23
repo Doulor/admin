@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 import { testApp, signIn } from './helpers';
 
@@ -138,6 +139,42 @@ describe('邀请码兑换（POST /api/identity/invite/redeem，#274）', () => {
     const again = await app.inject({ method: 'POST', url: '/api/identity/invite/redeem', headers: { cookie }, payload: { code: 'redeem-twice' } });
     expect(again.statusCode).toBe(409);
     expect(again.json().error).toBe('already_member');
+  });
+
+  it('账号 1 小时内猜错 10 次锁 1 小时：锁定期间给真邀请码也拒绝，不白升级成成员（#274）', async () => {
+    const { app, cookie } = await setup();
+    const db = app.services.storage.db;
+    const accountId = (db.prepare('SELECT openid FROM sessions').get() as { openid: string }).openid;
+    const now = Date.now();
+    // 直接写 9 条失败记录模拟之前已经猜错过 9 次：绕开按请求计数、不分成败的通用限流（10 次/小时按账号）
+    for (let i = 0; i < 9; i++) db.prepare('INSERT INTO limit_events(bucket, subject, at) VALUES (?, ?, ?)').run('invite.redeem.fail.account', accountId, now - 1000);
+    // 第 10 次猜错：锁定检查在计数之前，这次还没到线，回的是普通的 invite_invalid
+    const tenth = await app.inject({ method: 'POST', url: '/api/identity/invite/redeem', headers: { cookie }, payload: { code: 'still-wrong' } });
+    expect(tenth.statusCode).toBe(400);
+    expect(tenth.json().error).toBe('invite_invalid');
+    // 第 11 次：就算这次给的是真的有效邀请码，也被锁定挡住
+    app.services.invites.create({ code: 'late-valid' }, 'test');
+    const locked = await app.inject({ method: 'POST', url: '/api/identity/invite/redeem', headers: { cookie }, payload: { code: 'late-valid' } });
+    expect(locked.statusCode).toBe(429);
+    expect(locked.json()).toMatchObject({ error: 'invite_locked', retry_after: 3600 });
+    expect(app.services.permissions.check(accountId, 'forum.topic.create')).toBe(false);
+  });
+
+  it('同一个 IP 1 小时内（不同账号）攒够 20 次猜错，也锁 1 小时（#274）', async () => {
+    const { app, cookie } = await setup();
+    const db = app.services.storage.db;
+    const ip = '203.0.113.9';
+    // limit_events 存的是 IP 的哈希，不是原文（和 app/server/src/routes/identity/profile.ts 的 ipHash 同一个算法）
+    const ipHash = createHash('sha256').update(ip).digest('hex');
+    const now = Date.now();
+    for (let i = 0; i < 19; i++) db.prepare('INSERT INTO limit_events(bucket, subject, at) VALUES (?, ?, ?)').run('invite.redeem.fail.ip', ipHash, now - 1000);
+    const twentieth = await app.inject({ method: 'POST', url: '/api/identity/invite/redeem', headers: { cookie }, remoteAddress: ip, payload: { code: 'still-wrong' } });
+    expect(twentieth.statusCode).toBe(400);
+    expect(twentieth.json().error).toBe('invite_invalid');
+    app.services.invites.create({ code: 'ip-late-valid' }, 'test');
+    const locked = await app.inject({ method: 'POST', url: '/api/identity/invite/redeem', headers: { cookie }, remoteAddress: ip, payload: { code: 'ip-late-valid' } });
+    expect(locked.statusCode).toBe(429);
+    expect(locked.json().error).toBe('invite_locked');
   });
 });
 
