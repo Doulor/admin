@@ -38,6 +38,8 @@ const code = ref("");
 const sentTo = ref<string | null>(null);
 const error = ref<string | null>(null);
 const busy = ref<"send" | "verify" | "leave" | null>(null);
+/** 这一页上刚绑好；没绑也会离开的情形是这个环境发不出信，那时不说「已经绑好」。 */
+const bound = ref(false);
 const cooldown = ref(0);
 let cooldownTimer: ReturnType<typeof setInterval> | undefined;
 onBeforeUnmount(() => { clearInterval(tick); clearInterval(cooldownTimer); });
@@ -101,6 +103,7 @@ async function verify() {
   busy.value = "verify";
   try {
     await api("/api/identity/email/verify", { method: "POST", ...jsonBody({ code: code.value }) });
+    bound.value = true;
     leave();
   } catch (failure) {
     busy.value = null;
@@ -133,7 +136,7 @@ async function signOut() {
       <ErrorPanel v-if="loadError" :error="loadError" :retry="load" />
       <div v-else-if="!view || !view.email_required || busy === 'leave'" class="bind__state" role="status">
         <TxSpinner :size="18" label="正在读取账号" />
-        <span>{{ view && (busy === "leave" || !view.email_required) ? "邮箱已经绑好，正在回到原来的页面…" : "正在读取账号…" }}</span>
+        <span>{{ bound ? "邮箱已经绑好，正在回到原来的页面…" : view ? "正在回到原来的页面…" : "正在读取账号…" }}</span>
       </div>
 
       <template v-else>

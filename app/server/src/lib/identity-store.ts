@@ -408,9 +408,9 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     const had = (accountRow.get(accountId) as { password_hash: string | null }).password_hash !== null;
     db.prepare("UPDATE users SET password_hash = ?, password_updated_at = ?, updated_at = ? WHERE id = ?").run(hash, now, now, accountId);
     // 改了密码：这个账号用密码以外方式登录的会话不动，其余设备上旧密码换来的会话也不动（不做「退出所有设备」，规格「不做」）
-    const action = reset ? "password_reset" : had ? "password_change" : "password_set";
-    accountEvent(accountId, action, "email", "ok", null, now);
-    deps.audit(null, { login: actor.login, account_id: accountId }, "account.password", undefined, { action: reset ? "reset" : had ? "change" : "set" }, actor.ip);
+    const kind = reset ? "reset" : had ? "change" : "set";
+    accountEvent(accountId, `password_${kind}`, "email", "ok", null, now);
+    deps.audit(null, { login: actor.login, account_id: accountId }, "account.password", undefined, { action: kind }, actor.ip);
   }
 
   /** 设置或修改密码（哈希由路由用 lib/password-policy.ts 算好）；写 identity_audit 与 account.password。 */

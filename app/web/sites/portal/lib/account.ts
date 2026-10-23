@@ -2,6 +2,7 @@
 // /signin?return_to=<本站路径> → 选登录方式（GET /auth/providers，GitHub 只是其一）→ /auth/callback → 回到 return_to。
 // 同域读 /auth/me 就知道是谁；本机开发时 5173 把 /auth 代理给核心后端、把 /signin 转给控制台 dev server，127.0.0.1 上各端口共用这个 cookie。
 import { useCallback, useEffect, useState } from "react";
+import { followAppLink } from "./osApps";
 
 /**
  * consoleLink 是 /auth/me 的 console_link：登录者在控制台里能管点什么（持有 console.access、github.org.read、feedback.read
@@ -52,7 +53,7 @@ export function useAccount() {
       .then((body) => {
         if (cancelled) return;
         if (emailRequired(body)) {
-          window.location.assign(bindEmailHref());
+          followAppLink({ href: bindEmailHref(), newTab: false });
           return;
         }
         setAccount(parseMe(body));

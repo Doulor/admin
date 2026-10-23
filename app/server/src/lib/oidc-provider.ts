@@ -76,8 +76,8 @@ export function createOidcProvider(deps: OidcProviderDeps): Provider {
   const cookieKey = createHmac("sha256", deps.sessionSecret).update("yzgc-oidc-cookies-v1").digest("base64url");
 
   const policy = interactionPolicy.base();
-  // 极客班会话才是登录状态：oidc-provider 自己的会话只是缓存。sid 没了（退出、过期、被停用），或者换了别的账号，
-  // 都要重新走一次登录交互，交互里再按 sid 决定是谁（routes/oidc）。会话里的账号已经不是成员时 findAccount 查不到，
+  // 极客班会话才是登录状态：oidc-provider 自己的会话只是缓存。sid 没了（退出、过期、被停用）、换了别的账号，
+  // 或者账号还没有登录邮箱（routes/oidc 记成 null，#273），都要重新走一次登录交互，交互里再按 sid 决定是谁（routes/oidc）。会话里的账号已经不是成员时 findAccount 查不到，
   // ctx.oidc.account 为空，也回到交互，由交互回 access_denied
   policy.get("login")!.checks.push(new interactionPolicy.Check("site_session", "the site session is missing or belongs to another account", (ctx) => {
     const account = (ctx.req as SiteAccountRequest)[SITE_ACCOUNT];

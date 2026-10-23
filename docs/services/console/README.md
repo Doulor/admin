@@ -65,7 +65,7 @@
 
 所有者 2026-10-23 19:22：「sso登录的时候没有忘记密码改密码相关的信息吧，还有就是之前只绑定了github账号没有绑定邮箱的再次进来或者登录的时候必须绑定邮箱」。
 
-- **忘记密码**：`/signin` 的「登录 → 密码」下面有「忘记密码？」。点了以后标签、登录方式和跳转按钮收起，换成「重设密码」：邮箱、验证码（「获取验证码」发 `purpose: "reset"` 的信）、新密码和「重设密码并登录」，右上角「返回登录」。先在页面按从上到下检查（`lib/signin.ts` 的 `resetProblem`，新密码规则同账号页），再调 `POST /auth/email/reset`；成功整页跳回 `return_to`，验证码过期时清掉重新获取，邮箱没有账号时照服务端的话说明去「注册」。页面底部写明：记得旧密码只想换一个的，登录后到「我的账号」里改；只用 GitHub 或 Google 登录、还没绑邮箱的，先用原来的方式登录再绑邮箱。登录页的说明也加了「改密码在「我的账号」里」。
+- **忘记密码**：`/signin` 的「登录 → 密码」下面有「忘记密码？」。点了以后标签、登录方式和跳转按钮收起，换成「重设密码」：邮箱、验证码（「获取验证码」发 `purpose: "reset"` 的信）、新密码和「重设密码并登录」，右上角「返回登录」。先在页面按从上到下检查（`lib/signin.ts` 的 `resetProblem`，新密码规则同账号页），再调 `POST /auth/email/reset`；成功整页跳回 `return_to`，验证码过期时清掉重新获取，邮箱没有账号时（`invite_required`）和验证码登录一样转到「注册」，刚才的验证码还能用。页面底部写明：记得旧密码只想换一个的，登录后到「我的账号」里改；只用 GitHub 或 Google 登录、还没绑邮箱的，先用原来的方式登录再绑邮箱。登录页的说明也加了「改密码在「我的账号」里」。
 - **绑定邮箱页**：`/bind-email?return_to=<本站路径>`，和 `/signin` 一样在控制台壳子之外。页面读 `GET /api/identity/me`：401 去登录页，`email_required` 为 false（已经绑好，或这个环境发不出信）直接整页跳回 `return_to`（`lib/signin.ts` 的 `bindEmailReturn`，只认本站路径，指回自己时去 `/console`）。要绑时显示当前账号、一句说明和「邮箱、获取验证码、验证码、绑定并继续」，调账号页同一组 `POST /api/identity/email/start`、`/verify`；这次登录超过 10 分钟（`session.step_up_until`）或服务端回 `step_up_required` 时，先换成「先重新登录一次」和「重新登录」，登录页的 `return_to` 是这一页本身，登录完回来接着绑。页面上另外只有「退出登录」。
 - **谁带人过来**：服务端的 GitHub、Google 登录回调和对外授权的交互入口直接跳来；`ConsoleRoot`（`/console/**`）读 `/api/console/me`、账号页读 `/api/identity/me`、设备授权页读 `/auth/me`，`email_required` 为 true 时都带着当前地址跳到 `/bind-email`；同意页和设备授权页在接口回 403 `email_required` 时也跳过来，绑好回到交互入口或同一串代码。官网、论坛读 `/auth/me` 自己跳。
 

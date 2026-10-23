@@ -34,12 +34,16 @@ export default async function oidcRoutes(app: FastifyInstance) {
     if (!oidc) return reply.callNotFound();
   };
 
-  /** 交给 oidc-provider 之前：按 PUBLIC_ORIGIN 定协议和主机（web 容器的 nginx 会把 X-Forwarded-Proto 改成 http），记下这次的极客班账号。 */
+  /**
+   * 交给 oidc-provider 之前：按 PUBLIC_ORIGIN 定协议和主机（web 容器的 nginx 会把 X-Forwarded-Proto 改成 http），记下这次的极客班账号。
+   * 账号还没有登录邮箱时记成 null（#273）：oidc-provider 回到交互，由交互带人去绑定邮箱页；允许过这个应用、oidc-provider 的会话还在的也一样。
+   */
   const prepared = (req: FastifyRequest): IncomingMessage => {
     const raw = req.raw as SiteAccountRequest;
     raw.headers["x-forwarded-proto"] = origin.protocol.slice(0, -1);
     raw.headers["x-forwarded-host"] = origin.host;
-    raw[SITE_ACCOUNT] = req.session?.account_id ?? null;
+    const accountId = req.session?.account_id ?? null;
+    raw[SITE_ACCOUNT] = accountId && !emailRequired(app.services, accountId) ? accountId : null;
     return raw;
   };
   const errorPage = (reply: FastifyReply, code: string, status = 400) =>
@@ -100,15 +104,15 @@ export default async function oidcRoutes(app: FastifyInstance) {
       return details;
     };
 
-    /** 授权页读详情、点允许之前同样要先有登录邮箱（#273）；拒绝不拦。 */
-    const needsEmail = (req: FastifyRequest, reply: FastifyReply) => {
+    /** 授权页读详情、点允许之前同样要先有登录邮箱（#273）：没有时回 403 email_required 并返回 true；拒绝不拦。 */
+    const refusedWithoutEmail = (req: FastifyRequest, reply: FastifyReply) => {
       if (!emailRequired(app.services, req.session!.account_id)) return false;
       void reply.code(403).send({ error: "email_required", message: "先绑定邮箱，再用极客班账号登录这个应用" });
       return true;
     };
 
     scope.get<{ Params: { uid: string } }>("/oidc/interaction/:uid/details", { preHandler: requireAuth, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
-      if (needsEmail(req, reply)) return reply;
+      if (refusedWithoutEmail(req, reply)) return reply;
       const details = await consentOf(req, reply);
       if (!details) return reply;
       const clientId = String(details.params.client_id);
@@ -125,7 +129,7 @@ export default async function oidcRoutes(app: FastifyInstance) {
     });
 
     scope.post<{ Params: { uid: string } }>("/oidc/interaction/:uid/confirm", { preHandler: requireAuth, config: { rateLimit: { max: 20, timeWindow: "1 minute" } } }, async (req, reply) => {
-      if (needsEmail(req, reply)) return reply;
+      if (refusedWithoutEmail(req, reply)) return reply;
       const details = await consentOf(req, reply);
       if (!details) return reply;
       const accountId = req.session!.account_id;

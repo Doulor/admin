@@ -274,6 +274,14 @@ describe('OIDC provider for downstream apps (#270)', () => {
     expect(bind('alice@example.test')).toEqual({ ok: true });
     const { token, consented } = await signInThroughGitlab(app, jar, clientSecret);
     expect([token.statusCode, consented]).toEqual([200, true]);
+
+    // 已经允许过、oidc-provider 的会话也还在：没有登录邮箱时同样先去绑定页，不直接发授权码
+    app.services.storage.db.prepare("DELETE FROM identities WHERE provider = 'email' AND user_id = ?").run(accountId);
+    const again = await follow(app, jar, authorizeUrl({ code_challenge: pkce().challenge, code_challenge_method: 'S256' }));
+    expect(again.location).toMatch(/^https:\/\/example\.test\/bind-email\?return_to=%2Foidc%2Finteraction%2F/);
+    expect(bind('alice@example.test')).toEqual({ ok: true });
+    const back = await follow(app, jar, new URL(again.location!).searchParams.get('return_to')!);
+    expect([back.consentUid, back.location?.startsWith(CALLBACK)]).toEqual([null, true]);
   });
 
   it('turns a denial on the consent page into access_denied for the app', async () => {

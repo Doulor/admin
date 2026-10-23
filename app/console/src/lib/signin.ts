@@ -159,7 +159,7 @@ export const verifySigninCode = (code: string, inviteCode?: string) =>
   api<{ return_to: string; registered: boolean }>("/auth/email/verify", { method: "POST", ...jsonBody({ code, ...(inviteCode?.trim() && { invite_code: inviteCode.trim() }) }) });
 export const signInWithPassword = (provider: Pick<LoginProvider, "password">, email: string, password: string, returnPath: string, origin: string) =>
   api<{ return_to: string }>(provider.password ?? "/auth/email/password", { method: "POST", ...jsonBody({ email, password, return_to: `${origin}${returnPath}` }) });
-/** 用邮箱验证码重设密码并登录（#273）。没有账号的邮箱回 `no_account`，不会注册。 */
+/** 用邮箱验证码重设密码并登录（#273）。没有账号的邮箱和验证码登录一样回 `invite_required`，不会注册。 */
 export const resetPasswordWithCode = (code: string, password: string) =>
   api<{ return_to: string }>("/auth/email/reset", { method: "POST", ...jsonBody({ code, password }) });
 

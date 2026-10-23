@@ -669,7 +669,7 @@ describe('forgot password and the bind-email gate (#273)', () => {
     const stranger = browser(app);
     await stranger.send('POST', '/auth/email/start', { email: 'ghost@example.test', purpose: 'reset' });
     const none = await stranger.send('POST', '/auth/email/reset', { code: await mail.codeFor('ghost@example.test'), password: 'some passphrase' });
-    expect([none.statusCode, none.json().error]).toEqual([400, 'no_account']);
+    expect([none.statusCode, none.json().error]).toEqual([400, 'invite_required']);
     expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 0 });
     expect(db.prepare('SELECT used_at FROM email_challenges WHERE email = ?').get('ghost@example.test')).toEqual({ used_at: null });
 
@@ -682,6 +682,29 @@ describe('forgot password and the bind-email gate (#273)', () => {
     expect([refused.statusCode, refused.json().error]).toEqual([403, 'account_disabled']);
     expect(user.jar.has('sid')).toBe(false);
     expect((await browser(app).send('POST', '/auth/email/password', { email: 'off@example.test', password: 'new passphrase here' })).json().error).toBe('invalid_credentials');
+  });
+
+  it('refuses an account that is no longer a member, and a code older than 10 minutes', async () => {
+    const context = await setup();
+    const { app, db, mail, invite, tick } = context;
+    invite('yugc-test-2026');
+    const { accountId } = await emailAccount(context, 'left@example.test', 'old passphrase here');
+    db.prepare("UPDATE users SET org_role = NULL, org_state = 'not_member' WHERE id = ?").run(accountId);
+    tick(61_000);
+    const user = browser(app);
+    await user.send('POST', '/auth/email/start', { email: 'left@example.test', purpose: 'reset' });
+    const refused = await user.send('POST', '/auth/email/reset', { code: await mail.codeFor('left@example.test', 2), password: 'new passphrase here' });
+    expect([refused.statusCode, refused.json().error]).toEqual([403, 'not_member']);
+    expect(user.jar.has('sid')).toBe(false);
+
+    db.prepare("UPDATE users SET org_role = 'member', org_state = 'active' WHERE id = ?").run(accountId);
+    tick(61_000);
+    await user.send('POST', '/auth/email/start', { email: 'left@example.test', purpose: 'reset' });
+    const code = await mail.codeFor('left@example.test', 3);
+    tick(10 * 60_000 + 1_000);
+    const late = await user.send('POST', '/auth/email/reset', { code, password: 'new passphrase here' });
+    expect([late.statusCode, late.json().error]).toEqual([400, 'code_expired']);
+    expect((await browser(app).send('POST', '/auth/email/password', { email: 'left@example.test', password: 'old passphrase here' })).statusCode).toBe(200);
   });
 
   it('flags an account without a login email on /auth/me, the account page and the console, until one is bound', async () => {

@@ -59,7 +59,7 @@
     },
     "backend": {
       "status": "changed",
-      "reason": "新接口 POST /auth/email/reset：先查新密码长度，再用登录验证码挑战核对验证码（挑战种类和库里的 CHECK 不变），identity-store 的 resetPassword 在一个 immediate 事务里走验证码登录同一条路径（停用、不是成员照旧拒绝，没有账号回 no_account 且验证码不作废）并写新密码，成功后清掉这个邮箱的密码失败计数、写会话。POST /auth/email/start 多一个可选的 purpose，reset 只改信的文字。lib/email-gate.ts 的 emailRequired 在能发信且账号没有 email 身份时为 true，bindEmailUrl 拼绑定邮箱页地址且不套两层：GitHub 与 Google 回调据此跳到绑定页；/auth/me、/api/identity/me、/api/console/me 回 email_required；OIDC 交互 303 到绑定页，授权页的 details 与 confirm 回 403 email_required，abort 不拦；设备授权的 approve 回 403 email_required，deny 不拦。app.ts 把 /bind-email 交给控制台单页。",
+      "reason": "新接口 POST /auth/email/reset：先查新密码长度，再用登录验证码挑战核对验证码（挑战种类和库里的 CHECK 不变），identity-store 的 resetPassword 在一个 immediate 事务里走验证码登录同一条路径（停用、不是成员照旧拒绝，没有账号时和验证码登录一样回 invite_required 且验证码不作废）并写新密码，成功后清掉这个邮箱的密码失败计数、写会话。POST /auth/email/start 多一个可选的 purpose，reset 只改信的文字。lib/email-gate.ts 的 emailRequired 在能发信且账号没有 email 身份时为 true，bindEmailUrl 拼绑定邮箱页地址且不套两层：GitHub 与 Google 回调据此跳到绑定页；/auth/me、/api/identity/me、/api/console/me 回 email_required；OIDC 交互 303 到绑定页（routes/oidc 把没有登录邮箱的会话记成没有极客班账号，允许过应用、签发者会话还在时也先进交互，不直接发授权码），授权页的 details 与 confirm 回 403 email_required，abort 不拦；设备授权的 approve 回 403 email_required，deny 不拦。app.ts 把 /bind-email 交给控制台单页。",
       "evidence": [
         "app/server/src/routes/identity/email.ts",
         "app/server/src/lib/identity-store.ts",
@@ -67,6 +67,7 @@
         "app/server/src/routes/admin/auth.ts",
         "app/server/src/routes/identity/google.ts",
         "app/server/src/routes/oidc/index.ts",
+        "app/server/src/lib/oidc-provider.ts",
         "app/server/src/routes/identity/device.ts",
         "app/server/src/routes/identity/account.ts",
         "app/server/src/routes/console/me.ts",
@@ -141,7 +142,7 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "服务端走真实路由：重设成功后旧密码登录不了、新密码可以，identity_audit 与审计记下 reset；密码太短不碰验证码；验证码错一次剩 4 次，用过的验证码再交回 code_expired；没有密码的账号也能设上；邮箱没有账号回 no_account 且验证码还能用，停用账号 403；三个 me 接口在绑邮箱前 email_required 为 true、绑后 false，发不出信的环境始终 false；GitHub 与 Google 回调先跳绑定页、绑后直接回原地址；OIDC 交互 303 到绑定页、绑后接着走，details 与 confirm 403、abort 照常；设备授权 approve 403、状态还是待确认、deny 可以、绑后能允许。控制台测试核对地址拼接、绑定页回跳、重设表单校验和样板人设；官网与论坛测试核对读到 email_required 后整页跳到绑定页；nginx 与服务端单页路由多 /bind-email。ego-browser 用样板数据在 1440×900 与 390×844 下截了登录页、重设密码、绑定邮箱和要重新登录四种页面。",
+      "reason": "服务端走真实路由：重设成功后旧密码登录不了、新密码可以，identity_audit 与审计记下 reset；密码太短不碰验证码；验证码错一次剩 4 次，用过的验证码再交回 code_expired；没有密码的账号也能设上；邮箱没有账号回 invite_required 且验证码还能用，停用账号与不是成员的账号 403，超过 10 分钟的验证码 code_expired；三个 me 接口在绑邮箱前 email_required 为 true、绑后 false，发不出信的环境始终 false；GitHub 与 Google 回调先跳绑定页、绑后直接回原地址；OIDC 交互 303 到绑定页、绑后接着走，details 与 confirm 403、abort 照常，允许过应用以后删掉邮箱再登 GitLab 也先到绑定页；设备授权 approve 403、状态还是待确认、deny 可以、绑后能允许。控制台测试核对地址拼接、绑定页回跳、重设表单校验和样板人设；官网 useAccount 与论坛 useSiteAccount 的用例核对读到 email_required 后整页跳到绑定页、带上当前地址；nginx 与服务端单页路由多 /bind-email。ego-browser 用样板数据在 1440×900 与 390×844 下截了登录页、重设密码的每一步、绑定邮箱和要重新登录的页面，并核对控制台首页、我的账号、授权页、设备授权都转到绑定页。",
       "evidence": [
         "tests/server/signin-methods.test.ts",
         "tests/server/oidc.test.ts",
@@ -154,6 +155,7 @@
         "tests/console/device.test.ts",
         "tests/console/mock-sync.test.ts",
         "tests/web/portal-os.test.ts",
+        "tests/web/portal-account.test.tsx",
         "app/forum/tests/site-account.test.ts"
       ]
     },
@@ -214,7 +216,8 @@
         "app/server/src/routes/identity/google.ts",
         "app/server/src/routes/identity/account.ts",
         "app/server/src/routes/identity/device.ts",
-        "app/server/src/routes/oidc/index.ts"
+        "app/server/src/routes/oidc/index.ts",
+        "app/server/src/lib/oidc-provider.ts"
       ],
       "domains": [
         "identity",
@@ -243,7 +246,7 @@
         "flow:identity.oidc.confirm",
         "flow:identity.oidc.abort"
       ],
-      "reason": "没有登录邮箱先绑：GitHub 与 Google 回调跳绑定页，/auth/me 与 /api/identity/me 回 email_required，OIDC 交互跳绑定页、details 与 confirm 403，设备授权 approve 403；拒绝与取消不拦。"
+      "reason": "没有登录邮箱先绑：GitHub 与 Google 回调跳绑定页，/auth/me 与 /api/identity/me 回 email_required，OIDC 交互跳绑定页（允许过应用、签发者会话还在时也先进交互，oidc-provider.ts 只改了检查的说明）、details 与 confirm 403，设备授权 approve 403；拒绝与取消不拦。"
     },
     {
       "paths": [
@@ -413,6 +416,7 @@
         "tests/console/device.test.ts",
         "tests/console/mock-sync.test.ts",
         "tests/web/portal-os.test.ts",
+        "tests/web/portal-account.test.tsx",
         "app/forum/tests/site-account.test.ts"
       ],
       "domains": [
@@ -451,6 +455,7 @@
     "tests/console/device.test.ts",
     "tests/console/mock-sync.test.ts",
     "tests/web/portal-os.test.ts",
+    "tests/web/portal-account.test.tsx",
     "app/forum/tests/site-account.test.ts"
   ],
   "compatibility": "原有接口的路径、请求和状态码不变，/auth/me、/api/identity/me、/api/console/me 只多一个 email_required 字段，/auth/email/start 多一个可选的 purpose。行为上的变化：能发信的环境里，没有登录邮箱的账号登录后先到绑定邮箱页，对外授权与设备授权在绑好前回 403 email_required。部署前打开、没刷新的旧控制台页面不认 email_required，刷新后会转去绑定页；旧的官网与论坛页面同样刷新后生效。",

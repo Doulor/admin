@@ -123,6 +123,8 @@ function resetCode() {
 // 换了邮箱，之前发的验证码不算数
 watch(email, () => { sentTo.value = null; movedToRegister.value = false; emailError.value = null; });
 watch([mode, tab, forgot], () => { emailError.value = null; });
+// 重设和注册共用「新密码」一栏：进出重设表单时清掉，不把一边填的密码带到另一边
+watch(forgot, () => { newPassword.value = ""; });
 
 const messageOf = (error: unknown) => (error instanceof ApiError ? error.message : "没有连上服务器，可能是网络不稳定，稍后再试一次。");
 /** 成功后整页跳转：服务端给的地址也只认本站路径。 */
@@ -205,6 +207,8 @@ async function submitReset() {
     leave(result.return_to);
   } catch (error) {
     submitting.value = false;
+    // 这个邮箱还没有账号：和验证码登录一样转到「注册」，验证码还能用
+    if (error instanceof ApiError && error.code === "invite_required") { forgot.value = false; movedToRegister.value = true; tab.value = "register"; return; }
     if (error instanceof ApiError && error.code === "code_expired") resetCode();
     emailError.value = messageOf(error);
   }

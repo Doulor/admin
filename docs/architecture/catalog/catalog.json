@@ -664,7 +664,7 @@
           "path": "app/server/src/routes/identity/index.ts"
         },
         {
-          "line": 222,
+          "line": 226,
           "path": "app/console/src/pages/SignIn.vue"
         },
         {
@@ -816,7 +816,7 @@
           "path": "app/console/src/pages/Device.vue"
         },
         {
-          "line": 18,
+          "line": 19,
           "path": "app/console/src/lib/device.ts"
         }
       ],
@@ -1113,7 +1113,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 18,
+          "line": 19,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -1169,7 +1169,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 55,
+          "line": 56,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -1216,6 +1216,7 @@
         "tests/e2e/workflows.spec.ts",
         "tests/server/signin-methods.test.ts",
         "tests/web/portal-os.test.ts",
+        "tests/web/portal-account.test.tsx",
         "app/forum/tests/site-account.test.ts",
         "tests/console/device.test.ts"
       ],
@@ -1241,7 +1242,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 70,
+          "line": 78,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -1308,7 +1309,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 85,
+          "line": 93,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -1371,7 +1372,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 123,
+          "line": 126,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -1446,14 +1447,14 @@
           "path": "app/console/src/lib/signin.ts"
         },
         {
-          "line": 198,
+          "line": 200,
           "path": "app/console/src/pages/SignIn.vue"
         }
       ],
       "id": "flow:identity.email.reset",
       "invariants": [
         "权限与资源：匿名，凭 /auth/email/start 发的挑战 cookie（path=/auth/email）；每分钟 10 次（按 IP），同一个码最多错 5 次；只给已有账号的邮箱，不注册（#273，所有者 2026-10-23 19:22）。",
-        "响应与错误：200 {return_to} 并写 sid（provider=email）；先查新密码，不到 8 位 400 password_too_short、超过 72 字节 400 password_exceeds_bcrypt_limit，这时不碰验证码；验证码不对 400 invalid_code（带 attempts_left），失效 400 code_expired；邮箱没有账号 400 no_account（验证码不作废）；停用 403 account_disabled，不是成员 403 not_member。",
+        "响应与错误：200 {return_to} 并写 sid（provider=email）；先查新密码，不到 8 位 400 password_too_short、超过 72 字节 400 password_exceeds_bcrypt_limit，这时不碰验证码；验证码不对 400 invalid_code（带 attempts_left），失效 400 code_expired；邮箱没有账号时和验证码登录一样 400 invite_required（不注册，验证码不作废，登录页转到「注册」）；停用 403 account_disabled，不是成员 403 not_member。",
         "数据与副作用：占用验证码、建会话、删旧会话、写 users.password_hash（bcrypt cost 12）、identity_audit（login 与 password_reset）、auth.signin（method=reset）与 account.password（action=reset）在一个 BEGIN IMMEDIATE 事务里；成功后这个邮箱的密码错误计数清零。"
       ],
       "operation": "POST /auth/email/reset",
@@ -1631,7 +1632,7 @@
           "path": "app/console/src/lib/account.ts"
         },
         {
-          "line": 68,
+          "line": 70,
           "path": "app/console/src/pages/BindEmail.vue"
         },
         {
@@ -8297,7 +8298,7 @@
           "path": "app/server/src/middleware/require-member.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -9769,7 +9770,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 161,
+          "line": 165,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -9813,7 +9814,7 @@
       "invariants": [
         "权限与资源：发现文档与 JWKS 匿名；授权端点按登记的 client_id 与完全一致的 redirect_uri，只收 response_type=code 与 PKCE S256；userinfo 凭 Bearer 访问令牌。按 IP 每分钟计数：发现文档、JWKS、userinfo 与换令牌、撤销合计 600 次，授权端点另计 120 次；没配 OIDC_JWKS 时 404。",
         "响应与错误：签发者 <PUBLIC_ORIGIN>/oidc，协议与主机按 PUBLIC_ORIGIN，不信请求头；未知客户端、错回调 400 中文错误页且不跳转；缺 PKCE 等带 error 回到下游；userinfo 只给 sub（pairwise）、name、preferred_username、picture，有 email scope 时给验证过的 email；账号不再是成员时 401。",
-        "数据与副作用：是否登录以本站 sid 为准，不是成员或换了账号时进交互；交互、会话与授权码写 oidc_payloads；第一次给某 sector 发 sub 时写 oauth_subjects；不发 refresh token。"
+        "数据与副作用：是否登录以本站 sid 为准，不是成员、换了账号或账号还没有登录邮箱（#273，允许过这个应用、签发者会话还在也一样）时进交互；交互、会话与授权码写 oidc_payloads；第一次给某 sector 发 sub 时写 oauth_subjects；不发 refresh token。"
       ],
       "operation": "GET /oidc/*",
       "operationLabel": "GET /oidc/*",
@@ -9856,7 +9857,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 156,
+          "line": 160,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -9914,7 +9915,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 63,
+          "line": 67,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -9930,7 +9931,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 74,
+          "line": 78,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -9978,7 +9979,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 110,
+          "line": 114,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -9994,7 +9995,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 17,
+          "line": 18,
           "path": "app/console/src/lib/authorize.ts"
         },
         {
@@ -10056,7 +10057,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 127,
+          "line": 131,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -10068,7 +10069,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 104,
+          "line": 108,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -10115,7 +10116,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 144,
+          "line": 148,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -13098,6 +13099,11 @@
       "title": "tests/server/upstream-errors.test.ts"
     },
     {
+      "id": "test:tests/web/portal-account.test.tsx",
+      "kind": "test",
+      "title": "tests/web/portal-account.test.tsx"
+    },
+    {
       "id": "test:tests/web/portal-competition-hub.test.tsx",
       "kind": "test",
       "title": "tests/web/portal-competition-hub.test.tsx"
@@ -13125,7 +13131,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "cb0a9634d712ff8166affcb0dc71923905632a9f5979c61f1ed8e552f1463648",
+    "fingerprint": "02d4faa512b7ffa06106d178dd1b8ec8bbcb4889b1a8f6f6a8561f4317293f3d",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -13189,7 +13195,7 @@
       },
       {
         "path": "app/console/src/lib/authorize.ts",
-        "sha256": "84c40bf7d9841622dc15be12d48e1eb630d4b370ecad112455a8e6f38fe4018f"
+        "sha256": "f1f7e9d73b6ddcc6b39b337155d84058d5a201ed0bfe8fc79bd2ee34c6a818a2"
       },
       {
         "path": "app/console/src/lib/competition-hub.ts",
@@ -13205,7 +13211,7 @@
       },
       {
         "path": "app/console/src/lib/device.ts",
-        "sha256": "d2a983ed8ab3374f9defe2a2ecc3fe220f4fd499abcb95048754b11b7f764fec"
+        "sha256": "05ac3b1aceee77987fff885be1c47a1afd4b23fedf159449ae3d80ae595cc8d2"
       },
       {
         "path": "app/console/src/lib/errors.ts",
@@ -13269,7 +13275,7 @@
       },
       {
         "path": "app/console/src/lib/signin.ts",
-        "sha256": "ee490e392e1e7271f4e58402fabeee21b40f4601f3dcedf42374ef878a29f133"
+        "sha256": "19515869c2abab8f3854754b526a81a6d6b55aca1ddebd12a3cd730cb5d3c2b8"
       },
       {
         "path": "app/console/src/lib/statuses.ts",
@@ -13321,7 +13327,7 @@
       },
       {
         "path": "app/console/src/pages/BindEmail.vue",
-        "sha256": "15ce5709294678ab2ff20c166c7f666d5cab75d18f0b2d500dc8d5df3e7832e9"
+        "sha256": "55f8041b8c0cf79a2b562ae0a71dda64640aadcde0d96fba265fe62ac4a76235"
       },
       {
         "path": "app/console/src/pages/CompetitionHub.vue",
@@ -13361,7 +13367,7 @@
       },
       {
         "path": "app/console/src/pages/SignIn.vue",
-        "sha256": "0e874cf171b4c79c8ab2860b09758eed28dbb28969fba774084b898af7253c59"
+        "sha256": "4176cbc5ed435fad9f6df1bdaff515539955f2c75456a690b612500eb51e24fb"
       },
       {
         "path": "app/console/src/pages/github/Activity.vue",
@@ -14005,7 +14011,7 @@
       },
       {
         "path": "app/server/src/lib/identity-store.ts",
-        "sha256": "e17119fb94af20b8f28091ec94c12a099f4b25145cf9599d87b2bcd3fa2b035c"
+        "sha256": "49ee0b049e5073b920ded026452ecac89f0b3f30c424984e49e6af9c683ec766"
       },
       {
         "path": "app/server/src/lib/invite-codes.ts",
@@ -14045,7 +14051,7 @@
       },
       {
         "path": "app/server/src/lib/oidc-provider.ts",
-        "sha256": "782475528bd85c190dd1317abed1c68d50d6034fdf7ba47abf782112fd75365e"
+        "sha256": "a5749c64812c4f2b0cfb31d1d6c5e9ab743d6a54c88a6e4454cc70e66f822e97"
       },
       {
         "path": "app/server/src/lib/oidc-store.ts",
@@ -14261,7 +14267,7 @@
       },
       {
         "path": "app/server/src/routes/identity/email.ts",
-        "sha256": "1af458b2e694c3d765bde1bbdf58c5a4828b61535ac6dcca3491b8677f96df91"
+        "sha256": "8e61ce8b79887cdfada3753d99e06b3a9d28b18168becb084535f8fc7d40d260"
       },
       {
         "path": "app/server/src/routes/identity/google.ts",
@@ -14281,7 +14287,7 @@
       },
       {
         "path": "app/server/src/routes/oidc/index.ts",
-        "sha256": "ee9e04c28d19ca8531842c0e861b91b8a5054129ac0f97048af486bd4a3201dc"
+        "sha256": "c4ba7f58b575cc42cc4a20476d5234a8730aacbefb2987426634e285eb610878"
       },
       {
         "path": "app/server/src/routes/portal/apply.ts",
@@ -14493,7 +14499,7 @@
       },
       {
         "path": "app/web/sites/portal/lib/account.ts",
-        "sha256": "e41315a39904cd3688d4aba97da214a2db58d55692207db04feba0606c0df9a8"
+        "sha256": "3c3a80ac87d2e9d616b1a4fea84bb67e782656aac75e27676b9988e3ca441ff4"
       },
       {
         "path": "app/web/sites/portal/lib/cameraMath.ts",
@@ -14641,7 +14647,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "449a134908ec02c9cc16d83fc710c0ebab4259db9913218ab5c5f4bba86be011"
+        "sha256": "e0a46a45096aea8eec4ef50fb6eb5a0f6d3a80407018ee3dd60c4b753874defc"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -14649,11 +14655,11 @@
       },
       {
         "path": "docs/architecture/SECURITY.md",
-        "sha256": "06d292f104fd0e51938a3e7d1ffcd7c6b6ecbf3280e15573592a502560bcd508"
+        "sha256": "306c0603e0ff444b5564bc5f1b7c2bbc06db790fe06cdc45930bd8710542b5c1"
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "1e38a323ad4b94c7eb58aa71652d7ca2515ce0eae5bbb5cc35d49f3981066d6d"
+        "sha256": "5b4b837ef82fc314cee36193ebf6ae0fb2202851817e24fb42826f291600c169"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -14681,7 +14687,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "b3fd4d1ac53015e3ad446c994b108e2fd5730131877d776f8923c59c1a577853"
+        "sha256": "9e846d235d8750e7e576489753197644d18c12999eb893b818bdcc7bb2c1267f"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -14697,7 +14703,7 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "b28416cca2123cee43794c81c76db123b7ed227ddf48e702518e0d6cc147eb4f"
+        "sha256": "ee5f15ec93974488d882925c3a86ffda133fe5d247a364401dabab479f12baed"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -14705,7 +14711,7 @@
       },
       {
         "path": "docs/services/server/oidc.md",
-        "sha256": "bf583e3e8f8005d5a06effd164bbe5b48e30a97bff97d3e1135e152d1f1b63eb"
+        "sha256": "d403dd3502e8097541e1ebb2eb33c0c3cefb55dda62ac2034f2225d040af97c6"
       },
       {
         "path": "docs/services/web/README.md",
@@ -14713,7 +14719,7 @@
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "5bee222c197fbcefff2b070a64d9abe3af9fbdefeb6a45c2bc29238dc6e4a87e"
+        "sha256": "ae444f518533513e112588adb4f43a96b88ce3767ed6abc5b93f4d0b9f2405f6"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -14861,7 +14867,7 @@
       },
       {
         "path": "tests/server/oidc.test.ts",
-        "sha256": "ddaef7379805266d3055a33ef631bdb03cef6b455262fac45243bb56d7c6cb00"
+        "sha256": "1fef6b02ea69d0aba40fe5693705a00fa3f779910a5f470a181fe54bf82ccfd8"
       },
       {
         "path": "tests/server/rate-limits.test.ts",
@@ -14873,11 +14879,15 @@
       },
       {
         "path": "tests/server/signin-methods.test.ts",
-        "sha256": "e251363ad999372e3010f195d21c15fc1e46c06f7fe83281920d97aac18555b0"
+        "sha256": "891510ba1bc9b76d89d6c7b6ab09d9468ba3b19de68219545909d010223454f8"
       },
       {
         "path": "tests/server/upstream-errors.test.ts",
         "sha256": "d86a826f207310d6e5b52f0afb9a572dd81c1f67d47ce45a4c00f48baa13a092"
+      },
+      {
+        "path": "tests/web/portal-account.test.tsx",
+        "sha256": "0b0950b07cec5a6a15a6d472f8531d0a705b08c83f7775bbe551f58ecf75f50b"
       },
       {
         "path": "tests/web/portal-competition-hub.test.tsx",
@@ -16112,7 +16122,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 159,
+          "line": 163,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -16124,7 +16134,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 63,
+          "line": 67,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -16136,7 +16146,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 110,
+          "line": 114,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -17000,7 +17010,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 159,
+          "line": 163,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -17012,7 +17022,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 63,
+          "line": 67,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -17024,7 +17034,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 110,
+          "line": 114,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -17780,7 +17790,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 122,
+          "line": 125,
           "path": "app/server/src/routes/identity/email.ts"
         }
       ],
@@ -17804,7 +17814,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 69,
+          "line": 77,
           "path": "app/server/src/routes/identity/email.ts"
         }
       ],
@@ -17816,7 +17826,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 84,
+          "line": 92,
           "path": "app/server/src/routes/identity/email.ts"
         }
       ],
@@ -17864,7 +17874,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 159,
+          "line": 163,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -17876,7 +17886,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 144,
+          "line": 148,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -17888,7 +17898,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 127,
+          "line": 131,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -22500,7 +22510,7 @@
           "path": "app/server/src/middleware/require-member.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -22540,7 +22550,7 @@
           "path": "app/server/src/middleware/require-member.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -22580,7 +22590,7 @@
           "path": "app/server/src/middleware/require-member.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -22620,7 +22630,7 @@
           "path": "app/server/src/middleware/require-member.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -22660,7 +22670,7 @@
           "path": "app/server/src/middleware/require-member.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -22700,7 +22710,7 @@
           "path": "app/server/src/middleware/require-member.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -22740,7 +22750,7 @@
           "path": "app/server/src/middleware/require-member.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -22780,7 +22790,7 @@
           "path": "app/server/src/middleware/require-member.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -22820,7 +22830,7 @@
           "path": "app/server/src/middleware/require-member.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -22860,7 +22870,7 @@
           "path": "app/server/src/middleware/require-member.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -22900,7 +22910,7 @@
           "path": "app/server/src/middleware/require-member.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -22958,7 +22968,7 @@
           "path": "app/server/src/middleware/require-member.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -46806,7 +46816,7 @@
           "path": "app/console/src/lib/account.ts"
         },
         {
-          "line": 68,
+          "line": 70,
           "path": "app/console/src/pages/BindEmail.vue"
         },
         {
@@ -46850,7 +46860,7 @@
           "path": "app/console/src/lib/account.ts"
         },
         {
-          "line": 68,
+          "line": 70,
           "path": "app/console/src/pages/BindEmail.vue"
         },
         {
@@ -46894,7 +46904,7 @@
           "path": "app/console/src/lib/account.ts"
         },
         {
-          "line": 68,
+          "line": 70,
           "path": "app/console/src/pages/BindEmail.vue"
         },
         {
@@ -46938,7 +46948,7 @@
           "path": "app/console/src/lib/account.ts"
         },
         {
-          "line": 68,
+          "line": 70,
           "path": "app/console/src/pages/BindEmail.vue"
         },
         {
@@ -47000,7 +47010,7 @@
           "path": "app/console/src/lib/account.ts"
         },
         {
-          "line": 68,
+          "line": 70,
           "path": "app/console/src/pages/BindEmail.vue"
         },
         {
@@ -47044,7 +47054,7 @@
           "path": "app/console/src/lib/account.ts"
         },
         {
-          "line": 68,
+          "line": 70,
           "path": "app/console/src/pages/BindEmail.vue"
         },
         {
@@ -47562,7 +47572,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 18,
+          "line": 19,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -47618,7 +47628,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 55,
+          "line": 56,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -47670,7 +47680,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 18,
+          "line": 19,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -47726,7 +47736,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 55,
+          "line": 56,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -47778,7 +47788,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 18,
+          "line": 19,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -47834,7 +47844,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 55,
+          "line": 56,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -47886,7 +47896,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 18,
+          "line": 19,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -47942,7 +47952,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 55,
+          "line": 56,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -47994,7 +48004,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 18,
+          "line": 19,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -48050,7 +48060,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 55,
+          "line": 56,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -48127,6 +48137,12 @@
     {
       "basis": "declaration",
       "from": "flow:identity.current",
+      "to": "test:tests/web/portal-account.test.tsx",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.current",
       "to": "test:tests/web/portal-os.test.ts",
       "type": "test-entry"
     },
@@ -48168,7 +48184,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 18,
+          "line": 19,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -48224,7 +48240,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 55,
+          "line": 56,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -48276,7 +48292,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 18,
+          "line": 19,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -48332,7 +48348,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 55,
+          "line": 56,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -48384,7 +48400,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 18,
+          "line": 19,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -48440,7 +48456,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 55,
+          "line": 56,
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
@@ -48980,7 +48996,7 @@
           "path": "app/console/src/pages/Device.vue"
         },
         {
-          "line": 18,
+          "line": 19,
           "path": "app/console/src/lib/device.ts"
         }
       ],
@@ -49020,7 +49036,7 @@
           "path": "app/console/src/pages/Device.vue"
         },
         {
-          "line": 18,
+          "line": 19,
           "path": "app/console/src/lib/device.ts"
         }
       ],
@@ -49062,7 +49078,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 123,
+          "line": 126,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49086,7 +49102,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 123,
+          "line": 126,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49122,7 +49138,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 123,
+          "line": 126,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49146,7 +49162,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 123,
+          "line": 126,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49170,7 +49186,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 123,
+          "line": 126,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49194,7 +49210,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 123,
+          "line": 126,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49276,7 +49292,7 @@
           "path": "app/console/src/lib/signin.ts"
         },
         {
-          "line": 198,
+          "line": 200,
           "path": "app/console/src/pages/SignIn.vue"
         }
       ],
@@ -49304,7 +49320,7 @@
           "path": "app/console/src/lib/signin.ts"
         },
         {
-          "line": 198,
+          "line": 200,
           "path": "app/console/src/pages/SignIn.vue"
         }
       ],
@@ -49332,7 +49348,7 @@
           "path": "app/console/src/lib/signin.ts"
         },
         {
-          "line": 198,
+          "line": 200,
           "path": "app/console/src/pages/SignIn.vue"
         }
       ],
@@ -49372,7 +49388,7 @@
           "path": "app/console/src/lib/signin.ts"
         },
         {
-          "line": 198,
+          "line": 200,
           "path": "app/console/src/pages/SignIn.vue"
         }
       ],
@@ -49400,7 +49416,7 @@
           "path": "app/console/src/lib/signin.ts"
         },
         {
-          "line": 198,
+          "line": 200,
           "path": "app/console/src/pages/SignIn.vue"
         }
       ],
@@ -49428,7 +49444,7 @@
           "path": "app/console/src/lib/signin.ts"
         },
         {
-          "line": 198,
+          "line": 200,
           "path": "app/console/src/pages/SignIn.vue"
         }
       ],
@@ -49456,7 +49472,7 @@
           "path": "app/console/src/lib/signin.ts"
         },
         {
-          "line": 198,
+          "line": 200,
           "path": "app/console/src/pages/SignIn.vue"
         }
       ],
@@ -49484,7 +49500,7 @@
           "path": "app/console/src/lib/signin.ts"
         },
         {
-          "line": 198,
+          "line": 200,
           "path": "app/console/src/pages/SignIn.vue"
         }
       ],
@@ -49512,7 +49528,7 @@
           "path": "app/console/src/lib/signin.ts"
         },
         {
-          "line": 198,
+          "line": 200,
           "path": "app/console/src/pages/SignIn.vue"
         }
       ],
@@ -49560,7 +49576,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 70,
+          "line": 78,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49596,7 +49612,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 70,
+          "line": 78,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49644,7 +49660,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 70,
+          "line": 78,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49680,7 +49696,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 70,
+          "line": 78,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49752,7 +49768,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 85,
+          "line": 93,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49776,7 +49792,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 85,
+          "line": 93,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49800,7 +49816,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 85,
+          "line": 93,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49824,7 +49840,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 85,
+          "line": 93,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49860,7 +49876,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 85,
+          "line": 93,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49884,7 +49900,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 85,
+          "line": 93,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49908,7 +49924,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 85,
+          "line": 93,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49932,7 +49948,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 85,
+          "line": 93,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49956,7 +49972,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 85,
+          "line": 93,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -49980,7 +49996,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 85,
+          "line": 93,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -50004,7 +50020,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 85,
+          "line": 93,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -50028,7 +50044,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 85,
+          "line": 93,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -51122,7 +51138,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 144,
+          "line": 148,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51138,7 +51154,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 144,
+          "line": 148,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51160,7 +51176,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 144,
+          "line": 148,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51176,7 +51192,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 144,
+          "line": 148,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51192,7 +51208,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 144,
+          "line": 148,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51208,7 +51224,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 144,
+          "line": 148,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51266,7 +51282,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 131,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51278,7 +51294,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 104,
+          "line": 108,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -51290,7 +51306,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 131,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51302,7 +51318,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 104,
+          "line": 108,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -51326,7 +51342,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 131,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51338,7 +51354,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 104,
+          "line": 108,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -51350,7 +51366,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 131,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51362,7 +51378,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 104,
+          "line": 108,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -51374,7 +51390,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 131,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51386,7 +51402,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 104,
+          "line": 108,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -51398,7 +51414,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 131,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51410,7 +51426,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 104,
+          "line": 108,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -51422,7 +51438,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 131,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51434,7 +51450,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 104,
+          "line": 108,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -51488,7 +51504,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 110,
+          "line": 114,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51504,7 +51520,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 17,
+          "line": 18,
           "path": "app/console/src/lib/authorize.ts"
         },
         {
@@ -51528,7 +51544,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 110,
+          "line": 114,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51544,7 +51560,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 17,
+          "line": 18,
           "path": "app/console/src/lib/authorize.ts"
         },
         {
@@ -51568,7 +51584,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 110,
+          "line": 114,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51584,7 +51600,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 17,
+          "line": 18,
           "path": "app/console/src/lib/authorize.ts"
         },
         {
@@ -51608,7 +51624,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 110,
+          "line": 114,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51624,7 +51640,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 17,
+          "line": 18,
           "path": "app/console/src/lib/authorize.ts"
         },
         {
@@ -51648,7 +51664,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 110,
+          "line": 114,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51664,7 +51680,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 17,
+          "line": 18,
           "path": "app/console/src/lib/authorize.ts"
         },
         {
@@ -51688,7 +51704,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 110,
+          "line": 114,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51704,7 +51720,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 17,
+          "line": 18,
           "path": "app/console/src/lib/authorize.ts"
         },
         {
@@ -51740,7 +51756,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 110,
+          "line": 114,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51756,7 +51772,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 17,
+          "line": 18,
           "path": "app/console/src/lib/authorize.ts"
         },
         {
@@ -51780,7 +51796,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 110,
+          "line": 114,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51796,7 +51812,7 @@
           "path": "app/console/src/pages/Authorize.vue"
         },
         {
-          "line": 17,
+          "line": 18,
           "path": "app/console/src/lib/authorize.ts"
         },
         {
@@ -51856,7 +51872,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 67,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51872,7 +51888,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 74,
+          "line": 78,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -51884,7 +51900,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 67,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51900,7 +51916,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 74,
+          "line": 78,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -51912,7 +51928,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 67,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51928,7 +51944,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 74,
+          "line": 78,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -51940,7 +51956,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 67,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51956,7 +51972,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 74,
+          "line": 78,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -51968,7 +51984,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 67,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -51984,7 +52000,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 74,
+          "line": 78,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -52002,7 +52018,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 67,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52018,7 +52034,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 74,
+          "line": 78,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -52030,7 +52046,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 67,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52046,7 +52062,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 74,
+          "line": 78,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -52058,7 +52074,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 67,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52074,7 +52090,7 @@
           "path": "app/server/src/lib/account-directory.ts"
         },
         {
-          "line": 74,
+          "line": 78,
           "path": "app/server/src/routes/oidc/index.ts"
         }
       ],
@@ -52122,7 +52138,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 161,
+          "line": 165,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52170,7 +52186,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 161,
+          "line": 165,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52218,7 +52234,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 161,
+          "line": 165,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52266,7 +52282,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 161,
+          "line": 165,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52314,7 +52330,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 161,
+          "line": 165,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52362,7 +52378,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 161,
+          "line": 165,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52410,7 +52426,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 161,
+          "line": 165,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52458,7 +52474,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 161,
+          "line": 165,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52512,7 +52528,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 161,
+          "line": 165,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52560,7 +52576,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 161,
+          "line": 165,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52608,7 +52624,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 161,
+          "line": 165,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52656,7 +52672,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 161,
+          "line": 165,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52740,7 +52756,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 156,
+          "line": 160,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52760,7 +52776,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 156,
+          "line": 160,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52780,7 +52796,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 156,
+          "line": 160,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52800,7 +52816,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 156,
+          "line": 160,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52820,7 +52836,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 156,
+          "line": 160,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52840,7 +52856,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 156,
+          "line": 160,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52860,7 +52876,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 156,
+          "line": 160,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52886,7 +52902,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 156,
+          "line": 160,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52906,7 +52922,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 156,
+          "line": 160,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52926,7 +52942,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 156,
+          "line": 160,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -52946,7 +52962,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 156,
+          "line": 160,
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
@@ -53020,7 +53036,7 @@
           "path": "app/server/src/routes/identity/index.ts"
         },
         {
-          "line": 222,
+          "line": 226,
           "path": "app/console/src/pages/SignIn.vue"
         },
         {
@@ -71334,7 +71350,7 @@
         }
       },
       "source": {
-        "line": 159,
+        "line": 163,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -71427,7 +71443,7 @@
         }
       },
       "source": {
-        "line": 63,
+        "line": 67,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -71608,7 +71624,7 @@
         }
       },
       "source": {
-        "line": 110,
+        "line": 114,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -76383,7 +76399,7 @@
         }
       },
       "source": {
-        "line": 159,
+        "line": 163,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -76455,7 +76471,7 @@
         }
       },
       "source": {
-        "line": 63,
+        "line": 67,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -76527,7 +76543,7 @@
         }
       },
       "source": {
-        "line": 110,
+        "line": 114,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -87141,7 +87157,7 @@
         }
       },
       "source": {
-        "line": 122,
+        "line": 125,
         "path": "app/server/src/routes/identity/email.ts"
       }
     },
@@ -87392,7 +87408,7 @@
         }
       },
       "source": {
-        "line": 69,
+        "line": 77,
         "path": "app/server/src/routes/identity/email.ts"
       }
     },
@@ -87515,7 +87531,7 @@
         }
       },
       "source": {
-        "line": 84,
+        "line": 92,
         "path": "app/server/src/routes/identity/email.ts"
       }
     },
@@ -87702,7 +87718,7 @@
         }
       },
       "source": {
-        "line": 159,
+        "line": 163,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -87809,7 +87825,7 @@
         }
       },
       "source": {
-        "line": 144,
+        "line": 148,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
@@ -87916,7 +87932,7 @@
         }
       },
       "source": {
-        "line": 127,
+        "line": 131,
         "path": "app/server/src/routes/oidc/index.ts"
       }
     },
