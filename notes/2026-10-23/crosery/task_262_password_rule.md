@@ -35,3 +35,10 @@
 - 做了什么：推送前逐个提交核对时发现：92f516e5 修订后的 2b28164f 里，262.json、ADR-0005、开工记录和测试数据仍写着所有者密码例子的长度或字符类型，cd2ffb4c 的提交说明和上一条返工记录也写了长度；分支要推到公开的 GitLab，后面的提交改掉也会留在历史里。于是 git reset --soft 2101fe40，把 2b28164f、193c2b0d、cd2ffb4c、8dd786cf 合成 8063dd20（最终的代码、测试、文档与项目目录，带开工、提交两条记录），审查、返工两条记录和这一条放进下一个提交。返工记录里写出长度的三处改成不带长度的说法（这是第三次为去掉密码信息改已写的记录，其余文字不变）。审查所针对的 92f516e5 和返工的三个提交只留在本机 reflog，内容合起来就是 8063dd20
 - 结果：8063dd20 与 8dd786cf 的差别只有执行记录少了审查、返工两条；pnpm check 八项、check-doc-sync 与 check-architecture --base 2101fe40 通过；pnpm typecheck 通过；pnpm test 93 个文件 1532 条通过；server 与 console 构建通过；git log -p 2101fe40..HEAD 查不到密码例子的长度、字符类型与旧测试值
 - 下一步：推到 GitLab 开 MR，写 PR 记录
+
+## 14:23:55 +08:00 · PR · #262 · 开 GitLab MR !3（task/262/password_rule → stage）
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：GitHub 账号被封期间按所有者 10:32「暂时全部迁移到gitlab」在 GitLab 开 MR：https://git.yangtzeu.work/geek/admin/-/merge_requests/3 ，头 9b64311c，标签 func:auth、ui:content，合并后删源分支。正文十节：写明最短 8 位是实施方按所有者例子定的、密码例子与长度不公开、推送前合成提交、执行记录为去掉密码信息改过三次；验收证据是注册页改前（rc.12）改后（本机开发服务器）桌面与手机各一张、账号页改后两张，都用 ego-browser 截。只写 Refs #262，不自动关单
+- 结果：MR !3 已开，截图匿名可读（HTTP 200）
+- 下一步：提交这条记录推上去，合进 stage，构建部署 rc.13
