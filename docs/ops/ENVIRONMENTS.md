@@ -47,6 +47,9 @@
 | `MAIL_ASSET_BASE` | 可见 | `https://cdn.crosery.com/yzgc/mail/v1/`（信里图片的地址前缀：https，以 `/` 结尾，不带查询串） | 同左 |
 | `MAIL_REPLY_TO` | 可见·留空 | 空 = 信里不带 Reply-To，改请对方到官网意见箱留言；要填就写一个不带显示名的地址 | 空 |
 | `MAIL_RECIPIENTS` | 可见 | `all`：发给每一个投递的人 | `all`（#169 起；以前只能是 `allowlist`）；改成 `allowlist` 就只发 `MAIL_ALLOWLIST` 里的地址 |
+| `GITLAB_SYNC` | 可见 | `off`：不在 GitLab 上建号（所有者在预发布验收、填好 `GITLAB_API_TOKEN` 后改 `on`） | `dry-run`：只算出要做什么，不写表、不调 GitLab（#270） |
+| `GITLAB_URL` | 可见 | `https://git.yangtzeu.work`（自建 GitLab 的 origin，https、不带尾斜杠） | 同左 |
+| `GITLAB_GROUP` | 可见 | `geek`（成员进的组） | 同左 |
 | `GEEK_RELEASE_DISPLAY_SUFFIX` | **已移除** | 不再出现在 env 文件里：它是 `BUILD_ONLY_FIELDS`（发布身份只走 build args），写进 `.env` 不会被读取 | 同左 |
 | `OAUTH_CLIENT_ID` | **密钥·必须留空** | CI/CD 注入 | CI/CD 注入 |
 | `OAUTH_CLIENT_SECRET` | **密钥·必须留空** | CI/CD 注入 | CI/CD 注入 |
@@ -59,8 +62,10 @@
 | `MAIL_ALLOWLIST` | 密钥·留空，可选 | `MAIL_RECIPIENTS=allowlist` 时才用 | 同左，现在不用 |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 密钥·留空，可选的一对 | 没配：登录页不出现 Google | 同左 |
 | `GH_APP_ID` / `GH_APP_PRIVATE_KEY` | 密钥·留空，可选的一对 | 没配：控制台的 GitHub 组织页面只在用 GitHub 登录时借本人令牌 | 同左 |
+| `OIDC_JWKS` | 密钥·留空，可选 | 没配：对外授权关闭，`/oidc/*` 一律 404 | 同左 |
+| `GITLAB_API_TOKEN` | 密钥·留空，`GITLAB_SYNC=on` 时必填 | `GITLAB_SYNC=on` 才用 | 同左，`dry-run` 不用 |
 
-**一个环境只有一个域名**（2026-09-23 决定）：官网、管理端、论坛共用 `PUBLIC_ORIGIN`，按 URL 路径区分——`/admin`、`/admin/…`、`/console`、`/console/…`、`/signin`、`/device`、`/account` 进管理端 SPA，`/forum/…` 进论坛，其余进官网。旧的按站点分域名字段 `SITE_ORIGIN`、`ADMIN_HOST`、`PORTAL_HOST`、`FORUM_HOST` 已退役，校验器把模板里任何契约外的字段判为失败，防止重新长出第二份域名配置。
+**一个环境只有一个域名**（2026-09-23 决定）：官网、管理端、论坛共用 `PUBLIC_ORIGIN`，按 URL 路径区分——`/admin`、`/admin/…`、`/console`、`/console/…`、`/signin`、`/device`、`/account`、`/authorize` 进管理端 SPA，`/forum/…` 进论坛，`/oidc/…`（对外授权，#270）进 server，其余进官网。旧的按站点分域名字段 `SITE_ORIGIN`、`ADMIN_HOST`、`PORTAL_HOST`、`FORUM_HOST` 已退役，校验器把模板里任何契约外的字段判为失败，防止重新长出第二份域名配置。
 
 校验：`node scripts/deployment-environment.mjs --check`（`pnpm check:environments`）核对模板字段完整性、契约外字段、密钥留空、`PUBLIC_ORIGIN` 与 `deploy/environments.json` 逐字一致、两环境取值差异，以及发信字段：两个发件地址是不带显示名的邮箱，`MAIL_REPLY_TO` 为空或是一个邮箱，`MAIL_ASSET_BASE` 是以 `/` 结尾的 https 地址，`MAIL_RECIPIENTS` 只能是 `all` 或 `allowlist`（两个环境模板现在都是 `all`，#169）；`node scripts/deployment-environment.mjs render --environment <env> --out <路径> --image-tag <sha12>` 生成目标机运行时文件（只读仓库、只写显式 `--out`）。
 
@@ -92,6 +97,8 @@
 | `MAIL_RESEND_API_KEY` | Resend 的 API Key（可选） |
 | `MAIL_ALLOWLIST` | 收件名单：英文逗号隔开的邮箱，不带空格（可选；`MAIL_RECIPIENTS=allowlist` 时只发给这些地址） |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google 登录的 OAuth 客户端（可选的一对；Google Cloud 里类型选「Web 应用」，已获授权的重定向 URI 填 `<origin>/auth/google/callback`） |
+| `OIDC_JWKS` | 对外授权的签名私钥（可选，#270）：在 server 容器里 `node app/server/dist/cli/oidc.js keygen` 生成的一行 base64（RSA 2048 的 JWK Set），环境密钥不收引号，不用 JSON 原文 |
+| `GITLAB_API_TOKEN` | 自建 GitLab 管理员的个人访问令牌（`api` 范围，#270）；`GITLAB_SYNC=on` 时必填，`off`、`dry-run` 可以留空 |
 | `GH_APP_ID` / `GH_APP_PRIVATE_KEY` | 服务器接 GitHub 用的 GitHub App（可选的一对，#262 第四期）：App 由 `CONSOLE_ORG` 的 owner 建并装到组织上，ID 是数字；私钥是 GitHub 生成的 RSA 私钥，整份 PEM 再 base64 成一行（`base64 < app.pem \| tr -d '\n'`）再存，因为环境密钥不收空白。配了 App 时 GitHub 登录只申请 `read:user user:email read:org` |
 
 Turnstile 两项是可选的一对（`scripts/deployment-environment.mjs` 的 `OPTIONAL_SECRET_PAIR`）：**都为空＝明确关闭**，渲染时写空值并提示；只填一项仍拒绝渲染；除 Turnstile 和下面的发信密钥外，其余密钥一律必填。关闭时服务端 `middleware/turnstile.ts` 不校验人机验证，公开的投递、反馈、邀请只靠工作量证明（`POW_DIFFICULTY`）、蜜罐字段与限流；遗留风险是批量脚本的成本只剩计算量，要开启时在 Cloudflare 建站点后把两项同时配进环境级 secrets 并重新部署。首次上线（2026-09-25）两个环境都关闭。
@@ -101,6 +108,8 @@ Turnstile 两项是可选的一对（`scripts/deployment-environment.mjs` 的 `O
 Google 登录的两项也是可选的一对（同一脚本的 `GOOGLE_SECRET_PAIR`，#262）：都为空时登录页不出现 Google，`/auth/google` 回 404，渲染时提示；只填一项拒绝渲染，server 启动也会拒绝。两个环境现在都没配。要开启时在 Google Cloud 为每个环境建一个 OAuth 客户端（Web 应用，重定向 URI 是本环境的 `<origin>/auth/google/callback`），授权页上要有隐私政策地址，然后把两项写进目标机的 `.env.<环境>`（或环境级 secrets）并重新部署。
 
 GitHub App 的两项也是可选的一对（`GITHUB_APP_SECRET_PAIR`，#262 第四期）：都为空时控制台的 GitHub 组织页面只在用 GitHub 登录时借本人的令牌读写，用邮箱、Google 登录的人看到「GitHub 还没接上」；只填一项拒绝渲染，server 启动也会拒绝，私钥不对、不是 RSA 时启动失败，错误信息不带私钥。两个环境现在都没配。要开启时由 `CONSOLE_ORG` 的 owner 在组织设置里建一个 GitHub App（不要回调地址和 webhook），按控制台要做的事给组织与仓库权限（成员、管理、内容、议题、PR），装到组织上，生成私钥；把 App ID 和一行 base64 的私钥写进目标机的 `.env.<环境>`（或环境级 secrets）并重新部署。配了之后谁能读写 GitHub 只看站内称号，见 [SECURITY](../architecture/SECURITY.md)「权限只认极客班账号」。
+
+对外授权与 GitLab 同步的两项（同一脚本的 `OIDC_GITLAB_SECRETS`，#270）：`OIDC_JWKS` 为空时对外授权关闭，`/oidc/*` 一律 404，渲染时提示，照常部署；`GITLAB_API_TOKEN` 只在 `GITLAB_SYNC=on` 时必填，缺了拒绝渲染，server 启动也会拒绝。`GITLAB_SYNC` 只能是 `off`、`dry-run`、`on`，`GITLAB_URL` 是不带尾斜杠的 https origin，`GITLAB_GROUP` 是 GitLab 的组路径，`pnpm check:environments` 核对。两个环境现在都没配这两项。开启顺序：在目标机 server 容器里生成签名密钥写进 `.env.<环境>` 的 `OIDC_JWKS`、重新部署，再用同一个 CLI 登记 GitLab 客户端，把 GitLab 的 omniauth 配好（[对外授权与 GitLab 账号同步](../services/server/oidc.md)「客户端与密钥」「GitLab 一侧的配置」）；正式环境改 `GITLAB_SYNC=on` 要所有者先在预发布验收并批准，改之前先备份数据库。
 
 ### vars
 

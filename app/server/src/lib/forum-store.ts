@@ -560,6 +560,11 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
       })();
     },
     avatar: (hash: string) => (db.prepare("SELECT data FROM forum_avatars WHERE hash = ?").get(hash) as { data: Buffer } | undefined)?.data ?? null,
+    /** 这个极客班账号的论坛资料（#270，对外授权与 GitLab 同步读它）；没有论坛用户时为 null。 */
+    profileForAccount(accountId: string): { displayName: string; bio: string; location: string; website: string; avatarHash: string | null } | null {
+      const row = selectUserByAccount.get(accountId) as UserRow | undefined;
+      return row ? { displayName: row.display_name, bio: row.bio, location: row.location, website: row.website, avatarHash: row.avatar_hash } : null;
+    },
 
     /** 限流：每个窗口内已有的次数到上限就拒绝。只在动作成功后 `rateRecord`，被拒的请求不占额度。 */
     rateAllowed(bucket: RateBucket, subject: string, now = Date.now()): boolean {

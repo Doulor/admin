@@ -1,4 +1,4 @@
-// YUGC OS 桌面上的东西：左上角一列应用图标（加入我们、论坛、GitHub 组织在最前面），
+// YUGC OS 桌面上的东西：左上角一列应用图标（加入我们、论坛、代码仓库在最前面），
 // 图标右边、壁纸天空里一张「新来的看这里」便签，按顺序说清怎么加入。壁纸是极客娘，桌面上不再铺组件卡片。
 import { NEW_TAB_NOTE, appById, opensNewTab, type AppId, type OsApp } from "../../lib/osApps";
 import Icon from "../Icon";
@@ -61,7 +61,7 @@ export function StartNote({ onOpen, onClose, phone = false }: { onOpen: OpenApp;
   const steps: Array<{ id: AppId; title: string; text: string }> = [
     { id: "join", title: "在「加入我们」写封信", text: "写上姓名、班级、邮箱，再说说你会什么。招新部看完用邮件联系你。" },
     { id: "forum", title: "去「论坛」看看大家在聊什么", text: "公告、课程、竞赛和求职都在这里，不用登录也能看。" },
-    { id: "github", title: "去「GitHub 组织」看我们的代码", text: "极客班的公开仓库都在这里。" },
+    { id: "gitlab", title: "去「代码仓库」看我们的代码", text: "极客班的仓库都在这里，成员用极客班账号登录。" },
   ];
   return (
     <aside className="pt-note" aria-label={phone ? "加入指引" : undefined} aria-labelledby={phone ? undefined : "pt-note-title"}>

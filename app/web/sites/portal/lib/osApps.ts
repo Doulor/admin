@@ -1,15 +1,15 @@
 // YUGC OS 的应用清单、启动器过滤、终端命令与时间文案（纯逻辑，tests/web/portal-os.test.ts 覆盖）。
 // 每个应用打开什么只写在 OS_APPS 里：桌面图标、Dock、1/2/3、菜单栏「前往」、⌘K、便签、终端和「加入我们」回执页都从这里取。
-// 去别的站点的应用（论坛、控制台、GitHub 组织）只写指向 ./links 里的哪一条，由 appLink 解析成地址；地址规则仍只在 ./links。
+// 去别的站点的应用（论坛、控制台、代码仓库、GitHub 组织）只写指向 ./links 里的哪一条，由 appLink 解析成地址；地址规则仍只在 ./links。
 import type { IconName } from "./icons";
 import { links } from "./links";
 
-export type AppId = "join" | "forum" | "github" | "promo" | "about" | "org" | "competitions" | "terminal" | "feedback" | "console" | "wallpaper";
+export type AppId = "join" | "forum" | "gitlab" | "github" | "promo" | "about" | "org" | "competitions" | "terminal" | "feedback" | "console" | "wallpaper";
 
 /**
  * scene：进入官网内的 3D 场景页（只有「加入我们」）；window：在桌面里开窗口；panel：桌面自带的全屏面板（换壁纸、重看宣传片）；
  * route：站内普通页面；site：同一个域名下的另一个端（论坛、控制台），当前标签页整页跳过去；
- * external：别人的网站（GitHub 组织），新标签页打开。
+ * external：另一个域名的网站（自建的 GitLab「代码仓库」、GitHub 组织），新标签页打开。
  * 论坛与 GitHub 组织点一下直达（#185），不再先进 /forum-3d、/github 场景页；那两个页面留给旧地址，直接打开照常能用。
  */
 export type AppOpen =
@@ -18,7 +18,7 @@ export type AppOpen =
   | { kind: "panel"; panel: "wallpaper" | "promo" }
   | { kind: "route"; path: string }
   | { kind: "site"; link: "forumHome" | "console" }
-  | { kind: "external"; link: "githubOrg" };
+  | { kind: "external"; link: "gitlab" | "githubOrg" };
 
 export type OsApp = {
   id: AppId;
@@ -39,7 +39,8 @@ export type OsApp = {
 export const OS_APPS: readonly OsApp[] = [
   { id: "join", name: "加入我们", icon: "mail-send-line", tint: "#3346c8", key: "1", primary: true, open: { kind: "scene", path: "/join-us" }, blurb: "写封信报名，我们用邮件联系你" },
   { id: "forum", name: "论坛", icon: "discuss-line", tint: "#5b5fd6", key: "2", open: { kind: "site", link: "forumHome" }, blurb: "班级公告，课程、竞赛和求职讨论", keywords: "bbs home 首页" },
-  { id: "github", name: "GitHub 组织", icon: "github-line", tint: "#1b2140", key: "3", open: { kind: "external", link: "githubOrg" }, blurb: "极客班的公开仓库" },
+  { id: "gitlab", name: "代码仓库", icon: "git-repository-line", tint: "#c2552b", key: "3", open: { kind: "external", link: "gitlab" }, blurb: "极客班自己的 GitLab，用极客班账号登录", keywords: "gitlab git repo code 代码 仓库" },
+  { id: "github", name: "GitHub 组织", icon: "github-line", tint: "#1b2140", open: { kind: "external", link: "githubOrg" }, blurb: "极客班在 GitHub 上的公开仓库" },
   { id: "promo", name: "宣传片", icon: "film-line", tint: "#d4478a", open: { kind: "panel", panel: "promo" }, blurb: "极客班宣传片，1 分 45 秒" },
   { id: "about", name: "关于极客班", icon: "book-2-line", tint: "#0e8fc9", open: { kind: "window" }, blurb: "极客班是做什么的" },
   { id: "org", name: "组织架构", icon: "organization-chart", tint: "#128a7e", open: { kind: "window" }, blurb: "有哪些部门，谁负责什么" },

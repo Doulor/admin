@@ -30,7 +30,7 @@ type MascotPoseConfig = {
 type AppConfig = {
   environment: { development: RuntimeEnvironment; production: RuntimeEnvironment };
   sites: Record<AppSiteKind, SiteEntry>;
-  urls: { githubOrg: string };
+  urls: { githubOrg: string; gitlab: string };
   features: {
     development: Record<string, boolean>;
     production: Record<string, boolean>;

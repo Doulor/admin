@@ -153,6 +153,25 @@
 
 源码：[routes/identity/email.ts](../../../app/server/src/routes/identity/email.ts)、[routes/identity/google.ts](../../../app/server/src/routes/identity/google.ts)、[routes/identity/account.ts](../../../app/server/src/routes/identity/account.ts)、[routes/console/invites.ts](../../../app/server/src/routes/console/invites.ts)、[lib/email-login.ts](../../../app/server/src/lib/email-login.ts)、[lib/google.ts](../../../app/server/src/lib/google.ts)、[lib/invite-codes.ts](../../../app/server/src/lib/invite-codes.ts)、[lib/identity-store.ts](../../../app/server/src/lib/identity-store.ts)。验证入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)、[tests/console/signin.test.ts](../../../tests/console/signin.test.ts)、[tests/console/account.test.ts](../../../tests/console/account.test.ts)。
 
+## 对外授权（OIDC）与 GitLab 账号同步（#270）
+
+不同源的应用（第一个是自建 GitLab）用极客班账号登录：核心服务内嵌的 OpenID Connect 签发者挂在 `/oidc/*`，签发者 `<PUBLIC_ORIGIN>/oidc`；没配 `OIDC_JWKS` 时下面 6 个 `/oidc` 操作照样注册，请求一律 404。协议细节、客户端登记和 GitLab 一侧的配置见 [对外授权与 GitLab 账号同步](oidc.md)。交互接口按核心写请求的 Origin 门禁处理；协议端点由下游服务器调用，不带 Origin。
+
+| 接口 · 流程 | 权限与资源 | 响应、错误与副作用 |
+|---|---|---|
+| `GET /oidc/*` · `flow:identity.oidc.protocol` | 匿名或带 `sid`；每分钟 120 次（按 IP，与 `POST /oidc/*` 各自计数）；授权端点只认登记过的 `client_id` 和完全一致的回调地址，PKCE 必须 `S256` | 原样交给 `oidc-provider`：发现文档、JWKS（只有公钥）、授权端点、userinfo。授权端点按本站 `sid` 判断是否登录：`sid` 账号与签发者会话一致且仍是成员时直接 303 回下游带 `code`，否则 303 到 `/oidc/interaction/<uid>`；未知客户端、错回调不跳转，回 400 的 HTML 错误页。读写 `oidc_payloads`，首次给某 sector 的账号写 `oauth_subjects`。 |
+| `POST /oidc/*` · `flow:identity.oidc.token` | 下游服务器凭 `client_secret_basic` 或 `client_secret_post`；每分钟 120 次 | 换令牌 200 `{access_token,id_token,token_type,expires_in,scope}`（不发 refresh token）；客户端认证失败 401 `invalid_client`，授权码过期、用过或 PKCE 不对 400 `invalid_grant`；授权码重放时撤销这份授权和它发出的令牌。userinfo 对已停用或不再是成员的账号 401。另有 `POST /oidc/token/revocation`。读写 `oidc_payloads`，读 `oauth_clients`、`oauth_subjects`、`users`。 |
+| `GET /oidc/interaction/:uid` · `flow:identity.oidc.interaction` | 浏览器；每分钟 30 次；交互按签名 cookie `oidc_interaction` 找，不认就回 400 HTML 错误页 `session_not_found` | 没 `sid` 303 到 `/signin?return_to=/oidc/interaction/<uid>`；账号不是成员时 303 回下游带 `error=access_denied`；要登录时按 `sid` 账号登录（换过账号先删掉签发者里旧账号的会话），要同意时 303 到 `/authorize?uid=<uid>`。写 `oidc_payloads`。 |
+| `GET /oidc/interaction/:uid/details` · `flow:identity.oidc.details` | 有效会话，且就是发起这次登录的账号；每分钟 30 次 | 200 `{client:{id,name,host},scopes,account:{login,name,picture},expires_at}`；没会话 401，交互过期或客户端已停用 404 `interaction_expired`，不是要同意的交互或换了账号 409 `interaction_mismatch`。只读。 |
+| `POST /oidc/interaction/:uid/confirm` · `flow:identity.oidc.confirm` | 同上；每分钟 20 次 | 200 `{redirect_to}`（浏览器去这里，由签发者 303 回下游带 `code`）；错误同 details。保存授权（`oidc_payloads`），记进 `oauth_grants`，写审计 `oidc.consent`。 |
+| `POST /oidc/interaction/:uid/abort` · `flow:identity.oidc.abort` | 同上；每分钟 20 次 | 200 `{redirect_to}`，下游收到 `error=access_denied`；错误同 details。把拒绝结果存进交互（`oidc_payloads`），写审计 `oidc.deny`。 |
+| `GET /api/console/gitlab/accounts` · `flow:gitlab.accounts.list` | `roles.manage` 或 `roles.department.manage` | 200 `{mode,gitlab_url,group,accounts:[…]}`，每行是一个极客班账号的 GitLab 用户 id、用户名、状态、组权限、最后一次错误和还要做的事（`dry-run` 时就是会做什么）；`off` 时照样列出。只读。 |
+| `POST /api/console/gitlab/accounts/:account_id/sync` · `flow:gitlab.accounts.sync` | `roles.manage`；每分钟 30 次 | 200 `{mode,…这个账号同步后的状态}`；同步关着 409 `gitlab_sync_off`，没有这个账号 404 `account_not_found`。`on` 时调用 GitLab 管理接口建号、改组权限、封禁或解封，写 `gitlab_accounts` 与审计 `gitlab.sync`，账号还没有 GitLab sector 的 `sub` 时写 `oauth_subjects`；`dry-run` 不写表、不调 GitLab。 |
+
+本地表：签发者读 `oauth_clients`，读写 `oauth_subjects`、`oauth_grants`、`oidc_payloads`，读 `users`、`identities`、`forum_users` 拼声明，同意与拒绝写 `audit_logs`；同步读 `users`、`identities`、`forum_users`、`forum_avatars`，读写 `oauth_subjects`、`gitlab_accounts`，写 `audit_logs`。各流程的完整读写见[项目目录](../../architecture/catalog/CATALOG.md#业务流程)。
+
+源码：[routes/oidc/index.ts](../../../app/server/src/routes/oidc/index.ts)、[routes/console/gitlab.ts](../../../app/server/src/routes/console/gitlab.ts)、[lib/oidc-provider.ts](../../../app/server/src/lib/oidc-provider.ts)、[lib/oidc-store.ts](../../../app/server/src/lib/oidc-store.ts)、[lib/account-directory.ts](../../../app/server/src/lib/account-directory.ts)、[lib/gitlab-sync.ts](../../../app/server/src/lib/gitlab-sync.ts)。验证入口：[tests/server/oidc.test.ts](../../../tests/server/oidc.test.ts)、[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)、[tests/console/authorize.test.ts](../../../tests/console/authorize.test.ts)。
+
 ## 校验登录回调，在一个事务里建号或找到账号并建立统一会话
 
 `GET /auth/callback` · `flow:identity.callback`

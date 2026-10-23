@@ -84,7 +84,10 @@ export default defineConfig({
     // 代理把 Origin 换成 5173，与线上同域时一致，否则本机的保存、审核和退出都会被 403。
     proxy: {
       "/api": { target: "http://127.0.0.1:3000", headers: { origin: "http://127.0.0.1:5173" } },
-      "/auth": { target: "http://127.0.0.1:3000", headers: { origin: "http://127.0.0.1:5173" } },
+      // 只接 /auth/…：字符串键按前缀匹配，写成 "/auth" 会把同意页 /authorize 也转给核心
+      "^/auth/": { target: "http://127.0.0.1:3000", headers: { origin: "http://127.0.0.1:5173" } },
+      // 对外授权的同意页（/authorize）读写 /oidc/interaction/*（#270）
+      "/oidc": { target: "http://127.0.0.1:3000", headers: { origin: "http://127.0.0.1:5173" } },
     },
   },
   build: {

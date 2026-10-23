@@ -36,6 +36,19 @@ const limit = (max: keyof typeof LIMIT_PATTERNS) => ({ type: "string", pattern: 
 const offset = { type: "string", pattern: "^[0-9]{1,8}$" };
 const noQuery = { querystring: object({}) };
 const nullableCount = { anyOf: [integer(0), { type: "null" }] };
+// GitLab 同步（#270）：一个要做的动作，和成员页上一个账号的同步状态
+const gitlabAction = {
+  oneOf: [
+    object({ kind: choices("create"), username: text(64, 1), access_level: integer(10, 50) }, ["kind", "username", "access_level"]),
+    object({ kind: choices("block", "unblock") }, ["kind"]),
+    object({ kind: choices("set_access"), access_level: integer(10, 50) }, ["kind", "access_level"]),
+  ],
+};
+const gitlabAccountView = object({
+  account_id: accountId, login: text(100, 1), username: nullableString(64), gitlab_user_id: nullableInteger,
+  state: { anyOf: [choices("pending", "active", "blocked"), { type: "null" }] }, access_level: nullableInteger,
+  last_error: nullableString(64), last_error_at: nullableCount, synced_at: nullableCount, pending: { type: "array", items: gitlabAction },
+}, ["account_id", "login", "username", "gitlab_user_id", "state", "access_level", "last_error", "last_error_at", "synced_at", "pending"]);
 const inviteView = object({
   id: integer(), code: text(40, 1), note: text(100), max_uses: nullableCount, used_count: integer(0), expires_at: nullableCount,
   disabled: { type: "boolean" }, created_by: text(100), created_at: integer(0), updated_at: integer(0), usable: { type: "boolean" },
@@ -119,6 +132,22 @@ export const consoleContracts: RouteContracts = {
     params: object({ account_id: accountId }, ["account_id"]),
     body: object({ site_role: choices("admin", "member", "none") }, ["site_role"]),
     response: { 200: object({ account_id: accountId, site_role: choices("admin", "member", "none"), changed: { type: "boolean" } }, ["account_id", "site_role", "changed"]), ...consoleFailures },
+  },
+  // GitLab 账号同步（#270）：mode 是 off、dry-run 或 on；pending 是现在还要做的事，dry-run 时只列出、不做
+  "GET /api/console/gitlab/accounts": {
+    ...noQuery,
+    response: { 200: object({
+      mode: choices("off", "dry-run", "on"), gitlab_url: nullableString(255), group: text(255, 1),
+      accounts: { type: "array", items: gitlabAccountView },
+    }, ["mode", "gitlab_url", "group", "accounts"]), ...consoleFailures },
+  },
+  "POST /api/console/gitlab/accounts/:account_id/sync": {
+    ...noQuery,
+    params: object({ account_id: accountId }, ["account_id"]),
+    response: { 200: object({
+      mode: choices("dry-run", "on"), account_id: accountId, login: text(100, 1), actions: { type: "array", items: gitlabAction },
+      applied: { type: "boolean" }, error: nullableString(64),
+    }, ["mode", "account_id", "login", "actions", "applied", "error"]), ...consoleFailures },
   },
   "DELETE /api/console/assignments/:id": noQuery,
   "GET /api/console/people": noQuery,

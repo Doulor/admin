@@ -13,6 +13,7 @@ import audit from "./audit.js";
 import competitions from "./competitions.js";
 import competitionRoster from "./competition-roster.js";
 import invites from "./invites.js";
+import gitlab from "./gitlab.js";
 
 /** 极客班控制台 `/api/console/*`：组织固定为 CONSOLE_ORG，授权按能力判定。不导入 routes/admin。 */
 export default async function consoleRoutes(app: FastifyInstance) {
@@ -29,4 +30,5 @@ export default async function consoleRoutes(app: FastifyInstance) {
   await app.register(competitions);
   await app.register(competitionRoster);
   await app.register(invites);
+  await app.register(gitlab);
 }

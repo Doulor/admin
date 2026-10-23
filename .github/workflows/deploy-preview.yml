@@ -487,6 +487,8 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GH_APP_ID: ${{ secrets.GH_APP_ID }}
           GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          OIDC_JWKS: ${{ secrets.OIDC_JWKS }}
+          GITLAB_API_TOKEN: ${{ secrets.GITLAB_API_TOKEN }}
         run: |
           set -eu
           node scripts/deployment-environment.mjs render \

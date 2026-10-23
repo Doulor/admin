@@ -68,8 +68,8 @@ describe("宣传片：桌面应用", () => {
     expect(promo?.key).toBeUndefined();
     expect(promo?.primary).toBeUndefined();
     expect(OS_APPS.find((app) => app.id === "wallpaper")?.open).toEqual({ kind: "panel", panel: "wallpaper" });
-    // 三个主入口仍排在最前
-    expect(OS_APPS.slice(0, 4).map((app) => app.id)).toEqual(["join", "forum", "github", "promo"]);
+    // 三个主入口仍排在最前，GitHub 组织紧跟代码仓库（#270）
+    expect(OS_APPS.slice(0, 5).map((app) => app.id)).toEqual(["join", "forum", "gitlab", "github", "promo"]);
   });
 });
 

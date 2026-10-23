@@ -66,6 +66,20 @@
 
 **残余风险**：配了 App 之后，持有 `github.org.read` 的人（默认舰员的权限包里就有）能读 App 能看到的全部组织资料、仓库、议题与 PR，持有 `github.*.manage` 的人能以 App 的身份改组织、仓库、成员、团队和邀请；GitHub 上留下的操作者是 App，谁做的只能看本站审计。所以给称号加 `github.*` 能力，就等于把 App 的那部分权限交给持有这个称号的人，权限包要按这个来审。站内角色不随 GitHub 组织变化：在 GitHub 组织里被移出、降级的人站内照旧，要收回得在控制台改站内角色或停用账号；这是有意的，所有者的 GitHub 账号被封期间要靠站内角色进控制台。反过来，给 GitHub 组织加 owner 不会让这个人在站内变成提督：GitHub 新用户第一次注册一律记为成员（站内一位管理员都没有时除外），所以持有 `github.members.manage` 的人经 App 把别人设成 owner，也造不出提督。剩下的口子是回填的老账号：它还没记过站内角色之前被设成 owner，第一次用 GitHub 时会补记成管理员；这只在配了 App、并且老账号在部署后还没用过 GitHub 会话时才可能。配 App 之前，还要重审默认权限包：舰长默认有全部能力（含删仓库、移出成员），技术部、项目部队长带 `github.repos.manage`，这些以前被本人在 GitHub 组织里的角色挡着，配了 App 就按称号放开。管理员之间可以互相改，只拦住最后一位。
 
+## 对外授权与 GitLab 账号同步（#270）
+
+GitHub 账号被封后改用自建 GitLab，所有者 2026-10-23 定：「gitlab那边的登录可以走极客班的sso统一登录，因为毕竟数据都要一起统计」「所有有极客班登录身份的都有对应的gitlab账号」。源码在 `lib/oidc-provider.ts`、`lib/oidc-store.ts`、`lib/account-directory.ts`、`lib/gitlab-sync.ts`、`routes/oidc/` 与 `routes/console/gitlab.ts`，协议细节见 [对外授权与 GitLab 账号同步](../services/server/oidc.md)。
+
+- **签发者**：内嵌的 `oidc-provider` 9.12.2，签发者 `<PUBLIC_ORIGIN>/oidc`。只做授权码流程，所有客户端都要 PKCE `S256`；动态注册、implicit、hybrid、单点登出、refresh token 都不开。回调地址按登记的完全一致匹配，只收 `https`（本机 `127.0.0.1`、`localhost` 除外），同一客户端的回调必须同一个主机。授权码 10 分钟、一次性，重放时撤销这份授权和它发出的令牌。
+- **登录状态以 `sid` 为准**：签发者自己的会话只是缓存；`sid` 没了、换了账号、或账号已经不是成员时都回到交互入口，不成员的带 `access_denied` 回下游。已经发出的访问令牌在 userinfo 处按账号当前状态判断，停用或不再是成员立刻 401。
+- **同意**：第一次登录某个应用要本人在 `/authorize` 允许，页面写明应用名、回到哪个主机和要的信息；同意与拒绝接口要 `sid`，只认发起这次登录的账号（别人 409），经核心写请求的 Origin 门禁（外域 403），写审计 `oidc.consent` / `oidc.deny`。
+- **主体标识**：`sub` 按下游 sector（回调主机）生成 32 字节随机值存 `oauth_subjects`，不同下游拿到的不同，内部 `account_id` 不下发；换签名密钥不变。声明只有 `openid`、`profile`、`email`，邮箱只给验证过的。
+- **密钥**：签名私钥 `OIDC_JWKS` 与 GitLab 管理员令牌 `GITLAB_API_TOKEN` 是环境级密钥，只在目标机 `.env.<环境>` 与 CI 的环境 secrets；JWKS 端点只发公钥。客户端只能在服务器容器里用 `dist/cli/oidc.js` 登记，`client_secret` 只输出一次，库里存 AES-256-GCM 密文。签发者的 cookie 用 `SESSION_SECRET` 派生的密钥签名。
+- **限流**：协议端点每个 IP 每分钟 120 次，交互入口与详情 30 次，同意与拒绝 20 次，控制台的立即同步 30 次。
+- **GitLab 同步**：`GITLAB_SYNC=on` 时按极客班账号在 GitLab 上建号（随机密码、`skip_confirmation`）、放进组（舰员 Developer、提督 Owner）、停用与不再是成员的封禁；按 OIDC 身份（`extern_uid` = GitLab sector 的 `sub`）认人，不按邮箱或用户名合并；不删除用户和仓库，不碰不是同步建的用户（如 root）。管理员令牌只在服务端用，失败只记错误码（如 `gitlab_create_409`、`gitlab_unreachable`），不记 GitLab 的响应体。
+
+**残余风险**：GitLab 侧已登录的会话不随极客班退出或停用立即结束，靠同步封禁收口，最长差一个同步周期（10 分钟）。`GITLAB_API_TOKEN` 是 GitLab 管理员级 `api` 令牌，外泄等于交出整台 GitLab，只放目标机与 CI secrets，按 GitLab 的令牌有效期轮换。`oidc-provider` 依赖的 `jose` 6.2.13 发布时间很近，升级要跟着看安全公告。GitLab 的 SSH 不对外开放，成员用个人访问令牌走 HTTPS 推拉，这个令牌由本人在 GitLab 上管理，不受极客班停用的即时影响（账号被封禁后令牌随之不能用）。
+
 ## 极客班控制台：称号与能力
 
 控制台 `/api/console/*` 按**站内角色 + 称号 → 能力**授权。称号和部门都是数据，由提督（以及权限包里有 `roles.manage` 的舰长）在控制台维护，不改代码；代码里固定的只有称号 id 与层级、能力清单、色调调色板和图标清单。规则与默认值在 `app/server/src/lib/roles.ts`，持久化在 `lib/role-store.ts`，判定在 `middleware/require-capability.ts`，端点与错误码见 [API](API.md)。

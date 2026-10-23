@@ -1,0 +1,370 @@
+import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
+import { afterEach, describe, expect, it } from 'vitest';
+import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
+import { signIn, testApp } from './helpers';
+
+/**
+ * 对外授权（#270，ADR-0005 决策 3、8）：GitLab 这样不同源的应用用极客班账号登录。用 app.inject 走完整的授权码 + PKCE 往返，
+ * 自带一个按 Path 区分的 cookie 罐子（oidc-provider 的交互 cookie 只在 /oidc/interaction/<uid> 下有效）。
+ */
+const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+const JWKS = JSON.stringify({ keys: [{ ...privateKey.export({ format: 'jwk' }), kid: 'test-key', use: 'sig', alg: 'RS256' }] });
+const ORIGIN = 'https://example.test';
+const CALLBACK = 'https://git.example.test/users/auth/openid_connect/callback';
+
+const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
+afterEach(async () => { for (const context of contexts.splice(0)) await context.close(); });
+
+async function setup() {
+  const context = await testApp({}, false, { OIDC_JWKS: JWKS });
+  contexts.push(context);
+  const { client, clientSecret } = context.app.services.oidcStore.registerClient({ name: 'GitLab', clientId: 'gitlab', redirectUris: [CALLBACK] });
+  return { ...context, client, clientSecret };
+}
+
+class Jar {
+  private cookies = new Map<string, { name: string; value: string; path: string }>();
+  store(res: LightMyRequestResponse) {
+    const raw = res.headers['set-cookie'];
+    for (const line of (Array.isArray(raw) ? raw : raw ? [raw] : [])) {
+      const [pair, ...attributes] = line.split(';').map(part => part.trim());
+      const at = pair.indexOf('=');
+      const name = pair.slice(0, at);
+      const value = pair.slice(at + 1);
+      const path = attributes.find(item => item.toLowerCase().startsWith('path='))?.slice(5) ?? '/';
+      const expired = attributes.some(item => /^max-age=0$/i.test(item) || /^expires=thu, 01 jan 1970/i.test(item));
+      const key = `${name};${path}`;
+      if (expired || !value) this.cookies.delete(key);
+      else this.cookies.set(key, { name, value, path });
+    }
+  }
+  set(name: string, value: string) { this.cookies.set(`${name};/`, { name, value, path: '/' }); }
+  header(url: string) {
+    const path = new URL(url, ORIGIN).pathname;
+    return [...this.cookies.values()]
+      .filter(cookie => cookie.path === '/' || path === cookie.path || path.startsWith(`${cookie.path}/`))
+      .map(cookie => `${cookie.name}=${cookie.value}`).join('; ');
+  }
+}
+
+/** 浏览器那一边：带着罐子里的 cookie 请求，记下回来的 cookie。地址可以是绝对地址（只取路径和查询串）。 */
+async function visit(app: FastifyInstance, jar: Jar, url: string, init: { method?: 'GET' | 'POST'; payload?: string; headers?: Record<string, string> } = {}) {
+  const target = url.startsWith('http') ? new URL(url) : new URL(url, ORIGIN);
+  if (target.origin !== ORIGIN) throw new Error(`browser left the site: ${url}`);
+  const res = await app.inject({
+    method: init.method ?? 'GET', url: target.pathname + target.search, payload: init.payload,
+    headers: { cookie: jar.header(target.pathname), ...(init.method === 'POST' ? { origin: ORIGIN } : {}), ...init.headers },
+  });
+  jar.store(res);
+  return res;
+}
+
+const pkce = () => {
+  const verifier = randomBytes(32).toString('base64url');
+  return { verifier, challenge: createHash('sha256').update(verifier).digest('base64url') };
+};
+
+function authorizeUrl(params: Record<string, string>) {
+  const query = new URLSearchParams({ client_id: 'gitlab', response_type: 'code', scope: 'openid profile email', redirect_uri: CALLBACK, state: 'state-1', nonce: 'nonce-1', ...params });
+  return `/oidc/auth?${query}`;
+}
+
+/** 从授权请求一路跟到回调（最多 8 跳）；遇到授权页时返回它的交互 uid。 */
+async function follow(app: FastifyInstance, jar: Jar, url: string) {
+  let res = await visit(app, jar, url);
+  for (let hops = 0; hops < 8; hops++) {
+    const location = res.headers.location as string | undefined;
+    if (res.statusCode !== 303 && res.statusCode !== 302) return { res, location: null, consentUid: null };
+    if (!location) throw new Error('redirect without location');
+    if (location.startsWith(CALLBACK) || location.startsWith('/signin')) return { res, location, consentUid: null };
+    if (location.startsWith('/authorize?uid=')) return { res, location, consentUid: new URLSearchParams(location.split('?')[1]).get('uid') };
+    res = await visit(app, jar, location);
+  }
+  throw new Error('too many redirects');
+}
+
+async function exchange(app: FastifyInstance, code: string, verifier: string, secret: string, redirectUri = CALLBACK) {
+  return app.inject({
+    method: 'POST', url: '/oidc/token',
+    headers: { 'content-type': 'application/x-www-form-urlencoded', authorization: `Basic ${Buffer.from(`gitlab:${secret}`).toString('base64')}` },
+    payload: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: redirectUri, code_verifier: verifier }).toString(),
+  });
+}
+
+const accountOf = (app: FastifyInstance, githubId: number) =>
+  (app.services.storage.db.prepare("SELECT user_id FROM identities WHERE provider = 'github' AND provider_uid = ?").get(String(githubId)) as { user_id: string }).user_id;
+
+/** 登录、同意、换令牌一次走完，返回令牌响应与回调里的参数。 */
+async function signInThroughGitlab(app: FastifyInstance, jar: Jar, secret: string) {
+  const { verifier, challenge } = pkce();
+  const first = await follow(app, jar, authorizeUrl({ code_challenge: challenge, code_challenge_method: 'S256' }));
+  let location = first.location;
+  if (first.consentUid) {
+    const confirmed = await visit(app, jar, `/oidc/interaction/${first.consentUid}/confirm`, { method: 'POST' });
+    expect(confirmed.statusCode).toBe(200);
+    location = (await follow(app, jar, confirmed.json().redirect_to)).location;
+  }
+  expect(location?.startsWith(CALLBACK)).toBe(true);
+  const callback = new URL(location!);
+  const token = await exchange(app, callback.searchParams.get('code')!, verifier, secret);
+  return { token, callback, verifier, consented: Boolean(first.consentUid) };
+}
+
+describe('OIDC provider for downstream apps (#270)', () => {
+  it('publishes discovery and public keys under the environment origin', async () => {
+    const { app } = await setup();
+    const discovery = await app.inject({ url: '/oidc/.well-known/openid-configuration', headers: { 'x-forwarded-proto': 'http', 'x-forwarded-host': 'evil.test' } });
+    expect(discovery.statusCode).toBe(200);
+    const body = discovery.json();
+    expect(body.issuer).toBe(`${ORIGIN}/oidc`);
+    expect(body.authorization_endpoint).toBe(`${ORIGIN}/oidc/auth`);
+    expect(body.token_endpoint).toBe(`${ORIGIN}/oidc/token`);
+    expect(body.userinfo_endpoint).toBe(`${ORIGIN}/oidc/me`);
+    expect(body.code_challenge_methods_supported).toEqual(['S256']);
+    expect(body.subject_types_supported).toEqual(['pairwise']);
+    expect(body.response_types_supported).toEqual(['code']);
+    expect(body.registration_endpoint).toBeUndefined();
+    expect(body.end_session_endpoint).toBeUndefined();
+    const jwks = await app.inject({ url: '/oidc/jwks' });
+    expect(jwks.statusCode).toBe(200);
+    const [key] = jwks.json().keys;
+    expect(key.kid).toBe('test-key');
+    expect(key.d).toBeUndefined();
+    expect(key.p).toBeUndefined();
+  });
+
+  it('sends a visitor without a session to the unified sign-in page and back', async () => {
+    const { app } = await setup();
+    const jar = new Jar();
+    const { challenge } = pkce();
+    const result = await follow(app, jar, authorizeUrl({ code_challenge: challenge, code_challenge_method: 'S256' }));
+    expect(result.location).toMatch(/^\/signin\?return_to=%2Foidc%2Finteraction%2F[A-Za-z0-9_-]+$/);
+  });
+
+  it('signs a member in with consent once, a per-sector sub and one-time codes', async () => {
+    const { app, clientSecret } = await setup();
+    const sid = signIn(app, 'alice', 101, 'https://avatars.githubusercontent.com/u/101');
+    const accountId = accountOf(app, 101);
+    const jar = new Jar();
+    jar.set('sid', sid);
+
+    const first = await signInThroughGitlab(app, jar, clientSecret);
+    expect(first.consented).toBe(true);
+    expect(first.callback.searchParams.get('state')).toBe('state-1');
+    expect(first.token.statusCode).toBe(200);
+    const tokens = first.token.json();
+    expect(tokens.refresh_token).toBeUndefined();
+    const [, payload] = tokens.id_token.split('.');
+    const claims = JSON.parse(Buffer.from(payload, 'base64url').toString());
+    const sub = app.services.oidcStore.subjectFor('git.example.test', accountId);
+    expect(claims).toMatchObject({ iss: `${ORIGIN}/oidc`, aud: 'gitlab', sub, nonce: 'nonce-1' });
+    expect(sub).not.toBe(accountId);
+    expect(sub).not.toBe(app.services.oidcStore.subjectFor('other.example.test', accountId));
+
+    const userinfo = await app.inject({ url: '/oidc/me', headers: { authorization: `Bearer ${tokens.access_token}` } });
+    expect(userinfo.statusCode).toBe(200);
+    expect(userinfo.json()).toEqual({ sub, name: 'alice', preferred_username: 'alice', picture: 'https://avatars.githubusercontent.com/u/101' });
+
+    // 第二次登录：不再问，sub 不变
+    const second = await signInThroughGitlab(app, jar, clientSecret);
+    expect(second.consented).toBe(false);
+    const again = JSON.parse(Buffer.from(second.token.json().id_token.split('.')[1], 'base64url').toString());
+    expect(again.sub).toBe(sub);
+    const audit = app.services.storage.db.prepare("SELECT action, target FROM audit_logs WHERE action LIKE 'oidc.%'").all();
+    expect(audit).toEqual([{ action: 'oidc.consent', target: 'gitlab' }]);
+
+    // 授权码只能用一次；重放时按规范撤销这份授权，它发出的令牌一起失效，下次登录要重新同意
+    const replay = await exchange(app, second.callback.searchParams.get('code')!, second.verifier, clientSecret);
+    expect(replay.statusCode).toBe(400);
+    expect(replay.json().error).toBe('invalid_grant');
+    const revoked = await app.inject({ url: '/oidc/me', headers: { authorization: `Bearer ${second.token.json().access_token}` } });
+    expect(revoked.statusCode).toBe(401);
+    expect((await signInThroughGitlab(app, jar, clientSecret)).consented).toBe(true);
+  });
+
+  it('remembers consent in a new browser for the same account', async () => {
+    const { app, clientSecret } = await setup();
+    const sid = signIn(app, 'alice', 101);
+    const jar = new Jar();
+    jar.set('sid', sid);
+    expect((await signInThroughGitlab(app, jar, clientSecret)).consented).toBe(true);
+    const fresh = new Jar();
+    fresh.set('sid', sid);
+    expect((await signInThroughGitlab(app, fresh, clientSecret)).consented).toBe(false);
+  });
+
+  it('returns the verified email only with the email scope', async () => {
+    const { app, clientSecret } = await setup();
+    const sid = signIn(app, 'alice', 101);
+    app.services.storage.db.prepare('UPDATE users SET canonical_email = ? WHERE id = ?').run('alice@example.test', accountOf(app, 101));
+    const jar = new Jar();
+    jar.set('sid', sid);
+    const { token } = await signInThroughGitlab(app, jar, clientSecret);
+    const userinfo = await app.inject({ url: '/oidc/me', headers: { authorization: `Bearer ${token.json().access_token}` } });
+    expect(userinfo.json()).toMatchObject({ email: 'alice@example.test', email_verified: true });
+  });
+
+  it('refuses an unknown client and a redirect URI that was not registered, without redirecting', async () => {
+    const { app } = await setup();
+    const jar = new Jar();
+    jar.set('sid', signIn(app, 'alice', 101));
+    const { challenge } = pkce();
+    const unknown = await visit(app, jar, authorizeUrl({ client_id: 'nobody', code_challenge: challenge, code_challenge_method: 'S256' }));
+    expect(unknown.statusCode).toBe(400);
+    expect(unknown.headers.location).toBeUndefined();
+    expect(unknown.body).toContain('invalid_client');
+    const wrong = await visit(app, jar, authorizeUrl({ redirect_uri: 'https://git.example.test/elsewhere', code_challenge: challenge, code_challenge_method: 'S256' }));
+    expect(wrong.statusCode).toBe(400);
+    expect(wrong.headers.location).toBeUndefined();
+    expect(wrong.body).toContain('invalid_redirect_uri');
+    expect(wrong.body).not.toContain('elsewhere');
+  });
+
+  it('requires PKCE and rejects a wrong verifier', async () => {
+    const { app, clientSecret } = await setup();
+    const jar = new Jar();
+    jar.set('sid', signIn(app, 'alice', 101));
+    const missing = await visit(app, jar, authorizeUrl({}));
+    expect(missing.statusCode).toBe(303);
+    const back = new URL(missing.headers.location as string);
+    expect(back.origin + back.pathname).toBe(CALLBACK);
+    expect(back.searchParams.get('error')).toBe('invalid_request');
+    const plain = await visit(app, jar, authorizeUrl({ code_challenge: 'x'.repeat(43), code_challenge_method: 'plain' }));
+    expect(new URL(plain.headers.location as string).searchParams.get('error')).toBe('invalid_request');
+
+    const { callback } = await signInThroughGitlab(app, jar, clientSecret);
+    // signInThroughGitlab 已经用掉了它的码；再走一次，换令牌时故意给错 verifier
+    const { challenge } = pkce();
+    const result = await follow(app, jar, authorizeUrl({ code_challenge: challenge, code_challenge_method: 'S256' }));
+    const code = new URL(result.location!).searchParams.get('code')!;
+    expect(code).not.toBe(callback.searchParams.get('code'));
+    const bad = await exchange(app, code, pkce().verifier, clientSecret);
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().error).toBe('invalid_grant');
+  });
+
+  it('turns a denial on the consent page into access_denied for the app', async () => {
+    const { app } = await setup();
+    const jar = new Jar();
+    jar.set('sid', signIn(app, 'alice', 101));
+    const { challenge } = pkce();
+    const { consentUid } = await follow(app, jar, authorizeUrl({ code_challenge: challenge, code_challenge_method: 'S256' }));
+    const details = await visit(app, jar, `/oidc/interaction/${consentUid}/details`);
+    expect(details.statusCode).toBe(200);
+    expect(details.json()).toMatchObject({ client: { id: 'gitlab', name: 'GitLab', host: 'git.example.test' }, scopes: ['openid', 'profile', 'email'], account: { login: 'alice' } });
+    const aborted = await visit(app, jar, `/oidc/interaction/${consentUid}/abort`, { method: 'POST' });
+    const { location } = await follow(app, jar, aborted.json().redirect_to);
+    expect(new URL(location!).searchParams.get('error')).toBe('access_denied');
+    expect(app.services.storage.db.prepare("SELECT action FROM audit_logs WHERE action = 'oidc.deny'").all()).toHaveLength(1);
+  });
+
+  it('keeps the consent endpoints to the signed-in account that started the login', async () => {
+    const { app } = await setup();
+    const jar = new Jar();
+    jar.set('sid', signIn(app, 'alice', 101));
+    const { challenge } = pkce();
+    const { consentUid } = await follow(app, jar, authorizeUrl({ code_challenge: challenge, code_challenge_method: 'S256' }));
+    const anonymous = new Jar();
+    expect((await visit(app, anonymous, `/oidc/interaction/${consentUid}/details`)).statusCode).toBe(401);
+    // 换成别的账号的 sid，但带着这次交互的 cookie
+    jar.set('sid', signIn(app, 'bob', 202));
+    const other = await visit(app, jar, `/oidc/interaction/${consentUid}/confirm`, { method: 'POST' });
+    expect(other.statusCode).toBe(409);
+    expect(other.json().error).toBe('interaction_mismatch');
+    // 跨站提交被统一的 Origin 检查挡下
+    const crossSite = await visit(app, jar, `/oidc/interaction/${consentUid}/confirm`, { method: 'POST', headers: { origin: 'https://evil.test' } });
+    expect(crossSite.statusCode).toBe(403);
+    // 没有交互 cookie 的浏览器拿不到详情
+    const stranger = new Jar();
+    stranger.set('sid', signIn(app, 'alice', 101));
+    expect((await visit(app, stranger, `/oidc/interaction/${consentUid}/details`)).statusCode).toBe(404);
+  });
+
+  it('follows the current site session when the browser switches accounts', async () => {
+    const { app, clientSecret } = await setup();
+    const jar = new Jar();
+    jar.set('sid', signIn(app, 'alice', 101));
+    await signInThroughGitlab(app, jar, clientSecret);
+    jar.set('sid', signIn(app, 'bob', 202));
+    const { token } = await signInThroughGitlab(app, jar, clientSecret);
+    const claims = JSON.parse(Buffer.from(token.json().id_token.split('.')[1], 'base64url').toString());
+    expect(claims.sub).toBe(app.services.oidcStore.subjectFor('git.example.test', accountOf(app, 202)));
+  });
+
+  it('asks for sign-in again after the site session ends', async () => {
+    const { app, clientSecret } = await setup();
+    const jar = new Jar();
+    const sid = signIn(app, 'alice', 101);
+    jar.set('sid', sid);
+    await signInThroughGitlab(app, jar, clientSecret);
+    app.services.auth.destroySession(sid);
+    const { challenge } = pkce();
+    const result = await follow(app, jar, authorizeUrl({ code_challenge: challenge, code_challenge_method: 'S256' }));
+    expect(result.location).toMatch(/^\/signin\?return_to=/);
+  });
+
+  it('refuses accounts that are no longer members and their existing tokens', async () => {
+    const { app, clientSecret } = await setup();
+    const jar = new Jar();
+    jar.set('sid', signIn(app, 'alice', 101));
+    signIn(app, 'admiral', 1);
+    app.services.identity.setSiteRole({ accountId: accountOf(app, 1), role: 'admin', actor: 'system' });
+    const { token } = await signInThroughGitlab(app, jar, clientSecret);
+    const accessToken = token.json().access_token;
+    expect(app.services.identity.setSiteRole({ accountId: accountOf(app, 101), role: 'none', actor: 'system' })).toMatchObject({ ok: true, changed: true });
+    const userinfo = await app.inject({ url: '/oidc/me', headers: { authorization: `Bearer ${accessToken}` } });
+    expect(userinfo.statusCode).toBe(401);
+    const { challenge } = pkce();
+    const denied = await follow(app, jar, authorizeUrl({ code_challenge: challenge, code_challenge_method: 'S256' }));
+    expect(new URL(denied.location!).searchParams.get('error')).toBe('access_denied');
+  });
+
+  it('stops serving a disabled client', async () => {
+    const { app } = await setup();
+    app.services.oidcStore.setClientStatus('gitlab', 'disabled');
+    const jar = new Jar();
+    jar.set('sid', signIn(app, 'alice', 101));
+    const { challenge } = pkce();
+    const res = await visit(app, jar, authorizeUrl({ code_challenge: challenge, code_challenge_method: 'S256' }));
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toContain('invalid_client');
+  });
+
+  it('shows a plain error page for an expired interaction and keeps /oidc closed without keys', async () => {
+    const { app } = await setup();
+    const jar = new Jar();
+    jar.set('sid', signIn(app, 'alice', 101));
+    const expired = await visit(app, jar, '/oidc/interaction/AAAAAAAAAAAAAAAAAAAAA');
+    expect(expired.statusCode).toBe(400);
+    expect(expired.headers['content-type']).toContain('text/html');
+    expect(expired.body).toContain('这次登录已经过期');
+
+    const plain = await testApp();
+    contexts.push(plain);
+    expect((await plain.app.inject({ url: '/oidc/.well-known/openid-configuration' })).statusCode).toBe(404);
+  });
+
+  it('rate-limits the protocol endpoints and the interaction entry', async () => {
+    const { app } = await setup();
+    const codes: number[] = [];
+    for (let i = 0; i < 121; i++) codes.push((await app.inject({ url: '/oidc/jwks' })).statusCode);
+    expect(codes.slice(0, 120).every(code => code === 200)).toBe(true);
+    expect(codes[120]).toBe(429);
+    const limited = await app.inject({ url: '/oidc/token', method: 'POST' });
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json().error).toBe('rate_limited');
+    for (let i = 0; i < 30; i++) await app.inject({ url: '/oidc/interaction/AAAAAAAAAAAAAAAAAAAAA' });
+    expect((await app.inject({ url: '/oidc/interaction/AAAAAAAAAAAAAAAAAAAAA' })).statusCode).toBe(429);
+  });
+
+  it('validates redirect URIs when registering a client', async () => {
+    const { app } = await setup();
+    const store = app.services.oidcStore;
+    expect(() => store.registerClient({ name: 'A', redirectUris: ['http://git.example.test/cb'] })).toThrow(/https/);
+    expect(() => store.registerClient({ name: 'A', redirectUris: ['https://a.example.test/cb', 'https://b.example.test/cb'] })).toThrow(/share a host/);
+    expect(() => store.registerClient({ name: 'A', redirectUris: ['https://a.example.test/cb#x'] })).toThrow(/fragment/);
+    expect(() => store.registerClient({ name: 'GitLab', clientId: 'gitlab', redirectUris: [CALLBACK] })).toThrow(/already exists/);
+    const row = app.services.storage.db.prepare("SELECT secret_encrypted FROM oauth_clients WHERE client_id = 'gitlab'").get() as { secret_encrypted: string };
+    expect(row.secret_encrypted).not.toContain(store.rotateSecret('gitlab'));
+  });
+});

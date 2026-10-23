@@ -32,6 +32,14 @@ export type AccountSummary = {
   providers: IdentityProvider[]; status: "active" | "disabled"; member: boolean;
   site_role: RecordedOrgRole; role_unrecorded: boolean; last_login_at: number | null; created_at: number;
 };
+/**
+ * 给对外授权与 GitLab 同步用的账号信息（#270，getAccountClaims / listAccountsForSync）：成员资格、站内角色、登录名、
+ * 绑定的 GitHub 身份和已验证的邮箱（canonical_email）。只读，不含密码、第三方令牌与登录记录。
+ */
+export type AccountClaims = {
+  account_id: string; status: "active" | "disabled"; member: boolean; site_role: RecordedOrgRole;
+  login: string; handle: string | null; github: { id: number; login: string; avatar_url: string | null } | null; email: string | null;
+};
 export type GithubSigninResult =
   | { ok: true; sid: string; accountId: string }
   | { ok: false; reason: "account_disabled" | "not_member"; accountId: string };
@@ -593,10 +601,45 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     try { return { accountId: terminalAccount(db, row.user_id).id, githubUserId: Number(row.provider_uid), login: row.login }; } catch { return null; }
   }
 
+  // ── 对外授权与 GitLab 同步（#270）：只读 ──
+  const claimsSelect = `SELECT u.id, u.status, u.org_state, u.org_role, u.handle, u.canonical_email,
+      g.provider_uid AS github_id, g.login AS github_login, g.avatar_url
+    FROM users u LEFT JOIN identities g ON g.user_id = u.id AND g.provider = 'github'`;
+  type ClaimsRow = {
+    id: string; status: "active" | "disabled" | "merged"; org_state: string; org_role: string | null; handle: string | null; canonical_email: string | null;
+    github_id: string | null; github_login: string | null; avatar_url: string | null;
+  };
+  const toClaims = (row: ClaimsRow): AccountClaims => {
+    const member = row.status === "active" && row.org_state === "active";
+    return {
+      account_id: row.id,
+      status: row.status === "active" ? "active" : "disabled",
+      member,
+      site_role: member && (row.org_role === "admin" || row.org_role === "member") ? row.org_role : null,
+      login: row.github_login ?? row.handle ?? `yz_${row.id.slice(0, 8).toLowerCase()}`,
+      handle: row.handle,
+      github: row.github_id !== null && row.github_login ? { id: Number(row.github_id), login: row.github_login, avatar_url: row.avatar_url } : null,
+      email: row.canonical_email,
+    };
+  };
+  const claimsOf = db.prepare(`${claimsSelect} WHERE u.id = ?`);
+
+  /** 一个账号的信息；账号不存在或已被合并（不是终点账号）时为 null。 */
+  function getAccountClaims(accountId: string): AccountClaims | null {
+    const row = claimsOf.get(accountId) as ClaimsRow | undefined;
+    return row && row.status !== "merged" ? toClaims(row) : null;
+  }
+
+  /** 所有没被合并的账号，按建号先后。GitLab 同步按它对账：停用的、不是成员的也在里面，同步据此封禁。 */
+  function listAccountsForSync(): AccountClaims[] {
+    return (db.prepare(`${claimsSelect} WHERE u.status <> 'merged' ORDER BY u.created_at ASC, u.id ASC`).all() as ClaimsRow[]).map(toClaims);
+  }
+
   return {
     signInWithGithub, githubSigninPlan, recordGithubDenied, recordSignout, accountForGithub,
     signInWithEmailCode, signInWithPassword, signInWithGoogle, passwordFor, passwordHashOf, setPassword, linkEmail,
     recordOrgRole, roleUnrecorded, membershipOf, accountView, provisionAccount, listAccounts, setSiteRole, githubIdentityByLogin, accountTarget,
+    getAccountClaims, listAccountsForSync,
   };
 }
 export type IdentityStore = ReturnType<typeof createIdentityStore>;

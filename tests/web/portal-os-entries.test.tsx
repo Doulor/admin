@@ -26,6 +26,7 @@ import { RESUME_DESKTOP, links, wantsDesktop } from "../../app/web/sites/portal/
 
 const FORUM = { href: links.forumHome(), newTab: false };
 const GITHUB = { href: "https://github.com/Yangtze-University-Geek-Class", newTab: true };
+const GITLAB = { href: "https://git.yangtzeu.work/geek", newTab: true };
 
 let reducedMotion = false;
 
@@ -73,24 +74,28 @@ function renderDesktop() {
 
 const dock = () => within(screen.getByRole("navigation", { name: "Dock" }));
 
-it("Dock、桌面图标、便签：论坛当前标签页直达论坛首页，GitHub 组织新标签页打开，点下去当场打开、路由不动", () => {
+it("Dock、桌面图标、便签：论坛当前标签页直达论坛首页，代码仓库与 GitHub 组织新标签页打开，点下去当场打开、路由不动", () => {
   const { container, where } = renderDesktop();
   fireEvent.click(dock().getByRole("button", { name: "论坛" }));
   expect(followed.calls).toEqual([FORUM]);
+  fireEvent.click(dock().getByRole("button", { name: "代码仓库（新标签页打开）" }));
   fireEvent.click(dock().getByRole("button", { name: "GitHub 组织（新标签页打开）" }));
-  expect(followed.calls).toEqual([FORUM, GITHUB]);
+  expect(followed.calls).toEqual([FORUM, GITLAB, GITHUB]);
 
   // 桌面图标：鼠标单击只选中，双击打开
   const icon = (id: string) => container.querySelector<HTMLElement>(`.pt-icons [data-cta="${id}"]`)!;
   fireEvent.click(icon("forum"));
-  expect(followed.calls).toHaveLength(2);
+  expect(followed.calls).toHaveLength(3);
   fireEvent.doubleClick(icon("forum"));
+  fireEvent.doubleClick(icon("gitlab"));
   fireEvent.doubleClick(icon("github"));
-  expect(followed.calls.slice(2)).toEqual([FORUM, GITHUB]);
+  expect(followed.calls.slice(3)).toEqual([FORUM, GITLAB, GITHUB]);
 
+  // 便签第 3 步换成代码仓库（#270）
   fireEvent.click(screen.getByRole("button", { name: /去「论坛」看看/ }));
-  fireEvent.click(screen.getByRole("button", { name: /去「GitHub 组织」/ }));
-  expect(followed.calls.slice(4)).toEqual([FORUM, GITHUB]);
+  fireEvent.click(screen.getByRole("button", { name: /去「代码仓库」/ }));
+  expect(screen.queryByRole("button", { name: /去「GitHub 组织」/ })).toBeNull();
+  expect(followed.calls.slice(6)).toEqual([FORUM, GITLAB]);
 
   // 没有图标飞行，也没有进场景页
   expect(container.querySelector(".pt-flight")).toBeNull();
@@ -101,13 +106,15 @@ it("2、3 键与菜单栏「前往」同样直达", () => {
   const { where } = renderDesktop();
   fireEvent.keyDown(document.body, { key: "2" });
   fireEvent.keyDown(document.body, { key: "3" });
-  expect(followed.calls).toEqual([FORUM, GITHUB]);
+  expect(followed.calls).toEqual([FORUM, GITLAB]);
 
   fireEvent.click(screen.getByRole("button", { name: "前往" }));
   fireEvent.click(screen.getByRole("menuitem", { name: "论坛 2" }));
   fireEvent.click(screen.getByRole("button", { name: "前往" }));
-  fireEvent.click(screen.getByRole("menuitem", { name: /^GitHub 组织\s*（新标签页打开）\s*3$/ }));
-  expect(followed.calls.slice(2)).toEqual([FORUM, GITHUB]);
+  fireEvent.click(screen.getByRole("menuitem", { name: /^代码仓库\s*（新标签页打开）\s*3$/ }));
+  fireEvent.click(screen.getByRole("button", { name: "前往" }));
+  fireEvent.click(screen.getByRole("menuitem", { name: /^GitHub 组织\s*（新标签页打开）$/ }));
+  expect(followed.calls.slice(2)).toEqual([FORUM, GITLAB, GITHUB]);
   expect(where()).toBe("/");
 });
 
@@ -167,22 +174,22 @@ it("「加入我们」不变：图标飞行后进 /join-us；减少动态效果�
   }
 });
 
-it("按住不放的自动重复不算再按一次：按住 3、在图标或 Dock、便签按钮上按住回车，GitHub 组织只开一个新标签页（审查 F1）", () => {
+it("按住不放的自动重复不算再按一次：按住 3、在图标或 Dock、便签按钮上按住回车，代码仓库只开一个新标签页（审查 F1）", () => {
   const { container } = renderDesktop();
   fireEvent.keyDown(document.body, { key: "3" });
   for (let i = 0; i < 4; i += 1) fireEvent.keyDown(document.body, { key: "3", repeat: true });
-  expect(followed.calls).toEqual([GITHUB]);
+  expect(followed.calls).toEqual([GITLAB]);
 
   // 桌面图标自己处理回车：只有按下去的那一次打开
-  const icon = container.querySelector<HTMLElement>('.pt-icons [data-cta="github"]')!;
+  const icon = container.querySelector<HTMLElement>('.pt-icons [data-cta="gitlab"]')!;
   fireEvent.keyDown(icon, { key: "Enter" });
   fireEvent.keyDown(icon, { key: "Enter", repeat: true });
   fireEvent.keyDown(icon, { key: "Enter", repeat: true });
-  expect(followed.calls).toEqual([GITHUB, GITHUB]);
+  expect(followed.calls).toEqual([GITLAB, GITLAB]);
 
   // Dock、便签、菜单上的按钮由浏览器把回车变成点击：按下去的那一次照常（不拦默认动作），
   // 自动重复的回车拦掉默认动作，浏览器就不会再补一次点击（fireEvent 返回 false 表示默认动作被拦）
-  for (const button of [dock().getByRole("button", { name: /GitHub 组织/ }), screen.getByRole("button", { name: /去「GitHub 组织」/ })]) {
+  for (const button of [dock().getByRole("button", { name: /代码仓库/ }), screen.getByRole("button", { name: /去「代码仓库」/ })]) {
     expect(fireEvent.keyDown(button, { key: "Enter" })).toBe(true);
     expect(fireEvent.keyDown(button, { key: "Enter", repeat: true })).toBe(false);
   }
@@ -229,17 +236,20 @@ it("「论坛最新」窗口：写明的「3D 版块」进 /forum-3d 场景页�
   expect(followed.calls).toEqual([]);
 });
 
-it("会在新标签页打开的 GitHub 组织，给读屏补一句「新标签页打开」，界面上不显示；论坛不加（审查 S4）", () => {
+it("会在新标签页打开的代码仓库与 GitHub 组织，给读屏补一句「新标签页打开」，界面上不显示；论坛不加（审查 S4）", () => {
   renderDesktop();
+  dock().getByRole("button", { name: "代码仓库（新标签页打开）" });
   dock().getByRole("button", { name: "GitHub 组织（新标签页打开）" });
   dock().getByRole("button", { name: "论坛" });
   const icons = within(screen.getByRole("list", { name: "桌面上的应用" }));
+  icons.getByRole("button", { name: /^代码仓库\s*（新标签页打开）$/ });
   icons.getByRole("button", { name: /^GitHub 组织\s*（新标签页打开）$/ });
   icons.getByRole("button", { name: "论坛" });
-  screen.getByRole("button", { name: /^3\s*去「GitHub 组织」看我们的代码.*（新标签页打开）$/ });
+  screen.getByRole("button", { name: /^3\s*去「代码仓库」看我们的代码.*（新标签页打开）$/ });
 
   fireEvent.click(screen.getByRole("button", { name: "前往" }));
-  screen.getByRole("menuitem", { name: /^GitHub 组织\s*（新标签页打开）\s*3$/ });
+  screen.getByRole("menuitem", { name: /^代码仓库\s*（新标签页打开）\s*3$/ });
+  screen.getByRole("menuitem", { name: /^GitHub 组织\s*（新标签页打开）$/ });
   screen.getByRole("menuitem", { name: /^论坛\s*2$/ });
   fireEvent.keyDown(document.body, { key: "Escape" });
 
@@ -247,8 +257,8 @@ it("会在新标签页打开的 GitHub 组织，给读屏补一句「新标签�
   fireEvent.change(screen.getByRole("combobox"), { target: { value: "github" } });
   screen.getByRole("option", { name: /^GitHub 组织\s*（新标签页打开）/ });
 
-  // 补的这句只给读屏：Dock 写在 aria-label 里，其余放在视觉上隐藏的 .pt-sr 里（这时开着的是桌面图标、便签、启动器结果三处）
+  // 补的这句只给读屏：Dock 写在 aria-label 里，其余放在视觉上隐藏的 .pt-sr 里（这时开着的是两个桌面图标、便签、启动器结果）
   const notes = [...document.querySelectorAll(".pt-sr")].filter((node) => node.textContent?.includes("新标签页"));
-  expect(notes).toHaveLength(3);
+  expect(notes).toHaveLength(4);
   for (const node of notes) expect(node.textContent).toBe("（新标签页打开）");
 });

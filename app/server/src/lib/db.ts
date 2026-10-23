@@ -452,6 +452,73 @@ CREATE TABLE IF NOT EXISTS device_grants (
 CREATE INDEX IF NOT EXISTS idx_device_grants_account ON device_grants(account_id);
 `);
 
+// 对外授权（#270，ADR-0005 决策 3、8）：只有 lib/oidc-store.ts 读写这四张表。
+// oauth_clients：登记的下游应用，client secret 用 ENCRYPTION_KEY 加密存；redirect_uris 是 JSON 数组，精确匹配。
+// oauth_subjects：给下游的 `sub`，按 sector（回调地址的主机名）各生成一个随机值，一经生成不改，不随签名密钥轮换。
+// oauth_grants：本人在授权页点过「允许」的应用，下次登录同一个应用不再问。
+// oidc_payloads：oidc-provider 的授权码、令牌、交互与会话，过期的随写入顺手清掉。
+db.exec(`
+CREATE TABLE IF NOT EXISTS oauth_clients (
+  client_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  secret_encrypted TEXT NOT NULL,
+  redirect_uris TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled')),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS oauth_subjects (
+  sector_id TEXT NOT NULL,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  sub TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (sector_id, user_id),
+  UNIQUE (sector_id, sub)
+);
+
+CREATE TABLE IF NOT EXISTS oauth_grants (
+  user_id TEXT NOT NULL REFERENCES users(id),
+  client_id TEXT NOT NULL REFERENCES oauth_clients(client_id),
+  grant_id TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, client_id)
+);
+
+CREATE TABLE IF NOT EXISTS oidc_payloads (
+  model TEXT NOT NULL,
+  id TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  grant_id TEXT,
+  uid TEXT,
+  user_code TEXT,
+  expires_at INTEGER,
+  consumed_at INTEGER,
+  PRIMARY KEY (model, id)
+);
+CREATE INDEX IF NOT EXISTS idx_oidc_payloads_grant ON oidc_payloads(grant_id) WHERE grant_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_oidc_payloads_uid ON oidc_payloads(model, uid) WHERE uid IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_oidc_payloads_user_code ON oidc_payloads(model, user_code) WHERE user_code IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_oidc_payloads_expires ON oidc_payloads(expires_at) WHERE expires_at IS NOT NULL;
+`);
+
+// GitLab 账号（#270）：一个极客班账号对应的 GitLab 用户。用户名在第一次同步时定下、之后不改；gitlab_user_id 在 GitLab 上
+// 建好之后才有。只有 lib/gitlab-sync.ts 读写。
+db.exec(`
+CREATE TABLE IF NOT EXISTS gitlab_accounts (
+  account_id TEXT PRIMARY KEY REFERENCES users(id),
+  gitlab_user_id INTEGER UNIQUE,
+  username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  state TEXT NOT NULL CHECK (state IN ('pending','active','blocked')),
+  access_level INTEGER,
+  last_error TEXT,
+  last_error_at INTEGER,
+  synced_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+`);
+
 // 比赛报名与组队（#239，docs/plan/COMPETITION-APP.md「数据库（草图）」）：只新增表，不改 #238 的 `competitions`。
 // `account_id` 是极客班账号（#262 的 users.id）：报名、队伍与成员都按账号认人，不按 GitHub 登录名。
 // 所有状态变化只改 status 与时间列，不物理删除；外键引用 users(id)，所以这段排在统一登录的表之后。

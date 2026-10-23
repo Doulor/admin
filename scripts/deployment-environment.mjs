@@ -39,6 +39,8 @@ export const SECRET_FIELDS = Object.freeze([
   'GOOGLE_CLIENT_SECRET',
   'GH_APP_ID',
   'GH_APP_PRIVATE_KEY',
+  'OIDC_JWKS',
+  'GITLAB_API_TOKEN',
 ]);
 /**
  * Cloudflare Turnstile 是可选的一对：两项都为空 = 明确关闭（服务端 middleware/turnstile.ts 此时只靠工作量证明与限流），
@@ -59,12 +61,19 @@ export const GITHUB_APP_SECRET_PAIR = Object.freeze(['GH_APP_ID', 'GH_APP_PRIVAT
  * 阿里云与 Resend 都没配时发信关闭，server 把每封信记为「发信没有配置」，一封也不发。
  */
 export const OPTIONAL_SECRETS = Object.freeze(['MAIL_RESEND_API_KEY', 'MAIL_ALLOWLIST']);
+/**
+ * 对外授权与 GitLab 同步（#270）的两项单独可选密钥：OIDC_JWKS 空 = /oidc/* 一律 404，GitLab 不能用极客班账号登录，
+ * 写成一行 base64（`oidc.js keygen` 直接输出这种形式）；GITLAB_API_TOKEN 只在 GITLAB_SYNC=on 时必填（server 启动也会拒绝）。
+ */
+export const OIDC_GITLAB_SECRETS = Object.freeze(['OIDC_JWKS', 'GITLAB_API_TOKEN']);
 /** 渲染时必填的密钥：上面几类可选项之外的全部。 */
 export const REQUIRED_SECRET_FIELDS = Object.freeze(
-  SECRET_FIELDS.filter(field => ![...OPTIONAL_SECRET_PAIR, ...MAIL_ALIYUN_SECRET_PAIR, ...GOOGLE_SECRET_PAIR, ...GITHUB_APP_SECRET_PAIR, ...OPTIONAL_SECRETS].includes(field)),
+  SECRET_FIELDS.filter(field => ![...OPTIONAL_SECRET_PAIR, ...MAIL_ALIYUN_SECRET_PAIR, ...GOOGLE_SECRET_PAIR, ...GITHUB_APP_SECRET_PAIR, ...OPTIONAL_SECRETS, ...OIDC_GITLAB_SECRETS].includes(field)),
 );
 /** 收件范围：all 发给所有人；allowlist 只发给 MAIL_ALLOWLIST 里的地址。两个环境现在都是 all（#169）。 */
 export const MAIL_RECIPIENT_MODES = Object.freeze(['all', 'allowlist']);
+/** GitLab 账号同步（#270）：off 不同步，dry-run 只算出要做什么（不要令牌），on 照做。 */
+export const GITLAB_SYNC_MODES = Object.freeze(['off', 'dry-run', 'on']);
 /** 允许为空但不属于密钥的字段（留空是明确的语义）。MAIL_REPLY_TO 空 = 信里不带 Reply-To，改指向官网意见箱。 */
 const EMPTY_IS_MEANINGFUL = Object.freeze(new Set([...SECRET_FIELDS, 'COOKIE_DOMAIN', 'ALLOWED_ORGS', 'MAIL_REPLY_TO']));
 /** 模板里必须存在的非密钥字段。 */
@@ -96,6 +105,9 @@ const REQUIRED_FIELDS = Object.freeze([
   'MAIL_ASSET_BASE',
   'MAIL_REPLY_TO',
   'MAIL_RECIPIENTS',
+  'GITLAB_SYNC',
+  'GITLAB_URL',
+  'GITLAB_GROUP',
   ...SECRET_FIELDS,
 ]);
 /** 发布身份是构建期 build args：绝不写进部署 env 文件。 */
@@ -404,6 +416,18 @@ export function validateEnvironmentFiles({ root = repositoryRoot(), checkCompose
       // 预发布以前只能是 allowlist；2026-09-27 14:20 要求预发布的信都发出去（「我们官方发的那些邮件，肯定必须发过去」），#169 放开。
       if (!MAIL_RECIPIENT_MODES.includes(recipients)) problem(`MAIL_RECIPIENTS 只能是 ${MAIL_RECIPIENT_MODES.join(' 或 ')}：${recipients}`);
     }
+    // GitLab 账号同步（#270）：开关、GitLab 的 https origin、组路径都是可见事实；管理员令牌在密钥段。
+    if (values.has('GITLAB_SYNC') && !GITLAB_SYNC_MODES.includes(values.get('GITLAB_SYNC'))) {
+      problem(`GITLAB_SYNC 只能是 ${GITLAB_SYNC_MODES.join(' / ')}：${values.get('GITLAB_SYNC')}`);
+    }
+    if (values.has('GITLAB_URL')) {
+      try {
+        if (parseHttpsOrigin(values.get('GITLAB_URL'), 'GITLAB_URL') !== values.get('GITLAB_URL')) problem(`GITLAB_URL 必须写成不带结尾 / 的 origin：${values.get('GITLAB_URL')}`);
+      } catch (error) {
+        problem(error.message);
+      }
+    }
+    if (values.has('GITLAB_GROUP') && !/^[A-Za-z0-9_.-]{1,255}$/.test(values.get('GITLAB_GROUP'))) problem(`GITLAB_GROUP 必须是 GitLab 的组路径：${values.get('GITLAB_GROUP')}`);
     const ignored = spawnSync('git', ['-c', 'core.hooksPath=/dev/null', 'check-ignore', '--quiet', path], {
       cwd: root,
       stdio: ['ignore', 'ignore', 'ignore'],
@@ -490,6 +514,9 @@ export function renderRuntimeEnv({ root = repositoryRoot(), environment, out, im
   for (const [pair, enable] of [[OPTIONAL_SECRET_PAIR, '开启 Turnstile'], [MAIL_ALIYUN_SECRET_PAIR, '开启阿里云邮件推送'], [GOOGLE_SECRET_PAIR, '开启 Google 登录'], [GITHUB_APP_SECRET_PAIR, '开启 GitHub App']]) {
     if (filled(pair[0]) !== filled(pair[1])) fail(`${pair.join(' 与 ')} 只配了一项：要么都填（${enable}），要么都留空（关闭）`);
   }
+  if (deployment.values.get('GITLAB_SYNC') === 'on' && !filled('GITLAB_API_TOKEN')) {
+    fail('GITLAB_SYNC=on 要 GITLAB_API_TOKEN：拒绝生成会让 server 启动失败的运行时环境文件');
+  }
   const turnstileOff = !filled(OPTIONAL_SECRET_PAIR[0]);
   const googleOff = !filled(GOOGLE_SECRET_PAIR[0]);
   const githubAppOff = !filled(GITHUB_APP_SECRET_PAIR[0]);
@@ -502,7 +529,7 @@ export function renderRuntimeEnv({ root = repositoryRoot(), environment, out, im
     ...(turnstileOff ? OPTIONAL_SECRET_PAIR : []),
     ...(googleOff ? GOOGLE_SECRET_PAIR : []),
     ...(githubAppOff ? GITHUB_APP_SECRET_PAIR : []),
-    ...[...MAIL_ALIYUN_SECRET_PAIR, ...OPTIONAL_SECRETS].filter(field => !filled(field)),
+    ...[...MAIL_ALIYUN_SECRET_PAIR, ...OPTIONAL_SECRETS, ...OIDC_GITLAB_SECRETS].filter(field => !filled(field)),
   ]);
   for (const field of SECRET_FIELDS) {
     const value = env[field];
@@ -534,6 +561,7 @@ export function renderRuntimeEnv({ root = repositoryRoot(), environment, out, im
   const notices = [];
   if (turnstileOff) notices.push(`${OPTIONAL_SECRET_PAIR.join('、')} 都为空：Turnstile 关闭，公开表单只靠工作量证明与限流。`);
   if (googleOff) notices.push(`${GOOGLE_SECRET_PAIR.join('、')} 都为空：Google 登录关闭，登录页不出现 Google。`);
+  if (!filled('OIDC_JWKS')) notices.push('OIDC_JWKS 为空：对外授权关闭，/oidc/* 一律 404，GitLab 不能用极客班账号登录。');
   if (githubAppOff) notices.push(`${GITHUB_APP_SECRET_PAIR.join('、')} 都为空：没有 GitHub App，控制台的 GitHub 组织页面只在用 GitHub 登录时借本人的令牌读写，邮箱、Google 登录看到「GitHub 还没接上」。`);
   if (!mailProviders.length) {
     notices.push(`${[...MAIL_ALIYUN_SECRET_PAIR, 'MAIL_RESEND_API_KEY'].join('、')} 都为空：发信关闭，server 把每封信记为「发信没有配置」，一封也不发。`);
@@ -553,6 +581,8 @@ export function renderRuntimeEnv({ root = repositoryRoot(), environment, out, im
     turnstile: turnstileOff ? 'off' : 'on',
     google: googleOff ? 'off' : 'on',
     githubApp: githubAppOff ? 'off' : 'on',
+    oidc: filled('OIDC_JWKS') ? 'on' : 'off',
+    gitlabSync: deployment.values.get('GITLAB_SYNC') ?? 'off',
     mail: mailProviders.length ? 'on' : 'off',
     mailProviders,
     notices,
