@@ -31,6 +31,8 @@ const AVATAR_EXTENSIONS: Record<string, string> = { "image/png": "png", "image/j
 const FORUM_AVATAR_PREFIX = "forum:";
 const GITHUB_AVATAR_BASE = "https://avatars.githubusercontent.com/";
 const GITHUB_NOREPLY_DOMAIN = "users.noreply.github.com";
+/** 没有验证过的邮箱、或邮箱在 GitLab 上被占用时，建号用的占位地址。 */
+const placeholderEmail = (username: string, sectorId: string) => `${username.toLowerCase()}@noreply.${sectorId}`;
 /** GitLab 不让用、或者会和路由撞上的用户名，碰到直接加后缀，不用等 GitLab 拒绝。 */
 const RESERVED_USERNAMES = new Set([
   "admin", "administrator", "root", "ghost", "support", "support-bot", "alert-bot", "security-bot", "automation-bot", "api", "help",
@@ -123,7 +125,9 @@ export function createGitlabSync(db: Database.Database, deps: {
     if (primary) others.delete(primary);
     return { primary, others: [...others].sort() };
   }
-  const emailsSource = (account: DirectoryAccount) => JSON.stringify(wantedEmails(account));
+  /** emails_source 的写法：plan() 比较和 setEmails() 记录都用它，键的顺序和排序一致才能按字符串比较。 */
+  const emailsJson = (emails: WantedEmails) => JSON.stringify({ primary: emails.primary, others: [...emails.others].sort() });
+  const emailsSource = (account: DirectoryAccount) => emailsJson(wantedEmails(account));
 
   /**
    * 这个账号现在要做什么（不碰 GitLab）。是成员、还没建号的建号；建过的按成员资格封禁或解封、调组权限。
@@ -264,7 +268,8 @@ export function createGitlabSync(db: Database.Database, deps: {
   /**
    * 同步邮箱：主邮箱和 GitLab 的不同时改过去（不再发确认信），其它邮箱缺的以「已确认」加上，GitLab 上有但没确认的删掉重加；
    * 以前同步过去、现在不要的，和建号时用过的占位地址（换成真的主邮箱后 GitLab 会把它留成次邮箱），从 GitLab 删掉，GitLab 现在的主邮箱不动。
-   * 每一项都试一遍，有被拒的（例如邮箱已经是别的 GitLab 用户的，400）抛 gitlab_email_<状态码>，不记 emails_source，下一轮再试。
+   * 每一项都试一遍。emails_source 记的是这一轮之后 GitLab 上实际有、由同步管的邮箱：全做成时和要有的一样；有被拒的（例如邮箱已经是
+   * 别的 GitLab 用户的，400）时只记做成的，和要有的不一样，下一轮再试，这一轮加上去的以后在极客班删掉也照样从 GitLab 删。然后抛 gitlab_email_<状态码>。
    */
   async function setEmails(account: DirectoryAccount, userId: number): Promise<void> {
     const wanted = wantedEmails(account);
@@ -283,28 +288,35 @@ export function createGitlabSync(db: Database.Database, deps: {
     if (listed.status !== 200 || !Array.isArray(listed.data)) throw new SyncError(`gitlab_email_${listed.status}`);
     const have = new Map((listed.data as { id: number; email: string; confirmed_at?: string | null }[])
       .map(item => [item.email.toLowerCase(), { id: item.id, confirmed: Boolean(item.confirmed_at) }]));
+    const present = new Set<string>();
     for (const email of wanted.others) {
       const existing = have.get(email);
-      if (email === primary || existing?.confirmed) continue;
-      if (existing) {
-        const removed = await gitlab("DELETE", `/users/${userId}/emails/${existing.id}`);
-        if (removed.status !== 204) { refused.push(removed.status); continue; }
-      }
+      if (email === primary || existing?.confirmed) { present.add(email); continue; }
+      if (existing && !await deleteEmail(userId, existing.id, refused)) continue;
       const added = await gitlab("POST", `/users/${userId}/emails`, { email, skip_confirmation: true });
-      if (added.status !== 201) refused.push(added.status);
+      if (added.status === 201) present.add(email);
+      else refused.push(added.status);
     }
     const sectorId = sector();
     const stale = new Set([
-      ...(before?.primary ? [before.primary] : []), ...(before?.others ?? []), ...(sectorId ? [`${row.username.toLowerCase()}@noreply.${sectorId}`] : []),
+      ...(before?.primary ? [before.primary] : []), ...(before?.others ?? []), ...(sectorId ? [placeholderEmail(row.username, sectorId)] : []),
     ]);
     for (const email of stale) {
       const existing = have.get(email);
       if (!existing || email === primary || email === wanted.primary || wanted.others.includes(email)) continue;
-      const removed = await gitlab("DELETE", `/users/${userId}/emails/${existing.id}`);
-      if (removed.status !== 204) refused.push(removed.status);
+      if (!await deleteEmail(userId, existing.id, refused)) present.add(email);
     }
+    const synced = { primary: primary === wanted.primary ? wanted.primary : before?.primary ?? null, others: [...present] };
+    db.prepare("UPDATE gitlab_accounts SET emails_source = ?, updated_at = ? WHERE account_id = ?").run(emailsJson(synced), clock(), account.account_id);
     if (refused.length) throw new SyncError(`gitlab_email_${refused[0]}`);
-    db.prepare("UPDATE gitlab_accounts SET emails_source = ?, updated_at = ? WHERE account_id = ?").run(JSON.stringify(wanted), clock(), account.account_id);
+  }
+
+  /** 删 GitLab 用户名下的一个次邮箱；没删掉时把状态码记进 refused。 */
+  async function deleteEmail(userId: number, emailId: number, refused: number[]): Promise<boolean> {
+    const removed = await gitlab("DELETE", `/users/${userId}/emails/${emailId}`);
+    if (removed.status === 204) return true;
+    refused.push(removed.status);
+    return false;
   }
 
   async function ensureMembership(userId: number, accessLevel: number): Promise<void> {
@@ -354,7 +366,7 @@ export function createGitlabSync(db: Database.Database, deps: {
       for (let attempt = 0; attempt < 6 && !user; attempt++) {
         tried.add(username.toLowerCase());
         const created = await gitlab("POST", "/users", {
-          username, name: profile.name, email: useNoreply ? `${username.toLowerCase()}@noreply.${sectorId}` : account.email,
+          username, name: profile.name, email: useNoreply ? placeholderEmail(username, sectorId) : account.email,
           extern_uid: sub, provider: GITLAB_OIDC_PROVIDER, skip_confirmation: true, force_random_password: true,
           bio: profile.bio, location: profile.location, website_url: profile.website_url,
         });

@@ -15,7 +15,7 @@ const CHALLENGE_PATH = "/api/identity/email";
 /**
  * 账号页 `/account` 的接口（#262）：任何有效会话都能用，不要 `console.access`。
  * - `GET /api/identity/me`：登录方式、有没有密码、成员资格、这次登录、最近账号记录。
- * - `POST /api/identity/email/start`、`/verify`：给账号绑定邮箱（绑好才能用邮箱验证码或密码登录）。一个账号最多绑 5 个，
+ * - `POST /api/identity/email/start`、`/verify`：给账号绑定邮箱（绑好才能用邮箱验证码或密码登录）。一个账号最多绑 `EMAILS_MAX` 个，
  *   第一个是主邮箱；GitLab 同步把它们都加到 GitLab 用户名下，按提交里的邮箱认人（#272）。
  * - `POST /api/identity/email/remove`：删掉一个不是主邮箱的邮箱，同样要求 10 分钟内刚登录过。
  * - `POST /api/identity/password`：设置或修改密码（至少 8 位）。已有密码时要填当前密码，或者 10 分钟内刚登录过
@@ -35,10 +35,9 @@ export default async function accountRoutes(app: FastifyInstance) {
   app.get("/api/identity/me", { preHandler: requireAuth }, async (req) => {
     const session = req.session!;
     const view = identity.accountView(session.account_id);
-    const emails = view.identities.filter(item => item.provider === "email").length;
     // `available`：账号页上现在就能绑定的方式。只有邮箱有绑定接口，没到上限就还能再加；GitHub、Google 的绑定还没做，不列出来
     const available = loginProviders({ mailEnabled: mail.sendingEnabled, googleEnabled: google.enabled })
-      .map(provider => provider.id).filter((id): id is "email" => id === "email" && emails < EMAILS_MAX);
+      .map(provider => provider.id).filter((id): id is "email" => id === "email" && identity.emailAddRefusal(session.account_id) === null);
     return {
       account_id: session.account_id,
       ...view,
@@ -52,8 +51,8 @@ export default async function accountRoutes(app: FastifyInstance) {
     const email = normalizeEmail(req.body.email);
     if (!email) return reply.code(400).send({ error: "bad_email", message: "邮箱格式不对" });
     if (!fresh(req)) return stepUp(reply);
-    if (identity.passwordFor(email)?.accountId === session.account_id) return emailExists(reply);
-    if (identity.emailCount(session.account_id) >= EMAILS_MAX) return emailLimit(reply);
+    const refusal = identity.emailAddRefusal(session.account_id, email);
+    if (refusal) return refusal === "identity_exists" ? emailExists(reply) : emailLimit(reply);
     const started = emailLogin.start({ purpose: "link", email, ip: req.ip, replaces: readChallengeCookie(req), accountId: session.account_id, sessionHash: sessionFingerprint(session.id) });
     if (!started.ok) return tooSoon(reply, started.retryAfter);
     sendCode(req, email, started.code, "link", started.id);

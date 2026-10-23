@@ -17,7 +17,7 @@ import { clearSession } from "../lib/session";
 import { confirm } from "../lib/confirm";
 import { cleanCode, codeProblem, looksLikeEmail, retryAfter } from "../lib/signin";
 import { fmtDate, fmtRelative } from "../lib/format";
-import { PASSWORD_MIN_LENGTH, PROVIDER_ICON, PROVIDER_TEXT, RESULT_TEXT, actionText, loginIsFresh, membershipText, passwordProblem, providerText } from "../lib/account";
+import { EMAILS_MAX, PASSWORD_MIN_LENGTH, PROVIDER_ICON, PROVIDER_TEXT, RESULT_TEXT, actionText, loginIsFresh, membershipText, passwordProblem, providerText } from "../lib/account";
 import type { AccountIdentity, AccountView } from "../lib/types";
 
 /**
@@ -221,12 +221,12 @@ const goPortal = () => window.location.assign(siteUrl("portal", "/"));
               >删除</TxButton>
             </li>
           </ul>
-          <p v-if="removeError" class="account__error account__hint--after" role="alert">{{ removeError }}</p>
-          <p v-if="hasEmail" class="account__hint account__hint--after">GitLab 按提交里的邮箱认人：git 提交用的邮箱加在这里并验证以后，GitLab 上这些提交会显示你的头像。每个邮箱都能用来登录，主邮箱用来收验证码和通知。</p>
+          <p v-if="removeError" class="account__error account__after" role="alert">{{ removeError }}</p>
+          <p v-if="hasEmail" class="account__hint account__after">GitLab 按提交里的邮箱认人：git 提交用的邮箱加在这里并验证以后，GitLab 上这些提交会显示你的头像。每个邮箱都能用来登录，主邮箱用来收验证码和通知。</p>
 
           <form v-if="view.available.includes('email')" class="account__form" novalidate @submit.prevent="bindSentTo ? verifyBindCode() : sendBindCode()">
             <h3>{{ hasEmail ? "添加邮箱" : "绑定邮箱" }}</h3>
-            <p class="account__hint">{{ hasEmail ? "最多 5 个邮箱。填上邮箱，用收到的验证码确认。" : "绑好以后可以用邮箱验证码登录，也可以设密码。" }}</p>
+            <p class="account__hint">{{ hasEmail ? `最多 ${EMAILS_MAX} 个邮箱。填上邮箱，用收到的验证码确认。` : "绑好以后可以用邮箱验证码登录，也可以设密码。" }}</p>
             <div class="account__row">
               <TxInput v-model="bindEmail" type="email" placeholder="name@example.com" autocomplete="email" inputmode="email" spellcheck="false" :aria-label="hasEmail ? '要添加的邮箱' : '要绑定的邮箱'" />
               <TxButton variant="secondary" native-type="button" :loading="bindBusy === 'send'" :disabled="cooldown > 0 || bindBusy !== null" @click="sendBindCode">
@@ -406,7 +406,7 @@ const goPortal = () => window.location.assign(siteUrl("portal", "/"));
   grid-column: 3;
   grid-row: 1 / span 2;
 }
-.account__hint--after {
+.account__after {
   margin-top: 10px;
 }
 .account__form {

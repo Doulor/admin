@@ -46,7 +46,7 @@
     },
     "backend": {
       "status": "changed",
-      "reason": "lib/identity-store.ts：linkEmail 不再因为账号已有邮箱拒绝，改成同一个邮箱已经在本账号上回 identity_exists、到 EMAILS_MAX（5）个回 email_limit；新增 unlinkEmail（主邮箱 primary_email，不是本账号的 not_found，删身份并写 identity_audit unlink 与 identity.unlink）与 emailCount；accountView 的邮箱带 id、primary，主邮箱在前；给同步的账号信息多 emails（全部邮箱，主邮箱在前）。routes/identity/account.ts：start 在发信前拦下已绑的和超过上限的，verify 把新的拒绝原因翻成 409，新接口 POST /api/identity/email/remove（10 分钟内刚登录过，每分钟 10 次）。lib/gitlab-sync.ts：plan() 在要有的邮箱和 emails_source 不同时加 set_emails；setEmails 先读 GitLab 用户，主邮箱不同就 PUT（skip_reconfirmation），再列邮箱，缺的和没确认的以 skip_confirmation 加上，删掉以前同步过、现在不要的和建号时的占位地址，不删 GitLab 现在的主邮箱；有被拒的抛 gitlab_email 加状态码（例如 gitlab_email_400）、不记 emails_source。头像和邮箱两步互不耽误，都试过后报先失败的那个。控制台接口的响应合同允许 set_emails。",
+      "reason": "lib/identity-store.ts：linkEmail 不再因为账号已有邮箱拒绝，改成同一个邮箱已经在本账号上回 identity_exists、到 EMAILS_MAX（5）个回 email_limit；新增 unlinkEmail（主邮箱 primary_email，不是本账号的 not_found，删身份并写 identity_audit unlink 与 identity.unlink）与 emailCount；accountView 的邮箱带 id、primary，主邮箱在前；给同步的账号信息多 emails（全部邮箱，主邮箱在前）。routes/identity/account.ts：start 在发信前拦下已绑的和超过上限的，verify 把新的拒绝原因翻成 409，新接口 POST /api/identity/email/remove（10 分钟内刚登录过，每分钟 10 次）。lib/gitlab-sync.ts：plan() 在要有的邮箱和 emails_source 不同时加 set_emails；setEmails 先读 GitLab 用户，主邮箱不同就 PUT（skip_reconfirmation），再列邮箱，缺的和没确认的以 skip_confirmation 加上，删掉以前同步过、现在不要的和建号时的占位地址，不删 GitLab 现在的主邮箱；每一轮都把 GitLab 上实际有、由同步管的邮箱记进 emails_source，有被拒的只记做成的、和要有的不一样，下一轮再试，然后抛 gitlab_email 加状态码（例如 gitlab_email_400）。邮箱上限和「已绑在本账号上」只在 identity-store 的 emailAddRefusal 里判断，发码前和写入时都用它。头像和邮箱两步互不耽误，都试过后报先失败的那个。控制台接口的响应合同允许 set_emails。",
       "evidence": [
         "app/server/src/lib/identity-store.ts",
         "app/server/src/routes/identity/account.ts",
@@ -107,7 +107,7 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "服务端：绑到 5 个、第 6 个 email_limit（另一个会话先填满时，填码那一步也拒绝）、已绑的不再发信、主邮箱在前带 id、用第二个邮箱登录同一账号、删主邮箱 409、删其它邮箱后不能再登录、别人删不了、10 分钟外删除要重新登录；同步给只绑 GitHub 的加 noreply 邮箱，绑邮箱后换掉占位地址、加其它邮箱、删掉删除的，没变时一个 GitLab 请求都不发，邮箱被别的 GitLab 用户占用时记 gitlab_email_400 并下一轮重试，头像失败不耽误邮箱，没确认的删掉重加；旧库升级时换掉 #262 的索引并保留名字。原有用例跟着改：建号后多一步 set_emails，邮箱被占的 dave 记 gitlab_email_409。控制台测试核对新的动作、错误与记录文字，样板邮箱带 id 和 primary。故意去掉存储层的上限、已同步账号的 set_emails、noreply 邮箱、删旧邮箱、没确认的重加、头像与邮箱互不耽误，或把索引改回连邮箱也只许一个，对应用例都会失败。",
+      "reason": "服务端：绑到 5 个、第 6 个 email_limit（另一个会话先填满时，填码那一步也拒绝）、已绑的不再发信、主邮箱在前带 id、用第二个邮箱登录同一账号、删主邮箱 409、删其它邮箱后不能再登录、别人删不了、10 分钟外删除要重新登录；同步给只绑 GitHub 的加 noreply 邮箱，绑邮箱后换掉占位地址、加其它邮箱、删掉删除的，没变时一个 GitLab 请求都不发，邮箱被别的 GitLab 用户占用时记 gitlab_email_400 并下一轮重试，主邮箱一直被拒时在极客班删掉的邮箱照样从 GitLab 删掉，头像失败不耽误邮箱，没确认的删掉重加；旧库升级时换掉 #262 的索引并保留名字。原有用例跟着改：建号后多一步 set_emails，邮箱被占的 dave 记 gitlab_email_409。控制台测试核对新的动作、错误与记录文字，样板邮箱带 id 和 primary。故意去掉存储层的上限、已同步账号的 set_emails、noreply 邮箱、删旧邮箱、没确认的重加、头像与邮箱互不耽误、失败时记下做成的邮箱，或把索引改回连邮箱也只许一个，对应用例都会失败。",
       "evidence": [
         "tests/server/signin-methods.test.ts",
         "tests/server/gitlab-sync.test.ts",

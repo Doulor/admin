@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actionText, loginIsFresh, membershipText, passwordProblem, providerText } from "../../app/console/src/lib/account";
+import { EMAILS_MAX, actionText, loginIsFresh, membershipText, passwordProblem, providerText } from "../../app/console/src/lib/account";
 import {
   INVITE_CODE_PATTERN as CONSOLE_INVITE_PATTERN, emptyInviteForm, inviteErrors, invitePayload, inviteState, randomInviteCode, usesText,
 } from "../../app/console/src/lib/invites";
@@ -7,6 +7,7 @@ import { dateEdge } from "../../app/console/src/lib/competitions";
 import { mockAccount, MOCK_PERSONAS } from "../../app/console/src/mock/console";
 import { INVITE_CODE_PATTERN, inviteUsable } from "../../app/server/src/lib/invite-codes";
 import { passwordError } from "../../app/server/src/lib/password-policy";
+import { EMAILS_MAX as SERVER_EMAILS_MAX } from "../../app/server/src/lib/identity-store";
 import type { InviteCode } from "../../app/console/src/lib/types";
 
 const NOW = Date.UTC(2026, 9, 23, 4);
@@ -37,6 +38,7 @@ describe("账号页 (lib/account)", () => {
   it("记录与登录方式的中文名，未知的原样显示", () => {
     expect(actionText("password_set")).toBe("设置密码");
     expect(actionText("unlink")).toBe("解绑登录方式");
+    expect(EMAILS_MAX).toBe(SERVER_EMAILS_MAX);
     expect(actionText("something_new")).toBe("something_new");
     expect(providerText("google")).toBe("Google");
     expect(providerText(null)).toBe("-");

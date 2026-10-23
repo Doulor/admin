@@ -433,8 +433,8 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
         deps.audit(null, { login: input.login, account_id: input.accountId }, "identity.link_conflict", undefined, { provider: "email" }, input.ip);
         return { ok: false, reason: "identity_conflict" };
       }
-      if (owner) return { ok: false, reason: "identity_exists" };
-      if (emailCount(input.accountId) >= EMAILS_MAX) return { ok: false, reason: "email_limit" };
+      const refusal = emailAddRefusal(input.accountId, input.email);
+      if (refusal) return { ok: false, reason: refusal };
       if (!input.claim()) return { ok: false, reason: "code_expired" };
       insertChannel.run({ id: newUlid(now), user_id: input.accountId, provider: "email", uid: input.email, email: input.email, verified: 1, now, last_login_at: null });
       setCanonicalEmail.run(input.email, now, input.accountId);
@@ -444,9 +444,14 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     }).immediate();
   }
 
-  /** 本账号已经绑了几个邮箱。 */
-  function emailCount(accountId: string): number {
-    return (db.prepare("SELECT COUNT(*) AS n FROM identities WHERE user_id = ? AND provider = 'email'").get(accountId) as { n: number }).n;
+  /**
+   * 本账号还能不能加这个邮箱（#272）：已经绑在本账号上回 identity_exists，已经有 EMAILS_MAX 个回 email_limit，能加回 null。
+   * 不给邮箱时只看个数。发码前（账号页接口）和写入时（linkEmail 的事务里）都按它判断。
+   */
+  function emailAddRefusal(accountId: string, email?: string): "identity_exists" | "email_limit" | null {
+    if (email && (identityOf.get("email", email) as { user_id: string } | undefined)?.user_id === accountId) return "identity_exists";
+    const { n } = db.prepare("SELECT COUNT(*) AS n FROM identities WHERE user_id = ? AND provider = 'email'").get(accountId) as { n: number };
+    return n >= EMAILS_MAX ? "email_limit" : null;
   }
 
   /**
@@ -679,7 +684,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
 
   return {
     signInWithGithub, githubSigninPlan, recordGithubDenied, recordSignout, accountForGithub,
-    signInWithEmailCode, signInWithPassword, signInWithGoogle, passwordFor, passwordHashOf, setPassword, linkEmail, unlinkEmail, emailCount,
+    signInWithEmailCode, signInWithPassword, signInWithGoogle, passwordFor, passwordHashOf, setPassword, linkEmail, unlinkEmail, emailAddRefusal,
     recordOrgRole, roleUnrecorded, membershipOf, accountView, provisionAccount, listAccounts, setSiteRole, githubIdentityByLogin, accountTarget,
     getAccountClaims, listAccountsForSync,
   };

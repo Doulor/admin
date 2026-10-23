@@ -702,7 +702,9 @@ describe('GitLab commit emails (#272)', () => {
     const alice = userNamed(gitlab, 'alice')!;
     expect(alice.avatar).toBe(`image/png ${PNG.length} avatar.png`);
     expect(emailsOn(gitlab, 'alice')).toEqual(['alice@example.test', '101+alice@users.noreply.github.com', 'alice@users.noreply.github.com']);
-    expect(row(101)).toMatchObject({ emails_source: null, last_error: 'gitlab_email_400', avatar_source: 'https://avatars.githubusercontent.com/u/101' });
+    // 只记做成的：工作邮箱不在里面，和要有的不一样，下一轮再试
+    expect(row(101)).toMatchObject({ last_error: 'gitlab_email_400', avatar_source: 'https://avatars.githubusercontent.com/u/101' });
+    expect(JSON.parse(String(row(101)!.emails_source))).toEqual({ primary: 'alice@example.test', others: ['101+alice@users.noreply.github.com', 'alice@users.noreply.github.com'] });
     expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_emails' }]);
 
     // 头像下载失败也不耽误邮箱：两边都试过，报先失败的那个
@@ -714,6 +716,32 @@ describe('GitLab commit emails (#272)', () => {
     expect(emailsOn(gitlab, 'alice')).toContain('alice@work.example.test');
     expect(row(101)).toMatchObject({ avatar_source: null, last_error: 'github_avatar_503' });
     expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_avatar' }]);
+  });
+
+  it('still drops an email removed on the site while another email keeps being refused', async () => {
+    const { app, gitlab, accountOf, row } = await setup();
+    signIn(app, 'alice', 101);
+    // 主邮箱在别的 GitLab 用户名下：每一轮改主邮箱都回 409
+    gitlab.users.push({ id: 9, username: 'someone', email: 'alice@example.test', name: 'someone', state: 'active', extern_uid: null, provider: null });
+    link(app, accountOf(101), 'alice@example.test');
+    link(app, accountOf(101), 'alice@work.example.test');
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('gitlab_email_409');
+    expect(emailsOn(gitlab, 'alice')).toContain('alice@work.example.test');
+
+    // 失败的那一轮加上去的工作邮箱，在极客班删掉以后照样从 GitLab 删掉
+    const work = emailIds(app, accountOf(101)).find(item => item.label.startsWith('a***@work'))!;
+    app.services.identity.unlinkEmail({ accountId: accountOf(101), identityId: work.id, login: 'alice' });
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('gitlab_email_409');
+    expect(emailsOn(gitlab, 'alice')).toEqual(['alice@noreply.git.example.test', '101+alice@users.noreply.github.com', 'alice@users.noreply.github.com']);
+    expect(JSON.parse(String(row(101)!.emails_source))).toEqual({ primary: null, others: ['101+alice@users.noreply.github.com', 'alice@users.noreply.github.com'] });
+
+    // 占用的人把邮箱让出来：下一轮换上主邮箱，删掉占位地址，之后不再调 GitLab
+    gitlab.users.find(user => user.id === 9)!.email = 'someone@example.test';
+    expect(await app.services.gitlab.reconcile()).toMatchObject({ failed: 0 });
+    expect(emailsOn(gitlab, 'alice')).toEqual(['alice@example.test', '101+alice@users.noreply.github.com', 'alice@users.noreply.github.com']);
+    const calls = gitlab.calls.length;
+    await app.services.gitlab.reconcile();
+    expect(gitlab.calls).toHaveLength(calls);
   });
 
   it('replaces an email someone added on GitLab but could not confirm', async () => {

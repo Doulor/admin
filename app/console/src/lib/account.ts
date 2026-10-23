@@ -35,6 +35,8 @@ export const loginIsFresh = (view: Pick<AccountView, "session">, now = Date.now(
 
 /** 和服务端 PASSWORD_MIN_LENGTH 一样，账号页与登录页的提示也用它 */
 export const PASSWORD_MIN_LENGTH = 8;
+/** 和服务端 identity-store 的 EMAILS_MAX 一样：一个账号最多绑几个邮箱（#272） */
+export const EMAILS_MAX = 5;
 
 /** 和服务端 passwordError 同一条规则：至少 8 位，UTF-8 不超过 72 字节，不要求大小写、数字或符号。账号页和登录页的注册共用。 */
 export function passwordRuleProblem(password: string): string | null {
