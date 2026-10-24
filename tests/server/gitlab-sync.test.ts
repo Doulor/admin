@@ -267,6 +267,22 @@ describe('GitLab account sync (#270)', () => {
     expect(audit).toEqual(['admiral', 'alice']);
   });
 
+  it('gives GitLab Owner to whoever is in the site owner group, not to the old org_role (#274)', async () => {
+    const { app, gitlab, accountOf, db } = await setup(SYNC_ENV);
+    signIn(app, 'bob', 202);
+    // 控制台任命站长只写 perm_members（PATCH /api/console/users/:id），不碰 users.org_role
+    db.prepare("INSERT INTO perm_members(account_id, group_id, expires_at, granted_by, created_at) VALUES (?, 'title.site.owner', NULL, 'test', ?)").run(accountOf(202), Date.now());
+    app.services.permissions.bump();
+    await app.services.gitlab.reconcile();
+    const bob = userNamed(gitlab, 'bob')!;
+    expect(gitlab.members.get(bob.id)).toBe(50);
+
+    db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id = 'title.site.owner'").run(accountOf(202));
+    app.services.permissions.bump();
+    await app.services.gitlab.reconcile();
+    expect(gitlab.members.get(bob.id)).toBe(30);
+  });
+
   it('uses the verified email, and falls back to a noreply address when GitLab already has it', async () => {
     const { app, gitlab, db, accountOf } = await setup();
     signIn(app, 'carol', 103);

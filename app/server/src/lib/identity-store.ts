@@ -723,11 +723,12 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   // level.member 组，不能再信 org_state。
   const claimsSelect = `SELECT u.id, u.status, u.org_state, u.org_role, u.handle, u.canonical_email,
       g.provider_uid AS github_id, g.login AS github_login, g.avatar_url,
-      EXISTS (SELECT 1 FROM perm_members pm WHERE pm.account_id = u.id AND pm.group_id = 'level.member') AS is_level_member
+      EXISTS (SELECT 1 FROM perm_members pm WHERE pm.account_id = u.id AND pm.group_id = 'level.member') AS is_level_member,
+      EXISTS (SELECT 1 FROM perm_members pm WHERE pm.account_id = u.id AND pm.group_id = 'title.site.owner') AS is_site_owner
     FROM users u LEFT JOIN identities g ON g.user_id = u.id AND g.provider = 'github'`;
   type ClaimsRow = {
     id: string; status: "active" | "disabled" | "merged"; org_state: string; org_role: string | null; handle: string | null; canonical_email: string | null;
-    github_id: string | null; github_login: string | null; avatar_url: string | null; is_level_member: 0 | 1;
+    github_id: string | null; github_login: string | null; avatar_url: string | null; is_level_member: 0 | 1; is_site_owner: 0 | 1;
   };
   const toClaims = (row: ClaimsRow): AccountClaims => {
     const member = row.status === "active" && row.is_level_member === 1;
@@ -735,7 +736,8 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
       account_id: row.id,
       status: row.status === "active" ? "active" : "disabled",
       member,
-      site_role: member && (row.org_role === "admin" || row.org_role === "member") ? row.org_role : null,
+      // 站长看 title.site.owner 组，不看旧的 org_role：控制台里任命、撤销的站长要同步成 GitLab 的 Owner / Developer。
+      site_role: member ? (row.is_site_owner === 1 ? "admin" : "member") : null,
       login: row.github_login ?? row.handle ?? `yz_${row.id.slice(0, 8).toLowerCase()}`,
       handle: row.handle,
       github: row.github_id !== null && row.github_login ? { id: Number(row.github_id), login: row.github_login, avatar_url: row.avatar_url } : null,
