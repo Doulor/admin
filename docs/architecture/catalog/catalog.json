@@ -11561,7 +11561,7 @@
       "domain": "platform",
       "evidence": [
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/backup.ts"
         },
         {
@@ -11577,7 +11577,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 26,
+          "line": 34,
           "path": "app/console/src/pages/Backup.vue"
         },
         {
@@ -14912,7 +14912,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "fc139f67dc0d59a2a8376004f0440f41211637bdf0cca9d1ac871a3acbd006dd",
+    "fingerprint": "cdf8f016bc02ab4d80731e29cab1b0eebf2bd7ca71203df5c79673a07f75050d",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -15136,7 +15136,7 @@
       },
       {
         "path": "app/console/src/pages/Backup.vue",
-        "sha256": "273a201ed13810bde8d9c5dda6ac0a822a7f8a8be7cf280b9e69ccca7e1663a6"
+        "sha256": "a458d9177babde3bc12d0fb9362d991d191520c341acfa4592b02c77288e56ac"
       },
       {
         "path": "app/console/src/pages/BindEmail.vue",
@@ -16060,7 +16060,7 @@
       },
       {
         "path": "app/server/src/routes/console/backup.ts",
-        "sha256": "40ebf18d84b2d67bd0a712447a56d0e6b8bca9fcb9903a04cfbb45a683141f05"
+        "sha256": "c84a455f162a330c123b546612d7611eb969fc11bd4674d6997a58e797e136e6"
       },
       {
         "path": "app/server/src/routes/console/competition-candidates.ts",
@@ -16704,7 +16704,7 @@
       },
       {
         "path": "docs/ops/BACKUP.md",
-        "sha256": "2b3f46a5058a8855224fd461c8ee039927dbe874e61c7866a8967e3a8d4a8019"
+        "sha256": "f30a00359b102165305a0e19662f4ca2987d8564780503fd09ddd26ee50dc5d0"
       },
       {
         "path": "docs/ops/DEPLOY.md",
@@ -16728,7 +16728,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "fb31ce25b53b333f8e7dd24732b477ddd0257b1053d829ae3ea3122a49e8f302"
+        "sha256": "dfd99f6204c98f885bcd8ef610031bbbef0d8a4890de8baa58f5d5c4f775e131"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -16736,7 +16736,7 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "9870f951d598eb9858dc881984646d06bafa5a23b827cb4bd1ecde5ee2e95b06"
+        "sha256": "8b3a2c5d1d31dd222e160eb5358576abfb5e3f3b670577b38877cd17e4ad56ea"
       },
       {
         "path": "docs/services/server/data-model.md",
@@ -16744,7 +16744,7 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "4d1d5f4be60fd803f0921f9b61457df9bf47005a42c80d561e887ca06ec7d021"
+        "sha256": "d4bbde5c74ffebed9de6621c9b69eb7919e06155ab579e0e17f2d185fcf439f6"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -16768,7 +16768,7 @@
       },
       {
         "path": "scripts/backup-restore.mjs",
-        "sha256": "a01b02f7298a550d0363533448658de5865540ef96ccaf3074604c5bcb7f818e"
+        "sha256": "539ae2656616770ce42aeba0f182ef42e81ab6ee2e99293552b33dd7434aeb30"
       },
       {
         "path": "scripts/catalog/collect.ts",
@@ -16880,7 +16880,7 @@
       },
       {
         "path": "tests/server/backup-route.test.ts",
-        "sha256": "2fe09d88f124d35bf731e3a8d5d758765814f3a6b7659751a228ec3d8d791ab8"
+        "sha256": "95f5843606ae6a2460b10db6659c78978b8d36ac23bda194c1bb45d732fa9c5f"
       },
       {
         "path": "tests/server/bearer-auth.test.ts",
@@ -16936,7 +16936,7 @@
       },
       {
         "path": "tests/server/core.test.ts",
-        "sha256": "4239ca91c6c8574b98c91ca013eb0af41bb3fca621381711827c51465b581c57"
+        "sha256": "683eb5923bc0c989e8eaa3dab284d6b65a69f03dd87ac758c5a00ba7cf56acd7"
       },
       {
         "path": "tests/server/device-flow.test.ts",
@@ -16968,7 +16968,7 @@
       },
       {
         "path": "tests/server/identity.test.ts",
-        "sha256": "7d1fe2dafc8c0f4e5beaea201232c7b3f3b7c07a93e3bf4643a07f1668b745ff"
+        "sha256": "d6adc2e826875959644c186bcdd284f98e947c201ddb915388804939351abf37"
       },
       {
         "path": "tests/server/legacy-database.test.ts",
@@ -17020,7 +17020,7 @@
       },
       {
         "path": "tests/tooling/backup-restore.test.ts",
-        "sha256": "8132c3546cc2121f7865d8bac1b5fac898ed39485cd9c89af587c6bb8f7f579b"
+        "sha256": "abfaa96121a9170c4374826a2331eea82390013fdb7f5467a497ffdcf9a49938"
       },
       {
         "path": "tests/tooling/contest-site.test.ts",
@@ -17507,7 +17507,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 29,
+          "line": 33,
           "path": "app/server/src/routes/console/backup.ts"
         }
       ],
@@ -18539,7 +18539,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 29,
+          "line": 33,
           "path": "app/server/src/routes/console/backup.ts"
         }
       ],
@@ -72599,7 +72599,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/backup.ts"
         },
         {
@@ -72615,7 +72615,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 26,
+          "line": 34,
           "path": "app/console/src/pages/Backup.vue"
         },
         {
@@ -72631,7 +72631,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/backup.ts"
         },
         {
@@ -72647,7 +72647,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 26,
+          "line": 34,
           "path": "app/console/src/pages/Backup.vue"
         },
         {
@@ -72663,7 +72663,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/backup.ts"
         },
         {
@@ -72679,7 +72679,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 26,
+          "line": 34,
           "path": "app/console/src/pages/Backup.vue"
         },
         {
@@ -72695,7 +72695,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/backup.ts"
         },
         {
@@ -72711,7 +72711,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 26,
+          "line": 34,
           "path": "app/console/src/pages/Backup.vue"
         },
         {
@@ -72727,7 +72727,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/backup.ts"
         },
         {
@@ -72743,7 +72743,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 26,
+          "line": 34,
           "path": "app/console/src/pages/Backup.vue"
         },
         {
@@ -72759,7 +72759,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/backup.ts"
         },
         {
@@ -72775,7 +72775,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 26,
+          "line": 34,
           "path": "app/console/src/pages/Backup.vue"
         },
         {
@@ -72791,7 +72791,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/backup.ts"
         },
         {
@@ -72807,7 +72807,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 26,
+          "line": 34,
           "path": "app/console/src/pages/Backup.vue"
         },
         {
@@ -72823,7 +72823,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/backup.ts"
         },
         {
@@ -72839,7 +72839,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 26,
+          "line": 34,
           "path": "app/console/src/pages/Backup.vue"
         },
         {
@@ -72855,7 +72855,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/backup.ts"
         },
         {
@@ -72871,7 +72871,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 26,
+          "line": 34,
           "path": "app/console/src/pages/Backup.vue"
         },
         {
@@ -72887,7 +72887,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/backup.ts"
         },
         {
@@ -72903,7 +72903,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 26,
+          "line": 34,
           "path": "app/console/src/pages/Backup.vue"
         },
         {
@@ -72919,7 +72919,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 30,
+          "line": 34,
           "path": "app/server/src/routes/console/backup.ts"
         },
         {
@@ -72935,7 +72935,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 26,
+          "line": 34,
           "path": "app/console/src/pages/Backup.vue"
         },
         {
@@ -82704,7 +82704,7 @@
         }
       },
       "source": {
-        "line": 29,
+        "line": 33,
         "path": "app/server/src/routes/console/backup.ts"
       }
     },
@@ -95291,7 +95291,7 @@
         }
       },
       "source": {
-        "line": 29,
+        "line": 33,
         "path": "app/server/src/routes/console/backup.ts"
       }
     },

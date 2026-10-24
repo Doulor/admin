@@ -11,9 +11,9 @@
 // `<target>/data.db`，比赛官网目录（如果有）在 `<target>/sites`；真实密钥仍要在新环境单独配置，
 // 这份归档和这个脚本都不碰密钥，只告诉你要准备哪些变量名。完整说明见 docs/ops/BACKUP.md。
 import { createHash } from "node:crypto";
-import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, realpathSync } from "node:fs";
+import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { unpackTarGz } from "../app/server/src/lib/tar-stream.ts";
 
 export const USAGE = "用法：node scripts/backup-restore.mjs --archive <备份.tar.gz> --target <数据目录> [--force]";
@@ -101,10 +101,21 @@ export async function main(options) {
   console.log(`数据库表数：${manifest.database.tables.length}（排除的短时数据：${manifest.database.excluded_tables.join("、")}）`);
   console.log("");
   console.log("新环境要准备这些环境变量（真实值要单独配置，这份备份和这个脚本都不碰密钥）：");
-  for (const name of manifest.required_env) console.log(`  ${name}`);
+  for (const name of requiredEnvNames(manifest)) console.log(`  ${name}`);
   console.log("");
   console.log(`把新环境的 DB_PATH 指到 ${resolve(options.target, "data.db")}；`);
   console.log(`比赛官网文件在 ${resolve(options.target, "sites")}（manifest 里没有 sites/ 开头的文件就说明这份备份没有站点包，不用建这个目录）。`);
+}
+
+/**
+ * 环境变量名单：备份里记了就用备份里的；服务端镜像里没有 `deploy/env` 模板，线上打的备份这一项是空的，
+ * 这时按备份的环境名读这份仓库里的模板（只读等号左边的名字，不读值；本机和测试的备份按预发布那份列）。
+ */
+export function requiredEnvNames(manifest, repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..")) {
+  if (manifest.required_env?.length) return manifest.required_env;
+  const file = join(repoRoot, "deploy/env", `.env.${manifest.environment === "production" ? "production" : "preview"}`);
+  if (!existsSync(file)) return [];
+  return readFileSync(file, "utf8").split("\n").map(line => line.trim()).filter(line => line && !line.startsWith("#") && line.indexOf("=") > 0).map(line => line.slice(0, line.indexOf("=")).trim());
 }
 
 function isDirectRun() {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { TxCard } from "@talex-touch/tuffex/card";
 import { TxButton } from "@talex-touch/tuffex/button";
 import { TxDataTable } from "@talex-touch/tuffex/data-table";
@@ -12,9 +13,10 @@ import { api } from "../lib/http";
 import { isMock } from "../lib/runtime";
 import { fmtDate } from "../lib/format";
 import { OUTCOME_STATUS, OUTCOME_TEXT } from "../lib/activity";
+import { loginIsFresh } from "../lib/account";
 import { useResource } from "../lib/resource";
 import { useSession } from "../lib/session";
-import type { ActivityList } from "../lib/types";
+import type { AccountView, ActivityList } from "../lib/types";
 
 /**
  * 一键系统备份（#282，所有者 2026-10-24 22:22：论坛和所有数据要能一键导出下载，方便挂了或搬迁时恢复）。
@@ -22,6 +24,12 @@ import type { ActivityList } from "../lib/types";
  * 自动带上，不用自己拼 fetch；浏览器自己的下载进度条就是这次下载的进度。
  */
 const { can } = useSession();
+
+// 归档里有全部账号和密码哈希，服务端要求 10 分钟内登录过（requireStepUp）。不够新时不给下载链接，
+// 先请人重新登录：浏览器直接下载拿到的 403 只会存成一个看不懂的文件。
+const account = useResource(() => api<AccountView>("/api/identity/me"), [], { enabled: () => !isMock() });
+const fresh = computed(() => (account.data.value ? loginIsFresh(account.data.value) : false));
+const signInAgain = () => window.location.assign(`/signin?return_to=${encodeURIComponent("/console/backup")}`);
 
 const records = useResource(
   () => api<ActivityList>("/api/console/activity?action=system.backup.export"),
@@ -44,9 +52,10 @@ const columns = [
         <TxTooltip v-if="isMock()" content="开发预览不能导出，请连接本地后端">
           <TxButton icon="i-carbon-data-backup" disabled>下载完整备份</TxButton>
         </TxTooltip>
-        <a v-else href="/api/console/backup" download class="backup-download-link">
+        <a v-else-if="fresh" href="/api/console/backup" download class="backup-download-link">
           <TxButton icon="i-carbon-data-backup" tabindex="-1">下载完整备份</TxButton>
         </a>
+        <TxButton v-else icon="i-carbon-login" :disabled="!account.data.value" @click="signInAgain">重新登录后下载</TxButton>
       </template>
     </PageHeader>
 
@@ -71,6 +80,7 @@ const columns = [
           </ul>
         </div>
       </div>
+      <p v-if="!isMock() && account.data.value && !fresh" class="scope-note">备份里有全部账号和密码哈希，下载前要求 10 分钟内登录过；重新登录后会回到这一页。</p>
       <p class="scope-note">下载下来是一个 .tar.gz 文件，打开能看到 manifest.json（版本、表行数、每个文件的校验和要恢复到的环境变量名单）、data.db（数据库快照）和 sites（比赛官网文件）。恢复时在新环境运行 scripts/backup-restore.mjs，完整步骤见仓库的 docs/ops/BACKUP.md。</p>
     </TxCard>
 

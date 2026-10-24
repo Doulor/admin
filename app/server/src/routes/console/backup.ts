@@ -4,10 +4,14 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { REPO_ROOT } from "../../config.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { requirePermission } from "../../middleware/require-permission.js";
+import { requireStepUp } from "../../middleware/require-step-up.js";
 import { beijingCompactDate } from "../../lib/beijing-time.js";
 import { prepareSystemBackup, readEnvKeyNames } from "../../lib/system-backup.js";
 
 const byAccount = (req: FastifyRequest) => req.session!.account_id;
+
+/** 环境变量名单按当前环境读 `deploy/env/.env.<environment>`；本机开发和测试没有自己的文件，按预发布那份列。 */
+const envFileName = (environment: string | undefined) => (environment === "production" ? "production" : "preview");
 
 const appVersion = (() => {
   try {
@@ -29,7 +33,8 @@ export default async function consoleBackupRoutes(app: FastifyInstance) {
   app.get(
     "/api/console/backup",
     {
-      preHandler: requirePermission("system.backup"),
+      // 归档带着全部账号与密码哈希：和控制台的写操作一样要求刚登录过（10 分钟内）。
+      preHandler: [requirePermission("system.backup"), requireStepUp],
       // 归档要重新打一遍（在线备份 + 清空短时数据 + 两遍算 sha256），单账号 5 分钟一次足够应付「搬迁前
       // 点一下」这种使用场景，也避免被连续点击当成压测。
       config: { rateLimit: { max: 1, timeWindow: "5 minutes", keyGenerator: byAccount, hook: "preHandler" } },
@@ -48,7 +53,7 @@ export default async function consoleBackupRoutes(app: FastifyInstance) {
         environment: process.env.GEEK_DEPLOYMENT_ENVIRONMENT ?? "local",
         imageTag: process.env.IMAGE_TAG ?? null,
         appVersion,
-        requiredEnv: readEnvKeyNames(resolve(REPO_ROOT, "deploy/env/.env.preview")),
+        requiredEnv: readEnvKeyNames(resolve(REPO_ROOT, `deploy/env/.env.${envFileName(process.env.GEEK_DEPLOYMENT_ENVIRONMENT)}`)),
       });
       // 只记 manifest 摘要（文件数、表名、排除了哪些表），不记归档内容本身。
       app.services.activity.recordActivity(req, {

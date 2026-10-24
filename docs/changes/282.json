@@ -41,7 +41,7 @@
     },
     "backend": {
       "status": "changed",
-      "reason": "新增 GET /api/console/backup 流式打包路由（system-backup.ts 组装快照、清空短时数据、算 sha256）、tar-stream.ts 的纯 Node 流式 tar+gzip 实现，以及 scripts/backup-restore.mjs 的恢复脚本；services.ts 把 sitesRoot 提成具名变量供路由取用。",
+      "reason": "新增 GET /api/console/backup 流式打包路由（system-backup.ts 组装快照、清空短时数据、算 sha256）、tar-stream.ts 的纯 Node 流式 tar+gzip 实现，以及 scripts/backup-restore.mjs 的恢复脚本；services.ts 把 sitesRoot 提成具名变量供路由取用。环境变量名单按当前环境读 deploy/env 下当前环境那份（.env.preview 或 .env.production）；镜像里没有这份模板时为空，恢复脚本再按备份的环境名读仓库里的模板。",
       "evidence": [
         "app/server/src/routes/console/backup.ts",
         "app/server/src/lib/system-backup.ts",
@@ -51,7 +51,7 @@
     },
     "permissions": {
       "status": "changed",
-      "reason": "新增权限节点 system.backup 与 system 业务域标签；种子里只有站长的根通配 `*` 默认拿到这个节点，部门部长等 curated 列表没有也不需要改。",
+      "reason": "新增权限节点 system.backup 与 system 业务域标签；种子里只有站长的根通配 `*` 默认拿到这个节点，部门部长等 curated 列表没有也不需要改。下载还要求 10 分钟内登录过（requireStepUp，和控制台写操作同一个窗口），归档里有全部账号和密码哈希；控制台页面不够新时先请人重新登录。",
       "evidence": [
         "app/server/src/lib/permission-nodes.ts",
         "docs/architecture/SECURITY.md"
@@ -75,7 +75,7 @@
     },
     "documentation": {
       "status": "changed",
-      "reason": "新增 docs/ops/BACKUP.md 说明备份内容、下载、恢复与跨环境搬迁步骤；server、console 服务文档、endpoint-contracts.md、SECURITY.md 残余风险段、DEPLOY.md、docs/README.md 和 docs/ops/README.md 的入口表同步补充这个功能。",
+      "reason": "新增 docs/ops/BACKUP.md 说明备份内容、下载、恢复与跨环境搬迁步骤；server、console 服务文档、endpoint-contracts.md、SECURITY.md 残余风险段、DEPLOY.md、docs/README.md 和 docs/ops/README.md 的入口表同步补充这个功能。BACKUP.md 补「整机搬到新服务器」一节（所有者 2026-10-25 01:00）：数据、镜像、compose、环境变量、密钥、nginx 与证书、DNS、CDN、宿主机脚本各自从哪里来，GitLab 不在这份备份里，搬迁顺序。",
       "evidence": [
         "docs/ops/BACKUP.md",
         "docs/services/server/README.md",
@@ -85,7 +85,7 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "新增 4 个测试文件覆盖打包/解包、权限与限流、恢复脚本，本地用 Node 22 跑 `pnpm vitest run tests/server/ tests/console/ tests/tooling/` 全绿（100 个测试文件、1705 个用例，含 tests/tooling/catalog-coverage.test.ts 独立核对的 165/165 业务操作有流程关联）；`pnpm --filter @yzgc/server exec tsc --noEmit` 和 `pnpm --filter @yzgc/console run build`（vue-tsc + vite build）都通过，Backup.vue 的产物 chunk 正常打出。",
+      "reason": "新增 4 个测试文件覆盖打包/解包、权限与限流、恢复脚本，本地用 Node 22 跑 `pnpm vitest run tests/server/ tests/console/ tests/tooling/` 全绿（100 个测试文件、1705 个用例，含 tests/tooling/catalog-coverage.test.ts 独立核对的 165/165 业务操作有流程关联）；`pnpm --filter @yzgc/server exec tsc --noEmit` 和 `pnpm --filter @yzgc/console run build`（vue-tsc + vite build）都通过，Backup.vue 的产物 chunk 正常打出。合入 stage f00e9966 后补：backup-route 加刚登录过的用例（20 分钟前的会话 403 step_up_required、不留操作记录），backup-restore 加环境变量名单回退的用例，四个备份测试文件 22 个用例通过。另修 stage 上 3 个过期用例（core.test 两个、identity.test 一个，fb386a9b 改了规则没改用例），tests/server、tests/console、tests/tooling 101 个文件 1726 个用例全部通过。",
       "evidence": [
         "tests/server/backup-route.test.ts",
         "tests/server/system-backup.test.ts",
@@ -263,6 +263,21 @@
         "test:tests/server/backup-route.test.ts"
       ],
       "reason": "nav.test.ts、permissions.test.ts 更新导航与权限分组新增「系统」后的期望；另外 4 个是这次新功能的新测试。"
+    },
+    {
+      "paths": [
+        "tests/server/core.test.ts",
+        "tests/server/identity.test.ts"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "domain:identity",
+        "flow:identity.callback",
+        "application:server"
+      ],
+      "reason": "顺手修 stage 上的现有问题：fb386a9b（#280，2026-10-24 22:38「补资料只拦极客班成员」，依据所有者 22:05「必须是极客班成员才要填这些」）改了登录回调，新注册的普通用户不再先去补资料页，但这三个用例还按旧规则期望跳补资料页，stage f00e9966 上就失败（干净检出复现过）；期望改成直接回到开始登录的页面。"
     }
   ],
   "documents": [

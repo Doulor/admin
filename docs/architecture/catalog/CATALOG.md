@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`fc139f67dc0d59a2a8376004f0440f41211637bdf0cca9d1ac871a3acbd006dd`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`cdf8f016bc02ab4d80731e29cab1b0eebf2bd7ca71203df5c79673a07f75050d`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -3041,7 +3041,7 @@
 - 响应与错误：200，content-type application/gzip，content-disposition 带 yzgc-backup-<environment>-<日期>.tar.gz 文件名；没有节点 403。
 - 数据与副作用：在线备份出 data.db 快照副本，清空副本里的短时安全数据（sessions/device_grants/oauth_grants/oidc_payloads/email_challenges/invite_attempts/application_limits/limit_events/forum_rate_events）后流式打包成 tar.gz（manifest.json + data.db + sites/ 下的站点文件），不缓冲整个归档；单账号 5 分钟限 1 次；只记 activity.events 的 system.backup.export 摘要（文件数、表名、排除了哪些表），不记归档内容本身；临时目录随流关闭清理。
 
-源码：[app/server/src/routes/console/backup.ts:30](../../../app/server/src/routes/console/backup.ts#L30) · [app/server/src/lib/system-backup.ts:106](../../../app/server/src/lib/system-backup.ts#L106) · [app/server/src/lib/tar-stream.ts:91](../../../app/server/src/lib/tar-stream.ts#L91) · [app/server/src/lib/permission-nodes.ts:79](../../../app/server/src/lib/permission-nodes.ts#L79) · [app/console/src/pages/Backup.vue:26](../../../app/console/src/pages/Backup.vue#L26) · [scripts/backup-restore.mjs:62](../../../scripts/backup-restore.mjs#L62)
+源码：[app/server/src/routes/console/backup.ts:34](../../../app/server/src/routes/console/backup.ts#L34) · [app/server/src/lib/system-backup.ts:106](../../../app/server/src/lib/system-backup.ts#L106) · [app/server/src/lib/tar-stream.ts:91](../../../app/server/src/lib/tar-stream.ts#L91) · [app/server/src/lib/permission-nodes.ts:79](../../../app/server/src/lib/permission-nodes.ts#L79) · [app/console/src/pages/Backup.vue:34](../../../app/console/src/pages/Backup.vue#L34) · [scripts/backup-restore.mjs:62](../../../scripts/backup-restore.mjs#L62)
 
 测试入口：[tests/server/tar-stream.test.ts](../../../tests/server/tar-stream.test.ts) · [tests/server/system-backup.test.ts](../../../tests/server/system-backup.test.ts) · [tests/server/backup-route.test.ts](../../../tests/server/backup-route.test.ts) · [tests/tooling/backup-restore.test.ts](../../../tests/tooling/backup-restore.test.ts) · [tests/console/nav.test.ts](../../../tests/console/nav.test.ts) · [tests/console/permissions.test.ts](../../../tests/console/permissions.test.ts)。生成器未执行这些测试。
 

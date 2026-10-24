@@ -24,6 +24,17 @@ describe('GET /api/console/backup（#282）', () => {
     expect(res.json()).toEqual({ error: 'forbidden', node: 'system.backup', message: '需要「system.backup」权限' });
   });
 
+  it('有节点但不是 10 分钟内登录的会话：403 step_up_required，不打归档', async () => {
+    const { app } = await (async () => { const c = await testApp(); contexts.push(c); return c; })();
+    const sid = signIn(app, 'owner', 904);
+    grantPermGroup(app, accountIdOf(app, 'owner'), 'title.site.owner');
+    app.services.storage.db.prepare('UPDATE sessions SET created_at = ?').run(Date.now() - 20 * 60_000);
+    const res = await app.inject({ method: 'GET', url: '/api/console/backup', headers: { cookie: `sid=${sid}` } });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe('step_up_required');
+    expect(activityRows(app).filter((row: { action: string }) => row.action === 'system.backup.export')).toEqual([]);
+  });
+
   it('未登录时 401 unauthenticated', async () => {
     const { app } = await (async () => { const c = await testApp(); contexts.push(c); return c; })();
     const res = await app.inject({ method: 'GET', url: '/api/console/backup' });

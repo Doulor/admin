@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { afterEach, describe, expect, it } from 'vitest';
 import { packTarGz } from '../../app/server/src/lib/tar-stream';
-import { isNonEmptyDir, main, parseArgs, restoreBackup } from '../../scripts/backup-restore.mjs';
+import { isNonEmptyDir, main, parseArgs, requiredEnvNames, restoreBackup } from '../../scripts/backup-restore.mjs';
 
 const dirs: string[] = [];
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
@@ -123,5 +123,18 @@ describe('main（#282 命令行层：非空目标目录的确认）', () => {
 
   it('缺 --archive 或 --target 时报用法', async () => {
     await expect(main({ archive: null, target: null, force: false })).rejects.toThrow(/用法/);
+  });
+});
+
+describe('新环境要准备的环境变量名单（#282）', () => {
+  it('备份里记了就用备份里的；没记（线上镜像里没有模板）时按环境名读仓库里的模板，只取名字', () => {
+    expect(requiredEnvNames({ environment: 'production', required_env: ['A', 'B'] })).toEqual(['A', 'B']);
+    const repo = tempDir('yzgc-restore-env-');
+    mkdirSync(join(repo, 'deploy/env'), { recursive: true });
+    writeFileSync(join(repo, 'deploy/env/.env.production'), '# 注释\nSITE_ORIGIN=https://example.test\nSESSION_SECRET=\n\n');
+    writeFileSync(join(repo, 'deploy/env/.env.preview'), 'PREVIEW_ONLY=1\n');
+    expect(requiredEnvNames({ environment: 'production', required_env: [] }, repo)).toEqual(['SITE_ORIGIN', 'SESSION_SECRET']);
+    expect(requiredEnvNames({ environment: 'local', required_env: [] }, repo)).toEqual(['PREVIEW_ONLY']);
+    expect(requiredEnvNames({ environment: 'preview', required_env: [] }, join(repo, 'missing'))).toEqual([]);
   });
 });

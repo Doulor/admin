@@ -2,7 +2,7 @@
 
 > 按真实 handler、授权执行点与存储实现核对现有接口；关联目录中的业务用例，区分存量人工说明与已挂载的机器响应契约。
 
-状态：`current` · 更新：2026-10-24
+状态：`current` · 更新：2026-10-25
 
 ## 口径与共同边界
 
@@ -1254,7 +1254,7 @@ SQLite读写：无。源码：[app/forum/server/middleware/forum-markdown.ts](..
 
 | 方法与路径 | 谁 | 成功与副作用 |
 |---|---|---|
-| `GET /api/console/backup` · `flow:platform.system_backup` | 需要节点 `system.backup`（种子里只有站长的根通配 `*` 默认拿到，部门部长没有） | 200 `application/gzip` 流，`Content-Disposition` 带 `yzgc-backup-<environment>-<日期>.tar.gz`；内容是 `manifest.json` + `data.db` 快照 + `sites/` 下的站点文件；清空快照副本里的 sessions、device_grants、oauth_grants、oidc_payloads、email_challenges、invite_attempts、application_limits、limit_events、forum_rate_events，账号与密码哈希保留；单账号 5 分钟限 1 次；写 `system.backup.export`（只记文件数、表名与排除了哪些表，不记归档内容）。 |
+| `GET /api/console/backup` · `flow:platform.system_backup` | 需要节点 `system.backup`（种子里只有站长的根通配 `*` 默认拿到，部门部长没有），并且 10 分钟内登录过（否则 403 `step_up_required`，不打归档） | 200 `application/gzip` 流，`Content-Disposition` 带 `yzgc-backup-<environment>-<日期>.tar.gz`；内容是 `manifest.json` + `data.db` 快照 + `sites/` 下的站点文件；清空快照副本里的 sessions、device_grants、oauth_grants、oidc_payloads、email_challenges、invite_attempts、application_limits、limit_events、forum_rate_events，账号与密码哈希保留；单账号 5 分钟限 1 次；写 `system.backup.export`（只记文件数、表名与排除了哪些表，不记归档内容）。 |
 
 验证入口：[打包与流式 tar+gzip](../../../tests/server/system-backup.test.ts)、[tar-stream.ts 单测](../../../tests/server/tar-stream.test.ts)、[下载路由、权限与限流](../../../tests/server/backup-route.test.ts)、[恢复脚本](../../../tests/tooling/backup-restore.test.ts)。
 
