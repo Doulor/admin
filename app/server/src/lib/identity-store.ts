@@ -1,9 +1,11 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import type { AuditActor } from "./db.js";
 import { redeemInvite } from "./invite-codes.js";
 import { maskEmail } from "./email-login.js";
 import { bumpPermRevision, setExclusiveGroupMembership } from "./permissions.js";
+import { ipSubject } from "./forum-rules.js";
+import type { LimitCheck, LimitsService } from "./limits.js";
 
 /**
  * 极客班账号（#262，docs/plan/UNIFIED-LOGIN.md）：`users` 一行是一个账号，`id` 就是接口里的 `account_id`（极客班 OpenID）；
@@ -24,9 +26,10 @@ export type SiteRoleChoice = "admin" | "member" | "none";
  * `not_member`、`invite_required` 不会再被抛出：GitHub 组织那道门已经去掉，没填邀请码就注册成注册用户
  * （SPEC §3.2）。`invite_invalid` 取代旧名字「invalid_invite」，和 CONTRACT-274 的错误码一致。
  * `no_account`：忘了密码（resetPassword）核对的邮箱还没有账号——这条路径不能顺手注册，邀请码选填只对
- * 真正的注册路径生效。
+ * 真正的注册路径生效。`rate_limited`（#274 review round 1，SPEC §3.8）：这个 IP 或访客设备今天注册得太多了——
+ * 三种注册方式共用同一套每日限额，不单独给某一种渠道开洞。
  */
-export type SigninRefusal = "account_disabled" | "invite_invalid" | "email_taken" | "code_expired" | "no_account";
+export type SigninRefusal = "account_disabled" | "invite_invalid" | "email_taken" | "code_expired" | "no_account" | "rate_limited";
 export type SigninResult =
   | { ok: true; sid: string; accountId: string; registered: boolean }
   | { ok: false; reason: SigninRefusal };
@@ -160,17 +163,38 @@ export type IdentityDeps = {
   /** storage.audit */
   audit: (org: string | null, actor: AuditActor, action: string, target?: string, details?: unknown, ip?: string) => void;
   consoleOrg: string;
+  /** 注册限额与邀请码猜测锁定（#274 review round 1，SPEC §3.8）；lib/limits.ts 的唯一入口。 */
+  limits: LimitsService;
   clock?: () => number;
 };
+
+/** IP 哈希：和 lib/limits.ts 的别处用法一致，IPv6 先按 /64 归一再 sha256，只存哈希不存原文。 */
+export function hashIp(ip: string): string {
+  return createHash("sha256").update(ipSubject(ip)).digest("hex");
+}
+
+/**
+ * 兑换邀请码失败的锁定窗口（#274 review round 1）：按账号、按 IP 各自数「猜错」的次数，到了上限拒绝。
+ * routes/identity/profile.ts 的 `POST /api/identity/invite/redeem` 和这里（GitHub、Google、邮箱注册时填的
+ * 邀请码）共用同一套桶——猜码不分渠道，都计进同一个「这个账号/这个 IP 今天猜错了几次」。
+ */
+export const INVITE_LOCK_WINDOW_MS = 60 * 60_000;
+export const INVITE_LOCK_MAX_ACCOUNT = 10;
+export const INVITE_LOCK_MAX_IP = 20;
+
+/** 注册限额（#274 review round 1，SPEC §3.8）：按来源 IP、按访客设备（yugc_vid）各自每天最多新建这么多账号。 */
+export const REGISTER_LIMIT_IP_DAILY = 5;
+export const REGISTER_LIMIT_DEVICE_DAILY = 3;
 
 export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   const clock = deps.clock ?? Date.now;
   const githubIdentity = db.prepare("SELECT id, user_id FROM identities WHERE provider = 'github' AND provider_uid = ?");
-  const insertUser = db.prepare("INSERT INTO users(id, status, org_state, org_checked_at, created_at, updated_at) VALUES(?, 'active', 'active', ?, ?, ?)");
+  // #274 review round 1（blocker）：org_state/org_role 不再统一写 'active'——没填邀请码的新账号写
+  // 'not_member'/null，填了有效邀请码的写 'active'/'member'，调用方按 invite?.ok 传参（见 signInWithGithub）。
+  const insertUser = db.prepare("INSERT INTO users(id, status, org_state, org_role, org_checked_at, created_at, updated_at) VALUES(?, 'active', ?, ?, ?, ?, ?)");
   const insertIdentity = db.prepare(`INSERT INTO identities(id, user_id, provider, provider_uid, login, avatar_url, created_at, last_login_at)
     VALUES(?, ?, 'github', ?, ?, ?, ?, ?)`);
   const refreshIdentity = db.prepare("UPDATE identities SET login = ?, avatar_url = ?, last_login_at = ? WHERE id = ?");
-  const setOrgRole = db.prepare("UPDATE users SET org_role = ?, org_checked_at = ?, updated_at = ? WHERE id = ?");
   const roleRow = db.prepare("SELECT status, org_state, org_role, invite_code_id FROM users WHERE id = ?");
   const countAdmins = db.prepare("SELECT COUNT(*) AS n FROM users WHERE status = 'active' AND org_state = 'active' AND org_role = 'admin'");
   const adminCount = () => (countAdmins.get() as { n: number }).n;
@@ -183,19 +207,18 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   const removeSyncedSiteOwner = db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id = 'title.site.owner' AND granted_by = ?");
 
   /**
-   * #274：按站内角色把账号放进新权限系统的 level 组（perm_members），迁移脚本只在启动时跑一次，
-   * 这里补上运行时新建号/改角色的那一刻——否则这之后新建或改角色的账号在新引擎里是「没有任何条目」，
-   * 所有权限判定都会落到 unset（按拒绝处理），包括这次改动本身新加的 account.profile.edit 等接口。
-   * 口径和 lib/migrations/2026-10-yugc-v2.ts 的 assignAccountIdentities() 一致：admin 进 level.member 且是站长，
-   * member 进 level.member，其余（null，含被设成「不是成员」）进 level.registered——新模型里没有登录就完全没权限这回事，
-   * 「不是成员」只是不再是极客班成员，账号还在、还是注册用户。
-   * 被从 admin 改成别的角色时把这次同步自己发的站长资格收回；但 `roleUnrecorded()` 对 role=null 的账号永远成立
-   * （`org_role` 列在角色是 null 时不会被写，和「从没查过」没法区分，这是 #262 就有的设计，查过一次不代表以后
-   * 不再查），意味着 GitHub 登录每次都会重新跑到这里——如果不分青红皂白地 DELETE，控制台用新权限体系（§5 的
-   * users.ts/permission-groups.ts）单独给某个 GitHub 登录账号加的站长身份，会在这个人下次用 GitHub 登录时被
-   * 这里悄悄收回（已经在测试里复现过这个失败模式）。只删「granted_by 等于这次调用自己」的那一行，不碰别的来源
-   * 发的站长资格，按 ibuki 式「只清理自己发的，不碰别人发的」的幂等同步原则——`console:set-site-role`（旧
-   * people.ts 的站内角色接口）本来就是另一个 grantedBy 值，降级时仍然只收它自己发的那份，行为不变。
+   * #274：按站内角色把账号放进新权限系统的 level 组（perm_members）——新建号（邀请码结果）或控制台/命令行
+   * 显式改角色（setSiteRole、provisionAccount）时调用，否则这之后新建或改角色的账号在新引擎里是「没有任何
+   * 条目」，所有权限判定都会落到 unset（按拒绝处理）。口径和 lib/migrations/2026-10-yugc-v2.ts 的
+   * assignAccountIdentities() 一致：admin 进 level.member 且是站长，member 进 level.member，其余（null，含被
+   * 设成「不是成员」）进 level.registered——新模型里没有登录就完全没权限这回事，「不是成员」只是不再是极客班
+   * 成员，账号还在、还是注册用户。
+   * 被从 admin 改成别的角色时把这次同步自己发的站长资格收回，只删「granted_by 等于这次调用自己」的那一行，
+   * 不碰别的来源发的站长资格，按 ibuki 式「只清理自己发的，不碰别人发的」的幂等同步原则——`console:set-site-role`
+   * （控制台的站内角色接口）本来就是另一个 grantedBy 值，降级时仍然只收它自己发的那份，行为不变。
+   * #274 review round 1（blocker）：原来这里还要应对 access.ts 的 GitHub 组织角色实时补查（roleUnrecorded/
+   * recordOrgRole），每次 GitHub 登录都可能重新触发同步；那条路径已经整段删掉（access.ts 不再查 GitHub），
+   * syncPermissionLevel 现在只会在上面列的几个明确时刻被调用，不会再被一次路由调用意外触发。
    */
   function syncPermissionLevel(accountId: string, role: RecordedOrgRole, grantedBy: string, now: number): void {
     setExclusiveGroupMembership(db, accountId, role === null ? "level.registered" : "level.member", now, grantedBy);
@@ -205,12 +228,28 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   }
 
   /**
-   * 回填建的老账号还没记过站内角色（#262 第四期）：账号正常、是成员、没有角色、也不是邀请码注册的。只有这种账号
-   * 还按 GitHub 组织角色补记一次（GitHub 会话用到时，或下次 GitHub 登录时），之后只认站内记录。
+   * 邀请码猜测锁定（#274 review round 1）：按 IP 数「猜错」的次数（账号维度只有已登录的
+   * `POST /api/identity/invite/redeem` 有，注册时还没有账号，只看 IP）。到了上限直接拒绝，不占用兑换逻辑。
    */
-  function roleUnrecorded(accountId: string): boolean {
-    const row = roleRow.get(accountId) as { status: string; org_state: string; org_role: string | null; invite_code_id: number | null } | undefined;
-    return row?.status === "active" && row.org_state === "active" && row.org_role === null && row.invite_code_id === null;
+  function inviteLockedForIp(ipHashed: string, now: number): boolean {
+    return deps.limits.count({ bucket: "invite.redeem.fail.ip", subject: ipHashed, window: { ms: INVITE_LOCK_WINDOW_MS }, now }) >= INVITE_LOCK_MAX_IP;
+  }
+  function recordInviteGuessFailure(ipHashed: string, now: number): void {
+    deps.limits.hit({ bucket: "invite.redeem.fail.ip", subject: ipHashed, window: { ms: INVITE_LOCK_WINDOW_MS }, max: INVITE_LOCK_MAX_IP, now });
+  }
+
+  /**
+   * 注册限额（#274 review round 1，SPEC §3.8）：按来源 IP、按访客设备（yugc_vid）各自每天最多新建这么多账号，
+   * 核对与写入在同一个事务里（调用方的 signInWithGithub/signInSecondChannel 已经在 db.transaction 里，
+   * `hitAll` 的嵌套事务用 SAVEPOINT，和 routes/portal/apply.ts 同一个模式）。超了整体不算数，调用方按
+   * `Refused("rate_limited")` 回滚，不留半个账号。没有 IP、没有设备 id（没经过 middleware/visitor.ts 的接口）
+   * 时跳过，不强制要求这两样都有。
+   */
+  function checkRegisterLimit(ip: string | undefined, device: string | null | undefined, now: number): void {
+    const checks: LimitCheck[] = [];
+    if (ip) checks.push({ bucket: "auth.register.daily.ip", subject: hashIp(ip), window: "day-bj", max: REGISTER_LIMIT_IP_DAILY });
+    if (device) checks.push({ bucket: "auth.register.daily.device", subject: device, window: "day-bj", max: REGISTER_LIMIT_DEVICE_DAILY });
+    if (checks.length > 0 && deps.limits.hitAll(checks, now).some(outcome => !outcome.ok)) throw new Refused("rate_limited");
   }
   const claimAssignments = db.prepare("UPDATE role_assignments SET account_id = ? WHERE account_id IS NULL AND github_user_id = ?");
   // 论坛用户按账号唯一：账号已经有论坛用户时不再认领第二个
@@ -234,12 +273,15 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   /**
    * GitHub 登录事务（#274 重写：邀请码选填，不再查、不再看 GitHub 组织资格，SPEC §3.2「去掉 GitHub 组织那道门」）。
    * 外部请求（换 token、查用户）都已在事务外做完，这里在一个 `BEGIN IMMEDIATE` 事务里：
-   * 找身份，没有就建号——没填邀请码进注册用户，填了且有效进成员，填了但无效直接拒绝（不建号、不悄悄降级）——
+   * 注册限额、邀请码猜测锁定 → 找身份，没有就建号——没填邀请码进注册用户（org_state 写 `not_member`），填了且
+   * 有效进成员（org_state 写 `active`），填了但无效直接拒绝（不建号、不悄悄降级，猜错计一次 IP 锁定次数）——
    * 沿合并链走到终点、停用拒绝、刷新身份、认领称号与论坛用户（claimAssignments/claimForumUser，SPEC §3.6 第 5 步：
    * 这个 GitHub 账号以前登记过的旧论坛作者，这次自动关联）、插入会话、删请求带来的旧会话、写 identity_audit 与 auth.signin。
    * 任何一步抛错整体回滚：不留半个账号，请求带来的旧会话照常有效；调用方回跳 `failed`。
+   * #274 review round 1（blocker）：不再按 `membership.unrecorded`/`access.resolve` 那条路径实时查 GitHub 组织
+   * 角色——那条路径已经从 access.ts 删掉，这里的 org_role/org_state 只由邀请码结果决定，不会再被别的地方悄悄改写。
    */
-  function signInWithGithub(input: { github: GithubAccount; accessToken: string; invite?: string | null; previousSid?: string | null; ip?: string }): GithubSigninResult {
+  function signInWithGithub(input: { github: GithubAccount; accessToken: string; invite?: string | null; previousSid?: string | null; ip?: string; device?: string | null }): GithubSigninResult {
     const { github } = input;
     const avatarUrl = github.avatarUrl || null;
     try {
@@ -248,18 +290,19 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
         let identity = githubIdentity.get(String(github.id)) as { id: string; user_id: string } | undefined;
         let registered = false;
         if (!identity) {
+          checkRegisterLimit(input.ip, input.device, now);
+          const ipHashed = input.ip ? hashIp(input.ip) : null;
+          if (input.invite && ipHashed && inviteLockedForIp(ipHashed, now)) throw new Refused("invite_invalid");
           const invite = input.invite ? redeemInvite(db, input.invite, now) : null;
-          if (input.invite && !invite?.ok) throw new Refused("invite_invalid");
+          if (input.invite && !invite?.ok) {
+            if (ipHashed) recordInviteGuessFailure(ipHashed, now);
+            throw new Refused("invite_invalid");
+          }
           const accountId = newAccountId();
-          insertUser.run(accountId, now, now, now);
+          insertUser.run(accountId, invite?.ok ? "active" : "not_member", invite?.ok ? "member" : null, now, now, now);
           identity = { id: newUlid(now), user_id: accountId };
           insertIdentity.run(identity.id, accountId, String(github.id), github.login, avatarUrl, now, now);
-          if (invite?.ok) {
-            setOrgRole.run("member", now, now, accountId);
-            syncPermissionLevel(accountId, "member", `invite:${invite.id}`, now);
-          } else {
-            syncPermissionLevel(accountId, null, "github-signin", now);
-          }
+          syncPermissionLevel(accountId, invite?.ok ? "member" : null, invite?.ok ? `invite:${invite.id}` : "github-signin", now);
           registered = true;
         }
         const account = terminalAccount(db, identity.user_id);
@@ -304,9 +347,10 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     FROM users WHERE id = ?`);
   const handleTaken = db.prepare("SELECT 1 FROM users WHERE handle = ?");
   const emailTaken = db.prepare("SELECT 1 FROM identities WHERE provider = 'email' AND provider_uid = ? UNION SELECT 1 FROM users WHERE canonical_email = ?");
-  // #274：邀请码选填。@org_role/@invite 为 null 时是普通注册用户；邀请码有效时传 'member' / 邀请码 id（SPEC §3.2）。
+  // #274：邀请码选填。@org_state/@org_role/@invite 没邀请码时是 'not_member'/null 的普通注册用户；
+  // 邀请码有效时传 'active'/'member' / 邀请码 id（SPEC §3.2；#274 review round 1 不再统一写 'active'）。
   const insertAccount = db.prepare(`INSERT INTO users(id, status, org_state, org_role, org_checked_at, handle, invite_code_id, canonical_email, created_at, updated_at)
-    VALUES(@id, 'active', 'active', @org_role, @now, @handle, @invite, @email, @now, @now)`);
+    VALUES(@id, 'active', @org_state, @org_role, @now, @handle, @invite, @email, @now, @now)`);
   const insertChannel = db.prepare(`INSERT INTO identities(id, user_id, provider, provider_uid, email, email_verified, login, avatar_url, created_at, last_login_at)
     VALUES(@id, @user_id, @provider, @uid, @email, @verified, NULL, NULL, @now, @last_login_at)`);
   const touchIdentity = db.prepare("UPDATE identities SET last_login_at = ? WHERE id = ?");
@@ -330,14 +374,15 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
 
   /**
    * 邮箱（验证码或密码）与 Google 的登录事务（#274 重写：邀请码选填，SPEC §3.2）。外部请求（Google 换 token、验签，
-   * bcrypt 比对）都已在事务外做完；这里在一个 `BEGIN IMMEDIATE` 事务里：按 (provider, provider_uid) 找身份 →
-   * 没有就建号——没填邀请码进注册用户，填了且有效进成员，填了但无效直接拒绝（不建号、不悄悄降级）→
+   * bcrypt 比对）都已在事务外做完；这里在一个 `BEGIN IMMEDIATE` 事务里：注册限额、邀请码猜测锁定 →
+   * 按 (provider, provider_uid) 找身份 → 没有就建号——没填邀请码进注册用户（org_state 写 `not_member`），填了且
+   * 有效进成员（org_state 写 `active`），填了但无效直接拒绝（不建号、不悄悄降级，猜错计一次 IP 锁定次数）→
    * 沿合并链走到终点 → 停用拒绝 → 占用验证码（`claim`）→ 插入会话、删旧会话、写 identity_audit 与 auth.signin。
    * 建号、兑换和占用在同一个事务里，任何一步不成整体回滚：邀请码不白用，验证码不白丢。
    */
   function signInSecondChannel(input: {
     provider: "email" | "google"; uid: string; email: string | null; method: "code" | "password" | "oidc" | "reset";
-    invite?: string | null; previousSid?: string | null; ip?: string; claim?: () => boolean;
+    invite?: string | null; previousSid?: string | null; ip?: string; device?: string | null; claim?: () => boolean;
     /** 默认 true；忘了密码核对（resetPassword）传 false，这条路径不能顺手注册新账号（SPEC「不能注册」）。 */
     register?: boolean;
   }): SigninResult {
@@ -350,11 +395,17 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
           if (input.register === false) throw new Refused("no_account");
           // Google 给的邮箱已经是某个账号的邮箱：不另建一个号，也不自动绑定（ADR-0005「不按邮箱合并」）
           if (input.provider === "google" && input.email && emailTaken.get(input.email, input.email)) throw new Refused("email_taken");
+          checkRegisterLimit(input.ip, input.device, now);
+          const ipHashed = input.ip ? hashIp(input.ip) : null;
+          if (input.invite && ipHashed && inviteLockedForIp(ipHashed, now)) throw new Refused("invite_invalid");
           const invite = input.invite ? redeemInvite(db, input.invite, now) : null;
-          if (input.invite && !invite?.ok) throw new Refused("invite_invalid");
+          if (input.invite && !invite?.ok) {
+            if (ipHashed) recordInviteGuessFailure(ipHashed, now);
+            throw new Refused("invite_invalid");
+          }
           const accountId = newAccountId();
           insertAccount.run({
-            id: accountId, now, handle: newHandle(), org_role: invite?.ok ? "member" : null,
+            id: accountId, now, handle: newHandle(), org_state: invite?.ok ? "active" : "not_member", org_role: invite?.ok ? "member" : null,
             invite: invite?.ok ? invite.id : null, email: input.provider === "email" ? input.email : null,
           });
           identity = { id: newUlid(now), user_id: accountId };
@@ -392,17 +443,17 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   }
 
   /** 邮箱验证码登录；没有账号时凭邀请码注册。`claim` 在事务里占用验证码。 */
-  function signInWithEmailCode(input: { email: string; invite?: string | null; previousSid?: string | null; ip?: string; claim: () => boolean }): SigninResult {
-    return signInSecondChannel({ provider: "email", uid: input.email, email: input.email, method: "code", invite: input.invite, previousSid: input.previousSid, ip: input.ip, claim: input.claim });
+  function signInWithEmailCode(input: { email: string; invite?: string | null; previousSid?: string | null; ip?: string; device?: string | null; claim: () => boolean }): SigninResult {
+    return signInSecondChannel({ provider: "email", uid: input.email, email: input.email, method: "code", invite: input.invite, previousSid: input.previousSid, ip: input.ip, device: input.device, claim: input.claim });
   }
-  /** 邮箱密码登录：路由已经核对过密码（passwordFor + bcrypt），这里只建会话；没有账号不会走到这里。 */
+  /** 邮箱密码登录：路由已经核对过密码（passwordFor + bcrypt），这里只建会话；没有账号不会走到这里，不受注册限额影响。 */
   function signInWithPassword(input: { email: string; previousSid?: string | null; ip?: string }): SigninResult {
     // 路由已经用 passwordFor() 确认过这个邮箱有账号、密码核对也通过了；这里和 resetPassword 一样不顺手注册新账号。
     return signInSecondChannel({ provider: "email", uid: input.email, email: input.email, method: "password", previousSid: input.previousSid, ip: input.ip, register: false });
   }
   /** Google 登录；`email` 只在 email_verified 为真时传。没有账号时凭邀请码注册。 */
-  function signInWithGoogle(input: { sub: string; email: string | null; invite?: string | null; previousSid?: string | null; ip?: string }): SigninResult {
-    return signInSecondChannel({ provider: "google", uid: input.sub, email: input.email, method: "oidc", invite: input.invite, previousSid: input.previousSid, ip: input.ip });
+  function signInWithGoogle(input: { sub: string; email: string | null; invite?: string | null; previousSid?: string | null; ip?: string; device?: string | null }): SigninResult {
+    return signInSecondChannel({ provider: "google", uid: input.sub, email: input.email, method: "oidc", invite: input.invite, previousSid: input.previousSid, ip: input.ip, device: input.device });
   }
 
   /** 这个邮箱绑定的账号（走到合并链终点）和它的密码哈希；邮箱没绑定、账号没设密码时 hash 为空。 */
@@ -438,8 +489,8 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   }
 
   /**
-   * 忘了密码（#273）：邮箱验证码核对过本人，在一个事务里登录（和验证码登录同一条路径：没有账号回 invite_required、
-   * 停用或不是成员照旧拒绝、占用验证码、建会话）并换上新密码。不能注册新账号；任何一步不成整体回滚，验证码不白丢。
+   * 忘了密码（#273）：邮箱验证码核对过本人，在一个事务里登录（和验证码登录同一条路径：没有账号回 `no_account`、
+   * 停用照旧拒绝、占用验证码、建会话）并换上新密码。不能注册新账号；任何一步不成整体回滚，验证码不白丢。
    */
   function resetPassword(input: { email: string; hash: string; previousSid?: string | null; ip?: string; claim: () => boolean }): SigninResult {
     return db.transaction((): SigninResult => {
@@ -507,36 +558,18 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     }).immediate();
   }
 
-  /**
-   * 老账号补记站内角色（access.resolve，只在 roleUnrecorded 时调）：GitHub 会话第一次用到时用本人令牌查到的组织角色。
-   * 查到「不是成员」时成员资格改成 not_member，之后要由控制台重新设成成员。
-   */
-  function recordOrgRole(accountId: string, role: RecordedOrgRole): void {
-    applyOrgRole(accountId, role, "not_member");
-  }
-  /**
-   * `lost`：查到不是成员时，不是靠邀请码注册的账号改成哪种成员资格（not_member，或邀请还没接受的 pending）。
-   * #274 之前这里只更新 `users.org_role`；这次改动发现，forum-api/viewer.ts 和 /auth/me（routes/admin/auth.ts）
-   * 还在走这条旧的 access.resolve → recordOrgRole 路径（还没切到 requirePermission），只要这两个路由任何一个
-   * 先于一次真正的 GitHub 登录（signInWithGithub）被这个账号用到，`roleUnrecorded` 就会被它提前标记为
-   * false——而 signInWithGithub 的同步只在 `roleUnrecorded` 为 true 时才补 perm_members，account 就会永远停在
-   * 迁移脚本给的默认 level.registered，再也没有路径把它补成 level.member/title.site.owner（除非控制台手动改）。
-   * 两个口径都在改账号记的站内角色，就都要在这里同步新权限系统，和 signInWithGithub 用同一个函数。
-   */
-  function applyOrgRole(accountId: string, role: RecordedOrgRole, lost: "not_member" | "pending"): void {
-    const row = accountRow.get(accountId) as { org_role: string | null; org_state: string; invite_code_id: number | null } | undefined;
-    if (!row) return;
-    const state = role !== null ? "active" : row.invite_code_id === null ? lost : row.org_state;
-    if (row.org_role === role && row.org_state === state) return;
-    const now = clock();
-    db.prepare("UPDATE users SET org_role = ?, org_state = ?, org_checked_at = ?, updated_at = ? WHERE id = ?").run(role, state, now, now, accountId);
-    syncPermissionLevel(accountId, role, "access-resolve", now);
-  }
-
   /** 账号记下的成员资格与站内角色：不论用哪种方式登录，判成员和称号都用它（不调用 GitHub）。 */
+  /**
+   * #274 review round 1：`member` 不再看 `org_state`——那一列现在记的是「注册时有没有兑换邀请码」
+   * （见 insertUser/insertAccount 的改动），不是「这个账号算不算旧能力系统的成员」。旧能力系统（lib/access.ts、
+   * lib/roles.ts 的 computeAccess）靠这个 `member` 判断论坛等能力（forum-api/viewer.ts 的 forumViewer()），
+   * 从 #262 起的既定设计就是「任何正常账号都算成员，站内角色只决定多出来的能力」，不受邀请码影响；邀请码挡的是
+   * 新权限引擎的 `level.member` 组（SPEC §3.2），不是这里。任何没合并、没停用的账号都算，`orgRole` 仍然只认
+   * 账号自己记的站内角色（管理员/舰员），没有角色的普通账号为 null，不会因为这条改动多拿到任何能力。
+   */
   function membershipOf(accountId: string): { member: boolean; orgRole: RecordedOrgRole } {
-    const row = accountRow.get(accountId) as { status: string; org_state: string; org_role: string | null } | undefined;
-    const member = row?.status === "active" && row.org_state === "active";
+    const row = accountRow.get(accountId) as { status: string; org_role: string | null } | undefined;
+    const member = row?.status === "active";
     const orgRole = member && (row.org_role === "admin" || row.org_role === "member") ? row.org_role : null;
     return { member, orgRole };
   }
@@ -584,7 +617,8 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
       const created = !identity;
       if (!identity) {
         const accountId = newAccountId();
-        insertUser.run(accountId, now, now, now);
+        // org_state/org_role 两行之后立即被下面的 UPDATE 按 input.orgRole 覆盖，这里随便写一个占位值。
+        insertUser.run(accountId, "not_member", null, now, now, now);
         identity = { id: newUlid(now), user_id: accountId };
         insertIdentity.run(identity.id, accountId, String(input.githubId), input.githubLogin, null, now, null);
       } else {
@@ -688,9 +722,10 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   }
 
   // ── 对外授权与 GitLab 同步（#270）：只读 ──
-  // #274 SPEC §3.2：邀请码选填之后，新建的账号不论有没有邀请码，org_state 都写 'active'（组织那道门已经去掉，
-  // 这一列不再代表真的成员资格，只保留给历史数据，详见 docs 里的「org_state 已弃用」说明）。对外授权
-  // （OIDC、GitLab 同步）判定「是不是成员」必须另外看新权限引擎的 level.member 组，不能再信 org_state。
+  // #274 SPEC §3.2：邀请码选填之后，新建的账号按有没有有效邀请码写 org_state（'active' 或 'not_member'）——
+  // 组织那道门已经去掉，这一列不再代表真的 GitHub 组织成员资格，只给旧能力系统与历史数据兜底，详见 docs 里的
+  // 「org_state 已弃用」说明。对外授权（OIDC、GitLab 同步）判定「是不是成员」必须另外看新权限引擎的
+  // level.member 组，不能再信 org_state。
   const claimsSelect = `SELECT u.id, u.status, u.org_state, u.org_role, u.handle, u.canonical_email,
       g.provider_uid AS github_id, g.login AS github_login, g.avatar_url,
       EXISTS (SELECT 1 FROM perm_members pm WHERE pm.account_id = u.id AND pm.group_id = 'level.member') AS is_level_member
@@ -735,7 +770,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   return {
     signInWithGithub, recordSignout, accountForGithub,
     signInWithEmailCode, signInWithPassword, signInWithGoogle, passwordFor, passwordHashOf, setPassword, resetPassword, hasEmail, linkEmail, unlinkEmail, emailAddRefusal,
-    recordOrgRole, roleUnrecorded, membershipOf, accountView, provisionAccount, listAccounts, setSiteRole, githubIdentityByLogin, accountTarget,
+    membershipOf, accountView, provisionAccount, listAccounts, setSiteRole, githubIdentityByLogin, accountTarget,
     getAccountClaims, listAccountsForSync,
   };
 }

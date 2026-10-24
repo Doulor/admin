@@ -55,7 +55,7 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
     expect(accountOf(7)).toBe(accountId);
     expect(count('users')).toBe(1);
     // 作废的旧会话按访客处理（#274）：signed_in 为 false，但仍然回 200 带访客的 level/permissions/quota
-    expect(await me(first.sid!)).toMatchObject({ signed_in: false, level: 'level.visitor' });
+    expect(await me(first.sid!)).toMatchObject({ signed_in: false, level: 'visitor' });
     expect((await me(second.sid!)).account_id).toBe(accountId);
     // 审计带上账号；本人可见的账号记录不存 IP
     expect(db.prepare("SELECT actor, actor_account_id, details FROM audit_logs WHERE action = 'auth.signin'").all())
@@ -99,7 +99,7 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
     const accountId = accountOf(7);
     db.prepare("UPDATE users SET status = 'disabled' WHERE id = ?").run(accountId);
     // 停用账号的旧会话读不到人了，按访客处理（#274），不再是裸 { signed_in: false }
-    expect(await me(sid)).toMatchObject({ signed_in: false, level: 'level.visitor' });
+    expect(await me(sid)).toMatchObject({ signed_in: false, level: 'visitor' });
     expect(count('sessions')).toBe(0);
     const result = await callback();
     expect(result).toEqual({ location: 'https://example.test/signin?signin=account_disabled&return_to=%2Fforum%2F', sid: null });

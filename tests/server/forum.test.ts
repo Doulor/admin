@@ -12,34 +12,14 @@ import { loadForumContent } from '../../app/server/src/lib/forum-content';
 import { ipSubject, nameKey } from '../../app/server/src/lib/forum-rules';
 import { createForumStore } from '../../app/server/src/lib/forum-store';
 import type { ServiceOverrides } from '../../app/server/src/services';
-import { FORUM_FIXTURE_DIR, accountIdOf, grantPermNode, signIn, testApp, testConfig } from './helpers';
+import { FORUM_FIXTURE_DIR, accountIdOf, grantPermGroup, grantPermNode, signIn, testApp, testConfig } from './helpers';
 
 /** sharp 是 app/server 的依赖，根目录没有它；从 server 包里取，用来生成真实的测试图片和核对输出。 */
 const sharp = createRequire(join(REPO_ROOT, 'app/server/package.json'))('sharp') as typeof import('../../app/server/node_modules/sharp');
 
 const CONSOLE_ORG = 'Yangtze-University-Geek-Class';
 const FORUM_CAPS = ['forum.topic.pin', 'forum.topic.close', 'forum.post.moderate', 'forum.category.manage', 'forum.badge.assign'];
-type Role = 'admin' | 'member';
 const USERS: Record<string, number> = { alice: 101, bob: 102, carol: 103, dave: 104, erin: 105, frank: 106, 'da-ve': 108 };
-
-/**
- * 模拟 GitHub：只回答组织角色查询；failing=true 时一律 502，用来验证 GitHub 出错的路径。
- * rejected 里的令牌一律 401（Bad credentials），像被用户撤销或被 GitHub 收回的令牌（#164）。
- */
-function github(roles: Record<string, Role>, state: { failing: boolean; rejected?: Set<string> } = { failing: false }) {
-  return ((token: string) => ({
-    request: async (route: string, params: Record<string, string>) => {
-      if (state.rejected?.has(token)) throw Object.assign(new Error('Bad credentials'), { status: 401 });
-      if (state.failing) throw Object.assign(new Error('stub upstream down'), { status: 502 });
-      if (route === 'GET /orgs/{org}/memberships/{username}') {
-        const role = params.org === CONSOLE_ORG ? roles[params.username.toLowerCase()] : undefined;
-        if (!role) throw Object.assign(new Error('stub not found'), { status: 404 });
-        return { data: { state: 'active', role } };
-      }
-      throw new Error(`Unexpected GitHub call ${route}`);
-    },
-  })) as unknown as ServiceOverrides['octokitFactory'];
-}
 
 const contexts: { close: () => Promise<unknown> }[] = [];
 const dirs: string[] = [];
@@ -49,12 +29,13 @@ afterEach(async () => {
 });
 
 /**
- * alice 是组织 owner（提督）；bob、carol、dave、erin 是普通成员，其中 carol 是社区部舰员（能管帖子、置顶、关闭），
- * dave 是项目部队长（只能置顶），erin 是领航员；da-ve 是另一个普通成员，登录名去掉 - 和 dave 一样；frank 不在组织里。
+ * alice 是提督（见下面的 setSiteRole）；bob、carol、dave、erin 是普通成员，其中 carol 是社区部舰员（能管帖子、
+ * 置顶、关闭），dave 是项目部队长（只能置顶），erin 是领航员；da-ve 是另一个普通成员，登录名去掉 - 和 dave 一样；
+ * frank 只是普通注册账号，没有任何部门指派或站内角色。#274 review round 1 起论坛、版务权限不再查 GitHub
+ * （see setup() 的 testApp 调用不传 octokitFactory，用 testApp 默认的「调用即报错」桩，顺带证明确实没人调用）。
  */
-async function setup(options: { failing?: { failing: boolean; rejected?: Set<string> }; env?: Record<string, string> } = {}) {
-  const roles: Record<string, Role> = { alice: 'admin', bob: 'member', carol: 'member', dave: 'member', erin: 'member', 'da-ve': 'member' };
-  const context = await testApp({ octokitFactory: github(roles, options.failing) }, false, options.env);
+async function setup(options: { env?: Record<string, string> } = {}) {
+  const context = await testApp({}, false, options.env);
   contexts.push(context);
   const { app } = context;
   const sids = new Map<string, string>();
@@ -79,11 +60,17 @@ async function setup(options: { failing?: { failing: boolean; rejected?: Set<str
   for (const login of ['carol', 'dave']) {
     grantPermNode(app, accountIdOf(app, login), 'forum.moderate.*', { category: ['c-exam', 'c-ai'] });
   }
+  // #274 review round 1（blocker）：alice 的提督身份不再靠 GitHub 组织角色实时补查自动获得（那条路径已经删掉，
+  // 见 lib/access.ts、identity-store.ts 的 syncPermissionLevel 注释），这里按新的、唯一的途径显式设一次——
+  // 既写回 OLD 能力系统读的 org_role（供 state().viewer.capabilities 展示用），也顺带给她新权限系统的
+  // title.site.owner（通配 `*`，覆盖 forum.moderate.* 等版务判定）。
+  as('alice');
+  app.services.identity.setSiteRole({ accountId: accountIdOf(app, 'alice'), role: 'admin', actor: 'system' });
   const call = (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, who?: string, payload?: object) =>
     app.inject({ method, url, ...(payload === undefined ? {} : { payload }), headers: who ? as(who) : {} });
   const state = async (who?: string) => (await call('GET', '/api/forum/state', who)).json().state;
   const audits = () => app.services.storage.db.prepare("SELECT org, actor, action, target, details FROM audit_logs WHERE action LIKE 'forum.%' ORDER BY id").all() as { org: string; actor: string; action: string; target: string; details: string | null }[];
-  return { app, as, call, state, audits, roles, db: app.services.storage.db };
+  return { app, as, call, state, audits, db: app.services.storage.db };
 }
 type Setup = Awaited<ReturnType<typeof setup>>;
 
@@ -165,97 +152,38 @@ describe('state', () => {
     expect(bob).toMatchObject({ displayName: '小博', title: { id: 'head', department: 'tech' }, avatarUrl: 'https://avatars.example.test/bob-new' });
   });
 
-  it('does not turn a GitHub failure into a guest view', async () => {
-    const failing = { failing: false };
-    const s = await setup({ failing });
-    failing.failing = true;
-    const response = await s.call('GET', '/api/forum/state', 'bob');
-    // 上游 5xx 按 http-policy 的统一映射脱敏成 internal_error；不会把成员当成游客返回一份「能看不能写」的状态。
-    expect(response.statusCode).toBe(502);
-    expect(response.json().error).toBe('internal_error');
-    expect((await s.call('GET', '/api/forum/state')).statusCode).toBe(200);
-  });
-
-  it('ends a session whose GitHub token was rejected while recording its site role, and reads as a guest after that (#164)', async () => {
-    const github = { failing: false, rejected: new Set<string>() };
-    const s = await setup({ failing: github });
-    const bob = s.as('bob');
-    const alice = s.as('alice');
-    expect((await s.state('alice')).viewer.kind).toBe('member');
-    // bob 的账号还没记过站内角色（#262 第四期），第一次用到时要用他的令牌问一次 GitHub；令牌已被 GitHub 收回。
-    github.rejected.add('token-bob');
-    const rejected = await s.app.inject({ method: 'GET', url: '/api/forum/state', headers: bob });
-    expect(rejected.statusCode).toBe(401);
-    expect(rejected.json()).toMatchObject({ error: 'session_expired', message: '登录已失效，请重新登录' });
-    const cleared = ([] as string[]).concat((rejected.headers['set-cookie'] as string[] | string | undefined) ?? []);
-    expect(cleared.some(cookie => cookie.startsWith('sid=;'))).toBe(true);
-    expect(s.db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE login = 'bob'").get()).toEqual({ n: 0 });
-    expect(s.db.prepare("SELECT actor, target FROM audit_logs WHERE action = 'auth.session_rejected'").all()).toEqual([{ actor: 'bob', target: 'bob' }]);
-    // 浏览器还带着旧 sid 也只是游客：会话已经删掉，不再问 GitHub；写操作回 signin_required。
-    const again = await s.app.inject({ method: 'GET', url: '/api/forum/state', headers: bob });
-    expect(again.statusCode).toBe(200);
-    expect(again.json().state.viewer).toEqual({ userId: null, kind: 'guest', capabilities: [] });
-    expect((await s.app.inject({ method: 'POST', url: '/api/forum/posts/body-9/bookmark', headers: bob })).json().error).toBe('signin_required');
-    // 会话被结束后按访客处理（#274），不再是裸 { signed_in: false }
-    expect((await s.app.inject({ url: '/auth/me', headers: bob })).json()).toMatchObject({ signed_in: false, level: 'level.visitor' });
-    // 只结束这一个会话：别人的会话照常。
-    expect((await s.app.inject({ method: 'GET', url: '/api/forum/state', headers: alice })).json().state.viewer.kind).toBe('member');
-    expect(s.db.prepare("SELECT COUNT(*) AS n FROM audit_logs WHERE action = 'auth.session_rejected'").get()).toEqual({ n: 1 });
-  });
-
-  it('ends the session when a write finds the token rejected while recording its site role (#164)', async () => {
-    const github = { failing: false, rejected: new Set<string>() };
-    const s = await setup({ failing: github });
-    github.rejected.add('token-bob');
-    const response = await s.call('POST', '/api/forum/posts/body-9/bookmark', 'bob');
-    expect(response.statusCode).toBe(401);
-    expect(response.json().error).toBe('session_expired');
-    expect(s.db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE login = 'bob'").get()).toEqual({ n: 0 });
-    expect(s.db.prepare("SELECT COUNT(*) AS n FROM forum_bookmarks").get()).toEqual({ n: 0 });
-  });
-
-  it('keeps a recorded member a member when GitHub later rejects the token or drops them: the site account decides (#262)', async () => {
-    const github = { failing: false, rejected: new Set<string>() };
-    const s = await setup({ failing: github });
-    expect((await s.state('bob')).viewer.kind).toBe('member');
-    // 站内角色记下之后，论坛不再问 GitHub：令牌被收回、GitHub 出错、退出组织都不影响站内身份。
-    github.rejected.add('token-bob');
-    delete s.roles.bob;
-    s.app.services.cache.invalidate('console:orgrole:');
-    expect((await s.state('bob')).viewer.kind).toBe('member');
-    github.failing = true;
-    const bookmark = await s.call('POST', '/api/forum/posts/body-9/bookmark', 'bob');
-    expect(bookmark.statusCode).toBe(200);
-    expect(s.db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE login = 'bob'").get()).toEqual({ n: 1 });
-  });
-
-  it('treats a signed-in user who is not a member on the site as a guest, whatever titles they hold', async () => {
+  it('never asks GitHub to read or write the forum, so a GitHub outage cannot affect it (#274 review round 1)', async () => {
+    // #274 review round 1（blocker）：/api/forum/state 和每个版面写接口再也不会用会话自带的令牌问 GitHub
+    // 组织角色（那条路径——access.resolve 的 GitHub 调用——已经整段删掉，lib/access.ts 不再接收 accessToken/
+    // provider 做查询）。上面「#164」那组用例（GitHub 出错/令牌被收回时结束会话）测的正是这条被删掉的路径，
+    // 通用的「上游 401 结束会话、5xx 统一脱敏」契约已经在 tests/server/upstream-errors.test.ts 用一个独立的
+    // 合成路由钉住，不再依赖某个具体业务接口——这里改成直接证明论坛读写全程不碰 GitHub：setup() 用的是
+    // testApp 默认「调用即报错」的 octokitFactory 桩，真的调用一次就会让这个用例直接抛错失败。
     const s = await setup();
-    // frank 有会话但不在组织里：看到的是游客，不建论坛用户。
-    const frank = await s.state('frank');
-    expect(frank.viewer).toEqual({ userId: null, kind: 'guest', capabilities: [] });
-    expect(frank.users.map((u: { id: string }) => u.id)).not.toContain('m106');
+    expect((await s.state('bob')).viewer.kind).toBe('member');
+    expect((await s.call('POST', '/api/forum/posts/body-9/bookmark', 'bob')).statusCode).toBe(200);
+  });
 
-    // carol 是社区部舰员（能置顶、关闭、管帖子）。退出 GitHub 组织不影响站内身份（#262 第四期）；
-    // 提督在控制台把她的站内角色改成「不是成员」后，下一次请求就只是游客。
-    expect((await s.state('carol')).viewer.capabilities).toEqual(['forum.topic.pin', 'forum.topic.close', 'forum.post.moderate']);
-    delete s.roles.carol;
-    s.app.services.cache.invalidate('console:orgrole:');
-    expect((await s.state('carol')).viewer.kind).toBe('member');
+  it('is a real forum member with no capabilities when it has no recorded site role or department assignment (#274 review round 1: forum membership follows the site account, not an org role)', async () => {
+    const s = await setup();
+    // frank 没有 role_assignments、也没被 setSiteRole 提升过：按 SPEC §3.6，论坛成员资格只看账号本身是不是
+    // 启用（lib/access.ts 的 membershipOf），不再看有没有被记过站内角色——和邮箱、Google 注册的普通用户是
+    // 同一条规则（tests/server/signin-methods.test.ts「lets a plain registered email account...」）。
+    const frank = await s.state('frank');
+    expect(frank.viewer).toEqual({ userId: 'm106', kind: 'member', capabilities: [] });
+    expect(frank.users.map((u: { id: string }) => u.id)).toContain('m106');
+
+    // carol 的版务能力来自显式的部门指派（role_assignments）和新权限节点（setup() 里的 grantPermNode），
+    // 都不挂在 org_role 上；提督把她设成「极客班成员」再改回「不是成员」，两次都是真的状态变化，但论坛身份
+    // 和能力全程不受影响（item 2 的要点正是把这两件事彻底分开，不再有「退组织/改角色」牵连论坛权限这回事）。
+    const before = (await s.state('carol')).viewer.capabilities;
+    expect(before).toEqual(['forum.topic.pin', 'forum.topic.close', 'forum.post.moderate']);
     const accountId = s.app.services.identity.accountForGithub(USERS.carol)!;
+    expect(s.app.services.identity.setSiteRole({ accountId, role: 'member', actor: { login: 'alice', account_id: null } })).toEqual({ ok: true, changed: true });
+    expect((await s.state('carol')).viewer.capabilities).toEqual(before);
     expect(s.app.services.identity.setSiteRole({ accountId, role: 'none', actor: { login: 'alice', account_id: null } })).toEqual({ ok: true, changed: true });
-    const carol = await s.state('carol');
-    expect(carol.viewer).toEqual({ userId: null, kind: 'guest', capabilities: [] });
-    expect([carol.notifications, carol.bookmarks]).toEqual([[], []]);
-    expect((await s.call('POST', '/api/forum/topics/t9/pin', 'carol', { pinned: true })).json().error).toBe('signin_required');
-    expect((await s.call('POST', '/api/forum/topics', 'carol', { title: '还能发吗', categoryId: 'c-ai', content: '正文' })).statusCode).toBe(401);
-    expect((await s.call('PATCH', '/api/forum/me/profile', 'carol', { displayName: '还能改吗' })).statusCode).toBe(401);
-    // 回复只能走游客那条路：要游客昵称和 PoW，发出去的是一个游客用户。
-    expect((await s.call('POST', '/api/forum/posts', 'carol', { topicId: 't9', content: '按成员回复' })).json().error).toBe('invalid_guest_name');
-    const asGuest = await s.call('POST', '/api/forum/posts', 'carol', guestReply('t9', '按游客回复'));
-    expect(asGuest.statusCode).toBe(201);
-    expect(asGuest.json().changes.posts.find((p: { id: string }) => p.id === asGuest.json().postId).authorId).toBe('g1');
-    expect(s.audits()).toEqual([]);
+    expect((await s.state('carol')).viewer.capabilities).toEqual(before);
+    expect((await s.call('POST', '/api/forum/topics/t9/pin', 'carol', { pinned: true })).statusCode).toBe(200);
   });
 
   it('sends real notification settings only to their owner', async () => {
@@ -450,7 +378,7 @@ describe('topics', () => {
     const s = await setup();
     s.as('bob');
     const bobId = accountIdOf(s.app, 'bob');
-    grantPermNode(s.app, bobId, 'level.member');
+    grantPermGroup(s.app, bobId, 'level.member');
     // 垫 19 次（不占每分钟 10 次的额度），第 20 次真的发出去，第 21 次按小时上限拦下。
     for (let i = 0; i < 19; i += 1) s.app.services.limits.hit({ bucket: 'forum.topic.hourly', subject: bobId, window: { ms: 3600_000 }, max: 20 });
     await newTopic(s);
@@ -628,7 +556,7 @@ describe('replies', () => {
     const s = await setup();
     s.as('bob');
     const bobId = accountIdOf(s.app, 'bob');
-    grantPermNode(s.app, bobId, 'level.member');
+    grantPermGroup(s.app, bobId, 'level.member');
     for (let i = 0; i < 59; i += 1) s.app.services.limits.hit({ bucket: 'forum.reply.hourly', subject: bobId, window: { ms: 3600_000 }, max: 60 });
     expect((await s.call('POST', '/api/forum/posts', 'bob', { topicId: 't9', content: '第 60 条' })).statusCode).toBe(201);
     const blocked = await s.call('POST', '/api/forum/posts', 'bob', { topicId: 't9', content: '超额的第 61 条' });

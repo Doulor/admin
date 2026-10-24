@@ -90,102 +90,22 @@ describe('GET /api/console/me、/api/console/summary（CONTRACT-274 §5、§7：
   });
 });
 
-describe('/auth/me console_link', () => {
-  type Role = 'admin' | 'member';
-  /** /auth/me 的 console_link 仍然整段走旧的 GitHub 组织角色 + role_assignments（lib/access.ts、routes/admin/auth.ts），
-   * 和这次 #274 切换的新权限节点体系是两套并存的东西：forum-api/viewer.ts 和这里都还没切到 requirePermission，
-   * 不在 Scope B 范围内（见执行记录里的说明）。这里仍然模拟 GitHub 成员角色表，不走 setupConsole()。 */
-  function github(roles: Record<string, Role>, users: Record<string, number> = {}, calls: string[] = []) {
-    return (() => ({
-      request: async (route: string, params: Record<string, string>) => {
-        calls.push(`${route} ${params.org ?? ''} ${params.username}`);
-        if (route === 'GET /orgs/{org}/memberships/{username}') {
-          const role = params.org === CONSOLE_ORG ? roles[params.username.toLowerCase()] : undefined;
-          if (!role) throw Object.assign(new Error('stub not found'), { status: 404 });
-          return { data: { state: 'active', role } };
-        }
-        throw new Error(`Unexpected GitHub call ${route}`);
-      },
-    })) as unknown as ServiceOverrides['octokitFactory'];
-  }
-  const LEGACY_USERS: Record<string, number> = { alice: 101, bob: 102, carol: 103, dave: 104, erin: 105, frank: 106 };
-  async function setupLegacyRoles(roles: Record<string, Role> = {}) {
-    const context = await testApp({ octokitFactory: github(roles, LEGACY_USERS) });
-    contexts.push(context);
-    const { app } = context;
-    const sids = new Map<string, string>();
-    const as = (login: string) => {
-      if (!sids.has(login)) sids.set(login, signIn(app, login, LEGACY_USERS[login], null, `token-${login}`));
-      return { cookie: `sid=${sids.get(login)}` };
-    };
-    const assign = (login: string, role: 'captain' | 'head' | 'member' | 'alumni', department_id = '') =>
-      app.services.roles.insertAssignment({ github_login: login, github_user_id: LEGACY_USERS[login], role, department_id, note: null, granted_by: 'fixture' });
-    return { app, as, assign };
-  }
-
-  it('shows the console link to managers only: 提督, 队长, crew with a department bundle', async () => {
-    const { app, as, assign } = await setupLegacyRoles({ alice: 'admin', bob: 'member', carol: 'member', dave: 'member', erin: 'member' });
-    assign('carol', 'member', 'community');
-    assign('dave', 'head', 'projects');
-    assign('erin', 'alumni');
+describe('/auth/me console_link（CONTRACT-274 §1，review round 1 blocker：直接查 permissions.check(account, "console.access")，不再查 GitHub）', () => {
+  it('shows the console link to accounts holding console.access (站长、部门部长), not to plain members or fresh registrations', async () => {
+    const { app, as, accountId } = await setupConsole();
+    grantPermGroup(app, accountId('alice'), 'title.site.owner');
+    grantPermGroup(app, accountId('carol'), 'dept.ai');
+    grantPermGroup(app, accountId('carol'), 'title.ai.head');
+    // 普通舰员：用 setSiteRole 走真实的升级路径（直接塞 perm_members 会和 signIn() 默认给的 level.registered 并存）。
+    app.services.identity.setSiteRole({ accountId: accountId('dave'), role: 'member', actor: 'system' });
     const me = async (login: string) => (await app.inject({ url: '/auth/me', headers: as(login) })).json();
-    expect(await me('alice')).toMatchObject({ signed_in: true, login: 'alice', user_id: 101, console_link: true });
+    expect(await me('alice')).toMatchObject({ signed_in: true, login: 'alice', console_link: true });
     expect((await me('carol')).console_link).toBe(true);
-    expect((await me('dave')).console_link).toBe(true);
-    // 普通舰员（console.access + github.org.read）、领航员（再加 feedback.read）、不在组织里的人都不显示。
-    expect((await me('bob')).console_link).toBe(false);
-    expect((await me('erin')).console_link).toBe(false);
+    // 普通舰员（没有任何称号）、刚登录还没用邀请码的人都没有 console.access，看不到控制台入口。
+    expect((await me('dave')).console_link).toBe(false);
     expect((await me('frank')).console_link).toBe(false);
-    // 没登录按访客处理（#274）：仍是 200，带 level/permissions/quota，不再是裸 { signed_in: false }
-    expect((await app.inject('/auth/me')).json()).toMatchObject({ signed_in: false, level: 'level.visitor' });
-  });
-
-  it('stays signed in without the link when GitHub cannot be reached', async () => {
-    const failing = (() => ({ request: async () => { throw Object.assign(new Error('upstream down'), { status: 502 }); } })) as unknown as ServiceOverrides['octokitFactory'];
-    const broken = await testApp({ octokitFactory: failing }); contexts.push(broken);
-    const sid = signIn(broken.app, 'alice', 101, null, 'token');
-    const response = await broken.app.inject({ url: '/auth/me', headers: { cookie: `sid=${sid}` } });
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ signed_in: true, login: 'alice', console_link: false });
-  });
-
-  it('ends the session and says signed out when GitHub rejects its token (#164)', async () => {
-    const rejecting = (() => ({ request: async () => { throw Object.assign(new Error('Bad credentials'), { status: 401 }); } })) as unknown as ServiceOverrides['octokitFactory'];
-    const broken = await testApp({ octokitFactory: rejecting }); contexts.push(broken);
-    const sid = signIn(broken.app, 'alice', 101, null, 'revoked-token');
-    const response = await broken.app.inject({ url: '/auth/me', headers: { cookie: `sid=${sid}` } });
-    expect(response.statusCode).toBe(200);
-    // 会话被结束后按访客处理（#274），不再是裸 { signed_in: false, session_expired: true }
-    expect(response.json()).toMatchObject({ signed_in: false, session_expired: true, level: 'level.visitor' });
-    expect(([] as string[]).concat((response.headers['set-cookie'] as string[] | string | undefined) ?? []).some(cookie => cookie.startsWith('sid=;'))).toBe(true);
-    expect(broken.app.services.auth.getSession(sid)).toBeNull();
-    // 论坛同样按会话失效回答，前端据此带人去重新登录（#133）。#274 的 /api/console/me 不再现查 GitHub
-    // （静态权限，见 CONTRACT-274 §5），撤销令牌这件事现在只在会调用 GitHub 的接口上才发现得到；控制台
-    // 和论坛共用同一次 /auth/me 判断登录态，日常页面加载时仍然会带到这一次检查。
-    const other = signIn(broken.app, 'alice', 101, null, 'revoked-token');
-    const forum = await broken.app.inject({ url: '/api/forum/state', headers: { cookie: `sid=${other}` } });
-    expect(forum.statusCode).toBe(401);
-    expect(forum.json().error).toBe('session_expired');
-    expect(broken.app.services.auth.getSession(other)).toBeNull();
-  });
-
-  it('audits an ended session once when two requests find the token rejected at the same time (#164)', async () => {
-    // 页面加载时 /api/forum/state 和 /auth/me 一起到，组织角色缓存不合并同时在途的请求，两边都会问 GitHub。
-    const slow = (() => ({ request: async () => {
-      await new Promise(resolve => setTimeout(resolve, 20));
-      throw Object.assign(new Error('Bad credentials'), { status: 401 });
-    } })) as unknown as ServiceOverrides['octokitFactory'];
-    const broken = await testApp({ octokitFactory: slow }); contexts.push(broken);
-    const sid = signIn(broken.app, 'alice', 101, null, 'revoked-token');
-    const headers = { cookie: `sid=${sid}` };
-    const [state, me] = await Promise.all([
-      broken.app.inject({ url: '/api/forum/state', headers }),
-      broken.app.inject({ url: '/auth/me', headers }),
-    ]);
-    expect(state.statusCode).toBe(401);
-    expect(state.json().error).toBe('session_expired');
-    expect(me.json()).toMatchObject({ signed_in: false, session_expired: true, level: 'level.visitor' });
-    expect(broken.app.services.storage.db.prepare("SELECT COUNT(*) AS n FROM audit_logs WHERE action = 'auth.session_rejected'").get()).toEqual({ n: 1 });
+    // 没登录按访客处理：仍是 200，带 level/permissions/quota，不再是裸 { signed_in: false }
+    expect((await app.inject('/auth/me')).json()).toMatchObject({ signed_in: false, level: 'visitor' });
   });
 });
 

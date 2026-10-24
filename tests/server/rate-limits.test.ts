@@ -19,7 +19,8 @@ const github = (() => ({
 
 // 限流在 onRequest 里先于鉴权、校验和处理器计数，额度内的请求回什么都占一次。
 it.each([
-  { name: 'POST /api/join/:token', method: 'POST', url: '/api/join/no-such-link', payload: {}, max: 5, within: 404, signedIn: false },
+  // #274 review round 1（SPEC §3.8）：/auth/github 原来没有限流，补成和 /auth/google 一样的按 IP 每分钟 20 次。
+  { name: 'GET /auth/github', method: 'GET', url: '/auth/github', max: 20, within: 302, signedIn: false },
   { name: 'GET /api/console/applications/export.csv', method: 'GET', url: '/api/console/applications/export.csv', max: 5, within: 200, signedIn: true },
   // #274 删掉了 /api/console/assignments；邀请码写接口（invite.manage + step-up）沿用同样的 30/分钟限额。
   { name: 'POST /api/console/invites', method: 'POST', url: '/api/console/invites', payload: {}, max: 30, within: 400, signedIn: false },

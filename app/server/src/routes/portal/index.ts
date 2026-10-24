@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { registerContracts } from "../../lib/http-contracts.js";
 import { attachVisitorId } from "../../middleware/visitor.js";
 import { portalContracts } from "./contracts.js";
-import r0 from "./join.js";
+import r0 from "./public-config.js";
 import r1 from "./docs.js";
 import r2 from "./feedback.js";
 import r3 from "./apply.js";

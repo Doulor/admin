@@ -6,11 +6,21 @@ import { UI_NODES } from "../../lib/permission-nodes.js";
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { readOAuthState, setOAuthState } from "../../middleware/oauth-state.js";
-import { clearSessionCookies, endRejectedSession, isRejectedToken, setSessionCookie } from "../../middleware/require-auth.js";
-import type { Capability } from "../../lib/roles.js";
+import { clearSessionCookies, setSessionCookie } from "../../middleware/require-auth.js";
+import { VISITOR_COOKIE } from "../../middleware/visitor.js";
 
-/** 普通舰员、领航员默认就有的能力：只有这些时不在头像菜单里显示「控制台」。 */
-const CONSOLE_LINK_IGNORED: ReadonlySet<Capability> = new Set<Capability>(["console.access", "github.org.read", "feedback.read"]);
+/** 和 middleware/visitor.ts 的 UUID_RE 一致（那边没 export，这里按同一个形状自己判一次）。 */
+const VISITOR_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * 这组路由没有挂 attachVisitorId（见 routes/admin/index.ts 的说明），只在已经有 yugc_vid 时读它当注册限额的
+ * 「设备」维度，不在这里现发一个新的——GitHub 登录之前几乎总会先经过门户或统一登录页，那两处已经发过这个
+ * cookie；直接从 /auth/github 开始的极少数情况就只按 IP 限额，不是安全漏洞，只是设备这一条线暂时没有。
+ */
+function visitorIdFrom(req: FastifyRequest): string | null {
+  const raw = req.cookies?.[VISITOR_COOKIE];
+  return raw && VISITOR_ID_RE.test(raw) ? raw.toLowerCase() : null;
+}
 
 export default async function authRoutes(app: FastifyInstance) {
   const { buildAuthorizeUrl,
@@ -32,7 +42,8 @@ export default async function authRoutes(app: FastifyInstance) {
     const user = await fetchAuthenticatedUser(token);
     return { token, user };
   }
-  app.get<{ Querystring: { return_to?: string; invite?: string } }>("/auth/github", async (req, reply) => {
+  // #274 review round 1（SPEC §3.8）：按 IP 限流，和 /auth/google 一样——回调里会试邀请码、会建新账号，不能让人反复刷。
+  app.get<{ Querystring: { return_to?: string; invite?: string } }>("/auth/github", { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } }, async (req, reply) => {
     const state = randomBytes(16).toString("base64url");
     const returnTo = safeReturnTo(req.query.return_to, config, `${config.publicOrigin}/console`);
     const invite = normalizeInviteCode(req.query.invite) ?? undefined;
@@ -64,14 +75,18 @@ export default async function authRoutes(app: FastifyInstance) {
       // 外部请求到此做完；建号（邀请码选填）、认领、插入会话、删旧会话、审计在一个事务里（lib/identity-store.ts），失败整体回滚。
       let signin;
       try {
-        signin = identity.signInWithGithub({ github: account, accessToken: token, invite: flow.invite ?? null, previousSid: req.cookies?.sid ?? null, ip: req.ip });
+        signin = identity.signInWithGithub({ github: account, accessToken: token, invite: flow.invite ?? null, previousSid: req.cookies?.sid ?? null, ip: req.ip, device: visitorIdFrom(req) });
       } catch (cause) {
         req.log.error({ code: (cause as { code?: string })?.code ?? "signin_transaction_failed", requestId: req.id }, "sign-in transaction failed");
         return fail("failed");
       }
       if (!signin.ok) {
         await revoke(req, token);
-        app.services.activity.recordActivity(req, { action: "auth.signin_denied", surface: "portal", outcome: "denied", meta: { provider: "github", reason: signin.reason } });
+        // #274 review round 1（SPEC §3.7/§3.8）：rate_limited 是注册限额挡下来的，记 limited，不是普通的 denied。
+        app.services.activity.recordActivity(req, {
+          action: "auth.signin_denied", surface: "portal", outcome: signin.reason === "rate_limited" ? "limited" : "denied",
+          meta: { provider: "github", reason: signin.reason },
+        });
         return fail(signin.reason);
       }
       setSessionCookie(reply, signin.sid);
@@ -99,56 +114,67 @@ export default async function authRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
+  /** `level.registered` → `registered`：CONTRACT-274 §1 的 `level` 不带 `level.` 前缀。 */
+  const bareLevel = (level: string) => level.replace(/^level\./, "");
+
   /**
-   * `console_link`：官网与论坛的头像菜单是否显示「控制台」。持有 console.access、github.org.read、feedback.read
-   * 之外的任意能力才算管理者（提督、舰长、队长、带部门权限包的舰员）；普通舰员和领航员为 false。
-   * 这只决定显不显示入口，控制台的准入仍按能力判定。GitHub 角色查询失败时按 false 处理，不让 /auth/me 失败；
-   * 只有 GitHub 拒绝了会话里的令牌时例外：会话已经没用，结束它并回 `{ signed_in: false, session_expired: true }`（#164）。
-   * `email_required`（#273）：账号还没有登录邮箱、这个环境又能发信，官网、论坛、控制台读到 true 就跳到绑定邮箱页。
-   *
-   * #274 CONTRACT-274 §1：没登录也回 200（不是 401），当「访客」给出一致的身份摘要——`level`/`level_name`、
-   * `permissions`（UI_NODES 挨个判一遍，通配符已经展开成具体节点的布尔值）、`quota`（目前只有投递每日额度）。
-   * 登录了在旧字段基础上再加 `level`/`level_name`/`department`/`titles`（lib/permissions.ts 的 groupsOf）、
-   * `permissions`/`quota`、账号资料的 `prefs`/`username`/`display_name`/`bio`，以及打码邮箱的 `identities`
-   * （identity.accountView 已经按 lib/email-login.ts 的 maskEmail 处理过，这里不重复脱敏）。
+   * CONTRACT-274 §1 的 `identities`：`{ emails: [打码], google: 是否绑定, github: 登录名 | null }`。
+   * `identity.accountView()` 的 identities 数组已经按 lib/email-login.ts 的 maskEmail 处理过邮箱，不重复脱敏。
+   */
+  function identitySummary(identities: { provider: "github" | "email" | "google"; label: string }[]) {
+    return {
+      emails: identities.filter(item => item.provider === "email").map(item => item.label),
+      google: identities.some(item => item.provider === "google"),
+      github: identities.find(item => item.provider === "github")?.label ?? null,
+    };
+  }
+
+  /**
+   * 访客身份摘要（CONTRACT-274 §1）：没登录也回 200（不是 401），给 `level`/`level_name`、`permissions`
+   * （UI_NODES 里访客实际放行的那些，CONTRACT 要求是节点名数组，不是逐个布尔值的表）、`quota`（目前只有投递每日额度）。
    */
   function visitorIdentity() {
     const { permissions, limits } = app.services;
     const groups = permissions.groupsOf(null);
     return {
-      level: groups.level, level_name: groups.level_name,
-      permissions: Object.fromEntries(UI_NODES.map(node => [node, permissions.check(null, node)])),
+      level: bareLevel(groups.level), level_name: groups.level_name,
+      permissions: UI_NODES.filter(node => permissions.check(null, node)),
       quota: applyQuota({ permissions, limits }, null, Date.now()),
     };
   }
-  app.get("/auth/me", async (req, reply) => {
+
+  /**
+   * `email_required`（#273）：账号还没有登录邮箱、这个环境又能发信，官网、论坛、控制台读到 true 就跳到绑定邮箱页。
+   *
+   * #274 review round 1（CONTRACT-274 §1，blocker）：`console_link` 改成直接查新权限引擎的 `console.access`
+   * 节点。原来这里走 `access.resolve()`（旧能力系统），GitHub 会话第一次用到时会借会话自带的令牌实时查一次
+   * GitHub 组织角色，查到的结果又会回写站内角色——任何 GitHub 组织管理员只要调用过一次 `/auth/me`，不填邀请码
+   * 也能被悄悄提升为成员甚至站长，绕开邀请码制度；这个洞已经在 lib/access.ts 堵上（resolve() 不再查 GitHub），
+   * 这里跟着改成不调用 access.resolve、不调用 GitHub，`session_expired` 这个分支也一起去掉——它原来专门服务于
+   * access.resolve 里那次 GitHub API 调用失败的识别，这类调用在 /auth/me 里已经不存在了；真的调 GitHub（登录
+   * 本身）出错仍由 middleware/http-policy.ts 的通用兜底处理，不受这次改动影响。
+   * 登录了在旧字段基础上加 `level`/`level_name`/`department`/`titles`（lib/permissions.ts 的 groupsOf）、
+   * `permissions`/`quota`、账号资料的 `prefs`/`username`/`display_name`/`bio`，`avatar_url` 改成账号资料里
+   * 上传的头像优先，没传过时回退到登录渠道自带的头像，以及打码邮箱与绑定渠道的 `identities`。
+   */
+  app.get("/auth/me", async (req) => {
     const sid = req.cookies?.sid;
     if (!sid) return { signed_in: false, ...visitorIdentity() };
     const s = getSession(sid);
     if (!s) return { signed_in: false, ...visitorIdentity() };
-    const consoleLink = await app.services.access.resolve({ login: s.login, userId: s.user_id, accountId: s.account_id, accessToken: s.accessToken, provider: s.provider })
-      .then(access => [...access.capabilities].some(capability => !CONSOLE_LINK_IGNORED.has(capability)))
-      .catch((cause: { code?: string; status?: number }) => {
-        if (isRejectedToken(cause)) return null;
-        req.log.warn({ code: cause?.code, status: cause?.status, requestId: req.id }, "console link access check failed");
-        return false;
-      });
-    if (consoleLink === null) {
-      endRejectedSession(req, reply, s);
-      return { signed_in: false, session_expired: true, ...visitorIdentity() };
-    }
     const { permissions, limits, profiles, identity } = app.services;
     const groups = permissions.groupsOf(s.account_id);
     const profile = profiles.get(s.account_id);
     // account_id：极客班账号（官网、论坛、控制台读到的是同一个值）；provider：这次的登录方式。user_id 仍是 GitHub 数字 id。
     return {
-      signed_in: true, login: s.login, user_id: s.user_id, avatar_url: s.avatar_url, account_id: s.account_id, provider: s.provider, console_link: consoleLink,
+      signed_in: true, login: s.login, user_id: s.user_id, avatar_url: profile.avatar_url ?? s.avatar_url,
+      account_id: s.account_id, provider: s.provider, console_link: permissions.check(s.account_id, "console.access"),
       email_required: emailRequired(app.services, s.account_id),
-      level: groups.level, level_name: groups.level_name, department: groups.department, titles: groups.titles,
-      permissions: Object.fromEntries(UI_NODES.map(node => [node, permissions.check(s.account_id, node)])),
+      level: bareLevel(groups.level), level_name: groups.level_name, department: groups.department, titles: groups.titles,
+      permissions: UI_NODES.filter(node => permissions.check(s.account_id, node)),
       quota: applyQuota({ permissions, limits }, s.account_id, Date.now()),
       prefs: profile.prefs, username: profile.username, display_name: profile.display_name, bio: profile.bio,
-      identities: identity.accountView(s.account_id).identities,
+      identities: identitySummary(identity.accountView(s.account_id).identities),
     };
   });
 }

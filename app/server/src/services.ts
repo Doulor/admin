@@ -10,7 +10,6 @@ import { createInviteCodeStore } from "./lib/invite-codes.js";
 import { createGoogle } from "./lib/google.js";
 import { createDeviceStore } from "./lib/device-store.js";
 import { createGithub } from "./lib/github.js";
-import { createGithubConnection } from "./lib/github-connection.js";
 import { createCache } from "./lib/cache.js";
 import { createRoleStore } from "./lib/role-store.js";
 import { createPermissionEngine } from "./lib/permissions.js";
@@ -35,20 +34,22 @@ import { createTurnstile } from "./middleware/turnstile.js";
 
 /**
  * `mailFetch`、`clock`：测试换掉发信商的 HTTP 请求，以及发信队列与会话清理用的时钟，都不连真实时间。
- * `githubAppFetch`：测试换掉 GitHub App 换安装令牌的请求（lib/github-connection.ts）。
+ * `octokitFactory`：测试换掉 GitHub API 客户端；#274 review round 1 删了 lib/github-connection.ts 与
+ * `/api/join/:token`（GitHub 组织邀请链接，CONTRACT-274 §8）之后，服务端自己不再用它发真实请求，但保留这个
+ * 覆盖点不动——大量既有测试的 `testApp({ octokitFactory })` 调用还在，不属于本轮复核的范围。
  * `gitlabFetch`、`githubProfileFetch`：测试换掉 GitLab 管理接口与建号时读 GitHub 公开资料、头像的请求（lib/gitlab-sync.ts）。
  */
 export type ServiceOverrides = {
-  httpRequest?: typeof request; octokitFactory?: (token: string) => Octokit; mailFetch?: FetchLike; githubAppFetch?: (input: string, init?: RequestInit) => Promise<Response>;
+  httpRequest?: typeof request; octokitFactory?: (token: string) => Octokit; mailFetch?: FetchLike;
   gitlabFetch?: GitlabFetch; githubProfileFetch?: GitlabFetch; clock?: () => number;
 };
 /** Composition root. Only this module owns dependencies and database lifetimes. */
 export function createServices(config: AppConfig, overrides: ServiceOverrides = {}) {
   const crypto = createCrypto(config.encryptionKey);
   const storage = createDatabase(config.dbPath);
+  // #274 review round 1：lib/github-connection.ts（控制台接 GitHub App 管理组织）删掉了，github 服务现在
+  // 没有生产代码读它；保留这个工厂只是因为 ServiceOverrides.octokitFactory 还有一批既有测试在用，见上面的注释。
   const github = createGithub(overrides.octokitFactory);
-  // 服务器接入的 GitHub（#262 第四期）：控制台的 GitHub 页面经它读写 CONSOLE_ORG，谁能做什么按站内称号
-  const githubConnection = createGithubConnection({ app: config.githubApp, org: config.consoleOrg, octokitWith: github.octokitWith, fetch: overrides.githubAppFetch, clock: overrides.clock });
   const cache = createCache();
   const roles = createRoleStore(storage.db);
   // #274 迁移步骤 4（lib/migrations/2026-10-yugc-v2.ts 的 archiveOldDepartments()）仍然没有在这里调用，
@@ -58,7 +59,10 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
   // 这次把四个默认部门全部标成已归档会让那个页面当场变空，是本任务范围外、面向真实用户的回归。
   // 归档要等 #275 切完数据源、确认 /api/public/org 没有活的前端读者之后再做。
   const auth = createAuth(storage.db, crypto, config, overrides.httpRequest, overrides.clock);
-  const identity = createIdentityStore(storage.db, { createSession: auth.createSession, audit: storage.audit, consoleOrg: config.consoleOrg, clock: overrides.clock });
+  // #274 SPEC §3.8：防盗刷计数唯一入口；提到 identity 前面建好，注册限额与邀请码猜测锁定
+  // （signInWithGithub/signInSecondChannel，#274 review round 1）也要用它。
+  const limits = createLimits(storage.db, { clock: overrides.clock });
+  const identity = createIdentityStore(storage.db, { createSession: auth.createSession, audit: storage.audit, consoleOrg: config.consoleOrg, limits, clock: overrides.clock });
   const device = createDeviceStore(storage.db, { clock: overrides.clock });
   // 邮箱验证码、邀请码与 Google 登录（#262，所有者 2026-10-23）
   const emailLogin = createEmailLogin(storage.db, { sessionSecret: config.sessionSecret, clock: overrides.clock });
@@ -121,11 +125,9 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     identity,
     emailLogin, invites, google,
     device,
-    github, githubConnection, cache, roles,
-    access: createAccess({
-      consoleOrg: config.consoleOrg, getOrgRole: github.getOrgRole, cached: cache.cached, roles,
-      membership: { of: identity.membershipOf, unrecorded: identity.roleUnrecorded, record: identity.recordOrgRole },
-    }),
+    github, cache, roles,
+    // #274 review round 1（blocker）：access.resolve 不再查 GitHub 组织角色，只传 membership.of；见 lib/access.ts。
+    access: createAccess({ roles, membership: { of: identity.membershipOf } }),
     // #274 新权限引擎：和上面的 access（旧 capabilities）并存，中间件/路由逐步切过去，见 lib/permissions.ts。
     permissions: createPermissionEngine(storage.db, overrides.clock),
     // 和别的服务用同一个可注入时钟：require-step-up.ts 判定「刚登录过」要用它比对 session.created_at
@@ -134,8 +136,7 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     profiles,
     // 操作记录唯一写入口（#274 SPEC §3.7）：lib/activity.ts 的 recordActivity，路由自己调用；清理定时器由 buildApp 的 activityCleanup 决定开不开。
     activity: createActivityRecorder(storage.db, overrides.clock),
-    // #274 SPEC §3.8：防盗刷计数唯一入口，见 lib/limits.ts。
-    limits: createLimits(storage.db, { clock: overrides.clock }),
+    limits,
     feedback,
     forum,
     mail,

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../../app/server/src/app';
 import { testConfig } from './helpers';
 import { createCrypto } from '../../app/server/src/lib/crypto';
-import { CAPABILITY_IDS, DEFAULT_DEPARTMENTS } from '../../app/server/src/lib/roles';
+import { DEFAULT_DEPARTMENTS } from '../../app/server/src/lib/roles';
 import type { ServiceOverrides } from '../../app/server/src/services';
 
 // better-sqlite3 只装在 app/server 下；用同一个库造旧库文件，行为与生产一致。
@@ -248,15 +248,21 @@ describe('booting on the existing production data.db (legacy schema, no applicat
     expect(db.prepare('SELECT id FROM departments ORDER BY sort_order').all()).toEqual(DEFAULT_DEPARTMENTS.map(({ id }) => ({ id })));
     expect(db.pragma('integrity_check', { simple: true })).toBe('ok');
 
-    // 论坛表在旧库上建好并已播种；旧会话的成员能读到自己的论坛身份。
+    // 论坛表在旧库上建好并已播种；旧会话的成员能读到自己的论坛身份（这里只是普通成员，还没有管理能力）。
     const forum = await app.inject({ url: '/api/forum/state', headers: as('legacy-session-alice') });
     expect(forum.statusCode).toBe(200);
     expect(forum.json().state.topics.map((topic: { id: string }) => topic.id)).toEqual(['t9', 't73']);
-    expect(forum.json().state.viewer).toMatchObject({ kind: 'member', capabilities: CAPABILITY_IDS.filter(id => id.startsWith('forum.')) });
+    expect(forum.json().state.viewer).toMatchObject({ kind: 'member', capabilities: [] });
 
-    // #274：权限从「按请求现查 GitHub」改成静态存储在 perm_members 里，只在 access.resolve() 第一次用到这个账号时
-    // 同步一次（旧的 requireCapability/access.resolve 还挂在 forum-api/viewer.ts 和 /auth/me 上，没有删，见
-    // identity-store.ts 的 applyOrgRole 注释）；上面那次 /api/forum/state 已经替 alice 触发过这次同步。
+    // #274 review round 1（blocker）：站内角色不再靠「调用过某个接口，借会话自带的令牌实时查一次 GitHub 组织
+    // 角色」自动回填——那条路径（access.resolve() 的 GitHub 调用）已经整段删掉，见 lib/access.ts 和
+    // identity-store.ts 的 syncPermissionLevel 注释。旧库里的「GitHub 组织管理员」现在只是一个普通注册成员，
+    // 要不要继续当站长，变成运维要显式决定的事：这里用新的、唯一的途径——identity.setSiteRole（控制台
+    // 「成员与权限」页改角色走的也是这个函数）——把 alice 显式提成管理员，模拟升级后运维重新确认她的站长身份。
+    const aliceAccountId = app.services.identity.accountForGithub(101);
+    if (!aliceAccountId) throw new Error('alice should already have an account from the startup backfill');
+    const grantAlice = app.services.identity.setSiteRole({ accountId: aliceAccountId, role: 'admin', actor: 'system' });
+    if (!grantAlice.ok) throw new Error(`setSiteRole unexpectedly failed: ${grantAlice.reason}`);
     // 旧会话是建库时插进去的，created_at 是一天前，写接口要求的 step-up（刚登录过）过不了；这里用同一个
     // GitHub id 再登录一次换个新会话（这时 identities 表已经有这个 GitHub id，走的是「老账号登录」分支，
     // 不需要再传 orgRole），读接口两种会话都能用，写接口（PATCH 审核）只能用新会话。
@@ -302,8 +308,10 @@ describe('booting on the existing production data.db (legacy schema, no applicat
     expect(db.prepare('SELECT COUNT(*) AS n FROM mail_outbox WHERE recipient IS NOT NULL OR html IS NOT NULL').get()).toEqual({ n: 0 });
     expect(db.pragma('foreign_key_check')).toEqual([]);
 
-    // 普通组织成员没有自己的 /api/forum/state 触发过同步，先打一次 /auth/me 补上；同步后只是极客班成员，没有 console.access。
-    await app.inject({ url: '/auth/me', headers: as('legacy-session-bob') });
+    // 普通组织成员：和 alice 一样，站内角色现在只能显式设置，不再靠某个接口顺带触发的同步。
+    const bobAccountId = app.services.identity.accountForGithub(102);
+    if (!bobAccountId) throw new Error('bob should already have an account from the startup backfill');
+    app.services.identity.setSiteRole({ accountId: bobAccountId, role: 'member', actor: 'system' });
     const bob = (await app.inject({ url: '/api/console/me', headers: as('legacy-session-bob') })).json();
     expect(bob).toMatchObject({ login: 'bob', level: 'member', titles: [] });
     expect(bob.permissions).not.toContain('console.access');
@@ -338,9 +346,11 @@ describe('booting on the existing production data.db (legacy schema, no applicat
     // 默认部门与称号是 INSERT OR IGNORE：改过的不会被启动覆盖；显式舰长仍在，组织 owner 仍是提督。
     expect(second.services.roles.getDepartment('tech')?.description).toBe('班长改过的描述');
     expect(second.services.roles.captain()).toMatchObject({ github_login: 'carol', role: 'captain' });
-    // #274：裸的旧会话第一次用到时才会按 access.resolve() 补站长身份（见上面「keeps every legacy row」那条用例
-    // 的说明），这里先打一次 /auth/me 触发同步，再用同一个旧会话查 /api/console/me。
-    await second.inject({ url: '/auth/me', headers: as('legacy-session-alice') });
+    // #274 review round 1（blocker）：站长身份不再自动回填（见上面「keeps every legacy row」那条用例的说明），
+    // 这里显式设一次，再用同一个旧会话查 /api/console/me。
+    const aliceAccountId = second.services.identity.accountForGithub(101);
+    if (!aliceAccountId) throw new Error('alice should already have an account from the startup backfill');
+    second.services.identity.setSiteRole({ accountId: aliceAccountId, role: 'admin', actor: 'system' });
     const me = (await second.inject({ url: '/api/console/me', headers: as('legacy-session-alice') })).json();
     expect(me.titles).toEqual([expect.objectContaining({ id: 'title.site.owner' })]);
   });
@@ -360,7 +370,10 @@ describe('booting on the existing production data.db (legacy schema, no applicat
     const upgraded = second.services.storage.db;
     expect(upgraded.prepare('SELECT status FROM applications WHERE id = ?').get(id)).toEqual({ status: 'received' });
     expect(upgraded.prepare('SELECT from_status, to_status FROM application_reviews WHERE application_id = ?').all(id)).toEqual([{ from_status: 'received', to_status: 'reviewing' }]);
-    await second.inject({ url: '/auth/me', headers: as('legacy-session-alice') });
+    // #274 review round 1（blocker）：站长身份要显式设，见「keeps every legacy row」那条用例的说明。
+    const aliceAccountId = second.services.identity.accountForGithub(101);
+    if (!aliceAccountId) throw new Error('alice should already have an account from the startup backfill');
+    second.services.identity.setSiteRole({ accountId: aliceAccountId, role: 'admin', actor: 'system' });
     const counts = (await second.inject({ url: '/api/console/applications', headers: as('legacy-session-alice') })).json().counts;
     expect(counts).toEqual({ received: 1, interview: 0, accepted: 0, rejected: 0, cancelled: 0 });
     // 再启动一次什么也不改
@@ -396,7 +409,10 @@ describe('booting on the existing production data.db (legacy schema, no applicat
     first.services.storage.db.prepare("INSERT INTO applications(id, name, class_name, email, strengths, status, created_at) VALUES(?, '撤回同学', '计科2401', 'cancelled@example.test', '撤回的报名信也需要完整保留。', 'received', ?)").run(id, NOW - DAY);
     first.services.storage.db.prepare("INSERT INTO application_reviews(application_id, from_status, to_status, note, reviewer, created_at) VALUES(?, 'reviewing', 'received', '旧的审核历史', 'alice', ?)").run(id, NOW - DAY);
     const reviewId = (first.services.storage.db.prepare('SELECT MAX(id) AS id FROM application_reviews WHERE application_id = ?').get(id) as { id: number }).id;
-    await first.inject({ url: '/auth/me', headers: as('legacy-session-alice') });
+    // #274 review round 1（blocker）：站长身份要显式设，见「keeps every legacy row」那条用例的说明。
+    const aliceAccountId = first.services.identity.accountForGithub(101);
+    if (!aliceAccountId) throw new Error('alice should already have an account from the startup backfill');
+    first.services.identity.setSiteRole({ accountId: aliceAccountId, role: 'admin', actor: 'system' });
     // 旧会话建库时插的 created_at 是一天前，写接口要求的 step-up 过不了；用同一个 GitHub id 再登录一次换新会话。
     const firstLogin = first.services.identity.signInWithGithub({ github: { id: 101, login: 'alice', avatarUrl: null }, accessToken: 'token-alice' });
     if (!firstLogin.ok) throw new Error('alice sign-in unexpectedly denied');
@@ -469,7 +485,7 @@ describe('maps the existing sessions, titles and forum users to 极客班 accoun
     expect(me).toMatchObject({ signed_in: true, login: 'alice', user_id: 101, provider: 'github' });
     expect(me.account_id).toBe((db1.prepare("SELECT user_id FROM identities WHERE provider_uid = '101'").get() as { user_id: string }).user_id);
     // 没有 GitHub id 映射不到账号，按访客处理（#274），不再是裸 { signed_in: false }
-    expect((await first.inject({ url: '/auth/me', headers: as('legacy-session-no-id') })).json()).toMatchObject({ signed_in: false, level: 'level.visitor' });
+    expect((await first.inject({ url: '/auth/me', headers: as('legacy-session-no-id') })).json()).toMatchObject({ signed_in: false, level: 'visitor' });
     expect(db1.prepare("SELECT COUNT(*) AS n FROM sessions WHERE id = 'legacy-session-no-id'").get()).toEqual({ n: 0 });
     expect((await first.inject({ url: '/api/forum/state', headers: as('legacy-session-alice') })).statusCode).toBe(200);
 
