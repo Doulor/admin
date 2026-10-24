@@ -112,10 +112,7 @@ async function signOut() {
           <span class="profile__who-label">当前极客班账号</span>
           <span class="mono">{{ view.login }}</span>
         </div>
-        <p class="profile__intro">
-          极客班要求实名。年级只能从下拉框里选，每年 9 月 1 日自动升一级，大四之后显示已毕业。
-          填好后自己不能再改，填错了请联系管理员在控制台修改。
-        </p>
+        <p class="profile__intro">极客班要求实名。年级只能从下拉框里选，每年 9 月 1 日自动升一级，大四之后显示已毕业。填好后自己不能再改，填错了请联系管理员在控制台修改。</p>
 
         <TxForm label-position="top" class="profile__form" data-testid="profile-form" novalidate @submit="save">
           <TxFormItem v-slot="{ id }" label="真实姓名">
