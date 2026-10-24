@@ -480,6 +480,9 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
     /**
      * 按编号「没有才插入」：计数器、官方账号、每个公开旧帖及其首帖 `body-<n>`。已有的行一律不动
      * （线上可能已有回复、置顶变化）。返回这次新插入的话题数。
+     *
+     * 使用说明（#281）以仓库为准：没有就插入；已有、作者还是官方账号时，标题、slug、分类、标签、可见范围和首帖正文
+     * 跟着仓库改（正文变了才写 edited_at）。置顶、关闭、浏览数和回复是线上的，不动。
      */
     seed(now = Date.now()): number {
       return db.transaction(() => {
@@ -503,6 +506,25 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
           inserted += result.changes;
           db.prepare("INSERT OR IGNORE INTO forum_posts(id, topic_id, author_id, content, created_at) VALUES(?, ?, ?, ?, ?)")
             .run(`body-${topic.id.slice(1)}`, topic.id, author.id, topic.content, topic.createdAt);
+        }
+        for (const guide of content.guides) {
+          const postId = `body-${guide.id.slice(1)}`;
+          const existing = db.prepare("SELECT author_id FROM forum_topics WHERE id = ?").get(guide.id) as { author_id: string } | undefined;
+          if (!existing) {
+            db.prepare(
+              `INSERT INTO forum_topics(id, slug, title, category_id, tag_ids, author_id, created_at, last_activity_at, views, pinned, closed, visibility)
+               VALUES(?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, ?)`,
+            ).run(guide.id, guide.slug, guide.title, guide.categoryId, JSON.stringify(guide.tagIds), author.id, guide.createdAt, guide.lastActivityAt, guide.pinned ? 1 : 0, guide.visibility);
+            db.prepare("INSERT INTO forum_posts(id, topic_id, author_id, content, created_at) VALUES(?, ?, ?, ?, ?)")
+              .run(postId, guide.id, author.id, guide.content, guide.createdAt);
+            inserted += 1;
+            continue;
+          }
+          if (existing.author_id !== author.id) continue;
+          db.prepare("UPDATE forum_topics SET slug = ?, title = ?, category_id = ?, tag_ids = ?, visibility = ? WHERE id = ?")
+            .run(guide.slug, guide.title, guide.categoryId, JSON.stringify(guide.tagIds), guide.visibility, guide.id);
+          db.prepare("UPDATE forum_posts SET content = ?, edited_at = ? WHERE id = ? AND author_id = ? AND content <> ?")
+            .run(guide.content, now, postId, author.id, guide.content);
         }
         return inserted;
       })();

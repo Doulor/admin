@@ -42,3 +42,17 @@
 - 做了什么：GitHub 账号被封期间按所有者 10:32「暂时全部迁移到gitlab」在 GitLab 开 MR：https://git.yangtzeu.work/geek/admin/-/merge_requests/3 ，头 9b64311c，标签 func:auth、ui:content，合并后删源分支。正文十节：写明最短 8 位是实施方按所有者例子定的、密码例子与长度不公开、推送前合成提交、执行记录为去掉密码信息改过三次；验收证据是注册页改前（rc.12）改后（本机开发服务器）桌面与手机各一张、账号页改后两张，都用 ego-browser 截。只写 Refs #262，不自动关单
 - 结果：MR !3 已开，截图匿名可读（HTTP 200）
 - 下一步：提交这条记录推上去，合进 stage，构建部署 rc.13
+
+## 14:35:01 +08:00 · 合并 · #262 · MR !3 合进 GitLab stage（6f574328），删掉源分支
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：release 工作区（分离头，在 2101fe40）git merge --no-ff db1ba317，合并提交 6f574328「Merge branch 'task/262/password_rule' into stage」；从 GitLab 克隆 /tmp/geek262/gl-push 把本地 stage 指到 6f574328，启用 .githooks 后推 stage；确认 MR !3 显示已合并后，用接口删掉 GitLab 上的 task/262/password_rule。合并后又改了一次 MR !3 正文：本地 pr-contract 报「审查结论」那一行带了条件说明、「验证命令与结果」缺状态码，于是把条件挪到上一行，补上三个测试文件的运行结果和一个临时测试文件打印的接口状态码（7 位 400、8 位 200、10 位 200、用它登录 200；临时文件跑完删掉，没有提交）
+- 结果：2101fe4..6f57432 快进，pre-push 通过；MR !3 state merged，merge_commit_sha 6f574328；删分支返回 204；合并提交与 db1ba317 的树相同；pr-contract 只剩有意不写 Closes #262 一项。本机 worktree 与本地分支没清理：task.mjs finish 要用 gh 查，GitHub 被封期间查不到
+- 下一步：构建并部署 rc.13 到预发布
+
+## 14:37:01 +08:00 · 发布 · #262 · 本机构建并部署预发布 rc.13（6f574328cc5c）
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：按所有者 00:37 批准的「本机发预发布」：在 6f574328 上打本地 tag v0.1.1-rc.13（没推送）；本机 docker build --platform linux/amd64 构建 server、web、forum，GEEK_RELEASE_VERSION=0.1.1-rc.13@6f574328cc5c，docker save | gzip -9 后 sha256 5a307b25…ef6ddf；部署前用 sqlite3 .backup 备份预发布库到 /root/yzgc-backups/preview-20261023-062524-2101fe40448a.db（integrity_check ok，权限改成 600）；scp 归档、校验和、deploy-stack.sh 与 preview.yml，目标机上把现有 .env.preview 只换 IMAGE_TAG 生成 incoming/.env.preview，跑 deploy-stack.sh
+- 结果：部署成功：preview 6f574328cc5c，两个 healthz 都 ok；/release.json 是 0.1.1-rc.13@6f574328cc5c；/auth/providers 仍是 github、google、email；POST /api/identity/password 不带登录回 401；ego-browser 看 /signin 注册与密码登录的占位文字都是「至少 8 位」，桌面与手机横向溢出 0；users 表仍是 2 行。部署证据贴在 MR !3 评论 343。回滚用 2101fe40448a
+- 下一步：所有者用验证码登录，10 分钟内在「我的账号」设 8 位以上的密码，再用邮箱加密码登录

@@ -36,3 +36,24 @@
 - 做了什么：推 task/271/gitlab_avatar（410095ae）到 git.yangtzeu.work，开 MR !4，标签 P2、admin、bug、func:api、func:data、func:external、server、ui:content；正文十段，证据 1 是 GitLab 上 LYsnowQ 的默认头像（ego 1488×1004），证据 2、3 是控制台成员页样板数据「待同步：传头像」「头像被拒（400）」（1440×900、390×844）
 - 结果：本地 node scripts/pr-contract.mjs check 通过：10 个段落齐全，有验收证据；审查结论有条件通过，条件是 rc.15 上用户 4、5 头像补上且下一轮不再 PUT
 - 下一步：合并人合进 stage，发 rc.15，部署前备份预发布库
+
+## 17:36:25 +08:00 · 合并 · #271 · MR !4 合进 stage（1c3f0d64），#271 手工关闭
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：release 工作区（分离头，在 cfb9b0fb）git merge --no-ff task/271/gitlab_avatar（e86f6218），合并提交 1c3f0d64；从 /tmp/geek262/gl-push 把本地 stage 指到 1c3f0d64、启用 .githooks 后推 stage；MR !4 显示已合并后用接口删掉 GitLab 上的 task/271/gitlab_avatar；在 #271 与 !4 各留一条关闭记录（评论 387、394），把 #271 关掉
+- 结果：cfb9b0f..1c3f0d6 快进，pre-push 通过；合并提交与 e86f6218 的树相同；MR !4 state merged，merge_commit_sha 1c3f0d64；删分支 204，再查 404；#271 closed。本机 worktree 与本地分支没清理：task.mjs finish 要用 gh 查，GitHub 被封期间查不到
+- 下一步：构建并部署 rc.15，部署前备份预发布库
+
+## 17:55:44 +08:00 · 发布 · #271 · 本机发 rc.15 到预发布（1c3f0d64）
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：release 工作区在 1c3f0d64 上本机构建 amd64 镜像，归档 yzgc-images-preview-1c3f0d64f729.tar.gz（sha256 efad6575f1e92766…）；部署前在目标机备份预发布库 /root/yzgc-backups/preview-20261023-093935-cfb9b0fb10d5.db（600）；scp 归档与 deploy/remote/deploy-stack.sh、deploy/compose/preview.yml，env 只换 IMAGE_TAG；跑 deploy-stack.sh --environment preview --image-tag 1c3f0d64f729
+- 结果：deploy-stack 输出「部署成功：preview 1c3f0d64f729」，两个 healthz 返回 ok；server 17:47:41 启动；release.json 是 0.1.1-rc.15@1c3f0d64f729；没推 tag（GitHub 被封，本地 tag v0.1.1-rc.15 指 1c3f0d64）；回滚镜像 cfb9b0fb10d5 仍在目标机
+- 下一步：看补传对账与下一轮不重复上传
+
+## 18:01:03 +08:00 · 验收 · #271 · 预发布核对头像补传与不重复上传（agent 核对，所有者验收待做）
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：预发布 rc.15 上：只读查预发布库 gitlab_accounts 与 gitlab.sync 审计；用 GitLab 管理接口读用户 4、5 的 avatar_url；在 arch 上只读 grep GitLab api_json.log 里的 PUT /api/v4/users/*；17:57:45 那一轮之后 17:59 复查；ego-browser 截 GitLab 个人页（桌面 1488×1004、手机 390×844）和控制台成员页（真实数据）；截图传到 GitLab，在 #271（评论 397）与 !4（评论 398）各留一条进展记录；MR !4 正文人工验收步骤里对 LYsnowQ 的「他的」改成「其」
+- 结果：17:47:45/46 两次 PUT 都回 200（之前只有 15:25:24 那次 400）；avatar_source 写入，last_error 为空；avatar_url 是 avatar/4/avatar.jpg?v=1792748865、avatar/5/avatar.png?v=1792748866；17:57:45 一轮跑过（synced_at 更新），审计仍 4 条，?v= 不变，PUT 仍 3 条；成员页 GitLab 列两人是所有者、开发者，没有错误和待同步。论坛换头像在预发布上没试（两人都没有论坛头像，要动所有者账号）
+- 下一步：所有者在预发布验收；正式发布等所有者批准

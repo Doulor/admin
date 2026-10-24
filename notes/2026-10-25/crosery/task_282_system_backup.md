@@ -22,3 +22,17 @@
 - 做了什么：主会话核对 d63fec46（子 agent backup282）和 44d89047、cd91b51e、97ceb935：快照用在线备份、清空的表都是短时数据、密钥不进归档、流式打包；发现恢复脚本按 join(target, entry.path) 落盘，manifest 里写 ../ 就能写到目标目录外面。2c8d4637 落盘前核对解析后的路径，加两种跑出去的用例；9bb0269b 重新生成目录。
 - 结果：结论：通过。tests/tooling 全部通过，恢复脚本 9 个用例通过。未验证：预发布上下载并恢复一遍，随 rc.21 做。
 - 下一步：合并进 stage，关 #282，手工收尾。
+
+## 01:53:43 +08:00 · 合并 · #282 · MR !19 合并进 stage，#282 关闭
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：GitLab PUT merge（sha fc4a783d，squash false，删源分支），merge commit d1f64ec5；#282 写关闭记录后关闭。
+- 结果：stage d1f64ec5；#282 closed；远端 task 分支随合并删除。
+- 下一步：删本机 worktree 和分支。
+
+## 01:53:58 +08:00 · 收尾 · #282 · 删掉 #282 一键备份的 worktree 与本机分支
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：git worktree remove .claude/worktrees/task-282；git branch -D task/282/system_backup。删之前 worktree 没有未提交的改动。
+- 结果：git worktree list 里没有 task-282
+- 下一步：rc.21 发预发布后按 !19 人工验收步骤核对

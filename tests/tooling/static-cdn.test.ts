@@ -1,14 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createHash, createHmac } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { siteCsp } from '../../app/forum/scripts/csp-header.mjs';
 import { STATIC_CDN_BASE, STATIC_CDN_BUCKET, STATIC_CDN_ORIGIN, STATIC_CDN_PREFIX } from '../../scripts/static-cdn-base.mjs';
 import {
-  AREAS, DECIDE_MIN_REMAINING_SECONDS, MAX_FILE_BYTES, MAX_TOKEN_SECONDS, PUBLIC_DIRS, UPLOAD_HOST, UPLOAD_MIN_REMAINING_SECONDS,
-  assertKey, collect, cspAllows, decide, main, mimeFor, originPathOf, parseArgs, qetag,
+  AREAS, DECIDE_MIN_REMAINING_SECONDS, GUIDE_IMAGES, MAX_FILE_BYTES, MAX_TOKEN_SECONDS, PUBLIC_DIRS, UPLOAD_HOST, UPLOAD_MIN_REMAINING_SECONDS,
+  assertKey, collect, collectGuideImages, cspAllows, guideImageHash, decide, main, mimeFor, originPathOf, parseArgs, qetag,
   readUploadPolicy, signUploadToken, uploadAll, uploadOne, uploadPolicy,
 } from '../../scripts/static-cdn.mjs';
 
@@ -177,6 +177,38 @@ describe('collect: which files of a build get uploaded', () => {
     }
     fixture();
     expect(collect(roots()).length).toBe(7);
+  });
+});
+
+describe('usage guide screenshots (#281)', () => {
+  it('uploads the repo screenshots under forum/guides/ only when the name carries the content hash', () => {
+    const root = mkdtempSync(join(tmpdir(), 'geek-guide-images-'));
+    try {
+      expect(collectGuideImages(root)).toEqual([]);
+      const dir = join(root, GUIDE_IMAGES.dir);
+      mkdirSync(dir, { recursive: true });
+      const png = Buffer.from('fake png bytes');
+      const name = `console-competitions.${guideImageHash(png)}.png`;
+      writeFileSync(join(dir, name), png);
+      expect(collectGuideImages(root)).toEqual([{ file: join(dir, name), key: `${STATIC_CDN_PREFIX}forum/guides/${name}`, size: png.length, mime: 'image/png' }]);
+      expect(originPathOf(`${STATIC_CDN_PREFIX}forum/guides/${name}`)).toBe(`/forum/guides/${name}`);
+      writeFileSync(join(dir, 'stale.AAAAAAAA.webp'), 'other');
+      expect(() => collectGuideImages(root)).toThrow(/stale\.AAAAAAAA\.webp（内容哈希是/);
+      rmSync(join(dir, 'stale.AAAAAAAA.webp'));
+      writeFileSync(join(dir, 'no-hash.webp'), 'x');
+      expect(() => collectGuideImages(root)).toThrow(/no-hash\.webp（要是/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps every screenshot in the repo valid and referenced by a guide, and every guide image on the CDN', () => {
+    const entries = collectGuideImages();
+    const guidesDir = join(repoRoot, 'app/forum/content/guides');
+    const text = existsSync(guidesDir) ? readdirSync(guidesDir).filter(name => name.endsWith('.md')).map(name => read(`app/forum/content/guides/${name}`)).join('\n') : '';
+    const used = new Set([...text.matchAll(/!\[[^\]]*\]\(([^)\s]+)\)/g)].map(match => match[1]));
+    for (const url of used) expect(url.startsWith(`${STATIC_CDN_BASE}forum/guides/`), url).toBe(true);
+    expect([...used].sort()).toEqual(entries.map(entry => `${STATIC_CDN_ORIGIN}/${entry.key}`).sort());
   });
 });
 

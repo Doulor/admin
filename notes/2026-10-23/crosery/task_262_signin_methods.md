@@ -130,3 +130,28 @@
 - 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
 - 做了什么：上一条标题里的「提交 b0」是笔误，指的是 d467a2a6 docs(changes): #262 控制台前端这一条补上设备授权页的流程节点
 - 结果：审查结论不变：有条件通过，可以合进 stage
+
+## 11:45:05 +08:00 · 合并 · #262 · 本机把 task/262/signin_methods（78e93256）合进 stage 候选 2101fe40
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：GitHub 账号被封期间按所有者 2026-10-23 00:37 的批准在本机合并：release 工作区从 b542b3be 用 merge commit 合入 task/262/signin_methods 的 78e93256（第五轮：登录页注册标签与跳转登录挪到下面、侧栏悬停高亮、两次审查后的返工与记录，共 11 个提交），合并后的树与 78e93256 相同；本地 tag v0.1.1-rc.12 → 2101fe40（未推送到 GitHub）
+- 结果：合并无冲突，git diff --quiet task/262/signin_methods HEAD 为真；审查结论见 task 链路 11:5x 的「审查」记录：有条件通过
+
+## 11:45:35 +08:00 · 合并 · #262 · 更正上一条合并记录引用的审查时间
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：上一条写「审查结论见 task 链路 11:5x 的「审查」记录」，实际是 11:43:20 的「复核 bb2dfb18、41654963、d4bdfb4e …」与 11:43:57 的更正
+- 结果：合并本身不变
+
+## 12:08:35 +08:00 · 合并 · #262 · 把 stage 2101fe40 推到 GitLab，MR !1 显示已合并，删掉 GitLab 上的源分支
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：从 GitLab 新克隆一份到 /tmp，本地 stage 指到 2101fe40，启用 .githooks 后 git push origin stage（release 工作区是分离头，钩子要求从本地 stage 推，所以换了克隆，没有跳过钩子）；确认 78e93256 已在 stage 里后，用接口删除 GitLab 上的 task/262/signin_methods
+- 结果：b542b3b..2101fe4 快进，pre-push 分支规则通过；MR !1 state merged，merge_commit_sha 2101fe40；删除分支返回 204。本机 worktree 与本地分支没清理：task.mjs finish 要用 gh 查 PR 与 issue，GitHub 被封期间查不到，与 task/262/unified_login 一样等账号恢复或所有者另定。#262 没关，按所有者 2026-10-21 指令由所有者决定
+- 下一步：所有者在 prev 验收 rc.12；决定 #262 关不关
+
+## 12:08:35 +08:00 · PR · #262 · 在自建 GitLab 开 MR !1（task/262/signin_methods → stage）
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：GitHub 账号被封，按所有者 2026-10-23 10:32「暂时全部迁移到gitlab」把 PR 开在 https://git.yangtzeu.work/geek/admin/-/merge_requests/1：十段正文，标签 ui:layout、ui:interaction、func:auth；改前改后截图（登录页桌面与手机、侧栏裁到左侧 260px）传到项目附件；关联写 Refs #262（所有者 2026-10-21 定的不自动关单）；正文里不写个人邮箱。之后把正文里注册说明与按钮宽度的核对环境改成本机开发服务器
+- 结果：MR !1 已建；本地 pr-contract 只报缺少关单关键字一项，是按所有者指令保留的

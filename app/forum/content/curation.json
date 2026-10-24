@@ -15,6 +15,7 @@
   "categories": [
     { "id": "c-exam", "slug": "exam", "name": "招新与机试", "description": "极客班招新机试文档，以及机试要用到的入门资料。", "color": "#0f766e", "icon": "i-ri-file-list-3-line" },
     { "id": "c-announcements", "slug": "announcements", "name": "班级公告", "description": "极客班通知、活动安排与规则说明。", "color": "#e5484d", "icon": "i-ri-megaphone-line" },
+    { "id": "c-guides", "slug": "guides", "name": "使用说明", "description": "官网桌面、论坛、控制台、命令行和内部比赛怎么用，按身份分篇。", "color": "#0d9488", "icon": "i-ri-book-read-line" },
     { "id": "c-courses", "slug": "courses", "name": "课程与作业", "description": "课程内容、作业讨论、考试与选课经验。", "color": "#2f6fed", "icon": "i-ri-book-open-line" },
     { "id": "c-competitions", "slug": "competitions", "name": "竞赛与项目", "description": "竞赛信息、组队招募、项目进展与成果展示。", "color": "#f59e0b", "icon": "i-ri-trophy-line" },
     { "id": "c-careers", "slug": "careers", "name": "求职与升学", "description": "实习、校招、考研与出国经验交流。", "color": "#0ea5e9", "icon": "i-ri-briefcase-line" },
@@ -30,6 +31,7 @@
   "categoryOrder": [
     "c-exam",
     "c-announcements",
+    "c-guides",
     "c-courses",
     "c-competitions",
     "c-careers",
@@ -51,7 +53,12 @@
     { "id": "tag-prompt", "slug": "prompt", "name": "Prompt工程", "color": "#ec4899" },
     { "id": "tag-coding", "slug": "ai-coding", "name": "AICoding", "color": "#14b8a6" },
     { "id": "tag-workflow", "slug": "ai-workflow", "name": "AI工作流", "color": "#f97316" },
-    { "id": "tag-products", "slug": "products", "name": "应用产品", "color": "#3b82f6" }
+    { "id": "tag-products", "slug": "products", "name": "应用产品", "color": "#3b82f6" },
+    { "id": "tag-for-member", "slug": "for-member", "name": "成员", "color": "#0d9488" },
+    { "id": "tag-for-organizer", "slug": "for-organizer", "name": "比赛组织者", "color": "#d97706" },
+    { "id": "tag-for-department", "slug": "for-department", "name": "部门负责人", "color": "#7c3aed" },
+    { "id": "tag-for-admin", "slug": "for-admin", "name": "管理员", "color": "#dc2626" },
+    { "id": "tag-for-developer", "slug": "for-developer", "name": "开发与运维", "color": "#2563eb" }
   ],
   "topics": {
     "t78": {

@@ -36,3 +36,24 @@
 - 做了什么：推 task/272/gitlab_commit_emails（c9358423）到 git.yangtzeu.work；上传 6 张截图（账号页改前改后桌面与手机、删除确认、成员页邮箱被拒）；pr-contract 本地核对后开 MR !5（目标 stage，标签 P2、admin、bug、func:api、func:auth、func:data、func:external、server、ui:content、ui:interaction）；issue #272 发进展评论 415
 - 结果：pr-contract：10 个段落齐全，有验收证据；MR !5 opened；审查结论有条件通过，条件是部署 rc.16 后用户 4、5 名下有已确认的 noreply 邮箱、再一轮不调邮箱接口
 - 下一步：等 #273 的 MR，两个一起合进 stage，发 rc.16 并核对
+
+## 20:16:54 +08:00 · 合并 · #272 · #272 MR !5 合进 stage（a93f0843）并关 issue
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：在 release 工作区把 task/272/gitlab_commit_emails 以 merge commit 合进 stage（a93f0843，树与 MR 头 a0a411fd 相同），推到 git.yangtzeu.work 的 stage（1c3f0d6..a93f084，pre-push 通过）；MR !5 自动标为 merged；删除 GitLab 上的 task/272/gitlab_commit_emails（DELETE 204，再查 404）；issue #272 与 MR !5 各发「关闭」记录（425、428），手工关闭 #272
+- 结果：MR !5 merged，merge_commit_sha a93f08435ea58febdab2e6c7d16b010e6e40f46f；#272 closed；本机 worktree task-272 还在（task.mjs finish 依赖 gh，用不了）
+- 下一步：构建 rc.16、备份预发布库后部署，核对 GitLab 用户 4、5 的 noreply 邮箱
+
+## 20:30:41 +08:00 · 发布 · #272 · #272 v0.1.1-rc.16 部署到预发布
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：本机构建 a93f0843 的 amd64 镜像（server、web、forum，tag a93f08435ea5），归档 yzgc-images-preview-a93f08435ea5.tar.gz 与 sha256 用 scp 传到预发布机；部署前备份预发布库为 /root/yzgc-backups/preview-20261023-122443-1c3f0d64f729.db（integrity_check ok）；env-prep-tag.sh 只改 IMAGE_TAG，再用 deploy-stack.sh --environment preview 部署；本机打轻量 tag v0.1.1-rc.16 指向 a93f0843，没有推送
+- 结果：三个容器都是 a93f08435ea5，20:25 起来；release.json 为 0.1.1-rc.16@a93f08435ea5；第一轮对账 changed 2、failed 0；库里 uq_identities_user_provider 已是 WHERE provider <> 'email' 的部分索引；Crosery、LYsnowQ 两行 emails_source 已写、last_error 空
+- 下一步：核对 GitLab 用户 4、5 的邮箱和下一轮对账
+
+## 20:37:38 +08:00 · 验收 · #272 · 预发布核对提交邮箱同步与不重复调用（agent 核对，所有者验收待做）
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：只读查 GitLab 用户 4、5 的邮箱类型与确认状态（不看地址）；等 20:35:18 第二轮对账后查 gitlab_accounts、gitlab.sync 审计、server 日志，并在 arch 上读 gitlab-rails api_json.log 里 /users/4、/users/5 的邮箱接口调用；ego 打开 GitLab 提交 4beda55e（作者是 Crosery 的 noreply 邮箱）和控制台成员页；在 #272、MR !5 发「进展」记录（430、431）
+- 结果：两人各 3 个已确认邮箱（主邮箱不变，加两种 GitHub noreply）；第二轮只更新 synced_at，emails_source 不变，审计仍 6 条，GitLab 没有新的邮箱接口调用；4beda55e 作者显示 Crosery 头像；控制台 GitLab 列无错误。所有者本机提交（61da3fea 等）用工作邮箱，要所有者在 prev 账号页加上这个邮箱后才会显示头像
+- 下一步：所有者在 prev 账号页加工作邮箱后，看 GitLab 首页提交行的头像

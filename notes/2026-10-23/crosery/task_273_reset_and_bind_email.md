@@ -50,3 +50,24 @@
 - 做了什么：git show --remerge-diff 9bf49ec7 逐个看冲突块；读 resetPassword、writePassword、/auth/email/reset、email-gate.ts；核对 #272 与 #273 放在一起时的行为：重设按任一绑定邮箱找账号，绑定页对没有邮箱的账号不受 5 个上限影响，主邮箱删不掉所以账号不会删到没有邮箱
 - 结果：冲突块都是两边并集，没有夹带别的改动；重设先校验新密码再核对验证码，和验证码登录同一事务，改密码不退出其他会话与 #262 的约定一致；没有新的应修。沿用 fork 的两轴审查结论（有条件通过）：控制台四处跳转没有组件测试，靠样板数据的浏览器点检
 - 下一步：合进 stage 后发 rc.17，在预发布看 LYsnowQ 是否被带到绑定页、忘记密码流程
+
+## 20:55:34 +08:00 · 合并 · #273 · #273 MR !6 合进 stage（9c5b74f7）并关 issue
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：在 release 工作区把 task/273/reset_and_bind_email（9da134a3，已合进 stage a93f0843）以 merge commit 合进 stage（9c5b74f7，树与 MR 头相同），推到 git.yangtzeu.work 的 stage（a93f0843..9c5b74f7，pre-push 通过）；MR !6 自动标为 merged；删除 GitLab 上的 task/273/reset_and_bind_email（DELETE 204，再查 404）；issue #273 与 MR !6 各发「关闭」记录（468、473），手工关闭 #273
+- 结果：MR !6 merged，merge_commit_sha 9c5b74f754b3e57a702fabae752fb6607c4b6ede；#273 closed；本机 worktree task-273 还在（task.mjs finish 依赖 gh，用不了）
+- 下一步：构建 rc.17、备份预发布库后部署，按 !6 的人工验收步骤核对
+
+## 21:17:28 +08:00 · 发布 · #273 · #273 v0.1.1-rc.17 部署到预发布
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：本机构建 9c5b74f7 的 amd64 镜像（server、web、forum，tag 9c5b74f754b3）；上行被别的传输占满（scp 只有 17–43 KB/s），停掉自己的 scp，改存未压缩归档 yzgc-images-preview-9c5b74f754b3.tar，在目标机用 rc.16 归档解压出的文件作基准 rsync 增量传（只传 5.0 MB），sha256sum -c 通过；部署前备份预发布库为 /root/yzgc-backups/preview-20261023-131310-a93f08435ea5.db（integrity_check ok）；env-prep-tag.sh 只改 IMAGE_TAG，deploy-stack.sh --environment preview 部署；本机打轻量 tag v0.1.1-rc.17 指向 9c5b74f7，没有推送
+- 结果：部署成功：preview 9c5b74f754b3，两个 healthz ok；release.json 为 0.1.1-rc.17@9c5b74f754b3；server 启动后没有 warn、error 日志
+- 下一步：核对登录页、绑定页和 GitLab 同步
+
+## 21:17:28 +08:00 · 验收 · #273 · 预发布核对忘记密码与先绑邮箱（agent 核对，所有者验收待做）
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：curl 查 /bind-email 与 /auth/email/reset（不带会话）；只读查预发布库两人的身份与 MAIL_RECIPIENTS；ego 看登录页「密码」与重设表单（桌面 1440×900、手机 390×844，不提交），已绑邮箱的会话打开 /console、/bind-email、/account；查 rc.17 启动后的 GitLab 对账；在 #273、!6 发「进展」记录（475、476）
+- 结果：/bind-email 200；reset 短密码 400 password_too_short、没有挑战 400 code_expired；LYsnowQ 只有 github、Crosery 有 email，预发布 MAIL_RECIPIENTS=all；登录页有「忘记密码？」和重设表单，两种尺寸都没有横向溢出；已绑邮箱的会话不被拦，/bind-email 回到 return_to；对账只更新 synced_at，审计仍 6 条
+- 下一步：所有者按 !6 人工验收步骤 3–6 核对真实发信下的重设、LYsnowQ 绑邮箱、GitLab 登录与 geek login

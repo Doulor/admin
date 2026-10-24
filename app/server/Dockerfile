@@ -119,11 +119,12 @@ COPY --from=builder --chown=node:node /repo/node_modules /app/node_modules
 COPY --from=builder --chown=node:node /repo/app/server/node_modules /app/app/server/node_modules
 COPY --from=builder --chown=node:node /repo/app/server/dist /app/app/server/dist
 
-# 论坛的公开内容（#57）：分类与标签（curation.json）、公开的旧帖（published/topics.json）。
+# 论坛的公开内容（#57）：分类与标签（curation.json）、公开的旧帖（published/topics.json）、使用说明（guides/*.md，#281）。
 # 服务启动时读它们播种论坛（src/config.ts 的 forumContentDir = APP_ROOT/forum/content），缺了就启动失败。
-# 只复制这两份公开文件，论坛的其它源码与私有快照都不进 server 镜像。
+# 只复制这些公开文件，论坛的其它源码与私有快照都不进 server 镜像；使用说明的截图在 CDN 上，不进镜像。
 COPY --chown=node:node app/forum/content/curation.json /app/app/forum/content/curation.json
 COPY --chown=node:node app/forum/content/published/topics.json /app/app/forum/content/published/topics.json
+COPY --chown=node:node app/forum/content/guides/ /app/app/forum/content/guides/
 
 # 表情包第一套「极客娘」的源图片（#276，src/config.ts 的 stickerAssetsDir = APP_ROOT/server/assets/stickers/yugc）：
 # 启动时读进来按内容哈希种进 forum_sticker_files，缺文件不阻塞启动（见 migrations/2026-10-forum-v2.ts），
