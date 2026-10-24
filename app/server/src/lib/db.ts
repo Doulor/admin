@@ -1114,6 +1114,14 @@ addColumn("competition_score_events", "core", "TEXT");
 addColumn("competition_score_events", "damp_percent", "INTEGER");
 addColumn("competition_score_events", "contributed_at", "INTEGER");
 
+// 组队广场（#278 重开，所有者 2026-10-24 22:25）：队伍自己的「还在招募」广播，和 status 的 recruiting/locked
+// 是两件事——status 决定还能不能被申请，plaza_recruiting 决定要不要在广场上公开求人，领队单独开关。
+// 旧队伍都是 0/空/NULL，不在广场出现，不影响既有的报名、组队与积分流程。
+addColumn("competition_teams", "plaza_recruiting", "INTEGER NOT NULL DEFAULT 0 CHECK (plaza_recruiting IN (0, 1))");
+addColumn("competition_teams", "plaza_note", "TEXT NOT NULL DEFAULT ''");
+addColumn("competition_teams", "plaza_skills", "TEXT NOT NULL DEFAULT '[]'");
+addColumn("competition_teams", "plaza_updated_at", "INTEGER");
+
 // 第一期的计分规则、奖项与 GitLab 项目（#278，所有者 2026-10-24 13:45）：用 `console_seeds` 标记，只插一次；
 // 组织者之后在控制台改掉，重启也不再补回来。比赛本身被删掉时什么也不插。
 const COMPETITION_RULES_SEED = "competition_oss_2026_1_rules";

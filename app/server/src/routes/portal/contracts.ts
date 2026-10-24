@@ -1,7 +1,8 @@
 import { body, choices, integer, limitParam, nullableText, object, text, type RouteContracts } from "../../lib/http-contracts.js";
 import {
   competitionFailures, competitionIdParam, competitionLeaderboard, freeAgentList, myCompetitionList, myCompetitionResults, myStatus,
-  publicCompetition, publicCompetitionList, publicFeed, publicFeedQuery, publicLeaderboard, publicSnapshot, publicStats, signupBody, teamIdParam, teamList,
+  publicCompetition, publicCompetitionList, publicFeed, publicFeedQuery, publicLeaderboard, publicParticipants, publicParticipantsQuery,
+  publicSnapshot, publicStats, publicTeams, signupBody, teamIdParam, teamList, teamPlazaPage, teamPlazaQuery,
 } from "../../lib/competition-contract.js";
 import { APPLICATION_STATUS_IDS } from "../../lib/roles.js";
 const proof = object({ timestamp: { type: "integer" }, nonce: text(32, 1) }, ["timestamp", "nonce"]);
@@ -16,6 +17,8 @@ export const portalContracts: RouteContracts = {
   "GET /api/public/competitions/:id/feed": { ...competitionIdParam, ...publicFeedQuery, response: { 200: publicFeed, ...competitionFailures } },
   "GET /api/public/competitions/:id/stats": { ...competitionIdParam, querystring: object({}), response: { 200: publicStats, ...competitionFailures } },
   "GET /api/public/competitions/:id/snapshot": { ...competitionIdParam, querystring: object({}), response: { 200: publicSnapshot, ...competitionFailures } },
+  "GET /api/public/competitions/:id/participants": { ...competitionIdParam, ...publicParticipantsQuery, response: { 200: publicParticipants, ...competitionFailures } },
+  "GET /api/public/competitions/:id/teams": { ...competitionIdParam, querystring: object({}), response: { 200: publicTeams, ...competitionFailures } },
   // 公开的部门与称号列表（#274）：给门户「组织架构」用，6 个新部门，不含任何人
   "GET /api/public/departments": { querystring: object({}), response: { 200: object({
     departments: { type: "array", items: object({
@@ -73,5 +76,9 @@ export const portalContracts: RouteContracts = {
   "DELETE /api/teams/:id": { ...teamIdParam, response: { 200: myStatus, ...competitionFailures } },
   "POST /api/teams/:id/lock": { ...teamIdParam, response: { 200: myStatus, ...competitionFailures } },
   "DELETE /api/teams/:id/lock": { ...teamIdParam, response: { 200: myStatus, ...competitionFailures } },
+  "POST /api/teams/:id/plaza": { ...teamIdParam, body: signupBody.plaza, response: { 200: myStatus, ...competitionFailures } },
+  "DELETE /api/teams/:id/plaza": { ...teamIdParam, response: { 200: myStatus, ...competitionFailures } },
+  // 组队广场（#278 重开）：跨比赛一张列表，只读聚合，登录且持有报名或组队任一权限即可看——和空闲人员、队伍列表同一道门。
+  "GET /api/team-plaza": { ...teamPlazaQuery, response: { 200: teamPlazaPage, ...competitionFailures } },
   "GET /api/competitions/:id/leaderboard": { ...competitionIdParam, response: { 200: competitionLeaderboard, ...competitionFailures } },
 };
