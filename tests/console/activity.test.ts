@@ -21,12 +21,17 @@ describe("activity filters", () => {
     expect(filtersToQuery({ ...EMPTY_FILTERS, outcome: "limited", account: " " })).toEqual({ outcome: "limited" });
   });
   it("sends Beijing day edges, so one day means the whole day", () => {
-    const params = activityParams({ ...EMPTY_FILTERS, from: "2026-10-24", to: "2026-10-24", surface: "forum" }, { cursor: "50", limit: 50 });
+    const params = activityParams({ ...EMPTY_FILTERS, from: "2026-10-24", to: "2026-10-24", surface: "forum" }, { cursor: "50" });
     expect(params.get("from")).toBe(String(Date.UTC(2026, 9, 23, 16)));
     expect(params.get("to")).toBe(String(Date.UTC(2026, 9, 24, 16) - 1));
     expect(params.toString()).toContain("surface=forum");
-    expect(params.toString()).toContain("cursor=50&limit=50");
+    expect(params.toString()).toContain("cursor=50");
     expect(rangeProblem({ from: "2026-10-25", to: "2026-10-24" })).toBe("开始日期晚于结束日期");
+  });
+  // #274：服务端 activityQuery 契约不认 `limit`（每页固定 50 条），传了会被拒绝；地址串不能再带它。
+  it("never sends limit — the server contract does not accept it", () => {
+    const params = activityParams({ ...EMPTY_FILTERS, surface: "forum" }, { cursor: "50" });
+    expect(params.has("limit")).toBe(false);
   });
   it("writes actions, buckets, actors and targets plainly, falling back to the raw value", () => {
     expect(actionText("auth.signin")).toBe("登录");
@@ -44,13 +49,19 @@ describe("activity filters", () => {
 describe("preview activity (mock)", () => {
   it("pages with a cursor, newest first", () => {
     as("owner");
-    const first = read("?limit=50");
+    const first = read();
     expect(first.items).toHaveLength(50);
     expect(first.next_cursor).toBe("50");
     expect(first.items[0].at).toBeGreaterThanOrEqual(first.items[1].at);
-    const second = read("?limit=50&cursor=50");
+    const second = read("?cursor=50");
     expect(second.next_cursor).toBeNull();
     expect(second.items.length).toBeGreaterThan(0);
+  });
+  // #274：Activity.vue 曾经一直带着 `limit=50`，服务端的 activityQuery 契约不认它，整页 400。
+  // mock 现在和服务端一样拒绝契约之外的字段，不能再对着这种参数默默放行。
+  it("rejects a query param the server contract doesn't have, like limit", () => {
+    as("owner");
+    expect(() => read("?limit=50")).toThrow(/additional properties/);
   });
   it("filters by account, visitor, action prefix, surface, outcome and time", () => {
     as("owner");
@@ -59,6 +70,11 @@ describe("preview activity (mock)", () => {
     expect(read("?account=mock-chen_hang").items.every(row => row.account?.username === "chen_hang")).toBe(true);
     expect(read("?visitor=v_1d07e5b2a9c84f36").items.every(row => row.visitor_id === "v_1d07e5b2a9c84f36")).toBe(true);
     expect(read("?surface=cli").items.every(row => row.surface === "cli")).toBe(true);
+    // #274：论坛、控制台也各自上报操作记录了，来源筛选要对这两个来源同样好用。
+    expect(read("?surface=forum").items.every(row => row.surface === "forum")).toBe(true);
+    expect(read("?surface=console").items.every(row => row.surface === "console")).toBe(true);
+    expect(read("?surface=forum").items.length).toBeGreaterThan(0);
+    expect(read("?surface=console").items.length).toBeGreaterThan(0);
     expect(read(`?from=${Date.now() - 60 * 60_000}`).items.every(row => row.at >= Date.now() - 60 * 60_000 - 1000)).toBe(true);
   });
   it("masks IPs without activity.read.ip and keeps them for the owner", () => {

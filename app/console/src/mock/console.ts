@@ -948,7 +948,16 @@ function routeUsers(persona: Persona, search: URLSearchParams): UsersResponse {
   return { items, next_cursor: start + size < filtered.length ? String(start + size) : null, counts: usersCounts(visible) };
 }
 
+/** 和服务端 activityQuery 契约（app/server/src/routes/console/contracts.ts 的 `activityQuery`）同一份允许字段：
+ * 预览环境没有 ajv，不手动核对的话，调用点悄悄传一个契约之外的参数（例如 `limit`）在这里会被默默忽略，
+ * 只有连真实后端才会报 400，问题拖到上线才暴露（#274 的操作记录筛选 400）。 */
+const ACTIVITY_QUERY_KEYS = ["account", "visitor", "action", "surface", "outcome", "from", "to", "cursor"];
+function assertKnownQuery(search: URLSearchParams, allowed: string[]): void {
+  for (const key of search.keys()) if (!allowed.includes(key)) fail(400, "validation_error", "querystring must NOT have additional properties");
+}
+
 function routeActivity(persona: Persona, search: URLSearchParams): ActivityList {
+  assertKnownQuery(search, ACTIVITY_QUERY_KEYS);
   gate(persona, "activity.read");
   const canSee = visibleTo(persona, "activity.read");
   const scoped = departmentScope(accountOf(persona), "activity.read") !== null;
@@ -964,7 +973,7 @@ function routeActivity(persona: Persona, search: URLSearchParams): ActivityList 
     && (!get("outcome") || row.outcome === get("outcome"))
     && (from === null || row.at >= from)
     && (to === null || row.at <= to));
-  const page = activityPage(rows, search.get("cursor"), Number(search.get("limit") ?? 50) || 50, permissionsOf(persona).includes("activity.read.ip"));
+  const page = activityPage(rows, search.get("cursor"), 50, permissionsOf(persona).includes("activity.read.ip"));
   return { ...page, blocked_today: scoped ? [] : MOCK_BLOCKED_TODAY };
 }
 
@@ -1000,6 +1009,7 @@ export function routeConsole(url: URL): unknown {
       if (!target) fail(404, "not_found", "账号不存在");
       return effectiveOf(target);
     }
+    assertKnownQuery(search, ACTIVITY_QUERY_KEYS);
     gate(persona, "activity.read");
     if (!target || !visibleTo(persona, "activity.read")(target)) fail(404, "not_found", "账号不存在");
     const rows = MOCK_ACTIVITY.filter(row => row.account?.id === target.account_id);
