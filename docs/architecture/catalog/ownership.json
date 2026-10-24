@@ -1100,7 +1100,7 @@
         },
         {
           "path": "app/forum/app/data/access.ts",
-          "needle": "发新话题、点赞、收藏和关注要先登录。"
+          "needle": "发帖、回复、点赞、收藏和关注要先登录。不登录只能看公开的帖子。"
         },
         {
           "path": "app/forum/app/pages/about.vue",
@@ -1108,7 +1108,7 @@
         },
         {
           "path": "app/forum/app/pages/new.vue",
-          "needle": "注册或登录极客班账号即可。不登录也能看帖"
+          "needle": "登录极客班账号，成为成员后可以发帖。没登录只能看公开的帖子。"
         },
         {
           "path": "app/forum/shared/signin-outcomes.ts",
@@ -1116,7 +1116,7 @@
         },
         {
           "path": "app/forum/shared/site-notice.ts",
-          "needle": "发新话题、点赞、收藏和关注要先登录。"
+          "needle": "不登录只能看公开的帖子；发帖、回复、点赞、收藏和关注要先登录。"
         },
         {
           "path": "app/forum/app/components/AdoptionNotice.vue",
