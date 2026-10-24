@@ -92,7 +92,9 @@ describe('Dockerfile mirror arguments', () => {
   it('declare the mirror arguments in the build stage only, with official defaults', () => {
     for (const [service, text] of Object.entries(dockerfiles)) {
       const { preamble, byName } = stages(text);
-      expect(Object.keys(byName), service).toEqual(['builder', 'runtime']);
+      // web 多一个空的 cli 阶段（#277）：发版时用 --build-context cli=dist/cli 换成命令行产物，里面不能有任何参数或命令
+      expect(Object.keys(byName), service).toEqual(service === 'web' ? ['builder', 'cli', 'runtime'] : ['builder', 'runtime']);
+      if (service === 'web') expect(byName.cli.split('\n').filter(line => line && !line.startsWith('#')), service).toEqual(['FROM scratch AS cli']);
       expect(preamble, `${service} 不能有全局 ARG`).not.toMatch(/^ARG /m);
       expect(byName.builder, service).toContain(`\nARG NPM_REGISTRY=${OFFICIAL_NPM}\n`);
       expect(byName.runtime, `${service} 的运行阶段不能带镜像参数`).not.toMatch(BUILD_ONLY);

@@ -269,6 +269,13 @@ proxy_set_header Connection "";
 proxy_read_timeout 60s;
 NGINX_HEADERS
 
+# ── geek 命令行分发产物（#277）──
+# 交叉编译在宿主机做（zig/cargo-zigbuild 是开发工具，不进镜像）：`node scripts/cli-dist.mjs` 产出 dist/cli/，
+# 发版构建用 `docker build --build-context cli=dist/cli ...` 把它换进这个阶段。CI 的镜像构建验证不传，
+# 这里是空的，镜像照样能建，只是 /cli/ 下没有文件（docs/services/cli/README.md「分发」）。
+# 仓库根的 .dockerignore 排除 `**/dist`，所以不能从普通构建上下文 COPY dist/cli/。
+FROM scratch AS cli
+
 # ── 运行阶段：nginx 1.31（alpine），以 nginx 用户（uid 101）运行 ──
 # 版本说明：任务书建议的 1.27 已从 Docker Hub 下线（官方只维护 1.30/1.31 两条线），
 # 1.31 也是本地实测配置所用的版本（nginx 1.31.6）。
@@ -289,10 +296,8 @@ COPY --from=builder /repo/app/web/dist /usr/share/nginx/html
 # 控制台产物叠进同一个站点根（sites/console/、console-assets/，与官网目录不重叠）。
 COPY --from=builder /repo/app/console/dist/ /usr/share/nginx/html/
 COPY --from=builder /release/release.json /usr/share/nginx/html/release.json
-# geek 命令行分发（#277）：交叉编译在宿主机做（zig/cargo-zigbuild 是开发工具，不进这个镜像），
-# 构建这个镜像之前必须先跑一次 `node scripts/cli-dist.mjs`，产出 dist/cli/（docs/services/cli/README.md）；
-# 这一步不走 builder 阶段，直接从构建上下文 COPY，缺这个目录会让构建在这里报错，不是默默跳过。
-COPY dist/cli/ /usr/share/nginx/html/cli/
+# geek 命令行分发（#277）：见上面的 cli 阶段。
+COPY --from=cli / /usr/share/nginx/html/cli/
 COPY --from=builder /nginx-out/nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /nginx-out/conf.d/ /etc/nginx/conf.d/
 

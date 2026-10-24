@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 把 app/cli 交叉编译到 5 个目标、算 sha256，产出 dist/cli/<version>/...（#277）。
 // zig 和 cargo-zigbuild 是开发机工具，不进镜像、不是生产依赖：构建 app/web 镜像之前先在本机把这个脚本
-// 跑完，dist/cli/ 里的产物再被 Dockerfile COPY 进 /usr/share/nginx/html/cli/（见 docs/services/cli/README.md、
+// 跑完，再用 `docker build --build-context cli=dist/cli` 把 dist/cli/ 换进 Dockerfile 的 cli 阶段（见 docs/services/cli/README.md、
 // docs/services/web/README.md）。dist/ 已经被 .gitignore 的 `dist` 一行覆盖（和 app/web/dist、app/console/dist
 // 一样），这里的产物不进仓库。
 //
