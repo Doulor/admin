@@ -8,9 +8,11 @@ export interface FixtureViewer {
   userId: string | null
   kind: 'guest' | 'member'
   capabilities: string[]
+  level: 'public' | 'registered' | 'member'
+  nodes: string[]
 }
 
-const GUEST_VIEWER: FixtureViewer = { userId: null, kind: 'guest', capabilities: [] }
+const GUEST_VIEWER: FixtureViewer = { userId: null, kind: 'guest', capabilities: [], level: 'public', nodes: [] }
 
 export function serverState(viewer: FixtureViewer = GUEST_VIEWER) {
   const prefs = { reply: true, like: true, follow: true }
@@ -50,8 +52,9 @@ export function serverBody(viewer: FixtureViewer = GUEST_VIEWER) {
   return { state: serverState(viewer) }
 }
 
-export const MEMBER_VIEWER: FixtureViewer = { userId: 'm1001', kind: 'member', capabilities: [] }
-export const MODERATOR_VIEWER: FixtureViewer = { userId: 'm1001', kind: 'member', capabilities: ['forum.topic.pin', 'forum.topic.close', 'forum.post.moderate'] }
+const MEMBER_NODES = ['forum.topic.create', 'forum.reply.create', 'forum.react', 'forum.sticker.use', 'forum.upload.image']
+export const MEMBER_VIEWER: FixtureViewer = { userId: 'm1001', kind: 'member', capabilities: [], level: 'member', nodes: MEMBER_NODES }
+export const MODERATOR_VIEWER: FixtureViewer = { userId: 'm1001', kind: 'member', capabilities: ['forum.topic.pin', 'forum.topic.close', 'forum.post.moderate'], level: 'member', nodes: [...MEMBER_NODES, 'forum.moderate.edit'] }
 
 /**
  * A write's answer in the shape the contract fixes (#145): only the changed

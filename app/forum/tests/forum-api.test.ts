@@ -8,8 +8,8 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 describe('parseServerSnapshot', () => {
   it('takes viewer and guestPolicy out of state, and leaves a plain ForumState', () => {
-    const { state, viewer, guestPolicy } = parseServerSnapshot(serverBody({ userId: 'm1001', kind: 'member', capabilities: ['forum.topic.pin'] }))
-    expect(viewer).toEqual({ userId: 'm1001', kind: 'member', capabilities: ['forum.topic.pin'] })
+    const { state, viewer, guestPolicy } = parseServerSnapshot(serverBody({ userId: 'm1001', kind: 'member', capabilities: ['forum.topic.pin'], level: 'member', nodes: [] }))
+    expect(viewer).toEqual({ userId: 'm1001', kind: 'member', capabilities: ['forum.topic.pin'], level: 'member', nodes: [] })
     expect(guestPolicy).toEqual({ powDifficulty: 2, turnstileSiteKey: null, nameMax: 20, contentMax: 2000 })
     expect(state).not.toHaveProperty('viewer')
     expect(state).not.toHaveProperty('guestPolicy')
