@@ -164,7 +164,7 @@ pnpm forum:check     # Nuxt 类型、测试类型、ESLint、样式 guard、Vite
 pnpm forum:generate  # 静态构建（默认示例种子），产物含每个种子话题的 t/<id>.md 与 llms.txt
 GEEK_FORUM_SOURCE=site GEEK_FORUM_BASE_PATH=/forum/ node scripts/forum.mjs generate  # 按镜像的方式构建极客班论坛，产物含每篇公开旧帖的 t/<id>.md 与 llms.txt
 pnpm forum:verify    # guard 自测 + 原仓 CDP 四套交互 + 全路由 smoke
-node scripts/check-forum-adoption.mjs   # 上游文件摘要与集成差异
+node scripts/check-forum-adoption.mjs   # 上游文件摘要、集成差异与批准过的依赖
 ```
 
 CDP 使用独立临时浏览器，只清理本次进程组。原仓单测与旧 Fastify 的历史测试不能混算。`forum:check/generate/verify` 默认以示例种子运行、不转发快照目录；调用方给 `GEEK_FORUM_SOURCE=site` 时 `check`/`generate` 按极客班论坛构建，`verify` 忽略它（上游 CDP 套件断言示例数据）。3456 上若有快照模式或极客班论坛模式的预览，`forum:verify` 拒绝执行并要求先 `forum:stop`。快照文档与资产索引的解析规则由 `app/forum/tests/local-snapshot.test.ts` 用虚构夹具覆盖，测试不读取真实投影。

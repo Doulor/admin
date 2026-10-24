@@ -2,7 +2,7 @@
 
 > 发版只靠打 tag：`vX.Y.Z-rc.N` 打在 `stage` 的提交上发预发布，在预发布验收通过后，在同一提交上打 `vX.Y.Z` 发正式。tag 不可移动、不可删除，版本号不自动提升。
 
-状态：`current` · 更新：2026-10-18 · 依据：2026-09-24 指令：「后续所有相关的 都是走发版的逻辑，通过打 tag 去发版。目前所有的发版流程是：先发预发布版，预发布版测试没啥问题的时候，再发正式版。」写法选定为 SemVer。分支规则见 [BRANCHING](BRANCHING.md)。
+状态：`current` · 更新：2026-10-24 · 依据：2026-09-24 指令：「后续所有相关的 都是走发版的逻辑，通过打 tag 去发版。目前所有的发版流程是：先发预发布版，预发布版测试没啥问题的时候，再发正式版。」写法选定为 SemVer。分支规则见 [BRANCHING](BRANCHING.md)。
 
 ## 发布模型：tag 驱动
 
@@ -76,7 +76,7 @@
 
 - `package.json` 的 `version` 何时改、改成多少，要先有 Crosery 的明确决定（写在对应 issue 里）。建单遵循 [ISSUES](ISSUES.md) §1 的确认门禁，修改走普通 task PR、经审查合入 `stage`，合入以后才能打这个版本的 rc。版本号按 SemVer 2.0.0 选择升哪一位。
 - 禁止 semantic-release、版本机器人或按 commit type 推算版本的脚本；`feat`/`fix` 提交消息不是发版许可。工作流不会改版本号，也不会打 tag。
-- 发布版本只取**提交态根** `package.json` 的 `version`（`scripts/release-policy.mjs` 与两条部署工作流都读根清单）。`app/forum/package.json` 由上游溯源固定：`app/forum/UPSTREAM.json` 与 `scripts/check-forum-adoption.mjs:20,23` 禁止改动上游清单与锁文件，要动它得先单独复审一次上游升级。所以升号 PR 不改论坛清单，它与根清单版本不同不是缺陷。
+- 发布版本只取**提交态根** `package.json` 的 `version`（`scripts/release-policy.mjs` 与两条部署工作流都读根清单）。`app/forum/package.json` 由上游溯源固定：`scripts/check-forum-adoption.mjs` 按 `app/forum/UPSTREAM.json` 核对上游清单与锁文件，只认 `app/forum/ADOPTION.json` 的 `approvedDependencies` 里所有者逐个批准、写死版本的依赖和审过的那一份锁文件（`scripts/forum-dependencies.mjs`，#276 的 Milkdown 两个包），其它改动要先单独复审一次上游升级。升号 PR 不改论坛清单，它与根清单版本不同不是缺陷。
 
 ## 展示值与发布身份
 
