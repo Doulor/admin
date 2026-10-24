@@ -113,3 +113,10 @@
 - 做了什么：services.ts 在 createRoleStore() 之后调用 archiveOldDepartments()；核查 computeAccess()/access.resolve() 在生产路由零调用，归档不影响真实权限；console.test.ts 的 archived:false 断言改成 archived:true；用 .tools/yugc-v2/db/preview-copy.db 的真实预发布快照复制品跑 createDatabase() 完整迁移链路两次，记录前后 21 张表行数
 - 结果：commit ea97c7e6，9 files changed；演练：departments.archived 0→4（其余 21 张表行数两次调用前后全部不变）；npx vitest run → 113/114 文件、1859/1860 通过（唯一失败是已知的 #145 前端解析缺口）；pnpm check:catalog 通过
 - 下一步：item 8：CONSOLE_ORG 改常量与 roles.ts 清理；补齐新端点专项测试；最终 docs/changes/276.json 与 check-architecture 全量核对
+
+## 20:36:37 +08:00 · 提交 · #276 · CONSOLE_ORG 改固定常量，清掉 github.* 死能力与旧能力系统的部分残留
+
+- 执行者：agent-c276s（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：config.ts 去掉 CONSOLE_ORG 的环境读取与校验，consoleOrg 字段从 AppConfig 删除；4 个调用方（services.ts/portal feedback.ts/console feedback.ts/console me.ts）改用 DEFAULT_CONSOLE_ORG 常量；deploy 两份 compose、两份 .env 契约、deployment-environment.mjs 的 REQUIRED_FIELDS、docs/ops/ENVIRONMENTS.md 与 ENVIRONMENT.md、server README 两处跟着去掉环境变量说法；roles.ts 删 6 个 github.* 能力与 github domain（grep 全仓确认零读者），连带 IMPLIES/ROLE_BASE/DEFAULT_DEPARTMENTS 里的引用；ownership.json 删孤立的 capabilityDomains 映射，catalog:generate 重新生成（22→16 能力）；更新 3 个测试文件去掉 CONSOLE_ORG 环境覆盖写法
+- 结果：commit c6edfd66，25 files changed；pnpm typecheck 通过；npx vitest run → 113/114 文件、1858/1859 通过（唯一失败是已记录的 #145 已知缺口）；check:catalog、check:environments 通过
+- 下一步：最终一轮：docs/changes/276.json 全量重写、check-architecture 全量核对、check:secrets/check:boundaries/check-doc-sync/check-docs/docs-index，然后给团队负责人完整汇报
