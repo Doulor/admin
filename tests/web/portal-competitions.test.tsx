@@ -300,7 +300,7 @@ describe("加载中、没有比赛、筛空、读不到", () => {
 
 describe("状态按本地时间算", () => {
   it("状态由时间算出来，截止当天整天都还算报名中", () => {
-    const at = (start: number, end: number, deadline: number | null) => ({ start_at: start, end_at: end, signup_deadline: deadline });
+    const at = (start: number, end: number, deadline: number | null, planning = false) => ({ start_at: start, end_at: end, signup_deadline: deadline, planning });
     expect(statusAt(at(NOW + HOUR, NOW + 2 * HOUR, NOW + 30 * 60_000), NOW)).toBe("registering");
     expect(statusAt(at(NOW + HOUR, NOW + 2 * HOUR, null), NOW)).toBe("upcoming");
     expect(statusAt(at(NOW + HOUR, NOW + 2 * HOUR, NOW - 1), NOW)).toBe("closed");
@@ -308,6 +308,9 @@ describe("状态按本地时间算", () => {
     // 已开场但还能补报：报名中压过进行中
     expect(statusAt(at(NOW - HOUR, NOW + HOUR, NOW + HOUR), NOW)).toBe("registering");
     expect(statusAt(at(NOW - 2 * HOUR, NOW - 1, null), NOW)).toBe("ended");
+    // 规划中（#278）：开赛前压过报名中/未开始，过了开赛时间就不再生效
+    expect(statusAt(at(NOW + HOUR, NOW + 2 * HOUR, NOW + 30 * 60_000, true), NOW)).toBe("planning");
+    expect(statusAt(at(NOW - HOUR, NOW + HOUR, null, true), NOW)).toBe("ongoing");
   });
 
   it("展示的状态按本地时间算，服务端给的 status 不作数", async () => {
@@ -342,16 +345,22 @@ describe("状态按本地时间算", () => {
   it("官网的 statusAt 与服务端的 competitionStatus 逐点一致", () => {
     const NOW = 1_800_000_000_000;
     const rows = [
-      { start_at: NOW + HOUR, end_at: NOW + 2 * HOUR, signup_deadline: NOW + 30 * 60_000 },
-      { start_at: NOW + HOUR, end_at: NOW + 2 * HOUR, signup_deadline: null },
-      { start_at: NOW + HOUR, end_at: NOW + 2 * HOUR, signup_deadline: NOW - 1 },
-      { start_at: NOW - HOUR, end_at: NOW + HOUR, signup_deadline: NOW - 1 },
-      { start_at: NOW - HOUR, end_at: NOW + HOUR, signup_deadline: NOW + HOUR },
-      { start_at: NOW - 2 * HOUR, end_at: NOW - 1, signup_deadline: null },
+      { start_at: NOW + HOUR, end_at: NOW + 2 * HOUR, signup_deadline: NOW + 30 * 60_000, planning: false },
+      { start_at: NOW + HOUR, end_at: NOW + 2 * HOUR, signup_deadline: null, planning: false },
+      { start_at: NOW + HOUR, end_at: NOW + 2 * HOUR, signup_deadline: NOW - 1, planning: false },
+      { start_at: NOW - HOUR, end_at: NOW + HOUR, signup_deadline: NOW - 1, planning: false },
+      { start_at: NOW - HOUR, end_at: NOW + HOUR, signup_deadline: NOW + HOUR, planning: false },
+      { start_at: NOW - 2 * HOUR, end_at: NOW - 1, signup_deadline: null, planning: false },
       // 边界本身：截止与结束那一刻
-      { start_at: NOW + HOUR, end_at: NOW + 2 * HOUR, signup_deadline: NOW },
-      { start_at: NOW, end_at: NOW + HOUR, signup_deadline: NOW + 1 },
-      { start_at: NOW - HOUR, end_at: NOW, signup_deadline: null },
+      { start_at: NOW + HOUR, end_at: NOW + 2 * HOUR, signup_deadline: NOW, planning: false },
+      { start_at: NOW, end_at: NOW + HOUR, signup_deadline: NOW + 1, planning: false },
+      { start_at: NOW - HOUR, end_at: NOW, signup_deadline: null, planning: false },
+      // 规划中（#278）：开赛前压过报名中/未开始，开赛后（含边界）不再生效
+      { start_at: NOW + HOUR, end_at: NOW + 2 * HOUR, signup_deadline: NOW + 30 * 60_000, planning: true },
+      { start_at: NOW + HOUR, end_at: NOW + 2 * HOUR, signup_deadline: null, planning: true },
+      { start_at: NOW - HOUR, end_at: NOW + HOUR, signup_deadline: null, planning: true },
+      { start_at: NOW, end_at: NOW + HOUR, signup_deadline: null, planning: true },
+      { start_at: NOW - 2 * HOUR, end_at: NOW - 1, signup_deadline: null, planning: true },
     ];
     for (const row of rows) {
       expect(statusAt(row, NOW)).toBe(competitionStatus(row, NOW));
@@ -477,7 +486,7 @@ describe("日期与文案（北京时间 2026-10-20 周二 10:00）", () => {
   });
 
   it("赛程按时间排，过去的标已过；截止与结束那一刻还不算过去，和 statusAt 一致", () => {
-    const item = { start_at: start("2026-10-23"), end_at: end("2026-10-24"), signup_deadline: end("2026-10-21") };
+    const item = { start_at: start("2026-10-23"), end_at: end("2026-10-24"), signup_deadline: end("2026-10-21"), planning: false };
     const states = (at: number) => scheduleSteps(item, at).map((step) => `${step.label}:${step.state}`);
     expect(states(now)).toEqual(["报名截止:next", "开赛:later", "结束:later"]);
     expect(states(item.signup_deadline)).toEqual(["报名截止:next", "开赛:later", "结束:later"]);

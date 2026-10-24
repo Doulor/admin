@@ -29,9 +29,9 @@ const router = useRouter();
 const { can } = useSession();
 const list = useResource(() => api<{ competitions: CompetitionRecord[] }>("/api/console/competitions"), []);
 
-/** 状态色：报名中用成功色，进行中用主色，报不了名的与结束过的都弱化。 */
+/** 状态色：报名中用成功色，进行中用主色，报不了名的与结束过的都弱化；规划中最弱化，组织者还在筹备。 */
 const STATUS_TONE: Record<CompetitionStatus, "success" | "info" | "warning" | "muted"> = {
-  upcoming: "info", registering: "success", ongoing: "info", closed: "warning", ended: "muted",
+  planning: "muted", upcoming: "info", registering: "success", ongoing: "info", closed: "warning", ended: "muted",
 };
 
 const columns = [

@@ -171,6 +171,34 @@ describe('public competition endpoints', () => {
     expect(status.actions).toEqual([]);
     expect(status.state).toBe('none');
   });
+
+  // 规划中（#278，所有者 2026-10-25）：组织者还在筹备，即使报名设置已经打开、报名截止时间也还没到
+  // （不规划的话这就该是「报名中」），报名与组队也要一律拒绝，而不是「还没开放」或「已经截止」那两种措辞。
+  it('refuses signups and team creation while the competition is still planning', async () => {
+    const { configure, makeCompetition, myStatus, signUp, createTeam } = await setup();
+    const now = Date.now();
+    const planning = await makeCompetition({ planning: true, start_at: now + DAY, end_at: now + 10 * DAY, signup_deadline: now + 2 * DAY });
+    expect((await configure(planning, TEAM_SETTINGS)).statusCode).toBe(200);
+
+    const refused = await signUp(planning, 'bob');
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json().error).toBe('competition_planning');
+
+    const refusedTeam = await createTeam(planning, 'bob', { name: '规划中测试队' });
+    expect(refusedTeam.statusCode).toBe(409);
+    expect(refusedTeam.json().error).toBe('competition_planning');
+
+    const status = await myStatus(planning, 'bob');
+    expect(status.writable).toBe(false);
+    expect(status.actions).toEqual([]);
+    expect(status.state).toBe('none');
+
+    // 一过开赛时间，规划中标记不再生效：报名照常按时间算（这里截止时间还没到，变回报名中）
+    const started = await makeCompetition({ planning: true, start_at: now - HOUR, end_at: now + 10 * DAY, signup_deadline: now + 2 * DAY });
+    expect((await configure(started, TEAM_SETTINGS)).statusCode).toBe(200);
+    const allowed = await signUp(started, 'bob');
+    expect(allowed.statusCode).toBe(200);
+  });
 });
 
 describe('signup', () => {

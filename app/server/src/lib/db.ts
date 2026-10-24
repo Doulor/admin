@@ -1140,6 +1140,12 @@ addColumn("competition_teams", "plaza_note", "TEXT NOT NULL DEFAULT ''");
 addColumn("competition_teams", "plaza_skills", "TEXT NOT NULL DEFAULT '[]'");
 addColumn("competition_teams", "plaza_updated_at", "INTEGER");
 
+// 规划中状态（#278，所有者 2026-10-25 01:03「比赛是有状态的，规划中，进行中，已结束啥的」）：组织者还在筹备、
+// 还没准备好开放报名时打开，`competitionStatus` 在开赛前把它算成 "planning"，报名与组队一律拒绝；一旦过了
+// 开赛时间，这个标记就不再生效，照原有规则走进行中/已结束（不会把已经开赛的比赛卡在「规划中」，见 competition-store.ts）。
+// 旧比赛都是 0，行为不变。
+addColumn("competitions", "planning", "INTEGER NOT NULL DEFAULT 0 CHECK (planning IN (0, 1))");
+
 // 第一期的计分规则、奖项与 GitLab 项目（#278，所有者 2026-10-24 13:45）：用 `console_seeds` 标记，只插一次；
 // 组织者之后在控制台改掉，重启也不再补回来。比赛本身被删掉时什么也不插。
 const COMPETITION_RULES_SEED = "competition_oss_2026_1_rules";

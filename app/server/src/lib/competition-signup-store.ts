@@ -88,7 +88,7 @@ export type Roster = { settings: SignupSettings; stats: Stats; signups: RosterSi
  */
 export type SignupErrorCode =
   | "not_found" | "team_not_found" | "not_team_leader"
-  | "signup_not_enabled" | "signup_closed" | "not_signed_up" | "individual_competition"
+  | "competition_planning" | "signup_not_enabled" | "signup_closed" | "not_signed_up" | "individual_competition"
   | "already_in_team" | "already_applied" | "already_invited" | "invitee_not_signed_up" | "target_not_member"
   | "team_full" | "team_too_small" | "team_locked" | "duplicate_team_name" | "is_team_leader" | "invalid_state"
   | "bad_note" | "bad_team_name" | "bad_slogan" | "bad_message" | "bad_team_size"
@@ -99,6 +99,8 @@ export const SIGNUP_ERRORS: Record<SignupErrorCode, { status: number; message: s
   not_found: { status: 404, message: "比赛不存在或已下线" },
   team_not_found: { status: 404, message: "队伍不存在或已解散" },
   not_team_leader: { status: 403, message: "只有领队能做这个操作" },
+  // 规划中（#278）：组织者还在筹备，开赛前一律拒绝报名与组队，和「还没开放」「已经截止」是三件不同的事。
+  competition_planning: { status: 409, message: "比赛还在规划中，暂未开放报名" },
   signup_not_enabled: { status: 409, message: "这场比赛还没有开放报名" },
   signup_closed: { status: 409, message: "报名已截止，这场比赛进入只读" },
   not_signed_up: { status: 409, message: "请先报名这场比赛" },
@@ -173,9 +175,9 @@ export function parsePlazaSkills(raw: string): string[] {
   }
 }
 
-/** 可写 = 已开放报名且在报名中（截止前、结束前）。未开放与不在报名中分两个错误码。 */
+/** 可写 = 已开放报名且在报名中（截止前、结束前）。未开放、规划中与不在报名中分开的错误码见 `writeFailure`。 */
 export function signupWritable(
-  record: Pick<CompetitionRecord, "start_at" | "end_at" | "signup_deadline">,
+  record: Pick<CompetitionRecord, "start_at" | "end_at" | "signup_deadline" | "planning">,
   settings: SignupSettings,
   now: number,
 ): boolean {
@@ -183,6 +185,8 @@ export function signupWritable(
 }
 
 function writeFailure(record: CompetitionRecord, settings: SignupSettings, now: number): SignupFailure | null {
+  // 规划中压过「还没开放」：组织者还在筹备，不该先看到「没开放报名」这种听起来随时会开的提示。
+  if (competitionStatus(record, now) === "planning") return failure("competition_planning");
   if (!settings.enabled) return failure("signup_not_enabled");
   if (competitionStatus(record, now) !== "registering") return failure("signup_closed");
   return null;

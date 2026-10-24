@@ -192,12 +192,14 @@ export type FeedbackList = { items: FeedbackItem[]; counts: Record<string, numbe
 
 // ---- 比赛（#238/#239，不受本次权限改版影响） ----
 
-export type CompetitionStatus = "upcoming" | "registering" | "closed" | "ongoing" | "ended";
+export type CompetitionStatus = "planning" | "upcoming" | "registering" | "closed" | "ongoing" | "ended";
 export type CompetitionKind = "internal" | "external";
 export type CompetitionRecord = {
   id: string; name: string; kind: CompetitionKind;
   start_at: number; end_at: number; signup_deadline: number | null;
   url: string | null; description: string; status: CompetitionStatus; offline: boolean;
+  /** 规划中（#278）：组织者还在筹备，开赛前拒绝报名与组队；表单控件由主会话接上。 */
+  planning: boolean;
 };
 
 export type SignupParticipation = "individual" | "team";

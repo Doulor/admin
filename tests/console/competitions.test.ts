@@ -134,7 +134,7 @@ describe("round trip and labels", () => {
   });
 
   it("has a label for every status and kind the server can send", () => {
-    expect(Object.values(STATUS_TEXT).sort()).toEqual(["未开始", "已结束", "报名中", "报名已截止", "进行中"].sort());
+    expect(Object.values(STATUS_TEXT).sort()).toEqual(["未开始", "已结束", "报名中", "报名已截止", "规划中", "进行中"].sort());
     expect(KIND_TEXT).toEqual({ internal: "内部", external: "外部" });
   });
 });
@@ -146,9 +146,10 @@ it("recalculates preview status and ordering on every read", () => {
   try {
     const rows = read();
     expect(rows.find(row => row.id === "c1001")?.status).toBe("ended");
-    expect(rows.map(row => row.id)).toEqual(["c1002", "c1001", "c1003"]);
+    // c1004（规划中，#278）开赛最晚，还没结束时排在 c1002 后面；全部结束后按开始时间倒序排在最前
+    expect(rows.map(row => row.id)).toEqual(["c1002", "c1004", "c1001", "c1003"]);
     clock.mockReturnValue(Math.max(...rows.map(row => row.end_at)) + 1);
-    expect(read().map(row => row.id)).toEqual(["c1002", "c1001", "c1003"]);
+    expect(read().map(row => row.id)).toEqual(["c1004", "c1002", "c1001", "c1003"]);
   } finally {
     clock.mockRestore();
   }

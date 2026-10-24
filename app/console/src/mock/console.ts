@@ -548,11 +548,15 @@ const mailSettings = (email: string) => ({ enabled: true, recipients: "allowlist
 // ---- 比赛样板（#238/#239，照旧）----
 
 const MOCK_COMPETITIONS = [
-  { id: "c1001", name: "极客班算法挑战赛", kind: "internal", start_at: now + 6 * DAY, end_at: now + 6 * DAY + 6 * HOUR, signup_deadline: beijingDayEnd(now + 4 * DAY), url: null, description: "班内选拔，前五名进校赛。", offline: false },
-  { id: "c1002", name: "蓝桥杯省赛", kind: "external", start_at: now + 20 * DAY, end_at: now + 20 * DAY + 4 * HOUR, signup_deadline: beijingDayEnd(now + 12 * DAY), url: "https://dasai.lanqiao.cn/", description: "以学校为单位报名。", offline: false },
-  { id: "c1003", name: "上一期内测赛", kind: "internal", start_at: now - 9 * DAY, end_at: now - 8 * DAY, signup_deadline: null, url: null, description: "热身用的小比赛，不计成绩。", offline: false },
+  { id: "c1001", name: "极客班算法挑战赛", kind: "internal", start_at: now + 6 * DAY, end_at: now + 6 * DAY + 6 * HOUR, signup_deadline: beijingDayEnd(now + 4 * DAY), url: null, description: "班内选拔，前五名进校赛。", offline: false, planning: false },
+  { id: "c1002", name: "蓝桥杯省赛", kind: "external", start_at: now + 20 * DAY, end_at: now + 20 * DAY + 4 * HOUR, signup_deadline: beijingDayEnd(now + 12 * DAY), url: "https://dasai.lanqiao.cn/", description: "以学校为单位报名。", offline: false, planning: false },
+  { id: "c1003", name: "上一期内测赛", kind: "internal", start_at: now - 9 * DAY, end_at: now - 8 * DAY, signup_deadline: null, url: null, description: "热身用的小比赛，不计成绩。", offline: false, planning: false },
+  // 规划中（#278）：还没准备好开放报名，报名截止时间已经预填但不生效，留给组织者核对表单在这个状态下的样子。
+  { id: "c1004", name: "下一期开源贡献赛", kind: "internal", start_at: now + 40 * DAY, end_at: now + 40 * DAY + 20 * DAY, signup_deadline: beijingDayEnd(now + 35 * DAY), url: null, description: "规则还在整理，暂不开放报名。", offline: false, planning: true },
 ];
-function mockCompetitionStatus(row: { start_at: number; end_at: number; signup_deadline: number | null }, at: number) {
+/** 和服务端 `competitionStatus` 同一套口径：`planning` 打开且还没到开赛时间时压过其余规则。 */
+function mockCompetitionStatus(row: { start_at: number; end_at: number; signup_deadline: number | null; planning: boolean }, at: number) {
+  if (row.planning && at < row.start_at) return "planning";
   if (at > row.end_at) return "ended";
   if (row.signup_deadline !== null && at <= row.signup_deadline) return "registering";
   if (at >= row.start_at) return "ongoing";

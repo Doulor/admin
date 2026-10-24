@@ -11,7 +11,7 @@ const DAY_MS = 24 * 3600_000;
 const pad = (value: number) => String(value).padStart(2, "0");
 
 export const STATUS_TEXT: Record<CompetitionStatus, string> = {
-  upcoming: "未开始", registering: "报名中", closed: "报名已截止", ongoing: "进行中", ended: "已结束",
+  planning: "规划中", upcoming: "未开始", registering: "报名中", closed: "报名已截止", ongoing: "进行中", ended: "已结束",
 };
 
 export const KIND_TEXT = { internal: "内部", external: "外部" } as const;

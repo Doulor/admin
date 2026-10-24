@@ -7,7 +7,7 @@
  */
 
 export type PublicPerson = { username: string; display_name: string; avatar_url: string | null };
-export type CompetitionStatus = "upcoming" | "registering" | "closed" | "ongoing" | "ended";
+export type CompetitionStatus = "planning" | "upcoming" | "registering" | "closed" | "ongoing" | "ended";
 export type PrizeTier = { from: number; to: number; amount_cny: number; title: string };
 export type GradeFactor = { grade: string; label: string; factor: number };
 export type Importance = "normal" | "important" | "critical";
@@ -35,6 +35,8 @@ export type PublicCompetition = {
   url: string | null;
   description: string;
   status: CompetitionStatus;
+  /** 规划中（#278）：组织者还在筹备，开赛前拒绝报名与组队；开赛后不再生效，状态按原有规则走。 */
+  planning: boolean;
   signup: { enabled: boolean; participation: "individual" | "team"; team_min: number; team_max: number; scoring: "none" | "contribution" };
   site_url: string | null;
   app_url: string;

@@ -10,6 +10,8 @@ export const competitionFields = {
   signup_deadline: { anyOf: [timestamp, { type: "null" }] },
   url: { anyOf: [{ ...text(500, 1), pattern: "^https://\\S+$" }, { type: "null" }] },
   description: text(1000),
+  // 规划中（#278，所有者 2026-10-25）：开赛前拒绝报名与组队；创建、修改都可选，不填按不规划处理。
+  planning: { type: "boolean" },
 };
 
 /** 报名设置。请求体用带边界的整数（team_min/team_max 1–20），响应体不再校验下界（人数已入库）。 */
@@ -24,7 +26,7 @@ const signupSummary = object(signupSettingsFields, Object.keys(signupSettingsFie
 
 const baseFields = {
   id: text(128, 1), ...competitionFields,
-  status: choices("upcoming", "registering", "closed", "ongoing", "ended"),
+  status: choices("planning", "upcoming", "registering", "closed", "ongoing", "ended"),
 };
 // #278：官网地址（已发布时 /c/<slug>/）、门户深链、可选的奖项、年级系数和定榜时间
 const prizeTierFields = { from: integer(1, 100), to: integer(1, 100), amount_cny: integer(0, 100_000), title: text(40) };
@@ -116,7 +118,7 @@ const myTeamSummary = object({ id: text(64, 1), name: text(30, 1), status: choic
   ["id", "name", "status", "member_count", "team_max"]);
 const myCompetitionItem = object({
   competition_id: text(128, 1), name: text(80, 1), kind: choices("internal", "external"),
-  status: choices("upcoming", "registering", "closed", "ongoing", "ended"),
+  status: choices("planning", "upcoming", "registering", "closed", "ongoing", "ended"),
   start_at: number, end_at: number, signup_deadline: { anyOf: [number, { type: "null" }] },
   state: choices(...stateValues), team: { anyOf: [myTeamSummary, { type: "null" }] },
   pending_count: number,
