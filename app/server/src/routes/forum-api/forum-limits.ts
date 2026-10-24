@@ -1,5 +1,14 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { ipSubject } from "../../lib/forum-rules.js";
+import { ipHash } from "../../lib/forum-rules.js";
+
+/** meta_value 本该在写入时就校验过是 -1 或非负整数（routes/console/permission-groups.ts），这里仍然按
+ * "非法值当 0（最严）处理" 兜底（#274 残留修复 K）：旧数据、或者绕过控制台直接写库的值，`Number()` 转出
+ * NaN 时不能既不是「不限」也不是「放行」——参与比较的方向一不小心就会变成形同不限，必须显式收口到最严。 */
+function metaMax(raw: string | null, unlimitedWhenMissing: boolean): number {
+  if (raw === null) return unlimitedWhenMissing ? -1 : 0;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 /**
  * 按等级的每小时上限（SPEC §3.8），meta 节点 `meta.limit.forum.<action>.hourly`，-1 为不限（控制台可在
@@ -15,7 +24,7 @@ import { ipSubject } from "../../lib/forum-rules.js";
 export function hourlyLimited(req: FastifyRequest, reply: FastifyReply, action: "topic" | "reply", accountId: string): boolean {
   const { permissions, limits } = req.server.services;
   const raw = permissions.meta(accountId, `meta.limit.forum.${action}.hourly`);
-  const max = raw === null ? -1 : Number(raw);
+  const max = metaMax(raw, true);
   if (max <= 0) return false;
   const bucket = `forum.${action}.hourly`;
   const result = limits.hit({ bucket, subject: accountId, window: { ms: 60 * 60_000 }, max });
@@ -37,10 +46,12 @@ export function levelRateLimited(req: FastifyRequest, reply: FastifyReply, kind:
   const { permissions, limits } = req.server.services;
   const accountId = req.session?.account_id ?? null;
   const raw = permissions.meta(accountId, `meta.limit.${kind}.per_minute`);
-  const max = raw === null ? -1 : Number(raw);
+  const max = metaMax(raw, true);
   if (max === -1) return false;
   const bucket = `${kind}.per_minute`;
-  const result = limits.hit({ bucket, subject: accountId ?? ipSubject(req.ip), window: { ms: 60_000 }, max });
+  // #274 残留修复 K：访客这条线以前直接存 ipSubject(ip) 的明文（IPv4 原样、IPv6 按 /64），和账号桶的
+  // sha256(ip) 不一致，limit_events 里会留下访客的真实 IP 段。
+  const result = limits.hit({ bucket, subject: accountId ?? ipHash(req.ip), window: { ms: 60_000 }, max });
   if (result.ok) return false;
   void reply.code(429).header("Retry-After", String(result.retry_after)).send({
     error: "rate_limited", bucket, message: "操作太频繁，请稍后再试", retry_after: result.retry_after,
