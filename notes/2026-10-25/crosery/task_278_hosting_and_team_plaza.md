@@ -71,3 +71,17 @@
 - 做了什么：278.json 加 cli 应用、三个已登记流程与新改文件的覆盖说明，ownership.json 给组队广场三个流程补界面与令牌前缀的源码证据，重建目录与 docs/INDEX.md；在预发布库副本（/tmp 0600，用完删除）上跑两次迁移，第二次表数、列数、各表行数不变
 - 结果：commit d7232c51；check-architecture --base d1f64ec5 通过（73 个变更文件，148 个关联节点）；vitest 136 文件 2086 项全过；pnpm typecheck 与 check:runtime/site-config/environments/boundaries/docs/doc-sync/secrets/catalog/cli 全过
 - 下一步：推送并开 MR，作者自审
+
+## 03:33:36 +08:00 · PR · #278 · 开 MR !20 回 stage
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：推送 task/278/hosting_and_team_plaza（c0b613f7）到 GitLab，开 MR !20 目标 stage，正文按 PULL-REQUESTS 写目的（所有者原话）、关联 Closes #278、变更范围、宏观对齐、解决链路、迁移演练表与各表行数、验证命令、12 张截图、人工验收步骤、风险与回滚；标题改成词表里的 feat(server)
+- 结果：MR !20 https://git.yangtzeu.work/geek/admin/-/merge_requests/20
+- 下一步：作者自审并贴审查结论
+
+## 03:33:36 +08:00 · 审查 · #278 · 作者自审 MR !20：通过
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：按 code-review 两条线在主会话逐个文件核对 d1f64ec5...c0b613f7：文档同步、宏观对齐、断言改动只跟需求走、隐私口径（公开人员接口不含邮箱与真实姓名，--api 不转发凭据）、Tuffex 与无 emoji；逐条对照所有者 22:17、22:25、22:27、23:38、01:03 的原话；核对规划中只在开赛前生效、广场满员现算、limit 截断与游标校验
+- 结果：通过；记一处规范偏差：269e6f4d 用了词表外的 fix(contest)，已推送不改写历史，写进审查结论。未验证项（预发布真实写入、--api 对预发布、新备份上的迁移演练）随 rc.21 补
+- 下一步：贴审查评论并合并进 stage
