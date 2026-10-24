@@ -78,3 +78,10 @@
 - 做了什么：API.md/endpoint-contracts.md 补 viewer.level/nodes 说明与表情回应 camelCase 形状，去掉 guestPolicy 等已经不存在的响应字段描述（共 13+ 处）；data-model.md 补 6 张新表；docs/services/forum/README.md 只加「看的人」「表情回应」两条新内容，不动游客相关既有描述；新建 docs/changes/276.json（14 业务域、20 flows、8 项评估、7 条 coverage）；ownership.json 补 15 条 flows、1 条 moduleOwners（migrations/2026-10-forum-v2.ts 归 forum）、6 处 evidence 锚点，pnpm catalog:generate 重新生成 6 个产物
 - 结果：commit 6dba73f9，12 files changed；node scripts/check-architecture.mjs --base gitlab/stage → 宏观对齐通过（65 个变更文件，142 个关联节点）；pnpm check:catalog 通过；check-doc-sync/check-docs/docs-index 通过
 - 下一步：迁移演练、check:secrets/check:boundaries、给团队负责人的汇报
+
+## 19:33:41 +08:00 · 提交 · #276 · 迁移两次演练（真正含 #280 之后），记录 rebase 前后的提交哈希对照
+
+- 执行者：agent-c276s（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：发现本分支早先已经从 39ab81ab rebase 到 4c7c5dd5（#280 真实姓名/年级合并进 stage 之后），但 /tmp/c276 下旧的两次演练副本其实是 rebase 之前做的（account_profiles 当时还没有 real_name/enrollment_year 列），已经过期；拿同一份预 #280 预 #276 的旧快照重新演练：迁移一次（run1）之后 account_profiles 真的多出 real_name/enrollment_year，forum_topics 真的多出 visibility 列；再迁移一次（run2）核对幂等。rebase 前后的提交哈希对照（reflog 核实）：d65f5c90→2f668206、1b58529c→af92f8bf、fdf0e23b→688b7abc、8a0f8e8c→f52154ef、a639b6b6→8de850a7、a9cf5293→c49495be、0c296211→f3bcf8ba
+- 结果：before（预迁移）：forum_category_settings/sticker_packs/sticker_files/stickers/reactions/upload_files 均不存在（表还没建），forum_topics=17，forum_posts=17，forum_users=1，account_profiles=2，users=2；run1 之后：forum_category_settings=6，forum_sticker_packs=1，forum_sticker_files=24，forum_stickers=24，forum_reactions=0，forum_upload_files=0，forum_topics=17，forum_posts=17，forum_users=1，account_profiles=2，users=2；run2 之后：和 run1 逐项相同。两份临时数据库副本已删除
+- 下一步：全量 check 扫一遍，给团队负责人的汇报
