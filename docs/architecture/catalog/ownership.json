@@ -245,7 +245,9 @@
         "docs/services/server/endpoint-contracts.md",
         "docs/services/console/README.md",
         "docs/services/web/portal.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/architecture/SECURITY.md",
+        "docs/ops/DEPLOY.md"
       ],
       "tables": [
         "competitions",
@@ -253,7 +255,14 @@
         "competition_signups",
         "competition_teams",
         "competition_team_members",
-        "competition_score_events"
+        "competition_score_events",
+        "competition_site_versions",
+        "competition_sites",
+        "competition_gitlab_sources",
+        "competition_score_candidates",
+        "competition_rules",
+        "competition_finals",
+        "competition_prizes"
       ]
     }
   ],
@@ -292,7 +301,11 @@
     "app/server/src/routes/console/permissions.ts": "permissions",
     "app/server/src/routes/console/permission-groups.ts": "permissions",
     "app/server/src/routes/console/accounts.ts": "permissions",
-    "app/server/src/routes/console/users.ts": "permissions"
+    "app/server/src/routes/console/users.ts": "permissions",
+    "app/server/src/routes/console/competition-site.ts": "competitions",
+    "app/server/src/routes/console/competition-candidates.ts": "competitions",
+    "app/server/src/routes/console/competition-results.ts": "competitions",
+    "app/server/src/routes/sites/index.ts": "competitions"
   },
   "routeOverrides": {
     "GET /api/public/config": "platform"
@@ -330,7 +343,14 @@
     "oauth_subjects": "下游看到的 sub（ADR-0005 决策 3）：按 sector 给每个账号一个 32 字节随机值，(sector_id,user_id) 与 (sector_id,sub) 都唯一，不随登录或换签名密钥变化；内部 account_id 不下发。只有 lib/oidc-store.ts 读写。",
     "oauth_grants": "本人允许过的 (账号, 应用) → oidc-provider 的授权 id：之后同一应用登录不再问。授权被撤销（例如授权码重放）后这一行指向的授权不存在，下次登录重新同意并覆盖。只有 lib/oidc-store.ts 读写。",
     "oidc_payloads": "oidc-provider 的存储（会话、交互、授权码、访问令牌、授权）：payload 是它的 JSON，按 expires_at 过期，每小时顺手清一次过期行；令牌与授权码只在这里，不进日志。只有 lib/oidc-store.ts 读写，目录不读取记录。",
-    "gitlab_accounts": "极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，从不删除；avatar_source 是传上去的头像来自哪里（forum:<散列> 或 GitHub 头像地址，#271），空是还没传过；emails_source 是上次同步过去的邮箱（JSON：主邮箱与其它邮箱，#272），空是还没同步过；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。"
+    "gitlab_accounts": "极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，从不删除；avatar_source 是传上去的头像来自哪里（forum:<散列> 或 GitHub 头像地址，#271），空是还没传过；emails_source 是上次同步过去的邮箱（JSON：主邮箱与其它邮箱，#272），空是还没同步过；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。",
+    "competition_site_versions": "比赛官网站点包的版本：一次上传一行，通过（passed）或拒绝（rejected）都留，report 是逐条校验结果；拒绝的版本不落文件。文件本身在数据库旁边的 sites/<competition_id>/<version_id>/，不进库。只有 lib/competition-site-store.ts 读写。",
+    "competition_sites": "比赛官网的发布状态：一场一行，slug 唯一且第一次发布后不能改，live_version_id 为空即已下线（版本与 slug 保留）。只有 lib/competition-site-store.ts 读写。",
+    "competition_gitlab_sources": "比赛从哪些 GitLab 项目收集贡献，控制台「计分与奖项」整份替换；没有行的比赛不收集。由 lib/competition-rules-store.ts 写，收集任务读。",
+    "competition_score_candidates": "GitLab 收来的候选贡献（合并的 MR、带「有用」标签或被 MR 关闭的 Issue）：唯一约束挡住重复收集；accepted_via 区分 GitLab 标签与控制台确认；状态变化只改列，不删行。只有 lib/competition-candidates.ts 读写。",
+    "competition_rules": "比赛的计分规则：年级系数（百分数，150 = 1.5）与可选奖项 JSON；没有行用默认系数、没有奖项；定榜后不能改。只有 lib/competition-rules-store.ts 读写。",
+    "competition_finals": "定榜：一场一行，standings 是定榜那一刻的严格名次快照，之后加分、撤销都不再改它；撤销定榜删行。只有 lib/competition-prizes.ts 读写。",
+    "competition_prizes": "定榜时给每个得奖的人一行：兑奖码只存 SHA-256 散列、AES-GCM 密文与末四位，不存明文；核销只改 redeemed_at/redeemed_by；公开接口从不返回这三列。只有 lib/competition-prizes.ts 读写。"
   },
   "supplementalInterfaces": [
     {
@@ -2185,6 +2205,10 @@
         {
           "path": "app/server/src/lib/beijing-time.ts",
           "needle": "export function beijingDayStart("
+        },
+        {
+          "path": "app/server/src/routes/console/me.ts",
+          "needle": "result.candidates_pending = app.services.competitionCandidates.pendingCount();"
         }
       ],
       "tests": [
@@ -4606,7 +4630,10 @@
       "operation": "GET /api/public/competitions",
       "capabilities": [],
       "reads": [
-        "competitions"
+        "competitions",
+        "competition_sites",
+        "competition_rules",
+        "competition_finals"
       ],
       "writes": [],
       "doesNotEnqueue": [],
@@ -4614,7 +4641,8 @@
         "匿名只读未下线赛事，响应只含公开字段，不含offline、创建时间或成员信息。",
         "响应200 {competitions}；五种状态按时间计算，未知报名截止的未来赛事为upcoming；未结束在前，已结束按开始时间倒序。",
         "每场带报名摘要signup（enabled、participation、team_min、team_max、scoring），没有设置行时回默认值；摘要不含报名人数、队伍或任何成员信息。",
-        "官网按关键词、可报名（报名中）与内部/外部筛选，每60秒重算状态与排序，损坏响应显示失败并可重试；全部类型链接可选且必须可解析HTTPS。"
+        "官网按关键词、可报名（报名中）与内部/外部筛选，每60秒重算状态与排序，损坏响应显示失败并可重试；全部类型链接可选且必须可解析HTTPS。",
+        "#278：每场另带 site_url（已发布时 /c/<slug>/）、app_url（门户比赛窗口深链）、prizes、grade_factors 与 finalized_at；不含兑奖码与任何人。"
       ],
       "evidence": [
         {
@@ -4695,7 +4723,8 @@
         "tests/console/competitions.test.ts",
         "tests/web/portal-competitions.test.tsx",
         "tests/e2e/competitions.spec.mts",
-        "tests/e2e/portal-competitions.spec.ts"
+        "tests/e2e/portal-competitions.spec.ts",
+        "tests/server/competition-public.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -4875,7 +4904,8 @@
         "sessions",
         "role_assignments",
         "departments",
-        "titles"
+        "titles",
+        "competition_sites"
       ],
       "writes": [
         "competitions",
@@ -4889,7 +4919,8 @@
         "200 {competition}；404不存在；合并原记录后验证时间，失败不写。省略字段保留，url和signup_deadline的null明确清空。",
         "有未取消的报名后不能改内外部（409 kind_locked）；已开放报名时不能清空报名截止时间（409 deadline_required）。",
         "控制台只PATCH实际修改字段，单改说明不改原始时分；offline=true从公开列表移除，false恢复原记录。",
-        "比赛更新与competition.update审计同一事务，审计失败回滚，不发邮件。"
+        "比赛更新与competition.update审计同一事务，审计失败回滚，不发邮件。",
+        "#278：已经发布官网的内部赛不能改成外部赛（409 competition_site_published，先下线）；改完清掉这场比赛的公开缓存。"
       ],
       "evidence": [
         {
@@ -4909,7 +4940,8 @@
         "tests/server/competitions.test.ts",
         "tests/console/competitions.test.ts",
         "tests/web/portal-competitions.test.tsx",
-        "tests/e2e/competitions.spec.mts"
+        "tests/e2e/competitions.spec.mts",
+        "tests/server/competition-site.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -4944,7 +4976,14 @@
       "writes": [
         "competitions",
         "activity_events",
-        "sessions"
+        "sessions",
+        "competition_site_versions",
+        "competition_sites",
+        "competition_gitlab_sources",
+        "competition_score_candidates",
+        "competition_rules",
+        "competition_finals",
+        "competition_prizes"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -4952,7 +4991,8 @@
         "共同身份路径：读取sessions与称号/部门权限，使用本人GitHub token查角色并缓存60秒；过期会话删除，上游拒绝token时删除并审计，不代表成功读取总是写库。",
         "200 {ok:true}；不存在或重复删除404。DELETE真删，暂时隐藏应使用下线。",
         "有报名记录（含已取消）的比赛不能删除，回409 has_signups：历史名单要靠下线保留。",
-        "只删除本环境赛事记录，并与competition.delete审计在同一事务提交；审计失败保留赛事，业务删除不增加共同身份查询以外的外部请求。"
+        "只删除本环境赛事记录，并与competition.delete审计在同一事务提交；审计失败保留赛事，业务删除不增加共同身份查询以外的外部请求。",
+        "#278：官网版本、发布状态、规则、GitLab 项目、候选、定榜与兑奖码随外键级联删掉，数据卷里的站点文件一起删，并清掉公开缓存。"
       ],
       "evidence": [
         {
@@ -4968,7 +5008,8 @@
         "tests/server/competitions.test.ts",
         "tests/console/competitions.test.ts",
         "tests/web/portal-competitions.test.tsx",
-        "tests/e2e/competitions.spec.mts"
+        "tests/e2e/competitions.spec.mts",
+        "tests/server/competition-site.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -5981,7 +6022,8 @@
         "departments",
         "titles",
         "users",
-        "identities"
+        "identities",
+        "competition_finals"
       ],
       "writes": [],
       "doesNotEnqueue": [],
@@ -5989,7 +6031,8 @@
         "权限与资源：登录且是极客班成员；比赛不存在或下线404 not_found；没有开启积分回409 scoring_not_enabled。",
         "响应200 {updated_at, individuals, teams}：个人榜含本场全部未取消报名者（0分也列）与所在队伍，队伍分是当前在队成员个人分之和。",
         "同分并列同名次并跳号（1,1,3）：个人按积分降序、报名先后；队伍按积分降序、建队先后。撤销的记录不计分。",
-        "只读；updated_at 取本场积分记录的最后写入或撤销时间，官网每30秒刷新。"
+        "只读；updated_at 取本场积分记录的最后写入或撤销时间，官网每30秒刷新。",
+        "#278：分数按 COALESCE(weighted_points, points) 计，#278 之前的记录按系数 1；门户比赛窗口每 10 秒刷新。"
       ],
       "evidence": [
         {
@@ -6015,7 +6058,8 @@
       ],
       "tests": [
         "tests/server/competition-scores.test.ts",
-        "tests/web/portal-competition-hub.test.tsx"
+        "tests/web/portal-competition-hub.test.tsx",
+        "tests/server/competition-public.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -6037,15 +6081,21 @@
       "capabilities": [],
       "reads": [
         "competitions",
-        "competition_signup_settings"
+        "competition_signup_settings",
+        "competition_sites",
+        "competition_rules",
+        "competition_finals"
       ],
-      "writes": [],
+      "writes": [
+        "limit_events"
+      ],
       "doesNotEnqueue": [],
       "invariants": [
         "匿名只读；比赛不存在或已下线一律404 not_found，不区分两种原因。",
         "响应200 与公开列表项字段一致，另带报名摘要 settings（是否开放、个人或团队、人数、积分），不含报名人数、队伍与任何成员信息。",
         "只在这个成功响应上放开 Access-Control-Allow-Origin: *，只读、不带 cookie；为比赛官网的状态卡片预留。",
-        "不读会话、不写库、不发外部请求。"
+        "不读会话、不写库、不发外部请求。",
+        "#278：字段同列表，多了 site_url、app_url、prizes、grade_factors、finalized_at；结果缓存 10 秒，按 IP 每分钟 120 次（public.competition.per_minute，记在 limit_events，和天梯、动态、统计、快照共用），成功、404 与 429 都带 Access-Control-Allow-Origin: *。"
       ],
       "evidence": [
         {
@@ -6062,7 +6112,8 @@
         }
       ],
       "tests": [
-        "tests/server/competition-signups.test.ts"
+        "tests/server/competition-signups.test.ts",
+        "tests/server/competition-public.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -6368,7 +6419,10 @@
         "sessions",
         "role_assignments",
         "departments",
-        "titles"
+        "titles",
+        "competition_rules",
+        "competition_finals",
+        "account_profiles"
       ],
       "writes": [
         "competition_score_events",
@@ -6379,7 +6433,8 @@
         "权限与资源：有效全站sid与competitions.manage；比赛不存在404；没有开启积分409 scoring_not_enabled。",
         "请求 {account_id, kind, points, reason?}：选手必须已报名本场（409 not_signed_up）；issue 5–30、pr 15–100、penalty 固定 −50（400 bad_points）；issue/pr 必填 owner/name 仓库与正整数编号（400 bad_repo / bad_number），扣分不带这两个字段。",
         "同一条Issue或PR已有有效记录回409 duplicate_score_event；201返回这条记录。",
-        "写入与competition.score.add审计同一事务，details只记比赛、选手、类型与分值；限流每分钟30次。"
+        "写入与competition.score.add审计同一事务，details只记比赛、选手、类型与分值；限流每分钟30次。",
+        "#278：加分按选手在记分那一刻的年级（account_profiles.enrollment_year）乘这场比赛的系数，grade、grade_factor、weighted_points 和记录一起写下、之后不重算；扣分不乘（系数记 100）；定榜后 409 competition_finalized；清掉公开缓存。"
       ],
       "evidence": [
         {
@@ -6397,11 +6452,16 @@
         {
           "path": "app/console/src/lib/competition-hub.ts",
           "needle": "export function scoreErrors("
+        },
+        {
+          "path": "app/server/src/lib/competition-rules-store.ts",
+          "needle": "export function gradeKeyAt("
         }
       ],
       "tests": [
         "tests/server/competition-scores.test.ts",
-        "tests/console/competition-hub.test.ts"
+        "tests/console/competition-hub.test.ts",
+        "tests/server/competition-public.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -6434,17 +6494,20 @@
         "sessions",
         "role_assignments",
         "departments",
-        "titles"
+        "titles",
+        "competition_score_candidates"
       ],
       "writes": [
         "competition_score_events",
-        "activity_events"
+        "activity_events",
+        "competition_score_candidates"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：有效全站sid与competitions.manage；记录不存在或不属于这场比赛404 not_found；已撤销409 already_revoked。",
         "请求 {reason?}（最多200字）：只把状态改成revoked并记撤销人、时间与原因，原分值与说明保留，不删行；撤销后不再计分。",
-        "写入与competition.score.revoke审计同一事务；限流每分钟30次。"
+        "写入与competition.score.revoke审计同一事务；限流每分钟30次。",
+        "#278：撤销一条来自 GitLab 候选的积分时，候选在同一事务里变成驳回；定榜后 409 competition_finalized；清掉公开缓存。"
       ],
       "evidence": [
         {
@@ -6462,7 +6525,8 @@
       ],
       "tests": [
         "tests/server/competition-scores.test.ts",
-        "tests/console/competition-hub.test.ts"
+        "tests/console/competition-hub.test.ts",
+        "tests/server/competition-candidates.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -6470,6 +6534,1522 @@
         "docs/services/server/data-model.md",
         "docs/services/console/README.md",
         "docs/plan/COMPETITION-APP.md"
+      ]
+    },
+    {
+      "id": "competition.site.redirect",
+      "title": "比赛官网地址补斜杠",
+      "domain": "competitions",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /c/:slug",
+      "capabilities": [],
+      "reads": [],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "匿名；只把 /c/<slug> 301 到 /c/<slug>/（Cache-Control: no-store），不查库、不读会话。",
+        "和 /c/:slug/* 一样经站点路由的 onSend 带 sandbox CSP、nosniff、Access-Control-Allow-Origin: *，并去掉 Set-Cookie。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/sites/index.ts",
+          "needle": "app.get<{ Params: { slug: string } }>(\"/c/:slug\","
+        },
+        {
+          "path": "app/server/src/routes/sites/index.ts",
+          "needle": "export const SITE_CSP ="
+        },
+        {
+          "path": "app/server/src/app.ts",
+          "needle": "await app.register(siteRoutes);"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-site.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/SECURITY.md",
+        "docs/ops/DEPLOY.md"
+      ]
+    },
+    {
+      "id": "competition.site.serve",
+      "title": "同域托管比赛官网与预览",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /c/:slug/*",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_sites",
+        "competition_site_versions",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "匿名读已发布版本的文件：目录回 index.html，没有扩展名但有同名目录的 301 到带 / 的地址；比赛下线、不是内部赛、没发布或文件不存在一律 404，不区分原因。",
+        "所有响应带 sandbox CSP（来源是 null，读不到主站 cookie 与存储，只能连同源）、nosniff、Access-Control-Allow-Origin: *，去掉 Set-Cookie；已发布的文件 Cache-Control: public, max-age=300。",
+        "预览：~preview/<version_id>/ 要会话有 competition.site.publish 且版本通过校验，302 到一小时有效的签名地址 ~preview/<version_id>.<到期秒>.<签名>/（HMAC，SESSION_SECRET）；签名地址不看会话、private, no-store；条件不满足一律 404。",
+        "只读，不写业务表；读会话时过期会话照常删除。web 容器的 nginx 只把 /c/ 原样转给 server，宿主的站点 CSP 与 sandbox CSP 叠加后同样只允许 'self'。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/sites/index.ts",
+          "needle": "app.get<{ Params: { slug: string; \"*\": string } }>(\"/c/:slug/*\""
+        },
+        {
+          "path": "app/server/src/lib/competition-site-store.ts",
+          "needle": "export function createCompetitionSiteStore("
+        },
+        {
+          "path": "app/server/src/lib/competition-site-store.ts",
+          "needle": "export const PREVIEW_TTL_MS"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx",
+          "needle": "export default function ContestSite({ href }: { href: string }) {"
+        },
+        {
+          "path": "app/web/Dockerfile",
+          "needle": "    location ^~ /c/ {"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-site.test.ts",
+        "tests/tooling/web-nginx.test.ts",
+        "tests/web/contest-site.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/SECURITY.md",
+        "docs/ops/DEPLOY.md",
+        "docs/services/web/README.md"
+      ]
+    },
+    {
+      "id": "competition.site.read",
+      "title": "控制台查看官网版本与发布状态",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/competitions/:competition_id/site",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_sites",
+        "competition_site_versions",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效会话，competition.manage 或 competition.site.publish；比赛不存在 404。",
+        "200 {slug, live_version_id, site_url, versions}：每个版本带逐条校验结果 report、上传人、大小与文件数；只有通过的版本有一小时有效的 preview_url。",
+        "只读，不写操作记录。控制台「官网」页签按这份状态列出版本、在线版本与预览链接。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-site.ts",
+          "needle": "app.get<{ Params: { competition_id: string } }>(\"/api/console/competitions/:competition_id/site\""
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/competitions/:competition_id/site\":"
+        },
+        {
+          "path": "app/console/src/pages/competition/SitePanel.vue",
+          "needle": "const site = useResource(() => api<SiteState>(base.value)"
+        },
+        {
+          "path": "app/console/src/lib/types.ts",
+          "needle": "export type SiteState ="
+        },
+        {
+          "path": "app/console/src/mock/console.ts",
+          "needle": "const MOCK_SITE: SiteState = {"
+        },
+        {
+          "path": "app/server/src/routes/console/index.ts",
+          "needle": "await app.register(competitionSite);"
+        },
+        {
+          "path": "app/server/src/services.ts",
+          "needle": "const competitionSites = createCompetitionSiteStore("
+        },
+        {
+          "path": "app/console/src/pages/CompetitionHub.vue",
+          "needle": "<SitePanel v-else-if=\"item.id === 'site'\""
+        }
+      ],
+      "tests": [
+        "tests/server/competition-site.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "competition.site.upload",
+      "title": "上传比赛官网站点包",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/competitions/:competition_id/site/versions",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_site_versions",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "competition_site_versions",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：competition.site.publish；写操作要 step-up（10 分钟内登录过），否则 403 step_up_required；控制台的 ErrorAlert 给「重新登录」。外部赛 409 competition_not_internal；每分钟 10 次。",
+        "请求体是 zip（Content-Type: application/zip，上限 20MB；web 容器的 nginx 只给这一条放到 21m，宿主模板仍是整站 6m，经正式域名超过 6MB 回 413）；校验在 lib/site-package.ts：≤500 个文件、解压后 ≤50MB、扩展名白名单、拒绝绝对路径、..、空段、以 . 开头的段、符号链接、加密、zip64 与重复文件，解压按声明大小封顶并核对 CRC；根目录要有 index.html 与 yzgc-site.json。",
+        "通过 201 版本行，文件写到 sites/<competition_id>/<version_id>/；不通过 422 {error:\"site_rejected\", report}，只留一条 rejected 版本、不落文件。",
+        "写 competition.site.upload 操作记录；本地打包用 pnpm contest:site pack，跑的是同一套校验。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-site.ts",
+          "needle": "\"/api/console/competitions/:competition_id/site/versions\","
+        },
+        {
+          "path": "app/server/src/lib/site-package.ts",
+          "needle": "export function checkSitePackage("
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"POST /api/console/competitions/:competition_id/site/versions\":"
+        },
+        {
+          "path": "app/console/src/pages/competition/SitePanel.vue",
+          "needle": "const upload = useAction(async () => {"
+        },
+        {
+          "path": "app/console/src/lib/competition-contest.ts",
+          "needle": "export function rejectReport("
+        },
+        {
+          "path": "scripts/contest-site.mjs",
+          "needle": "export function packDirectory("
+        },
+        {
+          "path": "app/server/src/lib/db.ts",
+          "needle": "CREATE TABLE IF NOT EXISTS competition_site_versions ("
+        }
+      ],
+      "tests": [
+        "tests/server/competition-site.test.ts",
+        "tests/tooling/contest-site.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/console/README.md",
+        "docs/ops/DEPLOY.md"
+      ]
+    },
+    {
+      "id": "competition.site.publish",
+      "title": "发布或回滚比赛官网",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/competitions/:competition_id/site/publish",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_sites",
+        "competition_site_versions",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "competition_sites",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：competition.site.publish；写操作要 step-up（10 分钟内登录过），否则 403 step_up_required；控制台的 ErrorAlert 给「重新登录」。每分钟 30 次；只能发布本场通过校验的版本。",
+        "body {version_id, slug?}：第一次发布必须带 slug（^[a-z0-9][a-z0-9-]{2,31}$），之后不能改（409 slug_locked），被别的比赛占用 409 slug_taken；回滚就是发布旧版本。",
+        "200 发布状态；写 competition.site.publish 操作记录（带上一个在线版本），清掉这场比赛的公开缓存，门户与公开接口的 site_url 随之出现。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-site.ts",
+          "needle": "\"/api/console/competitions/:competition_id/site/publish\","
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"POST /api/console/competitions/:competition_id/site/publish\":"
+        },
+        {
+          "path": "app/console/src/pages/competition/SitePanel.vue",
+          "needle": "const publish = useAction(async (version: SiteVersion) => {"
+        },
+        {
+          "path": "app/console/src/lib/competition-contest.ts",
+          "needle": "export function slugError("
+        }
+      ],
+      "tests": [
+        "tests/server/competition-site.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "competition.site.unpublish",
+      "title": "下线比赛官网",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "DELETE /api/console/competitions/:competition_id/site",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_sites",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "competition_sites",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：competition.site.publish；写操作要 step-up（10 分钟内登录过），否则 403 step_up_required；控制台的 ErrorAlert 给「重新登录」。没发布过 404 not_published。",
+        "200 发布状态：在线版本置空，版本与 slug 保留，可以再发布；/c/<slug>/ 回 404。",
+        "写 competition.site.unpublish 操作记录并清掉公开缓存；已经发布官网的比赛不能改成外部赛（PATCH 回 409 competition_site_published）。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-site.ts",
+          "needle": "app.delete<{ Params: { competition_id: string } }>("
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"DELETE /api/console/competitions/:competition_id/site\":"
+        },
+        {
+          "path": "app/console/src/pages/competition/SitePanel.vue",
+          "needle": "const unpublish = useAction(async () => {"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-site.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "competition.public.leaderboard",
+      "title": "公开读取加权积分天梯",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/public/competitions/:id/leaderboard",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_signup_settings",
+        "competition_signups",
+        "competition_teams",
+        "competition_team_members",
+        "competition_score_events",
+        "competition_rules",
+        "competition_finals",
+        "account_profiles",
+        "users",
+        "identities"
+      ],
+      "writes": [
+        "limit_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "匿名、不读会话；按 IP 每分钟 120 次（public.competition.per_minute，记在 limit_events，单场与四个公开接口共用一个桶），超了 429 {error:\"rate_limited\",bucket,retry_after} 并带 Retry-After；成功、404 与 429 都带 Access-Control-Allow-Origin: *，不带 Allow-Credentials。",
+        "人只给昵称、@用户名与头像，不给真实姓名、邮箱、account_id 与兑奖码；比赛不存在或下线 404 not_found。",
+        "200 {updated_at, individuals:[{rank, username, display_name, avatar_url, team_name, score}], teams:[{rank, name, members, score}]}：分数是按记分时刻年级系数加权后的；定榜后个人名次按定榜快照。",
+        "结果在服务端缓存 10 秒（publicCacheKey），加分、撤销、标记有用、改规则、发布官网、定榜时按比赛清掉（publicCachePrefix）。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/portal/competitions.ts",
+          "needle": "\"/api/public/competitions/:id/leaderboard\""
+        },
+        {
+          "path": "app/server/src/routes/portal/contracts.ts",
+          "needle": "\"GET /api/public/competitions/:id/leaderboard\":"
+        },
+        {
+          "path": "app/server/src/lib/competition-public.ts",
+          "needle": "export function createCompetitionPublic("
+        },
+        {
+          "path": "app/web/shared/competition-sdk/index.ts",
+          "needle": "export function createClient("
+        },
+        {
+          "path": "app/server/src/lib/limits.ts",
+          "needle": "\"public.competition.per_minute\": HOUR_MS,"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-public.test.ts",
+        "tests/web/competition-sdk.test.ts",
+        "tests/web/contest-site.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/architecture/SECURITY.md",
+        "docs/services/web/README.md"
+      ]
+    },
+    {
+      "id": "competition.public.feed",
+      "title": "公开读取贡献动态",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/public/competitions/:id/feed",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_score_events",
+        "competition_score_candidates",
+        "account_profiles",
+        "users",
+        "identities"
+      ],
+      "writes": [
+        "limit_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "匿名、不读会话；按 IP 每分钟 120 次（public.competition.per_minute，记在 limit_events，单场与四个公开接口共用一个桶），超了 429 {error:\"rate_limited\",bucket,retry_after} 并带 Retry-After；成功、404 与 429 都带 Access-Control-Allow-Origin: *，不带 Allow-Credentials。",
+        "人只给昵称、@用户名与头像，不给真实姓名、邮箱、account_id 与兑奖码；比赛不存在或下线 404 not_found。",
+        "200 {items:[{id, at, username, display_name, avatar_url, kind, title, url, points}], next_cursor}：只列有效积分，新的在前，每页默认 20、最多 50；标题与链接取自 GitLab 候选，扣分不给标题、链接和原因。",
+        "第一页缓存 10 秒，翻页不缓存；只读。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/portal/competitions.ts",
+          "needle": "\"/api/public/competitions/:id/feed\""
+        },
+        {
+          "path": "app/server/src/routes/portal/contracts.ts",
+          "needle": "\"GET /api/public/competitions/:id/feed\":"
+        },
+        {
+          "path": "app/server/src/lib/competition-public.ts",
+          "needle": "export const FEED_PAGE_MAX"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-public.test.ts",
+        "tests/web/competition-sdk.test.ts",
+        "tests/web/contest-site.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/architecture/SECURITY.md",
+        "docs/services/web/README.md"
+      ]
+    },
+    {
+      "id": "competition.public.stats",
+      "title": "公开读取比赛统计",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/public/competitions/:id/stats",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_signup_settings",
+        "competition_signups",
+        "competition_teams",
+        "competition_team_members",
+        "competition_score_events",
+        "competition_rules",
+        "competition_finals",
+        "account_profiles",
+        "users",
+        "identities"
+      ],
+      "writes": [
+        "limit_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "匿名、不读会话；按 IP 每分钟 120 次（public.competition.per_minute，记在 limit_events，单场与四个公开接口共用一个桶），超了 429 {error:\"rate_limited\",bucket,retry_after} 并带 Retry-After；成功、404 与 429 都带 Access-Control-Allow-Origin: *，不带 Allow-Credentials。",
+        "200 {participants, teams, merged_prs, accepted_issues, total_points, updated_at}：只有数字，不含任何人；分数是加权后的。",
+        "结果在服务端缓存 10 秒（publicCacheKey），加分、撤销、标记有用、改规则、发布官网、定榜时按比赛清掉（publicCachePrefix）。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/portal/competitions.ts",
+          "needle": "\"/api/public/competitions/:id/stats\""
+        },
+        {
+          "path": "app/server/src/routes/portal/contracts.ts",
+          "needle": "\"GET /api/public/competitions/:id/stats\":"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-public.test.ts",
+        "tests/web/competition-sdk.test.ts",
+        "tests/web/contest-site.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/architecture/SECURITY.md",
+        "docs/services/web/README.md"
+      ]
+    },
+    {
+      "id": "competition.public.snapshot",
+      "title": "官网 SDK 一次取齐比赛快照",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/public/competitions/:id/snapshot",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_signup_settings",
+        "competition_signups",
+        "competition_teams",
+        "competition_team_members",
+        "competition_score_events",
+        "competition_rules",
+        "competition_finals",
+        "account_profiles",
+        "users",
+        "identities",
+        "competition_sites",
+        "competition_score_candidates"
+      ],
+      "writes": [
+        "limit_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "匿名、不读会话；按 IP 每分钟 120 次（public.competition.per_minute，记在 limit_events，单场与四个公开接口共用一个桶），超了 429 {error:\"rate_limited\",bucket,retry_after} 并带 Retry-After；成功、404 与 429 都带 Access-Control-Allow-Origin: *，不带 Allow-Credentials。",
+        "人只给昵称、@用户名与头像，不给真实姓名、邮箱、account_id 与兑奖码；比赛不存在或下线 404 not_found。",
+        "200 {competition, leaderboard, feed, stats}：四样和各自的接口同形，各自缓存 10 秒；一次轮询只算一个请求（校园网同一出口 IP 后面人多），SDK 的 subscribe 用它。",
+        "比赛官网每 15 秒拉一次，失败时各区块显示「数据暂时取不到，稍后自动重试」。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/portal/competitions.ts",
+          "needle": "\"/api/public/competitions/:id/snapshot\""
+        },
+        {
+          "path": "app/server/src/routes/portal/contracts.ts",
+          "needle": "\"GET /api/public/competitions/:id/snapshot\":"
+        },
+        {
+          "path": "app/web/sites/contests/oss-2026-1/src/main.ts",
+          "needle": "const client = createClient({ competition: SITE.competition_id });"
+        },
+        {
+          "path": "app/web/sites/contests/oss-2026-1/site.config.ts",
+          "needle": "export const SITE = {"
+        },
+        {
+          "path": "app/web/sites/contests/oss-2026-1/vite.config.ts",
+          "needle": "export default defineConfig({"
+        },
+        {
+          "path": "app/web/sites/contests/oss-2026-1/src/board.ts",
+          "needle": "export function createBoard("
+        },
+        {
+          "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts",
+          "needle": "export function createCountdown("
+        },
+        {
+          "path": "app/web/sites/contests/oss-2026-1/src/feed.ts",
+          "needle": "export function createFeed("
+        },
+        {
+          "path": "app/web/sites/contests/oss-2026-1/src/fx.ts",
+          "needle": "export function createFx("
+        },
+        {
+          "path": "app/web/sites/contests/oss-2026-1/src/icons.ts",
+          "needle": "export function iconSvg("
+        },
+        {
+          "path": "app/web/sites/contests/oss-2026-1/src/sections.ts",
+          "needle": "export function renderPrizes("
+        },
+        {
+          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts",
+          "needle": "export function createSky("
+        },
+        {
+          "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts",
+          "needle": "export function startTerminal("
+        },
+        {
+          "path": "app/web/sites/contests/oss-2026-1/src/title.ts",
+          "needle": "export function createTitle("
+        },
+        {
+          "path": "app/web/sites/contests/oss-2026-1/src/util.ts",
+          "needle": "export const TAU = Math.PI * 2;"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-public.test.ts",
+        "tests/web/competition-sdk.test.ts",
+        "tests/web/contest-site.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/architecture/SECURITY.md",
+        "docs/services/web/README.md"
+      ]
+    },
+    {
+      "id": "competition.me.results",
+      "title": "门户查看本人的定榜结果与兑奖码",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/me/competition-results",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_signups",
+        "competition_finals",
+        "competition_prizes",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：要有效会话（否则 401 not_signed_in）且有 competition.signup 或 competition.team（否则 403 not_member）；只按会话里的 account_id 取本人数据。",
+        "200 {items:[{competition_id, name, finalized_at, rank, points, prize:{amount_cny, title, code, redeemed_at}|null}]}：本人报名过、已经定榜的比赛；兑奖码明文只在这里给本人看（从密文解出），/api 一律 no-store。",
+        "只读；门户「我的参赛」显示名次、奖项与兑奖码，可一键复制。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/portal/competition-signups.ts",
+          "needle": "app.get(\"/api/me/competition-results\""
+        },
+        {
+          "path": "app/server/src/routes/portal/contracts.ts",
+          "needle": "\"GET /api/me/competition-results\":"
+        },
+        {
+          "path": "app/server/src/lib/competition-prizes.ts",
+          "needle": "export function createCompetitionPrizes("
+        },
+        {
+          "path": "app/web/sites/portal/lib/competitionHub.ts",
+          "needle": "export function readMyResults("
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx",
+          "needle": "function MyResults({ items }: { items: MyResult[] }) {"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-prizes.test.ts",
+        "tests/web/portal-competition-results.test.tsx"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/web/portal.md"
+      ]
+    },
+    {
+      "id": "competition.candidates.list",
+      "title": "控制台查看待确认贡献",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/competitions/:competition_id/candidates",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_score_candidates",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：competition.score.review；比赛不存在 404。",
+        "200 {items, next_cursor, counts, last_run}：按状态（pending/accepted/rejected）筛，每页 50 条，新的在前；counts 是三种状态的条数；last_run 只记在服务端进程里，重启后为 null，直到下一轮收集。",
+        "只读。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-candidates.ts",
+          "needle": "\"/api/console/competitions/:competition_id/candidates\","
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/competitions/:competition_id/candidates\":"
+        },
+        {
+          "path": "app/server/src/lib/competition-candidates.ts",
+          "needle": "export function createCompetitionCandidates("
+        },
+        {
+          "path": "app/console/src/pages/competition/CandidatesPanel.vue",
+          "needle": "const list = useResource(() => api<CandidateList>("
+        },
+        {
+          "path": "app/console/src/mock/console.ts",
+          "needle": "const MOCK_CANDIDATES: Candidate[] = ["
+        },
+        {
+          "path": "app/server/src/routes/console/index.ts",
+          "needle": "await app.register(competitionCandidates);"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-candidates.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "competition.candidates.accept",
+      "title": "控制台把贡献标记为有用并加分",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/competitions/:competition_id/candidates/:candidate_id/accept",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_signup_settings",
+        "competition_signups",
+        "competition_score_candidates",
+        "competition_score_events",
+        "competition_rules",
+        "competition_finals",
+        "account_profiles",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "competition_score_candidates",
+        "competition_score_events",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：competition.score.review；写操作要 step-up（10 分钟内登录过），否则 403 step_up_required；控制台的 ErrorAlert 给「重新登录」。每分钟 60 次；审核自己的贡献 403 self_review；已经标记过 409 already_accepted；同一条已有积分 409 duplicate_score_event；定榜后 409 competition_finalized。",
+        "body {points?, reason?}：分数默认建议分，要落在这种记录的区间（Issue 5–30、MR 15–100）；登记人是审核人，按作者记分时刻的年级（account_profiles.enrollment_year）乘这场比赛的系数，记下的年级与系数之后不再重算。",
+        "同一事务写积分、把候选置为 accepted（accepted_via = console）并写 competition.candidate.accept 操作记录；清掉公开缓存，天梯十几秒内更新。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-candidates.ts",
+          "needle": "\"/api/console/competitions/:competition_id/candidates/:candidate_id/accept\","
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"POST /api/console/competitions/:competition_id/candidates/:candidate_id/accept\":"
+        },
+        {
+          "path": "app/server/src/lib/competition-rules-store.ts",
+          "needle": "export function weightedPoints("
+        },
+        {
+          "path": "app/console/src/pages/competition/CandidatesPanel.vue",
+          "needle": "/accept`"
+        },
+        {
+          "path": "app/console/src/lib/competition-contest.ts",
+          "needle": "export function acceptPointsError("
+        }
+      ],
+      "tests": [
+        "tests/server/competition-candidates.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "competition.candidates.reject",
+      "title": "控制台驳回贡献",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/competitions/:competition_id/candidates/:candidate_id/reject",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_score_candidates",
+        "competition_score_events",
+        "competition_finals",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "competition_score_candidates",
+        "competition_score_events",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：competition.score.review；写操作要 step-up（10 分钟内登录过），否则 403 step_up_required；控制台的 ErrorAlert 给「重新登录」。定榜后 409 competition_finalized。",
+        "body {reason}（必填）：已经加过分的连同那条积分一起撤销；积分记录页撤销一条来自候选的积分时，候选也跟着变成驳回，两边对得上。",
+        "同一事务写 competition.candidate.reject 操作记录；清掉公开缓存。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-candidates.ts",
+          "needle": "\"/api/console/competitions/:competition_id/candidates/:candidate_id/reject\","
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"POST /api/console/competitions/:competition_id/candidates/:candidate_id/reject\":"
+        },
+        {
+          "path": "app/console/src/pages/competition/CandidatesPanel.vue",
+          "needle": "/reject`"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-candidates.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "competition.candidates.collect",
+      "title": "从 GitLab 收集合并的 MR 与 Issue",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit",
+        "gitlab"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/competitions/:competition_id/candidates/collect",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_signup_settings",
+        "competition_signups",
+        "competition_gitlab_sources",
+        "competition_rules",
+        "competition_finals",
+        "competition_score_candidates",
+        "competition_score_events",
+        "account_profiles",
+        "gitlab_accounts",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "competition_score_candidates",
+        "competition_score_events",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：competition.score.review；写操作要 step-up（10 分钟内登录过），否则 403 step_up_required；控制台的 ErrorAlert 给「重新登录」。每分钟 6 次；GitLab 同步是 off 或没配 URL 时 409 gitlab_sync_off。后台任务在 GitLab 同步不是 off 时每 10 分钟同样跑一轮。",
+        "只收内部赛、没下线、开了积分、已开始、没定榜、结束后 30 天内、配了 GitLab 项目的比赛；一轮最多 300 个 GitLab 请求。MR 按合并时间、Issue 按创建时间落在比赛窗口内才收；作者经 gitlab_accounts 对到账号且已报名，否则记 skipped。",
+        "「有用」标签：资源标签事件里最后一次是加上、加的人对得上账号、有 competition.score.review、不是作者本人，才按建议分自动加分（surface system）；标签被拿掉时只撤销经标签自动加的分，控制台确认的不动。",
+        "200 {last_run:{at, fetched, created, skipped, accepted, revoked, error}}；写 competition.candidate.collect 操作记录，没完成时 outcome 为 error。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-candidates.ts",
+          "needle": "\"/api/console/competitions/:competition_id/candidates/collect\","
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"POST /api/console/competitions/:competition_id/candidates/collect\":"
+        },
+        {
+          "path": "app/server/src/lib/competition-candidates.ts",
+          "needle": "export const USEFUL_LABEL = \"有用\";"
+        },
+        {
+          "path": "app/server/src/lib/competition-candidates.ts",
+          "needle": "export const COLLECT_REQUEST_BUDGET = 300;"
+        },
+        {
+          "path": "app/console/src/pages/competition/CandidatesPanel.vue",
+          "needle": "const collect = useAction(async () => {"
+        },
+        {
+          "path": "app/console/src/lib/competition-contest.ts",
+          "needle": "export function collectSummary("
+        },
+        {
+          "path": "app/server/src/lib/db.ts",
+          "needle": "CREATE TABLE IF NOT EXISTS competition_score_candidates ("
+        },
+        {
+          "path": "app/server/src/lib/gitlab-sync.ts",
+          "needle": "async function readApi(path: string)"
+        },
+        {
+          "path": "app/server/src/app.ts",
+          "needle": "services.competitionCandidates.start(app.log);"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-candidates.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "competition.rules.read",
+      "title": "控制台查看计分规则与奖项",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/competitions/:competition_id/rules",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_rules",
+        "competition_gitlab_sources",
+        "competition_finals",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：competition.manage 或 competition.score.review；比赛不存在 404。",
+        "200 {grade_factors, grades, prizes, gitlab_projects, updated_at, updated_by, finalized}：系数是百分数（150 = 1.5）；没有规则行时回默认系数（大一 150、大二 130、大三 110、其余 100）、没有奖项。",
+        "只读。控制台积分记录里，这场比赛列的 GitLab 项目不拼 GitHub 链接。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-results.ts",
+          "needle": "app.get<{ Params: { competition_id: string } }>(\"/api/console/competitions/:competition_id/rules\""
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/competitions/:competition_id/rules\":"
+        },
+        {
+          "path": "app/server/src/lib/competition-rules-store.ts",
+          "needle": "export const DEFAULT_GRADE_FACTORS"
+        },
+        {
+          "path": "app/console/src/pages/competition/RulesPanel.vue",
+          "needle": "const rules = useResource(() => api<CompetitionRules>(path.value)"
+        },
+        {
+          "path": "app/console/src/mock/console.ts",
+          "needle": "const MOCK_RULES: Record<string, CompetitionRules> = {"
+        },
+        {
+          "path": "app/console/src/pages/CompetitionHub.vue",
+          "needle": "const gitlabProjects = computed("
+        },
+        {
+          "path": "app/console/src/lib/competition-hub.ts",
+          "needle": "export function scoreTargetUrl("
+        }
+      ],
+      "tests": [
+        "tests/server/competition-public.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "competition.rules.update",
+      "title": "修改年级系数、奖项与 GitLab 项目",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PUT /api/console/competitions/:competition_id/rules",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_rules",
+        "competition_gitlab_sources",
+        "competition_finals",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "competition_rules",
+        "competition_gitlab_sources",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：competition.manage；写操作要 step-up（10 分钟内登录过），否则 403 step_up_required；控制台的 ErrorAlert 给「重新登录」。每分钟 30 次；定榜后 409 competition_finalized。",
+        "body {grade_factors:{year1…none: 50–300}, prizes:[{from, to, amount_cny, title}], gitlab_projects:[]} 整份替换：奖项名次从小到大不重叠、最多 20 档、金额 ≤ 100000、说明 ≤ 40 字；项目最多 10 个、两到五段路径。",
+        "改系数只影响之后记的分，已经记下的年级与系数不重算；写 competition.rules.update 操作记录（带改前改后），清掉公开缓存。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-results.ts",
+          "needle": "app.put<{ Params: { competition_id: string }; Body: RulesInput }>("
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"PUT /api/console/competitions/:competition_id/rules\":"
+        },
+        {
+          "path": "app/server/src/lib/competition-contract.ts",
+          "needle": "export const rulesBody ="
+        },
+        {
+          "path": "app/console/src/pages/competition/RulesPanel.vue",
+          "needle": "const save = useAction(async () => {"
+        },
+        {
+          "path": "app/console/src/lib/competition-contest.ts",
+          "needle": "export function rulesErrors("
+        }
+      ],
+      "tests": [
+        "tests/server/competition-public.test.ts",
+        "tests/server/competition-prizes.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "competition.final.read",
+      "title": "控制台查看定榜预览与奖项",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/competitions/:competition_id/final",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_signups",
+        "competition_score_events",
+        "competition_rules",
+        "competition_finals",
+        "competition_prizes",
+        "account_profiles",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：competition.manage；比赛不存在 404。",
+        "200 {finalized_at, finalized_by, standings, prizes, preview}：没定榜时 preview 是现在的严格名次（同分时先到这个分的在前，再按报名先后）与将要发的奖；定榜后 prizes 列出得奖人与是否核销，兑奖码只给末四位 code_hint。",
+        "只读。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-results.ts",
+          "needle": "app.get<{ Params: { competition_id: string } }>(\"/api/console/competitions/:competition_id/final\""
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/competitions/:competition_id/final\":"
+        },
+        {
+          "path": "app/console/src/pages/competition/FinalPanel.vue",
+          "needle": "const final = useResource(() => api<FinalView>(path.value)"
+        },
+        {
+          "path": "app/console/src/mock/console.ts",
+          "needle": "function mockFinal(competitionId: string): FinalView {"
+        },
+        {
+          "path": "app/server/src/routes/console/index.ts",
+          "needle": "await app.register(competitionResults);"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-prizes.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "competition.finalize",
+      "title": "定榜并发兑奖码",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/competitions/:competition_id/final",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_signups",
+        "competition_score_events",
+        "competition_rules",
+        "competition_finals",
+        "competition_prizes",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "competition_finals",
+        "competition_prizes",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：competition.manage；写操作要 step-up（10 分钟内登录过），否则 403 step_up_required；控制台的 ErrorAlert 给「重新登录」。每分钟 10 次；比赛结束前 409 not_ended，已经定榜 409。",
+        "冻结名次快照，按奖项表给分数大于 0 的个人各发一个兑奖码 YUGC-XXXX-XXXX-XXXX-XXXX（80 位随机，16 位 Crockford base32，猜不出来）；库里只存 SHA-256 散列、AES-GCM 密文和末四位。",
+        "201 定榜视图；之后积分、规则、候选的写入都 409 competition_finalized；写 competition.finalize 操作记录（只记末四位），清掉公开缓存。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-results.ts",
+          "needle": "app.post<{ Params: { competition_id: string } }>("
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"POST /api/console/competitions/:competition_id/final\":"
+        },
+        {
+          "path": "app/server/src/lib/competition-prizes.ts",
+          "needle": "export function generatePrizeCode("
+        },
+        {
+          "path": "app/console/src/pages/competition/FinalPanel.vue",
+          "needle": "const finalize = useAction(async () => {"
+        },
+        {
+          "path": "app/server/src/lib/db.ts",
+          "needle": "CREATE TABLE IF NOT EXISTS competition_prizes ("
+        }
+      ],
+      "tests": [
+        "tests/server/competition-prizes.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "competition.unfinalize",
+      "title": "撤销定榜",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "DELETE /api/console/competitions/:competition_id/final",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_finals",
+        "competition_prizes",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "competition_finals",
+        "competition_prizes",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：competition.manage；写操作要 step-up（10 分钟内登录过），否则 403 step_up_required；控制台的 ErrorAlert 给「重新登录」。没定榜 404；有奖已经核销 409 prizes_redeemed。",
+        "删掉名次快照和全部兑奖码，得奖的人手里的码随之作废；之后可以继续加分、改规则，再重新定榜。",
+        "200 定榜视图；写 competition.unfinalize 操作记录（带删掉的奖数），清掉公开缓存。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-results.ts",
+          "needle": "app.delete<{ Params: { competition_id: string } }>("
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"DELETE /api/console/competitions/:competition_id/final\":"
+        },
+        {
+          "path": "app/console/src/pages/competition/FinalPanel.vue",
+          "needle": "const unfinalize = useAction(async () => {"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-prizes.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "competition.prize.lookup",
+      "title": "按兑奖码查出是谁、哪张奖",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/prizes/lookup",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_prizes",
+        "account_profiles",
+        "limit_events",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "limit_events",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：competition.prize.redeem；每分钟 60 次；输错的码每人每小时 20 次（competition.prize.lookup.fail，记在 limit_events），超了 429。",
+        "body {code}：不分大小写，空格、连字符与 YUGC 前缀可有可无，I/L 当 1、O 当 0，按散列查找；200 {prize}：比赛、名次、分数、金额、奖项名、得奖人（昵称与用户名，操作人有 users.manage 时多一个真实姓名）、末四位、核销时间与核销人。",
+        "查不到 404 code_not_found 并写一条 denied 的 competition.prize.lookup 操作记录（只记末四位）；查到不写记录。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-results.ts",
+          "needle": "app.post<{ Body: { code: string } }>(\"/api/console/prizes/lookup\""
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"POST /api/console/prizes/lookup\":"
+        },
+        {
+          "path": "app/server/src/lib/competition-prizes.ts",
+          "needle": "export function normalizePrizeCode("
+        },
+        {
+          "path": "app/console/src/pages/PrizeRedeem.vue",
+          "needle": "const lookup = useAction(async () => {"
+        },
+        {
+          "path": "app/console/src/lib/competition-contest.ts",
+          "needle": "export function normalizeCode("
+        },
+        {
+          "path": "app/server/src/lib/limits.ts",
+          "needle": "\"competition.prize.lookup.fail\": 2 * HOUR_MS,"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-prizes.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "competition.prize.redeem",
+      "title": "核销兑奖码",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/prizes/redeem",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_prizes",
+        "account_profiles",
+        "limit_events",
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
+      ],
+      "writes": [
+        "competition_prizes",
+        "limit_events",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：competition.prize.redeem；写操作要 step-up（10 分钟内登录过），否则 403 step_up_required；控制台的 ErrorAlert 给「重新登录」。每分钟 30 次；和查找共用每人每小时 20 次的输错上限。",
+        "200 {prize} 并写 redeemed_at/redeemed_by；查不到 404 code_not_found；已经核销 409 already_redeemed，带上次核销的那张奖。",
+        "核销与 competition.prize.redeem 操作记录同一事务（结果为 denied 的也记），记录里只有末四位与金额。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-results.ts",
+          "needle": "app.post<{ Body: { code: string } }>(\"/api/console/prizes/redeem\""
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"POST /api/console/prizes/redeem\":"
+        },
+        {
+          "path": "app/console/src/pages/PrizeRedeem.vue",
+          "needle": "const redeem = useAction(async () => {"
+        },
+        {
+          "path": "app/console/src/lib/competition-contest.ts",
+          "needle": "export function redeemFailure("
+        },
+        {
+          "path": "app/console/src/router.ts",
+          "needle": "path: \"competitions/redeem\""
+        },
+        {
+          "path": "app/server/src/lib/permission-nodes.ts",
+          "needle": "{ node: \"competition.prize.redeem\","
+        },
+        {
+          "path": "app/console/src/lib/permission-nodes.ts",
+          "needle": "\"competition.prize.redeem\": \"核销兑奖码\","
+        },
+        {
+          "path": "app/console/src/pages/Competitions.vue",
+          "needle": "router.push('/console/competitions/redeem')"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-prizes.test.ts",
+        "tests/console/competition-contest.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
       ]
     },
     {
@@ -8464,6 +10044,33 @@
     ],
     "app/server/src/lib/grade.ts": [
       "identity"
+    ],
+    "app/server/src/lib/site-package.ts": [
+      "competitions"
+    ],
+    "app/web/shared/competition-sdk/": [
+      "competitions"
+    ],
+    "app/web/sites/contests/": [
+      "competitions"
+    ],
+    "app/console/src/lib/competition-contest.ts": [
+      "competitions"
+    ],
+    "app/console/src/pages/competition/": [
+      "competitions"
+    ],
+    "app/console/src/pages/PrizeRedeem.vue": [
+      "competitions"
+    ],
+    "app/console/src/lib/competition-hub.ts": [
+      "competitions"
+    ],
+    "app/console/src/pages/CompetitionHub.vue": [
+      "competitions"
+    ],
+    "app/web/sites/portal/lib/competitionHub.ts": [
+      "competitions"
     ]
   }
 }

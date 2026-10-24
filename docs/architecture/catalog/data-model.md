@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`d3d74fe7b4c4f9f70250c97ca59fdbe62d6284972c1b04771fad7fc52ae16d5f`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`588e7a8bd9340cb3d0c3f9d815c470221238cf421a22fa32ab79f6d8806ea1d6`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -22,9 +22,16 @@ flowchart LR
   application_reviews["application_reviews"]
   applications["applications"]
   audit_logs["audit_logs"]
+  competition_finals["competition_finals"]
+  competition_gitlab_sources["competition_gitlab_sources"]
+  competition_prizes["competition_prizes"]
+  competition_rules["competition_rules"]
+  competition_score_candidates["competition_score_candidates"]
   competition_score_events["competition_score_events"]
   competition_signup_settings["competition_signup_settings"]
   competition_signups["competition_signups"]
+  competition_site_versions["competition_site_versions"]
+  competition_sites["competition_sites"]
   competition_team_members["competition_team_members"]
   competition_teams["competition_teams"]
   competitions["competitions"]
@@ -71,6 +78,16 @@ flowchart LR
   users["users"]
   account_profiles -->|"account_id → id"| users
   application_reviews -->|"application_id → id"| applications
+  competition_finals -->|"finalized_by → id"| users
+  competition_finals -->|"competition_id → id"| competitions
+  competition_gitlab_sources -->|"competition_id → id"| competitions
+  competition_prizes -->|"redeemed_by → id"| users
+  competition_prizes -->|"account_id → id"| users
+  competition_prizes -->|"competition_id → id"| competitions
+  competition_rules -->|"competition_id → id"| competitions
+  competition_score_candidates -->|"reviewed_by → id"| users
+  competition_score_candidates -->|"account_id → id"| users
+  competition_score_candidates -->|"competition_id → id"| competitions
   competition_score_events -->|"revoked_by → id"| users
   competition_score_events -->|"created_by → id"| users
   competition_score_events -->|"account_id → id"| users
@@ -79,6 +96,9 @@ flowchart LR
   competition_signup_settings -->|"competition_id → id"| competitions
   competition_signups -->|"account_id → id"| users
   competition_signups -->|"competition_id → id"| competitions
+  competition_site_versions -->|"competition_id → id"| competitions
+  competition_sites -->|"live_version_id → id"| competition_site_versions
+  competition_sites -->|"competition_id → id"| competitions
   competition_team_members -->|"decided_by → id"| users
   competition_team_members -->|"created_by → id"| users
   competition_team_members -->|"account_id → id"| users
@@ -438,6 +458,249 @@ CREATE TABLE audit_logs (
 
 </details>
 
+## competition_finals
+
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:965](../../../app/server/src/lib/db.ts#L965)。
+
+定榜：一场一行，standings 是定榜那一刻的严格名次快照，之后加分、撤销都不再改它；撤销定榜删行。只有 lib/competition-prizes.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `competition_id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `finalized_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `finalized_by` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `standings` | `TEXT` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `finalized_by` | `users.id` | NO ACTION | NO ACTION |
+| `competition_id` | `competitions.id` | NO ACTION | CASCADE |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_competition_finals_1` | `competition_id` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE competition_finals (
+  competition_id TEXT PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,
+  finalized_at INTEGER NOT NULL,
+  finalized_by TEXT NOT NULL REFERENCES users(id),
+  standings TEXT NOT NULL
+);
+```
+
+</details>
+
+## competition_gitlab_sources
+
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:920](../../../app/server/src/lib/db.ts#L920)。
+
+比赛从哪些 GitLab 项目收集贡献，控制台「计分与奖项」整份替换；没有行的比赛不收集。由 lib/competition-rules-store.ts 写，收集任务读。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `competition_id` | `TEXT` | 1 | 1 | 未声明 | 0 |
+| `project_path` | `TEXT` | 1 | 2 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `competition_id` | `competitions.id` | NO ACTION | CASCADE |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_competition_gitlab_sources_1` | `competition_id`、`project_path` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE competition_gitlab_sources (
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  project_path TEXT NOT NULL,
+  PRIMARY KEY (competition_id, project_path)
+);
+```
+
+</details>
+
+## competition_prizes
+
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:972](../../../app/server/src/lib/db.ts#L972)。
+
+定榜时给每个得奖的人一行：兑奖码只存 SHA-256 散列、AES-GCM 密文与末四位，不存明文；核销只改 redeemed_at/redeemed_by；公开接口从不返回这三列。只有 lib/competition-prizes.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `competition_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `account_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `rank` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `points` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `amount_cny` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `title` | `TEXT` | 1 | 0 | `''` | 0 |
+| `code_hash` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `code_cipher` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `code_hint` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `redeemed_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `redeemed_by` | `TEXT` | 0 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `redeemed_by` | `users.id` | NO ACTION | NO ACTION |
+| `account_id` | `users.id` | NO ACTION | NO ACTION |
+| `competition_id` | `competitions.id` | NO ACTION | CASCADE |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_competition_prizes_1` | `id` | 1 | pk | 0 | `SQLite 自动索引` |
+| `sqlite_autoindex_competition_prizes_2` | `code_hash` | 1 | u | 0 | `SQLite 自动索引` |
+| `sqlite_autoindex_competition_prizes_3` | `competition_id`、`account_id` | 1 | u | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE competition_prizes (
+  id TEXT PRIMARY KEY,
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL REFERENCES users(id),
+  rank INTEGER NOT NULL,
+  points INTEGER NOT NULL,
+  amount_cny INTEGER NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  code_hash TEXT NOT NULL UNIQUE,
+  code_cipher TEXT NOT NULL,
+  code_hint TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  redeemed_at INTEGER,
+  redeemed_by TEXT REFERENCES users(id),
+  UNIQUE (competition_id, account_id)
+);
+```
+
+</details>
+
+## competition_rules
+
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:956](../../../app/server/src/lib/db.ts#L956)。
+
+比赛的计分规则：年级系数（百分数，150 = 1.5）与可选奖项 JSON；没有行用默认系数、没有奖项；定榜后不能改。只有 lib/competition-rules-store.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `competition_id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `grade_factors` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `prizes` | `TEXT` | 1 | 0 | `'[]'` | 0 |
+| `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `updated_by` | `TEXT` | 0 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `competition_id` | `competitions.id` | NO ACTION | CASCADE |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_competition_rules_1` | `competition_id` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE competition_rules (
+  competition_id TEXT PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,
+  grade_factors TEXT NOT NULL,
+  prizes TEXT NOT NULL DEFAULT '[]',
+  updated_at INTEGER NOT NULL,
+  updated_by TEXT
+);
+```
+
+</details>
+
+## competition_score_candidates
+
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:928](../../../app/server/src/lib/db.ts#L928)。
+
+GitLab 收来的候选贡献（合并的 MR、带「有用」标签或被 MR 关闭的 Issue）：唯一约束挡住重复收集；accepted_via 区分 GitLab 标签与控制台确认；状态变化只改列，不删行。只有 lib/competition-candidates.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `competition_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `account_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `kind` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `gitlab_project` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `gitlab_iid` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `url` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `title` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `size_hint` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `suggested` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `status` | `TEXT` | 1 | 0 | `'pending'` | 0 |
+| `reviewed_by` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `reviewed_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `final_points` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `reason` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `score_event_id` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `accepted_via` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `note` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `contributed_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `reviewed_by` | `users.id` | NO ACTION | NO ACTION |
+| `account_id` | `users.id` | NO ACTION | NO ACTION |
+| `competition_id` | `competitions.id` | NO ACTION | CASCADE |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `idx_competition_score_candidates_event` | `score_event_id` | 0 | c | 1 | `CREATE INDEX idx_competition_score_candidates_event ON competition_score_candidates(score_event_id) WHERE score_event_id IS NOT NULL` |
+| `idx_competition_score_candidates_status` | `competition_id`、`status`、`created_at` | 0 | c | 0 | `CREATE INDEX idx_competition_score_candidates_status ON competition_score_candidates(competition_id, status, created_at)` |
+| `sqlite_autoindex_competition_score_candidates_1` | `id` | 1 | pk | 0 | `SQLite 自动索引` |
+| `sqlite_autoindex_competition_score_candidates_2` | `competition_id`、`kind`、`gitlab_project`、`gitlab_iid` | 1 | u | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE competition_score_candidates (
+  id TEXT PRIMARY KEY,
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL CHECK (kind IN ('pr', 'issue')),
+  gitlab_project TEXT NOT NULL,
+  gitlab_iid INTEGER NOT NULL,
+  url TEXT NOT NULL,
+  title TEXT NOT NULL,
+  size_hint INTEGER,
+  suggested INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+  reviewed_by TEXT REFERENCES users(id),
+  reviewed_at INTEGER,
+  final_points INTEGER,
+  reason TEXT,
+  score_event_id TEXT,
+  accepted_via TEXT CHECK (accepted_via IS NULL OR accepted_via IN ('label', 'console')),
+  note TEXT,
+  contributed_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE (competition_id, kind, gitlab_project, gitlab_iid)
+);
+```
+
+</details>
+
 ## competition_score_events
 
 业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:617](../../../app/server/src/lib/db.ts#L617)。
@@ -460,6 +723,9 @@ CREATE TABLE audit_logs (
 | `revoked_by` | `TEXT` | 0 | 0 | 未声明 | 0 |
 | `revoked_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
 | `revoke_reason` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `grade` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `grade_factor` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `weighted_points` | `INTEGER` | 0 | 0 | 未声明 | 0 |
 
 NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
 
@@ -494,7 +760,7 @@ CREATE TABLE competition_score_events (
   created_at INTEGER NOT NULL,
   revoked_by TEXT REFERENCES users(id),
   revoked_at INTEGER,
-  revoke_reason TEXT,
+  revoke_reason TEXT, grade TEXT, grade_factor INTEGER, weighted_points INTEGER,
   CHECK ((kind = 'issue' AND points BETWEEN 5 AND 30)
       OR (kind = 'pr' AND points BETWEEN 15 AND 100)
       OR (kind = 'penalty' AND points = -50))
@@ -596,6 +862,95 @@ CREATE TABLE competition_signups (
   updated_at INTEGER NOT NULL,
   cancelled_at INTEGER,
   UNIQUE (competition_id, account_id)
+);
+```
+
+</details>
+
+## competition_site_versions
+
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:898](../../../app/server/src/lib/db.ts#L898)。
+
+比赛官网站点包的版本：一次上传一行，通过（passed）或拒绝（rejected）都留，report 是逐条校验结果；拒绝的版本不落文件。文件本身在数据库旁边的 sites/<competition_id>/<version_id>/，不进库。只有 lib/competition-site-store.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `competition_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `version` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `size` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `files` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `sha256` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `uploaded_by` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `status` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `report` | `TEXT` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `competition_id` | `competitions.id` | NO ACTION | CASCADE |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `idx_competition_site_versions_competition` | `competition_id`、`created_at` | 0 | c | 0 | `CREATE INDEX idx_competition_site_versions_competition ON competition_site_versions(competition_id, created_at)` |
+| `sqlite_autoindex_competition_site_versions_1` | `id` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE competition_site_versions (
+  id TEXT PRIMARY KEY,
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  version TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  files INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  uploaded_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('passed', 'rejected')),
+  report TEXT NOT NULL
+);
+```
+
+</details>
+
+## competition_sites
+
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:912](../../../app/server/src/lib/db.ts#L912)。
+
+比赛官网的发布状态：一场一行，slug 唯一且第一次发布后不能改，live_version_id 为空即已下线（版本与 slug 保留）。只有 lib/competition-site-store.ts 读写。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `competition_id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `slug` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `live_version_id` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `updated_by` | `TEXT` | 0 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `live_version_id` | `competition_site_versions.id` | NO ACTION | NO ACTION |
+| `competition_id` | `competitions.id` | NO ACTION | CASCADE |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_competition_sites_1` | `competition_id` | 1 | pk | 0 | `SQLite 自动索引` |
+| `sqlite_autoindex_competition_sites_2` | `slug` | 1 | u | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE competition_sites (
+  competition_id TEXT PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,
+  slug TEXT NOT NULL UNIQUE,
+  live_version_id TEXT REFERENCES competition_site_versions(id),
+  updated_at INTEGER NOT NULL,
+  updated_by TEXT
 );
 ```
 
