@@ -458,8 +458,8 @@ button.pt-cx-slot:disabled { opacity: .6; cursor: not-allowed; }
 .is-phone .pt-cx-line b, .is-phone .pt-cx-line span { grid-column: 2; }
 .is-phone .pt-cx-line em { grid-column: 3; grid-row: 1 / span 2; margin: 0; }
 .is-phone .pt-cx-score { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-.is-phone .pt-cx-score li { grid-template-columns: 6.5em minmax(0, 1fr); align-items: center; gap: 0 12px; padding: 10px 14px; }
-.is-phone .pt-cx-score b { grid-row: 1 / span 2; font-size: 18px; }
+.is-phone .pt-cx-score li { grid-template-columns: 7.5em minmax(0, 1fr); align-items: center; gap: 0 12px; padding: 10px 14px; }
+.is-phone .pt-cx-score b { grid-row: 1 / span 2; font-size: 18px; white-space: nowrap; }
 .is-phone .pt-cx-grades ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .is-phone .pt-cx-prizes li { grid-template-columns: minmax(0, 1fr) auto; }
 .is-phone .pt-cx-prizes small { grid-column: 1 / -1; }

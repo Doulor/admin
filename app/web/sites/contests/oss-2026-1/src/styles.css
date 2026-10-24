@@ -215,7 +215,7 @@ button { font: inherit; }
 
 /* 奖项 */
 .prizes { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
-.prize { position: relative; overflow: hidden; display: grid; gap: 4px; padding: 22px 20px 20px; border-radius: var(--os-radius-card); background: #fff; box-shadow: inset 0 0 0 1px rgb(91 127 181 / 18%); }
+.prize { position: relative; overflow: hidden; display: grid; align-content: start; gap: 4px; padding: 22px 20px 20px; border-radius: var(--os-radius-card); background: #fff; box-shadow: inset 0 0 0 1px rgb(91 127 181 / 18%); }
 .prize::before { content: ""; position: absolute; inset: 0 0 auto; height: 5px; background: linear-gradient(90deg, var(--tone), var(--tone-line)); }
 .prize-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; color: #fff; font-size: 22px; background: linear-gradient(150deg, var(--tone), var(--tone-line)); }
 .prize-rank { margin-top: 8px; font-size: 14px; color: var(--os-ink-2); }
@@ -233,7 +233,7 @@ button { font: inherit; }
 .tabs button { min-height: 44px; min-width: 96px; padding: 0 22px; border: 0; border-radius: 999px; background: transparent; color: var(--os-ink-2); font-weight: 700; cursor: pointer; }
 .tabs button[aria-selected="true"] { background: #fff; color: var(--os-accent); box-shadow: 0 4px 12px rgb(60 110 200 / 16%); }
 .board-panel { margin-top: 8px; }
-.board-meta { margin-top: 16px; text-align: center; font-size: 13px; color: var(--os-ink-2); }
+.board-meta { margin-top: 16px; text-align: center; font-size: 13px; color: var(--os-ink-2); text-wrap: balance; }
 .board-more { margin-top: 10px; text-align: center; font-size: 13px; color: var(--os-ink-2); }
 
 .podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 18px; max-width: 660px; margin: 26px auto 10px; }
@@ -369,6 +369,7 @@ a.feed-title:hover { text-decoration: underline; }
   position: absolute; right: 0; top: 12%; max-width: 46%; padding: 10px 14px; border-radius: 16px; background: #fff; color: var(--os-ink);
   font-size: 14px; font-weight: 700; line-height: 1.5; box-shadow: var(--os-shadow);
 }
+.finale-say span { white-space: nowrap; }
 .finale-say::after { content: ""; position: absolute; left: -7px; bottom: 16px; width: 14px; height: 14px; background: #fff; transform: rotate(45deg); }
 .finale-meta { font-size: 13px; color: var(--os-ink-2); }
 
@@ -419,6 +420,9 @@ a.feed-title:hover { text-decoration: underline; }
   .timeline-stop.is-end { transform: translateY(-100%); }
   .timeline-after { grid-column: 1 / -1; margin-top: 16px; }
   .finale-say { font-size: 13px; top: 6%; }
+  /* 窄屏时极客娘往左挪一点，鞋不挡住窗口标题 */
+  .finale-girl { transform: translateX(-56%); }
+  .finale-name { font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
