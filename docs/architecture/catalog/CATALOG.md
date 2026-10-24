@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`1ce5de88dd8cc3c1550bd93d81fe3b245768aa314759eba3105e07965cbde83a`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`dcc07a2044d74ba7fb60a4c9656c382fbc0fe89fa468653fa6d7896eb726bb0d`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -1471,7 +1471,7 @@
 - 响应与错误：201 {id,name}；id 已被占用回409 pack_id_taken；格式不对400。
 - 数据与副作用：插一行 forum_sticker_packs（排在最后）；空包不在公开面板里出现；成功后 invalidate 公开列表缓存，写审计 forum.sticker_pack.create。
 
-源码：[app/server/src/routes/console/forum.ts:47](../../../app/server/src/routes/console/forum.ts#L47) · [app/server/src/lib/forum-store.ts:847](../../../app/server/src/lib/forum-store.ts#L847) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320) · [app/console/src/pages/forum/StickersTab.vue:113](../../../app/console/src/pages/forum/StickersTab.vue#L113) · [app/console/src/lib/forum.ts:104](../../../app/console/src/lib/forum.ts#L104) · [app/console/src/mock/console.ts:881](../../../app/console/src/mock/console.ts#L881)
+源码：[app/server/src/routes/console/forum.ts:47](../../../app/server/src/routes/console/forum.ts#L47) · [app/server/src/lib/forum-store.ts:869](../../../app/server/src/lib/forum-store.ts#L869) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320) · [app/console/src/pages/forum/StickersTab.vue:113](../../../app/console/src/pages/forum/StickersTab.vue#L113) · [app/console/src/lib/forum.ts:104](../../../app/console/src/lib/forum.ts#L104) · [app/console/src/mock/console.ts:881](../../../app/console/src/mock/console.ts#L881)
 
 测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts) · [tests/console/forum.test.ts](../../../tests/console/forum.test.ts)。生成器未执行这些测试。
 
@@ -2514,7 +2514,7 @@
 - 响应与错误：签发者 <PUBLIC_ORIGIN>/oidc，协议与主机按 PUBLIC_ORIGIN，不信请求头；未知客户端、错回调 400 中文错误页且不跳转；缺 PKCE 等带 error 回到下游；userinfo 只给 sub（pairwise）、name、preferred_username、picture，有 email scope 时给验证过的 email；账号不再是成员时 401。
 - 数据与副作用：是否登录以本站 sid 为准，不是成员、换了账号或账号还没有登录邮箱（#273，允许过这个应用、签发者会话还在也一样）时进交互；交互、会话与授权码写 oidc_payloads；第一次给某 sector 发 sub 时写 oauth_subjects；不发 refresh token。
 
-源码：[app/server/src/routes/oidc/index.ts:169](../../../app/server/src/routes/oidc/index.ts#L169) · [app/server/src/lib/oidc-provider.ts:74](../../../app/server/src/lib/oidc-provider.ts#L74) · [app/server/src/lib/oidc-store.ts:52](../../../app/server/src/lib/oidc-store.ts#L52) · [app/server/src/lib/account-directory.ts:19](../../../app/server/src/lib/account-directory.ts#L19) · [app/server/src/lib/db.ts:491](../../../app/server/src/lib/db.ts#L491) · [app/server/src/lib/identity-store.ts:768](../../../app/server/src/lib/identity-store.ts#L768) · [app/server/src/lib/forum-store.ts:672](../../../app/server/src/lib/forum-store.ts#L672) · [app/web/sites/portal/lib/links.ts:15](../../../app/web/sites/portal/lib/links.ts#L15) · [app/web/shared/config/index.ts:24](../../../app/web/shared/config/index.ts#L24) · [app/web/sites/portal/components/os/Widgets.tsx:64](../../../app/web/sites/portal/components/os/Widgets.tsx#L64)
+源码：[app/server/src/routes/oidc/index.ts:169](../../../app/server/src/routes/oidc/index.ts#L169) · [app/server/src/lib/oidc-provider.ts:74](../../../app/server/src/lib/oidc-provider.ts#L74) · [app/server/src/lib/oidc-store.ts:52](../../../app/server/src/lib/oidc-store.ts#L52) · [app/server/src/lib/account-directory.ts:19](../../../app/server/src/lib/account-directory.ts#L19) · [app/server/src/lib/db.ts:491](../../../app/server/src/lib/db.ts#L491) · [app/server/src/lib/identity-store.ts:768](../../../app/server/src/lib/identity-store.ts#L768) · [app/server/src/lib/forum-store.ts:694](../../../app/server/src/lib/forum-store.ts#L694) · [app/web/sites/portal/lib/links.ts:15](../../../app/web/sites/portal/lib/links.ts#L15) · [app/web/shared/config/index.ts:24](../../../app/web/shared/config/index.ts#L24) · [app/web/sites/portal/components/os/Widgets.tsx:64](../../../app/web/sites/portal/components/os/Widgets.tsx#L64)
 
 测试入口：[tests/server/oidc.test.ts](../../../tests/server/oidc.test.ts)。生成器未执行这些测试。
 
