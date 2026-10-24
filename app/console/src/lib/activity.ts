@@ -72,11 +72,12 @@ const ACTION_TEXT: Record<string, string> = {
   "forum.sticker.use": "使用表情",
   "os.boot.played": "看完开机动画", "os.boot.skipped": "跳过开机动画", "os.app.open": "打开桌面应用", "os.note.dismissed": "收起新生便签",
   "forum.theme.change": "换论坛主题", "page.view": "打开页面", "events.rejected": "上报被丢弃",
+  "system.backup.export": "导出系统备份",
 };
 const ACTION_PREFIX_TEXT: [string, string][] = [
   ["auth.", "登录与账号"], ["perm.", "权限"], ["users.", "用户管理"], ["profile.", "个人资料"], ["gitlab.", "GitLab"],
   ["competition.", "比赛"], ["invite.", "邀请码"], ["apply.", "投递"], ["forum.", "论坛"], ["activity.", "操作记录"],
-  ["feedback.", "意见箱"], ["os.", "官网桌面"], ["cli.", "命令行"],
+  ["feedback.", "意见箱"], ["os.", "官网桌面"], ["cli.", "命令行"], ["system.", "系统"],
 ];
 export function actionText(action: string): string {
   if (ACTION_TEXT[action]) return ACTION_TEXT[action];

@@ -18,6 +18,7 @@ import accounts from "./accounts.js";
 import users from "./users.js";
 import activity from "./activity.js";
 import forum from "./forum.js";
+import backup from "./backup.js";
 
 /** 极客班控制台 `/api/console/*`：授权按 #274 新权限体系（节点/权限组）判定。不导入 routes/admin。 */
 export default async function consoleRoutes(app: FastifyInstance) {
@@ -39,4 +40,5 @@ export default async function consoleRoutes(app: FastifyInstance) {
   await app.register(users);
   await app.register(activity);
   await app.register(forum);
+  await app.register(backup);
 }

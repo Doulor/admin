@@ -71,6 +71,7 @@ const NODE_DESCRIPTIONS: Record<string, string> = {
   "gitlab.sync": "让某个账号立即重新同步到 GitLab。",
   "gitlab.settings": "改同步模式、群组路径和同步间隔。",
   "forum.moderate.delete": "删除别人的帖子和回复。",
+  "system.backup": "下载整个系统的数据库快照与站点文件打包。",
 };
 export const MOCK_NODES: PermissionNodesResponse = {
   nodes: ALL_NODES.map(node => ({
@@ -401,6 +402,7 @@ const event = (minutesAgo: number, surface: ActivityEvent["surface"], action: st
 const V1 = "v_8f3a2c61e0b94d7a";
 const V2 = "v_1d07e5b2a9c84f36";
 export const MOCK_ACTIVITY: ActivityEvent[] = [
+  event(2, "console", "system.backup.export", "ok", { who: "xu_yan", meta: { environment: "preview", files: 3, tables: 62, excluded_tables: ["sessions", "device_grants", "oauth_grants", "oidc_payloads", "email_challenges", "invite_attempts", "application_limits", "limit_events", "forum_rate_events"] } }),
   event(3, "console", "perm.group.update", "ok", { who: "xu_yan", target_type: "permission_group", target_id: "title.ai.head", meta: { before: { entries: 5 }, after: { entries: 6, added: ["apply.export"] } } }),
   event(6, "portal", "os.boot.played", "ok", { visitor: V1, ua: UA_PHONE }),
   event(7, "portal", "page.view", "ok", { visitor: V1, ua: UA_PHONE, target_type: "page", target_id: "/join-us" }),

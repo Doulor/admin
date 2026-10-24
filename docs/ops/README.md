@@ -2,7 +2,7 @@
 
 > 运维与使用：照着做就能跑的操作手册。
 
-状态：`current` · 更新：2026-09-23
+状态：`current` · 更新：2026-10-24
 
 | 文件 | 什么时候读 |
 |---|---|
@@ -13,6 +13,7 @@
 | [`LOCAL-PREVIEW.md`](./LOCAL-PREVIEW.md) | 本机启动核心预览与论坛之前 |
 | [`TUFF-FORUM.md`](./TUFF-FORUM.md) | 运行/维护 `app/forum` 或选择论坛工具链之前 |
 | [`FORUM-DATA-CAPTURE.md`](./FORUM-DATA-CAPTURE.md) | 查阅极客班论坛原始备份与只读投影的来源、范围与禁止操作之前 |
+| [`BACKUP.md`](./BACKUP.md) | 下载一键系统备份、恢复到新环境、在预发布和正式之间搬迁数据之前 |
 | [`RELEASE-ACCEPTANCE-TEMPLATE.md`](./RELEASE-ACCEPTANCE-TEMPLATE.md) | 要做人工验收记录时（空白模板，验收人填） |
 | [`USAGE.md`](./USAGE.md) | 需要确认某个功能的预期行为，或改用户可见功能之前 |
 
