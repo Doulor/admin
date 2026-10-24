@@ -85,3 +85,10 @@
 - 做了什么：发现本分支早先已经从 39ab81ab rebase 到 4c7c5dd5（#280 真实姓名/年级合并进 stage 之后），但 /tmp/c276 下旧的两次演练副本其实是 rebase 之前做的（account_profiles 当时还没有 real_name/enrollment_year 列），已经过期；拿同一份预 #280 预 #276 的旧快照重新演练：迁移一次（run1）之后 account_profiles 真的多出 real_name/enrollment_year，forum_topics 真的多出 visibility 列；再迁移一次（run2）核对幂等。rebase 前后的提交哈希对照（reflog 核实）：d65f5c90→2f668206、1b58529c→af92f8bf、fdf0e23b→688b7abc、8a0f8e8c→f52154ef、a639b6b6→8de850a7、a9cf5293→c49495be、0c296211→f3bcf8ba
 - 结果：before（预迁移）：forum_category_settings/sticker_packs/sticker_files/stickers/reactions/upload_files 均不存在（表还没建），forum_topics=17，forum_posts=17，forum_users=1，account_profiles=2，users=2；run1 之后：forum_category_settings=6，forum_sticker_packs=1，forum_sticker_files=24，forum_stickers=24，forum_reactions=0，forum_upload_files=0，forum_topics=17，forum_posts=17，forum_users=1，account_profiles=2，users=2；run2 之后：和 run1 逐项相同。两份临时数据库副本已删除
 - 下一步：全量 check 扫一遍，给团队负责人的汇报
+
+## 19:42:27 +08:00 · 提交 · #276 · 撤回本分支对 app/forum 与论坛服务文档的改动
+
+- 执行者：agent-c276s（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：团队负责人说论坛前端全部改动已在 forum-ui-276 工作树的 af1db686 做完，合并时由负责人 cherry-pick；本分支不重复改，撤回 041be951（app/forum/shared/forum-api.ts、tests/fixtures/server-state.ts、tests/forum-api.test.ts）与 6dba73f9 对 docs/services/forum/README.md 的那 2 行
+- 结果：commit aab2efeb，4 files changed；已知影响：tests/server/forum.test.ts『write responses read by the forum client (#145)』这条会失败到团队负责人 cherry-pick 前端改动为止，没有放宽这条测试的断言
+- 下一步：继续 B 项清单：补齐端点专项测试、ownership.json flows、docs/changes/276.json、API.md/endpoint-contracts.md/server README、mail-envelope 文案、三项从 #274 挪来的清理
