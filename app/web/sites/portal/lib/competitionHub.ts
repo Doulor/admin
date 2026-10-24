@@ -16,6 +16,8 @@ export type TeamStatus = "recruiting" | "locked";
 export type Team = {
   id: string; name: string; slogan: string; status: TeamStatus; leader_account_id: string;
   members: Member[]; member_count: number; created_at: number;
+  /** 组队广场广播（#278）：领队单独开关，和 status 的招募中/已确认是两件事。 */
+  plaza: { recruiting: boolean; note: string; wanted_skills: string[] };
 };
 export type Pending = {
   membership_id: string; kind: "application" | "invitation"; team_id: string; team_name: string;
@@ -89,6 +91,15 @@ export function readTeam(value: unknown): Team | null {
   return {
     id, name, slogan: str(raw.slogan), status: teamStatus(raw.status), leader_account_id: key(raw.leader_account_id),
     members, member_count: Math.max(int(raw.member_count), members.length), created_at: int(raw.created_at),
+    plaza: readTeamPlaza(raw.plaza),
+  };
+}
+
+function readTeamPlaza(value: unknown): Team["plaza"] {
+  const raw = obj(value);
+  return {
+    recruiting: raw?.recruiting === true, note: str(raw?.note),
+    wanted_skills: list(raw?.wanted_skills, (item) => (typeof item === "string" && item ? item : null)),
   };
 }
 
@@ -209,7 +220,7 @@ export const hubPaths = {
   teams: (competition: string) => `/api/competitions/${seg(competition)}/teams`,
   freeAgents: (competition: string) => `/api/competitions/${seg(competition)}/free-agents`,
   leaderboard: (competition: string) => `/api/competitions/${seg(competition)}/leaderboard`,
-  team: (team: string, what?: "apply" | "invite" | "respond" | "leave" | "transfer" | "lock") => `/api/teams/${seg(team)}${what ? `/${what}` : ""}`,
+  team: (team: string, what?: "apply" | "invite" | "respond" | "leave" | "transfer" | "lock" | "plaza") => `/api/teams/${seg(team)}${what ? `/${what}` : ""}`,
   mine: "/api/me/competitions",
   results: "/api/me/competition-results",
 };
@@ -341,7 +352,58 @@ export function useHub(competitionId: string, account: AccountState, onChanged?:
 // ---- 文案与派生：纯函数，单测直接测 ----
 
 /** 输入字数上限，与服务端请求契约一致（competition-contract.ts）：队名 2–30 字、口号 60、报名留言 200、申请留言 100。 */
-export const HUB_LIMITS = { teamName: 30, teamNameMin: 2, slogan: 60, note: 200, message: 100 } as const;
+export const HUB_LIMITS = { teamName: 30, teamNameMin: 2, slogan: 60, note: 200, message: 100, plazaNote: 150, plazaSkills: 10, plazaSkill: 20 } as const;
+
+// ---- 组队广场（#278）：GET /api/team-plaza，两种条目合成一张扁平表，另一种用不到的字段是 null ----
+
+export type PlazaKind = "seeking_team" | "recruiting_team";
+export type PlazaEntry = {
+  kind: PlazaKind;
+  competition_id: string; competition_name: string;
+  note: string; since: number;
+  person: Person | null;
+  team_id: string | null; team_name: string | null; slogan: string | null;
+  leader: Person | null; member_count: number | null; team_max: number | null;
+  wanted_skills: string[] | null;
+};
+export type PlazaPage = { items: PlazaEntry[]; next_cursor: string | null };
+
+function readPlazaEntry(value: unknown): PlazaEntry | null {
+  const raw = obj(value);
+  if (!raw || (raw.kind !== "seeking_team" && raw.kind !== "recruiting_team")) return null;
+  const competition_id = key(raw.competition_id);
+  if (!competition_id) return null;
+  const team = raw.kind === "recruiting_team";
+  const person = team ? null : readPerson(raw.person);
+  const leader = team ? readPerson(raw.leader) : null;
+  const team_id = team ? key(raw.team_id) : "";
+  // 招人的队伍要有队伍 id，找队伍的人要有人：缺了不显示半张卡片
+  if (team ? !team_id : !person) return null;
+  return {
+    kind: raw.kind, competition_id, competition_name: str(raw.competition_name),
+    note: str(raw.note), since: int(raw.since),
+    person, team_id: team ? team_id : null, team_name: team ? str(raw.team_name) : null, slogan: team ? str(raw.slogan) : null,
+    leader, member_count: team ? int(raw.member_count) : null, team_max: team ? int(raw.team_max) : null,
+    wanted_skills: team ? list(raw.wanted_skills, (item) => (typeof item === "string" && item ? item : null)) : null,
+  };
+}
+
+export function readPlaza(body: unknown): PlazaPage | null {
+  const raw = obj(body);
+  if (!raw || !Array.isArray(raw.items)) return null;
+  return { items: list(raw.items, readPlazaEntry), next_cursor: typeof raw.next_cursor === "string" ? raw.next_cursor : null };
+}
+
+/** 组队广场的地址：筛选条件放进查询串，空的不带。 */
+export function plazaPath(filter: { competition: string | null; kind: PlazaKind | null; keyword: string }): string {
+  const query = new URLSearchParams();
+  if (filter.competition) query.set("competition_id", filter.competition);
+  if (filter.kind) query.set("kind", filter.kind);
+  if (filter.keyword) query.set("keyword", filter.keyword);
+  const text = query.toString();
+  return text ? `/api/team-plaza?${text}` : "/api/team-plaza";
+}
+
 
 /**
  * 计分规则（与服务端 competition-rubric.ts 的基础分表一致）：Issue +5～+30，合入的 MR +15～+100，作弊 −50。

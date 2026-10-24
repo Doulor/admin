@@ -13,6 +13,7 @@ import { hubPaths, rankRange, readMine, readMyResults, shortTime, useMemberRead,
 import CompetitionList from "./CompetitionList";
 import CompetitionDetail, { type TabKey } from "./CompetitionDetail";
 import ContestSite from "./ContestSite";
+import TeamPlaza from "./TeamPlaza";
 
 /** 手机详情页借用窗口标题栏左边的返回键：「比赛列表」代替「主屏幕」。 */
 export type PhoneNav = { backText: string; backLabel: string; onBack: () => void };
@@ -154,7 +155,7 @@ export default function CompetitionsApp({ phone = false, onPhoneNav, account = n
   const { items, failed, loading, now, reload } = useCompetitions();
   const siteUrl = items.find((item) => item.site_url)?.site_url ?? null;
   const [filter, setFilter] = useState<CompetitionFilter>(NO_FILTER);
-  const [scope, setScope] = useState<"all" | "mine">("all");
+  const [scope, setScope] = useState<"all" | "mine" | "plaza">("all");
   const accountState: AccountState = !accountLoaded ? "loading" : account ? "signed_in" : "signed_out";
   // 详情里报了名、进了队或处理了邀请就重读一次「我的参赛」，卡片与角标跟着变。
   const [mineVersion, setMineVersion] = useState(0);
@@ -164,6 +165,9 @@ export default function CompetitionsApp({ phone = false, onPhoneNav, account = n
   const pendingTotal = mine.data?.pending_total ?? 0;
   const hubOn = items.some((item) => item.signup.enabled) || entries.size > 0;
   const mineScope = hubOn && scope === "mine";
+  const plazaScope = hubOn && scope === "plaza";
+  // 组队广场的比赛筛选：正在报名、开了组队的内部赛
+  const plazaCompetitions = items.filter((item) => item.status === "registering" && item.signup.enabled && item.signup.participation === "team").map((item) => ({ id: item.id, name: item.name }));
   const results = useMemberRead(mineScope && accountState === "signed_in" ? hubPaths.results : null, readMyResults, mineVersion);
   const [deepLink, setDeepLink] = useState(takeDeepLink);
   const [selectedId, setSelectedId] = useState<string | null>(deepLink?.id ?? null);
@@ -222,6 +226,14 @@ export default function CompetitionsApp({ phone = false, onPhoneNav, account = n
     target?.focus({ preventScroll: true });
   }, [loading, failed, phone]);
 
+  // 从组队广场回到某场比赛的「队伍」页签：和官网深链走同一条路
+  const openTeams = (id: string) => {
+    setDeepLink({ id, tab: "teams" });
+    setScope("all");
+    setFilter(NO_FILTER);
+    setSelectedId(id);
+    if (phone) setView("detail");
+  };
   const pick = (id: string) => {
     setDeepLink(null);
     setSelectedId(id);
@@ -300,7 +312,7 @@ export default function CompetitionsApp({ phone = false, onPhoneNav, account = n
         setView("list");
       }}
     >
-      {!inDetail && !mineScope && siteUrl && <ContestSite href={siteUrl} />}
+      {!inDetail && !mineScope && !plazaScope && siteUrl && <ContestSite href={siteUrl} />}
       {!inDetail && (
         <div className="pt-cx-bar">
           {hubOn && (
@@ -319,9 +331,13 @@ export default function CompetitionsApp({ phone = false, onPhoneNav, account = n
                   </span>
                 )}
               </button>
+              <button type="button" className="pt-cx-view" aria-pressed={plazaScope} onClick={() => setScope("plaza")}>
+                <Icon name="team-line" size={15} />
+                组队广场
+              </button>
             </div>
           )}
-          {!mineScope && (
+          {!mineScope && !plazaScope && (
             <>
               <div className="pt-cx-chips" role="group" aria-label="筛选比赛">
                 <button type="button" className="pt-cx-chip" aria-pressed={!filter.open && filter.kind === null} onClick={() => setFilter((f) => ({ ...f, open: false, kind: null }))}>
@@ -359,7 +375,9 @@ export default function CompetitionsApp({ phone = false, onPhoneNav, account = n
         </div>
       )}
       {!inDetail && mineScope && results.data && results.data.length > 0 && <MyResults items={results.data} />}
-      {shown.length === 0 && !inDetail && mineScope ? (
+      {plazaScope && !inDetail ? (
+        <TeamPlaza account={accountState} competitions={plazaCompetitions} onOpen={openTeams} />
+      ) : shown.length === 0 && !inDetail && mineScope ? (
         <MineEmpty account={accountState} phase={mine.phase} reload={mine.reload} showAll={showAll} />
       ) : shown.length === 0 && !inDetail ? (
         <div className="pt-cx-state">
