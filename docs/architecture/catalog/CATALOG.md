@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`1c782a93575ad86c7c27b612e61546edbda698ddfe6a34479a420bfb9c2b0068`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`1e23eb8c7cecf706ea890cc64d5c353f94d59e98ca8066971f67540ec83b86cc`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -780,7 +780,7 @@
 - 响应与错误：200 {items}；正文截280字、含回复/状态/票数，不含contact/IP/UA；limit由合同限制且最终最多100。
 - 数据与副作用：只读本组织反馈，不查询其他组织是否有记录。
 
-源码：[app/server/src/routes/portal/feedback.ts:66](../../../app/server/src/routes/portal/feedback.ts#L66) · [app/web/sites/portal/App.tsx:32](../../../app/web/sites/portal/App.tsx#L32) · [app/web/sites/portal/components/PageShell.tsx:29](../../../app/web/sites/portal/components/PageShell.tsx#L29)
+源码：[app/server/src/routes/portal/feedback.ts:66](../../../app/server/src/routes/portal/feedback.ts#L66) · [app/web/sites/portal/components/os/FeedbackBox.tsx:66](../../../app/web/sites/portal/components/os/FeedbackBox.tsx#L66) · [app/web/sites/portal/App.tsx:33](../../../app/web/sites/portal/App.tsx#L33) · [app/web/sites/portal/components/PageShell.tsx:29](../../../app/web/sites/portal/components/PageShell.tsx#L29)
 
 测试入口：[tests/server/feedback-org.test.ts](../../../tests/server/feedback-org.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts)。生成器未执行这些测试。
 
@@ -797,7 +797,7 @@
 - 响应与错误：200 {ok:true,id,message}；非法org/内容/分类或人机校验失败400，超额429。
 - 数据与副作用：写feedback及feedback.submit审计（80字预览）；有效sid补账号，过期sid可删除；联系方式截200字，不发送邮件。
 
-源码：[app/server/src/routes/portal/feedback.ts:26](../../../app/server/src/routes/portal/feedback.ts#L26) · [app/web/sites/portal/pages/Feedback.tsx:105](../../../app/web/sites/portal/pages/Feedback.tsx#L105)
+源码：[app/server/src/routes/portal/feedback.ts:26](../../../app/server/src/routes/portal/feedback.ts#L26) · [app/web/sites/portal/components/os/FeedbackBox.tsx:91](../../../app/web/sites/portal/components/os/FeedbackBox.tsx#L91)
 
 测试入口：[tests/server/feedback-org.test.ts](../../../tests/server/feedback-org.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/rate-limits.test.ts](../../../tests/server/rate-limits.test.ts)。生成器未执行这些测试。
 

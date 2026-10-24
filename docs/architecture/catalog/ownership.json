@@ -2762,12 +2762,16 @@
           "needle": "  app.get<{ Querystring: { org?: string; limit?: string } }>(\"/api/feedback/public\", async (req) => {"
         },
         {
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx",
+          "needle": "api<{ items: PublicFeedback[] }>(`/api/feedback/public?org=${encodeURIComponent(org)}&limit=10`)"
+        },
+        {
           "path": "app/web/sites/portal/App.tsx",
-          "needle": "<Route path=\"/feedback/:org\" element={<Feedback />} />"
+          "needle": "<Route path=\"/feedback/:org\" element={<Navigate to=\"/?open=feedback\" replace />} />"
         },
         {
           "path": "app/web/sites/portal/components/PageShell.tsx",
-          "needle": "<NavLink to=\"/feedback\">意见箱</NavLink>"
+          "needle": "<Link to=\"/?open=feedback\">意见箱</Link>"
         }
       ],
       "tests": [
@@ -2811,7 +2815,7 @@
           "needle": "  app.post<{ Body: Body }>(\"/api/feedback\", {"
         },
         {
-          "path": "app/web/sites/portal/pages/Feedback.tsx",
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx",
           "needle": "const r = await api<{ ok: boolean; message: string }>(\"/api/feedback\", {"
         }
       ],

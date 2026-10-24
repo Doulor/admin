@@ -2,10 +2,11 @@
   "version": 1,
   "issue": 275,
   "kind": "business",
-  "summary": "官网改成新的 YUGC OS：进站直接播开机动画进桌面（一天一次），默认壁纸「晴空」接着开机动画最后一帧画；桌面、窗口和 Dock 换成新外观，菜单栏头像打开个人资料卡（登录、注册、改资料、绑定登录方式、填邀请码、退出），新生便签每个账号只出现一次；组织架构、代码仓库、意见箱都是桌面窗口；加入我们要先登录并显示今天还能投几份；删掉旧吉祥物图、3D 书桌、GitHub 天际线页和旧的组织邀请落地页。",
+  "summary": "官网改成新的 YUGC OS：进站直接播开机动画进桌面（一天一次），默认壁纸「晴空」接着开机动画最后一帧画；桌面、窗口和 Dock 换成新外观，菜单栏头像打开个人资料卡（登录、注册、改资料、绑定登录方式、填邀请码、退出），新生便签每个账号只出现一次；组织架构、代码仓库、意见箱都是桌面窗口；加入我们要先登录并显示今天还能投几份；删掉旧吉祥物图、3D 书桌、GitHub 天际线页、旧的组织邀请落地页和单独的意见箱页，退场的内容原样归档在 docs/history/portal-yugc-os-v1/。",
   "applications": [
     "web",
-    "server"
+    "server",
+    "console"
   ],
   "domains": [
     "audit",
@@ -43,7 +44,8 @@
     "flow:gitlab.projects.public.list",
     "flow:audit.events.report",
     "flow:competition.my_status",
-    "flow:gitlab.projects.console.list"
+    "flow:gitlab.projects.console.list",
+    "flow:feedback.console.list"
   ],
   "assessments": {
     "business": {
@@ -246,6 +248,7 @@
     {
       "paths": [
         "app/web/sites/portal/pages/Feedback.tsx",
+        "app/web/sites/portal/components/os/FeedbackBox.tsx",
         "app/web/sites/portal/styles/pages.css",
         "app/web/sites/portal/components/PageShell.tsx"
       ],
@@ -264,7 +267,7 @@
         "flow:feedback.public.list",
         "flow:feedback.submit"
       ],
-      "reason": "意见箱表单抽成 FeedbackBox，桌面窗口和 /feedback 分享页共用；删掉已退场的邀请落地页样式，页脚换成代码仓库。"
+      "reason": "意见箱表单移到 components/os/FeedbackBox.tsx，只在桌面窗口里用；/feedback 旧地址跳到 /?open=feedback，原来的页面归档；文档页外壳的「意见箱」链接改成新地址；删掉已退场的邀请落地页样式，页脚换成代码仓库。"
     },
     {
       "paths": [
@@ -354,7 +357,8 @@
       "paths": [
         "tests/web/",
         "tests/e2e/portal-competitions.spec.ts",
-        "tests/e2e/portal-phone.spec.ts"
+        "tests/e2e/portal-phone.spec.ts",
+        "tests/tooling/static-cdn.test.ts"
       ],
       "domains": [
         "competitions",
@@ -374,7 +378,7 @@
         "flow:feedback.submit",
         "flow:gitlab.projects.public.list"
       ],
-      "reason": "新桌面的单测和比赛 e2e；删掉只测旧书桌、旧组织数据和旧手机 3D 场景的用例，称号守卫改在组织架构窗口用例里。"
+      "reason": "新桌面的单测和比赛 e2e；删掉只测旧书桌、旧组织数据和旧手机 3D 场景的用例，称号守卫改在组织架构窗口用例里。 CDN 上传用例里要求 CORS 的 GLB 样本改用临时文件，不再读已归档的手机模型。"
     },
     {
       "paths": [
@@ -391,7 +395,8 @@
         "app/web/sites/portal/pages/GithubScene.tsx",
         "app/web/sites/portal/pages/JoinByToken.tsx",
         "app/web/sites/portal/three/",
-        "app/web/sites/portal/styles/desk.css"
+        "app/web/sites/portal/styles/desk.css",
+        "app/web/sites/portal/assets/models/"
       ],
       "domains": [
         "competitions",
@@ -406,7 +411,41 @@
       "nodes": [
         "application:web"
       ],
-      "reason": "删除旧吉祥物图和组件、3D 书桌与加载页、GitHub 天际线页、旧的组织邀请落地页、只给旧组织架构用的 lib/org.ts 和 GitHub 仓库快照；删除依据见 removals，three/ 下加入我们和论坛 3D 场景用的 stage.ts、join.ts、forum.ts 保留。"
+      "reason": "删除旧吉祥物图和组件、3D 书桌与加载页、GitHub 天际线页、旧的组织邀请落地页、只给旧组织架构用的 lib/org.ts 和 GitHub 仓库快照；删除依据见 removals，three/ 下加入我们和论坛 3D 场景用的 stage.ts、join.ts、forum.ts 保留。 书桌用的手机模型和署名说明移到归档目录，官网不再加载。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/Feedback.vue",
+        "docs/services/console/README.md"
+      ],
+      "domains": [
+        "feedback"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:feedback.console.list"
+      ],
+      "reason": "控制台意见箱页的公开提交链接改成官网的 /?open=feedback，说明文字里的「意见页」改成意见箱的「最近的意见」；接口和权限没变。"
+    },
+    {
+      "paths": [
+        "docs/history/README.md",
+        "docs/history/portal-yugc-os-v1/"
+      ],
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:web"
+      ],
+      "reason": "所有者 2026-10-24 要求改版退场的内容归档并写说明：本次退场的页面、组件、样式、图片和模型按原路径放进 docs/history/portal-yugc-os-v1/，除模型署名说明加了状态行外都和 b6420dee 逐字节相同；docs/ 不进镜像构建上下文，也不在公开文档接口里，不会上线。"
     }
   ],
   "documents": [
@@ -414,7 +453,8 @@
     "docs/services/web/README.md",
     "docs/design/DESIGN.md",
     "docs/conventions/TESTING.md",
-    "docs/public/README.md"
+    "docs/public/README.md",
+    "docs/services/console/README.md"
   ],
   "tests": [
     "tests/web/portal-boot.test.tsx",
@@ -430,7 +470,7 @@
     "tests/web/portal-competitions.test.tsx",
     "tests/web/portal-wallpapers.test.ts"
   ],
-  "compatibility": "旧地址 /github、/join/:token 落到兜底路由回首页；/feedback 和 /feedback/:org 分享地址照常打开意见箱页；之前存的壁纸选择照用，没选过的人默认「晴空」。",
+  "compatibility": "旧地址 /github、/join/:token 落到兜底路由回首页；/feedback 和 /feedback/:org 跳到 /?open=feedback，进桌面打开意见箱窗口，控制台给的分享链接改成 /?open=feedback；之前存的壁纸选择照用，没选过的人默认「晴空」。",
   "migration": "没有数据或接口迁移；新的浏览器本地记录第一次访问时写入，便签看过的记录随资料接口写到账号上。",
   "rollback": "合并后在 stage 上用 git revert -m 1 撤销本 PR 的合并提交并重新构建 web 镜像即可，不涉及数据，也不移动发布 tag。",
   "removals": [
@@ -621,6 +661,21 @@
         "platform"
       ],
       "reason": "旧吉祥物图（八张姿势图）的组件，#275 删除旧吉祥物图后没有读者。"
+    },
+    {
+      "path": "app/web/sites/portal/pages/Feedback.tsx",
+      "baseAnchor": "export default function Feedback() {",
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "reason": "单独的意见箱页退场：表单移到 components/os/FeedbackBox.tsx 只在桌面窗口里用，/feedback 跳到 /?open=feedback，原来的页面归档在 docs/history/portal-yugc-os-v1/。"
     }
   ]
 }

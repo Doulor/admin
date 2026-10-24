@@ -3033,7 +3033,11 @@
           "path": "app/server/src/routes/portal/feedback.ts"
         },
         {
-          "line": 32,
+          "line": 66,
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
+        },
+        {
+          "line": 33,
           "path": "app/web/sites/portal/App.tsx"
         },
         {
@@ -3078,8 +3082,8 @@
           "path": "app/server/src/routes/portal/feedback.ts"
         },
         {
-          "line": 105,
-          "path": "app/web/sites/portal/pages/Feedback.tsx"
+          "line": 91,
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
         }
       ],
       "id": "flow:feedback.submit",
@@ -11076,7 +11080,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "1c782a93575ad86c7c27b612e61546edbda698ddfe6a34479a420bfb9c2b0068",
+    "fingerprint": "1e23eb8c7cecf706ea890cc64d5c353f94d59e98ca8066971f67540ec83b86cc",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -11292,7 +11296,7 @@
       },
       {
         "path": "app/console/src/pages/Feedback.vue",
-        "sha256": "fddf6f9adf6546f16921deb4c3250a94c30b36a3ee8436536ad798bfc50e285e"
+        "sha256": "f6442d9a13dfc64c596dc870680766043e732fe87ff0674847d68252d76818a2"
       },
       {
         "path": "app/console/src/pages/Forum.vue",
@@ -12316,7 +12320,7 @@
       },
       {
         "path": "app/web/sites/portal/App.tsx",
-        "sha256": "655f505f8c2d973cc2c3e87003b30d0ed04a6976fc6912b1f791a3f8ba737616"
+        "sha256": "64b3e530006a703dd26d50f64e866c18c6833d407ed4b07659ae850cc8d0d792"
       },
       {
         "path": "app/web/sites/portal/components/ChoiceChips.tsx",
@@ -12332,7 +12336,7 @@
       },
       {
         "path": "app/web/sites/portal/components/PageShell.tsx",
-        "sha256": "2fa12fc2c4b84152aea4e36a3a3e97a40ba7f13060fcc8da7fd1172118e2e6b1"
+        "sha256": "a8ee3652ff5898c74243aada5bea6fb3b0a1045684ac5b87a238000b3387fa47"
       },
       {
         "path": "app/web/sites/portal/components/PromoLazy.tsx",
@@ -12375,6 +12379,10 @@
         "sha256": "c35860905eafb57719d4a43f6b76a8aef03fea290649beaa4570de98d3494af9"
       },
       {
+        "path": "app/web/sites/portal/components/os/FeedbackBox.tsx",
+        "sha256": "daf29c128c5fb3f95b6d9ad78d40c592655dec1a6f518f094df2407bb7cf4d83"
+      },
+      {
         "path": "app/web/sites/portal/components/os/ProfileCard.tsx",
         "sha256": "cfe0186e06a0b60a0ff3c42ea4b9d5f7080d036f123f78d84712b489bf5c3da3"
       },
@@ -12392,11 +12400,11 @@
       },
       {
         "path": "app/web/sites/portal/components/os/Windows.tsx",
-        "sha256": "09f71bc8b64ffcb8444616276b04e0044ee2841ca479257ea55a225315cf9a23"
+        "sha256": "0dffd314e59067ee8675b391a89a0233fa965a56cce3fab997ae32670560a9ee"
       },
       {
         "path": "app/web/sites/portal/components/os/YugcOs.tsx",
-        "sha256": "e36b58722b56019a6badfd371adc9dc3ae49c8398492aad1d83d00ab6094588d"
+        "sha256": "84b06407db843f6121f8a7c435d92287ef658d5ba801f8210524d2c825cb75e8"
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/Avatar.tsx",
@@ -12531,10 +12539,6 @@
         "sha256": "22d4e32540a8f0f0661e77e1d735d9f0d1c48995f6010088b265a7896a78b132"
       },
       {
-        "path": "app/web/sites/portal/pages/Feedback.tsx",
-        "sha256": "d7fa012ed819e63aa6b2ca42b425b46c34bcccc7b347130ad240bf6fb1d61198"
-      },
-      {
         "path": "app/web/sites/portal/pages/Forum3D.tsx",
         "sha256": "54a969a7bfc03e7c6dedf45c2dd14f2535364f6cbd52be9a5c98e0516a0bddb0"
       },
@@ -12580,7 +12584,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "f45386766952abf6b90753b25f7cb8761068d319bd12efed74eaa3b990f2814b"
+        "sha256": "523d49cf113871042cb5965db25a9d287b507ad5980f34a3243fd66546163293"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -12608,7 +12612,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "115ce8b45203d2ce55ca40e6fc4c1d23a460b0cdbc47dce22ea2808c40cf5f35"
+        "sha256": "f6a3fcf32650c28bc95a140cce5c4830a944251c76bc58a52ee94d7056cc4e91"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -12636,11 +12640,11 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "dcb060a5e82d0b7e3413615a10213197ee6e055b3552b3f2a4cefb79a3d2797a"
+        "sha256": "926b745354b490710cdd5a8886e83125b34a19bcfce552207ee0dbaed01e82f9"
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "acc3f642ce0191358dc4b0ffc3c7ac24ce332a11c4094cd266ce3ec3a4038d11"
+        "sha256": "8689cd4939cf1df7b700b8002f3cb5da73d0b20df2d4488772cdf2efd5bcbe02"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -28799,7 +28803,11 @@
           "path": "app/server/src/routes/portal/feedback.ts"
         },
         {
-          "line": 32,
+          "line": 66,
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
+        },
+        {
+          "line": 33,
           "path": "app/web/sites/portal/App.tsx"
         },
         {
@@ -28831,7 +28839,11 @@
           "path": "app/server/src/routes/portal/feedback.ts"
         },
         {
-          "line": 32,
+          "line": 66,
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
+        },
+        {
+          "line": 33,
           "path": "app/web/sites/portal/App.tsx"
         },
         {
@@ -28875,8 +28887,8 @@
           "path": "app/server/src/routes/portal/feedback.ts"
         },
         {
-          "line": 105,
-          "path": "app/web/sites/portal/pages/Feedback.tsx"
+          "line": 91,
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
         }
       ],
       "from": "flow:feedback.submit",
@@ -28909,8 +28921,8 @@
           "path": "app/server/src/routes/portal/feedback.ts"
         },
         {
-          "line": 105,
-          "path": "app/web/sites/portal/pages/Feedback.tsx"
+          "line": 91,
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
         }
       ],
       "from": "flow:feedback.submit",
@@ -28925,8 +28937,8 @@
           "path": "app/server/src/routes/portal/feedback.ts"
         },
         {
-          "line": 105,
-          "path": "app/web/sites/portal/pages/Feedback.tsx"
+          "line": 91,
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
         }
       ],
       "from": "flow:feedback.submit",
@@ -28941,8 +28953,8 @@
           "path": "app/server/src/routes/portal/feedback.ts"
         },
         {
-          "line": 105,
-          "path": "app/web/sites/portal/pages/Feedback.tsx"
+          "line": 91,
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
         }
       ],
       "from": "flow:feedback.submit",
@@ -28957,8 +28969,8 @@
           "path": "app/server/src/routes/portal/feedback.ts"
         },
         {
-          "line": 105,
-          "path": "app/web/sites/portal/pages/Feedback.tsx"
+          "line": 91,
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
         }
       ],
       "from": "flow:feedback.submit",
@@ -80234,6 +80246,19 @@
         "public_content",
         "recruitment"
       ],
+      "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
       "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
     },
     {
@@ -80645,19 +80670,6 @@
         "recruitment"
       ],
       "path": "app/web/sites/portal/pages/Docs.tsx"
-    },
-    {
-      "domains": [
-        "competitions",
-        "feedback",
-        "identity",
-        "invitations",
-        "organization",
-        "platform",
-        "public_content",
-        "recruitment"
-      ],
-      "path": "app/web/sites/portal/pages/Feedback.tsx"
     },
     {
       "domains": [
