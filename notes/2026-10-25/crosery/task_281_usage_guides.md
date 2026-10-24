@@ -29,3 +29,24 @@
 - 做了什么：281.json 加 web 应用、forum.state、forum.topic_posts、competition.public.list 三个流程和相关业务域，每条覆盖写明对齐说明，依赖维度引用 Dockerfile 与 forum 源码；ownership.json 给两个论坛流程补 forum-content.ts 的源码证据；重建目录（fe7a0ca8）
 - 结果：commit fe7a0ca8；check-architecture --base 7aa5e777 通过（89 个变更文件，7 个关联节点）；vitest 136 文件 2090 项全过；pnpm typecheck 与 runtime/site-config/environments/boundaries/docs/tuffex-docs/secrets/doc-sync/catalog 全过
 - 下一步：推送并开 MR，作者自审
+
+## 04:10:34 +08:00 · 提交 · #281 · 改正 281.json 的说明篇数
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：281.json 里写的 17 篇、t900–t916 是早期的数，改成 26 篇（含目录）、t900–t925
+- 结果：commit e6067db5；check-architecture 仍通过
+- 下一步：开 MR
+
+## 04:10:34 +08:00 · PR · #281 · 开 MR !21 回 stage
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：推送 task/281/usage_guides 到 GitLab，开 MR !21 目标 stage；正文写目的（所有者 21:16、21:17、22:22 原话）、Closes #281、变更范围、宏观对齐、解决链路、数据、验证命令、截图、人工验收步骤、风险与回滚
+- 结果：MR !21 https://git.yangtzeu.work/geek/admin/-/merge_requests/21
+- 下一步：作者自审
+
+## 04:10:34 +08:00 · 审查 · #281 · 作者自审 MR !21：通过
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：按 code-review 两条线在主会话核对 7aa5e777...e6067db5：文档同步、宏观对齐、没有放宽校验（哈希带 __ 的截图换压缩质量重生成）、写法检查、截图里没有真实姓名和邮箱；逐条对照所有者 21:16、21:17、22:22；核对播种只动官方账号的说明帖、编号段查重、CDN 只增不改
+- 结果：通过；记一处规范偏差：25f0524c 用了词表外的 docs(architecture)，已推送不改写历史。未验证项（预发布显示、可见范围、CDN 图片）随 rc.22 补
+- 下一步：贴审查评论并合并
