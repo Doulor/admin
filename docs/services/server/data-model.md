@@ -2,7 +2,7 @@
 
 > data.db 每张表的用途、写入方、读取方和个人信息字段，以及当前没有消费者的表、列和索引；表结构以 `app/server/src/lib/db.ts` 为唯一来源。
 
-状态：`current` · 更新：2026-10-24 · 源码：`app/server/src/lib/db.ts` · 上级合同：[server](README.md)
+状态：`current` · 更新：2026-10-25 · 源码：`app/server/src/lib/db.ts` · 上级合同：[server](README.md)
 
 ## 约定
 
@@ -23,7 +23,8 @@
 - 2026-10-24（#278，CONTRACT-278 与所有者 10-24 13:45 的规则）新增 `competition_site_versions`、`competition_sites`、`competition_gitlab_sources`、`competition_score_candidates`、`competition_rules`、`competition_finals`、`competition_prizes` 七张表与 3 个索引，给 `competition_score_events` 加三列 `grade`、`grade_factor`、`weighted_points`（都可空，先查 `PRAGMA table_info` 再加，可以重复执行）。`points` 仍是基础分、照旧受 CHECK 约束（SQLite 改不了已有的 CHECK，所以不重建表）；加权分另存一列，天梯加 `COALESCE(weighted_points, points)`，#278 之前的行按系数 1。同一次启动在事务里给第一期比赛写默认系数、三档奖项与 GitLab 项目 `geek/admin`，用 `console_seeds` 的 `competition_oss_2026_1_rules` 标记，只插一次。站点文件不进库，放在数据库旁边的 `sites/<competition_id>/<version_id>/`（容器里是 `/data/sites`）。**回滚**：换回旧镜像即可，旧代码不认识这七张表和三列，插入积分时不写新列也照常成功（天梯按 `points` 算，回滚期间登记的分没有加权）；再上线后那几条的加权列为空、按系数 1 算，不回头补。
 - 2026-10-24（#278 两档评定，所有者 10-24 16:59）给 `competition_score_events` 再加四列：`importance`（一般 / 重要 / 关键）、`core`（边缘 / 业务 / 核心）、`damp_percent`（防刷折扣，100 照算、0 不计）、`contributed_at`（贡献发生的时间，GitLab 候选是合并 / 创建时间，手工登记为空、按 `created_at`）；同样先查 `PRAGMA table_info` 再加，可以重复执行。`competition_score_candidates` 去掉按改动行数算的 `size_hint`、`suggested`，换成标签给的 `importance`、`core`（这张表是 #278 新建的、还没上过线，直接改建表语句）。第一期默认系数从 150 / 130 / 110 改为 350 / 220 / 140（`console_seeds` 已插过的库不覆盖，在控制台改）。**旧行**：分数原样保留，两档与折扣为空，不追溯打折；防刷只数 `damp_percent = 100` 的「一般 × 边缘」。预发布库副本演练：跑两次，`competition_score_events` 14 列变 21 列、行数与分数合计不变（库里 0 行；另插 3 条旧结构的虚构行，60 / 10 / −50 照旧），第二次无变化，`integrity_check` 为 ok。**回滚**：和上一条一样换回 #278 之前的镜像（带 `size_hint` 的那版候选表没有上过线），旧代码不认识这四列，插入积分时留空照常成功；回滚期间登记的分没有两档，再上线后按旧行处理。
 - 2026-10-04（#204）新增投递存储值 `cancelled`（已取消），不改表结构、不批量修改数据；仍只把旧 `reviewing` 改回 `received`，重启不覆盖 `cancelled` 或任何审核历史。取消保留原简历，追加 `to_status = cancelled` 的审核；可以补备注或恢复状态。取消这一步不写 `mail_outbox`，也不修改此前的邮件。
-- 2026-10-24（#278 重开，所有者 22:17/22:25：内部比赛的组队广场）给 `competition_teams` 加四列：`plaza_recruiting`（INTEGER NOT NULL DEFAULT 0 CHECK IN (0,1)）、`plaza_note`（TEXT NOT NULL DEFAULT ''）、`plaza_skills`（TEXT NOT NULL DEFAULT '[]'，JSON 字符串数组）、`plaza_updated_at`（可空 INTEGER）；同样先查 `PRAGMA table_info` 再加，可以重复执行，新列都有默认值，旧队伍一律不在广场出现。没有新表，`GET /api/team-plaza` 只是跨比赛读 `competition_signups`、`competition_teams`、`competition_team_members`，不新增持久化。预发布库副本演练：没有找到可用的预发布 DB 副本（`.tools/yugc-v2/db/` 不存在），改用一份内存库跑了两次迁移核对幂等——`competition_teams` 列数 11 变 15、行数与既有字段值不变，第二次无变化。**回滚**：换回 #278 重开之前的镜像即可，旧代码不认识这四列，建队、确认参赛等既有流程插入/更新时不写它们也照常成功；回滚期间开过的广场广播保留在库里，再上线后原样可见。
+- 2026-10-24（#278 重开，所有者 22:17/22:25：内部比赛的组队广场）给 `competition_teams` 加四列：`plaza_recruiting`（INTEGER NOT NULL DEFAULT 0 CHECK IN (0,1)）、`plaza_note`（TEXT NOT NULL DEFAULT ''）、`plaza_skills`（TEXT NOT NULL DEFAULT '[]'，JSON 字符串数组）、`plaza_updated_at`（可空 INTEGER）；同样先查 `PRAGMA table_info` 再加，可以重复执行，新列都有默认值，旧队伍一律不在广场出现。没有新表，`GET /api/team-plaza` 只是跨比赛读 `competition_signups`、`competition_teams`、`competition_team_members`，不新增持久化。预发布库副本演练：复制 `.tools/yugc-v2/db/preview-copy-278.db` 到 `/tmp` 另开一份跑（原件不动，之后删掉临时副本），跑两次迁移核对幂等——`competition_teams` 该库里 0 行、列数 11 变 15，55 张表行数前后一致，第二次运行无变化。**回滚**：换回 #278 重开之前的镜像即可，旧代码不认识这四列，建队、确认参赛等既有流程插入/更新时不写它们也照常成功；回滚期间开过的广场广播保留在库里，再上线后原样可见。
+- 2026-10-24（第一期改为个人赛，所有者 23:38 更正：「我们的第一个内部赛事不是团队赛哦」）更正第 18 条的种子：新库直接按个人赛种（`participation = 'individual'`，`team_min`/`team_max` 留空）；已经按团队赛种过、还没人报名或建队的库（预发布库副本里核对过是这种情况：`competition_signups`、`competition_teams` 都是 0 行），启动时自动把 `competition_signup_settings` 改成个人赛，不新增 `console_seeds` 标记（改完 `participation` 已经是 `individual`，下次启动不再匹配旧值，天然只改一次）；真的已经有人报名或组队，不自动改，留给组织者在控制台手工处理。不改表结构，不影响 #278 两条迁移。**回滚**：换回这条之前的镜像即可，旧代码仍按团队赛读这张设置行，不影响已经按团队赛报名/组队的数据（那种情况这条修复本来就不会碰它）。
 
 ## 表
 

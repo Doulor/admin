@@ -992,15 +992,33 @@ const COMPETITION_SEED_DEADLINE = Date.parse("2026-11-15T23:59:59.999+08:00");
       // 第一段是官网 Hero 上的一句介绍，全文在「概览」里按段显示
       "面向极客班成员的开源实战贡献赛：在组织认可的开源仓库里提交 Issue 与 PR，按合入结果计分，积分天梯实时更新。\n"
         + "计分：合入的 Issue +5～+30，合入的 PR +15～+100；作弊（刷量、抄袭、冒名或虚假贡献）每次 −50。分数由组织者核实后登记，可追溯、可撤销。\n"
-        + "1–3 人组队（一个人也可以自成一队），队伍积分是在队成员积分之和。比赛时间 2026-10-21 至 2026-11-15 23:59:59（北京时间）。",
+        + "个人赛，按个人合入结果计分。比赛时间 2026-10-21 至 2026-11-15 23:59:59（北京时间）。",
       now,
       now,
     );
+    // 个人赛（所有者 2026-10-24 23:38：「我们的第一个内部赛事不是团队赛哦」），team_min/team_max 留空。
     db.prepare(`INSERT OR IGNORE INTO competition_signup_settings(competition_id, enabled, participation, team_min, team_max, scoring, updated_at, updated_by)
-      VALUES(?, 1, 'team', 1, 3, 'contribution', ?, NULL)`).run(COMPETITION_SEED_ID, now);
+      VALUES(?, 1, 'individual', NULL, NULL, 'contribution', ?, NULL)`).run(COMPETITION_SEED_ID, now);
     db.prepare("INSERT OR IGNORE INTO console_seeds(name, seeded_at) VALUES(?, ?)").run(COMPETITION_SEED, now);
   });
   seeded();
+}
+
+// 更正：第一期原来按团队赛种的库（#239 上线时 participation='team'，team_min/team_max 1–3），
+// 所有者 2026-10-24 23:38 告知第一期其实是个人赛。还没人报名或建队时才改回个人赛；真的已经有报名
+// 或队伍（组织者已经在用团队模式）就不动，交组织者在控制台手工处理。可以重复执行：改完之后
+// participation 已经是 'individual'，下次启动不再匹配 'team' 条件。
+{
+  const row = db.prepare("SELECT participation FROM competition_signup_settings WHERE competition_id = ?").get(COMPETITION_SEED_ID) as { participation: string } | undefined;
+  if (row?.participation === "team") {
+    const existing = db.prepare(
+      "SELECT (SELECT COUNT(*) FROM competition_signups WHERE competition_id = ?) + (SELECT COUNT(*) FROM competition_teams WHERE competition_id = ?) AS n",
+    ).get(COMPETITION_SEED_ID, COMPETITION_SEED_ID) as { n: number };
+    if (existing.n === 0) {
+      db.prepare("UPDATE competition_signup_settings SET participation = 'individual', team_min = NULL, team_max = NULL, updated_at = ? WHERE competition_id = ?")
+        .run(Date.now(), COMPETITION_SEED_ID);
+    }
+  }
 }
 
 // 比赛官网托管、GitLab 贡献收集、年级系数与奖项、定榜与兑奖码（#278，CONTRACT-278）：只新增表与可空列。
