@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Post, Topic } from '~/data/types'
-import { nextZIndex, toast, toastStore } from '@talex-touch/tuffex/utils'
+import { toast, toastStore } from '@talex-touch/tuffex/utils'
 import { MEMBER_CONTENT_MAX } from '../../shared/forum-api'
 import { quoteDraft } from '../../shared/post-markdown'
 
@@ -112,7 +112,8 @@ function close() {
  *
  * The toast saying why came first and took a z-index; the drawer takes the
  * next one as it opens and its mask would cover the toast (#162). Once the
- * drawer has opened, the toasts take another one and are on top again.
+ * drawer has opened, bumping `toastStore.raised` makes TxToastHost take
+ * another one (Tuffex 0.9.1), so the toasts are on top again.
  */
 function takeBackRefused() {
   const refused = server.takeRefusedReplies(props.topic.id)
@@ -126,7 +127,7 @@ function takeBackRefused() {
   emit('update:replyTo', last.replyToPostId ? forum.postById(last.replyToPostId) : undefined)
   emit('update:visible', true)
   void nextTick(() => {
-    toastStore.zIndex = nextZIndex()
+    toastStore.raised++
   })
 }
 

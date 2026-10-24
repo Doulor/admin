@@ -32,7 +32,8 @@ const dependencies = dependencyProblems({
 });
 if (dependencies.length) throw new Error(`Unapproved forum dependency change: ${dependencies.join('; ')}`);
 const approvedCount = Object.keys(adoption.approvedDependencies?.dependencies ?? {}).length;
+const upgradeCount = Object.keys(adoption.approvedDependencies?.upgrades ?? {}).length;
 for (const path of ['app/web/sites/forum', 'app/server/src/routes/forum', 'app/server/src/lib/forum-db.ts']) {
   if (existsSync(resolve(root, path))) throw new Error(`Retired forum implementation returned to active source: ${path}`);
 }
-console.log(`Forum provenance passed: ${Object.keys(source.original_files).length} upstream files, ${changes.length} documented adaptations, ${approvedCount} approved dependencies, MIT retained, source ${source.commit}.`);
+console.log(`Forum provenance passed: ${Object.keys(source.original_files).length} upstream files, ${changes.length} documented adaptations, ${approvedCount} approved dependencies, ${upgradeCount} approved upgrades, MIT retained, source ${source.commit}.`);

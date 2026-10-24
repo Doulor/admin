@@ -10,7 +10,7 @@
     "preview": "vite preview --host 127.0.0.1 --port 5186"
   },
   "dependencies": {
-    "@talex-touch/tuffex": "0.6.0",
+    "@talex-touch/tuffex": "0.9.1",
     "vue": "3.5.42",
     "vue-router": "4.6.4"
   },

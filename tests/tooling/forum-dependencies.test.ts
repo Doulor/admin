@@ -88,6 +88,48 @@ describe("论坛依赖只认批准过的", () => {
       .toContain("approvedDependencies.dependencies is empty");
   });
 
+  describe("批准的升级：上游已有的依赖换成写死的新版本", () => {
+    const tuffexLock = (version: string) => lockfile(`      '@talex-touch/tuffex':\n        specifier: ${version}\n        version: ${version}(vue@3.5.42)\n`);
+    const tuffexManifest = (version: string) => manifest({ "@milkdown/crepe": "7.22.3", "@talex-touch/tuffex": version });
+    // 上游清单里本来就有 0.6.0；批准里写 from 0.6.0 → to 0.9.1。
+    const upstreamWithTuffex = manifest({ "@talex-touch/tuffex": "0.6.0" });
+    const base = { "package.json": sha(upstreamWithTuffex), "pnpm-lock.yaml": sha(lockfile()) };
+    const upgradeLock = `${tuffexLock("0.9.1")}${crepeEntry()}`;
+    const withUpgrade = (over: Record<string, unknown> = {}) => approved({ upgrades: { "@talex-touch/tuffex": { from: "0.6.0", to: "0.9.1" } }, lockfileSha256: sha(upgradeLock), ...over });
+
+    it("清单里是批准的新版本、锁文件解析到它、其余与上游一致，通过", () => {
+      expect(dependencyProblems({ manifest: tuffexManifest("0.9.1"), lockfile: upgradeLock, upstream: base, approved: withUpgrade() })).toEqual([]);
+    });
+
+    it("没有批准这次升级，拦下", () => {
+      expect(dependencyProblems({ manifest: tuffexManifest("0.9.1"), lockfile: upgradeLock, upstream: base, approved: approved({ lockfileSha256: sha(upgradeLock) }) }))
+        .toEqual(["package.json differs from upstream beyond the approved dependencies"]);
+    });
+
+    it("清单里的版本不是批准的 to，拦下", () => {
+      expect(dependencyProblems({ manifest: tuffexManifest("0.9.0"), lockfile: upgradeLock, upstream: base, approved: withUpgrade() }))
+        .toContain('@talex-touch/tuffex: package.json has "0.9.0", approved upgrade to "0.9.1"');
+    });
+
+    it("from 不是上游的版本，拦下", () => {
+      expect(dependencyProblems({ manifest: tuffexManifest("0.9.1"), lockfile: upgradeLock, upstream: base, approved: withUpgrade({ upgrades: { "@talex-touch/tuffex": { from: "0.5.0", to: "0.9.1" } } }) }))
+        .toEqual(["package.json differs from upstream beyond the approved dependencies"]);
+    });
+
+    it("版本范围不算写死，锁文件解析到别的版本也拦下", () => {
+      expect(dependencyProblems({ manifest: tuffexManifest("^0.9.1"), lockfile: upgradeLock, upstream: base, approved: withUpgrade({ upgrades: { "@talex-touch/tuffex": { from: "0.6.0", to: "^0.9.1" } } }) }))
+        .toContain('@talex-touch/tuffex: the approved upgrade must go between exact versions (x.y.z), not "0.6.0" → "^0.9.1"');
+      const other = `${tuffexLock("0.9.0")}${crepeEntry()}`;
+      expect(dependencyProblems({ manifest: tuffexManifest("0.9.1"), lockfile: other, upstream: base, approved: withUpgrade({ lockfileSha256: sha(other) }) }))
+        .toEqual(["@talex-touch/tuffex: pnpm-lock.yaml does not resolve 0.9.1 for the forum"]);
+    });
+
+    it("升级的依赖不在清单里，拦下", () => {
+      expect(dependencyProblems({ manifest: crepeManifest, lockfile: upgradeLock, upstream: base, approved: withUpgrade() }))
+        .toContain('@talex-touch/tuffex: package.json has null, approved upgrade to "0.9.1"');
+    });
+  });
+
   it("仓库里的论坛清单与锁文件按 ADOPTION.json 通过", () => {
     const read = (name: string) => readFileSync(new URL(`../../app/forum/${name}`, import.meta.url), "utf8");
     const { original_files } = JSON.parse(read("UPSTREAM.json"));

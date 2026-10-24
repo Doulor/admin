@@ -97,7 +97,7 @@ describe('the reply drawer', () => {
     const editor = withEditor()
     const ReplyComposer = loadComponent('components/ReplyComposer.vue', {
       imports: {
-        '@talex-touch/tuffex/utils': { toast: vi.fn(), toastStore: {}, nextZIndex: () => 1 },
+        '@talex-touch/tuffex/utils': { toast: vi.fn(), toastStore: { raised: 0 } },
         '../../shared/forum-api': forumApi,
         '../../shared/post-markdown': postMarkdown,
       },

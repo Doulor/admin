@@ -342,12 +342,16 @@ describe('the reply drawer after the server refused a reply', () => {
 
   function mountComposer() {
     const sends = heldWrites<string | null>()
-    // Tuffex hands out z-indexes from one counter (#162): a toast takes one
-    // when it shows, the drawer the next one when it opens.
+    // Tuffex hands out z-indexes from one counter (#162): the drawer takes the
+    // next one when it opens; TxToastHost takes the next one whenever
+    // toastStore.raised changes, and every toast() bumps it (0.9.1).
     let lastZIndex = 2000
     const nextZIndex = () => ++lastZIndex
-    const toastStore = reactive({ zIndex: lastZIndex })
-    const layers = { drawer: 0 }
+    const toastStore = reactive({ raised: 0 })
+    const layers = { drawer: 0, toasts: lastZIndex }
+    watch(() => toastStore.raised, () => {
+      layers.toasts = nextZIndex()
+    }, { flush: 'sync' })
     /** What app.vue reads to put the toasts at the top. */
     const composerOpen = ref(false)
     const TxDrawer = defineComponent({
@@ -362,7 +366,7 @@ describe('the reply drawer after the server refused a reply', () => {
     })
     const ReplyComposer = loadComponent('components/ReplyComposer.vue', {
       imports: {
-        '@talex-touch/tuffex/utils': { toast: vi.fn(), toastStore, nextZIndex },
+        '@talex-touch/tuffex/utils': { toast: vi.fn(), toastStore },
         '../../shared/forum-api': forumApi,
         '../../shared/post-markdown': postMarkdown,
       },
@@ -400,10 +404,10 @@ describe('the reply drawer after the server refused a reply', () => {
       composerOpen,
       layers: {
         drawer: () => layers.drawer,
-        toasts: () => toastStore.zIndex,
+        toasts: () => layers.toasts,
         /** What the server store's refusal toast does before it answers the drawer. */
         toast: () => {
-          toastStore.zIndex = nextZIndex()
+          toastStore.raised++
         },
       },
       box,
