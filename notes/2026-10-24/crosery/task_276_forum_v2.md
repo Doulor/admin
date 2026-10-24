@@ -106,3 +106,10 @@
 - 做了什么：grep app/web、app/console、scripts 确认零读者后，删 routes/portal/org.ts 及其注册（portal/index.ts 重排 r5..r9→r4..r8）、合同条目（contracts.ts）；departments.ts 头注释去掉两套并存的旧说法；ownership.json 删 organization.public 流程节点与 org.ts 的 moduleOwners 映射，修正因重排/删文件失效的证据锚点，pnpm catalog:generate 重新生成；API.md/server README/data-model/endpoint-contracts 四份文档跟上，顺带把 server README 里论坛那行游客能回复的旧说法改成 #276 后的真实情况
 - 结果：commit c0ab5ca9，15 files changed；pnpm check:catalog 通过（4 应用 236 方法路径）；npx vitest run → 113/114 文件、1859/1860 通过，唯一失败是 tests/server/forum.test.ts『write responses read by the forum client (#145)』——这是撤回 app/forum 改动（上一个提交）的已知预期缺口，等团队负责人 cherry-pick 前端改动后自愈
 - 下一步：item 6：enable archiveOldDepartments 并做迁移两次演练；item 8：CONSOLE_ORG 改常量与 roles.ts 清理；补齐新端点专项测试；最终 docs/changes/276.json 与 check-architecture 全量核对
+
+## 20:08:06 +08:00 · 提交 · #276 · 迁移步骤 4 归档旧部门，挡住的两个条件已清掉
+
+- 执行者：agent-c276s（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：services.ts 在 createRoleStore() 之后调用 archiveOldDepartments()；核查 computeAccess()/access.resolve() 在生产路由零调用，归档不影响真实权限；console.test.ts 的 archived:false 断言改成 archived:true；用 .tools/yugc-v2/db/preview-copy.db 的真实预发布快照复制品跑 createDatabase() 完整迁移链路两次，记录前后 21 张表行数
+- 结果：commit ea97c7e6，9 files changed；演练：departments.archived 0→4（其余 21 张表行数两次调用前后全部不变）；npx vitest run → 113/114 文件、1859/1860 通过（唯一失败是已知的 #145 前端解析缺口）；pnpm check:catalog 通过
+- 下一步：item 8：CONSOLE_ORG 改常量与 roles.ts 清理；补齐新端点专项测试；最终 docs/changes/276.json 与 check-architecture 全量核对
