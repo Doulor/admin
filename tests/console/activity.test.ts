@@ -1,4 +1,6 @@
 // 操作记录页的纯函数（lib/activity）和开发预览的记录（mock/console），不挂载组件。
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   EMPTY_FILTERS, OUTCOME_TEXT, SURFACE_TEXT, actionText, activityParams, actorText, bucketText, filtersFromQuery, filtersToQuery, rangeProblem, targetText,
@@ -62,6 +64,13 @@ describe("preview activity (mock)", () => {
   it("rejects a query param the server contract doesn't have, like limit", () => {
     as("owner");
     expect(() => read("?limit=50")).toThrow(/additional properties/);
+  });
+  // 概览的「最近操作」也带过 `?limit=6`，同样整块 400：控制台源码里请求操作记录的地方都不许带 limit。
+  it("no console page asks the activity API for a limit", () => {
+    const root = join(__dirname, "../../app/console/src");
+    const files = (readdirSync(root, { recursive: true }) as string[]).filter(name => /\.(vue|ts)$/.test(name) && !name.startsWith("mock"));
+    const offenders = files.filter(name => /\/activity[^"'`]*[?&]limit=/.test(readFileSync(join(root, name), "utf8")));
+    expect(offenders).toEqual([]);
   });
   it("filters by account, visitor, action prefix, surface, outcome and time", () => {
     as("owner");

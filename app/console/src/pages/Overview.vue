@@ -28,7 +28,9 @@ import type { ActivityList, Summary } from "../lib/types";
 const router = useRouter();
 const { me, can } = useSession();
 const summary = useResource(() => api<Summary>("/api/console/summary"));
-const activity = useResource(() => api<ActivityList>("/api/console/activity?limit=6"), [], { enabled: () => can("activity.read") });
+// 接口每页固定 50 条，不认 `limit`（带了整页 400，#274），这里只显示最新的 6 条。
+const activity = useResource(() => api<ActivityList>("/api/console/activity"), [], { enabled: () => can("activity.read") });
+const recent = computed(() => activity.data.value?.items.slice(0, 6) ?? []);
 
 const held = computed(() => (me.value?.permissions ?? []).filter(id => id !== "console.access"));
 /** 按业务域列出我持有的权限节点；没有节点的域不列。 */
@@ -135,10 +137,10 @@ const gitlabStat = computed(() => summary.data.value?.gitlab ?? null);
         </template>
         <ErrorPanel v-if="activity.error.value" :error="activity.error.value" :retry="activity.reload" size="small" />
         <TxSkeleton v-else-if="!activity.data.value" :loading="true" :lines="5" />
-        <TxEmptyState v-else-if="!activity.data.value.items.length" title="还没有记录" description="登录、发帖、投递和控制台里的操作会记在这里。" size="small" />
+        <TxEmptyState v-else-if="!recent.length" title="还没有记录" description="登录、发帖、投递和控制台里的操作会记在这里。" size="small" />
         <div v-else class="recent">
           <TxCardItem
-            v-for="row in activity.data.value.items"
+            v-for="row in recent"
             :key="row.id"
             :title="actorText(row).text"
             :avatar-text="actorText(row).text.slice(0, 1)"
