@@ -127,3 +127,10 @@
 - 做了什么：2a167458 feat(portal) 比赛窗口的官网入口与详情头图改成和官网同一套浅色（代码、共享字形、测试、文档、归档、目录与 changes/278.json 在同一个提交里，目录已重新生成）。只加指定文件，没有推送。
 - 结果：提交落在 task/278/contest_site；工作区只剩这两条记录
 - 下一步：交主会话审查与预览环境验收
+
+## 20:43:18 +08:00 · 提交 · #278 · rebase 到合并了 #277 的 stage 93322115
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：task/278/contest_site 从 4c7c5dd5 rebase 到 93322115（#277 合并）。冲突只在文档与生成的目录：docs/architecture/API.md 两节都保留（#278 的比赛小节在前、#277 的命令行令牌一节在后），server README 的 portal 路由行合并两边的说明，web README 的 nginx 一行按分句合并 #277 的 /cli/ 与 #278 的 /c/、/sdk/、21m 上传；目录文件在 6 个冲突提交上用 pnpm catalog:generate 重新生成。rebase 前的头留在本机 refs/backup/task278-pre-rebase。
+- 结果：rebase 前后差异的文件清单与 4c7c5dd5..93322115 完全一致（70 个文件）；在 d456805d 上 vitest 125 文件 1944 条、typecheck、check-architecture --base 93322115（124 文件 234 节点）、check-doc-sync、check:catalog/secrets/notes/docs/runtime/site-config/environments/boundaries/cli 全部通过。迁移在 20:31 新取的预发布库复制品上连跑两次，第二次表结构、行数、内容都没有变化。
+- 下一步：推送，开 MR，写审查结论。
