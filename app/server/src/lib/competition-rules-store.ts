@@ -1,16 +1,13 @@
 // 比赛的计分规则（#278，所有者 2026-10-24 13:45）：年级系数、可选的奖项、贡献从哪些 GitLab 项目收集。
 //
-// 没有 competition_rules 行的比赛用默认系数、没有奖项；第一期的种子在 lib/db.ts。系数按百分数存（150 = 1.5），
+// 没有 competition_rules 行的比赛用默认系数、没有奖项；第一期的种子在 lib/db.ts。系数按百分数存（350 = 3.5），
 // 避免小数在库里和接口里来回转出误差。年级只从 lib/grade.ts 的 gradeOf(入学年份, 记分时刻) 来，这里不另算。
+// 年级键、默认系数、系数范围和加权公式在 competition-rubric.ts（模拟脚本也读它），这里转出去给原来的调用方。
 import type Database from "better-sqlite3";
 import { gradeOf } from "./grade.js";
+import { DEFAULT_GRADE_FACTORS, GRADE_FACTOR_RANGE, GRADE_KEYS, type GradeKey } from "./competition-rubric.js";
 
-export const GRADE_KEYS = ["year1", "year2", "year3", "year4", "graduated", "none"] as const;
-export type GradeKey = typeof GRADE_KEYS[number];
-export const GRADE_KEY_LABELS: Record<GradeKey, string> = { year1: "大一", year2: "大二", year3: "大三", year4: "大四", graduated: "已毕业", none: "无年级" };
-export const DEFAULT_GRADE_FACTORS: Record<GradeKey, number> = { year1: 150, year2: 130, year3: 110, year4: 100, graduated: 100, none: 100 };
-/** 系数的允许范围（百分数）：0.5–3 倍。 */
-export const GRADE_FACTOR_RANGE = { min: 50, max: 300 } as const;
+export { DEFAULT_GRADE_FACTORS, GRADE_FACTOR_RANGE, GRADE_KEYS, GRADE_KEY_LABELS, weightedPoints, type GradeKey } from "./competition-rubric.js";
 export const PRIZE_LIMITS = { tiers: 20, maxRank: 100, maxAmount: 100_000, titleLength: 40 } as const;
 export const GITLAB_PROJECT_PATTERN = /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+){1,4}$/;
 export const GITLAB_PROJECTS_MAX = 10;
@@ -26,7 +23,7 @@ export type CompetitionRules = {
 export type RulesInput = { grade_factors: Record<GradeKey, number>; prizes: PrizeTier[]; gitlab_projects: string[] };
 export type RulesError = "bad_grade_factor" | "bad_prizes" | "bad_gitlab_project";
 export const RULES_ERRORS: Record<RulesError, { status: number; message: string }> = {
-  bad_grade_factor: { status: 400, message: "年级系数要在 0.5 到 3 之间" },
+  bad_grade_factor: { status: 400, message: "年级系数要在 0.5 到 5 之间" },
   bad_prizes: { status: 400, message: "奖项的名次要从小到大、不能重叠，金额是不超过 100000 的整数" },
   bad_gitlab_project: { status: 400, message: "GitLab 项目要写成 group/project，最多 10 个" },
 };
@@ -36,11 +33,6 @@ export function gradeKeyAt(enrollmentYear: number | null, at: number): GradeKey 
   const grade = gradeOf(enrollmentYear, at);
   if (grade === null) return "none";
   return grade === "graduated" ? "graduated" : (`year${grade}` as GradeKey);
-}
-
-/** 加权后的分：扣分不乘系数（作弊对谁都一样扣 50），其余按百分数四舍五入。 */
-export function weightedPoints(points: number, factor: number): number {
-  return points < 0 ? points : Math.round(points * factor / 100);
 }
 
 /** 奖项表能不能用：名次从 1 起、每档 from ≤ to、按顺序不重叠，金额是非负整数。 */

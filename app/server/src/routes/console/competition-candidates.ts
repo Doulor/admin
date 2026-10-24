@@ -5,6 +5,7 @@ import { requireStepUp } from "../../middleware/require-step-up.js";
 import { CANDIDATE_ERRORS, type CandidateError, type CandidateRow, type CandidateStatus } from "../../lib/competition-candidates.js";
 import { SCORE_ERRORS } from "../../lib/competition-score-store.js";
 import { publicCachePrefix } from "../../lib/competition-public.js";
+import type { Core, Importance } from "../../lib/competition-rubric.js";
 
 const MESSAGES: Record<string, { status: number; message: string }> = { ...SCORE_ERRORS, ...CANDIDATE_ERRORS };
 
@@ -36,17 +37,20 @@ export default async function consoleCompetitionCandidateRoutes(app: FastifyInst
     },
   );
 
-  app.post<{ Params: { competition_id: string; candidate_id: string }; Body: { points?: number; reason?: string } }>(
+  app.post<{ Params: { competition_id: string; candidate_id: string }; Body: { importance: Importance; core: Core; reason?: string } }>(
     "/api/console/competitions/:competition_id/candidates/:candidate_id/accept",
     { preHandler: reviewWrite, config: { rateLimit: { max: 60, timeWindow: "1 minute" } } },
     async (req, reply) => {
       const { competition_id: id, candidate_id: candidateId } = req.params;
       const result = db.transaction(() => {
-        const accepted = candidates.accept(id, candidateId, req.session!.account_id, req.body ?? {}, clock());
+        const accepted = candidates.accept(id, candidateId, req.session!.account_id, req.body, clock());
         if (accepted.ok) {
           app.services.activity.recordActivity(req, {
             action: "competition.candidate.accept", surface: "console", target_type: "score_candidate", target_id: candidateId, outcome: "ok",
-            meta: { competition_id: id, via: "console", points: accepted.value.final_points, score_event_id: accepted.value.score_event_id, kind: accepted.value.kind },
+            meta: {
+              competition_id: id, via: "console", points: accepted.value.final_points, importance: accepted.value.importance, core: accepted.value.core,
+              score_event_id: accepted.value.score_event_id, kind: accepted.value.kind,
+            },
           });
         }
         return accepted;

@@ -25,24 +25,25 @@ describe('公开接口只给公开字段', () => {
     const db = app.services.storage.db;
     app.services.profiles.get(accountId('alice'));
     db.prepare("UPDATE account_profiles SET display_name = '爱丽丝', real_name = '张三丰' WHERE account_id = ?").run(accountId('alice'));
-    expect((await addScore(id, { account_id: accountId('alice'), kind: 'pr', repo: 'geek/admin', number: 3, points: 30, reason: '内部备注' })).statusCode).toBe(201);
-    expect((await addScore(id, { account_id: accountId('bob'), kind: 'penalty', points: -50, reason: '刷量，不能公开的原因' })).statusCode).toBe(201);
+    expect((await addScore(id, { account_id: accountId('alice'), kind: 'pr', repo: 'geek/admin', number: 3, importance: 'normal', core: 'business', reason: '内部备注' })).statusCode).toBe(201);
+    expect((await addScore(id, { account_id: accountId('bob'), kind: 'penalty', reason: '刷量，不能公开的原因' })).statusCode).toBe(201);
 
     const board = await app.inject({ url: `/api/public/competitions/${id}/leaderboard`, headers: { origin: 'null' } });
     expect(board.statusCode).toBe(200);
     expect(board.headers['access-control-allow-origin']).toBe('*');
     expect(board.headers['access-control-allow-credentials']).toBeUndefined();
     const body = board.json();
-    expect(body.individuals[0]).toEqual({ rank: 1, username: expect.any(String), display_name: '爱丽丝', avatar_url: null, team_name: '夜猫子', score: 30 });
-    expect(body.teams[0]).toMatchObject({ rank: 1, name: '夜猫子', score: 30, members: [{ display_name: '爱丽丝' }] });
+    expect(body.individuals[0]).toEqual({ rank: 1, username: expect.any(String), display_name: '爱丽丝', avatar_url: null, team_name: '夜猫子', score: 25 });
+    expect(body.teams[0]).toMatchObject({ rank: 1, name: '夜猫子', score: 25, members: [{ display_name: '爱丽丝' }] });
     expect(Object.keys(body.teams[0].members[0]).sort()).toEqual(['avatar_url', 'display_name', 'username']);
 
     const feed = (await app.inject({ url: `/api/public/competitions/${id}/feed` })).json();
     expect(feed.items).toHaveLength(2);
-    expect(feed.items.find((item: { kind: string }) => item.kind === 'penalty')).toMatchObject({ title: null, url: null, points: -50 });
-    expect(Object.keys(feed.items[0]).sort()).toEqual(['at', 'avatar_url', 'display_name', 'id', 'kind', 'points', 'title', 'url', 'username']);
+    expect(feed.items.find((item: { kind: string }) => item.kind === 'penalty')).toMatchObject({ title: null, url: null, points: -50, importance: null, core: null });
+    expect(feed.items.find((item: { kind: string }) => item.kind === 'pr')).toMatchObject({ points: 25, importance: 'normal', core: 'business' });
+    expect(Object.keys(feed.items[0]).sort()).toEqual(['at', 'avatar_url', 'core', 'display_name', 'id', 'importance', 'kind', 'points', 'title', 'url', 'username']);
     const stats = (await app.inject({ url: `/api/public/competitions/${id}/stats` })).json();
-    expect(stats).toMatchObject({ participants: 3, teams: 1, merged_prs: 1, accepted_issues: 0, total_points: -20 });
+    expect(stats).toMatchObject({ participants: 3, teams: 1, merged_prs: 1, accepted_issues: 0, total_points: -25 });
     const snapshot = await app.inject({ url: `/api/public/competitions/${id}/snapshot` });
     expect(Object.keys(snapshot.json()).sort()).toEqual(['competition', 'feed', 'leaderboard', 'stats']);
 
@@ -58,7 +59,7 @@ describe('公开接口只给公开字段', () => {
     expect(missing.headers['access-control-allow-origin']).toBe('*');
     const id = await createCompetition();
     await signUp(id, 'alice');
-    for (let n = 1; n <= 3; n++) await addScore(id, { account_id: accountId('alice'), kind: 'issue', repo: 'geek/admin', number: n, points: 5 });
+    for (let n = 1; n <= 3; n++) await addScore(id, { account_id: accountId('alice'), kind: 'issue', repo: 'geek/admin', number: n, importance: 'normal', core: 'business' });
     const first = (await app.inject({ url: `/api/public/competitions/${id}/feed?limit=2` })).json();
     expect(first.items).toHaveLength(2);
     expect(first.next_cursor).toEqual(expect.any(String));
@@ -78,8 +79,8 @@ describe('公开接口只给公开字段', () => {
     await signUp(id, 'alice');
     const read = async () => (await app.inject({ url: `/api/public/competitions/${id}/leaderboard` })).json().individuals[0].score;
     expect(await read()).toBe(0);
-    const added = await addScore(id, { account_id: accountId('alice'), kind: 'issue', repo: 'geek/admin', number: 1, points: 10 });
-    expect(await read()).toBe(10);
+    const added = await addScore(id, { account_id: accountId('alice'), kind: 'issue', repo: 'geek/admin', number: 1, importance: 'normal', core: 'business' });
+    expect(await read()).toBe(8);
     const revoked = await app.inject({ method: 'POST', url: `/api/console/competitions/${id}/score-events/${added.json().event.id}/revoke`, headers: as('owner'), payload: { reason: '重复' } });
     expect(revoked.statusCode).toBe(200);
     expect(await read()).toBe(0);
@@ -106,44 +107,52 @@ describe('公开接口只给公开字段', () => {
 });
 
 describe('年级系数', () => {
-  it('记分那一刻按年级乘系数：大一 1.5、大二 1.3、没填 1.0；扣分不乘；改系数只影响之后的记录', async () => {
+  it('记分那一刻按年级乘系数：大一 3.5、大二 2.2、没填 1.0；扣分不乘；改系数只影响之后的记录', async () => {
     const { app, as, accountId, createCompetition, signUp, addScore, setEnrollment, makeStale } = await setup();
     const id = await createCompetition();
     for (const login of ['alice', 'bob', 'carol']) await signUp(id, login);
     const year = academicYear(Date.now());
     setEnrollment('alice', year); // 大一
     setEnrollment('bob', year - 1); // 大二
-    const pr = await addScore(id, { account_id: accountId('alice'), kind: 'pr', repo: 'geek/admin', number: 1, points: 30 });
-    expect(pr.json().event).toMatchObject({ points: 30, grade: 'year1', grade_factor: 150, weighted_points: 45 });
-    expect((await addScore(id, { account_id: accountId('bob'), kind: 'issue', repo: 'geek/admin', number: 2, points: 10 })).json().event)
-      .toMatchObject({ grade: 'year2', grade_factor: 130, weighted_points: 13 });
-    expect((await addScore(id, { account_id: accountId('carol'), kind: 'issue', repo: 'geek/admin', number: 3, points: 10 })).json().event)
-      .toMatchObject({ grade: 'none', grade_factor: 100, weighted_points: 10 });
-    expect((await addScore(id, { account_id: accountId('alice'), kind: 'penalty', points: -50 })).json().event)
+    const levels = { importance: 'normal', core: 'business' };
+    const pr = await addScore(id, { account_id: accountId('alice'), kind: 'pr', repo: 'geek/admin', number: 1, ...levels });
+    expect(pr.json().event).toMatchObject({ points: 25, importance: 'normal', core: 'business', grade: 'year1', grade_factor: 350, weighted_points: 88 });
+    expect((await addScore(id, { account_id: accountId('bob'), kind: 'issue', repo: 'geek/admin', number: 2, ...levels })).json().event)
+      .toMatchObject({ points: 8, grade: 'year2', grade_factor: 220, weighted_points: 18 });
+    expect((await addScore(id, { account_id: accountId('carol'), kind: 'issue', repo: 'geek/admin', number: 3, ...levels })).json().event)
+      .toMatchObject({ points: 8, grade: 'none', grade_factor: 100, weighted_points: 8 });
+    expect((await addScore(id, { account_id: accountId('alice'), kind: 'penalty' })).json().event)
       .toMatchObject({ grade: 'year1', grade_factor: 100, weighted_points: -50 });
-    expect(activityRows(app, { action: 'competition.score.add' })[0].meta).toMatchObject({ grade: 'year1', grade_factor: 150, weighted_points: 45 });
+    expect(activityRows(app, { action: 'competition.score.add' })[0].meta).toMatchObject({
+      importance: 'normal', core: 'business', grade: 'year1', grade_factor: 350, damp_percent: 100, weighted_points: 88,
+    });
 
     const rules = (await app.inject({ url: `/api/console/competitions/${id}/rules`, headers: as('owner') })).json();
-    expect(rules.grade_factors).toEqual({ year1: 150, year2: 130, year3: 110, year4: 100, graduated: 100, none: 100 });
+    expect(rules.grade_factors).toEqual({ year1: 350, year2: 220, year3: 140, year4: 100, graduated: 100, none: 100 });
     expect(rules.prizes).toEqual([]);
+    expect(rules.scoring).toMatchObject({ penalty: -50, trivial_per_week: 1, trivial_percent: 0 });
     const put = (payload: Record<string, unknown>, login = 'owner') =>
       app.inject({ method: 'PUT', url: `/api/console/competitions/${id}/rules`, headers: as(login), payload });
-    const factors = { ...rules.grade_factors, year1: 200 };
+    const factors = { ...rules.grade_factors, year1: 400 };
     expect((await put({ grade_factors: factors, prizes: [], gitlab_projects: [] }, 'alice')).statusCode).toBe(403);
     expect((await put({ grade_factors: { ...factors, year1: 20 }, prizes: [], gitlab_projects: [] })).statusCode).toBe(400);
+    expect((await put({ grade_factors: { ...factors, year1: 600 }, prizes: [], gitlab_projects: [] })).statusCode).toBe(400);
     expect((await put({ grade_factors: factors, prizes: [{ from: 2, to: 1, amount_cny: 5, title: '' }], gitlab_projects: [] })).json().error).toBe('bad_prizes');
     expect((await put({ grade_factors: factors, prizes: [{ from: 1, to: 3, amount_cny: 5, title: '' }, { from: 3, to: 4, amount_cny: 1, title: '' }], gitlab_projects: [] })).json().error).toBe('bad_prizes');
     const saved = await put({ grade_factors: factors, prizes: [{ from: 1, to: 1, amount_cny: 700, title: '一等' }], gitlab_projects: ['geek/admin'] });
     expect(saved.statusCode).toBe(200);
     expect(saved.json()).toMatchObject({ grade_factors: factors, prizes: [{ from: 1, to: 1, amount_cny: 700, title: '一等' }], gitlab_projects: ['geek/admin'] });
-    expect(activityRows(app, { action: 'competition.rules.update' })[0].meta).toMatchObject({ before: { grade_factors: { year1: 150 } }, after: { grade_factors: { year1: 200 } } });
+    expect(activityRows(app, { action: 'competition.rules.update' })[0].meta).toMatchObject({ before: { grade_factors: { year1: 350 } }, after: { grade_factors: { year1: 400 } } });
 
     // 已经记下的分不重算，新记的按新系数
     const board = (await app.inject({ url: `/api/public/competitions/${id}/leaderboard` })).json();
-    expect(board.individuals.find((row: { score: number }) => row.score === -5)).toBeTruthy(); // alice：45 - 50
-    expect((await addScore(id, { account_id: accountId('alice'), kind: 'issue', repo: 'geek/admin', number: 9, points: 10 })).json().event.weighted_points).toBe(20);
+    expect(board.individuals.find((row: { score: number }) => row.score === 38)).toBeTruthy(); // alice：88 - 50
+    expect((await addScore(id, { account_id: accountId('alice'), kind: 'issue', repo: 'geek/admin', number: 9, ...levels })).json().event.weighted_points).toBe(32);
     const publicCompetition = (await app.inject({ url: `/api/public/competitions/${id}` })).json();
-    expect(publicCompetition.grade_factors[0]).toEqual({ grade: 'year1', label: '大一', factor: 2 });
+    expect(publicCompetition.grade_factors[0]).toEqual({ grade: 'year1', label: '大一', factor: 4 });
+    expect(publicCompetition.scoring.points).toHaveLength(18);
+    expect(publicCompetition.scoring.points).toContainEqual({ kind: 'pr', importance: 'critical', core: 'core', points: 100 });
+    expect(publicCompetition.scoring.core[0]).toEqual({ key: 'edge', label: '边缘', hint: '文档、样式、小脚本' });
     expect(publicCompetition.prizes).toEqual([{ from: 1, to: 1, amount_cny: 700, title: '一等' }]);
 
     makeStale('owner');
@@ -158,7 +167,7 @@ describe('年级系数', () => {
       { from: 2, to: 3, amount_cny: 140, title: 'GPT Plus 订阅的价格' },
       { from: 4, to: 8, amount_cny: 70, title: '' },
     ]);
-    expect(seeded.grade_factors.map((item: { factor: number }) => item.factor)).toEqual([1.5, 1.3, 1.1, 1, 1, 1]);
+    expect(seeded.grade_factors.map((item: { factor: number }) => item.factor)).toEqual([3.5, 2.2, 1.4, 1, 1, 1]);
     expect(app.services.competitionRules.get('oss-challenge-2026-1').gitlab_projects).toEqual(['geek/admin']);
   });
 });

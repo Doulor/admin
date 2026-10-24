@@ -5,6 +5,7 @@ import { INVITE_CODE_PATTERN } from "../../lib/invite-codes.js";
 import {
   competitionFields, competitionFailures, competitionDeleted, consoleCompetitionList, consoleCompetitionResult,
   competitionRoster, signupSettingsResult, signupBody, consoleCompetitionIdParam, scoreEventList, scoreEventResult, scoreEventParam,
+  scorePreview, scorePreviewQuery,
   consoleSiteState, consoleSiteVersion, sitePublishBody, candidateList, candidateResult, collectResult, candidateQuery, candidateParam, candidateBody,
   rulesView, rulesBody, finalView, redeemResult, prizeCodeBody,
 } from "../../lib/competition-contract.js";
@@ -243,6 +244,7 @@ export const consoleContracts: RouteContracts = {
     response: { 200: { type: "string", description: "text/csv; charset=utf-8" }, ...competitionFailures },
   },
   "GET /api/console/competitions/:competition_id/score-events": { ...noQuery, ...competitionParams, response: { 200: scoreEventList, ...competitionFailures } },
+  "GET /api/console/competitions/:competition_id/score-preview": { ...competitionParams, ...scorePreviewQuery, response: { 200: scorePreview, ...competitionFailures } },
   "POST /api/console/competitions/:competition_id/score-events": {
     ...noQuery, ...competitionParams,
     body: signupBody.scoreEvent,

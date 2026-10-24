@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { backfillIdentity } from "./identity-store.js";
 import { runYugcV2Migration } from "./migrations/2026-10-yugc-v2.js";
+import { DEFAULT_GRADE_FACTORS } from "./competition-rubric.js";
 import type { ActivityOutcome, ActivitySurface } from "./activity.js";
 
 /** 审计里的操作者：GitHub 登录名，或带上极客班账号的会话（写进 actor_account_id，#262）。 */
@@ -925,6 +926,7 @@ CREATE TABLE IF NOT EXISTS competition_gitlab_sources (
 
 -- accepted_via：label 是有 competition.score.review 的人在 GitLab 上打了「有用」标签，console 是控制台「标记有用」；
 -- note：最近一次核对时没有计分的原因（例如标签是自己打的）；contributed_at：MR 的合并时间或 Issue 的创建时间。
+-- importance、core：标记有用时选的重要程度（normal/important/critical）与核心度（edge/business/core），final_points 是查表得到的基础分。
 CREATE TABLE IF NOT EXISTS competition_score_candidates (
   id TEXT PRIMARY KEY,
   competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
@@ -934,11 +936,11 @@ CREATE TABLE IF NOT EXISTS competition_score_candidates (
   gitlab_iid INTEGER NOT NULL,
   url TEXT NOT NULL,
   title TEXT NOT NULL,
-  size_hint INTEGER,
-  suggested INTEGER NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
   reviewed_by TEXT REFERENCES users(id),
   reviewed_at INTEGER,
+  importance TEXT CHECK (importance IS NULL OR importance IN ('normal', 'important', 'critical')),
+  core TEXT CHECK (core IS NULL OR core IN ('edge', 'business', 'core')),
   final_points INTEGER,
   reason TEXT,
   score_event_id TEXT,
@@ -952,7 +954,7 @@ CREATE TABLE IF NOT EXISTS competition_score_candidates (
 CREATE INDEX IF NOT EXISTS idx_competition_score_candidates_status ON competition_score_candidates(competition_id, status, created_at);
 CREATE INDEX IF NOT EXISTS idx_competition_score_candidates_event ON competition_score_candidates(score_event_id) WHERE score_event_id IS NOT NULL;
 
--- grade_factors：年级 → 系数（百分数，150 = 1.5）；prizes：[{ from, to, amount_cny, title }]，没有奖项是 []。
+-- grade_factors：年级 → 系数（百分数，350 = 3.5）；prizes：[{ from, to, amount_cny, title }]，没有奖项是 []。
 CREATE TABLE IF NOT EXISTS competition_rules (
   competition_id TEXT PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,
   grade_factors TEXT NOT NULL,
@@ -987,10 +989,18 @@ CREATE TABLE IF NOT EXISTS competition_prizes (
 );
 `);
 // 记分那一刻的年级与系数（#278）：grade 取 lib/grade.ts 的结果（1–4、graduated，没填为 none），grade_factor 是百分数，
-// weighted_points = round(points × grade_factor / 100)。#278 之前的行三列都为空，天梯按 points 算（系数 1）。
+// weighted_points = round(points × grade_factor × damp_percent / 10000)。#278 之前的行三列都为空，天梯按 points 算（系数 1）。
 addColumn("competition_score_events", "grade", "TEXT");
 addColumn("competition_score_events", "grade_factor", "INTEGER");
 addColumn("competition_score_events", "weighted_points", "INTEGER");
+// 两档评定（#278，所有者 2026-10-24 16:59）：importance、core 是标记有用时选的重要程度与核心度，points 由它们查表
+// （lib/competition-rubric.ts），不再手填；damp_percent 是防刷折扣（同一周第 2 条起的「一般 × 边缘」记 0），
+// contributed_at 是贡献发生的时间（MR 合并、Issue 创建，控制台手工登记时等于登记时间），防刷按它分周。
+// 之前登记的行四列都为空：分数照旧，不补评定，防刷不回头算。
+addColumn("competition_score_events", "importance", "TEXT");
+addColumn("competition_score_events", "core", "TEXT");
+addColumn("competition_score_events", "damp_percent", "INTEGER");
+addColumn("competition_score_events", "contributed_at", "INTEGER");
 
 // 第一期的计分规则、奖项与 GitLab 项目（#278，所有者 2026-10-24 13:45）：用 `console_seeds` 标记，只插一次；
 // 组织者之后在控制台改掉，重启也不再补回来。比赛本身被删掉时什么也不插。
@@ -1002,7 +1012,7 @@ const COMPETITION_RULES_SEED = "competition_oss_2026_1_rules";
     if (db.prepare("SELECT 1 AS n FROM competitions WHERE id = ?").get(COMPETITION_SEED_ID)) {
       db.prepare("INSERT OR IGNORE INTO competition_rules(competition_id, grade_factors, prizes, updated_at, updated_by) VALUES(?, ?, ?, ?, NULL)").run(
         COMPETITION_SEED_ID,
-        JSON.stringify({ year1: 150, year2: 130, year3: 110, year4: 100, graduated: 100, none: 100 }),
+        JSON.stringify(DEFAULT_GRADE_FACTORS),
         JSON.stringify([
           { from: 1, to: 1, amount_cny: 700, title: "GPT 5x 订阅的价格" },
           { from: 2, to: 3, amount_cny: 140, title: "GPT Plus 订阅的价格" },

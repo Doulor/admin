@@ -1,14 +1,17 @@
 // GitLab 贡献收集与「有用」标记（#278，CONTRACT-278 §4，所有者 2026-10-24 13:45）。
 //
 // 后台每 10 分钟（GitLab 同步不是 off 时）把比赛配置的 GitLab 项目里、比赛时间窗内的贡献收成候选：
-//   - 已合并的 MR（按合并时间算窗口），建议分按改动行数：<50 → 15，<200 → 30，<800 → 60，其余 100；
-//   - 带「有用」标签或被 MR 关闭的 Issue（按创建时间算窗口），建议分按 `size::s|m|l|xl` → 5/10/20/30，没有是 5。
+//   - 已合并的 MR（按合并时间算窗口）；
+//   - 带「有用」标签或被 MR 关闭的 Issue（按创建时间算窗口）。
 // 作者经 gitlab_accounts 对到极客班账号，且这个账号已报名这场比赛，否则跳过。唯一约束保证重复拉取不产生重复行。
+// 分数不看改动行数（所有者 2026-10-24 16:59），只看审核人选的重要程度和核心度（lib/competition-rubric.ts）。
 //
 // 只有被标记「有用」的候选才加分，两条路：
-//   1. GitLab 标签：资源标签事件里最后一次是「有用」被加上，加的人对得上极客班账号、有 competition.score.review、
-//      而且不是作者本人——满足就按建议分自动加分（登记人是打标签的人）；不满足的留在待确认，note 写原因。
-//   2. 控制台「标记有用」（accept），审核人不能是作者本人。
+//   1. GitLab 标签：「有用」加一个 `重要程度::一般|重要|关键`、一个 `核心度::边缘|业务|核心`。这三个标签各自最后一次
+//      都是被加上，加的人对得上极客班账号、有 competition.score.review、而且不是作者本人——满足就按两档自动加分
+//      （登记人是打「有用」的人）；不满足的留在待确认，note 写原因。待确认的候选记下标签上现在的两档，控制台默认选它。
+//   2. 控制台「标记有用」（accept）时选两档，审核人不能是作者本人。
+// 加分之后再改两档标签不改分，要改分到控制台驳回后重新标记。
 // 标签被拿掉：经标签自动加的分撤销、候选回到待确认；控制台确认的不受影响；定榜之后什么都不再改。
 // 只有这个模块读写 competition_score_candidates；加分、撤销写 competition_score_events 走 competition-score-store。
 import { randomUUID } from "node:crypto";
@@ -16,27 +19,29 @@ import type Database from "better-sqlite3";
 import type { AuditActor } from "./db.js";
 import type { CompetitionRecord, CompetitionStore } from "./competition-store.js";
 import type { CompetitionSignupStore } from "./competition-signup-store.js";
-import { SCORE_POINTS, type CompetitionScoreStore, type ScoreErrorCode } from "./competition-score-store.js";
+import type { CompetitionScoreStore, ScoreErrorCode } from "./competition-score-store.js";
 import type { CompetitionRulesStore } from "./competition-rules-store.js";
+import { CORE, CORE_LABELS, IMPORTANCE, IMPORTANCE_LABELS, basePoints, isCore, isImportance, type Core, type Importance } from "./competition-rubric.js";
 import type { ActivityOutcome, ActivitySurface } from "./activity.js";
 
 export const USEFUL_LABEL = "有用";
+/** 两档评定的 GitLab 标签：`重要程度::一般` 这样，一个前缀只能有一个。 */
+export const IMPORTANCE_LABEL_PREFIX = "重要程度::";
+export const CORE_LABEL_PREFIX = "核心度::";
+const IMPORTANCE_BY_LABEL = new Map(IMPORTANCE.map(key => [`${IMPORTANCE_LABEL_PREFIX}${IMPORTANCE_LABELS[key]}`, key] as const));
+const CORE_BY_LABEL = new Map(CORE.map(key => [`${CORE_LABEL_PREFIX}${CORE_LABELS[key]}`, key] as const));
 export const COLLECT_INTERVAL_MS = 10 * 60_000;
 /** 比赛结束后还继续收集多久（迟到的标签、合并），定榜后停。 */
 export const COLLECT_GRACE_MS = 30 * 24 * 3600_000;
 /** 一次收集最多发多少个 GitLab 请求，超过就停在这里，下一轮接着补。 */
 export const COLLECT_REQUEST_BUDGET = 300;
 const LIST_PAGES_MAX = 10;
-const DIFF_PAGES_MAX = 5;
 const CANDIDATE_PAGE = 50;
-const LOCKFILE = /(?:^|\/)(?:pnpm-lock\.yaml|package-lock\.json|yarn\.lock|Cargo\.lock|go\.sum|poetry\.lock|composer\.lock|Gemfile\.lock|bun\.lockb)$/;
-const SIZE_LABEL = /^size::(s|m|l|xl)$/i;
-const ISSUE_SIZE_POINTS: Record<string, number> = { s: 5, m: 10, l: 20, xl: 30 };
 
 export type CandidateStatus = "pending" | "accepted" | "rejected";
 export type CandidateRow = {
   id: string; competition_id: string; account_id: string; kind: "pr" | "issue"; gitlab_project: string; gitlab_iid: number;
-  url: string; title: string; size_hint: number | null; suggested: number; status: CandidateStatus;
+  url: string; title: string; importance: Importance | null; core: Core | null; status: CandidateStatus;
   reviewed_by: string | null; reviewed_at: number | null; final_points: number | null; reason: string | null;
   score_event_id: string | null; accepted_via: "label" | "console" | null; note: string | null;
   contributed_at: number; created_at: number; updated_at: number;
@@ -44,7 +49,7 @@ export type CandidateRow = {
 export type CollectRun = {
   at: number; fetched: number; created: number; skipped: number; accepted: number; revoked: number; error: string | null;
 };
-export type CandidateError = "not_found" | "candidate_not_found" | "self_review" | "bad_points" | "already_accepted" | "already_rejected"
+export type CandidateError = "not_found" | "candidate_not_found" | "self_review" | "already_accepted" | "already_rejected"
   | "competition_finalized" | "gitlab_sync_off" | ScoreErrorCode;
 export const CANDIDATE_ERRORS: Partial<Record<CandidateError, { status: number; message: string }>> = {
   candidate_not_found: { status: 404, message: "这条候选贡献不存在" },
@@ -54,30 +59,13 @@ export const CANDIDATE_ERRORS: Partial<Record<CandidateError, { status: number; 
   gitlab_sync_off: { status: 409, message: "GitLab 同步关着或没配好，收集不了贡献" },
 };
 
-/** MR 改动行数 → 建议分。 */
-export function suggestedForLines(lines: number): number {
-  if (lines < 50) return 15;
-  if (lines < 200) return 30;
-  if (lines < 800) return 60;
-  return 100;
-}
-
-/** 一段 unified diff 里增删的行数（不算 +++/--- 文件头）。 */
-export function changedLines(diff: string): number {
-  let count = 0;
-  for (const line of diff.split("\n")) {
-    if ((line.startsWith("+") && !line.startsWith("+++")) || (line.startsWith("-") && !line.startsWith("---"))) count++;
-  }
-  return count;
-}
-
-export function issueSuggested(labels: string[]): number {
-  let best = ISSUE_SIZE_POINTS.s;
-  for (const label of labels) {
-    const match = SIZE_LABEL.exec(label);
-    if (match) best = Math.max(best, ISSUE_SIZE_POINTS[match[1].toLowerCase()]);
-  }
-  return best;
+/** 标签上的两档：每个前缀恰好一个、名字对得上才算；没有或不止一个就是 null。 */
+export function levelsFromLabels(labels: string[]): { importance: Importance | null; core: Core | null } {
+  const pick = <T>(prefix: string, table: Map<string, T>): T | null => {
+    const found = labels.filter(label => label.startsWith(prefix));
+    return found.length === 1 ? table.get(found[0]) ?? null : null;
+  };
+  return { importance: pick(IMPORTANCE_LABEL_PREFIX, IMPORTANCE_BY_LABEL), core: pick(CORE_LABEL_PREFIX, CORE_BY_LABEL) };
 }
 
 type GitlabReader = {
@@ -108,12 +96,14 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
   const selectOne = db.prepare("SELECT * FROM competition_score_candidates WHERE competition_id = ? AND id = ?");
   const selectByKey = db.prepare("SELECT * FROM competition_score_candidates WHERE competition_id = ? AND kind = ? AND gitlab_project = ? AND gitlab_iid = ?");
   const insertCandidate = db.prepare(`INSERT OR IGNORE INTO competition_score_candidates(id, competition_id, account_id, kind, gitlab_project, gitlab_iid, url, title,
-      size_hint, suggested, status, contributed_at, created_at, updated_at)
-    VALUES(@id, @competition_id, @account_id, @kind, @gitlab_project, @gitlab_iid, @url, @title, @size_hint, @suggested, 'pending', @contributed_at, @now, @now)`);
+      status, contributed_at, created_at, updated_at)
+    VALUES(@id, @competition_id, @account_id, @kind, @gitlab_project, @gitlab_iid, @url, @title, 'pending', @contributed_at, @now, @now)`);
   const refreshCandidate = db.prepare("UPDATE competition_score_candidates SET title = ?, url = ?, updated_at = ? WHERE id = ? AND (title <> ? OR url <> ?)");
+  const setLevels = db.prepare(`UPDATE competition_score_candidates SET importance = @importance, core = @core, updated_at = @now
+    WHERE id = @id AND status = 'pending' AND (IFNULL(importance, '') <> IFNULL(@importance, '') OR IFNULL(core, '') <> IFNULL(@core, ''))`);
   const setNote = db.prepare("UPDATE competition_score_candidates SET note = ?, updated_at = ? WHERE id = ? AND IFNULL(note, '') <> IFNULL(?, '')");
   const markAccepted = db.prepare(`UPDATE competition_score_candidates SET status = 'accepted', accepted_via = @via, reviewed_by = @by, reviewed_at = @now,
-      final_points = @points, reason = @reason, score_event_id = @event, note = NULL, updated_at = @now WHERE id = @id`);
+      importance = @importance, core = @core, final_points = @points, reason = @reason, score_event_id = @event, note = NULL, updated_at = @now WHERE id = @id`);
   const markRejected = db.prepare(`UPDATE competition_score_candidates SET status = 'rejected', accepted_via = NULL, reviewed_by = @by, reviewed_at = @now,
       final_points = NULL, reason = @reason, score_event_id = NULL, note = NULL, updated_at = @now WHERE id = @id`);
   const markPending = db.prepare(`UPDATE competition_score_candidates SET status = 'pending', accepted_via = NULL, reviewed_by = NULL, reviewed_at = NULL,
@@ -130,7 +120,7 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
   function view(row: CandidateRow, personOf: (accountId: string) => { account_id: string; username: string; display_name: string; avatar_url: string | null }) {
     return {
       id: row.id, account: personOf(row.account_id), kind: row.kind, gitlab_project: row.gitlab_project, gitlab_iid: row.gitlab_iid,
-      url: row.url, title: row.title, size_hint: row.size_hint, suggested: row.suggested, status: row.status,
+      url: row.url, title: row.title, importance: row.importance, core: row.core, status: row.status,
       final_points: row.final_points, reason: row.reason,
       reviewed_by: row.reviewed_by ? personOf(row.reviewed_by) : null, reviewed_at: row.reviewed_at,
       accepted_via: row.accepted_via, note: row.note, contributed_at: row.contributed_at, created_at: row.created_at,
@@ -154,19 +144,20 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
 
   const get = (competitionId: string, candidateId: string) => (selectOne.get(competitionId, candidateId) as CandidateRow | undefined) ?? null;
 
-  /** 加分并把候选置为 accepted；调用方在事务里。 */
-  function acceptRow(row: CandidateRow, actorAccountId: string, via: "label" | "console", points: number, reason: string, now: number):
+  /** 加分并把候选置为 accepted；防刷按贡献发生的那一周数。调用方在事务里。 */
+  function acceptRow(row: CandidateRow, actorAccountId: string, via: "label" | "console", levels: { importance: Importance; core: Core }, reason: string, now: number):
     { ok: true; value: CandidateRow } | { ok: false; error: CandidateError } {
     const created = deps.scores.add(row.competition_id, actorAccountId, {
-      account_id: row.account_id, kind: row.kind, repo: row.gitlab_project, number: row.gitlab_iid, points, reason,
+      account_id: row.account_id, kind: row.kind, repo: row.gitlab_project, number: row.gitlab_iid,
+      importance: levels.importance, core: levels.core, reason, contributed_at: row.contributed_at,
     }, now);
     if (!created.ok) return { ok: false, error: created.error };
-    markAccepted.run({ id: row.id, via, by: actorAccountId, now, points, reason, event: created.value.id });
+    markAccepted.run({ id: row.id, via, by: actorAccountId, now, ...levels, points: created.value.points, reason, event: created.value.id });
     return { ok: true, value: get(row.competition_id, row.id)! };
   }
 
-  /** 控制台「标记有用」：分数默认建议分，必须落在这种记录的区间里；审核人不能是作者。 */
-  function accept(competitionId: string, candidateId: string, actorAccountId: string, input: { points?: number; reason?: string }, now: number):
+  /** 控制台「标记有用」：审核人选两档（表单默认选标签上记下的两档）；审核人不能是作者。 */
+  function accept(competitionId: string, candidateId: string, actorAccountId: string, input: { importance: Importance; core: Core; reason?: string }, now: number):
     { ok: true; value: CandidateRow } | { ok: false; error: CandidateError } {
     if (!deps.competitions.get(competitionId)) return { ok: false, error: "not_found" };
     const row = get(competitionId, candidateId);
@@ -174,11 +165,10 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
     if (deps.scores.isFinalized(competitionId)) return { ok: false, error: "competition_finalized" };
     if (row.status === "accepted") return { ok: false, error: "already_accepted" };
     if (row.account_id === actorAccountId) return { ok: false, error: "self_review" };
-    const points = input.points ?? row.suggested;
-    const range = SCORE_POINTS[row.kind];
-    if (!Number.isInteger(points) || points < range.min || points > range.max) return { ok: false, error: "bad_points" };
+    const { importance, core } = input;
+    if (!isImportance(importance) || !isCore(core)) return { ok: false, error: "bad_levels" };
     const reason = (input.reason ?? "").trim() || `控制台标记有用：${row.kind === "pr" ? "MR" : "Issue"} ${row.gitlab_project}#${row.gitlab_iid}`;
-    return acceptRow(row, actorAccountId, "console", points, reason.slice(0, 200), now);
+    return acceptRow(row, actorAccountId, "console", { importance, core }, reason.slice(0, 200), now);
   }
 
   /** 驳回；已经加过分的连同积分记录一起撤销。 */
@@ -247,70 +237,71 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
     };
     const labelsOf = (item: GitlabItem) => Array.isArray(item.labels) ? item.labels.filter((label): label is string => typeof label === "string") : [];
 
-    /** 这条 MR 的改动行数：跳过锁文件、生成文件和太大不给 diff 的文件；GitLab 15.7 之前没有 /diffs，退回 /changes。 */
-    async function mrLines(project: string, iid: number): Promise<number | null> {
-      let lines = 0;
-      let page: number | null = 1;
-      for (let count = 0; page && count < DIFF_PAGES_MAX; count++) {
-        const result = await read(`/projects/${encodeURIComponent(project)}/merge_requests/${iid}/diffs?per_page=50&page=${page}`);
-        if (result.status === 404 && count === 0) {
-          const changes = await read(`/projects/${encodeURIComponent(project)}/merge_requests/${iid}/changes`);
-          const list = (changes.data as { changes?: unknown } | null)?.changes;
-          if (changes.status !== 200 || !Array.isArray(list)) return null;
-          return list.reduce((sum: number, item: { diff?: unknown; new_path?: unknown; too_large?: unknown }) =>
-            sum + (typeof item.diff === "string" && !item.too_large && !LOCKFILE.test(String(item.new_path ?? "")) ? changedLines(item.diff) : 0), 0);
-        }
-        if (result.status !== 200 || !Array.isArray(result.data)) return null;
-        for (const item of result.data as { diff?: unknown; new_path?: unknown; too_large?: unknown; generated_file?: unknown }[]) {
-          if (typeof item.diff !== "string" || item.too_large || item.generated_file || LOCKFILE.test(String(item.new_path ?? ""))) continue;
-          lines += changedLines(item.diff);
-        }
-        page = result.nextPage;
-      }
-      return lines;
-    }
-
-    /** 「有用」标签最后一次是谁、加还是拿掉；查不到事件为 null。 */
-    async function usefulLabelEvent(project: string, kind: "pr" | "issue", iid: number): Promise<{ action: "add" | "remove"; userId: number | null; username: string | null } | null> {
+    type LatestLabel = { action: "add" | "remove"; userId: number | null; username: string | null };
+    /** 资源标签事件里每个标签最后一次是谁、加还是拿掉；读不到事件为 null。 */
+    async function latestLabelEvents(project: string, kind: "pr" | "issue", iid: number): Promise<Map<string, LatestLabel> | null> {
       const resource = kind === "pr" ? "merge_requests" : "issues";
       const result = await read(`/projects/${encodeURIComponent(project)}/${resource}/${iid}/resource_label_events?per_page=100`);
       if (result.status !== 200 || !Array.isArray(result.data)) return null;
-      let latest: LabelEvent | null = null;
+      const latest = new Map<string, LabelEvent>();
       for (const event of result.data as LabelEvent[]) {
-        if (event.label?.name !== USEFUL_LABEL || (event.action !== "add" && event.action !== "remove")) continue;
+        const name = event.label?.name;
+        if (typeof name !== "string" || (event.action !== "add" && event.action !== "remove")) continue;
+        const known = latest.get(name);
         const at = Date.parse(String(event.created_at ?? ""));
-        const latestAt = latest ? Date.parse(String(latest.created_at ?? "")) : -Infinity;
-        if (!latest || at > latestAt || (at === latestAt && Number(event.id) > Number(latest.id))) latest = event;
+        const knownAt = known ? Date.parse(String(known.created_at ?? "")) : -Infinity;
+        if (!known || at > knownAt || (at === knownAt && Number(event.id) > Number(known.id))) latest.set(name, event);
       }
-      if (!latest) return null;
-      return {
-        action: latest.action as "add" | "remove",
-        userId: typeof latest.user?.id === "number" ? latest.user.id : null,
-        username: typeof latest.user?.username === "string" ? latest.user.username : null,
-      };
+      return new Map([...latest].map(([name, event]) => [name, {
+        action: event.action as "add" | "remove",
+        userId: typeof event.user?.id === "number" ? event.user.id : null,
+        username: typeof event.user?.username === "string" ? event.user.username : null,
+      }]));
     }
 
-    /** 按标签核对一条候选：加了「有用」就核实打标签的人再加分；拿掉了就撤销经标签加的分。 */
+    /** 一个标签最后一次是不是由能审核积分、又不是作者的人加上的：是就给账号，不是就给未计分的原因。 */
+    function labelAdder(row: CandidateRow, name: string, event: LatestLabel | undefined): { account: string } | { note: string } {
+      const reviewer = event?.action === "add" && event.userId !== null ? deps.gitlab.accountForGitlabUser(event.userId) : null;
+      if (!event || event.action !== "add") return { note: `有「${name}」标签，但读不到是谁加的，先留在待确认` };
+      if (!reviewer) return { note: `「${name}」标签由 GitLab 用户 ${event.username ?? event.userId} 添加，对不上极客班账号，未计分` };
+      if (reviewer === row.account_id) return { note: `「${name}」标签是作者自己加的，未计分` };
+      if (!deps.canReview(reviewer)) return { note: `「${name}」标签由 ${event.username ?? reviewer} 添加，这个账号没有审核积分的权限，未计分` };
+      return { account: reviewer };
+    }
+
+    /**
+     * 按标签核对一条候选：待确认的先记下标签上的两档；加了「有用」和两档、三个标签都由审核人加上就加分；
+     * 「有用」拿掉了就撤销经标签加的分。
+     */
     async function syncLabel(row: CandidateRow, labels: string[]) {
       const labeled = labels.includes(USEFUL_LABEL);
-      if (labeled && row.status === "pending") {
-        const event = await usefulLabelEvent(row.gitlab_project, row.kind, row.gitlab_iid);
-        const reviewer = event?.action === "add" && event.userId !== null ? deps.gitlab.accountForGitlabUser(event.userId) : null;
-        let note: string | null = null;
-        if (!event || event.action !== "add") note = "有「有用」标签，但读不到是谁加的，先留在待确认";
-        else if (!reviewer) note = `「有用」标签由 GitLab 用户 ${event.username ?? event.userId} 添加，对不上极客班账号，未计分`;
-        else if (reviewer === row.account_id) note = "「有用」标签是作者自己加的，未计分";
-        else if (!deps.canReview(reviewer)) note = `「有用」标签由 ${event.username ?? reviewer} 添加，这个账号没有审核积分的权限，未计分`;
-        if (note) {
-          setNote.run(note, clock(), row.id, note);
+      if (row.status === "pending") {
+        const levels = levelsFromLabels(labels);
+        setLevels.run({ id: row.id, ...levels, now: clock() });
+        if (!labeled) return;
+        const keep = (note: string) => { setNote.run(note, clock(), row.id, note); };
+        if (!levels.importance || !levels.core) {
+          keep(`有「有用」标签，但重要程度和核心度要各有一个标签（${IMPORTANCE_LABEL_PREFIX}一般/重要/关键、${CORE_LABEL_PREFIX}边缘/业务/核心），先留在待确认`);
           return;
         }
-        const reason = `GitLab 上由 ${event!.username ?? "审核人"} 标记「有用」`;
+        const events = await latestLabelEvents(row.gitlab_project, row.kind, row.gitlab_iid);
+        if (!events) { keep("有「有用」标签，但读不到是谁加的，先留在待确认"); return; }
+        const useful = labelAdder(row, USEFUL_LABEL, events.get(USEFUL_LABEL));
+        if ("note" in useful) { keep(useful.note); return; }
+        // 两档标签也要审核人加，作者自己改成「关键」「核心」不算
+        for (const name of [`${IMPORTANCE_LABEL_PREFIX}${IMPORTANCE_LABELS[levels.importance]}`, `${CORE_LABEL_PREFIX}${CORE_LABELS[levels.core]}`]) {
+          const adder = labelAdder(row, name, events.get(name));
+          if ("note" in adder) { keep(adder.note); return; }
+        }
+        const reviewer = useful.account;
+        const username = events.get(USEFUL_LABEL)?.username ?? null;
+        const reason = `GitLab 上由 ${username ?? "审核人"} 标记「有用」`;
+        const accepted = { importance: levels.importance, core: levels.core };
         const done = db.transaction(() => {
-          const result = acceptRow(row, reviewer!, "label", row.suggested, reason, clock());
+          const result = acceptRow(row, reviewer, "label", accepted, reason, clock());
           if (result.ok) {
-            deps.audit({ login: event!.username ?? "gitlab", account_id: reviewer }, "competition.candidate.accept", row.id,
-              { competition_id: row.competition_id, via: "label", points: row.suggested, kind: row.kind }, undefined, { surface: "system" });
+            deps.audit({ login: username ?? "gitlab", account_id: reviewer }, "competition.candidate.accept", row.id,
+              { competition_id: row.competition_id, via: "label", points: result.value.final_points, ...accepted, kind: row.kind }, undefined, { surface: "system" });
           } else {
             const text = result.error === "duplicate_score_event" ? "已经有同一条贡献的积分记录，未重复计分" : `自动计分没成功（${result.error}）`;
             setNote.run(text, clock(), row.id, text);
@@ -321,7 +312,7 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
         return;
       }
       if (!labeled && row.status === "accepted" && row.accepted_via === "label" && row.score_event_id) {
-        const event = await usefulLabelEvent(row.gitlab_project, row.kind, row.gitlab_iid);
+        const event = (await latestLabelEvents(row.gitlab_project, row.kind, row.gitlab_iid))?.get(USEFUL_LABEL);
         if (event && event.action === "add") return; // 列表还没刷新到，等下一轮
         const remover = event?.userId != null ? deps.gitlab.accountForGitlabUser(event.userId) : null;
         const eventId = row.score_event_id;
@@ -335,7 +326,7 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
       }
     }
 
-    function upsert(kind: "pr" | "issue", project: string, item: GitlabItem, accountId: string, contributedAt: number, sizeHint: number | null, suggested: number) {
+    function upsert(kind: "pr" | "issue", project: string, item: GitlabItem, accountId: string, contributedAt: number) {
       const iid = Number(item.iid);
       const title = (typeof item.title === "string" ? item.title : `${kind === "pr" ? "MR" : "Issue"} ${iid}`).slice(0, 200);
       const url = urlOf(item.web_url, project, kind, iid);
@@ -346,7 +337,7 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
       }
       insertCandidate.run({
         id: randomUUID(), competition_id: record.id, account_id: accountId, kind, gitlab_project: project, gitlab_iid: iid,
-        url, title, size_hint: sizeHint, suggested, contributed_at: contributedAt, now: clock(),
+        url, title, contributed_at: contributedAt, now: clock(),
       });
       run.created++;
       return selectByKey.get(record.id, kind, project, iid) as CandidateRow;
@@ -369,10 +360,7 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
           run.fetched++;
           const account = authorAccount(item);
           if (!account) { run.skipped++; continue; }
-          const iid = Number(item.iid);
-          const known = selectByKey.get(record.id, "pr", project, iid) as CandidateRow | undefined;
-          const lines = known ? known.size_hint : await mrLines(project, iid);
-          const row = upsert("pr", project, item, account, mergedAt, lines, known?.suggested ?? suggestedForLines(lines ?? 0));
+          const row = upsert("pr", project, item, account, mergedAt);
           await syncLabel(row, labelsOf(item));
         }
         const issues = await readList(`/projects/${encoded}/issues?created_after=${encodeURIComponent(since)}&created_before=${encodeURIComponent(until)}`);
@@ -393,7 +381,7 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
           run.fetched++;
           const account = authorAccount(item);
           if (!account) { run.skipped++; continue; }
-          const row = upsert("issue", project, item, account, createdAt, null, known?.suggested ?? issueSuggested(labels));
+          const row = upsert("issue", project, item, account, createdAt);
           await syncLabel(row, labels);
         }
       }

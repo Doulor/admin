@@ -9,6 +9,7 @@ import { toPublicCompetition, type CompetitionRecord, type CompetitionStore } fr
 import type { CompetitionSignupStore } from "./competition-signup-store.js";
 import type { CompetitionScoreStore } from "./competition-score-store.js";
 import { GRADE_KEYS, GRADE_KEY_LABELS, type CompetitionRulesStore, type PrizeTier } from "./competition-rules-store.js";
+import { isCore, isImportance, scoringView, type Core, type Importance } from "./competition-rubric.js";
 import type { CompetitionSiteStore } from "./competition-site-store.js";
 
 export type PublicPerson = { username: string; display_name: string; avatar_url: string | null };
@@ -19,6 +20,7 @@ export type PublicLeaderboard = {
 };
 export type PublicFeedItem = PublicPerson & {
   id: string; at: number; kind: "pr" | "issue" | "penalty"; title: string | null; url: string | null; points: number;
+  importance: Importance | null; core: Core | null;
 };
 export type PublicFeed = { items: PublicFeedItem[]; next_cursor: string | null };
 export type PublicStats = { participants: number; teams: number; merged_prs: number; accepted_issues: number; total_points: number; updated_at: number };
@@ -35,7 +37,10 @@ export const publicCachePrefix = (competitionId: string) => `competition-public:
 export const competitionAppUrl = (competitionId: string) => `/?open=competitions&competition=${encodeURIComponent(competitionId)}`;
 
 type ProfileRow = { username: string | null; display_name: string; avatar_hash: string | null };
-type FeedRow = { id: string; account_id: string; kind: string; points: number; weighted_points: number | null; created_at: number; title: string | null; url: string | null };
+type FeedRow = {
+  id: string; account_id: string; kind: string; points: number; weighted_points: number | null; created_at: number;
+  importance: string | null; core: string | null; title: string | null; url: string | null;
+};
 
 const encodeCursor = (at: number, id: string) => Buffer.from(`${at}:${id}`, "utf8").toString("base64url");
 function decodeCursor(cursor: string): { at: number; id: string } | null {
@@ -53,10 +58,10 @@ export function createCompetitionPublic(db: Database.Database, deps: {
 }) {
   const selectProfile = db.prepare("SELECT username, display_name, avatar_hash FROM account_profiles WHERE account_id = ?");
   const selectFinal = db.prepare("SELECT finalized_at, standings FROM competition_finals WHERE competition_id = ?");
-  const selectFeedFirst = db.prepare(`SELECT e.id, e.account_id, e.kind, e.points, e.weighted_points, e.created_at, c.title, c.url
+  const selectFeedFirst = db.prepare(`SELECT e.id, e.account_id, e.kind, e.points, e.weighted_points, e.created_at, e.importance, e.core, c.title, c.url
     FROM competition_score_events e LEFT JOIN competition_score_candidates c ON c.score_event_id = e.id
     WHERE e.competition_id = ? AND e.status = 'active' ORDER BY e.created_at DESC, e.id DESC LIMIT ?`);
-  const selectFeedAfter = db.prepare(`SELECT e.id, e.account_id, e.kind, e.points, e.weighted_points, e.created_at, c.title, c.url
+  const selectFeedAfter = db.prepare(`SELECT e.id, e.account_id, e.kind, e.points, e.weighted_points, e.created_at, e.importance, e.core, c.title, c.url
     FROM competition_score_events e LEFT JOIN competition_score_candidates c ON c.score_event_id = e.id
     WHERE e.competition_id = ? AND e.status = 'active' AND (e.created_at < ? OR (e.created_at = ? AND e.id < ?))
     ORDER BY e.created_at DESC, e.id DESC LIMIT ?`);
@@ -99,7 +104,7 @@ export function createCompetitionPublic(db: Database.Database, deps: {
     return GRADE_KEYS.map(key => ({ grade: key, label: GRADE_KEY_LABELS[key], factor: factors[key] / 100 }));
   };
 
-  /** 公开比赛对象：在 #238 的字段上加官网地址、门户深链、奖项、年级系数与定榜时间。 */
+  /** 公开比赛对象：在 #238 的字段上加官网地址、门户深链、奖项、年级系数、两档计分表与定榜时间。 */
   function competition(record: CompetitionRecord, now: number) {
     const site = deps.sites.site(record.id);
     const prizes: PrizeTier[] = deps.rules.get(record.id).prizes;
@@ -110,6 +115,7 @@ export function createCompetitionPublic(db: Database.Database, deps: {
       app_url: competitionAppUrl(record.id),
       prizes,
       grade_factors: gradeFactors(record.id),
+      scoring: scoringView(),
       finalized_at: finalOf(record.id)?.finalized_at ?? null,
     };
   }
@@ -155,6 +161,8 @@ export function createCompetitionPublic(db: Database.Database, deps: {
         title: row.kind === "penalty" ? null : row.title,
         url: row.kind === "penalty" ? null : row.url,
         points: row.weighted_points ?? row.points,
+        importance: isImportance(row.importance) ? row.importance : null,
+        core: isCore(row.core) ? row.core : null,
       })),
       next_cursor: rows.length > size && last ? encodeCursor(last.created_at, last.id) : null,
     };

@@ -5,6 +5,7 @@ import { requireStepUp } from "../../middleware/require-step-up.js";
 import { GRADE_KEYS, GRADE_KEY_LABELS, RULES_ERRORS, prizeForRank, type RulesInput } from "../../lib/competition-rules-store.js";
 import { PRIZE_ERRORS, type PrizeError, type PrizeRow } from "../../lib/competition-prizes.js";
 import { publicCachePrefix } from "../../lib/competition-public.js";
+import { scoringView } from "../../lib/competition-rubric.js";
 
 /** 兑奖码查找失败的上限：每个操作人每小时 20 次，防止拿控制台当猜码器（码本身有 80 位，主要是留痕）。 */
 export const PRIZE_LOOKUP_FAIL_LIMIT = { bucket: "competition.prize.lookup.fail", max: 20, windowMs: 60 * 60_000 } as const;
@@ -42,6 +43,7 @@ export default async function consoleCompetitionResultRoutes(app: FastifyInstanc
       grades: GRADE_KEYS.map(key => ({ grade: key, label: GRADE_KEY_LABELS[key] })),
       prizes: value.prizes,
       gitlab_projects: value.gitlab_projects,
+      scoring: scoringView(),
       updated_at: value.updated_at,
       updated_by: value.updated_by ? personOf(value.updated_by) : null,
       finalized: scores.isFinalized(competitionId),

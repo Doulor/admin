@@ -1,6 +1,7 @@
-// GitLab 贡献收集与「有用」标记（#278，CONTRACT-278 §4，所有者 2026-10-24 13:45）：
-// 只有标记「有用」的才加分；标签要由有 competition.score.review 的人加、不能是作者本人；标签拿掉时撤销经标签加的分；
-// 控制台「标记有用」与驳回；重复收集不产生重复行。GitLab 用注入的 gitlabFetch 模拟，不连外网。
+// GitLab 贡献收集与「有用」标记（#278，CONTRACT-278 §4，所有者 2026-10-24 13:45 / 16:59）：
+// 只有标记「有用」的才加分，分数按重要程度 × 核心度两档查表、不看改动行数；三个标签都要由有 competition.score.review
+// 的人加、不能是作者本人；标签拿掉时撤销经标签加的分；控制台「标记有用」选两档与驳回；重复收集不产生重复行。
+// GitLab 用注入的 gitlabFetch 模拟，不连外网。
 import { afterEach, describe, expect, it } from 'vitest';
 import { activityRows, grantPermNode } from './helpers';
 import { contestSetup, HOUR, type ContestContext } from './contest-fixtures';
@@ -16,7 +17,6 @@ type LabelEvent = { id: number; action: 'add' | 'remove'; user: { id: number; us
 function fakeGitlab() {
   const mrs: Item[] = [];
   const issues: Item[] = [];
-  const diffs = new Map<number, { diff: string; new_path: string; too_large?: boolean }[]>();
   const labelEvents = new Map<string, LabelEvent[]>();
   const closedBy = new Map<number, Item[]>();
   const calls: string[] = [];
@@ -36,15 +36,13 @@ function fakeGitlab() {
       return json(200, url.searchParams.get('page') === '1' ? mrs : []);
     }
     if (path === `${project}/issues`) return json(200, url.searchParams.get('page') === '1' ? issues : []);
-    let match = /^\/projects\/geek%2Fadmin\/merge_requests\/(\d+)\/diffs$/.exec(path);
-    if (match) return json(200, diffs.get(Number(match[1])) ?? []);
-    match = /^\/projects\/geek%2Fadmin\/(merge_requests|issues)\/(\d+)\/resource_label_events$/.exec(path);
+    let match = /^\/projects\/geek%2Fadmin\/(merge_requests|issues)\/(\d+)\/resource_label_events$/.exec(path);
     if (match) return json(200, labelEvents.get(`${match[1]}:${match[2]}`) ?? []);
     match = /^\/projects\/geek%2Fadmin\/issues\/(\d+)\/closed_by$/.exec(path);
     if (match) return json(200, closedBy.get(Number(match[1])) ?? []);
     return json(404, { message: '404 Not Found' });
   }
-  return { fetch, mrs, issues, diffs, labelEvents, closedBy, calls };
+  return { fetch, mrs, issues, labelEvents, closedBy, calls };
 }
 
 const contexts: ContestContext[] = [];
@@ -72,10 +70,17 @@ async function setup() {
   const author = (login: string) => ({ id: GITLAB_IDS[login] ?? 1099, username: login });
   const mr = (iid: number, login: string, labels: string[], mergedAt = recent) =>
     ({ iid, title: `MR ${iid}`, web_url: `${GITLAB}/geek/admin/-/merge_requests/${iid}`, author: author(login), labels, merged_at: mergedAt, state: 'merged' });
-  const labelAdd = (key: string, login: string, action: 'add' | 'remove' = 'add', at = recent, eventId = 1) => {
+  const labelAdd = (key: string, login: string, action: 'add' | 'remove' = 'add', at = recent, eventId = 1, name = '有用') => {
     const list = gitlab.labelEvents.get(key) ?? [];
-    list.push({ id: eventId, action, user: { id: GITLAB_IDS[login], username: login }, created_at: at, label: { name: '有用' } });
+    list.push({ id: eventId, action, user: { id: GITLAB_IDS[login], username: login }, created_at: at, label: { name } });
     gitlab.labelEvents.set(key, list);
+  };
+  /** 一位审核人在 GitLab 上打「有用」和两档标签（三条标签事件），返回 MR 上该有的标签。 */
+  const review = (key: string, login: string, importance = '重要', core = '业务', levelsBy = login) => {
+    labelAdd(key, login);
+    labelAdd(key, levelsBy, 'add', recent, 2, `重要程度::${importance}`);
+    labelAdd(key, levelsBy, 'add', recent, 3, `核心度::${core}`);
+    return ['有用', `重要程度::${importance}`, `核心度::${core}`];
   };
   const collect = async (login = 'bob') => {
     const res = await app.inject({ method: 'POST', url: `/api/console/competitions/${id}/candidates/collect`, headers: as(login) });
@@ -88,18 +93,20 @@ async function setup() {
     const board = (await app.inject({ url: `/api/competitions/${id}/leaderboard`, headers: as('alice') })).json();
     return board.individuals.find((row: { person: { account_id: string } }) => row.person.account_id === accountId(login)).points as number;
   };
-  return { ...context, gitlab, id, mr, labelAdd, collect, list, scoreOf, recent };
+  return { ...context, gitlab, id, mr, labelAdd, review, collect, list, scoreOf, recent };
 }
 
 describe('收集候选贡献', () => {
-  it('只收时间窗内、已报名作者的 MR 与合格 Issue，按改动行数和 size 标签给建议分；重复收集不产生重复行', async () => {
+  it('只收时间窗内、已报名作者的 MR 与合格 Issue，不读 diff、不看改动行数；待确认的记下标签上的两档；重复收集不产生重复行', async () => {
     const { app, gitlab, id, mr, collect, list } = await setup();
-    const lines = (n: number) => Array.from({ length: n }, (_, k) => `+line ${k}`).join('\n');
-    gitlab.mrs.push(mr(1, 'alice', []), mr(2, 'carol', []), mr(3, 'erin', []), mr(4, 'alice', [], new Date(Date.now() - 48 * HOUR).toISOString()));
-    gitlab.diffs.set(1, [{ diff: `--- a/x\n+++ b/x\n${lines(60)}`, new_path: 'src/x.ts' }, { diff: lines(5000), new_path: 'pnpm-lock.yaml' }]);
-    gitlab.diffs.set(2, [{ diff: lines(10), new_path: 'README.md' }]);
+    gitlab.mrs.push(
+      mr(1, 'alice', ['重要程度::重要', '核心度::业务']),
+      mr(2, 'carol', ['重要程度::一般', '重要程度::关键', '核心度::核心']),
+      mr(3, 'erin', []),
+      mr(4, 'alice', [], new Date(Date.now() - 48 * HOUR).toISOString()),
+    );
     gitlab.issues.push(
-      { iid: 10, title: 'Issue 10', web_url: `${GITLAB}/geek/admin/-/issues/10`, author: { id: 1003 }, labels: ['size::l'], created_at: new Date().toISOString(), state: 'closed', merge_requests_count: 1 },
+      { iid: 10, title: 'Issue 10', web_url: `${GITLAB}/geek/admin/-/issues/10`, author: { id: 1003 }, labels: ['核心度::边缘'], created_at: new Date().toISOString(), state: 'closed', merge_requests_count: 1 },
       { iid: 11, title: 'Issue 11', web_url: `${GITLAB}/geek/admin/-/issues/11`, author: { id: 1001 }, labels: [], created_at: new Date().toISOString(), state: 'opened', merge_requests_count: 0 },
     );
     gitlab.closedBy.set(10, [{ iid: 2, state: 'merged' }]);
@@ -109,17 +116,21 @@ describe('收集候选贡献', () => {
     const page = await list();
     expect(page.counts).toEqual({ pending: 3, accepted: 0, rejected: 0 });
     const byIid = Object.fromEntries(page.items.map((item: { kind: string; gitlab_iid: number }) => [`${item.kind}${item.gitlab_iid}`, item]));
-    expect(byIid.pr1).toMatchObject({ size_hint: 60, suggested: 30, url: `${GITLAB}/geek/admin/-/merge_requests/1`, status: 'pending' });
-    expect(byIid.pr2).toMatchObject({ size_hint: 10, suggested: 15 });
-    expect(byIid.issue10).toMatchObject({ suggested: 20 });
+    expect(byIid.pr1).toMatchObject({ importance: 'important', core: 'business', final_points: null, url: `${GITLAB}/geek/admin/-/merge_requests/1`, status: 'pending' });
+    // 同一个前缀打了两个标签：这一档不算，等审核人改
+    expect(byIid.pr2).toMatchObject({ importance: null, core: 'core' });
+    expect(byIid.issue10).toMatchObject({ importance: null, core: 'edge' });
+    expect(Object.keys(byIid.pr1)).not.toEqual(expect.arrayContaining(['size_hint']));
+    expect(Object.keys(byIid.pr1)).not.toEqual(expect.arrayContaining(['suggested']));
     expect(page.items[0].account).toEqual({ account_id: expect.any(String), username: expect.any(String), display_name: expect.any(String), avatar_url: null });
     expect(page.last_run).toMatchObject({ created: 3 });
+    expect(gitlab.calls.filter(call => /\/(diffs|changes)(\?|$)/.test(call))).toEqual([]);
 
+    gitlab.mrs[0].labels = ['重要程度::关键', '核心度::核心'];
     const again = await collect();
     expect(again).toMatchObject({ created: 0, fetched: 4 });
     expect((app.services.storage.db.prepare('SELECT COUNT(*) AS n FROM competition_score_candidates WHERE competition_id = ?').get(id) as { n: number }).n).toBe(3);
-    // 已有候选不再取 diff
-    expect(gitlab.calls.filter(call => call.includes('/merge_requests/1/diffs'))).toHaveLength(1);
+    expect((await list()).items.find((item: { gitlab_iid: number }) => item.gitlab_iid === 1)).toMatchObject({ importance: 'critical', core: 'core', status: 'pending' });
   });
 
   it('GitLab 同步关着时不收集；概览的 candidates_pending 是真实的待确认数', async () => {
@@ -135,38 +146,63 @@ describe('收集候选贡献', () => {
 });
 
 describe('「有用」标签', () => {
-  it('有审核权限的人加的标签自动按建议分加分；没有权限的人或作者自己加的不算，留在待确认并写明原因', async () => {
-    const { app, gitlab, mr, labelAdd, collect, list, scoreOf, accountId, id } = await setup();
-    gitlab.mrs.push(mr(1, 'alice', ['有用']), mr(2, 'alice', ['有用']), mr(3, 'carol', ['有用']));
-    gitlab.diffs.set(1, [{ diff: Array.from({ length: 60 }, () => '+x').join('\n'), new_path: 'a.ts' }]);
-    labelAdd('merge_requests:1', 'bob');
-    labelAdd('merge_requests:2', 'dave');
-    labelAdd('merge_requests:3', 'carol');
+  it('「有用」和两档标签都由有审核权限的人加上才按两档自动加分；没有权限的人、作者自己加的、缺两档的不算，留在待确认并写明原因', async () => {
+    const { app, gitlab, mr, labelAdd, review, collect, list, scoreOf, accountId, id } = await setup();
+    gitlab.mrs.push(
+      mr(1, 'alice', review('merge_requests:1', 'bob')),
+      mr(2, 'alice', review('merge_requests:2', 'dave')),
+      mr(3, 'carol', review('merge_requests:3', 'carol')),
+      mr(5, 'alice', ['有用']),
+      // 审核人打了「有用」，两档是作者自己改成最高的
+      mr(6, 'carol', review('merge_requests:6', 'bob', '关键', '核心', 'carol')),
+    );
+    labelAdd('merge_requests:5', 'bob');
     const run = await collect();
-    expect(run).toMatchObject({ created: 3, accepted: 1 });
+    expect(run).toMatchObject({ created: 5, accepted: 1 });
     const items = (await list()).items as { gitlab_iid: number; status: string; accepted_via: string | null; note: string | null; final_points: number | null; reviewed_by: { account_id: string } | null }[];
     const one = items.find(item => item.gitlab_iid === 1)!;
-    expect(one).toMatchObject({ status: 'accepted', accepted_via: 'label', final_points: 30, note: null });
+    expect(one).toMatchObject({ status: 'accepted', accepted_via: 'label', importance: 'important', core: 'business', final_points: 45, note: null });
     expect(one.reviewed_by?.account_id).toBe(accountId('bob'));
     expect(items.find(item => item.gitlab_iid === 2)).toMatchObject({ status: 'pending', note: expect.stringContaining('没有审核积分的权限') });
     expect(items.find(item => item.gitlab_iid === 3)).toMatchObject({ status: 'pending', note: '「有用」标签是作者自己加的，未计分' });
-    expect(await scoreOf('alice')).toBe(30);
-    expect(activityRows(app, { action: 'competition.candidate.accept' })[0]).toMatchObject({ surface: 'system', account_id: accountId('bob'), meta: { via: 'label', points: 30 } });
-    const event = app.services.storage.db.prepare("SELECT created_by, repo, number, kind FROM competition_score_events WHERE status = 'active'").get();
-    expect(event).toEqual({ created_by: accountId('bob'), repo: 'geek/admin', number: 1, kind: 'pr' });
-    // 公开动态里带上 GitLab 的标题与链接
+    expect(items.find(item => item.gitlab_iid === 5)).toMatchObject({ status: 'pending', note: expect.stringContaining('重要程度和核心度要各有一个标签') });
+    expect(items.find(item => item.gitlab_iid === 6)).toMatchObject({ status: 'pending', note: '「重要程度::关键」标签是作者自己加的，未计分' });
+    expect(await scoreOf('alice')).toBe(45);
+    expect(await scoreOf('carol')).toBe(0);
+    expect(activityRows(app, { action: 'competition.candidate.accept' })[0]).toMatchObject({
+      surface: 'system', account_id: accountId('bob'), meta: { via: 'label', points: 45, importance: 'important', core: 'business' },
+    });
+    const event = app.services.storage.db.prepare("SELECT created_by, repo, number, kind, importance, core, points FROM competition_score_events WHERE status = 'active'").get();
+    expect(event).toEqual({ created_by: accountId('bob'), repo: 'geek/admin', number: 1, kind: 'pr', importance: 'important', core: 'business', points: 45 });
+    // 公开动态里带上 GitLab 的标题、链接和两档
     const feed = (await app.inject({ url: `/api/public/competitions/${id}/feed` })).json();
-    expect(feed.items[0]).toMatchObject({ kind: 'pr', title: 'MR 1', url: `${GITLAB}/geek/admin/-/merge_requests/1`, points: 30 });
+    expect(feed.items[0]).toMatchObject({ kind: 'pr', title: 'MR 1', url: `${GITLAB}/geek/admin/-/merge_requests/1`, points: 45, importance: 'important', core: 'business' });
+  });
+
+  it('同一周的「一般 × 边缘」按合并时间只算第一条，别的周照算', async () => {
+    const { app, as, gitlab, mr, review, collect, scoreOf, recent, id } = await setup();
+    const now = Date.now();
+    expect((await app.inject({ method: 'PATCH', url: `/api/console/competitions/${id}`, headers: as('owner'), payload: { start_at: now - 20 * 24 * HOUR } })).statusCode).toBe(200);
+    const lastWeek = new Date(now - 8 * 24 * HOUR).toISOString();
+    gitlab.mrs.push(
+      mr(1, 'alice', review('merge_requests:1', 'bob', '一般', '边缘')),
+      mr(2, 'alice', review('merge_requests:2', 'bob', '一般', '边缘')),
+      mr(3, 'alice', review('merge_requests:3', 'bob', '一般', '边缘'), lastWeek),
+    );
+    expect(await collect()).toMatchObject({ accepted: 3 });
+    const events = app.services.storage.db.prepare("SELECT number, points, damp_percent, weighted_points, contributed_at FROM competition_score_events ORDER BY number").all() as { number: number; points: number; damp_percent: number; weighted_points: number; contributed_at: number }[];
+    expect(events.map(row => [row.number, row.points, row.damp_percent, row.weighted_points])).toEqual([[1, 15, 100, 15], [2, 15, 0, 0], [3, 15, 100, 15]]);
+    expect(events[0].contributed_at).toBe(Date.parse(recent));
+    expect(await scoreOf('alice')).toBe(30);
   });
 
   it('标签被拿掉：经标签加的分撤销、候选回到待确认；控制台确认的不受影响', async () => {
-    const { app, gitlab, mr, labelAdd, collect, list, scoreOf, recent } = await setup();
-    gitlab.mrs.push(mr(1, 'alice', ['有用']));
-    labelAdd('merge_requests:1', 'bob');
+    const { app, gitlab, mr, labelAdd, review, collect, list, scoreOf, recent } = await setup();
+    gitlab.mrs.push(mr(1, 'alice', review('merge_requests:1', 'bob', '一般', '业务')));
     await collect();
-    expect(await scoreOf('alice')).toBe(15);
-    gitlab.mrs[0].labels = [];
-    labelAdd('merge_requests:1', 'bob', 'remove', new Date(Date.parse(recent) + 60_000).toISOString(), 2);
+    expect(await scoreOf('alice')).toBe(25);
+    gitlab.mrs[0].labels = ['重要程度::一般', '核心度::业务'];
+    labelAdd('merge_requests:1', 'bob', 'remove', new Date(Date.parse(recent) + 60_000).toISOString(), 4);
     const run = await collect();
     expect(run.revoked).toBe(1);
     expect(await scoreOf('alice')).toBe(0);
@@ -178,26 +214,31 @@ describe('「有用」标签', () => {
 });
 
 describe('控制台标记有用与驳回', () => {
-  it('要 competition.score.review 与 step-up，不能审自己的；分数默认建议分、可改但要在区间内；驳回会撤销已加的分', async () => {
+  it('要 competition.score.review 与 step-up，不能审自己的；要选两档，分数查表；驳回会撤销已加的分', async () => {
     const { app, as, gitlab, mr, collect, list, scoreOf, makeStale, accountId, id } = await setup();
     gitlab.mrs.push(mr(1, 'alice', []), mr(2, 'carol', []));
     await collect();
     const items = (await list()).items as { id: string; gitlab_iid: number }[];
     const mine = items.find(item => item.gitlab_iid === 1)!.id;
     const carols = items.find(item => item.gitlab_iid === 2)!.id;
-    const accept = (candidate: string, login: string, payload: Record<string, unknown> = {}) =>
+    const levels = { importance: 'critical', core: 'business' };
+    const accept = (candidate: string, login: string, payload: Record<string, unknown> = levels) =>
       app.inject({ method: 'POST', url: `/api/console/competitions/${id}/candidates/${candidate}/accept`, headers: as(login), payload });
     expect((await accept(mine, 'alice')).json()).toMatchObject({ error: 'forbidden', node: 'competition.score.review' });
     grantPermNode(app, accountId('alice'), 'competition.score.review');
     expect((await accept(mine, 'alice')).json().error).toBe('self_review');
-    expect((await accept(carols, 'alice', { points: 200 })).statusCode).toBe(400);
-    expect((await accept(carols, 'alice', { points: 10 })).json().error).toBe('bad_points');
-    const accepted = await accept(carols, 'alice', { points: 60, reason: '修了登录页的竞态' });
+    // 不收手填分数，两档必须都选
+    expect((await accept(carols, 'alice', { ...levels, points: 60 })).statusCode).toBe(400);
+    expect((await accept(carols, 'alice', { importance: 'critical' })).statusCode).toBe(400);
+    expect((await accept(carols, 'alice', { importance: 'critical', core: 'kernel' })).statusCode).toBe(400);
+    const accepted = await accept(carols, 'alice', { ...levels, reason: '修了登录页的竞态' });
     expect(accepted.statusCode).toBe(200);
-    expect(accepted.json().candidate).toMatchObject({ status: 'accepted', accepted_via: 'console', final_points: 60, reason: '修了登录页的竞态' });
-    expect(await scoreOf('carol')).toBe(60);
+    expect(accepted.json().candidate).toMatchObject({ status: 'accepted', accepted_via: 'console', importance: 'critical', core: 'business', final_points: 65, reason: '修了登录页的竞态' });
+    expect(await scoreOf('carol')).toBe(65);
     expect((await accept(carols, 'alice')).json().error).toBe('already_accepted');
-    expect(activityRows(app, { action: 'competition.candidate.accept' }).filter(row => row.outcome === 'ok')[0]).toMatchObject({ surface: 'console', meta: { via: 'console', points: 60 } });
+    expect(activityRows(app, { action: 'competition.candidate.accept' }).filter(row => row.outcome === 'ok')[0]).toMatchObject({
+      surface: 'console', meta: { via: 'console', points: 65, importance: 'critical', core: 'business' },
+    });
 
     const reject = (candidate: string, login: string, reason = '和已有的重复') =>
       app.inject({ method: 'POST', url: `/api/console/competitions/${id}/candidates/${candidate}/reject`, headers: as(login), payload: { reason } });

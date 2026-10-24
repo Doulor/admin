@@ -30,11 +30,11 @@ async function finalSetup() {
     { from: 4, to: 8, amount_cny: 70, title: '' },
   ];
   expect((await app.inject({ method: 'PUT', url: `/api/console/competitions/${id}/rules`, headers: as('owner'), payload: { grade_factors: rules.grade_factors, prizes, gitlab_projects: [] } })).statusCode).toBe(200);
-  // alice 60，bob 30，carol 30（比 bob 晚到这个分），dave 0
-  await addScore(id, { account_id: accountId('alice'), kind: 'pr', repo: 'geek/admin', number: 1, points: 60 });
-  await addScore(id, { account_id: accountId('bob'), kind: 'pr', repo: 'geek/admin', number: 2, points: 30 });
+  // alice 65，bob 25，carol 25（比 bob 晚到这个分），dave 0
+  await addScore(id, { account_id: accountId('alice'), kind: 'pr', repo: 'geek/admin', number: 1, importance: 'important', core: 'core' });
+  await addScore(id, { account_id: accountId('bob'), kind: 'pr', repo: 'geek/admin', number: 2, importance: 'normal', core: 'business' });
   app.services.storage.db.prepare("UPDATE competition_score_events SET created_at = created_at - 60000 WHERE number = 2").run();
-  await addScore(id, { account_id: accountId('carol'), kind: 'pr', repo: 'geek/admin', number: 3, points: 30 });
+  await addScore(id, { account_id: accountId('carol'), kind: 'pr', repo: 'geek/admin', number: 3, importance: 'normal', core: 'business' });
   const finalize = (login = 'owner') => app.inject({ method: 'POST', url: `/api/console/competitions/${id}/final`, headers: as(login) });
   return { ...context, id, finalize };
 }
@@ -70,7 +70,7 @@ describe('定榜', () => {
     expect(done.statusCode).toBe(201);
     const view = done.json();
     expect(view.standings.map((row: { account: { account_id: string }; rank: number; points: number }) => [row.account.account_id, row.rank, row.points])).toEqual([
-      [accountId('alice'), 1, 60], [accountId('bob'), 2, 30], [accountId('carol'), 3, 30], [accountId('dave'), 4, 0],
+      [accountId('alice'), 1, 65], [accountId('bob'), 2, 25], [accountId('carol'), 3, 25], [accountId('dave'), 4, 0],
     ]);
     expect(view.prizes.map((row: { rank: number; amount_cny: number; title: string }) => [row.rank, row.amount_cny, row.title])).toEqual([
       [1, 700, 'GPT 5x 订阅的价格'], [2, 140, 'GPT Plus 订阅的价格'], [3, 140, 'GPT Plus 订阅的价格'],
@@ -81,7 +81,7 @@ describe('定榜', () => {
     expect(activityRows(app, { action: 'competition.finalize' })[0].meta).toMatchObject({ standings: 4 });
     expect(JSON.stringify(activityRows(app))).not.toMatch(/YUGC-/);
 
-    expect((await addScore(id, { account_id: accountId('dave'), kind: 'issue', repo: 'geek/admin', number: 9, points: 5 })).json().error).toBe('competition_finalized');
+    expect((await addScore(id, { account_id: accountId('dave'), kind: 'issue', repo: 'geek/admin', number: 9, importance: 'normal', core: 'edge' })).json().error).toBe('competition_finalized');
     const event = app.services.storage.db.prepare("SELECT id FROM competition_score_events LIMIT 1").get() as { id: string };
     expect((await app.inject({ method: 'POST', url: `/api/console/competitions/${id}/score-events/${event.id}/revoke`, headers: as('owner'), payload: { reason: 'x' } })).json().error).toBe('competition_finalized');
     const rules = (await app.inject({ url: `/api/console/competitions/${id}/rules`, headers: as('owner') })).json();
@@ -101,7 +101,7 @@ describe('定榜', () => {
     await finalize();
     const mine = (await app.inject({ url: '/api/me/competition-results', headers: as('alice') })).json();
     expect(mine.items).toHaveLength(1);
-    expect(mine.items[0]).toMatchObject({ competition_id: id, rank: 1, points: 60, prize: { amount_cny: 700, title: 'GPT 5x 订阅的价格', redeemed_at: null } });
+    expect(mine.items[0]).toMatchObject({ competition_id: id, rank: 1, points: 65, prize: { amount_cny: 700, title: 'GPT 5x 订阅的价格', redeemed_at: null } });
     expect(mine.items[0].prize.code).toMatch(/^YUGC-/);
     const dave = (await app.inject({ url: '/api/me/competition-results', headers: as('dave') })).json();
     expect(dave.items[0]).toMatchObject({ rank: 4, points: 0, prize: null });
@@ -182,7 +182,11 @@ describe('迁移可以重复执行', () => {
     const db = first.app.services.storage.db;
     const tables = () => (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'competition_%' ORDER BY name").all() as { name: string }[]).map(row => row.name);
     expect(tables()).toEqual(expect.arrayContaining(['competition_finals', 'competition_gitlab_sources', 'competition_prizes', 'competition_rules', 'competition_score_candidates', 'competition_site_versions', 'competition_sites']));
-    expect((db.prepare("SELECT name FROM pragma_table_info('competition_score_events') WHERE name IN ('grade', 'grade_factor', 'weighted_points')").all() as unknown[]).length).toBe(3);
+    const eventColumns = "SELECT name FROM pragma_table_info('competition_score_events') WHERE name IN ('grade', 'grade_factor', 'weighted_points', 'importance', 'core', 'damp_percent', 'contributed_at')";
+    expect((db.prepare(eventColumns).all() as unknown[]).length).toBe(7);
+    // 候选表不再有改动行数和建议分
+    expect((db.prepare("SELECT name FROM pragma_table_info('competition_score_candidates') WHERE name IN ('size_hint', 'suggested', 'importance', 'core')").all() as { name: string }[]).map(row => row.name).sort())
+      .toEqual(['core', 'importance']);
     db.prepare("DELETE FROM competition_gitlab_sources WHERE competition_id = 'oss-challenge-2026-1'").run();
     db.prepare("UPDATE competition_rules SET prizes = '[]' WHERE competition_id = 'oss-challenge-2026-1'").run();
     await first.close();
@@ -190,6 +194,7 @@ describe('迁移可以重复执行', () => {
     const second = await testApp({}, false, env);
     const again = second.app.services.storage.db;
     expect(again.prepare("SELECT COUNT(*) AS n FROM console_seeds WHERE name = 'competition_oss_2026_1_rules'").get()).toEqual({ n: 1 });
+    expect((again.prepare(eventColumns).all() as unknown[]).length).toBe(7);
     expect(again.prepare("SELECT COUNT(*) AS n FROM competition_gitlab_sources").get()).toEqual({ n: 0 });
     expect(second.app.services.competitionRules.get('oss-challenge-2026-1').prizes).toEqual([]);
     expect(second.app.services.competitionSites.root).toBe(join(dir, 'sites'));
