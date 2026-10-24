@@ -890,7 +890,7 @@
           "path": "app/console/src/pages/Device.vue"
         },
         {
-          "line": 114,
+          "line": 116,
           "path": "app/server/src/routes/identity/device.ts"
         }
       ],
@@ -932,7 +932,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 143,
+          "line": 145,
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
@@ -10949,7 +10949,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "cfd08d41acae58e5da7825f189545a6ad95f7086e266ddde55754bbf8ea4b3e2",
+    "fingerprint": "267ebd81fab0e3c467cd70be62cca0f6197de2945eac47751a87ea764d17bfb1",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -12029,7 +12029,7 @@
       },
       {
         "path": "app/server/src/routes/identity/device.ts",
-        "sha256": "536c276e186ed3a9a70ca9d8aeed81edc5819e61e95a8b9e802abc13af9489bd"
+        "sha256": "c74be4eb8d54c8b18861cf80543f803feccf61e6e791cfb99d41c2b351f1e8ac"
       },
       {
         "path": "app/server/src/routes/identity/email.ts",
@@ -12625,7 +12625,7 @@
       },
       {
         "path": "tests/server/device-flow.test.ts",
-        "sha256": "b50179decadd9b627cdafa60210beb6b55c2d2342c84e36a583af628ca887fd7"
+        "sha256": "7a098700afa070fb5669dbd1c077b4995862660736f3debefb872b61038a250c"
       },
       {
         "path": "tests/server/events.test.ts",
@@ -13576,7 +13576,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 143,
+          "line": 145,
           "path": "app/server/src/routes/identity/device.ts"
         }
       ],
@@ -14344,7 +14344,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 143,
+          "line": 145,
           "path": "app/server/src/routes/identity/device.ts"
         }
       ],
@@ -41280,7 +41280,7 @@
           "path": "app/console/src/pages/Device.vue"
         },
         {
-          "line": 114,
+          "line": 116,
           "path": "app/server/src/routes/identity/device.ts"
         }
       ],
@@ -41320,7 +41320,7 @@
           "path": "app/console/src/pages/Device.vue"
         },
         {
-          "line": 114,
+          "line": 116,
           "path": "app/server/src/routes/identity/device.ts"
         }
       ],
@@ -41348,7 +41348,7 @@
           "path": "app/console/src/pages/Device.vue"
         },
         {
-          "line": 114,
+          "line": 116,
           "path": "app/server/src/routes/identity/device.ts"
         }
       ],
@@ -41376,7 +41376,7 @@
           "path": "app/console/src/pages/Device.vue"
         },
         {
-          "line": 114,
+          "line": 116,
           "path": "app/server/src/routes/identity/device.ts"
         }
       ],
@@ -41612,7 +41612,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 145,
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
@@ -41632,7 +41632,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 145,
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
@@ -41652,7 +41652,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 145,
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
@@ -41678,7 +41678,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 145,
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
@@ -61419,7 +61419,7 @@
         }
       },
       "source": {
-        "line": 143,
+        "line": 145,
         "path": "app/server/src/routes/identity/device.ts"
       }
     },
@@ -65623,7 +65623,7 @@
         }
       },
       "source": {
-        "line": 143,
+        "line": 145,
         "path": "app/server/src/routes/identity/device.ts"
       }
     },

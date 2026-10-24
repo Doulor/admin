@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`cfd08d41acae58e5da7825f189545a6ad95f7086e266ddde55754bbf8ea4b3e2`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`267ebd81fab0e3c467cd70be62cca0f6197de2945eac47751a87ea764d17bfb1`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -164,7 +164,7 @@
 - 响应与错误：200 {ok:true,status:approved|denied}；不存在 404 device_code_not_found；不是 pending 或已过期 409 device_code_not_pending；decision 不合法 400；允许时账号还没有登录邮箱（这个环境能发信）403 email_required，拒绝不拦（#273）。
 - 数据与副作用：条件 UPDATE 只改 pending 且未过期的行，并发的确认只有一次生效；写 audit_logs identity.device.approve 或 identity.device.deny，只含 client_id 与 scope，不含 device_code 与令牌。
 
-源码：[app/server/src/routes/identity/device.ts:104](../../../app/server/src/routes/identity/device.ts#L104) · [app/server/src/routes/identity/contracts.ts:130](../../../app/server/src/routes/identity/contracts.ts#L130) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103) · [app/console/src/pages/Device.vue:171](../../../app/console/src/pages/Device.vue#L171) · [app/server/src/routes/identity/device.ts:114](../../../app/server/src/routes/identity/device.ts#L114)
+源码：[app/server/src/routes/identity/device.ts:104](../../../app/server/src/routes/identity/device.ts#L104) · [app/server/src/routes/identity/contracts.ts:130](../../../app/server/src/routes/identity/contracts.ts#L130) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103) · [app/console/src/pages/Device.vue:171](../../../app/console/src/pages/Device.vue#L171) · [app/server/src/routes/identity/device.ts:116](../../../app/server/src/routes/identity/device.ts#L116)
 
 测试入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts) · [tests/console/device.test.ts](../../../tests/console/device.test.ts)。生成器未执行这些测试。
 
@@ -181,7 +181,7 @@
 - 响应与错误：200 {sub=account_id,account_id,login,avatar_url,scope}；令牌缺失、不存在、过期或账号不是 active 时 401 invalid_token，并带 WWW-Authenticate: Bearer error="invalid_token"。
 - 数据与副作用：只读；按令牌的 sha256 查行，不记录令牌明文。
 
-源码：[app/server/src/routes/identity/device.ts:143](../../../app/server/src/routes/identity/device.ts#L143) · [app/server/src/routes/identity/contracts.ts:135](../../../app/server/src/routes/identity/contracts.ts#L135) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103)
+源码：[app/server/src/routes/identity/device.ts:145](../../../app/server/src/routes/identity/device.ts#L145) · [app/server/src/routes/identity/contracts.ts:135](../../../app/server/src/routes/identity/contracts.ts#L135) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103)
 
 测试入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts)。生成器未执行这些测试。
 
