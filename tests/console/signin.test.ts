@@ -42,9 +42,10 @@ describe("登录结果提示与行动点解析 (signin)", () => {
     const outcomes = signInOutcomes();
     // 与服务端 SigninOutcome（app/server/src/lib/safe-return.ts）逐个对应；#274 review round 1：邀请码选填后
     // not_member、invite_pending、invite_required 都去掉了，invalid_invite 改名 invite_invalid，
-    // 另外补上 no_account、code_expired、rate_limited（服务端类型里有，这里原来缺）。
+    // 另外补上 no_account、code_expired、rate_limited（服务端类型里有，这里原来缺）；
+    // registration_limited 是 #274 残留修复加的（SPEC §3.8：同一 IP/设备每天新建账号的次数到了上限）。
     expect(Object.keys(outcomes)).toEqual([
-      "cancelled", "failed", "account_disabled", "invite_invalid", "email_taken", "no_account", "code_expired", "rate_limited",
+      "cancelled", "failed", "account_disabled", "invite_invalid", "email_taken", "no_account", "code_expired", "rate_limited", "registration_limited",
     ]);
   });
 

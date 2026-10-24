@@ -1,13 +1,21 @@
 import type { FastifyRequest } from "fastify";
 import { loadSession } from "../../middleware/require-auth.js";
-import { resolveAccess } from "../../middleware/require-capability.js";
-import { orderedCapabilities, type Capability } from "../../lib/roles.js";
+import { FORUM_CAPABILITIES, type Capability } from "../../lib/roles.js";
+import { CAPABILITY_TO_NODES } from "../../lib/permission-nodes.js";
+import { nodeMatches, type PermissionEngine } from "../../lib/permissions.js";
 import { FORUM_LIMITS, ForumError } from "../../lib/forum-rules.js";
 import type { ChangeKeys, ChangeOptions, ForumTitle } from "../../lib/forum-store.js";
 
 /**
- * 论坛里「谁在看」：带有效 `sid`、账号现在是极客班成员的是成员，其余一律是游客。成员的论坛能力与
- * 控制台同一条路径（`resolveAccess` → `computeAccess`），只取 `forum.*`；按钮显隐只是提示，授权在这里。
+ * 论坛里「谁在看」：带有效 `sid` 就是成员，其余一律是游客——`getSession()`（lib/auth.ts）已经把账号被停用的
+ * 会话删掉了，能解析出会话就等于账号现在是活跃状态，不用再按 `access.member`/`org_state` 多判一次（#274 之前
+ * 这里就是靠这个判的，迁移后所有新账号的 `org_state` 恒为 active，这个检查已经形同虚设）。
+ * 「能不能写」不在这里判：由 `requireWriter`/`canModerate` 按权限节点判定，`capabilities` 只是按钮显隐的
+ * 提示（从权限引擎的 forum.moderate.* 等节点反查成旧 Capability 格式给前端，不参与真正的鉴权）。
+ * 仍然调一次 `access.resolve()`：老账号（从没记过站内角色的）第一次来论坛时靠它补查一次 GitHub 组织角色、
+ * 同步进新权限表（lib/access.ts 的 membership.unrecorded 分支），这里只要它的副作用和失败时的报错——
+ * 令牌被 GitHub 拒绝、GitHub 出错，都原样往上抛给 http-policy 的全局错误处理（#164），不在这里接住，也不再读它
+ * 返回的 capabilities/member/siteRole。
  */
 export type ForumViewer =
   | { kind: "guest"; userId: null; login: null; accountId: null; capabilities: Capability[] }
@@ -22,11 +30,25 @@ declare module "fastify" {
 
 const GUEST: ForumViewer = Object.freeze({ kind: "guest", userId: null, login: null, accountId: null, capabilities: [] });
 
+/** 旧 Capability → 新节点的反查，只留论坛相关的几条；持有反查到的任意一个节点就算有这条旧能力。 */
+const FORUM_CAPABILITY_NODES = FORUM_CAPABILITIES
+  .map(capability => [capability, CAPABILITY_TO_NODES[capability]] as const)
+  .filter((entry): entry is [Capability, string[]] => entry[1] !== null);
+
 /**
- * 解析并缓存到 req.forumViewer。成员按会话的极客班账号认人（#262）：第一次来建论坛用户，之后每次请求刷新角色（站内管理员是 admin）、
- * 称号（排序最高的那个）和头像地址。老账号第一次补记站内角色时要查 GitHub，出错直接抛给 http-policy，不把成员降成游客。
- * 登录后被移出极客班（控制台里把站内角色改成「不是成员」）的人：会话还在，论坛按游客处理，不建、不刷新论坛用户，
- * 显式称号给的 forum.* 能力也不算，下一次请求就生效。
+ * 这个节点不论在哪个 scope 下，只要有一条允许的条目就算数：按钮显隐的提示不用管具体分类（真正能不能操作
+ * 某一条帖子仍然按 canModerate 带着分类判一遍），版主在哪怕一个分类里能管，提示就该让按钮露出来。
+ */
+function hasGrantedNode(permissions: PermissionEngine, accountId: string, node: string): boolean {
+  return permissions.entriesFor(accountId).some(entry => nodeMatches(entry.node, node) && entry.value);
+}
+
+/**
+ * 解析并缓存到 req.forumViewer。成员按会话的极客班账号认人（#262）：第一次来建论坛用户，之后每次请求刷新头像地址。
+ * 角色与称号只保真两件事，都是权限引擎当下主动维护、不会越来越假的字段：站长（持 `title.site.owner`）显示
+ * 管理员角色与徽章；往届成员（`level` 是 `level.alumni`）挂「alumni」徽章；其余人不挂称号徽章——旧的提督、
+ * 舰长、部门称号徽章读的是 `role_assignments`，迁移后这张表不再写入，继续显示只会越来越假。论坛的称号与部门
+ * 展示改读新称号体系是 #276（CONTRACT-276.md §9）。
  * #274 SPEC §3.6：邮箱、Google 登录的会话没有 GitHub id（`session.user_id` 为空）——这不等于游客，论坛按
  * `account_id` 认人；`ensureMember` 接受 `githubUserId: null`，没有 GitHub id 的成员编一个新的论坛内部 id。
  * 这个账号以前用 GitHub 登录过、留下一条 `m<GitHub id>` 的论坛用户行时，`ensureMember` 按账号先找到那一行，
@@ -36,15 +58,20 @@ export async function forumViewer(req: FastifyRequest): Promise<ForumViewer> {
   if (req.forumViewer) return req.forumViewer;
   if (!loadSession(req)) return (req.forumViewer = GUEST);
   const session = req.session!;
-  const access = await resolveAccess(req);
-  if (!access.member) return (req.forumViewer = GUEST);
-  const top = access.titles[0];
-  const title: ForumTitle | null = top && top.id !== "guest" ? { id: top.id, ...(top.department ? { department: top.department.id } : {}) } : null;
+  await req.server.services.access.resolve({
+    login: session.login, userId: session.user_id, accountId: session.account_id, accessToken: session.accessToken, provider: session.provider,
+  });
+  const { permissions } = req.server.services;
+  const groups = permissions.groupsOf(session.account_id);
+  const isOwner = groups.titles.some(item => item.id === "title.site.owner");
+  const title: ForumTitle | null = isOwner ? { id: "admin" } : groups.level === "level.alumni" ? { id: "alumni" } : null;
   const userId = req.server.services.forum.ensureMember({
     accountId: session.account_id, githubUserId: session.user_id, login: session.login, avatarUrl: session.avatar_url,
-    role: access.siteRole === "admin" ? "admin" : "member", title,
+    role: isOwner ? "admin" : "member", title,
   });
-  const capabilities = orderedCapabilities(access.capabilities).filter(capability => capability.startsWith("forum."));
+  const capabilities = FORUM_CAPABILITY_NODES
+    .filter(([, nodes]) => nodes.some(node => hasGrantedNode(permissions, session.account_id, node)))
+    .map(([capability]) => capability);
   return (req.forumViewer = { kind: "member", userId, login: session.login, accountId: session.account_id, capabilities });
 }
 
@@ -55,6 +82,18 @@ export async function requireMember(req: FastifyRequest): Promise<MemberViewer> 
 }
 
 export const can = (viewer: ForumViewer, capability: Capability) => viewer.capabilities.includes(capability);
+
+/**
+ * 写接口的权限闸（#274 SPEC §3.2/§3.11）：先要求登录，再按权限节点判定；403 在限额判断之前就拦住——
+ * 拿错身份的人（登录了但没有邀请码、没有这个节点）先被拒绝，不会先撞上限额。
+ * 发话题 → forum.topic.create，发回复 → forum.reply.create，点赞/收藏/关注 → forum.react；
+ * 版务（置顶、关闭、编辑删除他人帖子）另走 canModerate，按分类限定 scope，这里不重复。
+ */
+export async function requireWriter(req: FastifyRequest, node: string): Promise<MemberViewer> {
+  const viewer = await requireMember(req);
+  if (!req.server.services.permissions.check(viewer.accountId, node)) throw forbidden(`需要「${node}」权限`);
+  return viewer;
+}
 /**
  * #274 版务授权：按新权限节点判定（取代 can() 走的旧 Capability），版主的 forum.moderate.* 是按分类限定的
  * scope（SPEC §3.4：部门组的 scope 是 `{category:[本部门分类]}`），所以这里要把目标话题的分类传进去，

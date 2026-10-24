@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ServiceOverrides } from '../../app/server/src/services';
 import { createConfig } from '../../app/server/src/config';
 import { computeAccess, DEFAULT_DEPARTMENTS, DEFAULT_TITLE_CONFIGS, LEGACY_TITLE_DESCRIPTIONS } from '../../app/server/src/lib/roles';
 import { createRoleStore } from '../../app/server/src/lib/role-store';

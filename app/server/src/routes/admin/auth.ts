@@ -2,25 +2,13 @@ import { safeReturnTo, signinFailureUrl, type SigninOutcome } from "../../lib/sa
 import { bindEmailUrl, emailRequired } from "../../lib/email-gate.js";
 import { normalizeInviteCode } from "../../lib/invite-codes.js";
 import { applyQuota } from "../../lib/apply-quota.js";
+import { registrationGuardFor } from "../../lib/register-limits.js";
 import { UI_NODES } from "../../lib/permission-nodes.js";
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { readOAuthState, setOAuthState } from "../../middleware/oauth-state.js";
 import { clearSessionCookies, setSessionCookie } from "../../middleware/require-auth.js";
-import { VISITOR_COOKIE } from "../../middleware/visitor.js";
-
-/** 和 middleware/visitor.ts 的 UUID_RE 一致（那边没 export，这里按同一个形状自己判一次）。 */
-const VISITOR_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/**
- * 这组路由没有挂 attachVisitorId（见 routes/admin/index.ts 的说明），只在已经有 yugc_vid 时读它当注册限额的
- * 「设备」维度，不在这里现发一个新的——GitHub 登录之前几乎总会先经过门户或统一登录页，那两处已经发过这个
- * cookie；直接从 /auth/github 开始的极少数情况就只按 IP 限额，不是安全漏洞，只是设备这一条线暂时没有。
- */
-function visitorIdFrom(req: FastifyRequest): string | null {
-  const raw = req.cookies?.[VISITOR_COOKIE];
-  return raw && VISITOR_ID_RE.test(raw) ? raw.toLowerCase() : null;
-}
+import { attachVisitorId } from "../../middleware/visitor.js";
 
 export default async function authRoutes(app: FastifyInstance) {
   const { buildAuthorizeUrl,
@@ -36,7 +24,11 @@ export default async function authRoutes(app: FastifyInstance) {
     req.log.warn({ code: cause?.code, status: cause?.status, requestId: req.id }, "github grant revoke failed");
   });
 
-  /** 换 token、查用户。#274：不再查 GitHub 组织资格——组织那道门已经去掉（SPEC §3.2），邀请码和邮箱、Google 一样选填。 */
+  /**
+   * 换 token、查用户。#274：不再查 GitHub 组织资格——组织那道门已经去掉（SPEC §3.2），邀请码和邮箱、Google 一样选填。
+   * 只在真的要新建账号这一步，同一 IP 今天已建满 5 个、同一设备已建满 3 个（lib/register-limits.ts）回
+   * `registration_limited`，登录到已有账号不受影响（#274 残留修复，SPEC §3.8）。
+   */
   async function signInWithGitHub(code: string) {
     const token = await exchangeCode(code);
     const user = await fetchAuthenticatedUser(token);
@@ -75,16 +67,18 @@ export default async function authRoutes(app: FastifyInstance) {
       // 外部请求到此做完；建号（邀请码选填）、认领、插入会话、删旧会话、审计在一个事务里（lib/identity-store.ts），失败整体回滚。
       let signin;
       try {
-        signin = identity.signInWithGithub({ github: account, accessToken: token, invite: flow.invite ?? null, previousSid: req.cookies?.sid ?? null, ip: req.ip, device: visitorIdFrom(req) });
+        await attachVisitorId(req, reply);
+        const registrationLimit = registrationGuardFor(app.services.limits, req.ip, req.visitorId!);
+        signin = identity.signInWithGithub({ github: account, accessToken: token, invite: flow.invite ?? null, previousSid: req.cookies?.sid ?? null, ip: req.ip, registrationLimit });
       } catch (cause) {
         req.log.error({ code: (cause as { code?: string })?.code ?? "signin_transaction_failed", requestId: req.id }, "sign-in transaction failed");
         return fail("failed");
       }
       if (!signin.ok) {
         await revoke(req, token);
-        // #274 review round 1（SPEC §3.7/§3.8）：rate_limited 是注册限额挡下来的，记 limited，不是普通的 denied。
+        // #274 review round 1（SPEC §3.7/§3.8）：registration_limited 是注册限额挡下来的，记 limited，不是普通的 denied。
         app.services.activity.recordActivity(req, {
-          action: "auth.signin_denied", surface: "portal", outcome: signin.reason === "rate_limited" ? "limited" : "denied",
+          action: "auth.signin_denied", surface: "portal", outcome: signin.reason === "registration_limited" ? "limited" : "denied",
           meta: { provider: "github", reason: signin.reason },
         });
         return fail(signin.reason);
@@ -163,6 +157,7 @@ export default async function authRoutes(app: FastifyInstance) {
     const s = getSession(sid);
     if (!s) return { signed_in: false, ...visitorIdentity() };
     const { permissions, limits, profiles, identity } = app.services;
+    const consoleLink = permissions.check(s.account_id, "console.access");
     const groups = permissions.groupsOf(s.account_id);
     const profile = profiles.get(s.account_id);
     // account_id：极客班账号（官网、论坛、控制台读到的是同一个值）；provider：这次的登录方式。user_id 仍是 GitHub 数字 id。

@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { FORUM_REQUEST_LIMITS, ForumError, SEARCH_QUERY_MAX, hasControlChars, ipSubject } from "../../lib/forum-rules.js";
-import { canModerate, forbidden, forumChanges, forumState, forumViewer, notFound, rateLimited, requireMember } from "./viewer.js";
+import { canModerate, forbidden, forumChanges, forumState, forumViewer, notFound, rateLimited, requireMember, requireWriter } from "./viewer.js";
 import { hourlyLimited, levelRateLimited } from "./forum-limits.js";
 
 type TopicParams = { topic_id: string };
@@ -51,9 +51,9 @@ export default async function forumTopicRoutes(app: FastifyInstance) {
     return { results: forum.search(viewer.userId, query) };
   });
 
-  /** 只有成员能发帖；游客只能回复。 */
+  /** 只有持 forum.topic.create 的人能发帖（#274 起登录但没有邀请码的注册用户没有这个节点）；游客只能回复。 */
   app.post<{ Body: { title: string; categoryId: string; tags?: string[]; content: string } }>("/api/forum/topics", async (req, reply) => {
-    const viewer = await requireMember(req);
+    const viewer = await requireWriter(req, "forum.topic.create");
     const title = req.body.title.trim();
     if (!title || hasControlChars(title)) throw new ForumError(400, "invalid_title", "标题不能为空，也不能含控制字符");
     if (!forum.hasCategory(req.body.categoryId)) throw new ForumError(400, "unknown_category", "没有这个分类");

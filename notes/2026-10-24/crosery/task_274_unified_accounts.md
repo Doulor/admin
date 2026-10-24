@@ -238,3 +238,44 @@
   - `npx vitest run tests/server` → 31 files / 561 tests 全过；`npx vitest run tests/console` → 16 files / 201 tests 全过；`npx vitest run tests/tooling` → 33 files / 722 tests 全过。
   - 裸 `pnpm check:architecture`（默认 base=origin/stage）仍会失败：这是环境本身的已知问题（GitHub 账号封禁阻断 fetch 导致 origin/stage 停更），不是本次改动引入的回归，已如实记录，未通过放宽校验或改脚本掩盖。
 - 下一步：#274 全部四个阶段（GitHub 组织退役、权限引擎与迁移、身份/操作记录/限额、Phase 4 文档与目录）完成，已向 team-lead 报告 SHA 与完整命令输出。#275-#278 由批次内其他分支继续，不在本任务范围。
+
+## 07:50:52 +08:00 · 提交 · #274 · 残留修复 A/B：论坛写操作与 console_link 改按权限节点判定、新注册账号按 IP/设备限额
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：team-lead 在 Phase 4 验收后指出两处 #274 的真实漏洞（不是文档问题），要求收尾前补上，细节见下面两条。
+  1. （ee204c12，残留修复 A）forum-api/viewer.ts 的 forumViewer()、/auth/me 的 console_link 之前仍然读
+     access.resolve() 返回的 access.member/access.capabilities/org_state——role_assignments 迁移后这张表
+     不再写入，结果是「注册用户不填邀请码也能发帖回帖」（破 SPEC §3.2）和「刚靠 perm_groups 拿到控制台权限
+     的人一直看不到控制台入口」。改成：forumViewer() 的 kind 只看有没有有效会话，不再看 org_state 是不是
+     「组织成员」；新增 requireWriter(req, node) 按具体权限节点判定写操作——话题创建用 forum.topic.create、
+     回复用 forum.reply.create、点赞/收藏/关注统一用 forum.react；/auth/me 的 console_link 改成直接查
+     permissions.check(accountId, "console.access")，不再用旧的能力白名单。access.resolve() 仍然保留调用
+     （给老账号的 GitHub 组织角色补查和令牌拒绝时结束会话两个副作用，和判定权限无关）。
+  2. （72e972fb，残留修复 B）新增 lib/register-limits.ts：registrationGuardFor(limits, ip, device) 用
+     limits.hitAll() 同时核对按 IP（sha256，5/天）和按设备 cookie（sha256，3/天）两个桶，hitAll 保证两个
+     桶要么都写要么都不写；只在 identity-store.ts 的 signInWithGithub/signInSecondChannel「确实要新建账号」
+     那个分支里调用，命中就回 Refused("registration_limited")，不碰已有账号登录的路径。接入点在
+     routes/identity/email.ts（验证码建号）、routes/identity/google.ts（Google 建号）和上一条残留修复 A
+     已经改动的 admin/auth.ts（GitHub 建号）三处，命中分别回 429 {bucket:"auth.register.daily"} 或
+     302 signin=registration_limited；app/console/src/lib/signin.ts 加对应文案。第一版 register-limits.ts
+     直接取 FastifyRequest/attachVisitorId，被 check:boundaries 拦下（lib/ 不许依赖 middleware/），改成纯函数
+     只接收算好的 ip/device 字符串，attachVisitorId 的调用留在三处路由文件里。
+  3. （988759e4，docs 收尾）ownership.json 补 register-limits.ts 的 moduleOwners 和三条 flow 的 evidence，
+     274.json 的 coverage 分组加 people.ts 和 register-limits.ts，endpoint-contracts.md 三处登录接口的响应
+     说明补 registration_limited，pnpm catalog:generate 重新生成产物。
+- 结果：npx vitest run（全仓库）→ 105 files / 1730 tests 全过（含 forum.test.ts 67、signin-methods.test.ts 41、
+  console.test.ts 18、console/signin.test.ts 28 全部重新核对过）；pnpm typecheck 无报错；
+  pnpm check:runtime/check:site-config/check:environments/check:boundaries/check:docs/check:doc-sync/
+  check:notes/check:secrets/check:catalog 全部通过；
+  node scripts/check-architecture.mjs --base 9c5b74f7 --branch task/274/unified_accounts →
+  宏观对齐通过：#274，246 个变更文件，367 个关联节点（9c5b74f7 仍是这个分支真实的分叉点，裸
+  check:architecture 的默认 base=origin/stage 还是停在 4beda55e，Phase 4 已经记过的同一个环境问题，这次又
+  核对了一遍，不是新问题也没有去改脚本放宽）。
+- 残留与未验证：identity-store.ts 的 roleUnrecorded()/applyOrgRole() 有一个预先就存在、这次复核时确认仍未修的
+  歧义——它分不清「从没查过 GitHub 组织角色」和「查过一次、结果确实是 null」，导致任何 GitHub 登录过的账号只要
+  org_role 一直是 null，access.resolve() 每次都会重新触发补查并把它的权限等级同步回 GitHub 当前汇报的角色，
+  可能悄悄覆盖控制台手动设置的等级/称号（例如手动设的 level.alumni 被同步回 level.member）。这是现有设计留下
+  的已知取舍，不在这次两条残留修复的范围内，只在测试夹具里用直接写 org_role 的办法绕过它，没有改生产代码；
+  已单独报告给 team-lead，由其决定是否单开 issue。
+- 下一步：残留修复 A/B 到这里完成，已向 team-lead 报告三个 SHA（ee204c12、72e972fb、988759e4）与完整命令输出，
+  以及上面这条未修的 roleUnrecorded 歧义。#274 本任务到此没有更多待办。

@@ -101,6 +101,8 @@ export const BUCKET_RETENTION_MS: Record<string, number> = {
   "apply.daily": 2 * DAY_MS,
   "apply.daily.ip": 2 * DAY_MS,
   "apply.daily.device": 2 * DAY_MS,
+  "auth.register.daily.ip": 2 * DAY_MS,
+  "auth.register.daily.device": 2 * DAY_MS,
   "account.cli.login.daily": 2 * DAY_MS,
   "invite.redeem.fail.account": 2 * HOUR_MS,
   "invite.redeem.fail.ip": 2 * HOUR_MS,

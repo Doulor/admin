@@ -2,10 +2,12 @@ import { randomBytes } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { normalizeEmail } from "../../lib/email-login.js";
 import { normalizeInviteCode } from "../../lib/invite-codes.js";
+import { registrationGuardFor } from "../../lib/register-limits.js";
 import { safeReturnTo, signinFailureUrl, type SigninOutcome } from "../../lib/safe-return.js";
 import { bindEmailUrl, emailRequired } from "../../lib/email-gate.js";
 import { readOAuthState, setOAuthState } from "../../middleware/oauth-state.js";
 import { setSessionCookie } from "../../middleware/require-auth.js";
+import { attachVisitorId } from "../../middleware/visitor.js";
 
 /**
  * Google 登录（#262，ADR-0005「Google 登录」；#274 邀请码改选填，SPEC §3.2）：`GET /auth/google` 生成 state、nonce
@@ -48,9 +50,11 @@ export default async function googleRoutes(app: FastifyInstance) {
     if (!claims) return fail("failed");
     let result;
     try {
+      await attachVisitorId(req, reply);
+      const registrationLimit = registrationGuardFor(app.services.limits, req.ip, req.visitorId!);
       result = identity.signInWithGoogle({
         sub: claims.sub, email: claims.email ? normalizeEmail(claims.email) : null, invite: flow.invite ?? null,
-        previousSid: req.cookies?.sid ?? null, ip: req.ip,
+        previousSid: req.cookies?.sid ?? null, ip: req.ip, registrationLimit,
       });
     } catch (cause) {
       req.log.error({ code: (cause as { code?: string })?.code ?? "signin_transaction_failed", requestId: req.id }, "google sign-in transaction failed");

@@ -40,6 +40,11 @@ export function signInOutcomes(): Record<string, OutcomeInfo> {
     no_account: { type: "info", title: "这个邮箱还没有极客班账号", body: "先用验证码登录注册一个。" },
     code_expired: { type: "warning", title: "验证码已失效", body: "请重新获取验证码再试。" },
     rate_limited: { type: "warning", title: "试得太频繁了", body: "请稍后再试。" },
+    registration_limited: {
+      type: "warning",
+      title: "今天新注册的账号太多了",
+      body: "同一个网络或同一台设备今天新建账号的次数到上限了，北京时间零点以后可以再注册。已有账号登录不受影响。",
+    },
   };
 }
 
