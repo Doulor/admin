@@ -6,7 +6,8 @@ import type Database from "better-sqlite3";
 /**
  * #276 论坛 v2 迁移：分类可见范围种子、表情包种子。只增不改所有者改过的数据——
  * `forum_category_settings` 按 `category_id` 幂等插入（已经有的不覆盖，控制台可能已经改过）；
- * 表情包/表情按 shortcode 幂等插入，图片按 sha256 去重。可以重复执行，第二次运行不改变任何行
+ * 表情包/表情按 shortcode 幂等插入，图片按 sha256 去重；2026-10-25 第一套里 15 张换成带小字的图，
+ * 库里还是原图的才换（`recaptionYugcStickers`）。可以重复执行，第二次运行不改变任何行
  * （见 tests/server/forum.test.ts 「迁移跑两次不变」一类用例）。
  *
  * 回滚：本迁移只加表、加列、加行，不删旧表旧列旧行，回滚就是部署上一个镜像。
@@ -15,6 +16,7 @@ import type Database from "better-sqlite3";
 export type ForumV2MigrationReport = {
   tables: { table: string; before: number; after: number }[];
   stickers_seeded_this_run: number;
+  stickers_recaptioned_this_run: number;
 };
 
 function tableCount(db: Database.Database, table: string): number {
@@ -91,15 +93,63 @@ export function seedYugcStickers(db: Database.Database, now: number, assetsDir: 
   return seeded;
 }
 
+/**
+ * 第一套「极客娘」里 15 张原图的 sha256（2026-10-25 换成带小字的版本，#276，所有者「他们的表情包都是带点小文字的
+ * 看着更可爱一点」）。库里这张表情还指着原图的，换成仓库里现在的图；管理员自己换过图的（哈希对不上）不动。
+ * 原图的文件行留着：页面缓存里的旧地址照样能打开。
+ */
+export const YUGC_UNCAPTIONED: Record<string, string> = {
+  wave: "8d421f54cca80e1b2b0fe929211d0d721d75691a1d7b811f7de760203b5c439c",
+  thumbsup: "b31c83ecaed5408371494decd3f57e1ed696304415e18be76821d3a544fb7db8",
+  confused: "78da33f1a055c6b04f4a566882d4e9e3091ef6e3fa479558c54c2d0e1f86b6f7",
+  shocked: "d5338c82b6fe7c430c99de14ad9b472d4976f4d76a152eaba305084b340134ad",
+  sleepy: "634d3faed00b3746b594c58e6962108ce19737981cb8586adaa8fcf1f192c4b1",
+  cheer: "f905e91ca9847888621cf714c951ed980af6babc245d8df4913c1e23a83e1c4f",
+  thanks: "98d14c49567bf0f56e693dedc2a11e6ded5b81dfd7040719cc8185d4d1c8187b",
+  think: "8c79fb7310370d8bccb59d8a9cf6e88dcde8c6ad773476eb58bf92b50831ecbb",
+  smirk: "25bc916aa256b9001e2c09fe185c60ebb7421093dc7c08afbbd4072e1df52792",
+  proud: "76bfcc905b3bdab5c9d4700cffe371356e0048e257565fce684de844b08737fc",
+  speechless: "3cb68a476fb7caa60afa39f522a36a3bbe8ae383d5687fbfc20ea03e4f16660e",
+  merged: "4e1a1f35ab3af7704e278d85a93122b35fcfeb0e5f25d71158ab940fafd5f522",
+  go: "98340ed718cfb75d248414dc28903e0e0644193a735da0ce827aaf2bd8148241",
+  goodnight: "b08cfaa8cbc4e4d75f98c6f5d9fa8cb247d2bd304b59498ece22370826ba5520",
+  roger: "90108616d7be531e4816502e113b2dd07c711955864f1a67b8ad67bb9935a0ea",
+};
+
+export function recaptionYugcStickers(db: Database.Database, now: number, assetsDir: string): number {
+  const insertFile = db.prepare("INSERT OR IGNORE INTO forum_sticker_files(hash, mime, bytes, created_at) VALUES (?, 'image/webp', ?, ?)");
+  const swap = db.prepare("UPDATE forum_stickers SET file_hash = ? WHERE id = ? AND file_hash = ?");
+  let swapped = 0;
+  db.transaction(() => {
+    for (const [code, oldHash] of Object.entries(YUGC_UNCAPTIONED)) {
+      let data: Buffer;
+      try {
+        data = readFileSync(join(assetsDir, `${code}.webp`));
+      } catch {
+        continue;
+      }
+      const hash = createHash("sha256").update(data).digest("hex");
+      if (hash === oldHash) continue;
+      const shortcode = `${YUGC_STICKER_PACK_ID}-${code}`;
+      if (!db.prepare("SELECT 1 FROM forum_stickers WHERE id = ? AND file_hash = ?").get(shortcode, oldHash)) continue;
+      insertFile.run(hash, data, now);
+      swapped += swap.run(hash, shortcode, oldHash).changes;
+    }
+  })();
+  return swapped;
+}
+
 const REPORT_TABLES = ["forum_category_settings", "forum_sticker_packs", "forum_stickers", "forum_sticker_files"];
 
 export function runForumV2Migration(db: Database.Database, now: number, stickerAssetsDir: string): ForumV2MigrationReport {
   const before = Object.fromEntries(REPORT_TABLES.map(table => [table, tableCount(db, table)]));
   seedCategoryVisibility(db, now);
   const stickersSeeded = seedYugcStickers(db, now, stickerAssetsDir);
+  const stickersRecaptioned = recaptionYugcStickers(db, now, stickerAssetsDir);
   const after = Object.fromEntries(REPORT_TABLES.map(table => [table, tableCount(db, table)]));
   return {
     tables: REPORT_TABLES.map(table => ({ table, before: before[table], after: after[table] })),
     stickers_seeded_this_run: stickersSeeded,
+    stickers_recaptioned_this_run: stickersRecaptioned,
   };
 }

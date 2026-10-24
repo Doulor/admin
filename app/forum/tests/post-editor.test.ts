@@ -150,11 +150,22 @@ describe('the loaded editor', () => {
     expect(editor.editors[0]!.set).toEqual([`> @ada：原话\n\n![挥手](${WAVE_URL})`, ''])
   })
 
-  it('inserts a picked sticker as a picture at the cursor', async () => {
+  it('inserts a picked sticker as a picture in the line at the cursor', async () => {
     const editor = mountEditor('', { crepe: 'ready', granted: ['forum.sticker.use'] })
     await settle()
     ;(editor.picker()!.props.onPick as (sticker: unknown) => void)(WAVE)
-    expect(editor.editors[0]!.inserted).toEqual([`![挥手](${WAVE_URL})`])
+    expect(editor.editors[0]!.stickers).toEqual([{ src: WAVE_URL, label: '挥手' }])
+    expect(editor.editors[0]!.inserted).toEqual([])
+  })
+
+  it('lets the editor look a sticker up by its picture or by [包名_名字]', async () => {
+    const editor = mountEditor('', { crepe: 'ready', granted: ['forum.sticker.use'] })
+    await settle()
+    const find = editor.editors[0]!.options.findSticker
+    expect(find({ src: WAVE_URL })).toEqual({ src: WAVE_URL, label: '挥手' })
+    expect(find({ token: '[长大极客_挥手]' })).toEqual({ src: WAVE_URL, label: '挥手' })
+    expect(find({ token: '[长大极客_没有]' })).toBeUndefined()
+    expect(find({ src: '/api/forum/uploads/b.png' })).toBeUndefined()
   })
 
   it('opens the sticker panel from the slash menu, and leaves the item out without the right', async () => {

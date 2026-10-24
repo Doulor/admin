@@ -1055,7 +1055,21 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：sessions, users, perm_members, perm_entries, perm_groups, forum_sticker_packs 或 forum_stickers。本地表写入：对应表, activity_events, sessions。
 
-源码：[app/server/src/routes/console/forum.ts:45](../../../app/server/src/routes/console/forum.ts#L45)（sticker-packs/:id）、[:56](../../../app/server/src/routes/console/forum.ts#L56)（stickers/:id）。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+源码：[app/server/src/routes/console/forum.ts:57](../../../app/server/src/routes/console/forum.ts#L57)（sticker-packs/:id）、[:68](../../../app/server/src/routes/console/forum.ts#L68)（stickers/:id）。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+
+## 控制台新建表情包
+
+`POST /api/console/forum/sticker-packs` · `flow:console.forum.sticker_packs.create`
+
+权限与资源：requirePermission("forum.sticker.manage") + requireStepUp；body {id,name}，id 是小写字母、数字和连字符（1–40 位，字母或数字开头），name 1–64 字，前后空白去掉。
+
+响应与错误：201 {id,name}；id 已被占用回409 pack_id_taken；格式不对400。
+
+数据与副作用：插一行 forum_sticker_packs（enabled=1，sort 排在现有最后）；新包是空的，公开面板只画有表情的包，往里加表情后才出现；成功后invalidate公开列表缓存，写审计forum.sticker_pack.create。
+
+本地表读取：sessions, users, perm_members, perm_entries, perm_groups, forum_sticker_packs。本地表写入：forum_sticker_packs, activity_events, sessions。
+
+源码：[app/server/src/routes/console/forum.ts:46](../../../app/server/src/routes/console/forum.ts#L46)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
 
 ## 控制台给表情包新增一个表情
 
@@ -1069,7 +1083,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：sessions, users, perm_members, perm_entries, perm_groups, forum_stickers。本地表写入：forum_sticker_files, forum_stickers, activity_events, sessions。
 
-源码：[app/server/src/routes/console/forum.ts:74](../../../app/server/src/routes/console/forum.ts#L74)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+源码：[app/server/src/routes/console/forum.ts:80](../../../app/server/src/routes/console/forum.ts#L80)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
 
 ## 辨认本机论坛运行模式
 

@@ -229,6 +229,28 @@ describe('the reply drawer', () => {
     expect(createPost.mock.calls[0]?.[0]).toMatchObject({ content: '快捷键发送' })
   })
 
+  // #276: short like Bilibili's comment box, 展开 for a long post; 取消 and 回复 sit on the row under the box.
+  it('opens short and grows with 展开, back with 收起, keeping what was typed', async () => {
+    stubStorage()
+    const { root, state, editor } = mountComposer()
+    state.visible = true
+    await settle()
+    expect(String(editor.host(root)?.props.class)).toContain('forum-editor-96')
+    await editor.type('一段很长的回复')
+    const before = editor.current()
+    await click(button(root, '展开'))
+    expect(String(editor.host(root)?.props.class)).toContain('forum-editor-400')
+    // Same editor, same text: 展开 only changes the height.
+    expect(editor.current()).toBe(before)
+    expect(before.destroyed).toBe(false)
+    await click(button(root, '收起'))
+    expect(String(editor.host(root)?.props.class)).toContain('forum-editor-96')
+    expect(textOf(root)).toContain('展开')
+    const toolbar = find(root, node => String(node.props.class ?? '').includes('forum-editor-toolbar'))!
+    expect(textOf(toolbar)).toContain('取消')
+    expect(textOf(toolbar)).toContain('回复')
+  })
+
   it('still refuses a reply over the member limit', async () => {
     stubStorage()
     const { root, state, editor, createPost } = mountComposer()

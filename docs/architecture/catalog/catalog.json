@@ -266,12 +266,12 @@
   ],
   "coverage": {
     "automaticHead": 81,
-    "businessOperations": 164,
-    "businessOperationsWithFlow": 164,
+    "businessOperations": 165,
+    "businessOperationsWithFlow": 165,
     "capabilities": 16,
-    "declaredFlows": 170,
-    "responseSchemas": 130,
-    "routeMethods": 274,
+    "declaredFlows": 171,
+    "responseSchemas": 131,
+    "routeMethods": 275,
     "supplementalInterfaces": 5,
     "supplementalInterfacesWithFlow": 5,
     "tables": 68
@@ -3615,7 +3615,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -4029,8 +4029,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "id": "flow:forum.posts.reply",
@@ -4934,7 +4942,7 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 16,
           "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts"
         },
         {
@@ -5401,6 +5409,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "id": "flow:console.forum.stickers.list",
@@ -5446,7 +5458,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -5502,7 +5514,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -5552,13 +5564,83 @@
       "capabilities": [],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "forum",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 879,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "id": "flow:console.forum.sticker_packs.create",
+      "invariants": [
+        "权限与资源：requirePermission(\"forum.sticker.manage\") + requireStepUp；body {id,name}，id 小写字母、数字和连字符，name 1–64 字。",
+        "响应与错误：201 {id,name}；id 已被占用回409 pack_id_taken；格式不对400。",
+        "数据与副作用：插一行 forum_sticker_packs（排在最后）；空包不在公开面板里出现；成功后 invalidate 公开列表缓存，写审计 forum.sticker_pack.create。"
+      ],
+      "operation": "POST /api/console/forum/sticker-packs",
+      "operationLabel": "POST /api/console/forum/sticker-packs",
+      "operationNodeId": "route:POST /api/console/forum/sticker-packs",
+      "reads": [
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "forum_sticker_packs"
+      ],
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/console/forum.test.ts"
+      ],
+      "title": "控制台新建表情包",
+      "writes": [
+        "forum_sticker_packs",
+        "activity_events",
+        "sessions"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md"
       ],
       "doesNotEnqueue": [],
       "domain": "forum",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -10008,7 +10090,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1048,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -11299,7 +11381,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 948,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -12027,6 +12109,11 @@
       "id": "flow:console.forum.categories.update",
       "kind": "flow",
       "title": "控制台改一个分类的可见范围"
+    },
+    {
+      "id": "flow:console.forum.sticker_packs.create",
+      "kind": "flow",
+      "title": "控制台新建表情包"
     },
     {
       "id": "flow:console.forum.sticker_packs.update",
@@ -13664,6 +13751,11 @@
       "title": "POST /api/console/competitions/:competition_id/site/versions"
     },
     {
+      "id": "route:POST /api/console/forum/sticker-packs",
+      "kind": "route",
+      "title": "POST /api/console/forum/sticker-packs"
+    },
+    {
       "id": "route:POST /api/console/gitlab/accounts/:account_id/resync",
       "kind": "route",
       "title": "POST /api/console/gitlab/accounts/:account_id/resync"
@@ -14369,6 +14461,11 @@
       "title": "tests/console/device.test.ts"
     },
     {
+      "id": "test:tests/console/forum.test.ts",
+      "kind": "test",
+      "title": "tests/console/forum.test.ts"
+    },
+    {
       "id": "test:tests/console/gitlab.test.ts",
       "kind": "test",
       "title": "tests/console/gitlab.test.ts"
@@ -14626,7 +14723,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "cda7fea7bee8a6d8bab3efe2b566a1104445a0b0f74ac999dd1030a6725623bb",
+    "fingerprint": "d8ad721f2e3da7f675291461c60f39a8476b8b64dcae2e54916a3d23380083b7",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -14742,7 +14839,7 @@
       },
       {
         "path": "app/console/src/lib/forum.ts",
-        "sha256": "eb77198a15ca5a116819ee2748218cf610988c47cc6cc465a9814583e5645370"
+        "sha256": "05ec1cae8231e8026354674d3aa4d2eb3a6348acbd4fb2bb4790d9efdc954304"
       },
       {
         "path": "app/console/src/lib/gitlab.ts",
@@ -14818,7 +14915,7 @@
       },
       {
         "path": "app/console/src/mock/console.ts",
-        "sha256": "ec93aec56010799e5d8163183f970d4fdc2dcec2f55a19ad6b68e8dcdeee7f03"
+        "sha256": "ff5237969eb2be54413e752eb9f2d1cda38470d7bffc47e0a66564b21cc3fe27"
       },
       {
         "path": "app/console/src/mock/index.ts",
@@ -14874,7 +14971,7 @@
       },
       {
         "path": "app/console/src/pages/Forum.vue",
-        "sha256": "7127b9d0e623d74be3c2d7bb8b70dc9b3ae1ef4b5edadcc3a63d28bb45da0f64"
+        "sha256": "dd091a45b4ef842cbf2d7dca570efb9ddba337593a822e00daf42735b6438f84"
       },
       {
         "path": "app/console/src/pages/Invites.vue",
@@ -14926,11 +15023,11 @@
       },
       {
         "path": "app/console/src/pages/forum/NewStickerDialog.vue",
-        "sha256": "25ae5605616408a731b1f67b542febf2186d18abdc314b5d1e0900d290d485d3"
+        "sha256": "40c30a207183de61f28d447682851b2a46881fd9dc915abf0dd9ca3d108ade52"
       },
       {
         "path": "app/console/src/pages/forum/StickersTab.vue",
-        "sha256": "d87118e570c5becc554f3ed9cb878503b7a689fc7bedf6d0a4f9e7c88392ed7d"
+        "sha256": "5d442f32ba8b84ff0132fbb14857f92008d6fca18799c8dd40b8c4568472e12f"
       },
       {
         "path": "app/console/src/pages/gitlab/Accounts.vue",
@@ -15034,11 +15131,11 @@
       },
       {
         "path": "app/forum/app/components/PostEditor.vue",
-        "sha256": "8f33651b01059753a6f877e7bba3875bfcc599c03eddb00981f368b875bf7a4a"
+        "sha256": "bf0306675c04348ad2289ecce739aedcefc951e7a5ad77cc78780bac50d08082"
       },
       {
         "path": "app/forum/app/components/ReplyComposer.vue",
-        "sha256": "f66bfe7f60b5d0a2399d5505c8829106d4760184eaccb0828e13400eb22cb8ce"
+        "sha256": "b6dc9bad7f6aafc18653827ba4df87a21b3adca402df2a739755afd35cc4767a"
       },
       {
         "path": "app/forum/app/components/SignInState.vue",
@@ -15046,7 +15143,7 @@
       },
       {
         "path": "app/forum/app/components/StickerPicker.vue",
-        "sha256": "9873c785f5b13464f86a29f0dde8947ac9a699ed2b2370597bbae112f0e574c4"
+        "sha256": "f3a6de9b74678f5c104992e6625d2041ca3dab61ecf2e1a0a74138e98f50d4a7"
       },
       {
         "path": "app/forum/app/components/SuggestedTopics.vue",
@@ -15194,7 +15291,11 @@
       },
       {
         "path": "app/forum/app/editor/crepe-editor.ts",
-        "sha256": "c03cc5fdee839e2cc70a2095c7329aa59f828616e0f0b7a643beaab249d4f952"
+        "sha256": "824e4d757377049a3ca95b57e7971ccfdfa859c54ba9d08d242da482654bf95a"
+      },
+      {
+        "path": "app/forum/app/editor/inline-stickers.ts",
+        "sha256": "1f7f5cb2168fee1aee8329f8257f951576f66cc731da292a0e44f64c4dca318f"
       },
       {
         "path": "app/forum/app/error.vue",
@@ -15362,7 +15463,7 @@
       },
       {
         "path": "app/forum/shared/post-markdown.ts",
-        "sha256": "087e8c7524fbacab3cdd0354bc1061b28edbb96fe25d9a46fa633647eb406208"
+        "sha256": "3c47b5c826b380cf5f6ba1e25fe066d93b11422a0e4a471c6390ea98c1536c3e"
       },
       {
         "path": "app/forum/shared/published.ts",
@@ -15558,7 +15659,7 @@
       },
       {
         "path": "app/server/src/lib/forum-store.ts",
-        "sha256": "0045f05eed060461683cd74cfa46b0c0e8e7ed5ffb39ef2d5b4f3dcb0140a3b7"
+        "sha256": "4f9a043bb438f519db6def6365091c9f5d1a622aa185c0415ccd4f8867b26d7d"
       },
       {
         "path": "app/server/src/lib/github-http.ts",
@@ -15622,7 +15723,7 @@
       },
       {
         "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts",
-        "sha256": "87153c846c6815f6d93debf8ee29c0b8c02d9717bcc49a3101cfa5a42899830d"
+        "sha256": "7f0c05d9787ed3b860c7d77fcb82c73c904609e7d589754020606dd02be5c2fb"
       },
       {
         "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
@@ -15762,7 +15863,7 @@
       },
       {
         "path": "app/server/src/routes/console/contracts.ts",
-        "sha256": "692c9b02d70e5b4ef70469d813e32aadff7e4e7fc9fdfd5fc034d4264f6ace6f"
+        "sha256": "18407c8cd91b0385edc14f889c227e81083da9d38832bb6c1366d82b6997b0c7"
       },
       {
         "path": "app/server/src/routes/console/departments.ts",
@@ -15774,7 +15875,7 @@
       },
       {
         "path": "app/server/src/routes/console/forum.ts",
-        "sha256": "d2c1d27646c6f99720cd5d2634da38ca98353425eae66ece36ad39e1d4bfc011"
+        "sha256": "40321e73cbd32f0f1ffee595fe9827246c78d8af6a435d6b024cffefdf123041"
       },
       {
         "path": "app/server/src/routes/console/gitlab.ts",
@@ -16366,7 +16467,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "36eb5ea5289e9ba227f1111853edf2f4f25203fcb202cf86bf52a883299e56cf"
+        "sha256": "e4cd6a39c917a0469a466fb3501027278c34ee799d0a8d84fa7ca2229990b281"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -16402,11 +16503,11 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "ea0cdf2e74718ed5cbbd06406a656dcbc485570b5404376464b06a72561fecee"
+        "sha256": "c831eae0e838189d40597cad6dd5a41d955f723b3490b345f304f80160fe05a0"
       },
       {
         "path": "docs/services/forum/README.md",
-        "sha256": "67befdcb5d1486bf74de7efb2b36257e8fba1fbd97449925e791d871b2e11fc9"
+        "sha256": "eb66d8b27b1444d692526d96f05652cc33a3af3e073dcb02a32e4cd746ed7a18"
       },
       {
         "path": "docs/services/server/README.md",
@@ -16414,11 +16515,11 @@
       },
       {
         "path": "docs/services/server/data-model.md",
-        "sha256": "4ffb1beefaa1a61bdf23b2a601bcc22addc011091b50e0367ecf7f6b504d37b5"
+        "sha256": "71a69ff929d7d752b34af2ea27bbc5e9f6360477647d3e352dce7030fed54ca0"
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "3729bd0d81f3a54e45f28a6899d0ea3f3eb181d890d6ed063fd29eecf169e406"
+        "sha256": "2b3cd31c4dc2800371c7805e886b917b9c148ee500d6079a06f873726811213a"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -16499,6 +16600,10 @@
       {
         "path": "tests/console/device.test.ts",
         "sha256": "7f6b7bf416654a645f83b6e293e83eef6b5b913492f0b60198fce892ecaae463"
+      },
+      {
+        "path": "tests/console/forum.test.ts",
+        "sha256": "ba6752cb2e201b6a94f79e654b80716d8a99de4d0faa239b7531349dcf5f257b"
       },
       {
         "path": "tests/console/gitlab.test.ts",
@@ -16606,7 +16711,7 @@
       },
       {
         "path": "tests/server/forum-v2-endpoints.test.ts",
-        "sha256": "6373a0862a28ab5dcc1045b7bf5247d1b370acf62f7fc289dc88b1d4e4198ef8"
+        "sha256": "85200d46fa73101832128e4bfbd4e4a720f0652109dbc1bc0a78eba4d2c41a99"
       },
       {
         "path": "tests/server/forum.test.ts",
@@ -19105,7 +19210,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 45,
+          "line": 57,
           "path": "app/server/src/routes/console/forum.ts"
         }
       ],
@@ -19117,7 +19222,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         }
       ],
@@ -19399,6 +19504,18 @@
       ],
       "from": "application:server",
       "to": "route:POST /api/console/competitions/:competition_id/site/versions",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 46,
+          "path": "app/server/src/routes/console/forum.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:POST /api/console/forum/sticker-packs",
       "type": "provides"
     },
     {
@@ -19993,7 +20110,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 74,
+          "line": 86,
           "path": "app/server/src/routes/console/forum.ts"
         }
       ],
@@ -44499,6 +44616,362 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "domain:forum",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "document:docs/services/console/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 879,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:forum_sticker_packs",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 879,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:perm_entries",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 879,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 879,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:perm_members",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 879,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:sessions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 879,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:users",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "test:tests/console/forum.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "test:tests/server/forum-v2-endpoints.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 879,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "route:POST /api/console/forum/sticker-packs",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 879,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:activity_events",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 879,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:forum_sticker_packs",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 879,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:sessions",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
       "from": "flow:console.forum.sticker_packs.update",
       "to": "domain:forum",
       "type": "belongs-to"
@@ -44519,7 +44992,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44539,7 +45012,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44559,7 +45032,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44579,7 +45052,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44599,7 +45072,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44619,7 +45092,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44645,7 +45118,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44665,7 +45138,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44685,7 +45158,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44705,7 +45178,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44743,7 +45216,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44767,7 +45240,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44791,7 +45264,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44815,7 +45288,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44839,7 +45312,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44863,7 +45336,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44893,7 +45366,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44917,7 +45390,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44941,7 +45414,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44965,7 +45438,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44989,7 +45462,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45049,6 +45522,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45077,6 +45554,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45105,6 +45586,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45133,6 +45618,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45161,6 +45650,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45189,6 +45682,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45217,6 +45714,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45245,6 +45746,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45279,6 +45784,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45307,6 +45816,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45335,7 +45848,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45355,7 +45868,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45375,7 +45888,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45395,7 +45908,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45415,7 +45928,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45435,7 +45948,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45461,7 +45974,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45481,7 +45994,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45501,7 +46014,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45521,7 +46034,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -50111,8 +50624,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50167,8 +50688,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50223,8 +50752,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50279,8 +50816,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50335,8 +50880,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50391,8 +50944,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50447,8 +51008,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50503,8 +51072,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50559,8 +51136,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50615,8 +51200,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50671,8 +51264,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50727,8 +51328,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50789,8 +51398,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50845,8 +51462,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50901,8 +51526,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50957,8 +51590,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -51013,8 +51654,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -51069,8 +51718,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -51125,8 +51782,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -51181,8 +51846,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -51237,8 +51910,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -54209,7 +54890,7 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 16,
           "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts"
         },
         {
@@ -54237,7 +54918,7 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 16,
           "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts"
         },
         {
@@ -54271,7 +54952,7 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 16,
           "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts"
         },
         {
@@ -54395,7 +55076,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54431,7 +55112,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54467,7 +55148,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54503,7 +55184,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54539,7 +55220,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54575,7 +55256,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54611,7 +55292,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54647,7 +55328,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54689,7 +55370,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54725,7 +55406,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54761,7 +55442,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54797,7 +55478,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54833,7 +55514,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -58297,7 +58978,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1048,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58337,7 +59018,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1048,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58377,7 +59058,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1048,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58417,7 +59098,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1048,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58457,7 +59138,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1048,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58497,7 +59178,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1048,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58537,7 +59218,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1048,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58577,7 +59258,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1048,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58617,7 +59298,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1048,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58657,7 +59338,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1048,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58709,7 +59390,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1048,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58749,7 +59430,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1048,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -71377,7 +72058,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 948,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -71461,7 +72142,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 948,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -71545,7 +72226,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 948,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -71629,7 +72310,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 948,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -71713,7 +72394,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 948,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -71797,7 +72478,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 948,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -71899,7 +72580,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 948,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -73633,6 +74314,12 @@
       "basis": "declaration",
       "from": "route:POST /api/console/competitions/:competition_id/site/versions",
       "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:POST /api/console/forum/sticker-packs",
+      "to": "domain:forum",
       "type": "belongs-to"
     },
     {
@@ -98565,7 +99252,7 @@
         }
       },
       "source": {
-        "line": 45,
+        "line": 57,
         "path": "app/server/src/routes/console/forum.ts"
       }
     },
@@ -98651,7 +99338,7 @@
         }
       },
       "source": {
-        "line": 56,
+        "line": 68,
         "path": "app/server/src/routes/console/forum.ts"
       }
     },
@@ -104098,6 +104785,91 @@
       "source": {
         "line": 57,
         "path": "app/server/src/routes/console/competition-site.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [
+          "requireAuth"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring",
+          "body"
+        ],
+        "responseSchema": true
+      },
+      "domain": "forum",
+      "id": "route:POST /api/console/forum/sticker-packs",
+      "key": "POST /api/console/forum/sticker-packs",
+      "kind": "business",
+      "method": "POST",
+      "path": "/api/console/forum/sticker-packs",
+      "registration": "explicit",
+      "schema": {
+        "body": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+              "type": "string"
+            },
+            "name": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "name"
+          ],
+          "type": "object"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "201": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 46,
+        "path": "app/server/src/routes/console/forum.ts"
       }
     },
     {
@@ -112393,7 +113165,7 @@
         }
       },
       "source": {
-        "line": 74,
+        "line": 86,
         "path": "app/server/src/routes/console/forum.ts"
       }
     },
@@ -113984,6 +114756,12 @@
         "forum"
       ],
       "path": "app/forum/app/editor/crepe-editor.ts"
+    },
+    {
+      "domains": [
+        "forum"
+      ],
+      "path": "app/forum/app/editor/inline-stickers.ts"
     },
     {
       "domains": [

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { postExcerpt } from '~/utils/excerpt'
-import { imagesToStickers, isUnsafeDestination, QUOTE_LENGTH, quoteDraft, renderableMarkdown, replyQuote, stickerIndex, stickersToImages, WORD_JOINER } from '../shared/post-markdown'
+import { imagesToStickers, isUnsafeDestination, QUOTE_LENGTH, quoteDraft, renderableMarkdown, replyQuote, stickerIndex, stickersToImages, stickerToken, tokenIndex, WORD_JOINER } from '../shared/post-markdown'
 import { loadMarked } from './support/tuffex-stubs'
 
 // Run the text through the parser TxMarkdownView uses (see loadMarked).
@@ -247,5 +247,39 @@ describe('stickers (#276)', () => {
   it('changes nothing without a sticker list', () => {
     expect(stickersToImages(':yugc-wave:', new Map())).toBe(':yugc-wave:')
     expect(imagesToStickers(`![挥手](${WAVE.url})`, new Map())).toBe(`![挥手](${WAVE.url})`)
+  })
+})
+
+describe('the Bilibili way of writing a sticker, [包名_名字] (#276)', () => {
+  const WAVE = { shortcode: 'yugc-wave', label: '打招呼', url: `/api/forum/stickers/${'a'.repeat(64)}.webp` }
+  const stickers = stickerIndex([{ name: '极客娘', stickers: [WAVE] }])
+  const rendered = (source: string) => marked.parse(renderableMarkdown(source, stickers))
+
+  it('gives every sticker its [包名_名字], and a pack without a name gives none', () => {
+    expect(stickers.get('yugc-wave')?.token).toBe('[极客娘_打招呼]')
+    expect(stickerToken('猫猫', '招手')).toBe('[猫猫_招手]')
+    expect(stickerIndex([{ stickers: [WAVE] }]).get('yugc-wave')?.token).toBeUndefined()
+  })
+
+  it('renders [极客娘_打招呼] as the sticker, with the way to type it as the title', () => {
+    const out = rendered('早 [极客娘_打招呼] 好')
+    expect(out).toContain(`<img class="forum-sticker" alt="打招呼" title="[极客娘_打招呼]" src="${WAVE.url}">`)
+    expect(rendered(':yugc-wave:')).toContain('title="[极客娘_打招呼]"')
+  })
+
+  it('leaves links, unknown names and code alone', () => {
+    expect(rendered('[极客娘_打招呼](https://example.com)')).toContain('<a href="https://example.com">极客娘_打招呼</a>')
+    expect(rendered('[极客娘_没有这张] [打招呼]')).not.toContain('<img')
+    expect(rendered('`[极客娘_打招呼]`')).not.toContain('<img')
+  })
+
+  it('goes into the editor as the picture and is stored as the shortcode', () => {
+    expect(stickersToImages('[极客娘_打招呼]', stickers)).toBe(`![打招呼](${WAVE.url})`)
+    expect(imagesToStickers('早[极客娘_打招呼]好 [极客娘_打招呼](x)', stickers)).toBe('早:yugc-wave:好 [极客娘_打招呼](x)')
+  })
+
+  it('uses the first sticker when two share a name', () => {
+    const twin = stickerIndex([{ name: '极客娘', stickers: [WAVE, { ...WAVE, shortcode: 'yugc-wave-2' }] }])
+    expect(tokenIndex(twin).get('[极客娘_打招呼]')?.shortcode).toBe('yugc-wave')
   })
 })
