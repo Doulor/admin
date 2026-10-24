@@ -51,7 +51,7 @@
 
 文档 API 仅允许公开产品介绍和用户指南；内部规范、部署、安全与审查材料不在白名单。反馈写入 data.db，管理侧由服务端 admin/console 接口读取、控制台（`app/console`）页面处理；两侧通过一致数据模型协作，不互相 import 路由。
 
-three.js 只通过 `/join-us`、`/forum-3d` 两页里的 `import("../three/<scene>")` 进入，首页不再下载 three；卸载时 `Stage.dispose()` 释放几何体、材质、贴图、环境贴图并丢弃 WebGL 上下文。没有 WebGL 时场景页的 DOM 入口（信纸、版块列表）照常可用。`assets/models/iphone_15_pro_max.glb` 在 #275 以后没有页面加载，只作为 `tests/tooling/static-cdn.test.ts` 的夹具留着。
+three.js 只通过 `/join-us`、`/forum-3d` 两页里的 `import("../three/<scene>")` 进入，首页不再下载 three；卸载时 `Stage.dispose()` 释放几何体、材质、贴图、环境贴图并丢弃 WebGL 上下文。没有 WebGL 时场景页的 DOM 入口（信纸、版块列表）照常可用。原来书桌上的手机模型 `iphone_15_pro_max.glb` 在 #275 以后没有页面加载，连同署名说明归档到 `docs/history/portal-yugc-os-v1/`。
 
 ## 开机动画与进站（#275）
 

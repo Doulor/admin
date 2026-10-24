@@ -1,5 +1,7 @@
 # iPhone 15 Pro Max model attribution
 
+状态：`historical` · 更新：2026-10-24（#275 以后官网不再使用这个模型，连同署名原样归档，见 [归档说明](../../../../../../../README.md)）
+
 - Work: Apple iPhone 15 Pro Max Black.
 - Author: polyman / polyman Studio, https://sketchfab.com/Polyman_3D .
 - Original: https://sketchfab.com/3d-models/apple-iphone-15-pro-max-black-df17520841214c1792fb8a44c6783ee7 .

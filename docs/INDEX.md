@@ -174,6 +174,14 @@
 | [`STACK.md`](./history/STACK.md) | 历史材料：旧版本事实、路径和设计，不作为当前实施指令。 | [EN](./history/STACK.en.md) |
 | [`USAGE.md`](./history/USAGE.md) | 历史材料：旧版本事实、路径和设计，不作为当前实施指令。 | [EN](./history/USAGE.en.md) |
 
+## history/portal-yugc-os-v1/
+
+#275 把官网换成 YUGC OS v2 桌面时退场的页面、组件、样式、图片和模型，原样放在这里备查；它们不参与构建，也不会上线。
+
+## history/portal-yugc-os-v1/files/app/web/sites/portal/assets/models/
+
+iPhone 15 Pro Max model attribution
+
 ## public/
 
 长江大学极客班官网、论坛和组织管理服务。
