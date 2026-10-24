@@ -1,6 +1,6 @@
 # Portal 模块合同（`app/web/sites/portal`）
 
-> 公开官网：开机动画与 YUGC OS 桌面、加入我们（信封场景，要登录）、论坛 3D 场景、文档、意见箱和邀请落地；不自建登录，菜单栏头像打开个人资料卡。
+> 公开官网：开机动画与 YUGC OS 桌面、加入我们（信封场景，要登录）、论坛 3D 场景、文档和意见箱；不自建登录，菜单栏头像打开个人资料卡。
 
 状态：`current` · 更新：2026-10-24
 
@@ -35,7 +35,6 @@
 | `lib/links.ts` | 站外链接的唯一解析点：论坛首页/版块/话题、控制台、账号设置 `/account`、代码仓库（自建 GitLab，站点配置 `urls.gitlab`） |
 | `lib/departments.ts` | 「组织架构」窗口和「关于极客班」里的部门：读匿名 `GET /api/public/departments`（窗口打开时读一次、关掉即取消），`DEFAULT_DEPARTMENTS` 与 #274 迁移的初始数据一致（AI、算法、硬件、网安、管理五个部门加「无部门」），读到之前和读不到时显示它；`readDepartments` 把认不出的部门色换成次要文字色、认不出的图标换成 `team-line`，称号按 `weight` 从高到低 |
 | `lib/codeRepos.ts` | 「代码仓库」窗口和终端 `repos` 读的公开项目：`GET /api/public/gitlab/projects`，`readCodeRepos` 只留有名字和 http(s) 地址的项目，`last_activity_at` 认 ISO 字符串（也认毫秒），按最近活动从新到旧；`unavailable: true` 单独成一种状态 |
-| `lib/org.ts` | 旧的 `GET /api/public/org` 读取与 `ORG_DEFAULTS`。#275 以后官网界面不再用它；文件和 `tests/web/portal-org.test.ts` 留着，因为 `docs/architecture/catalog/ownership.json` 的 `organization.public` 证据锚点指向它，等目录重新生成时一起清 |
 | `lib/competitions.ts` | 「比赛」窗口的数据：读匿名 `GET /api/public/competitions`（窗口打开时读一次、关掉即取消，`reload` 再读一次），状态一律由本地按时间戳算（`statusAt`，与服务端 `competitionStatus` 同口径），窗口开着时每 60 秒重算状态与排序；响应里的 `status` 只当形状校验，读不到时窗口说「没加载出来」并给「重试」，而不是冒充「没有比赛」；日期换算（`beijingDay`、`shortDay`、`dayRange`）都按北京时间，`readCompetition` 丢掉缺字段的条目、只收可解析的 https 链接（所有类型可选） |
 | `lib/competitionLabels.ts` | 比赛窗口的文案与日期纯函数（北京时间）：状态与类型文案、星期与钟点、「还剩几天」、卡片上的日期、详情要点、赛程节点、操作条、搜索与筛选 |
 | `lib/competitionHub.ts` | 报名与组队的客户端（#239）：`hubPaths` 是成员接口的唯一路径集合（比赛 id 与队伍 id 都做路径段编码），`useHub` 负责写操作、失败文案与统一重读，`useMemberRead` 负责成员接口的读取、轮询（天梯 30 秒、页面不可见时不发）与响应形状校验；`readMyStatus` 等读出函数丢掉认不出的状态、未知操作与缺账号 id 的成员，`entryText`、`hubSentence`、`journey`、`pendingView`、`teamSlots`、`nextMilestone` 是状态文案、底部进度与槽位的纯函数，`failText` 把限流、登录过期与服务端中文说明分开说 |
@@ -158,7 +157,7 @@ three.js 只通过 `/join-us`、`/forum-3d` 两页里的 `import("../three/<scen
 
 ## 加入我们（投递）
 
-`POST /api/portal/apply` 要登录（#274：没登录 401 `unauthenticated`，要 `apply.submit`），准入与邀请落地共用（蜜罐 + PoW + 可选 Turnstile），落库 `applications` 表并写审计；接口细节见 [API](../../architecture/API.md)。前端 PoW 指纹与后端逐字一致：`apply:<姓名>:<邮箱>`（均为 trim 后取值），`pow` 只发 `{ timestamp, nonce }`（`powProof`）。表单的邮箱校验和后端用同一条正则（不收末尾带点、连续的点、引号、反斜杠和 IP 字面量，这些写法会绕开确认信的按收件箱限量，#148），`tests/web/portal-join.test.ts` 核对两边逐字一致。提交成功后才开始折信、封口、投递动画，回执显示服务端返回的编号、时间和原文消息；失败时信纸留在原位并显示错误，不做假成功。
+`POST /api/portal/apply` 要登录（#274：没登录 401 `unauthenticated`，要 `apply.submit`），准入同意见箱等公开表单（蜜罐 + PoW + 可选 Turnstile），落库 `applications` 表并写审计；接口细节见 [API](../../architecture/API.md)。前端 PoW 指纹与后端逐字一致：`apply:<姓名>:<邮箱>`（均为 trim 后取值），`pow` 只发 `{ timestamp, nonce }`（`powProof`）。表单的邮箱校验和后端用同一条正则（不收末尾带点、连续的点、引号、反斜杠和 IP 字面量，这些写法会绕开确认信的按收件箱限量，#148），`tests/web/portal-join.test.ts` 核对两边逐字一致。提交成功后才开始折信、封口、投递动画，回执显示服务端返回的编号、时间和原文消息；失败时信纸留在原位并显示错误，不做假成功。
 
 - **没登录**（#275）：读完 `/auth/me` 发现没登录时，信纸上只有「先注册再投递」、一句说明和「注册」「登录」两个按钮，都带 `return_to=/join-us`，注册或登录后回到这封信；不显示表单，免得写完了才发现要登录、跳走时内容丢掉。
 - **限额**：注册用户每天 3 份，成员不限（SPEC §3.8，数字是服务端 meta 的初始值）。登录后信纸底部按 `/auth/me` 的 `quota` 写「今天还能投 N 份」；成员 `apply_daily_limit` 为 -1 时不写。今天投完了按钮变灰，写「今天的投递次数用完了，明天再来」。寄出成功后用 201 回执里的 `quota` 更新。
