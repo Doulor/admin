@@ -120,3 +120,10 @@
 - 做了什么：config.ts 去掉 CONSOLE_ORG 的环境读取与校验，consoleOrg 字段从 AppConfig 删除；4 个调用方（services.ts/portal feedback.ts/console feedback.ts/console me.ts）改用 DEFAULT_CONSOLE_ORG 常量；deploy 两份 compose、两份 .env 契约、deployment-environment.mjs 的 REQUIRED_FIELDS、docs/ops/ENVIRONMENTS.md 与 ENVIRONMENT.md、server README 两处跟着去掉环境变量说法；roles.ts 删 6 个 github.* 能力与 github domain（grep 全仓确认零读者），连带 IMPLIES/ROLE_BASE/DEFAULT_DEPARTMENTS 里的引用；ownership.json 删孤立的 capabilityDomains 映射，catalog:generate 重新生成（22→16 能力）；更新 3 个测试文件去掉 CONSOLE_ORG 环境覆盖写法
 - 结果：commit c6edfd66，25 files changed；pnpm typecheck 通过；npx vitest run → 113/114 文件、1858/1859 通过（唯一失败是已记录的 #145 已知缺口）；check:catalog、check:environments 通过
 - 下一步：最终一轮：docs/changes/276.json 全量重写、check-architecture 全量核对、check:secrets/check:boundaries/check-doc-sync/check-docs/docs-index，然后给团队负责人完整汇报
+
+## 20:43:09 +08:00 · 提交 · #276 · 补上团队负责人指出的五个专项测试缺口
+
+- 执行者：agent-c276s（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：新增 5 条用例：反应幂等（INSERT OR IGNORE，重复加不涨 count）、表情停用后回 unknown_sticker（历史回应不受影响）、新增表情自己的 2MB/格式限制（413 sticker_too_large、415、PNG/JPEG/WebP 都能传）、帖子图片上传补 JPEG/WebP 成功路径（原来只测过 PNG）
+- 结果：commit 83332ad9，7 files changed；npx vitest run tests/server/forum-v2-endpoints.test.ts → 30/30 通过；pnpm catalog:generate 重新生成后全量 npx vitest run 只剩已知的 #145 缺口
+- 下一步：最后一轮：ownership.json 补 flows、docs/changes/276.json 全量重写、check-architecture 全量核对，然后给团队负责人完整汇报
