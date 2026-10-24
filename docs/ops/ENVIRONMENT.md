@@ -2,7 +2,7 @@
 
 > 仅包含占位符；已有环境文件不由代码规范化任务读取或覆盖。
 
-状态：`current` · 更新：2026-10-23 · 本机开发专用；**部署**环境的字段契约见 [ENVIRONMENTS](ENVIRONMENTS.md)
+状态：`current` · 更新：2026-10-24 · 本机开发专用；**部署**环境的字段契约见 [ENVIRONMENTS](ENVIRONMENTS.md)
 
 只做 UI 预览使用根 `pnpm dev:web`，无需以下配置。需要真实本地后端时，由操作者在仓库根创建自己的 `.env`，使用本地专用 OAuth 应用和数据库，不能复制生产凭据或数据。
 
@@ -32,12 +32,8 @@ MAIL_ALLOWLIST=
 # Google 登录（可选，#262）：两项都设才开启；本机的重定向 URI 是 <PUBLIC_ORIGIN>/auth/google/callback
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-# GitHub App（可选，#262 第四期）：两项都设才开启；服务器用装在 CONSOLE_ORG 上的 App 读写组织，不设时只在用 GitHub 登录时借本人令牌
-GH_APP_ID=
-GH_APP_PRIVATE_KEY=
 COOKIE_DOMAIN=
-ALLOWED_ORGS=
-# 可不设，默认 Yangtze-University-Geek-Class
+# 可不设，默认 Yangtze-University-Geek-Class；#274 起只给意见箱分类与审计用，不再有组织登录门槛
 CONSOLE_ORG=Yangtze-University-Geek-Class
 ```
 

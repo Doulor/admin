@@ -265,7 +265,6 @@
     "app/server/src/routes/portal/docs.ts": "public_content",
     "app/server/src/routes/portal/events.ts": "audit",
     "app/server/src/routes/portal/feedback.ts": "feedback",
-    "app/server/src/routes/portal/join.ts": "invitations",
     "app/server/src/routes/portal/org.ts": "organization",
     "app/server/src/routes/portal/competitions.ts": "competitions",
     "app/server/src/routes/portal/competition-signups.ts": "competitions",
@@ -476,14 +475,14 @@
       "writes": [],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：匿名可发起；return_to仅接受PUBLIC_ORIGIN，否则回控制台；邀请码选填（#274 SPEC §3.2），格式不对的invite查询参数直接丢弃，不报错。",
-        "响应与错误：302跳到GitHub授权地址。",
+        "权限与资源：匿名可发起；按 IP 每分钟最多 20 次（#274 review round 1，SPEC §3.8：回调会试邀请码、会建新账号）；return_to仅接受PUBLIC_ORIGIN，否则回控制台；邀请码选填（#274 SPEC §3.2），格式不对的invite查询参数直接丢弃，不报错。",
+        "响应与错误：302跳到GitHub授权地址；超过限流回429 rate_limited。",
         "数据与副作用：生成随机state并写签名oauth_state cookie（校验过的邀请码一并存入），不创建会话；本次响应不向GitHub发送token交换请求。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/admin/auth.ts",
-          "needle": "  app.get<{ Querystring: { return_to?: string; invite?: string } }>(\"/auth/github\", async (req, reply) => {"
+          "needle": "  app.get<{ Querystring: { return_to?: string; invite?: string } }>(\"/auth/github\", { config: { rateLimit: { max: 20, timeWindow: \"1 minute\" } } }, async (req, reply) => {"
         },
         {
           "path": "app/server/src/middleware/oauth-state.ts",
@@ -919,33 +918,36 @@
       "title": "读取统一登录状态与控制台入口",
       "domain": "identity",
       "relatedDomains": [
-        "organization",
-        "audit"
+        "permissions",
+        "organization"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /auth/me",
       "capabilities": [],
       "reads": [
         "sessions",
-        "role_assignments",
-        "departments",
-        "titles",
-        "users"
+        "users",
+        "identities",
+        "account_profiles",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "perm_group_parents"
       ],
       "writes": [
         "sessions",
-        "audit_logs"
+        "account_profiles"
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：只返回当前sid的身份；console_link是显示提示，不赋予后端权限。",
-        "响应与错误：200 {signed_in:false}或身份字段（login、user_id、avatar_url、account_id、provider）及console_link、email_required（账号还没有登录邮箱、这个环境又能发信；官网、论坛、控制台读到true整页跳到/bind-email，#273）；GitHub拒绝token时200 {signed_in:false,session_expired:true}，其他角色查询失败仍保持登录但入口false。",
-        "数据与副作用：会话联查账号，过期、没有账号（启动回填映射不到的旧会话）或账号不是active的会话按未登录处理并删除；按账号记下的站内角色和称号算权限（还没记过站内角色的老账号用GitHub会话第一次请求时查一次GitHub组织角色并记下），被拒token才删会话并写审计；无其他业务写入。"
+        "权限与资源：任何人可调，访客也回200（CONTRACT-274 §1）；console_link是显示提示（按新权限引擎的console.access节点算），不赋予后端权限。",
+        "响应与错误：200 {signed_in:false,level:\"visitor\",permissions,quota}（访客）或 {signed_in:true,login,user_id,avatar_url,account_id,provider,console_link,email_required,level,level_name,department,titles,permissions,quota,prefs,username,display_name,bio,identities}（#274 review round 1：level不带level.前缀，permissions是UI_NODES里实际放行的节点数组，identities是{emails,google,github}）；email_required为true（账号还没有登录邮箱、这个环境又能发信，#273）时官网、论坛、控制台整页跳到/bind-email；不会再有GitHub token被拒的session_expired分支（这条路径已经不调用GitHub）。",
+        "数据与副作用：会话联查账号状态，过期、没有账号或账号不是active的会话按未登录处理并删除（lib/auth.ts的getSession）；级别、部门、称号、permissions、console_link都从新权限引擎（lib/permissions.ts的groupsOf/check，读perm_members/perm_entries/perm_groups/perm_group_parents）现查现算，不缓存、不写回；账号资料缺行时兜底插入account_profiles（ensure()，INSERT OR IGNORE，幂等）；不调用GitHub，不写identity_audit或audit_logs。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/admin/auth.ts",
-          "needle": "  app.get(\"/auth/me\", async (req, reply) => {"
+          "needle": "  app.get(\"/auth/me\", async (req) => {"
         },
         {
           "path": "app/server/src/lib/access.ts",
@@ -993,7 +995,7 @@
         },
         {
           "path": "app/forum/app/components/SignInState.vue",
-          "needle": "只有极客班成员能登录。"
+          "needle": "注册或登录极客班账号即可。"
         },
         {
           "path": "app/forum/app/composables/useSiteAccount.ts",
@@ -1001,7 +1003,7 @@
         },
         {
           "path": "app/forum/app/data/access.ts",
-          "needle": "要先登录，只有极客班成员能登录"
+          "needle": "发新话题、点赞、收藏和关注要先登录。"
         },
         {
           "path": "app/forum/app/pages/about.vue",
@@ -1009,7 +1011,7 @@
         },
         {
           "path": "app/forum/app/pages/new.vue",
-          "needle": "只有极客班成员能登录。不登录也能看帖"
+          "needle": "注册或登录极客班账号即可。不登录也能看帖"
         },
         {
           "path": "app/forum/shared/signin-outcomes.ts",
@@ -1017,7 +1019,7 @@
         },
         {
           "path": "app/forum/shared/site-notice.ts",
-          "needle": "要先登录，只有极客班成员能登录"
+          "needle": "发新话题、点赞、收藏和关注要先登录。"
         },
         {
           "path": "app/forum/app/components/AdoptionNotice.vue",
@@ -2496,7 +2498,7 @@
       ],
       "evidence": [
         {
-          "path": "app/server/src/routes/portal/join.ts",
+          "path": "app/server/src/routes/portal/public-config.ts",
           "needle": "  app.get(\"/api/public/config\", async () => ({"
         }
       ],
@@ -2608,93 +2610,6 @@
       ],
       "tests": [
         "tests/server/core.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "invitation.public.inspect",
-      "title": "检查公开邀请链接",
-      "domain": "invitations",
-      "relatedDomains": [],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/join/:token",
-      "capabilities": [],
-      "reads": [
-        "invite_links"
-      ],
-      "writes": [],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：持有token可访问；不需要登录，不返回发起人的token密文。",
-        "响应与错误：200 {org,note,team_slug,expires_at,remaining_uses,valid,reason}；未知token404。",
-        "数据与副作用：读取链接状态并计算剩余额度，不预留额度、不调用GitHub、不发邀请。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/portal/join.ts",
-          "needle": "  app.get<{ Params: { token: string } }>(\"/api/join/:token\", async (req, reply) => {"
-        }
-      ],
-      "tests": [
-        "tests/server/invitations.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
-      "id": "invitation.public.redeem",
-      "title": "兑换组织邀请链接",
-      "domain": "invitations",
-      "relatedDomains": [
-        "audit"
-      ],
-      "assessment": "declared-with-source-evidence",
-      "operation": "POST /api/join/:token",
-      "capabilities": [],
-      "reads": [
-        "invite_links",
-        "invite_attempts"
-      ],
-      "writes": [
-        "invite_links",
-        "invite_attempts",
-        "invitations",
-        "audit_logs"
-      ],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：持有token，PoW/蜜罐/可选Turnstile及分钟限流；额度、禁用和过期在事务预留时再次校验；发邀请用服务器的 GitHub App，没配 App 时用链接发起人密文中的token（经 App 建的链接不存令牌，#262 第四期）。",
-        "响应与错误：200 {ok:true,invitation_id,message}；404不存在，400输入/明确失败，409 invite_pending_review/invite_unavailable，503 GitHub App 用不了、发起人凭据失效或结果待核对。",
-        "数据与副作用：先事务预留再请求GitHub（可查团队和用户名），成功写邀请/尝试/审计；sent重放不重复发送，明确失败返还额度，不确定结果保留unknown待核对，不删除访问者会话。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/portal/join.ts",
-          "needle": "  app.post<{ Params: { token: string }; Body: Body }>("
-        },
-        {
-          "path": "app/server/src/lib/invite-reservation.ts",
-          "needle": "export function reserveInvite("
-        },
-        {
-          "path": "app/server/src/lib/invite-reservation.ts",
-          "needle": "export function failInvite("
-        },
-        {
-          "path": "app/server/src/lib/github-connection.ts",
-          "needle": "export function createGithubConnection(deps: {"
-        }
-      ],
-      "tests": [
-        "tests/server/invitations.test.ts",
-        "tests/server/rate-limits.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -7930,18 +7845,7 @@
       "organization"
     ],
     "app/server/src/lib/github.ts": [
-      "github",
-      "identity",
-      "organization",
-      "invitations"
-    ],
-    "app/server/src/lib/github-connection.ts": [
-      "github",
-      "organization",
-      "invitations"
-    ],
-    "app/server/src/lib/invite-reservation.ts": [
-      "invitations"
+      "identity"
     ],
     "app/server/src/lib/feedback-store.ts": [
       "feedback"

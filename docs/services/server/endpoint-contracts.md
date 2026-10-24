@@ -2,14 +2,14 @@
 
 > 按真实 handler、授权执行点与存储实现核对现有接口；关联目录中的业务用例，区分存量人工说明与已挂载的机器响应契约。
 
-状态：`current` · 更新：2026-10-24
+状态：`current` · 更新：2026-10-25
 
 ## 口径与共同边界
 
 本文是人工维护的行为契约，不是完整 OpenAPI。`application.cancel` 保留既有取消投递不变量，公共授权依赖与其他审核分支通过同一 PATCH 的 `application.review` 及本节追溯，不另造第二套取消规则。请求字段的机器约束仍以对应 routes 下的 contracts.ts 与 handler 为准；下文响应是源码分支的形状，未把测试入口标成每个分支均已验证。业务操作按显式非 HEAD 的方法路径计数；自动 HEAD 派生于 GET，论坛显式 HEAD /api/forum/state 另为 405，不能计为第二个业务用例。补充 Nitro 入口按声明单列。
 
 - 核心写请求先由 middleware/http-policy.ts 校验 Origin / Fetch Metadata，外域拒绝 403 invalid_origin；缺 Origin 不自动拒绝所有非浏览器调用。输入 Schema 失败为 400 validation_error。全局错误体通常为 error、message、request_id，handler 自行 reply.send 的错误形状保留原样。
-- 会话型接口读取 sessions；getSession 遇过期行会删除，不能把 GET 一律标为没有任何写入。经 http-policy 处理的会话自身令牌 401 会删当前会话、清 cookie，并仅在实际删除时写 auth.session_rejected 审计；服务器 GitHub App 的令牌被拒为 503 github_connection_failed、不删会话，GitHub 没接上为 409 github_not_connected；其他上游 4xx 为同状态 upstream_rejected，5xx 为 internal_error。PR 合并代理与 OAuth 回跳的局部 catch 另见各用例。
+- 会话型接口读取 sessions；getSession 遇过期行会删除，不能把 GET 一律标为没有任何写入。经 http-policy 处理的会话自身令牌 401 会删当前会话、清 cookie，并仅在实际删除时写 auth.session_rejected 审计；#274 review round 1 起没有业务路由会用会话令牌调 GitHub（那条路径已删，见下方说明），这条机制只作为通用基础设施留着；其他上游 4xx 为同状态 upstream_rejected，5xx 为 internal_error。OAuth 回跳的局部 catch 另见各用例。
 - /api/admin/:org/* 按称号给的能力授权（requireGithub / requireManagedOrg），URL 中 org 必须是 CONSOLE_ORG（否则 403 org_not_managed），不看调用者的 GitHub 组织角色（#262 第四期）。上游由服务器接入的 GitHub 执行：配了 GitHub App 用安装令牌，没配用调用者自己的 GitHub 会话令牌（这时还受他自己的 GitHub 权限限制）。
 - 控制台能力由 sessions、users（站内角色与成员资格）、role_assignments、departments、titles 计算，不调用 GitHub；只有还没记过站内角色的老账号补记一次 GitHub 组织角色（缓存 60 秒）；权限包每次读取。不是成员的账号没有任何能力。requireCapability 的多个参数是“任一满足”，并非全部同时拥有。缺能力 403 missing_capability；部门与对象范围仍在 handler 中继续校验。
 - 流程 reads/writes 包含授权依赖与可能的条件写入，不能据数组推断每次请求都会写。forumViewer 对有效成员创建或刷新 forum_users，游客不写成员记录。外部 HTTP、文件读取、缓存和通知等副作用在各用例文字中明确，不能假装成 SQLite 外键。
@@ -36,7 +36,7 @@
 
 `GET /auth/github` · `flow:identity.authorize`
 
-权限与资源：匿名可发起；return_to仅接受PUBLIC_ORIGIN，否则回控制台；邀请码选填（#274 SPEC §3.2），query 带的 `invite` 格式不对直接丢弃，不报错，留给回调时再校验真假。
+权限与资源：匿名可发起；return_to仅接受PUBLIC_ORIGIN，否则回控制台；邀请码选填（#274 SPEC §3.2），query 带的 `invite` 格式不对直接丢弃，不报错，留给回调时再校验真假；按 IP 每分钟 20 次限流（#274 review round 1 SPEC §3.8，和 `/auth/google` 一样）。
 
 响应与错误：302跳到GitHub授权地址。
 
@@ -132,7 +132,7 @@
 
 ## 邮箱、Google 登录、账号页与注册邀请码（#262 第二、三期；资料/头像/邀请码兑换见 #274）
 
-邮箱验证码和密码都能登录。GitHub、邮箱、Google 三种登录方式第一次登录都不用邀请码就能注册——邀请码选填（#274 SPEC §3.2，GitHub 组织资格那道门已经去掉）：不填或邀请码无效仍然注册成功，进 `level.registered`；邀请码有效时直接进 `level.member`（默认邀请码只存在运维的钥匙串里，用 `dist/cli/account.js invite` 写进库，控制台邀请码页也能建）。权限只认极客班账号：不论用哪种方式登录，成员资格（`level.*`）与权限节点都按账号记下的给；邮箱、Google 会话没有 GitHub 令牌，控制台的 GitHub 页面在没配 GitHub App 时回 409 `github_not_connected`。以下接口都挂了响应 Schema；失败体保留 `attempts_left`、`retry_after`、`reauth`、`capability` 等扩展字段。
+邮箱验证码和密码都能登录。GitHub、邮箱、Google 三种登录方式第一次登录都不用邀请码就能注册——邀请码选填（#274 SPEC §3.2，GitHub 组织资格那道门已经去掉）：不填或邀请码无效仍然注册成功，`org_state` 记 `not_member`、进 `level.registered`；邀请码有效时 `org_state` 记 `active`、直接进 `level.member`（默认邀请码只存在运维的钥匙串里，用 `dist/cli/account.js invite` 写进库，控制台邀请码页也能建）。权限只认极客班账号：不论用哪种方式登录，成员资格（`level.*`）与权限节点都按账号记下的给，不查、也不会再查 GitHub 组织角色（#274 review round 1 blocker，见上方「发起 GitHub 登录」一节）。以下接口都挂了响应 Schema；失败体保留 `attempts_left`、`retry_after`、`reauth`、`capability` 等扩展字段。
 
 | 接口 · 流程 | 权限与资源 | 响应、错误与副作用 |
 |---|---|---|
@@ -154,7 +154,7 @@
 | `PATCH /api/identity/profile` · `flow:identity.profile.update` | 需要 `account.profile.edit`；每账号每小时 30 次 | body 任选 `{display_name(1–32),bio(0–200),username(3–24，`^[a-z0-9_]+$`，不分大小写唯一),prefs:{start_note_seen_at,forum_theme}}`，回同 GET 形状；`prefs` 是合并写，不是整份替换；`username` 已被别的账号占用（不分大小写）409 `username_taken`，改回自己原来的名字不算占用。写 `account_profiles` 与审计 `profile.update`。 |
 | `GET /api/identity/avatar/:file` · `flow:identity.avatar.read` | 匿名；`:file` 必须是 `^[0-9a-f]{64}\.webp$` | 200 `image/webp` 二进制，`Cache-Control: public, max-age=31536000, immutable`、`Content-Security-Policy: default-src 'none'`；哈希不存在 404。只读 `account_avatars`。 |
 | `PUT /api/identity/avatar` · `flow:identity.avatar.upload` | 需要 `account.profile.edit`；每账号每小时 10 次 | 请求体就是图片本身（png/jpeg/webp/gif，≤2MB，像素 ≤4096×4096），sharp 转正方形 512×512 webp 后按内容 sha256 寻址存 `account_avatars`，回 `{avatar_url}`；类型不支持 415，字节解不出图片 400 `invalid_image`，超过像素上限 400 `image_too_large`，超过 2MB 由内容类型解析器直接 413 `avatar_too_large`。写 `account_profiles.avatar_hash` 与审计 `profile.avatar`。 |
-| `POST /api/identity/invite/redeem` · `flow:identity.invite.redeem` | 需要 `account.invite.redeem` | body `{code}`；成功 200 `{level:"member"}`，把账号换成 `level.member`（事务里先查重、兑换邀请码、换组、提交后再让权限引擎的 revision 失效）；码不对或已用完 400 `invite_invalid`（计一次失败）；已经是成员 409 `already_member`；本账号过去一小时错够 10 次或本 IP（IPv6 按 /64）错够 20 次时 429 `invite_locked`，带 `Retry-After` 与 `retry_after`（锁 1 小时），不再往下核对邀请码本身。写 `perm_members`、`invite_codes`、`limit_events`（失败计次，按 `invite.redeem.fail.account`/`invite.redeem.fail.ip` 两个桶，IP 只存 sha256）与审计 `invite.redeem`。 |
+| `POST /api/identity/invite/redeem` · `flow:identity.invite.redeem` | 需要 `account.invite.redeem` | body `{code}`；成功 200 `{level:"member"}`，把账号换成 `level.member`（事务里先查重、兑换邀请码、换组、提交后再让权限引擎的 revision 失效）；码不对或已用完 400 `invite_invalid`（计一次失败）；已经是成员 409 `already_member`；本账号过去一小时错够 10 次或本 IP（IPv6 按 /64）错够 20 次时 429 `{error:"rate_limited",bucket:"invite.redeem.fail.account"或"invite.redeem.fail.ip"}`（#274 review round 1，取代旧的 `invite_locked`，和通用错误码约定一致），带 `Retry-After` 与 `retry_after`（锁 1 小时），不再往下核对邀请码本身；这两个桶和 GitHub/Google/邮箱注册时填错邀请码共用同一套常量（`lib/identity-store.ts` 的 `INVITE_LOCK_*`/`hashIp`），猜码次数合并计。写 `perm_members`、`invite_codes`、`limit_events`（失败计次，按 `invite.redeem.fail.account`/`invite.redeem.fail.ip` 两个桶，IP 只存 sha256）与审计 `invite.redeem`。 |
 
 本地表：邮箱登录读写 `email_challenges`、`users`、`identities`、`invite_codes`、`sessions`、`identity_audit`、`audit_logs`；账号页读 `users`、`identities`、`identity_audit`，删邮箱时删 `identities`，写 `email_challenges`、`identities`、`users`、`identity_audit`；邀请码页只读写 `invite_codes` 与 `audit_logs`；账号资料与头像（#274）读写 `account_profiles`、`account_avatars`，邀请码兑换另外读写 `perm_members`、`limit_events`。
 
@@ -382,7 +382,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：#274 SPEC §3 起要先登录并持有 `apply.submit`（`level.registered` 天然有，访客没有）——不再接受匿名投递；蜜罐、PoW、可选Turnstile之外，按账号每天（北京时间零点重置）核对 `meta.limit.apply.daily`（注册用户 3 份、极客班成员 `level.member` 不限，没有这个 meta 时兜底按 3 份算），另按来源 IP（IPv6 按 /64）每天最多 10 份、按设备（这个接口自己发的 cookie）每天最多 5 份；每IP每分钟 5 次的旧限流不变。
 
-响应与错误：201 {id,submitted_at,message,quota:{apply_left_today,apply_daily_limit}}；字段错误400附fields；没登录401 `not_signed_in`，没有 `apply.submit`403 `forbidden`；三条限额任一超限统一 429 `{error:"apply_limited",bucket:"apply.daily",message,retry_after}`（到下一个北京零点），不细分是哪条线触发；429 rate_limited 走旧的路由级限流。蜜罐回相同201形状但不落库，也不计数。
+响应与错误：201 {id,submitted_at,message,quota:{apply_left_today,apply_daily_limit}}；字段错误400附fields；没登录401 `unauthenticated`（#274 review round 1：preHandler 只挂 requirePermission，不再多挂一个 requireAuth，避免它先回 `not_signed_in` 盖掉这个通用错误码），没有 `apply.submit`403 `forbidden`；三条限额任一超限统一 429 `{error:"rate_limited",bucket:"apply.daily",message,retry_after}`（到下一个北京零点），不细分是哪条线触发；另有按 IP 的路由级限流（5次/分钟）同样回 429 rate_limited。蜜罐回相同201形状但不落库，也不计数。
 
 数据与副作用：三条限额核对与写投递在同一个事务里（`limits.hitAll`，全有或全没有，中间没有 await），超限不留半份投递；续发或换发设备 cookie（1 年，仅本接口路径）；记脱敏application.received审计（含 `account_id`），尽力入队已收到邮件（每小时总量限制），入队失败仅日志不回滚投递。IP、设备只存 sha256（`lib/limits.ts` 的 `limit_events`），不存原文。
 
@@ -404,7 +404,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：无。本地表写入：无。
 
-源码：[app/server/src/routes/portal/join.ts:47](../../../app/server/src/routes/portal/join.ts#L47)。验证入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts)、[tests/server/configuration.test.ts](../../../tests/server/configuration.test.ts)。
+源码：[app/server/src/routes/portal/public-config.ts:15](../../../app/server/src/routes/portal/public-config.ts#L15)（#274 review round 1：原来和邀请链接接口挤在 `join.ts` 里，邀请链接整段删除后单独搬出来，这个接口本身没变）。验证入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts)、[tests/server/configuration.test.ts](../../../tests/server/configuration.test.ts)。
 
 ## 阅读公开组织架构
 
@@ -462,33 +462,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 源码：[app/server/src/routes/portal/docs.ts:23](../../../app/server/src/routes/portal/docs.ts#L23)。验证入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts)。
 
-## 检查公开邀请链接
-
-`GET /api/join/:token` · `flow:invitation.public.inspect`
-
-权限与资源：持有token可访问；不需要登录，不返回发起人的token密文。
-
-响应与错误：200 {org,note,team_slug,expires_at,remaining_uses,valid,reason}；未知token404。
-
-数据与副作用：读取链接状态并计算剩余额度，不预留额度、不调用GitHub、不发邀请。
-
-本地表读取：invite_links。本地表写入：无。
-
-源码：[app/server/src/routes/portal/join.ts:52](../../../app/server/src/routes/portal/join.ts#L52)。验证入口：[tests/server/invitations.test.ts](../../../tests/server/invitations.test.ts)。
-
-## 兑换组织邀请链接
-
-`POST /api/join/:token` · `flow:invitation.public.redeem`
-
-权限与资源：持有token，PoW/蜜罐/可选Turnstile及分钟限流；额度、禁用和过期在事务预留时再次校验；发邀请用服务器的 GitHub App，没配 App 时用链接发起人密文中的token（经 App 建的链接不存令牌，#262 第四期）。
-
-响应与错误：200 {ok:true,invitation_id,message}；404不存在，400输入/明确失败，409 invite_pending_review/invite_unavailable，503 GitHub App 用不了、发起人凭据失效或结果待核对。
-
-数据与副作用：先事务预留再请求GitHub（可查团队和用户名），成功写邀请/尝试/审计；sent重放不重复发送，明确失败返还额度，不确定结果保留unknown待核对，不删除访问者会话。
-
-本地表读取：invite_links, invite_attempts。本地表写入：invite_links, invite_attempts, invitations, audit_logs。
-
-源码：[app/server/src/routes/portal/join.ts:67](../../../app/server/src/routes/portal/join.ts#L67)。验证入口：[tests/server/invitations.test.ts](../../../tests/server/invitations.test.ts)、[tests/server/rate-limits.test.ts](../../../tests/server/rate-limits.test.ts)。
+#274 review round 1（CONTRACT-274 §8，blocker）：GitHub 组织邀请链接整段删除——`GET /api/join/:token`、`POST /api/join/:token`、`lib/invite-reservation.ts`、`tests/server/invitations.test.ts` 都已删除，`invite_links`/`invite_attempts`/`invitations` 三张旧表数据原样保留、不再有接口读写；注册邀请码（`invite_codes`，GitHub/邮箱/Google 三种登录共用、SPEC §3.2 选填）与这套旧机制无关，见「邮箱登录」一节与 `lib/invite-codes.ts`。
 
 ## 读取意见分类与提交参数
 
