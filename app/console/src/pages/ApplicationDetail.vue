@@ -175,7 +175,7 @@ async function submit() {
                 <!-- TxSelect 0.6.0 的 attrs 落在外层，原生 label 给内层输入框命名。 -->
                 <label class="fill-width">
                   <span class="sr-only">状态</span>
-                  <TxSelect v-model="status" :options="statusOptions" :status="serverErrors?.status ? 'error' : 'default'" class="fill-width" panel-background="pure" />
+                  <TxSelect v-model="status" :options="statusOptions" :status="serverErrors?.status ? 'error' : 'default'" class="fill-width" :searchable="false" panel-background="pure" />
                 </label>
                 <span v-if="serverErrors?.status" class="field-error">{{ serverErrors.status }}</span>
               </TxFormItem>

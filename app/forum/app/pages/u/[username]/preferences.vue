@@ -326,6 +326,7 @@ function setTheme(value: TxSelectModelValue) {
           <TxSelect
             :model-value="theme.choice.value"
             class="tx-block-select__select"
+            :searchable="false"
             panel-background="pure"
             @update:model-value="setTheme"
           >

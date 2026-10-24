@@ -24,6 +24,13 @@ describe("控制台的下拉面板不透明", () => {
     for (const { path, tag } of tags) expect(tag, path).toMatch(/\spanel-background="pure"/);
   });
 
+  it("每个 TxSelect 要么写了中文的搜索提示，要么关掉搜索框", () => {
+    // 0.8.0 起选项达到 8 个的 TxSelect 会自己出搜索框，不写就是英文的「Search」「No results」。
+    const selects = files.flatMap(({ path, text }) => [...text.matchAll(/<TxSelect(?=\s|>)[^>]*>/g)].map(match => ({ path, tag: match[0] })));
+    for (const { path, tag } of selects)
+      expect(tag, path).toMatch(/\s(?:search-placeholder="[^"]*[\u4E00-\u9FFF][^"]*"[^>]*\sempty-text="[^"]*[\u4E00-\u9FFF]|:searchable="false")/);
+  });
+
   it("不用 TxBlockSelect", () => {
     for (const { path, text } of files) expect(text, path).not.toMatch(/<TxBlockSelect\b/);
   });

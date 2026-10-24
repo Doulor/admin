@@ -190,6 +190,8 @@ async function submit() {
             v-model="model.categoryId"
             :options="categoryOptions"
             placeholder="选择一个类别"
+            search-placeholder="搜索类别"
+            empty-text="没有这个类别"
             panel-background="pure"
           />
         </TxFormItem>

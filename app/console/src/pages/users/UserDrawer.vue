@@ -208,7 +208,7 @@ const providerText = (user: ConsoleUser) => user.providers.map(item => PROVIDER_
                 <!-- TxSelect 0.6.0 的 attrs 落在外层，用 label 给里面的输入框命名。 -->
                 <label class="fill-width">
                   <span class="sr-only">年级</span>
-                  <TxSelect v-model="gradeInput" :options="GRADE_OPTIONS" :placeholder="user.grade === 'graduated' ? '已毕业' : '选择年级'" class="fill-width" panel-background="pure" />
+                  <TxSelect v-model="gradeInput" :options="GRADE_OPTIONS" :placeholder="user.grade === 'graduated' ? '已毕业' : '选择年级'" class="fill-width" :searchable="false" panel-background="pure" />
                 </label>
                 <p class="hint">本人填过以后只能在这里改。年级每年 9 月 1 日自动升一级，大四之后是已毕业。</p>
               </TxFormItem>
