@@ -46,8 +46,8 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
   it('creates one account on the first sign-in, reuses it afterwards and reports it on /auth/me', async () => {
     const { app, db, callback, me, accountOf, count } = await setup();
     const first = await callback();
-    // 新账号还没有姓名和年级，先去补资料页（#280）
-    expect(first.location).toBe('https://example.test/complete-profile?return_to=%2Fforum%2F');
+    // 新账号是普通注册用户，不拦补资料（#280 fb386a9b：只拦极客班成员和往届成员）
+    expect(first.location).toBe('https://example.test/forum/');
     const accountId = accountOf(7);
     expect(accountId).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
     expect(await me(first.sid!)).toMatchObject({ signed_in: true, login: 'test-github-user', user_id: 7, account_id: accountId, provider: 'github' });

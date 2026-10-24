@@ -11,6 +11,7 @@ export const PERMISSION_DOMAINS: PermissionDomain[] = [
   { id: "account", label: "账号" },
   { id: "console", label: "控制台" },
   { id: "gitlab", label: "GitLab" },
+  { id: "system", label: "系统" },
   { id: "meta", label: "限额" },
 ];
 
@@ -59,6 +60,7 @@ export const NODE_LABELS: Record<Permission, string> = {
   "gitlab.view": "查看 GitLab",
   "gitlab.sync": "手动同步",
   "gitlab.settings": "修改 GitLab 设置",
+  "system.backup": "导出系统备份",
   "meta.limit.apply.daily": "每天投递上限",
   "meta.limit.forum.topic.hourly": "每小时发话题上限",
   "meta.limit.forum.reply.hourly": "每小时回复上限",

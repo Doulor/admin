@@ -1253,3 +1253,13 @@ SQLite读写：无。源码：[app/forum/server/middleware/forum-markdown.ts](..
 
 验证入口：[官网托管与站点包](../../../tests/server/competition-site.test.ts)、[两档基础分表](../../../tests/server/competition-rubric.test.ts)、[积分、两档与防刷](../../../tests/server/competition-scores.test.ts)、[公开接口与年级系数](../../../tests/server/competition-public.test.ts)、[贡献收集与「有用」标签](../../../tests/server/competition-candidates.test.ts)、[定榜、兑奖与迁移](../../../tests/server/competition-prizes.test.ts)。
 
+## 一键系统备份（#282）
+
+所有者 2026-10-24 22:22 的诉求：论坛和全系统数据要能一键打包下载，方便原服务器出故障或要搬到新机器时恢复；预发布和正式各自独立备份，不共享数据。打包逻辑在 [lib/system-backup.ts](../../../app/server/src/lib/system-backup.ts)（在线备份出 `data.db` 的快照副本，清空副本里的短时安全数据后流式打包）与 [lib/tar-stream.ts](../../../app/server/src/lib/tar-stream.ts)（纯 Node 的流式 tar+gzip，不缓冲整份归档）；恢复用命令行脚本 [scripts/backup-restore.mjs](../../../scripts/backup-restore.mjs)。内容、排除项与跨环境搬迁步骤见 [BACKUP](../../ops/BACKUP.md)。
+
+| 方法与路径 | 谁 | 成功与副作用 |
+|---|---|---|
+| `GET /api/console/backup` · `flow:platform.system_backup` | 需要节点 `system.backup`（种子里只有站长的根通配 `*` 默认拿到，部门部长没有），并且 10 分钟内登录过（否则 403 `step_up_required`，不打归档） | 200 `application/gzip` 流，`Content-Disposition` 带 `yzgc-backup-<environment>-<日期>.tar.gz`；内容是 `manifest.json` + `data.db` 快照 + `sites/` 下的站点文件；清空快照副本里的 sessions、device_grants、oauth_grants、oidc_payloads、email_challenges、invite_attempts、application_limits、limit_events、forum_rate_events，账号与密码哈希保留；单账号 5 分钟限 1 次；写 `system.backup.export`（只记文件数、表名与排除了哪些表，不记归档内容）。 |
+
+验证入口：[打包与流式 tar+gzip](../../../tests/server/system-backup.test.ts)、[tar-stream.ts 单测](../../../tests/server/tar-stream.test.ts)、[下载路由、权限与限流](../../../tests/server/backup-route.test.ts)、[恢复脚本](../../../tests/tooling/backup-restore.test.ts)。
+

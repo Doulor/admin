@@ -100,8 +100,8 @@ it('completes the real core callback with a stub provider and issues only sid, n
   const cookie = String(start.headers['set-cookie']).split(';')[0];
   const response = await app.inject({ url: `/auth/callback?code=isolated&state=${state}`, headers: { cookie } });
   expect(response.statusCode).toBe(302);
-  // 新注册的账号还没有姓名和年级（#280）：先到补资料页，补好回控制台
-  expect(response.headers.location).toBe('https://example.test/complete-profile?return_to=%2Fconsole');
+  // 新注册的普通用户不用补姓名和年级（#280 fb386a9b：补资料只拦极客班成员和往届成员），直接回控制台
+  expect(response.headers.location).toBe('https://example.test/console');
   const cookies = ([] as string[]).concat(response.headers['set-cookie'] || []);
   expect(cookies.some(c => c.startsWith('sid='))).toBe(true);
   expect(cookies.some(c => c.startsWith('forum_sid='))).toBe(false);
@@ -111,7 +111,8 @@ it('returns a signed-in user to the page that started the sign-in, without revok
   const { state, cookie } = await startSignIn(app, 'https://example.test/forum/t/12?page=2');
   const response = await app.inject({ url: `/auth/callback?code=ok&state=${state}`, headers: { cookie } });
   expect(response.statusCode).toBe(302);
-  expect(response.headers.location).toBe('https://example.test/complete-profile?return_to=%2Fforum%2Ft%2F12%3Fpage%3D2');
+  // 普通注册用户不拦补资料（#280 fb386a9b），原样回到开始登录的那一页
+  expect(response.headers.location).toBe('https://example.test/forum/t/12?page=2');
   expect(setCookies(response).some(c => c.startsWith('sid='))).toBe(true);
   // 登录成功的授权不撤销
   expect(providerCalls.some(call => call.url.includes('/grant'))).toBe(false);

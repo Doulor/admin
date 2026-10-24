@@ -21,28 +21,31 @@ describe("console navigation per persona (#274)", () => {
   const me = (name: string) => mockMe(MOCK_PERSONAS[name]);
   const ids = (name: string) => visibleNav(me(name)).map(item => item.id);
 
-  it("follows SPEC §3.9: 概览, then 招新, 社区, 用户, GitLab, 记录, with no GitHub organisation pages", () => {
-    expect(NAV_GROUPS.map(group => group.label)).toEqual(["招新", "社区", "用户", "GitLab", "记录"]);
+  it("follows SPEC §3.9: 概览, then 招新, 社区, 用户, GitLab, 记录, 系统, with no GitHub organisation pages", () => {
+    expect(NAV_GROUPS.map(group => group.label)).toEqual(["招新", "社区", "用户", "GitLab", "记录", "系统"]);
     expect(CONSOLE_NAV.map(item => item.id)).toEqual([
       "overview", "applications", "forum", "competitions", "users", "permissions", "invites",
-      "gitlab-overview", "gitlab-accounts", "gitlab-projects", "gitlab-settings", "activity", "feedback",
+      "gitlab-overview", "gitlab-accounts", "gitlab-projects", "gitlab-settings", "activity", "feedback", "backup",
     ]);
     for (const item of CONSOLE_NAV) {
       expect(item.to.startsWith("/console")).toBe(true);
       expect(`${item.id} ${item.to} ${item.label}`).not.toMatch(/github/i);
     }
   });
-  it("gives the site owner every page, whichever way they signed in", () => {
+  it("gives the site owner every page, whichever way they signed in, including backup (#282, root wildcard *)", () => {
     expect(ids("owner")).toEqual(CONSOLE_NAV.map(item => item.id));
+    expect(ids("owner")).toContain("backup");
     expect(ids("owner_email")).toEqual(ids("owner"));
   });
-  it("gives the management head users, permissions (read only), invites, GitLab and the activity log", () => {
+  it("gives the management head users, permissions (read only), invites, GitLab and the activity log, but not backup (#282: only the owner's root wildcard has system.backup)", () => {
     const list = ids("management_head");
     for (const id of ["overview", "users", "permissions", "invites", "gitlab-overview", "gitlab-settings", "activity", "competitions"]) expect(list, id).toContain(id);
     expect(list).not.toContain("applications");
     expect(list).not.toContain("feedback");
+    expect(list).not.toContain("backup");
     expect(me("management_head").permissions).toContain("perm.view");
     expect(me("management_head").permissions).not.toContain("perm.manage");
+    expect(me("management_head").permissions).not.toContain("system.backup");
   });
   it("gives a department head the overview, applications, users and the activity log of their own department", () => {
     const list = ids("ai_head");
