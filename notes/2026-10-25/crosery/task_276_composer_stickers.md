@@ -29,3 +29,17 @@
 - 做了什么：提交 991f7caf：inline-stickers.ts 和测试、post-markdown 的 [包名_名字]、15 张带字表情图和换图迁移、控制台 StickersTab 两层、docs/changes/276.json 补上新文件和迁移、ownership.json 给 forum.posts.reply 和 console.forum.stickers.list 补源码证据并重新生成目录。
 - 结果：check-architecture（对 6b71db41）宏观对齐通过，58 个变更文件、31 个关联节点；check-doc-sync、check:secrets、check:docs、项目目录核对（275 方法路径）、论坛来源核对通过。论坛 vitest 592 个用例、typecheck、typecheck:tests、lint、check:styles 通过；tests/console 240 个、tests/server/forum-v2-migration 和 forum-v2-endpoints 38 个用例通过；控制台 vue-tsc 通过。
 - 下一步：推送分支，开 MR，传截图，作者自审。
+
+## 01:11:03 +08:00 · PR · #276 · 开 MR !17：回复框、表情和控制台表情包卡片
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：GitLab 开 MR !17（task/276/composer_stickers → stage），正文按 PULL-REQUESTS 写目的（所有者原话）、Closes #276、变更范围、宏观对齐、解决链路、迁移演练行数表、验证命令、截图 12 张、人工验收步骤、风险与回滚；标签 forum、func:api、func:data、ui:interaction、ui:visual、ui:layout。正文写明 B 站表情图没导入、994636e9 挪动了 rc.20 的发布记录。
+- 结果：MR !17 已开，head b81c5cae。
+- 下一步：作者自审，把审查结论贴进 MR。
+
+## 01:11:03 +08:00 · 审查 · #276 · 作者自审 MR !17：通过
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：主会话按 .agents/skills/code-review 两条线逐个文件核对 f17bcaf4、991f7caf 的 diff：inline-stickers.ts 只在非代码文本里换写法、图片块只换站内表情地址；post-markdown 的写法先换成短码再走原来的白名单和转义，title 按属性转义；迁移按原图 sha256 比对、只换还指着原图的、原图文件行保留、事务里做；控制台两层页面、名字和包名不重复只在控制台拦。
+- 结果：结论：通过。已知限制写进 MR：服务端不拦同包同名（写法撞了用排在前面的那张）；表情走 CDN 要凭据，没做；B 站表情图没导入；预发布真实数据未验证，随 rc.21 补截图。
+- 下一步：合并进 stage，关 #276，手工收尾。
