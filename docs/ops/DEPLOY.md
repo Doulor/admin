@@ -21,6 +21,8 @@
                  ├─ /console、/admin、/signin（含子路径） → sites/console/index.html（app/console，Vue + Tuffex）
                  ├─ /healthz  → server:3000（web 也代理，部署脚本用它做健康门）
                  ├─ /api/*、/auth/* → server:3000（Fastify + /data 命名卷）
+                 ├─ /c/*      → server:3000（比赛官网站点包，server 下发 sandbox CSP，#278）
+                 ├─ /sdk/*    → 镜像里的比赛 SDK（/sdk/competition/v1.js，缓存 5 分钟，带 Access-Control-Allow-Origin: *）
                  ├─ /forum    → 308 到相对地址 /forum/（web 与论坛两个容器都 absolute_redirect off，跳转不带协议、主机和容器端口）
                  ├─ /forum/*  → forum:3000（Nuxt 静态产物；镜像按 GEEK_FORUM_BASE_PATH=/forum/ 构建，proxy_pass 带尾斜杠剥离前缀，proxy_redirect 把论坛的相对跳转补回前缀；location ^~，图片、字体也转给论坛）
                  ├─ /admin、/admin/*、/console、/console/*、/signin → admin SPA 入口
@@ -143,7 +145,7 @@ bash deploy-stack.sh --environment production \
 
 ## 数据与备份
 
-- 每个环境的数据都在自己的命名卷里（server 的 `/data`：`data.db`、旧论坛兼容路径）；forum 容器当前不挂卷、无服务端持久化。两栈互不可见。
+- 每个环境的数据都在自己的命名卷里（server 的 `/data`：`data.db`、比赛官网站点包解开后的文件 `sites/<比赛>/<版本>/`（#278，与 `DB_PATH` 同目录，备份数据库时一起备份）、旧论坛兼容路径）；forum 容器当前不挂卷、无服务端持久化。两栈互不可见。
 - 旧站数据已按独立授权拉到 Mac 私有目录，见 [FORUM-DATA-CAPTURE](FORUM-DATA-CAPTURE.md)；这是源数据保全，不是 schema 迁移，不自动替换线上库，也不放进镜像或 CI。
 - 变更表结构尽量增量兼容，不自动删除或重排。变更前使用 SQLite 在线 backup API 或停服的一致性备份，不能只复制活动 WAL 主文件并假定完整。备份同时记录镜像 tag、环境与应用版本，并完成恢复演练。
 - 镜像保留策略（最新 5 个 tag + 当前 + 上一个）只清理镜像，不清理数据卷；**回滚不重置数据库**，结构不兼容时停下来由人处理。
@@ -167,6 +169,7 @@ bash rollback-stack.sh --environment production --to <sha12|previous>
 
 - 容器内进程非 root 运行（web 容器 nginx 以 nginx 用户跑非特权 8080）；镜像只含运行必需的代码与静态产物。
 - 宿主 nginx 只做 TLS 终止与反代，不读取应用密钥；安全头统一在宿主下发，容器不重复。唯一例外是论坛页面的 CSP：论坛容器下发站点策略加上论坛内联脚本的哈希，宿主模板开头的 `map` 只在 `/forum/` 下、上游已带 CSP 时不再叠加第二份，其它路径照发站点策略（#78）。站点策略的 `media-src` 与 `connect-src` 放行 `https://cdn.crosery.com`（官网宣传片是 HLS，hls.js 用 XHR 取分片、以 `blob:` 地址交给 `<video>`，#77）。`connect-src` 另放行 `blob:`（手机 3D 模型的 GLB 内嵌贴图，three.js 的 `GLTFLoader` 先转成 `blob:` 地址再用 `fetch` 读取，#240）；论坛容器的策略取自同一份模板，会一起带上。`script-src`、`style-src`、`font-src` 只放行 CDN 上的 `https://cdn.crosery.com/yzgc/static/site/` 前缀（带哈希的静态文件，#146，见下文「静态资源 CDN」）；论坛容器的 CSP 取自同一份模板，构建时就带上。改宿主模板后要重新安装到服务器（只装对应环境那一份，先备份、`nginx -t` 再 reload），这一步不在 CI 里；发版后经公网确认 `/forum/` 只有一条带 `sha256-` 的 CSP（部署脚本的健康检查不经过宿主 nginx，查不出来）。
+- 比赛官网（#278）：`/c/<slug>/` 由 server 下发 `sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox; default-src 'self'; …` 这份 CSP，宿主的站点策略照常叠加，浏览器取交集（两份都只放行 `'self'`，站点包不能引用外部地址）。上传站点包的 `POST /api/console/competitions/<id>/site/versions` 请求体是 zip，宿主模板与 web 容器都只给这一条路径放宽到 `client_max_body_size 21m`（包上限 20MB），其余仍是 6m；`tests/tooling/web-nginx.test.ts` 核对。改了宿主模板要按上一条重新安装才生效，没装之前上传超过 6MB 的包会被宿主 nginx 回 413。
 - 部署用户的 SSH 密钥只存在于 GitHub 环境级 secrets 与维护者机器（`scripts/deploy-manual.mjs` 通过 `DEPLOY_SSH_KEY_FILE` 读取）；不在仓库、脚本或日志中出现。
 - 镜像与 env 文件按 600/最小权限落在栈根，发布产物不包含 `.env`、真实数据库或 SSH 材料；incoming 里分发来的归档与 env 副本在部署成功后删除（见「incoming 清理」）。
 

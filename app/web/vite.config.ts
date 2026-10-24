@@ -58,6 +58,11 @@ function devSiteFallback(): Plugin {
             _res.end();
             return;
           }
+          // 比赛官网 SDK（#278）：生产是 sdk.vite.config.ts 构建出的 dist/sdk/competition/v1.js，开发态直接给源码
+          if (path === "/sdk/competition/v1.js") {
+            req.url = "/shared/competition-sdk/index.ts";
+            return next();
+          }
           const site = SITE_NAMES.find((s) => path === `/sites/${s}` || path.startsWith(`/sites/${s}/`));
           if (!site) return next();
           // 真实资源（带扩展名）放行，交给 Vite 处理
@@ -82,6 +87,8 @@ export default defineConfig({
       "/api": "http://127.0.0.1:3000",
       "/auth": "http://127.0.0.1:3000",
       "/oidc": "http://127.0.0.1:3000",
+      // 比赛官网的同域托管（#278）；用正则，免得 "/c" 前缀把 /console 也转走
+      "^/c/": "http://127.0.0.1:3000",
       "/healthz": "http://127.0.0.1:3000",
     },
   },

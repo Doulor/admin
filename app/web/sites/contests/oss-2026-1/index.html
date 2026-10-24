@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#030914" />
+    <meta name="description" content="长江大学极客班开源实战贡献挑战赛 2026 第一期：规则、计分、奖项、实时天梯与贡献动态。" />
+    <title>OSS CHALLENGE · 极客班开源实战贡献挑战赛 2026 第一期</title>
+  </head>
+  <body>
+    <canvas id="sky" aria-hidden="true"></canvas>
+    <a class="skip" href="#board">跳到实时天梯</a>
+
+    <header class="hero" id="top">
+      <h1 class="sr-only">OSS CHALLENGE，极客班开源实战贡献挑战赛 2026 第一期</h1>
+      <canvas id="title" class="hero-title" aria-hidden="true"></canvas>
+      <p class="hero-sub">YUGC · 极客班开源实战贡献挑战赛 · 2026 第一期</p>
+
+      <div class="countdown">
+        <p class="countdown-label" id="countdown-label">距离截止还有</p>
+        <div class="flips" aria-hidden="true">
+          <div class="flip" data-unit="days"><div class="flip-card"></div><span class="flip-unit">天</span></div>
+          <div class="flip" data-unit="hours"><div class="flip-card"></div><span class="flip-unit">时</span></div>
+          <div class="flip" data-unit="minutes"><div class="flip-card"></div><span class="flip-unit">分</span></div>
+          <div class="flip" data-unit="seconds"><div class="flip-card"></div><span class="flip-unit">秒</span></div>
+        </div>
+        <p class="countdown-ended" id="countdown-ended" hidden>已结束，结果公布中</p>
+        <p class="sr-only" id="countdown-text"></p>
+      </div>
+
+      <p class="term"><span class="sr-only">$ git merge --no-ff your-first-contribution</span><span class="term-text" aria-hidden="true"></span><span class="term-caret" aria-hidden="true"></span></p>
+
+      <div class="cta">
+        <a class="pill pill-primary" data-link="signup" href="/" target="_blank" rel="noopener">去报名<span data-icon="external-link-line"></span></a>
+        <a class="pill pill-ghost" href="#board" data-scroll>看天梯</a>
+      </div>
+      <a class="scroll-hint" href="#rules" data-scroll aria-label="往下看规则"><span data-icon="arrow-down-line"></span></a>
+      <div class="star-tip" id="star-tip" hidden></div>
+    </header>
+
+    <main class="sections">
+      <section class="win" id="rules" aria-labelledby="rules-title">
+        <div class="win-bar"><span class="win-dots" aria-hidden="true"><i></i><i></i><i></i></span><h2 id="rules-title">怎么参加</h2><span></span></div>
+        <div class="win-body">
+          <ol class="steps">
+            <li class="step tone-y">
+              <span class="step-icon" data-icon="user-add-line"></span>
+              <h3>报名</h3>
+              <p data-text="team-rule">在主站的比赛窗口报名。可以一个人参加，也可以组队。</p>
+            </li>
+            <li class="step tone-u">
+              <span class="step-icon" data-icon="git-pull-request-line"></span>
+              <h3>提交</h3>
+              <p>在 GitLab 的 <code data-text="repository">geek/admin</code> 提 Issue 或 Merge Request，账号用极客班登录的那个。</p>
+            </li>
+            <li class="step tone-g">
+              <span class="step-icon" data-icon="git-merge-line"></span>
+              <h3>被合并</h3>
+              <p>MR 被合并、Issue 被采纳，再由组织者标记「有用」，分数就进天梯。</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="win" id="scoring" aria-labelledby="scoring-title">
+        <div class="win-bar"><span class="win-dots" aria-hidden="true"><i></i><i></i><i></i></span><h2 id="scoring-title">怎么算分</h2><span></span></div>
+        <div class="win-body">
+          <div class="score-cols">
+            <div class="score-card">
+              <h3><span data-icon="bug-line"></span>Issue</h3>
+              <ul class="score-list">
+                <li><span>小问题，描述清楚就能复现</span><b class="chip tone-y">+5</b></li>
+                <li><span>一般问题，带复现步骤或定位</span><b class="chip tone-u">+10</b></li>
+                <li><span>较大的问题或完整的改进方案</span><b class="chip tone-g">+20</b></li>
+                <li><span>严重缺陷或架构层面的建议</span><b class="chip tone-c">+30</b></li>
+              </ul>
+            </div>
+            <div class="score-card">
+              <h3><span data-icon="git-pull-request-line"></span>Merge Request</h3>
+              <ul class="score-list">
+                <li><span>改动不到 50 行</span><b class="chip tone-y">+15</b></li>
+                <li><span>50 到 199 行</span><b class="chip tone-u">+30</b></li>
+                <li><span>200 到 799 行</span><b class="chip tone-g">+60</b></li>
+                <li><span>800 行以上，或组织者认定的大改动</span><b class="chip tone-c">+100</b></li>
+              </ul>
+            </div>
+          </div>
+          <p class="score-note"><span data-icon="thumb-up-line"></span>只有被标记「有用」的 Issue 和 MR 才加分：组织者在 GitLab 上打「有用」标签，或在控制台确认。自己给自己打的标签不算。上面的分值是建议，组织者确认时可以在同档范围内调整。</p>
+          <div class="grade">
+            <h3><span data-icon="graduation-cap-line"></span>年级系数</h3>
+            <p class="grade-lead">最终得分是分值乘年级系数。年级按记分那一刻算，记下之后不再改。</p>
+            <ul class="grade-list" id="grade-list">
+              <li><span>大一</span><b>×1.5</b></li>
+              <li><span>大二</span><b>×1.3</b></li>
+              <li><span>大三</span><b>×1.1</b></li>
+              <li><span>大四</span><b>×1.0</b></li>
+              <li><span>已毕业</span><b>×1.0</b></li>
+              <li><span>无年级</span><b>×1.0</b></li>
+            </ul>
+          </div>
+          <p class="penalty"><span data-icon="forbid-line"></span><span>作弊扣 50 分：刷提交、拆分同一改动凑数、抄袭别人的 MR 或 Issue，组织者核实后直接扣分，不乘系数。</span></p>
+        </div>
+      </section>
+
+      <section class="win" id="prizes" aria-labelledby="prizes-title">
+        <div class="win-bar"><span class="win-dots" aria-hidden="true"><i></i><i></i><i></i></span><h2 id="prizes-title">奖项</h2><span></span></div>
+        <div class="win-body" data-slot="prizes"><p class="loading">正在读取奖项</p></div>
+      </section>
+
+      <section class="win win-wide" id="board" aria-labelledby="board-title" tabindex="-1">
+        <div class="win-bar"><span class="win-dots" aria-hidden="true"><i></i><i></i><i></i></span><h2 id="board-title">实时天梯</h2><span></span></div>
+        <div class="win-body">
+          <div class="stats" data-slot="stats" aria-live="polite"></div>
+          <div class="tabs" role="tablist" aria-label="天梯类型">
+            <button type="button" role="tab" id="tab-individual" aria-controls="panel-individual" aria-selected="true">个人</button>
+            <button type="button" role="tab" id="tab-team" aria-controls="panel-team" aria-selected="false" tabindex="-1">队伍</button>
+          </div>
+          <div class="board-panel" role="tabpanel" id="panel-individual" aria-labelledby="tab-individual" data-slot="individual"><p class="loading">正在读取天梯</p></div>
+          <div class="board-panel" role="tabpanel" id="panel-team" aria-labelledby="tab-team" data-slot="team" hidden></div>
+          <p class="board-meta" data-slot="board-meta"></p>
+        </div>
+      </section>
+
+      <section class="win" id="feed" aria-labelledby="feed-title">
+        <div class="win-bar"><span class="win-dots" aria-hidden="true"><i></i><i></i><i></i></span><h2 id="feed-title">贡献动态</h2><span></span></div>
+        <div class="win-body">
+          <ol class="feed" data-slot="feed" aria-live="polite"><li class="loading">正在读取动态</li></ol>
+          <button type="button" class="pill pill-soft feed-more" data-slot="feed-more" hidden>再看 20 条</button>
+        </div>
+      </section>
+
+      <section class="win" id="timeline" aria-labelledby="timeline-title">
+        <div class="win-bar"><span class="win-dots" aria-hidden="true"><i></i><i></i><i></i></span><h2 id="timeline-title">时间线</h2><span></span></div>
+        <div class="win-body" data-slot="timeline"></div>
+      </section>
+
+      <section class="win" id="teams" aria-labelledby="teams-title">
+        <div class="win-bar"><span class="win-dots" aria-hidden="true"><i></i><i></i><i></i></span><h2 id="teams-title">队伍</h2><span></span></div>
+        <div class="win-body" data-slot="teams"><p class="loading">正在读取队伍</p></div>
+      </section>
+
+      <section class="win" id="faq" aria-labelledby="faq-title">
+        <div class="win-bar"><span class="win-dots" aria-hidden="true"><i></i><i></i><i></i></span><h2 id="faq-title">常见问题</h2><span></span></div>
+        <div class="win-body">
+          <div class="faq">
+            <details>
+              <summary>谁能参加？<span data-icon="arrow-down-s-line"></span></summary>
+              <div class="faq-a"><p>极客班成员都能参加。还不是成员的，先在主站注册并用邀请码加入。</p></div>
+            </details>
+            <details>
+              <summary>能不能一个人参加？<span data-icon="arrow-down-s-line"></span></summary>
+              <div class="faq-a"><p data-text="faq-team">可以。一个人报名就是一人一队，天梯上的个人榜和队伍榜都会出现。</p></div>
+            </details>
+            <details>
+              <summary>往哪里提交？<span data-icon="arrow-down-s-line"></span></summary>
+              <div class="faq-a"><p>GitLab 上的 <code data-text="repository">geek/admin</code>，以及组织者另外认可的仓库。用极客班账号登录 GitLab，系统才能把贡献对到你身上。</p></div>
+            </details>
+            <details>
+              <summary>怎么算分？<span data-icon="arrow-down-s-line"></span></summary>
+              <div class="faq-a"><p>合并的 MR 按改动行数给 15 到 100 分，被采纳的 Issue 按大小给 5 到 30 分，都要组织者标记「有用」才计入。分值再乘年级系数，具体见上面的计分表。</p></div>
+            </details>
+            <details>
+              <summary>什么算作弊？<span data-icon="arrow-down-s-line"></span></summary>
+              <div class="faq-a"><p>刷无意义的提交、把一个改动拆成很多个 MR 凑数、抄别人的 MR 或 Issue、自己给自己打「有用」标签。核实后每次扣 50 分，严重的取消资格。</p></div>
+            </details>
+            <details>
+              <summary>截止以后还能改吗？<span data-icon="arrow-down-s-line"></span></summary>
+              <div class="faq-a"><p>截止时间是 <span data-text="end-at">11 月 15 日 23:59:59</span>，之后提交的不计分。截止前合并或提交的，组织者会在定榜前标记完。定榜后名次不再变，得奖的同学在主站「我的参赛」里看到兑奖码。</p></div>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="finale" id="finale">
+      <div class="finale-stage">
+        <div class="finale-window" aria-hidden="true">
+          <div class="finale-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="finale-name"><span data-icon="heart-3-fill"></span>oss_challenge.exe</span></div>
+          <div class="finale-dots"></div>
+        </div>
+        <img class="finale-girl" src="./geek-girl.webp" width="883" height="1676" alt="极客娘坐在 oss_challenge.exe 窗口上" loading="lazy" decoding="async" />
+        <p class="finale-say">准备好了，点一下开始吧</p>
+      </div>
+      <a class="pill pill-primary pill-big" data-link="signup" href="/" target="_blank" rel="noopener">去报名<span data-icon="external-link-line"></span></a>
+      <p class="finale-meta">主办 长江大学极客班 · 数据来自 <span data-text="origin">本站</span> 公开接口</p>
+    </footer>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
