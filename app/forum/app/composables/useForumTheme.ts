@@ -12,12 +12,17 @@ import type { ForumTheme } from '../../shared/site-account'
  *
  * Saving to the account is best-effort: the theme has already changed on the
  * page, and a refused save only means another browser will not follow.
+ *
+ * Every real change also reports `forum.theme.change` (#274: the only way a
+ * visitor's theme choice — no account to save it to — shows up in the
+ * activity log at all).
  */
 export type ThemeChoice = ForumTheme | 'system'
 
 export function useForumTheme() {
   const colorMode = useColorMode()
   const { account } = useSiteAccount()
+  const { report } = useActivityBeacon()
 
   const choice = computed<ThemeChoice>(() => {
     const value = colorMode.preference
@@ -25,7 +30,10 @@ export function useForumTheme() {
   })
 
   async function set(value: ThemeChoice): Promise<void> {
+    const changed = colorMode.preference !== value
     colorMode.preference = value
+    if (changed)
+      report('forum.theme.change', { meta: { theme: value } })
     const current = account.value
     const stored = value === 'system' ? null : value
     if (!current || current.forumTheme === stored)

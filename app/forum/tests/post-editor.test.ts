@@ -89,12 +89,13 @@ describe('before and without the editor', () => {
     expect(textOf(editor.root)).not.toContain('输入 / 打开菜单')
   })
 
-  it('appends a picked sticker to the textarea as its shortcode', async () => {
+  it('appends a picked sticker to the textarea as its shortcode, and reports forum.sticker.use (#274)', async () => {
     const editor = mountEditor('你好', { crepe: 'broken', granted: ['forum.sticker.use'] })
     await settle()
     ;(editor.picker()!.props.onPick as (sticker: unknown) => void)(WAVE)
     await nextTick()
     expect(editor.text.value).toBe('你好 :yugc-wave: ')
+    expect(editor.reported).toEqual([{ action: 'forum.sticker.use', extra: { target_type: 'sticker', target_id: 'yugc-wave' } }])
   })
 })
 
@@ -155,6 +156,7 @@ describe('the loaded editor', () => {
     await settle()
     ;(editor.picker()!.props.onPick as (sticker: unknown) => void)(WAVE)
     expect(editor.editors[0]!.inserted).toEqual([`![挥手](${WAVE_URL})`])
+    expect(editor.reported).toEqual([{ action: 'forum.sticker.use', extra: { target_type: 'sticker', target_id: 'yugc-wave' } }])
   })
 
   it('opens the sticker panel from the slash menu, and leaves the item out without the right', async () => {

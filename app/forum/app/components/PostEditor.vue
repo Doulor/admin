@@ -44,6 +44,7 @@ const content = defineModel<string>({ required: true })
 const server = useForumServerStore()
 const { serverMode } = useContentSource()
 const { available: stickersAvailable, index } = useStickers()
+const { report } = useActivityBeacon()
 
 const canSticker = computed(() => stickersAvailable && server.granted.has('forum.sticker.use'))
 const canUpload = computed(() => serverMode && server.granted.has('forum.upload.image'))
@@ -142,6 +143,8 @@ async function upload(file: File): Promise<string> {
 }
 
 function insertSticker(sticker: Sticker) {
+  // #274：只记表情的编号（公开的素材标识，不是帖子正文），用了哪个表情、用了几次。
+  report('forum.sticker.use', { target_type: 'sticker', target_id: sticker.shortcode })
   if (editor) {
     editor.insert(`![${sticker.label}](${sticker.url})`)
     return
