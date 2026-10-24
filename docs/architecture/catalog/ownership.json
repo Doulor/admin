@@ -306,7 +306,7 @@
     "sessions": "包含加密会话凭据。目录仅记录列与约束，不读取会话值。",
     "users": "极客班账号：id 就是接口里的 account_id（极客班 OpenID），随机生成、永不复用；只有身份模块（lib/identity-store.ts）读写。目录不读取记录。",
     "identities": "每种登录方式一行；GitHub 的 provider_uid 是数字 id 的十进制串，login、avatar_url 只是展示镜像。同一 GitHub 账号只能绑定一个极客班账号；一个账号 GitHub、Google 各最多一个，邮箱最多 5 个（#272）。目录不读取记录。",
-    "identity_audit": "给本人看的账号记录（登录、被拒、退出），不存 IP、UA、邮箱原文和第三方标识；管理审计仍在 audit_logs。",
+    "identity_audit": "给本人看的账号记录（登录、被拒、退出），不存 IP、UA、邮箱原文和第三方标识；管理操作记在 activity_events（操作记录）。",
     "invite_links": "包含能力令牌与加密上游凭据。目录不读取记录。",
     "mail_outbox": "包含发信中的个人信息；application_id、review_id 不是数据库外键。具体保留规则见 mail.md。",
     "competitions": "只存赛事事实，不含参赛者或队伍；status由时间计算，offline仅控制公开可见性，删除与下线不同。有未取消的报名后不能改内外部，有报名记录的比赛不能真删；旧库启动时插入一期开源贡献赛（id 为 oss-challenge-2026-1），用 console_seeds 标记，只插一次。",
@@ -420,7 +420,7 @@
       "writes": [
         "applications",
         "application_reviews",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [
         "mail_outbox"
@@ -704,13 +704,13 @@
       ],
       "writes": [
         "device_grants",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：要极客班会话；授权绑定到会话的 account_id（不是 GitHub id）；每分钟 20 次。",
         "响应与错误：200 {ok:true,status:approved|denied}；不存在 404 device_code_not_found；不是 pending 或已过期 409 device_code_not_pending；decision 不合法 400；允许时账号还没有登录邮箱（这个环境能发信）403 email_required，拒绝不拦（#273）。",
-        "数据与副作用：条件 UPDATE 只改 pending 且未过期的行，并发的确认只有一次生效；写 audit_logs identity.device.approve 或 identity.device.deny，只含 client_id 与 scope，不含 device_code 与令牌。"
+        "数据与副作用：条件 UPDATE 只改 pending 且未过期的行，并发的确认只有一次生效；写操作记录 identity.device.approve 或 identity.device.deny，只含 client_id 与 scope，不含 device_code 与令牌。"
       ],
       "evidence": [
         {
@@ -808,7 +808,7 @@
       ],
       "writes": [
         "sessions",
-        "audit_logs",
+        "activity_events",
         "users",
         "identities",
         "identity_audit",
@@ -836,7 +836,7 @@
         },
         {
           "path": "app/server/src/lib/db.ts",
-          "needle": "function audit(org: string | null, actor: AuditActor,"
+          "needle": "function audit(actor: AuditActor, action: string,"
         },
         {
           "path": "app/server/src/lib/email-gate.ts",
@@ -888,7 +888,7 @@
       ],
       "writes": [
         "sessions",
-        "audit_logs",
+        "activity_events",
         "identity_audit"
       ],
       "doesNotEnqueue": [],
@@ -1164,7 +1164,7 @@
         "invite_codes",
         "sessions",
         "identity_audit",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -1223,7 +1223,7 @@
       "writes": [
         "sessions",
         "identity_audit",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -1280,7 +1280,7 @@
         "users",
         "sessions",
         "identity_audit",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -1385,7 +1385,7 @@
         "invite_codes",
         "sessions",
         "identity_audit",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -1578,7 +1578,7 @@
         "identities",
         "users",
         "identity_audit",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
@@ -1629,7 +1629,7 @@
       "writes": [
         "identities",
         "identity_audit",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
@@ -1685,7 +1685,7 @@
       "writes": [
         "users",
         "identity_audit",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
@@ -1799,7 +1799,7 @@
       ],
       "writes": [
         "invite_codes",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
@@ -1857,7 +1857,7 @@
       ],
       "writes": [
         "invite_codes",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
@@ -2107,13 +2107,13 @@
         "account_profiles"
       ],
       "writes": [
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：需要节点 activity.export（比 activity.read 更高一级，不经部门 scope，能导出全量）。",
         "响应与错误：200 text/csv；最多 5000 行，不分页；表头 id,at,account_id,username,visitor_id,surface,action,target_type,target_id,outcome,ip,request_id。",
-        "数据与副作用：只读 activity_events；没有 activity.read.ip 时 IP 同样打码；每次导出写一条 audit_logs（action=activity.export，details 记导出行数），导出动作本身不写进 activity_events。"
+        "数据与副作用：只读 activity_events；没有 activity.read.ip 时 IP 同样打码；每次导出写一条操作记录（action=activity.export，meta 记导出行数）。"
       ],
       "evidence": [
         {
@@ -2285,7 +2285,7 @@
         "titles"
       ],
       "writes": [
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
@@ -2341,7 +2341,7 @@
         "titles"
       ],
       "writes": [
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
@@ -2399,7 +2399,7 @@
         "applications",
         "application_reviews",
         "mail_outbox",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
@@ -2452,7 +2452,7 @@
         "applications",
         "application_limits",
         "mail_outbox",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -2708,7 +2708,7 @@
       ],
       "writes": [
         "feedback",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
@@ -2757,7 +2757,7 @@
       ],
       "writes": [
         "sessions",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -2818,7 +2818,7 @@
       ],
       "writes": [
         "feedback",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
@@ -2876,7 +2876,7 @@
       ],
       "writes": [
         "feedback",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
@@ -2942,7 +2942,7 @@
       "writes": [
         "forum_users",
         "sessions",
-        "audit_logs",
+        "activity_events",
         "limit_events"
       ],
       "doesNotEnqueue": [],
@@ -3005,7 +3005,7 @@
       "writes": [
         "forum_users",
         "sessions",
-        "audit_logs",
+        "activity_events",
         "limit_events"
       ],
       "doesNotEnqueue": [],
@@ -3068,9 +3068,8 @@
       "writes": [
         "forum_users",
         "sessions",
-        "audit_logs",
-        "limit_events",
-        "activity_events"
+        "activity_events",
+        "limit_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -3141,7 +3140,7 @@
         "forum_rate_events",
         "forum_users",
         "sessions",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -3202,7 +3201,7 @@
       ],
       "writes": [
         "forum_topics",
-        "audit_logs",
+        "activity_events",
         "forum_users",
         "sessions"
       ],
@@ -3265,7 +3264,7 @@
       ],
       "writes": [
         "forum_topics",
-        "audit_logs",
+        "activity_events",
         "forum_users",
         "sessions"
       ],
@@ -3364,7 +3363,7 @@
         "forum_counters",
         "forum_rate_events",
         "role_assignments",
-        "audit_logs",
+        "activity_events",
         "sessions",
         "departments",
         "titles",
@@ -3378,7 +3377,7 @@
         "forum_counters",
         "forum_rate_events",
         "sessions",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -3449,7 +3448,7 @@
       ],
       "writes": [
         "forum_posts",
-        "audit_logs",
+        "activity_events",
         "forum_users",
         "sessions"
       ],
@@ -3510,7 +3509,7 @@
       ],
       "writes": [
         "forum_posts",
-        "audit_logs",
+        "activity_events",
         "forum_users",
         "sessions"
       ],
@@ -3577,7 +3576,7 @@
         "forum_counters",
         "forum_users",
         "sessions",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -3639,7 +3638,7 @@
         "forum_bookmarks",
         "forum_users",
         "sessions",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -3704,7 +3703,7 @@
         "forum_counters",
         "forum_users",
         "sessions",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -3765,7 +3764,7 @@
         "forum_notifications",
         "forum_users",
         "sessions",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -3826,7 +3825,7 @@
         "forum_notifications",
         "forum_users",
         "sessions",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -3878,7 +3877,7 @@
         "forum_users",
         "role_assignments",
         "sessions",
-        "audit_logs",
+        "activity_events",
         "departments",
         "titles",
         "forum_likes"
@@ -3886,7 +3885,7 @@
       "writes": [
         "forum_users",
         "sessions",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -3949,7 +3948,7 @@
         "forum_users",
         "forum_rate_events",
         "sessions",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -4014,7 +4013,7 @@
         "forum_users",
         "forum_avatars",
         "sessions",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -4397,7 +4396,7 @@
       ],
       "writes": [
         "sessions",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -4477,7 +4476,7 @@
       ],
       "writes": [
         "competitions",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
@@ -4547,7 +4546,7 @@
       ],
       "writes": [
         "competitions",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
@@ -4611,7 +4610,7 @@
       ],
       "writes": [
         "competitions",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
@@ -5765,11 +5764,11 @@
         "role_assignments",
         "departments",
         "titles",
-        "audit_logs"
+        "activity_events"
       ],
       "writes": [
         "competition_signup_settings",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -5919,7 +5918,7 @@
         "identities"
       ],
       "writes": [
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -5934,7 +5933,7 @@
         },
         {
           "path": "app/server/src/routes/console/competition-roster.ts",
-          "needle": "audit(config.consoleOrg, req.session!, \"competition.roster.export\", id, { rows: result.value.signups.length }, req.ip);"
+          "needle": "recordActivity(req, { action: \"competition.roster.export\""
         },
         {
           "path": "app/server/src/lib/beijing-time.ts",
@@ -6040,7 +6039,7 @@
       ],
       "writes": [
         "competition_score_events",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -6106,7 +6105,7 @@
       ],
       "writes": [
         "competition_score_events",
-        "audit_logs"
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -6431,14 +6430,14 @@
       "writes": [
         "oidc_payloads",
         "oauth_grants",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：要 sid、同源 Origin 与这次交互的 cookie；只认发起这次登录的账号；每个 IP 每分钟 20 次。",
         "响应与错误：200 {redirect_to}，前端整页跳过去继续授权；账号还没有登录邮箱 403 email_required（#273）；过期 404 interaction_expired，换了账号 409 interaction_mismatch。",
-        "数据与副作用：把缺的 scope 与声明加进授权并保存，记进 oauth_grants（之后同一应用登录不再问）；写 audit_logs oidc.consent，只含 client_id 与 scope。"
+        "数据与副作用：把缺的 scope 与声明加进授权并保存，记进 oauth_grants（之后同一应用登录不再问）；写操作记录 oidc.consent，只含 client_id 与 scope。"
       ],
       "evidence": [
         {
@@ -6487,14 +6486,14 @@
       ],
       "writes": [
         "oidc_payloads",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：同 confirm：要 sid、同源 Origin 与这次交互的 cookie；每个 IP 每分钟 20 次。",
         "响应与错误：200 {redirect_to}，下游收到 error=access_denied；过期 404，换了账号 409；没有登录邮箱也能拒绝（#273）。",
-        "数据与副作用：写 audit_logs oidc.deny；不写 oauth_grants。"
+        "数据与副作用：写操作记录 oidc.deny；不写 oauth_grants。"
       ],
       "evidence": [
         {
@@ -6626,14 +6625,14 @@
       "writes": [
         "gitlab_accounts",
         "oauth_subjects",
-        "audit_logs",
+        "activity_events",
         "sessions"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：有效全站 sid、同源 Origin、roles.manage；每个 IP 每分钟 30 次；用服务端的 GITLAB_API_TOKEN 调 GitLab 管理接口，不用操作人的凭据。",
         "响应与错误：200 {mode,account_id,login,actions,applied,error}；GITLAB_SYNC=off 时 409 gitlab_sync_off；账号不存在 404 account_not_found；GitLab 出错不回 5xx，写进 error 与 last_error。",
-        "数据与副作用：按 OIDC 身份（provider=openid_connect，extern_uid=gitlab 客户端 sector 的 sub）找或建 GitLab 用户、调组权限、封禁或解封、传头像（论坛头像或 256 像素的 GitHub 头像，200 KiB 以内，来源记进 avatar_source，#271）、同步邮箱（主邮箱、账号页绑的其它邮箱和 GitHub noreply 邮箱以已确认的加到 GitLab 用户名下，在极客班删掉的从 GitLab 删掉，记进 emails_source，#272），从不删除 GitLab 用户；dry-run 只返回 actions 不写；写 audit_logs gitlab.sync，操作人是会话账号。"
+        "数据与副作用：按 OIDC 身份（provider=openid_connect，extern_uid=gitlab 客户端 sector 的 sub）找或建 GitLab 用户、调组权限、封禁或解封、传头像（论坛头像或 256 像素的 GitHub 头像，200 KiB 以内，来源记进 avatar_source，#271）、同步邮箱（主邮箱、账号页绑的其它邮箱和 GitHub noreply 邮箱以已确认的加到 GitLab 用户名下，在极客班删掉的从 GitLab 删掉，记进 emails_source，#272），从不删除 GitLab 用户；dry-run 只返回 actions 不写；写操作记录 gitlab.sync，操作人是会话账号。"
       ],
       "evidence": [
         {
