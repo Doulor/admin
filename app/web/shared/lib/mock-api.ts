@@ -122,7 +122,6 @@ function route(path: string): unknown {
   if (pathname === "/api/public/config") return { turnstile_site_key: null, pow_difficulty: 1 };
   if (pathname === "/api/feedback/public") return { items: [] };
   if (pathname === "/api/public/competitions") return { competitions: demoCompetitions(now) };
-  if (pathname.startsWith("/api/join/")) return { valid: true, org: demoOrg, note: "开发预览邀请", expires_at: now + 864e5, remaining_uses: 23, pow_difficulty: 1 };
   if (pathname === "/auth/me") return mockMe(mockPersona() ?? "visitor");
   if (pathname === "/api/identity/me") return demoIdentity(mockPersona() ?? "visitor");
   if (pathname === "/api/public/departments") return { departments: demoDepartments };

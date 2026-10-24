@@ -16,9 +16,8 @@
 | `/forum-3d` | `pages/Forum3D.tsx` | 论坛版块气泡场景，主入口「进入论坛首页」一直可见，版块图标为 Remix 线性图标；进论坛前镜头推近、遮罩盖满，从论坛按后退回来时浏览器可能从往返缓存（bfcache）恢复整页，`pageshow.persisted` 时调场景的 `reset()` 回到进场的样子（#109）。桌面上的「论坛」已直达论坛首页，不再经过这页（#185，见下文「桌面入口直达」）；这页留给旧地址和「论坛最新」窗口里的「3D 版块」按钮 |
 | `/docs`、`/docs/:id` | `pages/Docs.tsx` | 公开产品介绍与用户指南（白名单由 `/api/docs` 决定） |
 | `/feedback`、`/feedback/:org` | `pages/Feedback.tsx` | 匿名意见箱；只发本部署的组织（#129）：组织框只读（浅灰底、悬停不变色，说明「这里改不了」用 `aria-describedby` 挂在框上），展示 `GET /api/feedback/categories` 下发的 `org`（`CONSOLE_ORG`），读公开列表和提交都用同一个值；接口回来之前或失败时组织框先显示站点配置 `urls.githubOrg` 的最后一段，但提交按钮是灰的：组织名、分类和 PoW 难度都要等这个接口读到才能提交，失败时分类处显示「没读到分类和发往的组织，暂时不能提交」和「重新读取」按钮，已经写的正文不清空（`tests/web/portal-feedback-org.test.tsx`）。`/feedback/:org` 是控制台意见箱页生成的分享地址（`app/console/src/pages/Feedback.vue`），也接住旧链接，不能删；URL 里的组织名不生效 |
-| `/join/:token` | `pages/JoinByToken.tsx` | GitHub 组织邀请链接（能力令牌）落地页 |
 
-`/join-us` 与 `/join/:token` 是两件事：前者是招新投递，后者是已有邀请链接的组织加入。首页之外的页面按路由懒加载。`/github`（GitHub 天际线场景页）在 #275 删掉，旧地址落到兜底路由回首页。`base.css` 不引远程字体（`cdn.jsdelivr.net` 的 Maple Mono 被站点 CSP 拦截），等宽字体走系统栈。
+`/join-us` 是招新投递。旧的 `/join/:token`（GitHub 组织邀请链接落地页）随 #274 删掉的 `/api/join/:token` 一起删掉，旧链接落到兜底路由回首页；注册邀请码在登录页和资料卡里填。首页之外的页面按路由懒加载。`/github`（GitHub 天际线场景页）在 #275 删掉，旧地址落到兜底路由回首页。`base.css` 不引远程字体（`cdn.jsdelivr.net` 的 Maple Mono 被站点 CSP 拦截），等宽字体走系统栈。
 
 ## 模块地图
 

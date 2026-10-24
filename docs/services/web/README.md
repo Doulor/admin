@@ -8,7 +8,7 @@
 
 | 路径 | 职责 |
 |---|---|
-| `app/web/sites/portal/` | 公开站点：`App.tsx` 路由（`/`、`/join-us`、`/forum-3d`、`/docs`、`/feedback`、`/join/:token`）、`pages/`、`three/`（按需加载的 three.js 场景：信封、论坛气泡）、`components/`（`boot/` 开机动画、`os/` YUGC OS 桌面与窗口、个人资料卡、页面外壳）、`lib/`（进站规则、相机数学、链接、快照、图标、全站登录状态 `account.ts`、部门、代码仓库、埋点）、`styles/`（`--pt-*` 与 YUGC OS v2 的 `--os-*` 令牌）、`index.html` 入口；不自建登录态，菜单栏头像打开个人资料卡（见 [portal](portal.md)「个人资料卡」） |
+| `app/web/sites/portal/` | 公开站点：`App.tsx` 路由（`/`、`/join-us`、`/forum-3d`、`/docs`、`/feedback`）、`pages/`、`three/`（按需加载的 three.js 场景：信封、论坛气泡）、`components/`（`boot/` 开机动画、`os/` YUGC OS 桌面与窗口、个人资料卡、页面外壳）、`lib/`（进站规则、相机数学、链接、快照、图标、全站登录状态 `account.ts`、部门、代码仓库、埋点）、`styles/`（`--pt-*` 与 YUGC OS v2 的 `--os-*` 令牌）、`index.html` 入口；不自建登录态，菜单栏头像打开个人资料卡（见 [portal](portal.md)「个人资料卡」） |
 | `app/web/shared/lib/` | 网络（`api`、`http`、`runtime`）、URL/站点（`site`）、Markdown（`markdown`）、挂载（`mount`）、PoW、主题、只读 mock（含开发预览身份 `?__mock=member\|registered\|visitor`，正式构建删掉） |
 | `app/web/shared/ui/` | 官网复用的交互原语：Modal、ConfirmDialog、Select、ImageLightbox、TurnstileWidget 等 |
 | `app/web/shared/styles/` | 基础样式与令牌（`base.css`、`rounded.css`） |
