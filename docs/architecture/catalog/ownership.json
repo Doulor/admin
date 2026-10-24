@@ -2216,6 +2216,10 @@
         {
           "path": "app/server/src/routes/console/me.ts",
           "needle": "result.candidates_pending = app.services.competitionCandidates.pendingCount();"
+        },
+        {
+          "path": "app/console/src/main.ts",
+          "needle": "import { createApp } from \"vue\";"
         }
       ],
       "tests": [
@@ -3300,6 +3304,62 @@
         {
           "path": "app/server/src/lib/access.ts",
           "needle": "export function createAccess("
+        },
+        {
+          "path": "app/forum/app/app.vue",
+          "needle": "<script setup lang=\"ts\">"
+        },
+        {
+          "path": "app/forum/app/components/TitleBadge.vue",
+          "needle": "<script setup lang=\"ts\">"
+        },
+        {
+          "path": "app/forum/app/components/TopicListNav.vue",
+          "needle": "<script setup lang=\"ts\">"
+        },
+        {
+          "path": "app/forum/app/composables/useCurrentUser.ts",
+          "needle": "export function useCurrentUser() {"
+        },
+        {
+          "path": "app/forum/app/composables/useForumTheme.ts",
+          "needle": "export type ThemeChoice = ForumTheme | 'system'"
+        },
+        {
+          "path": "app/forum/app/composables/useOrgTitles.ts",
+          "needle": "export function useOrgTitles() {"
+        },
+        {
+          "path": "app/forum/app/data/account-badges.ts",
+          "needle": "export const DEPARTMENT_TONE_COLORS: Record<string, string> = {"
+        },
+        {
+          "path": "app/forum/app/data/permissions.ts",
+          "needle": "export type ForumAction"
+        },
+        {
+          "path": "app/forum/app/data/titles.ts",
+          "needle": "export type TitleId = 'admin' | 'captain' | 'head' | 'member' | 'alumni' | 'guest'"
+        },
+        {
+          "path": "app/forum/app/data/types.ts",
+          "needle": "export const FORUM_STATE_VERSION = 1"
+        },
+        {
+          "path": "app/forum/app/pages/users.vue",
+          "needle": "<script setup lang=\"ts\">"
+        },
+        {
+          "path": "app/forum/app/plugins/opaque-surfaces.ts",
+          "needle": "export default defineNuxtPlugin({"
+        },
+        {
+          "path": "app/forum/app/stores/forum-server.ts",
+          "needle": "const RATE_LIMITED_TOAST = { id: 'forum-rate-limited', title: '请求太频繁，稍后再试', variant: 'warning' } as const"
+        },
+        {
+          "path": "app/forum/shared/forum-api.ts",
+          "needle": "export const FORUM_API_BASE = '/api/forum'"
         }
       ],
       "tests": [
@@ -3363,6 +3423,18 @@
         {
           "path": "app/server/src/lib/access.ts",
           "needle": "export function createAccess("
+        },
+        {
+          "path": "app/forum/app/components/ForumMarkdown.vue",
+          "needle": "<script setup lang=\"ts\">"
+        },
+        {
+          "path": "app/forum/app/pages/t/[id].vue",
+          "needle": "<script setup lang=\"ts\">"
+        },
+        {
+          "path": "app/forum/shared/post-markdown.ts",
+          "needle": "export const WORD_JOINER = '\\u2060'"
         }
       ],
       "tests": [
@@ -3746,6 +3818,26 @@
         {
           "path": "app/server/src/routes/forum-api/index.ts",
           "needle": "* 论坛接口 `/api/forum/*`（#57，ADR-0004）：存储在 data.db，身份只认核心 `sid`，"
+        },
+        {
+          "path": "app/forum/app/components/PostEditor.vue",
+          "needle": "<script setup lang=\"ts\">"
+        },
+        {
+          "path": "app/forum/app/components/ReplyComposer.vue",
+          "needle": "<script setup lang=\"ts\">"
+        },
+        {
+          "path": "app/forum/app/composables/useForumActions.ts",
+          "needle": "export function useForumActions() {"
+        },
+        {
+          "path": "app/forum/app/composables/usePostDraft.ts",
+          "needle": "const PREFIX = 'forum:draft:'"
+        },
+        {
+          "path": "app/forum/app/editor/crepe-editor.ts",
+          "needle": "export interface MentionQuery {"
         }
       ],
       "tests": [
@@ -4060,6 +4152,10 @@
         {
           "path": "app/server/src/lib/access.ts",
           "needle": "export function createAccess("
+        },
+        {
+          "path": "app/forum/app/pages/u/[username]/index.vue",
+          "needle": "<script setup lang=\"ts\">"
         }
       ],
       "tests": [
@@ -4242,6 +4338,10 @@
         {
           "path": "app/server/src/lib/access.ts",
           "needle": "export function createAccess("
+        },
+        {
+          "path": "app/forum/app/pages/u/[username]/preferences.vue",
+          "needle": "<script setup lang=\"ts\">"
         }
       ],
       "tests": [
@@ -4474,6 +4574,10 @@
         {
           "path": "app/server/src/lib/limits.ts",
           "needle": "\"forum.react.hourly\": 2 * HOUR_MS,"
+        },
+        {
+          "path": "app/forum/app/components/PostCard.vue",
+          "needle": "<script setup lang=\"ts\">"
         }
       ],
       "tests": [
@@ -4573,6 +4677,14 @@
         {
           "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts",
           "needle": "export type ForumV2MigrationReport = {"
+        },
+        {
+          "path": "app/forum/app/components/StickerPicker.vue",
+          "needle": "<script setup lang=\"ts\">"
+        },
+        {
+          "path": "app/forum/app/composables/useStickers.ts",
+          "needle": "export function useStickers() {"
         }
       ],
       "tests": [
@@ -4838,6 +4950,10 @@
         {
           "path": "app/server/src/middleware/http-policy.ts",
           "needle": "const extra = !masked && !upstream && !error.validation ? error.extra : undefined;"
+        },
+        {
+          "path": "app/forum/app/components/TopicControls.vue",
+          "needle": "<script setup lang=\"ts\">"
         }
       ],
       "tests": [
@@ -4893,6 +5009,10 @@
         {
           "path": "app/server/src/routes/console/contracts.ts",
           "needle": "\"GET /api/console/forum/categories\": {"
+        },
+        {
+          "path": "app/console/src/lib/forum.ts",
+          "needle": "export const VISIBILITY_OPTIONS: { value: ForumVisibility; label: string }[] = ["
         }
       ],
       "tests": [
@@ -4946,6 +5066,10 @@
         {
           "path": "app/server/src/lib/permissions.ts",
           "needle": "export function createPermissionEngine("
+        },
+        {
+          "path": "app/console/src/pages/forum/CategoriesTab.vue",
+          "needle": "<script setup lang=\"ts\">"
         }
       ],
       "tests": [
@@ -5002,6 +5126,10 @@
         {
           "path": "app/server/src/routes/console/index.ts",
           "needle": "await app.register(forum);"
+        },
+        {
+          "path": "app/console/src/pages/forum/StickersTab.vue",
+          "needle": "<script setup lang=\"ts\">"
         }
       ],
       "tests": [
@@ -5162,6 +5290,10 @@
         {
           "path": "app/server/src/lib/permissions.ts",
           "needle": "export function createPermissionEngine("
+        },
+        {
+          "path": "app/console/src/pages/forum/NewStickerDialog.vue",
+          "needle": "<script setup lang=\"ts\">"
         }
       ],
       "tests": [
@@ -7347,6 +7479,10 @@
         {
           "path": "app/console/src/lib/competition-contest.ts",
           "needle": "export function previewText("
+        },
+        {
+          "path": "app/console/src/pages/competition/ScoreLevels.vue",
+          "needle": "<TxSelect :model-value=\"importance\" :options=\"importanceOptions\" placeholder=\"选一档\" panel-background=\"pure\" :searchable=\"false\" class=\"fill-width\" @update:model-value=\"value => emit('update:importance', value as Importance)\" />"
         }
       ],
       "tests": [

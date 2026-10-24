@@ -4,7 +4,9 @@
   "kind": "business",
   "summary": "论坛 v2 服务端半份：话题分级可见（public/registered/member，COALESCE(话题/分类/public)）、去掉游客回帖（CONTRACT §2）、表情包与表情回应、帖子图片上传、@ 提及自动补全、访客翻页上限（SPEC §3.8）、控制台「论坛管理」（分类可见范围、表情包/表情维护）；另加团队负责人追加的 viewer.level/viewer.nodes（分级可见等级与写权限节点子集，按钮显隐参考）和表情回应 mine 字段的真实 bug 修复。论坛 Nuxt 前端与控制台 Vue 页面的 UI 行为是另一位同事在 forum-ui-276 的独立 worktree 里做的，不在这份声明里；这里只碰了 app/forum/shared/forum-api.ts 这一个纯类型/解析器文件（和它的两个测试），让前端客户端认得服务端新加的 viewer.level/nodes 字段、不被 parseWriteResult 悄悄丢掉，没有改任何组件、按钮显隐或页面逻辑。 另外补做了三项从 #274 挪进 #276 的服务端清理（所有者批准挪动）：(1) 迁移步骤 4 archiveOldDepartments()——官网与论坛都已改读新权限体系的 /api/public/departments，把挡住它的两个条件清掉之后，在 createRoleStore() 播种默认部门之后调用一次，归档四个默认部门；(2) 旧的 GET /api/public/org 随之退场（路由、合同、目录条目与文档一起删）；(3) CONSOLE_ORG 改成 config.ts 的固定常量（不再是环境变量），连带清掉 lib/roles.ts 里 6 个 github.* 死能力和直接相连的旧能力系统残留（IMPLIES、ROLE_BASE、DEFAULT_DEPARTMENTS 里的引用）。另修了一条真实文案 bug：招新未通过邮件还在说『论坛不登录也能回复』，#276 已经去掉游客回帖，改成『发帖、回复要先登录』。",
   "applications": [
-    "server"
+    "server",
+    "forum",
+    "console"
   ],
   "domains": [
     "audit",
@@ -49,7 +51,23 @@
     "flow:audit.events.report",
     "flow:identity.departments.public",
     "flow:feedback.categories",
-    "flow:competition.public.list"
+    "flow:competition.public.list",
+    "flow:application.detail",
+    "flow:competition.console.list",
+    "flow:forum.posts.reply",
+    "flow:forum.profile.update",
+    "flow:forum.state",
+    "flow:forum.topic_posts",
+    "flow:forum.users.follow",
+    "flow:identity.account.real_info",
+    "flow:identity.account.view",
+    "flow:identity.current",
+    "flow:permissions.explain",
+    "flow:permissions.groups.list",
+    "flow:permissions.nodes.list",
+    "flow:users.list",
+    "flow:users.update",
+    "flow:competition.score_events.preview"
   ],
   "assessments": {
     "business": {
@@ -490,18 +508,175 @@
         "flow:application.review"
       ],
       "reason": "招新未通过邮件的 rejectedMessage() 还在说『论坛不登录也能看帖，也可以用昵称回复』——#276 CONTRACT §2 已经去掉游客回帖，这句话不再是真的，改成『论坛不登录只能看公开的帖子，发帖、回复要先登录』。mail-envelope.test.ts 的断言跟着改：去掉对『发帖』字样的全面禁止（新文案本身会提到『发帖』，说的是要先登录），只保留禁止『对所有人开放』这种过度承诺的检查。"
+    },
+    {
+      "paths": [
+        "app/forum/shared/site-notice.ts",
+        "app/forum/app/components/TurnstileBox.vue",
+        "app/forum/shared/pow.ts",
+        "app/forum/shared/turnstile.ts"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "flow:forum.posts.reply",
+        "flow:forum.state"
+      ],
+      "reason": "去掉游客回帖之后，游客回复用的人机验证组件、工作量证明和 Turnstile 加载器没有调用方，删除；没登录时的站点说明改成登录后才能回复的说法。"
+    },
+    {
+      "paths": [
+        "app/forum/app/",
+        "app/forum/shared/",
+        "app/forum/nuxt.config.ts",
+        "app/forum/uno.config.ts"
+      ],
+      "domains": [
+        "forum",
+        "identity",
+        "organization",
+        "platform"
+      ],
+      "nodes": [
+        "application:forum",
+        "flow:forum.state",
+        "flow:forum.posts.reply",
+        "flow:forum.reactions.add",
+        "flow:forum.stickers.list",
+        "flow:forum.topics.visibility"
+      ],
+      "reason": "论坛 v2 前端：Milkdown Crepe 编辑器（懒加载期间先用文本框，不丢字）、表情选择与表情回应、按话题可见范围显示与版主改可见范围、晴空主题、称号改读 /api/public/departments、去掉游客回帖；Tuffex 0.9.1 下所有下拉与整页面板用不透明的 pure，顶栏站名在手机宽度不折行。"
+    },
+    {
+      "paths": [
+        "app/forum/package.json",
+        "app/forum/pnpm-lock.yaml",
+        "app/forum/ADOPTION.json",
+        "scripts/forum-dependencies.mjs",
+        "scripts/check-forum-adoption.mjs",
+        "tests/tooling/forum-dependencies.test.ts"
+      ],
+      "domains": [
+        "forum",
+        "platform"
+      ],
+      "nodes": [
+        "application:forum"
+      ],
+      "reason": "论坛依赖：所有者 2026-10-23 批准的 @milkdown/crepe、@milkdown/kit 7.22.3 与 2026-10-24 批准的 Tuffex 0.6.0 → 0.9.1 升级写进 ADOPTION.json 的 approvedDependencies，来源校验只认这些写死版本与审过的锁文件 sha256。"
+    },
+    {
+      "paths": [
+        "app/forum/tests/"
+      ],
+      "domains": [
+        "forum",
+        "identity",
+        "platform"
+      ],
+      "nodes": [
+        "application:forum",
+        "flow:forum.state"
+      ],
+      "reason": "论坛前端单测：编辑器草稿、表情、分级可见、下拉面板不透明与搜索框中文、顶栏站名。"
+    },
+    {
+      "paths": [
+        "app/console/src/",
+        "app/console/package.json",
+        "tests/console/dropdown-panels.test.ts",
+        "tests/console/forum.test.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "github",
+        "gitlab",
+        "identity",
+        "invitations",
+        "mail",
+        "organization",
+        "permissions",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:console.forum.categories.list",
+        "flow:console.forum.stickers.list",
+        "flow:console.forum.stickers.create",
+        "flow:permissions.groups.list"
+      ],
+      "reason": "控制台：论坛管理分成分类、表情、我的论坛权限三个页签；Tuffex 0.9.1 下所有下拉传 panel-background=\"pure\"、TxSelect 用中文搜索提示或关掉搜索框（包括 #278 的两档下拉框）。"
+    },
+    {
+      "paths": [
+        "pnpm-lock.yaml"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "application:console"
+      ],
+      "reason": "根锁文件：控制台的 Tuffex 升到 0.9.1。"
+    },
+    {
+      "paths": [
+        "docs/components/tuffex/",
+        "scripts/tuffex-docs.mjs",
+        "docs/design/STACK.md",
+        "docs/design/STACK.en.md",
+        "docs/design/DESIGN.md",
+        "docs/decisions/0003-adopt-tuff-forum.md",
+        "docs/conventions/RELEASES.md"
+      ],
+      "domains": [
+        "forum",
+        "platform"
+      ],
+      "nodes": [
+        "application:forum",
+        "application:console"
+      ],
+      "reason": "Tuffex 参考快照更新到 0.9.1（上游 34449085a，图表包并进主包，同步脚本跟着改路径）；技术栈、设计规范、ADR-0003 与发版规则里论坛清单可按所有者批准改动的说法。"
+    },
+    {
+      "paths": [
+        "docs/services/forum/README.md",
+        "docs/services/console/README.md",
+        "docs/INDEX.md"
+      ],
+      "domains": [
+        "forum",
+        "platform"
+      ],
+      "nodes": [
+        "application:forum",
+        "application:console"
+      ],
+      "reason": "论坛与控制台服务文档跟着 v2 前端、论坛管理页签和 Tuffex 0.9.1 改。docs/INDEX.md 是重新生成的文档目录。"
     }
   ],
   "documents": [
     "docs/architecture/API.md",
     "docs/services/server/data-model.md",
-    "docs/services/server/endpoint-contracts.md"
+    "docs/services/server/endpoint-contracts.md",
+    "docs/services/forum/README.md",
+    "docs/services/console/README.md"
   ],
   "tests": [
     "tests/server/forum-v2-endpoints.test.ts",
     "tests/server/forum.test.ts",
     "tests/server/legacy-database.test.ts",
-    "tests/server/forum-v2-migration.test.ts"
+    "tests/server/forum-v2-migration.test.ts",
+    "tests/console/dropdown-panels.test.ts",
+    "tests/console/forum.test.ts",
+    "tests/tooling/forum-dependencies.test.ts"
   ],
   "compatibility": "只增表、增列（nullable）、增路由，不改已有接口的请求/响应形状（除了去掉游客回帖分支——那条路径本身就是这次要去掉的业务行为，不是兼容性意外）；旧的 forum_rate_events 游客桶数据保留不清理。",
   "migration": "lib/migrations/2026-10-forum-v2.ts 的两步（分类可见范围种子、表情种子）都是 INSERT OR IGNORE / upsert，可重复执行；forum_topics.visibility 放宽成可空列用重建表的方式（先关 PRAGMA foreign_keys，CREATE new → INSERT…SELECT → DROP old → RENAME，再用 foreign_key_check 校验后重新打开），已在拷贝的真实 preview 数据库上演练两遍，演练前、第一遍之后、第二遍之后每张表行数一致，详见本轮汇报。",
@@ -514,6 +689,30 @@
         "organization"
       ],
       "reason": "旧的称号/部门体系 GET /api/public/org 随 #276 退场：新权限体系的 GET /api/public/departments（#274/#275）接过它的职责，官网组织架构窗口已改读新接口，论坛称号徽章也改读它（团队负责人在 forum-ui-276 工作树做的），删前 grep app/web、app/console、scripts 确认零读者。"
+    },
+    {
+      "path": "app/forum/app/components/TurnstileBox.vue",
+      "baseAnchor": "<script setup lang=\"ts\">",
+      "domains": [
+        "forum"
+      ],
+      "reason": "#276 去掉游客回帖：游客回复用的人机验证（Turnstile）和工作量证明（PoW）不再有调用方，回复改成登录后按 forum.reply.create 判定（CONTRACT-276 §2）。"
+    },
+    {
+      "path": "app/forum/shared/pow.ts",
+      "baseAnchor": "export interface PowProof {",
+      "domains": [
+        "forum"
+      ],
+      "reason": "#276 去掉游客回帖：游客回复用的人机验证（Turnstile）和工作量证明（PoW）不再有调用方，回复改成登录后按 forum.reply.create 判定（CONTRACT-276 §2）。"
+    },
+    {
+      "path": "app/forum/shared/turnstile.ts",
+      "baseAnchor": "export const TURNSTILE_SCRIPT = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'",
+      "domains": [
+        "forum"
+      ],
+      "reason": "#276 去掉游客回帖：游客回复用的人机验证（Turnstile）和工作量证明（PoW）不再有调用方，回复改成登录后按 forum.reply.create 判定（CONTRACT-276 §2）。"
     }
   ]
 }

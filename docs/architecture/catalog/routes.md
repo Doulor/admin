@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`deb1247f3a50f0a81e6cde2d478fd9adf2faa38832c91cd420a2482d62c7cebd`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`69fb98e20b99a536de01dc65e570a7f11b8e8eff6a6d24f4f83fee11d9a88b38`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -24,8 +24,8 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `DELETE /api/console/permission-groups/:id` | `permissions` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/console/permission-groups.ts:208](../../../app/server/src/routes/console/permission-groups.ts#L208) |
 | `DELETE /api/console/permission-groups/:id/members/:account_id` | `permissions` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/console/permission-groups.ts:266](../../../app/server/src/routes/console/permission-groups.ts#L266) |
 | `DELETE /api/forum/me/avatar` | `forum` | 显式 | `params`、`querystring` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/people.ts:104](../../../app/server/src/routes/forum-api/people.ts#L104) |
-| `DELETE /api/forum/posts/:post_id` | `forum` | 显式 | `params`、`querystring` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/posts.ts:75](../../../app/server/src/routes/forum-api/posts.ts#L75) |
-| `DELETE /api/forum/posts/:post_id/reactions/:sticker_id` | `forum` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/posts.ts:113](../../../app/server/src/routes/forum-api/posts.ts#L113) |
+| `DELETE /api/forum/posts/:post_id` | `forum` | 显式 | `params`、`querystring` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/posts.ts:80](../../../app/server/src/routes/forum-api/posts.ts#L80) |
+| `DELETE /api/forum/posts/:post_id/reactions/:sticker_id` | `forum` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/posts.ts:118](../../../app/server/src/routes/forum-api/posts.ts#L118) |
 | `DELETE /api/teams/:id` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competition-signups.ts:95](../../../app/server/src/routes/portal/competition-signups.ts#L95) |
 | `DELETE /api/teams/:id/lock` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competition-signups.ts:101](../../../app/server/src/routes/portal/competition-signups.ts#L101) |
 | `GET /api/competitions/:id/free-agents` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competition-signups.ts:60](../../../app/server/src/routes/portal/competition-signups.ts#L60) |
@@ -190,7 +190,7 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `PATCH /api/console/permission-groups/:id` | `permissions` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/console/permission-groups.ts:134](../../../app/server/src/routes/console/permission-groups.ts#L134) |
 | `PATCH /api/console/users/:id` | `permissions` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/console/users.ts:161](../../../app/server/src/routes/console/users.ts#L161) |
 | `PATCH /api/forum/me/profile` | `forum` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/people.ts:45](../../../app/server/src/routes/forum-api/people.ts#L45) |
-| `PATCH /api/forum/posts/:post_id` | `forum` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/posts.ts:63](../../../app/server/src/routes/forum-api/posts.ts#L63) |
+| `PATCH /api/forum/posts/:post_id` | `forum` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/posts.ts:68](../../../app/server/src/routes/forum-api/posts.ts#L68) |
 | `PATCH /api/forum/topics/:topic_id/visibility` | `forum` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireMember(req)` | [app/server/src/routes/forum-api/topics.ts:124](../../../app/server/src/routes/forum-api/topics.ts#L124) |
 | `PATCH /api/identity/profile` | `identity` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/profile.ts:25](../../../app/server/src/routes/identity/profile.ts#L25) |
 | `POST /api/competitions/:id/signup` | `competitions` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competition-signups.ts:47](../../../app/server/src/routes/portal/competition-signups.ts#L47) |
@@ -214,9 +214,9 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `POST /api/feedback` | `feedback` | 显式 | `params`、`querystring`、`body` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/feedback.ts:26](../../../app/server/src/routes/portal/feedback.ts#L26) |
 | `POST /api/forum/notifications/:notification_id/read` | `forum` | 显式 | `params`、`querystring` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/people.ts:33](../../../app/server/src/routes/forum-api/people.ts#L33) |
 | `POST /api/forum/notifications/read-all` | `forum` | 显式 | `params`、`querystring` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/people.ts:39](../../../app/server/src/routes/forum-api/people.ts#L39) |
-| `POST /api/forum/posts` | `forum` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/posts.ts:39](../../../app/server/src/routes/forum-api/posts.ts#L39) |
-| `POST /api/forum/posts/:post_id/bookmark` | `forum` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/posts.ts:94](../../../app/server/src/routes/forum-api/posts.ts#L94) |
-| `POST /api/forum/posts/:post_id/like` | `forum` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/posts.ts:86](../../../app/server/src/routes/forum-api/posts.ts#L86) |
+| `POST /api/forum/posts` | `forum` | 显式 | `params`、`querystring`、`body` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/posts.ts:44](../../../app/server/src/routes/forum-api/posts.ts#L44) |
+| `POST /api/forum/posts/:post_id/bookmark` | `forum` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/posts.ts:99](../../../app/server/src/routes/forum-api/posts.ts#L99) |
+| `POST /api/forum/posts/:post_id/like` | `forum` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/posts.ts:91](../../../app/server/src/routes/forum-api/posts.ts#L91) |
 | `POST /api/forum/topics` | `forum` | 显式 | `params`、`querystring`、`body` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/topics.ts:86](../../../app/server/src/routes/forum-api/topics.ts#L86) |
 | `POST /api/forum/topics/:topic_id/close` | `forum` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/topics.ts:108](../../../app/server/src/routes/forum-api/topics.ts#L108) |
 | `POST /api/forum/topics/:topic_id/pin` | `forum` | 显式 | `params`、`querystring`、`body` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/topics.ts:108](../../../app/server/src/routes/forum-api/topics.ts#L108) |
@@ -251,7 +251,7 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `PUT /api/console/competitions/:competition_id/signup-settings` | `competitions` | 显式 | `params`、`querystring`、`body` | 已挂载 | `requireAuth` | [app/server/src/routes/console/competition-roster.ts:38](../../../app/server/src/routes/console/competition-roster.ts#L38) |
 | `PUT /api/console/forum/sticker-packs/:id/stickers` | `forum` | 显式 | `params`、`querystring` | 已挂载 | `requireAuth` | [app/server/src/routes/console/forum.ts:74](../../../app/server/src/routes/console/forum.ts#L74) |
 | `PUT /api/forum/me/avatar` | `forum` | 显式 | `params`、`querystring` | 未声明 | `requireMember(req)` | [app/server/src/routes/forum-api/people.ts:93](../../../app/server/src/routes/forum-api/people.ts#L93) |
-| `PUT /api/forum/posts/:post_id/reactions/:sticker_id` | `forum` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/posts.ts:102](../../../app/server/src/routes/forum-api/posts.ts#L102) |
+| `PUT /api/forum/posts/:post_id/reactions/:sticker_id` | `forum` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/posts.ts:107](../../../app/server/src/routes/forum-api/posts.ts#L107) |
 | `PUT /api/forum/uploads` | `forum` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/forum-api/uploads.ts:50](../../../app/server/src/routes/forum-api/uploads.ts#L50) |
 | `PUT /api/identity/avatar` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/profile.ts:53](../../../app/server/src/routes/identity/profile.ts#L53) |
 
