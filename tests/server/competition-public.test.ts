@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { academicYear } from '../../app/server/src/lib/grade';
 import { PUBLIC_COMPETITION_LIMIT } from '../../app/server/src/routes/portal/competitions';
-import { activityRows } from './helpers';
+import { activityRows, grantPermGroup } from './helpers';
 import { contestSetup, type ContestContext } from './contest-fixtures';
 
 const contexts: ContestContext[] = [];
@@ -103,6 +103,62 @@ describe('公开接口只给公开字段', () => {
     const subjects = app.services.storage.db.prepare("SELECT DISTINCT subject FROM limit_events WHERE bucket = 'public.competition.per_minute'").all() as { subject: string }[];
     expect(subjects.every(row => /^[0-9a-f]{64}$/.test(row.subject))).toBe(true);
     expect(activityRows(app, { action: 'public.competition.per_minute' })[0]).toMatchObject({ outcome: 'limited' });
+  });
+});
+
+describe('人员与队伍：站点包必带的两个接口，和天梯不同，给全部已报名的人与全部未解散的队伍', () => {
+  it('人员带部门、分页；队伍是团队赛时带全部队伍，不是只有拿过分的', async () => {
+    const { app, accountId, createCompetition, signUp } = await setup();
+    const id = await createCompetition(); // 夹具默认团队赛，team_min 1、team_max 3
+    for (const login of ['alice', 'bob', 'carol']) await signUp(id, login);
+    grantPermGroup(app, accountId('alice'), 'dept.security');
+
+    const participants = (await app.inject({ url: `/api/public/competitions/${id}/participants` })).json();
+    expect(participants.items).toHaveLength(3);
+    expect(Object.keys(participants.items[0]).sort()).toEqual(['avatar_url', 'department', 'display_name', 'username']);
+    const alice = participants.items.find((item: { department: unknown }) => item.department);
+    expect(alice.department).toMatchObject({ id: 'dept.security', name: '网安部门' });
+    expect(participants.items.filter((item: { department: unknown }) => item.department === null)).toHaveLength(2);
+
+    const paged = (await app.inject({ url: `/api/public/competitions/${id}/participants?limit=2` })).json();
+    expect(paged.items).toHaveLength(2);
+    expect(paged.next_cursor).toEqual(expect.any(String));
+    const rest = (await app.inject({ url: `/api/public/competitions/${id}/participants?limit=2&cursor=${paged.next_cursor}` })).json();
+    expect(rest.items).toHaveLength(1);
+    expect(rest.next_cursor).toBeNull();
+
+    const everything = JSON.stringify(participants);
+    for (const login of ['alice', 'bob', 'carol']) expect(everything).not.toContain(accountId(login));
+  });
+
+  it('队伍：团队赛给全部未解散的队伍（含还没拿过分的队），个人赛 enabled 为 false、teams 为空', async () => {
+    const { app, as, createCompetition, signUp } = await setup();
+    const id = await createCompetition();
+    await signUp(id, 'alice');
+    await signUp(id, 'bob');
+    const created = await app.inject({ method: 'POST', url: `/api/competitions/${id}/teams`, headers: as('alice'), payload: { name: '夜猫子', slogan: '肝到天亮' } });
+    expect(created.statusCode).toBe(201);
+    const teams = (await app.inject({ url: `/api/public/competitions/${id}/teams` })).json();
+    expect(teams).toMatchObject({ enabled: true, team_min: 1, team_max: 3 });
+    expect(teams.teams).toHaveLength(1);
+    expect(teams.teams[0]).toMatchObject({ name: '夜猫子', slogan: '肝到天亮', status: 'recruiting', member_count: 1 });
+    expect(teams.teams[0].members).toHaveLength(1);
+    expect(Object.keys(teams.teams[0].members[0]).sort()).toEqual(['avatar_url', 'display_name', 'username']);
+
+    const individualId = await createCompetition({ name: '个人赛' });
+    const switched = await app.inject({
+      method: 'PUT', url: `/api/console/competitions/${individualId}/signup-settings`, headers: as('owner'),
+      payload: { enabled: true, participation: 'individual', team_min: 1, team_max: 1, scoring: 'contribution' },
+    });
+    expect(switched.statusCode).toBe(200);
+    const soloTeams = (await app.inject({ url: `/api/public/competitions/${individualId}/teams` })).json();
+    expect(soloTeams).toEqual({ enabled: false, team_min: 1, team_max: 1, teams: [] });
+  });
+
+  it('下线或不存在的比赛两个接口都回 404', async () => {
+    const { app } = await setup();
+    expect((await app.inject({ url: '/api/public/competitions/nope/participants' })).statusCode).toBe(404);
+    expect((await app.inject({ url: '/api/public/competitions/nope/teams' })).statusCode).toBe(404);
   });
 });
 

@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@shared/lib/api";
 
 export type CompetitionKind = "internal" | "external";
-export type CompetitionStatus = "upcoming" | "registering" | "closed" | "ongoing" | "ended";
+export type CompetitionStatus = "planning" | "upcoming" | "registering" | "closed" | "ongoing" | "ended";
 export type Participation = "individual" | "team";
 /**
  * 内部赛的在线报名设置（#239）：组织者在控制台打开；`scoring: "contribution"` 是按合入的 Issue / PR 计分的天梯。
@@ -20,6 +20,8 @@ export type Competition = {
   id: string; name: string; kind: CompetitionKind;
   start_at: number; end_at: number; signup_deadline: number | null;
   url: string | null; description: string; status: CompetitionStatus;
+  /** 规划中（#278）：和服务端一样，本地每 60 秒重算状态要用到它，不能只在第一次解析时看一眼。 */
+  planning: boolean;
   signup: SignupSettings;
   /** 这场比赛已发布的官网（#278，`/c/<slug>/`）；没发布或服务端还没给这个字段时是 null。 */
   site_url: string | null;
@@ -46,11 +48,11 @@ export type Scoring = {
 export const COMPETITIONS_URL = "/api/public/competitions";
 
 const KINDS: CompetitionKind[] = ["internal", "external"];
-const STATUSES: CompetitionStatus[] = ["upcoming", "registering", "closed", "ongoing", "ended"];
+const STATUSES: CompetitionStatus[] = ["planning", "upcoming", "registering", "closed", "ongoing", "ended"];
 /** 只认识要用的那几个字段：缺 `id`、名称或起止时间的条目直接丢掉，不显示半条。 */
 type RawCompetition = {
   id?: unknown; name?: unknown; kind?: unknown; start_at?: unknown; end_at?: unknown; signup_deadline?: unknown; url?: unknown; description?: unknown; status?: unknown; signup?: unknown;
-  site_url?: unknown; prizes?: unknown; grade_factors?: unknown; scoring?: unknown; finalized_at?: unknown;
+  site_url?: unknown; prizes?: unknown; grade_factors?: unknown; scoring?: unknown; finalized_at?: unknown; planning?: unknown;
 };
 
 // 北京时间显示还要加八小时；UTC 有效但换算后越界的时间也不能交给界面。
@@ -126,9 +128,10 @@ export function readCompetition(value: unknown): Competition | null {
   if (!id || !name || start === null || end === null || end < start) return null;
   const kind = KINDS.includes(raw.kind as CompetitionKind) ? (raw.kind as CompetitionKind) : "internal";
   const signup_deadline = asTimestamp(raw.signup_deadline);
+  const planning = raw.planning === true;
   const status = STATUSES.includes(raw.status as CompetitionStatus)
     ? (raw.status as CompetitionStatus)
-    : statusAt({ start_at: start, end_at: end, signup_deadline }, Date.now());
+    : statusAt({ start_at: start, end_at: end, signup_deadline, planning }, Date.now());
   const link = asText(raw.url);
   let url: string | null = null;
   try {
@@ -140,7 +143,7 @@ export function readCompetition(value: unknown): Competition | null {
   const site = asText(raw.site_url);
   const site_url = SITE_PATH.test(site) ? site : null;
   return {
-    id, name, kind, start_at: start, end_at: end, signup_deadline, url, description: asText(raw.description), status, signup, site_url,
+    id, name, kind, start_at: start, end_at: end, signup_deadline, url, description: asText(raw.description), status, planning, signup, site_url,
     prizes: readPrizes(raw.prizes), grade_factors: readGradeFactors(raw.grade_factors), scoring: readScoring(raw.scoring),
     finalized_at: asTimestamp(raw.finalized_at),
   };
@@ -161,8 +164,10 @@ export function readSignup(value: unknown): SignupSettings {
   return { enabled: true, participation: team ? "team" : "individual", team_min: min, team_max: max, scoring: raw.scoring === "contribution" ? "contribution" : "none" };
 }
 
-/** 服务端 `competitionStatus` 的同一套口径，用于接口没给状态或值认不出时兜底。 */
-export function statusAt(record: { start_at: number; end_at: number; signup_deadline: number | null }, now: number): CompetitionStatus {
+/** 服务端 `competitionStatus` 的同一套口径（含规划中），用于接口没给状态或值认不出时兜底，也用于窗口开着时
+ *  每 60 秒的本地重算——`planning` 打开且还没到开赛时间时压过其余规则，过了开赛时间就不再生效。 */
+export function statusAt(record: { start_at: number; end_at: number; signup_deadline: number | null; planning: boolean }, now: number): CompetitionStatus {
+  if (record.planning && now < record.start_at) return "planning";
   if (now > record.end_at) return "ended";
   if (record.signup_deadline !== null && now <= record.signup_deadline) return "registering";
   if (now >= record.start_at) return "ongoing";

@@ -15,6 +15,7 @@ export type Dialog =
   | { kind: "apply"; team: Team }
   | { kind: "invite" }
   | { kind: "transfer" }
+  | { kind: "plaza"; team: Team }
   | { kind: "confirm"; title: string; body: string; submitText: string; danger?: boolean; path: string; method: "POST" | "DELETE"; done: string };
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -345,6 +346,28 @@ export function ConfirmDialog({ title, body, submitText, danger = false, onClose
   return (
     <HubForm title={title} submitText={submitText} danger={danger} focus={danger ? "cancel" : "submit"} onClose={onClose} onSubmit={submit}>
       <p className="pt-cx-confirm">{body}</p>
+    </HubForm>
+  );
+}
+
+/** 领队在组队广场招人（#278）：留一句话、写几个想找的方向（逗号或空格隔开），保存后出现在「组队广场」。 */
+export function PlazaDialog({ team, onClose, submit }: { team: Team; onClose: () => void; submit: Submit<{ recruiting: true; note: string; wanted_skills: string[] }> }) {
+  const [note, setNote] = useState(team.plaza.note);
+  const [skills, setSkills] = useState(team.plaza.wanted_skills.join("，"));
+  const parsed = [...new Set(skills.split(/[,，、\s]+/).map((item) => item.trim()).filter(Boolean))];
+  const tooMany = parsed.length > HUB_LIMITS.plazaSkills || parsed.some((item) => [...item].length > HUB_LIMITS.plazaSkill);
+  return (
+    <HubForm
+      title={team.plaza.recruiting ? "修改招人信息" : "在组队广场招人"}
+      sub="所有正在报名的团队赛的招人信息都汇总在比赛窗口的「组队广场」。人满或者确认参赛后自动不再出现。"
+      submitText={team.plaza.recruiting ? "保存" : "开始招人"}
+      disabled={tooMany}
+      onClose={onClose}
+      onSubmit={() => submit({ recruiting: true, note: note.trim(), wanted_skills: parsed })}
+    >
+      <Field label="想说的话（选填）" value={note} onChange={setNote} max={HUB_LIMITS.plazaNote} multiline autoFocus placeholder="你们想做什么、还缺什么样的队友" />
+      <Field label="想找的方向（选填，逗号隔开）" value={skills} onChange={setSkills} max={240} placeholder="前端，后端，算法，设计" />
+      {tooMany && <p className="pt-cx-err" role="alert">方向最多 {HUB_LIMITS.plazaSkills} 个，每个最多 {HUB_LIMITS.plazaSkill} 个字。</p>}
     </HubForm>
   );
 }

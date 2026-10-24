@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`1ce5de88dd8cc3c1550bd93d81fe3b245768aa314759eba3105e07965cbde83a`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`86e67b4e3be0e8260485e3150965ab83e9869b72532c57e540a3957b159b5820`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -472,7 +472,7 @@ CREATE TABLE audit_logs (
 
 ## competition_finals
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:1079](../../../app/server/src/lib/db.ts#L1079)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:1097](../../../app/server/src/lib/db.ts#L1097)。
 
 定榜：一场一行，standings 是定榜那一刻的严格名次快照，之后加分、撤销都不再改它；撤销定榜删行。只有 lib/competition-prizes.ts 读写。
 
@@ -509,7 +509,7 @@ CREATE TABLE competition_finals (
 
 ## competition_gitlab_sources
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:1033](../../../app/server/src/lib/db.ts#L1033)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:1051](../../../app/server/src/lib/db.ts#L1051)。
 
 比赛从哪些 GitLab 项目收集贡献，控制台「计分与奖项」整份替换；没有行的比赛不收集。由 lib/competition-rules-store.ts 写，收集任务读。
 
@@ -542,7 +542,7 @@ CREATE TABLE competition_gitlab_sources (
 
 ## competition_prizes
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:1086](../../../app/server/src/lib/db.ts#L1086)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:1104](../../../app/server/src/lib/db.ts#L1104)。
 
 定榜时给每个得奖的人一行：兑奖码只存 SHA-256 散列、AES-GCM 密文与末四位，不存明文；核销只改 redeemed_at/redeemed_by；公开接口从不返回这三列。只有 lib/competition-prizes.ts 读写。
 
@@ -601,7 +601,7 @@ CREATE TABLE competition_prizes (
 
 ## competition_rules
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:1070](../../../app/server/src/lib/db.ts#L1070)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:1088](../../../app/server/src/lib/db.ts#L1088)。
 
 比赛的计分规则：年级系数（百分数，150 = 1.5）与可选奖项 JSON；没有行用默认系数、没有奖项；定榜后不能改。只有 lib/competition-rules-store.ts 读写。
 
@@ -639,7 +639,7 @@ CREATE TABLE competition_rules (
 
 ## competition_score_candidates
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:1042](../../../app/server/src/lib/db.ts#L1042)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:1060](../../../app/server/src/lib/db.ts#L1060)。
 
 GitLab 收来的候选贡献（合并的 MR、带「有用」标签或被 MR 关闭的 Issue）：唯一约束挡住重复收集；accepted_via 区分 GitLab 标签与控制台确认；状态变化只改列，不删行。只有 lib/competition-candidates.ts 读写。
 
@@ -885,7 +885,7 @@ CREATE TABLE competition_signups (
 
 ## competition_site_versions
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:1011](../../../app/server/src/lib/db.ts#L1011)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:1029](../../../app/server/src/lib/db.ts#L1029)。
 
 比赛官网站点包的版本：一次上传一行，通过（passed）或拒绝（rejected）都留，report 是逐条校验结果；拒绝的版本不落文件。文件本身在数据库旁边的 sites/<competition_id>/<version_id>/，不进库。只有 lib/competition-site-store.ts 读写。
 
@@ -934,7 +934,7 @@ CREATE TABLE competition_site_versions (
 
 ## competition_sites
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:1025](../../../app/server/src/lib/db.ts#L1025)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:1043](../../../app/server/src/lib/db.ts#L1043)。
 
 比赛官网的发布状态：一场一行，slug 唯一且第一次发布后不能改，live_version_id 为空即已下线（版本与 slug 保留）。只有 lib/competition-site-store.ts 读写。
 
@@ -1052,6 +1052,10 @@ CREATE TABLE competition_team_members (
 | `disbanded_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
 | `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
 | `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `plaza_recruiting` | `INTEGER` | 1 | 0 | `0` | 0 |
+| `plaza_note` | `TEXT` | 1 | 0 | `''` | 0 |
+| `plaza_skills` | `TEXT` | 1 | 0 | `'[]'` | 0 |
+| `plaza_updated_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
 
 NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
 
@@ -1081,7 +1085,7 @@ CREATE TABLE competition_teams (
   disbanded_at INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
-);
+, plaza_recruiting INTEGER NOT NULL DEFAULT 0 CHECK (plaza_recruiting IN (0, 1)), plaza_note TEXT NOT NULL DEFAULT '', plaza_skills TEXT NOT NULL DEFAULT '[]', plaza_updated_at INTEGER);
 ```
 
 </details>
@@ -1105,6 +1109,7 @@ CREATE TABLE competition_teams (
 | `offline` | `INTEGER` | 1 | 0 | `0` | 0 |
 | `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
 | `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `planning` | `INTEGER` | 1 | 0 | `0` | 0 |
 
 NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
 
@@ -1127,7 +1132,7 @@ CREATE TABLE competitions (
   description TEXT NOT NULL DEFAULT '',
   offline INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL, planning INTEGER NOT NULL DEFAULT 0 CHECK (planning IN (0, 1)),
   CHECK (end_at >= start_at),
   CHECK (url IS NULL OR url LIKE 'https://%'),
   CHECK (signup_deadline IS NULL OR signup_deadline <= end_at)

@@ -10,6 +10,8 @@ export const competitionFields = {
   signup_deadline: { anyOf: [timestamp, { type: "null" }] },
   url: { anyOf: [{ ...text(500, 1), pattern: "^https://\\S+$" }, { type: "null" }] },
   description: text(1000),
+  // 规划中（#278，所有者 2026-10-25）：开赛前拒绝报名与组队；创建、修改都可选，不填按不规划处理。
+  planning: { type: "boolean" },
 };
 
 /** 报名设置。请求体用带边界的整数（team_min/team_max 1–20），响应体不再校验下界（人数已入库）。 */
@@ -24,7 +26,7 @@ const signupSummary = object(signupSettingsFields, Object.keys(signupSettingsFie
 
 const baseFields = {
   id: text(128, 1), ...competitionFields,
-  status: choices("upcoming", "registering", "closed", "ongoing", "ended"),
+  status: choices("planning", "upcoming", "registering", "closed", "ongoing", "ended"),
 };
 // #278：官网地址（已发布时 /c/<slug>/）、门户深链、可选的奖项、年级系数和定榜时间
 const prizeTierFields = { from: integer(1, 100), to: integer(1, 100), amount_cny: integer(0, 100_000), title: text(40) };
@@ -69,12 +71,18 @@ const stateValues = ["none", "signed_up", "in_team", "confirmed", "unplaced"] as
 const personFields = { account_id: text(64, 1), login: text(64), avatar_url: nullableText(500) };
 const person = object(personFields, Object.keys(personFields));
 const teamMember = object({ ...personFields, role: choices("leader", "member"), joined_at: number }, ["account_id", "login", "avatar_url", "role", "joined_at"]);
+// 组队广场广播（#278 重开）：和 status 的 recruiting/locked 是两件事，领队单独开关，见 competition-signup-store.ts 的 TeamPlaza。
+const teamPlaza = object({
+  recruiting: { type: "boolean" }, note: text(150), wanted_skills: { type: "array", maxItems: 10, items: text(20) },
+  updated_at: { anyOf: [number, { type: "null" }] },
+}, ["recruiting", "note", "wanted_skills", "updated_at"]);
 const teamFields = {
   id: text(64, 1), name: text(30, 1), slogan: text(60),
   status: choices("recruiting", "locked"),
   leader_account_id: text(64, 1),
   members: { type: "array", items: teamMember },
   member_count: number, created_at: number,
+  plaza: teamPlaza,
 };
 const team = object(teamFields, Object.keys(teamFields));
 const pending = object({
@@ -110,7 +118,7 @@ const myTeamSummary = object({ id: text(64, 1), name: text(30, 1), status: choic
   ["id", "name", "status", "member_count", "team_max"]);
 const myCompetitionItem = object({
   competition_id: text(128, 1), name: text(80, 1), kind: choices("internal", "external"),
-  status: choices("upcoming", "registering", "closed", "ongoing", "ended"),
+  status: choices("planning", "upcoming", "registering", "closed", "ongoing", "ended"),
   start_at: number, end_at: number, signup_deadline: { anyOf: [number, { type: "null" }] },
   state: choices(...stateValues), team: { anyOf: [myTeamSummary, { type: "null" }] },
   pending_count: number,
@@ -129,7 +137,7 @@ export const freeAgentList = object({
  * 响应契约里的状态枚举按名单实际返回的值写，避免序列化时把 disbanded 丢掉。
  */
 const rosterTeam = object({ ...teamFields, status: choices("recruiting", "locked", "disbanded"), disbanded_at: { anyOf: [number, { type: "null" }] } },
-  ["id", "name", "slogan", "status", "leader_account_id", "members", "member_count", "created_at", "disbanded_at"]);
+  ["id", "name", "slogan", "status", "leader_account_id", "members", "member_count", "created_at", "plaza", "disbanded_at"]);
 const rosterSignup = object({
   ...personFields,
   status: choices("active", "cancelled"), note: text(200), looking_for_team: { type: "boolean" },
@@ -203,11 +211,35 @@ export const signupBody = {
   respond: object({ membership_id: text(64, 1), action: choices("accept", "decline", "withdraw") }, ["membership_id", "action"]),
   transfer: object({ account_id: text(64, 1) }, ["account_id"]),
   settings: object(signupSettingsFields, Object.keys(signupSettingsFields)),
+  plaza: object({ recruiting: { type: "boolean" }, note: text(150), wanted_skills: { type: "array", maxItems: 10, items: text(20) } }, ["recruiting"]),
   scoreEvent: object({
     account_id: text(64, 1), kind: choices("issue", "pr", "penalty"),
     repo: text(140), number: integer(1, 1_000_000), importance: importanceValue, core: coreValue, reason: text(200),
   }, ["account_id", "kind"]),
   revoke: object({ reason: text(200) }),
+};
+
+// ── 组队广场（#278 重开）：跨比赛一张列表，和 publicFeed 对 pr/issue/penalty 的处理一样，两种条目合成一张
+// 扁平表，`kind` 决定哪些字段有值，另一种用不到的字段为 null，不单独开 oneOf。
+const plazaEntry = object({
+  kind: choices("seeking_team", "recruiting_team"),
+  competition_id: text(128, 1), competition_name: text(80, 1),
+  note: text(150), since: number,
+  person: { anyOf: [person, { type: "null" }] },
+  team_id: { anyOf: [text(64, 1), { type: "null" }] },
+  team_name: { anyOf: [text(30, 1), { type: "null" }] },
+  slogan: { anyOf: [text(60), { type: "null" }] },
+  leader: { anyOf: [person, { type: "null" }] },
+  member_count: { anyOf: [number, { type: "null" }] },
+  team_max: { anyOf: [number, { type: "null" }] },
+  wanted_skills: { anyOf: [{ type: "array", items: text(20) }, { type: "null" }] },
+}, ["kind", "competition_id", "competition_name", "note", "since", "person", "team_id", "team_name", "slogan", "leader", "member_count", "team_max", "wanted_skills"]);
+export const teamPlazaPage = object({ items: { type: "array", items: plazaEntry }, next_cursor: nullableText(200) }, ["items", "next_cursor"]);
+export const teamPlazaQuery = {
+  querystring: object({
+    competition_id: text(128, 1), kind: choices("seeking_team", "recruiting_team"), keyword: text(60),
+    cursor: text(200), limit: { type: "string", pattern: "^(?:[1-9][0-9]?|50)$" },
+  }),
 };
 
 // ── #278 公开接口（官网 SDK）：只有昵称、@用户名、头像、队名、分数、贡献标题与链接、时间 ──
@@ -231,6 +263,21 @@ export const publicStats = object({
 }, ["participants", "teams", "merged_prs", "accepted_issues", "total_points", "updated_at"]);
 export const publicSnapshot = object({ competition: publicRecord, leaderboard: publicLeaderboard, feed: publicFeed, stats: publicStats }, ["competition", "leaderboard", "feed", "stats"]);
 export const publicFeedQuery = { querystring: object({ cursor: text(200), limit: { type: "string", pattern: "^(?:[1-9]|[1-4][0-9]|50)$" } }) };
+
+// ── #278 站点包必带的两个接口：人员（全部已报名，不是只有拿过分的）、队伍（全部未解散，个人赛 enabled=false） ──
+const publicDepartment = { anyOf: [object({ id: text(64, 1), name: text(64, 1), tone: { anyOf: [text(20), { type: "null" }] } }, ["id", "name", "tone"]), { type: "null" }] };
+export const publicParticipants = object({
+  items: { type: "array", items: object({ ...publicPersonFields, department: publicDepartment }, ["username", "display_name", "avatar_url", "department"]) },
+  next_cursor: nullableText(200),
+}, ["items", "next_cursor"]);
+export const publicParticipantsQuery = { querystring: object({ cursor: text(200), limit: { type: "string", pattern: "^(?:[1-9][0-9]?|1[0-9]{2}|200)$" } }) };
+export const publicTeams = object({
+  enabled: { type: "boolean" }, team_min: number, team_max: number,
+  teams: { type: "array", items: object({
+    name: text(30), slogan: text(60), status: choices("recruiting", "locked"), member_count: number,
+    members: { type: "array", items: publicPerson },
+  }, ["name", "slogan", "status", "member_count", "members"]) },
+}, ["enabled", "team_min", "team_max", "teams"]);
 /** 本人参加过、已定榜的比赛的结果（门户「我的参赛」）：兑奖码只在这里给本人看。 */
 export const myCompetitionResults = object({
   items: { type: "array", items: object({

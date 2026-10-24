@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <title>示例赛官网</title>
+  </head>
+  <body>
+    <!--
+      比赛官网起步模板：这个页面只演示四个接口怎么接——比赛信息、人员、队伍、奖励（加天梯），
+      不包含任何视觉设计，每场比赛自己的美术、动效、排版都在复制出去的目录里自己做。
+      data-slot 只是给 src/main.ts 找挂载点用的钩子，不是必须保留的命名，改成你自己的结构也行。
+    -->
+    <header>
+      <h1 data-slot="name">正在读取比赛信息…</h1>
+      <p data-slot="description"></p>
+      <p><a data-slot="signup" href="/" target="_blank" rel="noopener">去报名</a></p>
+    </header>
+
+    <section aria-labelledby="prizes-h">
+      <h2 id="prizes-h">奖励</h2>
+      <div data-slot="prizes"></div>
+    </section>
+
+    <section aria-labelledby="board-h">
+      <h2 id="board-h">天梯</h2>
+      <div data-slot="board"></div>
+    </section>
+
+    <section aria-labelledby="people-h">
+      <h2 id="people-h">人员</h2>
+      <div data-slot="people"></div>
+    </section>
+
+    <section aria-labelledby="teams-h">
+      <h2 id="teams-h">队伍</h2>
+      <div data-slot="teams"></div>
+    </section>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

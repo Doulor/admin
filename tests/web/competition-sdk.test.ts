@@ -31,12 +31,16 @@ describe("competition SDK", () => {
     await client.getLeaderboard();
     await client.getFeed({ cursor: "abc=", limit: 80 });
     await client.getStats();
+    await client.getParticipants({ cursor: "p=", limit: 500 });
+    await client.getTeams();
     await client.getSnapshot();
     expect(calls.map(call => call.url)).toEqual([
       "/api/public/competitions/oss-challenge-2026-1",
       "/api/public/competitions/oss-challenge-2026-1/leaderboard",
       "/api/public/competitions/oss-challenge-2026-1/feed?cursor=abc%3D&limit=50",
       "/api/public/competitions/oss-challenge-2026-1/stats",
+      "/api/public/competitions/oss-challenge-2026-1/participants?cursor=p%3D&limit=200",
+      "/api/public/competitions/oss-challenge-2026-1/teams",
       "/api/public/competitions/oss-challenge-2026-1/snapshot",
     ]);
     for (const call of calls) {

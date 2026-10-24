@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-participation="individual">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -27,7 +27,7 @@
             <span class="hero-title-box" aria-hidden="true"><canvas id="title" class="hero-title"></canvas></span>
             <span class="hero-name" aria-hidden="true" style="--n:12"><span style="--i:0">极</span><span style="--i:1">客</span><span style="--i:2">班</span><span style="--i:3">开</span><span style="--i:4">源</span><span style="--i:5">实</span><span style="--i:6">战</span><span style="--i:7">贡</span><span style="--i:8">献</span><span style="--i:9">挑</span><span style="--i:10">战</span><span style="--i:11">赛</span></span>
           </h1>
-          <p class="hero-kicker">2026 第一期 · <span data-text="span">10 月 21 日到 11 月 15 日</span> · <span data-text="kicker-team">一个人或组队都能参加</span></p>
+          <p class="hero-kicker">2026 第一期 · <span data-text="span">10 月 21 日到 11 月 15 日</span> · <span data-text="kicker-team">按个人计分</span></p>
 
           <div class="how">
             <h2 class="how-title">怎么拿分</h2>
@@ -105,7 +105,7 @@
             <span class="step-no" aria-hidden="true">1</span>
             <span class="step-icon" data-icon="user-add-line"></span>
             <h3>报名</h3>
-            <p data-text="team-rule">在主站的比赛窗口报名。可以一个人参加，也可以组队。</p>
+            <p data-text="team-rule">在主站的比赛窗口报名。这场比赛按个人计分。</p>
           </li>
           <li class="step tone-pink">
             <span class="step-no" aria-hidden="true">2</span>
@@ -152,7 +152,7 @@
       <section class="sec sec-wide tone-lime" id="board" aria-labelledby="board-title" tabindex="-1">
         <header class="sec-head"><span class="sec-no" aria-hidden="true">04</span><h2 id="board-title">实时天梯</h2><span class="live-tag"><span class="live-dot" aria-hidden="true"></span>实时</span></header>
         <div class="stats" data-slot="stats" aria-live="polite"></div>
-        <div class="tabs" role="tablist" aria-label="天梯类型">
+        <div class="tabs" role="tablist" aria-label="天梯类型" data-team-only>
           <button type="button" role="tab" id="tab-individual" aria-controls="panel-individual" aria-selected="true">个人</button>
           <button type="button" role="tab" id="tab-team" aria-controls="panel-team" aria-selected="false" tabindex="-1">队伍</button>
         </div>
@@ -172,7 +172,7 @@
         <div class="card" data-slot="timeline"></div>
       </section>
 
-      <section class="sec tone-pink" id="teams" aria-labelledby="teams-title">
+      <section class="sec tone-pink" id="teams" aria-labelledby="teams-title" data-team-only>
         <header class="sec-head"><span class="sec-no" aria-hidden="true">07</span><h2 id="teams-title">队伍</h2></header>
         <div data-slot="teams"><p class="loading">正在读取队伍</p></div>
       </section>
@@ -186,7 +186,7 @@
           </details>
           <details>
             <summary>能不能一个人参加？<span data-icon="arrow-down-s-line"></span></summary>
-            <div class="faq-a"><p data-text="faq-team">可以。一个人报名就是一人一队，天梯上的个人榜和队伍榜都会出现。</p></div>
+            <div class="faq-a"><p data-text="faq-team">可以，这场比赛本来就按个人计分。</p></div>
           </details>
           <details>
             <summary>往哪里提交？<span data-icon="arrow-down-s-line"></span></summary>

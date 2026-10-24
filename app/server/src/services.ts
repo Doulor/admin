@@ -28,6 +28,7 @@ import { createCompetitionScoreStore } from "./lib/competition-score-store.js";
 import { createCompetitionRulesStore } from "./lib/competition-rules-store.js";
 import { createCompetitionSiteStore } from "./lib/competition-site-store.js";
 import { createCompetitionPublic, publicCachePrefix } from "./lib/competition-public.js";
+import { createCompetitionTeamPlaza } from "./lib/competition-team-plaza.js";
 import { createCompetitionPrizes } from "./lib/competition-prizes.js";
 import { createCompetitionCandidates } from "./lib/competition-candidates.js";
 import { loadForumContent } from "./lib/forum-content.js";
@@ -138,6 +139,8 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
   const competitionPublic = createCompetitionPublic(storage.db, {
     competitions, signups: competitionSignups, scores: competitionScores, rules: competitionRules, sites: competitionSites,
   });
+  // 组队广场（#278 重开）：跨比赛聚合，只读 competitions/competitionSignups，不新开一张表。
+  const competitionTeamPlaza = createCompetitionTeamPlaza(storage.db, { competitions, signups: competitionSignups });
   const competitionPrizes = createCompetitionPrizes(storage.db, {
     competitions, scores: competitionScores, signupScoring: id => competitionSignups.settingsOf(id).scoring, rules: competitionRules, crypto,
   });
@@ -151,7 +154,7 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     competitions,
     competitionSignups,
     competitionScores,
-    competitionRules, competitionSites, competitionPublic, competitionPrizes, competitionCandidates,
+    competitionRules, competitionSites, competitionPublic, competitionTeamPlaza, competitionPrizes, competitionCandidates,
     config, storage, crypto, sitesRoot,
     auth,
     identity,

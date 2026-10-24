@@ -35,7 +35,7 @@ const columns = [
   { key: "code", title: "邀请码", minWidth: 200 },
   { key: "uses", title: "已用", width: 132 },
   { key: "expires", title: "过期（北京时间）", width: 150 },
-  { key: "state", title: "状态", width: 100 },
+  { key: "state", title: "状态", width: 120 },
   { key: "actions", title: "操作", width: 180, align: "right" as const },
 ];
 

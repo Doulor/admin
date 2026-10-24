@@ -171,6 +171,34 @@ describe('public competition endpoints', () => {
     expect(status.actions).toEqual([]);
     expect(status.state).toBe('none');
   });
+
+  // 规划中（#278，所有者 2026-10-25）：组织者还在筹备，即使报名设置已经打开、报名截止时间也还没到
+  // （不规划的话这就该是「报名中」），报名与组队也要一律拒绝，而不是「还没开放」或「已经截止」那两种措辞。
+  it('refuses signups and team creation while the competition is still planning', async () => {
+    const { configure, makeCompetition, myStatus, signUp, createTeam } = await setup();
+    const now = Date.now();
+    const planning = await makeCompetition({ planning: true, start_at: now + DAY, end_at: now + 10 * DAY, signup_deadline: now + 2 * DAY });
+    expect((await configure(planning, TEAM_SETTINGS)).statusCode).toBe(200);
+
+    const refused = await signUp(planning, 'bob');
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json().error).toBe('competition_planning');
+
+    const refusedTeam = await createTeam(planning, 'bob', { name: '规划中测试队' });
+    expect(refusedTeam.statusCode).toBe(409);
+    expect(refusedTeam.json().error).toBe('competition_planning');
+
+    const status = await myStatus(planning, 'bob');
+    expect(status.writable).toBe(false);
+    expect(status.actions).toEqual([]);
+    expect(status.state).toBe('none');
+
+    // 一过开赛时间，规划中标记不再生效：报名照常按时间算（这里截止时间还没到，变回报名中）
+    const started = await makeCompetition({ planning: true, start_at: now - HOUR, end_at: now + 10 * DAY, signup_deadline: now + 2 * DAY });
+    expect((await configure(started, TEAM_SETTINGS)).statusCode).toBe(200);
+    const allowed = await signUp(started, 'bob');
+    expect(allowed.statusCode).toBe(200);
+  });
 });
 
 describe('signup', () => {
@@ -467,6 +495,143 @@ describe('teams', () => {
     const invitation = (await myStatus(id, 'bob')).pending[0];
     expect((await respond(first, 'alice', invitation.membership_id, 'withdraw')).statusCode).toBe(200);
     expect((await myStatus(id, 'bob')).pending).toEqual([]);
+  });
+});
+
+describe('team plaza (#278 重开)：队伍自己的「还在招募」广播，和 status 的 recruiting/locked 是两件事', () => {
+  it('领队开关、改备注和想要的技能；非领队拒绝；撤下不清掉内容', async () => {
+    const { app, as, signUp, teamCompetition, createTeam } = await setup();
+    const id = await teamCompetition();
+    await signUp(id, 'alice');
+    await signUp(id, 'bob');
+    const teamId = (await createTeam(id, 'alice', { name: '广场队' })).json().team.id;
+
+    const notLeader = await app.inject({ method: 'POST', url: `/api/teams/${teamId}/plaza`, headers: as('bob'), payload: { recruiting: true } });
+    expect(notLeader.statusCode).toBe(403);
+    expect(notLeader.json().error).toBe('not_team_leader');
+
+    const published = await app.inject({
+      method: 'POST', url: `/api/teams/${teamId}/plaza`, headers: as('alice'),
+      payload: { recruiting: true, note: '缺一个前端', wanted_skills: ['React', 'TypeScript'] },
+    });
+    expect(published.statusCode).toBe(200);
+    expect(published.json().team.plaza).toMatchObject({ recruiting: true, note: '缺一个前端', wanted_skills: ['React', 'TypeScript'] });
+    expect(published.json().team.plaza.updated_at).toEqual(expect.any(Number));
+    expect(activityRows(app, { action: 'competition.team.plaza' })[0]).toMatchObject({ outcome: 'ok' });
+
+    // 超过字段契约（note 150、技能 10 项，见 competition-contract.ts）在请求 Schema 这一层就拦下，
+    // 和 bad_note/bad_slogan/bad_message 一样不走到 store 的 bad_plaza_note/bad_plaza_skills（store 的检查是第二道防线）。
+    const overLimit = await app.inject({
+      method: 'POST', url: `/api/teams/${teamId}/plaza`, headers: as('alice'),
+      payload: { recruiting: true, wanted_skills: Array.from({ length: 11 }, (_, i) => `技能${i}`) },
+    });
+    expect(overLimit.statusCode).toBe(400);
+    expect(overLimit.json().error).toBe('validation_error');
+
+    // 撤下：recruiting 变 false，备注和技能照留，下次重开不用再填一次
+    const withdrawn = await app.inject({ method: 'DELETE', url: `/api/teams/${teamId}/plaza`, headers: as('alice') });
+    expect(withdrawn.statusCode).toBe(200);
+    expect(withdrawn.json().team.plaza).toMatchObject({ recruiting: false, note: '缺一个前端', wanted_skills: ['React', 'TypeScript'] });
+    expect(activityRows(app, { action: 'competition.team.plaza.withdraw' })[0]).toMatchObject({ outcome: 'ok' });
+
+    const nope = await app.inject({ method: 'POST', url: '/api/teams/nope/plaza', headers: as('alice'), payload: { recruiting: true } });
+    expect(nope.statusCode).toBe(404);
+    expect(nope.json().error).toBe('team_not_found');
+  });
+});
+
+describe('组队广场列表 GET /api/team-plaza（#278 重开）：跨比赛汇总找队伍的人和还在招募的队伍', () => {
+  it('合成两种条目、按比赛/种类/关键词筛选、满员与已组队自动不出现、分页不重不漏', async () => {
+    const { app, as, signUp, teamCompetition, createTeam, configure } = await setup();
+
+    // 比赛 A：alice 想找队伍（looking_for_team），还没组队——这是 seeking_team 条目。
+    const compA = await teamCompetition({ team_max: 3 });
+    await signUp(compA, 'alice', { looking_for_team: true, note: '寻找前端搭档' });
+
+    // 比赛 B：carol 建队并开广场广播——这是 recruiting_team 条目。
+    const compB = await teamCompetition({ team_max: 2 });
+    await signUp(compB, 'carol');
+    const teamB = (await createTeam(compB, 'carol', { name: 'B队' })).json().team.id;
+    await app.inject({
+      method: 'POST', url: `/api/teams/${teamB}/plaza`, headers: as('carol'),
+      payload: { recruiting: true, note: '缺一个后端', wanted_skills: ['Go'] },
+    });
+
+    // bob 是极客班成员但跟 A/B 都无关，用它当「查看者」，证明广场不要求本人参赛。
+    const all = await app.inject({ url: '/api/team-plaza', headers: as('bob') });
+    expect(all.statusCode).toBe(200);
+    expect(all.json().items).toHaveLength(2);
+    const seeking = all.json().items.find((item: { kind: string }) => item.kind === 'seeking_team');
+    const recruiting = all.json().items.find((item: { kind: string }) => item.kind === 'recruiting_team');
+    expect(seeking).toMatchObject({
+      competition_id: compA, note: '寻找前端搭档', person: { login: 'alice' },
+      team_id: null, team_name: null, leader: null, member_count: null, team_max: null, wanted_skills: null,
+    });
+    expect(recruiting).toMatchObject({
+      competition_id: compB, team_id: teamB, team_name: 'B队', note: '缺一个后端', wanted_skills: ['Go'],
+      leader: { login: 'carol' }, member_count: 1, team_max: 2, person: null,
+    });
+
+    // 按比赛筛：只剩 A 的那条
+    const byCompetition = await app.inject({ url: `/api/team-plaza?competition_id=${compA}`, headers: as('bob') });
+    expect(byCompetition.json().items).toHaveLength(1);
+    expect(byCompetition.json().items[0].kind).toBe('seeking_team');
+
+    // 按种类筛：只剩招募中的队伍
+    const byKind = await app.inject({ url: '/api/team-plaza?kind=recruiting_team', headers: as('bob') });
+    expect(byKind.json().items).toEqual([recruiting]);
+
+    // 关键词筛：alice 的备注含「前端」，carol 的备注含「后端」，互不命中对方
+    const byKeyword = await app.inject({ url: `/api/team-plaza?keyword=${encodeURIComponent('后端')}`, headers: as('bob') });
+    expect(byKeyword.json().items).toEqual([recruiting]);
+    // 关键词也能命中队伍想要的技能，不只是备注原文
+    const byCityKeyword = await app.inject({ url: '/api/team-plaza?keyword=Go', headers: as('bob') });
+    expect(byCityKeyword.json().items).toEqual([recruiting]);
+
+    // 满员的队伍自动不出现：team_max=1，carol 自己就满了
+    const compFull = await teamCompetition({ team_max: 1 });
+    await signUp(compFull, 'dave');
+    const teamFull = (await createTeam(compFull, 'dave', { name: '满员队' })).json().team.id;
+    await app.inject({ method: 'POST', url: `/api/teams/${teamFull}/plaza`, headers: as('dave'), payload: { recruiting: true } });
+    const afterFull = await app.inject({ url: `/api/team-plaza?competition_id=${compFull}`, headers: as('bob') });
+    expect(afterFull.json().items).toEqual([]);
+
+    // 已经组队的人自动从 seeking_team 退出：alice 建队后，A 的广场上不再有她的求组队条目
+    await createTeam(compA, 'alice', { name: 'A队' });
+    const afterTeamed = await app.inject({ url: `/api/team-plaza?competition_id=${compA}`, headers: as('bob') });
+    expect(afterTeamed.json().items).toEqual([]);
+
+    // 关闭 B 的报名后，B 的条目跟着可见性规则一起消失（和各比赛自己的报名设置同口径，不单开一套）
+    expect((await configure(compB, { enabled: false })).statusCode).toBe(200);
+    const afterDisabled = await app.inject({ url: `/api/team-plaza?competition_id=${compB}`, headers: as('bob') });
+    expect(afterDisabled.json().items).toEqual([]);
+  });
+
+  it('分页不重不漏；未登录 401，非成员 403', async () => {
+    const { app, as, signUp, teamCompetition } = await setup();
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i += 1) ids.push(await teamCompetition({ team_max: 3 }));
+    await signUp(ids[0], 'alice', { looking_for_team: true, note: `求组队 ${0}` });
+    await signUp(ids[1], 'bob', { looking_for_team: true, note: `求组队 ${1}` });
+    await signUp(ids[2], 'carol', { looking_for_team: true, note: `求组队 ${2}` });
+
+    const first = await app.inject({ url: '/api/team-plaza?limit=2', headers: as('dave') });
+    expect(first.statusCode).toBe(200);
+    expect(first.json().items).toHaveLength(2);
+    expect(first.json().next_cursor).toEqual(expect.any(String));
+
+    const second = await app.inject({ url: `/api/team-plaza?limit=2&cursor=${encodeURIComponent(first.json().next_cursor)}`, headers: as('dave') });
+    expect(second.json().items).toHaveLength(1);
+    expect(second.json().next_cursor).toBeNull();
+
+    const notes = [...first.json().items, ...second.json().items].map((item: { note: string }) => item.note);
+    expect(new Set(notes)).toEqual(new Set(['求组队 0', '求组队 1', '求组队 2']));
+
+    const anonymous = await app.inject({ url: '/api/team-plaza' });
+    expect(anonymous.statusCode).toBe(401);
+    const outsider = await app.inject({ url: '/api/team-plaza', headers: as('erin') });
+    expect(outsider.statusCode).toBe(403);
+    expect(outsider.json().error).toBe('not_member');
   });
 });
 

@@ -25,6 +25,11 @@ export const DEFAULT_SIGNUP_SETTINGS: SignupSettings = Object.freeze({
 /** 一个人的公开资料：账号、绑定的 GitHub 登录名与头像（统一资料上线前就是这个形状）。 */
 export type Person = { account_id: string; login: string; avatar_url: string | null };
 export type TeamMember = Person & { role: "leader" | "member"; joined_at: number };
+/**
+ * 队伍在组队广场（#278 重开）的广播状态：和 `status` 的 recruiting/locked 是两件事——`status` 决定还能不能
+ * 被申请，这里决定要不要在广场公开求人；领队单独开关，不跟着 lock/unlock 联动。
+ */
+export type TeamPlaza = { recruiting: boolean; note: string; wanted_skills: string[]; updated_at: number | null };
 export type Team = {
   id: string; name: string; slogan: string;
   status: "recruiting" | "locked";
@@ -32,6 +37,7 @@ export type Team = {
   members: TeamMember[];
   member_count: number;
   created_at: number;
+  plaza: TeamPlaza;
 };
 export type Pending = {
   membership_id: string;
@@ -82,16 +88,19 @@ export type Roster = { settings: SignupSettings; stats: Stats; signups: RosterSi
  */
 export type SignupErrorCode =
   | "not_found" | "team_not_found" | "not_team_leader"
-  | "signup_not_enabled" | "signup_closed" | "not_signed_up" | "individual_competition"
+  | "competition_planning" | "signup_not_enabled" | "signup_closed" | "not_signed_up" | "individual_competition"
   | "already_in_team" | "already_applied" | "already_invited" | "invitee_not_signed_up" | "target_not_member"
   | "team_full" | "team_too_small" | "team_locked" | "duplicate_team_name" | "is_team_leader" | "invalid_state"
   | "bad_note" | "bad_team_name" | "bad_slogan" | "bad_message" | "bad_team_size"
-  | "deadline_required" | "has_signups" | "kind_locked" | "team_size_conflict";
+  | "deadline_required" | "has_signups" | "kind_locked" | "team_size_conflict"
+  | "bad_plaza_note" | "bad_plaza_skills";
 
 export const SIGNUP_ERRORS: Record<SignupErrorCode, { status: number; message: string }> = {
   not_found: { status: 404, message: "比赛不存在或已下线" },
   team_not_found: { status: 404, message: "队伍不存在或已解散" },
   not_team_leader: { status: 403, message: "只有领队能做这个操作" },
+  // 规划中（#278）：组织者还在筹备，开赛前一律拒绝报名与组队，和「还没开放」「已经截止」是三件不同的事。
+  competition_planning: { status: 409, message: "比赛还在规划中，暂未开放报名" },
   signup_not_enabled: { status: 409, message: "这场比赛还没有开放报名" },
   signup_closed: { status: 409, message: "报名已截止，这场比赛进入只读" },
   not_signed_up: { status: 409, message: "请先报名这场比赛" },
@@ -116,6 +125,8 @@ export const SIGNUP_ERRORS: Record<SignupErrorCode, { status: number; message: s
   has_signups: { status: 409, message: "已经有报名记录，不能删除或改变参赛形式" },
   kind_locked: { status: 409, message: "已经有未取消的报名，不能改内外部" },
   team_size_conflict: { status: 409, message: "新的人数范围与现有队伍冲突" },
+  bad_plaza_note: { status: 400, message: "组队广场的备注最多 150 字" },
+  bad_plaza_skills: { status: 400, message: "想要的技能最多 10 项，每项最多 20 字" },
 };
 
 export type SignupFailure = { ok: false; error: SignupErrorCode };
@@ -133,6 +144,7 @@ type SignupRow = {
 type TeamRow = {
   id: string; competition_id: string; name: string; name_key: string; slogan: string; leader_account_id: string;
   status: string; locked_at: number | null; disbanded_at: number | null; created_at: number; updated_at: number;
+  plaza_recruiting: number; plaza_note: string; plaza_skills: string; plaza_updated_at: number | null;
 };
 type MemberRow = {
   id: string; team_id: string; competition_id: string; account_id: string; role: string; status: string;
@@ -143,7 +155,9 @@ type ProfileRow = { id: string; login: string | null; avatar_url: string | null;
 type CountRow = { n: number };
 
 const SIGNUP_COLUMNS = "id, competition_id, account_id, status, looking_for_team, note, created_at, updated_at, cancelled_at";
-const TEAM_COLUMNS = "id, competition_id, name, name_key, slogan, leader_account_id, status, locked_at, disbanded_at, created_at, updated_at";
+// plaza_* 四列（#278 重开）只在 teamView() 读出、setPlaza() 改写；insertTeam 建队时按字面量给默认值（不招募、无备注、空技能、未改过）。
+const TEAM_COLUMNS = "id, competition_id, name, name_key, slogan, leader_account_id, status, locked_at, disbanded_at, created_at, updated_at, "
+  + "plaza_recruiting, plaza_note, plaza_skills, plaza_updated_at";
 const MEMBER_COLUMNS = "id, team_id, competition_id, account_id, role, status, message, created_by, decided_by, created_at, decided_at, updated_at";
 
 /** 按 Unicode 字符数（不是 UTF-16 码元）计长，和 #238 的比赛名称同口径。 */
@@ -151,9 +165,19 @@ const charLength = (value: string) => [...value].length;
 /** 队名查重键：trim + NFKC + 小写。 */
 export const teamNameKey = (name: string) => name.trim().normalize("NFKC").toLowerCase();
 
-/** 可写 = 已开放报名且在报名中（截止前、结束前）。未开放与不在报名中分两个错误码。 */
+/** `plaza_skills` 列存的 JSON 字符串数组解出来；坏数据（不该发生）当空数组，不让一整行读不出来。 */
+export function parsePlazaSkills(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** 可写 = 已开放报名且在报名中（截止前、结束前）。未开放、规划中与不在报名中分开的错误码见 `writeFailure`。 */
 export function signupWritable(
-  record: Pick<CompetitionRecord, "start_at" | "end_at" | "signup_deadline">,
+  record: Pick<CompetitionRecord, "start_at" | "end_at" | "signup_deadline" | "planning">,
   settings: SignupSettings,
   now: number,
 ): boolean {
@@ -161,6 +185,8 @@ export function signupWritable(
 }
 
 function writeFailure(record: CompetitionRecord, settings: SignupSettings, now: number): SignupFailure | null {
+  // 规划中压过「还没开放」：组织者还在筹备，不该先看到「没开放报名」这种听起来随时会开的提示。
+  if (competitionStatus(record, now) === "planning") return failure("competition_planning");
   if (!settings.enabled) return failure("signup_not_enabled");
   if (competitionStatus(record, now) !== "registering") return failure("signup_closed");
   return null;
@@ -204,6 +230,8 @@ export interface CompetitionSignupStore {
   disband(teamId: string, accountId: string, now: number): SignupResult<MyStatus>;
   lock(teamId: string, accountId: string, now: number): SignupResult<MyStatus>;
   unlock(teamId: string, accountId: string, now: number): SignupResult<MyStatus>;
+  setPlaza(teamId: string, accountId: string, input: { recruiting: boolean; note?: string; wanted_skills?: string[] }, now: number): SignupResult<MyStatus>;
+  withdrawPlaza(teamId: string, accountId: string, now: number): SignupResult<MyStatus>;
   roster(competitionId: string): SignupResult<Roster>;
   updateSettings(competitionId: string, input: SignupSettings, updatedBy: string, now: number): SignupResult<SignupSettings>;
   person(accountId: string): Person;
@@ -238,10 +266,14 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
   const selectAllTeams = db.prepare(`SELECT ${TEAM_COLUMNS} FROM competition_teams WHERE competition_id = ? ORDER BY created_at, id`);
   const selectTeamByName = db.prepare("SELECT id FROM competition_teams WHERE competition_id = ? AND name_key = ? AND status <> 'disbanded'");
   const insertTeam = db.prepare(`INSERT INTO competition_teams(${TEAM_COLUMNS})
-    VALUES(@id, @competition_id, @name, @name_key, @slogan, @leader_account_id, 'recruiting', NULL, NULL, @now, @now)`);
+    VALUES(@id, @competition_id, @name, @name_key, @slogan, @leader_account_id, 'recruiting', NULL, NULL, @now, @now, 0, '', '[]', NULL)`);
   const setTeamLeader = db.prepare("UPDATE competition_teams SET leader_account_id = ?, updated_at = ? WHERE id = ?");
   const setTeamStatus = db.prepare("UPDATE competition_teams SET status = ?, locked_at = ?, updated_at = ? WHERE id = ?");
   const disbandTeamRow = db.prepare("UPDATE competition_teams SET status = 'disbanded', locked_at = NULL, disbanded_at = ?, updated_at = ? WHERE id = ?");
+  // 组队广场（#278 重开）：领队单独改，不跟队伍状态联动；plaza_skills 存 JSON 字符串数组。
+  const setTeamPlazaRow = db.prepare(`UPDATE competition_teams
+    SET plaza_recruiting = @recruiting, plaza_note = @note, plaza_skills = @skills, plaza_updated_at = @now
+    WHERE id = @id`);
 
   const selectMember = db.prepare(`SELECT ${MEMBER_COLUMNS} FROM competition_team_members WHERE id = ?`);
   const selectMembers = db.prepare(`SELECT ${MEMBER_COLUMNS} FROM competition_team_members WHERE team_id = ? AND status = 'active'
@@ -347,6 +379,7 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
       id: row.id, name: row.name, slogan: row.slogan,
       status: row.status === "locked" ? "locked" : "recruiting",
       leader_account_id: row.leader_account_id, members, member_count: members.length, created_at: row.created_at,
+      plaza: { recruiting: row.plaza_recruiting === 1, note: row.plaza_note, wanted_skills: parsePlazaSkills(row.plaza_skills), updated_at: row.plaza_updated_at },
     };
   }
 
@@ -720,6 +753,41 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
     });
   }
 
+  /**
+   * 组队广场广播（#278 重开）：领队开关「还在招募」、写一句话和想要的技能，和 `lock`/`unlock` 独立——
+   * 锁定的队伍就算开着广播也不会出现在广场（`competition-team-plaza.ts` 的可见性规则另外判断）。
+   */
+  function setPlaza(teamId: string, accountId: string, input: { recruiting: boolean; note?: string; wanted_skills?: string[] }, now: number): SignupResult<MyStatus> {
+    const team = selectTeam.get(teamId) as TeamRow | undefined;
+    if (!team) return failure("team_not_found");
+    const context = teamContext(team, now);
+    if (isFailure(context)) return context;
+    if (team.status === "disbanded") return failure("team_not_found");
+    if (team.leader_account_id !== accountId) return failure("not_team_leader");
+    const note = (input.note ?? "").trim();
+    if (charLength(note) > 150) return failure("bad_plaza_note");
+    const skills = (input.wanted_skills ?? []).map(item => item.trim()).filter(Boolean);
+    if (skills.length > 10 || skills.some(item => charLength(item) > 20)) return failure("bad_plaza_skills");
+    return mutate(context.id, accountId, now, () => {
+      setTeamPlazaRow.run({ id: teamId, recruiting: input.recruiting ? 1 : 0, note, skills: JSON.stringify(skills), now });
+      return null;
+    });
+  }
+
+  /** 撤下广场广播：关掉「还在招募」，备注和技能照留，之后重新开启不用再填一次。 */
+  function withdrawPlaza(teamId: string, accountId: string, now: number): SignupResult<MyStatus> {
+    const team = selectTeam.get(teamId) as TeamRow | undefined;
+    if (!team) return failure("team_not_found");
+    const context = teamContext(team, now);
+    if (isFailure(context)) return context;
+    if (team.status === "disbanded") return failure("team_not_found");
+    if (team.leader_account_id !== accountId) return failure("not_team_leader");
+    return mutate(context.id, accountId, now, () => {
+      setTeamPlazaRow.run({ id: teamId, recruiting: 0, note: team.plaza_note, skills: team.plaza_skills, now });
+      return null;
+    });
+  }
+
   function unlock(teamId: string, accountId: string, now: number): SignupResult<MyStatus> {
     const team = selectTeam.get(teamId) as TeamRow | undefined;
     if (!team) return failure("team_not_found");
@@ -843,7 +911,7 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
     hasActiveSignups: (competitionId: string) => count(countActiveSignups, competitionId) > 0,
     signupEnabled: (competitionId: string) => settingsOf(competitionId).enabled,
     myStatus, myCompetitions, signUp, cancelSignUp, teams, freeAgents, createTeam,
-    apply, invite, respond, leave, transfer, disband, lock, unlock,
+    apply, invite, respond, leave, transfer, disband, lock, unlock, setPlaza, withdrawPlaza,
     roster, updateSettings, person,
     activeSignups: (competitionId: string) =>
       (selectActiveSignups.all(competitionId) as SignupRow[]).map(row => ({ ...person(row.account_id), created_at: row.created_at })),

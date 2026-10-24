@@ -2,538 +2,527 @@
   "version": 1,
   "issue": 278,
   "kind": "business",
-  "summary": "第一期内部比赛的官网与配套接口：比赛方上传静态站点包，校验通过后同域托管在 /c/ 加比赛地址（sandbox CSP，读不到主站会话）；四个匿名公开接口和一个快照接口、比赛 SDK；从自建 GitLab 收集合并的 MR 与 Issue，只有被有审核权限的人标记「有用」的才加分；标记时选重要程度 × 核心度两档查表得基础分，不看代码行数，每人每周「一般 × 边缘」只算 1 条；基础分按记分那一刻的年级乘这场比赛的系数（默认大一 3.5、大二 2.2、大三 1.4、其余 1.0，由固定种子的模拟选出），记下后不重算；天梯服务端缓存 10 秒；奖项可选，比赛结束后定榜冻结名次并给得奖的人发不可猜的兑奖码，本人在门户「我的参赛」看到，所有者在控制台核销。主站比赛窗口的官网入口横幅和详情头图跟着官网改成同一套浅色（夜空退场并归档）。",
+  "summary": "#278 重开（所有者 2026-10-24 22:17/22:25/22:27，2026-10-25 01:03）：补内部比赛托管缺的几件事——新增跨比赛的组队广场（领队开关「还在招募」广播，门户聚合找队伍的人与还在招募的队伍，按比赛/种类/关键词筛选分页）、站点包补齐人员与队伍两个公开只读接口、官网 SDK 的本地预览命令（`contest-site.mjs dev`）与起步模板目录；2026-10-25 再补两件：比赛新增「规划中」状态（组织者还在筹备、没准备好开放报名时打开，报名与组队一律拒绝，过了开赛时间自动失效），以及 `contest-site.mjs dev --api` 让组织者本地起站点时直接对接线上公开接口看真实数据，而不是写死的样例。",
   "applications": [
     "server",
     "web",
-    "console"
+    "console",
+    "cli"
   ],
   "domains": [
-    "competitions",
-    "identity",
-    "permissions",
     "audit",
-    "platform",
-    "gitlab",
-    "organization",
-    "recruitment",
+    "competitions",
     "feedback",
-    "invitations",
-    "github",
     "forum",
+    "github",
+    "gitlab",
+    "identity",
+    "invitations",
     "mail",
-    "public_content"
+    "organization",
+    "permissions",
+    "platform",
+    "public_content",
+    "recruitment"
   ],
   "flows": [
-    "flow:competition.site.redirect",
-    "flow:competition.site.serve",
-    "flow:competition.site.read",
-    "flow:competition.site.upload",
-    "flow:competition.site.publish",
-    "flow:competition.site.unpublish",
-    "flow:competition.public.leaderboard",
-    "flow:competition.public.feed",
-    "flow:competition.public.stats",
-    "flow:competition.public.snapshot",
-    "flow:competition.me.results",
-    "flow:competition.candidates.list",
-    "flow:competition.candidates.accept",
-    "flow:competition.candidates.reject",
-    "flow:competition.candidates.collect",
-    "flow:competition.rules.read",
-    "flow:competition.rules.update",
-    "flow:competition.final.read",
-    "flow:competition.finalize",
-    "flow:competition.unfinalize",
-    "flow:competition.prize.lookup",
-    "flow:competition.prize.redeem",
+    "flow:competition.team.plaza.publish",
+    "flow:competition.team.plaza.withdraw",
+    "flow:competition.team_plaza.list",
+    "flow:competition.public.participants",
+    "flow:competition.public.teams",
     "flow:competition.public.list",
-    "flow:competition.public.detail",
     "flow:competition.console.list",
+    "flow:competition.create",
     "flow:competition.update",
-    "flow:competition.delete",
-    "flow:competition.leaderboard.read",
-    "flow:competition.roster.read",
-    "flow:competition.score_events.preview",
-    "flow:competition.score_events.list",
-    "flow:competition.score_events.create",
-    "flow:competition.score_events.revoke",
+    "flow:application.cancel",
     "flow:console.summary",
-    "flow:application.review",
-    "flow:feedback.console.update",
-    "flow:forum.state",
-    "flow:identity.invite.redeem",
+    "flow:identity.email.verify",
     "flow:identity.callback",
+    "flow:forum.state",
     "flow:documentation.list",
-    "flow:competition.my_status"
+    "flow:identity.invites.list",
+    "flow:competition.site.upload",
+    "flow:competition.public.snapshot"
   ],
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "新增官网托管、公开天梯与动态、贡献收集与「有用」标签核实、两档评定（重要程度 × 核心度，不看代码行数）、年级系数加权（默认 3.5 / 2.2 / 1.4 / 1.0）、每周防刷、可选奖项、定榜与兑奖码核销；只有标记「有用」的 Issue 和 MR 计分（GitLab 标签要打标签的人有 competition.score.review 且不是作者本人，或在控制台确认）；门户比赛窗口显示奖项、年级系数、10 秒刷新的天梯和本人的兑奖码；控制台加待确认贡献、计分与奖项、官网、定榜四个页签和核销页。官网首屏一屏讲清楚内部赛、怎么拿分、奖金、实时天梯和报名入口（所有者 10-24 16:57），计分一节有两张基础分表和「算一算」。",
+      "reason": "新增组队广场（跨比赛汇总想找队伍的人与还在招募的队伍，领队单独开关广播，和队伍 status 的 recruiting/locked 是两件事）、站点包公开接口（人员、队伍），是所有者 10-24 22:17/22:25 要的新业务能力；查/邀/申请仍走既有接口，没有重复造轮子。10-25 01:03 所有者再要一条「比赛是有状态的，规划中，进行中，已结束啥的」：加一个新状态 planning，组织者筹备期打开它，开赛前报名、建队一律拒绝（新错误码 competition_planning），过了开赛时间这个标记失效，不会把已经开赛的比赛卡住；同一天所有者要「很多接口其实是对接线上的接口，我们本地可以开发看到效果」，给 dev 子命令加 --api，本地起站点时把公开比赛接口的只读请求转发到指定线上地址，不写样例数据也不转发任何 cookie 或鉴权头。",
       "evidence": [
-        "app/server/src/lib/competition-rubric.ts",
-        "app/server/src/lib/competition-candidates.ts",
-        "app/server/src/lib/competition-prizes.ts",
-        "app/server/src/lib/competition-rules-store.ts",
-        "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx",
-        "app/console/src/pages/CompetitionHub.vue",
-        "docs/services/server/endpoint-contracts.md"
+        "app/server/src/lib/competition-team-plaza.ts",
+        "app/server/src/lib/competition-signup-store.ts",
+        "app/server/src/lib/competition-store.ts",
+        "scripts/contest-site.mjs"
       ]
     },
     "backend": {
       "status": "changed",
-      "reason": "新增 4 个控制台路由文件与 1 个站点路由（/c/:slug、/c/:slug/*），公开接口加天梯、动态、统计、快照，门户加 /api/me/competition-results；新 store 与模块：site-package、competition-site-store、competition-rules-store、competition-public、competition-candidates、competition-prizes；gitlab-sync 暴露只读的 readApi；收集任务随 gitlabSync 开关每 10 分钟一轮；所有新接口挂请求与响应 Schema。计分规则集中在不导入任何模块的 competition-rubric.ts（两档基础分表、默认系数、防刷与加权），积分登记与候选确认改收两档、不收分值，新增只读的试算接口 GET /api/console/competitions/:competition_id/score-preview；公开比赛对象与规则接口带 scoring，动态带两档。",
+      "reason": "新增 GET /api/team-plaza 聚合只读接口、POST/DELETE /api/teams/:id/plaza 广播开关，新增公开的 GET /api/public/competitions/:id/participants、/teams 两个站点包接口；新服务 competitionTeamPlaza 装配进 services.ts。`competitionStatus` 新增 planning 分支（打开且未到开赛时间才生效），报名、取消报名、建队与全部队伍写操作统一走 writeFailure，planning 期间一律拒绝；控制台创建/更新接口（PATCH /api/console/competitions）新增可选 planning 字段并原样回传，公开列表/详情响应也带这个原始标记供官网本地重算状态。`contest-site.mjs dev` 新增 --api：校验目标必须是 https 源或 127.0.0.1/localhost，只转发 GET/HEAD、只转发 SDK 用到的公开比赛只读路径，剔除响应里的 Set-Cookie，上游不可达回 502。",
       "evidence": [
-        "app/server/src/routes/sites/index.ts",
-        "app/server/src/routes/console/competition-site.ts",
-        "app/server/src/routes/console/competition-candidates.ts",
-        "app/server/src/routes/console/competition-results.ts",
-        "app/server/src/routes/portal/competitions.ts",
-        "app/server/src/lib/gitlab-sync.ts",
+        "app/server/src/routes/portal/competition-signups.ts",
         "app/server/src/services.ts",
-        "app/server/src/lib/competition-rubric.ts"
+        "app/server/src/routes/portal/competitions.ts",
+        "app/server/src/lib/competition-store.ts",
+        "app/server/src/routes/console/competitions.ts",
+        "scripts/contest-site.mjs"
       ]
     },
     "permissions": {
-      "status": "changed",
-      "reason": "新增节点 competition.prize.redeem（核销兑奖码）；官网上传发布要 competition.site.publish，待确认贡献要 competition.score.review，规则看要 manage 或 score.review、改要 manage，定榜要 manage；控制台写操作全部要 step-up 并和写入同一事务记操作记录；审核自己的贡献 403 self_review；公开接口不读会话、按 IP 限流，只给昵称、@用户名与头像；兑奖码只在本人的结果接口里出现，真实姓名只给有 users.manage 的核销人。控制台页签与读取按同样的节点出现。",
+      "status": "unchanged",
+      "reason": "复用既有鉴权执行点：组队广场只读聚合用 requireAuth+requireCompetitionAccess（持有报名或组队任一权限即可，和找队友、队伍列表同一道门），广播开关用既有的 competition.team 权限节点；planning 期间拒绝报名/组队复用既有的 writeFailure 统一拒绝路径，不是新权限判定，而是状态判定，没有新增权限节点、能力或资源范围判定逻辑；--api 代理只转发匿名公开接口，不涉及会话或权限。",
       "evidence": [
-        "app/server/src/lib/permission-nodes.ts",
-        "app/server/src/routes/console/competition-results.ts",
-        "app/server/src/routes/console/competition-candidates.ts",
-        "app/console/src/lib/permission-nodes.ts",
-        "app/console/src/router.ts",
-        "docs/architecture/SECURITY.md"
+        "app/server/src/routes/portal/competition-signups.ts"
       ]
     },
     "data": {
       "status": "changed",
-      "reason": "新增 competition_site_versions、competition_sites、competition_gitlab_sources、competition_score_candidates、competition_rules、competition_finals、competition_prizes 七张表与 3 个索引，competition_score_events 加可空的 grade、grade_factor、weighted_points 三列（PRAGMA 检查后再加，可重复执行）；兑奖码只存 SHA-256 散列、AES-GCM 密文与末四位；站点文件放在数据库旁边的 sites/ 目录；启动时用 console_seeds 标记给第一期写一次默认系数、700/140/70 元三档奖项和 GitLab 项目 geek/admin。年级只读 #280 的 account_profiles.enrollment_year，不改它的列。两档评定再给 competition_score_events 加 importance、core、damp_percent、contributed_at 四列（同样可重复执行，旧行分数不变、两档为空、不追溯打折），候选表去掉按行数的 size_hint、suggested、换成标签给的两档（这张表还没上过线）；第一期默认系数改为 350 / 220 / 140；在预发布库副本上跑两遍，行数与分数合计不变。",
+      "reason": "给 competition_teams 加四列（plaza_recruiting/plaza_note/plaza_skills/plaza_updated_at），先查 PRAGMA table_info 再 ADD COLUMN，默认值让旧队伍一律不在广场出现。另给 competitions 加一列 planning（INTEGER NOT NULL DEFAULT 0 CHECK IN (0,1)），同样是幂等迁移（createDatabase 对同一个文件跑两次只加一次列、不丢数据，见 tests/server/competitions.test.ts「planning column migration」用真实文件验证），旧比赛行默认 0、行为不变；没有新表。plaza_recruiting 那组列已经在预发布库副本上演练过幂等且无行数漂移，planning 这一列只做了单测级别的真实文件验证，没有再上预发布库副本演练，是本次未验证项。",
       "evidence": [
         "app/server/src/lib/db.ts",
-        "app/server/src/lib/competition-score-store.ts",
-        "app/server/src/lib/competition-site-store.ts",
-        "docs/services/server/data-model.md",
-        "tests/server/legacy-database.test.ts"
+        "tests/server/competitions.test.ts"
       ]
     },
     "dependencies": {
       "status": "unchanged",
-      "reason": "没有新增依赖包：站点包的 zip 读写只用 node:zlib 与 node:crypto，比赛官网是原生 TypeScript + Canvas 2D，SDK 用 fetch；GitLab 走已有的 gitlab-sync 请求函数与管理令牌，不新增外部服务。web 的 package.json 只加构建官网与 SDK 的脚本，根 package.json 只加 contest:site 脚本。",
+      "reason": "只复用既有的 better-sqlite3、fastify 与内部 store/服务装配方式；--api 代理用 Node 内置 fetch 转发请求，没有引入任何第三方依赖、外部服务调用或消息队列。",
       "evidence": [
-        "app/web/package.json",
-        "package.json",
-        "app/server/src/lib/site-package.ts",
-        "app/server/src/lib/gitlab-sync.ts"
+        "app/server/src/services.ts"
       ]
     },
     "documentation": {
       "status": "changed",
-      "reason": "server 合同、接口行为契约、数据模型、API 与 SECURITY 写入官网托管、公开接口、收集、定榜与兑奖；web 合同与 portal 合同写入比赛官网、SDK、打包命令、门户的奖项与兑奖码；控制台合同写入四个页签与核销页；DEPLOY 写入 /c/、/sdk/ 的拓扑、站点文件位置与上传上限（容器 21m、宿主模板仍是 6m）；比赛方案记实施结论；项目目录补流程、表与归属。比赛方案加「计分规则」一节：两张基础分表、默认系数、防刷规则和三张模拟表。",
+      "reason": "endpoint-contracts.md、API.md 补新状态值、新字段与新错误码，data-model.md 记两组列迁移与 competitions/competition_teams 的描述，server/web/console 的 README 与 portal.md 补状态枚举与模块入口，contest-site-quickstart.md 新增「本地对接线上数据」一节带具体命令；控制台 README 补新建弹窗的内外部之分、规划中开关、参赛形式、窄屏卡片、官网页签的三步开发说明与邀请码状态列宽；portal.md 补组队广场视图、领队广场招人与 member 预览样板；CLI 服务文档补 comp plaza 与中文状态。",
       "evidence": [
-        "docs/services/server/README.md",
         "docs/services/server/endpoint-contracts.md",
-        "docs/services/web/README.md",
-        "docs/services/web/portal.md",
+        "docs/services/server/data-model.md",
+        "docs/architecture/API.md",
         "docs/services/console/README.md",
-        "docs/ops/DEPLOY.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/services/web/portal.md",
+        "docs/services/server/contest-site-quickstart.md",
+        "docs/services/cli/README.md"
       ]
     },
     "verification": {
       "status": "changed",
-      "reason": "新增服务端用例覆盖站点包校验与托管、公开接口与年级系数、GitLab 收集与「有用」标签、定榜与兑奖码、旧库迁移；SDK、官网与打包脚本、nginx 配置有单测；门户的奖项、兑奖码与深链，控制台的规则表单、候选、官网、兑奖码与样板读口有单测；两档基础分表、防刷与试算有服务端用例，计分模拟脚本有固定种子的单测（tests/tooling/contest-score-sim.test.ts），官网的兜底规则和服务端核对；本地服务加 ego-browser 在 1440×900 与 390×844 下看官网、门户和控制台。未验证：真实 GitLab 的收集与标签事件、预发布 nginx 叠加 CSP 下的官网、真实账号的核销。",
+      "reason": "新增/扩充服务端回归（组队广场聚合的筛选、分页、可见性与权限门，广播开关的字段校验与越权拒绝，站点包人员/队伍分页与 404，planning 状态规则、迁移幂等性与报名/建队拒绝）、控制台表单的内外部链接规则与 planning 往返、令牌读 /api/team-plaza 的范围、门户组队广场的读取与地址拼接、门户状态派生与 contest-site.mjs 的 --api 代理测试；合并 stage d1f64ec5 之后跑 tests/server+tests/console+tests/web+tests/tooling 共 136 个文件 2086 项，全部通过；app/cli 的 cargo fmt --check、clippy -D warnings、cargo test 28 项通过。另外跑过 pnpm typecheck（server、web、console、catalog）、check:runtime、check:site-config、check:environments、check:boundaries、check:docs、check:doc-sync、check:secrets、check:catalog、check:architecture。界面在本地开发服务器的样板数据下用真实浏览器看过：控制台比赛列表的规划中徽标、新建弹窗的内部/团队/外部三种形态、官网页签（1440 与 390）、邀请码状态列、窄屏卡片列表；门户组队广场（1440 与 390）；第一期官网的个人赛模式。样板数据不能证明写入，写入链路以服务端测试和预发布验收为准。",
       "evidence": [
-        "tests/server/competition-site.test.ts",
-        "tests/server/competition-public.test.ts",
-        "tests/server/competition-candidates.test.ts",
-        "tests/server/competition-prizes.test.ts",
-        "tests/web/contest-site.test.ts",
-        "tests/console/competition-contest.test.ts",
-        "tests/server/competition-rubric.test.ts",
-        "tests/server/competition-scores.test.ts",
-        "tests/tooling/contest-score-sim.test.ts"
+        "tests/server/competitions.test.ts",
+        "tests/server/competition-signups.test.ts",
+        "tests/console/competitions.test.ts",
+        "tests/web/portal-competitions.test.tsx",
+        "tests/tooling/contest-site.test.ts",
+        "tests/server/bearer-auth.test.ts",
+        "tests/web/portal-team-plaza.test.ts"
       ]
     },
     "delivery": {
-      "status": "changed",
-      "reason": "web 镜像多构建比赛 SDK（/sdk/competition/v1.js），web 容器的 nginx 把 /c/ 反代给 server，只给上传站点包那一条请求体上限放到 21m；宿主 nginx 模板没有改，仍是整站 6m，经正式域名上传超过 6MB 的包会回 413，要放宽由所有者决定（第一期站点包约 230KB）；站点文件在 server 数据卷里，不进镜像；不新增环境变量和运行单元。合并进 stage 只跑 CI，发到预发布要等 rc tag。",
+      "status": "unchanged",
+      "reason": "新增的 _starter/vite.config.ts 代理目标改读 CONTEST_API 环境变量（默认值仍是 http://127.0.0.1:3000），只是给第三方内部比赛组织者本地打包比赛站点用的起步模板，由 contest-site.mjs 的 pack/dev 命令消费，不进我们自己的构建、镜像或部署流水线，CI/CD、Dockerfile 与 compose 都没有改动。",
       "evidence": [
-        "app/web/Dockerfile",
-        "app/web/vite.config.ts",
-        "app/web/sdk.vite.config.ts",
-        "docs/ops/DEPLOY.md"
+        "app/web/sites/contests/_starter/vite.config.ts"
       ]
     }
   },
   "coverage": [
     {
       "paths": [
-        "app/server/src/lib/site-package.ts",
-        "app/server/src/lib/competition-site-store.ts",
-        "app/server/src/routes/console/competition-site.ts",
-        "app/server/src/routes/sites/index.ts",
-        "app/server/src/app.ts"
+        "app/server/src/lib/db.ts"
       ],
       "domains": [
-        "competitions",
-        "identity",
-        "permissions",
         "audit",
-        "platform"
+        "competitions",
+        "feedback",
+        "forum",
+        "gitlab",
+        "identity",
+        "invitations",
+        "mail",
+        "organization",
+        "permissions",
+        "platform",
+        "recruitment"
       ],
       "nodes": [
-        "route:GET /c/:slug/*",
-        "route:GET /c/:slug",
-        "flow:competition.site.serve",
-        "flow:competition.site.redirect",
-        "flow:competition.site.upload",
-        "flow:competition.site.publish",
-        "flow:competition.site.unpublish",
-        "table:competition_site_versions",
-        "table:competition_sites"
+        "table:competition_teams",
+        "table:competitions"
       ],
-      "reason": "官网托管：站点包逐条校验后落到数据卷，发布后由 server 直接读文件回 /c/ 加比赛地址，所有响应带 sandbox CSP 与 nosniff、去掉 Set-Cookie，HTML 不缓存、其它文件缓存 5 分钟，换版本后不会拿旧页面找已经不在的资源；预览走一小时有效的签名地址；收集任务随 gitlabSync 开关在 app.ts 启停。"
+      "reason": "db.ts 是全库表定义唯一来源，给 competition_teams 加四列、给 competitions 加 planning 一列的两组迁移；文件级归属会牵连它定义的全部 68 张表，因此覆盖全部业务域，但实际只改了这两张表的字段。"
     },
     {
       "paths": [
-        "app/server/src/lib/competition-public.ts",
-        "app/server/src/lib/competition-rules-store.ts",
-        "app/server/src/lib/competition-score-store.ts",
-        "app/server/src/lib/limits.ts",
-        "app/server/src/routes/portal/competitions.ts",
+        "app/server/src/services.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "把新的 competitionTeamPlaza 服务装配进应用服务容器，和其它比赛相关服务在同一处 wiring。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/competition-signup-store.ts",
+        "app/server/src/lib/competition-contract.ts",
+        "app/server/src/lib/competition-team-plaza.ts",
         "app/server/src/routes/portal/competition-signups.ts",
         "app/server/src/routes/portal/contracts.ts"
       ],
       "domains": [
-        "competitions",
-        "identity",
-        "platform",
         "audit",
+        "competitions",
         "feedback",
         "gitlab",
-        "organization",
+        "identity",
+        "platform",
         "public_content",
         "recruitment"
       ],
       "nodes": [
-        "flow:competition.public.leaderboard",
-        "flow:competition.public.feed",
-        "flow:competition.public.stats",
-        "flow:competition.public.snapshot",
-        "flow:competition.public.detail",
-        "flow:competition.me.results",
-        "flow:competition.leaderboard.read",
-        "flow:competition.score_events.create",
-        "table:competition_rules",
-        "flow:competition.score_events.preview",
-        "flow:competition.score_events.list"
+        "flow:competition.team.plaza.publish",
+        "flow:competition.team.plaza.withdraw",
+        "flow:competition.team_plaza.list",
+        "route:POST /api/teams/:id/plaza",
+        "route:DELETE /api/teams/:id/plaza",
+        "route:GET /api/team-plaza",
+        "table:competition_teams"
       ],
-      "reason": "公开接口与年级系数：天梯、动态、统计、快照只给昵称、@用户名与头像，服务端缓存 10 秒、按 IP 每分钟 120 次；积分按记分时刻的年级乘系数并把年级与系数记在记录上；本人的定榜结果与兑奖码只在 /api/me/competition-results。两档评定：登记收两档、不收分值，按同一周已照算的「一般 × 边缘」条数打折，试算和登记走同一段算法；公开动态带两档。"
+      "reason": "组队广场本身：领队广播开关（setPlaza/withdrawPlaza）、跨比赛聚合列表（competition-team-plaza.ts）、字段契约与路由注册；新增的 competition_planning 错误码与 writeFailure 的 planning 判断也在这几个文件里；contracts.ts 是整个门户路由的合同登记处，文件级归属覆盖它登记的全部业务域（含本次没有改但同文件托管的 public_content 等）。"
     },
     {
       "paths": [
-        "app/server/src/lib/competition-rubric.ts",
-        "scripts/contest-score-sim.mjs"
+        "app/server/src/routes/portal/competitions.ts",
+        "app/server/src/lib/competition-public.ts",
+        "app/web/shared/competition-sdk/index.ts"
       ],
       "domains": [
         "competitions"
       ],
       "nodes": [
-        "flow:competition.score_events.create",
-        "flow:competition.score_events.preview",
-        "flow:competition.score_events.list",
-        "flow:competition.candidates.accept",
-        "flow:competition.rules.read",
-        "table:competition_score_events"
+        "flow:competition.public.participants",
+        "flow:competition.public.teams",
+        "route:GET /api/public/competitions/:id/participants",
+        "route:GET /api/public/competitions/:id/teams"
       ],
-      "reason": "两档评定（所有者 10-24 16:59）：重要程度 × 核心度的基础分表、默认年级系数 3.5 / 2.2 / 1.4 / 1.0、每人每周「一般 × 边缘」只算 1 条的防刷与加权公式只在 competition-rubric.ts 一份，服务端登记、试算、候选确认、公开接口的 scoring 都读它；模拟脚本直接读同一个文件，按固定种子算几千场比赛选出默认系数与防刷规则，不碰库、不发请求。"
+      "reason": "站点包必带的两个公开只读接口（人员、队伍），SDK 加 getParticipants/getTeams 两个方法；SDK 的比赛类型与状态列表同一次加上 planning。"
     },
     {
       "paths": [
-        "app/server/src/lib/competition-candidates.ts",
-        "app/server/src/lib/gitlab-sync.ts",
-        "app/server/src/routes/console/competition-candidates.ts",
-        "app/server/src/routes/console/me.ts"
-      ],
-      "domains": [
-        "competitions",
-        "gitlab",
-        "identity",
-        "permissions",
-        "audit",
-        "organization"
-      ],
-      "nodes": [
-        "flow:competition.candidates.list",
-        "flow:competition.candidates.accept",
-        "flow:competition.candidates.reject",
-        "flow:competition.candidates.collect",
-        "flow:console.summary",
-        "table:competition_score_candidates",
-        "table:competition_gitlab_sources"
-      ],
-      "reason": "贡献收集：每 10 分钟从配置的 GitLab 项目收合并的 MR 与 Issue，按资源标签事件核实「有用」标签是谁打的，有审核权限且不是作者本人才自动加分；其余进控制台待确认；概览的 candidates_pending 换成真实数字。两档评定：候选不再读 MR 的 diff 算行数，改读「重要程度::」「核心度::」标签，三个标签都由非作者的评审人最后加上才自动加分，确认时选两档。"
-    },
-    {
-      "paths": [
-        "app/server/src/lib/competition-prizes.ts",
-        "app/server/src/routes/console/competition-results.ts",
-        "app/server/src/lib/permission-nodes.ts"
-      ],
-      "domains": [
-        "competitions",
-        "identity",
-        "permissions",
-        "audit",
-        "platform"
-      ],
-      "nodes": [
-        "flow:competition.rules.read",
-        "flow:competition.rules.update",
-        "flow:competition.final.read",
-        "flow:competition.finalize",
-        "flow:competition.unfinalize",
-        "flow:competition.prize.lookup",
-        "flow:competition.prize.redeem",
-        "table:competition_finals",
-        "table:competition_prizes"
-      ],
-      "reason": "规则、定榜与兑奖：规则整份替换、定榜后锁定；定榜冻结名次快照并发 80 位随机的兑奖码，只存散列、密文与末四位；核销要新节点 competition.prize.redeem 加 step-up，输错的码每人每小时 20 次。"
-    },
-    {
-      "paths": [
-        "app/server/src/lib/db.ts",
-        "app/server/src/lib/competition-contract.ts",
-        "app/server/src/services.ts",
-        "app/server/src/routes/console/contracts.ts",
-        "app/server/src/routes/console/index.ts",
-        "app/server/src/routes/console/competition-roster.ts",
+        "app/server/src/lib/competition-store.ts",
         "app/server/src/routes/console/competitions.ts"
       ],
       "domains": [
-        "competitions",
-        "identity",
-        "permissions",
-        "audit",
-        "platform",
-        "gitlab",
-        "organization",
-        "recruitment",
-        "feedback",
-        "invitations",
-        "github",
-        "forum",
-        "mail",
-        "public_content"
-      ],
-      "nodes": [
-        "domain:competitions",
-        "flow:competition.update",
-        "flow:competition.delete",
-        "flow:competition.score_events.revoke",
-        "flow:competition.roster.read",
-        "flow:application.review",
-        "flow:forum.state",
-        "flow:identity.invite.redeem",
-        "flow:identity.callback",
-        "flow:documentation.list",
-        "flow:feedback.console.update"
-      ],
-      "reason": "共用装配：db.ts 建七张表、加三列并写第一期种子，其余表不动；Schema 集中在 competition-contract.ts；services.ts 接入新 store；积分写入与撤销、比赛修改与删除时清公开缓存，撤销来自候选的积分时候选跟着驳回，已发布官网的比赛不能改成外部赛，删除比赛连同站点文件。db.ts 归多个业务域，列出的跨域流程只说明它们的表没有变。"
-    },
-    {
-      "paths": [
-        "app/web/shared/competition-sdk/",
-        "app/web/sites/contests/",
-        "app/web/sdk.vite.config.ts",
-        "app/web/vite.config.ts",
-        "app/web/package.json",
-        "app/web/Dockerfile",
-        "scripts/contest-site.mjs",
-        "package.json",
-        "app/web/shared/lib/heatmark.ts"
-      ],
-      "domains": [
-        "competitions",
-        "platform"
-      ],
-      "nodes": [
-        "application:web",
-        "runtime:web",
-        "flow:competition.public.snapshot",
-        "flow:competition.site.serve",
-        "flow:competition.site.upload"
-      ],
-      "reason": "比赛 SDK 与第一期官网：SDK 只调公开接口、按快照轮询；官网是浅色底的独立风格：贡献热力图拼出的 Canvas 标题、滚动数字倒计时、斜着滚动的贡献条、天梯与动态，减少动态效果时静态；pnpm contest:site 用服务端同一套校验打包；web 镜像构建 SDK，容器里的 nginx 反代 /c/ 并只给上传放宽请求体，宿主模板不动。首屏改版（所有者 10-24 16:57）：一屏讲清楚内部赛、怎么拿分三步、奖金、天梯前几名和报名，几层光、逐字翻上来的标题、随指针倾斜的卡片与滚动驱动，减少动态效果时停在最终的样子；计分一节按公开接口的 scoring 画两张基础分表和「算一算」，接口回来之前用和服务端核对过的兜底值。「OSS CHALLENGE」热力图字形与配色挪到 app/web/shared/lib/heatmark.ts，官网首屏的 Canvas 标题和门户比赛窗口的静态字标共用，官网的样子不变。"
-    },
-    {
-      "paths": [
-        "app/web/sites/portal/components/os/competitions/",
-        "app/web/sites/portal/lib/competitions.ts",
-        "app/web/sites/portal/lib/competitionHub.ts",
-        "app/web/sites/portal/lib/icons.ts",
-        "app/web/sites/portal/styles/competitions.css",
-        "docs/history/portal-contest-night/"
-      ],
-      "domains": [
-        "competitions",
-        "feedback",
-        "identity",
-        "invitations",
-        "organization",
-        "platform",
-        "public_content",
-        "recruitment"
+        "competitions"
       ],
       "nodes": [
         "flow:competition.public.list",
-        "flow:competition.me.results",
-        "flow:competition.leaderboard.read",
-        "application:web",
-        "flow:competition.my_status"
+        "flow:competition.console.list",
+        "flow:competition.create",
+        "flow:competition.update"
       ],
-      "reason": "门户比赛窗口：显示奖项、年级系数和「比赛官网」入口，天梯每 10 秒刷新、分数已乘系数；「我的参赛」里列出定榜结果与兑奖码（可复制）；官网的「报名」按钮经深链打开对应比赛与页签。比赛窗口的官网入口横幅和详情头图从夜空改成和第一期官网首屏同一套浅色（所有者 10-24 16:38、16:57 要求比赛官网去掉暗色，入口和官网不能一深一浅）：ContestBackdrop 的柔光与透视网格、热力图字标、渐变色比赛名、紫色墨线胶囊按钮，减少动态效果时停住；夜空 NightSky 删除，原文件与旧样式归档在 docs/history/portal-contest-night/。"
+      "reason": "规划中状态本身：competitionStatus 新增 planning 分支（打开且未到开赛时间才生效，过了开赛时间失效，照原规则走进行中/已结束）、competitionFields 的 choices 枚举、公开/控制台响应新增 planning 字段，控制台创建/更新契约新增可选 planning 字段并原样回传。"
     },
     {
       "paths": [
-        "app/console/src/lib/competition-contest.ts",
-        "app/console/src/lib/competition-hub.ts",
-        "app/console/src/lib/permission-nodes.ts",
-        "app/console/src/lib/types.ts",
-        "app/console/src/mock/console.ts",
-        "app/console/src/pages/competition/",
-        "app/console/src/pages/CompetitionHub.vue",
-        "app/console/src/pages/Competitions.vue",
-        "app/console/src/pages/PrizeRedeem.vue",
-        "app/console/src/router.ts"
+        "app/console/src/lib/competitions.ts",
+        "app/console/src/pages/Competitions.vue"
       ],
       "domains": [
-        "competitions",
+        "competitions"
+      ],
+      "nodes": [
+        "flow:competition.update"
+      ],
+      "reason": "控制台比赛类型与页面的状态文案、色调映射（STATUS_TEXT/STATUS_TONE）新增「规划中」分支，让类型编译通过并正确展示已有数据；本次不建编辑表单里勾选 planning 的控件，UI 由主会话负责，README 已如实写明这一点。"
+    },
+    {
+      "paths": [
+        "app/console/src/lib/types.ts",
+        "app/console/src/mock/console.ts"
+      ],
+      "domains": [
         "audit",
+        "competitions",
         "feedback",
         "github",
         "organization",
         "recruitment"
       ],
       "nodes": [
-        "application:console",
-        "flow:competition.candidates.list",
-        "flow:competition.rules.update",
-        "flow:competition.site.upload",
-        "flow:competition.finalize",
-        "flow:competition.prize.redeem",
-        "flow:competition.console.list"
+        "flow:competition.console.list",
+        "domain:github"
       ],
-      "reason": "控制台：比赛页改成按权限出现的页签（报名与名单、积分、待确认贡献、计分与奖项、官网、定榜），积分记录显示年级与系数；新增核销兑奖码页与路由；样板数据加四个只读读口。lib 里的纯逻辑与服务端 Schema 和兑奖码规范化对齐。两档评定：积分登记与候选确认都换成重要程度、核心度两个下拉框和服务端试算，规则页显示只读的基础分表与防刷规则，系数范围 0.5–5。"
+      "reason": "这两个文件是整个控制台共享的类型声明源与假数据源，本次只给 CompetitionStatus/CompetitionRecord 加 planning 字段、mock 列表加一条 planning=true 的样例并让 mockCompetitionStatus 先判断 planning；文件级归属牵连它们承载的全部业务域（审核、比赛、反馈、GitHub 回调身份相关类型、组织、招新），这次实际只动了比赛相关的类型与 mock 数据。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/lib/competitions.ts",
+        "app/web/sites/portal/lib/competitionLabels.ts"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "flow:competition.public.list"
+      ],
+      "reason": "门户的比赛类型、statusAt（新增吃 planning 原始标记以配合 60 秒本地重算）、STATUS_TEXT 与状态到列表分组/卡片提示/操作文案的派生逻辑（statusHint/cardWhen/competitionAction）新增 planning 分支：不显示倒计时，操作条写「组织者还在筹备，暂未开放报名。」，和未开始的比赛分在同一组。"
+    },
+    {
+      "paths": [
+        "scripts/contest-site.mjs"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "domain:competitions"
+      ],
+      "reason": "新增 dev 子命令（跟站点目录参数）：本地起一个服务用 node:module 的 stripTypeScriptTypes 直接跑站点源码，接口返回写死的样例数据（个人赛/团队赛、有奖/无奖四种变体），给组织者快速看到站点效果；新增 --api 选项，给定线上地址后公开比赛接口的只读请求转发到那里（只转发 GET/HEAD，只转发 SDK 用到的公开路径，拒绝非 https 且非本机 loopback 的地址，剔除 Set-Cookie，不转发 cookie 或鉴权头，上游不可达回 502）。"
+    },
+    {
+      "paths": [
+        "app/web/sites/contests/_starter/"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "flow:competition.public.participants",
+        "flow:competition.public.teams"
+      ],
+      "reason": "起步模板目录演示全部必带接口（比赛信息、天梯、人员、队伍、可选奖项）在个人赛/团队赛、有奖/无奖下的呈现，含空状态与「这场比赛没有这个板块」的降级处理；vite.config.ts 的代理目标改读 CONTEST_API 环境变量（默认值不变），配合 dev --api 本地对接线上数据。"
+    },
+    {
+      "paths": [
+        "docs/services/server/contest-site-quickstart.md"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "domain:competitions"
+      ],
+      "reason": "内部比赛组织者上手指南：起步模板怎么改、dev 预览、打包、上传、发布前预览链接，新增「本地对接线上数据」一节讲 --api 的用法与限制，同一份内容给论坛指南 t910 复用。"
+    },
+    {
+      "paths": [
+        "docs/services/server/data-model.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/services/web/README.md",
+        "docs/architecture/catalog/ownership.json"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "domain:competitions"
+      ],
+      "reason": "文档跟着模块改：新接口契约、新列迁移、模块入口与目录归属登记一起同步，不留「代码变了文档没变」的缺口。"
     },
     {
       "paths": [
         "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md",
-        "docs/ops/DEPLOY.md",
-        "docs/plan/COMPETITION-APP.md",
         "docs/services/console/README.md",
-        "docs/services/server/data-model.md",
-        "docs/services/server/endpoint-contracts.md",
-        "docs/services/server/README.md",
-        "docs/services/web/portal.md",
-        "docs/services/web/README.md",
-        "docs/architecture/catalog/",
-        "docs/design/DESIGN.md",
-        "docs/history/README.md",
-        "docs/INDEX.md"
+        "docs/services/web/portal.md"
       ],
-      "domains": [
-        "competitions",
-        "platform"
-      ],
-      "nodes": [
-        "domain:competitions",
-        "flow:competition.site.serve",
-        "flow:competition.public.snapshot",
-        "flow:competition.prize.redeem"
-      ],
-      "reason": "文档跟着模块改：服务合同、接口契约、数据模型、安全、部署与比赛方案写入 #278 的事实；项目目录补 22 条流程、7 张表的归属与说明，重新生成目录与文档索引。设计规范里比赛窗口头图与官网入口的说法改成浅色，夜空相关的令牌用途删掉。历史材料入口加上 portal-contest-night 归档目录，重新生成文档索引。"
-    },
-    {
-      "paths": [
-        "tests/server/competition-site.test.ts",
-        "tests/server/competition-public.test.ts",
-        "tests/server/competition-candidates.test.ts",
-        "tests/server/competition-prizes.test.ts",
-        "tests/server/competitions.test.ts",
-        "tests/server/contest-fixtures.ts",
-        "tests/server/legacy-database.test.ts",
-        "tests/tooling/contest-site.test.ts",
-        "tests/tooling/web-nginx.test.ts",
-        "tests/web/competition-sdk.test.ts",
-        "tests/web/contest-site.test.ts",
-        "tests/web/portal-competition-hub.test.tsx",
-        "tests/web/portal-competition-results.test.tsx",
-        "tests/console/competition-contest.test.ts",
-        "tests/console/competition-hub.test.ts",
-        "tests/server/competition-rubric.test.ts",
-        "tests/server/competition-scores.test.ts",
-        "tests/tooling/contest-score-sim.test.ts",
-        "tests/web/portal-competitions.test.tsx"
-      ],
-      "domains": [
-        "competitions",
-        "platform"
-      ],
-      "nodes": [
-        "domain:competitions",
-        "flow:competition.candidates.collect",
-        "flow:competition.finalize",
-        "flow:competition.public.leaderboard"
-      ],
-      "reason": "回归测试：服务端用内存库与假 GitLab 跑托管、公开接口、收集、定榜与迁移；SDK、官网、打包脚本与 nginx 配置单测；门户与控制台的纯逻辑和样板读口单测。两档基础分表、防刷（含撤销后下一条照算、按贡献时间分周）、旧行不追溯、模拟结果用固定种子钉住。门户比赛窗口的官网入口与头图用例改成核对浅色背景、热力图字标的格子与配色。"
-    }
-  ],
-  "documents": [
-    "docs/services/server/README.md",
-    "docs/services/server/endpoint-contracts.md",
-    "docs/services/server/data-model.md",
-    "docs/architecture/API.md",
-    "docs/architecture/SECURITY.md",
-    "docs/ops/DEPLOY.md",
-    "docs/services/web/README.md",
-    "docs/services/web/portal.md",
-    "docs/services/console/README.md",
-    "docs/plan/COMPETITION-APP.md",
-    "docs/design/DESIGN.md",
-    "docs/history/portal-contest-night/README.md"
-  ],
-  "tests": [
-    "tests/server/competition-site.test.ts",
-    "tests/server/competition-public.test.ts",
-    "tests/server/competition-candidates.test.ts",
-    "tests/server/competition-prizes.test.ts",
-    "tests/server/competitions.test.ts",
-    "tests/server/legacy-database.test.ts",
-    "tests/tooling/contest-site.test.ts",
-    "tests/tooling/web-nginx.test.ts",
-    "tests/web/competition-sdk.test.ts",
-    "tests/web/contest-site.test.ts",
-    "tests/web/portal-competition-hub.test.tsx",
-    "tests/web/portal-competition-results.test.tsx",
-    "tests/console/competition-contest.test.ts",
-    "tests/console/competition-hub.test.ts",
-    "tests/web/portal-competitions.test.tsx"
-  ],
-  "compatibility": "旧接口形状不变，只加字段：公开比赛列表与详情多 site_url、app_url、prizes、grade_factors、finalized_at，积分记录多 grade、grade_factor、weighted_points；#278 之前的积分按系数 1 计入天梯；控制台概览的 candidates_pending 从固定 0 变成真实数字；门户与控制台把计分说法从 PR 改成 MR。",
-  "migration": "启动时自动建七张新表与三个索引，给 competition_score_events 加三列（先查 PRAGMA table_info，可重复执行），用 console_seeds 标记只写一次第一期的默认系数、三档奖项与 GitLab 项目；站点文件目录在第一次上传时建在数据库旁边的 sites/。不改已有数据。",
-  "rollback": "合并后在 stage 上 git revert -m 1 撤销本 PR 的合并提交并重新构建镜像；旧代码不认识新表和新列，插入积分时不写新列也照常成功，新表与 sites/ 目录可以留着不用；不移动发布 tag。",
-  "removals": [
-    {
-      "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx",
-      "baseAnchor": "export function scatterStars(seed: string, count: number): Star[] {",
       "domains": [
         "competitions"
       ],
-      "reason": "比赛窗口的官网入口和详情头图改成和官网同一套浅色，按种子撒星星的夜空不再使用，换成 ContestBackdrop；原文件归档在 docs/history/portal-contest-night/files/。"
+      "nodes": [
+        "domain:competitions"
+      ],
+      "reason": "规划中状态与状态枚举变化对应的另外三份文档：API.md 的公开响应字段与状态枚举、控制台 README 的状态枚举与「表单暂无勾选控件」的如实说明、门户 portal.md 的六状态与 statusHint/competitionAction 文案描述。"
+    },
+    {
+      "paths": [
+        "docs/INDEX.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/routes.md",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/map.html"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "domain:competitions"
+      ],
+      "reason": "`pnpm docs:index` 与 `pnpm catalog:generate` 的生成物，跟着 ownership.json 的新流程登记和新文档一起重新生成，不手工编辑。"
+    },
+    {
+      "paths": [
+        "tests/server/competition-public.test.ts",
+        "tests/server/competition-signups.test.ts",
+        "tests/server/competitions.test.ts",
+        "tests/server/competition-scores.test.ts",
+        "tests/tooling/contest-site.test.ts",
+        "tests/web/competition-sdk.test.ts",
+        "tests/web/portal-competitions.test.tsx",
+        "tests/console/competitions.test.ts"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "flow:competition.team_plaza.list",
+        "flow:competition.console.list",
+        "flow:competition.update"
+      ],
+      "reason": "本次新增/扩充的全部回归：组队广场聚合与广播开关、站点包人员/队伍分页、SDK 新方法、contest-site.mjs 的 dev 与 --api 子命令、planning 状态规则与迁移幂等性、报名与建队在 planning 期间的拒绝、控制台与门户的 planning 类型/标签/派生逻辑，以及第一期种子更正为个人赛的既有回归（competition-scores.test.ts）。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/competition/SitePanel.vue"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "flow:competition.site.upload"
+      ],
+      "reason": "官网页签重排：先给三步开发说明（复制起步模板、本地 dev 加 --api 对接线上接口、pack 打包）和 SDK 指南链接，再放官网地址与上传区；官网地址改成上下排的标签，修掉 390 宽度下输入框被挤出卡片的问题。上传与校验仍走原来的 POST 接口，没有改请求。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/Invites.vue"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "flow:identity.invites.list"
+      ],
+      "reason": "邀请码列表「状态」列从 100 加宽到 120，「次数用完」不再折成两行；只改列宽，不改读写。"
+    },
+    {
+      "paths": [
+        "app/server/src/middleware/bearer-auth.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "github",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:competition.team_plaza.list"
+      ],
+      "reason": "给 CLI 令牌的路径前缀表加一行 /api/team-plaza → competition 范围，geek comp plaza 才能带令牌读组队广场；中间件文件级归属牵连它守的全部业务域，实际只多了这一行，其它前缀和判定逻辑不变。"
+    },
+    {
+      "paths": [
+        "app/web/shared/lib/mock-api.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "本地 mock 数据只在 member 预览身份下补组队广场、我的参赛和成绩三条读接口与一场团队赛的报名设置，便于不连后端时看组队广场；e2e 不带 __mock，原有数量不变。"
+    },
+    {
+      "paths": [
+        "app/web/sites/contests/oss-2026-1/"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "flow:competition.public.snapshot"
+      ],
+      "reason": "第一期开源贡献赛是个人赛（所有者 10-24 23:38）：官网按公开快照里的参赛形式在 html 上标 data-participation，个人赛隐藏队伍页签、队伍区块和「队伍」统计，区块编号跳过隐藏的区块重新排；静态默认文案也改成个人赛口径。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/lib/competitionHub.ts",
+        "app/web/sites/portal/components/os/competitions/",
+        "app/web/sites/portal/styles/competitions.css"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "flow:competition.team_plaza.list",
+        "flow:competition.team.plaza.publish",
+        "flow:competition.team.plaza.withdraw"
+      ],
+      "reason": "官网比赛窗口加第三个页签「组队广场」：跨比赛列出招人的队伍和找队伍的人，按类型、比赛、关键词筛选，卡片按钮回到那场比赛的队伍页签去申请或邀请；领队在队伍页签开关广场招人（备注与想要的方向）；规划中状态的标签样式。读写都走已登记的组队广场接口。"
+    },
+    {
+      "paths": [
+        "app/cli/"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "flow:competition.team_plaza.list"
+      ],
+      "reason": "geek comp plaza 读组队广场（--competition、--kind recruiting|seeking、--keyword，支持 --json），comp list/show 的状态改成中文并认 planning（规划中）；技能文档补一行。"
+    },
+    {
+      "paths": [
+        "docs/services/cli/README.md"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "domain:competitions"
+      ],
+      "reason": "CLI 服务文档补 comp plaza 子命令、中文状态与 /api/team-plaza 的令牌范围。"
+    },
+    {
+      "paths": [
+        "tests/server/bearer-auth.test.ts",
+        "tests/web/portal-team-plaza.test.ts"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "flow:competition.team_plaza.list"
+      ],
+      "reason": "令牌读 /api/team-plaza 的范围测试（默认范围 403 insufficient_scope）；门户组队广场的读取、地址拼接与队伍广播字段解析测试。"
     }
-  ]
+  ],
+  "documents": [
+    "docs/services/server/contest-site-quickstart.md",
+    "docs/services/server/data-model.md",
+    "docs/services/server/endpoint-contracts.md",
+    "docs/services/server/README.md",
+    "docs/services/web/README.md",
+    "docs/architecture/API.md",
+    "docs/services/console/README.md",
+    "docs/services/web/portal.md",
+    "docs/services/cli/README.md"
+  ],
+  "tests": [
+    "tests/server/competition-public.test.ts",
+    "tests/server/competition-signups.test.ts",
+    "tests/server/competitions.test.ts",
+    "tests/server/competition-scores.test.ts",
+    "tests/tooling/contest-site.test.ts",
+    "tests/web/competition-sdk.test.ts",
+    "tests/web/portal-competitions.test.tsx",
+    "tests/console/competitions.test.ts",
+    "tests/server/bearer-auth.test.ts",
+    "tests/web/portal-team-plaza.test.ts"
+  ],
+  "compatibility": "新增接口、字段与查询参数都是增量，不改既有接口的请求/响应形状；旧客户端不调用组队广场、广播开关或人员/队伍接口没有任何影响；广播默认关闭（plaza_recruiting=0），旧队伍行为不变。planning 默认 0/false，旧比赛与不传这个字段的旧客户端行为不变，只有组织者主动打开才会进入规划中状态；--api 只在本地 dev 命令生效，不影响线上任何服务。",
+  "migration": "给 competition_teams 加四列，默认值保证旧数据立即可用；在预发布库 .tools/yugc-v2/db/preview-copy-278.db 的 /tmp 副本上验证（从不改动原文件）：第一次运行加 4 列（11→15），第二次运行不再新增任何列，全库 55 张表的行数在迁移前、第一次运行后、第二次运行后三者完全一致，没有任何行数漂移。另外更正第一期种子（所有者 23:38：第一期不是团队赛）：预发布库副本里该比赛 0 条报名、0 支队伍，启动时自动把 competition_signup_settings 改成个人赛；同一份副本上跑两次，第二次 participation 已经是 individual，不再变化。给 competitions 加 planning 一列，默认 0；除了 tests/server/competitions.test.ts 的真实文件测试，2026-10-25 又在同一份预发布库副本（复制到 /tmp 0600，演练后已删除）上用本分支的 createDatabase 跑了两次：前 55 张表、competitions 11 列；第一次后 68 张表（这份副本早于前几次发版，一并补上了已上线的那些表）、competitions 12 列（多 planning，唯一一行为 0）、competition_teams 15 列；第二次后表数、列数和每张表的行数与第一次完全相同，integrity_check 都是 ok。第一次只有种子表 console_seeds（3→4）和 perm_nodes（50→52）按种子增加，其余既有表行数不变。发预发布前还会在当时的新备份上再跑一遍。",
+  "rollback": "换回重开前的镜像即可：旧代码不认识这几列和新接口，建队、申请、邀请、锁定、创建/编辑比赛等既有流程插入/更新时不写它们也照常成功；回滚期间开过的广播、设过的 planning 标记保留在库里，再上线后原样可见，不需要补数据。",
+  "removals": []
 }

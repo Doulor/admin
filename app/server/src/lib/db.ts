@@ -992,15 +992,33 @@ const COMPETITION_SEED_DEADLINE = Date.parse("2026-11-15T23:59:59.999+08:00");
       // 第一段是官网 Hero 上的一句介绍，全文在「概览」里按段显示
       "面向极客班成员的开源实战贡献赛：在组织认可的开源仓库里提交 Issue 与 PR，按合入结果计分，积分天梯实时更新。\n"
         + "计分：合入的 Issue +5～+30，合入的 PR +15～+100；作弊（刷量、抄袭、冒名或虚假贡献）每次 −50。分数由组织者核实后登记，可追溯、可撤销。\n"
-        + "1–3 人组队（一个人也可以自成一队），队伍积分是在队成员积分之和。比赛时间 2026-10-21 至 2026-11-15 23:59:59（北京时间）。",
+        + "个人赛，按个人合入结果计分。比赛时间 2026-10-21 至 2026-11-15 23:59:59（北京时间）。",
       now,
       now,
     );
+    // 个人赛（所有者 2026-10-24 23:38：「我们的第一个内部赛事不是团队赛哦」），team_min/team_max 留空。
     db.prepare(`INSERT OR IGNORE INTO competition_signup_settings(competition_id, enabled, participation, team_min, team_max, scoring, updated_at, updated_by)
-      VALUES(?, 1, 'team', 1, 3, 'contribution', ?, NULL)`).run(COMPETITION_SEED_ID, now);
+      VALUES(?, 1, 'individual', NULL, NULL, 'contribution', ?, NULL)`).run(COMPETITION_SEED_ID, now);
     db.prepare("INSERT OR IGNORE INTO console_seeds(name, seeded_at) VALUES(?, ?)").run(COMPETITION_SEED, now);
   });
   seeded();
+}
+
+// 更正：第一期原来按团队赛种的库（#239 上线时 participation='team'，team_min/team_max 1–3），
+// 所有者 2026-10-24 23:38 告知第一期其实是个人赛。还没人报名或建队时才改回个人赛；真的已经有报名
+// 或队伍（组织者已经在用团队模式）就不动，交组织者在控制台手工处理。可以重复执行：改完之后
+// participation 已经是 'individual'，下次启动不再匹配 'team' 条件。
+{
+  const row = db.prepare("SELECT participation FROM competition_signup_settings WHERE competition_id = ?").get(COMPETITION_SEED_ID) as { participation: string } | undefined;
+  if (row?.participation === "team") {
+    const existing = db.prepare(
+      "SELECT (SELECT COUNT(*) FROM competition_signups WHERE competition_id = ?) + (SELECT COUNT(*) FROM competition_teams WHERE competition_id = ?) AS n",
+    ).get(COMPETITION_SEED_ID, COMPETITION_SEED_ID) as { n: number };
+    if (existing.n === 0) {
+      db.prepare("UPDATE competition_signup_settings SET participation = 'individual', team_min = NULL, team_max = NULL, updated_at = ? WHERE competition_id = ?")
+        .run(Date.now(), COMPETITION_SEED_ID);
+    }
+  }
 }
 
 // 比赛官网托管、GitLab 贡献收集、年级系数与奖项、定榜与兑奖码（#278，CONTRACT-278）：只新增表与可空列。
@@ -1113,6 +1131,20 @@ addColumn("competition_score_events", "importance", "TEXT");
 addColumn("competition_score_events", "core", "TEXT");
 addColumn("competition_score_events", "damp_percent", "INTEGER");
 addColumn("competition_score_events", "contributed_at", "INTEGER");
+
+// 组队广场（#278 重开，所有者 2026-10-24 22:25）：队伍自己的「还在招募」广播，和 status 的 recruiting/locked
+// 是两件事——status 决定还能不能被申请，plaza_recruiting 决定要不要在广场上公开求人，领队单独开关。
+// 旧队伍都是 0/空/NULL，不在广场出现，不影响既有的报名、组队与积分流程。
+addColumn("competition_teams", "plaza_recruiting", "INTEGER NOT NULL DEFAULT 0 CHECK (plaza_recruiting IN (0, 1))");
+addColumn("competition_teams", "plaza_note", "TEXT NOT NULL DEFAULT ''");
+addColumn("competition_teams", "plaza_skills", "TEXT NOT NULL DEFAULT '[]'");
+addColumn("competition_teams", "plaza_updated_at", "INTEGER");
+
+// 规划中状态（#278，所有者 2026-10-25 01:03「比赛是有状态的，规划中，进行中，已结束啥的」）：组织者还在筹备、
+// 还没准备好开放报名时打开，`competitionStatus` 在开赛前把它算成 "planning"，报名与组队一律拒绝；一旦过了
+// 开赛时间，这个标记就不再生效，照原有规则走进行中/已结束（不会把已经开赛的比赛卡在「规划中」，见 competition-store.ts）。
+// 旧比赛都是 0，行为不变。
+addColumn("competitions", "planning", "INTEGER NOT NULL DEFAULT 0 CHECK (planning IN (0, 1))");
 
 // 第一期的计分规则、奖项与 GitLab 项目（#278，所有者 2026-10-24 13:45）：用 `console_seeds` 标记，只插一次；
 // 组织者之后在控制台改掉，重启也不再补回来。比赛本身被删掉时什么也不插。

@@ -68,9 +68,10 @@ describe("form validation", () => {
     expect(formErrors(filled({ deadlineDate: "2026-10-18" })).deadlineDate).toBeUndefined();
   });
 
-  it("treats the link as optional for every kind, but rejects a non-https one", () => {
-    // 不填就不跳转，任何类型都不报错
-    expect(formErrors(filled({ kind: "external" })).url).toBeUndefined();
+  it("requires the link only for external competitions, and rejects a non-https one for every kind", () => {
+    // #278：外部比赛只是登记一个去处，链接必填；内部比赛的官网站内托管，可以不填
+    expect(formErrors(filled({ kind: "external" })).url).toContain("https://");
+    expect(formErrors(filled({ kind: "external", url: "https://example.test/c" })).url).toBeUndefined();
     expect(formErrors(filled({ kind: "internal" })).url).toBeUndefined();
     // 填了就必须是 https，与 kind 无关
     expect(formErrors(filled({ kind: "external", url: "http://example.test/c" })).url).toContain("https://");
@@ -98,7 +99,7 @@ describe("payload", () => {
       start_at: bj("2026-10-16T00:00:00.000"),
       end_at: bj("2026-10-18T23:59:59.999"),
       signup_deadline: bj("2026-10-18T23:59:59.999"),
-      url: null, description: "班内选拔",
+      url: null, description: "班内选拔", planning: false,
     });
   });
 
@@ -118,7 +119,7 @@ describe("round trip and labels", () => {
     const record = {
       name: "蓝桥杯省赛", kind: "external" as const,
       start_at: bj("2026-10-16T09:00:00.000"), end_at: bj("2026-10-17T18:00:00.000"),
-      signup_deadline: bj("2026-10-15T23:59:59.999"), url: "https://dasai.lanqiao.cn/", description: "以学校为单位报名。",
+      signup_deadline: bj("2026-10-15T23:59:59.999"), url: "https://dasai.lanqiao.cn/", description: "以学校为单位报名。", planning: false,
     };
     const form = formFrom(record);
     expect(form).toMatchObject({ startDate: "2026-10-16", endDate: "2026-10-17", deadlineDate: "2026-10-15" });
@@ -126,15 +127,17 @@ describe("round trip and labels", () => {
     expect(formPayload(form)).toEqual({
       name: record.name, kind: "external",
       start_at: bj("2026-10-16T00:00:00.000"), end_at: bj("2026-10-17T23:59:59.999"),
-      signup_deadline: bj("2026-10-15T23:59:59.999"), url: record.url, description: record.description,
+      signup_deadline: bj("2026-10-15T23:59:59.999"), url: record.url, description: record.description, planning: false,
     });
     expect(formPayload(form, record)).toEqual({});
     expect(formPayload({ ...form, url: "", deadlineDate: "" }, record)).toEqual({ url: null, signup_deadline: null });
     expect(formPayload({ ...form, endDate: "2026-10-18" }, record)).toEqual({ end_at: bj("2026-10-18T23:59:59.999") });
+    // #278 规划中：只在开关真的变了时才送
+    expect(formPayload({ ...form, planning: true }, record)).toEqual({ planning: true });
   });
 
   it("has a label for every status and kind the server can send", () => {
-    expect(Object.values(STATUS_TEXT).sort()).toEqual(["未开始", "已结束", "报名中", "报名已截止", "进行中"].sort());
+    expect(Object.values(STATUS_TEXT).sort()).toEqual(["未开始", "已结束", "报名中", "报名已截止", "规划中", "进行中"].sort());
     expect(KIND_TEXT).toEqual({ internal: "内部", external: "外部" });
   });
 });
@@ -146,9 +149,10 @@ it("recalculates preview status and ordering on every read", () => {
   try {
     const rows = read();
     expect(rows.find(row => row.id === "c1001")?.status).toBe("ended");
-    expect(rows.map(row => row.id)).toEqual(["c1002", "c1001", "c1003"]);
+    // c1004（规划中，#278）开赛最晚，还没结束时排在 c1002 后面；全部结束后按开始时间倒序排在最前
+    expect(rows.map(row => row.id)).toEqual(["c1002", "c1004", "c1001", "c1003"]);
     clock.mockReturnValue(Math.max(...rows.map(row => row.end_at)) + 1);
-    expect(read().map(row => row.id)).toEqual(["c1002", "c1001", "c1003"]);
+    expect(read().map(row => row.id)).toEqual(["c1004", "c1002", "c1001", "c1003"]);
   } finally {
     clock.mockRestore();
   }

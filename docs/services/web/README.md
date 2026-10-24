@@ -2,15 +2,15 @@
 
 > 官网 portal（React/Vite）+ shared 适配层；web 镜像同时托管控制台产物（`app/console`），是每个环境的 HTTP 入口容器。
 
-状态：`current` · 更新：2026-10-24 · 源码：`app/web/` · 镜像：`yzgc-<environment>/web:<sha12>`
+状态：`current` · 更新：2026-10-25 · 源码：`app/web/` · 镜像：`yzgc-<environment>/web:<sha12>`
 
 ## 源码地图
 
 | 路径 | 职责 |
 |---|---|
 | `app/web/sites/portal/` | 公开站点：`App.tsx` 路由（`/`、`/forum-3d`、`/docs`；`/?open=<应用>` 进桌面打开窗口，旧地址 `/join-us`、`/apply`、`/feedback` 只做跳转）、`pages/`、`three/`（按需加载的 three.js 场景：论坛气泡）、`components/`（`boot/` 开机动画、`os/` YUGC OS 桌面与窗口（含「账号资料」窗口）、页面外壳）、`lib/`（进站规则、相机数学、链接、快照、图标、全站登录状态 `account.ts`、部门、代码仓库、埋点）、`styles/`（`--pt-*` 与 YUGC OS v2 的 `--os-*` 令牌）、`index.html` 入口；不自建登录态，菜单栏头像打开「账号资料」窗口（见 [portal](portal.md)「账号资料窗口」） |
-| `app/web/sites/contests/<比赛>/` | 比赛官网（#278）：每场比赛一个独立的 Vite 站点，单独构建成站点包，由控制台上传、server 在 `/c/<slug>/` 托管，不进 web 镜像。第一期是 `oss-2026-1/`：`site.config.ts`（名称、版本、比赛 id、兜底起止时间、刷新间隔，构建时生成 `yzgc-site.json`；`FALLBACK` 是接口回来之前先显示的奖项、年级系数和两档基础分表，`tests/web/contest-site.test.ts` 核对它和服务端一致）、`index.html`、`src/`（浅色底、不沿用主站风格。首屏按所有者 10-24 16:57 的要求一屏讲清楚：极客班第一届内部赛、怎么拿分三步（组织者标「有用」、重要程度 × 核心度查表、乘年级系数）、倒计时与报名，右边奖金卡和天梯前几名（`hero.ts`），1440×900 与 390×844 都在一屏内；效果是几层光（漂移柔光、转动光束、流动的透视网格、跟着指针的亮光）、逐字翻上来的比赛名、随指针倾斜的卡片和滚动驱动的首屏推远，减少动态效果时停在最终的样子。`scoring.ts` 画两张基础分表、年级系数柱和「算一算」；另有贡献热力图拼成的 Canvas 标题（字形与配色在 `shared/lib/heatmark`）、滚动数字倒计时、斜着滚动的贡献条、终端打字、天梯与领奖台、带两档的动态与流星、各段落渲染）。只能用同源资源：页面在 sandbox CSP 下运行，外部头像显示首字母 |
-| `app/web/shared/competition-sdk/` | 比赛官网 SDK（#278，CONTRACT-278 §3）：`createClient({ competition })` 读 `/api/public/competitions/:id/*`（只发匿名 GET），错误归成 `network`、`not_found`、`rate_limited`、`server` 四种，`subscribe` 按间隔轮询（最短 5 秒，页面在后台时暂停，限流时等够 `retry_after`），`signupUrl`、`teamUrl` 跳回桌面的比赛窗口。官网站点直接打包进去；`sdk.vite.config.ts` 另外构建成 `dist/sdk/competition/v1.js`，由镜像在 `/sdk/competition/v1.js` 提供 |
+| `app/web/sites/contests/<比赛>/` | 比赛官网（#278）：每场比赛一个独立的 Vite 站点，单独构建成站点包，由控制台上传、server 在 `/c/<slug>/` 托管，不进 web 镜像。起步模板在 `_starter/`（复制改名就是一场新比赛的起点，只演示四个必带接口怎么接——比赛信息、人员、队伍、奖励，不含视觉设计），完整上手步骤见 [contest-site-quickstart](../server/contest-site-quickstart.md)。第一期是 `oss-2026-1/`：`site.config.ts`（名称、版本、比赛 id、兜底起止时间、刷新间隔，构建时生成 `yzgc-site.json`；`FALLBACK` 是接口回来之前先显示的奖项、年级系数和两档基础分表，`tests/web/contest-site.test.ts` 核对它和服务端一致）、`index.html`、`src/`（浅色底、不沿用主站风格。首屏按所有者 10-24 16:57 的要求一屏讲清楚：极客班第一届内部赛、怎么拿分三步（组织者标「有用」、重要程度 × 核心度查表、乘年级系数）、倒计时与报名，右边奖金卡和天梯前几名（`hero.ts`），1440×900 与 390×844 都在一屏内；效果是几层光（漂移柔光、转动光束、流动的透视网格、跟着指针的亮光）、逐字翻上来的比赛名、随指针倾斜的卡片和滚动驱动的首屏推远，减少动态效果时停在最终的样子。`scoring.ts` 画两张基础分表、年级系数柱和「算一算」；另有贡献热力图拼成的 Canvas 标题（字形与配色在 `shared/lib/heatmark`）、滚动数字倒计时、斜着滚动的贡献条、终端打字、天梯与领奖台、带两档的动态与流星、各段落渲染）。只能用同源资源：页面在 sandbox CSP 下运行，外部头像显示首字母 |
+| `app/web/shared/competition-sdk/` | 比赛官网 SDK（#278，CONTRACT-278 §3）：`createClient({ competition })` 读 `/api/public/competitions/:id/*`（只发匿名 GET），错误归成 `network`、`not_found`、`rate_limited`、`server` 四种，`subscribe` 按间隔轮询（最短 5 秒，页面在后台时暂停，限流时等够 `retry_after`），`signupUrl`、`teamUrl` 跳回桌面的比赛窗口。`getParticipants({ cursor?, limit? })`、`getTeams()` 是站点包必带的另外两个接口（和天梯不同：给全部已报名的人 / 全部未解散的队，不是只有拿过分的）——个人赛调 `getTeams()` 不会报错，`enabled` 为 `false` 时直接跳过「队伍」这一段。官网站点直接打包进去；`sdk.vite.config.ts` 另外构建成 `dist/sdk/competition/v1.js`，由镜像在 `/sdk/competition/v1.js` 提供 |
 | `app/web/shared/lib/` | 网络（`api`、`http`、`runtime`）、URL/站点（`site`）、Markdown（`markdown`）、挂载（`mount`）、PoW、主题、「OSS CHALLENGE」热力图字标的字形与配色（`heatmark`，#278，比赛官网首屏标题和主站比赛窗口的字标共用）、只读 mock（含开发预览身份 `?__mock=member\|registered\|visitor`，正式构建删掉） |
 | `app/web/shared/ui/` | 官网复用的交互原语：Modal、ConfirmDialog、Select、ImageLightbox、TurnstileWidget 等 |
 | `app/web/shared/styles/` | 基础样式与令牌（`base.css`、`rounded.css`） |
@@ -28,7 +28,7 @@
 - **配置**：构建期只读公开配置（`app.config.json`），不加载私有 `.env`，也不含任何域名，同一份产物在两个环境通用；`scripts/check-site-config.mjs`（`pnpm check:site-config`）校验站点不带 host、论坛 basePath 非空且不与其他站点重叠、production 数据源固定为 live。
 - **静态资源 CDN 开关**（#146）：构建参数 `STATIC_CDN_BASE` 为空时与原来一样同源；等于 `https://cdn.crosery.com/yzgc/static/site/` 时，`vite.config.ts` 用 `experimental.renderBuiltUrl` 把带哈希的构建资源（`assets/` 下的 JS、CSS、字体、图片）改写到 CDN，`base` 仍是 `/`，入口 HTML、路由和 `public/` 里不带哈希的文件（favicon、logo、论坛快照、邮件里引用的图）仍走源站；桌面壁纸由 `sites/portal/lib/wallpapers.ts` import（文件在 `sites/portal/assets/wallpapers/`），构建时带哈希，跟着开关走。别的非空值让构建失败。规则只在 `scripts/static-cdn-base.mjs`；`app/web/Dockerfile` 把同一个参数传给官网与控制台两次构建，并断言两个入口页引用的是对应地址。开关由部署工作流决定，上传与核对见 [CICD](../../ops/CICD.md)「静态资源 CDN」。两个环境用同一个 CDN 前缀，产物仍不含环境域名。
 - **UI 选型**：官网是既有 React 实现，后续新增/迁移界面按 [Tuffex 使用政策](../../components/tuffex/USAGE-POLICY.md)；控制台已迁到 Vue + Tuffex（`app/console`）。不引入平行基础 UI 体系。
-- **比赛窗口**（#238）：读匿名比赛接口，按时间显示五种状态，每分钟同步重排；日期不在当前北京年份时保留年份，起止同一天只写一个日期；内部与外部链接均可选，只有可解析的 HTTPS 地址可点。损坏的列表响应进入失败态，不冒充空数据；样板截止日期按北京时间日末构造。详见 [portal](portal.md)「比赛窗口」。
+- **比赛窗口**（#238）：读匿名比赛接口，按时间显示六种状态（含规划中，#278 重开），每分钟同步重排；日期不在当前北京年份时保留年份，起止同一天只写一个日期；内部与外部链接均可选，只有可解析的 HTTPS 地址可点。损坏的列表响应进入失败态，不冒充空数据；样板截止日期按北京时间日末构造。详见 [portal](portal.md)「比赛窗口」。
 - **比赛官网与 SDK**（#278）：官网站点包不在 web 镜像里，`pnpm --filter @yzgc/web build:contest` 构建到 `sites/contests/<比赛>/dist/site/`，`pnpm contest:site pack <目录> --competition <比赛 id>` 打成 zip 并跑一遍与上传接口相同的校验（`scripts/contest-site.mjs`，规则在 `app/server/src/lib/site-package.ts`：zip ≤ 20MB、≤ 500 个文件、必须有 `index.html` 与 `yzgc-site.json`、不能有符号链接与以 `.` 开头的文件），再在控制台上传、预览、发布。官网只调 `/api/public/*`，不带 cookie；报名、组队、看自己的兑奖码都跳回桌面的比赛窗口（`/?open=competitions&competition=<id>`，加 `&view=team` 直接到组队）。主构建之后再跑 `vite build -c sdk.vite.config.ts` 产出 `dist/sdk/competition/v1.js`，镜像构建时断言它存在。
 - **首页与 YUGC OS v2**（#275）：首页先看今天（北京时间）播没播过开机动画（Canvas 2D，电脑与手机两套构图，能跳过、静音、重播），没播就播，播完淡出到桌面；播过或开了减少动态效果直接进桌面。三维书桌、加载动画、iPhone 模型首页、GitHub 天际线场景与旧吉祥物都已删除，three.js 只留给论坛场景页（加入我们在 #279 改成桌面窗口）。桌面默认壁纸「晴空」接着开机动画最后一帧画；菜单栏头像打开「账号资料」窗口（#280 起是桌面窗口）；组织架构读 `/api/public/departments`，代码仓库是读 `/api/public/gitlab/projects` 的窗口；加入我们是桌面窗口（#279），要登录并显示当天剩余投递份数；前端埋点攒批发 `POST /api/events`。手机是同一套组件的主屏幕形态（状态栏、四列应用、主屏幕加三个主入口的 Dock，窗口按 iOS 页面卡片从底部升起，#233）。细节见 [portal](portal.md)。
 
@@ -42,6 +42,7 @@ pnpm preview:local  # 核心 5173/3000 + 独立论坛 3456，见 ../../ops/LOCAL
 pnpm --filter @yzgc/web dev:contest    # 比赛官网开发（5195，/api 代理到本机 3000）
 pnpm --filter @yzgc/web build:contest  # 比赛官网站点包产物
 pnpm contest:site pack app/web/sites/contests/oss-2026-1/dist/site --competition oss-challenge-2026-1
+pnpm contest:site dev app/web/sites/contests/oss-2026-1/dist/site --variant team --prizes  # 带示例数据预览，不连后端
 ```
 
 本机地址：官网 `http://127.0.0.1:5173/sites/portal/`（不带尾斜杠的 `/sites/portal` 同样回落到入口，支持 Router 记录的首页后退与刷新）；控制台 `http://127.0.0.1:5186/console`（`pnpm dev:console`）。5173 上的 `/console`、`/admin`、`/signin`、`/device`、`/account`、`/authorize`、`/bind-email`、`/complete-profile` 与旧的 `/sites/admin/*` 在开发态 302 到 5186；`/forum/<路径>` 302 到 `http://127.0.0.1:3456/<路径>`（去掉 `/forum` 前缀，查询参数保留，登录后回到论坛原页面靠它）。容器内由 nginx 托管构建产物并按路径选择入口；宿主 nginx 只做 TLS 终止与 `server_name` → 回环端口转发。

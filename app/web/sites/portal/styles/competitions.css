@@ -68,6 +68,7 @@
 .pt-cx-st { flex: none; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1.6; white-space: nowrap; }
 .pt-cx-st.is-registering { background: #e4f4ec; color: var(--cx-green); }
 .pt-cx-st.is-upcoming { background: #eef0f6; color: var(--pt-ink-soft); }
+.pt-cx-st.is-planning { background: transparent; box-shadow: inset 0 0 0 1px var(--pt-line); color: var(--pt-ink-soft); }
 .pt-cx-st.is-closed { background: #fbf0dc; color: var(--cx-amber); }
 .pt-cx-st.is-ongoing { background: var(--pt-cobalt-soft); color: var(--pt-cobalt-deep); }
 .pt-cx-st.is-ended { background: #e9ebf1; color: var(--pt-ink-soft); }
@@ -158,6 +159,7 @@ a.pt-cx-hero-tag:hover { background: var(--cg-violet-soft); }
 .pt-cx-hero-tag.is-registering::before { background: var(--cg-lime); }
 .pt-cx-hero-tag.is-ongoing::before { background: var(--cg-sky); }
 .pt-cx-hero-tag.is-closed::before { background: var(--cg-amber); }
+.pt-cx-hero-tag.is-planning::before { border-style: dashed; background: transparent; }
 .pt-cx-hero h3 { max-width: 30em; font-size: 24px; font-weight: 900; line-height: 1.3; letter-spacing: .01em; overflow-wrap: anywhere; }
 .pt-root .pt-cx-hero h3:focus-visible { outline: none; }
 .pt-cx-hero-lead { display: -webkit-box; max-width: 40em; overflow: hidden; font-size: 13.5px; line-height: 1.6; color: var(--cg-ink-2); -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -535,3 +537,32 @@ button.pt-cx-slot:disabled { opacity: .6; cursor: not-allowed; }
 .is-phone .pt-cx-dialog { width: 100%; max-height: 92%; padding-bottom: env(safe-area-inset-bottom, 0px); border-radius: 18px 18px 0 0; animation-name: pt-cx-sheet; }
 .is-phone .pt-cx-field input, .is-phone .pt-cx-field textarea { font-size: 1rem; }
 .is-phone .pt-cx-dialog-act .pt-btn { flex: 1; min-height: 48px; }
+
+/* 组队广场（#278）：比赛窗口的第三个页签。上面一条筛选，下面卡片网格；招人的队伍左边一道主色，找队伍的人一道绿色。 */
+.pt-cx-plaza { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.pt-cx-bar.is-sub { background: #fff; }
+.pt-cx-plaza > .pt-cx-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 14px 16px 20px; background: var(--pt-ice); }
+.pt-cx-plaza-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.pt-cx-plaza-card {
+  position: relative; display: flex; flex-direction: column; gap: 8px; height: 100%; padding: 14px 16px 12px 18px; overflow: hidden;
+  border: 1px solid var(--pt-line); border-radius: 14px; background: #fff;
+}
+.pt-cx-plaza-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--cx-green); }
+.pt-cx-plaza-card.is-team::before { background: var(--pt-cobalt); }
+.pt-cx-plaza-card header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 12px; color: var(--pt-ink-soft); }
+.pt-cx-plaza-card header small { margin-left: auto; color: var(--pt-ink-mute); }
+.pt-cx-plaza-kind { display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border-radius: 999px; background: #e4f4ec; font-weight: 600; line-height: 22px; color: var(--cx-green); }
+.pt-cx-plaza-kind.is-team { background: var(--pt-cobalt-soft); color: var(--pt-cobalt-deep); }
+.pt-cx-plaza-comp { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-cx-plaza-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.pt-cx-plaza-title b { min-width: 0; font-size: 15px; overflow-wrap: anywhere; }
+.pt-cx-plaza-seats { flex: none; font-size: 12.5px; font-weight: 600; color: var(--pt-cobalt-deep); font-variant-numeric: tabular-nums; }
+.pt-cx-plaza-slogan { font-size: 12.5px; color: var(--pt-ink-soft); }
+.pt-cx-plaza-note { font-size: 13px; line-height: 1.6; color: var(--pt-ink); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.pt-cx-plaza-skills { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.pt-cx-plaza-skills li { padding: 0 8px; border: 1px solid var(--pt-line); border-radius: 6px; font-size: 12px; line-height: 22px; color: var(--pt-ink-soft); }
+.pt-cx-plaza-card footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 8px; border-top: 1px dashed var(--pt-line); }
+.pt-cx-plaza-who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 12.5px; color: var(--pt-ink-soft); }
+.pt-cx-plaza-who > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-cx-plaza-card footer .pt-btn { flex: none; }
+.is-phone .pt-cx-plaza-list { grid-template-columns: minmax(0, 1fr); }

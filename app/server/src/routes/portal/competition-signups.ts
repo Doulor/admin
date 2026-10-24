@@ -101,6 +101,24 @@ export default async function competitionSignupRoutes(app: FastifyInstance) {
   app.delete<{ Params: { id: string } }>("/api/teams/:id/lock", team, async (req, reply) =>
     settle(req, reply, "team.unlock", req.params.id, signups.unlock(req.params.id, req.session!.account_id, Date.now())));
 
+  // 组队广场广播（#278 重开）：领队开关「还在招募」，写一句话和想要的技能；撤下不清掉内容，下次重开不用再填。
+  app.post<{ Params: { id: string }; Body: { recruiting: boolean; note?: string; wanted_skills?: string[] } }>(
+    "/api/teams/:id/plaza", team,
+    async (req, reply) => settle(req, reply, "team.plaza", req.params.id, signups.setPlaza(req.params.id, req.session!.account_id, req.body, Date.now())),
+  );
+
+  app.delete<{ Params: { id: string } }>("/api/teams/:id/plaza", team, async (req, reply) =>
+    settle(req, reply, "team.plaza.withdraw", req.params.id, signups.withdrawPlaza(req.params.id, req.session!.account_id, Date.now())));
+
+  // 组队广场（#278 重开）：只读聚合，不记操作记录（没有写任何状态）；筛选与分页全在 lib/competition-team-plaza.ts。
+  app.get<{ Querystring: { competition_id?: string; kind?: "seeking_team" | "recruiting_team"; keyword?: string; cursor?: string; limit?: string } }>(
+    "/api/team-plaza", read,
+    async req => app.services.competitionTeamPlaza.list({
+      competitionId: req.query.competition_id, kind: req.query.kind, keyword: req.query.keyword,
+      cursor: req.query.cursor, limit: req.query.limit ? Number(req.query.limit) : undefined,
+    }, Date.now()),
+  );
+
   app.get<{ Params: { id: string } }>("/api/competitions/:id/leaderboard", read, async (req, reply) => {
     const result = scores.leaderboard(req.params.id);
     return result.ok ? result.value : refuse(reply, result.error);

@@ -44,6 +44,7 @@ echo $GEEK_TOKEN                # agent 场景：直接设环境变量，跳过 
 | `geek comp mine` | 我参加的比赛 | 是 | `competition`，且要持有报名或组队权限 |
 | `geek comp signup <id> [--note N] [--looking-for-team]` | 报名一场比赛 | 是 | `competition`，且账号要有 `competition.signup` 权限节点 |
 | `geek comp ladder <id>` | 看一场比赛的榜 | 是 | `competition`，且要持有报名或组队权限 |
+| `geek comp plaza [--competition <id>] [--kind recruiting\|seeking] [--keyword <词>]` | 组队广场：正在报名的团队赛里招人的队伍和找队伍的人 | 是 | `competition`，且要持有报名或组队权限 |
 | `geek team create <competition_id> --name N [--slogan S]` | 为一场比赛建一支新队伍 | 是 | `competition`，且账号要有 `competition.team` 权限节点 |
 | `geek team apply <team_id> --message M` | 申请加入一支队伍 | 是 | `apply`，且账号要有 `competition.team` 权限节点 |
 | `geek repo list` | 列出公开代码仓库 | 否 | `repo` |

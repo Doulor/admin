@@ -2,7 +2,7 @@
 
 > 极客班命令行 `geek`（Rust）：设备码登录、论坛/比赛/代码仓库只读与写操作、给 Claude Code/Codex/omp 装一份极客班技能（#277）。独立工具链，不进 Node 工作区；产物不单独成镜像，随 `app/web` 镜像的 `/cli/` 路径分发。
 
-状态：`current` · 更新：2026-10-24 · 源码：`app/cli/` · 产物：`dist/cli/`（随 `yzgc/web` 镜像的 `/cli/` 路径分发）
+状态：`current` · 更新：2026-10-25 · 源码：`app/cli/` · 产物：`dist/cli/`（随 `yzgc/web` 镜像的 `/cli/` 路径分发）
 
 ## 源码地图
 
@@ -14,7 +14,7 @@
 | `app/cli/src/token_store.rs` | 令牌存取：系统钥匙串（`keyring` crate，macOS/Windows 原生，Linux 用内核 `linux-native`，不用要 D-Bus 的 `secret-service`，交叉编译到 musl 没有对应 sysroot）优先，没有就退到 `~/.config/geek/credentials`（0600）；`GEEK_TOKEN` 环境变量最优先，不落盘；`GEEK_NO_KEYRING=1` 强制只用文件（CI、容器、无图形会话） |
 | `app/cli/src/api.rs` | HTTP 封装：状态码 → 退出码映射，`email_required`/`profile_required` 的提示语 |
 | `app/cli/src/output.rs` | `--json` 与人读两种输出的统一出口（`{ ok, data }` / `{ ok:false, error:{code,message,retry_after?} }`） |
-| `app/cli/src/commands/` | `login`（RFC 8628 设备码）、`logout`（调 `/auth/device/revoke`）、`whoami`、`status`（本机登录状态）、`forum`（list/show/post/reply）、`comp`（list/show/mine/signup/ladder）、`team`（create/apply）、`repo`（list）、`apply`（status）、`skill`（install） |
+| `app/cli/src/commands/` | `login`（RFC 8628 设备码）、`logout`（调 `/auth/device/revoke`）、`whoami`、`status`（本机登录状态）、`forum`（list/show/post/reply）、`comp`（list/show/mine/signup/ladder/plaza；给人看的输出里状态换成中文，含 #278 的「规划中」，`--json` 仍是接口原值）、`team`（create/apply）、`repo`（list）、`apply`（status）、`skill`（install） |
 | `app/cli/src/ui/login_anim.rs` | 登录动画（见下文「登录动画」），behind `LoginAnimation` trait；非 TTY/`NO_COLOR`/`--json` 时用 `NullAnimation`，什么都不画 |
 | `app/cli/src/ui/braille.rs` | 运行时把头像转成盲文点阵（kitty/iTerm2 图像协议不可用时的退路） |
 | `app/cli/skills/geek/SKILL.md` | 内嵌进二进制（`include_str!`）；`geek skill install` 写到 `~/.claude/skills/geek`、`~/.codex/skills/geek`、`~/.omp/skills/geek` |
@@ -51,6 +51,7 @@
 | `geek comp mine` | `GET /api/me/competitions` | 当前账号报名的比赛 |
 | `geek comp signup <id>` | `POST /api/competitions/:id/signup` | 受权限节点 `competition.signup` 约束 |
 | `geek comp ladder <id>` | `GET /api/competitions/:id/leaderboard` | 需要登录，且持有报名或组队任一权限 |
+| `geek comp plaza [--competition <id>] [--kind recruiting\|seeking] [--keyword <词>]` | `GET /api/team-plaza`（#278） | 需要登录，且持有报名或组队任一权限；令牌按 `competition` scope 放行（`bearer-auth.ts` 的前缀表） |
 | `geek team create <competition_id> --name <...>` | `POST /api/competitions/:id/teams` | 受权限节点 `competition.team` 约束 |
 | `geek team apply` | `POST /api/teams/{id}/apply` | 报名 |
 | `geek repo list` | `GET /api/public/gitlab/projects` | 公开代码仓库列表 |
