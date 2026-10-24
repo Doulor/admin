@@ -3,7 +3,7 @@ import { loadSession } from "../../middleware/require-auth.js";
 import { FORUM_CAPABILITIES, type Capability } from "../../lib/roles.js";
 import { CAPABILITY_TO_NODES } from "../../lib/permission-nodes.js";
 import { nodeMatches, type PermissionEngine } from "../../lib/permissions.js";
-import { FORUM_LIMITS, ForumError } from "../../lib/forum-rules.js";
+import { ForumError, allowedVisibilities, type ViewerLevel } from "../../lib/forum-rules.js";
 import type { ChangeKeys, ChangeOptions, ForumTitle } from "../../lib/forum-store.js";
 
 /**
@@ -63,6 +63,8 @@ export async function forumViewer(req: FastifyRequest): Promise<ForumViewer> {
   const userId = req.server.services.forum.ensureMember({
     accountId: session.account_id, githubUserId: session.user_id, login: session.login, avatarUrl: session.avatar_url,
     role: isOwner ? "admin" : "member", title,
+    // #276 CONTRACT §9：部门与称号和 /auth/me 同一套数据（权限引擎的 groupsOf），每次请求都刷新。
+    department: groups.department, titles: groups.titles,
   });
   const capabilities = FORUM_CAPABILITY_NODES
     .filter(([, nodes]) => nodes.some(node => hasGrantedNode(permissions, session.account_id, node)))
@@ -101,30 +103,51 @@ export function canModerate(req: FastifyRequest, viewer: ForumViewer, node: stri
 export const forbidden = (message: string) => new ForumError(403, "forbidden", message);
 export const notFound = (message: string) => new ForumError(404, "not_found", message);
 export { rateLimited } from "../../middleware/http-policy.js";
-/** 全站的游客回复总量到了上限（FORUM_RATE_LIMITS.guestPostSite）：所有游客暂时不能回复，成员照常。 */
-export const guestRepliesPaused = () => new ForumError(429, "guest_replies_paused", "游客回复暂时太多，请过一会儿再试，或者登录后回复");
 
-/** 看的人（前端据此判断按钮显隐）与游客发帖的规则：GET /state 与每个写接口都带。 */
-function viewerAndPolicy(req: FastifyRequest, viewer: ForumViewer) {
-  const { config, publicSubmission, turnstile } = req.server.services;
-  return {
-    viewer: { userId: viewer.userId, kind: viewer.kind, capabilities: viewer.capabilities },
-    guestPolicy: {
-      powDifficulty: publicSubmission.powDifficulty(),
-      turnstileSiteKey: turnstile.turnstileEnabled() ? config.turnstile.siteKey : null,
-      nameMax: FORUM_LIMITS.guestNameMax,
-      contentMax: FORUM_LIMITS.guestContentMax,
-    },
-  };
-}
-
-/** GET /state 返回的 state：整份论坛数据 + 看的人 + 游客发帖的规则。 */
-export function forumState(req: FastifyRequest, viewer: ForumViewer) {
-  return { ...req.server.services.forum.state(viewer.userId), ...viewerAndPolicy(req, viewer) };
+/**
+ * 分级可见（#276 CONTRACT §1）：这个身份能看到的最高级别。成员（持 `forum.read.member`）看三级，
+ * 注册用户（持 `forum.read.registered`）看公开 + 注册可见，其余（访客）只看公开。
+ */
+export function levelOf(permissions: PermissionEngine, accountId: string | null): ViewerLevel {
+  if (permissions.check(accountId, "forum.read.member")) return "member";
+  if (permissions.check(accountId, "forum.read.registered")) return "registered";
+  return "public";
 }
 
 /**
- * 写接口的回答（#145）：只有这次写入改动的记录（`changes`，见 forum-store 的 ForumChanges），加上看的人与游客规则。
+ * 直接取看不到的话题或帖子（#276 CONTRACT §1）：访客回 401 带 `need`，已登录但不够回 403 带 `node` 与 `need`；
+ * 响应体里不带标题和正文——调用方在抛出这个错误之前不能已经把标题/正文塞进别的字段。
+ */
+export function visibilityDenied(viewerKind: ForumViewer["kind"], need: Exclude<ViewerLevel, "public">): ForumError {
+  if (viewerKind === "guest") return new ForumError(401, "unauthenticated", "登录后才能查看", { need });
+  const node = need === "member" ? "forum.read.member" : "forum.read.registered";
+  return new ForumError(403, "forbidden", `需要「${need === "member" ? "极客班成员" : "注册用户"}」身份才能查看`, { node, need });
+}
+
+/** 这个话题/帖子的生效可见范围，看的人够不够看；不够就抛 401/403（见 visibilityDenied）。 */
+export function assertVisible(req: FastifyRequest, viewer: ForumViewer, effective: ViewerLevel) {
+  if (effective === "public") return;
+  const level = levelOf(req.server.services.permissions, viewer.accountId);
+  if (allowedVisibilities(level).includes(effective)) return;
+  throw visibilityDenied(viewer.kind, effective as Exclude<ViewerLevel, "public">);
+}
+
+/** 看的人（前端据此判断按钮显隐）：GET /state 与每个写接口都带。 */
+function viewerAndPolicy(_req: FastifyRequest, viewer: ForumViewer) {
+  return { viewer: { userId: viewer.userId, kind: viewer.kind, capabilities: viewer.capabilities } };
+}
+
+/**
+ * GET /state 返回的 state：整份论坛数据 + 看的人。分级可见（#276）在 SQL 层按 `levelOf()` 算出的级别过滤，
+ * 不是查出来再筛——forum-store.ts 的 state() 把过滤条件编进 WHERE。
+ */
+export function forumState(req: FastifyRequest, viewer: ForumViewer) {
+  const level = levelOf(req.server.services.permissions, viewer.accountId);
+  return { ...req.server.services.forum.state(viewer.userId, level), ...viewerAndPolicy(req, viewer) };
+}
+
+/**
+ * 写接口的回答（#145）：只有这次写入改动的记录（`changes`，见 forum-store 的 ForumChanges），加上看的人。
  * 成员每次请求都会刷新自己的角色、称号、头像（ensureMember），所以成员本人的用户记录总是带上。
  * #156：`options.posts` 决定帖子记录带什么（默认只有字段、没有正文也没有摘要）；发帖、回复、编辑、删除传 `full`。
  */

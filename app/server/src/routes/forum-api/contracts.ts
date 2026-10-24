@@ -29,10 +29,13 @@ export type ForumWriteResponse = ReturnType<typeof forumChanges> & { topicId?: s
 export const TOPIC_ID_PATTERN = "^t[1-9][0-9]{0,8}$";
 export const POST_ID_PATTERN = "^(?:p[1-9][0-9]{0,9}|body-[1-9][0-9]{0,8})$";
 export const USER_ID_PATTERN = "^(?:m[1-9][0-9]{0,14}|g[1-9][0-9]{0,9}|u-[a-z0-9-]{1,32})$";
+/** 表情 id 就是它的短码（forum-store.ts 的 createSticker），和 CONTRACT §8 的 shortcode 规则共用。 */
+export const STICKER_ID_PATTERN = "^[a-z0-9][a-z0-9-]{1,39}$";
 const pattern = (source: string) => ({ type: "string", pattern: source });
 const flag = { type: "boolean" };
 const topicParams = { params: object({ topic_id: pattern(TOPIC_ID_PATTERN) }, ["topic_id"]) };
 const postParams = { params: object({ post_id: pattern(POST_ID_PATTERN) }, ["post_id"]) };
+const reactionParams = { params: object({ post_id: pattern(POST_ID_PATTERN), sticker_id: pattern(STICKER_ID_PATTERN) }, ["post_id", "sticker_id"]) };
 
 export const forumContracts: RouteContracts = {
   "POST /api/forum/topics": {
@@ -43,27 +46,30 @@ export const forumContracts: RouteContracts = {
       content: text(FORUM_LIMITS.memberContentMax, 1),
     }, ["title", "categoryId", "content"]),
   },
+  // #276 CONTRACT §2：去掉游客回帖，不再收 guest/pow/website(蜜罐)/turnstileToken。
   "POST /api/forum/posts": {
     body: object({
       topicId: pattern(TOPIC_ID_PATTERN),
-      // 成员上限；游客的 2000 字在路由里判断（同一个接口，身份决定上限）。
       content: text(FORUM_LIMITS.memberContentMax, 1),
       replyToPostId: pattern(POST_ID_PATTERN),
-      guest: object({ name: text(FORUM_LIMITS.guestNameMax, 1) }, ["name"]),
-      pow: object({ timestamp: { type: "number" }, nonce: text(32, 1) }, ["timestamp", "nonce"]),
-      // 蜜罐：前端渲染成隐藏输入框，真人留空。
-      website: text(2000),
-      turnstileToken: text(4096),
     }, ["topicId", "content"]),
   },
   "PATCH /api/forum/posts/:post_id": { ...postParams, body: object({ content: text(FORUM_LIMITS.memberContentMax, 1) }, ["content"]) },
   "DELETE /api/forum/posts/:post_id": postParams,
   "POST /api/forum/posts/:post_id/like": postParams,
   "POST /api/forum/posts/:post_id/bookmark": postParams,
+  "PUT /api/forum/posts/:post_id/reactions/:sticker_id": reactionParams,
+  "DELETE /api/forum/posts/:post_id/reactions/:sticker_id": reactionParams,
   "POST /api/forum/users/:forum_user_id/follow": { params: object({ forum_user_id: pattern(USER_ID_PATTERN) }, ["forum_user_id"]) },
+  "GET /api/forum/users/suggest": { querystring: object({ q: text(FORUM_LIMITS.suggestQueryMax, 1) }, ["q"]) },
   "POST /api/forum/topics/:topic_id/pin": { ...topicParams, body: object({ pinned: flag }, ["pinned"]) },
   "POST /api/forum/topics/:topic_id/close": { ...topicParams, body: object({ closed: flag }, ["closed"]) },
   "POST /api/forum/topics/:topic_id/view": topicParams,
+  // #276 CONTRACT §1：null 表示跟随分类，非 null 只能比分类更严（路由层/store 层再校验，这里只管形状）。
+  "PATCH /api/forum/topics/:topic_id/visibility": {
+    ...topicParams,
+    body: object({ visibility: { type: ["string", "null"], enum: ["public", "registered", "member", null] } }, ["visibility"]),
+  },
   "POST /api/forum/notifications/:notification_id/read": { params: object({ notification_id: pattern("^n[1-9][0-9]{0,9}$") }, ["notification_id"]) },
   "PATCH /api/forum/me/profile": {
     body: {
@@ -78,13 +84,14 @@ export const forumContracts: RouteContracts = {
     },
   },
   "GET /api/forum/avatars/:file": { params: object({ file: pattern("^[0-9a-f]{64}\\.webp$") }, ["file"]) },
+  "GET /api/forum/stickers/:file": { params: object({ file: pattern("^[0-9a-f]{64}\\.webp$") }, ["file"]) },
+  "GET /api/forum/uploads/:file": { params: object({ file: pattern("^[0-9a-f]{64}\\.[a-z0-9]{1,8}$") }, ["file"]) },
 };
 
 const FIELD_LABELS: Record<string, string> = {
   title: "标题", categoryId: "分类", tags: "标签", content: "正文", topicId: "话题", replyToPostId: "被回复的帖子",
-  guest: "游客信息", name: "昵称", pow: "防滥用校验", timestamp: "防滥用校验", nonce: "防滥用校验", website: "个人网站",
-  turnstileToken: "人机验证", displayName: "昵称", bio: "个人签名", location: "所在地", notifyPrefs: "通知设置",
-  reply: "通知设置", like: "通知设置", follow: "通知设置", pinned: "置顶", closed: "关闭",
+  displayName: "昵称", bio: "个人签名", location: "所在地", website: "个人网站", notifyPrefs: "通知设置",
+  reply: "通知设置", like: "通知设置", follow: "通知设置", pinned: "置顶", closed: "关闭", visibility: "可见范围", q: "搜索词",
 };
 
 type SchemaError = { keyword: string; instancePath: string; params: Record<string, unknown> };

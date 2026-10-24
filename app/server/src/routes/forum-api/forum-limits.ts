@@ -21,7 +21,7 @@ function metaMax(raw: string | null, unlimitedWhenMissing: boolean): number {
  * （由控制台决定，forum-api 的版务权限还没切到新节点体系，见 docs/plan 里 #276 的后续），不是这条每小时
  * 计数器——这里只管「已经能发的人，这一小时发得够不够多」，0 不该在这条线上变成「谁都发不了」。
  */
-export function hourlyLimited(req: FastifyRequest, reply: FastifyReply, action: "topic" | "reply", accountId: string): boolean {
+export function hourlyLimited(req: FastifyRequest, reply: FastifyReply, action: "topic" | "reply" | "react" | "upload", accountId: string): boolean {
   const { permissions, limits } = req.server.services;
   const raw = permissions.meta(accountId, `meta.limit.forum.${action}.hourly`);
   const max = metaMax(raw, true);

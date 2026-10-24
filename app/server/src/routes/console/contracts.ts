@@ -2,6 +2,7 @@ import { choices, integer, object, text, type RouteContracts } from "../../lib/h
 import { APPLICATION_STATUS_IDS } from "../../lib/roles.js";
 import { FEEDBACK_STATUSES } from "../../lib/feedback-store.js";
 import { INVITE_CODE_PATTERN } from "../../lib/invite-codes.js";
+import { FORUM_LIMITS } from "../../lib/forum-rules.js";
 import {
   competitionFields, competitionFailures, competitionDeleted, consoleCompetitionList, consoleCompetitionResult,
   competitionRoster, signupSettingsResult, signupBody, consoleCompetitionIdParam, scoreEventList, scoreEventResult, scoreEventParam,
@@ -11,6 +12,12 @@ import {
 } from "../../lib/competition-contract.js";
 
 const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$";
+/** 论坛分类 id（#276）：和 forum-api/contracts.ts 发帖用的同一条规则，app/forum/content/curation.json 的分类 id。 */
+const forumCategoryId = { type: "string", pattern: "^[a-z0-9][a-z0-9-]{0,39}$" };
+/** 表情包/表情 id（#276）：表情 id 就是它的短码。 */
+const stickerPackId = { type: "string", pattern: "^[a-z0-9][a-z0-9-]{0,39}$" };
+const stickerShortcode = { type: "string", pattern: FORUM_LIMITS.stickerShortcodePattern.source };
+const visibilityChoice = choices("public", "registered", "member");
 
 /** 极客班账号 id：26 位 Crockford Base32（lib/identity-store.ts 的 newAccountId）。 */
 const accountId = { type: "string", pattern: "^[0-9A-HJKMNP-TV-Z]{26}$" };
@@ -370,5 +377,24 @@ export const consoleContracts: RouteContracts = {
     // #274 残留修复 D：回和列表一样形状的完整行（userView），不是只有 account_id——否则控制台改完一行，
     // 不重新拉一次列表就看不到刚改的用户名、等级、部门这些字段。
     response: { 200: userView },
+  },
+
+  // ---- #276 论坛管理（分类可见范围、表情包） ---------------------------------------------------
+  "PATCH /api/console/forum/categories/:id": {
+    querystring: object({}), params: object({ id: forumCategoryId }, ["id"]),
+    body: object({ visibility: visibilityChoice }, ["visibility"]),
+  },
+  "PATCH /api/console/forum/sticker-packs/:id": {
+    querystring: object({}), params: object({ id: stickerPackId }, ["id"]),
+    body: object({ name: text(64, 1), sort: integer(0, 100000), enabled: { type: "boolean" } }),
+  },
+  "PATCH /api/console/forum/stickers/:id": {
+    querystring: object({}), params: object({ id: stickerPackId }, ["id"]),
+    body: object({ label: text(FORUM_LIMITS.stickerLabelMax, 1), sort: integer(0, 100000), enabled: { type: "boolean" } }),
+  },
+  // 请求体是图片本身（同头像处理），这里只管路径与查询串；内容类型由路由自己的 addContentTypeParser 接。
+  "PUT /api/console/forum/sticker-packs/:id/stickers": {
+    params: object({ id: stickerPackId }, ["id"]),
+    querystring: object({ shortcode: stickerShortcode, label: text(FORUM_LIMITS.stickerLabelMax, 1) }, ["shortcode", "label"]),
   },
 };
