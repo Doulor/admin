@@ -120,7 +120,7 @@
 
 `GET /auth/device/userinfo` · `flow:identity.device.userinfo`
 
-权限与资源：只认Authorization: Bearer <access_token>（geek login换到的gk_…令牌），不读cookie、不要会话；这个令牌只在这个接口有效，其它接口仍只认会话Cookie。
+权限与资源：只认Authorization: Bearer <access_token>（geek login换到的gk_…令牌），不读cookie、不要会话；#277起这个令牌不止在这个接口有效，`middleware/bearer-auth.ts`把它接到了`geek-cli`申请过scope（`forum apply competition repo`）的那些业务接口上，响应形状不变。
 
 响应与错误：200 {sub,account_id,login,avatar_url,scope,email_required,profile_required}，sub与account_id都是极客班账号；email_required、profile_required 同 /auth/me，命令行读到 true 就提示先到网页上绑邮箱、补姓名和年级（#280），不回真实姓名；令牌缺失、不存在、过期或账号不是active时401 invalid_token，并带WWW-Authenticate: Bearer error="invalid_token"。
 
@@ -129,6 +129,20 @@
 本地表读取：device_grants、users、identities。本地表写入：无。
 
 源码：[app/server/src/routes/identity/device.ts:125](../../../app/server/src/routes/identity/device.ts#L125)、[app/server/src/lib/device-store.ts](../../../app/server/src/lib/device-store.ts)（`authenticate`）。验证入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts)。
+
+## 命令行撤销设备令牌（geek logout，#277）
+
+`POST /auth/device/revoke` · `flow:identity.device.revoke`
+
+权限与资源：只认Authorization: Bearer <access_token>，不读cookie、不要会话；每分钟30次。
+
+响应与错误：200 {ok:true}，即便令牌缺失、不存在、已经撤销或已经过期也一样（RFC 7009的惯例，不回答「这个令牌是否存在过」）。
+
+数据与副作用：按令牌的sha256查status=consumed且未过期的行，把token_expires_at改成当前时间（和自然过期走同一条判定，authenticate()不用再认一个新状态）；真的撤销成功才记一条操作记录identity.device.revoke（surface:'cli'），不记明文令牌。
+
+本地表读取：device_grants。本地表写入：device_grants、activity_events（仅撤销成功时）。
+
+源码：[app/server/src/routes/identity/device.ts](../../../app/server/src/routes/identity/device.ts)（`POST /auth/device/revoke`）、[app/server/src/lib/device-store.ts](../../../app/server/src/lib/device-store.ts)（`revoke`）、[app/server/src/middleware/bearer-auth.ts](../../../app/server/src/middleware/bearer-auth.ts)。验证入口：[tests/server/bearer-auth.test.ts](../../../tests/server/bearer-auth.test.ts)。
 
 ## 邮箱、Google 登录、账号页与注册邀请码（#262 第二、三期；资料/头像/邀请码兑换见 #274）
 

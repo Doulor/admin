@@ -42,6 +42,7 @@ Agent 进入仓库的第一件事是**确认当前分支**（`git branch --show-
 | `app/web/` | `docs/services/web/` | `docs/services/web/README.md` |
 | `app/console/` | `docs/services/console/` | `docs/services/console/README.md` |
 | `app/forum/` | `docs/services/forum/` | `docs/services/forum/README.md` |
+| `app/cli/` | `docs/services/cli/` | `docs/services/cli/README.md` |
 | `deploy/` | `docs/ops/DEPLOY.md`、`docs/ops/ENVIRONMENTS.md`、`docs/ops/CICD.md` | `docs/ops/DEPLOY.md`、`docs/ops/ENVIRONMENTS.md`、`docs/ops/CICD.md` |
 | `.github/workflows/` | `docs/ops/CICD.md` | `docs/ops/CICD.md` |
 

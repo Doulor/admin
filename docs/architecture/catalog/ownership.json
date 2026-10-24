@@ -29,6 +29,13 @@
       "root": "app/forum",
       "runtime": "forum",
       "docs": "docs/services/forum/README.md"
+    },
+    {
+      "id": "cli",
+      "title": "命令行",
+      "root": "app/cli",
+      "runtime": "web",
+      "docs": "docs/services/cli/README.md"
     }
   ],
   "runtimeUnits": [
@@ -791,6 +798,55 @@
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/plan/UNIFIED-LOGIN.md"
+      ]
+    },
+    {
+      "id": "identity.device.revoke",
+      "title": "geek logout 撤销命令行令牌",
+      "domain": "identity",
+      "relatedDomains": [
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /auth/device/revoke",
+      "capabilities": [],
+      "reads": [
+        "device_grants"
+      ],
+      "writes": [
+        "device_grants",
+        "activity_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：只认 Authorization: Bearer <access_token>，不读 cookie、不要会话；每分钟 30 次。",
+        "响应与错误：200 {ok:true}，即便令牌缺失、不存在、已经撤销或已经过期也一样（RFC 7009 的惯例，不回答「这个令牌是否存在过」）。",
+        "数据与副作用：只改 token_expires_at（撤销和自然过期走同一条判定，authenticate() 不用再认一个新状态），只对 status=consumed 的行生效；真的撤销成功才写一条操作记录 identity.device.revoke（surface=cli），不记明文令牌。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/identity/device.ts",
+          "needle": "const revoked = device.revoke(token);"
+        },
+        {
+          "path": "app/server/src/lib/device-store.ts",
+          "needle": "function revoke(token: string | undefined): boolean {"
+        },
+        {
+          "path": "app/server/src/middleware/bearer-auth.ts",
+          "needle": "export function cliGate(app: FastifyInstance, accountId: string)"
+        },
+        {
+          "path": "app/server/src/routes/identity/contracts.ts",
+          "needle": "\"POST /auth/device/revoke\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/bearer-auth.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
       ]
     },
     {
