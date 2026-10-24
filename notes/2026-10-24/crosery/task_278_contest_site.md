@@ -113,3 +113,17 @@
 - 做了什么：b1cc096d feat(server) 两档计分、年级系数、每周防刷、试算接口、模拟脚本与服务端文档；491a09a9 feat(console) 两档下拉框与试算、规则页只读表；70f4b378 feat(portal) 官网首屏、计分段、SDK 与门户文案；fcbb36ef docs(architecture) 目录、ownership 与 changes/278.json。每个提交只加指定文件，没有推送。
 - 结果：四个提交落在 task/278/contest_site，pnpm catalog:generate 后 check:catalog 通过；工作区只剩这两条记录
 - 下一步：提交记录，交主会话审查与预览环境验收
+
+## 19:42:55 +08:00 · 返工 · #278 · 门户比赛窗口的官网入口与详情头图改成浅色
+
+- 执行者：agent-claude-geek-main-3c2a7a67-c278（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：按 team-lead 转达（所有者 16:38、16:57 要求比赛官网去掉暗色，门户里那块是官网入口，不能一深一浅）：新增 ContestBackdrop（ContestGlow 柔光与流动透视网格、HeatMark 热力图字标），官网入口横幅和详情头图换成和官网首屏同一套色板与元素；字形与配色挪到 app/web/shared/lib/heatmark.ts，官网 title.ts 改为导入，样子不变；夜空 NightSky 删除，原文件、旧 ContestSite 与旧 competitions.css 按 4c7c5dd5 逐字节归档到 docs/history/portal-contest-night/ 并写 README；portal.md、web README、DESIGN.md、ownership、changes/278.json 跟着改。中途发现减少动态效果的规则写在格子入场动画前面压不住（152 个格子还在等延迟），挪到后面后为 0。
+- 结果：pnpm typecheck 通过，pnpm test 123 个文件 1923 条通过，check:catalog、check:docs、check-architecture（base 4c7c5dd5，124 个变更文件 234 个节点）等通过。ego 本机：1440×900 横幅 1066×100、头图 706×237，390×844 横幅 344×171、头图 344×276，横向溢出 0、没有 emoji；截图像素测渐变字对比度 4.99–6.44，导语 8.95；减少动态效果 0 个动画在跑。帧率因浏览器窗口不在前台（hasFocus=false）测出 8–162 帧/2 秒不稳定，不作结论。截图 /tmp/geek-takeover/c278/shots/v6-portal-1440-banner.png、v6-portal-1440-hero.png、v6-portal-390-banner.png、v6-portal-390-hero.png，官网 v5-site-1440-hero.png、v5-site-390-hero.png。
+- 下一步：提交记录，收 ego TaskSpace 与本机服务，回报 team-lead
+
+## 19:42:55 +08:00 · 提交 · #278 · 门户浅色入口与头图一个提交
+
+- 执行者：agent-claude-geek-main-3c2a7a67-c278（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：2a167458 feat(portal) 比赛窗口的官网入口与详情头图改成和官网同一套浅色（代码、共享字形、测试、文档、归档、目录与 changes/278.json 在同一个提交里，目录已重新生成）。只加指定文件，没有推送。
+- 结果：提交落在 task/278/contest_site；工作区只剩这两条记录
+- 下一步：交主会话审查与预览环境验收
