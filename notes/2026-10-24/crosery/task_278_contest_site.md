@@ -71,3 +71,17 @@
 - 做了什么：按文件逐个 git add，分五个提交：a2d85e29 feat(console) 比赛页四个新页签与兑奖码核销；11136e18 fix(deploy) 宿主模板退回 6m、上传只在容器放宽；9fb497ef fix(portal) 官网页脚、奖项卡与门户手机计分卡排版；1b774ac5 fix(server) 官网托管路由登记响应 Schema；c8a3837a docs(architecture) ownership、目录与 docs/changes/278.json。第二个提交起初把部署回退和排版修正合在一个 fix(web) 里，scope 不在词表、也不是一个目的，没推送前 reset --soft 拆成两个
 - 结果：本地提交，没有推送；工作区干净；pnpm test 119 个文件 1864 个测试通过
 - 下一步：交主会话：审查、预览环境验收；真实 GitLab 收集与「有用」标签、经宿主上传 >6MB、真实账号核销未验证
+
+## 17:34:33 +08:00 · 返工 · #278 · 比赛官网改成浅色、不沿用主站风格
+
+- 执行者：agent-claude-geek-main-3c2a7a67-c278（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：按所有者 2026-10-24 16:38 的要求（「比赛官网能不能不要有暗色了，就比赛官网炫酷好看一点，去炫技」）重做第一期官网：去掉夜空 Canvas（sky.ts）和极客娘图（public/geek-girl.webp），首屏改成暖白底加四团慢慢漂移的彩色光晕，标题是贡献热力图拼出的「OSS CHALLENGE」（5×7 点阵、指针放大、点一下扩波纹、有新贡献时自动扩一圈），倒计时每位数字滚动，首屏下面加一条斜着滚动的贡献条（ticker.ts）；各段落改成白卡片、2px 墨线和彩色硬阴影，年级系数改成柱状图，第一名奖项卡是转动的彩色边框，天梯换名次时行位移动画；手机 720px 以下单列。另修 server：已发布版本的 HTML 原来也是 public, max-age=300，换版本后浏览器拿缓存里的旧 index.html 去找已经删掉的资源文件，整页不加载（本机换包时复现：页面引用旧的 index-BW3XsS8W.js，fetch 失败）；改成 HTML no-cache、其它文件仍 5 分钟，测试、接口文档、API.md、目录与 changes/278.json 同步。测试里的必备文件和打包样例换成 ticker.ts 与 styles.css，vite 的 publicDir 关掉。
+- 结果：构建 JS 33.21 kB（gzip 13.90 kB）、CSS 6.79 kB gzip，包 4 个文件 25080 字节；pnpm typecheck 通过，pnpm test 119 个文件 1864 条全过。ego 浏览器在本机 nginx 叠加宿主 CSP 的环境里：1440×900 与 390×844 横向溢出 0、来源 null、只请求同源资源，可见文字 191 处对比度全部 ≥4.5，渐变字三色在底色上 4.83–5.93；减少动态效果时运行中的动画 0 个、标题照常画出；Tab 焦点有 3px 紫色描边；换包后普通刷新直接拿到新的 index-CgGejInr.js。截图在 /tmp/geek-takeover/c278/shots/v3-site-*。
+- 下一步：跑 check:catalog、check-architecture 与 pnpm check，提交，收 ego TaskSpace，回报 team-lead。
+
+## 17:37:33 +08:00 · 提交 · #278 · 浅色官网与 HTML 缓存修复分两个提交
+
+- 执行者：agent-claude-geek-main-3c2a7a67-c278（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：5bd3e9a0 feat(portal) 官网改浅色独立风格（站点源码、测试、目录、web README、portal.md、changes/278.json）；d029c543 fix(server) 已发布官网 HTML 改 no-cache（路由、测试、endpoint-contracts、API.md、目录不变量、changes/278.json）。两个提交各自重新生成目录，check:catalog 在两个状态下都通过。只加指定文件，没有推送。
+- 结果：两个提交落在 task/278/contest_site，工作区只剩这条记录。
+- 下一步：跑 pnpm check 与 check-architecture，提交记录，收 ego TaskSpace 和本机服务，回报 team-lead。
