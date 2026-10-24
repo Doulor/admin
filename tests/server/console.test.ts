@@ -302,7 +302,10 @@ describe('GET /api/console/departments（固定部门名册，和权限节点的
     grantPermNode(app, accountId('bob'), 'console.access');
     const listed = (await app.inject({ url: '/api/console/departments', headers: as('bob') })).json().departments;
     expect(listed.map((item: { id: string }) => item.id)).toEqual(['recruitment', 'tech', 'community', 'projects']);
-    expect(listed[0]).toMatchObject({ name: '招新部', heads: [], crew_count: 0, archived: false });
+    // #276 挪来的 #274 迁移步骤 4：/api/public/org 退场、论坛也切到 /api/public/departments 之后，
+    // 四个默认部门在 createRoleStore() 播种后随即被 archiveOldDepartments() 标成已归档（services.ts）；
+    // 这个只读列表照样原样下发 archived 状态，不隐藏、不过滤。
+    expect(listed[0]).toMatchObject({ name: '招新部', heads: [], crew_count: 0, archived: true });
   });
 });
 

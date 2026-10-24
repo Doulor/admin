@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`669fb2fa4e6b54c416ff75ab9153af505fa783c12462d1e24cb22d31b40570a5`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`10b2e02fe7602c8c4194ddcb7c594f5be49af4f0bcec3a2c0c9c13014e1bd8ea`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -556,8 +556,9 @@
 - 权限与资源：需要节点 console.access（#274 切到权限节点体系，不再是 requireCapability 的旧能力）。
 - 响应与错误：200 {departments}，含heads和crew_count，也保留归档标记。
 - 数据与副作用：只读 departments 与 role_assignments（固定清单，#274 起控制台不再支持新建/改名/归档/删除，见 departments.ts 头部注释）；写权限包不在此入口。
+- 迁移步骤 4（#274/#276）：services.ts 在 createRoleStore() 播种默认部门之后调用一次 archiveOldDepartments()，把四行默认部门标成 archived=1——旧的 GET /api/public/org 与论坛称号徽章都已改读新权限体系，没有活的读者再按 archived=0 过滤；这个只读列表原样下发 archived:true，不隐藏、不改查询。
 
-源码：[app/server/src/routes/console/departments.ts:13](../../../app/server/src/routes/console/departments.ts#L13) · [app/server/src/lib/role-store.ts:245](../../../app/server/src/lib/role-store.ts#L245)
+源码：[app/server/src/routes/console/departments.ts:13](../../../app/server/src/routes/console/departments.ts#L13) · [app/server/src/lib/role-store.ts:245](../../../app/server/src/lib/role-store.ts#L245) · [app/server/src/lib/migrations/2026-10-yugc-v2.ts:324](../../../app/server/src/lib/migrations/2026-10-yugc-v2.ts#L324) · [app/server/src/services.ts:70](../../../app/server/src/services.ts#L70)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -1632,7 +1633,7 @@
 - 201 {competition}；校验名称、时间范围和解析后的HTTPS地址；未知字段或错误时间/地址400，限流429。
 - 比赛行与competition.create审计同一事务提交；审计失败一起回滚，不发邮件，不创建报名或队伍。
 
-源码：[app/server/src/routes/console/competitions.ts:43](../../../app/server/src/routes/console/competitions.ts#L43) · [app/server/src/routes/console/contracts.ts:231](../../../app/server/src/routes/console/contracts.ts#L231) · [app/server/src/lib/db.ts:201](../../../app/server/src/lib/db.ts#L201) · [app/server/src/lib/roles.ts:94](../../../app/server/src/lib/roles.ts#L94) · [app/server/src/services.ts:80](../../../app/server/src/services.ts#L80)
+源码：[app/server/src/routes/console/competitions.ts:43](../../../app/server/src/routes/console/competitions.ts#L43) · [app/server/src/routes/console/contracts.ts:231](../../../app/server/src/routes/console/contracts.ts#L231) · [app/server/src/lib/db.ts:201](../../../app/server/src/lib/db.ts#L201) · [app/server/src/lib/roles.ts:94](../../../app/server/src/lib/roles.ts#L94) · [app/server/src/services.ts:82](../../../app/server/src/services.ts#L82)
 
 测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts)。生成器未执行这些测试。
 
@@ -2148,7 +2149,7 @@
 - 200 {slug, live_version_id, site_url, versions}：每个版本带逐条校验结果 report、上传人、大小与文件数；只有通过的版本有一小时有效的 preview_url。
 - 只读，不写操作记录。控制台「官网」页签按这份状态列出版本、在线版本与预览链接。
 
-源码：[app/server/src/routes/console/competition-site.ts:52](../../../app/server/src/routes/console/competition-site.ts#L52) · [app/server/src/routes/console/contracts.ts:266](../../../app/server/src/routes/console/contracts.ts#L266) · [app/console/src/pages/competition/SitePanel.vue:31](../../../app/console/src/pages/competition/SitePanel.vue#L31) · [app/console/src/lib/types.ts:254](../../../app/console/src/lib/types.ts#L254) · [app/console/src/mock/console.ts:644](../../../app/console/src/mock/console.ts#L644) · [app/server/src/routes/console/index.ts:31](../../../app/server/src/routes/console/index.ts#L31) · [app/server/src/services.ts:132](../../../app/server/src/services.ts#L132) · [app/console/src/pages/CompetitionHub.vue:480](../../../app/console/src/pages/CompetitionHub.vue#L480)
+源码：[app/server/src/routes/console/competition-site.ts:52](../../../app/server/src/routes/console/competition-site.ts#L52) · [app/server/src/routes/console/contracts.ts:266](../../../app/server/src/routes/console/contracts.ts#L266) · [app/console/src/pages/competition/SitePanel.vue:31](../../../app/console/src/pages/competition/SitePanel.vue#L31) · [app/console/src/lib/types.ts:254](../../../app/console/src/lib/types.ts#L254) · [app/console/src/mock/console.ts:644](../../../app/console/src/mock/console.ts#L644) · [app/server/src/routes/console/index.ts:31](../../../app/server/src/routes/console/index.ts#L31) · [app/server/src/services.ts:134](../../../app/server/src/services.ts#L134) · [app/console/src/pages/CompetitionHub.vue:480](../../../app/console/src/pages/CompetitionHub.vue#L480)
 
 测试入口：[tests/server/competition-site.test.ts](../../../tests/server/competition-site.test.ts) · [tests/console/competition-contest.test.ts](../../../tests/console/competition-contest.test.ts)。生成器未执行这些测试。
 

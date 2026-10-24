@@ -2245,7 +2245,8 @@
       "invariants": [
         "权限与资源：需要节点 console.access（#274 切到权限节点体系，不再是 requireCapability 的旧能力）。",
         "响应与错误：200 {departments}，含heads和crew_count，也保留归档标记。",
-        "数据与副作用：只读 departments 与 role_assignments（固定清单，#274 起控制台不再支持新建/改名/归档/删除，见 departments.ts 头部注释）；写权限包不在此入口。"
+        "数据与副作用：只读 departments 与 role_assignments（固定清单，#274 起控制台不再支持新建/改名/归档/删除，见 departments.ts 头部注释）；写权限包不在此入口。",
+        "迁移步骤 4（#274/#276）：services.ts 在 createRoleStore() 播种默认部门之后调用一次 archiveOldDepartments()，把四行默认部门标成 archived=1——旧的 GET /api/public/org 与论坛称号徽章都已改读新权限体系，没有活的读者再按 archived=0 过滤；这个只读列表原样下发 archived:true，不隐藏、不改查询。"
       ],
       "evidence": [
         {
@@ -2255,6 +2256,14 @@
         {
           "path": "app/server/src/lib/role-store.ts",
           "needle": "function crewCounts("
+        },
+        {
+          "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
+          "needle": "export function archiveOldDepartments(db: Database.Database) {"
+        },
+        {
+          "path": "app/server/src/services.ts",
+          "needle": "archiveOldDepartments(storage.db);"
         }
       ],
       "tests": [

@@ -2474,13 +2474,22 @@
         {
           "line": 245,
           "path": "app/server/src/lib/role-store.ts"
+        },
+        {
+          "line": 324,
+          "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
+        },
+        {
+          "line": 70,
+          "path": "app/server/src/services.ts"
         }
       ],
       "id": "flow:organization.departments.list",
       "invariants": [
         "权限与资源：需要节点 console.access（#274 切到权限节点体系，不再是 requireCapability 的旧能力）。",
         "响应与错误：200 {departments}，含heads和crew_count，也保留归档标记。",
-        "数据与副作用：只读 departments 与 role_assignments（固定清单，#274 起控制台不再支持新建/改名/归档/删除，见 departments.ts 头部注释）；写权限包不在此入口。"
+        "数据与副作用：只读 departments 与 role_assignments（固定清单，#274 起控制台不再支持新建/改名/归档/删除，见 departments.ts 头部注释）；写权限包不在此入口。",
+        "迁移步骤 4（#274/#276）：services.ts 在 createRoleStore() 播种默认部门之后调用一次 archiveOldDepartments()，把四行默认部门标成 archived=1——旧的 GET /api/public/org 与论坛称号徽章都已改读新权限体系，没有活的读者再按 archived=0 过滤；这个只读列表原样下发 archived:true，不隐藏、不改查询。"
       ],
       "operation": "GET /api/console/departments",
       "operationLabel": "GET /api/console/departments",
@@ -6051,7 +6060,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 80,
+          "line": 82,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -8049,7 +8058,7 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 132,
+          "line": 134,
           "path": "app/server/src/services.ts"
         },
         {
@@ -14585,7 +14594,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "669fb2fa4e6b54c416ff75ab9153af505fa783c12462d1e24cb22d31b40570a5",
+    "fingerprint": "10b2e02fe7602c8c4194ddcb7c594f5be49af4f0bcec3a2c0c9c13014e1bd8ea",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -15857,7 +15866,7 @@
       },
       {
         "path": "app/server/src/services.ts",
-        "sha256": "2af814918079b230a8aa1545096670e6beee85c37a789e234e08aae8787b2a84"
+        "sha256": "0c774380e58a1d1d6575f18eb7d1db19148acc898341ec8ae3960f4fc89e2a30"
       },
       {
         "path": "app/web/Dockerfile",
@@ -16289,7 +16298,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "ee71a7e634355905e2ffdc3809ca4f0855aa76d3b73f699c31dd52ee9fc67cb0"
+        "sha256": "da3986bc278549fef390f9c00766eeefd2fbb336786db2145dc7f568c3561b44"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -16509,7 +16518,7 @@
       },
       {
         "path": "tests/server/console.test.ts",
-        "sha256": "b7e215f056c523672f5b9b40ff731f95d04107d9be80973ab04b5c100bd13a4e"
+        "sha256": "32359328940f88f6839758a9c54894f93a4f4e21385bd2391d9ab66dae4c581e"
       },
       {
         "path": "tests/server/core.test.ts",
@@ -25392,7 +25401,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 80,
+          "line": 82,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -25420,7 +25429,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 80,
+          "line": 82,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -25448,7 +25457,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 80,
+          "line": 82,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -25476,7 +25485,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 80,
+          "line": 82,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -25504,7 +25513,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 80,
+          "line": 82,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -25532,7 +25541,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 80,
+          "line": 82,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -25584,7 +25593,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 80,
+          "line": 82,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -25612,7 +25621,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 80,
+          "line": 82,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -25640,7 +25649,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 80,
+          "line": 82,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -25668,7 +25677,7 @@
           "path": "app/server/src/lib/roles.ts"
         },
         {
-          "line": 80,
+          "line": 82,
           "path": "app/server/src/services.ts"
         }
       ],
@@ -38116,7 +38125,7 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 132,
+          "line": 134,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38156,7 +38165,7 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 132,
+          "line": 134,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38196,7 +38205,7 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 132,
+          "line": 134,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38236,7 +38245,7 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 132,
+          "line": 134,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38276,7 +38285,7 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 132,
+          "line": 134,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38316,7 +38325,7 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 132,
+          "line": 134,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38356,7 +38365,7 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 132,
+          "line": 134,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38396,7 +38405,7 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 132,
+          "line": 134,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38436,7 +38445,7 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 132,
+          "line": 134,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38488,7 +38497,7 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 132,
+          "line": 134,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38528,7 +38537,7 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 132,
+          "line": 134,
           "path": "app/server/src/services.ts"
         },
         {
@@ -67902,6 +67911,14 @@
         {
           "line": 245,
           "path": "app/server/src/lib/role-store.ts"
+        },
+        {
+          "line": 324,
+          "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
+        },
+        {
+          "line": 70,
+          "path": "app/server/src/services.ts"
         }
       ],
       "from": "flow:organization.departments.list",
@@ -67918,6 +67935,14 @@
         {
           "line": 245,
           "path": "app/server/src/lib/role-store.ts"
+        },
+        {
+          "line": 324,
+          "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
+        },
+        {
+          "line": 70,
+          "path": "app/server/src/services.ts"
         }
       ],
       "from": "flow:organization.departments.list",
@@ -67940,6 +67965,14 @@
         {
           "line": 245,
           "path": "app/server/src/lib/role-store.ts"
+        },
+        {
+          "line": 324,
+          "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
+        },
+        {
+          "line": 70,
+          "path": "app/server/src/services.ts"
         }
       ],
       "from": "flow:organization.departments.list",
