@@ -15,8 +15,7 @@ const perIp = (limit: { max: number; timeWindow: number }) => ({
 
 /** 看帖、发帖、话题浏览数与版务（置顶、关闭）。 */
 export default async function forumTopicRoutes(app: FastifyInstance) {
-  const { forum, config } = app.services;
-  const { audit } = app.services.storage;
+  const { forum } = app.services;
 
   // 不要 Fastify 自动加的 HEAD：它会另占一份 120 次的额度，而且照样算整份 state。HEAD 明确回 405，
   // 不落到旧论坛的 410 通配路由上。
@@ -82,7 +81,7 @@ export default async function forumTopicRoutes(app: FastifyInstance) {
       if (!canModerate(req, viewer, node, topic.categoryId)) throw forbidden(`需要「${label}」权限`);
       const value = req.body[field];
       if (action === "pin") forum.setPinned(topic.id, value); else forum.setClosed(topic.id, value);
-      audit(config.consoleOrg, { login: viewer.login, account_id: viewer.accountId }, `forum.topic.${action}`, topic.id, { [field]: value }, req.ip);
+      app.services.activity.recordActivity(req, { action: `forum.topic.${action}`, surface: "forum", target_type: "topic", target_id: topic.id, outcome: "ok", meta: { [field]: value }, account_id: viewer.accountId });
       return forumChanges(req, viewer, { topics: [topic.id] });
     });
   }

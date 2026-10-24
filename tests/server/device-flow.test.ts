@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { DEVICE_GRANT_TYPE } from '../../app/server/src/lib/device-store';
-import { signIn, testApp } from './helpers';
+import { activityRows, signIn, testApp } from './helpers';
 
 /**
  * RFC 8628 设备授权（#262，为 `geek login` 预留）：命令行发码、用户确认、轮询换一次性令牌、userinfo。
@@ -129,7 +129,11 @@ describe('device authorization (#262, RFC 8628)', () => {
     const { app } = await setup();
     const code = (await issueCode(app)).json();
     expect((await app.inject(`/api/identity/device?user_code=${encodeURIComponent(code.user_code)}`)).statusCode).toBe(401);
-    expect((await app.inject({ method: 'POST', url: approveUrl, payload: { user_code: code.user_code, decision: 'approve' } })).statusCode).toBe(401);
+    const approve = await app.inject({ method: 'POST', url: approveUrl, payload: { user_code: code.user_code, decision: 'approve' } });
+    expect(approve.statusCode).toBe(401);
+    // #274 item I 的 extras c：preHandler 以前多挂了一个 requireAuth，它先回自己的 401 not_signed_in，
+    // 盖掉 requirePermission 回的通用 401 unauthenticated（和 portal/apply.ts 同一类 bug，同样的修法）。
+    expect(approve.json()).toEqual({ error: 'unauthenticated', message: '请先登录' });
     expect((await app.inject('/api/identity/device?user_code=ZZZZ-ZZZZ')).statusCode).toBe(401);
   });
 
@@ -195,11 +199,11 @@ describe('device authorization (#262, RFC 8628)', () => {
     expect(rejected.json().error).toBe('invalid_token');
     expect(rejected.headers['www-authenticate']).toBe('Bearer error="invalid_token"');
 
-    const audits = db.prepare("SELECT action, details FROM audit_logs WHERE action LIKE 'identity.device.%'").all() as { action: string; details: string }[];
-    expect(audits.map(row => row.action)).toEqual(['identity.device.approve']);
-    expect(JSON.parse(audits[0].details)).toEqual({ client_id: 'geek-cli', scope: 'openid profile' });
-    expect(audits[0].details).not.toContain(code.device_code);
-    expect(audits[0].details).not.toContain(token.access_token);
+    const rows = activityRows(app, { actionLike: 'identity.device.%' });
+    expect(rows.map(row => row.action)).toEqual(['identity.device.approve']);
+    expect(rows[0].meta).toEqual({ client_id: 'geek-cli', scope: 'openid profile' });
+    expect(JSON.stringify(rows[0].meta)).not.toContain(code.device_code);
+    expect(JSON.stringify(rows[0].meta)).not.toContain(token.access_token);
   });
 
   it('turns a denial into access_denied and records the decision', async () => {
@@ -212,7 +216,7 @@ describe('device authorization (#262, RFC 8628)', () => {
     expect(denied.json()).toEqual({ ok: true, status: 'denied' });
     expect((await pollToken(app, code.device_code)).json().error).toBe('access_denied');
     expect(db.prepare('SELECT status, account_id FROM device_grants').get()).toEqual({ status: 'denied', account_id: null });
-    expect(db.prepare("SELECT action FROM audit_logs WHERE action LIKE 'identity.device.%'").all()).toEqual([{ action: 'identity.device.deny' }]);
+    expect(activityRows(app, { actionLike: 'identity.device.%' }).map(row => row.action)).toEqual(['identity.device.deny']);
   });
 
   it('never approves a code after the ten minutes are up', async () => {

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { ServiceOverrides } from '../../app/server/src/services';
 import { GOOGLE_JWKS_URL, GOOGLE_TOKEN_URL } from '../../app/server/src/lib/google';
-import { accountIdOf, grantPermGroup, signIn, testApp } from './helpers';
+import { accountIdOf, activityRows, grantPermGroup, signIn, testApp } from './helpers';
 import { requestLogFields } from '../../app/server/src/app';
 import { PERMISSION_NODES } from '../../app/server/src/lib/permission-nodes';
 import { createLoginThrottle } from '../../app/server/src/lib/password-policy';
@@ -164,7 +164,10 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     // 没有站内角色、没有邀请码记录，只是普通注册用户。
     expect(account).toMatchObject({ org_state: 'not_member', org_role: null, invite_code_id: null, canonical_email: 'new.member@example.test', handle: me.login });
     expect(db.prepare('SELECT used_count FROM invite_codes').get()).toEqual({ used_count: 0 });
-    expect(db.prepare("SELECT action FROM audit_logs WHERE action IN ('auth.register', 'auth.signin') ORDER BY id").all()).toEqual([{ action: 'auth.register' }, { action: 'auth.signin' }]);
+    // #274 item I：以前 identity-store.ts 内部不管注没注册都会再写一条 auth.signin，和路由这边按
+    // result.registered 选一个记的 recordActivity 重复；删掉内部那条重复调用后，一次注册只有一条 auth.register。
+    // 前面那次邀请码错误（行 151）是路由自己记的 auth.signin_failed（review round 1 加的），真实事件，不是重复。
+    expect(activityRows(app, { actionLike: 'auth.%' }).map(row => row.action)).toEqual(['auth.signin_failed', 'auth.register']);
 
     // 同一个验证码不能再用
     const again = browser(app);
@@ -563,8 +566,8 @@ describe('site ownership in 成员与权限 (#274：按权限节点判定，取�
     const lastByDisable = await patch(crew, crewId, { status: 'disabled' });
     expect([lastByDisable.statusCode, lastByDisable.json().error]).toEqual([409, 'last_owner']);
 
-    expect(db.prepare("SELECT target FROM audit_logs WHERE action = 'users.update' ORDER BY id").all())
-      .toEqual([{ target: crewId }, { target: owner.accountId }]);
+    expect(activityRows(app, { action: 'users.update' }).map(row => row.target_id))
+      .toEqual([crewId, owner.accountId]);
   });
 });
 
@@ -902,8 +905,10 @@ describe('forgot password and the bind-email gate (#273)', () => {
     expect((await browser(app).send('POST', '/auth/email/password', { email: 'forgot@example.test', password: 'new passphrase here' })).statusCode).toBe(200);
     expect(db.prepare("SELECT action, provider, result FROM identity_audit WHERE user_id = ? AND action LIKE 'password_%' ORDER BY id").all(accountId))
       .toEqual([{ action: 'password_set', provider: 'email', result: 'ok' }, { action: 'password_reset', provider: 'email', result: 'ok' }]);
-    expect(db.prepare("SELECT details FROM audit_logs WHERE action = 'account.password' ORDER BY id").all().map(row => JSON.parse((row as { details: string }).details)))
-      .toEqual([{ action: 'set' }, { action: 'reset' }]);
+    // #274 item I：account.password 这条审计删掉了（identity-store.ts 内部重复，路由侧已经按 kind 分别记
+    // auth.password_set/auth.password_change/auth.password_reset），这里改认对应的 activity_events 动作名。
+    expect(activityRows(app, { actionLike: 'auth.password_%' }).map(row => row.action))
+      .toEqual(['auth.password_set', 'auth.password_reset']);
     const view = (await user.send('GET', '/api/identity/me')).json();
     expect(view.recent[0]).toMatchObject({ action: 'login', provider: 'email' });
     expect(view.recent.map((r: { action: string }) => r.action)).toContain('password_reset');

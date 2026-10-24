@@ -14,7 +14,7 @@ type Body = {
 const CATEGORIES = ["建议", "Bug", "新功能", "投诉", "其他"];
 
 export default async function feedbackRoutes(app: FastifyInstance) {
-  const { audit, db } = app.services.storage;
+  const { db } = app.services.storage;
   const { getSession } = app.services.auth;
   const { verifyTurnstile } = app.services.turnstile;
   const { preflightPublicSubmission, powDifficulty } = app.services.publicSubmission;
@@ -56,7 +56,10 @@ export default async function feedbackRoutes(app: FastifyInstance) {
       "INSERT INTO feedback(org, content, category, contact, submitter_login, submitter_id, source_ip, user_agent, status, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)"
     ).run(org, text, category ?? null, contact?.trim()?.slice(0, 200) ?? null, submitter_login, submitter_id, req.ip, req.headers["user-agent"] ?? null, now, now);
 
-    audit(org, submitter_login ? { login: submitter_login, account_id: submitter_account } : "public", "feedback.submit", String(r.lastInsertRowid), { category, content_preview: text.slice(0, 80) }, req.ip);
+    app.services.activity.recordActivity(req, {
+      action: "feedback.submit", surface: "portal", target_type: "feedback", target_id: String(r.lastInsertRowid), outcome: "ok",
+      meta: { category, content_preview: text.slice(0, 80) }, account_id: submitter_account,
+    });
     return { ok: true, id: r.lastInsertRowid, message: "意见已收到，组织负责人会查看。感谢你的反馈。" };
   });
 

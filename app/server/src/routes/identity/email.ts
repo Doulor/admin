@@ -119,6 +119,9 @@ export default async function emailRoutes(app: FastifyInstance) {
             return reply.code(400).send({ error: "invite_invalid", message: left > 0 ? `邀请码无效，还可以试 ${left} 次` : "邀请码无效，验证码已失效，请重新获取", attempts_left: left });
           }
           case "account_disabled":
+            // #274 item I：这条分支以前只靠 identity-store.ts 内部的 deps.audit() 记一条 auth.signin_denied，
+            // 那条内部调用现在删掉了（和路由这边的 recordActivity 是同一个事件，不该记两遍），这里补上。
+            app.services.activity.recordActivity(req, { action: "auth.signin_denied", surface: "portal", outcome: "denied", meta: { provider: "email", method: "code", reason: "account_disabled" }, account_id: result.accountId ?? null });
             return refused(reply);
           case "registration_limited": {
             const { retryAfter, body } = registrationLimitedBody(app.services.limits, Date.now());
@@ -151,8 +154,11 @@ export default async function emailRoutes(app: FastifyInstance) {
         return wrong();
       }
       const result = identity.signInWithPassword({ email, previousSid: req.cookies?.sid ?? null, ip: req.ip });
-      // 密码登录不建号（register: false），没成功只会是账号停用
-      if (!result.ok) return refused(reply);
+      // 密码登录不建号（register: false），没成功只会是账号停用（#274 item I：补一条 recordActivity，理由同上面验证码分支）
+      if (!result.ok) {
+        app.services.activity.recordActivity(req, { action: "auth.signin_denied", surface: "portal", outcome: "denied", meta: { provider: "email", method: "password", reason: "account_disabled" }, account_id: result.accountId ?? null });
+        return refused(reply);
+      }
       throttle.reset(email);
       setSessionCookie(reply, result.sid);
       app.services.activity.recordActivity(req, { action: "auth.signin", surface: "portal", outcome: "ok", meta: { provider: "email", method: "password" }, account_id: result.accountId });
@@ -182,6 +188,8 @@ export default async function emailRoutes(app: FastifyInstance) {
             app.services.activity.recordActivity(req, { action: "auth.password_reset_failed", surface: "portal", outcome: "denied", meta: { provider: "email", reason: "no_account" } });
             return reply.code(400).send({ error: "no_account", message: "这个邮箱还没有极客班账号" });
           case "account_disabled":
+            // #274 item I：理由同上面两处——identity-store.ts 内部那条 deps.audit() 删掉了，这里补上。
+            app.services.activity.recordActivity(req, { action: "auth.signin_denied", surface: "portal", outcome: "denied", meta: { provider: "email", reason: "account_disabled" }, account_id: result.accountId ?? null });
             return refused(reply);
           default:
             return reply.code(400).send({ error: "code_expired", message: "验证码已失效，请重新获取" });

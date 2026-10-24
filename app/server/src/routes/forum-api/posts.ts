@@ -14,8 +14,7 @@ type ReplyBody = {
 
 /** 回复（成员与游客）、编辑、删除、点赞、收藏。 */
 export default async function forumPostRoutes(app: FastifyInstance) {
-  const { forum, config, publicSubmission, turnstile } = app.services;
-  const { audit } = app.services.storage;
+  const { forum, publicSubmission, turnstile } = app.services;
 
   /** 帖子存在（可能已软删除，删掉的帖子不能再编辑或点赞，见 assertNotDeleted）。 */
   function existingPost(postId: string) {
@@ -98,7 +97,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
     assertNotDeleted(post);
     if (!req.body.content.trim()) throw new ForumError(400, "empty_content", "正文不能为空");
     forum.editPost(post.id, req.body.content);
-    if (moderated) audit(config.consoleOrg, { login: viewer.login, account_id: viewer.accountId }, "forum.post.edit", post.id, { topic_id: post.topicId, author_id: post.authorId }, req.ip);
+    if (moderated) app.services.activity.recordActivity(req, { action: "forum.post.edit", surface: "forum", target_type: "post", target_id: post.id, outcome: "ok", meta: { topic_id: post.topicId, author_id: post.authorId }, account_id: viewer.accountId });
     return forumChanges(req, viewer, { posts: [post.id] }, { posts: "full" });
   });
 
@@ -110,7 +109,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
     if (post.deleted) return forumChanges(req, viewer, { posts: [post.id] }, { posts: "full" });
     if (forum.isFirstPost(post.id, post.topicId)) throw new ForumError(400, "first_post", "话题的第一帖不能删除");
     forum.deletePost(post.id);
-    if (moderated) audit(config.consoleOrg, { login: viewer.login, account_id: viewer.accountId }, "forum.post.delete", post.id, { topic_id: post.topicId, author_id: post.authorId }, req.ip);
+    if (moderated) app.services.activity.recordActivity(req, { action: "forum.post.delete", surface: "forum", target_type: "post", target_id: post.id, outcome: "ok", meta: { topic_id: post.topicId, author_id: post.authorId }, account_id: viewer.accountId });
     return forumChanges(req, viewer, { posts: [post.id] }, { posts: "full" });
   });
 

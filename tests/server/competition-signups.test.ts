@@ -2,7 +2,7 @@
 // 认人是会话里的极客班账号（#262）；#274 SPEC §3.2 去掉 GitHub 组织那道门之后，成员资格按权限节点
 // competition.signup/competition.team 判定（极客班成员天然持有，注册用户没有），不再查 GitHub 组织成员资格。
 import { afterEach, describe, expect, it } from 'vitest';
-import { grantPermGroup, signIn, testApp } from './helpers';
+import { activityRows, grantPermGroup, signIn, testApp } from './helpers';
 
 /** 测试里只需要 `app.inject`；不直接依赖 fastify 的类型（测试包没有装它）。 */
 type TestServer = Awaited<ReturnType<typeof testApp>>['app'];
@@ -551,11 +551,9 @@ describe('console roster', () => {
     expect(sizeConflict.statusCode).toBe(409);
     expect(sizeConflict.json().error).toBe('team_size_conflict');
 
-    const audits = app.services.storage.db
-      .prepare("SELECT details FROM audit_logs WHERE action = 'competition.signup_settings.update' ORDER BY id")
-      .all() as { details: string }[];
-    expect(audits).toHaveLength(1);
-    expect(JSON.parse(audits[0].details)).toEqual({
+    const rows = activityRows(app, { action: 'competition.signup_settings.update' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].meta).toEqual({
       before: { enabled: false, participation: 'individual', team_min: 1, team_max: 1, scoring: 'none' },
       after: { enabled: true, participation: 'team', team_min: 1, team_max: 3, scoring: 'none' },
     });
@@ -592,11 +590,9 @@ describe('console roster', () => {
     // 公式注入防护：以 = 开头的单元格前加 '
     expect(csv.body).toContain("'=SUM(1,2)");
 
-    const exported = app.services.storage.db
-      .prepare("SELECT target, details FROM audit_logs WHERE action = 'competition.roster.export'")
-      .get() as { target: string; details: string };
-    expect(exported.target).toBe(id);
-    expect(JSON.parse(exported.details)).toEqual({ rows: 3 });
+    const exported = activityRows(app, { action: 'competition.roster.export' })[0];
+    expect(exported.target_id).toBe(id);
+    expect(exported.meta).toEqual({ rows: 3 });
   });
 
   it('answers the three #238 constraints once signups exist', async () => {

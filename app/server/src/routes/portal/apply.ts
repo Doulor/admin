@@ -98,7 +98,7 @@ function maskEmail(email: string): string {
 }
 
 export default async function applyRoutes(app: FastifyInstance) {
-  const { audit, db } = app.services.storage;
+  const { db } = app.services.storage;
   const { verifyTurnstile } = app.services.turnstile;
   const { preflightPublicSubmission, checkHoneypot } = app.services.publicSubmission;
   const { config, mail, permissions, limits } = app.services;
@@ -177,13 +177,12 @@ export default async function applyRoutes(app: FastifyInstance) {
         });
       }
 
-      audit(null, req.session!, "application.received", id, {
-        email: maskEmail(email.value),
-        class_name: className.value,
-        name_length: name.value.length,
-        strengths_length: strengths.value.length,
-      }, req.ip);
-      app.services.activity.recordActivity(req, { action: "apply.submit", surface: "portal", target_type: "application", target_id: id, outcome: "ok" });
+      // #274 item I：application.received 原来是单独一条 audit()，和下面这条 apply.submit 是同一个事件，
+      // 合并成一条——它多出来的字段（已经掩码过的邮箱、班级、长度）折进 meta，不是原文，没有裸邮箱。
+      app.services.activity.recordActivity(req, {
+        action: "apply.submit", surface: "portal", target_type: "application", target_id: id, outcome: "ok",
+        meta: { email: maskEmail(email.value), class_name: className.value, name_length: name.value.length, strengths_length: strengths.value.length },
+      });
 
       // 投递已经落库；「已收到」的信拼不出来或写不进队列只记日志（不记地址和正文），不让投递失败。
       // 每份投递都发一封，只有全站每小时的上限（RECEIVED_LETTER_LIMITS）；防盗刷靠上面的投递次数。

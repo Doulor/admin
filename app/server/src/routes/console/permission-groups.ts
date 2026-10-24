@@ -125,7 +125,6 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
         for (const parentId of parentIds) insertParent.run(id, parentId);
       })();
       permissions.bump();
-      storage.audit(null, req.session!, "perm.group.create", id, { name, parents: parentIds }, req.ip);
       const created = fullView().find(group => group.id === id);
       app.services.activity.recordActivity(req, { action: "perm.group.create", surface: "console", target_type: "perm_group", target_id: id, outcome: "ok", meta: { after: created } });
       return reply.code(201).send(created);
@@ -200,7 +199,6 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
       }
     })();
     permissions.bump();
-    storage.audit(null, req.session!, "perm.group.update", id, { fields: Object.keys(req.body) }, req.ip);
     const after = fullView().find(item => item.id === id);
     // SPEC §3.7「perm.*（写入前后的 JSON 都放进 meta）」：改动前后的完整组视图都放进 meta，不只是改了哪些字段。
     app.services.activity.recordActivity(req, { action: "perm.group.update", surface: "console", target_type: "perm_group", target_id: id, outcome: "ok", meta: { before, after } });
@@ -219,7 +217,6 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
       db.prepare("DELETE FROM perm_groups WHERE id = ?").run(id);
     })();
     permissions.bump();
-    storage.audit(null, req.session!, "perm.group.delete", id, undefined, req.ip);
     app.services.activity.recordActivity(req, { action: "perm.group.delete", surface: "console", target_type: "perm_group", target_id: id, outcome: "ok", meta: { before } });
     return { ok: true };
   });
@@ -261,7 +258,6 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
           .run(req.body.account_id, id, req.body.expires_at ?? null, req.session!.login, now);
       }
       permissions.bump();
-      storage.audit(null, req.session!, "perm.group.member.add", id, { account_id: req.body.account_id }, req.ip);
       app.services.activity.recordActivity(req, { action: "perm.group.member.add", surface: "console", target_type: "perm_group", target_id: id, outcome: "ok", meta: { account_id: req.body.account_id } });
       return reply.code(201).send({ ok: true });
     },
@@ -279,7 +275,6 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
       const removed = db.prepare("DELETE FROM perm_members WHERE group_id = ? AND account_id = ?").run(req.params.id, req.params.account_id);
       if (removed.changes === 0) return reply.code(404).send({ error: "not_found", message: "这个账号不在这个组里" });
       permissions.bump();
-      storage.audit(null, req.session!, "perm.group.member.remove", req.params.id, { account_id: req.params.account_id }, req.ip);
       app.services.activity.recordActivity(req, { action: "perm.group.member.remove", surface: "console", target_type: "perm_group", target_id: req.params.id, outcome: "ok", meta: { account_id: req.params.account_id } });
       return { ok: true };
     },

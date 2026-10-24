@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createConfig } from '../../app/server/src/config';
 import { gitlabUsername } from '../../app/server/src/lib/gitlab-sync';
-import { signIn as rawSignIn, testApp } from './helpers';
+import { activityRows, signIn as rawSignIn, testApp } from './helpers';
 
 /**
  * 这个文件里登录的每一个人都是在测「同步给成员做的事」（GitLab 账号、OIDC 身份、头像、组权限），
@@ -263,8 +263,8 @@ describe('GitLab account sync (#270)', () => {
     expect(gitlab.writes()).toHaveLength(writes);
     expect(github.calls).toHaveLength(githubCalls);
     // 两个账号同一毫秒建号，对账顺序由 ULID 的随机部分决定，这里不比较先后
-    const audit = app.services.storage.db.prepare("SELECT actor, target FROM audit_logs WHERE action = 'gitlab.sync' ORDER BY target").all();
-    expect(audit).toEqual([{ actor: 'system', target: 'admiral' }, { actor: 'system', target: 'alice' }]);
+    const audit = activityRows(app, { action: 'gitlab.sync' }).map(row => row.target_id).sort();
+    expect(audit).toEqual(['admiral', 'alice']);
   });
 
   it('uses the verified email, and falls back to a noreply address when GitLab already has it', async () => {
@@ -506,7 +506,7 @@ describe('GitLab account sync (#270)', () => {
     expect(gitlab.calls.filter(call => call === 'POST /users')).toEqual([]);
 
     // 对上了的不再找；没对上的 erin 每轮照样按身份找一次，没找到就不写也不记审计
-    const audit = () => app.services.storage.db.prepare("SELECT COUNT(*) AS n FROM audit_logs WHERE action = 'gitlab.sync'").get();
+    const audit = () => activityRows(app, { action: 'gitlab.sync' }).length;
     const audits = audit();
     const calls = gitlab.calls.length;
     expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 0, failed: 0 });
@@ -631,7 +631,7 @@ describe('GitLab account sync (#270)', () => {
     await vi.waitFor(() => expect(logs).toEqual([['error', { reason: 'gitlab_client_missing', client_id: 'gitlab' }, 'gitlab sync skipped']]));
     await missing.app.services.gitlab.stop();
     expect(missing.gitlab.calls).toEqual([]);
-    expect(missing.db.prepare("SELECT COUNT(*) AS n FROM audit_logs WHERE action = 'gitlab.sync'").get()).toEqual({ n: 0 });
+    expect(activityRows(missing.app, { action: 'gitlab.sync' })).toEqual([]);
   });
 
   it('drops a GitHub blog that is not a web address', async () => {
@@ -820,8 +820,10 @@ describe('console GitLab sync endpoints (#270)', () => {
       mode: 'on', account_id: accountOf(101), applied: true, error: null, actions: [{ kind: 'create', username: 'alice', access_level: 30 }, { kind: 'set_avatar' }, { kind: 'set_emails' }],
     });
     expect(userNamed(gitlab, 'alice')).toBeDefined();
-    const audit = app.services.storage.db.prepare("SELECT actor, actor_account_id FROM audit_logs WHERE action = 'gitlab.sync'").get();
-    expect(audit).toEqual({ actor: 'admiral', actor_account_id: accountOf(1) });
+    // gitlab.sync 这个名字和权限节点 gitlab.sync 撞了：member 那次 403 被 http-policy.ts 的全局钩子按
+    // node 记成了同名的一条 outcome=denied 记录，和真正同步完成的这条区分不开，按 outcome 过滤。
+    const audit = activityRows(app, { action: 'gitlab.sync' }).find(row => row.outcome === 'ok')!;
+    expect(audit.account_id).toBe(accountOf(1));
     expect((await sync(app, '01ARZ3NDEKTSV4RRFFQ69G5FAV', admiral)).statusCode).toBe(404);
     expect((await sync(app, accountOf(101), { ...admiral, origin: 'https://evil.test' })).statusCode).toBe(403);
   });

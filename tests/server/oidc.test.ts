@@ -2,7 +2,7 @@ import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { OIDC_PROTOCOL_LIMIT } from '../../app/server/src/routes/oidc/index';
-import { signIn as rawSignIn, testApp } from './helpers';
+import { activityRows, signIn as rawSignIn, testApp } from './helpers';
 
 /**
  * 对外授权只发给成员（lib/account-directory.ts 的 oidcAccount()，#274 按 level.member 判定，不再是
@@ -182,7 +182,7 @@ describe('OIDC provider for downstream apps (#270)', () => {
     expect(second.consented).toBe(false);
     const again = JSON.parse(Buffer.from(second.token.json().id_token.split('.')[1], 'base64url').toString());
     expect(again.sub).toBe(sub);
-    const audit = app.services.storage.db.prepare("SELECT action, target FROM audit_logs WHERE action LIKE 'oidc.%'").all();
+    const audit = activityRows(app, { actionLike: 'oidc.%' }).map(row => ({ action: row.action, target: row.target_id }));
     expect(audit).toEqual([{ action: 'oidc.consent', target: 'gitlab' }]);
 
     // 授权码只能用一次；重放时按规范撤销这份授权，它发出的令牌一起失效，下次登录要重新同意
@@ -327,7 +327,7 @@ describe('OIDC provider for downstream apps (#270)', () => {
     const aborted = await visit(app, jar, `/oidc/interaction/${consentUid}/abort`, { method: 'POST' });
     const { location } = await follow(app, jar, aborted.json().redirect_to);
     expect(new URL(location!).searchParams.get('error')).toBe('access_denied');
-    expect(app.services.storage.db.prepare("SELECT action FROM audit_logs WHERE action = 'oidc.deny'").all()).toHaveLength(1);
+    expect(activityRows(app, { action: 'oidc.deny' })).toHaveLength(1);
   });
 
   it('keeps the consent endpoints to the signed-in account that started the login', async () => {

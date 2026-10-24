@@ -6,7 +6,7 @@ import { aliyunSignature, ALIYUN_ENDPOINT, RESEND_ENDPOINT } from '../../app/ser
 import { MAX_ATTEMPTS, RETRY_DELAYS_MS, SEND_LEASE_MS } from '../../app/server/src/lib/mail/outbox';
 import { formatMailDateTime } from '../../app/server/src/lib/mail/envelope';
 import type { ServiceOverrides } from '../../app/server/src/services';
-import { accountIdOf, grantPermGroup, signIn, testApp, testConfig } from './helpers';
+import { accountIdOf, activityRows, grantPermGroup, signIn, testApp, testConfig } from './helpers';
 
 /**
  * 发信队列与触发点（#148）：投递发「已收到」、控制台改状态发对应的信；同一事件只发一封；
@@ -658,7 +658,7 @@ describe('console status changes', () => {
   });
 
   it.each(['received', 'interview', 'accepted', 'rejected'])('cancels from %s without a new mail, even when notify and letter are forced', async (from) => {
-    const { apply, review, rows, detail, mail, fetch, db } = await setup(BOTH);
+    const { app, apply, review, rows, detail, mail, fetch } = await setup(BOTH);
     const id = await apply();
     await mail.drain();
     if (from !== 'received') {
@@ -682,8 +682,8 @@ describe('console status changes', () => {
     expect(rows()).toEqual(queued);
     await mail.drain();
     expect(fetch.calls).toHaveLength(calls);
-    const audit = db.prepare("SELECT details FROM audit_logs WHERE action = 'application.review' ORDER BY id DESC LIMIT 1").get() as { details: string };
-    expect(JSON.parse(audit.details)).toEqual({ from, to: 'cancelled', has_note: true, mail: false });
+    const rowsFor = activityRows(app, { action: 'application.review' });
+    expect(rowsFor[rowsFor.length - 1].meta).toEqual({ from, to: 'cancelled', has_note: true, mail: false });
   });
 
   it('keeps cancellation silent by default, permits notes and restoration, and rejects stale pages', async () => {

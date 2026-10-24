@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createConfig } from '../../app/server/src/config';
 import { computeAccess, DEFAULT_DEPARTMENTS, DEFAULT_TITLE_CONFIGS, LEGACY_TITLE_DESCRIPTIONS } from '../../app/server/src/lib/roles';
 import { createRoleStore } from '../../app/server/src/lib/role-store';
-import { accountIdOf, grantPermGroup, grantPermNode, signIn, testApp } from './helpers';
+import { accountIdOf, activityRows, grantPermGroup, grantPermNode, signIn, testApp } from './helpers';
 
 const CONSOLE_ORG = 'Yangtze-University-Geek-Class';
 const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
@@ -32,7 +32,9 @@ async function setupConsole() {
   };
   // 先确保登录过（grantPermNode/grantPermGroup 按账号 id 写，账号 id 来自 sessions 表），再查账号 id。
   const accountId = (login: string) => { as(login); return accountIdOf(app, login); };
-  const audits = () => app.services.storage.db.prepare('SELECT org, actor, action, target, details FROM audit_logs ORDER BY id').all() as { org: string | null; actor: string; action: string; target: string; details: string | null }[];
+  // #274 item I：audit_logs 不再有人写，操作记录改读 activity_events；org 这一列对应的 GitHub 组织概念已经删掉，
+  // 不再有等价字段（CONSOLE_ORG 之后只是个常量，不写进每一行操作记录里）。
+  const audits = () => activityRows(app).map(row => ({ account_id: row.account_id, action: row.action, target: row.target_id, meta: row.meta }));
   return { app, as, accountId, audits, db: app.services.storage.db };
 }
 
@@ -165,10 +167,9 @@ describe('GET /api/console/applications 与审核（CONTRACT-274 §5：apply.vie
     expect(detail.reviews).toHaveLength(1);
 
     const reviewAudit = audits().find(item => item.action === 'application.review')!;
-    expect(reviewAudit.org).toBe(CONSOLE_ORG);
-    expect(JSON.parse(reviewAudit.details!)).toEqual({ from: 'received', to: 'interview', has_note: true, mail: false });
+    expect(reviewAudit.meta).toEqual({ from: 'received', to: 'interview', has_note: true, mail: false });
     expect(JSON.stringify(audits())).not.toContain(note);
-    expect(audits().some(item => item.action === 'application.view' && item.org === CONSOLE_ORG)).toBe(true);
+    expect(audits().some(item => item.action === 'application.view')).toBe(true);
     expect((await app.inject({ url: `/api/console/applications/${randomUUID()}`, headers: as('erin') })).statusCode).toBe(404);
   });
 
@@ -211,7 +212,7 @@ describe('GET /api/console/applications 与审核（CONTRACT-274 §5：apply.vie
     expect(csv.body).toContain('cancel_b@example.test');
     expect(csv.body).not.toContain('active@example.test');
     expect(csv.body.match(/,cancelled,/g)).toHaveLength(2);
-    expect(JSON.parse(audits().find(item => item.action === 'application.export')!.details!)).toEqual({ count: 2, status: 'cancelled' });
+    expect(audits().find(item => item.action === 'application.export')!.meta).toEqual({ count: 2, status: 'cancelled' });
   });
 
   it('requires review permission and the correct origin to cancel without changing data on denial', async () => {
@@ -268,8 +269,7 @@ describe('GET /api/console/applications 与审核（CONTRACT-274 §5：apply.vie
     expect(response.body).toContain('"\'@SUM(A1), ""quoted"" 的特长描述"');
     expect(response.body).not.toContain('203.0.113.7');
     const exported = audits().find(item => item.action === 'application.export')!;
-    expect(exported.org).toBe(CONSOLE_ORG);
-    expect(JSON.parse(exported.details!)).toEqual({ count: 1, status: null });
+    expect(exported.meta).toEqual({ count: 1, status: null });
   });
 });
 
@@ -290,7 +290,9 @@ describe('控制台意见箱（CONTRACT-274 §5：feedback.view / feedback.handl
     expect((await app.inject({ method: 'PATCH', url: `/api/console/feedback/${theirs}`, headers: as('alice'), payload: { status: 'done' } })).statusCode).toBe(404);
     expect((await app.inject({ method: 'PATCH', url: `/api/console/feedback/${ours}`, headers: as('alice'), payload: { status: 'done', reply: '已安排' } })).statusCode).toBe(200);
     expect((await app.inject({ method: 'DELETE', url: `/api/console/feedback/${ours}`, headers: as('alice') })).statusCode).toBe(200);
-    expect(audits().filter(row => row.action.startsWith('feedback.')).map(row => [row.org, row.action])).toEqual([[CONSOLE_ORG, 'feedback.update'], [CONSOLE_ORG, 'feedback.delete']]);
+    // feedback.handle 那一条是上面 gina 那次 403（她没有这个权限）：http-policy.ts 的全局钩子记的，不是本条用例的写操作，
+    // 但它也进同一张 activity_events（#274 残留修复 F），这里一并断言在，不单独过滤掉。
+    expect(audits().filter(row => row.action.startsWith('feedback.')).map(row => row.action)).toEqual(['feedback.handle', 'feedback.update', 'feedback.delete']);
   });
 });
 

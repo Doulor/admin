@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { grantPermGroup, signIn, testApp } from './helpers';
+import { activityRows, grantPermGroup, signIn, testApp } from './helpers';
 
 const SEED_ID = 'oss-challenge-2026-1';
 const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
@@ -205,9 +205,7 @@ describe('score events', () => {
     expect(again.json().error).toBe('already_revoked');
     expect((await revoke(id, 'missing-event')).statusCode).toBe(404);
 
-    const actions = (app.services.storage.db
-      .prepare("SELECT action FROM audit_logs WHERE action LIKE 'competition.score.%' ORDER BY id")
-      .all() as { action: string }[]).map(row => row.action);
+    const actions = activityRows(app, { actionLike: 'competition.score.%' }).map(row => row.action);
     expect(actions).toEqual(['competition.score.add', 'competition.score.revoke']);
   });
 

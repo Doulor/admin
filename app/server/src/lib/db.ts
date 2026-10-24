@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { backfillIdentity } from "./identity-store.js";
 import { runYugcV2Migration } from "./migrations/2026-10-yugc-v2.js";
+import type { ActivityOutcome, ActivitySurface } from "./activity.js";
 
 /** 审计里的操作者：GitHub 登录名，或带上极客班账号的会话（写进 actor_account_id，#262）。 */
 export type AuditActor = string | { login: string; account_id?: string | null };
@@ -886,12 +887,20 @@ const COMPETITION_SEED_DEADLINE = Date.parse("2026-11-15T23:59:59.999+08:00");
   seeded();
 }
 
-function audit(org: string | null, actor: AuditActor, action: string, target?: string, details?: unknown, ip?: string) {
-  const login = typeof actor === "string" ? actor : actor.login;
+/**
+ * 没有 FastifyRequest 的调用方专用的操作记录写入口（CLI、后台同步、identity-store/device 这类深层库函数）：
+ * #274 item I 之前写的是 audit_logs，SPEC §3.6 第 7 条已经把那张表的历史数据一次性复制进了 activity_events
+ * （见 migrations/2026-10-yugc-v2.ts 的 copyAuditLogsToActivity），现在起路由和库函数都不再写 audit_logs（表留着）。
+ * 唯一的例外是启动时的身份回填（identity-store.ts 的 backfillIdentity）：它在 activity_events 建表之前运行，仍往
+ * audit_logs 留一条 identity.backfill，随后由同一次启动的迁移第 7 步按水位线复制进操作记录。有 req 的路由直接调 `services.activity.recordActivity(req, ...)`，不经过这里——两边都调会变成
+ * 两条一模一样的记录。account_id 之外的那些字段（visitor_id/ua/request_id）在这些调用方手里本来就没有，留空。
+ */
+function audit(actor: AuditActor, action: string, target?: string, details?: unknown, ip?: string, opts: { surface?: ActivitySurface; outcome?: ActivityOutcome } = {}) {
   const accountId = typeof actor === "string" ? null : actor.account_id ?? null;
-  db.prepare(
-    "INSERT INTO audit_logs(org, actor, action, target, details, ip, created_at, actor_account_id) VALUES(?, ?, ?, ?, ?, ?, ?, ?)"
-  ).run(org, login, action, target ?? null, details ? JSON.stringify(details) : null, ip ?? null, Date.now(), accountId);
+  db.prepare(`
+    INSERT INTO activity_events(at, account_id, visitor_id, surface, action, target_type, target_id, outcome, ip, ua, request_id, meta)
+    VALUES (?, ?, NULL, ?, ?, NULL, ?, ?, ?, NULL, NULL, ?)
+  `).run(Date.now(), accountId, opts.surface ?? "system", action, target ?? null, opts.outcome ?? "ok", ip ?? null, JSON.stringify(details ?? {}));
 }
 
 return { db, audit, identityBackfill, yugcV2Migration };

@@ -7,7 +7,6 @@ import { requireStepUp } from "../../middleware/require-step-up.js";
 export default async function consoleFeedbackRoutes(app: FastifyInstance) {
   const { config } = app.services;
   const { listFeedback, updateFeedback, deleteFeedback } = app.services.feedback;
-  const { audit } = app.services.storage;
   app.addHook("preHandler", requireAuth);
 
   app.get<{ Querystring: { status?: string; limit?: string } }>(
@@ -24,7 +23,7 @@ export default async function consoleFeedbackRoutes(app: FastifyInstance) {
       if (!updateFeedback(config.consoleOrg, Number(req.params.id), { status, reply: replyText }, req.session!.login)) {
         return reply.code(404).send({ error: "not_found", message: "意见不存在" });
       }
-      audit(config.consoleOrg, req.session!, "feedback.update", req.params.id, { status, has_reply: Boolean(replyText) }, req.ip);
+      app.services.activity.recordActivity(req, { action: "feedback.update", surface: "console", target_type: "feedback", target_id: req.params.id, outcome: "ok", meta: { status, has_reply: Boolean(replyText) } });
       return { ok: true };
     },
   );
@@ -34,7 +33,7 @@ export default async function consoleFeedbackRoutes(app: FastifyInstance) {
     { preHandler: [requirePermission("feedback.handle"), requireStepUp] },
     async (req, reply) => {
       if (!deleteFeedback(config.consoleOrg, Number(req.params.id))) return reply.code(404).send({ error: "not_found", message: "意见不存在" });
-      audit(config.consoleOrg, req.session!, "feedback.delete", req.params.id, undefined, req.ip);
+      app.services.activity.recordActivity(req, { action: "feedback.delete", surface: "console", target_type: "feedback", target_id: req.params.id, outcome: "ok" });
       return { ok: true };
     },
   );

@@ -61,7 +61,7 @@ export default async function googleRoutes(app: FastifyInstance) {
       return fail("failed");
     }
     if (!result.ok) {
-      app.services.activity.recordActivity(req, { action: "auth.signin_denied", surface: "portal", outcome: "denied", meta: { provider: "google", reason: result.reason } });
+      app.services.activity.recordActivity(req, { action: "auth.signin_denied", surface: "portal", outcome: "denied", meta: { provider: "google", reason: result.reason }, account_id: result.accountId ?? null });
       return fail(result.reason === "code_expired" ? "failed" : result.reason);
     }
     setSessionCookie(reply, result.sid);

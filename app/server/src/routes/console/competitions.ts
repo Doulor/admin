@@ -28,7 +28,7 @@ const refuse = (reply: FastifyReply, error: SignupErrorCode) =>
  */
 export default async function consoleCompetitionRoutes(app: FastifyInstance) {
   const { competitions, competitionSignups, config } = app.services;
-  const { audit, db } = app.services.storage;
+  const { db } = app.services.storage;
   app.addHook("preHandler", requireAuth);
 
   const manage = [requirePermission("competition.manage"), requireStepUp];
@@ -50,7 +50,6 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
       const created = db.transaction(() => {
         const record = competitions.insert(id, draft, Date.now());
         if (!record) throw new Error("Competition insert returned no row");
-        audit(config.consoleOrg, req.session!, "competition.create", id, { name: record.name, kind: record.kind }, req.ip);
         app.services.activity.recordActivity(req, { action: "competition.create", surface: "console", target_type: "competition", target_id: id, outcome: "ok", meta: { name: record.name, kind: record.kind } });
         return record;
       })();
@@ -76,7 +75,6 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
       const changed = db.transaction(() => {
         const record = competitions.update(id, patch, Date.now());
         if (record) {
-          audit(config.consoleOrg, req.session!, "competition.update", id, { changed: Object.keys(req.body) }, req.ip);
           app.services.activity.recordActivity(req, { action: "competition.update", surface: "console", target_type: "competition", target_id: id, outcome: "ok", meta: { changed: Object.keys(req.body) } });
         }
         return record;
@@ -96,7 +94,6 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
       const removed = db.transaction(() => {
         const record = competitions.get(id);
         if (!record || !competitions.remove(id)) return false;
-        audit(config.consoleOrg, req.session!, "competition.delete", id, { name: record.name }, req.ip);
         app.services.activity.recordActivity(req, { action: "competition.delete", surface: "console", target_type: "competition", target_id: id, outcome: "ok", meta: { name: record.name } });
         return true;
       })();

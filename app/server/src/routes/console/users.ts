@@ -218,7 +218,6 @@ export default async function consoleUsersRoutes(app: FastifyInstance) {
         }
       })();
       permissions.bump();
-      storage.audit(null, req.session!, "users.update", id, { fields: Object.keys(req.body) }, req.ip);
       app.services.activity.recordActivity(req, { action: "users.update", surface: "console", target_type: "user", target_id: id, outcome: "ok", meta: { before, after: snapshot() } });
       // #274 残留修复 D：回和列表一样形状的完整行（不是只有 account_id），控制台改完不用再拉一次列表才能刷新这一行。
       const row = db.prepare(`${USER_ROW_SQL} WHERE u.id = ?`).get(id) as UserRow;

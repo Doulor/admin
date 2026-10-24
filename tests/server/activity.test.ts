@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { accountIdOf, grantPermGroup, grantPermNode, signIn, testApp } from './helpers';
+import { accountIdOf, activityRows, grantPermGroup, grantPermNode, signIn, testApp } from './helpers';
 
 /**
  * 操作记录（routes/console/activity.ts，CONTRACT-274 §4）：GET /api/console/activity、activity.csv、
@@ -148,11 +148,13 @@ describe('GET /api/console/activity.csv（CONTRACT-274 §4：activity.export，5
     expect(response.body.startsWith('﻿id,at,account_id,username,visitor_id,surface,action,target_type,target_id,outcome,ip,request_id\r\n')).toBe(true);
     expect(response.body).toContain('203.0.*.*'); // 没有 activity.read.ip 时导出也打码
     expect(response.body).toContain('"""quoted"",id"');
-    const audited = app.services.storage.db.prepare("SELECT target, details FROM audit_logs WHERE action = 'activity.export'").get() as { target: string | null; details: string } | undefined;
-    expect(audited).toBeDefined();
-    // 2 行：手动插入的那条，加上上面那次 403（没有 activity.export）本身也被 http-policy.ts 的全局钩子记了一条
-    // outcome=denied 的操作记录（SPEC §3.7「所有被 403 拒绝的请求记 outcome = 'denied'」），导出时一起导出来了。
-    expect(JSON.parse(audited!.details)).toEqual({ rows: 2 });
+    // action='activity.export' 现在有两条：上面那次 403 被 http-policy.ts 的全局钩子记了一条 outcome=denied
+    // 的操作记录（SPEC §3.7「所有被 403 拒绝的请求记 outcome = 'denied'」，和真正的 node 名撞了），这里只看
+    // 这次真正导出成功写的那条（outcome=ok）。
+    const exported = activityRows(app, { action: 'activity.export' }).find(row => row.outcome === 'ok');
+    expect(exported).toBeDefined();
+    // 2 行：手动插入的那条，加上上面那次 403 记的 denied 操作记录，导出时一起导出来了。
+    expect(exported!.meta).toEqual({ rows: 2 });
   });
 });
 

@@ -13,12 +13,11 @@ import { ipSubject, nameKey } from '../../app/server/src/lib/forum-rules';
 import { createForumStore } from '../../app/server/src/lib/forum-store';
 import type { ServiceOverrides } from '../../app/server/src/services';
 import { setExclusiveGroupMembership } from '../../app/server/src/lib/permissions';
-import { FORUM_FIXTURE_DIR, accountIdOf, grantPermGroup, grantPermNode, signIn, testApp, testConfig } from './helpers';
+import { FORUM_FIXTURE_DIR, accountIdOf, activityRows, grantPermGroup, grantPermNode, signIn, testApp, testConfig } from './helpers';
 
 /** sharp 是 app/server 的依赖，根目录没有它；从 server 包里取，用来生成真实的测试图片和核对输出。 */
 const sharp = createRequire(join(REPO_ROOT, 'app/server/package.json'))('sharp') as typeof import('../../app/server/node_modules/sharp');
 
-const CONSOLE_ORG = 'Yangtze-University-Geek-Class';
 const FORUM_CAPS = ['forum.topic.pin', 'forum.topic.close', 'forum.post.moderate', 'forum.category.manage', 'forum.badge.assign'];
 const USERS: Record<string, number> = { alice: 101, bob: 102, carol: 103, dave: 104, erin: 105, frank: 106, 'da-ve': 108 };
 
@@ -81,7 +80,8 @@ async function setup(options: { env?: Record<string, string> } = {}) {
   const call = (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, who?: string, payload?: object) =>
     app.inject({ method, url, ...(payload === undefined ? {} : { payload }), headers: who ? as(who) : {} });
   const state = async (who?: string) => (await call('GET', '/api/forum/state', who)).json().state;
-  const audits = () => app.services.storage.db.prepare("SELECT org, actor, action, target, details FROM audit_logs WHERE action LIKE 'forum.%' ORDER BY id").all() as { org: string; actor: string; action: string; target: string; details: string | null }[];
+  // #274 item I：audit_logs 不再有人写，改读 activity_events；org/actor 对应的 GitHub 组织概念已经删掉，没有等价字段。
+  const audits = () => activityRows(app, { actionLike: 'forum.%' }).map(row => ({ account_id: row.account_id, action: row.action, target: row.target_id, meta: row.meta }));
   return { app, as, call, state, audits, db: app.services.storage.db };
 }
 type Setup = Awaited<ReturnType<typeof setup>>;
@@ -442,9 +442,9 @@ describe('topics', () => {
     expect((await s.call('POST', '/api/forum/topics/t404/close', 'carol', { closed: true })).statusCode).toBe(404);
     expect((await s.call('POST', '/api/forum/topics/t9/close', 'carol', { closed: 'yes' })).statusCode).toBe(400);
     expect(s.audits()).toEqual([
-      { org: CONSOLE_ORG, actor: 'dave', action: 'forum.topic.pin', target: 't9', details: '{"pinned":true}' },
-      { org: CONSOLE_ORG, actor: 'dave', action: 'forum.topic.close', target: 't9', details: '{"closed":true}' },
-      { org: CONSOLE_ORG, actor: 'carol', action: 'forum.topic.close', target: 't9', details: '{"closed":true}' },
+      { account_id: accountIdOf(s.app, 'dave'), action: 'forum.topic.pin', target: 't9', meta: { pinned: true } },
+      { account_id: accountIdOf(s.app, 'dave'), action: 'forum.topic.close', target: 't9', meta: { closed: true } },
+      { account_id: accountIdOf(s.app, 'carol'), action: 'forum.topic.close', target: 't9', meta: { closed: true } },
     ]);
   });
 
@@ -734,10 +734,21 @@ describe('replies', () => {
     // dave（队长）、erin（领航员）、zed（后来指派的舰员）只在控制台的称号指派里；owner1 登录过（审计里有 auth.signin），
     // grace 有当前会话。这些人都没打开过论坛。frank 没有称号、也从没登录过：这是剩下的缺口。
     s.app.services.roles.insertAssignment({ github_login: 'zed', github_user_id: null, role: 'member', department_id: 'tech', note: null, granted_by: 'fixture' });
-    s.app.services.storage.audit(null, 'owner1', 'auth.signin', 'owner1');
+    // #274 item I：auth.signin 改记在 activity_events（account_id，不是自由文本的 actor），lib/auth.ts 的
+    // signedInLogins() 按 account_id 解登录名——真的建一个账号再补一条 auth.signin，然后结束它的会话，
+    // 模拟「登录过，但现在没有当前会话」。
+    const ownerSid = signIn(s.app, 'owner1', 9108);
+    const ownerAccountId = s.app.services.auth.getSession(ownerSid)!.account_id;
+    s.app.services.storage.db.prepare(
+      "INSERT INTO activity_events(at, account_id, surface, action, outcome, meta) VALUES (?, ?, 'portal', 'auth.signin', 'ok', '{}')",
+    ).run(Date.now(), ownerAccountId);
+    s.app.services.auth.destroySession(ownerSid);
     signIn(s.app, 'grace', 107, null, 'token-grace');
-    // mallory 登录被拒过（auth.signin_denied）：不是登录过的人，名字照常能用。
-    s.app.services.storage.audit(null, 'mallory', 'auth.signin_denied', 'mallory', { org: CONSOLE_ORG, reason: 'not_member' });
+    // mallory 登录被拒过（auth.signin_denied）：不是登录过的人，名字照常能用——signedInLogins() 只认
+    // action = 'auth.signin'，这条 denied 不会让它出现在「登录过的人」里，账号也不需要真的存在。
+    s.app.services.storage.db.prepare(
+      "INSERT INTO activity_events(at, account_id, surface, action, outcome, meta) VALUES (?, NULL, 'portal', 'auth.signin_denied', 'denied', '{}')",
+    ).run(Date.now());
     let ip = 63;
     const send = (name: string) => s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', '冒充', name), remoteAddress: `198.51.100.${ip++}` });
     for (const name of ['Dave', '\uFF25\uFF32\uFF29\uFF2E', 'zed', 'OWNER1', 'Grace']) {
@@ -873,9 +884,11 @@ describe('editing and deleting', () => {
     expect((await s.call('PATCH', `/api/forum/posts/${guest}`, 'carol', { content: '\uFF08已由版务整理\uFF09' })).statusCode).toBe(200);
     const removed = await s.call('DELETE', `/api/forum/posts/${guest}`, 'carol');
     expect(removed.json().changes.posts.find((p: { id: string }) => p.id === guest)).toMatchObject({ deleted: true, content: '' });
-    expect(s.audits()).toEqual([
-      { org: CONSOLE_ORG, actor: 'carol', action: 'forum.post.edit', target: guest, details: JSON.stringify({ topic_id: topicId, author_id: 'g1' }) },
-      { org: CONSOLE_ORG, actor: 'carol', action: 'forum.post.delete', target: guest, details: JSON.stringify({ topic_id: topicId, author_id: 'g1' }) },
+    // s.audits() 是 forum.% 全量（这次用例里还有建话题、发回复两条合法的 forum.topic.create/forum.reply.create，
+    // 以前只查 audit_logs 看不到，现在统一读 activity_events 就都在了），这里只看版务改/删游客帖这两条要钉住的。
+    expect(s.audits().filter(row => row.action.startsWith('forum.post.'))).toEqual([
+      { account_id: accountIdOf(s.app, 'carol'), action: 'forum.post.edit', target: guest, meta: { topic_id: topicId, author_id: 'g1' } },
+      { account_id: accountIdOf(s.app, 'carol'), action: 'forum.post.delete', target: guest, meta: { topic_id: topicId, author_id: 'g1' } },
     ]);
 
     // 自己删自己的不审计；再删一次原样返回；删掉的不能再改、不能点赞。
@@ -884,7 +897,7 @@ describe('editing and deleting', () => {
     expect((await s.call('DELETE', `/api/forum/posts/${reply}`, 'bob')).statusCode).toBe(200);
     expect((await s.call('PATCH', `/api/forum/posts/${reply}`, 'bob', { content: '复活' })).json()).toMatchObject({ error: 'post_deleted' });
     expect((await s.call('POST', `/api/forum/posts/${reply}/like`, 'carol')).statusCode).toBe(409);
-    expect(s.audits()).toHaveLength(2);
+    expect(s.audits().filter(row => row.action.startsWith('forum.post.'))).toHaveLength(2);
 
     // 第一帖承载话题，谁都不能删。
     const firstDelete = await s.call('DELETE', `/api/forum/posts/${first}`, 'alice');
@@ -1389,7 +1402,7 @@ describe('client address behind the two deployment proxies', () => {
 
     const pinned = await s.app.inject({ method: 'POST', url: '/api/forum/topics/t9/pin', payload: { pinned: true }, ...through('10.9.9.9', '198.51.100.9', s.as('alice')) });
     expect(pinned.statusCode).toBe(200);
-    expect(s.db.prepare("SELECT ip FROM audit_logs WHERE action = 'forum.topic.pin'").all()).toEqual([{ ip: '198.51.100.9' }]);
+    expect(s.db.prepare("SELECT ip FROM activity_events WHERE action = 'forum.topic.pin'").all()).toEqual([{ ip: '198.51.100.9' }]);
   });
 
   it('with TRUST_PROXY=true the rotated header got through every time (the bug the hop count fixes)', async () => {

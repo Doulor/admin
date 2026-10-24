@@ -1,5 +1,4 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { endRejectedSession, isRejectedToken } from "./require-auth.js";
 import type { ActivitySurface } from "../lib/activity.js";
 
 /** User-facing summaries for GitHub 4xx; the upstream text itself is never echoed. */
@@ -84,14 +83,9 @@ export function registerHttpPolicy(app: FastifyInstance) {
   });
   app.setErrorHandler((cause, req, reply) => {
     const error = cause as { statusCode?: number; status?: number; code?: string; message: string; validation?: unknown };
-    // 带会话的请求调 GitHub，要么用这个会话自己的令牌，要么用服务器的 GitHub App（lib/github-connection.ts 自己把 App 令牌的 401
-    // 换成 503 github_connection_failed，不会走到这里）。邀请链接用 App 或发起人的令牌，但 join.ts 不加载会话（req.session 为空）、
-    // 也自己接住上游错误；以后有路由在加载会话之后用别人的令牌调 GitHub，要自己接住它的 401。
-    // GitHub 拒绝了会话自己的令牌，这个会话就没用了：结束会话，和会话到期一样回 401 session_expired，页面按未登录处理（#164）。
-    if (req.session && isRejectedToken(cause)) {
-      endRejectedSession(req, reply, req.session);
-      return reply.code(401).send({ error: "session_expired", message: "登录已失效，请重新登录", request_id: req.id });
-    }
+    // #274 item I 的 extras d：这里原来有一段专接「会话自己的 GitHub 令牌被 401」的分支（#164），删 GitHub
+    // 组织管理、lib/github-connection.ts 和 /api/join/:token 之后，服务端生产代码不再用会话自己的令牌调
+    // GitHub（services.ts 的 github 工厂只给既有测试用，见那边的注释），这个分支永远不会被真实触发，删掉。
     // Octokit's RequestError only carries `status`; Fastify's own errors carry `statusCode`.
     const upstream = error.statusCode === undefined && typeof error.status === "number";
     const raw = error.statusCode ?? error.status;

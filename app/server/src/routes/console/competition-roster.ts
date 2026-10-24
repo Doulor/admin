@@ -26,7 +26,7 @@ const settingsAudit = (settings: SignupSettings) => ({
  */
 export default async function consoleCompetitionRosterRoutes(app: FastifyInstance) {
   const { competitionSignups: signups, competitionScores: scores, config } = app.services;
-  const { audit, db } = app.services.storage;
+  const { db } = app.services.storage;
   app.addHook("preHandler", requireAuth);
   const manage = [requirePermission("competition.manage"), requireStepUp];
   const viewRoster = requirePermission("competition.manage");
@@ -42,8 +42,6 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
       const saved = db.transaction(() => {
         const result = signups.updateSettings(id, req.body, req.session!.account_id, Date.now());
         if (result.ok) {
-          audit(config.consoleOrg, req.session!, "competition.signup_settings.update", id,
-            { before: settingsAudit(before), after: settingsAudit(result.value) }, req.ip);
           app.services.activity.recordActivity(req, {
             action: "competition.signup_settings.update", surface: "console", target_type: "competition", target_id: id, outcome: "ok",
             meta: { before: settingsAudit(before), after: settingsAudit(result.value) },
@@ -82,7 +80,6 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
         beijingDateTime(row.created_at), beijingDateTime(row.updated_at),
         row.cancelled_at === null ? "" : beijingDateTime(row.cancelled_at),
       ].map(csvCell).join(","))];
-      audit(config.consoleOrg, req.session!, "competition.roster.export", id, { rows: result.value.signups.length }, req.ip);
       app.services.activity.recordActivity(req, { action: "competition.roster.export", surface: "console", target_type: "competition", target_id: id, outcome: "ok", meta: { rows: result.value.signups.length } });
       return reply
         .header("Content-Type", "text/csv; charset=utf-8")
@@ -108,8 +105,6 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
       const result = db.transaction(() => {
         const created = scores.add(id, req.session!.account_id, req.body, Date.now());
         if (created.ok) {
-          audit(config.consoleOrg, req.session!, "competition.score.add", created.value.id,
-            { competition_id: id, account_id: created.value.person.account_id, kind: created.value.kind, points: created.value.points }, req.ip);
           app.services.activity.recordActivity(req, {
             action: "competition.score.add", surface: "console", target_type: "score_event", target_id: created.value.id, outcome: "ok",
             meta: { competition_id: id, account_id: created.value.person.account_id, kind: created.value.kind, points: created.value.points },
@@ -129,7 +124,6 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
       const result = db.transaction(() => {
         const revoked = scores.revoke(id, req.session!.account_id, eventId, req.body.reason ?? "", Date.now());
         if (revoked.ok) {
-          audit(config.consoleOrg, req.session!, "competition.score.revoke", eventId, { competition_id: id }, req.ip);
           app.services.activity.recordActivity(req, { action: "competition.score.revoke", surface: "console", target_type: "score_event", target_id: eventId, outcome: "ok", meta: { competition_id: id } });
         }
         return revoked;

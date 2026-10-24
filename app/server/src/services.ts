@@ -62,7 +62,7 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
   // #274 SPEC §3.8：防盗刷计数唯一入口；提到 identity 前面建好，注册限额与邀请码猜测锁定
   // （signInWithGithub/signInSecondChannel，#274 review round 1）也要用它。
   const limits = createLimits(storage.db, { clock: overrides.clock });
-  const identity = createIdentityStore(storage.db, { createSession: auth.createSession, audit: storage.audit, consoleOrg: config.consoleOrg, limits, clock: overrides.clock });
+  const identity = createIdentityStore(storage.db, { createSession: auth.createSession, audit: storage.audit, limits, clock: overrides.clock });
   const device = createDeviceStore(storage.db, { clock: overrides.clock });
   // 邮箱验证码、邀请码与 Google 登录（#262，所有者 2026-10-23）
   const emailLogin = createEmailLogin(storage.db, { sessionSecret: config.sessionSecret, clock: overrides.clock });

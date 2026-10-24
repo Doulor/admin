@@ -4,7 +4,7 @@ import type { ServiceOverrides } from '../../app/server/src/services';
 import { competitionStatus, compareCompetitions } from '../../app/server/src/lib/competition-store';
 import { formFrom, formPayload } from '../../app/console/src/lib/competitions';
 import { buildApp, type BuildAppOptions } from '../../app/server/src/app';
-import { accountIdOf, grantPermGroup, signIn, testApp, testConfig } from './helpers';
+import { accountIdOf, activityRows, grantPermGroup, signIn, testApp, testConfig } from './helpers';
 
 const CONSOLE_ORG = 'Yangtze-University-Geek-Class';
 const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
@@ -187,12 +187,14 @@ describe('console writes need competitions.manage', () => {
     expect((await app.inject({ method: 'POST', url: '/api/console/competitions', headers: carol, payload: DRAFT })).statusCode).toBe(403);
   });
 
-  it('rolls back competition writes when their audit record cannot be saved', async () => {
+  it('rolls back competition writes when their activity record cannot be saved', async () => {
     const { app, as } = await setup();
     const created = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: DRAFT });
     const original = created.json().competition;
+    // #274 item I：recordActivity 写 activity_events，和比赛写入在同一个 db.transaction() 里，原来对 audit_logs
+    // 下的这个触发器改成对它，验证的是同一件事——操作记录写不进去，比赛写入也要整体回滚。
     app.services.storage.db.exec(`
-      CREATE TRIGGER reject_competition_audit BEFORE INSERT ON audit_logs
+      CREATE TRIGGER reject_competition_audit BEFORE INSERT ON activity_events
       WHEN NEW.action LIKE 'competition.%'
       BEGIN SELECT RAISE(ABORT, 'injected audit failure'); END;
     `);
@@ -345,7 +347,7 @@ describe('console writes need competitions.manage', () => {
     expect(first.json()).toEqual({ ok: true });
     expect((await app.inject({ method: 'DELETE', url: `/api/console/competitions/${id}`, headers: as('alice') })).statusCode).toBe(404);
 
-    const actions = (app.services.storage.db.prepare("SELECT action FROM audit_logs WHERE action LIKE 'competition.%' ORDER BY id").all() as { action: string }[]).map(row => row.action);
+    const actions = activityRows(app, { actionLike: 'competition.%' }).map(row => row.action);
     expect(actions).toEqual(['competition.create', 'competition.delete']);
   });
 

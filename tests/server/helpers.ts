@@ -68,3 +68,33 @@ export function grantPermNode(app: FastifyInstance, accountId: string, node: str
   ).run(accountId, node, JSON.stringify(scope), Date.now());
   app.services.permissions.bump();
 }
+
+/** activity_events 里的一行，meta 已经 JSON.parse 过。代替已经没人写的 audit_logs（#274 item I）。 */
+export type ActivityRow = {
+  account_id: string | null;
+  visitor_id: string | null;
+  surface: string;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  outcome: string;
+  ip: string | null;
+  meta: Record<string, unknown>;
+};
+
+/**
+ * 查 activity_events，代替各个测试文件原来各自按 audit_logs 查的 `audits()` 帮手（#274 item I：audit_logs
+ * 不再有任何代码写，历史数据之外不会再多一行）。不传 filter 就是全表，按 id 顺序（也就是写入顺序）返回。
+ */
+export function activityRows(app: FastifyInstance, filter: { action?: string; actionLike?: string; account_id?: string } = {}): ActivityRow[] {
+  const clauses: string[] = [];
+  const params: Record<string, unknown> = {};
+  if (filter.action !== undefined) { clauses.push('action = @action'); params.action = filter.action; }
+  if (filter.actionLike !== undefined) { clauses.push('action LIKE @actionLike'); params.actionLike = filter.actionLike; }
+  if (filter.account_id !== undefined) { clauses.push('account_id = @account_id'); params.account_id = filter.account_id; }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const rows = app.services.storage.db.prepare(
+    `SELECT account_id, visitor_id, surface, action, target_type, target_id, outcome, ip, meta FROM activity_events ${where} ORDER BY id`,
+  ).all(params) as (Omit<ActivityRow, 'meta'> & { meta: string })[];
+  return rows.map(row => ({ ...row, meta: JSON.parse(row.meta || '{}') as Record<string, unknown> }));
+}

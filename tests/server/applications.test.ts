@@ -4,7 +4,7 @@ import { buildApp } from '../../app/server/src/app';
 import { beijingDayBounds } from '../../app/server/src/lib/limits';
 import { ipSubject } from '../../app/server/src/lib/forum-rules';
 import type { ServiceOverrides } from '../../app/server/src/services';
-import { signIn, testApp, testConfig } from './helpers';
+import { activityRows, signIn, testApp, testConfig } from './helpers';
 
 /**
  * 招新投递（#169；#274 SPEC §3 改成按统一账号认人：要登录、要有 apply.submit 权限，不再接受匿名投递）。
@@ -56,7 +56,7 @@ async function fixture(member = false) {
     payload: { pow: { timestamp: Date.now(), nonce: 'test' }, ...VALID, ...payload },
     ...extra,
   });
-  const count = (table: 'applications' | 'audit_logs') => ctx.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get();
+  const count = (table: 'applications' | 'activity_events') => ctx.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get();
   return { ...ctx, submit, count };
 }
 
@@ -88,7 +88,7 @@ it('登录了但 apply.submit 被收回（账号级 deny）回 403，不落库',
 });
 
 it('accepts a real application from a signed-in account, stores it, never echoes the candidate text, and reports quota', async () => {
-  const { db, accountId, submit, count } = await fixture();
+  const { app, db, accountId, submit, count } = await fixture();
   const response = await submit(VALID);
   expect(response.statusCode).toBe(201);
   const body = response.json();
@@ -107,14 +107,15 @@ it('accepts a real application from a signed-in account, stores it, never echoes
   });
   expect(JSON.stringify(stored)).toContain('127.0.0.1');
 
-  const audits = db.prepare("SELECT actor, actor_account_id, action, target, details, ip FROM audit_logs WHERE action = 'application.received'").all();
-  expect(audits).toHaveLength(1);
-  const [audit] = audits as { actor_account_id: string; details: string }[];
-  expect(audit.actor_account_id).toBe(accountId);
-  expect(audit).toMatchObject({ action: 'application.received', target: body.id, ip: '127.0.0.1' });
-  expect(audit).toMatchObject({ details: expect.stringContaining('"strengths_length"') });
-  expect(JSON.stringify(audit)).toContain('z***@example.test');
-  expect(JSON.stringify(audit)).not.toContain(VALID.strengths);
+  // #274 item I：application.received 并进了 apply.submit 的 recordActivity，不再是单独一条 audit_logs 行。
+  const rows = activityRows(app, { action: 'apply.submit' });
+  expect(rows).toHaveLength(1);
+  const [row] = rows;
+  expect(row.account_id).toBe(accountId);
+  expect(row).toMatchObject({ action: 'apply.submit', target_type: 'application', target_id: body.id, ip: '127.0.0.1' });
+  expect(row.meta).toMatchObject({ strengths_length: VALID.strengths.length });
+  expect(JSON.stringify(row)).toContain('z***@example.test');
+  expect(JSON.stringify(row)).not.toContain(VALID.strengths);
 });
 
 it.each(INVALID)('refuses %s with a field-scoped Chinese error and no persistence', async (_label, patch, field) => {
@@ -130,14 +131,14 @@ it.each(INVALID)('refuses %s with a field-scoped Chinese error and no persistenc
 
 it('answers the honeypot exactly like a success without persisting anything', async () => {
   const { submit, count } = await fixture();
-  const auditsBefore = count('audit_logs');
+  const auditsBefore = count('activity_events');
   const response = await submit({ website: 'https://bot.example' });
   expect(response.statusCode).toBe(201);
   const body = response.json();
   expect(Object.keys(body).sort()).toEqual(['id', 'message', 'submitted_at']);
   expect(body.message).toBe(SUCCESS_MESSAGE);
   expect(count('applications')).toEqual({ n: 0 });
-  expect(count('audit_logs')).toEqual(auditsBefore);
+  expect(count('activity_events')).toEqual(auditsBefore);
 });
 
 it('holds the 2000-character boundary for 个人特长与优点', async () => {

@@ -19,7 +19,7 @@ const oauthError = (error: string, description?: string) => (description ? { err
  * /api/identity/device* 是浏览器里的确认页（要极客班 SSO 会话）。授权绑定到会话的 account_id，不是 GitHub id。
  */
 export default async function deviceRoutes(app: FastifyInstance) {
-  const { device, config, storage } = app.services;
+  const { device, config } = app.services;
 
   // RFC 8628 的请求是 application/x-www-form-urlencoded（JSON 也收，方便调试与测试）：
   // 只在这个插件作用域里解析，不影响其它路由；不引入 formbody 依赖。
@@ -102,9 +102,11 @@ export default async function deviceRoutes(app: FastifyInstance) {
 
   app.post<{ Body: ApproveBody }>(
     "/api/identity/device/approve",
-    // #274 SPEC §3.2：命令行登录按权限节点 account.cli.login 判定（注册用户起步就有，不再是「登录就行」的隐性放行）；
-    // requireAuth 先把会话挂到 req.session，requirePermission 内部的 loadSession 看到已经挂过就不重复判一次 401。
-    { preHandler: [requireAuth, requirePermission("account.cli.login")], config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
+    // #274 SPEC §3.2：命令行登录按权限节点 account.cli.login 判定（注册用户起步就有，不再是「登录就行」的隐性放行）。
+    // preHandler 只挂 requirePermission（它自己调 loadSession 判定登录态），不再多挂一个 requireAuth——两个一起
+    // 挂时 requireAuth 先跑、先回它自己的 401 not_signed_in，没登录时拿不到 requirePermission 回的通用 401
+    // unauthenticated（#274 item I 的 extras c，和 portal/apply.ts 同一个 bug）。
+    { preHandler: [requirePermission("account.cli.login")], config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
     async (req, reply) => {
       const session = req.session!;
       const body = req.body ?? {};
@@ -127,15 +129,11 @@ export default async function deviceRoutes(app: FastifyInstance) {
       const result = device.decide({ userCode: body.user_code, accountId: session.account_id, decision });
       if (!result) return reply.code(404).send({ error: "device_code_not_found" });
       if (!result.ok) return reply.code(409).send({ error: "device_code_not_pending" });
-      // 审计只留客户端与 scope，不留 device_code 与令牌（它们是凭据）。
-      storage.audit(
-        null,
-        { login: session.login, account_id: session.account_id },
-        decision === "approve" ? "identity.device.approve" : "identity.device.deny",
-        undefined,
-        { client_id: result.clientId, scope: result.scope },
-        req.ip,
-      );
+      // 操作记录只留客户端与 scope，不留 device_code 与令牌（它们是凭据）。
+      app.services.activity.recordActivity(req, {
+        action: decision === "approve" ? "identity.device.approve" : "identity.device.deny", surface: "cli",
+        outcome: decision === "approve" ? "ok" : "denied", meta: { client_id: result.clientId, scope: result.scope },
+      });
       return { ok: true, status: decision === "approve" ? "approved" : "denied" };
     },
   );

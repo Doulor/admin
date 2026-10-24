@@ -23,7 +23,7 @@ export const OIDC_PROTOCOL_LIMIT = { server: 600, browser: 120 } as const;
  * 没配 OIDC_JWKS 时路由照样注册（项目地图按源码列出它们），请求一律按 404 处理。
  */
 export default async function oidcRoutes(app: FastifyInstance) {
-  const { oidc, directory, oidcStore, storage, config } = app.services;
+  const { oidc, directory, oidcStore, config } = app.services;
   const provider = oidc?.provider as Provider;
   // 协议端点的回复不经 Fastify 的错误处理器，oidc-provider 内部出错只发这个事件；只记路径、错误类型与错误代码，不记查询串
   provider?.on("server_error", (ctx: { path?: string }, error: Error & { code?: unknown }) => {
@@ -141,14 +141,15 @@ export default async function oidcRoutes(app: FastifyInstance) {
       for (const [resource, scopes] of Object.entries(missing.missingResourceScopes ?? {})) grant.addResourceScope(resource, scopes.join(" "));
       const grantId = await grant.save();
       oidcStore.rememberGrant(accountId, clientId, grantId);
-      storage.audit(null, req.session!, "oidc.consent", clientId, { scope: grant.getOIDCScope() }, req.ip);
+      app.services.activity.recordActivity(req, { action: "oidc.consent", surface: "cli", target_type: "oidc_client", target_id: clientId, outcome: "ok", meta: { scope: grant.getOIDCScope() } });
       return { redirect_to: await redirectTo(req, reply, { consent: { grantId } }) };
     });
 
     scope.post<{ Params: { uid: string } }>("/oidc/interaction/:uid/abort", { preHandler: requireAuth, config: { rateLimit: { max: 20, timeWindow: "1 minute" } } }, async (req, reply) => {
       const details = await consentOf(req, reply);
       if (!details) return reply;
-      storage.audit(null, req.session!, "oidc.deny", String(details.params.client_id), undefined, req.ip);
+      const clientId = String(details.params.client_id);
+      app.services.activity.recordActivity(req, { action: "oidc.deny", surface: "cli", target_type: "oidc_client", target_id: clientId, outcome: "denied" });
       return { redirect_to: await redirectTo(req, reply, { error: "access_denied", error_description: "End-User aborted interaction" }, false) };
     });
   });

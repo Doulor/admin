@@ -78,7 +78,7 @@ export default async function authRoutes(app: FastifyInstance) {
         // #274 review round 1（SPEC §3.7/§3.8）：registration_limited 是注册限额挡下来的，记 limited，不是普通的 denied。
         app.services.activity.recordActivity(req, {
           action: "auth.signin_denied", surface: "portal", outcome: signin.reason === "registration_limited" ? "limited" : "denied",
-          meta: { provider: "github", reason: signin.reason },
+          meta: { provider: "github", reason: signin.reason }, account_id: signin.accountId ?? null,
         });
         return fail(signin.reason);
       }

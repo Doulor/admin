@@ -109,7 +109,7 @@ export default async function consoleActivityRoutes(app: FastifyInstance) {
       row.id, row.at, row.account_id ?? "", row.username ?? "", row.visitor_id ?? "", row.surface, row.action,
       row.target_type ?? "", row.target_id ?? "", row.outcome, fullIp ? row.ip ?? "" : maskIp(row.ip) ?? "", row.request_id ?? "",
     ].map(csvCell).join(","));
-    app.services.storage.audit(null, req.session!, "activity.export", undefined, { rows: rows.length }, req.ip);
+    app.services.activity.recordActivity(req, { action: "activity.export", surface: "console", outcome: "ok", meta: { rows: rows.length } });
     reply.header("Content-Type", "text/csv; charset=utf-8").header("Content-Disposition", "attachment; filename=\"activity.csv\"");
     return `﻿${[header.join(","), ...lines].join("\r\n")}\r\n`;
   });

@@ -44,7 +44,7 @@ async function main(argv: string[]): Promise<number> {
       const identity = createIdentityStore(storage.db, {
         createSession: () => { throw new Error("provision never creates sessions"); },
         // provisionAccount 不走注册限额/邀请码猜测锁定那几条路径，这里的 limits 只是满足类型，不会被真的调用。
-        audit: storage.audit, consoleOrg: config.consoleOrg, limits: createLimits(storage.db),
+        audit: storage.audit, limits: createLimits(storage.db),
       });
       const result = identity.provisionAccount({ githubId, githubLogin, orgRole, email });
       process.stdout.write(`${JSON.stringify(result)}\n`);
@@ -54,7 +54,7 @@ async function main(argv: string[]): Promise<number> {
       const code = await readStdin();
       try {
         const invite = createInviteCodeStore(storage.db).create({ code, note: option(args, "note") ?? "" }, "system");
-        storage.audit(null, "system", "invite.create", undefined, { id: invite.id, via: "cli" });
+        storage.audit("system", "invite.create", undefined, { id: invite.id, via: "cli" }, undefined, { surface: "system" });
         process.stdout.write(`${JSON.stringify({ id: invite.id, created: true })}\n`);
         return 0;
       } catch (error) {

@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import type { AuditActor } from "./db.js";
+import type { ActivityOutcome, ActivitySurface } from "./activity.js";
 import { redeemInvite } from "./invite-codes.js";
 import { maskEmail } from "./email-login.js";
 import { bumpPermRevision, setExclusiveGroupMembership } from "./permissions.js";
@@ -32,7 +33,10 @@ export type SiteRoleChoice = "admin" | "member" | "none";
 export type SigninRefusal = "account_disabled" | "invite_invalid" | "email_taken" | "code_expired" | "no_account" | "registration_limited";
 export type SigninResult =
   | { ok: true; sid: string; accountId: string; registered: boolean }
-  | { ok: false; reason: SigninRefusal };
+  // accountId 只有 account_disabled 这个原因才有（这个时候账号已经找到了，只是被停用）；别的拒绝原因
+  // 还没有账号可言，不填（#274 item I：路由记 auth.signin_denied 时按它补上账号，不然这条记录没有
+  // account_id，审计查不到是谁被挡了）。
+  | { ok: false; reason: SigninRefusal; accountId?: string };
 export type LinkResult = { ok: true } | { ok: false; reason: "identity_conflict" | "identity_exists" | "email_limit" | "code_expired" };
 export type UnlinkResult = { ok: true } | { ok: false; reason: "not_found" | "primary_email" };
 /** 一个账号最多绑几个邮箱（#272）：每个都能登录，GitLab 按它们认提交人。 */
@@ -160,9 +164,13 @@ export function backfillIdentity(db: Database.Database, now: number): { report: 
 export type IdentityDeps = {
   /** auth.createSession：在登录事务里插入会话 */
   createSession: (input: NewSession) => string;
-  /** storage.audit */
-  audit: (org: string | null, actor: AuditActor, action: string, target?: string, details?: unknown, ip?: string) => void;
-  consoleOrg: string;
+  /**
+   * storage.audit：只给这个模块里不重复、路由没有另外记一条 recordActivity 的事件用（identity.link_conflict、
+   * account.provision、account.role——见各自调用点的注释）。auth.signin/auth.register/auth.signin_denied、
+   * account.password、identity.link/identity.unlink 都被对应路由的 recordActivity 覆盖了，这里不再重复调
+   * （#274 item I，否则一个事件两条一样的 activity_events 行）。
+   */
+  audit: (actor: AuditActor, action: string, target?: string, details?: unknown, ip?: string, opts?: { surface?: ActivitySurface; outcome?: ActivityOutcome }) => void;
   /** 注册限额与邀请码猜测锁定（#274 review round 1，SPEC §3.8）；lib/limits.ts 的唯一入口。 */
   limits: LimitsService;
   clock?: () => number;
@@ -290,11 +298,12 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
           registered = true;
         }
         const account = terminalAccount(db, identity.user_id);
+        // auth.signin_denied/auth.register/auth.signin 不在这里记：调用方 routes/admin/auth.ts 已经按
+        // signin.reason/signin.registered 记过一条 recordActivity，这里再记一遍会变成两条一样的
+        // activity_events（#274 item I）。
         if (account.status === "disabled") {
           accountEvent(account.id, "login_denied", "github", "denied", "account_disabled", now);
-          deps.audit(null, { login: github.login, account_id: account.id }, "auth.signin_denied", github.login,
-            { org: deps.consoleOrg, reason: "account_disabled", provider: "github" }, input.ip);
-          return { ok: false, reason: "account_disabled" };
+          return { ok: false, reason: "account_disabled", accountId: account.id };
         }
         refreshIdentity.run(github.login, avatarUrl, now, identity.id);
         // 只按 GitHub 数字 id 认领：登录名会改，旧名字也可能被别人注册
@@ -303,12 +312,8 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
         const sid = deps.createSession({ accountId: account.id, provider: "github", login: github.login, userId: github.id, avatarUrl, accessToken: input.accessToken });
         // 换号登录、重复登录：请求带来的旧会话作废
         if (input.previousSid && input.previousSid !== sid) deleteSession.run(input.previousSid);
-        if (registered) {
-          accountEvent(account.id, "register", "github", "ok", null, now);
-          deps.audit(null, { login: github.login, account_id: account.id }, "auth.register", undefined, { provider: "github" }, input.ip);
-        }
+        if (registered) accountEvent(account.id, "register", "github", "ok", null, now);
         accountEvent(account.id, "login", "github", "ok", null, now);
-        deps.audit(null, { login: github.login, account_id: account.id }, "auth.signin", github.login, { provider: "github" }, input.ip);
         return { ok: true, sid, accountId: account.id, registered };
       }).immediate();
     } catch (error) {
@@ -404,23 +409,21 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
           registered = true;
         }
         const account = terminalAccount(db, identity.user_id);
+        // auth.signin_denied/auth.register/auth.signin 不在这里记：三个调用方（email.ts 的验证码/密码两条
+        // 路由、google.ts）都已经按各自拿到的 result.reason/result.registered 记过 recordActivity，这里再记
+        // 一遍会变成两条一样的 activity_events（#274 item I）。reset 方法成功时调用方只记 auth.password_reset，
+        // 不再额外记一条 auth.signin——按「一个事件一条记录」的约定，重设密码顺带建会话不算第二个事件。
         if (account.status === "disabled") {
           accountEvent(account.id, "login_denied", input.provider, "denied", "account_disabled", now);
-          deps.audit(null, { login: sessionProfile(account.id).login, account_id: account.id }, "auth.signin_denied", undefined,
-            { reason: "account_disabled", provider: input.provider, method: input.method }, input.ip);
-          return { ok: false, reason: "account_disabled" };
+          return { ok: false, reason: "account_disabled", accountId: account.id };
         }
         if (input.claim && !input.claim()) throw new Refused("code_expired");
         touchIdentity.run(now, identity.id);
         const profile = sessionProfile(account.id);
         const sid = deps.createSession({ accountId: account.id, provider: input.provider, login: profile.login, userId: profile.userId, avatarUrl: profile.avatarUrl, accessToken: "" });
         if (input.previousSid && input.previousSid !== sid) deleteSession.run(input.previousSid);
-        if (registered) {
-          accountEvent(account.id, "register", input.provider, "ok", null, now);
-          deps.audit(null, { login: profile.login, account_id: account.id }, "auth.register", undefined, { provider: input.provider }, input.ip);
-        }
+        if (registered) accountEvent(account.id, "register", input.provider, "ok", null, now);
         accountEvent(account.id, "login", input.provider, "ok", null, now);
-        deps.audit(null, { login: profile.login, account_id: account.id }, "auth.signin", profile.login, { provider: input.provider, method: input.method }, input.ip);
         return { ok: true, sid, accountId: account.id, registered };
       }).immediate();
     } catch (error) {
@@ -459,7 +462,12 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     return (accountRow.get(accountId) as { password_hash: string | null } | undefined)?.password_hash ?? null;
   }
 
-  /** 写密码哈希、identity_audit 与 account.password；调用方负责事务。`reset` 是忘了密码后用验证码重设（#273）。 */
+  /**
+   * 写密码哈希与 identity_audit；调用方负责事务。`reset` 是忘了密码后用验证码重设（#273）。
+   * 不在这里记操作记录：三个调用方（账号页改密码/设密码、忘密码重设）各自已经按 kind 记过
+   * auth.password_change / auth.password_set / auth.password_reset，这里再记一条 account.password
+   * 会变成两条一样的 activity_events（#274 item I）。
+   */
   function writePassword(accountId: string, hash: string, actor: { login: string; ip?: string }, reset: boolean): void {
     const now = clock();
     const had = (accountRow.get(accountId) as { password_hash: string | null }).password_hash !== null;
@@ -467,7 +475,6 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     // 改了密码：这个账号用密码以外方式登录的会话不动，其余设备上旧密码换来的会话也不动（不做「退出所有设备」，规格「不做」）
     const kind = reset ? "reset" : had ? "change" : "set";
     accountEvent(accountId, `password_${kind}`, "email", "ok", null, now);
-    deps.audit(null, { login: actor.login, account_id: accountId }, "account.password", undefined, { action: kind }, actor.ip);
   }
 
   /** 设置或修改密码（哈希由路由用 lib/password-policy.ts 算好）；写 identity_audit 与 account.password。 */
@@ -503,7 +510,8 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
       const owner = identityOf.get("email", input.email) as { user_id: string } | undefined;
       if (owner && owner.user_id !== input.accountId) {
         accountEvent(input.accountId, "link_conflict", "email", "denied", "identity_conflict", now);
-        deps.audit(null, { login: input.login, account_id: input.accountId }, "identity.link_conflict", undefined, { provider: "email" }, input.ip);
+        // 路由（账号页）不记这条失败：这是这个事件唯一的一条记录，不是重复（#274 item I，和下面成功分支的 identity.link 不一样）。
+        deps.audit({ login: input.login, account_id: input.accountId }, "identity.link_conflict", undefined, { provider: "email" }, input.ip, { surface: "portal", outcome: "denied" });
         return { ok: false, reason: "identity_conflict" };
       }
       const refusal = emailAddRefusal(input.accountId, input.email);
@@ -512,7 +520,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
       insertChannel.run({ id: newUlid(now), user_id: input.accountId, provider: "email", uid: input.email, email: input.email, verified: 1, now, last_login_at: null });
       setCanonicalEmail.run(input.email, now, input.accountId);
       accountEvent(input.accountId, "link", "email", "ok", null, now);
-      deps.audit(null, { login: input.login, account_id: input.accountId }, "identity.link", undefined, { provider: "email" }, input.ip);
+      // identity.link 不在这里记：路由（账号页 /api/identity/email/verify）已经记过 auth.email_link（#274 item I）。
       return { ok: true };
     }).immediate();
   }
@@ -540,7 +548,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
       if (row.provider_uid === row.canonical_email) return { ok: false, reason: "primary_email" };
       db.prepare("DELETE FROM identities WHERE id = ?").run(input.identityId);
       accountEvent(input.accountId, "unlink", "email", "ok", null, now);
-      deps.audit(null, { login: input.login, account_id: input.accountId }, "identity.unlink", undefined, { provider: "email" }, input.ip);
+      // identity.unlink 不在这里记：路由（账号页 /api/identity/email/remove）已经记过 auth.email_unlink（#274 item I）。
       return { ok: true };
     }).immediate();
   }
@@ -626,7 +634,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
         accountEvent(account.id, "link", "email", "ok", "provisioned", now);
         emailLinked = true;
       }
-      deps.audit(null, "system", "account.provision", input.githubLogin, { account_id: account.id, created, email_linked: emailLinked, org_role: input.orgRole });
+      deps.audit("system", "account.provision", input.githubLogin, { account_id: account.id, created, email_linked: emailLinked, org_role: input.orgRole }, undefined, { surface: "system" });
       return { accountId: account.id, created, emailLinked };
     }).immediate();
   }
@@ -685,7 +693,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
       else db.prepare("UPDATE users SET org_role = ?, org_state = 'active', org_checked_at = ?, updated_at = ? WHERE id = ?").run(input.role, now, now, input.accountId);
       syncPermissionLevel(input.accountId, input.role === "none" ? null : input.role, "console:set-site-role", now);
       accountEvent(input.accountId, "role_change", null, "ok", input.role, now);
-      deps.audit(null, input.actor, "account.role", sessionProfile(input.accountId).login, { account_id: input.accountId, from: before, to: input.role }, input.ip);
+      deps.audit(input.actor, "account.role", sessionProfile(input.accountId).login, { account_id: input.accountId, from: before, to: input.role }, input.ip, { surface: "console" });
       return { ok: true as const, changed: true };
     }).immediate();
   }

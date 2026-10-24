@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { AuditActor } from "./db.js";
+import type { ActivityOutcome, ActivitySurface } from "./activity.js";
 import type { DirectoryAccount } from "./account-directory.js";
 
 /**
@@ -84,7 +85,7 @@ export function createGitlabSync(db: Database.Database, deps: {
   subjects: { subjectFor(sectorId: string, accountId: string): string; existingSubject(sectorId: string, accountId: string): string | null };
   clients: { sectorOf(clientId: string): string | null };
   avatars: { avatar(hash: string): Buffer | null };
-  audit: (org: string | null, actor: AuditActor, action: string, target?: string, details?: unknown, ip?: string) => void;
+  audit: (actor: AuditActor, action: string, target?: string, details?: unknown, ip?: string, opts?: { surface?: ActivitySurface; outcome?: ActivityOutcome }) => void;
   fetch?: FetchLike;
   githubFetch?: FetchLike;
   clock?: () => number;
@@ -485,8 +486,8 @@ export function createGitlabSync(db: Database.Database, deps: {
     // 按身份找、没找到人，或者找的时候就失败了（还没有这一行，什么也没改）：不写审计，免得 GitLab 出故障时这类账号每人每轮记一条
     const row = rowOf(account.account_id);
     if (done.length || (outcome.error && row)) {
-      deps.audit(null, actor, "gitlab.sync", row?.username ?? account.login,
-        { account_id: account.account_id, actions: actions.map(item => item.kind), error: outcome.error });
+      deps.audit(actor, "gitlab.sync", row?.username ?? account.login,
+        { account_id: account.account_id, actions: actions.map(item => item.kind), error: outcome.error }, undefined, { surface: "system" });
     }
     return outcome;
   }
