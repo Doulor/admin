@@ -9,15 +9,15 @@ export type AppId = "join" | "forum" | "gitlab" | "promo" | "about" | "org" | "c
 
 /**
  * scene：进入官网内的 3D 场景页（只有「加入我们」）；window：在桌面里开窗口；panel：桌面自带的全屏面板（换壁纸、重看宣传片）；
- * route：站内普通页面；site：同一个域名下的另一个端（论坛、控制台），当前标签页整页跳过去。
+ * site：同一个域名下的另一个端（论坛、控制台），当前标签页整页跳过去。
  * 论坛点一下直达论坛首页（#185），不再先进 /forum-3d 场景页；那个页面留给旧地址和「论坛最新」窗口里的「3D 版块」。
- * 「代码仓库」是桌面里的窗口（#275），列出自建 GitLab 上的公开项目，窗口里再去 GitLab。
+ * 「代码仓库」是桌面里的窗口（#275），列出自建 GitLab 上的公开项目，窗口里再去 GitLab。「意见箱」也是桌面里的窗口（#275），
+ * 不再跳到 /feedback 页面；那个地址留给分享出去的链接。
  */
 export type AppOpen =
   | { kind: "scene"; path: "/join-us" }
   | { kind: "window" }
   | { kind: "panel"; panel: "wallpaper" | "promo" }
-  | { kind: "route"; path: string }
   | { kind: "site"; link: "forumHome" | "console" };
 
 export type OsApp = {
@@ -44,7 +44,7 @@ export const OS_APPS: readonly OsApp[] = [
   { id: "competitions", name: "比赛", icon: "trophy-line", open: { kind: "window" }, blurb: "近期有什么比赛，哪天截止", keywords: "contest 赛事 竞赛 报名" },
   { id: "terminal", name: "终端", icon: "terminal-box-line", open: { kind: "window" }, blurb: "输入 help 查看命令" },
   { id: "wallpaper", name: "壁纸", icon: "image-line", open: { kind: "panel", panel: "wallpaper" }, blurb: "换一张桌面壁纸" },
-  { id: "feedback", name: "意见箱", icon: "feedback-line", open: { kind: "route", path: "/feedback" }, blurb: "提建议或报 bug，不用登录" },
+  { id: "feedback", name: "意见箱", icon: "feedback-line", open: { kind: "window" }, blurb: "提建议或报 bug，不用登录" },
   { id: "console", name: "控制台", icon: "shield-user-line", lock: true, open: { kind: "site", link: "console" }, blurb: "管理组织、成员和论坛" },
 ];
 

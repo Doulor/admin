@@ -15,7 +15,7 @@
 | `/apply` | — | 旧地址，`<Navigate replace>` 到 `/join-us`，已发出的链接不失效 |
 | `/forum-3d` | `pages/Forum3D.tsx` | 论坛版块气泡场景，主入口「进入论坛首页」一直可见，版块图标为 Remix 线性图标；进论坛前镜头推近、遮罩盖满，从论坛按后退回来时浏览器可能从往返缓存（bfcache）恢复整页，`pageshow.persisted` 时调场景的 `reset()` 回到进场的样子（#109）。桌面上的「论坛」已直达论坛首页，不再经过这页（#185，见下文「桌面入口直达」）；这页留给旧地址和「论坛最新」窗口里的「3D 版块」按钮 |
 | `/docs`、`/docs/:id` | `pages/Docs.tsx` | 公开产品介绍与用户指南（白名单由 `/api/docs` 决定） |
-| `/feedback`、`/feedback/:org` | `pages/Feedback.tsx` | 匿名意见箱；只发本部署的组织（#129）：组织框只读（浅灰底、悬停不变色，说明「这里改不了」用 `aria-describedby` 挂在框上），展示 `GET /api/feedback/categories` 下发的 `org`（`CONSOLE_ORG`），读公开列表和提交都用同一个值；接口回来之前或失败时组织框先显示站点配置 `urls.githubOrg` 的最后一段，但提交按钮是灰的：组织名、分类和 PoW 难度都要等这个接口读到才能提交，失败时分类处显示「没读到分类和发往的组织，暂时不能提交」和「重新读取」按钮，已经写的正文不清空（`tests/web/portal-feedback-org.test.tsx`）。`/feedback/:org` 是控制台意见箱页生成的分享地址（`app/console/src/pages/Feedback.vue`），也接住旧链接，不能删；URL 里的组织名不生效 |
+| `/feedback`、`/feedback/:org` | `pages/Feedback.tsx` | 匿名意见箱。桌面和手机主屏上的「意见箱」是 YUGC OS 窗口（#275），打开时才加载同一份表单（`FeedbackBox`），这两个地址留给分享出去的链接；只发本部署的组织（#129）：组织框只读（浅灰底、悬停不变色，说明「这里改不了」用 `aria-describedby` 挂在框上），展示 `GET /api/feedback/categories` 下发的 `org`（`CONSOLE_ORG`），读公开列表和提交都用同一个值；接口回来之前或失败时组织框先显示站点配置 `urls.githubOrg` 的最后一段，但提交按钮是灰的：组织名、分类和 PoW 难度都要等这个接口读到才能提交，失败时分类处显示「没读到分类和发往的组织，暂时不能提交」和「重新读取」按钮，已经写的正文不清空（`tests/web/portal-feedback-org.test.tsx`）。`/feedback/:org` 是控制台意见箱页生成的分享地址（`app/console/src/pages/Feedback.vue`），也接住旧链接，不能删；URL 里的组织名不生效 |
 
 `/join-us` 是招新投递。旧的 `/join/:token`（GitHub 组织邀请链接落地页）随 #274 删掉的 `/api/join/:token` 一起删掉，旧链接落到兜底路由回首页；注册邀请码在登录页和资料卡里填。首页之外的页面按路由懒加载。`/github`（GitHub 天际线场景页）在 #275 删掉，旧地址落到兜底路由回首页。`base.css` 不引远程字体（`cdn.jsdelivr.net` 的 Maple Mono 被站点 CSP 拦截），等宽字体走系统栈。
 
@@ -30,7 +30,7 @@
 | `lib/useMediaQuery.ts` | 响应式媒体查询订阅；OS 用 `PHONE_QUERY` 与 `PORTRAIT_QUERY`，变化时保留组件状态 |
 | `lib/cameraMath.ts`、`lib/motion.ts` | 相机距离（cover/contain）、像素 ↔ 相机平面换算、竖屏横带取景、缓动与插值 |
 | `lib/pixelRatio.ts` | 3D 像素比调速器：起步档位、降档规则、帧间隔预算（纯逻辑） |
-| `lib/osApps.ts` | YUGC OS 应用清单（每个应用打开什么只写在这里：`scene`、`window`、`panel`、`route`、`site` 五种；「代码仓库」「比赛」是 `{ kind: "window" }`）、站外应用的地址（`appLink`、`followAppLink`，只剩论坛和控制台）、启动器过滤、终端命令、时间文案、读屏用的 `NEW_TAB_NOTE` |
+| `lib/osApps.ts` | YUGC OS 应用清单（每个应用打开什么只写在这里：`scene`、`window`、`panel`、`site` 四种；「代码仓库」「比赛」「意见箱」是 `{ kind: "window" }`）、站外应用的地址（`appLink`、`followAppLink`，只剩论坛和控制台）、启动器过滤、终端命令、时间文案、读屏用的 `NEW_TAB_NOTE` |
 | `lib/promo.ts`、`components/PromoPlayer.tsx`、`components/PromoLazy.tsx`、`styles/promo.css` | 宣传片：CDN 地址、「只自动播一次」的 cookie、按浏览器能力挑编码与播放方式、起播预取（纯逻辑在 `lib/promo.ts`）；全屏播放层（见下文「宣传片」） |
 | `lib/links.ts` | 站外链接的唯一解析点：论坛首页/版块/话题、控制台、账号设置 `/account`、代码仓库（自建 GitLab，站点配置 `urls.gitlab`） |
 | `lib/departments.ts` | 「组织架构」窗口和「关于极客班」里的部门：读匿名 `GET /api/public/departments`（窗口打开时读一次、关掉即取消），`DEFAULT_DEPARTMENTS` 与 #274 迁移的初始数据一致（AI、算法、硬件、网安、管理五个部门加「无部门」），读到之前和读不到时显示它；`readDepartments` 把认不出的部门色换成次要文字色、认不出的图标换成 `team-line`，称号按 `weight` 从高到低 |
@@ -119,7 +119,7 @@ three.js 只通过 `/join-us`、`/forum-3d` 两页里的 `import("../three/<scen
 ## 链接与数据
 
 - 论坛首页 `externalUrl("forum", "/")`：生产为 `https://yangtzeu.work/forum/`，本机开发为 `http://127.0.0.1:3456/`；版块 `/c/<slug>`，话题 `/t/<id>`（论坛按话题 id 解析，例如 `/t/t84`；`topic-84` 这类 slug 打不开）。
-- 控制台 `externalUrl("admin", "/console")`：生产与预发布都是本域名下的 `/console`（每个环境只有一个域名，管理端按路径进入），本机开发为 `/sites/admin/console`。意见箱是站内 `/feedback`。
+- 控制台 `externalUrl("admin", "/console")`：生产与预发布都是本域名下的 `/console`（每个环境只有一个域名，管理端按路径进入），本机开发为 `/sites/admin/console`。意见箱是桌面窗口，分享出去的地址是站内 `/feedback`。
 - 代码仓库是站点配置 `urls.gitlab`（现在是 `https://git.yangtzeu.work/geek`），公开项目列表读 `GET /api/public/gitlab/projects`；部门读 `GET /api/public/departments`。原来随构建发布的 `public/portal/repos.json` 仓库快照与 GitHub 天际线（`lib/skyline.ts`）在 #275 删除。
 - 论坛最新在生产官网拿不到实时接口（论坛的本地状态接口只在开发时存在），因此随构建发布静态快照 `public/portal/forum-latest.json`。界面上不写「快照」「示意」这类给开发者看的说明（`tests/web/portal-os.test.ts` 扫描拦截），数字只写数据里真有的（话题数、用户数）。论坛快照只收录已在仓库里公开编辑过的话题（`app/forum/content/curation.json` 的 `topics`），字段白名单为 id、标题、分类、颜色、回复数、浏览数、时间，**不带作者或任何用户名**：论坛私有投影里的用户名含真实姓名，不得进入公开官网包。更新快照 = 替换这个文件并跑 `tests/web/portal-snapshots.test.ts`（它校验字段白名单与话题 id）。
 

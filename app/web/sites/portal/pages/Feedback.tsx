@@ -1,5 +1,6 @@
 // 官网「意见箱」：匿名向组织提建议 / 报 bug，旁边列出该组织公开的近期反馈。
-// 外壳是 ../components/PageShell.tsx；准入同其它公开表单（PoW + 蜜罐 + 可选 Turnstile）。
+// 桌面上的「意见箱」是 YUGC OS 里的窗口（#275，components/os/Windows.tsx 按需加载 FeedbackBox）；/feedback 和
+// /feedback/:org 两个地址留给分享出去的链接，外壳是 ../components/PageShell.tsx。准入同其它公开表单（PoW + 蜜罐 + 可选 Turnstile）。
 // 分类只有几项，用单选按钮组（../components/ChoiceChips.tsx）而不是原生下拉框。
 import TurnstileWidget from "@shared/ui/TurnstileWidget";
 import { useCallback, useEffect, useState } from "react";
@@ -20,7 +21,24 @@ const SITE_ORG = appConfig.urls.githubOrg.split("/").filter(Boolean).pop() ?? ""
 /** `GET /api/feedback/public` 下发的字段（正文已截到前 280 字）。 */
 type PublicFeedback = { id: number; category: string | null; content: string; status: string; reply: string | null; created_at: number };
 
+const LEAD = "对官网、论坛或极客班有意见，写在这里，不用登录。社区部会在控制台里看到，回复会公开显示在「最近的意见」里。";
+
 export default function Feedback() {
+  return (
+    <PageShell path="~/yugc/feedback">
+      <header className="pt-pagehead">
+        <div>
+          <h1>意见箱</h1>
+          <p>{LEAD}</p>
+        </div>
+      </header>
+      <FeedbackBox />
+    </PageShell>
+  );
+}
+
+/** 表单和「最近的意见」：/feedback 页面套一层窗口样式的卡片，桌面窗口里（inWindow）本身就是窗口，不再套 */
+export function FeedbackBox({ inWindow = false }: { inWindow?: boolean }) {
   const [form, setForm] = useState({ category: "建议", content: "", contact: "", website: "" });
   const [org, setOrg] = useState(SITE_ORG);
   const [err, setErr] = useState<string | null>(null);
@@ -100,155 +118,155 @@ export default function Feedback() {
     }
   };
 
-  return (
-    <PageShell path="~/yugc/feedback">
-      <header className="pt-pagehead">
-        <div>
-          <h1>意见箱</h1>
-          <p>对官网、论坛或极客班有意见，写在这里，不用登录。社区部会在控制台里看到，回复会公开显示在「最近的意见」里。</p>
-        </div>
-      </header>
-
-      <div className="pt-feedback">
-        <WindowCard path="feedback.form" badge={done ? "已提交" : undefined}>
-          {done ? (
-            <div className="pt-form" role="status" aria-live="polite">
-              <p className="pt-alert is-success">
-                <Icon name="checkbox-circle-line" size={16} /> {done}
-              </p>
-              <div className="pt-form-actions">
-                <button type="button" className="pt-btn" onClick={() => setDone(null)}>
-                  再写一条
-                </button>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={submit} className="pt-form">
-              <div className="pt-field">
-                <label htmlFor="fb-org">发往的 GitHub 组织</label>
-                <input id="fb-org" className="pt-input is-mono" value={org} readOnly aria-readonly="true" aria-describedby="fb-org-hint" />
-                <p className="pt-hint" id="fb-org-hint">
-                  意见箱只收本组织的意见，这里改不了。
-                </p>
-              </div>
-
-              <div className="pt-field">
-                <span className="pt-field-label" id="fb-category-label">
-                  分类
-                </span>
-                {meta === "failed" || meta === "retrying" ? (
-                  <>
-                    <p className="pt-alert is-error" role="alert">
-                      <Icon name="error-warning-line" size={16} /> 没读到分类和发往的组织，暂时不能提交。点「重新读取」再试，已经写的内容不会丢。
-                    </p>
-                    <div className="pt-form-actions">
-                      <button
-                        type="button"
-                        className="pt-btn"
-                        disabled={meta === "retrying"}
-                        onClick={() => {
-                          setMeta("retrying");
-                          loadMeta();
-                        }}
-                      >
-                        {meta === "retrying" ? "正在读取…" : "重新读取"}
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <ChoiceChips name="category" labelledBy="fb-category-label" value={form.category} options={categories} onChange={(category) => setForm({ ...form, category })} />
-                )}
-              </div>
-
-              <div className="pt-field">
-                <label htmlFor="fb-content">想说什么</label>
-                <textarea
-                  id="fb-content"
-                  className="pt-input pt-textarea"
-                  required
-                  minLength={5}
-                  maxLength={5000}
-                  placeholder="比如：哪个页面、做了什么、看到了什么、你觉得应该怎样。"
-                  aria-describedby="fb-content-count"
-                  value={form.content}
-                  onChange={(e) => setForm({ ...form, content: e.target.value })}
-                />
-                <p className="pt-hint" id="fb-content-count">
-                  <span className="pt-num">{form.content.length}</span> / 5000 字，至少 5 字。内容和回复会公开显示，别写隐私信息。
-                </p>
-              </div>
-
-              <div className="pt-field">
-                <label htmlFor="fb-contact">联系方式（选填，不公开）</label>
-                <input id="fb-contact" className="pt-input" placeholder="邮箱、GitHub 用户名或微信" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
-              </div>
-
-              {/* 蜜罐字段：真人看不见也不会填，机器人会填。 */}
-              <div className="pt-trap" aria-hidden="true">
-                <label>
-                  请勿填写：
-                  <input tabIndex={-1} autoComplete="off" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
-                </label>
-              </div>
-
-              <TurnstileWidget siteKey={siteKey} onToken={setTsToken} resetKey={captchaEpoch} />
-              {err && (
-                <p className="pt-alert is-error" role="alert">
-                  <Icon name="error-warning-line" size={16} /> {err}
-                </p>
-              )}
-
-              <div className="pt-form-actions">
-                <button type="submit" className="pt-btn is-primary" disabled={Boolean(busy) || meta !== "ready" || form.content.length < 5 || (!!siteKey && !tsToken)}>
-                  <Icon name="send-plane-2-line" size={16} />
-                  {busy === "pow" ? "正在做防刷验证…" : busy === "submit" ? "正在提交…" : "提交意见"}
-                </button>
-                {busy === "pow" && (
-                  <span className="pt-hint">
-                    浏览器在算一道防刷题，一两秒就好（已试 <span className="pt-num">{Math.round(powTries / 1000)}k</span> 次）
-                  </span>
-                )}
-              </div>
-            </form>
-          )}
-        </WindowCard>
-
-        <aside className="pt-feed-side" aria-labelledby="fb-recent-title">
-          <h2 className="pt-side-title" id="fb-recent-title">
-            最近的意见
-          </h2>
-          {recentFailed ? (
-            <div className="pt-feed-empty">
-              <Icon name="error-warning-line" size={24} />
-              <p>没读到「{org}」的公开意见，稍后刷新试试。</p>
-            </div>
-          ) : recent.length === 0 ? (
-            <div className="pt-feed-empty">
-              <Icon name="inbox-line" size={24} />
-              <p>{org} 还没有公开的意见。</p>
-            </div>
-          ) : (
-            <ul>
-              {recent.map((r) => (
-                <li key={r.id} className="pt-feed-item">
-                  <div className="pt-feed-meta">
-                    <span className="pt-tag">{r.category ?? "其他"}</span>
-                    <StatusTag s={r.status} />
-                    <span className="pt-feed-time">{fmtRelative(r.created_at)}</span>
-                  </div>
-                  <p>{r.content}</p>
-                  {r.reply && (
-                    <p className="pt-feed-reply">
-                      <strong>回复</strong>：{r.reply}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
+  const body = done ? (
+    <div className="pt-form" role="status" aria-live="polite">
+      <p className="pt-alert is-success">
+        <Icon name="checkbox-circle-line" size={16} /> {done}
+      </p>
+      <div className="pt-form-actions">
+        <button type="button" className="pt-btn" onClick={() => setDone(null)}>
+          再写一条
+        </button>
       </div>
-    </PageShell>
+    </div>
+  ) : (
+    <form onSubmit={submit} className="pt-form">
+      <div className="pt-field">
+        <label htmlFor="fb-org">发往的 GitHub 组织</label>
+        <input id="fb-org" className="pt-input is-mono" value={org} readOnly aria-readonly="true" aria-describedby="fb-org-hint" />
+        <p className="pt-hint" id="fb-org-hint">
+          意见箱只收本组织的意见，这里改不了。
+        </p>
+      </div>
+
+      <div className="pt-field">
+        <span className="pt-field-label" id="fb-category-label">
+          分类
+        </span>
+        {meta === "failed" || meta === "retrying" ? (
+          <>
+            <p className="pt-alert is-error" role="alert">
+              <Icon name="error-warning-line" size={16} /> 没读到分类和发往的组织，暂时不能提交。点「重新读取」再试，已经写的内容不会丢。
+            </p>
+            <div className="pt-form-actions">
+              <button
+                type="button"
+                className="pt-btn"
+                disabled={meta === "retrying"}
+                onClick={() => {
+                  setMeta("retrying");
+                  loadMeta();
+                }}
+              >
+                {meta === "retrying" ? "正在读取…" : "重新读取"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <ChoiceChips name="category" labelledBy="fb-category-label" value={form.category} options={categories} onChange={(category) => setForm({ ...form, category })} />
+        )}
+      </div>
+
+      <div className="pt-field">
+        <label htmlFor="fb-content">想说什么</label>
+        <textarea
+          id="fb-content"
+          className="pt-input pt-textarea"
+          required
+          minLength={5}
+          maxLength={5000}
+          placeholder="比如：哪个页面、做了什么、看到了什么、你觉得应该怎样。"
+          aria-describedby="fb-content-count"
+          value={form.content}
+          onChange={(e) => setForm({ ...form, content: e.target.value })}
+        />
+        <p className="pt-hint" id="fb-content-count">
+          <span className="pt-num">{form.content.length}</span> / 5000 字，至少 5 字。内容和回复会公开显示，别写隐私信息。
+        </p>
+      </div>
+
+      <div className="pt-field">
+        <label htmlFor="fb-contact">联系方式（选填，不公开）</label>
+        <input id="fb-contact" className="pt-input" placeholder="邮箱、GitHub 用户名或微信" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+      </div>
+
+      {/* 蜜罐字段：真人看不见也不会填，机器人会填。 */}
+      <div className="pt-trap" aria-hidden="true">
+        <label>
+          请勿填写：
+          <input tabIndex={-1} autoComplete="off" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+        </label>
+      </div>
+
+      <TurnstileWidget siteKey={siteKey} onToken={setTsToken} resetKey={captchaEpoch} />
+      {err && (
+        <p className="pt-alert is-error" role="alert">
+          <Icon name="error-warning-line" size={16} /> {err}
+        </p>
+      )}
+
+      <div className="pt-form-actions">
+        <button type="submit" className="pt-btn is-primary" disabled={Boolean(busy) || meta !== "ready" || form.content.length < 5 || (!!siteKey && !tsToken)}>
+          <Icon name="send-plane-2-line" size={16} />
+          {busy === "pow" ? "正在做防刷验证…" : busy === "submit" ? "正在提交…" : "提交意见"}
+        </button>
+        {busy === "pow" && (
+          <span className="pt-hint">
+            浏览器在算一道防刷题，一两秒就好（已试 <span className="pt-num">{Math.round(powTries / 1000)}k</span> 次）
+          </span>
+        )}
+      </div>
+    </form>
+  );
+
+  return (
+    <div className={inWindow ? "pt-feedback is-window" : "pt-feedback"}>
+      {inWindow ? (
+        <section className="pt-feedback-form" aria-label="写意见">
+          <p className="pt-feedback-lead">{LEAD}</p>
+          {body}
+        </section>
+      ) : (
+        <WindowCard path="feedback.form" badge={done ? "已提交" : undefined}>
+          {body}
+        </WindowCard>
+      )}
+
+      <aside className="pt-feed-side" aria-labelledby="fb-recent-title">
+        <h2 className="pt-side-title" id="fb-recent-title">
+          最近的意见
+        </h2>
+        {recentFailed ? (
+          <div className="pt-feed-empty">
+            <Icon name="error-warning-line" size={24} />
+            <p>没读到「{org}」的公开意见，稍后刷新试试。</p>
+          </div>
+        ) : recent.length === 0 ? (
+          <div className="pt-feed-empty">
+            <Icon name="inbox-line" size={24} />
+            <p>{org} 还没有公开的意见。</p>
+          </div>
+        ) : (
+          <ul>
+            {recent.map((r) => (
+              <li key={r.id} className="pt-feed-item">
+                <div className="pt-feed-meta">
+                  <span className="pt-tag">{r.category ?? "其他"}</span>
+                  <StatusTag s={r.status} />
+                  <span className="pt-feed-time">{fmtRelative(r.created_at)}</span>
+                </div>
+                <p>{r.content}</p>
+                {r.reply && (
+                  <p className="pt-feed-reply">
+                    <strong>回复</strong>：{r.reply}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </aside>
+    </div>
   );
 }
 

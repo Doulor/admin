@@ -79,13 +79,13 @@ describe("YUGC OS 应用与启动器", () => {
     expect(new Set(OS_APPS.map((app) => app.id)).size).toBe(OS_APPS.length);
   });
 
-  it("入口指向：加入我们进 /join-us 场景，论坛直达（#185），代码仓库在桌面开窗口（#275），意见箱 /feedback，控制台 /console", () => {
+  it("入口指向：加入我们进 /join-us 场景，论坛直达（#185），代码仓库和意见箱在桌面开窗口（#275），控制台 /console", () => {
     const open = Object.fromEntries(OS_APPS.map((app) => [app.id, app.open]));
     expect(open.join).toEqual({ kind: "scene", path: "/join-us" });
     expect(open.forum).toEqual({ kind: "site", link: "forumHome" });
     expect(open.gitlab).toEqual({ kind: "window" });
     expect(open.github).toBeUndefined();
-    expect(open.feedback).toEqual({ kind: "route", path: "/feedback" });
+    expect(open.feedback).toEqual({ kind: "window" });
     expect(open.console).toEqual({ kind: "site", link: "console" });
     // 没有哪个应用再经过 /forum-3d、/github 场景页
     expect(JSON.stringify(OS_APPS)).not.toMatch(/forum-3d|"\/github"/);

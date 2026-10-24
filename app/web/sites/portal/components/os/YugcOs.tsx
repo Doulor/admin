@@ -149,7 +149,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, [phoneWallpaper, apps.length, loaded, atHome]);
-  const frontName = front ? { about: "关于极客班", org: "组织架构", competitions: "比赛", terminal: "终端", "forum-feed": "论坛", gitlab: "代码仓库" }[front.id] : "桌面";
+  const frontName = front ? { about: "关于极客班", org: "组织架构", competitions: "比赛", terminal: "终端", "forum-feed": "论坛", gitlab: "代码仓库", feedback: "意见箱" }[front.id] : "桌面";
   useEffect(() => {
     if (!homeFocusNeeded.current || front) return;
     homeFocusNeeded.current = false;
@@ -195,8 +195,6 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
       switch (app.open.kind) {
         case "window":
           return openWindow(app.id as WindowId);
-        case "route":
-          return navigate(app.open.path);
         case "site": {
           // 点下去当场整页跳走，不播图标飞行。不用再记「回来直接进桌面」——桌面现在是默认状态，刷新或后退回首页照样直接进桌面
           // （pages/Home.tsx 按 yugc:boot-day 判断，不读路由 state）。

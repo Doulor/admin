@@ -454,6 +454,15 @@ a.pt-term-key:hover { text-decoration: underline; }
 .is-phone .pt-orgc-depts { grid-template-columns: minmax(0, 1fr); }
 .is-phone .pt-orgc-note { align-items: start; text-align: left; }
 .is-phone .pt-repos-list time { display: none; }
+
+/* 意见箱窗口（#275）：表单和「最近的意见」并排，表单控件换成窗口的配色；表单本身的样式在 pages.css，跟着窗口内容一起加载 */
+.pt-feedback.is-window { gap: 20px; }
+.pt-feedback-lead { margin-bottom: 14px; font-size: 13.5px; color: var(--os-ink-soft); }
+.pt-feedback.is-window :is(.pt-feed-item, .pt-feed-empty) { border-color: rgb(58 118 214 / 18%); border-radius: var(--os-radius-card); background: rgb(255 255 255 / 70%); }
+.pt-feedback.is-window .pt-input { border-color: rgb(58 118 214 / 22%); background: rgb(255 255 255 / 85%); }
+.pt-feedback.is-window .pt-input:focus { border-color: var(--os-accent); box-shadow: 0 0 0 4px rgb(58 118 214 / 14%); }
+.pt-feedback.is-window .pt-choice input:checked + span { border-color: var(--os-accent); background: rgb(58 118 214 / 12%); color: var(--os-accent); }
+.is-phone .pt-feedback.is-window { grid-template-columns: minmax(0, 1fr); }
 .is-phone .pt-feedwin-row { grid-template-columns: 8px minmax(0, 1fr) auto; min-height: 44px; }
 .is-phone .pt-feedwin-row .pt-feedwin-num, .is-phone .pt-feedwin-row .pt-feedwin-at { display: none; }
 .is-phone .pt-win-body:has(.pt-term) { display: flex; padding: 0; overflow: hidden; }

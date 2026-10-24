@@ -98,6 +98,40 @@ it("Dock、桌面图标、便签：论坛当前标签页直达论坛首页，点
   expect(where()).toBe("/");
 });
 
+it("意见箱在桌面上开窗口（#275）：Dock、桌面图标、⌘K 都打开同一个窗口，里面是 /feedback 同一份表单，路由不动", async () => {
+  localStorage.setItem("yugc:dev-data-source", "live");
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    const body = url.startsWith("/api/feedback/categories") ? { categories: ["建议", "Bug"], pow_difficulty: 0, org: "geek" }
+      : url.startsWith("/api/feedback/public") ? { items: [] }
+        : url === "/api/public/config" ? { turnstile_site_key: null, pow_difficulty: 0 }
+          : { signed_in: false };
+    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  }));
+  const { container, where } = renderDesktop();
+  const boxes = () => screen.queryAllByRole("dialog", { name: "意见箱" });
+  const entries: Array<[string, () => void]> = [
+    ["Dock", () => fireEvent.click(dock().getByRole("button", { name: "意见箱" }))],
+    ["桌面图标", () => fireEvent.doubleClick(container.querySelector<HTMLElement>('.pt-icons [data-cta="feedback"]')!)],
+    ["⌘K", () => {
+      fireEvent.click(screen.getByRole("button", { name: /搜索/ }));
+      const input = screen.getByRole("combobox");
+      fireEvent.change(input, { target: { value: "意见" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+    }],
+  ];
+  for (const [name, open] of entries) {
+    open();
+    expect(boxes(), name).toHaveLength(1);
+    const win = within(boxes()[0]);
+    expect(await win.findByLabelText("想说什么"), name).toBeTruthy();
+    expect(await win.findByRole("radio", { name: "Bug" }), name).toBeTruthy();
+    expect((win.getByLabelText("发往的 GitHub 组织") as HTMLInputElement).value, name).toBe("geek");
+    expect(where(), name).toBe("/");
+    fireEvent.click(win.getByRole("button", { name: "关闭" }));
+    expect(boxes(), name).toHaveLength(0);
+  }
+});
+
 it("代码仓库在桌面上开窗口：Dock、桌面图标、3 键、菜单栏「前往」、便签、⌘K、终端都打开同一个窗口，不离开官网", async () => {
   // jsdom 没有 scrollTo（终端每多一行滚到底）
   Element.prototype.scrollTo ??= () => undefined;
