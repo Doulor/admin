@@ -260,6 +260,32 @@ describe('表情回应 PUT/DELETE（#276 CONTRACT §4）', () => {
     expect(blocked.json()).toMatchObject({ error: 'rate_limited', bucket: 'forum.react.hourly' });
     expect(blocked.json().retry_after).toBeGreaterThan(0);
   });
+
+  it('同一个人对同一条帖子重复加同一个表情：幂等，count 不会往上累加（forum-store.ts 的 INSERT OR IGNORE）', async () => {
+    const s = await setup();
+    const url = '/api/forum/posts/body-73/reactions/yugc-wave';
+    const first = await s.call('PUT', url, 'mem');
+    expect(first.json().reactions).toEqual([expect.objectContaining({ stickerId: 'yugc-wave', count: 1, mine: true })]);
+    const second = await s.call('PUT', url, 'mem');
+    expect(second.statusCode).toBe(200);
+    expect(second.json().reactions).toEqual([expect.objectContaining({ stickerId: 'yugc-wave', count: 1, mine: true })]);
+    // 换一个人加同一个表情才真的涨到 2；两次重复请求没有把本来就在的那一行变成两行。
+    expect((await s.call('PUT', url, 'mem2')).json().reactions).toEqual([expect.objectContaining({ stickerId: 'yugc-wave', count: 2 })]);
+  });
+
+  it('表情停用之后不能再用来回应：和不存在的表情同一个错误（400 unknown_sticker），已有的回应不受影响', async () => {
+    const s = await setup();
+    const url = '/api/forum/posts/body-73/reactions/yugc-wave';
+    expect((await s.call('PUT', url, 'mem')).statusCode).toBe(200);
+    s.db.prepare("UPDATE forum_stickers SET enabled = 0 WHERE id = 'yugc-wave'").run();
+    const blocked = await s.call('PUT', '/api/forum/posts/body-73/reactions/yugc-wave', 'mem2');
+    expect(blocked.statusCode).toBe(400);
+    expect(blocked.json().error).toBe('unknown_sticker');
+    // 停用前已经加上的那条回应还在：停用不回溯删除历史数据，只挡新的加。
+    const state = await s.call('GET', `/api/forum/topics/t73/posts`, 'mem');
+    const post = state.json().posts.find((item: { id: string }) => item.id === 'body-73');
+    expect(post.reactions).toEqual([expect.objectContaining({ stickerId: 'yugc-wave', count: 1 })]);
+  });
 });
 
 describe('上传图片 PUT/GET /api/forum/uploads（#276 CONTRACT §5）', () => {
@@ -299,6 +325,21 @@ describe('上传图片 PUT/GET /api/forum/uploads（#276 CONTRACT §5）', () =>
     expect(served.headers['content-type']).toBe('image/webp');
 
     expect((await s.app.inject(`/api/forum/uploads/${'0'.repeat(64)}.webp`)).statusCode).toBe(404);
+  });
+
+  it('接受 PNG、JPEG、WebP 三种格式，都重新编码成 webp 存下来', async () => {
+    const s = await setup();
+    const image = sharp({ create: { width: 10, height: 10, channels: 3, background: '#aabbcc' } });
+    const cases = [
+      ['image/png', await image.png().toBuffer()],
+      ['image/jpeg', await image.jpeg().toBuffer()],
+      ['image/webp', await image.webp().toBuffer()],
+    ] as const;
+    for (const [type, payload] of cases) {
+      const res = await upload(s, payload, 'mem', type);
+      expect(res.statusCode, type).toBe(200);
+      expect(res.json().url, type).toMatch(/\.webp$/);
+    }
   });
 
   it('请求体超过 5MB：413 upload_too_large', async () => {
@@ -440,5 +481,31 @@ describe('控制台论坛管理（#276 CONTRACT §8）：权限矩阵与 step-up
     expect(created.json()).toMatchObject({ id: 'yugc-test-new', shortcode: 'yugc-test-new', label: '测试表情' });
     const list = await s.call('GET', '/api/forum/stickers');
     expect(list.json().packs.find((p: { id: string }) => p.id === 'yugc').stickers.some((st: { id: string }) => st.id === 'yugc-test-new')).toBe(true);
+  });
+
+  it('新增表情的图片有自己的上限与格式：超过 2MB 回 413 sticker_too_large，不支持的类型回 415；PNG/JPEG/WebP 都能传', async () => {
+    const s = await consoleSetup();
+    grantPermNode(s.app, accountIdOf(s.app, 'mod'), 'forum.sticker.manage');
+    const uploadSticker = (shortcode: string, payload: Buffer, type: string) => s.app.inject({
+      method: 'PUT', url: `/api/console/forum/sticker-packs/yugc/stickers?shortcode=${shortcode}&label=测试表情`,
+      payload, headers: { ...s.as('mod'), 'content-type': type },
+    });
+
+    const oversized = Buffer.alloc(2 * 1024 * 1024 + 1);
+    const tooBig = await uploadSticker('yugc-too-big', oversized, 'image/png');
+    expect(tooBig.statusCode).toBe(413);
+    expect(tooBig.json()).toMatchObject({ error: 'sticker_too_large' });
+
+    const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>');
+    const badType = await uploadSticker('yugc-bad-type', svg, 'image/svg+xml');
+    expect(badType.statusCode).toBe(415);
+    expect(badType.json().error).toBe('unsupported_media_type');
+
+    for (const [ext, type] of [['png', 'image/png'], ['jpeg', 'image/jpeg'], ['webp', 'image/webp']] as const) {
+      const image = sharp({ create: { width: 10, height: 10, channels: 3, background: '#112233' } });
+      const payload = ext === 'png' ? await image.png().toBuffer() : ext === 'jpeg' ? await image.jpeg().toBuffer() : await image.webp().toBuffer();
+      const ok = await uploadSticker(`yugc-new-${ext}`, payload, type);
+      expect(ok.statusCode, ext).toBe(201);
+    }
   });
 });

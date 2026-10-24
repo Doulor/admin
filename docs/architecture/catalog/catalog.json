@@ -14476,7 +14476,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "5ba98642143a284cdc9cacc04240887dca879bd8fee7a64e9be3f1f5cc85a8cd",
+    "fingerprint": "703d2c41771667997b91c8e90216c150c8572645ac3ec92390c32bfdb4b027d6",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -16420,7 +16420,7 @@
       },
       {
         "path": "tests/server/forum-v2-endpoints.test.ts",
-        "sha256": "dba3db500798a63f306f86580ced178a8d3065e0f6ee3d8ac6a0708a3bdd6086"
+        "sha256": "6913f8fb094c34521434de551a8eaba3695680346e10b32c3d792edc12cb86cb"
       },
       {
         "path": "tests/server/forum.test.ts",
