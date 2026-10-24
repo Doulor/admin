@@ -8,12 +8,16 @@
 //   node scripts/contest-site.mjs check <文件.zip> [--competition <比赛 id>]
 //        只校验。--competition 给了时，yzgc-site.json 里的 competition_id 必须等于它。
 //   node scripts/contest-site.mjs dev <构建产物目录> [--port 5196] [--competition <比赛 id>]
-//                                     [--variant individual|team] [--prizes|--no-prizes]
+//                                     [--variant individual|team] [--prizes|--no-prizes] [--api <https 源>]
 //        本地起一个不依赖后端和数据库的预览服务：静态文件原样服务，`/api/public/competitions/*` 和
 //        `/sdk/competition/v1.js` 用带真实感的示例数据应答（人员、队伍、奖励、天梯、动态、统计一次给齐），
 //        开发者 `pnpm --filter web build:contest` 之后直接 `dev dist/site` 就能看到最终效果，不用先建比赛、
 //        报名、发分。`--variant team` 给团队赛的示例（含一支还在招募的队），默认 `individual`；
 //        `--prizes` 给示例奖项，默认不给（和真实比赛一样，奖项可选）。
+//        `--api <源>`（例如 `--api https://prev.yangtzeu.work`）给了之后，这几个公开接口改成原样转发到
+//        那个源上的真实比赛数据，不再用示例数据应答；只转发 GET，只转发这几条公开只读路径，不转发浏览器带来的
+//        cookie / 鉴权头，上游的 set-cookie 也不会带回来。只接受 https:// 源，或本机的
+//        http://127.0.0.1 / http://localhost。见 docs/services/server/contest-site-quickstart.md「本地对接线上数据」。
 //
 // 目录里的符号链接、以 . 开头的文件都算不通过，不会被悄悄跳过。需要 Node 22.18 以上（直接加载 .ts）。
 import { createServer } from "node:http";
@@ -26,7 +30,23 @@ import { DEFAULT_GRADE_FACTORS, GRADE_KEYS, GRADE_KEY_LABELS, scoringView } from
 
 const USAGE = "用法：node scripts/contest-site.mjs pack <目录> [--out <文件.zip>] [--competition <比赛 id>]\n"
   + "      node scripts/contest-site.mjs check <文件.zip> [--competition <比赛 id>]\n"
-  + "      node scripts/contest-site.mjs dev <目录> [--port 5196] [--competition <比赛 id>] [--variant individual|team] [--prizes|--no-prizes]";
+  + "      node scripts/contest-site.mjs dev <目录> [--port 5196] [--competition <比赛 id>] [--variant individual|team] [--prizes|--no-prizes] [--api <https 源>]";
+
+/**
+ * `--api` 只接受 https:// 源，或本机的 http://127.0.0.1 / http://localhost（含端口）；别的一律拒绝，
+ * 不把这个本地预览进程变成任意地址的开放代理。
+ */
+export function isAllowedApiOrigin(origin) {
+  let url;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (url.pathname !== "/" && url.pathname !== "" || url.search || url.hash) return false;
+  if (url.protocol === "https:") return true;
+  return url.protocol === "http:" && (url.hostname === "127.0.0.1" || url.hostname === "localhost");
+}
 
 /** 收集目录下的全部文件；符号链接不跟进去，记成一条问题（和服务端的校验同一句话）。 */
 export function collectFiles(root) {
@@ -107,7 +127,7 @@ function devSampleSnapshot(competitionId, variant, withPrizes) {
     id: competitionId, name: "示例赛·开发预览", kind: "internal",
     start_at: now - 3 * 86_400_000, end_at: now + 27 * 86_400_000, signup_deadline: now + 5 * 86_400_000,
     url: null, description: "这是 contest-site.mjs dev 生成的示例数据，不连真实后端。",
-    status: "ongoing",
+    status: "ongoing", planning: false,
     signup: { enabled: true, participation: variant, team_min: teamMin, team_max: teamMax, scoring: "contribution" },
     site_url: `/c/sample/`, app_url: `/?open=competitions&competition=${encodeURIComponent(competitionId)}`,
     prizes: withPrizes ? DEV_SAMPLE_PRIZES : [],
@@ -127,15 +147,44 @@ function devSampleSnapshot(competitionId, variant, withPrizes) {
 
 const DEV_API_PARTS = new Set(["", "leaderboard", "feed", "stats", "snapshot", "participants", "teams"]);
 
-/** `/api/public/competitions/:id[/leaderboard|feed|stats|snapshot|participants|teams]`：任何 :id 都应答同一份示例数据，方便站点在本机用任意比赛 id 预览。 */
-function devApiResponse(pathname, snapshot) {
+/**
+ * `/api/public/competitions/:id[/leaderboard|feed|stats|snapshot|participants|teams]` 的路径形状，和
+ * app/web/shared/competition-sdk 实际会调的那几条一一对应。认不出的路径给 null；示例数据应答和 `--api`
+ * 转发都按这同一份白名单放行，不是各自写一套判断。
+ */
+export function publicCompetitionApiPart(pathname) {
   const match = /^\/api\/public\/competitions\/[^/]+(?:\/([a-z]*))?$/.exec(pathname);
   if (!match) return null;
   const part = match[1] ?? "";
-  if (!DEV_API_PARTS.has(part)) return null;
+  return DEV_API_PARTS.has(part) ? part : null;
+}
+
+/** 任何 :id 都应答同一份示例数据，方便站点在本机用任意比赛 id 预览。 */
+function devApiResponse(pathname, snapshot) {
+  const part = publicCompetitionApiPart(pathname);
+  if (part === null) return null;
   if (part === "") return snapshot.competition;
   if (part === "snapshot") return { competition: snapshot.competition, leaderboard: snapshot.leaderboard, feed: snapshot.feed, stats: snapshot.stats };
   return snapshot[part];
+}
+
+/** 转发给真实后端时不带回的响应头：这些公开接口本来就不该读写会话，上游真的带了也不转给站点。 */
+const STRIP_PROXY_RESPONSE_HEADERS = new Set(["set-cookie"]);
+
+/**
+ * 原样转发到真实源：不带浏览器传来的任何请求头（自然也就不转发 cookie / 鉴权头），只发一个干净的 GET；
+ * 上游的 set-cookie 也会被摘掉。连不上、超时都当成网关失败，不装成示例数据的形状回退。
+ */
+async function proxyPublicCompetition(apiOrigin, pathname, search) {
+  const response = await fetch(`${apiOrigin}${pathname}${search}`, { method: "GET", redirect: "follow" });
+  const headers = { "content-type": response.headers.get("content-type") ?? "application/json; charset=utf-8" };
+  const acao = response.headers.get("access-control-allow-origin");
+  if (acao) headers["access-control-allow-origin"] = acao;
+  for (const [key, value] of response.headers) {
+    if (STRIP_PROXY_RESPONSE_HEADERS.has(key.toLowerCase()) || key.toLowerCase() in headers) continue;
+    headers[key] = value;
+  }
+  return { status: response.status, headers, body: Buffer.from(await response.arrayBuffer()) };
 }
 
 /** 把目录里的一个相对路径安全地读出来；越界、不存在、扩展名不在站点包白名单里都算读不到（和生产的 readSiteFile 同一套判断）。 */
@@ -148,9 +197,10 @@ function readDevFile(root, rawPath) {
   return { data: readFileSync(full), contentType: siteContentType(path) };
 }
 
-function startDevServer(root, { port, competitionId, variant, withPrizes }) {
+function startDevServer(root, { port, competitionId, variant, withPrizes, api }) {
   const sdkPath = fileURLToPath(new URL("../app/web/shared/competition-sdk/index.ts", import.meta.url));
-  const snapshot = devSampleSnapshot(competitionId, variant, withPrizes);
+  // 转发模式下不需要示例数据；按需造一份就行，不用在转发时也算一遍。
+  const snapshot = api ? null : devSampleSnapshot(competitionId, variant, withPrizes);
   const server = createServer((req, res) => {
     try {
       const pathname = decodeURI((req.url ?? "/").split("?")[0]);
@@ -161,6 +211,27 @@ function startDevServer(root, { port, competitionId, variant, withPrizes }) {
         return;
       }
       if (pathname.startsWith("/api/public/competitions/")) {
+        if (api) {
+          if (req.method !== "GET" && req.method !== "HEAD") {
+            res.writeHead(405, { "content-type": "application/json" });
+            res.end(JSON.stringify({ error: "method_not_allowed", message: "转发到真实源只认 GET" }));
+            return;
+          }
+          if (publicCompetitionApiPart(pathname) === null) {
+            res.writeHead(404, { "content-type": "application/json" });
+            res.end(JSON.stringify({ error: "not_found", message: "转发只认比赛公开接口的几个固定路径" }));
+            return;
+          }
+          const search = req.url && req.url.includes("?") ? `?${req.url.split("?")[1]}` : "";
+          proxyPublicCompetition(api, pathname, search).then(result => {
+            res.writeHead(result.status, result.headers);
+            res.end(result.body);
+          }).catch(error => {
+            res.writeHead(502, { "content-type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({ error: "upstream_unreachable", message: error instanceof Error ? error.message : String(error) }));
+          });
+          return;
+        }
         const body = devApiResponse(pathname, snapshot);
         if (body === null) { res.writeHead(404, { "content-type": "application/json" }); res.end(JSON.stringify({ error: "not_found", message: "示例服务只认比赛公开接口的几个固定路径" })); return; }
         res.writeHead(200, { "content-type": "application/json; charset=utf-8", "access-control-allow-origin": "*" });
@@ -178,15 +249,16 @@ function startDevServer(root, { port, competitionId, variant, withPrizes }) {
   });
   server.listen(port, "127.0.0.1", () => {
     console.log(`预览已启动：http://127.0.0.1:${port}/`);
-    console.log(`示例数据：比赛 id ${competitionId}，${variant === "team" ? "团队赛（含一支还在招募的队）" : "个人赛"}，${withPrizes ? "带示例奖励" : "没有奖励（和真实比赛一样，奖项可选）"}`);
-    console.log("Ctrl+C 退出；这个服务不连后端和数据库，只用来看站点包最终效果。");
+    if (api) console.log(`公开接口转发到 ${api}（只转发 GET，不转发 cookie / 鉴权头，比赛 id 以站点自己调用的为准）`);
+    else console.log(`示例数据：比赛 id ${competitionId}，${variant === "team" ? "团队赛（含一支还在招募的队）" : "个人赛"}，${withPrizes ? "带示例奖励" : "没有奖励（和真实比赛一样，奖项可选）"}`);
+    console.log(api ? "Ctrl+C 退出；这个服务不连数据库，公开接口转发到真实源，别的静态文件仍是本地的。" : "Ctrl+C 退出；这个服务不连后端和数据库，只用来看站点包最终效果。");
   });
   return server;
 }
 
 function parse(argv) {
   const [command, target, ...rest] = argv;
-  const options = { out: null, competition: null, port: 5196, variant: "individual", withPrizes: false };
+  const options = { out: null, competition: null, port: 5196, variant: "individual", withPrizes: false, api: null };
   for (let i = 0; i < rest.length; i++) {
     if (rest[i] === "--out") options.out = rest[++i] ?? null;
     else if (rest[i] === "--competition") options.competition = rest[++i] ?? null;
@@ -194,11 +266,16 @@ function parse(argv) {
     else if (rest[i] === "--variant") options.variant = rest[++i] ?? null;
     else if (rest[i] === "--prizes") options.withPrizes = true;
     else if (rest[i] === "--no-prizes") options.withPrizes = false;
+    else if (rest[i] === "--api") options.api = rest[++i] ?? null;
     else throw new Error(`不认识的参数：${rest[i]}\n${USAGE}`);
   }
   if (!["pack", "check", "dev"].includes(command) || !target) throw new Error(USAGE);
   if (command === "dev" && !["individual", "team"].includes(options.variant)) throw new Error(`--variant 只能是 individual 或 team\n${USAGE}`);
   if (command === "dev" && (!Number.isInteger(options.port) || options.port <= 0)) throw new Error(`--port 要是正整数\n${USAGE}`);
+  if (command === "dev" && options.api !== null) {
+    if (!isAllowedApiOrigin(options.api)) throw new Error(`--api 只接受 https:// 源，或本机的 http://127.0.0.1 / http://localhost（不带路径）\n${USAGE}`);
+    options.api = options.api.replace(/\/+$/, "");
+  }
   return { command, target, ...options };
 }
 
@@ -214,7 +291,7 @@ function report(check) {
 }
 
 export function main(argv = process.argv.slice(2)) {
-  const { command, target, out, competition, port, variant, withPrizes } = parse(argv);
+  const { command, target, out, competition, port, variant, withPrizes, api } = parse(argv);
   const path = resolve(target);
   if (command === "pack") {
     if (!existsSync(path) || !statSync(path).isDirectory()) throw new Error(`${target} 不是目录`);
@@ -229,7 +306,7 @@ export function main(argv = process.argv.slice(2)) {
   if (command === "dev") {
     if (!existsSync(path) || !statSync(path).isDirectory()) throw new Error(`${target} 不是目录`);
     // 去掉结尾的 /，readDevFile 用 `${root}/` 判断越界
-    startDevServer(path.replace(/\/+$/, ""), { port, competitionId: competition ?? DEV_SAMPLE_COMPETITION_ID, variant, withPrizes });
+    startDevServer(path.replace(/\/+$/, ""), { port, competitionId: competition ?? DEV_SAMPLE_COMPETITION_ID, variant, withPrizes, api });
     return undefined; // 服务器在跑，进程不退出；main() 不替它决定退出码
   }
   if (!existsSync(path) || !statSync(path).isFile()) throw new Error(`${target} 不是文件`);

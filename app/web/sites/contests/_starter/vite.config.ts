@@ -17,8 +17,9 @@ function siteManifest(): Plugin {
 /**
  * 比赛官网起步模板（#278）：复制这份文件到新目录后不用改——真正要改的是 site.config.ts 和同目录的 package.json
  * 脚本路径。构建成相对路径（base "./"），托管在 /c/<slug>/ 或预览地址下都能用；产物在 dist/site，
- * `node scripts/contest-site.mjs pack` 再打成 zip。本机开发时 /api 转到本机 server（端口按需改成
- * `contest-site.mjs dev` 起的那个预览端口，不用真连后端时更快）。
+ * `node scripts/contest-site.mjs pack` 再打成 zip。本机开发时 /api 转到本机 server，默认端口 3000；
+ * 设了 `CONTEST_API` 环境变量就转到它（例如 `CONTEST_API=https://prev.yangtzeu.work pnpm dev`，对接线上真实数据，
+ * 见 docs/services/server/contest-site-quickstart.md「本地对接线上数据」）。
  */
 export default defineConfig({
   root: here,
@@ -28,7 +29,7 @@ export default defineConfig({
   plugins: [siteManifest()],
   server: {
     port: 5197,
-    proxy: { "/api": "http://127.0.0.1:3000" },
+    proxy: { "/api": process.env.CONTEST_API || "http://127.0.0.1:3000" },
   },
   build: {
     outDir: `${here}dist/site`,
