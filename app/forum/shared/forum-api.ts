@@ -22,10 +22,6 @@ export interface ForumViewer {
   kind: 'guest' | 'member'
   /** 服务端算好的 `forum.*` 能力，版务按钮只看它。 */
   capabilities: string[]
-  /** 分级可见等级（#276 CONTRACT §1）：`kind` 只分游客/成员两档，分不出「注册用户但不是成员」；游客恒为 `'public'`。 */
-  level: 'public' | 'registered' | 'member'
-  /** 持有的论坛写权限节点子集（#276，团队负责人追加）：发话题/回复/表情/传图/版务按钮显隐的参考，不是鉴权结果；游客恒为空数组。 */
-  nodes: string[]
 }
 
 export interface GuestPolicy {
@@ -375,7 +371,7 @@ function normalizePost(value: unknown): Post | null {
 function parseViewer(value: unknown): ForumViewer | null {
   if (!isRecord(value))
     return null
-  const { userId, kind, capabilities, level, nodes } = value
+  const { userId, kind, capabilities } = value
   if (userId !== null && typeof userId !== 'string')
     return null
   if (kind !== 'guest' && kind !== 'member')
@@ -385,17 +381,7 @@ function parseViewer(value: unknown): ForumViewer | null {
   // 游客没有论坛用户；成员一定有，两者对不上说明数据坏了。
   if ((kind === 'guest') !== (userId === null))
     return null
-  // #276（团队负责人追加）：level/nodes 给了就必须是合法形状，没给（旧回答）退回最保守的默认值——
-  // 看不到比公开更高的级别、没有任何写权限节点，不假装有权限。
-  if (level !== undefined && level !== 'public' && level !== 'registered' && level !== 'member')
-    return null
-  if (nodes !== undefined && (!Array.isArray(nodes) || !nodes.every(item => typeof item === 'string')))
-    return null
-  return {
-    userId, kind, capabilities: [...capabilities] as string[],
-    level: level ?? 'public',
-    nodes: nodes ? [...nodes] as string[] : [],
-  }
+  return { userId, kind, capabilities: [...capabilities] as string[] }
 }
 
 function parseGuestPolicy(value: unknown): GuestPolicy {
