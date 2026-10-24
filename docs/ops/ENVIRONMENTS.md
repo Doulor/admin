@@ -60,7 +60,6 @@
 | `MAIL_RESEND_API_KEY` | 密钥·留空，可选 | CI/CD 注入，可以不配 | 同左 |
 | `MAIL_ALLOWLIST` | 密钥·留空，可选 | `MAIL_RECIPIENTS=allowlist` 时才用 | 同左，现在不用 |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 密钥·留空，可选的一对 | 没配：登录页不出现 Google | 同左 |
-| `GH_APP_ID` / `GH_APP_PRIVATE_KEY` | 密钥·留空，可选的一对 | 没配：控制台的 GitHub 组织页面只在用 GitHub 登录时借本人令牌 | 同左 |
 | `OIDC_JWKS` | 密钥·留空，可选 | 没配：对外授权关闭，`/oidc/*` 一律 404 | 同左 |
 | `GITLAB_API_TOKEN` | 密钥·留空，`GITLAB_SYNC=on` 时必填 | `GITLAB_SYNC=on` 才用 | 同左，`on` 时必填 |
 
@@ -98,15 +97,12 @@
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google 登录的 OAuth 客户端（可选的一对；Google Cloud 里类型选「Web 应用」，已获授权的重定向 URI 填 `<origin>/auth/google/callback`） |
 | `OIDC_JWKS` | 对外授权的签名私钥（可选，#270）：在 server 容器里 `node app/server/dist/cli/oidc.js keygen` 生成的一行 base64（RSA 2048 的 JWK Set），环境密钥不收引号，不用 JSON 原文 |
 | `GITLAB_API_TOKEN` | 自建 GitLab 管理员的个人访问令牌（`api` 范围，#270）；`GITLAB_SYNC=on` 时必填，`off`、`dry-run` 可以留空 |
-| `GH_APP_ID` / `GH_APP_PRIVATE_KEY` | 服务器接 GitHub 用的 GitHub App（可选的一对，#262 第四期）：App 由 `CONSOLE_ORG` 的 owner 建并装到组织上，ID 是数字；私钥是 GitHub 生成的 RSA 私钥，整份 PEM 再 base64 成一行（`base64 < app.pem \| tr -d '\n'`）再存，因为环境密钥不收空白。配了 App 时 GitHub 登录只申请 `read:user user:email read:org` |
 
 Turnstile 两项是可选的一对（`scripts/deployment-environment.mjs` 的 `OPTIONAL_SECRET_PAIR`）：**都为空＝明确关闭**，渲染时写空值并提示；只填一项仍拒绝渲染；除 Turnstile 和下面的发信密钥外，其余密钥一律必填。关闭时服务端 `middleware/turnstile.ts` 不校验人机验证，公开的投递、反馈、邀请只靠工作量证明（`POW_DIFFICULTY`）、蜜罐字段与限流；遗留风险是批量脚本的成本只剩计算量，要开启时在 Cloudflare 建站点后把两项同时配进环境级 secrets 并重新部署。首次上线（2026-09-25）两个环境都关闭。
 
 发信的四项也都可以不配（同一脚本的 `MAIL_ALIYUN_SECRET_PAIR` 与 `OPTIONAL_SECRETS`，#148）。阿里云的 AccessKey ID 和 Secret 是一对，只填一项拒绝渲染；`MAIL_RESEND_API_KEY` 单独一项。server 先用阿里云发，失败再换 Resend；阿里云适配器还没写按封的回信地址（SingleSendMail 有 `ReplyAddress` 参数，没用真实发信试过，见 [mail](../services/server/mail.md)「已知限制」），所以 `MAIL_REPLY_TO` 不为空时信只交给 Resend，只配了阿里云时 server 按没有配置发信商处理、一封也不发，render 会提示。阿里云和 Resend 都没配时发信关闭：server 照常启动，投递和改状态照常成功，每封信在发信记录里记为「发信没有配置」，一封也不发，render 同样会提示。`MAIL_RECIPIENTS=allowlist` 时只给 `MAIL_ALLOWLIST` 里的地址发信（不分大小写），其余的信记为不在名单里、不发。两个环境现在都是 `all`：2026-09-27 14:20 要求「邮件不要做限制吧，不然我这边收不到邮件，没法测试。我们官方发的那些邮件，肯定必须发过去」，#169 去掉了「预发布只能是 `allowlist`」这条校验，预发布上投递、改状态的信都会发给投递人。改成 `allowlist` 而名单为空时一封也不发，render 会提示。名单里是真人的邮箱，属于个人信息，所以和密钥放在一起，不写进模板。渲染时名单只接受英文逗号隔开的邮箱，出错时报错里不带名单内容。2026-09-27 同意后，`preview` 环境配上了 `MAIL_ALIYUN_ACCESS_KEY_ID`、`MAIL_ALIYUN_ACCESS_KEY_SECRET`、`MAIL_RESEND_API_KEY`，`MAIL_ALLOWLIST` 里只有一个邮箱（#169 之后预发布是 `all`，这一项不起作用）。`production` 环境的发信密钥还没配，正式环境不发信。
 
 Google 登录的两项也是可选的一对（同一脚本的 `GOOGLE_SECRET_PAIR`，#262）：都为空时登录页不出现 Google，`/auth/google` 回 404，渲染时提示；只填一项拒绝渲染，server 启动也会拒绝。两个环境现在都没配。要开启时在 Google Cloud 为每个环境建一个 OAuth 客户端（Web 应用，重定向 URI 是本环境的 `<origin>/auth/google/callback`），授权页上要有隐私政策地址，然后把两项写进目标机的 `.env.<环境>`（或环境级 secrets）并重新部署。
-
-GitHub App 的两项也是可选的一对（`GITHUB_APP_SECRET_PAIR`，#262 第四期）：都为空时控制台的 GitHub 组织页面只在用 GitHub 登录时借本人的令牌读写，用邮箱、Google 登录的人看到「GitHub 还没接上」；只填一项拒绝渲染，server 启动也会拒绝，私钥不对、不是 RSA 时启动失败，错误信息不带私钥。两个环境现在都没配。要开启时由 `CONSOLE_ORG` 的 owner 在组织设置里建一个 GitHub App（不要回调地址和 webhook），按控制台要做的事给组织与仓库权限（成员、管理、内容、议题、PR），装到组织上，生成私钥；把 App ID 和一行 base64 的私钥写进目标机的 `.env.<环境>`（或环境级 secrets）并重新部署。配了之后谁能读写 GitHub 只看站内称号，见 [SECURITY](../architecture/SECURITY.md)「权限只认极客班账号」。
 
 对外授权与 GitLab 同步的两项（同一脚本的 `OIDC_GITLAB_SECRETS`，#270）：`OIDC_JWKS` 为空时对外授权关闭，`/oidc/*` 一律 404，渲染时提示，照常部署；`GITLAB_API_TOKEN` 只在 `GITLAB_SYNC=on` 时必填，缺了拒绝渲染，server 启动也会拒绝。`GITLAB_SYNC` 只能是 `off`、`dry-run`、`on`，`GITLAB_URL` 是不带尾斜杠的 https origin，`GITLAB_GROUP` 是 GitLab 的组路径，`pnpm check:environments` 核对。两个环境的 `.env` 现在都还没填这两项。GitLab 只有一台，正式站上线前接预发布（所有者 2026-10-23 选定），所以先在预发布按下面的顺序开；预发布的数据库从此不能清空重建，否则 GitLab 上的身份（`sub`）对不上；正式站上线后改接正式环境，按这个顺序：先把预发布的 `GITLAB_SYNC` 改成 `off`，再把预发布里 GitLab 的 `sub` 迁到正式库、改 GitLab 的 `issuer`，最后正式改 `on`，大家的 GitLab 账号不变；两边同时 `on` 时两份名单对不上，会反复封禁、解封同一批人。开启顺序：在目标机 server 容器里生成签名密钥写进 `.env.<环境>` 的 `OIDC_JWKS`、重新部署；再用同一个 CLI 登记 GitLab 客户端，client id 必须是 `gitlab`（同步按它的回调主机算 `sub`）；然后把 `GITLAB_SYNC` 改成 `on`、填 `GITLAB_API_TOKEN`、重新部署，看到第一轮对账成功（控制台 `client_registered` 为 `true`、没有 `last_error`）；最后才配 GitLab 的 omniauth。同步没开时成员离开不会被封禁，所以 GitLab 的统一登录不能先开（[对外授权与 GitLab 账号同步](../services/server/oidc.md)「客户端与密钥」「GitLab 一侧的配置」）。正式环境改 `GITLAB_SYNC=on` 要所有者先在预发布验收并批准，改之前先备份数据库。
 

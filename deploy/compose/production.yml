@@ -68,9 +68,6 @@ services:
       # Google 登录（#262）：可选的一对，都空时登录页不出现 Google；只填一项 server 启动失败。
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      # GitHub App（#262 第四期）：可选的一对，服务器用它接 CONSOLE_ORG；都空时只在 GitHub 登录时借本人令牌，只填一项 server 启动失败。
-      GH_APP_ID: ${GH_APP_ID:-}
-      GH_APP_PRIVATE_KEY: ${GH_APP_PRIVATE_KEY:-}
       # 对外授权（#270）：签名私钥，空时 /oidc/* 一律 404；填了读不出来 server 启动失败。
       OIDC_JWKS: ${OIDC_JWKS:-}
       # GitLab 账号同步（#270）：开关、地址、组是 env 文件里的可见值；管理员令牌是密钥，GITLAB_SYNC=on 而令牌空时 server 启动失败。
