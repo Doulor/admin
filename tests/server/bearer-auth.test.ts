@@ -64,9 +64,40 @@ describe('geek 命令行的 Bearer 鉴权（#277）', () => {
     const { app } = await setup();
     const sid = signIn(app, 'octocat', 4242);
     const token = await login(app, sid, 'openid profile forum apply competition repo');
-    const response = await app.inject({ url: '/api/identity/profile', headers: bearer(token) });
+    const response = await app.inject({ url: '/api/console/me', headers: bearer(token) });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ username: expect.any(String) });
+    expect(response.json()).toMatchObject({ account_id: accountIdOf(app, 'octocat') });
+    expect(response.json()).not.toHaveProperty('real_name');
+  });
+
+  it('令牌只能用命令行用到的接口：控制台、账号页、/auth/me 一律 cli_not_allowed', async () => {
+    const { app } = await setup();
+    const sid = signIn(app, 'octocat', 4242);
+    const token = await login(app, sid, 'openid profile forum apply competition repo');
+    const refused = [
+      { method: 'GET', url: '/auth/me' },
+      { method: 'GET', url: '/api/identity/me' },
+      { method: 'GET', url: '/api/identity/profile' },
+      { method: 'POST', url: '/api/identity/password', payload: { password: 'a-new-password-1' } },
+      { method: 'POST', url: '/api/identity/email/start', payload: { email: 'someone@example.test' } },
+      { method: 'GET', url: '/api/console/users' },
+      { method: 'PATCH', url: '/api/console/users/x', payload: { status: 'disabled' } },
+      { method: 'POST', url: '/api/public/feedback', payload: {} },
+    ] as const;
+    for (const request of refused) {
+      const response = await app.inject({ ...request, headers: { ...bearer(token), ...('payload' in request ? { 'content-type': 'application/json' } : {}) } });
+      expect({ url: request.url, status: response.statusCode, error: response.json().error }).toEqual({ url: request.url, status: 403, error: 'cli_not_allowed' });
+    }
+    const competitions = await app.inject({ url: '/api/public/competitions', headers: bearer(token) });
+    expect(competitions.statusCode).toBe(200);
+  });
+
+  it('命令行请求永远不算刚登录过，过不了 step-up', async () => {
+    const { isSessionFresh } = await import('../../app/server/src/middleware/require-step-up');
+    const { app } = await setup();
+    const req = (via: 'cli' | undefined) => ({ via, session: { created_at: now }, server: app }) as unknown as Parameters<typeof isSessionFresh>[0];
+    expect(isSessionFresh(req(undefined))).toBe(true);
+    expect(isSessionFresh(req('cli'))).toBe(false);
   });
 
   it('同一个请求不能既带 cookie 又带 Bearer', async () => {
@@ -131,7 +162,7 @@ describe('geek 命令行的 Bearer 鉴权（#277）', () => {
     const normalizedCode = code.user_code.replace('-', '');
     app.services.storage.db.prepare("UPDATE device_grants SET status = 'approved', account_id = ?, decided_at = ? WHERE user_code = ?").run(accountId, now, normalizedCode);
     const token = (await pollToken(app, code.device_code)).access_token as string;
-    const blocked = await app.inject({ url: '/api/identity/profile', headers: bearer(token) });
+    const blocked = await app.inject({ url: '/api/forum/state', headers: bearer(token) });
     expect(blocked.statusCode).toBe(403);
     expect(blocked.json().error).toBe('email_required');
     const info = await app.inject({ url: '/auth/device/userinfo', headers: bearer(token) });
@@ -154,7 +185,7 @@ describe('geek 命令行的 Bearer 鉴权（#277）', () => {
     const normalizedCode = code.user_code.replace('-', '');
     app.services.storage.db.prepare("UPDATE device_grants SET status = 'approved', account_id = ?, decided_at = ? WHERE user_code = ?").run(accountId, now, normalizedCode);
     const token = (await pollToken(app, code.device_code)).access_token as string;
-    const blocked = await app.inject({ url: '/api/identity/profile', headers: bearer(token) });
+    const blocked = await app.inject({ url: '/api/forum/state', headers: bearer(token) });
     expect(blocked.statusCode).toBe(403);
     expect(blocked.json()).toMatchObject({ error: 'profile_required' });
     const info = await app.inject({ url: '/auth/device/userinfo', headers: bearer(token) });

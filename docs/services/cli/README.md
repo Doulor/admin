@@ -25,9 +25,10 @@
 
 - **登录**：RFC 8628 设备码授权，`client_id=geek-cli`，`scope=openid profile forum apply competition repo`；复用服务端既有的 `/auth/device/code`、`/auth/device/token`、`/auth/device/userinfo` 三个端点（见 [API](../../architecture/API.md)「geek 命令行令牌」）。
 - **令牌 = 会话**：服务端 `bearer-auth.ts` 把 `Authorization: Bearer <token>` 换成和 cookie 会话同形的 `req.session`，下游所有既有的权限中间件（`requireAuth`、`requirePermission`、`requireCompetitionAccess`、论坛的 `forumViewer`/`requireWriter`）不用改。一个请求同时带 cookie 和 Bearer 是 400 `mixed_credentials`。
-- **两道独立的闸**：
+- **三道独立的闸**：
   1. **scope**（粗粒度，按 URL 前缀）：`forum`→`/api/forum/*`，`apply`→`/api/teams/*`，`competition`→`/api/competitions/*`、`/api/me/competitions`，`repo`→`/api/public/gitlab/*`；没申请对应 scope 是 403 `insufficient_scope`。
-  2. **权限节点**（细粒度，和网页一样）：有 scope 不代表有权限，比如注册用户有 `forum` scope 也能发 `POST /api/forum/topics`，但权限节点 `forum.topic.create` 不够照样被 `requireWriter` 拒绝（403 `forbidden`，`activity_events` 记一条 `http.forbidden`，CLI 侧退出码 4）——这是 acceptance #3「注册用户发帖被权限拒绝、错误可读」的来源。
+  2. 只认命令行用到的接口：四类 scope 接口、`/auth/device/userinfo`、`/auth/device/revoke`、`/api/public/*` 的 GET/HEAD 和 `GET /api/console/me`；控制台、账号页、`/auth/me` 这些带令牌一律 403 `cli_not_allowed`（退出码 4）。令牌永远不算「刚登录过」，过不了任何 step-up。
+  3. **权限节点**（细粒度，和网页一样）：有 scope 不代表有权限，比如注册用户有 `forum` scope 也能发 `POST /api/forum/topics`，但权限节点 `forum.topic.create` 不够照样被 `requireWriter` 拒绝（403 `forbidden`，`activity_events` 记一条 `http.forbidden`，CLI 侧退出码 4）——这是 acceptance #3「注册用户发帖被权限拒绝、错误可读」的来源。
 - **邮箱闸**：业务接口统一经 `cliGate()`（`bearer-auth.ts` 一处调用 `lib/email-gate.ts` 的 `emailRequired()`），没绑邮箱是 403 `email_required`；`GET /auth/device/userinfo` 与 `POST /auth/device/revoke` 不算业务接口，不受这道闸限制（否则绑不了邮箱的账号退不出登录）。CLI 侧见到 `email_required`/`profile_required` 退出码 4，提示打开 `<origin>/bind-email` 或 `<origin>/complete-profile`，不读取或打印姓名等个人信息之外的任何字段。
 - **限额与操作记录**：命令行调用计入既有的按账号每日限额（`lib/limits.ts` 的 `cli.*` 桶）；成功的业务请求记一条 `surface:'cli'` 的 `activity_events`（动作名 `cli.<method>`，如 `cli.get`/`cli.post`），控制台「操作记录」能看到 CLI 的登录与接口调用（acceptance #6）。
 - **撤销**：`geek logout` 调 `POST /auth/device/revoke`（30 次/分钟），只改 `token_expires_at`，RFC 7009 式幂等——令牌缺失、不存在、已撤销、已过期都回 200 `{ok:true}`，不回答「这个令牌是否存在过」；撤销后同一个令牌调任何接口都是 401（acceptance #6）。
@@ -54,7 +55,7 @@
 
 - **交叉编译在宿主机做**：`node scripts/cli-dist.mjs` 用 `cargo zigbuild`（zig 当交叉链接器）把 5 个目标（`aarch64-apple-darwin`、`x86_64-apple-darwin`、`x86_64-unknown-linux-musl`、`aarch64-unknown-linux-musl`、`x86_64-pc-windows-gnu`）编译、算 sha256，产出 `dist/cli/<version>/geek-<target>[.exe]`、`dist/cli/{install.sh,install.ps1,latest.json}`。`dist/` 已被 `.gitignore` 覆盖，产物不进仓库。
 - **zig 与 cargo-zigbuild 是开发机工具，不是生产依赖**：按约定路径 `.tools/zig/zig-macos-aarch64-0.13.0/zig`、`.tools/cargo/bin/cargo-zigbuild`（装法：下载 zig 0.13.0 macOS aarch64 解到前者；`CARGO_INSTALL_ROOT=$(pwd)/.tools/cargo cargo install cargo-zigbuild --locked`），两者都在 `.gitignore` 的 `.tools/` 里，不进仓库也不进镜像。
-- **构建 `app/web` 镜像前必须先跑一次 `node scripts/cli-dist.mjs`**：`app/web/Dockerfile` 直接 `COPY dist/cli/ /usr/share/nginx/html/cli/`（不经过 Node builder 阶段），缺这个目录构建会在这一步报错（这是故意的，不是静默跳过）；镜像内 nginx 的 `/cli/` 路径与缓存策略见 [web 合同](../web/README.md)。
+- 进镜像：`app/web/Dockerfile` 有一个空的 `cli` 阶段（`FROM scratch AS cli`），运行阶段 `COPY --from=cli / /usr/share/nginx/html/cli/`。发版构建先跑 `node scripts/cli-dist.mjs`，再用 `docker build --build-context cli=dist/cli …` 把产物换进这个阶段；不传时（CI 的镜像构建验证）镜像照样能建，`/cli/` 下没有文件，访问是 404。仓库根的 `.dockerignore` 排除 `**/dist`，所以不从普通构建上下文复制。GitHub 的两条部署工作流还没有产出 `dist/cli/` 的步骤（Linux runner 交叉编译 macOS 目标缺 SDK），用它们发版时 `/cli/` 是空的。镜像内 nginx 的 `/cli/` 路径与缓存策略见 [web 合同](../web/README.md)。
 - **安装脚本**：`dist/cli/install.sh`、`install.ps1` 默认源站生产 `https://yangtzeu.work`，`GEEK_ORIGIN` 环境变量覆盖（和 `geek` 自己的源站解析一致），预发布装机：`curl -fsSL https://prev.yangtzeu.work/cli/install.sh | GEEK_ORIGIN=https://prev.yangtzeu.work sh`。生产安装命令（acceptance #1）：`curl -fsSL https://yangtzeu.work/cli/install.sh | sh`。两个脚本都先下 `.sha256` 校验、不匹配就失败，不执行除了这个仓库自己产出的任何远端内容。
 - **macOS 二进制未签名**：curl 下载的文件没有 Gatekeeper 的隔离属性（quarantine，只有浏览器直接下载才会打），可以直接执行，不会跳 Gatekeeper 的「打不开」提示。
 

@@ -68,7 +68,7 @@ $ geek forum post --title t --category general --content c --json
 | 1 | 其它错误 |
 
 常见错误码：`not_signed_in`（没有令牌）、`insufficient_scope`（令牌没有这个命令要求的 scope，重新
-`geek login` 申请）、`forbidden`（权限节点不够，message 里带节点名）、`email_required` /
+`geek login` 申请）、`cli_not_allowed`（这个接口只能在网页上用，比如改密码、控制台管理）、`forbidden`（权限节点不够，message 里带节点名）、`email_required` /
 `profile_required`（账号资料没填完，提示里会给要打开的页面地址）、`rate_limited`（太频繁）。
 
 ## 不要做的事

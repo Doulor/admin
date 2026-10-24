@@ -998,7 +998,7 @@
           "path": "app/server/src/lib/device-store.ts"
         },
         {
-          "line": 43,
+          "line": 59,
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
@@ -1753,7 +1753,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 46,
+          "line": 47,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -1853,7 +1853,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 62,
+          "line": 63,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -1905,7 +1905,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 76,
+          "line": 77,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -1961,7 +1961,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 101,
+          "line": 102,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -2020,7 +2020,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 114,
+          "line": 115,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -2080,7 +2080,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 139,
+          "line": 140,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -11358,7 +11358,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "1fbeb99482f4ed651da6ce9af6dcb8576adf81807706fa9bfde351b8566ad1b0",
+    "fingerprint": "2b6d3d445a5bb72651e460d670c47b53fe2871ed1b844abefe5a2223c8d9ad20",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -12310,7 +12310,7 @@
       },
       {
         "path": "app/server/src/middleware/bearer-auth.ts",
-        "sha256": "d28fe6692276942a0ca4150a0120aa79c68fb479ab9cc363c059724b192b2a30"
+        "sha256": "64d2b8466d387cd9f9136a757fa854d1f5d69d69e7edd22fe6098d9761b41c24"
       },
       {
         "path": "app/server/src/middleware/http-policy.ts",
@@ -12338,7 +12338,7 @@
       },
       {
         "path": "app/server/src/middleware/require-step-up.ts",
-        "sha256": "10c10a809e0e1a9c5d00886f765dcfca026d7cd7ca257e364feddd782a498704"
+        "sha256": "f04a5d7ea8b6567221c5f97a1912c02b26e9c3d5e4ecee1979a266392be52083"
       },
       {
         "path": "app/server/src/middleware/turnstile.ts",
@@ -12450,7 +12450,7 @@
       },
       {
         "path": "app/server/src/routes/identity/account.ts",
-        "sha256": "97301068afc2a91eef5502e0a53aae337acaf417ef02c03ff4717bb6ca1f4723"
+        "sha256": "ddbbdfe7eda68697a3c98974f9160b6a3414beff341e63931c0e33e6feab0644"
       },
       {
         "path": "app/server/src/routes/identity/contracts.ts",
@@ -12542,7 +12542,7 @@
       },
       {
         "path": "app/web/Dockerfile",
-        "sha256": "d270718c853a74eb75045ffcf2d426770b1c8a11d0e7483106e37cab8dfaa768"
+        "sha256": "1225d24820805c864daf173c85134650412d141b90822c20143ac1cd2ac09081"
       },
       {
         "path": "app/web/package.json",
@@ -12890,7 +12890,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "47f8b31f95a2bf7a3ee0e92e3c4041bbfcadd2db9e8fee417f209e865f8ed7a5"
+        "sha256": "cbd45a0f2cd4f61e6ddb1af2d23dcdc52d08c272365261d6b10fada6a32a807d"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -12930,7 +12930,7 @@
       },
       {
         "path": "docs/services/cli/README.md",
-        "sha256": "8352101244bc972be5076e624ed6cb10dd76b0e38f03d255ed9897f60f08534a"
+        "sha256": "6bbecf4430eec9b0b980745a442641c3ad89e471ad662dd53ce2e4680e3b91d4"
       },
       {
         "path": "docs/services/console/README.md",
@@ -12962,7 +12962,7 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "12611202d9cca242850a5ce08a31ba975e5721540af40024bf9790902c8f748f"
+        "sha256": "370efdeaae8a7580ac36be5fc06ca0b6f6b97e77e79e1443d504d16378537f16"
       },
       {
         "path": "docs/services/web/portal.md",
@@ -13062,7 +13062,7 @@
       },
       {
         "path": "tests/server/bearer-auth.test.ts",
-        "sha256": "5cab0ccc7a97d640c8439a1d0e4ae463889648af470a237faee04bd68bc2b64f"
+        "sha256": "e6545ec45a269e8fd877138b878ac48757340e6f1953de7b4c65e3ff95de80e0"
       },
       {
         "path": "tests/server/competition-scores.test.ts",
@@ -13945,7 +13945,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 46,
+          "line": 47,
           "path": "app/server/src/routes/identity/account.ts"
         }
       ],
@@ -14713,7 +14713,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 46,
+          "line": 47,
           "path": "app/server/src/routes/identity/account.ts"
         }
       ],
@@ -15505,7 +15505,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 101,
+          "line": 102,
           "path": "app/server/src/routes/identity/account.ts"
         }
       ],
@@ -15517,7 +15517,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 62,
+          "line": 63,
           "path": "app/server/src/routes/identity/account.ts"
         }
       ],
@@ -15529,7 +15529,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 76,
+          "line": 77,
           "path": "app/server/src/routes/identity/account.ts"
         }
       ],
@@ -15553,7 +15553,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 114,
+          "line": 115,
           "path": "app/server/src/routes/identity/account.ts"
         }
       ],
@@ -15565,7 +15565,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 139,
+          "line": 140,
           "path": "app/server/src/routes/identity/account.ts"
         }
       ],
@@ -38793,7 +38793,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 101,
+          "line": 102,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -38817,7 +38817,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 101,
+          "line": 102,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -38841,7 +38841,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 101,
+          "line": 102,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -38877,7 +38877,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 101,
+          "line": 102,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -38901,7 +38901,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 101,
+          "line": 102,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -38925,7 +38925,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 101,
+          "line": 102,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -38949,7 +38949,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 101,
+          "line": 102,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -38973,7 +38973,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 101,
+          "line": 102,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39027,7 +39027,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 62,
+          "line": 63,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39047,7 +39047,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 62,
+          "line": 63,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39067,7 +39067,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 62,
+          "line": 63,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39087,7 +39087,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 62,
+          "line": 63,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39113,7 +39113,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 62,
+          "line": 63,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39133,7 +39133,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 62,
+          "line": 63,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39153,7 +39153,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 62,
+          "line": 63,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39203,7 +39203,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 76,
+          "line": 77,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39223,7 +39223,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 76,
+          "line": 77,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39243,7 +39243,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 76,
+          "line": 77,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39269,7 +39269,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 76,
+          "line": 77,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39289,7 +39289,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 76,
+          "line": 77,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39309,7 +39309,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 76,
+          "line": 77,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39329,7 +39329,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 76,
+          "line": 77,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39349,7 +39349,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 76,
+          "line": 77,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39369,7 +39369,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 76,
+          "line": 77,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39389,7 +39389,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 76,
+          "line": 77,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39439,7 +39439,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 115,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39463,7 +39463,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 115,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39487,7 +39487,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 115,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39523,7 +39523,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 115,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39547,7 +39547,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 115,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39571,7 +39571,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 115,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39595,7 +39595,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 115,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39619,7 +39619,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 115,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39679,7 +39679,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 139,
+          "line": 140,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39723,7 +39723,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 139,
+          "line": 140,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39779,7 +39779,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 139,
+          "line": 140,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39823,7 +39823,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 139,
+          "line": 140,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39867,7 +39867,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 139,
+          "line": 140,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39911,7 +39911,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 139,
+          "line": 140,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -39991,7 +39991,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 47,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -40055,7 +40055,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 47,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -40119,7 +40119,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 47,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -40183,7 +40183,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 47,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -40247,7 +40247,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 47,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -40335,7 +40335,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 47,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -40399,7 +40399,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 47,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
@@ -43147,7 +43147,7 @@
           "path": "app/server/src/lib/device-store.ts"
         },
         {
-          "line": 43,
+          "line": 59,
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
@@ -43177,7 +43177,7 @@
           "path": "app/server/src/lib/device-store.ts"
         },
         {
-          "line": 43,
+          "line": 59,
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
@@ -43201,7 +43201,7 @@
           "path": "app/server/src/lib/device-store.ts"
         },
         {
-          "line": 43,
+          "line": 59,
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
@@ -43225,7 +43225,7 @@
           "path": "app/server/src/lib/device-store.ts"
         },
         {
-          "line": 43,
+          "line": 59,
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
@@ -62260,7 +62260,7 @@
         }
       },
       "source": {
-        "line": 46,
+        "line": 47,
         "path": "app/server/src/routes/identity/account.ts"
       }
     },
@@ -67250,7 +67250,7 @@
         }
       },
       "source": {
-        "line": 46,
+        "line": 47,
         "path": "app/server/src/routes/identity/account.ts"
       }
     },
@@ -74603,7 +74603,7 @@
         }
       },
       "source": {
-        "line": 101,
+        "line": 102,
         "path": "app/server/src/routes/identity/account.ts"
       }
     },
@@ -74718,7 +74718,7 @@
         }
       },
       "source": {
-        "line": 62,
+        "line": 63,
         "path": "app/server/src/routes/identity/account.ts"
       }
     },
@@ -74832,7 +74832,7 @@
         }
       },
       "source": {
-        "line": 76,
+        "line": 77,
         "path": "app/server/src/routes/identity/account.ts"
       }
     },
@@ -75065,7 +75065,7 @@
         }
       },
       "source": {
-        "line": 114,
+        "line": 115,
         "path": "app/server/src/routes/identity/account.ts"
       }
     },
@@ -75237,7 +75237,7 @@
         }
       },
       "source": {
-        "line": 139,
+        "line": 140,
         "path": "app/server/src/routes/identity/account.ts"
       }
     },

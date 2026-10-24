@@ -31,7 +31,8 @@
     "flow:application.list",
     "flow:feedback.categories",
     "flow:competition.public.list",
-    "flow:documentation.list"
+    "flow:documentation.list",
+    "flow:identity.account.password"
   ],
   "assessments": {
     "business": {
@@ -115,7 +116,9 @@
         "app/server/src/middleware/bearer-auth.ts",
         "app/server/src/middleware/require-auth.ts",
         "app/server/src/routes/identity/device.ts",
-        "app/server/src/routes/identity/contracts.ts"
+        "app/server/src/routes/identity/contracts.ts",
+        "app/server/src/middleware/require-step-up.ts",
+        "app/server/src/routes/identity/account.ts"
       ],
       "domains": [
         "identity",
@@ -140,9 +143,11 @@
         "flow:identity.device.revoke",
         "flow:users.update",
         "flow:audit.events.report",
-        "flow:identity.callback"
+        "flow:identity.callback",
+        "flow:identity.account.password",
+        "flow:identity.account.email.start"
       ],
-      "reason": "Bearer中间件把设备令牌接到既有权限体系：require-auth.ts、bearer-auth.ts在app/server/src/middleware/下按现有归属覆盖这份中间件目录声明的全部业务域（这套中间件是所有域的路由共用的auth门），app.ts挂载新中间件，device-store.ts/routes/identity/device.ts加revoke，activity.ts改写操作记录来源；identity.device.revoke是本次新增的流程，其余几个是require-auth.ts/session.ts/activity.ts既有归属已关联的流程，用来覆盖中间件目录声明里的其余业务域。"
+      "reason": "Bearer中间件把设备令牌接到既有权限体系：require-auth.ts、bearer-auth.ts在app/server/src/middleware/下按现有归属覆盖这份中间件目录声明的全部业务域（这套中间件是所有域的路由共用的auth门），app.ts挂载新中间件，device-store.ts/routes/identity/device.ts加revoke，activity.ts改写操作记录来源；identity.device.revoke是本次新增的流程，其余几个是require-auth.ts/session.ts/activity.ts既有归属已关联的流程，用来覆盖中间件目录声明里的其余业务域。审查时补上：命令行令牌不算一次登录，require-step-up.ts 的 isSessionFresh 和 routes/identity/account.ts 的 10 分钟窗口对 via=cli 一律不通过（users.update 是 require-step-up.ts 既有归属的流程，identity.account.password、identity.account.email.start 是 account.ts 的流程），bearer-auth.ts 改成只认命令行用到的接口。"
     },
     {
       "paths": [

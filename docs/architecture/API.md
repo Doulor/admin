@@ -139,7 +139,9 @@ portal 包括 /api/docs、/api/feedback、/api/portal/apply、/api/public/config
 
 - 同一个请求不能既带 `sid` cookie 又带 `Authorization: Bearer`，带了两种一律 400 `mixed_credentials`，不猜该信哪一个。
 - 令牌本身无效、过期或账号已停用：不单独报错，`req.session` 不挂，下游按未登录处理（和 cookie 失效时的 401 一致）。
-- scope 粗粒度拦截（节点级权限仍然交给 `requirePermission`/`requireWriter` 判定，这里不重复判断业务规则）：`/api/forum/*` 要 `forum`、`/api/teams/*` 要 `apply`、`/api/competitions/*`、`/api/me/competitions` 要 `competition`、`/api/public/gitlab/*` 要 `repo`；没有对应 scope 回 403 `insufficient_scope`（带 `scope` 字段）。其余没分类的接口（身份类的 `/api/identity/*`、控制台的 `/api/console/me` 等）不额外要求 scope，只要令牌本身有效。`geek-cli` 客户端登记的 scope 是 `openid profile forum apply competition repo`（`lib/device-store.ts` 的 `DEVICE_CLIENTS`）。
+- scope 粗粒度拦截（节点级权限仍然交给 `requirePermission`/`requireWriter` 判定，这里不重复判断业务规则）：`/api/forum/*` 要 `forum`、`/api/teams/*` 要 `apply`、`/api/competitions/*`、`/api/me/competitions` 要 `competition`、`/api/public/gitlab/*` 要 `repo`；没有对应 scope 回 403 `insufficient_scope`（带 `scope` 字段）。`geek-cli` 客户端登记的 scope 是 `openid profile forum apply competition repo`（`lib/device-store.ts` 的 `DEVICE_CLIENTS`）。
+- 令牌默认什么都不能用，只认：上面四类 scope 接口、`GET /auth/device/userinfo` 与 `POST /auth/device/revoke`、`/api/public/*` 的 GET/HEAD、`GET /api/console/me`（`geek whoami` 取昵称和部门，不含真实姓名）。其余接口（控制台、账号页的改密码和绑邮箱、`/auth/me`、`/api/identity/*`、OIDC）带令牌一律 403 `cli_not_allowed`：令牌放在终端和 agent 的环境变量里，泄露的面比浏览器会话大，不能拿它改账号或做管理操作，`/auth/me`、`/api/identity/*` 还会回本人的真实姓名。
+- 令牌不是一次登录，永远不算「刚登录过」：`require-step-up.ts`、账号页的 10 分钟窗口对 `via = "cli"` 一律不通过。
 - 没有登录邮箱的账号不能用业务接口（#273 的同一条规则，命令行没有浏览器会话可以读 `/auth/me` 的 `email_required` 自己跳转，所以服务端这边单独挡一次），403 `email_required`。`GET /auth/device/userinfo` 和 `POST /auth/device/revoke` 是身份接口本身，不算业务接口，不挡。
 - 操作记录：这类请求不管调用点自己传了什么 `surface`，落库时一律改写成 `"cli"`（`lib/activity.ts`）；每个状态码小于 400 的请求额外记一条 `cli.<method>`（`target_id` 是路径），和路由自己可能记的那条（比如 `forum.search`）一起留着，不是互相替代——控制台的操作记录（`GET /api/console/activity`）能直接按 `surface = "cli"` 筛出命令行发起的每一次登录与调用。
 

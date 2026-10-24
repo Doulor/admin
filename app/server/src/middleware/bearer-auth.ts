@@ -12,8 +12,7 @@ import { gateRefusal, gateRefusalBody } from "../lib/email-gate.js";
 
 /**
  * 粗按 URL 前缀把业务接口分组到 DEVICE_CLIENTS 登记的 scope：只是把令牌限制在它申请过的分类里，
- * 节点级的权限判定仍然交给 requirePermission/requireWriter，这里不重复判断业务规则。前缀没匹配到的
- * （身份接口本身、尚未分类的只读接口）不需要额外 scope，只要令牌本身有效、通过了下面的邮箱闸。
+ * 节点级的权限判定仍然交给 requirePermission/requireWriter，这里不重复判断业务规则。
  */
 const SCOPE_BY_PREFIX: ReadonlyArray<{ prefix: string; scope: string }> = [
   { prefix: "/api/forum/", scope: "forum" },
@@ -27,13 +26,30 @@ function pathOf(url: string): string {
   return url.split(/[?#]/)[0];
 }
 
-function scopeFor(url: string): string | null {
-  const path = pathOf(url);
+function scopeFor(path: string): string | null {
   return SCOPE_BY_PREFIX.find(entry => path.startsWith(entry.prefix))?.scope ?? null;
 }
 
 /** 身份接口本身：令牌用来登录、登出，不是「业务」，不挡邮箱闸、也不要求 scope。 */
 const GATE_EXEMPT_PATHS = new Set(["/auth/device/userinfo", "/auth/device/revoke"]);
+
+/**
+ * 不属于哪个 scope、命令行也要读的接口，只放 GET/HEAD：公开接口（`geek comp list` 读
+ * `/api/public/competitions`），和 `geek whoami` 取昵称、部门的 `/api/console/me`（不含真实姓名）。
+ */
+const OPEN_READ_PREFIXES = ["/api/public/"];
+const OPEN_READ_PATHS = new Set(["/api/console/me"]);
+
+/**
+ * 令牌默认什么都不能用，只认上面列出的接口。其余的（控制台、账号页的改密码和绑邮箱、`/auth/me`、OIDC）
+ * 一律 403：令牌放在终端和 agent 的环境变量里，泄露的面比浏览器会话大，不能拿它改账号或做管理操作；
+ * `/auth/me`、`/api/identity/*` 还会回本人的真实姓名，命令行拿不到真实姓名（#277）。
+ */
+function cliMayUse(method: string, path: string): boolean {
+  if (GATE_EXEMPT_PATHS.has(path) || scopeFor(path)) return true;
+  if (method !== "GET" && method !== "HEAD") return false;
+  return OPEN_READ_PATHS.has(path) || OPEN_READ_PREFIXES.some(prefix => path.startsWith(prefix));
+}
 
 /**
  * 没有登录邮箱、缺姓名或年级的账号不能用业务接口（#273、#280 的同一条规则，命令行这边单独过一遍，因为
@@ -61,22 +77,27 @@ export function registerBearerAuth(app: FastifyInstance) {
     req.session = {
       id: `cli:${identity.accountId}`,
       account_id: identity.accountId,
-      // provider 字段只有控制台「我的身份」(/api/console/me) 读过，CLI 不会调那个接口；账号真实的登录
-      // 方式（GitHub/Google/邮箱）与命令行无关，这里按多数账号的情况给个兜底值，不强行查一遍。
+      // provider 字段只有控制台「我的身份」(/api/console/me) 读过；账号真实的登录方式（GitHub/Google/邮箱）
+      // 与命令行无关，这里按多数账号的情况给个兜底值，不强行查一遍。
       provider: "github",
       login: identity.login,
       user_id: identity.userId,
       avatar_url: identity.avatarUrl,
       accessToken: "",
-      created_at: Date.now(),
+      // 不是一次登录：created_at 记 0，加上 require-step-up.ts、account.ts 对 via=cli 的判断，
+      // 命令行请求永远不算「刚登录过」，过不了任何 step-up。
+      created_at: 0,
       expires_at: Date.now(),
     };
     req.via = "cli";
     const path = pathOf(req.url);
+    if (!cliMayUse(req.method, path)) {
+      return reply.code(403).send({ error: "cli_not_allowed", message: "命令行令牌不能用这个接口，请到网页上操作" });
+    }
     if (GATE_EXEMPT_PATHS.has(path)) return;
     const refusal = cliGate(app, identity.accountId);
     if (refusal) return reply.code(403).send(refusal);
-    const scope = scopeFor(req.url);
+    const scope = scopeFor(path);
     if (scope && !identity.scope.split(" ").includes(scope)) {
       return reply.code(403).send({ error: "insufficient_scope", message: `这个令牌没有「${scope}」范围，请重新 geek login 申请`, scope });
     }
