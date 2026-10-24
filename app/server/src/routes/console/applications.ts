@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { requirePermission } from "../../middleware/require-permission.js";
+import { requireScopedPermission } from "../../lib/console-scope.js";
 import { requireStepUp } from "../../middleware/require-step-up.js";
 import { beijingCompactDate, beijingDateTime } from "../../lib/beijing-time.js";
 import { APPLICATION_STATUSES, APPLICATION_STATUS_IDS, type ApplicationStatus } from "../../lib/roles.js";
@@ -39,7 +40,13 @@ export default async function consoleApplicationRoutes(app: FastifyInstance) {
   // 审核记录的版本号取最大的 id：id 自增，只会变大；created_at 跟着服务器时钟，时钟往回拨时最新一条不一定排第一
   const lastReviewId = db.prepare("SELECT COALESCE(MAX(id), 0) AS id FROM application_reviews WHERE application_id = ?");
 
-  app.get<{ Querystring: ListQuery }>("/api/console/applications", { preHandler: requirePermission("apply.view") }, async (req) => {
+  // #274 残留修复 J：部门部长只有按部门限定的 apply.view/apply.review（种子里没有任何账号持有不限定
+  // 的那两个节点，除了站长的通配 `*`），requirePermission 按「不给 scope 就查全局」判定，部长一律 403，
+  // 完全看不到投递——这是真实的功能性漏洞，不是权限过松。改用 requireScopedPermission 放行有部门范围
+  // 的部长；但 applications 表本身没有部门列（投递在提交时不分部门，不是哪个部门的事），req.departmentScope
+  // 算出来的范围这里没有字段可以拿来过滤，命中了就能看全部投递，和站长看到的一样——这不是疏漏，是因为
+  // 没有可过滤的维度。
+  app.get<{ Querystring: ListQuery }>("/api/console/applications", { preHandler: requireScopedPermission("apply.view") }, async (req) => {
     const { status, q } = req.query;
     const limit = Number(req.query.limit ?? 50);
     const offset = Number(req.query.offset ?? 0);
@@ -97,7 +104,7 @@ export default async function consoleApplicationRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { application_id: string } }>(
     "/api/console/applications/:application_id",
-    { preHandler: requirePermission("apply.view") },
+    { preHandler: requireScopedPermission("apply.view") },
     async (req, reply) => {
       const application = findApplication(req.params.application_id);
       if (!application) return reply.code(404).send({ error: "not_found", message: "投递不存在" });
@@ -113,7 +120,7 @@ export default async function consoleApplicationRoutes(app: FastifyInstance) {
 
   app.patch<{ Params: { application_id: string }; Body: ReviewBody }>(
     "/api/console/applications/:application_id",
-    { preHandler: [requirePermission("apply.review"), requireStepUp] },
+    { preHandler: [requireScopedPermission("apply.review"), requireStepUp] },
     async (req, reply) => {
       const current = findApplication(req.params.application_id);
       if (!current) return reply.code(404).send({ error: "not_found", message: "投递不存在" });

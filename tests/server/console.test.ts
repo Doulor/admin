@@ -220,6 +220,21 @@ describe('GET /api/console/applications 与审核（CONTRACT-274 §5：apply.vie
     expect((await app.inject({ url: '/api/console/applications?status=interview&limit=1', headers: as('erin') })).json().items).toHaveLength(1);
   });
 
+  it('部门部长（只有按部门限定的 apply.view/apply.review）能看列表、详情，也能审核（#274 残留修复 J.1）', async () => {
+    const { app, as, accountId, db } = await setupConsole();
+    grantPermGroup(app, accountId('dave'), 'title.ai.head'); // 种子只给这个节点按部门限定，没有任何人直接持有不限定的 apply.view/apply.review（除了站长的通配 `*`）
+    const row = insertApplication(db);
+    const list = await app.inject({ url: '/api/console/applications', headers: as('dave') });
+    expect(list.statusCode).toBe(200); // 改之前 requirePermission 一律 403，部长完全看不到投递
+    expect(list.json().total).toBe(1);
+    expect((await app.inject({ url: `/api/console/applications/${row.id}`, headers: as('dave') })).statusCode).toBe(200);
+    const review = await app.inject({
+      method: 'PATCH', url: `/api/console/applications/${row.id}`, headers: as('dave'),
+      payload: { status: 'interview', expected_status: 'received', expected_review_id: 0, notify: false },
+    });
+    expect(review.statusCode).toBe(200);
+  });
+
   it('records a review in a transaction and keeps the note out of the audit log', async () => {
     const { app, as, accountId, audits, db } = await setupConsole();
     grantPermNode(app, accountId('erin'), 'apply.view');

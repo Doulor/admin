@@ -27,9 +27,16 @@ export function departmentScopedAccess(entries: ResolvedEntry[], node: string): 
   const global = explain(entries, node, {});
   if (global.decision === "allow") return { kind: "full" };
   if (global.decision === "deny") return { kind: "none" };
-  const scoped = entries.filter(entry => entry.value && nodeMatches(entry.node, node) && scopeDepartments(entry).length > 0);
-  if (scoped.length === 0) return { kind: "none" };
-  return { kind: "scoped", departments: [...new Set(scoped.flatMap(scopeDepartments))] };
+  // #274 残留修复 J：原来只收集按部门限定的 allow 条目，完全没看按部门限定的 deny——一个部门如果
+  // 既有 allow 又有 deny（比如部门组给了 allow，账号自己又被单独 deny 掉这个部门），deny 应该赢
+  // （「有 deny 即 deny」），但原实现会把这个部门也算进「能看」的范围。改成分别收集 allow 和 deny
+  // 两个部门集合，结果是 allow 减去 deny。
+  const scoped = entries.filter(entry => nodeMatches(entry.node, node) && scopeDepartments(entry).length > 0);
+  const allowed = new Set(scoped.filter(entry => entry.value).flatMap(scopeDepartments));
+  const denied = new Set(scoped.filter(entry => !entry.value).flatMap(scopeDepartments));
+  const departments = [...allowed].filter(dept => !denied.has(dept));
+  if (departments.length === 0) return { kind: "none" };
+  return { kind: "scoped", departments };
 }
 
 export function departmentScopedAccessFor(db: Database.Database, accountId: string, node: string, now = Date.now()): DepartmentScopedAccess {
