@@ -5,8 +5,8 @@
 // 落在整天边界上的不写钟点，其余写到分钟。单测在 tests/web/portal-competitions.test.tsx。
 import { beijingDay, beijingDayEdge, dayRange, shortDay, type Competition, type CompetitionKind, type CompetitionStatus, type SignupSettings } from "./competitions";
 
-/** 状态文案：与服务端 `competitionStatus` 的五个值一一对应。 */
-export const STATUS_TEXT: Record<CompetitionStatus, string> = { upcoming: "未开始", registering: "报名中", closed: "报名已截止", ongoing: "进行中", ended: "已结束" };
+/** 状态文案：与服务端 `competitionStatus` 的六个值一一对应。 */
+export const STATUS_TEXT: Record<CompetitionStatus, string> = { planning: "规划中", upcoming: "未开始", registering: "报名中", closed: "报名已截止", ongoing: "进行中", ended: "已结束" };
 export const KIND_TEXT: Record<CompetitionKind, string> = { internal: "内部", external: "外部" };
 
 const HOUR = 3600_000;
@@ -56,8 +56,10 @@ export function daysUntil(at: number, now = Date.now()): number {
 
 type Timing = Pick<Competition, "status" | "start_at" | "end_at" | "signup_deadline">;
 
-/** 状态旁边的一句：报名中说还剩几天，没开赛说几天后开赛，进行中说几天后结束；已结束不说。 */
+/** 状态旁边的一句：报名中说还剩几天，没开赛说几天后开赛，进行中说几天后结束；规划中、已结束不说——
+ *  规划中的日期还没最终确定，不提前报具体天数。 */
 export function statusHint(item: Timing, now = Date.now()): string | null {
+  if (item.status === "planning") return null;
   if (item.status === "registering" && item.signup_deadline !== null) {
     const days = daysUntil(item.signup_deadline, now);
     return days <= 0 ? "今天截止" : days === 1 ? "明天截止" : `还剩 ${days} 天`;
@@ -73,11 +75,12 @@ export function statusHint(item: Timing, now = Date.now()): string | null {
   return null;
 }
 
-/** 卡片上最要紧的那个日期：报名中写截止日，没开赛写开赛日，进行中写结束日，已结束写起止。 */
+/** 卡片上最要紧的那个日期：报名中写截止日，规划中、没开赛写开赛日，进行中写结束日，已结束写起止。 */
 export function cardWhen(item: Timing, now = Date.now()): string {
   switch (item.status) {
     case "registering":
       return `截止 ${dayLabel(item.signup_deadline ?? item.start_at, now)}`;
+    case "planning":
     case "upcoming":
     case "closed":
       return `${shortDay(item.start_at, now)} 开赛`;
@@ -191,6 +194,8 @@ export type CompetitionAction = { text: string; link: { href: string; label: str
 export function competitionAction(item: Pick<Competition, "status" | "kind" | "url" | "start_at" | "end_at" | "signup_deadline">, now = Date.now()): CompetitionAction {
   const link = item.url ? { href: item.url, label: item.status === "registering" && item.kind === "external" ? "去官网报名" : "查看比赛官网" } : null;
   switch (item.status) {
+    case "planning":
+      return { text: "组织者还在筹备，暂未开放报名。", link };
     case "registering": {
       const due = deadlineLabel(item.signup_deadline ?? item.end_at, now);
       if (item.kind === "internal") return { text: `报名截止 ${due}。在线报名开放前，按组织者的通知报名。`, link };

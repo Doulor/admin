@@ -20,7 +20,7 @@ import {
 import CompetitionHero from "./CompetitionHero";
 import BoardPanel from "./Leaderboard";
 import { invitedIds, lockDialog, PeoplePanel, TeamPanel, type Act } from "./TeamHub";
-import { ApplyDialog, ConfirmDialog, CreateTeamDialog, InviteDialog, SignupDialog, TransferDialog, type Dialog } from "./HubDialog";
+import { ApplyDialog, ConfirmDialog, CreateTeamDialog, InviteDialog, PlazaDialog, SignupDialog, TransferDialog, type Dialog } from "./HubDialog";
 
 const STEP_NOTE: Record<StepState, string | null> = { done: "已过", now: "进行中", next: "接下来", later: null };
 const JOURNEY_SR = { done: "（已完成）", now: "（当前这一步）", todo: "", missed: "（没有完成）" } as const;
@@ -463,6 +463,14 @@ export default function CompetitionDetail({ item, now, headingRef, account = "si
         return team ? (
           <InviteDialog people={people} invited={invitedIds(status)} onClose={close} invite={(person) => submit(hubPaths.team(team.id, "invite"), "POST", { account_id: person.account_id }, `已邀请 ${person.login}，等对方回复。`)} />
         ) : null;
+      case "plaza":
+        return (
+          <PlazaDialog
+            team={dialog.team}
+            onClose={close}
+            submit={(body) => submit(hubPaths.team(dialog.team.id, "plaza"), "POST", body, dialog.team.plaza.recruiting ? "招人信息已更新。" : "已在组队广场招人，人满或确认参赛后自动不再显示。")}
+          />
+        );
       case "transfer":
         return team ? <TransferDialog team={team} onClose={close} submit={(member) => submit(hubPaths.team(team.id, "transfer"), "POST", { account_id: member.account_id }, `已把领队转给 ${member.login}。`)} /> : null;
       default:

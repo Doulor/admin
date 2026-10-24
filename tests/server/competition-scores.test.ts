@@ -114,7 +114,8 @@ describe('seeded competition', () => {
 
       const publicRow = (await first.app.inject({ url: '/api/public/competitions' })).json().competitions
         .find((row: { id: string }) => row.id === SEED_ID);
-      expect(publicRow.signup).toEqual({ enabled: true, participation: 'team', team_min: 1, team_max: 3, scoring: 'contribution' });
+      // 个人赛（所有者 2026-10-24 23:38 更正：第一期不是团队赛），没有队伍人数上下限
+      expect(publicRow.signup).toEqual({ enabled: true, participation: 'individual', team_min: 1, team_max: 1, scoring: 'contribution' });
 
       // 组织者删掉之后重启不再补
       expect((await first.app.inject({ method: 'DELETE', url: `/api/console/competitions/${SEED_ID}`, headers })).statusCode).toBe(200);

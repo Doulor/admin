@@ -30,6 +30,27 @@ export function demoCompetitions(at = Date.now()) {
 const demoOrg = "Yangtze-University-Geek-Class";
 
 /**
+ * `?__mock=member` 时让秋季黑客松开着团队赛报名，比赛窗口才有「我的参赛」「组队广场」（#278）。
+ * 只在成员身份下加：不带身份的开发预览（e2e 用的那份）比赛样板不变。
+ */
+function withDemoSignup(items: ReturnType<typeof demoCompetitions>) {
+  return items.map((item) => (item.id === "c1001" ? { ...item, signup: { enabled: true, participation: "team", team_min: 3, team_max: 5, scoring: "none" } } : item));
+}
+
+const demoPerson = (login: string) => ({ account_id: `acc_${login}`, login, avatar_url: null });
+/** 组队广场样板（#278）：两支招人的队伍、两个找队伍的人，都在秋季黑客松里。 */
+function demoPlaza(at: number) {
+  const base = { competition_id: "c1001", competition_name: "秋季黑客松" };
+  const team = { person: null, team_id: null, team_name: null, slogan: null, leader: null, member_count: null, team_max: null, wanted_skills: null };
+  return [
+    { ...base, ...team, kind: "recruiting_team", note: "想做校园二手交易的小程序，后端已经有人了，缺一个会写前端、一个会做设计的。", since: at - 2 * 3600_000, team_id: "t1", team_name: "长江 Commit 队", slogan: "两天做出能用的东西", leader: demoPerson("chen_hang"), member_count: 2, team_max: 5, wanted_skills: ["前端", "UI 设计"] },
+    { ...base, ...team, kind: "seeking_team", note: "大二，写过 Vue 和一点 Go，想找做工具类项目的队伍。", since: at - 5 * 3600_000, person: demoPerson("liu_xing") },
+    { ...base, ...team, kind: "recruiting_team", note: "做一个帮新生找教室和自习座位的地图，算法和数据都准备好了。", since: at - 26 * 3600_000, team_id: "t2", team_name: "夜猫子", slogan: "", leader: demoPerson("li_xiaoman"), member_count: 3, team_max: 4, wanted_skills: ["后端", "地图"] },
+    { ...base, ...team, kind: "seeking_team", note: "大一新生，会一点 Python，想跟着学。", since: at - 30 * 3600_000, person: demoPerson("he_miao") },
+  ];
+}
+
+/**
  * 官网开发预览的身份（#275）：地址带 `?__mock=member|registered|visitor` 时，官网读 /auth/me 用这里的样板身份，
  * 形状照 #274 的接口契约（.tools/handoff/2026-10-23-yugc-os-v2/CONTRACT-274.md §1）。没带时官网照旧读真接口。
  */
@@ -129,7 +150,16 @@ function route(path: string): unknown {
   if (pathname === "/api/feedback/categories") return { categories: ["建议", "Bug", "新功能", "其他"], pow_difficulty: 1, org: demoOrg };
   if (pathname === "/api/public/config") return { turnstile_site_key: null, pow_difficulty: 1 };
   if (pathname === "/api/feedback/public") return { items: [] };
-  if (pathname === "/api/public/competitions") return { competitions: demoCompetitions(now) };
+  if (pathname === "/api/public/competitions") return { competitions: mockPersona() === "member" ? withDemoSignup(demoCompetitions(now)) : demoCompetitions(now) };
+  if (pathname === "/api/team-plaza" || pathname.startsWith("/api/me/competition")) {
+    if (mockPersona() !== "member") throw new ApiError(401, "unauthorized", "请先登录");
+    if (pathname === "/api/me/competitions") return { items: [], pending_total: 0 };
+    if (pathname === "/api/me/competition-results") return { items: [] };
+    if (pathname === "/api/team-plaza") {
+      const kind = url.searchParams.get("kind");
+      return { items: demoPlaza(now).filter((item) => !kind || item.kind === kind), next_cursor: null };
+    }
+  }
   if (pathname === "/auth/me") return mockMe(mockPersona() ?? "visitor");
   if (pathname === "/api/identity/me") return demoIdentity(mockPersona() ?? "visitor");
   if (pathname === "/api/public/departments") return { departments: demoDepartments };

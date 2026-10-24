@@ -25,6 +25,16 @@ export type PublicFeedItem = PublicPerson & {
 export type PublicFeed = { items: PublicFeedItem[]; next_cursor: string | null };
 export type PublicStats = { participants: number; teams: number; merged_prs: number; accepted_issues: number; total_points: number; updated_at: number };
 export type PublicGradeFactor = { grade: string; label: string; factor: number };
+/** 部门身份摘要（与 `permissions.accountGroupsView().department` 同一份口径）：没分配部门为 null。 */
+export type PublicDepartment = { id: string; name: string; tone: string | null } | null;
+export type PublicParticipant = PublicPerson & { department: PublicDepartment };
+export type PublicParticipants = { items: PublicParticipant[]; next_cursor: string | null };
+export type PublicTeamEntry = { name: string; slogan: string; status: "recruiting" | "locked"; member_count: number; members: PublicPerson[] };
+/** 队伍（#278 站点包的「队伍」接口）：个人赛 `enabled` 为 false、`teams` 为空，站点据此跳过这一段，不报错。 */
+export type PublicTeams = { enabled: boolean; team_min: number; team_max: number; teams: PublicTeamEntry[] };
+
+export const PARTICIPANTS_PAGE_SIZE = 100;
+export const PARTICIPANTS_PAGE_MAX = 200;
 
 export const FEED_PAGE_SIZE = 20;
 export const FEED_PAGE_MAX = 50;
@@ -46,6 +56,12 @@ const encodeCursor = (at: number, id: string) => Buffer.from(`${at}:${id}`, "utf
 function decodeCursor(cursor: string): { at: number; id: string } | null {
   const text = Buffer.from(cursor, "base64url").toString("utf8");
   const match = /^([0-9]{1,15}):([0-9a-f-]{36})$/.exec(text);
+  return match ? { at: Number(match[1]), id: match[2] } : null;
+}
+/** 人员分页的游标：account_id 是 26 位 Crockford Base32（`newAccountId`），不是贡献动态那 36 位的 UUID。 */
+function decodeParticipantCursor(cursor: string): { at: number; id: string } | null {
+  const text = Buffer.from(cursor, "base64url").toString("utf8");
+  const match = /^([0-9]{1,15}):([0-9A-Z]{1,32})$/.exec(text);
   return match ? { at: Number(match[1]), id: match[2] } : null;
 }
 
@@ -70,6 +86,23 @@ export function createCompetitionPublic(db: Database.Database, deps: {
       SUM(CASE WHEN kind = 'issue' THEN 1 ELSE 0 END) AS issues,
       COALESCE(SUM(COALESCE(weighted_points, points)), 0) AS total
     FROM competition_score_events WHERE competition_id = ? AND status = 'active'`);
+
+  /**
+   * 一批账号各自的部门（与 `permissions.accountGroupsView().department` 同一份口径：只看直接成员资格、
+   * 同一账号最多一个部门组）。批量查，避免「人员」接口对每一行都单独查一次库。没有部门组的账号不在
+   * 返回的 Map 里，调用方按 `get(id) ?? null` 取。
+   */
+  function departmentsOf(accountIds: string[], now: number): Map<string, PublicDepartment> {
+    const map = new Map<string, PublicDepartment>();
+    if (accountIds.length === 0) return map;
+    const placeholders = accountIds.map(() => "?").join(", ");
+    const rows = db.prepare(`SELECT m.account_id AS account_id, g.id AS id, g.name AS name, g.tone AS tone
+      FROM perm_members m JOIN perm_groups g ON g.id = m.group_id
+      WHERE g.kind = 'department' AND m.account_id IN (${placeholders}) AND (m.expires_at IS NULL OR m.expires_at > ?)`)
+      .all(...accountIds, now) as { account_id: string; id: string; name: string; tone: string | null }[];
+    for (const row of rows) map.set(row.account_id, { id: row.id, name: row.name, tone: row.tone });
+    return map;
+  }
 
   /** 一个人的公开资料；没上传头像时退回 GitHub 头像（signups.person 给的），都没有为 null。 */
   function personOf(accountId: string): PublicPerson {
@@ -168,6 +201,45 @@ export function createCompetitionPublic(db: Database.Database, deps: {
     };
   }
 
+  /**
+   * 人员（#278 站点包的「人员」接口）：已报名、未取消的全部参赛者，不是只有拿过分的人（和天梯不同）。
+   * 按报名时间升序分页，和贡献动态一样用 `created_at:account_id` 游标；一页最多 `PARTICIPANTS_PAGE_MAX` 条。
+   */
+  function participants(competitionId: string, cursor: string | null, limit = PARTICIPANTS_PAGE_SIZE): PublicParticipants | null {
+    if (!visible(competitionId)) return null;
+    const size = Math.min(Math.max(1, limit), PARTICIPANTS_PAGE_MAX);
+    const all = deps.signups.activeSignups(competitionId);
+    const after = cursor ? decodeParticipantCursor(cursor) : null;
+    const start = after ? all.findIndex(row => row.created_at > after.at || (row.created_at === after.at && row.account_id > after.id)) : 0;
+    const slice = start < 0 ? [] : all.slice(start, start + size + 1);
+    const page = slice.slice(0, size);
+    const departments = departmentsOf(page.map(row => row.account_id), Date.now());
+    const last = page[page.length - 1];
+    return {
+      items: page.map(row => ({ ...personOf(row.account_id), department: departments.get(row.account_id) ?? null })),
+      next_cursor: slice.length > size && last ? encodeCursor(last.created_at, last.account_id) : null,
+    };
+  }
+
+  /**
+   * 队伍（#278 站点包的「队伍」接口）：全部未解散的队伍，不是只有拿过分的队（和天梯不同）。个人赛
+   * `enabled` 为 false、`teams` 为空数组——站点包用了这个接口但这场比赛是个人赛时，这样区分，不报错。
+   */
+  function teams(competitionId: string): PublicTeams | null {
+    if (!visible(competitionId)) return null;
+    const settings = deps.signups.settingsOf(competitionId);
+    if (settings.participation !== "team") return { enabled: false, team_min: settings.team_min, team_max: settings.team_max, teams: [] };
+    const result = deps.signups.teams(competitionId);
+    const rows = result.ok ? result.value : [];
+    return {
+      enabled: true, team_min: settings.team_min, team_max: settings.team_max,
+      teams: rows.map(team => ({
+        name: team.name, slogan: team.slogan, status: team.status, member_count: team.member_count,
+        members: team.members.map(member => personOf(member.account_id)),
+      })),
+    };
+  }
+
   function stats(competitionId: string): PublicStats | null {
     if (!visible(competitionId)) return null;
     const board = deps.scores.leaderboard(competitionId);
@@ -183,6 +255,6 @@ export function createCompetitionPublic(db: Database.Database, deps: {
     };
   }
 
-  return { personOf, visible, competition, leaderboard, feed, stats, finalOf };
+  return { personOf, visible, competition, leaderboard, participants, teams, feed, stats, finalOf };
 }
 export type CompetitionPublic = ReturnType<typeof createCompetitionPublic>;

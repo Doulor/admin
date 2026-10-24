@@ -126,6 +126,18 @@ function MyTeam({ team, status, meId, busy, open, act }: { team: Team; status: M
         取消确认
       </button>
     ),
+    leader && !locked && team.member_count < max && (
+      <button key="plaza" type="button" className="pt-btn is-sm" disabled={busy} onClick={() => open({ kind: "plaza", team })}>
+        <Icon name="megaphone-line" size={15} />
+        {team.plaza.recruiting ? "改招人信息" : "在广场招人"}
+      </button>
+    ),
+    leader && team.plaza.recruiting && (
+      <button key="plaza-off" type="button" className="pt-btn is-sm is-quiet" disabled={busy} onClick={() => void act(hubPaths.team(team.id, "plaza"), "DELETE", undefined, "已不在组队广场招人。")}>
+        <Icon name="close-line" size={15} />
+        不在广场招人了
+      </button>
+    ),
     can(status, "transfer") && (
       <button key="transfer" type="button" className="pt-btn is-sm is-quiet" disabled={busy} onClick={() => open({ kind: "transfer" })}>
         <Icon name="exchange-line" size={15} />

@@ -118,5 +118,6 @@ function patchBase(record: CompetitionRecord): CompetitionDraft {
     name: record.name, kind: record.kind,
     start_at: record.start_at, end_at: record.end_at,
     signup_deadline: record.signup_deadline, url: record.url, description: record.description,
+    planning: record.planning,
   };
 }

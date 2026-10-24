@@ -77,6 +77,11 @@ async fn dispatch(command: Command, origin: String, json: bool) -> i32 {
                 Command::Comp(CompCommand::Ladder { id }) => {
                     commands::comp::ladder(&ctx, id, json).await
                 }
+                Command::Comp(CompCommand::Plaza {
+                    competition,
+                    kind,
+                    keyword,
+                }) => commands::comp::plaza(&ctx, competition, kind, keyword, json).await,
                 Command::Team(TeamCommand::Create {
                     competition_id,
                     name,

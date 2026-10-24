@@ -673,3 +673,11 @@ button { font: inherit; color: inherit; }
   .js .sec:not(.is-in) .heat { opacity: 1; transform: none; }
   .progress, .sheen, .hero-name::after, .hero-spot { display: none; }
 }
+
+/* 个人赛（#278）：只给团队赛的部分整块不显示，见 sections.ts 的 renderTexts */
+[data-participation="individual"] [data-team-only] { display: none !important; }
+[data-participation="individual"] .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 720px) {
+  [data-participation="individual"] .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  [data-participation="individual"] .stat, [data-participation="individual"] .stat:nth-child(n + 4) { grid-column: auto; }
+}

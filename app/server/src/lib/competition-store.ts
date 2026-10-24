@@ -5,13 +5,15 @@ import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 
 export type CompetitionKind = "internal" | "external";
-/** 状态由时间算出来，不入库：未开始 / 报名中 / 报名已截止 / 进行中 / 已结束。 */
-export type CompetitionStatus = "upcoming" | "registering" | "closed" | "ongoing" | "ended";
+/** 状态由时间算出来，不入库：规划中 / 未开始 / 报名中 / 报名已截止 / 进行中 / 已结束。 */
+export type CompetitionStatus = "planning" | "upcoming" | "registering" | "closed" | "ongoing" | "ended";
 
 export type CompetitionRecord = {
   id: string; name: string; kind: CompetitionKind;
   start_at: number; end_at: number; signup_deadline: number | null;
   url: string | null; description: string; offline: boolean;
+  /** 规划中（#278）：组织者还在筹备、没开放报名时打开；开赛后不再生效，见 `competitionStatus`。 */
+  planning: boolean;
   created_at: number; updated_at: number;
 };
 
@@ -19,24 +21,25 @@ export type CompetitionRecord = {
 export type CompetitionDraft = {
   name: string; kind: CompetitionKind;
   start_at: number; end_at: number; signup_deadline: number | null;
-  url: string | null; description: string;
+  url: string | null; description: string; planning: boolean;
 };
-export type CompetitionInput = Omit<CompetitionDraft, "signup_deadline" | "url" | "description"> &
-  Partial<Pick<CompetitionDraft, "signup_deadline" | "url" | "description">>;
+export type CompetitionInput = Omit<CompetitionDraft, "signup_deadline" | "url" | "description" | "planning"> &
+  Partial<Pick<CompetitionDraft, "signup_deadline" | "url" | "description" | "planning">>;
 export type CompetitionPatch = Partial<CompetitionInput> & { offline?: boolean };
 
-/** 公开列表与官网前端用的形状：不含 `offline`、`created_at`、`updated_at` 这些内部字段。 */
+/** 公开列表与官网前端用的形状：不含 `offline`、`created_at`、`updated_at` 这些内部字段；`planning` 要给，不然
+ *  官网每 60 秒本地重算状态时（见 app/web/sites/portal/lib/competitions.ts 的 `statusAt`）拿不到这个标记。 */
 export type PublicCompetition = {
   id: string; name: string; kind: CompetitionKind;
   start_at: number; end_at: number; signup_deadline: number | null;
-  url: string | null; description: string; status: CompetitionStatus;
+  url: string | null; description: string; status: CompetitionStatus; planning: boolean;
 };
 /** 控制台的形状：多一个 `offline`，它要能看到并恢复已下线的比赛。 */
 export type ConsoleCompetition = PublicCompetition & { offline: boolean };
 
 type CompetitionRow = {
   id: string; name: string; kind: string; start_at: number; end_at: number; signup_deadline: number | null;
-  url: string | null; description: string; offline: number; created_at: number; updated_at: number;
+  url: string | null; description: string; offline: number; planning: number; created_at: number; updated_at: number;
 };
 
 /** 比赛（`competitions` 表）的读写接口；写操作都带上 `updated_at`，调用方负责审计与授权。 */
@@ -53,10 +56,13 @@ export interface CompetitionStore {
 }
 
 /**
- * 现在这场比赛处在哪个阶段。顺序是「先看有没有结束、再看报名、最后看有没有开始」：
- * 截止时间在 `start_at` 之后（比赛已开始但还能补报）时，报名中要压过进行中，不能因为比赛开始就说报名关了。
+ * 现在这场比赛处在哪个阶段。先看规划中：`planning` 打开且还没到开赛时间，一律是「规划中」，压过未开始/报名中/
+ * 报名已截止——组织者还在准备，不该在这个阶段冒出「报名中」。过了开赛时间这个标记就不再生效，跟没开过一样，
+ * 按原有顺序「先看有没有结束、再看报名、最后看有没有开始」算：截止时间在 `start_at` 之后（比赛已开始但还能补报）
+ * 时，报名中要压过进行中，不能因为比赛开始就说报名关了。
  */
-export function competitionStatus(record: Pick<CompetitionRecord, "start_at" | "end_at" | "signup_deadline">, now: number): CompetitionStatus {
+export function competitionStatus(record: Pick<CompetitionRecord, "start_at" | "end_at" | "signup_deadline" | "planning">, now: number): CompetitionStatus {
+  if (record.planning && now < record.start_at) return "planning";
   if (now > record.end_at) return "ended";
   if (record.signup_deadline !== null && now <= record.signup_deadline) return "registering";
   if (now >= record.start_at) return "ongoing";
@@ -99,7 +105,7 @@ export function competitionError(draft: CompetitionDraft): "bad_name" | "bad_ran
 }
 
 function toRecord(row: CompetitionRow): CompetitionRecord {
-  return { ...row, kind: row.kind as CompetitionKind, offline: row.offline === 1 };
+  return { ...row, kind: row.kind as CompetitionKind, offline: row.offline === 1, planning: row.planning === 1 };
 }
 
 /** 记录转成公开形状，`status` 现算；`now` 由调用方传入，前后端与测试都不会各读一次钟。 */
@@ -108,7 +114,7 @@ export function toPublicCompetition(record: CompetitionRecord, now: number): Pub
     id: record.id, name: record.name, kind: record.kind,
     start_at: record.start_at, end_at: record.end_at, signup_deadline: record.signup_deadline,
     url: record.url, description: record.description,
-    status: competitionStatus(record, now),
+    status: competitionStatus(record, now), planning: record.planning,
   };
 }
 
@@ -121,16 +127,16 @@ export function newCompetitionId(): string {
   return randomUUID();
 }
 
-const COLUMNS = "id, name, kind, start_at, end_at, signup_deadline, url, description, offline, created_at, updated_at";
+const COLUMNS = "id, name, kind, start_at, end_at, signup_deadline, url, description, offline, planning, created_at, updated_at";
 
 export function createCompetitionStore(db: Database.Database): CompetitionStore {
   const selectAll = db.prepare(`SELECT ${COLUMNS} FROM competitions`);
   const selectOne = db.prepare(`SELECT ${COLUMNS} FROM competitions WHERE id = ?`);
-  const insert = db.prepare(`INSERT INTO competitions(id, name, kind, start_at, end_at, signup_deadline, url, description, offline, created_at, updated_at)
-    VALUES(@id, @name, @kind, @start_at, @end_at, @signup_deadline, @url, @description, 0, @now, @now)`);
+  const insert = db.prepare(`INSERT INTO competitions(id, name, kind, start_at, end_at, signup_deadline, url, description, offline, planning, created_at, updated_at)
+    VALUES(@id, @name, @kind, @start_at, @end_at, @signup_deadline, @url, @description, 0, @planning, @now, @now)`);
   const update = db.prepare(`UPDATE competitions SET
     name = @name, kind = @kind, start_at = @start_at, end_at = @end_at, signup_deadline = @signup_deadline,
-    url = @url, description = @description, offline = @offline, updated_at = @now
+    url = @url, description = @description, offline = @offline, planning = @planning, updated_at = @now
     WHERE id = @id`);
   const remove = db.prepare("DELETE FROM competitions WHERE id = ?");
 
@@ -150,6 +156,7 @@ export function createCompetitionStore(db: Database.Database): CompetitionStore 
         id, now,
         name: input.name, kind: input.kind, start_at: input.start_at, end_at: input.end_at,
         signup_deadline: input.signup_deadline ?? null, url: input.url ?? null, description: input.description ?? "",
+        planning: input.planning ? 1 : 0,
       });
       return get(id);
     },
@@ -171,6 +178,7 @@ export function createCompetitionStore(db: Database.Database): CompetitionStore 
         signup_deadline: patch.signup_deadline === undefined ? current.signup_deadline : patch.signup_deadline,
         description: patch.description ?? current.description,
         offline: (patch.offline ?? current.offline) ? 1 : 0,
+        planning: (patch.planning ?? current.planning) ? 1 : 0,
       });
       return get(id);
     },

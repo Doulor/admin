@@ -45,6 +45,8 @@ export default async function portalCompetitionRoutes(app: FastifyInstance) {
   const leaderboardOf = (id: string) => cache.cached(publicCacheKey(id, "leaderboard"), PUBLIC_CACHE_TTL_MS, async () => competitionPublic.leaderboard(id));
   const firstFeedOf = (id: string) => cache.cached(publicCacheKey(id, "feed"), PUBLIC_CACHE_TTL_MS, async () => competitionPublic.feed(id, null, FEED_PAGE_SIZE));
   const statsOf = (id: string) => cache.cached(publicCacheKey(id, "stats"), PUBLIC_CACHE_TTL_MS, async () => competitionPublic.stats(id));
+  const firstParticipantsOf = (id: string) => cache.cached(publicCacheKey(id, "participants"), PUBLIC_CACHE_TTL_MS, async () => competitionPublic.participants(id, null));
+  const teamsOf = (id: string) => cache.cached(publicCacheKey(id, "teams"), PUBLIC_CACHE_TTL_MS, async () => competitionPublic.teams(id));
 
   app.get<{ Params: { id: string } }>("/api/public/competitions/:id", async (req, reply) => {
     if (openAndLimit(req, reply)) return reply;
@@ -72,6 +74,22 @@ export default async function portalCompetitionRoutes(app: FastifyInstance) {
     if (openAndLimit(req, reply)) return reply;
     const stats = await statsOf(req.params.id);
     return stats ? reply.send(stats) : notFound(reply);
+  });
+
+  // 人员、队伍（#278 站点包必带的两个接口）：全部已报名 / 全部未解散的队伍，不是只有上过天梯的那些人。
+  app.get<{ Params: { id: string }; Querystring: { cursor?: string; limit?: string } }>("/api/public/competitions/:id/participants", async (req, reply) => {
+    if (openAndLimit(req, reply)) return reply;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const participants = !req.query.cursor && limit === undefined
+      ? await firstParticipantsOf(req.params.id)
+      : competitionPublic.participants(req.params.id, req.query.cursor ?? null, limit);
+    return participants ? reply.send(participants) : notFound(reply);
+  });
+
+  app.get<{ Params: { id: string } }>("/api/public/competitions/:id/teams", async (req, reply) => {
+    if (openAndLimit(req, reply)) return reply;
+    const teams = await teamsOf(req.params.id);
+    return teams ? reply.send(teams) : notFound(reply);
   });
 
   // 整份快照：官网 SDK 的 subscribe 一次拿齐四样，轮询一次只算一个请求（校园网同一出口 IP 后面人多）。

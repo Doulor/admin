@@ -20,6 +20,7 @@ const SCOPE_BY_PREFIX: ReadonlyArray<{ prefix: string; scope: string }> = [
   { prefix: "/api/me/applications", scope: "apply" },
   { prefix: "/api/competitions/", scope: "competition" },
   { prefix: "/api/me/competitions", scope: "competition" },
+  { prefix: "/api/team-plaza", scope: "competition" },
   { prefix: "/api/public/gitlab/", scope: "repo" },
 ];
 

@@ -7,7 +7,7 @@
  */
 
 export type PublicPerson = { username: string; display_name: string; avatar_url: string | null };
-export type CompetitionStatus = "upcoming" | "registering" | "closed" | "ongoing" | "ended";
+export type CompetitionStatus = "planning" | "upcoming" | "registering" | "closed" | "ongoing" | "ended";
 export type PrizeTier = { from: number; to: number; amount_cny: number; title: string };
 export type GradeFactor = { grade: string; label: string; factor: number };
 export type Importance = "normal" | "important" | "critical";
@@ -35,6 +35,8 @@ export type PublicCompetition = {
   url: string | null;
   description: string;
   status: CompetitionStatus;
+  /** 规划中（#278）：组织者还在筹备，开赛前拒绝报名与组队；开赛后不再生效，状态按原有规则走。 */
+  planning: boolean;
   signup: { enabled: boolean; participation: "individual" | "team"; team_min: number; team_max: number; scoring: "none" | "contribution" };
   site_url: string | null;
   app_url: string;
@@ -56,6 +58,17 @@ export type FeedItem = PublicPerson & {
 export type Feed = { items: FeedItem[]; next_cursor: string | null };
 
 export type Stats = { participants: number; teams: number; merged_prs: number; accepted_issues: number; total_points: number; updated_at: number };
+/** 部门身份摘要，和 `getCompetition()` 等接口里别处的身份口径一致；没分配部门为 null。 */
+export type PublicDepartment = { id: string; name: string; tone: string | null } | null;
+/** 人员（站点包必带的接口）：全部已报名、未取消的参赛者，不是只有拿过分的人——和天梯不同。 */
+export type Participant = PublicPerson & { department: PublicDepartment };
+export type Participants = { items: Participant[]; next_cursor: string | null };
+export type TeamEntry = { name: string; slogan: string; status: "recruiting" | "locked"; member_count: number; members: PublicPerson[] };
+/**
+ * 队伍（站点包必带的接口，团队赛才需要）：全部未解散的队伍，不是只有拿过分的队。`enabled` 为 false
+ * 时是个人赛，站点据此跳过「队伍」这一段，不是报错——调用 `getTeams()` 永远不会因为是个人赛而失败。
+ */
+export type Teams = { enabled: boolean; team_min: number; team_max: number; teams: TeamEntry[] };
 
 export type Snapshot = { competition: PublicCompetition; leaderboard: Leaderboard; feed: Feed; stats: Stats };
 
@@ -82,6 +95,10 @@ export type CompetitionClient = {
   getLeaderboard(): Promise<Leaderboard>;
   getFeed(options?: { cursor?: string | null; limit?: number }): Promise<Feed>;
   getStats(): Promise<Stats>;
+  /** 人员：全部已报名的参赛者（含还没拿过分的人），不是天梯。`limit` 1–200，默认 100。 */
+  getParticipants(options?: { cursor?: string | null; limit?: number }): Promise<Participants>;
+  /** 队伍：个人赛也能调，`enabled` 为 false 时直接跳过这一段，不用先判断比赛是不是团队赛。 */
+  getTeams(): Promise<Teams>;
   /** 天梯、动态、统计与比赛信息一次取齐。 */
   getSnapshot(): Promise<Snapshot>;
   /** 主站比赛窗口的报名深链，在新标签页打开。 */
@@ -157,6 +174,14 @@ export function createClient(options: ClientOptions): CompetitionClient {
       return get<Feed>(`/feed${text ? `?${text}` : ""}`);
     },
     getStats: () => get<Stats>("/stats"),
+    getParticipants: (participantOptions = {}) => {
+      const query = new URLSearchParams();
+      if (participantOptions.cursor) query.set("cursor", participantOptions.cursor);
+      if (participantOptions.limit) query.set("limit", String(Math.max(1, Math.min(200, Math.floor(participantOptions.limit)))));
+      const text = query.toString();
+      return get<Participants>(`/participants${text ? `?${text}` : ""}`);
+    },
+    getTeams: () => get<Teams>("/teams"),
     getSnapshot: () => get<Snapshot>("/snapshot").then(snapshot => {
       remember(snapshot.competition);
       return snapshot;

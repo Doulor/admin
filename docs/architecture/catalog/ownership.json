@@ -7076,6 +7076,206 @@
       ]
     },
     {
+      "id": "competition.team.plaza.publish",
+      "title": "开关组队广场广播",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "organization",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/teams/:id/plaza",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_signup_settings",
+        "competition_signups",
+        "competition_teams",
+        "competition_team_members",
+        "sessions",
+        "role_assignments",
+        "departments",
+        "titles",
+        "users",
+        "identities"
+      ],
+      "writes": [
+        "competition_teams"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员，并且是该队领队（否则403 not_team_leader）；队伍不存在或已解散404 team_not_found。",
+        "和 status 的 recruiting/locked 是两件事：锁定的队伍开着广播也不会出现在组队广场（可见性在 competition-team-plaza.ts 另外判断，不影响这里能不能开关）。",
+        "备注最多150字（400 bad_plaza_note）、想要的技能最多10项每项20字（400 bad_plaza_skills），契约层的上限更紧，先在那一层拦下；成功回最新我的状态，记一条 competition.team.plaza。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/portal/competition-signups.ts",
+          "needle": "Body: { recruiting: boolean; note?: string; wanted_skills?: string[] } }>("
+        },
+        {
+          "path": "app/server/src/lib/competition-signup-store.ts",
+          "needle": "function setPlaza("
+        },
+        {
+          "path": "app/server/src/lib/competition-contract.ts",
+          "needle": "plaza: object({ recruiting: { type: \"boolean\" }, note: text(150), wanted_skills:"
+        },
+        {
+          "path": "app/server/src/lib/db.ts",
+          "needle": "addColumn(\"competition_teams\", \"plaza_recruiting\","
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/HubDialog.tsx",
+          "needle": "export function PlazaDialog("
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/TeamHub.tsx",
+          "needle": "onClick={() => open({ kind: \"plaza\", team })}"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-signups.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/web/portal.md"
+      ]
+    },
+    {
+      "id": "competition.team.plaza.withdraw",
+      "title": "撤下组队广场广播",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "organization",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "DELETE /api/teams/:id/plaza",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_signup_settings",
+        "competition_signups",
+        "competition_teams",
+        "competition_team_members",
+        "sessions",
+        "role_assignments",
+        "departments",
+        "titles",
+        "users",
+        "identities"
+      ],
+      "writes": [
+        "competition_teams"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且是极客班成员，并且是该队领队（否则403 not_team_leader）；队伍不存在或已解散404 team_not_found。",
+        "只关掉「还在招募」，备注和想要的技能照留，下次重开不用再填一次；成功回最新我的状态，记一条 competition.team.plaza.withdraw。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/portal/competition-signups.ts",
+          "needle": "app.delete<{ Params: { id: string } }>(\"/api/teams/:id/plaza\", team, async (req, reply) =>"
+        },
+        {
+          "path": "app/server/src/lib/competition-signup-store.ts",
+          "needle": "function withdrawPlaza("
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/TeamHub.tsx",
+          "needle": "act(hubPaths.team(team.id, \"plaza\"), \"DELETE\", undefined, \"已不在组队广场招人。\")"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-signups.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/web/portal.md"
+      ]
+    },
+    {
+      "id": "competition.team_plaza.list",
+      "title": "跨比赛读取组队广场",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "organization",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/team-plaza",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_signup_settings",
+        "competition_signups",
+        "competition_teams",
+        "competition_team_members",
+        "sessions",
+        "role_assignments",
+        "departments",
+        "titles",
+        "users",
+        "identities"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：登录且持有报名或组队任一权限节点（和找队友、队伍列表同一道门，不要求本人参加某一场）。",
+        "只汇总当前在报名中的比赛（未下线、已开放报名、还在报名窗口——和各自比赛页面能不能报名同一个判断，不单开一套可见性规则）；关掉报名或过了报名窗口的比赛，条目跟着一起消失。",
+        "200 {items:[{kind, competition_id, competition_name, note, since, person, team_id, team_name, slogan, leader, member_count, team_max, wanted_skills}], next_cursor}：两种条目合成一张表，kind 决定哪些字段有值，另一种用不到的为 null（和 publicFeed 对 pr/issue/penalty 的处理一样）。",
+        "seeking_team 复用报名的 looking_for_team+note，已经在队里的人自动不再出现；recruiting_team 要求队伍开着广场广播且没满员，现算 member_count，不信队伍自己开着没关；支持按比赛、种类、关键词筛选与分页，只读，不产生任何写入。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/portal/competition-signups.ts",
+          "needle": "\"/api/team-plaza\", read,"
+        },
+        {
+          "path": "app/server/src/lib/competition-team-plaza.ts",
+          "needle": "export function createCompetitionTeamPlaza("
+        },
+        {
+          "path": "app/server/src/lib/competition-contract.ts",
+          "needle": "export const teamPlazaPage = object("
+        },
+        {
+          "path": "app/server/src/services.ts",
+          "needle": "import { createCompetitionTeamPlaza } from \"./lib/competition-team-plaza.js\";"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/TeamPlaza.tsx",
+          "needle": "useMemberRead(account === \"signed_in\" ? plazaPath({ competition, kind, keyword }) : null, readPlaza)"
+        },
+        {
+          "path": "app/web/sites/portal/lib/competitionHub.ts",
+          "needle": "export function plazaPath(filter: { competition: string | null; kind: PlazaKind | null; keyword: string }): string {"
+        },
+        {
+          "path": "app/server/src/middleware/bearer-auth.ts",
+          "needle": "{ prefix: \"/api/team-plaza\", scope: \"competition\" },"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-signups.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/web/portal.md"
+      ]
+    },
+    {
       "id": "competition.leaderboard.read",
       "title": "读取积分天梯",
       "domain": "competitions",
@@ -8370,6 +8570,146 @@
         "tests/server/competition-public.test.ts",
         "tests/web/competition-sdk.test.ts",
         "tests/web/contest-site.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/architecture/SECURITY.md",
+        "docs/services/web/README.md"
+      ]
+    },
+    {
+      "id": "competition.public.participants",
+      "title": "官网 SDK 公开读取人员",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/public/competitions/:id/participants",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_signup_settings",
+        "competition_signups",
+        "competition_team_members",
+        "account_profiles",
+        "users",
+        "identities",
+        "perm_members",
+        "perm_groups"
+      ],
+      "writes": [
+        "limit_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "匿名、不读会话；按 IP 每分钟 120 次（public.competition.per_minute，记在 limit_events，单场与四个公开接口共用一个桶），超了 429 {error:\"rate_limited\",bucket,retry_after} 并带 Retry-After；成功、404 与 429 都带 Access-Control-Allow-Origin: *，不带 Allow-Credentials。",
+        "站点包必带的接口，和天梯不同：给全部已报名、未取消的人（不是只有拿过分的人）。200 {items:[{username, display_name, avatar_url, department}], next_cursor}；department 和 permissions.accountGroupsView().department 同一份口径，没分配部门为 null。",
+        "limit 1–200，默认 100；按报名时间分页，游标是 created_at:account_id 的 base64url，账号 id 是 26 位 Crockford Base32（不是 UUID），正则和贡献动态的游标不同。",
+        "第一页（无 cursor、默认 limit）结果在服务端缓存 10 秒（publicCacheKey），加分、撤销、改规则、发布官网、定榜时按比赛清掉；带 cursor 或自定义 limit 的翻页不缓存。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/portal/competitions.ts",
+          "needle": "\"/api/public/competitions/:id/participants\""
+        },
+        {
+          "path": "app/server/src/routes/portal/contracts.ts",
+          "needle": "\"GET /api/public/competitions/:id/participants\":"
+        },
+        {
+          "path": "app/server/src/lib/competition-public.ts",
+          "needle": "function participants(competitionId: string, cursor: string | null, limit = PARTICIPANTS_PAGE_SIZE): PublicParticipants | null {"
+        },
+        {
+          "path": "app/web/shared/competition-sdk/index.ts",
+          "needle": "getParticipants(options?: { cursor?: string | null; limit?: number }): Promise<Participants>;"
+        },
+        {
+          "path": "app/web/sites/contests/_starter/src/main.ts",
+          "needle": "const page = await client.getParticipants({ cursor });"
+        },
+        {
+          "path": "app/web/sites/contests/_starter/site.config.ts",
+          "needle": "export const SITE = {"
+        },
+        {
+          "path": "app/web/sites/contests/_starter/vite.config.ts",
+          "needle": "export default defineConfig({"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-public.test.ts",
+        "tests/web/competition-sdk.test.ts",
+        "tests/tooling/contest-site.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/architecture/SECURITY.md",
+        "docs/services/web/README.md"
+      ]
+    },
+    {
+      "id": "competition.public.teams",
+      "title": "官网 SDK 公开读取队伍",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/public/competitions/:id/teams",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_signup_settings",
+        "competition_teams",
+        "competition_team_members",
+        "account_profiles",
+        "users",
+        "identities"
+      ],
+      "writes": [
+        "limit_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "匿名、不读会话；按 IP 每分钟 120 次（public.competition.per_minute，记在 limit_events，单场与四个公开接口共用一个桶），超了 429 {error:\"rate_limited\",bucket,retry_after} 并带 Retry-After；成功、404 与 429 都带 Access-Control-Allow-Origin: *，不带 Allow-Credentials。",
+        "站点包必带的接口，和天梯不同：给全部未解散的队（不是只有拿过分的队）。200 {enabled, team_min, team_max, teams:[{name, slogan, status, member_count, members}]}；这场比赛是个人赛时 enabled 为 false、teams 为空数组，不是 404 或 409。",
+        "结果在服务端缓存 10 秒（publicCacheKey），加分、撤销、改规则、发布官网、定榜时按比赛清掉。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/portal/competitions.ts",
+          "needle": "\"/api/public/competitions/:id/teams\""
+        },
+        {
+          "path": "app/server/src/routes/portal/contracts.ts",
+          "needle": "\"GET /api/public/competitions/:id/teams\":"
+        },
+        {
+          "path": "app/server/src/lib/competition-public.ts",
+          "needle": "function teams(competitionId: string): PublicTeams | null {"
+        },
+        {
+          "path": "app/web/shared/competition-sdk/index.ts",
+          "needle": "getTeams(): Promise<Teams>;"
+        },
+        {
+          "path": "app/web/sites/contests/_starter/src/main.ts",
+          "needle": "const [competition, board, teams] = await Promise.all([client.getCompetition(), client.getLeaderboard(), client.getTeams()]);"
+        }
+      ],
+      "tests": [
+        "tests/server/competition-public.test.ts",
+        "tests/web/competition-sdk.test.ts",
+        "tests/tooling/contest-site.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
