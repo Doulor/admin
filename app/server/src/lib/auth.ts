@@ -4,7 +4,7 @@ import type Database from "better-sqlite3";
 import type { AppConfig } from "../config.js";
 import type { createCrypto } from "./crypto.js";
 import { truncateWal } from "./db.js";
-import { GITHUB_TIMEOUT_MS } from "./github.js";
+import { GITHUB_TIMEOUT_MS } from "./github-http.js";
 import type { IdentityProvider, NewSession } from "./identity-store.js";
 import { CHALLENGE_RETENTION_MS } from "./email-login.js";
 /**

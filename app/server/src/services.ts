@@ -9,7 +9,7 @@ import { createEmailLogin } from "./lib/email-login.js";
 import { createInviteCodeStore } from "./lib/invite-codes.js";
 import { createGoogle } from "./lib/google.js";
 import { createDeviceStore } from "./lib/device-store.js";
-import { createGithub } from "./lib/github.js";
+import { createGithub } from "./lib/github-http.js";
 import { createCache } from "./lib/cache.js";
 import { createRoleStore } from "./lib/role-store.js";
 import { createPermissionEngine } from "./lib/permissions.js";

@@ -12,12 +12,9 @@ export function withTimeout(base: typeof fetch, ms: number): typeof fetch {
 }
 
 /**
- * #274 review round 1（CONTRACT-274 §8）：GitHub 登录本身（换码、取 /user）不经这里，是 lib/auth.ts 自己
- * 直接发的 HTTP 请求，不用 Octokit。这个模块原来是给服务器接入的 GitHub App（lib/github-connection.ts，已删）
- * 和 `/api/join/:token` 的组织邀请链接（routes/portal/join.ts，组织那部分已删）查组织角色、查成员、查用户用的，
- * 这几个查询现在没有任何调用方了（access.ts 不再查 GitHub 组织角色，见 lib/access.ts 的改动说明），一并删掉。
- * 保留 `octokitWith` 这一个工厂：ServiceOverrides.octokitFactory 这个测试覆盖点还有大量既有测试在用
- * （`testApp({ octokitFactory })`），不在本轮复核范围内逐一核对、挪走。
+ * GitHub 登录本身（换码、取 /user、取邮箱）是 lib/auth.ts 直接发的 HTTP 请求，只从这里取超时；Google 登录同样。
+ * #274 删掉 GitHub 组织管理（CONTRACT-274 §8）后，组织角色、成员、邀请的查询都没有调用方了，这个文件从
+ * lib/github.ts 改名过来，只剩超时工具和 `octokitWith` 工厂（ServiceOverrides.octokitFactory 这个测试覆盖点仍在用）。
  */
 export function createGithub(factory: (token: string) => Octokit = token => new Octokit({ auth: token, userAgent: "yzgc-admin", request: { fetch: withTimeout(fetch, GITHUB_TIMEOUT_MS) } })) {
   return { octokitWith: factory };
