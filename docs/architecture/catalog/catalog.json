@@ -1219,6 +1219,10 @@
         {
           "line": 109,
           "path": "app/console/src/pages/Device.vue"
+        },
+        {
+          "line": 20,
+          "path": "app/web/shared/lib/api.ts"
         }
       ],
       "id": "flow:identity.current",
@@ -1691,6 +1695,14 @@
         {
           "line": 49,
           "path": "app/console/src/mock/index.ts"
+        },
+        {
+          "line": 290,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/web/sites/portal/lib/links.ts"
         }
       ],
       "id": "flow:identity.account.view",
@@ -2458,6 +2470,58 @@
         {
           "line": 20,
           "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 16,
+          "path": "app/web/sites/portal/lib/events.ts"
+        },
+        {
+          "line": 66,
+          "path": "app/web/sites/portal/components/boot/BootSequence.tsx"
+        },
+        {
+          "line": 3,
+          "path": "app/web/sites/portal/lib/bootGate.ts"
+        },
+        {
+          "line": 19,
+          "path": "app/web/sites/portal/components/boot/engine.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/components/boot/background.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/web/sites/portal/components/boot/layout.ts"
+        },
+        {
+          "line": 5,
+          "path": "app/web/sites/portal/components/boot/math.ts"
+        },
+        {
+          "line": 5,
+          "path": "app/web/sites/portal/components/boot/shapes.ts"
+        },
+        {
+          "line": 7,
+          "path": "app/web/sites/portal/components/boot/timeline.ts"
+        },
+        {
+          "line": 97,
+          "path": "app/web/sites/portal/components/os/SkyWallpaper.tsx"
+        },
+        {
+          "line": 12,
+          "path": "app/web/sites/portal/components/os/Wallpaper.tsx"
+        },
+        {
+          "line": 18,
+          "path": "app/web/sites/portal/lib/wallpapers.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
       "id": "flow:audit.events.report",
@@ -2729,6 +2793,14 @@
         {
           "line": 4,
           "path": "app/server/src/lib/apply-quota.ts"
+        },
+        {
+          "line": 181,
+          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+        },
+        {
+          "line": 11,
+          "path": "app/web/sites/portal/components/SceneBar.tsx"
         }
       ],
       "id": "flow:application.submit",
@@ -2776,6 +2848,10 @@
         {
           "line": 15,
           "path": "app/server/src/routes/portal/public-config.ts"
+        },
+        {
+          "line": 38,
+          "path": "app/web/shared/config/index.ts"
         }
       ],
       "id": "flow:platform.public_config",
@@ -2813,10 +2889,6 @@
           "path": "app/server/src/routes/portal/org.ts"
         },
         {
-          "line": 19,
-          "path": "app/web/sites/portal/lib/org.ts"
-        },
-        {
           "line": 190,
           "path": "app/forum/app/data/titles.ts"
         }
@@ -2837,8 +2909,7 @@
       "relatedDomains": [],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
-        "tests/server/console.test.ts",
-        "tests/web/portal-org.test.ts"
+        "tests/server/console.test.ts"
       ],
       "title": "阅读公开组织架构",
       "writes": []
@@ -2960,6 +3031,14 @@
         {
           "line": 66,
           "path": "app/server/src/routes/portal/feedback.ts"
+        },
+        {
+          "line": 32,
+          "path": "app/web/sites/portal/App.tsx"
+        },
+        {
+          "line": 29,
+          "path": "app/web/sites/portal/components/PageShell.tsx"
         }
       ],
       "id": "flow:feedback.public.list",
@@ -2997,6 +3076,10 @@
         {
           "line": 26,
           "path": "app/server/src/routes/portal/feedback.ts"
+        },
+        {
+          "line": 105,
+          "path": "app/web/sites/portal/pages/Feedback.tsx"
         }
       ],
       "id": "flow:feedback.submit",
@@ -4679,7 +4762,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 115,
+          "line": 121,
           "path": "app/web/sites/portal/lib/competitions.ts"
         },
         {
@@ -4699,11 +4782,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 222,
+          "line": 226,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 152,
+          "line": 159,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -4721,6 +4804,14 @@
         {
           "line": 5,
           "path": "app/web/sites/portal/lib/icons.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
+        },
+        {
+          "line": 8,
+          "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx"
         }
       ],
       "id": "flow:competition.public.list",
@@ -5065,7 +5156,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 109,
+          "line": 110,
           "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
         }
       ],
@@ -7257,6 +7348,10 @@
         {
           "line": 18,
           "path": "app/console/src/pages/gitlab/Projects.vue"
+        },
+        {
+          "line": 70,
+          "path": "app/web/shared/ui/DevControlCenter.tsx"
         }
       ],
       "id": "flow:gitlab.projects.console.list",
@@ -7310,6 +7405,14 @@
         {
           "line": 70,
           "path": "app/server/src/lib/gitlab-sync.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/lib/codeRepos.ts"
+        },
+        {
+          "line": 3,
+          "path": "app/web/sites/portal/lib/snapshots.ts"
         }
       ],
       "id": "flow:gitlab.projects.public.list",
@@ -7511,6 +7614,14 @@
         {
           "line": 42,
           "path": "app/server/src/lib/account-profiles.ts"
+        },
+        {
+          "line": 55,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 25,
+          "path": "app/web/sites/portal/lib/startNote.ts"
         }
       ],
       "id": "flow:identity.profile.update",
@@ -7593,6 +7704,10 @@
         {
           "line": 21,
           "path": "app/server/src/lib/account-avatar.ts"
+        },
+        {
+          "line": 241,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
       "id": "flow:identity.avatar.upload",
@@ -7636,6 +7751,10 @@
         {
           "line": 232,
           "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 489,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
       "id": "flow:identity.invite.redeem",
@@ -7682,6 +7801,10 @@
         {
           "line": 13,
           "path": "app/server/src/routes/portal/contracts.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/web/sites/portal/lib/departments.ts"
         }
       ],
       "id": "flow:identity.departments.public",
@@ -10941,11 +11064,6 @@
       "title": "tests/web/portal-competitions.test.tsx"
     },
     {
-      "id": "test:tests/web/portal-org.test.ts",
-      "kind": "test",
-      "title": "tests/web/portal-org.test.ts"
-    },
-    {
       "id": "test:tests/web/portal-os.test.ts",
       "kind": "test",
       "title": "tests/web/portal-os.test.ts"
@@ -10958,7 +11076,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "bc3a1cbe2a3fc9d1e5a327a309c58a2db90a4df9d7dffc962adf097d060e8a60",
+    "fingerprint": "1c782a93575ad86c7c27b612e61546edbda698ddfe6a34479a420bfb9c2b0068",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -12118,7 +12236,7 @@
       },
       {
         "path": "app/server/src/services.ts",
-        "sha256": "08d753ef5cc621ebd6624301d2607ca9d736b30cc727f7556889b26bea6ca338"
+        "sha256": "af3d753201fd6d5051db80f444d2f2a03c54dc7fd5a9b249ee1dc9eb1031f905"
       },
       {
         "path": "app/web/Dockerfile",
@@ -12146,7 +12264,7 @@
       },
       {
         "path": "app/web/shared/lib/mock-api.ts",
-        "sha256": "0c6d0136595c20ab3ec791c405b965380fa757880e63db83f366269b6ce24948"
+        "sha256": "7a874915d2042072b6f39ce0854f55e18e57fb52dbccfe1b2c774af38cd3494d"
       },
       {
         "path": "app/web/shared/lib/mount.tsx",
@@ -12198,7 +12316,7 @@
       },
       {
         "path": "app/web/sites/portal/App.tsx",
-        "sha256": "71649b7c7a7cc3828756848b6aeebf8fec6b12935cae381ea54000ce6862b9ea"
+        "sha256": "655f505f8c2d973cc2c3e87003b30d0ed04a6976fc6912b1f791a3f8ba737616"
       },
       {
         "path": "app/web/sites/portal/components/ChoiceChips.tsx",
@@ -12262,7 +12380,7 @@
       },
       {
         "path": "app/web/sites/portal/components/os/SkyWallpaper.tsx",
-        "sha256": "b0973e539a764fdd68923841b4ca30352c6051ed0ca10f86b15b3bfb51b5c04b"
+        "sha256": "53ff9b4df2f42df5778504fe4a0aeb928634aa0761b33b183d6f5a53bcc1fe5c"
       },
       {
         "path": "app/web/sites/portal/components/os/Wallpaper.tsx",
@@ -12274,11 +12392,11 @@
       },
       {
         "path": "app/web/sites/portal/components/os/Windows.tsx",
-        "sha256": "64ef3afa1bf15a27358bcced7b94f31c9fcb485ec85ec1a801e861e9d434cb24"
+        "sha256": "09f71bc8b64ffcb8444616276b04e0044ee2841ca479257ea55a225315cf9a23"
       },
       {
         "path": "app/web/sites/portal/components/os/YugcOs.tsx",
-        "sha256": "9944fc6f6b0c5f6db93ef77918c26b31c65182d2799aaf864d12ce6efb11201d"
+        "sha256": "e36b58722b56019a6badfd371adc9dc3ae49c8398492aad1d83d00ab6094588d"
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/Avatar.tsx",
@@ -12298,11 +12416,11 @@
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx",
-        "sha256": "fed04dd05fc20178e35c7a8d0c19e5f69429ad3ad316e9c9590ddc107b19b900"
+        "sha256": "e8bd5657d9c2714f2ef96e83583e71bff3dbf27cf5bb669c4418fa211605e249"
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx",
-        "sha256": "2373bc8ce0b424fcff1c62e683d4c438e73beff19d5d69515058412ef250aa9c"
+        "sha256": "d41afba73018dbf3f933ed35c9cd8a899104cf3be145e64dc9a6ef8d5710e5fb"
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/HubDialog.tsx",
@@ -12350,7 +12468,7 @@
       },
       {
         "path": "app/web/sites/portal/lib/competitions.ts",
-        "sha256": "b97a1a1c6584b34f035d4fb85ea8dfb9ab10f30cef0d0e4853e6f394a7455a6a"
+        "sha256": "8fa13b909fcb0fb77a1fb435271d6cebd29109d023c383aba5a2c8efaca1f606"
       },
       {
         "path": "app/web/sites/portal/lib/departments.ts",
@@ -12366,19 +12484,15 @@
       },
       {
         "path": "app/web/sites/portal/lib/links.ts",
-        "sha256": "bd1e756a507405d3cca7a81ef700672f71d579ab8f86955a6363927d88157bb0"
+        "sha256": "8074bfe4c8cb2efccc9d1d4bf2028483a0abfab1837f56bdc72345626a6e99ae"
       },
       {
         "path": "app/web/sites/portal/lib/motion.ts",
         "sha256": "23d1bee8bb72625be0e3531acdafadbaa50ce88a1d48047a9bc018235ff28c0a"
       },
       {
-        "path": "app/web/sites/portal/lib/org.ts",
-        "sha256": "0addae67cec0f8683f413c7a040aae433f24a496cee5f5950f2d31bdcc5c8aff"
-      },
-      {
         "path": "app/web/sites/portal/lib/osApps.ts",
-        "sha256": "53456f1c48c3c0fd8508e2451200e7776a50f535cc3da8f523dff95591a6fd4a"
+        "sha256": "588de880c29abf6e88b5e6251f35e08ed5ddb33ecef20a283cb566c4cad81f5c"
       },
       {
         "path": "app/web/sites/portal/lib/pixelRatio.ts",
@@ -12418,7 +12532,7 @@
       },
       {
         "path": "app/web/sites/portal/pages/Feedback.tsx",
-        "sha256": "cea73b7dcc46832f37f2bc62a0072c4b22c29def4853f6480cb9d84876cf8cea"
+        "sha256": "d7fa012ed819e63aa6b2ca42b425b46c34bcccc7b347130ad240bf6fb1d61198"
       },
       {
         "path": "app/web/sites/portal/pages/Forum3D.tsx",
@@ -12427,10 +12541,6 @@
       {
         "path": "app/web/sites/portal/pages/Home.tsx",
         "sha256": "ff4d063cf833238be9ea48c42eee1712b4a8f1a076560ab251574e816df94119"
-      },
-      {
-        "path": "app/web/sites/portal/pages/JoinByToken.tsx",
-        "sha256": "64fe16dcc9fcc9083d1947fb7839bf3ac20b803acb563a08ca2a8eb088398c12"
       },
       {
         "path": "app/web/sites/portal/pages/JoinUs.tsx",
@@ -12470,7 +12580,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "f0cf4eb3903fa4059980842e81c2dfee47a626d186db86cb6e69cd87ccfd61a7"
+        "sha256": "f45386766952abf6b90753b25f7cb8761068d319bd12efed74eaa3b990f2814b"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -12490,7 +12600,7 @@
       },
       {
         "path": "docs/plan/COMPETITION-APP.md",
-        "sha256": "a147b43ac4c739080f1b1c18db088ee7f580561c9a194d001a902a94d2716d67"
+        "sha256": "8427fe24b5100ede5c604175bb62126f47f8cbf72eff0066fcacd15550d69a54"
       },
       {
         "path": "docs/plan/UNIFIED-LOGIN.md",
@@ -12526,11 +12636,11 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "ad47e5772093fb2b40741895f7b763aeb546e1009d956c09cc732802c9ca9c43"
+        "sha256": "dcb060a5e82d0b7e3413615a10213197ee6e055b3552b3f2a4cefb79a3d2797a"
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "095e5b04578898f2d85308b1deab4cc2d64c2fca28c1db50e35ff7aac93bc1b2"
+        "sha256": "acc3f642ce0191358dc4b0ffc3c7ac24ce332a11c4094cd266ce3ec3a4038d11"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -12714,19 +12824,15 @@
       },
       {
         "path": "tests/web/portal-competitions.test.tsx",
-        "sha256": "b1f42c75c91ef828065c61b96bbdb755907f30eca1c9881d692373dbbeef644f"
-      },
-      {
-        "path": "tests/web/portal-org.test.ts",
-        "sha256": "74bc80dabd0100e1ff688d73e922cd46c8af13adc7dfac670f8af0a4f7ba9ca3"
+        "sha256": "c913de9dcba934927e5ecbce1cba4e22a3f0d4681c76c580e9f95b3cc5c6c735"
       },
       {
         "path": "tests/web/portal-os.test.ts",
-        "sha256": "e3057672999f8c7d115f2f762e5ba3a7d9a64bc0e1b6bf26c87982a4bc9ab20a"
+        "sha256": "26dcccd09e0b8eca83bb42a6a0de1806214c5c25564191e13b376b558e9b587b"
       },
       {
         "path": "tests/web/portal-phone.test.tsx",
-        "sha256": "8aa225673fdeb2f5b5aff16eb78947161045af5d979350020900ae2afcc11424"
+        "sha256": "d1b555aa803d6989da16e5df071210506f6d0a35c12c592b37adc1f06048b597"
       }
     ]
   },
@@ -16975,6 +17081,14 @@
         {
           "line": 4,
           "path": "app/server/src/lib/apply-quota.ts"
+        },
+        {
+          "line": 181,
+          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+        },
+        {
+          "line": 11,
+          "path": "app/web/sites/portal/components/SceneBar.tsx"
         }
       ],
       "from": "flow:application.submit",
@@ -16999,6 +17113,14 @@
         {
           "line": 4,
           "path": "app/server/src/lib/apply-quota.ts"
+        },
+        {
+          "line": 181,
+          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+        },
+        {
+          "line": 11,
+          "path": "app/web/sites/portal/components/SceneBar.tsx"
         }
       ],
       "from": "flow:application.submit",
@@ -17041,6 +17163,14 @@
         {
           "line": 4,
           "path": "app/server/src/lib/apply-quota.ts"
+        },
+        {
+          "line": 181,
+          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+        },
+        {
+          "line": 11,
+          "path": "app/web/sites/portal/components/SceneBar.tsx"
         }
       ],
       "from": "flow:application.submit",
@@ -17065,6 +17195,14 @@
         {
           "line": 4,
           "path": "app/server/src/lib/apply-quota.ts"
+        },
+        {
+          "line": 181,
+          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+        },
+        {
+          "line": 11,
+          "path": "app/web/sites/portal/components/SceneBar.tsx"
         }
       ],
       "from": "flow:application.submit",
@@ -17089,6 +17227,14 @@
         {
           "line": 4,
           "path": "app/server/src/lib/apply-quota.ts"
+        },
+        {
+          "line": 181,
+          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+        },
+        {
+          "line": 11,
+          "path": "app/web/sites/portal/components/SceneBar.tsx"
         }
       ],
       "from": "flow:application.submit",
@@ -17113,6 +17259,14 @@
         {
           "line": 4,
           "path": "app/server/src/lib/apply-quota.ts"
+        },
+        {
+          "line": 181,
+          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+        },
+        {
+          "line": 11,
+          "path": "app/web/sites/portal/components/SceneBar.tsx"
         }
       ],
       "from": "flow:application.submit",
@@ -17137,6 +17291,14 @@
         {
           "line": 4,
           "path": "app/server/src/lib/apply-quota.ts"
+        },
+        {
+          "line": 181,
+          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+        },
+        {
+          "line": 11,
+          "path": "app/web/sites/portal/components/SceneBar.tsx"
         }
       ],
       "from": "flow:application.submit",
@@ -17577,6 +17739,58 @@
         {
           "line": 20,
           "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 16,
+          "path": "app/web/sites/portal/lib/events.ts"
+        },
+        {
+          "line": 66,
+          "path": "app/web/sites/portal/components/boot/BootSequence.tsx"
+        },
+        {
+          "line": 3,
+          "path": "app/web/sites/portal/lib/bootGate.ts"
+        },
+        {
+          "line": 19,
+          "path": "app/web/sites/portal/components/boot/engine.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/components/boot/background.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/web/sites/portal/components/boot/layout.ts"
+        },
+        {
+          "line": 5,
+          "path": "app/web/sites/portal/components/boot/math.ts"
+        },
+        {
+          "line": 5,
+          "path": "app/web/sites/portal/components/boot/shapes.ts"
+        },
+        {
+          "line": 7,
+          "path": "app/web/sites/portal/components/boot/timeline.ts"
+        },
+        {
+          "line": 97,
+          "path": "app/web/sites/portal/components/os/SkyWallpaper.tsx"
+        },
+        {
+          "line": 12,
+          "path": "app/web/sites/portal/components/os/Wallpaper.tsx"
+        },
+        {
+          "line": 18,
+          "path": "app/web/sites/portal/lib/wallpapers.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
       "from": "flow:audit.events.report",
@@ -17597,6 +17811,58 @@
         {
           "line": 20,
           "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 16,
+          "path": "app/web/sites/portal/lib/events.ts"
+        },
+        {
+          "line": 66,
+          "path": "app/web/sites/portal/components/boot/BootSequence.tsx"
+        },
+        {
+          "line": 3,
+          "path": "app/web/sites/portal/lib/bootGate.ts"
+        },
+        {
+          "line": 19,
+          "path": "app/web/sites/portal/components/boot/engine.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/components/boot/background.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/web/sites/portal/components/boot/layout.ts"
+        },
+        {
+          "line": 5,
+          "path": "app/web/sites/portal/components/boot/math.ts"
+        },
+        {
+          "line": 5,
+          "path": "app/web/sites/portal/components/boot/shapes.ts"
+        },
+        {
+          "line": 7,
+          "path": "app/web/sites/portal/components/boot/timeline.ts"
+        },
+        {
+          "line": 97,
+          "path": "app/web/sites/portal/components/os/SkyWallpaper.tsx"
+        },
+        {
+          "line": 12,
+          "path": "app/web/sites/portal/components/os/Wallpaper.tsx"
+        },
+        {
+          "line": 18,
+          "path": "app/web/sites/portal/lib/wallpapers.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
       "from": "flow:audit.events.report",
@@ -19345,7 +19611,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 109,
+          "line": 110,
           "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
         }
       ],
@@ -19373,7 +19639,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 109,
+          "line": 110,
           "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
         }
       ],
@@ -19401,7 +19667,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 109,
+          "line": 110,
           "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
         }
       ],
@@ -19429,7 +19695,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 109,
+          "line": 110,
           "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
         }
       ],
@@ -19457,7 +19723,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 109,
+          "line": 110,
           "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
         }
       ],
@@ -19485,7 +19751,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 109,
+          "line": 110,
           "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
         }
       ],
@@ -19513,7 +19779,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 109,
+          "line": 110,
           "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
         }
       ],
@@ -19541,7 +19807,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 109,
+          "line": 110,
           "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
         }
       ],
@@ -19569,7 +19835,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 109,
+          "line": 110,
           "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
         }
       ],
@@ -19597,7 +19863,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 109,
+          "line": 110,
           "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
         }
       ],
@@ -19625,7 +19891,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 109,
+          "line": 110,
           "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
         }
       ],
@@ -19671,7 +19937,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 109,
+          "line": 110,
           "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
         }
       ],
@@ -20375,7 +20641,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 115,
+          "line": 121,
           "path": "app/web/sites/portal/lib/competitions.ts"
         },
         {
@@ -20395,11 +20661,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 222,
+          "line": 226,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 152,
+          "line": 159,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -20417,6 +20683,14 @@
         {
           "line": 5,
           "path": "app/web/sites/portal/lib/icons.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
+        },
+        {
+          "line": 8,
+          "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx"
         }
       ],
       "from": "flow:competition.public.list",
@@ -20477,7 +20751,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 115,
+          "line": 121,
           "path": "app/web/sites/portal/lib/competitions.ts"
         },
         {
@@ -20497,11 +20771,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 222,
+          "line": 226,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 152,
+          "line": 159,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -20519,6 +20793,14 @@
         {
           "line": 5,
           "path": "app/web/sites/portal/lib/icons.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
+        },
+        {
+          "line": 8,
+          "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx"
         }
       ],
       "from": "flow:competition.public.list",
@@ -28515,6 +28797,14 @@
         {
           "line": 66,
           "path": "app/server/src/routes/portal/feedback.ts"
+        },
+        {
+          "line": 32,
+          "path": "app/web/sites/portal/App.tsx"
+        },
+        {
+          "line": 29,
+          "path": "app/web/sites/portal/components/PageShell.tsx"
         }
       ],
       "from": "flow:feedback.public.list",
@@ -28539,6 +28829,14 @@
         {
           "line": 66,
           "path": "app/server/src/routes/portal/feedback.ts"
+        },
+        {
+          "line": 32,
+          "path": "app/web/sites/portal/App.tsx"
+        },
+        {
+          "line": 29,
+          "path": "app/web/sites/portal/components/PageShell.tsx"
         }
       ],
       "from": "flow:feedback.public.list",
@@ -28575,6 +28873,10 @@
         {
           "line": 26,
           "path": "app/server/src/routes/portal/feedback.ts"
+        },
+        {
+          "line": 105,
+          "path": "app/web/sites/portal/pages/Feedback.tsx"
         }
       ],
       "from": "flow:feedback.submit",
@@ -28605,6 +28907,10 @@
         {
           "line": 26,
           "path": "app/server/src/routes/portal/feedback.ts"
+        },
+        {
+          "line": 105,
+          "path": "app/web/sites/portal/pages/Feedback.tsx"
         }
       ],
       "from": "flow:feedback.submit",
@@ -28617,6 +28923,10 @@
         {
           "line": 26,
           "path": "app/server/src/routes/portal/feedback.ts"
+        },
+        {
+          "line": 105,
+          "path": "app/web/sites/portal/pages/Feedback.tsx"
         }
       ],
       "from": "flow:feedback.submit",
@@ -28629,6 +28939,10 @@
         {
           "line": 26,
           "path": "app/server/src/routes/portal/feedback.ts"
+        },
+        {
+          "line": 105,
+          "path": "app/web/sites/portal/pages/Feedback.tsx"
         }
       ],
       "from": "flow:feedback.submit",
@@ -28641,6 +28955,10 @@
         {
           "line": 26,
           "path": "app/server/src/routes/portal/feedback.ts"
+        },
+        {
+          "line": 105,
+          "path": "app/web/sites/portal/pages/Feedback.tsx"
         }
       ],
       "from": "flow:feedback.submit",
@@ -36955,6 +37273,10 @@
         {
           "line": 18,
           "path": "app/console/src/pages/gitlab/Projects.vue"
+        },
+        {
+          "line": 70,
+          "path": "app/web/shared/ui/DevControlCenter.tsx"
         }
       ],
       "from": "flow:gitlab.projects.console.list",
@@ -36979,6 +37301,10 @@
         {
           "line": 18,
           "path": "app/console/src/pages/gitlab/Projects.vue"
+        },
+        {
+          "line": 70,
+          "path": "app/web/shared/ui/DevControlCenter.tsx"
         }
       ],
       "from": "flow:gitlab.projects.console.list",
@@ -37003,6 +37329,10 @@
         {
           "line": 18,
           "path": "app/console/src/pages/gitlab/Projects.vue"
+        },
+        {
+          "line": 70,
+          "path": "app/web/shared/ui/DevControlCenter.tsx"
         }
       ],
       "from": "flow:gitlab.projects.console.list",
@@ -37027,6 +37357,10 @@
         {
           "line": 18,
           "path": "app/console/src/pages/gitlab/Projects.vue"
+        },
+        {
+          "line": 70,
+          "path": "app/web/shared/ui/DevControlCenter.tsx"
         }
       ],
       "from": "flow:gitlab.projects.console.list",
@@ -37051,6 +37385,10 @@
         {
           "line": 18,
           "path": "app/console/src/pages/gitlab/Projects.vue"
+        },
+        {
+          "line": 70,
+          "path": "app/web/shared/ui/DevControlCenter.tsx"
         }
       ],
       "from": "flow:gitlab.projects.console.list",
@@ -37075,6 +37413,10 @@
         {
           "line": 18,
           "path": "app/console/src/pages/gitlab/Projects.vue"
+        },
+        {
+          "line": 70,
+          "path": "app/web/shared/ui/DevControlCenter.tsx"
         }
       ],
       "from": "flow:gitlab.projects.console.list",
@@ -37105,6 +37447,10 @@
         {
           "line": 18,
           "path": "app/console/src/pages/gitlab/Projects.vue"
+        },
+        {
+          "line": 70,
+          "path": "app/web/shared/ui/DevControlCenter.tsx"
         }
       ],
       "from": "flow:gitlab.projects.console.list",
@@ -37129,6 +37475,10 @@
         {
           "line": 18,
           "path": "app/console/src/pages/gitlab/Projects.vue"
+        },
+        {
+          "line": 70,
+          "path": "app/web/shared/ui/DevControlCenter.tsx"
         }
       ],
       "from": "flow:gitlab.projects.console.list",
@@ -37185,6 +37535,14 @@
         {
           "line": 70,
           "path": "app/server/src/lib/gitlab-sync.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/lib/codeRepos.ts"
+        },
+        {
+          "line": 3,
+          "path": "app/web/sites/portal/lib/snapshots.ts"
         }
       ],
       "from": "flow:gitlab.projects.public.list",
@@ -38893,6 +39251,14 @@
         {
           "line": 49,
           "path": "app/console/src/mock/index.ts"
+        },
+        {
+          "line": 290,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/web/sites/portal/lib/links.ts"
         }
       ],
       "from": "flow:identity.account.view",
@@ -38941,6 +39307,14 @@
         {
           "line": 49,
           "path": "app/console/src/mock/index.ts"
+        },
+        {
+          "line": 290,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/web/sites/portal/lib/links.ts"
         }
       ],
       "from": "flow:identity.account.view",
@@ -38989,6 +39363,14 @@
         {
           "line": 49,
           "path": "app/console/src/mock/index.ts"
+        },
+        {
+          "line": 290,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/web/sites/portal/lib/links.ts"
         }
       ],
       "from": "flow:identity.account.view",
@@ -39037,6 +39419,14 @@
         {
           "line": 49,
           "path": "app/console/src/mock/index.ts"
+        },
+        {
+          "line": 290,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/web/sites/portal/lib/links.ts"
         }
       ],
       "from": "flow:identity.account.view",
@@ -39103,6 +39493,14 @@
         {
           "line": 49,
           "path": "app/console/src/mock/index.ts"
+        },
+        {
+          "line": 290,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/web/sites/portal/lib/links.ts"
         }
       ],
       "from": "flow:identity.account.view",
@@ -39151,6 +39549,14 @@
         {
           "line": 49,
           "path": "app/console/src/mock/index.ts"
+        },
+        {
+          "line": 290,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/web/sites/portal/lib/links.ts"
         }
       ],
       "from": "flow:identity.account.view",
@@ -39299,6 +39705,10 @@
         {
           "line": 21,
           "path": "app/server/src/lib/account-avatar.ts"
+        },
+        {
+          "line": 241,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
       "from": "flow:identity.avatar.upload",
@@ -39321,6 +39731,10 @@
         {
           "line": 21,
           "path": "app/server/src/lib/account-avatar.ts"
+        },
+        {
+          "line": 241,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
       "from": "flow:identity.avatar.upload",
@@ -39337,6 +39751,10 @@
         {
           "line": 21,
           "path": "app/server/src/lib/account-avatar.ts"
+        },
+        {
+          "line": 241,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
       "from": "flow:identity.avatar.upload",
@@ -39353,6 +39771,10 @@
         {
           "line": 21,
           "path": "app/server/src/lib/account-avatar.ts"
+        },
+        {
+          "line": 241,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
       "from": "flow:identity.avatar.upload",
@@ -40049,6 +40471,10 @@
         {
           "line": 109,
           "path": "app/console/src/pages/Device.vue"
+        },
+        {
+          "line": 20,
+          "path": "app/web/shared/lib/api.ts"
         }
       ],
       "from": "flow:identity.current",
@@ -40157,6 +40583,10 @@
         {
           "line": 109,
           "path": "app/console/src/pages/Device.vue"
+        },
+        {
+          "line": 20,
+          "path": "app/web/shared/lib/api.ts"
         }
       ],
       "from": "flow:identity.current",
@@ -40265,6 +40695,10 @@
         {
           "line": 109,
           "path": "app/console/src/pages/Device.vue"
+        },
+        {
+          "line": 20,
+          "path": "app/web/shared/lib/api.ts"
         }
       ],
       "from": "flow:identity.current",
@@ -40373,6 +40807,10 @@
         {
           "line": 109,
           "path": "app/console/src/pages/Device.vue"
+        },
+        {
+          "line": 20,
+          "path": "app/web/shared/lib/api.ts"
         }
       ],
       "from": "flow:identity.current",
@@ -40481,6 +40919,10 @@
         {
           "line": 109,
           "path": "app/console/src/pages/Device.vue"
+        },
+        {
+          "line": 20,
+          "path": "app/web/shared/lib/api.ts"
         }
       ],
       "from": "flow:identity.current",
@@ -40589,6 +41031,10 @@
         {
           "line": 109,
           "path": "app/console/src/pages/Device.vue"
+        },
+        {
+          "line": 20,
+          "path": "app/web/shared/lib/api.ts"
         }
       ],
       "from": "flow:identity.current",
@@ -40697,6 +41143,10 @@
         {
           "line": 109,
           "path": "app/console/src/pages/Device.vue"
+        },
+        {
+          "line": 20,
+          "path": "app/web/shared/lib/api.ts"
         }
       ],
       "from": "flow:identity.current",
@@ -40805,6 +41255,10 @@
         {
           "line": 109,
           "path": "app/console/src/pages/Device.vue"
+        },
+        {
+          "line": 20,
+          "path": "app/web/shared/lib/api.ts"
         }
       ],
       "from": "flow:identity.current",
@@ -40985,6 +41439,10 @@
         {
           "line": 109,
           "path": "app/console/src/pages/Device.vue"
+        },
+        {
+          "line": 20,
+          "path": "app/web/shared/lib/api.ts"
         }
       ],
       "from": "flow:identity.current",
@@ -41093,6 +41551,10 @@
         {
           "line": 109,
           "path": "app/console/src/pages/Device.vue"
+        },
+        {
+          "line": 20,
+          "path": "app/web/shared/lib/api.ts"
         }
       ],
       "from": "flow:identity.current",
@@ -41201,6 +41663,10 @@
         {
           "line": 109,
           "path": "app/console/src/pages/Device.vue"
+        },
+        {
+          "line": 20,
+          "path": "app/web/shared/lib/api.ts"
         }
       ],
       "from": "flow:identity.current",
@@ -41241,6 +41707,10 @@
         {
           "line": 13,
           "path": "app/server/src/routes/portal/contracts.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/web/sites/portal/lib/departments.ts"
         }
       ],
       "from": "flow:identity.departments.public",
@@ -41263,6 +41733,10 @@
         {
           "line": 13,
           "path": "app/server/src/routes/portal/contracts.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/web/sites/portal/lib/departments.ts"
         }
       ],
       "from": "flow:identity.departments.public",
@@ -43357,6 +43831,10 @@
         {
           "line": 232,
           "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 489,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
       "from": "flow:identity.invite.redeem",
@@ -43379,6 +43857,10 @@
         {
           "line": 232,
           "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 489,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
       "from": "flow:identity.invite.redeem",
@@ -43395,6 +43877,10 @@
         {
           "line": 232,
           "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 489,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
       "from": "flow:identity.invite.redeem",
@@ -43411,6 +43897,10 @@
         {
           "line": 232,
           "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 489,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
       "from": "flow:identity.invite.redeem",
@@ -45987,6 +46477,14 @@
         {
           "line": 42,
           "path": "app/server/src/lib/account-profiles.ts"
+        },
+        {
+          "line": 55,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 25,
+          "path": "app/web/sites/portal/lib/startNote.ts"
         }
       ],
       "from": "flow:identity.profile.update",
@@ -46009,6 +46507,14 @@
         {
           "line": 42,
           "path": "app/server/src/lib/account-profiles.ts"
+        },
+        {
+          "line": 55,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 25,
+          "path": "app/web/sites/portal/lib/startNote.ts"
         }
       ],
       "from": "flow:identity.profile.update",
@@ -46025,6 +46531,14 @@
         {
           "line": 42,
           "path": "app/server/src/lib/account-profiles.ts"
+        },
+        {
+          "line": 55,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 25,
+          "path": "app/web/sites/portal/lib/startNote.ts"
         }
       ],
       "from": "flow:identity.profile.update",
@@ -46415,10 +46929,6 @@
           "path": "app/server/src/routes/portal/org.ts"
         },
         {
-          "line": 19,
-          "path": "app/web/sites/portal/lib/org.ts"
-        },
-        {
           "line": 190,
           "path": "app/forum/app/data/titles.ts"
         }
@@ -46433,10 +46943,6 @@
         {
           "line": 11,
           "path": "app/server/src/routes/portal/org.ts"
-        },
-        {
-          "line": 19,
-          "path": "app/web/sites/portal/lib/org.ts"
         },
         {
           "line": 190,
@@ -46455,20 +46961,10 @@
     },
     {
       "basis": "declaration",
-      "from": "flow:organization.public",
-      "to": "test:tests/web/portal-org.test.ts",
-      "type": "test-entry"
-    },
-    {
-      "basis": "declaration",
       "evidence": [
         {
           "line": 11,
           "path": "app/server/src/routes/portal/org.ts"
-        },
-        {
-          "line": 19,
-          "path": "app/web/sites/portal/lib/org.ts"
         },
         {
           "line": 190,
@@ -47653,6 +48149,10 @@
         {
           "line": 15,
           "path": "app/server/src/routes/portal/public-config.ts"
+        },
+        {
+          "line": 38,
+          "path": "app/web/shared/config/index.ts"
         }
       ],
       "from": "flow:platform.public_config",
@@ -80027,19 +80527,6 @@
         "public_content",
         "recruitment"
       ],
-      "path": "app/web/sites/portal/lib/org.ts"
-    },
-    {
-      "domains": [
-        "competitions",
-        "feedback",
-        "identity",
-        "invitations",
-        "organization",
-        "platform",
-        "public_content",
-        "recruitment"
-      ],
       "path": "app/web/sites/portal/lib/osApps.ts"
     },
     {
@@ -80197,19 +80684,6 @@
         "recruitment"
       ],
       "path": "app/web/sites/portal/pages/Home.tsx"
-    },
-    {
-      "domains": [
-        "competitions",
-        "feedback",
-        "identity",
-        "invitations",
-        "organization",
-        "platform",
-        "public_content",
-        "recruitment"
-      ],
-      "path": "app/web/sites/portal/pages/JoinByToken.tsx"
     },
     {
       "domains": [
