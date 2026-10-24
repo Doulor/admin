@@ -2,16 +2,18 @@
   "version": 1,
   "issue": 278,
   "kind": "business",
-  "summary": "#278 重开（所有者 2026-10-24 22:17/22:25/22:27）：补内部比赛托管缺的三件事——新增跨比赛的组队广场（领队开关「还在招募」广播，门户聚合找队伍的人与还在招募的队伍，按比赛/种类/关键词筛选分页）、站点包补齐人员与队伍两个公开只读接口，以及官网 SDK 的本地预览命令（`contest-site.mjs dev`）、起步模板目录与组织者上手指南，方便内部比赛组织者快速看到站点效果。",
+  "summary": "#278 重开（所有者 2026-10-24 22:17/22:25/22:27，2026-10-25 01:03）：补内部比赛托管缺的几件事——新增跨比赛的组队广场（领队开关「还在招募」广播，门户聚合找队伍的人与还在招募的队伍，按比赛/种类/关键词筛选分页）、站点包补齐人员与队伍两个公开只读接口、官网 SDK 的本地预览命令（`contest-site.mjs dev`）与起步模板目录；2026-10-25 再补两件：比赛新增「规划中」状态（组织者还在筹备、没准备好开放报名时打开，报名与组队一律拒绝，过了开赛时间自动失效），以及 `contest-site.mjs dev --api` 让组织者本地起站点时直接对接线上公开接口看真实数据，而不是写死的样例。",
   "applications": [
     "server",
-    "web"
+    "web",
+    "console"
   ],
   "domains": [
     "audit",
     "competitions",
     "feedback",
     "forum",
+    "github",
     "gitlab",
     "identity",
     "invitations",
@@ -28,69 +30,88 @@
     "flow:competition.team_plaza.list",
     "flow:competition.public.participants",
     "flow:competition.public.teams",
+    "flow:competition.public.list",
+    "flow:competition.console.list",
+    "flow:competition.create",
+    "flow:competition.update",
     "flow:application.cancel",
     "flow:console.summary",
     "flow:identity.email.verify",
+    "flow:identity.callback",
     "flow:forum.state",
     "flow:documentation.list"
   ],
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "新增组队广场（跨比赛汇总想找队伍的人与还在招募的队伍，领队单独开关广播，和队伍 status 的 recruiting/locked 是两件事）与站点包公开接口（人员、队伍），是所有者 10-24 22:17/22:25 要的新业务能力；查/邀/申请仍走既有接口，没有重复造轮子。",
+      "reason": "新增组队广场（跨比赛汇总想找队伍的人与还在招募的队伍，领队单独开关广播，和队伍 status 的 recruiting/locked 是两件事）、站点包公开接口（人员、队伍），是所有者 10-24 22:17/22:25 要的新业务能力；查/邀/申请仍走既有接口，没有重复造轮子。10-25 01:03 所有者再要一条「比赛是有状态的，规划中，进行中，已结束啥的」：加一个新状态 planning，组织者筹备期打开它，开赛前报名、建队一律拒绝（新错误码 competition_planning），过了开赛时间这个标记失效，不会把已经开赛的比赛卡住；同一天所有者要「很多接口其实是对接线上的接口，我们本地可以开发看到效果」，给 dev 子命令加 --api，本地起站点时把公开比赛接口的只读请求转发到指定线上地址，不写样例数据也不转发任何 cookie 或鉴权头。",
       "evidence": [
         "app/server/src/lib/competition-team-plaza.ts",
-        "app/server/src/lib/competition-signup-store.ts"
+        "app/server/src/lib/competition-signup-store.ts",
+        "app/server/src/lib/competition-store.ts",
+        "scripts/contest-site.mjs"
       ]
     },
     "backend": {
       "status": "changed",
-      "reason": "新增 GET /api/team-plaza 聚合只读接口、POST/DELETE /api/teams/:id/plaza 广播开关，新增公开的 GET /api/public/competitions/:id/participants、/teams 两个站点包接口；新服务 competitionTeamPlaza 装配进 services.ts。",
+      "reason": "新增 GET /api/team-plaza 聚合只读接口、POST/DELETE /api/teams/:id/plaza 广播开关，新增公开的 GET /api/public/competitions/:id/participants、/teams 两个站点包接口；新服务 competitionTeamPlaza 装配进 services.ts。`competitionStatus` 新增 planning 分支（打开且未到开赛时间才生效），报名、取消报名、建队与全部队伍写操作统一走 writeFailure，planning 期间一律拒绝；控制台创建/更新接口（PATCH /api/console/competitions）新增可选 planning 字段并原样回传，公开列表/详情响应也带这个原始标记供官网本地重算状态。`contest-site.mjs dev` 新增 --api：校验目标必须是 https 源或 127.0.0.1/localhost，只转发 GET/HEAD、只转发 SDK 用到的公开比赛只读路径，剔除响应里的 Set-Cookie，上游不可达回 502。",
       "evidence": [
         "app/server/src/routes/portal/competition-signups.ts",
         "app/server/src/services.ts",
-        "app/server/src/routes/portal/competitions.ts"
+        "app/server/src/routes/portal/competitions.ts",
+        "app/server/src/lib/competition-store.ts",
+        "app/server/src/routes/console/competitions.ts",
+        "scripts/contest-site.mjs"
       ]
     },
     "permissions": {
       "status": "unchanged",
-      "reason": "复用既有鉴权执行点：组队广场只读聚合用 requireAuth+requireCompetitionAccess（持有报名或组队任一权限即可，和找队友、队伍列表同一道门），广播开关用既有的 competition.team 权限节点；没有新增权限节点、能力或资源范围判定逻辑。",
+      "reason": "复用既有鉴权执行点：组队广场只读聚合用 requireAuth+requireCompetitionAccess（持有报名或组队任一权限即可，和找队友、队伍列表同一道门），广播开关用既有的 competition.team 权限节点；planning 期间拒绝报名/组队复用既有的 writeFailure 统一拒绝路径，不是新权限判定，而是状态判定，没有新增权限节点、能力或资源范围判定逻辑；--api 代理只转发匿名公开接口，不涉及会话或权限。",
       "evidence": [
         "app/server/src/routes/portal/competition-signups.ts"
       ]
     },
     "data": {
       "status": "changed",
-      "reason": "给 competition_teams 加四列：plaza_recruiting（INTEGER NOT NULL DEFAULT 0 CHECK IN(0,1)）、plaza_note（TEXT NOT NULL DEFAULT ''）、plaza_skills（TEXT NOT NULL DEFAULT '[]'）、plaza_updated_at（可空 INTEGER），先查 PRAGMA table_info 再 ADD COLUMN，默认值让旧队伍一律不在广场出现，没有新表。",
+      "reason": "给 competition_teams 加四列（plaza_recruiting/plaza_note/plaza_skills/plaza_updated_at），先查 PRAGMA table_info 再 ADD COLUMN，默认值让旧队伍一律不在广场出现。另给 competitions 加一列 planning（INTEGER NOT NULL DEFAULT 0 CHECK IN (0,1)），同样是幂等迁移（createDatabase 对同一个文件跑两次只加一次列、不丢数据，见 tests/server/competitions.test.ts「planning column migration」用真实文件验证），旧比赛行默认 0、行为不变；没有新表。plaza_recruiting 那组列已经在预发布库副本上演练过幂等且无行数漂移，planning 这一列只做了单测级别的真实文件验证，没有再上预发布库副本演练，是本次未验证项。",
       "evidence": [
-        "app/server/src/lib/db.ts"
+        "app/server/src/lib/db.ts",
+        "tests/server/competitions.test.ts"
       ]
     },
     "dependencies": {
       "status": "unchanged",
-      "reason": "只复用既有的 better-sqlite3、fastify 与内部 store/服务装配方式，组队广场和公开接口都没有引入新的第三方依赖、外部服务调用或消息队列。",
+      "reason": "只复用既有的 better-sqlite3、fastify 与内部 store/服务装配方式；--api 代理用 Node 内置 fetch 转发请求，没有引入任何第三方依赖、外部服务调用或消息队列。",
       "evidence": [
         "app/server/src/services.ts"
       ]
     },
     "documentation": {
       "status": "changed",
-      "reason": "endpoint-contracts.md 补两行新接口契约、data-model.md 记四列迁移与 competition_teams 的描述、server/web 的 README 补模块入口，新增组织者上手指南（同一份内容给 docs 和论坛指南 t910 复用）。",
+      "reason": "endpoint-contracts.md、API.md 补新状态值、新字段与新错误码，data-model.md 记两组列迁移与 competitions/competition_teams 的描述，server/web/console 的 README 与 portal.md 补状态枚举与模块入口，contest-site-quickstart.md 新增「本地对接线上数据」一节带具体命令；控制台编辑表单暂时没有勾选 planning 的控件（主会话负责 UI），README 里如实写明这一点。",
       "evidence": [
         "docs/services/server/endpoint-contracts.md",
-        "docs/services/server/data-model.md"
+        "docs/services/server/data-model.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md",
+        "docs/services/web/portal.md",
+        "docs/services/server/contest-site-quickstart.md"
       ]
     },
     "verification": {
       "status": "changed",
-      "reason": "新增/扩充服务端回归（组队广场聚合的筛选、分页、可见性与权限门，广播开关的字段校验与越权拒绝，站点包人员/队伍分页与 404）、SDK 与开发服务器工具测试；跑过 pnpm typecheck、check:secrets、check:docs、check:doc-sync、check:architecture 与全量 server 测试（670 项）。未在本地起 Playwright/浏览器做端到端验收（无 UI，这次只交付接口与工具）。",
+      "reason": "新增/扩充服务端回归（组队广场聚合的筛选、分页、可见性与权限门，广播开关的字段校验与越权拒绝，站点包人员/队伍分页与 404，planning 状态规则、迁移幂等性与报名/建队拒绝）、控制台类型与 mock 的 planning 往返、门户状态派生与 contest-site.mjs 的 --api 代理测试；跑 tests/server+tests/console+tests/web+tests/tooling 共 2059 项，2055 通过，4 项失败：3 项（tests/server/core.test.ts 两处、tests/server/identity.test.ts 一处）是 #280 补资料页跳转的既有失败，与本次改动的文件无关（逐字节比对过，这几处涉及的源码在 HEAD 与 stage 之间无差异），第 4 项（project-catalog 过期）已通过重新执行 pnpm catalog:generate 修复并复核通过。另外跑过 tsc --noEmit（server）、vue-tsc --noEmit（console）、check:secrets、check:docs、check:doc-sync。未在本地起 Playwright/浏览器做端到端验收，这次只交付接口、控制台类型与门户派生逻辑，UI 控件由主会话验收。",
       "evidence": [
-        "tests/server/competition-signups.test.ts"
+        "tests/server/competitions.test.ts",
+        "tests/server/competition-signups.test.ts",
+        "tests/console/competitions.test.ts",
+        "tests/web/portal-competitions.test.tsx",
+        "tests/tooling/contest-site.test.ts"
       ]
     },
     "delivery": {
       "status": "unchanged",
-      "reason": "新增的 _starter/vite.config.ts 只是给第三方内部比赛组织者本地打包比赛站点用的起步模板，由 contest-site.mjs 的 pack/dev 命令消费，不进我们自己的构建、镜像或部署流水线，CI/CD、Dockerfile 与 compose 都没有改动。",
+      "reason": "新增的 _starter/vite.config.ts 代理目标改读 CONTEST_API 环境变量（默认值仍是 http://127.0.0.1:3000），只是给第三方内部比赛组织者本地打包比赛站点用的起步模板，由 contest-site.mjs 的 pack/dev 命令消费，不进我们自己的构建、镜像或部署流水线，CI/CD、Dockerfile 与 compose 都没有改动。",
       "evidence": [
         "app/web/sites/contests/_starter/vite.config.ts"
       ]
@@ -100,8 +121,8 @@
     {
       "paths": ["app/server/src/lib/db.ts"],
       "domains": ["audit", "competitions", "feedback", "forum", "gitlab", "identity", "invitations", "mail", "organization", "permissions", "platform", "recruitment"],
-      "nodes": ["table:competition_teams"],
-      "reason": "db.ts 是全库表定义唯一来源，给 competition_teams 加四列的迁移；文件级归属会牵连它定义的全部 68 张表，因此覆盖全部业务域，但实际只改了 competition_teams 这一张表的 4 列。"
+      "nodes": ["table:competition_teams", "table:competitions"],
+      "reason": "db.ts 是全库表定义唯一来源，给 competition_teams 加四列、给 competitions 加 planning 一列的两组迁移；文件级归属会牵连它定义的全部 68 张表，因此覆盖全部业务域，但实际只改了这两张表的字段。"
     },
     {
       "paths": ["app/server/src/services.ts"],
@@ -127,7 +148,7 @@
         "route:GET /api/team-plaza",
         "table:competition_teams"
       ],
-      "reason": "组队广场本身：领队广播开关（setPlaza/withdrawPlaza）、跨比赛聚合列表（competition-team-plaza.ts）、字段契约与路由注册；contracts.ts 是整个门户路由的合同登记处，文件级归属覆盖它登记的全部业务域（含本次没有改但同文件托管的 public_content 等）。"
+      "reason": "组队广场本身：领队广播开关（setPlaza/withdrawPlaza）、跨比赛聚合列表（competition-team-plaza.ts）、字段契约与路由注册；新增的 competition_planning 错误码与 writeFailure 的 planning 判断也在这几个文件里；contracts.ts 是整个门户路由的合同登记处，文件级归属覆盖它登记的全部业务域（含本次没有改但同文件托管的 public_content 等）。"
     },
     {
       "paths": [
@@ -142,25 +163,61 @@
         "route:GET /api/public/competitions/:id/participants",
         "route:GET /api/public/competitions/:id/teams"
       ],
-      "reason": "站点包必带的两个公开只读接口（人员、队伍），SDK 加 getParticipants/getTeams 两个方法。"
+      "reason": "站点包必带的两个公开只读接口（人员、队伍），SDK 加 getParticipants/getTeams 两个方法；SDK 的比赛类型与状态列表同一次加上 planning。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/competition-store.ts",
+        "app/server/src/routes/console/competitions.ts"
+      ],
+      "domains": ["competitions"],
+      "nodes": ["flow:competition.public.list", "flow:competition.console.list", "flow:competition.create", "flow:competition.update"],
+      "reason": "规划中状态本身：competitionStatus 新增 planning 分支（打开且未到开赛时间才生效，过了开赛时间失效，照原规则走进行中/已结束）、competitionFields 的 choices 枚举、公开/控制台响应新增 planning 字段，控制台创建/更新契约新增可选 planning 字段并原样回传。"
+    },
+    {
+      "paths": [
+        "app/console/src/lib/competitions.ts",
+        "app/console/src/pages/Competitions.vue"
+      ],
+      "domains": ["competitions"],
+      "nodes": ["flow:competition.update"],
+      "reason": "控制台比赛类型与页面的状态文案、色调映射（STATUS_TEXT/STATUS_TONE）新增「规划中」分支，让类型编译通过并正确展示已有数据；本次不建编辑表单里勾选 planning 的控件，UI 由主会话负责，README 已如实写明这一点。"
+    },
+    {
+      "paths": [
+        "app/console/src/lib/types.ts",
+        "app/console/src/mock/console.ts"
+      ],
+      "domains": ["audit", "competitions", "feedback", "github", "organization", "recruitment"],
+      "nodes": ["flow:competition.console.list", "domain:github"],
+      "reason": "这两个文件是整个控制台共享的类型声明源与假数据源，本次只给 CompetitionStatus/CompetitionRecord 加 planning 字段、mock 列表加一条 planning=true 的样例并让 mockCompetitionStatus 先判断 planning；文件级归属牵连它们承载的全部业务域（审核、比赛、反馈、GitHub 回调身份相关类型、组织、招新），这次实际只动了比赛相关的类型与 mock 数据。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/lib/competitions.ts",
+        "app/web/sites/portal/lib/competitionLabels.ts"
+      ],
+      "domains": ["competitions"],
+      "nodes": ["flow:competition.public.list"],
+      "reason": "门户的比赛类型、statusAt（新增吃 planning 原始标记以配合 60 秒本地重算）、STATUS_TEXT 与状态到列表分组/卡片提示/操作文案的派生逻辑（statusHint/cardWhen/competitionAction）新增 planning 分支：不显示倒计时，操作条写「组织者还在筹备，暂未开放报名。」，和未开始的比赛分在同一组。"
     },
     {
       "paths": ["scripts/contest-site.mjs"],
       "domains": ["competitions"],
       "nodes": ["domain:competitions"],
-      "reason": "新增 dev 子命令（跟站点目录参数）：本地起一个服务用 node:module 的 stripTypeScriptTypes 直接跑站点源码，接口返回写死的样例数据（个人赛/团队赛、有奖/无奖四种变体），给组织者快速看到站点效果。"
+      "reason": "新增 dev 子命令（跟站点目录参数）：本地起一个服务用 node:module 的 stripTypeScriptTypes 直接跑站点源码，接口返回写死的样例数据（个人赛/团队赛、有奖/无奖四种变体），给组织者快速看到站点效果；新增 --api 选项，给定线上地址后公开比赛接口的只读请求转发到那里（只转发 GET/HEAD，只转发 SDK 用到的公开路径，拒绝非 https 且非本机 loopback 的地址，剔除 Set-Cookie，不转发 cookie 或鉴权头，上游不可达回 502）。"
     },
     {
       "paths": ["app/web/sites/contests/_starter/"],
       "domains": ["competitions"],
       "nodes": ["flow:competition.public.participants", "flow:competition.public.teams"],
-      "reason": "新增起步模板目录，演示全部必带接口（比赛信息、天梯、人员、队伍、可选奖项）在个人赛/团队赛、有奖/无奖下的呈现，含空状态与「这场比赛没有这个板块」的降级处理。"
+      "reason": "起步模板目录演示全部必带接口（比赛信息、天梯、人员、队伍、可选奖项）在个人赛/团队赛、有奖/无奖下的呈现，含空状态与「这场比赛没有这个板块」的降级处理；vite.config.ts 的代理目标改读 CONTEST_API 环境变量（默认值不变），配合 dev --api 本地对接线上数据。"
     },
     {
       "paths": ["docs/services/server/contest-site-quickstart.md"],
       "domains": ["competitions"],
       "nodes": ["domain:competitions"],
-      "reason": "内部比赛组织者上手指南：起步模板怎么改、dev 预览、打包、上传、发布前预览链接，同一份内容给论坛指南 t910 复用。"
+      "reason": "内部比赛组织者上手指南：起步模板怎么改、dev 预览、打包、上传、发布前预览链接，新增「本地对接线上数据」一节讲 --api 的用法与限制，同一份内容给论坛指南 t910 复用。"
     },
     {
       "paths": [
@@ -173,6 +230,16 @@
       "domains": ["competitions"],
       "nodes": ["domain:competitions"],
       "reason": "文档跟着模块改：新接口契约、新列迁移、模块入口与目录归属登记一起同步，不留「代码变了文档没变」的缺口。"
+    },
+    {
+      "paths": [
+        "docs/architecture/API.md",
+        "docs/services/console/README.md",
+        "docs/services/web/portal.md"
+      ],
+      "domains": ["competitions"],
+      "nodes": ["domain:competitions"],
+      "reason": "规划中状态与状态枚举变化对应的另外三份文档：API.md 的公开响应字段与状态枚举、控制台 README 的状态枚举与「表单暂无勾选控件」的如实说明、门户 portal.md 的六状态与 statusHint/competitionAction 文案描述。"
     },
     {
       "paths": [
@@ -192,12 +259,16 @@
       "paths": [
         "tests/server/competition-public.test.ts",
         "tests/server/competition-signups.test.ts",
+        "tests/server/competitions.test.ts",
+        "tests/server/competition-scores.test.ts",
         "tests/tooling/contest-site.test.ts",
-        "tests/web/competition-sdk.test.ts"
+        "tests/web/competition-sdk.test.ts",
+        "tests/web/portal-competitions.test.tsx",
+        "tests/console/competitions.test.ts"
       ],
       "domains": ["competitions"],
-      "nodes": ["flow:competition.team_plaza.list"],
-      "reason": "本次新增/扩充的全部回归：组队广场聚合与广播开关、站点包人员/队伍分页、SDK 新方法、contest-site.mjs 的 dev 子命令。"
+      "nodes": ["flow:competition.team_plaza.list", "flow:competition.console.list", "flow:competition.update"],
+      "reason": "本次新增/扩充的全部回归：组队广场聚合与广播开关、站点包人员/队伍分页、SDK 新方法、contest-site.mjs 的 dev 与 --api 子命令、planning 状态规则与迁移幂等性、报名与建队在 planning 期间的拒绝、控制台与门户的 planning 类型/标签/派生逻辑，以及第一期种子更正为个人赛的既有回归（competition-scores.test.ts）。"
     }
   ],
   "documents": [
@@ -205,16 +276,23 @@
     "docs/services/server/data-model.md",
     "docs/services/server/endpoint-contracts.md",
     "docs/services/server/README.md",
-    "docs/services/web/README.md"
+    "docs/services/web/README.md",
+    "docs/architecture/API.md",
+    "docs/services/console/README.md",
+    "docs/services/web/portal.md"
   ],
   "tests": [
     "tests/server/competition-public.test.ts",
     "tests/server/competition-signups.test.ts",
+    "tests/server/competitions.test.ts",
+    "tests/server/competition-scores.test.ts",
     "tests/tooling/contest-site.test.ts",
-    "tests/web/competition-sdk.test.ts"
+    "tests/web/competition-sdk.test.ts",
+    "tests/web/portal-competitions.test.tsx",
+    "tests/console/competitions.test.ts"
   ],
-  "compatibility": "新增接口与查询参数都是增量，不改既有接口的请求/响应形状；旧客户端不调用组队广场、广播开关或人员/队伍接口没有任何影响；广播默认关闭（plaza_recruiting=0），旧队伍行为不变。",
-  "migration": "给 competition_teams 加四列，默认值保证旧数据立即可用；在预发布库 .tools/yugc-v2/db/preview-copy-278.db 的 /tmp 副本上验证（从不改动原文件）：第一次运行加 4 列（11→15），第二次运行不再新增任何列，全库 55 张表的行数在迁移前、第一次运行后、第二次运行后三者完全一致，没有任何行数漂移。另外更正第一期种子（所有者 23:38：第一期不是团队赛）：预发布库副本里该比赛 0 条报名、0 支队伍，启动时自动把 competition_signup_settings 改成个人赛；同一份副本上跑两次，第二次 participation 已经是 individual，不再变化。",
-  "rollback": "换回重开前的镜像即可：旧代码不认识这四列和新接口，建队、申请、邀请、锁定等既有流程插入/更新时不写它们也照常成功；回滚期间开过的广播保留在库里，再上线后原样可见，不需要补数据。",
+  "compatibility": "新增接口、字段与查询参数都是增量，不改既有接口的请求/响应形状；旧客户端不调用组队广场、广播开关或人员/队伍接口没有任何影响；广播默认关闭（plaza_recruiting=0），旧队伍行为不变。planning 默认 0/false，旧比赛与不传这个字段的旧客户端行为不变，只有组织者主动打开才会进入规划中状态；--api 只在本地 dev 命令生效，不影响线上任何服务。",
+  "migration": "给 competition_teams 加四列，默认值保证旧数据立即可用；在预发布库 .tools/yugc-v2/db/preview-copy-278.db 的 /tmp 副本上验证（从不改动原文件）：第一次运行加 4 列（11→15），第二次运行不再新增任何列，全库 55 张表的行数在迁移前、第一次运行后、第二次运行后三者完全一致，没有任何行数漂移。另外更正第一期种子（所有者 23:38：第一期不是团队赛）：预发布库副本里该比赛 0 条报名、0 支队伍，启动时自动把 competition_signup_settings 改成个人赛；同一份副本上跑两次，第二次 participation 已经是 individual，不再变化。给 competitions 加 planning 一列，默认 0；用 tests/server/competitions.test.ts 的真实文件验证过幂等（createDatabase 对同一个文件跑两次，列不重复、数据保留），没有再上预发布库副本演练，是这次的未验证项，留给下次有预发布库副本时补做。",
+  "rollback": "换回重开前的镜像即可：旧代码不认识这几列和新接口，建队、申请、邀请、锁定、创建/编辑比赛等既有流程插入/更新时不写它们也照常成功；回滚期间开过的广播、设过的 planning 标记保留在库里，再上线后原样可见，不需要补数据。",
   "removals": []
 }

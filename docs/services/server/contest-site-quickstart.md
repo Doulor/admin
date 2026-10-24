@@ -2,7 +2,7 @@
 
 > 给要给自己的内部比赛做一个官网的组织者看：从建比赛到发布官网的完整步骤，接口清单，以及几条容易踩的坑。这份文档本身是给论坛「举办内部比赛指南」（t910）直接引用的材料，写法上不假设读者先看过别的文档。
 
-状态：`current` · 更新：2026-10-24 · 源码：`scripts/contest-site.mjs`、`app/server/src/lib/site-package.ts`、`app/web/shared/competition-sdk/`、`app/web/sites/contests/` · 上级合同：[server](README.md) §「比赛官网托管、公开接口、贡献收集、定榜与兑奖」 · 接口细节：[endpoint-contracts](endpoint-contracts.md)「比赛官网托管、公开接口、贡献收集、定榜与兑奖」
+状态：`current` · 更新：2026-10-25 · 源码：`scripts/contest-site.mjs`、`app/server/src/lib/site-package.ts`、`app/web/shared/competition-sdk/`、`app/web/sites/contests/` · 上级合同：[server](README.md) §「比赛官网托管、公开接口、贡献收集、定榜与兑奖」 · 接口细节：[endpoint-contracts](endpoint-contracts.md)「比赛官网托管、公开接口、贡献收集、定榜与兑奖」
 
 ## 整条链路
 
@@ -47,13 +47,21 @@ node scripts/contest-site.mjs dev app/web/sites/contests/<比赛 slug>/dist/site
 
 每次改了代码，重新 `vite build` 再重启 `dev` 就能看到效果（这是预览工具，不是开发服务器，没有热更新）。
 
-**要接真实数据调试**：正常起 Vite 开发服务器，`/api` 会转发到本机跑着的 server（端口 3000）：
+**本地对接线上数据**：很多站点要调的其实是公开接口返回的真实数据（真实的报名人数、天梯、动态），不是示例数据，但又不想在本机另起一套 server、建库、建比赛。给 `dev` 加 `--api <源>` 就行，几个公开比赛接口会原样转发到那个源上的真实数据，别的静态文件仍然是本地构建产物：
 
 ```bash
-app/web/node_modules/.bin/vite -c app/web/sites/contests/<比赛 slug>/vite.config.ts
+node scripts/contest-site.mjs dev app/web/sites/contests/<比赛 slug>/dist/site --api https://prev.yangtzeu.work
 ```
 
-这种方式要本机已经起了 server、建好了比赛、有人报名，数据才看得出效果；大多数时候用上一种更快。
+只转发这几条只读接口（比赛信息、天梯、动态、统计、快照、人员、队伍），只认 GET，不会把浏览器的 cookie 或登录态转过去，上游的 `set-cookie` 也不会带回来——这几个接口本来就是匿名的，不涉及任何人的登录态。`--api` 只接受 `https://` 开头的地址，或者本机的 `http://127.0.0.1` / `http://localhost`（比如本机另开了一个 server 实例），别的地址一律拒绝、不起服务。比赛 id 以站点代码里 `site.config.ts` 填的那个为准，要用线上真实存在的比赛 id，不能是本地瞎编的。
+
+**要连本机 server 调试，或要测写接口（报名、组队这些）**：正常起 Vite 开发服务器，`/api` 会转发到本机跑着的 server（端口 3000，可以用 `CONTEST_API` 环境变量换成别的地址，包括上面说的 `--api` 同一个源）：
+
+```bash
+CONTEST_API=https://prev.yangtzeu.work app/web/node_modules/.bin/vite -c app/web/sites/contests/<比赛 slug>/vite.config.ts
+```
+
+这种方式要本机已经起了 server（或者像上面这样指到一个真实能用的源），建好了比赛、有人报名，数据才看得出效果；大多数时候，光是看公开数据用 `dev --api` 更快，不用起 Vite 开发服务器。
 
 ## 第 4 步：构建、打包
 

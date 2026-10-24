@@ -2,7 +2,7 @@
 
 > 按真实 handler、授权执行点与存储实现核对现有接口；关联目录中的业务用例，区分存量人工说明与已挂载的机器响应契约。
 
-状态：`current` · 更新：2026-10-24
+状态：`current` · 更新：2026-10-25
 
 ## 口径与共同边界
 
@@ -1164,7 +1164,7 @@ SQLite读写：无。源码：[app/forum/server/middleware/forum-markdown.ts](..
 
 | 操作与用例 | 权限与资源 | 成功、失败和副作用 |
 |---|---|---|
-| `GET /api/public/competitions` · `flow:competition.public.list` | 匿名，只返回未下线赛事 | 200 `{ competitions }`；五种时间状态与排序见 [API](../../architecture/API.md)「比赛信息发布合同」。不读取会话或成员、不写库、不发外部请求；空列表合法。 |
+| `GET /api/public/competitions` · `flow:competition.public.list` | 匿名，只返回未下线赛事 | 200 `{ competitions }`；六种时间状态（含规划中 `planning`，#278 重开）与排序见 [API](../../architecture/API.md)「比赛信息发布合同」。不读取会话或成员、不写库、不发外部请求；空列表合法。 |
 | `GET /api/console/competitions` · `flow:competition.console.list` | 有效 `sid` 与 `console.access`；页面导航仍需 `competitions.manage` | 200 `{ competitions }` 含 `offline`；401 未登录、403 缺能力。共同身份路径会读称号/部门与 GitHub 角色缓存；会话过期或令牌被拒才产生删除/审计等条件副作用。 |
 | `POST /api/console/competitions` · `flow:competition.create` | `competitions.manage`，每分钟 30 次，固定本环境组织 | 201 `{ competition }`；400 `validation_error` / `bad_name` / `bad_url` / `bad_range` / `deadline_after_end`，401、403、429；比赛与 `competition.create` 审计在同一事务提交。 |
 | `PATCH /api/console/competitions/:competition_id` · `flow:competition.update` | 同一管理能力，每分钟 60 次 | 200 `{ competition }`；在原记录与补丁合并后验证，缺记录 404，其他拒绝同新建。省略字段保留，null 清空可空字段；下线不删除，恢复沿用原 id。更新与审计同一事务。 |
@@ -1176,7 +1176,7 @@ SQLite读写：无。源码：[app/forum/server/middleware/forum-markdown.ts](..
 
 ## 比赛报名、组队与积分（#239）
 
-比赛、队伍、成员与积分的请求体、成功响应和共同 `4xx` / `5xx` 错误体由 [competition-contract.ts](../../../app/server/src/lib/competition-contract.ts) 与两个 `contracts.ts` 实际挂载；门户成员接口的响应是我的状态、队伍、找队友、我的参赛或天梯，控制台接口的响应是设置、名单、积分记录或 CSV。所有写操作「已开放报名且在报名中」才可执行，截止后整场只读；写操作在事务里重读状态再写，成功都回最新状态。规则只在 [competition-signup-store.ts](../../../app/server/src/lib/competition-signup-store.ts) 与 [competition-score-store.ts](../../../app/server/src/lib/competition-score-store.ts)，路由只做鉴权、限流与错误码映射。
+比赛、队伍、成员与积分的请求体、成功响应和共同 `4xx` / `5xx` 错误体由 [competition-contract.ts](../../../app/server/src/lib/competition-contract.ts) 与两个 `contracts.ts` 实际挂载；门户成员接口的响应是我的状态、队伍、找队友、我的参赛或天梯，控制台接口的响应是设置、名单、积分记录或 CSV。所有写操作「不在规划中、已开放报名且在报名中」才可执行：规划中（`planning`，#278 重开）回 409 `competition_planning`，截止后整场只读；写操作在事务里重读状态再写，成功都回最新状态。规则只在 [competition-signup-store.ts](../../../app/server/src/lib/competition-signup-store.ts) 与 [competition-score-store.ts](../../../app/server/src/lib/competition-score-store.ts)，路由只做鉴权、限流与错误码映射。
 
 | 方法与路径 | 谁 | 成功与副作用 |
 |---|---|---|
@@ -1212,6 +1212,7 @@ SQLite读写：无。源码：[app/forum/server/middleware/forum-markdown.ts](..
 | 401 | `not_signed_in` | 没有会话 |
 | 403 | `not_member`、`not_team_leader` | 不是极客班成员；不是本队领队 |
 | 404 | `not_found`、`team_not_found` | 比赛不存在或下线、队伍不存在或已解散、成员关系不属于路径上的队伍 |
+| 409 | `competition_planning` | 比赛还在规划中，组织者还没开放报名（#278 重开，压过下面两条） |
 | 409 | `signup_not_enabled`、`signup_closed` | 未开放报名；不在报名中（截止后整场只读） |
 | 409 | `not_signed_up`、`individual_competition`、`already_in_team` | 未报名；个人赛不能组队；已在队 |
 | 409 | `already_applied`、`already_invited`、`invitee_not_signed_up`、`target_not_member` | 已有待处理关系；对方未报名；对方账号已停用或已不是成员 |
