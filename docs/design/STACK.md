@@ -44,7 +44,7 @@
 
 ## 后续 UI 已接受选型
 
-用户指定 Tuffex，详见 [使用政策](../components/tuffex/USAGE-POLICY.md) 与 [AI 文档库](../components/tuffex/README.md)。本地参考源码包为 @talex-touch/tuffex 0.6.0，声明 Node >=26 和 Vue ^3.5.27，依据见 [SOURCES](../components/tuffex/SOURCES.md)。这些参考快照字段不等于 npm latest；论坛本次独立安装也已核实 0.6.0，其他模块迁移情况不能从快照推断。
+用户指定 Tuffex，详见 [使用政策](../components/tuffex/USAGE-POLICY.md) 与 [AI 文档库](../components/tuffex/README.md)。本地参考源码包为 @talex-touch/tuffex 0.9.1（2026-10-24 从 0.6.0 更新），声明 Node >=26 和 Vue ^3.5.27，echarts、three 是可选 peerDependency，依据见 [SOURCES](../components/tuffex/SOURCES.md)。这些参考快照字段不等于 npm latest；论坛与控制台安装的都是 0.9.1，其他模块迁移情况不能从快照推断。
 
 既有 `app/web` 包（官网）仍是 React/Node 22 环境；控制台已按本选型迁到 `app/console`（Vue 3 + Tuffex，Node 22 根工作区）；其他新增或并行迁移的服务应分别核对实际 manifest。Vue 组件不能直接当作 React 组件使用。组件文档建设与论坛代码接入是不同变更，实际迁移状态以各服务代码和验收为准。
 
