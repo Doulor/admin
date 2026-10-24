@@ -47,12 +47,12 @@ function logout() {
           `src` so the build rewrites it under app.baseURL (/forum/logo.png in
           the image). Decorative: the link's name is the visible site name.
         -->
-        <NuxtLink to="/" class="inline-flex items-center gap-2 text-inherit no-underline">
+        <NuxtLink to="/" class="min-w-0 inline-flex items-center gap-2 text-inherit no-underline">
           <img src="/logo.png" alt="" class="block h-7 w-7 shrink-0 object-contain">
-          <span class="text-lg font-semibold">{{ siteName }}</span>
+          <span class="min-w-0 truncate text-lg font-semibold">{{ siteName }}</span>
         </NuxtLink>
 
-        <TxFlex align="center" :gap="8" class="ml-auto">
+        <TxFlex align="center" :gap="isDesktop ? 8 : 0" class="ml-auto">
           <TxFlex v-if="isDesktop" align="center" :gap="6" class="w-64">
             <TxSearchInput
               v-model="query"
