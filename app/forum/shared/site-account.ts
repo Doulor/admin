@@ -6,7 +6,8 @@ export interface SiteAccount {
   login: string
   avatarUrl: string | null
   /**
-   * `/auth/me` 的 `console_link`：登录者在控制台里能管点什么（提督、舰长、队长、带部门权限包的舰员）。
+   * `/auth/me` 的 `console_link`：账号在新权限引擎里有没有 `console.access` 节点（#274 review round 1，
+   * 不再按旧的称号名单判断，站长、部门部长、拿到这个节点的自定义组都算）。
    * 头像菜单只在它为 true 时放「控制台」；字段缺失或不是 true 都当作 false。控制台自己的准入不变。
    */
   consoleLink: boolean
@@ -33,10 +34,4 @@ export function emailRequired(body: unknown): boolean {
 export function bindEmailHref(back: string): string {
   const path = back.startsWith('/') && !back.startsWith('//') ? back : '/'
   return `/bind-email?return_to=${encodeURIComponent(path)}`
-}
-
-/** `/auth/me` ended the sign-in just now: GitHub took back the token the session held (#164). */
-export function sessionExpired(body: unknown): boolean {
-  const me = body as { signed_in?: unknown, session_expired?: unknown } | null
-  return me?.signed_in === false && me.session_expired === true
 }

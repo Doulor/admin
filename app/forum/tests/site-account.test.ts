@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { accountMenu } from '~/data/account-menu'
 import * as siteAccount from '../shared/site-account'
-import { bindEmailHref, emailRequired, parseMe, sessionExpired } from '../shared/site-account'
+import { bindEmailHref, emailRequired, parseMe } from '../shared/site-account'
 import { loadModule } from './support/sfc'
 
 describe('parseMe', () => {
@@ -34,15 +34,6 @@ describe('parseMe', () => {
   })
 })
 
-describe('sessionExpired', () => {
-  it('is true only when /auth/me says it just ended the sign-in (#164)', () => {
-    expect(sessionExpired({ signed_in: false, session_expired: true })).toBe(true)
-    for (const body of [null, undefined, '<!doctype html>', {}, { signed_in: false }, { signed_in: false, session_expired: 'true' }, { signed_in: true, login: 'ada', session_expired: true }])
-      expect(sessionExpired(body)).toBe(false)
-    expect(parseMe({ signed_in: false, session_expired: true })).toBeNull()
-  })
-})
-
 describe('emailRequired', () => {
   it('is true only for a signed-in answer that says the account has no login email yet (#273)', () => {
     expect(emailRequired({ signed_in: true, login: 'ada', email_required: true })).toBe(true)
@@ -61,8 +52,7 @@ describe('useSiteAccount reading /auth/me', () => {
   const ADA: SiteAccount = { login: 'ada', avatarUrl: null, consoleLink: false }
 
   /** The page shows ada as signed in; `/auth/me` answers `body`. */
-  async function ask(body: unknown, serverMode = true) {
-    const noteSessionEnded = vi.fn()
+  async function ask(body: unknown) {
     const assign = vi.fn()
     const fetch = vi.fn(async () => new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } }))
     const states = new Map<string, Ref<unknown>>([['site-account', ref(ADA)]])
@@ -82,8 +72,8 @@ describe('useSiteAccount reading /auth/me', () => {
         },
         useRoute: () => ({ query: {}, hash: '' }),
         useRouter: () => ({ replace: vi.fn() }),
-        useContentSource: () => ({ serverMode, isSite: true }),
-        useForumServerStore: () => ({ noteSessionEnded }),
+        useContentSource: () => ({ serverMode: true, isSite: true }),
+        useForumServerStore: () => ({}),
         window: { location: { pathname: '/forum/t/7', search: '?page=2', hash: '#p3', assign } },
       },
     })
@@ -91,30 +81,21 @@ describe('useSiteAccount reading /auth/me', () => {
     const { account, refresh } = useSiteAccount()
     await refresh()
     expect(fetch).toHaveBeenCalledTimes(1)
-    return { account: account.value, noteSessionEnded, assign }
+    return { account: account.value, assign }
   }
 
-  it('tells the forum once when the server has just ended the sign-in, so the page reads again as a guest (#164)', async () => {
-    const { account, noteSessionEnded } = await ask({ signed_in: false, session_expired: true })
-    expect(account).toBeNull()
-    expect(noteSessionEnded).toHaveBeenCalledTimes(1)
-  })
-
   it('sends an account without a login email to the bind page and back to this page (#273)', async () => {
-    const { assign, noteSessionEnded } = await ask({ signed_in: true, login: 'ada', email_required: true })
+    const { assign } = await ask({ signed_in: true, login: 'ada', email_required: true })
     expect(assign).toHaveBeenCalledWith('/bind-email?return_to=%2Fforum%2Ft%2F7%3Fpage%3D2%23p3')
-    expect(noteSessionEnded).not.toHaveBeenCalled()
     expect((await ask({ signed_in: true, login: 'ada', email_required: false })).assign).not.toHaveBeenCalled()
   })
 
-  it('tells the forum nothing on a plain answer, or where there is no forum server', async () => {
+  it('reads a plain signed-in or signed-out answer straight into the account state', async () => {
     const signedIn = await ask({ signed_in: true, login: 'ada', console_link: false })
     expect(signedIn.account).toEqual(ADA)
-    expect(signedIn.noteSessionEnded).not.toHaveBeenCalled()
-    for (const [body, serverMode] of [[{ signed_in: false }, true], [null, true], [{ signed_in: false, session_expired: true }, false]] as const) {
-      const { account, noteSessionEnded } = await ask(body, serverMode)
+    for (const body of [{ signed_in: false }, null]) {
+      const { account } = await ask(body)
       expect(account).toBeNull()
-      expect(noteSessionEnded).not.toHaveBeenCalled()
     }
   })
 })

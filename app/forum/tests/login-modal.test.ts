@@ -101,11 +101,11 @@ describe('LoginModal when the server ends the sign-in (#164)', () => {
     expect(toast.mock.calls[0]![0]).toMatchObject({ id: 'forum-signin-lapsed', title: '没有赞上', description: '登录已失效，请重新登录。不登录也能看帖和回复。', action: { label: '登录' } })
   })
 
-  it('says what failed and that the account is not in the organisation when /auth/me still has the person signed in', async () => {
+  it('says what failed and that the account is disabled when /auth/me still has the person signed in', async () => {
     const { toast, account, server, answer } = setup(NONE, true, true)
     server.signinLapse = { count: 1, ended: false, failed: '没有赞上', message: '登录后才能操作' }
     await nextTick()
-    // Until /auth/me answers, the page counts as signed out, so it never says 「这个账号不在组织里」 to someone whose sign-in is gone.
+    // Until /auth/me answers, the page counts as signed out, so it never says 「这个账号现在不能在论坛里发帖」 to someone whose sign-in is gone.
     expect(account.value).toBeNull()
     expect(toast).not.toHaveBeenCalled()
     answer()
