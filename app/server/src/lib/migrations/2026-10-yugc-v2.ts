@@ -354,6 +354,11 @@ export function buildAccountProfiles(db: Database.Database, now: number): number
   const emailIdentity = db.prepare("SELECT email FROM identities WHERE user_id = ? AND provider = 'email' AND email IS NOT NULL ORDER BY created_at LIMIT 1");
   const forumUser = db.prepare("SELECT display_name, bio, avatar_hash FROM forum_users WHERE account_id = ?");
   const insert = db.prepare("INSERT INTO account_profiles(account_id, username, display_name, bio, avatar_hash, prefs, updated_at) VALUES (?, ?, ?, ?, ?, '{}', ?)");
+  // 论坛头像和账号头像都是居中裁正方形之后重新编码的 WebP（lib/forum-avatar.ts / lib/account-avatar.ts），
+  // 字节本身可以直接搬过去，不用重新编码；只是两边表分开存，不搬字节的话 account_profiles.avatar_hash
+  // 会指向一个 account_avatars 里根本不存在的 hash，GET /api/identity/avatar/:file 404（#274 残留修复 H）。
+  const forumAvatarData = db.prepare("SELECT data FROM forum_avatars WHERE hash = ?");
+  const copyAvatarData = db.prepare("INSERT OR IGNORE INTO account_avatars(hash, data, mime, created_at) VALUES (?, ?, 'image/webp', ?)");
   let created = 0;
   const tx = db.transaction(() => {
     for (const account of accounts) {
@@ -367,6 +372,10 @@ export function buildAccountProfiles(db: Database.Database, now: number): number
       while (usernameTaken.get(username)) username = `${base}${++suffix}`.slice(0, 24);
       const displayName = forum?.display_name || github?.login || (email?.email ? email.email.split("@")[0] : "") || username;
       insert.run(account.id, username, displayName, forum?.bio ?? "", forum?.avatar_hash ?? null, now);
+      if (forum?.avatar_hash) {
+        const avatar = forumAvatarData.get(forum.avatar_hash) as { data: Buffer } | undefined;
+        if (avatar) copyAvatarData.run(forum.avatar_hash, avatar.data, now);
+      }
       created++;
     }
   });
@@ -375,6 +384,22 @@ export function buildAccountProfiles(db: Database.Database, now: number): number
 }
 
 // ---- 步骤 7：audit_logs → activity_events（按水位线增量，保证可重跑） ---------------------------
+
+/**
+ * 邀请链接 token 是「持有即可用」的凭据（和旧 /api/console/audit 的 redactAuditRow 同一个口径，
+ * 见 29bd82df）：`invite_link.*` 的 target、`invite.*` 里 `public:<token>` 形式的 actor，复制进
+ * activity_events 之前只留前 6 位，不把完整 token 永久写进新表（#274 残留修复 I）。
+ */
+const INVITE_TOKEN_PREVIEW = 6;
+function maskInviteToken(token: string): string {
+  return `${token.slice(0, INVITE_TOKEN_PREVIEW)}…`;
+}
+function maskLegacyTarget(action: string, target: string | null): string | null {
+  return action.startsWith("invite_link.") && target ? maskInviteToken(target) : target;
+}
+function maskLegacyActor(action: string, actor: string): string {
+  return action.startsWith("invite.") && actor.startsWith("public:") ? `public:${maskInviteToken(actor.slice("public:".length))}` : actor;
+}
 
 export function copyAuditLogsToActivity(db: Database.Database): number {
   const watermarkRow = db.prepare("SELECT value FROM perm_state WHERE key = 'audit_logs_migrated_through'").get() as { value: number } | undefined;
@@ -388,8 +413,8 @@ export function copyAuditLogsToActivity(db: Database.Database): number {
   `);
   const tx = db.transaction(() => {
     for (const row of rows) {
-      const meta = JSON.stringify({ legacy_actor: row.actor, legacy_details: row.details ? JSON.parse(row.details) : null });
-      insert.run(row.created_at, row.actor_account_id, row.action, row.target, row.ip, meta);
+      const meta = JSON.stringify({ legacy_actor: maskLegacyActor(row.action, row.actor), legacy_details: row.details ? JSON.parse(row.details) : null });
+      insert.run(row.created_at, row.actor_account_id, row.action, maskLegacyTarget(row.action, row.target), row.ip, meta);
     }
     db.prepare("INSERT INTO perm_state(key, value) VALUES ('audit_logs_migrated_through', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
       .run(rows[rows.length - 1].id);

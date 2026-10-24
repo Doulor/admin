@@ -175,6 +175,26 @@ describe("account_profiles 建档（SPEC §3.6 第 6 条）", () => {
     expect(profileA.display_name).toBe("论坛昵称"); // 论坛已有资料的沿用论坛头像/昵称
     expect(profileB.username).toBe("crosery2"); // 邮箱前缀撞上 github 登录名，加后缀
   });
+
+  it("论坛作者的头像字节一并搬进 account_avatars，不是只搬 hash（#274 残留修复 H）", () => {
+    const { db } = makeStorage();
+    const now = Date.now();
+    const account = "acct-avatar-copy";
+    const hash = "deadbeef".repeat(8); // 64 hex 字符，占位用，不校验真实图片内容
+    const bytes = Buffer.from("fake webp bytes");
+    db.prepare("INSERT INTO users(id, created_at, updated_at) VALUES (?, ?, ?)").run(account, now, now);
+    db.prepare("INSERT INTO forum_avatars(hash, data, created_at) VALUES (?, ?, ?)").run(hash, bytes, now);
+    db.prepare(
+      "INSERT INTO forum_users(id, kind, username, display_name, bio, avatar_color, avatar_hash, account_id, joined_at, updated_at) VALUES ('fu-avatar', 'member', 'avatar-author', '有头像的作者', '', '#222', ?, ?, ?, ?)",
+    ).run(hash, account, now, now);
+    runYugcV2Migration(db, now);
+    const profile = db.prepare("SELECT avatar_hash FROM account_profiles WHERE account_id = ?").get(account) as { avatar_hash: string };
+    expect(profile.avatar_hash).toBe(hash);
+    const copied = db.prepare("SELECT data, mime FROM account_avatars WHERE hash = ?").get(hash) as { data: Buffer; mime: string } | undefined;
+    expect(copied).toBeTruthy();
+    expect(copied!.data.equals(bytes)).toBe(true); // 字节原样搬过去，不是重新编码
+    expect(copied!.mime).toBe("image/webp");
+  });
 });
 
 describe("audit_logs → activity_events（SPEC §3.6 第 7 条，按水位线增量）", () => {
@@ -189,6 +209,19 @@ describe("audit_logs → activity_events（SPEC §3.6 第 7 条，按水位线�
     const secondRun = runYugcV2Migration(db, now);
     expect(secondRun.activity_events_copied_this_run).toBe(0);
     expect((db.prepare("SELECT COUNT(*) AS n FROM activity_events").get() as { n: number }).n).toBe(total);
+  });
+
+  it("邀请链接 token 复制时只留前 6 位，不把完整 token 搬进新表（#274 残留修复 I）", () => {
+    const { db } = makeStorage();
+    const now = Date.now();
+    const token = "abcdef0123456789fulltoken";
+    db.prepare("INSERT INTO audit_logs(actor, action, target, created_at) VALUES ('crosery', 'invite_link.create', ?, ?)").run(token, now);
+    db.prepare("INSERT INTO audit_logs(actor, action, created_at) VALUES (?, 'invite.sent', ?)").run(`public:${token}`, now);
+    runYugcV2Migration(db, now);
+    const linkRow = db.prepare("SELECT target_id FROM activity_events WHERE action = 'invite_link.create'").get() as { target_id: string };
+    expect(linkRow.target_id).toBe("abcdef…");
+    const sentRow = db.prepare("SELECT meta FROM activity_events WHERE action = 'invite.sent'").get() as { meta: string };
+    expect(JSON.parse(sentRow.meta).legacy_actor).toBe("public:abcdef…");
   });
 });
 
