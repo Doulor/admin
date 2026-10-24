@@ -7,16 +7,18 @@ import { createHash } from "node:crypto";
  * 逐条对齐；服务端不导入论坛代码（两边是不同的包），改一边要同步另一边。
  */
 
-/** 论坛接口的业务错误。路由直接抛出，http-policy 的错误处理按 statusCode 与 code 输出 `{ error, message }`。 */
+/**
+ * 论坛接口的业务错误。路由直接抛出，http-policy 的错误处理按 statusCode 与 code 输出 `{ error, message }`。
+ * `extra`（#276）：401/403 要带 `need`（CONTRACT-276 §1：分级可见被拦下时要说清楚缺哪一级），403 的版务
+ * 错误要带 `node`；http-policy.ts 的错误处理器把它原样铺进响应体，不是只有 `{ error, message }` 两个字段。
+ */
 export class ForumError extends Error {
-  constructor(readonly statusCode: number, readonly code: string, message: string) { super(message); }
+  constructor(readonly statusCode: number, readonly code: string, message: string, readonly extra?: Record<string, unknown>) { super(message); }
 }
 
 export const FORUM_LIMITS = {
   titleMax: 120,
   memberContentMax: 20_000,
-  guestContentMax: 2_000,
-  guestNameMax: 20,
   tagsMax: 5,
   tagNameMax: 20,
   displayNameMax: 30,
@@ -29,21 +31,39 @@ export const FORUM_LIMITS = {
   avatarSize: 256,
   /** 一条帖子里的 @提及最多通知这么多人，再多的不通知（防止一帖刷全体成员的通知）。 */
   mentionNotifyMax: 10,
+  /** 上传图片（#276 CONTRACT §5）：≤5MB、≤4096×4096，sharp 转 webp。 */
+  uploadBytesMax: 5 * 1024 * 1024,
+  uploadPixelsMax: 4096 * 4096,
+  /** @ 自动补全（#276 CONTRACT §6）：1–24 字，最多回 8 个。 */
+  suggestQueryMax: 24,
+  suggestLimit: 8,
+  /** 表情包短码（#276 CONTRACT §8）：控制台新增表情时校验。 */
+  stickerShortcodePattern: /^[a-z0-9][a-z0-9-]{1,39}$/,
+  stickerLabelMax: 20,
 } as const;
 
-/**
- * 限流（按主体计数，记录在 forum_rate_events，重启不清零）。游客回复按 IP 计（IPv6 按 /64，见 ipSubject），
- * 另有全站的游客回复总量（主体固定为 GUEST_POST_SITE_SUBJECT）：换着 IP 刷也只能刷到这么多，超了之后游客暂时不能回复，成员不受影响。
- */
+/** 限流（按主体计数，记录在 forum_rate_events，重启不清零）。 */
 export const FORUM_RATE_LIMITS = {
-  guestPost: [{ windowMs: 60_000, max: 5 }, { windowMs: 24 * 60 * 60_000, max: 30 }],
-  guestPostSite: [{ windowMs: 60 * 60_000, max: 200 }],
   topic: [{ windowMs: 60_000, max: 10 }],
   reply: [{ windowMs: 60_000, max: 30 }],
   avatar: [{ windowMs: 60 * 60_000, max: 10 }],
 } as const;
 export type RateBucket = keyof typeof FORUM_RATE_LIMITS;
-export const GUEST_POST_SITE_SUBJECT = "site";
+
+/**
+ * 分级可见（#276 CONTRACT §1）：`public < registered < member`，只有这一处定义顺序。
+ * `allowedVisibilities(level)` 是这个身份能看到的可见范围清单（比自己级别更松的全看得到），
+ * forum-store.ts 的 SQL 过滤与路由层的 401/403 判断都调它，不另写一份顺序。
+ */
+export const VISIBILITY_LEVELS = ["public", "registered", "member"] as const;
+export type ViewerLevel = (typeof VISIBILITY_LEVELS)[number];
+export function allowedVisibilities(level: ViewerLevel): ViewerLevel[] {
+  return VISIBILITY_LEVELS.slice(0, VISIBILITY_LEVELS.indexOf(level) + 1);
+}
+/** 严格顺序比较：`stricterThan('member', 'public')` 为真。供 PATCH 话题可见范围校验「不能比分类更松」用。 */
+export function isStricterOrEqual(a: ViewerLevel, b: ViewerLevel): boolean {
+  return VISIBILITY_LEVELS.indexOf(a) >= VISIBILITY_LEVELS.indexOf(b);
+}
 
 /** 不登录也能调的读接口按 IP 限流（@fastify/rate-limit，进程内计数，重启清零）。 */
 export const FORUM_REQUEST_LIMITS = {
