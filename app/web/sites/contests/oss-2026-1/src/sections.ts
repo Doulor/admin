@@ -93,6 +93,15 @@ export function renderTexts(competition: PublicCompetition) {
   for (const node of document.querySelectorAll<HTMLElement>('[data-text="end-at"]')) node.textContent = formatDayTime(competition.end_at);
   for (const node of document.querySelectorAll<HTMLElement>('[data-text="kicker-team"]')) node.textContent = team ? "一个人或组队都能参加" : "按个人计分";
   for (const node of document.querySelectorAll<HTMLElement>('[data-text="span"]')) node.textContent = `${formatDay(competition.start_at)}到 ${formatDay(competition.end_at)}`;
+  // 个人赛没有队伍：天梯的「个人 / 队伍」页签、「队伍」这一节和统计里的队伍数都不显示（styles.css 按 data-participation 藏），
+  // 后面几节的编号顺延，不留空号。静态页面默认按第一期的个人赛写，读到设置后再改。
+  document.documentElement.dataset.participation = team ? "team" : "individual";
+  let index = 0;
+  for (const node of document.querySelectorAll<HTMLElement>(".sec-no")) {
+    if (!team && node.closest("[data-team-only]")) continue;
+    index += 1;
+    node.textContent = String(index).padStart(2, "0");
+  }
 }
 
 export function failSlot(slot: HTMLElement) {

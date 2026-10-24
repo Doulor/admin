@@ -138,7 +138,7 @@ export function createBoard(root: HTMLElement) {
     renderStats(value: Stats) {
       const items: [string, number][] = [["参赛", value.participants], ["队伍", value.teams], ["合并的 MR", value.merged_prs], ["采纳的 Issue", value.accepted_issues], ["总分", value.total_points]];
       if (!stats.childElementCount) {
-        stats.innerHTML = items.map(([label, n]) => `<div class="stat"><b data-value="${n}">${n.toLocaleString("zh-CN")}</b><span>${label}</span></div>`).join("");
+        stats.innerHTML = items.map(([label, n]) => `<div class="stat"${label === "队伍" ? " data-team-only" : ""}><b data-value="${n}">${n.toLocaleString("zh-CN")}</b><span>${label}</span></div>`).join("");
         return;
       }
       stats.querySelectorAll<HTMLElement>(".stat b").forEach((node, i) => rollNumber(node, items[i][1]));
