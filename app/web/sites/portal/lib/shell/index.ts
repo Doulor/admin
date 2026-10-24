@@ -91,51 +91,59 @@ function safeUser(account: Account | null): string {
   return /^[a-z_][a-z0-9_-]{0,31}$/.test(name) ? name : "guest";
 }
 
-/** $((...)) 只算整数四则、取余、乘方（**）和括号，变量名换成它的值；不用 eval */
-function arithmetic(source: string, lookup: (name: string) => string): number | null {
-  const tokens = source.replace(/[A-Za-z_][A-Za-z0-9_]*/g, (name) => String(Number(lookup(name)) || 0)).match(/\*\*|\d+|[-+*/%()]/g);
-  if (!tokens || tokens.join("") !== source.replace(/[A-Za-z_][A-Za-z0-9_]*/g, (name) => String(Number(lookup(name)) || 0)).replace(/\s+/g, "")) return null;
+/** $((...)) 只算整数四则、取余、乘方（**）和括号，变量名换成它的值；不用 eval。和 bash 一样按 64 位有符号整数算，溢出回绕 */
+function arithmetic(source: string, lookup: (name: string) => string): string | null {
+  const substituted = source.replace(/[A-Za-z_][A-Za-z0-9_]*/g, (name) => (/^-?\d+$/.test(lookup(name).trim()) ? lookup(name).trim() : "0"));
+  const tokens = substituted.match(/\*\*|\d+|[-+*/%()]/g);
+  if (!tokens || tokens.join("") !== substituted.replace(/\s+/g, "")) return null;
+  const wrap = (value: bigint) => BigInt.asIntN(64, value);
   let at = 0;
   const peek = () => tokens[at];
-  const factor = (): number => {
+  const factor = (): bigint => {
     const token = tokens[at++];
     if (token === "(") {
       const value = sum();
       if (tokens[at++] !== ")") throw new Error("paren");
       return value;
     }
-    if (token === "-") return -factor();
+    if (token === "-") return wrap(-factor());
     if (token === "+") return factor();
     if (token === undefined || !/^\d+$/.test(token)) throw new Error("token");
-    return Number(token);
+    return wrap(BigInt(token));
   };
-  // 和 bash 一样，乘方右结合，一元负号比乘方绑得紧：$((-2**2)) 是 4
-  const power = (): number => {
-    const value = factor();
-    if (peek() !== "**") return value;
+  // 和 bash 一样，乘方右结合，一元负号比乘方绑得紧：$((-2**2)) 是 4；按位平方，指数再大也只算 64 步
+  const power = (): bigint => {
+    let base = factor();
+    if (peek() !== "**") return base;
     at += 1;
-    const exponent = power();
-    if (exponent < 0) throw new Error("exponent");
-    return value ** exponent;
+    let exponent = power();
+    if (exponent < 0n) throw new Error("exponent");
+    let result = 1n;
+    while (exponent > 0n) {
+      if (exponent & 1n) result = wrap(result * base);
+      base = wrap(base * base);
+      exponent >>= 1n;
+    }
+    return result;
   };
-  const product = (): number => {
+  const product = (): bigint => {
     let value = power();
     while (peek() === "*" || peek() === "/" || peek() === "%") {
       const op = tokens[at++];
       const right = power();
-      if ((op === "/" || op === "%") && right === 0) throw new Error("zero");
-      value = op === "*" ? value * right : op === "/" ? Math.trunc(value / right) : value % right;
+      if ((op === "/" || op === "%") && right === 0n) throw new Error("zero");
+      value = wrap(op === "*" ? value * right : op === "/" ? value / right : value % right);
     }
     return value;
   };
-  const sum = (): number => {
+  const sum = (): bigint => {
     let value = product();
-    while (peek() === "+" || peek() === "-") value = tokens[at++] === "+" ? value + product() : value - product();
+    while (peek() === "+" || peek() === "-") value = wrap(tokens[at++] === "+" ? value + product() : value - product());
     return value;
   };
   try {
     const value = sum();
-    return at === tokens.length ? value : null;
+    return at === tokens.length ? String(value) : null;
   } catch {
     return null;
   }
@@ -279,7 +287,7 @@ export function createShell({ account, apps, repos: initialRepos = [], storage =
       else if (segment.kind === "arith") {
         const result = arithmetic(segment.source, lookup);
         if (result === null) throw new ExpandError(`bash: ${segment.source}: syntax error in expression`);
-        value = String(result);
+        value = result;
       } else {
         const io = capture(segment.source);
         err += io.err;

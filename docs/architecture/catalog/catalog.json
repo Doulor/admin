@@ -1225,7 +1225,7 @@
           "path": "app/web/shared/lib/api.ts"
         },
         {
-          "line": 151,
+          "line": 159,
           "path": "app/web/sites/portal/lib/shell/index.ts"
         },
         {
@@ -7439,7 +7439,7 @@
           "path": "app/web/sites/portal/lib/snapshots.ts"
         },
         {
-          "line": 150,
+          "line": 158,
           "path": "app/web/sites/portal/lib/shell/index.ts"
         },
         {
@@ -11124,7 +11124,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "1b088e219804115f371a7e42544640ce98082237e78383a03a8dfb9e3e50a4c5",
+    "fingerprint": "981509f0f8ca3a6f438b6037156e6761b25b75f1931958b49e6beea6a8412d69",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -12424,7 +12424,7 @@
       },
       {
         "path": "app/web/sites/portal/components/os/FeedbackBox.tsx",
-        "sha256": "31dd625918c4d42b96aeb29c775bc524556e1b64a8f2cfb9817290e68867ddc2"
+        "sha256": "f65335661a81a495a51b8c624802d5bb03fda9dd56cd07715cd638dec6b91685"
       },
       {
         "path": "app/web/sites/portal/components/os/JoinBox.tsx",
@@ -12452,7 +12452,7 @@
       },
       {
         "path": "app/web/sites/portal/components/os/Windows.tsx",
-        "sha256": "d46f5b637c6ae8c85a6110b9e2b9af2889da22578d7bc7e8b627630c34e3b60c"
+        "sha256": "46975da899267919fdad4f2cc9a440d7631f09dc235328849ae8191ef5ec0712"
       },
       {
         "path": "app/web/sites/portal/components/os/YugcOs.tsx",
@@ -12572,7 +12572,7 @@
       },
       {
         "path": "app/web/sites/portal/lib/shell/index.ts",
-        "sha256": "7d8446e1b0c31fdb58affacc7facf2f958ca78f8fb6c4916524f0133e9e6c9b1"
+        "sha256": "4d4cc2cc213a34407ad4b69ed1774f86403cf7273714403318b7237491f59b25"
       },
       {
         "path": "app/web/sites/portal/lib/shell/parse.ts",
@@ -37677,7 +37677,7 @@
           "path": "app/web/sites/portal/lib/snapshots.ts"
         },
         {
-          "line": 150,
+          "line": 158,
           "path": "app/web/sites/portal/lib/shell/index.ts"
         },
         {
@@ -40633,7 +40633,7 @@
           "path": "app/web/shared/lib/api.ts"
         },
         {
-          "line": 151,
+          "line": 159,
           "path": "app/web/sites/portal/lib/shell/index.ts"
         },
         {
@@ -40757,7 +40757,7 @@
           "path": "app/web/shared/lib/api.ts"
         },
         {
-          "line": 151,
+          "line": 159,
           "path": "app/web/sites/portal/lib/shell/index.ts"
         },
         {
@@ -40881,7 +40881,7 @@
           "path": "app/web/shared/lib/api.ts"
         },
         {
-          "line": 151,
+          "line": 159,
           "path": "app/web/sites/portal/lib/shell/index.ts"
         },
         {
@@ -41005,7 +41005,7 @@
           "path": "app/web/shared/lib/api.ts"
         },
         {
-          "line": 151,
+          "line": 159,
           "path": "app/web/sites/portal/lib/shell/index.ts"
         },
         {
@@ -41129,7 +41129,7 @@
           "path": "app/web/shared/lib/api.ts"
         },
         {
-          "line": 151,
+          "line": 159,
           "path": "app/web/sites/portal/lib/shell/index.ts"
         },
         {
@@ -41253,7 +41253,7 @@
           "path": "app/web/shared/lib/api.ts"
         },
         {
-          "line": 151,
+          "line": 159,
           "path": "app/web/sites/portal/lib/shell/index.ts"
         },
         {
@@ -41377,7 +41377,7 @@
           "path": "app/web/shared/lib/api.ts"
         },
         {
-          "line": 151,
+          "line": 159,
           "path": "app/web/sites/portal/lib/shell/index.ts"
         },
         {
@@ -41501,7 +41501,7 @@
           "path": "app/web/shared/lib/api.ts"
         },
         {
-          "line": 151,
+          "line": 159,
           "path": "app/web/sites/portal/lib/shell/index.ts"
         },
         {
@@ -41697,7 +41697,7 @@
           "path": "app/web/shared/lib/api.ts"
         },
         {
-          "line": 151,
+          "line": 159,
           "path": "app/web/sites/portal/lib/shell/index.ts"
         },
         {
@@ -41821,7 +41821,7 @@
           "path": "app/web/shared/lib/api.ts"
         },
         {
-          "line": 151,
+          "line": 159,
           "path": "app/web/sites/portal/lib/shell/index.ts"
         },
         {
@@ -41945,7 +41945,7 @@
           "path": "app/web/shared/lib/api.ts"
         },
         {
-          "line": 151,
+          "line": 159,
           "path": "app/web/sites/portal/lib/shell/index.ts"
         },
         {

@@ -1,7 +1,7 @@
 // YUGC OS 的窗口：可拖动、最小化、放大、关闭、聚焦；内容有「加入我们」「关于」「组织架构」「论坛最新」「终端」「比赛」「代码仓库」「意见箱」八种。
 // 比赛窗口的内容在 competitions/（#265）：它在手机详情页会借标题栏左边的返回键回列表（PhoneNav）。
 // 意见箱、加入我们、终端窗口的内容在 FeedbackBox.tsx、JoinBox.tsx、Terminal.tsx，打开时才加载：防刷验证、表单样式和终端的模拟 Linux（#279）不进桌面首屏。
-import { Suspense, lazy, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Link } from "react-router-dom";
 import { appConfig } from "@shared/config";
 import type { Account } from "../../lib/account";

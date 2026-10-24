@@ -182,7 +182,8 @@ describe("Shell 变量", () => {
     sh(shell, "false");
     expect(sh(shell, "echo $?").out).toBe("1");
     expect(sh(shell, "echo $((3 * (4 + 1)))").out).toBe("15");
-    expect(sh(shell, "echo $((2 ** 3 ** 2)) $((-2 ** 2))").out).toBe("512 4");
+    expect(sh(shell, "echo $((2 ** 3 ** 2)) $((-2 ** 2)) $((-7 / 2)) $((-7 % 2))").out).toBe("512 4 -3 -1");
+    expect(sh(shell, "echo $((2 ** 63)) $((2 ** 64)) $((9223372036854775807 + 1))").out).toBe("-9223372036854775808 0 -9223372036854775808");
     const broken = sh(shell, "echo $((2 +)) && echo 没跑");
     expect(broken).toMatchObject({ out: "", err: "bash: 2 +: syntax error in expression" });
     expect(sh(shell, "echo $?").out).toBe("1");
