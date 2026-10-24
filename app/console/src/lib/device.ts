@@ -1,6 +1,6 @@
 // 设备授权确认页（/device，#262）的纯逻辑：命令行（`geek login`）按 RFC 8628 拿到一串 user_code，用户在这里登录后确认。
 // 字母表、长度与显示形式和服务端 app/server/src/lib/device-store.ts 一致：去掉元音与易混字符，8 位，显示成 XXXX-XXXX。
-import { bindEmailPath } from "./signin";
+import { bindEmailPath, completeProfilePath } from "./signin";
 
 export const USER_CODE_ALPHABET = "BCDFGHJKLMNPQRSTVWXZ";
 const USER_CODE_LENGTH = 8;
@@ -21,6 +21,8 @@ export function deviceSignInPath(userCode: string): string {
 }
 /** 账号还没有登录邮箱（#273）：先去绑定邮箱页，绑好带着同一串代码回来。 */
 export const deviceBindEmailPath = (userCode: string): string => bindEmailPath(devicePath(userCode));
+/** 缺真实姓名或年级（#280）：先去补资料页，填好带着同一串代码回来。 */
+export const deviceCompleteProfilePath = (userCode: string): string => completeProfilePath(devicePath(userCode));
 
 /** 形状与服务端 `GET /api/identity/device` 一致。 */
 export type DeviceStatus = "pending" | "approved" | "denied" | "consumed" | "expired";

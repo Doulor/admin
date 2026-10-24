@@ -1,5 +1,5 @@
 import { safeReturnTo, signinFailureUrl, type SigninOutcome } from "../../lib/safe-return.js";
-import { bindEmailUrl, emailRequired } from "../../lib/email-gate.js";
+import { emailRequired, gatedReturn, profileRequired } from "../../lib/email-gate.js";
 import { normalizeInviteCode } from "../../lib/invite-codes.js";
 import { applyQuota } from "../../lib/apply-quota.js";
 import { registrationGuardFor } from "../../lib/register-limits.js";
@@ -87,8 +87,8 @@ export default async function authRoutes(app: FastifyInstance) {
         action: signin.registered ? "auth.register" : "auth.signin", surface: "portal", outcome: "ok",
         meta: { provider: "github" }, account_id: signin.accountId,
       });
-      // 账号还没有登录邮箱（#273）：先到绑定邮箱页，绑好再回 return_to
-      return reply.redirect(emailRequired(app.services, signin.accountId) ? bindEmailUrl(config.publicOrigin, back) : back);
+      // 账号还没有登录邮箱（#273）或者缺姓名、年级（#280）：先到对应的页面，办好再回 return_to
+      return reply.redirect(gatedReturn(app.services, config.publicOrigin, signin.accountId, back));
     }
   );
 
@@ -137,6 +137,8 @@ export default async function authRoutes(app: FastifyInstance) {
 
   /**
    * `email_required`（#273）：账号还没有登录邮箱、这个环境又能发信，官网、论坛、控制台读到 true 就跳到绑定邮箱页。
+   * `profile_required`（#280）：缺真实姓名或年级，读到 true 就跳到补资料页。`real_name` 只回给本人（这个接口
+   * 只回当前会话自己的资料）；`grade` 是 1–4 或 `graduated`，`grade_label` 是「大一」…「已毕业」，没填时都是 null。
    *
    * #274 review round 1（CONTRACT-274 §1，blocker）：`console_link` 改成直接查新权限引擎的 `console.access`
    * 节点。原来这里走 `access.resolve()`（旧能力系统），GitHub 会话第一次用到时会借会话自带的令牌实时查一次
@@ -157,11 +159,13 @@ export default async function authRoutes(app: FastifyInstance) {
     const { permissions, limits, profiles, identity } = app.services;
     const groups = permissions.groupsOf(s.account_id);
     const profile = profiles.get(s.account_id);
+    const real = profiles.realInfo(s.account_id);
     // account_id：极客班账号（官网、论坛、控制台读到的是同一个值）；provider：这次的登录方式。user_id 仍是 GitHub 数字 id。
     return {
       signed_in: true, login: s.login, user_id: s.user_id, avatar_url: profile.avatar_url ?? s.avatar_url,
       account_id: s.account_id, provider: s.provider, console_link: permissions.check(s.account_id, "console.access"),
-      email_required: emailRequired(app.services, s.account_id),
+      email_required: emailRequired(app.services, s.account_id), profile_required: profileRequired(app.services, s.account_id),
+      real_name: real.real_name, grade: real.grade, grade_label: real.grade_label,
       level: bareLevel(groups.level), level_name: groups.level_name, department: groups.department, titles: groups.titles,
       permissions: UI_NODES.filter(node => permissions.check(s.account_id, node)),
       quota: applyQuota({ permissions, limits }, s.account_id, Date.now()),

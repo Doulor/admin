@@ -26,6 +26,8 @@ export type Account = {
   username: string;
   displayName: string;
   bio: string;
+  /** 年级的显示名（#280）：「大一」…「已毕业」；没填或旧服务端没有时为 null。真实姓名不放进官网的状态里 */
+  gradeLabel: string | null;
   /** 身份等级；旧服务端没有时为 null（资料卡不显示等级，也不显示邀请码） */
   level: AccountLevel | null;
   levelName: string | null;
@@ -65,6 +67,17 @@ export function bindEmailHref(returnTo = `${window.location.pathname}${window.lo
   return `/bind-email?return_to=${encodeURIComponent(path)}`;
 }
 
+/** `/auth/me` 说这个账号缺真实姓名或年级（#280）：同样整页跳到补资料页（控制台的 CompleteProfile.vue），填好回到当前页面。 */
+export function profileRequired(body: unknown): boolean {
+  const me = body as { signed_in?: unknown; profile_required?: unknown } | null;
+  return me?.signed_in === true && me.profile_required === true;
+}
+
+export function completeProfileHref(returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`): string {
+  const path = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/";
+  return `/complete-profile?return_to=${encodeURIComponent(path)}`;
+}
+
 const TONES: readonly DepartmentTone[] = ["y", "u", "g", "c", "pill", "ink"];
 const LEVELS: readonly AccountLevel[] = ["registered", "member", "alumni"];
 const text = (value: unknown): string | null => (typeof value === "string" && value ? value : null);
@@ -102,6 +115,7 @@ export function parseMe(body: unknown): Account | null {
     username: text(me.username) ?? login,
     displayName: text(me.display_name) ?? login,
     bio: typeof me.bio === "string" ? me.bio : "",
+    gradeLabel: text(me.grade_label),
     level: LEVELS.includes(me.level as AccountLevel) ? (me.level as AccountLevel) : null,
     levelName: text(me.level_name),
     department: readDepartment(me.department),
@@ -142,6 +156,10 @@ export function useAccount() {
       if (cancelled) return;
       if (emailRequired(body)) {
         followAppLink({ href: bindEmailHref(), newTab: false });
+        return;
+      }
+      if (profileRequired(body)) {
+        followAppLink({ href: completeProfileHref(), newTab: false });
         return;
       }
       setAccount(parseMe(body));

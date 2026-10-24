@@ -7,7 +7,9 @@ import { requireAuth } from "../../middleware/require-auth.js";
 import { EMAILS_MAX } from "../../lib/identity-store.js";
 import { clearChallengeCookie, readChallengeCookie, sendCode, setChallengeCookie, tooSoon } from "./email.js";
 import { loginProviders } from "./providers.js";
-import { emailRequired } from "../../lib/email-gate.js";
+import { emailRequired, profileRequired } from "../../lib/email-gate.js";
+import { normalizeRealName } from "../../lib/account-profiles.js";
+import { enrollmentYearFor, type SelectableGrade } from "../../lib/grade.js";
 
 /** 绑定邮箱、设密码前要求这次登录不超过 10 分钟（规格「重新验证」）；超时回 403 step_up_required，不是退出。 */
 export const STEP_UP_MS = 10 * 60_000;
@@ -15,15 +17,18 @@ const CHALLENGE_PATH = "/api/identity/email";
 
 /**
  * 账号页 `/account` 的接口（#262）：任何有效会话都能用，不要 `console.access`。
- * - `GET /api/identity/me`：登录方式、有没有密码、成员资格、这次登录、最近账号记录；`email_required`：还要先绑邮箱（#273）。
+ * - `GET /api/identity/me`：登录方式、有没有密码、成员资格、这次登录、最近账号记录；`email_required`：还要先绑邮箱（#273）；
+ *   `real_name`、`grade`、`grade_label`、`profile_required`：本人的姓名和年级，缺了要先补（#280）。
  * - `POST /api/identity/email/start`、`/verify`：给账号绑定邮箱（绑好才能用邮箱验证码或密码登录）。一个账号最多绑 `EMAILS_MAX` 个，
  *   第一个是主邮箱；GitLab 同步把它们都加到 GitLab 用户名下，按提交里的邮箱认人（#272）。
  * - `POST /api/identity/email/remove`：删掉一个不是主邮箱的邮箱，同样要求 10 分钟内刚登录过。
  * - `POST /api/identity/password`：设置或修改密码（至少 8 位）。已有密码时要填当前密码，或者 10 分钟内刚登录过
  *   （忘了密码就用验证码登录后直接设新的）；还没有密码时要 10 分钟内刚登录过。
+ * - `POST /api/identity/real-info`（#280）：补资料页提交真实姓名和年级。只能在缺资料时由本人提交，只补缺的那一项；
+ *   两项都有了回 409，之后要改找有 `users.manage` 的管理员在控制台改（防止为了比赛按年级加分去改年级）。
  */
 export default async function accountRoutes(app: FastifyInstance) {
-  const { emailLogin, identity, mail, google } = app.services;
+  const { emailLogin, identity, mail, google, profiles } = app.services;
   const writes = { preHandler: requireAuth, config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
 
   const fresh = (req: FastifyRequest) => Date.now() - req.session!.created_at <= STEP_UP_MS;
@@ -32,6 +37,11 @@ export default async function accountRoutes(app: FastifyInstance) {
   const stepUp = (reply: FastifyReply) => reply.code(403).send({
     error: "step_up_required", message: "这一步要求刚登录过，请重新登录后再试", reauth: { return_to: "/account" },
   });
+
+  const realInfoView = (accountId: string) => {
+    const real = profiles.realInfo(accountId);
+    return { real_name: real.real_name, grade: real.grade, grade_label: real.grade_label, profile_required: profileRequired(app.services, accountId) };
+  };
 
   app.get("/api/identity/me", { preHandler: requireAuth }, async (req) => {
     const session = req.session!;
@@ -44,6 +54,7 @@ export default async function accountRoutes(app: FastifyInstance) {
       ...view,
       available,
       email_required: emailRequired(app.services, session.account_id),
+      ...realInfoView(session.account_id),
       session: { provider: session.provider, created_at: session.created_at, expires_at: session.expires_at, step_up_until: session.created_at + STEP_UP_MS },
     };
   });
@@ -123,5 +134,21 @@ export default async function accountRoutes(app: FastifyInstance) {
     identity.setPassword(session.account_id, await hashPassword(req.body.password), { login: session.login, ip: req.ip });
     app.services.activity.recordActivity(req, { action: hadPassword ? "auth.password_change" : "auth.password_set", surface: "portal", outcome: "ok" });
     return { ok: true };
+  });
+
+  app.post<{ Body: { real_name: string; grade: SelectableGrade } }>("/api/identity/real-info", writes, async (req, reply) => {
+    const accountId = req.session!.account_id;
+    const current = profiles.realInfo(accountId);
+    if (current.real_name && current.grade !== null) {
+      return reply.code(409).send({ error: "real_info_locked", message: "姓名和年级已经填过了，要改请找管理员" });
+    }
+    const realName = normalizeRealName(req.body.real_name);
+    if (!realName) return reply.code(400).send({ error: "bad_real_name", message: "姓名填 2 到 32 个字，只能是文字、空格和「·」" });
+    profiles.setRealInfo(accountId, current.real_name ?? realName, current.grade === null ? enrollmentYearFor(req.body.grade, app.services.clock()) : current.enrollment_year);
+    // 只记年级和补了哪几项，不记姓名
+    const filled = [...(current.real_name ? [] : ["real_name"]), ...(current.grade === null ? ["grade"] : [])];
+    const view = realInfoView(accountId);
+    app.services.activity.recordActivity(req, { action: "account.real_info", surface: "portal", outcome: "ok", meta: { filled, grade: view.grade } });
+    return view;
   });
 }

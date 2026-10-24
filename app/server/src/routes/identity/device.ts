@@ -3,7 +3,7 @@ import {
   DEVICE_CLIENTS, DEVICE_CODE_TTL_MS, DEVICE_GRANT_TYPE,
   displayUserCode, normalizeScope, type DeviceClientId,
 } from "../../lib/device-store.js";
-import { emailRequired } from "../../lib/email-gate.js";
+import { emailRequired, gateRefusal, gateRefusalBody, profileRequired } from "../../lib/email-gate.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 
@@ -112,10 +112,9 @@ export default async function deviceRoutes(app: FastifyInstance) {
       const body = req.body ?? {};
       const decision = body.decision === "approve" || body.decision === "deny" ? body.decision : null;
       if (!decision) return reply.code(400).send({ error: "invalid_decision" });
-      // 还没有登录邮箱的账号（#273）：先绑邮箱再允许；拒绝不拦
-      if (decision === "approve" && emailRequired(app.services, session.account_id)) {
-        return reply.code(403).send({ error: "email_required", message: "先绑定邮箱，再确认命令行的登录" });
-      }
+      // 还没有登录邮箱（#273）或者缺姓名、年级（#280）的账号：先办好再允许；拒绝不拦
+      const refusal = decision === "approve" ? gateRefusal(app.services, session.account_id) : null;
+      if (refusal) return reply.code(403).send(gateRefusalBody(refusal, "确认命令行的登录"));
       // 命令行设备码另加每个账号每天 20 次（SPEC §3.8），沿用现有的每分钟 20 次路由限流；只数真的确认登录的
       // （approve），拒绝（deny）不占这个额度。
       if (decision === "approve") {
@@ -152,6 +151,9 @@ export default async function deviceRoutes(app: FastifyInstance) {
       login: identity.login,
       avatar_url: identity.avatarUrl,
       scope: identity.scope,
+      // 命令行读到 true 就提示先到网页上绑邮箱、补姓名和年级（#280），补齐前不做别的操作
+      email_required: emailRequired(app.services, identity.accountId),
+      profile_required: profileRequired(app.services, identity.accountId),
     };
   });
 }

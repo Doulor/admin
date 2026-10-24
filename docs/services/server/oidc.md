@@ -2,7 +2,7 @@
 
 > 不同源的应用用极客班账号登录：核心服务内嵌一个 OpenID Connect 签发者，第一个下游是自建的 GitLab（`https://git.yangtzeu.work`）。同一模块按极客班账号在 GitLab 上建好用户、放进 `geek` 组，离开的封禁。
 
-状态：`current` · 更新：2026-10-23 · 源码：`app/server/src/lib/oidc-store.ts`、`lib/oidc-provider.ts`、`lib/account-directory.ts`、`lib/gitlab-sync.ts`、`routes/oidc/`、`routes/console/gitlab.ts`、`cli/oidc.ts`；同意页 `app/console/src/pages/Authorize.vue` · 上级合同：[server](README.md) · issue：#270、#271（头像）、#272（邮箱） · 决策：[ADR-0005](../../decisions/0005-sso-extend-core-server.md) 决策 3、8
+状态：`current` · 更新：2026-10-24 · 源码：`app/server/src/lib/oidc-store.ts`、`lib/oidc-provider.ts`、`lib/account-directory.ts`、`lib/gitlab-sync.ts`、`routes/oidc/`、`routes/console/gitlab.ts`、`cli/oidc.ts`；同意页 `app/console/src/pages/Authorize.vue` · 上级合同：[server](README.md) · issue：#270、#271（头像）、#272（邮箱） · 决策：[ADR-0005](../../decisions/0005-sso-extend-core-server.md) 决策 3、8
 
 ## 签发者与端点
 
@@ -19,14 +19,14 @@
 | `GET /oidc/interaction/:uid` | 交互入口：要登录或要本人同意时，签发者把浏览器带到这里 |
 | `GET /oidc/interaction/:uid/details`、`POST …/confirm`、`POST …/abort` | 同意页 `/authorize?uid=` 读取与提交，要 `sid` |
 
-只做授权码流程，PKCE 必须用 `S256`；不发 refresh token，访问令牌与 ID Token 1 小时，授权码 10 分钟，交互 10 分钟，签发者自己的会话 7 天，授权记录 180 天。动态注册、单点登出、implicit 与 hybrid 都不开，`OPTIONS` 不接（下游在服务端换令牌，不需要浏览器跨域）。声明只有三组：`openid`（`sub`）、`profile`（`name`、`preferred_username`、`picture`）、`email`（`email`、`email_verified`，只给验证过的 `canonical_email`）。`name` 与 `picture` 取论坛资料（显示名、上传的头像），没有时用登录名和 GitHub 头像。
+只做授权码流程，PKCE 必须用 `S256`；不发 refresh token，访问令牌与 ID Token 1 小时，授权码 10 分钟，交互 10 分钟，签发者自己的会话 7 天，授权记录 180 天。动态注册、单点登出、implicit 与 hybrid 都不开，`OPTIONS` 不接（下游在服务端换令牌，不需要浏览器跨域）。声明只有三组：`openid`（`sub`）、`profile`（`name`、`preferred_username`、`picture`）、`email`（`email`、`email_verified`，只给验证过的 `canonical_email`）。`name` 与 `picture` 取论坛资料（显示名、上传的头像），没有时用登录名和 GitHub 头像。真实姓名和年级（#280）不进任何声明，GitLab 上看到的仍是显示名；`tests/server/real-info.test.ts` 核对签发声明和 GitLab 同步的账号目录里没有真实姓名。
 
 协议端点按 IP 每分钟计数，下游服务器调用和浏览器跳转分开算：发现文档、JWKS、换令牌、撤销与 userinfo 合计 600 次（GitLab 每次登录都要从它自己的服务器调好几次，一个班同时登录都算在它一个 IP 上），其余（授权端点）120 次；交互入口与详情每分钟 30 次，同意与拒绝每分钟 20 次，超额 429 `rate_limited`。`/oidc/` 下经 Fastify 回复的（交互入口、同意页的三个接口）都带 `Cache-Control: no-store`；协议端点的缓存头由 `oidc-provider` 自己定。`oidc-provider` 内部出错（`server_error`）时记一条错误日志，只有路径、错误类型和错误代码。
 
 ## 登录与同意
 
 1. 下游把浏览器带到 `/oidc/auth`。签发者自己的会话只是缓存，是否登录、是谁以本站 `sid` 为准：`sid` 没了、换了账号、或会话里的账号已经不是成员时都回到交互入口。
-2. 交互入口没有 `sid` 时 303 到 `/signin?return_to=/oidc/interaction/<uid>`，登录完回到这里；账号不是成员（停用，或在控制台改成了不是成员）时带 `error=access_denied` 回到下游；账号还没有登录邮箱（这个环境能发信时，#273）303 到 `/bind-email?return_to=/oidc/interaction/<uid>`，绑好回到同一个交互接着走；允许过这个应用、签发者的会话也还在时同样先进交互（`routes/oidc` 把这种会话记成没有极客班账号），不直接发授权码，同意页读详情和点允许也回 403 `email_required`，拒绝不拦；这个浏览器换过极客班账号时先删掉签发者里旧账号的会话，再按现在的账号登录，不走 `oidc-provider` 自带的「先登出」确认页。
+2. 交互入口没有 `sid` 时 303 到 `/signin?return_to=/oidc/interaction/<uid>`，登录完回到这里；账号不是成员（停用，或在控制台改成了不是成员）时带 `error=access_denied` 回到下游；账号还没有登录邮箱（这个环境能发信时，#273）303 到 `/bind-email?return_to=/oidc/interaction/<uid>`，绑好回到同一个交互接着走；邮箱有了但还没填真实姓名或年级（#280）同样 303 到 `/complete-profile?return_to=/oidc/interaction/<uid>`，填好回来接着走；允许过这个应用、签发者的会话也还在时同样先进交互（`routes/oidc` 把这种会话记成没有极客班账号），不直接发授权码，同意页读详情和点允许也回 403 `email_required` 或 `profile_required`，拒绝不拦；这个浏览器换过极客班账号时先删掉签发者里旧账号的会话，再按现在的账号登录，不走 `oidc-provider` 自带的「先登出」确认页。
 3. 第一次登录某个应用要本人同意：303 到 `/authorize?uid=<uid>`，页面写明应用名、回到哪个主机、要哪些信息和当前账号。允许后授权记在 `oauth_grants`，之后同一账号从同一应用登录不再问，换浏览器也不问；拒绝时带 `error=access_denied` 回到下游。同意与拒绝写审计 `oidc.consent`、`oidc.deny`。
 4. 授权码重放时按规范撤销这份授权和它发出的令牌，下次登录要重新同意。
 

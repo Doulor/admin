@@ -13,6 +13,9 @@ export type SessionProvider = "github" | "email" | "google";
 export type Level = "visitor" | "registered" | "member" | "alumni";
 
 export type DepartmentRef = { id: string; name: string; tone: DeptTone };
+/** 年级（#280）：1–4 是大一到大四，大四之后由时间推出已毕业；下拉框只能选 1–4。 */
+export type SelectableGrade = 1 | 2 | 3 | 4;
+export type Grade = SelectableGrade | "graduated";
 export type TitleRef = { id: string; name: string; department_id: string | null };
 
 /** GET /api/console/me：控制台会话身份；permissions 是这个账号在控制台用得到的全部具体节点。 */
@@ -24,6 +27,8 @@ export type ConsoleMe = {
   permissions: Permission[];
   provider: SessionProvider;
   email_required: boolean;
+  /** 缺真实姓名或年级（#280）：先去补资料页 */
+  profile_required: boolean;
 };
 
 /** GET /api/public/departments：公开的部门列表，顺序固定为 AI、算法、硬件、网安、管理、无部门。 */
@@ -39,13 +44,15 @@ export type GitlabSyncState = "synced" | "pending" | "failed" | "blocked" | "non
 export type UserStatus = "active" | "disabled";
 export type ConsoleUser = {
   account_id: string; username: string; display_name: string; avatar_url: string | null; status: UserStatus;
+  /** 真实姓名只回给有 users.manage 的调用者（#280），没有这个权限时没有这个键 */
+  real_name?: string | null; grade: Grade | null; grade_label: string | null;
   level: Level; department: DepartmentRef | null; titles: TitleRef[]; providers: SessionProvider[];
   gitlab: { state: GitlabSyncState; gitlab_user_id: number | null };
   last_login_at: number | null; created_at: number;
 };
 export type UsersCounts = { visitor_today: number; registered: number; member: number; alumni: number };
 export type UsersResponse = { items: ConsoleUser[]; next_cursor: string | null; counts: UsersCounts };
-export type UserPatch = Partial<{ status: UserStatus; level: Level; department: string | null; titles: string[] }>;
+export type UserPatch = Partial<{ status: UserStatus; level: Level; department: string | null; titles: string[]; real_name: string; grade: SelectableGrade }>;
 
 // ---- 权限（节点、组、解释） ----
 
@@ -245,5 +252,7 @@ export type AccountView = {
   recent: { at: number; action: AccountAction | string; provider: string | null; result: "ok" | "denied" | "failed" }[];
   available: "email"[];
   email_required: boolean;
+  /** 本人的真实姓名和年级（#280）；缺任何一项时 profile_required 为 true */
+  real_name: string | null; grade: Grade | null; grade_label: string | null; profile_required: boolean;
   session: { provider: SessionProvider; created_at: number; expires_at: number; step_up_until: number };
 };

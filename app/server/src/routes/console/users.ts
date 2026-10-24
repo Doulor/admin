@@ -6,6 +6,8 @@ import { decodeCursor, encodeCursor } from "../../lib/cursor.js";
 import { isSiteOwner, levelGroupId, levelSuffix, setExclusiveGroupMembership, siteOwnerCount, SITE_OWNER_GROUP_ID } from "../../lib/permissions.js";
 import { escapeLike } from "../../lib/sql-text.js";
 import { beijingDayStart } from "../../lib/beijing-time.js";
+import { normalizeRealName } from "../../lib/account-profiles.js";
+import { GRADE_LABELS, enrollmentYearFor, gradeOf, type SelectableGrade } from "../../lib/grade.js";
 
 const PAGE_SIZE = 50;
 
@@ -22,6 +24,7 @@ function gitlabView(row: GitlabRow | undefined) {
 
 type UserRow = {
   account_id: string; status: "active" | "disabled"; created_at: number; username: string | null; display_name: string | null; avatar_hash: string | null;
+  real_name: string | null; enrollment_year: number | null;
   github_login: string | null; providers: string | null; last_login_at: number | null; level_id: string | null;
   department_id: string | null; department_name: string | null; department_tone: string | null;
   gitlab_user_id: number | null; gitlab_state: string | null; gitlab_last_error: string | null;
@@ -33,6 +36,7 @@ type TitleView = { id: string; name: string; department_id: string | null };
 const USER_ROW_SQL = `
   SELECT u.id AS account_id, u.status AS status, u.created_at AS created_at,
     p.username AS username, p.display_name AS display_name, p.avatar_hash AS avatar_hash,
+    p.real_name AS real_name, p.enrollment_year AS enrollment_year,
     g.login AS github_login,
     (SELECT group_concat(i.provider) FROM identities i WHERE i.user_id = u.id) AS providers,
     (SELECT MAX(i.last_login_at) FROM identities i WHERE i.user_id = u.id) AS last_login_at,
@@ -46,9 +50,13 @@ const USER_ROW_SQL = `
   LEFT JOIN gitlab_accounts ga ON ga.account_id = u.id
 `;
 
-function userItemView(row: UserRow, titles: TitleView[]) {
+/** `withRealName`：调用者有 `users.manage` 时才带真实姓名（#280），没有时不回这个键；年级只有用户管理的查看权限也能看。 */
+function userItemView(row: UserRow, titles: TitleView[], withRealName: boolean) {
+  const grade = gradeOf(row.enrollment_year);
   return {
     account_id: row.account_id, username: row.username, display_name: row.display_name,
+    ...(withRealName ? { real_name: row.real_name || null } : {}),
+    grade, grade_label: grade === null ? null : GRADE_LABELS[grade],
     avatar_url: row.avatar_hash ? `/api/identity/avatar/${row.avatar_hash}.webp` : null,
     status: row.status, level: row.level_id ? levelSuffix(row.level_id) : "registered",
     department: row.department_id ? { id: row.department_id, name: row.department_name, tone: row.department_tone } : null,
@@ -107,12 +115,15 @@ export default async function consoleUsersRoutes(app: FastifyInstance) {
   app.get("/api/console/users", { preHandler: requireScopedPermission("users.view") }, async (req) => {
     const { q, level, department, status, cursor: cursorParam } = req.query as { q?: string; level?: string; department?: string; status?: string; cursor?: string };
     const cursor = decodeCursor(cursorParam, isCursor);
+    const withRealName = permissions.check(req.session!.account_id, "users.manage");
     const conditions: string[] = ["u.status <> 'merged'"];
     const params: unknown[] = [];
     if (q) {
       const like = `%${escapeLike(q)}%`;
-      conditions.push("(p.username LIKE ? ESCAPE '\\' OR p.display_name LIKE ? ESCAPE '\\' OR g.login LIKE ? ESCAPE '\\')");
-      params.push(like, like, like);
+      // 能看真实姓名的管理员也能按真实姓名搜
+      const byRealName = withRealName ? " OR p.real_name LIKE ? ESCAPE '\\'" : "";
+      conditions.push(`(p.username LIKE ? ESCAPE '\\' OR p.display_name LIKE ? ESCAPE '\\' OR g.login LIKE ? ESCAPE '\\'${byRealName})`);
+      params.push(like, like, like, ...(withRealName ? [like] : []));
     }
     if (status) { conditions.push("u.status = ?"); params.push(status); }
     if (level) { conditions.push("lvl.id = ?"); params.push(levelGroupId(level)); }
@@ -131,7 +142,7 @@ export default async function consoleUsersRoutes(app: FastifyInstance) {
 
     const page = rows.slice(0, PAGE_SIZE);
     const titlesByAccount = titlesByIds(page.map(row => row.account_id));
-    const items = page.map(row => userItemView(row, titlesByAccount.get(row.account_id) ?? []));
+    const items = page.map(row => userItemView(row, titlesByAccount.get(row.account_id) ?? [], withRealName));
     const nextCursor = rows.length > PAGE_SIZE ? encodeCursor({ created_at: page[page.length - 1]!.created_at, id: page[page.length - 1]!.account_id }) : null;
 
     const counts = { visitor_today: 0, registered: 0, member: 0, alumni: 0 };
@@ -146,12 +157,17 @@ export default async function consoleUsersRoutes(app: FastifyInstance) {
     return { items, next_cursor: nextCursor, counts };
   });
 
-  app.patch<{ Params: { id: string }; Body: { status?: "active" | "disabled"; level?: "registered" | "member" | "alumni"; department?: string | null; titles?: string[] } }>(
+  // `real_name`、`grade`（#280）：本人填过之后只能由这里改；传 null 清空，本人下次登录要重新填
+  app.patch<{ Params: { id: string }; Body: { status?: "active" | "disabled"; level?: "registered" | "member" | "alumni"; department?: string | null; titles?: string[]; real_name?: string | null; grade?: SelectableGrade | null } }>(
     "/api/console/users/:id",
     { preHandler: [requirePermission("users.manage"), requireStepUp] },
     async (req, reply) => {
       const { id } = req.params;
-      const { status, level, department, titles } = req.body;
+      const { status, level, department, titles, grade } = req.body;
+      const realName = typeof req.body.real_name === "string" ? normalizeRealName(req.body.real_name) : req.body.real_name;
+      if (realName === null && typeof req.body.real_name === "string") {
+        return reply.code(400).send({ error: "bad_real_name", message: "姓名填 2 到 32 个字，只能是文字、空格和「·」" });
+      }
       if (status !== undefined && !req.server.services.permissions.check(req.session!.account_id, "users.disable")) {
         return reply.code(403).send({ error: "forbidden", node: "users.disable", message: "需要「users.disable」权限" });
       }
@@ -186,17 +202,27 @@ export default async function consoleUsersRoutes(app: FastifyInstance) {
       }
 
       // SPEC §3.7「写入前后的 JSON 都放进 meta」：这个接口改的是 level/department/titles，和权限组 CRUD 一样
-      // 影响权限，改动前先拍一份快照，事务跑完再拍一份，两份都放进操作记录。
-      const snapshot = () => ({
-        status: (db.prepare("SELECT status FROM users WHERE id = ?").get(id) as { status: string } | undefined)?.status ?? null,
-        level: (db.prepare("SELECT pg.id AS id FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pm.account_id = ? AND pg.kind = 'level'").get(id) as { id: string } | undefined)?.id ?? null,
-        department: (db.prepare("SELECT pg.id AS id FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pm.account_id = ? AND pg.kind = 'department'").get(id) as { id: string } | undefined)?.id ?? null,
-        titles: (db.prepare("SELECT pg.id AS id FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pm.account_id = ? AND pg.kind = 'title' ORDER BY pg.id").all(id) as { id: string }[]).map(row => row.id),
-      });
+      // 影响权限，改动前先拍一份快照，事务跑完再拍一份，两份都放进操作记录。真实姓名（#280）不进操作记录，
+      // 只记有没有填、改没改；年级记入学年份。
+      const realNameBefore = app.services.profiles.realInfo(id).real_name;
+      const snapshot = () => {
+        const real = app.services.profiles.realInfo(id);
+        return {
+          status: (db.prepare("SELECT status FROM users WHERE id = ?").get(id) as { status: string } | undefined)?.status ?? null,
+          level: (db.prepare("SELECT pg.id AS id FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pm.account_id = ? AND pg.kind = 'level'").get(id) as { id: string } | undefined)?.id ?? null,
+          department: (db.prepare("SELECT pg.id AS id FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pm.account_id = ? AND pg.kind = 'department'").get(id) as { id: string } | undefined)?.id ?? null,
+          titles: (db.prepare("SELECT pg.id AS id FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pm.account_id = ? AND pg.kind = 'title' ORDER BY pg.id").all(id) as { id: string }[]).map(row => row.id),
+          has_real_name: real.real_name !== null, enrollment_year: real.enrollment_year,
+        };
+      };
       const before = snapshot();
       const now = Date.now();
       db.transaction(() => {
         if (status !== undefined) db.prepare("UPDATE users SET status = ?, updated_at = ? WHERE id = ?").run(status, now, id);
+        if (realName !== undefined || grade !== undefined) {
+          const real = app.services.profiles.realInfo(id);
+          app.services.profiles.setRealInfo(id, realName !== undefined ? realName : real.real_name, grade !== undefined ? (grade === null ? null : enrollmentYearFor(grade, now)) : real.enrollment_year);
+        }
         if (level !== undefined) setExclusiveGroupMembership(db, id, levelGroupId(level), now, req.session!.login);
         const finalDepartment = department !== undefined ? department : (db.prepare(
           "SELECT pg.id AS id FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pm.account_id = ? AND pg.kind = 'department'",
@@ -218,10 +244,11 @@ export default async function consoleUsersRoutes(app: FastifyInstance) {
         }
       })();
       permissions.bump();
-      app.services.activity.recordActivity(req, { action: "users.update", surface: "console", target_type: "user", target_id: id, outcome: "ok", meta: { before, after: snapshot() } });
+      const realNameChanged = app.services.profiles.realInfo(id).real_name !== realNameBefore;
+      app.services.activity.recordActivity(req, { action: "users.update", surface: "console", target_type: "user", target_id: id, outcome: "ok", meta: { before, after: snapshot(), real_name_changed: realNameChanged } });
       // #274 残留修复 D：回和列表一样形状的完整行（不是只有 account_id），控制台改完不用再拉一次列表才能刷新这一行。
       const row = db.prepare(`${USER_ROW_SQL} WHERE u.id = ?`).get(id) as UserRow;
-      return userItemView(row, titlesByIds([id]).get(id) ?? []);
+      return userItemView(row, titlesByIds([id]).get(id) ?? [], true);
     },
   );
 }

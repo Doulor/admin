@@ -71,6 +71,10 @@ export function mockMe(persona: MockPersona) {
     identities: { emails: [member ? "n***@qq.com" : "x***@163.com"], google: member, github: member ? "nano-dev" : null },
     console_link: false,
     email_required: false,
+    profile_required: false,
+    real_name: member ? "王小明" : "李同学",
+    grade: member ? 2 : 1,
+    grade_label: member ? "大二" : "大一",
   };
 }
 

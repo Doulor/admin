@@ -35,3 +35,15 @@ export function bindEmailHref(back: string): string {
   const path = back.startsWith('/') && !back.startsWith('//') ? back : '/'
   return `/bind-email?return_to=${encodeURIComponent(path)}`
 }
+
+/** `/auth/me` 说这个账号缺真实姓名或年级（#280）：同样整页跳到补资料页（属于控制台），填好回到当前页。 */
+export function profileRequired(body: unknown): boolean {
+  const me = body as { signed_in?: unknown, profile_required?: unknown } | null
+  return me?.signed_in === true && me.profile_required === true
+}
+
+/** 补资料页地址；`back` 的规则同 `bindEmailHref`。 */
+export function completeProfileHref(back: string): string {
+  const path = back.startsWith('/') && !back.startsWith('//') ? back : '/'
+  return `/complete-profile?return_to=${encodeURIComponent(path)}`
+}

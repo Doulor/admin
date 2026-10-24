@@ -1,4 +1,5 @@
 // 「用户」页（SPEC §3.9）：筛选条件、详情抽屉里的编辑稿和 PATCH /api/console/users/:id 的请求体。纯函数，tests/console 直接测。
+import { isSelectableGrade } from "./grade";
 import type { ConsoleUser, DepartmentRef, Level, PublicDepartment, UserPatch } from "./types";
 
 /** 站长：唯一不属于任何部门的称号（SPEC §3.4 `title.site.owner`），在抽屉里单独一项。 */
@@ -11,8 +12,11 @@ export const departmentOf = (user: { department: DepartmentRef | null }): Depart
   user.department && user.department.id !== NO_DEPARTMENT ? user.department : null;
 
 export type AssignableLevel = Exclude<Level, "visitor">;
-/** 抽屉里正在改的样子：部门用 dept.none 表示无部门，称号是本部门里的一个（空串是没有称号），站长另算。 */
-export type UserDraft = { level: AssignableLevel; department: string; title: string; owner: boolean };
+/**
+ * 抽屉里正在改的样子：部门用 dept.none 表示无部门，称号是本部门里的一个（空串是没有称号），站长另算。
+ * 真实姓名和年级（#280）：姓名留空表示不改；年级空串表示不改（已毕业或没填时下拉框里没有对应的项）。
+ */
+export type UserDraft = { level: AssignableLevel; department: string; title: string; owner: boolean; real_name: string; grade: number | "" };
 
 export function draftFromUser(user: ConsoleUser): UserDraft {
   const department = departmentOf(user)?.id ?? NO_DEPARTMENT;
@@ -21,6 +25,8 @@ export function draftFromUser(user: ConsoleUser): UserDraft {
     level: user.level === "visitor" ? "registered" : user.level,
     department, title,
     owner: user.titles.some(item => item.id === SITE_OWNER_TITLE.id),
+    real_name: user.real_name ?? "",
+    grade: isSelectableGrade(user.grade) ? user.grade : "",
   };
 }
 
@@ -54,6 +60,10 @@ export function userPatch(user: ConsoleUser, draft: UserDraft): UserPatch | null
   const current = new Set(user.titles.map(item => item.id));
   const next = titlesOf(draft);
   if (next.length !== current.size || next.some(id => !current.has(id))) patch.titles = next;
+  // 看不到真实姓名（没有这个键）时不改；姓名清空不算修改
+  const realName = draft.real_name.trim();
+  if (user.real_name !== undefined && realName && realName !== (user.real_name ?? "")) patch.real_name = realName;
+  if (isSelectableGrade(draft.grade) && draft.grade !== user.grade) patch.grade = draft.grade;
   return Object.keys(patch).length ? patch : null;
 }
 

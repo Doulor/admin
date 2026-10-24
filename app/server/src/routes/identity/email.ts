@@ -1,6 +1,9 @@
 import bcrypt from "bcryptjs";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { normalizeRealName } from "../../lib/account-profiles.js";
 import { CODE_TTL_MS, RESEND_AFTER_S, normalizeEmail, type CheckResult } from "../../lib/email-login.js";
+import { gatedReturn } from "../../lib/email-gate.js";
+import { enrollmentYearFor, isSelectableGrade, type SelectableGrade } from "../../lib/grade.js";
 import type { LoginCodePurpose } from "../../lib/mail/login-code.js";
 import { PASSWORD_MIN_LENGTH, createLoginThrottle, hashPassword, passwordError } from "../../lib/password-policy.js";
 import { registrationGuardFor, registrationLimitedBody } from "../../lib/register-limits.js";
@@ -15,11 +18,12 @@ import { attachVisitorId } from "../../middleware/visitor.js";
  * - `POST /auth/email/verify`：核对验证码后登录；没有账号时不填邀请码就注册成注册用户，填了且有效注册成成员，
  *   填了但无效回 `invite_invalid` 并记一次失败（验证码不作废，还可以再试）。只在真的要新建账号这一步，
  *   同一 IP 今天已建满 5 个、同一设备已建满 3 个（lib/register-limits.ts）回 429 `auth.register.daily`，
- *   登录到已有账号不受影响（#274 SPEC §3.8）。
+ *   登录到已有账号不受影响（#274 SPEC §3.8）。新注册时必须带真实姓名和年级（#280），缺了或不合格回 400
+ *   `real_info_required` / `bad_real_name`，验证码和邀请码都不作废，填好再提交一次。
  * - `POST /auth/email/password`：邮箱加密码登录。密码在账号页设（至少 8 位）；没账号、没设密码、密码不对一律回同一个错误。
  * - `POST /auth/email/reset`（#273，忘了密码）：用 `/auth/email/start` 发的验证码（`purpose: "reset"` 只改信的文字，
  *   挑战还是登录用的那一种）核对邮箱，设新密码并登录。不能注册：邮箱没有账号回 `no_account`，验证码不作废。
- * 成功都写 `sid` 并回 `{ return_to }`，前端整页跳转。
+ * 成功都写 `sid` 并回 `{ return_to }`，前端整页跳转；账号缺姓名或年级时 `return_to` 先指向补资料页（lib/email-gate.ts）。
  */
 export const CHALLENGE_COOKIE = "email_challenge";
 /** 没有账号时也跑一次 bcrypt，响应时间不随邮箱是否注册变化（cost 与 lib/password-policy.ts 的 12 相同）；第一次用到时才算。 */
@@ -97,7 +101,7 @@ export default async function emailRoutes(app: FastifyInstance) {
     },
   );
 
-  app.post<{ Body: { code: string; invite_code?: string } }>(
+  app.post<{ Body: { code: string; invite_code?: string; real_name?: string; grade?: SelectableGrade } }>(
     "/auth/email/verify",
     { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
     async (req, reply) => {
@@ -105,6 +109,16 @@ export default async function emailRoutes(app: FastifyInstance) {
       const checked = emailLogin.check(id, req.body.code, "signin");
       if (!checked.ok) return codeFailure(req, reply, checked);
       const { challenge } = checked;
+      // 这个邮箱还没有账号、这一步会注册：先要姓名和年级（#280）。验证码已经核对过本人，回这个错误不会泄露邮箱有没有注册
+      let realInfo: { name: string; enrollmentYear: number } | null = null;
+      if (identity.passwordFor(challenge.email) === null) {
+        if (req.body.real_name === undefined || !isSelectableGrade(req.body.grade)) {
+          return reply.code(400).send({ error: "real_info_required", message: "这个邮箱还没有账号，填好姓名和年级就能注册" });
+        }
+        const name = normalizeRealName(req.body.real_name);
+        if (!name) return reply.code(400).send({ error: "bad_real_name", message: "姓名填 2 到 32 个字，只能是文字、空格和「·」" });
+        realInfo = { name, enrollmentYear: enrollmentYearFor(req.body.grade, app.services.clock()) };
+      }
       await attachVisitorId(req, reply);
       const registrationLimit = registrationGuardFor(app.services.limits, req.ip, req.visitorId!);
       const result = identity.signInWithEmailCode({
@@ -131,10 +145,11 @@ export default async function emailRoutes(app: FastifyInstance) {
             return reply.code(400).send({ error: "code_expired", message: "验证码已失效，请重新获取" });
         }
       }
+      if (result.registered && realInfo) app.services.profiles.setRealInfo(result.accountId, realInfo.name, realInfo.enrollmentYear);
       clearChallengeCookie(reply, "/auth/email");
       setSessionCookie(reply, result.sid);
       app.services.activity.recordActivity(req, { action: result.registered ? "auth.register" : "auth.signin", surface: "portal", outcome: "ok", meta: { provider: "email", method: "code" }, account_id: result.accountId });
-      return { return_to: challenge.return_to ?? fallback, registered: result.registered };
+      return { return_to: gatedReturn(app.services, config.publicOrigin, result.accountId, challenge.return_to ?? fallback), registered: result.registered };
     },
   );
 
@@ -162,7 +177,7 @@ export default async function emailRoutes(app: FastifyInstance) {
       throttle.reset(email);
       setSessionCookie(reply, result.sid);
       app.services.activity.recordActivity(req, { action: "auth.signin", surface: "portal", outcome: "ok", meta: { provider: "email", method: "password" }, account_id: result.accountId });
-      return { return_to: safeReturnTo(req.body.return_to, config, fallback) };
+      return { return_to: gatedReturn(app.services, config.publicOrigin, result.accountId, safeReturnTo(req.body.return_to, config, fallback)) };
     },
   );
 
@@ -200,7 +215,7 @@ export default async function emailRoutes(app: FastifyInstance) {
       clearChallengeCookie(reply, "/auth/email");
       setSessionCookie(reply, result.sid);
       app.services.activity.recordActivity(req, { action: "auth.password_reset", surface: "portal", outcome: "ok", meta: { provider: "email" }, account_id: result.accountId });
-      return { return_to: challenge.return_to ?? fallback };
+      return { return_to: gatedReturn(app.services, config.publicOrigin, result.accountId, challenge.return_to ?? fallback) };
     },
   );
 }

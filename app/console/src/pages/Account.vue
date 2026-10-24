@@ -15,7 +15,7 @@ import { useResource } from "../lib/resource";
 import { siteUrl } from "../lib/runtime";
 import { clearSession } from "../lib/session";
 import { confirm } from "../lib/confirm";
-import { bindEmailPath, cleanCode, codeProblem, looksLikeEmail, retryAfter } from "../lib/signin";
+import { bindEmailPath, cleanCode, codeProblem, completeProfilePath, looksLikeEmail, retryAfter } from "../lib/signin";
 import { fmtDate, fmtRelative } from "../lib/format";
 import { EMAILS_MAX, PASSWORD_MIN_LENGTH, PROVIDER_ICON, PROVIDER_TEXT, RESULT_TEXT, actionText, loginIsFresh, membershipText, passwordProblem, providerText } from "../lib/account";
 import type { AccountIdentity, AccountView } from "../lib/types";
@@ -30,9 +30,11 @@ const origin = window.location.origin;
 const account = useResource(() => api<AccountView>("/api/identity/me"));
 const signedOut = computed(() => account.error.value instanceof ApiError && account.error.value.status === 401);
 const view = computed(() => account.data.value);
-// 还没有登录邮箱（#273）：先去绑定邮箱页，绑好回到这里
-watch(() => view.value?.email_required, required => {
-  if (required) void router.replace(bindEmailPath("/account"));
+// 还没有登录邮箱（#273）：先去绑定邮箱页；缺姓名或年级（#280）：先去补资料页。办好都回到这里
+const gated = computed(() => Boolean(view.value?.email_required || view.value?.profile_required));
+watch(() => [view.value?.email_required, view.value?.profile_required], ([email, profile]) => {
+  if (email) void router.replace(bindEmailPath("/account"));
+  else if (profile) void router.replace(completeProfilePath("/account"));
 }, { immediate: true });
 const signInAgain = () => window.location.assign(`/signin?return_to=${encodeURIComponent("/account")}`);
 const now = ref(Date.now());
@@ -193,7 +195,7 @@ const goPortal = () => window.location.assign(siteUrl("portal", "/"));
         <TxButton variant="primary" icon="i-carbon-login" @click="signInAgain">去登录</TxButton>
       </TxCard>
       <ErrorPanel v-else-if="account.error.value" :error="account.error.value" :retry="account.reload" />
-      <LoadingBlock v-else-if="!view || view.email_required" :lines="8" />
+      <LoadingBlock v-else-if="!view || gated" :lines="8" />
 
       <template v-else>
         <TxAlert v-if="stepUp" type="warning" title="这一步要求刚登录过" :closable="false" class="account__alert">
@@ -286,6 +288,17 @@ const goPortal = () => window.location.assign(siteUrl("portal", "/"));
             <span>{{ membershipText(view.membership) }}</span>
           </p>
           <p class="account__hint">账号建于 {{ fmtDate(view.created_at) }}。</p>
+        </TxCard>
+
+        <TxCard class="account__card" data-testid="account-real-info">
+          <h2>姓名和年级</h2>
+          <dl class="account__facts">
+            <dt>真实姓名</dt>
+            <dd>{{ view.real_name }}</dd>
+            <dt>所在年级</dt>
+            <dd>{{ view.grade_label }}</dd>
+          </dl>
+          <p class="account__hint">年级每年 9 月 1 日自动升一级。真实姓名只有你自己和管理员看得到。填错了请联系管理员在控制台修改。</p>
         </TxCard>
 
         <TxCard class="account__card" data-testid="account-session">

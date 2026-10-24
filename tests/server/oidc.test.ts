@@ -2,7 +2,7 @@ import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { OIDC_PROTOCOL_LIMIT } from '../../app/server/src/routes/oidc/index';
-import { activityRows, signIn as rawSignIn, testApp } from './helpers';
+import { activityRows, completeProfile, signIn as rawSignIn, testApp } from './helpers';
 
 /**
  * 对外授权只发给成员（lib/account-directory.ts 的 oidcAccount()，#274 按 level.member 判定，不再是
@@ -88,7 +88,7 @@ async function follow(app: FastifyInstance, jar: Jar, url: string) {
     const location = res.headers.location as string | undefined;
     if (res.statusCode !== 303 && res.statusCode !== 302) return { res, location: null, consentUid: null };
     if (!location) throw new Error('redirect without location');
-    if (location.startsWith(CALLBACK) || location.startsWith('/signin') || location.startsWith(`${ORIGIN}/bind-email?`)) return { res, location, consentUid: null };
+    if (location.startsWith(CALLBACK) || location.startsWith('/signin') || location.startsWith(`${ORIGIN}/bind-email?`) || location.startsWith(`${ORIGIN}/complete-profile?`)) return { res, location, consentUid: null };
     if (location.startsWith('/authorize?uid=')) return { res, location, consentUid: new URLSearchParams(location.split('?')[1]).get('uid') };
     res = await visit(app, jar, location);
   }
@@ -312,6 +312,34 @@ describe('OIDC provider for downstream apps (#270)', () => {
     expect(bind('alice@example.test')).toEqual({ ok: true });
     const back = await follow(app, jar, new URL(again.location!).searchParams.get('return_to')!);
     expect([back.consentUid, back.location?.startsWith(CALLBACK)]).toEqual([null, true]);
+  });
+
+  it('sends an account without a name and grade to the profile page, resumes the same login after, and never puts the real name in tokens or userinfo (#280)', async () => {
+    const { app, clientSecret } = await setup();
+    const jar = new Jar();
+    jar.set('sid', signIn(app, 'alice', 101));
+    const accountId = accountOf(app, 101);
+    app.services.profiles.setRealInfo(accountId, null, null);
+    const first = await follow(app, jar, authorizeUrl({ code_challenge: pkce().challenge, code_challenge_method: 'S256' }));
+    expect(first.location).toMatch(/^https:\/\/example\.test\/complete-profile\?return_to=%2Foidc%2Finteraction%2F[A-Za-z0-9_-]+$/);
+
+    // 补好姓名和年级后回到同一个交互，接着去授权页；授权页读详情和点允许之前同样要求补齐
+    completeProfile(app, accountId, '刘爱丽');
+    const resumed = await follow(app, jar, new URL(first.location!).searchParams.get('return_to')!);
+    expect(resumed.consentUid).toMatch(/^[A-Za-z0-9_-]+$/);
+    app.services.profiles.setRealInfo(accountId, null, null);
+    const details = await visit(app, jar, `/oidc/interaction/${resumed.consentUid}/details`);
+    expect([details.statusCode, details.json().error]).toEqual([403, 'profile_required']);
+    const confirm = await visit(app, jar, `/oidc/interaction/${resumed.consentUid}/confirm`, { method: 'POST' });
+    expect([confirm.statusCode, confirm.json().error]).toEqual([403, 'profile_required']);
+
+    completeProfile(app, accountId, '刘爱丽');
+    const { token } = await signInThroughGitlab(app, jar, clientSecret);
+    expect(token.statusCode).toBe(200);
+    const userinfo = await app.inject({ url: '/oidc/me', headers: { authorization: `Bearer ${token.json().access_token}` } });
+    expect(userinfo.statusCode).toBe(200);
+    const idToken = JSON.parse(Buffer.from(String(token.json().id_token).split('.')[1], 'base64url').toString('utf8'));
+    expect(JSON.stringify([userinfo.json(), idToken])).not.toContain('刘爱丽');
   });
 
   it('turns a denial on the consent page into access_denied for the app', async () => {

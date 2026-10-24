@@ -98,13 +98,14 @@ function MemberCard({ account, signInLink, onPatch, onReload, onSignOut }: Props
   );
 }
 
-/** 身份、部门（带部门色的圆点）、称号，一行平铺，比如「注册用户 · 无部门」；旧服务端没有身份字段时整行不显示 */
+/** 身份、年级（#280）、部门（带部门色的圆点）、称号，一行平铺，比如「注册用户 · 大一 · 无部门」；旧服务端没有身份字段时整行不显示 */
 function IdentityLine({ account }: { account: Account }) {
   if (!account.levelName) return null;
   const department = account.department ?? { name: "无部门", tone: "ink" as const };
   return (
     <p className="pt-profile-meta">
       <span>{account.levelName}</span>
+      {account.gradeLabel && <span>{account.gradeLabel}</span>}
       <span className="pt-profile-dept" data-tone={department.tone}>
         <i aria-hidden="true" />
         {department.name}

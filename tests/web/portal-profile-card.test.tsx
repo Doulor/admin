@@ -35,9 +35,10 @@ const MEMBER = {
   quota: { apply_left_today: 3, apply_daily_limit: 3 },
   prefs: { start_note_seen_at: null, forum_theme: null },
   identities: { emails: ["n***@qq.com"], google: true, github: "nano-dev" },
-  console_link: false, email_required: false,
+  console_link: false, email_required: false, profile_required: false,
+  real_name: "王小明", grade: 2, grade_label: "大二",
 };
-const REGISTERED = { ...MEMBER, account_id: "acc_2", login: "newbie", username: "newbie", display_name: "新同学", bio: "", level: "registered", level_name: "注册用户", department: null, titles: [], identities: { emails: ["x***@163.com"], google: false, github: null } };
+const REGISTERED = { ...MEMBER, grade: null, grade_label: null, account_id: "acc_2", login: "newbie", username: "newbie", display_name: "新同学", bio: "", level: "registered", level_name: "注册用户", department: null, titles: [], identities: { emails: ["x***@163.com"], google: false, github: null } };
 const IDENTITY_ME = {
   account_id: "acc_1", login: "nano", email_required: false,
   identities: [
@@ -103,12 +104,12 @@ async function openCard(name: string) {
 describe("/auth/me 的新字段（CONTRACT-274 §1）", () => {
   it("读出用户名、昵称、简介、身份、部门、称号、限额、偏好和登录方式；旧服务端没有这些字段时给空值", () => {
     expect(parseMe({ ...MEMBER, prefs: { start_note_seen_at: 1792768438000 } })).toMatchObject({
-      username: "nano", displayName: "Nano", bio: "喜欢写编译器", level: "member", levelName: "极客班成员",
+      username: "nano", displayName: "Nano", bio: "喜欢写编译器", gradeLabel: "大二", level: "member", levelName: "极客班成员",
       department: { id: "dept.ai", name: "AI部门", tone: "y" }, titles: [{ id: "title.ai.staff", name: "部员" }],
       quota: { left: 3, limit: 3 }, prefs: { startNoteSeenAt: 1792768438000 }, identities: { emails: ["n***@qq.com"], google: true, github: "nano-dev" },
     });
     expect(parseMe({ signed_in: true, login: "ada" })).toMatchObject({
-      username: "ada", displayName: "ada", bio: "", level: null, levelName: null, department: null, titles: [], quota: null,
+      username: "ada", displayName: "ada", bio: "", gradeLabel: null, level: null, levelName: null, department: null, titles: [], quota: null,
       prefs: { startNoteSeenAt: null }, identities: { emails: [], google: false, github: null },
     });
     // 不认识的部门色当作无部门的颜色，不认识的身份当作没有；不限投递时两个都是 -1
@@ -150,7 +151,7 @@ describe("个人资料卡", () => {
     expect(document.activeElement).toBe(avatar);
   });
 
-  it("成员：头像、昵称、@用户名、简介、身份 · 部门 · 称号，带 id 的邮箱列表、Google 已绑定、GitHub 只显示；没有邀请码输入框", async () => {
+  it("成员：头像、昵称、@用户名、简介、身份 · 年级 · 部门 · 称号（不显示真实姓名），带 id 的邮箱列表、Google 已绑定、GitHub 只显示；没有邀请码输入框", async () => {
     answer(MEMBER);
     mount();
     const { card } = await openCard("账号：nano");
@@ -159,7 +160,8 @@ describe("个人资料卡", () => {
     expect((card.getByRole("textbox", { name: "简介" }) as HTMLTextAreaElement).value).toBe("喜欢写编译器");
     expect(card.getByRole("button", { name: "换头像" })).not.toBeNull();
     const meta = document.querySelector(".pt-profile-meta")!;
-    expect([...meta.children].map((item) => item.textContent)).toEqual(["极客班成员", "AI部门", "部员"]);
+    expect([...meta.children].map((item) => item.textContent)).toEqual(["极客班成员", "大二", "AI部门", "部员"]);
+    expect(document.body.textContent).not.toContain("王小明");
     expect(meta.querySelector("[data-tone]")?.getAttribute("data-tone")).toBe("y");
     // 邮箱列表换成 /api/identity/me 里带 id 的那份：主邮箱不能删，另一个可以
     await card.findByText("n***@yangtzeu.edu.cn");

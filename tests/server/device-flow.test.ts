@@ -192,7 +192,7 @@ describe('device authorization (#262, RFC 8628)', () => {
     expect(info.statusCode).toBe(200);
     expect(info.json()).toEqual({
       sub: accountId, account_id: accountId, login: 'octocat',
-      avatar_url: 'https://avatars.test/octocat.png', scope: 'openid profile',
+      avatar_url: 'https://avatars.test/octocat.png', scope: 'openid profile', email_required: false, profile_required: false,
     });
     const rejected = await app.inject({ url: '/auth/device/userinfo', headers: { authorization: 'Bearer gk_wrong' } });
     expect(rejected.statusCode).toBe(401);

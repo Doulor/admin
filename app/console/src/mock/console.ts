@@ -5,7 +5,7 @@
 import { ApiError } from "../lib/http";
 import { NODE_LABELS, PERMISSION_DOMAINS, nodeDomain } from "../lib/permission-nodes";
 import type {
-  ActivityEvent, ActivityList, ConsoleMe, ConsoleUser, DepartmentRef, EffectivePermissions, GitlabAccount, GitlabAccountsResponse, GitlabProjectsResponse,
+  ActivityEvent, ActivityList, ConsoleMe, ConsoleUser, DepartmentRef, EffectivePermissions, GitlabAccount, GitlabAccountsResponse, GitlabProjectsResponse, Grade,
   GitlabSettings, GitlabStatus, InviteCode, Level, PermissionEntry, PermissionExplain, PermissionExplainHit, PermissionGroup, PermissionGroupMember,
   PermissionNodesResponse, PublicDepartment, RosterSignup, RosterStats, RosterTeam, ScoreEvent, SessionProvider, SignupSettings, SiteRole, Summary,
   UserPatch, UsersResponse,
@@ -157,10 +157,15 @@ const groupById = (id: string) => MOCK_GROUPS.find(g => g.id === id);
 type UserInit = {
   username: string; display_name: string; level: Exclude<Level, "visitor">; department?: string; titles?: string[];
   providers?: SessionProvider[]; gitlab?: ConsoleUser["gitlab"]; last_login?: number | null; created?: number; disabled?: boolean;
+  /** 真实姓名和年级（#280）：不写时姓名用昵称、年级是大二；写 null 是还没填 */
+  real_name?: string | null; grade?: Grade | null;
 };
+const GRADE_TEXT: Record<Grade, string> = { 1: "大一", 2: "大二", 3: "大三", 4: "大四", graduated: "已毕业" };
 let gitlabSeq = 2;
 const user = (init: UserInit): ConsoleUser => ({
   account_id: `mock-${init.username}`, username: init.username, display_name: init.display_name, avatar_url: null,
+  real_name: init.real_name === undefined ? init.display_name : init.real_name,
+  grade: init.grade === undefined ? 2 : init.grade, grade_label: (init.grade === undefined ? GRADE_TEXT[2] : init.grade === null ? null : GRADE_TEXT[init.grade]),
   status: init.disabled ? "disabled" : "active", level: init.level, department: init.department ? deptRef(init.department) : null,
   titles: (init.titles ?? []).map(titleRef), providers: init.providers ?? ["email"],
   gitlab: init.gitlab ?? (init.level === "member" ? { state: "synced", gitlab_user_id: gitlabSeq++ } : { state: "none", gitlab_user_id: null }),
@@ -169,8 +174,8 @@ const user = (init: UserInit): ConsoleUser => ({
 
 /** 「用户」页名单：各身份、各部门、几种 GitLab 状态、停用、昵称很长、从没登录过的都有。 */
 export const MOCK_USERS: ConsoleUser[] = [
-  user({ username: "xu_yan", display_name: "徐言", level: "member", titles: [SITE_OWNER.id], providers: ["github", "email"], last_login: now - 10 * MIN, created: now - 300 * DAY }),
-  user({ username: "chen_hang", display_name: "陈航", level: "member", department: "dept.management", titles: ["title.management.head"], providers: ["github", "email"], last_login: now - 2 * HOUR, created: now - 260 * DAY }),
+  user({ username: "xu_yan", display_name: "徐言", grade: 4, level: "member", titles: [SITE_OWNER.id], providers: ["github", "email"], last_login: now - 10 * MIN, created: now - 300 * DAY }),
+  user({ username: "chen_hang", display_name: "陈航", grade: 3, level: "member", department: "dept.management", titles: ["title.management.head"], providers: ["github", "email"], last_login: now - 2 * HOUR, created: now - 260 * DAY }),
   user({ username: "li_xiaoman", display_name: "李晓曼", level: "member", department: "dept.ai", titles: ["title.ai.head"], providers: ["github", "email"], last_login: now - 5 * HOUR, created: now - 240 * DAY }),
   user({ username: "wang_zhe", display_name: "王哲", level: "member", department: "dept.algo", titles: ["title.algo.head"], last_login: now - DAY, created: now - 230 * DAY }),
   user({ username: "sun_qiao", display_name: "孙乔", level: "member", department: "dept.security", titles: ["title.security.head"], last_login: now - 3 * DAY, created: now - 220 * DAY }),
@@ -179,13 +184,13 @@ export const MOCK_USERS: ConsoleUser[] = [
   user({ username: "he_miao", display_name: "何苗", level: "member", department: "dept.ai", titles: ["title.ai.staff"], providers: ["github", "email"], last_login: now - 12 * HOUR, created: now - 40 * DAY }),
   user({ username: "fang_lin", display_name: "方林", level: "member", department: "dept.ai", titles: ["title.ai.staff"], gitlab: { state: "failed", gitlab_user_id: 31 }, last_login: now - 8 * DAY, created: now - 30 * DAY }),
   user({ username: "tang_yu", display_name: "唐宇", level: "member", department: "dept.security", titles: ["title.security.staff"], gitlab: { state: "failed", gitlab_user_id: null }, last_login: now - 10 * DAY, created: now - 10 * DAY }),
-  user({ username: "lu_mingyuan", display_name: "陆明远（大二·嵌入式方向·常驻实验室 302）", level: "member", department: "dept.hardware", titles: ["title.hardware.staff"], providers: ["google", "email"], last_login: now - 2 * DAY, created: now - 50 * DAY }),
+  user({ username: "lu_mingyuan", display_name: "陆明远（大二·嵌入式方向·常驻实验室 302）", real_name: "陆明远", level: "member", department: "dept.hardware", titles: ["title.hardware.staff"], providers: ["google", "email"], last_login: now - 2 * DAY, created: now - 50 * DAY }),
   user({ username: "liu_xing", display_name: "刘星", level: "member", providers: ["github", "email"], last_login: now - 9 * HOUR, created: now - 9 * DAY }),
   user({ username: "bai_shuo", display_name: "白硕", level: "member", gitlab: { state: "blocked", gitlab_user_id: 33 }, last_login: now - 3 * DAY, created: now - 60 * DAY }),
-  user({ username: "yz_k3m9q2xa", display_name: "新同学", level: "member", gitlab: { state: "pending", gitlab_user_id: null }, last_login: now - 4 * HOUR, created: now - 4 * HOUR }),
-  user({ username: "gao_yuan", display_name: "高远", level: "alumni", providers: ["github"], last_login: now - 30 * DAY, created: now - 300 * DAY }),
-  user({ username: "zhou_zihan", display_name: "周子涵", level: "registered", last_login: now - 25 * MIN, created: now - 2 * HOUR }),
-  user({ username: "wu_yifan", display_name: "吴一凡", level: "registered", providers: ["google"], last_login: null, created: now - 30 * MIN }),
+  user({ username: "yz_k3m9q2xa", display_name: "新同学", real_name: null, grade: null, level: "member", gitlab: { state: "pending", gitlab_user_id: null }, last_login: now - 4 * HOUR, created: now - 4 * HOUR }),
+  user({ username: "gao_yuan", display_name: "高远", grade: "graduated", level: "alumni", providers: ["github"], last_login: now - 30 * DAY, created: now - 300 * DAY }),
+  user({ username: "zhou_zihan", display_name: "周子涵", grade: 1, level: "registered", last_login: now - 25 * MIN, created: now - 2 * HOUR }),
+  user({ username: "wu_yifan", display_name: "吴一凡", grade: 1, level: "registered", providers: ["google"], last_login: null, created: now - 30 * MIN }),
   user({ username: "mo_chen", display_name: "莫辰", level: "registered", providers: ["github"], gitlab: { state: "blocked", gitlab_user_id: 34 }, last_login: now - 60 * DAY, created: now - 200 * DAY, disabled: true }),
 ];
 const userById = (id: string) => MOCK_USERS.find(u => u.account_id === id);
@@ -294,6 +299,8 @@ function membersOf(groupId: string): PermissionGroupMember[] {
 
 type Persona = {
   username: string; display_name: string; provider: SessionProvider; email_required: boolean;
+  /** 缺真实姓名或年级（#280）：先到补资料页 */
+  profile_required: boolean;
   /** 几分钟前登录的；超过 10 分钟就过了 step-up 窗口，控制台的写操作会回 403 step_up_required。 */
   signed_in_min: number;
   /** 只给 /api/identity/me 的账号页样板用，与控制台权限模型无关。 */
@@ -302,7 +309,7 @@ type Persona = {
 const persona = (username: string, extra: Partial<Persona> = {}): Persona => {
   const account = userByName(username)!;
   return {
-    username, display_name: account.display_name, provider: account.providers.includes("github") ? "github" : account.providers[0], email_required: false, signed_in_min: 4,
+    username, display_name: account.display_name, provider: account.providers.includes("github") ? "github" : account.providers[0], email_required: false, profile_required: false, signed_in_min: 4,
     legacySiteRole: username === "xu_yan" ? "admin" : account.level === "member" ? "member" : null, ...extra,
   };
 };
@@ -310,7 +317,7 @@ const persona = (username: string, extra: Partial<Persona> = {}): Persona => {
 /**
  * `?__persona=` 可选的身份：站长（全部权限）、管理部部长、AI部门部长（只管本部门）、AI部门部员（在「活动志愿者」组里，
  * 只能管比赛）、极客班成员、往届成员、注册用户（后三个没有「进入控制台」）；另有站长用邮箱登录、站长登录超过 10 分钟
- * （写操作要重新登录）、两个还没绑邮箱的成员（#273）和未登录。
+ * （写操作要重新登录）、两个还没绑邮箱的成员（#273）、一个还没填姓名和年级的成员（#280）和未登录。
  */
 export const MOCK_PERSONAS: Record<string, Persona> = {
   owner: persona("xu_yan"),
@@ -324,6 +331,7 @@ export const MOCK_PERSONAS: Record<string, Persona> = {
   registered: persona("zhou_zihan", { provider: "email" }),
   no_email: persona("liu_xing", { email_required: true }),
   no_email_stale: persona("liu_xing", { email_required: true, signed_in_min: 25 }),
+  no_profile: persona("yz_k3m9q2xa", { profile_required: true }),
 };
 
 /** 不是身份的预览状态：未登录（/api/console/me 返回 401）。 */
@@ -359,7 +367,7 @@ export function mockMe(p: Persona): ConsoleMe {
   return {
     account_id: account.account_id, login: account.username, username: account.username, display_name: account.display_name,
     avatar_url: account.avatar_url, level: account.level, level_name: LEVEL_NAME[account.level], department: account.department, titles: account.titles,
-    permissions: permissionsOf(p), provider: p.provider, email_required: p.email_required,
+    permissions: permissionsOf(p), provider: p.provider, email_required: p.email_required, profile_required: p.profile_required,
   };
 }
 
@@ -665,6 +673,10 @@ export function mockAccount(persona: Persona) {
     ],
     available: ["email"],
     email_required: persona.email_required,
+    real_name: persona.profile_required ? null : accountOf(persona).real_name ?? null,
+    grade: persona.profile_required ? null : accountOf(persona).grade,
+    grade_label: persona.profile_required ? null : accountOf(persona).grade_label,
+    profile_required: persona.profile_required,
     session: { provider: persona.provider, created_at: signedInAt, expires_at: now + 7 * DAY, step_up_until: signedInAt + 10 * MIN },
   };
 }
@@ -829,19 +841,22 @@ const visibleTo = (persona: Persona, node: string) => {
 
 function routeUsers(persona: Persona, search: URLSearchParams): UsersResponse {
   gate(persona, "users.view");
+  // 真实姓名只回给有 users.manage 的人（#280），也只有他们能按姓名搜
+  const withRealName = permissionsOf(persona).includes("users.manage");
   const visible = MOCK_USERS.filter(visibleTo(persona, "users.view"));
   const q = (search.get("q") ?? "").trim().toLowerCase();
   const level = search.get("level");
   const department = search.get("department");
   const status = search.get("status");
   const filtered = visible.filter(u =>
-    (!q || [u.username, u.display_name].some(v => v.toLowerCase().includes(q)))
+    (!q || [u.username, u.display_name, ...(withRealName && u.real_name ? [u.real_name] : [])].some(v => v.toLowerCase().includes(q)))
     && (!level || u.level === level)
     && (!department || (u.department?.id ?? "dept.none") === department)
     && (!status || u.status === status));
   const start = Number(search.get("cursor") ?? 0) || 0;
   const size = 20;
-  return { items: filtered.slice(start, start + size), next_cursor: start + size < filtered.length ? String(start + size) : null, counts: usersCounts(visible) };
+  const items = filtered.slice(start, start + size).map(u => (withRealName ? u : (({ real_name: _hidden, ...rest }) => rest)(u)));
+  return { items, next_cursor: start + size < filtered.length ? String(start + size) : null, counts: usersCounts(visible) };
 }
 
 function routeActivity(persona: Persona, search: URLSearchParams): ActivityList {

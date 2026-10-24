@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../../app/server/src/app';
 import { createConfig } from '../../app/server/src/config';
 import type { ServiceOverrides } from '../../app/server/src/services';
+import { enrollmentYearFor } from '../../app/server/src/lib/grade';
 
 /** 论坛内容夹具（分类、标签、两篇旧帖），代替 app/forum/content 的真实文件。 */
 export const FORUM_FIXTURE_DIR = fileURLToPath(new URL('./fixtures/forum-content', import.meta.url));
@@ -41,7 +42,16 @@ export function signIn(app: FastifyInstance, login: string, githubId: number, av
   if (!Number.isInteger(githubId)) throw new Error(`test sign-in needs a GitHub id for ${login}`);
   const result = app.services.identity.signInWithGithub({ github: { id: githubId, login, avatarUrl }, accessToken });
   if (!result.ok) throw new Error(`test sign-in refused for ${login}: ${result.reason}`);
+  if (result.registered) completeProfile(app, result.accountId);
   return result.sid;
+}
+
+/**
+ * 给账号填上真实姓名和年级（#280）：缺这两项的账号登录后先被带去补资料页，对外授权和命令行确认也会被拦。
+ * signIn() 新建的测试账号默认就填好，专门测补资料关口的用例自己把它们清掉（profiles.setRealInfo(id, null, null)）。
+ */
+export function completeProfile(app: FastifyInstance, accountId: string, realName = '测试同学', grade: 1 | 2 | 3 | 4 = 2): void {
+  app.services.profiles.setRealInfo(accountId, realName, enrollmentYearFor(grade));
 }
 
 /**

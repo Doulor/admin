@@ -373,7 +373,7 @@ describe('GitLab account sync (#270)', () => {
     signIn(app, 'alice', 101, 'https://avatars.githubusercontent.com/u/101');
     const now = Date.now();
     db.prepare('INSERT INTO account_avatars(hash, data, mime, created_at) VALUES(?, ?, ?, ?)').run('a'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), 'image/webp', now);
-    db.prepare('INSERT INTO account_profiles(account_id, username, display_name, bio, avatar_hash, updated_at) VALUES(?, ?, ?, ?, ?, ?)')
+    db.prepare('INSERT OR REPLACE INTO account_profiles(account_id, username, display_name, bio, avatar_hash, updated_at) VALUES(?, ?, ?, ?, ?, ?)')
       .run(accountOf(101), 'alice', '刘爱丽', '写编译器', 'a'.repeat(64), now);
     await app.services.gitlab.reconcile();
     // account_profiles 没有「所在地」「网站」这两项（统一资料只剩用户名、显示名、简介、头像，SPEC §3.6）：本地已经有简介时
@@ -438,7 +438,7 @@ describe('GitLab account sync (#270)', () => {
     const now = Date.now();
     const carolAccountId = app.services.identity.accountForGithub(103)!;
     app.services.storage.db.prepare('INSERT INTO account_avatars(hash, data, mime, created_at) VALUES(?, ?, ?, ?)').run('c'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), 'image/webp', now);
-    app.services.storage.db.prepare('INSERT INTO account_profiles(account_id, username, display_name, avatar_hash, updated_at) VALUES(?, ?, ?, ?, ?)').run(carolAccountId, 'carol', 'carol', 'c'.repeat(64), now);
+    app.services.storage.db.prepare('INSERT OR REPLACE INTO account_profiles(account_id, username, display_name, avatar_hash, updated_at) VALUES(?, ?, ?, ?, ?)').run(carolAccountId, 'carol', 'carol', 'c'.repeat(64), now);
     app.services.storage.db.prepare('DELETE FROM account_avatars WHERE hash = ?').run('c'.repeat(64));
     expect((await app.services.gitlab.reconcile()).outcomes.find(item => item.login === 'carol')!.error).toBe('forum_avatar_missing');
 
