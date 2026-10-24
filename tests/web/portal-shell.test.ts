@@ -254,7 +254,7 @@ describe("命令串联与脚本 / 深入 PATH", () => {
 });
 
 describe("桌面", () => {
-  it("open 应用、运行 .app、./join 都打开窗口；看不到的应用打不开；敲应用名会提示 open", () => {
+  it("open 应用、运行 .app、./join、直接敲应用名都打开窗口；看不到的应用打不开；PATH 里没有 /usr/local/bin 时敲应用名提示 open", () => {
     const shell = make();
     expect(shell.run("open forum").open).toEqual(["forum"]);
     expect(shell.run("./Desktop/competitions.app").open).toEqual(["competitions"]);
@@ -263,7 +263,11 @@ describe("桌面", () => {
     const hidden = shell.run("open console");
     expect(hidden.open).toEqual([]);
     expect(hidden.lines.at(-1)?.kind).toBe("err");
-    expect(sh(shell, "forum").err).toBe("bash: forum: command not found\n要打开「论坛」，输入 open forum");
+    expect(shell.run("forum").open).toEqual(["forum"]);
+    expect(shell.run("join").open).toEqual(["join"]);
+    expect(sh(shell, "which forum").out).toBe("/usr/local/bin/forum");
+    expect(shell.run("console").open).toEqual([]);
+    expect(sh(shell, "PATH=/usr/bin forum").err).toBe("bash: forum: command not found\n要打开「论坛」，输入 open forum");
     expect(OS_APPS.find((app) => app.id === "console")).toBeTruthy();
   });
 

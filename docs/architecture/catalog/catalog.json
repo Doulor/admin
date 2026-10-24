@@ -11124,7 +11124,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "981509f0f8ca3a6f438b6037156e6761b25b75f1931958b49e6beea6a8412d69",
+    "fingerprint": "2127203bf4c72761c0b1ec4081330df11a3d29f39b8e251743ec321bb3ae5805",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -12572,7 +12572,7 @@
       },
       {
         "path": "app/web/sites/portal/lib/shell/index.ts",
-        "sha256": "4d4cc2cc213a34407ad4b69ed1774f86403cf7273714403318b7237491f59b25"
+        "sha256": "1ab1cf5e7f4b92a8e03ca6aa13ba38a86de4613996aeae384df00e42358b4b51"
       },
       {
         "path": "app/web/sites/portal/lib/shell/parse.ts",
@@ -12708,7 +12708,7 @@
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "56288f4208145294a161c8f0f6fd8c887dcc723c73be711dde7395b8dbdc13bb"
+        "sha256": "a683aa7baabaabdfc57a783b3b97c26abb727e10a1feee53c6adaa18fa6d1d69"
       },
       {
         "path": "pnpm-lock.yaml",

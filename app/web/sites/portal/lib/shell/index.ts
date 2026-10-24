@@ -1,7 +1,7 @@
 // 桌面终端的模拟 shell（#279）：createShell 造一台小 Linux，run 跑一行命令，complete 做 Tab 补全。
 // 文件系统见 vfs.ts，切词见 parse.ts，命令见 commands.ts；这里负责展开变量和通配符、管道、重定向、&& || ;、脚本和存盘。
 // 登录了用极客班用户名当用户名（/home/<用户名>），没登录是 guest；家目录里自己写的文件按用户名存在 localStorage。
-// 桌面上的应用是 ~/Desktop 里的 .app 脚本，运行它或 open <应用> 就会在桌面上打开那个窗口。
+// 桌面上的应用是 ~/Desktop 里的 .app 脚本，也装在 /usr/local/bin 里当命令用；运行它、敲应用名或 open <应用> 都会在桌面上打开那个窗口。
 import type { Account } from "../account";
 import type { CodeProject } from "../codeRepos";
 import type { AppId, OsApp } from "../osApps";
@@ -46,7 +46,7 @@ export const MOTD = [
   "YUGC OS 2.0 (GNU/Linux 6.6.0-yugc x86_64)",
   "",
   "这是一台模拟的 Linux：命令、管道、重定向、变量和脚本都能用，家目录里的文件存在这台浏览器里。",
-  "输入 help 看有哪些命令，man <命令> 看用法；桌面上的应用都在 ~/Desktop 里，open forum 就能打开论坛。",
+  "输入 help 看有哪些命令，man <命令> 看用法；桌面上的应用都在 ~/Desktop 里，输入 forum 或 open forum 就能打开论坛。",
   "想系统地学 Linux 命令行，输入 learn。",
 ];
 
@@ -59,7 +59,7 @@ const README = `# 欢迎来到 YUGC OS 的终端
 
 这是一台跑在浏览器里的模拟 Linux。家目录里的东西：
 
-  Desktop/    桌面上的应用，运行 ./Desktop/forum.app 或 open forum 都能打开
+  Desktop/    桌面上的应用，运行 ./Desktop/forum.app、forum 或 open forum 都能打开
   Documents/  文档，linux.md 是 Linux 启明道场每一关对应的命令
   projects/   代码仓库里的公开项目
   .bashrc     每次打开终端先执行的命令（隐藏文件，ls -a 才看得到）
@@ -731,13 +731,13 @@ const put = (parent: DirNode, name: string, node: FsNode) => {
   return node;
 };
 
-/** 系统目录、/usr/bin 里的命令、家目录的默认内容和桌面应用（都是 generated，不存盘） */
+/** 系统目录、/usr/bin 里的命令、/usr/local/bin 里的桌面应用命令、家目录的默认内容和桌面应用（都是 generated，不存盘） */
 function buildSystem(fs: Vfs, user: string, home: string, apps: readonly OsApp[]) {
   const root = fs.root;
   const sub = (parent: DirNode, name: string, mode = 0o755) => put(parent, name, dir(true, mode)) as DirNode;
   const usr = sub(root, "usr");
   const bin = sub(usr, "bin");
-  sub(sub(usr, "local"), "bin");
+  const localBin = sub(sub(usr, "local"), "bin");
   for (const name of EXTERNAL) put(bin, name, { ...file(`\x7fELF\n${name}\n`, 0o755, true), builtin: true });
   put(root, "bin", bin);
   const etc = sub(root, "etc");
@@ -757,7 +757,11 @@ function buildSystem(fs: Vfs, user: string, home: string, apps: readonly OsApp[]
   put(homeDir, ".bashrc", file(DEFAULT_BASHRC, 0o644, true));
   put(homeDir, "join", file("#!/bin/bash\n# 打开「加入我们」\nopen join\n", 0o755, true));
   const desktop = sub(homeDir, "Desktop");
-  for (const app of apps) put(desktop, `${app.id}.app`, file(`#!/bin/bash\n# ${app.name}：${app.blurb}\nopen ${app.id}\n`, 0o755, true));
+  for (const app of apps) {
+    const script = `#!/bin/bash\n# ${app.name}：${app.blurb}\nopen ${app.id}\n`;
+    put(desktop, `${app.id}.app`, file(script, 0o755, true));
+    put(localBin, app.id, file(script, 0o755, true));
+  }
   const docs = sub(homeDir, "Documents");
   put(docs, "linux.md", file(LEARN_TEXT, 0o644, true));
 }
