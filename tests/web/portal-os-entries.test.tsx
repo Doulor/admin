@@ -22,6 +22,13 @@ vi.mock("../../app/web/sites/portal/lib/wallpapers", async (importOriginal) => (
   prefetchWallpapersWhenIdle: () => () => undefined,
 }));
 
+// 旧地址跳转的用例只看 App 的路由表，首页换成显示当前地址的桩，不播开机动画
+vi.mock("../../app/web/sites/portal/pages/Home", async () => {
+  const { useLocation: useWhere } = await import("react-router-dom");
+  return { default: () => <output data-testid="home-at">{`${useWhere().pathname}${useWhere().search}`}</output> };
+});
+
+import App from "../../app/web/sites/portal/App";
 import YugcOs from "../../app/web/sites/portal/components/os/YugcOs";
 import { links } from "../../app/web/sites/portal/lib/links";
 
@@ -75,6 +82,18 @@ function renderDesktop() {
 
 const dock = () => within(screen.getByRole("navigation", { name: "Dock" }));
 
+/** 意见箱窗口要读的几个接口：分类和发往的组织、公开意见、站点配置 */
+function stubFeedbackApi() {
+  localStorage.setItem("yugc:dev-data-source", "live");
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    const body = url.startsWith("/api/feedback/categories") ? { categories: ["建议", "Bug"], pow_difficulty: 0, org: "geek" }
+      : url.startsWith("/api/feedback/public") ? { items: [] }
+        : url === "/api/public/config" ? { turnstile_site_key: null, pow_difficulty: 0 }
+          : { signed_in: false };
+    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  }));
+}
+
 it("Dock、桌面图标、便签：论坛当前标签页直达论坛首页，点下去当场打开、路由不动；GitHub 组织应用没有了", () => {
   const { container, where } = renderDesktop();
   fireEvent.click(dock().getByRole("button", { name: "论坛" }));
@@ -98,15 +117,8 @@ it("Dock、桌面图标、便签：论坛当前标签页直达论坛首页，点
   expect(where()).toBe("/");
 });
 
-it("意见箱在桌面上开窗口（#275）：Dock、桌面图标、⌘K 都打开同一个窗口，里面是 /feedback 同一份表单，路由不动", async () => {
-  localStorage.setItem("yugc:dev-data-source", "live");
-  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
-    const body = url.startsWith("/api/feedback/categories") ? { categories: ["建议", "Bug"], pow_difficulty: 0, org: "geek" }
-      : url.startsWith("/api/feedback/public") ? { items: [] }
-        : url === "/api/public/config" ? { turnstile_site_key: null, pow_difficulty: 0 }
-          : { signed_in: false };
-    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
-  }));
+it("意见箱在桌面上开窗口（#275）：Dock、桌面图标、⌘K 都打开同一个窗口，路由不动", async () => {
+  stubFeedbackApi();
   const { container, where } = renderDesktop();
   const boxes = () => screen.queryAllByRole("dialog", { name: "意见箱" });
   const entries: Array<[string, () => void]> = [
@@ -130,6 +142,49 @@ it("意见箱在桌面上开窗口（#275）：Dock、桌面图标、⌘K 都打
     fireEvent.click(win.getByRole("button", { name: "关闭" }));
     expect(boxes(), name).toHaveLength(0);
   }
+});
+
+it("旧地址 /feedback、/feedback/:org 不再有单独的页面，跳到 /?open=feedback（#275）", () => {
+  for (const path of ["/feedback", "/feedback/geek"]) {
+    const view = render(
+      <MemoryRouter initialEntries={[path]}>
+        <App />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("home-at").textContent, path).toBe("/?open=feedback");
+    expect(document.querySelector(".pt-feedback"), path).toBeNull();
+    view.unmount();
+  }
+});
+
+it("/?open=feedback 进桌面就打开意见箱窗口，打开后把参数从地址里去掉，别的参数留着；不是窗口的应用不打开", async () => {
+  stubFeedbackApi();
+  function Search() {
+    return <output data-testid="search">{useLocation().search}</output>;
+  }
+  const view = render(
+    <MemoryRouter initialEntries={["/?open=feedback&__data=live"]}>
+      <Routes>
+        <Route path="/" element={<YugcOs />} />
+      </Routes>
+      <Search />
+    </MemoryRouter>,
+  );
+  expect(screen.getAllByRole("dialog", { name: "意见箱" })).toHaveLength(1);
+  expect(await screen.findByLabelText("想说什么")).toBeTruthy();
+  await waitFor(() => expect(screen.getByTestId("search").textContent).toBe("?__data=live"));
+  view.unmount();
+
+  render(
+    <MemoryRouter initialEntries={["/?open=join"]}>
+      <Routes>
+        <Route path="/" element={<YugcOs />} />
+      </Routes>
+      <Search />
+    </MemoryRouter>,
+  );
+  await waitFor(() => expect(screen.getByTestId("search").textContent).toBe(""));
+  expect(screen.queryAllByRole("dialog")).toHaveLength(0);
 });
 
 it("代码仓库在桌面上开窗口：Dock、桌面图标、3 键、菜单栏「前往」、便签、⌘K、终端都打开同一个窗口，不离开官网", async () => {

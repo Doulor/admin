@@ -10,14 +10,16 @@
 
 | 路由 | 页面 | 说明 |
 |---|---|---|
-| `/` | `pages/Home.tsx` | 今天（北京时间）没播过就先播开机动画，播完或跳过淡出到 YUGC OS 桌面；播过了或开了减少动态效果直接进桌面（见下文「开机动画与进站」） |
+| `/` | `pages/Home.tsx` | 今天（北京时间）没播过就先播开机动画，播完或跳过淡出到 YUGC OS 桌面；播过了或开了减少动态效果直接进桌面（见下文「开机动画与进站」）；`/?open=<窗口应用的 id>` 进桌面并打开这个窗口，打开后把参数去掉（`YugcOs.tsx`），控制台给的意见箱链接是 `/?open=feedback` |
 | `/join-us` | `pages/JoinUs.tsx` | 加入我们：信封场景，DOM 信纸就是表单，真实提交 `POST /api/portal/apply`；没登录时信纸上只有「先注册再投递」（见下文「加入我们（投递）」） |
 | `/apply` | — | 旧地址，`<Navigate replace>` 到 `/join-us`，已发出的链接不失效 |
 | `/forum-3d` | `pages/Forum3D.tsx` | 论坛版块气泡场景，主入口「进入论坛首页」一直可见，版块图标为 Remix 线性图标；进论坛前镜头推近、遮罩盖满，从论坛按后退回来时浏览器可能从往返缓存（bfcache）恢复整页，`pageshow.persisted` 时调场景的 `reset()` 回到进场的样子（#109）。桌面上的「论坛」已直达论坛首页，不再经过这页（#185，见下文「桌面入口直达」）；这页留给旧地址和「论坛最新」窗口里的「3D 版块」按钮 |
 | `/docs`、`/docs/:id` | `pages/Docs.tsx` | 公开产品介绍与用户指南（白名单由 `/api/docs` 决定） |
-| `/feedback`、`/feedback/:org` | `pages/Feedback.tsx` | 匿名意见箱。桌面和手机主屏上的「意见箱」是 YUGC OS 窗口（#275），打开时才加载同一份表单（`FeedbackBox`），这两个地址留给分享出去的链接；只发本部署的组织（#129）：组织框只读（浅灰底、悬停不变色，说明「这里改不了」用 `aria-describedby` 挂在框上），展示 `GET /api/feedback/categories` 下发的 `org`（`CONSOLE_ORG`），读公开列表和提交都用同一个值；接口回来之前或失败时组织框先显示站点配置 `urls.githubOrg` 的最后一段，但提交按钮是灰的：组织名、分类和 PoW 难度都要等这个接口读到才能提交，失败时分类处显示「没读到分类和发往的组织，暂时不能提交」和「重新读取」按钮，已经写的正文不清空（`tests/web/portal-feedback-org.test.tsx`）。`/feedback/:org` 是控制台意见箱页生成的分享地址（`app/console/src/pages/Feedback.vue`），也接住旧链接，不能删；URL 里的组织名不生效 |
+| `/feedback`、`/feedback/:org` | — | 旧地址，`<Navigate replace>` 到 `/?open=feedback`，进桌面打开「意见箱」窗口（#275）；不再有单独的页面，原来的页面归档在 `docs/history/portal-yugc-os-v1/` |
 
-`/join-us` 是招新投递。旧的 `/join/:token`（GitHub 组织邀请链接落地页）随 #274 删掉的 `/api/join/:token` 一起删掉，旧链接落到兜底路由回首页；注册邀请码在登录页和资料卡里填。首页之外的页面按路由懒加载。`/github`（GitHub 天际线场景页）在 #275 删掉，旧地址落到兜底路由回首页。`base.css` 不引远程字体（`cdn.jsdelivr.net` 的 Maple Mono 被站点 CSP 拦截），等宽字体走系统栈。
+意见箱窗口（`components/os/FeedbackBox.tsx`，`Windows.tsx` 打开时才加载）只发本部署的组织（#129）：组织框只读（浅灰底、悬停不变色，说明「这里改不了」用 `aria-describedby` 挂在框上），展示 `GET /api/feedback/categories` 下发的 `org`（`CONSOLE_ORG`），读公开列表和提交都用同一个值；接口回来之前或失败时组织框先显示站点配置 `urls.githubOrg` 的最后一段，但提交按钮是灰的：组织名、分类和 PoW 难度都要等这个接口读到才能提交，失败时分类处显示「没读到分类和发往的组织，暂时不能提交」和「重新读取」按钮，已经写的正文不清空（`tests/web/portal-feedback-org.test.tsx`）。已经发出去的 `/feedback/:org` 链接跳到 `/?open=feedback`，URL 里的组织名不生效。
+
+`/join-us` 是招新投递。旧的 `/join/:token`（GitHub 组织邀请链接落地页）随 #274 删掉的 `/api/join/:token` 一起删掉，旧链接落到兜底路由回首页；注册邀请码在登录页和资料卡里填。首页之外的页面按路由懒加载。`/github`（GitHub 天际线场景页）在 #275 删掉，旧地址落到兜底路由回首页。#275 退场的页面、组件、样式、图片和模型原样归档在 [docs/history/portal-yugc-os-v1](../../history/portal-yugc-os-v1/README.md)，那里写了每个文件原来是什么、换成了什么、旧地址现在去哪；归档目录不参与构建。`base.css` 不引远程字体（`cdn.jsdelivr.net` 的 Maple Mono 被站点 CSP 拦截），等宽字体走系统栈。
 
 ## 模块地图
 
@@ -44,7 +46,7 @@
 | `lib/events.ts` | 埋点：`reportEvent` 攒批 `POST /api/events`（见下文「埋点」） |
 | `lib/snapshots.ts` | 读取 `public/portal/forum-latest.json` 论坛快照 |
 | `lib/icons.ts`、`components/Icon.tsx` | Remix Icon 路径注册表与图标组件 |
-| `components/os/*` | YUGC OS 桌面：`YugcOs.tsx`（菜单栏、Dock、启动器、换壁纸面板、手机状态栏与弹层）、`Widgets.tsx`（应用图标与「新来的看这里」便签）、`Windows.tsx`（窗口外框与关于、组织架构、代码仓库、论坛最新、终端、意见箱等窗口正文；电脑上窗口从顶边往下最多到 Dock 上沿，内容长的窗口在里面滚动，不钻到 Dock 下面）、`ProfileCard.tsx`（个人资料卡）、`SkyWallpaper.tsx`（默认壁纸「晴空」）、`Wallpaper.tsx`（壁纸图层与换壁纸动效）；壁纸清单、下载解码与空闲预取在 `lib/wallpapers.ts`（图片地址只写在这里），文件在 `assets/wallpapers/`，见下文「壁纸」 |
+| `components/os/*` | YUGC OS 桌面：`YugcOs.tsx`（菜单栏、Dock、启动器、换壁纸面板、手机状态栏与弹层）、`Widgets.tsx`（应用图标与「新来的看这里」便签）、`Windows.tsx`（窗口外框与关于、组织架构、代码仓库、论坛最新、终端等窗口正文；意见箱窗口的正文在 `FeedbackBox.tsx`；电脑上窗口从顶边往下最多到 Dock 上沿，内容长的窗口在里面滚动，不钻到 Dock 下面）、`ProfileCard.tsx`（个人资料卡）、`SkyWallpaper.tsx`（默认壁纸「晴空」）、`Wallpaper.tsx`（壁纸图层与换壁纸动效）；壁纸清单、下载解码与空闲预取在 `lib/wallpapers.ts`（图片地址只写在这里），文件在 `assets/wallpapers/`，见下文「壁纸」 |
 | `components/Emblem.tsx`、`SceneBar.tsx`、`PageShell.tsx` | 校徽几何、场景页顶栏、普通页外壳 |
 | `components/ChoiceChips.tsx` | 少量选项的单选胶囊（原生 radio，方向键切换）；官网表单不用原生下拉框 |
 | `styles/*.css` | 视觉令牌与组件样式（`.pt-root` 作用域）：`portal.css` 定义 `--pt-*`（场景页、普通页）与 `--os-*`（YUGC OS v2）两套令牌，`boot.css` 开机动画层，`os.css` 桌面与窗口，`competitions.css` 比赛窗口，`scenes.css` 场景页；规范见 [DESIGN](../../design/DESIGN.md)「YUGC OS v2 视觉令牌」 |
@@ -118,7 +120,7 @@ three.js 只通过 `/join-us`、`/forum-3d` 两页里的 `import("../three/<scen
 ## 链接与数据
 
 - 论坛首页 `externalUrl("forum", "/")`：生产为 `https://yangtzeu.work/forum/`，本机开发为 `http://127.0.0.1:3456/`；版块 `/c/<slug>`，话题 `/t/<id>`（论坛按话题 id 解析，例如 `/t/t84`；`topic-84` 这类 slug 打不开）。
-- 控制台 `externalUrl("admin", "/console")`：生产与预发布都是本域名下的 `/console`（每个环境只有一个域名，管理端按路径进入），本机开发为 `/sites/admin/console`。意见箱是桌面窗口，分享出去的地址是站内 `/feedback`。
+- 控制台 `externalUrl("admin", "/console")`：生产与预发布都是本域名下的 `/console`（每个环境只有一个域名，管理端按路径进入），本机开发为 `/sites/admin/console`。意见箱是桌面窗口，分享出去的地址是站内 `/?open=feedback`（旧地址 `/feedback` 也跳到这里）。
 - 代码仓库是站点配置 `urls.gitlab`（现在是 `https://git.yangtzeu.work/geek`），公开项目列表读 `GET /api/public/gitlab/projects`；部门读 `GET /api/public/departments`。原来随构建发布的 `public/portal/repos.json` 仓库快照与 GitHub 天际线（`lib/skyline.ts`）在 #275 删除。
 - 论坛最新在生产官网拿不到实时接口（论坛的本地状态接口只在开发时存在），因此随构建发布静态快照 `public/portal/forum-latest.json`。界面上不写「快照」「示意」这类给开发者看的说明（`tests/web/portal-os.test.ts` 扫描拦截），数字只写数据里真有的（话题数、用户数）。论坛快照只收录已在仓库里公开编辑过的话题（`app/forum/content/curation.json` 的 `topics`），字段白名单为 id、标题、分类、颜色、回复数、浏览数、时间，**不带作者或任何用户名**：论坛私有投影里的用户名含真实姓名，不得进入公开官网包。更新快照 = 替换这个文件并跑 `tests/web/portal-snapshots.test.ts`（它校验字段白名单与话题 id）。
 

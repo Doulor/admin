@@ -62,17 +62,17 @@ const remove = useAction(async (item: FeedbackItem) => {
   await list.reload();
 });
 async function askRemove(item: FeedbackItem) {
-  if (await confirm({ title: `删除意见 #${item.id}？`, body: "删除后不能恢复，官网的公开意见页也不再显示它。", confirmText: "删除", danger: true })) await remove.execute(item);
+  if (await confirm({ title: `删除意见 #${item.id}？`, body: "删除后不能恢复，官网意见箱的「最近的意见」里也不再显示它。", confirmText: "删除", danger: true })) await remove.execute(item);
 }
 
-// 单一站点，不再按 GitHub 组织分路径（/feedback/:org 仍接住旧链接，见 app/web/sites/portal/App.tsx）。
-const publicPath = "/feedback";
+// 官网的意见箱是桌面窗口（#275）：/?open=feedback 进桌面并打开它；旧地址 /feedback、/feedback/:org 也跳到这里（app/web/sites/portal/App.tsx）。
+const publicPath = "/?open=feedback";
 const publicUrl = computed(() => new URL(siteUrl("portal", publicPath), window.location.origin).toString());
 </script>
 
 <template>
   <div class="page">
-    <PageHeader title="意见箱" description="官网「意见」提交的反馈。你的回复会公开显示在官网的意见页上。" />
+    <PageHeader title="意见箱" description="官网意见箱提交的反馈。你的回复会公开显示在官网意见箱的「最近的意见」里。" />
 
     <div class="split">
       <div class="stack">

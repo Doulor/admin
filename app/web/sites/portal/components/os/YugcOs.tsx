@@ -41,7 +41,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
   const phoneWallpaper = phone && portrait;
   const navigate = useNavigate();
   // 登录后回到当前页面：订阅路由变化，让 signInHref() 按浏览器当前地址（含开发态的 /sites/portal 前缀）重算 return_to，交给资料卡
-  useLocation();
+  const location = useLocation();
   const signInLink = signInHref();
   const { account, loaded, signOut, patch, reload } = useAccount();
   // 控制台只给 console_link 为 true 的人：其他人的桌面、Dock、资料卡、启动器、终端里都没有它。
@@ -175,6 +175,17 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
       return [...current, { id, z, x, y, minimized: false, zoomed: false }];
     });
   }, []);
+
+  // ?open=<窗口应用的 id>：控制台给的意见箱链接、旧地址 /feedback 跳过来时直接打开对应窗口（#275），打开后把参数从地址里去掉
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const id = params.get("open");
+    if (id === null) return;
+    params.delete("open");
+    const rest = params.toString();
+    navigate({ search: rest ? `?${rest}` : "" }, { replace: true });
+    if (apps.some((app) => app.id === id && app.open.kind === "window")) openWindow(id as WindowId);
+  }, [location.search, apps, navigate, openWindow]);
 
   const launchScene = useCallback(
     (app: OsApp, from?: HTMLElement | null) => {

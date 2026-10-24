@@ -1,15 +1,15 @@
-// 官网「意见箱」：匿名向组织提建议 / 报 bug，旁边列出该组织公开的近期反馈。
-// 桌面上的「意见箱」是 YUGC OS 里的窗口（#275，components/os/Windows.tsx 按需加载 FeedbackBox）；/feedback 和
-// /feedback/:org 两个地址留给分享出去的链接，外壳是 ../components/PageShell.tsx。准入同其它公开表单（PoW + 蜜罐 + 可选 Turnstile）。
-// 分类只有几项，用单选按钮组（../components/ChoiceChips.tsx）而不是原生下拉框。
+// YUGC OS 的「意见箱」窗口（#275）：匿名向组织提建议 / 报 bug，旁边列出该组织公开的近期反馈。Windows.tsx 打开窗口时才加载，
+// 防刷验证和表单样式不进桌面首屏。旧地址 /feedback、/feedback/:org 不再有单独的页面，只跳到桌面打开这个窗口（App.tsx）；
+// 原来的页面在 docs/history/portal-yugc-os-v1/。准入同其它公开表单（PoW + 蜜罐 + 可选 Turnstile）。
+// 分类只有几项，用单选按钮组（../ChoiceChips.tsx）而不是原生下拉框。
 import TurnstileWidget from "@shared/ui/TurnstileWidget";
 import { useCallback, useEffect, useState } from "react";
 import { api, fmtRelative } from "@shared/lib/api";
 import { appConfig } from "@shared/config";
 import { computePow, powProof } from "@shared/lib/pow";
-import ChoiceChips from "../components/ChoiceChips";
-import Icon from "../components/Icon";
-import PageShell, { WindowCard } from "../components/PageShell";
+import ChoiceChips from "../ChoiceChips";
+import Icon from "../Icon";
+import "../../styles/pages.css";
 
 /**
  * 意见箱收哪个组织以服务端为准：`GET /api/feedback/categories` 下发的 `org`（部署配置的 CONSOLE_ORG）。
@@ -23,22 +23,8 @@ type PublicFeedback = { id: number; category: string | null; content: string; st
 
 const LEAD = "对官网、论坛或极客班有意见，写在这里，不用登录。社区部会在控制台里看到，回复会公开显示在「最近的意见」里。";
 
-export default function Feedback() {
-  return (
-    <PageShell path="~/yugc/feedback">
-      <header className="pt-pagehead">
-        <div>
-          <h1>意见箱</h1>
-          <p>{LEAD}</p>
-        </div>
-      </header>
-      <FeedbackBox />
-    </PageShell>
-  );
-}
-
-/** 表单和「最近的意见」：/feedback 页面套一层窗口样式的卡片，桌面窗口里（inWindow）本身就是窗口，不再套 */
-export function FeedbackBox({ inWindow = false }: { inWindow?: boolean }) {
+/** 表单和「最近的意见」：窗口本身就是外框，表单不再套卡片 */
+export default function FeedbackBox() {
   const [form, setForm] = useState({ category: "建议", content: "", contact: "", website: "" });
   const [org, setOrg] = useState(SITE_ORG);
   const [err, setErr] = useState<string | null>(null);
@@ -220,17 +206,11 @@ export function FeedbackBox({ inWindow = false }: { inWindow?: boolean }) {
   );
 
   return (
-    <div className={inWindow ? "pt-feedback is-window" : "pt-feedback"}>
-      {inWindow ? (
-        <section className="pt-feedback-form" aria-label="写意见">
-          <p className="pt-feedback-lead">{LEAD}</p>
-          {body}
-        </section>
-      ) : (
-        <WindowCard path="feedback.form" badge={done ? "已提交" : undefined}>
-          {body}
-        </WindowCard>
-      )}
+    <div className="pt-feedback is-window">
+      <section className="pt-feedback-form" aria-label="写意见">
+        <p className="pt-feedback-lead">{LEAD}</p>
+        {body}
+      </section>
 
       <aside className="pt-feed-side" aria-labelledby="fb-recent-title">
         <h2 className="pt-side-title" id="fb-recent-title">

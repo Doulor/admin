@@ -1,6 +1,6 @@
 // YUGC OS 的窗口：可拖动、最小化、放大、关闭、聚焦；内容有「关于」「组织架构」「论坛最新」「终端」「比赛」「代码仓库」「意见箱」七种。
 // 比赛窗口的内容在 competitions/（#265）：它在手机详情页会借标题栏左边的返回键回列表（PhoneNav）。
-// 意见箱窗口用 /feedback 页面同一份表单（pages/Feedback.tsx 的 FeedbackBox），打开时才加载，防刷验证和表单样式不进桌面首屏。
+// 意见箱窗口的内容在 FeedbackBox.tsx，打开时才加载，防刷验证和表单样式不进桌面首屏。
 import { Suspense, lazy, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { appConfig } from "@shared/config";
@@ -28,7 +28,7 @@ const META: Record<WindowId, { title: string; width: number }> = {
   feedback: { title: "意见箱", width: 860 },
 };
 
-const FeedbackBox = lazy(() => import("../../pages/Feedback").then((module) => ({ default: module.FeedbackBox })));
+const FeedbackBox = lazy(() => import("./FeedbackBox"));
 
 export function windowWidth(id: WindowId): number {
   return META[id].width;
@@ -228,7 +228,7 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
           {win.id === "gitlab" && <CodeRepos />}
           {win.id === "feedback" && (
             <Suspense fallback={<p className="pt-empty">正在打开意见箱…</p>}>
-              <FeedbackBox inWindow />
+              <FeedbackBox />
             </Suspense>
           )}
         </div>

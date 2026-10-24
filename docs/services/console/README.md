@@ -46,7 +46,7 @@
 | `/console/gitlab/projects` | 群组与项目：同步群组下的子群组和项目，HTTPS、SSH 克隆地址各带复制按钮 | 同上 |
 | `/console/gitlab/settings` | GitLab 设置：同步模式（关闭、预演、打开）、群组路径、同步间隔（5–1440 分钟）；令牌只显示「已配置」或「未配置」 | `gitlab.settings` |
 | `/console/activity` | 操作记录（见下文「操作记录」） | `activity.read` |
-| `/console/feedback` | 意见箱 | `feedback.view` |
+| `/console/feedback` | 意见箱；右边的公开提交链接是官网的 `/?open=feedback`，进桌面打开意见箱窗口 | `feedback.view` |
 | `/console/people`、`/console/audit` | 带着查询参数跳到 `/console/users`、`/console/activity` | — |
 | `/admin`、`/admin/**` | 跳到 `/console` | — |
 | `/console/signin`、`/admin/signin` | 跳到 `/signin` | — |
