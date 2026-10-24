@@ -83,6 +83,33 @@ describe('POST /api/events（访客也能调）', () => {
     for (let i = 0; i < 30; i++) expect((await hit()).statusCode).toBe(200);
     expect((await hit()).statusCode).toBe(429);
   });
+
+  it('同一个 IP 换着造新的访客 cookie 绕不开限流（#274 残留修复 K.2：限流键拼了 IP 哈希，不是只看访客 cookie）', async () => {
+    const { app } = await setup();
+    // 每次都是一个全新、格式合法的访客 cookie（没有真的调过 /api/events 发过这个 cookie），但 remoteAddress 不变：
+    // 如果限流只按访客 cookie 算，这 31 次会被当成 31 个不同的人，全部放行；按 IP 哈希算，额度是共享的。
+    const hit = (i: number) => app.inject({
+      method: 'POST', url: '/api/events', remoteAddress: '198.51.100.77',
+      headers: { cookie: `yugc_vid=${String(i).padStart(8, '0')}-0000-4000-8000-000000000000` },
+      payload: { events: [{ action: 'page.view' }] },
+    });
+    for (let i = 0; i < 30; i++) expect((await hit(i)).statusCode).toBe(200);
+    expect((await hit(30)).statusCode).toBe(429);
+  });
+
+  it('meta 序列化之后超过 2KB 的事件按拒绝处理，不落一条白名单记录（#274 残留修复 K.2）', async () => {
+    const { app } = await setup();
+    const hugeMeta = { blob: 'x'.repeat(3000) };
+    const response = await app.inject({
+      method: 'POST', url: '/api/events',
+      payload: { events: [{ action: 'os.boot.played' }, { action: 'page.view', meta: hugeMeta }] },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ accepted: 1, rejected: 1 });
+    const rows = activityRows(app.services.storage.db);
+    expect(rows.map(row => row.action)).toEqual(['os.boot.played', 'events.rejected']);
+    expect(JSON.parse(rows[1].meta)).toEqual({ count: 1, actions: ['page.view'] });
+  });
 });
 
 describe('lib/activity.ts 的保留策略（SPEC §3.7：IP 存 90 天，记录存 180 天）', () => {
