@@ -142,9 +142,9 @@ describe("mail envelope renderer", () => {
   it("does not promise the rejected applicant anything the forum or the process does not give", () => {
     const { html, text } = render("rejected");
     for (const body of [html, text]) {
-      // 游客只能看帖、用昵称回复，发不了帖（docs/services/forum/README.md）
-      expect(body).toContain("论坛不登录也能看帖，也可以用昵称回复。");
-      expect(body).not.toMatch(/对所有人开放|发帖/);
+      // 游客只能看公开的帖子，发帖、回复要先登录（#276 去掉了游客回帖，docs/services/forum/README.md）
+      expect(body).toContain("论坛不登录只能看公开的帖子，发帖、回复要先登录。");
+      expect(body).not.toMatch(/对所有人开放/);
       // 面试之后才改成未通过的人也会收到这封信，名额的理由不由模板替每个人写
       expect(body).not.toMatch(/没能给你发出邀请|名额/);
     }
