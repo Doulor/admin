@@ -109,11 +109,14 @@ export default async function emailRoutes(app: FastifyInstance) {
       const checked = emailLogin.check(id, req.body.code, "signin");
       if (!checked.ok) return codeFailure(req, reply, checked);
       const { challenge } = checked;
-      // 这个邮箱还没有账号、这一步会注册：先要姓名和年级（#280）。验证码已经核对过本人，回这个错误不会泄露邮箱有没有注册
+      // 这个邮箱还没有账号、这一步会注册：填了邀请码（会成为成员）就要姓名和年级（#280，所有者 2026-10-24 22:05 只拦成员）；
+      // 不填邀请码可以不填这两项，填了就一起校验。验证码已经核对过本人，回这个错误不会泄露邮箱有没有注册
       let realInfo: { name: string; enrollmentYear: number } | null = null;
-      if (identity.passwordFor(challenge.email) === null) {
+      const wantsMember = Boolean(req.body.invite_code?.trim());
+      const givesRealInfo = req.body.real_name !== undefined || req.body.grade !== undefined;
+      if (identity.passwordFor(challenge.email) === null && (wantsMember || givesRealInfo)) {
         if (req.body.real_name === undefined || !isSelectableGrade(req.body.grade)) {
-          return reply.code(400).send({ error: "real_info_required", message: "这个邮箱还没有账号，填好姓名和年级就能注册" });
+          return reply.code(400).send({ error: "real_info_required", message: wantsMember ? "填了邀请码要同时填姓名和年级" : "姓名和年级要一起填" });
         }
         const name = normalizeRealName(req.body.real_name);
         if (!name) return reply.code(400).send({ error: "bad_real_name", message: "姓名填 2 到 32 个字，只能是文字、空格和「·」" });

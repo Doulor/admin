@@ -49,8 +49,10 @@ export function rangeProblem(filters: Pick<ActivityFilters, "from" | "to">): str
 /**
  * GET /api/console/activity（和 activity.csv）的查询串：日期换成北京时间当天的起止毫秒，
  * `from` 取当天 00:00，`to` 取当天 23:59:59.999，所以只选一天时就是那一整天。
+ * 参数集合与服务端 `activityQuery` 契约（app/server/src/routes/console/contracts.ts）逐字一致：
+ * 它拒绝未知字段，这里不传 `limit`——服务端每页固定 50 条，不读这个参数（之前传了会触发 400，#274）。
  */
-export function activityParams(filters: ActivityFilters, extra: { cursor?: string | null; limit?: number } = {}): URLSearchParams {
+export function activityParams(filters: ActivityFilters, extra: { cursor?: string | null } = {}): URLSearchParams {
   const params = new URLSearchParams();
   for (const key of ["account", "visitor", "action", "surface", "outcome"] as const) if (filters[key]) params.set(key, filters[key]);
   const from = filters.from ? dateEdge(filters.from, "start") : null;
@@ -58,7 +60,6 @@ export function activityParams(filters: ActivityFilters, extra: { cursor?: strin
   if (from !== null) params.set("from", String(from));
   if (to !== null) params.set("to", String(to));
   if (extra.cursor) params.set("cursor", extra.cursor);
-  if (extra.limit) params.set("limit", String(extra.limit));
   return params;
 }
 
@@ -68,6 +69,7 @@ const ACTION_TEXT: Record<string, string> = {
   "auth.password_reset": "重设密码", "auth.link": "绑定登录方式", "auth.unlink": "解绑登录方式",
   "invite.redeem": "兑换邀请码", "apply.submit": "投递简历", "apply.review": "处理投递", "apply.export": "导出投递",
   "forum.topic.view": "看帖", "forum.topic.create": "发帖", "forum.reply.create": "回帖", "forum.react": "表情回应", "forum.search": "论坛搜索",
+  "forum.sticker.use": "使用表情",
   "os.boot.played": "看完开机动画", "os.boot.skipped": "跳过开机动画", "os.app.open": "打开桌面应用", "os.note.dismissed": "收起新生便签",
   "forum.theme.change": "换论坛主题", "page.view": "打开页面", "events.rejected": "上报被丢弃",
   "system.backup.export": "导出系统备份",

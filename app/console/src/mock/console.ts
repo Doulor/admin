@@ -715,13 +715,23 @@ const MOCK_FORUM_CATEGORIES: ForumCategoryRow[] = [
   { id: "c-careers", name: "求职与升学", visibility: "registered", topic_count: 4 },
   { id: "c-ai", name: "人工智能", visibility: "public", topic_count: 11 },
 ];
-const stickerPlaceholder = (label: string) =>
-  `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#e3f2ff"/><text x="48" y="56" font-size="22" text-anchor="middle" fill="#1d2b53" font-family="sans-serif">${label}</text></svg>`)}`;
-const MOCK_STICKER_PACKS: ConsoleStickerPack[] = [{
-  id: "yugc", name: "极客娘", sort: 0, enabled: true,
-  stickers: ([["wave", "打招呼", 41], ["thumbsup", "点赞", 87], ["heart", "比心", 25], ["confused", "疑惑", 9], ["shocked", "震惊", 6], ["cry", "哭哭", 3], ["merged", "合并了", 18], ["roger", "收到", 0]] as const)
-    .map(([code, label, uses], index) => ({ id: `yugc-${code}`, shortcode: `yugc-${code}`, label, url: stickerPlaceholder(label), sort: index * 10, enabled: code !== "cry", use_count: uses })),
-}];
+// 样板表情用仓库里第一套「极客娘」的图（服务端种子同一批文件），内联成 data: 地址：控制台的 CSP 不放行 blob:，
+// 样板模块只在开发态选了样板数据时才加载。
+const STICKER_FILES = import.meta.glob<string>("../../../server/assets/stickers/yugc/*.webp", { eager: true, query: "?inline", import: "default" });
+const stickerFile = (code: string) => STICKER_FILES[`../../../server/assets/stickers/yugc/${code}.webp`] ?? "";
+const mockStickers = (packId: string, rows: ReadonlyArray<readonly [string, string, number]>, off: readonly string[] = []) =>
+  rows.map(([code, label, uses], index) => ({ id: `${packId}-${code}`, shortcode: `${packId}-${code}`, label, url: stickerFile(code), sort: index * 10, enabled: !off.includes(code), use_count: uses }));
+const MOCK_STICKER_PACKS: ConsoleStickerPack[] = [
+  {
+    id: "yugc", name: "极客娘", sort: 0, enabled: true,
+    stickers: mockStickers("yugc", [["wave", "打招呼", 41], ["thumbsup", "点赞", 87], ["heart", "比心", 25], ["confused", "疑惑", 9], ["shocked", "震惊", 6], ["cry", "哭哭", 3], ["merged", "合并了", 18], ["roger", "收到", 0]], ["cry"]),
+  },
+  {
+    id: "daily", name: "日常", sort: 10, enabled: true,
+    stickers: mockStickers("daily", [["happy", "开心", 12], ["sleepy", "困了", 7], ["popcorn", "吃瓜", 30], ["coding", "敲代码", 15], ["goodnight", "晚安", 4], ["go", "冲", 9]]),
+  },
+  { id: "event", name: "活动限定", sort: 20, enabled: false, stickers: [] },
+];
 
 /**
  * 账号页（GET /api/identity/me）的样板：按当前身份给出登录方式、成员资格和几条账号记录。
@@ -868,6 +878,13 @@ export function checkConsoleWrite(url: URL, method: string, body: unknown): void
     if (method === "PUT" && MOCK_STICKER_PACKS.some(pack => pack.stickers.some(sticker => sticker.shortcode === url.searchParams.get("shortcode")))) fail(409, "shortcode_taken", "这个短码已经被用过了");
     return;
   }
+  if (path === "/api/console/forum/sticker-packs" && method === "POST") {
+    gate(persona, "forum.sticker.manage");
+    requireStepUp(persona);
+    const id = (body as { id?: unknown } | undefined)?.id;
+    if (MOCK_STICKER_PACKS.some(pack => pack.id === id)) fail(409, "pack_id_taken", "这个表情包 id 已经被用过了");
+    return;
+  }
   if (/^\/api\/console\/invites/.test(path) && ["POST", "PATCH"].includes(method)) {
     gate(persona, "invite.manage");
     requireStepUp(persona);
@@ -950,7 +967,16 @@ function routeUsers(persona: Persona, search: URLSearchParams): UsersResponse {
   return { items, next_cursor: start + size < filtered.length ? String(start + size) : null, counts: usersCounts(visible) };
 }
 
+/** 和服务端 activityQuery 契约（app/server/src/routes/console/contracts.ts 的 `activityQuery`）同一份允许字段：
+ * 预览环境没有 ajv，不手动核对的话，调用点悄悄传一个契约之外的参数（例如 `limit`）在这里会被默默忽略，
+ * 只有连真实后端才会报 400，问题拖到上线才暴露（#274 的操作记录筛选 400）。 */
+const ACTIVITY_QUERY_KEYS = ["account", "visitor", "action", "surface", "outcome", "from", "to", "cursor"];
+function assertKnownQuery(search: URLSearchParams, allowed: string[]): void {
+  for (const key of search.keys()) if (!allowed.includes(key)) fail(400, "validation_error", "querystring must NOT have additional properties");
+}
+
 function routeActivity(persona: Persona, search: URLSearchParams): ActivityList {
+  assertKnownQuery(search, ACTIVITY_QUERY_KEYS);
   gate(persona, "activity.read");
   const canSee = visibleTo(persona, "activity.read");
   const scoped = departmentScope(accountOf(persona), "activity.read") !== null;
@@ -966,7 +992,7 @@ function routeActivity(persona: Persona, search: URLSearchParams): ActivityList 
     && (!get("outcome") || row.outcome === get("outcome"))
     && (from === null || row.at >= from)
     && (to === null || row.at <= to));
-  const page = activityPage(rows, search.get("cursor"), Number(search.get("limit") ?? 50) || 50, permissionsOf(persona).includes("activity.read.ip"));
+  const page = activityPage(rows, search.get("cursor"), 50, permissionsOf(persona).includes("activity.read.ip"));
   return { ...page, blocked_today: scoped ? [] : MOCK_BLOCKED_TODAY };
 }
 
@@ -1002,6 +1028,7 @@ export function routeConsole(url: URL): unknown {
       if (!target) fail(404, "not_found", "账号不存在");
       return effectiveOf(target);
     }
+    assertKnownQuery(search, ACTIVITY_QUERY_KEYS);
     gate(persona, "activity.read");
     if (!target || !visibleTo(persona, "activity.read")(target)) fail(404, "not_found", "账号不存在");
     const rows = MOCK_ACTIVITY.filter(row => row.account?.id === target.account_id);

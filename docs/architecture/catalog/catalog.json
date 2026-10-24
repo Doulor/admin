@@ -266,12 +266,12 @@
   ],
   "coverage": {
     "automaticHead": 82,
-    "businessOperations": 165,
-    "businessOperationsWithFlow": 165,
+    "businessOperations": 166,
+    "businessOperationsWithFlow": 166,
     "capabilities": 16,
-    "declaredFlows": 171,
-    "responseSchemas": 132,
-    "routeMethods": 276,
+    "declaredFlows": 172,
+    "responseSchemas": 133,
+    "routeMethods": 277,
     "supplementalInterfaces": 5,
     "supplementalInterfacesWithFlow": 5,
     "tables": 68
@@ -990,7 +990,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 47,
+          "line": 48,
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
@@ -1138,7 +1138,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -1230,7 +1230,7 @@
           "path": "app/web/sites/portal/components/os/Terminal.tsx"
         },
         {
-          "line": 19,
+          "line": 20,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -1387,7 +1387,7 @@
           "path": "app/server/src/lib/register-limits.ts"
         },
         {
-          "line": 148,
+          "line": 151,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -1444,7 +1444,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 157,
+          "line": 160,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -1503,7 +1503,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -1689,7 +1689,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 576,
+          "line": 587,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -1841,7 +1841,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 507,
+          "line": 518,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -1897,7 +1897,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 542,
+          "line": 553,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -2020,7 +2020,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -2032,15 +2032,15 @@
           "path": "app/console/src/pages/CompleteProfile.vue"
         },
         {
-          "line": 11,
+          "line": 12,
           "path": "app/console/src/lib/grade.ts"
         },
         {
-          "line": 22,
+          "line": 23,
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 17,
+          "line": 19,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -2096,7 +2096,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Invites.vue"
         }
       ],
@@ -2270,7 +2270,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 68,
+          "line": 70,
           "path": "app/console/src/pages/Overview.vue"
         },
         {
@@ -2447,12 +2447,20 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/Activity.vue"
         },
         {
           "line": 1,
           "path": "app/console/src/lib/activity.ts"
+        },
+        {
+          "line": 978,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 2,
+          "path": "app/console/src/components/DateField.vue"
         }
       ],
       "id": "flow:audit.console.activity.list",
@@ -2476,7 +2484,8 @@
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
-        "tests/server/activity.test.ts"
+        "tests/server/activity.test.ts",
+        "tests/console/activity.test.ts"
       ],
       "title": "控制台查看操作记录（取代旧的 /api/console/audit）",
       "writes": []
@@ -2589,16 +2598,48 @@
       "domain": "audit",
       "evidence": [
         {
-          "line": 25,
+          "line": 28,
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 20,
+          "line": 26,
           "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 28,
+          "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 30,
+          "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/forum/app/composables/useActivityBeacon.ts"
+        },
+        {
+          "line": 23,
+          "path": "app/console/src/lib/events.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/forum/app/plugins/activity-beacon.client.ts"
+        },
+        {
+          "line": 36,
+          "path": "app/forum/app/composables/useForumTheme.ts"
+        },
+        {
+          "line": 182,
+          "path": "app/forum/app/components/PostEditor.vue"
         },
         {
           "line": 16,
@@ -2655,9 +2696,10 @@
       ],
       "id": "flow:audit.events.report",
       "invariants": [
-        "权限与资源：不要求登录，访客也能调；按账号或访客编号（不是 IP）限流 30 次每分钟，同一人多个标签页共享同一份配额。",
-        "响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，多余字段 400 validation_error（契约在 routes/portal/contracts.ts）。",
-        "数据与副作用：只有 lib/activity.ts 的 EVENT_WHITELIST 里的动作才记一行 activity_events；白名单外的全部丢弃，合并计一条 outcome=denied 的 events.rejected（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌等敏感字段（调用方自己决定 meta 放什么）。"
+        "权限与资源：不要求登录，访客也能调；限流键登录的人按账号，没登录的按 IP 哈希（不是访客 cookie），30 次每分钟，同一人多个标签页共享同一份配额。",
+        "请求：{ surface?: \"portal\"|\"forum\"|\"console\", events: [...] }；surface 不传按门户算，一批事件只属于一个来源。",
+        "响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，surface 不认识的值或多余字段 400 validation_error（契约在 routes/portal/contracts.ts）。",
+        "数据与副作用：只有对应来源在 lib/activity.ts 的白名单（EVENT_WHITELIST=门户、FORUM_EVENT_WHITELIST、CONSOLE_EVENT_WHITELIST）里的动作才记一行 activity_events；白名单外的全部丢弃，合并计一条 outcome=denied 的 events.rejected（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌、地址栏查询串、邮箱、真实姓名或帖子正文。"
       ],
       "operation": "POST /api/events",
       "operationLabel": "POST /api/events",
@@ -2666,7 +2708,8 @@
       "relatedDomains": [],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
-        "tests/server/events.test.ts"
+        "tests/server/events.test.ts",
+        "app/forum/tests/activity-beacon.test.ts"
       ],
       "title": "前端批量上报白名单动作（访客也能调）",
       "writes": [
@@ -2689,7 +2732,7 @@
           "path": "app/server/src/routes/console/applications.ts"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/Applications.vue"
         }
       ],
@@ -3493,7 +3536,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -3612,7 +3655,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -4026,8 +4069,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "id": "flow:forum.posts.reply",
@@ -4792,6 +4843,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -4816,7 +4871,7 @@
       "invariants": [
         "权限与资源：需要 forum.react 节点（#276 迁移种子只发给 level.member），由 requireWriter 判定；访客401 signin_required，登录但没有该节点403 forbidden；帖子不存在404，已软删409 post_deleted。",
         "响应与错误：200 {reactions}，只回这条帖子的表情聚合（CONTRACT §4），不回整份changes或viewer；表情不存在或已停用400 unknown_sticker；超过meta.limit.forum.react.hourly回429 {error:rate_limited,bucket:\"forum.react.hourly\",retry_after}（按账号计数，和每分钟的洪泛线不是同一条）。",
-        "数据与副作用：按 (post_id,account_id,sticker_id) 主键 INSERT OR IGNORE 写 forum_reactions，重复加同一表情不报错也不重复计数；不写活动审计（CONTRACT §4 没有要求）。",
+        "数据与副作用：按 (post_id,account_id,sticker_id) 主键 INSERT OR IGNORE 写 forum_reactions，重复加同一表情不报错也不重复计数；记一条 outcome=ok 的 forum.react 操作记录（meta.sticker_id，#274：原来没有，补上）。",
         "身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。"
       ],
       "operation": "PUT /api/forum/posts/:post_id/reactions/:sticker_id",
@@ -4836,18 +4891,21 @@
       "relatedDomains": [
         "identity",
         "permissions",
-        "platform"
+        "platform",
+        "audit"
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
-        "tests/server/forum-v2-endpoints.test.ts"
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/server/forum.test.ts"
       ],
       "title": "给帖子加一个表情回应",
       "writes": [
         "forum_reactions",
         "forum_users",
         "sessions",
-        "limit_events"
+        "limit_events",
+        "activity_events"
       ]
     },
     {
@@ -4861,7 +4919,11 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -4881,7 +4943,7 @@
       "invariants": [
         "权限与资源：同PUT同一个节点 forum.react；不检查帖子是否已软删除——取消自己的表情回应即使帖子已删也允许。",
         "响应与错误：200 {reactions}，回这条帖子取消之后的表情聚合；不存在的帖子404；这条不限额（限额只拦住「加」，不拦「取消」）。",
-        "数据与副作用：按 (post_id,account_id,sticker_id) DELETE forum_reactions，原本没有这条也不报错（幂等）。",
+        "数据与副作用：按 (post_id,account_id,sticker_id) DELETE forum_reactions，原本没有这条也不报错（幂等）；同样记一条 outcome=ok 的 forum.react 操作记录，meta.removed=true 区分（#274：原来没有，补上）。",
         "身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。"
       ],
       "operation": "DELETE /api/forum/posts/:post_id/reactions/:sticker_id",
@@ -4899,17 +4961,20 @@
       ],
       "relatedDomains": [
         "identity",
-        "permissions"
+        "permissions",
+        "audit"
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
-        "tests/server/forum-v2-endpoints.test.ts"
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/server/forum.test.ts"
       ],
       "title": "取消一条表情回应",
       "writes": [
         "forum_reactions",
         "forum_users",
-        "sessions"
+        "sessions",
+        "activity_events"
       ]
     },
     {
@@ -4931,7 +4996,7 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 16,
           "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts"
         },
         {
@@ -5398,6 +5463,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "id": "flow:console.forum.stickers.list",
@@ -5443,7 +5512,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -5499,7 +5568,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -5549,13 +5618,83 @@
       "capabilities": [],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "forum",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 881,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "id": "flow:console.forum.sticker_packs.create",
+      "invariants": [
+        "权限与资源：requirePermission(\"forum.sticker.manage\") + requireStepUp；body {id,name}，id 小写字母、数字和连字符，name 1–64 字。",
+        "响应与错误：201 {id,name}；id 已被占用回409 pack_id_taken；格式不对400。",
+        "数据与副作用：插一行 forum_sticker_packs（排在最后）；空包不在公开面板里出现；成功后 invalidate 公开列表缓存，写审计 forum.sticker_pack.create。"
+      ],
+      "operation": "POST /api/console/forum/sticker-packs",
+      "operationLabel": "POST /api/console/forum/sticker-packs",
+      "operationNodeId": "route:POST /api/console/forum/sticker-packs",
+      "reads": [
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "forum_sticker_packs"
+      ],
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/console/forum.test.ts"
+      ],
+      "title": "控制台新建表情包",
+      "writes": [
+        "forum_sticker_packs",
+        "activity_events",
+        "sessions"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md"
       ],
       "doesNotEnqueue": [],
       "domain": "forum",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -6019,11 +6158,11 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 194,
+          "line": 195,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -6035,7 +6174,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -6175,7 +6314,7 @@
           "path": "app/console/src/lib/competitions.ts"
         },
         {
-          "line": 81,
+          "line": 82,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -6241,7 +6380,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -6318,7 +6457,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -8100,7 +8239,7 @@
           "path": "app/console/src/pages/competition/SitePanel.vue"
         },
         {
-          "line": 254,
+          "line": 255,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -8693,7 +8832,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -9514,7 +9653,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -9526,7 +9665,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -9604,7 +9743,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 757,
+          "line": 768,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -9813,7 +9952,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -10005,11 +10144,11 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1033,
+          "line": 1060,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 138,
+          "line": 139,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -10078,7 +10217,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -10090,7 +10229,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -10912,7 +11051,7 @@
           "path": "app/console/src/pages/permissions/GroupsTab.vue"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/permissions/GroupDetail.vue"
         },
         {
@@ -10920,7 +11059,7 @@
           "path": "app/console/src/pages/permissions/CreateGroupDialog.vue"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/pages/permissions/EntryDialog.vue"
         },
         {
@@ -11296,7 +11435,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 933,
+          "line": 950,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -12109,6 +12248,11 @@
       "id": "flow:console.forum.categories.update",
       "kind": "flow",
       "title": "控制台改一个分类的可见范围"
+    },
+    {
+      "id": "flow:console.forum.sticker_packs.create",
+      "kind": "flow",
+      "title": "控制台新建表情包"
     },
     {
       "id": "flow:console.forum.sticker_packs.update",
@@ -13761,6 +13905,11 @@
       "title": "POST /api/console/competitions/:competition_id/site/versions"
     },
     {
+      "id": "route:POST /api/console/forum/sticker-packs",
+      "kind": "route",
+      "title": "POST /api/console/forum/sticker-packs"
+    },
+    {
       "id": "route:POST /api/console/gitlab/accounts/:account_id/resync",
       "kind": "route",
       "title": "POST /api/console/gitlab/accounts/:account_id/resync"
@@ -14406,6 +14555,11 @@
       "title": "users"
     },
     {
+      "id": "test:app/forum/tests/activity-beacon.test.ts",
+      "kind": "test",
+      "title": "app/forum/tests/activity-beacon.test.ts"
+    },
+    {
       "id": "test:app/forum/tests/content-source.test.ts",
       "kind": "test",
       "title": "app/forum/tests/content-source.test.ts"
@@ -14441,6 +14595,11 @@
       "title": "tests/console/account.test.ts"
     },
     {
+      "id": "test:tests/console/activity.test.ts",
+      "kind": "test",
+      "title": "tests/console/activity.test.ts"
+    },
+    {
       "id": "test:tests/console/authorize.test.ts",
       "kind": "test",
       "title": "tests/console/authorize.test.ts"
@@ -14464,6 +14623,11 @@
       "id": "test:tests/console/device.test.ts",
       "kind": "test",
       "title": "tests/console/device.test.ts"
+    },
+    {
+      "id": "test:tests/console/forum.test.ts",
+      "kind": "test",
+      "title": "tests/console/forum.test.ts"
     },
     {
       "id": "test:tests/console/gitlab.test.ts",
@@ -14748,7 +14912,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "62dc33d82daf699da045688aefb28be2f8d7b2137d2d918900c6e6cfc0a674b4",
+    "fingerprint": "fc139f67dc0d59a2a8376004f0440f41211637bdf0cca9d1ac871a3acbd006dd",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -14787,6 +14951,10 @@
         "sha256": "acb36c24095ca979b01638a4b1ab44d18ebce3f60e6b5d340b6d2bf734452b55"
       },
       {
+        "path": "app/console/src/components/DateField.vue",
+        "sha256": "09318843e7af0374b231656bf23a3c0f76ba3367cadb3bd8b7cc941d1cecc95e"
+      },
+      {
         "path": "app/console/src/components/ErrorAlert.vue",
         "sha256": "77996b80a60560909045924f3ae502c23a3e150e63d1953d3dbea7a1cee4dde6"
       },
@@ -14820,7 +14988,7 @@
       },
       {
         "path": "app/console/src/lib/activity.ts",
-        "sha256": "1c97cb8fddbd96858d7e32fb55c21ba542bc41cab6bafa16de491961e14fd96f"
+        "sha256": "268eb0fb6d6674b553a0d472f03b97750f9db966f8439735afd87588524b8f97"
       },
       {
         "path": "app/console/src/lib/applications.ts",
@@ -14855,12 +15023,16 @@
         "sha256": "a8d32ca32d084da849bcf84517c14480ae94645d6f7da275f20c0136bc40fb4a"
       },
       {
+        "path": "app/console/src/lib/events.ts",
+        "sha256": "0eb5e868d85e510b17fca826643b8936b9489248346d402ef0d26352939dfd5e"
+      },
+      {
         "path": "app/console/src/lib/format.ts",
         "sha256": "685df51057b16aa88dd180c3a0220f9086f947e5c4e213410a2cc42ce5574e46"
       },
       {
         "path": "app/console/src/lib/forum.ts",
-        "sha256": "eb77198a15ca5a116819ee2748218cf610988c47cc6cc465a9814583e5645370"
+        "sha256": "05ec1cae8231e8026354674d3aa4d2eb3a6348acbd4fb2bb4790d9efdc954304"
       },
       {
         "path": "app/console/src/lib/gitlab.ts",
@@ -14868,7 +15040,7 @@
       },
       {
         "path": "app/console/src/lib/grade.ts",
-        "sha256": "c35d6abcb5407be610e035d8ff45d2831de3a47f0bbf784cbc3dbec95c545fbd"
+        "sha256": "a70c625f36c45e128b1ece23e90303b7d7a36108f0d635cea27849e11de1990d"
       },
       {
         "path": "app/console/src/lib/http.ts",
@@ -14908,7 +15080,7 @@
       },
       {
         "path": "app/console/src/lib/signin.ts",
-        "sha256": "88a6f92a264a0eae32948afbac4374eac167686b9e20b3a39bb4bdf89eeb5e3d"
+        "sha256": "dc25ad59f757613c59a9ba959a29298439899763d813c17350a954015ce27474"
       },
       {
         "path": "app/console/src/lib/statuses.ts",
@@ -14924,19 +15096,19 @@
       },
       {
         "path": "app/console/src/lib/types.ts",
-        "sha256": "e7e7b3fad3dc45959b7d9fd6782f7f7fbd3e2dcca5351a0e26a309b1d5af2f7d"
+        "sha256": "ce798d09edba1d6d50c6b94574fb91a263abb9dcf256bedaeba3a251d018df6a"
       },
       {
         "path": "app/console/src/lib/users.ts",
-        "sha256": "f36afa6aaf535c9bc641866915194ae2b7b1e7afb8456e3a15bc7795b8c68f8d"
+        "sha256": "5a7c6fedfa3e004174df60b76d4e86bedfdd2a6610d6f82426d93d29465c5823"
       },
       {
         "path": "app/console/src/main.ts",
-        "sha256": "df6f14fa02a796f30477adfc9baa54a5ee4dca761c80c510ebc808390520e0fe"
+        "sha256": "f641780ccc86d0269c219e89852c2569972e267919940354edb092c45abc3ce4"
       },
       {
         "path": "app/console/src/mock/console.ts",
-        "sha256": "eb9aa4f0791f17a35222a411dd732bb0ce8cfe09189bc4d5e1faa5cf0e17fa81"
+        "sha256": "e2d7b258976a4c97a9add3f90e0bfc140a1f5945ef465daa7bea6bd9ecdb4069"
       },
       {
         "path": "app/console/src/mock/index.ts",
@@ -14948,7 +15120,7 @@
       },
       {
         "path": "app/console/src/pages/Activity.vue",
-        "sha256": "00b631f7dcaf9ad5690e1941ced80c7ac8128f5baf1242900677167cbb933089"
+        "sha256": "b5b0e89f202b18b597a8b9982b61eeb668313b9f4bd4901cbdd95e88652721a1"
       },
       {
         "path": "app/console/src/pages/ApplicationDetail.vue",
@@ -14956,7 +15128,7 @@
       },
       {
         "path": "app/console/src/pages/Applications.vue",
-        "sha256": "970e5f9ac654ad3877015c219ff8222b32baefde4dffe9f5e760e7042addbcbd"
+        "sha256": "fdaf3e90e755d46ce95825995ed34c65d5d74062ade7c9e059893a7742f013e7"
       },
       {
         "path": "app/console/src/pages/Authorize.vue",
@@ -14976,11 +15148,11 @@
       },
       {
         "path": "app/console/src/pages/Competitions.vue",
-        "sha256": "80a12042ec4dc497e189455aa56843bcb4bf88075a7a5f673d4240fa82465b3f"
+        "sha256": "69bf347dddb95112a74ccdcd6ad5e7874dfc27d2f7699242615553e4ed53c793"
       },
       {
         "path": "app/console/src/pages/CompleteProfile.vue",
-        "sha256": "51e27db7898a6a109a309107d0bc8790161cec69b2af437a6103ee4355d114ca"
+        "sha256": "b14a3bd3653fe83da7041a4e04d019e421bc3269953283d30a1421548ab509a6"
       },
       {
         "path": "app/console/src/pages/ConsoleRoot.vue",
@@ -14996,15 +15168,15 @@
       },
       {
         "path": "app/console/src/pages/Forum.vue",
-        "sha256": "1e039b9a7b46ce8a559f33f0562110dcd3487151342f3a75c4f9f00c4a1bcfc1"
+        "sha256": "dd091a45b4ef842cbf2d7dca570efb9ddba337593a822e00daf42735b6438f84"
       },
       {
         "path": "app/console/src/pages/Invites.vue",
-        "sha256": "89d33e1c4aea4a7a3f262b7b359191f3d3c8af43154d55de8065c52e0b2853a6"
+        "sha256": "992ad3e297fc86548175f4a02c596c4d072324264b66ccfed6db8ee2cc85722c"
       },
       {
         "path": "app/console/src/pages/Overview.vue",
-        "sha256": "0c0006199f7bc8d123699d46c6d54864c54f97883d849653840106eeeec4dd2b"
+        "sha256": "b0873c5caa93e6f34ff99abcbedaf6f6072c321a41ddac758ccbab2fdc0af8ba"
       },
       {
         "path": "app/console/src/pages/Permissions.vue",
@@ -15016,7 +15188,7 @@
       },
       {
         "path": "app/console/src/pages/SignIn.vue",
-        "sha256": "5292e1fa73c1fd7263f92244bd713e0e0a63935bc52d00a9c5fe1449ace987a9"
+        "sha256": "887015e11c9f3134c29a3cee900f658067db669edb8a4d131128c2e1a186edda"
       },
       {
         "path": "app/console/src/pages/Users.vue",
@@ -15048,11 +15220,11 @@
       },
       {
         "path": "app/console/src/pages/forum/NewStickerDialog.vue",
-        "sha256": "25ae5605616408a731b1f67b542febf2186d18abdc314b5d1e0900d290d485d3"
+        "sha256": "40c30a207183de61f28d447682851b2a46881fd9dc915abf0dd9ca3d108ade52"
       },
       {
         "path": "app/console/src/pages/forum/StickersTab.vue",
-        "sha256": "d87118e570c5becc554f3ed9cb878503b7a689fc7bedf6d0a4f9e7c88392ed7d"
+        "sha256": "5d442f32ba8b84ff0132fbb14857f92008d6fca18799c8dd40b8c4568472e12f"
       },
       {
         "path": "app/console/src/pages/gitlab/Accounts.vue",
@@ -15076,7 +15248,7 @@
       },
       {
         "path": "app/console/src/pages/permissions/EntryDialog.vue",
-        "sha256": "d703e914e76362b4b842202e2f624454057addb277cce815f00203c569c04305"
+        "sha256": "9edb7a2529d5d937d1898a3d202965e56991173d7986954fd2f694b870e4320c"
       },
       {
         "path": "app/console/src/pages/permissions/ExplainTab.vue",
@@ -15084,7 +15256,7 @@
       },
       {
         "path": "app/console/src/pages/permissions/GroupDetail.vue",
-        "sha256": "c6982e5a2f35e161bc5f45d926c288e9e39cb433598f2f883d7099c49b37b5cf"
+        "sha256": "600186c6e99c600ee4ecff8102f2f63d1ffb8f8134570b83517725ebce72a1fe"
       },
       {
         "path": "app/console/src/pages/permissions/GroupsTab.vue",
@@ -15096,11 +15268,11 @@
       },
       {
         "path": "app/console/src/pages/users/UserDrawer.vue",
-        "sha256": "8a4e979f03bb034b68d7a2c8d065e4210848e89535afb1e7afdfa09364b5bf8d"
+        "sha256": "efd02c320f8d62d6b0225123933234107082d9fd6ae9f2b2968333d06abc29ca"
       },
       {
         "path": "app/console/src/router.ts",
-        "sha256": "51150ffe9b8fba71a3cc7e2963053fbb0773e3295ffece0e1040f5c2e8f3ce1c"
+        "sha256": "7c78058ae25ae4fda8a5df6e0bd6ad672752f7d0ed74334d9876851daf2798aa"
       },
       {
         "path": "app/forum/Dockerfile",
@@ -15156,11 +15328,11 @@
       },
       {
         "path": "app/forum/app/components/PostEditor.vue",
-        "sha256": "8f33651b01059753a6f877e7bba3875bfcc599c03eddb00981f368b875bf7a4a"
+        "sha256": "682106919c1f72f01558066fe45b2ee63610f62f30bf1756a5de9cc30c60f651"
       },
       {
         "path": "app/forum/app/components/ReplyComposer.vue",
-        "sha256": "f66bfe7f60b5d0a2399d5505c8829106d4760184eaccb0828e13400eb22cb8ce"
+        "sha256": "b6dc9bad7f6aafc18653827ba4df87a21b3adca402df2a739755afd35cc4767a"
       },
       {
         "path": "app/forum/app/components/SignInState.vue",
@@ -15168,7 +15340,7 @@
       },
       {
         "path": "app/forum/app/components/StickerPicker.vue",
-        "sha256": "9873c785f5b13464f86a29f0dde8947ac9a699ed2b2370597bbae112f0e574c4"
+        "sha256": "f3a6de9b74678f5c104992e6625d2041ca3dab61ecf2e1a0a74138e98f50d4a7"
       },
       {
         "path": "app/forum/app/components/SuggestedTopics.vue",
@@ -15207,6 +15379,10 @@
         "sha256": "f2e3992f306a30458fcc6c6fa5adefbbe6ee73d4b0917046fadb00ddb086d596"
       },
       {
+        "path": "app/forum/app/composables/useActivityBeacon.ts",
+        "sha256": "ca7277d537b1ae1f4dbee2a1affeb4444f97e61e25bf17fba9012be473b7ddcd"
+      },
+      {
         "path": "app/forum/app/composables/useAppLink.ts",
         "sha256": "b01538be3b5a0b9ce75f4ad8f881f92b76720832776dd9f5732a577207a498b7"
       },
@@ -15232,7 +15408,7 @@
       },
       {
         "path": "app/forum/app/composables/useForumTheme.ts",
-        "sha256": "446bdd4543af6b90ac07d14637f1a3a526b7d3fce0c9bb9e60fc43c41e1e124d"
+        "sha256": "8794128362242e7609f676ca61bd3c91df8a46e50d9ba14e0334f15a25d46dfd"
       },
       {
         "path": "app/forum/app/composables/useOrgTitles.ts",
@@ -15316,7 +15492,11 @@
       },
       {
         "path": "app/forum/app/editor/crepe-editor.ts",
-        "sha256": "c03cc5fdee839e2cc70a2095c7329aa59f828616e0f0b7a643beaab249d4f952"
+        "sha256": "824e4d757377049a3ca95b57e7971ccfdfa859c54ba9d08d242da482654bf95a"
+      },
+      {
+        "path": "app/forum/app/editor/inline-stickers.ts",
+        "sha256": "1f7f5cb2168fee1aee8329f8257f951576f66cc731da292a0e44f64c4dca318f"
       },
       {
         "path": "app/forum/app/error.vue",
@@ -15389,6 +15569,10 @@
       {
         "path": "app/forum/app/pages/users.vue",
         "sha256": "c6798bd364e09ac8acafdc041dc3c51094394b95fa12c4c24953466285952d3c"
+      },
+      {
+        "path": "app/forum/app/plugins/activity-beacon.client.ts",
+        "sha256": "81d199afc7287be10ee06f8ca3df294a9eec3a89ecf5fb395b74597ec3f11c79"
       },
       {
         "path": "app/forum/app/plugins/local-snapshot.client.ts",
@@ -15484,7 +15668,7 @@
       },
       {
         "path": "app/forum/shared/post-markdown.ts",
-        "sha256": "087e8c7524fbacab3cdd0354bc1061b28edbb96fe25d9a46fa633647eb406208"
+        "sha256": "3c47b5c826b380cf5f6ba1e25fe066d93b11422a0e4a471c6390ea98c1536c3e"
       },
       {
         "path": "app/forum/shared/published.ts",
@@ -15505,6 +15689,10 @@
       {
         "path": "app/forum/shared/site-state.ts",
         "sha256": "ff1b1337638be9a4bd5e49ece3fd58414de793894718afb2e7ab7a8c77a84e2e"
+      },
+      {
+        "path": "app/forum/tests/activity-beacon.test.ts",
+        "sha256": "338c657b30388d745f9b7ea647db9125b31a2b3d9a234e38f4a20e09e7447b46"
       },
       {
         "path": "app/forum/tests/content-source.test.ts",
@@ -15576,7 +15764,7 @@
       },
       {
         "path": "app/server/src/lib/activity.ts",
-        "sha256": "0da1a6329b7b3e28372e06807d87a35b24b4ca65fcb25a42943a9a48ef482bd7"
+        "sha256": "0a17e70cf5cd49aa252541717672853f1894f0ab3fc492ac0dcf77a57b27ee89"
       },
       {
         "path": "app/server/src/lib/apply-quota.ts",
@@ -15656,7 +15844,7 @@
       },
       {
         "path": "app/server/src/lib/email-gate.ts",
-        "sha256": "5bd0fe2d811a3438985ad27f83cb53417a8126da093ffcb7ac2f7ec2029f52b7"
+        "sha256": "9b2e8a89b5c524b0aeb3f8186d3c05d7a2f235ff9da91f48855debd8d249d691"
       },
       {
         "path": "app/server/src/lib/email-login.ts",
@@ -15680,7 +15868,7 @@
       },
       {
         "path": "app/server/src/lib/forum-store.ts",
-        "sha256": "0045f05eed060461683cd74cfa46b0c0e8e7ed5ffb39ef2d5b4f3dcb0140a3b7"
+        "sha256": "4f9a043bb438f519db6def6365091c9f5d1a622aa185c0415ccd4f8867b26d7d"
       },
       {
         "path": "app/server/src/lib/github-http.ts",
@@ -15696,7 +15884,7 @@
       },
       {
         "path": "app/server/src/lib/grade.ts",
-        "sha256": "80676323d4f1f64abaad314fc73f52b561e76866fb8fce83174cfb6ce55bb6f3"
+        "sha256": "143a007925038ca0611d41c93376d4b2027d3976c6b5c2267fd9784221a4f174"
       },
       {
         "path": "app/server/src/lib/http-contracts.ts",
@@ -15704,7 +15892,7 @@
       },
       {
         "path": "app/server/src/lib/identity-store.ts",
-        "sha256": "2fe49d1ac60cb8ff60caf43287a17457e2138df2f46845d763196597673c01dd"
+        "sha256": "8dd5360d62a7643a032fd01614d25e6e5f50fbf05d1a6dffa2aac7e41282812f"
       },
       {
         "path": "app/server/src/lib/invite-codes.ts",
@@ -15744,7 +15932,7 @@
       },
       {
         "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts",
-        "sha256": "87153c846c6815f6d93debf8ee29c0b8c02d9717bcc49a3101cfa5a42899830d"
+        "sha256": "7f0c05d9787ed3b860c7d77fcb82c73c904609e7d589754020606dd02be5c2fb"
       },
       {
         "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
@@ -15896,7 +16084,7 @@
       },
       {
         "path": "app/server/src/routes/console/contracts.ts",
-        "sha256": "0c611e841eec294b5e4693c1916527e5b9a673ce50e17e791065b3c218e97ee7"
+        "sha256": "18407c8cd91b0385edc14f889c227e81083da9d38832bb6c1366d82b6997b0c7"
       },
       {
         "path": "app/server/src/routes/console/departments.ts",
@@ -15908,7 +16096,7 @@
       },
       {
         "path": "app/server/src/routes/console/forum.ts",
-        "sha256": "d2c1d27646c6f99720cd5d2634da38ca98353425eae66ece36ad39e1d4bfc011"
+        "sha256": "40321e73cbd32f0f1ffee595fe9827246c78d8af6a435d6b024cffefdf123041"
       },
       {
         "path": "app/server/src/routes/console/gitlab.ts",
@@ -15956,7 +16144,7 @@
       },
       {
         "path": "app/server/src/routes/forum-api/posts.ts",
-        "sha256": "4cf530cc7a3b9591dfc04197582102163224db259fd29b7566e0c65d78c82a0a"
+        "sha256": "68fc6a3e55e23fdc37c67583e75bc6d504129ad818702aad92e1603c65737f23"
       },
       {
         "path": "app/server/src/routes/forum-api/stickers.ts",
@@ -15980,7 +16168,7 @@
       },
       {
         "path": "app/server/src/routes/identity/contracts.ts",
-        "sha256": "2c70729e3afd87bac319dc6dcc7bf08a43271ac97a539e95ae1607226337772f"
+        "sha256": "2e573b8c7cbac4b8b4b44b48298b27e56d6858aac0dcb67f23d0264e6bccb598"
       },
       {
         "path": "app/server/src/routes/identity/device.ts",
@@ -15988,7 +16176,7 @@
       },
       {
         "path": "app/server/src/routes/identity/email.ts",
-        "sha256": "b2bbc327a9afa0effdca0a5d1d8b46b44fc2bed21759f5a8f341ca88118c74b7"
+        "sha256": "502c3d6ffb1613d7ad7f0a40b440dab97b7eeccecff940ed838d58c01c1e387f"
       },
       {
         "path": "app/server/src/routes/identity/google.ts",
@@ -16028,7 +16216,7 @@
       },
       {
         "path": "app/server/src/routes/portal/contracts.ts",
-        "sha256": "4842ee560e5e179b1e106a1aec061ca7cc496b1b35116e3fd3a28448882c8a22"
+        "sha256": "71fdd5e333d8a014aaa1663776dc6411b059d6e81a36492e321e4b7e15ababf9"
       },
       {
         "path": "app/server/src/routes/portal/departments.ts",
@@ -16040,7 +16228,7 @@
       },
       {
         "path": "app/server/src/routes/portal/events.ts",
-        "sha256": "8b9938d997cad94e327b63de93d18b03d79ffc2e47b48e8cefdf863b3c9e8639"
+        "sha256": "25caf3e976dd16ca0dc5fd136eedde1a291370d113d741a9804159d5ec8ee4f8"
       },
       {
         "path": "app/server/src/routes/portal/feedback.ts",
@@ -16500,7 +16688,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "67b08c0b8ae008c09c6e76ee5e461c05a3ec445933f726087e0690e88cc6f793"
+        "sha256": "6097b057dae8cf8545c002c7b105f4a6a5db6ffe4dac8aa1be4c1ca70fcf6aaa"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -16540,23 +16728,23 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "521bad45c8d8cf23b0124b21cd907f9752c7ce72ed01de31e261d5e8cefa8064"
+        "sha256": "fb31ce25b53b333f8e7dd24732b477ddd0257b1053d829ae3ea3122a49e8f302"
       },
       {
         "path": "docs/services/forum/README.md",
-        "sha256": "67befdcb5d1486bf74de7efb2b36257e8fba1fbd97449925e791d871b2e11fc9"
+        "sha256": "b45a9bea48bfb6550e92d2f5a583124aa263c6f3fdc6dccd4d879282309d2ade"
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "c32c460f676293943196bb20f151ebc78ecd6b411ba75a43a9e1c369ecf6f4ef"
+        "sha256": "9870f951d598eb9858dc881984646d06bafa5a23b827cb4bd1ecde5ee2e95b06"
       },
       {
         "path": "docs/services/server/data-model.md",
-        "sha256": "4ffb1beefaa1a61bdf23b2a601bcc22addc011091b50e0367ecf7f6b504d37b5"
+        "sha256": "71a69ff929d7d752b34af2ea27bbc5e9f6360477647d3e352dce7030fed54ca0"
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "d2a429d0f751cd54d305947fff1334ec2c9f364f0ffc5216dc62d924567f32e5"
+        "sha256": "4d1d5f4be60fd803f0921f9b61457df9bf47005a42c80d561e887ca06ec7d021"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -16623,6 +16811,10 @@
         "sha256": "c245f6b3e661f82939d5e77608da0a9a0f738e082174148dec367c72c920b763"
       },
       {
+        "path": "tests/console/activity.test.ts",
+        "sha256": "7d87450a076b0e96366388b6623cabf321efffb99fee40a64eb285d30cf4a735"
+      },
+      {
         "path": "tests/console/authorize.test.ts",
         "sha256": "d37269ebff1f3ce36cf330108bacd22e9b8c1529a55b2f126ead1f89488e839d"
       },
@@ -16643,6 +16835,10 @@
         "sha256": "7f6b7bf416654a645f83b6e293e83eef6b5b913492f0b60198fce892ecaae463"
       },
       {
+        "path": "tests/console/forum.test.ts",
+        "sha256": "ba6752cb2e201b6a94f79e654b80716d8a99de4d0faa239b7531349dcf5f257b"
+      },
+      {
         "path": "tests/console/gitlab.test.ts",
         "sha256": "1dd2cf940e98e8c46c67337df7e61602c9fa76b14bf2775424f838d72cd73aa3"
       },
@@ -16656,11 +16852,11 @@
       },
       {
         "path": "tests/console/signin.test.ts",
-        "sha256": "b2368fd29bedc2be79af5297bfeb5558ecdff85c141bcc012c7cc7229ad79bd3"
+        "sha256": "68966c83ad75d45ec0e054cf7672eb0e5d192342c6851702b47194b40e0e2c88"
       },
       {
         "path": "tests/console/users.test.ts",
-        "sha256": "7e6eb866ca7abd8c904322737f19e66c739043a8ffee9094a0e2035e160bfe77"
+        "sha256": "6e6769c3d314675c9f04661fdce60cffa672b09dc04e4e9a47cca7b44eefd025"
       },
       {
         "path": "tests/e2e/competitions.spec.mts",
@@ -16688,7 +16884,7 @@
       },
       {
         "path": "tests/server/bearer-auth.test.ts",
-        "sha256": "e6545ec45a269e8fd877138b878ac48757340e6f1953de7b4c65e3ff95de80e0"
+        "sha256": "8010a765d5966a4535c7be31b6eae0feb0e1de471bc933f28a8d977fed08a603"
       },
       {
         "path": "tests/server/competition-candidates.test.ts",
@@ -16748,7 +16944,7 @@
       },
       {
         "path": "tests/server/events.test.ts",
-        "sha256": "021320e991ad7226028842d46e82e103630c4ba55d86091ff701774a914b3be2"
+        "sha256": "912198ba32b612bffd829ead15c0a2b7ea47940c6ac6598cd31a7074d20c3532"
       },
       {
         "path": "tests/server/feedback-org.test.ts",
@@ -16756,11 +16952,11 @@
       },
       {
         "path": "tests/server/forum-v2-endpoints.test.ts",
-        "sha256": "6373a0862a28ab5dcc1045b7bf5247d1b370acf62f7fc289dc88b1d4e4198ef8"
+        "sha256": "85200d46fa73101832128e4bfbd4e4a720f0652109dbc1bc0a78eba4d2c41a99"
       },
       {
         "path": "tests/server/forum.test.ts",
-        "sha256": "b67f199e1249a0e9e33d28738cbe647481a3472e8dc7ca415a68f72e9eba03bc"
+        "sha256": "d762526ab3614ab2fb08e192c8cbaa5da082aeddbc27345422a6d46f72d7a8e4"
       },
       {
         "path": "tests/server/gitlab-sync.test.ts",
@@ -16768,7 +16964,7 @@
       },
       {
         "path": "tests/server/grade.test.ts",
-        "sha256": "2b96cc2b6866e9ec46175769de01a03736a16e110ca4e4387b827f34009a7d84"
+        "sha256": "49e68ab9a3f1a6b78315e103450788da211fac000d6aa5138d582e9d88a268de"
       },
       {
         "path": "tests/server/identity.test.ts",
@@ -16804,7 +17000,7 @@
       },
       {
         "path": "tests/server/real-info.test.ts",
-        "sha256": "46e0168ac4daf09b066b3ddd77df1820314c70d6d572a43eed24c82f4371a79c"
+        "sha256": "debcfe694f585d71cd644e6bbeaed8a4d638d335f77fa9c1535ef25f52ea2866"
       },
       {
         "path": "tests/server/session-cleanup.test.ts",
@@ -16812,7 +17008,7 @@
       },
       {
         "path": "tests/server/signin-methods.test.ts",
-        "sha256": "af7dd41a1ec6a103444d173bae6e28413372a3da1601abedadfdc96384728d08"
+        "sha256": "1acc2475c32292750ca8cb66d151b8989da95d9c549d9a80d2bb83c57e39664a"
       },
       {
         "path": "tests/server/system-backup.test.ts",
@@ -17107,7 +17303,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
           "path": "app/server/src/routes/forum-api/posts.ts"
         }
       ],
@@ -19291,7 +19487,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 45,
+          "line": 57,
           "path": "app/server/src/routes/console/forum.ts"
         }
       ],
@@ -19303,7 +19499,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         }
       ],
@@ -19591,6 +19787,18 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 46,
+          "path": "app/server/src/routes/console/forum.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:POST /api/console/forum/sticker-packs",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 23,
           "path": "app/server/src/routes/console/gitlab.ts"
         }
@@ -19663,7 +19871,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 25,
+          "line": 28,
           "path": "app/server/src/routes/portal/events.ts"
         }
       ],
@@ -20035,7 +20243,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 156,
+          "line": 159,
           "path": "app/server/src/routes/identity/email.ts"
         }
       ],
@@ -20047,7 +20255,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 184,
+          "line": 187,
           "path": "app/server/src/routes/identity/email.ts"
         }
       ],
@@ -20179,7 +20387,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 74,
+          "line": 86,
           "path": "app/server/src/routes/console/forum.ts"
         }
       ],
@@ -21363,7 +21571,7 @@
           "path": "app/server/src/routes/console/applications.ts"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/Applications.vue"
         }
       ],
@@ -21379,7 +21587,7 @@
           "path": "app/server/src/routes/console/applications.ts"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/Applications.vue"
         }
       ],
@@ -21401,7 +21609,7 @@
           "path": "app/server/src/routes/console/applications.ts"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/Applications.vue"
         }
       ],
@@ -22459,12 +22667,20 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/Activity.vue"
         },
         {
           "line": 1,
           "path": "app/console/src/lib/activity.ts"
+        },
+        {
+          "line": 978,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 2,
+          "path": "app/console/src/components/DateField.vue"
         }
       ],
       "from": "flow:audit.console.activity.list",
@@ -22487,12 +22703,20 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/Activity.vue"
         },
         {
           "line": 1,
           "path": "app/console/src/lib/activity.ts"
+        },
+        {
+          "line": 978,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 2,
+          "path": "app/console/src/components/DateField.vue"
         }
       ],
       "from": "flow:audit.console.activity.list",
@@ -22515,12 +22739,20 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/Activity.vue"
         },
         {
           "line": 1,
           "path": "app/console/src/lib/activity.ts"
+        },
+        {
+          "line": 978,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 2,
+          "path": "app/console/src/components/DateField.vue"
         }
       ],
       "from": "flow:audit.console.activity.list",
@@ -22543,17 +22775,31 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/Activity.vue"
         },
         {
           "line": 1,
           "path": "app/console/src/lib/activity.ts"
+        },
+        {
+          "line": 978,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 2,
+          "path": "app/console/src/components/DateField.vue"
         }
       ],
       "from": "flow:audit.console.activity.list",
       "to": "table:perm_members",
       "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:audit.console.activity.list",
+      "to": "test:tests/console/activity.test.ts",
+      "type": "test-entry"
     },
     {
       "basis": "declaration",
@@ -22577,12 +22823,20 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/Activity.vue"
         },
         {
           "line": 1,
           "path": "app/console/src/lib/activity.ts"
+        },
+        {
+          "line": 978,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
+          "line": 2,
+          "path": "app/console/src/components/DateField.vue"
         }
       ],
       "from": "flow:audit.console.activity.list",
@@ -22616,6 +22870,12 @@
     {
       "basis": "declaration",
       "from": "flow:audit.events.report",
+      "to": "test:app/forum/tests/activity-beacon.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:audit.events.report",
       "to": "test:tests/server/events.test.ts",
       "type": "test-entry"
     },
@@ -22623,16 +22883,48 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 25,
+          "line": 28,
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 20,
+          "line": 26,
           "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 28,
+          "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 30,
+          "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/forum/app/composables/useActivityBeacon.ts"
+        },
+        {
+          "line": 23,
+          "path": "app/console/src/lib/events.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/forum/app/plugins/activity-beacon.client.ts"
+        },
+        {
+          "line": 36,
+          "path": "app/forum/app/composables/useForumTheme.ts"
+        },
+        {
+          "line": 182,
+          "path": "app/forum/app/components/PostEditor.vue"
         },
         {
           "line": 16,
@@ -22695,16 +22987,48 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 25,
+          "line": 28,
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 20,
+          "line": 26,
           "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 28,
+          "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 30,
+          "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/forum/app/composables/useActivityBeacon.ts"
+        },
+        {
+          "line": 23,
+          "path": "app/console/src/lib/events.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/forum/app/plugins/activity-beacon.client.ts"
+        },
+        {
+          "line": 36,
+          "path": "app/forum/app/composables/useForumTheme.ts"
+        },
+        {
+          "line": 182,
+          "path": "app/forum/app/components/PostEditor.vue"
         },
         {
           "line": 16,
@@ -25203,11 +25527,11 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 194,
+          "line": 195,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -25219,7 +25543,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25243,11 +25567,11 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 194,
+          "line": 195,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -25259,7 +25583,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25283,11 +25607,11 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 194,
+          "line": 195,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -25299,7 +25623,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25323,11 +25647,11 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 194,
+          "line": 195,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -25339,7 +25663,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25363,11 +25687,11 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 194,
+          "line": 195,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -25379,7 +25703,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25403,11 +25727,11 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 194,
+          "line": 195,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -25419,7 +25743,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25467,11 +25791,11 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 194,
+          "line": 195,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -25483,7 +25807,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25507,11 +25831,11 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 194,
+          "line": 195,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -25523,7 +25847,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25547,11 +25871,11 @@
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Competitions.vue"
         },
         {
-          "line": 194,
+          "line": 195,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -25563,7 +25887,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25959,7 +26283,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -25975,7 +26299,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -25991,7 +26315,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -26007,7 +26331,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -26023,7 +26347,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -26039,7 +26363,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -26085,7 +26409,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -26101,7 +26425,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -26117,7 +26441,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -26133,7 +26457,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -26149,7 +26473,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -26165,7 +26489,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -26181,7 +26505,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -26197,7 +26521,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -26213,7 +26537,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -26229,7 +26553,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -26245,7 +26569,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 91,
+          "line": 92,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -28019,7 +28343,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28047,7 +28371,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28075,7 +28399,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28103,7 +28427,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28131,7 +28455,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28159,7 +28483,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28187,7 +28511,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28215,7 +28539,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28243,7 +28567,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28271,7 +28595,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28299,7 +28623,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28345,7 +28669,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28389,7 +28713,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28417,7 +28741,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28445,7 +28769,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28473,7 +28797,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28501,7 +28825,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28529,7 +28853,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28557,7 +28881,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28585,7 +28909,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28613,7 +28937,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28641,7 +28965,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28681,7 +29005,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28709,7 +29033,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -29791,7 +30115,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -29803,7 +30127,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -29831,7 +30155,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -29843,7 +30167,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -29871,7 +30195,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -29883,7 +30207,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -29911,7 +30235,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -29923,7 +30247,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -29951,7 +30275,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -29963,7 +30287,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -29991,7 +30315,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30003,7 +30327,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -30031,7 +30355,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30043,7 +30367,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -30071,7 +30395,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30083,7 +30407,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -30111,7 +30435,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30123,7 +30447,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -30151,7 +30475,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30163,7 +30487,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -30203,7 +30527,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30215,7 +30539,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -30243,7 +30567,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30255,7 +30579,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -30283,7 +30607,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30295,7 +30619,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -30323,7 +30647,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30335,7 +30659,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -30363,7 +30687,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30375,7 +30699,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 100,
+          "line": 101,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -38399,7 +38723,7 @@
           "path": "app/console/src/pages/competition/SitePanel.vue"
         },
         {
-          "line": 254,
+          "line": 255,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -38439,7 +38763,7 @@
           "path": "app/console/src/pages/competition/SitePanel.vue"
         },
         {
-          "line": 254,
+          "line": 255,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -38479,7 +38803,7 @@
           "path": "app/console/src/pages/competition/SitePanel.vue"
         },
         {
-          "line": 254,
+          "line": 255,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -38519,7 +38843,7 @@
           "path": "app/console/src/pages/competition/SitePanel.vue"
         },
         {
-          "line": 254,
+          "line": 255,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -38559,7 +38883,7 @@
           "path": "app/console/src/pages/competition/SitePanel.vue"
         },
         {
-          "line": 254,
+          "line": 255,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -38599,7 +38923,7 @@
           "path": "app/console/src/pages/competition/SitePanel.vue"
         },
         {
-          "line": 254,
+          "line": 255,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -38639,7 +38963,7 @@
           "path": "app/console/src/pages/competition/SitePanel.vue"
         },
         {
-          "line": 254,
+          "line": 255,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -38679,7 +39003,7 @@
           "path": "app/console/src/pages/competition/SitePanel.vue"
         },
         {
-          "line": 254,
+          "line": 255,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -38719,7 +39043,7 @@
           "path": "app/console/src/pages/competition/SitePanel.vue"
         },
         {
-          "line": 254,
+          "line": 255,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -38771,7 +39095,7 @@
           "path": "app/console/src/pages/competition/SitePanel.vue"
         },
         {
-          "line": 254,
+          "line": 255,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -38811,7 +39135,7 @@
           "path": "app/console/src/pages/competition/SitePanel.vue"
         },
         {
-          "line": 254,
+          "line": 255,
           "path": "app/console/src/lib/types.ts"
         },
         {
@@ -43891,7 +44215,7 @@
           "path": "app/console/src/lib/competitions.ts"
         },
         {
-          "line": 81,
+          "line": 82,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -43911,7 +44235,7 @@
           "path": "app/console/src/lib/competitions.ts"
         },
         {
-          "line": 81,
+          "line": 82,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -43931,7 +44255,7 @@
           "path": "app/console/src/lib/competitions.ts"
         },
         {
-          "line": 81,
+          "line": 82,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -43951,7 +44275,7 @@
           "path": "app/console/src/lib/competitions.ts"
         },
         {
-          "line": 81,
+          "line": 82,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -43971,7 +44295,7 @@
           "path": "app/console/src/lib/competitions.ts"
         },
         {
-          "line": 81,
+          "line": 82,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -43991,7 +44315,7 @@
           "path": "app/console/src/lib/competitions.ts"
         },
         {
-          "line": 81,
+          "line": 82,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -44011,7 +44335,7 @@
           "path": "app/console/src/lib/competitions.ts"
         },
         {
-          "line": 81,
+          "line": 82,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -44061,7 +44385,7 @@
           "path": "app/console/src/lib/competitions.ts"
         },
         {
-          "line": 81,
+          "line": 82,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -44081,7 +44405,7 @@
           "path": "app/console/src/lib/competitions.ts"
         },
         {
-          "line": 81,
+          "line": 82,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -44101,7 +44425,7 @@
           "path": "app/console/src/lib/competitions.ts"
         },
         {
-          "line": 81,
+          "line": 82,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -44121,7 +44445,7 @@
           "path": "app/console/src/lib/competitions.ts"
         },
         {
-          "line": 81,
+          "line": 82,
           "path": "app/console/src/pages/Competitions.vue"
         }
       ],
@@ -44671,6 +44995,362 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "domain:forum",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "document:docs/services/console/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 881,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:forum_sticker_packs",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 881,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:perm_entries",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 881,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 881,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:perm_members",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 881,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:sessions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 881,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:users",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "test:tests/console/forum.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "test:tests/server/forum-v2-endpoints.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 881,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "route:POST /api/console/forum/sticker-packs",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 881,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:activity_events",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 881,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:forum_sticker_packs",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 47,
+          "path": "app/server/src/routes/console/forum.ts"
+        },
+        {
+          "line": 847,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 113,
+          "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 104,
+          "path": "app/console/src/lib/forum.ts"
+        },
+        {
+          "line": 881,
+          "path": "app/console/src/mock/console.ts"
+        }
+      ],
+      "from": "flow:console.forum.sticker_packs.create",
+      "to": "table:sessions",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
       "from": "flow:console.forum.sticker_packs.update",
       "to": "domain:forum",
       "type": "belongs-to"
@@ -44691,7 +45371,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44711,7 +45391,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44731,7 +45411,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44751,7 +45431,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44771,7 +45451,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44791,7 +45471,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44817,7 +45497,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44837,7 +45517,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44857,7 +45537,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44877,7 +45557,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 58,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44915,7 +45595,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44939,7 +45619,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44963,7 +45643,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -44987,7 +45667,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45011,7 +45691,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45035,7 +45715,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45065,7 +45745,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45089,7 +45769,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45113,7 +45793,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45137,7 +45817,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45161,7 +45841,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 75,
+          "line": 87,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45221,6 +45901,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45249,6 +45933,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45277,6 +45965,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45305,6 +45997,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45333,6 +46029,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45361,6 +46061,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45389,6 +46093,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45417,6 +46125,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45451,6 +46163,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45479,6 +46195,10 @@
         {
           "line": 1,
           "path": "app/console/src/pages/forum/StickersTab.vue"
+        },
+        {
+          "line": 1,
+          "path": "app/console/src/pages/Forum.vue"
         }
       ],
       "from": "flow:console.forum.stickers.list",
@@ -45507,7 +46227,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45527,7 +46247,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45547,7 +46267,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45567,7 +46287,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45587,7 +46307,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45607,7 +46327,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45633,7 +46353,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45653,7 +46373,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45673,7 +46393,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45693,7 +46413,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 68,
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
@@ -45751,7 +46471,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 68,
+          "line": 70,
           "path": "app/console/src/pages/Overview.vue"
         },
         {
@@ -45783,7 +46503,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 68,
+          "line": 70,
           "path": "app/console/src/pages/Overview.vue"
         },
         {
@@ -45815,7 +46535,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 68,
+          "line": 70,
           "path": "app/console/src/pages/Overview.vue"
         },
         {
@@ -45847,7 +46567,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 68,
+          "line": 70,
           "path": "app/console/src/pages/Overview.vue"
         },
         {
@@ -45897,7 +46617,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 68,
+          "line": 70,
           "path": "app/console/src/pages/Overview.vue"
         },
         {
@@ -50283,8 +51003,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50339,8 +51067,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50395,8 +51131,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50451,8 +51195,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50507,8 +51259,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50563,8 +51323,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50619,8 +51387,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50675,8 +51451,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50731,8 +51515,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50787,8 +51579,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50843,8 +51643,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50899,8 +51707,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -50961,8 +51777,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -51017,8 +51841,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -51073,8 +51905,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -51129,8 +51969,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -51185,8 +52033,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -51241,8 +52097,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -51297,8 +52161,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -51353,8 +52225,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -51409,8 +52289,16 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 27,
+          "line": 33,
           "path": "app/forum/app/editor/crepe-editor.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 63,
+          "path": "app/forum/shared/post-markdown.ts"
         }
       ],
       "from": "flow:forum.posts.reply",
@@ -51781,6 +52669,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -51813,6 +52705,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -51842,6 +52738,10 @@
       "evidence": [
         {
           "line": 107,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 116,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -51877,6 +52777,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -51909,6 +52813,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -51938,6 +52846,10 @@
       "evidence": [
         {
           "line": 107,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 116,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -51973,6 +52885,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -52002,6 +52918,10 @@
       "evidence": [
         {
           "line": 107,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 116,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52037,6 +52957,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -52069,9 +52993,19 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:forum.reactions.add",
+      "to": "test:tests/server/forum.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
       "evidence": [
         {
           "line": 107,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 116,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52107,6 +53041,46 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 221,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 55,
+          "path": "app/server/src/routes/forum-api/viewer.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 118,
+          "path": "app/server/src/lib/limits.ts"
+        },
+        {
+          "line": 1,
+          "path": "app/forum/app/components/PostCard.vue"
+        }
+      ],
+      "from": "flow:forum.reactions.add",
+      "to": "table:activity_events",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 107,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -52136,6 +53110,10 @@
       "evidence": [
         {
           "line": 107,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 116,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52171,6 +53149,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -52200,6 +53182,10 @@
       "evidence": [
         {
           "line": 107,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 116,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52249,7 +53235,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52273,7 +53263,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52297,7 +53291,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52321,7 +53319,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52345,7 +53347,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52369,7 +53375,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52393,7 +53403,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52417,7 +53431,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52445,9 +53463,19 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:forum.reactions.remove",
+      "to": "test:tests/server/forum.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52471,7 +53499,39 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 221,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 55,
+          "path": "app/server/src/routes/forum-api/viewer.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        }
+      ],
+      "from": "flow:forum.reactions.remove",
+      "to": "table:activity_events",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52495,7 +53555,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52519,7 +53583,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52941,7 +54009,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53021,7 +54089,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53101,7 +54169,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53181,7 +54249,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53261,7 +54329,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53341,7 +54409,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53421,7 +54489,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53501,7 +54569,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53581,7 +54649,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53661,7 +54729,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53741,7 +54809,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53821,7 +54889,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53901,7 +54969,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53987,7 +55055,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54067,7 +55135,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54147,7 +55215,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54227,7 +55295,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54307,7 +55375,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54381,7 +55449,7 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 16,
           "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts"
         },
         {
@@ -54409,7 +55477,7 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 16,
           "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts"
         },
         {
@@ -54443,7 +55511,7 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 16,
           "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts"
         },
         {
@@ -54567,7 +55635,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54603,7 +55671,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54639,7 +55707,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54675,7 +55743,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54711,7 +55779,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54747,7 +55815,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54783,7 +55851,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54819,7 +55887,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54861,7 +55929,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54897,7 +55965,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54933,7 +56001,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -54969,7 +56037,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -55005,7 +56073,7 @@
           "path": "app/forum/app/pages/t/[id].vue"
         },
         {
-          "line": 26,
+          "line": 29,
           "path": "app/forum/shared/post-markdown.ts"
         }
       ],
@@ -58469,11 +59537,11 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1033,
+          "line": 1060,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 138,
+          "line": 139,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -58509,11 +59577,11 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1033,
+          "line": 1060,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 138,
+          "line": 139,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -58549,11 +59617,11 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1033,
+          "line": 1060,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 138,
+          "line": 139,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -58589,11 +59657,11 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1033,
+          "line": 1060,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 138,
+          "line": 139,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -58629,11 +59697,11 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1033,
+          "line": 1060,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 138,
+          "line": 139,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -58669,11 +59737,11 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1033,
+          "line": 1060,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 138,
+          "line": 139,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -58709,11 +59777,11 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1033,
+          "line": 1060,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 138,
+          "line": 139,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -58749,11 +59817,11 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1033,
+          "line": 1060,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 138,
+          "line": 139,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -58789,11 +59857,11 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1033,
+          "line": 1060,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 138,
+          "line": 139,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -58829,11 +59897,11 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1033,
+          "line": 1060,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 138,
+          "line": 139,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -58881,11 +59949,11 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1033,
+          "line": 1060,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 138,
+          "line": 139,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -58921,11 +59989,11 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1033,
+          "line": 1060,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 138,
+          "line": 139,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -58983,7 +60051,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -58995,7 +60063,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59023,7 +60091,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59035,7 +60103,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59063,7 +60131,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59075,7 +60143,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59103,7 +60171,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59115,7 +60183,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59143,7 +60211,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59155,7 +60223,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59183,7 +60251,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59195,7 +60263,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59223,7 +60291,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59235,7 +60303,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59263,7 +60331,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59275,7 +60343,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59303,7 +60371,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59315,7 +60383,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59343,7 +60411,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59355,7 +60423,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59383,7 +60451,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59395,7 +60463,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59435,7 +60503,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59447,7 +60515,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59475,7 +60543,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59487,7 +60555,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59515,7 +60583,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59527,7 +60595,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59555,7 +60623,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59567,7 +60635,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -59595,7 +60663,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 763,
+          "line": 774,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -59607,7 +60675,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 139,
+          "line": 140,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -60749,7 +61817,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 542,
+          "line": 553,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -60773,7 +61841,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 542,
+          "line": 553,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -60797,7 +61865,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 542,
+          "line": 553,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -60833,7 +61901,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 542,
+          "line": 553,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -60857,7 +61925,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 542,
+          "line": 553,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -60881,7 +61949,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 542,
+          "line": 553,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -60905,7 +61973,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 542,
+          "line": 553,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -60929,7 +61997,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 542,
+          "line": 553,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -61159,7 +62227,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 507,
+          "line": 518,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -61179,7 +62247,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 507,
+          "line": 518,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -61199,7 +62267,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 507,
+          "line": 518,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -61225,7 +62293,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 507,
+          "line": 518,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -61245,7 +62313,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 507,
+          "line": 518,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -61265,7 +62333,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 507,
+          "line": 518,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -61285,7 +62353,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 507,
+          "line": 518,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -61305,7 +62373,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 507,
+          "line": 518,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -61325,7 +62393,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 507,
+          "line": 518,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -61345,7 +62413,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 507,
+          "line": 518,
           "path": "app/server/src/lib/identity-store.ts"
         }
       ],
@@ -61639,7 +62707,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -61651,15 +62719,15 @@
           "path": "app/console/src/pages/CompleteProfile.vue"
         },
         {
-          "line": 11,
+          "line": 12,
           "path": "app/console/src/lib/grade.ts"
         },
         {
-          "line": 22,
+          "line": 23,
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 17,
+          "line": 19,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -61683,7 +62751,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -61695,15 +62763,15 @@
           "path": "app/console/src/pages/CompleteProfile.vue"
         },
         {
-          "line": 11,
+          "line": 12,
           "path": "app/console/src/lib/grade.ts"
         },
         {
-          "line": 22,
+          "line": 23,
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 17,
+          "line": 19,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -61739,7 +62807,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -61751,15 +62819,15 @@
           "path": "app/console/src/pages/CompleteProfile.vue"
         },
         {
-          "line": 11,
+          "line": 12,
           "path": "app/console/src/lib/grade.ts"
         },
         {
-          "line": 22,
+          "line": 23,
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 17,
+          "line": 19,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -61783,7 +62851,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -61795,15 +62863,15 @@
           "path": "app/console/src/pages/CompleteProfile.vue"
         },
         {
-          "line": 11,
+          "line": 12,
           "path": "app/console/src/lib/grade.ts"
         },
         {
-          "line": 22,
+          "line": 23,
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 17,
+          "line": 19,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -61827,7 +62895,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -61839,15 +62907,15 @@
           "path": "app/console/src/pages/CompleteProfile.vue"
         },
         {
-          "line": 11,
+          "line": 12,
           "path": "app/console/src/lib/grade.ts"
         },
         {
-          "line": 22,
+          "line": 23,
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 17,
+          "line": 19,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -61871,7 +62939,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -61883,15 +62951,15 @@
           "path": "app/console/src/pages/CompleteProfile.vue"
         },
         {
-          "line": 11,
+          "line": 12,
           "path": "app/console/src/lib/grade.ts"
         },
         {
-          "line": 22,
+          "line": 23,
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 17,
+          "line": 19,
           "path": "app/console/src/lib/types.ts"
         }
       ],
@@ -61947,7 +63015,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 576,
+          "line": 587,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -62011,7 +63079,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 576,
+          "line": 587,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -62075,7 +63143,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 576,
+          "line": 587,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -62139,7 +63207,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 576,
+          "line": 587,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -62203,7 +63271,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 576,
+          "line": 587,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -62291,7 +63359,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 576,
+          "line": 587,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -62355,7 +63423,7 @@
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 576,
+          "line": 587,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -62687,7 +63755,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 47,
+          "line": 48,
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
@@ -62735,7 +63803,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 47,
+          "line": 48,
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
@@ -62801,7 +63869,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 47,
+          "line": 48,
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
@@ -62849,7 +63917,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 47,
+          "line": 48,
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
@@ -62897,7 +63965,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 47,
+          "line": 48,
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
@@ -62945,7 +64013,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 47,
+          "line": 48,
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
@@ -62993,7 +64061,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 47,
+          "line": 48,
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
@@ -63041,7 +64109,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 47,
+          "line": 48,
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
@@ -63089,7 +64157,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 47,
+          "line": 48,
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
@@ -63137,7 +64205,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 47,
+          "line": 48,
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
@@ -63241,7 +64309,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -63333,7 +64401,7 @@
           "path": "app/web/sites/portal/components/os/Terminal.tsx"
         },
         {
-          "line": 19,
+          "line": 20,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -63373,7 +64441,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -63465,7 +64533,7 @@
           "path": "app/web/sites/portal/components/os/Terminal.tsx"
         },
         {
-          "line": 19,
+          "line": 20,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -63505,7 +64573,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -63597,7 +64665,7 @@
           "path": "app/web/sites/portal/components/os/Terminal.tsx"
         },
         {
-          "line": 19,
+          "line": 20,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -63637,7 +64705,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -63729,7 +64797,7 @@
           "path": "app/web/sites/portal/components/os/Terminal.tsx"
         },
         {
-          "line": 19,
+          "line": 20,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -63769,7 +64837,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -63861,7 +64929,7 @@
           "path": "app/web/sites/portal/components/os/Terminal.tsx"
         },
         {
-          "line": 19,
+          "line": 20,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -63901,7 +64969,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -63993,7 +65061,7 @@
           "path": "app/web/sites/portal/components/os/Terminal.tsx"
         },
         {
-          "line": 19,
+          "line": 20,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -64033,7 +65101,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -64125,7 +65193,7 @@
           "path": "app/web/sites/portal/components/os/Terminal.tsx"
         },
         {
-          "line": 19,
+          "line": 20,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -64165,7 +65233,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -64257,7 +65325,7 @@
           "path": "app/web/sites/portal/components/os/Terminal.tsx"
         },
         {
-          "line": 19,
+          "line": 20,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -64381,7 +65449,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -64473,7 +65541,7 @@
           "path": "app/web/sites/portal/components/os/Terminal.tsx"
         },
         {
-          "line": 19,
+          "line": 20,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -64513,7 +65581,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -64605,7 +65673,7 @@
           "path": "app/web/sites/portal/components/os/Terminal.tsx"
         },
         {
-          "line": 19,
+          "line": 20,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -64645,7 +65713,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -64737,7 +65805,7 @@
           "path": "app/web/sites/portal/components/os/Terminal.tsx"
         },
         {
-          "line": 19,
+          "line": 20,
           "path": "app/server/src/lib/grade.ts"
         },
         {
@@ -65557,7 +66625,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 157,
+          "line": 160,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -65581,7 +66649,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 157,
+          "line": 160,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -65617,7 +66685,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 157,
+          "line": 160,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -65641,7 +66709,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 157,
+          "line": 160,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -65665,7 +66733,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 157,
+          "line": 160,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -65689,7 +66757,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 157,
+          "line": 160,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -65755,7 +66823,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -65783,7 +66851,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -65811,7 +66879,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -65851,7 +66919,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -65879,7 +66947,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -65907,7 +66975,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -65935,7 +67003,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -65963,7 +67031,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -65991,7 +67059,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -66267,7 +67335,7 @@
           "path": "app/server/src/lib/register-limits.ts"
         },
         {
-          "line": 148,
+          "line": 151,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -66303,7 +67371,7 @@
           "path": "app/server/src/lib/register-limits.ts"
         },
         {
-          "line": 148,
+          "line": 151,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -66339,7 +67407,7 @@
           "path": "app/server/src/lib/register-limits.ts"
         },
         {
-          "line": 148,
+          "line": 151,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -66375,7 +67443,7 @@
           "path": "app/server/src/lib/register-limits.ts"
         },
         {
-          "line": 148,
+          "line": 151,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -66423,7 +67491,7 @@
           "path": "app/server/src/lib/register-limits.ts"
         },
         {
-          "line": 148,
+          "line": 151,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -66459,7 +67527,7 @@
           "path": "app/server/src/lib/register-limits.ts"
         },
         {
-          "line": 148,
+          "line": 151,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -66495,7 +67563,7 @@
           "path": "app/server/src/lib/register-limits.ts"
         },
         {
-          "line": 148,
+          "line": 151,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -66531,7 +67599,7 @@
           "path": "app/server/src/lib/register-limits.ts"
         },
         {
-          "line": 148,
+          "line": 151,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -66567,7 +67635,7 @@
           "path": "app/server/src/lib/register-limits.ts"
         },
         {
-          "line": 148,
+          "line": 151,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -66603,7 +67671,7 @@
           "path": "app/server/src/lib/register-limits.ts"
         },
         {
-          "line": 148,
+          "line": 151,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -66639,7 +67707,7 @@
           "path": "app/server/src/lib/register-limits.ts"
         },
         {
-          "line": 148,
+          "line": 151,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -66675,7 +67743,7 @@
           "path": "app/server/src/lib/register-limits.ts"
         },
         {
-          "line": 148,
+          "line": 151,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -66711,7 +67779,7 @@
           "path": "app/server/src/lib/register-limits.ts"
         },
         {
-          "line": 148,
+          "line": 151,
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
@@ -67533,7 +68601,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Invites.vue"
         }
       ],
@@ -67553,7 +68621,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Invites.vue"
         }
       ],
@@ -67573,7 +68641,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Invites.vue"
         }
       ],
@@ -67593,7 +68661,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Invites.vue"
         }
       ],
@@ -67613,7 +68681,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Invites.vue"
         }
       ],
@@ -67633,7 +68701,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Invites.vue"
         }
       ],
@@ -67671,7 +68739,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Invites.vue"
         }
       ],
@@ -67691,7 +68759,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/console/src/pages/Invites.vue"
         }
       ],
@@ -68333,7 +69401,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -68373,7 +69441,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -68413,7 +69481,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -68453,7 +69521,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -68493,7 +69561,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -68533,7 +69601,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -68585,7 +69653,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -68625,7 +69693,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -68967,7 +70035,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 757,
+          "line": 768,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -69015,7 +70083,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 757,
+          "line": 768,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -69063,7 +70131,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 757,
+          "line": 768,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -69111,7 +70179,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 757,
+          "line": 768,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -69159,7 +70227,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 757,
+          "line": 768,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -69207,7 +70275,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 757,
+          "line": 768,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -69255,7 +70323,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 757,
+          "line": 768,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -69303,7 +70371,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 757,
+          "line": 768,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -69357,7 +70425,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 757,
+          "line": 768,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -69405,7 +70473,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 757,
+          "line": 768,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -69453,7 +70521,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 757,
+          "line": 768,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -69501,7 +70569,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 757,
+          "line": 768,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -70801,7 +71869,7 @@
           "path": "app/console/src/pages/permissions/GroupsTab.vue"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/permissions/GroupDetail.vue"
         },
         {
@@ -70809,7 +71877,7 @@
           "path": "app/console/src/pages/permissions/CreateGroupDialog.vue"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/pages/permissions/EntryDialog.vue"
         },
         {
@@ -70837,7 +71905,7 @@
           "path": "app/console/src/pages/permissions/GroupsTab.vue"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/permissions/GroupDetail.vue"
         },
         {
@@ -70845,7 +71913,7 @@
           "path": "app/console/src/pages/permissions/CreateGroupDialog.vue"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/pages/permissions/EntryDialog.vue"
         },
         {
@@ -70873,7 +71941,7 @@
           "path": "app/console/src/pages/permissions/GroupsTab.vue"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/permissions/GroupDetail.vue"
         },
         {
@@ -70881,7 +71949,7 @@
           "path": "app/console/src/pages/permissions/CreateGroupDialog.vue"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/pages/permissions/EntryDialog.vue"
         },
         {
@@ -70909,7 +71977,7 @@
           "path": "app/console/src/pages/permissions/GroupsTab.vue"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/permissions/GroupDetail.vue"
         },
         {
@@ -70917,7 +71985,7 @@
           "path": "app/console/src/pages/permissions/CreateGroupDialog.vue"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/pages/permissions/EntryDialog.vue"
         },
         {
@@ -70951,7 +72019,7 @@
           "path": "app/console/src/pages/permissions/GroupsTab.vue"
         },
         {
-          "line": 26,
+          "line": 27,
           "path": "app/console/src/pages/permissions/GroupDetail.vue"
         },
         {
@@ -70959,7 +72027,7 @@
           "path": "app/console/src/pages/permissions/CreateGroupDialog.vue"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/pages/permissions/EntryDialog.vue"
         },
         {
@@ -71979,7 +73047,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 933,
+          "line": 950,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -72063,7 +73131,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 933,
+          "line": 950,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -72147,7 +73215,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 933,
+          "line": 950,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -72231,7 +73299,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 933,
+          "line": 950,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -72315,7 +73383,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 933,
+          "line": 950,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -72399,7 +73467,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 933,
+          "line": 950,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -72501,7 +73569,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 933,
+          "line": 950,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -74247,6 +75315,12 @@
       "basis": "declaration",
       "from": "route:POST /api/console/competitions/:competition_id/site/versions",
       "to": "domain:competitions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:POST /api/console/forum/sticker-packs",
+      "to": "domain:forum",
       "type": "belongs-to"
     },
     {
@@ -78369,7 +79443,7 @@
         }
       },
       "source": {
-        "line": 118,
+        "line": 120,
         "path": "app/server/src/routes/forum-api/posts.ts"
       }
     },
@@ -86993,13 +88067,23 @@
                     "grade": {
                       "anyOf": [
                         {
-                          "enum": [
-                            1,
-                            2,
-                            3,
-                            4
-                          ],
-                          "type": "integer"
+                          "anyOf": [
+                            {
+                              "enum": [
+                                1,
+                                2,
+                                3,
+                                4
+                              ],
+                              "type": "integer"
+                            },
+                            {
+                              "enum": [
+                                "graduated"
+                              ],
+                              "type": "string"
+                            }
+                          ]
                         },
                         {
                           "enum": [
@@ -88589,13 +89673,23 @@
               "grade": {
                 "anyOf": [
                   {
-                    "enum": [
-                      1,
-                      2,
-                      3,
-                      4
-                    ],
-                    "type": "integer"
+                    "anyOf": [
+                      {
+                        "enum": [
+                          1,
+                          2,
+                          3,
+                          4
+                        ],
+                        "type": "integer"
+                      },
+                      {
+                        "enum": [
+                          "graduated"
+                        ],
+                        "type": "string"
+                      }
+                    ]
                   },
                   {
                     "enum": [
@@ -92227,13 +93321,23 @@
               "grade": {
                 "anyOf": [
                   {
-                    "enum": [
-                      1,
-                      2,
-                      3,
-                      4
-                    ],
-                    "type": "integer"
+                    "anyOf": [
+                      {
+                        "enum": [
+                          1,
+                          2,
+                          3,
+                          4
+                        ],
+                        "type": "integer"
+                      },
+                      {
+                        "enum": [
+                          "graduated"
+                        ],
+                        "type": "string"
+                      }
+                    ]
                   },
                   {
                     "enum": [
@@ -99295,7 +100399,7 @@
         }
       },
       "source": {
-        "line": 45,
+        "line": 57,
         "path": "app/server/src/routes/console/forum.ts"
       }
     },
@@ -99381,7 +100485,7 @@
         }
       },
       "source": {
-        "line": 56,
+        "line": 68,
         "path": "app/server/src/routes/console/forum.ts"
       }
     },
@@ -100117,13 +101221,23 @@
             "grade": {
               "anyOf": [
                 {
-                  "enum": [
-                    1,
-                    2,
-                    3,
-                    4
-                  ],
-                  "type": "integer"
+                  "anyOf": [
+                    {
+                      "enum": [
+                        1,
+                        2,
+                        3,
+                        4
+                      ],
+                      "type": "integer"
+                    },
+                    {
+                      "enum": [
+                        "graduated"
+                      ],
+                      "type": "string"
+                    }
+                  ]
                 },
                 {
                   "type": "null"
@@ -100298,13 +101412,23 @@
               "grade": {
                 "anyOf": [
                   {
-                    "enum": [
-                      1,
-                      2,
-                      3,
-                      4
-                    ],
-                    "type": "integer"
+                    "anyOf": [
+                      {
+                        "enum": [
+                          1,
+                          2,
+                          3,
+                          4
+                        ],
+                        "type": "integer"
+                      },
+                      {
+                        "enum": [
+                          "graduated"
+                        ],
+                        "type": "string"
+                      }
+                    ]
                   },
                   {
                     "enum": [
@@ -104824,6 +105948,91 @@
         "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
         "requestSections": [
           "params",
+          "querystring",
+          "body"
+        ],
+        "responseSchema": true
+      },
+      "domain": "forum",
+      "id": "route:POST /api/console/forum/sticker-packs",
+      "key": "POST /api/console/forum/sticker-packs",
+      "kind": "business",
+      "method": "POST",
+      "path": "/api/console/forum/sticker-packs",
+      "registration": "explicit",
+      "schema": {
+        "body": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+              "type": "string"
+            },
+            "name": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "name"
+          ],
+          "type": "object"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "201": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 46,
+        "path": "app/server/src/routes/console/forum.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [
+          "requireAuth"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
           "querystring"
         ],
         "responseSchema": true
@@ -106182,6 +107391,14 @@
               "maxItems": 20,
               "minItems": 1,
               "type": "array"
+            },
+            "surface": {
+              "enum": [
+                "portal",
+                "forum",
+                "console"
+              ],
+              "type": "string"
             }
           },
           "required": [
@@ -106247,7 +107464,7 @@
         }
       },
       "source": {
-        "line": 25,
+        "line": 28,
         "path": "app/server/src/routes/portal/events.ts"
       }
     },
@@ -107956,13 +109173,23 @@
           "additionalProperties": false,
           "properties": {
             "grade": {
-              "enum": [
-                1,
-                2,
-                3,
-                4
-              ],
-              "type": "integer"
+              "anyOf": [
+                {
+                  "enum": [
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "type": "integer"
+                },
+                {
+                  "enum": [
+                    "graduated"
+                  ],
+                  "type": "string"
+                }
+              ]
             },
             "real_name": {
               "maxLength": 64,
@@ -107995,13 +109222,23 @@
               "grade": {
                 "anyOf": [
                   {
-                    "enum": [
-                      1,
-                      2,
-                      3,
-                      4
-                    ],
-                    "type": "integer"
+                    "anyOf": [
+                      {
+                        "enum": [
+                          1,
+                          2,
+                          3,
+                          4
+                        ],
+                        "type": "integer"
+                      },
+                      {
+                        "enum": [
+                          "graduated"
+                        ],
+                        "type": "string"
+                      }
+                    ]
                   },
                   {
                     "enum": [
@@ -111504,7 +112741,7 @@
         }
       },
       "source": {
-        "line": 156,
+        "line": 159,
         "path": "app/server/src/routes/identity/email.ts"
       }
     },
@@ -111628,7 +112865,7 @@
         }
       },
       "source": {
-        "line": 184,
+        "line": 187,
         "path": "app/server/src/routes/identity/email.ts"
       }
     },
@@ -111793,13 +113030,23 @@
               "type": "string"
             },
             "grade": {
-              "enum": [
-                1,
-                2,
-                3,
-                4
-              ],
-              "type": "integer"
+              "anyOf": [
+                {
+                  "enum": [
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "type": "integer"
+                },
+                {
+                  "enum": [
+                    "graduated"
+                  ],
+                  "type": "string"
+                }
+              ]
             },
             "invite_code": {
               "maxLength": 40,
@@ -113073,7 +114320,7 @@
         }
       },
       "source": {
-        "line": 74,
+        "line": 86,
         "path": "app/server/src/routes/console/forum.ts"
       }
     },
@@ -113667,6 +114914,17 @@
         "organization",
         "recruitment"
       ],
+      "path": "app/console/src/components/DateField.vue"
+    },
+    {
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "github",
+        "organization",
+        "recruitment"
+      ],
       "path": "app/console/src/components/ErrorAlert.vue"
     },
     {
@@ -113819,6 +115077,12 @@
         "recruitment"
       ],
       "path": "app/console/src/lib/errors.ts"
+    },
+    {
+      "domains": [
+        "audit"
+      ],
+      "path": "app/console/src/lib/events.ts"
     },
     {
       "domains": [
@@ -114494,6 +115758,13 @@
     },
     {
       "domains": [
+        "audit",
+        "forum"
+      ],
+      "path": "app/forum/app/composables/useActivityBeacon.ts"
+    },
+    {
+      "domains": [
         "forum"
       ],
       "path": "app/forum/app/composables/useAppLink.ts"
@@ -114664,6 +115935,12 @@
       "domains": [
         "forum"
       ],
+      "path": "app/forum/app/editor/inline-stickers.ts"
+    },
+    {
+      "domains": [
+        "forum"
+      ],
       "path": "app/forum/app/error.vue"
     },
     {
@@ -114767,6 +116044,13 @@
         "forum"
       ],
       "path": "app/forum/app/pages/users.vue"
+    },
+    {
+      "domains": [
+        "audit",
+        "forum"
+      ],
+      "path": "app/forum/app/plugins/activity-beacon.client.ts"
     },
     {
       "domains": [

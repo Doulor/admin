@@ -112,6 +112,8 @@ export default async function forumPostRoutes(app: FastifyInstance) {
     if (!sticker || sticker.enabled === 0) throw new ForumError(400, "unknown_sticker", "没有这个表情");
     if (hourlyLimited(req, reply, "react", viewer.accountId)) return;
     forum.addReaction(post.id, viewer.accountId, sticker.id);
+    // #274：操作记录只认 forum.react 这一个动作，加和取消都算（meta.removed 区分），不是只记加的那一半。
+    app.services.activity.recordActivity(req, { action: "forum.react", surface: "forum", target_type: "post", target_id: post.id, outcome: "ok", meta: { sticker_id: sticker.id } });
     return { reactions: forum.reactionsForPost(post.id, viewer.userId) };
   });
 
@@ -119,6 +121,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
     const viewer = await requireWriter(req, "forum.react");
     const post = existingPost(req, viewer, req.params.post_id);
     forum.removeReaction(post.id, viewer.accountId, req.params.sticker_id);
+    app.services.activity.recordActivity(req, { action: "forum.react", surface: "forum", target_type: "post", target_id: post.id, outcome: "ok", meta: { sticker_id: req.params.sticker_id, removed: true } });
     return { reactions: forum.reactionsForPost(post.id, viewer.userId) };
   });
 }

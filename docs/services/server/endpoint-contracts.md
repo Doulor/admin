@@ -165,7 +165,7 @@
 | 接口 · 流程 | 权限与资源 | 响应、错误与副作用 |
 |---|---|---|
 | `POST /auth/email/start` · `flow:identity.email.start` | 匿名；每分钟 10 次（按 IP）；同一邮箱 60 秒一封、每小时 5 封，同一 IP（IPv6 按 /64）每小时 20 封，计数存在 `email_challenges`，重启不清零 | 202 `{resend_after:60}`，写签名、HttpOnly 的 `email_challenge` cookie（path=/auth/email，10 分钟）；有没有账号响应都一样，没有账号的邮箱也真的发（填邀请码就能注册）。body 可带 `purpose:"reset"`（忘了密码，#273）：只把信换成「你的极客班重设密码验证码」，挑战还是登录用的那一种。邮箱格式不对 400 `bad_email`；太频繁 429 `rate_limited`，带 `Retry-After` 与 `retry_after`。只存验证码的 HMAC，这个浏览器上一次的码作废（别人替这个邮箱要码不影响本人手上的码）；信由 `mail.sendNow` 直接发，不进 `mail_outbox`，日志不记地址和验证码。 |
-| `POST /auth/email/verify` · `flow:identity.email.verify` | 匿名，凭挑战 cookie；每分钟 30 次；同一个码最多错 5 次 | 200 `{return_to,registered}` 并写 `sid`；验证码不对 400 `invalid_code`（带 `attempts_left`），过期、用过或错满 5 次 400 `code_expired`；没有账号时不填 `invite_code` 就注册成注册用户，不是错误（#274 SPEC §3.2）；这个邮箱还没有账号、这次要注册时 body 里的 `real_name` 和 `grade`（1–4）必填，缺了 400 `real_info_required`，姓名不对 400 `bad_real_name`，这两种都在核对验证码之后、占用之前回，验证码和邀请码都不作废，注册成功后写进 `account_profiles`；已有账号的登录不看这两项（#280：要不要注册在核对验证码之后才知道，所以 JSON Schema 不标必填）；邀请码不对 400 `invite_invalid`，同时记一次错（验证码不作废，还能再试）；真的要新建账号这一步，同一 IP 今天已建满 5 个、同一设备（`yugc_vid`）已建满 3 个，429 `{error:"rate_limited",bucket:"auth.register.daily",retry_after}`（#274 残留修复，SPEC §3.8，登录到已有账号不受影响）；账号停用 403 `account_disabled`。建号、兑换邀请码、占用验证码、建会话（provider=email）、删旧会话、写 `identity_audit` 与 `auth.register`/`auth.signin` 在一个 `BEGIN IMMEDIATE` 事务里，任何一步不成整体回滚。 |
+| `POST /auth/email/verify` · `flow:identity.email.verify` | 匿名，凭挑战 cookie；每分钟 30 次；同一个码最多错 5 次 | 200 `{return_to,registered}` 并写 `sid`；验证码不对 400 `invalid_code`（带 `attempts_left`），过期、用过或错满 5 次 400 `code_expired`；没有账号时不填 `invite_code` 就注册成注册用户，不是错误（#274 SPEC §3.2）；这个邮箱还没有账号、这次要注册时：填了 `invite_code`（会成为成员）就要同时带 `real_name` 和 `grade`（1–4 或 `graduated`），没填邀请码可以都不带，带了一项就两项都要（所有者 2026-10-24 22:05：只有极客班成员要填），缺了 400 `real_info_required`，姓名不对 400 `bad_real_name`，这两种都在核对验证码之后、占用之前回，验证码和邀请码都不作废，注册成功后写进 `account_profiles`；已有账号的登录不看这两项（#280：要不要注册在核对验证码之后才知道，所以 JSON Schema 不标必填）；邀请码不对 400 `invite_invalid`，同时记一次错（验证码不作废，还能再试）；真的要新建账号这一步，同一 IP 今天已建满 5 个、同一设备（`yugc_vid`）已建满 3 个，429 `{error:"rate_limited",bucket:"auth.register.daily",retry_after}`（#274 残留修复，SPEC §3.8，登录到已有账号不受影响）；账号停用 403 `account_disabled`。建号、兑换邀请码、占用验证码、建会话（provider=email）、删旧会话、写 `identity_audit` 与 `auth.register`/`auth.signin` 在一个 `BEGIN IMMEDIATE` 事务里，任何一步不成整体回滚。 |
 | `POST /auth/email/password` · `flow:identity.email.password` | 匿名；每分钟 10 次（按 IP），另按邮箱 15 分钟 10 次 | 200 `{return_to}` 并写 `sid`；没账号、没设密码、密码不对一律 400 `invalid_credentials`，没有账号时也跑一次 bcrypt，响应时间不泄露邮箱是否注册；按邮箱超次数 429 `rate_limited`；停用 403 `account_disabled`。会话 provider=email。 |
 | `POST /auth/email/reset` · `flow:identity.email.reset` | 匿名，凭 `/auth/email/start` 发的挑战 cookie；每分钟 10 次；同一个码最多错 5 次（#273，忘了密码） | body `{code,password}`；200 `{return_to}` 并写 `sid`（provider=email）。先看新密码：不到 8 位 400 `password_too_short`、超过 72 字节 400 `password_exceeds_bcrypt_limit`，这时不碰验证码；验证码不对 400 `invalid_code`（带 `attempts_left`），过期、用过或错满 400 `code_expired`；邮箱没有账号时不能顺手注册，回 400 `no_account`（不注册，验证码不作废，登录页转到「注册」）；停用 403 `account_disabled`。占用验证码、建会话、删旧会话、写 `users.password_hash`、`identity_audit`（`login` 与 `password_reset`）、审计 `auth.signin`（method=reset）与 `account.password`（action=reset）在一个 `BEGIN IMMEDIATE` 事务里；成功后这个邮箱的密码错误计数清零。 |
 | `GET /auth/google` · `flow:identity.google.start` | 匿名；每分钟 20 次（按 IP）；没配凭据时 404 `provider_not_enabled` | 302 到 Google 授权页（openid email profile，带 state、nonce 与 PKCE S256）；state、nonce、verifier、return_to 和 `invite`（选填，#274 SPEC §3.2）存进签名 cookie `google_oauth_state`。 |
@@ -174,7 +174,7 @@
 | `POST /api/identity/email/start` · `flow:identity.account.email.start` | 有效会话，这次登录不超过 10 分钟；每分钟 10 次，发码限额同登录 | 202 `{resend_after:60}`，挑战绑定这个账号与这次会话，cookie path=/api/identity/email；一个账号最多 5 个邮箱（#272），这个邮箱已经绑在本账号上 409 `identity_exists`、已经有 5 个 409 `email_limit`，都不发信；超过 10 分钟 403 `step_up_required`（带 `reauth.return_to:"/account"`）；400 `bad_email`；429 `rate_limited`。 |
 | `POST /api/identity/email/verify` · `flow:identity.account.email.verify` | 同一会话 | 200 `{ok:true}`；换了账号或会话、过期 400 `code_expired`；码不对 400 `invalid_code`；邮箱已属于别的账号 409 `identity_conflict`；已经绑在本账号上 409 `identity_exists`；已经有 5 个 409 `email_limit`。占用验证码、插入邮箱身份、写 `identity_audit` 在一个事务里；账号还没有主邮箱时这个就是主邮箱（`canonical_email`）。 |
 | `POST /api/identity/email/remove` · `flow:identity.account.email.remove` | 有效会话，这次登录不超过 10 分钟；每分钟 10 次 | 200 `{ok:true}`：body `{identity_id}`（`GET /api/identity/me` 给的邮箱 `id`），删掉这个邮箱，之后不能再用它登录，下一轮 GitLab 同步从 GitLab 上删掉（#272）；主邮箱 409 `primary_email`，不是本账号的邮箱 404 `not_found`；超过 10 分钟 403 `step_up_required`。删身份、写 `identity_audit`（`unlink`）与 `identity.unlink` 在一个事务里，用这个邮箱登录的会话不动。 |
-| `POST /api/identity/real-info` · `flow:identity.account.real_info` | 有效会话，不要控制台能力；每分钟 10 次 | body `{real_name,grade}`：`real_name` 先做 NFC 归一、去首尾空白、连续空白并成一个，2–32 个字，只能是文字、空格和「·」，不对 400 `bad_real_name`；`grade` 只能是 1–4，不对 400；按北京时间的学年换算成入学年份存进 `account_profiles.enrollment_year`。只补还缺的那一项，已有的不覆盖；两项都已经有了 409 `real_info_locked`（本人不能再改，找有 `users.manage` 的管理员）。200 `{real_name,grade,grade_label,profile_required}`。写操作记录 `account.real_info`，`meta` 只有 `{filled,grade}`，不含姓名。 |
+| `POST /api/identity/real-info` · `flow:identity.account.real_info` | 有效会话，不要控制台能力；每分钟 10 次 | body `{real_name,grade}`：`real_name` 先做 NFC 归一、去首尾空白、连续空白并成一个，2–32 个字，只能是文字、空格和「·」，不对 400 `bad_real_name`；`grade` 只能是 1–4 或 `graduated`（已毕业，存成五年前入学），不对 400；按北京时间的学年换算成入学年份存进 `account_profiles.enrollment_year`。只补还缺的那一项，已有的不覆盖；两项都已经有了 409 `real_info_locked`（本人不能再改，找有 `users.manage` 的管理员）。200 `{real_name,grade,grade_label,profile_required}`。写操作记录 `account.real_info`，`meta` 只有 `{filled,grade}`，不含姓名。 |
 | `POST /api/identity/password` · `flow:identity.account.password` | 有效会话，账号已绑邮箱；每分钟 10 次 | 200 `{ok:true}`；没绑邮箱 409 `email_required`；不到 8 位 400 `password_too_short`，超过 72 字节 400 `password_exceeds_bcrypt_limit`；已有密码且登录超过 10 分钟时要 `current_password`，不对 400 `invalid_credentials`，没填 403 `step_up_required`；没有密码又超过 10 分钟 403 `step_up_required`。bcrypt cost 12，写 `users.password_hash` 与 `identity_audit`（`password_set` 或 `password_change`）。 |
 | `GET /api/console/invites` · `flow:identity.invites.list` | `accounts.invites.manage`（提督默认有）；只看身份与称号，不调用 GitHub | 200 `{invites:[{id,code,note,max_uses,used_count,expires_at,disabled,created_by,created_at,updated_at,usable}]}`；401、403 `missing_capability`。只读。 |
 | `POST /api/console/invites` · `flow:identity.invites.create` | 同上；每分钟 30 次 | 201 邀请码一行；邀请码 4–40 位字母、数字、`_`、`-`，存小写，重复 409 `invite_code_taken`，其他不合格 400；写 `invite.create` 审计。 |
@@ -244,7 +244,7 @@
 
 权限与资源：匿名也能读（CONTRACT-274 §1）；console_link是显示提示，不赋予后端权限。
 
-响应与错误：没有有效会话时 200 `{signed_in:false,level,level_name,permissions,quota}`（访客身份摘要，不是401）：`level`/`level_name` 来自 `level.visitor`；`permissions` 把 `UI_NODES` 挨个判一遍，通配符已展开成具体节点的布尔值；`quota` 是投递每日额度（访客为 0）。GitHub拒绝token时 200 `{signed_in:false,session_expired:true,...访客身份摘要}`。登录了在旧字段（login、user_id、avatar_url、account_id、provider、console_link、email_required）基础上再加实名资料 `profile_required`/`real_name`/`grade`/`grade_label`（#280：`real_name` 只回本人；`grade` 是 1–4 或 `graduated`，由 `account_profiles.enrollment_year` 按北京时间的学年现算，每年 9 月 1 日升一级；`profile_required` 在缺姓名或年级时为 true，不看能不能发信）、 `level`/`level_name`/`department{id,name,tone}|null`/`titles[{id,name,department_id}]`（按账号算的权限分组，lib/permissions.ts 的 `groupsOf`）、`permissions`/`quota`（同上但按本账号判）、账号资料的 `prefs`/`username`/`display_name`/`bio`（`account_profiles`，第一次读时兜底建一行）、打码邮箱的 `identities`（`identity.accountView` 已脱敏）；其他角色查询失败仍保持登录但 `console_link` 为 false。
+响应与错误：没有有效会话时 200 `{signed_in:false,level,level_name,permissions,quota}`（访客身份摘要，不是401）：`level`/`level_name` 来自 `level.visitor`；`permissions` 把 `UI_NODES` 挨个判一遍，通配符已展开成具体节点的布尔值；`quota` 是投递每日额度（访客为 0）。GitHub拒绝token时 200 `{signed_in:false,session_expired:true,...访客身份摘要}`。登录了在旧字段（login、user_id、avatar_url、account_id、provider、console_link、email_required）基础上再加实名资料 `profile_required`/`real_name`/`grade`/`grade_label`（#280：`real_name` 只回本人；`grade` 是 1–4 或 `graduated`，由 `account_profiles.enrollment_year` 按北京时间的学年现算，每年 9 月 1 日升一级；`profile_required` 在成员或往届成员（`level.member`、`level.alumni`）缺姓名或年级时为 true，普通注册用户不要求，不看能不能发信）、 `level`/`level_name`/`department{id,name,tone}|null`/`titles[{id,name,department_id}]`（按账号算的权限分组，lib/permissions.ts 的 `groupsOf`）、`permissions`/`quota`（同上但按本账号判）、账号资料的 `prefs`/`username`/`display_name`/`bio`（`account_profiles`，第一次读时兜底建一行）、打码邮箱的 `identities`（`identity.accountView` 已脱敏）；其他角色查询失败仍保持登录但 `console_link` 为 false。
 
 数据与副作用：会话联查账号，过期、没有账号（启动回填映射不到的旧会话）或账号不是active的会话按未登录处理并删除；`console_link` 仍按旧能力系统（`access.resolve`）算，还没记过站内角色的老账号用GitHub会话第一次请求时查一次GitHub组织角色并记下（这一步不影响 `level`——`level` 只认权限引擎的 `perm_members`，不读 `org_state`/`org_role`，见下方「`org_state` 已弃用」）；被拒token才删会话并写审计；无其他业务写入。
 
@@ -316,7 +316,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 | `POST /api/console/permission-groups/:id/members` · `flow:permissions.groups.members.add` | 需要节点 `perm.manage` 且刚登录过；body `{account_id,expires_at?}` | 组或账号不存在 404（`not_found`/`account_not_found`）；`level`、`department` 组每账号最多一个，同一事务里先删旧的再插入新的（和 `setExclusiveGroupMembership` 同一条规则）。 |
 | `DELETE /api/console/permission-groups/:id/members/:account_id` · `flow:permissions.groups.members.remove` | 同上 | 这个账号本来就不在这个组里 404 `not_found`。 |
 | `GET /api/console/users?q=&level=&department=&status=&cursor=` · `flow:users.list` | 有全站 `users.view` 的 allow 就看全部账号；只有按部门限定 scope 的 allow（部长）就只看本部门，查询参数改不了范围；两种都没有 403 `forbidden` | 200 `{items:[{account_id,username,display_name,real_name?,grade,grade_label,avatar_url,status,level,department,titles,providers,gitlab,last_login_at,created_at}],next_cursor,counts:{visitor_today,registered,member,alumni}}`；`real_name` 只回给有 `users.manage` 的调用者，`q` 也只在这时按真实姓名搜（只有 `users.view` 或部长范围的看得到年级、看不到姓名，#280）；`grade` 是 1–4、`graduated` 或 null；`department=dept.none` 筛出没有部门成员资格的账号；`cursor` 是按 `created_at,id` 的不透明游标，固定 50 条一页；`gitlab.state` 由 `gitlab_accounts.state`/`last_error` 映射成 `synced\|pending\|failed\|blocked\|none`；`counts.visitor_today` 在操作记录（阶段 3）落地前固定 0。 |
-| `PATCH /api/console/users/:id` · `flow:users.update` | 需要节点 `users.manage` 且刚登录过；改 `status` 另外需要 `users.disable` | body 任选 `{status,level,department,titles,real_name,grade}`（#280：`real_name` 填 null 清空，或按补资料页的规则校验，不对 400 `bad_real_name`；`grade` 是 1–4 或 null，按当前学年换算成入学年份；清空任一项后本人下次登录要重新补资料）；账号不存在 404；部门不存在 400 `invalid_department`；称号不存在 400 `invalid_title`；会让站长一个不剩（停用最后一个站长，或把 `titles` 改成不含 `title.site.owner`）409 `last_owner`。`level`/`department` 按唯一约束换组；`department` 变了且这次请求没有同时给 `titles` 时，自动去掉不属于新部门的称号（站长等无部门称号不受影响）。 |
+| `PATCH /api/console/users/:id` · `flow:users.update` | 需要节点 `users.manage` 且刚登录过；改 `status` 另外需要 `users.disable` | body 任选 `{status,level,department,titles,real_name,grade}`（#280：`real_name` 填 null 清空，或按补资料页的规则校验，不对 400 `bad_real_name`；`grade` 是 1–4、`graduated` 或 null，按当前学年换算成入学年份；成员或往届成员清空任一项后，下次登录要重新补资料）；账号不存在 404；部门不存在 400 `invalid_department`；称号不存在 400 `invalid_title`；会让站长一个不剩（停用最后一个站长，或把 `titles` 改成不含 `title.site.owner`）409 `last_owner`。`level`/`department` 按唯一约束换组；`department` 变了且这次请求没有同时给 `titles` 时，自动去掉不属于新部门的称号（站长等无部门称号不受影响）。 |
 | `GET /api/console/activity` · `flow:audit.console.activity.list` | 需要节点 `activity.read`；部长只有按部门 scope 的 allow 时只看本部门范围（含 `dept.none`：没有部门成员资格的账号） | 200 `{items:[{id,at,account,visitor_id,surface,action,target_type,target_id,outcome,ip,ua,request_id,meta}],next_cursor,blocked_today:[{bucket,count}]}`；按 `at,id` 倒序，固定 50 条一页；没有 `activity.read.ip` 时 IP 按 IPv4 留前两段、IPv6 留前 4 组打码，有这个节点才给全量。 |
 | `GET /api/console/activity.csv` · `flow:audit.console.activity.export` | 需要节点 `activity.export`（不经部门 scope，能导出全量） | 200 `text/csv`；最多 5000 行，不分页；每次导出写一条操作记录（`activity.export`，meta 记导出行数）。 |
 | `GET /api/console/accounts/:id/activity` · `flow:audit.console.activity.account` | 需要节点 `activity.read`；部长按部门 scope 时目标账号不在自己范围内 403 `forbidden` | 200 `{items:[...同 /api/console/activity 的单条形状],next_cursor}`；没有记录是空列表，不是 404。 |
@@ -331,15 +331,17 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 `POST /api/events` · `flow:audit.events.report`
 
-权限与资源：不要求登录，访客也能调；按账号或访客编号（不是 IP）限流 30 次每分钟，同一人多个标签页共享同一份配额。
+权限与资源：不要求登录，访客也能调；限流键登录的人按账号，没登录的按 IP 哈希（不是访客 cookie——那个 cookie 能被清掉重发一个新的，按它限流等于没限），30 次每分钟，同一人多个标签页共享同一份配额。
 
-响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，多余字段 400 validation_error。
+请求：`{ surface?: "portal"|"forum"|"console", events: [...] }`；`surface` 不传按门户算（既有调用点兼容），一批事件只属于一个来源，不支持混着报。
 
-数据与副作用：只有 `lib/activity.ts` 的 `EVENT_WHITELIST` 里的动作才记一行 `activity_events`；白名单外的全部丢弃，合并计一条 outcome=denied 的 `events.rejected`（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌等敏感字段（调用方自己决定 meta 放什么）。
+响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，`surface` 填了不认识的值或多余字段 400 validation_error。
+
+数据与副作用：只有对应来源在 `lib/activity.ts` 的白名单（`EVENT_WHITELIST`=门户、`FORUM_EVENT_WHITELIST`、`CONSOLE_EVENT_WHITELIST`）里的动作才记一行 `activity_events`（`surface` 写成请求体那个值）；白名单外的全部丢弃，合并计一条 outcome=denied 的 `events.rejected`（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌、地址栏查询串、邮箱、真实姓名或帖子正文（调用方自己决定 meta 放什么）。三端通用的 `page.view` 报路由名/路径，不带参数真实值；论坛另有 `forum.theme.change`（换主题，访客也报）、`forum.sticker.use`（插入表情，只记表情编号）。
 
 本地表读取：无。本地表写入：activity_events。
 
-源码：[app/server/src/routes/portal/events.ts](../../../app/server/src/routes/portal/events.ts)、[app/server/src/lib/activity.ts](../../../app/server/src/lib/activity.ts)（`EVENT_WHITELIST`）。验证入口：[tests/server/events.test.ts](../../../tests/server/events.test.ts)。
+源码：[app/server/src/routes/portal/events.ts](../../../app/server/src/routes/portal/events.ts)、[app/server/src/lib/activity.ts](../../../app/server/src/lib/activity.ts)（`EVENT_WHITELIST`/`FORUM_EVENT_WHITELIST`/`CONSOLE_EVENT_WHITELIST`）、[app/forum/app/composables/useActivityBeacon.ts](../../../app/forum/app/composables/useActivityBeacon.ts)、[app/console/src/lib/events.ts](../../../app/console/src/lib/events.ts)。验证入口：[tests/server/events.test.ts](../../../tests/server/events.test.ts)、[app/forum/tests/activity-beacon.test.ts](../../../app/forum/tests/activity-beacon.test.ts)。
 
 ## 筛选招新投递列表
 
@@ -793,11 +795,11 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 响应与错误：200 {reactions:[{stickerId,shortcode,url,count,mine}]}（camelCase，和帖子记录里的reactions字段同一套对象；CONTRACT-276 §4原定sticker_id，偏差记在DECISIONS-LOG），只回这条帖子的表情聚合，不回整份changes或viewer；mine按当前看的人是不是也回应过这条表情判定；表情不存在/已停用400 unknown_sticker；超过meta.limit.forum.react.hourly回429 {bucket:"forum.react.hourly",retry_after}。
 
-数据与副作用：按(post_id,account_id,sticker_id)主键INSERT OR IGNORE，重复加同一表情不报错也不重复计数；不写活动审计。
+数据与副作用：按(post_id,account_id,sticker_id)主键INSERT OR IGNORE，重复加同一表情不报错也不重复计数；记一条outcome=ok的forum.react操作记录（meta.sticker_id，#274：原来没有，补上）。
 
 身份条件副作用：forumViewer按会话的账号认人创建/刷新forum_users；sid过期或账号停用删除会话。
 
-本地表读取：forum_posts, forum_stickers, forum_reactions, forum_users, sessions, perm_members, perm_entries, perm_groups, limit_events。本地表写入：forum_reactions, forum_users, sessions, limit_events。
+本地表读取：forum_posts, forum_stickers, forum_reactions, forum_users, sessions, perm_members, perm_entries, perm_groups, limit_events。本地表写入：forum_reactions, forum_users, sessions, limit_events, activity_events。
 
 源码：[app/server/src/routes/forum-api/posts.ts:102](../../../app/server/src/routes/forum-api/posts.ts#L102)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
 
@@ -809,11 +811,11 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 响应与错误：200 {reactions:[{stickerId,shortcode,url,count,mine}]}（camelCase，同PUT；mine取消后按当前看的人重算），回取消之后的表情聚合；帖子不存在404；这条不限额。
 
-数据与副作用：按(post_id,account_id,sticker_id) DELETE forum_reactions，原本没有这条也不报错（幂等）。
+数据与副作用：按(post_id,account_id,sticker_id) DELETE forum_reactions，原本没有这条也不报错（幂等）；同样记一条outcome=ok的forum.react操作记录，meta.removed=true区分（#274：原来没有，补上）。
 
 身份条件副作用：forumViewer按会话的账号认人创建/刷新forum_users；sid过期或账号停用删除会话。
 
-本地表读取：forum_posts, forum_stickers, forum_reactions, forum_users, sessions, perm_members, perm_entries, perm_groups。本地表写入：forum_reactions, forum_users, sessions。
+本地表读取：forum_posts, forum_stickers, forum_reactions, forum_users, sessions, perm_members, perm_entries, perm_groups。本地表写入：forum_reactions, forum_users, sessions, activity_events。
 
 源码：[app/server/src/routes/forum-api/posts.ts:113](../../../app/server/src/routes/forum-api/posts.ts#L113)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
 
@@ -1055,7 +1057,21 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：sessions, users, perm_members, perm_entries, perm_groups, forum_sticker_packs 或 forum_stickers。本地表写入：对应表, activity_events, sessions。
 
-源码：[app/server/src/routes/console/forum.ts:45](../../../app/server/src/routes/console/forum.ts#L45)（sticker-packs/:id）、[:56](../../../app/server/src/routes/console/forum.ts#L56)（stickers/:id）。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+源码：[app/server/src/routes/console/forum.ts:57](../../../app/server/src/routes/console/forum.ts#L57)（sticker-packs/:id）、[:68](../../../app/server/src/routes/console/forum.ts#L68)（stickers/:id）。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+
+## 控制台新建表情包
+
+`POST /api/console/forum/sticker-packs` · `flow:console.forum.sticker_packs.create`
+
+权限与资源：requirePermission("forum.sticker.manage") + requireStepUp；body {id,name}，id 是小写字母、数字和连字符（1–40 位，字母或数字开头），name 1–64 字，前后空白去掉。
+
+响应与错误：201 {id,name}；id 已被占用回409 pack_id_taken；格式不对400。
+
+数据与副作用：插一行 forum_sticker_packs（enabled=1，sort 排在现有最后）；新包是空的，公开面板只画有表情的包，往里加表情后才出现；成功后invalidate公开列表缓存，写审计forum.sticker_pack.create。
+
+本地表读取：sessions, users, perm_members, perm_entries, perm_groups, forum_sticker_packs。本地表写入：forum_sticker_packs, activity_events, sessions。
+
+源码：[app/server/src/routes/console/forum.ts:46](../../../app/server/src/routes/console/forum.ts#L46)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
 
 ## 控制台给表情包新增一个表情
 
@@ -1069,7 +1085,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：sessions, users, perm_members, perm_entries, perm_groups, forum_stickers。本地表写入：forum_sticker_files, forum_stickers, activity_events, sessions。
 
-源码：[app/server/src/routes/console/forum.ts:74](../../../app/server/src/routes/console/forum.ts#L74)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+源码：[app/server/src/routes/console/forum.ts:80](../../../app/server/src/routes/console/forum.ts#L80)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
 
 ## 辨认本机论坛运行模式
 

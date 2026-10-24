@@ -10,7 +10,7 @@ export const BIND_EMAIL_PATH = "/bind-email";
 export const COMPLETE_PROFILE_PATH = "/complete-profile";
 
 type GateDeps = {
-  identity: { hasEmail(accountId: string): boolean };
+  identity: { hasEmail(accountId: string): boolean; isMember(accountId: string): boolean };
   mail: { sendingEnabled: boolean };
   profiles: { profileRequired(accountId: string): boolean };
 };
@@ -20,8 +20,9 @@ export function emailRequired(deps: Pick<GateDeps, "identity" | "mail">, account
   return deps.mail.sendingEnabled && !deps.identity.hasEmail(accountId);
 }
 
-export function profileRequired(deps: Pick<GateDeps, "profiles">, accountId: string): boolean {
-  return deps.profiles.profileRequired(accountId);
+/** 姓名和年级只拦极客班成员（所有者 2026-10-24 22:05）：注册用户不填也能用，填了邀请码成为成员以后再补 */
+export function profileRequired(deps: Pick<GateDeps, "identity" | "profiles">, accountId: string): boolean {
+  return deps.identity.isMember(accountId) && deps.profiles.profileRequired(accountId);
 }
 
 /** 这个账号现在被哪一项拦下；都齐了返回 null */
