@@ -141,6 +141,30 @@ describe('geek 命令行的 Bearer 鉴权（#277）', () => {
     expect(revoke.json()).toEqual({ ok: true });
   });
 
+  it('姓名和年级没补齐的账号用业务接口被挡（#280 的第二道关口），但 userinfo 的 grade/grade_label 是 null、revoke 不算业务接口', async () => {
+    // signIn() 的测试账号默认已经补过资料（helpers.ts 的 completeProfile）；这里清掉，模拟「令牌是在
+    // 要求补资料这条规则生效之前发出的」——和上一条「没绑邮箱」同样的手法：直接把码标成已批准，不走
+    // /api/identity/device/approve（它自己会先挡住，device-flow.test.ts 还没覆盖 #280 这道关口，这里
+    // 只测 middleware/bearer-auth.ts 的闸，不重复测 approve 本身）。
+    const { app } = await setup();
+    signIn(app, 'octocat', 4242);
+    const accountId = accountIdOf(app, 'octocat');
+    app.services.profiles.setRealInfo(accountId, null, null);
+    const code = await issueCode(app, 'openid profile forum apply competition repo');
+    const normalizedCode = code.user_code.replace('-', '');
+    app.services.storage.db.prepare("UPDATE device_grants SET status = 'approved', account_id = ?, decided_at = ? WHERE user_code = ?").run(accountId, now, normalizedCode);
+    const token = (await pollToken(app, code.device_code)).access_token as string;
+    const blocked = await app.inject({ url: '/api/identity/profile', headers: bearer(token) });
+    expect(blocked.statusCode).toBe(403);
+    expect(blocked.json()).toMatchObject({ error: 'profile_required' });
+    const info = await app.inject({ url: '/auth/device/userinfo', headers: bearer(token) });
+    expect(info.statusCode).toBe(200);
+    expect(info.json()).toMatchObject({ profile_required: true, grade: null, grade_label: null });
+    const revoke = await app.inject({ method: 'POST', url: '/auth/device/revoke', headers: bearer(token) });
+    expect(revoke.statusCode).toBe(200);
+    expect(revoke.json()).toEqual({ ok: true });
+  });
+
   it('geek logout 撤销令牌后，同一个令牌调任何接口都是 401；撤销一个不存在的令牌仍然回 200（幂等，不泄露信息）', async () => {
     const { app } = await setup();
     const sid = signIn(app, 'octocat', 4242);

@@ -2,7 +2,7 @@
   "version": 1,
   "issue": 277,
   "kind": "business",
-  "summary": "geek 命令行搬进这个仓库的 app/cli（Rust），配服务端的设备令牌 Bearer 鉴权（#277）：geek login 用既有的 RFC 8628 设备码换令牌，令牌在 middleware/bearer-auth.ts 里换成和 cookie 会话同形的 req.session，下游权限中间件不用改；两道闸——按 URL 前缀的 OAuth scope 与既有的权限节点——都要过；geek logout 调新的 POST /auth/device/revoke 撤销令牌；dist/cli/ 由 scripts/cli-dist.mjs 交叉编译产出，随 app/web 镜像的 /cli/ 路径分发。",
+  "summary": "geek 命令行搬进这个仓库的 app/cli（Rust），配服务端的设备令牌 Bearer 鉴权（#277）：geek login 用既有的 RFC 8628 设备码换令牌，令牌在 middleware/bearer-auth.ts 里换成和 cookie 会话同形的 req.session，下游权限中间件不用改；两道闸——按 URL 前缀的 OAuth scope 与既有的权限节点——都要过；geek logout 调新的 POST /auth/device/revoke 撤销令牌；dist/cli/ 由 scripts/cli-dist.mjs 交叉编译产出，随 app/web 镜像的 /cli/ 路径分发。在 #280（真实姓名、年级）合并进 stage 之后 rebase 到 4c7c5dd5：bearer-auth.ts 的邮箱闸换成 email-gate.ts 新加的 gateRefusal()/gateRefusalBody()，命令行的业务接口除了没绑邮箱也会被没填姓名和年级挡住；/auth/device/userinfo 多给 grade/grade_label（年级展示用），但命令行拿不到任何账号的真实姓名——哪怕是本人；geek login、geek whoami 读这两个旗子，挡住时打印去哪补的提示，不再对着一个注定 403 的 /api/console/me 静默失败。",
   "applications": [
     "server",
     "web",
@@ -44,7 +44,7 @@
     },
     "backend": {
       "status": "changed",
-      "reason": "新增middleware/bearer-auth.ts：onRequest钩子读Authorization头，查device-store.authenticate()，挂等价req.session与req.via='cli'；require-auth.ts在最前面加req.session短路，否则Bearer请求会被cookie检查先拦住；device-store.ts加revoke()与scopes扩展（forum/apply/competition/repo）；routes/identity/device.ts加POST /auth/device/revoke；activity.ts的surfaceOf()按req.via改写操作记录的来源。",
+      "reason": "新增middleware/bearer-auth.ts：onRequest钩子读Authorization头，查device-store.authenticate()，挂等价req.session与req.via='cli'；require-auth.ts在最前面加req.session短路，否则Bearer请求会被cookie检查先拦住；device-store.ts加revoke()与scopes扩展（forum/apply/competition/repo）；routes/identity/device.ts加POST /auth/device/revoke；/auth/device/userinfo多读一次profiles.realInfo()只取grade/grade_label两个字段（不取real_name）；activity.ts的surfaceOf()按req.via改写操作记录的来源。",
       "evidence": [
         "app/server/src/middleware/bearer-auth.ts",
         "app/server/src/middleware/require-auth.ts",
@@ -54,9 +54,10 @@
     },
     "permissions": {
       "status": "changed",
-      "reason": "两道独立的闸：bearer-auth.ts按URL前缀核对OAuth scope（粗粒度，SCOPE_BY_PREFIX），下游requirePermission/requireWriter等既有中间件按权限节点判断（细粒度，不变）；一个请求同时带cookie和Bearer回400 mixed_credentials；业务接口（userinfo/revoke除外）先过cliGate()读email-gate.ts，没绑邮箱403 email_required；注册用户有forum scope但没有forum.topic.create权限节点，发帖仍被requireWriter拒绝，不是scope决定的。",
+      "reason": "两道独立的闸：bearer-auth.ts按URL前缀核对OAuth scope（粗粒度，SCOPE_BY_PREFIX），下游requirePermission/requireWriter等既有中间件按权限节点判断（细粒度，不变）；一个请求同时带cookie和Bearer回400 mixed_credentials；业务接口（userinfo/revoke除外）先过cliGate()，#280合并后改读email-gate.ts新加的gateRefusal()——先判没绑邮箱403 email_required，再判没填姓名和年级403 profile_required，调用点没变；注册用户有forum scope但没有forum.topic.create权限节点，发帖仍被requireWriter拒绝，不是scope决定的。/auth/device/userinfo多给grade/grade_label两个只读字段，real_name不在命令行能读到的任何响应里（硬约束，tests/server/real-info.test.ts的文件白名单核对）。",
       "evidence": [
         "app/server/src/middleware/bearer-auth.ts",
+        "app/server/src/routes/identity/device.ts",
         "tests/server/bearer-auth.test.ts"
       ]
     },
@@ -88,9 +89,10 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "tests/server/bearer-auth.test.ts新增9个用例：令牌等价会话、禁止同带cookie与Bearer、无效令牌当未登录、scope不够拒绝业务接口、权限节点拒绝发帖（错误可读）、没绑邮箱业务接口被挡但userinfo/revoke不算、撤销后同一令牌401且撤销不存在的令牌仍200、cli调用记一条surface=cli的操作记录、四个新scope都能申请；tests/tooling/hashed-asset-cache.test.ts加2个用例核对/cli/的缓存头（字符串断言+本机真实nginx）；cargo test（11个单元测试）、cargo clippy --all-targets -D warnings、cargo fmt --check全部通过；未验证：install.ps1只做了语法审阅，没有真实Windows/PowerShell环境跑过。",
+      "reason": "tests/server/bearer-auth.test.ts新增10个用例（#280合并后再加1个）：令牌等价会话、禁止同带cookie与Bearer、无效令牌当未登录、scope不够拒绝业务接口、权限节点拒绝发帖（错误可读）、没绑邮箱业务接口被挡但userinfo/revoke不算、没填姓名和年级同样被挡且userinfo的grade/grade_label是null、撤销后同一令牌401且撤销不存在的令牌仍200、cli调用记一条surface=cli的操作记录、四个新scope都能申请；rebase到4c7c5dd5后tests/server/device-flow.test.ts的userinfo断言补上grade/grade_label两个新字段（随现有用例一起跑，不是新用例）；tests/tooling/hashed-asset-cache.test.ts加2个用例核对/cli/的缓存头（字符串断言+本机真实nginx）；pnpm test（113个文件、1835条用例）、pnpm typecheck、check-doc-sync/check-architecture（--base 4c7c5dd5）全部通过；cargo test（11个单元测试）、cargo clippy --all-targets -D warnings、cargo fmt --check全部通过；未验证：install.ps1只做了语法审阅，没有真实Windows/PowerShell环境跑过；控制台操作记录的截图未补（本机没有可登录的预发布/正式环境）。",
       "evidence": [
         "tests/server/bearer-auth.test.ts",
+        "tests/server/device-flow.test.ts",
         "tests/tooling/hashed-asset-cache.test.ts"
       ]
     },
@@ -184,7 +186,8 @@
     },
     {
       "paths": [
-        "tests/server/bearer-auth.test.ts"
+        "tests/server/bearer-auth.test.ts",
+        "tests/server/device-flow.test.ts"
       ],
       "domains": [
         "identity",
@@ -194,7 +197,7 @@
         "route:POST /auth/device/revoke",
         "flow:identity.device.revoke"
       ],
-      "reason": "回归：令牌等价身份、scope与权限节点两道闸、邮箱闸例外、撤销幂等与401、操作记录surface。"
+      "reason": "回归：令牌等价身份、scope与权限节点两道闸、邮箱闸与资料闸例外、撤销幂等与401、操作记录surface；device-flow.test.ts的userinfo断言随#280补上grade/grade_label。"
     },
     {
       "paths": [
@@ -278,6 +281,7 @@
   ],
   "tests": [
     "tests/server/bearer-auth.test.ts",
+    "tests/server/device-flow.test.ts",
     "tests/tooling/hashed-asset-cache.test.ts"
   ],
   "compatibility": "接口路径、既有会话Cookie的行为、既有geek-cli令牌（旧scope openid profile）不变；旧令牌仍能用，只是没有新scope对应的业务接口权限，调用会收到403 insufficient_scope而不是报错或崩溃。POST /auth/device/revoke是新端点，不影响任何既有调用方。",

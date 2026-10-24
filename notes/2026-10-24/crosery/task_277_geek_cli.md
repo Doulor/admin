@@ -38,3 +38,10 @@
 - 做了什么：起一个真实监听的 server（app/server/src/app.ts 的 buildApp，端口 18285/18286，DB_PATH=:memory:），走真实设备码流程拿到真令牌，用编译好的 geek 二进制（非 inject，真实 TCP）跑 whoami/forum list/comp list/forum post/login --no-browser | cat/logout/skill install
 - 结果：全部通过：whoami/forum list/comp list --json 都是正确的结构化输出；注册用户 forum post 被权限节点拒绝，返回 {error:forbidden,message:需要「forum.topic.create」权限}，exit=4；login --no-browser | cat 输出为空，没有动画和控制字符；logout 撤销后同一令牌调 userinfo 直接 401，whoami 报 invalid_token exit=3；skill install --target all 在 .claude/.codex/.omp 三处写出同一份 SKILL.md，frontmatter 正确。过程中发现 app/cli/README.md 里 forum post 的参数写成位置参数，和实现的 --title/--category/--content 不一致，已改正（见下一条提交）。控制台「操作记录」UI 本身没有截图验收（没有可用的控制台前端环境），activity_events 写入由 tests/server/bearer-auth.test.ts 的 activityRows 断言覆盖
 - 下一步：控制台操作记录 UI 的真实截图验收、install.ps1 的真实 Windows 验证、本机 e2e 之外的预发布环境真机验收，都留给所有者/下一轮
+
+## 18:27:04 +08:00 · 提交 · #277 · rebase 到 #280 之后的 stage，命令行接入两道闸
+
+- 执行者：agent-c277（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：task/277/geek_cli 从 39ab81ab rebase 到 4c7c5dd5（#280 真实姓名/年级合并进 stage）；middleware/bearer-auth.ts 的 cliGate() 改读 email-gate.ts 新加的 gateRefusal()/gateRefusalBody()，业务接口除了没绑邮箱也会被没填姓名和年级挡住（403 profile_required）；/auth/device/userinfo 加 grade/grade_label 两个只读字段（供命令行展示年级），real_name 不进任何命令行能读到的响应（新测试核对 tests/server/real-info.test.ts 的文件白名单不受影响）；app/cli 的 login.rs/whoami.rs 改成先读 userinfo 的 email_required/profile_required，挡住时打印提示（复用 api.rs 的 gate_message），不再对着一个注定 403 的 /api/console/me 静默失败；tests/server/bearer-auth.test.ts 补一个 profile_required 的用例，tests/server/device-flow.test.ts 的 userinfo 断言补上 grade/grade_label；重新跑 pnpm catalog:generate 与 docs:index
+- 结果：cargo fmt/clippy -D warnings/test 11/11 通过；pnpm typecheck 通过；pnpm test 113 文件 1835 条全部通过；check-doc-sync --base 4c7c5dd5 通过（7 组）；check-architecture --base 4c7c5dd5 通过（58 个变更文件，68 个关联节点）；check:catalog/check:cli/check:secrets 通过
+- 下一步：等团队负责人 push、开 MR、合并

@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { emailRequired } from "../lib/email-gate.js";
+import { gateRefusal, gateRefusalBody } from "../lib/email-gate.js";
 
 /**
  * geek 命令行的令牌鉴权（#277）：从 `Authorization: Bearer` 头取设备令牌，查 `device_grants`
@@ -36,16 +36,13 @@ function scopeFor(url: string): string | null {
 const GATE_EXEMPT_PATHS = new Set(["/auth/device/userinfo", "/auth/device/revoke"]);
 
 /**
- * 没有登录邮箱的账号不能用业务接口（#273 的同一条规则，命令行这边单独过一遍，因为浏览器那边靠前端读
- * `/auth/me` 的 `email_required` 自己跳转，命令行没有浏览器会话可以读）。单独拆成这一个函数，是因为
- * #280（另一个 worktree，还没合并）会把 `emailRequired` 换成它的 `gateRefusal()`（多判一种
- * `profile_required`），到时候只改这个函数体，调用点不用动。
+ * 没有登录邮箱、缺姓名或年级的账号不能用业务接口（#273、#280 的同一条规则，命令行这边单独过一遍，因为
+ * 浏览器那边靠前端读 `/auth/me` 的 `email_required`/`profile_required` 自己跳转，命令行没有浏览器会话
+ * 可以读）；email-gate.ts 的 `gateRefusal()` 先判邮箱、再判姓名和年级，这里直接按它的结论回对应的错误体。
  */
 export function cliGate(app: FastifyInstance, accountId: string): { error: string; message: string } | null {
-  if (emailRequired(app.services, accountId)) {
-    return { error: "email_required", message: "请先在浏览器登录一次并绑定邮箱，再使用命令行" };
-  }
-  return null;
+  const refusal = gateRefusal(app.services, accountId);
+  return refusal ? gateRefusalBody(refusal, "使用命令行") : null;
 }
 
 export function registerBearerAuth(app: FastifyInstance) {

@@ -145,12 +145,17 @@ export default async function deviceRoutes(app: FastifyInstance) {
       reply.header("WWW-Authenticate", 'Bearer error="invalid_token"');
       return reply.code(401).send({ error: "invalid_token" });
     }
+    // 年级给命令行展示身份用；真实姓名不在这里（#277 的硬约束：命令行拿不到任何账号的真实姓名，
+    // 哪怕是本人——account-profiles.ts 的注释也只把这一项许给本人浏览器会话和有 users.manage 的管理员）。
+    const { grade, grade_label } = app.services.profiles.realInfo(identity.accountId);
     return {
       sub: identity.accountId,
       account_id: identity.accountId,
       login: identity.login,
       avatar_url: identity.avatarUrl,
       scope: identity.scope,
+      grade,
+      grade_label,
       // 命令行读到 true 就提示先到网页上绑邮箱、补姓名和年级（#280），补齐前不做别的操作
       email_required: emailRequired(app.services, identity.accountId),
       profile_required: profileRequired(app.services, identity.accountId),

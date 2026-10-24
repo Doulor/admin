@@ -100,15 +100,21 @@ async fn perform(
     )
     .context("保存令牌失败")?;
 
-    let (nickname, department, avatar_bytes) =
-        fetch_welcome_details(&client, origin, &token.access_token).await;
-    let _ = animation.show_welcome(nickname.as_deref().unwrap_or("你"), avatar_bytes.as_deref());
+    let profile = fetch_profile(&client, origin, &token.access_token).await;
+    let _ = animation.show_welcome(
+        profile.nickname.as_deref().unwrap_or("你"),
+        profile.avatar_bytes.as_deref(),
+    );
 
     Outcome::ok(&json!({
         "account_id": token.account_id,
         "scope": token.scope,
-        "nickname": nickname,
-        "department": department,
+        "nickname": profile.nickname,
+        "department": profile.department,
+        "grade_label": profile.grade_label,
+        "email_required": profile.email_required,
+        "profile_required": profile.profile_required,
+        "hint": profile.hint,
     }))
 }
 
@@ -212,58 +218,116 @@ async fn poll_until_done(
     }
 }
 
-/// 登录成功后多拉一点资料给步骤 4 用（昵称、部门、头像）；`GET /api/console/me` 只要登录就能调，
-/// 失败（例如账号还没绑邮箱被 #277 的邮箱闸挡住）也不影响登录本身，退化成只打招呼不带资料。
-async fn fetch_welcome_details(
-    client: &reqwest::Client,
-    origin: &str,
-    token: &str,
-) -> (Option<String>, Option<String>, Option<Vec<u8>>) {
-    let response = client
-        .get(format!("{origin}/api/console/me"))
+/// 登录刚拿到的资料：昵称、部门、年级、头像都是给步骤 4 打招呼用的，邮箱或资料没补齐时只带
+/// 旗子和 `hint`，不强求拿到昵称。
+struct WelcomeProfile {
+    nickname: Option<String>,
+    department: Option<String>,
+    grade_label: Option<String>,
+    avatar_bytes: Option<Vec<u8>>,
+    email_required: bool,
+    profile_required: bool,
+    /// 邮箱或资料没补齐时给的提示；都补齐了是 null。
+    hint: Option<String>,
+}
+
+/// 登录成功后多拉一点资料给步骤 4 用。先读 `/auth/device/userinfo`（任何有效令牌都能用，带
+/// `email_required`/`profile_required`，#280）；缺邮箱或资料时 `/api/console/me` 会被同一个关口
+/// （bearer-auth.ts 的 `gateRefusal`）挡住，直接跳过，不发一个注定 403 的请求——降级成只打招呼
+/// 不带资料，附上去哪补的提示，不影响登录本身。
+async fn fetch_profile(client: &reqwest::Client, origin: &str, token: &str) -> WelcomeProfile {
+    let userinfo: Option<Value> = match client
+        .get(format!("{origin}/auth/device/userinfo"))
         .bearer_auth(token)
         .send()
         .await
-        .ok();
-    let me: Option<Value> = match response {
-        Some(response) if response.status().is_success() => response.json().await.ok(),
+    {
+        Ok(response) if response.status().is_success() => response.json().await.ok(),
         _ => None,
     };
-    // 新账号还没填过资料时 display_name 是空字符串（服务端真实行为，不是没取到）：落到登录名，
-    // 不要打招呼打出一个空昵称。
-    let nickname = me
+    let email_required = userinfo
         .as_ref()
-        .and_then(|v| v.get("display_name"))
-        .and_then(Value::as_str)
-        .filter(|name| !name.trim().is_empty())
-        .or_else(|| {
-            me.as_ref()
-                .and_then(|v| v.get("login"))
-                .and_then(Value::as_str)
-        })
-        .map(str::to_string);
-    let department = me
+        .and_then(|v| v.get("email_required"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let profile_required = userinfo
         .as_ref()
-        .and_then(|v| v.get("department"))
-        .and_then(|d| d.get("name"))
+        .and_then(|v| v.get("profile_required"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let grade_label = userinfo
+        .as_ref()
+        .and_then(|v| v.get("grade_label"))
         .and_then(Value::as_str)
         .map(str::to_string);
-    let avatar_url = me
-        .as_ref()
-        .and_then(|v| v.get("avatar_url"))
-        .and_then(Value::as_str)
-        .filter(|url| !url.is_empty());
 
-    let avatar_bytes = match avatar_url {
-        Some(url) => match client.get(url).send().await {
-            Ok(response) if response.status().is_success() => {
-                response.bytes().await.ok().map(|bytes| bytes.to_vec())
-            }
+    let mut nickname = None;
+    let mut department = None;
+    let mut avatar_bytes = None;
+    if !email_required && !profile_required {
+        let response = client
+            .get(format!("{origin}/api/console/me"))
+            .bearer_auth(token)
+            .send()
+            .await
+            .ok();
+        let me: Option<Value> = match response {
+            Some(response) if response.status().is_success() => response.json().await.ok(),
             _ => None,
-        },
-        None => None,
+        };
+        // 新账号还没填过资料时 display_name 是空字符串（服务端真实行为，不是没取到）：落到登录名，
+        // 不要打招呼打出一个空昵称。
+        nickname = me
+            .as_ref()
+            .and_then(|v| v.get("display_name"))
+            .and_then(Value::as_str)
+            .filter(|name| !name.trim().is_empty())
+            .or_else(|| {
+                me.as_ref()
+                    .and_then(|v| v.get("login"))
+                    .and_then(Value::as_str)
+            })
+            .map(str::to_string);
+        department = me
+            .as_ref()
+            .and_then(|v| v.get("department"))
+            .and_then(|d| d.get("name"))
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let avatar_url = me
+            .as_ref()
+            .and_then(|v| v.get("avatar_url"))
+            .and_then(Value::as_str)
+            .filter(|url| !url.is_empty());
+        avatar_bytes = match avatar_url {
+            Some(url) => match client.get(url).send().await {
+                Ok(response) if response.status().is_success() => {
+                    response.bytes().await.ok().map(|bytes| bytes.to_vec())
+                }
+                _ => None,
+            },
+            None => None,
+        };
+    }
+
+    let gate_code = if email_required {
+        Some("email_required")
+    } else if profile_required {
+        Some("profile_required")
+    } else {
+        None
     };
-    (nickname, department, avatar_bytes)
+    let hint = gate_code.and_then(|code| crate::api::gate_message(origin, code));
+
+    WelcomeProfile {
+        nickname,
+        department,
+        grade_label,
+        avatar_bytes,
+        email_required,
+        profile_required,
+        hint,
+    }
 }
 
 fn open_browser(url: &str) {
@@ -283,5 +347,8 @@ fn render(data: &Value) {
         println!("欢迎回来，{nickname}");
     } else {
         println!("登录成功。");
+    }
+    if let Some(hint) = data.get("hint").and_then(Value::as_str) {
+        println!("{hint}");
     }
 }
