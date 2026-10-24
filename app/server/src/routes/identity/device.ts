@@ -102,9 +102,11 @@ export default async function deviceRoutes(app: FastifyInstance) {
 
   app.post<{ Body: ApproveBody }>(
     "/api/identity/device/approve",
-    // #274 SPEC §3.2：命令行登录按权限节点 account.cli.login 判定（注册用户起步就有，不再是「登录就行」的隐性放行）；
-    // requireAuth 先把会话挂到 req.session，requirePermission 内部的 loadSession 看到已经挂过就不重复判一次 401。
-    { preHandler: [requireAuth, requirePermission("account.cli.login")], config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
+    // #274 SPEC §3.2：命令行登录按权限节点 account.cli.login 判定（注册用户起步就有，不再是「登录就行」的隐性放行）。
+    // #274 review round 1（CONTRACT-274 通用规则，同 apply.ts）：requirePermission 自己调 loadSession，不用再挂
+    // requireAuth——两个一起挂时 requireAuth 先跑、先回它自己的 not_signed_in，没登录时拿不到 requirePermission 回的
+    // 401 unauthenticated（通用错误码约定的是后者）。
+    { preHandler: [requirePermission("account.cli.login")], config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
     async (req, reply) => {
       const session = req.session!;
       const body = req.body ?? {};

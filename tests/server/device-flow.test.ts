@@ -129,7 +129,11 @@ describe('device authorization (#262, RFC 8628)', () => {
     const { app } = await setup();
     const code = (await issueCode(app)).json();
     expect((await app.inject(`/api/identity/device?user_code=${encodeURIComponent(code.user_code)}`)).statusCode).toBe(401);
-    expect((await app.inject({ method: 'POST', url: approveUrl, payload: { user_code: code.user_code, decision: 'approve' } })).statusCode).toBe(401);
+    const approve = await app.inject({ method: 'POST', url: approveUrl, payload: { user_code: code.user_code, decision: 'approve' } });
+    expect(approve.statusCode).toBe(401);
+    // #274 review round 1（同 apply.ts 的 apply.submit）：preHandler 只挂 requirePermission（它自己判定登录态），
+    // 不再多挂一个 requireAuth——两个一起挂时 requireAuth 先回它自己的 not_signed_in，盖掉通用错误码约定的 401 unauthenticated。
+    expect(approve.json()).toEqual({ error: 'unauthenticated', message: '请先登录' });
     expect((await app.inject('/api/identity/device?user_code=ZZZZ-ZZZZ')).statusCode).toBe(401);
   });
 
