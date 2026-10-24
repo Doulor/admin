@@ -220,7 +220,8 @@ async function askRemove(row: CompetitionRecord) {
   min-height: 44px;
   min-width: 44px;
 }
-.competition-form :deep(.tx-input) {
+.competition-form :deep(.tx-input),
+.competition-form :deep(.tx-date-picker-field) {
   min-height: 46px;
 }
 .competition-form :deep(.tx-input__inner) {

@@ -127,9 +127,14 @@ body .tx-date-picker-calendar__weekdays > :nth-child(4)::after { content: "四";
 body .tx-date-picker-calendar__weekdays > :nth-child(5)::after { content: "五"; }
 body .tx-date-picker-calendar__weekdays > :nth-child(6)::after { content: "六"; }
 body .tx-date-picker-calendar__weekdays > :nth-child(7)::after { content: "日"; }
-/* 日期框的高度、圆角和底色跟 TxInput 一致（输入框底下是 fake-background 的 75% 浅色） */
-body .tx-date-picker-field {
-  min-height: 40px;
+/*
+ * 日期框的圆角和底色跟 TxInput 一致（输入框底下是 fake-background 的 75% 浅色），触控高度至少 44px。
+ * Tuffex 的日期框样式是 scoped（带 data-v 属性），只加 body 压不过，所以多带一层 DateField 的 .date-field；
+ * 悬停和展开时的主色描边仍用 Tuffex 的。
+ */
+body .date-field .tx-date-picker-field {
+  min-height: 44px;
+  border-color: transparent;
   border-radius: 12px;
   background: color-mix(in srgb, var(--tx-bg-color-page, #f5f7fa) 75%, var(--tx-bg-color-overlay, #fff));
 }

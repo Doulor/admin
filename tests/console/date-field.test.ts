@@ -46,4 +46,10 @@ describe("控制台的日期框和弹窗（#283）", () => {
     expect(controls).toMatch(/> \.tx-modal__body \{[^}]*overflow-y: auto;/);
     expect(controls).toMatch(/> \.tx-modal__footer \{[^}]*flex: none;/);
   });
+
+  it("日期框触控高度不低于 44px，比赛弹窗里和输入框一样高", () => {
+    expect(controls).toMatch(/body \.date-field \.tx-date-picker-field \{\s*min-height: 44px;/);
+    const competitions = readFileSync(join(SRC, "pages/Competitions.vue"), "utf8");
+    expect(competitions).toMatch(/\.competition-form :deep\(\.tx-date-picker-field\) \{\s*min-height: 46px;/);
+  });
 });

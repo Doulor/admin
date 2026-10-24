@@ -14626,7 +14626,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "1feae861cf927c2243472351f492e44a5bdc95f383f9edf963af13cef2f73d1b",
+    "fingerprint": "cda7fea7bee8a6d8bab3efe2b566a1104445a0b0f74ac999dd1030a6725623bb",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -14854,7 +14854,7 @@
       },
       {
         "path": "app/console/src/pages/Competitions.vue",
-        "sha256": "aa87c8f7b4ed3b2b812f43b821a860070db8775033ee8251123c041b6e96a61b"
+        "sha256": "69bf347dddb95112a74ccdcd6ad5e7874dfc27d2f7699242615553e4ed53c793"
       },
       {
         "path": "app/console/src/pages/CompleteProfile.vue",

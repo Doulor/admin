@@ -270,7 +270,7 @@ node scripts/check-boundaries.mjs       # console ↔ web ↔ server 互不导�
 - 按钮三档：`primary` 实心钴蓝白字（把 `fake-background` 那层 75% 浅色的 `--fake-opacity` 设成 0，不然发白），`secondary` 白底细边，`ghost` 文字按钮；`danger` 浅红底红字。去掉 80px 的最小宽度，常规高 32px、`sm` 28px、`lg` 40px。
 - 弹窗（`TxModal`）：最高到视口减 40px，标题和底部按钮固定，中间正文滚动，底部按钮上方一条分隔线；窄屏四周留 12px。表单再长也看得到「取消」「保存」。
 - 页签：鼠标点过不留粗框，键盘切换时留一条细框。
-- 日期：全部用 `components/DateField.vue`（`TxDatePicker` 的下拉日历，中文文案、周一开头，值仍是 `YYYY-MM-DD`，`clearable` 时选了以后旁边有「清除」）；Tuffex 0.9.1 的星期表头写死英文，`controls.css` 按周一开头换成「一」到「日」。控制台里不再有原生日期框。
+- 日期：全部用 `components/DateField.vue`（`TxDatePicker` 的下拉日历，中文文案、周一开头，值仍是 `YYYY-MM-DD`，`clearable` 时选了以后旁边有「清除」）；Tuffex 0.9.1 的星期表头写死英文，`controls.css` 按周一开头换成「一」到「日」。日期框高至少 44px，浅底无边框，和输入框一致；Tuffex 的日期框样式是 scoped，`body` 压不过，选择器多带一层 `.date-field`。比赛弹窗里日期框和输入框一样是 46px。控制台里不再有原生日期框。
 - 论坛管理「我的论坛权限」改成卡片网格，每张卡片写权限名、能做什么和「有／没有」；「打开论坛」改成次按钮。
 
 ## 已知限制
