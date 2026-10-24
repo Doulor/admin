@@ -133,13 +133,19 @@ describe('state', () => {
       joinedAt: 1690000000000, role: 'admin', notifyPrefs: { reply: false, like: false, follow: false }, kind: 'official',
       department: null, titles: [],
     }]);
-    expect(state.viewer).toEqual({ userId: null, kind: 'guest', capabilities: [] });
+    // 团队负责人 #276 追加：游客的分级可见等级是 public，六个写权限节点一个都没有。
+    expect(state.viewer).toEqual({ userId: null, kind: 'guest', capabilities: [], level: 'public', nodes: [] });
   });
 
   it('creates the member on the first signed-in request, refreshes role, title and GitHub avatar, and keeps what they edited', async () => {
     const s = await setup();
     const first = await s.state('alice');
-    expect(first.viewer).toEqual({ userId: 'm101', kind: 'member', capabilities: FORUM_CAPS });
+    // 团队负责人 #276 追加：alice 持 title.site.owner（节点 "*"，见 2026-10-yugc-v2.ts 的迁移种子），
+    // 六个写权限节点全都有，和 level.member 单独能拿到的那五个（没有 forum.moderate.edit）不一样。
+    expect(first.viewer).toEqual({
+      userId: 'm101', kind: 'member', capabilities: FORUM_CAPS, level: 'member',
+      nodes: ['forum.topic.create', 'forum.reply.create', 'forum.react', 'forum.sticker.use', 'forum.upload.image', 'forum.moderate.edit'],
+    });
     const alice = first.users.find((u: { id: string }) => u.id === 'm101');
     expect(alice).toMatchObject({ username: 'alice', displayName: 'alice', role: 'admin', title: { id: 'admin' }, avatarUrl: 'https://avatars.example.test/alice', kind: 'member', notifyPrefs: { reply: true, like: true, follow: true } });
     expect(Object.keys(alice)).not.toContain('github_user_id');
@@ -186,7 +192,10 @@ describe('state', () => {
     // 启用（lib/access.ts 的 membershipOf），不再看有没有被记过站内角色——和邮箱、Google 注册的普通用户是
     // 同一条规则（tests/server/signin-methods.test.ts「lets a plain registered email account...」）。
     const frank = await s.state('frank');
-    expect(frank.viewer).toEqual({ userId: 'm106', kind: 'member', capabilities: [] });
+    // 团队负责人 #276 追加：frank 留在 level.registered（见上面 setup() 的注释），论坛身份是 member（真实
+    // 有过账号），但分级可见等级只是 registered，六个写权限节点一个都没有——这正是旧 kind 字段分不出来的
+    // 那种人：kind 和成员一样是 "member"，level/nodes 才能让前端知道他不能发话题、回复、点表情或传图。
+    expect(frank.viewer).toEqual({ userId: 'm106', kind: 'member', capabilities: [], level: 'registered', nodes: [] });
     expect(frank.users.map((u: { id: string }) => u.id)).toContain('m106');
 
     // carol 的版务能力来自显式的部门指派（role_assignments）和新权限节点（setup() 里的 grantPermNode），
@@ -784,6 +793,36 @@ describe('likes, bookmarks, follows and notifications', () => {
     expect((await s.call('POST', '/api/forum/users/m102/follow')).statusCode).toBe(401);
     // 关注列表对所有人公开。
     expect((await s.state()).follows).toHaveLength(2);
+  });
+});
+
+/**
+ * 团队负责人 #276 发现的 bug：reactionsByPost(viewerId) 原来拿论坛用户 id 去比 forum_reactions.account_id
+ * （核心账号 id），两种 id 格式不同，永远比不上，mine 原来恒为 false——这里按「加的人自己看 mine=true，
+ * 别人和游客看 mine=false」在 /state、话题正文、PUT/DELETE 的回答三处分别核对，口径必须一致。
+ */
+describe('reactions (#276 CONTRACT §4): mine 按看的人是不是也回应过，不是恒为 false', () => {
+  it('bob 加一个表情：bob 自己看 mine=true，carol 和游客看 mine=false，/state、GET 话题正文、PUT/DELETE 回答三处口径一致', async () => {
+    const s = await setup();
+    const url = '/api/forum/posts/body-9/reactions/yugc-wave';
+    const added = await s.call('PUT', url, 'bob');
+    expect(added.statusCode).toBe(200);
+    const reactionShape = (mine: boolean) => [{ stickerId: 'yugc-wave', shortcode: 'yugc-wave', url: expect.stringContaining('/api/forum/stickers/'), count: 1, mine }];
+    expect(added.json().reactions).toEqual(reactionShape(true));
+
+    const reactionsOf = (posts: { id: string; reactions: unknown }[]) => posts.find(p => p.id === 'body-9')!.reactions;
+    expect(reactionsOf((await s.state('bob')).posts)).toEqual(reactionShape(true));
+    expect(reactionsOf((await s.state('carol')).posts)).toEqual(reactionShape(false));
+    expect(reactionsOf((await s.state()).posts)).toEqual(reactionShape(false));
+
+    const topicPosts = async (who?: string) => (await s.call('GET', '/api/forum/topics/t9/posts', who)).json().posts;
+    expect(reactionsOf(await topicPosts('bob'))).toEqual(reactionShape(true));
+    expect(reactionsOf(await topicPosts('carol'))).toEqual(reactionShape(false));
+    expect(reactionsOf(await topicPosts())).toEqual(reactionShape(false));
+
+    const removed = await s.call('DELETE', url, 'bob');
+    expect(removed.statusCode).toBe(200);
+    expect(removed.json().reactions).toEqual([]);
   });
 });
 
