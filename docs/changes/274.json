@@ -5,7 +5,8 @@
   "summary": "YUGC OS v2 账号/权限/操作记录/防盗刷地基（#274，基线 9c5b74f7，CONTRACT-274 与 SPEC.md §3 定稿）：访客/注册用户/极客班成员/往届成员四级身份取代旧的 org_role 与按 GitHub 组织角色判定；新增点分权限节点、可继承的权限组（身份/部门/称号/自定义）与 scope/meta 求值引擎（perm_nodes/perm_groups/perm_group_parents/perm_entries/perm_members/perm_state），一次加法迁移把旧的 role_assignments/departments/audit_logs 接入新表，两轮演练在预发布库复制件上验证幂等；统一操作记录写入口 recordActivity 覆盖登录/投递/比赛/论坛/权限变更与全部 403/429，前端白名单动作走 POST /api/events；防盗刷限额统一到 limit_events 表，按北京时间或滚动窗口限投递/注册/验证码/发帖回帖/读接口/搜索/邀请码兑换/设备码；控制台删除整个「GitHub 组织」管理（路由、页面、env），改接 GitLab 概览/项目/设置，导航与用户/权限/操作记录三页按新权限节点重做。",
   "applications": [
     "console",
-    "server"
+    "server",
+    "forum"
   ],
   "domains": [
     "audit",
@@ -127,7 +128,6 @@
     "flow:identity.profile.view",
     "flow:identity.providers",
     "flow:identity.signout",
-    "flow:invitation.public.inspect",
     "flow:organization.departments.list",
     "flow:permissions.accounts.effective",
     "flow:permissions.explain",
@@ -140,7 +140,9 @@
     "flow:permissions.groups.update",
     "flow:permissions.nodes.list",
     "flow:users.list",
-    "flow:users.update"
+    "flow:users.update",
+    "flow:platform.public_config",
+    "flow:feedback.submit"
   ],
   "assessments": {
     "business": {
@@ -1178,6 +1180,115 @@
         "domain:organization"
       ],
       "reason": "#176 历史记录里指向已删除控制台文件（People.vue、PermissionTree.vue 等）的死链接改成纯文本，标注这些文件已随 #274 控制台改造删除或改名，不改写历史结论本身。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/github-http.ts",
+        "app/server/src/lib/auth.ts",
+        "app/server/src/lib/access.ts",
+        "app/server/src/routes/identity/account.ts",
+        "app/server/src/routes/oidc/index.ts",
+        "app/server/src/cli/account.ts",
+        "app/server/src/cli/oidc.ts",
+        "app/server/src/lib/google.ts"
+      ],
+      "domains": [
+        "identity",
+        "organization",
+        "github",
+        "invitations"
+      ],
+      "nodes": [
+        "domain:identity",
+        "domain:organization",
+        "domain:github",
+        "domain:invitations"
+      ],
+      "reason": "review round 1 身份收尾：access.ts 不再查 GitHub 组织角色、身份只读权限表；lib/github.ts 去掉组织查询后改名 github-http.ts；auth.* 失败、绑定、解绑写操作记录；OIDC 与命令行工具跟着去掉组织门槛与 audit_logs。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/portal/public-config.ts",
+        "app/server/src/routes/portal/feedback.ts"
+      ],
+      "domains": [
+        "platform",
+        "feedback",
+        "invitations"
+      ],
+      "nodes": [
+        "domain:platform",
+        "domain:feedback",
+        "domain:invitations"
+      ],
+      "reason": "/api/join/:token 下线后公开配置接口单独成文件；意见箱提交改写操作记录（item I）。"
+    },
+    {
+      "paths": [
+        "app/forum/app/components/LoginModal.vue",
+        "app/forum/app/components/SignInState.vue",
+        "app/forum/app/composables/useSiteAccount.ts",
+        "app/forum/app/data/access.ts",
+        "app/forum/app/pages/new.vue",
+        "app/forum/shared/signin-outcomes.ts",
+        "app/forum/shared/site-account.ts",
+        "app/forum/shared/site-notice.ts",
+        "app/forum/tests/access.test.ts",
+        "app/forum/tests/login-modal.test.ts",
+        "app/forum/tests/signin-outcomes.test.ts",
+        "app/forum/tests/site-account.test.ts",
+        "docs/services/forum/README.md"
+      ],
+      "domains": [
+        "forum",
+        "identity"
+      ],
+      "nodes": [
+        "domain:forum",
+        "domain:identity"
+      ],
+      "reason": "/auth/me 按 CONTRACT-274 §1 改形状（level 不带前缀、permissions 是数组、identities 是对象）后，论坛读身份与登录结果的地方跟着改，登录被拒的文案去掉 GitHub 组织那一种。"
+    },
+    {
+      "paths": [
+        "scripts/deploy-manual.mjs",
+        ".github/workflows/deploy-preview.yml",
+        ".github/workflows/deploy-production.yml",
+        "tests/tooling/deployment-environment.test.ts",
+        "docs/ops/ENVIRONMENT.md"
+      ],
+      "domains": [
+        "platform",
+        "github"
+      ],
+      "nodes": [
+        "domain:platform",
+        "domain:github"
+      ],
+      "reason": "GitHub App 删除后 GH_APP_ID/GH_APP_PRIVATE_KEY 没有读者，从环境模板、手动部署脚本、部署工作流和 compose 里去掉；目标机旧 env 文件里残留这两个键不影响渲染（只按入库模板整份生成）。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/github.ts",
+        "app/server/src/routes/portal/join.ts",
+        "app/server/src/lib/github-connection.ts",
+        "app/server/src/lib/invite-reservation.ts"
+      ],
+      "domains": [
+        "github",
+        "identity",
+        "organization",
+        "invitations",
+        "platform"
+      ],
+      "nodes": [
+        "domain:github",
+        "domain:identity",
+        "domain:organization",
+        "domain:invitations",
+        "domain:platform"
+      ],
+      "reason": "删除的 GitHub 组织代码：组织查询、GitHub App 接入、公开邀请链接与它的名额预占，删除依据见 removals。"
     }
   ],
   "removals": [
@@ -1690,6 +1801,44 @@
         "organization"
       ],
       "reason": "#274 阶段2a：控制台「成员与权限」页改成按权限节点的「用户」「权限」两组新页面（Users.vue、Permissions.vue 及其子组件），旧的称号指派、权限树只读页、站内角色对话框整体删除，不是原地改名。"
+    },
+    {
+      "path": "app/server/src/lib/github.ts",
+      "baseAnchor": "export function createGithub(factory: (token: string) => Octokit = token => new Octokit({ auth: token, userAgent: \"yzgc-admin\", request: { fetch: withTimeout(fetch, GITHUB_TIMEOUT_MS) } })) {",
+      "domains": [
+        "github",
+        "identity",
+        "organization",
+        "invitations"
+      ],
+      "reason": "#274 review round 1（CONTRACT-274 §8）：GitHub 组织管理整段删除后，组织角色、成员、用户、邀请的 Octokit 查询没有调用方了；剩下的登录超时工具与测试用的 octokitWith 工厂改名为 lib/github-http.ts（只归身份域），GitHub 登录仍由 lib/auth.ts 直接请求。"
+    },
+    {
+      "path": "app/server/src/routes/portal/join.ts",
+      "baseAnchor": "export default async function joinRoutes(app: FastifyInstance) {",
+      "domains": [
+        "invitations",
+        "platform"
+      ],
+      "reason": "#274 review round 1（CONTRACT-274 §8）：GitHub 组织管理整段删除后，公开的 GitHub 组织邀请链接 GET/POST /api/join/:token 一起下线；和邀请链接无关的 GET /api/public/config 原样挪到 routes/portal/public-config.ts。invite_links/invitations/invite_attempts 三张表保留给历史数据，不再读写。"
+    },
+    {
+      "path": "app/server/src/lib/github-connection.ts",
+      "baseAnchor": "export function appJwt(app: GithubAppConfig, nowMs: number): string {",
+      "domains": [
+        "github",
+        "organization",
+        "invitations"
+      ],
+      "reason": "#274 review round 1（CONTRACT-274 §8）：GitHub 组织管理整段删除后，服务器接入的 GitHub App（安装令牌、组织读写）没有调用方了，连同 GH_APP_ID/GH_APP_PRIVATE_KEY 环境契约一起删除。"
+    },
+    {
+      "path": "app/server/src/lib/invite-reservation.ts",
+      "baseAnchor": "export function reserveInvite(db: Database.Database, token: string, recipient: string): Attempt {",
+      "domains": [
+        "invitations"
+      ],
+      "reason": "#274 review round 1（CONTRACT-274 §8）：GitHub 组织管理整段删除后，只有 /api/join/:token 用这个文件给组织邀请预占名额，随它一起删除。"
     }
   ],
   "documents": [
@@ -1699,7 +1848,9 @@
     "docs/services/console/README.md",
     "docs/architecture/API.md",
     "docs/architecture/SECURITY.md",
-    "docs/plan/YUGC-OS-V2.md"
+    "docs/plan/YUGC-OS-V2.md",
+    "docs/services/forum/README.md",
+    "docs/ops/ENVIRONMENT.md"
   ],
   "tests": [
     "tests/console/account.test.ts",
@@ -1726,11 +1877,9 @@
     "tests/server/device-flow.test.ts",
     "tests/server/events.test.ts",
     "tests/server/forum.test.ts",
-    "tests/server/github-connection.test.ts",
     "tests/server/gitlab-sync.test.ts",
     "tests/server/helpers.ts",
     "tests/server/identity.test.ts",
-    "tests/server/invitations.test.ts",
     "tests/server/legacy-database.test.ts",
     "tests/server/mail-outbox.test.ts",
     "tests/server/oidc.test.ts",
@@ -1740,7 +1889,12 @@
     "tests/server/signin-methods.test.ts",
     "tests/server/upstream-errors.test.ts",
     "tests/server/visitor.test.ts",
-    "tests/server/yugc-v2-migration.test.ts"
+    "tests/server/yugc-v2-migration.test.ts",
+    "tests/tooling/deployment-environment.test.ts",
+    "app/forum/tests/access.test.ts",
+    "app/forum/tests/login-modal.test.ts",
+    "app/forum/tests/signin-outcomes.test.ts",
+    "app/forum/tests/site-account.test.ts"
   ],
   "compatibility": "旧接口 /api/admin/:org/* 与 /api/me/orgs 整体下线（SPEC §3.9「去掉」），依赖它们的旧控制台页面一并删除；/auth/me、/api/console/me 等身份接口在旧字段基础上新增 level/level_name/department/titles/permissions 等字段，不删旧字段；旧 CAPABILITIES 到新权限节点按固定对照表迁移（如 applications.view→apply.view、forum.pin→forum.moderate.pin、roles.manage→perm.manage），找不到对应节点的在 MR 里列出，不静默丢弃；forum_users.account_id 是新增列，旧代码不读不受影响。",
   "migration": "app/server/src/lib/migrations/2026-10-yugc-v2.ts 是加法迁移，createDatabase() 每次启动都会执行且可重复，已存在的节点/组/条目/资料不覆盖（所有者可能已在控制台改过）；旧表 role_assignments/departments/audit_logs 保留不删，新表并行写入；两轮演练在预发布库复制件上验证第二轮零变化，行数前后对照见执行记录。",

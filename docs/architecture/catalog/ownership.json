@@ -63,7 +63,6 @@
         "identities",
         "identity_audit",
         "device_grants",
-        "invite_codes",
         "email_challenges",
         "oauth_clients",
         "oauth_subjects",
@@ -131,12 +130,13 @@
     },
     {
       "id": "invitations",
-      "title": "组织邀请",
+      "title": "邀请",
       "docs": [
         "docs/architecture/API.md",
         "docs/services/server/data-model.md"
       ],
       "tables": [
+        "invite_codes",
         "invite_links",
         "invite_attempts",
         "invitations"
@@ -857,6 +857,10 @@
         {
           "path": "app/server/src/lib/register-limits.ts",
           "needle": "export function registrationGuardFor("
+        },
+        {
+          "path": "app/server/src/lib/github-http.ts",
+          "needle": "export const GITHUB_TIMEOUT_MS = 15_000;"
         }
       ],
       "tests": [
@@ -1146,7 +1150,8 @@
       "title": "核对邮箱验证码后登录，没有账号时凭邀请码注册",
       "domain": "identity",
       "relatedDomains": [
-        "audit"
+        "audit",
+        "invitations"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /auth/email/verify",
@@ -1369,7 +1374,8 @@
       "title": "校验 Google 回调后登录，没有账号时凭邀请码注册",
       "domain": "identity",
       "relatedDomains": [
-        "audit"
+        "audit",
+        "invitations"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /auth/google/callback",
@@ -1728,7 +1734,8 @@
       "title": "控制台列出注册邀请码",
       "domain": "identity",
       "relatedDomains": [
-        "organization"
+        "organization",
+        "invitations"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /api/console/invites",
@@ -1784,7 +1791,8 @@
       "domain": "identity",
       "relatedDomains": [
         "organization",
-        "audit"
+        "audit",
+        "invitations"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/console/invites",
@@ -1841,7 +1849,8 @@
       "domain": "identity",
       "relatedDomains": [
         "organization",
-        "audit"
+        "audit",
+        "invitations"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "PATCH /api/console/invites/:id",
@@ -7113,7 +7122,8 @@
       "title": "注册用户凭邀请码换成极客班成员",
       "domain": "identity",
       "relatedDomains": [
-        "permissions"
+        "permissions",
+        "invitations"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/identity/invite/redeem",
@@ -7858,7 +7868,7 @@
     "app/server/src/lib/role-store.ts": [
       "organization"
     ],
-    "app/server/src/lib/github.ts": [
+    "app/server/src/lib/github-http.ts": [
       "identity"
     ],
     "app/server/src/lib/feedback-store.ts": [

@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`03088d823e913459d419eca12b446d4b7d631e94d1ce7108cca209a6a001b6a4`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`6f0240ceb916ef1cb1af173c8b813c6a66431fdd4cc7a088fa7d842c9ae8a317`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -1728,7 +1728,7 @@ CREATE TABLE invite_attempts (
 
 ## invite_codes
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:660](../../../app/server/src/lib/db.ts#L660)。
+业务域：`invitations`；结构来源：[app/server/src/lib/db.ts:660](../../../app/server/src/lib/db.ts#L660)。
 
 注册邀请码（#262）：code 存小写明文（要能在控制台里复制给人），used_count 由注册事务里的条件更新加一，max_uses、expires_at 为空表示不限；不删，停用用 disabled。users.invite_code_id 记着账号是用哪一个注册的。只有 lib/invite-codes.ts 与 lib/identity-store.ts 读写。
 

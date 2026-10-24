@@ -370,7 +370,6 @@
         "identities",
         "identity_audit",
         "device_grants",
-        "invite_codes",
         "email_challenges",
         "oauth_clients",
         "oauth_subjects",
@@ -444,11 +443,12 @@
       ],
       "id": "invitations",
       "tables": [
+        "invite_codes",
         "invite_links",
         "invite_attempts",
         "invitations"
       ],
-      "title": "组织邀请"
+      "title": "邀请"
     },
     {
       "docs": [
@@ -1015,6 +1015,10 @@
         {
           "line": 26,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/github-http.ts"
         }
       ],
       "id": "flow:identity.callback",
@@ -1380,7 +1384,8 @@
         "invite_codes"
       ],
       "relatedDomains": [
-        "audit"
+        "audit",
+        "invitations"
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
@@ -1617,7 +1622,8 @@
         "invite_codes"
       ],
       "relatedDomains": [
-        "audit"
+        "audit",
+        "invitations"
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
@@ -1987,7 +1993,8 @@
         "titles"
       ],
       "relatedDomains": [
-        "organization"
+        "organization",
+        "invitations"
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
@@ -2046,7 +2053,8 @@
       ],
       "relatedDomains": [
         "organization",
-        "audit"
+        "audit",
+        "invitations"
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
@@ -2102,7 +2110,8 @@
       ],
       "relatedDomains": [
         "organization",
-        "audit"
+        "audit",
+        "invitations"
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
@@ -6623,7 +6632,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 755,
+          "line": 757,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -7097,7 +7106,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -7642,7 +7651,8 @@
         "perm_members"
       ],
       "relatedDomains": [
-        "permissions"
+        "permissions",
+        "invitations"
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
@@ -8638,7 +8648,7 @@
     {
       "id": "domain:invitations",
       "kind": "domain",
-      "title": "组织邀请"
+      "title": "邀请"
     },
     {
       "id": "domain:mail",
@@ -10948,7 +10958,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "03088d823e913459d419eca12b446d4b7d631e94d1ce7108cca209a6a001b6a4",
+    "fingerprint": "6f0240ceb916ef1cb1af173c8b813c6a66431fdd4cc7a088fa7d842c9ae8a317",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -11704,7 +11714,7 @@
       },
       {
         "path": "app/server/src/lib/auth.ts",
-        "sha256": "f4dbc7be0b7570dbda23e3f5f47f46e50f6e56f6c90e99edbce3e431b10668dd"
+        "sha256": "8f4665442afb70d8ef6478ab8f08c62c4144f1c6a3db3b8e3c8cda6545c97385"
       },
       {
         "path": "app/server/src/lib/beijing-time.ts",
@@ -11779,8 +11789,8 @@
         "sha256": "c64300fe3bcaea77f9d1b932c2b24bcc7d1d3c3b971c71dd8902297f35a1be37"
       },
       {
-        "path": "app/server/src/lib/github.ts",
-        "sha256": "839d1077db7ae0313198574e6f5b7ab5f40f9243b2fc67d93384b16a8bbe2c6a"
+        "path": "app/server/src/lib/github-http.ts",
+        "sha256": "cc08b34a2b7d56485ce2d2159c02a3a1818b1b930caa14b643a8f441f19c9a5c"
       },
       {
         "path": "app/server/src/lib/gitlab-sync.ts",
@@ -11788,7 +11798,7 @@
       },
       {
         "path": "app/server/src/lib/google.ts",
-        "sha256": "501a58b09c72ffd46b742df6afd05d7f9a80d1edc3703881a9d931cfefea0a3c"
+        "sha256": "60905fde841fad0e36af79ac0d01c032557fa47f7a466372e125e16ca02e97da"
       },
       {
         "path": "app/server/src/lib/http-contracts.ts",
@@ -11796,7 +11806,7 @@
       },
       {
         "path": "app/server/src/lib/identity-store.ts",
-        "sha256": "d7a49759e2ff6dfdb558b1a49c4efb03d3ee8b220b617b69d8cd55d6798d7ad7"
+        "sha256": "2fe49d1ac60cb8ff60caf43287a17457e2138df2f46845d763196597673c01dd"
       },
       {
         "path": "app/server/src/lib/invite-codes.ts",
@@ -12108,7 +12118,7 @@
       },
       {
         "path": "app/server/src/services.ts",
-        "sha256": "9ea1cd88ca83dc4ea5093845a02597e922bdddaaf14afe788e85304981872200"
+        "sha256": "08d753ef5cc621ebd6624301d2607ca9d736b30cc727f7556889b26bea6ca338"
       },
       {
         "path": "app/web/Dockerfile",
@@ -12436,11 +12446,11 @@
       },
       {
         "path": "docs/architecture/SECURITY.md",
-        "sha256": "246af1a02a62a19a315ed674cc0221b512a3ca6791d340d46776d6f8c738ae2d"
+        "sha256": "b3cc342a116053d1a250bcf63954a8260d72d65fa22d66e22ee505b014500589"
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "99f9107f28c134a81f809048435e37b81b795136f13e2bf24aaa5f63c5830723"
+        "sha256": "f0cf4eb3903fa4059980842e81c2dfee47a626d186db86cb6e69cd87ccfd61a7"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -12640,7 +12650,7 @@
       },
       {
         "path": "tests/server/gitlab-sync.test.ts",
-        "sha256": "5ca6019f672df4ff6dd36884ba5257bfc5de88465e21fcc12ff5cbfe7ed68988"
+        "sha256": "b1c636721de7f199dcf315a366b6fda077eea703cc8620660b876e567acc32cf"
       },
       {
         "path": "tests/server/identity.test.ts",
@@ -36245,7 +36255,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36285,7 +36295,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36325,7 +36335,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36365,7 +36375,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36405,7 +36415,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36445,7 +36455,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36485,7 +36495,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36525,7 +36535,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36565,7 +36575,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36605,7 +36615,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36645,7 +36655,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36697,7 +36707,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36737,7 +36747,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36777,7 +36787,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36817,7 +36827,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -36857,7 +36867,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 761,
+          "line": 763,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -39409,6 +39419,10 @@
         {
           "line": 26,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/github-http.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -39453,6 +39467,10 @@
         {
           "line": 26,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/github-http.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -39515,6 +39533,10 @@
         {
           "line": 26,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/github-http.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -39559,6 +39581,10 @@
         {
           "line": 26,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/github-http.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -39603,6 +39629,10 @@
         {
           "line": 26,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/github-http.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -39647,6 +39677,10 @@
         {
           "line": 26,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/github-http.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -39691,6 +39725,10 @@
         {
           "line": 26,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/github-http.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -39735,6 +39773,10 @@
         {
           "line": 26,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/github-http.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -39779,6 +39821,10 @@
         {
           "line": 26,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/github-http.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -39823,6 +39869,10 @@
         {
           "line": 26,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/github-http.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -45063,7 +45113,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 755,
+          "line": 757,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -45111,7 +45161,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 755,
+          "line": 757,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -45159,7 +45209,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 755,
+          "line": 757,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -45207,7 +45257,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 755,
+          "line": 757,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -45255,7 +45305,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 755,
+          "line": 757,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -45303,7 +45353,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 755,
+          "line": 757,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -45351,7 +45401,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 755,
+          "line": 757,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -45399,7 +45449,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 755,
+          "line": 757,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -45453,7 +45503,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 755,
+          "line": 757,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -45501,7 +45551,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 755,
+          "line": 757,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -45549,7 +45599,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 755,
+          "line": 757,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -45597,7 +45647,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 755,
+          "line": 757,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -50846,7 +50896,7 @@
     {
       "basis": "declaration",
       "from": "table:invite_codes",
-      "to": "domain:identity",
+      "to": "domain:invitations",
       "type": "belongs-to"
     },
     {
@@ -78714,7 +78764,7 @@
       "domains": [
         "identity"
       ],
-      "path": "app/server/src/lib/github.ts"
+      "path": "app/server/src/lib/github-http.ts"
     },
     {
       "domains": [
@@ -86366,7 +86416,7 @@
         }
       ],
       "database": "data.db",
-      "domain": "identity",
+      "domain": "invitations",
       "foreignKeys": [],
       "id": "table:invite_codes",
       "indexes": [
