@@ -125,6 +125,26 @@ describe('分级可见（#276 CONTRACT §1）', () => {
     expect(registered.statusCode).toBe(200);
   });
 
+  it('点赞、收藏、表情回应也按话题可见范围拦：帖子编号是递增的，注册用户就算被单独给了 forum.react 也读不到 member 话题的帖子', async () => {
+    const s = await setup();
+    const postId = (await s.call('GET', '/api/forum/topics/t73/posts', 'mem')).json().posts[0].id as string;
+    await s.call('PATCH', '/api/forum/topics/t73/visibility', 'mod', { visibility: 'member' });
+    grantPermNode(s.app, accountIdOf(s.app, 'reg'), 'forum.react');
+    const sticker = s.app.services.forum.listStickerPacks()[0].stickers[0].id;
+    for (const [method, url] of [
+      ['POST', `/api/forum/posts/${postId}/like`],
+      ['POST', `/api/forum/posts/${postId}/bookmark`],
+      ['PUT', `/api/forum/posts/${postId}/reactions/${sticker}`],
+      ['DELETE', `/api/forum/posts/${postId}/reactions/${sticker}`],
+    ] as const) {
+      const res = await s.call(method, url, 'reg');
+      expect(res.statusCode, url).toBe(403);
+      expect(res.json()).toMatchObject({ error: 'forbidden', need: 'member' });
+      expect(res.body).not.toContain(HIDDEN_TITLE);
+    }
+    expect((await s.call('POST', `/api/forum/posts/${postId}/like`, 'mem')).statusCode).toBe(200);
+  });
+
   it('设成 null 跟随分类，c-exam 默认 public，重新对所有人可见', async () => {
     const s = await setup();
     await s.call('PATCH', '/api/forum/topics/t73/visibility', 'mod', { visibility: 'member' });

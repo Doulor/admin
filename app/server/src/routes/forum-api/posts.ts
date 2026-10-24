@@ -14,10 +14,15 @@ type ReplyBody = { topicId: string; content: string; replyToPostId?: string };
 export default async function forumPostRoutes(app: FastifyInstance) {
   const { forum } = app.services;
 
-  /** 帖子存在（可能已软删除，删掉的帖子不能再编辑或点赞，见 assertNotDeleted）。 */
-  function existingPost(postId: string) {
+  /**
+   * 帖子存在（可能已软删除，删掉的帖子不能再编辑或点赞，见 assertNotDeleted），而且看的人够得着它所在话题的可见范围：
+   * 帖子编号是递增的，点赞、收藏、表情的回答会带回帖子摘要，不在这里拦就能逐个编号读到看不到的话题。
+   */
+  function existingPost(req: FastifyRequest, viewer: MemberViewer, postId: string) {
     const post = forum.post(postId);
     if (!post) throw notFound("帖子不存在");
+    const topic = forum.topic(post.topicId);
+    if (topic) assertVisible(req, viewer, topic.visibility);
     return post;
   }
   const assertNotDeleted = (post: { deleted: boolean }) => {
@@ -62,7 +67,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
 
   app.patch<{ Params: PostParams; Body: { content: string } }>("/api/forum/posts/:post_id", async req => {
     const viewer = await requireMember(req);
-    const post = existingPost(req.params.post_id);
+    const post = existingPost(req, viewer, req.params.post_id);
     const moderated = authorOrModerator(req, viewer, post, "forum.moderate.edit", "编辑");
     assertNotDeleted(post);
     if (!req.body.content.trim()) throw new ForumError(400, "empty_content", "正文不能为空");
@@ -74,7 +79,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
   /** 软删除。话题的第一帖不能删；已经删掉的再删一次直接返回这条帖子现在的样子。 */
   app.delete<{ Params: PostParams }>("/api/forum/posts/:post_id", async req => {
     const viewer = await requireMember(req);
-    const post = existingPost(req.params.post_id);
+    const post = existingPost(req, viewer, req.params.post_id);
     const moderated = authorOrModerator(req, viewer, post, "forum.moderate.delete", "删除");
     if (post.deleted) return forumChanges(req, viewer, { posts: [post.id] }, { posts: "full" });
     if (forum.isFirstPost(post.id, post.topicId)) throw new ForumError(400, "first_post", "话题的第一帖不能删除");
@@ -85,7 +90,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
 
   app.post<{ Params: PostParams }>("/api/forum/posts/:post_id/like", async req => {
     const viewer = await requireWriter(req, "forum.react");
-    const post = existingPost(req.params.post_id);
+    const post = existingPost(req, viewer, req.params.post_id);
     assertNotDeleted(post);
     forum.toggleLike(post.id, viewer.userId);
     return forumChanges(req, viewer, { posts: [post.id] });
@@ -93,7 +98,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
 
   app.post<{ Params: PostParams }>("/api/forum/posts/:post_id/bookmark", async req => {
     const viewer = await requireWriter(req, "forum.react");
-    const post = existingPost(req.params.post_id);
+    const post = existingPost(req, viewer, req.params.post_id);
     forum.toggleBookmark(viewer.userId, post.id);
     return forumChanges(req, viewer, { bookmarks: [post.id] });
   });
@@ -101,7 +106,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
   /** 表情回应（#276 CONTRACT §4）：需要 forum.react，限额 meta.limit.forum.react.hourly；回全量聚合，前端按 id 并进去。 */
   app.put<{ Params: ReactionParams }>("/api/forum/posts/:post_id/reactions/:sticker_id", async (req, reply) => {
     const viewer = await requireWriter(req, "forum.react");
-    const post = existingPost(req.params.post_id);
+    const post = existingPost(req, viewer, req.params.post_id);
     assertNotDeleted(post);
     const sticker = forum.stickerById(req.params.sticker_id);
     if (!sticker || sticker.enabled === 0) throw new ForumError(400, "unknown_sticker", "没有这个表情");
@@ -112,7 +117,7 @@ export default async function forumPostRoutes(app: FastifyInstance) {
 
   app.delete<{ Params: ReactionParams }>("/api/forum/posts/:post_id/reactions/:sticker_id", async req => {
     const viewer = await requireWriter(req, "forum.react");
-    const post = existingPost(req.params.post_id);
+    const post = existingPost(req, viewer, req.params.post_id);
     forum.removeReaction(post.id, viewer.accountId, req.params.sticker_id);
     return { reactions: forum.reactionsForPost(post.id, viewer.userId) };
   });
