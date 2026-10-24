@@ -50,14 +50,18 @@ it('同一个访客反复撞同一个限额，429 只在操作记录里留一行
   contexts.push(context);
   const { app } = context;
   context.app.services.storage.db.prepare("DELETE FROM activity_events").run(); // 迁移自带的 identity.backfill 记录不参与这里的断言
+  // /api/join/:token 在合并 idn274 分支后被删掉了（邀请码走别的路由），改用同样匿名、同样限流插件、
+  // max=10/分钟的 /api/feedback：空 payload 校验不过但稳定回 400，不是限流响应，不影响这条用例要测的东西。
+  // 保留原来的访客 cookie 回带：recordDenial 按 visitor_id 也参与去重分组，不带同一个 cookie 的话每次请求
+  // 都会被发一个新访客号，3 条限流会各自配一个不同 visitor_id，合并不到一行。
   let cookie: string | undefined;
   const send = async () => {
-    const res = await app.inject({ method: 'POST', url: '/api/join/no-such-link', payload: {}, remoteAddress: '198.51.100.40', headers: cookie ? { cookie } : {} });
+    const res = await app.inject({ method: 'POST', url: '/api/feedback', payload: {}, remoteAddress: '198.51.100.40', headers: cookie ? { cookie } : {} });
     const setCookie = ([] as string[]).concat((res.headers['set-cookie'] as string[] | string | undefined) ?? []).find(c => c.startsWith('yugc_vid='));
     if (setCookie && !cookie) cookie = setCookie.split(';')[0];
     return res;
   };
-  for (let i = 0; i < 5; i += 1) await send(); // 用满额度（max=5），都不是限流响应
+  for (let i = 0; i < 10; i += 1) expect((await send()).statusCode).toBe(400); // 用满额度（max=10），都不是限流响应
   for (let i = 0; i < 3; i += 1) expect((await send()).statusCode).toBe(429); // 再撞 3 次
   const rows = app.services.storage.db.prepare("SELECT outcome, action, meta FROM activity_events WHERE outcome = 'limited'").all() as
     { outcome: string; action: string; meta: string }[];
