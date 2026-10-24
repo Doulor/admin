@@ -6095,7 +6095,7 @@
         "响应200 与公开列表项字段一致，另带报名摘要 settings（是否开放、个人或团队、人数、积分），不含报名人数、队伍与任何成员信息。",
         "只在这个成功响应上放开 Access-Control-Allow-Origin: *，只读、不带 cookie；为比赛官网的状态卡片预留。",
         "不读会话、不写库、不发外部请求。",
-        "#278：字段同列表，多了 site_url、app_url、prizes、grade_factors、finalized_at；结果缓存 10 秒，按 IP 每分钟 120 次（public.competition.per_minute，记在 limit_events，和天梯、动态、统计、快照共用），成功、404 与 429 都带 Access-Control-Allow-Origin: *。"
+        "#278：字段同列表，多了 site_url、app_url、prizes、grade_factors、scoring（两档基础分表、扣分与防刷规则）、finalized_at；结果缓存 10 秒，按 IP 每分钟 120 次（public.competition.per_minute，记在 limit_events，和天梯、动态、统计、快照共用），成功、404 与 429 都带 Access-Control-Allow-Origin: *。"
       ],
       "evidence": [
         {
@@ -6348,9 +6348,7 @@
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /api/console/competitions/:competition_id/score-events",
-      "capabilities": [
-        "competitions.manage"
-      ],
+      "capabilities": [],
       "reads": [
         "competitions",
         "competition_score_events",
@@ -6364,8 +6362,8 @@
       "writes": [],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：有效全站sid与competitions.manage；比赛不存在404。",
-        "响应200 {events}：按登记时间倒序，每条含选手、类型（issue/pr/penalty）、仓库与编号、分值、说明、登记人登录名、状态与撤销原因。",
+        "权限与资源：有效全站sid与competition.score.review；比赛不存在404。",
+        "响应200 {events}：按登记时间倒序，每条含选手、类型（issue/pr/penalty）、仓库与编号、基础分、两档 importance/core、年级与系数、防刷折扣 damp_percent、加权分、贡献时间、说明、登记人登录名、状态与撤销原因。",
         "撤销的记录照常返回并标revoked，不删行；没有开启积分的比赛回空列表。"
       ],
       "evidence": [
@@ -6406,9 +6404,7 @@
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/console/competitions/:competition_id/score-events",
-      "capabilities": [
-        "competitions.manage"
-      ],
+      "capabilities": [],
       "reads": [
         "competitions",
         "competition_signup_settings",
@@ -6430,16 +6426,17 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：有效全站sid与competitions.manage；比赛不存在404；没有开启积分409 scoring_not_enabled。",
-        "请求 {account_id, kind, points, reason?}：选手必须已报名本场（409 not_signed_up）；issue 5–30、pr 15–100、penalty 固定 −50（400 bad_points）；issue/pr 必填 owner/name 仓库与正整数编号（400 bad_repo / bad_number），扣分不带这两个字段。",
+        "权限与资源：有效全站sid与competition.score.review（写再要 step-up）；比赛不存在404；没有开启积分409 scoring_not_enabled。",
+        "请求 {account_id, kind, repo?, number?, importance?, core?, reason?}，不收 points（多余字段 400 validation_error）：选手必须已报名本场（409 not_signed_up）；issue/pr 必须带两档 importance（normal/important/critical）与 core（edge/business/core），基础分查 competition-rubric.ts 的表（Issue 5–30、PR 15–100），penalty 固定 −50 且不带两档（400 bad_levels）；issue/pr 必填 owner/name 仓库与正整数编号（400 bad_repo / bad_number），扣分不带这两个字段。",
         "同一条Issue或PR已有有效记录回409 duplicate_score_event；201返回这条记录。",
-        "写入与competition.score.add审计同一事务，details只记比赛、选手、类型与分值；限流每分钟30次。",
-        "#278：加分按选手在记分那一刻的年级（account_profiles.enrollment_year）乘这场比赛的系数，grade、grade_factor、weighted_points 和记录一起写下、之后不重算；扣分不乘（系数记 100）；定榜后 409 competition_finalized；清掉公开缓存。"
+        "写入与competition.score.add审计同一事务，details记比赛、选手、类型、基础分、两档与防刷折扣；限流每分钟30次。",
+        "#278：加分按选手在记分那一刻的年级（account_profiles.enrollment_year）乘这场比赛的系数，grade、grade_factor、importance、core、damp_percent、weighted_points 和记录一起写下、之后不重算；扣分不乘（系数记 100）；定榜后 409 competition_finalized；清掉公开缓存。",
+        "#278 防刷：同一人同一周（北京时间周一 0 点起，按 COALESCE(contributed_at, created_at)）只数 damp_percent = 100 的有效「一般 × 边缘」，已有 1 条时新的一条 damp_percent = 0、加权分 0，记录照留；手工登记的贡献时间就是登记时间。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/console/competition-roster.ts",
-          "needle": "Body: ScoreEventInput"
+          "needle": "Body: Omit<ScoreEventInput, \"contributed_at\">"
         },
         {
           "path": "app/server/src/lib/competition-score-store.ts",
@@ -6447,11 +6444,23 @@
         },
         {
           "path": "app/server/src/lib/competition-score-store.ts",
-          "needle": "export const SCORE_POINTS: Record<ScoreKind, { min: number; max: number }> = {"
+          "needle": "function compute(competitionId: string, input: ScoreEventInput, now: number)"
+        },
+        {
+          "path": "app/server/src/lib/competition-rubric.ts",
+          "needle": "export const RUBRIC: Record<RubricKind, Record<Importance, Record<Core, number>>> = {"
+        },
+        {
+          "path": "app/server/src/lib/competition-rubric.ts",
+          "needle": "export function dampPercent(already: number): number {"
         },
         {
           "path": "app/console/src/lib/competition-hub.ts",
           "needle": "export function scoreErrors("
+        },
+        {
+          "path": "app/console/src/pages/competition/ScoreLevels.vue",
+          "needle": "const emit = defineEmits<{ \"update:importance\": [Importance]; \"update:core\": [Core] }>();"
         },
         {
           "path": "app/server/src/lib/competition-rules-store.ts",
@@ -6461,7 +6470,81 @@
       "tests": [
         "tests/server/competition-scores.test.ts",
         "tests/console/competition-hub.test.ts",
-        "tests/server/competition-public.test.ts"
+        "tests/server/competition-public.test.ts",
+        "tests/server/competition-rubric.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/console/README.md",
+        "docs/plan/COMPETITION-APP.md"
+      ]
+    },
+    {
+      "id": "competition.score_events.preview",
+      "title": "试算一条积分",
+      "domain": "competitions",
+      "relatedDomains": [
+        "identity",
+        "organization",
+        "audit",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/competitions/:competition_id/score-preview",
+      "capabilities": [],
+      "reads": [
+        "competitions",
+        "competition_signup_settings",
+        "competition_signups",
+        "competition_score_events",
+        "users",
+        "identities",
+        "sessions",
+        "role_assignments",
+        "departments",
+        "titles",
+        "competition_rules",
+        "competition_finals",
+        "account_profiles"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效全站sid与competition.score.review；比赛不存在404；没有开启积分409 scoring_not_enabled；选手没报名409 not_signed_up。",
+        "查询 {account_id, kind, importance?, core?, at?}：和登记同一段 compute（两档查表、此刻的年级系数、at 所在那一周的防刷，at 缺省为现在），200 {points, grade, grade_factor, damp_percent, weighted_points}；扣分带两档或加分缺两档 400 bad_levels。",
+        "只读，不写库、不记审计；控制台积分登记表单与待确认贡献的确认弹窗选完两档就调。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/competition-roster.ts",
+          "needle": "\"/api/console/competitions/:competition_id/score-preview\""
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/competitions/:competition_id/score-preview\":"
+        },
+        {
+          "path": "app/server/src/lib/competition-score-store.ts",
+          "needle": "function preview(competitionId: string, input: ScoreEventInput, now: number): ScoreResult<ScorePreview> {"
+        },
+        {
+          "path": "app/server/src/lib/competition-contract.ts",
+          "needle": "export const scorePreview ="
+        },
+        {
+          "path": "app/console/src/pages/competition/ScoreLevels.vue",
+          "needle": "/score-preview?${value}"
+        },
+        {
+          "path": "app/console/src/lib/competition-contest.ts",
+          "needle": "export function previewText("
+        }
+      ],
+      "tests": [
+        "tests/server/competition-scores.test.ts",
+        "tests/console/competition-contest.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -6483,9 +6566,7 @@
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/console/competitions/:competition_id/score-events/:event_id/revoke",
-      "capabilities": [
-        "competitions.manage"
-      ],
+      "capabilities": [],
       "reads": [
         "competitions",
         "competition_score_events",
@@ -6504,7 +6585,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：有效全站sid与competitions.manage；记录不存在或不属于这场比赛404 not_found；已撤销409 already_revoked。",
+        "权限与资源：有效全站sid与competition.score.review（写再要 step-up）；记录不存在或不属于这场比赛404 not_found；已撤销409 already_revoked。",
         "请求 {reason?}（最多200字）：只把状态改成revoked并记撤销人、时间与原因，原分值与说明保留，不删行；撤销后不再计分。",
         "写入与competition.score.revoke审计同一事务；限流每分钟30次。",
         "#278：撤销一条来自 GitLab 候选的积分时，候选在同一事务里变成驳回；定榜后 409 competition_finalized；清掉公开缓存。"
@@ -7007,7 +7088,7 @@
       "invariants": [
         "匿名、不读会话；按 IP 每分钟 120 次（public.competition.per_minute，记在 limit_events，单场与四个公开接口共用一个桶），超了 429 {error:\"rate_limited\",bucket,retry_after} 并带 Retry-After；成功、404 与 429 都带 Access-Control-Allow-Origin: *，不带 Allow-Credentials。",
         "人只给昵称、@用户名与头像，不给真实姓名、邮箱、account_id 与兑奖码；比赛不存在或下线 404 not_found。",
-        "200 {items:[{id, at, username, display_name, avatar_url, kind, title, url, points}], next_cursor}：只列有效积分，新的在前，每页默认 20、最多 50；标题与链接取自 GitLab 候选，扣分不给标题、链接和原因。",
+        "200 {items:[{id, at, username, display_name, avatar_url, kind, title, url, points, importance, core}], next_cursor}：只列有效积分（被防刷记 0 分的也列，两档在扣分与旧记录上为 null），新的在前，每页默认 20、最多 50；标题与链接取自 GitLab 候选，扣分不给标题、链接和原因。",
         "第一页缓存 10 秒，翻页不缓存；只读。"
       ],
       "evidence": [
@@ -7127,7 +7208,8 @@
         "匿名、不读会话；按 IP 每分钟 120 次（public.competition.per_minute，记在 limit_events，单场与四个公开接口共用一个桶），超了 429 {error:\"rate_limited\",bucket,retry_after} 并带 Retry-After；成功、404 与 429 都带 Access-Control-Allow-Origin: *，不带 Allow-Credentials。",
         "人只给昵称、@用户名与头像，不给真实姓名、邮箱、account_id 与兑奖码；比赛不存在或下线 404 not_found。",
         "200 {competition, leaderboard, feed, stats}：四样和各自的接口同形，各自缓存 10 秒；一次轮询只算一个请求（校园网同一出口 IP 后面人多），SDK 的 subscribe 用它。",
-        "比赛官网每 15 秒拉一次，失败时各区块显示「数据暂时取不到，稍后自动重试」。"
+        "比赛官网每 15 秒拉一次，失败时各区块显示「数据暂时取不到，稍后自动重试」。",
+        "#278 首屏（所有者 10-24 16:57）：1440×900 与 390×844 一屏内看到极客班第一届内部赛、怎么拿分三步、奖金三档与兑奖码、天梯前几名（快照的 leaderboard.individuals）和报名入口；计分一节按快照里比赛的 scoring 与 grade_factors 画两张基础分表、年级系数和「算一算」，接口回来之前用 site.config.ts 的 FALLBACK（测试核对它与服务端一致），接口失败时天梯卡写「数据暂时取不到，稍后自动重试」。"
       ],
       "evidence": [
         {
@@ -7167,12 +7249,20 @@
           "needle": "export function createFx("
         },
         {
+          "path": "app/web/sites/contests/oss-2026-1/src/hero.ts",
+          "needle": "export function createMini(slot: HTMLElement) {"
+        },
+        {
           "path": "app/web/sites/contests/oss-2026-1/src/icons.ts",
           "needle": "export function iconSvg("
         },
         {
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts",
           "needle": "export function renderPrizes("
+        },
+        {
+          "path": "app/web/sites/contests/oss-2026-1/src/scoring.ts",
+          "needle": "export function renderRubric(slot: HTMLElement, legend: HTMLElement, scoring: Scoring) {"
         },
         {
           "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts",
@@ -7371,7 +7461,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：competition.score.review；写操作要 step-up（10 分钟内登录过），否则 403 step_up_required；控制台的 ErrorAlert 给「重新登录」。每分钟 60 次；审核自己的贡献 403 self_review；已经标记过 409 already_accepted；同一条已有积分 409 duplicate_score_event；定榜后 409 competition_finalized。",
-        "body {points?, reason?}：分数默认建议分，要落在这种记录的区间（Issue 5–30、MR 15–100）；登记人是审核人，按作者记分时刻的年级（account_profiles.enrollment_year）乘这场比赛的系数，记下的年级与系数之后不再重算。",
+        "body {importance, core, reason?}：两档必填（400 bad_levels），控制台默认选候选上标签给的两档；基础分查 competition-rubric.ts 的表，不看改动行数；登记人是审核人，按作者记分时刻的年级（account_profiles.enrollment_year）乘这场比赛的系数，防刷按候选的贡献时间（合并 / 创建时间）所在那一周算，记下的两档、年级、系数与折扣之后不再重算。",
         "同一事务写积分、把候选置为 accepted（accepted_via = console）并写 competition.candidate.accept 操作记录；清掉公开缓存，天梯十几秒内更新。"
       ],
       "evidence": [
@@ -7384,16 +7474,20 @@
           "needle": "\"POST /api/console/competitions/:competition_id/candidates/:candidate_id/accept\":"
         },
         {
-          "path": "app/server/src/lib/competition-rules-store.ts",
-          "needle": "export function weightedPoints("
-        },
-        {
           "path": "app/console/src/pages/competition/CandidatesPanel.vue",
           "needle": "/accept`"
         },
         {
-          "path": "app/console/src/lib/competition-contest.ts",
-          "needle": "export function acceptPointsError("
+          "path": "app/server/src/lib/competition-candidates.ts",
+          "needle": "if (!isImportance(importance) || !isCore(core)) return { ok: false, error: \"bad_levels\" };"
+        },
+        {
+          "path": "app/server/src/lib/competition-rubric.ts",
+          "needle": "export function weightedPoints("
+        },
+        {
+          "path": "app/console/src/pages/competition/CandidatesPanel.vue",
+          "needle": "<ScoreLevels"
         }
       ],
       "tests": [
@@ -7508,8 +7602,9 @@
       "invariants": [
         "权限与资源：competition.score.review；写操作要 step-up（10 分钟内登录过），否则 403 step_up_required；控制台的 ErrorAlert 给「重新登录」。每分钟 6 次；GitLab 同步是 off 或没配 URL 时 409 gitlab_sync_off。后台任务在 GitLab 同步不是 off 时每 10 分钟同样跑一轮。",
         "只收内部赛、没下线、开了积分、已开始、没定榜、结束后 30 天内、配了 GitLab 项目的比赛；一轮最多 300 个 GitLab 请求。MR 按合并时间、Issue 按创建时间落在比赛窗口内才收；作者经 gitlab_accounts 对到账号且已报名，否则记 skipped。",
-        "「有用」标签：资源标签事件里最后一次是加上、加的人对得上账号、有 competition.score.review、不是作者本人，才按建议分自动加分（surface system）；标签被拿掉时只撤销经标签自动加的分，控制台确认的不动。",
-        "200 {last_run:{at, fetched, created, skipped, accepted, revoked, error}}；写 competition.candidate.collect 操作记录，没完成时 outcome 为 error。"
+        "「有用」标签：资源标签事件里最后一次是加上、加的人对得上账号、有 competition.score.review、不是作者本人，并且「重要程度::」「核心度::」两个标签也各正好一个、同样由这样的人最后加上，才按两档查表自动加分（surface system，防刷按合并 / 创建时间所在那一周）；两档标签不全时留在待确认、note 写原因，候选上记下标签给的两档，加分后改标签不重算；标签被拿掉时只撤销经标签自动加的分，控制台确认的不动。",
+        "200 {last_run:{at, fetched, created, skipped, accepted, revoked, error}}；写 competition.candidate.collect 操作记录，没完成时 outcome 为 error。",
+        "#278 两档评定：不再按改动行数算建议分，不读 MR 的 diff。"
       ],
       "evidence": [
         {
@@ -7547,6 +7642,10 @@
         {
           "path": "app/server/src/app.ts",
           "needle": "services.competitionCandidates.start(app.log);"
+        },
+        {
+          "path": "app/server/src/lib/competition-candidates.ts",
+          "needle": "export function levelsFromLabels(labels: string[]): { importance: Importance | null; core: Core | null } {"
         }
       ],
       "tests": [
@@ -7589,7 +7688,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：competition.manage 或 competition.score.review；比赛不存在 404。",
-        "200 {grade_factors, grades, prizes, gitlab_projects, updated_at, updated_by, finalized}：系数是百分数（150 = 1.5）；没有规则行时回默认系数（大一 150、大二 130、大三 110、其余 100）、没有奖项。",
+        "200 {grade_factors, grades, scoring, prizes, gitlab_projects, updated_at, updated_by, finalized}：系数是百分数（350 = 3.5）；没有规则行时回默认系数（大一 350、大二 220、大三 140、其余 100，由 scripts/contest-score-sim.mjs 的模拟选出）、没有奖项；另带只读的 scoring（两档基础分表、扣分与防刷规则）。",
         "只读。控制台积分记录里，这场比赛列的 GitLab 项目不拼 GitHub 链接。"
       ],
       "evidence": [
@@ -7602,7 +7701,7 @@
           "needle": "\"GET /api/console/competitions/:competition_id/rules\":"
         },
         {
-          "path": "app/server/src/lib/competition-rules-store.ts",
+          "path": "app/server/src/lib/competition-rubric.ts",
           "needle": "export const DEFAULT_GRADE_FACTORS"
         },
         {
@@ -7665,7 +7764,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：competition.manage；写操作要 step-up（10 分钟内登录过），否则 403 step_up_required；控制台的 ErrorAlert 给「重新登录」。每分钟 30 次；定榜后 409 competition_finalized。",
-        "body {grade_factors:{year1…none: 50–300}, prizes:[{from, to, amount_cny, title}], gitlab_projects:[]} 整份替换：奖项名次从小到大不重叠、最多 20 档、金额 ≤ 100000、说明 ≤ 40 字；项目最多 10 个、两到五段路径。",
+        "body {grade_factors:{year1…none: 50–500}, prizes:[{from, to, amount_cny, title}], gitlab_projects:[]} 整份替换：奖项名次从小到大不重叠、最多 20 档、金额 ≤ 100000、说明 ≤ 40 字；项目最多 10 个、两到五段路径。",
         "改系数只影响之后记的分，已经记下的年级与系数不重算；写 competition.rules.update 操作记录（带改前改后），清掉公开缓存。"
       ],
       "evidence": [

@@ -2,7 +2,7 @@
   "version": 1,
   "issue": 278,
   "kind": "business",
-  "summary": "第一期内部比赛的官网与配套接口：比赛方上传静态站点包，校验通过后同域托管在 /c/ 加比赛地址（sandbox CSP，读不到主站会话）；四个匿名公开接口和一个快照接口、比赛 SDK；从自建 GitLab 收集合并的 MR 与 Issue，只有被有审核权限的人标记「有用」的才加分；加分按记分那一刻的年级乘这场比赛的系数（默认大一 1.5、大二 1.3、大三 1.1、其余 1.0），记下后不重算；天梯服务端缓存 10 秒；奖项可选，比赛结束后定榜冻结名次并给得奖的人发不可猜的兑奖码，本人在门户「我的参赛」看到，所有者在控制台核销。",
+  "summary": "第一期内部比赛的官网与配套接口：比赛方上传静态站点包，校验通过后同域托管在 /c/ 加比赛地址（sandbox CSP，读不到主站会话）；四个匿名公开接口和一个快照接口、比赛 SDK；从自建 GitLab 收集合并的 MR 与 Issue，只有被有审核权限的人标记「有用」的才加分；标记时选重要程度 × 核心度两档查表得基础分，不看代码行数，每人每周「一般 × 边缘」只算 1 条；基础分按记分那一刻的年级乘这场比赛的系数（默认大一 3.5、大二 2.2、大三 1.4、其余 1.0，由固定种子的模拟选出），记下后不重算；天梯服务端缓存 10 秒；奖项可选，比赛结束后定榜冻结名次并给得奖的人发不可猜的兑奖码，本人在门户「我的参赛」看到，所有者在控制台核销。",
   "applications": [
     "server",
     "web",
@@ -54,6 +54,8 @@
     "flow:competition.delete",
     "flow:competition.leaderboard.read",
     "flow:competition.roster.read",
+    "flow:competition.score_events.preview",
+    "flow:competition.score_events.list",
     "flow:competition.score_events.create",
     "flow:competition.score_events.revoke",
     "flow:console.summary",
@@ -67,8 +69,9 @@
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "新增官网托管、公开天梯与动态、贡献收集与「有用」标签核实、年级系数加权、可选奖项、定榜与兑奖码核销；只有标记「有用」的 Issue 和 MR 计分（GitLab 标签要打标签的人有 competition.score.review 且不是作者本人，或在控制台确认）；门户比赛窗口显示奖项、年级系数、10 秒刷新的天梯和本人的兑奖码；控制台加待确认贡献、计分与奖项、官网、定榜四个页签和核销页。",
+      "reason": "新增官网托管、公开天梯与动态、贡献收集与「有用」标签核实、两档评定（重要程度 × 核心度，不看代码行数）、年级系数加权（默认 3.5 / 2.2 / 1.4 / 1.0）、每周防刷、可选奖项、定榜与兑奖码核销；只有标记「有用」的 Issue 和 MR 计分（GitLab 标签要打标签的人有 competition.score.review 且不是作者本人，或在控制台确认）；门户比赛窗口显示奖项、年级系数、10 秒刷新的天梯和本人的兑奖码；控制台加待确认贡献、计分与奖项、官网、定榜四个页签和核销页。官网首屏一屏讲清楚内部赛、怎么拿分、奖金、实时天梯和报名入口（所有者 10-24 16:57），计分一节有两张基础分表和「算一算」。",
       "evidence": [
+        "app/server/src/lib/competition-rubric.ts",
         "app/server/src/lib/competition-candidates.ts",
         "app/server/src/lib/competition-prizes.ts",
         "app/server/src/lib/competition-rules-store.ts",
@@ -79,7 +82,7 @@
     },
     "backend": {
       "status": "changed",
-      "reason": "新增 4 个控制台路由文件与 1 个站点路由（/c/:slug、/c/:slug/*），公开接口加天梯、动态、统计、快照，门户加 /api/me/competition-results；新 store 与模块：site-package、competition-site-store、competition-rules-store、competition-public、competition-candidates、competition-prizes；gitlab-sync 暴露只读的 readApi；收集任务随 gitlabSync 开关每 10 分钟一轮；所有新接口挂请求与响应 Schema。",
+      "reason": "新增 4 个控制台路由文件与 1 个站点路由（/c/:slug、/c/:slug/*），公开接口加天梯、动态、统计、快照，门户加 /api/me/competition-results；新 store 与模块：site-package、competition-site-store、competition-rules-store、competition-public、competition-candidates、competition-prizes；gitlab-sync 暴露只读的 readApi；收集任务随 gitlabSync 开关每 10 分钟一轮；所有新接口挂请求与响应 Schema。计分规则集中在不导入任何模块的 competition-rubric.ts（两档基础分表、默认系数、防刷与加权），积分登记与候选确认改收两档、不收分值，新增只读的试算接口 GET /api/console/competitions/:competition_id/score-preview；公开比赛对象与规则接口带 scoring，动态带两档。",
       "evidence": [
         "app/server/src/routes/sites/index.ts",
         "app/server/src/routes/console/competition-site.ts",
@@ -87,7 +90,8 @@
         "app/server/src/routes/console/competition-results.ts",
         "app/server/src/routes/portal/competitions.ts",
         "app/server/src/lib/gitlab-sync.ts",
-        "app/server/src/services.ts"
+        "app/server/src/services.ts",
+        "app/server/src/lib/competition-rubric.ts"
       ]
     },
     "permissions": {
@@ -104,7 +108,7 @@
     },
     "data": {
       "status": "changed",
-      "reason": "新增 competition_site_versions、competition_sites、competition_gitlab_sources、competition_score_candidates、competition_rules、competition_finals、competition_prizes 七张表与 3 个索引，competition_score_events 加可空的 grade、grade_factor、weighted_points 三列（PRAGMA 检查后再加，可重复执行）；兑奖码只存 SHA-256 散列、AES-GCM 密文与末四位；站点文件放在数据库旁边的 sites/ 目录；启动时用 console_seeds 标记给第一期写一次默认系数、700/140/70 元三档奖项和 GitLab 项目 geek/admin。年级只读 #280 的 account_profiles.enrollment_year，不改它的列。",
+      "reason": "新增 competition_site_versions、competition_sites、competition_gitlab_sources、competition_score_candidates、competition_rules、competition_finals、competition_prizes 七张表与 3 个索引，competition_score_events 加可空的 grade、grade_factor、weighted_points 三列（PRAGMA 检查后再加，可重复执行）；兑奖码只存 SHA-256 散列、AES-GCM 密文与末四位；站点文件放在数据库旁边的 sites/ 目录；启动时用 console_seeds 标记给第一期写一次默认系数、700/140/70 元三档奖项和 GitLab 项目 geek/admin。年级只读 #280 的 account_profiles.enrollment_year，不改它的列。两档评定再给 competition_score_events 加 importance、core、damp_percent、contributed_at 四列（同样可重复执行，旧行分数不变、两档为空、不追溯打折），候选表去掉按行数的 size_hint、suggested、换成标签给的两档（这张表还没上过线）；第一期默认系数改为 350 / 220 / 140；在预发布库副本上跑两遍，行数与分数合计不变。",
       "evidence": [
         "app/server/src/lib/db.ts",
         "app/server/src/lib/competition-score-store.ts",
@@ -125,7 +129,7 @@
     },
     "documentation": {
       "status": "changed",
-      "reason": "server 合同、接口行为契约、数据模型、API 与 SECURITY 写入官网托管、公开接口、收集、定榜与兑奖；web 合同与 portal 合同写入比赛官网、SDK、打包命令、门户的奖项与兑奖码；控制台合同写入四个页签与核销页；DEPLOY 写入 /c/、/sdk/ 的拓扑、站点文件位置与上传上限（容器 21m、宿主模板仍是 6m）；比赛方案记实施结论；项目目录补流程、表与归属。",
+      "reason": "server 合同、接口行为契约、数据模型、API 与 SECURITY 写入官网托管、公开接口、收集、定榜与兑奖；web 合同与 portal 合同写入比赛官网、SDK、打包命令、门户的奖项与兑奖码；控制台合同写入四个页签与核销页；DEPLOY 写入 /c/、/sdk/ 的拓扑、站点文件位置与上传上限（容器 21m、宿主模板仍是 6m）；比赛方案记实施结论；项目目录补流程、表与归属。比赛方案加「计分规则」一节：两张基础分表、默认系数、防刷规则和三张模拟表。",
       "evidence": [
         "docs/services/server/README.md",
         "docs/services/server/endpoint-contracts.md",
@@ -138,14 +142,17 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "新增服务端用例覆盖站点包校验与托管、公开接口与年级系数、GitLab 收集与「有用」标签、定榜与兑奖码、旧库迁移；SDK、官网与打包脚本、nginx 配置有单测；门户的奖项、兑奖码与深链，控制台的规则表单、候选、官网、兑奖码与样板读口有单测；本地服务加 ego-browser 在 1440×900 与 390×844 下看官网、门户和控制台。未验证：真实 GitLab 的收集与标签事件、预发布 nginx 叠加 CSP 下的官网、真实账号的核销。",
+      "reason": "新增服务端用例覆盖站点包校验与托管、公开接口与年级系数、GitLab 收集与「有用」标签、定榜与兑奖码、旧库迁移；SDK、官网与打包脚本、nginx 配置有单测；门户的奖项、兑奖码与深链，控制台的规则表单、候选、官网、兑奖码与样板读口有单测；两档基础分表、防刷与试算有服务端用例，计分模拟脚本有固定种子的单测（tests/tooling/contest-score-sim.test.ts），官网的兜底规则和服务端核对；本地服务加 ego-browser 在 1440×900 与 390×844 下看官网、门户和控制台。未验证：真实 GitLab 的收集与标签事件、预发布 nginx 叠加 CSP 下的官网、真实账号的核销。",
       "evidence": [
         "tests/server/competition-site.test.ts",
         "tests/server/competition-public.test.ts",
         "tests/server/competition-candidates.test.ts",
         "tests/server/competition-prizes.test.ts",
         "tests/web/contest-site.test.ts",
-        "tests/console/competition-contest.test.ts"
+        "tests/console/competition-contest.test.ts",
+        "tests/server/competition-rubric.test.ts",
+        "tests/server/competition-scores.test.ts",
+        "tests/tooling/contest-score-sim.test.ts"
       ]
     },
     "delivery": {
@@ -218,9 +225,29 @@
         "flow:competition.me.results",
         "flow:competition.leaderboard.read",
         "flow:competition.score_events.create",
-        "table:competition_rules"
+        "table:competition_rules",
+        "flow:competition.score_events.preview",
+        "flow:competition.score_events.list"
       ],
-      "reason": "公开接口与年级系数：天梯、动态、统计、快照只给昵称、@用户名与头像，服务端缓存 10 秒、按 IP 每分钟 120 次；积分按记分时刻的年级乘系数并把年级与系数记在记录上；本人的定榜结果与兑奖码只在 /api/me/competition-results。"
+      "reason": "公开接口与年级系数：天梯、动态、统计、快照只给昵称、@用户名与头像，服务端缓存 10 秒、按 IP 每分钟 120 次；积分按记分时刻的年级乘系数并把年级与系数记在记录上；本人的定榜结果与兑奖码只在 /api/me/competition-results。两档评定：登记收两档、不收分值，按同一周已照算的「一般 × 边缘」条数打折，试算和登记走同一段算法；公开动态带两档。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/competition-rubric.ts",
+        "scripts/contest-score-sim.mjs"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "flow:competition.score_events.create",
+        "flow:competition.score_events.preview",
+        "flow:competition.score_events.list",
+        "flow:competition.candidates.accept",
+        "flow:competition.rules.read",
+        "table:competition_score_events"
+      ],
+      "reason": "两档评定（所有者 10-24 16:59）：重要程度 × 核心度的基础分表、默认年级系数 3.5 / 2.2 / 1.4 / 1.0、每人每周「一般 × 边缘」只算 1 条的防刷与加权公式只在 competition-rubric.ts 一份，服务端登记、试算、候选确认、公开接口的 scoring 都读它；模拟脚本直接读同一个文件，按固定种子算几千场比赛选出默认系数与防刷规则，不碰库、不发请求。"
     },
     {
       "paths": [
@@ -246,7 +273,7 @@
         "table:competition_score_candidates",
         "table:competition_gitlab_sources"
       ],
-      "reason": "贡献收集：每 10 分钟从配置的 GitLab 项目收合并的 MR 与 Issue，按资源标签事件核实「有用」标签是谁打的，有审核权限且不是作者本人才自动加分；其余进控制台待确认；概览的 candidates_pending 换成真实数字。"
+      "reason": "贡献收集：每 10 分钟从配置的 GitLab 项目收合并的 MR 与 Issue，按资源标签事件核实「有用」标签是谁打的，有审核权限且不是作者本人才自动加分；其余进控制台待确认；概览的 candidates_pending 换成真实数字。两档评定：候选不再读 MR 的 diff 算行数，改读「重要程度::」「核心度::」标签，三个标签都由非作者的评审人最后加上才自动加分，确认时选两档。"
     },
     {
       "paths": [
@@ -337,7 +364,7 @@
         "flow:competition.site.serve",
         "flow:competition.site.upload"
       ],
-      "reason": "比赛 SDK 与第一期官网：SDK 只调公开接口、按快照轮询；官网是浅色底的独立风格：贡献热力图拼出的 Canvas 标题、滚动数字倒计时、斜着滚动的贡献条、天梯与动态，减少动态效果时静态；pnpm contest:site 用服务端同一套校验打包；web 镜像构建 SDK，容器里的 nginx 反代 /c/ 并只给上传放宽请求体，宿主模板不动。"
+      "reason": "比赛 SDK 与第一期官网：SDK 只调公开接口、按快照轮询；官网是浅色底的独立风格：贡献热力图拼出的 Canvas 标题、滚动数字倒计时、斜着滚动的贡献条、天梯与动态，减少动态效果时静态；pnpm contest:site 用服务端同一套校验打包；web 镜像构建 SDK，容器里的 nginx 反代 /c/ 并只给上传放宽请求体，宿主模板不动。首屏改版（所有者 10-24 16:57）：一屏讲清楚内部赛、怎么拿分三步、奖金、天梯前几名和报名，几层光、逐字翻上来的标题、随指针倾斜的卡片与滚动驱动，减少动态效果时停在最终的样子；计分一节按公开接口的 scoring 画两张基础分表和「算一算」，接口回来之前用和服务端核对过的兜底值。"
     },
     {
       "paths": [
@@ -395,7 +422,7 @@
         "flow:competition.prize.redeem",
         "flow:competition.console.list"
       ],
-      "reason": "控制台：比赛页改成按权限出现的页签（报名与名单、积分、待确认贡献、计分与奖项、官网、定榜），积分记录显示年级与系数；新增核销兑奖码页与路由；样板数据加四个只读读口。lib 里的纯逻辑与服务端 Schema 和兑奖码规范化对齐。"
+      "reason": "控制台：比赛页改成按权限出现的页签（报名与名单、积分、待确认贡献、计分与奖项、官网、定榜），积分记录显示年级与系数；新增核销兑奖码页与路由；样板数据加四个只读读口。lib 里的纯逻辑与服务端 Schema 和兑奖码规范化对齐。两档评定：积分登记与候选确认都换成重要程度、核心度两个下拉框和服务端试算，规则页显示只读的基础分表与防刷规则，系数范围 0.5–5。"
     },
     {
       "paths": [
@@ -439,7 +466,10 @@
         "tests/web/portal-competition-hub.test.tsx",
         "tests/web/portal-competition-results.test.tsx",
         "tests/console/competition-contest.test.ts",
-        "tests/console/competition-hub.test.ts"
+        "tests/console/competition-hub.test.ts",
+        "tests/server/competition-rubric.test.ts",
+        "tests/server/competition-scores.test.ts",
+        "tests/tooling/contest-score-sim.test.ts"
       ],
       "domains": [
         "competitions",
@@ -451,7 +481,7 @@
         "flow:competition.finalize",
         "flow:competition.public.leaderboard"
       ],
-      "reason": "回归测试：服务端用内存库与假 GitLab 跑托管、公开接口、收集、定榜与迁移；SDK、官网、打包脚本与 nginx 配置单测；门户与控制台的纯逻辑和样板读口单测。"
+      "reason": "回归测试：服务端用内存库与假 GitLab 跑托管、公开接口、收集、定榜与迁移；SDK、官网、打包脚本与 nginx 配置单测；门户与控制台的纯逻辑和样板读口单测。两档基础分表、防刷（含撤销后下一条照算、按贡献时间分周）、旧行不追溯、模拟结果用固定种子钉住。"
     }
   ],
   "documents": [
