@@ -5,7 +5,7 @@ title: 用 SDK 接入比赛官网
 audience: 比赛组织者
 visibility: member
 order: 10
-date: 2026-10-24
+date: 2026-10-25
 ---
 
 这篇给要给自己的比赛做一个官网、又想在上面显示报名人数、天梯和奖项的成员看。比赛官网在隔离环境里运行，读不到主站的登录状态，只能用这个 SDK 读公开数据，不用自己拼接口地址。
@@ -34,9 +34,9 @@ date: 2026-10-24
 </script>
 ```
 
-3. `getSnapshot()` 一次性拿到比赛信息、天梯、动态和统计；`subscribe(callback)` 按固定间隔自动轮询，页面切到后台会暂停，回到前台立刻补一次，失败不会抛错，回调里会拿到 `{ error }`，错误码只有四种：`network`（连不上）、`not_found`（比赛 id 不对）、`rate_limited`（太频繁，等 `retry_after` 秒）、`server`（服务端出错）。
+3. `getSnapshot()` 一次性拿到比赛信息、天梯、动态和统计；`subscribe(callback)` 按固定间隔自动轮询，页面切到后台会暂停，回到前台立刻补一次，失败不会抛错，回调里会拿到 `{ error }`，错误码只有四种：`network`（连不上）、`not_found`（比赛 id 不对）、`rate_limited`（太频繁，等 `retry_after` 秒）、`server`（服务端出错）。要列出全部报名的人和全部队伍，用 `getParticipants()`（分页，带 `next_cursor`）和 `getTeams()`；个人赛的 `getTeams()` 返回 `enabled: false` 和空列表，不会报错，页面据此跳过队伍那一段。
 4. 想加「报名」「组队」按钮，分别用 `client.signupUrl()`、`client.teamUrl()` 拿到地址，这两个地址会把访客带回主站的比赛窗口，不用自己拼。
-5. 下面是一个能直接用的完整页面：显示比赛名、报名人数、组队数、天梯和奖项，带报名和组队按钮。放进站点包当 `index.html`，把比赛 id 换成自己的就能用。想在本机先看效果，把 `import` 的地址写成主站的完整地址（`<主站地址>/sdk/competition/v1.js`），`origin` 也填主站地址，再用任意静态服务器打开。
+5. 下面是一个能直接用的完整页面：显示比赛名、报名人数、组队数、天梯和奖项，带报名和组队按钮。放进站点包当 `index.html`，把比赛 id 换成自己的就能用。想在本机先看效果，最省事的是从起步模板 `app/web/sites/contests/_starter` 开始，构建后用 `pnpm contest:site dev <构建产物目录>` 预览：默认用示例数据，加 `--api <预发布站点地址>` 就读预发布上这场比赛的真实公开数据，不用自己写样例。
 
 ```html
 <!doctype html>
