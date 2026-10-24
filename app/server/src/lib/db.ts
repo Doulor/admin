@@ -890,6 +890,133 @@ const COMPETITION_SEED_DEADLINE = Date.parse("2026-11-15T23:59:59.999+08:00");
   seeded();
 }
 
+// 比赛官网托管、GitLab 贡献收集、年级系数与奖项、定榜与兑奖码（#278，CONTRACT-278）：只新增表与可空列。
+// 站点文件不进库，放在数据卷 `sites/<competition_id>/<version_id>/`（lib/competition-site-store.ts）；
+// 候选贡献由 lib/competition-candidates.ts 写；规则与奖项由 lib/competition-rules-store.ts 写；
+// 定榜与兑奖码由 lib/competition-prizes.ts 写，兑奖码只存散列、密文和末四位，不存明文。
+db.exec(`
+CREATE TABLE IF NOT EXISTS competition_site_versions (
+  id TEXT PRIMARY KEY,
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  version TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  files INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  uploaded_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('passed', 'rejected')),
+  report TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_competition_site_versions_competition ON competition_site_versions(competition_id, created_at);
+
+CREATE TABLE IF NOT EXISTS competition_sites (
+  competition_id TEXT PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,
+  slug TEXT NOT NULL UNIQUE,
+  live_version_id TEXT REFERENCES competition_site_versions(id),
+  updated_at INTEGER NOT NULL,
+  updated_by TEXT
+);
+
+CREATE TABLE IF NOT EXISTS competition_gitlab_sources (
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  project_path TEXT NOT NULL,
+  PRIMARY KEY (competition_id, project_path)
+);
+
+-- accepted_via：label 是有 competition.score.review 的人在 GitLab 上打了「有用」标签，console 是控制台「标记有用」；
+-- note：最近一次核对时没有计分的原因（例如标签是自己打的）；contributed_at：MR 的合并时间或 Issue 的创建时间。
+CREATE TABLE IF NOT EXISTS competition_score_candidates (
+  id TEXT PRIMARY KEY,
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL CHECK (kind IN ('pr', 'issue')),
+  gitlab_project TEXT NOT NULL,
+  gitlab_iid INTEGER NOT NULL,
+  url TEXT NOT NULL,
+  title TEXT NOT NULL,
+  size_hint INTEGER,
+  suggested INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+  reviewed_by TEXT REFERENCES users(id),
+  reviewed_at INTEGER,
+  final_points INTEGER,
+  reason TEXT,
+  score_event_id TEXT,
+  accepted_via TEXT CHECK (accepted_via IS NULL OR accepted_via IN ('label', 'console')),
+  note TEXT,
+  contributed_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE (competition_id, kind, gitlab_project, gitlab_iid)
+);
+CREATE INDEX IF NOT EXISTS idx_competition_score_candidates_status ON competition_score_candidates(competition_id, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_competition_score_candidates_event ON competition_score_candidates(score_event_id) WHERE score_event_id IS NOT NULL;
+
+-- grade_factors：年级 → 系数（百分数，150 = 1.5）；prizes：[{ from, to, amount_cny, title }]，没有奖项是 []。
+CREATE TABLE IF NOT EXISTS competition_rules (
+  competition_id TEXT PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,
+  grade_factors TEXT NOT NULL,
+  prizes TEXT NOT NULL DEFAULT '[]',
+  updated_at INTEGER NOT NULL,
+  updated_by TEXT
+);
+
+-- standings：定榜那一刻的个人名次快照（JSON），之后加分、撤销都不再改它。
+CREATE TABLE IF NOT EXISTS competition_finals (
+  competition_id TEXT PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,
+  finalized_at INTEGER NOT NULL,
+  finalized_by TEXT NOT NULL REFERENCES users(id),
+  standings TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS competition_prizes (
+  id TEXT PRIMARY KEY,
+  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL REFERENCES users(id),
+  rank INTEGER NOT NULL,
+  points INTEGER NOT NULL,
+  amount_cny INTEGER NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  code_hash TEXT NOT NULL UNIQUE,
+  code_cipher TEXT NOT NULL,
+  code_hint TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  redeemed_at INTEGER,
+  redeemed_by TEXT REFERENCES users(id),
+  UNIQUE (competition_id, account_id)
+);
+`);
+// 记分那一刻的年级与系数（#278）：grade 取 lib/grade.ts 的结果（1–4、graduated，没填为 none），grade_factor 是百分数，
+// weighted_points = round(points × grade_factor / 100)。#278 之前的行三列都为空，天梯按 points 算（系数 1）。
+addColumn("competition_score_events", "grade", "TEXT");
+addColumn("competition_score_events", "grade_factor", "INTEGER");
+addColumn("competition_score_events", "weighted_points", "INTEGER");
+
+// 第一期的计分规则、奖项与 GitLab 项目（#278，所有者 2026-10-24 13:45）：用 `console_seeds` 标记，只插一次；
+// 组织者之后在控制台改掉，重启也不再补回来。比赛本身被删掉时什么也不插。
+const COMPETITION_RULES_SEED = "competition_oss_2026_1_rules";
+{
+  const seeded = db.transaction(() => {
+    if (db.prepare("SELECT 1 AS n FROM console_seeds WHERE name = ?").get(COMPETITION_RULES_SEED)) return;
+    const now = Date.now();
+    if (db.prepare("SELECT 1 AS n FROM competitions WHERE id = ?").get(COMPETITION_SEED_ID)) {
+      db.prepare("INSERT OR IGNORE INTO competition_rules(competition_id, grade_factors, prizes, updated_at, updated_by) VALUES(?, ?, ?, ?, NULL)").run(
+        COMPETITION_SEED_ID,
+        JSON.stringify({ year1: 150, year2: 130, year3: 110, year4: 100, graduated: 100, none: 100 }),
+        JSON.stringify([
+          { from: 1, to: 1, amount_cny: 700, title: "GPT 5x 订阅的价格" },
+          { from: 2, to: 3, amount_cny: 140, title: "GPT Plus 订阅的价格" },
+          { from: 4, to: 8, amount_cny: 70, title: "" },
+        ]),
+        now,
+      );
+      db.prepare("INSERT OR IGNORE INTO competition_gitlab_sources(competition_id, project_path) VALUES(?, ?)").run(COMPETITION_SEED_ID, "geek/admin");
+    }
+    db.prepare("INSERT OR IGNORE INTO console_seeds(name, seeded_at) VALUES(?, ?)").run(COMPETITION_RULES_SEED, now);
+  });
+  seeded();
+}
+
 /**
  * 没有 FastifyRequest 的调用方专用的操作记录写入口（CLI、后台同步、identity-store/device 这类深层库函数）：
  * #274 item I 之前写的是 audit_logs，SPEC §3.6 第 7 条已经把那张表的历史数据一次性复制进了 activity_events

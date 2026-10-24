@@ -26,7 +26,17 @@ const baseFields = {
   id: text(128, 1), ...competitionFields,
   status: choices("upcoming", "registering", "closed", "ongoing", "ended"),
 };
-const publicFields = { ...baseFields, signup: signupSummary };
+// #278：官网地址（已发布时 /c/<slug>/）、门户深链、可选的奖项、年级系数和定榜时间
+const prizeTierFields = { from: integer(1, 100), to: integer(1, 100), amount_cny: integer(0, 100_000), title: text(40) };
+export const prizeTier = object(prizeTierFields, Object.keys(prizeTierFields));
+const publicGradeFactor = object({ grade: text(16, 1), label: text(16, 1), factor: { type: "number" } }, ["grade", "label", "factor"]);
+const publicFields = {
+  ...baseFields, signup: signupSummary,
+  site_url: nullableText(200), app_url: text(300, 1),
+  prizes: { type: "array", items: prizeTier },
+  grade_factors: { type: "array", items: publicGradeFactor },
+  finalized_at: { anyOf: [timestamp, { type: "null" }] },
+};
 const publicRecord = object(publicFields, Object.keys(publicFields));
 const consoleFields = { ...baseFields, offline: { type: "boolean" } };
 const consoleRecord = object(consoleFields, Object.keys(consoleFields));
@@ -128,7 +138,11 @@ const scoreEventFields = {
   kind: choices("issue", "pr", "penalty"),
   repo: { anyOf: [text(140), { type: "null" }] },
   number: { anyOf: [number, { type: "null" }] },
-  points: number, reason: text(200), status: choices("active", "revoked"),
+  points: number,
+  grade: { anyOf: [choices("year1", "year2", "year3", "year4", "graduated", "none"), { type: "null" }] },
+  grade_factor: { anyOf: [number, { type: "null" }] },
+  weighted_points: number,
+  reason: text(200), status: choices("active", "revoked"),
   created_by_login: text(64), created_at: number,
   revoked_at: { anyOf: [number, { type: "null" }] },
   revoke_reason: { anyOf: [text(200), { type: "null" }] },
@@ -166,6 +180,111 @@ export const signupBody = {
   }, ["account_id", "kind", "points"]),
   revoke: object({ reason: text(200) }),
 };
+
+// ── #278 公开接口（官网 SDK）：只有昵称、@用户名、头像、队名、分数、贡献标题与链接、时间 ──
+const publicPersonFields = { username: text(64), display_name: text(64), avatar_url: nullableText(500) };
+const publicPerson = object(publicPersonFields, Object.keys(publicPersonFields));
+export const publicLeaderboard = object({
+  updated_at: number,
+  individuals: { type: "array", items: object({ rank: number, ...publicPersonFields, team_name: nullableText(30), score: number }, ["rank", "username", "display_name", "avatar_url", "team_name", "score"]) },
+  teams: { type: "array", items: object({ rank: number, name: text(30), members: { type: "array", items: publicPerson }, score: number }, ["rank", "name", "members", "score"]) },
+}, ["updated_at", "individuals", "teams"]);
+export const publicFeed = object({
+  items: { type: "array", items: object({
+    id: text(64, 1), at: number, ...publicPersonFields, kind: choices("pr", "issue", "penalty"),
+    title: nullableText(200), url: nullableText(500), points: number,
+  }, ["id", "at", "username", "display_name", "avatar_url", "kind", "title", "url", "points"]) },
+  next_cursor: nullableText(200),
+}, ["items", "next_cursor"]);
+export const publicStats = object({
+  participants: number, teams: number, merged_prs: number, accepted_issues: number, total_points: number, updated_at: number,
+}, ["participants", "teams", "merged_prs", "accepted_issues", "total_points", "updated_at"]);
+export const publicSnapshot = object({ competition: publicRecord, leaderboard: publicLeaderboard, feed: publicFeed, stats: publicStats }, ["competition", "leaderboard", "feed", "stats"]);
+export const publicFeedQuery = { querystring: object({ cursor: text(200), limit: { type: "string", pattern: "^(?:[1-9]|[1-4][0-9]|50)$" } }) };
+/** 本人参加过、已定榜的比赛的结果（门户「我的参赛」）：兑奖码只在这里给本人看。 */
+export const myCompetitionResults = object({
+  items: { type: "array", items: object({
+    competition_id: text(128, 1), name: text(80, 1), finalized_at: number, rank: { anyOf: [number, { type: "null" }] }, points: number,
+    prize: { anyOf: [object({ amount_cny: number, title: text(40), code: text(32, 1), redeemed_at: { anyOf: [number, { type: "null" }] } }, ["amount_cny", "title", "code", "redeemed_at"]), { type: "null" }] },
+  }, ["competition_id", "name", "finalized_at", "rank", "points", "prize"]) },
+}, ["items"]);
+
+// ── #278 控制台：官网、候选贡献、规则、定榜与兑奖 ──
+const consolePersonFields = { account_id: text(64, 1), ...publicPersonFields };
+const consolePerson = object(consolePersonFields, Object.keys(consolePersonFields));
+const nullablePerson = { anyOf: [consolePerson, { type: "null" }] };
+const siteVersion = object({
+  id: text(64, 1), version: text(32), size: number, files: number, sha256: text(64), status: choices("passed", "rejected"),
+  report: { type: "array", items: text(400) },
+  uploaded_by: object({ account_id: text(64, 1), username: text(64), display_name: text(64) }, ["account_id", "username", "display_name"]),
+  created_at: number, preview_url: nullableText(300),
+}, ["id", "version", "size", "files", "sha256", "status", "report", "uploaded_by", "created_at", "preview_url"]);
+export const consoleSiteVersion = siteVersion;
+export const consoleSiteState = object({
+  slug: nullableText(32), live_version_id: nullableText(64), site_url: nullableText(200), versions: { type: "array", items: siteVersion },
+}, ["slug", "live_version_id", "site_url", "versions"]);
+export const sitePublishBody = object({ version_id: text(64, 1), slug: { type: "string", pattern: "^[a-z0-9][a-z0-9-]{2,31}$" } }, ["version_id"]);
+
+const collectRun = object({
+  at: number, fetched: number, created: number, skipped: number, accepted: number, revoked: number, error: nullableText(64),
+}, ["at", "fetched", "created", "skipped", "accepted", "revoked", "error"]);
+const candidate = object({
+  id: text(64, 1), account: consolePerson, kind: choices("pr", "issue"), gitlab_project: text(255, 1), gitlab_iid: number,
+  url: text(500), title: text(200), size_hint: { anyOf: [number, { type: "null" }] }, suggested: number,
+  status: choices("pending", "accepted", "rejected"), final_points: { anyOf: [number, { type: "null" }] }, reason: nullableText(200),
+  reviewed_by: nullablePerson, reviewed_at: { anyOf: [number, { type: "null" }] },
+  accepted_via: { anyOf: [choices("label", "console"), { type: "null" }] }, note: nullableText(300),
+  contributed_at: number, created_at: number,
+}, ["id", "account", "kind", "gitlab_project", "gitlab_iid", "url", "title", "size_hint", "suggested", "status", "final_points", "reason",
+  "reviewed_by", "reviewed_at", "accepted_via", "note", "contributed_at", "created_at"]);
+export const candidateList = object({
+  items: { type: "array", items: candidate }, next_cursor: nullableText(80),
+  counts: object({ pending: number, accepted: number, rejected: number }, ["pending", "accepted", "rejected"]),
+  last_run: { anyOf: [collectRun, { type: "null" }] },
+}, ["items", "next_cursor", "counts", "last_run"]);
+export const candidateResult = object({ candidate }, ["candidate"]);
+export const collectResult = object({ last_run: collectRun }, ["last_run"]);
+export const candidateQuery = { querystring: object({ status: choices("pending", "accepted", "rejected"), cursor: { type: "string", pattern: "^[0-9]{1,15}_[0-9a-f-]{36}$" } }) };
+export const candidateParam = { params: object({ competition_id: text(128, 1), candidate_id: text(64, 1) }, ["competition_id", "candidate_id"]) };
+export const candidateBody = {
+  accept: object({ points: integer(5, 100), reason: text(200) }),
+  reject: object({ reason: text(200, 1) }, ["reason"]),
+};
+
+const gradeFactorsFields = Object.fromEntries(["year1", "year2", "year3", "year4", "graduated", "none"].map(key => [key, integer(50, 300)]));
+const gradeFactorsObject = object(gradeFactorsFields, Object.keys(gradeFactorsFields));
+export const rulesView = object({
+  grade_factors: gradeFactorsObject,
+  grades: { type: "array", items: object({ grade: text(16, 1), label: text(16, 1) }, ["grade", "label"]) },
+  prizes: { type: "array", items: prizeTier },
+  gitlab_projects: { type: "array", items: text(255, 1) },
+  updated_at: { anyOf: [number, { type: "null" }] }, updated_by: nullablePerson, finalized: { type: "boolean" },
+}, ["grade_factors", "grades", "prizes", "gitlab_projects", "updated_at", "updated_by", "finalized"]);
+export const rulesBody = object({
+  grade_factors: gradeFactorsObject,
+  prizes: { type: "array", maxItems: 20, items: prizeTier },
+  gitlab_projects: { type: "array", maxItems: 10, items: { type: "string", pattern: "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+){1,4}$", maxLength: 255 } },
+}, ["grade_factors", "prizes", "gitlab_projects"]);
+
+const prizeFields = {
+  id: text(64, 1), competition_id: text(128, 1), rank: number, points: number, amount_cny: number, title: text(40),
+  account: consolePerson, code_hint: text(4), created_at: number,
+  redeemed_at: { anyOf: [number, { type: "null" }] }, redeemed_by: nullablePerson,
+};
+const prize = object(prizeFields, Object.keys(prizeFields));
+export const finalView = object({
+  finalized_at: { anyOf: [number, { type: "null" }] }, finalized_by: nullablePerson,
+  standings: { type: "array", items: object({ rank: number, points: number, account: consolePerson }, ["rank", "points", "account"]) },
+  prizes: { type: "array", items: prize },
+  preview: { type: "array", items: object({
+    rank: number, points: number, account: consolePerson,
+    amount_cny: { anyOf: [number, { type: "null" }] }, title: { anyOf: [text(40), { type: "null" }] },
+  }, ["rank", "points", "account", "amount_cny", "title"]) },
+}, ["finalized_at", "finalized_by", "standings", "prizes", "preview"]);
+export const redeemResult = object({
+  prize: object({ ...prizeFields, competition_name: text(80), real_name: nullableText(64) }, [...Object.keys(prizeFields), "competition_name", "real_name"]),
+}, ["prize"]);
+export const prizeCodeBody = object({ code: text(64, 1) }, ["code"]);
 
 /** 比赛、队伍与积分的路径参数：比赛 id 是 UUID 或种子里的 slug，不能按纯数字校验。 */
 export const competitionIdParam = { params: object({ id: text(128, 1) }, ["id"]) };

@@ -6,6 +6,7 @@ import { beijingCompactDate, beijingDateTime } from "../../lib/beijing-time.js";
 import { SCORE_ERRORS, type ScoreErrorCode, type ScoreEventInput } from "../../lib/competition-score-store.js";
 import { SIGNUP_ERRORS, type SignupErrorCode, type SignupSettings } from "../../lib/competition-signup-store.js";
 import { csvCell } from "../../lib/sql-text.js";
+import { publicCachePrefix } from "../../lib/competition-public.js";
 
 const ERRORS: Record<SignupErrorCode | ScoreErrorCode, { status: number; message: string }> = { ...SIGNUP_ERRORS, ...SCORE_ERRORS };
 
@@ -25,7 +26,7 @@ const settingsAudit = (settings: SignupSettings) => ({
  * 与 #238 的比赛写入共用同一张错误码表。
  */
 export default async function consoleCompetitionRosterRoutes(app: FastifyInstance) {
-  const { competitionSignups: signups, competitionScores: scores, config } = app.services;
+  const { competitionSignups: signups, competitionScores: scores, competitionCandidates: candidates, cache, config } = app.services;
   const { db } = app.services.storage;
   app.addHook("preHandler", requireAuth);
   const manage = [requirePermission("competition.manage"), requireStepUp];
@@ -49,6 +50,7 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
         }
         return result;
       })();
+      if (saved.ok) cache.invalidate(publicCachePrefix(id));
       return saved.ok ? reply.send({ settings: saved.value }) : refuse(reply, saved.error);
     },
   );
@@ -107,11 +109,15 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
         if (created.ok) {
           app.services.activity.recordActivity(req, {
             action: "competition.score.add", surface: "console", target_type: "score_event", target_id: created.value.id, outcome: "ok",
-            meta: { competition_id: id, account_id: created.value.person.account_id, kind: created.value.kind, points: created.value.points },
+            meta: {
+              competition_id: id, account_id: created.value.person.account_id, kind: created.value.kind, points: created.value.points,
+              grade: created.value.grade, grade_factor: created.value.grade_factor, weighted_points: created.value.weighted_points,
+            },
           });
         }
         return created;
       })();
+      if (result.ok) cache.invalidate(publicCachePrefix(id));
       return result.ok ? reply.code(201).send({ event: result.value }) : refuse(reply, result.error);
     },
   );
@@ -124,10 +130,13 @@ export default async function consoleCompetitionRosterRoutes(app: FastifyInstanc
       const result = db.transaction(() => {
         const revoked = scores.revoke(id, req.session!.account_id, eventId, req.body.reason ?? "", Date.now());
         if (revoked.ok) {
+          // 来自 GitLab 候选的那条积分被撤销：候选跟着变成驳回（#278），两边对得上
+          candidates.onEventRevoked(eventId, req.session!.account_id, req.body.reason ?? "", Date.now());
           app.services.activity.recordActivity(req, { action: "competition.score.revoke", surface: "console", target_type: "score_event", target_id: eventId, outcome: "ok", meta: { competition_id: id } });
         }
         return revoked;
       })();
+      if (result.ok) cache.invalidate(publicCachePrefix(id));
       return result.ok ? { event: result.value } : refuse(reply, result.error);
     },
   );

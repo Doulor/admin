@@ -7,6 +7,7 @@ import {
   type CompetitionDraft, type CompetitionPatch, type CompetitionRecord,
 } from "../../lib/competition-store.js";
 import { SIGNUP_ERRORS, type SignupErrorCode } from "../../lib/competition-signup-store.js";
+import { publicCachePrefix } from "../../lib/competition-public.js";
 
 const VALIDATION_MESSAGE: Record<NonNullable<ReturnType<typeof competitionError>>, string> = {
   bad_name: "比赛名称至少需要 2 个非首尾空白字符",
@@ -27,7 +28,7 @@ const refuse = (reply: FastifyReply, error: SignupErrorCode) =>
  * 「下线」是 `PATCH { offline: true }`（公开接口不再返回，控制台仍看得到）；`DELETE` 是真删。
  */
 export default async function consoleCompetitionRoutes(app: FastifyInstance) {
-  const { competitions, competitionSignups, config } = app.services;
+  const { competitions, competitionSignups, competitionSites, cache, config } = app.services;
   const { db } = app.services.storage;
   app.addHook("preHandler", requireAuth);
 
@@ -67,6 +68,10 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
       // 有未取消的报名（#239）：不能改内外部；开放报名期间不能清空报名截止时间。
       if (req.body.kind !== undefined && req.body.kind !== current.kind && competitionSignups.hasActiveSignups(id)) return refuse(reply, "kind_locked");
       if (req.body.signup_deadline === null && competitionSignups.signupEnabled(id)) return refuse(reply, "deadline_required");
+      // 官网只托管内部赛（#278）：已经发布了官网的比赛不能改成外部赛，先在「官网」页签下线。
+      if (req.body.kind === "external" && current.kind === "internal" && competitionSites.site(id)?.live_version_id) {
+        return reply.code(409).send({ error: "competition_site_published", message: "这场比赛的官网已经发布，先下线官网再改成外部赛" });
+      }
       // 时间关系要拿「改完之后的样子」判：只改开始时间时，结束时间取库里的，不能只看这一条补丁。
       const invalid = competitionError(normalize({ ...patchBase(current), ...req.body, kind: req.body.kind ?? current.kind }));
       if (invalid) return reply.code(400).send({ error: invalid, message: VALIDATION_MESSAGE[invalid] });
@@ -80,6 +85,7 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
         return record;
       })();
       if (!changed) return reply.code(404).send({ error: "not_found", message: "比赛不存在" });
+      cache.invalidate(publicCachePrefix(id));
       return { competition: toConsoleCompetition(changed, Date.now()) };
     },
   );
@@ -98,6 +104,9 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
         return true;
       })();
       if (!removed) return reply.code(404).send({ error: "not_found", message: "比赛不存在" });
+      // 官网的版本行随外键级联删掉，数据卷里的站点文件在这里一起删（#278）
+      competitionSites.removeFiles(id);
+      cache.invalidate(publicCachePrefix(id));
       return { ok: true };
     },
   );

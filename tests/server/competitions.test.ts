@@ -131,9 +131,15 @@ describe('public list', () => {
     const listed = await app.inject({ url: '/api/public/competitions' });
     expect(listed.statusCode).toBe(200);
     expect(own(listed.json().competitions).map((row: { name: string }) => row.name)).toEqual(['极客班算法赛', '校外赛']);
-    // 公开形状里没有内部字段，也没有任何成员信息；每场多一个报名摘要（#239），不含报名人数
+    // 公开形状里没有内部字段，也没有任何成员信息；每场多一个报名摘要（#239），不含报名人数；
+    // #278 加官网地址、门户深链、奖项、年级系数与定榜时间
     const row = own(listed.json().competitions)[0];
-    expect(Object.keys(row).sort()).toEqual(['description', 'end_at', 'id', 'kind', 'name', 'signup', 'signup_deadline', 'start_at', 'status', 'url']);
+    expect(Object.keys(row).sort()).toEqual([
+      'app_url', 'description', 'end_at', 'finalized_at', 'grade_factors', 'id', 'kind', 'name', 'prizes',
+      'signup', 'signup_deadline', 'site_url', 'start_at', 'status', 'url',
+    ]);
+    expect(row).toMatchObject({ site_url: null, prizes: [], finalized_at: null });
+    expect(row.app_url).toBe(`/?open=competitions&competition=${encodeURIComponent(row.id)}`);
     expect(row.signup).toEqual({ enabled: false, participation: 'individual', team_min: 1, team_max: 1, scoring: 'none' });
     expect(JSON.stringify(listed.json())).not.toMatch(/offline|created_at|login|user_id/);
 

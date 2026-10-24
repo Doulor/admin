@@ -184,7 +184,7 @@ export function createGitlabSync(db: Database.Database, deps: {
     return actions;
   }
 
-  async function gitlab(method: string, path: string, body?: Record<string, unknown> | FormData): Promise<{ status: number; data: unknown }> {
+  async function gitlab(method: string, path: string, body?: Record<string, unknown> | FormData): Promise<{ status: number; data: unknown; nextPage: number | null }> {
     const form = body instanceof FormData;
     let res: Response;
     try {
@@ -202,7 +202,17 @@ export function createGitlabSync(db: Database.Database, deps: {
     const text = await res.text().catch(() => "");
     let data: unknown = null;
     try { data = text ? JSON.parse(text) : null; } catch { data = null; }
-    return { status: res.status, data };
+    const next = Number(res.headers.get("x-next-page") ?? "");
+    return { status: res.status, data, nextPage: Number.isInteger(next) && next > 0 ? next : null };
+  }
+
+  /**
+   * 只读的 GitLab 接口（#278 比赛贡献收集用）：同一个管理令牌、同一个请求函数（不跟随跳转、15 秒超时），只发 GET。
+   * 没配 URL 或令牌时抛 gitlab_not_configured，连不上抛 gitlab_unreachable（都是 SyncError，`code` 可读）。
+   */
+  async function readApi(path: string): Promise<{ status: number; data: unknown; nextPage: number | null }> {
+    if (!config.url || !config.token) throw new SyncError("gitlab_not_configured");
+    return gitlab("GET", path);
   }
 
   /** POST /users 被拒的原因：用户名或邮箱已被占用（409），或者用户名不合规则、是保留名（400）。 */
@@ -667,7 +677,7 @@ export function createGitlabSync(db: Database.Database, deps: {
   return {
     get mode() { return config.mode; }, get url() { return config.url; }, get group() { return config.group; },
     get intervalMinutes() { return Math.round(intervalMs / 60_000); },
-    plan, reconcile, syncAccount, status, clientRegistered, gitlabUserFor, accountForGitlabUser, start, stop, applySettings,
+    plan, reconcile, syncAccount, status, clientRegistered, gitlabUserFor, accountForGitlabUser, start, stop, applySettings, readApi,
     lastRun: () => lastRun, errors24h, health, listProjects,
   };
 }
