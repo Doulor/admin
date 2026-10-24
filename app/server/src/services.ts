@@ -54,7 +54,7 @@ export type ServiceOverrides = {
 /** Composition root. Only this module owns dependencies and database lifetimes. */
 export function createServices(config: AppConfig, overrides: ServiceOverrides = {}) {
   const crypto = createCrypto(config.encryptionKey);
-  const storage = createDatabase(config.dbPath);
+  const storage = createDatabase(config.dbPath, config.stickerAssetsDir);
   // #274 review round 1：lib/github-connection.ts（控制台接 GitHub App 管理组织）删掉了，github 服务现在
   // 没有生产代码读它；保留这个工厂只是因为 ServiceOverrides.octokitFactory 还有一批既有测试在用，见上面的注释。
   const github = createGithub(overrides.octokitFactory);

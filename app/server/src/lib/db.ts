@@ -1,15 +1,21 @@
 import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
+import { APP_ROOT } from "../config.js";
 import { backfillIdentity } from "./identity-store.js";
 import { runYugcV2Migration } from "./migrations/2026-10-yugc-v2.js";
 import { DEFAULT_GRADE_FACTORS } from "./competition-rubric.js";
+import { runForumV2Migration } from "./migrations/2026-10-forum-v2.js";
 import type { ActivityOutcome, ActivitySurface } from "./activity.js";
 
 /** 审计里的操作者：GitHub 登录名，或带上极客班账号的会话（写进 actor_account_id，#262）。 */
 export type AuditActor = string | { login: string; account_id?: string | null };
 
-export function createDatabase(path: string) {
+const DEFAULT_STICKER_ASSETS_DIR = resolve(APP_ROOT, "server/assets/stickers/yugc");
+
+/** `stickerAssetsDir`（#276）：第一套「极客娘」表情图片所在目录，启动时种进 forum_sticker_files；默认就是仓库里
+ * 的真实素材（这批表情是通用素材，不像论坛分类/标签要按测试隔离出一份夹具），`cli/*.ts` 与既有测试不用跟着传。 */
+export function createDatabase(path: string, stickerAssetsDir: string = DEFAULT_STICKER_ASSETS_DIR) {
 if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
 
 const db = new Database(path);
@@ -852,13 +858,108 @@ CREATE TABLE IF NOT EXISTS limit_events (
 CREATE INDEX IF NOT EXISTS idx_limit_events_subject ON limit_events(bucket, subject, at);
 CREATE INDEX IF NOT EXISTS idx_limit_events_at ON limit_events(at);
 `);
-// 话题可见范围（#274 建表，#276 使用）：默认 public，分类、版主可调；forum_categories 现在还只是客户端常量、
-// 没有落成数据库表，等 #276 建表时再给它加同名列。forum_users.account_id 已经在 #262 加过，这里不重复加。
-addColumn("forum_topics", "visibility", "TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'registered', 'member'))");
+// 话题可见范围（#274 建表，#276 使用）：NULL 表示跟随分类，非 NULL 是版主调高过的覆盖值（CONTRACT-276 §1）。
+// #274 最初建的列是 `NOT NULL DEFAULT 'public'`——那时还没有分级可见、没有人调用过还不存在的 PATCH visibility
+// 接口，所有已有行的 'public' 都是列默认值，不是谁真的设置过；这里把列放宽成可空，并把这些默认值改成 NULL
+// （含义不变：跟随分类，只是之前的列定义没法表达"跟随"这件事，会让分类改成 registered/member 之后，这些行
+// 仍然显示 'public'，变成可见性泄漏）。按 PRAGMA table_info 的 notnull 标志判断要不要重建，可以重复执行。
+(() => {
+  const columns = db.pragma("table_info(forum_topics)") as { name: string; notnull: number }[];
+  const visibility = columns.find(column => column.name === "visibility");
+  if (visibility && visibility.notnull === 1) {
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE forum_topics_new (
+          id TEXT PRIMARY KEY,
+          slug TEXT NOT NULL,
+          title TEXT NOT NULL,
+          category_id TEXT NOT NULL,
+          tag_ids TEXT NOT NULL DEFAULT '[]',
+          author_id TEXT NOT NULL REFERENCES forum_users(id),
+          created_at INTEGER NOT NULL,
+          last_activity_at INTEGER NOT NULL,
+          views INTEGER NOT NULL DEFAULT 0,
+          pinned INTEGER NOT NULL DEFAULT 0,
+          closed INTEGER NOT NULL DEFAULT 0,
+          visibility TEXT CHECK (visibility IS NULL OR visibility IN ('public', 'registered', 'member'))
+        );
+        INSERT INTO forum_topics_new(id, slug, title, category_id, tag_ids, author_id, created_at, last_activity_at, views, pinned, closed, visibility)
+          SELECT id, slug, title, category_id, tag_ids, author_id, created_at, last_activity_at, views, pinned, closed, NULL FROM forum_topics;
+        DROP TABLE forum_topics;
+        ALTER TABLE forum_topics_new RENAME TO forum_topics;
+        CREATE INDEX IF NOT EXISTS idx_forum_topics_author ON forum_topics(author_id, created_at);
+      `);
+    })();
+  }
+})();
+addColumn("forum_topics", "visibility", "TEXT CHECK (visibility IS NULL OR visibility IN ('public', 'registered', 'member'))");
+// 新称号体系（#276 CONTRACT §9）：部门与称号，JSON `{ department, titles }`，和 /auth/me 同一套数据；
+// 没有就是还没请求过（第一次登录的请求会立即回填，见 forum-store.ts 的 ensureMember）。
+addColumn("forum_users", "account_titles", "TEXT");
+
+// 论坛 v2（#276）：分类可见范围种子、表情包、表情回应、上传图片。forum_categories 本身仍是 curation.json
+// 的客户端常量，不落库；这里只存「哪个分类该是什么可见范围」这一份设置。
+db.exec(`
+CREATE TABLE IF NOT EXISTS forum_category_settings (
+  category_id TEXT PRIMARY KEY,
+  visibility TEXT NOT NULL CHECK (visibility IN ('public', 'registered', 'member')),
+  updated_at INTEGER NOT NULL,
+  updated_by TEXT
+);
+
+CREATE TABLE IF NOT EXISTS forum_sticker_packs (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  sort INTEGER NOT NULL DEFAULT 0,
+  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+  created_at INTEGER NOT NULL
+);
+
+-- 表情图片按内容寻址，和 forum_avatars / account_avatars 同一种存法。
+CREATE TABLE IF NOT EXISTS forum_sticker_files (
+  hash TEXT PRIMARY KEY,
+  mime TEXT NOT NULL,
+  bytes BLOB NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS forum_stickers (
+  id TEXT PRIMARY KEY,
+  pack_id TEXT NOT NULL REFERENCES forum_sticker_packs(id),
+  shortcode TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL,
+  file_hash TEXT NOT NULL REFERENCES forum_sticker_files(hash),
+  sort INTEGER NOT NULL DEFAULT 0,
+  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1))
+);
+CREATE INDEX IF NOT EXISTS idx_forum_stickers_pack ON forum_stickers(pack_id, sort);
+
+CREATE TABLE IF NOT EXISTS forum_reactions (
+  post_id TEXT NOT NULL REFERENCES forum_posts(id),
+  account_id TEXT NOT NULL REFERENCES users(id),
+  sticker_id TEXT NOT NULL REFERENCES forum_stickers(id),
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (post_id, account_id, sticker_id)
+);
+CREATE INDEX IF NOT EXISTS idx_forum_reactions_sticker ON forum_reactions(sticker_id);
+
+-- 上传图片按内容寻址，和头像同一种存法；多存 width/height 给 PUT 响应用，不用每次读图再解码一遍。
+CREATE TABLE IF NOT EXISTS forum_upload_files (
+  hash TEXT PRIMARY KEY,
+  mime TEXT NOT NULL,
+  bytes BLOB NOT NULL,
+  width INTEGER NOT NULL,
+  height INTEGER NOT NULL,
+  uploaded_by TEXT REFERENCES users(id),
+  created_at INTEGER NOT NULL
+);
+`);
 
 // 账号、权限、操作记录统一迁移（#274，lib/migrations/2026-10-yugc-v2.ts）：种子只增不改所有者改过的数据，
 // 账号身份与 role_assignments 映射只在账号还没有对应分组时写入，可以重复执行。报告供迁移演练与 MR 贴数用。
 const yugcV2Migration = runYugcV2Migration(db, Date.now());
+// 论坛 v2 迁移（#276，lib/migrations/2026-10-forum-v2.ts）：分类可见范围种子、表情包种子，同样只增不改、可重复执行。
+const forumV2Migration = runForumV2Migration(db, Date.now(), stickerAssetsDir);
 
 // 第一期开源贡献赛（#239）：比赛与报名设置种子，用 `console_seeds` 标记，只插一次。
 // 组织者之后把比赛删掉或改掉，重启也不再补回来。
@@ -1043,7 +1144,7 @@ function audit(actor: AuditActor, action: string, target?: string, details?: unk
   `).run(Date.now(), accountId, opts.surface ?? "system", action, target ?? null, opts.outcome ?? "ok", ip ?? null, JSON.stringify(details ?? {}));
 }
 
-return { db, audit, identityBackfill, yugcV2Migration };
+return { db, audit, identityBackfill, yugcV2Migration, forumV2Migration };
 }
 
 /**
