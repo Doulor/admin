@@ -6,14 +6,12 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { crc32, deflateSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildApp } from '../../app/server/src/app';
 import { REPO_ROOT } from '../../app/server/src/config';
 import { loadForumContent } from '../../app/server/src/lib/forum-content';
 import { ipSubject, nameKey } from '../../app/server/src/lib/forum-rules';
 import { createForumStore } from '../../app/server/src/lib/forum-store';
-import type { ServiceOverrides } from '../../app/server/src/services';
 import { setExclusiveGroupMembership } from '../../app/server/src/lib/permissions';
-import { FORUM_FIXTURE_DIR, accountIdOf, activityRows, grantPermGroup, grantPermNode, signIn, testApp, testConfig } from './helpers';
+import { FORUM_FIXTURE_DIR, accountIdOf, activityRows, grantPermGroup, grantPermNode, signIn, testApp } from './helpers';
 
 /** sharp 是 app/server 的依赖，根目录没有它；从 server 包里取，用来生成真实的测试图片和核对输出。 */
 const sharp = createRequire(join(REPO_ROOT, 'app/server/package.json'))('sharp') as typeof import('../../app/server/node_modules/sharp');
@@ -86,9 +84,6 @@ async function setup(options: { env?: Record<string, string> } = {}) {
 }
 type Setup = Awaited<ReturnType<typeof setup>>;
 
-const guestReply = (topicId: string, content: string, name = '路过的同学', extra: Record<string, unknown> = {}) =>
-  ({ topicId, content, guest: { name }, pow: { timestamp: Date.now(), nonce: 'x' }, website: '', ...extra });
-
 /**
  * 昵称允许清单（lib/forum-rules.ts 的 isAllowedName）要拒绝的名字：前几轮审查找到的每一个探针都在这里。
  * 零宽与格式字符、双向覆盖（显示成「极客班」）、BOM、韩文填充字、C1 控制字符、行分隔符、软连字符、盲文空格、乐谱空符头、
@@ -130,15 +125,15 @@ describe('state', () => {
     expect(state.topics.map((t: { id: string }) => t.id)).toEqual(['t9', 't73']);
     expect(state.topics[1]).toEqual({
       id: 't73', slug: 'topic-73', title: '夹具旧帖一', categoryId: 'c-exam', tagIds: ['tag-grade25'], authorId: 'u-geekclass',
-      createdAt: 1700000000000, lastActivityAt: 1700000000000, views: 12, pinned: true, closed: false,
+      createdAt: 1700000000000, lastActivityAt: 1700000000000, views: 12, pinned: true, closed: false, visibility: 'public',
     });
     expect(state.posts.map((p: { id: string; authorId: string }) => `${p.id}:${p.authorId}`)).toEqual(['body-9:u-geekclass', 'body-73:u-geekclass']);
     expect(state.users).toEqual([{
       id: 'u-geekclass', username: 'geekclass', displayName: '极客班', bio: '夹具官方账号', location: '', website: '', avatarColor: '#2f6fed',
       joinedAt: 1690000000000, role: 'admin', notifyPrefs: { reply: false, like: false, follow: false }, kind: 'official',
+      department: null, titles: [],
     }]);
     expect(state.viewer).toEqual({ userId: null, kind: 'guest', capabilities: [] });
-    expect(state.guestPolicy).toEqual({ powDifficulty: 0, turnstileSiteKey: null, nameMax: 20, contentMax: 2000 });
   });
 
   it('creates the member on the first signed-in request, refreshes role, title and GitHub avatar, and keeps what they edited', async () => {
@@ -290,7 +285,7 @@ describe('list state without bodies (#156)', () => {
     expect(long.excerpt.endsWith('…')).toBe(true);
     expect(posts.find(post => post.id === 'body-9').excerpt.length).toBeLessThan(201);
     // 除正文外，帖子记录的其它字段照旧：列表与个人页的计数不用变。
-    expect(Object.keys(posts[0]).sort()).toEqual(['authorId', 'createdAt', 'excerpt', 'id', 'likeUserIds', 'topicId']);
+    expect(Object.keys(posts[0]).sort()).toEqual(['authorId', 'createdAt', 'excerpt', 'id', 'likeUserIds', 'reactions', 'topicId', 'visibility']);
   });
 
   it('serves one topic\'s posts with bodies, for anyone, and 404s an unknown topic', async () => {
@@ -524,86 +519,6 @@ describe('replies', () => {
     expect((await s.state('dave')).notifications.map((n: { type: string }) => n.type)).toEqual(['mention']);
   });
 
-  it('lets a guest reply with a name, proof of work and an empty honeypot, and never lets a guest open a topic', async () => {
-    const s = await setup();
-    await s.state('bob');
-    const { topicId } = await newTopic(s, 'bob');
-    const send = (body: Record<string, unknown>, remoteAddress = '203.0.113.5') => s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: body, remoteAddress });
-
-    expect((await send(guestReply(topicId, '没有 PoW', undefined, { pow: undefined }))).json()).toMatchObject({ error: 'pow_invalid' });
-    expect((await send(guestReply(topicId, '过期的 PoW', undefined, { pow: { timestamp: Date.now() - 10 * 60_000, nonce: 'x' } }))).json().error).toBe('pow_invalid');
-    expect((await send(guestReply(topicId, '机器人', undefined, { website: 'https://spam.example' }))).json()).toMatchObject({ error: 'request_rejected', message: '请求被拒绝' });
-    expect((await send(guestReply(topicId, 'x'.repeat(2001)))).json().error).toBe('content_too_long');
-    expect((await send(guestReply(topicId, '没名字', '  '))).json().error).toBe('invalid_guest_name');
-    expect((await send(guestReply(topicId, '名字太长', 'x'.repeat(21)))).json().error).toBe('validation_error');
-    expect((await send(guestReply(topicId, '冒充', '极客班'))).json().error).toBe('guest_name_taken');
-    expect((await send(guestReply(topicId, '冒充', 'BOB'))).json().error).toBe('guest_name_taken');
-    expect((await send({ ...guestReply(topicId, 'x'), homepage: 'x' })).json().error).toBe('validation_error');
-
-    const ok = await send(guestReply(topicId, '游客的回复 @bob'));
-    expect(ok.statusCode).toBe(201);
-    const { changes, viewer, postId } = ok.json();
-    expect(viewer).toEqual({ userId: null, kind: 'guest', capabilities: [] });
-    const post = changes.posts.find((p: { id: string }) => p.id === postId);
-    expect(post.authorId).toBe('g1');
-    expect(changes.users.find((u: { id: string }) => u.id === 'g1')).toEqual({
-      id: 'g1', username: 'guest-1', displayName: '路过的同学', bio: '', location: '', website: '', avatarColor: '#e5484d',
-      joinedAt: expect.any(Number), role: 'member', notifyPrefs: { reply: false, like: false, follow: false }, kind: 'guest',
-    });
-    // 游客回复也通知话题作者（actor 是游客用户）；同一帖里的 @ 不重复通知。
-    expect((await s.state('bob')).notifications.map((n: { type: string; actorId: string }) => `${n.type}:${n.actorId}`)).toEqual(['reply:g1']);
-    // 游客改不了、删不了自己的回复，也发不了话题。
-    expect((await s.call('PATCH', `/api/forum/posts/${postId}`, undefined, { content: '改' })).statusCode).toBe(401);
-    expect((await s.call('DELETE', `/api/forum/posts/${postId}`)).statusCode).toBe(401);
-    expect((await s.call('POST', '/api/forum/posts/p10001/like')).statusCode).toBe(401);
-    // 每条游客回复是一个新的游客用户。
-    expect((await send(guestReply(topicId, '第二条'))).json().changes.users.map((u: { id: string }) => u.id)).toEqual(['g2']);
-  });
-
-  it('limits guest replies to 5 a minute and 30 a day per IP', async () => {
-    const s = await setup();
-    const send = (remoteAddress: string) => s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', '回复'), remoteAddress });
-    for (let i = 0; i < 5; i += 1) expect((await send('203.0.113.7')).statusCode).toBe(201);
-    const limited = await send('203.0.113.7');
-    expect(limited.statusCode).toBe(429);
-    expect(limited.json().error).toBe('rate_limited');
-    expect((await send('203.0.113.8')).statusCode).toBe(201);
-    // 一天 30 次：把 30 条记录放在一分钟以前、一天以内。
-    const earlier = Date.now() - 2 * 60_000;
-    for (let i = 0; i < 30; i += 1) s.app.services.forum.rateRecord('guestPost', '203.0.113.9', earlier);
-    expect((await send('203.0.113.9')).statusCode).toBe(429);
-  });
-
-  it('counts guest replies from one IPv6 /64 together', async () => {
-    const s = await setup();
-    const send = (remoteAddress: string) => s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', '回复'), remoteAddress });
-    const statuses: number[] = [];
-    for (let i = 1; i <= 6; i += 1) statuses.push((await send(`2001:db8:1:2::${i.toString(16)}`)).statusCode);
-    expect(statuses).toEqual([201, 201, 201, 201, 201, 429]);
-    expect((await send('2001:db8:1:2:abcd:ef01:2345:6789')).statusCode).toBe(429);
-    expect((await send('2001:db8:1:3::1')).statusCode).toBe(201);
-    // IPv4 映射成 IPv6 的地址按 IPv4 计。
-    for (let i = 0; i < 5; i += 1) s.app.services.forum.rateRecord('guestPost', '203.0.113.30');
-    expect((await send('::ffff:203.0.113.30')).statusCode).toBe(429);
-  });
-
-  it('pauses all guest replies after 200 an hour across the site, and leaves members alone', async () => {
-    const s = await setup();
-    const send = (remoteAddress: string) => s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', '回复'), remoteAddress });
-    const earlier = Date.now() - 2 * 60_000;
-    for (let i = 0; i < 199; i += 1) s.app.services.forum.rateRecord('guestPostSite', 'site', earlier);
-    // 第 200 条照常发出并记进全站计数；之后换任何 IP 都暂停。
-    expect((await send('203.0.113.70')).statusCode).toBe(201);
-    const paused = await send('203.0.113.71');
-    expect(paused.statusCode).toBe(429);
-    expect(paused.json()).toMatchObject({ error: 'guest_replies_paused', message: '游客回复暂时太多\uFF0C请过一会儿再试\uFF0C或者登录后回复' });
-    expect((await send('2001:db8:9::1')).json().error).toBe('guest_replies_paused');
-    expect((await s.call('POST', '/api/forum/posts', 'bob', { topicId: 't9', content: '成员照常回复' })).statusCode).toBe(201);
-    // 一小时之后恢复。
-    s.db.prepare("UPDATE forum_rate_events SET created_at = created_at - 3600001 WHERE bucket = 'guestPostSite'").run();
-    expect((await send('203.0.113.71')).statusCode).toBe(201);
-  });
-
   it('also limits a level.member to 60 replies an hour (SPEC §3.8 meta.limit.forum.reply.hourly), independent of the per-minute flood guard', async () => {
     const s = await setup();
     s.as('bob');
@@ -629,134 +544,36 @@ describe('replies', () => {
     expect(blocked.json()).toMatchObject({ error: 'rate_limited', bucket: 'forum.reply.ip.hourly' });
   });
 
-  it('takes only allowlisted characters in guest names, and every probe from earlier rounds is refused', async () => {
-    const s = await setup();
-    let ip = 100;
-    const send = (name: string) => s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', '冒充', name), remoteAddress: `203.0.113.${ip++}` });
-    for (const name of REFUSED_NAMES) {
-      const response = await send(name);
-      expect(response.statusCode, JSON.stringify(name)).toBe(400);
-      expect(response.json(), JSON.stringify(name)).toMatchObject({ error: 'invalid_guest_name', message: NAME_RULE });
-    }
-    for (const name of ALLOWED_NAMES) expect((await send(name)).statusCode, JSON.stringify(name)).toBe(201);
-    expect((await send('  ')).json()).toMatchObject({ error: 'invalid_guest_name', message: '游客要填 1 到 20 个字的昵称' });
-  });
-
-  it('refuses guest names that differ from a member or the official account only in width, case or accents', async () => {
-    const s = await setup();
-    await s.state('bob');
-    const send = (name: string) => s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', '冒充', name), remoteAddress: '203.0.113.60' });
-    for (const name of ['\uFF27\uFF25\uFF25\uFF2B\uFF23\uFF2C\uFF21\uFF33\uFF33', '\uFF22\uFF4F\uFF42', 'B\u00F3b', '极客班']) {
-      const response = await send(name);
-      expect(response.statusCode, JSON.stringify(name)).toBe(400);
-      expect(response.json().error, JSON.stringify(name)).toBe('guest_name_taken');
-    }
-    expect((await send('极客班的同学')).statusCode).toBe(201);
-  });
-
-  it('stores names in their NFKC form, and ignores spaces and separators when comparing them', async () => {
+  it('stores member nicknames in their NFKC form, and ignores separators when comparing them', async () => {
     const s = await setup();
     await s.state('carol');
-    let ip = 150;
-    const send = (name: string) => s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', '冒充', name), remoteAddress: `203.0.113.${ip++}` });
     const rename = (displayName: string, who = 'bob') => s.call('PATCH', '/api/forum/me/profile', who, { displayName });
-    // 不换行空格、半角空格 U+2002、全角空格在 NFKC 之后都是普通空格：比较时不算区别，存下来也不会显示得像「极客班」。
-    for (const name of ['极\u00A0客班', '极\u2002客班', '极\u3000客班', '极客班.', '极-客班']) {
-      const response = await send(name);
-      expect(response.statusCode, JSON.stringify(name)).toBe(400);
-      expect(response.json().error, JSON.stringify(name)).toBe('guest_name_taken');
-    }
-    for (const name of ['极\u00A0客班', 'Car\u00A0ol', 'c.a.r.o.l']) {
-      expect((await rename(name)).json().error, JSON.stringify(name)).toBe('display_name_taken');
-    }
-    expect((await rename('阿\u00B7凡提', 'carol')).statusCode).toBe(200);
-    expect((await send('阿\u30FB凡提')).json().error).toBe('guest_name_taken');
-
-    // 存的是 NFKC 之后、去掉首尾空白的写法。
-    const guest = await send('\uFF37\uFF41\uFF4E\uFF47\u3000\uFF38\uFF49\uFF41\uFF4F\u3000');
-    expect(guest.statusCode).toBe(201);
-    const guestId = guest.json().changes.posts.find((p: { id: string }) => p.id === guest.json().postId).authorId;
-    expect((await rename('\u3000张\u00A0三')).statusCode).toBe(200);
-    expect(s.db.prepare('SELECT id, display_name FROM forum_users WHERE id IN (?, ?) ORDER BY id').all(guestId, 'm102'))
-      .toEqual([{ id: guestId, display_name: 'Wang Xiao' }, { id: 'm102', display_name: '张 三' }]);
-    // 长度按存下来的写法算：㍿ 在 NFKC 之后是「株式会社」四个字。
-    expect((await send('\u337F'.repeat(6))).json()).toMatchObject({ error: 'invalid_guest_name', message: '游客要填 1 到 20 个字的昵称' });
-    expect((await rename('\u337F'.repeat(8))).json()).toMatchObject({ error: 'invalid_display_name', message: '昵称要 1 到 30 个字' });
+    // 点号分隔、大小写都不算区别：和 carol 的用户名撞上。
+    expect((await rename('c.a.r.o.l')).json().error).toBe('display_name_taken');
+    // 中间点 · 是允许清单里的分隔符，不撞车就能用。
+    expect((await rename('阿·凡提', 'carol')).statusCode).toBe(200);
+    // 长度按 NFKC 展开之后的写法算：㍿ 在 NFKC 之后是「株式会社」四个字。
+    expect((await rename('㍿'.repeat(8))).json()).toMatchObject({ error: 'invalid_display_name', message: '昵称要 1 到 30 个字' });
   });
 
-  it('answers whether a guest name is taken only after the rate limit and proof of work, and counts every such answer', async () => {
-    const s = await setup();
-    const send = (body: Record<string, unknown>) => s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: body, remoteAddress: '203.0.113.90' });
-    // 没有有效 PoW 的请求问不出昵称有没有被占。
-    expect((await send(guestReply('t9', '探测', '极客班', { pow: undefined }))).json().error).toBe('pow_invalid');
-    // 被占的回答也占每个 IP 每分钟 5 次的额度：第 6 次先被限流，看不到昵称的结果。
-    const errors: string[] = [];
-    for (let i = 0; i < 6; i += 1) errors.push((await send(guestReply('t9', '探测', i % 2 ? 'Dave' : '极客班'))).json().error);
-    expect(errors).toEqual([...Array(5).fill('guest_name_taken'), 'rate_limited']);
-    expect((await send(guestReply('t9', '正常回复'))).json().error).toBe('rate_limited');
-    expect(s.db.prepare("SELECT COUNT(*) AS n FROM forum_rate_events WHERE bucket = 'guestPost' AND subject = '203.0.113.90'").get()).toEqual({ n: 5 });
-    expect(s.db.prepare("SELECT COUNT(*) AS n FROM forum_rate_events WHERE bucket = 'guestPostSite'").get()).toEqual({ n: 0 });
-  });
-
-  it('counts every guest attempt that passes proof of work once, so a failed human check does not tell taken and free names apart', async () => {
-    const s = await setup();
-    const { turnstile } = s.app.services;
-    turnstile.verifyTurnstile = async () => false;
-    const send = (name: string, remoteAddress = '203.0.113.95') => s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', '探测', name), remoteAddress });
-    const errors: string[] = [];
-    for (let i = 0; i < 6; i += 1) errors.push((await send(i % 2 ? '极客班' : `路人${i}`)).json().error);
-    expect(errors).toEqual(['turnstile_failed', 'guest_name_taken', 'turnstile_failed', 'guest_name_taken', 'turnstile_failed', 'rate_limited']);
-    const count = (bucket: string, subject: string) => s.db.prepare('SELECT COUNT(*) AS n FROM forum_rate_events WHERE bucket = ? AND subject = ?').get(bucket, subject);
-    expect(count('guestPost', '203.0.113.95')).toEqual({ n: 5 });
-    // 发出去的回复只记一次这个 IP；全站计数只记真正发出的回复。
-    turnstile.verifyTurnstile = async () => true;
-    expect((await send('路人', '203.0.113.96')).statusCode).toBe(201);
-    expect(count('guestPost', '203.0.113.96')).toEqual({ n: 1 });
-    expect(count('guestPostSite', 'site')).toEqual({ n: 1 });
-  });
-
-  it('treats lookalike letters as the same when comparing names', async () => {
+  it('treats lookalike letters as the same when comparing member nicknames', async () => {
     const s = await setup();
     await s.state('alice');
-    await s.call('PATCH', '/api/forum/me/profile', 'bob', { displayName: '张\u529B' });
-    let ip = 170;
-    const send = (name: string) => s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', '冒充', name), remoteAddress: `203.0.113.${ip++}` });
-    // alıce（无点 ı）、geeĸclass（ĸ）、张カ（片假名カ，看起来是「张力」）。
-    for (const name of ['al\u0131ce', 'gee\u0138class', '张\u30AB']) {
-      expect((await send(name)).json().error, JSON.stringify(name)).toBe('guest_name_taken');
-    }
-    expect((await s.call('PATCH', '/api/forum/me/profile', 'carol', { displayName: 'al\u0131ce' })).json().error).toBe('display_name_taken');
-    expect((await send('张\u30AB\u30BF')).statusCode).toBe(201);
+    // alıce：无点的 ı（dotless i）看起来和 alice 一样。
+    expect((await s.call('PATCH', '/api/forum/me/profile', 'carol', { displayName: 'alıce' })).json().error).toBe('display_name_taken');
   });
 
-  it('keeps guests and members from taking the login of an org member who never opened the forum', async () => {
+  it('keeps members from renaming to the login of an org member who never opened the forum', async () => {
     const s = await setup();
-    // dave（队长）、erin（领航员）、zed（后来指派的舰员）只在控制台的称号指派里；owner1 登录过（审计里有 auth.signin），
-    // grace 有当前会话。这些人都没打开过论坛。frank 没有称号、也从没登录过：这是剩下的缺口。
-    s.app.services.roles.insertAssignment({ github_login: 'zed', github_user_id: null, role: 'member', department_id: 'tech', note: null, granted_by: 'fixture' });
-    // #274 item I：auth.signin 改记在 activity_events（account_id，不是自由文本的 actor），lib/auth.ts 的
-    // signedInLogins() 按 account_id 解登录名——真的建一个账号再补一条 auth.signin，然后结束它的会话，
-    // 模拟「登录过，但现在没有当前会话」。
+    // owner1 登录过（审计里有 auth.signin）但没打开过论坛：#274 item I，auth.signin 改记在 activity_events
+    // （account_id，不是自由文本的 actor），lib/auth.ts 的 signedInLogins() 按 account_id 解登录名——真的
+    // 建一个账号再补一条 auth.signin，然后结束它的会话，模拟「登录过，但现在没有当前会话」。
     const ownerSid = signIn(s.app, 'owner1', 9108);
     const ownerAccountId = s.app.services.auth.getSession(ownerSid)!.account_id;
     s.app.services.storage.db.prepare(
       "INSERT INTO activity_events(at, account_id, surface, action, outcome, meta) VALUES (?, ?, 'portal', 'auth.signin', 'ok', '{}')",
     ).run(Date.now(), ownerAccountId);
     s.app.services.auth.destroySession(ownerSid);
-    signIn(s.app, 'grace', 107, null, 'token-grace');
-    // mallory 登录被拒过（auth.signin_denied）：不是登录过的人，名字照常能用——signedInLogins() 只认
-    // action = 'auth.signin'，这条 denied 不会让它出现在「登录过的人」里，账号也不需要真的存在。
-    s.app.services.storage.db.prepare(
-      "INSERT INTO activity_events(at, account_id, surface, action, outcome, meta) VALUES (?, NULL, 'portal', 'auth.signin_denied', 'denied', '{}')",
-    ).run(Date.now());
-    let ip = 63;
-    const send = (name: string) => s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', '冒充', name), remoteAddress: `198.51.100.${ip++}` });
-    for (const name of ['Dave', '\uFF25\uFF32\uFF29\uFF2E', 'zed', 'OWNER1', 'Grace']) {
-      expect((await send(name)).json().error, name).toBe('guest_name_taken');
-    }
-    expect((await send('frank')).statusCode).toBe(201);
-    expect((await send('mallory')).statusCode).toBe(201);
-    expect((await s.state()).users.map((u: { id: string }) => u.id)).not.toContain('m104');
 
     const rename = (displayName: string, who: string) => s.call('PATCH', '/api/forum/me/profile', who, { displayName });
     expect((await rename('erin', 'bob')).json().error).toBe('display_name_taken');
@@ -779,39 +596,12 @@ describe('replies', () => {
     expect(mentioned.map(row => row.recipient_id)).toEqual(Array.from({ length: 10 }, (_, i) => `m${500 + i}`));
   });
 
-  it('checks the guest proof of work over `${topicId}:${content}` at the real difficulty', async () => {
-    const config = testConfig({
-      NODE_ENV: 'test', PUBLIC_ORIGIN: 'https://example.test', DB_PATH: ':memory:',
-      SESSION_SECRET: 'isolated-core-test-secret-at-least-32', ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
-      OAUTH_CLIENT_ID: 'test-client', OAUTH_CLIENT_SECRET: 'test-only-placeholder', POW_DIFFICULTY: '2',
-    });
-    const deny = (() => { throw new Error('Unexpected external network request in forum PoW test'); }) as unknown as ServiceOverrides['httpRequest'];
-    const app = await buildApp({ config, staticRoot: false, overrides: { httpRequest: deny, octokitFactory: deny as unknown as ServiceOverrides['octokitFactory'] } });
-    contexts.push(app);
-    // `avoid`：错的解不能碰巧也是对的解（难度 2 时约 1/256 的概率），否则用例会偶发失败。
-    const solve = (bodyForHash: string, avoid?: string) => {
-      const timestamp = Date.now();
-      const solves = (body: string, n: number) => createHash('sha256').update(`${timestamp}:${body}:${n}`).digest('hex').startsWith('00');
-      for (let n = 0; ; n += 1) {
-        if (solves(bodyForHash, n) && !(avoid && solves(avoid, n))) return { timestamp, nonce: String(n) };
-      }
-    };
-    expect((await app.inject('/api/forum/state')).json().state.guestPolicy.powDifficulty).toBe(2);
-    const content = '  前后有空白的回复  ';
-    const wrong = await app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', content, undefined, { pow: solve(`t73:${content}`, `t9:${content}`) }) });
-    expect(wrong.json().error).toBe('pow_invalid');
-    const right = await app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', content, undefined, { pow: solve(`t9:${content}`) }) });
-    expect(right.statusCode).toBe(201);
-    expect(right.json().changes.posts.find((p: { id: string }) => p.id === right.json().postId).content).toBe(content);
-  });
-
   it('lets only moderators reply in a closed topic', async () => {
     const s = await setup();
     await s.call('POST', '/api/forum/topics/t9/close', 'carol', { closed: true });
     const member = await s.call('POST', '/api/forum/posts', 'bob', { topicId: 't9', content: '还能回吗' });
     expect(member.statusCode).toBe(403);
     expect(member.json()).toMatchObject({ error: 'forbidden', message: '话题已关闭\uFF0C不能回复' });
-    expect((await s.call('POST', '/api/forum/posts', undefined, guestReply('t9', '游客呢'))).statusCode).toBe(403);
     // #274：dave 所在的项目部一样拿到 forum.moderate.edit（统一授权，不分部员/部长），关闭的话题里也能回。
     expect((await s.call('POST', '/api/forum/posts', 'dave', { topicId: 't9', content: '队长也能说' })).statusCode).toBe(201);
     expect((await s.call('POST', '/api/forum/posts', 'carol', { topicId: 't9', content: '版务说明' })).statusCode).toBe(201);
@@ -820,7 +610,7 @@ describe('replies', () => {
 
   it('rejects cross-origin writes before touching the forum', async () => {
     const s = await setup();
-    const response = await s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', 'x'), headers: { origin: 'https://evil.example' } });
+    const response = await s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: { topicId: 't9', content: 'x' }, headers: { origin: 'https://evil.example' } });
     expect(response.statusCode).toBe(403);
     expect(response.json().error).toBe('invalid_origin');
     expect((await s.state()).posts).toHaveLength(2);
@@ -829,9 +619,8 @@ describe('replies', () => {
 
 /**
  * #274 残留修复：访客 × 注册用户 × 成员，三档身份各试一遍话题、回复、点赞，确认允许/拒绝都对（SPEC §3.2/§3.11）。
- * 访客没有会话，topic/like 直接 401（回复另有专门的游客 PoW 路径，不在这个矩阵里，见上面「replies」）；
- * 注册用户（frank，没有邀请码、没有 forum.topic.create/forum.reply.create/forum.react）一律 403，
- * 403 在限额判断之前就拦住；成员（bob，level.member）三件事都允许。
+ * 访客没有会话，三件事一律 401；注册用户（frank，没有邀请码、没有 forum.topic.create/forum.reply.create/forum.react）
+ * 一律 403，403 在限额判断之前就拦住；成员（bob，level.member）三件事都允许。
  */
 describe('write gate by permission node: visitor × registered × member (#274 SPEC §3.2/§3.11)', () => {
   it('topic create: 401 for a visitor, 403 for a registered account, 201 for a member', async () => {
@@ -844,8 +633,9 @@ describe('write gate by permission node: visitor × registered × member (#274 S
     expect(member.statusCode).toBe(201);
   });
 
-  it('reply: 403 for a registered account (not the guest PoW path), 201 for a member', async () => {
+  it('reply: 401 for a visitor, 403 for a registered account, 201 for a member', async () => {
     const s = await setup();
+    expect((await s.call('POST', '/api/forum/posts', undefined, { topicId: 't9', content: '访客回复' })).statusCode).toBe(401);
     const registered = await s.call('POST', '/api/forum/posts', 'frank', { topicId: 't9', content: '注册用户回复' });
     expect(registered.statusCode).toBe(403);
     expect(registered.json().error).toBe('forbidden');
@@ -868,7 +658,7 @@ describe('editing and deleting', () => {
     const s = await setup();
     const { topicId, postId: first } = await newTopic(s, 'bob');
     const reply = (await s.call('POST', '/api/forum/posts', 'bob', { topicId, content: '第一版' })).json().postId;
-    const guest = (await s.call('POST', '/api/forum/posts', undefined, guestReply(topicId, '游客的话'))).json().postId;
+    const daves = (await s.call('POST', '/api/forum/posts', 'dave', { topicId, content: '别人的话' })).json().postId;
 
     const edited = await s.call('PATCH', `/api/forum/posts/${reply}`, 'bob', { content: '第二版' });
     expect(edited.statusCode).toBe(200);
@@ -880,15 +670,15 @@ describe('editing and deleting', () => {
     expect((await s.call('DELETE', `/api/forum/posts/${reply}`, 'erin')).statusCode).toBe(403);
     expect((await s.call('PATCH', `/api/forum/posts/${reply}`, 'bob', { content: '  ' })).json().error).toBe('empty_content');
 
-    // 社区部舰员改、删游客的帖子：写审计，不记正文。
-    expect((await s.call('PATCH', `/api/forum/posts/${guest}`, 'carol', { content: '\uFF08已由版务整理\uFF09' })).statusCode).toBe(200);
-    const removed = await s.call('DELETE', `/api/forum/posts/${guest}`, 'carol');
-    expect(removed.json().changes.posts.find((p: { id: string }) => p.id === guest)).toMatchObject({ deleted: true, content: '' });
+    // 社区部舰员改、删别人（dave）的帖子：写审计，不记正文。
+    expect((await s.call('PATCH', `/api/forum/posts/${daves}`, 'carol', { content: '（已由版务整理）' })).statusCode).toBe(200);
+    const removed = await s.call('DELETE', `/api/forum/posts/${daves}`, 'carol');
+    expect(removed.json().changes.posts.find((p: { id: string }) => p.id === daves)).toMatchObject({ deleted: true, content: '' });
     // s.audits() 是 forum.% 全量（这次用例里还有建话题、发回复两条合法的 forum.topic.create/forum.reply.create，
-    // 以前只查 audit_logs 看不到，现在统一读 activity_events 就都在了），这里只看版务改/删游客帖这两条要钉住的。
+    // 以前只查 audit_logs 看不到，现在统一读 activity_events 就都在了），这里只看版务改/删别人帖这两条要钉住的。
     expect(s.audits().filter(row => row.action.startsWith('forum.post.'))).toEqual([
-      { account_id: accountIdOf(s.app, 'carol'), action: 'forum.post.edit', target: guest, meta: { topic_id: topicId, author_id: 'g1' } },
-      { account_id: accountIdOf(s.app, 'carol'), action: 'forum.post.delete', target: guest, meta: { topic_id: topicId, author_id: 'g1' } },
+      { account_id: accountIdOf(s.app, 'carol'), action: 'forum.post.edit', target: daves, meta: { topic_id: topicId, author_id: 'm104' } },
+      { account_id: accountIdOf(s.app, 'carol'), action: 'forum.post.delete', target: daves, meta: { topic_id: topicId, author_id: 'm104' } },
     ]);
 
     // 自己删自己的不审计；再删一次原样返回；删掉的不能再改、不能点赞。
@@ -1018,13 +808,13 @@ describe('write responses (#145)', () => {
 
     const reply = await s.call('POST', '/api/forum/posts', 'carol', { topicId, content: '回复 @bob' });
     expect(reply.statusCode).toBe(201);
-    const { changes, viewer, guestPolicy, postId: replyId } = reply.json();
+    const { changes, viewer, postId: replyId } = reply.json();
     const carol = await s.state('carol');
     expect(changes).toEqual({
       users: [byId(carol.users, 'm103')], topics: [byId(carol.topics, topicId)],
       posts: [{ ...withoutExcerpt(byId(carol.posts, replyId)), content: '回复 @bob' }],
     });
-    expect([viewer, guestPolicy]).toEqual([carol.viewer, carol.guestPolicy]);
+    expect(viewer).toEqual(carol.viewer);
     // 话题的最后活动时间跟着回复走：并进前端的那条话题已经是新的。
     expect(changes.topics[0].lastActivityAt).toBe(changes.posts[0].createdAt);
 
@@ -1047,10 +837,6 @@ describe('write responses (#145)', () => {
     const reply = (await s.call('POST', '/api/forum/posts', 'carol', { topicId, content: '回复' })).json();
     expect(reply.changes.notifications).toBeUndefined();
     expect(reply.changes.users).toEqual([expect.objectContaining({ id: 'm103', notifyPrefs: { reply: true, like: false, follow: true } })]);
-    // 游客的回答：没有通知、没有书签，只有这次的游客用户。
-    const guest = (await s.call('POST', '/api/forum/posts', undefined, guestReply(topicId, '游客回复'))).json();
-    expect(Object.keys(guest.changes).sort()).toEqual(['posts', 'topics', 'users']);
-    expect(guest.changes.users.map((u: { id: string; kind: string }) => `${u.id}:${u.kind}`)).toEqual(['g1:guest']);
 
     // 拼回答的那一层自己也挡：别人的通知、别人的书签、别人的通知设置都拿不到。
     const bobNotification = (await s.state('bob')).notifications[0].id;
@@ -1132,7 +918,6 @@ describe('write responses read by the forum client (#145)', () => {
     };
     const { topicId, postId } = await run('topic', 'POST', '/api/forum/topics', 'bob', { title: '新话题', categoryId: 'c-ai', tags: ['tag-agents', '新标签'], content: '正文' });
     const reply = await run('reply', 'POST', '/api/forum/posts', 'carol', { topicId, content: '回复 @bob', replyToPostId: postId });
-    await run('guest reply', 'POST', '/api/forum/posts', undefined, guestReply(topicId, '游客回复'));
     await run('like', 'POST', `/api/forum/posts/${postId}/like`, 'carol');
     await run('bookmark', 'POST', `/api/forum/posts/${postId}/bookmark`, 'carol');
     await run('remove the bookmark', 'POST', `/api/forum/posts/${postId}/bookmark`, 'carol');
@@ -1149,8 +934,8 @@ describe('write responses read by the forum client (#145)', () => {
 
     for (const { name, body } of answers) {
       const parsed = parseWriteResult(body);
-      expect({ changes: parsed.changes, viewer: parsed.viewer, guestPolicy: parsed.guestPolicy }, name)
-        .toEqual({ changes: body.changes, viewer: body.viewer, guestPolicy: body.guestPolicy });
+      expect({ changes: parsed.changes, viewer: parsed.viewer }, name)
+        .toEqual({ changes: body.changes, viewer: body.viewer });
       // 成员的每个回答都带着自己的用户记录，前端的测试夹具照这个写（app/forum/tests/fixtures/server-state.ts 的 writeBody）。
       if (body.viewer.userId !== null) expect(body.changes.users.map((user: { id: string }) => user.id), name).toContain(body.viewer.userId);
     }
@@ -1388,17 +1173,20 @@ describe('client address behind the two deployment proxies', () => {
   const through = (spoofed: string, client: string, extra: Record<string, string> = {}) => ({
     remoteAddress: '172.18.0.3', headers: { ...extra, 'x-forwarded-for': `${spoofed}, ${client}, 172.18.0.1` },
   });
-  const guestThrough = (s: Setup, spoofed: string, client = '198.51.100.7') =>
-    s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', '回复'), ...through(spoofed, client) });
+  const ipKey = (address: string) => createHash('sha256').update(ipSubject(address)).digest('hex');
+  // forum.reply.ip.hourly（SPEC §3.8）按解析出来的真实客户端地址分桶：游客回复在 #276 已经去掉，这里改用
+  // 成员回复，预先把目标地址的配额堆到只差一次，专门考两层代理的 hop 数解析对不对。
+  const replyThrough = (s: Setup, spoofed: string, client: string, who = 'bob') =>
+    s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: { topicId: 't9', content: '回复' }, ...through(spoofed, client, s.as(who)) });
 
-  it('with TRUST_PROXY=2 counts guest replies and audits by the address the host nginx saw, however the client rotates its own header', async () => {
+  it('with TRUST_PROXY=2 counts replies and audits by the address the host nginx saw, however the client rotates its own header', async () => {
     const s = await setup({ env: { TRUST_PROXY: '2' } });
+    for (let i = 0; i < 199; i += 1) s.app.services.limits.hit({ bucket: 'forum.reply.ip.hourly', subject: ipKey('198.51.100.7'), window: { ms: 3600_000 }, max: 200 });
     const statuses: number[] = [];
-    for (let i = 1; i <= 6; i += 1) statuses.push((await guestThrough(s, `10.0.0.${i}`)).statusCode);
-    expect(statuses).toEqual([201, 201, 201, 201, 201, 429]);
-    expect((await guestThrough(s, '10.0.0.99', '198.51.100.8')).statusCode).toBe(201);
-    expect(s.db.prepare("SELECT DISTINCT subject FROM forum_rate_events WHERE bucket = 'guestPost' ORDER BY subject").all())
-      .toEqual([{ subject: '198.51.100.7' }, { subject: '198.51.100.8' }]);
+    for (let i = 1; i <= 2; i += 1) statuses.push((await replyThrough(s, `10.0.0.${i}`, '198.51.100.7')).statusCode);
+    expect(statuses).toEqual([201, 429]);
+    // 换一个真实客户端地址（宿主 nginx 看到的第二段），配额分开算，不管自称的那段怎么写。
+    expect((await replyThrough(s, '10.0.0.99', '198.51.100.8')).statusCode).toBe(201);
 
     const pinned = await s.app.inject({ method: 'POST', url: '/api/forum/topics/t9/pin', payload: { pinned: true }, ...through('10.9.9.9', '198.51.100.9', s.as('alice')) });
     expect(pinned.statusCode).toBe(200);
@@ -1407,21 +1195,24 @@ describe('client address behind the two deployment proxies', () => {
 
   it('with TRUST_PROXY=true the rotated header got through every time (the bug the hop count fixes)', async () => {
     const s = await setup({ env: { TRUST_PROXY: 'true' } });
-    for (let i = 1; i <= 6; i += 1) expect((await guestThrough(s, `10.0.0.${i}`)).statusCode).toBe(201);
+    for (let i = 0; i < 199; i += 1) s.app.services.limits.hit({ bucket: 'forum.reply.ip.hourly', subject: ipKey('198.51.100.7'), window: { ms: 3600_000 }, max: 200 });
+    // 信任每一跳：把客户端自己伪造的最左边地址当真，配额按伪造地址分别算，预先堆满的 199 次配额被绕开。
+    for (let i = 1; i <= 6; i += 1) expect((await replyThrough(s, `10.0.0.${i}`, '198.51.100.7')).statusCode).toBe(201);
   });
 
   it('keeps local development on loopback trust when TRUST_PROXY is unset', async () => {
     const s = await setup();
-    // 不经回环代理直连时，客户端带的 X-Forwarded-For 不算数。
-    const direct = (spoofed: string) => s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', '回复'), remoteAddress: '203.0.113.20', headers: { 'x-forwarded-for': spoofed } });
-    const statuses: number[] = [];
-    for (let i = 1; i <= 6; i += 1) statuses.push((await direct(`10.0.0.${i}`)).statusCode);
-    expect(statuses).toEqual([201, 201, 201, 201, 201, 429]);
-    // 本机开发代理（回环）转发时照旧取它追加的地址。
-    const proxied = await s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: guestReply('t9', '回复'), remoteAddress: '127.0.0.1', headers: { 'x-forwarded-for': '198.51.100.30' } });
+    for (let i = 0; i < 199; i += 1) s.app.services.limits.hit({ bucket: 'forum.reply.ip.hourly', subject: ipKey('203.0.113.20'), window: { ms: 3600_000 }, max: 200 });
+    // 不经回环代理直连时，客户端带的 X-Forwarded-For 不算数：两次「不同」的伪造地址都按同一个真实地址计。
+    const direct = (spoofed: string) =>
+      s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: { topicId: 't9', content: '回复' }, remoteAddress: '203.0.113.20', headers: { ...s.as('bob'), 'x-forwarded-for': spoofed } });
+    expect((await direct('10.0.0.1')).statusCode).toBe(201);
+    expect((await direct('10.0.0.2')).statusCode).toBe(429);
+    // 本机开发代理（回环）转发时照旧取它追加的地址：换了地址，配额重新算。
+    const proxied = await s.app.inject({ method: 'POST', url: '/api/forum/posts', payload: { topicId: 't9', content: '回复' }, remoteAddress: '127.0.0.1', headers: { ...s.as('bob'), 'x-forwarded-for': '198.51.100.30' } });
     expect(proxied.statusCode).toBe(201);
-    expect(s.db.prepare("SELECT DISTINCT subject FROM forum_rate_events WHERE bucket = 'guestPost' ORDER BY subject").all())
-      .toEqual([{ subject: '198.51.100.30' }, { subject: '203.0.113.20' }]);
+    const subjects = (s.db.prepare("SELECT DISTINCT subject FROM limit_events WHERE bucket = 'forum.reply.ip.hourly'").all() as { subject: string }[]).map(row => row.subject).sort();
+    expect(subjects).toEqual([ipKey('198.51.100.30'), ipKey('203.0.113.20')].sort());
   });
 });
 
