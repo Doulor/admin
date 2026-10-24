@@ -148,6 +148,7 @@ bash deploy-stack.sh --environment production \
 - 每个环境的数据都在自己的命名卷里（server 的 `/data`：`data.db`、比赛官网站点包解开后的文件 `sites/<比赛>/<版本>/`（#278，与 `DB_PATH` 同目录，备份数据库时一起备份）、旧论坛兼容路径）；forum 容器当前不挂卷、无服务端持久化。两栈互不可见。
 - 旧站数据已按独立授权拉到 Mac 私有目录，见 [FORUM-DATA-CAPTURE](FORUM-DATA-CAPTURE.md)；这是源数据保全，不是 schema 迁移，不自动替换线上库，也不放进镜像或 CI。
 - 变更表结构尽量增量兼容，不自动删除或重排。变更前使用 SQLite 在线 backup API 或停服的一致性备份，不能只复制活动 WAL 主文件并假定完整。备份同时记录镜像 tag、环境与应用版本，并完成恢复演练。
+- 日常备份、搬迁和恢复演练走控制台「备份」页一键导出（#282，节点 `system.backup`，`GET /api/console/backup`）：正是上一条的实现，归档里带着 SQLite 在线备份的快照、`sites/` 站点文件和一份 manifest（镜像 tag、环境、每张表的行数、每个文件的 sha256）；恢复用 `scripts/backup-restore.mjs`。完整说明、排除哪些数据和跨环境搬迁步骤见 [BACKUP](BACKUP.md)。
 - 镜像保留策略（最新 5 个 tag + 当前 + 上一个）只清理镜像，不清理数据卷；**回滚不重置数据库**，结构不兼容时停下来由人处理。
 - 禁止把业务数据库用于自动测试。
 

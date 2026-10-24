@@ -49,6 +49,7 @@
 | `/console/gitlab/settings` | GitLab 设置：同步模式（关闭、预演、打开）、群组路径、同步间隔（5–1440 分钟）；令牌只显示「已配置」或「未配置」 | `gitlab.settings` |
 | `/console/activity` | 操作记录（见下文「操作记录」） | `activity.read` |
 | `/console/feedback` | 意见箱；右边的公开提交链接是官网的 `/?open=feedback`，进桌面打开意见箱窗口 | `feedback.view` |
+| `/console/backup` | 备份（#282，见下文「备份」） | `system.backup` |
 | `/console/people`、`/console/audit` | 带着查询参数跳到 `/console/users`、`/console/activity` | — |
 | `/admin`、`/admin/**` | 跳到 `/console` | — |
 | `/console/signin`、`/admin/signin` | 跳到 `/signin` | — |
@@ -130,11 +131,15 @@ GitHub 组织那一整组页面（`/console/github/**`）和它们用的 `/api/a
 
 `/console/activity`（SPEC §3.7）是 `GET /api/console/activity` 的一张表：时间（北京时间）、谁（账号、访客编号前 8 位或系统）、来源（官网、论坛、控制台、命令行、接口、系统）、动作（常见动作写中文，下面写动作本身）、目标、结果（成功、拒绝、限流、出错）和 IP（没有 `activity.read.ip` 时服务端打码成 `a.b.*.*`）。顶部「今天被拦下 N 次」按限流桶列出今天的次数，有「只看被限流的」。筛选：账号（有 `users.view` 时是账号搜索框，否则填账号编号）、访客编号、动作前缀（带几个常用前缀）、起止日期（北京时间整天），点「筛选」生效，「清空」回到全部；来源和结果是两排 `TxFilterChips`，点了马上生效；条件都写在地址栏里，开始日期晚于结束日期时提示，不发请求。一页 50 条，下面「加载更多」（`cursor`）。点一行打开「记录详情」抽屉：全部字段、附加信息（`meta` 的 JSON）、请求编号（可复制）、「只看这个人的记录」，有 `users.view` 时还有「打开用户详情」。有 `activity.export` 时页头有「导出 CSV」（`/api/console/activity.csv`，带同样的筛选）；开发预览里这个按钮不可点，悬停说明要连接本地后端。
 
+### 备份
+
+`/console/backup`（#282，所有者 2026-10-24 22:22：要能一键导出下载整个系统的数据，方便服务挂了或搬迁时恢复）。两段说明（包含什么、不包含什么，来自 `app/server` 的真实排除表，不是前端自己编的）加一个「下载完整备份」按钮，和「用户 → 操作记录 → 导出 CSV」同一种做法：普通的 `<a download>` 浏览器下载，同源 cookie 自动带上，不用自己拼 `fetch`；浏览器自己的下载进度条就是这次下载的进度。开发预览里这个按钮不可点，悬停说明要连接本地后端（样板数据里仍有一条历史记录可以看表长什么样）。有 `activity.read` 时下面多一张「最近的备份记录」表（时间、发起人、结果、这次归档的文件数与表数），读 `GET /api/console/activity?action=system.backup.export`；没有这个节点时不显示这张表（服务端仍然按 `activity.read` 独立判定，前端只是不去读）。页面底部一句话指到 `docs/ops/BACKUP.md` 的完整恢复步骤，不在页面里重复整套操作手册。
+
 ## 接口
 
 业务数据统一由 `app/server` 提供，控制台不单独维护数据库：
 
-- `/api/console/*`：`me`（只要登录就回 200，没有 `console.access` 的账号 `permissions` 里没有它）、`summary`、`users`（GET、`PATCH /users/:id`）、`accounts/:id/activity`、`accounts/:id/effective`、`permissions/nodes`、`permissions/explain`、`permission-groups`（GET、POST、`PATCH`/`DELETE /:id`、`/:id/members` 的 GET、POST、DELETE）、`activity`（含 `activity.csv` 下载链接）、`gitlab/status`、`gitlab/accounts`（含 `/:id/resync`）、`gitlab/projects`、`gitlab/settings`（GET、PATCH）、`applications`（含 `export.csv` 下载链接）、`competitions`（#278 起含 `/:id/candidates`（GET，`/:candidate_id/accept`、`/:candidate_id/reject`、`/collect` 的 POST）、`/:id/rules`（GET、PUT）、`/:id/site`（GET、DELETE，`/versions`、`/publish` 的 POST）、`/:id/final`（GET、POST、DELETE））、`prizes/lookup`、`prizes/redeem`（#278）、`feedback`、`invites`。形状以 `.tools/handoff/2026-10-23-yugc-os-v2/CONTRACT-274.md` §4–§7 为准，部门列表取匿名的 `GET /api/public/departments`。所有写操作要求刚登录过（step-up），过了 10 分钟服务端回 403 `step_up_required`。
+- `/api/console/*`：`me`（只要登录就回 200，没有 `console.access` 的账号 `permissions` 里没有它）、`summary`、`users`（GET、`PATCH /users/:id`）、`accounts/:id/activity`、`accounts/:id/effective`、`permissions/nodes`、`permissions/explain`、`permission-groups`（GET、POST、`PATCH`/`DELETE /:id`、`/:id/members` 的 GET、POST、DELETE）、`activity`（含 `activity.csv` 下载链接）、`gitlab/status`、`gitlab/accounts`（含 `/:id/resync`）、`gitlab/projects`、`gitlab/settings`（GET、PATCH）、`applications`（含 `export.csv` 下载链接）、`competitions`（#278 起含 `/:id/candidates`（GET，`/:candidate_id/accept`、`/:candidate_id/reject`、`/collect` 的 POST）、`/:id/rules`（GET、PUT）、`/:id/site`（GET、DELETE，`/versions`、`/publish` 的 POST）、`/:id/final`（GET、POST、DELETE））、`prizes/lookup`、`prizes/redeem`（#278）、`feedback`、`invites`、`backup`（#282，`GET`，下载 `.tar.gz`，不是 JSON，节点 `system.backup`）。形状以 `.tools/handoff/2026-10-23-yugc-os-v2/CONTRACT-274.md` §4–§7 为准，部门列表取匿名的 `GET /api/public/departments`。所有写操作要求刚登录过（step-up），过了 10 分钟服务端回 403 `step_up_required`。
 - `/auth/providers`（匿名）列出本站启用的登录方式，`/signin` 按它渲染按钮，前端不写死渠道；邮箱登录调 `POST /auth/email/start`（发码，忘了密码时带 `purpose: "reset"`）、`/auth/email/verify`（用验证码登录，没有账号时带 `invite_code` 注册）、`/auth/email/password`（用密码登录）、`/auth/email/reset`（忘了密码，用验证码设新密码并登录，#273），成功都回 `{ return_to }` 后整页跳转；Google 是 `GET /auth/google?return_to=…&invite=…` 的跳转。`/api/identity/device` 与 `/api/identity/device/approve` 是设备授权确认页用的两个接口。
 - `/api/identity/me`、`/api/identity/email/start`、`/api/identity/email/verify`、`/api/identity/email/remove`、`/api/identity/password` 是账号页用的接口；`/api/console/invites`（GET、POST）与 `PATCH /api/console/invites/:id` 是注册邀请码页用的接口。
 - 登录走极客班内部登录页 `/signin?return_to=<本站路径>`：选 GitHub 或 Google 后 302 到 `/auth/github`、`/auth/google`（`?return_to=<完整本站地址>`），回调成功后回到 `return_to`；用邮箱时在本页完成；登录失败由核心服务送回 `/signin?signin=<原因>&return_to=<原路径>`。`POST /auth/signout` 退出。登录是全站共用的（官网、论坛、控制台同一个 `sid`）。GitHub 组织那道门随 #274 去掉：用邮箱、Google、GitHub 都能注册，邀请码选填（填了有效的是极客班成员，不填是注册用户），见 [SECURITY](../../architecture/SECURITY.md)「登录门槛」。

@@ -2,7 +2,7 @@
 import type { ConsoleMe, Permission } from "./types";
 
 export type NavItem = { id: string; to: string; label: string; anyOf: Permission[]; icon: string; group?: NavGroupId; end?: boolean };
-export type NavGroupId = "recruit" | "community" | "users" | "gitlab" | "records";
+export type NavGroupId = "recruit" | "community" | "users" | "gitlab" | "records" | "system";
 export type NavState = "visible" | "hidden";
 
 export const FORUM_PERMISSIONS: Permission[] = [
@@ -18,6 +18,7 @@ export const NAV_GROUPS: { key: NavGroupId; label: string }[] = [
   { key: "users", label: "用户" },
   { key: "gitlab", label: "GitLab" },
   { key: "records", label: "记录" },
+  { key: "system", label: "系统" },
 ];
 
 export const CONSOLE_NAV: NavItem[] = [
@@ -34,6 +35,7 @@ export const CONSOLE_NAV: NavItem[] = [
   { id: "gitlab-settings", to: "/console/gitlab/settings", label: "设置", anyOf: ["gitlab.settings"], icon: "i-carbon-settings", group: "gitlab" },
   { id: "activity", to: "/console/activity", label: "操作记录", anyOf: ["activity.read"], icon: "i-carbon-catalog", group: "records" },
   { id: "feedback", to: "/console/feedback", label: "意见箱", anyOf: ["feedback.view"], icon: "i-carbon-chat", group: "records" },
+  { id: "backup", to: "/console/backup", label: "备份", anyOf: ["system.backup"], icon: "i-carbon-data-backup", group: "system" },
 ];
 
 type Identity = Pick<ConsoleMe, "permissions">;

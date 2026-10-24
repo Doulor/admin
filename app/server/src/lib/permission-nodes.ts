@@ -5,7 +5,7 @@
  * 否则已经发出去的 perm_entries.node 会变成悬空字符串。
  */
 
-export type PermissionDomain = "forum" | "apply" | "competition" | "account" | "console" | "gitlab" | "meta";
+export type PermissionDomain = "forum" | "apply" | "competition" | "account" | "console" | "gitlab" | "system" | "meta";
 
 export type PermissionNodeDef = {
   node: string;
@@ -75,6 +75,8 @@ export const PERMISSION_NODES: PermissionNodeDef[] = [
   { node: "gitlab.view", domain: "gitlab", label: "查看 GitLab", description: "查看 GitLab 实例状态、账号同步、群组与项目" },
   { node: "gitlab.sync", domain: "gitlab", label: "手动同步", description: "手动重新同步某个账号" },
   { node: "gitlab.settings", domain: "gitlab", label: "修改 GitLab 设置", description: "修改同步开关、群组路径、同步间隔" },
+  // 系统（#282）：导出的归档含全部账号与密码哈希，不往下发到部门部长，只留给站长的根通配 `*`
+  { node: "system.backup", domain: "system", label: "导出系统备份", description: "下载整个系统的数据库快照与站点文件打包" },
   // 限额（meta）：不参与 allow/deny，取值见 permissions.ts
   { node: "meta.limit.apply.daily", domain: "meta", label: "每天投递上限", description: "每个账号每天（北京时间）最多投递次数，-1 为不限", meta: true },
   { node: "meta.limit.forum.topic.hourly", domain: "meta", label: "每小时发话题上限", description: "每小时最多发起的话题数，-1 为不限", meta: true },
@@ -92,6 +94,7 @@ export const PERMISSION_DOMAINS: { id: PermissionDomain; label: string }[] = [
   { id: "account", label: "账号" },
   { id: "console", label: "控制台" },
   { id: "gitlab", label: "GitLab" },
+  { id: "system", label: "系统" },
   { id: "meta", label: "限额" },
 ];
 

@@ -234,7 +234,8 @@
       "docs": [
         "docs/architecture/ARCHITECTURE.md",
         "docs/services/server/README.md",
-        "docs/conventions/ARCHITECTURE-ALIGNMENT.md"
+        "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
+        "docs/ops/BACKUP.md"
       ],
       "tables": [
         "app_state",
@@ -313,7 +314,8 @@
     "app/server/src/routes/console/competition-site.ts": "competitions",
     "app/server/src/routes/console/competition-candidates.ts": "competitions",
     "app/server/src/routes/console/competition-results.ts": "competitions",
-    "app/server/src/routes/sites/index.ts": "competitions"
+    "app/server/src/routes/sites/index.ts": "competitions",
+    "app/server/src/routes/console/backup.ts": "platform"
   },
   "routeOverrides": {
     "GET /api/public/config": "platform"
@@ -10841,9 +10843,95 @@
         "docs/services/server/README.md",
         "docs/architecture/API.md"
       ]
+    },
+    {
+      "id": "platform.system_backup",
+      "title": "导出一键系统备份",
+      "domain": "platform",
+      "relatedDomains": [
+        "identity",
+        "forum",
+        "competitions",
+        "recruitment",
+        "invitations",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/backup",
+      "capabilities": [],
+      "reads": [],
+      "writes": [
+        "sessions",
+        "device_grants",
+        "oauth_grants",
+        "oidc_payloads",
+        "email_challenges",
+        "invite_attempts",
+        "application_limits",
+        "limit_events",
+        "forum_rate_events",
+        "activity_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 system.backup；种子里只有站长的根通配 `*` 默认拿到，部门部长等curated 列表没有这个节点。",
+        "响应与错误：200，content-type application/gzip，content-disposition 带 yzgc-backup-<environment>-<日期>.tar.gz 文件名；没有节点 403。",
+        "数据与副作用：在线备份出 data.db 快照副本，清空副本里的短时安全数据（sessions/device_grants/oauth_grants/oidc_payloads/email_challenges/invite_attempts/application_limits/limit_events/forum_rate_events）后流式打包成 tar.gz（manifest.json + data.db + sites/ 下的站点文件），不缓冲整个归档；单账号 5 分钟限 1 次；只记 activity.events 的 system.backup.export 摘要（文件数、表名、排除了哪些表），不记归档内容本身；临时目录随流关闭清理。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/backup.ts",
+          "needle": "    \"/api/console/backup\","
+        },
+        {
+          "path": "app/server/src/lib/system-backup.ts",
+          "needle": "export async function prepareSystemBackup("
+        },
+        {
+          "path": "app/server/src/lib/tar-stream.ts",
+          "needle": "export function packTarGz("
+        },
+        {
+          "path": "app/server/src/lib/permission-nodes.ts",
+          "needle": "node: \"system.backup\","
+        },
+        {
+          "path": "app/console/src/pages/Backup.vue",
+          "needle": "const records = useResource("
+        },
+        {
+          "path": "scripts/backup-restore.mjs",
+          "needle": "export async function restoreBackup("
+        }
+      ],
+      "tests": [
+        "tests/server/tar-stream.test.ts",
+        "tests/server/system-backup.test.ts",
+        "tests/server/backup-route.test.ts",
+        "tests/tooling/backup-restore.test.ts",
+        "tests/console/nav.test.ts",
+        "tests/console/permissions.test.ts"
+      ],
+      "docs": [
+        "docs/ops/BACKUP.md",
+        "docs/services/server/README.md",
+        "docs/services/console/README.md",
+        "docs/architecture/SECURITY.md",
+        "docs/ops/DEPLOY.md",
+        "docs/services/server/endpoint-contracts.md"
+      ]
     }
   ],
   "moduleOwners": {
+    "app/server/src/lib/system-backup.ts": [
+      "platform"
+    ],
+    "app/server/src/lib/tar-stream.ts": [
+      "platform"
+    ],
+    "app/console/src/pages/Backup.vue": [
+      "platform"
+    ],
     "app/server/src/lib/forum-": [
       "forum"
     ],

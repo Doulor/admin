@@ -265,13 +265,13 @@
     }
   ],
   "coverage": {
-    "automaticHead": 81,
-    "businessOperations": 164,
-    "businessOperationsWithFlow": 164,
+    "automaticHead": 82,
+    "businessOperations": 165,
+    "businessOperationsWithFlow": 165,
     "capabilities": 16,
-    "declaredFlows": 170,
-    "responseSchemas": 130,
-    "routeMethods": 274,
+    "declaredFlows": 171,
+    "responseSchemas": 132,
+    "routeMethods": 276,
     "supplementalInterfaces": 5,
     "supplementalInterfacesWithFlow": 5,
     "tables": 68
@@ -454,7 +454,8 @@
       "docs": [
         "docs/architecture/ARCHITECTURE.md",
         "docs/services/server/README.md",
-        "docs/conventions/ARCHITECTURE-ALIGNMENT.md"
+        "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
+        "docs/ops/BACKUP.md"
       ],
       "id": "platform",
       "tables": [
@@ -5391,7 +5392,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 41,
+          "line": 42,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -6014,7 +6015,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -6026,11 +6027,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/console/src/lib/nav.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -6038,7 +6039,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 561,
+          "line": 563,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -8103,15 +8104,15 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 644,
+          "line": 646,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 134,
+          "line": 137,
           "path": "app/server/src/services.ts"
         },
         {
@@ -8771,11 +8772,11 @@
           "path": "app/console/src/pages/competition/CandidatesPanel.vue"
         },
         {
-          "line": 606,
+          "line": 608,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -9084,7 +9085,7 @@
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
-          "line": 636,
+          "line": 638,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -9228,11 +9229,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -9521,7 +9522,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -9992,7 +9993,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 35,
+          "line": 36,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -10004,7 +10005,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1033,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -11295,7 +11296,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 933,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -11403,6 +11404,86 @@
         "users",
         "perm_members",
         "account_profiles",
+        "activity_events"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/ops/BACKUP.md",
+        "docs/services/server/README.md",
+        "docs/services/console/README.md",
+        "docs/architecture/SECURITY.md",
+        "docs/ops/DEPLOY.md",
+        "docs/services/server/endpoint-contracts.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "platform",
+      "evidence": [
+        {
+          "line": 30,
+          "path": "app/server/src/routes/console/backup.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/server/src/lib/system-backup.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/server/src/lib/tar-stream.ts"
+        },
+        {
+          "line": 79,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/pages/Backup.vue"
+        },
+        {
+          "line": 62,
+          "path": "scripts/backup-restore.mjs"
+        }
+      ],
+      "id": "flow:platform.system_backup",
+      "invariants": [
+        "权限与资源：需要节点 system.backup；种子里只有站长的根通配 `*` 默认拿到，部门部长等curated 列表没有这个节点。",
+        "响应与错误：200，content-type application/gzip，content-disposition 带 yzgc-backup-<environment>-<日期>.tar.gz 文件名；没有节点 403。",
+        "数据与副作用：在线备份出 data.db 快照副本，清空副本里的短时安全数据（sessions/device_grants/oauth_grants/oidc_payloads/email_challenges/invite_attempts/application_limits/limit_events/forum_rate_events）后流式打包成 tar.gz（manifest.json + data.db + sites/ 下的站点文件），不缓冲整个归档；单账号 5 分钟限 1 次；只记 activity.events 的 system.backup.export 摘要（文件数、表名、排除了哪些表），不记归档内容本身；临时目录随流关闭清理。"
+      ],
+      "operation": "GET /api/console/backup",
+      "operationLabel": "GET /api/console/backup",
+      "operationNodeId": "route:GET /api/console/backup",
+      "reads": [],
+      "relatedDomains": [
+        "identity",
+        "forum",
+        "competitions",
+        "recruitment",
+        "invitations",
+        "audit"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/tar-stream.test.ts",
+        "tests/server/system-backup.test.ts",
+        "tests/server/backup-route.test.ts",
+        "tests/tooling/backup-restore.test.ts",
+        "tests/console/nav.test.ts",
+        "tests/console/permissions.test.ts"
+      ],
+      "title": "导出一键系统备份",
+      "writes": [
+        "sessions",
+        "device_grants",
+        "oauth_grants",
+        "oidc_payloads",
+        "email_challenges",
+        "invite_attempts",
+        "application_limits",
+        "limit_events",
+        "forum_rate_events",
         "activity_events"
       ]
     }
@@ -11563,6 +11644,11 @@
       "id": "document:docs/decisions/0005-sso-extend-core-server.md",
       "kind": "document",
       "title": "docs/decisions/0005-sso-extend-core-server.md"
+    },
+    {
+      "id": "document:docs/ops/BACKUP.md",
+      "kind": "document",
+      "title": "docs/ops/BACKUP.md"
     },
     {
       "id": "document:docs/ops/DEPLOY.md",
@@ -12545,6 +12631,11 @@
       "title": "读取公开防滥用配置"
     },
     {
+      "id": "flow:platform.system_backup",
+      "kind": "flow",
+      "title": "导出一键系统备份"
+    },
+    {
       "id": "flow:users.list",
       "kind": "flow",
       "title": "控制台按新权限体系查看用户列表"
@@ -12718,6 +12809,11 @@
       "id": "route:GET /api/console/applications/export.csv",
       "kind": "route",
       "title": "GET /api/console/applications/export.csv"
+    },
+    {
+      "id": "route:GET /api/console/backup",
+      "kind": "route",
+      "title": "GET /api/console/backup"
     },
     {
       "id": "route:GET /api/console/competitions",
@@ -13143,6 +13239,11 @@
       "id": "route:HEAD /api/console/applications/export.csv",
       "kind": "route",
       "title": "HEAD /api/console/applications/export.csv"
+    },
+    {
+      "id": "route:HEAD /api/console/backup",
+      "kind": "route",
+      "title": "HEAD /api/console/backup"
     },
     {
       "id": "route:HEAD /api/console/competitions",
@@ -14375,6 +14476,11 @@
       "title": "tests/console/nav.test.ts"
     },
     {
+      "id": "test:tests/console/permissions.test.ts",
+      "kind": "test",
+      "title": "tests/console/permissions.test.ts"
+    },
+    {
       "id": "test:tests/console/signin.test.ts",
       "kind": "test",
       "title": "tests/console/signin.test.ts"
@@ -14408,6 +14514,11 @@
       "id": "test:tests/server/applications.test.ts",
       "kind": "test",
       "title": "tests/server/applications.test.ts"
+    },
+    {
+      "id": "test:tests/server/backup-route.test.ts",
+      "kind": "test",
+      "title": "tests/server/backup-route.test.ts"
     },
     {
       "id": "test:tests/server/bearer-auth.test.ts",
@@ -14570,6 +14681,21 @@
       "title": "tests/server/signin-methods.test.ts"
     },
     {
+      "id": "test:tests/server/system-backup.test.ts",
+      "kind": "test",
+      "title": "tests/server/system-backup.test.ts"
+    },
+    {
+      "id": "test:tests/server/tar-stream.test.ts",
+      "kind": "test",
+      "title": "tests/server/tar-stream.test.ts"
+    },
+    {
+      "id": "test:tests/tooling/backup-restore.test.ts",
+      "kind": "test",
+      "title": "tests/tooling/backup-restore.test.ts"
+    },
+    {
       "id": "test:tests/tooling/contest-site.test.ts",
       "kind": "test",
       "title": "tests/tooling/contest-site.test.ts"
@@ -14622,7 +14748,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "69fb98e20b99a536de01dc65e570a7f11b8e8eff6a6d24f4f83fee11d9a88b38",
+    "fingerprint": "62dc33d82daf699da045688aefb28be2f8d7b2137d2d918900c6e6cfc0a674b4",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -14694,7 +14820,7 @@
       },
       {
         "path": "app/console/src/lib/activity.ts",
-        "sha256": "1dcc7c638811bf4b0170ff38e52b102fbbeb429581429e3dd5c290d887f73778"
+        "sha256": "1c97cb8fddbd96858d7e32fb55c21ba542bc41cab6bafa16de491961e14fd96f"
       },
       {
         "path": "app/console/src/lib/applications.ts",
@@ -14758,11 +14884,11 @@
       },
       {
         "path": "app/console/src/lib/nav.ts",
-        "sha256": "aa9af056b807a60ed1037ebedb28dd5e7a5ff9ca4359dd91b5d66a4bf86bdd81"
+        "sha256": "47ec37efa57c0337fa3bb61ae658d65d32b35b2662da104c7a76566675ffa76e"
       },
       {
         "path": "app/console/src/lib/permission-nodes.ts",
-        "sha256": "dcbe1d9cf02e7a0862baadd3e2df0f44128eff6a5dfb1149a7799827817a751b"
+        "sha256": "8f26a39b732405b6df0327c6af5c4df3a6df7871f12f85bbfa58d28b5c9b0fe0"
       },
       {
         "path": "app/console/src/lib/permissions.ts",
@@ -14810,7 +14936,7 @@
       },
       {
         "path": "app/console/src/mock/console.ts",
-        "sha256": "ec93aec56010799e5d8163183f970d4fdc2dcec2f55a19ad6b68e8dcdeee7f03"
+        "sha256": "eb9aa4f0791f17a35222a411dd732bb0ce8cfe09189bc4d5e1faa5cf0e17fa81"
       },
       {
         "path": "app/console/src/mock/index.ts",
@@ -14835,6 +14961,10 @@
       {
         "path": "app/console/src/pages/Authorize.vue",
         "sha256": "bdad5f986e55006f25d53fa5a2445d699ea5ad95b202b664c30cf1f38f60ac26"
+      },
+      {
+        "path": "app/console/src/pages/Backup.vue",
+        "sha256": "273a201ed13810bde8d9c5dda6ac0a822a7f8a8be7cf280b9e69ccca7e1663a6"
       },
       {
         "path": "app/console/src/pages/BindEmail.vue",
@@ -14970,11 +15100,11 @@
       },
       {
         "path": "app/console/src/router.ts",
-        "sha256": "b9a4419e607c97f93a6cea734f13fd9b8532f0411f07b2cb87477027f9379060"
+        "sha256": "51150ffe9b8fba71a3cc7e2963053fbb0773e3295ffece0e1040f5c2e8f3ce1c"
       },
       {
         "path": "app/forum/Dockerfile",
-        "sha256": "232d351d206f5d875c26135c61d417f9daf236dcec583bbf05f67845eb3a4db1"
+        "sha256": "04a2efb90c91d157301ebaf9af5a7e8494c7f678021e1a6486c778dbc0d2f5be"
       },
       {
         "path": "app/forum/app/app.vue",
@@ -15634,7 +15764,7 @@
       },
       {
         "path": "app/server/src/lib/permission-nodes.ts",
-        "sha256": "68bea24c9fe19df27f3812900494505c0eebcbebee0a2bb456ec0cf36508d2ac"
+        "sha256": "cbee46f1944675a4b1f03f5e78c0d76170b624bd4e9fb0d6f9fb5e49a1f42462"
       },
       {
         "path": "app/server/src/lib/permissions.ts",
@@ -15667,6 +15797,14 @@
       {
         "path": "app/server/src/lib/sql-text.ts",
         "sha256": "72198b3a420c6ce6852f027239514567a6c9c45b8080a0017f409552c06a153c"
+      },
+      {
+        "path": "app/server/src/lib/system-backup.ts",
+        "sha256": "293b1d08a18772d0859bdc879766b00d9263781d77384ea8b60e7f10e811ab1e"
+      },
+      {
+        "path": "app/server/src/lib/tar-stream.ts",
+        "sha256": "8523c4d58e1d28fb455c752327b9baaa87287d8781cb25f504635d458102e631"
       },
       {
         "path": "app/server/src/middleware/bearer-auth.ts",
@@ -15733,6 +15871,10 @@
         "sha256": "14db759489171033ae42a8b6215b3ddb0103cbc63c9ca10c2cca7323c19cc832"
       },
       {
+        "path": "app/server/src/routes/console/backup.ts",
+        "sha256": "40ebf18d84b2d67bd0a712447a56d0e6b8bca9fcb9903a04cfbb45a683141f05"
+      },
+      {
         "path": "app/server/src/routes/console/competition-candidates.ts",
         "sha256": "13e67b86886fbd89d0378a9ddc7a949b5d004f19f0751b52d902b14aeeea1af3"
       },
@@ -15774,7 +15916,7 @@
       },
       {
         "path": "app/server/src/routes/console/index.ts",
-        "sha256": "bf092f468cb0dafa96bb267b0df0faba5f9fccf018b32f0b7711d24e2e799bbf"
+        "sha256": "2cedee8a2cd5b9d5e90772d71c2976bea20d5599fc3bf2e739494ff992b3bdab"
       },
       {
         "path": "app/server/src/routes/console/invites.ts",
@@ -15926,7 +16068,7 @@
       },
       {
         "path": "app/server/src/services.ts",
-        "sha256": "0ea8111a138c0e79ea8e1b7c08338fe3d04544599850a91a7e2b1b7404e445ad"
+        "sha256": "3f7957619463753fc6100f311f04e8068e3b3d2a49d97cfb32e00f24875cb595"
       },
       {
         "path": "app/web/Dockerfile",
@@ -16354,11 +16496,11 @@
       },
       {
         "path": "docs/architecture/SECURITY.md",
-        "sha256": "cbdc16217d09eeef3b30c00c2cef3ef001c2c2c89666eecfb15ad4c68e3ef59c"
+        "sha256": "df408f9c44cc9ebd14af8f7439c45f6a2465231f42fc2ddbcb64d7c174fecb40"
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "5bb756fef87266b97e1e4f134cbdfaabb61156a263a5039864ef0e440dea6be8"
+        "sha256": "67b08c0b8ae008c09c6e76ee5e461c05a3ec445933f726087e0690e88cc6f793"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -16373,8 +16515,12 @@
         "sha256": "03b2c10caf4859d71b523836fb08d77b6a9c79a69793470075e026f09233ff9b"
       },
       {
+        "path": "docs/ops/BACKUP.md",
+        "sha256": "2b3f46a5058a8855224fd461c8ee039927dbe874e61c7866a8967e3a8d4a8019"
+      },
+      {
         "path": "docs/ops/DEPLOY.md",
-        "sha256": "4e027c683140d43d5c52ec49ee8ffd718e35cde8f31685ccb79d5f8760fb13cd"
+        "sha256": "36b1daac91c833d5dc7bb6114a53f6f8acb0e265db6a8839060fe3e74a551fde"
       },
       {
         "path": "docs/ops/USAGE.md",
@@ -16394,15 +16540,15 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "b0b1979bb0f1b31e5cf9e0006012f00fecc8ee9cbeaf3749c4adfb61c88d6f25"
+        "sha256": "521bad45c8d8cf23b0124b21cd907f9752c7ce72ed01de31e261d5e8cefa8064"
       },
       {
         "path": "docs/services/forum/README.md",
-        "sha256": "7283fe3a84f81ae113867052febfd85d4d9bc93a01997309ba2cd78dce92a7ac"
+        "sha256": "67befdcb5d1486bf74de7efb2b36257e8fba1fbd97449925e791d871b2e11fc9"
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "ae5009de0772b8eb73f99a414c2d5b06042aad22d8524f1dbc4ac27bd07672f4"
+        "sha256": "c32c460f676293943196bb20f151ebc78ecd6b411ba75a43a9e1c369ecf6f4ef"
       },
       {
         "path": "docs/services/server/data-model.md",
@@ -16410,7 +16556,7 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "9489e1e3b3b9bc797ad5627328853bf01b715e683d3cce2de0d90430ad0d1abe"
+        "sha256": "d2a429d0f751cd54d305947fff1334ec2c9f364f0ffc5216dc62d924567f32e5"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -16431,6 +16577,10 @@
       {
         "path": "pnpm-lock.yaml",
         "sha256": "b8511c0a0e44b390d1fdfe62328939846ffe58e719d9576aa9d4a702424ba70b"
+      },
+      {
+        "path": "scripts/backup-restore.mjs",
+        "sha256": "a01b02f7298a550d0363533448658de5865540ef96ccaf3074604c5bcb7f818e"
       },
       {
         "path": "scripts/catalog/collect.ts",
@@ -16498,7 +16648,11 @@
       },
       {
         "path": "tests/console/nav.test.ts",
-        "sha256": "e8009c944fae3a659d110e84365f969ee71c00f3b0b654f8a1c077fc393c91c0"
+        "sha256": "24c7897fb9b80635f7b0766f3bcaaf2548f8b1ea4ed26e1e1152f7711be8c276"
+      },
+      {
+        "path": "tests/console/permissions.test.ts",
+        "sha256": "076c8999e49473928cfae52fb4dde2622d971ba8cdcc5309e388addb7e756998"
       },
       {
         "path": "tests/console/signin.test.ts",
@@ -16527,6 +16681,10 @@
       {
         "path": "tests/server/applications.test.ts",
         "sha256": "7811985cf44aba0e83422ce2da2190faebfa324a16209841e4b0fc6146b53bb0"
+      },
+      {
+        "path": "tests/server/backup-route.test.ts",
+        "sha256": "2fe09d88f124d35bf731e3a8d5d758765814f3a6b7659751a228ec3d8d791ab8"
       },
       {
         "path": "tests/server/bearer-auth.test.ts",
@@ -16655,6 +16813,18 @@
       {
         "path": "tests/server/signin-methods.test.ts",
         "sha256": "af7dd41a1ec6a103444d173bae6e28413372a3da1601abedadfdc96384728d08"
+      },
+      {
+        "path": "tests/server/system-backup.test.ts",
+        "sha256": "d4d55fdf766fb599073edb05c1b340f4719bc7bce3024fe1996af8f1f1dd085a"
+      },
+      {
+        "path": "tests/server/tar-stream.test.ts",
+        "sha256": "eaefd93d42bd5fbd7c405d5922596b7661c39d5f9403171deefbe9400490cf25"
+      },
+      {
+        "path": "tests/tooling/backup-restore.test.ts",
+        "sha256": "8132c3546cc2121f7865d8bac1b5fac898ed39485cd9c89af587c6bb8f7f579b"
       },
       {
         "path": "tests/tooling/contest-site.test.ts",
@@ -17135,6 +17305,18 @@
       ],
       "from": "application:server",
       "to": "route:GET /api/console/applications/export.csv",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 29,
+          "path": "app/server/src/routes/console/backup.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /api/console/backup",
       "type": "provides"
     },
     {
@@ -18155,6 +18337,18 @@
       ],
       "from": "application:server",
       "to": "route:HEAD /api/console/applications/export.csv",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 29,
+          "path": "app/server/src/routes/console/backup.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /api/console/backup",
       "type": "provides"
     },
     {
@@ -20441,6 +20635,12 @@
       "basis": "declaration",
       "from": "domain:platform",
       "to": "document:docs/conventions/ARCHITECTURE-ALIGNMENT.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "domain:platform",
+      "to": "document:docs/ops/BACKUP.md",
       "type": "documented-by"
     },
     {
@@ -24307,11 +24507,11 @@
           "path": "app/console/src/pages/competition/CandidatesPanel.vue"
         },
         {
-          "line": 606,
+          "line": 608,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -24339,11 +24539,11 @@
           "path": "app/console/src/pages/competition/CandidatesPanel.vue"
         },
         {
-          "line": 606,
+          "line": 608,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -24371,11 +24571,11 @@
           "path": "app/console/src/pages/competition/CandidatesPanel.vue"
         },
         {
-          "line": 606,
+          "line": 608,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -24403,11 +24603,11 @@
           "path": "app/console/src/pages/competition/CandidatesPanel.vue"
         },
         {
-          "line": 606,
+          "line": 608,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -24435,11 +24635,11 @@
           "path": "app/console/src/pages/competition/CandidatesPanel.vue"
         },
         {
-          "line": 606,
+          "line": 608,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -24467,11 +24667,11 @@
           "path": "app/console/src/pages/competition/CandidatesPanel.vue"
         },
         {
-          "line": 606,
+          "line": 608,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -24499,11 +24699,11 @@
           "path": "app/console/src/pages/competition/CandidatesPanel.vue"
         },
         {
-          "line": 606,
+          "line": 608,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -24531,11 +24731,11 @@
           "path": "app/console/src/pages/competition/CandidatesPanel.vue"
         },
         {
-          "line": 606,
+          "line": 608,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -24575,11 +24775,11 @@
           "path": "app/console/src/pages/competition/CandidatesPanel.vue"
         },
         {
-          "line": 606,
+          "line": 608,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -24607,11 +24807,11 @@
           "path": "app/console/src/pages/competition/CandidatesPanel.vue"
         },
         {
-          "line": 606,
+          "line": 608,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 32,
+          "line": 33,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -24999,7 +25199,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -25011,11 +25211,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/console/src/lib/nav.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -25023,7 +25223,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 561,
+          "line": 563,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -25039,7 +25239,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -25051,11 +25251,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/console/src/lib/nav.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -25063,7 +25263,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 561,
+          "line": 563,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -25079,7 +25279,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -25091,11 +25291,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/console/src/lib/nav.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -25103,7 +25303,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 561,
+          "line": 563,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -25119,7 +25319,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -25131,11 +25331,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/console/src/lib/nav.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -25143,7 +25343,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 561,
+          "line": 563,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -25159,7 +25359,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -25171,11 +25371,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/console/src/lib/nav.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -25183,7 +25383,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 561,
+          "line": 563,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -25199,7 +25399,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -25211,11 +25411,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/console/src/lib/nav.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -25223,7 +25423,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 561,
+          "line": 563,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -25263,7 +25463,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -25275,11 +25475,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/console/src/lib/nav.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -25287,7 +25487,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 561,
+          "line": 563,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -25303,7 +25503,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -25315,11 +25515,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/console/src/lib/nav.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -25327,7 +25527,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 561,
+          "line": 563,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -25343,7 +25543,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 29,
+          "line": 30,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -25355,11 +25555,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 27,
+          "line": 28,
           "path": "app/console/src/lib/nav.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -25367,7 +25567,7 @@
           "path": "app/console/src/router.ts"
         },
         {
-          "line": 561,
+          "line": 563,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -26093,11 +26293,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -26121,11 +26321,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -26149,11 +26349,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -26177,11 +26377,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -26205,11 +26405,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -26233,11 +26433,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -26261,11 +26461,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -26289,11 +26489,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -26317,11 +26517,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -26345,11 +26545,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -26373,11 +26573,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -26401,11 +26601,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -26429,11 +26629,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -26469,11 +26669,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -26497,11 +26697,11 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 651,
+          "line": 653,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/console/index.ts"
         }
       ],
@@ -29599,7 +29799,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -29639,7 +29839,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -29679,7 +29879,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -29719,7 +29919,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -29759,7 +29959,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -29799,7 +29999,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -29839,7 +30039,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -29879,7 +30079,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -29919,7 +30119,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -29959,7 +30159,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -30011,7 +30211,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -30051,7 +30251,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -30091,7 +30291,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -30131,7 +30331,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -30171,7 +30371,7 @@
           "path": "app/server/src/lib/permission-nodes.ts"
         },
         {
-          "line": 42,
+          "line": 43,
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
@@ -33795,7 +33995,7 @@
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
-          "line": 636,
+          "line": 638,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -33831,7 +34031,7 @@
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
-          "line": 636,
+          "line": 638,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -33867,7 +34067,7 @@
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
-          "line": 636,
+          "line": 638,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -33903,7 +34103,7 @@
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
-          "line": 636,
+          "line": 638,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -33939,7 +34139,7 @@
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
-          "line": 636,
+          "line": 638,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -33975,7 +34175,7 @@
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
-          "line": 636,
+          "line": 638,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -34011,7 +34211,7 @@
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
-          "line": 636,
+          "line": 638,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -34047,7 +34247,7 @@
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
-          "line": 636,
+          "line": 638,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -34083,7 +34283,7 @@
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
-          "line": 636,
+          "line": 638,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -34119,7 +34319,7 @@
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
-          "line": 636,
+          "line": 638,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -34167,7 +34367,7 @@
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
-          "line": 636,
+          "line": 638,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -34203,7 +34403,7 @@
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
-          "line": 636,
+          "line": 638,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -38203,15 +38403,15 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 644,
+          "line": 646,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 134,
+          "line": 137,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38243,15 +38443,15 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 644,
+          "line": 646,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 134,
+          "line": 137,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38283,15 +38483,15 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 644,
+          "line": 646,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 134,
+          "line": 137,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38323,15 +38523,15 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 644,
+          "line": 646,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 134,
+          "line": 137,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38363,15 +38563,15 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 644,
+          "line": 646,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 134,
+          "line": 137,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38403,15 +38603,15 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 644,
+          "line": 646,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 134,
+          "line": 137,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38443,15 +38643,15 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 644,
+          "line": 646,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 134,
+          "line": 137,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38483,15 +38683,15 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 644,
+          "line": 646,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 134,
+          "line": 137,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38523,15 +38723,15 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 644,
+          "line": 646,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 134,
+          "line": 137,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38575,15 +38775,15 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 644,
+          "line": 646,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 134,
+          "line": 137,
           "path": "app/server/src/services.ts"
         },
         {
@@ -38615,15 +38815,15 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 644,
+          "line": 646,
           "path": "app/console/src/mock/console.ts"
         },
         {
-          "line": 31,
+          "line": 32,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
-          "line": 134,
+          "line": 137,
           "path": "app/server/src/services.ts"
         },
         {
@@ -45015,7 +45215,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 41,
+          "line": 42,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -45043,7 +45243,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 41,
+          "line": 42,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -45071,7 +45271,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 41,
+          "line": 42,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -45099,7 +45299,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 41,
+          "line": 42,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -45127,7 +45327,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 41,
+          "line": 42,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -45155,7 +45355,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 41,
+          "line": 42,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -45183,7 +45383,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 41,
+          "line": 42,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -45211,7 +45411,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 41,
+          "line": 42,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -45245,7 +45445,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 41,
+          "line": 42,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -45273,7 +45473,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 41,
+          "line": 42,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -58257,7 +58457,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 35,
+          "line": 36,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -58269,7 +58469,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1033,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58297,7 +58497,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 35,
+          "line": 36,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -58309,7 +58509,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1033,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58337,7 +58537,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 35,
+          "line": 36,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -58349,7 +58549,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1033,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58377,7 +58577,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 35,
+          "line": 36,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -58389,7 +58589,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1033,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58417,7 +58617,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 35,
+          "line": 36,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -58429,7 +58629,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1033,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58457,7 +58657,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 35,
+          "line": 36,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -58469,7 +58669,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1033,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58497,7 +58697,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 35,
+          "line": 36,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -58509,7 +58709,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1033,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58537,7 +58737,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 35,
+          "line": 36,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -58549,7 +58749,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1033,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58577,7 +58777,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 35,
+          "line": 36,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -58589,7 +58789,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1033,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58617,7 +58817,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 35,
+          "line": 36,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -58629,7 +58829,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1033,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58669,7 +58869,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 35,
+          "line": 36,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -58681,7 +58881,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1033,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -58709,7 +58909,7 @@
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 35,
+          "line": 36,
           "path": "app/server/src/routes/console/index.ts"
         },
         {
@@ -58721,7 +58921,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1031,
+          "line": 1033,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -71251,6 +71451,436 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:platform.system_backup",
+      "to": "domain:platform",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:platform.system_backup",
+      "to": "document:docs/architecture/SECURITY.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:platform.system_backup",
+      "to": "document:docs/ops/BACKUP.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:platform.system_backup",
+      "to": "document:docs/ops/DEPLOY.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:platform.system_backup",
+      "to": "document:docs/services/console/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:platform.system_backup",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:platform.system_backup",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:platform.system_backup",
+      "to": "test:tests/console/nav.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:platform.system_backup",
+      "to": "test:tests/console/permissions.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:platform.system_backup",
+      "to": "test:tests/server/backup-route.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:platform.system_backup",
+      "to": "test:tests/server/system-backup.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:platform.system_backup",
+      "to": "test:tests/server/tar-stream.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:platform.system_backup",
+      "to": "test:tests/tooling/backup-restore.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 30,
+          "path": "app/server/src/routes/console/backup.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/server/src/lib/system-backup.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/server/src/lib/tar-stream.ts"
+        },
+        {
+          "line": 79,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/pages/Backup.vue"
+        },
+        {
+          "line": 62,
+          "path": "scripts/backup-restore.mjs"
+        }
+      ],
+      "from": "flow:platform.system_backup",
+      "to": "route:GET /api/console/backup",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 30,
+          "path": "app/server/src/routes/console/backup.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/server/src/lib/system-backup.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/server/src/lib/tar-stream.ts"
+        },
+        {
+          "line": 79,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/pages/Backup.vue"
+        },
+        {
+          "line": 62,
+          "path": "scripts/backup-restore.mjs"
+        }
+      ],
+      "from": "flow:platform.system_backup",
+      "to": "table:activity_events",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 30,
+          "path": "app/server/src/routes/console/backup.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/server/src/lib/system-backup.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/server/src/lib/tar-stream.ts"
+        },
+        {
+          "line": 79,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/pages/Backup.vue"
+        },
+        {
+          "line": 62,
+          "path": "scripts/backup-restore.mjs"
+        }
+      ],
+      "from": "flow:platform.system_backup",
+      "to": "table:application_limits",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 30,
+          "path": "app/server/src/routes/console/backup.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/server/src/lib/system-backup.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/server/src/lib/tar-stream.ts"
+        },
+        {
+          "line": 79,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/pages/Backup.vue"
+        },
+        {
+          "line": 62,
+          "path": "scripts/backup-restore.mjs"
+        }
+      ],
+      "from": "flow:platform.system_backup",
+      "to": "table:device_grants",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 30,
+          "path": "app/server/src/routes/console/backup.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/server/src/lib/system-backup.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/server/src/lib/tar-stream.ts"
+        },
+        {
+          "line": 79,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/pages/Backup.vue"
+        },
+        {
+          "line": 62,
+          "path": "scripts/backup-restore.mjs"
+        }
+      ],
+      "from": "flow:platform.system_backup",
+      "to": "table:email_challenges",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 30,
+          "path": "app/server/src/routes/console/backup.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/server/src/lib/system-backup.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/server/src/lib/tar-stream.ts"
+        },
+        {
+          "line": 79,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/pages/Backup.vue"
+        },
+        {
+          "line": 62,
+          "path": "scripts/backup-restore.mjs"
+        }
+      ],
+      "from": "flow:platform.system_backup",
+      "to": "table:forum_rate_events",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 30,
+          "path": "app/server/src/routes/console/backup.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/server/src/lib/system-backup.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/server/src/lib/tar-stream.ts"
+        },
+        {
+          "line": 79,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/pages/Backup.vue"
+        },
+        {
+          "line": 62,
+          "path": "scripts/backup-restore.mjs"
+        }
+      ],
+      "from": "flow:platform.system_backup",
+      "to": "table:invite_attempts",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 30,
+          "path": "app/server/src/routes/console/backup.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/server/src/lib/system-backup.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/server/src/lib/tar-stream.ts"
+        },
+        {
+          "line": 79,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/pages/Backup.vue"
+        },
+        {
+          "line": 62,
+          "path": "scripts/backup-restore.mjs"
+        }
+      ],
+      "from": "flow:platform.system_backup",
+      "to": "table:limit_events",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 30,
+          "path": "app/server/src/routes/console/backup.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/server/src/lib/system-backup.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/server/src/lib/tar-stream.ts"
+        },
+        {
+          "line": 79,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/pages/Backup.vue"
+        },
+        {
+          "line": 62,
+          "path": "scripts/backup-restore.mjs"
+        }
+      ],
+      "from": "flow:platform.system_backup",
+      "to": "table:oauth_grants",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 30,
+          "path": "app/server/src/routes/console/backup.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/server/src/lib/system-backup.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/server/src/lib/tar-stream.ts"
+        },
+        {
+          "line": 79,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/pages/Backup.vue"
+        },
+        {
+          "line": 62,
+          "path": "scripts/backup-restore.mjs"
+        }
+      ],
+      "from": "flow:platform.system_backup",
+      "to": "table:oidc_payloads",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 30,
+          "path": "app/server/src/routes/console/backup.ts"
+        },
+        {
+          "line": 106,
+          "path": "app/server/src/lib/system-backup.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/server/src/lib/tar-stream.ts"
+        },
+        {
+          "line": 79,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/console/src/pages/Backup.vue"
+        },
+        {
+          "line": 62,
+          "path": "scripts/backup-restore.mjs"
+        }
+      ],
+      "from": "flow:platform.system_backup",
+      "to": "table:sessions",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
       "from": "flow:users.list",
       "to": "domain:permissions",
       "type": "belongs-to"
@@ -71349,7 +71979,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 933,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -71433,7 +72063,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 933,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -71517,7 +72147,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 933,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -71601,7 +72231,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 933,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -71685,7 +72315,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 933,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -71769,7 +72399,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 933,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -71871,7 +72501,7 @@
           "path": "app/console/src/components/ToneTag.vue"
         },
         {
-          "line": 931,
+          "line": 933,
           "path": "app/console/src/mock/console.ts"
         }
       ],
@@ -72481,6 +73111,12 @@
     },
     {
       "basis": "declaration",
+      "from": "route:GET /api/console/backup",
+      "to": "domain:platform",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:GET /api/console/competitions",
       "to": "domain:competitions",
       "type": "belongs-to"
@@ -72987,6 +73623,12 @@
       "basis": "declaration",
       "from": "route:HEAD /api/console/applications/export.csv",
       "to": "domain:recruitment",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:HEAD /api/console/backup",
+      "to": "domain:platform",
       "type": "belongs-to"
     },
     {
@@ -80917,6 +81559,79 @@
       "source": {
         "line": 78,
         "path": "app/server/src/routes/console/applications.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [
+          "requireAuth"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "platform",
+      "id": "route:GET /api/console/backup",
+      "key": "GET /api/console/backup",
+      "kind": "business",
+      "method": "GET",
+      "path": "/api/console/backup",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "contentMediaType": "application/gzip",
+            "description": "tar.gz 二进制归档流：manifest.json + data.db 快照 + sites/ 下的站点文件",
+            "type": "string"
+          }
+        }
+      },
+      "source": {
+        "line": 29,
+        "path": "app/server/src/routes/console/backup.ts"
       }
     },
     {
@@ -93401,6 +94116,79 @@
       "source": {
         "line": 78,
         "path": "app/server/src/routes/console/applications.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [
+          "requireAuth"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "platform",
+      "id": "route:HEAD /api/console/backup",
+      "key": "HEAD /api/console/backup",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/api/console/backup",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "contentMediaType": "application/gzip",
+            "description": "tar.gz 二进制归档流：manifest.json + data.db 快照 + sites/ 下的站点文件",
+            "type": "string"
+          }
+        }
+      },
+      "source": {
+        "line": 29,
+        "path": "app/server/src/routes/console/backup.ts"
       }
     },
     {
@@ -113301,6 +114089,12 @@
     },
     {
       "domains": [
+        "platform"
+      ],
+      "path": "app/console/src/pages/Backup.vue"
+    },
+    {
+      "domains": [
         "identity"
       ],
       "path": "app/console/src/pages/BindEmail.vue"
@@ -114569,6 +115363,18 @@
     },
     {
       "domains": [
+        "platform"
+      ],
+      "path": "app/server/src/lib/system-backup.ts"
+    },
+    {
+      "domains": [
+        "platform"
+      ],
+      "path": "app/server/src/lib/tar-stream.ts"
+    },
+    {
+      "domains": [
         "audit",
         "competitions",
         "feedback",
@@ -114765,6 +115571,12 @@
     },
     {
       "domains": [
+        "platform"
+      ],
+      "path": "app/server/src/routes/console/backup.ts"
+    },
+    {
+      "domains": [
         "competitions"
       ],
       "path": "app/server/src/routes/console/competition-candidates.ts"
@@ -114803,6 +115615,7 @@
         "identity",
         "organization",
         "permissions",
+        "platform",
         "recruitment"
       ],
       "path": "app/server/src/routes/console/contracts.ts"
@@ -114841,6 +115654,7 @@
         "identity",
         "organization",
         "permissions",
+        "platform",
         "recruitment"
       ],
       "path": "app/server/src/routes/console/index.ts"
