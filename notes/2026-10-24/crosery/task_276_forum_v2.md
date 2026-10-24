@@ -92,3 +92,10 @@
 - 做了什么：团队负责人说论坛前端全部改动已在 forum-ui-276 工作树的 af1db686 做完，合并时由负责人 cherry-pick；本分支不重复改，撤回 041be951（app/forum/shared/forum-api.ts、tests/fixtures/server-state.ts、tests/forum-api.test.ts）与 6dba73f9 对 docs/services/forum/README.md 的那 2 行
 - 结果：commit aab2efeb，4 files changed；已知影响：tests/server/forum.test.ts『write responses read by the forum client (#145)』这条会失败到团队负责人 cherry-pick 前端改动为止，没有放宽这条测试的断言
 - 下一步：继续 B 项清单：补齐端点专项测试、ownership.json flows、docs/changes/276.json、API.md/endpoint-contracts.md/server README、mail-envelope 文案、三项从 #274 挪来的清理
+
+## 19:45:48 +08:00 · 提交 · #276 · 招新未通过邮件的论坛说明改成真实的登录要求
+
+- 执行者：agent-c276s（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：recruitment.ts 的 rejectedMessage() 把『论坛不登录也能看帖，也可以用昵称回复』改成『论坛不登录只能看公开的帖子，发帖、回复要先登录』（#276 去掉了游客回帖，旧文案不再是真的）；mail-envelope.test.ts 的断言跟着改，去掉对『发帖』字样的全面禁止，只保留禁止『对所有人开放』
+- 结果：commit c6ea995c，2 files changed；npx vitest run tests/server/mail-envelope.test.ts → 22/22 通过
+- 下一步：补齐新端点专项测试、ownership.json flows、docs/changes/276.json、三项从 #274 挪来的清理
