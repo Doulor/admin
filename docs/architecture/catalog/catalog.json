@@ -10948,7 +10948,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "f3e17c0587da628cad453af527687ddc9d393d4838445638862c46d249d0581e",
+    "fingerprint": "03088d823e913459d419eca12b446d4b7d631e94d1ce7108cca209a6a001b6a4",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -12420,15 +12420,15 @@
       },
       {
         "path": "deploy/compose/preview.yml",
-        "sha256": "2a6d20f14e3b52b3f6111086db670e806b883c7099910242e864cf41fe2cf058"
+        "sha256": "d3ee9863fb00dc44250e7f74d0afa59c4191f86def836646f24519a9a22d2239"
       },
       {
         "path": "deploy/compose/production.yml",
-        "sha256": "bfcf8092e024917aceac147cdd6c41ddcd165c18169a2a432cf2ed36c3342752"
+        "sha256": "d301d42c0184937360c0fb93a2f8e6662185523f4d1d4213c8bdbb986c01c36f"
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "15c2fdc31c355c4b2d33ab27258a5b231374fe0699a404180e35b1a41734c0c8"
+        "sha256": "a37f8c0b3af8495a9d9ebc52a4635f6e06fd9e8ce9b3f0bb45ed9df6fddf1686"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -12476,7 +12476,7 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "57cb7e7dcd93fb271ea48d6af9f3ea4729bcbab9e24c00d730aaeac657878ba2"
+        "sha256": "782e2484eebc8c04895c6b875a770852b1ae0c7ca48555f3a7179dbdb254836c"
       },
       {
         "path": "docs/services/server/data-model.md",
