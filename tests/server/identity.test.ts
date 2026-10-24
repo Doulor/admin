@@ -68,7 +68,9 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
         { user_id: accountId, action: 'login', provider: 'github', result: 'ok' },
       ]);
     expect((await app.inject({ method: 'POST', url: '/auth/signout', headers: { cookie: `sid=${second.sid}`, origin: 'https://example.test' } })).statusCode).toBe(200);
-    expect(db.prepare("SELECT actor_account_id FROM audit_logs WHERE action = 'auth.signout'").get()).toEqual({ actor_account_id: accountId });
+    // #274 review round 1：退出不再单独写 audit_logs（避免和下面的操作记录重复写同一件事），只经
+    // recordActivity 写进 activity_events，本人可见的账号记录（identity_audit）照旧写。
+    expect(db.prepare("SELECT account_id, action, outcome FROM activity_events WHERE action = 'auth.signout'").get()).toEqual({ account_id: accountId, action: 'auth.signout', outcome: 'ok' });
     expect(db.prepare("SELECT action FROM identity_audit ORDER BY id DESC LIMIT 1").get()).toEqual({ action: 'logout' });
   });
 

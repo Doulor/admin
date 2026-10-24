@@ -17,7 +17,6 @@ export default async function authRoutes(app: FastifyInstance) {
   fetchAuthenticatedUser,
   getSession,
   revokeGrant, } = app.services.auth;
-  const { audit } = app.services.storage;
   const { config, identity } = app.services;
   /** 被拒的 GitHub 登录尽力撤销这次授权：服务端不存他的 token，也不该让这份授权一直挂在他的账号里。 */
   const revoke = (req: FastifyRequest, token: string) => revokeGrant(token).catch((cause: { code?: string; status?: number }) => {
@@ -99,7 +98,6 @@ export default async function authRoutes(app: FastifyInstance) {
       const s = getSession(sid);
       destroySession(sid);
       if (s) {
-        audit(null, { login: s.login, account_id: s.account_id }, "auth.signout", undefined, undefined, req.ip);
         identity.recordSignout(s.account_id, s.provider);
         app.services.activity.recordActivity(req, { action: "auth.signout", surface: "portal", outcome: "ok", account_id: s.account_id });
       }
