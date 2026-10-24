@@ -198,7 +198,7 @@ export function rejectedMessage(input: RejectedInput): EnvelopeMessage {
     { kind: "paragraph", text: "这一轮没能请你加入极客班。" },
   ];
   if (input.reason?.trim()) blocks.push({ kind: "paragraph", text: input.reason });
-  blocks.push({ kind: "paragraph", text: "论坛不登录也能看帖，也可以用昵称回复。下一轮招新开始时，欢迎你再写信来。" });
+  blocks.push({ kind: "paragraph", text: "论坛不登录只能看公开的帖子，发帖、回复要先登录。下一轮招新开始时，欢迎你再写信来。" });
   blocks.push(applicationFacts(input));
   return frame(input, {
     subject: "极客班招新结果",

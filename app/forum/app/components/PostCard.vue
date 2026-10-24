@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import type { Post, Topic } from '~/data/types'
+import type { Post, Reaction, Topic } from '~/data/types'
+import type { Sticker } from '../../shared/forum-api'
 import { toast } from '@talex-touch/tuffex/utils'
+import { hasTitleBadge } from '~/data/account-badges'
 import { likeControl } from '~/data/likes'
 import { isPending } from '~/stores/forum-server'
 
@@ -9,9 +11,14 @@ import { isPending } from '~/stores/forum-server'
  * header row (author · role · time · reply backlink · #floor), the Markdown
  * body, and the control row.
  *
- * Every write control asks `can()` first. A control a guest can still see —
- * the like button — routes to the login modal instead of failing silently.
- * The like button spells itself out (「赞 3」, data/likes.ts, #143).
+ * Every write control asks `can()` first. A control someone signed out can
+ * still see — the like button — routes to the login modal instead of failing
+ * silently. The like button spells itself out (「赞 3」, data/likes.ts, #143).
+ *
+ * Sticker reactions (#276) sit under the body: one chip per sticker with its
+ * count, pressed when the viewer used it; clicking toggles it at once and the
+ * server store puts it back if the server refuses. 回应 opens the sticker
+ * panel. 回复 answers the post; 引用 answers it with its first line quoted.
  *
  * A reply still being sent (a `pending:` id, #145) has nothing on the server
  * to like, link, edit or answer yet: the card says 发送中 instead of its
@@ -37,13 +44,16 @@ const props = defineProps<{
 const emit = defineEmits<{
   /** Open the composer with this post as the reply target. */
   reply: [post: Post]
+  /** The same, with this post's first line quoted (#276). */
+  quote: [post: Post]
   /** Scroll to the post this one answers. */
   jump: [postId: string]
 }>()
 
 const forum = useForumStore()
 const actions = useForumActions()
-const { user, can, guestCanReply } = useCurrentUser()
+const { user, can } = useCurrentUser()
+const { available: stickersAvailable, index: stickers, load: loadStickers } = useStickers()
 const { loginOpen } = useShell()
 const { fromNow, formatAbsolute } = useRelativeTime()
 const { href, absoluteUrl } = useAppLink()
@@ -71,8 +81,28 @@ const canEdit = computed(() => !props.post.deleted && !sending.value && hasBody.
 // The store refuses to delete the post that carries the topic, so that one is
 // never offered rather than failing when picked.
 const canDelete = computed(() => canEdit.value && !forum.isFirstPost(props.post.id))
-// A guest (极客班论坛, not signed in) may answer a post too, under a nickname.
-const canReply = computed(() => !props.post.deleted && !sending.value && (can('reply', { topic: props.topic }) || guestCanReply(props.topic)))
+const canReply = computed(() => !props.post.deleted && !sending.value && can('reply', { topic: props.topic }))
+
+const reactions = computed<Reaction[]>(() => props.post.reactions ?? [])
+const canReact = computed(() => stickersAvailable && !props.post.deleted && !sending.value && can('react'))
+const mineReactions = computed(() => reactions.value.filter(item => item.mine).map(item => item.stickerId))
+/** The sticker's name for screen readers; the shortcode until the packs are in. */
+const reactionLabel = (reaction: Reaction): string => `${stickers.value.get(reaction.shortcode)?.label ?? reaction.shortcode}，${reaction.count} 人`
+if (reactions.value.length)
+  onMounted(loadStickers)
+
+function toggleReaction(reaction: Pick<Reaction, 'stickerId' | 'shortcode' | 'url'>, on: boolean) {
+  if (!canReact.value) {
+    loginOpen.value = true
+    return
+  }
+  void actions.react(props.post.id, reaction, on)
+}
+
+function reactWith(sticker: Sticker) {
+  const on = !mineReactions.value.includes(sticker.id)
+  toggleReaction({ stickerId: sticker.id, shortcode: sticker.shortcode, url: sticker.url }, on)
+}
 
 /** Absolute and under the app base, so the copied link survives being pasted anywhere. */
 const permalink = computed(() => absoluteUrl({ path: `/t/${props.topic.id}`, hash: `#post-${props.post.id}` }))
@@ -174,8 +204,8 @@ async function remove() {
               @open="navigateTo(`/u/${author.username}`)"
             />
             <!-- The 极客班 title when there is one; the forum role badge otherwise. -->
-            <TitleBadge v-if="author?.title" :title="author.title" />
-            <!-- 极客班论坛：没登录、用昵称回复的人；只写一个词说明身份，不做成徽章 -->
+            <TitleBadge v-if="author && hasTitleBadge(author)" :user="author" />
+            <!-- 以前的游客回帖（#276 起不能再发），只写一个词说明身份，不做成徽章 -->
             <span v-else-if="author?.kind === 'guest'" class="text-xs text-$tx-text-color-secondary">游客</span>
             <TxStatusBadge
               v-else-if="author && author.role !== 'member'"
@@ -237,6 +267,23 @@ async function remove() {
               </span>
             </template>
 
+            <TxFlex v-if="!sending && (reactions.length || canReact)" align="center" :gap="6" wrap="wrap" data-reactions>
+              <TxButton
+                v-for="reaction in reactions"
+                :key="reaction.stickerId"
+                variant="flat"
+                size="sm"
+                :type="reaction.mine ? 'primary' : undefined"
+                :aria-pressed="reaction.mine ? 'true' : 'false'"
+                :aria-label="reactionLabel(reaction)"
+                @click="toggleReaction(reaction, !reaction.mine)"
+              >
+                <img :src="reaction.url" alt="" class="block h-6 w-6 object-contain" loading="lazy" decoding="async">
+                <span class="ml-1 tabular-nums">{{ reaction.count }}</span>
+              </TxButton>
+              <StickerPicker v-if="canReact" label="回应" icon="i-ri-emotion-line" :selected="mineReactions" @pick="reactWith" />
+            </TxFlex>
+
             <!--
               Two groups rather than one row split by `ml-auto`: this row wraps
               on a phone, and a margin-based split pushes the right-hand group
@@ -289,6 +336,15 @@ async function remove() {
                     删除
                   </TxDropdownItem>
                 </TxDropdownMenu>
+                <TxButton
+                  v-if="canReply"
+                  variant="bare"
+                  size="sm"
+                  icon="i-carbon-quotes"
+                  @click="emit('quote', post)"
+                >
+                  引用
+                </TxButton>
                 <TxButton
                   v-if="canReply"
                   variant="secondary"

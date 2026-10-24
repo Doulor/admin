@@ -1,23 +1,38 @@
 # CodeStream 流式代码块
 
-> 带文件名头部的代码块，按行显现，复制与语法高亮开箱可用。
+> 带文件名头部、可流式输出的代码块
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/code-stream) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/code-stream.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/code-stream.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/code-stream) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/code-stream.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/code-stream.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
 上游标记：status=`beta`，since=`0.3.9`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# CodeStream 流式代码块
+## 用法
 
-## 基础用法
+### 流式输出
+把目前收到的代码传给 `code` 并设置 `streaming`，组件逐词匀速放出。
+官方示例：`CodeStreamLiveDemo`（完整源码见本页末尾）
+
+```vue
+<script setup lang="ts">
+const code = ref('')
+const busy = ref(true)
+
+for await (const delta of stream)
+  code.value += delta
+busy.value = false
+</script>
+
+<template>
+  <TxCodeStream :code="code" :streaming="busy" lang="ts" filename="churn.ts" />
+</template>
+```
 
 ### 逐行显现
-
-`revealedLines` 由宿主推进，组件负责过渡与光标。节奏（起播 400ms、每行 240ms、结尾停 3200ms）留在 demo 层。
-
+宿主推进 `revealedLines`，组件负责过渡与光标。
 官方示例：`CodeStreamStreamingDemo`（完整源码见本页末尾）
 
 ```vue
@@ -34,9 +49,7 @@
 ```
 
 ### 完整清单
-
-不传 `revealedLines` 就是全量展示，此时不画光标。
-
+不传 `revealedLines` 与 `streaming` 时显示完整清单。
 官方示例：`CodeStreamStaticDemo`（完整源码见本页末尾）
 
 ```vue
@@ -50,91 +63,125 @@
 </template>
 ```
 
-## 高亮与主题
+### 统一 Diff
+传 `diff` 渲染统一 diff。被删行与替换它的新增行共用行号，所以行号逐行给出。
+官方示例：`CodeStreamDiffDemo`（完整源码见本页末尾）
 
-高亮走仓库已有的 shiki 运行时（与 `TxCodeBlock` 同一个懒加载单例），是纯异步增强：纯文本渲染永远是对的，颜色到了再叠上去。不传 `lang` 就不高亮，也不会去加载 shiki。
+```vue
+<script setup lang="ts">
+const CODE = `...新版全文，供复制按钮使用...`
 
-`theme` 默认 `'auto'`，跟着文档根的 `data-theme` 或 `.dark` 走。上游是单主题 demo，把默认写死成 light 会让暗色宿主里出现浅底深字。
+const diff = [
+  { number: 3, content: '  const base = await dairy.fetch({ flavor })' },
+  { number: 4, kind: 'removed', content: '  await freezer.store(base, { temp: "-14C" })' },
+  { number: 4, kind: 'added', content: '  await freezer.store(base, { temp: "-16C" })' },
+  { number: 5, kind: 'added', content: '  if (!base.approved) return null' },
+]
+</script>
 
-组件把 shiki 的输出按行拆开，再逐行配上行号与显现动画。**拆分前会核对行数**：如果高亮结果的行数与源码不一致，整体回退到纯文本，而不是让行号整体错位一行。
+<template>
+  <TxCodeStream :code="CODE" :diff="diff" lang="ts" filename="churn.ts" />
+</template>
+```
 
-## API
+### 最佳实践
 
-### Props
+- 代码来自模型时用 `streaming`，交给组件控制节奏；宿主掌握节奏（脚本回放、逐行日志）时才用 `revealedLines`。
+- 流式模式下代码框随行数长高；下方不能挪动时，把 `minHeight` 设为最终高度，完整代码回放时用 `reserve`。
+- 语言不确定时不传 `lang`：纯文本总是正确的。
+- 长代码配合外层滚动容器：代码区只横向滚动，高度随内容。
+- 需要与 `TxStreamMarkdown` 的围栏统一观感时用 `TxCodeBlock`；需要文件名头部、行号与逐行显现时用本组件。
+
+## API 参考
+
+### 属性
 
 | 属性名 | 类型 | 默认值 | 说明 |
 |------|------|---------|------|
-| `code` | `string` | — | 源码。必填。 |
-| `lang` | `string` | `''` | shiki 语言 id。留空则不高亮。 |
+| `code` | `string` | — | 源码，必填。 |
+| `lang` | `string` | `''` | Shiki 语言 id；留空不高亮，也不加载 Shiki。 |
 | `filename` | `string` | — | 头部文件名，等宽。 |
-| `langLabel` | `string` | — | 文件名旁的语言标签，例如 `TypeScript`。 |
-| `revealedLines` | `number` | — | 显现到第几行。省略或传 `-1` 表示全部。 |
-| `caret` | `boolean` | `true` | 是否在最后一行末尾画强调色光标。 |
-| `lineNumbers` | `boolean` | `true` | 是否显示行号。 |
-| `theme` | `'light' \| 'dark' \| 'auto'` | `'auto'` | 高亮主题，`'auto'` 跟随文档根。 |
-| `copyable` | `boolean` | `true` | 是否渲染复制按钮。 |
-| `copyLabel` | `string` | `'Copy'` | 复制按钮文案。 |
+| `langLabel` | `string` | — | 文件名旁的语言标签，如 `TypeScript`。 |
+| `revealedLines` | `number` | — | 显现到第几行，越界时夹取；省略或传 `-1` 表示全部。 |
+| `streaming` | `boolean` | — | 流式模式：源头仍在输出；`false` 时直接显示，可用 `replay()` 回放。 |
+| `reveal` | `'aurora' \| 'hue' \| 'blur' \| 'languid' \| 'none'` | `'aurora'` | 流式模式：词的进场方式；代码保持语法颜色，`aurora` 等同 `blur`，`hue` 只是淡入。 |
+| `wordMs` | `number` | `24` | 流式模式：每 `wordMs` 放出一个词。 |
+| `maxLagMs` | `number` | `600` | 流式模式：任何词都在到达后这段时间内显示。 |
+| `drainMs` | `number` | `320` | 流式模式：`streaming` 变为 false 后，在这段时间内放完剩余部分。 |
+| `pauseMs` | `number` | `400` | 流式模式：超过这段时间没有新词即报告 `paused`。 |
+| `reserve` | `boolean` | `false` | 流式模式：完整代码回放时占住最终高度；`streaming` 时忽略。 |
+| `paced` | `boolean` | `true` | 流式模式：为 `false` 时词一到就显示（仍有进场）；`TxStreamElement` 统一控制节奏时传 `false`。 |
+| `appear` | `boolean` | `false` | 流式模式：挂载时已有的代码也播放进场；只在挂载时读取。 |
+| `caret` | `boolean` | `true` | 逐行模式为末行静止标记，流式模式为 Tuff 光标；关闭即移除。 |
+| `lineNumbers` | `boolean` | `true` | 显示行号。 |
+| `theme` | `'light' \| 'dark' \| 'auto'` | `'auto'` | 高亮主题；`'auto'` 跟随文档根的 `data-theme` 或 `.dark`。 |
+| `copyable` | `boolean` | `true` | 渲染复制按钮。 |
+| `copyLabel` | `string` | `'Copy'` | 复制按钮文案；与 `copiedLabel` 一起本地化。 |
 | `copiedLabel` | `string` | `'Copied'` | 复制成功后的文案。 |
-| `minHeight` | `number \| string` | — | 代码区高度下限。缺省时按完整清单的高度预留。 |
+| `minHeight` | `number \| string` | — | 代码区高度下限；缺省时按完整清单的高度预留。 |
+| `diff` | `CodeDiffRow[]` | — | 统一 diff 行，渲染时附增删计数；复制按钮仍复制 `code`。 |
 
-### Events
+### 事件
 
 | 事件名 | 参数 | 说明 |
 |------|------|------|
-| `copy` | `(code: string)` | 复制成功时透传自 `TxCopyButton`。 |
-| `complete` | — | `revealedLines` 抵达最后一行时派发一次。挂载即完整不派发。 |
+| `copy` | `(code: string)` | 复制成功时触发。 |
+| `complete` | — | `revealedLines` 抵达最后一行时触发一次；挂载即完整或流式模式下不触发。 |
+| `state-change` | `(state: StreamState)` | 流式模式：状态变化时触发。 |
+| `done` | — | 流式模式：每次播放结束时触发一次。 |
 
-### Slots
+### 插槽
 
 | 插槽名 | 作用域参数 | 说明 |
 |------|------|------|
-| `header` | — | 替换文件名与语言标签这一对。 |
-| `actions` | — | 在复制按钮之前插入自定义控件。 |
+| `header` | — | 替换文件名与语言标签。 |
+| `actions` | — | 复制按钮之前的自定义控件。 |
+| `caret` | `{ state }` | 流式模式：替换 Tuff 光标，只在流式进行时渲染。 |
 
-## 交互契约
+### 暴露方法
 
-- `revealedLines` 会被夹到 `[0, 总行数]`，越界不会报错。
-- 光标只在**正在显现**时出现（`0 < revealedLines < 总行数`），画在最后一行末尾。它是**静止**的：上游把闪烁光标留给流式散文，代码光标只是位置标记。
-- `complete` 只在跨越终点时派发一次。挂载时就是完整清单不算跨越，不会派发。
-- 复制按钮复用 `TxCopyButton`，因此带上了 `document.execCommand` 降级与礼貌实时区域；外观由本组件覆写成 BUI 的样子。
-- 行号 `line-height: 1.86` 与代码 `1.7` 的搭配是刻意的：10.5px×1.86 与 11.5px×1.7 都落在约 19.5px，行号才与代码同基线。改任何一边都会错位。
-- 高度下限按 `行数 × 1.7em + 20px` 预留，所以显现过程是长进已留好的空间里，而不是把页面往下推。上游写死的 137px 恰好是它那段样例六行的高度。
-- 代码区是 `<div>` 而不是 `<pre>`：Vue 编译器会保留 `<pre>` 内的模板缩进，标记自身的缩进会被当成代码渲染出来。逐行的 `white-space: pre` 表达同一件事。
-- 减弱动效下逐行入场动画停止，显现进度本身照常。
+| 名称 | 类型 | 说明 |
+|------|------|------|
+| `state` | `StreamState` | 流式模式的状态；其他模式下为 `idle`。 |
+| `replay` | `() => void` | 流式模式：从第一个词起重播代码。 |
+| `skip` | `() => void` | 流式模式：立即显示全部，不播放进场。 |
 
-## 最佳实践
+### 类型
 
-- 让宿主按数据到达节奏推进 `revealedLines`，不要在组件里放定时器。
-- 语言不确定时宁可不传 `lang`：纯文本渲染永远正确，错误的语言 id 只会白跑一次高亮。
-- 长代码建议配合外层滚动容器；代码区自身横向可滚，但纵向由内容决定。
-- 需要与 `TxStreamMarkdown` 的围栏统一观感时用 `TxCodeBlock`；需要文件名头部、行号与逐行显现时用本组件。
-- 非英文界面记得一起覆盖 `copyLabel` 与 `copiedLabel`，只改一个会中英混排。
+#### CodeDiffRow
 
-## Source
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `content` | `string` | 该行文本，不带 `+` / `-` 标记。 |
+| `kind` | `'context' \| 'added' \| 'removed'` | 默认 `'context'`。 |
+| `number` | `number` | 行号；被删行与替换它的新增行通常共用一个。不传则留空。 |
 
-- Component source: `packages/tuffex/packages/components/src/code-stream/src/TxCodeStream.vue`。
-- Types: `packages/tuffex/packages/components/src/code-stream/src/types.ts`。
-- Reused: `packages/tuffex/packages/components/src/button/src/copy-button.vue`、`packages/tuffex/packages/components/src/stream-markdown/src/shiki-runtime.ts`、`.../use-auto-theme.ts`。
-- **实测覆盖:** `packages/tuffex/packages/components/src/code-stream/__tests__/code-stream.test.ts`（22 项）验证显现夹取与已显现行不重播、光标出现条件、`complete` 只派发一次、头部去留、shiki 输出按行拆分、行数不符时回退纯文本、主题透传与复制事件转发。
-- 移植自 Beautiful UI（https://www.beautifului.dev），© 2026 Shane Levine，MIT。
+## 概述
 
+- 设置了 `streaming`（`true` 或 `false`），且没有 `revealedLines` 和非空的 `diff` 时进入流式模式；节奏、状态与增量显影同 [StreamText](./stream-text.md)。
+- `revealedLines` 模式下，光标只在显现过程中（`0 < revealedLines < 总行数`）出现在最后一行末尾，且保持静止。
+- 删除行用斜纹槽标、新增行用实心槽标，不只靠红绿两种色调区分。
+- 只有 Shiki 生成的标记进入 `v-html`，其中代码文本已转义；未高亮时走普通插值。
+- 减弱动效时不播放行或词的进场：`revealedLines` 照常显现，流式模式直接显示，光标静止。
 
+## 技术实现
 
-## 审阅说明
-
-- **与 `TxCodeBlock` 的分工:** `TxCodeBlock` 是 `TxStreamMarkdown` 渲染每个围栏的内部件，负责 markdown 场景；本组件是独立的「智能体在写代码」展示，多出文件名头部、行号、逐行显现与光标。
-- **已知偏差（视觉）:** 上游手写了一套五色 token 映射（`kw → --accent-ink`、`str → --green`、`dim → --ink-3`），这里换成 shiki，因此配色与截图基准不逐像素一致。这是 design.md §8.2 预先接受的取舍——手写模型要求每个宿主自己分词，不能作为公共 API。需要贴近时，可给 shiki 配自定义主题把那五个 scope 映到 `--tx-bui-*`。
-- **安全:** 只有 shiki 生成的标记会进 `v-html`，其中代码文本已被转义；未高亮分支走普通插值。
+- 高亮复用 `TxCodeBlock` 的 Shiki 懒加载单例：先渲染纯文本，颜色异步叠加。`TxStreamCode` 是同一组件的别名。
+- 移植自 [Beautiful UI](https://www.beautifului.dev)（© 2026 Shane Levine，MIT）。
+- 源码：`packages/tuffex/packages/components/src/code-stream/`。
 
 ## 离线完整示例源码
 
+- [CodeStreamLiveDemo](../snapshot/apps/nexus/app/components/content/demos/CodeStreamLiveDemo.vue.txt)
 - [CodeStreamStreamingDemo](../snapshot/apps/nexus/app/components/content/demos/CodeStreamStreamingDemo.vue.txt)
 - [CodeStreamStaticDemo](../snapshot/apps/nexus/app/components/content/demos/CodeStreamStaticDemo.vue.txt)
+- [CodeStreamDiffDemo](../snapshot/apps/nexus/app/components/content/demos/CodeStreamDiffDemo.vue.txt)
 
 ## 离线类型与实现参考
 
 - [code-stream/index.ts](../snapshot/packages/tuffex/packages/components/src/code-stream/index.ts.txt)
 - [src/TxCodeStream.vue](../snapshot/packages/tuffex/packages/components/src/code-stream/src/TxCodeStream.vue.txt)
 - [src/types.ts](../snapshot/packages/tuffex/packages/components/src/code-stream/src/types.ts.txt)
+- [src/units.ts](../snapshot/packages/tuffex/packages/components/src/code-stream/src/units.ts.txt)
 
 第三方许可与转换边界见 [SOURCES](../SOURCES.md)。示例中 Nexus 的自动导入、Tuff 前缀别名、样式类和外部素材不代表业务项目已配置，不能不经核对就复制运行。

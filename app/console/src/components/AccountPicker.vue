@@ -86,7 +86,7 @@ function onChange(value: string | number) {
 </script>
 
 <template>
-  <!-- TxSearchSelect 0.6.0 的 attrs 落在外层，用 label 给里面的输入框命名。 -->
+  <!-- TxSearchSelect（0.6.0 到 0.9.1）的 attrs 落在外层，用 label 给里面的输入框命名。 -->
   <label class="account-picker">
     <span class="sr-only">{{ label }}</span>
     <TxSearchSelect
@@ -97,6 +97,7 @@ function onChange(value: string | number) {
       :disabled="disabled"
       remote
       :search-debounce="250"
+      panel-background="pure"
       @search="search"
       @change="onChange"
     />

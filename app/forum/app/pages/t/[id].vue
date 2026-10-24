@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { BreadcrumbItem } from '@talex-touch/tuffex/breadcrumb'
-import type { Post } from '~/data/types'
+import type { Post, Visibility } from '~/data/types'
+import type { TopicAbsence } from '~/stores/forum-server'
 import { toast } from '@talex-touch/tuffex/utils'
 import { topicMarkdownPath } from '../../../shared/forum-markdown'
 
@@ -20,8 +21,9 @@ const router = useRouter()
 const forum = useForumStore()
 const server = useForumServerStore()
 const actions = useForumActions()
-const { can, guestCanReply } = useCurrentUser()
-const { isDesktop } = useShell()
+const { can } = useCurrentUser()
+const { isDesktop, loginOpen } = useShell()
+const { isSnapshot, serverMode } = useContentSource()
 
 const topicId = String(route.params.id)
 // Read through the store rather than capturing the object: `重置示例数据`
@@ -34,12 +36,27 @@ const topic = computed(() => forum.topicById(topicId) ?? (/^\d+$/.test(topicId) 
 // item asks can() on its own and the menu shows when either one holds.
 const canPin = computed(() => topic.value !== undefined && can('pinTopic', { topic: topic.value }))
 const canClose = computed(() => topic.value !== undefined && can('closeTopic', { topic: topic.value }))
+const canSetVisibility = computed(() => topic.value !== undefined && can('setVisibility', { topic: topic.value }))
+
+/** 话题上的可见范围标记（#276）：公开的不标。 */
+const VISIBILITY_BADGE: Record<Exclude<Visibility, 'public'>, string> = { registered: '注册用户可见', member: '成员可见' }
+const visibilityBadge = computed(() => {
+  const level = topic.value?.visibility ?? 'public'
+  return level === 'public' ? null : VISIBILITY_BADGE[level]
+})
+
+/**
+ * A topic the state does not hold (#276): against the server it may exist
+ * but be hidden from this viewer, so the page asks before saying 404. The
+ * answer says only which identity would see it, never the title.
+ */
+const absence = ref<TopicAbsence | null>(null)
 
 // Raised rather than thrown: a `throw` in setup still renders the template once
 // with every binding undefined, which logs a handful of Vue warnings on the way
 // to the error page. `showError` lets setup finish and the root `v-if` keeps
 // the template from rendering anything at all.
-if (!topic.value) {
+function notFound() {
   showError(createError({
     statusCode: 404,
     // h3 warns when `statusMessage` carries prose ("prefer `message`"), and that
@@ -51,6 +68,20 @@ if (!topic.value) {
   }))
 }
 
+if (!topic.value) {
+  if (serverMode && import.meta.client) {
+    absence.value = 'unknown'
+    void server.probeTopic(/^\d+$/.test(topicId) ? `t${topicId}` : topicId).then((found) => {
+      absence.value = found
+      if (found === 'missing' || (found === 'unknown' && !topic.value))
+        notFound()
+    })
+  }
+  else {
+    notFound()
+  }
+}
+
 useHead({ title: () => topic.value?.title ?? '话题' })
 
 // The Markdown twin for AI readers (server/middleware/forum-markdown.ts). Only
@@ -60,7 +91,6 @@ useHead({ title: () => topic.value?.title ?? '话题' })
 // in this browser lives in localStorage alone and has none. The list comes
 // from the runtime config rather than the seed module, so a 极客班论坛 build
 // does not bundle the demo topics for this check.
-const { isSnapshot } = useContentSource()
 const { app: { baseURL }, public: { markdownTopicIds } } = useRuntimeConfig()
 const markdownHref = computed(() => (topic.value && (isSnapshot || markdownTopicIds.includes(topic.value.id))
   ? `${baseURL}${topicMarkdownPath(topic.value.id)}`
@@ -82,6 +112,8 @@ const tags = computed(() => (topic.value ? topic.value.tagIds.map(id => forum.ta
 
 const composerOpen = ref(false)
 const replyTo = ref<Post | undefined>()
+/** Set when the composer opens from 「引用」: the drawer inserts that post's quote (#276). */
+const quoteFrom = ref<Post | undefined>()
 const flashPostId = ref<string | null>(null)
 let flashTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -116,11 +148,21 @@ function focusPost(postId: string) {
   }, FLASH_MS)
 }
 
-function openComposer(post?: Post) {
-  if (!topic.value || !(can('reply', { topic: topic.value }) || guestCanReply(topic.value)))
+function openComposer(post?: Post, quote = false) {
+  if (!topic.value || !can('reply', { topic: topic.value }))
     return
   replyTo.value = post
+  quoteFrom.value = quote ? post : undefined
   composerOpen.value = true
+}
+
+/** Only stricter than the category is allowed; the server says so when a choice is not (`visibility_too_open`). */
+async function setVisibility(visibility: Visibility | null) {
+  const current = topic.value
+  if (!current || !canSetVisibility.value)
+    return
+  if (await actions.setVisibility(current.id, visibility))
+    toast({ id: `forum-visibility:${current.id}`, title: '可见范围已更新', variant: 'success' })
 }
 
 // Called twice against the server: once for the reply shown while it is sent,
@@ -190,7 +232,7 @@ onBeforeUnmount(() => clearTimeout(flashTimer))
           <span>{{ topic.title }}</span>
         </h1>
 
-        <TxDropdownMenu v-if="canPin || canClose" placement="bottom-end" reference-class="ml-auto" panel-background="pure">
+        <TxDropdownMenu v-if="canPin || canClose || canSetVisibility" placement="bottom-end" reference-class="ml-auto" panel-background="pure">
           <template #trigger>
             <TxIconButton icon="i-carbon-overflow-menu-horizontal" label="话题管理" />
           </template>
@@ -200,6 +242,17 @@ onBeforeUnmount(() => clearTimeout(flashTimer))
           <TxDropdownItem v-if="canClose" @select="toggleClosed">
             {{ topic.closed ? '重新开放' : '关闭话题' }}
           </TxDropdownItem>
+          <template v-if="canSetVisibility">
+            <TxDropdownItem @select="setVisibility('registered')">
+              只给注册用户看
+            </TxDropdownItem>
+            <TxDropdownItem @select="setVisibility('member')">
+              只给成员看
+            </TxDropdownItem>
+            <TxDropdownItem @select="setVisibility(null)">
+              跟随分类的可见范围
+            </TxDropdownItem>
+          </template>
         </TxDropdownMenu>
       </TxFlex>
 
@@ -208,6 +261,7 @@ onBeforeUnmount(() => clearTimeout(flashTimer))
         <TxTag v-for="tag in tags" :key="tag.id" :label="tag.name" variant="plain" size="sm" />
         <TxStatusBadge v-if="topic.pinned" text="已置顶" icon="i-carbon-pin" status="muted" size="sm" />
         <TxStatusBadge v-if="topic.closed" text="已关闭" icon="i-carbon-locked" status="muted" size="sm" />
+        <TxStatusBadge v-if="visibilityBadge" :text="visibilityBadge" icon="i-carbon-view" status="muted" size="sm" />
       </TxFlex>
     </TxStack>
 
@@ -224,6 +278,7 @@ onBeforeUnmount(() => clearTimeout(flashTimer))
               :flash="flashPostId === post.id"
               :bodies-pending="bodiesPending"
               @reply="openComposer"
+              @quote="openComposer($event, true)"
               @jump="focusPost"
             />
           </TxStack>
@@ -245,7 +300,30 @@ onBeforeUnmount(() => clearTimeout(flashTimer))
       v-model:visible="composerOpen"
       v-model:reply-to="replyTo"
       :topic="topic"
+      :quote-from="quoteFrom"
       @submitted="onSubmitted"
     />
   </TxStack>
+
+  <TxCard v-else-if="absence === 'need-registered' || absence === 'need-member'" variant="plain" :padding="24" data-topic-hidden>
+    <!-- A hidden topic (#276): which identity would see it, and nothing of what it says. -->
+    <TxStack :gap="12" align="start">
+      <h1 class="text-xl font-semibold">
+        {{ absence === 'need-member' ? '成员可看' : '登录后可看' }}
+      </h1>
+      <p class="text-$tx-text-color-secondary">
+        {{ absence === 'need-member'
+          ? '这个话题只给极客班成员看。在桌面右上角的账号资料里填邀请码，成为成员后就能打开。'
+          : '这个话题只给注册用户看，登录后就能打开。' }}
+      </p>
+      <TxFlex :gap="8">
+        <TxButton v-if="absence === 'need-registered'" variant="primary" @click="loginOpen = true">
+          登录
+        </TxButton>
+        <TxButton variant="secondary" @click="router.push('/')">
+          回到话题列表
+        </TxButton>
+      </TxFlex>
+    </TxStack>
+  </TxCard>
 </template>

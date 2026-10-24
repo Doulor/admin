@@ -2,17 +2,15 @@
 
 > 分段强度条，用几格填充表达置信度、相关度或信号强弱。
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/signal-meter) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/signal-meter.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/signal-meter.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/signal-meter) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/signal-meter.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/signal-meter.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
 上游标记：status=`beta`，since=`0.3.9`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# SignalMeter 信号量表
-
-## 基础用法
+## 用法
 
 ### 四档强度
 
@@ -29,13 +27,14 @@
 </template>
 ```
 
-## 适用场景
+### 最佳实践
 
-- 建议卡的置信度页脚与备选列表——`TxRecommendationCard` 内部就用它。
-- 检索结果的相关度：三格比一个百分比更容易横向扫读。
-- 任何「强 / 中 / 弱 / 无」的离散量。连续量请用 `TxProgressBar`。
+- 颜色永远不是状态的唯一载体：量表旁边要有文字标签（`高置信` / `需要复核`），并把同一段文字传给 `label`。
+- 同屏内保持相同 `max`，否则「三格里的两格」和「五格里的两格」会被读成同一强度。
+- 父级已有可见标签时，量表本身不传 `label`，让读屏只念一次。
+- 在宿主侧把 `confidence` 这类语义值映射成 `value` + `tone`，不要在模板里散落魔数。
 
-## API
+## API 参考
 
 ### Props
 
@@ -56,7 +55,7 @@
 
 组件没有插槽。
 
-## 交互契约
+## 概述
 
 - 纯展示原语：没有事件、没有内部状态，`value` 变化即重绘。
 - **`label` 决定无障碍语义。** 传了就渲染 `role="img"` + `aria-label`；不传就整条 `aria-hidden="true"`。后者是刻意的——三个空 `span` 被逐个念出来只是噪音，而这条量表在实际版式里总是紧挨一段可见文字。
@@ -64,14 +63,7 @@
 - `tone` 收的是裸 CSS 颜色字符串，**不参与主题切换**。想跟随主题就传 `var(--tx-color-success)` 这类变量，而不是十六进制值。
 - 填充色过渡 300ms；`prefers-reduced-motion: reduce` 下取消过渡，保留最终颜色。
 
-## 最佳实践
-
-- 颜色永远不是状态的唯一载体：量表旁边要有文字标签（`高置信` / `需要复核`），并把同一段文字传给 `label`。
-- 同屏内保持相同 `max`，否则「三格里的两格」和「五格里的两格」会被读成同一强度。
-- 父级已有可见标签时，量表本身不传 `label`，让读屏只念一次。
-- 在宿主侧把 `confidence` 这类语义值映射成 `value` + `tone`，不要在模板里散落魔数。
-
-## Source
+## 技术实现
 
 - Component source: `packages/tuffex/packages/components/src/signal-meter/src/TxSignalMeter.vue`。
 - Types: `packages/tuffex/packages/components/src/signal-meter/src/types.ts`。
@@ -80,10 +72,14 @@
 
 
 
-## 审阅说明
-
 - **与既有徽标的分工:** `TxStatusBadge` 是五档语义 tone 的带框徽标，`TxProgressBar` 是连续进度。本组件是裸的离散格子，接受任意颜色，没有边框也没有图标——三者不要互相替代。
 - **上游差异:** 上游把量表写在建议卡内部，只有 3 格且颜色硬编码。这里抽成独立原语并把格数做成 `max`，因为同一形状在检索相关度上也用得到。
+
+## 使用场景
+
+- 建议卡的置信度页脚与备选列表——`TxRecommendationCard` 内部就用它。
+- 检索结果的相关度：三格比一个百分比更容易横向扫读。
+- 任何「强 / 中 / 弱 / 无」的离散量。连续量请用 `TxProgressBar`。
 
 ## 离线完整示例源码
 

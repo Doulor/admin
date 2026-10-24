@@ -63,7 +63,7 @@ const create = useAction(async () => {
       <TxFormItem label="继承（选填）">
         <label class="fill-width">
           <span class="sr-only">继承的组</span>
-          <TxSelect v-model="draft.parents" :options="parentOptions" multiple searchable placeholder="不继承" search-placeholder="搜索组" empty-text="没有这个组" class="fill-width" />
+          <TxSelect v-model="draft.parents" :options="parentOptions" multiple searchable placeholder="不继承" search-placeholder="搜索组" empty-text="没有这个组" class="fill-width" panel-background="pure" />
         </label>
       </TxFormItem>
       <p v-if="problem" class="field-error" role="alert">{{ problem }}</p>

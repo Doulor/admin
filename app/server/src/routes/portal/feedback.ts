@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { DEFAULT_CONSOLE_ORG } from "../../config.js";
 import { normalizeFeedbackOrg } from "../../lib/feedback-store.js";
 
 type Body = {
@@ -18,10 +19,9 @@ export default async function feedbackRoutes(app: FastifyInstance) {
   const { getSession } = app.services.auth;
   const { verifyTurnstile } = app.services.turnstile;
   const { preflightPublicSubmission, powDifficulty } = app.services.publicSubmission;
-  const { config } = app.services;
   const { turnstileEnabled } = app.services.turnstile;
-  // org 是本部署意见箱收的组织（CONSOLE_ORG）：官网照它展示和提交，不另存一份可能对不上的组织名（#129）。
-  app.get("/api/feedback/categories", async () => ({ categories: CATEGORIES, pow_difficulty: powDifficulty(), org: config.consoleOrg }));
+  // org 是本部署意见箱收的组织，固定为 DEFAULT_CONSOLE_ORG：官网照它展示和提交，不另存一份可能对不上的组织名（#129）。
+  app.get("/api/feedback/categories", async () => ({ categories: CATEGORIES, pow_difficulty: powDifficulty(), org: DEFAULT_CONSOLE_ORG }));
 
   app.post<{ Body: Body }>("/api/feedback", {
     config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
@@ -29,8 +29,8 @@ export default async function feedbackRoutes(app: FastifyInstance) {
     const { content, category, contact, turnstile_token } = req.body ?? {};
     // PoW 摘要按提交者实际发出的组织名算，只有落库与比较用规范写法：换大小写提交的客户端不必改摘要输入。
     const requestedOrg = req.body?.org ?? "";
-    const org = normalizeFeedbackOrg(requestedOrg, config.consoleOrg);
-    if (!org) return reply.code(400).send({ error: `意见箱只接收「${config.consoleOrg}」组织的意见` });
+    const org = normalizeFeedbackOrg(requestedOrg, DEFAULT_CONSOLE_ORG);
+    if (!org) return reply.code(400).send({ error: `意见箱只接收「${DEFAULT_CONSOLE_ORG}」组织的意见` });
     const text = content?.trim();
     if (!text || text.length < 5) return reply.code(400).send({ error: "意见内容至少 5 个字" });
     if (text.length > 5000) return reply.code(400).send({ error: "意见内容过长（5000 字以内）" });
@@ -65,7 +65,7 @@ export default async function feedbackRoutes(app: FastifyInstance) {
 
   app.get<{ Querystring: { org?: string; limit?: string } }>("/api/feedback/public", async (req) => {
     // 公开列表也只看本部署管理的组织：别的组织名（含任意大小写）一律返回空列表，不透露是否存在。
-    const org = normalizeFeedbackOrg(req.query.org ?? "", config.consoleOrg);
+    const org = normalizeFeedbackOrg(req.query.org ?? "", DEFAULT_CONSOLE_ORG);
     const limit = Math.min(Number(req.query.limit ?? 20), 100);
     if (!org) return { items: [] };
     const rows = db.prepare(

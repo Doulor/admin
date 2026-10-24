@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`afd5b9ff5f876c823bf12286e0ebb8e72dcd744706e0e75fd43c7f6b45d45d9b`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`69fb98e20b99a536de01dc65e570a7f11b8e8eff6a6d24f4f83fee11d9a88b38`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -12,27 +12,21 @@
 
 | 能力 | 名称 | 业务域 | 蕴含 | 定义 | 直接检查它的操作数 |
 |---|---|---|---|---|---:|
-| `console.access` | 进入控制台 | `organization` |  | [app/server/src/lib/roles.ts:74](../../../app/server/src/lib/roles.ts#L74) | 0 |
-| `github.org.read` | 查看 GitHub 组织 | `github` |  | [app/server/src/lib/roles.ts:75](../../../app/server/src/lib/roles.ts#L75) | 0 |
-| `github.org.manage` | 修改组织资料 | `github` | `github.org.read` | [app/server/src/lib/roles.ts:76](../../../app/server/src/lib/roles.ts#L76) | 0 |
-| `github.members.manage` | 管理组织成员 | `github` | `github.org.read` | [app/server/src/lib/roles.ts:77](../../../app/server/src/lib/roles.ts#L77) | 0 |
-| `github.repos.manage` | 管理仓库 | `github` | `github.org.read` | [app/server/src/lib/roles.ts:78](../../../app/server/src/lib/roles.ts#L78) | 0 |
-| `github.teams.manage` | 管理团队 | `github` | `github.org.read` | [app/server/src/lib/roles.ts:79](../../../app/server/src/lib/roles.ts#L79) | 0 |
-| `github.invites.manage` | 管理邀请 | `github` | `github.org.read` | [app/server/src/lib/roles.ts:80](../../../app/server/src/lib/roles.ts#L80) | 0 |
-| `forum.topic.pin` | 置顶话题 | `forum` |  | [app/server/src/lib/roles.ts:81](../../../app/server/src/lib/roles.ts#L81) | 0 |
-| `forum.topic.close` | 关闭话题 | `forum` |  | [app/server/src/lib/roles.ts:82](../../../app/server/src/lib/roles.ts#L82) | 0 |
-| `forum.post.moderate` | 管理帖子 | `forum` |  | [app/server/src/lib/roles.ts:83](../../../app/server/src/lib/roles.ts#L83) | 0 |
-| `forum.category.manage` | 管理分类 | `forum` |  | [app/server/src/lib/roles.ts:84](../../../app/server/src/lib/roles.ts#L84) | 0 |
-| `forum.badge.assign` | 授予论坛徽章 | `forum` |  | [app/server/src/lib/roles.ts:85](../../../app/server/src/lib/roles.ts#L85) | 0 |
-| `applications.read` | 查看投递 | `recruitment` |  | [app/server/src/lib/roles.ts:86](../../../app/server/src/lib/roles.ts#L86) | 0 |
-| `applications.review` | 审核投递 | `recruitment` | `applications.read` | [app/server/src/lib/roles.ts:87](../../../app/server/src/lib/roles.ts#L87) | 0 |
-| `applications.export` | 导出投递 | `recruitment` | `applications.read` | [app/server/src/lib/roles.ts:88](../../../app/server/src/lib/roles.ts#L88) | 0 |
-| `feedback.read` | 查看意见箱 | `feedback` |  | [app/server/src/lib/roles.ts:89](../../../app/server/src/lib/roles.ts#L89) | 0 |
-| `feedback.manage` | 处理意见 | `feedback` | `feedback.read` | [app/server/src/lib/roles.ts:90](../../../app/server/src/lib/roles.ts#L90) | 0 |
-| `audit.read` | 查看审计日志 | `audit` |  | [app/server/src/lib/roles.ts:91](../../../app/server/src/lib/roles.ts#L91) | 0 |
-| `roles.manage` | 管理称号与部门 | `organization` | `roles.department.manage` | [app/server/src/lib/roles.ts:92](../../../app/server/src/lib/roles.ts#L92) | 0 |
-| `roles.department.manage` | 任免本部门成员 | `organization` |  | [app/server/src/lib/roles.ts:93](../../../app/server/src/lib/roles.ts#L93) | 0 |
-| `competitions.manage` | 管理比赛 | `competitions` |  | [app/server/src/lib/roles.ts:94](../../../app/server/src/lib/roles.ts#L94) | 0 |
-| `accounts.invites.manage` | 管理注册邀请码 | `identity` |  | [app/server/src/lib/roles.ts:95](../../../app/server/src/lib/roles.ts#L95) | 0 |
+| `console.access` | 进入控制台 | `organization` |  | [app/server/src/lib/roles.ts:84](../../../app/server/src/lib/roles.ts#L84) | 0 |
+| `forum.topic.pin` | 置顶话题 | `forum` |  | [app/server/src/lib/roles.ts:85](../../../app/server/src/lib/roles.ts#L85) | 0 |
+| `forum.topic.close` | 关闭话题 | `forum` |  | [app/server/src/lib/roles.ts:86](../../../app/server/src/lib/roles.ts#L86) | 0 |
+| `forum.post.moderate` | 管理帖子 | `forum` |  | [app/server/src/lib/roles.ts:87](../../../app/server/src/lib/roles.ts#L87) | 0 |
+| `forum.category.manage` | 管理分类 | `forum` |  | [app/server/src/lib/roles.ts:88](../../../app/server/src/lib/roles.ts#L88) | 0 |
+| `forum.badge.assign` | 授予论坛徽章 | `forum` |  | [app/server/src/lib/roles.ts:89](../../../app/server/src/lib/roles.ts#L89) | 0 |
+| `applications.read` | 查看投递 | `recruitment` |  | [app/server/src/lib/roles.ts:90](../../../app/server/src/lib/roles.ts#L90) | 0 |
+| `applications.review` | 审核投递 | `recruitment` | `applications.read` | [app/server/src/lib/roles.ts:91](../../../app/server/src/lib/roles.ts#L91) | 0 |
+| `applications.export` | 导出投递 | `recruitment` | `applications.read` | [app/server/src/lib/roles.ts:92](../../../app/server/src/lib/roles.ts#L92) | 0 |
+| `feedback.read` | 查看意见箱 | `feedback` |  | [app/server/src/lib/roles.ts:93](../../../app/server/src/lib/roles.ts#L93) | 0 |
+| `feedback.manage` | 处理意见 | `feedback` | `feedback.read` | [app/server/src/lib/roles.ts:94](../../../app/server/src/lib/roles.ts#L94) | 0 |
+| `audit.read` | 查看审计日志 | `audit` |  | [app/server/src/lib/roles.ts:95](../../../app/server/src/lib/roles.ts#L95) | 0 |
+| `roles.manage` | 管理称号与部门 | `organization` | `roles.department.manage` | [app/server/src/lib/roles.ts:96](../../../app/server/src/lib/roles.ts#L96) | 0 |
+| `roles.department.manage` | 任免本部门成员 | `organization` |  | [app/server/src/lib/roles.ts:97](../../../app/server/src/lib/roles.ts#L97) | 0 |
+| `competitions.manage` | 管理比赛 | `competitions` |  | [app/server/src/lib/roles.ts:98](../../../app/server/src/lib/roles.ts#L98) | 0 |
+| `accounts.invites.manage` | 管理注册邀请码 | `identity` |  | [app/server/src/lib/roles.ts:99](../../../app/server/src/lib/roles.ts#L99) | 0 |
 
 直接检查数为 0 不代表能力无效：可能通过蕴含、条件或 helper 使用，也可能仍是预留项。生成器不替代权限测试。

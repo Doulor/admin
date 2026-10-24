@@ -1,6 +1,8 @@
 <script lang="ts" setup>
+import type { StyleValue } from 'vue'
 import type { TxSelectModelValue, TxSelectOption, TxSelectOptionGroup, TxSelectOptionId, TxSelectOptionLike, TxSelectProps, TxSelectValue } from './types'
-import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, useId, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, useAttrs, useId, watch } from 'vue'
+import { useMorphWindow } from '../../../../utils/use-morph-window'
 import TxCardItem from '../../card-item/src/TxCardItem.vue'
 import TuffInput from '../../input/src/TxInput.vue'
 import TxPopover from '../../popover/src/TxPopover.vue'
@@ -10,6 +12,7 @@ import { SELECT_KEY } from './types'
 
 defineOptions({
   name: 'TuffSelect',
+  inheritAttrs: false,
 })
 
 const props = withDefaults(
@@ -24,7 +27,8 @@ const props = withDefaults(
     options: () => [],
     maxTagCount: undefined,
     maxTagTextLength: undefined,
-    searchable: false,
+    searchable: undefined,
+    searchThreshold: 8,
     searchPlaceholder: 'Search',
     editable: false,
     remote: false,
@@ -53,7 +57,17 @@ const emit = defineEmits<{
   'create': [option: TxSelectOption]
 }>()
 
+const attrs = useAttrs()
+
+function triggerAttrs() {
+  const { class: _class, style: _style, ...controlAttrs } = attrs
+  return controlAttrs
+}
+
 const isOpen = ref(false)
+// Opening and a status change ease the trigger's border; a hover repaints it
+// at once. 250ms covers TxInput's border leg, the longer of the two.
+const morphing = useMorphWindow(() => [isOpen.value, props.status], 250)
 const listDomId = `${useId() ?? 'tuff-select'}-list`
 const selectedLabel = ref('')
 const multiInput = ref('')
@@ -67,7 +81,13 @@ const panelRef = ref<HTMLElement | null>(null)
 const searchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
 const isEditable = computed(() => !props.multiple && (props.editable || props.remote))
-const isMultiInputEnabled = computed(() => props.multiple && (props.searchable || props.remote || props.allowCreate))
+const effectiveSearchable = computed(() => {
+  if (props.searchable !== undefined)
+    return props.searchable
+  const threshold = props.searchThreshold ?? 8
+  return threshold > 0 && allOptions.value.length >= threshold
+})
+const isMultiInputEnabled = computed(() => props.multiple && (effectiveSearchable.value || props.remote || props.allowCreate))
 const hasPropOptions = computed(() => (props.options?.length ?? 0) > 0)
 
 const triggerText = computed({
@@ -632,8 +652,7 @@ watch(
   async (open) => {
     if (!open)
       return
-
-    if (props.searchable)
+    if (effectiveSearchable.value)
       searchInputRef.value?.focus?.()
     if (isEditable.value)
       triggerInputRef.value?.focus?.()
@@ -710,14 +729,17 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="tuff-select" :class="[
+    class="tuff-select" :class="[attrs.class,
       {
         'is-open': isOpen,
         'is-disabled': disabled,
         'is-status-error': status === 'error',
         'is-status-warning': status === 'warning',
+        'is-morphing': morphing,
       },
     ]"
+    :style="attrs.style as StyleValue"
+    :data-testid="attrs['data-testid'] as string"
   >
     <TxPopover
       v-model="isOpen"
@@ -744,6 +766,7 @@ onBeforeUnmount(() => {
           <div
             v-if="multiple"
             ref="multiTriggerRef"
+            v-bind="triggerAttrs()"
             class="tuff-select__multi-trigger"
             :class="{ 'is-disabled': disabled }"
             :style="multiTriggerHeight != null ? { height: `${multiTriggerHeight}px` } : undefined"
@@ -819,6 +842,7 @@ onBeforeUnmount(() => {
             v-else
             ref="triggerInputRef"
             v-model="triggerText"
+            v-bind="triggerAttrs()"
             :placeholder="placeholder"
             :readonly="!isEditable"
             :disabled="disabled"
@@ -846,7 +870,7 @@ onBeforeUnmount(() => {
         class="tuff-select__panel"
         :style="panelStyle"
       >
-        <div v-if="searchable && !isEditable && !isMultiInputEnabled" class="tuff-select__search">
+        <div v-if="effectiveSearchable && !isEditable && !isMultiInputEnabled" class="tuff-select__search">
           <TxSearchInput
             ref="searchInputRef"
             v-model="searchQuery"
@@ -936,6 +960,7 @@ onBeforeUnmount(() => {
 .tuff-select {
   position: relative;
   display: inline-block;
+  box-sizing: border-box;
   // Compact by default; hosts opt into wider layouts with an explicit width
   // (inline style or class), which the panel follows 1:1.
   width: 240px;
@@ -946,6 +971,7 @@ onBeforeUnmount(() => {
     width: 100%;
     flex: 1 1 auto;
     min-width: 0;
+    box-sizing: border-box;
   }
 
   &__arrow {
@@ -960,6 +986,7 @@ onBeforeUnmount(() => {
     --tuff-select-tag-padding: 4px;
     display: flex;
     align-items: center;
+    box-sizing: border-box;
     width: 100%;
     min-height: 32px;
     min-width: 0;
@@ -970,7 +997,7 @@ onBeforeUnmount(() => {
     // Matches the tag transition so a wrapping row and the box that has to make
     // space for it move together; height is only transitionable because the
     // script writes the measured value back as an explicit px.
-    transition: border-color 0.18s ease, box-shadow 0.18s ease,
+    transition: box-shadow 0.18s ease,
       height 0.18s cubic-bezier(0.22, 1, 0.36, 1);
     cursor: pointer;
 
@@ -981,6 +1008,26 @@ onBeforeUnmount(() => {
     &.is-disabled {
       background-color: var(--tx-disabled-bg-color, #f5f7fa);
       cursor: not-allowed;
+    }
+  }
+
+  &.is-morphing {
+    .tuff-select__multi-trigger {
+      transition: border-color 0.18s ease, box-shadow 0.18s ease,
+        height 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    // TxInput eases its own border only while focusing; open and status
+    // changes here get its 0.25s too.
+    :deep(.tx-input) {
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tuff-select__multi-trigger,
+      :deep(.tx-input) {
+        transition: none;
+      }
     }
   }
 
@@ -1125,7 +1172,7 @@ onBeforeUnmount(() => {
     padding: 10px 10px 4px;
     color: var(--tx-text-color-secondary, #909399);
     font-size: 11px;
-    font-weight: 600;
+    font-weight: var(--tx-font-weight-semibold, 600);
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }

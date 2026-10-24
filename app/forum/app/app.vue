@@ -3,6 +3,11 @@ import type { CommandPaletteItem } from '@talex-touch/tuffex/command-palette'
 
 const { isSite, siteLogin, siteName } = useContentSource()
 const { can } = useCurrentUser()
+const { account } = useSiteAccount()
+const { applyAccountTheme } = useForumTheme()
+
+// Signed in on another browser with 晴空 chosen there: this one takes it from the account (#276).
+watch(() => account.value?.forumTheme, applyAccountTheme, { immediate: true })
 
 // Body styling goes through utility classes: the project ships no custom CSS,
 // and tuffex's stylesheet deliberately leaves `body` alone.

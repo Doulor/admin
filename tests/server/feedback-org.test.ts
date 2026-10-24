@@ -1,5 +1,6 @@
-// 意见箱只收本部署管理的组织（#129）：组织名按不区分大小写认 CONSOLE_ORG，落库统一成配置里的写法；
-// 别的组织名 400，不落库。控制台只按 CONSOLE_ORG 查，大小写不同的旧数据启动时改成规范写法。
+// 意见箱只收本部署管理的组织（#129）：组织名按不区分大小写认 DEFAULT_CONSOLE_ORG（config.ts 的固定
+// 常量，#276 起不再是环境变量），落库统一成配置里的写法；别的组织名 400，不落库。控制台只按
+// DEFAULT_CONSOLE_ORG 查，大小写不同的旧数据启动时改成规范写法。
 import { afterEach, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
@@ -36,18 +37,16 @@ it('accepts the console org in any case and stores it in the configured spelling
   const { app } = await setup();
   for (const org of [ORG, ORG.toLowerCase(), ORG.toUpperCase()]) expect((await submit(app, org)).statusCode).toBe(200);
   expect(storedOrgs(app)).toEqual([ORG, ORG, ORG]);
-  expect(app.services.feedback.listFeedback(app.services.config.consoleOrg).items).toHaveLength(3);
+  expect(app.services.feedback.listFeedback(ORG).items).toHaveLength(3);
 });
 
 it('tells the portal which org the feedback box takes, so the page never submits a name the server rejects', async () => {
+  // #276 挪来的 #274 清理：CONSOLE_ORG 改成 config.ts 的固定常量后，部署不再能配别的组织名，原来
+  // 这里验证的「换一个部署、换一个组织，官网照样收」场景不会再发生，接口下发的 org 永远是 ORG。
   const { app } = await setup();
   expect((await app.inject({ url: '/api/feedback/categories' })).json().org).toBe(ORG);
-  // 部署换了组织（CONSOLE_ORG 与官网站点配置的 githubOrg 对不上）时，官网照接口下发的写法提交，照样能收
-  const other = await setup({ CONSOLE_ORG: 'Some-Other-Org' });
-  const served: string = (await other.app.inject({ url: '/api/feedback/categories' })).json().org;
-  expect(served).toBe('Some-Other-Org');
-  expect((await submit(other.app, served)).statusCode).toBe(200);
-  expect(storedOrgs(other.app)).toEqual(['Some-Other-Org']);
+  expect((await submit(app, ORG)).statusCode).toBe(200);
+  expect(storedOrgs(app)).toEqual([ORG]);
 });
 
 it('rejects an organisation this deployment does not manage, without storing anything', async () => {

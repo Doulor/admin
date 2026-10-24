@@ -40,7 +40,6 @@
 | `FORUM_DB_PATH` / `FORUM_UPLOAD_DIR` | 可见（兼容字段，服务不打开旧 `forum.db`、不写上传目录；论坛数据在 `DB_PATH` 的 `forum_*` 表，头像也存在库里，#57） | `/data/forum.db` / `/data/forum-uploads` | 同左 |
 | `COOKIE_DOMAIN` | 可见·留空 | 空 = host-only；**禁止**填写 | 空 = host-only；**禁止** `.yangtzeu.work` |
 | `POW_DIFFICULTY` | 可见 | `3` | `3` |
-| `CONSOLE_ORG` | 可见 | `Yangtze-University-Geek-Class`（极客班控制台 `/api/console/*` 固定管理的组织；也是官网意见箱唯一收的组织：`GET /api/feedback/categories` 把它下发给官网，`POST /api/feedback` 只收它、`GET /api/feedback/public` 只列它，#129；#274 阶段 1 删掉了 `ALLOWED_ORGS`——它原来只给已删除的 `/api/me/orgs` 过滤「本人加入的 GitHub 组织」用，现在没有任何读者） | 同左 |
 | `MAIL_ALIYUN_FROM` | 可见 | `notify@mail.email-crosery.cn`（阿里云邮件推送的发信地址，不带显示名） | 同左 |
 | `MAIL_RESEND_FROM` | 可见 | `notify@email-crosery.cn`（Resend 的发件地址，发出时写成 `长江大学极客班 <地址>`） | 同左 |
 | `MAIL_ASSET_BASE` | 可见 | `https://cdn.crosery.com/yzgc/mail/v1/`（信里图片的地址前缀：https，以 `/` 结尾，不带查询串） | 同左 |

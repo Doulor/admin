@@ -92,10 +92,20 @@ const liveKey = computed(() =>
 // Virtual window
 // ---------------------------------------------------------------------------
 
-const range = computed(() => {
+/**
+ * Hands back the previous object while the window's start and end stand still.
+ * Every scroll frame writes `scrollTop`, and a fresh `{ start, end }` per frame
+ * rebuilt `windowItems` and re-ran every visible row's slot on each frame of a
+ * glide, though the window only changes when the viewport crosses a row
+ * boundary. A computed that returns the same value does not wake its
+ * dependents; offsets still refresh through `windowItems`' own read of
+ * `layoutVersion`.
+ */
+const range = computed<{ start: number, end: number }>((previous) => {
   void layoutVersion.value
   const top = Math.max(0, scrollTop.value - spacerTop.value)
-  return cache.visibleRange(top, viewportHeight.value, props.overscan)
+  const next = cache.visibleRange(top, viewportHeight.value, props.overscan)
+  return previous && previous.start === next.start && previous.end === next.end ? previous : next
 })
 
 const windowItems = computed(() => {
@@ -428,6 +438,12 @@ onMounted(() => {
       observer.observe(topZoneRef.value)
     if (liveRef.value)
       observer.observe(liveRef.value)
+    // Function refs run during the first render, before this hook: the rows
+    // rendered then were registered with no observer to hand them to. A window
+    // that never moves after mount — a short restored thread — would otherwise
+    // keep every row at its estimate, stacked over its neighbours.
+    for (const element of elementToKey.keys())
+      observer.observe(element)
   }
 
   if (scroller)
@@ -528,8 +544,10 @@ defineExpose({
       </template>
     </div>
 
+    <!-- Only for a reader who left the bottom: while the stream glides there on its own (a send, a
+         programmatic scroll) it is not at the bottom yet, but nobody needs to be offered a way back. -->
     <button
-      v-if="!stick.atBottom.value && items.length > 0"
+      v-if="!stick.following.value && !stick.atBottom.value && items.length > 0"
       type="button"
       class="tx-conversation-stream__pill"
       :class="{ 'is-streaming': streaming }"
@@ -646,7 +664,7 @@ defineExpose({
   border-radius: 999px;
   background: var(--tx-fill-color-blank, #fff);
   color: var(--tx-text-color-primary, #303133);
-  box-shadow: 1px 2px 10px color-mix(in srgb, #000 12%, transparent);
+  box-shadow: 1px 2px 10px color-mix(in srgb, var(--tx-color-black, #000) 12%, transparent);
   cursor: pointer;
   transform: translateX(-50%);
   animation: tx-conversation-stream-pill-in 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;

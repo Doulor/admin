@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { request } from "undici";
 import type { Octokit } from "@octokit/rest";
-import type { AppConfig } from "./config.js";
+import { DEFAULT_CONSOLE_ORG, type AppConfig } from "./config.js";
 import { createDatabase } from "./lib/db.js";
 import { createCrypto } from "./lib/crypto.js";
 import { createAuth } from "./lib/auth.js";
@@ -15,6 +15,7 @@ import { createDeviceStore } from "./lib/device-store.js";
 import { createGithub } from "./lib/github-http.js";
 import { createCache } from "./lib/cache.js";
 import { createRoleStore } from "./lib/role-store.js";
+import { archiveOldDepartments } from "./lib/migrations/2026-10-yugc-v2.js";
 import { createPermissionEngine } from "./lib/permissions.js";
 import { createLimits } from "./lib/limits.js";
 import { createAccountProfiles } from "./lib/account-profiles.js";
@@ -54,18 +55,19 @@ export type ServiceOverrides = {
 /** Composition root. Only this module owns dependencies and database lifetimes. */
 export function createServices(config: AppConfig, overrides: ServiceOverrides = {}) {
   const crypto = createCrypto(config.encryptionKey);
-  const storage = createDatabase(config.dbPath);
+  const storage = createDatabase(config.dbPath, config.stickerAssetsDir);
   // #274 review round 1：lib/github-connection.ts（控制台接 GitHub App 管理组织）删掉了，github 服务现在
   // 没有生产代码读它；保留这个工厂只是因为 ServiceOverrides.octokitFactory 还有一批既有测试在用，见上面的注释。
   const github = createGithub(overrides.octokitFactory);
   const cache = createCache();
   const roles = createRoleStore(storage.db);
-  // #274 迁移步骤 4（lib/migrations/2026-10-yugc-v2.ts 的 archiveOldDepartments()）仍然没有在这里调用，
-  // 原因换了：原来挡在前面的「旧 requireCapability 写接口」已经随这次 Scope B 的路由删除（见执行记录）
-  // 消失，但 GET /api/public/org（routes/portal/org.ts）读 `roles.listDepartments().filter(d => !d.archived)`。
-  // 官网的组织架构窗口在 #275 改读 /api/public/departments，论坛的称号徽章（app/forum/app/composables/useOrgTitles.ts）
-  // 还在读 /api/public/org，这时把四个默认部门标成已归档，论坛上的部门会当场消失。
-  // 归档要等论坛也切走、确认 /api/public/org 没有活的前端读者之后再做。
+  // #274 迁移步骤 4：挡住的两个条件都已清掉——官网的组织架构窗口在 #275 改读
+  // /api/public/departments，论坛的称号徽章在 #276 也改读它了，旧的 GET /api/public/org
+  // 随 #276 一起删除（routes/portal/org.ts），没有任何读者再读 `departments.archived`。
+  // 这里才能安全地把 createRoleStore() 刚播种（或早已播种过）的四个默认部门标成已归档：
+  // 调用放在 createRoleStore() 之后，顺序要对；archiveOldDepartments() 本身是幂等的
+  // UPDATE ... WHERE archived = 0，重复调用、重启、库里已经归档过都不会再变。
+  archiveOldDepartments(storage.db);
   const auth = createAuth(storage.db, crypto, config, overrides.httpRequest, overrides.clock);
   // #274 SPEC §3.8：防盗刷计数唯一入口；提到 identity 前面建好，注册限额与邀请码猜测锁定
   // （signInWithGithub/signInSecondChannel，#274 review round 1）也要用它。
@@ -83,10 +85,10 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
   // 年级系数、奖项与 GitLab 项目（#278）：记分时按这里的系数加权，记下的分之后不再重算。
   const competitionRules = createCompetitionRulesStore(storage.db);
   const competitionScores = createCompetitionScoreStore(storage.db, competitions, competitionSignups, competitionRules);
-  // 历史数据一次性归一（#129）：把 org 只是大小写不同的旧行改成 CONSOLE_ORG 的写法，重复启动安全。
+  // 历史数据一次性归一（#129）：把 org 只是大小写不同的旧行改成 DEFAULT_CONSOLE_ORG 的写法，重复启动安全。
   // 改不动就让启动失败，失败前先关掉刚打开的库，与下面论坛、发信的处理一致。
   try {
-    feedback.normalizeOrgSpelling(config.consoleOrg);
+    feedback.normalizeOrgSpelling(DEFAULT_CONSOLE_ORG);
   } catch (error) {
     storage.db.close();
     throw error;

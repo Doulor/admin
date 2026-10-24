@@ -3,7 +3,7 @@ import { clearToasts, toastStore } from '@talex-touch/tuffex/utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useForumStore } from '~/stores/forum'
-import { isPending, useForumServerStore } from '~/stores/forum-server'
+import { isPending, toggledReactions, useForumServerStore } from '~/stores/forum-server'
 import { fakeServer, held, json } from './fixtures/fake-server'
 import { MEMBER_VIEWER, MODERATOR_VIEWER, serverBody, serverState, topicPostsBody, writeBody } from './fixtures/server-state'
 
@@ -258,24 +258,6 @@ const CASES: Case[] = [
     after: [['机试说明', '极客班'], ['谢谢整理', '路过的同学'], ['收到，谢谢', 'Ada']],
     request: { url: '/api/forum/posts', method: 'POST' },
     changes: { posts: [{ id: 'p10003', topicId: 't73', authorId: 'm1001', content: '收到，谢谢', createdAt: 50, likeUserIds: [] }], topics: [{ ...topic('t73'), lastActivityAt: 50 }] },
-    returns: 'p10003',
-    refused: null,
-    failure: '回复没有发出去',
-  },
-  {
-    name: 'guest reply',
-    viewer: { userId: null, kind: 'guest', capabilities: [] },
-    bodies: ['t73'],
-    act: s => s.server.replyAsGuest({ topicId: 't73', content: '什么时候机试？', name: '新同学' }),
-    read: contents,
-    before: [['机试说明', '极客班'], ['谢谢整理', '路过的同学']],
-    after: [['机试说明', '极客班'], ['谢谢整理', '路过的同学'], ['什么时候机试？', '新同学']],
-    request: { url: '/api/forum/posts', method: 'POST' },
-    changes: {
-      users: [{ ...base.users[2], id: 'g2', username: 'guest-2', displayName: '新同学' }],
-      posts: [{ id: 'p10003', topicId: 't73', authorId: 'g2', content: '什么时候机试？', createdAt: 50, likeUserIds: [] }],
-      topics: [{ ...topic('t73'), lastActivityAt: 50 }],
-    },
     returns: 'p10003',
     refused: null,
     failure: '回复没有发出去',
@@ -540,5 +522,59 @@ describe('the state read', () => {
     const first = forum.state
     await server.load()
     expect(forum.state).not.toBe(first)
+  })
+})
+
+describe('a sticker reaction (#276)', () => {
+  const url = `/api/forum/stickers/${'c'.repeat(64)}.webp`
+  const wave = { stickerId: 'yugc-wave', shortcode: 'yugc-wave', url }
+  const withReaction = (state: State): State => {
+    Object.assign(state.posts.find(item => item.id === 'p10002')!, { reactions: [{ ...wave, count: 2, mine: false }] })
+    return state
+  }
+
+  it('counts the click at once, then keeps the server\'s list', async () => {
+    const reply = held()
+    const { calls, ...s } = await loaded(MEMBER_VIEWER, withReaction, reply.answer)
+    const settled = s.server.react('p10002', wave, true)
+    expect(s.forum.postById('p10002')?.reactions).toEqual([{ ...wave, count: 3, mine: true }])
+    await vi.waitFor(() => expect(calls).toHaveLength(2))
+    expect(calls[1]).toMatchObject({ url: '/api/forum/posts/p10002/reactions/yugc-wave', method: 'PUT' })
+    reply.release(json({ reactions: [{ ...wave, count: 3, mine: true }] }))
+    expect(await settled).toBe(true)
+    expect(s.forum.postById('p10002')?.reactions).toEqual([{ ...wave, count: 3, mine: true }])
+    expect(toastStore.items).toEqual([])
+  })
+
+  it('puts the count back and says why when the server refuses', async () => {
+    const reply = held()
+    const { calls, ...s } = await loaded(MEMBER_VIEWER, withReaction, reply.answer)
+    const settled = s.server.react('p10002', wave, true)
+    await vi.waitFor(() => expect(calls).toHaveLength(2))
+    reply.release(json({ error: 'rate_limited', bucket: 'forum.react.hourly', message: '表情回应太频繁了' }, 429))
+    expect(await settled).toBe(false)
+    expect(s.forum.postById('p10002')?.reactions).toEqual([{ ...wave, count: 2, mine: false }])
+    expect(toastStore.items.map(toast => [toast.title, toast.description])).toEqual([['没有贴上表情', '表情回应太频繁了']])
+  })
+
+  it('ignores a second click on the same sticker while the first is out', async () => {
+    const reply = held()
+    const { calls, ...s } = await loaded(MEMBER_VIEWER, withReaction, reply.answer)
+    const first = s.server.react('p10002', wave, true)
+    expect(await s.server.react('p10002', wave, false)).toBe(false)
+    await vi.waitFor(() => expect(calls).toHaveLength(2))
+    reply.release(json({ reactions: [{ ...wave, count: 3, mine: true }] }))
+    expect(await first).toBe(true)
+    expect(calls).toHaveLength(2)
+  })
+
+  it('adds, raises, lowers and drops a sticker the way the server orders them', () => {
+    const cry = { stickerId: 'yugc-cry', shortcode: 'yugc-cry', url }
+    expect(toggledReactions([], wave, true)).toEqual([{ ...wave, count: 1, mine: true }])
+    expect(toggledReactions([{ ...wave, count: 1, mine: false }], cry, true)).toEqual([{ ...wave, count: 1, mine: false }, { ...cry, count: 1, mine: true }])
+    expect(toggledReactions([{ ...wave, count: 2, mine: true }], wave, false)).toEqual([{ ...wave, count: 1, mine: false }])
+    expect(toggledReactions([{ ...wave, count: 1, mine: true }], wave, false)).toEqual([])
+    const already = [{ ...wave, count: 1, mine: true }]
+    expect(toggledReactions(already, wave, true)).toBe(already)
   })
 })

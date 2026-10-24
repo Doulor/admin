@@ -435,25 +435,11 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 源码：[app/server/src/routes/portal/public-config.ts:15](../../../app/server/src/routes/portal/public-config.ts#L15)（#274 review round 1：原来和邀请链接接口挤在 `join.ts` 里，邀请链接整段删除后单独搬出来，这个接口本身没变）。验证入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts)、[tests/server/configuration.test.ts](../../../tests/server/configuration.test.ts)。
 
-## 阅读公开组织架构
-
-`GET /api/public/org` · `flow:organization.public`
-
-权限与资源：匿名可读；只下发称号/未归档部门显示信息及色调，不含人员或权限包。
-
-响应与错误：200 {tones,titles,departments}。
-
-数据与副作用：读取数据库显示配置与源码rank/tone，不修改组织结构。
-
-本地表读取：titles, departments。本地表写入：无。
-
-源码：[app/server/src/routes/portal/org.ts:11](../../../app/server/src/routes/portal/org.ts#L11)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。
-
 ## 阅读公开部门与称号（新权限体系，#274）
 
 `GET /api/public/departments` · `flow:identity.departments.public`
 
-权限与资源：匿名可读；60 秒缓存。读的是 #274 新权限体系的 `perm_groups`（`kind='department'`/`title`），不是上面 `GET /api/public/org` 读的旧 `departments`/`titles` 表——新旧两套分组表在迁移完成前并存，旧接口继续服务旧前端，这个新接口给新前端（控制台、门户的部门展示）用。
+权限与资源：匿名可读；60 秒缓存。读的是 #274 新权限体系的 `perm_groups`（`kind='department'`/`title`）。旧的 `GET /api/public/org`（读旧的 `departments`/`titles` 表，`flow:organization.public`）已随 #276 退场：论坛也改读这个接口之后，旧接口没有活的前端读者，连同路由、合同与目录条目一起删掉。
 
 响应与错误：200 `{departments:[{id,name,tone,icon,description,titles:[{id,name,weight}]}]}`；按 `perm_groups.sort` 升序排列（AI/算法/硬件/网安/管理在前，`dept.none` 固定排最后，`sort` 字段本身不下发），每个部门下的称号按 `weight` 升序。
 
@@ -583,7 +569,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：游客与成员均可读；通知、书签和真实通知设置仅本人可见，其他用户设置给默认值；关注关系公开。
 
-响应与错误：200 {state}，帖子只有字段和摘要、没有正文；每IP(/64)分钟120次，超额429；显式HEAD回405且不计算state。
+响应与错误：200 {state}，帖子只有字段和摘要、没有正文；每IP(/64)分钟120次，超额429；显式HEAD回405且不计算state。state.viewer除userId/kind/capabilities外另有level（"public"|"registered"|"member"，levelOf()按分级可见判出，游客恒为public）与nodes（这个账号持有的论坛写权限节点子集，游客恒为空数组，#276团队负责人追加），每个写接口的回答也带同一套viewer。
 
 数据与副作用：读论坛表与公开内容分类；GET也可能通过forumViewer刷新本人用户；不发送邮件、不写帖子。
 
@@ -591,7 +577,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_counters, forum_users, forum_tags, forum_topics, forum_posts, forum_likes, forum_notifications, forum_bookmarks, forum_follows, sessions, role_assignments, departments, titles。本地表写入：forum_users, sessions, activity_events。
 
-源码：[app/server/src/routes/forum-api/topics.ts:21](../../../app/server/src/routes/forum-api/topics.ts#L21)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/topics.ts:22](../../../app/server/src/routes/forum-api/topics.ts#L22)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
 ## 阅读单话题帖子正文
 
@@ -607,7 +593,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_topics, forum_posts, forum_likes, sessions, role_assignments, departments, titles, forum_users。本地表写入：forum_users, sessions, activity_events。
 
-源码：[app/server/src/routes/forum-api/topics.ts:28](../../../app/server/src/routes/forum-api/topics.ts#L28)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/topics.ts:34](../../../app/server/src/routes/forum-api/topics.ts#L34)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
 ## 搜索话题帖子和用户
 
@@ -623,7 +609,23 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_topics, forum_posts, forum_users, forum_likes, sessions, role_assignments, departments, titles。本地表写入：forum_users, sessions, activity_events。
 
-源码：[app/server/src/routes/forum-api/topics.ts:38](../../../app/server/src/routes/forum-api/topics.ts#L38)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/topics.ts:50](../../../app/server/src/routes/forum-api/topics.ts#L50)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+
+## 话题列表的游标分页（#276 CONTRACT §9）
+
+`GET /api/forum/topics` · `flow:forum.topics.page`
+
+权限与资源：谁都能调；按身份的分级可见（CONTRACT §1）在 SQL 层过滤，和 `/state`、`/search` 共用同一份判断，看不到的话题不出现、不计入翻页。
+
+响应与错误：200 {topics,nextCursor}；按最后活跃时间倒序，游标是不透明字符串，解不出来当没有（回第一页）；limit 要求1–50的整数，不是回400 validation_error；q超过100字400。
+
+数据与副作用：访客翻页上限（SPEC §3.8）——没带cursor的第一页不计数，带cursor起按访客id或IP哈希、北京日历日窗口计最多10次，第11次429 {bucket:"forum.visitor.pages"}；登录用户不限。
+
+身份条件副作用：forumViewer按会话的账号认人创建/刷新forum_users，访客不写；sid过期删除会话。
+
+本地表读取：forum_topics, forum_category_settings, sessions, perm_members, perm_entries, perm_groups, limit_events, forum_users。本地表写入：forum_users, sessions, limit_events。
+
+源码：[app/server/src/routes/forum-api/topics.ts:67](../../../app/server/src/routes/forum-api/topics.ts#L67)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
 
 ## 发布成员话题与首帖
 
@@ -631,7 +633,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。
 
-响应与错误：201 {changes,viewer,guestPolicy,topicId,postId}，帖子带正文；非法标题/分类/tag/空正文400，成员限流429。
+响应与错误：201 {changes,viewer,topicId,postId}，帖子带正文；非法标题/分类/tag/空正文400，成员限流429。
 
 数据与副作用：单事务创建话题、首帖、编号和必要新tag，处理最多10个@提及通知；成功后记topic限流事件，不发邮件。
 
@@ -639,7 +641,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_topics, forum_posts, forum_tags, forum_users, forum_notifications, forum_counters, forum_rate_events, sessions, role_assignments, departments, titles, forum_likes。本地表写入：forum_topics, forum_posts, forum_tags, forum_notifications, forum_counters, forum_rate_events, forum_users, sessions, activity_events。
 
-源码：[app/server/src/routes/forum-api/topics.ts:47](../../../app/server/src/routes/forum-api/topics.ts#L47)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/topics.ts:86](../../../app/server/src/routes/forum-api/topics.ts#L86)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
 ## 置顶或取消置顶话题
 
@@ -647,7 +649,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 此外必须具备forum.topic.pin，作用于指定话题。
 
-响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；缺能力403，话题不存在404。
+响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；缺能力403，话题不存在404。
 
 数据与副作用：更新pinned；以CONSOLE_ORG记forum.topic.pin审计，只含话题id及开关，不含正文。
 
@@ -655,7 +657,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_topics, sessions, role_assignments, departments, titles, forum_users, forum_likes。本地表写入：forum_topics, activity_events, forum_users, sessions。
 
-源码：[app/server/src/routes/forum-api/topics.ts:67](../../../app/server/src/routes/forum-api/topics.ts#L67)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/topics.ts:108](../../../app/server/src/routes/forum-api/topics.ts#L108)（和「关闭或重新打开话题」共用同一处 for 循环注册的调用点）。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
 ## 关闭或重新打开话题
 
@@ -663,7 +665,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 此外必须具备forum.topic.close，作用于指定话题。
 
-响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；缺能力403，话题不存在404。
+响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；缺能力403，话题不存在404。
 
 数据与副作用：更新closed；以CONSOLE_ORG记forum.topic.close审计，只含话题id及开关，不含正文。
 
@@ -671,7 +673,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_topics, sessions, role_assignments, departments, titles, forum_users, forum_likes。本地表写入：forum_topics, activity_events, forum_users, sessions。
 
-源码：[app/server/src/routes/forum-api/topics.ts:67](../../../app/server/src/routes/forum-api/topics.ts#L67)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/topics.ts:108](../../../app/server/src/routes/forum-api/topics.ts#L108)（和「置顶或取消置顶话题」共用同一处 for 循环注册的调用点）。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
 ## 记录话题浏览数
 
@@ -685,23 +687,39 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_topics, forum_topic_views。本地表写入：forum_topics, forum_topic_views。
 
-源码：[app/server/src/routes/forum-api/topics.ts:80](../../../app/server/src/routes/forum-api/topics.ts#L80)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/topics.ts:142](../../../app/server/src/routes/forum-api/topics.ts#L142)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
-## 成员或游客回复话题
+## 改话题的可见范围（#276 CONTRACT §1）
+
+`PATCH /api/forum/topics/:topic_id/visibility` · `flow:forum.topics.visibility`
+
+权限与资源：requireMember之后按canModerate("forum.moderate.edit", 话题所在分类)判定（部门组的scope限定在本部门分类）；话题不存在404；权限不够403 forbidden。
+
+响应与错误：200 {changes:{topics:[...]}}；非null值比分类基线更松回400 visibility_too_open（不能比分类更松，只能更严或跟随null）。
+
+数据与副作用：UPDATE forum_topics.visibility（null表示跟随分类，生效值=COALESCE(topic.visibility, category.visibility, 'public')）；写审计forum.topic.visibility，只记目标值不记正文。
+
+身份条件副作用：forumViewer按会话的账号认人创建/刷新forum_users；sid过期或账号停用删除会话。
+
+本地表读取：forum_topics, forum_category_settings, forum_users, sessions, perm_members, perm_entries, perm_groups。本地表写入：forum_topics, activity_events, forum_users, sessions。
+
+源码：[app/server/src/routes/forum-api/topics.ts:124](../../../app/server/src/routes/forum-api/topics.ts#L124)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+
+## 成员回复话题
 
 `POST /api/forum/posts` · `flow:forum.posts.reply`
 
-权限与资源：成员直接回复；游客需合法昵称、空蜜罐、PoW、可选Turnstile与IP/全站限流；已关闭话题仅forum.post.moderate可回，replyTo须同一话题。
+权限与资源：#276 CONTRACT §2 去掉游客回帖：需要登录且持 forum.reply.create（迁移种子只发给 level.member），访客401 signin_required，登录但没有该节点403 forbidden；分级可见（CONTRACT §1）在权限判定之后、建帖之前再判一次——看不到这个话题也不能回，401/403 响应不带标题；已关闭话题仅持 forum.moderate.edit（按分类限定 scope）可回，replyTo须同一话题。
 
-响应与错误：201 {changes,viewer,guestPolicy,postId}含正文；404话题不存在；403关闭；400正文/昵称/冒名/PoW/验证码失败；429 rate_limited或guest_replies_paused。
+响应与错误：201 {changes,viewer,postId}含正文；话题不存在404；关闭/看不到403；正文为空或replyTo不在同话题400；按账号每小时上限（meta.limit.forum.reply.hourly）、同IP每小时200次（全账号合计）、每分钟洪泛三条限额，超了都回429 rate_limited（各自的bucket）。
 
-数据与副作用：事务创建回复并更新最后活动、处理回复与提及通知；游客用户与回复同事务；PoW通过就记该IP尝试额度，成功才记全站额度；冒名检查读指派、历史登录审计及会话；不发送邮件。
+数据与副作用：事务创建回复并更新最后活动、处理回复与提及通知；不再有游客用户或PoW/蜜罐/Turnstile分支；不发送邮件。
 
 身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-本地表读取：forum_topics, forum_posts, forum_users, forum_notifications, forum_counters, forum_rate_events, role_assignments, activity_events, sessions, departments, titles, forum_likes。本地表写入：forum_posts, forum_topics, forum_users, forum_notifications, forum_counters, forum_rate_events, sessions, activity_events。
+本地表读取：forum_topics, forum_posts, forum_users, forum_notifications, forum_counters, forum_rate_events, forum_category_settings, perm_members, perm_entries, perm_groups, activity_events, sessions, forum_likes, limit_events。本地表写入：forum_posts, forum_topics, forum_users, forum_notifications, forum_counters, forum_rate_events, sessions, activity_events, limit_events。
 
-源码：[app/server/src/routes/forum-api/posts.ts:36](../../../app/server/src/routes/forum-api/posts.ts#L36)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/posts.ts:39](../../../app/server/src/routes/forum-api/posts.ts#L39)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)、[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
 
 ## 编辑自己的帖子或执行版务
 
@@ -709,7 +727,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 必须是作者本人，或者持有forum.post.moderate；能力不是作者分支的共同前提。
 
-响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；帖子正文随changes返回；404不存在、403他人帖子、409 post_deleted、400 empty_content。
+响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；帖子正文随changes返回；404不存在、403他人帖子、409 post_deleted、400 empty_content。
 
 数据与副作用：只更新正文/edited_at；只有编辑他人帖子才写forum.post.edit审计，不记录正文；不会因编辑重新发送提及通知。
 
@@ -717,7 +735,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_posts, sessions, role_assignments, departments, titles, forum_users, forum_likes。本地表写入：forum_posts, activity_events, forum_users, sessions。
 
-源码：[app/server/src/routes/forum-api/posts.ts:78](../../../app/server/src/routes/forum-api/posts.ts#L78)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/posts.ts:63](../../../app/server/src/routes/forum-api/posts.ts#L63)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
 ## 软删除回复
 
@@ -725,7 +743,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 作者本人或forum.post.moderate；第一帖禁止删除。
 
-响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在、403他人帖子、400 first_post；已软删重试返回现状。
+响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在、403他人帖子、400 first_post；已软删重试返回现状。
 
 数据与副作用：置deleted并清正文，保留点赞和书签；只在删除他人帖子时记forum.post.delete审计；幂等重试不重复执行删除。
 
@@ -733,7 +751,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_posts, sessions, role_assignments, departments, titles, forum_users, forum_likes。本地表写入：forum_posts, activity_events, forum_users, sessions。
 
-源码：[app/server/src/routes/forum-api/posts.ts:90](../../../app/server/src/routes/forum-api/posts.ts#L90)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/posts.ts:75](../../../app/server/src/routes/forum-api/posts.ts#L75)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
 ## 切换本人点赞
 
@@ -741,7 +759,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 点赞主体固定本人，不接受代他人点赞。
 
-响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在，409 post_deleted；帖子投影不带全文。
+响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在，409 post_deleted；帖子投影不带全文。
 
 数据与副作用：事务切换点赞；新点赞按作者通知设置生成一次通知（同人同帖不重复），取消不撤回已有通知，不写操作审计。
 
@@ -749,7 +767,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_posts, forum_likes, forum_users, forum_notifications, forum_counters, sessions, role_assignments, departments, titles。本地表写入：forum_likes, forum_notifications, forum_counters, forum_users, sessions, activity_events。
 
-源码：[app/server/src/routes/forum-api/posts.ts:101](../../../app/server/src/routes/forum-api/posts.ts#L101)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/posts.ts:86](../../../app/server/src/routes/forum-api/posts.ts#L86)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
 ## 切换本人书签
 
@@ -757,7 +775,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只能操作本人的书签；handler只检查帖子存在，未禁止为已软删帖子加书签。
 
-响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在；删除书签用changes.removed反馈。
+响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在；删除书签用changes.removed反馈。
 
 数据与副作用：事务按userId/postId切换书签，不通知作者，不修改帖子正文。
 
@@ -765,7 +783,55 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_posts, forum_bookmarks, sessions, role_assignments, departments, titles, forum_users, forum_likes。本地表写入：forum_bookmarks, forum_users, sessions, activity_events。
 
-源码：[app/server/src/routes/forum-api/posts.ts:109](../../../app/server/src/routes/forum-api/posts.ts#L109)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/posts.ts:94](../../../app/server/src/routes/forum-api/posts.ts#L94)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+
+## 给帖子加一个表情回应（#276 CONTRACT §4）
+
+`PUT /api/forum/posts/:post_id/reactions/:sticker_id` · `flow:forum.reactions.add`
+
+权限与资源：需要 forum.react 节点（迁移种子只发给 level.member）；访客401 signin_required，登录但没有该节点403 forbidden；帖子不存在404，已软删409 post_deleted。
+
+响应与错误：200 {reactions:[{stickerId,shortcode,url,count,mine}]}（camelCase，和帖子记录里的reactions字段同一套对象；CONTRACT-276 §4原定sticker_id，偏差记在DECISIONS-LOG），只回这条帖子的表情聚合，不回整份changes或viewer；mine按当前看的人是不是也回应过这条表情判定；表情不存在/已停用400 unknown_sticker；超过meta.limit.forum.react.hourly回429 {bucket:"forum.react.hourly",retry_after}。
+
+数据与副作用：按(post_id,account_id,sticker_id)主键INSERT OR IGNORE，重复加同一表情不报错也不重复计数；不写活动审计。
+
+身份条件副作用：forumViewer按会话的账号认人创建/刷新forum_users；sid过期或账号停用删除会话。
+
+本地表读取：forum_posts, forum_stickers, forum_reactions, forum_users, sessions, perm_members, perm_entries, perm_groups, limit_events。本地表写入：forum_reactions, forum_users, sessions, limit_events。
+
+源码：[app/server/src/routes/forum-api/posts.ts:102](../../../app/server/src/routes/forum-api/posts.ts#L102)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+
+## 取消一条表情回应
+
+`DELETE /api/forum/posts/:post_id/reactions/:sticker_id` · `flow:forum.reactions.remove`
+
+权限与资源：同PUT同一个节点forum.react；不检查帖子是否已软删——取消自己的表情回应即使帖子已删也允许。
+
+响应与错误：200 {reactions:[{stickerId,shortcode,url,count,mine}]}（camelCase，同PUT；mine取消后按当前看的人重算），回取消之后的表情聚合；帖子不存在404；这条不限额。
+
+数据与副作用：按(post_id,account_id,sticker_id) DELETE forum_reactions，原本没有这条也不报错（幂等）。
+
+身份条件副作用：forumViewer按会话的账号认人创建/刷新forum_users；sid过期或账号停用删除会话。
+
+本地表读取：forum_posts, forum_stickers, forum_reactions, forum_users, sessions, perm_members, perm_entries, perm_groups。本地表写入：forum_reactions, forum_users, sessions。
+
+源码：[app/server/src/routes/forum-api/posts.ts:113](../../../app/server/src/routes/forum-api/posts.ts#L113)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+
+## @ 提及自动补全（#276 CONTRACT §6）
+
+`GET /api/forum/users/suggest` · `flow:forum.users.suggest`
+
+权限与资源：requireMember——只要求有效登录会话，不要求level.member，注册用户也能用；访客401 signin_required。
+
+响应与错误：200 {users:[{username,display_name,avatar_url}]}，snake_case，不回邮箱或任何账号内部字段；q必须1–24字，缺或超长400 validation_error。
+
+数据与副作用：按username/display_name前缀、不分大小写匹配，只回status=active且forum_users.kind=member的账号；每账号每分钟30次，超了429 {bucket:"forum.suggest.per_minute"}。
+
+身份条件副作用：forumViewer按会话的账号认人创建/刷新forum_users；sid过期或账号停用删除会话。
+
+本地表读取：users, forum_users, sessions, perm_members, perm_entries, perm_groups, limit_events。本地表写入：forum_users, sessions, limit_events。
+
+源码：[app/server/src/routes/forum-api/people.ts:12](../../../app/server/src/routes/forum-api/people.ts#L12)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
 
 ## 切换本人关注关系
 
@@ -773,7 +839,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 关注发起人固定本人，目标须存在且不是本人。
 
-响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404未知用户，400 cannot_follow_self。
+响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404未知用户，400 cannot_follow_self。
 
 数据与副作用：事务切换关注；首次关注在对方允许通知且未曾通知时写通知与编号，取消关注不删除旧通知。
 
@@ -781,7 +847,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_users, forum_follows, forum_notifications, forum_counters, sessions, role_assignments, departments, titles, forum_likes。本地表写入：forum_follows, forum_notifications, forum_counters, forum_users, sessions, activity_events。
 
-源码：[app/server/src/routes/forum-api/people.ts:11](../../../app/server/src/routes/forum-api/people.ts#L11)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/people.ts:24](../../../app/server/src/routes/forum-api/people.ts#L24)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
 ## 标记本人通知已读
 
@@ -789,7 +855,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 SQL同时匹配通知id与recipient_id，不能读取/标记他人通知。
 
-响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；不存在或属于他人均404。
+响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；不存在或属于他人均404。
 
 数据与副作用：仅更新本人该条read=1，不删通知；其他人的通知设置不下发。
 
@@ -797,7 +863,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_notifications, sessions, role_assignments, departments, titles, forum_users, forum_likes。本地表写入：forum_notifications, forum_users, sessions, activity_events。
 
-源码：[app/server/src/routes/forum-api/people.ts:20](../../../app/server/src/routes/forum-api/people.ts#L20)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/people.ts:33](../../../app/server/src/routes/forum-api/people.ts#L33)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
 ## 标记本人全部通知已读
 
@@ -805,7 +871,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 仅recipient_id等于本人。
 
-响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；没有未读通知仍返回合法空变更。
+响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；没有未读通知仍返回合法空变更。
 
 数据与副作用：UPDATE本人未读行并RETURNING id，据此只回变动通知，不清除别人的未读数。
 
@@ -813,7 +879,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_notifications, sessions, role_assignments, departments, titles, forum_users, forum_likes。本地表写入：forum_notifications, forum_users, sessions, activity_events。
 
-源码：[app/server/src/routes/forum-api/people.ts:26](../../../app/server/src/routes/forum-api/people.ts#L26)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/people.ts:39](../../../app/server/src/routes/forum-api/people.ts#L39)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
 ## 修改本人论坛资料
 
@@ -821,7 +887,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只修改本人记录；允许昵称、签名、所在地、https网站与通知设置，不接收用户角色授权。
 
-响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；400昵称/控制字符/网址等错误；旧昵称未变时不因新昵称规则阻止修改其他字段。
+响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；400昵称/控制字符/网址等错误；旧昵称未变时不因新昵称规则阻止修改其他字段。
 
 数据与副作用：昵称NFKC与冒名检查后保存；冒名来源含已有成员/官方用户名、指派和登录过的组织账号；只更新提交字段，不更改GitHub资料。
 
@@ -829,7 +895,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_users, role_assignments, sessions, activity_events, departments, titles, forum_likes。本地表写入：forum_users, sessions, activity_events。
 
-源码：[app/server/src/routes/forum-api/people.ts:32](../../../app/server/src/routes/forum-api/people.ts#L32)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/people.ts:45](../../../app/server/src/routes/forum-api/people.ts#L45)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
 ## 上传本人论坛头像
 
@@ -837,7 +903,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 onRequest阶段即鉴权并消费每小时10次额度，失败解码也算；只改本人头像。
 
-响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；413 avatar_too_large，415 unsupported_media_type，400非法图像/尺寸，429限流。
+响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；413 avatar_too_large，415 unsupported_media_type，400非法图像/尺寸，429限流。
 
 数据与副作用：PNG/JPEG/WebP最多2MB、4096×4096；sharp取首帧转256×256 WebP去元数据；按哈希写库并更新本人引用，同事务清理无人引用的旧头像。
 
@@ -845,7 +911,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_avatars, forum_users, forum_rate_events, sessions, role_assignments, departments, titles, forum_likes。本地表写入：forum_avatars, forum_users, forum_rate_events, sessions, activity_events。
 
-源码：[app/server/src/routes/forum-api/people.ts:80](../../../app/server/src/routes/forum-api/people.ts#L80)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/people.ts:93](../../../app/server/src/routes/forum-api/people.ts#L93)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
 ## 恢复本人默认头像
 
@@ -853,7 +919,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只清本人自定义头像。
 
-响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。
+响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。
 
 数据与副作用：事务移除avatar_hash引用并删除无用户引用的旧头像，保留GitHub头像字段用于回退，不删除用户。
 
@@ -861,7 +927,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_users, forum_avatars, sessions, role_assignments, departments, titles, forum_likes。本地表写入：forum_users, forum_avatars, sessions, activity_events。
 
-源码：[app/server/src/routes/forum-api/people.ts:91](../../../app/server/src/routes/forum-api/people.ts#L91)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/people.ts:104](../../../app/server/src/routes/forum-api/people.ts#L104)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
 ## 读取公开头像文件
 
@@ -875,7 +941,135 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 本地表读取：forum_avatars。本地表写入：无。
 
-源码：[app/server/src/routes/forum-api/people.ts:99](../../../app/server/src/routes/forum-api/people.ts#L99)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+源码：[app/server/src/routes/forum-api/people.ts:112](../../../app/server/src/routes/forum-api/people.ts#L112)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
+
+## 读表情包列表（#276 CONTRACT §3）
+
+`GET /api/forum/stickers` · `flow:forum.stickers.list`
+
+权限与资源：公开只读，不要求登录，不判身份。
+
+响应与错误：200 {packs:[{id,name,stickers:[{id,shortcode,label,url}]}]}，只含enabled=1的包与表情；进程内缓存60秒，控制台改过表情后显式invalidate这个key。
+
+数据与副作用：纯读，不写任何表；短码即表情id，前端据此渲染正文里的短码。
+
+本地表读取：forum_sticker_packs, forum_stickers。本地表写入：无。
+
+源码：[app/server/src/routes/forum-api/stickers.ts:11](../../../app/server/src/routes/forum-api/stickers.ts#L11)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+
+## 按内容哈希取表情图片
+
+`GET /api/forum/stickers/:file` · `flow:forum.stickers.read_file`
+
+权限与资源：公开只读，不要求登录；文件名必须是64位小写十六进制哈希加.webp。
+
+响应与错误：200 webp图片，immutable长期缓存；不存在404 not_found，不泄露哈希是否曾经存在过。
+
+数据与副作用：纯读，按sha256寻址；内容永不改变，不需要失效缓存。
+
+本地表读取：forum_sticker_files。本地表写入：无。
+
+源码：[app/server/src/routes/forum-api/stickers.ts:13](../../../app/server/src/routes/forum-api/stickers.ts#L13)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+
+## 帖子正文的图片上传（#276 CONTRACT §5）
+
+`PUT /api/forum/uploads` · `flow:forum.uploads.create`
+
+权限与资源：需要forum.upload.image节点（level.member才有），由onRequest在读请求体之前就判定——访客连大请求体都不会被读进内存，直接401 signin_required；登录但没有该节点403 forbidden。
+
+响应与错误：200 {url,width,height}；超过5MB请求体413 upload_too_large；超过4096×4096像素在解码前拦住400 image_too_large；不支持的内容类型415 unsupported_media_type；解不出图片400 invalid_image；超过meta.limit.forum.upload.hourly回429 {bucket:"forum.upload.hourly"}（限额检查排在类型校验和解码之前，坏请求也占额度）。
+
+数据与副作用：PNG/JPEG/WebP统一转webp（sharp quality 85），GIF若是动图原样保留；按sha256内容寻址存forum_upload_files，去重不重复存；写审计forum.upload.image。
+
+身份条件副作用：forumViewer按会话的账号认人创建/刷新forum_users；sid过期或账号停用删除会话。
+
+本地表读取：forum_users, sessions, perm_members, perm_entries, perm_groups, limit_events。本地表写入：forum_upload_files, activity_events, forum_users, sessions, limit_events。
+
+源码：[app/server/src/routes/forum-api/uploads.ts:50](../../../app/server/src/routes/forum-api/uploads.ts#L50)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+
+## 按内容哈希取上传的图片
+
+`GET /api/forum/uploads/:file` · `flow:forum.uploads.read_file`
+
+权限与资源：公开只读，不要求登录（帖子本身的可见范围由话题可见范围管，这里只管「有没有这个哈希」）。
+
+响应与错误：200原图（png/jpeg/webp转码后的webp，gif原样保留动图），immutable长期缓存；不存在404。
+
+数据与副作用：纯读，按sha256寻址。
+
+本地表读取：forum_upload_files。本地表写入：无。
+
+源码：[app/server/src/routes/forum-api/uploads.ts:65](../../../app/server/src/routes/forum-api/uploads.ts#L65)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+
+## 控制台论坛管理：分类可见范围（#276 CONTRACT §8）
+
+`GET /api/console/forum/categories` · `flow:console.forum.categories.list`
+
+权限与资源：requirePermission("forum.category.manage")——没有效会话401 unauthenticated，没有这个节点403 forbidden（带node）。
+
+响应与错误：200 {categories:[{id,name,visibility,topic_count}]}，按curation.json的分类顺序；topic_count是真实话题数，不按身份过滤（管理员看全量）。
+
+数据与副作用：纯读；只有loadSession发现会话过期才会删那一行会话。
+
+本地表读取：sessions, users, perm_members, perm_entries, perm_groups, forum_topics, forum_category_settings。本地表写入：sessions。
+
+源码：[app/server/src/routes/console/forum.ts:18](../../../app/server/src/routes/console/forum.ts#L18)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+
+## 控制台改一个分类的可见范围
+
+`PATCH /api/console/forum/categories/:id` · `flow:console.forum.categories.update`
+
+权限与资源：requirePermission("forum.category.manage") + requireStepUp（所有写操作要求刚登录过，10分钟窗口）；没权限403 forbidden，没step-up 403 step_up_required；未知分类404 not_found。
+
+响应与错误：200 {id,visibility}。
+
+数据与副作用：按category_id upsert forum_category_settings（ON CONFLICT覆盖），写审计forum.category.visibility。
+
+本地表读取：sessions, users, perm_members, perm_entries, perm_groups, forum_category_settings。本地表写入：forum_category_settings, activity_events, sessions。
+
+源码：[app/server/src/routes/console/forum.ts:22](../../../app/server/src/routes/console/forum.ts#L22)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+
+## 控制台论坛管理：表情包与表情
+
+`GET /api/console/forum/stickers` · `flow:console.forum.stickers.list`
+
+权限与资源：requirePermission("forum.sticker.manage")；没权限403 forbidden。
+
+响应与错误：200 {packs:[{id,name,sort,enabled,stickers:[{id,shortcode,label,url,sort,enabled,use_count}]}]}，含停用的包/表情（管理员要看得到才能重新启用）。
+
+数据与副作用：纯读；use_count由forum_reactions按sticker_id聚合算出，不是单独维护的列。
+
+本地表读取：sessions, users, perm_members, perm_entries, perm_groups, forum_sticker_packs, forum_stickers, forum_reactions。本地表写入：sessions。
+
+源码：[app/server/src/routes/console/forum.ts:36](../../../app/server/src/routes/console/forum.ts#L36)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+
+## 控制台改表情包或单个表情
+
+`PATCH /api/console/forum/sticker-packs/:id`、`PATCH /api/console/forum/stickers/:id` · `flow:console.forum.sticker_packs.update`、`flow:console.forum.stickers.update`
+
+权限与资源：都是requirePermission("forum.sticker.manage") + requireStepUp；未知id404 not_found。
+
+响应与错误：200 {ok:true}。
+
+数据与副作用：按传了的字段UPDATE对应表（forum_sticker_packs 或 forum_stickers）；成功后invalidate公开列表缓存（forum:stickers）；写审计forum.sticker_pack.update 或 forum.sticker.update。
+
+本地表读取：sessions, users, perm_members, perm_entries, perm_groups, forum_sticker_packs 或 forum_stickers。本地表写入：对应表, activity_events, sessions。
+
+源码：[app/server/src/routes/console/forum.ts:45](../../../app/server/src/routes/console/forum.ts#L45)（sticker-packs/:id）、[:56](../../../app/server/src/routes/console/forum.ts#L56)（stickers/:id）。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
+
+## 控制台给表情包新增一个表情
+
+`PUT /api/console/forum/sticker-packs/:id/stickers` · `flow:console.forum.stickers.create`
+
+权限与资源：requirePermission("forum.sticker.manage") + requireStepUp；请求体是图片本身（PNG/JPEG/WebP，≤2MB），类型不对415。
+
+响应与错误：201 {id,shortcode,label}；shortcode已被（含停用的旧表情）占用回409 shortcode_taken，不会撞成裸的500；表情包不存在404 not_found。
+
+数据与副作用：复用头像同一套转码（256×256 webp，按sha256去重存forum_sticker_files），表情id就是shortcode；成功后invalidate公开列表缓存，写审计forum.sticker.create。
+
+本地表读取：sessions, users, perm_members, perm_entries, perm_groups, forum_stickers。本地表写入：forum_sticker_files, forum_stickers, activity_events, sessions。
+
+源码：[app/server/src/routes/console/forum.ts:74](../../../app/server/src/routes/console/forum.ts#L74)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
 
 ## 辨认本机论坛运行模式
 

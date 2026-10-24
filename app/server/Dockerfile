@@ -125,6 +125,11 @@ COPY --from=builder --chown=node:node /repo/app/server/dist /app/app/server/dist
 COPY --chown=node:node app/forum/content/curation.json /app/app/forum/content/curation.json
 COPY --chown=node:node app/forum/content/published/topics.json /app/app/forum/content/published/topics.json
 
+# 表情包第一套「极客娘」的源图片（#276，src/config.ts 的 stickerAssetsDir = APP_ROOT/server/assets/stickers/yugc）：
+# 启动时读进来按内容哈希种进 forum_sticker_files，缺文件不阻塞启动（见 migrations/2026-10-forum-v2.ts），
+# 但缺了就只会种出一部分表情，所以镶进镜像。
+COPY --chown=node:node app/server/assets/stickers/yugc /app/app/server/assets/stickers/yugc
+
 # 命名卷挂到 /data 时由镜像目录继承属主，容器内的 node 用户才能写 SQLite 与上传文件。
 RUN mkdir -p /data && chown node:node /data
 VOLUME ["/data"]

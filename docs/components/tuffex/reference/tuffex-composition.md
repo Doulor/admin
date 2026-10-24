@@ -2,9 +2,9 @@
 
 > 使用 Tuffex 组件搭建可审阅、可截图验证的后台页面切片
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/getting-started/tuffex-composition) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/getting-started/tuffex-composition.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/getting-started/tuffex-composition.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/getting-started/tuffex-composition) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/getting-started/tuffex-composition.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/getting-started/tuffex-composition.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
 上游标记：status=`未声明`，since=`未声明`，syncStatus=`migrated`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
@@ -12,7 +12,7 @@
 
 # Tuffex 组合界面教程
 
-本教程面向 Nexus / Dashboard / Admin 页面：目标不是堆组件，而是把页面切成“操作区 → 状态区 → 数据区”，让用户能快速判断当前状态并完成动作。
+本教程面向 Tuff / Dashboard / Admin 页面：目标不是堆组件，而是把页面切成“操作区 → 状态区 → 数据区”，让用户能快速判断当前状态并完成动作。
 
 ## 组件套件与引入
 
@@ -59,7 +59,7 @@ interface Row {
 const query = ref('')
 const selectedKeys = ref<Array<number | string>>([1])
 const rows: Row[] = [
-  { id: 1, task: '组件截图核验', owner: 'Nexus', status: 'review', score: 84 },
+  { id: 1, task: '组件截图核验', owner: 'Tuff', status: 'review', score: 84 },
   { id: 2, task: 'API 表格补齐', owner: 'Tuffex', status: 'ready', score: 92 },
   { id: 3, task: '暗色模式回归', owner: 'QA', status: 'failed', score: 48 },
 ]
@@ -335,7 +335,7 @@ const riskSegments = [
 - **授权分工**：Tree 只表达层级范围，TreeSelect 只表达归属选择，Transfer 只表达资源分配，Timeline 只表达审计历史。
 - **配置分层**：短操作进菜单，短说明进浮层，长配置进抽屉，避免一个 Popover 承担复杂表单。
 - **发布策略分工**：Cascader 只表达范围，FlatSelect 只表达单选策略，SegmentedSlider 表达离散风险，Slider 表达连续比例，TagInput 只表达短元数据。
-- **截图验证**：新增或改动 Demo 后，在本地 Nexus 页面打开并截图确认亮色、暗色、移动宽度至少一个关键状态。
+- **截图验证**：新增或改动 Demo 后，在本地 Tuff 页面打开并截图确认亮色、暗色、移动宽度至少一个关键状态。
 
 ## 13. 继续阅读
 

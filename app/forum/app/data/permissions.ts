@@ -18,6 +18,8 @@ export type ForumAction
     | 'deletePost'
     | 'pinTopic'
     | 'closeTopic'
+    | 'setVisibility'
+    | 'react'
     | 'editProfile'
     | 'markNotification'
 
@@ -72,9 +74,16 @@ export function can(user: User | null | undefined, action: ForumAction, ctx: Per
     return false
 
   switch (action) {
+    // Against the server each write needs its permission node (#276): a
+    // registered user reads but holds none of them until the invite code.
     case 'createTopic':
+      return !granted || granted.has('forum.topic.create')
     case 'like':
     case 'bookmark':
+    case 'follow':
+      return (!granted || granted.has('forum.react')) && (action !== 'follow' || (ctx.targetUser !== undefined && ctx.targetUser.id !== user.id))
+    case 'react':
+      return !!granted && granted.has('forum.react')
     case 'markNotification':
       return true
 
@@ -82,7 +91,7 @@ export function can(user: User | null | undefined, action: ForumAction, ctx: Per
     // forum.post.moderate covers others' posts and closed topics,
     // forum.topic.pin covers pinTopic, forum.topic.close covers closeTopic.
     case 'reply':
-      return !ctx.topic?.closed || isStaff(user, granted)
+      return (!granted || granted.has('forum.reply.create')) && (!ctx.topic?.closed || isStaff(user, granted))
 
     case 'editPost':
     case 'deletePost':
@@ -97,8 +106,8 @@ export function can(user: User | null | undefined, action: ForumAction, ctx: Per
     case 'editProfile':
       return ctx.targetUser !== undefined && ctx.targetUser.id === user.id
 
-    case 'follow':
-      return ctx.targetUser !== undefined && ctx.targetUser.id !== user.id
+    case 'setVisibility':
+      return !!granted && granted.has('forum.moderate.edit')
 
     default:
       return false

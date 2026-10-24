@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createConfig } from '../../app/server/src/config';
 import { computeAccess, DEFAULT_DEPARTMENTS, DEFAULT_TITLE_CONFIGS, LEGACY_TITLE_DESCRIPTIONS } from '../../app/server/src/lib/roles';
 import { createRoleStore } from '../../app/server/src/lib/role-store';
 import { accountIdOf, activityRows, grantPermGroup, grantPermNode, signIn, testApp } from './helpers';
@@ -302,7 +301,10 @@ describe('GET /api/console/departments（固定部门名册，和权限节点的
     grantPermNode(app, accountId('bob'), 'console.access');
     const listed = (await app.inject({ url: '/api/console/departments', headers: as('bob') })).json().departments;
     expect(listed.map((item: { id: string }) => item.id)).toEqual(['recruitment', 'tech', 'community', 'projects']);
-    expect(listed[0]).toMatchObject({ name: '招新部', heads: [], crew_count: 0, archived: false });
+    // #276 挪来的 #274 迁移步骤 4：/api/public/org 退场、论坛也切到 /api/public/departments 之后，
+    // 四个默认部门在 createRoleStore() 播种后随即被 archiveOldDepartments() 标成已归档（services.ts）；
+    // 这个只读列表照样原样下发 archived 状态，不隐藏、不过滤。
+    expect(listed[0]).toMatchObject({ name: '招新部', heads: [], crew_count: 0, archived: true });
   });
 });
 
@@ -313,7 +315,8 @@ describe('旧的 computeAccess（#274 范围外：/auth/me 的 console_link 和�
       assignments: [{ id: 1, github_login: 'gina', github_user_id: 107, account_id: null, role: 'alumni', department_id: '', note: null, granted_by: 'x', created_at: 0 }],
     });
     expect(access.titles.map(title => title.label)).toEqual(['领航员']);
-    expect([...access.capabilities]).toEqual(['console.access', 'github.org.read', 'feedback.read']);
+    // #276 挪来的 #274 清理：github.org.read 已经从 ROLE_BASE.alumni 删掉（github.* 能力整组零读者）。
+    expect([...access.capabilities]).toEqual(['console.access', 'feedback.read']);
   });
 });
 
@@ -331,16 +334,6 @@ describe('旧 titles 表的启动播种（#274 范围外：这张表只给旧能
   });
 });
 
-describe('configuration', () => {
-  const env = {
-    NODE_ENV: 'test', PUBLIC_ORIGIN: 'https://example.test', DB_PATH: ':memory:',
-    SESSION_SECRET: 'console-config-test-secret-at-least-32', ENCRYPTION_KEY: Buffer.alloc(32, 3).toString('base64'),
-    OAUTH_CLIENT_ID: 'test-client', OAUTH_CLIENT_SECRET: 'test-secret',
-  };
-  // #274 删掉了 ALLOWED_ORGS（唯一的读者 /api/me/orgs 随 GitHub 组织管理一起删除了），只剩 CONSOLE_ORG 自己的形状校验。
-  it('defaults and validates the shape of CONSOLE_ORG', () => {
-    expect(createConfig(env).consoleOrg).toBe(CONSOLE_ORG);
-    expect(createConfig({ ...env, CONSOLE_ORG: 'other-org' }).consoleOrg).toBe('other-org');
-    expect(() => createConfig({ ...env, CONSOLE_ORG: 'bad org' })).toThrow('CONSOLE_ORG');
-  });
-});
+// #276 挪来的 #274 清理：原来这里的 describe('configuration') 测 CONSOLE_ORG 的环境变量读取与校验
+// （含「部署可以配别的组织」这条能力）；CONSOLE_ORG 改成 config.ts 的固定常量 DEFAULT_CONSOLE_ORG 之后，
+// 不再读环境变量、不再校验、也不可能配别的值，这条测试测的能力已经不存在，删掉而不是放宽断言。

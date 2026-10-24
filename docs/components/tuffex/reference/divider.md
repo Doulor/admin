@@ -1,22 +1,19 @@
 # Divider 分割线
 
-> 内容分组、行内分隔与渐变透明分割
+> 分隔内容区块的水平或垂直线条
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/divider) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/divider.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/divider.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/divider) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/divider.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/divider.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
-上游标记：status=`beta`，since=`1.0.0`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
+上游标记：status=`beta`，since=`0.3.7`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# Divider 分割线
+## 用法
 
-## 基础用法
-
-### Basic Divider
-水平分割线可以单独使用，也可以通过默认插槽显示文字。
-
+### 基础
+默认插槽显示文字，`textPlacement` 决定文字位置。
 官方示例：`DividerBasicDemo`（完整源码见本页末尾）
 
 ```vue
@@ -29,11 +26,8 @@
 </template>
 ```
 
-## 渐变分割
-
-### Gradient Divider
-`gradient` 用于让分割线从某个区域到某个区域逐渐透明。`true` 等价于 `both`，也可以显式传入 `start`、`end`、`both`。
-
+### 渐变
+`gradient` 取 `start`、`end` 或 `both`；`true` 等同 `both`。
 官方示例：`DividerGradientDemo`（完整源码见本页末尾）
 
 ```vue
@@ -45,11 +39,8 @@
 </template>
 ```
 
-## 垂直分割
-
-### Vertical Divider
-`direction="vertical"` 适合在标签、状态、元信息之间做行内分隔，也支持 `dashed` 和 `gradient`。
-
+### 垂直
+`direction="vertical"` 用于行内分隔，同样支持 `dashed` 与 `gradient`。
 官方示例：`DividerVerticalDemo`（完整源码见本页末尾）
 
 ```vue
@@ -64,66 +55,56 @@
 </template>
 ```
 
-## API
+### 最佳实践
+
+- 用分割线分隔语义区块，不要逐行添加；密集表格与列表用行距或表格边框。
+- 文字标签保持简短；长文本改用真实标题。
+- 垂直分割线只用于行内元信息或工具栏，且周围文本已提供上下文。
+- Drawer、Card、Form 内的分隔用 `TxDivider`，不要硬编码边框。
+
+## API 参考
 
 ### 属性
 
 ```yaml
 rows:
   - name: direction
-    description: '分割线方向'
+    description: '分割线方向。'
     type: "'horizontal' | 'vertical'"
     default: "'horizontal'"
   - name: dashed
-    description: '是否显示为虚线'
+    description: '显示为虚线。'
     type: 'boolean'
     default: 'false'
   - name: textPlacement
-    description: '水平分割线文字位置'
+    description: '水平分割线的文字位置。'
     type: "'left' | 'center' | 'right'"
     default: "'center'"
   - name: gradient
-    description: '渐变透明方向；true 等价于 both'
+    description: '渐变透明的方向；true 等同 both。'
     type: "boolean | 'start' | 'end' | 'both'"
     default: 'false'
 ```
 
-## Slots
+### 插槽
 
 ```yaml
 rows:
   - name: default
-    description: '水平分割线中间的文字内容；垂直分割线不渲染插槽文字'
+    description: '水平分割线中的文字；垂直时不渲染。'
     type: '-'
     default: '-'
 ```
 
-### Events
+## 概述
 
-`TxDivider` 不派发组件事件。
+- 根节点为 `role="separator"`，`aria-orientation` 取自 `direction`。
+- 水平分割线占满容器宽度；文字只在水平方向渲染。
+- `start` 从透明过渡到实线，`end` 从实线过渡到透明，`both` 两端透明、中间实线；垂直方向沿纵轴渐变。
 
-## 交互契约
+## 技术实现
 
-- 根节点使用 `role="separator"`，并根据 `direction` 设置 `aria-orientation`。
-- 水平分割线默认占满容器宽度，文字只在水平模式渲染。
-- `gradient="start"` 从起点透明到清晰，`gradient="end"` 从清晰到终点透明，`gradient` / `gradient="both"` 两端透明中间清晰。
-- 垂直渐变使用纵向透明衰减，适合工具栏或元信息行。
-- 需要 Drawer / Card / Form 内部分隔时优先使用 `TxDivider`，避免重复硬编码边框样式。
-
-## 最佳实践
-
-- 水平分割线用于分隔语义区块，不要给每一行都加分割线；密集表格和列表应使用行距或表格边框。
-- 文字标签保持短句，只用于区块过渡；长文本应该改成真实标题而不是塞进分割线。
-- 垂直分割线只用于行内元信息或工具栏，且周围文本必须已经提供上下文。
-
-## 审阅说明
-
-- 组件源码:`packages/tuffex/packages/components/src/divider/src/TxDivider.vue` 确认 `role="separator"`、`aria-orientation`、仅水平模式渲染默认插槽文本、虚线样式和渐变模式。
-- **实测覆盖:** Coverage: `packages/tuffex/packages/components/src/divider/__tests__/divider.test.ts` 覆盖水平文字、垂直模式忽略文字和渐变 class 模式。
-- 导出入口:`packages/tuffex/packages/components/src/divider/index.ts` 使用 `withInstall` 包装组件并导出 `TxDividerInstance`。
-
-
-## Source
+- 源码：`packages/tuffex/packages/components/src/divider/`。
 
 ## 离线完整示例源码
 

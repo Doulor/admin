@@ -114,4 +114,9 @@ export const BUCKET_RETENTION_MS: Record<string, number> = {
   "search.per_minute": HOUR_MS,
   "public.competition.per_minute": HOUR_MS,
   "competition.prize.lookup.fail": 2 * HOUR_MS,
+  // #276：表情回应、上传图片按小时限额；@ 补全按分钟限额；访客翻页按北京日历日限额（day-bj 窗口）。
+  "forum.react.hourly": 2 * HOUR_MS,
+  "forum.upload.hourly": 2 * HOUR_MS,
+  "forum.suggest.per_minute": HOUR_MS,
+  "forum.visitor.pages": 2 * DAY_MS,
 };

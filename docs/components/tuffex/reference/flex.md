@@ -1,35 +1,31 @@
 # Flex 弹性布局
 
-> 低层级 Flexbox 容器，显式控制方向、对齐、换行和间距。
+> 控制方向、对齐、换行与间距的 Flexbox 容器
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/flex) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/flex.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/flex.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/flex) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/flex.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/flex.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
-上游标记：status=`beta`，since=`1.0.0`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
+上游标记：status=`beta`，since=`0.3.4`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# Flex 弹性布局
+## 用法
 
-## 基础用法
-
+### 基础
 官方示例：`FlexFlexDemo`（完整源码见本页末尾）
 
 ```vue
 <template>
-  <div style="width: 360px; padding: 16px; border: 1px solid var(--tx-border-color); border-radius: 12px;">
-    <TxFlex justify="space-between" align="center">
-      <TxTag label="Left" />
-      <TxButton variant="primary">Action</TxButton>
-    </TxFlex>
-  </div>
+  <TxFlex justify="space-between" align="center">
+    <TxTag label="Left" />
+    <TxButton variant="primary">Action</TxButton>
+  </TxFlex>
 </template>
 ```
 
-## 组合示例
-
 ### 可换行工具栏
+`wrap="wrap"` 让工具栏在窄容器中换行。
 
 ```vue
 <template>
@@ -54,43 +50,33 @@
 </template>
 ```
 
-## 交互契约
+### 最佳实践
 
-- 根节点是 `div`，默认 `display: flex`。
-- `direction`、`wrap`、`align`、`justify` 会直接透传到 Flexbox CSS 变量。
-- 数字 `gap` 会转成 px；字符串会原样保留。
-- `inline=true` 会把 display 从 `flex` 切换为 `inline-flex`。
-- `align`、`justify`、`direction`、`wrap` 为空值时，会在计算阶段回退到组件默认值。
-- 根节点设置 `min-width: 0`，确保子元素可以在受限卡片内收缩。
+- 需要精确的 Flexbox 语义时用 `TxFlex`，常规的横纵节奏用 `TxStack`。
+- 间距交给 `gap`，不要在子元素上写 margin。
+- 容器不添加角色与键盘行为，交互交给语义化的子控件。
+- 重复卡片的网格用 `TxGridLayout`，不要嵌套多层 flex。
 
-## API
+## API 参考
 
-### Props
+### 属性
 
 | 属性名 | 类型 | 默认值 | 说明 |
 |------|------|---------|------|
-| `direction` | `'row' \| 'row-reverse' \| 'column' \| 'column-reverse'` | `'row'` | 主轴方向；`row` 横向排列，`column` 纵向堆叠。 |
-| `gap` | `number \| string` | `12` | 子元素间距，数字会转为 px。 |
-| `align` | `string` | `'stretch'` | 交叉轴对齐（align-items）；图标+文字行用 `center`，需要子元素等高时保留 `stretch`。类型是自由 string，任意 CSS 关键字都可传。 |
-| `justify` | `string` | `'flex-start'` | 主轴分布（justify-content）；两端对齐用 `space-between`，成组靠左用 `flex-start`。同样是自由 string。 |
-| `wrap` | `'nowrap' \| 'wrap' \| 'wrap-reverse'` | `'nowrap'` | 是否换行；工具栏、筛选行需要适配窄容器时用 `wrap`。 |
-| `inline` | `boolean` | `false` | 使用 `inline-flex` 而不是块级 `flex`。 |
+| `direction` | `'row' \| 'row-reverse' \| 'column' \| 'column-reverse'` | `'row'` | 主轴方向。 |
+| `gap` | `number \| string` | `12` | 子元素间距；数字按 px，字符串原样使用。 |
+| `align` | `string` | `'stretch'` | `align-items`，接受任意 CSS 值；图文行用 `center`。 |
+| `justify` | `string` | `'flex-start'` | `justify-content`，接受任意 CSS 值。 |
+| `wrap` | `'nowrap' \| 'wrap' \| 'wrap-reverse'` | `'nowrap'` | `flex-wrap`。 |
+| `inline` | `boolean` | `false` | 使用 `inline-flex`。 |
 
-### Slots
+### 插槽
 
 | 插槽名 | Props | 说明 |
 |------|------|------|
 | `default` | - | Flex 子元素。 |
 
-### Events
-
-不发出公开事件。
-
-### Exposed Methods
-
-不暴露公开实例方法。
-
-### CSS Variables
+### CSS 变量
 
 | 变量 | 来源 | 说明 |
 |------|------|------|
@@ -101,25 +87,15 @@
 | `--tx-flex-wrap` | `wrap` | `flex-wrap`。 |
 | `--tx-flex-display` | `inline` | `flex` 或 `inline-flex`。 |
 
-## 最佳实践
+## 概述
 
-- 需要精确 Flexbox 语义时使用 `TxFlex`；常见横向/纵向节奏优先用 `TxStack`。
-- 工具栏和筛选行需要适配窄容器时使用 `wrap="wrap"`。
-- 间距交给 `gap`，避免在子组件上写 margin hack。
-- `TxFlex` 内部仍应放语义化子控件（`TxButton`、链接、表单控件等）；容器本身不添加角色或键盘行为。
-- 重复卡片的网格布局应使用 `TxGridLayout`，不要用多层 flex row 模拟。
+- 根节点是 `div`，设置 `min-width: 0`，子元素可在受限容器内收缩。
+- props 写入根节点的 `--tx-flex-*` 变量，样式表读取这些变量。
+- `align`、`justify`、`direction`、`wrap` 传空值时回退到默认值。
 
-## 审阅说明
+## 技术实现
 
-- 已人工核对 `packages/tuffex/packages/components/src/flex/src/types.ts`、`TxFlex.vue` 与 `flex.test.ts`。
-- `TxFlex` 刻意保持无行为：除插槽子元素外，不添加 role、事件或焦点处理。
-- 数字 `gap` 会归一化为 px；字符串 gap 保持为调用方提供的 CSS。
-
-## Source
-
-- Component source: `packages/tuffex/packages/components/src/flex/src/TxFlex.vue`。
-- Types: `packages/tuffex/packages/components/src/flex/src/types.ts`。
-- **实测覆盖:** Coverage: `packages/tuffex/packages/components/src/flex/__tests__/flex.test.ts` 验证默认 CSS 变量和插槽内容、自定义布局变量转发、inline display 与数字 gap 归一化。
+- 源码：`packages/tuffex/packages/components/src/flex/`。
 
 ## 离线完整示例源码
 

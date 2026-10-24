@@ -1,4 +1,4 @@
-import type { Topic, User } from './types'
+import type { User } from './types'
 
 /**
  * Who may write, decided once for every page. Pure, so the guest/member rules
@@ -7,8 +7,9 @@ import type { Topic, User } from './types'
  * - `demo`: the upstream demo (`loginMode=demo`); an identity picked from the
  *   seed writes into this browser's store.
  * - `server`: 极客班论坛 (`contentSource: site`, the deployed images). The
- *   forum server holds the data; a signed-in member writes as their forum
- *   user, a guest may only reply, under a nickname.
+ *   forum server holds the data; a signed-in account writes as its forum
+ *   user, as far as its permission nodes go (#276). Someone signed out only
+ *   reads the public topics; guest replies are gone (#276).
  * - `read-only`: the local snapshot and the demo seed under the site-wide
  *   login. Nothing can be written.
  */
@@ -35,8 +36,6 @@ export interface ForumAccess {
   writable: boolean
   /** The forum server did not answer: the published posts only, every write off. */
   offline: boolean
-  /** Replying without signing in, under a nickname. */
-  guestReply: boolean
   loginPrompt: LoginPrompt
 }
 
@@ -46,22 +45,22 @@ export interface ForumAccess {
  */
 export function forumAccess(mode: ForumMode, status: ServerStatus, user: User | null, signedIn = false): ForumAccess {
   if (mode === 'demo')
-    return { writable: true, offline: false, guestReply: false, loginPrompt: 'pick-identity' }
+    return { writable: true, offline: false, loginPrompt: 'pick-identity' }
   if (mode === 'read-only')
-    return { writable: false, offline: false, guestReply: false, loginPrompt: 'not-open' }
+    return { writable: false, offline: false, loginPrompt: 'not-open' }
   if (status === 'error')
-    return { writable: false, offline: true, guestReply: false, loginPrompt: 'offline' }
+    return { writable: false, offline: true, loginPrompt: 'offline' }
   if (status === 'busy')
-    return { writable: false, offline: false, guestReply: false, loginPrompt: 'busy' }
+    return { writable: false, offline: false, loginPrompt: 'busy' }
   const ready = status === 'ready'
-  return { writable: ready, offline: false, guestReply: ready && !user, loginPrompt: ready && !user && signedIn ? 'not-member' : 'sign-in' }
+  return { writable: ready, offline: false, loginPrompt: ready && !user && signedIn ? 'not-member' : 'sign-in' }
 }
 
 /** The same words wherever a page has to say that nothing can be written right now. */
 export const UNAVAILABLE_COPY = {
   'offline': { title: '论坛服务暂时连不上', description: '现在只能看帖子，稍后刷新页面再试。' },
   'busy': { title: '请求太频繁，稍后再试', description: '论坛过一会儿会自动重新加载，现在可以看帖子。' },
-  'not-member': { title: '这个账号现在不能在论坛里发帖', description: '这个极客班账号已经停用，和没登录一样只能看帖、用昵称回复。' },
+  'not-member': { title: '这个账号现在不能在论坛里发帖', description: '这个极客班账号已经停用，和没登录一样只能看公开的帖子。' },
 } as const satisfies Record<Extract<LoginPrompt, 'offline' | 'busy' | 'not-member'>, { title: string, description: string }>
 
 /**
@@ -85,7 +84,7 @@ export function loginPromptToast(prompt: LoginPrompt): PromptToast {
     return {
       id: 'forum-sign-in',
       title: '登录后才能继续',
-      description: '发新话题、点赞、收藏和关注要先登录。不登录也能看帖和回复。',
+      description: '发帖、回复、点赞、收藏和关注要先登录。不登录只能看公开的帖子。',
       duration: 6000,
       signIn: true,
     }
@@ -104,7 +103,7 @@ export function loginPromptToast(prompt: LoginPrompt): PromptToast {
  * says both. LoginModal shows it and adds the 登录 action.
  */
 export function signinLapsedToast(failed: string | null): PromptToast {
-  const next = '请重新登录。不登录也能看帖和回复。'
+  const next = '请重新登录。不登录只能看公开的帖子。'
   return {
     id: 'forum-signin-lapsed',
     title: failed ?? '登录已失效',
@@ -124,7 +123,12 @@ export function refusedNotMemberToast(failed: string): PromptToast {
   return { id: 'forum-not-member', title: failed, description: UNAVAILABLE_COPY['not-member'].description, variant: 'warning', signIn: false }
 }
 
-/** A guest may reply to an open topic; closing a topic shuts guests out as well. */
-export function guestMayReply(access: ForumAccess, topic: Topic): boolean {
-  return access.guestReply && !topic.closed
-}
+/**
+ * What the forum says to an account that may read but not write (#276): a
+ * registered user before redeeming an invite code. Shown where the 回复 and
+ * 新话题 buttons would be, instead of a button that can only fail.
+ */
+export const MEMBER_ONLY_COPY = {
+  reply: '成为极客班成员后可以回复。在桌面右上角的账号资料里填邀请码。',
+  topic: '成为极客班成员后可以发新话题。在桌面右上角的账号资料里填邀请码。',
+} as const

@@ -1,120 +1,102 @@
 # StatusBadge 状态徽标
 
-> 状态信号与平台感知的系统反馈徽标。
+> 以色调、图标与文字表示状态的徽标
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/status-badge) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/status-badge.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/status-badge.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/status-badge) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/status-badge.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/status-badge.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
-上游标记：status=`beta`，since=`1.0.0`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
+上游标记：status=`beta`，since=`0.3.4`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# StatusBadge 状态徽标
-
-## Demo
+## 用法
 
 ### 状态信号
-
+`status` 设置色调；`muted` 渲染为虚线空心环，不带字形。
 官方示例：`StatusBadgeSignalsDemo`（完整源码见本页末尾）
 
 ```vue
 <template>
-  <div class="tuff-demo-row">
-    <TxStatusBadge text="成功" status="success" />
-    <TxStatusBadge text="警告" status="warning" />
-    <TxStatusBadge text="错误" status="danger" />
-    <TxStatusBadge text="信息" status="info" />
-  </div>
+  <TxStatusBadge text="已通过" status="success" />
+  <TxStatusBadge text="待处理" status="warning" />
+  <TxStatusBadge text="已取消" status="danger" />
+  <TxStatusBadge text="审核中" status="info" />
+  <TxStatusBadge text="未开始" status="muted" />
 </template>
 ```
 
 ### 后台运营状态
-
-在 Dashboard 首屏中，`TxStatusBadge` 通常与 `TxStatCard`、`TxProgressBar` 和开关一起呈现发布、构建与同步状态。
-
+与 `TxStatCard`、`TxProgressBar` 一起汇总发布、构建与同步状态。
 官方示例：`ComponentsOperationsStatusDemo`（完整源码见本页末尾）
 
 ```vue
 <template>
-  <section class="grid gap-3">
-    <div style="display: flex; flex-wrap: wrap; gap: 12px;">
-      <TxStatusBadge text="审阅完成" status="success" size="sm" />
-      <TxStatusBadge text="构建稳定" status="success" os="linux" size="sm" />
-      <TxStatusBadge text="同步健康" status-key="granted" size="sm" />
-    </div>
-    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
-      <TxStatCard variant="progress" value="99.9%" label="API 可用率" meta="正常" :progress="99" icon-class="i-carbon-cloud-monitoring text-[var(--tx-color-success)]" />
-      <TxStatCard variant="progress" :value="18" label="待处理队列" meta="关注" :progress="64" icon-class="i-carbon-queued text-[var(--tx-color-warning)]" />
-      <TxStatCard variant="progress" :value="2" label="告警" meta="阻塞" :progress="22" icon-class="i-carbon-warning-alt text-[var(--tx-color-danger)]" />
-    </div>
-  </section>
+  <TxStatusBadge text="审阅完成" status="success" size="sm" />
+  <TxStatusBadge text="构建稳定" status="success" os="linux" size="sm" />
+  <TxStatusBadge text="同步健康" status-key="granted" size="sm" />
+
+  <TxStatCard variant="progress" value="99.9%" label="API 可用率" meta="正常" :progress="99" icon-class="i-carbon-cloud-monitoring" />
+  <TxStatCard variant="progress" :value="18" label="待处理队列" meta="关注" :progress="64" icon-class="i-carbon-queued" />
 </template>
 ```
 
 ### 状态行
-
 官方示例：`StatusBadgeRowDemo`（完整源码见本页末尾）
 
 ```vue
 <template>
-  <div class="tuff-demo-row">
-    <TxAvatar name="TA" />
-    <TxStatusBadge text="在线" status="success" />
-  </div>
+  <TxAvatar name="TA" />
+  <TxStatusBadge text="在线" status="success" />
 </template>
 ```
 
-## 交互契约
+### 最佳实践
 
-- 根元素使用 `role="status"`；可见 `text` 必须不依赖颜色也能表达状态。
-- 显式 `status` 优先于 `statusKey`。
-- `statusKey` 会把 `granted → success`、`denied → danger`、`notDetermined → warning`、`unsupported → muted`、未知 key 映射为 `info`。
-- 默认图标按色调固定：success `i-carbon-checkmark-outline`、warning `i-carbon-warning`、danger `i-carbon-close-outline`、info `i-carbon-information`、muted `i-carbon-circle-dash`，同为描线圆家族、线宽一致，不会让某一种状态看起来"更被选中"。
-- `icon` 会覆盖解析出的状态图标。
-- `os` 会在状态图标前渲染平台图标；`osOnly` 会隐藏状态图标但保留文本。
-- 点击徽标时会发出 `click`，payload 是原始 `MouseEvent`。
+- 状态来自 API 或权限枚举时用 `statusKey`；页面本地判断用 `status`。
+- 不要只靠颜色传达状态，文案写成「同步健康」「访问被拒绝」这样的完整说法。
+- 只在平台差异影响状态含义时使用 `os`。
+- 主操作放在旁边的 `TxButton` 上，不要让徽标成为唯一的操作控件。
 
-## API
+## API 参考
 
-### Props
+### 属性
 
 | 属性名 | 类型 | 默认值 | 说明 |
 |------|------|---------|------|
-| `text` | `string` | 必填 | 徽标可见文本。 |
-| `icon` | `string` | `''` | 自定义图标 class；省略时使用解析后的状态图标。 |
-| `status` | `'success' \| 'warning' \| 'danger' \| 'info' \| 'muted'` | - | 显式视觉色调，优先级高于 `statusKey`。 |
-| `statusKey` | `'granted' \| 'denied' \| 'notDetermined' \| 'unsupported' \| string` | `''` | 映射到色调的权限/状态 key。 |
+| `text` | `string` | 必填 | 可见文字。 |
+| `icon` | `string` | `''` | 自定义图标类名，替代色调默认字形。 |
+| `status` | `'success' \| 'warning' \| 'danger' \| 'info' \| 'muted'` | - | 显式色调，优先于 `statusKey`。 |
+| `statusKey` | `'granted' \| 'denied' \| 'notDetermined' \| 'unsupported' \| string` | `''` | 映射为色调的权限或状态 key。 |
 | `size` | `'sm' \| 'md'` | `'md'` | 徽标密度。 |
-| `os` | `'macos' \| 'windows' \| 'linux'` | - | 可选平台标记图标。 |
-| `osOnly` | `boolean` | `false` | 渲染平台图标，但隐藏状态图标。 |
+| `os` | `'macos' \| 'windows' \| 'linux'` | - | 在状态图标前显示平台图标。 |
+| `osOnly` | `boolean` | `false` | 只显示平台图标，隐藏状态图标。 |
 
-### Events
+### 事件
 
 | 事件名 | 参数 | 说明 |
 |------|------|------|
-| `click` | `MouseEvent` | 点击徽标根元素时触发。 |
+| `click` | `MouseEvent` | 点击或在按钮态下按 Enter / Space 时触发。 |
 
-## Slots
+### CSS 变量
 
-`TxStatusBadge` 不暴露插槽。可见状态标签应放在 `text` 中；视觉差异通过 `icon`、`status`、`statusKey` 和 `os` 配置。
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `--tx-status-chip-size` | `18px`（`sm`：`15px`） | 状态圆盘直径，字形随之缩放；由 `size` 类设在根节点上。 |
 
-## 最佳实践
+## 概述
 
-- 状态来自 API 或权限枚举时优先使用 `statusKey`；页面本地判断再使用显式 `status`。
-- 不要只靠颜色传达状态，文案应类似“同步健康”或“访问被拒绝”。
-- 只有平台差异对状态表达有实际意义时才使用 `os`。
-- 主操作应放在旁边的 `TxButton`，不要让徽标成为唯一操作控件。
+- 没有点击监听时根节点为 `role="status"`；绑定 `@click` 后变为可聚焦的 `role="button"`，Enter / Space 可触发。
+- `status` 优先于 `statusKey`；`statusKey` 映射为：`granted` → success、`denied` → danger、`notDetermined` → warning、`unsupported` → muted，其余为 info。
+- 默认字形均为实心，外圈由色盘提供：success `i-carbon-checkmark`、warning `i-carbon-time`、danger `i-carbon-close`、info `i-carbon-information`。
+- `muted` 没有字形，渲染为虚线空心环；传入 `icon` 后恢复实心色盘。
+- `osOnly` 隐藏状态图标，但保留文字。
 
-## 审阅说明
+## 技术实现
 
-- 组件源码:`packages/tuffex/packages/components/src/status-badge/src/TxStatusBadge.vue` 确认 `role="status"`、显式 `status` 优先级、`statusKey` 色调映射、OS 图标映射、`osOnly`、描线图标家族、自定义 `icon` 和根节点点击派发。
-- 类型契约:`packages/tuffex/packages/components/src/status-badge/src/types.ts` 定义 `StatusTone`、`StatusKey`、`TxOsType`、`StatusBadgeProps` 和 `StatusBadgeEmits`。
-- 视觉契约:胶囊圆角（`999px`）、字重 `500`、图标 `1em` 随文字缩放，与 `TxBadge` 同一家族；以图标开头的胶囊，图标一侧的内边距等于上下内边距，让图标与胶囊端头的圆同心——左侧与顶部到边缘是同一段距离，文字一侧随之收窄（比图标侧多 2px，给字形的直角留出贴近弧线的余地）；12% 填充 / 32% 描边配方与 `TxBadge`、`TxTag`、`TxAlert` 共用，暗色下的观感由 `variables.scss` `.dark` 块里显式定义的 `--tx-color-success / warning / danger` 决定，不在组件里单独覆盖。
-- **实测覆盖:** Coverage: `packages/tuffex/packages/components/src/status-badge/__tests__/status-badge.test.ts` 覆盖文本/尺寸/状态渲染、key 映射、显式 status 优先级、OS 图标、`osOnly`、自定义图标、点击派发、五个色调的默认图标映射、胶囊圆角与 1em 图标、图标侧内边距等于上下内边距（`has-icon`）；`__tests__/dark-semantic-tokens.test.ts` 锁定 `.dark` 块内三枚语义 token 的显式定义、`-rgb` 三元组一致性与暗色对比度下限。
-- 导出入口:`packages/tuffex/packages/components/src/status-badge/index.ts` 导出 `StatusBadge`、`TxStatusBadge`、公共类型和 `TxStatusBadgeInstance`。
-
-## Source
+- 色盘取独立的 `--tx-status-chip-*` 色阶而非 `--tx-color-*`，使反白字形对比度不低于 3:1；高对比暗色主题反转为浅盘深字形。
+- 标签使用等宽字体；背景是状态色 14% 的浅填充，外圈是 32% 的 1px 内描边，不占布局。
+- 源码：`packages/tuffex/packages/components/src/status-badge/`。
 
 ## 离线完整示例源码
 

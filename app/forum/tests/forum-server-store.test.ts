@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useForumStore } from '~/stores/forum'
 import { stateRetryDelay, useForumServerStore } from '~/stores/forum-server'
 import { useSessionStore } from '~/stores/session'
-import { checkPow, replyPowBody } from '../shared/pow'
 import type { Answer } from './fixtures/fake-server'
 import { fakeServer, held, json } from './fixtures/fake-server'
 import { MEMBER_VIEWER, MODERATOR_VIEWER, searchBody, serverBody, serverState, topicPostsBody, writeBody } from './fixtures/server-state'
@@ -26,7 +25,7 @@ describe('loading the forum from the server', () => {
     expect(forum.state.topics.map(topic => topic.id)).toEqual(['t73', 't1001'])
     expect(session.currentUserId).toBe('m1001')
     expect(session.currentUser?.displayName).toBe('Ada')
-    expect(server.guestPolicy.powDifficulty).toBe(2)
+    expect(server.viewer).toMatchObject({ kind: 'member', level: 'member' })
   })
 
   it('leaves a guest signed out', async () => {
@@ -319,9 +318,9 @@ describe('writes against the server', () => {
     expect(calls).toHaveLength(1)
   })
 
-  it('reads moderation rights from the viewer\'s capabilities only', async () => {
+  it('reads rights from the viewer\'s capabilities and permission nodes only (#276)', async () => {
     const { server } = await signedIn(MODERATOR_VIEWER)
-    expect([...server.granted]).toEqual(['forum.topic.pin', 'forum.topic.close', 'forum.post.moderate'])
+    expect([...server.granted]).toEqual([...MODERATOR_VIEWER.capabilities, ...MODERATOR_VIEWER.nodes!])
   })
 
   it('keeps the viewer object when an answer brings the same viewer, so permission checks do not rerun', async () => {
@@ -388,56 +387,6 @@ describe('writes against the server', () => {
     await server.recordView('t73')
     expect(calls[1]).toMatchObject({ url: '/api/forum/topics/t73/view', method: 'POST' })
     expect(toastStore.items).toHaveLength(0)
-  })
-})
-
-describe('a guest reply', () => {
-  const guestPost = { id: 'p10003', topicId: 't73', authorId: 'g2', content: '请问 25 级什么时候机试？', createdAt: 40, replyToPostId: 'body-73', likeUserIds: [] }
-  const guestUser = { ...serverState().users[2]!, id: 'g2', username: 'guest-2' }
-
-  it('carries the nickname, an empty honeypot and a proof over the exact text sent', async () => {
-    const calls = fakeServer(json(serverBody()), json(writeBody({ users: [guestUser], posts: [guestPost] }, undefined, { postId: 'p10003' }), 201))
-    const { server } = setup()
-    await server.load()
-    expect(await server.replyAsGuest({ topicId: 't73', content: '请问 25 级什么时候机试？', name: '路过的同学', replyToPostId: 'body-73' })).toBe('p10003')
-    const sent = calls[1]!.body as { topicId: string, content: string, replyToPostId: string, guest: { name: string }, pow: { timestamp: number, nonce: string }, website: string }
-    expect(sent).toMatchObject({ topicId: 't73', content: '请问 25 级什么时候机试？', replyToPostId: 'body-73', guest: { name: '路过的同学' }, website: '' })
-    expect(Object.keys(sent).sort()).toEqual(['content', 'guest', 'pow', 'replyToPostId', 'topicId', 'website'])
-    expect(await checkPow(replyPowBody('t73', '请问 25 级什么时候机试？'), 2, sent.pow)).toBe(true)
-  })
-
-  it('adds the Turnstile token when the page has one, and nothing else changes', async () => {
-    const calls = fakeServer(json(serverBody()), json(writeBody({ users: [guestUser], posts: [guestPost] }, undefined, { postId: 'p10003' }), 201))
-    const { server } = setup()
-    await server.load()
-    expect(await server.replyAsGuest({ topicId: 't73', content: '谢谢', name: '路过的同学', turnstileToken: 'cf-token' })).toBe('p10003')
-    const sent = calls[1]!.body as Record<string, unknown>
-    expect(Object.keys(sent).sort()).toEqual(['content', 'guest', 'pow', 'topicId', 'turnstileToken', 'website'])
-    expect(sent.turnstileToken).toBe('cf-token')
-  })
-
-  it('shows the server message when guest replies are paused site-wide', async () => {
-    fakeServer(json(serverBody()), json({ error: 'guest_replies_paused', message: '游客回复暂时太多，请过一会儿再试，或者登录后回复' }, 429))
-    const { forum, server } = setup()
-    await server.load()
-    const before = forum.state
-    expect(await server.replyAsGuest({ topicId: 't73', content: '谢谢', name: '路过的同学' })).toBeNull()
-    expect(forum.state).toBe(before)
-    expect(forum.state.posts.map(post => post.id)).toEqual(['body-73', 'p10001', 'p10002'])
-    expect(forum.state.users.map(user => user.id)).toEqual(['u-geekclass', 'm1001', 'g1'])
-    expect(server.status).toBe('ready')
-    expect(toastStore.items.map(item => [item.title, item.description])).toEqual([['回复没有发出去', '游客回复暂时太多，请过一会儿再试，或者登录后回复']])
-  })
-
-  it('says why when the server refuses the nickname, and keeps the page as it was', async () => {
-    fakeServer(json(serverBody()), json({ error: 'guest_name_taken', message: '这个昵称是成员在用的，换一个吧', request_id: 'r1' }, 400))
-    const { forum, server } = setup()
-    await server.load()
-    const before = forum.state
-    expect(await server.replyAsGuest({ topicId: 't73', content: '谢谢', name: 'Ada' })).toBeNull()
-    expect(forum.state).toBe(before)
-    expect(forum.postsOfTopic('t73')).toHaveLength(2)
-    expect(toastStore.items.map(item => [item.title, item.description])).toEqual([['回复没有发出去', '这个昵称是成员在用的，换一个吧']])
   })
 })
 

@@ -1,34 +1,32 @@
 # Select 选择器
 
-> 基于 Popover 的原始值选择器，支持单选、多选标签、本地过滤、远程搜索、自助创建、分组、图标与描述选项和自定义下拉内容。
+> 从下拉列表中选择一个或多个值的控件
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/select) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/select.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/select.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/select) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/select.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/select.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
-上游标记：status=`beta`，since=`1.0.0`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
+上游标记：status=`beta`，since=`0.3.4`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# Select 选择器
+## 用法
 
-## 基础选择
-
-默认模式适合紧凑表单和筛选器。触发器只读，点击展开，选择启用项后展示当前选项 label。
-
-### Select
+### 基础
 官方示例：`SelectSelectDemo`（完整源码见本页末尾）
 
 ```vue
 <script setup lang="ts">
 import type { TxSelectValue } from '@talex-touch/tuffex'
-import { ref } from 'vue'
+import { ref, useId } from 'vue'
 
 const value = ref<TxSelectValue>('engineering')
+const controlId = useId()
 </script>
 
 <template>
-  <TuffSelect v-model="value" placeholder="请选择">
+  <label :for="controlId">团队</label>
+  <TuffSelect :id="controlId" v-model="value" placeholder="请选择" aria-label="团队">
     <TuffSelectItem value="design" label="设计团队" />
     <TuffSelectItem value="engineering" label="工程团队" />
     <TuffSelectItem value="support" label="支持团队" />
@@ -37,27 +35,12 @@ const value = ref<TxSelectValue>('engineering')
 ```
 
 ### 本地过滤
-
-当所有选项已在本地可用时使用 `searchable`。搜索框渲染在下拉面板内，并根据已注册选项 label 进行过滤。
-
-#### Select (searchable)
+未指定 `searchable` 时，已注册选项达到 8 项自动显示搜索框，包含分组与插槽选项。`searchThreshold` 调整阈值；显式 `searchable=false` 或非正阈值关闭自动搜索，显式 `true` 始终开启。
 官方示例：`SelectSelectSearchableDemo`（完整源码见本页末尾）
 
 ```vue
-<script setup lang="ts">
-import type { TxSelectValue } from '@talex-touch/tuffex'
-import { ref } from 'vue'
-
-const value = ref<TxSelectValue>('docs')
-</script>
-
 <template>
-  <TuffSelect
-    v-model="value"
-    placeholder="搜索工作区"
-    search-placeholder="输入标签名称"
-    searchable
-  >
+  <TuffSelect v-model="value" searchable search-placeholder="输入标签名称">
     <TuffSelectItem value="docs" label="Docs 文档" />
     <TuffSelectItem value="sdk" label="SDK 工具" />
     <TuffSelectItem value="release" label="Release 发布" />
@@ -66,45 +49,24 @@ const value = ref<TxSelectValue>('docs')
 ```
 
 ### 远程搜索
-
-选项来自远程数据源时，组合使用 `remote` 与 `editable`。触发器会变成可编辑输入框，聚焦后展开，并在面板打开期间发出 `search`。如果需要 loading 文案，可传 `loading` / `loadingText`，或使用 `loading` slot 自定义。
-
-#### Select (remote searchable)
+`remote` 搭配 `editable`：触发器可编辑，面板打开期间输入即派发 `search`；用 `loading` 显示等待。
 官方示例：`SelectSelectRemoteSearchableDemo`（完整源码见本页末尾）
 
 ```vue
 <script setup lang="ts">
-import type { TxSelectValue } from '@talex-touch/tuffex'
+import type { TxSelectOption, TxSelectValue } from '@talex-touch/tuffex'
 import { ref } from 'vue'
 
 const value = ref<TxSelectValue>('agent-builder')
-const sourceOptions = [
-  { value: 'agent-builder', label: 'Agent Builder' },
-  { value: 'flow-runner', label: 'Flow Runner' },
-  { value: 'release-inspector', label: 'Release Inspector' },
-  { value: 'policy-auditor', label: 'Policy Auditor' },
-  { value: 'sync-console', label: 'Sync Console' },
-  { value: 'telemetry-review', label: 'Telemetry Review' },
-]
-const remoteOptions = ref(sourceOptions)
+const remoteOptions = ref<TxSelectOption[]>([])
 
-function onSearch(query: string) {
-  // 实际项目里替换为 debounce 后的远程请求。
-  const normalized = query.trim().toLowerCase()
-  remoteOptions.value = normalized
-    ? sourceOptions.filter(option => option.label.toLowerCase().includes(normalized))
-    : sourceOptions
+async function onSearch(query: string) {
+  remoteOptions.value = await searchApi(query)
 }
 </script>
 
 <template>
-  <TuffSelect
-    v-model="value"
-    remote
-    editable
-    placeholder="搜索远程能力"
-    @search="onSearch"
-  >
+  <TuffSelect v-model="value" remote editable placeholder="搜索远程能力" @search="onSearch">
     <TuffSelectItem
       v-for="option in remoteOptions"
       :key="option.value"
@@ -116,41 +78,17 @@ function onSearch(query: string) {
 ```
 
 ### 多选标签
-
-设置 `multiple` 后，`v-model` 使用 `Array<string | number>`，触发器会以标签形式返显选中项。点击标签关闭按钮可删除；点击选项会 toggle 选中状态，不会关闭面板。
-
-#### Select (multiple tags)
+`multiple` 时 `v-model` 为数组；点击选项切换选中，面板保持打开。
 官方示例：`SelectSelectMultipleTagsDemo`（完整源码见本页末尾）
 
 ```vue
-<script setup lang="ts">
-import type { TxSelectValue } from '@talex-touch/tuffex'
-import { ref } from 'vue'
-
-const value = ref<TxSelectValue[]>(['a1', 'b2'])
-const options = [
-  { value: 'a1', label: 'a1' },
-  { value: 'b2', label: 'b2' },
-  { value: 'c3', label: 'c3' },
-]
-</script>
-
 <template>
-  <TuffSelect
-    v-model="value"
-    multiple
-    :options="options"
-    :max-tag-count="2"
-    placeholder="选择标签"
-  />
+  <TuffSelect v-model="values" multiple :options="options" :max-tag-count="2" placeholder="选择标签" />
 </template>
 ```
 
 ### 自助创建
-
-多选场景下可组合 `multiple`、`searchable` 与 `allowCreate`。输入新内容后按 Enter，或点击默认 footer 中的添加按钮，会触发 `create` 并把新值加入当前选择。业务侧如果需要持久化新选项，应在 `create` 回调中追加到自己的 `options` 数据源。
-
-#### Select (allow create)
+`allowCreate` 下按 Enter 或点击底部按钮，以当前输入派发 `create` 并选中新值。
 官方示例：`SelectSelectAllowCreateDemo`（完整源码见本页末尾）
 
 ```vue
@@ -176,67 +114,41 @@ function onCreate(option: TxSelectOption) {
     searchable
     allow-create
     create-text="添加标签"
-    placeholder="输入或选择标签"
     :options="options"
     @create="onCreate"
   />
 </template>
 ```
 
-### 分组与自定义下拉
-
-`options` 支持分组对象：`{ label, options }`。使用 `footer` slot 可自定义下拉底部内容，适合添加按钮、说明或快捷操作。
-
-#### Select (grouped with footer)
+### 分组与底部
+`options` 接受 `{ label, options }` 分组；`footer` 插槽放添加按钮、说明或快捷操作。
 官方示例：`SelectSelectGroupedFooterDemo`（完整源码见本页末尾）
 
 ```vue
 <script setup lang="ts">
-import type { TxSelectValue } from '@talex-touch/tuffex'
-import { ref } from 'vue'
-
-const value = ref<TxSelectValue>('lucy')
 const options = [
-  {
-    label: 'Manager',
-    options: [
-      { value: 'jack', label: 'Jack' },
-      { value: 'lucy', label: 'Lucy' },
-    ],
-  },
-  {
-    label: 'Engineer',
-    options: [
-      { value: 'yiminghe', label: 'Yiminghe' },
-    ],
-  },
+  { label: 'Manager', options: [{ value: 'jack', label: 'Jack' }, { value: 'lucy', label: 'Lucy' }] },
+  { label: 'Engineer', options: [{ value: 'yiminghe', label: 'Yiminghe' }] },
 ]
 </script>
 
 <template>
   <TuffSelect v-model="value" :options="options" placeholder="选择成员">
     <template #footer>
-      <button type="button" style="padding: 6px 10px;">
-        + 添加成员
-      </button>
+      <button type="button">+ 添加成员</button>
     </template>
   </TuffSelect>
 </template>
 ```
 
 ### 图标与描述
-
-选项支持可选的 `icon`（icon class，由宿主应用的样式解析）和 `description` 字段，适合工作区、成员这类需要第二行信息的选择场景；选中项会在行尾展示对勾。
-
-#### Select (rich options)
+选项可带 `icon`（由宿主样式解析的 class）与 `description` 第二行。
 官方示例：`SelectSelectRichOptionsDemo`（完整源码见本页末尾）
 
 ```vue
 <script setup lang="ts">
-import type { TxSelectOptionLike, TxSelectValue } from '@talex-touch/tuffex'
-import { ref } from 'vue'
+import type { TxSelectOptionLike } from '@talex-touch/tuffex'
 
-const value = ref<TxSelectValue>('design-studio')
 const options: TxSelectOptionLike[] = [
   {
     label: '最近使用',
@@ -245,34 +157,16 @@ const options: TxSelectOptionLike[] = [
       { value: 'product-team', label: '产品团队', icon: 'i-carbon-layers', description: '8 个项目' },
     ],
   },
-  {
-    label: '全部工作区',
-    options: [
-      { value: 'playground', label: '实验场', icon: 'i-carbon-chemistry', description: '24 个实验' },
-      { value: 'component-archive', label: '组件归档', icon: 'i-carbon-archive', description: '61 个组件' },
-    ],
-  },
 ]
 </script>
 
 <template>
-  <TuffSelect
-    v-model="value"
-    style="width: 300px"
-    searchable
-    :options="options"
-    placeholder="选择工作区"
-    search-placeholder="搜索工作区"
-  />
+  <TuffSelect v-model="value" searchable :options="options" placeholder="选择工作区" />
 </template>
 ```
 
-### 变体与状态
-
-以下变体各自只切换一个 prop，可按需叠加到上面的交互模式中。
-
-#### 状态边框
-`status="error"` / `status="warning"` 只提供校验状态的视觉边框，校验文案仍放在表单项或业务说明里。
+### 状态边框
+`status` 只提供边框，校验文案放在表单项中。
 官方示例：`SelectSelectStatusDemo`（完整源码见本页末尾）
 
 ```vue
@@ -282,8 +176,8 @@ const options: TxSelectOptionLike[] = [
 </template>
 ```
 
-#### 禁用状态
-当前值只读时用 `disabled` 禁用整个选择器；个别选项不可用时禁用对应 `TuffSelectItem`（仍保留在列表中）。
+### 禁用
+值只读时禁用整个选择器；个别选项不可用时禁用对应的 `TuffSelectItem`，它仍留在列表中。
 官方示例：`SelectSelectDisabledDemo`（完整源码见本页末尾）
 
 ```vue
@@ -306,8 +200,8 @@ const options: TxSelectOptionLike[] = [
 </template>
 ```
 
-#### 滚动面板
-`dropdownMaxHeight` 限制长列表面板高度；打开时当前选中项会滚入可视区域。
+### 滚动面板
+`dropdownMaxHeight` 限制面板高度；打开时选中项滚入视区。
 官方示例：`SelectSelectScrollableDropdownDemo`（完整源码见本页末尾）
 
 ```vue
@@ -318,8 +212,8 @@ const options: TxSelectOptionLike[] = [
 </template>
 ```
 
-#### 宽度
-触发器默认紧凑宽度 240px，下拉面板宽度始终与触发器一致。需要撑满容器或自定义宽度时，直接给组件设置显式宽度。
+### 宽度
+触发器默认 240px，面板始终与触发器等宽；给组件设置宽度即可同时改变两者。
 官方示例：`SelectSelectWidthDemo`（完整源码见本页末尾）
 
 ```vue
@@ -329,120 +223,139 @@ const options: TxSelectOptionLike[] = [
 </template>
 ```
 
-## 交互契约
+### 最佳实践
 
-- `TuffSelect` 持有单个 `string | number` 原始值；空值使用 `''` 表示。
-- `multiple` 模式下 `TuffSelect` 持有 `Array<string | number>`，选中项以标签展示，点击选项执行 toggle，不会自动关闭面板。
-- `options` 可直接传入普通选项或分组选项；普通项结构为 `{ value, label, disabled?, icon?, description? }`，分组结构为 `{ label, disabled?, options }`。`icon` 渲染为选项行首的 icon class，`description` 渲染为 label 下方的次级文本。
-- 触发器默认宽度 240px；给组件设置显式宽度后，触发器与下拉面板会同步跟随该宽度，面板不会比触发器更宽。
-- `TuffSelectItem` 会把 value 和 label 注册到父级。没有传 `label` 时优先使用插槽文本，再退回原始 value。
-- 非编辑模式下点击触发器会展开/收起下拉面板。`editable` 或 `remote` 模式下，聚焦触发器会展开面板，触发器文本可编辑。
-- 选择启用项时会触发 `update:modelValue` 和 `change`，更新选中 label，并关闭下拉面板。
-- Select 级 `disabled` 会关闭面板并阻止触发器/选项交互；禁用选项保持可见，但不会发出更新。
-- `searchable` 通过面板内搜索框对已注册选项 label 做本地过滤；可编辑/远程模式不会使用这条本地过滤。
-- `remote` 模式会清空子项本地过滤，并只在面板打开时根据输入文本发出 `search`；可用 `searchDebounce` 控制延迟。
-- `allowCreate` 只负责从当前输入生成 `{ value, label }` 并触发 `create`；如果新选项需要再次出现在列表中，业务侧应把它追加到 `options`。
-- value 先于选项挂载传入时，Select 会在选项注册后解析展示 label。有限数字形式的字符串和数字会按数值相等匹配。
-- 可访问性角色：触发器是 `combobox`，带 `aria-haspopup="listbox"`，`aria-expanded` 绑定展开状态；下拉列表是 `listbox`（`multiple` 模式下追加 `aria-multiselectable`）；每个选项是 `option`，`aria-selected` 反映选中状态。
+- 数据驱动的列表用 `options`；少量需要内联标记的静态项用 `TuffSelectItem`，两者不要混用。
+- 单选用相邻的 `<label for>` 与 `id`，或 `aria-label` 命名；多选用 `aria-label` / `aria-labelledby`。不要用 label 包裹选择器。
+- 远程请求放在宿主层，用 `searchDebounce` 限制频率。
+- 新建项需要再次出现时，在 `create` 回调中把它写入自己的 `options`。
+- `modelValue` 与 `multiple` 对齐：单选用标量，多选用数组。
 
-## API
+## API 参考
 
-### TuffSelect Props
+### TuffSelect
+
+#### 属性
 
 | 属性名 | 类型 | 默认值 | 说明 |
 |------|------|---------|------|
-| `modelValue` / `v-model` | `string \| number \| Array<string \| number>` | `''` | 当前选中值；`multiple` 模式下为数组。 |
-| `placeholder` | `string` | `'Please select'` | 没有选中 label 时展示在触发器输入框中的占位文本。 |
-| `disabled` | `boolean` | `false` | 禁用触发器，关闭下拉面板，并阻止选择选项。 |
-| `multiple` | `boolean` | `false` | 启用多选标签模式。 |
+| `modelValue` / `v-model` | `string \| number \| Array<string \| number>` | `''` | 选中值；`multiple` 时为数组。 |
+| `placeholder` | `string` | `'Please select'` | 未选中时触发器的占位文本。 |
+| `disabled` | `boolean` | `false` | 禁用触发器、关闭面板并阻止选择。 |
+| `multiple` | `boolean` | `false` | 多选，选中项以标签显示。 |
 | `status` | `'default' \| 'error' \| 'warning'` | `'default'` | 校验状态边框。 |
-| `eager` | `boolean` | `true` | 是否提前挂载 Popover 面板，用于稳定注册 slot 选项。 |
-| `options` | `TxSelectOptionLike[]` | `[]` | 直接传入普通选项或分组选项。 |
-| `maxTagCount` | `number` | - | 多选标签最大显示数量，超出显示 `+ N ...`。 |
-| `maxTagTextLength` | `number` | - | 多选标签文本最大长度，超出后截断。 |
-| `searchable` | `boolean` | `false` | 非编辑模式下是否展示面板内本地搜索框。 |
-| `searchPlaceholder` | `string` | `'Search'` | 面板内本地搜索框占位文本。 |
-| `editable` | `boolean` | `false` | 是否把触发器输入框作为可编辑搜索文本，并在聚焦时展开。 |
-| `remote` | `boolean` | `false` | 启用可编辑远程模式，并在面板打开时发出 `search`。 |
-| `allowCreate` | `boolean` | `false` | 允许根据当前输入创建新选项。 |
-| `createText` | `string` | `'Add item'` | 默认创建按钮文案。 |
-| `loading` | `boolean` | `false` | 展示 loading 状态。 |
-| `loadingText` | `string` | `'Loading...'` | 默认 loading 文案。 |
+| `eager` | `boolean` | `true` | 预先挂载面板，使插槽选项稳定注册。 |
+| `options` | `TxSelectOptionLike[]` | `[]` | 普通选项或分组。 |
+| `maxTagCount` | `number` | - | 最多显示的标签数，其余显示为 `+ N ...`。 |
+| `maxTagTextLength` | `number` | - | 标签文本的最大长度，超出截断。 |
+| `searchable` | `boolean` | `undefined` | 显式开启或关闭搜索；未指定时按选项数量自动决定。 |
+| `searchThreshold` | `number` | `8` | 达到该选项数量时自动开启搜索；非正数关闭自动搜索。 |
+| `searchPlaceholder` | `string` | `'Search'` | 面板搜索框的占位文本。 |
+| `editable` | `boolean` | `false` | 触发器文本可编辑并作为搜索词，聚焦即展开。 |
+| `remote` | `boolean` | `false` | 启用可编辑远程模式，面板打开期间派发 `search`。 |
+| `allowCreate` | `boolean` | `false` | 允许用当前输入创建新选项。 |
+| `createText` | `string` | `'Add item'` | 默认创建按钮的文案。 |
+| `loading` | `boolean` | `false` | 显示加载状态。 |
+| `loadingText` | `string` | `'Loading...'` | 默认加载文案。 |
 | `emptyText` | `string` | `'No results'` | 默认空状态文案。 |
-| `searchDebounce` | `number` | `0` | 远程搜索事件延迟，单位 ms。 |
-| `dropdownMaxHeight` | `number` | `280` | 下拉列表最大高度，单位 px。 |
-| `dropdownOffset` | `number` | `6` | Popover 与触发器之间的距离。 |
-| `contentPadding` | `number` | `8` | 下拉面板内部内容间距。 |
+| `searchDebounce` | `number` | `0` | 远程 `search` 的防抖时长（ms）。 |
+| `dropdownMaxHeight` | `number` | `280` | 面板列表的最大高度（px）。 |
+| `dropdownOffset` | `number` | `6` | 面板与触发器的距离。 |
+| `contentPadding` | `number` | `8` | 面板内容的间距。 |
 | `optionPadding` | `number` | `0` | 选项水平缩进补偿。 |
 | `animation` | `BaseAnchorAnimationOptions` | - | 透传给 Popover / BaseAnchor 的动画配置。 |
-| `panelVariant` | `'solid' \| 'dashed' \| 'plain'` | `'solid'` | Popover 面板表面样式。 |
-| `panelBackground` | `'pure' \| 'mask' \| 'blur' \| 'glass' \| 'refraction'` | `'refraction'` | Popover 面板背景样式。 |
-| `panelShadow` | `'none' \| 'soft' \| 'medium'` | `'soft'` | Popover 面板阴影强度。 |
-| `panelRadius` | `number` | `18` | Popover 面板圆角。 |
-| `panelPadding` | `number` | `0` | Popover 面板内边距。 |
-| `panelCard` | `BaseAnchorPanelCardProps` | - | 透传给 Popover 面板的可选 card 覆盖配置。 |
+| `panelVariant` | `'solid' \| 'dashed' \| 'plain'` | `'solid'` | 面板表面样式。 |
+| `panelBackground` | `'pure' \| 'mask' \| 'blur' \| 'glass' \| 'refraction' \| 'acrylic' \| 'mica' \| 'flat' \| 'plain'` | `'refraction'` | 面板背景。 |
+| `panelShadow` | `'none' \| 'soft' \| 'medium'` | `'soft'` | 面板阴影强度。 |
+| `panelRadius` | `number` | `18` | 面板圆角。 |
+| `panelPadding` | `number` | `0` | 面板内边距。 |
+| `panelCard` | `BaseAnchorPanelCardProps` | - | 透传给面板的 card 覆盖配置。 |
 
-### TuffSelect Events
+#### 事件
 
 | 事件名 | 参数 | 说明 |
 |------|------|------|
-| `update:modelValue` | `(value: string \| number \| Array<string \| number>)` | 选择新值时触发；多选模式返回数组。 |
-| `change` | `(value: string \| number \| Array<string \| number>)` | 启用选择或清空完成后触发，参数与 model 更新一致。 |
-| `search` | `(query: string)` | 远程模式下，面板打开且可编辑文本变化时触发。 |
-| `create` | `(option: TxSelectOption)` | `allowCreate` 根据当前输入创建选项时触发。 |
+| `update:modelValue` | `(value: string \| number \| Array<string \| number>)` | 选择或清空后触发；多选时为数组。 |
+| `change` | `(value: string \| number \| Array<string \| number>)` | 与 `update:modelValue` 同时触发。 |
+| `search` | `(query: string)` | 远程模式下，面板打开且输入文本变化时触发。 |
+| `create` | `(option: TxSelectOption)` | `allowCreate` 用当前输入创建选项时触发。 |
 
-### Slots
-
-#### TuffSelect Slots
+#### 插槽
 
 | 插槽名 | Props | 说明 |
 |------|------|------|
-| `default` | - | 旧式 `TuffSelectItem` 声明选项。 |
-| `option` | `{ option, selected }` | 自定义 `options` 模式下的单个选项内容。 |
-| `tag` | `{ option, remove }` | 自定义多选标签内容。 |
-| `group` | `{ group }` | 自定义分组标题。 |
-| `loading` | - | 自定义 loading 状态。 |
-| `empty` | - | 自定义空状态。 |
-| `footer` | `{ query, canCreate, create }` | 自定义下拉底部内容。 |
-
-#### TuffSelectItem Props
-
-| 属性名 | 类型 | 默认值 | 说明 |
-|------|------|---------|------|
-| `value` | `string \| number` | - | 选中时写入父级 Select 的原始值。 |
-| `label` | `string` | - | 可见 label 和选中后展示文本；未传时使用插槽文本。 |
-| `disabled` | `boolean` | `false` | 禁止选中当前项，但仍保留在下拉列表中。 |
-| `icon` | `string` | - | 选项行首图标的 icon class，由宿主应用样式解析。 |
-| `description` | `string` | - | label 下方的次级描述文本。 |
+| `default` | - | 以 `TuffSelectItem` 声明选项（旧式写法）。 |
+| `option` | `{ option, selected }` | `options` 模式下的单个选项内容。 |
+| `tag` | `{ option, remove }` | 多选标签内容。 |
+| `group` | `{ group }` | 分组标题。 |
+| `loading` | - | 加载状态。 |
+| `empty` | - | 空状态。 |
+| `footer` | `{ query, canCreate, create }` | 面板底部内容。 |
 
 #### 暴露方法
 
 | 方法 | 说明 |
 |------|------|
-| `open()` | 打开下拉面板。 |
-| `close()` | 关闭下拉面板。 |
-| `toggle()` | 切换下拉面板打开状态。 |
+| `open()` | 打开面板。 |
+| `close()` | 关闭面板。 |
+| `toggle()` | 切换面板开合。 |
 | `focus()` | 聚焦触发器输入框。 |
-| `blur()` | 让触发器输入框失焦。 |
-| `clear()` | 清空 value 和选中 label；单选触发 `''`，多选触发 `[]`。 |
+| `blur()` | 使触发器输入框失焦。 |
+| `clear()` | 清空值与选中 label；单选派发 `''`，多选派发 `[]`。 |
 
-## 最佳实践
+### TuffSelectItem
 
-- 数据驱动列表优先使用 `options`；少量静态模板且需要内联自定义标记时再使用 `TuffSelectItem`。
-- 同一组选项不要混用 `options` 和 slot item；存在 `options` 时由 `options` 模式负责渲染，slot item 只在无 prop options 时注册。
-- 远程搜索请求放在宿主层处理，并用 `searchDebounce` 控制请求频率。
-- 需要让创建值在后续打开下拉时出现时，应在宿主的 options store 中持久化 `create` 结果。
-- `modelValue` 类型必须与 `multiple` 对齐；单选使用标量，多选使用数组。
+#### 属性
 
-## 审阅说明
+| 属性名 | 类型 | 默认值 | 说明 |
+|------|------|---------|------|
+| `value` | `string \| number` | - | 选中时写入 Select 的值。 |
+| `label` | `string` | - | 显示文本与选中后的回显；未传时用插槽文本。 |
+| `disabled` | `boolean` | `false` | 不可选中，但仍显示在列表中。 |
+| `icon` | `string` | - | 行首图标的 class，由宿主样式解析。 |
+| `description` | `string` | - | label 下方的说明文字。 |
 
-- 组件源码:`packages/tuffex/packages/components/src/select/src/TxSelect.vue` 确认基于 Popover 渲染、prop/slot 选项注册、单选与多选值路径、本地与远程搜索、创建、分组选项、loading/empty/footer 插槽、暴露方法和选中 label 同步。
-- 选项源码:`packages/tuffex/packages/components/src/select/src/TxSelectItem.vue` 确认注入注册、slot 文本 label 回退、本地过滤可见性和禁用点击抑制。
-- 类型契约:`packages/tuffex/packages/components/src/select/src/types.ts` 定义 `TxSelectValue`、model 值形态、选项/分组结构、prop 契约、上下文和 `SELECT_KEY`。
-- **实测覆盖:** `packages/tuffex/packages/components/src/select/__tests__/select.test.ts` 覆盖启用/禁用选择、listbox/option/combobox 语义、本地过滤、远程搜索、选中 label 解析、数字字符串匹配、loading/empty 状态、多选标签、创建、分组选项、footer 插槽、状态 class 和选项 icon/描述/选中对勾渲染。
-- 导出入口:`packages/tuffex/packages/components/src/select/index.ts` 导出 `TuffSelect`、`TuffSelectItem`、`TxSelect`、`TxSelectItem`、公共类型、上下文 key 和实例类型。
+#### 插槽
 
-## Source
+| 插槽名 | Props | 说明 |
+|------|------|------|
+| `default` | - | 选项行的标题内容；为空时依次回退到 `label`、值。 |
+
+### 类型
+
+```ts
+type TxSelectValue = string | number
+
+interface TxSelectOption {
+  value: TxSelectValue
+  label: string
+  disabled?: boolean
+  icon?: string
+  description?: string
+}
+
+interface TxSelectOptionGroup {
+  label: string
+  disabled?: boolean
+  options: TxSelectOption[]
+}
+
+type TxSelectOptionLike = TxSelectOption | TxSelectOptionGroup
+```
+
+## 概述
+
+- 传了 `options` 时由它渲染，`TuffSelectItem` 只在没有 `options` 时注册；未传 `label` 时依次用插槽文本、原始值。
+- 非编辑模式点击触发器开合面板；`editable` 或 `remote` 时聚焦即展开。
+- 单选选中启用项后关闭面板；多选保持打开。
+- `searchable` 只在非编辑模式下本地过滤；`remote` 关闭本地过滤，只在面板打开时派发 `search`。
+- 值先于选项传入时，选项注册后再解析显示文本；有限的数字字符串与数字按数值相等匹配。
+- 触发器是 `combobox`（`aria-haspopup="listbox"`、`aria-expanded`），列表是 `listbox`（多选时加 `aria-multiselectable`），选项是带 `aria-selected` 的 `option`。`id` 与可访问名落在实际 combobox 上，`class`、`style` 留在外层。
+
+## 技术实现
+
+- 面板由 Popover 渲染；`TuffSelectItem` 经注入向父级注册 value 与 label。
+- 源码：`packages/tuffex/packages/components/src/select/`；导出 `TuffSelect`、`TuffSelectItem`（别名 `TxSelect`、`TxSelectItem`）及公共类型。
 
 ## 离线完整示例源码
 

@@ -19,7 +19,7 @@ const panelShadow = ref<Shadow>('soft')
 const widthMode = ref<WidthMode>('auto')
 const surfaceMotionAdaptation = ref<SurfaceMotionAdaptation>('auto')
 const animationType = ref<AnchorAnimationType>('expand')
-const showArrow = ref(true)
+const showArrow = ref(false)
 const useCard = ref(true)
 const matchReferenceWidth = ref(false)
 const toggleOnReferenceClick = ref(true)
@@ -200,7 +200,7 @@ const panelCard = computed(() => ({
 
 <template>
   <div class="anchor-playground">
-    <TxCard variant="plain" background="mask" :radius="14" :padding="14" class="anchor-playground__controls">
+    <TxCard variant="plain" :radius="14" :padding="14" class="anchor-playground__controls">
       <div class="anchor-playground__heading">
         <div class="anchor-playground__title">
           {{ labels.controlsTitle }}
@@ -333,7 +333,7 @@ const panelCard = computed(() => ({
         <TxButton
           v-for="item in animationOptions"
           :key="`animation-${item}`"
-          size="small"
+          size="sm"
           :variant="animationType === item ? 'primary' : 'ghost'"
           @click="animationType = item"
         >
@@ -346,7 +346,7 @@ const panelCard = computed(() => ({
         <TxButton
           v-for="item in surfaceOptions"
           :key="`preset-${item}`"
-          size="small"
+          size="sm"
           :variant="surface === item ? 'primary' : 'ghost'"
           @click="surface = item"
         >
@@ -396,7 +396,7 @@ const panelCard = computed(() => ({
             <TxTag :label="`mask: ${maskOpacity.toFixed(2)}`" size="sm" />
             <TxTag :label="`adapt: ${surfaceMotionAdaptation}`" size="sm" />
           </div>
-          <TxButton size="small" variant="secondary">
+          <TxButton size="sm" variant="secondary">
             {{ labels.panel.action }}
           </TxButton>
         </div>

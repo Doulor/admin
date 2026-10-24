@@ -5,7 +5,7 @@
 import { ApiError } from "../lib/http";
 import { NODE_LABELS, PERMISSION_DOMAINS, nodeDomain } from "../lib/permission-nodes";
 import type {
-  ActivityEvent, ActivityList, Candidate, CompetitionRules, ConsoleMe, ConsoleUser, Core, DepartmentRef, EffectivePermissions, GitlabAccount, GitlabAccountsResponse, GitlabProjectsResponse, Grade,
+  ActivityEvent, ActivityList, Candidate, CompetitionRules, ConsoleMe, ConsoleStickerPack, ConsoleUser, Core, DepartmentRef, EffectivePermissions, ForumCategoryRow, GitlabAccount, GitlabAccountsResponse, GitlabProjectsResponse, Grade,
   GitlabSettings, GitlabStatus, InviteCode, Level, PermissionEntry, PermissionExplain, PermissionExplainHit, PermissionGroup, PermissionGroupMember,
   FinalView, Importance, PermissionNodesResponse, PublicDepartment, RosterSignup, RosterStats, RosterTeam, ScoreEvent, ScorePreview, Scoring, SessionProvider, SignupSettings, SiteRole, SiteState, Summary,
   UserPatch, UsersResponse,
@@ -703,6 +703,24 @@ const MOCK_INVITES: InviteCode[] = [
   { id: 1, code: "spring-trial", note: "", max_uses: null, used_count: 4, expires_at: null, disabled: true, created_by: "xu_yan", created_at: now - 70 * DAY, updated_at: now - 30 * DAY, usable: false },
 ];
 
+// 论坛管理（#276）：分类照论坛 content/curation.json，可见范围照服务端迁移的种子；表情是「极客娘」前几个，
+// 图片用一张写着名字的 SVG 代替（开发预览没有表情文件）。
+const MOCK_FORUM_CATEGORIES: ForumCategoryRow[] = [
+  { id: "c-exam", name: "招新与机试", visibility: "public", topic_count: 14 },
+  { id: "c-announcements", name: "班级公告", visibility: "member", topic_count: 6 },
+  { id: "c-courses", name: "课程与作业", visibility: "registered", topic_count: 23 },
+  { id: "c-competitions", name: "竞赛与项目", visibility: "public", topic_count: 9 },
+  { id: "c-careers", name: "求职与升学", visibility: "registered", topic_count: 4 },
+  { id: "c-ai", name: "人工智能", visibility: "public", topic_count: 11 },
+];
+const stickerPlaceholder = (label: string) =>
+  `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#e3f2ff"/><text x="48" y="56" font-size="22" text-anchor="middle" fill="#1d2b53" font-family="sans-serif">${label}</text></svg>`)}`;
+const MOCK_STICKER_PACKS: ConsoleStickerPack[] = [{
+  id: "yugc", name: "极客娘", sort: 0, enabled: true,
+  stickers: ([["wave", "打招呼", 41], ["thumbsup", "点赞", 87], ["heart", "比心", 25], ["confused", "疑惑", 9], ["shocked", "震惊", 6], ["cry", "哭哭", 3], ["merged", "合并了", 18], ["roger", "收到", 0]] as const)
+    .map(([code, label, uses], index) => ({ id: `yugc-${code}`, shortcode: `yugc-${code}`, label, url: stickerPlaceholder(label), sort: index * 10, enabled: code !== "cry", use_count: uses })),
+}];
+
 /**
  * 账号页（GET /api/identity/me）的样板：按当前身份给出登录方式、成员资格和几条账号记录。
  * 这个接口不受 #274 权限改版影响，membership.org_role 只用 legacySiteRole，和控制台权限是两套概念。
@@ -837,6 +855,17 @@ export function checkConsoleWrite(url: URL, method: string, body: unknown): void
   }
   const groupWrite = path.match(/^\/api\/console\/permission-groups(?:\/([^/]+))?$/);
   if (groupWrite && ["POST", "PATCH", "DELETE"].includes(method)) return checkGroupWrite(persona, method, groupWrite[1] ? decodeURIComponent(groupWrite[1]) : null, body);
+  if (/^\/api\/console\/forum\/categories\/[^/]+$/.test(path) && method === "PATCH") {
+    gate(persona, "forum.category.manage");
+    requireStepUp(persona);
+    return;
+  }
+  if (/^\/api\/console\/forum\/(?:stickers\/[^/]+|sticker-packs\/[^/]+(?:\/stickers)?)$/.test(path) && ["PATCH", "PUT"].includes(method)) {
+    gate(persona, "forum.sticker.manage");
+    requireStepUp(persona);
+    if (method === "PUT" && MOCK_STICKER_PACKS.some(pack => pack.stickers.some(sticker => sticker.shortcode === url.searchParams.get("shortcode")))) fail(409, "shortcode_taken", "这个短码已经被用过了");
+    return;
+  }
   if (/^\/api\/console\/invites/.test(path) && ["POST", "PATCH"].includes(method)) {
     gate(persona, "invite.manage");
     requireStepUp(persona);
@@ -1057,5 +1086,7 @@ export function routeConsole(url: URL): unknown {
     return mockFinal(competitionId);
   }
   if (path === "/api/console/invites") { gate(persona, "invite.manage"); return { invites: MOCK_INVITES }; }
+  if (path === "/api/console/forum/categories") { gate(persona, "forum.category.manage"); return { categories: MOCK_FORUM_CATEGORIES }; }
+  if (path === "/api/console/forum/stickers") { gate(persona, "forum.sticker.manage"); return { packs: MOCK_STICKER_PACKS }; }
   return undefined;
 }

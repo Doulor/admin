@@ -4,9 +4,22 @@ import { FORUM_LIMITS, ForumError, NAME_RULE_MESSAGE, hasControlChars, hasContro
 import type { ProfilePatch } from "../../lib/forum-store.js";
 import { forumChanges, notFound, rateLimited, requireMember, requireWriter } from "./viewer.js";
 
-/** 关注、通知、账号资料与头像。 */
+/** 关注、通知、账号资料、头像与 @ 自动补全。 */
 export default async function forumPeopleRoutes(app: FastifyInstance) {
   const { forum } = app.services;
+
+  /** @ 自动补全（#276 CONTRACT §6）：需要登录，不需要是成员；每账号每分钟 30 次，不回邮箱。 */
+  app.get<{ Querystring: { q: string } }>("/api/forum/users/suggest", async (req, reply) => {
+    const viewer = await requireMember(req);
+    const result = app.services.limits.hit({ bucket: "forum.suggest.per_minute", subject: viewer.accountId, window: { ms: 60_000 }, max: 30 });
+    if (!result.ok) {
+      return reply.code(429).header("Retry-After", String(result.retry_after)).send({
+        error: "rate_limited", bucket: "forum.suggest.per_minute", message: "补全太频繁了，稍后再试", retry_after: result.retry_after,
+      });
+    }
+    const users = forum.suggestUsers(req.query.q, FORUM_LIMITS.suggestLimit);
+    return { users: users.map(user => ({ username: user.username, display_name: user.displayName, avatar_url: user.avatarUrl })) };
+  });
 
   app.post<{ Params: { forum_user_id: string } }>("/api/forum/users/:forum_user_id/follow", async req => {
     const viewer = await requireWriter(req, "forum.react");

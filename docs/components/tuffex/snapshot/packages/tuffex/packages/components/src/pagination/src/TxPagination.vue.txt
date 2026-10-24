@@ -1,20 +1,27 @@
 <script setup lang="ts">
+import type { TxSelectModelValue } from '../../select'
 import type { PaginationProps } from './types'
-import { computed, watch } from 'vue'
+import { computed, useId, watch } from 'vue'
+import { useMorphWindow } from '../../../../utils/use-morph-window'
 import { TxIcon } from '../../icon'
+import { TxSelect } from '../../select'
 
 interface Props extends PaginationProps {}
 
 interface Emits {
   'update:currentPage': [page: number]
   'pageChange': [page: number]
+  'update:pageSize': [size: number]
+  'pageSizeChange': [size: number]
 }
 
 const props = withDefaults(defineProps<Props>(), {
   currentPage: 1,
   pageSize: 10,
-  prevIcon: 'i-carbon-chevron-left',
-  nextIcon: 'i-carbon-chevron-right',
+  pageSizes: () => [],
+  pageSizeLabel: 'Items per page',
+  prevIcon: '',
+  nextIcon: '',
   showInfo: false,
   showFirstLast: false,
   ariaLabel: 'Pagination',
@@ -38,6 +45,9 @@ const totalPages = computed(() => {
 // the controls never show an enabled button that navigates nowhere or a page with no
 // active item.
 const safePage = computed(() => Math.min(Math.max(props.currentPage, 1), totalPages.value))
+// Turning the page eases the buttons into their new active / disabled colours;
+// a hover repaints at once. 200ms is `--tx-transition-duration-fast`.
+const morphing = useMorphWindow(safePage, 200)
 
 // Self-correct the parent's v-model when the incoming page is out of range instead of
 // leaving it pointing at a page that no longer exists (and relying on callers to reset).
@@ -93,10 +103,35 @@ function handlePageChange(page: number) {
   emit('update:currentPage', page)
   emit('pageChange', page)
 }
+
+// --- Page size ---------------------------------------------------------------
+// Only valid sizes count, and a `pageSize` outside the list joins it: the
+// selector would otherwise show a blank value for the size actually in use.
+const pageSizeOptions = computed(() => {
+  const sizes = new Set((props.pageSizes ?? []).filter(size => Number.isInteger(size) && size > 0))
+  if (!sizes.size)
+    return []
+  if (Number.isInteger(props.pageSize) && props.pageSize > 0)
+    sizes.add(props.pageSize)
+  return [...sizes].sort((a, b) => a - b).map(size => ({ value: size, label: String(size) }))
+})
+
+const pageSizeLabelId = `${useId()}-page-size`
+
+function handlePageSizeChange(value: TxSelectModelValue) {
+  const size = Number(value)
+  if (!Number.isInteger(size) || size <= 0 || size === props.pageSize)
+    return
+  // The page stays the caller's call. A page past the new count is corrected by
+  // the clamp above whichever way they go.
+  emit('update:pageSize', size)
+  emit('pageSizeChange', size)
+}
+
 </script>
 
 <template>
-  <nav class="tx-pagination" :aria-label="ariaLabel">
+  <nav class="tx-pagination" :class="{ 'has-page-size': pageSizeOptions.length, 'is-morphing': morphing }" :aria-label="ariaLabel">
     <ul class="tx-pagination__list">
       <!-- First button -->
       <li v-if="showFirstLast" class="tx-pagination__item">
@@ -122,7 +157,10 @@ function handlePageChange(page: number) {
           :aria-label="prevLabel"
           @click="handlePageChange(safePage - 1)"
         >
-          <TxIcon :name="prevIcon" />
+          <TxIcon v-if="prevIcon" :name="prevIcon" />
+          <svg v-else class="tx-pagination__chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="m10 3-5 5 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
         </button>
       </li>
 
@@ -155,7 +193,10 @@ function handlePageChange(page: number) {
           :aria-label="nextLabel"
           @click="handlePageChange(safePage + 1)"
         >
-          <TxIcon :name="nextIcon" />
+          <TxIcon v-if="nextIcon" :name="nextIcon" />
+          <svg v-else class="tx-pagination__chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="m6 3 5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
         </button>
       </li>
 
@@ -173,6 +214,18 @@ function handlePageChange(page: number) {
         </button>
       </li>
     </ul>
+
+    <!-- Page size: rendered only with `pageSizes`, so callers without it keep their DOM -->
+    <div v-if="pageSizeOptions.length" class="tx-pagination__size">
+      <span :id="pageSizeLabelId" class="tx-pagination__size-label">{{ pageSizeLabel }}</span>
+      <TxSelect
+        :aria-labelledby="pageSizeLabelId"
+        :model-value="pageSize"
+        :options="pageSizeOptions"
+        style="width: 88px"
+        @update:model-value="handlePageSizeChange"
+      />
+    </div>
 
     <!-- Page info -->
     <div v-if="showInfo" class="tx-pagination__info">
@@ -228,11 +281,21 @@ function handlePageChange(page: number) {
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
+  transition: box-shadow var(--tx-transition-duration-fast, 0.2s);
+}
+
+.tx-pagination.is-morphing .tx-pagination__button {
   transition:
     background-color var(--tx-transition-duration-fast, 0.2s),
     border-color var(--tx-transition-duration-fast, 0.2s),
     color var(--tx-transition-duration-fast, 0.2s),
     box-shadow var(--tx-transition-duration-fast, 0.2s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tx-pagination.is-morphing .tx-pagination__button {
+    transition: none;
+  }
 }
 
 .tx-pagination__button:hover:not(.tx-pagination__button--disabled) {
@@ -251,7 +314,7 @@ function handlePageChange(page: number) {
   background: var(--tx-pagination-active-bg, var(--tx-color-primary, #409eff));
   border-color: var(--tx-pagination-active-border, var(--tx-color-primary, #409eff));
   color: var(--tx-pagination-active-text, var(--tx-color-on-primary, #ffffff));
-  font-weight: 600;
+  font-weight: var(--tx-font-weight-semibold, 600);
 }
 
 .tx-pagination__button--disabled {
@@ -260,6 +323,12 @@ function handlePageChange(page: number) {
   border-color: var(--tx-pagination-disabled-border, var(--tx-border-color-extra-light, #f2f6fc));
   opacity: 1;
   cursor: not-allowed;
+}
+
+.tx-pagination__chevron {
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 
 .tx-pagination__ellipsis {
@@ -276,5 +345,23 @@ function handlePageChange(page: number) {
 .tx-pagination__info {
   font-size: 13px;
   color: var(--tx-pagination-info-text, var(--tx-text-color-secondary, #909399));
+}
+
+/* With a size selector the controls share one wrapping row, list first: stacked,
+   three short lines would read as three separate controls. */
+.tx-pagination.has-page-size {
+  flex-flow: row wrap;
+  justify-content: center;
+  column-gap: 12px;
+}
+
+/* 13px text the reader has to read: regular ink, not the info line's secondary. */
+.tx-pagination__size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tx-text-color-regular, #606266);
+  font-size: 13px;
+  white-space: nowrap;
 }
 </style>

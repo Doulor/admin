@@ -11,8 +11,10 @@ export type AdminFeedbackItem = {
 const ADMIN_FEEDBACK_COLUMNS = "id, category, content, contact, submitter_login, status, reply, replied_by, replied_at, created_at";
 
 /**
- * 本部署的意见箱只收 `CONSOLE_ORG` 的意见（#129）：组织名不分大小写认它，并统一成配置里的写法；
- * 不是本组织的一律返回 null，调用方据此拒绝或返回空列表。GitHub 组织名只用 ASCII，`toLowerCase()` 足够。
+ * 本部署的意见箱只收 `DEFAULT_CONSOLE_ORG`（config.ts 的固定常量，#276 起不再是环境变量）的意见
+ * （#129）：组织名不分大小写认它，并统一成配置里的写法；不是本组织的一律返回 null，调用方据此拒绝
+ * 或返回空列表。GitHub 组织名只用 ASCII，`toLowerCase()` 足够。这里仍然按普通参数接收 `consoleOrg`，
+ * 不直接导入常量：保持纯函数、调用方决定传什么。
  */
 export function normalizeFeedbackOrg(org: string, consoleOrg: string): string | null {
   return org.toLowerCase() === consoleOrg.toLowerCase() ? consoleOrg : null;

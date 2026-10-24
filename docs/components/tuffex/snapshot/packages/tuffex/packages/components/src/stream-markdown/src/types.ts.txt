@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { StreamRevealPreset } from '../../stream-text/src/types'
 
 /**
  * A renderable block produced by the incremental stream lexer.
@@ -43,6 +44,14 @@ export interface StreamMarkdownProps {
   content: string
   /** Keeps the tail cursor visible and defers tail-fence rendering while true. */
   streaming?: boolean
+  /**
+   * How newly streamed text enters: the StreamElement family's presets.
+   * `languid` loses its rise here, because a streamed chunk runs across words
+   * and has to stay inline. @default 'aurora'
+   */
+  reveal?: StreamRevealPreset
+  /** Shows the Tuff caret at the write head while streaming. @default true */
+  caret?: boolean
   /** Sanitizes rendered HTML through dompurify. On by default; keep it on. */
   sanitize?: boolean
   theme?: 'light' | 'dark' | 'auto'
@@ -63,4 +72,19 @@ export interface StreamMarkdownProps {
   allowSessionImagesText?: string
   copyTableText?: string
   copiedTableText?: string
+  /**
+   * Wording of the built-in fence renderers, `TxCodeBlock` and `TxMermaidBlock`,
+   * and handed only to them: any other renderer receives
+   * `StreamMarkdownBlockContext` alone. Unset, each keeps its English default.
+   */
+  codePreviewText?: string
+  codeSourceText?: string
+  /** Builds the code preview frame's accessible name. @default (lang) => `${lang} preview` */
+  codeFrameLabelFormatter?: (lang: string) => string
+  copyCodeText?: string
+  copiedCodeText?: string
+  diagramZoomLabel?: string
+  diagramPreviewLabel?: string
+  diagramCloseLabel?: string
+  diagramErrorText?: string
 }

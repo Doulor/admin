@@ -40,7 +40,6 @@ services:
       # 正式环境只设 host-only cookie：留空即不写 Domain。
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       POW_DIFFICULTY: ${POW_DIFFICULTY:-3}
-      CONSOLE_ORG: ${CONSOLE_ORG:-}
       DB_PATH: ${DB_PATH:?}
       FORUM_DB_PATH: ${FORUM_DB_PATH:?}
       FORUM_UPLOAD_DIR: ${FORUM_UPLOAD_DIR:?}

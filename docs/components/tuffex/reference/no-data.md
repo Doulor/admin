@@ -1,20 +1,18 @@
 # NoData 无数据
 
-> 用于列表、表格、图表和指标面板没有记录时的快捷空状态。
+> 数据源返回零条记录时的空状态
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/no-data) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/no-data.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/no-data.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/no-data) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/no-data.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/no-data.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
-上游标记：status=`beta`，since=`1.0.0`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
+上游标记：status=`beta`，since=`0.3.4`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# NoData 无数据
+## 用法
 
-## 基础用法
-
-### NoData
+### 基础
 官方示例：`NoDataNoDataDemo`（完整源码见本页末尾）
 
 ```vue
@@ -28,80 +26,66 @@
 </template>
 ```
 
-## 交互契约
+### 最佳实践
 
-- 始终向 `TxEmptyState` 透传 `variant="no-data"`。
-- 不覆盖显式传入的 `title`、`description`、`surface`、`layout`、`align`、`size`、`icon` 或 action props。
-- `icon`、`title`、`description`、`actions` 插槽会原样转发给 `TxEmptyState`。
-- 生成按钮触发的 `primary` / `secondary` 事件来自内部 `TxEmptyState`。
+- 数据源加载成功但没有记录时使用；断网、无权限、加载中与搜索无结果各有专用组件。
+- 文案指向具体数据：「暂无发票」比「没有内容」清楚。
+- 当前用户确实能创建或导入数据时，才提供操作。
+- 仪表盘与表格面板内用 `surface="card"`，与加载后的容器一致。
 
-## API
+## API 参考
 
-### Props
+继承 [TxEmptyState](./empty-state.md) 除 `variant` 外的全部属性、事件与插槽；`variant` 固定为 `no-data`。
 
-`TxNoData` 接收除 `variant` 以外的所有 `EmptyStateProps` 字段。
+### 属性
 
 | 属性名 | 类型 | 默认值 | 说明 |
 |------|------|---------|------|
-| `title` | `string` | 预设标题 | 覆盖无数据状态标题。 |
-| `description` | `string` | 预设描述 | 说明数据为什么为空，或如何填充数据。 |
-| `icon` | `TxIconSource \| string \| null` | 预设插画 | 自定义图标源/class，或传 `null` 隐藏图标区域。 |
-| `iconSize` | `number` | 尺寸预设 | 自定义图标像素尺寸。 |
-| `layout` | `'vertical' \| 'horizontal'` | `'vertical'` | 空状态布局。 |
-| `align` | `'start' \| 'center' \| 'end'` | `'center'` | 内容对齐方式。 |
-| `size` | `'small' \| 'medium' \| 'large'` | `'medium'` | 密度和插画尺寸。 |
-| `surface` | `'plain' \| 'card'` | `'plain'` | 是否添加卡片边界。 |
-| `primaryAction` | `EmptyStateAction` | - | 生成的主操作。 |
-| `secondaryAction` | `EmptyStateAction` | - | 生成的次操作。 |
-| `actionSize` | `TxButtonProps['size']` | `'small'` | 生成按钮默认尺寸。 |
-| `loading` | `boolean` | `false` | 未传自定义图标时显示 spinner。 |
+| `title` | `string` | 预设标题 | 覆盖预设标题。 |
+| `description` | `string` | 预设描述 | 说明为何为空或如何添加数据。 |
+| `icon` | `TxIconSource \| string \| null` | 预设插画 | 替换插画；`null` 隐藏图标区。 |
+| `iconSize` | `number` | 尺寸预设 | 图标尺寸（px）。 |
+| `layout` | `'vertical' \| 'horizontal'` | `'vertical'` | 布局方向。 |
+| `align` | `'start' \| 'center' \| 'end'` | `'center'` | 内容对齐。 |
+| `size` | `'small' \| 'medium' \| 'large'` | `'medium'` | 间距与插画尺寸。 |
+| `surface` | `'plain' \| 'card'` | `'plain'` | `card` 添加卡片边框。 |
+| `primaryAction` | `EmptyStateAction` | - | 生成主操作。 |
+| `secondaryAction` | `EmptyStateAction` | - | 生成次操作。 |
+| `actionSize` | `TxButtonProps['size']` | `'sm'` | 生成按钮的默认尺寸。 |
+| `loading` | `boolean` | `false` | 无自定义图标时显示 spinner。 |
 
-### EmptyStateAction
+### 事件
+
+| 事件名 | 参数 | 说明 |
+|------|------|------|
+| `primary` | - | 点击生成的主操作时触发。 |
+| `secondary` | - | 点击生成的次操作时触发。 |
+
+### 插槽
+
+| 插槽名 | Props | 说明 |
+|------|------|------|
+| `icon` | - | 替换插画或图标。 |
+| `title` | - | 替换标题。 |
+| `description` | - | 替换描述。 |
+| `actions` | - | 替换生成的主/次操作按钮。 |
+
+### 类型
+
+#### EmptyStateAction
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|---------|------|
 | `label` | `string` | 必填 | 按钮文案。 |
 | `type` | `TxButtonProps['type']` | - | 按钮语义类型，例如 `primary`。 |
 | `variant` | `TxButtonProps['variant']` | - | 按钮视觉变体。 |
-| `size` | `TxButtonProps['size']` | `actionSize` | 单个按钮尺寸覆盖。 |
-| `disabled` | `boolean` | `false` | 禁用生成按钮。 |
+| `size` | `TxButtonProps['size']` | `actionSize` | 单个按钮的尺寸。 |
+| `disabled` | `boolean` | `false` | 禁用按钮。 |
 | `icon` | `string` | - | 按钮图标 class。 |
 
-### Events
+## 技术实现
 
-| 事件名 | 参数 | 说明 |
-|------|------|------|
-| `primary` | - | 从生成的主操作转发。 |
-| `secondary` | - | 从生成的次操作转发。 |
-
-### Slots
-
-| 插槽名 | Props | 说明 |
-|------|------|------|
-| `icon` | - | 替换预设插画或自定义图标。 |
-| `title` | - | 替换解析后的标题。 |
-| `description` | - | 替换解析后的描述。 |
-| `actions` | - | 替换生成的主/次操作按钮。 |
-
-## 最佳实践
-
-- 数据源有效且返回零记录时使用它；网络失败或权限不足应分别使用 `TxOfflineState` / `TxPermissionState`。
-- 文案要指向具体数据，例如“暂无发票”比“没有内容”更清晰。
-- 只有当前用户确实能创建或导入数据时才展示操作按钮。
-- 仪表盘和表格面板内建议使用 `surface="card"`，让空态区域与加载后容器一致。
-
-## 审阅说明 / Review Notes
-
-- **Wrapper contract:** `TxNoData` 是很薄的 `TxEmptyState` wrapper，内部始终传入 `variant="no-data"`；其它 `EmptyStateProps` 字段保持原样透传。
-- **状态选择:** 只在数据源已成功加载但记录数为零时使用。连接失败、权限不足、加载中与搜索无结果都有专门 wrapper，文案和恢复动作会更准确。
-- **实测覆盖:** `no-data.test.ts` 覆盖固定 variant 透传、显式 props/actions、具名 slot 与 install 注册；基础渲染和 action 事件继承自 `TxEmptyState`。
-
-## Source
-
-- Component source: `packages/tuffex/packages/components/src/no-data/src/TxNoData.vue`。
-- Base source: `packages/tuffex/packages/components/src/empty-state/src/TxEmptyState.vue`。
-- Types: `packages/tuffex/packages/components/src/no-data/src/types.ts` 导出 `NoDataProps = Omit<EmptyStateProps, 'variant'>`。
-- Coverage: `packages/tuffex/packages/components/src/no-data/__tests__/no-data.test.ts` 覆盖 variant 锁定、prop 透传、slot 透传与 install 行为。
+- 源码：`packages/tuffex/packages/components/src/no-data/`。
 
 ## 离线完整示例源码
 

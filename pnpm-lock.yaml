@@ -41,8 +41,8 @@ importers:
   app/console:
     dependencies:
       '@talex-touch/tuffex':
-        specifier: 0.6.0
-        version: 0.6.0(magic-string@1.4.2)(magicast@0.3.5)(oxc-parser@0.131.0)(vue@3.5.42(typescript@5.9.3))
+        specifier: 0.9.1
+        version: 0.9.1(magic-string@1.4.2)(magicast@0.3.5)(oxc-parser@0.131.0)(three@0.186.0)(vue@3.5.42(typescript@5.9.3))
       vue:
         specifier: 3.5.42
         version: 3.5.42(typescript@5.9.3)
@@ -1124,6 +1124,76 @@ packages:
     resolution: {integrity: sha512-FdvwZU5N03O77Suh35JqjAqq5R1ZTEPFtwu6N4BgBq28qrQtrCnpbLL5U2pwYCuE194jAw0xnlOVmIqhfoYuUQ==}
     engines: {node: '>=20'}
 
+  '@napi-rs/canvas-android-arm64@1.0.13':
+    resolution: {integrity: sha512-trn7AaDzQ+yeeA0ezhkC7cB1ZDPtp4UYk0EvB5F8qtYL9jEVWtVrU30WOpI52DszoTxaTsCgf5PP4ZVaOlOIHQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [android]
+
+  '@napi-rs/canvas-darwin-arm64@1.0.13':
+    resolution: {integrity: sha512-6Y2djEetL8copxfNK6hg7oig/xqTwOchv19hBOm+zBNdKc/02Z3kjZN5wrLzv/l5O04/bAQS6I/AlQpwBlXgPg==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@napi-rs/canvas-darwin-x64@1.0.13':
+    resolution: {integrity: sha512-OZoPwwu4TMMg8GTCFBrg8UFExwQTU/55i3uTC/izDat6PHE+ro9dimyQoOboFf91+NY7Pnn70ScR8f8I8+eZXw==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@napi-rs/canvas-linux-arm-gnueabihf@1.0.13':
+    resolution: {integrity: sha512-dZSYaKROuswU2eUWG5aBKndNVe68elo1YX93xtRax7q658tj8rYE+HwduovWJgs6qwv1r1/CLR60nDeBbyjvyg==}
+    engines: {node: '>= 10'}
+    cpu: [arm]
+    os: [linux]
+
+  '@napi-rs/canvas-linux-arm64-gnu@1.0.13':
+    resolution: {integrity: sha512-W6FzYE8ADHI93In1vi80KBL6btDtAMuj50Ch5ptkWS8xuntyzbR4h5JDUmXoakxZn2yMInksudTEqVSWoFqFGg==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+
+  '@napi-rs/canvas-linux-arm64-musl@1.0.13':
+    resolution: {integrity: sha512-+6fQ+rR49hkAa4voh2stLIwQ+4t+gmoseM8Bc53/DlMXb73IKymDPWK9A/NtWeqTW4ijWppYuyuxS2hPI8tzNA==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+
+  '@napi-rs/canvas-linux-riscv64-gnu@1.0.13':
+    resolution: {integrity: sha512-17XEMO3t9RW/TtHtSFf2AkaSWuCWdzbPeidz7zrOFawHxoLSJCnpTI1hN5aUvrZNnkNNmt/vZVJCh0ryUaik3A==}
+    engines: {node: '>= 10'}
+    cpu: [riscv64]
+    os: [linux]
+
+  '@napi-rs/canvas-linux-x64-gnu@1.0.13':
+    resolution: {integrity: sha512-lc48IwknVHBsNzXn9Xs5OkUsRX38Ml3Z1aOybQ51mMEzZckm8+4A0qROlyYHEoBPzr1kL3IU8ZUAqDb7wtdX8w==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+
+  '@napi-rs/canvas-linux-x64-musl@1.0.13':
+    resolution: {integrity: sha512-bGY1r26S2bs8UNFJcPWcCSNdCFbKep5PATsvtgtC9A5u6SRgr2/jJE/RlhHL5m9ZpixNDhVkLY/5h16Kx5V9YA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+
+  '@napi-rs/canvas-win32-arm64-msvc@1.0.13':
+    resolution: {integrity: sha512-2vRPBZoaIvJrUkDhZTE2Hn0YrnpJRCWVM3EJACoBKjuWI6WgPxGtUoRMsxRviCsyks8bKTSFdyw14CellnG2qA==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@napi-rs/canvas-win32-x64-msvc@1.0.13':
+    resolution: {integrity: sha512-DUlW3lZPz63kYsf8mxgyyZuevhlH0T3/BGP9l+NazhB0F1+gL6D4hqZdnhZpw24DlWmTpATDcyYSZlJOi+DdfQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@napi-rs/canvas@1.0.13':
+    resolution: {integrity: sha512-b87ugZpQ5ViwqVBkjervxpwa0GmJPsKHLBNoZN6GpjWeHzTbDUGryriq+2DYW2XbB+xCqSIINQysC0/I87nPbw==}
+    engines: {node: '>= 10'}
+
   '@napi-rs/wasm-runtime@1.2.4':
     resolution: {integrity: sha512-AJxoUD2/15ESHbvpcyjU274nsAPLuOtPHCk0vKJM5pj//Fg/B1FXNWjPnXTT9PymCYYiHo4zPj0ZomXBKhoy7g==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=23.5.0}
@@ -1511,14 +1581,21 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
-  '@talex-touch/tuffex@0.6.0':
-    resolution: {integrity: sha512-TBEkiYgtUK973qbbFICv/h0gAnz85BfWvt+53r3CYwME8fBpRo+AmmLgDwTHe2UHjz3+nLvZ2emOXTahabNYWw==}
+  '@talex-touch/tuffex@0.9.1':
+    resolution: {integrity: sha512-NBaLMr8LiAn0eKV5tF51ps391zqlbj8iHv9bwpUa/7j2ip8qIIJoQ0v5JlI2E64VVIQ/jx0G2qxsRGVA/uWKXQ==}
     engines: {node: '>=26.0.0'}
     peerDependencies:
+      echarts: ^6.1.0
+      three: '>=0.149.0'
       vue: ^3.5.27
+    peerDependenciesMeta:
+      echarts:
+        optional: true
+      three:
+        optional: true
 
-  '@talex-touch/utils@2.1.0':
-    resolution: {integrity: sha512-7vRVTjFxPivnyQ10muzr5cUFnk0Nj/b6R7DcYExcSHDhY2W5VhMZmsg6f/LxKQ2zawkkXbGXwOafx0IaWMoYFg==}
+  '@talex-touch/utils@3.0.0':
+    resolution: {integrity: sha512-Ucd2hU450RkCW5WprQTF2KrTo9Z4O+9NTl7jKmUzX7XC0nOu5+NO5x9F/wR2NHPHguwgur8I3nXK9Ns2GUoTjA==}
     engines: {node: '>=26.0.0'}
     peerDependencies:
       electron: ^40.0.0 || ^41.0.0
@@ -1995,6 +2072,14 @@ packages:
     resolution: {integrity: sha512-JRgY90Sz8DDtPMsaDflvPMp9xYk69JZAmbuDvAquUVXKr2gEjqtzGNTTthLfckH0BzBqvnu31gb4a8TGLRe79g==}
     peerDependencies:
       vue: ^3.5.0
+
+  '@xterm/addon-fit@0.10.0':
+    resolution: {integrity: sha512-UFYkDm4HUahf2lnEyHvio51TNGiLK66mqP2JoATy7hRZeXaGMRDr00JiSF7m63vR5WKATF605yEggJKsw0JpMQ==}
+    peerDependencies:
+      '@xterm/xterm': ^5.0.0
+
+  '@xterm/xterm@5.5.0':
+    resolution: {integrity: sha512-hqJHYaQb5OptNunnyAnkHyM8aCjZ1MEIDTQu1iIbbTD/xops91NB5yq1ZK/dC2JDbVWtF23zUtl9JE2NqwT87A==}
 
   abstract-logging@2.0.1:
     resolution: {integrity: sha512-2BjRTZxTPvheOvGbBslFSYOUkr+SjPtOnrLP33f+VIWLzezQpZcqVg7ja3L4dBXmzzgwT+a029jRx5PCi3JuiA==}
@@ -3355,6 +3440,10 @@ packages:
   pathval@2.0.1:
     resolution: {integrity: sha512-//nshmD55c46FuFw26xV/xFAaB5HF9Xdap7HJBBnrKdAd6/GxDBaNA1870O79+9ueg61cZLSVc+OaFlfmObYVQ==}
     engines: {node: '>= 14.16'}
+
+  pdfjs-dist@6.4.299:
+    resolution: {integrity: sha512-AVl138zALtfaAPvADulE0PZThbYzCBS79nL4pOSL/6Sm/4AH5A21BD9VHt97OlCuzJuCpmeZtAtkinisF4Vb1g==}
+    engines: {node: '>=22.13.0 || >=24'}
 
   perfect-debounce@2.1.0:
     resolution: {integrity: sha512-LjgdTytVFXeUgtHZr9WYViYSM/g8MkcTPYDlPa3cDqMirHjKiSZPYd6DoL7pK8AJQr+uWkQvCjHNdiMqsrJs+g==}
@@ -5105,6 +5194,54 @@ snapshots:
       '@modelcontextprotocol/core': 2.1.0
       zod: 4.6.5
 
+  '@napi-rs/canvas-android-arm64@1.0.13':
+    optional: true
+
+  '@napi-rs/canvas-darwin-arm64@1.0.13':
+    optional: true
+
+  '@napi-rs/canvas-darwin-x64@1.0.13':
+    optional: true
+
+  '@napi-rs/canvas-linux-arm-gnueabihf@1.0.13':
+    optional: true
+
+  '@napi-rs/canvas-linux-arm64-gnu@1.0.13':
+    optional: true
+
+  '@napi-rs/canvas-linux-arm64-musl@1.0.13':
+    optional: true
+
+  '@napi-rs/canvas-linux-riscv64-gnu@1.0.13':
+    optional: true
+
+  '@napi-rs/canvas-linux-x64-gnu@1.0.13':
+    optional: true
+
+  '@napi-rs/canvas-linux-x64-musl@1.0.13':
+    optional: true
+
+  '@napi-rs/canvas-win32-arm64-msvc@1.0.13':
+    optional: true
+
+  '@napi-rs/canvas-win32-x64-msvc@1.0.13':
+    optional: true
+
+  '@napi-rs/canvas@1.0.13':
+    optionalDependencies:
+      '@napi-rs/canvas-android-arm64': 1.0.13
+      '@napi-rs/canvas-darwin-arm64': 1.0.13
+      '@napi-rs/canvas-darwin-x64': 1.0.13
+      '@napi-rs/canvas-linux-arm-gnueabihf': 1.0.13
+      '@napi-rs/canvas-linux-arm64-gnu': 1.0.13
+      '@napi-rs/canvas-linux-arm64-musl': 1.0.13
+      '@napi-rs/canvas-linux-riscv64-gnu': 1.0.13
+      '@napi-rs/canvas-linux-x64-gnu': 1.0.13
+      '@napi-rs/canvas-linux-x64-musl': 1.0.13
+      '@napi-rs/canvas-win32-arm64-msvc': 1.0.13
+      '@napi-rs/canvas-win32-x64-msvc': 1.0.13
+    optional: true
+
   '@napi-rs/wasm-runtime@1.2.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
     dependencies:
       '@emnapi/core': 1.10.0
@@ -5424,7 +5561,7 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@talex-touch/tuffex@0.6.0(magic-string@1.4.2)(magicast@0.3.5)(oxc-parser@0.131.0)(vue@3.5.42(typescript@5.9.3))':
+  '@talex-touch/tuffex@0.9.1(magic-string@1.4.2)(magicast@0.3.5)(oxc-parser@0.131.0)(three@0.186.0)(vue@3.5.42(typescript@5.9.3))':
     dependencies:
       '@better-scroll/core': 2.5.1
       '@better-scroll/pull-down': 2.5.1
@@ -5443,9 +5580,17 @@ snapshots:
       '@floating-ui/vue': 1.1.11(vue@3.5.42(typescript@5.9.3))
       '@lezer/highlight': 1.2.3
       '@shikijs/engine-javascript': 4.4.3
-      '@talex-touch/utils': 2.1.0(vue@3.5.42(typescript@5.9.3))
+      '@talex-touch/utils': 3.0.0(vue@3.5.42(typescript@5.9.3))
+      '@types/three': 0.186.0
       '@vue/reactivity': 3.5.43
       '@vueuse/core': 14.4.0(vue@3.5.42(typescript@5.9.3))
+      '@xterm/addon-fit': 0.10.0(@xterm/xterm@5.5.0)
+      '@xterm/xterm': 5.5.0
+      d3-array: 3.2.4
+      d3-geo: 3.1.1
+      d3-sankey: 0.12.3
+      d3-scale: 4.0.2
+      d3-shape: 3.2.0
       dompurify: 3.4.16
       gsap: 3.15.0
       katex: 0.16.47
@@ -5455,6 +5600,8 @@ snapshots:
       v-wave: 3.1.1(magic-string@1.4.2)(magicast@0.3.5)(oxc-parser@0.131.0)(vue@3.5.42(typescript@5.9.3))
       vue: 3.5.42(typescript@5.9.3)
       yaml: 2.9.1
+    optionalDependencies:
+      three: 0.186.0
     transitivePeerDependencies:
       - '@vue/composition-api'
       - electron
@@ -5464,7 +5611,7 @@ snapshots:
       - rolldown
       - unplugin
 
-  '@talex-touch/utils@2.1.0(vue@3.5.42(typescript@5.9.3))':
+  '@talex-touch/utils@3.0.0(vue@3.5.42(typescript@5.9.3))':
     dependencies:
       '@vueuse/core': 14.4.0(vue@3.5.42(typescript@5.9.3))
       chalk: 5.6.2
@@ -5474,6 +5621,7 @@ snapshots:
       gsap: 3.15.0
       marked: 17.0.6
       path-browserify: 1.0.1
+      pdfjs-dist: 6.4.299
       vue: 3.5.42(typescript@5.9.3)
 
   '@tanstack/query-core@5.100.10': {}
@@ -6176,6 +6324,12 @@ snapshots:
   '@vueuse/shared@14.4.0(vue@3.5.42(typescript@5.9.3))':
     dependencies:
       vue: 3.5.42(typescript@5.9.3)
+
+  '@xterm/addon-fit@0.10.0(@xterm/xterm@5.5.0)':
+    dependencies:
+      '@xterm/xterm': 5.5.0
+
+  '@xterm/xterm@5.5.0': {}
 
   abstract-logging@2.0.1: {}
 
@@ -7608,6 +7762,10 @@ snapshots:
   pathe@2.0.3: {}
 
   pathval@2.0.1: {}
+
+  pdfjs-dist@6.4.299:
+    optionalDependencies:
+      '@napi-rs/canvas': 1.0.13
 
   perfect-debounce@2.1.0: {}
 

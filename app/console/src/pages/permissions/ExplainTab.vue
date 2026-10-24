@@ -79,7 +79,7 @@ const hitBadge = (value: boolean | null) =>
         <TxFormItem label="节点">
           <label class="fill-width">
             <span class="sr-only">节点</span>
-            <TxSelect v-model="node" :options="nodeOptions" searchable placeholder="选一个节点" search-placeholder="搜索中文名或节点" empty-text="没有匹配的节点" class="fill-width" />
+            <TxSelect v-model="node" :options="nodeOptions" searchable placeholder="选一个节点" search-placeholder="搜索中文名或节点" empty-text="没有匹配的节点" class="fill-width" panel-background="pure" />
           </label>
         </TxFormItem>
         <div class="ask__action">

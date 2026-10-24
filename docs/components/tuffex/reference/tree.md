@@ -1,19 +1,19 @@
 # Tree 树形
 
-> 基础树形组件，支持搜索过滤、单选/多选与展开控制。
+> 可筛选、可选择的层级树
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/tree) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/tree.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/tree.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/tree) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/tree.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/tree.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
-上游标记：status=`beta`，since=`1.0.0`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
+上游标记：status=`beta`，since=`0.3.4`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# Tree 树形
+## 用法
 
-## 基础用法
-
+### 基础
+`filterText` 接收搜索文本，匹配分支临时展开。
 官方示例：`TreeTreeDemo`（完整源码见本页末尾）
 
 ```vue
@@ -54,10 +54,8 @@ const nodes = [
 </template>
 ```
 
-## 后台权限域
-
-`TxTree` 适合承载后台页面的资源域、权限域和组织层级；搭配 `TxSearchInput` 使用时，搜索文本直接传给 `filterText`，选中 key 再驱动右侧详情、穿梭框或审计流。
-
+### 后台权限域
+选中的 key 驱动右侧详情、穿梭框或审计流。
 官方示例：`ComponentsPermissionOrchestrationDemo`（完整源码见本页末尾）
 
 ```vue
@@ -79,111 +77,93 @@ const nodes = [
 </script>
 
 <template>
-  <section class="grid gap-3">
-    <TxSearchInput v-model="query" placeholder="过滤权限域" />
-    <TxTree
-      v-model="selectedScope"
-      :nodes="nodes"
-      :default-expanded-keys="['workspace']"
-      :filter-text="query"
-    />
-  </section>
+  <TxSearchInput v-model="query" placeholder="过滤权限域" />
+  <TxTree
+    v-model="selectedScope"
+    :nodes="nodes"
+    :default-expanded-keys="['workspace']"
+    :filter-text="query"
+  />
 </template>
 ```
 
-## API
+### 最佳实践
 
-### TxTree 属性
+- 把 `key` 当作持久标识，不要从会翻译或重命名的文案派生。
+- 只有其它界面需要掌握展开状态时才用 `expandedKeys`，否则用 `defaultExpandedKeys`。
+- 权限域树保持单选，资源授权交给 `TxTransfer`、`DataTable` 或详情面板。
+- 用 `leaf=false` 表示懒加载占位时，外围 UI 要提供加载或空子级状态；`TxTree` 不会自行拉取子节点。
+- 用 `item` 插槽替换行时，调用 `toggleExpand()` 与 `toggleSelect()`，不要复制内部状态逻辑。
+
+## API 参考
+
+### 属性
 
 | 属性名 | 类型 | 默认值 | 说明 |
 |------|------|------|------|
-| `nodes` | `TreeNode[]` | `[]` | 树形数据源；组件会按展开状态和当前过滤结果展平成可见行。 |
-| `modelValue` | `string \| number \| Array<string \| number>` | - | 单选时为选中 key；`multiple=true` 时为选中 key 数组。绑定它即把选中态交给宿主；不绑定时由树自己维护。 |
-| `multiple` | `boolean` | `false` | 以数组形式切换多个选中 key，而不是替换为单个 key。 |
-| `selectable` | `boolean` | `true` | 是否允许行和 checkbox 选择；关闭选择后展开控件仍可用。 |
-| `checkable` | `boolean` | `false` | 为每个可见节点显示 checkbox。checkbox 状态映射 `modelValue`，不会向子孙级联。 |
-| `disabled` | `boolean` | `false` | 禁用整棵树的选择能力并应用禁用样式；展开仍可用。 |
-| `defaultExpandedKeys` | `Array<string \| number>` | `[]` | 非受控初始展开 key；仅在未使用 `expandedKeys` 时，后续 prop 变化会重置内部展开状态。 |
-| `defaultSelectedKeys` | `Array<string \| number>` | - | 非受控初始选中态。绑定 `modelValue` 时完全忽略——与 `defaultExpandedKeys` / `expandedKeys` 是同一套分工。 |
-| `expandedKeys` | `Array<string \| number>` | - | 受控展开 key。父级需要在 `update:expandedKeys` 后回传新数组。 |
-| `indent` | `number` | `16` | 每级左侧缩进像素。 |
-| `filterText` | `string` | `''` | 过滤文本；非空时匹配分支会临时自动展开。 |
-| `filterMethod` | `(node: TreeNode, query: string) => boolean` | - | 自定义过滤函数。收到的是 trim 后的原始查询；默认逻辑使用小写 label 包含匹配。 |
+| `nodes` | `TreeNode[]` | `[]` | 树形数据源。 |
+| `modelValue` | `string \| number \| Array<string \| number>` | - | 选中 key（`multiple` 时为数组）；不绑定时由树自行维护。 |
+| `multiple` | `boolean` | `false` | 以数组形式切换多个选中 key。 |
+| `selectable` | `boolean` | `true` | 允许行与 checkbox 选择；关闭后仍可展开。 |
+| `checkable` | `boolean` | `false` | 为每个可见节点显示 checkbox，不向子孙级联。 |
+| `disabled` | `boolean` | `false` | 禁用整棵树的选择；展开仍可用。 |
+| `defaultExpandedKeys` | `Array<string \| number>` | `[]` | 非受控的初始展开 key；未传 `expandedKeys` 时，其变化会重置展开状态。 |
+| `defaultSelectedKeys` | `Array<string \| number>` | - | 非受控的初始选中态；绑定 `modelValue` 时忽略。 |
+| `expandedKeys` | `Array<string \| number>` | - | 受控展开 key；父级需在 `update:expandedKeys` 后回传。 |
+| `indent` | `number` | `16` | 每级缩进（px）。 |
+| `filterText` | `string` | `''` | 过滤文本；非空时匹配分支临时展开。 |
+| `filterMethod` | `(node: TreeNode, query: string) => boolean` | - | 自定义匹配，收到 trim 后的原始查询；默认按小写 label 包含匹配。 |
+
+### 事件
+
+| 事件名 | 参数 | 说明 |
+|------|------|------|
+| `update:modelValue` | `value: TreeValue` | 点击可选节点或 checkbox 变化后触发。 |
+| `select` | `{ key: TreeKey, node: TreeNode }` | 紧随 `update:modelValue` 触发，带选中节点。 |
+| `toggle` | `{ key: TreeKey, expanded: boolean }` | 节点展开或折叠后触发。 |
+| `update:expandedKeys` | `keys: TreeKey[]` | 受控与非受控时都返回下一组展开 key。 |
+
+### 插槽
+
+| 插槽名 | 参数 | 说明 |
+|------|------|------|
+| `item` | `{ node, level, expanded, hasChildren, selected, toggleExpand, toggleSelect, indent }` | 替换整行渲染；调用插槽 helper 保留选择与展开行为。 |
+| `empty` | - | 过滤后无可见行时的空状态，默认为 `No results`。 |
 
 ### TreeNode
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `key` | `string \| number` | 稳定唯一 key，用于选择和展开。 |
-| `label` | `string` | 默认行文本，也是默认过滤目标。 |
+| `key` | `string \| number` | 稳定唯一的 key，用于选择与展开。 |
+| `label` | `string` | 行文本，也是默认过滤目标。 |
 | `children` | `TreeNode[]` | 子节点。 |
-| `leaf` | `boolean` | 设为 `false` 时，即使当前没有子节点也会显示可展开 caret。 |
-| `disabled` | `boolean` | 禁用该节点选择；有子节点时仍允许展开。 |
-| `icon` | `TxIconSource \| string` | 可选节点图标；字符串会按 class 图标处理。 |
+| `leaf` | `boolean` | 设为 `false` 时，没有子节点也显示展开箭头。 |
+| `disabled` | `boolean` | 禁用该节点的选择；有子节点时仍可展开。 |
+| `icon` | `TxIconSource \| string` | 节点图标；字符串按 class 图标处理。 |
 
-### TxTree 事件
+## 概述
 
-| 事件名 | 参数 | 说明 |
-|------|------|------|
-| `update:modelValue` | `value: TreeValue` | 可选节点被点击或 checkbox 变化后触发。 |
-| `select` | `{ key: TreeKey, node: TreeNode }` | `update:modelValue` 后带上选中节点触发。 |
-| `toggle` | `{ key: TreeKey, expanded: boolean }` | 节点 caret 展开或折叠后触发。 |
-| `update:expandedKeys` | `keys: TreeKey[]` | 在非受控和受控展开流程中都返回下一组展开 key。 |
+- 展开与选中都分受控与非受控：传入 `expandedKeys` 或绑定 `modelValue` 后，组件只派发事件，父级回传后视图才更新。
+- 过滤不改写展开状态，只临时展开匹配节点的祖先。
+- 选择模型是扁平的：`checkable` 只改变控件形态，没有半选或级联。
+- `disabled` 与 `node.disabled` 阻止选择，但仍可展开。
+- 根节点为 `role="tree"`（`multiple` 时带 `aria-multiselectable`）；每行为 `role="treeitem"`，带 `aria-level`、`aria-setsize`、`aria-posinset` 及按需的 `aria-expanded` / `aria-selected` / `aria-disabled`。`item` 插槽只替换行内视觉，这些语义保留。
 
-### TxTree 插槽
+## 技术实现
 
-| 插槽名 | 参数 | 说明 |
-|------|------|------|
-| `item` | `{ node, level, expanded, hasChildren, selected, toggleExpand, toggleSelect, indent }` | 替换完整可见行渲染。调用插槽 helper 可保留选择和展开行为。 |
-| `empty` | - | 过滤后没有可见行时的空状态；默认文本为 `No results`。 |
+- 节点按展开状态与过滤结果展平成可见行。
+- 源码：`packages/tuffex/packages/components/src/tree/`。
 
-## 暴露方法
 
-无。选择与展开都通过 props 和事件控制。
 
-## 交互契约
-
-- 传入 `expandedKeys` 后展开状态受控。组件仍会触发 `update:expandedKeys`，但只有父级回传新数组后视图才更新。
-- `defaultExpandedKeys` 用于初始化非受控展开；没有 `expandedKeys` 时，后续变化也会重置内部展开状态。
-- 选中态同理：不绑定 `modelValue` 时由树自己维护，`defaultSelectedKeys` 用于初始化。此前选中集合只从 `modelValue` 推导，因此 `<TxTree :nodes="…" />` 不绑定时点击只会把 `update:modelValue` 发到空处，永远不会有行亮起——看起来可点，实际是死的。
-- 绑定 `modelValue` 期间发生的 seed 变化会被忽略，避免宿主之后放手时它变成回落值。
-- 悬停选中行会保留强调色。`:hover:not(.is-disabled)` 是 (0,3,0)，`.is-selected` 是 (0,2,0)，所以中性的 hover 底色恰好在指针停在该行时替换掉强调色；现在 hover 规则排除了选中行，选中行有自己更浓的一档。
-- 过滤不会改写展开状态。`filterText` 非空时，匹配节点的祖先只会通过 `effectiveExpanded` 临时展开。
-- 默认过滤逻辑是 `node.label.toLowerCase().includes(query.toLowerCase())`；自定义 `filterMethod` 收到 trim 后的原始查询。
-- 选择模型是扁平的。`checkable` 只改变控件形态，不提供父子半选或子孙级联。
-- `disabled` 和 `node.disabled` 会阻止选择，但可展开节点的 caret 仍可展开/折叠。
-- 根节点使用 `role="tree"`（`multiple` 模式下带 `aria-multiselectable`）；每行外层是 `role="treeitem"`，带 `aria-level`、`aria-setsize`、`aria-posinset`（在同级兄弟中的位置），并按需带 `aria-expanded` / `aria-selected` / `aria-disabled`，外层列表为 `role="presentation"`。`item` 插槽只替换行内视觉，因此这些行语义会自动保留。
-
-## 样式定制
+## 自定义
 
 | 主题变量 | 用途 |
 |-------------|----------|
-| `--tx-text-color-primary` | 默认行标签颜色。 |
-| `--tx-text-color-secondary` | caret 与空状态颜色。 |
-| `--tx-color-primary` | 选中行背景色调。 |
-| `--tx-fill-color` | hover 行背景色调。 |
-
-## 最佳实践
-
-- 把 `key` 当作持久标识，不要从会翻译或重命名的显示文案派生。
-- 只有其它界面需要拥有展开状态时才使用 `expandedKeys`；普通树优先用 `defaultExpandedKeys`。
-- 后台权限域树建议保持单选，真实资源授权交给 `TxTransfer`、`DataTable` 或详情面板。
-- 领域搜索（路径别名、隐藏元数据等）用 `filterMethod`；简单树保留默认 label 搜索即可。
-- 如果用 `leaf=false` 表现懒加载占位，外围 UI 也要提供加载或空子级状态。`TxTree` 本身不会拉取子节点。
-- 使用 `item` 插槽替换行时，由展开控件调用 `toggleExpand()`，由可选区域调用 `toggleSelect()`，不要复制内部状态逻辑。
-
-## 审阅说明
-
-- 已对照 `packages/tuffex/packages/components/src/tree/src/TxTree.vue` 和 `types.ts` 核对。
-- 现有测试覆盖默认展开渲染、选择事件，以及 `role="treeitem"` 的 set/position 语义（`aria-setsize` / `aria-posinset`，外层为 presentation 列表）；文档补充了源码可见但测试未直接覆盖的过滤展开、受控展开和非级联 checkbox 行为。
-- 权限编排示例应让 `TxTree` 只负责范围选择；资源分配交给相邻控件。
-- 截图参考：`.codex-screenshots/nexus-tree-permission-orchestration-demo-playwright-2026-05-28.png`。
-
-## Source
-
-- Component source: `packages/tuffex/packages/components/src/tree/src/TxTree.vue`.
-- Types: `packages/tuffex/packages/components/src/tree/src/types.ts`.
-- **实测覆盖:** `packages/tuffex/packages/components/src/tree/__tests__/tree.test.ts` 覆盖默认展开的子节点渲染、选择值发出，以及每个兄弟组的 `aria-setsize` / `aria-posinset`（外层 `role="presentation"` 列表）。
+| `--tx-text-color-primary` | 行标签颜色。 |
+| `--tx-text-color-secondary` | 展开箭头与空状态。 |
+| `--tx-color-primary` | 选中行底色。 |
+| `--tx-fill-color` | 悬停行底色。 |
 
 ## 离线完整示例源码
 

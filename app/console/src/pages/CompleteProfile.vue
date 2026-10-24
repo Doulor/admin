@@ -123,7 +123,7 @@ async function signOut() {
             <!-- TxSelect 0.6.0 的 attrs 落在外层，用 label 给里面的输入框命名。 -->
             <label v-if="!hasGrade" class="fill-width">
               <span class="sr-only">所在年级</span>
-              <TxSelect v-model="gradeInput" :options="GRADE_OPTIONS" placeholder="选择年级" class="fill-width" data-testid="profile-grade" />
+              <TxSelect v-model="gradeInput" :options="GRADE_OPTIONS" placeholder="选择年级" class="fill-width" data-testid="profile-grade" :searchable="false" panel-background="pure" />
             </label>
             <p v-else class="profile__fixed">{{ view.grade_label }}</p>
           </TxFormItem>

@@ -53,14 +53,14 @@ const hint = computed(() => {
       <!-- TxSelect 0.6.0 的 attrs 落在外层，用 label 给里面的输入框命名。 -->
       <label class="fill-width">
         <span class="sr-only">重要程度</span>
-        <TxSelect :model-value="importance" :options="importanceOptions" placeholder="选一档" class="fill-width" @update:model-value="value => emit('update:importance', value as Importance)" />
+        <TxSelect :model-value="importance" :options="importanceOptions" placeholder="选一档" panel-background="pure" :searchable="false" class="fill-width" @update:model-value="value => emit('update:importance', value as Importance)" />
       </label>
       <span v-if="errors?.importance" class="field-error">{{ errors.importance }}</span>
     </TxFormItem>
     <TxFormItem label="核心度">
       <label class="fill-width">
         <span class="sr-only">核心度</span>
-        <TxSelect :model-value="core" :options="coreOptions" placeholder="选一档" class="fill-width" @update:model-value="value => emit('update:core', value as Core)" />
+        <TxSelect :model-value="core" :options="coreOptions" placeholder="选一档" panel-background="pure" :searchable="false" class="fill-width" @update:model-value="value => emit('update:core', value as Core)" />
       </label>
       <span v-if="errors?.core" class="field-error">{{ errors.core }}</span>
     </TxFormItem>

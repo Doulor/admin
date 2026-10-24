@@ -5,6 +5,8 @@ import { forumContracts, forumValidationMessage } from "./contracts.js";
 import topics from "./topics.js";
 import posts from "./posts.js";
 import people from "./people.js";
+import stickers from "./stickers.js";
+import uploads from "./uploads.js";
 
 /**
  * 论坛接口 `/api/forum/*`（#57，ADR-0004）：存储在 data.db，身份只认核心 `sid`，
@@ -18,4 +20,6 @@ export default async function forumRoutes(app: FastifyInstance) {
   await app.register(topics);
   await app.register(posts);
   await app.register(people);
+  await app.register(stickers);
+  await app.register(uploads);
 }

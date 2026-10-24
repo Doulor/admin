@@ -1,50 +1,50 @@
 <script setup lang="ts">
-import type { UserTitle } from '~/data/titles'
-import { titleColor, titleIcon, titleLabel } from '~/data/titles'
+import type { User } from '~/data/types'
+import { accountBadges, hasAccountTitles } from '~/data/account-badges'
+import { DEFAULT_ORG, titleColor, titleIcon, titleLabel } from '~/data/titles'
 
 /**
- * A user's 极客班 title as a TxTag: icon + Chinese label (the title's own
- * label, or 「{部门} · {head label}」 for a department head), on TxTag's
- * default outline recipe in the title's tone. Labels, icons and tones come from `/api/public/org` through
- * `useOrgTitles` (the console can rename them), with `app/data/titles.ts` as
- * the defaults until that answers; the badge redraws when it does.
- * Crew (member with a department) wears the neutral crew tone rather than
- * TxTag's `plain` variant: `plain` ignores `color` and paints the label in
- * `--tx-text-color-secondary`, which reads at under 3:1 on its own fill.
- * The label carries the meaning on its own, so the colour is decoration.
+ * A user's titles as TxTags beside the name.
+ *
+ * Against the forum server (#276 CONTRACT §9) the user carries the account's
+ * titles and department, named by the admins in the console: one tag per
+ * title in its department's tone, or the department alone, or nothing
+ * (data/account-badges.ts). Department tones come from
+ * `/api/public/departments` through `useOrgTitles`.
+ *
+ * The demo seed and the local snapshot have no such fields; their users keep
+ * the upstream title (`user.title`) drawn from app/data/titles.ts.
  *
  * No click listener on purpose: TxTag becomes a `role="button"` tab stop as
  * soon as it has one, and a title is metadata, not a control.
  */
 const props = withDefaults(defineProps<{
-  title?: UserTitle
+  user: Pick<User, 'title' | 'titles' | 'department'>
   size?: 'sm' | 'md'
 }>(), {
-  title: undefined,
   size: 'sm',
 })
 
-// The palette hexes are tuned for the light surface; under `html.dark`
+// The legacy palette hexes are tuned for the light surface; under `html.dark`
 // `titleColor` lifts them toward Tuffex's own ink token.
 const colorMode = useColorMode()
 const dark = computed(() => colorMode.value === 'dark')
-const org = useOrgTitles()
+const departments = useOrgTitles()
 
-const badge = computed(() => {
-  const title = props.title
+const badges = computed(() => {
+  if (hasAccountTitles(props.user))
+    return accountBadges(props.user, departments.value).map(badge => ({ ...badge, icon: undefined as string | undefined }))
+  const title = props.user.title
   if (!title)
-    return null
-  return {
-    label: titleLabel(title, org.value),
-    icon: titleIcon(title, org.value),
-    color: titleColor(title, dark.value, org.value),
-  }
+    return []
+  return [{ key: title.id, label: titleLabel(title, DEFAULT_ORG), icon: titleIcon(title, DEFAULT_ORG), color: titleColor(title, dark.value, DEFAULT_ORG) }]
 })
 </script>
 
 <template>
   <TxTag
-    v-if="badge"
+    v-for="badge in badges"
+    :key="badge.key"
     :label="badge.label"
     :icon="badge.icon"
     :color="badge.color"

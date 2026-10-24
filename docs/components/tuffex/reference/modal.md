@@ -1,98 +1,111 @@
 # Modal 模态框
 
-> 基于 Teleport 的轻量对话框，适合短阻塞任务，支持焦点恢复、Escape/遮罩关闭和头尾插槽。
+> 用于短阻塞任务的轻量对话框
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/modal) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/modal.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/modal.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/modal) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/modal.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/modal.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
-上游标记：status=`beta`，since=`1.0.0`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
+上游标记：status=`beta`，since=`0.3.4`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# Modal 模态框
+## 用法
 
-## 基础用法
-
-从按钮打开对话框，正文保持简短，并通过更新绑定的 model 关闭。
-
+### 基础
+`v-model` 控制显隐，`footer` 插槽放置操作按钮。
 官方示例：`ModalBasicDemo`（完整源码见本页末尾）
 
 ```vue
-<script setup lang="ts">
-import { ref } from 'vue'
-
-const open = ref(false)
-</script>
-
 <template>
-  <TxButton variant="primary" @click="open = true">
-    打开模态框
-  </TxButton>
+  <TxButton variant="primary" @click="open = true">打开模态框</TxButton>
+  <TxButton variant="ghost" @click="fullscreen = true">打开全屏预览</TxButton>
 
-  <TxModal v-model="open" title="确认同步设置" width="min(92vw, 520px)">
+  <TxModal v-model="open" title="确认同步设置" close-label="关闭" width="min(92vw, 520px)">
     <p>模态框适合短确认或小型表单。</p>
     <template #footer>
       <TxButton variant="ghost" @click="open = false">取消</TxButton>
       <TxButton variant="primary" @click="open = false">确认同步</TxButton>
     </template>
   </TxModal>
+
+  <TxModal v-model="fullscreen" fullscreen title="发布说明" close-label="关闭">
+    <p>长内容在面板内部滚动，两条栏保持固定。</p>
+    <template #footer>
+      <TxButton variant="ghost" @click="fullscreen = false">关闭预览</TxButton>
+    </template>
+  </TxModal>
 </template>
 ```
 
-## API
+### 全屏面板
+`fullscreen` 撑满可见视口：正文滚动，头部与底栏固定，底栏避开底部安全区。
 
-### Props
+```vue
+<TxModal v-model="previewOpen" fullscreen :title="current?.name">
+  <img :src="current.url" alt="">
+  <template #footer>
+    <TxButton variant="ghost" @click="previewOpen = false">关闭</TxButton>
+  </template>
+</TxModal>
+```
+
+### 最佳实践
+
+- 只用于确认、单步输入或短决策；需要导航、筛选或长表单时用抽屉或页面。
+- 自定义 `header` 时保留可见标题并让 `title` 留空，否则 `aria-labelledby` 会指向不存在的元素。
+- 破坏性或最终操作放在 `footer`，次要操作的视觉权重低于主操作。
+- `fullscreen` 只用于内容本身占满屏幕的场景（图片、图表预览），短确认不要用。
+- 长耗时的异步状态不要只存在模态框内容里；关闭会取消任务时，由父级显式建模取消。
+- 非英文界面传入 `closeLabel`：关闭按钮只有图标，读屏读到的就是这个名称。
+
+## API 参考
+
+### 属性
 
 | 属性名 | 类型 | 默认值 | 说明 |
 |------|------|---------|------|
-| `modelValue` | `boolean` | 必填 | 控制对话框是否显示，用于 `v-model`。 |
-| `title` | `string` | `''` | 默认头部标题；非空时生成的标题会与 `aria-labelledby` 关联。 |
-| `width` | `string` | `'480px'` | 内容面板的内联宽度。推荐使用 `min(92vw, 520px)` 这类响应式值。 |
+| `modelValue` | `boolean` | 必填 | 是否显示，用于 `v-model`。 |
+| `title` | `string` | `''` | 默认头部标题；非空时与 `aria-labelledby` 关联。 |
+| `width` | `string` | `'480px'` | 面板宽度，推荐 `min(92vw, 520px)` 这类响应式值；`fullscreen` 时忽略。 |
+| `fullscreen` | `boolean` | `false` | 面板撑满可见视口，去掉圆角与阴影。 |
+| `closeLabel` | `string` | `'Close'` | 头部关闭按钮的可访问名称。 |
+| `surface` | `'pure' \| 'mask' \| 'blur' \| 'glass' \| 'refraction' \| 'acrylic' \| 'mica' \| 'flat' \| 'plain'` | `'refraction'` | 面板材质。 |
+| `surfaceColor` | `string` | `''` | 材质下垫的底色；默认跟随主题。 |
+| `surfaceOpacity` | `number` | `mask` 为 `0.96`，其余为 `0.5` | 底色的不透明度，作用于 `mask`、`blur`、`acrylic`、`glass`、`refraction`；`pure`、`flat` 下恒为不透明，`mica`、`plain` 不垫底色。 |
 
-### Events
+### 事件
 
 | 事件名 | 参数 | 说明 |
 |------|------|------|
-| `update:modelValue` | `(value: boolean)` | 组件请求更新可见状态时触发。 |
+| `update:modelValue` | `(value: boolean)` | 请求改变可见状态时触发。 |
 | `close` | `()` | 点击遮罩、按 Escape 或点击关闭按钮后触发。 |
 
-### Slots
+### 插槽
 
 | 插槽名 | Props | 说明 |
 |------|-------|------|
-| `default` | - | 对话框主体内容。 |
-| `header` | - | 替换生成的标题区域，同时保留内置关闭按钮。 |
+| `default` | - | 主体内容。 |
+| `header` | - | 替换标题区域，保留内置关闭按钮。 |
 | `footer` | - | 底部操作区；未提供时不渲染。 |
 
-## 交互契约
+## 概述
 
-- 遮罩挂载在 `body` 下，打开时从共享 z-index 管理器获取新的层级，关闭时通过 `v-if` 移除。
-- 遮罩暴露 `role="dialog"`、`aria-modal="true"` 和 `tabindex="-1"`。
-- 使用默认头部且 `title` 非空时，对话框会把 `aria-labelledby` 指向生成的标题。
-- 打开时聚焦遮罩根节点；关闭或卸载时恢复打开前的焦点元素。
-- Tab / Shift+Tab 会在对话框内循环焦点（焦点陷阱），焦点不会移动到模态框背后的页面。
-- 点击遮罩空白、按 Escape、点击关闭按钮都会依次触发 `update:modelValue(false)` 和 `close`。
-- `TModal` 会把 props、attrs、`update:modelValue`、`close` 与 `default/header/footer` 插槽转发给 `TxModal`。
+- 遮罩 teleport 到 `body`，打开时从共享 z-index manager 取得新层级，关闭时由 `v-if` 移除。
+- 遮罩为 `role="dialog"`、`aria-modal="true"`；打开时获得焦点，关闭或卸载时焦点回到打开前的元素。
+- Tab 与 Shift+Tab 在最上层的模态框内循环；即使焦点落到 `body`，底层抽屉也不会响应 Escape。
+- 点击遮罩空白、Escape 与关闭按钮依次派发 `update:modelValue(false)` 与 `close`。
+- `fullscreen` 只改变布局，对话框语义与焦点管理不变；没有可点击的遮罩空白，因此头部或底栏必须保留可见的关闭入口。
+- 面板背景是一层卡片预设的 `TxBaseSurface`（`fake`），垫在头部、正文与底栏之下，默认 `refraction`：50% 的底色既保住文字可读，又让后面的页面透上来被模糊、折射。
+- 遮罩的变暗与模糊画在遮罩的一层伪元素上，而不是遮罩自身的背景与透明度，所以面板材质采到的是页面，而不只是遮罩的暗色。
+- 面板开合时只缩放，不整体淡入淡出：整体透明度一变，里面的背景滤镜就只能采到面板自己，磨砂会在整个过渡里消失。淡入淡出的是面板上的各个部分：头部、正文、底栏、阴影与描边，以及材质的每一层，所以带背景滤镜的材质（如默认的 `refraction`）从第一帧到最后一帧都采着页面。
+- `TModal` 把 props、attrs、事件与 `default` / `header` / `footer` 插槽转发给 `TxModal`。
 
-## 最佳实践
+## 技术实现
 
-- 把模态框限制在确认、单步输入或短决策内；需要导航、筛选或长表单时改用抽屉或页面。
-- 优先使用默认 `title` 头部以获得自动可访问性关联。替换 `header` 时保持可见标题，并避免传入与自定义头部不匹配的旧 `title`。
-- 破坏性或最终操作放在 `footer`；次要操作的视觉权重应低于主操作。
-- 文档和应用界面都建议使用响应式 `width`，因为内容面板本身还有内边距。
-- 不要把长耗时异步状态只保存在模态框内容里；如果关闭会取消任务，应由父级显式建模取消逻辑。
-
-## 审阅说明
-
-- **可访问性说明:** `aria-labelledby` 只会根据默认 `title` 标题生成。提供自定义 `header` 时，除非插槽内也渲染带生成 id 的元素，否则应保持 `title` 为空，避免对话框指向不存在的标签。
-- **实测覆盖:** `modal.test.ts` 覆盖对话框语义、标题关联、内联宽度、正文/底部插槽、关闭/卸载后的焦点恢复、遮罩/Escape/关闭按钮关闭、自定义 header 无标题关联，以及 `TModal` 标题转发。
-
-## Source
-
-- Component sources: `packages/tuffex/packages/components/src/modal/src/TxModal.vue` 与 `TModal.vue`。
-- Export alias: `packages/tuffex/packages/components/src/modal/index.ts` 导出可安装的 `TxModal` 与 `TModal`；默认导出为 `TxModal`。
-- Coverage: `packages/tuffex/packages/components/src/modal/__tests__/modal.test.ts` 覆盖对话框语义、焦点行为、关闭事件、插槽与包装组件转发。
+- 全屏面板在支持时使用 `100dvh` 高度，底栏下内边距带上 `safe-area-inset-bottom`；全屏时遮罩不再模糊，面板自己的材质已经盖住整个视口。
+- 减少动态效果（`prefers-reduced-motion: reduce`）时面板原地淡入淡出，不缩放、不位移。
+- 源码：`packages/tuffex/packages/components/src/modal/`（`TxModal.vue` 与包装组件 `TModal.vue`）。
 
 ## 离线完整示例源码
 
