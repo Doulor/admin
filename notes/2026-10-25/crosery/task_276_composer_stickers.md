@@ -43,3 +43,17 @@
 - 做了什么：主会话按 .agents/skills/code-review 两条线逐个文件核对 f17bcaf4、991f7caf 的 diff：inline-stickers.ts 只在非代码文本里换写法、图片块只换站内表情地址；post-markdown 的写法先换成短码再走原来的白名单和转义，title 按属性转义；迁移按原图 sha256 比对、只换还指着原图的、原图文件行保留、事务里做；控制台两层页面、名字和包名不重复只在控制台拦。
 - 结果：结论：通过。已知限制写进 MR：服务端不拦同包同名（写法撞了用排在前面的那张）；表情走 CDN 要凭据，没做；B 站表情图没导入；预发布真实数据未验证，随 rc.21 补截图。
 - 下一步：合并进 stage，关 #276，手工收尾。
+
+## 01:14:47 +08:00 · 合并 · #276 · MR !17 合并进 stage，#276 关闭
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：GitLab PUT merge（sha b90b2e59，squash false，删源分支），merge commit 71e35d14；#276 写关闭记录后关闭。
+- 结果：stage 71e35d14；#276 closed；远端 task 分支随合并删除。
+- 下一步：删本机 worktree 和分支。
+
+## 01:14:55 +08:00 · 收尾 · #276 · 删掉 #276 回复框和表情的 worktree 与本机分支
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：git worktree remove .claude/worktrees/task-276-ui；git branch -D task/276/composer_stickers。删之前 worktree 没有未提交的改动。
+- 结果：git worktree list 里没有 task-276-ui
+- 下一步：rc.21 发预发布后按 !17 人工验收步骤核对
