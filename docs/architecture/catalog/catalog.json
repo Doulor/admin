@@ -353,7 +353,7 @@
     "routeMethods": 216,
     "supplementalInterfaces": 5,
     "supplementalInterfacesWithFlow": 5,
-    "tables": 54
+    "tables": 55
   },
   "deploymentStatus": "not-observed",
   "domains": [
@@ -407,7 +407,8 @@
         "perm_group_parents",
         "perm_entries",
         "perm_members",
-        "perm_state"
+        "perm_state",
+        "perm_seed_applied"
       ],
       "title": "权限"
     },
@@ -992,7 +993,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 881,
+          "line": 889,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -2128,11 +2129,11 @@
       "domain": "organization",
       "evidence": [
         {
-          "line": 24,
+          "line": 28,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
-          "line": 338,
+          "line": 365,
           "path": "app/server/src/lib/permissions.ts"
         },
         {
@@ -2193,7 +2194,7 @@
       "domain": "organization",
       "evidence": [
         {
-          "line": 53,
+          "line": 59,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -2284,8 +2285,12 @@
       "domain": "audit",
       "evidence": [
         {
-          "line": 84,
+          "line": 88,
           "path": "app/server/src/routes/console/activity.ts"
+        },
+        {
+          "line": 6,
+          "path": "app/server/src/lib/cursor.ts"
         },
         {
           "line": 281,
@@ -2338,8 +2343,12 @@
       "domain": "audit",
       "evidence": [
         {
-          "line": 97,
+          "line": 103,
           "path": "app/server/src/routes/console/activity.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/lib/sql-text.ts"
         },
         {
           "line": 282,
@@ -2384,7 +2393,7 @@
       "domain": "audit",
       "evidence": [
         {
-          "line": 116,
+          "line": 117,
           "path": "app/server/src/routes/console/activity.ts"
         },
         {
@@ -2430,7 +2439,7 @@
       "domain": "audit",
       "evidence": [
         {
-          "line": 18,
+          "line": 25,
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
@@ -2438,7 +2447,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 14,
+          "line": 20,
           "path": "app/server/src/lib/activity.ts"
         }
       ],
@@ -2484,7 +2493,7 @@
       ],
       "id": "flow:application.list",
       "invariants": [
-        "权限与资源：需要节点 apply.view（#274 切到权限节点体系）；无部门/个人记录限制，有此节点可读全部候选人列表。",
+        "权限与资源：需要节点 apply.view，按 requireScopedPermission 判定（#274 残留修复 J：部门部长只有按部门限定的 apply.view，原来的 requirePermission 会把他们一律拦在外面）；applications 表没有部门列，命中范围的账号（含部门部长）看到的是全部候选人列表，不额外按部门过滤。",
         "响应与错误：200 {items,total,counts}；特长摘要120字、last_review可空，来源IP/UA不下发；counts为未筛选的全局五状态计数。",
         "数据与副作用：只读；转义q中的LIKE通配符，按姓名/班级/邮箱搜索；查询latest review，不为列表记application.view。"
       ],
@@ -2523,10 +2532,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         },
         {
           "line": 26,
@@ -2589,10 +2594,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "id": "flow:application.export",
@@ -2652,10 +2653,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "id": "flow:application.review",
@@ -3048,10 +3045,6 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
-        },
-        {
           "line": 29,
           "path": "app/console/src/pages/Feedback.vue"
         }
@@ -3114,10 +3107,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "id": "flow:feedback.console.update",
@@ -3179,10 +3168,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "id": "flow:feedback.console.delete",
@@ -3232,7 +3217,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -3303,7 +3288,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -3369,7 +3354,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -3436,7 +3421,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -3512,7 +3497,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -3578,7 +3563,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -3642,7 +3627,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 90,
+          "line": 91,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -3686,7 +3671,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -3702,11 +3687,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -3771,7 +3756,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 96,
+          "line": 94,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -3835,7 +3820,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 108,
+          "line": 106,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -3899,7 +3884,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -3967,7 +3952,7 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -6832,7 +6817,7 @@
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
-          "line": 77,
+          "line": 81,
           "path": "app/server/src/middleware/http-policy.ts"
         },
         {
@@ -7558,7 +7543,7 @@
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
-          "line": 76,
+          "line": 80,
           "path": "app/server/src/middleware/http-policy.ts"
         }
       ],
@@ -7641,7 +7626,7 @@
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
-          "line": 227,
+          "line": 232,
           "path": "app/server/src/lib/permissions.ts"
         }
       ],
@@ -7878,7 +7863,7 @@
       "domain": "permissions",
       "evidence": [
         {
-          "line": 86,
+          "line": 109,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -7941,7 +7926,7 @@
       "domain": "permissions",
       "evidence": [
         {
-          "line": 89,
+          "line": 112,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -7984,7 +7969,7 @@
       "domain": "permissions",
       "evidence": [
         {
-          "line": 112,
+          "line": 135,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -8028,7 +8013,7 @@
       "domain": "permissions",
       "evidence": [
         {
-          "line": 173,
+          "line": 210,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -8073,7 +8058,7 @@
       "domain": "permissions",
       "evidence": [
         {
-          "line": 190,
+          "line": 227,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -8117,7 +8102,7 @@
       "domain": "permissions",
       "evidence": [
         {
-          "line": 208,
+          "line": 245,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -8162,7 +8147,7 @@
       "domain": "permissions",
       "evidence": [
         {
-          "line": 235,
+          "line": 271,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -8202,7 +8187,7 @@
       "domain": "permissions",
       "evidence": [
         {
-          "line": 33,
+          "line": 107,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -8212,6 +8197,14 @@
         {
           "line": 26,
           "path": "app/server/src/lib/console-scope.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/cursor.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/sql-text.ts"
         },
         {
           "line": 28,
@@ -8306,7 +8299,7 @@
       "domain": "permissions",
       "evidence": [
         {
-          "line": 114,
+          "line": 150,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -10694,6 +10687,11 @@
       "title": "perm_nodes"
     },
     {
+      "id": "table:perm_seed_applied",
+      "kind": "table",
+      "title": "perm_seed_applied"
+    },
+    {
       "id": "table:perm_state",
       "kind": "table",
       "title": "perm_state"
@@ -10951,7 +10949,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "caf79b3ba0b0626b5b18416802f7f01f885f41d71a632b3c5cb77525a7cf6611",
+    "fingerprint": "e2c6e9f9242d8c29a4d3815461626f0e56025d2fcf1fb2061cabe30d77c219c8",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -11663,7 +11661,7 @@
       },
       {
         "path": "app/server/src/app.ts",
-        "sha256": "f63b240b1e492d25f6bfb8d674c33da79413c9968d12598ad680fd748486f54f"
+        "sha256": "aa416dc2dc6f2d4dfbde0ac31fa8157cf38c4b9a3260b530edc4e2081081f233"
       },
       {
         "path": "app/server/src/cli/account.ts",
@@ -11699,7 +11697,7 @@
       },
       {
         "path": "app/server/src/lib/activity.ts",
-        "sha256": "6247c78dfb6c1d34d5e5edb209bed7d96c9ad7ee6de85fed94435d797adde303"
+        "sha256": "b37e345063bb5e5f4a8096b90a91b8ccd9cf858ff93f9cec675684034b3771e3"
       },
       {
         "path": "app/server/src/lib/apply-quota.ts",
@@ -11735,15 +11733,19 @@
       },
       {
         "path": "app/server/src/lib/console-scope.ts",
-        "sha256": "10bd83f41b51e0f8a774f4513729cd0f452fe9c809cb7a9896018ed77441e371"
+        "sha256": "f9e3ce1423a2afe25d5ba9d03875bb07236d7d6b151d6547f6c6157fb78c9d90"
       },
       {
         "path": "app/server/src/lib/crypto.ts",
         "sha256": "12afeb63452d598421e9eabbe7a7ee00fae908268d4089326e9822f1575d531d"
       },
       {
+        "path": "app/server/src/lib/cursor.ts",
+        "sha256": "d17ce2d27491864fde1b872c25992c6c1de373e7a9788a5ecc4908604bfbccc9"
+      },
+      {
         "path": "app/server/src/lib/db.ts",
-        "sha256": "85628a4f4266f8c9247ebc0caa660677d9ffd619fcc516eaca512ce9fb33023f"
+        "sha256": "d12330efaa674f8669aa6859691bf71c400c682c2f4ee3a7f12465f17ee3b7f1"
       },
       {
         "path": "app/server/src/lib/device-store.ts",
@@ -11771,7 +11773,7 @@
       },
       {
         "path": "app/server/src/lib/forum-rules.ts",
-        "sha256": "8a5570e5ca12e0e52697999f3d39692673d1198c18eacbd41a82541e7bbaf894"
+        "sha256": "b9ab1d5c234badc705ede1a32d24f8f14564aab7e92f68aa2424e859855e96bf"
       },
       {
         "path": "app/server/src/lib/forum-store.ts",
@@ -11835,7 +11837,7 @@
       },
       {
         "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
-        "sha256": "d5c10b91d1cb2caef471e425972adfa5c5d55963f881d6cdee852490ef0deb66"
+        "sha256": "a1392112bf3138995dc83f881dfe0c9171c206e391899fb76e12f184e3bd37ec"
       },
       {
         "path": "app/server/src/lib/oidc-provider.ts",
@@ -11855,7 +11857,7 @@
       },
       {
         "path": "app/server/src/lib/permissions.ts",
-        "sha256": "447dc619c3f0e0e8c1729916afdae508e4202108efcbd1675e73d555240c1a6b"
+        "sha256": "e85e5cd02d3cfb4a30d400d0c3413975f1d4837f2887e5fd6c2e46f2159153c5"
       },
       {
         "path": "app/server/src/lib/register-limits.ts",
@@ -11878,8 +11880,12 @@
         "sha256": "e4fb0b231744c45f8a357f08b26b208c651323a2cdfec5de1575500bac423b86"
       },
       {
+        "path": "app/server/src/lib/sql-text.ts",
+        "sha256": "72198b3a420c6ce6852f027239514567a6c9c45b8080a0017f409552c06a153c"
+      },
+      {
         "path": "app/server/src/middleware/http-policy.ts",
-        "sha256": "2aa162d17984d14ff02a7283eb075e81deb95abf889f3b46008fd24af58c7287"
+        "sha256": "9093c002ca1fe6a4fce596817ec65a8080225e860317216b3f71cdc475bb27f5"
       },
       {
         "path": "app/server/src/middleware/oauth-state.ts",
@@ -11892,10 +11898,6 @@
       {
         "path": "app/server/src/middleware/require-auth.ts",
         "sha256": "745dd4a3457b6fdd0e68e82b44f88872b7988b88e2e50ddd0be6377eb3263aac"
-      },
-      {
-        "path": "app/server/src/middleware/require-capability.ts",
-        "sha256": "f8f2b5cd066c8d5e6a6392b50394065a30058d24ba09427eefab0e2440464b9d"
       },
       {
         "path": "app/server/src/middleware/require-member.ts",
@@ -11935,15 +11937,15 @@
       },
       {
         "path": "app/server/src/routes/console/activity.ts",
-        "sha256": "df95238267e4c9e5ba5d01579c339a278b6b1fb5b8d346e392a761bc807a8359"
+        "sha256": "ce0091d56ecc39b86bd3e964033cfe62c419a619b0987bb6d6646b19cd48c695"
       },
       {
         "path": "app/server/src/routes/console/applications.ts",
-        "sha256": "91ab1e83135349fbba50f237eca25bfecc3276115f49e4bd9206ea0e24f81843"
+        "sha256": "a71b60682ef5fc4c5e98d44aa31e3af4a0f9f141890645e9ace1c7c891d54749"
       },
       {
         "path": "app/server/src/routes/console/competition-roster.ts",
-        "sha256": "9a07976f19e1880c7292d0849e75ff0f2af6a4e9bf6130f1efba9a396004818c"
+        "sha256": "3aa5f505d3967265091fca0f27f18590a3c96cc0425dd933a6db6fcfc1e88836"
       },
       {
         "path": "app/server/src/routes/console/competitions.ts",
@@ -11951,7 +11953,7 @@
       },
       {
         "path": "app/server/src/routes/console/contracts.ts",
-        "sha256": "ff1d00edaf12971074a2399337c9f033a8cb977926a144db1ca34fce3c75db34"
+        "sha256": "5cec2eaa089c774fe7961795d4c6660767099ff7908cfab50f7deed35c6844c5"
       },
       {
         "path": "app/server/src/routes/console/departments.ts",
@@ -11975,11 +11977,11 @@
       },
       {
         "path": "app/server/src/routes/console/me.ts",
-        "sha256": "fd68b97062847ce9339ba96cb59884c2a4cc092e4301b2b1a52bc83862ce4bfd"
+        "sha256": "6c64a093c2bb7982b8192a4556d5787e387fdeace38ddc34f0cdbddad47c18d8"
       },
       {
         "path": "app/server/src/routes/console/permission-groups.ts",
-        "sha256": "384b4b5ea288d1a55298243f8fa8687719f49adb497e4c6fc3db851baa4a4398"
+        "sha256": "50ab95adf7f2b7d8f5fa489a0c65122a19cb95348f78ab383c70ddfac4edcb20"
       },
       {
         "path": "app/server/src/routes/console/permissions.ts",
@@ -11987,7 +11989,7 @@
       },
       {
         "path": "app/server/src/routes/console/users.ts",
-        "sha256": "9a7bc68b29482d53604cc6f9e917c5caecedfd3011632b7550365702aa3d9a63"
+        "sha256": "cde274a717adf997ed274ffcec0037c5a8ee9a1efed35e9b114b97617ace8d25"
       },
       {
         "path": "app/server/src/routes/forum-api/contracts.ts",
@@ -11995,7 +11997,7 @@
       },
       {
         "path": "app/server/src/routes/forum-api/forum-limits.ts",
-        "sha256": "eaf607c60b9f84ea964555520ca5b44d72942732201ce5fae0e98779f49cc0d6"
+        "sha256": "384e4fb2129aeff8b2d56588251d6957aee1eebc0a5bf31d2d3abaf84c6373ee"
       },
       {
         "path": "app/server/src/routes/forum-api/index.ts",
@@ -12007,11 +12009,11 @@
       },
       {
         "path": "app/server/src/routes/forum-api/posts.ts",
-        "sha256": "4137e980c7cd049fad0c5cb8d564dec7d49e3350eeaad8fe5bb4927aac85a237"
+        "sha256": "1e9517c94704a7b55c7c882c7b04ca9098f89db6cac06dd6c4076d62eee7d7e5"
       },
       {
         "path": "app/server/src/routes/forum-api/topics.ts",
-        "sha256": "ba1a17856672c87b3cf6efd51788590f74c2ceae203da296ccd7806b25fc3f86"
+        "sha256": "c9b2f7debb51f290dbcb5f8a6c1356067a4ec3d260b9252e6318ba869a012beb"
       },
       {
         "path": "app/server/src/routes/forum-api/viewer.ts",
@@ -12083,7 +12085,7 @@
       },
       {
         "path": "app/server/src/routes/portal/events.ts",
-        "sha256": "6eef243ab94f9575b5a05094cee16daa98adc660a843169c08137686440be3a2"
+        "sha256": "8b9938d997cad94e327b63de93d18b03d79ffc2e47b48e8cefdf863b3c9e8639"
       },
       {
         "path": "app/server/src/routes/portal/feedback.ts",
@@ -12435,11 +12437,11 @@
       },
       {
         "path": "docs/architecture/SECURITY.md",
-        "sha256": "306c0603e0ff444b5564bc5f1b7c2bbc06db790fe06cdc45930bd8710542b5c1"
+        "sha256": "246af1a02a62a19a315ed674cc0221b512a3ca6791d340d46776d6f8c738ae2d"
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "b5fac9d8da46c93748e825ec2d3f4465ce961e34f90ee80eebe9b859eb05967b"
+        "sha256": "f939c888c6fae82b9b22c71cd06415b472e1461e6bafe40bc4e03b9d81c22b0d"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -12607,15 +12609,15 @@
       },
       {
         "path": "tests/server/console-permissions.test.ts",
-        "sha256": "4d5ca2fe6eb4f58a773e785e05a5d813ab8783d080d4f756d520df4fc5fc8ba2"
+        "sha256": "5d11b85563b155c07ace589e5ba5e1428265c65e3dca6f54c6d704f06d5dd33f"
       },
       {
         "path": "tests/server/console-users.test.ts",
-        "sha256": "0628180ae82b31755064126dc880f23b7bf28fa9f7d3c2497415f56c23903764"
+        "sha256": "ab011f7a24c8f89d02c307c0fda8ef5b2006373d78b75c20970421abf7e959c7"
       },
       {
         "path": "tests/server/console.test.ts",
-        "sha256": "2469d3f115c8302fd4a6cb172f405b1af9ef566a06857049f2ee1ce8523c58aa"
+        "sha256": "cb00b102352a350f34d135386763ff248a16b93a9bea059fed2e1257104b59c1"
       },
       {
         "path": "tests/server/core.test.ts",
@@ -12627,7 +12629,7 @@
       },
       {
         "path": "tests/server/events.test.ts",
-        "sha256": "923cef66b6a6dacc6f9d15cf71e6aad9804dbfe4d73dd4d70e4b5496d9f495f4"
+        "sha256": "021320e991ad7226028842d46e82e103630c4ba55d86091ff701774a914b3be2"
       },
       {
         "path": "tests/server/feedback-org.test.ts",
@@ -12635,7 +12637,7 @@
       },
       {
         "path": "tests/server/forum.test.ts",
-        "sha256": "a1da34bbd2af07d88bc92b08e703c387c15497537e52b7a7ea46983c9ba2b190"
+        "sha256": "165cadeb6197972c72e6342fe0541f85ba0eefaef8c08c02681b4f5d7e4ffb29"
       },
       {
         "path": "tests/server/gitlab-sync.test.ts",
@@ -12647,7 +12649,7 @@
       },
       {
         "path": "tests/server/legacy-database.test.ts",
-        "sha256": "d0f5ae3986bdd104c31710e188441a070c97cf594df1a34782ed8bbe991e50ca"
+        "sha256": "df91ca7e9d52ae6d70401c9593162bcf1ced7a77afb7dec739fd8d36bdcb9de9"
       },
       {
         "path": "tests/server/mail-outbox.test.ts",
@@ -12663,7 +12665,7 @@
       },
       {
         "path": "tests/server/rate-limits.test.ts",
-        "sha256": "f5bb0daa9a3ec903cc2e58ad87672b87ba3bd597779a1b44e91e6961a66c3d36"
+        "sha256": "3b3646c6251be886d2456f0aa41391f1e21ab4d76044d620ea090b1b6bfd296b"
       },
       {
         "path": "tests/server/session-cleanup.test.ts",
@@ -12671,7 +12673,7 @@
       },
       {
         "path": "tests/server/signin-methods.test.ts",
-        "sha256": "a67ffb8212fce34fa3dcf21723f72dac71b47b8cf5041ef83a73f889d914861c"
+        "sha256": "2bd0faccdb55abd7f40eeaefb031d38e702d1fd8c9880e2bade0e20cf200d651"
       },
       {
         "path": "tests/web/portal-account.test.tsx",
@@ -12830,7 +12832,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 173,
+          "line": 210,
           "path": "app/server/src/routes/console/permission-groups.ts"
         }
       ],
@@ -12842,7 +12844,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 234,
+          "line": 270,
           "path": "app/server/src/routes/console/permission-groups.ts"
         }
       ],
@@ -12854,7 +12856,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -12866,7 +12868,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -12890,7 +12892,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 108,
+          "line": 106,
           "path": "app/server/src/routes/forum-api/posts.ts"
         }
       ],
@@ -12926,7 +12928,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -12938,7 +12940,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -12950,7 +12952,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 127,
+          "line": 142,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -13010,7 +13012,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 116,
+          "line": 117,
           "path": "app/server/src/routes/console/activity.ts"
         }
       ],
@@ -13034,7 +13036,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 84,
+          "line": 88,
           "path": "app/server/src/routes/console/activity.ts"
         }
       ],
@@ -13046,7 +13048,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 97,
+          "line": 103,
           "path": "app/server/src/routes/console/activity.ts"
         }
       ],
@@ -13226,7 +13228,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 24,
+          "line": 28,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
@@ -13238,7 +13240,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 86,
+          "line": 109,
           "path": "app/server/src/routes/console/permission-groups.ts"
         }
       ],
@@ -13250,7 +13252,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 190,
+          "line": 227,
           "path": "app/server/src/routes/console/permission-groups.ts"
         }
       ],
@@ -13286,7 +13288,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 53,
+          "line": 59,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
@@ -13298,7 +13300,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 33,
+          "line": 107,
           "path": "app/server/src/routes/console/users.ts"
         }
       ],
@@ -13358,7 +13360,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -13370,7 +13372,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -13394,7 +13396,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         }
       ],
@@ -13406,7 +13408,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         }
       ],
@@ -13418,7 +13420,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         }
       ],
@@ -13586,7 +13588,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -13658,7 +13660,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 107,
+          "line": 122,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -13670,7 +13672,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 107,
+          "line": 122,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -13682,7 +13684,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -13694,7 +13696,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 113,
+          "line": 128,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -13742,7 +13744,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 127,
+          "line": 142,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -13802,7 +13804,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 116,
+          "line": 117,
           "path": "app/server/src/routes/console/activity.ts"
         }
       ],
@@ -13826,7 +13828,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 84,
+          "line": 88,
           "path": "app/server/src/routes/console/activity.ts"
         }
       ],
@@ -13838,7 +13840,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 97,
+          "line": 103,
           "path": "app/server/src/routes/console/activity.ts"
         }
       ],
@@ -14018,7 +14020,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 24,
+          "line": 28,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
@@ -14030,7 +14032,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 86,
+          "line": 109,
           "path": "app/server/src/routes/console/permission-groups.ts"
         }
       ],
@@ -14042,7 +14044,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 190,
+          "line": 227,
           "path": "app/server/src/routes/console/permission-groups.ts"
         }
       ],
@@ -14078,7 +14080,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 53,
+          "line": 59,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
@@ -14090,7 +14092,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 33,
+          "line": 107,
           "path": "app/server/src/routes/console/users.ts"
         }
       ],
@@ -14150,7 +14152,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14162,7 +14164,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14186,7 +14188,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 27,
+          "line": 28,
           "path": "app/server/src/routes/forum-api/topics.ts"
         }
       ],
@@ -14354,7 +14356,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14426,7 +14428,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 107,
+          "line": 122,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14438,7 +14440,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 107,
+          "line": 122,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14450,7 +14452,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14462,7 +14464,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 113,
+          "line": 128,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14510,7 +14512,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14522,7 +14524,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14534,7 +14536,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14546,7 +14548,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14618,7 +14620,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 112,
+          "line": 135,
           "path": "app/server/src/routes/console/permission-groups.ts"
         }
       ],
@@ -14630,7 +14632,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 113,
+          "line": 149,
           "path": "app/server/src/routes/console/users.ts"
         }
       ],
@@ -14642,7 +14644,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14654,7 +14656,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14678,7 +14680,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 96,
+          "line": 94,
           "path": "app/server/src/routes/forum-api/posts.ts"
         }
       ],
@@ -14702,7 +14704,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14714,7 +14716,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14810,7 +14812,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 88,
+          "line": 111,
           "path": "app/server/src/routes/console/permission-groups.ts"
         }
       ],
@@ -14822,7 +14824,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 207,
+          "line": 244,
           "path": "app/server/src/routes/console/permission-groups.ts"
         }
       ],
@@ -14834,7 +14836,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 18,
+          "line": 25,
           "path": "app/server/src/routes/portal/events.ts"
         }
       ],
@@ -14858,7 +14860,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14870,7 +14872,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -14906,7 +14908,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         }
       ],
@@ -14918,7 +14920,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         }
       ],
@@ -14930,7 +14932,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         }
       ],
@@ -14942,7 +14944,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         }
       ],
@@ -14954,7 +14956,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         }
       ],
@@ -14966,7 +14968,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         }
       ],
@@ -14978,7 +14980,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 90,
+          "line": 91,
           "path": "app/server/src/routes/forum-api/topics.ts"
         }
       ],
@@ -15230,7 +15232,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -15254,7 +15256,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -15314,7 +15316,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -15326,7 +15328,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -15362,7 +15364,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -15374,7 +15376,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 103,
+          "line": 118,
           "path": "app/server/src/app.ts"
         }
       ],
@@ -16108,10 +16110,6 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
-        },
-        {
           "line": 26,
           "path": "app/console/src/pages/ApplicationDetail.vue"
         }
@@ -16130,10 +16128,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         },
         {
           "line": 26,
@@ -16156,10 +16150,6 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
-        },
-        {
           "line": 26,
           "path": "app/console/src/pages/ApplicationDetail.vue"
         }
@@ -16178,10 +16168,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         },
         {
           "line": 26,
@@ -16204,10 +16190,6 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
-        },
-        {
           "line": 26,
           "path": "app/console/src/pages/ApplicationDetail.vue"
         }
@@ -16226,10 +16208,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         },
         {
           "line": 26,
@@ -16252,10 +16230,6 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
-        },
-        {
           "line": 26,
           "path": "app/console/src/pages/ApplicationDetail.vue"
         }
@@ -16274,10 +16248,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         },
         {
           "line": 26,
@@ -16312,10 +16282,6 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
-        },
-        {
           "line": 26,
           "path": "app/console/src/pages/ApplicationDetail.vue"
         }
@@ -16336,10 +16302,6 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
-        },
-        {
           "line": 26,
           "path": "app/console/src/pages/ApplicationDetail.vue"
         }
@@ -16358,10 +16320,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         },
         {
           "line": 26,
@@ -16406,10 +16364,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.export",
@@ -16426,10 +16380,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.export",
@@ -16446,10 +16396,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.export",
@@ -16466,10 +16412,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.export",
@@ -16486,10 +16428,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.export",
@@ -16506,10 +16444,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.export",
@@ -16538,10 +16472,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.export",
@@ -16558,10 +16488,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.export",
@@ -16578,10 +16504,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.export",
@@ -16704,10 +16626,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.review",
@@ -16728,10 +16646,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.review",
@@ -16752,10 +16666,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.review",
@@ -16776,10 +16686,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.review",
@@ -16800,10 +16706,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.review",
@@ -16824,10 +16726,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.review",
@@ -16848,10 +16746,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.review",
@@ -16872,10 +16766,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.review",
@@ -16908,10 +16798,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.review",
@@ -16932,10 +16818,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.review",
@@ -16956,10 +16838,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.review",
@@ -16980,10 +16858,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.review",
@@ -17004,10 +16878,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.review",
@@ -17028,10 +16898,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:application.review",
@@ -17276,7 +17142,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 116,
+          "line": 117,
           "path": "app/server/src/routes/console/activity.ts"
         },
         {
@@ -17292,7 +17158,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 116,
+          "line": 117,
           "path": "app/server/src/routes/console/activity.ts"
         },
         {
@@ -17308,7 +17174,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 116,
+          "line": 117,
           "path": "app/server/src/routes/console/activity.ts"
         },
         {
@@ -17324,7 +17190,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 116,
+          "line": 117,
           "path": "app/server/src/routes/console/activity.ts"
         },
         {
@@ -17346,7 +17212,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 116,
+          "line": 117,
           "path": "app/server/src/routes/console/activity.ts"
         },
         {
@@ -17386,8 +17252,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 97,
+          "line": 103,
           "path": "app/server/src/routes/console/activity.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/lib/sql-text.ts"
         },
         {
           "line": 282,
@@ -17402,8 +17272,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 97,
+          "line": 103,
           "path": "app/server/src/routes/console/activity.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/lib/sql-text.ts"
         },
         {
           "line": 282,
@@ -17424,8 +17298,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 97,
+          "line": 103,
           "path": "app/server/src/routes/console/activity.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/lib/sql-text.ts"
         },
         {
           "line": 282,
@@ -17440,8 +17318,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 97,
+          "line": 103,
           "path": "app/server/src/routes/console/activity.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/lib/sql-text.ts"
         },
         {
           "line": 282,
@@ -17480,8 +17362,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 84,
+          "line": 88,
           "path": "app/server/src/routes/console/activity.ts"
+        },
+        {
+          "line": 6,
+          "path": "app/server/src/lib/cursor.ts"
         },
         {
           "line": 281,
@@ -17504,8 +17390,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 84,
+          "line": 88,
           "path": "app/server/src/routes/console/activity.ts"
+        },
+        {
+          "line": 6,
+          "path": "app/server/src/lib/cursor.ts"
         },
         {
           "line": 281,
@@ -17528,8 +17418,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 84,
+          "line": 88,
           "path": "app/server/src/routes/console/activity.ts"
+        },
+        {
+          "line": 6,
+          "path": "app/server/src/lib/cursor.ts"
         },
         {
           "line": 281,
@@ -17552,8 +17446,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 84,
+          "line": 88,
           "path": "app/server/src/routes/console/activity.ts"
+        },
+        {
+          "line": 6,
+          "path": "app/server/src/lib/cursor.ts"
         },
         {
           "line": 281,
@@ -17582,8 +17480,12 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 84,
+          "line": 88,
           "path": "app/server/src/routes/console/activity.ts"
+        },
+        {
+          "line": 6,
+          "path": "app/server/src/lib/cursor.ts"
         },
         {
           "line": 281,
@@ -17636,7 +17538,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 18,
+          "line": 25,
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
@@ -17644,7 +17546,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 14,
+          "line": 20,
           "path": "app/server/src/lib/activity.ts"
         }
       ],
@@ -17656,7 +17558,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 18,
+          "line": 25,
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
@@ -17664,7 +17566,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 14,
+          "line": 20,
           "path": "app/server/src/lib/activity.ts"
         }
       ],
@@ -27396,11 +27298,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 24,
+          "line": 28,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
-          "line": 338,
+          "line": 365,
           "path": "app/server/src/lib/permissions.ts"
         },
         {
@@ -27428,11 +27330,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 24,
+          "line": 28,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
-          "line": 338,
+          "line": 365,
           "path": "app/server/src/lib/permissions.ts"
         },
         {
@@ -27460,11 +27362,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 24,
+          "line": 28,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
-          "line": 338,
+          "line": 365,
           "path": "app/server/src/lib/permissions.ts"
         },
         {
@@ -27492,11 +27394,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 24,
+          "line": 28,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
-          "line": 338,
+          "line": 365,
           "path": "app/server/src/lib/permissions.ts"
         },
         {
@@ -27542,11 +27444,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 24,
+          "line": 28,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
-          "line": 338,
+          "line": 365,
           "path": "app/server/src/lib/permissions.ts"
         },
         {
@@ -27598,7 +27500,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 53,
+          "line": 59,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -27614,7 +27516,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 53,
+          "line": 59,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -27630,7 +27532,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 53,
+          "line": 59,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -27646,7 +27548,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 53,
+          "line": 59,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -27668,7 +27570,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 53,
+          "line": 59,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -27850,10 +27752,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.delete",
@@ -27874,10 +27772,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.delete",
@@ -27898,10 +27792,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.delete",
@@ -27922,10 +27812,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.delete",
@@ -27946,10 +27832,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.delete",
@@ -27970,10 +27852,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.delete",
@@ -28012,10 +27890,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.delete",
@@ -28036,10 +27910,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.delete",
@@ -28060,10 +27930,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.delete",
@@ -28084,10 +27950,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.delete",
@@ -28134,10 +27996,6 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
-        },
-        {
           "line": 29,
           "path": "app/console/src/pages/Feedback.vue"
         }
@@ -28160,10 +28018,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         },
         {
           "line": 29,
@@ -28190,10 +28044,6 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
-        },
-        {
           "line": 29,
           "path": "app/console/src/pages/Feedback.vue"
         }
@@ -28216,10 +28066,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         },
         {
           "line": 29,
@@ -28246,10 +28092,6 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
-        },
-        {
           "line": 29,
           "path": "app/console/src/pages/Feedback.vue"
         }
@@ -28272,10 +28114,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         },
         {
           "line": 29,
@@ -28320,10 +28158,6 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
-        },
-        {
           "line": 29,
           "path": "app/console/src/pages/Feedback.vue"
         }
@@ -28348,10 +28182,6 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
-        },
-        {
           "line": 29,
           "path": "app/console/src/pages/Feedback.vue"
         }
@@ -28374,10 +28204,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         },
         {
           "line": 29,
@@ -28426,10 +28252,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.update",
@@ -28450,10 +28272,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.update",
@@ -28474,10 +28292,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.update",
@@ -28498,10 +28312,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.update",
@@ -28522,10 +28332,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.update",
@@ -28546,10 +28352,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.update",
@@ -28588,10 +28390,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.update",
@@ -28612,10 +28410,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.update",
@@ -28636,10 +28430,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.update",
@@ -28660,10 +28450,6 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
-        },
-        {
-          "line": 28,
-          "path": "app/server/src/middleware/require-capability.ts"
         }
       ],
       "from": "flow:feedback.console.update",
@@ -30532,7 +30318,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30556,7 +30342,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30580,7 +30366,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30604,7 +30390,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30628,7 +30414,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30652,7 +30438,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30676,7 +30462,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30700,7 +30486,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30730,7 +30516,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30754,7 +30540,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30778,7 +30564,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30802,7 +30588,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30826,7 +30612,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 127,
+          "line": 125,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30874,7 +30660,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 108,
+          "line": 106,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30898,7 +30684,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 108,
+          "line": 106,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30922,7 +30708,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 108,
+          "line": 106,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30946,7 +30732,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 108,
+          "line": 106,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30970,7 +30756,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 108,
+          "line": 106,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -30994,7 +30780,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 108,
+          "line": 106,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31018,7 +30804,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 108,
+          "line": 106,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31048,7 +30834,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 108,
+          "line": 106,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31072,7 +30858,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 108,
+          "line": 106,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31096,7 +30882,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 108,
+          "line": 106,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31120,7 +30906,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 108,
+          "line": 106,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31144,7 +30930,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 108,
+          "line": 106,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31192,7 +30978,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 94,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31216,7 +31002,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 94,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31240,7 +31026,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 94,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31264,7 +31050,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 94,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31288,7 +31074,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 94,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31312,7 +31098,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 94,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31336,7 +31122,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 94,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31366,7 +31152,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 94,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31390,7 +31176,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 94,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31414,7 +31200,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 94,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31438,7 +31224,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 94,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31462,7 +31248,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 94,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31510,7 +31296,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31534,7 +31320,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31558,7 +31344,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31582,7 +31368,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31606,7 +31392,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31630,7 +31416,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31654,7 +31440,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31678,7 +31464,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31702,7 +31488,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31732,7 +31518,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31756,7 +31542,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31780,7 +31566,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31804,7 +31590,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31828,7 +31614,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31852,7 +31638,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31876,7 +31662,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 117,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31924,7 +31710,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31940,11 +31726,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -31960,7 +31746,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -31976,11 +31762,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -31996,7 +31782,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32012,11 +31798,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32032,7 +31818,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32048,11 +31834,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32068,7 +31854,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32084,11 +31870,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32104,7 +31890,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32120,11 +31906,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32140,7 +31926,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32156,11 +31942,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32176,7 +31962,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32192,11 +31978,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32212,7 +31998,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32228,11 +32014,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32248,7 +32034,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32264,11 +32050,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32284,7 +32070,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32300,11 +32086,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32320,7 +32106,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32336,11 +32122,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32362,7 +32148,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32378,11 +32164,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32398,7 +32184,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32414,11 +32200,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32434,7 +32220,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32450,11 +32236,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32470,7 +32256,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32486,11 +32272,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32506,7 +32292,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32522,11 +32308,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32542,7 +32328,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32558,11 +32344,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32578,7 +32364,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32594,11 +32380,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32614,7 +32400,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32630,11 +32416,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -32650,7 +32436,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 42,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -32666,11 +32452,11 @@
           "path": "app/server/src/lib/access.ts"
         },
         {
-          "line": 4,
+          "line": 5,
           "path": "app/server/src/lib/forum-rules.ts"
         },
         {
-          "line": 5,
+          "line": 14,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
@@ -33004,7 +32790,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33028,7 +32814,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33052,7 +32838,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33076,7 +32862,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33100,7 +32886,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33124,7 +32910,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33148,7 +32934,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33172,7 +32958,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33202,7 +32988,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33226,7 +33012,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33250,7 +33036,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33274,7 +33060,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33298,7 +33084,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33322,7 +33108,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 44,
+          "line": 45,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33370,7 +33156,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33394,7 +33180,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33418,7 +33204,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33442,7 +33228,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33466,7 +33252,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33490,7 +33276,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33514,7 +33300,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33538,7 +33324,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33562,7 +33348,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33586,7 +33372,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33610,7 +33396,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33634,7 +33420,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33658,7 +33444,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33688,7 +33474,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33712,7 +33498,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33736,7 +33522,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33760,7 +33546,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33784,7 +33570,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33832,7 +33618,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33856,7 +33642,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33880,7 +33666,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33904,7 +33690,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33928,7 +33714,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33952,7 +33738,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -33976,7 +33762,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34000,7 +33786,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34030,7 +33816,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34054,7 +33840,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34078,7 +33864,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34102,7 +33888,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34126,7 +33912,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 34,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34174,7 +33960,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34198,7 +33984,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34222,7 +34008,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34246,7 +34032,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34270,7 +34056,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34294,7 +34080,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34318,7 +34104,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34342,7 +34128,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34372,7 +34158,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34396,7 +34182,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34420,7 +34206,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34444,7 +34230,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34468,7 +34254,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34516,7 +34302,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34540,7 +34326,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34564,7 +34350,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34588,7 +34374,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34612,7 +34398,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34636,7 +34422,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34660,7 +34446,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34684,7 +34470,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34708,7 +34494,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34732,7 +34518,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34756,7 +34542,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34780,7 +34566,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34810,7 +34596,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34834,7 +34620,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34858,7 +34644,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34882,7 +34668,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34906,7 +34692,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34930,7 +34716,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34954,7 +34740,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -34978,7 +34764,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35002,7 +34788,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35026,7 +34812,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 55,
+          "line": 56,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35074,7 +34860,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35098,7 +34884,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35122,7 +34908,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35146,7 +34932,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35170,7 +34956,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35194,7 +34980,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35218,7 +35004,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35242,7 +35028,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35272,7 +35058,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35296,7 +35082,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35320,7 +35106,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35344,7 +35130,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35368,7 +35154,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35416,7 +35202,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 90,
+          "line": 91,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35432,7 +35218,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 90,
+          "line": 91,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35454,7 +35240,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 90,
+          "line": 91,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35470,7 +35256,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 90,
+          "line": 91,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -35486,7 +35272,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 90,
+          "line": 91,
           "path": "app/server/src/routes/forum-api/topics.ts"
         },
         {
@@ -39444,7 +39230,7 @@
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
-          "line": 76,
+          "line": 80,
           "path": "app/server/src/middleware/http-policy.ts"
         }
       ],
@@ -39466,7 +39252,7 @@
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
-          "line": 76,
+          "line": 80,
           "path": "app/server/src/middleware/http-policy.ts"
         }
       ],
@@ -39626,7 +39412,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 881,
+          "line": 889,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -39670,7 +39456,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 881,
+          "line": 889,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -39732,7 +39518,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 881,
+          "line": 889,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -39776,7 +39562,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 881,
+          "line": 889,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -39820,7 +39606,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 881,
+          "line": 889,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -39864,7 +39650,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 881,
+          "line": 889,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -39908,7 +39694,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 881,
+          "line": 889,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -39952,7 +39738,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 881,
+          "line": 889,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -39996,7 +39782,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 881,
+          "line": 889,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -40040,7 +39826,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 881,
+          "line": 889,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -43524,7 +43310,7 @@
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
-          "line": 227,
+          "line": 232,
           "path": "app/server/src/lib/permissions.ts"
         }
       ],
@@ -43546,7 +43332,7 @@
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
-          "line": 227,
+          "line": 232,
           "path": "app/server/src/lib/permissions.ts"
         }
       ],
@@ -43562,7 +43348,7 @@
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
-          "line": 227,
+          "line": 232,
           "path": "app/server/src/lib/permissions.ts"
         }
       ],
@@ -43578,7 +43364,7 @@
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
-          "line": 227,
+          "line": 232,
           "path": "app/server/src/lib/permissions.ts"
         }
       ],
@@ -44652,7 +44438,7 @@
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
-          "line": 77,
+          "line": 81,
           "path": "app/server/src/middleware/http-policy.ts"
         },
         {
@@ -44692,7 +44478,7 @@
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
-          "line": 77,
+          "line": 81,
           "path": "app/server/src/middleware/http-policy.ts"
         },
         {
@@ -44732,7 +44518,7 @@
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
-          "line": 77,
+          "line": 81,
           "path": "app/server/src/middleware/http-policy.ts"
         },
         {
@@ -44772,7 +44558,7 @@
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
-          "line": 77,
+          "line": 81,
           "path": "app/server/src/middleware/http-policy.ts"
         },
         {
@@ -44812,7 +44598,7 @@
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
-          "line": 77,
+          "line": 81,
           "path": "app/server/src/middleware/http-policy.ts"
         },
         {
@@ -44852,7 +44638,7 @@
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
-          "line": 77,
+          "line": 81,
           "path": "app/server/src/middleware/http-policy.ts"
         },
         {
@@ -44904,7 +44690,7 @@
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
-          "line": 77,
+          "line": 81,
           "path": "app/server/src/middleware/http-policy.ts"
         },
         {
@@ -44944,7 +44730,7 @@
           "path": "app/server/src/routes/oidc/index.ts"
         },
         {
-          "line": 77,
+          "line": 81,
           "path": "app/server/src/middleware/http-policy.ts"
         },
         {
@@ -46952,7 +46738,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 89,
+          "line": 112,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -46974,7 +46760,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 89,
+          "line": 112,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -46990,7 +46776,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 89,
+          "line": 112,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47006,7 +46792,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 89,
+          "line": 112,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47046,7 +46832,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 173,
+          "line": 210,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47068,7 +46854,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 173,
+          "line": 210,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47084,7 +46870,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 173,
+          "line": 210,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47100,7 +46886,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 173,
+          "line": 210,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47116,7 +46902,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 173,
+          "line": 210,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47132,7 +46918,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 173,
+          "line": 210,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47172,7 +46958,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 86,
+          "line": 109,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47208,7 +46994,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 86,
+          "line": 109,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47244,7 +47030,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 86,
+          "line": 109,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47280,7 +47066,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 86,
+          "line": 109,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47322,7 +47108,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 86,
+          "line": 109,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47382,7 +47168,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 208,
+          "line": 245,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47398,7 +47184,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 208,
+          "line": 245,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47420,7 +47206,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 208,
+          "line": 245,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47436,7 +47222,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 208,
+          "line": 245,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47476,7 +47262,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 227,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47492,7 +47278,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 227,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47508,7 +47294,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 227,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47530,7 +47316,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 227,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47576,7 +47362,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 235,
+          "line": 271,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47592,7 +47378,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 235,
+          "line": 271,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47632,7 +47418,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 112,
+          "line": 135,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47654,7 +47440,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 112,
+          "line": 135,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47670,7 +47456,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 112,
+          "line": 135,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47686,7 +47472,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 112,
+          "line": 135,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47702,7 +47488,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 112,
+          "line": 135,
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
@@ -47856,7 +47642,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 107,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -47866,6 +47652,14 @@
         {
           "line": 26,
           "path": "app/server/src/lib/console-scope.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/cursor.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/sql-text.ts"
         },
         {
           "line": 28,
@@ -47928,7 +47722,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 107,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -47938,6 +47732,14 @@
         {
           "line": 26,
           "path": "app/server/src/lib/console-scope.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/cursor.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/sql-text.ts"
         },
         {
           "line": 28,
@@ -48000,7 +47802,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 107,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -48010,6 +47812,14 @@
         {
           "line": 26,
           "path": "app/server/src/lib/console-scope.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/cursor.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/sql-text.ts"
         },
         {
           "line": 28,
@@ -48072,7 +47882,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 107,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -48082,6 +47892,14 @@
         {
           "line": 26,
           "path": "app/server/src/lib/console-scope.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/cursor.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/sql-text.ts"
         },
         {
           "line": 28,
@@ -48144,7 +47962,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 107,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -48154,6 +47972,14 @@
         {
           "line": 26,
           "path": "app/server/src/lib/console-scope.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/cursor.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/sql-text.ts"
         },
         {
           "line": 28,
@@ -48216,7 +48042,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 107,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -48226,6 +48052,14 @@
         {
           "line": 26,
           "path": "app/server/src/lib/console-scope.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/cursor.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/sql-text.ts"
         },
         {
           "line": 28,
@@ -48294,7 +48128,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 33,
+          "line": 107,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -48304,6 +48138,14 @@
         {
           "line": 26,
           "path": "app/server/src/lib/console-scope.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/cursor.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/server/src/lib/sql-text.ts"
         },
         {
           "line": 28,
@@ -48390,7 +48232,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 150,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -48430,7 +48272,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 150,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -48470,7 +48312,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 150,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -48516,7 +48358,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 150,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -48556,7 +48398,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 150,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -48596,7 +48438,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 150,
           "path": "app/server/src/routes/console/users.ts"
         },
         {
@@ -49968,7 +49810,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 802,
+          "line": 810,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49986,7 +49828,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 792,
+          "line": 800,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -49998,7 +49840,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 792,
+          "line": 800,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -50016,7 +49858,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 813,
+          "line": 821,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -51072,7 +50914,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 834,
+          "line": 842,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -51341,6 +51183,24 @@
         }
       ],
       "from": "table:perm_nodes",
+      "to": "database:data.db",
+      "type": "stored-in"
+    },
+    {
+      "basis": "declaration",
+      "from": "table:perm_seed_applied",
+      "to": "domain:permissions",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 791,
+          "path": "app/server/src/lib/db.ts"
+        }
+      ],
+      "from": "table:perm_seed_applied",
       "to": "database:data.db",
       "type": "stored-in"
     },
@@ -52169,7 +52029,7 @@
         }
       },
       "source": {
-        "line": 173,
+        "line": 210,
         "path": "app/server/src/routes/console/permission-groups.ts"
       }
     },
@@ -52237,7 +52097,7 @@
         }
       },
       "source": {
-        "line": 234,
+        "line": 270,
         "path": "app/server/src/routes/console/permission-groups.ts"
       }
     },
@@ -52263,7 +52123,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -52289,7 +52149,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -52428,7 +52288,7 @@
         }
       },
       "source": {
-        "line": 108,
+        "line": 106,
         "path": "app/server/src/routes/forum-api/posts.ts"
       }
     },
@@ -53386,7 +53246,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -53412,7 +53272,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -53438,7 +53298,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 127,
+        "line": 142,
         "path": "app/server/src/app.ts"
       }
     },
@@ -54892,7 +54752,7 @@
         }
       },
       "source": {
-        "line": 116,
+        "line": 117,
         "path": "app/server/src/routes/console/activity.ts"
       }
     },
@@ -55344,7 +55204,7 @@
         }
       },
       "source": {
-        "line": 84,
+        "line": 88,
         "path": "app/server/src/routes/console/activity.ts"
       }
     },
@@ -55442,7 +55302,7 @@
         }
       },
       "source": {
-        "line": 97,
+        "line": 103,
         "path": "app/server/src/routes/console/activity.ts"
       }
     },
@@ -57908,7 +57768,7 @@
         }
       },
       "source": {
-        "line": 24,
+        "line": 28,
         "path": "app/server/src/routes/console/me.ts"
       }
     },
@@ -58131,7 +57991,7 @@
         }
       },
       "source": {
-        "line": 86,
+        "line": 109,
         "path": "app/server/src/routes/console/permission-groups.ts"
       }
     },
@@ -58271,7 +58131,7 @@
         }
       },
       "source": {
-        "line": 190,
+        "line": 227,
         "path": "app/server/src/routes/console/permission-groups.ts"
       }
     },
@@ -58713,7 +58573,7 @@
         }
       },
       "source": {
-        "line": 53,
+        "line": 59,
         "path": "app/server/src/routes/console/me.ts"
       }
     },
@@ -59053,7 +58913,7 @@
         }
       },
       "source": {
-        "line": 33,
+        "line": 107,
         "path": "app/server/src/routes/console/users.ts"
       }
     },
@@ -59331,7 +59191,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -59357,7 +59217,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -59494,7 +59354,7 @@
         }
       },
       "source": {
-        "line": 44,
+        "line": 45,
         "path": "app/server/src/routes/forum-api/topics.ts"
       }
     },
@@ -59560,7 +59420,7 @@
         }
       },
       "source": {
-        "line": 22,
+        "line": 23,
         "path": "app/server/src/routes/forum-api/topics.ts"
       }
     },
@@ -59634,7 +59494,7 @@
         }
       },
       "source": {
-        "line": 33,
+        "line": 34,
         "path": "app/server/src/routes/forum-api/topics.ts"
       }
     },
@@ -61585,7 +61445,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -62041,7 +61901,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 107,
+        "line": 122,
         "path": "app/server/src/app.ts"
       }
     },
@@ -62067,7 +61927,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 107,
+        "line": 122,
         "path": "app/server/src/app.ts"
       }
     },
@@ -62093,7 +61953,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -62119,7 +61979,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 113,
+        "line": 128,
         "path": "app/server/src/app.ts"
       }
     },
@@ -62490,7 +62350,7 @@
       "registration": "automatic-head",
       "schema": {},
       "source": {
-        "line": 127,
+        "line": 142,
         "path": "app/server/src/app.ts"
       }
     },
@@ -62847,7 +62707,7 @@
         }
       },
       "source": {
-        "line": 116,
+        "line": 117,
         "path": "app/server/src/routes/console/activity.ts"
       }
     },
@@ -62984,7 +62844,7 @@
         }
       },
       "source": {
-        "line": 84,
+        "line": 88,
         "path": "app/server/src/routes/console/activity.ts"
       }
     },
@@ -63050,7 +62910,7 @@
         }
       },
       "source": {
-        "line": 97,
+        "line": 103,
         "path": "app/server/src/routes/console/activity.ts"
       }
     },
@@ -64072,7 +63932,7 @@
         }
       },
       "source": {
-        "line": 24,
+        "line": 28,
         "path": "app/server/src/routes/console/me.ts"
       }
     },
@@ -64136,7 +63996,7 @@
         }
       },
       "source": {
-        "line": 86,
+        "line": 109,
         "path": "app/server/src/routes/console/permission-groups.ts"
       }
     },
@@ -64207,7 +64067,7 @@
         }
       },
       "source": {
-        "line": 190,
+        "line": 227,
         "path": "app/server/src/routes/console/permission-groups.ts"
       }
     },
@@ -64401,7 +64261,7 @@
         }
       },
       "source": {
-        "line": 53,
+        "line": 59,
         "path": "app/server/src/routes/console/me.ts"
       }
     },
@@ -64465,7 +64325,7 @@
         }
       },
       "source": {
-        "line": 33,
+        "line": 107,
         "path": "app/server/src/routes/console/users.ts"
       }
     },
@@ -64754,7 +64614,7 @@
       "registration": "automatic-head",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -64780,7 +64640,7 @@
       "registration": "automatic-head",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -64916,7 +64776,7 @@
         }
       },
       "source": {
-        "line": 27,
+        "line": 28,
         "path": "app/server/src/routes/forum-api/topics.ts"
       }
     },
@@ -65789,7 +65649,7 @@
       "registration": "automatic-head",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -66135,7 +65995,7 @@
       "registration": "automatic-head",
       "schema": {},
       "source": {
-        "line": 107,
+        "line": 122,
         "path": "app/server/src/app.ts"
       }
     },
@@ -66161,7 +66021,7 @@
       "registration": "automatic-head",
       "schema": {},
       "source": {
-        "line": 107,
+        "line": 122,
         "path": "app/server/src/app.ts"
       }
     },
@@ -66187,7 +66047,7 @@
       "registration": "automatic-head",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -66213,7 +66073,7 @@
       "registration": "automatic-head",
       "schema": {},
       "source": {
-        "line": 113,
+        "line": 128,
         "path": "app/server/src/app.ts"
       }
     },
@@ -66454,7 +66314,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -66480,7 +66340,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -66506,7 +66366,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -66532,7 +66392,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -67669,7 +67529,7 @@
         }
       },
       "source": {
-        "line": 112,
+        "line": 135,
         "path": "app/server/src/routes/console/permission-groups.ts"
       }
     },
@@ -67764,17 +67624,212 @@
               "account_id": {
                 "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
                 "type": "string"
+              },
+              "avatar_url": {
+                "anyOf": [
+                  {
+                    "maxLength": 500,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "created_at": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "department": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                        "type": "string"
+                      },
+                      "name": {
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "tone": {
+                        "anyOf": [
+                          {
+                            "maxLength": 32,
+                            "minLength": 0,
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "tone"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "display_name": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "gitlab": {
+                "additionalProperties": false,
+                "properties": {
+                  "gitlab_user_id": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "state": {
+                    "enum": [
+                      "synced",
+                      "pending",
+                      "failed",
+                      "blocked",
+                      "none"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "state",
+                  "gitlab_user_id"
+                ],
+                "type": "object"
+              },
+              "last_login_at": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "level": {
+                "enum": [
+                  "registered",
+                  "member",
+                  "alumni"
+                ],
+                "type": "string"
+              },
+              "providers": {
+                "items": {
+                  "enum": [
+                    "email",
+                    "google",
+                    "github"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "status": {
+                "enum": [
+                  "active",
+                  "disabled"
+                ],
+                "type": "string"
+              },
+              "titles": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "department_id": {
+                      "anyOf": [
+                        {
+                          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "id": {
+                      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+                      "type": "string"
+                    },
+                    "name": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "department_id"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "username": {
+                "anyOf": [
+                  {
+                    "maxLength": 24,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "required": [
-              "account_id"
+              "account_id",
+              "username",
+              "display_name",
+              "avatar_url",
+              "status",
+              "level",
+              "department",
+              "titles",
+              "providers",
+              "gitlab",
+              "last_login_at",
+              "created_at"
             ],
             "type": "object"
           }
         }
       },
       "source": {
-        "line": 113,
+        "line": 149,
         "path": "app/server/src/routes/console/users.ts"
       }
     },
@@ -67800,7 +67855,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -67826,7 +67881,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -68025,7 +68080,7 @@
         }
       },
       "source": {
-        "line": 96,
+        "line": 94,
         "path": "app/server/src/routes/forum-api/posts.ts"
       }
     },
@@ -68237,7 +68292,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -68263,7 +68318,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -70722,7 +70777,7 @@
         }
       },
       "source": {
-        "line": 88,
+        "line": 111,
         "path": "app/server/src/routes/console/permission-groups.ts"
       }
     },
@@ -70804,7 +70859,7 @@
         }
       },
       "source": {
-        "line": 207,
+        "line": 244,
         "path": "app/server/src/routes/console/permission-groups.ts"
       }
     },
@@ -70946,7 +71001,7 @@
         }
       },
       "source": {
-        "line": 18,
+        "line": 25,
         "path": "app/server/src/routes/portal/events.ts"
       }
     },
@@ -71105,7 +71160,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -71131,7 +71186,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -71402,7 +71457,7 @@
         }
       },
       "source": {
-        "line": 44,
+        "line": 42,
         "path": "app/server/src/routes/forum-api/posts.ts"
       }
     },
@@ -71473,7 +71528,7 @@
         }
       },
       "source": {
-        "line": 127,
+        "line": 125,
         "path": "app/server/src/routes/forum-api/posts.ts"
       }
     },
@@ -71544,7 +71599,7 @@
         }
       },
       "source": {
-        "line": 119,
+        "line": 117,
         "path": "app/server/src/routes/forum-api/posts.ts"
       }
     },
@@ -71643,7 +71698,7 @@
         }
       },
       "source": {
-        "line": 55,
+        "line": 56,
         "path": "app/server/src/routes/forum-api/topics.ts"
       }
     },
@@ -71729,7 +71784,7 @@
         }
       },
       "source": {
-        "line": 77,
+        "line": 78,
         "path": "app/server/src/routes/forum-api/topics.ts"
       }
     },
@@ -71815,7 +71870,7 @@
         }
       },
       "source": {
-        "line": 77,
+        "line": 78,
         "path": "app/server/src/routes/forum-api/topics.ts"
       }
     },
@@ -71886,7 +71941,7 @@
         }
       },
       "source": {
-        "line": 90,
+        "line": 91,
         "path": "app/server/src/routes/forum-api/topics.ts"
       }
     },
@@ -76412,7 +76467,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -76502,7 +76557,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -76999,7 +77054,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -77025,7 +77080,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -77224,7 +77279,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     },
@@ -77250,7 +77305,7 @@
       "registration": "explicit",
       "schema": {},
       "source": {
-        "line": 103,
+        "line": 118,
         "path": "app/server/src/app.ts"
       }
     }
@@ -78611,6 +78666,13 @@
     {
       "domains": [
         "audit",
+        "permissions"
+      ],
+      "path": "app/server/src/lib/cursor.ts"
+    },
+    {
+      "domains": [
+        "audit",
         "competitions",
         "feedback",
         "forum",
@@ -78852,6 +78914,15 @@
       "domains": [
         "audit",
         "competitions",
+        "permissions",
+        "recruitment"
+      ],
+      "path": "app/server/src/lib/sql-text.ts"
+    },
+    {
+      "domains": [
+        "audit",
+        "competitions",
         "feedback",
         "forum",
         "github",
@@ -78911,22 +78982,6 @@
         "recruitment"
       ],
       "path": "app/server/src/middleware/require-auth.ts"
-    },
-    {
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "forum",
-        "github",
-        "identity",
-        "invitations",
-        "organization",
-        "platform",
-        "public_content",
-        "recruitment"
-      ],
-      "path": "app/server/src/middleware/require-capability.ts"
     },
     {
       "domains": [
@@ -80266,7 +80321,7 @@
       "name": "account_avatars",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 802,
+        "line": 810,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE account_avatars (\n  hash TEXT PRIMARY KEY,\n  data BLOB NOT NULL,\n  mime TEXT NOT NULL,\n  created_at INTEGER NOT NULL\n)"
@@ -80407,7 +80462,7 @@
       "name": "account_profiles",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 792,
+        "line": 800,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE account_profiles (\n  account_id TEXT PRIMARY KEY REFERENCES users(id),\n  username TEXT UNIQUE COLLATE NOCASE,\n  display_name TEXT NOT NULL DEFAULT '',\n  bio TEXT NOT NULL DEFAULT '',\n  avatar_hash TEXT,\n  prefs TEXT NOT NULL DEFAULT '{}',\n  updated_at INTEGER NOT NULL\n)"
@@ -80698,7 +80753,7 @@
       "name": "activity_events",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 813,
+        "line": 821,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE activity_events (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  at INTEGER NOT NULL,\n  account_id TEXT,\n  visitor_id TEXT,\n  surface TEXT NOT NULL CHECK (surface IN ('portal', 'forum', 'console', 'cli', 'api', 'system')),\n  action TEXT NOT NULL,\n  target_type TEXT,\n  target_id TEXT,\n  outcome TEXT NOT NULL CHECK (outcome IN ('ok', 'denied', 'limited', 'error')),\n  ip TEXT,\n  ua TEXT,\n  request_id TEXT,\n  meta TEXT NOT NULL DEFAULT '{}'\n)"
@@ -86645,7 +86700,7 @@
       "name": "limit_events",
       "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
       "source": {
-        "line": 834,
+        "line": 842,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE limit_events (\n  bucket TEXT NOT NULL,\n  subject TEXT NOT NULL,\n  at INTEGER NOT NULL\n)"
@@ -88292,6 +88347,66 @@
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE perm_nodes (\n  node TEXT PRIMARY KEY,\n  domain TEXT NOT NULL,\n  label TEXT NOT NULL,\n  description TEXT NOT NULL DEFAULT '',\n  meta INTEGER NOT NULL DEFAULT 0 CHECK (meta IN (0, 1)),\n  sort INTEGER NOT NULL DEFAULT 0\n)"
+    },
+    {
+      "columns": [
+        {
+          "cid": 0,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "key",
+          "notnull": 0,
+          "pk": 1,
+          "type": "TEXT"
+        },
+        {
+          "cid": 1,
+          "dflt_value": null,
+          "hidden": 0,
+          "name": "applied_at",
+          "notnull": 1,
+          "pk": 0,
+          "type": "INTEGER"
+        }
+      ],
+      "database": "data.db",
+      "domain": "permissions",
+      "foreignKeys": [],
+      "id": "table:perm_seed_applied",
+      "indexes": [
+        {
+          "columns": [
+            {
+              "cid": 0,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 1,
+              "name": "key",
+              "seqno": 0
+            },
+            {
+              "cid": -1,
+              "coll": "BINARY",
+              "desc": 0,
+              "key": 0,
+              "name": null,
+              "seqno": 1
+            }
+          ],
+          "name": "sqlite_autoindex_perm_seed_applied_1",
+          "origin": "pk",
+          "partial": 0,
+          "sql": null,
+          "unique": 1
+        }
+      ],
+      "name": "perm_seed_applied",
+      "note": "字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。",
+      "source": {
+        "line": 791,
+        "path": "app/server/src/lib/db.ts"
+      },
+      "sql": "CREATE TABLE perm_seed_applied (\n  key TEXT PRIMARY KEY,\n  applied_at INTEGER NOT NULL\n)"
     },
     {
       "columns": [
