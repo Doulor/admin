@@ -100,6 +100,18 @@ pub enum CompCommand {
         /// 比赛 id。
         id: String,
     },
+    /// 组队广场：正在报名的团队赛里招人的队伍和找队伍的人（需要登录，且持有报名或组队任一权限）。
+    Plaza {
+        /// 只看这场比赛。
+        #[arg(long)]
+        competition: Option<String>,
+        /// 只看一种：recruiting（招人的队伍）或 seeking（找队伍的人）。
+        #[arg(long, value_parser = ["recruiting", "seeking"])]
+        kind: Option<String>,
+        /// 按队名、技能或留言搜。
+        #[arg(long)]
+        keyword: Option<String>,
+    },
 }
 
 #[derive(Subcommand, Debug)]

@@ -29,6 +29,117 @@ pub async fn mine(ctx: &Context, json: bool) -> i32 {
     emit(&outcome, json, |data| render(data, "items"))
 }
 
+/// 组队广场（#278）的地址：筛选条件放进查询串，`--kind` 的短写换成接口的取值。
+fn plaza_path(competition: Option<&str>, kind: Option<&str>, keyword: Option<&str>) -> String {
+    let mut query = url::form_urlencoded::Serializer::new(String::new());
+    if let Some(id) = competition.filter(|value| !value.is_empty()) {
+        query.append_pair("competition_id", id);
+    }
+    match kind {
+        Some("recruiting") => {
+            query.append_pair("kind", "recruiting_team");
+        }
+        Some("seeking") => {
+            query.append_pair("kind", "seeking_team");
+        }
+        _ => {}
+    }
+    if let Some(words) = keyword.map(str::trim).filter(|value| !value.is_empty()) {
+        query.append_pair("keyword", words);
+    }
+    let text = query.finish();
+    if text.is_empty() {
+        "/api/team-plaza".to_string()
+    } else {
+        format!("/api/team-plaza?{text}")
+    }
+}
+
+/// `GET /api/team-plaza`：要登录，且持有报名或组队任一权限节点。
+pub async fn plaza(
+    ctx: &Context,
+    competition: Option<String>,
+    kind: Option<String>,
+    keyword: Option<String>,
+    json: bool,
+) -> i32 {
+    if ctx.token.is_none() {
+        return emit(
+            &Outcome::err(
+                ExitCode::NotSignedIn,
+                ErrorBody::new("not_signed_in", "还没有登录，先运行 geek login"),
+            ),
+            json,
+            |_| {},
+        );
+    }
+    let path = plaza_path(competition.as_deref(), kind.as_deref(), keyword.as_deref());
+    let outcome = call(ctx, &path).await;
+    emit(&outcome, json, render_plaza)
+}
+
+fn render_plaza(data: &Value) {
+    let items = data
+        .get("items")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if items.is_empty() {
+        println!("组队广场现在是空的：没有正在报名的团队赛，或者还没有人在找队友。");
+        return;
+    }
+    let text = |value: &Value, key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string()
+    };
+    for item in &items {
+        let competition = text(item, "competition_name");
+        let note = text(item, "note");
+        let tail = if note.is_empty() {
+            String::new()
+        } else {
+            format!("：{note}")
+        };
+        if item.get("kind").and_then(Value::as_str) == Some("recruiting_team") {
+            let leader = item
+                .get("leader")
+                .map(|person| text(person, "login"))
+                .unwrap_or_default();
+            let count = item
+                .get("member_count")
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
+            let max = item.get("team_max").and_then(Value::as_i64).unwrap_or(0);
+            println!(
+                "[招人] {} {count}/{max} 人 · {competition} · 领队 {leader}{tail}",
+                text(item, "team_name")
+            );
+        } else {
+            let login = item
+                .get("person")
+                .map(|person| text(person, "login"))
+                .unwrap_or_default();
+            println!("[找队伍] {login} · {competition}{tail}");
+        }
+    }
+}
+
+/// 状态的中文：`--json` 仍给接口原值，给人看的输出才换。
+fn status_text(status: &str) -> &str {
+    match status {
+        "planning" => "规划中",
+        "upcoming" => "未开始",
+        "registering" => "报名中",
+        "closed" => "报名已截止",
+        "ongoing" => "进行中",
+        "ended" => "已结束",
+        other => other,
+    }
+}
+
 /// 报名请求体：抽成纯函数方便单测，不用真的发请求就能核对字段名。
 fn signup_body(note: &str, looking_for_team: bool) -> Value {
     json!({ "note": note, "looking_for_team": looking_for_team })
@@ -130,7 +241,7 @@ fn render(data: &Value, key: &str) {
             .or_else(|| item.get("competition_id"))
             .and_then(Value::as_str)
             .unwrap_or("?");
-        let status = item.get("status").and_then(Value::as_str).unwrap_or("");
+        let status = status_text(item.get("status").and_then(Value::as_str).unwrap_or(""));
         println!("[{id}] {name} ({status})");
     }
 }
@@ -140,7 +251,7 @@ fn render_one(data: &Value) {
         .get("name")
         .and_then(Value::as_str)
         .unwrap_or("(无名称)");
-    let status = data.get("status").and_then(Value::as_str).unwrap_or("");
+    let status = status_text(data.get("status").and_then(Value::as_str).unwrap_or(""));
     let description = data
         .get("description")
         .and_then(Value::as_str)
@@ -197,5 +308,25 @@ mod tests {
         assert_eq!(body, json!({ "note": "找队友", "looking_for_team": true }));
         let empty = signup_body("", false);
         assert_eq!(empty, json!({ "note": "", "looking_for_team": false }));
+    }
+
+    #[test]
+    fn plaza_path_maps_short_kinds_and_encodes_keyword() {
+        assert_eq!(plaza_path(None, None, None), "/api/team-plaza");
+        assert_eq!(
+            plaza_path(Some("c1"), Some("recruiting"), Some(" 前端 设计 ")),
+            "/api/team-plaza?competition_id=c1&kind=recruiting_team&keyword=%E5%89%8D%E7%AB%AF+%E8%AE%BE%E8%AE%A1"
+        );
+        assert_eq!(
+            plaza_path(None, Some("seeking"), Some("  ")),
+            "/api/team-plaza?kind=seeking_team"
+        );
+    }
+
+    #[test]
+    fn status_text_covers_planning() {
+        assert_eq!(status_text("planning"), "规划中");
+        assert_eq!(status_text("ended"), "已结束");
+        assert_eq!(status_text("unknown"), "unknown");
     }
 }

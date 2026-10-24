@@ -129,6 +129,10 @@ describe('geek 命令行的 Bearer 鉴权（#277）', () => {
     });
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ error: 'insufficient_scope', scope: 'forum' });
+    // 组队广场（#278，geek comp plaza）归 competition scope，没申请过同样先被 scope 挡下
+    const plaza = await app.inject({ url: '/api/team-plaza', headers: bearer(token) });
+    expect(plaza.statusCode).toBe(403);
+    expect(plaza.json()).toMatchObject({ error: 'insufficient_scope', scope: 'competition' });
   });
 
   it('注册用户（没有邀请码）即使令牌带了 forum scope，发帖也被权限节点拒绝，错误可读（issue #277 验收项）', async () => {
