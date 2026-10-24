@@ -3,12 +3,10 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } fr
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { generateKeyPairSync } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
   ENVIRONMENTS,
   IMAGE_SERVICES,
-  GITHUB_APP_SECRET_PAIR,
   GOOGLE_SECRET_PAIR,
   MAIL_ALIYUN_SECRET_PAIR,
   OIDC_GITLAB_SECRETS,
@@ -375,7 +373,7 @@ describe('optional Turnstile pair', () => {
     expect(() => renderRuntimeEnv({ root, environment: 'production', out, imageTag: 'a1b2c3d4e5f6', env: { ...secrets, TURNSTILE_SECRET_KEY: '' } })).toThrow(/只配了一项/);
     expect(() => renderRuntimeEnv({ root, environment: 'production', out, imageTag: 'a1b2c3d4e5f6', env: { ...secrets, TURNSTILE_SITE_KEY: '' } })).toThrow(/只配了一项/);
     // Turnstile 与发信都关闭时，其余每一个密钥仍然必填。
-    const required = without(secrets, [...OPTIONAL_SECRET_PAIR, ...MAIL_ALIYUN_SECRET_PAIR, ...GOOGLE_SECRET_PAIR, ...GITHUB_APP_SECRET_PAIR, ...OPTIONAL_SECRETS, ...OIDC_GITLAB_SECRETS]);
+    const required = without(secrets, [...OPTIONAL_SECRET_PAIR, ...MAIL_ALIYUN_SECRET_PAIR, ...GOOGLE_SECRET_PAIR, ...OPTIONAL_SECRETS, ...OIDC_GITLAB_SECRETS]);
     expect(Object.keys(required)).toEqual([...REQUIRED_SECRET_FIELDS]);
     for (const field of REQUIRED_SECRET_FIELDS) {
       expect(() => renderRuntimeEnv({ root, environment: 'production', out, imageTag: 'a1b2c3d4e5f6', env: without(required, [field]) })).toThrow(new RegExp(field));
@@ -399,30 +397,6 @@ describe('optional Turnstile pair', () => {
     expect(render(secrets).google).toBe('on');
   });
 
-  it('treats the GitHub App as an optional pair and accepts the key as one line of base64 (#262 第四期)', () => {
-    const root = fixtureRoot();
-    const out = join(root, 'runtime/.env.production');
-    const render = (env: Record<string, string>) => renderRuntimeEnv({ root, environment: 'production', out, imageTag: 'a1b2c3d4e5f6', env });
-    for (const field of GITHUB_APP_SECRET_PAIR) {
-      expect(SECRET_FIELDS).toContain(field);
-      expect(REQUIRED_SECRET_FIELDS).not.toContain(field);
-      expect(() => render(without(secrets, [field]))).toThrow(/只配了一项.*开启 GitHub App/);
-    }
-    const off = render(without(secrets, GITHUB_APP_SECRET_PAIR));
-    expect(off.githubApp).toBe('off');
-    expect(off.notices.some(text => text.includes('没有 GitHub App'))).toBe(true);
-    expect(parseEnvFileText(readFileSync(out, 'utf8'), 'rendered').get('GH_APP_PRIVATE_KEY')).toBe('');
-    // GitHub 给 App 生成的是 2048 位 RSA 私钥；整份 PEM 再 base64 是一行，只含 A-Z a-z 0-9 + / =，原样写入。
-    const pem = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs1', format: 'pem' }).toString();
-    const key = Buffer.from(pem).toString('base64');
-    const on = render({ ...secrets, GH_APP_ID: '123456', GH_APP_PRIVATE_KEY: key });
-    expect(on.githubApp).toBe('on');
-    const values = parseEnvFileText(readFileSync(out, 'utf8'), 'rendered');
-    expect(values.get('GH_APP_ID')).toBe('123456');
-    expect(values.get('GH_APP_PRIVATE_KEY')).toBe(key);
-    // 多行 PEM 原样贴进来会被拒绝（换行与空格不是合法的密钥字符）。
-    expect(() => render({ ...secrets, GH_APP_ID: '123456', GH_APP_PRIVATE_KEY: pem })).toThrow(/GH_APP_PRIVATE_KEY 含非法字符/);
-  });
 });
 
 describe('OIDC signing key and GitLab sync (#270)', () => {
