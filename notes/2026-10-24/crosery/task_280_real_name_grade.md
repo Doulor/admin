@@ -1,4 +1,4 @@
-# task_280_real_name_grade · crosery · 2026-10-24
+# task/280/real_name_grade · crosery · 2026-10-24
 
 负责人：crosery
 
@@ -29,3 +29,17 @@
 - 做了什么：按 code-review 两条线核对 39ab81ab..7782c77d：规范（检查脚本、迁移可重复、真实姓名只从本人 me 与 users.manage 的用户列表和 PATCH 出去、操作记录不写姓名、改动文件无 emoji）与需求（#280 期望结果与验收条件，所有者 13:45、16:38、16:42、16:54 原话）。
 - 结果：结论：有条件通过；条件是合并后发 rc.20 在预发布按人工验收步骤走一遍。未验证：预发布真实验收、真实发信的邮箱注册与 GitHub/Google 登录后跳补资料页、论坛跳转的浏览器验证、Safari 和真机。审查结论贴在 MR !10 正文。
 - 下一步：合并 !10，关 #280 并留关闭记录，task.mjs finish 清理 worktree。
+
+## 17:31:03 +08:00 · 合并 · #280 · MR !10 合进 stage（4c7c5dd5），#280 手工关闭
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：GitLab API 合并 MR !10（merge commit，sha 校验 461f208a），源分支随合并删除；MR 正文审查标题和追踪记录评论里估的时间改成执行记录里的 17:26，并留更正评论 796；#280 写关闭记录（评论 797）后手工关闭，!10 留关闭记录（评论 800）。
+- 结果：stage 39ab81ab → 4c7c5dd5（父 39ab81ab、461f208a）；远端已无 task/280 分支；#280 closed 2026-10-24 17:30。
+- 下一步：收尾：停本机 vite、删 task-280 worktree 和本地分支；等 #278 合并后一起发 rc.20
+
+## 17:31:19 +08:00 · 收尾 · #280 · 删 task-280 worktree 和本地分支
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：task.mjs finish 只查 GitHub，认不出 GitLab 的 !10 和 #280，所以手工收尾：确认 worktree 干净、本地分支头 461f208a 就是 !10 合并时的头；停掉本机两个 vite（控制台 5290、官网 5291，都是本会话起的后台任务）；git worktree remove .claude/worktrees/task-280；git branch -D task/280/real_name_grade；删掉本机的预发布库复制品 .tools/yugc-v2/db/preview-copy-280b.db 和 preview-copy-280.db 残留的 -shm/-wal。
+- 结果：见下一条命令的输出
+- 下一步：等 #278 合并后发 rc.20
