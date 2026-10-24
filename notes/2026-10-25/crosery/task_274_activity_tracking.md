@@ -22,3 +22,17 @@
 - 做了什么：主会话核对 ce4a4984、a56bff11、ffef8efd、df70f556（子 agent track274 写的）和 0dfbb3d6、88c9109b（主会话写的）：事件接口按 surface 挑白名单，限流和单批上限三端共用，冒充 surface 只能换一份白名单，记录里的账号或访客仍是真实的；表情回应加和取消都记；论坛和控制台上报不带查询串、邮箱、姓名、正文；控制台请求操作记录的地方都不带 limit，mock 同样拒绝契约外字段。
 - 结果：结论：通过。已知限制写进 MR：邀请码、GitLab 账号、论坛分类的窄屏留作后续；预发布真实上报未验证，随 rc.21 补截图。
 - 下一步：合并进 stage，关 #274，手工收尾。
+
+## 01:32:24 +08:00 · 合并 · #274 · MR !18 合并进 stage，#274 关闭
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：GitLab PUT merge（sha b7791d23，squash false，删源分支），merge commit f00e9966；#274 写关闭记录后关闭。
+- 结果：stage f00e9966；#274 closed；远端 task 分支随合并删除。
+- 下一步：删本机 worktree 和分支。
+
+## 01:32:43 +08:00 · 收尾 · #274 · 删掉 #274 操作记录埋点的 worktree 与本机分支
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：git worktree remove .claude/worktrees/task-274-track；git branch -D task/274/activity_tracking。删之前 worktree 没有未提交的改动。
+- 结果：git worktree list 里没有 task-274-track
+- 下一步：rc.21 发预发布后按 !18 人工验收步骤核对
