@@ -39,7 +39,8 @@ geek logout                                             撤销令牌、清本机
 geek whoami [--json]                                    看登录信息
 
 geek forum list [--json]                                板块与话题摘要
-geek forum post <标题> <正文> [--json]                   发帖（受权限节点限制）
+geek forum post --title <标题> --category <分类 id> --content <正文> [--json]
+                                                         发帖（受权限节点限制，分类 id 取自 forum list 的 state.categories）
 
 geek comp list [--json]                                 公开比赛列表
 geek comp mine [--json]                                 我报名的比赛
