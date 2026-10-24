@@ -2,10 +2,9 @@
   "version": 1,
   "issue": 276,
   "kind": "business",
-  "summary": "论坛 v2 服务端半份：话题分级可见（public/registered/member，COALESCE(话题/分类/public)）、去掉游客回帖（CONTRACT §2）、表情包与表情回应、帖子图片上传、@ 提及自动补全、访客翻页上限（SPEC §3.8）、控制台「论坛管理」（分类可见范围、表情包/表情维护）；另加团队负责人追加的 viewer.level/viewer.nodes（分级可见等级与写权限节点子集，按钮显隐参考）和表情回应 mine 字段的真实 bug 修复。论坛 Nuxt 前端与控制台 Vue 页面的 UI 行为是另一位同事在 forum-ui-276 的独立 worktree 里做的，不在这份声明里；这里只碰了 app/forum/shared/forum-api.ts 这一个纯类型/解析器文件（和它的两个测试），让前端客户端认得服务端新加的 viewer.level/nodes 字段、不被 parseWriteResult 悄悄丢掉，没有改任何组件、按钮显隐或页面逻辑。",
+  "summary": "论坛 v2 服务端半份：话题分级可见（public/registered/member，COALESCE(话题/分类/public)）、去掉游客回帖（CONTRACT §2）、表情包与表情回应、帖子图片上传、@ 提及自动补全、访客翻页上限（SPEC §3.8）、控制台「论坛管理」（分类可见范围、表情包/表情维护）；另加团队负责人追加的 viewer.level/viewer.nodes（分级可见等级与写权限节点子集，按钮显隐参考）和表情回应 mine 字段的真实 bug 修复。论坛 Nuxt 前端与控制台 Vue 页面的 UI 行为是另一位同事在 forum-ui-276 的独立 worktree 里做的，不在这份声明里；这里只碰了 app/forum/shared/forum-api.ts 这一个纯类型/解析器文件（和它的两个测试），让前端客户端认得服务端新加的 viewer.level/nodes 字段、不被 parseWriteResult 悄悄丢掉，没有改任何组件、按钮显隐或页面逻辑。 另外补做了三项从 #274 挪进 #276 的服务端清理（所有者批准挪动）：(1) 迁移步骤 4 archiveOldDepartments()——官网与论坛都已改读新权限体系的 /api/public/departments，把挡住它的两个条件清掉之后，在 createRoleStore() 播种默认部门之后调用一次，归档四个默认部门；(2) 旧的 GET /api/public/org 随之退场（路由、合同、目录条目与文档一起删）；(3) CONSOLE_ORG 改成 config.ts 的固定常量（不再是环境变量），连带清掉 lib/roles.ts 里 6 个 github.* 死能力和直接相连的旧能力系统残留（IMPLIES、ROLE_BASE、DEFAULT_DEPARTMENTS 里的引用）。另修了一条真实文案 bug：招新未通过邮件还在说『论坛不登录也能回复』，#276 已经去掉游客回帖，改成『发帖、回复要先登录』。",
   "applications": [
-    "server",
-    "forum"
+    "server"
   ],
   "domains": [
     "audit",
@@ -43,22 +42,31 @@
     "flow:identity.callback",
     "flow:identity.email.verify",
     "flow:application.cancel",
-    "flow:documentation.list"
+    "flow:documentation.list",
+    "flow:feedback.console.list",
+    "flow:application.review",
+    "flow:competition.create",
+    "flow:audit.events.report",
+    "flow:identity.departments.public",
+    "flow:feedback.categories",
+    "flow:competition.public.list"
   ],
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "论坛新增分级可见、表情、上传、@自动补全、访客翻页上限，并彻底去掉游客回帖这条旧业务路径（不再接受匿名发帖，只接受持 forum.reply.create 的登录成员）；控制台新增「论坛管理」页签让管理员改分类可见范围与维护表情包。这些都是面向真实用户/管理员的新业务能力，不是纯内部重构。",
+      "reason": "论坛新增分级可见、表情、上传、@自动补全、访客翻页上限，并彻底去掉游客回帖这条旧业务路径（不再接受匿名发帖，只接受持 forum.reply.create 的登录成员）；控制台新增「论坛管理」页签让管理员改分类可见范围与维护表情包。这些都是面向真实用户/管理员的新业务能力，不是纯内部重构。 另外三项同样面向真实用户/管理员：旧的 GET /api/public/org 退场（官网与论坛改读新接口）、默认部门归档（控制台只读列表里能看到 archived 状态变化）、CONSOLE_ORG 不再可配置（这个部署本来就只服务一个组织，改成常量不是业务行为变化，只是去掉一个从没被用到的自由度）。",
       "evidence": [
         "app/server/src/routes/forum-api/posts.ts",
         "app/server/src/routes/forum-api/topics.ts",
         "app/server/src/routes/console/forum.ts",
-        "docs/architecture/API.md"
+        "docs/architecture/API.md",
+        "app/server/src/routes/portal/org.ts",
+        "app/server/src/services.ts"
       ]
     },
     "backend": {
       "status": "changed",
-      "reason": "新增 15 个接口（见 docs/services/server/endpoint-contracts.md 与 docs/architecture/API.md 的 #276 小节）：表情回应 PUT/DELETE、表情包公开列表与图片、上传 PUT/GET、话题游标分页 GET、话题可见范围 PATCH、@ 自动补全、5 个控制台论坛管理接口；posts.ts 的回复接口去掉游客分支，改成单一的 forum.reply.create 权限节点判定。全部 16 个新增/改过请求形状的接口（含 POST /api/forum/posts）都补了响应 Schema：有确定形状的（表情聚合、话题分页、表情包列表、上传结果、控制台论坛管理）按真实形状声明；两个图片文件路由用占位 Schema（Fastify 对 Buffer 响应整段绕过 JSON Schema 序列化，已读 node_modules/fastify/lib/reply.js 源码核实）；写接口回答复用的通用 ForumWriteResponse 形状（PATCH visibility、POST /posts）用最宽松占位（只声明是对象），不裁字段，和其余十几个既有写接口一样没有固定 Schema。团队负责人追加：GET /state 与每个写接口的 viewer 对象另加 level（分级可见等级）与 nodes（持有的论坛写权限节点子集），只做按钮显隐参考，前端 app/forum/shared/forum-api.ts 的 parseViewer 同步认得这两个字段。自查发现并修了两处真实 bug：(1) middleware/http-policy.ts 的错误处理器从来没有把 ForumError.extra（401 的 need、403 的 node）铺进响应体，CONTRACT-276 §1 要求的字段实际从未下发；(2) lib/forum-store.ts 的 reactionsByPost() 用论坛用户 id 去比对 forum_reactions.account_id（核心账号 id），两种 id 格式不同，表情回应的 mine 字段永远是 false。两处都已修复并有回归测试（三个身份——加表情的人/别人/游客——在 /state、话题正文、PUT/DELETE 回答三处核对 mine 口径一致）。",
+      "reason": "新增 15 个接口（见 docs/services/server/endpoint-contracts.md 与 docs/architecture/API.md 的 #276 小节）：表情回应 PUT/DELETE、表情包公开列表与图片、上传 PUT/GET、话题游标分页 GET、话题可见范围 PATCH、@ 自动补全、5 个控制台论坛管理接口；posts.ts 的回复接口去掉游客分支，改成单一的 forum.reply.create 权限节点判定。全部 16 个新增/改过请求形状的接口（含 POST /api/forum/posts）都补了响应 Schema：有确定形状的（表情聚合、话题分页、表情包列表、上传结果、控制台论坛管理）按真实形状声明；两个图片文件路由用占位 Schema（Fastify 对 Buffer 响应整段绕过 JSON Schema 序列化，已读 node_modules/fastify/lib/reply.js 源码核实）；写接口回答复用的通用 ForumWriteResponse 形状（PATCH visibility、POST /posts）用最宽松占位（只声明是对象），不裁字段，和其余十几个既有写接口一样没有固定 Schema。团队负责人追加：GET /state 与每个写接口的 viewer 对象另加 level（分级可见等级）与 nodes（持有的论坛写权限节点子集），只做按钮显隐参考，前端 app/forum/shared/forum-api.ts 的 parseViewer 同步认得这两个字段。自查发现并修了两处真实 bug：(1) middleware/http-policy.ts 的错误处理器从来没有把 ForumError.extra（401 的 need、403 的 node）铺进响应体，CONTRACT-276 §1 要求的字段实际从未下发；(2) lib/forum-store.ts 的 reactionsByPost() 用论坛用户 id 去比对 forum_reactions.account_id（核心账号 id），两种 id 格式不同，表情回应的 mine 字段永远是 false。两处都已修复并有回归测试（三个身份——加表情的人/别人/游客——在 /state、话题正文、PUT/DELETE 回答三处核对 mine 口径一致）。 团队负责人撤回指令后，本分支没有再改 app/forum，上面提到的 parseViewer 两个字段由对方在 forum-ui-276 的提交 cherry-pick 进来，不在这份声明里。三项 #274 挪来的清理：services.ts 在 createRoleStore() 之后调一次 archiveOldDepartments()（SQL 只是 UPDATE ... WHERE archived = 0，幂等）；routes/portal/org.ts 整个文件删除，index.ts 去掉它的注册并把 r5..r9 重排成 r4..r8，contracts.ts 去掉对应合同条目，departments.ts 头注释去掉『两套并存』的旧说法；config.ts 去掉 CONSOLE_ORG 的环境读取与 GITHUB_LOGIN_REGEX 校验，四个调用方（services.ts、routes/portal/feedback.ts、routes/console/feedback.ts、routes/console/me.ts）改用 DEFAULT_CONSOLE_ORG 常量，feedback-store.ts 的两个纯函数签名不变；lib/roles.ts 删 6 个 github.* 能力、github domain、GITHUB_CAPABILITIES 导出、IMPLIES 里 5 条蕴含、ROLE_BASE 与 DEFAULT_DEPARTMENTS 里对应的授予，全部先 grep 确认零读者。顺手修了 lib/mail/recruitment.ts 的 rejectedMessage()：招新未通过邮件不再说『论坛不登录也能看帖，也可以用昵称回复』（#276 已经去掉游客回帖），改成『论坛不登录只能看公开的帖子，发帖、回复要先登录』。",
       "evidence": [
         "app/server/src/routes/forum-api/posts.ts",
         "app/server/src/routes/forum-api/stickers.ts",
@@ -73,28 +81,43 @@
         "app/server/src/lib/forum-store.ts",
         "app/server/src/lib/forum-rules.ts",
         "app/server/src/lib/limits.ts",
-        "app/forum/shared/forum-api.ts"
+        "app/server/src/routes/portal/org.ts",
+        "app/server/src/routes/portal/index.ts",
+        "app/server/src/routes/portal/contracts.ts",
+        "app/server/src/routes/portal/departments.ts",
+        "app/server/src/services.ts",
+        "app/server/src/config.ts",
+        "app/server/src/lib/roles.ts",
+        "app/server/src/lib/feedback-store.ts",
+        "app/server/src/routes/console/feedback.ts",
+        "app/server/src/routes/console/me.ts",
+        "app/server/src/routes/portal/feedback.ts",
+        "app/server/src/lib/mail/recruitment.ts"
       ]
     },
     "permissions": {
       "status": "changed",
-      "reason": "论坛前台新节点：forum.reply.create（取代游客回帖判定）、forum.react、forum.upload.image，迁移种子只发给 level.member；GET /api/forum/users/suggest 只要求登录（不要求 level.member，requireMember 在这里的语义是「有会话」）。控制台新节点 forum.category.manage、forum.sticker.manage，写操作另加 requireStepUp（和账号页同一个 10 分钟窗口）。节点本身在上一轮 #274 迁移（2026-10-yugc-v2.ts）里已经种过，这一轮只是新路由开始消费它们，没有新增迁移种子。团队负责人追加：viewer.nodes 只是把 forum-api/viewer.ts 里固定的六个节点（forum.topic.create/forum.reply.create/forum.react/forum.sticker.use/forum.upload.image/forum.moderate.edit）逐条过一遍 permissions.check() 下发给前端做按钮显隐参考，不新增任何权限节点或授权路径，真正鉴权仍在 requireWriter/canModerate。",
+      "reason": "论坛前台新节点：forum.reply.create（取代游客回帖判定）、forum.react、forum.upload.image，迁移种子只发给 level.member；GET /api/forum/users/suggest 只要求登录（不要求 level.member，requireMember 在这里的语义是「有会话」）。控制台新节点 forum.category.manage、forum.sticker.manage，写操作另加 requireStepUp（和账号页同一个 10 分钟窗口）。节点本身在上一轮 #274 迁移（2026-10-yugc-v2.ts）里已经种过，这一轮只是新路由开始消费它们，没有新增迁移种子。团队负责人追加：viewer.nodes 只是把 forum-api/viewer.ts 里固定的六个节点（forum.topic.create/forum.reply.create/forum.react/forum.sticker.use/forum.upload.image/forum.moderate.edit）逐条过一遍 permissions.check() 下发给前端做按钮显隐参考，不新增任何权限节点或授权路径，真正鉴权仍在 requireWriter/canModerate。 #274 挪来的清理不新增任何权限节点：archiveOldDepartments() 只改 departments.archived 这个旧表的列，和 #274 新权限体系的 perm_* 表无关；lib/roles.ts 删掉的 6 个 github.* 是旧的 Capability（role_assignments 时代），不是新节点体系的 node，删它们之前核查过 lib/access.ts 的 createAccess().resolve()（computeAccess() 唯一的生产调用方）在真实路由里零调用，归档部门和删能力都不会改变任何人实际持有的权限节点。",
       "evidence": [
         "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
         "app/server/src/routes/forum-api/viewer.ts",
         "app/server/src/routes/console/forum.ts",
-        "app/server/src/middleware/require-permission.ts"
+        "app/server/src/middleware/require-permission.ts",
+        "app/server/src/lib/roles.ts",
+        "app/server/src/services.ts"
       ]
     },
     "data": {
       "status": "changed",
-      "reason": "新增 6 张表（forum_category_settings、forum_sticker_packs、forum_stickers、forum_sticker_files、forum_reactions、forum_upload_files）与迁移 lib/migrations/2026-10-forum-v2.ts（分类可见范围种子、极客娘表情种子，只增不改、可重复执行）；forum_topics.visibility 列放宽成可空（重建表，PRAGMA foreign_keys 要在事务外先关再开，否则子表还有引用行时 DROP 旧表会撞 FK 约束——这是迁移演练阶段发现的真实 bug，已修复，回归测试见 legacy-database.test.ts 的新增用例）。两次迁移演练（见本轮汇报）之间与之后各表行数不变，确认迁移可重复执行不产生副作用。",
+      "reason": "新增 6 张表（forum_category_settings、forum_sticker_packs、forum_stickers、forum_sticker_files、forum_reactions、forum_upload_files）与迁移 lib/migrations/2026-10-forum-v2.ts（分类可见范围种子、极客娘表情种子，只增不改、可重复执行）；forum_topics.visibility 列放宽成可空（重建表，PRAGMA foreign_keys 要在事务外先关再开，否则子表还有引用行时 DROP 旧表会撞 FK 约束——这是迁移演练阶段发现的真实 bug，已修复，回归测试见 legacy-database.test.ts 的新增用例）。两次迁移演练（见本轮汇报）之间与之后各表行数不变，确认迁移可重复执行不产生副作用。 另外用 .tools/yugc-v2/db/preview-copy.db 的真实预发布快照复制品单独演练了 archiveOldDepartments()：跑 createDatabase() 的完整迁移链路后，调用前 departments.archived=0 共 4、archived=1 共 0；第一次调用后 archived=0 变 0、archived=1 变 4，其余 21 张表行数一个不变；第二次调用（幂等核对）和第一次之后逐项相同。演练用的临时数据库复制品已删除，没有改动 .tools/ 下的原始快照。",
       "evidence": [
         "app/server/src/lib/db.ts",
         "app/server/src/lib/migrations/2026-10-forum-v2.ts",
         "tests/server/legacy-database.test.ts",
         "tests/server/forum-v2-migration.test.ts",
-        "docs/services/server/data-model.md"
+        "docs/services/server/data-model.md",
+        "app/server/src/services.ts",
+        "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
       ]
     },
     "dependencies": {
@@ -107,33 +130,43 @@
     },
     "documentation": {
       "status": "changed",
-      "reason": "docs/architecture/API.md 新增 #276 小节（分级可见、表情、上传、翻页上限、@自动补全、控制台论坛管理的方法/限流/响应/错误表，加一条团队负责人追加的「看的人（viewer）」说明 level/nodes），并去掉 POST /api/forum/posts 行、写接口回答形状、通知规则段落里已经不存在的 guestPolicy/游客回帖描述；docs/services/server/endpoint-contracts.md 新增 15 条接口的权限/响应/副作用/本地表/源码记录，补 viewer.level/nodes 与表情回应 camelCase 形状的说明，去掉 13 处已经不存在的 guestPolicy 响应字段，顺带修正了因为本轮在 topics.ts/posts.ts/people.ts 里插入新路由而错位的既有「源码」行号链接；docs/services/server/data-model.md 新增 6 张新表的说明，修正 forum_users、forum_rate_events、forum_topics 三行里已经不成立的游客回帖描述。docs/services/forum/README.md（论坛前端的 UI 行为文档）只加了两条新内容——「看的人（viewer）」说明 level/nodes、「表情回应」说明 camelCase 形状与 mine 的 bug 修复——都是团队负责人这一轮明确要求写进这份文档的服务端事实，没有动游客回复输入框、PoW、Turnstile 这些还没被另一位同事在 forum-ui-276 去掉的既有 UI 描述，避免和那边的并行改动冲突或把文档说得比代码还新。",
+      "reason": "docs/architecture/API.md 新增 #276 小节（分级可见、表情、上传、翻页上限、@自动补全、控制台论坛管理的方法/限流/响应/错误表，加一条团队负责人追加的「看的人（viewer）」说明 level/nodes），并去掉 POST /api/forum/posts 行、写接口回答形状、通知规则段落里已经不存在的 guestPolicy/游客回帖描述；docs/services/server/endpoint-contracts.md 新增 15 条接口的权限/响应/副作用/本地表/源码记录，补 viewer.level/nodes 与表情回应 camelCase 形状的说明，去掉 13 处已经不存在的 guestPolicy 响应字段，顺带修正了因为本轮在 topics.ts/posts.ts/people.ts 里插入新路由而错位的既有「源码」行号链接；docs/services/server/data-model.md 新增 6 张新表的说明，修正 forum_users、forum_rate_events、forum_topics 三行里已经不成立的游客回帖描述。docs/services/forum/README.md（论坛前端的 UI 行为文档）只加了两条新内容——「看的人（viewer）」说明 level/nodes、「表情回应」说明 camelCase 形状与 mine 的 bug 修复——都是团队负责人这一轮明确要求写进这份文档的服务端事实，没有动游客回复输入框、PoW、Turnstile 这些还没被另一位同事在 forum-ui-276 去掉的既有 UI 描述，避免和那边的并行改动冲突或把文档说得比代码还新。 docs/services/forum/README.md 不在这份声明的证据里：团队负责人撤回了本分支对它的改动，由对方在 forum-ui-276 自己改。另外三项清理跟着改文档：docs/architecture/API.md 的接口清单把 GET /api/public/org 换成 GET /api/public/departments 的真实形状；docs/services/server/README.md 两处去掉『CONSOLE_ORG 是非密钥环境变量』的旧说法，改成『DEFAULT_CONSOLE_ORG 是固定常量』，顺带把论坛那行『游客能看帖、能回复』的旧说法改成 #276 之后的真实情况；docs/services/server/{data-model,endpoint-contracts}.md、docs/ops/ENVIRONMENTS.md（删表格行）、docs/ops/ENVIRONMENT.md（本机开发模板，同样删掉这行）跟着改；docs/ops/CICD.md 核对过没有提到 CONSOLE_ORG，不用改。",
       "evidence": [
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/server/endpoint-contracts.md",
-        "docs/services/forum/README.md"
+        "docs/services/server/README.md",
+        "docs/ops/ENVIRONMENTS.md",
+        "docs/ops/ENVIRONMENT.md"
       ]
     },
     "verification": {
       "status": "changed",
-      "reason": "新建 tests/server/forum-v2-endpoints.test.ts（26 条用例）覆盖全部 15 个新接口在访客/注册用户/成员/版主四级身份下的权限矩阵、429 的 bucket 与 retry_after、可见范围的 401/403 不泄露标题、visibility_too_open、访客翻页上限、控制台的权限+step-up 矩阵；tests/server/forum.test.ts 大改：删掉全部游客回帖机制测试（昵称规则、PoW、蜜罐、Turnstile、按 IP 限流），改成成员专用路径的等价测试，新增可见范围、表情、称号/部门字段的断言，并补团队负责人追加的两项——(a) guest/alice（level.member+站长）/frank（level.registered 非成员）三种 viewer 的 level/nodes 精确断言；(b) 表情回应 mine 字段的三方视角回归（加表情的人看 true，别人和游客看 false），在 /state、GET 话题正文、PUT/DELETE 回答三处核对口径一致；tests/server/legacy-database.test.ts 新增 forum_topics.visibility 放宽成可空列的回归测试（复现并验证修复了上面提到的 FK 重建 bug）；tests/server/forum-v2-migration.test.ts 新建，覆盖迁移的种子内容、幂等性与资源目录缺失时的降级。app/forum 自己的回归套件（tests/forum-api.test.ts 等 30 个文件、553 条）因为 ForumViewer 加了 level/nodes 字段而同步改了 3 个文件（shared/forum-api.ts 的 parseViewer、tests/fixtures/server-state.ts 的 FixtureViewer 夹具、一处内联字面量），在 Node 24.21.0 下全部通过（本机 fnm 没有 app/forum 要求的 >=26，待团队负责人用真实版本复核）。全量 vitest（app/server 相关 611 条 + tooling）、pnpm check:catalog 均已在本机跑过并贴出计数，见本轮汇报；预发布/生产环境的真实验收未做（不在本次服务端半份的职责范围，等 UI 半份一起上预发布）。",
+      "reason": "新建 tests/server/forum-v2-endpoints.test.ts（26 条用例）覆盖全部 15 个新接口在访客/注册用户/成员/版主四级身份下的权限矩阵、429 的 bucket 与 retry_after、可见范围的 401/403 不泄露标题、visibility_too_open、访客翻页上限、控制台的权限+step-up 矩阵；tests/server/forum.test.ts 大改：删掉全部游客回帖机制测试（昵称规则、PoW、蜜罐、Turnstile、按 IP 限流），改成成员专用路径的等价测试，新增可见范围、表情、称号/部门字段的断言，并补团队负责人追加的两项——(a) guest/alice（level.member+站长）/frank（level.registered 非成员）三种 viewer 的 level/nodes 精确断言；(b) 表情回应 mine 字段的三方视角回归（加表情的人看 true，别人和游客看 false），在 /state、GET 话题正文、PUT/DELETE 回答三处核对口径一致；tests/server/legacy-database.test.ts 新增 forum_topics.visibility 放宽成可空列的回归测试（复现并验证修复了上面提到的 FK 重建 bug）；tests/server/forum-v2-migration.test.ts 新建，覆盖迁移的种子内容、幂等性与资源目录缺失时的降级。app/forum 自己的回归套件（tests/forum-api.test.ts 等 30 个文件、553 条）因为 ForumViewer 加了 level/nodes 字段而同步改了 3 个文件（shared/forum-api.ts 的 parseViewer、tests/fixtures/server-state.ts 的 FixtureViewer 夹具、一处内联字面量），在 Node 24.21.0 下全部通过（本机 fnm 没有 app/forum 要求的 >=26，待团队负责人用真实版本复核）。全量 vitest（app/server 相关 611 条 + tooling）、pnpm check:catalog 均已在本机跑过并贴出计数，见本轮汇报；预发布/生产环境的真实验收未做（不在本次服务端半份的职责范围，等 UI 半份一起上预发布）。 app/forum 自己的回归套件那部分描述已经不适用——本分支撤回了对 app/forum 的改动，团队负责人在 forum-ui-276 另外验证。团队负责人指出的五个专项测试缺口补在 tests/server/forum-v2-endpoints.test.ts：反应幂等（同一个人重复加同一个表情 count 不涨）、表情停用后回 unknown_sticker（历史回应不受影响）、新增表情自己的 2MB/格式限制（413 sticker_too_large、415、PNG/JPEG/WebP 都能传）、帖子图片上传补 JPEG/WebP 成功路径。CONSOLE_ORG 改常量：console.test.ts 删掉测环境变量读取与校验的那条（能力退场，不是放宽断言）、alumni 的 capabilities 断言去掉 github.org.read；core.test.ts、feedback-org.test.ts 去掉 `{ CONSOLE_ORG: '...' }` 的环境覆盖写法；feedback-org.test.ts「部署换组织」那条场景也不再可能发生，改成确认接口永远下发同一个组织名。mail-envelope.test.ts 的文案断言跟着 recruitment.ts 的修复改。全量 npx vitest run → 113/114 文件、1862/1863 通过（唯一失败是 tests/server/forum.test.ts『write responses read by the forum client (#145)』，这是撤回 app/forum 改动的已知预期缺口，等团队负责人 cherry-pick 前端改动后自愈，不是放宽断言掩盖的）；pnpm typecheck、check:catalog、check:environments 均通过。",
       "evidence": [
         "tests/server/forum-v2-endpoints.test.ts",
         "tests/server/forum.test.ts",
         "tests/server/legacy-database.test.ts",
         "tests/server/forum-v2-migration.test.ts",
-        "app/forum/tests/forum-api.test.ts",
-        "app/forum/tests/fixtures/server-state.ts"
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/server/console.test.ts",
+        "tests/server/core.test.ts",
+        "tests/server/feedback-org.test.ts",
+        "tests/server/mail-envelope.test.ts"
       ]
     },
     "delivery": {
       "status": "changed",
-      "reason": "app/server/Dockerfile 新增一行，把表情包第一套「极客娘」的源图片（app/server/assets/stickers/yugc/*.webp，24 张）复制进镜像——缺了这些文件，迁移的 seedYugcStickers() 虽然不会阻塞启动，但只会种出一部分（甚至零个）表情，公开列表就是空的；src/config.ts 新增 stickerAssetsDir 配置项指向这个目录。不新增环境变量、不新增运行单元，仍由现有 server 镜像交付。",
+      "reason": "app/server/Dockerfile 新增一行，把表情包第一套「极客娘」的源图片（app/server/assets/stickers/yugc/*.webp，24 张）复制进镜像——缺了这些文件，迁移的 seedYugcStickers() 虽然不会阻塞启动，但只会种出一部分（甚至零个）表情，公开列表就是空的；src/config.ts 新增 stickerAssetsDir 配置项指向这个目录。不新增环境变量、不新增运行单元，仍由现有 server 镜像交付。 CONSOLE_ORG 改常量这条是真的减少一个环境变量：deploy/compose/{production,preview}.yml 去掉 CONSOLE_ORG 的环境变量声明，deploy/env/.env.{production,preview} 去掉这一行，scripts/deployment-environment.mjs 的 REQUIRED_FIELDS 跟着去掉它，pnpm check:environments 通过（两套栈端口/目录/域名互不重叠，模板仍是提交入库态、密钥留空）。",
       "evidence": [
         "app/server/Dockerfile",
         "app/server/src/config.ts",
-        "app/server/assets/stickers/yugc/wave.webp"
+        "app/server/assets/stickers/yugc/wave.webp",
+        "deploy/compose/preview.yml",
+        "deploy/compose/production.yml",
+        "deploy/env/.env.preview",
+        "deploy/env/.env.production",
+        "scripts/deployment-environment.mjs"
       ]
     }
   },
@@ -296,25 +329,9 @@
     },
     {
       "paths": [
-        "app/forum/shared/forum-api.ts",
-        "app/forum/tests/fixtures/server-state.ts",
-        "app/forum/tests/forum-api.test.ts"
-      ],
-      "domains": [
-        "forum"
-      ],
-      "nodes": [
-        "flow:forum.topics.page",
-        "application:forum"
-      ],
-      "reason": "服务端在 viewer 上加了 level/nodes 两个字段（backend 评估），tests/server/forum.test.ts 的「论坛前端只收认得的形状」回归测试会直接从 app/forum/shared/forum-api.ts 导入 parseWriteResult 喂真实服务端回答——不跟着把 ForumViewer/parseViewer 加上这两个字段，这条测试会稳定失败（前端解析器会把新字段悄悄丢掉）。这里只做了最小必要的加法：接口与解析器认得新字段、没给时退回保守默认值；两个测试文件（共享夹具常量、一处内联字面量）跟着补上，没有改任何 Vue 组件、按钮显隐或页面逻辑——UI 怎么用这两个字段仍是 forum-ui-276 的职责。"
-    },
-    {
-      "paths": [
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/server/endpoint-contracts.md",
-        "docs/services/forum/README.md",
         "docs/architecture/catalog/ownership.json",
         "docs/architecture/catalog/catalog.json",
         "docs/architecture/catalog/CATALOG.md",
@@ -376,6 +393,103 @@
         "flow:forum.uploads.create"
       ],
       "reason": "见 verification 评估：新接口权限矩阵、可见范围不泄露标题、429 的 bucket/retry_after、游客回帖机制整段删除改成成员专用路径、FK 重建 bug 的回归、迁移种子的幂等性与降级。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/feedback-store.ts",
+        "app/server/src/lib/roles.ts",
+        "app/server/src/routes/console/feedback.ts",
+        "app/server/src/routes/console/me.ts",
+        "app/server/src/routes/portal/feedback.ts",
+        "tests/server/console.test.ts",
+        "tests/server/core.test.ts",
+        "tests/server/feedback-org.test.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "github",
+        "gitlab",
+        "identity",
+        "invitations",
+        "mail",
+        "organization",
+        "permissions",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:feedback.console.list",
+        "flow:feedback.categories",
+        "flow:console.summary"
+      ],
+      "reason": "CONSOLE_ORG 改成 config.ts 的固定常量 DEFAULT_CONSOLE_ORG（这个部署从来没有也不会配别的组织）：四个调用方（services.ts 已在既有 coverage 条目里，这里是另外四个）从 config.consoleOrg 改成直接导入常量，feedback-store.ts 的 normalizeFeedbackOrg()/normalizeOrgSpelling() 两个纯函数签名不变，只是调用方传什么变了。三个测试文件去掉 `{ CONSOLE_ORG: '...' }` 的环境覆盖写法，console.test.ts 删掉测环境变量读取与校验、没有能力再验证的那条用例。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/portal/org.ts",
+        "app/server/src/routes/portal/index.ts",
+        "app/server/src/routes/portal/contracts.ts",
+        "app/server/src/routes/portal/departments.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "github",
+        "gitlab",
+        "identity",
+        "invitations",
+        "mail",
+        "organization",
+        "permissions",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:organization.public",
+        "flow:identity.departments.public"
+      ],
+      "reason": "旧的称号/部门体系 GET /api/public/org（routes/portal/org.ts）随 #276 退场：官网组织架构窗口在 #275 已经改读 GET /api/public/departments，论坛的称号徽章也在团队负责人的 forum-ui-276 工作树改读它了，删前 grep app/web、app/console、scripts 确认零读者。删文件、去掉 index.ts 里的注册（r5..r9 重排成 r4..r8）、去掉 contracts.ts 的合同条目，departments.ts 头注释去掉『两套并存』的旧说法。这组改动走 docs/changes/276.json 的 removals 字段登记删除证据，不在 flows 里额外声明新流程。"
+    },
+    {
+      "paths": [
+        "deploy/compose/preview.yml",
+        "deploy/compose/production.yml",
+        "deploy/env/.env.preview",
+        "deploy/env/.env.production",
+        "docs/ops/ENVIRONMENT.md",
+        "docs/ops/ENVIRONMENTS.md",
+        "docs/services/server/README.md",
+        "scripts/deployment-environment.mjs"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "flow:console.summary",
+        "application:server"
+      ],
+      "reason": "CONSOLE_ORG 不再是环境变量：两份 compose 文件去掉它的环境变量声明，两份 .env 契约去掉这一行，scripts/deployment-environment.mjs 的 REQUIRED_FIELDS 跟着去掉，pnpm check:environments 通过；docs/ops/ENVIRONMENTS.md 删表格行，docs/ops/ENVIRONMENT.md（本机开发模板）同样删掉这行；docs/services/server/README.md 两处把『CONSOLE_ORG 是非密钥环境变量』改成『DEFAULT_CONSOLE_ORG 是固定常量』，顺带修正论坛那行已经不成立的『游客能回复』旧说法。docs/ops/CICD.md 核对过没有提到 CONSOLE_ORG，不用改，已在本任务执行记录里写明。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/mail/recruitment.ts",
+        "tests/server/mail-envelope.test.ts"
+      ],
+      "domains": [
+        "recruitment",
+        "mail"
+      ],
+      "nodes": [
+        "flow:application.review"
+      ],
+      "reason": "招新未通过邮件的 rejectedMessage() 还在说『论坛不登录也能看帖，也可以用昵称回复』——#276 CONTRACT §2 已经去掉游客回帖，这句话不再是真的，改成『论坛不登录只能看公开的帖子，发帖、回复要先登录』。mail-envelope.test.ts 的断言跟着改：去掉对『发帖』字样的全面禁止（新文案本身会提到『发帖』，说的是要先登录），只保留禁止『对所有人开放』这种过度承诺的检查。"
     }
   ],
   "documents": [
@@ -391,5 +505,15 @@
   ],
   "compatibility": "只增表、增列（nullable）、增路由，不改已有接口的请求/响应形状（除了去掉游客回帖分支——那条路径本身就是这次要去掉的业务行为，不是兼容性意外）；旧的 forum_rate_events 游客桶数据保留不清理。",
   "migration": "lib/migrations/2026-10-forum-v2.ts 的两步（分类可见范围种子、表情种子）都是 INSERT OR IGNORE / upsert，可重复执行；forum_topics.visibility 放宽成可空列用重建表的方式（先关 PRAGMA foreign_keys，CREATE new → INSERT…SELECT → DROP old → RENAME，再用 foreign_key_check 校验后重新打开），已在拷贝的真实 preview 数据库上演练两遍，演练前、第一遍之后、第二遍之后每张表行数一致，详见本轮汇报。",
-  "rollback": "回滚就是部署上一个镜像：本迁移只加表、加列、加行，不删旧表旧列旧行；表情、分类可见范围这些新表就留在库里不再被读，不影响回滚后的旧版本代码运行。"
+  "rollback": "回滚就是部署上一个镜像：本迁移只加表、加列、加行，不删旧表旧列旧行；表情、分类可见范围这些新表就留在库里不再被读，不影响回滚后的旧版本代码运行。",
+  "removals": [
+    {
+      "path": "app/server/src/routes/portal/org.ts",
+      "baseAnchor": "app.get(\"/api/public/org\", async () => {",
+      "domains": [
+        "organization"
+      ],
+      "reason": "旧的称号/部门体系 GET /api/public/org 随 #276 退场：新权限体系的 GET /api/public/departments（#274/#275）接过它的职责，官网组织架构窗口已改读新接口，论坛称号徽章也改读它（团队负责人在 forum-ui-276 工作树做的），删前 grep app/web、app/console、scripts 确认零读者。"
+    }
+  ]
 }

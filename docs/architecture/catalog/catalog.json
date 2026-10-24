@@ -2850,6 +2850,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "id": "flow:application.review",
@@ -2880,7 +2884,8 @@
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
         "tests/server/console.test.ts",
-        "tests/server/mail-outbox.test.ts"
+        "tests/server/mail-outbox.test.ts",
+        "tests/server/mail-envelope.test.ts"
       ],
       "title": "审核投递、补备注与安排通知",
       "writes": [
@@ -14384,6 +14389,11 @@
       "title": "tests/server/legacy-database.test.ts"
     },
     {
+      "id": "test:tests/server/mail-envelope.test.ts",
+      "kind": "test",
+      "title": "tests/server/mail-envelope.test.ts"
+    },
+    {
       "id": "test:tests/server/mail-outbox.test.ts",
       "kind": "test",
       "title": "tests/server/mail-outbox.test.ts"
@@ -14476,7 +14486,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "703d2c41771667997b91c8e90216c150c8572645ac3ec92390c32bfdb4b027d6",
+    "fingerprint": "deb1247f3a50f0a81e6cde2d478fd9adf2faa38832c91cd420a2482d62c7cebd",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -16180,7 +16190,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "be002be5613c739b44aedccd246b3b2f14d39a6155999663ea291203c3a17f1d"
+        "sha256": "89981b0dfd8a01307c88936cabfbff28260c7365f23770699b3a83338774a241"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -16441,6 +16451,10 @@
       {
         "path": "tests/server/legacy-database.test.ts",
         "sha256": "ba2a73f7bf809278268cb667295a499ed2901e4b905eff455d035b0403544f4d"
+      },
+      {
+        "path": "tests/server/mail-envelope.test.ts",
+        "sha256": "4a550e315e4abfaf5a1d3929b24e4fba4b7e9b8479d42497a36514e82ebb3555"
       },
       {
         "path": "tests/server/mail-outbox.test.ts",
@@ -21155,6 +21169,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "from": "flow:application.review",
@@ -21175,6 +21193,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "from": "flow:application.review",
@@ -21195,6 +21217,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "from": "flow:application.review",
@@ -21215,6 +21241,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "from": "flow:application.review",
@@ -21235,6 +21265,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "from": "flow:application.review",
@@ -21255,6 +21289,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "from": "flow:application.review",
@@ -21275,6 +21313,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "from": "flow:application.review",
@@ -21295,6 +21337,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "from": "flow:application.review",
@@ -21305,6 +21351,12 @@
       "basis": "declaration",
       "from": "flow:application.review",
       "to": "test:tests/server/console.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:application.review",
+      "to": "test:tests/server/mail-envelope.test.ts",
       "type": "test-entry"
     },
     {
@@ -21327,6 +21379,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "from": "flow:application.review",
@@ -21347,6 +21403,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "from": "flow:application.review",
@@ -21367,6 +21427,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "from": "flow:application.review",
@@ -21387,6 +21451,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "from": "flow:application.review",
@@ -21407,6 +21475,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "from": "flow:application.review",
@@ -21427,6 +21499,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 195,
+          "path": "app/server/src/lib/mail/recruitment.ts"
         }
       ],
       "from": "flow:application.review",

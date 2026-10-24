@@ -2711,11 +2711,16 @@
         {
           "path": "app/server/src/lib/access.ts",
           "needle": "export function createAccess("
+        },
+        {
+          "path": "app/server/src/lib/mail/recruitment.ts",
+          "needle": "export function rejectedMessage(input: RejectedInput): EnvelopeMessage {"
         }
       ],
       "tests": [
         "tests/server/console.test.ts",
-        "tests/server/mail-outbox.test.ts"
+        "tests/server/mail-outbox.test.ts",
+        "tests/server/mail-envelope.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
