@@ -1,25 +1,20 @@
 /**
  * 极客班称号 (titles) as the forum shows them next to a username.
  *
- * On the server only a title's id and rank are code (`app/server/src/lib/roles.ts`):
- * its label, tag, icon, tone, description and permission pack are rows of the
- * `titles` table that the 提督 edits in the console, and departments are rows
- * too. The anonymous `GET /api/public/org` publishes the display half of both
- * (no permission packs, no people). The values below are the server's seed
- * defaults, kept dependency-free so the static Nuxt build never reaches into
- * the core packages. They are only what the forum draws with until
- * `/api/public/org` has answered, or when it cannot be reached or answers
- * something malformed: `applyPublicOrg` lays that payload over them and
- * `useOrgTitles` keeps the result for `TitleBadge`. Every display helper takes
- * that look (`OrgLook`) as an argument, so the helpers stay pure.
- * `tests/titles.test.ts` and `tests/titles-server-parity.test.ts` pin the
- * defaults to the server's.
+ * Accounts from the core service carry their titles and department themselves
+ * (`/auth/me`, drawn by `account-badges.ts`). This file is the older look for
+ * users without that data: the demo seed and the local snapshot. The values
+ * below are the server's seed defaults (`app/server/src/lib/roles.ts`), kept
+ * dependency-free so the static Nuxt build never reaches into the core
+ * packages. Every display helper takes the look (`OrgLook`) as an argument, so
+ * the helpers stay pure. `tests/titles.test.ts` and
+ * `tests/titles-server-parity.test.ts` pin the defaults to the server's.
  *
  * Icons: the server stores bare Carbon names (`star-filled`); here they are the
  * full UnoCSS class (`i-carbon-star-filled`) spelled out as literals, because
  * the scanner reads `app/**` TypeScript and only a literal makes the icon rule
- * exist. `ICON_CLASSES` spells out every name the server may send; the test
- * checks each against `@iconify-json/carbon/icons.json`.
+ * exist. `ICON_CLASSES` spells out every name the server's defaults use; the
+ * test checks each against `@iconify-json/carbon/icons.json`.
  *
  * A title is identity, not a forum role: `User.role` (admin / moderator /
  * member) is untouched. What a title may do in the forum is its forum
@@ -146,9 +141,8 @@ export interface DepartmentDefinition extends DepartmentLook {
 
 /**
  * The server's `DEFAULT_DEPARTMENTS`, reduced to what the forum shows and
- * enforces. `/api/public/org` replaces the displayed list (renamed, added and
- * archived departments included); the forum packs stay these defaults, so a
- * department the forum did not ship with carries no forum capability.
+ * enforces. A department the forum did not ship with carries no forum
+ * capability.
  */
 export const DEPARTMENTS: readonly DepartmentDefinition[] = [
   { id: 'recruitment', name: '招新部', tag: 'RECRUIT', icon: 'i-carbon-user-follow', tone: 'coral', headForum: [], crewForum: [] },
@@ -186,7 +180,7 @@ export interface OrgLook {
   departments: readonly DepartmentLook[]
 }
 
-/** The look before (or without) `/api/public/org`. */
+/** The look the demo seed and the local snapshot are drawn with. */
 export const DEFAULT_ORG: OrgLook = { titles: TITLES, departments: DEPARTMENTS }
 
 /** What a user record carries. `guest` is the absence of a title and is never stored. */
@@ -199,12 +193,6 @@ export interface UserTitle {
 const DEPARTMENT_ID = new RegExp(DEPARTMENT_ID_PATTERN)
 
 const STORABLE: ReadonlySet<string> = new Set(['admin', 'captain', 'head', 'member', 'alumni'] satisfies UserTitle['id'][])
-
-const TITLE_IDS: ReadonlySet<string> = new Set(Object.keys(TITLES))
-
-const ICON_BY_NAME: ReadonlyMap<string, string> = new Map(Object.entries(ICON_CLASSES))
-
-const TONE_IDS: ReadonlySet<string> = new Set(Object.keys(TONES))
 
 const NO_FORUM_CAPABILITIES: ReadonlySet<ForumCapability> = new Set()
 
@@ -294,81 +282,4 @@ export function titleForumCapabilities(title: UserTitle | null | undefined): Rea
   if (!department)
     return NO_FORUM_CAPABILITIES
   return new Set([...TITLE_FORUM[title.id], ...(title.id === 'head' ? department.headForum : department.crewForum)])
-}
-
-// ------------------------------------------------------------ /api/public/org
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function isFilled(value: unknown): value is string {
-  return typeof value === 'string' && value.trim() !== ''
-}
-
-/** A known bare Carbon name as its class; anything else as `fallback`. */
-function iconOr(name: string, fallback: string): string {
-  return ICON_BY_NAME.get(name) ?? fallback
-}
-
-/** A known tone id; anything else as `fallback`. The hex always comes from the local palette. */
-function toneOr(tone: string, fallback: Tone): Tone {
-  return TONE_IDS.has(tone) ? tone as Tone : fallback
-}
-
-/**
- * Lays a `GET /api/public/org` answer over `base` and returns the new look.
- *
- * Shape errors reject the whole answer and return `base` itself: a non-object,
- * `titles` or `departments` not an array, an entry that is not an object, a
- * missing or empty label / tag / name, a department id that is not a
- * department id, the same department twice. Values the forum cannot draw fall
- * back one field at a time: an icon outside `ICON_CLASSES` and a tone outside
- * `TONES` keep the title's default (a department's default, or the head
- * title's for a department the forum did not know). Title ids the forum does
- * not know are ignored, and ranks and the server's tone hexes are never read.
- * The department list is replaced, so renamed, new and archived departments
- * all show as the server has them.
- */
-export function applyPublicOrg(payload: unknown, base: OrgLook = DEFAULT_ORG): OrgLook {
-  if (!isRecord(payload) || !Array.isArray(payload.titles) || !Array.isArray(payload.departments))
-    return base
-
-  const titles: Record<TitleId, TitleLook> = { ...base.titles }
-  for (const entry of payload.titles as unknown[]) {
-    if (!isRecord(entry))
-      return base
-    const { id, label, tag, icon, tone, description } = entry
-    if (typeof id !== 'string' || !isFilled(label) || !isFilled(tag) || typeof icon !== 'string' || typeof tone !== 'string')
-      return base
-    if (description !== undefined && typeof description !== 'string')
-      return base
-    if (!TITLE_IDS.has(id))
-      continue
-    const fallback = base.titles[id as TitleId]
-    titles[id as TitleId] = {
-      label: label.trim(),
-      tag: tag.trim(),
-      icon: iconOr(icon, fallback.icon),
-      tone: toneOr(tone, fallback.tone),
-      description: typeof description === 'string' ? description : fallback.description,
-    }
-  }
-
-  const departments: DepartmentLook[] = []
-  for (const entry of payload.departments as unknown[]) {
-    if (!isRecord(entry))
-      return base
-    const { id, name, tag, icon, tone } = entry
-    if (typeof id !== 'string' || !DEPARTMENT_ID.test(id))
-      return base
-    if (!isFilled(name) || !isFilled(tag) || typeof icon !== 'string' || typeof tone !== 'string')
-      return base
-    if (departments.some(department => department.id === id))
-      return base
-    const fallback = base.departments.find(department => department.id === id) ?? base.titles.head
-    departments.push({ id, name: name.trim(), tag: tag.trim(), icon: iconOr(icon, fallback.icon), tone: toneOr(tone, fallback.tone) })
-  }
-
-  return { titles, departments }
 }
