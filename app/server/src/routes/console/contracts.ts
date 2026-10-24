@@ -110,7 +110,7 @@ const userDepartmentView = { anyOf: [object({ id: groupId, name: text(64, 1), to
 const userTitleView = object({ id: groupId, name: text(64, 1), department_id: { anyOf: [groupId, { type: "null" }] } }, ["id", "name", "department_id"]);
 const gitlabStateView = object({ state: choices("synced", "pending", "failed", "blocked", "none"), gitlab_user_id: { anyOf: [integer(1), { type: "null" }] } }, ["state", "gitlab_user_id"]);
 // 实名信息（#280）：下拉框只能选 1–4，读出来的年级还可能是已毕业。`real_name` 只回给有 users.manage 的调用者，所以不设 required
-const selectableGrade = { type: "integer", enum: [1, 2, 3, 4] };
+const selectableGrade = { anyOf: [{ type: "integer", enum: [1, 2, 3, 4] }, { type: "string", enum: ["graduated"] }] };
 const userView = object({
   account_id: accountId, username: { anyOf: [text(24, 1), { type: "null" }] }, display_name: { anyOf: [text(32, 0), { type: "null" }] },
   real_name: { anyOf: [text(64, 1), { type: "null" }] }, grade: { anyOf: [selectableGrade, choices("graduated"), { type: "null" }] }, grade_label: { anyOf: [text(8, 1), { type: "null" }] },

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { DEVICE_GRANT_TYPE } from '../../app/server/src/lib/device-store';
-import { accountIdOf, activityRows, signIn, testApp } from './helpers';
+import { accountIdOf, activityRows, grantPermGroup, signIn, testApp } from './helpers';
 
 /**
  * geek 命令行的 Bearer 鉴权（#277）：中间件把令牌挂成 req.session、cookie + Bearer 混用拒绝、
@@ -180,6 +180,8 @@ describe('geek 命令行的 Bearer 鉴权（#277）', () => {
     const { app } = await setup();
     signIn(app, 'octocat', 4242);
     const accountId = accountIdOf(app, 'octocat');
+    // 补资料关口只拦极客班的人（成员、往届成员），普通注册用户不用填
+    grantPermGroup(app, accountId, 'level.member');
     app.services.profiles.setRealInfo(accountId, null, null);
     const code = await issueCode(app, 'openid profile forum apply competition repo');
     const normalizedCode = code.user_code.replace('-', '');

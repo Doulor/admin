@@ -16,8 +16,8 @@ describe("user drawer draft", () => {
   it("reads level, department, the department title and the site owner flag apart", () => {
     expect(draftFromUser(user("li_xiaoman"))).toEqual({ level: "member", department: "dept.ai", title: "title.ai.head", owner: false, real_name: "李晓曼", grade: 2 });
     expect(draftFromUser(user("xu_yan"))).toEqual({ level: "member", department: NO_DEPARTMENT, title: "", owner: true, real_name: "徐言", grade: 4 });
-    // 已毕业不在下拉框里，草稿里是空的；没填姓名是空串
-    expect(draftFromUser(user("gao_yuan"))).toMatchObject({ grade: "" });
+    // 已毕业也能在下拉框里选；没填姓名是空串
+    expect(draftFromUser(user("gao_yuan"))).toMatchObject({ grade: "graduated" });
     expect(draftFromUser(user("yz_k3m9q2xa"))).toMatchObject({ real_name: "", grade: "" });
     expect(departmentOf({ department: { id: NO_DEPARTMENT, name: "无部门", tone: "ink" } })).toBeNull();
   });
