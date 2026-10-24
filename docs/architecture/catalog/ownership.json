@@ -7932,7 +7932,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：competition.prize.redeem；每分钟 60 次；输错的码每人每小时 20 次（competition.prize.lookup.fail，记在 limit_events），超了 429。",
-        "body {code}：不分大小写，空格、连字符与 YUGC 前缀可有可无，I/L 当 1、O 当 0，按散列查找；200 {prize}：比赛、名次、分数、金额、奖项名、得奖人（昵称与用户名，操作人有 users.manage 时多一个真实姓名）、末四位、核销时间与核销人。",
+        "body {code}：不分大小写，空格、连字符与 YUGC 前缀可有可无，I/L 当 1、O 当 0，按散列查找；200 {prize}：比赛、名次、分数、金额、奖项名、得奖人（昵称与用户名，不含真实姓名：比赛这边不读 account_profiles.real_name，#280）、末四位、核销时间与核销人。",
         "查不到 404 code_not_found 并写一条 denied 的 competition.prize.lookup 操作记录（只记末四位）；查到不写记录。"
       ],
       "evidence": [

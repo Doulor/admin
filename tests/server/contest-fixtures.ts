@@ -22,6 +22,8 @@ export async function contestSetup(overrides: ServiceOverrides = {}, env: Record
       sessions.set(login, sid);
       const accountId = app.services.auth.getSession(sid)!.account_id;
       app.services.identity.setSiteRole({ accountId, role: login === 'owner' ? 'admin' : 'member', actor: 'system' });
+      // signIn() 按 #280 给新账号填了大二；比赛用例从「没填年级、系数 1」起步，要年级的用 setEnrollment 自己写
+      app.services.storage.db.prepare('UPDATE account_profiles SET enrollment_year = NULL WHERE account_id = ?').run(accountId);
     }
     return { cookie: `sid=${sessions.get(login)!}` };
   };

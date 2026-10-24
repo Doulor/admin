@@ -111,7 +111,7 @@ function reset() {
         <dt>分数</dt>
         <dd class="mono">{{ prize.points }}</dd>
         <dt>得奖人</dt>
-        <dd><UserCell :login="prize.account.username" :src="prize.account.avatar_url" :sub="prize.real_name ? `${prize.account.display_name} · ${prize.real_name}` : prize.account.display_name" /></dd>
+        <dd><UserCell :login="prize.account.username" :src="prize.account.avatar_url" :sub="prize.account.display_name" /></dd>
         <dt>兑奖码末四位</dt>
         <dd class="mono">{{ prize.code_hint }}</dd>
         <template v-if="prize.redeemed_at">

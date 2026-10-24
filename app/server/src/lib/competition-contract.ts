@@ -282,7 +282,7 @@ export const finalView = object({
   }, ["rank", "points", "account", "amount_cny", "title"]) },
 }, ["finalized_at", "finalized_by", "standings", "prizes", "preview"]);
 export const redeemResult = object({
-  prize: object({ ...prizeFields, competition_name: text(80), real_name: nullableText(64) }, [...Object.keys(prizeFields), "competition_name", "real_name"]),
+  prize: object({ ...prizeFields, competition_name: text(80) }, [...Object.keys(prizeFields), "competition_name"]),
 }, ["prize"]);
 export const prizeCodeBody = object({ code: text(64, 1) }, ["code"]);
 

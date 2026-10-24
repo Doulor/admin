@@ -37,6 +37,8 @@ async function setup() {
         granted.add(login);
         const accountId = app.services.auth.getSession(sid)!.account_id;
         app.services.identity.setSiteRole({ accountId, role: login === 'alice' ? 'admin' : 'member', actor: 'system' });
+        // signIn() 按 #280 给新账号填了大二；#278 起积分按年级加权，这组用例只看名次与合计，从「没填年级、系数 1」起步
+        app.services.storage.db.prepare('UPDATE account_profiles SET enrollment_year = NULL WHERE account_id = ?').run(accountId);
       }
     }
     return { cookie: `sid=${sessions.get(login)!}` };

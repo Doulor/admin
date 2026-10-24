@@ -23,7 +23,6 @@ export default async function consoleCompetitionResultRoutes(app: FastifyInstanc
   const manageWrite = [requirePermission("competition.manage"), requireStepUp];
   const redeemRead = requirePermission("competition.prize.redeem");
   const redeemWrite = [requirePermission("competition.prize.redeem"), requireStepUp];
-  const selectRealName = db.prepare("SELECT real_name FROM account_profiles WHERE account_id = ?");
 
   async function canViewRules(req: FastifyRequest, reply: FastifyReply) {
     const accountId = req.session!.account_id;
@@ -160,15 +159,9 @@ export default async function consoleCompetitionResultRoutes(app: FastifyInstanc
     },
   );
 
-  /** 核销页上的一张奖：谁、第几名、多少钱、哪场比赛；有 users.manage 的操作人多看到真实姓名。 */
-  function redeemView(req: FastifyRequest, row: PrizeRow) {
-    const showRealName = permissions.check(req.session!.account_id, "users.manage");
-    const realName = showRealName ? (selectRealName.get(row.account_id) as { real_name: string | null } | undefined)?.real_name ?? null : null;
-    return {
-      ...prizeView(row),
-      competition_name: competitions.get(row.competition_id)?.name ?? row.competition_id,
-      real_name: realName,
-    };
+  /** 核销页上的一张奖：谁（用户名与昵称）、第几名、多少钱、哪场比赛。比赛这边不读真实姓名（#280），要核对本人到用户页看。 */
+  function redeemView(row: PrizeRow) {
+    return { ...prizeView(row), competition_name: competitions.get(row.competition_id)?.name ?? row.competition_id };
   }
 
   /** 查找失败才计数；超过上限先回 429，不再去查。 */
@@ -195,7 +188,7 @@ export default async function consoleCompetitionResultRoutes(app: FastifyInstanc
       app.services.activity.recordActivity(req, { action: "competition.prize.lookup", surface: "console", outcome: "denied", meta: { code_hint: hintOf(req.body.code), found: false } });
       return refusePrize(reply, "code_not_found");
     }
-    return { prize: redeemView(req, row) };
+    return { prize: redeemView(row) };
   });
 
   app.post<{ Body: { code: string } }>("/api/console/prizes/redeem", { preHandler: redeemWrite, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
@@ -214,8 +207,8 @@ export default async function consoleCompetitionResultRoutes(app: FastifyInstanc
         noteFailure(req);
         return refusePrize(reply, "code_not_found");
       }
-      return refusePrize(reply, result.error, result.prize ? { prize: redeemView(req, result.prize) } : {});
+      return refusePrize(reply, result.error, result.prize ? { prize: redeemView(result.prize) } : {});
     }
-    return { prize: redeemView(req, result.value) };
+    return { prize: redeemView(result.value) };
   });
 }

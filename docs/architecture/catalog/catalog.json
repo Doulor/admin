@@ -8066,7 +8066,7 @@
       "domain": "competitions",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -8142,7 +8142,7 @@
       "domain": "competitions",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -8214,7 +8214,7 @@
       "domain": "competitions",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -8285,7 +8285,7 @@
       "domain": "competitions",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -8358,7 +8358,7 @@
       "domain": "competitions",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -8420,7 +8420,7 @@
       "domain": "competitions",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -8447,7 +8447,7 @@
       "id": "flow:competition.prize.lookup",
       "invariants": [
         "权限与资源：competition.prize.redeem；每分钟 60 次；输错的码每人每小时 20 次（competition.prize.lookup.fail，记在 limit_events），超了 429。",
-        "body {code}：不分大小写，空格、连字符与 YUGC 前缀可有可无，I/L 当 1、O 当 0，按散列查找；200 {prize}：比赛、名次、分数、金额、奖项名、得奖人（昵称与用户名，操作人有 users.manage 时多一个真实姓名）、末四位、核销时间与核销人。",
+        "body {code}：不分大小写，空格、连字符与 YUGC 前缀可有可无，I/L 当 1、O 当 0，按散列查找；200 {prize}：比赛、名次、分数、金额、奖项名、得奖人（昵称与用户名，不含真实姓名：比赛这边不读 account_profiles.real_name，#280）、末四位、核销时间与核销人。",
         "查不到 404 code_not_found 并写一条 denied 的 competition.prize.lookup 操作记录（只记末四位）；查到不写记录。"
       ],
       "operation": "POST /api/console/prizes/lookup",
@@ -8495,7 +8495,7 @@
       "domain": "competitions",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -13425,7 +13425,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "49c36170b2c8841cc672578aad03dbd6702f9ab0a45bfe0db2c170c18f7fc506",
+    "fingerprint": "79ccd69339f35a7cb4bc4970770f60287563ac829defb203340cea68f03357ba",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -13597,7 +13597,7 @@
       },
       {
         "path": "app/console/src/lib/types.ts",
-        "sha256": "ea4d6295339e4b15d041bf290f8c4eb89300c07da7155f11a2ce087ceedfc6e1"
+        "sha256": "b3e9b75f541e1b978d90a9458a8fd4c727c39d8bcccdd691d13a7864a2f065f9"
       },
       {
         "path": "app/console/src/lib/users.ts",
@@ -13681,7 +13681,7 @@
       },
       {
         "path": "app/console/src/pages/PrizeRedeem.vue",
-        "sha256": "07b3045f4cc6400f91cdbe62fccd3877ba4495efc1fc71aafc5a147e885cd21e"
+        "sha256": "609b97848be8f734593dd0f0656539887bca41214a5158feba8b2e25ae0d1e5d"
       },
       {
         "path": "app/console/src/pages/SignIn.vue",
@@ -14237,7 +14237,7 @@
       },
       {
         "path": "app/server/src/lib/competition-contract.ts",
-        "sha256": "673c593f24b0773aadfc77ee5685ed8ebeafb2857899f5e61b512352ce40e67f"
+        "sha256": "3f990ebb34fe870c44fce2362908c60924a2cbcdc2efe342d6d97231da84150b"
       },
       {
         "path": "app/server/src/lib/competition-prizes.ts",
@@ -14497,7 +14497,7 @@
       },
       {
         "path": "app/server/src/routes/console/competition-results.ts",
-        "sha256": "1a92410039e12e24954bf3bf7a43929019e08401958a35298d2c0c9c4bf57788"
+        "sha256": "0e4aba5a1560789b00dd44bbca5cbc05486d5c50de83d78f66219f3c1a59f94c"
       },
       {
         "path": "app/server/src/routes/console/competition-roster.ts",
@@ -15089,7 +15089,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "cd91ba85f6f9bc315f3f71a5cf91f3dc5abfab9144aa9492895dc4b1ebdbfc83"
+        "sha256": "625534779fa2f5fea46ea8e37e3b7a48ae88c3fd273b306922ae0814be996212"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -15101,7 +15101,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "ea12d1ee43df4130f9209c26c7e686c01fc14db8cefbc434e698befbb2ffc08c"
+        "sha256": "b7739b3a73e21243fc53bff2cc3c7bf103b162e5af80e50bc7c39ffd3b46a0d2"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -15137,7 +15137,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "250ca5c34a64ee3194fc8c551ac5e4260240b68e628733e8f093e0d4984145bb"
+        "sha256": "40505886c07f1638e587230643746504e71a0d0007dbacec3628dd59f6fea022"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -15153,7 +15153,7 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "857731e5f79268b8b8cc5ac200ec3e0893cfc42fab270aefab96cefc02748320"
+        "sha256": "6d6ebc79069cd5b9081fa16f13127984a7290aea4c356c0a50bae0338f726865"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -15281,7 +15281,7 @@
       },
       {
         "path": "tests/server/competition-prizes.test.ts",
-        "sha256": "1b0e915f2a3392f4ba28bf8c441c6d419c9f46cb498b50516a75a66a51aa72f5"
+        "sha256": "83acd87e0a23d729a6acbbaffce279abe1ba4115f6f10ee5d09a422e4bb24274"
       },
       {
         "path": "tests/server/competition-public.test.ts",
@@ -15289,7 +15289,7 @@
       },
       {
         "path": "tests/server/competition-scores.test.ts",
-        "sha256": "d4ae2d305b1dca68e5309d1d295a9c3cca366d771d845124388d3bc8912e7a45"
+        "sha256": "f5e2872ca143b4b0e1ab30feae3b6de7540a2f9ca8782656ade13785d1bd943a"
       },
       {
         "path": "tests/server/competition-signups.test.ts",
@@ -15560,7 +15560,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         }
       ],
@@ -15884,7 +15884,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         }
       ],
@@ -15920,7 +15920,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         }
       ],
@@ -16820,7 +16820,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         }
       ],
@@ -16856,7 +16856,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         }
       ],
@@ -17852,7 +17852,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         }
       ],
@@ -17960,7 +17960,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         }
       ],
@@ -17972,7 +17972,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         }
       ],
@@ -18476,7 +18476,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         }
       ],
@@ -24434,7 +24434,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24462,7 +24462,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24490,7 +24490,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24518,7 +24518,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24546,7 +24546,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24574,7 +24574,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24602,7 +24602,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24630,7 +24630,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24658,7 +24658,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24686,7 +24686,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24714,7 +24714,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24742,7 +24742,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24770,7 +24770,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24810,7 +24810,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24838,7 +24838,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 114,
+          "line": 113,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24896,7 +24896,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24924,7 +24924,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24952,7 +24952,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -24980,7 +24980,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -25008,7 +25008,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -25036,7 +25036,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -25064,7 +25064,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -25092,7 +25092,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -25120,7 +25120,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -25148,7 +25148,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -25176,7 +25176,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -25204,7 +25204,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -25244,7 +25244,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -25272,7 +25272,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -25300,7 +25300,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -25328,7 +25328,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -25356,7 +25356,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 119,
+          "line": 118,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27444,7 +27444,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27476,7 +27476,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27508,7 +27508,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27540,7 +27540,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27572,7 +27572,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27604,7 +27604,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27636,7 +27636,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27668,7 +27668,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27700,7 +27700,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27732,7 +27732,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27776,7 +27776,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27808,7 +27808,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27840,7 +27840,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27872,7 +27872,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 190,
+          "line": 183,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27928,7 +27928,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -27968,7 +27968,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -28008,7 +28008,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -28048,7 +28048,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -28088,7 +28088,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -28128,7 +28128,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -28168,7 +28168,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -28208,7 +28208,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -28248,7 +28248,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -28288,7 +28288,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -28340,7 +28340,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -28380,7 +28380,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -28420,7 +28420,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -28460,7 +28460,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -28500,7 +28500,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 201,
+          "line": 194,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -31932,7 +31932,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -31968,7 +31968,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32004,7 +32004,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32040,7 +32040,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32076,7 +32076,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32112,7 +32112,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32148,7 +32148,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32184,7 +32184,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32220,7 +32220,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32256,7 +32256,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32304,7 +32304,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32340,7 +32340,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 82,
+          "line": 81,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32406,7 +32406,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32434,7 +32434,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32462,7 +32462,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32490,7 +32490,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32518,7 +32518,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32546,7 +32546,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32574,7 +32574,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32602,7 +32602,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32630,7 +32630,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32658,7 +32658,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32704,7 +32704,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32732,7 +32732,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32760,7 +32760,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32788,7 +32788,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -32816,7 +32816,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 87,
+          "line": 86,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -40826,7 +40826,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -40846,7 +40846,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -40866,7 +40866,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -40886,7 +40886,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -40906,7 +40906,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -40926,7 +40926,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -40946,7 +40946,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -40966,7 +40966,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -40986,7 +40986,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -41018,7 +41018,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -41038,7 +41038,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -41058,7 +41058,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -41078,7 +41078,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -41098,7 +41098,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 143,
+          "line": 142,
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
@@ -68399,7 +68399,7 @@
         }
       },
       "source": {
-        "line": 143,
+        "line": 142,
         "path": "app/server/src/routes/console/competition-results.ts"
       }
     },
@@ -73280,7 +73280,7 @@
         }
       },
       "source": {
-        "line": 114,
+        "line": 113,
         "path": "app/server/src/routes/console/competition-results.ts"
       }
     },
@@ -74062,7 +74062,7 @@
         }
       },
       "source": {
-        "line": 82,
+        "line": 81,
         "path": "app/server/src/routes/console/competition-results.ts"
       }
     },
@@ -83354,7 +83354,7 @@
         }
       },
       "source": {
-        "line": 114,
+        "line": 113,
         "path": "app/server/src/routes/console/competition-results.ts"
       }
     },
@@ -83576,7 +83576,7 @@
         }
       },
       "source": {
-        "line": 82,
+        "line": 81,
         "path": "app/server/src/routes/console/competition-results.ts"
       }
     },
@@ -91739,7 +91739,7 @@
         }
       },
       "source": {
-        "line": 119,
+        "line": 118,
         "path": "app/server/src/routes/console/competition-results.ts"
       }
     },
@@ -93717,18 +93717,6 @@
                   "rank": {
                     "type": "integer"
                   },
-                  "real_name": {
-                    "anyOf": [
-                      {
-                        "maxLength": 64,
-                        "minLength": 0,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
                   "redeemed_at": {
                     "anyOf": [
                       {
@@ -93803,8 +93791,7 @@
                   "created_at",
                   "redeemed_at",
                   "redeemed_by",
-                  "competition_name",
-                  "real_name"
+                  "competition_name"
                 ],
                 "type": "object"
               }
@@ -93859,7 +93846,7 @@
         }
       },
       "source": {
-        "line": 190,
+        "line": 183,
         "path": "app/server/src/routes/console/competition-results.ts"
       }
     },
@@ -93994,18 +93981,6 @@
                   "rank": {
                     "type": "integer"
                   },
-                  "real_name": {
-                    "anyOf": [
-                      {
-                        "maxLength": 64,
-                        "minLength": 0,
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
                   "redeemed_at": {
                     "anyOf": [
                       {
@@ -94080,8 +94055,7 @@
                   "created_at",
                   "redeemed_at",
                   "redeemed_by",
-                  "competition_name",
-                  "real_name"
+                  "competition_name"
                 ],
                 "type": "object"
               }
@@ -94136,7 +94110,7 @@
         }
       },
       "source": {
-        "line": 201,
+        "line": 194,
         "path": "app/server/src/routes/console/competition-results.ts"
       }
     },
@@ -100743,7 +100717,7 @@
         }
       },
       "source": {
-        "line": 87,
+        "line": 86,
         "path": "app/server/src/routes/console/competition-results.ts"
       }
     },

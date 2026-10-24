@@ -268,7 +268,7 @@ export type FinalView = {
   prizes: CompetitionPrize[];
   preview: { rank: number; points: number; account: ContestPerson; amount_cny: number | null; title: string | null }[];
 };
-export type RedeemPrize = CompetitionPrize & { competition_name: string; real_name: string | null };
+export type RedeemPrize = CompetitionPrize & { competition_name: string };
 
 // ---- 注册邀请码（节点改为 invite.manage，形状不变） ----
 

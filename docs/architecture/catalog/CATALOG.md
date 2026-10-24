@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`49c36170b2c8841cc672578aad03dbd6702f9ab0a45bfe0db2c170c18f7fc506`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`79ccd69339f35a7cb4bc4970770f60287563ac829defb203340cea68f03357ba`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -2111,7 +2111,7 @@
 - 200 {grade_factors, grades, prizes, gitlab_projects, updated_at, updated_by, finalized}：系数是百分数（150 = 1.5）；没有规则行时回默认系数（大一 150、大二 130、大三 110、其余 100）、没有奖项。
 - 只读。控制台积分记录里，这场比赛列的 GitLab 项目不拼 GitHub 链接。
 
-源码：[app/server/src/routes/console/competition-results.ts:82](../../../app/server/src/routes/console/competition-results.ts#L82) · [app/server/src/routes/console/contracts.ts:267](../../../app/server/src/routes/console/contracts.ts#L267) · [app/server/src/lib/competition-rules-store.ts:11](../../../app/server/src/lib/competition-rules-store.ts#L11) · [app/console/src/pages/competition/RulesPanel.vue:29](../../../app/console/src/pages/competition/RulesPanel.vue#L29) · [app/console/src/mock/console.ts:616](../../../app/console/src/mock/console.ts#L616) · [app/console/src/pages/CompetitionHub.vue:87](../../../app/console/src/pages/CompetitionHub.vue#L87) · [app/console/src/lib/competition-hub.ts:224](../../../app/console/src/lib/competition-hub.ts#L224)
+源码：[app/server/src/routes/console/competition-results.ts:81](../../../app/server/src/routes/console/competition-results.ts#L81) · [app/server/src/routes/console/contracts.ts:267](../../../app/server/src/routes/console/contracts.ts#L267) · [app/server/src/lib/competition-rules-store.ts:11](../../../app/server/src/lib/competition-rules-store.ts#L11) · [app/console/src/pages/competition/RulesPanel.vue:29](../../../app/console/src/pages/competition/RulesPanel.vue#L29) · [app/console/src/mock/console.ts:616](../../../app/console/src/mock/console.ts#L616) · [app/console/src/pages/CompetitionHub.vue:87](../../../app/console/src/pages/CompetitionHub.vue#L87) · [app/console/src/lib/competition-hub.ts:224](../../../app/console/src/lib/competition-hub.ts#L224)
 
 测试入口：[tests/server/competition-public.test.ts](../../../tests/server/competition-public.test.ts) · [tests/console/competition-contest.test.ts](../../../tests/console/competition-contest.test.ts)。生成器未执行这些测试。
 
@@ -2128,7 +2128,7 @@
 - body {grade_factors:{year1…none: 50–300}, prizes:[{from, to, amount_cny, title}], gitlab_projects:[]} 整份替换：奖项名次从小到大不重叠、最多 20 档、金额 ≤ 100000、说明 ≤ 40 字；项目最多 10 个、两到五段路径。
 - 改系数只影响之后记的分，已经记下的年级与系数不重算；写 competition.rules.update 操作记录（带改前改后），清掉公开缓存。
 
-源码：[app/server/src/routes/console/competition-results.ts:87](../../../app/server/src/routes/console/competition-results.ts#L87) · [app/server/src/routes/console/contracts.ts:268](../../../app/server/src/routes/console/contracts.ts#L268) · [app/server/src/lib/competition-contract.ts:263](../../../app/server/src/lib/competition-contract.ts#L263) · [app/console/src/pages/competition/RulesPanel.vue:44](../../../app/console/src/pages/competition/RulesPanel.vue#L44) · [app/console/src/lib/competition-contest.ts:52](../../../app/console/src/lib/competition-contest.ts#L52)
+源码：[app/server/src/routes/console/competition-results.ts:86](../../../app/server/src/routes/console/competition-results.ts#L86) · [app/server/src/routes/console/contracts.ts:268](../../../app/server/src/routes/console/contracts.ts#L268) · [app/server/src/lib/competition-contract.ts:263](../../../app/server/src/lib/competition-contract.ts#L263) · [app/console/src/pages/competition/RulesPanel.vue:44](../../../app/console/src/pages/competition/RulesPanel.vue#L44) · [app/console/src/lib/competition-contest.ts:52](../../../app/console/src/lib/competition-contest.ts#L52)
 
 测试入口：[tests/server/competition-public.test.ts](../../../tests/server/competition-public.test.ts) · [tests/server/competition-prizes.test.ts](../../../tests/server/competition-prizes.test.ts) · [tests/console/competition-contest.test.ts](../../../tests/console/competition-contest.test.ts)。生成器未执行这些测试。
 
@@ -2145,7 +2145,7 @@
 - 200 {finalized_at, finalized_by, standings, prizes, preview}：没定榜时 preview 是现在的严格名次（同分时先到这个分的在前，再按报名先后）与将要发的奖；定榜后 prizes 列出得奖人与是否核销，兑奖码只给末四位 code_hint。
 - 只读。
 
-源码：[app/server/src/routes/console/competition-results.ts:114](../../../app/server/src/routes/console/competition-results.ts#L114) · [app/server/src/routes/console/contracts.ts:269](../../../app/server/src/routes/console/contracts.ts#L269) · [app/console/src/pages/competition/FinalPanel.vue:28](../../../app/console/src/pages/competition/FinalPanel.vue#L28) · [app/console/src/mock/console.ts:631](../../../app/console/src/mock/console.ts#L631) · [app/server/src/routes/console/index.ts:32](../../../app/server/src/routes/console/index.ts#L32)
+源码：[app/server/src/routes/console/competition-results.ts:113](../../../app/server/src/routes/console/competition-results.ts#L113) · [app/server/src/routes/console/contracts.ts:269](../../../app/server/src/routes/console/contracts.ts#L269) · [app/console/src/pages/competition/FinalPanel.vue:28](../../../app/console/src/pages/competition/FinalPanel.vue#L28) · [app/console/src/mock/console.ts:631](../../../app/console/src/mock/console.ts#L631) · [app/server/src/routes/console/index.ts:32](../../../app/server/src/routes/console/index.ts#L32)
 
 测试入口：[tests/server/competition-prizes.test.ts](../../../tests/server/competition-prizes.test.ts) · [tests/console/competition-contest.test.ts](../../../tests/console/competition-contest.test.ts)。生成器未执行这些测试。
 
@@ -2162,7 +2162,7 @@
 - 冻结名次快照，按奖项表给分数大于 0 的个人各发一个兑奖码 YUGC-XXXX-XXXX-XXXX-XXXX（80 位随机，16 位 Crockford base32，猜不出来）；库里只存 SHA-256 散列、AES-GCM 密文和末四位。
 - 201 定榜视图；之后积分、规则、候选的写入都 409 competition_finalized；写 competition.finalize 操作记录（只记末四位），清掉公开缓存。
 
-源码：[app/server/src/routes/console/competition-results.ts:119](../../../app/server/src/routes/console/competition-results.ts#L119) · [app/server/src/routes/console/contracts.ts:270](../../../app/server/src/routes/console/contracts.ts#L270) · [app/server/src/lib/competition-prizes.ts:37](../../../app/server/src/lib/competition-prizes.ts#L37) · [app/console/src/pages/competition/FinalPanel.vue:34](../../../app/console/src/pages/competition/FinalPanel.vue#L34) · [app/server/src/lib/db.ts:972](../../../app/server/src/lib/db.ts#L972)
+源码：[app/server/src/routes/console/competition-results.ts:118](../../../app/server/src/routes/console/competition-results.ts#L118) · [app/server/src/routes/console/contracts.ts:270](../../../app/server/src/routes/console/contracts.ts#L270) · [app/server/src/lib/competition-prizes.ts:37](../../../app/server/src/lib/competition-prizes.ts#L37) · [app/console/src/pages/competition/FinalPanel.vue:34](../../../app/console/src/pages/competition/FinalPanel.vue#L34) · [app/server/src/lib/db.ts:972](../../../app/server/src/lib/db.ts#L972)
 
 测试入口：[tests/server/competition-prizes.test.ts](../../../tests/server/competition-prizes.test.ts) · [tests/console/competition-contest.test.ts](../../../tests/console/competition-contest.test.ts)。生成器未执行这些测试。
 
@@ -2179,7 +2179,7 @@
 - 删掉名次快照和全部兑奖码，得奖的人手里的码随之作废；之后可以继续加分、改规则，再重新定榜。
 - 200 定榜视图；写 competition.unfinalize 操作记录（带删掉的奖数），清掉公开缓存。
 
-源码：[app/server/src/routes/console/competition-results.ts:143](../../../app/server/src/routes/console/competition-results.ts#L143) · [app/server/src/routes/console/contracts.ts:271](../../../app/server/src/routes/console/contracts.ts#L271) · [app/console/src/pages/competition/FinalPanel.vue:44](../../../app/console/src/pages/competition/FinalPanel.vue#L44)
+源码：[app/server/src/routes/console/competition-results.ts:142](../../../app/server/src/routes/console/competition-results.ts#L142) · [app/server/src/routes/console/contracts.ts:271](../../../app/server/src/routes/console/contracts.ts#L271) · [app/console/src/pages/competition/FinalPanel.vue:44](../../../app/console/src/pages/competition/FinalPanel.vue#L44)
 
 测试入口：[tests/server/competition-prizes.test.ts](../../../tests/server/competition-prizes.test.ts) · [tests/console/competition-contest.test.ts](../../../tests/console/competition-contest.test.ts)。生成器未执行这些测试。
 
@@ -2193,10 +2193,10 @@
 - 写入：`limit_events`、`activity_events`、`sessions`
 - 不入队：
 - 权限与资源：competition.prize.redeem；每分钟 60 次；输错的码每人每小时 20 次（competition.prize.lookup.fail，记在 limit_events），超了 429。
-- body {code}：不分大小写，空格、连字符与 YUGC 前缀可有可无，I/L 当 1、O 当 0，按散列查找；200 {prize}：比赛、名次、分数、金额、奖项名、得奖人（昵称与用户名，操作人有 users.manage 时多一个真实姓名）、末四位、核销时间与核销人。
+- body {code}：不分大小写，空格、连字符与 YUGC 前缀可有可无，I/L 当 1、O 当 0，按散列查找；200 {prize}：比赛、名次、分数、金额、奖项名、得奖人（昵称与用户名，不含真实姓名：比赛这边不读 account_profiles.real_name，#280）、末四位、核销时间与核销人。
 - 查不到 404 code_not_found 并写一条 denied 的 competition.prize.lookup 操作记录（只记末四位）；查到不写记录。
 
-源码：[app/server/src/routes/console/competition-results.ts:190](../../../app/server/src/routes/console/competition-results.ts#L190) · [app/server/src/routes/console/contracts.ts:272](../../../app/server/src/routes/console/contracts.ts#L272) · [app/server/src/lib/competition-prizes.ts:47](../../../app/server/src/lib/competition-prizes.ts#L47) · [app/console/src/pages/PrizeRedeem.vue:39](../../../app/console/src/pages/PrizeRedeem.vue#L39) · [app/console/src/lib/competition-contest.ts:153](../../../app/console/src/lib/competition-contest.ts#L153) · [app/server/src/lib/limits.ts:116](../../../app/server/src/lib/limits.ts#L116)
+源码：[app/server/src/routes/console/competition-results.ts:183](../../../app/server/src/routes/console/competition-results.ts#L183) · [app/server/src/routes/console/contracts.ts:272](../../../app/server/src/routes/console/contracts.ts#L272) · [app/server/src/lib/competition-prizes.ts:47](../../../app/server/src/lib/competition-prizes.ts#L47) · [app/console/src/pages/PrizeRedeem.vue:39](../../../app/console/src/pages/PrizeRedeem.vue#L39) · [app/console/src/lib/competition-contest.ts:153](../../../app/console/src/lib/competition-contest.ts#L153) · [app/server/src/lib/limits.ts:116](../../../app/server/src/lib/limits.ts#L116)
 
 测试入口：[tests/server/competition-prizes.test.ts](../../../tests/server/competition-prizes.test.ts) · [tests/console/competition-contest.test.ts](../../../tests/console/competition-contest.test.ts)。生成器未执行这些测试。
 
@@ -2213,7 +2213,7 @@
 - 200 {prize} 并写 redeemed_at/redeemed_by；查不到 404 code_not_found；已经核销 409 already_redeemed，带上次核销的那张奖。
 - 核销与 competition.prize.redeem 操作记录同一事务（结果为 denied 的也记），记录里只有末四位与金额。
 
-源码：[app/server/src/routes/console/competition-results.ts:201](../../../app/server/src/routes/console/competition-results.ts#L201) · [app/server/src/routes/console/contracts.ts:273](../../../app/server/src/routes/console/contracts.ts#L273) · [app/console/src/pages/PrizeRedeem.vue:52](../../../app/console/src/pages/PrizeRedeem.vue#L52) · [app/console/src/lib/competition-contest.ts:166](../../../app/console/src/lib/competition-contest.ts#L166) · [app/console/src/router.ts:36](../../../app/console/src/router.ts#L36) · [app/server/src/lib/permission-nodes.ts:55](../../../app/server/src/lib/permission-nodes.ts#L55) · [app/console/src/lib/permission-nodes.ts:42](../../../app/console/src/lib/permission-nodes.ts#L42) · [app/console/src/pages/Competitions.vue:100](../../../app/console/src/pages/Competitions.vue#L100)
+源码：[app/server/src/routes/console/competition-results.ts:194](../../../app/server/src/routes/console/competition-results.ts#L194) · [app/server/src/routes/console/contracts.ts:273](../../../app/server/src/routes/console/contracts.ts#L273) · [app/console/src/pages/PrizeRedeem.vue:52](../../../app/console/src/pages/PrizeRedeem.vue#L52) · [app/console/src/lib/competition-contest.ts:166](../../../app/console/src/lib/competition-contest.ts#L166) · [app/console/src/router.ts:36](../../../app/console/src/router.ts#L36) · [app/server/src/lib/permission-nodes.ts:55](../../../app/server/src/lib/permission-nodes.ts#L55) · [app/console/src/lib/permission-nodes.ts:42](../../../app/console/src/lib/permission-nodes.ts#L42) · [app/console/src/pages/Competitions.vue:100](../../../app/console/src/pages/Competitions.vue#L100)
 
 测试入口：[tests/server/competition-prizes.test.ts](../../../tests/server/competition-prizes.test.ts) · [tests/console/competition-contest.test.ts](../../../tests/console/competition-contest.test.ts)。生成器未执行这些测试。
 

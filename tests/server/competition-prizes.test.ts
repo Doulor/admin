@@ -117,12 +117,11 @@ describe('定榜', () => {
 });
 
 describe('兑奖核销', () => {
-  it('查找与核销要 competition.prize.redeem；核销要 step-up；重复核销与查不到都有明确的错误；只有 users.manage 能看到真实姓名', async () => {
+  it('查找与核销要 competition.prize.redeem；核销要 step-up；重复核销与查不到都有明确的错误；结果里没有真实姓名', async () => {
     const { app, as, accountId, id, finalize, endCompetition, makeStale } = await finalSetup();
     await endCompetition(id);
     await finalize();
-    app.services.profiles.get(accountId('alice'));
-    app.services.storage.db.prepare("UPDATE account_profiles SET real_name = '张三丰' WHERE account_id = ?").run(accountId('alice'));
+    app.services.profiles.setRealInfo(accountId('alice'), '张三丰', null);
     const code = (await app.inject({ url: '/api/me/competition-results', headers: as('alice') })).json().items[0].prize.code as string;
     const lookup = (login: string, value = code) => app.inject({ method: 'POST', url: '/api/console/prizes/lookup', headers: as(login), payload: { code: value } });
     const redeem = (login: string, value = code) => app.inject({ method: 'POST', url: '/api/console/prizes/redeem', headers: as(login), payload: { code: value } });
@@ -133,8 +132,10 @@ describe('兑奖核销', () => {
 
     grantPermNode(app, accountId('erin'), 'competition.prize.redeem');
     const seen = (await lookup('erin', code.toLowerCase().replace(/-/g, ' '))).json().prize;
-    expect(seen).toMatchObject({ rank: 1, amount_cny: 700, title: 'GPT 5x 订阅的价格', competition_name: '开源赛', redeemed_at: null, real_name: null, account: { account_id: accountId('alice') } });
-    expect((await lookup('owner')).json().prize.real_name).toBe('张三丰');
+    expect(seen).toMatchObject({ rank: 1, amount_cny: 700, title: 'GPT 5x 订阅的价格', competition_name: '开源赛', redeemed_at: null, account: { account_id: accountId('alice') } });
+    const byOwner = await lookup('owner');
+    expect(byOwner.json().prize).not.toHaveProperty('real_name');
+    expect(byOwner.body).not.toContain('张三丰');
 
     makeStale('erin');
     expect((await redeem('erin')).json().error).toBe('step_up_required');
