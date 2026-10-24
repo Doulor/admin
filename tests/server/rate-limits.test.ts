@@ -43,3 +43,24 @@ it.each([
   // 另一个 IP 的额度是自己的
   expect((await app.inject({ method, url, headers, remoteAddress: '198.51.100.21', ...('payload' in rest ? { payload: rest.payload } : {}) })).statusCode).toBe(within);
 });
+
+it('同一个访客反复撞同一个限额，429 只在操作记录里留一行，meta.count 往上加（#274 残留修复 F）', async () => {
+  const context = await testApp();
+  contexts.push(context);
+  const { app } = context;
+  context.app.services.storage.db.prepare("DELETE FROM activity_events").run(); // 迁移自带的 identity.backfill 记录不参与这里的断言
+  let cookie: string | undefined;
+  const send = async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/join/no-such-link', payload: {}, remoteAddress: '198.51.100.40', headers: cookie ? { cookie } : {} });
+    const setCookie = ([] as string[]).concat((res.headers['set-cookie'] as string[] | string | undefined) ?? []).find(c => c.startsWith('yugc_vid='));
+    if (setCookie && !cookie) cookie = setCookie.split(';')[0];
+    return res;
+  };
+  for (let i = 0; i < 5; i += 1) await send(); // 用满额度（max=5），都不是限流响应
+  for (let i = 0; i < 3; i += 1) expect((await send()).statusCode).toBe(429); // 再撞 3 次
+  const rows = app.services.storage.db.prepare("SELECT outcome, action, meta FROM activity_events WHERE outcome = 'limited'").all() as
+    { outcome: string; action: string; meta: string }[];
+  expect(rows).toHaveLength(1); // 3 次限流只留一行，没有一条一条插
+  expect(rows[0].action).toBe('http.rate_limited');
+  expect(JSON.parse(rows[0].meta)).toEqual({ count: 3 });
+});

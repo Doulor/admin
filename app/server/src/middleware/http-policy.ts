@@ -53,8 +53,12 @@ function recordDenialOrLimit(req: FastifyRequest, statusCode: number, payload: u
   if (statusCode !== 403 && statusCode !== 429) return;
   let body: unknown = null;
   if (typeof payload === "string") { try { body = JSON.parse(payload); } catch { /* 不是 JSON，按通用名记 */ } }
-  req.server.services.activity.recordActivity(req, {
+  // console/activity.ts 的 blocked_today 按 meta.bucket 分组统计；只有路由自己数的限额（回了 bucket 字段的）
+  // 才有名字可分组，@fastify/rate-limit 插件按路由限流的通用 429 没有 bucket，不写这个字段。
+  const bucket = (body as { bucket?: unknown } | null)?.bucket;
+  req.server.services.activity.recordDenial(req, {
     action: actionFor(body), surface: surfaceFor(req.url), outcome: statusCode === 429 ? "limited" : "denied",
+    meta: typeof bucket === "string" ? { bucket } : undefined,
   });
 }
 

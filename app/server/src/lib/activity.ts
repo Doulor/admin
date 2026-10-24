@@ -2,6 +2,12 @@ import type Database from "better-sqlite3";
 import type { FastifyRequest } from "fastify";
 import type { LimitsService } from "./limits.js";
 
+/** UA 截断到 256 字符：少数客户端会塞超长 UA（有的能到几 KB），没必要整条存（#274 残留修复 F）。 */
+const UA_MAX = 256;
+function truncateUa(ua: string | null): string | null {
+  return ua === null ? null : ua.slice(0, UA_MAX);
+}
+
 // req.visitorId（匿名访客编号）由 middleware/visitor.ts 的 attachVisitorId 挂在 portal/forum-api 两个插件作用域上，
 // 这里只读，不重复定义一套（两个人各自做过一版，这是收敛成一份之后留下的，见执行记录）。不在这里 import 那个
 // 文件：declare module 的类型扩展是全局的，只要它在编译时被别处（routes/portal/index.ts）引入过就对全仓库生效，
@@ -40,23 +46,74 @@ export function createActivityRecorder(db: Database.Database, clock: () => numbe
     INSERT INTO activity_events(at, account_id, visitor_id, surface, action, target_type, target_id, outcome, ip, ua, request_id, meta)
     VALUES (@at, @account_id, @visitor_id, @surface, @action, @target_type, @target_id, @outcome, @ip, @ua, @request_id, @meta)
   `);
+  // 同一主体（账号，没账号时按访客编号，连访客编号都没有——console/identity/oidc 这类没挂 attachVisitorId
+  // 的路由——按 IP）、同一 action、同一结果、同一分钟内，拒绝/限流只留一行，count 往上加，不是 403/429
+  // 刷屏就一条一条插（#274 残留修复 F，blocker 相邻项）。IFNULL 比较让 NULL 和 NULL 算相等。
+  const findDenialBucket = db.prepare(`
+    SELECT id, meta FROM activity_events
+    WHERE action = @action AND outcome = @outcome
+      AND IFNULL(account_id,'') = IFNULL(@account_id,'')
+      AND IFNULL(visitor_id,'') = IFNULL(@visitor_id,'')
+      AND IFNULL(ip,'') = IFNULL(@ip,'')
+      AND at >= @bucket_start
+    ORDER BY id DESC LIMIT 1
+  `);
+  const bumpDenialCount = db.prepare("UPDATE activity_events SET meta = @meta WHERE id = @id");
+
+  function subjectOf(req: FastifyRequest, input: RecordActivityInput): { accountId: string | null; visitorId: string | null } {
+    const accountId = input.account_id !== undefined ? input.account_id : req.session?.account_id ?? null;
+    // 登录的人不重复记访客编号：一个人同时有账号和访客 cookie 时，操作记录按账号认，不要两边都算一次活跃访客。
+    return { accountId, visitorId: accountId ? null : req.visitorId ?? null };
+  }
 
   function recordActivity(req: FastifyRequest, input: RecordActivityInput): void {
-    const accountId = input.account_id !== undefined ? input.account_id : req.session?.account_id ?? null;
+    const { accountId, visitorId } = subjectOf(req, input);
     insert.run({
       at: clock(),
       account_id: accountId,
-      // 登录的人不重复记访客编号：一个人同时有账号和访客 cookie 时，操作记录按账号认，不要两边都算一次活跃访客。
-      visitor_id: accountId ? null : req.visitorId ?? null,
+      visitor_id: visitorId,
       surface: input.surface,
       action: input.action,
       target_type: input.target_type ?? null,
       target_id: input.target_id ?? null,
       outcome: input.outcome ?? "ok",
       ip: req.ip ?? null,
-      ua: (req.headers["user-agent"] as string | undefined) ?? null,
+      ua: truncateUa((req.headers["user-agent"] as string | undefined) ?? null),
       request_id: String(req.id),
       meta: JSON.stringify(input.meta ?? {}),
+    });
+  }
+
+  /** 403/429 专用：见上面 findDenialBucket 的注释。只用于 middleware/http-policy.ts 的 recordDenialOrLimit。 */
+  function recordDenial(req: FastifyRequest, input: RecordActivityInput): void {
+    const now = clock();
+    const { accountId, visitorId } = subjectOf(req, input);
+    const ip = req.ip ?? null;
+    const outcome = input.outcome ?? "denied";
+    const bucketStart = Math.floor(now / 60_000) * 60_000;
+    const existing = findDenialBucket.get({
+      action: input.action, outcome, account_id: accountId, visitor_id: visitorId, ip, bucket_start: bucketStart,
+    }) as { id: number; meta: string } | undefined;
+    if (existing) {
+      const meta = JSON.parse(existing.meta || "{}") as Record<string, unknown>;
+      const count = typeof meta.count === "number" && Number.isFinite(meta.count) ? meta.count : 1;
+      meta.count = count + 1;
+      bumpDenialCount.run({ meta: JSON.stringify(meta), id: existing.id });
+      return;
+    }
+    insert.run({
+      at: now,
+      account_id: accountId,
+      visitor_id: visitorId,
+      surface: input.surface,
+      action: input.action,
+      target_type: input.target_type ?? null,
+      target_id: input.target_id ?? null,
+      outcome,
+      ip,
+      ua: truncateUa((req.headers["user-agent"] as string | undefined) ?? null),
+      request_id: String(req.id),
+      meta: JSON.stringify({ ...(input.meta ?? {}), count: 1 }),
     });
   }
 
@@ -67,7 +124,7 @@ export function createActivityRecorder(db: Database.Database, clock: () => numbe
     return { deleted, ipMasked };
   }
 
-  return { recordActivity, pruneExpired };
+  return { recordActivity, recordDenial, pruneExpired };
 }
 export type ActivityRecorder = ReturnType<typeof createActivityRecorder>;
 
