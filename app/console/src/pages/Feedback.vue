@@ -103,7 +103,7 @@ const publicUrl = computed(() => new URL(siteUrl("portal", publicPath), window.l
 
           <TxForm v-if="editing === item.id" :model="draft" label-position="top" class="fb-edit" @submit="save.execute(item)">
             <TxFormItem label="状态">
-              <TxSelect v-model="draft.status" :options="statusOptions" class="fb-select" />
+              <TxSelect v-model="draft.status" :options="statusOptions" class="fb-select" panel-background="pure" />
             </TxFormItem>
             <TxFormItem label="公开回复（选填）">
               <TxTextarea v-model="draft.reply" :rows="3" :max-length="2000" placeholder="写给提意见的同学，会显示在官网上" />

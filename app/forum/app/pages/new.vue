@@ -190,6 +190,7 @@ async function submit() {
             v-model="model.categoryId"
             :options="categoryOptions"
             placeholder="选择一个类别"
+            panel-background="pure"
           />
         </TxFormItem>
 
@@ -204,6 +205,7 @@ async function submit() {
             create-text="创建这个标签"
             search-placeholder="搜索或新建标签"
             empty-text="没有匹配的标签"
+            panel-background="pure"
             @update:model-value="pickTags"
           />
         </TxFormItem>

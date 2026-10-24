@@ -63,7 +63,7 @@ const selectGroups = computed(() => sections.value.map(section => ({
       <!-- TxSelect 0.6.0 的 attrs 落在外层，用 label 给里面的输入框命名。 -->
       <label class="fill-width">
         <span class="sr-only">选择组</span>
-        <TxSelect :model-value="selectedId ?? ''" :options="selectGroups" searchable search-placeholder="搜索组" empty-text="没有这个组" class="fill-width" @update:model-value="select" />
+        <TxSelect :model-value="selectedId ?? ''" :options="selectGroups" searchable search-placeholder="搜索组" empty-text="没有这个组" class="fill-width" panel-background="pure" @update:model-value="select" />
       </label>
     </div>
 

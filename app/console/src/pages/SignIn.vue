@@ -304,7 +304,7 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
             <!-- TxSelect 0.6.0 的 attrs 落在外层，用 label 给里面的输入框命名。 -->
             <label class="fill-width">
               <span class="sr-only">所在年级</span>
-              <TxSelect v-model="gradeInput" :options="GRADE_OPTIONS" placeholder="选择年级" class="fill-width" data-testid="register-grade" />
+              <TxSelect v-model="gradeInput" :options="GRADE_OPTIONS" placeholder="选择年级" class="fill-width" data-testid="register-grade" panel-background="pure" />
             </label>
             <p class="signin__hint">每年 9 月 1 日自动升一级。姓名和年级填好后自己不能改，填错了请联系管理员。</p>
           </TxFormItem>

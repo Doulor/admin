@@ -97,6 +97,7 @@ function onChange(value: string | number) {
       :disabled="disabled"
       remote
       :search-debounce="250"
+      panel-background="pure"
       @search="search"
       @change="onChange"
     />

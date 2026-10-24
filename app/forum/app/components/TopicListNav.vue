@@ -71,6 +71,7 @@ function pickTag(value: TxSelectModelValue) {
       :model-value="categorySlug ?? ''"
       :options="categoryOptions"
       placeholder="全部类别"
+      panel-background="pure"
       @update:model-value="pickCategory"
     />
 
@@ -82,6 +83,7 @@ function pickTag(value: TxSelectModelValue) {
       searchable
       search-placeholder="搜索标签"
       empty-text="没有匹配的标签"
+      panel-background="pure"
       @update:model-value="pickTag"
     />
 

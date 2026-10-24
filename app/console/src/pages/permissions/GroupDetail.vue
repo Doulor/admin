@@ -219,7 +219,7 @@ const MEMBER_NOTE: Partial<Record<PermissionGroup["kind"], string>> = {
         <TxFormItem label="继承（这个组拥有所选组的全部条目）" class="wide">
           <label class="fill-width">
             <span class="sr-only">继承的组</span>
-            <TxSelect v-model="form.parents" :options="parentOptions" multiple searchable placeholder="不继承" search-placeholder="搜索组" empty-text="没有这个组" class="fill-width" />
+            <TxSelect v-model="form.parents" :options="parentOptions" multiple searchable placeholder="不继承" search-placeholder="搜索组" empty-text="没有这个组" class="fill-width" panel-background="pure" />
           </label>
         </TxFormItem>
       </div>

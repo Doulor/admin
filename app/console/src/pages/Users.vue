@@ -132,7 +132,7 @@ const searchHref = (row: ConsoleUser) => `/console/users?q=${encodeURIComponent(
         <!-- TxSelect 0.6.0 的 attrs 落在外层，用 label 给里面的输入框命名。 -->
         <label class="dept-filter">
           <span class="sr-only">按部门筛选</span>
-          <TxSelect :model-value="filters.department" :options="departmentOptions" class="fill-width" @update:model-value="value => setQuery({ department: String(value) || undefined })" />
+          <TxSelect :model-value="filters.department" :options="departmentOptions" class="fill-width" panel-background="pure" @update:model-value="value => setQuery({ department: String(value) || undefined })" />
         </label>
         <form role="search" class="search" @submit.prevent="setQuery({ q: draftQ.trim() || undefined })">
           <TxSearchInput v-model="draftQ" :placeholder="searchPlaceholder" @search="setQuery({ q: draftQ.trim() || undefined })" @clear="setQuery({ q: undefined })" />

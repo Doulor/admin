@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FileUploaderFile } from '@talex-touch/tuffex/file-uploader'
+import type { TxSelectModelValue } from '@talex-touch/tuffex/select'
 import { toast } from '@talex-touch/tuffex/utils'
 import { AVATAR_PALETTE } from '~/data/seed-content'
 import { AVATAR_TYPES, avatarFileProblem, NAME_CHARS_HINT, PROFILE_LIMITS, profileBody, profileProblem } from '../../../../shared/forum-api'
@@ -180,7 +181,7 @@ async function save() {
  * straight through: this browser at once, the account behind it when signed
  * in (useForumTheme, #276).
  */
-function setTheme(value: string | number) {
+function setTheme(value: TxSelectModelValue) {
   const next = String(value)
   void theme.set(next === 'sky' || next === 'light' || next === 'dark' ? next : 'system')
 }
@@ -320,17 +321,20 @@ function setTheme(value: string | number) {
       </TxGroupBlock>
 
       <TxGroupBlock name="外观" :description="serverMode ? '登录后会记在账号里，换一台设备登录也是同一个主题。' : '只影响这台设备上的浏览器。'" :collapsible="false">
-        <TxBlockSelect
-          :model-value="theme.choice.value"
-          title="主题"
-          description="立即生效，不需要保存"
-          @update:model-value="setTheme"
-        >
-          <TxSelectItem value="sky" label="晴空" icon="i-carbon-cloud" />
-          <TxSelectItem value="light" label="浅色" icon="i-carbon-sun" />
-          <TxSelectItem value="dark" label="深色" icon="i-carbon-moon" />
-          <TxSelectItem value="system" label="跟随系统" icon="i-carbon-screen" />
-        </TxBlockSelect>
+        <!-- TxBlockSelect's own layout, spelled out: it does not pass panel-background on to its TxSelect -->
+        <TxBlockSlot class="tx-block-select" title="主题" description="立即生效，不需要保存" active>
+          <TxSelect
+            :model-value="theme.choice.value"
+            class="tx-block-select__select"
+            panel-background="pure"
+            @update:model-value="setTheme"
+          >
+            <TxSelectItem value="sky" label="晴空" icon="i-carbon-cloud" />
+            <TxSelectItem value="light" label="浅色" icon="i-carbon-sun" />
+            <TxSelectItem value="dark" label="深色" icon="i-carbon-moon" />
+            <TxSelectItem value="system" label="跟随系统" icon="i-carbon-screen" />
+          </TxSelect>
+        </TxBlockSlot>
       </TxGroupBlock>
     </TxCard>
 

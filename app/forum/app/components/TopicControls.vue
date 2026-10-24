@@ -97,6 +97,7 @@ async function bookmark() {
           v-model="notificationLevel"
           :options="NOTIFICATION_LEVELS"
           placeholder="通知级别"
+          panel-background="pure"
         />
 
         <TxButton

@@ -54,7 +54,7 @@ const save = useAction(async () => {
         <!-- TxSelect 0.6.0 的 attrs 落在外层，用 label 给里面的输入框命名。 -->
         <label class="fill-width">
           <span class="sr-only">节点</span>
-          <TxSelect v-model="draft.node" :options="options" searchable placeholder="选一个节点或通配" search-placeholder="搜索中文名或节点" empty-text="没有匹配的节点" class="fill-width" />
+          <TxSelect v-model="draft.node" :options="options" searchable placeholder="选一个节点或通配" search-placeholder="搜索中文名或节点" empty-text="没有匹配的节点" class="fill-width" panel-background="pure" />
         </label>
         <span v-if="picked?.description" class="field-hint">{{ picked.description }}</span>
         <span v-else-if="draft.node.endsWith('*')" class="field-hint">通配会匹配它下面现在和以后加入的全部节点。</span>
