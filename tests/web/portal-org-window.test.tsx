@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 // 组织架构窗口（#275）：画 #274 的 GET /api/public/departments 给的部门（部门色、图标、说明、按权重排的称号）；
-// 数据到之前和读不到时用和服务端初始数据一样的默认值。
+// 数据到之前和读不到时用和服务端初始数据一样的默认值。称号名字只写在默认值里，官网别处不写死（控制台能改名）。
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { OrgChart } from "../../app/web/sites/portal/components/os/Windows";
@@ -101,5 +103,31 @@ describe("readDepartments", () => {
       ["dept.management", "pill", "government-line"],
       ["dept.none", "ink", "user-line"],
     ]);
+  });
+});
+
+describe("称号名字只写在默认值里", () => {
+  it("官网源码除了 lib/departments.ts 都不写死称号的名字（部长、副部长、部员在控制台能改名）", () => {
+    // jsdom 环境里 import.meta.url 不是 file: 地址，按仓库根（vitest 的工作目录）读
+    const portal = join(process.cwd(), "app/web/sites/portal");
+    const sources = (dir: string): string[] =>
+      readdirSync(dir).flatMap((name) => {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) return name === "assets" ? [] : sources(path);
+        return /\.(tsx?|css)$/.test(name) ? [path] : [];
+      });
+    const names = [...new Set(DEFAULT_DEPARTMENTS.flatMap((department) => department.titles.map((title) => title.name)))];
+    expect(names.length).toBeGreaterThan(0);
+    const hits: string[] = [];
+    for (const file of sources(portal)) {
+      const name = file.slice(portal.length + 1);
+      if (name === "lib/departments.ts") continue;
+      readFileSync(file, "utf8")
+        .split("\n")
+        .forEach((line, index) => {
+          if (names.some((title) => line.includes(title))) hits.push(`${name}:${index + 1}`);
+        });
+    }
+    expect(hits).toEqual([]);
   });
 });

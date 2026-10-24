@@ -240,6 +240,8 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
 function About({ onOpen }: { onOpen: OpenApp }) {
   const { brand } = appConfig.portal;
   const departments = useDepartments().filter((department) => department.titles.length > 0);
+  // 称号名字在控制台改，这里照数据说，不写死（tests/web/portal-org-window.test.tsx 扫源码）
+  const titleNames = [...new Set(departments.flatMap((department) => department.titles.map((title) => title.name)))];
   return (
     <div className="pt-about">
       <img src={brand.logo} alt="长江大学计算机科学学院极客班徽标" width={112} height={112} />
@@ -259,7 +261,7 @@ function About({ onOpen }: { onOpen: OpenApp }) {
               <Icon name="team-line" size={15} />
               怎么分工
             </dt>
-            <dd>{departments.length ? `分成${departments.map((department) => department.name).join("、")}，每个部门有部长、副部长和部员` : "按部门分工"}</dd>
+            <dd>{departments.length ? `分成${departments.map((department) => department.name).join("、")}，每个部门有${titleNames.join("、")}` : "按部门分工"}</dd>
           </div>
           <div>
             <dt>
