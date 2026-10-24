@@ -161,7 +161,7 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
         role="dialog"
         aria-label={meta.title}
         hidden={win.minimized || (phone && !front)}
-        style={{ left: win.x, top: win.y, width, zIndex: win.z }}
+        style={{ left: win.x, top: win.y, width, zIndex: win.z, ["--win-y" as string]: `${win.y}px` }}
         onPointerDown={onFocus}
       >
         {phone && (
