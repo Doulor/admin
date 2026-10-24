@@ -317,3 +317,11 @@ export type AccountView = {
   real_name: string | null; grade: Grade | null; grade_label: string | null; profile_required: boolean;
   session: { provider: SessionProvider; created_at: number; expires_at: number; step_up_until: number };
 };
+
+/** 论坛管理（#276，CONTRACT-276 §8）：分类可见范围、表情包与表情 */
+export type ForumVisibility = "public" | "registered" | "member";
+export type ForumCategoryRow = { id: string; name: string; visibility: ForumVisibility; topic_count: number };
+export type ForumCategoriesResponse = { categories: ForumCategoryRow[] };
+export type ConsoleSticker = { id: string; shortcode: string; label: string; url: string; sort: number; enabled: boolean; use_count: number };
+export type ConsoleStickerPack = { id: string; name: string; sort: number; enabled: boolean; stickers: ConsoleSticker[] };
+export type ConsoleStickersResponse = { packs: ConsoleStickerPack[] };
