@@ -2,7 +2,7 @@
 
 > 记录已采用框架及版本来源，未来升级另立提议。
 
-状态：`current` · 更新：2026-09-26
+状态：`current` · 更新：2026-10-24
 
 ## 核心包：app/web + app/server + app/console
 
@@ -24,7 +24,7 @@
 | 测试 | Vitest / Testing Library / jsdom / Playwright | Vitest 3 |
 | 交付 | Docker 镜像 + Docker Compose（两套栈：`/opt/yzgc/production`、`/opt/yzgc/preview`）+ 宿主 nginx TLS 终止；基础镜像 `node:22-bookworm-slim`（server；web 构建）、`node:26-bookworm-slim`（forum 构建）、`nginx:1.31-alpine`（web/forum 运行） | Node 22 / nginx 1.31 / compose v2 |
 
-控制台 `app/console` 的锁定版本：Vue 3.5.42、vue-router 4.6.4、@talex-touch/tuffex 0.6.0（与论坛同版本）、Vite 7.3.6、@vitejs/plugin-vue 6.0.9、UnoCSS 66.10.2（只用图标预设）+ @iconify-json/carbon 1.2.27、vue-tsc 3.3.11。Tuffex 与 `@talex-touch/utils` 声明 Node ≥26，控制台在 Node 22 上构建与运行，已实测；`@talex-touch/utils` 的 `electron` peer 由根 `pnpm.packageExtensions` 标为可选，锁文件不含 electron；`@unocss/inspector` 的 `@vitejs/devtools-kit` 由 `pnpm.overrides` 固定 0.7.3。详见 [console 合同](../services/console/README.md)。
+控制台 `app/console` 的锁定版本：Vue 3.5.42、vue-router 4.6.4、@talex-touch/tuffex 0.9.1（与论坛同版本，2026-10-24 从 0.6.0 升级）、Vite 7.3.6、@vitejs/plugin-vue 6.0.9、UnoCSS 66.10.2（只用图标预设）+ @iconify-json/carbon 1.2.27、vue-tsc 3.3.11。Tuffex 与 `@talex-touch/utils` 声明 Node ≥26，控制台在 Node 22 上构建与运行，已实测；`@talex-touch/utils` 的 `electron` peer 由根 `pnpm.packageExtensions` 标为可选，锁文件不含 electron；`@unocss/inspector` 的 `@vitejs/devtools-kit` 由 `pnpm.overrides` 固定 0.7.3。详见 [console 合同](../services/console/README.md)。
 
 精确声明范围来自 package.json，精确解析版本来自 pnpm-lock.yaml，执行环境由 check:runtime 输出。声明 `^5.7.2` 不等于安装版本一定为 5.7.2。核心不因历史研究中的 React 19、Vite 8、Tailwind 4、Router 8、TypeScript 7 提议而自动升级；新论坛的独立 Vite 版本以下表为准。**数据层现状是 SQLite，Postgres 迁移未做**，不得写成已完成。
 
@@ -35,7 +35,7 @@
 | 原仓 | talex-touch/tuff-forum @ 37164f75c0258b65922ea2151592e1f4efce8bde |
 | 运行时与包管理 | Node 26.8.2（上游要求 >=26），pnpm 11.24.0 |
 | 框架与状态 | Nuxt 4.5.2、Vue 3.5.42、Pinia 4.0.3 |
-| 组件与样式 | @talex-touch/tuffex 0.6.0、UnoCSS 66.10.2 |
+| 组件与样式 | @talex-touch/tuffex 0.9.1、UnoCSS 66.10.2 |
 | 内部构建 | Vite 8.2.2、Nitro 2.13.4，Nuxt SPA 模式 ssr:false |
 | 测试 | Vitest 3.2.7、原仓 CDP Chromium 验收 |
 | 数据与认证 | 部署镜像（site 模式）：分类、标签和公开的旧帖（`content/published`）在构建时写入，打开后从核心服务的 `/api/forum/*` 读写帖子、回复与资料（存储与授权在核心，身份是全站 GitHub 登录的 `sid`），浏览器里不存论坛内容和会话（主题与侧栏偏好仍存在本机）；示例模式：浏览器 localStorage 和示例身份；本机快照模式：dev 专用 Nitro 只读路由提供的极客班投影，只能看 |

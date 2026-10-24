@@ -250,7 +250,7 @@ pnpm dev:console                     # http://127.0.0.1:5186/console ，默认�
 
 ## 设计令牌
 
-浅色「冰白纸面 + 钴蓝」，全部经 Tuffex 官方令牌表达（`src/styles/theme.css`）：`--tx-color-primary: #3346C8`，文字与边框换成同色相的藏青/冷灰，语义色用服务端 `roles.ts` 的色调（白底 ≥5:1），`--tx-bui-*` 同步给 SidebarNav。页面底铺一层 4% 钴蓝的图纸网格，面板纯白。部门色取 SPEC §1（`src/lib/tone.ts`）：AI 青绿、算法蓝、硬件靛、网安粉、管理 `#3a78f0`、无部门 `#5b7fb5`；圆点用原色（`DEPT_TONE_SWATCH`），文字用同色相加深的一档（`DEPT_TONE_TEXT`），白底上读得清。称号徽章是 TxTag（soft，不带图标），部门里的称号用部门色，站长这类不属于部门的用无部门色；名字取接口（称号是后台数据，在「权限」里改组名）。一套无衬线字体；等宽只给用户名、编号、节点和代码。下拉面板（`TxSelect`、`TxSearchSelect`）一律传 `panel-background="pure"`：Tuffex 默认的 `refraction` 会折射背后的页面，字透出来还带彩边（所有者 2026-10-24：「所有的下拉框都不要这样的」）；`TxBlockSelect` 传不进这个属性，不用；`tests/console/dropdown-panels.test.ts` 读源码核对。规则总表见 [DESIGN](../../design/DESIGN.md)「控制台」。
+浅色「冰白纸面 + 钴蓝」，全部经 Tuffex 官方令牌表达（`src/styles/theme.css`）：`--tx-color-primary: #3346C8`，文字与边框换成同色相的藏青/冷灰，语义色用服务端 `roles.ts` 的色调（白底 ≥5:1），`--tx-bui-*` 同步给 SidebarNav。页面底铺一层 4% 钴蓝的图纸网格，面板纯白。部门色取 SPEC §1（`src/lib/tone.ts`）：AI 青绿、算法蓝、硬件靛、网安粉、管理 `#3a78f0`、无部门 `#5b7fb5`；圆点用原色（`DEPT_TONE_SWATCH`），文字用同色相加深的一档（`DEPT_TONE_TEXT`），白底上读得清。称号徽章是 TxTag（soft，不带图标），部门里的称号用部门色，站长这类不属于部门的用无部门色；名字取接口（称号是后台数据，在「权限」里改组名）。一套无衬线字体；等宽只给用户名、编号、节点和代码。下拉面板（`TxSelect`、`TxSearchSelect`）一律传 `panel-background="pure"`：Tuffex 默认的 `refraction` 会折射背后的页面，字透出来还带彩边（所有者 2026-10-24：「所有的下拉框都不要这样的」）；`TxBlockSelect` 传不进这个属性，不用；`tests/console/dropdown-panels.test.ts` 读源码核对。Tuffex 0.9.0 起弹窗与抽屉也默认用 `refraction`，`src/main.ts` 启动时调 `setSurfacePerformanceMode('max')`，整页的玻璃类材质都画成不透明的 `flat`。规则总表见 [DESIGN](../../design/DESIGN.md)「控制台」。
 
 ## 验证
 
@@ -265,7 +265,7 @@ node scripts/check-boundaries.mjs       # console ↔ web ↔ server 互不导�
 
 ## 已知限制
 
-- Tuffex 0.6.0 发布包里 17 个子路径（breadcrumb、steps、pagination、error-state、permission-state 等）的 `style.css` 是空文件，只能整包引入 `@talex-touch/tuffex/style.css`（与论坛相同），CSS 约 570KB（gzip 约 83KB）。上游修好后可改回按组件引入。
+- Tuffex 0.9.1 发布包里 18 个子路径（error-state、permission-state、empty、loading-state 等）的 `style.css` 是空文件，只能整包引入 `@talex-touch/tuffex/style.css`（与论坛相同）。2026-10-24 从 0.6.0 升到 0.9.1（所有者：「组件库都更新下」）后，构建出的主 CSS 从约 622KB（gzip 约 91KB）变成约 936KB（gzip 约 137KB），主 JS 的 gzip 从约 91KB 变成约 109KB，多出来的是 0.7–0.9 新增组件的样式。上游把这些子路径补齐后可改回按组件引入。
 - Tuffex 与其依赖 `@talex-touch/utils` 声明 `engines.node >=26`，工作区是 Node 22；实测构建与运行正常；pnpm 默认不开 engine-strict，仓库也没有打开它。`@talex-touch/utils` 把 `electron` 声明为 peer：根 `package.json` 用 `pnpm.packageExtensions` 标成可选，锁文件里没有 electron。`@unocss/inspector` 通过 `pnpm.overrides` 固定 `@vitejs/devtools-kit@0.7.3`（与论坛同版本），0.7.5 依赖的 devframe 1.0 与 0.9 混装会让 Vite 配置加载失败。
 - TxFormItem 在标签置顶时不会撑满宽度、TxDataTable 在窄屏会把固定布局的列压到重叠：`layout.css` 用两条选择器补上（见文件注释），没有改组件内部结构。
 - 截断依赖 `layout.css` 里的 `.ellipsis`：统一隐藏溢出并保持单行；普通行内 `span.ellipsis` 另用 `inline-block` + `vertical-align: bottom` + `max-width: 100%` 使省略号生效，`dd` 等块元素保持原布局（#211）。
