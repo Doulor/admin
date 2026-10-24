@@ -15,3 +15,24 @@
 - 做了什么：提交 b8136f08：新增 controls.css（按钮三档、弹窗限高滚动、页签焦点）与 DateField（8 处原生日期框换 TxDatePicker，中文、周一开头）；操作记录「动作」列靠左；「我的论坛权限」改卡片网格；修正 #280 留下的两处目录锚点并重新生成目录。
 - 结果：tests/console 234 通过；console vue-tsc 通过；check-architecture、check-doc-sync、check:secrets、check:docs、check:catalog 通过；mock 模式 1440 与 390 截图核对过按钮、弹窗底部按钮、日期下拉。
 - 下一步：推送、开 MR、作者自审、合并
+
+## 23:12:09 +08:00 · PR · #283 · 开 MR !16
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：推送 task/283/console_polish（e80e9d15），开 MR !16 回 stage，正文按九段写，贴了 1440 和 390 的截图。
+- 结果：MR !16 已开，等审查。
+- 下一步：作者自审
+
+## 23:12:09 +08:00 · 审查 · #283 · 作者自审发现日期框高度不够
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：逐项核对 a2ea74b7..e80e9d15 的 diff：按钮、弹窗、DateField、动作列、论坛权限卡片、目录锚点。对照 docs/services/console/README.md 里比赛页「输入框触控区域至少 44px」和 DESIGN 的触控目标 44px，在浏览器里量了弹窗里日期框的高度。
+- 结果：要返工：邀请码弹窗日期框 38px。Tuffex 日期框样式是 scoped，controls.css 的 body 前缀压不过，高度、底色和圆角都没生效（截图里日期框是白底带边）。其余没有发现问题。
+- 下一步：返工：选择器加一层 .date-field，比赛弹窗日期框 46px，补断言
+
+## 23:12:09 +08:00 · 返工 · #283 · 日期框高度和底色
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：提交 0298e6ef：controls.css 改成 body .date-field .tx-date-picker-field，至少 44px、浅底无边框；比赛弹窗日期框 46px，和输入框一样；date-field.test.ts 加一条断言；README 控件外观一节写明；重新生成目录。
+- 结果：ego-browser 量过：邀请码弹窗日期框 1440 和 390 都是 44px，比赛弹窗 46px（输入框也是 46px），底色和输入框一样，边框透明；展开日历的星期表头是一到日。tests/console 235 通过，vue-tsc exit 0，check-architecture、check-doc-sync、check:catalog 通过。
+- 下一步：推送，补审查结论，合并
