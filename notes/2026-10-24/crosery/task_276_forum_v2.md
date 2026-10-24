@@ -127,3 +127,10 @@
 - 做了什么：新增 5 条用例：反应幂等（INSERT OR IGNORE，重复加不涨 count）、表情停用后回 unknown_sticker（历史回应不受影响）、新增表情自己的 2MB/格式限制（413 sticker_too_large、415、PNG/JPEG/WebP 都能传）、帖子图片上传补 JPEG/WebP 成功路径（原来只测过 PNG）
 - 结果：commit 83332ad9，7 files changed；npx vitest run tests/server/forum-v2-endpoints.test.ts → 30/30 通过；pnpm catalog:generate 重新生成后全量 npx vitest run 只剩已知的 #145 缺口
 - 下一步：最后一轮：ownership.json 补 flows、docs/changes/276.json 全量重写、check-architecture 全量核对，然后给团队负责人完整汇报
+
+## 21:02:24 +08:00 · 提交 · #276 · 补证据锚点，重写 276.json 清单让宏观对齐通过
+
+- 执行者：agent-c276s（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：给 ownership.json 的 application.review 流程补 mail/recruitment.ts 证据锚点并 catalog:generate；重写 docs/changes/276.json：applications 去掉 forum，summary/assessments 补三项 #274 清理和邮件文案修复，coverage 换掉已撤回的 app/forum 条目，加 org.ts 退场的 removals。
+- 结果：node scripts/check-architecture.mjs --base 4c7c5dd5 通过（83 个变更文件、179 个关联节点）；pnpm check:catalog 通过。
+- 下一步：跑完整 pnpm check 链路与根 vitest，整理最终报告给团队负责人。
