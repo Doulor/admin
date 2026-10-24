@@ -211,8 +211,11 @@ describe('state', () => {
     const s = await setup();
     // 提督把 bob 的站内角色改成「不是成员」：level 组降回 level.registered（syncPermissionLevel），
     // 论坛身份还在、不是游客，只是重新落回「注册用户不能发帖回帖」——不会悄悄滑进游客的 PoW 回帖口子，
-    // 自己的资料（昵称等）仍然能改，那是账号自己的事，不是论坛写权限。
+    // 自己的资料（昵称等）仍然能改，那是账号自己的事，不是论坛写权限。bob 是用 signIn() 直接建的测试账号，
+    // 没填邀请码，旧的 org_role/org_state 字段一开始就是「不是成员」——先走一次 setSiteRole('member') 把
+    // 这两个字段也翻成「成员」，才有「降级」这回事可测，和上面 carol 的两段式调用一致。
     const accountId = s.app.services.identity.accountForGithub(USERS.bob)!;
+    expect(s.app.services.identity.setSiteRole({ accountId, role: 'member', actor: { login: 'alice', account_id: null } })).toEqual({ ok: true, changed: true });
     expect(s.app.services.identity.setSiteRole({ accountId, role: 'none', actor: { login: 'alice', account_id: null } })).toEqual({ ok: true, changed: true });
     const demoted = await s.state('bob');
     expect(demoted.viewer).toMatchObject({ kind: 'member', capabilities: [] });
