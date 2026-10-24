@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  STICKER_FILE_MAX, draftsFromFiles, newPackErrors, newStickerErrors, nextSort, packDraftErrors, packPatch, packUses, sortedStickers, stickerDraftErrors, stickerFileProblem,
-  stickerPatch, stickerUploadPath, takenShortcodes, visibilityLabel,
+  STICKER_FILE_MAX, draftsFromFiles, labelTaken, newPackErrors, newStickerErrors, nextSort, packCover, packDraftErrors, packNameTaken, packPatch, packUses, sortedStickers,
+  stickerDraftErrors, stickerFileProblem, stickerPatch, stickerToken, stickerUploadPath, takenShortcodes, visibilityLabel,
 } from "../../app/console/src/lib/forum";
 import { checkConsoleWrite, routeConsole } from "../../app/console/src/mock/console";
 import type { ConsoleSticker, ConsoleStickerPack, ConsoleStickersResponse, ForumCategoriesResponse } from "../../app/console/src/lib/types";
@@ -103,6 +103,29 @@ describe("新建表情包和批量上传（#276）", () => {
     const long = draftsFromFiles("cats", [`${"a".repeat(60)}.png`, `${"超长的名字".repeat(6)}.png`], new Set());
     expect(long[0]!.shortcode.length).toBeLessThanOrEqual(40);
     expect([...long[1]!.label].length).toBe(20);
+  });
+});
+
+describe("表情包卡片和 [包名_名字]（#276）", () => {
+  it("写法和论坛一样是 [包名_名字]", () => {
+    expect(stickerToken("极客娘", "打招呼")).toBe("[极客娘_打招呼]");
+  });
+
+  it("同一个包里名字不重复，改的那一张自己不算；表情包也不重名", () => {
+    const yugc = pack([sticker("yugc-wave", 0, { label: "打招呼" }), sticker("yugc-hi", 10, { label: "你好" })]);
+    expect(labelTaken(yugc, " 打招呼 ")).toBe(true);
+    expect(labelTaken(yugc, "打招呼", "yugc-wave")).toBe(false);
+    expect(labelTaken(yugc, "晚安")).toBe(false);
+    expect(labelTaken(null, "打招呼")).toBe(false);
+    const packs = [yugc, pack([], { id: "cats", name: "猫猫" })];
+    expect(packNameTaken(packs, "猫猫")).toBe(true);
+    expect(packNameTaken(packs, "猫猫", "cats")).toBe(false);
+  });
+
+  it("卡片封面是排在前面、启用中的几张", () => {
+    const yugc = pack([sticker("c", 20), sticker("a", 0, { enabled: false }), sticker("b", 10), sticker("d", 30), sticker("e", 40), sticker("f", 50)]);
+    expect(packCover(yugc).map(item => item.id)).toEqual(["b", "c", "d", "e"]);
+    expect(packCover(yugc, 1).map(item => item.id)).toEqual(["b"]);
   });
 });
 

@@ -3842,6 +3842,14 @@
         {
           "path": "app/forum/app/editor/crepe-editor.ts",
           "needle": "export interface MentionQuery {"
+        },
+        {
+          "path": "app/forum/app/editor/inline-stickers.ts",
+          "needle": "export function inlineStickers(state: EditorState, find: StickerLookup): Transaction | null {"
+        },
+        {
+          "path": "app/forum/shared/post-markdown.ts",
+          "needle": "export function renderableMarkdown(source: string, stickers?: ReadonlyMap<string, StickerRef>): string {"
         }
       ],
       "tests": [
@@ -5133,6 +5141,10 @@
         },
         {
           "path": "app/console/src/pages/forum/StickersTab.vue",
+          "needle": "<script setup lang=\"ts\">"
+        },
+        {
+          "path": "app/console/src/pages/Forum.vue",
           "needle": "<script setup lang=\"ts\">"
         }
       ],

@@ -20,8 +20,10 @@ import { imagesToStickers, stickersToImages } from '../../shared/post-markdown'
  * posts render through ForumMarkdown → shared/post-markdown.ts → DOMPurify.
  *
  * - Pasted or dropped images upload to the forum and go in as pictures.
- * - 表情 (the button, or 「表情」 in the `/` menu) inserts a sticker; 图片 picks an
- *   image file, uploads it and puts it in like a pasted one.
+ * - 表情 (the button, or 「表情」 in the `/` menu) inserts a sticker as a small
+ *   picture in the line, the way Bilibili's comment box does; typing
+ *   `[包名_名字]` does the same. 图片 picks an image file, uploads it and puts it
+ *   in like a pasted one.
  * - The row under the box (#276, Bilibili's comment box): 表情 and 图片 on the left,
  *   the caller's `status` and `actions` slots on the right (the reply drawer puts
  *   取消 / 回复 there). `grow` lets the box fill the caller's height.
@@ -176,7 +178,7 @@ async function pickImage(event: Event) {
 
 function insertSticker(sticker: Sticker) {
   if (editor) {
-    editor.insert(`![${sticker.label}](${sticker.url})`)
+    editor.insertSticker({ src: sticker.url, label: sticker.label })
     return
   }
   const text = content.value
@@ -213,6 +215,11 @@ onMounted(async () => {
       onStickerMenu: canSticker.value ? () => { stickerOpen.value = true } : null,
       onMention,
       onMentionKey,
+      findSticker: (key) => {
+        const all = [...index.value.values()]
+        const sticker = 'src' in key ? all.find(item => item.url === key.src) : all.find(item => item.token === key.token)
+        return sticker && { src: sticker.url, label: sticker.label }
+      },
     })
     if (disposed) {
       void created.destroy()

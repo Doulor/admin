@@ -129,3 +129,15 @@ export function draftsFromFiles(packId: string, names: readonly string[], taken:
     return { shortcode, label: [...(base || slug)].slice(0, STICKER_LABEL_MAX).join("") };
   });
 }
+
+/** B 站那样的写法 `[包名_名字]`（#276）：论坛聊天框里打出来就变成这个表情，与论坛 shared/post-markdown.ts 的 stickerToken 同一写法。 */
+export const stickerToken = (packName: string, label: string) => `[${packName}_${label}]`;
+
+/** 同一个包里名字不能重复，同名的表情包也不行，不然 `[包名_名字]` 认不出是哪一张。`except` 是正在改的那一个的 id。 */
+export const labelTaken = (pack: ConsoleStickerPack | null | undefined, label: string, except?: string) =>
+  Boolean(pack?.stickers.some(sticker => sticker.id !== except && sticker.label === label.trim()));
+export const packNameTaken = (packs: readonly ConsoleStickerPack[], name: string, except?: string) =>
+  packs.some(pack => pack.id !== except && pack.name === name.trim());
+
+/** 表情包卡片的封面：排在前面的、启用中的几张。 */
+export const packCover = (pack: ConsoleStickerPack, count = 4) => sortedStickers(pack).filter(sticker => sticker.enabled).slice(0, count);

@@ -9,7 +9,7 @@ import { toast } from "@talex-touch/tuffex/utils";
 import ErrorAlert from "../../components/ErrorAlert.vue";
 import { api, ApiError } from "../../lib/http";
 import { useAction } from "../../lib/resource";
-import { STICKER_FILE_TYPES, draftsFromFiles, newStickerErrors, stickerFileProblem, stickerUploadPath } from "../../lib/forum";
+import { STICKER_FILE_TYPES, draftsFromFiles, labelTaken, newStickerErrors, stickerFileProblem, stickerUploadPath } from "../../lib/forum";
 import type { ConsoleStickerPack } from "../../lib/types";
 
 /**
@@ -74,15 +74,23 @@ const pending = computed(() => rows.value.filter(row => row.state !== "done"));
 const accept = STICKER_FILE_TYPES.join(",");
 const title = computed(() => (props.pack ? `往「${props.pack.name}」加表情` : "加表情"));
 
-/** 先在本地查一遍（短码格式、已用的、同一批里重复的），全过了才开始传。 */
+/**
+ * 先在本地查一遍（短码格式、已用的、同一批里重复的；名字在这个包里和同一批里都不能重复，
+ * 论坛里写成 `[包名_名字]` 才认得出是哪一张），全过了才开始传。
+ */
 function checkRows(): boolean {
   const seen = new Set<string>();
+  const seenLabels = new Set<string>();
   let ok = true;
   for (const row of pending.value) {
     const errors = newStickerErrors(row, row.file, props.taken);
     const shortcode = row.shortcode.trim();
-    const problem = errors.shortcode ?? errors.label ?? errors.file ?? (seen.has(shortcode) ? "和这一批里另一张的短码重复了" : undefined);
+    const label = row.label.trim();
+    const problem = errors.shortcode ?? errors.label ?? errors.file
+      ?? (seen.has(shortcode) ? "和这一批里另一张的短码重复了" : undefined)
+      ?? (labelTaken(props.pack, label) ? "这个包里已经有叫这个名字的表情了" : seenLabels.has(label) ? "和这一批里另一张的名字重复了" : undefined);
     seen.add(shortcode);
+    seenLabels.add(label);
     row.problem = problem;
     row.state = problem ? "fail" : "wait";
     if (problem) ok = false;

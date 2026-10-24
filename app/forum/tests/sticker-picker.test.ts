@@ -2,6 +2,7 @@ import type { StickerPack } from '../shared/forum-api'
 import type { TestNode } from './support/sfc'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { computed, defineComponent, h, nextTick, ref } from 'vue'
+import * as postMarkdown from '../shared/post-markdown'
 import { find, findAll, loadComponent, mount, textOf } from './support/sfc'
 import { TUFFEX_STUBS } from './support/tuffex-stubs'
 
@@ -36,6 +37,7 @@ afterEach(() => vi.unstubAllGlobals())
 function mountPicker() {
   const load = vi.fn()
   const StickerPicker = loadComponent('components/StickerPicker.vue', {
+    imports: { '../../shared/post-markdown': postMarkdown },
     globals: { useStickers: () => ({ packs: computed(() => PACKS), load }) },
   })
   const open = ref(true)
@@ -68,6 +70,9 @@ describe('the sticker panel', () => {
     expect(tabs(root).map(tab => tab.props['aria-label'])).toEqual(['极客娘', '猫猫'])
     expect(grid(root).props['aria-label']).toBe('极客娘')
     expect(textOf(grid(root))).toBe('打招呼比心')
+    // Hovering a sticker shows how to type it; the header says so too.
+    expect(find(grid(root), node => node.props['aria-label'] === '打招呼')!.props.title).toBe('[极客娘_打招呼]')
+    expect(textOf(root)).toContain('输入 [极客娘_名字] 也能发')
   })
 
   it('switches packs from the tabs', async () => {

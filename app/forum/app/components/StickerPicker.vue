@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Sticker } from '../../shared/forum-api'
+import { stickerToken } from '../../shared/post-markdown'
 
 /**
  * The sticker panel (#276): a button that opens the enabled packs. The
@@ -13,7 +14,8 @@ import type { Sticker } from '../../shared/forum-api'
  * row of tabs at the bottom, one per pack with its first sticker as the cover.
  * 最近 (a clock tab in front of the packs) appears once this browser has used
  * a sticker: the last 8, newest first, kept under `forum:stickers:recent` (shortcodes only; one an admin
- * has disabled since drops out).
+ * has disabled since drops out). Hovering a sticker shows how to type it,
+ * `[包名_名字]`, which the composer turns into the same picture.
  *
  * `open` is a model so the editor's slash menu (「表情」) can open the same
  * panel from inside the text.
@@ -59,6 +61,7 @@ function remember(sticker: Sticker) {
 }
 
 const byCode = computed(() => new Map(packs.value.flatMap(pack => pack.stickers.map(sticker => [sticker.shortcode, sticker] as const))))
+const tokens = computed(() => new Map(packs.value.flatMap(pack => pack.stickers.map(sticker => [sticker.shortcode, stickerToken(pack.name, sticker.label)] as const))))
 const recent = computed(() => recentCodes.value.map(code => byCode.value.get(code)).filter((sticker): sticker is Sticker => !!sticker))
 
 interface Tab { id: string, name: string, cover?: string, stickers: Sticker[] }
@@ -100,7 +103,10 @@ const chosen = computed(() => new Set(props.selected))
         正在读取表情…
       </p>
       <template v-else>
-        <span class="px-4 pb-1 pt-3 text-xs text-$tx-text-color-regular">{{ active.name }}</span>
+        <span class="flex items-baseline justify-between gap-3 px-4 pb-1 pt-3 text-xs">
+          <span class="text-$tx-text-color-regular">{{ active.name }}</span>
+          <span v-if="active.id !== 'recent'" class="truncate text-$tx-text-color-secondary">输入 [{{ active.name }}_名字] 也能发</span>
+        </span>
         <div class="grid grid-cols-4 h-72 content-start gap-1 overflow-y-auto overscroll-contain px-3 pb-2" role="tabpanel" :aria-label="active.name">
           <TxButton
             v-for="sticker in active.stickers"
@@ -108,7 +114,7 @@ const chosen = computed(() => new Set(props.selected))
             variant="bare"
             class="!h-24 !rounded-lg !px-1 !py-1.5 hover:!bg-$tx-fill-color-light"
             :class="chosen.has(sticker.id) ? '!bg-$tx-fill-color ring-1 ring-$tx-color-primary' : ''"
-            :title="sticker.label"
+            :title="tokens.get(sticker.shortcode) ?? sticker.label"
             :aria-label="sticker.label"
             :aria-pressed="chosen.has(sticker.id) ? 'true' : undefined"
             @click="pick(sticker)"

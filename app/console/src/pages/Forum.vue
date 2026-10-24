@@ -16,7 +16,7 @@ import { vSnapIndicator } from "../lib/tabs";
 
 /**
  * 论坛管理（#276）：分类的可见范围（`forum.category.manage`）、表情包（`forum.sticker.manage`）、
- * 自己有哪些论坛权限。只显示持有节点的页签；页签写在地址栏里（`?tab=stickers`）。
+ * 自己有哪些论坛权限。只显示持有节点的页签；页签写在地址栏里（`?tab=stickers`，打开的表情包是 `&pack=<id>`，换页签时清掉）。
  * 置顶、关闭、编辑别人的帖子这些版务在论坛页面上做。
  */
 const FORUM_ACTIONS: Record<string, string> = {
@@ -40,7 +40,7 @@ const tabs = computed(() => [
   { id: "mine" as Tab, label: "我的论坛权限" },
 ]);
 const tab = computed<Tab>(() => tabs.value.find(item => item.id === route.query.tab)?.id ?? tabs.value[0].id);
-const setTab = (value: string) => void router.replace({ query: { ...route.query, tab: value === tabs.value[0].id ? undefined : value } });
+const setTab = (value: string) => void router.replace({ query: { ...route.query, pack: undefined, tab: value === tabs.value[0].id ? undefined : value } });
 
 const mine = computed(() => FORUM_PERMISSIONS.map(id => ({
   id, label: nodeLabel(id), action: FORUM_ACTIONS[id], has: Boolean(me.value?.permissions.includes(id)),

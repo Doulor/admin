@@ -713,13 +713,23 @@ const MOCK_FORUM_CATEGORIES: ForumCategoryRow[] = [
   { id: "c-careers", name: "求职与升学", visibility: "registered", topic_count: 4 },
   { id: "c-ai", name: "人工智能", visibility: "public", topic_count: 11 },
 ];
-const stickerPlaceholder = (label: string) =>
-  `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" rx="20" fill="#e3f2ff"/><text x="48" y="56" font-size="22" text-anchor="middle" fill="#1d2b53" font-family="sans-serif">${label}</text></svg>`)}`;
-const MOCK_STICKER_PACKS: ConsoleStickerPack[] = [{
-  id: "yugc", name: "极客娘", sort: 0, enabled: true,
-  stickers: ([["wave", "打招呼", 41], ["thumbsup", "点赞", 87], ["heart", "比心", 25], ["confused", "疑惑", 9], ["shocked", "震惊", 6], ["cry", "哭哭", 3], ["merged", "合并了", 18], ["roger", "收到", 0]] as const)
-    .map(([code, label, uses], index) => ({ id: `yugc-${code}`, shortcode: `yugc-${code}`, label, url: stickerPlaceholder(label), sort: index * 10, enabled: code !== "cry", use_count: uses })),
-}];
+// 样板表情用仓库里第一套「极客娘」的图（服务端种子同一批文件），内联成 data: 地址：控制台的 CSP 不放行 blob:，
+// 样板模块只在开发态选了样板数据时才加载。
+const STICKER_FILES = import.meta.glob<string>("../../../server/assets/stickers/yugc/*.webp", { eager: true, query: "?inline", import: "default" });
+const stickerFile = (code: string) => STICKER_FILES[`../../../server/assets/stickers/yugc/${code}.webp`] ?? "";
+const mockStickers = (packId: string, rows: ReadonlyArray<readonly [string, string, number]>, off: readonly string[] = []) =>
+  rows.map(([code, label, uses], index) => ({ id: `${packId}-${code}`, shortcode: `${packId}-${code}`, label, url: stickerFile(code), sort: index * 10, enabled: !off.includes(code), use_count: uses }));
+const MOCK_STICKER_PACKS: ConsoleStickerPack[] = [
+  {
+    id: "yugc", name: "极客娘", sort: 0, enabled: true,
+    stickers: mockStickers("yugc", [["wave", "打招呼", 41], ["thumbsup", "点赞", 87], ["heart", "比心", 25], ["confused", "疑惑", 9], ["shocked", "震惊", 6], ["cry", "哭哭", 3], ["merged", "合并了", 18], ["roger", "收到", 0]], ["cry"]),
+  },
+  {
+    id: "daily", name: "日常", sort: 10, enabled: true,
+    stickers: mockStickers("daily", [["happy", "开心", 12], ["sleepy", "困了", 7], ["popcorn", "吃瓜", 30], ["coding", "敲代码", 15], ["goodnight", "晚安", 4], ["go", "冲", 9]]),
+  },
+  { id: "event", name: "活动限定", sort: 20, enabled: false, stickers: [] },
+];
 
 /**
  * 账号页（GET /api/identity/me）的样板：按当前身份给出登录方式、成员资格和几条账号记录。

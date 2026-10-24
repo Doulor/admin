@@ -38,8 +38,8 @@ const snapshotIconClasses = [
  *   comment box (#276) it is a filled box that turns white with a primary
  *   border while focused; the row under it uses the regular text colour, not
  *   the faint secondary one.
- * - stickers (`.forum-sticker` in posts, the same images in the editor) get
- *   one size: the files are 256px and would otherwise fill the line.
+ * - stickers: 4rem in posts (`.forum-sticker`), a 3rem picture in the line
+ *   inside the editor; the files are 256px and would otherwise fill the line.
  */
 const FORUM_THEME_CSS = `
 html.sky {
@@ -122,16 +122,21 @@ html.sky {
 .forum-editor-toolbar > :first-child > span {
   color: var(--tx-text-color-regular);
 }
-.forum-sticker, .milkdown img[src^="/api/forum/stickers/"] {
+.forum-sticker {
   display: inline-block;
-  width: 6rem;
-  height: 6rem;
+  width: 4rem;
+  height: 4rem;
   object-fit: contain;
   vertical-align: bottom;
 }
-/* A sticker on its own line becomes Crepe's image block, which writes the file's own height (256px) inline. */
-.milkdown .milkdown-image-block img[src^="/api/forum/stickers/"] {
-  height: 6rem !important;
+/* In the box a sticker sits in the line between words, as in Bilibili's comment box, at 48px: the stickers are whole figures with a word on them and turn into a smudge any smaller. */
+.milkdown img[src^="/api/forum/stickers/"] {
+  display: inline-block;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 2px;
+  object-fit: contain;
+  vertical-align: middle;
 }
 /* 回复 under the box is a solid button, like Bilibili's 发布; Tuffex's fake background would wash it out. */
 .forum-editor-toolbar .tx-button.variant-primary.fake-background {
