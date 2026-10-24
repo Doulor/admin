@@ -50,3 +50,31 @@
 - 做了什么：ownership.json 补齐 3 个新路由文件与 6 张新表到 forum 域；check:catalog 下一道门禁（新接口缺少流程关联）未过，留给文档补齐一起做
 - 结果：a9cf5293；pnpm check:catalog 仍失败于缺少流程关联（非本次范围内能速通的机械修复）
 - 下一步：给每个新接口写 flows 条目、docs/changes/276.json、docs/services/server 的 API/endpoint-contracts/data-model/论坛服务文档
+
+## 19:28:33 +08:00 · 提交 · #276 · 访客翻页上限、viewer 分级等级与写权限节点清单，修两个真实 bug
+
+- 执行者：agent-c276s（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：GET /api/forum/topics 游标分页接访客翻页上限（第二页起一天最多10页）；viewer.ts 的 viewerAndPolicy() 给 GET /state 与每个写接口的 viewer 加 level（分级可见等级）与 nodes（六个写权限节点里持有的子集，团队负责人追加，只做按钮显隐参考）；forum-api/contracts.ts、console/contracts.ts 给全部 16 个新增/改过请求形状的接口补响应 Schema（图片文件路由用占位 Schema，已核实 Fastify 对 Buffer 响应绕过 JSON Schema 序列化；复用通用 ForumWriteResponse 的两个接口用最宽松占位不裁字段）；自查修了两处真实 bug：http-policy.ts 的错误处理器没把 ForumError.extra（401 的 need、403 的 node）铺进响应体；forum-store.ts 的 reactionsByPost() 拿论坛用户 id 去比对 account_id 两种 id 格式不同，mine 字段恒为 false
+- 结果：commit 47c89722，9 files changed
+- 下一步：补前端 parseViewer 识别这两个新字段，再补回归测试
+
+## 19:28:33 +08:00 · 提交 · #276 · parseViewer 认得服务端新加的 viewer.level/nodes 字段
+
+- 执行者：agent-c276s（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：app/forum/shared/forum-api.ts 的 ForumViewer/parseViewer 加 level/nodes（没给时退回保守默认值，不假装有权限）；两个测试文件（夹具常量、一处内联字面量）跟着补上，没有改任何组件或按钮显隐逻辑
+- 结果：commit 041be951，3 files changed；app/forum 全部 30 个测试文件、553 条用例在 Node 24.21.0 下通过（本机 fnm 没有 engines 要求的 >=26，待团队负责人用真实版本复核）
+- 下一步：补服务端新接口与两处修复的回归测试
+
+## 19:28:50 +08:00 · 提交 · #276 · 补齐 15 个新接口与两处修复的回归测试
+
+- 执行者：agent-c276s（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：新建 tests/server/forum-v2-endpoints.test.ts（26 条用例）覆盖分级可见、话题游标分页（含访客翻页上限 429）、表情包、表情回应（含 429）、上传图片、@自动补全、控制台论坛管理权限矩阵；tests/server/forum.test.ts 补 guest/alice/frank 三种 viewer 的 level/nodes 精确断言（扩展原有三处 toEqual），以及表情 mine 字段的三方视角回归（加表情的人/别人/游客在 /state、话题正文、PUT/DELETE 回答三处口径一致）
+- 结果：commit bce359e0，2 files changed；pnpm vitest run tests/server → 34 个文件、611 条全部通过
+- 下一步：更新文档与架构对齐声明
+
+## 19:28:50 +08:00 · 提交 · #276 · 响应 Schema、viewer 字段、表情 camelCase 形状入文档，清理 guestPolicy
+
+- 执行者：agent-c276s（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：API.md/endpoint-contracts.md 补 viewer.level/nodes 说明与表情回应 camelCase 形状，去掉 guestPolicy 等已经不存在的响应字段描述（共 13+ 处）；data-model.md 补 6 张新表；docs/services/forum/README.md 只加「看的人」「表情回应」两条新内容，不动游客相关既有描述；新建 docs/changes/276.json（14 业务域、20 flows、8 项评估、7 条 coverage）；ownership.json 补 15 条 flows、1 条 moduleOwners（migrations/2026-10-forum-v2.ts 归 forum）、6 处 evidence 锚点，pnpm catalog:generate 重新生成 6 个产物
+- 结果：commit 6dba73f9，12 files changed；node scripts/check-architecture.mjs --base gitlab/stage → 宏观对齐通过（65 个变更文件，142 个关联节点）；pnpm check:catalog 通过；check-doc-sync/check-docs/docs-index 通过
+- 下一步：迁移演练、check:secrets/check:boundaries、给团队负责人的汇报
