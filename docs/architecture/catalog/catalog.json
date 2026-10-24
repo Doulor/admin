@@ -10949,7 +10949,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "e2c6e9f9242d8c29a4d3815461626f0e56025d2fcf1fb2061cabe30d77c219c8",
+    "fingerprint": "3de35af2579786490839a532f1e0bd646a0dea25623539e369b871d67f700c32",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -12665,7 +12665,7 @@
       },
       {
         "path": "tests/server/rate-limits.test.ts",
-        "sha256": "3b3646c6251be886d2456f0aa41391f1e21ab4d76044d620ea090b1b6bfd296b"
+        "sha256": "8382e719b1e6d5cf989267dff18b91eb03a4d1a37cf8f7d04641cb6de6e97a7b"
       },
       {
         "path": "tests/server/session-cleanup.test.ts",
