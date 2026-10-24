@@ -236,6 +236,26 @@ export function setExclusiveGroupMembership(db: Database.Database, accountId: st
   tx();
 }
 
+/**
+ * 站长组 id；全站最高权限（种子里是唯一拿到 `node:"*"` 的组），不能被收回或删除（接口层强制，这里只给
+ * 两个共享的查询，不重复写 SQL）。`levelGroupId`/`levelSuffix` 把 `level.` 前缀集中在一处：console/users.ts、
+ * console/me.ts 以前各自用 `SUBSTR(pg.id, 7)`、`` `level.${x}` `` 拼字符串，魔术数字 7 一旦前缀改名就全部错位。
+ */
+export const SITE_OWNER_GROUP_ID = "title.site.owner";
+const LEVEL_PREFIX = "level.";
+export function levelGroupId(suffix: string): string { return `${LEVEL_PREFIX}${suffix}`; }
+export function levelSuffix(groupId: string): string { return groupId.startsWith(LEVEL_PREFIX) ? groupId.slice(LEVEL_PREFIX.length) : groupId; }
+
+/** 这个账号现在是不是站长（`title.site.owner` 的直接成员）。 */
+export function isSiteOwner(db: Database.Database, accountId: string): boolean {
+  return !!db.prepare("SELECT 1 FROM perm_members WHERE group_id = ? AND account_id = ?").get(SITE_OWNER_GROUP_ID, accountId);
+}
+
+/** 现在一共有几位站长（用于「至少留一位」的判断）。 */
+export function siteOwnerCount(db: Database.Database): number {
+  return (db.prepare("SELECT COUNT(*) AS n FROM perm_members WHERE group_id = ?").get(SITE_OWNER_GROUP_ID) as { n: number }).n;
+}
+
 export type ExplainHit = {
   source: "account" | "group";
   group: { id: string; name: string } | null;
