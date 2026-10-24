@@ -1,10 +1,13 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { VISIBILITY_LEVELS, type ViewerLevel } from "./forum-rules.js";
 
 /**
  * 论坛的公开内容文件（#57）：`app/forum/content/curation.json` 里的分类与标签，
  * `app/forum/content/published/topics.json` 里公开的旧帖（#87 导出）。两份都是论坛仓库里入库的公开文件，
  * server 镜像把它们复制到同样的相对位置（app/server/Dockerfile），启动时读一次。
+ *
+ * `app/forum/content/guides/*.md` 是官方账号发的使用说明（#281），也随镜像复制。
  *
  * 只读、只校验，不碰数据库：播种在 `forum-store.ts` 的 `seed`。文件缺失、形状不对、
  * 引用不存在的分类或标签都直接抛错，让服务启动失败，而不是带着半份内容上线。
@@ -17,10 +20,20 @@ export type PublishedTopic = {
   id: string; slug: string; title: string; categoryId: string; tagIds: string[];
   pinned: boolean; createdAt: number; lastActivityAt: number; views: number; content: string;
 };
-export type ForumContent = { categories: ForumCategory[]; tags: ForumTag[]; author: ForumAuthor; topics: PublishedTopic[] };
+export type GuideTopic = PublishedTopic & { visibility: ViewerLevel };
+export type ForumContent = { categories: ForumCategory[]; tags: ForumTag[]; author: ForumAuthor; topics: PublishedTopic[]; guides: GuideTopic[] };
 
 /** 旧帖沿用旧编号，都小于 1000；新话题从 t1001 起，不会撞号。 */
 export const LEGACY_TOPIC_ID = /^t([1-9][0-9]{0,2})$/;
+/** 使用说明占 t900–t999：在旧帖的编号段里，旧论坛的帖子没有用到这么大的号，加载时再查一次不重号。 */
+export const GUIDE_TOPIC_ID = /^t9[0-9]{2}$/;
+export const GUIDE_CATEGORY_ID = "c-guides";
+/** front matter 的 audience → 标签：按身份找说明靠这几个标签。 */
+export const GUIDE_AUDIENCE_TAGS: Record<string, string> = {
+  成员: "tag-for-member", 比赛组织者: "tag-for-organizer", 部门负责人: "tag-for-department", 管理员: "tag-for-admin",
+  开发与运维: "tag-for-developer",
+};
+const GUIDE_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const CATEGORY_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const TAG_ID = /^tag-[a-z0-9][a-z0-9-]{0,39}$/;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -121,9 +134,52 @@ function parsePublished(raw: unknown, categories: ForumCategory[], tags: ForumTa
   return { author, topics };
 }
 
-/** 读 `<dir>/curation.json` 与 `<dir>/published/topics.json`。 */
+/**
+ * 一篇使用说明：开头是 `---` 包起来的 `key: value` 行（id、slug、title、audience、visibility、order、date），后面是正文。
+ * 同一天的说明按 order 排：order 小的时间晚一点，列表里排在前面。
+ */
+function parseGuide(file: string, raw: string, categories: ForumCategory[], tags: ForumTag[]): GuideTopic {
+  const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(raw.replace(/\r\n/g, "\n"));
+  if (!match) return fail(file, "needs front matter between --- lines");
+  const meta: Record<string, string> = {};
+  for (const line of match[1].split("\n")) {
+    const pair = /^([a-z]+):\s*(.*)$/.exec(line);
+    if (!pair) return fail(file, `invalid front matter line ${JSON.stringify(line)}`);
+    meta[pair[1]] = pair[2].trim();
+  }
+  const id = text(file, meta.id, "id", 4, GUIDE_TOPIC_ID);
+  const tag = GUIDE_AUDIENCE_TAGS[meta.audience ?? ""] ?? fail(file, `unknown audience ${meta.audience}`);
+  if (!categories.some(item => item.id === GUIDE_CATEGORY_ID) || !tags.some(item => item.id === tag)) fail(file, `curation.json needs ${GUIDE_CATEGORY_ID} and ${tag}`);
+  const visibility = (VISIBILITY_LEVELS as readonly string[]).includes(meta.visibility ?? "") ? meta.visibility as ViewerLevel : fail(file, "invalid visibility");
+  const order = Number(meta.order);
+  if (!Number.isSafeInteger(order) || order < 0 || order > 999) fail(file, "invalid order");
+  if (!GUIDE_DATE.test(meta.date ?? "")) fail(file, "invalid date");
+  const createdAt = Date.parse(`${meta.date}T09:00:00+08:00`) - order * 60_000;
+  if (!Number.isFinite(createdAt)) fail(file, "invalid date");
+  return {
+    id, slug: text(file, meta.slug, "slug", 64, SLUG), title: text(file, meta.title, "title", 120), categoryId: GUIDE_CATEGORY_ID, tagIds: [tag],
+    pinned: false, createdAt, lastActivityAt: createdAt, views: 0, content: text(file, match[2].trim(), "content", 200_000), visibility,
+  };
+}
+
+/** `<dir>/guides/*.md`，按文件名排；目录不存在时没有使用说明（测试夹具）。 */
+function parseGuides(dir: string, categories: ForumCategory[], tags: ForumTag[], topics: PublishedTopic[]): GuideTopic[] {
+  const root = join(dir, "guides");
+  if (!existsSync(root)) return [];
+  const seen = new Set(topics.map(topic => topic.id));
+  const slugs = new Set(topics.map(topic => topic.slug));
+  return readdirSync(root).filter(name => name.endsWith(".md")).sort().map(name => {
+    const file = `guides/${name}`;
+    const guide = parseGuide(file, readFileSync(join(root, name), "utf8"), categories, tags);
+    if (seen.has(guide.id) || slugs.has(guide.slug)) fail(file, `duplicate topic ${guide.id} or slug ${guide.slug}`);
+    seen.add(guide.id); slugs.add(guide.slug);
+    return guide;
+  });
+}
+
+/** 读 `<dir>/curation.json`、`<dir>/published/topics.json` 与 `<dir>/guides/*.md`。 */
 export function loadForumContent(dir: string): ForumContent {
   const { categories, tags } = parseCuration(readJson(dir, "curation.json"));
   const { author, topics } = parsePublished(readJson(dir, "published/topics.json"), categories, tags);
-  return { categories, tags, author, topics };
+  return { categories, tags, author, topics, guides: parseGuides(dir, categories, tags, topics) };
 }

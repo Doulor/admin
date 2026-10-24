@@ -121,7 +121,7 @@
 
 ## 静态资源 CDN（#146）
 
-带内容哈希的静态文件（官网 `/assets/`、控制台 `/console-assets/`、论坛 `/forum/_nuxt/`）可以改从七牛 CDN `https://cdn.crosery.com` 加载，不再全部从香港源站取。官网桌面壁纸与 iPhone GLB 模型（#206）由代码 import，也带哈希，在 `/assets/` 里一起走。GLB 的类型为 `model/gltf-binary`，由 GLTFLoader 使用 `fetch` 获取，必须通过跨域响应头核对，不能按普通 `<img>` 跳过 CORS。HTML、接口、`release.json` 和不带哈希的文件（看板娘、favicon、论坛的公开旧帖图片与 `llms.txt`）仍走源站。
+带内容哈希的静态文件（官网 `/assets/`、控制台 `/console-assets/`、论坛 `/forum/_nuxt/`）可以改从七牛 CDN `https://cdn.crosery.com` 加载，不再全部从香港源站取。官网桌面壁纸与 iPhone GLB 模型（#206）由代码 import，也带哈希，在 `/assets/` 里一起走。GLB 的类型为 `model/gltf-binary`，由 GLTFLoader 使用 `fetch` 获取，必须通过跨域响应头核对，不能按普通 `<img>` 跳过 CORS。HTML、接口、`release.json` 和不带哈希的文件（看板娘、favicon、论坛的公开旧帖图片与 `llms.txt`）仍走源站。论坛使用说明的截图（#281）不是构建产物：源文件在仓库的 `app/forum/content/guide-images/`，文件名带内容哈希（`<名字>.<sha256 的 base64url 前 8 位>.<webp|png>`），`plan` 和 `upload` 每次都带上它们，键是 `yzgc/static/site/forum/guides/<文件名>`；说明正文直接写 CDN 地址，不随开关切换。
 
 **开关**：一个构建参数 `STATIC_CDN_BASE`。空（默认）与原来一样同源；非空时只能逐字等于 `https://cdn.crosery.com/yzgc/static/site/`，否则构建失败。规则只写在 `scripts/static-cdn-base.mjs` 一处：`app/web`、`app/console` 的 Vite 配置用 `experimental.renderBuiltUrl` 只改写构建资源的地址（`base` 仍是 `/`），`app/forum` 的 Nuxt 配置设 `app.cdnURL`。源站路径与 CDN 对象一一对应：源站 `/X` ↔ 对象 `yzgc/static/site/X`（论坛是 `yzgc/static/site/forum/_nuxt/…`）。预发布与正式共用这个前缀：文件名带内容哈希，内容相同键就相同。镜像里仍有全部文件，开关打开后源站照样能直接访问它们。
 
@@ -134,7 +134,7 @@
 | `cdn-upload` | 第一步只报告开关状态；开关打开时检出、下载上一步的 artifact（`scripts/fetch-artifact.mjs`），`static-cdn.mjs upload` 先确认 token 还剩 20 分钟以上，再逐个表单上传到 `https://up-z2.qiniup.com`，再经 CDN 带 `Referer: <origin>/`、`Origin: <origin>`、`Accept-Encoding: identity` 逐个 HEAD 核对：200、ETag 等于本地算出的七牛 qetag、长度一致、`Content-Type` 对、JS/CSS/字体及 fetch 加载的 JSON/WASM/GLB 带 `Access-Control-Allow-Origin`（`*` 或本环境 origin）。任一不符即失败 | 能（`environment: static-cdn`），同样不安装依赖 |
 | `deploy` | `needs` 加上 `cdn-upload`：上传或核对失败，这次不部署 | — |
 
-- 上传只写 `yzgc/static/site/{assets,console-assets,forum/_nuxt}/` 下的键（脚本的前缀守卫 + token 策略两道），`insertOnly`：同名同内容七牛返回 200，算成功；同名不同内容返回 614（键已存在），不覆盖，随后的 CDN 核对发现 ETag 与本地不同，脚本失败并报出这个键。脚本里没有删除、移动、改元信息的调用。
+- 上传只写 `yzgc/static/site/{assets,console-assets,forum/_nuxt,forum/guides}/` 下的键（脚本的前缀守卫 + token 策略两道），`insertOnly`：同名同内容七牛返回 200，算成功；同名不同内容返回 614（键已存在），不覆盖，随后的 CDN 核对发现 ETag 与本地不同，脚本失败并报出这个键。脚本里没有删除、移动、改元信息的调用。
 - 论坛的 `_nuxt/builds/latest.json`（文件名固定、每次内容都变）不上传；开关打开时 Nuxt 的新版本检查（`experimental.checkOutdatedBuildInterval`）关掉，`builds/meta/<构建 id>.json` 每次构建是新键，照常上传。
 - **CDN 上的旧文件不删**：回滚到开关打开时构建的旧镜像，页面引用的仍是那时上传的对象。要清理只能按前缀手工处理，并且确认两个环境的历史镜像都不再引用。
 - `scripts/deploy-manual.mjs` 找镜像归档时同样要求这次运行的 `cdn-upload` 成功（没有这个 job 的旧运行只看 build）。

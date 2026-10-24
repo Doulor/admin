@@ -1199,10 +1199,83 @@ describe('seeding', () => {
   it('parses the public content files the server image ships', () => {
     // 只核对真实公开文件能被服务端读出来（否则镜像启动就失败）；其余用例都用夹具。
     const content = loadForumContent(join(REPO_ROOT, 'app/forum/content'));
-    expect(content.categories.map(category => category.id)).toEqual(['c-exam', 'c-announcements', 'c-courses', 'c-competitions', 'c-careers', 'c-ai']);
+    expect(content.categories.map(category => category.id)).toEqual(['c-exam', 'c-announcements', 'c-guides', 'c-courses', 'c-competitions', 'c-careers', 'c-ai']);
     expect(content.topics.length).toBeGreaterThan(0);
     expect(content.topics.every(topic => Number(topic.id.slice(1)) < 1000)).toBe(true);
     expect(content.author.id).toBe('u-geekclass');
+    expect(content.guides.length).toBeGreaterThan(0);
+    expect(content.guides.every(guide => guide.categoryId === 'c-guides' && /^t9\d\d$/.test(guide.id))).toBe(true);
+    // 使用说明的写法（所有者 2026-09-23、09-24、09-26 的规则）：不用表情符号、不加粗、不写邮箱和站点域名，链接只写站内路径。
+    for (const item of content.guides) {
+      expect(item.content, item.id).not.toMatch(/\p{Extended_Pictographic}/u);
+      expect(item.content, item.id).not.toMatch(/\*\*|__/);
+      expect(item.content, item.id).not.toMatch(/[\w.+-]+@[\w-]+\.[a-z]{2,}/);
+      expect(item.content, item.id).not.toMatch(/yangtzeu\.work/);
+    }
+  });
+
+  /** 夹具加上使用说明的分类、标签和 guides/ 目录（#281）。 */
+  const guideFixture = (guides: Record<string, string>) => {
+    const dir = mkdtempSync(join(tmpdir(), 'geek-forum-guides-'));
+    dirs.push(dir);
+    cpSync(FORUM_FIXTURE_DIR, dir, { recursive: true });
+    const curationFile = join(dir, 'curation.json');
+    const curation = JSON.parse(readFileSync(curationFile, 'utf8'));
+    curation.categories.push({ id: 'c-guides', slug: 'guides', name: '使用说明', description: '', color: '#0d9488', icon: 'i-ri-book-read-line' });
+    curation.tags.push({ id: 'tag-for-member', slug: 'for-member', name: '成员', color: '#0d9488' }, { id: 'tag-for-organizer', slug: 'for-organizer', name: '比赛组织者', color: '#d97706' });
+    writeFileSync(curationFile, JSON.stringify(curation));
+    mkdirSync(join(dir, 'guides'));
+    for (const [name, text] of Object.entries(guides)) writeFileSync(join(dir, 'guides', name), text);
+    return dir;
+  };
+  const guide = (fields: Record<string, string>, body = '正文') =>
+    `---\n${Object.entries({ id: 't901', slug: 'create-competition', title: '建一场比赛', audience: '比赛组织者', visibility: 'member', order: '1', date: '2026-10-24', ...fields }).map(([k, v]) => `${k}: ${v}`).join('\n')}\n---\n\n${body}\n`;
+
+  it('seeds the usage guides and keeps them in step with the repo, without touching what happened online (#281)', async () => {
+    const s = await setup();
+    const dir = guideFixture({ 'a.md': guide({}), 'b.md': guide({ id: 't902', slug: 'sign-in', title: '登录', audience: '成员', visibility: 'public', order: '2' }) });
+    const content = loadForumContent(dir);
+    expect(content.guides.map(item => [item.id, item.visibility, item.tagIds, item.categoryId])).toEqual([
+      ['t901', 'member', ['tag-for-organizer'], 'c-guides'], ['t902', 'public', ['tag-for-member'], 'c-guides'],
+    ]);
+    // 同一天 order 小的时间晚，列表里排在前面。
+    expect(content.guides[0].createdAt).toBeGreaterThan(content.guides[1].createdAt);
+    const store = createForumStore(s.db, content);
+    expect(store.seed()).toBe(2);
+    expect(store.seed()).toBe(0);
+    const topic = (id: string) => s.db.prepare('SELECT title, slug, visibility, pinned, author_id FROM forum_topics WHERE id = ?').get(id) as Record<string, unknown>;
+    const body = (id: string) => s.db.prepare('SELECT content, edited_at FROM forum_posts WHERE id = ?').get(id) as { content: string; edited_at: number | null };
+    expect(topic('t901')).toMatchObject({ title: '建一场比赛', visibility: 'member', author_id: 'u-geekclass' });
+    expect(body('body-901')).toEqual({ content: '正文', edited_at: null });
+
+    // 线上置顶、回复不动；仓库里改了标题、可见范围和正文，下次启动跟着改。
+    s.db.prepare("UPDATE forum_topics SET pinned = 1 WHERE id = 't901'").run();
+    writeFileSync(join(dir, 'guides', 'a.md'), guide({ title: '在控制台建一场比赛', visibility: 'registered' }, '新正文'));
+    expect(createForumStore(s.db, loadForumContent(dir)).seed(1_800_000_000_000)).toBe(0);
+    expect(topic('t901')).toMatchObject({ title: '在控制台建一场比赛', visibility: 'registered', pinned: 1 });
+    expect(body('body-901')).toEqual({ content: '新正文', edited_at: 1_800_000_000_000 });
+    // 正文没变就不写 edited_at。
+    expect(createForumStore(s.db, loadForumContent(dir)).seed(1_900_000_000_000)).toBe(0);
+    expect(body('body-901').edited_at).toBe(1_800_000_000_000);
+
+    // 同一个编号已经是别人的话题：不覆盖。
+    await s.call('POST', '/api/forum/posts', 'bob', { topicId: 't73', content: '先让 bob 有论坛用户' });
+    s.db.prepare("UPDATE forum_topics SET author_id = (SELECT id FROM forum_users WHERE kind <> 'official' LIMIT 1) WHERE id = 't902'").run();
+    writeFileSync(join(dir, 'guides', 'b.md'), guide({ id: 't902', slug: 'sign-in', title: '改过的登录', audience: '成员', visibility: 'public', order: '2' }));
+    createForumStore(s.db, loadForumContent(dir)).seed();
+    expect(topic('t902').title).toBe('登录');
+  });
+
+  it('refuses usage guides that do not hold together (#281)', () => {
+    const load = (guides: Record<string, string>) => () => loadForumContent(guideFixture(guides));
+    expect(load({ 'a.md': '没有 front matter' })).toThrow('needs front matter');
+    expect(load({ 'a.md': guide({ id: 't1001' }) })).toThrow('invalid id');
+    expect(load({ 'a.md': guide({ id: 't73' }) })).toThrow('invalid id');
+    expect(load({ 'a.md': guide({ audience: '访客' }) })).toThrow('unknown audience');
+    expect(load({ 'a.md': guide({ visibility: 'admin' }) })).toThrow('invalid visibility');
+    expect(load({ 'a.md': guide({ date: '10/24' }) })).toThrow('invalid date');
+    expect(load({ 'a.md': guide({}), 'b.md': guide({ slug: 'other' }) })).toThrow('duplicate topic t901');
+    expect(load({ 'a.md': guide({ audience: '管理员' }) })).toThrow('curation.json needs c-guides and tag-for-admin');
   });
 });
 

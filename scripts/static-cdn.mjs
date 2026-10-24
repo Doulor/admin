@@ -19,6 +19,7 @@
 //
 // 站点根是镜像里的 /usr/share/nginx/html（工作流用 docker cp 拷出来）：web 镜像里只取 assets/ 与 console-assets/，
 // forum 镜像里只取 _nuxt/（对象键加 forum/ 前缀，与 /forum/_nuxt/ 对应）。
+// plan 与 upload 另外带上仓库里的论坛使用说明截图（app/forum/content/guide-images/ → forum/guides/，#281）。
 //
 // 凭据：上传 token 只从环境变量 STATIC_CDN_UPLOAD_TOKEN 读，不进命令行、不打印；报错只提策略字段，不回显 token。
 // 本机证明用的 --owner-env-file 在进程里用 AK/SK 现签一个 1 小时的同策略 token，CI 里拒绝使用。
@@ -59,7 +60,12 @@ export const AREAS = [
   { site: 'web', dir: 'console-assets', mount: 'console-assets/' },
   { site: 'forum', dir: '_nuxt', mount: 'forum/_nuxt/' },
 ];
-const KEY_RE = new RegExp(`^${STATIC_CDN_PREFIX.replaceAll('/', '\\/')}(?:assets|console-assets|forum\\/_nuxt)\\/[A-Za-z0-9_./-]+$`);
+/**
+ * 论坛使用说明的截图（#281）：不是构建产物，是仓库里的源文件，正文直接写 CDN 地址。文件名带内容哈希
+ * （<名字>.<sha256 的 base64url 前 8 位>.<webp|png>），collectGuideImages 逐个核对哈希，只增不改的上传才不会撞键。
+ */
+export const GUIDE_IMAGES = { dir: 'app/forum/content/guide-images', mount: 'forum/guides/' };
+const KEY_RE = new RegExp(`^${STATIC_CDN_PREFIX.replaceAll('/', '\\/')}(?:assets|console-assets|forum\\/_nuxt|forum\\/guides)\\/[A-Za-z0-9_./-]+$`);
 
 /**
  * 前缀守卫：每个要写的键都过这一关。只能是 yzgc/static/site/ 下三个产物目录里的文件，
@@ -71,7 +77,7 @@ export function assertKey(key) {
     && key.startsWith(STATIC_CDN_PREFIX)
     && KEY_RE.test(key)
     && key.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..');
-  if (!ok) throw new Error(`拒绝写入 ${JSON.stringify(key)}：只能写 ${STATIC_CDN_PREFIX}{assets,console-assets,forum/_nuxt}/ 下的文件`);
+  if (!ok) throw new Error(`拒绝写入 ${JSON.stringify(key)}：只能写 ${STATIC_CDN_PREFIX}{assets,console-assets,forum/_nuxt,forum/guides}/ 下的文件`);
   return key;
 }
 
@@ -185,6 +191,35 @@ export function collect(roots, { publicDirs } = {}) {
     keys.add(entry.key);
   }
   return entries.sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/** 截图文件名里的哈希：sha256 的 base64url 前 8 位。 */
+export function guideImageHash(buffer) {
+  return b64url(createHash('sha256').update(buffer).digest()).slice(0, 8);
+}
+
+/**
+ * 使用说明的截图（GUIDE_IMAGES）：目录不存在就没有；每个文件名都要是 <名字>.<哈希>.<webp|png>，哈希和内容对得上。
+ * @param {string} [root] 仓库根（测试用）
+ * @returns {{ file: string, key: string, size: number, mime: string }[]}
+ */
+export function collectGuideImages(root = REPO_ROOT) {
+  const dir = join(root, GUIDE_IMAGES.dir);
+  if (!existsSync(dir)) return [];
+  const problems = [];
+  const entries = [];
+  for (const name of readdirSync(dir).sort()) {
+    const file = join(dir, name);
+    const stat = lstatSync(file);
+    const match = /^[a-z0-9-]+\.([A-Za-z0-9_-]{8})\.(webp|png)$/.exec(name);
+    if (!stat.isFile() || !match) { problems.push(`${name}（要是 <名字>.<8 位哈希>.<webp|png> 的普通文件）`); continue; }
+    if (stat.size > MAX_FILE_BYTES) { problems.push(`${name}（${stat.size} 字节，超过 ${MAX_FILE_BYTES}）`); continue; }
+    const hash = guideImageHash(readFileSync(file));
+    if (hash !== match[1]) { problems.push(`${name}（内容哈希是 ${hash}）`); continue; }
+    entries.push({ file, key: assertKey(`${STATIC_CDN_PREFIX}${GUIDE_IMAGES.mount}${name}`), size: stat.size, mime: mimeFor(name) });
+  }
+  if (problems.length) throw new Error(`${GUIDE_IMAGES.dir} 里这些文件不能上传：\n  ${problems.join('\n  ')}`);
+  return entries;
 }
 
 // ── 上传 token ──────────────────────────────────────────────────────────────
@@ -460,7 +495,7 @@ export async function main(argv, { env = process.env, stdout = process.stdout, l
     return result;
   }
   if (options.command === 'plan') {
-    const entries = collect({ web: options.web, forum: options.forum });
+    const entries = [...collect({ web: options.web, forum: options.forum }), ...collectGuideImages()];
     for (const entry of entries) stdout.write(`${entry.key}\t${entry.size}\t${entry.mime}\n`);
     const bytes = entries.reduce((sum, entry) => sum + entry.size, 0);
     log(`共 ${entries.length} 个文件，${(bytes / 1048576).toFixed(2)} MiB，全部在 ${STATIC_CDN_PREFIX} 下`);
@@ -474,7 +509,7 @@ export async function main(argv, { env = process.env, stdout = process.stdout, l
       log('用 --owner-env-file 的 AK/SK 在进程里签了一个 1 小时的上传 token（同样只能写 yzgc/static/site/、只增不改），不落盘、不打印');
     }
     if (!String(token ?? '').trim()) throw new Error(`没有 ${TOKEN_ENV}：不能上传（工作流在没有凭据时根本不会走到这一步）`);
-    const entries = collect({ web: options.web, forum: options.forum });
+    const entries = [...collect({ web: options.web, forum: options.forum }), ...collectGuideImages()];
     log(`准备上传 ${entries.length} 个文件到 ${STATIC_CDN_BASE}`);
     return uploadAll(entries, { token, referer: options.referer, fetch, log, now });
   }
