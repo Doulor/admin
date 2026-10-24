@@ -85,3 +85,31 @@
 - 做了什么：5bd3e9a0 feat(portal) 官网改浅色独立风格（站点源码、测试、目录、web README、portal.md、changes/278.json）；d029c543 fix(server) 已发布官网 HTML 改 no-cache（路由、测试、endpoint-contracts、API.md、目录不变量、changes/278.json）。两个提交各自重新生成目录，check:catalog 在两个状态下都通过。只加指定文件，没有推送。
 - 结果：两个提交落在 task/278/contest_site，工作区只剩这条记录。
 - 下一步：跑 pnpm check 与 check-architecture，提交记录，收 ego TaskSpace 和本机服务，回报 team-lead。
+
+## 17:54:27 +08:00 · 返工 · #278 · 变基到 #280 合并后的 stage 4c7c5dd5
+
+- 执行者：agent-claude-geek-main-3c2a7a67-c278（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：按 team-lead 转达：#280 已合进 GitLab stage（4c7c5dd5），用 git rebase --onto 4c7c5dd5 1bd64d6d 把 12 个 #278 提交搬过去，丢掉和 #280 第一个提交同内容的 1bd64d6d。冲突：server README 与 data-model 的长行（两边都留）、web README 与 portal.md（#280 的账号资料窗口说法加 #278 的官网、SDK、nginx 说法）、console README 与 mock 的类型导入（取并集）、ownership.json 的文件归属表尾（两边都留，核对过 stage 新增的 118 行全在），生成的目录文件每一步都 pnpm catalog:generate 重新生成，没有手工合并。变基后两处行为冲突：#280 的 helpers.signIn 给新账号默认填大二，比赛用例原来从没填年级起步，积分被乘了 1.3；#280 的 real-info 测试规定比赛代码不读 real_name，而兑奖查找给 users.manage 返回真实姓名。处理：比赛夹具和 competition-scores 用例登录后把 enrollment_year 清空（要年级的用例自己写）；兑奖查找不再读也不再返回真实姓名，控制台核销页只显示用户名与昵称，接口契约、API.md、控制台 README、目录不变量跟着改。没有放宽 real-info 的白名单。
+- 结果：pnpm typecheck 通过；比赛相关与 real-info、控制台测试 22 个文件 248 条通过（修之前 11 条失败）。
+- 下一步：提交变基后的修复，再做 16:59 的计分规则（重要程度×核心度、低年级系数、模拟、防刷）和 16:57 的首屏。
+
+## 19:05:01 +08:00 · 方案 · #278 · 计分改两档评定、官网首屏一屏讲清楚
+
+- 执行者：agent-claude-geek-main-3c2a7a67-c278（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：按所有者 16:59（低年级友好、大一得分高、PR 不按代码行数、按重要程度和核心度评，Issue 同样）与 16:57（去暗色、炫技但看得明白）定方案：基础分 = 重要程度（一般/重要/关键）× 核心度（边缘/业务/核心）查表，Issue 5–30、MR 15–100，落在原 CHECK 内不重建表；规则只放 app/server/src/lib/competition-rubric.ts（不导入任何模块），服务端登记、试算接口、候选确认、公开 scoring 与模拟脚本都读它；GitLab 用「重要程度::」「核心度::」标签，三个标签都由非作者的评审人最后加上才自动计分；防刷每人每周「一般 × 边缘」只算 1 条；scripts/contest-score-sim.mjs 固定种子模拟 60 人比赛选系数。官网首屏左边标题、怎么拿分三步、倒计时与报名，右边奖金卡与天梯前五（手机前三），几层光、逐字标题、随指针倾斜、滚动驱动，减少动态效果停在最终状态。
+- 结果：方案定稿：默认系数 3.5/2.2/1.4/1.0，防刷每周 1 条
+- 下一步：实现服务端、控制台、门户、官网，跑模拟、迁移演练和浏览器验收
+
+## 19:20:24 +08:00 · 开发 · #278 · 两档计分、年级系数模拟与防刷，官网首屏一屏讲清楚
+
+- 执行者：agent-claude-geek-main-3c2a7a67-c278（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：服务端：规则只放 competition-rubric.ts（Issue 5–30、MR 15–100、扣分 -50），积分记录存两档、防刷折扣与贡献时间的快照，新增 score-preview 试算接口，候选按 GitLab「重要程度::」「核心度::」标签自动计分，防刷每人每周（北京时间）「一般 × 边缘」只算 1 条、之后记 0 分；scripts/contest-score-sim.mjs 固定种子 278 跑 5000 场 60 人比赛，选出默认系数 3.5/2.2/1.4/1.0。迁移在预发布库副本上演练两遍：14 列变 21 列，0 行与 3 条虚构记录（合计 20）两种情况各跑两次，结果一致、integrity ok，副本已删。控制台：ScoreLevels 两个下拉框选完即试算，积分登记与候选确认共用，规则页只读两档表。门户：比赛详情与天梯讲两档表与防刷。官网：首屏写清第一届内部赛、三步怎么拿分、奖金 700/140/70 与兑奖码、实时天梯、倒计时和报名；计分段两张热力表、年级系数柱、「算一算」；接口没回来先用 FALLBACK，测试核对它和服务端一致；措辞统一为「组织者」。
+- 结果：模拟：大一占前 8 名 26.2%，大一拿第一 18.1%、进前 3 52.4%、进前 8 92.1%；同等质量下大一所需投入是大四的 0.40 倍；刷分的人进前 8 为 0%（没有防刷时 89.8%），核心贡献者进前 8 为 94.5%，正常得分被防刷误伤 2.2%。pnpm typecheck 通过，pnpm test 123 个文件 1923 条通过；check:runtime、site-config、environments、boundaries、docs、doc-sync、notes、secrets、catalog 通过，check-architecture（base 4c7c5dd5）111 个变更文件 233 个节点。ego 本机 nginx（带 CSP）：1440×900 首屏各块底边 ≤728、390×844 ≤816，横向溢出 0，没有 emoji，减少动态效果 0 个动画在跑，指针移动 3 秒 240 帧，首屏 JS 18.44KB gzip；控制台试算写出「基础分 45 × 大一 3.5 = 158 分。」。最后几轮截图因浏览器窗口被最小化没拍到，截图停在 v4（措辞改成组织者之前）。
+- 下一步：提交记录，收 ego TaskSpace 与本机服务，回报 team-lead
+
+## 19:20:30 +08:00 · 提交 · #278 · 两档计分与首屏分四个提交
+
+- 执行者：agent-claude-geek-main-3c2a7a67-c278（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：b1cc096d feat(server) 两档计分、年级系数、每周防刷、试算接口、模拟脚本与服务端文档；491a09a9 feat(console) 两档下拉框与试算、规则页只读表；70f4b378 feat(portal) 官网首屏、计分段、SDK 与门户文案；fcbb36ef docs(architecture) 目录、ownership 与 changes/278.json。每个提交只加指定文件，没有推送。
+- 结果：四个提交落在 task/278/contest_site，pnpm catalog:generate 后 check:catalog 通过；工作区只剩这两条记录
+- 下一步：提交记录，交主会话审查与预览环境验收
