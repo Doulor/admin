@@ -321,3 +321,24 @@
 - 做了什么：b923ee85：setExclusiveGroupMembership 加 expiresAt 可选参数，users.ts/permission-groups.ts 的 level/department 写入改调它，删掉两处重复 SQL；删 app/server/src/middleware/require-capability.ts（确认零调用方）；docs/architecture/SECURITY.md「极客班控制台：称号与能力」整节改写为权限节点模型（perm_groups/entries/members、deny-first、站长三条保护、部门范围判定与 deny 减法、step-up、console.access、perm_seed_applied 台账、操作记录改走 recordActivity）；ownership.json 补 perm_seed_applied/cursor.ts/sql-text.ts 归属与证据、修两处改名失效的锚点、删 6 处指向已删文件的证据；274.json 补 coverage/removals；pnpm catalog:generate 重新生成产物。
 - 结果：npx vitest run（全仓库）→ 106 files / 1758 tests 全过；pnpm typecheck 无报错；pnpm check:runtime/check:site-config/check:environments/check:boundaries/check:docs/check:doc-sync/check:notes/check:secrets/check:catalog 全部通过；node scripts/check-architecture.mjs --base 9c5b74f7 --branch task/274/unified_accounts → 宏观对齐通过：#274，251 个变更文件，368 个关联节点。
 - 下一步：team-lead #274 review round 1 fix274-srv.md 的 A-Q 全部完成并提交（8 个提交：88112262 C/N、72bfa30c 共享库、a7228a57 B/D/E/J.3/K.3/M/O/P-partial、126363de L/O、a553d763 G/K.1/K.3-reader、21bc07e8 F、27056cc4 H+I一部分、e6102486 J、5bf0bda9 K.2、b923ee85 P/Q）。还差两件事再报告 team-lead：迁移演练（.tools/yugc-v2/db/preview-copy.db 临时副本两遍 createDatabase）、item I 剩余部分（audit() 改走 recordActivity 的范围确认，已私信 team-lead 待回复）。
+
+## 11:22:58 +08:00 · 提交 · #274 · 合并两条收尾线、审计写入改操作记录、改名 github-http、GitLab Owner 按站长组、文档对齐
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：09:17 之后的提交没有逐条记，这里一并补记（时间以 git log 为准）：srv274 子 agent 的 a2b03313..66db1c99（删重复 audit() 调用后的目录、/api/join 删除后测试改用 /api/feedback、撤限额测试换接口）；idn274 子 agent 在 scratch/274_identity 上的 9aef43f1..a9b84f6e（删 GH_APP_* 环境契约与文档、device approve 去掉双挂 requireAuth、API.md 清理），由主会话以 1c5ae9ec 合入（冲突只在生成目录和两边修过的同一处，取本分支，8d8e558c 重新生成）；主会话的 e528ed3c（audit() 改写 activity_events，audit_logs 不再写入）、49e4b5dd（接口契约与数据模型跟着改）、654a2778（lib/github.ts 改名 github-http.ts）、bd74d559（claims 的 site_role 改看 title.site.owner 组，补 GitLab 任命 50/撤销 30 的回归测试）、3a065c77（SECURITY.md 登录门槛、权限、GitLab 同步、残余风险改成现行说法）、4bd1671a（invite_codes 归新的邀请域，274.json 补覆盖与删除记录）、a664090b（core.test.ts 跟着改名，全量测试里它加载失败）、2fe3aba3（server README 身份、控制台、论坛几段改成权限节点的说法）、0c9bfcd0（.env 模板里 CONSOLE_ORG 注释去掉 GitHub App）。
+- 结果：npx vitest run → 104 files / 1732 tests 全过（a664090b 之前是 1 个文件加载失败）；app/forum vitest（Node 26）→ 30 files / 550 tests 全过；pnpm check:runtime/site-config/environments/boundaries/docs/secrets/catalog、check-doc-sync --base 9c5b74f7、check-architecture --base 9c5b74f7（283 个变更文件、391 个节点）、typecheck 全过；迁移演练（preview-copy.db 复制品跑两次）第一次建表并写入 perm_* 等，第二次各表行数与内容都没变化。
+- 下一步：写第二轮审查、推送 task/274/unified_accounts、开 MR、合并进 stage、关 #274。
+
+## 11:32:49 +08:00 · PR · #274 · 开 MR !7：task/274/unified_accounts → stage
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：推送 task/274/unified_accounts（9f2b41cf）到 git.yangtzeu.work；开 https://git.yangtzeu.work/geek/admin/-/merge_requests/7，标签与 #274 一致（P1、admin、enhancement、func:api、func:auth、func:data、ui:content、ui:layout），正文十段：迁移两次演练的各表行数、本机真实接口请求的状态码、改前 3 张改后 10 张截图（GitLab uploads）、人工验收 8 步、两轮审查。
+- 结果：node scripts/pr-contract.mjs check（本地，issue 状态与标签取自 GitLab）→ PR 正文契约通过：分支 task/274/unified_accounts ↔ issue #274，10 个段落齐全，有验收证据。GitLab 上 stage 仍是 9c5b74f7，main 61da3fea 是它的祖先，本分支包含 9c5b74f7。
+- 下一步：写审查记录，合并进 stage。
+
+## 11:32:49 +08:00 · 审查 · #274 · 第二轮审查：有条件通过（被审查提交 9f2b41cf）
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：按 .agents/skills/code-review 逐项核对 9c5b74f7...9f2b41cf：第一轮 4 个阻塞逐条找到修复与用例；分支不变量、密钥、compose、绕过 CI、数据库、文档同步逐项看过。审查人是主会话，最后几个提交也是它写的，属于作者自审，MR 里写明。
+- 结果：结论：有条件通过（条件：合并后在预发布按人工验收步骤走一遍）。应修 2 条本次不修并写明理由（旧称号体系 roles/role-store/access 留到 #275/#276；CONSOLE_ORG 改常量放 #276），建议 3 条（listAccounts 无调用方、activity 未登录错误码不一致、6 个提交首行超 72 字符不改写）。未验证：真实 OAuth 往返、真实 GitLab 同步、预发布验收、pnpm test:e2e、回滚演练。结论贴在 MR !7 正文「审查结论」。
+- 下一步：合并进 stage（--no-ff），关 #274，发 rc.18 到预发布。
