@@ -341,6 +341,8 @@ export const consoleContracts: RouteContracts = {
       status: choices("active", "disabled"), level: choices("registered", "member", "alumni"),
       department: { anyOf: [groupId, { type: "null" }] }, titles: { type: "array", items: groupId },
     }),
-    response: { 200: object({ account_id: accountId }, ["account_id"]) },
+    // #274 残留修复 D：回和列表一样形状的完整行（userView），不是只有 account_id——否则控制台改完一行，
+    // 不重新拉一次列表就看不到刚改的用户名、等级、部门这些字段。
+    response: { 200: userView },
   },
 };

@@ -450,11 +450,14 @@ describe('console permissions come only from the site account; GitHub is a conne
     const crewId = (await user.send('GET', '/auth/me')).json().account_id as string;
     const assigned = await admiral.send('PATCH', `/api/console/users/${crewId}`, { titles: ['title.ai.head'] });
     expect(assigned.statusCode).toBe(200);
-    expect(assigned.json()).toEqual({ account_id: crewId });
+    // #274 残留修复 D：回和列表一样形状的完整行，不是只有 account_id
+    expect(assigned.json()).toMatchObject({ account_id: crewId, titles: [{ id: 'title.ai.head', name: expect.any(String), department_id: 'dept.ai' }] });
     const after = (await user.send('GET', '/api/console/me')).json();
     expect(after.titles).toEqual([expect.objectContaining({ id: 'title.ai.head', department_id: 'dept.ai' })]);
-    // 部门部长的权限按 SPEC §3.4 限定在本部门范围（scope.department = ["dept.ai"]），但 console.access 不带范围
-    expect(after.permissions).toEqual(expect.arrayContaining(['console.access', 'apply.review', 'users.view', 'activity.read', 'dept.manage']));
+    // 部门部长的权限按 SPEC §3.4 限定在本部门范围（scope.department = ["dept.ai"]），但 console.access 不带范围；
+    // dept.manage 不在这里（#274 残留修复 J：种子发了这个节点，但没有接口按它判定，不放进导航清单）
+    expect(after.permissions).toEqual(expect.arrayContaining(['console.access', 'apply.review', 'users.view', 'activity.read']));
+    expect(after.permissions).not.toContain('dept.manage');
     const missing = await admiral.send('PATCH', '/api/console/users/01HZZZZZZZZZZZZZZZZZZZZZZZ', { level: 'alumni' });
     expect([missing.statusCode, missing.json().error]).toEqual([404, 'not_found']);
     expect(owner.accountId).not.toBe(crewId);
@@ -510,15 +513,15 @@ describe('site ownership in 成员与权限 (#274：按权限节点判定，取�
     expect(byCrew.json()).toMatchObject({ error: 'forbidden', node: 'users.manage' });
     expect((await patch(admiral, '01HZZZZZZZZZZZZZZZZZZZZZZZ', { level: 'member' })).statusCode).toBe(404);
 
-    // 提督把舰员也加成站长；响应只回 account_id（CONTRACT-274 §5），不回旧的 site_role/changed
-    expect((await patch(admiral, crewId, { titles: ['title.site.owner'] })).json()).toEqual({ account_id: crewId });
+    // 提督把舰员也加成站长；响应回和列表一样形状的完整行（#274 残留修复 D），不回旧的 site_role/changed
+    expect((await patch(admiral, crewId, { titles: ['title.site.owner'] })).json()).toMatchObject({ account_id: crewId, level: 'member' });
     const crewMe = (await crew.send('GET', '/api/console/me')).json();
     expect(crewMe.titles).toEqual([expect.objectContaining({ id: 'title.site.owner' })]);
     expect(crewMe.permissions).toContain('users.manage');
 
     // 现在有两位站长，新站长可以把原来那位的站长称号摘掉（不是最后一位，不触发 last_owner）；
     // 下一个请求立刻按新的权限判定——没有缓存失效的延迟（lib/permissions.ts 的 revision + bump()）
-    expect((await patch(crew, owner.accountId, { titles: [] })).json()).toEqual({ account_id: owner.accountId });
+    expect((await patch(crew, owner.accountId, { titles: [] })).json()).toMatchObject({ account_id: owner.accountId, titles: [] });
     const removedMe = (await admiral.send('GET', '/api/console/me')).json();
     expect(removedMe.titles).toEqual([]);
     expect(removedMe.permissions).not.toContain('console.access');

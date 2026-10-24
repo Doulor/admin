@@ -69,10 +69,13 @@ describe('GET /api/console/me、/api/console/summary（CONTRACT-274 §5、§7：
     const me = (await app.inject({ url: '/api/console/me', headers: as('erin') })).json();
     expect(me.department).toMatchObject({ id: 'dept.ai', name: 'AI部门', tone: 'y' });
     expect(me.titles).toEqual([expect.objectContaining({ id: 'title.ai.head', department_id: 'dept.ai' })]);
-    // console.access 是全站授权；users.view/apply.view/apply.review/activity.read/dept.manage 只在本部门范围内授权，
+    // console.access 是全站授权；users.view/apply.view/apply.review/activity.read 只在本部门范围内授权，
     // /me 靠 SCOPE_AWARE_NODES 把它们也并进 permissions，供前端判断导航显隐（见 routes/console/me.ts）。
-    expect(me.permissions).toEqual(expect.arrayContaining(['console.access', 'users.view', 'apply.view', 'apply.review', 'activity.read', 'dept.manage']));
+    // dept.manage 不在这张清单里（#274 残留修复 J）：种子发了这个节点，但没有任何接口按它判定，放进
+    // SCOPE_AWARE_NODES 只会让前端多出一个没有对应功能的导航项。
+    expect(me.permissions).toEqual(expect.arrayContaining(['console.access', 'users.view', 'apply.view', 'apply.review', 'activity.read']));
     expect(me.permissions).not.toContain('apply.export');
+    expect(me.permissions).not.toContain('dept.manage');
   });
 
   it('summary 只给有权限看的键', async () => {
