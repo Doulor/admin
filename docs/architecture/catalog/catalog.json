@@ -10958,7 +10958,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "6f0240ceb916ef1cb1af173c8b813c6a66431fdd4cc7a088fa7d842c9ae8a317",
+    "fingerprint": "c78f6b31d8632b6a4829b1953dbfe69c21415b5170defe7aff6471b018e17c1e",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -12486,7 +12486,7 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "782e2484eebc8c04895c6b875a770852b1ae0c7ca48555f3a7179dbdb254836c"
+        "sha256": "03d596c653932486ad344bd0470b2839dbfd07f03b4d136f7cd73f31af436cda"
       },
       {
         "path": "docs/services/server/data-model.md",
@@ -12630,7 +12630,7 @@
       },
       {
         "path": "tests/server/core.test.ts",
-        "sha256": "2e4489b540008a577c96933222f8dc3206a3ddaf203530c7d4a824f6b876e25e"
+        "sha256": "45bbe8d4ad3864731fd1185417759ceaad311ca85085ee6b39fe34a4b148866b"
       },
       {
         "path": "tests/server/device-flow.test.ts",

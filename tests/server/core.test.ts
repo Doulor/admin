@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import type { ServiceOverrides } from '../../app/server/src/services';
 import { safeReturnTo } from '../../app/server/src/lib/safe-return';
-import { withTimeout } from '../../app/server/src/lib/github';
+import { withTimeout } from '../../app/server/src/lib/github-http';
 import { ADMIN_SPA_ENTRY, ADMIN_SPA_PATHS, PORTAL_SPA_ENTRY, buildApp, resolveSiteEntry } from '../../app/server/src/app';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
