@@ -29,3 +29,17 @@
 - 做了什么：提交 5ae24d7d：$((…)) 改成 64 位有符号整数回绕（$((2**64)) 得 0，和 bash 一样），乘方按位平方；Windows.tsx 去掉没用的 ReactNode 导入；目录重新生成。提交 ada1fc43：桌面应用脚本同时装进 /usr/local/bin，直接敲 forum、join 能打开（issue 验收写了「原有的 join、forum 等命令照常能用」），改了 PATH 找不到时仍提示 open；portal.md 跟着改。
 - 结果：tsc 通过；vitest tests/web + tests/tooling 64 个文件 1028 个用例全过；check-architecture、check-doc-sync（--base e43df562）、check:catalog/notes/secrets/boundaries/docs 通过。ego 本地 1440×900：刷新后 ~/Documents/note.txt 和命令历史还在，which join gitlab 指向 /usr/local/bin。最坏情况探测：脚本自我分叉到嵌套上限 16 层共 65537 行输出用时 246ms，界面只留最后 1000 行。
 - 下一步：推送，开 MR，写审查结论后合并
+
+## 15:19:25 +08:00 · PR · #279 · 开 MR !9
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：推送 task/279/window_terminal_join 到 GitLab（59b66cdb），开 MR !9 到 stage：https://git.yangtzeu.work/geek/admin/-/merge_requests/9 。正文按 PULL-REQUESTS 契约写目的、关联（Closes #279）、变更范围、宏观对齐、解决链路、验证命令与结果、验收证据（9 张截图：rc.18 改前 1 张，本分支电脑 6 张、手机 2 张）、人工验收步骤、审查结论、风险与回滚。
+- 结果：MR 状态 can_be_merged；截图已上传到 GitLab。
+- 下一步：审查，结论写进 MR
+
+## 15:19:25 +08:00 · 审查 · #279 · MR !9 自审：有条件通过
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：按 .agents/skills/code-review 两条线自审 ada1fc43（所有者 10-24 要求不开子 agent，没有独立审查人）。规范：检查脚本全过；安全核对无 eval/new Function/dangerouslySetInnerHTML、只把 https 地址变链接、存盘读回跳过 . 与 .. 路径、写入只限家目录和 /tmp；资源核对嵌套 16 层、seq 10000 行、界面 1000 行。需求：issue 列的 29 条命令、管道重定向等、三个按钮、加入我们窗口逐条对上；手机面板按 #233 不放珠子；超出 issue 的是意见箱两处 GitHub 字样和终端懒加载。审查中自己发现并修掉：$((2**64)) 显示 Infinity（改 64 位回绕）、for 循环多报 do/done、算术写错仍执行命令、直接敲 forum 打不开（装进 /usr/local/bin）、Windows.tsx 没用的导入。
+- 结果：结论：有条件通过（合并后发 rc.19 在预发布按人工验收步骤走一遍）。结论贴在 MR !9 正文和评论 754。未验证：预发布真实验收、登录后家目录与 neofetch 只有单测、Safari 与真机。
+- 下一步：合并进 stage（merge commit），关 #279，发 rc.19
