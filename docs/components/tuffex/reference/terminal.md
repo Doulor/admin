@@ -1,0 +1,225 @@
+# Terminal 终端显示
+
+> 显示 ANSI 与 Unicode 输出的终端组件
+
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
+
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/terminal) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/terminal.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/terminal.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+
+上游标记：status=`beta`，since=`0.7.0`，syncStatus=`reviewed`，verified=`false`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
+
+## 官方正文（仅转换展示语法与链接）
+
+## 安装
+
+```bash
+pnpm add @talex-touch/tuffex
+```
+
+```ts
+import { TxTerminal } from '@talex-touch/tuffex/terminal'
+import '@talex-touch/tuffex/base.css'
+import '@talex-touch/tuffex/terminal/style.css'
+```
+
+## 用法
+
+### 交互显示
+`ready` 返回实例，`data` 派发键盘输入；输入不会自动回显。
+官方示例：`TerminalTerminalDemo`（完整源码见本页末尾）
+
+```vue
+<script setup lang="ts">
+import type { TerminalInstance } from '@talex-touch/tuffex/terminal'
+import { ref } from 'vue'
+
+const lastInput = ref('')
+function ready(terminal: TerminalInstance) {
+  void terminal.writeln('\x1B[32mANSI · 中文输出 ✓\x1B[0m')
+}
+</script>
+
+<template>
+  <div style="height: 240px">
+    <TxTerminal @ready="ready" @data="lastInput = JSON.stringify($event)" />
+  </div>
+  <output>{{ lastInput }}</output>
+</template>
+```
+
+### 只读日志
+暂停由宿主实现：继续收集记录，但不更新传给组件的 `lines`。
+官方示例：`TerminalLogsDemo`（完整源码见本页末尾）
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const lines = ref(['\x1B[32m[info]\x1B[0m 中文日志 ✓'])
+</script>
+
+<template>
+  <TxButton @click="lines.push('[info] 下一条记录')">追加</TxButton>
+  <TxButton @click="lines.length = 0">清空</TxButton>
+  <div style="height: 224px">
+    <TxTerminal read-only :lines="lines" />
+  </div>
+</template>
+```
+
+### 最佳实践
+
+- 声明式日志用 `lines`，流式输出用 `write()` / `writeln()`；替换 `lines` 会清掉方法写入的内容。
+- 为容器设置明确高度；显式的 `cols` / `rows` 只覆盖对应轴的自动适配。
+- 日志保持 `readOnly`，不要为只显示日志而创建 PTY（伪终端）。
+- 处理写入 Promise 的 reject：卸载或初始化失败会拒绝全部待处理写入。
+- 特权执行只经可信宿主 SDK：由用户明确触发，`command` 与 `args` 分开传，切换会话或卸载时清理。
+
+## API 参考
+
+### 属性
+
+| 属性 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `readOnly` | `boolean` | `false` | 禁用输入与 `data` 事件，不自动聚焦；仍可选择与复制。 |
+| `autoFocus` | `boolean` | `false` | 初始化后聚焦交互终端；只读时无效。 |
+| `autoScroll` | `boolean` | `true` | 输出后滚到底部；关闭时保持视口位置，输入也不触发滚动。 |
+| `lines` | `readonly (string \| Uint8Array)[]` | `undefined` | 日志记录，每条追加 CRLF；前缀不变时只追加，否则重置后重放。 |
+| `cols` | `number` | 自动适配；初始 `80` | 固定列数；缺省时按容器计算。 |
+| `rows` | `number` | 自动适配；初始 `24` | 固定行数；缺省时按容器计算。 |
+| `fontSize` | `number` | `13` | 字号（px），变化后重新适配。 |
+| `fontFamily` | `string` | `ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace` | 字体栈，变化后重新适配。 |
+| `theme` | `ITheme` | 宿主令牌 | 部分 xterm 主题，只覆盖指定的颜色。 |
+| `labels` | `Partial<TerminalLabels>` | `{ ariaLabel: 'Terminal' }` | 终端区域与输入 textarea 的无障碍名称。 |
+
+### 事件
+
+| 事件 | 参数 | 说明 |
+| --- | --- | --- |
+| `data` | `string` | 键盘、粘贴与控制序列输入，原样转交会话；只读时不派发。 |
+| `resize` | `{ cols: number; rows: number }` | 初始尺寸与之后的行列变化；有 PTY 时转交会话。 |
+| `ready` | `TerminalInstance` | 显示初始化完成；组件 ref 暴露同一组方法。 |
+
+### 暴露方法
+
+| 方法 | 签名 | 说明 |
+| --- | --- | --- |
+| `write(data)` | `(string \| Uint8Array) => Promise<void>` | 排队写入原始数据，解析后 resolve；可在初始化前调用，不加换行。 |
+| `writeln(data)` | `(string \| Uint8Array) => Promise<void>` | 同一队列，追加 CRLF。 |
+| `clear()` | `() => void` | 排队清除滚动历史，保留当前提示行。 |
+| `reset()` | `() => void` | 排队重置缓冲区与解析器，清除内容与终端模式。 |
+| `focus()` | `() => void` | 聚焦已初始化的交互终端。 |
+| `fit()` | `() => TerminalSize \| null` | 适配未固定的轴并返回尺寸；隐藏时保留上次尺寸，不可用时为 null。 |
+| `getSize()` | `() => TerminalSize \| null` | 当前行列；初始化前或释放后返回 null。 |
+
+### 类型
+
+`/terminal` 导出 `TerminalProps`、`TerminalEmits`、`TerminalInstance`、`TerminalSize`、`TerminalData`、`TerminalLabels`、`TxTerminalInstance` 与 `TERMINAL_DEFAULT_LABELS`。组件也从 `/pro` 与根入口导出，`Terminal` 是可安装包装。
+
+## Electron PTY 接入
+
+仅适用于具备 TuffTransport 的可信 Electron 渲染器。主进程持有 PTY 并检查 `system.shell` 权限；`createTerminalSdk` 先订阅再创建，`signal` 中止时自动关闭迟到的会话。
+
+```vue
+<script setup lang="ts">
+import type { TerminalInstance, TerminalSize } from '@talex-touch/tuffex/terminal'
+import type { TerminalSessionHandle } from '@talex-touch/utils/transport'
+import { createTerminalSdk, useTuffTransport } from '@talex-touch/utils/transport'
+import { onBeforeUnmount, ref, shallowRef } from 'vue'
+
+const props = defineProps<{ directory: string }>()
+const display = shallowRef<TerminalInstance | null>(null)
+const status = ref('')
+const sdk = createTerminalSdk(useTuffTransport())
+let session: TerminalSessionHandle | null = null
+let active: AbortController | null = null
+
+function fail(reason: unknown) {
+  status.value = reason instanceof Error ? reason.message : String(reason)
+}
+function stop() {
+  active?.abort()
+  active = null
+  void session?.close().catch(fail)
+  session = null
+}
+async function start() {
+  stop()
+  const controller = (active = new AbortController())
+  display.value?.reset()
+  const size = display.value?.getSize()
+  try {
+    session = await sdk.create({ command: 'node', args: ['-i'], cwd: props.directory, cols: size?.cols, rows: size?.rows }, {
+      signal: controller.signal,
+      onData(data) {
+        if (active === controller)
+          void display.value?.write(data).catch(fail)
+      },
+      onExit(exit) {
+        if (active !== controller)
+          return
+        session = null
+        status.value = `exit=${exit.exitCode}, signal=${exit.signal ?? 'none'}`
+      },
+    })
+  }
+  catch (reason) {
+    if (active === controller)
+      fail(reason)
+  }
+}
+const input = (data: string) => void session?.write(data).catch(fail)
+const resize = (size: TerminalSize) => void session?.resize(size.cols, size.rows).catch(fail)
+onBeforeUnmount(stop)
+</script>
+
+<template>
+  <TxButton :disabled="!display" @click="start">启动 Node REPL</TxButton>
+  <TxButton @click="stop">关闭</TxButton>
+  <div style="height: 280px">
+    <TxTerminal @ready="display = $event" @data="input" @resize="resize" />
+  </div>
+  <output>{{ status }}</output>
+</template>
+```
+
+## 概述
+
+- 只负责显示：挂载不会创建 shell、启动进程或申请 Electron 权限，组件也不导入 transport 或 Electron。
+- xterm 与 fit addon 只在 `onMounted` 中动态加载；服务端渲染不访问浏览器全局对象。
+- 输出、`reset()` 与 `clear()` 共用一个有序队列；二进制数据按 UTF-8 解码。
+- 深度监听 `lines`，支持 push、下标修改、替换与清空；原地改写 `Uint8Array` 字节后需触发一次响应式更新。
+- 只读模式在 xterm 与事件出口双重阻止输入并关闭光标闪烁；从交互切到只读时输入区失焦。
+- 卸载时释放 xterm、订阅与观察器；待处理写入被 reject，迟到的动态导入不会重建终端。
+
+## 技术实现
+
+- 基于 `@xterm/xterm ^5.5.0` 与 `@xterm/addon-fit ^0.10.0`（均为 MIT），样式已含在 `terminal/style.css`。
+- 颜色取自继承的 TuffEx 令牌并跟随主题与对比度变化；`ResizeObserver` 把适配合并到一帧。
+- 源码：`packages/tuffex/packages/components/src/terminal/`；进程会话见 `packages/utils/transport/sdk/domains/terminal.ts`。
+
+
+
+## 使用场景
+
+- 网页或 Electron 日志查看器，暂停与历史由宿主控制。
+- 由可信宿主持有命令执行的交互式 Electron PTY。
+- 无需进程权限的 ANSI / Unicode 输出预览。
+
+## 无障碍
+
+- 已启用 xterm 屏幕阅读器支持；只读输出仍可选择与复制。
+- 除非用户明确打开交互终端，否则不开启 `autoFocus`；日志更新不移动焦点。
+
+## 离线完整示例源码
+
+- [TerminalTerminalDemo](../snapshot/apps/nexus/app/components/content/demos/TerminalTerminalDemo.vue.txt)
+- [TerminalLogsDemo](../snapshot/apps/nexus/app/components/content/demos/TerminalLogsDemo.vue.txt)
+
+## 离线类型与实现参考
+
+- [terminal/index.ts](../snapshot/packages/tuffex/packages/components/src/terminal/index.ts.txt)
+- [src/TxTerminal.vue](../snapshot/packages/tuffex/packages/components/src/terminal/src/TxTerminal.vue.txt)
+- [src/types.ts](../snapshot/packages/tuffex/packages/components/src/terminal/src/types.ts.txt)
+
+第三方许可与转换边界见 [SOURCES](../SOURCES.md)。示例中 Nexus 的自动导入、Tuff 前缀别名、样式类和外部素材不代表业务项目已配置，不能不经核对就复制运行。

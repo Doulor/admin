@@ -1,36 +1,30 @@
 # GradientBorder 渐变边框
 
-> 用于强调卡片、Hero 面板和提示容器的动态渐变边框包装器。
+> 环绕内容旋转的渐变边框包装器
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/gradient-border) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/gradient-border.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/gradient-border.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/gradient-border) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/gradient-border.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/gradient-border.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
-上游标记：status=`beta`，since=`1.0.0`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
+上游标记：status=`beta`，since=`0.3.4`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# GradientBorder 渐变边框
+## 用法
 
-## 基础用法
-
+### 基础
 官方示例：`GradientBorderGradientBorderDemo`（完整源码见本页末尾）
 
 ```vue
 <template>
   <TxGradientBorder :padding="16" :border-radius="16">
-    <div style="background: var(--tx-bg-color); border-radius: 12px; padding: 16px;">
-      Content
-    </div>
+    <div class="surface">Content</div>
   </TxGradientBorder>
 </template>
 ```
 
-## 组合示例
-
 ### 语义化根节点
-
-高亮区域需要作为语义区块或列表项时，使用 `as` 指定根元素。
+`as` 指定根元素，如 `section` 或 `li`。
 
 ```vue
 <template>
@@ -44,8 +38,7 @@
 ```
 
 ### 自定义单位
-
-数字尺寸 props 会转成 px；字符串会原样保留，因此可以使用 CSS 变量和多值 padding。
+字符串尺寸原样保留，可以使用 CSS 变量和多值 padding。
 
 ```vue
 <template>
@@ -62,71 +55,54 @@
 </template>
 ```
 
-## 交互契约
+### 最佳实践
 
-- 根元素由 `<component :is="as">` 渲染，默认根元素是 `div`。
-- 组件会在默认插槽外包一层 `.tx-gradient-border__inner`。
-- `borderWidth`、`borderRadius`、`padding` 支持数字或字符串。数字会转为 px，字符串原样透传。
-- `animationDuration` 是以秒为单位的数字，并会带 `s` 后缀写入 `--tx-gradient-duration`。
-- 渐变层是带 `pointer-events: none` 的伪元素；真实交互由插槽内容负责。
-- 包装器使用 `overflow: hidden`，子元素焦点环或阴影超出圆角时可能被裁剪。
+- 内部放一块自带背景的表面，圆角取 `borderRadius - borderWidth`，避免露出尖角。
+- 需要语义时用 `as` 指定根元素，不要在外面再套一层 landmark。
+- 一个区块只保留一个渐变高亮面，同屏多个时放慢 `animationDuration`；小的状态点用 `TxBadge` 或 `TxTag`。
+- 焦点环需要外溢的控件不要直接包进来，或由内部内容自行处理焦点样式。
 
-## API
+## API 参考
 
-### Props
+### 属性
 
 | 属性名 | 类型 | 默认值 | 说明 |
 |------|------|---------|------|
-| `as` | `string` | `'div'` | 包装器根元素标签。 |
-| `borderWidth` | `string \| number` | `'2px'` | 渐变边框宽度，数字会转为 px。 |
-| `borderRadius` | `string \| number` | `'12px'` | 应用到包装器和渐变层的圆角，数字会转为 px。 |
-| `padding` | `string \| number` | `'12px'` | 应用到内部内容包装器的 padding，数字会转为 px。 |
-| `animationDuration` | `number` | `4` | 渐变旋转动画时长，单位为秒。 |
+| `as` | `string` | `'div'` | 根元素标签。 |
+| `borderWidth` | `string \| number` | `'2px'` | 边框宽度，也是光晕的模糊半径；数字按 px。 |
+| `borderRadius` | `string \| number` | `'12px'` | 包装器与渐变环的圆角；数字按 px。 |
+| `padding` | `string \| number` | `'12px'` | 内容包装器的内边距；数字按 px。 |
+| `animationDuration` | `number` | `4` | 旋转一圈的秒数。 |
 
-### Slots
+### 插槽
 
 | 插槽名 | Props | 说明 |
 |------|------|------|
 | `default` | - | 渲染在 `.tx-gradient-border__inner` 内的内容。 |
 
-### Events
-
-不发出公开事件。
-
-### Exposed Methods
-
-不暴露公开实例方法。
-
-### CSS Variables
+### CSS 变量
 
 | 变量 | 来源 | 说明 |
 |------|------|------|
-| `--tx-gradient-border-width` | `borderWidth` | 边框厚度与 blur 距离。 |
-| `--tx-gradient-border-radius` | `borderRadius` | 包装器和渐变层圆角。 |
-| `--tx-gradient-inner-padding` | `padding` | 内部包装器 padding。 |
-| `--tx-gradient-duration` | `animationDuration` | 旋转动画时长。 |
-| `--tx-gradient-angle` | 内部动画 | 渐变使用的已注册角度属性。 |
+| `--tx-gradient-border-width` | `borderWidth` | 边框厚度与模糊距离。 |
+| `--tx-gradient-border-radius` | `borderRadius` | 包装器与渐变环的圆角。 |
+| `--tx-gradient-inner-padding` | `padding` | 内容包装器的内边距。 |
+| `--tx-gradient-duration` | `animationDuration` | 旋转时长，带 `s` 后缀。 |
+| `--tx-gradient-angle` | 内部动画 | 渐变使用的注册角度属性。 |
+| `--tx-gradient-border-color-1` … `-4` | — | 渐变的四个色标，默认依次为 `#0894ff`、`#c959dd`、`#ff2e54`、`#ff9004`。 |
 
-## 最佳实践
+## 概述
 
-- 在包装器内部放置真实 surface，并让内部圆角接近 `borderRadius - borderWidth`，避免露出尖角。
-- 区块、列表项或文章卡片需要语义时，用 `as` 指定根元素，不要再套额外 landmark。
-- 页面中有多个动态边框时，应放慢 `animationDuration`；过快动画会抢占主内容注意力。
-- 控件焦点环必须外溢时，不要直接包在该组件里，或在内部内容中自行处理 focus 样式。
-- 一个视图区块内优先只保留一个渐变高亮面；小状态点用 `TxBadge` 或 `TxTag`。
-- 在 `prefers-reduced-motion: reduce` 下会停用旋转动画，边框停在静态渐变角度。
+- 根元素由 `as` 决定，插槽外包一层 `.tx-gradient-border__inner`。
+- 渐变环在独立的 `aria-hidden` 层上，`pointer-events: none`；交互由插槽内容负责。
+- 渐变环跟随 `borderRadius`，光晕不被裁剪，向包装器边缘内外扩散。
+- `.tx-gradient-border__inner` 以同样的圆角 `overflow: hidden`，超出的子元素焦点环或阴影会被裁掉。
+- 减少动态效果时停止旋转，边框停在静态的渐变角度。
 
-## 审阅说明
+## 技术实现
 
-- 已人工核对 `packages/tuffex/packages/components/src/gradient-border/index.ts`、`TxGradientBorder.vue` 与 `gradient-border.test.ts`。
-- Props 定义在 `index.ts` 中；该组件没有单独的 `src/types.ts`。
-- 动态渐变是非交互伪元素。插槽内容仍负责所有交互和 focus 样式。
-
-## Source
-
-- Component source: `packages/tuffex/packages/components/src/gradient-border/src/TxGradientBorder.vue`。
-- Types: `packages/tuffex/packages/components/src/gradient-border/index.ts`。
-- **实测覆盖:** Coverage: `packages/tuffex/packages/components/src/gradient-border/__tests__/gradient-border.test.ts` 验证默认根节点、自定义根标签、数字单位归一化、秒级动画时长和字符串 CSS 单位保留。
+- 渐变环由 `mask` 从实心盒中抠出，模糊放在它的父层上，因为同一元素上 `filter` 先于 `mask` 执行；旋转由注册的 `--tx-gradient-angle` 驱动。
+- 源码：`packages/tuffex/packages/components/src/gradient-border/`。
 
 ## 离线完整示例源码
 

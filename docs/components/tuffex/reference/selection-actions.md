@@ -1,23 +1,19 @@
 # SelectionActions 划词工具条
 
-> 浮在选区下方的工具条，把选中的文字交给智能体改写。
+> 把选中文字交给智能体改写的浮动工具条
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/selection-actions) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/selection-actions.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/selection-actions.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/selection-actions) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/selection-actions.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/selection-actions.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
 上游标记：status=`beta`，since=`0.3.9`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# SelectionActions 划词工具条
-
-## 基础用法
+## 用法
 
 ### 划词改写
-
-选中段落里的句子，工具条浮现在选区最后一行的下方。四个状态：`idle` → `thinking` → `streaming` → `result`。
-
+状态依次为 `idle` → `thinking` → `streaming` → `result`，由宿主推进；`thinking` 的文案带微光。
 官方示例：`SelectionActionsRewriteDemo`（完整源码见本页末尾）
 
 ```vue
@@ -31,7 +27,7 @@ const state = ref('idle')
 
 const { selection, clear } = useSelectionAnchor({
   root: articleRef,
-  ignore: () => [document.querySelector('.tx-bui-selection-actions')],
+  ignore: () => [barRef.value?.el ?? null],
 })
 
 function run(id) {
@@ -56,11 +52,8 @@ function run(id) {
 </template>
 ```
 
-## 两层：追踪与呈现
-
-组件本身**只负责呈现**：给它一个 `selection` 快照和一个 `state`，它负责定位、形变与动作行。选区从哪来是宿主的事。
-
-`useSelectionAnchor()` 是配套的追踪层，基于 `@vueuse/core` 的 `useTextSelection`，适用于普通文档正文。contenteditable、虚拟列表、iframe 这类场景自己构造 `SelectionPayload` 喂进来即可。
+### 追踪选区
+组件只负责呈现；`useSelectionAnchor()` 追踪普通正文的选区，其他场景自行构造 `SelectionPayload`。
 
 ```ts
 import { resolveSelectionPayload, useSelectionAnchor } from '@talex-touch/tuffex/selection-actions'
@@ -73,111 +66,89 @@ const { selection, clear } = useSelectionAnchor({
 })
 ```
 
-`resolveSelectionPayload()` 是它内部那条纯函数规则，单独导出以便测试或自定义追踪。
+### 最佳实践
 
-> `useSelectionAnchor` 与 `resolveSelectionPayload` 是**运行时函数，不是组件**。`TxSelectionActions` 作为全局标签可以直接写在模板里，但这两个必须像上面那样从 `@talex-touch/tuffex/selection-actions` 显式 `import`——它们不在全局组件注册表里。
+- 流式改写时，在更新文本后的同一帧调用 `updatePosition()`，不要放进 `setTimeout`。
+- `ignore` 传入实例的 `el`：`() => [barRef.value?.el ?? null]`；`document.querySelector` 在页面有两个工具条时会取错。
+- `keep` / `discard` 后调用 `clear()`，否则快照不释放，工具条不会收起。
+- `root` 限定到正文容器，否则页面上任何一次选中都会弹出工具条。
+- 消息尾部的复制、重生成、朗读用 `TxMessageActions`；本组件只用于改写选区。
 
-### useSelectionAnchor 选项
+## API 参考
 
-| 选项 | 类型 | 默认值 | 说明 |
-|------|------|---------|------|
-| `root` | `Element \| null` | — | 限定追踪范围，不传则监听整篇文档。 |
-| `debounce` | `number` | `120` | `selectionchange` 的收敛时间（ms）。拖选时它每帧都触发。 |
-| `minLength` | `number` | `1` | 去空白后的最小长度。 |
-| `disabled` | `boolean` | `false` | 暂停上报而不卸载。 |
-| `ignore` | `Element[]` | `[]` | 焦点落进这些元素时不视为取消选中。 |
-
-返回 `{ selection, clear }`：`selection` 是 `Ref<SelectionPayload | null>`，`clear()` 在改写落地或放弃后调用。
-
-## API
-
-### Props
+### 属性
 
 | 属性名 | 类型 | 默认值 | 说明 |
 |------|------|---------|------|
-| `selection` | `SelectionPayload \| null` | `null` | `{ text, rects, range? }`。为空即收起工具条。 |
+| `selection` | `SelectionPayload \| null` | `null` | `{ text, rects, range? }` 快照；为空时收起工具条。 |
 | `state` | `'idle' \| 'thinking' \| 'streaming' \| 'result'` | `'idle'` | 状态机由宿主持有，组件不发请求。 |
-| `actions` | `SelectionActionItem[]` | Explain / Improve ＋ 折叠的 Shorten / Tone / Grammar | 动作列表：`{ id, label, more?, busyLabel? }`。 |
+| `actions` | `SelectionActionItem[]` | Explain / Improve ＋ 折叠的 Shorten / Tone / Grammar | 动作列表 `{ id, label, more?, busyLabel? }`；自定义动作应设 `busyLabel`。 |
 | `activeActionId` | `string` | — | 正在运行的动作 id，决定忙碌文案。 |
-| `expanded` | `boolean` | — | `v-model:expanded`，折叠动作组。 |
+| `expanded` | `boolean` | — | `v-model:expanded`，折叠的动作组。 |
 | `prompt` | `string` | — | `v-model:prompt`，自由指令输入。 |
-| `hidePrompt` | `boolean` | `false` | 隐藏输入框与发送键。 |
-| `placeholder` | `string` | `'Describe edits'` | 输入框占位，同时用作它的无障碍名。 |
+| `hidePrompt` | `boolean` | `false` | 隐藏输入框与发送键，用于只读场景。 |
+| `placeholder` | `string` | `'Describe edits'` | 输入框占位，同时作为它的无障碍名。 |
 | `ariaLabel` | `string` | `'Selection actions'` | 工具条的无障碍名。 |
-| `keepLabel` / `discardLabel` | `string` | `'Keep'` / `'Discard'` | 结果态两颗按钮。 |
+| `keepLabel` / `discardLabel` | `string` | `'Keep'` / `'Discard'` | 结果态的两个按钮。 |
 | `retryLabel` | `string` | `'Try again'` | 重试按钮的无障碍名。 |
 | `sendLabel` | `string` | `'Send edit instruction'` | 发送键的无障碍名。 |
-| `expandLabel` / `collapseLabel` | `string` | `'Show more actions'` / `'Show fewer actions'` | chevron 的无障碍名。 |
-| `busyLabel` | `string` | `'Editing'` | 动作没写 `busyLabel` 时的兜底忙碌文案。 |
-| `offset` | `number` | `8` | 距选区最后一行的距离（px）。 |
+| `expandLabel` / `collapseLabel` | `string` | `'Show more actions'` / `'Show fewer actions'` | 展开按钮的无障碍名。 |
+| `busyLabel` | `string` | `'Editing'` | 动作未设 `busyLabel` 时的兜底忙碌文案。 |
+| `offset` | `number` | `8` | 与选区最后一行的距离（px）。 |
 
-### Events
+### 事件
 
 | 事件名 | 参数 | 说明 |
 |------|------|------|
-| `action` | `({ id, action, selection })` | 按下某个预设动作，携带选区快照。 |
-| `submit` | `({ prompt, selection })` | 输入框回车或按发送键，`prompt` 已 trim。 |
+| `action` | `({ id, action, selection })` | 按下预设动作，携带选区快照。 |
+| `submit` | `({ prompt, selection })` | 输入框回车或按发送键；`prompt` 已 trim，空白时不触发。 |
 | `keep` / `discard` | `()` | 结果态的保留 / 放弃。 |
 | `retry` | `()` | 结果态的重试。 |
 | `update:expanded` | `(expanded: boolean)` | 折叠组开合。 |
 | `update:prompt` | `(prompt: string)` | 输入内容变化。 |
 
-### Slots
+### 插槽
 
 | 插槽名 | 作用域参数 | 说明 |
 |------|------|------|
-| `action-icon` | `{ action }` | 覆盖动作图标。自定义 `id` 必须用它。 |
+| `action-icon` | `{ action }` | 覆盖动作图标；自定义 `id` 必须使用。 |
 | `busy` | `{ label }` | 覆盖忙碌区。 |
-| `result` | — | 覆盖保留 / 放弃 / 重试整组。 |
+| `result` | — | 覆盖保留 / 放弃 / 重试按钮组。 |
 
-### Exposed
+### 暴露方法
 
 | 方法 | 说明 |
 |------|------|
-| `updatePosition()` | 按当前 `selection.rects` 重新定位。**流式宿主必须调用，见下。** |
+| `updatePosition()` | 按当前 `selection.rects` 重新定位；流式宿主必须调用。 |
 | `focusInput()` | 聚焦自由指令输入框。 |
-| `el` | 工具条根元素。传给 `useSelectionAnchor` 的 `ignore`。 |
+| `el` | 工具条根元素，传给 `useSelectionAnchor` 的 `ignore`。 |
 
-## 交互契约
+### useSelectionAnchor 选项
 
-- **`updatePosition()` 是宿主的责任，不是可选优化。** 工具条锚在一个虚拟参考点上，`floating-ui` 没有可观察的元素，因此**不会**跟随文本重排。改写流式写入时每个 delta 都会让段落重排，宿主必须在更新完文本后调一次 `updatePosition()`，否则工具条会停在旧位置。窗口 resize 与滚动由组件自己处理。
-- **锚点是选区最后一行的底边，水平居中于整段选区。** 跨三行的选区，工具条落在读者停下的那一行下面，而不是整块的中点。
-- **工具条不翻面。** 它给 `TxBaseAnchor` 传了 `disableFlip`：靠近视口底部时不跳到选区上方，因为改写途中换边会被读成另一个控件。`shift` 仍在，横向会被推回视口内。
-- **`selection` 是快照，不是实时选区。** 聚焦工具条的输入框会清掉浏览器选区；组件持有的是传进来那一份，所以动作仍有目标。`useSelectionAnchor` 内部用 `range.cloneRange()` 也是这个原因。
-- 工具条根节点吞掉 `pointerdown`（`preventDefault`），按按钮不会转移焦点、不会毁掉选区。处理函数会放行 `input`、`textarea`、`contenteditable` 内部的按下，并且用 `closest()` 判定而不是比对事件目标本身：输入框外面套着 `<form>`，一旦指针落在输入框边缘一像素之外，按目标比对就会漏判、输入框随之无法聚焦——点它焦点会跑到 `<body>`，打字也没有任何反应。
-- **必须接上 `ignore`，否则工具条会自己消失。** 聚焦输入框会让文档选区塌缩，而 `useSelectionAnchor` 在工具条未持有焦点时会把塌缩当成读者清除了选区。请传入实例的 `el`：`ignore: () => [barRef.value?.el ?? null]`。不要用 `document.querySelector('.tx-bui-selection-actions')`——它返回文档中第一个工具条，页面上只要有两个就会取错。
-- 折叠的动作在收起时 `tabindex="-1"`，不出现在 Tab 序列里；发送键在 `prompt` 为空时同样如此。
-- 整条是 `role="group"` 而不是 `role="toolbar"`：里面有文本输入框，方向键要留给光标。
-- `thinking` 与 `streaming` 的区别只有一处——前者的文案带微光，后者是普通文本。
-- **宽度形变走 WAAPI**，CSS 媒体查询管不到它，因此组件在脚本里读 `prefers-reduced-motion` 并跳过补间；状态机照常推进，只是宽度直接落位。
-- 空白 `prompt` 不会派发 `submit`。
+| 选项 | 类型 | 默认值 | 说明 |
+|------|------|---------|------|
+| `root` | `MaybeRefOrGetter<Element \| null \| undefined>` | — | 限定追踪范围；不传则监听整篇文档。 |
+| `debounce` | `number` | `120` | `selectionchange` 的收敛时间（ms）。 |
+| `minLength` | `number` | `1` | 去空白后的最小长度。 |
+| `disabled` | `MaybeRefOrGetter<boolean>` | `false` | 暂停上报而不卸载。 |
+| `ignore` | `MaybeRefOrGetter<Array<Element \| null \| undefined>>` | `[]` | 焦点落进这些元素时不视为取消选中。 |
 
-## 最佳实践
+返回 `{ selection, clear }`：`selection` 是 `Ref<SelectionPayload | null>`，`clear()` 在改写落地或放弃后调用。`resolveSelectionPayload()` 是其内部的纯函数规则，单独导出供测试或自定义追踪；两者都是运行时函数，需从 `@talex-touch/tuffex/selection-actions` 显式导入。
 
-- 流式改写时把 `updatePosition()` 接在文本更新之后、同一帧里调用，别放 `setTimeout`。
-- `useSelectionAnchor` 的 `ignore` 一定要带上工具条本身，否则用户一点输入框，选区收拢，工具条立刻消失。
-- `keep` / `discard` 之后调 `clear()`，否则快照会一直留着，工具条不退。
-- 自定义动作给上 `busyLabel`，「润色中…」比兜底的「编辑中…」准确得多。
-- `root` 限定到正文容器，别监听整篇文档——页面上任何一次选中都会弹条。
-- 只读展示场景可以 `hidePrompt`，留下预设动作即可。
+## 概述
 
-## Source
+- 锚点是选区最后一行的底边，水平居中于整段选区；工具条不翻面（`disableFlip`），只横向推回视口。
+- 锚点是虚拟参考点，`floating-ui` 不会跟随文本重排；流式写入时由宿主调用 `updatePosition()`，窗口缩放与滚动由组件处理。
+- `selection` 是快照：聚焦输入框会清掉浏览器选区，动作仍作用于传入的那一份。
+- 根节点吞掉 `pointerdown`，按按钮不会转移焦点或毁掉选区；`input`、`textarea`、`contenteditable` 内除外。Safari 与 Firefox 此后的光标行为不同，接入时需真机验证。
+- 根节点为 `role="group"`，方向键留给输入框光标；折叠的动作与 `prompt` 为空时的发送键不在 Tab 序列中。
+- 入场是越过终值的弹簧动画；减少动态效果时去掉入场动画、跳过宽度补间，元素停在可见终态。
 
-- Component source: `packages/tuffex/packages/components/src/selection-actions/src/TxSelectionActions.vue`。
-- Composable: `packages/tuffex/packages/components/src/selection-actions/src/use-selection-anchor.ts`。
-- Types: `packages/tuffex/packages/components/src/selection-actions/src/types.ts`。
-- **实测覆盖:** `selection-actions.test.ts`（23 项）验证按选区显隐、`role="group"`、锚点取最后一行底边与整段水平范围、`disableFlip`、折叠组的 `tabindex` 与 `aria-expanded`、Explain 也派发事件、`prompt` 门控与 trim、忙碌文案与微光分支、结果态三个动作、`pointerdown` 在条上被吞而在输入框放行、根元素被暴露以便宿主把工具条排除在选区塌缩之外；`selection-actions-position.test.ts`（2 项）从组件一路断言到 `floating-ui` 的 `update` 确实被调用；`use-selection-anchor.test.ts`（9 项）覆盖空选区、最小长度、折叠 range、`root` 限定与零尺寸 rect 过滤。
-- 移植自 Beautiful UI（https://www.beautifului.dev），© 2026 Shane Levine，MIT。
+## 技术实现
 
-
-
-## 审阅说明
-
-- **上游没有真实选区。** 上游的「选区」是一个写死的高亮 `<span>`，全文没有 `window.getSelection()`。追踪层（`useSelectionAnchor`、快照语义、`pointerdown` 防抢焦点）是移植时新写的契约，不是对上游的转述。
-- **与 `TxMessageActions` 的分工:** 那是消息尾部的图标工具条（复制 / 重生成 / 朗读），`role="toolbar"` + roving tabindex，没有浮层也没有输入框。本组件是浮在选区上的改写入口，两者不共用焦点模型。
-- **已知偏差:** 上游用一组手调的像素宽度（145 / 224 / 262 / 462 / 30）驱动动作组的进出场。那些值是 Inter 13px 下量出来的，换字体就不对，这里改成 `grid-template-columns: 0fr↔1fr` 的测量无关写法。
-- **已知偏差:** 上游的 Explain 是一颗没有 `onClick` 的死按钮，这里照常派发 `action`。
-- **未覆盖:** Safari 与 Firefox 在 `pointerdown` 被 `preventDefault` 后的 caret 行为不同，CI 无法覆盖，接入时需真机验证。
+- 宽度形变走 WAAPI，因此在脚本中读取 `prefers-reduced-motion`；追踪层基于 `@vueuse/core` 的 `useTextSelection`，并 clone 选区的 range。
+- 移植自 Beautiful UI（https://www.beautifului.dev），© 2026 Shane Levine，MIT；追踪层是移植时新写的，上游没有真实选区。
+- 源码：`packages/tuffex/packages/components/src/selection-actions/`。
 
 ## 离线完整示例源码
 

@@ -2,17 +2,15 @@
 
 > 以变更集语义呈现 AI 提议的改动，按阶段依次标红、展开新增行。
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/diff-table) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/diff-table.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/diff-table.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/diff-table) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/diff-table.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/diff-table.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
 上游标记：status=`beta`，since=`0.3.9`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# DiffTable 变更表格
-
-## 基础用法
+## 用法
 
 ### DiffTable
 官方示例：`DiffTableDiffTableDemo`（完整源码见本页末尾）
@@ -45,19 +43,15 @@ function replay() {
 </template>
 ```
 
-## 阶段与播放模式
+### 最佳实践
 
-`stageDelays` 是三段时长 `[停顿, 标红, 展开]`，默认 `[800, 1000, 1000]`。**第一段是刻意的阅读停顿**：在它和第二段走完之前（默认 1.8 秒）表格完全不动，让人先读清原始数据，再看到改动。
+- 用 `change` 表达语义，不要靠自定义 class 硬涂颜色；配色、删除线与折叠都跟着它走。
+- 徽标、彩色 chip 所在列设 `tintText: false`，否则会被变更色整体重涂。
+- 列宽用百分比或固定 px，避免展开新增行时列错位。
+- 文档站、快照测试与不需要动画的场景用 `play="settled"`，可以直接拿到完成态。
+- 需要按钮触发时用 `play="manual"` 配合 `reset()` + `play()`，不要靠 `:key` 重挂整个组件。
 
-| 阶段 | 画面 |
-|------|------|
-| 0–1 | 全部行保持原样 |
-| 2 | `removed` / `modified` 行染色、变色、加删除线 |
-| 3（终态） | `added` 行以 `0fr → 1fr` 展开 |
-
-`play` 决定谁来推进：`auto` 挂载即播一次并停在终态；`manual` 保持原样直到调用 `play()`；`settled` 直接渲染完成态且不注册任何定时器（文档站与测试用）。
-
-## API
+## API 参考
 
 ### Props
 
@@ -69,6 +63,22 @@ function replay() {
 | `play` | `'auto' \| 'manual' \| 'settled'` | `'auto'` | 播放模式 |
 | `stageDelays` | `[number, number, number]` | `[800, 1000, 1000]` | 三段阶段时长（毫秒） |
 | `duration` | `number` | `400` | 染色与展开的补间时长（毫秒） |
+| `selectable` | `boolean` | `false` | 变更行右侧渲染采纳开关，整行也成为切换控件 |
+| `modelValue` | `(string \| number)[]` | - | `v-model` — 当前被采纳的行 key。绑定即全受控；不传则组件内部记录，且新到的变更行默认已采纳 |
+| `footer` | `boolean` | `false` | 渲染底部汇总栏（左侧计数、右侧应用按钮） |
+| `hint` | `string` | - | 卡片头右端的提示文案，如「点选变更行可切换是否采纳」 |
+| `summaryFormatter` | `(counts: DiffTableCounts) => string` | 见下 | 汇总文案。默认 `2 removals · 1 addition` 式英文 |
+| `applyLabelFormatter` | `(count: number) => string` | 见下 | 应用按钮文案。默认 `Apply N changes` |
+| `rowToggleLabelFormatter` | `(accepted, change) => string` | 见下 | 行开关的无障碍名。默认 `Accept / Reject this change` |
+
+三个 formatter 都有英文默认值：TuffEx 不带文案目录，复数与翻译归宿主。
+
+### DiffTableCounts
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `added` / `removed` / `modified` | `number` | **仅统计已采纳的行**，因此汇总反映的是「按下应用会发生什么」，而不是「差异提议了什么」 |
+| `total` | `number` | 三者之和 |
 
 ### DiffTableColumn
 
@@ -97,12 +107,17 @@ function replay() {
 |------|------|------|
 | `stageChange` | `(stage: number)` | 每次阶段推进时触发 |
 | `settled` | `()` | 到达终态时触发一次，无论由哪条路径抵达 |
+| `update:modelValue` | `(keys)` | 采纳集合变化。**按行序**发出，不是按点击顺序 |
+| `toggle` | `({ key, accepted })` | 单行被采纳或取消 |
+| `apply` | `(keys)` | 应用按钮被按下，带上当时仍被采纳的 key |
 
 ### Slots
 
 | 名称 | 说明 |
 |------|------|
 | `title` | 替换卡片头文案 |
+| `hint` | 替换卡片头右端提示 |
+| `footer` | 替换整个底部栏；接收 `{ counts, accepted }` |
 | `cell-<columnKey>` | 自定义单元格；接收 `{ row, column, value, change, index }`，`change` 让插槽内容自行响应变更态 |
 
 ### Expose
@@ -114,7 +129,19 @@ function replay() {
 | `settle()` | 直接跳到完成态 |
 | `stage` | 当前阶段序号；完成态等于 `stageDelays.length` |
 
-## 交互契约
+## 阶段与播放模式
+
+`stageDelays` 是三段时长 `[停顿, 标红, 展开]`，默认 `[800, 1000, 1000]`。**第一段是刻意的阅读停顿**：在它和第二段走完之前（默认 1.8 秒）表格完全不动，让人先读清原始数据，再看到改动。
+
+| 阶段 | 画面 |
+|------|------|
+| 0–1 | 全部行保持原样 |
+| 2 | `removed` / `modified` 行染色、变色、加删除线 |
+| 3（终态） | `added` 行以 `0fr → 1fr` 展开 |
+
+`play` 决定谁来推进：`auto` 挂载即播一次并停在终态；`manual` 保持原样直到调用 `play()`；`settled` 直接渲染完成态且不注册任何定时器（文档站与测试用）。
+
+## 概述
 
 - 阶段机是这个组件的语义本体，不是 demo 编排；宿主用 `play` 与 expose 控制节奏，用 `rows[].change` 描述改动。
 - 定时器在 `onBeforeUnmount` 清理；`play="settled"` 不注册任何定时器。
@@ -123,15 +150,7 @@ function replay() {
 - 新增行折叠时带 `aria-hidden` 与 `inert`，不会被朗读，也不在 Tab 序列里。
 - 新增行的内层网格与 `<colgroup>` 都由 `columns` 推导，只有一份真相。
 
-## 最佳实践
-
-- 用 `change` 表达语义，不要靠自定义 class 硬涂颜色；配色、删除线与折叠都跟着它走。
-- 徽标、彩色 chip 所在列设 `tintText: false`，否则会被变更色整体重涂。
-- 列宽用百分比或固定 px，避免展开新增行时列错位。
-- 文档站、快照测试与不需要动画的场景用 `play="settled"`，可以直接拿到完成态。
-- 需要按钮触发时用 `play="manual"` 配合 `reset()` + `play()`，不要靠 `:key` 重挂整个组件。
-
-## Source
+## 技术实现
 
 - Component source: `packages/tuffex/packages/components/src/diff-table/src/TxDiffTable.vue`。
 - Types: `packages/tuffex/packages/components/src/diff-table/src/types.ts` 导出 `DiffTableProps`、`DiffTableColumn`、`DiffTableRow`、`DiffChangeKind`、`DiffTablePlay`、`DiffTableEmits`。
@@ -140,12 +159,10 @@ function replay() {
 
 
 
-## 审阅说明
-
 - **来源：** Adapted from Beautiful UI (https://www.beautifului.dev), © 2026 Shane Levine, MIT。
 - **与上游的差异：** 新增行按其在 `rows` 中的位置渲染，而不是上游写死的「永远在最后」，因此顺序得以保留且支持多条新增行；`modified` 是本移植新增的变更类型，上游没有。
 - **修正的上游缺陷：** 上游用内联 `style.background` 给标红行上色，其优先级压过自身的 hover 规则，导致最该被检视的那几行反而没有悬停反馈；本组件改为 class 驱动。
-- **暗色适配：** 红/绿底色取 `--tx-bui-*-tint`（半透明叠加），不能用 `--tx-color-success-light-9` —— 后者在暗色下仍然混白。
+- **暗色适配：** 红/绿底色取 `--tx-bui-*-tint`（半透明叠加），而不是不透明的 `--tx-color-success-light-9` 一族——半透明叠加放在任何底色上观感都一致。
 - **已知限制：** 高对比主题（`html[data-tx-contrast='high']`）下 `--tx-bui-*` 保持 BUI 原值，不参与高对比 ramp。
 
 ## 离线完整示例源码

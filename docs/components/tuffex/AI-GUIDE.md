@@ -2,7 +2,7 @@
 
 > 确认版本，再按组件、章节与示例取上下文，不从其他组件库推断接口。
 
-状态：`current` · 更新：2026-09-13
+状态：`current` · 更新：2026-10-24
 
 ## 阅读顺序
 
@@ -30,7 +30,7 @@ catalog 中的 symbols 仅表示正文提及的 Tx 名称，不是导出声明�
 
 官网 Demo 可能依赖 Nexus 自动导入、TuffInput/TuffSwitch 别名、UnoCSS/Iconify 类和文档包装器。业务接入时明确导入、样式、图标工具链和异步处理；这些环境依赖并未随文档自动安装。示例引用的外部图片、地图等素材不在此次镜像中。
 
-数据套件是文档分类，不对应 /data 运行时入口。部分可视化组件来自 /pro，图表来自独立 tuffex-charts 包，按 [数据套件](reference/data-suite.md) 和源码导出核对。
+数据套件是文档分类，不对应 /data 运行时入口。部分可视化组件来自 /pro；图表家族（Charts）自 0.9.1 起已并入 packages/tuffex 主包的 `/charts` 子路径，不再是独立 tuffex-charts 包，按 [数据套件](reference/data-suite.md) 和源码导出核对。
 
 主题通过文档中实际存在的 --tx-* token 定制，不猜变量名。库的示例不能替代权限、内容净化、焦点管理、响应式和减少动态效果的验收。
 

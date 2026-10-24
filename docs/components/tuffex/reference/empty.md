@@ -1,20 +1,19 @@
 # Empty 空状态
 
-> 用于面板、筛选结果和基础占位的紧凑空状态封装。
+> 用于面板与筛选结果的紧凑空状态卡片
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/empty) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/empty.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/empty.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/empty) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/empty.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/empty.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
-上游标记：status=`beta`，since=`1.0.0`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
+上游标记：status=`beta`，since=`0.3.4`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# Empty 空状态
+## 用法
 
-## 基础用法
-
-### Empty
+### 基础
+`compact` 切换为小尺寸，`iconClass` 替换图标。
 官方示例：`EmptyEmptyDemo`（完整源码见本页末尾）
 
 ```vue
@@ -23,9 +22,7 @@
 </template>
 ```
 
-## 带操作
-
-### Empty (action)
+### 操作
 官方示例：`EmptyEmptyActionDemo`（完整源码见本页末尾）
 
 ```vue
@@ -38,53 +35,38 @@
 </template>
 ```
 
-## 交互契约
+### 最佳实践
 
-- 始终用 `variant="empty"`、`surface="card"`、`layout="vertical"` 渲染内部 `TxEmptyState`。
-- `compact=false` 映射为 `size="medium"`；`compact=true` 映射为 `size="small"`。
-- `iconClass` 会作为内部空状态的 `icon` prop 透传。
-- 插槽刻意比 `TxEmptyState` 简化：`action` 是单数，并替换内部 `actions` 插槽。
-- `TxEmpty` 不发出事件；操作行为由 `action` 插槽里的控件负责。
+- 列表、搜索结果或面板中需要卡片表面的占位用 `TxEmpty`。
+- 空的原因有产品含义时，改用 `TxNoData`、`TxNoSelection`、`TxOfflineState` 或 `TxPermissionState`。
+- 侧栏、表格内部等密集区域设置 `compact`。
+- 点击逻辑写在 `action` 插槽内的控件上；`TxEmpty` 不派发事件。
 
-## API
+## API 参考
 
-### Props
+渲染 [TxEmptyState](./empty-state.md)，固定 `variant="empty"`、`surface="card"`、`layout="vertical"`。
+
+### 属性
 
 | 属性名 | 类型 | 默认值 | 说明 |
 |------|------|---------|------|
-| `title` | `string` | `'Nothing here'` | 空状态主文案。 |
-| `description` | `string` | `''` | 标题下方的辅助说明。 |
-| `iconClass` | `string` | `'i-carbon-incomplete'` | 透传给内部 `TxEmptyState` 的图标 class。 |
-| `compact` | `boolean` | `false` | 密集面板使用 small 尺寸。 |
+| `title` | `string` | `'Nothing here'` | 主文案。 |
+| `description` | `string` | `''` | 标题下的说明。 |
+| `iconClass` | `string` | `'i-carbon-incomplete'` | 图标 class，作为 `icon` 传给 `TxEmptyState`。 |
+| `compact` | `boolean` | `false` | 为 `true` 时 `size="small"`，否则为 `medium`。 |
 
-### Events
-
-`TxEmpty` 不派发组件事件。点击处理应放在 `action` 插槽内渲染的控件上。
-
-## Slots
+### 插槽
 
 | 插槽名 | Props | 说明 |
 |------|------|------|
-| `icon` | - | 替换 `iconClass` 渲染的图标。 |
-| `title` | - | 替换 `title` prop 内容。 |
-| `description` | - | 替换 `description` prop 内容。 |
-| `action` | - | 替换内部 `TxEmptyState` 的 actions 区域。 |
+| `icon` | - | 替换 `iconClass` 图标。 |
+| `title` | - | 替换标题。 |
+| `description` | - | 替换说明。 |
+| `action` | - | 操作区，替换 `TxEmptyState` 的 `actions` 插槽。 |
 
-## 最佳实践
+## 技术实现
 
-- 适用于列表、搜索结果或面板占位，且需要卡片表面时使用 `TxEmpty`。
-- 空原因有产品语义时，优先使用更明确的 `TxNoData`、`TxNoSelection`、`TxOfflineState` 或 `TxPermissionState`。
-- 侧栏、表格内部等密集区域使用 `compact`。
-- 点击逻辑放在 `action` 插槽里的控件上；`TxEmpty` 不代理 action 事件。
-
-## 审阅说明
-
-- 组件源码:`packages/tuffex/packages/components/src/empty/src/TxEmpty.vue` 确认 `TxEmptyState` 封装、强制 `variant="empty"`、`surface="card"`、`layout="vertical"`、紧凑尺寸映射和插槽重映射。
-- 类型契约:`packages/tuffex/packages/components/src/empty/src/types.ts` 定义紧凑 `EmptyProps` 表面。
-- **实测覆盖:** Coverage: `packages/tuffex/packages/components/src/empty/__tests__/empty.test.ts` 覆盖默认 prop 透传、紧凑尺寸和 wrapper 到 empty-state 的插槽映射。
-- 导出入口:`packages/tuffex/packages/components/src/empty/index.ts` 导出 `Empty`、`TxEmpty`、`EmptyProps` 和 `TxEmptyInstance`。
-
-## Source
+- 源码：`packages/tuffex/packages/components/src/empty/`。
 
 ## 离线完整示例源码
 

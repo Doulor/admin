@@ -1,311 +1,279 @@
 # BaseSurface 基础表面层
 
-> 统一管理背景渲染策略的基础组件，支持 pure/mask/blur/glass/refraction 五种模式，并通过运动降级机制解决 backdrop-filter + transform 失效问题。
+> 可切换材质并在运动中降级的背景层
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/base-surface) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/base-surface.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/base-surface.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/base-surface) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/base-surface.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/base-surface.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
-上游标记：status=`beta`，since=`0.3.9`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
+上游标记：status=`beta`，since=`0.3.4`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# BaseSurface 基础表面层
+## 用法
 
-## 与 TxCard 的关系
-
-- 需要业务层开箱即用（header/footer/loading/inertial/交互态）时，用 `TxCard`。
-- 需要底层材质调参（filter/refraction/glass 参数矩阵）时，用 `TxBaseSurface`。
-- 推荐做法：`TxCard` 负责容器语义与交互，`TxBaseSurface` 负责材质渲染。
-
-## 背景模式
-
-五种模式对比：`pure` 纯色、`mask` 带透明度遮罩、`blur` 背景模糊、`glass` 玻璃层、`refraction` 折射层。
-
-### 模式对比
+### 模式
+`mode` 选择材质：`refraction` 折射（默认）、`glass` 玻璃、`acrylic` 亚克力、`blur` 背景模糊、`mask` 半透明遮罩、`mica` 云母、`pure` 纯色（`flat` 是它的别名）、`plain` 不画材质。各材质的管线与开销见《[Surface 8 种材质物理选型与确认门禁](https://tuff.tagzxia.com/docs/dev/concepts/surface-taxonomy)》。
 官方示例：`BaseSurfaceModesDemo`（完整源码见本页末尾）
 
 ```vue
 <template>
-  <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-    <TxBaseSurface mode="pure" style="width: 140px; height: 80px; display: flex; align-items: center; justify-content: center;">
-      纯色
-    </TxBaseSurface>
-    <TxBaseSurface mode="mask" :opacity="0.6" style="width: 140px; height: 80px; display: flex; align-items: center; justify-content: center;">
-      遮罩
-    </TxBaseSurface>
-    <TxBaseSurface mode="blur" :blur="8" style="width: 140px; height: 80px; display: flex; align-items: center; justify-content: center;">
-      模糊
-    </TxBaseSurface>
-    <TxBaseSurface mode="glass" :blur="12" :saturation="1.8" style="width: 140px; height: 80px; display: flex; align-items: center; justify-content: center;">
-      毛玻璃
-    </TxBaseSurface>
-    <TxBaseSurface mode="refraction" :blur="11" :displace="0.8" :distortion-scale="-200" style="width: 140px; height: 80px; display: flex; align-items: center; justify-content: center;">
-      折射
-    </TxBaseSurface>
-  </div>
+  <TxBaseSurface mode="pure">纯色</TxBaseSurface>
+  <TxBaseSurface mode="mask" :opacity="0.6">遮罩</TxBaseSurface>
+  <TxBaseSurface mode="blur" :blur="8">模糊</TxBaseSurface>
+  <TxBaseSurface mode="glass" :blur="12" :saturation="1.8">毛玻璃</TxBaseSurface>
+  <TxBaseSurface mode="refraction" :blur="11">折射</TxBaseSurface>
+  <TxBaseSurface mode="acrylic">亚克力</TxBaseSurface>
+  <TxBaseSurface mode="mica">云母</TxBaseSurface>
+  <TxBaseSurface mode="plain">无材质</TxBaseSurface>
 </template>
 ```
 
-## 底层参数实验（Advanced）
-
-用于材质层调参的低层实验台，适合探索 `filter` / `refraction` 的参数组合；若是业务卡片场景，仍建议优先使用 `TxCard`。
-
-### Advanced Lab
+### 参数实验
+`filter*` 调滤镜层，`refraction*` 调折射层，`preset="card"` 套用卡片调校。位移、扭曲与 RGB 偏移只在 `refractionRenderer="svg"` 下生效。
 官方示例：`BaseSurfaceAdvancedDemo`（完整源码见本页末尾）
 
 ```vue
-<script setup lang="ts">
-import { ref } from 'vue'
-
-const mode = ref<'blur' | 'glass' | 'refraction'>('refraction')
-const profile = ref<'soft' | 'filmic' | 'cinematic'>('filmic')
-const blur = ref(24)
-const filterSaturation = ref(1.6)
-const filterContrast = ref(1.05)
-const filterBrightness = ref(1.02)
-
-const refractionStrength = ref(68)
-const refractionAngle = ref(-24)
-const refractionHaloOpacity = ref(0.42)
-</script>
-
 <template>
   <TxBaseSurface
-    :mode="mode"
+    mode="refraction"
     preset="card"
+    refraction-renderer="svg"
+    :refraction-glass-opacity="1"
     :radius="18"
-    :blur="blur"
-    :filter-saturation="filterSaturation"
-    :filter-contrast="filterContrast"
-    :filter-brightness="filterBrightness"
-    :refraction-profile="profile"
-    :refraction-strength="refractionStrength"
-    :refraction-angle="refractionAngle"
-    :refraction-halo-opacity="refractionHaloOpacity"
-    style="min-height: 180px; padding: 16px;"
+    :blur="24"
+    :filter-saturation="1.6"
+    refraction-profile="filmic"
+    :refraction-strength="68"
+    :refraction-angle="-24"
+    :refraction-halo-opacity="0.42"
   >
     BaseSurface Advanced
   </TxBaseSurface>
 </template>
 ```
 
-## Fake 伪元素模式
-
-通过 `fake` prop 启用伪元素渲染背景，slot 内容自然在背景上层，无需额外 z-index 管理。适合需要与现有 `.fake-background` 模式保持一致的场景。
-
-### Fake 模式
+### 伪元素模式
+`fake` 用伪元素绘制背景，与现有 `.fake-background` 层级一致，插槽内容自然位于其上。`pure`（`flat`）下这层底色不透明，`mask` 下跟随遮罩透明度；`blur`、`acrylic`、`glass`、`refraction` 下它垫在材质底下，不透明度取 `opacity`，后面的页面仍能透上来被模糊、折射；`mica` 自己画不透明底，`plain` 什么都不画，两者都不垫这层。
 官方示例：`BaseSurfaceFakeDemo`（完整源码见本页末尾）
 
 ```vue
 <template>
-  <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-    <TxBaseSurface fake mode="mask" :opacity="0.5" :radius="12" style="width: 200px; height: 100px;">
-      <strong>伪元素背景</strong>
-      <span style="font-size: 12px; opacity: 0.7;">slot 内容自然在背景上层</span>
-    </TxBaseSurface>
-    <TxBaseSurface fake mode="pure" :radius="12" color="var(--tx-color-primary-light-9)" style="width: 200px; height: 100px;">
-      自定义颜色
-    </TxBaseSurface>
-  </div>
+  <TxBaseSurface fake mode="mask" :opacity="0.5" :radius="12">
+    <strong>伪元素背景</strong>
+  </TxBaseSurface>
+  <TxBaseSurface fake mode="pure" :radius="12" color="var(--tx-color-primary-light-9)">
+    自定义颜色
+  </TxBaseSurface>
 </template>
 ```
 
-## 运动降级
-
-当 `blur` 或 `glass` 模式的元素处于 CSS `transform` 运动中时，`backdrop-filter` 会失效（Chromium 已知 bug）。
-
-通过 `moving` prop 手动控制降级，或 `auto-detect` 自动检测 transform 变化，自动降级到 `fallbackMode`（默认 `mask`），运动结束后平滑恢复。琉光（refraction）走分层降级：采样失效的 glass / blur 层各自淡出，半透明运动罩接住视觉重量，停止后交叉淡回 —— 全程没有近实心罩层。
-
-点击按钮后，blur 和 glass 卡片会真正进行 `transform` 位移，同时自动降级到 mask 模式。卡片内部内容可滚动。
-
-### 多模式运动降级
+### 运动降级
+材质随元素移动时，`backdrop-filter` 的取样跟不上元素的位置，滤镜层会拖着一块错位的背景走。设置 `moving` 后，`blur`、`glass`、`acrylic` 降级为 `fallbackMode`，停止后平滑恢复；`refraction` 不换模式，滤镜层分层淡出，停止后再淡回。
 官方示例：`BaseSurfaceFallbackDemo`（完整源码见本页末尾）
 
 ```vue
-<script setup lang="ts">
-import { ref } from 'vue'
-
-const animating = ref(false)
-</script>
-
 <template>
   <TxButton @click="animating = !animating">
     {{ animating ? '停止运动' : '开始运动' }}
   </TxButton>
 
-  <!-- 两张卡片一起做 transform 位移，只有 :moving 不同 -->
-  <div :style="{ display: 'flex', gap: '12px', transition: 'transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)', transform: animating ? 'translateX(16px) translateY(-10px) scale(0.92) rotate(2.5deg)' : 'none' }">
-    <TxBaseSurface
-      mode="glass"
-      :blur="12"
-      :moving="false"
-      :auto-detect="false"
-      fallback-mode="mask"
-      :radius="14"
-    >
-      无降级 — 运动时 backdrop-filter 失效
-    </TxBaseSurface>
-    <TxBaseSurface
-      mode="glass"
-      :blur="12"
-      :moving="animating"
-      :auto-detect="false"
-      fallback-mode="mask"
-      :radius="14"
-    >
-      有降级 — 平滑退化为 mask
+  <div
+    :style="{ transform: animating ? 'translateX(16px) scale(0.92)' : 'none' }"
+    style="transition: transform 1.4s;"
+  >
+    <TxBaseSurface mode="glass" :blur="12">无降级</TxBaseSurface>
+    <TxBaseSurface mode="glass" :blur="12" :moving="animating" fallback-mode="mask">
+      有降级
     </TxBaseSurface>
   </div>
 </template>
 ```
 
-## 原生 vs BaseSurface 对比
-
-左侧使用原生 `backdrop-filter`，运动时模糊效果直接失效变透明；右侧使用 `BaseSurface`，运动时平滑降级为 mask 遮罩，停止后恢复毛玻璃。
-
-### 运动对比
+### 与原生对比
+拿不到运动状态时开启 `autoDetect`，由组件自己感知运动（见下一节）。
 官方示例：`BaseSurfaceMotionCompareDemo`（完整源码见本页末尾）
 
 ```vue
-<script setup lang="ts">
-import { ref } from 'vue'
-
-const animating = ref(false)
-</script>
-
 <template>
-  <!-- 左：原生，运动时 backdrop-filter 失效 -->
-  <div :style="{ transform: animating ? 'translateX(20px)' : '' }"
-       style="backdrop-filter: blur(12px); transition: transform 1.2s;">
+  <div
+    :style="{ transform: animating ? 'translateX(20px)' : '' }"
+    style="backdrop-filter: blur(12px); transition: transform 1.2s;"
+  >
     原生 glass（运动时失效）
   </div>
 
-  <!-- 右：BaseSurface 自动降级 -->
-  <TxBaseSurface mode="glass" :blur="12" :moving="animating"
-                 fallback-mode="mask" :radius="14">
+  <TxBaseSurface mode="glass" :blur="12" :moving="animating" auto-detect fallback-mode="mask">
     BaseSurface（运动时降级为 mask）
   </TxBaseSurface>
 </template>
 ```
 
-## API
+### 环境感知
+`autoDetect` 打开后，组件综合五类运行期信号：自身及祖先的 transform、按下拖动的指针速度（超过 1.2px/ms）、窗口移动与缩放、帧预算探针、省电状态。前三类触发运动降级，信号停下 140ms 后开始恢复；省电或帧预算为 `reduced` 时，`refraction`、`glass`、`acrylic` 换成 `blur`，`minimal` 时连同 `blur` 换成 `flat`，条件解除后回到声明的材质。各信号的判定细节见《[材质自动推断与 120Hz 运动降级](https://tuff.tagzxia.com/docs/dev/concepts/surface-deduction)》。
 
-### TxBaseSurface Props
+页面收不到窗口移动的事件，要由宿主转发；宿主自己掌握电源状态时，可以覆盖电池 API 的判断：
+
+```ts
+import { notifySurfaceWindowMotion, setSurfacePowerSaving } from '@talex-touch/tuffex'
+
+// 主进程把 BrowserWindow 的 move（及 will-move）转发到渲染进程后，每收到一次调用一次
+notifySurfaceWindowMotion()
+
+// 例如来自 Electron 的 powerMonitor；null 交还给 Battery Status API
+setSurfacePowerSaving(true)
+```
+
+### 极致性能
+`setSurfacePerformanceMode('max')` 让页面上的所有表面换成实色（`flat`）：`refraction`、`glass`、`acrylic`、`blur` 不再采样背景，`mica` 不再随滚动重绘。开没开 `autoDetect` 都生效；铺在系统材质上的表面（`systemBackdrop`）保持原样。传 `'default'` 恢复。
+
+```ts
+import { setSurfacePerformanceMode } from '@talex-touch/tuffex'
+
+// 例如绑定到应用设置里的「性能优先」开关
+setSurfacePerformanceMode(settings.maxPerformance ? 'max' : 'default')
+```
+
+### 流光底
+`flowLight` 在遮罩之上、描边之下叠一层固定的品牌色光（[FlowLight](./flow-light.md)），任何 `mode` 都能开。
+官方示例：`BaseSurfaceFlowLightDemo`（完整源码见本页末尾）
+
+```vue
+<template>
+  <TxBaseSurface mode="refraction" flow-light="rim" :radius="14">
+    面板内容
+  </TxBaseSurface>
+</template>
+```
+
+### 系统材质
+透明的 Electron 窗口靠窗口自身的系统材质（macOS 的 vibrancy、Windows 的 Mica）透出桌面，页面里的 `backdrop-filter` 采不到这层材质：滤镜只能把表面自己的底色再采一遍，并把采到的副本叠在原底色上，75% 的底色叠两层就接近不透明，桌面透不上来。`systemBackdrop` 让表面不跑任何 `backdrop-filter`：玻璃层不渲染，滤镜层只留着色，模糊交给系统；底色、遮罩、流光与描边照常绘制。表面不再采样页面，`moving` 与 `autoDetect` 也随之失效。
+
+```vue
+<!-- core-app 的 CoreBox：透明窗口，表面铺在系统材质上 -->
+<TxBaseSurface system-backdrop fake color="var(--tx-fill-color)" :opacity="0.75" />
+```
+
+### 最佳实践
+
+- 业务容器优先用 `TxCard`，它负责容器语义与交互；只在直接调材质、降级或折射参数时用 `TxBaseSurface`。
+- 父层持有动画状态时传 `moving`；拿不到状态的运动，或要随省电、掉帧换更轻的材质时，才用 `autoDetect`。
+- 应用要给用户一个「性能优先」选项时，调用 `setSurfacePerformanceMode('max')`，不要逐个改 `mode`。
+- `blur` / `glass` / `acrylic` 运动中保持 `fallbackMode="mask"` 以保证可读；能接受纯色时才用 `pure`。
+- 折射优先调 `refractionStrength`、`refractionProfile`、`refractionTone`；RGB 通道偏移只用于视觉实验。
+- `refraction` 默认用 `css` 渲染器：纯色或内容少的底上，它与 `svg` 看起来一样，却不跑 SVG 位移滤镜。背景有内容、要看到折射时才传 `refractionRenderer="svg"`，强弱用 `refractionGlassOpacity` 调。
+- 整页大小的面板不要开 `svg`：位移层在 GPU 上的开销随面积增长。
+
+## API 参考
+
+### 属性
 
 | 属性名 | 类型 | 默认值 | 说明 |
 |------|------|---------|------|
-| `mode` | `'pure' \| 'mask' \| 'blur' \| 'glass' \| 'refraction'` | `'pure'` | 背景模式（对应纯色 / 遮罩 / 滤镜 / 玻璃 / 折射）。 |
-| `radius` | `string \| number` | - | 自定义圆角，不传则继承父元素。 |
-| `color` | `string` | - | 纯色或遮罩底色。 |
-| `opacity` | `number` | `0.75` | `mask` 模式透明度（0-1）。 |
-| `fallbackMaskOpacity` | `number` | - | 降级到 `mask` 时覆盖透明度（0-1）。 |
-| `blur` | `number` | `10` | filter 层模糊强度（px）。 |
-| `filterSaturation` | `number` | `1.5` | filter 层饱和度（底层细调）。 |
-| `filterContrast` | `number` | `1` | filter 层对比度（底层细调）。 |
-| `filterBrightness` | `number` | `1` | filter 层亮度（底层细调）。 |
-| `saturation` | `number` | `1.8` | glass/refraction 的玻璃层饱和度。 |
-| `brightness` | `number` | `70` | glass/refraction 的玻璃层亮度。 |
-| `backgroundOpacity` | `number` | `0` | glass 层背景透明度。 |
-| `borderWidth` | `number` | `0.07` | glass 层边缘宽度系数。 |
-| `displace` | `number` | `0.5` | refraction 位移强度。 |
-| `distortionScale` | `number` | `-180` | refraction 扭曲缩放。 |
-| `redOffset` / `greenOffset` / `blueOffset` | `number` | `0 / 10 / 20` | RGB 通道偏移（底层色散控制）。 |
-| `xChannel` / `yChannel` | `'R' \| 'G' \| 'B'` | `'R' / 'G'` | refraction 位移取样通道。 |
-| `mixBlendMode` | `string` | `'difference'` | refraction 混合模式。 |
-| `refractionStrength` | `number` | `62` | 0-100，统一控制折射强度（折射模型激活时的实际兜底值）。 |
-| `refractionProfile` | `'soft' \| 'filmic' \| 'cinematic'` | `'filmic'` | 折射风格预设（未显式传入时按 `'filmic'` 计算）。 |
-| `refractionTone` | `'mist' \| 'balanced' \| 'vivid'` | `'balanced'` | 折射色调预设（`vivid` 更通透，`mist` 更柔和）。 |
-| `refractionAngle` | `number` | `-24` | 色散主方向角度（度，未显式传入时按 `-24` 计算）。 |
-| `refractionLightX` / `refractionLightY` | `number` | - | 光源锚点（0-1）。 |
-| `refractionHaloOpacity` | `number` | - | halo 透明度（0-1），不传时用内置 filmic 模型。 |
-| `overlayOpacity` | `number` | `0` | 非 mask 模式下附加 mask 层透明度。 |
-| `preset` | `'default' \| 'card'` | `'default'` | 视觉预设（card 为卡片风格调校）。 |
-| `refractionRenderer` | `'svg' \| 'css'` | `'svg'` | refraction 渲染器类型。 |
-| `moving` | `boolean` | `false` | 手动标记是否处于运动中。 |
-| `fallbackMode` | `'pure' \| 'mask'` | `'mask'` | 运动降级模式。 |
-| `settleDelay` | `number` | `150` | 结束运动后恢复延迟（ms）。 |
-| `autoDetect` | `boolean` | `false` | 自动检测 transform 触发降级。 |
+| `mode` | `'pure' \| 'mask' \| 'blur' \| 'glass' \| 'refraction' \| 'acrylic' \| 'mica' \| 'flat' \| 'plain'` | `'refraction'` | 材质：折射、玻璃、亚克力、背景模糊、遮罩、云母、纯色（`flat` 同 `pure`）或不画材质。 |
+| `radius` | `string \| number` | - | 圆角；不传时继承父元素。 |
+| `color` | `string` | - | 纯色、遮罩、亚克力着色层与云母底的底色。 |
+| `opacity` | `number` | `0.75` | `mask` 模式的透明度（0–1），`acrylic` 的着色层取它的 0.8 倍；fake 模式下也是 `blur` / `acrylic` / `glass` / `refraction` 材质底下那层底色的不透明度。 |
+| `fallbackMaskOpacity` | `number` | - | 降级为 `mask` 时的透明度（0–1）。 |
+| `blur` | `number` | `10` | 滤镜层模糊半径（px）；`acrylic` 取它的三倍。 |
+| `filterSaturation` | `number` | `1.5` | 滤镜层饱和度。 |
+| `filterContrast` | `number` | `1` | 滤镜层对比度。 |
+| `filterBrightness` | `number` | `1` | 滤镜层亮度。 |
+| `saturation` | `number` | `1.8` | glass / refraction 玻璃层的饱和度。 |
+| `brightness` | `number` | `70` | glass / refraction 玻璃层的亮度；`<= 3` 时视为倍率。 |
+| `backgroundOpacity` | `number` | `0` | 玻璃层的背景透明度。 |
+| `borderWidth` | `number` | `0.07` | 玻璃层的边缘宽度系数。 |
+| `displace` | `number` | `0.5` | 折射位移强度。 |
+| `distortionScale` | `number` | `-180` | 折射扭曲缩放。 |
+| `redOffset` / `greenOffset` / `blueOffset` | `number` | `0 / 10 / 20` | RGB 通道偏移，控制色散。 |
+| `xChannel` / `yChannel` | `'R' \| 'G' \| 'B'` | `'R' / 'G'` | 折射位移的取样通道。 |
+| `mixBlendMode` | `string` | `'difference'` | 折射混合模式。 |
+| `refractionStrength` | `number` | `62` | 折射强度（0–100）。 |
+| `refractionProfile` | `'soft' \| 'filmic' \| 'cinematic'` | `'filmic'` | 折射风格预设。 |
+| `refractionTone` | `'mist' \| 'balanced' \| 'vivid'` | `'balanced'` | 折射色调：`vivid` 更通透，`mist` 更柔和。 |
+| `refractionAngle` | `number` | `-24` | 色散主方向（度）。 |
+| `refractionLightX` / `refractionLightY` | `number` | - | 光源锚点（0–1）。 |
+| `refractionHaloOpacity` | `number` | - | 光晕透明度（0–1）；不传时按内置 filmic 模型。 |
+| `overlayOpacity` | `number` | `0` | 非 mask 模式额外叠加的遮罩透明度。 |
+| `flowLight` | `'corners' \| 'rim' \| 'aurora' \| false` | - | 流光底的画法；不传或 `false` 即关闭，任何 `mode` 都能开。 |
+| `flowLightIntensity` | `number` | `1` | 流光底强度，乘到主题透明度上。 |
+| `preset` | `'default' \| 'card'` | `'default'` | 视觉预设；`card` 为卡片调校。 |
+| `refractionRenderer` | `'css' \| 'svg'` | `'css'` | 折射渲染器：`css` 只用滤镜层、着色、光晕与描边；`svg` 另加 SVG 位移（玻璃）层，背景有内容时才看得出折射。 |
+| `refractionGlassOpacity` | `number` | `0.3` | `svg` 渲染器下玻璃层的不透明度（0–1）；`1` 为完整强度。 |
+| `systemBackdrop` | `boolean` | `false` | 表面铺在窗口自身的系统材质上（透明 Electron 窗口的 vibrancy、Mica）：不跑 `backdrop-filter`，模糊交给系统；`moving`、`autoDetect` 随之失效。 |
+| `moving` | `boolean` | `false` | 标记正在运动，触发降级。 |
+| `fallbackMode` | `'pure' \| 'mask' \| 'flat'` | `'mask'` | 运动中的降级模式；`flat` 同 `pure`。 |
+| `settleDelay` | `number` | `150` | 运动结束后开始恢复的延迟（ms），不短于 `transitionDuration`。 |
+| `autoDetect` | `boolean` | `false` | 按环境自动降级：自身或祖先的 transform、按下拖动的指针高速移动、窗口移动或缩放时走运动降级；省电或掉帧时换成更轻的材质。 |
 | `transitionDuration` | `number` | `299` | 恢复过渡时长（ms）。 |
-| `fake` | `boolean` | `false` | 是否使用 fake 伪元素渲染。 |
-| `fakeIndex` | `number` | `0` | fake 层 z-index。 |
-| `tag` | `string` | `'div'` | 根元素标签名。 |
+| `fake` | `boolean` | `false` | 用伪元素渲染背景。 |
+| `fakeIndex` | `number` | `0` | 伪元素层的 z-index。 |
+| `tag` | `string` | `'div'` | 根元素标签。 |
 
-### Slots
+### 插槽
 
 | 插槽名 | 参数 | 说明 |
 |------|------|------|
-| `default` | - | 表面层内容。会渲染在 `.tx-base-surface__content` 中，层级高于 glass、filter、mask、motion-cover 和 refraction-edge。 |
-
-### 事件
-
-无。`TxBaseSurface` 是视觉基础组件，不触发交互或生命周期事件。
-
-### 暴露方法
-
-无。运动降级通过 `moving` 或 `autoDetect` 驱动，视觉状态通过 props 更新。
+| `default` | - | 表面内容，渲染在 `.tx-base-surface__content` 中，位于所有材质层之上。 |
 
 ### CSS 变量
 
 | 变量名 | 来源 | 说明 |
 |------|------|------|
-| `--tx-surface-color` | `color` prop 或主题兜底 | 纯色/遮罩背景色，默认回退到 `var(--tx-fill-color-lighter, #fafafa)`。 |
-| `--tx-surface-radius` | `radius` prop | 根节点和各层圆角；数字会转换成 `px`。 |
-| `--tx-surface-transition` | `transitionDuration` prop | layer fade、background 与 backdrop-filter 的过渡时长。 |
-| `--tx-surface-filter-blur` | `blur` prop | filter 与 refraction filter 层的 backdrop blur 半径。 |
-| `--tx-surface-filter-saturation` | `filterSaturation` prop | filter 层饱和度倍率。 |
-| `--tx-surface-filter-contrast` | `filterContrast` prop | filter 层对比度倍率。 |
-| `--tx-surface-filter-brightness` | `filterBrightness` prop | filter 层亮度倍率。 |
-| `--tx-surface-mask-opacity` | `opacity`、`fallbackMaskOpacity` 或 `overlayOpacity` | clamp 到 `0..1` 后的当前 mask 透明度。 |
-| `--tx-surface-refraction-light-x` / `--tx-surface-refraction-light-y` | `refractionLightX` / `refractionLightY` 或角度模型 | 折射光源锚点百分比。 |
-| `--tx-surface-refraction-strength` | `refractionStrength` 模型 | 静止、运动和恢复过程中的混合光学强度。 |
-| `--tx-surface-fake-index` | `fakeIndex` prop | fake 伪元素渲染层的 z-index。 |
-| `--tx-surface-fake-bg` | `color` prop 或主题兜底 | fake 模式伪元素的背景色。 |
-| `--tx-surface-fake-opacity` | mask 透明度模型 | fake 模式伪元素的透明度。 |
-| `--tx-surface-mask-opacity-percent` | mask 透明度模型 | mask 透明度的百分比形式（internal，插值输出，勿覆写）。 |
-| `--tx-surface-motion-cover-opacity` | 运动状态模型 | refraction 运动遮盖层透明度（internal）。 |
-| `--tx-surface-refraction-edge-opacity` | 光学模型 | refraction 边缘高光层透明度（internal）。 |
-| `--tx-surface-refraction-streak-angle` | `refractionAngle` 模型 | 折射拉丝角度（角度模型 +92deg，internal）。 |
-| `--tx-surface-refraction-{filter,mask}-{base,primary,secondary,veil}-weight` / `--tx-surface-refraction-streak-weight` | profile/tone 权重模型 | 各光学层的混合权重族（internal）。 |
-| `--tx-surface-refraction-*-gain` / `-boost` / `-base`、`--tx-surface-refraction-halo-opacity`、`--tx-surface-refraction-mask-effective-opacity` | profile/tone 派生量 | 光学插值的派生输出族（internal）。 |
-| `--tx-surface-refraction-mask-color` | 主题钩子（消费） | refraction 各渐变层的基色，可在主题中覆写（默认 `#fff` 系兜底）。 |
+| `--tx-surface-color` | `color` prop 或主题兜底 | 纯色、遮罩、亚克力着色与云母底的底色，默认 `var(--tx-fill-color-lighter, #fafafa)`。 |
+| `--tx-surface-radius` | `radius` prop | 根节点与各层圆角；数字转为 `px`。 |
+| `--tx-surface-transition` | `transitionDuration` prop | 层淡入淡出、背景与 backdrop-filter 的过渡时长。 |
+| `--tx-surface-filter-blur` | `blur` prop | 滤镜层与折射滤镜层的模糊半径。 |
+| `--tx-surface-filter-saturation` | `filterSaturation` prop | 滤镜层饱和度倍率。 |
+| `--tx-surface-filter-contrast` | `filterContrast` prop | 滤镜层对比度倍率。 |
+| `--tx-surface-filter-brightness` | `filterBrightness` prop | 滤镜层亮度倍率。 |
+| `--tx-surface-mask-opacity` | `opacity`、`fallbackMaskOpacity` 或 `overlayOpacity` | 当前遮罩透明度，限制在 `0..1`。 |
+| `--tx-surface-refraction-light-x` / `--tx-surface-refraction-light-y` | `refractionLightX` / `refractionLightY` 或角度模型 | 折射光源锚点（百分比）。 |
+| `--tx-surface-refraction-strength` | `refractionStrength` 模型 | 静止、运动与恢复中混合后的光学强度。 |
+| `--tx-surface-fake-index` | `fakeIndex` prop | 伪元素层的 z-index。 |
+| `--tx-surface-fake-bg` | `color` prop 或主题兜底 | 伪元素的背景色。 |
+| `--tx-surface-fake-opacity` | `pure`、`flat` 为 1，`mica`、`plain` 为 0，`mask` 跟随遮罩透明度，其余模式取 `opacity` | 伪元素的透明度。 |
+| `--tx-surface-mask-opacity-percent` | mask 透明度模型 | 遮罩透明度的百分比形式（内部，勿覆写）。 |
+| `--tx-surface-motion-cover-opacity` | 运动状态模型 | 折射运动罩的透明度（内部）。 |
+| `--tx-surface-refraction-edge-opacity` | 光学模型 | 折射边缘高光的透明度（内部）。 |
+| `--tx-surface-refraction-streak-angle` | `refractionAngle` 模型 | 折射拉丝角度，等于角度 +92deg（内部）。 |
+| `--tx-surface-refraction-{filter,mask}-{base,primary,secondary,veil}-weight` / `--tx-surface-refraction-streak-weight` | profile/tone 权重模型 | 各光学层的混合权重（内部）。 |
+| `--tx-surface-refraction-*-gain` / `-boost` / `-base`、`--tx-surface-refraction-halo-opacity`、`--tx-surface-refraction-mask-effective-opacity` | profile/tone 派生量 | 光学插值的派生输出（内部）。 |
+| `--tx-surface-refraction-mask-color` | 主题钩子（消费） | 折射渐变层的基色，可在主题中覆写，默认 `#fff` 系。 |
+| `--tx-surface-mica-primary-weight` / `--tx-surface-mica-harmonic-weight` | 主题钩子（消费） | `mica` 左上主色色晕与右下相邻色相色晕的浓度，默认 `12%` / `8%`。 |
+| `--tx-surface-mica-harmonic` | 主色色相 +40° | `mica` 右下色晕的相邻色相；不支持相对颜色语法时退回主色（内部）。 |
 
-## 交互契约
+### 环境感知 API
 
-- `tag` 控制根元素标签，默认插槽内容始终渲染在材质层之上。
-- `pure` 模式只渲染根背景；`mask` 模式渲染 mask 层并将透明度 clamp 到 `0..1`。
-- `blur` 与 `glass` 在 `moving=true` 或自动检测到 transform 运动时降级。`fallbackMode='mask'` 会优先使用 `fallbackMaskOpacity`；`fallbackMode='pure'` 不渲染 mask 层。
-- `glass` 与 `refraction` 会把归一化后的几何和光学参数透传给 `TxGlassSurface`；`brightness <= 3` 会按倍率转换成百分比。
-- `refraction` 会渲染 glass、filter、mask、可选 motion-cover 和 edge 层，并暴露 renderer/profile/tone class 与 light/strength CSS 变量。
-- `refractionStrength` / `refractionAngle` / `refractionProfile` 任一显式传入即切换到派生折射模型（`shouldUseRefractionModel`），未传的项按 `62` / `-24` / `'filmic'` 兜底。
-- `autoDetect` 监听根节点及祖先节点的 `style` mutation，以及 `transitionstart`、`transitionend`、`transitioncancel`；卸载时会移除监听器和 observer。
-- `settleDelay` 与 `transitionDuration` 都会影响降级恢复，实际 settle timer 至少等于 transition duration。
-- `refraction` 在运动中仍保持折射渲染器启用，但会在运动/恢复过程中降低再恢复光学参数。
+从 `@talex-touch/tuffex` 导入。
 
-## 最佳实践
+| 导出 | 签名 | 何时用 |
+|------|------|--------|
+| `notifySurfaceWindowMotion()` | `() => void` | 宿主转发窗口移动时调用；140ms 内没有新的调用即视为停止。 |
+| `setSurfacePowerSaving(value)` | `(value: boolean \| null) => void` | 宿主覆盖省电判断；`null` 交还给 Battery Status API（未充电且电量不高于 20%）。 |
+| `setSurfacePerformanceMode(mode)` | `(mode: 'default' \| 'max') => void` | 切换页面级的性能模式；`max` 让所有表面换成实色，见「极致性能」。 |
+| `getSurfacePerformanceMode()` | `() => 'default' \| 'max'` | 读取当前性能模式；在 computed 或渲染中读取时是响应式的。 |
+| `getSurfaceEnvironment()` | `() => { pointerMoving, windowMoving, powerSaving, frameTier, performanceMode }` | 读取页面当前的环境，均为只读 ref；`frameTier` 取 `'ok' \| 'reduced' \| 'minimal'`。 |
+| `useSurfaceMotionGuard(emitFallback, options?)` | `(emitFallback: (isFallback: boolean) => void, { settleMs? }) => { onMotionStart, onMotionEnd, dispose }` | 自己知道何时在动的宿主，用它的非对称时钟驱动 `moving`：开始时立即回调 `true`，停止 `settleMs`（默认 140ms）后回调 `false`。 |
+| `SURFACE_POINTER_SPEED_THRESHOLD` / `SURFACE_MOTION_SETTLE_MS` / `SURFACE_LOW_BATTERY_LEVEL` | `1.2` / `140` / `0.2` | 指针速度阈值（px/ms）、运动信号的静默时长（ms）、低电量阈值。 |
 
-- 常规业务容器优先用 `TxCard`；只有需要直接调材质、降级或折射参数时才使用 `TxBaseSurface`。
-- 父层已有动画状态时优先传 `moving`；无法拿到显式状态的历史 transform 过渡，再使用 `autoDetect`。
-- `blur` / `glass` 运动中优先保持 `fallbackMode="mask"`，保证内容可读；只有纯色可接受时才用 `pure`。
-- 优先把 `refractionStrength`、`refractionProfile`、`refractionTone` 当成高层 API；RGB 通道偏移只适合视觉实验。
-- 只有页面能接受 CSS renderer 的较低光学保真度时才使用 `refractionRenderer="css"`；默认高级材质保持 `svg`。
-- 需要复用现有 `.fake-background` 层级时使用 `fake`；否则保持普通 layer 渲染，便于 DOM 调试。
+## 概述
 
-## 审阅说明
+- `pure`、`flat` 只渲染根背景；`mask` 渲染遮罩层，透明度限制在 `0..1`；`acrylic` 是三倍模糊的滤镜层，上面一层 alpha 带分形噪点的着色层；`mica` 在根上画不透明底与两道锚定视口（`background-attachment: fixed`）的色晕，不读背景，但容器每次滚动都要重绘，不要用在会滚动的底板上；`plain` 只保留圆角与溢出裁切。
+- `blur`、`glass`、`acrylic` 在 `moving` 或 `autoDetect` 感知到运动时降级：`fallbackMode="mask"` 优先用 `fallbackMaskOpacity`，`pure`、`flat` 不渲染遮罩层。
+- `refraction` 运动中不切换模式：失去采样的 glass / blur 层各自淡出，由半透明运动罩接住，停止后交叉淡回。
+- 玻璃层只出现在 `glass` 模式与 `refraction` 的 `svg` 渲染器下；`svg` 时它的不透明度取 `refractionGlassOpacity`。`css` 渲染器只画滤镜层、着色、光晕与描边。
+- 显式传入 `refractionStrength`、`refractionAngle`、`refractionProfile` 任一项即启用派生折射模型，未传的项按 `62` / `-24` / `'filmic'` 兜底。
+- `autoDetect` 在根节点及每个祖先上监听它们自身的 `transform` / `translate` 过渡（`transitionstart` / `transitionend` / `transitioncancel`），并用 `MutationObserver` 观察它们的内联 `style`；指针、窗口、帧探针与电池订阅是页面级的，所有打开 `autoDetect` 的表面共用一套，最后一个卸载时移除。
+- `systemBackdrop` 时玻璃层不渲染，滤镜层的 `backdrop-filter` 置为 `none`、保留着色，运动降级与环境感知都不启用；底色、遮罩、流光与描边不受影响。
+- 性能模式为 `max` 时，除 `systemBackdrop` 的表面外，`refraction`、`glass`、`acrylic`、`blur`、`mica` 一律按 `flat` 渲染。
+- 高对比度下（触发条件见《[主题定制](./theming.md)》），除 `plain` 外的每种模式都像 `pure` 一样只画不透明的根背景：glass、blur、遮罩、运动罩与折射边缘层不渲染，`fake` 的底色满不透明度；`plain` 高对比度下也不加底色。
 
-- 已对照 `packages/tuffex/packages/components/src/base-surface/src/TxBaseSurface.vue`、`types.ts`、`base-surface-motion.ts`、`base-surface-math.ts` 和 `style/index.scss` 核对。
-- CSS 变量表覆盖组件发射的全部运行时变量（标注 internal 的行是插值输出，不作为覆写点）以及消费的主题钩子 `--tx-surface-refraction-mask-color`。
-- 现有测试覆盖根标签/radius/color 变量、mask 透明度 clamp、blur 降级、pure 降级、归一化后的 `TxGlassSurface` props、refraction class/light 变量和 auto-detect 清理。
-- 源码没有事件或暴露方法；视觉状态通过 props 和 CSS 变量控制。
+## 技术实现
 
-## Source
-
-- Component source: `packages/tuffex/packages/components/src/base-surface/src/TxBaseSurface.vue`.
-- Types: `packages/tuffex/packages/components/src/base-surface/src/types.ts`.
-- Motion helper: `packages/tuffex/packages/components/src/base-surface/src/base-surface-motion.ts`.
-- Math helper: `packages/tuffex/packages/components/src/base-surface/src/base-surface-math.ts`.
-- Styles: `packages/tuffex/packages/components/src/base-surface/src/style/index.scss`.
-- **实测覆盖:** `packages/tuffex/packages/components/src/base-surface/__tests__/base-surface.test.ts` 验证模式渲染、运动降级行为、折射参数与 observer 清理。
+- 玻璃层由 `TxGlassSurface` 渲染，降级时序在 `base-surface-motion.ts`，页面级的环境感知、性能模式与材质降级在 `surface-environment.ts`。
+- Chromium 每出一帧，都要在 CPU 上把 `backdrop-filter: url()` 里 `feImage` 引用的位移图按绘制尺寸栅格化，随合成帧提交。所以位移图画成长边不超过 256px 的位图再拉伸，开销不再随表面尺寸增长。
+- 源码：`packages/tuffex/packages/components/src/base-surface/`。
 
 ## 离线完整示例源码
 
@@ -314,6 +282,7 @@ const animating = ref(false)
 - [BaseSurfaceFakeDemo](../snapshot/apps/nexus/app/components/content/demos/BaseSurfaceFakeDemo.vue.txt)
 - [BaseSurfaceFallbackDemo](../snapshot/apps/nexus/app/components/content/demos/BaseSurfaceFallbackDemo.vue.txt)
 - [BaseSurfaceMotionCompareDemo](../snapshot/apps/nexus/app/components/content/demos/BaseSurfaceMotionCompareDemo.vue.txt)
+- [BaseSurfaceFlowLightDemo](../snapshot/apps/nexus/app/components/content/demos/BaseSurfaceFlowLightDemo.vue.txt)
 
 ## 离线类型与实现参考
 
@@ -322,6 +291,7 @@ const animating = ref(false)
 - [src/base-surface-math.ts](../snapshot/packages/tuffex/packages/components/src/base-surface/src/base-surface-math.ts.txt)
 - [src/base-surface-motion.ts](../snapshot/packages/tuffex/packages/components/src/base-surface/src/base-surface-motion.ts.txt)
 - [style/index.scss](../snapshot/packages/tuffex/packages/components/src/base-surface/src/style/index.scss.txt)
+- [src/surface-environment.ts](../snapshot/packages/tuffex/packages/components/src/base-surface/src/surface-environment.ts.txt)
 - [src/types.ts](../snapshot/packages/tuffex/packages/components/src/base-surface/src/types.ts.txt)
 
 第三方许可与转换边界见 [SOURCES](../SOURCES.md)。示例中 Nexus 的自动导入、Tuff 前缀别名、样式类和外部素材不代表业务项目已配置，不能不经核对就复制运行。

@@ -1,21 +1,19 @@
 # Splitter 分割面板
 
-> 双面板可拖拽布局，支持指针与键盘调整、比例夹取、吸附步进，以及水平/垂直方向。
+> 可拖拽调整比例的双面板布局
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/splitter) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/splitter.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/splitter.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/splitter) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/splitter.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/splitter.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
-上游标记：status=`beta`，since=`1.0.0`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
+上游标记：status=`beta`，since=`0.3.4`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# Splitter 分割面板
+## 用法
 
-## 基础用法
-
-通过父容器提供明确宽高。组件会填满这个盒子，并把当前比例写入 CSS grid 变量。
-
+### 基础
+两个面板按 `v-model` 比例分配扣除分隔轨道后的空间；`direction="vertical"` 改为上下分割。
 官方示例：`SplitterSplitterDemo`（完整源码见本页末尾）
 
 ```vue
@@ -23,80 +21,75 @@
 import { ref } from 'vue'
 
 const ratio = ref(0.42)
+const verticalRatio = ref(0.58)
 </script>
 
 <template>
-  <div style="width: 520px; height: 220px;">
+  <div style="height: 220px;">
     <TxSplitter v-model="ratio" :min="0.25" :max="0.75" :snap="0.05">
-      <template #a>
-        <div>导航区 ({{ ratio.toFixed(2) }})</div>
-      </template>
-      <template #b>
-        <div>内容区</div>
-      </template>
+      <template #a>导航区 ({{ ratio.toFixed(2) }})</template>
+      <template #b>内容区</template>
+    </TxSplitter>
+  </div>
+  <div style="height: 220px;">
+    <TxSplitter v-model="verticalRatio" direction="vertical" :bar-size="12">
+      <template #a>预览</template>
+      <template #b>日志</template>
     </TxSplitter>
   </div>
 </template>
 ```
 
-## API
+### 最佳实践
 
-### Props
+- 放进有明确宽高的容器；没有边界盒子时，面板无法稳定调整。
+- `min` 与 `max` 留足间距，避免面板收缩到内容不可读。
+- 检查器、侧栏等需要稳定比例的布局用 `snap`，自由编辑的画布保持 `0`。
+- 滚动容器放在面板插槽内，不要包在根节点外，以免与页面滚动冲突。
+- 弹层交互或拖拽排序进行时禁用 splitter，避免争夺指针捕获。
+
+## API 参考
+
+### 属性
 
 | 属性名 | 类型 | 默认值 | 说明 |
 |------|------|---------|------|
-| `modelValue` | `number` | `0.5` | A 面板比例。非有限数字回退到 `0.5`；渲染值会夹取到 `0` 到 `1`。 |
-| `direction` | `'horizontal' \| 'vertical'` | `'horizontal'` | `horizontal` 左右分割；`vertical` 上下分割。非法值回退为 horizontal。 |
-| `min` | `number` | `0.1` | 指针或键盘调整时可派发的最小比例。 |
-| `max` | `number` | `0.9` | 指针或键盘调整时可派发的最大比例。 |
-| `disabled` | `boolean` | `false` | 禁用指针和键盘调整。拖拽中切换为禁用会结束当前拖拽。 |
-| `barSize` | `number` | `10` | 分隔条轨道尺寸，单位 px。运行时最小值为 `6px`。 |
-| `snap` | `number` | `0` | 可选比例步进。`0` 表示不吸附；正数会把派发比例吸附到最近步进。 |
+| `modelValue` | `number` | `0.5` | A 面板比例；非有限值按 `0.5` 处理，渲染时收敛到 `0..1`。 |
+| `direction` | `'horizontal' \| 'vertical'` | `'horizontal'` | `horizontal` 左右分割，`vertical` 上下分割；非法值按 `horizontal`。 |
+| `min` | `number` | `0.1` | 拖拽或键盘调整时派发的最小比例。 |
+| `max` | `number` | `0.9` | 拖拽或键盘调整时派发的最大比例。 |
+| `disabled` | `boolean` | `false` | 禁止调整；拖拽中禁用会结束拖拽。 |
+| `barSize` | `number` | `6` | 分隔轨道尺寸（px），最小 6；可见手柄厚 2px。 |
+| `snap` | `number` | `0` | 比例步进；`0` 不吸附。 |
 
-### Slots
-
-| 插槽名 | Props | 说明 |
-|------|-------|------|
-| `a` | - | 第一个面板：水平时在左侧，垂直时在上方。 |
-| `b` | - | 第二个面板：水平时在右侧，垂直时在下方。 |
-
-### Events
+### 事件
 
 | 事件名 | 参数 | 说明 |
 |------|------|------|
-| `update:modelValue` | `number` | 派发下一个经过 clamp 和 snap 的比例。 |
-| `change` | `number` | 为 change 监听器派发同一个比例。 |
-| `drag-start` | `()` | 指针拖拽开始时派发。 |
-| `drag-end` | `()` | 指针拖拽结束，或因禁用/卸载被取消时派发。 |
+| `update:modelValue` | `number` | 派发经过 clamp 与 snap 的新比例。 |
+| `change` | `number` | 与 `update:modelValue` 同时触发。 |
+| `drag-start` | `()` | 指针拖拽开始时触发。 |
+| `drag-end` | `()` | 拖拽结束，或因禁用、卸载而取消时触发。 |
 
-## 交互契约
+### 插槽
 
-- 指针拖拽读取 splitter 根节点的 bounding box：水平模式使用 `clientX / width`，垂直模式使用 `clientY / height`。
-- 键盘调整在水平模式使用 ArrowLeft / ArrowRight，在垂直模式使用 ArrowUp / ArrowDown；每次先变化 `0.02`，再执行 clamp / snap。
-- 分隔条渲染 `role="separator"`，带 `aria-label="Resize"`；水平分割时 `aria-orientation="vertical"`，垂直分割时为 `horizontal`。当前分割位置通过 `aria-valuenow` 暴露，`min`/`max` 边界通过 `aria-valuemin`/`aria-valuemax` 暴露，三者都是整数百分比（`0..100`）。
-- 禁用状态下分隔条使用 `tabindex="-1"`，指针/键盘变化会被忽略，活动拖拽会结束。
-- 组件不持久化布局。需要记住用户面板尺寸时，请在调用方保存 `v-model` 比例。
+| 插槽名 | Props | 说明 |
+|------|-------|------|
+| `a` | - | 第一个面板：水平时在左，垂直时在上。 |
+| `b` | - | 第二个面板：水平时在右，垂直时在下。 |
 
-## 最佳实践
+## 概述
 
-- 始终把 `TxSplitter` 放在有明确高度的容器中。没有边界盒子时，面板无法稳定调整。
-- `min` 和 `max` 保持足够间距，避免某个面板收缩到内容不可读。
-- 检查器/侧栏这类需要稳定比例的布局使用 `snap`；自由编辑画布保持 `0`。
-- 滚动容器放在面板 slot 内部，不要包在 splitter 根节点外，以免调整尺寸时和页面滚动冲突。
-- 弹层交互或拖拽排序流程进行时禁用 splitter，避免多个组件争夺 pointer capture。
+- 指针拖拽按根节点包围盒换算：水平用 `clientX / width`，垂直用 `clientY / height`。
+- 方向键（水平 ← / →，垂直 ↑ / ↓）每次调整 `0.02`，再执行 clamp 与 snap。
+- 分隔条是带 `aria-label="Resize"` 的 `role="separator"`，`aria-orientation` 与分割方向垂直；`aria-valuenow` / `aria-valuemin` / `aria-valuemax` 为 `0..100` 的整数百分比。
+- 禁用时分隔条 `tabindex="-1"`，忽略指针与键盘。
+- 调用方需保证 `min <= max`。组件不持久化比例，需要记住时自行保存 `v-model`。
 
-## 审阅说明
+## 技术实现
 
-- **可访问性说明:** 分隔条可聚焦，带 `role="separator"`、`aria-label="Resize"`，支持方向键调整，并把 `aria-valuenow` / `aria-valuemin` / `aria-valuemax` 以整数百分比（当前比例与 `min`/`max` 边界缩放到 `0..100`）暴露，辅助技术可据此播报分割位置。精确调整场景仍建议补充可见比例/尺寸反馈。
-- **布局说明:** 渲染比例会夹取到 `0..1`；指针/键盘派发值先按 `min`/`max` 夹取，再执行 snap。调用方应保证 `min <= max`，组件不会归一化反向边界。
-- **实测覆盖:** `splitter.test.ts` 覆盖水平/垂直渲染、分隔条方向、`aria-valuenow`/`aria-valuemin`/`aria-valuemax`、slot 内容、比例/bar CSS 变量、带 clamp/snap 的指针拖拽、垂直坐标计算、键盘调整、禁用阻断，以及拖拽中禁用时的 drag-end。
-
-## Source
-
-- Component source: `packages/tuffex/packages/components/src/splitter/src/TxSplitter.vue`。
-- Types: `packages/tuffex/packages/components/src/splitter/src/types.ts` 导出 `SplitterProps`、`SplitterEmits` 与 `SplitterDirection`。
-- Export alias: `packages/tuffex/packages/components/src/splitter/index.ts` 导出 `Splitter`、`TxSplitter`、splitter 类型与 `TxSplitterInstance`。
-- Coverage: `packages/tuffex/packages/components/src/splitter/__tests__/splitter.test.ts` 覆盖渲染、指针/键盘调整、snap、禁用行为与拖拽生命周期。
+- 根节点写入 `--tx-splitter-ratio` 与 `--tx-splitter-bar-size`，网格列由这两个变量计算。
+- 源码：`packages/tuffex/packages/components/src/splitter/`。
 
 ## 离线完整示例源码
 

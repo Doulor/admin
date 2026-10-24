@@ -2,7 +2,7 @@
 
 > 可复核的官方源码快照，不把网页部署版本、源码 manifest 与 npm 发布版本混为一谈。
 
-状态：`reference-snapshot` · 整理日期：2026-09-13
+状态：`reference-snapshot` · 整理日期：2026-10-24
 
 ## 来源
 
@@ -10,7 +10,7 @@
 
 源码仓库：https://github.com/talex-touch/tuff
 
-固定提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`，提交时间：`2026-09-12T10:01:19-07:00`。来源路径见 manifest.json，逐文件 SHA-256 校验见 `node scripts/tuffex-docs.mjs check`。未核实 npm 发布标签是否与该源码提交一致；未运行上游安装、构建或示例。
+固定提交：`34449085a1f2be8138ab290198762dc79643b33b`，提交时间：`2026-10-21T02:07:03-07:00`。来源路径见 manifest.json，逐文件 SHA-256 校验见 `node scripts/tuffex-docs.mjs check`。未核实 npm 发布标签是否与该源码提交一致；未运行上游安装、构建或示例。
 
 ## 版本边界
 
@@ -18,23 +18,16 @@
 {
   "tuffex": {
     "name": "@talex-touch/tuffex",
-    "version": "0.6.0",
+    "version": "0.9.1",
     "engines": {
       "node": ">=26.0.0"
     },
     "peerDependencies": {
+      "echarts": "^6.1.0",
+      "three": ">=0.149.0",
       "vue": "^3.5.27"
     },
-    "license": "MIT"
-  },
-  "charts": {
-    "name": "@talex-touch/tuffex-charts",
-    "version": "0.1.0",
-    "engines": {},
-    "peerDependencies": {
-      "vue": "^3.5.27"
-    },
-    "license": "MIT"
+    "license": "(MIT AND Apache-2.0 AND ISC)"
   }
 }
 ```
@@ -43,13 +36,13 @@
 
 ## 镜像范围
 
-中文组件目录 169 篇，加组合界面和工具指南 2 篇；379 个被文档引用的独立 Vue Demo；674 个组件、工具、样式和图表源码参考。英文翻译、整站页面、二进制图片/字体、业务后端和上游测试不在镜像范围。
+中文组件目录 228 篇，加组合界面和工具指南 2 篇；494 个被文档引用的独立 Vue Demo；1051 个组件、工具、样式和图表源码参考。英文翻译、整站页面、二进制图片/字体、业务后端和上游测试不在镜像范围。
 
 正文由 MDC 转成 Markdown：示例 YAML 的 code 字段转换为带语言围栏；嵌套 API rows 保留为 YAML，避免误改枚举/默认值；动态目录改为离线索引；原文与源码以 .txt 原样保存，不被当作待编译程序或 Agent 规则。展示变换版本见 manifest。
 
 ## 许可与归属
 
-组件包带 [MIT License](./snapshot/packages/tuffex/LICENSE.txt)，版权所有者见许可原文。Nexus 文档和 Demo 位于主仓库，保留 [仓库 MPL-2.0 许可全文](./snapshot/LICENSE.txt)，不擅自把它们改标为 MIT。图表包 manifest 声明 MIT，但未发现包内独立 LICENSE，故同时保留 manifest 和根许可，发布前核实具体适用范围。任何文件内的第三方声明均原样保留。
+组件包 package.json 声明许可 `(MIT AND Apache-2.0 AND ISC)`；包根 [LICENSE](./snapshot/packages/tuffex/LICENSE.txt) 原文只是 MIT 主许可，声明为复合 SPDX 表达式时其余第三方许可以各源文件内嵌的 SPDX 头或版权注释为准，不代表整包只按其中某一项单独许可使用。Nexus 文档和 Demo 位于主仓库，保留 [仓库 MPL-2.0 许可全文](./snapshot/LICENSE.txt)，不擅自把它们改标为 MIT。图表组件（Charts 家族）已并入 packages/tuffex 主包，不再是独立 npm 包，许可随主包声明。任何文件内的第三方声明均原样保留。
 
 本目录不改变 geek_main 自有代码的许可，也不构成对整站素材的授权。所有转换页为本项目增加的离线展示层，原始受许可内容仍保留来源；不移除作者或许可声明。
 

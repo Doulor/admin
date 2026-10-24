@@ -89,7 +89,7 @@ import { createToastManager, useVibrate } from '@talex-touch/tuffex/utils'
 
 ## Component Inventory
 
-Current source-of-truth export modules: **149**.
+Current source-of-truth export modules: **185**.
 
 Every module ships in exactly one of three suites, each exposed as its own category entry:
 
@@ -103,31 +103,38 @@ import { TxPromptBar } from '@talex-touch/tuffex/ai'
 
 General, form, layout, navigation, data, feedback and status components. Import from `@talex-touch/tuffex/base`.
 
-- `General (9)`: `button`, `icon`, `icon-chip`, `avatar`, `tag`, `badge`, `status-badge`, `kbd`, `divider`
-- `Form (24)`: `form`, `input`, `flat-input`, `textarea`, `number-input`, `search-input`, `tag-input`, `scrub-field`, `select`, `flat-select`, `search-select`, `tree-select`, `cascader`, `picker`, `date-picker`, `radio`, `flat-radio`, `checkbox`, `switch`, `slider`, `segmented-slider`, `rating`, `file-uploader`, `image-uploader`
+- `General (10)`: `button`, `icon`, `icon-chip`, `icon-picker`, `avatar`, `tag`, `badge`, `status-badge`, `kbd`, `divider`
+- `Form (24)`: `form`, `input`, `textarea`, `number-input`, `search-input`, `tag-input`, `sensitive-input`, `scrub-field`, `select`, `flat-select`, `search-select`, `tree-select`, `cascader`, `picker`, `date-picker`, `radio`, `flat-radio`, `checkbox`, `switch`, `slider`, `segmented-slider`, `rating`, `file-uploader`, `image-uploader`
 - `Layout (11)`: `container`, `flex`, `grid`, `grid-layout`, `stack`, `splitter`, `scroll`, `collapse`, `card`, `card-item`, `group-block`
 - `Navigation (10)`: `tabs`, `tab-bar`, `nav-bar`, `sidebar-nav`, `breadcrumb`, `steps`, `pagination`, `dropdown-menu`, `flat-dropdown`, `context-menu`
-- `Data Display (11)`: `data-table`, `tree`, `sortable-list`, `timeline`, `transfer`, `stat-card`, `cell-link`, `dot-indicator`, `filter-chips`, `markdown-view`, `image-gallery`
-- `Feedback (12)`: `dialog`, `modal`, `drawer`, `popover`, `tooltip`, `toast`, `alert`, `progress`, `progress-bar`, `spinner`, `loading-overlay`, `selection-actions`
+- `Data Display (12)`: `data-table`, `descriptions`, `tree`, `sortable-list`, `timeline`, `transfer`, `stat-card`, `cell-link`, `dot-indicator`, `filter-chips`, `markdown-view`, `image-gallery`
+- `Feedback (14)`: `dialog`, `modal`, `drawer`, `popover`, `tooltip`, `toast`, `toast-panel`, `alert`, `status-hint`, `progress`, `progress-bar`, `spinner`, `loading-overlay`, `selection-actions`
 - `Status & Empty (13)`: `empty`, `empty-state`, `no-data`, `no-selection`, `search-empty`, `error-state`, `offline-state`, `permission-state`, `guide-state`, `blank-slate`, `loading-state`, `skeleton`, `layout-skeleton`
 
 ### pro — Advanced
 
 Advanced interaction, visualization, effects and low-level primitives. Import from `@talex-touch/tuffex/pro`.
 
-- `Interaction (6)`: `command-palette`, `search-panel`, `markdown-editor`, `code-editor`, `virtual-list`, `version-capsule`
-- `Visualization (4)`: `spark-chart`, `allocation-bar`, `diff-table`, `signal-meter`
-- `Effects (17)`: `glass-surface`, `gradient-border`, `outline-border`, `border-beam`, `corner-overlay`, `gradual-blur`, `edge-fade-mask`, `glow-text`, `keyframe-stroke-text`, `tuff-logo-stroke`, `text-morph`, `text-transformer`, `transition`, `stagger`, `fusion`, `liquid`, `flip-overlay`
+- `Interaction (7)`: `command-palette`, `search-panel`, `markdown-editor`, `code-editor`, `terminal`, `virtual-list`, `version-capsule`
+- `Animated controls (3)`: `motion-control`, `motion-form`, `motion-metric`
+- `Visualization (5)`: `charts`, `spark-chart`, `allocation-bar`, `diff-table`, `signal-meter`
+- `Effects (25)`: `glass-surface`, `gradient-border`, `outline-border`, `border-beam`, `prism-glow`, `corner-overlay`, `gradual-blur`, `edge-fade-mask`, `glow-text`, `keyframe-stroke-text`, `tuff-logo-stroke`, `text-morph`, `icon-morph`, `morph`, `text-transformer`, `transition`, `stagger`, `fusion`, `fusion-surface`, `flow-light`, `liquid`, `flip-overlay`, `image-generation`, `metal-fx`, `voice-beam`
+- `Motion (11)`: `card-spread`, `carousel-3d`, `flip-book`, `motion`, `motion-button`, `motion-dock`, `motion-loader`, `motion-text`, `motion-toggle`, `motion-transition`, `physics-motion`
 - `Primitives (5)`: `base-surface`, `base-anchor`, `floating`, `auto-sizer`, `resize-box`
+
+Nexus presents the Motion family in its own documentation suite: Buttons, Card Spreads, 3D Carousels, Loaders, Dither Charts and additional text, physics, pointer, scroll, toggle and transition effects. Installation stays within `pro` or the component subpaths; there is no fourth suite installer. `TxMonoChart` and `TxDitherChart` use the existing `@talex-touch/tuffex/charts` SVG/d3 entry, with Mono documented under Data and Dither under Motion.
+
+Motion content, chart data and business state come from the caller. Changing text reuses TextMorph and springs reuse the existing shared compiler/integrator. `useMotionActivity` is exported from `/utils` to gate playback on visibility, document activity, KeepAlive and reduced-motion preference; static content remains available while playback is suspended.
 
 ### ai — AI
 
 Chat, agent, reasoning and context components for AI-native interfaces. Import from `@talex-touch/tuffex/ai`.
 
-- `Chat (6)`: `chat`, `prompt-bar`, `attachment-tray`, `message-actions`, `suggestion-chips`, `conversation-stream`
-- `Agents (8)`: `agents`, `agent-trace`, `task-rows`, `tool-call-card`, `tool-chips`, `tool-confirmation`, `approval-card`, `working-indicator`
-- `Reasoning (8)`: `ai-elements`, `chain-of-thought`, `reasoning-disclosure`, `thinking-orb`, `stream-markdown`, `code-stream`, `inline-citation`, `sources`
+- `Chat (9)`: `chat`, `prompt-bar`, `attachment-tray`, `mode-chip`, `message-actions`, `suggestion-chips`, `choice-card`, `conversation-stream`, `voice-clip`
+- `Agents (10)`: `agents`, `agent-screen`, `agent-trace`, `task-rows`, `tool-call-card`, `tool-chips`, `tool-confirmation`, `approval-card`, `working-indicator`, `bot-avatar`
+- `Reasoning (10)`: `ai-elements`, `chain-of-thought`, `reasoning-disclosure`, `thinking-orb`, `stream-element`, `stream-text`, `stream-markdown`, `code-stream`, `inline-citation`, `sources`
 - `Context & Insight (5)`: `context-cards`, `context-indicator`, `insight-cards`, `recommendation-card`, `fine-tune-card`
+- `Flow (1)`: `flowchart`
 
 Reference:
 
@@ -146,6 +153,7 @@ Reference:
 
 - Online docs: [tuffex.tagzxia.com/docs/dev/tuffex](https://tuffex.tagzxia.com/docs/dev/tuffex)
 - Local docs preview: `pnpm -C "apps/nexus" run dev`
+- Component Changelog & Since Index: [CHANGELOG.md](./CHANGELOG.md)
 
 ## Development
 
@@ -158,6 +166,7 @@ pnpm -C "packages/tuffex" run build
 pnpm -C "packages/tuffex" run audit:size
 pnpm -C "packages/tuffex" run audit:exports
 pnpm -C "packages/tuffex" run audit:types
+pnpm -C "packages/tuffex" run audit:changelog
 ```
 
 ## Integration with Tuff
@@ -173,3 +182,7 @@ TuffEx is the UI foundation of the [Tuff](https://tuff.tagzxia.com) desktop appl
 ## License
 
 [MIT License](LICENSE) &copy; 2025 TalexDreamSoul
+
+Amicro-derived components retain [the upstream MIT license and copyright](AMICRO-LICENSE), from source commit `43c29ce9cdd16459e3eab4992381b8d35b38776a`. The notice ships with the package. Upstream website assets and externally hosted fonts are not included.
+
+The upstream `DitherBook.tsx` and `SimpleCompExtracted.tsx` declare Apache-2.0 at file level. Their derivatives retain that license and Vue/TuffEx modification notices; the complete [Apache license](AMICRO-APACHE-LICENSE) ships in the package. Retained Lucide 0.546.0 glyph data carries its [ISC and Feather-derived MIT notice](LUCIDE-LICENSE), without a React/Lucide runtime dependency. Package metadata records these combined obligations instead of relabeling all derived code as MIT.

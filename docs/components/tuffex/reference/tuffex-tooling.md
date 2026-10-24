@@ -2,9 +2,9 @@
 
 > 具有精美动画效果的现代 Vue3 组件库
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/tools/tuffex) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/tools/tuffex.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/tools/tuffex.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/tools/tuffex) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/tools/tuffex.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/tools/tuffex.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
 上游标记：status=`未声明`，since=`未声明`，syncStatus=`未声明`，verified=`未声明`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
@@ -18,6 +18,7 @@ TuffEx（中文名：塔芙）是一个专注于触感体验和流畅动画的�
 
 ## 组件展示
 - **[Tuffex 组件中心](./index.md)** — 组件清单、Demo 与 API（双语）。
+- **[组件更新日志与版本历程](./changelog.md)** — 记录每个组件自哪个版本引入（Since xx）以及每次发版更新了哪些组件。
 
 
 ## 安装
@@ -85,7 +86,7 @@ app.use(TxTag)
 |------|------|------|
 | `TuffButton` | 带触感反馈的交互按钮 | `button/` |
 | `TuffSwitch` | 流畅动画的开关组件 | `switch/` |
-| `TuffInput` | 输入框，支持 clearable 和 textarea | `flat-input/` |
+| `TuffInput` | 输入框，支持 clearable 和 textarea | `input/` |
 | `TuffCheckbox` | 复选框，SVG 动画勾选效果 | `checkbox/` |
 | `TuffSelect` | 下拉选择器，浮动定位 | `select/` |
 | `TuffSelectItem` | 选择器选项 | `select/` |
@@ -144,7 +145,7 @@ pnpm -C packages/tuffex run build
 pnpm -C packages/tuffex run test
 pnpm -C packages/tuffex run typecheck
 
-# 展示与文档统一由 Nexus 承载
+# 展示与文档统一由 Tuff 承载
 pnpm -C apps/nexus run dev
 ```
 

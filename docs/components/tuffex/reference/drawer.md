@@ -1,94 +1,64 @@
 # Drawer 抽屉
 
-> 侧滑面板与表单承载
+> 从屏幕边缘滑出的模态面板
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/drawer) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/drawer.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/drawer.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/drawer) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/drawer.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/drawer.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
-上游标记：status=`beta`，since=`1.0.0`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
+上游标记：status=`beta`，since=`0.3.4`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# Drawer 抽屉
+## 用法
 
-## 基础用法
-
-### Basic Drawer
-最常见的抽屉用法。
+### 基础
+打开上层确认框后，Tab 留在确认框内，Escape 只关闭确认框。
 官方示例：`DrawerBasicDrawerDemo`（完整源码见本页末尾）
 
 ```vue
 <template>
-  <TxButton @click="visible1 = true">打开抽屉</TxButton>
-  <TxDrawer v-model:visible="visible1" title="设置">
-    <p>这是抽屉的内容区域，你可以在这里放置任何内容。</p>
-    <p>支持自定义尺寸、方向、Header/Footer、遮罩和关闭行为。</p>
+  <TxButton @click="visible = true">打开抽屉</TxButton>
+  <TxDrawer v-model:visible="visible" title="设置" close-label="关闭抽屉">
+    <p>这是抽屉的内容区域。</p>
+    <TxButton @click="confirmVisible = true">打开确认框</TxButton>
   </TxDrawer>
+  <TxModal v-model="confirmVisible" title="确认操作" close-label="关闭">
+    <template #footer>
+      <TxButton @click="confirmVisible = false">取消</TxButton>
+    </template>
+  </TxModal>
 </template>
 ```
 
-## 方向
-
-抽屉支持 `left`、`right`、`top`、`bottom` 四个方向。移动端默认会自动改为 `bottom`，可以通过 `mobile-adapt="false"` 关闭。
-
-### Direction
-四方向抽屉，左右方向 size 作为宽度，上下方向 size 作为高度。
+### 方向
+`direction` 支持四个方向；左右时 `size` 是宽度，上下时是高度。
 官方示例：`DrawerDirectionDemo`（完整源码见本页末尾）
 
 ```vue
 <template>
-  <TxButton @click="visibleLeft = true">Left</TxButton>
-  <TxButton @click="visibleRight = true">Right</TxButton>
-  <TxButton @click="visibleTop = true">Top</TxButton>
-  <TxButton @click="visibleBottom = true">Bottom</TxButton>
-  <TxDrawer v-model:visible="visibleLeft" title="左侧抽屉" direction="left" size="360px" :mobile-adapt="false">
-    <p>从左侧滑入，size 作为宽度。</p>
-  </TxDrawer>
-  <TxDrawer v-model:visible="visibleRight" title="右侧抽屉" direction="right" size="360px" :mobile-adapt="false">
-    <p>从右侧滑入，size 作为宽度。</p>
-  </TxDrawer>
-  <TxDrawer v-model:visible="visibleTop" title="顶部抽屉" direction="top" size="18rem" :mobile-adapt="false">
-    <p>从顶部滑入，size 作为高度。</p>
-  </TxDrawer>
-  <TxDrawer v-model:visible="visibleBottom" title="底部抽屉" direction="bottom" size="45%">
-    <p>从底部滑入，适合移动端 Bottom Sheet。</p>
-  </TxDrawer>
+  <TxDrawer v-model:visible="left" title="左侧抽屉" direction="left" size="360px" :mobile-adapt="false" />
+  <TxDrawer v-model:visible="right" title="右侧抽屉" direction="right" size="360px" :mobile-adapt="false" />
+  <TxDrawer v-model:visible="top" title="顶部抽屉" direction="top" size="18rem" :mobile-adapt="false" />
+  <TxDrawer v-model:visible="bottom" title="底部抽屉" direction="bottom" size="45%" />
 </template>
 ```
 
-## 尺寸与全屏
-
-### Size and Fullscreen
-使用统一的 `size` 配置抽屉尺寸：`left/right` 会作为宽度，`top/bottom` 会作为高度。支持 `px`、`rem`、百分比、任意 CSS 长度与 `full`。也可以使用更直观的 `full` boolean prop，等价于 `size="full"`。`width` 仍作为旧代码兼容项保留。
+### 尺寸与全屏
+`size` 接受数字（px）、CSS 长度、百分比或 `'full'`；`full` 等价于 `size="full"`。
 官方示例：`DrawerCustomWidthDemo`（完整源码见本页末尾）
 
 ```vue
 <template>
-  <TxButton @click="visiblePx = true">size px</TxButton>
-  <TxButton @click="visibleRem = true">size rem</TxButton>
-  <TxButton @click="visiblePercent = true">size %</TxButton>
-  <TxButton @click="visibleFull = true">full 全屏</TxButton>
-  <TxDrawer v-model:visible="visiblePx" title="size = 400px" size="400px" :mobile-adapt="false">
-    <p>左右方向时，size="400px" 会作为宽度。</p>
-  </TxDrawer>
-  <TxDrawer v-model:visible="visibleRem" title="size = 24rem" size="24rem" :mobile-adapt="false">
-    <p>支持 rem 等 CSS 长度。</p>
-  </TxDrawer>
-  <TxDrawer v-model:visible="visiblePercent" title="bottom + size = 55%" direction="bottom" size="55%">
-    <p>上下方向时，百分比 size 会作为高度。</p>
-  </TxDrawer>
-  <TxDrawer v-model:visible="visibleFull" title="full 全屏抽屉" full>
-    <p>full prop 会让抽屉在当前方向上 100% 打开；也可以写成 size="full"。</p>
-  </TxDrawer>
+  <TxDrawer v-model:visible="px" title="size = 400px" size="400px" :mobile-adapt="false" />
+  <TxDrawer v-model:visible="rem" title="size = 24rem" size="24rem" :mobile-adapt="false" />
+  <TxDrawer v-model:visible="percent" title="bottom + size = 55%" direction="bottom" size="55%" />
+  <TxDrawer v-model:visible="fullscreen" title="全屏抽屉" full />
 </template>
 ```
 
-## Header / Footer 插槽与遮罩
-
-使用 `header` / `footer` 插槽自定义头尾区域，也可以用 `show-header` / `show-footer` 关闭。Drawer 内置 Header/Footer 分割线复用 `TxDivider`；`mask-effect` 支持 `blur`、`opacity`、`transparent`，`panel-transparent` 可让面板透出背部内容。
-
-### 自定义头尾插槽 + 遮罩效果
+### 头尾插槽与遮罩
+`header`、`footer` 插槽接收 `close`；`maskEffect` 设置遮罩效果，`panelTransparent` 调薄面板材质下的底色，透出更多背部内容。
 官方示例：`DrawerSlotsEffectsDemo`（完整源码见本页末尾）
 
 ```vue
@@ -101,10 +71,8 @@
     panel-transparent
   >
     <template #header="{ close }">
-      <div class="drawer-custom-header">
-        <strong>发布策略</strong>
-        <TxButton variant="ghost" @click="close">关闭</TxButton>
-      </div>
+      <strong>发布策略</strong>
+      <TxButton variant="ghost" @click="close">关闭</TxButton>
     </template>
 
     <p>抽屉主内容</p>
@@ -117,7 +85,8 @@
 </template>
 ```
 
-兼容旧用法：使用 `footer` 插槽添加底部内容。
+### 表单
+不需要 `close` 时，`footer` 插槽可以直接改写外部状态。
 
 ```vue
 <template>
@@ -134,151 +103,156 @@
 </template>
 ```
 
-## 关闭行为
+### 关闭行为
 
 ```vue
 <template>
-  <!-- 禁用点击遮罩关闭 -->
-  <TxDrawer
-    v-model:visible="visible"
-    title="持久化"
-    :close-on-click-mask="false"
-  >
+  <!-- 点击遮罩不关闭 -->
+  <TxDrawer v-model:visible="visible" title="持久化" :close-on-click-mask="false">
     <p>只能通过关闭按钮关闭</p>
   </TxDrawer>
 
-  <!-- 禁用 Escape 键关闭 -->
-  <TxDrawer
-    v-model:visible="visible2"
-    title="禁用 Escape"
-    :close-on-press-escape="false"
-  >
+  <!-- Escape 不关闭 -->
+  <TxDrawer v-model:visible="visible2" title="禁用 Escape" :close-on-press-escape="false">
     <p>Escape 键不会关闭此抽屉</p>
   </TxDrawer>
 </template>
 ```
 
-## 事件
+### 开关事件
 
 ```vue
 <template>
-  <TxDrawer
-    v-model:visible="visible"
-    title="事件示例"
-    @open="handleOpen"
-    @close="handleClose"
-  >
+  <TxDrawer v-model:visible="visible" title="事件示例" @open="handleOpen" @close="handleClose">
     <p>内容</p>
   </TxDrawer>
 </template>
 ```
 
-## 后台导航配置组合
-
-后台页的导航与配置不应把所有内容塞进同一个表单。推荐用 `TxTabs` 固定一级分区，用 `TxDropdownMenu` 承载当前区的轻量操作，用 `TxPopover` 展示短说明，再把高密度配置放进 `TxDrawer`。
-
+### 后台导航
+Tabs 固定一级分区，DropdownMenu 承载轻量操作，Popover 放短说明，高密度配置放进 Drawer。
 官方示例：`ComponentsNavigationShellDemo`（完整源码见本页末尾）
 
 ```vue
-<script setup lang="ts">
-import { ref } from 'vue'
-
-const active = ref('总览')
-const drawerVisible = ref(false)
-</script>
-
 <template>
-  <section class="grid gap-3">
-    <TxDropdownMenu>
-      <template #trigger>
-        <TxButton>发布操作</TxButton>
-      </template>
-      <TxDropdownItem>快速发布</TxDropdownItem>
-    </TxDropdownMenu>
+  <TxDropdownMenu>
+    <template #trigger>
+      <TxButton>发布操作</TxButton>
+    </template>
+    <TxDropdownItem>快速发布</TxDropdownItem>
+  </TxDropdownMenu>
 
-    <TxPopover>
-      <template #reference>
-        <TxButton variant="secondary">策略说明</TxButton>
-      </template>
-      浮层只放短说明和轻量动作。
-    </TxPopover>
+  <TxPopover>
+    <template #reference>
+      <TxButton variant="secondary">策略说明</TxButton>
+    </template>
+    浮层只放短说明和轻量动作。
+  </TxPopover>
 
-    <TxTabs v-model="active" placement="left" indicator-variant="pill">
-      <TxTabItem name="总览" activation>总览配置</TxTabItem>
-      <TxTabItem name="发布">发布配置</TxTabItem>
-    </TxTabs>
+  <TxTabs v-model="active" placement="left" indicator-variant="pill">
+    <TxTabItem name="总览" activation>总览配置</TxTabItem>
+    <TxTabItem name="发布">发布配置</TxTabItem>
+  </TxTabs>
 
-    <TxDrawer v-model:visible="drawerVisible" title="发布策略" />
-  </section>
+  <TxDrawer v-model:visible="drawerVisible" title="发布策略" />
 </template>
 ```
 
-## API
+### 最佳实践
+
+- 长表单、审计明细、权限矩阵和需要 Footer 操作区的流程放进 Drawer，不要塞进 Popover。
+- 即使 `showHeader=false` 也提供有意义的 `title`，它是对话框的无障碍名称。
+- 非英文界面传入 `closeLabel`：关闭按钮只有图标，读屏读到的就是这个名称。
+- 用 `size` 或 `full` 设置尺寸；`width` 只为旧调用点保留。
+- 只有在小屏上保持侧向进入比底部弹出更重要时，才设置 `mobileAdapt=false`。
+- 焦点由抽屉管理，外层不要再手动抢焦点；正文的表单字段仍需明确的 label。
+
+## API 参考
 
 ### 属性
 
 ```yaml
 rows:
   - name: visible
-    description: '控制抽屉可见性。配合 `v-model:visible` 双向绑定；关闭时组件仍留在 DOM 中（见交互契约）。'
+    description: '是否显示，配合 `v-model:visible` 使用。'
     type: 'boolean'
     default: '*必填*'
   - name: title
-    description: '头部显示的标题。留空则不渲染标题行，可改用 `header` 插槽自定义。'
+    description: '标题；不渲染 Header 时作为 `aria-label`。'
     type: 'string'
     default: "'Drawer'"
   - name: size
-    description: '当前轴尺寸；left/right 为宽度，top/bottom 为高度；number 按 px 处理，full 映射为 100%'
+    description: '当前轴尺寸：左右为宽度，上下为高度；数字按 px，`full` 为 100%。'
     type: "number | string | 'full'"
     default: "'60%'"
   - name: full
-    description: '当前方向全屏打开，等价于 size="full"'
+    description: '在当前方向全屏打开，等价于 `size="full"`。'
     type: 'boolean'
     default: 'false'
   - name: width
-    description: '旧版兼容项，建议改用 size'
+    description: '旧版兼容项，改用 `size`。'
     type: "number | string | 'full'"
     default: '-'
   - name: direction
-    description: '抽屉出现的方向'
+    description: '滑出方向。'
     type: "'left' | 'right' | 'top' | 'bottom'"
     default: "'right'"
   - name: showHeader
-    description: '是否渲染 Header 区域'
+    description: '渲染 Header 区域。'
     type: 'boolean'
     default: 'true'
   - name: showFooter
-    description: '是否渲染 Footer 插槽区域'
+    description: '渲染 Footer 插槽区域。'
     type: 'boolean'
     default: 'true'
   - name: showClose
-    description: '是否显示关闭按钮'
+    description: '在默认 Header 中显示关闭按钮。'
     type: 'boolean'
     default: 'true'
+  - name: closeLabel
+    description: '默认 Header 中关闭按钮的可访问名称。'
+    type: 'string'
+    default: "'Close drawer'"
   - name: closeOnClickMask
-    description: '点击遮罩时关闭'
+    description: '点击遮罩时关闭。'
     type: 'boolean'
     default: 'true'
   - name: closeOnPressEscape
-    description: '按 Escape 键时关闭'
+    description: '按 Escape 时关闭。'
     type: 'boolean'
     default: 'true'
   - name: maskEffect
-    description: '遮罩视觉效果'
+    description: '遮罩效果：模糊、仅变暗或透明。'
     type: "'blur' | 'opacity' | 'transparent'"
     default: "'blur'"
   - name: panelTransparent
-    description: '面板是否半透明并透出背部内容'
+    description: '调薄面板材质下的底色，透出更多背部内容（见 `surfaceOpacity`）。'
     type: 'boolean'
     default: 'false'
+  - name: surface
+    description: '面板材质。'
+    type: "'pure' | 'mask' | 'blur' | 'glass' | 'refraction' | 'acrylic' | 'mica' | 'flat' | 'plain'"
+    default: "'refraction'"
+  - name: surfaceColor
+    description: '材质下垫的底色；留空时用 `--tx-drawer-panel-background`，跟随主题。'
+    type: 'string'
+    default: "''"
+  - name: surfaceOpacity
+    description: '底色的不透明度（0–1）；不传时 `mask` 为 `0.96`、其余为 `0.5`，`panelTransparent` 时为 `0.78` 与 `0.3`。作用于 `mask`、`blur`、`acrylic`、`glass`、`refraction`；`pure`、`flat` 下恒为不透明，`mica`、`plain` 不垫底色。'
+    type: 'number'
+    default: '-'
   - name: mobileAdapt
-    description: '移动端是否强制从底部弹出'
+    description: '视口宽度 ≤ 768px 时强制从底部弹出。'
     type: 'boolean'
     default: 'true'
   - name: zIndex
-    description: '自定义 z-index。不传时由运行时 z-index 管理器分配（种子 `10000`，逐个抽屉递增）；仅在需要与外部固定层级共存时手动指定。'
+    description: '固定层级；不传时由 z-index manager 从 `10000` 起分配。'
     type: 'number'
     default: '-'
+  - name: lazy
+    description: '首次打开前不渲染插槽内容，之后一直保留；需要提前挂载时设为 `false`。'
+    type: 'boolean'
+    default: 'true'
 ```
 
 ### 事件
@@ -286,15 +260,15 @@ rows:
 ```yaml
 rows:
   - name: update:visible
-    description: '可见性变化时触发'
+    description: '可见性变化时触发。'
     type: '(visible: boolean) => void'
     default: '-'
   - name: open
-    description: '抽屉打开时触发'
+    description: '`visible` 变为 `true` 时触发。'
     type: '() => void'
     default: '-'
   - name: close
-    description: '抽屉关闭时触发'
+    description: '用户关闭时触发；父级改写 `visible` 不触发。'
     type: '() => void'
     default: '-'
 ```
@@ -304,48 +278,33 @@ rows:
 ```yaml
 rows:
   - name: default
-    description: '抽屉主内容'
+    description: '主内容。'
     type: '-'
     default: '-'
   - name: header
-    description: '自定义 Header；slot props: { close, title, titleId }'
+    description: '替换默认标题与关闭按钮；slot props: `{ close, title, titleId }`。'
     type: '-'
     default: '-'
   - name: footer
-    description: '底部内容区域；slot props: { close }'
+    description: '底部操作区；slot props: `{ close }`。'
     type: '-'
     default: '-'
 ```
 
-## 交互契约
+## 概述
 
-- Drawer 根节点暴露 `role="dialog"`、`aria-modal="true"`；有 Header 时通过实例级 `aria-labelledby` 关联标题，关闭 Header 时用 `title` 作为 `aria-label` 兜底。
-- 打开时聚焦抽屉根节点；隐藏或卸载时恢复到打开前的焦点元素。
-- 关闭按钮、遮罩点击和 Escape 默认都会触发 `update:visible(false)` 与 `close`；`closeOnClickMask=false` 或 `closeOnPressEscape=false` 会分别阻断对应关闭路径。
-- `showClose=false` 会移除默认关闭按钮，但不影响遮罩和 Escape 的配置化关闭能力。
-- `mobileAdapt=true` 时移动端会强制从底部弹出；需要保持原方向时设置 `:mobile-adapt="false"`。
+- 根节点为 `role="dialog"`、`aria-modal="true"`；渲染 Header 时用 `aria-labelledby` 关联标题，否则以 `title` 作为 `aria-label`。
+- 打开时聚焦抽屉，Tab 在抽屉内循环；关闭或卸载时焦点回到打开前的元素。
+- 关闭按钮、遮罩与 Escape 都派发 `update:visible(false)` 与 `close`；`closeOnClickMask`、`closeOnPressEscape` 分别关闭后两条路径。
+- 只有最上层的模态对话框响应 Tab 与 Escape，已被其他控件处理的按键会被忽略，因此上层确认框独占这些按键。
+- 关闭后根节点仍留在 DOM 中，并设置 `inert` 与 `aria-hidden`。
+- 面板背景是一层卡片预设的 `TxBaseSurface`（`fake`），垫在头部、正文与底栏之下，默认 `refraction`。面板滑入滑出时滤镜采到的是它上一帧所在位置的背景，所以滑动期间材质走运动降级，滑动结束后恢复。
+- 高对比度下遮罩只变暗、不再模糊，面板材质自行变为实色。
 
-## 最佳实践
+## 技术实现
 
-- Drawer 适合长表单、审计明细、权限矩阵，以及需要 Footer 操作区的流程。
-- 即使 `showHeader=false` 也要提供有意义的 `title`；它会作为 dialog 的无障碍兜底标签。
-- 优先使用 `size` 和 `full`；`width` 只为尚未迁移的旧调用点保留。
-- 只有在小屏上保持侧向进入比 bottom sheet 手感更重要时，才设置 `mobileAdapt=false`。
-
-## Source
-
-- Component source: `packages/tuffex/packages/components/src/drawer/src/TxDrawer.vue`.
-- Types: `packages/tuffex/packages/components/src/drawer/src/types.ts`.
-- **实测覆盖:** Coverage: `packages/tuffex/packages/components/src/drawer/__tests__/drawer.test.ts` 校验 visibility 事件、焦点恢复、ARIA 标签、关闭控制、尺寸解析、移动端适配和分隔线渲染。
-
-
-
-## 审阅说明
-
-- Drawer 根节点已经提供 `role="dialog"` / `aria-modal="true"` 和标题关联，正文中仍需为表单字段提供明确 label。
-- 打开时会记录之前的焦点元素，隐藏或卸载后恢复焦点；不要在外层手动抢焦点造成冲突。
-- Dashboard 配置页建议把长表单、权限矩阵、审计明细放进 Drawer，而不是塞进 Popover。
-- Header/Footer 的内置分隔线由 `TxDivider` 提供，避免重复硬编码边框样式。
+- 头尾分隔线复用 `TxDivider`，不要再为它们硬编码边框。
+- 源码：`packages/tuffex/packages/components/src/drawer/`。
 
 ## 离线完整示例源码
 

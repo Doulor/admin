@@ -2,21 +2,21 @@
 
 > GeoJSON 地图：气泡图与分级填色图，Mercator 默认投影，缩放平移。
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/maps) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/maps.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/maps.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/maps) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/maps.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/maps.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
 上游标记：status=`beta`，since=`0.1.0`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# Maps 地图
-
-## 基础用法
+## 用法
 
 两个地图组件都吃一份 `FeatureCollection` GeoJSON（包不内置地理数据，调用方自带），默认投影是纬度钳制在 ±85.05° 的 Mercator，显示窗裁掉两极空白让陆地铺满容器。容器高度默认按投影窗口的宽高比自适应，传 `height` 可固定像素高。数据用 accessor 模式取值：key 或 `(row) => value` 都行。
 
 ### 气泡图
+
+点击气泡返回对应的数据行；按下后移动超过 4 px 则改为平移地图。拖拽底图平移，⌘/Ctrl + 滚轮或双指捏合以指针为中心缩放。点位标签按文本显示，不执行 HTML。
 
 官方示例：`MapsBubbleMapDemo`（完整源码见本页末尾）
 
@@ -29,13 +29,14 @@
     lat="lat"
     value="requests"
     name="city"
-    roam
     :value-format="(v) => `${v.toLocaleString()} req/s`"
   />
 </template>
 ```
 
 ### 分级填色图
+
+有数据的地区响应悬停与点击；拖拽只平移地图，不会选中地区。
 
 官方示例：`MapsChoroplethDemo`（完整源码见本页末尾）
 
@@ -52,15 +53,7 @@
 </template>
 ```
 
-## 投影与缩放
-
-`projection` 接 d3-geo 投影实例（如 `geoNaturalEarth1()`），`null` 退化为裸经纬度（equirectangular）。实例会被原地 `fitExtent`，务必传稳定引用。`zoom`（默认 1.25）是自适应缩放的倍率；`roam` 开启滚轮缩放 + 拖拽平移，缩放范围被限制在 `[min(1, zoom), zoom × 8]`，气泡与描边在缩放下保持恒定像素尺寸。
-
-## 分级色阶
-
-分级填色是**连续**插值：值归一化后落在 `--tx-chart-map-scale-1..5` 相邻两档之间，用 CSS `color-mix(in oklab, …)` 混合——明暗主题切换时色阶自动翻转，JS 不做任何颜色解析。`colorRange` 可换整套色阶，`min`/`max` 可固定标尺范围。
-
-## API
+## API 参考
 
 ### 共同 Props（两个组件）
 
@@ -69,13 +62,14 @@
 | `geoJson` | `MapGeoJson` | — | `FeatureCollection`，调用方提供。 |
 | `center` | `[lng, lat]` | 自适应 | 地图中心。 |
 | `zoom` | `number` | `1.25` | 自适应缩放倍率。 |
-| `roam` | `boolean` | `false` | 滚轮缩放 + 拖拽平移。 |
+| `roam` | `boolean` | `true` | 拖拽平移；⌘/Ctrl + 滚轮或双指捏合缩放；双击与 `0` 复位。`false` 固定地图。 |
 | `projection` | `GeoProjection \| null` | 钳制 Mercator | d3-geo 投影；`null` 为裸经纬度。 |
 | `showTooltip` | `boolean` | `true` | 悬停提示框。 |
 | `valueFormat` | `(v: number) => string` | `toLocaleString` | 默认 tooltip 的数值格式。 |
 | `aspectRatio` | `number \| string` | 投影窗口比 | 容器宽高比。 |
 | `height` | `number` | — | 固定像素高，优先于 `aspectRatio`。 |
 | `width` | `number` | 容器实测 | 显式宽度（SSR/测试用）。 |
+| `labels` | `Partial<MapLabels>` | 英文 | `{ map, instructions }`：无障碍名称，以及紧随其后朗读的操作说明。 |
 
 ### BubbleMap 专有
 
@@ -102,10 +96,47 @@ BubbleMap 事件：`bubble-hover(row \| undefined)`、`bubble-click(row)`；插�
 
 ChoroplethMap 事件：`region-hover(row \| undefined)`、`region-click(row)`（都只对有数据的地区触发）；插槽 `tooltip`（作用域 `{ row, regionName, value }`）。
 
+## 投影与缩放
+
+`projection` 接 d3-geo 投影实例（如 `geoNaturalEarth1()`），`null` 退化为裸经纬度（equirectangular）。实例会被原地 `fitExtent`，务必传稳定引用。`zoom`（默认 1.25）是自适应缩放的倍率，也是双击与 `0` 复位回到的视图。`roam` 默认开启，缩放范围被限制在 `[min(1, zoom), zoom × 8]`；气泡与描边在缩放下保持恒定像素尺寸。
+
+## 平移与缩放输入
+
+普通滚轮始终属于页面：地图不会截走滚动。触屏则不同：单指平移地图、双指捏合缩放，从地图上开始的滑动不会滚动页面；请在地图周围留出页面边距，或设 `:roam="false"`。
+
+| 输入 | 效果 |
+|------|------|
+| 拖拽 | 从抓取点起 1:1 平移。超过 4 px 即为拖拽，不会点击气泡或地区。 |
+| 拖动中松手 | 沿惯性滑行至停下，不越出地图边界。 |
+| ⌘/Ctrl + 滚轮、双指捏合 | 以指针（或两指中点）为中心缩放。 |
+| 双击、双击触屏、`0` | 弹回初始视图。 |
+| `←` `→` `↑` `↓` | 平移地图尺寸的 10%。 |
+| `+` / `−` | 以中心为基点缩放 √2 倍。 |
+| `Escape` | 取消正在进行的拖拽或捏合。 |
+
+视图始终留在地图之内：地图大于容器时覆盖整个容器，小于容器时留在容器内，`zoom` 与 `center` 指定的初始视图在任何缩放下都可到达。拖过边缘时像橡皮筋一样越拉越沉，松手后弹回。`prefers-reduced-motion: reduce` 下，惯性滑行、回弹与按键步进直接落到终点；拖拽仍跟随指针。
+
+可平移的地图是可聚焦的 `role="application"`：`labels.map` 给出名称，`labels.instructions` 在名称之后朗读，二者都合并到 `MAP_DEFAULT_LABELS` 之上。`:roam="false"` 会去掉焦点停靠点与朗读说明，地图不再响应任何平移、缩放与按键，滑动又回到页面。
+
+## 分级色阶
+
+分级填色是**连续**插值：值归一化后落在 `--tx-chart-map-scale-1..5` 相邻两档之间，用 CSS `color-mix(in oklab, …)` 混合——明暗主题切换时色阶自动翻转，JS 不做任何颜色解析。`colorRange` 可换整套色阶，`min`/`max` 可固定标尺范围。
+
+## 交互与动画
+
+地图沿用 ECharts 的 `emphasis` / `blur` 与 `stateAnimation`，默认值按 kumo 复刻，只有分级填色的变淡例外：
+
+- 气泡基础不透明度 0.8；悬停的气泡放大到 1.2 倍、不透明度升到 1，切换走 300ms `cubicOut`。首帧入场时气泡从自身中心放大、从 0 淡入，时长 1000ms `cubicInOut`；数据超过 2000 条时跳过入场，直接落终帧。
+- 按下气泡在移动超过 4 px 之前是点击；之后改为平移地图，气泡不会被点击。
+- 分级填色悬停时保留该地区自己的色阶颜色，其余地区按 `blur.itemStyle.opacity` 降到 0.45，在指针到达的那一帧完成：变淡属于悬停换色，TuffEx 的悬停规则不给它过渡；无数据地区不参与高亮。
+- 与 ECharts 的地图一致，两个组件都**没有几何动画**（`animationDurationUpdate: 0`）：缩放平移只改 SVG `transform`，不补间路径与坐标。
+- `prefers-reduced-motion: reduce` 下补间直接落终帧：气泡以最终尺寸与不透明度出现，高亮瞬时切换。
+
 ## 与 kumo 的差异
 
 - `projection` 直接接 d3-geo 实例（kumo 是 `{ project, unproject }` 包装给 echarts 用）；`null` 实现为 equirectangular。
 - 缩放实现为 SVG transform，气泡/描边按缩放系数反缩，视觉尺寸恒定。
+- `roam` 默认开启，滚轮是协作式的：普通滚轮滚动页面，⌘/Ctrl + 滚轮与双指捏合才缩放。
 - `tooltipFormatter`（HTML 字符串）→ `tooltip` 插槽。
 
 ## 离线完整示例源码
@@ -115,66 +146,112 @@ ChoroplethMap 事件：`region-hover(row \| undefined)`、`region-click(row)`（
 
 ## 离线类型与实现参考
 
-- [axis/index.ts](../snapshot/packages/tuffex-charts/src/axis/index.ts.txt)
-- [src/TxAxis.vue](../snapshot/packages/tuffex-charts/src/axis/src/TxAxis.vue.txt)
-- [src/types.ts](../snapshot/packages/tuffex-charts/src/axis/src/types.ts.txt)
-- [chart-legend/index.ts](../snapshot/packages/tuffex-charts/src/chart-legend/index.ts.txt)
-- [src/TxChartLegendItem.vue](../snapshot/packages/tuffex-charts/src/chart-legend/src/TxChartLegendItem.vue.txt)
-- [src/types.ts](../snapshot/packages/tuffex-charts/src/chart-legend/src/types.ts.txt)
-- [chart/index.ts](../snapshot/packages/tuffex-charts/src/chart/index.ts.txt)
-- [src/TxChart.vue](../snapshot/packages/tuffex-charts/src/chart/src/TxChart.vue.txt)
-- [src/types.ts](../snapshot/packages/tuffex-charts/src/chart/src/types.ts.txt)
-- [core/accessor.ts](../snapshot/packages/tuffex-charts/src/core/accessor.ts.txt)
-- [core/context.ts](../snapshot/packages/tuffex-charts/src/core/context.ts.txt)
-- [core/scales.ts](../snapshot/packages/tuffex-charts/src/core/scales.ts.txt)
-- [core/types.ts](../snapshot/packages/tuffex-charts/src/core/types.ts.txt)
-- [core/uid.ts](../snapshot/packages/tuffex-charts/src/core/uid.ts.txt)
-- [grid/index.ts](../snapshot/packages/tuffex-charts/src/grid/index.ts.txt)
-- [src/TxGrid.vue](../snapshot/packages/tuffex-charts/src/grid/src/TxGrid.vue.txt)
-- [src/types.ts](../snapshot/packages/tuffex-charts/src/grid/src/types.ts.txt)
-- [src/index.ts](../snapshot/packages/tuffex-charts/src/index.ts.txt)
-- [maps/index.ts](../snapshot/packages/tuffex-charts/src/maps/index.ts.txt)
-- [src/TxBubbleMap.vue](../snapshot/packages/tuffex-charts/src/maps/src/TxBubbleMap.vue.txt)
-- [src/TxChoroplethMap.vue](../snapshot/packages/tuffex-charts/src/maps/src/TxChoroplethMap.vue.txt)
-- [src/accessor.ts](../snapshot/packages/tuffex-charts/src/maps/src/accessor.ts.txt)
-- [src/color.ts](../snapshot/packages/tuffex-charts/src/maps/src/color.ts.txt)
-- [src/map-shared.scss](../snapshot/packages/tuffex-charts/src/maps/src/map-shared.scss.txt)
-- [src/projection.ts](../snapshot/packages/tuffex-charts/src/maps/src/projection.ts.txt)
-- [src/roam.ts](../snapshot/packages/tuffex-charts/src/maps/src/roam.ts.txt)
-- [src/types.ts](../snapshot/packages/tuffex-charts/src/maps/src/types.ts.txt)
-- [src/use-map-base.ts](../snapshot/packages/tuffex-charts/src/maps/src/use-map-base.ts.txt)
-- [palette/index.ts](../snapshot/packages/tuffex-charts/src/palette/index.ts.txt)
-- [src/palette.ts](../snapshot/packages/tuffex-charts/src/palette/src/palette.ts.txt)
-- [sankey/index.ts](../snapshot/packages/tuffex-charts/src/sankey/index.ts.txt)
-- [src/TxSankeyChart.vue](../snapshot/packages/tuffex-charts/src/sankey/src/TxSankeyChart.vue.txt)
-- [src/layout.ts](../snapshot/packages/tuffex-charts/src/sankey/src/layout.ts.txt)
-- [src/types.ts](../snapshot/packages/tuffex-charts/src/sankey/src/types.ts.txt)
-- [series/index.ts](../snapshot/packages/tuffex-charts/src/series/index.ts.txt)
-- [src/TxArcSeries.vue](../snapshot/packages/tuffex-charts/src/series/src/TxArcSeries.vue.txt)
-- [src/TxAreaSeries.vue](../snapshot/packages/tuffex-charts/src/series/src/TxAreaSeries.vue.txt)
-- [src/TxBarSeries.vue](../snapshot/packages/tuffex-charts/src/series/src/TxBarSeries.vue.txt)
-- [src/TxLineSeries.vue](../snapshot/packages/tuffex-charts/src/series/src/TxLineSeries.vue.txt)
-- [src/TxScatterSeries.vue](../snapshot/packages/tuffex-charts/src/series/src/TxScatterSeries.vue.txt)
-- [src/curves.ts](../snapshot/packages/tuffex-charts/src/series/src/curves.ts.txt)
-- [src/types.ts](../snapshot/packages/tuffex-charts/src/series/src/types.ts.txt)
-- [src/use-series.ts](../snapshot/packages/tuffex-charts/src/series/src/use-series.ts.txt)
-- [style/index.scss](../snapshot/packages/tuffex-charts/src/style/index.scss.txt)
-- [style/tokens.scss](../snapshot/packages/tuffex-charts/src/style/tokens.scss.txt)
-- [timeseries/index.ts](../snapshot/packages/tuffex-charts/src/timeseries/index.ts.txt)
-- [src/TxTimeseriesAnnotations.vue](../snapshot/packages/tuffex-charts/src/timeseries/src/TxTimeseriesAnnotations.vue.txt)
-- [src/TxTimeseriesBrush.vue](../snapshot/packages/tuffex-charts/src/timeseries/src/TxTimeseriesBrush.vue.txt)
-- [src/TxTimeseriesChart.vue](../snapshot/packages/tuffex-charts/src/timeseries/src/TxTimeseriesChart.vue.txt)
-- [src/TxTimeseriesSkeleton.vue](../snapshot/packages/tuffex-charts/src/timeseries/src/TxTimeseriesSkeleton.vue.txt)
-- [src/brush.ts](../snapshot/packages/tuffex-charts/src/timeseries/src/brush.ts.txt)
-- [src/format.ts](../snapshot/packages/tuffex-charts/src/timeseries/src/format.ts.txt)
-- [src/incomplete.ts](../snapshot/packages/tuffex-charts/src/timeseries/src/incomplete.ts.txt)
-- [src/markers.ts](../snapshot/packages/tuffex-charts/src/timeseries/src/markers.ts.txt)
-- [src/tooltip-data.ts](../snapshot/packages/tuffex-charts/src/timeseries/src/tooltip-data.ts.txt)
-- [src/types.ts](../snapshot/packages/tuffex-charts/src/timeseries/src/types.ts.txt)
-- [tooltip/index.ts](../snapshot/packages/tuffex-charts/src/tooltip/index.ts.txt)
-- [src/TxChartTooltip.vue](../snapshot/packages/tuffex-charts/src/tooltip/src/TxChartTooltip.vue.txt)
-- [src/position.ts](../snapshot/packages/tuffex-charts/src/tooltip/src/position.ts.txt)
-- [src/types.ts](../snapshot/packages/tuffex-charts/src/tooltip/src/types.ts.txt)
-- [utils/with-install.ts](../snapshot/packages/tuffex-charts/src/utils/with-install.ts.txt)
+- [charts/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/index.ts.txt)
+- [axis/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/axis/index.ts.txt)
+- [src/TxAxis.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/axis/src/TxAxis.vue.txt)
+- [src/types.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/axis/src/types.ts.txt)
+- [chart-legend/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/chart-legend/index.ts.txt)
+- [src/TxChartLegendItem.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/chart-legend/src/TxChartLegendItem.vue.txt)
+- [src/types.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/chart-legend/src/types.ts.txt)
+- [chart/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/chart/index.ts.txt)
+- [src/TxChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/chart/src/TxChart.vue.txt)
+- [src/types.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/chart/src/types.ts.txt)
+- [core/accessor.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/core/accessor.ts.txt)
+- [core/animate.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/core/animate.ts.txt)
+- [core/context.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/core/context.ts.txt)
+- [core/scales.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/core/scales.ts.txt)
+- [core/types.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/core/types.ts.txt)
+- [core/uid.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/core/uid.ts.txt)
+- [dither-chart/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/dither-chart/index.ts.txt)
+- [src/DitherPatternDefs.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/dither-chart/src/DitherPatternDefs.vue.txt)
+- [src/TxDitherChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/dither-chart/src/TxDitherChart.vue.txt)
+- [src/geometry.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/dither-chart/src/geometry.ts.txt)
+- [src/paint.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/dither-chart/src/paint.ts.txt)
+- [src/source-catalog.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/dither-chart/src/source-catalog.ts.txt)
+- [src/types.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/dither-chart/src/types.ts.txt)
+- [src/use-dither-canvas.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/dither-chart/src/use-dither-canvas.ts.txt)
+- [echart/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/index.ts.txt)
+- [src/TxBarChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/TxBarChart.vue.txt)
+- [src/TxEChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/TxEChart.vue.txt)
+- [src/TxFunnelChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/TxFunnelChart.vue.txt)
+- [src/TxGaugeChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/TxGaugeChart.vue.txt)
+- [src/TxHeatmapChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/TxHeatmapChart.vue.txt)
+- [src/TxLineChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/TxLineChart.vue.txt)
+- [src/TxPieChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/TxPieChart.vue.txt)
+- [src/TxRadarChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/TxRadarChart.vue.txt)
+- [src/TxScatterChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/TxScatterChart.vue.txt)
+- [src/TxTreemapChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/TxTreemapChart.vue.txt)
+- [core/interaction.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/core/interaction.ts.txt)
+- [core/loader.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/core/loader.ts.txt)
+- [core/shared.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/core/shared.ts.txt)
+- [core/theme.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/core/theme.ts.txt)
+- [core/types.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/core/types.ts.txt)
+- [options/bar.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/options/bar.ts.txt)
+- [options/funnel.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/options/funnel.ts.txt)
+- [options/gauge.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/options/gauge.ts.txt)
+- [options/heatmap.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/options/heatmap.ts.txt)
+- [options/line.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/options/line.ts.txt)
+- [options/pie.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/options/pie.ts.txt)
+- [options/radar.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/options/radar.ts.txt)
+- [options/scatter.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/options/scatter.ts.txt)
+- [options/treemap.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/echart/src/options/treemap.ts.txt)
+- [grid/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/grid/index.ts.txt)
+- [src/TxGrid.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/grid/src/TxGrid.vue.txt)
+- [src/types.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/grid/src/types.ts.txt)
+- [learning-curve/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/learning-curve/index.ts.txt)
+- [src/TxLearningCurve.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/learning-curve/src/TxLearningCurve.vue.txt)
+- [src/TxLearningCurveLayer.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/learning-curve/src/TxLearningCurveLayer.vue.txt)
+- [src/smoothing.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/learning-curve/src/smoothing.ts.txt)
+- [src/types.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/learning-curve/src/types.ts.txt)
+- [maps/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/maps/index.ts.txt)
+- [src/TxBubbleMap.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/maps/src/TxBubbleMap.vue.txt)
+- [src/TxChoroplethMap.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/maps/src/TxChoroplethMap.vue.txt)
+- [src/accessor.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/maps/src/accessor.ts.txt)
+- [src/color.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/maps/src/color.ts.txt)
+- [src/map-shared.scss](../snapshot/packages/tuffex/packages/components/src/charts/src/maps/src/map-shared.scss.txt)
+- [src/projection.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/maps/src/projection.ts.txt)
+- [src/roam.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/maps/src/roam.ts.txt)
+- [src/types.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/maps/src/types.ts.txt)
+- [src/use-map-base.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/maps/src/use-map-base.ts.txt)
+- [mono-chart/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/mono-chart/index.ts.txt)
+- [src/TxMonoChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/mono-chart/src/TxMonoChart.vue.txt)
+- [src/activity-source.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/mono-chart/src/activity-source.ts.txt)
+- [src/geometry.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/mono-chart/src/geometry.ts.txt)
+- [src/types.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/mono-chart/src/types.ts.txt)
+- [palette/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/palette/index.ts.txt)
+- [src/palette.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/palette/src/palette.ts.txt)
+- [sankey/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/sankey/index.ts.txt)
+- [src/TxSankeyChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/sankey/src/TxSankeyChart.vue.txt)
+- [src/layout.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/sankey/src/layout.ts.txt)
+- [src/types.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/sankey/src/types.ts.txt)
+- [series/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/series/index.ts.txt)
+- [src/TxArcSeries.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/series/src/TxArcSeries.vue.txt)
+- [src/TxAreaSeries.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/series/src/TxAreaSeries.vue.txt)
+- [src/TxBarSeries.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/series/src/TxBarSeries.vue.txt)
+- [src/TxLineSeries.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/series/src/TxLineSeries.vue.txt)
+- [src/TxScatterSeries.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/series/src/TxScatterSeries.vue.txt)
+- [src/curves.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/series/src/curves.ts.txt)
+- [src/types.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/series/src/types.ts.txt)
+- [src/use-series.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/series/src/use-series.ts.txt)
+- [style/index.scss](../snapshot/packages/tuffex/packages/components/src/charts/src/style/index.scss.txt)
+- [style/tokens.scss](../snapshot/packages/tuffex/packages/components/src/charts/src/style/tokens.scss.txt)
+- [timeseries/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/timeseries/index.ts.txt)
+- [src/TxTimeseriesAnnotations.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/timeseries/src/TxTimeseriesAnnotations.vue.txt)
+- [src/TxTimeseriesChart.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/timeseries/src/TxTimeseriesChart.vue.txt)
+- [src/TxTimeseriesSkeleton.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/timeseries/src/TxTimeseriesSkeleton.vue.txt)
+- [src/brush.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/timeseries/src/brush.ts.txt)
+- [src/format.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/timeseries/src/format.ts.txt)
+- [src/incomplete.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/timeseries/src/incomplete.ts.txt)
+- [src/markers.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/timeseries/src/markers.ts.txt)
+- [src/tooltip-data.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/timeseries/src/tooltip-data.ts.txt)
+- [src/types.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/timeseries/src/types.ts.txt)
+- [tooltip/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/tooltip/index.ts.txt)
+- [src/TxChartTooltip.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/tooltip/src/TxChartTooltip.vue.txt)
+- [src/position.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/tooltip/src/position.ts.txt)
+- [src/types.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/tooltip/src/types.ts.txt)
+- [utils/with-install.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/utils/with-install.ts.txt)
+- [viewport/index.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/viewport/index.ts.txt)
+- [src/TxChartViewport.vue](../snapshot/packages/tuffex/packages/components/src/charts/src/viewport/src/TxChartViewport.vue.txt)
+- [src/viewport.ts](../snapshot/packages/tuffex/packages/components/src/charts/src/viewport/src/viewport.ts.txt)
 
 第三方许可与转换边界见 [SOURCES](../SOURCES.md)。示例中 Nexus 的自动导入、Tuff 前缀别名、样式类和外部素材不代表业务项目已配置，不能不经核对就复制运行。
