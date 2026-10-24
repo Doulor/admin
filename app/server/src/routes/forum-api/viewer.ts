@@ -12,10 +12,8 @@ import type { ChangeKeys, ChangeOptions, ForumTitle } from "../../lib/forum-stor
  * 这里就是靠这个判的，迁移后所有新账号的 `org_state` 恒为 active，这个检查已经形同虚设）。
  * 「能不能写」不在这里判：由 `requireWriter`/`canModerate` 按权限节点判定，`capabilities` 只是按钮显隐的
  * 提示（从权限引擎的 forum.moderate.* 等节点反查成旧 Capability 格式给前端，不参与真正的鉴权）。
- * 仍然调一次 `access.resolve()`：老账号（从没记过站内角色的）第一次来论坛时靠它补查一次 GitHub 组织角色、
- * 同步进新权限表（lib/access.ts 的 membership.unrecorded 分支），这里只要它的副作用和失败时的报错——
- * 令牌被 GitHub 拒绝、GitHub 出错，都原样往上抛给 http-policy 的全局错误处理（#164），不在这里接住，也不再读它
- * 返回的 capabilities/member/siteRole。
+ * 不调用 `access.resolve()`：它原来在这里补查 GitHub 组织角色，#274 review round 1 删掉那次查询之后只剩一次
+ * 读完就丢的计算。
  */
 export type ForumViewer =
   | { kind: "guest"; userId: null; login: null; accountId: null; capabilities: Capability[] }
@@ -58,9 +56,6 @@ export async function forumViewer(req: FastifyRequest): Promise<ForumViewer> {
   if (req.forumViewer) return req.forumViewer;
   if (!loadSession(req)) return (req.forumViewer = GUEST);
   const session = req.session!;
-  await req.server.services.access.resolve({
-    login: session.login, userId: session.user_id, accountId: session.account_id, accessToken: session.accessToken, provider: session.provider,
-  });
   const { permissions } = req.server.services;
   const groups = permissions.groupsOf(session.account_id);
   const isOwner = groups.titles.some(item => item.id === "title.site.owner");

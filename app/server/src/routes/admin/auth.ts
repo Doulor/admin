@@ -155,7 +155,6 @@ export default async function authRoutes(app: FastifyInstance) {
     const s = getSession(sid);
     if (!s) return { signed_in: false, ...visitorIdentity() };
     const { permissions, limits, profiles, identity } = app.services;
-    const consoleLink = permissions.check(s.account_id, "console.access");
     const groups = permissions.groupsOf(s.account_id);
     const profile = profiles.get(s.account_id);
     // account_id：极客班账号（官网、论坛、控制台读到的是同一个值）；provider：这次的登录方式。user_id 仍是 GitHub 数字 id。
