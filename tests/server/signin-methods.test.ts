@@ -148,7 +148,7 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     expect([missing.statusCode, missing.json().error]).toEqual([400, 'real_info_required']);
     const badName = await user.send('POST', '/auth/email/verify', { code, invite_code: 'yugc-test-2026', real_name: '1', grade: 1 });
     expect([badName.statusCode, badName.json().error]).toEqual([400, 'bad_real_name']);
-    // 年级只能是 1–4，合同直接挡下
+    // 年级只能是大一到大四或已毕业，合同直接挡下
     expect((await user.send('POST', '/auth/email/verify', { code, real_name: '王小明', grade: 5 })).statusCode).toBe(400);
     expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 0 });
 
@@ -182,12 +182,12 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     expect(wrong.json()).toMatchObject({ error: 'invite_invalid', attempts_left: 4 });
     expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 0 });
 
-    // 不填邀请码：注册成注册用户，不是错误（SPEC §3.2）
-    const ok = await user.send('POST', '/auth/email/verify', { ...REAL, code });
+    // 不填邀请码：注册成注册用户，不是错误（SPEC §3.2）；姓名和年级只有极客班的人要填（#280），这里不用带
+    const ok = await user.send('POST', '/auth/email/verify', { code });
     expect(ok.statusCode).toBe(200);
     expect(ok.json()).toEqual({ return_to: 'https://example.test/forum/', registered: true });
     const me = (await user.send('GET', '/auth/me')).json();
-    expect(me).toMatchObject({ signed_in: true, provider: 'email', user_id: null, console_link: false, level: 'registered' });
+    expect(me).toMatchObject({ signed_in: true, provider: 'email', user_id: null, console_link: false, level: 'registered', profile_required: false, real_name: null });
     expect(me.login).toMatch(/^yz_[0-9a-hjkmnp-tv-z]{8}$/);
     const account = db.prepare('SELECT org_state, org_role, invite_code_id, canonical_email, handle FROM users').get() as Record<string, unknown>;
     // #274 review round 1（blocker）：没填邀请码的 org_state 记 not_member，不再统一写 active——
@@ -611,8 +611,9 @@ describe('GitHub sign-in: invite optional, no organization check (#274 rewrite o
   function noGithubCalls(calls: string[]) {
     return (() => ({ request: async (route: string) => { calls.push(route); throw new Error(`unexpected GitHub call ${route}`); } })) as unknown as ServiceOverrides['octokitFactory'];
   }
-  /** GitHub 注册的新账号还没有姓名和年级（#280）：登录后先到补资料页，补好再回论坛 */
+  /** 极客班的人（成员、往届成员）缺姓名和年级（#280）：登录后先到补资料页，补好再回论坛；普通注册用户直接回论坛 */
   const PROFILE_PAGE = 'https://example.test/complete-profile?return_to=%2Fforum%2F';
+  const FORUM = 'https://example.test/forum/';
   async function callback(app: FastifyInstance, invite?: string) {
     const start = await app.inject(`/auth/github?return_to=https%3A%2F%2Fexample.test%2Fforum%2F${invite ? `&invite=${invite}` : ''}`);
     const state = new URL(String(start.headers.location)).searchParams.get('state');
@@ -626,14 +627,13 @@ describe('GitHub sign-in: invite optional, no organization check (#274 rewrite o
     const { app } = context;
     const db = app.services.storage.db;
     Object.assign(user, { id: 42, login: 'octocat' });
-    expect(await callback(app)).toBe(PROFILE_PAGE);
+    expect(await callback(app)).toBe(FORUM);
     expect(calls).toEqual([]);
     // #274 review round 1（blocker）：没填邀请码的 org_state 记 not_member，不再统一写 active。
     expect(db.prepare('SELECT org_role, org_state FROM users').get()).toEqual({ org_role: null, org_state: 'not_member' });
 
-    // 补好姓名和年级后再登录一次：同一个账号，不重新注册，直接回论坛
-    completeProfile(app, (db.prepare('SELECT id FROM users').get() as { id: string }).id);
-    expect(await callback(app)).toBe('https://example.test/forum/');
+    // 再登录一次：同一个账号，不重新注册
+    expect(await callback(app)).toBe(FORUM);
     expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 1 });
   });
 
@@ -657,7 +657,7 @@ describe('GitHub sign-in: invite optional, no organization check (#274 rewrite o
     const { app } = context;
     const db = app.services.storage.db;
     Object.assign(user, { id: 44, login: 'firstuser' });
-    expect(await callback(app)).toBe(PROFILE_PAGE);
+    expect(await callback(app)).toBe(FORUM);
     // #262 时代「空库第一个 GitHub 组织 owner 自动变站内管理员」已经去掉（SPEC §3.2）：第一个 GitHub 用户也只是注册用户
     expect(db.prepare('SELECT org_role FROM users').get()).toEqual({ org_role: null });
   });
@@ -677,7 +677,7 @@ describe('GitHub sign-in: invite optional, no organization check (#274 rewrite o
     expect(await callback(app)).toContain('signin=account_disabled');
   });
 
-  it('sends a GitHub account without an email to the bind page first, then to the profile page (#280), and straight back once both are done (#273)', async () => {
+  it('sends a GitHub account without an email to the bind page first, a member then to the profile page (#280), and straight back once both are done (#273)', async () => {
     const calls: string[] = [];
     const context = await testApp({ httpRequest, octokitFactory: noGithubCalls(calls) }, false, MAIL_ENV); contexts.push(context);
     const { app } = context;
@@ -685,9 +685,11 @@ describe('GitHub sign-in: invite optional, no organization check (#274 rewrite o
     expect(await callback(app)).toBe('https://example.test/bind-email?return_to=%2Fforum%2F');
     const accountId = (app.services.storage.db.prepare("SELECT user_id FROM identities WHERE provider = 'github' AND provider_uid = '45'").get() as { user_id: string }).user_id;
     app.services.identity.linkEmail({ accountId, email: 'needs@example.test', login: 'needsemail', claim: () => true });
+    expect(await callback(app)).toBe(FORUM);
+    grantPermGroup(app, accountId, 'level.member');
     expect(await callback(app)).toBe(PROFILE_PAGE);
     completeProfile(app, accountId);
-    expect(await callback(app)).toBe('https://example.test/forum/');
+    expect(await callback(app)).toBe(FORUM);
     expect(calls).toEqual([]);
   });
 });
@@ -873,11 +875,9 @@ describe('Google sign-in (#262)', () => {
     const me = (await first.user.send('GET', '/auth/me')).json();
     expect(me).toMatchObject({ signed_in: true, provider: 'google', email_required: true, level: 'registered' });
     expect(db.prepare("SELECT provider_uid, email FROM identities WHERE provider = 'google'").get()).toEqual({ provider_uid: 'google-sub-1', email: 'g.user@gmail.com' });
-    // 绑上同一个 Gmail 地址就行，再补好姓名和年级（#280）；之后用 Google 登录直接回原页，同一个账号
+    // 绑上同一个 Gmail 地址就行；注册用户不用补姓名和年级（#280），之后用 Google 登录直接回原页，同一个账号
     expect((await first.user.send('POST', '/api/identity/email/start', { email: 'g.user@gmail.com' })).statusCode).toBe(202);
     expect((await first.user.send('POST', '/api/identity/email/verify', { code: await mail.codeFor('g.user@gmail.com') })).json()).toEqual({ ok: true });
-    expect((await googleFlow(app, google)).location).toBe('https://example.test/complete-profile?return_to=%2Fforum%2F');
-    completeProfile(app, me.account_id);
     const again = await googleFlow(app, google);
     expect(again.location).toBe('https://example.test/forum/');
     expect((await again.user.send('GET', '/auth/me')).json().account_id).toBe(me.account_id);
@@ -888,6 +888,10 @@ describe('Google sign-in (#262)', () => {
     expect(redeemed.json()).toEqual({ level: 'member' });
     expect((await first.user.send('GET', '/auth/me')).json().level).toBe('member');
     expect(db.prepare('SELECT org_role FROM users').get()).toEqual({ org_role: null }); // org_role 不再由兑换邀请码改，只有 perm_members 变
+    // 成了成员再登录，先补姓名和年级
+    expect((await googleFlow(app, google)).location).toBe('https://example.test/complete-profile?return_to=%2Fforum%2F');
+    completeProfile(app, me.account_id);
+    expect((await googleFlow(app, google)).location).toBe('https://example.test/forum/');
   });
 
   it('does not create a second account for an email that already has one, and fails closed on a bad token', async () => {

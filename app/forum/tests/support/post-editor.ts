@@ -22,6 +22,8 @@ export interface FakeCrepe {
   /** Every `setMarkdown` PostEditor made, in order. */
   set: string[]
   inserted: string[]
+  /** Every sticker put in with `insertSticker`. */
+  stickers: Array<{ src: string, label: string }>
   completed: Array<[MentionQuery, string]>
   destroyed: boolean
 }
@@ -55,6 +57,8 @@ export const StickerPickerStub: Component = defineComponent({
 export function postEditorKit({ crepe = 'ready', granted = [], serverMode = true, packs = [WAVE_PACK], starting }: PostEditorKitOptions = {}) {
   const editors: FakeCrepe[] = []
   const toast = vi.fn()
+  /** Every `useActivityBeacon().report()` call PostEditor made, in order (#274：表情使用埋点). */
+  const reported: Array<{ action: string, extra: Record<string, unknown> }> = []
   const server = {
     granted: new Set(granted),
     stickerPacks: packs,
@@ -66,12 +70,13 @@ export function postEditorKit({ crepe = 'ready', granted = [], serverMode = true
     createCrepeEditor: async (options: CrepeEditorOptions) => {
       if (crepe === 'loading')
         return new Promise(() => {})
-      const editor: FakeCrepe = { options, set: [], inserted: [], completed: [], destroyed: false }
+      const editor: FakeCrepe = { options, set: [], inserted: [], stickers: [], completed: [], destroyed: false }
       editors.push(editor)
       await starting
       return {
         setMarkdown: (markdown: string) => editor.set.push(markdown),
         insert: (markdown: string) => editor.inserted.push(markdown),
+        insertSticker: (sticker: { src: string, label: string }) => editor.stickers.push(sticker),
         completeMention: (range: MentionQuery, username: string) => editor.completed.push([range, username]),
         focus: () => {},
         destroy: async () => {
@@ -96,6 +101,9 @@ export function postEditorKit({ crepe = 'ready', granted = [], serverMode = true
       index: computed(() => postMarkdown.stickerIndex(server.stickerPacks)),
       load: () => {},
     }),
+    useActivityBeacon: () => ({
+      report: (action: string, extra: Record<string, unknown> = {}) => reported.push({ action, extra }),
+    }),
   }
-  return { imports, globals, editors, toast, server }
+  return { imports, globals, editors, toast, server, reported }
 }

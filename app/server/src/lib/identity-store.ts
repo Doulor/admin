@@ -500,6 +500,17 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
   }
 
   /**
+   * 极客班的人（#280 补资料关口只拦他们）：账号没停用，且在权限引擎的成员或往届成员等级里（兑换过邀请码，或由管理员在控制台设定）。
+   * 不看 org_state，那一列只记注册时有没有填邀请码（SPEC §3.2）。
+   */
+  function isMember(accountId: string): boolean {
+    const row = db.prepare(`SELECT u.status AS status, EXISTS (SELECT 1 FROM perm_members m WHERE m.account_id = u.id
+      AND m.group_id IN ('level.member', 'level.alumni') AND (m.expires_at IS NULL OR m.expires_at > ?)) AS in_class
+      FROM users u WHERE u.id = ?`).get(clock(), accountId) as { status: string; in_class: number } | undefined;
+    return row?.status === "active" && row.in_class === 1;
+  }
+
+  /**
    * 绑定邮箱（账号页）：`claim` 在事务里占用验证码。这个邮箱已属于别的账号回 identity_conflict（不说是谁），已经绑在本账号上回
    * identity_exists，本账号已有 EMAILS_MAX 个邮箱回 email_limit（#272：一个账号可以绑几个邮箱，第一个是主邮箱）。
    * 成功写身份、identity_audit 与 identity.link；还没有主邮箱时这个就是主邮箱（canonical_email）。
@@ -766,7 +777,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
 
   return {
     signInWithGithub, recordSignout, accountForGithub,
-    signInWithEmailCode, signInWithPassword, signInWithGoogle, passwordFor, passwordHashOf, setPassword, resetPassword, hasEmail, linkEmail, unlinkEmail, emailAddRefusal,
+    signInWithEmailCode, signInWithPassword, signInWithGoogle, passwordFor, passwordHashOf, setPassword, resetPassword, hasEmail, isMember, linkEmail, unlinkEmail, emailAddRefusal,
     membershipOf, accountView, provisionAccount, listAccounts, setSiteRole, githubIdentityByLogin, accountTarget,
     getAccountClaims, listAccountsForSync,
   };

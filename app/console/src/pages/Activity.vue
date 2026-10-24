@@ -13,6 +13,7 @@ import { TxTooltip } from "@talex-touch/tuffex/tooltip";
 import { TxEmptyState } from "@talex-touch/tuffex/empty-state";
 import { TxDrawer } from "@talex-touch/tuffex/drawer";
 import { toast } from "@talex-touch/tuffex/utils";
+import DateField from "../components/DateField.vue";
 import PageHeader from "../components/PageHeader.vue";
 import AccountPicker from "../components/AccountPicker.vue";
 import ErrorPanel from "../components/ErrorPanel.vue";
@@ -48,7 +49,7 @@ const submit = () => apply({ visitor: draft.visitor.trim(), action: draft.action
 const clearAll = () => { problem.value = null; void router.replace({ query: {} }); };
 const filtered = computed(() => Object.values(filters.value).some(Boolean));
 
-const list = useResource(() => api<ActivityList>(`/api/console/activity?${activityParams(filters.value, { limit: 50 })}`), [filters]);
+const list = useResource(() => api<ActivityList>(`/api/console/activity?${activityParams(filters.value)}`), [filters]);
 const extra = shallowRef<ActivityEvent[]>([]);
 const nextCursor = ref<string | null>(null);
 const more = ref<{ pending: boolean; error: unknown }>({ pending: false, error: null });
@@ -61,7 +62,7 @@ async function loadMore() {
   if (!nextCursor.value || more.value.pending) return;
   more.value = { pending: true, error: null };
   try {
-    const data = await api<ActivityList>(`/api/console/activity?${activityParams(filters.value, { cursor: nextCursor.value, limit: 50 })}`);
+    const data = await api<ActivityList>(`/api/console/activity?${activityParams(filters.value, { cursor: nextCursor.value })}`);
     extra.value = [...extra.value, ...data.items];
     nextCursor.value = data.next_cursor;
     more.value = { pending: false, error: null };
@@ -86,7 +87,7 @@ const columns = [
   { key: "at", title: "时间", width: 112 },
   { key: "who", title: "谁", width: 180 },
   { key: "surface", title: "来源", width: 80 },
-  { key: "action", title: "动作", width: 220 },
+  { key: "action", title: "动作", width: 220, align: "left" as const },
   { key: "target", title: "目标", width: 160 },
   { key: "outcome", title: "结果", width: 80 },
   { key: "ip", title: "IP", width: 130 },
@@ -152,10 +153,10 @@ async function copy(text: string) {
             <TxInput v-model="draft.action" class="fill-width mono" placeholder="例如 auth. 或 forum.topic" spellcheck="false" autocomplete="off" />
           </TxFormItem>
           <TxFormItem label="开始日期">
-            <TxInput v-model="draft.from" type="date" class="fill-width" />
+            <DateField v-model="draft.from" clearable />
           </TxFormItem>
           <TxFormItem label="结束日期">
-            <TxInput v-model="draft.to" type="date" class="fill-width" />
+            <DateField v-model="draft.to" clearable />
           </TxFormItem>
           <div class="filter-actions">
             <TxButton variant="primary" native-type="submit" icon="i-carbon-filter">筛选</TxButton>
@@ -317,7 +318,6 @@ async function copy(text: string) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding-bottom: 18px;
 }
 .filter-actions :deep(button),
 .pager :deep(button),
@@ -325,7 +325,8 @@ async function copy(text: string) {
   min-height: 44px;
   min-width: 44px;
 }
-.filters :deep(.tx-input) {
+.filters :deep(.tx-input),
+.filters :deep(.tx-date-picker-field) {
   min-height: 44px;
 }
 .field-error {

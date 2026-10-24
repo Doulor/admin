@@ -44,8 +44,8 @@ const loginProvider = choices("github", "email", "google");
 const codeSent = object({ resend_after: integer(1) }, ["resend_after"]);
 const signedIn = object({ return_to: text(2048, 1), registered: { type: "boolean" } }, ["return_to"]);
 const done = object({ ok: { type: "boolean", const: true } }, ["ok"]);
-// 实名信息（#280）：下拉框只能选大一到大四（1–4），读出来的年级还可能是已毕业；真实姓名的字符规则在 lib/account-profiles.ts
-const selectableGrade = { type: "integer", enum: [1, 2, 3, 4] };
+// 实名信息（#280）：下拉框能选大一到大四（1–4）和已毕业（"graduated"）；真实姓名的字符规则在 lib/account-profiles.ts
+const selectableGrade = { anyOf: [{ type: "integer", enum: [1, 2, 3, 4] }, { type: "string", enum: ["graduated"] }] };
 const realName = text(64, 1);
 const realInfoView = {
   real_name: { anyOf: [text(64, 1), { type: "null" }] },

@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { loadSession } from "../../lib/session.js";
-import { EVENT_WHITELIST } from "../../lib/activity.js";
+import { EVENT_WHITELIST_BY_SURFACE, type EventsSurface } from "../../lib/activity.js";
 import { ipHash } from "../../lib/forum-rules.js";
 
 type EventItem = { action: string; target_type?: string | null; target_id?: string | null; meta?: Record<string, unknown> };
@@ -15,6 +15,9 @@ const META_BYTES_MAX = 2048;
  * 见 middleware/visitor.ts），按它限流等于没限——同一个 IP 换着造新访客 cookie 就能一直拿到新额度。
  * `req.visitorId` 由 routes/portal/index.ts 挂的 attachVisitorId（middleware/visitor.ts）发，这里只读，不重复发 cookie，
  * 也不参与限流键（只用来给操作记录按访客去重，和「配额算谁的」是两回事）。
+ *
+ * #274：门户、论坛、控制台三个前端共用这一个接口，整批请求按 `surface` 字段挑对应的白名单（不传按门户算，
+ * 门户既有调用点不用跟着改）；一批事件只属于一个来源，不支持同一批里混几个 surface。
  */
 export default async function eventsRoutes(app: FastifyInstance) {
   const { activity } = app.services;
@@ -22,7 +25,7 @@ export default async function eventsRoutes(app: FastifyInstance) {
   // 登录的人一样能调：这里只是尽量认出账号，不强制登录（游客也能调），所以不用 requireAuth。
   app.addHook("preHandler", async (req: FastifyRequest) => { loadSession(req); });
 
-  app.post<{ Body: { events: EventItem[] } }>(
+  app.post<{ Body: { surface?: EventsSurface; events: EventItem[] } }>(
     "/api/events",
     {
       config: {
@@ -33,13 +36,15 @@ export default async function eventsRoutes(app: FastifyInstance) {
       },
     },
     async req => {
+      const surface = req.body.surface ?? "portal";
+      const whitelist = EVENT_WHITELIST_BY_SURFACE[surface];
       let accepted = 0;
       const rejectedActions: string[] = [];
       for (const event of req.body.events) {
         const metaTooLarge = event.meta !== undefined && JSON.stringify(event.meta).length > META_BYTES_MAX;
-        if (!metaTooLarge && (EVENT_WHITELIST as readonly string[]).includes(event.action)) {
+        if (!metaTooLarge && whitelist.includes(event.action)) {
           activity.recordActivity(req, {
-            action: event.action, surface: "portal",
+            action: event.action, surface,
             target_type: event.target_type ?? null, target_id: event.target_id ?? null, meta: event.meta,
           });
           accepted += 1;

@@ -13,10 +13,16 @@ type ThemeChoice = ForumTheme | 'system'
 function setup(preference: string, forumTheme: ForumTheme | null | undefined, signedIn = true) {
   const colorMode = reactive({ preference })
   const account = ref(signedIn ? { username: 'ada', forumTheme } as unknown as SiteAccount : null)
+  /** Every `useActivityBeacon().report()` call, in order (#274：访客也没有账号可存，只能靠这条看到换主题). */
+  const reported: Array<{ action: string, extra: Record<string, unknown> }> = []
   const { useForumTheme } = loadModule<{ useForumTheme: () => { choice: { value: ThemeChoice }, set: (value: ThemeChoice) => Promise<void>, applyAccountTheme: (theme: ForumTheme | null | undefined) => void } }>('composables/useForumTheme.ts', {
-    globals: { useColorMode: () => colorMode, useSiteAccount: () => ({ account }) },
+    globals: {
+      useColorMode: () => colorMode,
+      useSiteAccount: () => ({ account }),
+      useActivityBeacon: () => ({ report: (action: string, extra: Record<string, unknown> = {}) => reported.push({ action, extra }) }),
+    },
   })
-  return { theme: useForumTheme(), colorMode, account }
+  return { theme: useForumTheme(), colorMode, account, reported }
 }
 
 function stubFetch(ok = true) {
@@ -64,6 +70,17 @@ describe('useForumTheme', () => {
     await refused.theme.set('dark')
     expect(refused.colorMode.preference).toBe('dark')
     expect(refused.account.value?.forumTheme).toBe('light')
+  })
+
+  it('reports forum.theme.change on a real change, signed in or not, but not on a no-op set (#274)', async () => {
+    stubFetch()
+    const signedOut = setup('light', null, false)
+    await signedOut.theme.set('dark')
+    expect(signedOut.reported).toEqual([{ action: 'forum.theme.change', extra: { meta: { theme: 'dark' } } }])
+
+    const signedIn = setup('light', 'light')
+    await signedIn.theme.set('light') // 没变，不报
+    expect(signedIn.reported).toEqual([])
   })
 
   it('takes the account\'s theme, and leaves the browser alone when the account has none', () => {

@@ -42,6 +42,18 @@ export default async function consoleForumRoutes(app: FastifyInstance) {
     })),
   }));
 
+  /** 新建一个空表情包（#276）：id 之后当这个包里表情短码的前缀，定了不能改；重复回 409。 */
+  app.post<{ Body: { id: string; name: string } }>(
+    "/api/console/forum/sticker-packs",
+    { preHandler: [requirePermission("forum.sticker.manage"), requireStepUp] },
+    async (req, reply) => {
+      if (!forum.createStickerPack(req.body.id, req.body.name.trim())) return reply.code(409).send({ error: "pack_id_taken", message: "这个表情包 id 已经被用过了" });
+      app.services.cache.invalidate("forum:stickers");
+      app.services.activity.recordActivity(req, { action: "forum.sticker_pack.create", surface: "console", target_type: "sticker_pack", target_id: req.body.id, outcome: "ok", meta: { name: req.body.name.trim() } });
+      return reply.code(201).send({ id: req.body.id, name: req.body.name.trim() });
+    },
+  );
+
   app.patch<{ Params: StickerParams; Body: { name?: string; sort?: number; enabled?: boolean } }>(
     "/api/console/forum/sticker-packs/:id",
     { preHandler: [requirePermission("forum.sticker.manage"), requireStepUp] },

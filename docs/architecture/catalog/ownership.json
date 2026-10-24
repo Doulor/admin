@@ -1319,7 +1319,7 @@
         },
         {
           "path": "app/console/src/pages/SignIn.vue",
-          "needle": "<TxFormItem v-if=\"registering\" v-slot=\"{ id }\" label=\"真实姓名\">"
+          "needle": "<TxFormItem v-if=\"registering\" v-slot=\"{ id }\" :label=\"invite.trim() ? '真实姓名' : '真实姓名（成员必填）'\">"
         }
       ],
       "tests": [
@@ -1930,7 +1930,7 @@
         },
         {
           "path": "app/console/src/lib/types.ts",
-          "needle": "export type SelectableGrade = 1 | 2 | 3 | 4;"
+          "needle": "export type SelectableGrade = Grade;"
         }
       ],
       "tests": [
@@ -2322,10 +2322,19 @@
         {
           "path": "app/console/src/lib/activity.ts",
           "needle": "// 操作记录（SPEC §3.7）：筛选条件 ↔ 地址参数 ↔ 接口参数，以及来源、结果、动作、限流桶的说法。纯函数，tests/console 直接测。"
+        },
+        {
+          "path": "app/console/src/mock/console.ts",
+          "needle": "function routeActivity(persona: Persona, search: URLSearchParams): ActivityList {"
+        },
+        {
+          "path": "app/console/src/components/DateField.vue",
+          "needle": "// 日期框（#283）：Tuffex 日期选择器配上控制台的默认值——中文文案、周一开头、桌面和手机都是下拉日历。"
         }
       ],
       "tests": [
-        "tests/server/activity.test.ts"
+        "tests/server/activity.test.ts",
+        "tests/console/activity.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -2437,14 +2446,15 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：不要求登录，访客也能调；按账号或访客编号（不是 IP）限流 30 次每分钟，同一人多个标签页共享同一份配额。",
-        "响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，多余字段 400 validation_error（契约在 routes/portal/contracts.ts）。",
-        "数据与副作用：只有 lib/activity.ts 的 EVENT_WHITELIST 里的动作才记一行 activity_events；白名单外的全部丢弃，合并计一条 outcome=denied 的 events.rejected（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌等敏感字段（调用方自己决定 meta 放什么）。"
+        "权限与资源：不要求登录，访客也能调；限流键登录的人按账号，没登录的按 IP 哈希（不是访客 cookie），30 次每分钟，同一人多个标签页共享同一份配额。",
+        "请求：{ surface?: \"portal\"|\"forum\"|\"console\", events: [...] }；surface 不传按门户算，一批事件只属于一个来源。",
+        "响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，surface 不认识的值或多余字段 400 validation_error（契约在 routes/portal/contracts.ts）。",
+        "数据与副作用：只有对应来源在 lib/activity.ts 的白名单（EVENT_WHITELIST=门户、FORUM_EVENT_WHITELIST、CONSOLE_EVENT_WHITELIST）里的动作才记一行 activity_events；白名单外的全部丢弃，合并计一条 outcome=denied 的 events.rejected（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌、地址栏查询串、邮箱、真实姓名或帖子正文。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/portal/events.ts",
-          "needle": "app.post<{ Body: { events: EventItem[] } }>("
+          "needle": "app.post<{ Body: { surface?: EventsSurface; events: EventItem[] } }>("
         },
         {
           "path": "app/server/src/routes/portal/contracts.ts",
@@ -2453,6 +2463,38 @@
         {
           "path": "app/server/src/lib/activity.ts",
           "needle": "export const EVENT_WHITELIST ="
+        },
+        {
+          "path": "app/server/src/lib/activity.ts",
+          "needle": "export const FORUM_EVENT_WHITELIST ="
+        },
+        {
+          "path": "app/server/src/lib/activity.ts",
+          "needle": "export const CONSOLE_EVENT_WHITELIST ="
+        },
+        {
+          "path": "app/forum/app/composables/useActivityBeacon.ts",
+          "needle": "surface: 'forum', events"
+        },
+        {
+          "path": "app/console/src/lib/events.ts",
+          "needle": "surface: \"console\", events"
+        },
+        {
+          "path": "app/console/src/router.ts",
+          "needle": "reportEvent(\"page.view\", { target_type: \"route\", target_id: to.matched.at(-1)?.path ?? to.path });"
+        },
+        {
+          "path": "app/forum/app/plugins/activity-beacon.client.ts",
+          "needle": "report('page.view', { target_type: 'route', target_id: String(route.name ?? route.path) })"
+        },
+        {
+          "path": "app/forum/app/composables/useForumTheme.ts",
+          "needle": "report('forum.theme.change', { meta: { theme: value } })"
+        },
+        {
+          "path": "app/forum/app/components/PostEditor.vue",
+          "needle": "report('forum.sticker.use', { target_type: 'sticker', target_id: sticker.shortcode })"
         },
         {
           "path": "app/web/sites/portal/lib/events.ts",
@@ -2508,7 +2550,8 @@
         }
       ],
       "tests": [
-        "tests/server/events.test.ts"
+        "tests/server/events.test.ts",
+        "app/forum/tests/activity-beacon.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -3838,6 +3881,14 @@
         {
           "path": "app/forum/app/editor/crepe-editor.ts",
           "needle": "export interface MentionQuery {"
+        },
+        {
+          "path": "app/forum/app/editor/inline-stickers.ts",
+          "needle": "export function inlineStickers(state: EditorState, find: StickerLookup): Transaction | null {"
+        },
+        {
+          "path": "app/forum/shared/post-markdown.ts",
+          "needle": "export function renderableMarkdown(source: string, stickers?: ReadonlyMap<string, StickerRef>): string {"
         }
       ],
       "tests": [
@@ -4525,7 +4576,8 @@
       "relatedDomains": [
         "identity",
         "permissions",
-        "platform"
+        "platform",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "PUT /api/forum/posts/:post_id/reactions/:sticker_id",
@@ -4545,19 +4597,24 @@
         "forum_reactions",
         "forum_users",
         "sessions",
-        "limit_events"
+        "limit_events",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：需要 forum.react 节点（#276 迁移种子只发给 level.member），由 requireWriter 判定；访客401 signin_required，登录但没有该节点403 forbidden；帖子不存在404，已软删409 post_deleted。",
         "响应与错误：200 {reactions}，只回这条帖子的表情聚合（CONTRACT §4），不回整份changes或viewer；表情不存在或已停用400 unknown_sticker；超过meta.limit.forum.react.hourly回429 {error:rate_limited,bucket:\"forum.react.hourly\",retry_after}（按账号计数，和每分钟的洪泛线不是同一条）。",
-        "数据与副作用：按 (post_id,account_id,sticker_id) 主键 INSERT OR IGNORE 写 forum_reactions，重复加同一表情不报错也不重复计数；不写活动审计（CONTRACT §4 没有要求）。",
+        "数据与副作用：按 (post_id,account_id,sticker_id) 主键 INSERT OR IGNORE 写 forum_reactions，重复加同一表情不报错也不重复计数；记一条 outcome=ok 的 forum.react 操作记录（meta.sticker_id，#274：原来没有，补上）。",
         "身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/forum-api/posts.ts",
           "needle": "app.put<{ Params: ReactionParams }>(\"/api/forum/posts/:post_id/reactions/:sticker_id\", async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/routes/forum-api/posts.ts",
+          "needle": "app.services.activity.recordActivity(req, { action: \"forum.react\", surface: \"forum\", target_type: \"post\", target_id: post.id, outcome: \"ok\", meta: { sticker_id: sticker.id } });"
         },
         {
           "path": "app/server/src/lib/forum-store.ts",
@@ -4581,7 +4638,8 @@
         }
       ],
       "tests": [
-        "tests/server/forum-v2-endpoints.test.ts"
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/server/forum.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -4594,7 +4652,8 @@
       "domain": "forum",
       "relatedDomains": [
         "identity",
-        "permissions"
+        "permissions",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "DELETE /api/forum/posts/:post_id/reactions/:sticker_id",
@@ -4612,19 +4671,24 @@
       "writes": [
         "forum_reactions",
         "forum_users",
-        "sessions"
+        "sessions",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：同PUT同一个节点 forum.react；不检查帖子是否已软删除——取消自己的表情回应即使帖子已删也允许。",
         "响应与错误：200 {reactions}，回这条帖子取消之后的表情聚合；不存在的帖子404；这条不限额（限额只拦住「加」，不拦「取消」）。",
-        "数据与副作用：按 (post_id,account_id,sticker_id) DELETE forum_reactions，原本没有这条也不报错（幂等）。",
+        "数据与副作用：按 (post_id,account_id,sticker_id) DELETE forum_reactions，原本没有这条也不报错（幂等）；同样记一条 outcome=ok 的 forum.react 操作记录，meta.removed=true 区分（#274：原来没有，补上）。",
         "身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/forum-api/posts.ts",
           "needle": "app.delete<{ Params: ReactionParams }>(\"/api/forum/posts/:post_id/reactions/:sticker_id\", async req => {"
+        },
+        {
+          "path": "app/server/src/routes/forum-api/posts.ts",
+          "needle": "meta: { sticker_id: req.params.sticker_id, removed: true } });"
         },
         {
           "path": "app/server/src/lib/forum-store.ts",
@@ -4640,7 +4704,8 @@
         }
       ],
       "tests": [
-        "tests/server/forum-v2-endpoints.test.ts"
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/server/forum.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -5130,6 +5195,10 @@
         {
           "path": "app/console/src/pages/forum/StickersTab.vue",
           "needle": "<script setup lang=\"ts\">"
+        },
+        {
+          "path": "app/console/src/pages/Forum.vue",
+          "needle": "<script setup lang=\"ts\">"
         }
       ],
       "tests": [
@@ -5244,6 +5313,73 @@
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "console.forum.sticker_packs.create",
+      "title": "控制台新建表情包",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/forum/sticker-packs",
+      "capabilities": [],
+      "reads": [
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "forum_sticker_packs"
+      ],
+      "writes": [
+        "forum_sticker_packs",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：requirePermission(\"forum.sticker.manage\") + requireStepUp；body {id,name}，id 小写字母、数字和连字符，name 1–64 字。",
+        "响应与错误：201 {id,name}；id 已被占用回409 pack_id_taken；格式不对400。",
+        "数据与副作用：插一行 forum_sticker_packs（排在最后）；空包不在公开面板里出现；成功后 invalidate 公开列表缓存，写审计 forum.sticker_pack.create。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/forum.ts",
+          "needle": "\"/api/console/forum/sticker-packs\","
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "createStickerPack(id: string, name: string, now = Date.now()): boolean {"
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function createPermissionEngine("
+        },
+        {
+          "path": "app/console/src/pages/forum/StickersTab.vue",
+          "needle": "const createPack = useAction(async () => {"
+        },
+        {
+          "path": "app/console/src/lib/forum.ts",
+          "needle": "export function newPackErrors("
+        },
+        {
+          "path": "app/console/src/mock/console.ts",
+          "needle": "if (path === \"/api/console/forum/sticker-packs\" && method === \"POST\") {"
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/console/forum.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
       ]
     },
     {
@@ -11255,6 +11391,14 @@
     "app/forum/app/": [
       "forum"
     ],
+    "app/forum/app/composables/useActivityBeacon.ts": [
+      "forum",
+      "audit"
+    ],
+    "app/forum/app/plugins/activity-beacon.client.ts": [
+      "forum",
+      "audit"
+    ],
     "app/forum/shared/": [
       "forum"
     ],
@@ -11354,6 +11498,9 @@
       "identity"
     ],
     "app/console/src/pages/Activity.vue": [
+      "audit"
+    ],
+    "app/console/src/lib/events.ts": [
       "audit"
     ],
     "app/console/src/pages/Users.vue": [

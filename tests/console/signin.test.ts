@@ -255,13 +255,15 @@ describe("忘记密码与绑定邮箱 (#273)", () => {
   it("补资料页（#280）的地址与服务端一致；服务端先绑邮箱再补资料，填好以后不回到两个关口页", () => {
     expect(COMPLETE_PROFILE_PATH).toBe(SERVER_COMPLETE_PROFILE_PATH);
     expect(completeProfilePath("/forum/t/1?page=2")).toBe("/complete-profile?return_to=%2Fforum%2Ft%2F1%3Fpage%3D2");
-    const deps = (email: boolean, profile: boolean) => ({ identity: { hasEmail: () => !email }, mail: { sendingEnabled: true }, profiles: { profileRequired: () => profile } });
+    const deps = (email: boolean, profile: boolean, member = true) => ({ identity: { hasEmail: () => !email, isMember: () => member }, mail: { sendingEnabled: true }, profiles: { profileRequired: () => profile } });
     const back = `${ORIGIN}/forum/t/1?page=2#c3`;
     expect(gatedReturn(deps(false, false), ORIGIN, "a", back)).toBe(back);
     expect(new URL(gatedReturn(deps(true, true), ORIGIN, "a", back)).pathname).toBe(BIND_EMAIL_PATH);
     const fromServer = new URL(gatedReturn(deps(false, true), ORIGIN, "a", back));
     expect(fromServer.pathname).toBe(COMPLETE_PROFILE_PATH);
     expect(completeProfileReturn(fromServer.searchParams.get("return_to"), ORIGIN)).toBe("/forum/t/1?page=2#c3");
+    // 不是极客班的人不用补资料
+    expect(gatedReturn(deps(false, true, false), ORIGIN, "a", back)).toBe(back);
     expect(completeProfileReturn("/complete-profile?return_to=%2F", ORIGIN)).toBe("/console");
     expect(completeProfileReturn("/bind-email", ORIGIN)).toBe("/console");
     expect(completeProfileReturn("https://evil.test/", ORIGIN)).toBe("/console");

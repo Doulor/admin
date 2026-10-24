@@ -1,0 +1,237 @@
+{
+  "version": 1,
+  "issue": 283,
+  "kind": "business",
+  "summary": "控制台界面全量调整（所有者 2026-10-24 22:16「论坛的这些ui太紧凑了，admin的ui你去优化下吧，你全量看看优化下ui，太丑了，而且很多的按钮也很丑」、22:17「admin的这个弹窗丑死了」、22:09「这个部分没有用tuff的组件库吧」）：按钮分实心主按钮、白底次按钮、文字按钮；弹窗不超过视口、正文滚动、底部按钮固定；页签点过不留粗框；全部日期框换成 Tuffex 日期选择器（中文、周一开头）；论坛管理「我的论坛权限」改成卡片网格；操作记录的筛选按钮和输入框对齐，「动作」列表头左对齐。",
+  "applications": [
+    "console"
+  ],
+  "domains": [
+    "audit",
+    "organization",
+    "competitions",
+    "identity",
+    "permissions",
+    "feedback",
+    "github",
+    "recruitment",
+    "forum",
+    "invitations",
+    "gitlab",
+    "platform"
+  ],
+  "flows": [
+    "flow:audit.console.activity.list",
+    "flow:console.summary",
+    "flow:competition.console.list",
+    "flow:competition.update",
+    "flow:identity.invites.list",
+    "flow:permissions.nodes.list",
+    "flow:permissions.groups.list",
+    "flow:identity.callback"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "只改控制台的外观和日期输入方式，页面上的数据、按钮行为和接口调用不变；日期值仍是 YYYY-MM-DD。",
+      "evidence": [
+        "app/console/src/styles/controls.css",
+        "app/console/src/main.ts",
+        "app/console/src/components/DateField.vue",
+        "app/console/src/pages/Activity.vue",
+        "app/console/src/pages/Competitions.vue",
+        "app/console/src/pages/Forum.vue",
+        "app/console/src/pages/Invites.vue",
+        "app/console/src/pages/permissions/EntryDialog.vue",
+        "app/console/src/pages/permissions/GroupDetail.vue"
+      ]
+    },
+    "backend": {
+      "status": "unchanged",
+      "reason": "没有改服务端代码和接口。",
+      "evidence": [
+        "app/console/src/styles/controls.css"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "不改权限节点、导航可见性和页面门槛。",
+      "evidence": [
+        "app/console/src/styles/controls.css"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "不读写新数据，没有迁移；日期框提交的格式和原来的原生日期框一样。",
+      "evidence": [
+        "app/console/src/components/DateField.vue"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "日期选择器用已经装着的 Tuffex 0.9.1 自带的 TxDatePicker，package.json 和锁文件都没动。",
+      "evidence": [
+        "app/console/src/components/DateField.vue"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "控制台文档加「控件外观」一节，写明按钮、弹窗、页签、日期框的统一规则和星期表头的处理。",
+      "evidence": [
+        "docs/services/console/README.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "控制台 vue-tsc 通过、tests/console 230 个用例全过；本地样板数据下用浏览器在 1440×900 和 390×844 截了概览、论坛管理、操作记录、比赛、邀请码、权限、意见箱和新建比赛、新建邀请码弹窗，日历弹层打开后星期是中文。未验证：预发布真实数据下的页面，随 rc.21 截图。",
+      "evidence": [
+        "app/console/src/styles/controls.css",
+        "app/console/src/components/DateField.vue"
+      ]
+    },
+    "delivery": {
+      "status": "unchanged",
+      "reason": "不改镜像、部署和发布流程。",
+      "evidence": [
+        "app/console/src/main.ts"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/console/src/pages/Activity.vue",
+        "app/console/src/components/DateField.vue",
+        "tests/console/date-field.test.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "github",
+        "organization",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:audit.console.activity.list"
+      ],
+      "reason": "操作记录的日期筛选换成 DateField，筛选按钮对齐，「动作」列左对齐。"
+    },
+    {
+      "paths": [
+        "app/console/src/main.ts",
+        "app/console/src/styles/controls.css"
+      ],
+      "domains": [
+        "organization",
+        "competitions",
+        "feedback",
+        "github",
+        "recruitment",
+        "audit",
+        "identity",
+        "permissions",
+        "forum",
+        "invitations"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:console.summary"
+      ],
+      "reason": "控制台全局引入控件外观样式表，影响所有页面的按钮、弹窗和页签。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/Competitions.vue"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:competition.console.list",
+        "flow:competition.update"
+      ],
+      "reason": "新建、编辑比赛弹窗的三个日期框换成 DateField。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/Invites.vue"
+      ],
+      "domains": [
+        "identity",
+        "invitations"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:identity.invites.list"
+      ],
+      "reason": "邀请码弹窗的过期日期换成 DateField。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/Forum.vue"
+      ],
+      "domains": [
+        "permissions",
+        "forum",
+        "competitions",
+        "feedback",
+        "github",
+        "organization",
+        "recruitment",
+        "audit"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:permissions.nodes.list"
+      ],
+      "reason": "「我的论坛权限」改成卡片网格，「打开论坛」改成次按钮。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/permissions/EntryDialog.vue",
+        "app/console/src/pages/permissions/GroupDetail.vue"
+      ],
+      "domains": [
+        "permissions"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:permissions.groups.list"
+      ],
+      "reason": "权限条目和组成员的到期日期换成 DateField。"
+    },
+    {
+      "paths": [
+        "docs/services/console/README.md",
+        "docs/architecture/catalog/ownership.json",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md",
+        "docs/architecture/catalog/data-model.md"
+      ],
+      "domains": [
+        "audit"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:audit.console.activity.list",
+        "document:docs/services/console/README.md"
+      ],
+      "reason": "控制台文档写「控件外观」；DateField 登记进项目目录。"
+    }
+  ],
+  "documents": [
+    "docs/services/console/README.md"
+  ],
+  "tests": [
+    "tests/console/date-field.test.ts"
+  ],
+  "compatibility": "只改前端样式和组件，接口不变；日期框的值和原生日期框一样是 YYYY-MM-DD 字符串，提交给服务端的内容不变。",
+  "migration": "没有数据迁移，不加表不加列；上线后控制台换上新的按钮和弹窗样式，日期框换成下拉日历。",
+  "rollback": "回滚这次合并、换回上一版镜像即可，控制台回到原来的按钮、弹窗和原生日期框，数据不受影响。"
+}

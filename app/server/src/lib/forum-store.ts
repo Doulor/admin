@@ -843,6 +843,11 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
         })),
       }));
     },
+    /** 新建一个空表情包（排在最后）：id 已存在回 false。 */
+    createStickerPack(id: string, name: string, now = Date.now()): boolean {
+      const sort = (db.prepare("SELECT COALESCE(MAX(sort), -1) + 1 AS n FROM forum_sticker_packs").get() as { n: number }).n;
+      return db.prepare("INSERT OR IGNORE INTO forum_sticker_packs(id, name, sort, enabled, created_at) VALUES (?, ?, ?, 1, ?)").run(id, name, sort, now).changes > 0;
+    },
     updateStickerPack(id: string, patch: { name?: string; sort?: number; enabled?: boolean }): boolean {
       const columns: [string, string | number][] = [];
       if (patch.name !== undefined) columns.push(["name", patch.name]);

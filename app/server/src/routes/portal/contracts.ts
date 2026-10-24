@@ -39,8 +39,10 @@ export const portalContracts: RouteContracts = {
   },
   "GET /api/docs/:id": { params: object({ id: text(64, 1) }, ["id"]) },
   // 前端批量上报动作（#274 SPEC §3.7）：访客也能调，最多 20 条；白名单在 lib/activity.ts，不在契约里重复列。
+  // `surface` 不传按门户算（既有调用点兼容）；论坛、控制台显式传自己的来源，一批只属于一个来源。
   "POST /api/events": {
     ...body({
+      surface: choices("portal", "forum", "console"),
       events: {
         type: "array", minItems: 1, maxItems: 20,
         items: object({ action: text(64, 1), target_type: nullableText(64), target_id: nullableText(128), meta: { type: "object" } }, ["action"]),
