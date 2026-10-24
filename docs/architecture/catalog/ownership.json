@@ -3405,6 +3405,10 @@
         {
           "path": "app/forum/shared/forum-api.ts",
           "needle": "export const FORUM_API_BASE = '/api/forum'"
+        },
+        {
+          "path": "app/server/src/lib/forum-content.ts",
+          "needle": "export function loadForumContent(dir: string): ForumContent {"
         }
       ],
       "tests": [
@@ -3480,6 +3484,10 @@
         {
           "path": "app/forum/shared/post-markdown.ts",
           "needle": "export const WORD_JOINER = '\\u2060'"
+        },
+        {
+          "path": "app/server/src/lib/forum-content.ts",
+          "needle": "export function loadForumContent(dir: string): ForumContent {"
         }
       ],
       "tests": [

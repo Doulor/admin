@@ -5,13 +5,23 @@
   "summary": "论坛「使用说明」：按身份（成员、比赛组织者、部门负责人、管理员）写的图文说明和比赛 SDK 快速接入，内容随仓库发布、服务启动时播种，官方账号发的说明跟着仓库更新；截图放 CDN。",
   "applications": [
     "server",
-    "forum"
+    "forum",
+    "web"
   ],
   "domains": [
     "forum",
-    "public_content"
+    "public_content",
+    "platform",
+    "competitions",
+    "identity",
+    "organization",
+    "audit"
   ],
-  "flows": [],
+  "flows": [
+    "flow:forum.state",
+    "flow:forum.topic_posts",
+    "flow:competition.public.list"
+  ],
   "assessments": {
     "business": {
       "status": "changed",
@@ -45,18 +55,22 @@
     },
     "dependencies": {
       "status": "unchanged",
-      "reason": "没有新增依赖；截图用已有的七牛 CDN 和上传脚本。",
+      "reason": "没有新增依赖：forum-content 只用 node:fs 与已有的 Markdown 头部解析，forum-store 的播种沿用 better-sqlite3；截图用已有的七牛 CDN 与 static-cdn 上传脚本；server 镜像只多复制一个 guides/ 目录。",
       "evidence": [
+        "app/server/src/lib/forum-content.ts",
+        "app/server/src/lib/forum-store.ts",
+        "app/server/Dockerfile",
         "scripts/static-cdn.mjs"
       ]
     },
     "documentation": {
       "status": "changed",
-      "reason": "论坛、server 服务文档与 CI/CD 的 CDN 一节写明说明文件的格式、播种规则和截图上传。",
+      "reason": "论坛、server 服务文档与 CI/CD 的 CDN 一节写明说明文件的格式、播种规则和截图上传。；portal.md 记 member 样板新增的「我的参赛」数据。",
       "evidence": [
         "docs/services/forum/README.md",
         "docs/services/server/README.md",
-        "docs/ops/CICD.md"
+        "docs/ops/CICD.md",
+        "docs/services/web/portal.md"
       ]
     },
     "verification": {
@@ -87,9 +101,10 @@
         "forum"
       ],
       "nodes": [
-        "application:server"
+        "flow:forum.state",
+        "flow:forum.topic_posts"
       ],
-      "reason": "服务端读、校验并播种使用说明。"
+      "reason": "forum-content 读 guides/*.md，校验头部字段、编号 t9xx、可见范围和图片地址，交给播种用；forum-store 的 seed 按编号插入说明帖，已有且作者是官方账号时跟着仓库改标题、标签、可见范围和正文；server 镜像多复制 guides/。"
     },
     {
       "paths": [
@@ -104,7 +119,7 @@
       "nodes": [
         "application:forum"
       ],
-      "reason": "论坛内容：使用说明分类、身份标签、说明正文与截图。"
+      "reason": "curation.json 加「使用说明」分类与标签；guides/ 下是按身份写的说明正文；guide-images/ 是说明里引用的截图（webp，文件名带内容哈希），上传到 CDN 的 forum/guides/。"
     },
     {
       "paths": [
@@ -117,7 +132,7 @@
       "nodes": [
         "domain:platform"
       ],
-      "reason": "CDN 上传脚本带上说明截图，CI/CD 文档同步。"
+      "reason": "static-cdn 的 plan 与 upload 带上 guide-images/ 的截图，文件名哈希对不上就拒绝上传；CI/CD 文档的 CDN 一节同步。"
     },
     {
       "paths": [
@@ -131,7 +146,7 @@
       "nodes": [
         "application:server"
       ],
-      "reason": "播种、校验、截图哈希与写法检查的用例。"
+      "reason": "播种与校验用例（说明分类、编号、写法检查：无表情符号、不加粗、无邮箱和站点域名）；截图哈希、引用与仓库文件一一对应的用例。"
     },
     {
       "paths": [
@@ -145,7 +160,33 @@
         "application:forum",
         "application:server"
       ],
-      "reason": "服务文档写明使用说明的格式和播种规则。"
+      "reason": "论坛与 server 服务文档写明说明文件的格式、播种规则和截图位置。"
+    },
+    {
+      "paths": [
+        "app/web/shared/lib/mock-api.ts",
+        "docs/services/web/portal.md"
+      ],
+      "domains": [
+        "platform",
+        "competitions"
+      ],
+      "nodes": [
+        "flow:competition.public.list"
+      ],
+      "reason": "官网开发预览的 member 样板身份补「我的参赛」两条报名（一场在队里、一场已定榜）和一张带兑奖码的定榜结果，使用说明里「我的参赛」的截图从这份样板拍；只在 ?__mock=member 时生效，不带身份的 e2e 样板不变；portal.md 同步这一句。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "application:server"
+      ],
+      "reason": "合并 stage 后按当前源码重新生成项目目录（证据锚点跟着 forum-store、forum-content 的改动挪了行），不手改。"
     }
   ],
   "documents": [
