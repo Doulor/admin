@@ -111,3 +111,10 @@
 - 做了什么：按 code-review 两条线在主会话里核对 4c7c5dd5...edce3a9d：规范（检查脚本、提交 scope、隐私、重复代码）与需求（#277 期望结果 1–6、涉及接口、验收条件）。上一轮提出的令牌接口范围与 step-up、产物进镜像两处已在 e214eb03、d1eefb2b 改掉，这两处是审查人自己写的，属于作者自审。在 edce3a9d 上重跑：vitest 114 文件 1843 条、typecheck、check-architecture、check-doc-sync、check:catalog/secrets/notes/cli/docs、cargo test 26 条，全部通过。
 - 结果：结论：通过。scope 词表缺 cli 在 fca30e81 补上；重复代码记为判断，不改。未验证：站点 install.sh 真实安装与 geek login --env preview（等 rc.20）、Claude Code 实际识别 skill、控制台操作记录页面截图、install.ps1 真实 Windows、GitHub 部署工作流的 dist/cli 步骤。审查结论贴在 MR !11 正文。
 - 下一步：合并 !11，关 #277 并留关闭记录，task.mjs finish 清理 worktree。
+
+## 20:21:06 +08:00 · 提交 · #277 · #280 记录文件的标题行恢复原样
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：提交 6dd88dfe：68d586a8 用 note.mjs flush 并入暂存记录时把 task_280_real_name_grade.md 已有的标题行改成了 task/280/real_name_grade，只恢复这一行。
+- 结果：note.mjs check --pr --for-review --base 4c7c5dd5 --head task/277/geek_cli → 执行记录通过：101 条链路，本 task 的链路完整。
+- 下一步：推送，合并 !11。
