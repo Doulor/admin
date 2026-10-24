@@ -1,12 +1,12 @@
-// 比赛详情顶部的 Hero（#239）：背景是比赛官网（#278）首屏那片夜空的缩小版（NightSky），星星按比赛 id 撒，同一场比赛每次都一样；
-// 系统开了「减少动态效果」时星星不呼吸。上面压着类型与状态、比赛名、一句介绍、到下一个节点（报名截止 / 开赛 / 结束）的倒计时，
+// 比赛详情顶部的 Hero（#239）：背景和比赛官网（#278）首屏同一套浅色（ContestGlow：暖白底、彩色柔光、流动的透视网格），
+// 系统开了「减少动态效果」时停住。上面压着类型与状态、渐变色的比赛名、一句介绍、到下一个节点（报名截止 / 开赛 / 结束）的倒计时，
 // 以及一键直达的主按钮（由 CompetitionDetail 传进来）。
 import { useEffect, useState, type ReactNode, type Ref } from "react";
 import Icon from "../../Icon";
 import type { Competition } from "../../../lib/competitions";
 import { pointLabel } from "../../../lib/competitionLabels";
 import { countdown, countdownText, nextMilestone } from "../../../lib/competitionHub";
-import NightSky from "./NightSky";
+import ContestGlow from "./ContestBackdrop";
 
 /** 介绍的第一段：Hero 上只放一两行，全文在「概览」里。 */
 export function leadOf(description: string): string {
@@ -63,14 +63,14 @@ type Props = {
 export default function CompetitionHero({ item, headingId, headingRef, tags, cta }: Props) {
   const lead = leadOf(item.description);
   return (
-    <header className={`pt-cx-hero pt-cx-night is-${item.kind}`}>
+    <header className={`pt-cx-hero pt-cx-light is-${item.kind}`}>
+      <ContestGlow />
       <div className="pt-cx-hero-art" aria-hidden="true">
-        <NightSky seed={item.id} />
         <Icon name={item.kind === "internal" ? "code-s-slash-line" : "trophy-line"} size={128} />
       </div>
       <div className="pt-cx-hero-tags">{tags}</div>
       <h3 id={headingId} ref={headingRef} tabIndex={-1}>
-        {item.name}
+        <span className="pt-cx-grad">{item.name}</span>
       </h3>
       {lead && <p className="pt-cx-hero-lead">{lead}</p>}
       <div className="pt-cx-hero-foot">

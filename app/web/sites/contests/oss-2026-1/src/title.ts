@@ -1,58 +1,16 @@
 // 首屏标题「OSS CHALLENGE」：拼在一张贡献热力图上。每个字母是 5×7 的点阵（热力图正好一周七行），
-// 字母格是亮色、背景格是浅灰；颜色沿横向从紫过渡到粉、黄、绿、蓝。
+// 字母格是亮色、背景格是浅灰；颜色沿横向从紫过渡到粉、黄、绿、蓝。字形与配色在 @shared/lib/heatmark，主站比赛窗口的静态字标也用它。
 // 载入时格子从左到右一格格「提交」上去；之后随机有格子闪一下，背景里偶尔冒出一格浅色的新提交；
 // 指针附近的格子放大变亮，点一下从点击处扩出一圈波纹，波纹扫过的字母格换一档颜色。
 // 有新贡献进天梯时（main.ts 调 pulse）从随机一格扩出波纹。减少动态效果时只画定稿，不响应指针。
+import { EMPTY, GLYPH_H, PALETTE, layoutLine, paletteAt } from "@shared/lib/heatmark";
 import { clamp, lerp, reducedMotion, rng } from "./util";
-
-const GLYPHS: Record<string, readonly string[]> = {
-  O: [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
-  S: [".####", "#....", "#....", ".###.", "....#", "....#", "####."],
-  C: [".####", "#....", "#....", "#....", "#....", "#....", ".####"],
-  H: ["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
-  A: [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
-  L: ["#....", "#....", "#....", "#....", "#....", "#....", "#####"],
-  E: ["#####", "#....", "#....", "####.", "#....", "#....", "#####"],
-  N: ["#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#", "#...#"],
-  G: [".####", "#....", "#....", "#.###", "#...#", "#...#", ".###."],
-};
-const GLYPH_W = 5;
-const GLYPH_H = 7;
-
-/** 紫、粉、黄、绿、蓝：和页面的五个强调色一致。 */
-const PALETTE: readonly (readonly [number, number, number])[] = [
-  [123, 92, 255], [255, 79, 163], [255, 184, 28], [38, 214, 120], [41, 182, 255],
-];
-const EMPTY = [21, 19, 29] as const;
 
 type Cell = {
   x: number; y: number; col: number; lit: boolean;
   level: number; tone: number; born: number; flash: number; commit: number; shifted: number; scale: number;
 };
 type Wave = { x: number; y: number; t0: number };
-
-function paletteAt(t: number): [number, number, number] {
-  const span = PALETTE.length;
-  const x = ((t % span) + span) % span;
-  const i = Math.floor(x);
-  const a = PALETTE[i];
-  const b = PALETTE[(i + 1) % span];
-  const k = x - i;
-  return [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
-}
-
-/** 文字排成点阵，返回字母格的 (列, 行) 与总宽。空格占 3 列，字母之间空 1 列。 */
-function layoutLine(text: string): { cells: [number, number][]; width: number } {
-  const cells: [number, number][] = [];
-  let x = 0;
-  for (const ch of text) {
-    if (ch === " ") { x += 3; continue; }
-    const glyph = GLYPHS[ch];
-    glyph.forEach((row, y) => { for (let gx = 0; gx < GLYPH_W; gx++) if (row[gx] === "#") cells.push([x + gx, y]); });
-    x += GLYPH_W + 1;
-  }
-  return { cells, width: x - 1 };
-}
 
 export function createTitle(canvas: HTMLCanvasElement) {
   const ctx = canvas.getContext("2d")!;

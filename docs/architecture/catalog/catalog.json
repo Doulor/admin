@@ -5062,12 +5062,16 @@
           "path": "app/web/sites/portal/lib/icons.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 8,
-          "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx"
+          "line": 39,
+          "path": "app/web/sites/portal/components/os/competitions/ContestBackdrop.tsx"
+        },
+        {
+          "line": 40,
+          "path": "app/web/shared/lib/heatmark.ts"
         }
       ],
       "id": "flow:competition.public.list",
@@ -5076,7 +5080,8 @@
         "响应200 {competitions}；五种状态按时间计算，未知报名截止的未来赛事为upcoming；未结束在前，已结束按开始时间倒序。",
         "每场带报名摘要signup（enabled、participation、team_min、team_max、scoring），没有设置行时回默认值；摘要不含报名人数、队伍或任何成员信息。",
         "官网按关键词、可报名（报名中）与内部/外部筛选，每60秒重算状态与排序，损坏响应显示失败并可重试；全部类型链接可选且必须可解析HTTPS。",
-        "#278：每场另带 site_url（已发布时 /c/<slug>/）、app_url（门户比赛窗口深链）、prizes、grade_factors 与 finalized_at；不含兑奖码与任何人。"
+        "#278：每场另带 site_url（已发布时 /c/<slug>/）、app_url（门户比赛窗口深链）、prizes、grade_factors 与 finalized_at；不含兑奖码与任何人。",
+        "#278：比赛窗口的官网入口横幅与详情头图和第一期官网首屏同一套浅色（ContestGlow 柔光与透视网格、HeatMark 热力图字标、渐变字），字形与配色和官网共用 app/web/shared/lib/heatmark.ts；减少动态效果时停在最终的样子。"
       ],
       "operation": "GET /api/public/competitions",
       "operationLabel": "GET /api/public/competitions",
@@ -7135,7 +7140,7 @@
           "path": "app/server/src/lib/competition-site-store.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
@@ -7727,8 +7732,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -13547,7 +13556,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "0c88619d34331bb341b75dcb1963a5b26e9a05c86238a13b0041ffdceea0a351",
+    "fingerprint": "afd5b9ff5f876c823bf12286e0ebb8e72dcd744706e0e75fd43c7f6b45d45d9b",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -14830,6 +14839,10 @@
         "sha256": "ca8d37f3c9f6039824e527bd4d5ccefb724dd792391bfe52edbe505a0e1a6e2a"
       },
       {
+        "path": "app/web/shared/lib/heatmark.ts",
+        "sha256": "e7a34ecfe9d2b7417f1a759cb5e7681623abfe99bc4f0cc0bde8ffcca17b18a9"
+      },
+      {
         "path": "app/web/shared/lib/http.ts",
         "sha256": "ce5307502e934ed77174910e628bbcd84a18abef8da8e64df9a5afbd9ad6acac"
       },
@@ -14943,7 +14956,7 @@
       },
       {
         "path": "app/web/sites/contests/oss-2026-1/src/title.ts",
-        "sha256": "dd7f86b7e2e0ef20dc33de366cca500f5c7e2c038b74669a3fc0546cb7e9835f"
+        "sha256": "6c7f87ef2d091c64924a16c56890807c41790055e249c781db410d02ecd5eb4b"
       },
       {
         "path": "app/web/sites/contests/oss-2026-1/src/util.ts",
@@ -15059,7 +15072,7 @@
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/CompetitionHero.tsx",
-        "sha256": "cb503a3c8dfdc39e3711806b3f7cd9da3899dd113d770b6274fd397fd4686178"
+        "sha256": "c4293c850d85760ff2b9aced6e06e5b5cdef205bfd462c05f0c6b9158d8f5bfa"
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/CompetitionList.tsx",
@@ -15070,8 +15083,12 @@
         "sha256": "d8e824af6e3f2f2d52713e098c5b6ea51601e6a6cc197ad66162ae71c9726ecd"
       },
       {
+        "path": "app/web/sites/portal/components/os/competitions/ContestBackdrop.tsx",
+        "sha256": "f618f81028e3c6d81306e40bd645f861ef42766c59a1faf753061273264fc247"
+      },
+      {
         "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx",
-        "sha256": "d41afba73018dbf3f933ed35c9cd8a899104cf3be145e64dc9a6ef8d5710e5fb"
+        "sha256": "696f66f426164b1eb7fc87f1852574429417483194870ba42f0c8ab2f2b89852"
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/HubDialog.tsx",
@@ -15080,10 +15097,6 @@
       {
         "path": "app/web/sites/portal/components/os/competitions/Leaderboard.tsx",
         "sha256": "c42830345a786d559aa9155bddf5a4262066f1ff5bc01ee13218ea4ef0723da9"
-      },
-      {
-        "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx",
-        "sha256": "cabea498d1fa05892ee363546d077e405aa3901a1f571f32d4ad68e17484bb2d"
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/TeamHub.tsx",
@@ -15239,7 +15252,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "1051180e3c5c2bd515f2831f79b35154c6dcb337f7a65f4a4bd8fd73f93b6c9a"
+        "sha256": "24cb2a1af77dfda28014b30f2bfb61a5cc801a115dcacc4a3a0cf5f057b7837d"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -15303,11 +15316,11 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "a0a35dea1ad197c3e9abd9beaa2b890358f809406157a7be5c166a005815f5af"
+        "sha256": "3c2f2acbc8f96c2ac219f6f660767b99305b6f0517c9230dc47d698ec1598330"
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "11044cfb8d83ef91af95515af8ad8fc8a31f30b3a289855ffc0023b241e1573f"
+        "sha256": "2e9892bb60cbc2a957c5bd8ae008b6240c38f5e50e83f5e99311cc04b6f91c97"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -15559,7 +15572,7 @@
       },
       {
         "path": "tests/web/portal-competitions.test.tsx",
-        "sha256": "c913de9dcba934927e5ecbce1cba4e22a3f0d4681c76c580e9f95b3cc5c6c735"
+        "sha256": "24e386e74575d8edd3316719de2474c0baf7bc585c58eb7da941449cfe42e674"
       },
       {
         "path": "tests/web/portal-os.test.ts",
@@ -29786,12 +29799,16 @@
           "path": "app/web/sites/portal/lib/icons.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 8,
-          "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx"
+          "line": 39,
+          "path": "app/web/sites/portal/components/os/competitions/ContestBackdrop.tsx"
+        },
+        {
+          "line": 40,
+          "path": "app/web/shared/lib/heatmark.ts"
         }
       ],
       "from": "flow:competition.public.list",
@@ -29866,12 +29883,16 @@
           "path": "app/web/sites/portal/lib/icons.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 8,
-          "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx"
+          "line": 39,
+          "path": "app/web/sites/portal/components/os/competitions/ContestBackdrop.tsx"
+        },
+        {
+          "line": 40,
+          "path": "app/web/shared/lib/heatmark.ts"
         }
       ],
       "from": "flow:competition.public.list",
@@ -29946,12 +29967,16 @@
           "path": "app/web/sites/portal/lib/icons.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 8,
-          "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx"
+          "line": 39,
+          "path": "app/web/sites/portal/components/os/competitions/ContestBackdrop.tsx"
+        },
+        {
+          "line": 40,
+          "path": "app/web/shared/lib/heatmark.ts"
         }
       ],
       "from": "flow:competition.public.list",
@@ -30026,12 +30051,16 @@
           "path": "app/web/sites/portal/lib/icons.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 8,
-          "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx"
+          "line": 39,
+          "path": "app/web/sites/portal/components/os/competitions/ContestBackdrop.tsx"
+        },
+        {
+          "line": 40,
+          "path": "app/web/shared/lib/heatmark.ts"
         }
       ],
       "from": "flow:competition.public.list",
@@ -30142,12 +30171,16 @@
           "path": "app/web/sites/portal/lib/icons.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 8,
-          "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx"
+          "line": 39,
+          "path": "app/web/sites/portal/components/os/competitions/ContestBackdrop.tsx"
+        },
+        {
+          "line": 40,
+          "path": "app/web/shared/lib/heatmark.ts"
         }
       ],
       "from": "flow:competition.public.list",
@@ -30254,8 +30287,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -30330,8 +30367,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -30406,8 +30447,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -30482,8 +30527,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -30558,8 +30607,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -30634,8 +30687,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -30710,8 +30767,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -30786,8 +30847,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -30862,8 +30927,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -30938,8 +31007,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -31014,8 +31087,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -31090,8 +31167,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -31166,8 +31247,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -31260,8 +31345,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -31336,8 +31425,12 @@
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 57,
+          "line": 15,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/web/shared/lib/heatmark.ts"
         },
         {
           "line": 4,
@@ -37274,7 +37367,7 @@
           "path": "app/server/src/lib/competition-site-store.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
@@ -37302,7 +37395,7 @@
           "path": "app/server/src/lib/competition-site-store.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
@@ -37330,7 +37423,7 @@
           "path": "app/server/src/lib/competition-site-store.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
@@ -37358,7 +37451,7 @@
           "path": "app/server/src/lib/competition-site-store.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
@@ -37386,7 +37479,7 @@
           "path": "app/server/src/lib/competition-site-store.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
@@ -37414,7 +37507,7 @@
           "path": "app/server/src/lib/competition-site-store.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
@@ -37442,7 +37535,7 @@
           "path": "app/server/src/lib/competition-site-store.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
@@ -37470,7 +37563,7 @@
           "path": "app/server/src/lib/competition-site-store.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
@@ -37498,7 +37591,7 @@
           "path": "app/server/src/lib/competition-site-store.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
@@ -37544,7 +37637,7 @@
           "path": "app/server/src/lib/competition-site-store.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
@@ -37572,7 +37665,7 @@
           "path": "app/server/src/lib/competition-site-store.ts"
         },
         {
-          "line": 12,
+          "line": 8,
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
@@ -105676,6 +105769,12 @@
       "domains": [
         "platform"
       ],
+      "path": "app/web/shared/lib/heatmark.ts"
+    },
+    {
+      "domains": [
+        "platform"
+      ],
       "path": "app/web/shared/lib/http.ts"
     },
     {
@@ -106204,6 +106303,12 @@
       "domains": [
         "competitions"
       ],
+      "path": "app/web/sites/portal/components/os/competitions/ContestBackdrop.tsx"
+    },
+    {
+      "domains": [
+        "competitions"
+      ],
       "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
     },
     {
@@ -106217,12 +106322,6 @@
         "competitions"
       ],
       "path": "app/web/sites/portal/components/os/competitions/Leaderboard.tsx"
-    },
-    {
-      "domains": [
-        "competitions"
-      ],
-      "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx"
     },
     {
       "domains": [

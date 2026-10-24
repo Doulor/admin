@@ -6,4 +6,4 @@
 
 本目录中的路径、版本、规则和完成声明可能属于以前阶段。当前实施应从 [docs 总入口](../README.md) 进入；不得以历史文章覆盖 current 规范。历史资料不在公开文档 API 的允许列表中。
 
-页面改版或大改动退场的内容各放一个子目录，写清每个文件原来是什么、换成了什么、旧地址现在去哪：[portal-yugc-os-v1](portal-yugc-os-v1/README.md) 是 #275 官网换成 YUGC OS v2 桌面时退场的页面、组件和资源。
+页面改版或大改动退场的内容各放一个子目录，写清每个文件原来是什么、换成了什么、旧地址现在去哪：[portal-yugc-os-v1](portal-yugc-os-v1/README.md) 是 #275 官网换成 YUGC OS v2 桌面时退场的页面、组件和资源。[portal-contest-night](portal-contest-night/README.md) 是 #278 把比赛窗口的夜空头图和官网入口换成浅色时退场的组件和样式。

@@ -10,7 +10,8 @@ import {
   scheduleFact, scheduleSteps, signupFact, siteHost, statusHint,
 } from "../../app/web/sites/portal/lib/competitionLabels";
 import { competitionStatus } from "../../app/server/src/lib/competition-store";
-import { scatterStars } from "../../app/web/sites/portal/components/os/competitions/NightSky";
+import { heatCells } from "../../app/web/sites/portal/components/os/competitions/ContestBackdrop";
+import { layoutLine, paletteAt } from "../../app/web/shared/lib/heatmark";
 
 // 开发态默认走只读样板数据；这里切到真实数据源，让窗口真的去请求列表（请求由 fetch 桩接住）。
 beforeEach(() => localStorage.setItem("yugc:dev-data-source", "live"));
@@ -151,23 +152,28 @@ describe("桌面：左边列表、右边详情", () => {
 });
 
 describe("比赛官网入口（#275 / #278）", () => {
-  it("有比赛发布了官网时，列表顶上是夜空横幅，「打开官网」在新标签页打开它的 site_url；手机进详情后收起", async () => {
+  it("有比赛发布了官网时，列表顶上是和官网同一套浅色的横幅，「打开官网」在新标签页打开它的 site_url；手机进详情后收起", async () => {
     serve({ ...INTERNAL, site_url: "/c/oss-challenge-2026-1/" }, EXTERNAL);
     const view = render(<CompetitionsApp />);
     await waitFor(() => expect(card(INTERNAL.name)).toBeTruthy());
     const site = screen.getByRole("region", { name: "比赛官网" });
-    expect(site.classList.contains("pt-cx-night")).toBe(true);
-    expect(site.querySelectorAll(".pt-cx-stars circle").length).toBe(90);
+    expect(site.classList.contains("pt-cx-light")).toBe(true);
+    expect(site.querySelectorAll(".pt-cg-glow i").length).toBe(4);
+    expect(site.querySelector(".pt-cg-floor")).not.toBeNull();
     expect(within(site).getByText("OSS CHALLENGE")).toBeTruthy();
-    // 每个词从 Y 开始按四色轮换
-    expect([...site.querySelectorAll(".pt-cx-site-mark [data-tone]")].map((node) => node.getAttribute("data-tone")).join(" ")).toBe("y u g y u g c y u g c y");
+    // 字标是贡献热力图：字母格一个不少，整张图对读屏隐藏
+    const heat = site.querySelector<SVGElement>(".pt-cx-site-mark svg.pt-cx-heat")!;
+    expect(heat.getAttribute("aria-hidden")).toBe("true");
+    expect(heat.querySelectorAll("rect.is-on").length).toBe(layoutLine("OSS CHALLENGE").cells.length);
+    expect(within(site).getByText("极客班开源实战贡献挑战赛").classList.contains("pt-cx-grad")).toBe(true);
     const go = within(site).getByRole("link", { name: /打开官网/ });
     expect(go.getAttribute("href")).toBe("/c/oss-challenge-2026-1/");
     expect(go.getAttribute("target")).toBe("_blank");
     expect(go.getAttribute("rel")).toBe("noopener noreferrer");
     expect(go.textContent).toContain("（新标签页打开）");
-    // 比赛详情的头图也是同一片夜空，按比赛 id 撒星星
-    expect(document.querySelector(".pt-cx-hero.pt-cx-night .pt-cx-stars")).not.toBeNull();
+    // 比赛详情的头图用同一套浅色背景，比赛名是渐变字
+    expect(document.querySelector(".pt-cx-hero.pt-cx-light .pt-cg-glow")).not.toBeNull();
+    expect(document.querySelector(".pt-cx-hero h3 .pt-cx-grad")?.textContent).toBe(INTERNAL.name);
     view.unmount();
 
     render(<CompetitionsApp phone onPhoneNav={() => undefined} />);
@@ -185,20 +191,27 @@ describe("比赛官网入口（#275 / #278）", () => {
     expect(screen.queryByRole("link", { name: /打开官网/ })).toBeNull();
   });
 
-  it("星星按种子撒：同一个种子每次一样，换种子就换，坐标都在 400×100 的画布里，亮的是少数", () => {
-    const stars = scatterStars("oss-challenge-2026-1", 300);
-    expect(scatterStars("oss-challenge-2026-1", 300)).toEqual(stars);
-    expect(scatterStars("c1", 300)).not.toEqual(stars);
-    for (const star of stars) {
-      expect(star.x).toBeGreaterThanOrEqual(0);
-      expect(star.x).toBeLessThan(400);
-      expect(star.y).toBeGreaterThanOrEqual(0);
-      expect(star.y).toBeLessThan(100);
-      expect(star.o).toBeLessThanOrEqual(0.95);
-    }
-    const glow = stars.filter((star) => star.glow).length;
-    expect(glow).toBeGreaterThan(0);
-    expect(glow).toBeLessThan(stars.length / 5);
+  it("热力图字标：格子按字形排、四周留一格，同样的字每次一样；颜色按列从紫走到蓝，字母格只有两档深浅", () => {
+    const line = layoutLine("OSS CHALLENGE");
+    const grid = heatCells("OSS CHALLENGE");
+    expect(heatCells("OSS CHALLENGE")).toEqual(grid);
+    expect(grid.cols).toBe(line.width + 2);
+    expect(grid.rows).toBe(9);
+    expect(grid.lit.map((cell) => `${cell.x},${cell.y}`)).toEqual(
+      line.cells.map(([x, y]) => `${x + 1},${y + 1}`).sort((a, b) => Number(a.split(",")[1]) - Number(b.split(",")[1]) || Number(a.split(",")[0]) - Number(b.split(",")[0])),
+    );
+    // 每个字母格的颜色是它所在列在调色板上的颜色，原色或和白色按 0.86 混合；两档都有
+    const shade = (x: number, strength: number) => `rgb(${paletteAt((x / (grid.cols - 1)) * 4).map((c) => Math.round(255 + (c - 255) * strength)).join(",")})`;
+    const levels = grid.lit.map((cell) => (cell.fill === shade(cell.x, 1) ? 4 : cell.fill === shade(cell.x, 0.86) ? 3 : 0));
+    expect(levels).not.toContain(0);
+    expect(new Set(levels).size).toBe(2);
+    expect(paletteAt(0)).toEqual([123, 92, 255]);
+    expect(paletteAt(4)).toEqual([41, 182, 255]);
+    // 背景格里深一档的是少数，而且不和字母格重叠
+    const lit = new Set(grid.lit.map((cell) => `${cell.x},${cell.y}`));
+    expect(grid.dim.length).toBeGreaterThan(0);
+    expect(grid.dim.length).toBeLessThan((grid.cols * grid.rows - grid.lit.length) / 8);
+    expect(grid.dim.some((cell) => lit.has(`${cell.x},${cell.y}`))).toBe(false);
   });
 });
 

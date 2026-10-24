@@ -4642,7 +4642,8 @@
         "响应200 {competitions}；五种状态按时间计算，未知报名截止的未来赛事为upcoming；未结束在前，已结束按开始时间倒序。",
         "每场带报名摘要signup（enabled、participation、team_min、team_max、scoring），没有设置行时回默认值；摘要不含报名人数、队伍或任何成员信息。",
         "官网按关键词、可报名（报名中）与内部/外部筛选，每60秒重算状态与排序，损坏响应显示失败并可重试；全部类型链接可选且必须可解析HTTPS。",
-        "#278：每场另带 site_url（已发布时 /c/<slug>/）、app_url（门户比赛窗口深链）、prizes、grade_factors 与 finalized_at；不含兑奖码与任何人。"
+        "#278：每场另带 site_url（已发布时 /c/<slug>/）、app_url（门户比赛窗口深链）、prizes、grade_factors 与 finalized_at；不含兑奖码与任何人。",
+        "#278：比赛窗口的官网入口横幅与详情头图和第一期官网首屏同一套浅色（ContestGlow 柔光与透视网格、HeatMark 热力图字标、渐变字），字形与配色和官网共用 app/web/shared/lib/heatmark.ts；减少动态效果时停在最终的样子。"
       ],
       "evidence": [
         {
@@ -4714,8 +4715,12 @@
           "needle": "export default function ContestSite({ href }: { href: string }) {"
         },
         {
-          "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx",
-          "needle": "export function scatterStars(seed: string, count: number): Star[] {"
+          "path": "app/web/sites/portal/components/os/competitions/ContestBackdrop.tsx",
+          "needle": "export function heatCells(text: string, pad = 1)"
+        },
+        {
+          "path": "app/web/shared/lib/heatmark.ts",
+          "needle": "export function layoutLine(text: string)"
         }
       ],
       "tests": [
@@ -7275,6 +7280,10 @@
         {
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts",
           "needle": "export function createTitle("
+        },
+        {
+          "path": "app/web/shared/lib/heatmark.ts",
+          "needle": "export function paletteAt(t: number)"
         },
         {
           "path": "app/web/sites/contests/oss-2026-1/src/util.ts",

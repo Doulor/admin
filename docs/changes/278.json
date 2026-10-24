@@ -2,7 +2,7 @@
   "version": 1,
   "issue": 278,
   "kind": "business",
-  "summary": "第一期内部比赛的官网与配套接口：比赛方上传静态站点包，校验通过后同域托管在 /c/ 加比赛地址（sandbox CSP，读不到主站会话）；四个匿名公开接口和一个快照接口、比赛 SDK；从自建 GitLab 收集合并的 MR 与 Issue，只有被有审核权限的人标记「有用」的才加分；标记时选重要程度 × 核心度两档查表得基础分，不看代码行数，每人每周「一般 × 边缘」只算 1 条；基础分按记分那一刻的年级乘这场比赛的系数（默认大一 3.5、大二 2.2、大三 1.4、其余 1.0，由固定种子的模拟选出），记下后不重算；天梯服务端缓存 10 秒；奖项可选，比赛结束后定榜冻结名次并给得奖的人发不可猜的兑奖码，本人在门户「我的参赛」看到，所有者在控制台核销。",
+  "summary": "第一期内部比赛的官网与配套接口：比赛方上传静态站点包，校验通过后同域托管在 /c/ 加比赛地址（sandbox CSP，读不到主站会话）；四个匿名公开接口和一个快照接口、比赛 SDK；从自建 GitLab 收集合并的 MR 与 Issue，只有被有审核权限的人标记「有用」的才加分；标记时选重要程度 × 核心度两档查表得基础分，不看代码行数，每人每周「一般 × 边缘」只算 1 条；基础分按记分那一刻的年级乘这场比赛的系数（默认大一 3.5、大二 2.2、大三 1.4、其余 1.0，由固定种子的模拟选出），记下后不重算；天梯服务端缓存 10 秒；奖项可选，比赛结束后定榜冻结名次并给得奖的人发不可猜的兑奖码，本人在门户「我的参赛」看到，所有者在控制台核销。主站比赛窗口的官网入口横幅和详情头图跟着官网改成同一套浅色（夜空退场并归档）。",
   "applications": [
     "server",
     "web",
@@ -64,7 +64,8 @@
     "flow:forum.state",
     "flow:identity.invite.redeem",
     "flow:identity.callback",
-    "flow:documentation.list"
+    "flow:documentation.list",
+    "flow:competition.my_status"
   ],
   "assessments": {
     "business": {
@@ -351,7 +352,8 @@
         "app/web/package.json",
         "app/web/Dockerfile",
         "scripts/contest-site.mjs",
-        "package.json"
+        "package.json",
+        "app/web/shared/lib/heatmark.ts"
       ],
       "domains": [
         "competitions",
@@ -364,7 +366,7 @@
         "flow:competition.site.serve",
         "flow:competition.site.upload"
       ],
-      "reason": "比赛 SDK 与第一期官网：SDK 只调公开接口、按快照轮询；官网是浅色底的独立风格：贡献热力图拼出的 Canvas 标题、滚动数字倒计时、斜着滚动的贡献条、天梯与动态，减少动态效果时静态；pnpm contest:site 用服务端同一套校验打包；web 镜像构建 SDK，容器里的 nginx 反代 /c/ 并只给上传放宽请求体，宿主模板不动。首屏改版（所有者 10-24 16:57）：一屏讲清楚内部赛、怎么拿分三步、奖金、天梯前几名和报名，几层光、逐字翻上来的标题、随指针倾斜的卡片与滚动驱动，减少动态效果时停在最终的样子；计分一节按公开接口的 scoring 画两张基础分表和「算一算」，接口回来之前用和服务端核对过的兜底值。"
+      "reason": "比赛 SDK 与第一期官网：SDK 只调公开接口、按快照轮询；官网是浅色底的独立风格：贡献热力图拼出的 Canvas 标题、滚动数字倒计时、斜着滚动的贡献条、天梯与动态，减少动态效果时静态；pnpm contest:site 用服务端同一套校验打包；web 镜像构建 SDK，容器里的 nginx 反代 /c/ 并只给上传放宽请求体，宿主模板不动。首屏改版（所有者 10-24 16:57）：一屏讲清楚内部赛、怎么拿分三步、奖金、天梯前几名和报名，几层光、逐字翻上来的标题、随指针倾斜的卡片与滚动驱动，减少动态效果时停在最终的样子；计分一节按公开接口的 scoring 画两张基础分表和「算一算」，接口回来之前用和服务端核对过的兜底值。「OSS CHALLENGE」热力图字形与配色挪到 app/web/shared/lib/heatmark.ts，官网首屏的 Canvas 标题和门户比赛窗口的静态字标共用，官网的样子不变。"
     },
     {
       "paths": [
@@ -372,7 +374,8 @@
         "app/web/sites/portal/lib/competitions.ts",
         "app/web/sites/portal/lib/competitionHub.ts",
         "app/web/sites/portal/lib/icons.ts",
-        "app/web/sites/portal/styles/competitions.css"
+        "app/web/sites/portal/styles/competitions.css",
+        "docs/history/portal-contest-night/"
       ],
       "domains": [
         "competitions",
@@ -388,9 +391,10 @@
         "flow:competition.public.list",
         "flow:competition.me.results",
         "flow:competition.leaderboard.read",
-        "application:web"
+        "application:web",
+        "flow:competition.my_status"
       ],
-      "reason": "门户比赛窗口：显示奖项、年级系数和「比赛官网」入口，天梯每 10 秒刷新、分数已乘系数；「我的参赛」里列出定榜结果与兑奖码（可复制）；官网的「报名」按钮经深链打开对应比赛与页签。"
+      "reason": "门户比赛窗口：显示奖项、年级系数和「比赛官网」入口，天梯每 10 秒刷新、分数已乘系数；「我的参赛」里列出定榜结果与兑奖码（可复制）；官网的「报名」按钮经深链打开对应比赛与页签。比赛窗口的官网入口横幅和详情头图从夜空改成和第一期官网首屏同一套浅色（所有者 10-24 16:38、16:57 要求比赛官网去掉暗色，入口和官网不能一深一浅）：ContestBackdrop 的柔光与透视网格、热力图字标、渐变色比赛名、紫色墨线胶囊按钮，减少动态效果时停住；夜空 NightSky 删除，原文件与旧样式归档在 docs/history/portal-contest-night/。"
     },
     {
       "paths": [
@@ -436,7 +440,10 @@
         "docs/services/server/README.md",
         "docs/services/web/portal.md",
         "docs/services/web/README.md",
-        "docs/architecture/catalog/"
+        "docs/architecture/catalog/",
+        "docs/design/DESIGN.md",
+        "docs/history/README.md",
+        "docs/INDEX.md"
       ],
       "domains": [
         "competitions",
@@ -448,7 +455,7 @@
         "flow:competition.public.snapshot",
         "flow:competition.prize.redeem"
       ],
-      "reason": "文档跟着模块改：服务合同、接口契约、数据模型、安全、部署与比赛方案写入 #278 的事实；项目目录补 22 条流程、7 张表的归属与说明，重新生成目录与文档索引。"
+      "reason": "文档跟着模块改：服务合同、接口契约、数据模型、安全、部署与比赛方案写入 #278 的事实；项目目录补 22 条流程、7 张表的归属与说明，重新生成目录与文档索引。设计规范里比赛窗口头图与官网入口的说法改成浅色，夜空相关的令牌用途删掉。历史材料入口加上 portal-contest-night 归档目录，重新生成文档索引。"
     },
     {
       "paths": [
@@ -469,7 +476,8 @@
         "tests/console/competition-hub.test.ts",
         "tests/server/competition-rubric.test.ts",
         "tests/server/competition-scores.test.ts",
-        "tests/tooling/contest-score-sim.test.ts"
+        "tests/tooling/contest-score-sim.test.ts",
+        "tests/web/portal-competitions.test.tsx"
       ],
       "domains": [
         "competitions",
@@ -481,7 +489,7 @@
         "flow:competition.finalize",
         "flow:competition.public.leaderboard"
       ],
-      "reason": "回归测试：服务端用内存库与假 GitLab 跑托管、公开接口、收集、定榜与迁移；SDK、官网、打包脚本与 nginx 配置单测；门户与控制台的纯逻辑和样板读口单测。两档基础分表、防刷（含撤销后下一条照算、按贡献时间分周）、旧行不追溯、模拟结果用固定种子钉住。"
+      "reason": "回归测试：服务端用内存库与假 GitLab 跑托管、公开接口、收集、定榜与迁移；SDK、官网、打包脚本与 nginx 配置单测；门户与控制台的纯逻辑和样板读口单测。两档基础分表、防刷（含撤销后下一条照算、按贡献时间分周）、旧行不追溯、模拟结果用固定种子钉住。门户比赛窗口的官网入口与头图用例改成核对浅色背景、热力图字标的格子与配色。"
     }
   ],
   "documents": [
@@ -494,7 +502,9 @@
     "docs/services/web/README.md",
     "docs/services/web/portal.md",
     "docs/services/console/README.md",
-    "docs/plan/COMPETITION-APP.md"
+    "docs/plan/COMPETITION-APP.md",
+    "docs/design/DESIGN.md",
+    "docs/history/portal-contest-night/README.md"
   ],
   "tests": [
     "tests/server/competition-site.test.ts",
@@ -510,10 +520,20 @@
     "tests/web/portal-competition-hub.test.tsx",
     "tests/web/portal-competition-results.test.tsx",
     "tests/console/competition-contest.test.ts",
-    "tests/console/competition-hub.test.ts"
+    "tests/console/competition-hub.test.ts",
+    "tests/web/portal-competitions.test.tsx"
   ],
   "compatibility": "旧接口形状不变，只加字段：公开比赛列表与详情多 site_url、app_url、prizes、grade_factors、finalized_at，积分记录多 grade、grade_factor、weighted_points；#278 之前的积分按系数 1 计入天梯；控制台概览的 candidates_pending 从固定 0 变成真实数字；门户与控制台把计分说法从 PR 改成 MR。",
   "migration": "启动时自动建七张新表与三个索引，给 competition_score_events 加三列（先查 PRAGMA table_info，可重复执行），用 console_seeds 标记只写一次第一期的默认系数、三档奖项与 GitLab 项目；站点文件目录在第一次上传时建在数据库旁边的 sites/。不改已有数据。",
   "rollback": "合并后在 stage 上 git revert -m 1 撤销本 PR 的合并提交并重新构建镜像；旧代码不认识新表和新列，插入积分时不写新列也照常成功，新表与 sites/ 目录可以留着不用；不移动发布 tag。",
-  "removals": []
+  "removals": [
+    {
+      "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx",
+      "baseAnchor": "export function scatterStars(seed: string, count: number): Star[] {",
+      "domains": [
+        "competitions"
+      ],
+      "reason": "比赛窗口的官网入口和详情头图改成和官网同一套浅色，按种子撒星星的夜空不再使用，换成 ContestBackdrop；原文件归档在 docs/history/portal-contest-night/files/。"
+    }
+  ]
 }
