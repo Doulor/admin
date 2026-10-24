@@ -134,3 +134,24 @@
 - 做了什么：给 ownership.json 的 application.review 流程补 mail/recruitment.ts 证据锚点并 catalog:generate；重写 docs/changes/276.json：applications 去掉 forum，summary/assessments 补三项 #274 清理和邮件文案修复，coverage 换掉已撤回的 app/forum 条目，加 org.ts 退场的 removals。
 - 结果：node scripts/check-architecture.mjs --base 4c7c5dd5 通过（83 个变更文件、179 个关联节点）；pnpm check:catalog 通过。
 - 下一步：跑完整 pnpm check 链路与根 vitest，整理最终报告给团队负责人。
+
+## 21:26:30 +08:00 · 提交 · #276 · 接手 task-276：可见范围修复、挑进论坛前端、rebase 到 f676f761、补检查
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：c276s 交回 89eb9796 后主会话接手，唯一写入者。审查时发现帖子编号递增（p<N>），点赞、收藏、表情回应、编辑、删除只查帖子存在、不查话题可见范围，回答带帖子摘要：b238b460（rebase 后的哈希见下）让 existingPost 同时 assertVisible，新用例修复前 like 回 200、修复后四个接口 403。把 forum-ui-276 的 14 个前端提交挑进来（同一基线，无冲突），四个不在词表里的 scope 改写：fix(forum,console)→fix(forum)、docs(forum,console)→docs(forum)、build(forum,console)!→build(deps)!、docs:/docs(tuffex)/docs(design)→docs(docs)。再 rebase 到合并了 #277、#278 的 stage f676f761：冲突在 db.ts 与 limits.ts 的追加行（两边都留）、portal 路由与合同（去掉 org，保留 #278 的比赛接口）、server 与 console README 的表格行（按 base 做逐字三方合并）、console mock 的类型导入（取并集），生成目录每步重新生成。之后补：9f10dbe2 两档计分下拉框 pure 且关搜索（#278 写在 Tuffex 升级之前）；a6651bad 276.json 补 forum、console 应用与 coverage、删除的游客回帖三个文件写进 removals，ownership.json 给论坛与控制台文件挂流程证据。备份引用 refs/backup/task276-pre-cherry、refs/backup/task276-pre-rebase。
+- 结果：vitest 130 文件 2018 条、根 typecheck、论坛（Node 26.8.2）test/typecheck/lint、check-architecture --base f676f761（1652 文件 204 节点）、check-doc-sync、check:catalog/secrets/notes/docs/runtime/site-config/environments/boundaries/cli 全部通过。迁移在 21:25 取的预发布库复制品上连跑两次，第二次表结构、行数、内容都没有变化，复制品已删。
+- 下一步：推送、开 MR、审查、合并，rc.20 上做浏览器验证
+
+## 21:30:23 +08:00 · PR · #276 · 开 MR !13：task/276/forum_v2 → stage
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：在 geek/admin 开 MR !13（https://git.yangtzeu.work/geek/admin/-/merge_requests/13），源分支头 a6651bad，目标 stage f676f761，merge commit、合并后删源分支。正文九节：目的（所有者原话与 18:40、19:27、19:30）、Closes #276、变更范围（服务端、论坛前端、控制台、文档；审查时补的可见范围修复 fac2762b，即接手记录里的 b238b460）、宏观对齐、解决链路、验证命令与结果、迁移演练两次逐表行数、验收证据（表情总览图与 8 张截图）、人工验收步骤、审查结论、风险与回滚。标签 P1、enhancement、forum、func:api、func:data、ui:layout、ui:visual。
+- 结果：MR !13 已开，GitLab 返回 sha a6651bad
+- 下一步：写审查记录、推送后合并
+
+## 21:30:23 +08:00 · 审查 · #276 · 审查 #276：通过
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：主会话按 .agents/skills/code-review 两条线核对 f676f761..a6651bad，没有另开子 agent；服务端是 c276s 写的，前端、控制台、Tuffex 升级、rebase 与 fac2762b、9f10dbe2、a6651bad 是审查人自己写的，属于作者自审。规范：检查全过；87a7d8aa、e0f6da31 的 docs(architecture) 与 ae3dd497 的 revert 类型不在 COMMITS 表里，已被记录引用，不改写；审查中发现点赞、收藏、表情回应、编辑、删除不查话题可见范围（帖子编号递增，回答带摘要），fac2762b 修好并加回归用例；上传与控制台写操作的校验、step-up、操作记录核对过。c276s 说 llms.txt 与 .md 走 visibilityWhere 不对，它们只读构建时的公开旧帖。需求：期望结果 1–6 与要补的测试都在；没有做新建、删除整个表情包；接口路径和正文写法不同、功能一致。结论写进 MR !13 的「审查结论」。
+- 结果：通过。未验证：验收条件 1–6 的浏览器核对放到 rc.20 预发布；llms.txt 在公开旧帖改成非公开后仍列出它；表情走 CDN 另做
+- 下一步：推送记录，合并 MR !13，关 #276
