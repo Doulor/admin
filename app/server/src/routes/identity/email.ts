@@ -64,10 +64,17 @@ export default async function emailRoutes(app: FastifyInstance) {
   const { config, emailLogin, identity } = app.services;
   const throttle = createLoginThrottle();
   const fallback = `${config.publicOrigin}/console`;
-  /** 验证码核对不过：验证码登录和重设密码回同样的错误。 */
-  const codeFailure = (reply: FastifyReply, checked: Exclude<CheckResult, { ok: true }>) => checked.error === "invalid_code"
-    ? reply.code(400).send({ error: "invalid_code", message: `验证码不对，还可以试 ${checked.attemptsLeft} 次`, attempts_left: checked.attemptsLeft })
-    : reply.code(400).send({ error: "code_expired", message: "验证码已失效，请重新获取" });
+  /**
+   * 验证码核对不过：验证码登录和重设密码回同样的错误。400 不经 middleware/http-policy.ts 的 403/429 通用记录
+   * 钩子，这里自己记一条 auth.signin_failed（#274 review round 1，SPEC §3.7「auth.* 的失败」），meta 只留
+   * 种类，不留邮箱和验证码。
+   */
+  const codeFailure = (req: FastifyRequest, reply: FastifyReply, checked: Exclude<CheckResult, { ok: true }>) => {
+    app.services.activity.recordActivity(req, { action: "auth.signin_failed", surface: "portal", outcome: "denied", meta: { provider: "email", method: "code", reason: checked.error } });
+    return checked.error === "invalid_code"
+      ? reply.code(400).send({ error: "invalid_code", message: `验证码不对，还可以试 ${checked.attemptsLeft} 次`, attempts_left: checked.attemptsLeft })
+      : reply.code(400).send({ error: "code_expired", message: "验证码已失效，请重新获取" });
+  };
   /** 账号停用：三种邮箱登录回同样的 403（#274：组织门槛去掉后，「不是成员」不会再是登录失败的原因）。 */
   const refused = (reply: FastifyReply) => reply.code(403).send({ error: "account_disabled", message: "这个极客班账号已停用" });
 
@@ -92,7 +99,7 @@ export default async function emailRoutes(app: FastifyInstance) {
     async (req, reply) => {
       const id = readChallengeCookie(req);
       const checked = emailLogin.check(id, req.body.code, "signin");
-      if (!checked.ok) return codeFailure(reply, checked);
+      if (!checked.ok) return codeFailure(req, reply, checked);
       const { challenge } = checked;
       const result = identity.signInWithEmailCode({
         email: challenge.email, invite: req.body.invite_code?.trim() || null,
@@ -102,6 +109,7 @@ export default async function emailRoutes(app: FastifyInstance) {
         switch (result.reason) {
           case "invite_invalid": {
             const left = emailLogin.penalize(challenge.id);
+            app.services.activity.recordActivity(req, { action: "auth.signin_failed", surface: "portal", outcome: "denied", meta: { provider: "email", method: "code", reason: "invite_invalid" } });
             return reply.code(400).send({ error: "invite_invalid", message: left > 0 ? `邀请码无效，还可以试 ${left} 次` : "邀请码无效，验证码已失效，请重新获取", attempts_left: left });
           }
           case "account_disabled":
@@ -128,7 +136,10 @@ export default async function emailRoutes(app: FastifyInstance) {
       if (!throttle.take(email)) throw rateLimited();
       const record = identity.passwordFor(email);
       const matched = await bcrypt.compare(req.body.password, record?.hash ?? await dummy());
-      if (!record?.hash || !matched) return wrong();
+      if (!record?.hash || !matched) {
+        app.services.activity.recordActivity(req, { action: "auth.signin_failed", surface: "portal", outcome: "denied", meta: { provider: "email", method: "password", reason: "invalid_credentials" } });
+        return wrong();
+      }
       const result = identity.signInWithPassword({ email, previousSid: req.cookies?.sid ?? null, ip: req.ip });
       // 密码登录不建号（register: false），没成功只会是账号停用
       if (!result.ok) return refused(reply);
@@ -149,7 +160,7 @@ export default async function emailRoutes(app: FastifyInstance) {
         return reply.code(400).send({ error: invalid, message: invalid === "password_too_short" ? `密码至少 ${PASSWORD_MIN_LENGTH} 位` : "密码太长了（不能超过 72 个字节）" });
       }
       const checked = emailLogin.check(readChallengeCookie(req), req.body.code, "signin");
-      if (!checked.ok) return codeFailure(reply, checked);
+      if (!checked.ok) return codeFailure(req, reply, checked);
       const { challenge } = checked;
       const hash = await hashPassword(req.body.password);
       const result = identity.resetPassword({
@@ -158,6 +169,7 @@ export default async function emailRoutes(app: FastifyInstance) {
       if (!result.ok) {
         switch (result.reason) {
           case "no_account":
+            app.services.activity.recordActivity(req, { action: "auth.password_reset_failed", surface: "portal", outcome: "denied", meta: { provider: "email", reason: "no_account" } });
             return reply.code(400).send({ error: "no_account", message: "这个邮箱还没有极客班账号" });
           case "account_disabled":
             return refused(reply);
