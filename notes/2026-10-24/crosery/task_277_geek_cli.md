@@ -90,3 +90,24 @@
 - 做了什么：临时驱动脚本（跑完即删，不入库）：用tests/server/helpers.ts的testApp+signIn起一个真实监听的server（127.0.0.1随机端口，DB_PATH=:memory:），setSiteRole('admin')+grantPermGroup('title.site.owner')补权限节点，linkEmail绑邮箱，插一条applications行，走控制台接口建一场scoring=contribution的团队赛并开放报名，forum_topics取现成夹具话题；setInterval每150ms轮询device_grants的pending行自动批准；cargo build --release后用target/release/geek（GEEK_NO_KEYRING=1+临时HOME，不碰真实系统钥匙串）依次跑status/forum list/forum show/comp list/comp show/repo list/whoami（未登录）→login --no-browser→whoami/status/forum reply/forum post/comp signup/comp mine/comp ladder/team create/apply status/skill install→logout/whoami/status（已登出）
 - 结果：全部命令成功：未登录时status/forum/comp的只读命令和whoami（exit=3，not_signed_in）都对；login --no-browser --json拿到完整scope的令牌；whoami/status的signed_in、token_source=本机文件、token_valid都对；forum reply/forum post成功拿到postId；comp signup返回state=signed_up；comp ladder在scoring=contribution时返回我自己的天梯条目（一开始用scoring=none试，服务端正确回scoring_not_enabled，改成contribution后复核通过）；team create返回role=leader的队伍；apply status只回之前种的那条{id,status,created_at}；skill install写到临时HOME的.claude/skills/geek；logout之后whoami/status都正确回退到未登录。跑完删了临时HOME、驱动脚本与服务端日志，没有真实凭据或令牌落盘在仓库或/tmp之外的地方
 - 下一步：install.ps1 未在真实 Windows 环境跑过；控制台「操作记录」UI 的真实截图验收仍留给所有者
+
+## 20:19:58 +08:00 · 提交 · #277 · 提交 scope 词表加 cli
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：提交 fca30e81：docs/conventions/COMMITS.md 的 scope 词表加 cli，写明指 app/cli；更新日期改成 2026-10-24。
+- 结果：check-docs 通过：290 个文档。
+- 下一步：推送，开 MR，写审查结论。
+
+## 20:19:58 +08:00 · PR · #277 · 开 MR !11
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：推送 task/277/geek_cli 到 GitLab（fca30e81），开 MR !11 回 stage：十节正文，两轮本机 e2e 记录作为附件（账号、比赛、帖子都是测试夹具）。
+- 结果：https://git.yangtzeu.work/geek/admin/-/merge_requests/11 opened；标签沿用 #277。
+- 下一步：写审查结论，补记后再推一次，合并进 stage、关 #277。
+
+## 20:19:58 +08:00 · 审查 · #277 · 审查 edce3a9d：通过
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：按 code-review 两条线在主会话里核对 4c7c5dd5...edce3a9d：规范（检查脚本、提交 scope、隐私、重复代码）与需求（#277 期望结果 1–6、涉及接口、验收条件）。上一轮提出的令牌接口范围与 step-up、产物进镜像两处已在 e214eb03、d1eefb2b 改掉，这两处是审查人自己写的，属于作者自审。在 edce3a9d 上重跑：vitest 114 文件 1843 条、typecheck、check-architecture、check-doc-sync、check:catalog/secrets/notes/cli/docs、cargo test 26 条，全部通过。
+- 结果：结论：通过。scope 词表缺 cli 在 fca30e81 补上；重复代码记为判断，不改。未验证：站点 install.sh 真实安装与 geek login --env preview（等 rc.20）、Claude Code 实际识别 skill、控制台操作记录页面截图、install.ps1 真实 Windows、GitHub 部署工作流的 dist/cli 步骤。审查结论贴在 MR !11 正文。
+- 下一步：合并 !11，关 #277 并留关闭记录，task.mjs finish 清理 worktree。
