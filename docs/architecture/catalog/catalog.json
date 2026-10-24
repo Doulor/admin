@@ -14912,7 +14912,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "cdf8f016bc02ab4d80731e29cab1b0eebf2bd7ca71203df5c79673a07f75050d",
+    "fingerprint": "1ce5de88dd8cc3c1550bd93d81fe3b245768aa314759eba3105e07965cbde83a",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -16768,7 +16768,7 @@
       },
       {
         "path": "scripts/backup-restore.mjs",
-        "sha256": "539ae2656616770ce42aeba0f182ef42e81ab6ee2e99293552b33dd7434aeb30"
+        "sha256": "9858434d49e6dd0d5c65330b139eed33eb4bf347fa03e1c2ff0cf79021ddcbe8"
       },
       {
         "path": "scripts/catalog/collect.ts",
@@ -17020,7 +17020,7 @@
       },
       {
         "path": "tests/tooling/backup-restore.test.ts",
-        "sha256": "abfaa96121a9170c4374826a2331eea82390013fdb7f5467a497ffdcf9a49938"
+        "sha256": "c9db69b80b2872ffce8e6374758f64be7b575118546dfe1d9501dc678545c6ee"
       },
       {
         "path": "tests/tooling/contest-site.test.ts",
