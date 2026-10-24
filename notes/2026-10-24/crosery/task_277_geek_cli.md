@@ -71,3 +71,9 @@
 - 执行者：agent-c277（Claude Code 子 agent，claude-sonnet-5-5）
 - 做了什么：新增app/server/src/routes/portal/my-applications.ts：requireAuth后按accountId查identities表provider='email'的全部绑定邮箱，和applications.email做LOWER()大小写不敏感匹配，合并去重按created_at倒序，没绑邮箱回空列表，只回id/status/created_at；routes/portal/index.ts多注册这一条路由，contracts.ts多这一条Fastify响应schema；middleware/bearer-auth.ts的SCOPE_BY_PREFIX加{prefix:"/api/me/applications",scope:"apply"}；新增tests/server/my-applications.test.ts共5个用例：只看到自己绑定邮箱匹配的投递、看不到别人的、邮箱大小写不敏感匹配、未登录401、令牌没apply scope时insufficient_scope
 - 结果：待下一条提交统一跑全量检查
+
+## 20:05:26 +08:00 · 提交 · #277 · geek status/apply 与论坛回复、比赛报名天梯、建队命令
+
+- 执行者：agent-c277（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：新增commands/status.rs（geek status：本机登录状态——令牌来自GEEK_TOKEN环境变量/系统钥匙串/本机文件哪一层、源站、探测/healthz与/auth/device/userinfo判服务端连不连得上和令牌是否有效、版本号，不要求已登录，绝不打印令牌本身）与commands/apply.rs（geek apply status：GET /api/me/applications）；forum.rs加show(GET /api/forum/topics/:id/posts)和reply(POST /api/forum/posts)；comp.rs加show(GET /api/public/competitions/:id)、signup(POST /api/competitions/:id/signup)、ladder(GET /api/competitions/:id/leaderboard)；team.rs加create(POST /api/competitions/:id/teams)；token_store.rs的load()换成load_with_source()，带来源标注(TokenSource::Env/Keyring/File)；cli.rs/main.rs接上8个新子命令；reply/signup/create各自拆出纯函数reply_body/signup_body/create_body方便不碰网络的单元测试
+- 结果：待下一条提交统一跑全量检查

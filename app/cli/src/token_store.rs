@@ -81,28 +81,55 @@ fn keyring_entry(origin: &str) -> Option<keyring::Entry> {
     keyring::Entry::new(SERVICE, origin).ok()
 }
 
-/// `GEEK_TOKEN` 优先、不落盘；其次系统钥匙串；最后文件。三层都没有就是没登录。
-pub fn load(origin: &str) -> Result<Option<StoredToken>> {
+/// 令牌来自哪一层（`geek status` 用来回答「从哪来的」，不回令牌本身）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TokenSource {
+    Env,
+    Keyring,
+    File,
+}
+
+impl TokenSource {
+    /// 给人看、也给 `--json` 用的说明（和 grade_label 一样，结构化输出里直接放中文）。
+    pub fn label(self) -> &'static str {
+        match self {
+            TokenSource::Env => "GEEK_TOKEN 环境变量",
+            TokenSource::Keyring => "系统钥匙串",
+            TokenSource::File => "本机文件",
+        }
+    }
+}
+
+/// `GEEK_TOKEN` 优先、不落盘；其次系统钥匙串；最后文件。三层都没有就是没登录。带来源的版本见
+/// [`load_with_source`]（`geek status` 用）；唯一的调用方是 `commands::Context::load`。
+pub fn load_with_source(origin: &str) -> Result<Option<(StoredToken, TokenSource)>> {
     if let Ok(token) = std::env::var("GEEK_TOKEN") {
         let token = token.trim();
         if !token.is_empty() {
-            return Ok(Some(StoredToken {
-                access_token: token.to_string(),
-                scope: String::new(),
-                obtained_at: 0,
-            }));
+            return Ok(Some((
+                StoredToken {
+                    access_token: token.to_string(),
+                    scope: String::new(),
+                    obtained_at: 0,
+                },
+                TokenSource::Env,
+            )));
         }
     }
     // 没有钥匙串、没有这一条、或者钥匙串本身不可用，都落到文件，不当作错误处理。
     if let Some(entry) = keyring_entry(origin) {
         if let Ok(secret) = entry.get_password() {
             if let Ok(stored) = serde_json::from_str::<StoredToken>(&secret) {
-                return Ok(Some(stored));
+                return Ok(Some((stored, TokenSource::Keyring)));
             }
         }
     }
     let path = credentials_path()?;
-    Ok(read_file_store(&path)?.tokens.get(origin).cloned())
+    Ok(read_file_store(&path)?
+        .tokens
+        .get(origin)
+        .cloned()
+        .map(|stored| (stored, TokenSource::File)))
 }
 
 /// 存令牌：先试钥匙串，成功就不再写文件（文件里只留别的源站的旧记录）；钥匙串不可用时退回文件。
@@ -201,9 +228,45 @@ mod tests {
     #[test]
     fn geek_token_env_wins_without_touching_disk() {
         std::env::set_var("GEEK_TOKEN", "gk_from_env");
-        let loaded = load("https://example.test").unwrap().unwrap();
-        assert_eq!(loaded.access_token, "gk_from_env");
+        let loaded = load_with_source("https://example.test").unwrap().unwrap();
+        assert_eq!(loaded.0.access_token, "gk_from_env");
         std::env::remove_var("GEEK_TOKEN");
+    }
+
+    #[test]
+    fn load_with_source_reports_env_then_file() {
+        std::env::set_var("GEEK_TOKEN", "gk_from_env");
+        let (stored, source) = load_with_source("https://example.test").unwrap().unwrap();
+        assert_eq!(stored.access_token, "gk_from_env");
+        assert_eq!(source, TokenSource::Env);
+        assert_eq!(source.label(), "GEEK_TOKEN 环境变量");
+        std::env::remove_var("GEEK_TOKEN");
+
+        // GEEK_NO_KEYRING 跳过钥匙串，三层都没有时是 None；写进文件之后来源是 File。
+        std::env::set_var("GEEK_NO_KEYRING", "1");
+        assert!(load_with_source("https://example.test").unwrap().is_none());
+        let path = tmp_path("source-file");
+        let mut store = FileStore::default();
+        store.tokens.insert(
+            "https://example.test".into(),
+            StoredToken {
+                access_token: "from-file".into(),
+                scope: String::new(),
+                obtained_at: 0,
+            },
+        );
+        write_file_store(&path, &store).unwrap();
+        let loaded = read_file_store(&path)
+            .unwrap()
+            .tokens
+            .get("https://example.test")
+            .cloned();
+        assert_eq!(
+            loaded.map(|stored| (stored.access_token, TokenSource::File)),
+            Some(("from-file".into(), TokenSource::File))
+        );
+        std::env::remove_var("GEEK_NO_KEYRING");
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]
