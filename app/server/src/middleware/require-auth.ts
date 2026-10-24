@@ -6,6 +6,9 @@ import { loadSession } from "../lib/session.js";
 export { loadSession };
 
 export async function requireAuth(req: FastifyRequest, reply: FastifyReply) {
+  // #277：geek 命令行的 Bearer 令牌由 middleware/bearer-auth.ts 在 onRequest 阶段就把 req.session 挂好了，
+  // 这里不用再要求一个 cookie——它本来就不会带 cookie（混用两种凭据在更早的钩子就被拒绝了）。
+  if (req.session) return;
   const sid = req.cookies?.sid;
   if (!sid) return reply.code(401).send({ error: "not_signed_in" });
   if (!loadSession(req)) return reply.code(401).send({ error: "session_expired" });

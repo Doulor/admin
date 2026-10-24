@@ -148,6 +148,11 @@ export const identityContracts: RouteContracts = {
     querystring: object({}),
     response: { 200: deviceProfile, ...failures },
   },
+  // RFC 7009 式幂等：令牌缺失、不存在、已撤销或已过期都回同一个 200，不区分哪种情况。
+  "POST /auth/device/revoke": {
+    querystring: object({}),
+    response: { 200: done },
+  },
   "POST /auth/email/start": {
     querystring: object({}),
     body: object({ email, return_to: returnTo, purpose: choices("signin", "reset") }, ["email"]),

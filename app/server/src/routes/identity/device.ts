@@ -156,4 +156,19 @@ export default async function deviceRoutes(app: FastifyInstance) {
       profile_required: profileRequired(app.services, identity.accountId),
     };
   });
+
+  /**
+   * `geek logout`（#277）：撤销这个令牌，之后同一个令牌再调任何接口都回 401。按 RFC 7009 的惯例，令牌
+   * 本来就无效或已经撤销过也回 200——撤销接口不用来探测一个令牌是否存在过。中间件已经按同一个
+   * Authorization 头把身份挂到了 req.session（见 middleware/bearer-auth.ts），这里只需要再读一次 token
+   * 本身去撤销；真的撤掉了才记一条操作记录，省得空撤销把表灌满。
+   */
+  app.post("/auth/device/revoke", { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
+    const authorization = req.headers.authorization ?? "";
+    const token = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
+    const revoked = device.revoke(token);
+    reply.header("Cache-Control", "no-store");
+    if (revoked) app.services.activity.recordActivity(req, { action: "identity.device.revoke", surface: "cli", outcome: "ok" });
+    return { ok: true };
+  });
 }
