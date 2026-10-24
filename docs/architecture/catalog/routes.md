@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`ca0a2b2ee8753ad58abd72ef4353d63ce1b3d8de81e0aea320cef001d0c2208a`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`669fb2fa4e6b54c416ff75ab9153af505fa783c12462d1e24cb22d31b40570a5`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -91,9 +91,8 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `GET /api/public/competitions/:id/snapshot` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competitions.ts:78](../../../app/server/src/routes/portal/competitions.ts#L78) |
 | `GET /api/public/competitions/:id/stats` | `competitions` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competitions.ts:71](../../../app/server/src/routes/portal/competitions.ts#L71) |
 | `GET /api/public/config` | `platform` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/public-config.ts:15](../../../app/server/src/routes/portal/public-config.ts#L15) |
-| `GET /api/public/departments` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/departments.ts:17](../../../app/server/src/routes/portal/departments.ts#L17) |
+| `GET /api/public/departments` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/departments.ts:18](../../../app/server/src/routes/portal/departments.ts#L18) |
 | `GET /api/public/gitlab/projects` | `gitlab` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/gitlab.ts:12](../../../app/server/src/routes/portal/gitlab.ts#L12) |
-| `GET /api/public/org` | `organization` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/org.ts:11](../../../app/server/src/routes/portal/org.ts#L11) |
 | `GET /auth/callback` | `identity` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:45](../../../app/server/src/routes/admin/auth.ts#L45) |
 | `GET /auth/device/userinfo` | `identity` | 显式 | `params`、`querystring` | 已挂载 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/device.ts:140](../../../app/server/src/routes/identity/device.ts#L140) |
 | `GET /auth/github` | `identity` | 显式 | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:37](../../../app/server/src/routes/admin/auth.ts#L37) |
@@ -166,9 +165,8 @@ Schema 完整内容在机器目录；这里的授权项只是源码检查证据�
 | `HEAD /api/public/competitions/:id/snapshot` | `competitions` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competitions.ts:78](../../../app/server/src/routes/portal/competitions.ts#L78) |
 | `HEAD /api/public/competitions/:id/stats` | `competitions` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/competitions.ts:71](../../../app/server/src/routes/portal/competitions.ts#L71) |
 | `HEAD /api/public/config` | `platform` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/public-config.ts:15](../../../app/server/src/routes/portal/public-config.ts#L15) |
-| `HEAD /api/public/departments` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/departments.ts:17](../../../app/server/src/routes/portal/departments.ts#L17) |
+| `HEAD /api/public/departments` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/departments.ts:18](../../../app/server/src/routes/portal/departments.ts#L18) |
 | `HEAD /api/public/gitlab/projects` | `gitlab` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/gitlab.ts:12](../../../app/server/src/routes/portal/gitlab.ts#L12) |
-| `HEAD /api/public/org` | `organization` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/portal/org.ts:11](../../../app/server/src/routes/portal/org.ts#L11) |
 | `HEAD /auth/callback` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:45](../../../app/server/src/routes/admin/auth.ts#L45) |
 | `HEAD /auth/device/userinfo` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/identity/device.ts:140](../../../app/server/src/routes/identity/device.ts#L140) |
 | `HEAD /auth/github` | `identity` | 自动 HEAD | `params`、`querystring` | 未声明 | 需查看 handler 与继承策略 | [app/server/src/routes/admin/auth.ts:37](../../../app/server/src/routes/admin/auth.ts#L37) |

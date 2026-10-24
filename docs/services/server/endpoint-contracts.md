@@ -435,25 +435,11 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 源码：[app/server/src/routes/portal/public-config.ts:15](../../../app/server/src/routes/portal/public-config.ts#L15)（#274 review round 1：原来和邀请链接接口挤在 `join.ts` 里，邀请链接整段删除后单独搬出来，这个接口本身没变）。验证入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts)、[tests/server/configuration.test.ts](../../../tests/server/configuration.test.ts)。
 
-## 阅读公开组织架构
-
-`GET /api/public/org` · `flow:organization.public`
-
-权限与资源：匿名可读；只下发称号/未归档部门显示信息及色调，不含人员或权限包。
-
-响应与错误：200 {tones,titles,departments}。
-
-数据与副作用：读取数据库显示配置与源码rank/tone，不修改组织结构。
-
-本地表读取：titles, departments。本地表写入：无。
-
-源码：[app/server/src/routes/portal/org.ts:11](../../../app/server/src/routes/portal/org.ts#L11)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。
-
 ## 阅读公开部门与称号（新权限体系，#274）
 
 `GET /api/public/departments` · `flow:identity.departments.public`
 
-权限与资源：匿名可读；60 秒缓存。读的是 #274 新权限体系的 `perm_groups`（`kind='department'`/`title`），不是上面 `GET /api/public/org` 读的旧 `departments`/`titles` 表——新旧两套分组表在迁移完成前并存，旧接口继续服务旧前端，这个新接口给新前端（控制台、门户的部门展示）用。
+权限与资源：匿名可读；60 秒缓存。读的是 #274 新权限体系的 `perm_groups`（`kind='department'`/`title`）。旧的 `GET /api/public/org`（读旧的 `departments`/`titles` 表，`flow:organization.public`）已随 #276 退场：论坛也改读这个接口之后，旧接口没有活的前端读者，连同路由、合同与目录条目一起删掉。
 
 响应与错误：200 `{departments:[{id,name,tone,icon,description,titles:[{id,name,weight}]}]}`；按 `perm_groups.sort` 升序排列（AI/算法/硬件/网安/管理在前，`dept.none` 固定排最后，`sort` 字段本身不下发），每个部门下的称号按 `weight` 升序。
 

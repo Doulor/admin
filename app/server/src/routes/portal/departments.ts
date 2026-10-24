@@ -9,7 +9,8 @@ type TitleRow = { id: string; name: string; weight: number; department_id: strin
 /**
  * 公开的部门与称号列表（#274 CONTRACT §1）：给门户「组织架构」窗口用（#275 接入），6 个新部门
  * （AI/算法/硬件/网安/管理/无部门），按 perm_groups.sort 升序排列，正好是「无部门」排在最后。
- * 不含任何人、不含权限包，和 /api/public/org（旧的称号/部门体系）并存，#275 切换数据源之后旧的再退场。
+ * 不含任何人、不含权限包。旧的称号/部门体系（`GET /api/public/org`）已随 #276 退场，论坛也已
+ * 改读这个接口（见团队负责人在 forum-ui-276 的改动），不再并存。
  */
 export default async function portalDepartmentsRoutes(app: FastifyInstance) {
   const { storage, cache } = app.services;

@@ -4,18 +4,18 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`ca0a2b2ee8753ad58abd72ef4353d63ce1b3d8de81e0aea320cef001d0c2208a`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`669fb2fa4e6b54c416ff75ab9153af505fa783c12462d1e24cb22d31b40570a5`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
 ## 基线
 
 - 5 个源码应用，3 个运行单元。
-- 276 个已注册方法与路径，其中业务操作 165 个，自动 HEAD 82 个。
-- 68 张应用表，22 个能力，171 条显式业务流程。
-- 响应 Schema：130/276。缺失不等于没有响应；不冒充完整 OpenAPI。
+- 274 个已注册方法与路径，其中业务操作 164 个，自动 HEAD 81 个。
+- 68 张应用表，22 个能力，170 条显式业务流程。
+- 响应 Schema：130/274。缺失不等于没有响应；不冒充完整 OpenAPI。
 
-业务流程关联：165/165 个业务操作；5/5 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
+业务流程关联：164/164 个业务操作；5/5 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
 
 ## 应用与运行单元
 
@@ -34,7 +34,7 @@
 | 业务 | 接口注册 | 数据表 | 业务说明 |
 |---|---:|---|---|
 | 身份与会话 | 54 | `sessions`、`users`、`identities`、`identity_audit`、`device_grants`、`email_challenges`、`oauth_clients`、`oauth_subjects`、`oauth_grants`、`oidc_payloads`、`account_profiles`、`account_avatars` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/plan/UNIFIED-LOGIN.md](../../../docs/plan/UNIFIED-LOGIN.md) · [docs/services/server/oidc.md](../../../docs/services/server/oidc.md) |
-| 组织与权限 | 8 | `departments`、`titles`、`role_assignments`、`console_seeds` | [docs/services/console/README.md](../../../docs/services/console/README.md) · [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) |
+| 组织与权限 | 6 | `departments`、`titles`、`role_assignments`、`console_seeds` | [docs/services/console/README.md](../../../docs/services/console/README.md) · [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) |
 | 权限 | 18 | `perm_nodes`、`perm_groups`、`perm_group_parents`、`perm_entries`、`perm_members`、`perm_state`、`perm_seed_applied` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
 | 招新投递 | 10 | `applications`、`application_reviews`、`application_limits` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) · [docs/ops/USAGE.md](../../../docs/ops/USAGE.md) |
 | 意见反馈 | 9 | `feedback` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
@@ -625,7 +625,7 @@
 - 响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，多余字段 400 validation_error（契约在 routes/portal/contracts.ts）。
 - 数据与副作用：只有 lib/activity.ts 的 EVENT_WHITELIST 里的动作才记一行 activity_events；白名单外的全部丢弃，合并计一条 outcome=denied 的 events.rejected（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌等敏感字段（调用方自己决定 meta 放什么）。
 
-源码：[app/server/src/routes/portal/events.ts:25](../../../app/server/src/routes/portal/events.ts#L25) · [app/server/src/routes/portal/contracts.ts:40](../../../app/server/src/routes/portal/contracts.ts#L40) · [app/server/src/lib/activity.ts:20](../../../app/server/src/lib/activity.ts#L20) · [app/web/sites/portal/lib/events.ts:16](../../../app/web/sites/portal/lib/events.ts#L16) · [app/web/sites/portal/components/boot/BootSequence.tsx:66](../../../app/web/sites/portal/components/boot/BootSequence.tsx#L66) · [app/web/sites/portal/lib/bootGate.ts:3](../../../app/web/sites/portal/lib/bootGate.ts#L3) · [app/web/sites/portal/components/boot/engine.ts:19](../../../app/web/sites/portal/components/boot/engine.ts#L19) · [app/web/sites/portal/components/boot/background.ts:10](../../../app/web/sites/portal/components/boot/background.ts#L10) · [app/web/sites/portal/components/boot/layout.ts:25](../../../app/web/sites/portal/components/boot/layout.ts#L25) · [app/web/sites/portal/components/boot/math.ts:5](../../../app/web/sites/portal/components/boot/math.ts#L5) · [app/web/sites/portal/components/boot/shapes.ts:5](../../../app/web/sites/portal/components/boot/shapes.ts#L5) · [app/web/sites/portal/components/boot/timeline.ts:7](../../../app/web/sites/portal/components/boot/timeline.ts#L7) · [app/web/sites/portal/components/os/SkyWallpaper.tsx:97](../../../app/web/sites/portal/components/os/SkyWallpaper.tsx#L97) · [app/web/sites/portal/components/os/Wallpaper.tsx:12](../../../app/web/sites/portal/components/os/Wallpaper.tsx#L12) · [app/web/sites/portal/lib/wallpapers.ts:18](../../../app/web/sites/portal/lib/wallpapers.ts#L18) · [app/web/sites/portal/components/os/Widgets.tsx:12](../../../app/web/sites/portal/components/os/Widgets.tsx#L12)
+源码：[app/server/src/routes/portal/events.ts:25](../../../app/server/src/routes/portal/events.ts#L25) · [app/server/src/routes/portal/contracts.ts:39](../../../app/server/src/routes/portal/contracts.ts#L39) · [app/server/src/lib/activity.ts:20](../../../app/server/src/lib/activity.ts#L20) · [app/web/sites/portal/lib/events.ts:16](../../../app/web/sites/portal/lib/events.ts#L16) · [app/web/sites/portal/components/boot/BootSequence.tsx:66](../../../app/web/sites/portal/components/boot/BootSequence.tsx#L66) · [app/web/sites/portal/lib/bootGate.ts:3](../../../app/web/sites/portal/lib/bootGate.ts#L3) · [app/web/sites/portal/components/boot/engine.ts:19](../../../app/web/sites/portal/components/boot/engine.ts#L19) · [app/web/sites/portal/components/boot/background.ts:10](../../../app/web/sites/portal/components/boot/background.ts#L10) · [app/web/sites/portal/components/boot/layout.ts:25](../../../app/web/sites/portal/components/boot/layout.ts#L25) · [app/web/sites/portal/components/boot/math.ts:5](../../../app/web/sites/portal/components/boot/math.ts#L5) · [app/web/sites/portal/components/boot/shapes.ts:5](../../../app/web/sites/portal/components/boot/shapes.ts#L5) · [app/web/sites/portal/components/boot/timeline.ts:7](../../../app/web/sites/portal/components/boot/timeline.ts#L7) · [app/web/sites/portal/components/os/SkyWallpaper.tsx:97](../../../app/web/sites/portal/components/os/SkyWallpaper.tsx#L97) · [app/web/sites/portal/components/os/Wallpaper.tsx:12](../../../app/web/sites/portal/components/os/Wallpaper.tsx#L12) · [app/web/sites/portal/lib/wallpapers.ts:18](../../../app/web/sites/portal/lib/wallpapers.ts#L18) · [app/web/sites/portal/components/os/Widgets.tsx:12](../../../app/web/sites/portal/components/os/Widgets.tsx#L12)
 
 测试入口：[tests/server/events.test.ts](../../../tests/server/events.test.ts)。生成器未执行这些测试。
 
@@ -750,23 +750,6 @@
 源码：[app/server/src/routes/portal/public-config.ts:15](../../../app/server/src/routes/portal/public-config.ts#L15) · [app/web/shared/config/index.ts:38](../../../app/web/shared/config/index.ts#L38)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/configuration.test.ts](../../../tests/server/configuration.test.ts)。生成器未执行这些测试。
-
-### 阅读公开组织架构
-
-标识：`flow:organization.public`；性质：显式声明并关联源码，不是自动证明业务正确。
-
-- 操作：`GET /api/public/org`
-- 能力：
-- 读取：`titles`、`departments`
-- 写入：
-- 不入队：
-- 权限与资源：匿名可读；只下发称号/未归档部门显示信息及色调，不含人员或权限包。
-- 响应与错误：200 {tones,titles,departments}。
-- 数据与副作用：读取数据库显示配置与源码rank/tone，不修改组织结构。
-
-源码：[app/server/src/routes/portal/org.ts:11](../../../app/server/src/routes/portal/org.ts#L11) · [app/forum/app/data/titles.ts:190](../../../app/forum/app/data/titles.ts#L190)
-
-测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
 ### 浏览公开文档清单
 
@@ -1331,7 +1314,7 @@
 - 数据与副作用：访客翻页上限（SPEC §3.8，CONTRACT §9）——没带 cursor 的第一页不计数，带 cursor 的请求按访客 id（yugc_vid）或IP哈希、北京日历日窗口计最多10次，第11次429 {bucket:"forum.visitor.pages"}；注册用户、成员不限。
 - 身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。
 
-源码：[app/server/src/routes/forum-api/topics.ts:68](../../../app/server/src/routes/forum-api/topics.ts#L68) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320) · [app/server/src/lib/forum-rules.ts:113](../../../app/server/src/lib/forum-rules.ts#L113) · [app/server/src/routes/forum-api/forum-limits.ts:67](../../../app/server/src/routes/forum-api/forum-limits.ts#L67) · [app/forum/shared/forum-api.ts:396](../../../app/forum/shared/forum-api.ts#L396)
+源码：[app/server/src/routes/forum-api/topics.ts:68](../../../app/server/src/routes/forum-api/topics.ts#L68) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320) · [app/server/src/lib/forum-rules.ts:113](../../../app/server/src/lib/forum-rules.ts#L113) · [app/server/src/routes/forum-api/forum-limits.ts:67](../../../app/server/src/routes/forum-api/forum-limits.ts#L67)
 
 测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。生成器未执行这些测试。
 
@@ -1614,7 +1597,7 @@
 - #278：每场另带 site_url（已发布时 /c/<slug>/）、app_url（门户比赛窗口深链）、prizes、grade_factors 与 finalized_at；不含兑奖码与任何人。
 - #278：比赛窗口的官网入口横幅与详情头图和第一期官网首屏同一套浅色（ContestGlow 柔光与透视网格、HeatMark 热力图字标、渐变字），字形与配色和官网共用 app/web/shared/lib/heatmark.ts；减少动态效果时停在最终的样子。
 
-源码：[app/server/src/routes/portal/competitions.ts:18](../../../app/server/src/routes/portal/competitions.ts#L18) · [app/server/src/routes/portal/contracts.ts:12](../../../app/server/src/routes/portal/contracts.ts#L12) · [app/server/src/routes/portal/index.ts:10](../../../app/server/src/routes/portal/index.ts#L10) · [app/server/src/lib/competition-store.ts:126](../../../app/server/src/lib/competition-store.ts#L126) · [app/server/src/lib/competition-contract.ts:57](../../../app/server/src/lib/competition-contract.ts#L57) · [app/web/sites/portal/lib/competitions.ts:198](../../../app/web/sites/portal/lib/competitions.ts#L198) · [app/web/sites/portal/lib/competitionLabels.ts:222](../../../app/web/sites/portal/lib/competitionLabels.ts#L222) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:153](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L153) · [app/web/sites/portal/components/os/competitions/CompetitionList.tsx:32](../../../app/web/sites/portal/components/os/competitions/CompetitionList.tsx#L32) · [app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx:258](../../../app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx#L258) · [app/web/sites/portal/components/os/Windows.tsx:250](../../../app/web/sites/portal/components/os/Windows.tsx#L250) · [app/web/sites/portal/components/os/YugcOs.tsx:156](../../../app/web/sites/portal/components/os/YugcOs.tsx#L156) · [app/web/sites/portal/lib/osApps.ts:41](../../../app/web/sites/portal/lib/osApps.ts#L41) · [app/web/shared/lib/mock-api.ts:132](../../../app/web/shared/lib/mock-api.ts#L132) · [app/web/sites/portal/pages/Home.tsx:12](../../../app/web/sites/portal/pages/Home.tsx#L12) · [app/web/sites/portal/lib/icons.ts:5](../../../app/web/sites/portal/lib/icons.ts#L5) · [app/web/sites/portal/components/os/competitions/ContestSite.tsx:8](../../../app/web/sites/portal/components/os/competitions/ContestSite.tsx#L8) · [app/web/sites/portal/components/os/competitions/ContestBackdrop.tsx:39](../../../app/web/sites/portal/components/os/competitions/ContestBackdrop.tsx#L39) · [app/web/shared/lib/heatmark.ts:40](../../../app/web/shared/lib/heatmark.ts#L40)
+源码：[app/server/src/routes/portal/competitions.ts:18](../../../app/server/src/routes/portal/competitions.ts#L18) · [app/server/src/routes/portal/contracts.ts:12](../../../app/server/src/routes/portal/contracts.ts#L12) · [app/server/src/routes/portal/index.ts:9](../../../app/server/src/routes/portal/index.ts#L9) · [app/server/src/lib/competition-store.ts:126](../../../app/server/src/lib/competition-store.ts#L126) · [app/server/src/lib/competition-contract.ts:57](../../../app/server/src/lib/competition-contract.ts#L57) · [app/web/sites/portal/lib/competitions.ts:198](../../../app/web/sites/portal/lib/competitions.ts#L198) · [app/web/sites/portal/lib/competitionLabels.ts:222](../../../app/web/sites/portal/lib/competitionLabels.ts#L222) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:153](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L153) · [app/web/sites/portal/components/os/competitions/CompetitionList.tsx:32](../../../app/web/sites/portal/components/os/competitions/CompetitionList.tsx#L32) · [app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx:258](../../../app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx#L258) · [app/web/sites/portal/components/os/Windows.tsx:250](../../../app/web/sites/portal/components/os/Windows.tsx#L250) · [app/web/sites/portal/components/os/YugcOs.tsx:156](../../../app/web/sites/portal/components/os/YugcOs.tsx#L156) · [app/web/sites/portal/lib/osApps.ts:41](../../../app/web/sites/portal/lib/osApps.ts#L41) · [app/web/shared/lib/mock-api.ts:132](../../../app/web/shared/lib/mock-api.ts#L132) · [app/web/sites/portal/pages/Home.tsx:12](../../../app/web/sites/portal/pages/Home.tsx#L12) · [app/web/sites/portal/lib/icons.ts:5](../../../app/web/sites/portal/lib/icons.ts#L5) · [app/web/sites/portal/components/os/competitions/ContestSite.tsx:8](../../../app/web/sites/portal/components/os/competitions/ContestSite.tsx#L8) · [app/web/sites/portal/components/os/competitions/ContestBackdrop.tsx:39](../../../app/web/sites/portal/components/os/competitions/ContestBackdrop.tsx#L39) · [app/web/shared/lib/heatmark.ts:40](../../../app/web/shared/lib/heatmark.ts#L40)
 
 测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts) · [tests/e2e/portal-competitions.spec.ts](../../../tests/e2e/portal-competitions.spec.ts) · [tests/server/competition-public.test.ts](../../../tests/server/competition-public.test.ts)。生成器未执行这些测试。
 
@@ -1708,7 +1691,7 @@
 - 角标口径是发给我的邀请加上我所在队伍收到的申请，我发出的申请不算；待处理明细只在本场相关人里下发（当事人自己的申请与邀请、本人所在队伍的待处理项），其他人看不到。
 - 只读，不写业务表；门户自助操作不写审计。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:37](../../../app/server/src/routes/portal/competition-signups.ts#L37) · [app/server/src/lib/competition-signup-store.ts:737](../../../app/server/src/lib/competition-signup-store.ts#L737) · [app/server/src/lib/competition-contract.ts:118](../../../app/server/src/lib/competition-contract.ts#L118) · [app/server/src/routes/portal/contracts.ts:61](../../../app/server/src/routes/portal/contracts.ts#L61) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:165](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L165)
+源码：[app/server/src/routes/portal/competition-signups.ts:37](../../../app/server/src/routes/portal/competition-signups.ts#L37) · [app/server/src/lib/competition-signup-store.ts:737](../../../app/server/src/lib/competition-signup-store.ts#L737) · [app/server/src/lib/competition-contract.ts:118](../../../app/server/src/lib/competition-contract.ts#L118) · [app/server/src/routes/portal/contracts.ts:60](../../../app/server/src/routes/portal/contracts.ts#L60) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:165](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L165)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2306,7 +2289,7 @@
 - 200 {items:[{competition_id, name, finalized_at, rank, points, prize:{amount_cny, title, code, redeemed_at}|null}]}：本人报名过、已经定榜的比赛；兑奖码明文只在这里给本人看（从密文解出），/api 一律 no-store。
 - 只读；门户「我的参赛」显示名次、奖项与兑奖码，可一键复制。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:40](../../../app/server/src/routes/portal/competition-signups.ts#L40) · [app/server/src/routes/portal/contracts.ts:62](../../../app/server/src/routes/portal/contracts.ts#L62) · [app/server/src/lib/competition-prizes.ts:56](../../../app/server/src/lib/competition-prizes.ts#L56) · [app/web/sites/portal/lib/competitionHub.ts:162](../../../app/web/sites/portal/lib/competitionHub.ts#L162) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:91](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L91)
+源码：[app/server/src/routes/portal/competition-signups.ts:40](../../../app/server/src/routes/portal/competition-signups.ts#L40) · [app/server/src/routes/portal/contracts.ts:61](../../../app/server/src/routes/portal/contracts.ts#L61) · [app/server/src/lib/competition-prizes.ts:56](../../../app/server/src/lib/competition-prizes.ts#L56) · [app/web/sites/portal/lib/competitionHub.ts:162](../../../app/web/sites/portal/lib/competitionHub.ts#L162) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:91](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L91)
 
 测试入口：[tests/server/competition-prizes.test.ts](../../../tests/server/competition-prizes.test.ts) · [tests/web/portal-competition-results.test.tsx](../../../tests/web/portal-competition-results.test.tsx)。生成器未执行这些测试。
 
@@ -2682,7 +2665,7 @@
 - 响应与错误：200 {projects:[{name,path_with_namespace,description,web_url,http_url_to_repo,last_activity_at}]}；只给 visibility=public 的项目，不含私有项目、不含 star_count 等内部字段；GitLab 没配、连不上或拒绝时 {projects:[],unavailable:true}，不回 5xx。
 - 数据与副作用：只读，不落库，不需要会话；门户「代码仓库」应用据此渲染。
 
-源码：[app/server/src/routes/portal/gitlab.ts:12](../../../app/server/src/routes/portal/gitlab.ts#L12) · [app/server/src/routes/portal/contracts.ts:28](../../../app/server/src/routes/portal/contracts.ts#L28) · [app/server/src/lib/gitlab-sync.ts:70](../../../app/server/src/lib/gitlab-sync.ts#L70) · [app/web/sites/portal/lib/codeRepos.ts:10](../../../app/web/sites/portal/lib/codeRepos.ts#L10) · [app/web/sites/portal/lib/snapshots.ts:3](../../../app/web/sites/portal/lib/snapshots.ts#L3) · [app/web/sites/portal/lib/shell/index.ts:158](../../../app/web/sites/portal/lib/shell/index.ts#L158) · [app/web/sites/portal/lib/shell/commands.ts:1100](../../../app/web/sites/portal/lib/shell/commands.ts#L1100) · [app/web/sites/portal/lib/shell/vfs.ts:77](../../../app/web/sites/portal/lib/shell/vfs.ts#L77) · [app/web/sites/portal/lib/shell/parse.ts:147](../../../app/web/sites/portal/lib/shell/parse.ts#L147) · [app/web/sites/portal/lib/shell/ansi.ts:9](../../../app/web/sites/portal/lib/shell/ansi.ts#L9) · [app/web/sites/portal/components/os/Terminal.tsx:55](../../../app/web/sites/portal/components/os/Terminal.tsx#L55)
+源码：[app/server/src/routes/portal/gitlab.ts:12](../../../app/server/src/routes/portal/gitlab.ts#L12) · [app/server/src/routes/portal/contracts.ts:27](../../../app/server/src/routes/portal/contracts.ts#L27) · [app/server/src/lib/gitlab-sync.ts:70](../../../app/server/src/lib/gitlab-sync.ts#L70) · [app/web/sites/portal/lib/codeRepos.ts:10](../../../app/web/sites/portal/lib/codeRepos.ts#L10) · [app/web/sites/portal/lib/snapshots.ts:3](../../../app/web/sites/portal/lib/snapshots.ts#L3) · [app/web/sites/portal/lib/shell/index.ts:158](../../../app/web/sites/portal/lib/shell/index.ts#L158) · [app/web/sites/portal/lib/shell/commands.ts:1100](../../../app/web/sites/portal/lib/shell/commands.ts#L1100) · [app/web/sites/portal/lib/shell/vfs.ts:77](../../../app/web/sites/portal/lib/shell/vfs.ts#L77) · [app/web/sites/portal/lib/shell/parse.ts:147](../../../app/web/sites/portal/lib/shell/parse.ts#L147) · [app/web/sites/portal/lib/shell/ansi.ts:9](../../../app/web/sites/portal/lib/shell/ansi.ts#L9) · [app/web/sites/portal/components/os/Terminal.tsx:55](../../../app/web/sites/portal/components/os/Terminal.tsx#L55)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
 
@@ -2816,9 +2799,9 @@
 - 不入队：
 - 权限与资源：匿名可读；60 秒缓存。
 - 响应与错误：200 {departments:[{id,name,tone,icon,description,titles:[{id,name,weight}]}]}；按 perm_groups.sort 升序（6 个新部门，dept.none 固定排最后），称号按 weight 升序。
-- 数据与副作用：只读 perm_groups（kind=department/title），和 GET /api/public/org 读的旧 departments/titles 表并存，不互相影响；不需要会话。
+- 数据与副作用：只读 perm_groups（kind=department/title）；旧的 GET /api/public/org（读 departments/titles 表）已随 #276 退场，不再并存；不需要会话。
 
-源码：[app/server/src/routes/portal/departments.ts:17](../../../app/server/src/routes/portal/departments.ts#L17) · [app/server/src/routes/portal/contracts.ts:21](../../../app/server/src/routes/portal/contracts.ts#L21) · [app/web/sites/portal/lib/departments.ts:12](../../../app/web/sites/portal/lib/departments.ts#L12)
+源码：[app/server/src/routes/portal/departments.ts:18](../../../app/server/src/routes/portal/departments.ts#L18) · [app/server/src/routes/portal/contracts.ts:20](../../../app/server/src/routes/portal/contracts.ts#L20) · [app/web/sites/portal/lib/departments.ts:12](../../../app/web/sites/portal/lib/departments.ts#L12)
 
 测试入口：[tests/server/profile.test.ts](../../../tests/server/profile.test.ts)。生成器未执行这些测试。
 

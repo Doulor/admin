@@ -16,7 +16,6 @@ export const portalContracts: RouteContracts = {
   "GET /api/public/competitions/:id/feed": { ...competitionIdParam, ...publicFeedQuery, response: { 200: publicFeed, ...competitionFailures } },
   "GET /api/public/competitions/:id/stats": { ...competitionIdParam, querystring: object({}), response: { 200: publicStats, ...competitionFailures } },
   "GET /api/public/competitions/:id/snapshot": { ...competitionIdParam, querystring: object({}), response: { 200: publicSnapshot, ...competitionFailures } },
-  "GET /api/public/org": { querystring: object({}) },
   // 公开的部门与称号列表（#274）：给门户「组织架构」用，6 个新部门，不含任何人
   "GET /api/public/departments": { querystring: object({}), response: { 200: object({
     departments: { type: "array", items: object({

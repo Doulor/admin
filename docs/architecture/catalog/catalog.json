@@ -353,13 +353,13 @@
     }
   ],
   "coverage": {
-    "automaticHead": 82,
-    "businessOperations": 165,
-    "businessOperationsWithFlow": 165,
+    "automaticHead": 81,
+    "businessOperations": 164,
+    "businessOperationsWithFlow": 164,
     "capabilities": 22,
-    "declaredFlows": 171,
+    "declaredFlows": 170,
     "responseSchemas": 130,
-    "routeMethods": 276,
+    "routeMethods": 274,
     "supplementalInterfaces": 5,
     "supplementalInterfacesWithFlow": 5,
     "tables": 68
@@ -2667,7 +2667,7 @@
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 40,
+          "line": 39,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -3129,47 +3129,6 @@
         "tests/server/configuration.test.ts"
       ],
       "title": "读取公开防滥用配置",
-      "writes": []
-    },
-    {
-      "assessment": "declared-with-source-evidence",
-      "capabilities": [],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ],
-      "doesNotEnqueue": [],
-      "domain": "organization",
-      "evidence": [
-        {
-          "line": 11,
-          "path": "app/server/src/routes/portal/org.ts"
-        },
-        {
-          "line": 190,
-          "path": "app/forum/app/data/titles.ts"
-        }
-      ],
-      "id": "flow:organization.public",
-      "invariants": [
-        "权限与资源：匿名可读；只下发称号/未归档部门显示信息及色调，不含人员或权限包。",
-        "响应与错误：200 {tones,titles,departments}。",
-        "数据与副作用：读取数据库显示配置与源码rank/tone，不修改组织结构。"
-      ],
-      "operation": "GET /api/public/org",
-      "operationLabel": "GET /api/public/org",
-      "operationNodeId": "route:GET /api/public/org",
-      "reads": [
-        "titles",
-        "departments"
-      ],
-      "relatedDomains": [],
-      "testStatus": "linked-not-executed-by-generator",
-      "tests": [
-        "tests/server/console.test.ts"
-      ],
-      "title": "阅读公开组织架构",
       "writes": []
     },
     {
@@ -5036,10 +4995,6 @@
         {
           "line": 67,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
-        },
-        {
-          "line": 396,
-          "path": "app/forum/shared/forum-api.ts"
         }
       ],
       "id": "flow:forum.topics.page",
@@ -5880,7 +5835,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 10,
+          "line": 9,
           "path": "app/server/src/routes/portal/index.ts"
         },
         {
@@ -6304,7 +6259,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 61,
+          "line": 60,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -8675,7 +8630,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 62,
+          "line": 61,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -10262,7 +10217,7 @@
           "path": "app/server/src/routes/portal/gitlab.ts"
         },
         {
-          "line": 28,
+          "line": 27,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -10682,11 +10637,11 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 17,
+          "line": 18,
           "path": "app/server/src/routes/portal/departments.ts"
         },
         {
-          "line": 21,
+          "line": 20,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -10698,7 +10653,7 @@
       "invariants": [
         "权限与资源：匿名可读；60 秒缓存。",
         "响应与错误：200 {departments:[{id,name,tone,icon,description,titles:[{id,name,weight}]}]}；按 perm_groups.sort 升序（6 个新部门，dept.none 固定排最后），称号按 weight 升序。",
-        "数据与副作用：只读 perm_groups（kind=department/title），和 GET /api/public/org 读的旧 departments/titles 表并存，不互相影响；不需要会话。"
+        "数据与副作用：只读 perm_groups（kind=department/title）；旧的 GET /api/public/org（读 departments/titles 表）已随 #276 退场，不再并存；不需要会话。"
       ],
       "operation": "GET /api/public/departments",
       "operationLabel": "GET /api/public/departments",
@@ -12503,11 +12458,6 @@
       "title": "读取部门及成员计数"
     },
     {
-      "id": "flow:organization.public",
-      "kind": "flow",
-      "title": "阅读公开组织架构"
-    },
-    {
       "id": "flow:permissions.accounts.effective",
       "kind": "flow",
       "title": "控制台查看一个账号的全部有效权限"
@@ -13018,11 +12968,6 @@
       "title": "GET /api/public/gitlab/projects"
     },
     {
-      "id": "route:GET /api/public/org",
-      "kind": "route",
-      "title": "GET /api/public/org"
-    },
-    {
       "id": "route:GET /auth/callback",
       "kind": "route",
       "title": "GET /auth/callback"
@@ -13431,11 +13376,6 @@
       "id": "route:HEAD /api/public/gitlab/projects",
       "kind": "route",
       "title": "HEAD /api/public/gitlab/projects"
-    },
-    {
-      "id": "route:HEAD /api/public/org",
-      "kind": "route",
-      "title": "HEAD /api/public/org"
     },
     {
       "id": "route:HEAD /auth/callback",
@@ -14645,7 +14585,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "ca0a2b2ee8753ad58abd72ef4353d63ce1b3d8de81e0aea320cef001d0c2208a",
+    "fingerprint": "669fb2fa4e6b54c416ff75ab9153af505fa783c12462d1e24cb22d31b40570a5",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -15321,7 +15261,7 @@
       },
       {
         "path": "app/forum/shared/forum-api.ts",
-        "sha256": "9fb5707b634503a2891c367204f6b6b0b495f391c4cece24dc0c9eef18d6deca"
+        "sha256": "e917ae8f699154805940f5d2d7d1f39ed14dcdabd0c7dc486d98b2d3764095cc"
       },
       {
         "path": "app/forum/shared/forum-markdown.ts",
@@ -15601,7 +15541,7 @@
       },
       {
         "path": "app/server/src/lib/mail/recruitment.ts",
-        "sha256": "d4f5d04580c6505a7c4f20d690b2d85a736bf9fc7f40da63c3f5f4aa7bd9c8dd"
+        "sha256": "7f517423ee166996d577f61f063a9f772a412267297cc146eb1e49f80ca1083b"
       },
       {
         "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts",
@@ -15877,11 +15817,11 @@
       },
       {
         "path": "app/server/src/routes/portal/contracts.ts",
-        "sha256": "ae685776175365f191702626148f18a4e5e6dcf350fba6a4a4c0abf3948dc00f"
+        "sha256": "4842ee560e5e179b1e106a1aec061ca7cc496b1b35116e3fd3a28448882c8a22"
       },
       {
         "path": "app/server/src/routes/portal/departments.ts",
-        "sha256": "99faf9e2f6460a329ccb7f8c55d5b3c9e9689e9b978a47a1e61d0cdd69e028bd"
+        "sha256": "4c4d58028aff4f450523beff853600a8a93137b4d4a9b2728afb70320e3a76a5"
       },
       {
         "path": "app/server/src/routes/portal/docs.ts",
@@ -15901,15 +15841,11 @@
       },
       {
         "path": "app/server/src/routes/portal/index.ts",
-        "sha256": "2994fe961e01d40afb59ec902ab685089a6713efc7157a2a2838812ea5f6300b"
+        "sha256": "e5ddd62b892328b9d14b83851bc5f0c6fbc67676367d494540900b6ef33f4c2d"
       },
       {
         "path": "app/server/src/routes/portal/my-applications.ts",
         "sha256": "dc6798690f322055d503266aed7dfe955eb76db3f5a23c9d4c6399bbb55b525f"
-      },
-      {
-        "path": "app/server/src/routes/portal/org.ts",
-        "sha256": "965509936a57208f9eb963a7c8a0c342a44bd7e4490cfe1365fa217eadd89044"
       },
       {
         "path": "app/server/src/routes/portal/public-config.ts",
@@ -16341,7 +16277,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "9e85d151ad47c039e3630eec00a52da5dd5970a28f6c6f0aa07d64ee725b7535"
+        "sha256": "3a1540211d335862fe3888a8153c9ad81689115fbe8482ac79cce18b7e23d478"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -16353,7 +16289,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "6fc0816b48c67dc44420c5999d4db19805d4b6a94445ea820add0c4708d92817"
+        "sha256": "ee71a7e634355905e2ffdc3809ca4f0855aa76d3b73f699c31dd52ee9fc67cb0"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -16393,19 +16329,19 @@
       },
       {
         "path": "docs/services/forum/README.md",
-        "sha256": "47249c0b97acb331071ce48d5f2f8c13fa9ba47a07324d43167f2042644fc1ac"
+        "sha256": "a31ea8c6767546b0f020d7f041b8c133208bacb0bab8bd8c44850404f7a5d19c"
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "39162a88cbb7511787d66b3ecaf5e33a30cb4415e6a821f9e837c95183b1ed56"
+        "sha256": "d59fb29ef9d5bf5d946eec9a05dc09e95d56a35068f513ee103e98da1be0320e"
       },
       {
         "path": "docs/services/server/data-model.md",
-        "sha256": "be0c15b12d1394e0355788afe211ada0ae4a24943088f6410575f34843b3db6c"
+        "sha256": "4ffb1beefaa1a61bdf23b2a601bcc22addc011091b50e0367ecf7f6b504d37b5"
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "d109161c49251dbc9bb12d35db697a8382d42fe19d578396053e72c3ebbc0a7d"
+        "sha256": "9489e1e3b3b9bc797ad5627328853bf01b715e683d3cce2de0d90430ad0d1abe"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -17780,7 +17716,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 17,
+          "line": 18,
           "path": "app/server/src/routes/portal/departments.ts"
         }
       ],
@@ -17798,18 +17734,6 @@
       ],
       "from": "application:server",
       "to": "route:GET /api/public/gitlab/projects",
-      "type": "provides"
-    },
-    {
-      "basis": "runtime",
-      "evidence": [
-        {
-          "line": 11,
-          "path": "app/server/src/routes/portal/org.ts"
-        }
-      ],
-      "from": "application:server",
-      "to": "route:GET /api/public/org",
       "type": "provides"
     },
     {
@@ -18776,7 +18700,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 17,
+          "line": 18,
           "path": "app/server/src/routes/portal/departments.ts"
         }
       ],
@@ -18794,18 +18718,6 @@
       ],
       "from": "application:server",
       "to": "route:HEAD /api/public/gitlab/projects",
-      "type": "provides"
-    },
-    {
-      "basis": "runtime",
-      "evidence": [
-        {
-          "line": 11,
-          "path": "app/server/src/routes/portal/org.ts"
-        }
-      ],
-      "from": "application:server",
-      "to": "route:HEAD /api/public/org",
       "type": "provides"
     },
     {
@@ -22476,7 +22388,7 @@
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 40,
+          "line": 39,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -22548,7 +22460,7 @@
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 40,
+          "line": 39,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -27868,7 +27780,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 61,
+          "line": 60,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -27896,7 +27808,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 61,
+          "line": 60,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -27924,7 +27836,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 61,
+          "line": 60,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -27952,7 +27864,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 61,
+          "line": 60,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -27980,7 +27892,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 61,
+          "line": 60,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28008,7 +27920,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 61,
+          "line": 60,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28036,7 +27948,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 61,
+          "line": 60,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28064,7 +27976,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 61,
+          "line": 60,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28092,7 +28004,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 61,
+          "line": 60,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28120,7 +28032,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 61,
+          "line": 60,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28148,7 +28060,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 61,
+          "line": 60,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28194,7 +28106,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 61,
+          "line": 60,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28238,7 +28150,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 62,
+          "line": 61,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28266,7 +28178,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 62,
+          "line": 61,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28294,7 +28206,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 62,
+          "line": 61,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28322,7 +28234,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 62,
+          "line": 61,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28350,7 +28262,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 62,
+          "line": 61,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28378,7 +28290,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 62,
+          "line": 61,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28406,7 +28318,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 62,
+          "line": 61,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28434,7 +28346,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 62,
+          "line": 61,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28462,7 +28374,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 62,
+          "line": 61,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28490,7 +28402,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 62,
+          "line": 61,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28530,7 +28442,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 62,
+          "line": 61,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28558,7 +28470,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 62,
+          "line": 61,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -31100,7 +31012,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 10,
+          "line": 9,
           "path": "app/server/src/routes/portal/index.ts"
         },
         {
@@ -31184,7 +31096,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 10,
+          "line": 9,
           "path": "app/server/src/routes/portal/index.ts"
         },
         {
@@ -31268,7 +31180,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 10,
+          "line": 9,
           "path": "app/server/src/routes/portal/index.ts"
         },
         {
@@ -31352,7 +31264,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 10,
+          "line": 9,
           "path": "app/server/src/routes/portal/index.ts"
         },
         {
@@ -31472,7 +31384,7 @@
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 10,
+          "line": 9,
           "path": "app/server/src/routes/portal/index.ts"
         },
         {
@@ -53862,10 +53774,6 @@
         {
           "line": 67,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
-        },
-        {
-          "line": 396,
-          "path": "app/forum/shared/forum-api.ts"
         }
       ],
       "from": "flow:forum.topics.page",
@@ -53898,10 +53806,6 @@
         {
           "line": 67,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
-        },
-        {
-          "line": 396,
-          "path": "app/forum/shared/forum-api.ts"
         }
       ],
       "from": "flow:forum.topics.page",
@@ -53934,10 +53838,6 @@
         {
           "line": 67,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
-        },
-        {
-          "line": 396,
-          "path": "app/forum/shared/forum-api.ts"
         }
       ],
       "from": "flow:forum.topics.page",
@@ -53970,10 +53870,6 @@
         {
           "line": 67,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
-        },
-        {
-          "line": 396,
-          "path": "app/forum/shared/forum-api.ts"
         }
       ],
       "from": "flow:forum.topics.page",
@@ -54006,10 +53902,6 @@
         {
           "line": 67,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
-        },
-        {
-          "line": 396,
-          "path": "app/forum/shared/forum-api.ts"
         }
       ],
       "from": "flow:forum.topics.page",
@@ -54042,10 +53934,6 @@
         {
           "line": 67,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
-        },
-        {
-          "line": 396,
-          "path": "app/forum/shared/forum-api.ts"
         }
       ],
       "from": "flow:forum.topics.page",
@@ -54078,10 +53966,6 @@
         {
           "line": 67,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
-        },
-        {
-          "line": 396,
-          "path": "app/forum/shared/forum-api.ts"
         }
       ],
       "from": "flow:forum.topics.page",
@@ -54114,10 +53998,6 @@
         {
           "line": 67,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
-        },
-        {
-          "line": 396,
-          "path": "app/forum/shared/forum-api.ts"
         }
       ],
       "from": "flow:forum.topics.page",
@@ -54156,10 +54036,6 @@
         {
           "line": 67,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
-        },
-        {
-          "line": 396,
-          "path": "app/forum/shared/forum-api.ts"
         }
       ],
       "from": "flow:forum.topics.page",
@@ -54192,10 +54068,6 @@
         {
           "line": 67,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
-        },
-        {
-          "line": 396,
-          "path": "app/forum/shared/forum-api.ts"
         }
       ],
       "from": "flow:forum.topics.page",
@@ -54228,10 +54100,6 @@
         {
           "line": 67,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
-        },
-        {
-          "line": 396,
-          "path": "app/forum/shared/forum-api.ts"
         }
       ],
       "from": "flow:forum.topics.page",
@@ -54264,10 +54132,6 @@
         {
           "line": 67,
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
-        },
-        {
-          "line": 396,
-          "path": "app/forum/shared/forum-api.ts"
         }
       ],
       "from": "flow:forum.topics.page",
@@ -57760,7 +57624,7 @@
           "path": "app/server/src/routes/portal/gitlab.ts"
         },
         {
-          "line": 28,
+          "line": 27,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -62618,11 +62482,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 17,
+          "line": 18,
           "path": "app/server/src/routes/portal/departments.ts"
         },
         {
-          "line": 21,
+          "line": 20,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -62644,11 +62508,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 17,
+          "line": 18,
           "path": "app/server/src/routes/portal/departments.ts"
         },
         {
-          "line": 21,
+          "line": 20,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -68084,84 +67948,6 @@
     },
     {
       "basis": "declaration",
-      "from": "flow:organization.public",
-      "to": "domain:organization",
-      "type": "belongs-to"
-    },
-    {
-      "basis": "declaration",
-      "from": "flow:organization.public",
-      "to": "document:docs/architecture/API.md",
-      "type": "documented-by"
-    },
-    {
-      "basis": "declaration",
-      "from": "flow:organization.public",
-      "to": "document:docs/architecture/SECURITY.md",
-      "type": "documented-by"
-    },
-    {
-      "basis": "declaration",
-      "from": "flow:organization.public",
-      "to": "document:docs/services/server/endpoint-contracts.md",
-      "type": "documented-by"
-    },
-    {
-      "basis": "declaration",
-      "evidence": [
-        {
-          "line": 11,
-          "path": "app/server/src/routes/portal/org.ts"
-        },
-        {
-          "line": 190,
-          "path": "app/forum/app/data/titles.ts"
-        }
-      ],
-      "from": "flow:organization.public",
-      "to": "table:departments",
-      "type": "reads"
-    },
-    {
-      "basis": "declaration",
-      "evidence": [
-        {
-          "line": 11,
-          "path": "app/server/src/routes/portal/org.ts"
-        },
-        {
-          "line": 190,
-          "path": "app/forum/app/data/titles.ts"
-        }
-      ],
-      "from": "flow:organization.public",
-      "to": "table:titles",
-      "type": "reads"
-    },
-    {
-      "basis": "declaration",
-      "from": "flow:organization.public",
-      "to": "test:tests/server/console.test.ts",
-      "type": "test-entry"
-    },
-    {
-      "basis": "declaration",
-      "evidence": [
-        {
-          "line": 11,
-          "path": "app/server/src/routes/portal/org.ts"
-        },
-        {
-          "line": 190,
-          "path": "app/forum/app/data/titles.ts"
-        }
-      ],
-      "from": "flow:organization.public",
-      "to": "route:GET /api/public/org",
-      "type": "uses"
-    },
-    {
-      "basis": "declaration",
       "from": "flow:permissions.accounts.effective",
       "to": "domain:permissions",
       "type": "belongs-to"
@@ -70912,12 +70698,6 @@
     },
     {
       "basis": "declaration",
-      "from": "route:GET /api/public/org",
-      "to": "domain:organization",
-      "type": "belongs-to"
-    },
-    {
-      "basis": "declaration",
       "from": "route:GET /auth/callback",
       "to": "domain:identity",
       "type": "belongs-to"
@@ -71406,12 +71186,6 @@
       "basis": "declaration",
       "from": "route:HEAD /api/public/gitlab/projects",
       "to": "domain:gitlab",
-      "type": "belongs-to"
-    },
-    {
-      "basis": "declaration",
-      "from": "route:HEAD /api/public/org",
-      "to": "domain:organization",
       "type": "belongs-to"
     },
     {
@@ -89371,7 +89145,7 @@
         }
       },
       "source": {
-        "line": 17,
+        "line": 18,
         "path": "app/server/src/routes/portal/departments.ts"
       }
     },
@@ -89490,48 +89264,6 @@
       "source": {
         "line": 12,
         "path": "app/server/src/routes/portal/gitlab.ts"
-      }
-    },
-    {
-      "application": "server",
-      "authorization": {
-        "assessment": "partial-static-evidence",
-        "capabilityGroups": [],
-        "checks": [],
-        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
-      },
-      "contractCoverage": {
-        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
-        "requestSections": [
-          "params",
-          "querystring"
-        ],
-        "responseSchema": false
-      },
-      "domain": "organization",
-      "id": "route:GET /api/public/org",
-      "key": "GET /api/public/org",
-      "kind": "business",
-      "method": "GET",
-      "path": "/api/public/org",
-      "registration": "explicit",
-      "schema": {
-        "params": {
-          "additionalProperties": false,
-          "properties": {},
-          "required": [],
-          "type": "object"
-        },
-        "querystring": {
-          "additionalProperties": false,
-          "properties": {},
-          "required": [],
-          "type": "object"
-        }
-      },
-      "source": {
-        "line": 11,
-        "path": "app/server/src/routes/portal/org.ts"
       }
     },
     {
@@ -94987,7 +94719,7 @@
         }
       },
       "source": {
-        "line": 17,
+        "line": 18,
         "path": "app/server/src/routes/portal/departments.ts"
       }
     },
@@ -95053,70 +94785,6 @@
       "source": {
         "line": 12,
         "path": "app/server/src/routes/portal/gitlab.ts"
-      }
-    },
-    {
-      "application": "server",
-      "authorization": {
-        "assessment": "partial-static-evidence",
-        "capabilityGroups": [],
-        "checks": [],
-        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
-      },
-      "contractCoverage": {
-        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
-        "requestSections": [
-          "params",
-          "querystring"
-        ],
-        "responseSchema": false
-      },
-      "domain": "organization",
-      "id": "route:HEAD /api/public/org",
-      "key": "HEAD /api/public/org",
-      "kind": "business",
-      "method": "HEAD",
-      "path": "/api/public/org",
-      "registration": "automatic-head",
-      "schema": {
-        "params": {
-          "additionalProperties": false,
-          "properties": {},
-          "required": [],
-          "type": "object"
-        },
-        "querystring": {
-          "additionalProperties": true,
-          "properties": {
-            "limit": {
-              "pattern": "^[1-9][0-9]{0,3}$",
-              "type": "string"
-            },
-            "offset": {
-              "pattern": "^[0-9]{1,8}$",
-              "type": "string"
-            },
-            "page": {
-              "pattern": "^[1-9][0-9]{0,5}$",
-              "type": "string"
-            },
-            "per_page": {
-              "pattern": "^[1-9][0-9]{0,2}$",
-              "type": "string"
-            },
-            "q": {
-              "maxLength": 200,
-              "minLength": 0,
-              "type": "string"
-            }
-          },
-          "required": [],
-          "type": "object"
-        }
-      },
-      "source": {
-        "line": 11,
-        "path": "app/server/src/routes/portal/org.ts"
       }
     },
     {
@@ -113160,7 +112828,6 @@
         "feedback",
         "gitlab",
         "identity",
-        "organization",
         "platform",
         "public_content",
         "recruitment"
@@ -113204,7 +112871,6 @@
         "feedback",
         "gitlab",
         "identity",
-        "organization",
         "platform",
         "public_content",
         "recruitment"
@@ -113216,12 +112882,6 @@
         "recruitment"
       ],
       "path": "app/server/src/routes/portal/my-applications.ts"
-    },
-    {
-      "domains": [
-        "organization"
-      ],
-      "path": "app/server/src/routes/portal/org.ts"
     },
     {
       "domains": [

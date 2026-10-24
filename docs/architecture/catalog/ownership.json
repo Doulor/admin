@@ -292,7 +292,6 @@
     "app/server/src/routes/portal/docs.ts": "public_content",
     "app/server/src/routes/portal/events.ts": "audit",
     "app/server/src/routes/portal/feedback.ts": "feedback",
-    "app/server/src/routes/portal/org.ts": "organization",
     "app/server/src/routes/portal/competitions.ts": "competitions",
     "app/server/src/routes/portal/competition-signups.ts": "competitions",
     "app/server/src/routes/console/competitions.ts": "competitions",
@@ -2869,44 +2868,6 @@
       ]
     },
     {
-      "id": "organization.public",
-      "title": "阅读公开组织架构",
-      "domain": "organization",
-      "relatedDomains": [],
-      "assessment": "declared-with-source-evidence",
-      "operation": "GET /api/public/org",
-      "capabilities": [],
-      "reads": [
-        "titles",
-        "departments"
-      ],
-      "writes": [],
-      "doesNotEnqueue": [],
-      "invariants": [
-        "权限与资源：匿名可读；只下发称号/未归档部门显示信息及色调，不含人员或权限包。",
-        "响应与错误：200 {tones,titles,departments}。",
-        "数据与副作用：读取数据库显示配置与源码rank/tone，不修改组织结构。"
-      ],
-      "evidence": [
-        {
-          "path": "app/server/src/routes/portal/org.ts",
-          "needle": "  app.get(\"/api/public/org\", async () => {"
-        },
-        {
-          "path": "app/forum/app/data/titles.ts",
-          "needle": "export const DEFAULT_ORG: OrgLook = { titles: TITLES, departments: DEPARTMENTS }"
-        }
-      ],
-      "tests": [
-        "tests/server/console.test.ts"
-      ],
-      "docs": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
-      ]
-    },
-    {
       "id": "documentation.list",
       "title": "浏览公开文档清单",
       "domain": "public_content",
@@ -4702,10 +4663,6 @@
         {
           "path": "app/server/src/routes/forum-api/forum-limits.ts",
           "needle": "export function visitorPageLimited(req: FastifyRequest, reply: FastifyReply, isVisitor: boolean, hasCursor: boolean): boolean {"
-        },
-        {
-          "path": "app/forum/shared/forum-api.ts",
-          "needle": "level: level ?? 'public',"
         }
       ],
       "tests": [
@@ -5488,7 +5445,7 @@
         },
         {
           "path": "app/server/src/routes/portal/index.ts",
-          "needle": "import r5 from \"./competitions.js\";"
+          "needle": "import r4 from \"./competitions.js\";"
         },
         {
           "path": "app/server/src/lib/competition-store.ts",
@@ -10074,7 +10031,7 @@
       "invariants": [
         "权限与资源：匿名可读；60 秒缓存。",
         "响应与错误：200 {departments:[{id,name,tone,icon,description,titles:[{id,name,weight}]}]}；按 perm_groups.sort 升序（6 个新部门，dept.none 固定排最后），称号按 weight 升序。",
-        "数据与副作用：只读 perm_groups（kind=department/title），和 GET /api/public/org 读的旧 departments/titles 表并存，不互相影响；不需要会话。"
+        "数据与副作用：只读 perm_groups（kind=department/title）；旧的 GET /api/public/org（读 departments/titles 表）已随 #276 退场，不再并存；不需要会话。"
       ],
       "evidence": [
         {
