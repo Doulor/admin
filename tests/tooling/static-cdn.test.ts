@@ -402,8 +402,10 @@ describe('upload and verification', () => {
     await expect(uploadAll(png, { token, referer: REFERER, fetch: qiniu.fetch, log: quiet, backoff: 0 })).resolves.toMatchObject({ total: 1 });
   });
 
-  it('requires CORS for the fetched iPhone GLB, even when its hash, size and MIME type match', async () => {
-    const file = join(repoRoot, 'app/web/sites/portal/assets/models/iphone_15_pro_max.glb');
+  it('requires CORS for a fetched GLB model, even when its hash, size and MIME type match', async () => {
+    // 官网原来的手机模型随 #275 归档（docs/history/portal-yugc-os-v1/），这里用一份放在 web、forum 之外的样本，不进 entries()
+    const file = join(dir, 'iphone_15_pro_max.glb');
+    writeFileSync(file, 'glTF');
     const entry = {
       file,
       key: `${STATIC_CDN_PREFIX}assets/iphone_15_pro_max-XxYyZz12.glb`,

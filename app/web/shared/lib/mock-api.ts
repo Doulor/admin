@@ -29,6 +29,89 @@ export function demoCompetitions(at = Date.now()) {
 }
 const demoOrg = "Yangtze-University-Geek-Class";
 
+/**
+ * 官网开发预览的身份（#275）：地址带 `?__mock=member|registered|visitor` 时，官网读 /auth/me 用这里的样板身份，
+ * 形状照 #274 的接口契约（.tools/handoff/2026-10-23-yugc-os-v2/CONTRACT-274.md §1）。没带时官网照旧读真接口。
+ */
+export type MockPersona = "member" | "registered" | "visitor";
+
+export function mockPersona(search = typeof window === "undefined" ? "" : window.location.search): MockPersona | null {
+  const value = new URLSearchParams(search).get("__mock");
+  return value === "member" || value === "registered" || value === "visitor" ? value : null;
+}
+
+const VISITOR_PERMISSIONS = ["forum.read.public"];
+// 注册用户只读论坛（SPEC §3.2）；发帖、回帖、表情、比赛报名与组队、成员帖是成员才有的
+const REGISTERED_PERMISSIONS = [...VISITOR_PERMISSIONS, "forum.read.registered", "apply.submit", "account.profile.edit", "account.invite.redeem", "account.cli.login"];
+const MEMBER_PERMISSIONS = [
+  ...REGISTERED_PERMISSIONS.filter((node) => node !== "account.invite.redeem"),
+  "forum.read.member", "forum.topic.create", "forum.reply.create", "forum.react", "forum.sticker.use", "forum.upload.image", "competition.signup", "competition.team",
+];
+
+export function mockMe(persona: MockPersona) {
+  if (persona === "visitor") return { signed_in: false, level: "visitor", permissions: VISITOR_PERMISSIONS, quota: { apply_left_today: 0, apply_daily_limit: 0 } };
+  const member = persona === "member";
+  return {
+    signed_in: true,
+    account_id: member ? "acc_demo_member" : "acc_demo_registered",
+    login: member ? "nano" : "newbie",
+    user_id: null,
+    provider: "email",
+    username: member ? "nano" : "newbie",
+    display_name: member ? "Nano" : "新同学",
+    bio: member ? "AI 部门，喜欢写编译器。" : "",
+    avatar_url: null,
+    level: persona,
+    level_name: member ? "极客班成员" : "注册用户",
+    department: member ? { id: "dept.ai", name: "AI部门", tone: "y" } : null,
+    titles: member ? [{ id: "title.ai.staff", name: "部员", department_id: "dept.ai" }] : [],
+    permissions: member ? MEMBER_PERMISSIONS : REGISTERED_PERMISSIONS,
+    quota: member ? { apply_left_today: -1, apply_daily_limit: -1 } : { apply_left_today: 2, apply_daily_limit: 3 },
+    prefs: { start_note_seen_at: null, forum_theme: null },
+    identities: { emails: [member ? "n***@qq.com" : "x***@163.com"], google: member, github: member ? "nano-dev" : null },
+    console_link: false,
+    email_required: false,
+  };
+}
+
+/** GET /api/identity/me 里官网资料卡用到的部分：绑定的邮箱（带 id，删的时候要）；访客回 401 */
+function demoIdentity(persona: MockPersona) {
+  if (persona === "visitor") throw new ApiError(401, "unauthenticated", "没有登录");
+  const member = persona === "member";
+  return {
+    account_id: member ? "acc_demo_member" : "acc_demo_registered",
+    login: member ? "nano" : "newbie",
+    identities: member
+      ? [
+          { provider: "email", id: "idn_email_1", label: "n***@qq.com", primary: true, linked_at: now - 90 * DAY, last_login_at: now - HOUR },
+          { provider: "email", id: "idn_email_2", label: "n***@yangtzeu.edu.cn", primary: false, linked_at: now - 30 * DAY, last_login_at: null },
+          { provider: "google", label: "Google", linked_at: now - 20 * DAY, last_login_at: null },
+          { provider: "github", label: "nano-dev", linked_at: now - 60 * DAY, last_login_at: null },
+        ]
+      : [{ provider: "email", id: "idn_email_3", label: "x***@163.com", primary: true, linked_at: now - DAY, last_login_at: now - HOUR }],
+    email_required: false,
+  };
+}
+
+/** GET /api/public/departments（契约 §1），顺序 AI、算法、硬件、网安、管理、无部门；名字、图标、色调与 #274 的初始数据一致 */
+const demoDepartments = [
+  ["ai", "AI部门", "y", "robot-2-line"],
+  ["algo", "算法部门", "u", "code-s-slash-line"],
+  ["hardware", "硬件部门", "c", "cpu-line"],
+  ["security", "网安部门", "g", "shield-keyhole-line"],
+  ["management", "管理部门", "pill", "government-line"],
+].map(([id, name, tone, icon]) => ({
+  id: `dept.${id}`, name, tone, icon, description: `${name}成员`,
+  titles: [{ id: `title.${id}.head`, name: "部长", weight: id === "management" ? 80 : 60 }, { id: `title.${id}.deputy`, name: "副部长", weight: 50 }, { id: `title.${id}.staff`, name: "部员", weight: 40 }],
+})).concat([{ id: "dept.none", name: "无部门", tone: "ink", icon: "user-line", description: "没有分配部门的账号（默认）", titles: [] }]);
+
+/** GET /api/public/gitlab/projects（契约 §6）：只有公开项目；last_activity_at 照 GitLab 给 ISO 时间字符串 */
+const demoProjects = [
+  { name: "geek_main", path_with_namespace: "geek/geek_main", description: "官网、论坛、控制台和后端", web_url: "https://git.yangtzeu.work/geek/geek_main", http_url_to_repo: "https://git.yangtzeu.work/geek/geek_main.git", last_activity_at: new Date(now - 2 * HOUR).toISOString() },
+  { name: "geek_bot", path_with_namespace: "geek/geek_bot", description: "合并请求审查机器人", web_url: "https://git.yangtzeu.work/geek/geek_bot", http_url_to_repo: "https://git.yangtzeu.work/geek/geek_bot.git", last_activity_at: new Date(now - 3 * DAY).toISOString() },
+  { name: "oj-problems", path_with_namespace: "geek/oj-problems", description: "校内算法赛题目和数据", web_url: "https://git.yangtzeu.work/geek/oj-problems", http_url_to_repo: "https://git.yangtzeu.work/geek/oj-problems.git", last_activity_at: new Date(now - 12 * DAY).toISOString() },
+];
+
 function route(path: string): unknown {
   const url = new URL(path, "http://mock.local");
   const pathname = url.pathname;
@@ -39,7 +122,10 @@ function route(path: string): unknown {
   if (pathname === "/api/public/config") return { turnstile_site_key: null, pow_difficulty: 1 };
   if (pathname === "/api/feedback/public") return { items: [] };
   if (pathname === "/api/public/competitions") return { competitions: demoCompetitions(now) };
-  if (pathname.startsWith("/api/join/")) return { valid: true, org: demoOrg, note: "开发预览邀请", expires_at: now + 864e5, remaining_uses: 23, pow_difficulty: 1 };
+  if (pathname === "/auth/me") return mockMe(mockPersona() ?? "visitor");
+  if (pathname === "/api/identity/me") return demoIdentity(mockPersona() ?? "visitor");
+  if (pathname === "/api/public/departments") return { departments: demoDepartments };
+  if (pathname === "/api/public/gitlab/projects") return { projects: demoProjects };
 
   throw new ApiError(404, "mock_route_missing", `开发预览未实现此接口：${pathname}`);
 }

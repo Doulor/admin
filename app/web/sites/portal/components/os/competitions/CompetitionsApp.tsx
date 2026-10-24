@@ -10,6 +10,7 @@ import { applyFilter, KIND_TEXT, NO_FILTER, type CompetitionFilter } from "../..
 import { hubPaths, readMine, useMemberRead, type AccountState, type HubPhase } from "../../../lib/competitionHub";
 import CompetitionList from "./CompetitionList";
 import CompetitionDetail from "./CompetitionDetail";
+import ContestSite from "./ContestSite";
 
 /** 手机详情页借用窗口标题栏左边的返回键：「比赛列表」代替「主屏幕」。 */
 export type PhoneNav = { backText: string; backLabel: string; onBack: () => void };
@@ -96,6 +97,7 @@ function cardFor(root: HTMLElement | null, id: string): HTMLButtonElement | null
 
 export default function CompetitionsApp({ phone = false, onPhoneNav, account = null, accountLoaded = true }: Props) {
   const { items, failed, loading, now, reload } = useCompetitions();
+  const siteUrl = items.find((item) => item.site_url)?.site_url ?? null;
   const [filter, setFilter] = useState<CompetitionFilter>(NO_FILTER);
   const [scope, setScope] = useState<"all" | "mine">("all");
   const accountState: AccountState = !accountLoaded ? "loading" : account ? "signed_in" : "signed_out";
@@ -240,6 +242,7 @@ export default function CompetitionsApp({ phone = false, onPhoneNav, account = n
         setView("list");
       }}
     >
+      {!inDetail && !mineScope && siteUrl && <ContestSite href={siteUrl} />}
       {!inDetail && (
         <div className="pt-cx-bar">
           {hubOn && (

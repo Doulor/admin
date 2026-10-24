@@ -10,6 +10,7 @@ import {
   scheduleFact, scheduleSteps, signupFact, siteHost, statusHint,
 } from "../../app/web/sites/portal/lib/competitionLabels";
 import { competitionStatus } from "../../app/server/src/lib/competition-store";
+import { scatterStars } from "../../app/web/sites/portal/components/os/competitions/NightSky";
 
 // 开发态默认走只读样板数据；这里切到真实数据源，让窗口真的去请求列表（请求由 fetch 桩接住）。
 beforeEach(() => localStorage.setItem("yugc:dev-data-source", "live"));
@@ -146,6 +147,58 @@ describe("桌面：左边列表、右边详情", () => {
     fireEvent.keyDown(document.activeElement!, { key: "ArrowUp" });
     expect(document.activeElement).toBe(card(INTERNAL.name));
     expect(detailHeading().textContent).toBe(INTERNAL.name);
+  });
+});
+
+describe("比赛官网入口（#275 / #278）", () => {
+  it("有比赛发布了官网时，列表顶上是夜空横幅，「打开官网」在新标签页打开它的 site_url；手机进详情后收起", async () => {
+    serve({ ...INTERNAL, site_url: "/c/oss-challenge-2026-1/" }, EXTERNAL);
+    const view = render(<CompetitionsApp />);
+    await waitFor(() => expect(card(INTERNAL.name)).toBeTruthy());
+    const site = screen.getByRole("region", { name: "比赛官网" });
+    expect(site.classList.contains("pt-cx-night")).toBe(true);
+    expect(site.querySelectorAll(".pt-cx-stars circle").length).toBe(90);
+    expect(within(site).getByText("OSS CHALLENGE")).toBeTruthy();
+    // 每个词从 Y 开始按四色轮换
+    expect([...site.querySelectorAll(".pt-cx-site-mark [data-tone]")].map((node) => node.getAttribute("data-tone")).join(" ")).toBe("y u g y u g c y u g c y");
+    const go = within(site).getByRole("link", { name: /打开官网/ });
+    expect(go.getAttribute("href")).toBe("/c/oss-challenge-2026-1/");
+    expect(go.getAttribute("target")).toBe("_blank");
+    expect(go.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(go.textContent).toContain("（新标签页打开）");
+    // 比赛详情的头图也是同一片夜空，按比赛 id 撒星星
+    expect(document.querySelector(".pt-cx-hero.pt-cx-night .pt-cx-stars")).not.toBeNull();
+    view.unmount();
+
+    render(<CompetitionsApp phone onPhoneNav={() => undefined} />);
+    await waitFor(() => expect(card(EXTERNAL.name)).toBeTruthy());
+    expect(screen.getByRole("region", { name: "比赛官网" })).toBeTruthy();
+    fireEvent.click(card(EXTERNAL.name));
+    expect(screen.queryByRole("region", { name: "比赛官网" })).toBeNull();
+  });
+
+  it("没有哪场比赛给出 site_url（官网还没发布）时不显示横幅，也不拿写死的地址兜底；不是本站 /c/<slug>/ 的写法当作没有", async () => {
+    serve(INTERNAL, { ...EXTERNAL, site_url: "https://evil.example/c/x/" }, { ...UPCOMING, site_url: "/c/../admin/" });
+    render(<CompetitionsApp />);
+    await waitFor(() => expect(card(INTERNAL.name)).toBeTruthy());
+    expect(screen.queryByRole("region", { name: "比赛官网" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /打开官网/ })).toBeNull();
+  });
+
+  it("星星按种子撒：同一个种子每次一样，换种子就换，坐标都在 400×100 的画布里，亮的是少数", () => {
+    const stars = scatterStars("oss-challenge-2026-1", 300);
+    expect(scatterStars("oss-challenge-2026-1", 300)).toEqual(stars);
+    expect(scatterStars("c1", 300)).not.toEqual(stars);
+    for (const star of stars) {
+      expect(star.x).toBeGreaterThanOrEqual(0);
+      expect(star.x).toBeLessThan(400);
+      expect(star.y).toBeGreaterThanOrEqual(0);
+      expect(star.y).toBeLessThan(100);
+      expect(star.o).toBeLessThanOrEqual(0.95);
+    }
+    const glow = stars.filter((star) => star.glow).length;
+    expect(glow).toBeGreaterThan(0);
+    expect(glow).toBeLessThan(stars.length / 5);
   });
 });
 

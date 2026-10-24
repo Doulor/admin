@@ -2,7 +2,7 @@
 
 > 核心真实路由与上游论坛演示分别验收；类型、行为、构建和生产证据不相互替代。
 
-状态：`current` · 更新：2026-10-21
+状态：`current` · 更新：2026-10-24
 
 ## 根入口和分工
 
@@ -34,7 +34,7 @@
 
 核心 UI：危险操作取消、焦点返回、移动导航、文档语言及入口；控制台按身份的导航可见性、缺能力说明、未登录跳转、成员按称号分页签排序、无原生下拉框/复选框、窄屏抽屉导航与无页面级横向溢出；门户论坛链接必须指向 `app/forum` 的新入口，不加载旧 React 论坛。工程检查要覆盖真实导入解析、别名、反向依赖（含 `app/console` 与 `app/web`、`app/server` 互不导入）、站点配置不含域名（`check-site-config`）、SPA 入口按路径选择（服务端 `resolveSiteEntry` 与 web 容器 nginx，`tests/tooling/web-nginx.test.ts` 在本机有 nginx 时实跑，管理端入口是控制台产物）、论坛路径的跳转（`tests/tooling/forum-redirects.test.ts` 在本机有 nginx 时把宿主、web、论坛三层配置一起实跑：`/forum` 只 308 到相对地址 `/forum/`，预渲染路由带不带结尾斜杠都是 200，任何 `Location` 都不带协议、主机和内部端口）、带哈希产物目录的缓存头（`tests/tooling/hashed-asset-cache.test.ts` 同样在本机有 nginx 时把三层一起实跑：`/assets/`、`/console-assets/`、`/forum/_nuxt/` 下的脚本、样式、字体、图片都缓存一年，安全头与页面相同，论坛的 `_nuxt/builds/latest.json` 不缓存）和文档同步。
 
-移动 YUGC OS 与手机首页（#206）：`tests/e2e/portal-phone.spec.ts` 在真实 Chromium 里覆盖 360×780、390×844、430×932 的整个模型取景与实际触点、显示屏与交接遮罩的四角几何圆角、两张独立竖图与 180×390 缩略图、主屏下滑搜索、旋转与横竖切换保留窗口内容、系统设置内换壁纸与回书桌、跳过开机首帧不透明与慢图解码等待、减少动态效果与无 WebGL 回退、模型下载失败释放场景、非零不对称安全区，以及 1440×900 电脑端不改版；`tests/web/portal-phone.test.tsx` 覆盖手机壳层结构、`console_link` 权限过滤、论坛/GitHub 一跳直达、隐藏面板不卸载与返回主屏幕；`tests/web/portal-wallpapers.test.ts` 核对竖图尺寸与体积预算、同 id 按形态解析与只预取当前形态。Chromium 设备模拟不代表 iPhone Safari 真机，真机证据另立记录。
+移动 YUGC OS 与手机首页（#206，#275 改版）：#275 去掉三维书桌时删除了 `tests/e2e/portal-phone.spec.ts`，现在没有在真实浏览器里自动跑的手机首页用例；手机尺寸的浏览器自动化只剩 `tests/e2e/portal-competitions.spec.ts` 里 390×844 的比赛窗口（列表进详情再返回、操作条贴底、触控目标、没有横向滚动）。jsdom 里的覆盖：`tests/web/portal-phone.test.tsx` 覆盖手机壳层结构（状态栏、四项 Dock、按需打开的指引）、访客右上角只有头像且点开底部资料卡、`console_link` 权限过滤、单击直达（论坛当前页、代码仓库在应用里打开）、主屏下滑搜索、返回主屏幕保留应用状态和手机窗口的 Page Sheet；`tests/web/portal-desktop-skin.test.tsx` 覆盖「晴空」壁纸里极客娘在手机竖屏的位置、图标区间的测量，以及资料卡底部面板（左右等宽留边、去掉 dialog 自带的 max-width、安全区、面板内滚动）和可编辑字段对齐的样式规则；`tests/web/portal-boot-gate.test.tsx` 覆盖开机动画起步门的手机判断（宽度小于 768 或竖屏）、点按和长按都能起步、停在起步门时视口变了按新版本重建；`tests/web/portal-wallpapers.test.ts` 核对竖图尺寸与体积预算、同 id 按形态解析与只预取当前形态。这些都不量真实布局：留边、圆角、安全区和滚动的实际效果目前只靠在浏览器里人工截图核对。Chromium 设备模拟不代表 iPhone Safari 真机，真机证据另立记录。
 
 控制台只读权限树（#176）：`tests/console/permission-tree.test.ts` 覆盖 `/me` 优先于来源、受限冲突、传递蕴含与环、多来源唯一节点、动态包与名称、归档/缺失部门、owner/guest 固定规则、领航员不派生普通舰员及未知 id。浏览器分别核对真实 `/console/people?view=permissions` 的前进后退、搜索与展开记忆、键盘、390px 详情焦点、普通成员页面门与 401 登录回跳，以及 catalogue/部门失败时旧树隐藏和刷新恢复。动态名称/权限包/归档用隔离内存服务的真实路由修改后重读；只注入虚构 GitHub 外部响应，不读取业务库、不发邮件，也不把该证据称为真实 OAuth 或预发布人工验收。
 

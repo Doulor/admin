@@ -1,339 +1,97 @@
-// 官网首页：加载动画 → 3D 书桌 → 点电脑开机 → YUGC OS 桌面。
-// 状态机在 ../lib/deskMachine.ts；three.js 书桌在 ../three/desk.ts，用 import() 按需加载（不进首屏包）；
-// 系统桌面是普通 DOM（../components/os/YugcOs.tsx），盖住画布时 3D 渲染循环整体停下。
-// 从 3D 场景页「回到桌面」时带着路由 state，直接回到系统桌面，不再从书桌开始。
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { appConfig } from "@shared/config";
-import Emblem from "../components/Emblem";
-import Icon from "../components/Icon";
-import Loader, { type LoaderApi } from "../components/Loader";
-import YugcOs from "../components/os/YugcOs";
-import { STACKED_QUERY } from "../lib/cameraMath";
-import { deskView, nextDeskState, type DeskEvent, type DeskState } from "../lib/deskMachine";
-import { wantsDesktop } from "../lib/links";
+// 官网首页（SPEC §4.1）：今天（北京时间）没播过开机动画就先播，播完或跳过后淡出、露出桌面；
+// 今天播过了、或者开了「减少动态效果」，直接进桌面（淡入 300ms）。?boot=1 强制重播，不改记录。
+// 开机动画和桌面都按需加载：只进桌面的人不下载开机动画，播动画期间浏览器空闲时再预取桌面。
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import type { BootReady } from "../components/boot/engine";
+import { beijingDay, forcedReplay, readBootDay, shouldPlayBoot, writeBootDay } from "../lib/bootGate";
+import { PHONE_QUERY, PORTRAIT_QUERY } from "../lib/useMediaQuery";
+import { useReducedMotion } from "../lib/useReducedMotion";
 import { loadWallpaperImage, readWallpaperChoice, wallpaperForScreen } from "../lib/wallpapers";
-import { LOADER_STEPS, type LoaderStep } from "../lib/loaderProgress";
-import { useInert, useReducedMotion } from "../lib/useReducedMotion";
-import { PHONE_QUERY, PORTRAIT_QUERY, useMediaQuery } from "../lib/useMediaQuery";
-import type { DeskHandle } from "../three/desk";
 import "../styles/portal.css";
-import "../styles/desk.css";
-import "../styles/os.css";
+import "../styles/boot.css";
 import "../styles/competitions.css";
 
-function currentWallpaperUrl(): string {
-  const portrait = window.matchMedia(PHONE_QUERY).matches && window.matchMedia(PORTRAIT_QUERY).matches;
-  return wallpaperForScreen(readWallpaperChoice(), portrait).image;
-}
+const loadDesktop = () => import("../components/os/YugcOs");
+const YugcOs = lazy(loadDesktop);
+const BootSequence = lazy(() => import("../components/boot/BootSequence"));
 
-// 开机日志：只写桌面上真的会加载的东西
-const BOOT_LINES: Array<[string, string]> = [
-  ["load", "论坛最新"],
-  ["open", "加入我们"],
-  ["open", "论坛"],
-  ["open", "GitHub 组织"],
-  ["ready", "YUGC OS"],
-];
+/** 就绪后在最后一帧停多久再淡出：自然播完让人看清「SYSTEM READY」，跳过时尽快进桌面 */
+const HOLD_MS = { played: 800, skipped: 300 } as const;
+/** 与 styles/boot.css 的 .pt-boot-layer 过渡时长一致 */
+const FADE_MS = 320;
+
+/** boot 播放中；handoff 已就绪、桌面在底下挂好；fading 开机动画层淡出；desktop 只剩桌面 */
+type Stage = "boot" | "handoff" | "fading" | "desktop";
 
 export default function Home() {
   const reducedMotion = useReducedMotion();
-  const stacked = useMediaQuery(STACKED_QUERY);
-  const phone = useMediaQuery(PHONE_QUERY);
-  const portrait = useMediaQuery(PORTRAIT_QUERY);
-  const wallpaperSettled = useRef(new Set<string>());
-  const preloadWallpaper = useCallback(async () => {
-    let url = currentWallpaperUrl();
-    for (;;) {
-      await loadWallpaperImage(url);
-      // 失败也放行；下载期间旋转或更换选择，必须继续等待当前实际要显示的资源。
-      wallpaperSettled.current.add(url);
-      const current = currentWallpaperUrl();
-      if (current === url) return;
-      url = current;
-    }
-  }, []);
-  useEffect(() => { void preloadWallpaper(); }, [phone, portrait, preloadWallpaper]);
-  const location = useLocation();
-  const navigate = useNavigate();
-  const resume = useRef(wantsDesktop(location.state));
-  const [state, dispatch] = useReducer((current: DeskState, event: DeskEvent) => nextDeskState(current, event), "loading");
-  const view = deskView(state);
-  const stateRef = useRef(state);
-  stateRef.current = state;
-  const [loaderVisible, setLoaderVisible] = useState(!resume.current);
-  const loaderShown = useRef(!resume.current);
-  const [bootRun, setBootRun] = useState(0);
-  /** 第几次开机（同步计数，定时器和异步回调里读它，不读渲染时的 bootRun） */
-  const bootRunRef = useRef(0);
-  const [bootLines, setBootLines] = useState(0);
-  const [nanoUp, setNanoUp] = useState(false);
-  /** 跳过动画时桌面壁纸还没下完：按钮显示「正在打开」，下完再直接进桌面 */
-  const [waiting, setWaiting] = useState(false);
-  const canvas = useRef<HTMLCanvasElement>(null);
-  const hint = useRef<HTMLDivElement>(null);
-  const hudTop = useRef<HTMLDivElement>(null);
-  const hudCopy = useRef<HTMLElement>(null);
-  const desk = useRef<DeskHandle | null>(null);
-  const loader = useRef<LoaderApi | null>(null);
-  const pending = useRef<Array<[number, string]>>([]);
+  const [plan, setPlan] = useState(() => {
+    const force = forcedReplay(window.location.search);
+    return { force, play: shouldPlayBoot({ playedDay: readBootDay(), today: beijingDay(), reducedMotion, force }) };
+  });
+  const [stage, setStage] = useState<Stage>(plan.play ? "boot" : "desktop");
+  /** 刚播完的开机动画的起点：桌面的「晴空」壁纸按它接上最后一帧 */
+  const [bootEpoch, setBootEpoch] = useState<number | null>(null);
+  const desktopRef = useRef<HTMLDivElement | null>(null);
+  /** 开机动画还盖着桌面时，桌面不可聚焦、不可点 */
+  const covered = stage === "handoff" || stage === "fading";
   const timers = useRef<number[]>([]);
-  const enterButton = useRef<HTMLButtonElement>(null);
-  const hudRef = useInert<HTMLDivElement>(!view.hud);
-  const osRef = useInert<HTMLDivElement>(!view.os);
+  useEffect(() => () => timers.current.forEach((id) => window.clearTimeout(id)), []);
 
-  const report = useCallback((step: LoaderStep, text: string) => {
-    const value = LOADER_STEPS[step];
-    if (loader.current) loader.current.progress(value, text);
-    else pending.current.push([value, text]);
-  }, []);
-  const onLoaderApi = useCallback((api: LoaderApi) => {
-    loader.current = api;
-    for (const [value, text] of pending.current) api.progress(value, text);
-    pending.current = [];
+  // 用户选的是图片壁纸时，桌面出现前先把图下好（默认的「晴空」是画出来的，不用下）
+  useEffect(() => {
+    const phonePortrait = window.matchMedia(PHONE_QUERY).matches && window.matchMedia(PORTRAIT_QUERY).matches;
+    const surface = wallpaperForScreen(readWallpaperChoice(), phonePortrait);
+    if (surface.kind === "image") void loadWallpaperImage(surface.image);
   }, []);
 
-  // 从场景页返回：直接进系统桌面（书桌在后台照常搭好）；清掉路由 state，刷新页面不会一直停在桌面
-  useEffect(() => {
-    if (!resume.current) return;
-    dispatch({ type: "resume" });
-    navigate(".", { replace: true, state: null });
-  }, [navigate]);
-  const enterRef = useRef<(instant: boolean) => void>(() => undefined);
-
-  // 加载 three 分包并搭书桌；卸载时释放全部 GPU 资源
-  useEffect(() => {
-    let cancelled = false;
-    report("start", "开始加载");
-    (async () => {
-      try {
-        const module = await import("../three/desk");
-        if (cancelled || !canvas.current || !hint.current) return;
-        report("chunk", "3D 引擎已下载");
-        const handle = await module.createDesk(canvas.current, {
-          reducedMotion,
-          hint: hint.current,
-          logoUrl: appConfig.portal.brand.logo,
-          portraitUrl: "/portal/geek-girl-portrait.webp",
-          // 文案叠在画面下方时，书桌只取顶栏与文案之间那条横带
-          band: () => {
-            if (!window.matchMedia(STACKED_QUERY).matches || !hudTop.current || !hudCopy.current) return null;
-            const h = window.innerHeight;
-            return { top: hudTop.current.getBoundingClientRect().bottom / h, bottom: hudCopy.current.getBoundingClientRect().top / h };
-          },
-          onEnter: () => enterRef.current(false),
-          isIdle: () => stateRef.current === "idle",
-          report,
-          cancelled: () => cancelled,
-        });
-        if (cancelled || !handle) {
-          handle?.dispose();
-          return;
-        }
-        desk.current = handle;
-        // 加载动画盖在画布上时，帧耗时里有加载动画自己的开销：这段时间不给像素比调速器喂帧
-        handle.stage.governing = !loaderShown.current;
-        if (stateRef.current === "desktop") {
-          await handle.focus({ instant: true, onArrive: () => undefined });
-          handle.setActive(false);
-        } else dispatch({ type: "ready" });
-        // 书桌搭好后就开始下载桌面壁纸：用户看书桌、点电脑的这几秒足够它下完
-        void preloadWallpaper();
-      } catch {
-        // 没有 WebGL（或分包加载失败）：直接给系统桌面，三个入口照常可用
-        if (cancelled) return;
-        report("frame", "这台设备不支持 3D，直接进桌面");
-        dispatch({ type: "fallback" });
-      }
-    })();
-    return () => {
-      cancelled = true;
-      timers.current.forEach(window.clearTimeout);
-      desk.current?.dispose();
-      desk.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 只在挂载时建一次场景
-  }, []);
-
-  // 竖屏时书桌按文案上方的横带取景：文案尺寸变了（字体加载、旋转屏幕、窗口缩放）就重新取景
-  useEffect(() => {
-    const top = hudTop.current;
-    const copy = hudCopy.current;
-    if (!top || !copy) return;
-    const observer = new ResizeObserver(() => desk.current?.stage.resize());
-    observer.observe(top);
-    observer.observe(copy);
-    return () => observer.disconnect();
-  }, []);
-
-  // 桌面盖住画布时停下渲染循环；回到书桌时恢复
-  useEffect(() => {
-    desk.current?.setActive(view.render);
-  }, [view.render]);
-
-  const clearTimers = () => {
-    timers.current.forEach(window.clearTimeout);
-    timers.current = [];
+  const onReady = (info: BootReady) => {
+    if (!plan.force) writeBootDay(beijingDay());
+    setBootEpoch(info.epoch);
+    setStage("handoff");
+    const hold = new Promise((resolve) => timers.current.push(window.setTimeout(resolve, info.skipped ? HOLD_MS.skipped : HOLD_MS.played)));
+    // 桌面代码块没下完就等它下完再淡出，不露出空白
+    void Promise.all([hold, loadDesktop().catch(() => undefined)]).then(() => {
+      setStage("fading");
+      timers.current.push(window.setTimeout(() => setStage("desktop"), FADE_MS + 40));
+    });
   };
 
-  // 开机结束：日志补满，等壁纸解码好再切到桌面（通常早就好了；慢网时开机画面多停一会儿，而不是露出半张桌面）
-  const finishBoot = useCallback(() => {
-    clearTimers();
-    setBootLines(BOOT_LINES.length);
-    // 按开机的轮次对账：壁纸还在解码时用户又退回书桌、再开一次机，旧的这次不能把新的开机画面提前切走
-    const run = bootRunRef.current;
-    void preloadWallpaper().then(() => {
-      if (bootRunRef.current === run && stateRef.current === "booting") dispatch({ type: "bootDone" });
-    });
-  }, [preloadWallpaper]);
+  // 桌面菜单里的「重播开机动画」：和 ?boot=1 一样不改记录，桌面先卸掉，播完重新挂
+  const replayBoot = () => {
+    setPlan({ force: true, play: true });
+    setStage("boot");
+  };
 
-  const startBoot = useCallback(() => {
-    dispatch({ type: "arrived" });
-    bootRunRef.current += 1;
-    setBootRun(bootRunRef.current);
-    setBootLines(0);
-    setNanoUp(false);
-    BOOT_LINES.forEach((_, i) => timers.current.push(window.setTimeout(() => setBootLines(i + 1), 1050 + i * 250)));
-    timers.current.push(window.setTimeout(() => setNanoUp(true), 1150));
-    timers.current.push(window.setTimeout(finishBoot, 3100));
-  }, [finishBoot]);
-
-  const enter = useCallback(
-    (instant: boolean) => {
-      if (stateRef.current !== "idle") return;
-      const handle = desk.current;
-      const skip = instant || reducedMotion || !handle;
-      // 跳过动画会直接露出桌面：先等壁纸解码好（书桌搭好时就开始下载了，通常已经好了）
-      if (skip && !wallpaperSettled.current.has(currentWallpaperUrl())) {
-        setWaiting(true);
-        void preloadWallpaper().then(() => {
-          setWaiting(false);
-          enterRef.current(instant);
-        });
-        return;
-      }
-      dispatch({ type: "enter", instant: skip });
-      if (!handle) return;
-      void handle.focus({
-        instant: skip,
-        onArrive: () => {
-          if (!skip) startBoot();
-        },
-      });
-    },
-    [preloadWallpaper, reducedMotion, startBoot],
-  );
-  enterRef.current = enter;
-
-  const back = useCallback(() => {
-    if (stateRef.current !== "desktop") return;
-    clearTimers();
-    setNanoUp(false);
-    const handle = desk.current;
-    dispatch({ type: "back" });
-    if (!handle) {
-      dispatch({ type: "returned" });
-      return;
-    }
-    void handle.unfocus(reducedMotion).then(() => {
-      dispatch({ type: "returned" });
-      window.setTimeout(() => enterButton.current?.focus({ preventScroll: true }), 0);
-    });
-  }, [reducedMotion]);
-
-  // 书桌上的键盘：Enter/空格开机；其他键让桌上的键盘也按一下。开机画面播放时任意键跳过。
+  // 开机动画层卸掉后，焦点还在 <body> 上就放进桌面的主操作
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      const current = stateRef.current;
-      if (current === "booting") {
-        finishBoot();
-        return;
-      }
-      if (current !== "idle") return;
-      const target = event.target as HTMLElement | null;
-      if ((event.key === "Enter" || event.key === " ") && !target?.closest("button, a, input, textarea")) {
-        event.preventDefault();
-        enter(false);
-        return;
-      }
-      if (event.key.length === 1 && !event.metaKey && !event.ctrlKey) desk.current?.pressKey();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [enter, finishBoot]);
+    if (stage !== "desktop" || !plan.play) return;
+    if (document.activeElement && document.activeElement !== document.body) return;
+    desktopRef.current?.querySelector<HTMLElement>('[data-cta="join"]')?.focus({ preventScroll: true });
+  }, [stage, plan.play]);
 
-  const { brand } = appConfig.portal;
   return (
-    <div className="pt-root pt-home" data-state={state}>
-      {loaderVisible && (
-        <Loader
-          reducedMotion={reducedMotion}
-          onApi={onLoaderApi}
-          onDone={() => {
-            loaderShown.current = false;
-            if (desk.current) desk.current.stage.governing = true;
-            setLoaderVisible(false);
-          }}
-        />
-      )}
-      <canvas ref={canvas} className="pt-desk-canvas" aria-hidden="true" />
-
-      <div ref={hudRef} className={view.hud ? "pt-hud" : "pt-hud is-off"}>
-        <div className="pt-hud-top" ref={hudTop}>
-          <span className="pt-brand">
-            <img src={brand.logo} alt="" width={34} height={34} />
-            <span>
-              <b>{brand.title}</b>
-              <small>{brand.subtitle}</small>
-            </span>
-          </span>
-        </div>
-        <section className="pt-hud-copy" ref={hudCopy} aria-labelledby="pt-home-title">
-          <h1 id="pt-home-title">
-            <span>长江大学</span>
-            <br />
-            <span className="is-accent">极客班</span>
-          </h1>
-          <p>点一下桌上的{stacked ? "手机" : "电脑"}开机。报名、逛论坛、看我们在 GitHub 上的代码，都从这里进。</p>
-          <div className="pt-hud-actions">
-            <button ref={enterButton} type="button" className="pt-enter" onClick={() => enter(false)}>
-              <Icon name="shut-down-line" size={16} /> 打开{stacked ? "手机" : "电脑"} <kbd>Enter</kbd>
-            </button>
-            <button type="button" className="pt-skip" aria-busy={waiting || undefined} disabled={waiting} onClick={() => enter(true)}>
-              {waiting ? "正在打开…" : "跳过动画"}
-            </button>
-          </div>
-        </section>
-      </div>
-      <div className="pt-desk-tip" ref={hint} aria-hidden="true" />
-
-      <div ref={osRef} className={view.os ? "pt-os is-on" : "pt-os"} aria-hidden={!view.os}>
+    <div className="pt-root pt-home">
+      {stage !== "boot" && (
         <div
-          className={view.boot ? "pt-boot is-on" : "pt-boot"}
-          aria-hidden="true"
-          onClick={() => stateRef.current === "booting" && finishBoot()}
-        >
-          <div className="pt-boot-inner" key={bootRun}>
-            <Emblem variant="boot" className="pt-boot-emblem" />
-            <div className="pt-boot-title">YUGC&nbsp;OS</div>
-            <div className="pt-boot-lines">
-              {BOOT_LINES.map(([key, value], i) => (
-                <div key={i} className={i < bootLines ? "is-on" : undefined}>
-                  <b>[ OK ]</b> {key} {value}
-                </div>
-              ))}
-            </div>
-            <div className="pt-boot-bar">
-              <i style={{ width: `${(bootLines / BOOT_LINES.length) * 100}%` }} />
-            </div>
-          </div>
-          <div className={nanoUp ? "pt-nano is-up" : "pt-nano"}>
-            <div className="pt-nano-bubble">欢迎来到极客班</div>
-            <img src="/portal/nano-wave-560.webp" alt="" width={560} height={943} />
-          </div>
+          // 用 ref 回调而不是 effect 设 inert：要赶在桌面自己的挂载 effect（把焦点放进桌面）之前生效
+          ref={(node) => {
+            desktopRef.current = node;
+            if (node) node.inert = covered;
+          }}
+          className={plan.play ? "pt-desktop-layer" : "pt-desktop-layer is-entering"}>
+          <Suspense fallback={null}>
+            <YugcOs onReplayBoot={replayBoot} boot={bootEpoch === null ? null : { epoch: bootEpoch, settled: stage === "desktop" }} />
+          </Suspense>
         </div>
-        {(view.desktop || state === "booting") && <YugcOs active={view.desktop} onBack={back} />}
-      </div>
+      )}
+      {plan.play && stage !== "desktop" && (
+        <div className={stage === "fading" ? "pt-boot-layer is-leaving" : "pt-boot-layer"}>
+          <Suspense fallback={<div className="pt-boot-wait" />}>
+            <BootSequence onReady={onReady} prefetch={loadDesktop} />
+          </Suspense>
+        </div>
+      )}
     </div>
   );
 }

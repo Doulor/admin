@@ -342,3 +342,17 @@
 - 做了什么：按 .agents/skills/code-review 逐项核对 9c5b74f7...9f2b41cf：第一轮 4 个阻塞逐条找到修复与用例；分支不变量、密钥、compose、绕过 CI、数据库、文档同步逐项看过。审查人是主会话，最后几个提交也是它写的，属于作者自审，MR 里写明。
 - 结果：结论：有条件通过（条件：合并后在预发布按人工验收步骤走一遍）。应修 2 条本次不修并写明理由（旧称号体系 roles/role-store/access 留到 #275/#276；CONSOLE_ORG 改常量放 #276），建议 3 条（listAccounts 无调用方、activity 未登录错误码不一致、6 个提交首行超 72 字符不改写）。未验证：真实 OAuth 往返、真实 GitLab 同步、预发布验收、pnpm test:e2e、回滚演练。结论贴在 MR !7 正文「审查结论」。
 - 下一步：合并进 stage（--no-ff），关 #274，发 rc.18 到预发布。
+
+## 11:34:57 +08:00 · 合并 · #274 · MR !7 合进 stage（b6420dee），#274 手工关闭
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：在推送用的克隆 /tmp/geek262/gl-push 里从 GitLab stage 9c5b74f7 起 git merge --no-ff task/274/unified_accounts（d500fd67），提交信息「Merge branch 'task/274/unified_accounts' into stage / Closes #274」，推送 stage；GitLab 把 !7 记为 merged。删掉远端分支 task/274/unified_accounts；在 #274（记录 666）和 !7（记录 674）各发一条「关闭」记录，然后关闭 #274。
+- 结果：stage 9c5b74f7 → b6420dee，合并提交与 MR 头的树相同（git diff HEAD^2 HEAD 为空），main 61da3fea 仍是 stage 的祖先；MR !7 state merged、merge_commit_sha b6420dee13aeab9803e13bb4f53904b27d028ca7；分支 DELETE 回 204、再查 404；#274 closed_at 2026-10-24T11:34:26+08:00。
+- 下一步：发 v0.1.1-rc.18 到预发布（部署前备份预发布库，tag 不推送）；task.mjs finish 274 收掉本机 worktree 与分支。
+
+## 12:47:15 +08:00 · 收尾 · #274 · MR !7 合并（stage b6420dee），清理 task-274 worktree 与本地分支
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：GitHub 账号被封，task.mjs finish 只认 gh、查不到 MR 与 issue 状态，按它的步骤手工做：task-274 worktree 没有未提交的改动，git merge-base --is-ancestor d500fd67 b6420dee 成立；git worktree remove .claude/worktrees/task-274，git branch -D task/274/unified_accounts。远端分支合并时已删，#274 已关（issue 记录 666、MR 记录 674）。
+- 结果：git worktree list 里没有 task-274，本地没有 task/274/* 分支。
+- 下一步：#275 合并后同样手工收掉 task-275；scratch/274_console、scratch/274_identity 两个临时 worktree 发版后清掉

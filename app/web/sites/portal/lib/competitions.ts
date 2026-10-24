@@ -21,6 +21,8 @@ export type Competition = {
   start_at: number; end_at: number; signup_deadline: number | null;
   url: string | null; description: string; status: CompetitionStatus;
   signup: SignupSettings;
+  /** 这场比赛已发布的官网（#278，`/c/<slug>/`）；没发布或服务端还没给这个字段时是 null。 */
+  site_url: string | null;
 };
 
 export const COMPETITIONS_URL = "/api/public/competitions";
@@ -28,12 +30,14 @@ export const COMPETITIONS_URL = "/api/public/competitions";
 const KINDS: CompetitionKind[] = ["internal", "external"];
 const STATUSES: CompetitionStatus[] = ["upcoming", "registering", "closed", "ongoing", "ended"];
 /** 只认识要用的那几个字段：缺 `id`、名称或起止时间的条目直接丢掉，不显示半条。 */
-type RawCompetition = { id?: unknown; name?: unknown; kind?: unknown; start_at?: unknown; end_at?: unknown; signup_deadline?: unknown; url?: unknown; description?: unknown; status?: unknown; signup?: unknown };
+type RawCompetition = { id?: unknown; name?: unknown; kind?: unknown; start_at?: unknown; end_at?: unknown; signup_deadline?: unknown; url?: unknown; description?: unknown; status?: unknown; signup?: unknown; site_url?: unknown };
 
 // 北京时间显示还要加八小时；UTC 有效但换算后越界的时间也不能交给界面。
 const asTimestamp = (value: unknown): number | null =>
   typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && Number.isFinite(new Date(value + 8 * 3600_000).getTime()) ? value : null;
 const asText = (value: unknown): string => (typeof value === "string" ? value : "");
+/** 比赛官网只认本站的 `/c/<slug>/`，别的写法当作没有，不拿去拼外链。 */
+const SITE_PATH = /^\/c\/[a-z0-9][a-z0-9-]*\/$/;
 
 /**
  * 读一条比赛。`id`、名称、起止时间缺一不可。服务端给的 `status` 认不出时按时间现算，
@@ -60,7 +64,9 @@ export function readCompetition(value: unknown): Competition | null {
     // 无效链接不妨碍读取赛事的其余公开信息。
   }
   const signup = kind === "internal" ? readSignup(raw.signup) : NO_SIGNUP;
-  return { id, name, kind, start_at: start, end_at: end, signup_deadline, url, description: asText(raw.description), status, signup };
+  const site = asText(raw.site_url);
+  const site_url = SITE_PATH.test(site) ? site : null;
+  return { id, name, kind, start_at: start, end_at: end, signup_deadline, url, description: asText(raw.description), status, signup, site_url };
 }
 
 /**

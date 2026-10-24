@@ -1053,6 +1053,10 @@
         {
           "path": "app/console/src/pages/Device.vue",
           "needle": "if (me.value.email_required) return toBindEmail();"
+        },
+        {
+          "path": "app/web/shared/lib/api.ts",
+          "needle": "export async function devPersonaMe(): Promise<unknown> {"
         }
       ],
       "tests": [
@@ -1498,6 +1502,14 @@
         {
           "path": "app/console/src/mock/index.ts",
           "needle": "  if (method === \"GET\" && url.pathname === \"/api/identity/me\") {"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx",
+          "needle": "void api<IdentityView>(\"/api/identity/me\")"
+        },
+        {
+          "path": "app/web/sites/portal/lib/links.ts",
+          "needle": "account: (): string => \"/account\","
         }
       ],
       "tests": [
@@ -2220,6 +2232,58 @@
         {
           "path": "app/server/src/lib/activity.ts",
           "needle": "export const EVENT_WHITELIST ="
+        },
+        {
+          "path": "app/web/sites/portal/lib/events.ts",
+          "needle": "void fetch(\"/api/events\", {"
+        },
+        {
+          "path": "app/web/sites/portal/components/boot/BootSequence.tsx",
+          "needle": "reportEvent(info.skipped ? \"os.boot.skipped\" : \"os.boot.played\", { meta: { mobile } });"
+        },
+        {
+          "path": "app/web/sites/portal/lib/bootGate.ts",
+          "needle": "export const BOOT_DAY_KEY = \"yugc:boot-day\";"
+        },
+        {
+          "path": "app/web/sites/portal/components/boot/engine.ts",
+          "needle": "export type BootPhase = \"gate\" | \"dark\" | \"light\" | \"ready\";"
+        },
+        {
+          "path": "app/web/sites/portal/components/boot/background.ts",
+          "needle": "export const MONO = '\"SF Mono\",\"JetBrains Mono\",Menlo,Consolas,\"Liberation Mono\",\"Courier New\",monospace';"
+        },
+        {
+          "path": "app/web/sites/portal/components/boot/layout.ts",
+          "needle": "export function bootLayout(w: number, h: number, aspect: number, sat = 0, sab = 0): BootLayout {"
+        },
+        {
+          "path": "app/web/sites/portal/components/boot/math.ts",
+          "needle": "export const TAU = Math.PI * 2;"
+        },
+        {
+          "path": "app/web/sites/portal/components/boot/shapes.ts",
+          "needle": "export function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, radius: number): void {"
+        },
+        {
+          "path": "app/web/sites/portal/components/boot/timeline.ts",
+          "needle": "export { TL };"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/SkyWallpaper.tsx",
+          "needle": "export default function SkyWallpaper({ epoch, settled, band }: SkyScene) {"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/Wallpaper.tsx",
+          "needle": "export const WALLPAPER_REVEAL_MS = 640;"
+        },
+        {
+          "path": "app/web/sites/portal/lib/wallpapers.ts",
+          "needle": "export type SkyWallpaper = {"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/Widgets.tsx",
+          "needle": "export function DesktopIcons({ apps, selected, onSelect, onOpen, phone = false }: { apps: readonly OsApp[]; selected: AppId | null; onSelect: (id: AppId | null) => void; onOpen: OpenApp; phone?: boolean }) {"
         }
       ],
       "tests": [
@@ -2485,6 +2549,14 @@
         {
           "path": "app/server/src/lib/apply-quota.ts",
           "needle": "export type ApplyQuota = { apply_left_today: number; apply_daily_limit: number };"
+        },
+        {
+          "path": "app/web/sites/portal/pages/JoinUs.tsx",
+          "needle": "const result = await requestJson<Receipt>(\"/api/portal/apply\", {"
+        },
+        {
+          "path": "app/web/sites/portal/components/SceneBar.tsx",
+          "needle": "<Link className=\"pt-back\" to=\"/\">"
         }
       ],
       "tests": [
@@ -2518,6 +2590,10 @@
         {
           "path": "app/server/src/routes/portal/public-config.ts",
           "needle": "  app.get(\"/api/public/config\", async () => ({"
+        },
+        {
+          "path": "app/web/shared/config/index.ts",
+          "needle": "export const appConfig = rawConfig as AppConfig;"
         }
       ],
       "tests": [
@@ -2555,17 +2631,12 @@
           "needle": "  app.get(\"/api/public/org\", async () => {"
         },
         {
-          "path": "app/web/sites/portal/lib/org.ts",
-          "needle": "export const ORG_DEFAULTS: OrgPayload = {"
-        },
-        {
           "path": "app/forum/app/data/titles.ts",
           "needle": "export const DEFAULT_ORG: OrgLook = { titles: TITLES, departments: DEPARTMENTS }"
         }
       ],
       "tests": [
-        "tests/server/console.test.ts",
-        "tests/web/portal-org.test.ts"
+        "tests/server/console.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -2689,6 +2760,18 @@
         {
           "path": "app/server/src/routes/portal/feedback.ts",
           "needle": "  app.get<{ Querystring: { org?: string; limit?: string } }>(\"/api/feedback/public\", async (req) => {"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx",
+          "needle": "api<{ items: PublicFeedback[] }>(`/api/feedback/public?org=${encodeURIComponent(org)}&limit=10`)"
+        },
+        {
+          "path": "app/web/sites/portal/App.tsx",
+          "needle": "<Route path=\"/feedback/:org\" element={<Navigate to=\"/?open=feedback\" replace />} />"
+        },
+        {
+          "path": "app/web/sites/portal/components/PageShell.tsx",
+          "needle": "<Link to=\"/?open=feedback\">意见箱</Link>"
         }
       ],
       "tests": [
@@ -2730,6 +2813,10 @@
         {
           "path": "app/server/src/routes/portal/feedback.ts",
           "needle": "  app.post<{ Body: Body }>(\"/api/feedback\", {"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx",
+          "needle": "const r = await api<{ ok: boolean; message: string }>(\"/api/feedback\", {"
         }
       ],
       "tests": [
@@ -4364,6 +4451,14 @@
         {
           "path": "app/web/sites/portal/lib/icons.ts",
           "needle": "\"add-line\": [\"M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2z\"],"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx",
+          "needle": "export default function ContestSite({ href }: { href: string }) {"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/NightSky.tsx",
+          "needle": "export function scatterStars(seed: string, count: number): Star[] {"
         }
       ],
       "tests": [
@@ -6795,6 +6890,10 @@
         {
           "path": "app/console/src/pages/gitlab/Projects.vue",
           "needle": "const data = useResource(() => api<GitlabProjectsResponse>(\"/api/console/gitlab/projects\"));"
+        },
+        {
+          "path": "app/web/shared/ui/DevControlCenter.tsx",
+          "needle": "{site === \"admin\" && <><button type=\"button\" onClick={() => openPath(\"/console/users\")}>用户</button><button type=\"button\" onClick={() => openPath(\"/console/gitlab/projects\")}>群组与项目</button></>}"
         }
       ],
       "tests": [
@@ -6835,6 +6934,14 @@
         {
           "path": "app/server/src/lib/gitlab-sync.ts",
           "needle": "available: boolean"
+        },
+        {
+          "path": "app/web/sites/portal/lib/codeRepos.ts",
+          "needle": "export const CODE_REPOS_URL = \"/api/public/gitlab/projects\";"
+        },
+        {
+          "path": "app/web/sites/portal/lib/snapshots.ts",
+          "needle": "// 代码仓库的公开项目改成读接口（lib/codeRepos.ts），原来 GitHub 仓库的快照已删（#275）。"
         }
       ],
       "tests": [
@@ -7029,6 +7136,14 @@
         {
           "path": "app/server/src/lib/account-profiles.ts",
           "needle": "function update(accountId: string, patch: ProfilePatch): ProfileUpdateResult {"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx",
+          "needle": "const next = await api<ProfileBody>(\"/api/identity/profile\", { method: \"PATCH\", body: JSON.stringify(body) });"
+        },
+        {
+          "path": "app/web/sites/portal/lib/startNote.ts",
+          "needle": "return api(\"/api/identity/profile\", { method: \"PATCH\", body: JSON.stringify({ prefs: { start_note_seen_at: at } }) }).then("
         }
       ],
       "tests": [
@@ -7106,6 +7221,10 @@
         {
           "path": "app/server/src/lib/account-avatar.ts",
           "needle": "export async function processAccountAvatar(input: Buffer): Promise<{ hash: string; data: Buffer }> {"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx",
+          "needle": "const result = await api<{ avatar_url?: string }>(\"/api/identity/avatar\", { method: \"PUT\", body: square, headers: { \"content-type\": square.type } });"
         }
       ],
       "tests": [
@@ -7149,6 +7268,10 @@
         {
           "path": "app/server/src/lib/permissions.ts",
           "needle": "export function setExclusiveGroupMembership("
+        },
+        {
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx",
+          "needle": "await api(\"/api/identity/invite/redeem\", { method: \"POST\", body: JSON.stringify({ code: value }) });"
         }
       ],
       "tests": [
@@ -7188,6 +7311,10 @@
         {
           "path": "app/server/src/routes/portal/contracts.ts",
           "needle": "\"GET /api/public/departments\": { querystring: object({}), response: { 200: object({"
+        },
+        {
+          "path": "app/web/sites/portal/lib/departments.ts",
+          "needle": "export const DEPARTMENTS_URL = \"/api/public/departments\";"
         }
       ],
       "tests": [

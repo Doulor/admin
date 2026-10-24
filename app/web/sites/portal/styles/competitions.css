@@ -77,31 +77,38 @@
 .pt-cx-detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #fff; }
 .pt-cx-scroll { position: relative; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 22px 26px 24px; }
 
-/* Hero：按比赛生成的动态大图。--h 是色相（CompetitionHero 按 id 算），渐变底 + 网格 + 三个模糊光斑慢慢漂；
-   左边压一层深色遮罩保证白字对比度，光斑只在右边亮。 */
-.pt-cx-hero {
-  --h: 230;
-  position: relative; isolation: isolate; overflow: hidden; display: grid; justify-items: start; gap: 10px;
-  padding: 22px 24px 20px; border-radius: 16px; color: #fff;
-  background: linear-gradient(135deg, hsl(var(--h) 62% 28%), hsl(calc(var(--h) + 28) 56% 40%));
-  box-shadow: 0 18px 40px -26px hsl(var(--h) 60% 22% / 90%);
+/* 比赛官网（#278）首屏的夜空：深夜底色往下亮到黎明的靛蓝，星星由 NightSky 画（亮的几颗慢慢呼吸）。详情的 Hero 和列表顶上的官网入口共用 */
+.pt-cx-night { background: linear-gradient(170deg, var(--os-term-bg) 15%, var(--os-bios-glow) 65%, var(--os-c-line)); color: #fff; }
+.pt-cx-stars { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; fill: #fff; pointer-events: none; }
+.pt-cx-stars .is-glow { animation: pt-cx-twinkle 3.6s ease-in-out infinite alternate; }
+@keyframes pt-cx-twinkle { from { opacity: .3; } }
+
+/* 官网入口：OSS CHALLENGE 字标照开机动画的 YUGC 泡泡字母画（字母色、白色粗描边、底部投影），右边「打开官网」 */
+.pt-cx-site {
+  position: relative; isolation: isolate; overflow: hidden; flex: none; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 12px 20px; margin: 12px 16px 0; padding: 16px 20px; border-radius: var(--os-radius-card); box-shadow: 0 12px 28px -20px rgb(3 9 20 / 90%);
 }
-.pt-cx-hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgb(8 12 36 / 42%), rgb(8 12 36 / 14%) 62%, transparent); pointer-events: none; }
+.pt-cx-site-text { display: grid; gap: 6px; min-width: 0; }
+.pt-cx-site-mark { display: flex; flex-wrap: wrap; gap: 0 .3em; font: 900 26px/1.1 var(--pt-sans); letter-spacing: .02em; }
+.pt-cx-site-mark span[data-tone] { color: var(--tone); -webkit-text-stroke: 4px #fff; paint-order: stroke fill; text-shadow: 0 3px 0 var(--tone-line); }
+.pt-cx-site-sub { font-size: 12.5px; color: var(--os-bios-text); }
+
+/* Hero：夜空背景（.pt-cx-night）加一层淡网格，左边压一层深色遮罩保证白字对比度 */
+.pt-cx-hero {
+  position: relative; isolation: isolate; overflow: hidden; display: grid; justify-items: start; gap: 10px;
+  padding: 22px 24px 20px; border-radius: var(--os-radius-card); box-shadow: 0 18px 40px -26px rgb(3 9 20 / 90%);
+}
+.pt-cx-hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgb(3 9 20 / 45%), rgb(3 9 20 / 10%) 62%, transparent); pointer-events: none; }
 .pt-cx-hero-art { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
 .pt-cx-hero-art::before {
   content: ""; position: absolute; inset: 0;
-  background-image: linear-gradient(rgb(255 255 255 / 8%) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 8%) 1px, transparent 1px);
+  background-image: linear-gradient(rgb(255 255 255 / 6%) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 6%) 1px, transparent 1px);
   background-size: 28px 28px;
-  -webkit-mask-image: radial-gradient(120% 120% at 100% 0%, #000 20%, transparent 75%); mask-image: radial-gradient(120% 120% at 100% 0%, #000 20%, transparent 75%);
+  -webkit-mask-image: radial-gradient(120% 120% at 100% 100%, #000 20%, transparent 75%); mask-image: radial-gradient(120% 120% at 100% 100%, #000 20%, transparent 75%);
 }
-.pt-cx-hero-art i { position: absolute; border-radius: 50%; filter: blur(38px); opacity: .7; animation: pt-cx-drift 16s ease-in-out infinite alternate; will-change: transform; }
-.pt-cx-hero-art i:nth-child(1) { top: -100px; right: -50px; width: 260px; height: 260px; background: hsl(calc(var(--h) + 40) 90% 62%); }
-.pt-cx-hero-art i:nth-child(2) { right: 30%; bottom: -120px; width: 220px; height: 220px; background: hsl(calc(var(--h) - 30) 85% 55%); animation-duration: 20s; animation-delay: -7s; }
-.pt-cx-hero-art i:nth-child(3) { top: 18%; right: 14%; width: 150px; height: 150px; background: hsl(calc(var(--h) + 100) 80% 60% / 65%); animation-duration: 24s; animation-delay: -12s; }
 .pt-cx-hero-art .pt-icon { position: absolute; right: 18px; bottom: -22px; color: rgb(255 255 255 / 10%); transform: rotate(-12deg); }
-@keyframes pt-cx-drift { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(-32px, 20px, 0) scale(1.15); } }
 @media (prefers-reduced-motion: reduce) {
-  .pt-cx-hero-art i { animation: none; }
+  .pt-cx-stars .is-glow { animation: none; }
 }
 .pt-cx-hero-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .pt-cx-hero-tag {
@@ -111,9 +118,9 @@
 a.pt-cx-hero-tag:hover { background: rgb(255 255 255 / 22%); }
 .pt-cx-hero-tag b { font-weight: 700; }
 .pt-cx-hero-tag.is-status::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: #c9cde0; }
-.pt-cx-hero-tag.is-registering::before { background: #4ade80; box-shadow: 0 0 0 3px rgb(74 222 128 / 25%); }
-.pt-cx-hero-tag.is-ongoing::before { background: #93c5fd; box-shadow: 0 0 0 3px rgb(147 197 253 / 25%); }
-.pt-cx-hero-tag.is-closed::before { background: #fbbf24; }
+.pt-cx-hero-tag.is-registering::before { background: var(--os-bios-ok); box-shadow: 0 0 0 3px rgb(94 242 194 / 25%); }
+.pt-cx-hero-tag.is-ongoing::before { background: var(--os-bios-cyan); box-shadow: 0 0 0 3px rgb(159 216 255 / 25%); }
+.pt-cx-hero-tag.is-closed::before { background: var(--os-dot-min); }
 .pt-cx-hero h3 { max-width: 30em; font-size: 24px; font-weight: 800; line-height: 1.3; letter-spacing: .01em; overflow-wrap: anywhere; text-shadow: 0 1px 12px rgb(0 0 0 / 18%); }
 .pt-root .pt-cx-hero h3:focus-visible { outline: none; }
 .pt-cx-hero-lead { display: -webkit-box; max-width: 40em; overflow: hidden; font-size: 13.5px; line-height: 1.6; color: rgb(255 255 255 / 88%); -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -123,8 +130,8 @@ a.pt-cx-hero-tag:hover { background: rgb(255 255 255 / 22%); }
 .pt-cx-digits { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px; font-variant-numeric: tabular-nums; }
 .pt-cx-digits b { min-width: 1.7em; padding: 2px 6px; border-radius: 8px; background: rgb(255 255 255 / 15%); font: 700 20px/1.25 var(--pt-mono); color: #fff; text-align: center; }
 .pt-cx-digits small { margin-right: 6px; font-size: 12px; color: rgb(255 255 255 / 84%); }
-.pt-btn.is-hero { border-color: transparent; background: #fff; color: hsl(var(--h) 60% 28%); box-shadow: 0 10px 24px -12px rgb(0 0 0 / 55%); }
-.pt-btn.is-hero:hover { background: #eef1ff; color: hsl(var(--h) 65% 22%); }
+.pt-btn.is-hero { border-color: transparent; background: #fff; color: var(--os-ink); box-shadow: 0 10px 24px -12px rgb(0 0 0 / 55%); }
+.pt-btn.is-hero:hover { background: var(--os-u-light); color: var(--os-ink); }
 .pt-root .pt-cx-hero :focus-visible { outline-color: #fff; }
 
 .pt-cx-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 18px; border: 1px solid var(--pt-line); border-radius: 12px; }
@@ -405,7 +412,10 @@ button.pt-cx-slot:disabled { opacity: .6; cursor: not-allowed; }
 .is-phone .pt-cx-card-go { display: block; position: absolute; top: 50%; right: 14px; transform: translateY(-50%); color: var(--pt-ink-mute); }
 .is-phone .pt-cx-detail { flex: 1; }
 .is-phone .pt-cx-scroll { padding: 8px 16px 20px; }
-.is-phone .pt-cx-hero { gap: 8px; padding: 18px 16px 16px; border-radius: 14px; }
+.is-phone .pt-cx-site { margin: 4px 16px 0; padding: 14px 16px; }
+.is-phone .pt-cx-site-mark { font-size: 22px; }
+.is-phone .pt-cx-site .pt-btn { flex: 1 1 100%; justify-content: center; min-height: 44px; }
+.is-phone .pt-cx-hero { gap: 8px; padding: 18px 16px 16px; }
 .is-phone .pt-cx-hero h3 { font-size: 1.3rem; }
 .is-phone .pt-cx-hero-art .pt-icon { width: 96px; height: 96px; }
 .is-phone .pt-cx-digits b { font-size: 18px; }

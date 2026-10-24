@@ -2,16 +2,16 @@
 
 > 官网 portal（React/Vite）+ shared 适配层；web 镜像同时托管控制台产物（`app/console`），是每个环境的 HTTP 入口容器。
 
-状态：`current` · 更新：2026-10-23 · 源码：`app/web/` · 镜像：`yzgc-<environment>/web:<sha12>`
+状态：`current` · 更新：2026-10-24 · 源码：`app/web/` · 镜像：`yzgc-<environment>/web:<sha12>`
 
 ## 源码地图
 
 | 路径 | 职责 |
 |---|---|
-| `app/web/sites/portal/` | 公开站点：`App.tsx` 路由（`/`、`/join-us`、`/forum-3d`、`/github`、`/docs`、`/feedback`、`/join/:token`）、`pages/`、`three/`（按需加载的 three.js 场景：书桌、信封、论坛气泡、GitHub 天际线）、`components/`（YUGC OS 桌面、加载动画、页面外壳）、`lib/`（状态机、进度、相机数学、链接、快照、图标、全站登录状态 `account.ts`）、`styles/`（浅色书桌 × YUGC OS 视觉令牌）、`index.html` 入口；不自建登录态，菜单栏显示全站 GitHub 登录的账号或登录入口（见 [portal](portal.md)「登录入口」） |
-| `app/web/shared/lib/` | 网络（`api`、`http`、`runtime`）、URL/站点（`site`）、Markdown（`markdown`）、挂载（`mount`）、PoW、主题、只读 mock |
-| `app/web/shared/ui/` | 官网复用的交互原语：Modal、ConfirmDialog、Select、ImageLightbox、TurnstileWidget、Mascot 等 |
-| `app/web/shared/styles/` | 基础样式与令牌（`base.css`、`mascot.css`、`rounded.css`） |
+| `app/web/sites/portal/` | 公开站点：`App.tsx` 路由（`/`、`/join-us`、`/forum-3d`、`/docs`；`/?open=<应用>` 进桌面打开窗口，旧地址 `/apply`、`/feedback` 只做跳转）、`pages/`、`three/`（按需加载的 three.js 场景：信封、论坛气泡）、`components/`（`boot/` 开机动画、`os/` YUGC OS 桌面与窗口、个人资料卡、页面外壳）、`lib/`（进站规则、相机数学、链接、快照、图标、全站登录状态 `account.ts`、部门、代码仓库、埋点）、`styles/`（`--pt-*` 与 YUGC OS v2 的 `--os-*` 令牌）、`index.html` 入口；不自建登录态，菜单栏头像打开个人资料卡（见 [portal](portal.md)「个人资料卡」） |
+| `app/web/shared/lib/` | 网络（`api`、`http`、`runtime`）、URL/站点（`site`）、Markdown（`markdown`）、挂载（`mount`）、PoW、主题、只读 mock（含开发预览身份 `?__mock=member\|registered\|visitor`，正式构建删掉） |
+| `app/web/shared/ui/` | 官网复用的交互原语：Modal、ConfirmDialog、Select、ImageLightbox、TurnstileWidget 等 |
+| `app/web/shared/styles/` | 基础样式与令牌（`base.css`、`rounded.css`） |
 | `app/web/shared/config/` | 公开前端配置（`app.config.json` → `config/index.ts` 的站点标题与 basePath 合同；不含域名） |
 | `app/web/Dockerfile` | Node 22 构建官网（`app/web`）与控制台（`app/console`）两份产物，叠进同一个 nginx 站点根 → 静态托管与反代；容器内监听 8080（非特权），并生成 `release.json` 供发布身份核对 |
 | `app/web` 镜像内 nginx 配置 | 由 `Dockerfile` 生成：`/api/*` 使用 `location ^~ /api/` 前缀优先匹配（防止 `/api/forum/avatars/*.webp` 等动态文件接口被下方的静态图片正则拦截出 404，#173）；`/auth`、`/auth/*`（OAuth 登录与回调）、`/oidc/*`（对外授权的签发者，#270）、`/healthz` → `server:3000`；`/forum` 308 到相对地址 `/forum/`，`/forum/*`（含图片、字体，`location ^~` 不让官网的图片规则截走）剥掉前缀后 → `forum:3000`，论坛发出的相对跳转由 `proxy_redirect / /forum/` 补回前缀；server 块 `absolute_redirect off`，容器发出的跳转（含补过前缀的）都是相对地址，不会带上容器的 `http://…:8080`（#140）；`/admin`、`/console` 及其子路径与 `/signin`、`/device`（设备授权确认页）、`/account`（账号页，#262）、`/authorize`（对外授权的同意页，#270）、`/bind-email`（绑定邮箱页，#273）→ 控制台入口 `sites/console/index.html`，其余 → portal，与 Host 无关；`/assets/*`（官网）与 `/console-assets/*`（控制台）里只有带内容哈希的构建产物，用 `location ^~` 整个目录缓存一年（`max-age=31536000`），字体、壁纸、图片也是，不再被后面「图片、字体 7 天」的正则截走（#146；两个目录都不能有 public/ 里原样复制的文件，`scripts/static-cdn.mjs` 与 `tests/tooling/static-cdn.test.ts` 核对，缓存头由 `tests/tooling/hashed-asset-cache.test.ts` 在本机 nginx 上实测）；目录外不带哈希的图片、字体缓存 7 天；`/sites/*` 只提供真实文件，不存在即 404；安全头由宿主 nginx 统一下发，容器不重复 |
@@ -24,11 +24,10 @@
 - **域名**：每个环境只有一个域名——正式 `yangtzeu.work`、预发布 `prev.yangtzeu.work`。portal、控制台、论坛同域，按路径区分：控制台是 `/console/…`（统一登录页 `/signin`、设备授权确认页 `/device`、账号页 `/account`、对外授权的同意页 `/authorize` 与绑定邮箱页 `/bind-email` 也在控制台产物里，旧的 `/admin/…` 跳到 `/console`），论坛是 `/forum/…`，其余路径是 portal。旧的管理端独立子域与论坛子域都已退役（见 [DEPLOY](../../ops/DEPLOY.md) 历史章节）。
 - **HTTP 边界**：前端只通过 `shared/lib/api` 访问 `/api/*`；跨端链接使用 `externalUrl`，同端使用 Router。生产态跨端链接是同源路径（`/forum/…`、`/console`），不拼域名；开发态仍走 `/sites/<端>/…`，论坛指向本机 3456。
 - **配置**：构建期只读公开配置（`app.config.json`），不加载私有 `.env`，也不含任何域名，同一份产物在两个环境通用；`scripts/check-site-config.mjs`（`pnpm check:site-config`）校验站点不带 host、论坛 basePath 非空且不与其他站点重叠、production 数据源固定为 live。
-- **静态资源 CDN 开关**（#146）：构建参数 `STATIC_CDN_BASE` 为空时与原来一样同源；等于 `https://cdn.crosery.com/yzgc/static/site/` 时，`vite.config.ts` 用 `experimental.renderBuiltUrl` 把带哈希的构建资源（`assets/` 下的 JS、CSS、字体、图片）改写到 CDN，`base` 仍是 `/`，入口 HTML、路由和 `public/` 里不带哈希的文件（看板娘、favicon）仍走源站；桌面壁纸由 `sites/portal/lib/wallpapers.ts` import（文件在 `sites/portal/assets/wallpapers/`），构建时带哈希，跟着开关走。别的非空值让构建失败。规则只在 `scripts/static-cdn-base.mjs`；`app/web/Dockerfile` 把同一个参数传给官网与控制台两次构建，并断言两个入口页引用的是对应地址。开关由部署工作流决定，上传与核对见 [CICD](../../ops/CICD.md)「静态资源 CDN」。两个环境用同一个 CDN 前缀，产物仍不含环境域名。
+- **静态资源 CDN 开关**（#146）：构建参数 `STATIC_CDN_BASE` 为空时与原来一样同源；等于 `https://cdn.crosery.com/yzgc/static/site/` 时，`vite.config.ts` 用 `experimental.renderBuiltUrl` 把带哈希的构建资源（`assets/` 下的 JS、CSS、字体、图片）改写到 CDN，`base` 仍是 `/`，入口 HTML、路由和 `public/` 里不带哈希的文件（favicon、logo、论坛快照、邮件里引用的图）仍走源站；桌面壁纸由 `sites/portal/lib/wallpapers.ts` import（文件在 `sites/portal/assets/wallpapers/`），构建时带哈希，跟着开关走。别的非空值让构建失败。规则只在 `scripts/static-cdn-base.mjs`；`app/web/Dockerfile` 把同一个参数传给官网与控制台两次构建，并断言两个入口页引用的是对应地址。开关由部署工作流决定，上传与核对见 [CICD](../../ops/CICD.md)「静态资源 CDN」。两个环境用同一个 CDN 前缀，产物仍不含环境域名。
 - **UI 选型**：官网是既有 React 实现，后续新增/迁移界面按 [Tuffex 使用政策](../../components/tuffex/USAGE-POLICY.md)；控制台已迁到 Vue + Tuffex（`app/console`）。不引入平行基础 UI 体系。
 - **比赛窗口**（#238）：读匿名比赛接口，按时间显示五种状态，每分钟同步重排；日期不在当前北京年份时保留年份，起止同一天只写一个日期；内部与外部链接均可选，只有可解析的 HTTPS 地址可点。损坏的列表响应进入失败态，不冒充空数据；样板截止日期按北京时间日末构造。详见 [portal](portal.md)「比赛窗口」。
-- **手机首页与移动窗口交互**（#206、#233）：竖屏书桌平放现成的 iPhone 15 Pro Max 模型，圆角屏幕及交接遮罩使用模型实际几何；模型以本地带哈希资源发布，保留 CC BY 4.0 署名和许可。移动 YUGC OS 使用状态栏、四列应用和四项 Dock；共用电脑端应用、账号、权限过滤与壁纸选择ID，手机竖屏加载独立生成的竖图和缩略图。搜索位于Dock上方并支持主屏空白处下滑，壁纸应用和系统设置提供换图、回书桌，不摆三按钮工具条。手机上的应用窗口按 iOS 页面卡片（Page Sheet）从底部升起（#233）：顶部有拖拽条，背后是半透明遮罩，点遮罩或在拖拽条、标题栏上下拉超过 70px 即关闭，关闭和返回主屏幕都是 44px 触控目标；响应式切换不重新挂载应用窗口；搜索、壁纸、设置和按需指引复用 `shared/ui/Modal`。断点、素材与操作契约见 [portal](portal.md)「手机首页与主屏幕」。
-- **电脑首页笔记本**（#213）：`three/laptop.ts` 原创建模的圆角铝壳、深色错列键盘与圆角触控板，替换原先的方块键盘与矩形边框；屏幕尺寸、开机交接与手机场景不变，细节见 [portal](portal.md)「手机首页与主屏幕」同节。
+- **首页与 YUGC OS v2**（#275）：首页先看今天（北京时间）播没播过开机动画（Canvas 2D，电脑与手机两套构图，能跳过、静音、重播），没播就播，播完淡出到桌面；播过或开了减少动态效果直接进桌面。三维书桌、加载动画、iPhone 模型首页、GitHub 天际线场景与旧吉祥物都已删除，three.js 只留给加入我们与论坛两个场景页。桌面默认壁纸「晴空」接着开机动画最后一帧画；菜单栏头像打开个人资料卡；组织架构读 `/api/public/departments`，代码仓库是读 `/api/public/gitlab/projects` 的窗口；加入我们要登录并显示当天剩余投递份数；前端埋点攒批发 `POST /api/events`。手机是同一套组件的主屏幕形态（状态栏、四列应用、主屏幕加三个主入口的 Dock，窗口按 iOS 页面卡片从底部升起，#233）。细节见 [portal](portal.md)。
 
 ## 运行
 
@@ -58,7 +57,7 @@ node scripts/check-site-config.mjs    # 站点配置不含域名、论坛 basePa
 
 ## 已知限制
 
-- 本机 mock 预览是只读样板，不操作真实 GitHub；真实数据只在连上 `app/server` 后出现。
+- 本机 mock 预览是只读样板（写操作一律回 501 `mock_read_only`），不连真实后端；真实数据只在连上 `app/server` 后出现。
 - PR 预览（#245）：构建时设 `VITE_PREVIEW_MOCK=1`，生产形态的构建改用样板数据（`shared/config` 的 `PREVIEW_MOCK`，`runtimeEnvironment()` 返回数据源 mock、不显示开发控制台、不允许切换），不连任何后端。只有根目录 `netlify.toml` 设置它，镜像构建与部署工作流从不设置；未设置时常量被构建替换成 `false`，样板数据代码照旧从生产产物里删掉（`tests/tooling/pr-preview.test.ts` 核对）。
 - 旧入口跳转**只存在于本机 Vite dev**（`vite.config.ts` 的开发中间件）：`/sites/forum/*` 302 到新论坛首页 `http://127.0.0.1:3456/`，`/forum`、`/forum/*` 保留路径 302 到 3456；不猜测旧帖子 ID 映射。容器栈里 `/sites/forum/*` 返回 404，`/forum/*` 由 nginx 反代到 forum 容器。
 - WCAG 2.2 AA 是目标而非已达成结论；对比度、放大、屏幕阅读器需独立测量。

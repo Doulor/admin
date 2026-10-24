@@ -1,18 +1,12 @@
-// 比赛详情顶部的 Hero（#239）：按比赛生成的动态大图——渐变光斑加网格，色相由比赛 id 算出（同一场比赛每次都一样），
-// 内部赛偏钴蓝到紫、外部赛偏青绿；系统开了「减少动态效果」时光斑不动。上面压着类型与状态、比赛名、一句介绍、
-// 到下一个节点（报名截止 / 开赛 / 结束）的倒计时，以及一键直达的主按钮（由 CompetitionDetail 传进来）。
+// 比赛详情顶部的 Hero（#239）：背景是比赛官网（#278）首屏那片夜空的缩小版（NightSky），星星按比赛 id 撒，同一场比赛每次都一样；
+// 系统开了「减少动态效果」时星星不呼吸。上面压着类型与状态、比赛名、一句介绍、到下一个节点（报名截止 / 开赛 / 结束）的倒计时，
+// 以及一键直达的主按钮（由 CompetitionDetail 传进来）。
 import { useEffect, useState, type ReactNode, type Ref } from "react";
 import Icon from "../../Icon";
-import type { Competition, CompetitionKind } from "../../../lib/competitions";
+import type { Competition } from "../../../lib/competitions";
 import { pointLabel } from "../../../lib/competitionLabels";
 import { countdown, countdownText, nextMilestone } from "../../../lib/competitionHub";
-
-/** 按 id 算色相：内部赛 222–271（钴蓝到紫），外部赛 168–203（青到绿）。 */
-export function heroHue(id: string, kind: CompetitionKind): number {
-  let hash = 0;
-  for (const char of id) hash = (hash * 31 + (char.codePointAt(0) ?? 0)) >>> 0;
-  return kind === "internal" ? 222 + (hash % 50) : 168 + (hash % 36);
-}
+import NightSky from "./NightSky";
 
 /** 介绍的第一段：Hero 上只放一两行，全文在「概览」里。 */
 export function leadOf(description: string): string {
@@ -69,11 +63,9 @@ type Props = {
 export default function CompetitionHero({ item, headingId, headingRef, tags, cta }: Props) {
   const lead = leadOf(item.description);
   return (
-    <header className={`pt-cx-hero is-${item.kind}`} style={{ ["--h" as string]: String(heroHue(item.id, item.kind)) }}>
+    <header className={`pt-cx-hero pt-cx-night is-${item.kind}`}>
       <div className="pt-cx-hero-art" aria-hidden="true">
-        <i />
-        <i />
-        <i />
+        <NightSky seed={item.id} />
         <Icon name={item.kind === "internal" ? "code-s-slash-line" : "trophy-line"} size={128} />
       </div>
       <div className="pt-cx-hero-tags">{tags}</div>

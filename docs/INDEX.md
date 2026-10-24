@@ -59,7 +59,7 @@
 | 文档 | 说明 | EN |
 |---|---|---|
 | [`admin.md`](./services/web/admin.md) | 管理端前端已从 `app/web/sites/admin`（React）迁到独立的 Vue 包 `app/console`；本页只记录迁移事实与仍然有效的服务端约定。 | — |
-| [`portal.md`](./services/web/portal.md) | 公开官网：3D 书桌与 YUGC OS 桌面、加入我们（信封场景）、论坛与 GitHub 场景、文档、意见箱和邀请落地；不自建登录，菜单栏显示全站 GitHub 登录的账号或登录入口。 | — |
+| [`portal.md`](./services/web/portal.md) | 公开官网：开机动画与 YUGC OS 桌面、加入我们（信封场景，要登录）、论坛 3D 场景、文档和意见箱；不自建登录，菜单栏头像打开个人资料卡。 | — |
 | [`shared.md`](./services/web/shared.md) | 共享 UI、网络、渲染和配置，不反向依赖站点。 | — |
 
 ## components/
@@ -173,6 +173,14 @@
 | [`SECURITY.md`](./history/SECURITY.md) | 历史材料：旧版本事实、路径和设计，不作为当前实施指令。 | [EN](./history/SECURITY.en.md) |
 | [`STACK.md`](./history/STACK.md) | 历史材料：旧版本事实、路径和设计，不作为当前实施指令。 | [EN](./history/STACK.en.md) |
 | [`USAGE.md`](./history/USAGE.md) | 历史材料：旧版本事实、路径和设计，不作为当前实施指令。 | [EN](./history/USAGE.en.md) |
+
+## history/portal-yugc-os-v1/
+
+#275 把官网换成 YUGC OS v2 桌面时退场的页面、组件、样式、图片和模型，原样放在这里备查；它们不参与构建，也不会上线。
+
+## history/portal-yugc-os-v1/files/app/web/sites/portal/assets/models/
+
+iPhone 15 Pro Max model attribution
 
 ## public/
 

@@ -54,10 +54,10 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
   const roles = createRoleStore(storage.db);
   // #274 迁移步骤 4（lib/migrations/2026-10-yugc-v2.ts 的 archiveOldDepartments()）仍然没有在这里调用，
   // 原因换了：原来挡在前面的「旧 requireCapability 写接口」已经随这次 Scope B 的路由删除（见执行记录）
-  // 消失，但 GET /api/public/org（routes/portal/org.ts）读 `roles.listDepartments().filter(d => !d.archived)`
-  // 仍然是官网「组织架构」页（app/web/sites/portal/lib/org.ts）的真实数据源，是 #275 才安排退场的——
-  // 这次把四个默认部门全部标成已归档会让那个页面当场变空，是本任务范围外、面向真实用户的回归。
-  // 归档要等 #275 切完数据源、确认 /api/public/org 没有活的前端读者之后再做。
+  // 消失，但 GET /api/public/org（routes/portal/org.ts）读 `roles.listDepartments().filter(d => !d.archived)`。
+  // 官网的组织架构窗口在 #275 改读 /api/public/departments，论坛的称号徽章（app/forum/app/composables/useOrgTitles.ts）
+  // 还在读 /api/public/org，这时把四个默认部门标成已归档，论坛上的部门会当场消失。
+  // 归档要等论坛也切走、确认 /api/public/org 没有活的前端读者之后再做。
   const auth = createAuth(storage.db, crypto, config, overrides.httpRequest, overrides.clock);
   // #274 SPEC §3.8：防盗刷计数唯一入口；提到 identity 前面建好，注册限额与邀请码猜测锁定
   // （signInWithGithub/signInSecondChannel，#274 review round 1）也要用它。

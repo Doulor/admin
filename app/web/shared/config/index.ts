@@ -3,7 +3,6 @@ import rawConfig from "./app.config.json";
 
 export type AppSiteKind = "portal" | "forum" | "admin";
 export type DataSource = "mock" | "live";
-export type MascotPoseName = "welcome" | "coding" | "ai" | "security" | "question" | "resource" | "intro" | "sleep";
 
 type RuntimeEnvironment = {
   defaultSite: AppSiteKind;
@@ -17,14 +16,6 @@ type RuntimeEnvironment = {
 type SiteEntry = {
   title: string;
   basePath: string;
-};
-
-type MascotPoseConfig = {
-  file: string;
-  label: string;
-  fit: "contain" | "cover";
-  position: string;
-  scale: number;
 };
 
 type AppConfig = {
@@ -41,13 +32,6 @@ type AppConfig = {
      * 跨站链接的唯一解析点是 app/web/sites/portal/lib/links.ts。
      */
     brand: { homePath: string; logo: string; logoAlt: string; title: string; subtitle: string };
-  };
-  mascot: {
-    defaultPose: MascotPoseName;
-    width: number;
-    height: number;
-    poses: Record<MascotPoseName, MascotPoseConfig>;
-    dialogs: Record<MascotPoseName, string[]>;
   };
 };
 

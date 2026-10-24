@@ -555,7 +555,7 @@ console（`app/console`）：`pages/Competitions.vue` 每行加「名单」；�
 与方案的差异：
 
 - **多了一张积分表与天梯**：方案「不做」里写了不设积分与获奖记录，主线要求加开源贡献积分，于是多了 `competition_score_events`、控制台的积分登记与撤销，以及门户的个人榜与队伍榜（队伍分是在队成员个人分之和，同分并列并跳号）。积分只对开启 `scoring: "contribution"` 的比赛生效，未开启时接口回 409、页面不显示天梯。
-- **界面把「队长」叫「领队」**：`tests/web/portal-org.test.ts` 扫描除 `lib/org.ts` 以外的全部官网源码，出现组织称号的默认名（提督、舰长、队长、舰员、领航员、乘客）即失败；「队长」在组织架构里是部门负责人的称号，比赛的队伍负责人因此统一叫「领队」，服务端错误码仍是 `not_team_leader` / `is_team_leader`。本文前半部分保留方案当时的「队长」写法，实现与 [portal 合同](../services/web/portal.md) 一律用「领队」。
+- **界面把「队长」叫「领队」**：当时的 `tests/web/portal-org.test.ts` 扫描除 `lib/org.ts` 以外的全部官网源码，出现组织称号的默认名（提督、舰长、队长、舰员、领航员、乘客）即失败（#275 随 `lib/org.ts` 删掉，同样的守卫改在 `tests/web/portal-org-window.test.tsx`，扫的是现在的称号默认名）；「队长」在组织架构里是部门负责人的称号，比赛的队伍负责人因此统一叫「领队」，服务端错误码仍是 `not_team_leader` / `is_team_leader`。本文前半部分保留方案当时的「队长」写法，实现与 [portal 合同](../services/web/portal.md) 一律用「领队」。
 - **写操作限流是每人每分钟 30 次**（方案写 60），名单导出每分钟 5 次；读接口不限流。
 - **匿名与成员的区别只有两种结果**：没有会话回 401，登录但不是成员回 403 `not_member`。方案里「资格待核验」的 `membership_verification_required` / `membership_unavailable` 属于统一登录交付 2，尚未出现；成员守卫在 `app/server/src/middleware/require-member.ts` 一处，交付 2 落地时只改这里。
 - **待处理的可见范围比方案宽一点**：门户把本队收到的申请也下发给在队队员（只有领队有同意、拒绝按钮），方案原文写的是「只给队长和当事人」。服务端仍按记录判断谁能操作，普通队员拿不到按钮之外的权限。

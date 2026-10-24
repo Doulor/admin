@@ -1,5 +1,6 @@
 // YUGC OS 的壁纸：清单、选择、下载解码与空闲预取（tests/web/portal-wallpapers.test.ts 覆盖）。
-// 桌面与手机各有独立构图；生成记录见 assets/wallpapers/README.md。
+// 默认壁纸「晴空」是开机动画最后一帧的画面，在 canvas 里实时画（components/os/SkyWallpaper.tsx），没有图片；
+// 另外两张是图片壁纸，桌面与手机各有独立构图，生成记录见 assets/wallpapers/README.md。
 // 图片地址只写在这份清单里。图片放在 sites/portal/assets/wallpapers/，由这里 import：
 // 构建时文件名带上内容哈希，与 JS、CSS 一样跟着静态资源 CDN 开关（#146，scripts/static-cdn-base.mjs）走，
 // 开关为空时是站内的 /assets/…，打开时是 CDN 上的同一个文件。
@@ -13,7 +14,18 @@ import geekPhoneThumb from "../assets/wallpapers/geek-phone-thumb.webp";
 import yugcPhoneImage from "../assets/wallpapers/yugc-phone.webp";
 import yugcPhoneThumb from "../assets/wallpapers/yugc-phone-thumb.webp";
 
-export type WallpaperSurface = {
+/** 「晴空」：画出来的，横竖屏都是同一个画面（构图跟着屏幕算） */
+export type SkyWallpaper = {
+  kind: "sky";
+  id: "sky";
+  name: string;
+  /** canvas 第一帧画出来之前的底色 */
+  tint: string;
+};
+
+/** 图片壁纸在当前屏幕形态下的样子 */
+export type ImageSurface = {
+  kind: "image";
   id: string;
   name: string;
   /** 当前屏幕形态的大图 */
@@ -24,32 +36,45 @@ export type WallpaperSurface = {
   tint: string;
 };
 
-export type Wallpaper = WallpaperSurface & {
+export type ImageWallpaper = ImageSurface & {
   phone: { image: string; thumb: string };
 };
 
-export const WALLPAPERS: readonly Wallpaper[] = [
-  { id: "yugc", name: "极客娘 1", image: yugcImage, thumb: yugcThumb, phone: { image: yugcPhoneImage, thumb: yugcPhoneThumb }, tint: "#b9d6f7" },
-  { id: "geek", name: "极客娘 2", image: geekImage, thumb: geekThumb, phone: { image: geekPhoneImage, thumb: geekPhoneThumb }, tint: "#a9cdf5" },
+export type Wallpaper = SkyWallpaper | ImageWallpaper;
+export type WallpaperSurface = SkyWallpaper | ImageSurface;
+
+export const SKY_WALLPAPER: SkyWallpaper = { kind: "sky", id: "sky", name: "晴空", tint: "#cfeaff" };
+
+const IMAGE_WALLPAPERS: readonly ImageWallpaper[] = [
+  { kind: "image", id: "yugc", name: "极客娘 1", image: yugcImage, thumb: yugcThumb, phone: { image: yugcPhoneImage, thumb: yugcPhoneThumb }, tint: "#b9d6f7" },
+  { kind: "image", id: "geek", name: "极客娘 2", image: geekImage, thumb: geekThumb, phone: { image: geekPhoneImage, thumb: geekPhoneThumb }, tint: "#a9cdf5" },
 ];
 
+export const WALLPAPERS: readonly Wallpaper[] = [SKY_WALLPAPER, ...IMAGE_WALLPAPERS];
+
 export function wallpaperForScreen(wallpaper: Wallpaper, portrait: boolean): WallpaperSurface {
-  return portrait ? { ...wallpaper, ...wallpaper.phone } : wallpaper;
+  if (wallpaper.kind === "sky" || !portrait) return wallpaper;
+  return { ...wallpaper, ...wallpaper.phone };
 }
 
-export const DEFAULT_WALLPAPER = WALLPAPERS[0].id;
+/** 两个样子是不是同一个画面：图片壁纸看图片地址（同一张壁纸横竖屏是两张图），「晴空」只有一个 */
+export function sameSurface(a: WallpaperSurface, b: WallpaperSurface): boolean {
+  return a.kind === "sky" || b.kind === "sky" ? a.id === b.id : a.image === b.image;
+}
+
+export const DEFAULT_WALLPAPER = SKY_WALLPAPER.id;
 export const WALLPAPER_KEY = "yugc:wallpaper";
 
 /** 存下来的值不认识（改名、删掉）时回到默认壁纸 */
 export function resolveWallpaper(id: string | null | undefined): Wallpaper {
-  return WALLPAPERS.find((wallpaper) => wallpaper.id === id) ?? WALLPAPERS[0];
+  return WALLPAPERS.find((wallpaper) => wallpaper.id === id) ?? SKY_WALLPAPER;
 }
 
 export function readWallpaperChoice(): Wallpaper {
   try {
     return resolveWallpaper(localStorage.getItem(WALLPAPER_KEY));
   } catch {
-    return WALLPAPERS[0];
+    return SKY_WALLPAPER;
   }
 }
 
@@ -125,15 +150,15 @@ export function canPrefetchWallpapers(connection: ConnectionHint): boolean {
   return connection?.effectiveType !== "2g" && connection?.effectiveType !== "slow-2g";
 }
 
-/** 预取顺序：先全部缩略图（很小，选择面板一打开就有图），再当前这张以外的大图 */
+/** 预取顺序：先全部缩略图（很小，选择面板一打开就有图），再当前这张以外的大图；「晴空」是画出来的，不用下载 */
 export function wallpaperPrefetchList(currentId: string, portrait = false): string[] {
-  const surfaces = WALLPAPERS.map(wallpaper => wallpaperForScreen(wallpaper, portrait));
+  const surfaces = IMAGE_WALLPAPERS.map((wallpaper) => ({ ...wallpaper, ...(portrait ? wallpaper.phone : {}) }));
   return [...surfaces.map(wallpaper => wallpaper.thumb), ...surfaces.filter(wallpaper => wallpaper.id !== currentId).map(wallpaper => wallpaper.image)];
 }
 
 /**
  * 桌面空闲后按顺序一张一张预取（低优先级，不和正在用的请求抢带宽），之后换壁纸不用等下载。
- * 返回取消函数：桌面卸载或退回书桌时停下还没开始的那几张。
+ * 返回取消函数：桌面卸载或横竖屏切换时停下还没开始的那几张。
  */
 export function prefetchWallpapersWhenIdle(currentId: string, portrait = false): () => void {
   const connection = (navigator as Navigator & { connection?: ConnectionHint }).connection;
