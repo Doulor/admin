@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { REPO_ROOT } from '../../app/server/src/config';
 import { setExclusiveGroupMembership } from '../../app/server/src/lib/permissions';
-import { accountIdOf, grantPermNode, signIn, testApp } from './helpers';
+import { accountIdOf, activityRows, grantPermNode, signIn, testApp } from './helpers';
 
 /** sharp 是 app/server 的依赖，根目录没有它（和 tests/server/forum.test.ts 同一个取法）。 */
 const sharp = createRequire(join(REPO_ROOT, 'app/server/package.json'))('sharp') as typeof import('../../app/server/node_modules/sharp');
@@ -501,6 +501,35 @@ describe('控制台论坛管理（#276 CONTRACT §8）：权限矩阵与 step-up
     expect(created.json()).toMatchObject({ id: 'yugc-test-new', shortcode: 'yugc-test-new', label: '测试表情' });
     const list = await s.call('GET', '/api/forum/stickers');
     expect(list.json().packs.find((p: { id: string }) => p.id === 'yugc').stickers.some((st: { id: string }) => st.id === 'yugc-test-new')).toBe(true);
+  });
+
+  it('新建表情包：同一套权限 + step-up；id 重复回 409，新包排在最后，往里加的表情出现在公开列表里', async () => {
+    const s = await consoleSetup();
+    expect((await s.call('POST', '/api/console/forum/sticker-packs', 'mod', { id: 'cats', name: '猫猫' })).statusCode).toBe(403);
+    grantPermNode(s.app, accountIdOf(s.app, 'mod'), 'forum.sticker.manage');
+    makeStale(s.app, 'mod');
+    const stale = await s.call('POST', '/api/console/forum/sticker-packs', 'mod', { id: 'cats', name: '猫猫' });
+    expect(stale.json().error).toBe('step_up_required');
+    unstale(s.app, 'mod');
+    expect((await s.call('POST', '/api/console/forum/sticker-packs', 'mod', { id: 'Cats!', name: '猫猫' })).statusCode).toBe(400);
+    const created = await s.call('POST', '/api/console/forum/sticker-packs', 'mod', { id: 'cats', name: ' 猫猫 ' });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toEqual({ id: 'cats', name: '猫猫' });
+    const again = await s.call('POST', '/api/console/forum/sticker-packs', 'mod', { id: 'cats', name: '别的' });
+    expect(again.statusCode).toBe(409);
+    expect(again.json().error).toBe('pack_id_taken');
+    expect(activityRows(s.app, { action: 'forum.sticker_pack.create' })).toHaveLength(1);
+
+    const packs = (await s.call('GET', '/api/console/forum/stickers', 'mod')).json().packs as { id: string; sort: number; stickers: unknown[] }[];
+    const cats = packs.find(p => p.id === 'cats')!;
+    expect(cats.stickers).toEqual([]);
+    expect(cats.sort).toBe(Math.max(...packs.map(p => p.sort)));
+    // 空包不出现在论坛的表情面板里（面板只画有表情的包），加了表情以后出现
+    const png = await sharp({ create: { width: 10, height: 10, channels: 3, background: '#ff9900' } }).png().toBuffer();
+    const put = await s.app.inject({ method: 'PUT', url: '/api/console/forum/sticker-packs/cats/stickers?shortcode=cats-hi&label=招手', payload: png, headers: { ...s.as('mod'), 'content-type': 'image/png' } });
+    expect(put.statusCode).toBe(201);
+    const pub = (await s.call('GET', '/api/forum/stickers')).json().packs as { id: string; stickers: { shortcode: string }[] }[];
+    expect(pub.find(p => p.id === 'cats')?.stickers.map(st => st.shortcode)).toEqual(['cats-hi']);
   });
 
   it('新增表情的图片有自己的上限与格式：超过 2MB 回 413 sticker_too_large，不支持的类型回 415；PNG/JPEG/WebP 都能传', async () => {

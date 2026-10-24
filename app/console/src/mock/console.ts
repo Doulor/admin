@@ -866,6 +866,13 @@ export function checkConsoleWrite(url: URL, method: string, body: unknown): void
     if (method === "PUT" && MOCK_STICKER_PACKS.some(pack => pack.stickers.some(sticker => sticker.shortcode === url.searchParams.get("shortcode")))) fail(409, "shortcode_taken", "这个短码已经被用过了");
     return;
   }
+  if (path === "/api/console/forum/sticker-packs" && method === "POST") {
+    gate(persona, "forum.sticker.manage");
+    requireStepUp(persona);
+    const id = (body as { id?: unknown } | undefined)?.id;
+    if (MOCK_STICKER_PACKS.some(pack => pack.id === id)) fail(409, "pack_id_taken", "这个表情包 id 已经被用过了");
+    return;
+  }
   if (/^\/api\/console\/invites/.test(path) && ["POST", "PATCH"].includes(method)) {
     gate(persona, "invite.manage");
     requireStepUp(persona);

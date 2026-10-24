@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  STICKER_FILE_MAX, newStickerErrors, nextSort, packDraftErrors, packPatch, packUses, sortedStickers, stickerDraftErrors, stickerFileProblem,
+  STICKER_FILE_MAX, draftsFromFiles, newPackErrors, newStickerErrors, nextSort, packDraftErrors, packPatch, packUses, sortedStickers, stickerDraftErrors, stickerFileProblem,
   stickerPatch, stickerUploadPath, takenShortcodes, visibilityLabel,
 } from "../../app/console/src/lib/forum";
 import { checkConsoleWrite, routeConsole } from "../../app/console/src/mock/console";
@@ -80,6 +80,32 @@ describe("上传新表情", () => {
   });
 });
 
+describe("新建表情包和批量上传（#276）", () => {
+  it("表情包 id 照服务端规则，已有的 id 当场拦下，名字要写", () => {
+    const existing = new Set(["yugc"]);
+    expect(newPackErrors({ id: "cats", name: "猫猫" }, existing)).toEqual({});
+    expect(newPackErrors({ id: "c", name: "猫猫" }, existing)).toEqual({});
+    for (const id of ["", "-cats", "Cats", "cat_s", "c".repeat(41)]) expect(newPackErrors({ id, name: "猫猫" }, existing).id, id).toBeTruthy();
+    expect(newPackErrors({ id: "yugc", name: "猫猫" }, existing).id).toContain("已经有表情包");
+    expect(newPackErrors({ id: "cats", name: "  " }, existing).name).toBe("写上表情包的名字");
+    expect(newPackErrors({ id: "cats", name: "名".repeat(65) }, existing).name).toContain("最多 64");
+  });
+
+  it("按文件名起草短码和名字：小写字母数字加包前缀，撞了加 -2，名字去掉扩展名", () => {
+    const drafts = draftsFromFiles("cats", ["Hello World.png", "hello-world.webp", "开心.png", "cats-hi.jpg"], new Set(["cats-cats-hi"]));
+    expect(drafts).toEqual([
+      { shortcode: "cats-hello-world", label: "Hello World" },
+      { shortcode: "cats-hello-world-2", label: "hello-world" },
+      { shortcode: "cats-3", label: "开心" },
+      { shortcode: "cats-cats-hi-2", label: "cats-hi" },
+    ]);
+    for (const draft of drafts) expect(newStickerErrors(draft, png(), new Set()), draft.shortcode).toEqual({});
+    const long = draftsFromFiles("cats", [`${"a".repeat(60)}.png`, `${"超长的名字".repeat(6)}.png`], new Set());
+    expect(long[0]!.shortcode.length).toBeLessThanOrEqual(40);
+    expect([...long[1]!.label].length).toBe(20);
+  });
+});
+
 describe("开发预览的论坛管理接口", () => {
   afterEach(() => vi.unstubAllGlobals());
   const as = (persona: string) => vi.stubGlobal("window", { location: { search: `?__persona=${persona}` } });
@@ -100,6 +126,8 @@ describe("开发预览的论坛管理接口", () => {
     expect(write("/api/console/forum/categories/c-exam", "PATCH", { visibility: "member" })).not.toThrow();
     expect(write("/api/console/forum/sticker-packs/yugc/stickers?shortcode=yugc-wave&label=x", "PUT")).toThrow(expect.objectContaining({ status: 409, code: "shortcode_taken" }));
     expect(write("/api/console/forum/sticker-packs/yugc/stickers?shortcode=yugc-new&label=x", "PUT")).not.toThrow();
+    expect(write("/api/console/forum/sticker-packs", "POST", { id: "yugc", name: "重复" })).toThrow(expect.objectContaining({ status: 409, code: "pack_id_taken" }));
+    expect(write("/api/console/forum/sticker-packs", "POST", { id: "cats", name: "猫猫" })).not.toThrow();
     as("owner_stale");
     expect(write("/api/console/forum/stickers/yugc-wave", "PATCH", { enabled: false })).toThrow(expect.objectContaining({ status: 403, code: "step_up_required" }));
     as("member");

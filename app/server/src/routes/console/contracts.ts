@@ -409,6 +409,11 @@ export const consoleContracts: RouteContracts = {
       }, ["packs"]),
     },
   },
+  "POST /api/console/forum/sticker-packs": {
+    querystring: object({}),
+    body: object({ id: stickerPackId, name: text(64, 1) }, ["id", "name"]),
+    response: { 201: object({ id: stickerPackId, name: text(64, 1) }, ["id", "name"]) },
+  },
   "PATCH /api/console/forum/sticker-packs/:id": {
     querystring: object({}), params: object({ id: stickerPackId }, ["id"]),
     body: object({ name: text(64, 1), sort: integer(0, 100000), enabled: { type: "boolean" } }),

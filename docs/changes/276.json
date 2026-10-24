@@ -1,95 +1,257 @@
 {
   "version": 1,
   "issue": 276,
-  "kind": "engineering",
-  "summary": "#276 合并后的发布修复：论坛镜像构建检查里「产物里不能有邮箱地址」对 CodeMirror 语法表误报，JS 包改用要求真实域名后缀的规则，内容文件保持原规则。",
+  "kind": "business",
+  "summary": "论坛回复框和表情面板照 B 站改（所有者 2026-10-24 22:11「底部太淡了，然后这个聊天回复框有普通聊天框模式，和b站一样，也有放大写长文的模式，然后就是空太多了」、表情包截图「我不知道都是代表什么，太糊了，看不清」、23:19「直接抄就行了」）：回复框默认是短抽屉，框下一行放表情、图片和取消、回复，「展开」写长文；表情面板一次一个包、图下写名字、底部按包分页签、带最近使用。控制台能新建表情包、一次传多张表情（「表情包我们的admin也可以管理的」）；服务端加 POST /api/console/forum/sticker-packs。",
   "applications": [
-    "forum"
+    "forum",
+    "console",
+    "server"
   ],
   "domains": [
-    "forum"
+    "forum",
+    "organization",
+    "audit",
+    "identity",
+    "permissions",
+    "platform",
+    "recruitment",
+    "feedback",
+    "competitions",
+    "gitlab",
+    "github"
   ],
-  "flows": [],
+  "flows": [
+    "flow:forum.posts.reply",
+    "flow:forum.uploads.create",
+    "flow:forum.stickers.list",
+    "flow:console.forum.stickers.list",
+    "flow:console.forum.stickers.create",
+    "flow:console.forum.sticker_packs.create",
+    "flow:console.forum.categories.list",
+    "flow:console.summary",
+    "flow:identity.callback"
+  ],
   "assessments": {
     "business": {
-      "status": "unchanged",
-      "reason": "只改镜像构建阶段的产物扫描，论坛页面、接口和数据都不变。",
+      "status": "changed",
+      "reason": "论坛回复框分短抽屉和展开两种，框下面多了「图片」按钮，「回复」改成实心；表情面板改成按包分页签、图下写名字、带最近使用；控制台论坛管理能新建表情包、批量加表情。",
       "evidence": [
-        "app/forum/Dockerfile",
-        "docs/services/forum/README.md"
+        "app/forum/app/components/ReplyComposer.vue",
+        "app/forum/app/components/PostEditor.vue",
+        "app/forum/app/components/StickerPicker.vue",
+        "app/console/src/pages/forum/StickersTab.vue",
+        "app/console/src/pages/forum/NewStickerDialog.vue"
       ]
     },
     "backend": {
-      "status": "unchanged",
-      "reason": "没有改服务端代码和接口。",
+      "status": "changed",
+      "reason": "新增 POST /api/console/forum/sticker-packs（forum.sticker.manage + step-up，id 重复 409，写审计 forum.sticker_pack.create），forum-store 加 createStickerPack；其余接口不变。",
       "evidence": [
-        "app/forum/Dockerfile"
+        "app/server/src/routes/console/forum.ts",
+        "app/server/src/routes/console/contracts.ts",
+        "app/server/src/lib/forum-store.ts"
       ]
     },
     "permissions": {
       "status": "unchanged",
-      "reason": "不涉及权限节点、登录或可见范围。",
+      "reason": "新接口沿用已有的 forum.sticker.manage 和 10 分钟内登录过的要求，没有新节点；论坛里的「图片」按钮沿用 forum.upload.image。",
       "evidence": [
-        "app/forum/Dockerfile"
+        "app/server/src/routes/console/forum.ts",
+        "app/forum/app/components/PostEditor.vue"
       ]
     },
     "data": {
-      "status": "unchanged",
-      "reason": "不读写业务数据，没有迁移。",
+      "status": "changed",
+      "reason": "新接口往已有的 forum_sticker_packs 表插一行，没有改表结构，不需要迁移。",
       "evidence": [
-        "app/forum/Dockerfile"
+        "app/server/src/lib/forum-store.ts"
       ]
     },
     "dependencies": {
       "status": "unchanged",
-      "reason": "没有新增或升级依赖，只用镜像里已有的 grep。",
+      "reason": "没有新增或升级依赖：服务端新接口只用已有的 better-sqlite3 语句和路由工具，论坛图标用已经装着的 Remix Icon 集合，组件都是 Tuffex 0.9.1 已有的。",
       "evidence": [
-        "app/forum/Dockerfile"
+        "app/server/src/routes/console/forum.ts",
+        "app/server/src/lib/forum-store.ts",
+        "app/forum/app/components/StickerPicker.vue"
       ]
     },
     "documentation": {
       "status": "changed",
-      "reason": "论坛服务文档的构建断言一段写明 JS 包用另一条邮箱规则和原因。",
+      "reason": "论坛文档写回复框两种模式和表情面板；控制台文档写新建表情包和批量上传；接口合同加新建表情包一节；ADOPTION.json 记上游文件改动和样式例外的范围。",
       "evidence": [
-        "docs/services/forum/README.md"
+        "docs/services/forum/README.md",
+        "docs/services/console/README.md",
+        "docs/services/server/endpoint-contracts.md",
+        "app/forum/ADOPTION.json"
       ]
     },
     "verification": {
       "status": "changed",
-      "reason": "镜像构建断言：内容文件仍用原规则，JS 包用要求同大小写字母后缀的规则；在 stage 90ac3e5e 的真实产物上核对两条都是 0 条，三个正例都能抓到，四段语法表误报都不再命中。",
+      "reason": "论坛 32 个测试文件 583 个用例、nuxt typecheck、测试类型检查、lint、样式检查都通过；新增 sticker-picker.test.ts 和回复框展开用例；服务端 forum-v2-endpoints 32 个用例通过；控制台 forum.test.ts 13 个用例和 vue-tsc 通过。本机隔离后端加论坛开发服务器、控制台样板数据下用浏览器在 1440 和 390 截了回复框、表情面板、展开、最近使用、新建表情包和批量上传。未验证：预发布真实数据，随 rc.21 截图。",
       "evidence": [
-        "app/forum/Dockerfile",
-        "docs/services/forum/README.md"
+        "app/forum/tests/sticker-picker.test.ts",
+        "app/forum/tests/post-editor-flows.test.ts",
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/console/forum.test.ts"
       ]
     },
     "delivery": {
       "status": "changed",
-      "reason": "修好之前 stage 上的论坛镜像构建不过，预发布 rc.20 发不出去。",
+      "reason": "论坛、控制台和服务端三个镜像都要随 rc.21 重新构建发布。",
       "evidence": [
-        "app/forum/Dockerfile"
+        "app/forum/app/components/ReplyComposer.vue",
+        "app/server/src/routes/console/forum.ts",
+        "app/console/src/pages/forum/StickersTab.vue"
       ]
     }
   },
   "coverage": [
     {
       "paths": [
-        "app/forum/Dockerfile",
+        "app/forum/app/components/ReplyComposer.vue",
+        "app/forum/app/components/PostEditor.vue",
+        "app/forum/uno.config.ts",
+        "app/forum/ADOPTION.json",
+        "app/forum/tests/post-editor-flows.test.ts",
         "docs/services/forum/README.md"
+      ],
+      "domains": [
+        "forum",
+        "organization",
+        "audit",
+        "identity",
+        "permissions",
+        "platform"
+      ],
+      "nodes": [
+        "application:forum",
+        "flow:forum.posts.reply",
+        "flow:forum.uploads.create"
+      ],
+      "reason": "回复框分短抽屉和展开两种，框下一行放表情、图片、取消、回复，编辑框浅底、回复按钮实心；上游文件改动和样式例外记进 ADOPTION.json。"
+    },
+    {
+      "paths": [
+        "app/forum/app/components/StickerPicker.vue",
+        "app/forum/tests/sticker-picker.test.ts"
       ],
       "domains": [
         "forum"
       ],
       "nodes": [
-        "application:forum"
+        "application:forum",
+        "flow:forum.stickers.list"
       ],
-      "reason": "论坛镜像的产物邮箱扫描拆成内容文件与 JS 包两条，服务文档同步写明。"
+      "reason": "表情面板照 B 站：一次一个包、图下写名字、底部页签、最近使用。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/console/forum.ts",
+        "app/server/src/lib/forum-store.ts",
+        "tests/server/forum-v2-endpoints.test.ts",
+        "docs/services/server/endpoint-contracts.md"
+      ],
+      "domains": [
+        "forum",
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "nodes": [
+        "application:server",
+        "flow:console.forum.sticker_packs.create"
+      ],
+      "reason": "新增新建表情包接口和用例，接口合同加一节，后面几条的源码行号跟着改。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/console/contracts.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "gitlab",
+        "github",
+        "identity",
+        "organization",
+        "permissions",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:server",
+        "flow:console.forum.sticker_packs.create",
+        "flow:console.summary",
+        "flow:identity.callback"
+      ],
+      "reason": "控制台路由共用的合同文件，登记的接口横跨这些业务域；本次只加 POST /api/console/forum/sticker-packs 一条合同，其余已登记合同不动。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/forum/StickersTab.vue",
+        "app/console/src/pages/forum/NewStickerDialog.vue",
+        "app/console/src/lib/forum.ts",
+        "app/console/src/mock/console.ts",
+        "tests/console/forum.test.ts",
+        "docs/services/console/README.md"
+      ],
+      "domains": [
+        "forum",
+        "identity",
+        "permissions",
+        "audit",
+        "competitions",
+        "feedback",
+        "github",
+        "organization",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:console.forum.stickers.list",
+        "flow:console.forum.stickers.create",
+        "flow:console.forum.sticker_packs.create",
+        "flow:console.forum.categories.list"
+      ],
+      "reason": "控制台新建表情包、一次传多张表情，短码和名字按文件名起草；样板数据同样拦重名。这几个控制台文件按控制台的归属登记在多个业务域下，本次只动论坛表情相关的部分。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/ownership.json",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md",
+        "docs/architecture/catalog/data-model.md"
+      ],
+      "domains": [
+        "forum",
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "nodes": [
+        "flow:console.forum.sticker_packs.create"
+      ],
+      "reason": "目录登记新建表情包的流程和证据，重新生成。"
     }
   ],
   "documents": [
-    "docs/services/forum/README.md"
+    "docs/services/forum/README.md",
+    "docs/services/console/README.md",
+    "docs/services/server/endpoint-contracts.md"
   ],
-  "tests": [],
-  "compatibility": "镜像内容、页面和接口不变；只影响构建时的检查。",
-  "migration": "不涉及迁移：这次只改论坛镜像构建阶段的 grep 检查，不碰数据库表、接口和配置。",
-  "rollback": "回滚这次提交即可；回滚后 stage 上的论坛镜像又会构建不过。"
+  "tests": [
+    "app/forum/tests/sticker-picker.test.ts",
+    "app/forum/tests/post-editor-flows.test.ts",
+    "tests/server/forum-v2-endpoints.test.ts",
+    "tests/console/forum.test.ts"
+  ],
+  "compatibility": "接口只加不改；已有表情、短码和帖子里的 :短码: 都不变；回复框发出去的内容格式不变。",
+  "migration": "不涉及迁移：新接口写已有的 forum_sticker_packs 表，表结构不变。",
+  "rollback": "revert 本 MR 的合并提交，换回上一版镜像；这期间新建的表情包和表情留在库里，旧版控制台照样能看到、改名、停用。"
 }

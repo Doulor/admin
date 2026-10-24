@@ -17,14 +17,16 @@ import NewStickerDialog from "./NewStickerDialog.vue";
 import { api, jsonBody } from "../../lib/http";
 import { useAction, useResource } from "../../lib/resource";
 import {
-  SORT_MAX, packDraftErrors, packDraftFrom, packPatch, packUses, sortedStickers, stickerDraftErrors, stickerDraftFrom, stickerPatch, takenShortcodes,
-  type PackDraft, type StickerDraft,
+  SORT_MAX, newPackErrors, packDraftErrors, packDraftFrom, packPatch, packUses, sortedStickers, stickerDraftErrors, stickerDraftFrom, stickerPatch, takenShortcodes,
+  type NewPackDraft, type PackDraft, type StickerDraft,
 } from "../../lib/forum";
 import type { ConsoleSticker, ConsoleStickerPack, ConsoleStickersResponse } from "../../lib/types";
 
 /**
  * 表情包与表情（#276）：停用的表情不再出现在论坛的表情面板里，帖子里已经写的短码按原文显示；
  * 回应过的计数保留。表情不删，不用了就停用。排序小的排前面。
+ * 「新建表情包」建一个空包（id 之后是包里短码的前缀），「加表情」一次可以传多张。
+ * 只上传有使用权的图片：B 站等平台的表情归平台和作者所有，不搬进来。
  */
 const list = useResource(() => api<ConsoleStickersResponse>("/api/console/forum/stickers"));
 const packs = computed(() => [...(list.data.value?.packs ?? [])].sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name)));
@@ -97,6 +99,27 @@ const savePack = useAction(async () => {
   packOpen.value = false;
 });
 
+// 新建表情包
+const newPackOpen = ref(false);
+const newPack = reactive<NewPackDraft>({ id: "", name: "" });
+const newPackFieldErrors = ref<Partial<Record<keyof NewPackDraft, string>>>({});
+function openNewPack() {
+  Object.assign(newPack, { id: "", name: "" });
+  newPackFieldErrors.value = {};
+  createPack.reset();
+  newPackOpen.value = true;
+}
+const createPack = useAction(async () => {
+  newPackFieldErrors.value = newPackErrors(newPack, new Set(packs.value.map(pack => pack.id)));
+  if (Object.keys(newPackFieldErrors.value).length) return;
+  const created = await api<{ id: string; name: string }>("/api/console/forum/sticker-packs", { method: "POST", ...jsonBody({ id: newPack.id.trim(), name: newPack.name.trim() }) });
+  toast({ title: `已建好「${created.name}」，接着往里加表情`, variant: "success" });
+  newPackOpen.value = false;
+  await list.reload();
+  const pack = packs.value.find(item => item.id === created.id);
+  if (pack) addTo(pack);
+});
+
 const adding = ref(false);
 const addingTo = ref<ConsoleStickerPack | null>(null);
 function addTo(pack: ConsoleStickerPack) {
@@ -110,8 +133,12 @@ function addTo(pack: ConsoleStickerPack) {
     <ErrorAlert v-if="toggle.error.value" :error="toggle.error.value" @close="toggle.reset()" />
     <ErrorPanel v-if="list.error.value" :error="list.error.value" :retry="list.reload" />
     <LoadingBlock v-else-if="!list.data.value" :lines="8" />
-    <TxEmptyState v-else-if="!packs.length" title="还没有表情包" description="第一套「极客娘」随服务端迁移种进库里；迁移跑过之后会出现在这里。" size="small" />
-    <template v-else>
+    <div v-if="list.data.value && !list.error.value" class="tab-head">
+      <span class="cell-sub">论坛的表情面板按这里的顺序一包一个页签，每张图下面写名字。只上传有使用权的图片。</span>
+      <TxButton variant="primary" icon="i-carbon-add" @click="openNewPack">新建表情包</TxButton>
+    </div>
+    <TxEmptyState v-if="list.data.value && !list.error.value && !packs.length" title="还没有表情包" description="第一套「极客娘」随服务端迁移种进库里；也可以点「新建表情包」自己建一个。" size="small" />
+    <template v-else-if="list.data.value && !list.error.value">
       <TxCard v-for="pack in packs" :key="pack.id" :padding="0" class="pack">
         <template #header>
           <div class="pack__head">
@@ -199,6 +226,29 @@ function addTo(pack: ConsoleStickerPack) {
       </template>
     </TxModal>
 
+    <TxModal v-model="newPackOpen" title="新建表情包" width="min(92vw, 480px)">
+      <TxForm :model="newPack" label-position="top">
+        <div class="form-grid edit-form">
+          <TxFormItem label="名字" class="wide">
+            <TxInput v-model="newPack.name" class="fill-width" placeholder="例如：猫猫" />
+            <span v-if="newPackFieldErrors.name" class="field-error">{{ newPackFieldErrors.name }}</span>
+          </TxFormItem>
+          <TxFormItem label="id" class="wide">
+            <TxInput v-model="newPack.id" class="fill-width mono" spellcheck="false" autocomplete="off" placeholder="例如：cats" />
+            <span v-if="newPackFieldErrors.id" class="field-error">{{ newPackFieldErrors.id }}</span>
+            <span v-else class="field-hint">小写字母、数字和 -；包里表情的短码会以「{{ newPack.id.trim() || "id" }}-」开头，建好后不能改。</span>
+          </TxFormItem>
+        </div>
+        <ErrorAlert v-if="createPack.error.value" :error="createPack.error.value" @close="createPack.reset()" />
+      </TxForm>
+      <template #footer>
+        <div class="dialog-actions">
+          <TxButton variant="secondary" @click="newPackOpen = false">取消</TxButton>
+          <TxButton variant="primary" :loading="createPack.pending.value" @click="createPack.execute()">新建</TxButton>
+        </div>
+      </template>
+    </TxModal>
+
     <NewStickerDialog v-model:open="adding" :pack="addingTo" :taken="taken" @created="list.reload()" />
   </div>
 </template>
@@ -209,6 +259,18 @@ function addTo(pack: ConsoleStickerPack) {
   flex-direction: column;
   gap: 16px;
   padding: 16px;
+}
+.tab-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.field-hint {
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--tx-text-color-secondary);
 }
 .pack__head {
   display: flex;
@@ -260,6 +322,7 @@ function addTo(pack: ConsoleStickerPack) {
   justify-content: flex-end;
   gap: 8px;
 }
+.tab-head :deep(button),
 .pack__actions :deep(button),
 .row-actions :deep(button),
 .dialog-actions :deep(button) {

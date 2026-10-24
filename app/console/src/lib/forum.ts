@@ -96,3 +96,36 @@ export const takenShortcodes = (packs: ConsoleStickerPack[]) => new Set(packs.fl
 /** 新增表情：请求体是图片本身，短码和名字在查询串里。 */
 export const stickerUploadPath = (packId: string, draft: NewStickerDraft) =>
   `/api/console/forum/sticker-packs/${encodeURIComponent(packId)}/stickers?${new URLSearchParams({ shortcode: draft.shortcode.trim(), label: draft.label.trim() })}`;
+
+/** 表情包 id（#276）：小写字母、数字和 -，1 到 40 位，之后当这个包里表情短码的前缀，建好后不能改。 */
+export const PACK_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
+export type NewPackDraft = { id: string; name: string };
+
+export function newPackErrors(draft: NewPackDraft, existing: ReadonlySet<string>): Partial<Record<keyof NewPackDraft, string>> {
+  const errors: Partial<Record<keyof NewPackDraft, string>> = {};
+  const id = draft.id.trim();
+  if (!PACK_ID.test(id)) errors.id = "id 1 到 40 位，只用小写字母、数字和 -，开头不能是 -";
+  else if (existing.has(id)) errors.id = "这个 id 已经有表情包在用了";
+  const name = draft.name.trim();
+  if (!name) errors.name = "写上表情包的名字";
+  else if (name.length > PACK_NAME_MAX) errors.name = `名字最多 ${PACK_NAME_MAX} 个字`;
+  return errors;
+}
+
+/**
+ * 批量上传时按文件名起草短码和名字：短码是「包 id-文件名里的小写字母数字」，
+ * 和已有的、同一批里前面的撞了就在后面加 -2、-3；名字是去掉扩展名的文件名，最多 20 个字。
+ * 起草的只是默认值，上传前每一行都还能改。
+ */
+export function draftsFromFiles(packId: string, names: readonly string[], taken: ReadonlySet<string>): NewStickerDraft[] {
+  const used = new Set(taken);
+  return names.map((name, index) => {
+    const base = name.replace(/\.[^.]+$/, "").trim();
+    const slug = base.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || String(index + 1);
+    const stem = `${packId}-${slug}`.slice(0, 36).replace(/-+$/, "");
+    let shortcode = stem;
+    for (let n = 2; used.has(shortcode); n++) shortcode = `${stem}-${n}`;
+    used.add(shortcode);
+    return { shortcode, label: [...(base || slug)].slice(0, STICKER_LABEL_MAX).join("") };
+  });
+}
