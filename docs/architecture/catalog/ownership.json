@@ -7125,6 +7125,14 @@
         {
           "path": "app/server/src/lib/db.ts",
           "needle": "addColumn(\"competition_teams\", \"plaza_recruiting\","
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/HubDialog.tsx",
+          "needle": "export function PlazaDialog("
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/TeamHub.tsx",
+          "needle": "onClick={() => open({ kind: \"plaza\", team })}"
         }
       ],
       "tests": [
@@ -7178,6 +7186,10 @@
         {
           "path": "app/server/src/lib/competition-signup-store.ts",
           "needle": "function withdrawPlaza("
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/TeamHub.tsx",
+          "needle": "act(hubPaths.team(team.id, \"plaza\"), \"DELETE\", undefined, \"已不在组队广场招人。\")"
         }
       ],
       "tests": [
@@ -7239,6 +7251,18 @@
         {
           "path": "app/server/src/services.ts",
           "needle": "import { createCompetitionTeamPlaza } from \"./lib/competition-team-plaza.js\";"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/competitions/TeamPlaza.tsx",
+          "needle": "useMemberRead(account === \"signed_in\" ? plazaPath({ competition, kind, keyword }) : null, readPlaza)"
+        },
+        {
+          "path": "app/web/sites/portal/lib/competitionHub.ts",
+          "needle": "export function plazaPath(filter: { competition: string | null; kind: PlazaKind | null; keyword: string }): string {"
+        },
+        {
+          "path": "app/server/src/middleware/bearer-auth.ts",
+          "needle": "{ prefix: \"/api/team-plaza\", scope: \"competition\" },"
         }
       ],
       "tests": [
