@@ -46,10 +46,10 @@ describe('POST /api/events（访客也能调）', () => {
   it('登录的人按账号记录，不记访客编号', async () => {
     const { app } = await setup();
     const sid = signIn(app, 'alice', 101);
-    const response = await app.inject({ method: 'POST', url: '/api/events', headers: { cookie: `sid=${sid}` }, payload: { events: [{ action: 'forum.theme.change', meta: { theme: 'dark' } }] } });
+    const response = await app.inject({ method: 'POST', url: '/api/events', headers: { cookie: `sid=${sid}` }, payload: { events: [{ action: 'page.view', target_type: 'page', target_id: '/forum' }] } });
     expect(response.statusCode).toBe(200);
     const accountId = accountIdOf(app, 'alice');
-    expect(activityRows(app.services.storage.db)).toEqual([{ account_id: accountId, visitor_id: null, surface: 'portal', action: 'forum.theme.change', outcome: 'ok', meta: JSON.stringify({ theme: 'dark' }) }]);
+    expect(activityRows(app.services.storage.db)).toEqual([{ account_id: accountId, visitor_id: null, surface: 'portal', action: 'page.view', outcome: 'ok', meta: '{}' }]);
   });
 
   it('不在白名单里的动作直接丢弃，合并计一条 events.rejected，不逐条记垃圾数据', async () => {
@@ -65,6 +65,32 @@ describe('POST /api/events（访客也能调）', () => {
     const rejectedRow = rows.find(row => row.action === 'events.rejected')!;
     expect(rejectedRow.outcome).toBe('denied');
     expect(JSON.parse(rejectedRow.meta)).toEqual({ count: 2, actions: ['evil.script', 'another.unknown'] });
+  });
+
+  it('论坛、控制台各自上报各自的白名单，互不混用（#274：surface 不传按门户算）', async () => {
+    const { app } = await setup();
+    const forum = await app.inject({
+      method: 'POST', url: '/api/events',
+      payload: { surface: 'forum', events: [{ action: 'forum.theme.change', meta: { theme: 'dark' } }, { action: 'forum.sticker.use', target_type: 'sticker', target_id: 'cat_wave' }, { action: 'os.boot.played' }] },
+    });
+    expect(forum.statusCode).toBe(200);
+    expect(forum.json()).toEqual({ accepted: 2, rejected: 1 }); // os.boot.played 不在论坛名单里，被丢弃
+    const console_ = await app.inject({
+      method: 'POST', url: '/api/events',
+      payload: { surface: 'console', events: [{ action: 'page.view', target_type: 'route', target_id: 'activity' }, { action: 'forum.theme.change' }] },
+    });
+    expect(console_.statusCode).toBe(200);
+    expect(console_.json()).toEqual({ accepted: 1, rejected: 1 }); // forum.theme.change 不在控制台名单里
+    const rows = activityRows(app.services.storage.db);
+    expect(rows.filter(row => row.outcome === 'ok').map(row => ({ surface: row.surface, action: row.action }))).toEqual([
+      { surface: 'forum', action: 'forum.theme.change' }, { surface: 'forum', action: 'forum.sticker.use' }, { surface: 'console', action: 'page.view' },
+    ]);
+  });
+
+  it('不认识的 surface 按契约拒绝', async () => {
+    const { app } = await setup();
+    const response = await app.inject({ method: 'POST', url: '/api/events', payload: { surface: 'cli', events: [{ action: 'page.view' }] } });
+    expect(response.statusCode).toBe(400);
   });
 
   it('批次最多 20 条、必须至少 1 条、动作名之外的字段按契约拒绝', async () => {
