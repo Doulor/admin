@@ -25,7 +25,7 @@
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "论坛多了「使用说明」分类和 17 篇说明（含目录），按可见范围给访客、登录用户和成员看；说明内容由仓库维护。",
+      "reason": "论坛多了「使用说明」分类和 26 篇说明（含目录），按可见范围给访客、登录用户和成员看；说明内容由仓库维护。",
       "evidence": [
         "app/forum/content/guides/guides-index.md",
         "app/forum/content/curation.json"
@@ -48,7 +48,7 @@
     },
     "data": {
       "status": "changed",
-      "reason": "forum_topics、forum_posts 多 17 行（t900–t916、body-900–body-916），作者是官方账号；没有表结构变化，不需要迁移。",
+      "reason": "forum_topics、forum_posts 多 26 行（t900–t925、body-900–body-925），作者是官方账号；没有表结构变化，不需要迁移。",
       "evidence": [
         "app/server/src/lib/forum-store.ts"
       ]
