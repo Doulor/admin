@@ -1,6 +1,7 @@
-// scripts/contest-site.mjs（#278）：pack 把目录打成能过服务端校验的 zip，不合规时不写文件、退出码 1；check 只校验。
+// scripts/contest-site.mjs（#278）：pack 把目录打成能过服务端校验的 zip，不合规时不写文件、退出码 1；
+// check 只校验；dev 起一个带示例数据的本地预览服务，不连后端和数据库。
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync, existsSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -9,6 +10,20 @@ import { checkSitePackage } from "../../app/server/src/lib/site-package";
 const SCRIPT = new URL("../../scripts/contest-site.mjs", import.meta.url).pathname;
 const dirs: string[] = [];
 const run = (...args: string[]) => spawnSync(process.execPath, [SCRIPT, ...args], { encoding: "utf8" });
+
+/** 起一个 `dev` 子进程，等它打印「预览已启动」再往下走；测试结束要 `stop()`，不留下常驻进程。 */
+async function startDev(args: string[]): Promise<{ port: number; stop: () => void }> {
+  const port = 5600 + (process.pid % 300);
+  const child = spawn(process.execPath, [SCRIPT, "dev", ...args, "--port", String(port)], { stdio: ["ignore", "pipe", "pipe"] });
+  let out = "";
+  await new Promise<void>((pass, fail) => {
+    const onData = (chunk: Buffer) => { out += chunk.toString(); if (out.includes("预览已启动")) { child.stdout!.off("data", onData); pass(); } };
+    child.stdout!.on("data", onData);
+    child.on("exit", code => fail(new Error(`dev 子进程提前退出，退出码 ${code}：${out}`)));
+    setTimeout(() => fail(new Error(`dev 子进程 3 秒内没打印「预览已启动」：${out}`)), 3_000);
+  });
+  return { port, stop: () => child.kill() };
+}
 
 function site(extra: Record<string, string> = {}): string {
   const root = mkdtempSync(join(tmpdir(), "contest-site-"));
@@ -70,5 +85,46 @@ describe("scripts/contest-site.mjs", () => {
     const broken = run("check", notZip);
     expect(broken.status).toBe(1);
     expect(broken.stderr).toContain("不是 zip 文件");
+  });
+
+  it("dev：静态文件、SDK 与公开接口的示例数据一起服务，不用后端和数据库", async () => {
+    const dir = site();
+    const dev = await startDev([dir, "--variant", "team", "--prizes"]);
+    try {
+      const page = await fetch(`http://127.0.0.1:${dev.port}/`);
+      expect(await page.text()).toContain("<title>t</title>");
+      const sdk = await fetch(`http://127.0.0.1:${dev.port}/sdk/competition/v1.js`);
+      expect(sdk.headers.get("content-type")).toContain("text/javascript");
+      expect(await sdk.text()).toContain("createClient");
+
+      const competition = await (await fetch(`http://127.0.0.1:${dev.port}/api/public/competitions/whatever-id`)).json();
+      expect(competition).toMatchObject({ kind: "internal", signup: { participation: "team" } });
+      expect(competition.prizes.length).toBeGreaterThan(0);
+      const teams = await (await fetch(`http://127.0.0.1:${dev.port}/api/public/competitions/whatever-id/teams`)).json();
+      expect(teams.enabled).toBe(true);
+      expect(teams.teams.length).toBeGreaterThan(0);
+      const participants = await (await fetch(`http://127.0.0.1:${dev.port}/api/public/competitions/whatever-id/participants`)).json();
+      expect(participants.items.length).toBeGreaterThan(0);
+      expect(participants.items.some((item: { department: unknown }) => item.department === null)).toBe(true);
+
+      expect((await fetch(`http://127.0.0.1:${dev.port}/missing.html`)).status).toBe(404);
+      // sitePathProblem 同一套判断：目录外、不在站点包扩展名白名单里的路径一律当不存在
+      expect((await fetch(`http://127.0.0.1:${dev.port}/etc/passwd`)).status).toBe(404);
+    } finally {
+      dev.stop();
+    }
+  });
+
+  it("dev：默认个人赛、不带奖励——enabled 为 false、prizes 为空", async () => {
+    const dir = site();
+    const dev = await startDev([dir]);
+    try {
+      const competition = await (await fetch(`http://127.0.0.1:${dev.port}/api/public/competitions/x`)).json();
+      expect(competition.prizes).toEqual([]);
+      const teams = await (await fetch(`http://127.0.0.1:${dev.port}/api/public/competitions/x/teams`)).json();
+      expect(teams).toMatchObject({ enabled: false, teams: [] });
+    } finally {
+      dev.stop();
+    }
   });
 });
