@@ -5,6 +5,7 @@ import { TxAlert } from "@talex-touch/tuffex/alert";
 import { TxButton } from "@talex-touch/tuffex/button";
 import { TxForm, TxFormItem } from "@talex-touch/tuffex/form";
 import { TxInput } from "@talex-touch/tuffex/input";
+import { TxDataTable } from "@talex-touch/tuffex/data-table";
 import { TxTextarea } from "@talex-touch/tuffex/textarea";
 import { toast } from "@talex-touch/tuffex/utils";
 import ErrorPanel from "../../components/ErrorPanel.vue";
@@ -14,12 +15,14 @@ import { api, jsonBody } from "../../lib/http";
 import { fmtDate } from "../../lib/format";
 import { useAction, useResource } from "../../lib/resource";
 import {
-  GRADE_KEYS, GRADE_TEXT, emptyPrizeRow, rulesErrors, rulesForm, rulesPayload, rulesValid, type RulesErrors, type RulesForm,
+  CORE_HINT, CORE_TEXT, GRADE_KEYS, GRADE_TEXT, emptyPrizeRow, rubricRows, rulesErrors, rulesForm, rulesPayload, rulesValid,
+  type RubricRow, type RulesErrors, type RulesForm,
 } from "../../lib/competition-contest";
 import type { CompetitionRules } from "../../lib/types";
 
 /**
- * 计分与奖项（#278）：年级系数（加分乘它，按记分那一刻的年级，记下后不再改）、可选的奖项、从哪些 GitLab 项目收贡献。
+ * 计分与奖项（#278）：两档基础分表与防刷规则（只读，写在服务端 competition-rubric.ts）、年级系数（加分乘它，按记分那一刻
+ * 的年级，记下后不再改）、可选的奖项、从哪些 GitLab 项目收贡献。
  * 看要 competition.manage 或 competition.score.review，改要 competition.manage 加刚登录过；定榜后不能改。
  */
 const props = defineProps<{ competitionId: string; canEdit: boolean }>();
@@ -27,13 +30,26 @@ const emit = defineEmits<{ changed: [] }>();
 
 const path = computed(() => `/api/console/competitions/${encodeURIComponent(props.competitionId)}/rules`);
 const rules = useResource(() => api<CompetitionRules>(path.value), [() => props.competitionId]);
-const form = reactive<RulesForm>({ factors: { year1: "1.5", year2: "1.3", year3: "1.1", year4: "1.0", graduated: "1.0", none: "1.0" }, prizes: [], projects: "" });
+const form = reactive<RulesForm>({ factors: { year1: "", year2: "", year3: "", year4: "", graduated: "", none: "" }, prizes: [], projects: "" });
 const errors = ref<RulesErrors>({ factors: {}, prizes: [] });
 watch(() => rules.data.value, value => {
   if (!value) return;
   Object.assign(form, rulesForm(value));
   errors.value = { factors: {}, prizes: [] };
 }, { immediate: true });
+
+const rubric = computed(() => (rules.data.value ? rubricRows(rules.data.value.scoring) : []));
+const rubricColumns = [
+  { key: "kind", title: "类型", width: 80 },
+  { key: "importance", title: "重要程度", width: 96 },
+  ...(["edge", "business", "core"] as const).map(key => ({ key, title: `${CORE_TEXT[key]}（${CORE_HINT[key]}）` })),
+];
+const trivialRule = computed(() => {
+  const scoring = rules.data.value?.scoring;
+  if (!scoring) return "";
+  const rest = scoring.trivial_percent === 0 ? "之后的记 0 分" : `之后的按 ${scoring.trivial_percent}% 算`;
+  return `防刷：同一个人在同一周（北京时间周一 0 点起）里「一般 × 边缘」的记录只照算前 ${scoring.trivial_per_week} 条，${rest}，记录照留。作弊扣 ${-scoring.penalty} 分，不乘系数。`;
+});
 
 const locked = computed(() => rules.data.value?.finalized ?? false);
 const editable = computed(() => props.canEdit && !locked.value);
@@ -66,9 +82,18 @@ const save = useAction(async () => {
     <TxAlert v-if="locked" type="info" title="已定榜">名次和兑奖码已经发出，规则不能再改。要改先在「定榜」里撤销定榜。</TxAlert>
     <TxAlert v-else-if="!canEdit" type="info" title="只能查看">改规则要「管理比赛」权限。</TxAlert>
 
+    <h3 class="subhead">基础分</h3>
+    <p class="muted lead">标记「有用」时选这条对项目的重要程度和核心度，基础分查下表；同样两档，MR 比 Issue 高。不看代码行数、文件数和提交数。</p>
+    <TxDataTable style="--table-min: 640px" :columns="rubricColumns" :data="rubric" row-key="key" table-layout="fixed" scroll-x class="rubric">
+      <template #cell-edge="{ row }: { row: RubricRow }"><span class="mono">{{ row.edge }}</span></template>
+      <template #cell-business="{ row }: { row: RubricRow }"><span class="mono">{{ row.business }}</span></template>
+      <template #cell-core="{ row }: { row: RubricRow }"><span class="mono">{{ row.core }}</span></template>
+    </TxDataTable>
+    <p class="muted lead rule">{{ trivialRule }}</p>
+
     <TxForm :model="form" label-position="top" class="rules-form">
       <h3 class="subhead">年级系数</h3>
-      <p class="muted lead">只有被标记「有用」的 Issue 和 MR 加分，加分乘作者在记分那一刻的年级系数；扣分不乘。改了系数只影响之后记的分。</p>
+      <p class="muted lead">只有被标记「有用」的 Issue 和 MR 加分，基础分乘作者在记分那一刻的年级系数；扣分不乘。低年级系数高，是为了鼓励大一、大二参加；默认值按模拟选的（大一 3.5、大二 2.2、大三 1.4），可填 0.5 到 5。改了系数只影响之后记的分。</p>
       <div class="factors">
         <TxFormItem v-for="key in GRADE_KEYS" :key="key" :label="GRADE_TEXT[key]">
           <TxInput v-model="form.factors[key]" inputmode="decimal" :disabled="!editable" class="fill-width" :aria-label="`${GRADE_TEXT[key]}的系数`" />
@@ -115,6 +140,12 @@ const save = useAction(async () => {
 
 <style scoped src="./panel.css"></style>
 <style scoped>
+.rubric {
+  margin-bottom: 8px;
+}
+.rule {
+  margin-top: 8px;
+}
 .lead {
   margin: -2px 0 10px;
   font-size: 0.8125rem;

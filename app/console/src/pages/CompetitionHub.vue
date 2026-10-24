@@ -26,17 +26,18 @@ import CandidatesPanel from "./competition/CandidatesPanel.vue";
 import RulesPanel from "./competition/RulesPanel.vue";
 import SitePanel from "./competition/SitePanel.vue";
 import FinalPanel from "./competition/FinalPanel.vue";
+import ScoreLevels from "./competition/ScoreLevels.vue";
 import { api, jsonBody } from "../lib/http";
 import { useSession } from "../lib/session";
 import { vSnapIndicator } from "../lib/tabs";
-import { GRADE_TEXT, factorText } from "../lib/competition-contest";
+import { eventPointsNote } from "../lib/competition-contest";
 import { fmtDate } from "../lib/format";
 import { useAction, useResource } from "../lib/resource";
 import { KIND_TEXT, STATUS_TEXT } from "../lib/competitions";
 import {
   PARTICIPATION_TEXT, ROLE_TEXT, SCORE_KIND_TEXT, SCORING_TEXT, SIGNUP_STATUS_TEXT, TEAM_STATUS_TEXT,
-  defaultPoints, emptyScoreForm, exportRateLimitNotice, matchSignups, rosterCsvName, rosterCsvPath, rosterStats, scoreErrors, scorePayload,
-  scorePointsHint, scoreTargetText, scoreTargetUrl, settingsErrors, settingsForm, settingsPayload, teamLeader,
+  emptyScoreForm, exportRateLimitNotice, matchSignups, rosterCsvName, rosterCsvPath, rosterStats, scoreErrors, scorePayload,
+  scoreTargetText, scoreTargetUrl, settingsErrors, settingsForm, settingsPayload, teamLeader,
   type ScoreErrors, type ScoreForm, type SettingsErrors, type SettingsForm,
 } from "../lib/competition-hub";
 import type { CompetitionRecord, CompetitionRoster, CompetitionRules, RosterSignup, RosterTeam, ScoreEvent, ScoreEventList } from "../lib/types";
@@ -156,10 +157,11 @@ const score = reactive<ScoreForm>(emptyScoreForm());
 const scoreErrorView = ref<ScoreErrors>({});
 const candidateQuery = ref("");
 watch(() => score.kind, kind => {
-  score.points = String(defaultPoints(kind));
   if (kind === "penalty") {
     score.repo = "";
     score.number = "";
+    score.importance = "";
+    score.core = "";
   }
 });
 
@@ -188,7 +190,7 @@ const scoreColumns = [
   { key: "person", title: "选手", width: 180 },
   { key: "kind", title: "类型", width: 108 },
   { key: "target", title: "仓库", width: 220 },
-  { key: "points", title: "分值", width: 120 },
+  { key: "points", title: "分值", width: 200 },
   { key: "reason", title: "说明" },
   { key: "created_by", title: "登记人", width: 140 },
   { key: "status", title: "状态", width: 150 },
@@ -380,7 +382,7 @@ const teamTone = (team: RosterTeam) => (team.status === "locked" ? "success" : t
             <TxCard v-else class="section">
               <div class="section-head">
                 <h2>积分</h2>
-                <span class="muted">手动登记 Issue、合入的 MR 与作弊扣分，加分乘记分那一刻的年级系数；GitLab 收来的在「待确认贡献」里确认。记错了撤销，记录保留。</span>
+                <span class="muted">手动登记 Issue、合入的 MR 与作弊扣分。分数不手填：选重要程度和核心度查表，再乘记分那一刻的年级系数；GitLab 收来的在「待确认贡献」里确认。记错了撤销，记录保留。</span>
               </div>
 
               <template v-if="scoringEnabled && !isExternal">
@@ -407,11 +409,12 @@ const teamTone = (team: RosterTeam) => (team.status === "locked" ? "success" : t
                         <span v-if="scoreErrorView.number" class="field-error">{{ scoreErrorView.number }}</span>
                       </TxFormItem>
                     </template>
-                    <TxFormItem :label="score.kind === 'penalty' ? '分值（固定 −50）' : '分值'">
-                      <TxInput v-model="score.points" type="number" :disabled="score.kind === 'penalty'" class="fill-width" />
-                      <span class="field-hint">{{ scorePointsHint(score.kind) }}</span>
-                      <span v-if="scoreErrorView.points" class="field-error">{{ scoreErrorView.points }}</span>
-                    </TxFormItem>
+                    <ScoreLevels
+                      :competition-id="id" :account-id="score.accountId" :kind="score.kind" :errors="scoreErrorView"
+                      :importance="score.importance" :core="score.core"
+                      @update:importance="value => { score.importance = value; scoreErrorView.importance = undefined; }"
+                      @update:core="value => { score.core = value; scoreErrorView.core = undefined; }"
+                    />
                     <TxFormItem label="说明" class="wide">
                       <TxTextarea v-model="score.reason" :rows="2" placeholder="写清合入的改动或扣分原因，≤200 字。" />
                       <span v-if="scoreErrorView.reason" class="field-error">{{ scoreErrorView.reason }}</span>
@@ -430,7 +433,7 @@ const teamTone = (team: RosterTeam) => (team.status === "locked" ? "success" : t
               <h3 class="subhead">登记记录</h3>
               <ErrorPanel v-if="events.error.value" :error="events.error.value" :retry="events.reload" />
               <LoadingBlock v-else-if="!events.data.value" :lines="4" />
-              <TxDataTable v-else style="--table-min: 1024px" :columns="scoreColumns" :data="events.data.value.events" row-key="id" table-layout="fixed" scroll-x>
+              <TxDataTable v-else style="--table-min: 1104px" :columns="scoreColumns" :data="events.data.value.events" row-key="id" table-layout="fixed" scroll-x>
                 <template #cell-created_at="{ row }: { row: ScoreEvent }">
                   <span class="muted">{{ fmtDate(row.created_at) }}</span>
                 </template>
@@ -448,7 +451,7 @@ const teamTone = (team: RosterTeam) => (team.status === "locked" ? "success" : t
                 <template #cell-points="{ row }: { row: ScoreEvent }">
                   <span class="cell-stack">
                     <span class="mono points" :class="row.points > 0 ? 'points--positive' : 'points--negative'">{{ row.points > 0 ? `+${row.points}` : row.points }}</span>
-                    <span v-if="row.points > 0 && row.grade_factor !== null && row.grade_factor !== 100" class="cell-sub">{{ row.grade ? GRADE_TEXT[row.grade] : "" }} ×{{ factorText(row.grade_factor) }} = {{ row.weighted_points }}</span>
+                    <span v-if="eventPointsNote(row)" class="cell-sub">{{ eventPointsNote(row) }}</span>
                   </span>
                 </template>
                 <template #cell-reason="{ row }: { row: ScoreEvent }">

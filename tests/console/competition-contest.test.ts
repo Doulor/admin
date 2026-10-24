@@ -2,16 +2,18 @@
 // 和 competition-hub.test.ts 一样不挂载 Vue 页面，只测 lib/competition-contest.ts 与 mock 的 GET。
 import { describe, expect, it } from "vitest";
 import {
-  GRADE_KEYS, acceptPointsError, codeError, collectSummary, emptyPrizeRow, factorText, fmtBytes, normalizeCode, prizeText, redeemFailure,
-  rejectReport, rulesErrors, rulesForm, rulesPayload, rulesValid, siteFileError, slugError, versionState, type RulesForm,
+  GRADE_KEYS, codeError, collectSummary, coreOptions, emptyPrizeRow, eventPointsNote, factorText, fmtBytes, levelsText, normalizeCode,
+  previewQuery, previewText, prizeText, redeemFailure, rejectReport, rubricRows, rulesErrors, rulesForm, rulesPayload, rulesValid,
+  siteFileError, slugError, versionState, type RulesForm,
 } from "../../app/console/src/lib/competition-contest";
 import { ApiError } from "../../app/console/src/lib/http";
 import { routeConsole } from "../../app/console/src/mock/console";
 import { normalizePrizeCode } from "../../app/server/src/lib/competition-prizes";
 import { rulesBody } from "../../app/server/src/lib/competition-contract";
+import { scoringView } from "../../app/server/src/lib/competition-rubric";
 
 const RULES = {
-  grade_factors: { year1: 150, year2: 130, year3: 110, year4: 100, graduated: 100, none: 100 },
+  grade_factors: { year1: 350, year2: 220, year3: 140, year4: 100, graduated: 100, none: 100 },
   prizes: [{ from: 1, to: 1, amount_cny: 700, title: "GPT 5x 订阅的价格" }, { from: 2, to: 3, amount_cny: 140, title: "GPT Plus 订阅的价格" }, { from: 4, to: 8, amount_cny: 70, title: "" }],
   gitlab_projects: ["geek/admin"],
 };
@@ -20,18 +22,18 @@ const form = (patch: Partial<RulesForm> = {}): RulesForm => ({ ...rulesForm(RULE
 describe("rules form", () => {
   it("round-trips the owner's first-period rules without changing a value", () => {
     const value = rulesForm(RULES);
-    expect(value.factors).toEqual({ year1: "1.5", year2: "1.3", year3: "1.1", year4: "1.0", graduated: "1.0", none: "1.0" });
+    expect(value.factors).toEqual({ year1: "3.5", year2: "2.2", year3: "1.4", year4: "1.0", graduated: "1.0", none: "1.0" });
     expect(rulesValid(rulesErrors(value))).toBe(true);
     expect(rulesPayload(value)).toEqual(RULES);
     expect([factorText(150), factorText(100), factorText(125)]).toEqual(["1.5", "1.0", "1.25"]);
   });
 
-  it("keeps factors between 0.5 and 3 with at most two decimals, like the server's 50–300 percent", () => {
+  it("keeps factors between 0.5 and 5 with at most two decimals, like the server's 50–500 percent", () => {
     const factor = (value: string) => rulesErrors(form({ factors: { ...form().factors, year1: value } })).factors.year1;
-    for (const ok of ["0.5", "3", "1.25", " 2 "]) expect(factor(ok), ok).toBeUndefined();
-    for (const bad of ["0.49", "3.01", "1.255", "", "abc", "-1"]) expect(factor(bad), bad).toBeTruthy();
+    for (const ok of ["0.5", "5", "1.25", " 2 ", "3.5"]) expect(factor(ok), ok).toBeUndefined();
+    for (const bad of ["0.49", "5.01", "1.255", "", "abc", "-1"]) expect(factor(bad), bad).toBeTruthy();
     const server = rulesBody.properties.grade_factors.properties.year1;
-    expect([server.minimum, server.maximum]).toEqual([50, 300]);
+    expect([server.minimum, server.maximum]).toEqual([50, 500]);
     expect(rulesPayload(form({ factors: { ...form().factors, year2: "1.25" } })).grade_factors.year2).toBe(125);
   });
 
@@ -66,12 +68,33 @@ describe("rules form", () => {
 });
 
 describe("candidates", () => {
-  it("keeps accepted points inside the record's range", () => {
-    expect(acceptPointsError("pr", "15")).toBeNull();
-    expect(acceptPointsError("pr", "100")).toBeNull();
-    expect(acceptPointsError("pr", "101")).toContain("15–100");
-    expect(acceptPointsError("issue", "4")).toContain("5–30");
-    expect(acceptPointsError("issue", "7.5")).toBeTruthy();
+  it("names the two levels, and previews only once a person and both levels are picked", () => {
+    expect(levelsText("important", "business")).toBe("重要 × 业务");
+    expect(levelsText(null, "core")).toBe("");
+    expect(coreOptions[0]).toEqual({ value: "edge", label: "边缘（文档、样式、小脚本）" });
+    expect(previewQuery({ accountId: "", kind: "pr", importance: "normal", core: "edge" })).toBeNull();
+    expect(previewQuery({ accountId: "a1", kind: "pr", importance: "normal", core: "" })).toBeNull();
+    expect(previewQuery({ accountId: "a1", kind: "pr", importance: "normal", core: "edge", at: 5 })).toBe("account_id=a1&kind=pr&importance=normal&core=edge&at=5");
+    expect(previewQuery({ accountId: "a1", kind: "penalty", importance: "", core: "" })).toBe("account_id=a1&kind=penalty");
+  });
+
+  it("explains a preview and an event's points in one line", () => {
+    expect(previewText("pr", { points: 25, grade: "year1", grade_factor: 350, damp_percent: 100, weighted_points: 88 })).toBe("基础分 25 × 大一 3.5 = 88 分。");
+    expect(previewText("issue", { points: 5, grade: null, grade_factor: 100, damp_percent: 0, weighted_points: 0 })).toContain("这条记 0 分");
+    expect(previewText("penalty", { points: -50, grade: "year2", grade_factor: 100, damp_percent: 100, weighted_points: -50 })).toBe("扣 50 分，不乘年级系数。");
+    const event = { points: 45, importance: "important", core: "business", grade: "year1", grade_factor: 350, damp_percent: 100, weighted_points: 158 } as const;
+    expect(eventPointsNote(event)).toBe("重要 × 业务 · 大一 ×3.5 = 158");
+    expect(eventPointsNote({ ...event, points: 5, importance: "normal", core: "edge", damp_percent: 0, weighted_points: 0 })).toBe("一般 × 边缘 · 大一 ×3.5 · 本周已照算过一条一般 × 边缘，记 0 分");
+    // 两档评定之前、系数 1 的老记录没有第二行
+    expect(eventPointsNote({ ...event, importance: null, core: null, grade: null, grade_factor: null, damp_percent: null, weighted_points: 45 })).toBe("");
+    expect(eventPointsNote({ ...event, points: -50, weighted_points: -50 })).toBe("");
+  });
+
+  it("lays the server's rubric out as one row per kind and importance", () => {
+    const rows = rubricRows(scoringView());
+    expect(rows).toHaveLength(6);
+    expect(rows[0]).toEqual({ key: "issue:normal", kind: "Issue", importance: "一般", edge: 5, business: 8, core: 12 });
+    expect(rows[5]).toEqual({ key: "pr:critical", kind: "MR", importance: "关键", edge: 40, business: 65, core: 100 });
   });
 
   it("summarises the last collection run, and says so when there is none", () => {
@@ -130,14 +153,18 @@ describe("mock reads for the competition tabs", () => {
     const pending = read("/api/console/competitions/c1001/candidates?status=pending") as { items: { status: string }[]; counts: Record<string, number> };
     expect(pending.items.every(row => row.status === "pending")).toBe(true);
     expect(pending.counts).toEqual({ pending: 2, accepted: 1, rejected: 0 });
-    const rules = read("/api/console/competitions/c1001/rules") as { prizes: unknown[]; gitlab_projects: string[] };
+    const rules = read("/api/console/competitions/c1001/rules") as { prizes: unknown[]; gitlab_projects: string[]; scoring: unknown };
     expect(rules.prizes).toHaveLength(3);
+    // 开发预览的计分表和服务端是同一份数
+    expect(rules.scoring).toEqual(scoringView());
+    expect(read("/api/console/competitions/c1001/score-preview?account_id=mock-chen_hang&kind=pr&importance=important&core=business"))
+      .toEqual({ points: 45, grade: "year1", grade_factor: 350, damp_percent: 100, weighted_points: 158 });
     expect(rules.gitlab_projects).toEqual(["geek/admin"]);
     const site = read("/api/console/competitions/c1001/site") as { live_version_id: string; versions: { id: string }[] };
     expect(site.versions.map(row => row.id)).toContain(site.live_version_id);
     const final = read("/api/console/competitions/c1001/final") as { finalized_at: null; preview: { rank: number; points: number; amount_cny: number | null }[] };
     expect(final.finalized_at).toBeNull();
-    // 有效的两条积分按系数加权：90 与 22
-    expect(final.preview.map(row => [row.rank, row.points, row.amount_cny])).toEqual([[1, 90, 700], [2, 22, 140]]);
+    // 有效的积分按系数加权：陈航 158 + 0（本周第二条一般 × 边缘），李小满 28
+    expect(final.preview.map(row => [row.rank, row.points, row.amount_cny])).toEqual([[1, 158, 700], [2, 28, 140]]);
   });
 });

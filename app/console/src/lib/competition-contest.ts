@@ -2,8 +2,9 @@
 // 不导入 Vue，tests/console/competition-contest.test.ts 直接测。规则以服务端 competition-contract.ts 为准，
 // 这里只做提交前的基本校验，服务端的错误码与中文 message 照样由 ErrorAlert 显示。
 import { ApiError } from "./http";
-import { SCORE_POINTS } from "./competition-hub";
-import type { CandidateStatus, CollectRun, CompetitionRules, GradeKey, PrizeTier, SiteVersion } from "./types";
+import type {
+  CandidateStatus, CollectRun, CompetitionRules, Core, GradeKey, Importance, PrizeTier, ScoreEvent, ScoreKind, ScorePreview, Scoring, SiteVersion,
+} from "./types";
 
 export const GRADE_KEYS: GradeKey[] = ["year1", "year2", "year3", "year4", "graduated", "none"];
 export const GRADE_TEXT: Record<GradeKey, string> = { year1: "大一", year2: "大二", year3: "大三", year4: "大四", graduated: "已毕业", none: "无年级" };
@@ -18,7 +19,66 @@ const isInteger = (value: string) => /^\d+$/.test(value.trim());
 
 // —— 计分规则与奖项 ——
 
-/** 系数存的是百分数（150 = 1.5），表单里写小数。 */
+// —— 两档评定（所有者 2026-10-24 16:59）——
+
+export const IMPORTANCE_KEYS: Importance[] = ["normal", "important", "critical"];
+export const CORE_KEYS: Core[] = ["edge", "business", "core"];
+export const IMPORTANCE_TEXT: Record<Importance, string> = { normal: "一般", important: "重要", critical: "关键" };
+export const CORE_TEXT: Record<Core, string> = { edge: "边缘", business: "业务", core: "核心" };
+export const CORE_HINT: Record<Core, string> = { edge: "文档、样式、小脚本", business: "一个功能模块", core: "身份、权限、数据、计分、部署" };
+export const importanceOptions = IMPORTANCE_KEYS.map(key => ({ value: key, label: IMPORTANCE_TEXT[key] }));
+export const coreOptions = CORE_KEYS.map(key => ({ value: key, label: `${CORE_TEXT[key]}（${CORE_HINT[key]}）` }));
+
+/** 计分页的基础分表：每种记录 × 每档重要程度一行，三档核心度三列。 */
+export type RubricRow = { key: string; kind: string; importance: string; edge: number; business: number; core: number };
+export function rubricRows(scoring: Pick<Scoring, "importance" | "points">): RubricRow[] {
+  const at = (kind: "issue" | "pr", importance: Importance, core: Core) =>
+    scoring.points.find(item => item.kind === kind && item.importance === importance && item.core === core)?.points ?? 0;
+  return (["issue", "pr"] as const).flatMap(kind => scoring.importance.map(level => ({
+    key: `${kind}:${level.key}`, kind: kind === "pr" ? "MR" : "Issue", importance: level.label,
+    edge: at(kind, level.key, "edge"), business: at(kind, level.key, "business"), core: at(kind, level.key, "core"),
+  })));
+}
+
+/** 「重要 × 业务」；两档缺一个（扣分、两档评定之前的记录、标签没打全）为空字符串。 */
+export function levelsText(importance: Importance | null | "", core: Core | null | ""): string {
+  return importance && core ? `${IMPORTANCE_TEXT[importance]} × ${CORE_TEXT[core]}` : "";
+}
+
+/** 试算接口的查询串；还没选人、或者 Issue / MR 两档没选全时不试算。`at` 是贡献发生的时间（候选的 contributed_at）。 */
+export function previewQuery(input: { accountId: string; kind: ScoreKind; importance: Importance | null | ""; core: Core | null | ""; at?: number }): string | null {
+  if (!input.accountId) return null;
+  const params = new URLSearchParams({ account_id: input.accountId, kind: input.kind });
+  if (input.kind !== "penalty") {
+    if (!input.importance || !input.core) return null;
+    params.set("importance", input.importance);
+    params.set("core", input.core);
+  }
+  if (input.at !== undefined) params.set("at", String(input.at));
+  return params.toString();
+}
+
+/** 试算结果的一句话：「基础分 25 × 大一 3.5 = 88 分」；被防刷规则打成 0 的另说一句。 */
+export function previewText(kind: ScoreKind, preview: ScorePreview): string {
+  if (kind === "penalty") return `扣 ${-preview.points} 分，不乘年级系数。`;
+  const grade = preview.grade ? GRADE_TEXT[preview.grade] : "无年级";
+  const line = `基础分 ${preview.points} × ${grade} ${factorText(preview.grade_factor)} = ${Math.round(preview.points * preview.grade_factor / 100)} 分`;
+  if (preview.damp_percent === 0) return `${line}。这一周已经照算过一条「一般 × 边缘」，这条记 0 分，记录照留。`;
+  return `${line}。`;
+}
+
+/** 积分记录「分值」一栏的第二行：两档、年级系数、防刷折扣；没有可说的为空字符串。 */
+export function eventPointsNote(event: Pick<ScoreEvent, "points" | "importance" | "core" | "grade" | "grade_factor" | "damp_percent" | "weighted_points">): string {
+  if (event.points < 0) return "";
+  const parts: string[] = [];
+  const levels = levelsText(event.importance, event.core);
+  if (levels) parts.push(levels);
+  if (event.grade_factor !== null && event.grade_factor !== 100) parts.push(`${event.grade ? GRADE_TEXT[event.grade] : ""} ×${factorText(event.grade_factor)}`);
+  if (event.damp_percent === 0) return [...parts, "本周已照算过一条一般 × 边缘，记 0 分"].join(" · ");
+  return parts.length ? `${parts.join(" · ")} = ${event.weighted_points}` : "";
+}
+
+/** 系数存的是百分数（350 = 3.5），表单里写小数。 */
 export const factorText = (percent: number) => (percent / 100).toFixed(2).replace(/0$/, "");
 
 export type PrizeRow = { from: string; to: string; amount: string; title: string };
@@ -46,14 +106,14 @@ export const rulesValid = (errors: RulesErrors) =>
   !Object.keys(errors.factors).length && !errors.prizes.some(Boolean) && !errors.prizeOrder && !errors.projects;
 
 /**
- * 逐项校验：系数 0.5–3（最多两位小数）；每档奖项名次 1–100、从小到大不重叠、金额 0–100000 的整数、说明 ≤ 40 字，
+ * 逐项校验：系数 0.5–5（最多两位小数，和服务端 GRADE_FACTOR_RANGE 一致）；每档奖项名次 1–100、从小到大不重叠、金额 0–100000 的整数、说明 ≤ 40 字，
  * 最多 20 档；GitLab 项目最多 10 个。
  */
 export function rulesErrors(form: RulesForm): RulesErrors {
   const errors: RulesErrors = { factors: {}, prizes: [] };
   for (const key of GRADE_KEYS) {
     const value = form.factors[key].trim();
-    if (!/^\d+(?:\.\d{1,2})?$/.test(value) || Number(value) < 0.5 || Number(value) > 3) errors.factors[key] = "填 0.5 到 3 之间的数，最多两位小数。";
+    if (!/^\d+(?:\.\d{1,2})?$/.test(value) || Number(value) < 0.5 || Number(value) > 5) errors.factors[key] = "填 0.5 到 5 之间的数，最多两位小数。";
   }
   let previous = 0;
   form.prizes.forEach((row, index) => {
@@ -92,13 +152,6 @@ export function prizeText(tier: Pick<PrizeTier, "from" | "to" | "amount_cny">): 
 
 export const CANDIDATE_STATUS_TEXT: Record<CandidateStatus, string> = { pending: "待确认", accepted: "已加分", rejected: "已驳回" };
 export const CANDIDATE_KIND_TEXT: Record<"pr" | "issue", string> = { pr: "MR", issue: "Issue" };
-
-/** 确认时可以改分：落在这种记录的区间里（Issue 5–30、MR 15–100），默认是建议分。 */
-export function acceptPointsError(kind: "pr" | "issue", points: string): string | null {
-  const { min, max } = SCORE_POINTS[kind];
-  const value = points.trim();
-  return isInteger(value) && Number(value) >= min && Number(value) <= max ? null : `分值要填 ${min}–${max} 的整数。`;
-}
 
 /** 收集的一句话结果；`last_run` 只记在服务端进程里，重启后是 null。 */
 export function collectSummary(run: CollectRun | null): string {

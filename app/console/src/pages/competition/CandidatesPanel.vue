@@ -8,7 +8,6 @@ import { TxStatusBadge } from "@talex-touch/tuffex/status-badge";
 import { TxTag } from "@talex-touch/tuffex/tag";
 import { TxModal } from "@talex-touch/tuffex/modal";
 import { TxForm, TxFormItem } from "@talex-touch/tuffex/form";
-import { TxInput } from "@talex-touch/tuffex/input";
 import { TxTextarea } from "@talex-touch/tuffex/textarea";
 import { TxEmptyState } from "@talex-touch/tuffex/empty-state";
 import { toast } from "@talex-touch/tuffex/utils";
@@ -16,16 +15,16 @@ import UserCell from "../../components/UserCell.vue";
 import ErrorPanel from "../../components/ErrorPanel.vue";
 import ErrorAlert from "../../components/ErrorAlert.vue";
 import LoadingBlock from "../../components/LoadingBlock.vue";
+import ScoreLevels from "./ScoreLevels.vue";
 import { api, jsonBody } from "../../lib/http";
 import { fmtDate } from "../../lib/format";
 import { useAction, useResource } from "../../lib/resource";
-import { SCORE_POINTS } from "../../lib/competition-hub";
-import { CANDIDATE_KIND_TEXT, CANDIDATE_STATUS_TEXT, acceptPointsError, collectSummary } from "../../lib/competition-contest";
-import type { Candidate, CandidateList, CandidateStatus } from "../../lib/types";
+import { CANDIDATE_KIND_TEXT, CANDIDATE_STATUS_TEXT, collectSummary, levelsText } from "../../lib/competition-contest";
+import type { Candidate, CandidateList, CandidateStatus, Core, Importance } from "../../lib/types";
 
 /**
- * 待确认贡献（#278）：GitLab 收来的合并 MR 与 Issue。打了「有用」标签且打标签的人有审核积分权限的，收集时已经自动加分；
- * 其余在这里确认（可改分）或驳回。确认与驳回都要刚登录过，服务端写操作记录。
+ * 待确认贡献（#278）：GitLab 收来的合并 MR 与 Issue。「有用」和重要程度、核心度两档标签都由有审核积分权限的人打上的，
+ * 收集时已经按两档自动加分；其余在这里选两档确认，或者驳回。确认与驳回都要刚登录过，服务端写操作记录。
  */
 const props = defineProps<{ competitionId: string }>();
 const emit = defineEmits<{ changed: [] }>();
@@ -59,7 +58,7 @@ const collect = useAction(async () => {
 const columns = [
   { key: "item", title: "贡献", minWidth: 280 },
   { key: "author", title: "作者", width: 180 },
-  { key: "points", title: "分值", width: 110 },
+  { key: "points", title: "两档与分值", width: 150 },
   { key: "status", title: "状态", width: 200 },
   { key: "contributed_at", title: "时间（北京时间）", width: 150 },
   { key: "actions", title: "操作", width: 150, align: "right" as const },
@@ -70,23 +69,27 @@ const viaText = (row: Candidate) => (row.accepted_via === "label" ? "GitLab 标�
 
 // —— 确认 ——
 const accepting = ref<Candidate | null>(null);
-const acceptPoints = ref("");
+const acceptImportance = ref<Importance | "">("");
+const acceptCore = ref<Core | "">("");
 const acceptReason = ref("");
-const acceptError = ref("");
+const acceptErrors = ref<{ importance?: string; core?: string }>({});
+/** 打开确认弹窗：两档默认选 GitLab 标签上的。 */
 function askAccept(row: Candidate) {
   accepting.value = row;
-  acceptPoints.value = String(row.suggested);
+  acceptImportance.value = row.importance ?? "";
+  acceptCore.value = row.core ?? "";
   acceptReason.value = "";
-  acceptError.value = "";
+  acceptErrors.value = {};
   accept.reset();
 }
 const accept = useAction(async () => {
   const row = accepting.value;
   if (!row) return;
-  const problem = acceptPointsError(row.kind, acceptPoints.value);
-  acceptError.value = problem ?? "";
-  if (problem) return;
-  await api(`${base.value}/${encodeURIComponent(row.id)}/accept`, { method: "POST", ...jsonBody({ points: Number(acceptPoints.value.trim()), reason: acceptReason.value.trim() }) });
+  acceptErrors.value = { importance: acceptImportance.value ? undefined : "请选重要程度。", core: acceptCore.value ? undefined : "请选核心度。" };
+  if (!acceptImportance.value || !acceptCore.value) return;
+  await api(`${base.value}/${encodeURIComponent(row.id)}/accept`, {
+    method: "POST", ...jsonBody({ importance: acceptImportance.value, core: acceptCore.value, reason: acceptReason.value.trim() }),
+  });
   toast({ title: `已给 @${row.account.username} 加分`, variant: "success" });
   accepting.value = null;
   await list.reload();
@@ -121,7 +124,7 @@ const reject = useAction(async () => {
   <TxCard class="section">
     <div class="section-head">
       <h2>待确认贡献</h2>
-      <span class="muted">GitLab 上合并的 MR 与 Issue。被有审核积分权限的人打了「有用」标签的会自动加分，其余在这里确认或驳回。</span>
+      <span class="muted">GitLab 上合并的 MR 与 Issue。有审核积分权限的人打上「有用」和「重要程度::」「核心度::」两个标签的会自动加分，其余在这里选两档确认，或者驳回。分数不看改动行数。</span>
       <span class="section-end">
         <TxButton icon="i-carbon-renew" :loading="collect.pending.value" @click="collect.execute()">立即收集</TxButton>
       </span>
@@ -134,7 +137,7 @@ const reject = useAction(async () => {
     <ErrorPanel v-if="list.error.value" :error="list.error.value" :retry="list.reload" />
     <LoadingBlock v-else-if="!list.data.value" :lines="5" />
     <template v-else>
-      <TxDataTable style="--table-min: 1060px" :columns="columns" :data="rows" row-key="id" table-layout="fixed" scroll-x class="table">
+      <TxDataTable style="--table-min: 1100px" :columns="columns" :data="rows" row-key="id" table-layout="fixed" scroll-x class="table">
         <template #cell-item="{ row }: { row: Candidate }">
           <span class="cell-stack">
             <span class="cell-title">
@@ -150,8 +153,10 @@ const reject = useAction(async () => {
         </template>
         <template #cell-points="{ row }: { row: Candidate }">
           <span class="cell-stack">
-            <span class="mono points">{{ row.final_points ?? row.suggested }}</span>
-            <span class="cell-sub">{{ row.final_points === null ? "建议分" : "已记" }}<template v-if="row.size_hint !== null"> · 改动 {{ row.size_hint }} 行</template></span>
+            <span v-if="levelsText(row.importance, row.core)">{{ levelsText(row.importance, row.core) }}</span>
+            <span v-else class="muted">没选两档</span>
+            <span v-if="row.final_points !== null" class="cell-sub">基础分 {{ row.final_points }}</span>
+            <span v-else-if="levelsText(row.importance, row.core)" class="cell-sub">GitLab 标签上的</span>
           </span>
         </template>
         <template #cell-status="{ row }: { row: Candidate }">
@@ -184,15 +189,16 @@ const reject = useAction(async () => {
     <TxModal :model-value="Boolean(accepting)" title="确认这条贡献" width="min(92vw, 520px)" @update:model-value="value => { if (!value) accepting = null; }">
       <template v-if="accepting">
         <p class="summary">{{ CANDIDATE_KIND_TEXT[accepting.kind] }} · @{{ accepting.account.username }} · {{ accepting.title }}</p>
-        <p class="muted">分数按记分这一刻作者的年级乘系数，记下后不再改。</p>
-        <TxForm :model="{ points: acceptPoints, reason: acceptReason }" label-position="top">
-          <TxFormItem label="分值">
-            <TxInput v-model="acceptPoints" type="number" :min="SCORE_POINTS[accepting.kind].min" :max="SCORE_POINTS[accepting.kind].max" class="fill-width" />
-            <span class="field-hint">建议 {{ accepting.suggested }} 分，可填 {{ SCORE_POINTS[accepting.kind].min }}–{{ SCORE_POINTS[accepting.kind].max }}。</span>
-            <span v-if="acceptError" class="field-error">{{ acceptError }}</span>
-          </TxFormItem>
-          <TxFormItem label="说明（选填）">
-            <TxTextarea v-model="acceptReason" :rows="2" placeholder="例如：补了测试，改动比行数看起来大。" />
+        <p class="muted">选这条对项目的重要程度和核心度，基础分查表，再乘记分这一刻作者的年级系数，记下后不再改。</p>
+        <TxForm :model="{ importance: acceptImportance, core: acceptCore, reason: acceptReason }" label-position="top" class="accept-form">
+          <ScoreLevels
+            :competition-id="competitionId" :account-id="accepting.account.account_id" :kind="accepting.kind" :at="accepting.contributed_at"
+            :importance="acceptImportance" :core="acceptCore" :errors="acceptErrors"
+            @update:importance="value => { acceptImportance = value; acceptErrors.importance = undefined; }"
+            @update:core="value => { acceptCore = value; acceptErrors.core = undefined; }"
+          />
+          <TxFormItem label="说明（选填）" class="wide">
+            <TxTextarea v-model="acceptReason" :rows="2" placeholder="例如：修了登录页的竞态，影响所有人登录。" />
           </TxFormItem>
         </TxForm>
         <ErrorAlert v-if="accept.error.value" :error="accept.error.value" @close="accept.reset()" />
@@ -254,6 +260,19 @@ const reject = useAction(async () => {
   display: flex;
   justify-content: center;
   margin-top: 12px;
+}
+.accept-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+}
+.accept-form .wide {
+  grid-column: 1 / -1;
+}
+@media (max-width: 520px) {
+  .accept-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .summary {
   margin: 0 0 8px;
