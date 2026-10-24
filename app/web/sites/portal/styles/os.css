@@ -178,7 +178,7 @@
 
 /* ── 窗口 ── */
 .pt-windows { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
-/* 窗口：圆角 18px、粉色描边，标题栏是粉色渐变、三个圆点、标题居中；正文是半透明白加模糊。
+/* 窗口：圆角 18px、粉色描边，标题栏是粉色渐变、左边三颗糖果珠按钮、标题居中；正文是半透明白加模糊。
    打开时 220ms 从 0.96 缩放加淡入；减少动态效果时只淡入（文件末尾的 @media） */
 .pt-win {
   position: absolute; pointer-events: auto; display: flex; flex-direction: column; overflow: hidden;
@@ -200,18 +200,31 @@
   border-bottom: 1px solid var(--os-win-border); background: linear-gradient(var(--os-win-top), var(--os-win-bottom)); color: var(--os-ink); cursor: grab; font-size: 13.5px;
 }
 .pt-win-bar b { justify-self: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
-/* 三个 12px 圆点，每个按钮 44×44：第一个点靠右、第二个居左偏中、第三个靠左，点与点间隔 32px，看着还是一组 */
-.pt-win-lights { display: flex; }
-.pt-win-lights button { display: grid; align-items: center; justify-items: start; width: 44px; height: 44px; padding: 0; border: 0; background: none; color: transparent; cursor: pointer; }
-.pt-win-lights button:nth-child(1) { padding-left: 24px; }
-.pt-win-lights button:nth-child(2) { padding-left: 12px; }
-.pt-win-lights i { display: grid; place-items: center; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 1px rgb(255 255 255 / 80%); }
-.pt-win-lights button:nth-child(1) i { background: var(--os-dot-close); }
-.pt-win-lights button:nth-child(2) i { background: var(--os-dot-min); }
-.pt-win-lights button:nth-child(3) i { background: var(--os-dot-max); }
-.pt-win-lights:hover button, .pt-win-lights button:focus-visible { color: rgb(29 43 83 / 70%); }
+/* 左上角三个按钮（#279）：一条半透明白胶囊托着三颗 18px 的糖果珠，关闭是 YUGC 的粉、最小化是暖黄、放大是薄荷绿，
+   珠子上半一块高光、下沿一道深一号的边。每个按钮仍是 44×44 的点击区（DESIGN.md 触控目标），所以珠子间隔 44px，胶囊把三颗收成一组。
+   悬停或键盘聚焦到这一组时三颗一起露出图标，单颗再放大一点，按下缩一下；不在最前面的窗口珠子褪成浅色 */
+.pt-win-lights { position: relative; display: flex; }
+.pt-win-lights::before {
+  content: ""; position: absolute; inset: 9px 6px; border-radius: 999px; pointer-events: none;
+  background: rgb(255 255 255 / 50%); box-shadow: inset 0 1px 2px rgb(220 77 147 / 22%), 0 1px 0 rgb(255 255 255 / 75%);
+}
+.pt-win-lights button { position: relative; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: none; color: transparent; cursor: pointer; }
+.pt-win-lights i {
+  --bead: var(--os-dot-close); --bead-line: var(--os-dot-close-line);
+  display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 26%, rgb(255 255 255 / 90%) 0 14%, rgb(255 255 255 / 0%) 54%), var(--bead);
+  box-shadow: inset 0 -1.5px 0 var(--bead-line), 0 1px 2px rgb(60 110 200 / 25%);
+  transition: transform .14s var(--pt-ease), filter .14s var(--pt-ease);
+}
+.pt-win-lights button:nth-child(2) i { --bead: var(--os-dot-min); --bead-line: var(--os-dot-min-line); }
+.pt-win-lights button:nth-child(3) i { --bead: var(--os-dot-max); --bead-line: var(--os-dot-max-line); }
+.pt-win-lights:hover button, .pt-win-lights:focus-within button { color: rgb(29 43 83 / 72%); }
+.pt-win-lights button:hover i { transform: scale(1.12); }
+.pt-win-lights button:active i { transform: scale(.9); }
 .pt-win-lights button:focus-visible { outline: none; }
-.pt-win-lights button:focus-visible i { box-shadow: 0 0 0 2px var(--os-accent); }
+.pt-win-lights button:focus-visible i { box-shadow: inset 0 -1.5px 0 var(--bead-line), 0 0 0 2px #fff, 0 0 0 4px var(--os-accent); }
+.pt-win:not(.is-front) .pt-win-lights i { filter: saturate(.3) brightness(1.12); }
+.pt-win:not(.is-front) .pt-win-lights:hover i { filter: none; }
 .pt-win-body { overflow: auto; padding: 20px 22px; font-size: 14px; line-height: 1.7; }
 /* 窗口和桌面弹层里的正文（比赛、意见箱等样式表里写的是官网外层的 --pt-*）在这里换成 YUGC OS 的令牌（SPEC §1）：
    主色和链接是 --os-accent，成功是 --os-ok，文字是 --os-ink，卡片圆角 14px */
@@ -283,15 +296,27 @@
 .pt-win.is-zoomed .pt-win-body.is-flush { flex: 1; min-height: 0; }
 
 /* 终端：深色底（--os-term-bg）加开机动画 BIOS 段的配色：提示符和命令名蓝，成功青绿，报错粉，说明暗蓝 */
-.pt-term { display: flex; flex-direction: column; height: 330px; margin: -20px -22px; padding: 14px 18px; background: var(--os-term-bg); color: var(--os-bios-text); font: 13px/1.75 var(--pt-mono); cursor: text; }
+/* 终端（#279 改成模拟 Linux）：提示符照 Ubuntu 默认，用户@主机 绿、目录蓝；输出里的颜色码（lib/shell/ansi.ts）按下面的 is-c* 上色，
+   is-c92/94/95/96 是 neofetch 里 YUGC 四个字母的颜色；空格原样保留，ls -l、tree 才对得齐 */
+.pt-term { display: flex; flex-direction: column; height: 380px; margin: -20px -22px; padding: 14px 18px; background: var(--os-term-bg); color: var(--os-bios-text); font: 13px/1.7 var(--pt-mono); cursor: text; }
 .pt-term-out { flex: 1; overflow: auto; }
 .pt-term-out > div { white-space: pre-wrap; word-break: break-word; }
-.pt-term-out b, .pt-term-in b { color: var(--os-bios-key); font-weight: 600; }
-.pt-term-key { display: inline-block; min-width: 140px; color: var(--os-bios-cyan); text-decoration: none; }
-a.pt-term-key:hover { text-decoration: underline; }
-.pt-term-out .is-dim { color: var(--os-bios-dim); }
-.pt-term-out .is-ok { color: var(--os-bios-ok); }
+.pt-term-ps b { color: var(--os-bios-ok); font-weight: 600; }
+.pt-term-ps i { color: var(--os-bios-key); font-style: normal; font-weight: 600; }
 .pt-term-out .is-err { color: var(--os-bios-pink); }
+.pt-term-out a { color: var(--os-bios-cyan); text-decoration: underline; text-underline-offset: 2px; }
+.pt-term .is-b { font-weight: 700; }
+.pt-term .is-c30, .pt-term .is-c90 { color: var(--os-bios-dim); }
+.pt-term .is-c31, .pt-term .is-c91 { color: var(--os-bios-pink); }
+.pt-term .is-c32 { color: var(--os-bios-ok); }
+.pt-term .is-c92 { color: var(--os-y); }
+.pt-term .is-c33, .pt-term .is-c93 { color: var(--os-dot-min); }
+.pt-term .is-c34 { color: var(--os-bios-key); }
+.pt-term .is-c94 { color: var(--os-u); }
+.pt-term .is-c35, .pt-term .is-c96 { color: var(--os-c); }
+.pt-term .is-c95 { color: var(--os-g); }
+.pt-term .is-c36 { color: var(--os-bios-cyan); }
+.pt-term .is-c37, .pt-term .is-c97 { color: var(--os-bios-text); }
 .pt-term-in { display: flex; align-items: center; gap: 8px; }
 .pt-term-in input { flex: 1; min-width: 0; border: 0; outline: none; background: none; font: inherit; color: inherit; caret-color: var(--os-bios-ok); }
 /* 终端的焦点提示就是闪烁的光标：压掉全站 .pt-root :focus-visible 的蓝色圆角描边（它的优先级更高） */
@@ -311,10 +336,6 @@ a.pt-term-key:hover { text-decoration: underline; }
 .pt-ln-box li[aria-selected="true"] span { color: #dfeaff; }
 .pt-ln-box footer { display: flex; gap: 16px; padding: 9px 16px; border-top: 1px solid rgb(58 118 214 / 15%); font-size: 11.5px; color: var(--os-ink-soft); }
 .pt-ln-box footer span { display: inline-flex; align-items: center; gap: 4px; }
-
-/* 进入 3D 场景的过渡：图标飞起放大成一片纸色 */
-.pt-flight { position: fixed; z-index: 60; display: grid; place-items: center; width: 72px; height: 72px; border-radius: 20px; color: #fff; background: var(--tone); pointer-events: none; animation: pt-flight .55s cubic-bezier(.7,0,.3,1) forwards; }
-@keyframes pt-flight { 0% { transform: scale(1); } 45% { transform: scale(1.2); border-radius: 20px; } 100% { transform: scale(40); border-radius: 0; background: #f6f5f1; color: transparent; } }
 
 /* ── 响应式 ── */
 /* 大屏：图标与便签跟着屏幕放大一档，不缩在角落 */
@@ -467,6 +488,46 @@ a.pt-term-key:hover { text-decoration: underline; }
 .pt-feedback.is-window .pt-input:focus { border-color: var(--os-accent); box-shadow: 0 0 0 4px rgb(58 118 214 / 14%); }
 .pt-feedback.is-window .pt-choice input:checked + span { border-color: var(--os-accent); background: rgb(58 118 214 / 12%); color: var(--os-accent); }
 .is-phone .pt-feedback.is-window { grid-template-columns: minmax(0, 1fr); }
+
+/* 加入我们窗口（#279）：一张信纸就是表单。顶边是航空信封那样的斜纹，用 YUGC 四个字母色；控件沿用 pages.css 的 .pt-field / .pt-input，
+   配色换成窗口的。回执也在窗口里，不再有信封和信箱。 */
+.pt-joinbox-lead { margin-bottom: 14px; font-size: 13.5px; color: var(--os-ink-soft); }
+.pt-joinbox-letter, .pt-joinbox-receipt {
+  position: relative; display: grid; gap: 14px; padding: 26px 24px 20px; overflow: hidden;
+  border: 1px solid rgb(58 118 214 / 16%); border-radius: var(--os-radius-card); background: rgb(255 255 255 / 92%);
+  box-shadow: 0 10px 26px -18px rgb(60 110 200 / 45%);
+}
+.pt-joinbox-letter::before, .pt-joinbox-receipt::before {
+  content: ""; position: absolute; inset: 0 0 auto; height: 6px;
+  background: repeating-linear-gradient(-45deg, var(--os-y) 0 12px, #fff 12px 18px, var(--os-u) 18px 30px, #fff 30px 36px, var(--os-g) 36px 48px, #fff 48px 54px, var(--os-c) 54px 66px, #fff 66px 72px);
+}
+.pt-joinbox-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.pt-joinbox-head h3 { font-size: 19px; font-weight: 800; letter-spacing: .01em; }
+.pt-joinbox-head img { width: 40px; height: 40px; flex: none; border-radius: 50%; }
+.pt-joinbox-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.pt-joinbox .pt-input { border-color: rgb(58 118 214 / 22%); background: rgb(255 255 255 / 85%); }
+.pt-joinbox .pt-input:focus { border-color: var(--os-accent); box-shadow: 0 0 0 4px rgb(58 118 214 / 14%); }
+.pt-joinbox .pt-input[aria-invalid="true"] { border-color: #e0567f; }
+.pt-joinbox .pt-textarea { min-height: 120px; }
+.pt-joinbox .pt-hint { color: var(--os-ink-soft); }
+.pt-joinbox .pt-hint.is-error { color: #c23a64; }
+.pt-joinbox-quota { font-size: 13px; }
+.pt-joinbox-gate { display: grid; justify-items: start; gap: 8px; padding: 2px 0 4px; }
+.pt-joinbox-gate h4 { font-size: 17px; font-weight: 700; }
+.pt-joinbox-gate p { max-width: 34em; color: var(--os-ink-soft); }
+.pt-joinbox-gate .pt-form-actions { margin-top: 6px; }
+.pt-joinbox-receipt { justify-items: start; }
+.pt-joinbox-seal { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(var(--os-y-light), #fff); color: var(--os-y-line); box-shadow: 0 0 0 1px rgb(26 154 123 / 25%); }
+.pt-joinbox-receipt h3 { font-size: 20px; font-weight: 800; }
+.pt-joinbox-receipt > p { color: var(--os-ink-soft); }
+.pt-joinbox-receipt dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; width: 100%; padding: 12px 14px; border-radius: 12px; background: rgb(58 118 214 / 6%); }
+.pt-joinbox-receipt dt { font-size: 12px; color: var(--os-ink-soft); }
+.pt-joinbox-receipt dd { font-size: 13.5px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.pt-joinbox-receipt code { font: 13px var(--pt-mono); color: var(--os-accent); }
+@media (hover: none) { .pt-joinbox kbd { display: none; } }
+.is-phone .pt-joinbox-letter, .is-phone .pt-joinbox-receipt { padding: 22px 16px 16px; }
+.is-phone .pt-joinbox-row, .is-phone .pt-joinbox-receipt dl { grid-template-columns: minmax(0, 1fr); }
+.is-phone .pt-joinbox .pt-form-actions .pt-btn { flex: 1 1 auto; }
 .is-phone .pt-feedwin-row { grid-template-columns: 8px minmax(0, 1fr) auto; min-height: 44px; }
 .is-phone .pt-feedwin-row .pt-feedwin-num, .is-phone .pt-feedwin-row .pt-feedwin-at { display: none; }
 .is-phone .pt-win-body:has(.pt-term) { display: flex; padding: 0; overflow: hidden; }

@@ -1,21 +1,18 @@
-// YUGC OS 的应用清单、启动器过滤、终端命令与时间文案（纯逻辑，tests/web/portal-os.test.ts 覆盖）。
-// 每个应用打开什么只写在 OS_APPS 里：桌面图标、Dock、1/2/3、菜单栏「前往」、⌘K、便签、终端和「加入我们」回执页都从这里取。
+// YUGC OS 的应用清单、启动器过滤与时间文案（纯逻辑，tests/web/portal-os.test.ts 覆盖）；终端在 ./shell（#279）。
+// 每个应用打开什么只写在 OS_APPS 里：桌面图标、Dock、1/2/3、菜单栏「前往」、⌘K、便签、终端和「加入我们」窗口的回执都从这里取。
 // 去别的站点的应用（论坛、控制台）只写指向 ./links 里的哪一条，由 appLink 解析成地址；地址规则仍只在 ./links。
-import type { CodeProject } from "./codeRepos";
 import type { IconName } from "./icons";
 import { links } from "./links";
 
 export type AppId = "join" | "forum" | "gitlab" | "promo" | "about" | "org" | "competitions" | "terminal" | "feedback" | "console" | "wallpaper";
 
 /**
- * scene：进入官网内的 3D 场景页（只有「加入我们」）；window：在桌面里开窗口；panel：桌面自带的全屏面板（换壁纸、重看宣传片）；
- * site：同一个域名下的另一个端（论坛、控制台），当前标签页整页跳过去。
+ * window：在桌面里开窗口；panel：桌面自带的全屏面板（换壁纸、重看宣传片）；site：同一个域名下的另一个端（论坛、控制台），当前标签页整页跳过去。
  * 论坛点一下直达论坛首页（#185），不再先进 /forum-3d 场景页；那个页面留给旧地址和「论坛最新」窗口里的「3D 版块」。
- * 「代码仓库」是桌面里的窗口（#275），列出自建 GitLab 上的公开项目，窗口里再去 GitLab。「意见箱」也是桌面里的窗口（#275），
- * 不再跳到 /feedback 页面；那个地址留给分享出去的链接。
+ * 「代码仓库」「意见箱」（#275）和「加入我们」（#279）都是桌面里的窗口，不再跳到单独的页面；旧地址 /feedback、/join-us、/apply
+ * 跳到 /?open=<id>，进桌面打开对应窗口。
  */
 export type AppOpen =
-  | { kind: "scene"; path: "/join-us" }
   | { kind: "window" }
   | { kind: "panel"; panel: "wallpaper" | "promo" }
   | { kind: "site"; link: "forumHome" | "console" };
@@ -35,7 +32,7 @@ export type OsApp = {
 };
 
 export const OS_APPS: readonly OsApp[] = [
-  { id: "join", name: "加入我们", icon: "mail-send-line", key: "1", primary: true, open: { kind: "scene", path: "/join-us" }, blurb: "写封信报名，我们用邮件联系你" },
+  { id: "join", name: "加入我们", icon: "mail-send-line", key: "1", primary: true, open: { kind: "window" }, blurb: "写封信报名，我们用邮件联系你" },
   { id: "forum", name: "论坛", icon: "discuss-line", key: "2", open: { kind: "site", link: "forumHome" }, blurb: "班级公告，课程、竞赛和求职讨论", keywords: "bbs home 首页" },
   { id: "gitlab", name: "代码仓库", icon: "git-repository-line", key: "3", open: { kind: "window" }, blurb: "极客班自己的 GitLab，用极客班账号登录", keywords: "gitlab git repo code 代码 仓库" },
   { id: "promo", name: "宣传片", icon: "film-line", open: { kind: "panel", panel: "promo" }, blurb: "极客班宣传片，1 分 45 秒" },
@@ -146,55 +143,6 @@ export function filterCommands(commands: readonly LauncherCommand[], query: stri
 export function moveSelection(current: number, delta: number, length: number): number {
   if (length <= 0) return 0;
   return Math.min(length - 1, Math.max(0, current + delta));
-}
-
-// ── 终端 ────────────────────────────────────────────────────────────────
-
-export type TerminalLine = { kind: "echo" | "out" | "ok" | "err" | "dim"; text: string; key?: string; href?: string };
-export type TerminalResult = { lines: TerminalLine[]; open?: AppId; clear?: boolean };
-
-const HELP: Array<[string, string]> = [
-  ["help", "显示这份帮助"],
-  ["ls", "列出应用"],
-  ["open <app>", "打开应用，例如 open forum"],
-  ["./join", "打开「加入我们」"],
-  ["repos", "列出代码仓库里的公开项目"],
-  ["whoami", "显示当前身份"],
-  ["clear", "清屏"],
-];
-
-export function runTerminal(input: string, repos: readonly CodeProject[], apps: readonly OsApp[] = OS_APPS): TerminalResult {
-  const [command = "", ...rest] = input.trim().split(/\s+/);
-  const echo: TerminalLine = { kind: "echo", text: input.trim() };
-  if (!command) return { lines: [echo] };
-  const reply = (lines: TerminalLine[], open?: AppId): TerminalResult => ({ lines: [echo, ...lines], open });
-  switch (command) {
-    case "help":
-      return reply(HELP.map(([key, text]) => ({ kind: "out", key, text })));
-    case "ls":
-      return reply(apps.map((app) => ({ kind: "out", key: app.id, text: app.name })));
-    case "clear":
-      return { lines: [], clear: true };
-    case "whoami":
-      return reply([{ kind: "out", text: "访客（官网不需要登录）" }]);
-    case "repos":
-      return reply(
-        repos.length
-          ? repos.map((repo) => ({ kind: "out", key: repo.name, text: repo.description || repo.path, href: repo.url }))
-          : [{ kind: "dim", text: "没有公开项目" }],
-      );
-    case "./join":
-      return reply([{ kind: "ok", text: "打开 加入我们" }], "join");
-    case "sudo":
-      return reply([{ kind: "err", text: "sudo: 这个终端没有管理员权限。管理组织请用控制台。" }]);
-    case "open": {
-      const app = apps.find((candidate) => candidate.id === (rest[0] ?? ""));
-      if (!app) return reply([{ kind: "err", text: `open: 没有叫 ${rest[0] ?? "（空）"} 的应用，试试 ls` }]);
-      return reply([{ kind: "ok", text: `打开 ${app.name}` }], app.id);
-    }
-    default:
-      return reply([{ kind: "err", text: `zsh: command not found: ${command}  试试 help` }]);
-  }
 }
 
 // ── 时间 ───────────────────────────────────────────────────────────────

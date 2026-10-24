@@ -10,7 +10,7 @@ import { PHONE_QUERY, PORTRAIT_QUERY, useMediaQuery } from "../../lib/useMediaQu
 import { signInHref, useAccount } from "../../lib/account";
 import { reportEvent } from "../../lib/events";
 import { noteSeenHere, rememberNoteHere, rememberNoteOnAccount } from "../../lib/startNote";
-import { appById, appByKey, appLink, appTone, filterCommands, followAppLink, launcherCommands, moveSelection, visibleApps, type AppId, type OsApp } from "../../lib/osApps";
+import { appById, appByKey, appLink, filterCommands, followAppLink, launcherCommands, moveSelection, visibleApps, type AppId } from "../../lib/osApps";
 import { browserEstimate, choosePlayback, detectCapabilities, hasSeenPromo, preconnectPromo, prefetchPromoStart } from "../../lib/promo";
 import Icon from "../Icon";
 import OsWindow, { windowWidth, type WindowId, type WindowState } from "./Windows";
@@ -53,7 +53,6 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
   const [launcher, setLauncher] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
-  const [flight, setFlight] = useState<{ app: OsApp; x: number; y: number } | null>(null);
   const [selectedIcon, setSelectedIcon] = useState<AppId | null>(null);
   // 便签：auto 是还没看过、按账号上的记录决定；open 是「帮助」里打开或点过其中一步（点完不收起）；closed 是收起了
   const [noteMode, setNoteMode] = useState<"auto" | "open" | "closed">(() => (noteSeenHere() ? "closed" : "auto"));
@@ -156,7 +155,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, [phoneWallpaper, apps.length, loaded, atHome]);
-  const frontName = front ? { about: "关于极客班", org: "组织架构", competitions: "比赛", terminal: "终端", "forum-feed": "论坛", gitlab: "代码仓库", feedback: "意见箱" }[front.id] : "桌面";
+  const frontName = front ? { join: "加入我们", about: "关于极客班", org: "组织架构", competitions: "比赛", terminal: "终端", "forum-feed": "论坛", gitlab: "代码仓库", feedback: "意见箱" }[front.id] : "桌面";
   useEffect(() => {
     if (!homeFocusNeeded.current || front) return;
     homeFocusNeeded.current = false;
@@ -187,22 +186,6 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
     if (apps.some((app) => app.id === id && app.open.kind === "window")) openWindow(id as WindowId);
   }, [location.search, apps, navigate, openWindow]);
 
-  const launchScene = useCallback(
-    (app: OsApp, from?: HTMLElement | null) => {
-      if (app.open.kind !== "scene") return;
-      const path = app.open.path;
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (reduced) {
-        navigate(path);
-        return;
-      }
-      const rect = from?.getBoundingClientRect();
-      setFlight({ app, x: rect ? rect.left + rect.width / 2 : window.innerWidth / 2, y: rect ? rect.top + rect.height / 2 : window.innerHeight / 2 });
-      window.setTimeout(() => navigate(path), 520);
-    },
-    [navigate],
-  );
-
   const open = useCallback(
     (id: AppId | "forum-feed", from?: HTMLElement | null) => {
       setMenu(null);
@@ -225,11 +208,9 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
           if (app.open.panel === "promo") setPromo(true);
           else setPicker(true);
           return;
-        case "scene":
-          return launchScene(app, from);
       }
     },
-    [launchScene, navigate, openWindow],
+    [openWindow],
   );
 
   const commands = useMemo(() => launcherCommands(apps), [apps]);
@@ -312,7 +293,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
     const idle = window.requestIdleCallback ?? ((run: () => void) => window.setTimeout(run, 1200));
     idle(() => {
       if (cancelled) return;
-      void Promise.all([import("../../pages/JoinUs"), import("../PromoPlayer"), import("hls.js/light")])
+      void Promise.all([import("./JoinBox"), import("../PromoPlayer"), import("hls.js/light")])
         .then(() => detectCapabilities(document.createElement("video")))
         .then((caps) => {
           const choice = choosePlayback(caps);
@@ -631,11 +612,6 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
           </div>
         </Modal>}
 
-        {flight && (
-          <div className="pt-flight" aria-hidden="true" data-tone={appTone(flight.app)} style={{ left: flight.x - 36, top: flight.y - 36 }}>
-            <Icon name={flight.app.icon} size={30} />
-          </div>
-        )}
       </div>
       {promo && <LazyPromoPlayer mode="replay" onClose={closePromo} />}
     </>

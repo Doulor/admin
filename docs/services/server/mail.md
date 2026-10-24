@@ -2,7 +2,7 @@
 
 > 招新的四封信怎么拼、怎么渲染、怎么排队发出去：信先写进 data.db 的发信队列，再由服务进程里的发信循环交给阿里云邮件推送或 Resend；信封版式照官网「加入我们」的信纸，图片部件放在 CDN 上。
 
-状态：`current` · 更新：2026-10-23 · 源码：`app/server/src/lib/mail/` · 上级合同：[server](README.md) · issue：#148、#204、#262
+状态：`current` · 更新：2026-10-24 · 源码：`app/server/src/lib/mail/` · 上级合同：[server](README.md) · issue：#148、#204、#262
 
 ## 现状
 
@@ -120,7 +120,7 @@ mail.drain() / mail.start(logger) / mail.stop()
 | 部件 | 文件（v1） | 字节 | 显示尺寸 | 内容 |
 |---|---|---|---|---|
 | `header` | `header-653d0976.png` | 70922 | 600×220 | 极客娘（官网开机画面的 `nano-wave-560.webp`）在信纸后面挥手，旁边一只拆开的航空信封；透明底，底边就是信纸上沿 |
-| `stamp` | `stamp-5c638b76.png` | 9603 | 150×100 | 带齿孔的邮票（校徽 + 极客班）和 YUGC 邮戳，照 `three/join.ts` 信封地址面；邮戳用比钴蓝浅的 `#5a6ee6`，深色模式的信纸上也看得清 |
+| `stamp` | `stamp-5c638b76.png` | 9603 | 150×100 | 带齿孔的邮票（校徽 + 极客班）和 YUGC 邮戳，照原「加入我们」信封场景（`three/join.ts`，#279 起归档在 `docs/history/portal-yugc-os-v1/files/`）的信封地址面；邮戳用比钴蓝浅的 `#5a6ee6`，深色模式的信纸上也看得清 |
 | `seal` | `seal-e9c4d486.png` | 5983 | 72×72 | 落款旁的钴蓝火漆，压着校徽，边上一圈浅色描边，深色模式下能看出轮廓 |
 | `airmail` | `airmail-4f4c24ba.png` | 781 | 600×12 | 信纸下沿的钴蓝与琥珀航空条纹，条纹之间透明，下面两个角 4px |
 

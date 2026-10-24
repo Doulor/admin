@@ -118,7 +118,7 @@ export default function FeedbackBox() {
   ) : (
     <form onSubmit={submit} className="pt-form">
       <div className="pt-field">
-        <label htmlFor="fb-org">发往的 GitHub 组织</label>
+        <label htmlFor="fb-org">发往的组织</label>
         <input id="fb-org" className="pt-input is-mono" value={org} readOnly aria-readonly="true" aria-describedby="fb-org-hint" />
         <p className="pt-hint" id="fb-org-hint">
           意见箱只收本组织的意见，这里改不了。
@@ -173,7 +173,7 @@ export default function FeedbackBox() {
 
       <div className="pt-field">
         <label htmlFor="fb-contact">联系方式（选填，不公开）</label>
-        <input id="fb-contact" className="pt-input" placeholder="邮箱、GitHub 用户名或微信" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+        <input id="fb-contact" className="pt-input" placeholder="邮箱、代码仓库用户名或微信" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
       </div>
 
       {/* 蜜罐字段：真人看不见也不会填，机器人会填。 */}

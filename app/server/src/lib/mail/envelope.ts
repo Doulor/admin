@@ -4,7 +4,7 @@ import { ENVELOPE_PIECES, type EnvelopePiece } from "./envelope-pieces.js";
 /**
  * 站内邮件的信封模板（#148）：纯函数，输入一封信的内容，输出主题、HTML 和纯文本。
  *
- * 版式照官网「加入我们」的信纸（styles/scenes.css 的 .pt-letter、three/join.ts 的信封配色）：
+ * 版式照官网原「加入我们」场景的信纸（#279 起归档在 docs/history/portal-yugc-os-v1/files/ 的 styles/scenes.css 的 .pt-letter、three/join.ts 的信封配色）：
  * 纸色信纸 + 内缩一道细框，右上角邮票和邮戳，落款旁一枚火漆，下沿一条航空条纹，顶上是极客娘和拆开的信封。
  * 图片只做固定尺寸的部件（envelope-pieces.ts），正文全是 HTML 文字，随内容变长。
  *

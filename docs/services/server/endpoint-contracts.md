@@ -390,7 +390,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 源码：[app/server/src/routes/portal/apply.ts:110](../../../app/server/src/routes/portal/apply.ts#L110)、[app/server/src/lib/limits.ts](../../../app/server/src/lib/limits.ts)、[app/server/src/lib/apply-quota.ts](../../../app/server/src/lib/apply-quota.ts)。验证入口：[tests/server/applications.test.ts](../../../tests/server/applications.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)、[tests/server/rate-limits.test.ts](../../../tests/server/rate-limits.test.ts)。
 
-**已知未同步的下游**（#275 待办）：官网「加入我们」页面（`app/web/sites/portal/pages/JoinUs.tsx`）目前还是给匿名访客填写的表单；本次只保证这个接口本身的类型兼容（匿名提交会先收到 401），页面改成先登录再投递、把「访客 0 份/注册用户 3 份/成员不限」的额度显示出来，是 #275 的范围，部署前要确认这两边同步上线，否则匿名访客会在真实环境看到一直提交失败。
+**下游已同步**（#275、#279）：官网「加入我们」是桌面窗口（`app/web/sites/portal/components/os/JoinBox.tsx`），没登录时只显示「先注册再投递」，登录后显示当天还能投几份（注册用户 3 份、成员不限），与这个接口同版本上线。
 
 ## 读取公开防滥用配置
 

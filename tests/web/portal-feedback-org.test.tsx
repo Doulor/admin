@@ -53,7 +53,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const orgField = () => screen.getByLabelText("发往的 GitHub 组织") as HTMLInputElement;
+const orgField = () => screen.getByLabelText("发往的组织") as HTMLInputElement;
 const submitButton = () => screen.getByRole("button", { name: /提交意见/ }) as HTMLButtonElement;
 
 it("组织框只读展示本站组织", async () => {

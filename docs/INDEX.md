@@ -59,7 +59,7 @@
 | 文档 | 说明 | EN |
 |---|---|---|
 | [`admin.md`](./services/web/admin.md) | 管理端前端已从 `app/web/sites/admin`（React）迁到独立的 Vue 包 `app/console`；本页只记录迁移事实与仍然有效的服务端约定。 | — |
-| [`portal.md`](./services/web/portal.md) | 公开官网：开机动画与 YUGC OS 桌面、加入我们（信封场景，要登录）、论坛 3D 场景、文档和意见箱；不自建登录，菜单栏头像打开个人资料卡。 | — |
+| [`portal.md`](./services/web/portal.md) | 公开官网：开机动画与 YUGC OS 桌面（加入我们、意见箱等都是桌面窗口）、论坛 3D 场景和文档；不自建登录，菜单栏头像打开个人资料卡。 | — |
 | [`shared.md`](./services/web/shared.md) | 共享 UI、网络、渲染和配置，不反向依赖站点。 | — |
 
 ## components/
@@ -176,7 +176,7 @@
 
 ## history/portal-yugc-os-v1/
 
-#275 把官网换成 YUGC OS v2 桌面时退场的页面、组件、样式、图片和模型，原样放在这里备查；它们不参与构建，也不会上线。
+#275 把官网换成 YUGC OS v2 桌面时退场的页面、组件、样式、图片和模型，以及 #279 把「加入我们」改成桌面窗口时退场的信封场景，原样放在这里备查；它们不参与构建，也不会上线。
 
 ## history/portal-yugc-os-v1/files/app/web/sites/portal/assets/models/
 

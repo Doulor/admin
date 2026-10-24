@@ -56,7 +56,7 @@ function PromoUnavailable({ onClose }: Props) {
     if (closed.current) return;
     closed.current = true;
     // 失败真正显示出来以后才换：换早了，挂起后重试的那次渲染会拿到新的，又去加载一遍。
-    // 直接打开 /join-us 时这个组件和外面的页面可能一起还没提交（React 等分包时会丢掉没提交的渲染重来），
+    // 第一次打开「加入我们」窗口时这个组件和窗口内容可能一起还没提交（React 等分包时会丢掉没提交的渲染重来），
     // 那时 LazyPromoPlayer 的初始化会再跑一遍，所以不能在初始化里换
     current = loadPlayer();
     onClose("failed");
@@ -90,7 +90,7 @@ export function LazyPromoPlayer({ placeholder = false, ...props }: Props & { pla
 }
 
 /**
- * 播放层分包还在下载时的加载遮罩（#122）：直接打开 /join-us 的第一次访问会被整页 inert，
+ * 播放层分包还在下载时的加载遮罩（#122）：第一次打开「加入我们」窗口时信纸会被 inert，
  * 弱网下分包要几秒才到，这段时间不能什么都不显示。遮罩沿用播放层同一套全屏层与右上角「跳过」，
  * 跳过与播放层同一语义：先记「看过」，再结束 gate；Esc 同样能关，Tab 留在按钮上。
  * replay 也能用（按钮叫「关闭」、图标与播放层一致），目前桌面重看不带 placeholder。

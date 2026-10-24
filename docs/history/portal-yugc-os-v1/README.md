@@ -1,6 +1,6 @@
 # YUGC OS v1 官网退场内容（#275）
 
-> #275 把官网换成 YUGC OS v2 桌面时退场的页面、组件、样式、图片和模型，原样放在这里备查；它们不参与构建，也不会上线。
+> #275 把官网换成 YUGC OS v2 桌面时退场的页面、组件、样式、图片和模型，以及 #279 把「加入我们」改成桌面窗口时退场的信封场景，原样放在这里备查；它们不参与构建，也不会上线。
 
 状态：`historical` · 更新：2026-10-24
 
@@ -8,7 +8,7 @@
 
 所有者 2026-10-24 定下的做法：页面改版或大改动时，退场的内容放进一个目录并写清说明，旧页面和旧地址不再上线，免得用户和 agent 走进已经过时的页面。
 
-`files/` 下面按原来的仓库路径存放。除模型的署名说明外，每个文件都和 stage `b6420dee`（#275 合并前）里同一路径的文件逐字节相同，可以用 `git show b6420dee:<原路径>` 对照。`files/app/web/sites/portal/assets/models/README.md` 是手机模型的署名与许可说明，只在标题下面加了一行状态，正文没改。
+`files/` 下面按原来的仓库路径存放。#275 归档的文件除模型的署名说明外，都和 stage `b6420dee`（#275 合并前）里同一路径的文件逐字节相同，可以用 `git show b6420dee:<原路径>` 对照；#279 归档的三个文件（`pages/JoinUs.tsx`、`three/join.ts`、`styles/scenes.css`）和 stage `e43df562`（#279 开工时）里的逐字节相同。`files/app/web/sites/portal/assets/models/README.md` 是手机模型的署名与许可说明，只在标题下面加了一行状态，正文没改。
 
 ## 为什么不会上线
 
@@ -24,6 +24,7 @@
 | `/github` | GitHub 组织的 3D 天际线场景（`pages/GithubScene.tsx`） | 落到兜底路由回首页；桌面上没有「GitHub 组织」应用了，代码在「代码仓库」窗口里看（自建 GitLab） |
 | `/join/:token` | GitHub 组织邀请链接的落地页（`pages/JoinByToken.tsx`） | 落到兜底路由回首页；它调的 `/api/join/:token` 已随 #274 删除，邀请码改在注册时填 |
 | `/` 的首屏 | 三维书桌，点笔记本或手机屏幕进 YUGC OS（`three/desk.ts`） | 开机动画（每天第一次进来播）加 YUGC OS 桌面 |
+| `/join-us`、`/apply` | 「加入我们」的三维信封场景页（`pages/JoinUs.tsx`），`/apply` 是更早的旧地址 | 跳到 `/?open=join`：进桌面并打开「加入我们」窗口（#279）；宣传片门禁、先注册再投递、当天剩余份数、防刷验证和回执都在窗口里 |
 
 ## 文件清单
 
@@ -50,6 +51,9 @@
 | `pages/JoinByToken.tsx` | 邀请链接的落地页 | 注册时填邀请码（#274） | `a927ef55` |
 | `lib/org.ts`、`tests/web/portal-org.test.ts` | 读 `GET /api/public/org` 的组织数据、默认值和它的用例 | `lib/departments.ts` 读 `GET /api/public/departments`；称号名字的守卫在 `tests/web/portal-org-window.test.tsx` | `a927ef55` |
 | `pages/Feedback.tsx` | 意见箱页面（PageShell 外壳、表单、最近的意见） | `components/os/FeedbackBox.tsx`（意见箱窗口，同一份表单） | 归档时改成窗口 |
+| `pages/JoinUs.tsx` | 「加入我们」信封场景页：信封飞入、信纸抽出变成表单、寄出后折信封口投进信箱 | `components/os/JoinBox.tsx`（加入我们窗口，同样的校验、防刷和限额） | #279 |
+| `three/join.ts` | 信封、信纸、信箱的 three.js 场景和动画 | 不再有三维信封；窗口里的信纸是 DOM | #279 |
+| `styles/scenes.css` | 场景页样式的整份原文件，含信纸表单与回执（`.pt-letter`、`.pt-lf`、`.pt-receipt`） | 线上的 `scenes.css` 只留论坛场景页用的部分；窗口样式在 `styles/os.css` 的 `.pt-joinbox` | #279 删掉加入我们部分 |
 
 ## 怎么看原来的样子
 

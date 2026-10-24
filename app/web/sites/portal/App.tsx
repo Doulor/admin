@@ -3,14 +3,13 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import Home from "./pages/Home";
 
 // 3D 场景页与普通页面按路由分包：首页之外的页面只在访问时下载。three.js 本身在各场景的 import() 里再次延迟。
-const JoinUs = lazy(() => import("./pages/JoinUs"));
 const Forum3D = lazy(() => import("./pages/Forum3D"));
 const Docs = lazy(() => import("./pages/Docs"));
 
 /**
  * 官网路由。全部匿名可访问；登录状态只用来显示资料卡、投递限额和比赛里的「我」。
  *   /            开机动画（每天第一次进来播）+ YUGC OS 桌面
- *   /join-us     加入我们（信封场景，真实提交 POST /api/portal/apply，要先注册登录）；旧地址 /apply 重定向到这里
+ *   /join-us、/apply  跳到 /?open=join：进桌面打开「加入我们」窗口（#279；原来的信封场景页已归档）
  *   /forum-3d    论坛版块气泡场景（主入口「进入论坛首页」）。不是桌面入口的中间页（#185）：桌面上的「论坛」直达论坛首页，
  *                这页留给已收藏、已分享的旧地址和论坛最新窗口里的「3D 版块」按钮
  *   /docs /docs/:id
@@ -24,8 +23,8 @@ export default function App() {
     <Suspense fallback={<div className="pt-route-fallback" aria-busy="true" />}>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/join-us" element={<JoinUs />} />
-        <Route path="/apply" element={<Navigate to="/join-us" replace />} />
+        <Route path="/join-us" element={<Navigate to="/?open=join" replace />} />
+        <Route path="/apply" element={<Navigate to="/?open=join" replace />} />
         <Route path="/forum-3d" element={<Forum3D />} />
         <Route path="/docs" element={<Docs />} />
         <Route path="/docs/:id" element={<Docs />} />

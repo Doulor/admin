@@ -1057,6 +1057,18 @@
         {
           "path": "app/web/shared/lib/api.ts",
           "needle": "export async function devPersonaMe(): Promise<unknown> {"
+        },
+        {
+          "path": "app/web/sites/portal/lib/shell/index.ts",
+          "needle": "const user = safeUser(account);"
+        },
+        {
+          "path": "app/web/sites/portal/lib/shell/commands.ts",
+          "needle": "function neofetch(ctx: Ctx): Io {"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/Terminal.tsx",
+          "needle": "  const shell = useMemo(() => createShell({ account, apps }), [account?.username, appKey]);"
         }
       ],
       "tests": [
@@ -2551,12 +2563,20 @@
           "needle": "export type ApplyQuota = { apply_left_today: number; apply_daily_limit: number };"
         },
         {
-          "path": "app/web/sites/portal/pages/JoinUs.tsx",
+          "path": "app/web/sites/portal/components/os/JoinBox.tsx",
           "needle": "const result = await requestJson<Receipt>(\"/api/portal/apply\", {"
         },
         {
-          "path": "app/web/sites/portal/components/SceneBar.tsx",
-          "needle": "<Link className=\"pt-back\" to=\"/\">"
+          "path": "app/web/sites/portal/components/PromoLazy.tsx",
+          "needle": "export function LazyPromoPlayer({ placeholder = false, ...props }: Props & { placeholder?: boolean }) {"
+        },
+        {
+          "path": "app/web/sites/portal/components/PromoPlayer.tsx",
+          "needle": "export default function PromoPlayer({ mode, onSeen, onClose, coverSince }: Props) {"
+        },
+        {
+          "path": "app/server/src/lib/mail/envelope.ts",
+          "needle": "export function renderEnvelope(message: EnvelopeMessage, options: EnvelopeOptions): RenderedMail {"
         }
       ],
       "tests": [
@@ -6942,6 +6962,30 @@
         {
           "path": "app/web/sites/portal/lib/snapshots.ts",
           "needle": "// 代码仓库的公开项目改成读接口（lib/codeRepos.ts），原来 GitHub 仓库的快照已删（#275）。"
+        },
+        {
+          "path": "app/web/sites/portal/lib/shell/index.ts",
+          "needle": "export function createShell({ account, apps, repos: initialRepos = [], storage = defaultStorage() }: ShellOptions): Shell {"
+        },
+        {
+          "path": "app/web/sites/portal/lib/shell/commands.ts",
+          "needle": "function repos(ctx: Ctx): Io {"
+        },
+        {
+          "path": "app/web/sites/portal/lib/shell/vfs.ts",
+          "needle": "export class Vfs {"
+        },
+        {
+          "path": "app/web/sites/portal/lib/shell/parse.ts",
+          "needle": "export function parse(input: string): Chain {"
+        },
+        {
+          "path": "app/web/sites/portal/lib/shell/ansi.ts",
+          "needle": "export function toSpans(text: string): Span[] {"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/Terminal.tsx",
+          "needle": "    if (repos.status === \"ready\") shell.setRepos(repos.projects);"
         }
       ],
       "tests": [

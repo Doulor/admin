@@ -97,10 +97,12 @@ it.each([null, false, true])("手机控制台沿用 console_link=%s，图标、�
   expect(screen.queryByRole("option", { name: /控制台/ }) !== null).toBe(consoleLink === true);
   fireEvent.click(screen.getByRole("button", { name: "关闭对话框" }));
   fireEvent.click(icons().getByRole("button", { name: "终端" }));
-  const input = screen.getByRole("textbox", { name: "终端输入" });
-  fireEvent.change(input, { target: { value: "ls" } });
+  const input = await screen.findByRole("textbox", { name: "终端输入" });
+  fireEvent.change(input, { target: { value: "ls ~/Desktop" } });
   fireEvent.keyDown(input, { key: "Enter" });
-  expect(screen.queryByText("console", { selector: ".pt-term-key" }) !== null).toBe(consoleLink === true);
+  const listed = document.querySelector(".pt-term-out")?.textContent ?? "";
+  expect(listed).toContain("forum.app");
+  expect(listed.includes("console.app")).toBe(consoleLink === true);
 });
 
 it("手机单击直达，双击事件不重复打开；论坛当前页，代码仓库在应用里打开", () => {
@@ -112,7 +114,7 @@ it("手机单击直达，双击事件不重复打开；论坛当前页，代码�
   expect(screen.getAllByRole("dialog", { name: "代码仓库" })).toHaveLength(1);
   expect(followed.calls).toHaveLength(1);
   expect(icons().queryByRole("button", { name: /GitHub/ })).toBeNull();
-  expect(container.querySelector(".pt-flight")).toBeNull();
+  expect(container.querySelector(".pt-scene")).toBeNull();
 });
 
 it("指引与壁纸弹层隔离背景数字键和搜索快捷键", () => {
@@ -134,7 +136,7 @@ it("指引与壁纸弹层隔离背景数字键和搜索快捷键", () => {
 it("返回主屏幕保留终端输入和输出，切电脑模式不重挂应用，关闭应用才清空", async () => {
   mount();
   fireEvent.click(icons().getByRole("button", { name: "终端" }));
-  const input = screen.getByRole("textbox", { name: "终端输入" });
+  const input = await screen.findByRole("textbox", { name: "终端输入" });
   fireEvent.change(input, { target: { value: "help" } });
   fireEvent.keyDown(input, { key: "Enter" });
   fireEvent.change(input, { target: { value: "unfinished" } });
@@ -151,7 +153,7 @@ it("返回主屏幕保留终端输入和输出，切电脑模式不重挂应用�
   expect((screen.getByRole("textbox", { name: "终端输入" }) as HTMLInputElement).value).toBe("unfinished");
   fireEvent.click(screen.getByRole("button", { name: "关闭应用" }));
   fireEvent.click(icons().getByRole("button", { name: "终端" }));
-  expect((screen.getByRole("textbox", { name: "终端输入" }) as HTMLInputElement).value).toBe("");
+  expect((await screen.findByRole("textbox", { name: "终端输入" }) as HTMLInputElement).value).toBe("");
 });
 
 it("手机一次只显示前台面板，关闭回主屏幕；搜索可打开应用，壁纸支持方向键选择", () => {
@@ -190,7 +192,7 @@ it("默认「晴空」；手机上图片壁纸和选择预览使用独立竖图�
   expect(localStorage.getItem("yugc:wallpaper")).toBe("geek");
 });
 
-it("主屏空白处下滑搜索，横滑、多指、取消和应用内手势不触发", () => {
+it("主屏空白处下滑搜索，横滑、多指、取消和应用内手势不触发", async () => {
   const { container } = mount();
   const main = container.querySelector<HTMLElement>(".pt-dt")!;
   const swipe = (target: HTMLElement, dx = 0, fingers = 1) => {
@@ -212,7 +214,7 @@ it("主屏空白处下滑搜索，横滑、多指、取消和应用内手势不�
   expect(screen.queryByRole("combobox")).toBeNull();
   main.scrollTop = 0;
   fireEvent.click(icons().getByRole("button", { name: "终端" }));
-  swipe(screen.getByRole("textbox", { name: "终端输入" }));
+  swipe(await screen.findByRole("textbox", { name: "终端输入" }));
   expect(screen.queryByRole("combobox")).toBeNull();
   expect(screen.queryByRole("button", { name: "搜索", exact: true })).toBeNull();
 });

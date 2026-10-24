@@ -1223,6 +1223,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 159,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "id": "flow:identity.current",
@@ -2795,12 +2807,20 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 181,
-          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+          "line": 125,
+          "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 11,
-          "path": "app/web/sites/portal/components/SceneBar.tsx"
+          "line": 72,
+          "path": "app/web/sites/portal/components/PromoLazy.tsx"
+        },
+        {
+          "line": 52,
+          "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 321,
+          "path": "app/server/src/lib/mail/envelope.ts"
         }
       ],
       "id": "flow:application.submit",
@@ -3037,7 +3057,7 @@
           "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
         },
         {
-          "line": 33,
+          "line": 32,
           "path": "app/web/sites/portal/App.tsx"
         },
         {
@@ -4786,15 +4806,15 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 226,
+          "line": 236,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 159,
+          "line": 158,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
-          "line": 44,
+          "line": 41,
           "path": "app/web/sites/portal/lib/osApps.ts"
         },
         {
@@ -7417,6 +7437,30 @@
         {
           "line": 3,
           "path": "app/web/sites/portal/lib/snapshots.ts"
+        },
+        {
+          "line": 158,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1100,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/web/sites/portal/lib/shell/vfs.ts"
+        },
+        {
+          "line": 147,
+          "path": "app/web/sites/portal/lib/shell/parse.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/web/sites/portal/lib/shell/ansi.ts"
+        },
+        {
+          "line": 55,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "id": "flow:gitlab.projects.public.list",
@@ -11080,7 +11124,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "1e23eb8c7cecf706ea890cc64d5c353f94d59e98ca8066971f67540ec83b86cc",
+    "fingerprint": "2127203bf4c72761c0b1ec4081330df11a3d29f39b8e251743ec321bb3ae5805",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -11944,7 +11988,7 @@
       },
       {
         "path": "app/server/src/lib/mail/envelope.ts",
-        "sha256": "cadabde98685187a4084c063938b2f629a11e6aa73e9c4551fe1812478d9a78c"
+        "sha256": "1279414060ace22b1e0ca20e7f0054af3110294dd65a965f55a470fdfdd066cd"
       },
       {
         "path": "app/server/src/lib/mail/login-code.ts",
@@ -12192,7 +12236,7 @@
       },
       {
         "path": "app/server/src/routes/portal/apply.ts",
-        "sha256": "09563be99861fe12eeb6366d458f4f1f2f15df5a52065103f353678a2b6e43da"
+        "sha256": "e6ec4f40f5097acc319c5ccf55c182a6d21beefb3652eb825312c96ec2f9dc1b"
       },
       {
         "path": "app/server/src/routes/portal/competition-signups.ts",
@@ -12320,7 +12364,7 @@
       },
       {
         "path": "app/web/sites/portal/App.tsx",
-        "sha256": "64b3e530006a703dd26d50f64e866c18c6833d407ed4b07659ae850cc8d0d792"
+        "sha256": "16f07766f2bd365907370700050dd03f9a06d061cb2d37fe6078df7e67913b7c"
       },
       {
         "path": "app/web/sites/portal/components/ChoiceChips.tsx",
@@ -12336,15 +12380,15 @@
       },
       {
         "path": "app/web/sites/portal/components/PageShell.tsx",
-        "sha256": "a8ee3652ff5898c74243aada5bea6fb3b0a1045684ac5b87a238000b3387fa47"
+        "sha256": "e4f8249779e1d7ea8d7bf92cfff1aac69b34117e7109a082f7325f0e6559710c"
       },
       {
         "path": "app/web/sites/portal/components/PromoLazy.tsx",
-        "sha256": "866074322cde128e2cd61f0133112db43fad6be7b4c7dcd1466b59c819ba9e32"
+        "sha256": "c2c576221eeff535a51c57ad30a2126e110498c3834012790b84f0495fe4878a"
       },
       {
         "path": "app/web/sites/portal/components/PromoPlayer.tsx",
-        "sha256": "979592c83e56c6d06aad8b6e3fdc6f050b203bd4549c762ec31da918aa677123"
+        "sha256": "4f40c6f4407a51138594c139a43ed7e0f6a4817f3e3c87ae4e3088a388d6a91d"
       },
       {
         "path": "app/web/sites/portal/components/SceneBar.tsx",
@@ -12380,7 +12424,11 @@
       },
       {
         "path": "app/web/sites/portal/components/os/FeedbackBox.tsx",
-        "sha256": "daf29c128c5fb3f95b6d9ad78d40c592655dec1a6f518f094df2407bb7cf4d83"
+        "sha256": "f65335661a81a495a51b8c624802d5bb03fda9dd56cd07715cd638dec6b91685"
+      },
+      {
+        "path": "app/web/sites/portal/components/os/JoinBox.tsx",
+        "sha256": "a2b02be2e7e1c2613cdb03a6d5c4db956ad919d96196fd8bf91d77d373e6f0f4"
       },
       {
         "path": "app/web/sites/portal/components/os/ProfileCard.tsx",
@@ -12389,6 +12437,10 @@
       {
         "path": "app/web/sites/portal/components/os/SkyWallpaper.tsx",
         "sha256": "53ff9b4df2f42df5778504fe4a0aeb928634aa0761b33b183d6f5a53bcc1fe5c"
+      },
+      {
+        "path": "app/web/sites/portal/components/os/Terminal.tsx",
+        "sha256": "9cc0ffe8514ae1e16358b4e0f8884db1adfcc1b897d5d83f1604e68be533f808"
       },
       {
         "path": "app/web/sites/portal/components/os/Wallpaper.tsx",
@@ -12400,11 +12452,11 @@
       },
       {
         "path": "app/web/sites/portal/components/os/Windows.tsx",
-        "sha256": "0dffd314e59067ee8675b391a89a0233fa965a56cce3fab997ae32670560a9ee"
+        "sha256": "46975da899267919fdad4f2cc9a440d7631f09dc235328849ae8191ef5ec0712"
       },
       {
         "path": "app/web/sites/portal/components/os/YugcOs.tsx",
-        "sha256": "84b06407db843f6121f8a7c435d92287ef658d5ba801f8210524d2c825cb75e8"
+        "sha256": "6a1e038f5b7a07aa3b18510629c3301bf5347429d8e7acfefca7a0a3b09b512e"
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/Avatar.tsx",
@@ -12488,11 +12540,11 @@
       },
       {
         "path": "app/web/sites/portal/lib/icons.ts",
-        "sha256": "d456ef04cef041b829e73e77f7ece63415a087a159a3b8a376516c4cd938cea8"
+        "sha256": "a99266b5218c1b4c05d04f3491f4caf291473e8b442fe059dfb2d511113d213a"
       },
       {
         "path": "app/web/sites/portal/lib/links.ts",
-        "sha256": "8074bfe4c8cb2efccc9d1d4bf2028483a0abfab1837f56bdc72345626a6e99ae"
+        "sha256": "fc94c96bde51cd3b8ea3a06a0a5446647a7d7100fd4a4208d6c9b18772324ab1"
       },
       {
         "path": "app/web/sites/portal/lib/motion.ts",
@@ -12500,7 +12552,7 @@
       },
       {
         "path": "app/web/sites/portal/lib/osApps.ts",
-        "sha256": "588de880c29abf6e88b5e6251f35e08ed5ddb33ecef20a283cb566c4cad81f5c"
+        "sha256": "e6844f15b795c52849028a2fa6d9f5e10ba7709c42f8840692915eb0cac4d452"
       },
       {
         "path": "app/web/sites/portal/lib/pixelRatio.ts",
@@ -12509,6 +12561,26 @@
       {
         "path": "app/web/sites/portal/lib/promo.ts",
         "sha256": "ce5e655f544b7c693c506b049e46d5040274e2d0a7fcaab482daf9b7e75b6efa"
+      },
+      {
+        "path": "app/web/sites/portal/lib/shell/ansi.ts",
+        "sha256": "4135b699d382d8bbd548c83ce1403eaf698ef2c8ebdd6cf0bd4836bb5fc9b591"
+      },
+      {
+        "path": "app/web/sites/portal/lib/shell/commands.ts",
+        "sha256": "1222d8231d4ead701784bda2bea70d5af6caa2b28ec0fe367193c2cb3ff07bd9"
+      },
+      {
+        "path": "app/web/sites/portal/lib/shell/index.ts",
+        "sha256": "1ab1cf5e7f4b92a8e03ca6aa13ba38a86de4613996aeae384df00e42358b4b51"
+      },
+      {
+        "path": "app/web/sites/portal/lib/shell/parse.ts",
+        "sha256": "29bc9171b759196df491caeb4690c8074bd5a621e3fbdb06997356ff8920f935"
+      },
+      {
+        "path": "app/web/sites/portal/lib/shell/vfs.ts",
+        "sha256": "d3e093bd6c2ebecaf69f537bda4b97c5f555f63e40e273c02aca1264577333f2"
       },
       {
         "path": "app/web/sites/portal/lib/snapshots.ts",
@@ -12547,16 +12619,8 @@
         "sha256": "ff4d063cf833238be9ea48c42eee1712b4a8f1a076560ab251574e816df94119"
       },
       {
-        "path": "app/web/sites/portal/pages/JoinUs.tsx",
-        "sha256": "e57b0b8cf6eeaefd7df92879e16e5d2d73b4cd8296c3369abd2c5b7425a6d42b"
-      },
-      {
         "path": "app/web/sites/portal/three/forum.ts",
         "sha256": "8c2c92f7d6d8e58e8fcf2c316bb812e00af614f7b19dce69edbdace4d5b0a187"
-      },
-      {
-        "path": "app/web/sites/portal/three/join.ts",
-        "sha256": "48049108ade4d4fe981f72863082055252c1e4164679239e24280c679cbba65b"
       },
       {
         "path": "app/web/sites/portal/three/stage.ts",
@@ -12584,7 +12648,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "523d49cf113871042cb5965db25a9d287b507ad5980f34a3243fd66546163293"
+        "sha256": "8ffa0c7807b36ab82651dec928ab0c1f6274d46fdb3f5611dff1bc46b7a0a7a9"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -12628,11 +12692,11 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "261aabc363cf53b0594a75211371ade10d98f53e0d139ef97e4d41c51024b9d2"
+        "sha256": "564ed497426f14ab2b4da323a46dcde01ab05a999c5ce12929f86390a493ff9b"
       },
       {
         "path": "docs/services/server/mail.md",
-        "sha256": "9b2d1f5e8ad4108b7bbb11a0f2402eaef07dde51f4bb0ee998e7b5be86871a6a"
+        "sha256": "832aec7b1c04d28e12eec1363efc4ff72eac8082bbfb021e3fdf01f2ce331485"
       },
       {
         "path": "docs/services/server/oidc.md",
@@ -12640,11 +12704,11 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "926b745354b490710cdd5a8886e83125b34a19bcfce552207ee0dbaed01e82f9"
+        "sha256": "8a87b91ccd6a606ce0444ef00b5d4715bf02e2772bc9c910ec38ac57aae23a90"
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "8689cd4939cf1df7b700b8002f3cb5da73d0b20df2d4488772cdf2efd5bcbe02"
+        "sha256": "a683aa7baabaabdfc57a783b3b97c26abb727e10a1feee53c6adaa18fa6d1d69"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -12724,7 +12788,7 @@
       },
       {
         "path": "tests/e2e/workflows.spec.ts",
-        "sha256": "7fd0ca6d507f9a28f528ce976ad4f23b74790268239d31e76cdb867d7b9607a7"
+        "sha256": "b0df95c313eaa57e79fb5207f2114f655ab5ac648c4b6348fa03dbc0baf37be0"
       },
       {
         "path": "tests/server/activity.test.ts",
@@ -12832,11 +12896,11 @@
       },
       {
         "path": "tests/web/portal-os.test.ts",
-        "sha256": "26dcccd09e0b8eca83bb42a6a0de1806214c5c25564191e13b376b558e9b587b"
+        "sha256": "7236ea06a18023350feb448532e7465841c474ba6b1bcf02899e0c6df1806357"
       },
       {
         "path": "tests/web/portal-phone.test.tsx",
-        "sha256": "d1b555aa803d6989da16e5df071210506f6d0a35c12c592b37adc1f06048b597"
+        "sha256": "0d1a346a26365c36aeff3cf68c67e54aa5c2d578151f133f7f2a22e48d39a689"
       }
     ]
   },
@@ -17087,12 +17151,20 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 181,
-          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+          "line": 125,
+          "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 11,
-          "path": "app/web/sites/portal/components/SceneBar.tsx"
+          "line": 72,
+          "path": "app/web/sites/portal/components/PromoLazy.tsx"
+        },
+        {
+          "line": 52,
+          "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 321,
+          "path": "app/server/src/lib/mail/envelope.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -17119,12 +17191,20 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 181,
-          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+          "line": 125,
+          "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 11,
-          "path": "app/web/sites/portal/components/SceneBar.tsx"
+          "line": 72,
+          "path": "app/web/sites/portal/components/PromoLazy.tsx"
+        },
+        {
+          "line": 52,
+          "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 321,
+          "path": "app/server/src/lib/mail/envelope.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -17169,12 +17249,20 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 181,
-          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+          "line": 125,
+          "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 11,
-          "path": "app/web/sites/portal/components/SceneBar.tsx"
+          "line": 72,
+          "path": "app/web/sites/portal/components/PromoLazy.tsx"
+        },
+        {
+          "line": 52,
+          "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 321,
+          "path": "app/server/src/lib/mail/envelope.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -17201,12 +17289,20 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 181,
-          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+          "line": 125,
+          "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 11,
-          "path": "app/web/sites/portal/components/SceneBar.tsx"
+          "line": 72,
+          "path": "app/web/sites/portal/components/PromoLazy.tsx"
+        },
+        {
+          "line": 52,
+          "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 321,
+          "path": "app/server/src/lib/mail/envelope.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -17233,12 +17329,20 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 181,
-          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+          "line": 125,
+          "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 11,
-          "path": "app/web/sites/portal/components/SceneBar.tsx"
+          "line": 72,
+          "path": "app/web/sites/portal/components/PromoLazy.tsx"
+        },
+        {
+          "line": 52,
+          "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 321,
+          "path": "app/server/src/lib/mail/envelope.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -17265,12 +17369,20 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 181,
-          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+          "line": 125,
+          "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 11,
-          "path": "app/web/sites/portal/components/SceneBar.tsx"
+          "line": 72,
+          "path": "app/web/sites/portal/components/PromoLazy.tsx"
+        },
+        {
+          "line": 52,
+          "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 321,
+          "path": "app/server/src/lib/mail/envelope.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -17297,12 +17409,20 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 181,
-          "path": "app/web/sites/portal/pages/JoinUs.tsx"
+          "line": 125,
+          "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 11,
-          "path": "app/web/sites/portal/components/SceneBar.tsx"
+          "line": 72,
+          "path": "app/web/sites/portal/components/PromoLazy.tsx"
+        },
+        {
+          "line": 52,
+          "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 321,
+          "path": "app/server/src/lib/mail/envelope.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -20665,15 +20785,15 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 226,
+          "line": 236,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 159,
+          "line": 158,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
-          "line": 44,
+          "line": 41,
           "path": "app/web/sites/portal/lib/osApps.ts"
         },
         {
@@ -20775,15 +20895,15 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 226,
+          "line": 236,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 159,
+          "line": 158,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
-          "line": 44,
+          "line": 41,
           "path": "app/web/sites/portal/lib/osApps.ts"
         },
         {
@@ -28807,7 +28927,7 @@
           "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
         },
         {
-          "line": 33,
+          "line": 32,
           "path": "app/web/sites/portal/App.tsx"
         },
         {
@@ -28843,7 +28963,7 @@
           "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
         },
         {
-          "line": 33,
+          "line": 32,
           "path": "app/web/sites/portal/App.tsx"
         },
         {
@@ -37555,6 +37675,30 @@
         {
           "line": 3,
           "path": "app/web/sites/portal/lib/snapshots.ts"
+        },
+        {
+          "line": 158,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1100,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/web/sites/portal/lib/shell/vfs.ts"
+        },
+        {
+          "line": 147,
+          "path": "app/web/sites/portal/lib/shell/parse.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/web/sites/portal/lib/shell/ansi.ts"
+        },
+        {
+          "line": 55,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:gitlab.projects.public.list",
@@ -40487,6 +40631,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 159,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -40599,6 +40755,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 159,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -40711,6 +40879,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 159,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -40823,6 +41003,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 159,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -40935,6 +41127,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 159,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -41047,6 +41251,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 159,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -41159,6 +41375,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 159,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -41271,6 +41499,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 159,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -41455,6 +41695,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 159,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -41567,6 +41819,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 159,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -41679,6 +41943,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 159,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -80259,6 +80535,19 @@
         "public_content",
         "recruitment"
       ],
+      "path": "app/web/sites/portal/components/os/JoinBox.tsx"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
       "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
     },
     {
@@ -80273,6 +80562,19 @@
         "recruitment"
       ],
       "path": "app/web/sites/portal/components/os/SkyWallpaper.tsx"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "path": "app/web/sites/portal/components/os/Terminal.tsx"
     },
     {
       "domains": [
@@ -80591,6 +80893,71 @@
         "public_content",
         "recruitment"
       ],
+      "path": "app/web/sites/portal/lib/shell/ansi.ts"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "path": "app/web/sites/portal/lib/shell/commands.ts"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "path": "app/web/sites/portal/lib/shell/index.ts"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "path": "app/web/sites/portal/lib/shell/parse.ts"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "path": "app/web/sites/portal/lib/shell/vfs.ts"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
       "path": "app/web/sites/portal/lib/snapshots.ts"
     },
     {
@@ -80708,33 +81075,7 @@
         "public_content",
         "recruitment"
       ],
-      "path": "app/web/sites/portal/pages/JoinUs.tsx"
-    },
-    {
-      "domains": [
-        "competitions",
-        "feedback",
-        "identity",
-        "invitations",
-        "organization",
-        "platform",
-        "public_content",
-        "recruitment"
-      ],
       "path": "app/web/sites/portal/three/forum.ts"
-    },
-    {
-      "domains": [
-        "competitions",
-        "feedback",
-        "identity",
-        "invitations",
-        "organization",
-        "platform",
-        "public_content",
-        "recruitment"
-      ],
-      "path": "app/web/sites/portal/three/join.ts"
     },
     {
       "domains": [
