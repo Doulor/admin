@@ -1,7 +1,8 @@
 // 默认壁纸「晴空」：开机动画最后一帧的画面，用开机动画同一组绘制函数（components/boot/background.ts）在 canvas 里接着画。
 // 刚播完开机动画时拿开机动画的起点当时间零点，网格、云、点缀物、极客娘的呼吸和头顶那句话都从同一帧接上，
 // 开机动画层淡出时看不出接缝；YUGC 字标、boot.log 面板、公式小卡片只属于开机动画，跟着它一起淡出。
-// 手机竖屏上，开机动画层卸掉以后极客娘从开机动画里的位置滑到主屏幕图标下面、搜索框上面那一段，不压着图标。
+// 手机竖屏上，开机动画层卸掉以后极客娘从开机动画里的位置滑到主屏幕图标下面、搜索框上面那一段，不压着图标；
+// 横屏（电脑、手机横着拿）她坐在原位，只有 Dock 会挡住她坐的窗口时（比如 1024×768、1280×720）以头顶为准缩小，坐到 Dock 上面。
 // 没播开机动画（今天播过）时直接画在最终位置；开了「减少动态效果」只画一帧，窗口大小变了再画。
 import { useEffect, useRef } from "react";
 import girlSrc from "../../assets/mascot/geek-girl.webp";
@@ -10,7 +11,7 @@ import { bootLayout, isLand, READY_BUBBLE } from "../boot/layout";
 import { clamp, easeInOut, lerp } from "../boot/math";
 import { useReducedMotion } from "../../lib/useReducedMotion";
 
-/** 一段竖直区间（视口坐标）：手机主屏上图标下沿到搜索框上沿 */
+/** 一段竖直区间（视口坐标）：手机竖屏主屏上是图标下沿到搜索框上沿；横屏是菜单栏或状态栏下沿到 Dock 上沿 */
 export type SkyBand = { top: number; bottom: number };
 
 export type SkyScene = {
@@ -18,7 +19,7 @@ export type SkyScene = {
   epoch: number | null;
   /** 开机动画层已经卸掉，极客娘可以往主屏的位置滑了 */
   settled: boolean;
-  /** 手机竖屏主屏上留给极客娘的一段；没有时停在开机动画最后一帧的位置 */
+  /** 留给极客娘的一段（见 SkyBand）；没有时停在开机动画最后一帧的位置 */
   band: SkyBand | null;
 };
 
@@ -39,14 +40,26 @@ function lerpRect(a: Rect, b: Rect, t: number): Rect {
 }
 
 /**
- * 这一刻极客娘在哪。横屏、没有主屏区间时就是开机动画最后一帧的位置（components/boot/layout.ts 的 bootLayout）；
- * 竖屏有区间时 glide 从 0 到 1，从开机动画的位置滑到区间里（底边对齐区间下沿，水平居中）。
+ * 横屏：极客娘坐的窗口底边（贴图 95% 处）不低于 bottom、头顶不高于 top。放得下就是原来的位置；放不下以头顶为准缩小，
+ * 水平中心不变，露出来的部分最矮 MIN_BAND。
+ */
+export function landFit(girl: Rect, top: number, bottom: number): Rect {
+  const y = Math.max(girl.y, top);
+  const gh = Math.min(girl.h, Math.max(MIN_BAND, bottom - y) / 0.95);
+  if (y === girl.y && gh === girl.h) return girl;
+  const gw = gh * (girl.w / girl.h);
+  return { x: girl.x + girl.w / 2 - gw / 2, y, w: gw, h: gh };
+}
+
+/**
+ * 这一刻极客娘在哪。没有区间时就是开机动画最后一帧的位置（components/boot/layout.ts 的 bootLayout）；有区间时 glide 从 0 到 1，
+ * 从开机动画的位置滑到区间里：竖屏底边对齐区间下沿、水平居中，横屏按 landFit 只在放不下时缩小。
  */
 export function skyFigure(w: number, h: number, aspect: number, insets: Insets, band: SkyBand | null, glide: number): Figure {
   const boot = bootLayout(w, h, aspect, insets.top, insets.bottom);
-  if (boot.land || !band) return boot.fig;
-  const target = bandGirl(w, Math.min(band.top, band.bottom - MIN_BAND), band.bottom, aspect);
-  return figureAt(lerpRect(boot.fig.girl, target, easeInOut(glide)), false);
+  if (!band) return boot.fig;
+  const target = boot.land ? landFit(boot.fig.girl, band.top, band.bottom) : bandGirl(w, Math.min(band.top, band.bottom - MIN_BAND), band.bottom, aspect);
+  return figureAt(lerpRect(boot.fig.girl, target, easeInOut(glide)), boot.land);
 }
 
 type Frame = { w: number; h: number; dpr: number; t: number; fig: Figure; decor: readonly DecorItem[]; girl: CanvasImageSource | null; breathe: number; bubble: boolean };
@@ -194,32 +207,46 @@ export default function SkyWallpaper({ epoch, settled, band }: SkyScene) {
   );
 }
 
-/** 壁纸面板里「晴空」的缩略图：按一块常见屏幕的尺寸画一帧再整体缩小，点缀物和线宽的比例和真桌面一样 */
-export function SkyThumb({ width, height }: { width: number; height: number }) {
+/**
+ * 壁纸面板里「晴空」的缩略图：按这块屏幕的宽度画一帧再整体缩小，点缀物、线宽和极客娘的位置都和真桌面一样；手机竖屏传进主屏上
+ * 留给极客娘的那一段（band），缩略图里她也在图标下面。按缩略图实际显示的大小画，面板换了尺寸就重画，放大了也不糊。
+ */
+export function SkyThumb({ width, height, band = null }: { width: number; height: number; band?: SkyBand | null }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
-    const vw = width > height ? 1440 : 390;
-    const vh = (vw * height) / width;
-    const scale = (dpr * width) / vw;
+    let girl: HTMLImageElement | null = null;
     let cancelled = false;
-    const draw = (girl: HTMLImageElement | null) => {
+    const draw = () => {
+      const rect = canvas.getBoundingClientRect();
+      const cw = rect.width || width;
+      const ch = rect.height || height;
+      const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+      canvas.width = Math.round(cw * dpr);
+      canvas.height = Math.round(ch * dpr);
+      const vw = window.innerWidth || (cw > ch ? 1440 : 390);
+      const vh = (vw * ch) / cw;
+      // 缩略图和屏幕的高宽比不一定一样：区间按高度等比换算
+      const k = vh / (window.innerHeight || vh);
+      const zone = band && { top: band.top * k, bottom: band.bottom * k };
       const aspect = girl ? girl.naturalWidth / girl.naturalHeight || GIRL_ASPECT : GIRL_ASPECT;
-      const fig = skyFigure(vw, vh, aspect, { top: 0, bottom: 0 }, null, 1);
-      paintSky(ctx, { w: vw, h: vh, dpr: scale, t: 0, fig, decor: makeDecor(vw, vh, isLand(vw, vh)), girl, breathe: 0, bubble: false });
+      const fig = skyFigure(vw, vh, aspect, { top: 0, bottom: 0 }, zone, 1);
+      paintSky(ctx, { w: vw, h: vh, dpr: (dpr * cw) / vw, t: 0, fig, decor: makeDecor(vw, vh, isLand(vw, vh)), girl, breathe: 0, bubble: false });
     };
-    draw(null);
+    draw();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(draw);
+    observer?.observe(canvas);
     void loadGirl().then((img) => {
-      if (img && !cancelled) draw(img);
+      if (!img || cancelled) return;
+      girl = img;
+      draw();
     });
     return () => {
       cancelled = true;
+      observer?.disconnect();
     };
-  }, [width, height]);
+  }, [width, height, band]);
   return <canvas ref={ref} className="pt-sky-thumb" width={width} height={height} aria-hidden="true" />;
 }

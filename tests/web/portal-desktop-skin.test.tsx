@@ -37,10 +37,25 @@ const ASPECT = 883 / 1676;
 const NO_INSETS = { top: 0, bottom: 0 };
 
 describe("「晴空」壁纸里极客娘的位置", () => {
-  it("横屏：和开机动画最后一帧同一个位置，有没有主屏区间、滑没滑都一样", () => {
+  it("横屏：和开机动画最后一帧同一个位置；Dock 挡住她坐的窗口时以头顶为准缩小、水平中心不变，坐到 Dock 上面", () => {
     const boot = bootLayout(1440, 900, ASPECT).fig;
     expect(skyFigure(1440, 900, ASPECT, NO_INSETS, null, 1)).toEqual(boot);
-    expect(skyFigure(1440, 900, ASPECT, NO_INSETS, { top: 400, bottom: 800 }, 1)).toEqual(boot);
+    // 放得下（窗口底边在 0.93 × 900 = 837）：原样
+    expect(skyFigure(1440, 900, ASPECT, NO_INSETS, { top: 40, bottom: 860 }, 1)).toEqual(boot);
+    // 1024×768，Dock 上沿 690：缩小到窗口底边正好在 Dock 上面
+    const small = bootLayout(1024, 768, ASPECT).fig;
+    const band = { top: 40, bottom: 690 };
+    expect(skyFigure(1024, 768, ASPECT, NO_INSETS, band, 0)).toEqual(small);
+    const fit = skyFigure(1024, 768, ASPECT, NO_INSETS, band, 1);
+    expect(fit.land).toBe(true);
+    expect(fit.girl.y).toBeCloseTo(small.girl.y, 6);
+    expect(fit.girl.y + fit.girl.h * 0.95).toBeCloseTo(band.bottom, 6);
+    expect(fit.girl.x + fit.girl.w / 2).toBeCloseTo(small.girl.x + small.girl.w / 2, 6);
+    expect(fit.girl.w / fit.girl.h).toBeCloseTo(small.girl.w / small.girl.h, 6);
+    expect(fit.win.y + fit.win.h).toBeLessThanOrEqual(band.bottom + 1e-6);
+    // 头顶也不高过菜单栏下沿
+    const low = skyFigure(1024, 768, ASPECT, NO_INSETS, { top: 120, bottom: 690 }, 1).girl;
+    expect(low.y).toBeCloseTo(120, 6);
   });
 
   it("手机竖屏：滑之前在开机动画的位置（算上安全区）；滑完底边对齐区间下沿、水平居中，没有区间时不动", () => {
@@ -108,11 +123,13 @@ describe("桌面", () => {
     expect(sky.scenes.at(-1)).toMatchObject({ epoch: null, settled: true });
   });
 
-  it("手机竖屏把图标下沿到搜索框上沿量出来交给壁纸；电脑上不给", () => {
+  it("手机竖屏把图标下沿到搜索框上沿量出来交给壁纸；电脑上量菜单栏下沿到 Dock 上沿", () => {
     const rect = (top: number, bottom: number) => ({ top, bottom, left: 0, right: 0, width: 0, height: bottom - top, x: 0, y: top, toJSON() {} }) as DOMRect;
     const spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
       if (this.classList.contains("pt-icons")) return rect(120, 440);
       if (this.classList.contains("pt-phone-search")) return rect(700, 744);
+      if (this.classList.contains("pt-mb")) return rect(0, 32);
+      if (this.classList.contains("pt-dock")) return rect(820, 886);
       return rect(0, 0);
     });
     phone = true;
@@ -121,7 +138,7 @@ describe("桌面", () => {
     cleanup();
     phone = false;
     mount();
-    expect(sky.scenes.at(-1)?.band).toBeNull();
+    expect(sky.scenes.at(-1)?.band).toEqual({ top: 40, bottom: 812 });
     spy.mockRestore();
   });
 

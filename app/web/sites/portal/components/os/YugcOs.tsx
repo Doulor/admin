@@ -130,19 +130,26 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
 
   const front = useMemo(() => wins.filter((w) => !w.minimized).sort((a, b) => b.z - a.z)[0] ?? null, [wins]);
   const atHome = front === null;
-  // 手机竖屏主屏上留给极客娘的一段：图标下沿到搜索框上沿，「晴空」壁纸里她滑到这里，不压着图标
+  // 「晴空」壁纸里留给极客娘的一段，她滑到这里，不压着桌面上的东西：手机竖屏是图标下沿到搜索框上沿；
+  // 横屏（电脑、手机横着拿）是菜单栏或状态栏下沿到 Dock 上沿，她只在坐的窗口会被 Dock 挡住时缩小（SkyWallpaper.tsx 的 landFit）
   const [band, setBand] = useState<SkyBand | null>(null);
   useLayoutEffect(() => {
-    if (!phoneWallpaper) {
-      setBand(null);
-      return;
-    }
     const measure = () => {
-      const icons = root.current?.querySelector(".pt-icons")?.getBoundingClientRect();
-      const floor = root.current?.querySelector(".pt-phone-search, .pt-dock")?.getBoundingClientRect();
-      // 开着应用时主屏是收起的（量不到），回到主屏再量
-      if (!icons || !floor || (icons.height === 0 && icons.bottom === 0 && floor.top > 0)) return;
-      const next = { top: Math.round(icons.bottom + 12), bottom: Math.round(floor.top - 4) };
+      const shell = root.current;
+      if (!shell) return;
+      let next: SkyBand;
+      if (phoneWallpaper) {
+        const icons = shell.querySelector(".pt-icons")?.getBoundingClientRect();
+        const floor = shell.querySelector(".pt-phone-search, .pt-dock")?.getBoundingClientRect();
+        // 开着应用时主屏是收起的（量不到），回到主屏再量
+        if (!icons || !floor || (icons.height === 0 && icons.bottom === 0 && floor.top > 0)) return;
+        next = { top: Math.round(icons.bottom + 12), bottom: Math.round(floor.top - 4) };
+      } else {
+        const bar = shell.querySelector(".pt-mb, .pt-phone-status")?.getBoundingClientRect();
+        const dock = shell.querySelector(".pt-dock")?.getBoundingClientRect();
+        if (!bar || !dock || dock.height === 0) return;
+        next = { top: Math.round(bar.bottom + 8), bottom: Math.round(dock.top - 8) };
+      }
       setBand((current) => (current && current.top === next.top && current.bottom === next.bottom ? current : next));
     };
     measure();
@@ -488,7 +495,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
         </nav>
 
         {picker && (
-          <Modal title="更换壁纸" className={`pt-root pt-os-modal pt-picker-modal${phone ? " is-phone" : ""}`} onClose={() => setPicker(false)} initialFocusRef={wallpaperFocus}>
+          <Modal title="更换壁纸" className={`pt-root pt-os-modal pt-picker-modal${phone ? " is-phone" : ""}${phoneWallpaper ? " is-tall" : ""}`} onClose={() => setPicker(false)} initialFocusRef={wallpaperFocus}>
             <div className="pt-picker-box" ref={pickerBox}>
               {!phone && <header>
                 <h2>更换壁纸</h2>
@@ -516,7 +523,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
                       onClick={(event) => chooseWallpaper(item, event.currentTarget)}
                     >
                       {item.kind === "sky" ? (
-                        <SkyThumb width={phoneWallpaper ? 90 : 160} height={phoneWallpaper ? 195 : 90} />
+                        <SkyThumb width={phoneWallpaper ? 90 : 160} height={phoneWallpaper ? 195 : 90} band={phoneWallpaper ? band : null} />
                       ) : (
                         <img src={phoneWallpaper ? item.phone.thumb : item.thumb} alt="" width={phoneWallpaper ? 90 : 160} height={phoneWallpaper ? 195 : 90} loading="lazy" />
                       )}

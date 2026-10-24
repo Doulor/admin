@@ -94,7 +94,7 @@
 .pt-picker-box li button:hover { background: rgb(58 118 214 / 8%); }
 .pt-picker-box li button.is-on { border-color: var(--os-accent); }
 .pt-picker-box li button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgb(58 118 214 / 35%); }
-.pt-picker-box img, .pt-picker-box canvas { width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 9px; object-fit: cover; }
+.pt-picker-box img, .pt-picker-box canvas { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 9px; object-fit: cover; }
 .pt-picker-box span { display: flex; align-items: center; gap: 8px; padding: 0 2px 2px; font-size: 13.5px; font-weight: 600; }
 
 /* 桌面图标：左上角往下排，排满一列换下一列（和电脑桌面一样）。名字压在壁纸上，靠 1px 白色描边保证可读 */
@@ -351,6 +351,8 @@ a.pt-term-key:hover { text-decoration: underline; }
 .pt-phone-heading h2 { color: var(--os-ink); font-size: 1.5rem; font-weight: 800; text-shadow: 1px 0 #fff, -1px 0 #fff, 0 1px #fff, 0 -1px #fff; }
 .pt-phone-heading button { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--os-stroke); border-radius: 999px; background: var(--os-panel); color: var(--os-ink); font-size: 0.75rem; font-weight: 600; cursor: pointer; }
 .is-phone .pt-icons { height: auto; width: 100%; grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: auto; gap: 12px 4px; }
+/* 手机横着拿：图标排在左边六成宽里，右边留给「晴空」里坐在 Dock 上面的极客娘（她在 70% 宽处） */
+@media (orientation: landscape) { .is-phone .pt-icons { width: min(100%, 58%); } }
 .is-phone .pt-dti { min-height: 92px; padding: 6px 0; gap: 6px; cursor: pointer; }
 .is-phone .pt-dti-name { max-width: 100%; padding: 0 2px; font-size: 0.71875rem; }
 .pt-phone-search { position: relative; z-index: 2; align-self: center; flex: none; display: grid; place-items: center; min-width: 88px; min-height: 44px; margin: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); padding: 0; border: 0; border-radius: 999px; background: none; color: var(--os-ink); cursor: pointer; }
@@ -487,8 +489,9 @@ a.pt-term-key:hover { text-decoration: underline; }
 .pt-os-modal.is-phone .pt-ln-box li { min-height: 44px; }
 .pt-os-modal .pt-note { position: relative; top: auto; left: auto; width: 100%; overflow: visible; border: 0; border-radius: 0; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; animation: none; }
 .pt-os-modal .pt-note-body { padding: 0; }
-.pt-os-modal.is-phone .pt-picker-box ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.pt-picker-modal.is-phone .pt-picker-box img { aspect-ratio: auto; max-height: min(48dvh, 320px); object-fit: contain; }
+/* 手机上几张缩略图排一行，每张一样大；竖屏（is-tall）是竖图，比例和手机屏幕一样，「晴空」的画布也按这个比例画 */
+.pt-os-modal.is-phone .pt-picker-box ul { grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 10px; }
+.pt-picker-modal.is-tall .pt-picker-box img, .pt-picker-modal.is-tall .pt-picker-box canvas { aspect-ratio: 9 / 19.5; }
 .pt-os-modal.is-phone .pt-ln-box ul { max-height: min(340px, 48dvh); }
 .pt-os-modal.is-phone .pt-ln-box footer { display: none; }
 

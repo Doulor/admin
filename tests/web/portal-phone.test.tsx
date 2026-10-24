@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -177,6 +178,8 @@ it("默认「晴空」；手机上图片壁纸和选择预览使用独立竖图�
   fireEvent.click(icons().getByRole("button", { name: "壁纸" }));
   const choices = screen.getAllByRole("radio");
   expect(choices.map((choice) => choice.textContent)).toEqual(["晴空", "极客娘 1", "极客娘 2"]);
+  // 竖屏面板（is-tall）里三张缩略图一样是竖图：「晴空」的画布和图片走同一条比例规则（styles/os.css）
+  expect(screen.getByRole("dialog", { name: "更换壁纸" }).classList.contains("is-tall")).toBe(true);
   expect(choices[0].querySelector("canvas")).not.toBeNull();
   expect(choices[1].querySelector("img")?.getAttribute("src")).toContain("yugc-phone-thumb.webp");
   fireEvent.click(choices[2]);
@@ -256,4 +259,12 @@ it("电脑模式下窗口不渲染手机拖拽条与遮罩背景，保留 macOS 
   expect(container.querySelector(".pt-win-lights")).not.toBeNull();
   fireEvent.click(within(screen.getByRole("dialog", { name: "关于极客班" })).getByRole("button", { name: "关闭" }));
   expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("壁纸面板的缩略图：每张同一个比例，竖屏是手机屏幕的竖图，手机上一行排开，不再有只管图片、不管画布的比例规则", () => {
+  const css = readFileSync(`${process.cwd()}/app/web/sites/portal/styles/os.css`, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  expect(css).toMatch(/\.pt-picker-box img, \.pt-picker-box canvas \{[^}]*aspect-ratio: 16 \/ 9;/);
+  expect(css).toMatch(/\.pt-picker-modal\.is-tall \.pt-picker-box img, \.pt-picker-modal\.is-tall \.pt-picker-box canvas \{ aspect-ratio: 9 \/ 19\.5; \}/);
+  expect(css).toMatch(/\.pt-os-modal\.is-phone \.pt-picker-box ul \{ grid-template-columns: repeat\(auto-fit, minmax\(88px, 1fr\)\);/);
+  expect(css).not.toMatch(/\.pt-picker-box img \{[^}]*aspect-ratio: auto/);
 });
