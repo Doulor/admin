@@ -10,7 +10,14 @@ import { loadModule } from './support/sfc'
 describe('parseMe', () => {
   it('reads a signed-in answer', () => {
     expect(parseMe({ signed_in: true, login: 'ada', avatar_url: 'https://avatars.githubusercontent.com/u/1', console_link: true }))
-      .toEqual({ login: 'ada', avatarUrl: 'https://avatars.githubusercontent.com/u/1', consoleLink: true })
+      .toEqual({ login: 'ada', avatarUrl: 'https://avatars.githubusercontent.com/u/1', consoleLink: true, forumTheme: null })
+  })
+
+  it('reads the forum theme the account saved, and only the three themes (#276)', () => {
+    for (const theme of ['sky', 'light', 'dark'] as const)
+      expect(parseMe({ signed_in: true, login: 'ada', prefs: { forum_theme: theme } })?.forumTheme).toBe(theme)
+    for (const prefs of [undefined, {}, { forum_theme: null }, { forum_theme: 'system' }, { forum_theme: 'neon' }, 'sky'])
+      expect(parseMe({ signed_in: true, login: 'ada', prefs })?.forumTheme).toBeNull()
   })
 
   it('hides 控制台 unless console_link is exactly true', () => {
@@ -62,7 +69,7 @@ describe('profileRequired', () => {
 })
 
 describe('useSiteAccount reading /auth/me', () => {
-  const ADA: SiteAccount = { login: 'ada', avatarUrl: null, consoleLink: false }
+  const ADA: SiteAccount = { login: 'ada', avatarUrl: null, consoleLink: false, forumTheme: null }
 
   /** The page shows ada as signed in; `/auth/me` answers `body`. */
   async function ask(body: unknown) {

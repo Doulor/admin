@@ -1,11 +1,10 @@
 import type { ServerStatus } from '~/data/access'
-import type { Bookmark, Follow, ForumChanges, Notification, NotifyPrefs, Post, User } from '~/data/types'
-import type { CreatePostBody, CreateTopicBody, ForumViewer, GuestPolicy, ProfileBody, SearchAnswer, ServerSnapshot, WriteResult } from '../../shared/forum-api'
+import type { Bookmark, Follow, ForumChanges, Notification, NotifyPrefs, Post, Reaction, User, Visibility } from '~/data/types'
+import type { CreatePostBody, CreateTopicBody, ForumViewer, ProfileBody, SearchAnswer, ServerSnapshot, StickerPack, SuggestedUser, WriteResult } from '../../shared/forum-api'
 import { toast } from '@talex-touch/tuffex/utils'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { createForumApi, DEFAULT_GUEST_POLICY, ForumApiError } from '../../shared/forum-api'
-import { replyPowBody, solvePow } from '../../shared/pow'
+import { createForumApi, ForumApiError, uploadFileProblem } from '../../shared/forum-api'
 import { useForumStore } from './forum'
 import { useSessionStore } from './session'
 
@@ -72,18 +71,20 @@ export interface SigninLapse {
   message: string | null
 }
 
-/** The id a reply (and a guest's name on it) has while it is being sent; the server's ids never contain a colon. */
+/** The id a reply has while it is being sent; the server's ids never contain a colon. */
 export const PENDING_PREFIX = 'pending:'
 
 export function isPending(id: string): boolean {
   return id.startsWith(PENDING_PREFIX)
 }
 
-export interface ReplyAsGuestInput extends CreatePostBody {
-  name: string
-  /** The Turnstile answer, when `guestPolicy.turnstileSiteKey` asks for one. */
-  turnstileToken?: string
-}
+/**
+ * Why a topic the page asked for is not there (#276): it does not exist, or
+ * the viewer may not see it — 「登录后可看」 for someone signed out, 「成员可看」
+ * for an account below the topic's visibility. The server says which by
+ * status alone and never sends the title.
+ */
+export type TopicAbsence = 'missing' | 'need-registered' | 'need-member' | 'unknown'
 
 /** Called with the id a reply is shown under the moment it is on the page (a `pending:` one against the server). */
 export type ReplyShown = (postId: string) => void
@@ -136,13 +137,35 @@ function sameProfile(a: ProfileFields, b: ProfileFields): boolean {
   return PROFILE_TEXT.every(key => a[key] === b[key]) && samePrefs(a.notifyPrefs, b.notifyPrefs)
 }
 
+const sameList = (a: string[], b: string[]): boolean => a.length === b.length && a.every((item, index) => item === b[index])
+
 function sameViewer(a: ForumViewer | null, b: ForumViewer): boolean {
-  return !!a && a.userId === b.userId && a.kind === b.kind
-    && a.capabilities.length === b.capabilities.length && a.capabilities.every((item, index) => item === b.capabilities[index])
+  return !!a && a.userId === b.userId && a.kind === b.kind && a.level === b.level
+    && sameList(a.capabilities, b.capabilities) && sameList(a.nodes, b.nodes)
 }
 
-function sameGuestPolicy(a: GuestPolicy, b: GuestPolicy): boolean {
-  return a.powDifficulty === b.powDifficulty && a.turnstileSiteKey === b.turnstileSiteKey && a.nameMax === b.nameMax && a.contentMax === b.contentMax
+const sameReactions = (a: Reaction[], b: Reaction[]): boolean =>
+  a.length === b.length && a.every((item, index) => item.stickerId === b[index]?.stickerId && item.count === b[index]?.count && item.mine === b[index]?.mine)
+
+/**
+ * A post's reactions with one sticker added or taken back by the viewer, as
+ * the page shows it before the server answers. A new sticker goes last
+ * (the server orders by first use); one that drops to nobody disappears.
+ */
+export function toggledReactions(list: Reaction[], sticker: Pick<Reaction, 'stickerId' | 'shortcode' | 'url'>, on: boolean): Reaction[] {
+  const found = list.find(item => item.stickerId === sticker.stickerId)
+  if (on) {
+    if (found?.mine)
+      return list
+    return found
+      ? list.map(item => (item === found ? { ...item, count: item.count + 1, mine: true } : item))
+      : [...list, { ...sticker, count: 1, mine: true }]
+  }
+  if (!found?.mine)
+    return list
+  return found.count <= 1
+    ? list.filter(item => item !== found)
+    : list.map(item => (item === found ? { ...item, count: item.count - 1, mine: false } : item))
 }
 
 export const useForumServerStore = defineStore('forum-server', () => {
@@ -152,9 +175,14 @@ export const useForumServerStore = defineStore('forum-server', () => {
 
   const status = ref<ServerStatus>('idle')
   const viewer = ref<ForumViewer | null>(null)
-  const guestPolicy = ref<GuestPolicy>({ ...DEFAULT_GUEST_POLICY })
-  /** What the server lets the viewer moderate; `can()` reads only this in server mode. */
-  const granted = computed<ReadonlySet<string>>(() => new Set(viewer.value?.capabilities ?? []))
+  /**
+   * What the server lets the viewer do: the moderation capabilities and the
+   * write nodes (#276) in one set; `can()` reads only this in server mode.
+   */
+  const granted = computed<ReadonlySet<string>>(() => new Set([...(viewer.value?.capabilities ?? []), ...(viewer.value?.nodes ?? [])]))
+  /** The sticker packs, read once per page the first time a picker or a post needs them (#276). */
+  const stickerPacks = ref<StickerPack[]>([])
+  let stickersLoading: Promise<void> | null = null
 
   let loading: Promise<boolean> | null = null
   let retryTimer: ReturnType<typeof setTimeout> | undefined
@@ -235,7 +263,6 @@ export const useForumServerStore = defineStore('forum-server', () => {
     remember(snapshot.state)
     forum.replaceState(snapshot.state)
     viewer.value = snapshot.viewer
-    guestPolicy.value = snapshot.guestPolicy
     session.currentUserId = snapshot.viewer.userId
     status.value = 'ready'
   }
@@ -307,8 +334,8 @@ export const useForumServerStore = defineStore('forum-server', () => {
   }
 
   /**
-   * Merges a write's answer. Viewer and guest policy are only replaced when
-   * they differ, so the permission checks on every post do not rerun for
+   * Merges a write's answer. The viewer is only replaced when it differs,
+   * so the permission checks on every post do not rerun for
    * each like. A different viewer means the sign-in changed underneath: the
    * whole state is read again. Lanes still waiting for their own answer show
    * their wish again, in case this answer carried an older value of the same
@@ -317,8 +344,6 @@ export const useForumServerStore = defineStore('forum-server', () => {
   function merge(result: WriteResult, from?: Lane): void {
     remember(result.changes)
     forum.applyChanges(result.changes)
-    if (!sameGuestPolicy(guestPolicy.value, result.guestPolicy))
-      guestPolicy.value = result.guestPolicy
     if (result.viewer.userId !== (viewer.value?.userId ?? null)) {
       void load()
       return
@@ -457,13 +482,11 @@ export const useForumServerStore = defineStore('forum-server', () => {
   }
 
   /**
-   * Puts the reply on the page under a `pending:` id (and, for a guest, the
-   * nickname under one too), then swaps it for the server's post in the same
-   * tick the answer lands. A refusal takes it off again.
+   * Puts the reply on the page under a `pending:` id, then swaps it for the
+   * server's post in the same tick the answer lands. A refusal takes it off again.
    */
-  async function sendReply(body: CreatePostBody, author: string | User, shown: ReplyShown | undefined, send: () => Promise<WriteResult & { postId: string }>): Promise<string | null> {
+  async function sendReply(body: CreatePostBody, authorId: string, shown: ReplyShown | undefined, send: () => Promise<WriteResult & { postId: string }>): Promise<string | null> {
     const topic = forum.topicById(body.topicId)
-    const guest = typeof author === 'string' ? null : author
     if (!topic) {
       return attempt('回复没有发出去', async () => {
         const result = await send()
@@ -474,12 +497,12 @@ export const useForumServerStore = defineStore('forum-server', () => {
     pendingCount += 1
     const id = `${PENDING_PREFIX}${pendingCount}`
     const at = Date.now()
-    const post: Post = { id, topicId: topic.id, authorId: guest?.id ?? author as string, content: body.content, createdAt: at, likeUserIds: [], ...(body.replyToPostId ? { replyToPostId: body.replyToPostId } : {}) }
-    forum.applyChanges({ ...(guest ? { users: [guest] } : {}), posts: [post] })
+    const post: Post = { id, topicId: topic.id, authorId, content: body.content, createdAt: at, likeUserIds: [], reactions: [], ...(body.replyToPostId ? { replyToPostId: body.replyToPostId } : {}) }
+    forum.applyChanges({ posts: [post] })
     const lastActivityAt = topic.lastActivityAt
     if (at > lastActivityAt)
       topic.lastActivityAt = at
-    const pending = { posts: [id], users: guest ? [guest.id] : [] }
+    const pending = { posts: [id] }
     shown?.(id)
     const asMember = sentAsMember()
     try {
@@ -510,29 +533,6 @@ export const useForumServerStore = defineStore('forum-server', () => {
       })
     }
     return sendReply(body, authorId, shown, () => api.createPost(body))
-  }
-
-  /** A guest reply: the proof of work is computed here, right before sending, over the exact text sent. */
-  function replyAsGuest({ name, turnstileToken, ...body }: ReplyAsGuestInput, shown?: ReplyShown): Promise<string | null> {
-    if (stillSending(body.replyToPostId))
-      return Promise.resolve(null)
-    const guest: User = {
-      id: `${PENDING_PREFIX}guest-${pendingCount + 1}`,
-      username: `pending-guest-${pendingCount + 1}`,
-      displayName: name,
-      bio: '',
-      location: '',
-      website: '',
-      avatarColor: '#64748b',
-      kind: 'guest',
-      joinedAt: Date.now(),
-      role: 'member',
-      notifyPrefs: { reply: false, like: false, follow: false },
-    }
-    return sendReply(body, guest, shown, async () => {
-      const pow = await solvePow(replyPowBody(body.topicId, body.content), guestPolicy.value.powDifficulty)
-      return api.createPost({ ...body, guest: { name }, pow, website: '', ...(turnstileToken ? { turnstileToken } : {}) })
-    })
   }
 
   function toggleLike(postId: string): Promise<boolean | null> {
@@ -805,6 +805,100 @@ export const useForumServerStore = defineStore('forum-server', () => {
     return pending
   }
 
+  /**
+   * Adds or takes back one sticker reaction (#276). The page changes at once;
+   * the server's answer is the post's whole reaction list and replaces it, and
+   * a refusal puts back what the post had before this click. One request per
+   * post and sticker at a time: a click while one is out is ignored, so two
+   * quick clicks cannot cross on the wire.
+   */
+  const reacting = new Set<string>()
+  async function react(postId: string, sticker: Pick<Reaction, 'stickerId' | 'shortcode' | 'url'>, on: boolean): Promise<boolean> {
+    const key = `${postId}:${sticker.stickerId}`
+    const post = forum.postById(postId)
+    if (!post || reacting.has(key) || stillSending(postId))
+      return false
+    const before = post.reactions ?? []
+    post.reactions = toggledReactions(before, sticker, on)
+    if (sameReactions(before, post.reactions))
+      return true
+    reacting.add(key)
+    const asMember = sentAsMember()
+    try {
+      const answer = await api.react(postId, sticker.stickerId, on)
+      const current = forum.postById(postId)
+      if (current)
+        current.reactions = answer
+      return true
+    }
+    catch (error) {
+      const current = forum.postById(postId)
+      if (current)
+        current.reactions = before
+      fail(on ? '没有贴上表情' : '没有撤回表情', error, asMember)
+      return false
+    }
+    finally {
+      reacting.delete(key)
+    }
+  }
+
+  /** Reads the sticker packs once; a failure leaves the list empty and the next caller tries again. */
+  function loadStickers(): Promise<void> {
+    if (stickerPacks.value.length)
+      return Promise.resolve()
+    stickersLoading ??= api.stickers()
+      .then((packs) => {
+        stickerPacks.value = packs
+      })
+      .catch(() => {})
+      .finally(() => {
+        stickersLoading = null
+      })
+    return stickersLoading
+  }
+
+  /** Uploads a pasted or chosen image and resolves with its address; a refusal throws with the words to show. */
+  async function uploadImage(file: File): Promise<string> {
+    const problem = uploadFileProblem(file)
+    if (problem)
+      throw new ForumApiError(400, 'invalid_upload', problem)
+    return api.uploadImage(file)
+  }
+
+  /** `@` completion: the server's matches, or none when it refuses (a 429 included; typing on is the retry). */
+  async function suggestUsers(query: string): Promise<SuggestedUser[]> {
+    try {
+      return await api.suggestUsers(query)
+    }
+    catch {
+      return []
+    }
+  }
+
+  /**
+   * Why a topic the state does not hold is absent (#276). The state only
+   * carries what the viewer may see, so asking for the topic's posts tells a
+   * hidden topic (401 or 403 with the identity it needs) from a missing one.
+   */
+  async function probeTopic(topicId: string): Promise<TopicAbsence> {
+    try {
+      const posts = await api.topicPosts(topicId)
+      remember({ posts })
+      forum.applyChanges({ posts })
+      return 'unknown'
+    }
+    catch (error) {
+      if (!(error instanceof ForumApiError))
+        return 'unknown'
+      if (error.status === 404)
+        return 'missing'
+      if (error.status === 401 || error.status === 403)
+        return error.need === 'member' || (error.status === 403 && error.need !== 'registered') ? 'need-member' : 'need-registered'
+      return 'unknown'
+    }
+  }
+
   /** The server's search (#156): the browser no longer holds every body to match on. */
   async function search(query: string): Promise<SearchAnswer['results'] | null> {
     const term = query.trim()
@@ -825,8 +919,8 @@ export const useForumServerStore = defineStore('forum-server', () => {
   return {
     status,
     viewer,
-    guestPolicy,
     granted,
+    stickerPacks,
     refusedReplies,
     signinLapse,
     noteSignedOut,
@@ -836,7 +930,6 @@ export const useForumServerStore = defineStore('forum-server', () => {
     load,
     createTopic,
     createPost,
-    replyAsGuest,
     editPost,
     deletePost,
     toggleLike,
@@ -844,6 +937,13 @@ export const useForumServerStore = defineStore('forum-server', () => {
     toggleFollow,
     setPinned: (topicId: string, pinned: boolean) => topicFlag('pinned', topicId, pinned, on => api.setPinned(topicId, on), on => (on ? '没有置顶' : '没有取消置顶')),
     setClosed: (topicId: string, closed: boolean) => topicFlag('closed', topicId, closed, on => api.setClosed(topicId, on), on => (on ? '话题没有关闭' : '话题没有重新开放')),
+    /** Waits for the server: whether a stricter visibility is allowed depends on the category's, which only it knows. */
+    setVisibility: (topicId: string, visibility: Visibility | null) => plainly('可见范围没有改成', () => api.setVisibility(topicId, visibility), () => true).then(done => done !== null),
+    react,
+    loadStickers,
+    uploadImage,
+    suggestUsers,
+    probeTopic,
     /** Views are a statistic: a failed count is not worth a toast, except the shared 请求太频繁 one. */
     recordView: (topicId: string): Promise<void> => api.recordView(topicId).catch((error: unknown) => {
       if (isRateLimited(error))

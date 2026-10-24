@@ -1,93 +1,268 @@
 <script setup lang="ts">
-/**
- * Where a post body is written: new topics, replies (quotes included) and edits.
- *
- * 编辑 is a plain textarea holding the raw Markdown. 分栏 puts the same textarea
- * next to the rendered result, which follows every keystroke; below 42rem of
- * room the two stack instead of squeezing into columns. 预览 shows the result
- * only. The textarea stays mounted while it is hidden, so switching modes keeps
- * the text, the cursor and the undo history.
- *
- * A new editor starts in 编辑, and every use of it should (#144). A caller that
- * keeps it mounted between uses gives it a new `key` per use, as the reply
- * drawer does on every open; PostCard's edit form mounts it per edit anyway.
- *
- * The result is `ForumMarkdown`, the component that shows posts on the topic
- * page, so the preview is what readers will see: raw HTML shows as text and
- * links only go where posts may link. The text itself is never rewritten, which
- * is why someone else's post can come in as it is (a quote, a moderator's edit).
- */
-type Mode = 'edit' | 'split' | 'preview'
+import type { CrepeEditor, MentionQuery } from '~/editor/crepe-editor'
+import type { Sticker, SuggestedUser } from '../../shared/forum-api'
+import { toast } from '@talex-touch/tuffex/utils'
+import { ForumApiError } from '../../shared/forum-api'
+import { imagesToStickers, stickersToImages } from '../../shared/post-markdown'
 
+/**
+ * Where a post body is written: new topics, replies (quotes included) and
+ * edits (#276: what you see while writing is what the post will look like).
+ *
+ * The editor is Milkdown Crepe, imported only when this component mounts
+ * (app/editor/crepe-editor.ts), so the first screen does not carry it. Until
+ * it is ready, and for good if it fails to load, a plain textarea holds the
+ * same Markdown; whatever was typed there carries over.
+ *
+ * The text stays Markdown in and out, with stickers as `:shortcode:` (the
+ * editor shows them as pictures; `stickersToImages` / `imagesToStickers`
+ * translate). Raw HTML in the text never becomes markup on the page:
+ * posts render through ForumMarkdown → shared/post-markdown.ts → DOMPurify.
+ *
+ * - Pasted or dropped images upload to the forum and go in as pictures.
+ * - 表情 (the button, or 「表情」 in the `/` menu) inserts a sticker.
+ * - `@` and a few letters lists matching accounts; ↑ ↓ Enter pick one.
+ * - ⌘ or Ctrl + Enter emits `submit`; the caller decides whether to send.
+ *
+ * A caller that keeps it mounted between uses gives it a new `key` per use,
+ * as the reply drawer does on every open, so each use starts clean (#144).
+ */
 const props = withDefaults(defineProps<{
   placeholder?: string
-  /** What screen readers call the textarea (its aria-label), e.g. 「回复内容」; the mode switch is named after it. */
+  /** What screen readers call the text field, e.g. 「回复内容」. */
   label: string
   /** In px; the three heights the forum uses map to static classes below. */
   minHeight?: 200 | 240 | 320
 }>(), { placeholder: '', minHeight: 240 })
 
+const emit = defineEmits<{
+  submit: []
+}>()
+
 const content = defineModel<string>({ required: true })
 
-const MODES: { value: Mode, label: string, icon: string }[] = [
-  { value: 'edit', label: '编辑', icon: 'i-ri-edit-line' },
-  { value: 'split', label: '分栏', icon: 'i-ri-layout-column-line' },
-  { value: 'preview', label: '预览', icon: 'i-ri-eye-line' },
-]
+const server = useForumServerStore()
+const { serverMode } = useContentSource()
+const { available: stickersAvailable, index } = useStickers()
 
-// Each pane's min height, spelled out so UnoCSS finds the classes (app/ has no
-// inline styles); `!` because TxTextarea's own scoped rule (min-height: 96px)
-// outranks a plain utility. When 分栏 stacks, the two panes share the height,
-// so the editor keeps its size in every mode and still fits the reply drawer.
+const canSticker = computed(() => stickersAvailable && server.granted.has('forum.sticker.use'))
+const canUpload = computed(() => serverMode && server.granted.has('forum.upload.image'))
+
+// Spelled out so UnoCSS finds the classes (app/ has no inline styles). The
+// editor's own heights live with its padding in uno.config.ts.
 const HEIGHT_CLASS = {
-  200: { whole: '!min-h-50', shared: '!min-h-24 @2xl:!min-h-50' },
-  240: { whole: '!min-h-60', shared: '!min-h-28 @2xl:!min-h-60' },
-  320: { whole: '!min-h-80', shared: '!min-h-38 @2xl:!min-h-80' },
+  200: { field: '!min-h-50', editor: 'forum-editor-200' },
+  240: { field: '!min-h-60', editor: 'forum-editor-240' },
+  320: { field: '!min-h-80', editor: 'forum-editor-320' },
 } as const
+const height = computed(() => HEIGHT_CLASS[props.minHeight])
 
-const mode = ref<Mode>('edit')
-const heightClass = computed(() => HEIGHT_CLASS[props.minHeight][mode.value === 'split' ? 'shared' : 'whole'])
+const host = ref<HTMLElement | null>(null)
+const ready = ref(false)
+const failed = ref(false)
+const stickerOpen = ref(false)
+let editor: CrepeEditor | null = null
+/** The Markdown this component last emitted, so its own update does not bounce back into the editor. */
+let lastEmitted = content.value
+let disposed = false
+
+const mention = reactive<{ range: MentionQuery | null, users: SuggestedUser[], active: number }>({ range: null, users: [], active: 0 })
+const mentionOpen = computed(() => !!mention.range && mention.users.length > 0)
+let mentionTimer: ReturnType<typeof setTimeout> | undefined
+let mentionAsked = ''
+
+function closeMention() {
+  clearTimeout(mentionTimer)
+  mention.range = null
+  mention.users = []
+  mention.active = 0
+}
+
+function onMention(range: MentionQuery | null) {
+  if (!range || !range.query || !serverMode) {
+    closeMention()
+    return
+  }
+  mention.range = range
+  if (range.query === mentionAsked)
+    return
+  clearTimeout(mentionTimer)
+  // Typing is the debounce: ask once the letters stop for a moment (30 a minute is the server's limit).
+  mentionTimer = setTimeout(async () => {
+    mentionAsked = range.query
+    const users = await server.suggestUsers(range.query)
+    if (mention.range?.query !== range.query)
+      return
+    mention.users = users
+    mention.active = 0
+  }, 250)
+}
+
+function completeMention(user: SuggestedUser) {
+  const range = mention.range
+  if (!range || !editor)
+    return
+  editor.completeMention(range, user.username)
+  mentionAsked = ''
+  closeMention()
+}
+
+function onMentionKey(key: string): boolean {
+  if (!mentionOpen.value)
+    return false
+  if (key === 'Escape') {
+    closeMention()
+    return true
+  }
+  if (key === 'ArrowDown' || key === 'ArrowUp') {
+    const step = key === 'ArrowDown' ? 1 : -1
+    mention.active = (mention.active + step + mention.users.length) % mention.users.length
+    return true
+  }
+  const user = mention.users[mention.active]
+  if (key === 'Enter' && user) {
+    completeMention(user)
+    return true
+  }
+  return false
+}
+
+async function upload(file: File): Promise<string> {
+  if (!canUpload.value) {
+    toast({ title: '图片没有传上去', description: '现在不能上传图片，可以贴图片地址。', variant: 'warning' })
+    throw new Error('upload unavailable')
+  }
+  try {
+    return await server.uploadImage(file)
+  }
+  catch (error) {
+    toast({ title: '图片没有传上去', description: error instanceof ForumApiError ? error.message : '请稍后再试。', variant: 'warning' })
+    throw error
+  }
+}
+
+function insertSticker(sticker: Sticker) {
+  if (editor) {
+    editor.insert(`![${sticker.label}](${sticker.url})`)
+    return
+  }
+  const text = content.value
+  content.value = `${text}${text && !/\s$/.test(text) ? ' ' : ''}:${sticker.shortcode}: `
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && !event.isComposing) {
+    event.preventDefault()
+    event.stopPropagation()
+    emit('submit')
+  }
+}
+
+onMounted(async () => {
+  try {
+    const { createCrepeEditor } = await import('~/editor/crepe-editor')
+    if (disposed || !host.value)
+      return
+    const initial = content.value
+    lastEmitted = initial
+    const created = await createCrepeEditor({
+      root: host.value,
+      value: stickersToImages(initial, index.value),
+      placeholder: props.placeholder || '写点什么，输入 / 打开菜单',
+      onChange: (markdown) => {
+        const text = imagesToStickers(markdown, index.value)
+        if (text === lastEmitted)
+          return
+        lastEmitted = text
+        content.value = text
+      },
+      onUpload: upload,
+      onStickerMenu: canSticker.value ? () => { stickerOpen.value = true } : null,
+      onMention,
+      onMentionKey,
+    })
+    if (disposed) {
+      void created.destroy()
+      return
+    }
+    editor = created
+    ready.value = true
+    // Typed into the textarea, or put back as a draft, while the editor was starting.
+    if (content.value !== initial) {
+      lastEmitted = content.value
+      created.setMarkdown(stickersToImages(content.value, index.value))
+    }
+  }
+  catch {
+    failed.value = true
+  }
+})
+
+// Text set from outside (a quote, a draft put back, cleared after sending) goes into the editor.
+watch(content, (value) => {
+  if (!editor || value === lastEmitted)
+    return
+  lastEmitted = value
+  editor.setMarkdown(stickersToImages(value, index.value))
+})
+
+onBeforeUnmount(() => {
+  disposed = true
+  clearTimeout(mentionTimer)
+  void editor?.destroy()
+  editor = null
+})
 </script>
 
 <template>
-  <div class="@container w-full flex flex-col gap-2" data-post-editor>
-    <TxRadioGroup v-model="mode" class="self-start" :aria-label="`${label}的显示方式`">
-      <TxRadio v-for="item in MODES" :key="item.value" :value="item.value">
-        <span class="inline-flex items-center gap-1">
-          <span :class="item.icon" aria-hidden="true" />
-          {{ item.label }}
+  <div class="@container w-full flex flex-col gap-2" data-post-editor @keydown.capture="onKeydown">
+    <div
+      v-show="ready"
+      ref="host"
+      class="forum-editor overflow-hidden rounded-xl border border-$tx-border-color"
+      :class="height.editor"
+      role="group"
+      :aria-label="label"
+      data-crepe-host
+    />
+    <TxTextarea
+      v-if="!ready"
+      v-model="content"
+      class="h-full"
+      :class="height.field"
+      :placeholder="placeholder"
+      :aria-label="label"
+    />
+
+    <TxCard v-if="mentionOpen" variant="plain" :padding="6" data-mention-list>
+      <TxFlex direction="column" :gap="2" role="listbox" aria-label="提到的人">
+        <TxButton
+          v-for="(user, at) in mention.users"
+          :key="user.username"
+          variant="bare"
+          size="sm"
+          class="!justify-start"
+          :class="at === mention.active ? 'bg-$tx-fill-color' : ''"
+          role="option"
+          :aria-selected="at === mention.active ? 'true' : 'false'"
+          @mousedown.prevent="completeMention(user)"
+        >
+          <span class="font-medium">{{ user.displayName }}</span>
+          <span class="ml-2 text-$tx-text-color-secondary">@{{ user.username }}</span>
+        </TxButton>
+      </TxFlex>
+    </TxCard>
+
+    <TxFlex align="center" justify="space-between" wrap="wrap" :gap="8">
+      <TxFlex align="center" :gap="4" wrap="wrap">
+        <StickerPicker v-if="canSticker" v-model:open="stickerOpen" @pick="insertSticker" />
+        <span v-if="failed" class="text-xs text-$tx-text-color-secondary">
+          编辑器没有加载出来，先用纯文本写，支持 Markdown。
         </span>
-      </TxRadio>
-    </TxRadioGroup>
-
-    <div class="grid gap-3" :class="{ '@2xl:grid-cols-2': mode === 'split' }">
-      <div v-show="mode !== 'preview'" class="min-w-0">
-        <TxTextarea
-          v-model="content"
-          class="h-full"
-          :class="heightClass"
-          :placeholder="placeholder"
-          :aria-label="label"
-        />
-      </div>
-
-      <!--
-        In 分栏 the textarea sets the row height and the result scrolls inside
-        it, so a long post does not stretch the textarea next to it.
-      -->
-      <div
-        v-if="mode !== 'edit'"
-        class="relative min-w-0 rounded-xl border border-$tx-border-color border-dashed"
-        :class="heightClass"
-        data-editor-preview
-      >
-        <div class="px-3 py-2" :class="{ 'absolute inset-0 overflow-y-auto': mode === 'split' }">
-          <ForumMarkdown v-if="content.trim()" :content="content" />
-          <p v-else class="text-sm text-$tx-text-color-secondary">
-            还没有内容。
-          </p>
-        </div>
-      </div>
-    </div>
+      </TxFlex>
+      <span class="text-xs text-$tx-text-color-secondary">
+        {{ ready ? '输入 / 打开菜单，' : '' }}⌘ 或 Ctrl + Enter 发送
+      </span>
+    </TxFlex>
   </div>
 </template>

@@ -21,7 +21,7 @@ const forum = useForumStore()
 const actions = useForumActions()
 const { user: viewer, isLoggedIn, can } = useCurrentUser()
 const { serverMode } = useContentSource()
-const colorMode = useColorMode()
+const theme = useForumTheme()
 
 const username = String(route.params.username)
 // Read through the store, not captured: 重置示例数据 replaces the whole state and
@@ -175,12 +175,14 @@ async function save() {
 }
 
 /**
- * The theme is not profile data — it belongs to this browser, and a switch
- * that only takes effect after 保存更改 would be a worse control than the one
- * in the header. So it writes straight through.
+ * The theme is not profile data, and a switch that only takes effect after
+ * 保存更改 would be a worse control than the one in the header. So it writes
+ * straight through: this browser at once, the account behind it when signed
+ * in (useForumTheme, #276).
  */
 function setTheme(value: string | number) {
-  colorMode.preference = String(value)
+  const next = String(value)
+  void theme.set(next === 'sky' || next === 'light' || next === 'dark' ? next : 'system')
 }
 </script>
 
@@ -317,16 +319,17 @@ function setTheme(value: string | number) {
         />
       </TxGroupBlock>
 
-      <TxGroupBlock name="界面外观" description="只影响这台设备上的浏览器。" :collapsible="false">
+      <TxGroupBlock name="外观" :description="serverMode ? '登录后会记在账号里，换一台设备登录也是同一个主题。' : '只影响这台设备上的浏览器。'" :collapsible="false">
         <TxBlockSelect
-          :model-value="colorMode.preference"
+          :model-value="theme.choice.value"
           title="主题"
           description="立即生效，不需要保存"
           @update:model-value="setTheme"
         >
-          <TxSelectItem value="system" label="跟随系统" icon="i-carbon-screen" />
+          <TxSelectItem value="sky" label="晴空" icon="i-carbon-cloud" />
           <TxSelectItem value="light" label="浅色" icon="i-carbon-sun" />
           <TxSelectItem value="dark" label="深色" icon="i-carbon-moon" />
+          <TxSelectItem value="system" label="跟随系统" icon="i-carbon-screen" />
         </TxBlockSelect>
       </TxGroupBlock>
     </TxCard>

@@ -2,14 +2,15 @@ import type { Component } from 'vue'
 import type { Post, Topic, User } from '~/data/types'
 import type { TestNode } from './support/sfc'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, reactive, ref, watch } from 'vue'
 import * as likes from '~/data/likes'
 import * as forumServer from '~/stores/forum-server'
 import * as forumApi from '../shared/forum-api'
 import * as excerpt from '~/utils/excerpt'
 import * as postMarkdown from '../shared/post-markdown'
-import { find, findAll, loadComponent, mount, textOf } from './support/sfc'
+import { postEditorKit } from './support/post-editor'
+import { find, findAll, loadComponent, loadModule, mount, textOf } from './support/sfc'
 import { loadMarked, TUFFEX_STUBS } from './support/tuffex-stubs'
 
 /**
@@ -24,25 +25,35 @@ const member: User = { id: 'u1', username: 'alpha', displayName: '甲', bio: '',
 const topic: Topic = { id: 't1', slug: 'topic-1', title: '话题', categoryId: 'c1', tagIds: [], authorId: 'u1', createdAt: 0, lastActivityAt: 0, views: 1, pinned: false, closed: false }
 
 let components: Record<string, Component>
+const noStickers = () => ({ available: false, index: ref(new Map()), load: () => {} })
+const { usePostDraft } = loadModule<{ usePostDraft: unknown }>('composables/usePostDraft.ts')
 
 beforeAll(async () => {
   await loadMarked()
-  const ForumMarkdown = loadComponent('components/ForumMarkdown.vue', { imports: { '../../shared/post-markdown': postMarkdown } })
-  const PostEditor = loadComponent('components/PostEditor.vue')
+  const ForumMarkdown = loadComponent('components/ForumMarkdown.vue', { imports: { '../../shared/post-markdown': postMarkdown }, globals: { useStickers: noStickers } })
+  // The editor stays the textarea it starts as (support/post-editor.ts, 'loading'): what is typed is what is sent.
+  const editor = postEditorKit({ crepe: 'loading' })
+  const PostEditor = loadComponent('components/PostEditor.vue', { imports: editor.imports, globals: editor.globals })
   const stub = defineComponent({ setup: () => () => h('div') })
-  components = { ...TUFFEX_STUBS, ForumMarkdown, PostEditor, TurnstileBox: stub, UserAvatar: stub, TitleBadge: stub }
+  components = { ...TUFFEX_STUBS, ForumMarkdown, PostEditor, StickerPicker: stub, UserAvatar: stub, TitleBadge: stub }
 })
 
-beforeEach(() => setActivePinia(createPinia()))
+beforeEach(() => {
+  setActivePinia(createPinia())
+  // usePostDraft keeps drafts here; node's own localStorage needs a file.
+  const items = new Map<string, string>()
+  vi.stubGlobal('localStorage', { getItem: (key: string) => items.get(key) ?? null, setItem: (key: string, value: string) => items.set(key, value), removeItem: (key: string) => items.delete(key) })
+})
+afterEach(() => vi.unstubAllGlobals())
 
 async function settle() {
   await new Promise(resolve => setTimeout(resolve))
   await nextTick()
 }
 
-/** The Tuffex buttons (not the editor's mode radios) with this text. */
+/** The Tuffex buttons with this text. */
 function buttons(root: TestNode, label: string): TestNode[] {
-  return findAll(root, node => node.tag === 'button' && node.props.role !== 'radio' && textOf(node) === label)
+  return findAll(root, node => node.tag === 'button' && textOf(node) === label)
 }
 
 function button(root: TestNode, label: string): TestNode {
@@ -71,6 +82,7 @@ describe('a post card', () => {
     const PostCard = loadComponent('components/PostCard.vue', {
       imports: {
         '@talex-touch/tuffex/utils': { toast: vi.fn() },
+        '~/data/account-badges': { hasTitleBadge: () => false },
         '~/data/likes': likes,
         '~/stores/forum-server': forumServer,
       },
@@ -78,7 +90,8 @@ describe('a post card', () => {
         postLine: excerpt.postLine,
         useForumStore: () => ({ userById: () => member, postById: () => undefined, isBookmarked: () => false, isFirstPost: () => false }),
         useForumActions: () => ({}),
-        useCurrentUser: () => ({ user: ref(member), can: () => true, guestCanReply: () => false }),
+        useCurrentUser: () => ({ user: ref(member), can: () => true }),
+        useStickers: noStickers,
         useShell: () => ({ loginOpen: ref(false) }),
         useRelativeTime: () => ({ fromNow: () => '刚刚', formatAbsolute: () => '' }),
         useAppLink: () => ({ href: (path: string) => path, absoluteUrl: () => `https://forum.example/t/t1#post-${post.id}` }),
@@ -151,13 +164,15 @@ describe('the edit form on a post, against the server', () => {
     const PostCard = loadComponent('components/PostCard.vue', {
       imports: {
         '@talex-touch/tuffex/utils': { toast },
+        '~/data/account-badges': { hasTitleBadge: () => false },
         '~/data/likes': likes,
         '~/stores/forum-server': forumServer,
       },
       globals: {
         useForumStore: () => ({ userById: () => member, postById: () => undefined, isBookmarked: () => false, isFirstPost: () => false }),
         useForumActions: () => ({ editPost: saves.write }),
-        useCurrentUser: () => ({ user: ref(member), can: () => true, guestCanReply: () => false }),
+        useCurrentUser: () => ({ user: ref(member), can: () => true }),
+        useStickers: noStickers,
         useShell: () => ({ loginOpen: ref(false) }),
         useRelativeTime: () => ({ fromNow: () => '刚刚', formatAbsolute: () => '' }),
         useAppLink: () => ({ href: (path: string) => path, absoluteUrl: () => 'https://forum.example/t/t1#post-p4' }),
@@ -244,13 +259,15 @@ describe('the success toasts on a post, against the server (#162)', () => {
     const PostCard = loadComponent('components/PostCard.vue', {
       imports: {
         '@talex-touch/tuffex/utils': { toast },
+        '~/data/account-badges': { hasTitleBadge: () => false },
         '~/data/likes': likes,
         '~/stores/forum-server': forumServer,
       },
       globals: {
         useForumStore: () => ({ userById: () => member, postById: () => undefined, isBookmarked: () => marked.value, isFirstPost: () => false }),
         useForumActions: () => ({ toggleBookmark, deletePost }),
-        useCurrentUser: () => ({ user: ref(member), can: () => true, guestCanReply: () => false }),
+        useCurrentUser: () => ({ user: ref(member), can: () => true }),
+        useStickers: noStickers,
         useShell: () => ({ loginOpen: ref(false) }),
         useRelativeTime: () => ({ fromNow: () => '刚刚', formatAbsolute: () => '' }),
         useAppLink: () => ({ href: (path: string) => path, absoluteUrl: () => 'https://forum.example/t/t1#post-p6' }),
@@ -354,17 +371,19 @@ describe('the reply drawer after the server refused a reply', () => {
         useForumServerStore: forumServer.useForumServerStore,
         useForumActions: () => ({ createPost: sends.write }),
         useContentSource: () => ({ serverMode: true }),
-        useCurrentUser: () => ({ user: ref(member), can: () => true, guestCanReply: () => false }),
+        useCurrentUser: () => ({ user: ref(member), can: () => true }),
         useShell: () => ({ composerOpen }),
+        usePostDraft,
       },
     })
-    // The topic page keeps the composer mounted and binds v-model:visible and v-model:reply-to.
-    const state = reactive<{ visible: boolean, replyTo: Post | undefined }>({ visible: false, replyTo: undefined })
+    // The topic page keeps the composer mounted and binds v-model:visible, v-model:reply-to and :quote-from.
+    const state = reactive<{ visible: boolean, replyTo: Post | undefined, quoteFrom: Post | undefined }>({ visible: false, replyTo: undefined, quoteFrom: undefined })
     const Parent = defineComponent({
       setup: () => () => h(ReplyComposer, {
         'visible': state.visible,
         topic,
         'replyTo': state.replyTo,
+        'quoteFrom': state.quoteFrom,
         'onUpdate:visible': (visible: boolean) => {
           state.visible = visible
         },
@@ -394,9 +413,10 @@ describe('the reply drawer after the server refused a reply', () => {
         sends.calls[index]!.answer(null)
         await settle()
       },
-      /** Opens the drawer on `post` (the topic when absent), as a post's or the topic's 回复 button does. */
-      open: async (post?: Post) => {
+      /** Opens the drawer on `post` (the topic when absent), as a post's or the topic's 回复 button does; `quote` as 引用 does. */
+      open: async (post?: Post, quote = false) => {
         state.replyTo = post
+        state.quoteFrom = quote ? post : undefined
         state.visible = true
         await settle()
       },
@@ -460,12 +480,12 @@ describe('the reply drawer after the server refused a reply', () => {
     await composer.open(first)
     await composer.type('回复甲')
     await composer.send()
-    await composer.open(second)
-    expect(composer.box()).toBe(quoteDraft(second))
-    await composer.type(`${quoteDraft(second)}第二条`)
+    await composer.open(second, true)
+    expect(composer.box()).toBe(quoteDraft(second, 'alpha'))
+    await composer.type(`${quoteDraft(second, 'alpha')}第二条`)
     await composer.refuse(0)
     expect(composer.state.visible).toBe(true)
-    expect(composer.box()).toBe(`回复甲\n\n${quoteDraft(second)}第二条`)
+    expect(composer.box()).toBe(`回复甲\n\n${quoteDraft(second, 'alpha')}第二条`)
     // The refused one decides whom the drawer answers: it is the text in front.
     expect(composer.state.replyTo?.id).toBe('p2')
   })

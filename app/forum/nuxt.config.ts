@@ -99,12 +99,14 @@ export default defineNuxtConfig({
     // 线上论坛与核心同域（/forum/ 由 web 容器反代），devProxy 不进静态产物。
     // 核心只接受 PUBLIC_ORIGIN（本机是 5173）发来的写请求；论坛在 3456，退出（POST /auth/signout）
     // 带的 Origin 对不上会被 403，所以开发代理把 Origin 换成 5173，与线上同域时一致。
-    // /api/public/org 是称号与部门的显示信息（提督在控制台改），app/composables/useOrgTitles.ts 读它。
+    // /api/public/departments 是部门与称号的显示信息（管理员在控制台改，#276），app/composables/useOrgTitles.ts 读它。
     // /api/forum 是论坛后端（帖子、回复、资料、头像，stores/forum-server.ts）；写请求同样要过核心的 Origin 校验。
+    // /api/identity/profile 存论坛主题（prefs.forum_theme，app/composables/useForumTheme.ts）。
     devProxy: {
       '/auth': { target: 'http://127.0.0.1:3000/auth', changeOrigin: false, headers: { origin: 'http://127.0.0.1:5173' } },
-      '/api/public/org': { target: 'http://127.0.0.1:3000/api/public/org', changeOrigin: false, headers: { origin: 'http://127.0.0.1:5173' } },
+      '/api/public/departments': { target: 'http://127.0.0.1:3000/api/public/departments', changeOrigin: false, headers: { origin: 'http://127.0.0.1:5173' } },
       '/api/forum': { target: 'http://127.0.0.1:3000/api/forum', changeOrigin: false, headers: { origin: 'http://127.0.0.1:5173' } },
+      '/api/identity': { target: 'http://127.0.0.1:3000/api/identity', changeOrigin: false, headers: { origin: 'http://127.0.0.1:5173' } },
     },
   },
 

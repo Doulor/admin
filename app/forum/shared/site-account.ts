@@ -11,14 +11,32 @@ export interface SiteAccount {
    * 头像菜单只在它为 true 时放「控制台」；字段缺失或不是 true 都当作 false。控制台自己的准入不变。
    */
   consoleLink: boolean
+  /**
+   * 账号偏好里存的论坛主题（`prefs.forum_theme`，#276）：换一个浏览器登录时用它，没存过是 null。
+   * 只认 sky、light、dark 三个值。
+   */
+  forumTheme: ForumTheme | null
+}
+
+/** 账号偏好里能存的论坛主题；「跟随系统」只存在浏览器里，账号里存 null。 */
+export type ForumTheme = 'sky' | 'light' | 'dark'
+
+export function isForumTheme(value: unknown): value is ForumTheme {
+  return value === 'sky' || value === 'light' || value === 'dark'
 }
 
 /** 没登录、回答不是 JSON 对象、login 不是非空字符串时都是 `null`（当作未登录）。 */
 export function parseMe(body: unknown): SiteAccount | null {
-  const me = body as { signed_in?: unknown, login?: unknown, avatar_url?: unknown, console_link?: unknown } | null
+  const me = body as { signed_in?: unknown, login?: unknown, avatar_url?: unknown, console_link?: unknown, prefs?: { forum_theme?: unknown } } | null
   if (me?.signed_in !== true || typeof me.login !== 'string' || !me.login)
     return null
-  return { login: me.login, avatarUrl: typeof me.avatar_url === 'string' ? me.avatar_url : null, consoleLink: me.console_link === true }
+  const theme = me.prefs?.forum_theme
+  return {
+    login: me.login,
+    avatarUrl: typeof me.avatar_url === 'string' ? me.avatar_url : null,
+    consoleLink: me.console_link === true,
+    forumTheme: isForumTheme(theme) ? theme : null,
+  }
 }
 
 /**

@@ -20,7 +20,100 @@ const snapshotIconClasses = [
   ...Object.values(curation.categoryPatches as Record<string, { icon?: string }>).flatMap(patch => (patch.icon ? [patch.icon] : [])),
 ]
 
+/**
+ * #276's exception to R2 (no custom styling), registered in ADOPTION.json
+ * (`styleExceptions`) and ADR-0003; the older `sidebar-tuned` rule below is
+ * the other one. Theme variables, plus the editor's padding and the sticker
+ * size, nothing that restyles a Tuffex component:
+ *
+ * - `html.sky`: the 晴空 theme, the boot animation's last frame (SPEC §1)
+ *   written as Tuffex's own `--tx-*` tokens; @nuxtjs/color-mode puts the
+ *   class on <html> when 设置 → 外观 picks it. Light and dark stay Tuffex's.
+ * - `.milkdown`: Milkdown Crepe's `--crepe-*` variables pointed at the same
+ *   `--tx-*` tokens, so the editor follows whichever theme is on. Crepe's
+ *   own palette (theme/frame.css) is never loaded.
+ * - `.forum-editor`: Crepe pads its page by 60px 120px, made for a full-page
+ *   document; the composer gets a form field's padding (room on the left for
+ *   Crepe's block handle) and the three heights PostEditor offers.
+ * - stickers (`.forum-sticker` in posts, the same images in the editor) get
+ *   one size: the files are 256px and would otherwise fill the line.
+ */
+const FORUM_THEME_CSS = `
+html.sky {
+  --tx-color-primary: #3a76d6;
+  --tx-color-primary-rgb: 58 118 214;
+  --tx-color-primary-light-3: #75a0e3;
+  --tx-color-primary-light-5: #9dbbea;
+  --tx-color-primary-light-7: #c4d6f3;
+  --tx-color-primary-light-8: #d8e4f7;
+  --tx-color-primary-light-9: #ebf1fb;
+  --tx-color-primary-dark-2: #2e5eab;
+  --tx-color-success: #1fb487;
+  --tx-color-success-rgb: 31 180 135;
+  --tx-text-color-primary: #1d2b53;
+  --tx-text-color-regular: #2c3f6e;
+  --tx-text-color-secondary: #4f6f9f;
+  --tx-text-color-placeholder: #8aa4cc;
+  --tx-border-color: #cfe2f7;
+  --tx-border-color-light: #dbe9f9;
+  --tx-border-color-lighter: #e6f0fb;
+  --tx-border-color-extra-light: #eff6fd;
+  --tx-fill-color: #e6f2ff;
+  --tx-fill-color-light: #eef6ff;
+  --tx-fill-color-lighter: #f4f9ff;
+  --tx-fill-color-darker: #d6e9ff;
+  --tx-fill-color-blank: #ffffff;
+  --tx-bg-color: #ffffff;
+  --tx-bg-color-page: #e3f2ff;
+  --tx-bg-color-overlay: #ffffff;
+  --tx-box-shadow: 0 12px 32px rgba(60, 110, 200, .18);
+  --tx-box-shadow-light: 0 4px 14px rgba(60, 110, 200, .14);
+  --tx-box-shadow-lighter: 0 2px 6px rgba(60, 110, 200, .12);
+  --tx-font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+}
+.milkdown {
+  --crepe-color-background: var(--tx-bg-color);
+  --crepe-color-on-background: var(--tx-text-color-primary);
+  --crepe-color-surface: var(--tx-fill-color-light);
+  --crepe-color-surface-low: var(--tx-fill-color);
+  --crepe-color-on-surface: var(--tx-text-color-primary);
+  --crepe-color-on-surface-variant: var(--tx-text-color-secondary);
+  --crepe-color-outline: var(--tx-border-color);
+  --crepe-color-primary: var(--tx-color-primary);
+  --crepe-color-secondary: var(--tx-fill-color-darker);
+  --crepe-color-on-secondary: var(--tx-text-color-primary);
+  --crepe-color-inverse: var(--tx-fill-color-light);
+  --crepe-color-on-inverse: var(--tx-text-color-primary);
+  --crepe-color-inline-code: var(--tx-color-danger);
+  --crepe-color-error: var(--tx-color-danger);
+  --crepe-color-hover: var(--tx-fill-color);
+  --crepe-color-selected: var(--tx-fill-color-darker);
+  --crepe-color-inline-area: var(--tx-fill-color-darker);
+  --crepe-base-font-size: 15px;
+  --crepe-font-title: inherit;
+  --crepe-font-default: inherit;
+  --crepe-font-code: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --crepe-shadow-1: var(--tx-box-shadow-lighter);
+  --crepe-shadow-2: var(--tx-box-shadow-light);
+}
+.forum-editor .milkdown .ProseMirror {
+  padding: 12px 16px 12px 44px;
+}
+.forum-editor-200 .milkdown .ProseMirror { min-height: 200px; }
+.forum-editor-240 .milkdown .ProseMirror { min-height: 240px; }
+.forum-editor-320 .milkdown .ProseMirror { min-height: 320px; }
+.forum-sticker, .milkdown img[src^="/api/forum/stickers/"] {
+  display: inline-block;
+  width: 6rem;
+  height: 6rem;
+  object-fit: contain;
+  vertical-align: bottom;
+}
+`
+
 export default defineConfig({
+  preflights: [{ getCSS: () => FORUM_THEME_CSS }],
+
   presets: [
     presetWind3(),
     presetIcons({ scale: 1.2 }),

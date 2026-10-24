@@ -2,7 +2,7 @@
 
 > 用户明确选择使用原仓代码，而不是模仿 UI 或重写一套 React 论坛。
 
-状态：`accepted` · 更新：2026-09-25
+状态：`accepted` · 更新：2026-10-24
 
 ## 背景和依据
 
@@ -31,6 +31,8 @@
 2026-09-25（#80）：预发布与正式镜像改用 `GEEK_FORUM_SOURCE=site` 构建，线上是极客班论坛自己——站名「极客班论坛」、`app/forum/content/curation.json` 的分类和标签，还没有帖子、用户和通知，不再带上游示例帖子；上游示例种子只留给本机示例预览与上游 CDP 验收。代码仍是采用的 Tuff Forum，关于页注明出处。
 
 2026-09-25（#87）：极客班论坛放出旧论坛的 25 级、24 级机试文档和它们链到的入门资料（14 篇），放在新类别「招新与机试」，作者统一是「极客班」。内容由 `scripts/forum-migration/export-published.mjs` 从私有快照按 `app/forum/content/published/manifest.json` 导出（去掉凭据、改写站内链接、压缩图片），导出结果入库随镜像发布；私有快照本身仍不进 Git 和镜像。
+
+2026-10-24（#276）：论坛 v2 的前端。发帖编辑器换成 Milkdown Crepe（`@milkdown/crepe`、`@milkdown/kit` 7.22.3，所有者 2026-10-23 批准引入），只在写帖时懒加载，输出仍是 Markdown，渲染照旧走 `ForumMarkdown.vue` → `shared/post-markdown.ts` → DOMPurify。R2「不写自定义样式」增加一条登记在 `ADOPTION.json` `styleExceptions` 的例外：`uno.config.ts` 的 `FORUM_THEME_CSS` 预设样式，只写 CSS 变量（「晴空」主题覆盖 Tuffex 的 `--tx-*` 令牌、Crepe 的 `--crepe-*` 变量指向同一组令牌）、编辑器内边距与高度、表情图片尺寸，不改 Tuffex 组件结构。游客回复（昵称、工作量证明、Turnstile）随服务端一起去掉。
 
 ## 验证和回滚
 

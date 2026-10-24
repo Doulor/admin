@@ -10,6 +10,7 @@ const session = useSessionStore()
 const forum = useForumStore()
 const router = useRouter()
 const colorMode = useColorMode()
+const theme = useForumTheme()
 
 const query = ref('')
 const isDark = computed(() => colorMode.value === 'dark')
@@ -26,8 +27,9 @@ function search(value: string) {
     go(`/search?q=${encodeURIComponent(q)}`)
 }
 
+// Dark ↔ light; 晴空 is picked in 设置 → 外观 (#276). Signed in, the account follows (useForumTheme).
 function toggleTheme() {
-  colorMode.preference = isDark.value ? 'light' : 'dark'
+  void theme.set(isDark.value ? 'light' : 'dark')
 }
 
 function logout() {

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { postExcerpt } from '~/utils/excerpt'
-import { isUnsafeDestination, QUOTE_LENGTH, quoteDraft, renderableMarkdown, replyQuote, WORD_JOINER } from '../shared/post-markdown'
+import { imagesToStickers, isUnsafeDestination, QUOTE_LENGTH, quoteDraft, renderableMarkdown, replyQuote, stickerIndex, stickersToImages, WORD_JOINER } from '../shared/post-markdown'
 import { loadMarked } from './support/tuffex-stubs'
 
 // Run the text through the parser TxMarkdownView uses (see loadMarked).
@@ -192,5 +192,60 @@ describe('someone else\'s text in a draft', () => {
       expect(out).not.toMatch(FORBIDDEN_TAG)
       expect(outsideValues(out)).not.toMatch(/<[a-z][^>]*\s(?:on\w+|style)=/i)
     }
+  })
+})
+
+describe('quoting a reply (#276)', () => {
+  it('names the author before the first 80 characters', () => {
+    const content = '字'.repeat(120)
+    expect(quoteDraft({ content }, 'ada')).toBe(`> @ada：${postExcerpt(content, QUOTE_LENGTH)}\n\n`)
+    expect(replyQuote('一行', 'ada')).toBe('> @ada：一行\n\n')
+  })
+})
+
+describe('stickers (#276)', () => {
+  const WAVE = { shortcode: 'yugc-wave', label: '挥手', url: `/api/forum/stickers/${'a'.repeat(64)}.webp` }
+  const stickers = stickerIndex([{ stickers: [WAVE] }, { stickers: [{ shortcode: 'odd', label: '外站', url: 'https://evil.example/x.webp' }] }])
+  const rendered = (source: string) => marked.parse(renderableMarkdown(source, stickers))
+
+  it('shows a whitelisted shortcode as its picture and leaves every other one as text', () => {
+    const out = rendered('你好 :yugc-wave: 和 :yugc-unknown:')
+    expect(out).toContain(`<img class="forum-sticker" alt="挥手" src="${WAVE.url}">`)
+    expect(out).toContain(':yugc-unknown:')
+  })
+
+  it('never turns a sticker whose address is off the forum into a picture', () => {
+    expect(rendered(':odd:')).not.toContain('<img')
+  })
+
+  it('leaves shortcodes in inline code and code blocks alone', () => {
+    const out = rendered('`:yugc-wave:`\n\n```\n:yugc-wave:\n```')
+    expect(out).not.toContain('<img')
+    expect(out.match(/:yugc-wave:/g)).toHaveLength(2)
+  })
+
+  it('escapes the label, and raw HTML around a sticker still shows as text', () => {
+    const odd = stickerIndex([{ stickers: [{ ...WAVE, label: '"><script>x</script>' }] }])
+    const out = marked.parse(renderableMarkdown('<b>粗</b> :yugc-wave:', odd))
+    expect(out).not.toMatch(/<script|<b>/)
+    expect(out).toContain('alt="&quot;&gt;&lt;script&gt;x&lt;/script&gt;"')
+  })
+
+  it('renders shortcodes as text when there is no sticker list (the demo)', () => {
+    expect(marked.parse(renderableMarkdown(':yugc-wave:'))).not.toContain('<img')
+  })
+
+  it('goes into the editor as pictures and comes back as the same shortcodes, code untouched', () => {
+    const source = '早 :yugc-wave: `:yugc-wave:` :yugc-unknown:'
+    const inEditor = stickersToImages(source, stickers)
+    expect(inEditor).toBe(`早 ![挥手](${WAVE.url}) \`:yugc-wave:\` :yugc-unknown:`)
+    expect(imagesToStickers(inEditor, stickers)).toBe(source)
+    // The editor may write the image back with a title; any other picture stays a picture.
+    expect(imagesToStickers(`![挥手](${WAVE.url} "挥手") ![图](/api/forum/uploads/b.png)`, stickers)).toBe(':yugc-wave: ![图](/api/forum/uploads/b.png)')
+  })
+
+  it('changes nothing without a sticker list', () => {
+    expect(stickersToImages(':yugc-wave:', new Map())).toBe(':yugc-wave:')
+    expect(imagesToStickers(`![挥手](${WAVE.url})`, new Map())).toBe(`![挥手](${WAVE.url})`)
   })
 })

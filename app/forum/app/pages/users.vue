@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DataTableColumn } from '@talex-touch/tuffex/data-table'
 import type { User } from '~/data/types'
+import { hasTitleBadge } from '~/data/account-badges'
 import { titleRank } from '~/data/titles'
 
 // Discourse's /users: the member directory as a sortable table with a filter
@@ -106,7 +107,7 @@ function open(user: User) {
       </template>
 
       <template #cell-role="{ row }: { row: DirectoryRow }">
-        <TitleBadge v-if="row.user.title" :title="row.user.title" />
+        <TitleBadge v-if="hasTitleBadge(row.user)" :user="row.user" />
         <TxStatusBadge v-else :text="row.role" :status="roleTone(row.user.role)" size="sm" />
       </template>
 

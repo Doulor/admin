@@ -1,16 +1,17 @@
 import type { ForumAction, PermissionContext } from '~/data/permissions'
-import type { Topic } from '~/data/types'
-import { forumAccess, guestMayReply } from '~/data/access'
+import { forumAccess } from '~/data/access'
 import { can, isStaff as isStaffUser } from '~/data/permissions'
 
 /**
  * The session store plus the permission check every write control asks
  * before it renders. `user` is `null` for guests.
  *
- * Against the forum server, moderation rights are the server's
- * `viewer.capabilities` and nothing else; `access` says whether writing is
- * possible at all (the server may be unreachable) and whether a guest may
- * reply under a nickname.
+ * Against the forum server, what the viewer may do is the server's
+ * `viewer.capabilities` and `viewer.nodes` (#276) and nothing else; `access`
+ * says whether writing is possible at all (the server may be unreachable).
+ * `signedInReader` is an account the server knows that holds no write node
+ * for the action: a registered user before the invite code, who gets the
+ * 成为成员 words instead of the button.
  */
 export function useCurrentUser() {
   const session = useSessionStore()
@@ -28,9 +29,11 @@ export function useCurrentUser() {
     return access.value.writable && can(session.currentUser, action, ctx, granted.value)
   }
 
-  function guestCanReply(topic: Topic): boolean {
-    return guestMayReply(access.value, topic)
+  /** Signed in and readable, but the server grants no write for `action`: the 成为成员 hint replaces the control. */
+  function signedInReader(action: Extract<ForumAction, 'createTopic' | 'reply'>, ctx?: PermissionContext): boolean {
+    return serverMode && access.value.writable && !!session.currentUser && !allowed(action, ctx)
+      && !(action === 'reply' && ctx?.topic?.closed)
   }
 
-  return { session, user, isLoggedIn, isStaff, access, can: allowed, guestCanReply }
+  return { session, user, isLoggedIn, isStaff, access, can: allowed, signedInReader }
 }

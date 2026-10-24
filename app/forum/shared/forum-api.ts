@@ -1,5 +1,4 @@
-import type { ForumChanges, ForumState, NotifyPrefs, Post, Topic, User } from '../app/data/types'
-import type { PowProof } from './pow'
+import type { ForumChanges, ForumState, NotifyPrefs, Post, Reaction, Topic, User, Visibility } from '../app/data/types'
 import { FORUM_STATE_VERSION } from '../app/data/types'
 
 /**
@@ -17,24 +16,20 @@ export const FORUM_API_BASE = '/api/forum'
 export const STATE_TIMEOUT_MS = 10_000
 
 export interface ForumViewer {
-  /** 登录成员的论坛用户 id；游客为 null。 */
+  /** 登录账号的论坛用户 id；没登录为 null。 */
   userId: string | null
   kind: 'guest' | 'member'
-  /** 服务端算好的 `forum.*` 能力，版务按钮只看它。 */
+  /** 服务端算好的 `forum.*` 版务能力，版务按钮只看它。 */
   capabilities: string[]
-}
-
-export interface GuestPolicy {
-  powDifficulty: number
-  turnstileSiteKey: string | null
-  nameMax: number
-  contentMax: number
+  /** 能看到的最高可见范围（#276）：成员三级都看，注册用户看公开和注册可见，没登录只看公开。 */
+  level: Visibility
+  /** 持有的论坛写权限节点（#276）：发话题、回复、回应、用表情、传图、改可见范围。只管按钮显隐，服务端每次写都再判。 */
+  nodes: string[]
 }
 
 export interface ServerSnapshot {
   state: ForumState
   viewer: ForumViewer
-  guestPolicy: GuestPolicy
 }
 
 /** `GET /api/forum/topics/:id/posts` 的回答（#156）：这个话题的全部帖子，带正文。 */
@@ -47,17 +42,38 @@ export interface SearchAnswer {
   results: { topics: Topic[], posts: Post[], users: User[] }
 }
 
-/** 写接口的回答：变了的记录，加上和 `/state` 一样的 `viewer`、`guestPolicy`。 */
+/** 写接口的回答：变了的记录，加上和 `/state` 一样的 `viewer`。 */
 export interface WriteResult {
   changes: ForumChanges
   viewer: ForumViewer
-  guestPolicy: GuestPolicy
 }
 
-export const DEFAULT_GUEST_POLICY: GuestPolicy = { powDifficulty: 3, turnstileSiteKey: null, nameMax: 20, contentMax: 2000 }
+/** 一个表情（`GET /api/forum/stickers`，#276）：帖子里写成 `:shortcode:`，`url` 是按内容哈希的图片地址。 */
+export interface Sticker {
+  id: string
+  shortcode: string
+  label: string
+  url: string
+}
 
-/** 成员帖子正文上限（游客的上限在 guestPolicy.contentMax）。 */
+export interface StickerPack {
+  id: string
+  name: string
+  stickers: Sticker[]
+}
+
+/** `@` 补全的一个候选（`GET /api/forum/users/suggest`，#276）。 */
+export interface SuggestedUser {
+  username: string
+  displayName: string
+  avatarUrl: string | null
+}
+
+/** 帖子正文上限。 */
 export const MEMBER_CONTENT_MAX = 20000
+/** 粘贴或上传的图片（#276 CONTRACT §5，服务端同样的限制）。 */
+export const UPLOAD_MAX_BYTES = 5 * 1024 * 1024
+export const UPLOAD_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const
 export const TOPIC_TITLE_MAX = 120
 export const TOPIC_TAG_MAX = 5
 export const PROFILE_LIMITS = { displayName: 30, bio: 200, location: 60, website: 200 } as const
@@ -67,12 +83,15 @@ export const AVATAR_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
 export class ForumApiError extends Error {
   readonly status: number
   readonly code: string
+  /** 看不到的话题回 401/403 时要什么身份（#276）：`registered` 或 `member`。 */
+  readonly need: 'registered' | 'member' | null
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, need: 'registered' | 'member' | null = null) {
     super(message)
     this.name = 'ForumApiError'
     this.status = status
     this.code = code
+    this.need = need
   }
 }
 
@@ -109,15 +128,6 @@ export interface CreatePostBody {
   topicId: string
   content: string
   replyToPostId?: string
-}
-
-export interface GuestPostBody extends CreatePostBody {
-  guest: { name: string }
-  pow: PowProof
-  /** 蜜罐字段，真人提交永远是空串。 */
-  website: ''
-  /** 服务端配了 Turnstile（`guestPolicy.turnstileSiteKey` 非空）时必填，一次性。 */
-  turnstileToken?: string
 }
 
 export interface ProfileBody {
@@ -167,7 +177,8 @@ export function createForumApi(fetchImpl: FetchLike) {
       const error = isRecord(json) ? json : {}
       const code = typeof error.error === 'string' ? error.error : `http_${response.status}`
       const message = typeof error.message === 'string' && error.message ? error.message : fallbackMessage(response.status)
-      throw new ForumApiError(response.status, code, message)
+      const need = error.need === 'registered' || error.need === 'member' ? error.need : null
+      throw new ForumApiError(response.status, code, message, need)
     }
     if (response.status === 204)
       return null
@@ -189,7 +200,7 @@ export function createForumApi(fetchImpl: FetchLike) {
       const json = await request('POST', '/topics', body)
       return { ...parseWriteResult(json), topicId: stringField(json, 'topicId') }
     },
-    async createPost(body: CreatePostBody | GuestPostBody): Promise<WriteResult & { postId: string }> {
+    async createPost(body: CreatePostBody): Promise<WriteResult & { postId: string }> {
       const json = await request('POST', '/posts', body)
       return { ...parseWriteResult(json), postId: stringField(json, 'postId') }
     },
@@ -200,6 +211,21 @@ export function createForumApi(fetchImpl: FetchLike) {
     toggleFollow: (userId: string) => write('POST', `/users/${id(userId)}/follow`),
     setPinned: (topicId: string, pinned: boolean) => write('POST', `/topics/${id(topicId)}/pin`, { pinned }),
     setClosed: (topicId: string, closed: boolean) => write('POST', `/topics/${id(topicId)}/close`, { closed }),
+    /** `null` 表示跟随分类（#276）；只能比分类更严，更松服务端回 400。 */
+    setVisibility: (topicId: string, visibility: Visibility | null) => write('PATCH', `/topics/${id(topicId)}/visibility`, { visibility }),
+    stickers: async (): Promise<StickerPack[]> => parseStickerPacks(await request('GET', '/stickers')),
+    /** 加上或撤回一个表情回应，回这条帖子现在的全部回应。 */
+    react: async (postId: string, stickerId: string, on: boolean): Promise<Reaction[]> =>
+      parseReactions(await request(on ? 'PUT' : 'DELETE', `/posts/${id(postId)}/reactions/${id(stickerId)}`)),
+    /** 请求体就是图片，回存好的地址（站内 `/api/forum/uploads/<hash>.<ext>`）。 */
+    async uploadImage(file: Blob): Promise<string> {
+      const json = await request('PUT', '/uploads', file, { contentType: file.type })
+      const url = stringField(json, 'url')
+      if (!url.startsWith(`${FORUM_API_BASE}/uploads/`))
+        throw new ForumApiError(200, 'invalid_response', '论坛服务返回的数据不完整，请稍后再试。')
+      return url
+    },
+    suggestUsers: async (query: string): Promise<SuggestedUser[]> => parseSuggestedUsers(await request('GET', `/users/suggest?q=${encodeURIComponent(query)}`)),
     async recordView(topicId: string): Promise<void> {
       await request('POST', `/topics/${id(topicId)}/view`)
     },
@@ -214,8 +240,8 @@ export function createForumApi(fetchImpl: FetchLike) {
 export type ForumApi = ReturnType<typeof createForumApi>
 
 /**
- * 接口返回的 `{ state }`：state 与前端 `ForumState` 同形，外加 `viewer` 和 `guestPolicy` 两个字段
- * （它们在 state 里或与 state 并列都接受）。形状不对就当作服务不可用，不把半份数据放进 store。
+ * 接口返回的 `{ state }`：state 与前端 `ForumState` 同形，外加 `viewer`
+ * （在 state 里或与 state 并列都接受）。形状不对就当作服务不可用，不把半份数据放进 store。
  */
 export function parseServerSnapshot(body: unknown): ServerSnapshot {
   const invalid = (): ForumApiError => new ForumApiError(200, 'invalid_state', '论坛服务返回的数据不完整，请稍后再试。')
@@ -248,16 +274,17 @@ export function parseServerSnapshot(body: unknown): ServerSnapshot {
     categories: raw.categories,
     tags: raw.tags,
     topics: raw.topics,
-    posts: raw.posts,
+    // 回应（#276）缺席或不合格时按没有回应处理，其余字段原样。
+    posts: (raw.posts as unknown[]).map(post => (isRecord(post) ? { ...post, reactions: Array.isArray(post.reactions) ? normalizeReactions(post.reactions) : [] } : post)),
     notifications: raw.notifications,
     bookmarks: raw.bookmarks,
     follows: raw.follows,
   } as ForumState
-  return { state, viewer, guestPolicy: parseGuestPolicy(raw.guestPolicy ?? body.guestPolicy) }
+  return { state, viewer }
 }
 
 /**
- * 写接口返回的 `{ changes, viewer, guestPolicy }`（#145）。`changes` 里每一类都可以没有；有的话必须是记录数组，
+ * 写接口返回的 `{ changes, viewer }`（#145）。`changes` 里每一类都可以没有；有的话必须是记录数组，
  * 带 id 的记录要有字符串 id，书签和关注要有两端的用户或帖子 id，用户按 `/state` 同样的规则补齐。
  * 形状不对就整份拒收（和写失败一样，本地什么也不改），不把半份数据并进 store。
  */
@@ -320,7 +347,7 @@ export function parseWriteResult(body: unknown): WriteResult {
       ...(removedFollows ? { follows: removedFollows as unknown as NonNullable<NonNullable<ForumChanges['removed']>['follows']> } : {}),
     }
   }
-  return { changes, viewer, guestPolicy: parseGuestPolicy(body.guestPolicy) }
+  return { changes, viewer }
 }
 
 /**
@@ -365,7 +392,9 @@ function normalizePost(value: unknown): Post | null {
     return null
   if (!Array.isArray(value.likeUserIds) || !value.likeUserIds.every(id => typeof id === 'string'))
     return null
-  return value as unknown as Post
+  const post = value as unknown as Post
+  // 回应缺席或不合格时按没有回应处理（#276），不因为它整份拒收。
+  return { ...post, reactions: Array.isArray(value.reactions) ? normalizeReactions(value.reactions) : [] }
 }
 
 function parseViewer(value: unknown): ForumViewer | null {
@@ -378,25 +407,69 @@ function parseViewer(value: unknown): ForumViewer | null {
     return null
   if (!Array.isArray(capabilities) || !capabilities.every(item => typeof item === 'string'))
     return null
-  // 游客没有论坛用户；成员一定有，两者对不上说明数据坏了。
+  // 没登录的人没有论坛用户；登录的一定有，两者对不上说明数据坏了。
   if ((kind === 'guest') !== (userId === null))
     return null
-  return { userId, kind, capabilities: [...capabilities] as string[] }
+  // 旧服务端没有这两项：按没登录只看公开、没有写权限处理，按钮宁可少露。
+  const level = value.level === 'member' || value.level === 'registered' ? value.level : 'public'
+  const nodes = Array.isArray(value.nodes) ? value.nodes.filter((item): item is string => typeof item === 'string') : []
+  return { userId, kind, capabilities: [...capabilities] as string[], level, nodes }
 }
 
-function parseGuestPolicy(value: unknown): GuestPolicy {
-  if (!isRecord(value))
-    return { ...DEFAULT_GUEST_POLICY }
-  const positive = (field: unknown, fallback: number): number =>
-    typeof field === 'number' && Number.isInteger(field) && field > 0 ? field : fallback
-  return {
-    powDifficulty: typeof value.powDifficulty === 'number' && Number.isInteger(value.powDifficulty) && value.powDifficulty >= 0
-      ? value.powDifficulty
-      : DEFAULT_GUEST_POLICY.powDifficulty,
-    turnstileSiteKey: typeof value.turnstileSiteKey === 'string' && value.turnstileSiteKey ? value.turnstileSiteKey : null,
-    nameMax: positive(value.nameMax, DEFAULT_GUEST_POLICY.nameMax),
-    contentMax: positive(value.contentMax, DEFAULT_GUEST_POLICY.contentMax),
-  }
+/** `GET /api/forum/stickers`：只收站内地址的表情，形状不对的那一个跳过，不让一个坏条目拖垮整个面板。 */
+export function parseStickerPacks(body: unknown): StickerPack[] {
+  if (!isRecord(body) || !Array.isArray(body.packs))
+    throw new ForumApiError(200, 'invalid_response', '论坛服务返回的数据不完整，请稍后再试。')
+  return body.packs.filter(isRecord).flatMap((pack) => {
+    if (typeof pack.id !== 'string' || typeof pack.name !== 'string' || !Array.isArray(pack.stickers))
+      return []
+    const stickers = pack.stickers.filter(isRecord).flatMap((item): Sticker[] =>
+      typeof item.id === 'string' && typeof item.shortcode === 'string' && typeof item.label === 'string' && isStickerUrl(item.url)
+        ? [{ id: item.id, shortcode: item.shortcode, label: item.label, url: item.url }]
+        : [])
+    return [{ id: pack.id, name: pack.name, stickers }]
+  })
+}
+
+/** 表情图片只认站内按内容哈希的地址（#276 CONTRACT §3），别的地址不进页面。 */
+export function isStickerUrl(value: unknown): value is string {
+  return typeof value === 'string' && /^\/api\/forum\/stickers\/[0-9a-f]{64}\.webp$/.test(value)
+}
+
+/** 帖子上的表情回应（`reactions`），`/state`、话题帖子和回应接口同一个形状；不合格的条目跳过。 */
+export function parseReactions(body: unknown): Reaction[] {
+  const list = isRecord(body) ? body.reactions : undefined
+  if (!Array.isArray(list))
+    throw new ForumApiError(200, 'invalid_response', '论坛服务返回的数据不完整，请稍后再试。')
+  return normalizeReactions(list)
+}
+
+export function normalizeReactions(list: unknown[]): Reaction[] {
+  return list.filter(isRecord).flatMap((item): Reaction[] =>
+    typeof item.stickerId === 'string' && typeof item.shortcode === 'string' && isStickerUrl(item.url)
+    && typeof item.count === 'number' && Number.isInteger(item.count) && item.count > 0
+      ? [{ stickerId: item.stickerId, shortcode: item.shortcode, url: item.url, count: item.count, mine: item.mine === true }]
+      : [])
+}
+
+function parseSuggestedUsers(body: unknown): SuggestedUser[] {
+  if (!isRecord(body) || !Array.isArray(body.users))
+    throw new ForumApiError(200, 'invalid_response', '论坛服务返回的数据不完整，请稍后再试。')
+  return body.users.filter(isRecord).flatMap((item): SuggestedUser[] =>
+    typeof item.username === 'string' && item.username
+      ? [{ username: item.username, displayName: typeof item.display_name === 'string' ? item.display_name : item.username, avatarUrl: typeof item.avatar_url === 'string' && item.avatar_url ? item.avatar_url : null }]
+      : [])
+}
+
+/** 粘贴或选中的图片能不能传，不能时返回一句说明（服务端同样的限制）。 */
+export function uploadFileProblem(file: { size: number, type: string }): string | null {
+  if (!(UPLOAD_TYPES as readonly string[]).includes(file.type))
+    return '只能上传 PNG、JPEG、WebP 或 GIF 图片。'
+  if (file.size > UPLOAD_MAX_BYTES)
+    return '图片不能超过 5MB。'
+  if (file.size === 0)
+    return '这个文件是空的。'
+  return null
 }
 
 /** 必填的 id、用户名、名字缺了就拒收；可选资料缺了补空值，头像底色缺了用中性灰。 */
