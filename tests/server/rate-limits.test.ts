@@ -50,9 +50,14 @@ it('同一个访客反复撞同一个限额，429 只在操作记录里留一行
   contexts.push(context);
   const { app } = context;
   context.app.services.storage.db.prepare("DELETE FROM activity_events").run(); // 迁移自带的 identity.backfill 记录不参与这里的断言
+  // #274 删掉了 /api/join/:token（GitHub 组织邀请链接随组织那道门一起去掉），改用另一个匿名、路由级
+  // max=5/分钟限流的接口来撞同一个限额：/api/portal/apply 的限流在 onRequest 里跑，先于 requirePermission
+  // 的 401（见 apply.ts 的注释），没登录时前 5 次回 401，不影响这里只看限流次数的断言。要带着同一个
+  // yugc_vid 访客 cookie 复用同一个访客编号，否则每次没带 cookie 都会现发一个新的，三次限流会落进三个
+  // 不同的访客编号，撞不上「同一主体」的合并条件。
   let cookie: string | undefined;
   const send = async () => {
-    const res = await app.inject({ method: 'POST', url: '/api/join/no-such-link', payload: {}, remoteAddress: '198.51.100.40', headers: cookie ? { cookie } : {} });
+    const res = await app.inject({ method: 'POST', url: '/api/portal/apply', payload: {}, remoteAddress: '198.51.100.40', headers: cookie ? { cookie } : {} });
     const setCookie = ([] as string[]).concat((res.headers['set-cookie'] as string[] | string | undefined) ?? []).find(c => c.startsWith('yugc_vid='));
     if (setCookie && !cookie) cookie = setCookie.split(';')[0];
     return res;
