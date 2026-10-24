@@ -134,3 +134,17 @@
 - 做了什么：task/278/contest_site 从 4c7c5dd5 rebase 到 93322115（#277 合并）。冲突只在文档与生成的目录：docs/architecture/API.md 两节都保留（#278 的比赛小节在前、#277 的命令行令牌一节在后），server README 的 portal 路由行合并两边的说明，web README 的 nginx 一行按分句合并 #277 的 /cli/ 与 #278 的 /c/、/sdk/、21m 上传；目录文件在 6 个冲突提交上用 pnpm catalog:generate 重新生成。rebase 前的头留在本机 refs/backup/task278-pre-rebase。
 - 结果：rebase 前后差异的文件清单与 4c7c5dd5..93322115 完全一致（70 个文件）；在 d456805d 上 vitest 125 文件 1944 条、typecheck、check-architecture --base 93322115（124 文件 234 节点）、check-doc-sync、check:catalog/secrets/notes/docs/runtime/site-config/environments/boundaries/cli 全部通过。迁移在 20:31 新取的预发布库复制品上连跑两次，第二次表结构、行数、内容都没有变化。
 - 下一步：推送，开 MR，写审查结论。
+
+## 20:48:09 +08:00 · PR · #278 · 开 MR !12：task/278/contest_site → stage
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：在 git.yangtzeu.work 的 geek/admin 开 MR !12（https://git.yangtzeu.work/geek/admin/-/merge_requests/12），源分支 task/278/contest_site 头 4087d677，目标 stage 93322115，merge commit、合并后删源分支。正文按 PULL-REQUESTS 九节写：目的引所有者原话与 13:45、16:38、16:57、16:59 四次补充，Closes #278，变更范围，宏观对齐，解决链路（年级系数改成 3.5/2.2/1.4/1.0 的依据），验证命令与结果，迁移演练两次的逐表行数，18 张截图，人工验收步骤，审查结论，风险与回滚。标签 P1、enhancement、func:api、func:data、func:external、portal、ui:layout、ui:visual。
+- 结果：MR !12 已开，GitLab 返回 sha 4087d677
+- 下一步：写审查记录、推送后合并
+
+## 20:48:09 +08:00 · 审查 · #278 · 审查 #278：通过
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：主会话按 .agents/skills/code-review 两条线逐项核对 93322115..4087d677，没有另开子 agent；作者是子 agent c278，rebase 是审查人自己做的，属于作者自审。规范：检查全过、没有新依赖；400bf7b0、b02889cd 的 docs(architecture) 不在 COMMITS 词表里，已推送并被记录引用，不改写；公开接口只给用户名、昵称、头像，兑奖查找不读真实姓名，real-info 白名单没放宽；兑奖码只存散列、密文和末四位；/c/<slug>/ 每个响应带 sandbox CSP 并去掉 Set-Cookie；标签加分前核对加标签的人有 competition.score.review 且不是作者。需求：期望结果 1–4、四类测试都在；视觉语言按 16:38、16:57 改成浅色；改分按 16:59 改成两档；接口路径和正文写法不同、功能一致（publish 带 version_id、回滚即发布旧版、accept）。结论写进 MR !12 的「审查结论」。
+- 结果：通过。未验证：预发布上的验收条件 1、2、4（要 rc.20，官网包由所有者上传发布），真实 GitLab 收集一轮，真实兑奖核销，大于 6MB 的站点包经宿主上传
+- 下一步：推送记录，合并 MR !12，关 #278
