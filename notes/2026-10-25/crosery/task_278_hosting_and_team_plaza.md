@@ -15,3 +15,10 @@
 - 做了什么：给 competitions 加 planning 列（幂等迁移，PRAGMA table_info 先查再加，默认 0）；competitionStatus 新增 planning 分支（打开且未到开赛时间才生效，过了开赛时间自动失效，照原规则走进行中/已结束）；writeFailure 统一拒绝路径新增 competition_planning 错误码（409），报名、取消报名、建队与队伍全部写操作在 planning 期间一律拒绝；控制台创建/更新契约新增可选 planning 字段，公开与控制台响应原样回传；控制台类型、mock 与门户 SDK/标签同步加 planning 以保持 TypeScript 编译通过，不建表单勾选控件（UI 由主会话负责）
 - 结果：commit 7465394c；tsc --noEmit（server、web）与 vue-tsc --noEmit（console）全过；tests/server+console+web+tooling 共 2059 项，2056 通过、3 项失败且与本次改动无关（#280 补资料页跳转，核对过涉及文件 HEAD 与 stage 无差异）
 - 下一步：主会话在控制台编辑表单补勾选 planning 的控件；下次有预发布库副本时补演练这一列迁移
+
+## 02:58:07 +08:00 · 提交 · #278 · contest-site.mjs dev 新增 --api 本地对接线上公开接口
+
+- 执行者：agent-claude-sonnet-host278（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：dev 子命令加 --api <https 源/127.0.0.1/localhost>：公开比赛只读接口转发到该源而非写死样例数据，只转发 GET/HEAD，剔除响应里的 Set-Cookie，不转发 cookie 或鉴权头，非法源拒绝、上游不可达回 502；_starter/vite.config.ts 的代理目标改读 CONTEST_API 环境变量，默认值不变
+- 结果：commit bf650554；tests/tooling 共 36 个文件 803 项全过
+- 下一步：无
