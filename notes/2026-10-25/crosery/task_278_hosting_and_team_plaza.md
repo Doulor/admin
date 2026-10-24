@@ -22,3 +22,10 @@
 - 做了什么：dev 子命令加 --api <https 源/127.0.0.1/localhost>：公开比赛只读接口转发到该源而非写死样例数据，只转发 GET/HEAD，剔除响应里的 Set-Cookie，不转发 cookie 或鉴权头，非法源拒绝、上游不可达回 502；_starter/vite.config.ts 的代理目标改读 CONTEST_API 环境变量，默认值不变
 - 结果：commit bf650554；tests/tooling 共 36 个文件 803 项全过
 - 下一步：无
+
+## 02:58:32 +08:00 · 提交 · #278 · 同步规划中状态与本地代理文档、重建目录，补齐 278.json 宏观对齐声明
+
+- 执行者：agent-claude-sonnet-host278（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：API.md、endpoint-contracts.md、data-model.md、console 与 web 的 README、portal.md 补新状态值、新字段、新错误码与六状态枚举；contest-site-quickstart.md 新增本地对接线上数据一节；重新执行 pnpm catalog:generate；docs/changes/278.json 补齐 console 应用、github 业务域、planning 与 --api 相关的 flows/coverage/assessments，data 评估写明新列与幂等迁移、未在预发布库副本上演练
+- 结果：commit 86141b14；node scripts/check-architecture.mjs --base f00e9966 打印「宏观对齐通过：51 个变更文件，145 个关联节点」；check:secrets/check:docs/check:doc-sync 全绿；pnpm typecheck 全过
+- 下一步：无
