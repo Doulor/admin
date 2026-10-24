@@ -9,6 +9,7 @@ import { TxForm, TxFormItem } from "@talex-touch/tuffex/form";
 import { TxInput } from "@talex-touch/tuffex/input";
 import { TxEmptyState } from "@talex-touch/tuffex/empty-state";
 import { toast } from "@talex-touch/tuffex/utils";
+import DateField from "../components/DateField.vue";
 import PageHeader from "../components/PageHeader.vue";
 import ErrorPanel from "../components/ErrorPanel.vue";
 import ErrorAlert from "../components/ErrorAlert.vue";
@@ -142,7 +143,7 @@ async function copy(code: string) {
             <span v-if="errors.maxUses" class="field-error">{{ errors.maxUses }}</span>
           </TxFormItem>
           <TxFormItem label="过期日期（留空不过期，当天整天都能用）" class="wide">
-            <TxInput v-model="form.expiresDate" type="date" class="fill-width" />
+            <DateField v-model="form.expiresDate" clearable />
             <span v-if="errors.expiresDate" class="field-error">{{ errors.expiresDate }}</span>
           </TxFormItem>
         </div>

@@ -7,6 +7,7 @@ import { TxInput } from "@talex-touch/tuffex/input";
 import { TxRadioGroup, TxRadio } from "@talex-touch/tuffex/radio";
 import { TxButton } from "@talex-touch/tuffex/button";
 import { toast } from "@talex-touch/tuffex/utils";
+import DateField from "../../components/DateField.vue";
 import ErrorAlert from "../../components/ErrorAlert.vue";
 import { api, jsonBody } from "../../lib/http";
 import { emptyEntryDraft, entryInput, isMetaNode, nodeSelectGroups, type EntryDraft } from "../../lib/permissions";
@@ -77,7 +78,7 @@ const save = useAction(async () => {
         </span>
       </TxFormItem>
       <TxFormItem label="到期日期（选填，留空一直有效，当天整天有效）">
-        <TxInput v-model="draft.expiresDate" type="date" class="fill-width" />
+        <DateField v-model="draft.expiresDate" clearable />
       </TxFormItem>
       <p v-if="problem" class="field-error" role="alert">{{ problem }}</p>
       <ErrorAlert v-if="save.error.value" :error="save.error.value" @close="save.reset()" />

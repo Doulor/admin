@@ -1,9 +1,11 @@
 import type { EditorView } from '@milkdown/kit/prose/view'
+import type { StickerLookup } from './inline-stickers'
 import { Crepe } from '@milkdown/crepe'
 import { editorViewCtx } from '@milkdown/kit/core'
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state'
 import { $prose, insert, replaceAll } from '@milkdown/kit/utils'
 import '@milkdown/crepe/theme/common/style.css'
+import { inlineStickers } from './inline-stickers'
 
 /**
  * Milkdown Crepe for the post editor (#276), loaded only when someone starts
@@ -22,6 +24,10 @@ import '@milkdown/crepe/theme/common/style.css'
  * (the panel is Vue, so this module only says when). `@` followed by letters
  * reports the word being typed so PostEditor can list matching accounts;
  * while that list is open, ↑ ↓ Enter and Esc belong to it.
+ *
+ * Stickers sit in the line like Bilibili's: a small picture between words,
+ * never a picture block, and typing `[极客娘_打招呼]` turns into that sticker
+ * as soon as the `]` is in (see `inlineStickers`).
  */
 
 export interface MentionQuery {
@@ -43,6 +49,8 @@ export interface CrepeEditorOptions {
   onMention: (query: MentionQuery | null) => void
   /** The mention list is open and takes this key (ArrowUp, ArrowDown, Enter, Escape): return true when it did. */
   onMentionKey: (key: string) => boolean
+  /** Looks a sticker up by its picture or by `[包名_名字]`; undefined when it is not one. */
+  findSticker: StickerLookup
 }
 
 export interface CrepeEditor {
@@ -50,6 +58,8 @@ export interface CrepeEditor {
   setMarkdown: (markdown: string) => void
   /** Inserts Markdown at the cursor, inline. */
   insert: (markdown: string) => void
+  /** Puts a sticker at the cursor, as a picture in the line. */
+  insertSticker: (sticker: { src: string, label: string }) => void
   /** Replaces `@query` with `@username ` and puts the cursor after it. */
   completeMention: (range: MentionQuery, username: string) => void
   focus: () => void
@@ -74,6 +84,8 @@ export function mentionAt(view: Pick<EditorView, 'state'>): MentionQuery | null 
   const query = match[1] ?? ''
   return { query, from: $from.pos - query.length - 1, to: $from.pos }
 }
+
+const stickerKey = new PluginKey('forum-sticker-inline')
 
 export async function createCrepeEditor(options: CrepeEditorOptions): Promise<CrepeEditor> {
   const crepe = new Crepe({
@@ -155,6 +167,13 @@ export async function createCrepeEditor(options: CrepeEditorOptions): Promise<Cr
   }))
   crepe.editor.use(mentionPlugin)
 
+  const stickerPlugin = $prose(() => new Plugin({
+    key: stickerKey,
+    appendTransaction: (transactions, _before, state) =>
+      transactions.some(tr => tr.docChanged || tr.getMeta(stickerKey)) ? inlineStickers(state, options.findSticker) : null,
+  }))
+  crepe.editor.use(stickerPlugin)
+
   crepe.on((listener) => {
     listener.markdownUpdated((_ctx, markdown) => options.onChange(markdown))
   })
@@ -163,6 +182,8 @@ export async function createCrepeEditor(options: CrepeEditorOptions): Promise<Cr
   const run = (action: (view: EditorView) => void): void => {
     crepe.editor.action(ctx => action(ctx.get(editorViewCtx)))
   }
+  // The first text never went through a transaction: put its stickers in the line too.
+  run(view => view.dispatch(view.state.tr.setMeta(stickerKey, true)))
 
   return {
     setMarkdown: markdown => crepe.editor.action(replaceAll(markdown)),
@@ -170,6 +191,13 @@ export async function createCrepeEditor(options: CrepeEditorOptions): Promise<Cr
       crepe.editor.action(insert(markdown, true))
       run(view => view.focus())
     },
+    insertSticker: sticker => run((view) => {
+      const { image } = view.state.schema.nodes
+      if (!image)
+        return
+      view.dispatch(view.state.tr.replaceSelectionWith(image.create({ src: sticker.src, alt: sticker.label }), false).scrollIntoView())
+      view.focus()
+    }),
     completeMention: (range, username) => run((view) => {
       view.dispatch(view.state.tr.insertText(`@${username} `, range.from, range.to))
       view.focus()

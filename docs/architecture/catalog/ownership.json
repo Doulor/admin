@@ -1319,7 +1319,7 @@
         },
         {
           "path": "app/console/src/pages/SignIn.vue",
-          "needle": "<TxFormItem v-if=\"registering\" v-slot=\"{ id }\" label=\"真实姓名\">"
+          "needle": "<TxFormItem v-if=\"registering\" v-slot=\"{ id }\" :label=\"invite.trim() ? '真实姓名' : '真实姓名（成员必填）'\">"
         }
       ],
       "tests": [
@@ -1930,7 +1930,7 @@
         },
         {
           "path": "app/console/src/lib/types.ts",
-          "needle": "export type SelectableGrade = 1 | 2 | 3 | 4;"
+          "needle": "export type SelectableGrade = Grade;"
         }
       ],
       "tests": [
@@ -2326,6 +2326,10 @@
         {
           "path": "app/console/src/mock/console.ts",
           "needle": "function routeActivity(persona: Persona, search: URLSearchParams): ActivityList {"
+        },
+        {
+          "path": "app/console/src/components/DateField.vue",
+          "needle": "// 日期框（#283）：Tuffex 日期选择器配上控制台的默认值——中文文案、周一开头、桌面和手机都是下拉日历。"
         }
       ],
       "tests": [
@@ -3877,6 +3881,14 @@
         {
           "path": "app/forum/app/editor/crepe-editor.ts",
           "needle": "export interface MentionQuery {"
+        },
+        {
+          "path": "app/forum/app/editor/inline-stickers.ts",
+          "needle": "export function inlineStickers(state: EditorState, find: StickerLookup): Transaction | null {"
+        },
+        {
+          "path": "app/forum/shared/post-markdown.ts",
+          "needle": "export function renderableMarkdown(source: string, stickers?: ReadonlyMap<string, StickerRef>): string {"
         }
       ],
       "tests": [
@@ -5183,6 +5195,10 @@
         {
           "path": "app/console/src/pages/forum/StickersTab.vue",
           "needle": "<script setup lang=\"ts\">"
+        },
+        {
+          "path": "app/console/src/pages/Forum.vue",
+          "needle": "<script setup lang=\"ts\">"
         }
       ],
       "tests": [
@@ -5297,6 +5313,73 @@
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "console.forum.sticker_packs.create",
+      "title": "控制台新建表情包",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/forum/sticker-packs",
+      "capabilities": [],
+      "reads": [
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "forum_sticker_packs"
+      ],
+      "writes": [
+        "forum_sticker_packs",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：requirePermission(\"forum.sticker.manage\") + requireStepUp；body {id,name}，id 小写字母、数字和连字符，name 1–64 字。",
+        "响应与错误：201 {id,name}；id 已被占用回409 pack_id_taken；格式不对400。",
+        "数据与副作用：插一行 forum_sticker_packs（排在最后）；空包不在公开面板里出现；成功后 invalidate 公开列表缓存，写审计 forum.sticker_pack.create。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/forum.ts",
+          "needle": "\"/api/console/forum/sticker-packs\","
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "createStickerPack(id: string, name: string, now = Date.now()): boolean {"
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function createPermissionEngine("
+        },
+        {
+          "path": "app/console/src/pages/forum/StickersTab.vue",
+          "needle": "const createPack = useAction(async () => {"
+        },
+        {
+          "path": "app/console/src/lib/forum.ts",
+          "needle": "export function newPackErrors("
+        },
+        {
+          "path": "app/console/src/mock/console.ts",
+          "needle": "if (path === \"/api/console/forum/sticker-packs\" && method === \"POST\") {"
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/console/forum.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/console/README.md"
       ]
     },
     {

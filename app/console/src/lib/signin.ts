@@ -196,12 +196,14 @@ export function resetProblem(form: { email: string; codeSent: boolean; code: str
 
 /**
  * 邮箱注册表单提交前的本地检查，按页面上从上到下的顺序报第一处问题；都对返回 null。
- * 真实姓名和年级必填（#280）。邀请码选填（CONTRACT-274 §2：填了有效的进极客班成员，不填进注册用户，填错了服务端回 invite_invalid）。
+ * 姓名和年级只有极客班成员要填（#280，所有者 2026-10-24 22:05）：填了邀请码就要填；没填邀请码可以都不填，填了一项就两项都要对。
+ * 邀请码选填（CONTRACT-274 §2：填了有效的进极客班成员，不填进注册用户，填错了服务端回 invite_invalid）。
  * 密码可以不填（注册后到「我的账号」再设），填了就按账号页同一条规则。
  */
 export function registerProblem(form: { email: string; realName: string; grade: unknown; invite: string; codeSent: boolean; code: string; password: string }): string | null {
   if (!looksLikeEmail(form.email)) return "邮箱格式不对";
-  return realNameProblem(form.realName) ?? gradeProblem(form.grade)
+  const needsRealInfo = Boolean(form.invite.trim()) || Boolean(form.realName.trim()) || form.grade !== "";
+  return (needsRealInfo ? realNameProblem(form.realName) ?? gradeProblem(form.grade) : null)
     ?? codeProblem(form.codeSent, form.code) ?? (form.password ? passwordRuleProblem(form.password) : null);
 }
 
@@ -219,10 +221,10 @@ const setPassword = (password: string) => api<{ ok: true }>("/api/identity/passw
 
 /** 用验证码、姓名、年级和邀请码注册，填了密码就接着设上。验证码这一步的错误照常抛出，由页面按错误码处理。 */
 export async function registerWithEmail(
-  input: { code: string; invite: string; password: string; realName: string; grade: SelectableGrade },
+  input: { code: string; invite: string; password: string; realName: string; grade: SelectableGrade | null },
   deps: { verify: typeof verifySigninCode; setPassword: (password: string) => Promise<unknown> } = { verify: verifySigninCode, setPassword },
 ): Promise<RegisterOutcome> {
-  const result = await deps.verify(input.code, input.invite, { real_name: input.realName, grade: input.grade });
+  const result = await deps.verify(input.code, input.invite, input.grade === null ? undefined : { real_name: input.realName, grade: input.grade });
   if (!input.password) return { kind: "done", returnTo: result.return_to };
   if (!result.registered) return { kind: "existing", returnTo: result.return_to };
   try {

@@ -13,9 +13,10 @@ export type SessionProvider = "github" | "email" | "google";
 export type Level = "visitor" | "registered" | "member" | "alumni";
 
 export type DepartmentRef = { id: string; name: string; tone: DeptTone };
-/** 年级（#280）：1–4 是大一到大四，大四之后由时间推出已毕业；下拉框只能选 1–4。 */
-export type SelectableGrade = 1 | 2 | 3 | 4;
-export type Grade = SelectableGrade | "graduated";
+/** 年级（#280）：1–4 是大一到大四，大四之后由时间推出已毕业；下拉框能选 1–4 和已毕业。 */
+export type Grade = 1 | 2 | 3 | 4 | "graduated";
+/** 下拉框能选的年级：大一到大四和已毕业（所有者 2026-10-24 22:05） */
+export type SelectableGrade = Grade;
 export type TitleRef = { id: string; name: string; department_id: string | null };
 
 /** GET /api/console/me：控制台会话身份；permissions 是这个账号在控制台用得到的全部具体节点。 */

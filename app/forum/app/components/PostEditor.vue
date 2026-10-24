@@ -2,7 +2,7 @@
 import type { CrepeEditor, MentionQuery } from '~/editor/crepe-editor'
 import type { Sticker, SuggestedUser } from '../../shared/forum-api'
 import { toast } from '@talex-touch/tuffex/utils'
-import { ForumApiError } from '../../shared/forum-api'
+import { ForumApiError, UPLOAD_TYPES } from '../../shared/forum-api'
 import { imagesToStickers, stickersToImages } from '../../shared/post-markdown'
 
 /**
@@ -20,7 +20,13 @@ import { imagesToStickers, stickersToImages } from '../../shared/post-markdown'
  * posts render through ForumMarkdown → shared/post-markdown.ts → DOMPurify.
  *
  * - Pasted or dropped images upload to the forum and go in as pictures.
- * - 表情 (the button, or 「表情」 in the `/` menu) inserts a sticker.
+ * - 表情 (the button, or 「表情」 in the `/` menu) inserts a sticker as a small
+ *   picture in the line, the way Bilibili's comment box does; typing
+ *   `[包名_名字]` does the same. 图片 picks an image file, uploads it and puts it
+ *   in like a pasted one.
+ * - The row under the box (#276, Bilibili's comment box): 表情 and 图片 on the left,
+ *   the caller's `status` and `actions` slots on the right (the reply drawer puts
+ *   取消 / 回复 there). `grow` lets the box fill the caller's height.
  * - `@` and a few letters lists matching accounts; ↑ ↓ Enter pick one.
  * - ⌘ or Ctrl + Enter emits `submit`; the caller decides whether to send.
  *
@@ -31,9 +37,11 @@ const props = withDefaults(defineProps<{
   placeholder?: string
   /** What screen readers call the text field, e.g. 「回复内容」. */
   label: string
-  /** In px; the three heights the forum uses map to static classes below. */
-  minHeight?: 200 | 240 | 320
-}>(), { placeholder: '', minHeight: 240 })
+  /** In px; the heights the forum uses map to static classes below. */
+  minHeight?: 96 | 200 | 240 | 320 | 400
+  /** Fill the parent's height (the reply drawer's 展开). */
+  grow?: boolean
+}>(), { placeholder: '', minHeight: 240, grow: false })
 
 const emit = defineEmits<{
   submit: []
@@ -52,9 +60,11 @@ const canUpload = computed(() => serverMode && server.granted.has('forum.upload.
 // Spelled out so UnoCSS finds the classes (app/ has no inline styles). The
 // editor's own heights live with its padding in uno.config.ts.
 const HEIGHT_CLASS = {
+  96: { field: '!min-h-24', editor: 'forum-editor-96' },
   200: { field: '!min-h-50', editor: 'forum-editor-200' },
   240: { field: '!min-h-60', editor: 'forum-editor-240' },
   320: { field: '!min-h-80', editor: 'forum-editor-320' },
+  400: { field: '!min-h-100', editor: 'forum-editor-400' },
 } as const
 const height = computed(() => HEIGHT_CLASS[props.minHeight])
 
@@ -142,11 +152,36 @@ async function upload(file: File): Promise<string> {
   }
 }
 
+const fileInput = ref<HTMLInputElement | null>(null)
+const uploading = ref(false)
+
+async function pickImage(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file)
+    return
+  uploading.value = true
+  try {
+    const url = await upload(file)
+    if (editor)
+      editor.insert(`![](${url})`)
+    else
+      content.value = `${content.value}${content.value && !content.value.endsWith('\n') ? '\n' : ''}![](${url})\n`
+  }
+  catch {
+    // upload() already said why in a toast.
+  }
+  finally {
+    uploading.value = false
+  }
+}
+
 function insertSticker(sticker: Sticker) {
   // #274：只记表情的编号（公开的素材标识，不是帖子正文），用了哪个表情、用了几次。
   report('forum.sticker.use', { target_type: 'sticker', target_id: sticker.shortcode })
   if (editor) {
-    editor.insert(`![${sticker.label}](${sticker.url})`)
+    editor.insertSticker({ src: sticker.url, label: sticker.label })
     return
   }
   const text = content.value
@@ -183,6 +218,11 @@ onMounted(async () => {
       onStickerMenu: canSticker.value ? () => { stickerOpen.value = true } : null,
       onMention,
       onMentionKey,
+      findSticker: (key) => {
+        const all = [...index.value.values()]
+        const sticker = 'src' in key ? all.find(item => item.url === key.src) : all.find(item => item.token === key.token)
+        return sticker && { src: sticker.url, label: sticker.label }
+      },
     })
     if (disposed) {
       void created.destroy()
@@ -218,12 +258,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="@container w-full flex flex-col gap-2" data-post-editor @keydown.capture="onKeydown">
+  <div class="@container w-full flex flex-col gap-2" :class="grow ? 'h-full min-h-0' : ''" data-post-editor @keydown.capture="onKeydown">
     <div
       v-show="ready"
       ref="host"
-      class="forum-editor overflow-hidden rounded-xl border border-$tx-border-color"
-      :class="height.editor"
+      class="forum-editor overflow-auto rounded-xl border"
+      :class="[height.editor, grow ? 'min-h-0 flex-1' : '']"
       role="group"
       :aria-label="label"
       data-crepe-host
@@ -232,7 +272,7 @@ onBeforeUnmount(() => {
       v-if="!ready"
       v-model="content"
       class="h-full"
-      :class="height.field"
+      :class="[height.field, grow ? 'flex-1' : '']"
       :placeholder="placeholder"
       :aria-label="label"
     />
@@ -256,16 +296,26 @@ onBeforeUnmount(() => {
       </TxFlex>
     </TxCard>
 
-    <TxFlex align="center" justify="space-between" wrap="wrap" :gap="8">
-      <TxFlex align="center" :gap="4" wrap="wrap">
+    <TxFlex align="center" justify="space-between" wrap="wrap" :gap="8" class="forum-editor-toolbar shrink-0">
+      <TxFlex align="center" :gap="2" wrap="wrap">
         <StickerPicker v-if="canSticker" v-model:open="stickerOpen" @pick="insertSticker" />
-        <span v-if="failed" class="text-xs text-$tx-text-color-secondary">
+        <template v-if="canUpload">
+          <TxButton variant="bare" size="sm" icon="i-ri-image-line" :loading="uploading" @click="fileInput?.click()">
+            图片
+          </TxButton>
+          <input ref="fileInput" type="file" :accept="UPLOAD_TYPES.join(',')" class="hidden" aria-hidden="true" tabindex="-1" @change="pickImage">
+        </template>
+        <span v-if="failed" class="text-xs">
           编辑器没有加载出来，先用纯文本写，支持 Markdown。
         </span>
       </TxFlex>
-      <span class="text-xs text-$tx-text-color-secondary">
-        {{ ready ? '输入 / 打开菜单，' : '' }}⌘ 或 Ctrl + Enter 发送
-      </span>
+      <TxFlex align="center" :gap="8" wrap="wrap">
+        <slot name="status" />
+        <span class="forum-editor-hint text-xs lt-sm:hidden">
+          {{ ready ? '输入 / 打开菜单，' : '' }}⌘ 或 Ctrl + Enter 发送
+        </span>
+        <slot name="actions" />
+      </TxFlex>
     </TxFlex>
   </div>
 </template>

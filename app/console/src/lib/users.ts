@@ -1,6 +1,6 @@
 // 「用户」页（SPEC §3.9）：筛选条件、详情抽屉里的编辑稿和 PATCH /api/console/users/:id 的请求体。纯函数，tests/console 直接测。
 import { isSelectableGrade } from "./grade";
-import type { ConsoleUser, DepartmentRef, Level, PublicDepartment, UserPatch } from "./types";
+import type { ConsoleUser, DepartmentRef, Level, PublicDepartment, SelectableGrade, UserPatch } from "./types";
 
 /** 站长：唯一不属于任何部门的称号（SPEC §3.4 `title.site.owner`），在抽屉里单独一项。 */
 export const SITE_OWNER_TITLE = { id: "title.site.owner", name: "站长" } as const;
@@ -16,7 +16,7 @@ export type AssignableLevel = Exclude<Level, "visitor">;
  * 抽屉里正在改的样子：部门用 dept.none 表示无部门，称号是本部门里的一个（空串是没有称号），站长另算。
  * 真实姓名和年级（#280）：姓名留空表示不改；年级空串表示不改（已毕业或没填时下拉框里没有对应的项）。
  */
-export type UserDraft = { level: AssignableLevel; department: string; title: string; owner: boolean; real_name: string; grade: number | "" };
+export type UserDraft = { level: AssignableLevel; department: string; title: string; owner: boolean; real_name: string; grade: SelectableGrade | "" };
 
 export function draftFromUser(user: ConsoleUser): UserDraft {
   const department = departmentOf(user)?.id ?? NO_DEPARTMENT;

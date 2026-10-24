@@ -23,6 +23,13 @@ describe("年级按北京时间的学年现算（#280）", () => {
     expect(GRADE_LABELS[gradeOf(year, bj(2028, 3, 1))!]).toBe("大二");
   });
 
+  it("选了已毕业，当下和以后都算已毕业", () => {
+    const year = enrollmentYearFor("graduated", bj(2026, 10, 24));
+    expect(year).toBe(2022);
+    expect(gradeOf(year, bj(2026, 10, 24))).toBe("graduated");
+    expect(gradeOf(year, bj(2031, 9, 1))).toBe("graduated");
+  });
+
   it("没填、不是整数、入学年份在将来，都算没有年级", () => {
     expect(gradeOf(null)).toBeNull();
     expect(gradeOf(undefined)).toBeNull();
@@ -30,8 +37,8 @@ describe("年级按北京时间的学年现算（#280）", () => {
     expect(gradeOf(2027, bj(2026, 10, 24))).toBeNull();
   });
 
-  it("下拉框只认大一到大四", () => {
-    expect([1, 2, 3, 4].every(isSelectableGrade)).toBe(true);
-    expect([0, 5, "1", "graduated", null].some(isSelectableGrade)).toBe(false);
+  it("下拉框认大一到大四和已毕业", () => {
+    expect([1, 2, 3, 4, "graduated"].every(isSelectableGrade)).toBe(true);
+    expect([0, 5, "1", "alumni", null].some(isSelectableGrade)).toBe(false);
   });
 });
