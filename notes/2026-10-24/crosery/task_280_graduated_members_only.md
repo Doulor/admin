@@ -15,3 +15,17 @@
 - 做了什么：提交年级加已毕业、补资料只拦成员和往届成员、邮箱注册按邀请码决定要不要实名，用例和文档同步。
 - 结果：vitest 357 个全过（real-info、grade、signin-methods、device-flow、oidc、bearer-auth、console-users、tests/console、portal-account、portal-profile-card）；server tsc、console vue-tsc 通过；check-architecture、check-doc-sync、check:secrets、check:docs 通过。
 - 下一步：推到 GitLab，开 MR，作者自审。
+
+## 22:39:48 +08:00 · PR · #280 · MR !15
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：推 task/280/graduated_members_only 到 GitLab，开 MR !15（https://git.yangtzeu.work/geek/admin/-/merge_requests/15），正文按 PULL-REQUESTS 契约写目的、关联、变更范围、宏观对齐、解决链路、验证、验收证据、人工验收步骤、风险与回滚。
+- 结果：MR 已开，Closes #280。
+- 下一步：作者自审，贴审查结论。
+
+## 22:39:48 +08:00 · 审查 · #280 · 作者自审通过
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：主会话按 code-review 两条线核对 fb386a9b：提交类型、文档同步、年级合同没有放宽、补资料判断的出口和拦截口都走 email-gate；需求两条对照所有者 22:05 原话。
+- 结果：通过。判断两处：往届成员也要补资料；邮箱注册填了一项就两项都要。未验证：预发布界面，随 rc.21 补。
+- 下一步：合并进 stage，关 #280。
