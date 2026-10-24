@@ -188,7 +188,13 @@
         "forum_follows",
         "forum_notifications",
         "forum_topic_views",
-        "forum_rate_events"
+        "forum_rate_events",
+        "forum_category_settings",
+        "forum_sticker_packs",
+        "forum_sticker_files",
+        "forum_stickers",
+        "forum_reactions",
+        "forum_upload_files"
       ]
     },
     {
@@ -278,6 +284,9 @@
     "app/server/src/routes/forum-api/people.ts": "forum",
     "app/server/src/routes/forum-api/posts.ts": "forum",
     "app/server/src/routes/forum-api/topics.ts": "forum",
+    "app/server/src/routes/forum-api/stickers.ts": "forum",
+    "app/server/src/routes/forum-api/uploads.ts": "forum",
+    "app/server/src/routes/console/forum.ts": "forum",
     "app/server/src/routes/portal/apply.ts": "recruitment",
     "app/server/src/routes/portal/my-applications.ts": "recruitment",
     "app/server/src/routes/portal/docs.ts": "public_content",
