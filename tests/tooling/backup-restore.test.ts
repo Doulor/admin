@@ -88,6 +88,17 @@ describe('restoreBackup（#282）', () => {
     await expect(restoreBackup({ archive: archivePath, target })).rejects.toThrow(/校验不通过/);
   });
 
+  it('归档里的路径跑出目标目录（../ 或绝对路径）时拒绝，不写到目录外面', async () => {
+    for (const path of ['../escape.txt', 'sites/../../escape.txt']) {
+      const workDir = tempDir('yzgc-restore-escape-');
+      const archivePath = join(workDir, 'backup.tar.gz');
+      await writeFakeArchive(archivePath, [{ path, data: Buffer.from('x') }]);
+      const target = join(workDir, 'target');
+      await expect(restoreBackup({ archive: archivePath, target })).rejects.toThrow(/跑出了目标目录/);
+      expect(existsSync(join(workDir, 'escape.txt'))).toBe(false);
+    }
+  });
+
   it('manifest 格式不认识时拒绝', async () => {
     const workDir = tempDir('yzgc-restore-fmt-');
     const archivePath = join(workDir, 'backup.tar.gz');

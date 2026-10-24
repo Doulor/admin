@@ -12,7 +12,7 @@
 // 这份归档和这个脚本都不碰密钥，只告诉你要准备哪些变量名。完整说明见 docs/ops/BACKUP.md。
 import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { unpackTarGz } from "../app/server/src/lib/tar-stream.ts";
 
@@ -75,7 +75,12 @@ export async function restoreBackup({ archive, target }) {
     if (!manifest) throw new Error("归档里 manifest.json 不是第一个文件，这不是 #282 备份接口打出来的归档");
     const expected = manifest.files.find(file => file.path === entry.path);
     if (!expected) throw new Error(`归档里有 manifest 没记录的文件：${entry.path}`);
-    const destPath = join(targetDir, entry.path);
+    // 归档和 manifest 是同一个人给的：路径只能落在目标目录里面（挡 `../`、绝对路径）。
+    const destPath = resolve(targetDir, entry.path);
+    const inside = relative(targetDir, destPath);
+    if (!inside || inside.startsWith("..") || inside.split(sep).includes("..") || resolve(targetDir, inside) !== destPath) {
+      throw new Error(`归档里的路径跑出了目标目录：${entry.path}`);
+    }
     const written = await writeEntry(destPath, entry);
     if (written.size !== expected.size || written.sha256 !== expected.sha256) {
       throw new Error(
