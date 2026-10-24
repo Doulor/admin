@@ -131,7 +131,10 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
   const permissions = createPermissionEngine(storage.db, overrides.clock);
   // 比赛官网托管（#278）：站点文件放在数据库旁边的 sites/（容器里是数据卷 /data/sites）；内存库（测试）用临时目录，关闭时删掉。
   const memorySites = config.dbPath === ":memory:" ? mkdtempSync(join(tmpdir(), "yzgc-sites-")) : null;
-  const competitionSites = createCompetitionSiteStore(storage.db, { root: memorySites ?? resolve(dirname(config.dbPath), "sites"), secret: config.sessionSecret });
+  // #282 一键备份要打包同一份目录，和 competitionSites 的 root 必须是同一个值，所以提成局部变量复用，
+  // 并在下面的 services 对象上单独导出（lib/system-backup.ts 不应该重新猜它在哪）。
+  const sitesRoot = memorySites ?? resolve(dirname(config.dbPath), "sites");
+  const competitionSites = createCompetitionSiteStore(storage.db, { root: sitesRoot, secret: config.sessionSecret });
   const competitionPublic = createCompetitionPublic(storage.db, {
     competitions, signups: competitionSignups, scores: competitionScores, rules: competitionRules, sites: competitionSites,
   });
@@ -149,7 +152,7 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     competitionSignups,
     competitionScores,
     competitionRules, competitionSites, competitionPublic, competitionPrizes, competitionCandidates,
-    config, storage, crypto,
+    config, storage, crypto, sitesRoot,
     auth,
     identity,
     emailLogin, invites, google,

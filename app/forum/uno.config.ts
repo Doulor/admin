@@ -34,9 +34,12 @@ const snapshotIconClasses = [
  *   own palette (theme/frame.css) is never loaded.
  * - `.forum-editor`: Crepe pads its page by 60px 120px, made for a full-page
  *   document; the composer gets a form field's padding (room on the left for
- *   Crepe's block handle) and the three heights PostEditor offers.
- * - stickers (`.forum-sticker` in posts, the same images in the editor) get
- *   one size: the files are 256px and would otherwise fill the line.
+ *   Crepe's block handle) and the heights PostEditor offers. Like Bilibili's
+ *   comment box (#276) it is a filled box that turns white with a primary
+ *   border while focused; the row under it uses the regular text colour, not
+ *   the faint secondary one.
+ * - stickers: 4rem in posts (`.forum-sticker`), a 3rem picture in the line
+ *   inside the editor; the files are 256px and would otherwise fill the line.
  */
 const FORUM_THEME_CSS = `
 html.sky {
@@ -99,15 +102,47 @@ html.sky {
 .forum-editor .milkdown .ProseMirror {
   padding: 12px 16px 12px 44px;
 }
+.forum-editor-96 .milkdown .ProseMirror { min-height: 96px; }
 .forum-editor-200 .milkdown .ProseMirror { min-height: 200px; }
 .forum-editor-240 .milkdown .ProseMirror { min-height: 240px; }
 .forum-editor-320 .milkdown .ProseMirror { min-height: 320px; }
-.forum-sticker, .milkdown img[src^="/api/forum/stickers/"] {
+.forum-editor-400 .milkdown .ProseMirror { min-height: 400px; }
+.forum-editor {
+  border-color: transparent;
+  background: var(--tx-fill-color-light);
+  transition: background-color .15s, border-color .15s;
+}
+.forum-editor .milkdown { --crepe-color-background: transparent; background: transparent; }
+.forum-editor:focus-within {
+  border-color: var(--tx-color-primary);
+  background: var(--tx-bg-color);
+}
+.forum-editor-toolbar .tx-button.variant-bare,
+.forum-editor-hint,
+.forum-editor-toolbar > :first-child > span {
+  color: var(--tx-text-color-regular);
+}
+.forum-sticker {
   display: inline-block;
-  width: 6rem;
-  height: 6rem;
+  width: 4rem;
+  height: 4rem;
   object-fit: contain;
   vertical-align: bottom;
+}
+/* In the box a sticker sits in the line between words, as in Bilibili's comment box, at 48px: the stickers are whole figures with a word on them and turn into a smudge any smaller. */
+.milkdown img[src^="/api/forum/stickers/"] {
+  display: inline-block;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 2px;
+  object-fit: contain;
+  vertical-align: middle;
+}
+/* 回复 under the box is a solid button, like Bilibili's 发布; Tuffex's fake background would wash it out. */
+.forum-editor-toolbar .tx-button.variant-primary.fake-background {
+  --fake-opacity: 0;
+  color: #fff;
+  background: var(--tx-color-primary);
 }
 `
 

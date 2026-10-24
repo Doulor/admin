@@ -109,7 +109,10 @@ RUN test -n "$GEEK_DEPLOYMENT_ENVIRONMENT" \
  && ! test -e .output/public/t/t15.md \
  && test -n "$(find .output/public/published -name '*.webp' -print -quit)" \
  # 产物的文本文件里不能有邮箱地址（t73 原文里的共享账户已在导出时去掉），与 vitest 里的检查同一条规则；-I 跳过图片和字体，免得二进制字节碰巧像邮箱。
- && ! grep -rqEI '[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z0-9.]+' .output/public \
+ # JS 包另用一条：编辑器（#276）带的 CodeMirror 语法表压缩后有形似邮箱的串（QpOAN@wO.NiQdO、9cQaOAN@wO.8），
+ # 所以 JS 里只认后缀是 2–24 个同为小写或同为大写字母的地址，真实域名的后缀都是这样（example.com、QQ.COM）。
+ && ! grep -rqEI --exclude='*.js' '[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z0-9.]+' .output/public \
+ && ! grep -rqEI --include='*.js' '[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.([a-z]{2,24}|[A-Z]{2,24})([^A-Za-z0-9]|$)' .output/public \
  # 也不能有写出来的 API 密钥（t89 原文里的公益密钥已在导出时去掉）；前面不接字母数字和连字符，免得样式类名 task-list-… 被当成密钥。
  && ! grep -rqEI '(^|[^A-Za-z0-9_-])sk-[A-Za-z0-9_-]{20,}' .output/public \
  # 产物里不能有上游示例内容（示例帖子标题、示例分类）。

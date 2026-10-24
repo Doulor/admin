@@ -13,6 +13,7 @@ import { TxStatusBadge } from "@talex-touch/tuffex/status-badge";
 import { TxEmptyState } from "@talex-touch/tuffex/empty-state";
 import { TxSkeleton } from "@talex-touch/tuffex/skeleton";
 import { toast } from "@talex-touch/tuffex/utils";
+import DateField from "../../components/DateField.vue";
 import AccountPicker from "../../components/AccountPicker.vue";
 import UserCell from "../../components/UserCell.vue";
 import ErrorAlert from "../../components/ErrorAlert.vue";
@@ -300,7 +301,7 @@ const MEMBER_NOTE: Partial<Record<PermissionGroup["kind"], string>> = {
           </div>
           <label class="add-member__date">
             <span class="sr-only">到期日期（选填）</span>
-            <TxInput v-model="memberDraft.expiresDate" type="date" class="fill-width" />
+            <DateField v-model="memberDraft.expiresDate" clearable />
           </label>
           <TxButton variant="primary" native-type="submit" icon="i-carbon-add" :loading="addMember.pending.value">加入</TxButton>
         </form>

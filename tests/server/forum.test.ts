@@ -823,6 +823,13 @@ describe('reactions (#276 CONTRACT §4): mine 按看的人是不是也回应过�
     const removed = await s.call('DELETE', url, 'bob');
     expect(removed.statusCode).toBe(200);
     expect(removed.json().reactions).toEqual([]);
+
+    // #274：加和取消表情都要记一条 forum.react，不然控制台的操作记录看不到这件事（之前这两个接口漏了）。
+    const reactionAudits = s.audits().filter(row => row.action === 'forum.react');
+    expect(reactionAudits).toEqual([
+      { account_id: expect.any(String), action: 'forum.react', target: 'body-9', meta: { sticker_id: 'yugc-wave' } },
+      { account_id: expect.any(String), action: 'forum.react', target: 'body-9', meta: { sticker_id: 'yugc-wave', removed: true } },
+    ]);
   });
 });
 

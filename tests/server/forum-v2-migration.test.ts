@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { createDatabase } from '../../app/server/src/lib/db';
-import { CATEGORY_VISIBILITY_SEED, runForumV2Migration, YUGC_STICKERS, YUGC_STICKER_PACK_ID } from '../../app/server/src/lib/migrations/2026-10-forum-v2';
+import { CATEGORY_VISIBILITY_SEED, runForumV2Migration, YUGC_STICKERS, YUGC_STICKER_PACK_ID, YUGC_UNCAPTIONED } from '../../app/server/src/lib/migrations/2026-10-forum-v2';
 
 /**
  * #276 论坛 v2 迁移（分类可见范围种子、表情包种子）。`createDatabase(':memory:')` 在构造时已经跑过一次
@@ -55,6 +57,7 @@ describe('表情包种子', () => {
     };
     const report = runForumV2Migration(db, Date.now(), 'app/server/assets/stickers/yugc');
     expect(report.stickers_seeded_this_run).toBe(0);
+    expect(report.stickers_recaptioned_this_run).toBe(0);
     for (const row of report.tables) expect(row.after, `${row.table} 在零输入变化下不应该变化`).toBe(row.before);
     const after = {
       categories: (db.prepare('SELECT COUNT(*) AS n FROM forum_category_settings').get() as { n: number }).n,
@@ -63,6 +66,30 @@ describe('表情包种子', () => {
       files: (db.prepare('SELECT COUNT(*) AS n FROM forum_sticker_files').get() as { n: number }).n,
     };
     expect(after).toEqual(before);
+  });
+
+  it('还指着原图的换成带小字的新图，管理员换过的不动，原图文件留着；再跑一遍什么都不变', () => {
+    const { db } = makeStorage();
+    const fileHash = (id: string) => (db.prepare('SELECT file_hash FROM forum_stickers WHERE id = ?').get(id) as { file_hash: string }).file_hash;
+    const addFile = db.prepare("INSERT OR IGNORE INTO forum_sticker_files(hash, mime, bytes, created_at) VALUES (?, 'image/webp', ?, 0)");
+    // 模拟一个 10-25 之前种的库：打招呼还是原图；冲被管理员换成了别的图。
+    addFile.run(YUGC_UNCAPTIONED.wave, Buffer.from('old'));
+    db.prepare('UPDATE forum_stickers SET file_hash = ? WHERE id = ?').run(YUGC_UNCAPTIONED.wave, 'yugc-wave');
+    addFile.run('f'.repeat(64), Buffer.from('admin'));
+    db.prepare('UPDATE forum_stickers SET file_hash = ? WHERE id = ?').run('f'.repeat(64), 'yugc-go');
+
+    const first = runForumV2Migration(db, Date.now(), 'app/server/assets/stickers/yugc');
+    expect(first.stickers_recaptioned_this_run).toBe(1);
+    const current = createHash('sha256').update(readFileSync('app/server/assets/stickers/yugc/wave.webp')).digest('hex');
+    expect(current).not.toBe(YUGC_UNCAPTIONED.wave);
+    expect(fileHash('yugc-wave')).toBe(current);
+    expect(fileHash('yugc-go')).toBe('f'.repeat(64));
+    expect(db.prepare('SELECT 1 AS ok FROM forum_sticker_files WHERE hash = ?').get(YUGC_UNCAPTIONED.wave)).toEqual({ ok: 1 });
+
+    const second = runForumV2Migration(db, Date.now(), 'app/server/assets/stickers/yugc');
+    expect(second.stickers_recaptioned_this_run).toBe(0);
+    for (const row of second.tables) expect(row.after, row.table).toBe(row.before);
+    expect(fileHash('yugc-wave')).toBe(current);
   });
 
   it('缺素材文件时跳过那一个表情，不抛错，也不种半条记录', () => {

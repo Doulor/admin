@@ -2,10 +2,11 @@
 import type { SelectableGrade } from "./types";
 
 export const GRADE_OPTIONS: { value: SelectableGrade; label: string }[] = [
-  { value: 1, label: "大一" }, { value: 2, label: "大二" }, { value: 3, label: "大三" }, { value: 4, label: "大四" },
+  { value: 1, label: "大一" }, { value: 2, label: "大二" }, { value: 3, label: "大三" }, { value: 4, label: "大四" }, { value: "graduated", label: "已毕业" },
 ];
 
-export const isSelectableGrade = (value: unknown): value is SelectableGrade => value === 1 || value === 2 || value === 3 || value === 4;
+export const isSelectableGrade = (value: unknown): value is SelectableGrade =>
+  value === 1 || value === 2 || value === 3 || value === 4 || value === "graduated";
 
 /** 和服务端 normalizeRealName 同一条规则：2–32 个字，只能是文字、空格和「·」「.」「-」；只挡明显填错的，最终以服务端为准 */
 export function realNameProblem(raw: string): string | null {

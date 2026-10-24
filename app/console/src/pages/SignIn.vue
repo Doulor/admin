@@ -28,7 +28,7 @@ import {
  * 登录方式按 GET /auth/providers 渲染，前端不写死渠道；
  * 登录后回到 return_to（只接受本站路径）；登录没成功时服务端也回到这里并带上 ?signin=<原因>，原因在这里讲清。
  * 上面是「登录」「注册」两个标签的邮箱表单，下面隔一条「或者」是 GitHub、Google 的跳转按钮（所有者 2026-10-23 10:32）。
- * 邮箱登录有验证码和密码两种；注册填邮箱、真实姓名、年级（#280，年级只能从下拉框选大一到大四）、邀请码、验证码，
+ * 邮箱登录有验证码和密码两种；注册填邮箱、真实姓名、年级（#280，成员要填，年级从下拉框选大一到大四或已毕业）、邀请码、验证码，
  * 密码可以顺手设。邀请码选填（#274 CONTRACT-274 §2）。用验证码在「登录」标签登录、或者忘记密码时邮箱还没有账号，
  * 服务端回 real_info_required / no_account，转到「注册」补姓名和年级，已填的邮箱和验证码都留着。Google 注册也要邀请码，用「注册」里填的那个。
  * 注册后邮箱原来就有账号、或者填的密码没设上，先在页面上说一句，再让人选继续还是去「我的账号」。
@@ -89,8 +89,8 @@ const password = ref("");
 const newPassword = ref("");
 const invite = ref("");
 const realName = ref("");
-const grade = ref<number | "">("");
-const gradeInput = computed({ get: () => grade.value, set: (value: string | number | (string | number)[]) => { grade.value = typeof value === "number" ? value : ""; } });
+const grade = ref<number | "graduated" | "">("");
+const gradeInput = computed({ get: () => grade.value, set: (value: string | number | (string | number)[]) => { grade.value = isSelectableGrade(value) ? value : ""; } });
 /** 忘记密码（#273）：换成「邮箱、验证码、新密码」的表单，标签和登录方式先收起来。 */
 const forgot = ref(false);
 /** 用验证码登录或忘记密码时服务端说这个邮箱还没有账号，转到「注册」后在表单上方说明一句。 */
@@ -191,10 +191,10 @@ async function submitPassword() {
 async function submitRegister() {
   emailError.value = null;
   const problem = registerProblem({ email: email.value, realName: realName.value, grade: grade.value, invite: invite.value, codeSent: Boolean(sentTo.value), code: code.value, password: newPassword.value });
-  if (problem || !isSelectableGrade(grade.value)) { emailError.value = problem; return; }
+  if (problem) { emailError.value = problem; return; }
   submitting.value = true;
   try {
-    const outcome = await registerWithEmail({ code: code.value, invite: invite.value, password: newPassword.value, realName: realName.value, grade: grade.value });
+    const outcome = await registerWithEmail({ code: code.value, invite: invite.value, password: newPassword.value, realName: realName.value, grade: isSelectableGrade(grade.value) ? grade.value : null });
     if (outcome.kind === "done") { leave(outcome.returnTo); return; }
     submitting.value = false;
     registerNotice.value = outcome;
@@ -297,16 +297,16 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
             <TxInput :id="id" v-model="email" type="email" placeholder="name@example.com" autocomplete="email" inputmode="email" spellcheck="false" />
           </TxFormItem>
 
-          <TxFormItem v-if="registering" v-slot="{ id }" label="真实姓名">
+          <TxFormItem v-if="registering" v-slot="{ id }" :label="invite.trim() ? '真实姓名' : '真实姓名（成员必填）'">
             <TxInput :id="id" v-model="realName" placeholder="和学籍上一致" autocomplete="name" maxlength="32" spellcheck="false" />
           </TxFormItem>
-          <TxFormItem v-if="registering" label="所在年级">
+          <TxFormItem v-if="registering" :label="invite.trim() ? '所在年级' : '所在年级（成员必填）'">
             <!-- TxSelect 0.6.0 的 attrs 落在外层，用 label 给里面的输入框命名。 -->
             <label class="fill-width">
               <span class="sr-only">所在年级</span>
               <TxSelect v-model="gradeInput" :options="GRADE_OPTIONS" placeholder="选择年级" class="fill-width" data-testid="register-grade" :searchable="false" panel-background="pure" />
             </label>
-            <p class="signin__hint">每年 9 月 1 日自动升一级。姓名和年级填好后自己不能改，填错了请联系管理员。</p>
+            <p class="signin__hint">极客班成员要填姓名和年级，填了邀请码就要一起填；不填邀请码可以先不填，以后成为成员时再补。每年 9 月 1 日自动升一级，大四之后是已毕业。填好后自己不能改，填错了请联系管理员。</p>
           </TxFormItem>
 
           <TxFormItem v-if="registering" v-slot="{ id }" label="邀请码（选填）">

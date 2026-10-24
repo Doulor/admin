@@ -4,18 +4,18 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`69fb98e20b99a536de01dc65e570a7f11b8e8eff6a6d24f4f83fee11d9a88b38`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`1ce5de88dd8cc3c1550bd93d81fe3b245768aa314759eba3105e07965cbde83a`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
 ## 基线
 
 - 5 个源码应用，3 个运行单元。
-- 274 个已注册方法与路径，其中业务操作 164 个，自动 HEAD 81 个。
-- 68 张应用表，16 个能力，170 条显式业务流程。
-- 响应 Schema：130/274。缺失不等于没有响应；不冒充完整 OpenAPI。
+- 277 个已注册方法与路径，其中业务操作 166 个，自动 HEAD 82 个。
+- 68 张应用表，16 个能力，172 条显式业务流程。
+- 响应 Schema：133/277。缺失不等于没有响应；不冒充完整 OpenAPI。
 
-业务流程关联：164/164 个业务操作；5/5 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
+业务流程关联：166/166 个业务操作；5/5 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
 
 ## 应用与运行单元
 
@@ -41,11 +41,11 @@
 | 邀请 | 0 | `invite_codes`、`invite_links`、`invite_attempts`、`invitations` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
 | GitHub 组织代理 | 0 | 无本地表 | [docs/services/console/README.md](../../../docs/services/console/README.md) · [docs/architecture/API.md](../../../docs/architecture/API.md) |
 | GitLab 账号同步 | 12 | `gitlab_accounts` | [docs/services/server/oidc.md](../../../docs/services/server/oidc.md) · [docs/decisions/0005-sso-extend-core-server.md](../../../docs/decisions/0005-sso-extend-core-server.md) |
-| 论坛交流 | 42 | `forum_counters`、`forum_avatars`、`forum_users`、`forum_tags`、`forum_topics`、`forum_posts`、`forum_likes`、`forum_bookmarks`、`forum_follows`、`forum_notifications`、`forum_topic_views`、`forum_rate_events`、`forum_category_settings`、`forum_sticker_packs`、`forum_sticker_files`、`forum_stickers`、`forum_reactions`、`forum_upload_files` | [docs/services/forum/README.md](../../../docs/services/forum/README.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
+| 论坛交流 | 43 | `forum_counters`、`forum_avatars`、`forum_users`、`forum_tags`、`forum_topics`、`forum_posts`、`forum_likes`、`forum_bookmarks`、`forum_follows`、`forum_notifications`、`forum_topic_views`、`forum_rate_events`、`forum_category_settings`、`forum_sticker_packs`、`forum_sticker_files`、`forum_stickers`、`forum_reactions`、`forum_upload_files` | [docs/services/forum/README.md](../../../docs/services/forum/README.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
 | 通知邮件 | 0 | `mail_outbox` | [docs/services/server/mail.md](../../../docs/services/server/mail.md) |
 | 审计 | 7 | `audit_logs`、`activity_events` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
 | 公开文档 | 4 | 无本地表 | [docs/conventions/DOCUMENTATION.md](../../../docs/conventions/DOCUMENTATION.md) · [docs/architecture/API.md](../../../docs/architecture/API.md) |
-| 基础设施与兼容入口 | 38 | `app_state`、`limit_events` | [docs/architecture/ARCHITECTURE.md](../../../docs/architecture/ARCHITECTURE.md) · [docs/services/server/README.md](../../../docs/services/server/README.md) · [docs/conventions/ARCHITECTURE-ALIGNMENT.md](../../../docs/conventions/ARCHITECTURE-ALIGNMENT.md) |
+| 基础设施与兼容入口 | 40 | `app_state`、`limit_events` | [docs/architecture/ARCHITECTURE.md](../../../docs/architecture/ARCHITECTURE.md) · [docs/services/server/README.md](../../../docs/services/server/README.md) · [docs/conventions/ARCHITECTURE-ALIGNMENT.md](../../../docs/conventions/ARCHITECTURE-ALIGNMENT.md) · [docs/ops/BACKUP.md](../../../docs/ops/BACKUP.md) |
 | 比赛信息、报名组队与积分 | 74 | `competitions`、`competition_signup_settings`、`competition_signups`、`competition_teams`、`competition_team_members`、`competition_score_events`、`competition_site_versions`、`competition_sites`、`competition_gitlab_sources`、`competition_score_candidates`、`competition_rules`、`competition_finals`、`competition_prizes` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/README.md](../../../docs/services/server/README.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) · [docs/services/server/endpoint-contracts.md](../../../docs/services/server/endpoint-contracts.md) · [docs/services/console/README.md](../../../docs/services/console/README.md) · [docs/services/web/portal.md](../../../docs/services/web/portal.md) · [docs/plan/COMPETITION-APP.md](../../../docs/plan/COMPETITION-APP.md) · [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/ops/DEPLOY.md](../../../docs/ops/DEPLOY.md) |
 
 ## 业务流程
@@ -216,7 +216,7 @@
 - 响应与错误：成功302回return_to；账号还没有登录邮箱、这个环境又能发信时改为302到/bind-email?return_to=<原路径>（#273）；取消/上游失败/非成员/账号停用一律302到统一登录页/signin，带signin结果（cancelled、failed、not_member或invite_pending、account_disabled）与原来的return_to路径（#262）；合并链超过8跳、成环或事务失败按failed；缺参数或无效state为400，旧forum-state为410。
 - 数据与副作用：外部请求在事务外做完；建号、刷新身份、沿merged_into走到终点、按GitHub id认领称号与论坛用户、写sessions（含openid、provider）、删请求带来的旧会话、写identity_audit与auth.signin在一个BEGIN IMMEDIATE事务里，失败整体回滚、旧会话照常有效。非成员与停用账号不建会话、审计拒绝并尽力撤销授权；被组织拒绝的GitHub id已经有还没记过站内角色的老账号时，把它的成员资格记成not_member或pending（#262审查）；站内记过角色的账号不受GitHub组织变动影响；失败日志不输出token。真的要新建账号那一步，同一IP今天已建满5个、同一设备（yugc_vid）已建满3个时回registration_limited并撤销这次GitHub授权，登录到已有账号不受影响（#274残留修复，SPEC §3.8，lib/register-limits.ts）。
 
-源码：[app/server/src/routes/admin/auth.ts:45](../../../app/server/src/routes/admin/auth.ts#L45) · [app/server/src/lib/auth.ts:50](../../../app/server/src/lib/auth.ts#L50) · [app/server/src/lib/identity-store.ts:275](../../../app/server/src/lib/identity-store.ts#L275) · [app/server/src/lib/db.ts:1150](../../../app/server/src/lib/db.ts#L1150) · [app/server/src/lib/email-gate.ts:47](../../../app/server/src/lib/email-gate.ts#L47) · [app/server/src/routes/admin/auth.ts:91](../../../app/server/src/routes/admin/auth.ts#L91) · [app/server/src/routes/admin/contracts.ts:4](../../../app/server/src/routes/admin/contracts.ts#L4) · [app/server/src/routes/admin/index.ts:7](../../../app/server/src/routes/admin/index.ts#L7) · [app/server/src/lib/register-limits.ts:26](../../../app/server/src/lib/register-limits.ts#L26) · [app/server/src/lib/github-http.ts:4](../../../app/server/src/lib/github-http.ts#L4)
+源码：[app/server/src/routes/admin/auth.ts:45](../../../app/server/src/routes/admin/auth.ts#L45) · [app/server/src/lib/auth.ts:50](../../../app/server/src/lib/auth.ts#L50) · [app/server/src/lib/identity-store.ts:275](../../../app/server/src/lib/identity-store.ts#L275) · [app/server/src/lib/db.ts:1150](../../../app/server/src/lib/db.ts#L1150) · [app/server/src/lib/email-gate.ts:48](../../../app/server/src/lib/email-gate.ts#L48) · [app/server/src/routes/admin/auth.ts:91](../../../app/server/src/routes/admin/auth.ts#L91) · [app/server/src/routes/admin/contracts.ts:4](../../../app/server/src/routes/admin/contracts.ts#L4) · [app/server/src/routes/admin/index.ts:7](../../../app/server/src/routes/admin/index.ts#L7) · [app/server/src/lib/register-limits.ts:26](../../../app/server/src/lib/register-limits.ts#L26) · [app/server/src/lib/github-http.ts:4](../../../app/server/src/lib/github-http.ts#L4)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/identity.test.ts](../../../tests/server/identity.test.ts) · [tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)。生成器未执行这些测试。
 
@@ -250,7 +250,7 @@
 - 响应与错误：200 {signed_in:false,level:"visitor",permissions,quota}（访客）或 {signed_in:true,login,user_id,avatar_url,account_id,provider,console_link,email_required,profile_required,real_name,grade,grade_label,level,level_name,department,titles,permissions,quota,prefs,username,display_name,bio,identities}（#274 review round 1：level不带level.前缀，permissions是UI_NODES里实际放行的节点数组，identities是{emails,google,github}）；email_required为true（账号还没有登录邮箱、这个环境又能发信，#273）时官网、论坛、控制台整页跳到/bind-email；#280：real_name 只回本人，grade 是 1–4 或 graduated（由 account_profiles.enrollment_year 按北京时间的学年现算，每年 9 月 1 日升一级），profile_required 在缺姓名或年级时为 true（不看能不能发信），邮箱不缺时官网、论坛、控制台整页跳到/complete-profile；不会再有GitHub token被拒的session_expired分支（这条路径已经不调用GitHub）。
 - 数据与副作用：会话联查账号状态，过期、没有账号或账号不是active的会话按未登录处理并删除（lib/auth.ts的getSession）；级别、部门、称号、permissions、console_link都从新权限引擎（lib/permissions.ts的groupsOf/check，读perm_members/perm_entries/perm_groups/perm_group_parents）现查现算，不缓存、不写回；账号资料缺行时兜底插入account_profiles（ensure()，INSERT OR IGNORE，幂等）；不调用GitHub，不写identity_audit或audit_logs。
 
-源码：[app/server/src/routes/admin/auth.ts:154](../../../app/server/src/routes/admin/auth.ts#L154) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/lib/db.ts:728](../../../app/server/src/lib/db.ts#L728) · [app/console/src/lib/runtime.ts:50](../../../app/console/src/lib/runtime.ts#L50) · [app/console/src/lib/errors.ts:31](../../../app/console/src/lib/errors.ts#L31) · [app/console/src/router.ts:14](../../../app/console/src/router.ts#L14) · [app/web/sites/portal/lib/account.ts:48](../../../app/web/sites/portal/lib/account.ts#L48) · [app/web/sites/portal/components/os/YugcOs.tsx:44](../../../app/web/sites/portal/components/os/YugcOs.tsx#L44) · [app/forum/app/composables/useSiteLinks.ts:17](../../../app/forum/app/composables/useSiteLinks.ts#L17) · [app/forum/app/components/ForumHeader.vue:133](../../../app/forum/app/components/ForumHeader.vue#L133) · [app/forum/app/components/LoginModal.vue:8](../../../app/forum/app/components/LoginModal.vue#L8) · [app/forum/app/components/SignInState.vue:26](../../../app/forum/app/components/SignInState.vue#L26) · [app/forum/app/composables/useSiteAccount.ts:13](../../../app/forum/app/composables/useSiteAccount.ts#L13) · [app/forum/app/data/access.ts:87](../../../app/forum/app/data/access.ts#L87) · [app/forum/app/pages/about.vue:49](../../../app/forum/app/pages/about.vue#L49) · [app/forum/app/pages/new.vue:31](../../../app/forum/app/pages/new.vue#L31) · [app/forum/shared/signin-outcomes.ts:2](../../../app/forum/shared/signin-outcomes.ts#L2) · [app/forum/shared/site-notice.ts:9](../../../app/forum/shared/site-notice.ts#L9) · [app/forum/app/components/AdoptionNotice.vue:41](../../../app/forum/app/components/AdoptionNotice.vue#L41) · [app/server/src/lib/email-gate.ts:19](../../../app/server/src/lib/email-gate.ts#L19) · [app/web/sites/portal/lib/account.ts:158](../../../app/web/sites/portal/lib/account.ts#L158) · [app/forum/shared/site-account.ts:46](../../../app/forum/shared/site-account.ts#L46) · [app/forum/app/composables/useSiteAccount.ts:47](../../../app/forum/app/composables/useSiteAccount.ts#L47) · [app/console/src/pages/Device.vue:112](../../../app/console/src/pages/Device.vue#L112) · [app/web/shared/lib/api.ts:20](../../../app/web/shared/lib/api.ts#L20) · [app/web/sites/portal/lib/shell/index.ts:159](../../../app/web/sites/portal/lib/shell/index.ts#L159) · [app/web/sites/portal/lib/shell/commands.ts:1036](../../../app/web/sites/portal/lib/shell/commands.ts#L1036) · [app/web/sites/portal/components/os/Terminal.tsx:47](../../../app/web/sites/portal/components/os/Terminal.tsx#L47) · [app/server/src/lib/grade.ts:19](../../../app/server/src/lib/grade.ts#L19) · [app/server/src/lib/account-profiles.ts:21](../../../app/server/src/lib/account-profiles.ts#L21)
+源码：[app/server/src/routes/admin/auth.ts:154](../../../app/server/src/routes/admin/auth.ts#L154) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/lib/db.ts:728](../../../app/server/src/lib/db.ts#L728) · [app/console/src/lib/runtime.ts:50](../../../app/console/src/lib/runtime.ts#L50) · [app/console/src/lib/errors.ts:31](../../../app/console/src/lib/errors.ts#L31) · [app/console/src/router.ts:15](../../../app/console/src/router.ts#L15) · [app/web/sites/portal/lib/account.ts:48](../../../app/web/sites/portal/lib/account.ts#L48) · [app/web/sites/portal/components/os/YugcOs.tsx:44](../../../app/web/sites/portal/components/os/YugcOs.tsx#L44) · [app/forum/app/composables/useSiteLinks.ts:17](../../../app/forum/app/composables/useSiteLinks.ts#L17) · [app/forum/app/components/ForumHeader.vue:133](../../../app/forum/app/components/ForumHeader.vue#L133) · [app/forum/app/components/LoginModal.vue:8](../../../app/forum/app/components/LoginModal.vue#L8) · [app/forum/app/components/SignInState.vue:26](../../../app/forum/app/components/SignInState.vue#L26) · [app/forum/app/composables/useSiteAccount.ts:13](../../../app/forum/app/composables/useSiteAccount.ts#L13) · [app/forum/app/data/access.ts:87](../../../app/forum/app/data/access.ts#L87) · [app/forum/app/pages/about.vue:49](../../../app/forum/app/pages/about.vue#L49) · [app/forum/app/pages/new.vue:31](../../../app/forum/app/pages/new.vue#L31) · [app/forum/shared/signin-outcomes.ts:2](../../../app/forum/shared/signin-outcomes.ts#L2) · [app/forum/shared/site-notice.ts:9](../../../app/forum/shared/site-notice.ts#L9) · [app/forum/app/components/AdoptionNotice.vue:41](../../../app/forum/app/components/AdoptionNotice.vue#L41) · [app/server/src/lib/email-gate.ts:19](../../../app/server/src/lib/email-gate.ts#L19) · [app/web/sites/portal/lib/account.ts:158](../../../app/web/sites/portal/lib/account.ts#L158) · [app/forum/shared/site-account.ts:46](../../../app/forum/shared/site-account.ts#L46) · [app/forum/app/composables/useSiteAccount.ts:47](../../../app/forum/app/composables/useSiteAccount.ts#L47) · [app/console/src/pages/Device.vue:112](../../../app/console/src/pages/Device.vue#L112) · [app/web/shared/lib/api.ts:20](../../../app/web/shared/lib/api.ts#L20) · [app/web/sites/portal/lib/shell/index.ts:159](../../../app/web/sites/portal/lib/shell/index.ts#L159) · [app/web/sites/portal/lib/shell/commands.ts:1036](../../../app/web/sites/portal/lib/shell/commands.ts#L1036) · [app/web/sites/portal/components/os/Terminal.tsx:47](../../../app/web/sites/portal/components/os/Terminal.tsx#L47) · [app/server/src/lib/grade.ts:20](../../../app/server/src/lib/grade.ts#L20) · [app/server/src/lib/account-profiles.ts:21](../../../app/server/src/lib/account-profiles.ts#L21)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/identity.test.ts](../../../tests/server/identity.test.ts) · [tests/server/legacy-database.test.ts](../../../tests/server/legacy-database.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts) · [tests/web/portal-phone.test.tsx](../../../tests/web/portal-phone.test.tsx) · [tests/e2e/workflows.spec.ts](../../../tests/e2e/workflows.spec.ts) · [tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/web/portal-os.test.ts](../../../tests/web/portal-os.test.ts) · [tests/web/portal-account.test.tsx](../../../tests/web/portal-account.test.tsx) · [app/forum/tests/site-account.test.ts](../../../app/forum/tests/site-account.test.ts) · [tests/console/device.test.ts](../../../tests/console/device.test.ts) · [tests/server/real-info.test.ts](../../../tests/server/real-info.test.ts) · [tests/server/grade.test.ts](../../../tests/server/grade.test.ts)。生成器未执行这些测试。
 
@@ -284,7 +284,7 @@
 - 响应与错误：200 {return_to,registered} 并写 sid；验证码不对 400 invalid_code（带 attempts_left），失效 400 code_expired；邮箱没有账号且没填邀请码 400 invite_required（验证码不作废），邀请码无效 400 invalid_invite 并记一次失败；账号停用 403 account_disabled，不再是成员 403 not_member。#280：这个邮箱还没有账号、这次要注册时 real_name 和 grade（1–4）必填，缺了 400 real_info_required，姓名不对 400 bad_real_name，都在核对验证码之后、占用之前回，验证码和邀请码都不作废；已有账号的登录不看这两项。
 - 数据与副作用：在一个 BEGIN IMMEDIATE 事务里找身份或建号（兑换邀请码、建 users 与 email 身份、记 invite_code_id、org_state=active）、作废验证码、建会话（provider=email，GitHub 令牌为空）、写 identity_audit 与 auth.register/auth.signin；任何一步失败整体回滚，邀请码次数不扣。真的要新建账号这一步，同一 IP 今天已建满 5 个、同一设备（yugc_vid）已建满 3 个回 429 auth.register.daily，登录到已有账号不受影响（#274 残留修复，SPEC §3.8，lib/register-limits.ts）。注册成功后把注册填的姓名和入学年份写进 account_profiles（#280）。
 
-源码：[app/server/src/routes/identity/email.ts:105](../../../app/server/src/routes/identity/email.ts#L105) · [app/server/src/routes/identity/contracts.ts:164](../../../app/server/src/routes/identity/contracts.ts#L164) · [app/server/src/lib/identity-store.ts:436](../../../app/server/src/lib/identity-store.ts#L436) · [app/server/src/lib/invite-codes.ts:41](../../../app/server/src/lib/invite-codes.ts#L41) · [app/server/src/lib/register-limits.ts:39](../../../app/server/src/lib/register-limits.ts#L39) · [app/server/src/routes/identity/email.ts:148](../../../app/server/src/routes/identity/email.ts#L148) · [app/console/src/pages/SignIn.vue:300](../../../app/console/src/pages/SignIn.vue#L300)
+源码：[app/server/src/routes/identity/email.ts:105](../../../app/server/src/routes/identity/email.ts#L105) · [app/server/src/routes/identity/contracts.ts:164](../../../app/server/src/routes/identity/contracts.ts#L164) · [app/server/src/lib/identity-store.ts:436](../../../app/server/src/lib/identity-store.ts#L436) · [app/server/src/lib/invite-codes.ts:41](../../../app/server/src/lib/invite-codes.ts#L41) · [app/server/src/lib/register-limits.ts:39](../../../app/server/src/lib/register-limits.ts#L39) · [app/server/src/routes/identity/email.ts:151](../../../app/server/src/routes/identity/email.ts#L151) · [app/console/src/pages/SignIn.vue:300](../../../app/console/src/pages/SignIn.vue#L300)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -301,7 +301,7 @@
 - 响应与错误：200 {return_to} 并写 sid；没账号、没设密码、密码不对一律 400 invalid_credentials，没账号时也算一次 bcrypt，响应时间不随邮箱是否注册变化；账号停用 403 account_disabled，不再是成员 403 not_member。
 - 数据与副作用：不能注册新账号；成功时建会话（provider=email）、写 identity_audit 与 auth.signin（method=password）；密码只存 bcrypt 哈希（cost 12）。
 
-源码：[app/server/src/routes/identity/email.ts:157](../../../app/server/src/routes/identity/email.ts#L157) · [app/server/src/routes/identity/contracts.ts:170](../../../app/server/src/routes/identity/contracts.ts#L170) · [app/server/src/lib/identity-store.ts:440](../../../app/server/src/lib/identity-store.ts#L440) · [app/server/src/lib/password-policy.ts:18](../../../app/server/src/lib/password-policy.ts#L18)
+源码：[app/server/src/routes/identity/email.ts:160](../../../app/server/src/routes/identity/email.ts#L160) · [app/server/src/routes/identity/contracts.ts:170](../../../app/server/src/routes/identity/contracts.ts#L170) · [app/server/src/lib/identity-store.ts:440](../../../app/server/src/lib/identity-store.ts#L440) · [app/server/src/lib/password-policy.ts:18](../../../app/server/src/lib/password-policy.ts#L18)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -318,7 +318,7 @@
 - 响应与错误：200 {return_to} 并写 sid（provider=email）；先查新密码，不到 8 位 400 password_too_short、超过 72 字节 400 password_exceeds_bcrypt_limit，这时不碰验证码；验证码不对 400 invalid_code（带 attempts_left），失效 400 code_expired；邮箱没有账号时和验证码登录一样 400 invite_required（不注册，验证码不作废，登录页转到「注册」）；停用 403 account_disabled，不是成员 403 not_member。
 - 数据与副作用：占用验证码、建会话、删旧会话、写 users.password_hash（bcrypt cost 12）、identity_audit（login 与 password_reset）、auth.signin（method=reset）与 account.password（action=reset）在一个 BEGIN IMMEDIATE 事务里；成功后这个邮箱的密码错误计数清零。
 
-源码：[app/server/src/routes/identity/email.ts:185](../../../app/server/src/routes/identity/email.ts#L185) · [app/server/src/routes/identity/contracts.ts:175](../../../app/server/src/routes/identity/contracts.ts#L175) · [app/server/src/lib/identity-store.ts:489](../../../app/server/src/lib/identity-store.ts#L489) · [app/console/src/lib/signin.ts:158](../../../app/console/src/lib/signin.ts#L158) · [app/console/src/pages/SignIn.vue:208](../../../app/console/src/pages/SignIn.vue#L208)
+源码：[app/server/src/routes/identity/email.ts:188](../../../app/server/src/routes/identity/email.ts#L188) · [app/server/src/routes/identity/contracts.ts:175](../../../app/server/src/routes/identity/contracts.ts#L175) · [app/server/src/lib/identity-store.ts:489](../../../app/server/src/lib/identity-store.ts#L489) · [app/console/src/lib/signin.ts:158](../../../app/console/src/lib/signin.ts#L158) · [app/console/src/pages/SignIn.vue:208](../../../app/console/src/pages/SignIn.vue#L208)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -369,7 +369,7 @@
 - 响应与错误：200 {account_id,login,identities(邮箱只给打码后的样子，另带身份 id 与 primary，主邮箱在前，#272),has_password,password_updated_at,membership{state,org_role,via_invite},created_at,recent(最近 20 条本人记录),available(还不到 5 个邮箱时是 ["email"]),email_required(#273，账号还没有登录邮箱、这个环境又能发信),real_name,grade,grade_label,profile_required(#280，同 /auth/me，补资料页读它),session{provider,created_at,expires_at,step_up_until}}；没登录 401。
 - 数据与副作用：只读；过期会话照共同规则删除。
 
-源码：[app/server/src/routes/identity/account.ts:47](../../../app/server/src/routes/identity/account.ts#L47) · [app/server/src/routes/identity/contracts.ts:184](../../../app/server/src/routes/identity/contracts.ts#L184) · [app/server/src/lib/identity-store.ts:576](../../../app/server/src/lib/identity-store.ts#L576) · [app/console/src/pages/Account.vue:30](../../../app/console/src/pages/Account.vue#L30) · [app/console/src/components/ConsoleNav.vue:42](../../../app/console/src/components/ConsoleNav.vue#L42) · [app/console/src/pages/ConsoleRoot.vue:49](../../../app/console/src/pages/ConsoleRoot.vue#L49) · [app/console/src/lib/account.ts:31](../../../app/console/src/lib/account.ts#L31) · [app/console/src/pages/BindEmail.vue:70](../../../app/console/src/pages/BindEmail.vue#L70) · [app/console/src/pages/Account.vue:36](../../../app/console/src/pages/Account.vue#L36) · [app/console/src/mock/index.ts:50](../../../app/console/src/mock/index.ts#L50) · [app/web/sites/portal/components/os/ProfileCard.tsx:69](../../../app/web/sites/portal/components/os/ProfileCard.tsx#L69) · [app/web/sites/portal/lib/links.ts:14](../../../app/web/sites/portal/lib/links.ts#L14) · [app/console/src/pages/CompleteProfile.vue:49](../../../app/console/src/pages/CompleteProfile.vue#L49) · [app/console/src/pages/Account.vue:294](../../../app/console/src/pages/Account.vue#L294)
+源码：[app/server/src/routes/identity/account.ts:47](../../../app/server/src/routes/identity/account.ts#L47) · [app/server/src/routes/identity/contracts.ts:184](../../../app/server/src/routes/identity/contracts.ts#L184) · [app/server/src/lib/identity-store.ts:587](../../../app/server/src/lib/identity-store.ts#L587) · [app/console/src/pages/Account.vue:30](../../../app/console/src/pages/Account.vue#L30) · [app/console/src/components/ConsoleNav.vue:42](../../../app/console/src/components/ConsoleNav.vue#L42) · [app/console/src/pages/ConsoleRoot.vue:49](../../../app/console/src/pages/ConsoleRoot.vue#L49) · [app/console/src/lib/account.ts:31](../../../app/console/src/lib/account.ts#L31) · [app/console/src/pages/BindEmail.vue:70](../../../app/console/src/pages/BindEmail.vue#L70) · [app/console/src/pages/Account.vue:36](../../../app/console/src/pages/Account.vue#L36) · [app/console/src/mock/index.ts:50](../../../app/console/src/mock/index.ts#L50) · [app/web/sites/portal/components/os/ProfileCard.tsx:69](../../../app/web/sites/portal/components/os/ProfileCard.tsx#L69) · [app/web/sites/portal/lib/links.ts:14](../../../app/web/sites/portal/lib/links.ts#L14) · [app/console/src/pages/CompleteProfile.vue:49](../../../app/console/src/pages/CompleteProfile.vue#L49) · [app/console/src/pages/Account.vue:294](../../../app/console/src/pages/Account.vue#L294)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts) · [tests/server/real-info.test.ts](../../../tests/server/real-info.test.ts)。生成器未执行这些测试。
 
@@ -403,7 +403,7 @@
 - 响应与错误：200 {ok:true}；验证码不对 400 invalid_code，失效 400 code_expired；邮箱已属于别的账号 409 identity_conflict，已经绑在本账号上 409 identity_exists，已经有 5 个邮箱 409 email_limit（#272）。
 - 数据与副作用：在一个事务里作废验证码并写 email 身份、identity_audit 与 identity.link，账号还没有主邮箱时写 canonical_email；冲突时只记 identity.link_conflict，不合并账号。
 
-源码：[app/server/src/routes/identity/account.ts:77](../../../app/server/src/routes/identity/account.ts#L77) · [app/server/src/routes/identity/contracts.ts:186](../../../app/server/src/routes/identity/contracts.ts#L186) · [app/server/src/lib/identity-store.ts:507](../../../app/server/src/lib/identity-store.ts#L507)
+源码：[app/server/src/routes/identity/account.ts:77](../../../app/server/src/routes/identity/account.ts#L77) · [app/server/src/routes/identity/contracts.ts:186](../../../app/server/src/routes/identity/contracts.ts#L186) · [app/server/src/lib/identity-store.ts:518](../../../app/server/src/lib/identity-store.ts#L518)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)。生成器未执行这些测试。
 
@@ -420,7 +420,7 @@
 - 响应与错误：200 {ok:true}；body {identity_id} 是 GET /api/identity/me 给的邮箱 id；主邮箱（canonical_email）409 primary_email；不是本账号的邮箱或已经删掉 404 not_found。
 - 数据与副作用：在一个事务里删掉这一行 email 身份，写 identity_audit（unlink）与 identity.unlink；之后不能再用这个邮箱登录，用它登录的会话不动；下一轮 GitLab 同步从 GitLab 用户名下删掉这个邮箱（#272）。
 
-源码：[app/server/src/routes/identity/account.ts:102](../../../app/server/src/routes/identity/account.ts#L102) · [app/server/src/routes/identity/contracts.ts:187](../../../app/server/src/routes/identity/contracts.ts#L187) · [app/server/src/lib/identity-store.ts:542](../../../app/server/src/lib/identity-store.ts#L542) · [app/console/src/pages/Account.vue:110](../../../app/console/src/pages/Account.vue#L110)
+源码：[app/server/src/routes/identity/account.ts:102](../../../app/server/src/routes/identity/account.ts#L102) · [app/server/src/routes/identity/contracts.ts:187](../../../app/server/src/routes/identity/contracts.ts#L187) · [app/server/src/lib/identity-store.ts:553](../../../app/server/src/lib/identity-store.ts#L553) · [app/console/src/pages/Account.vue:110](../../../app/console/src/pages/Account.vue#L110)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
 
@@ -454,7 +454,7 @@
 - 响应与错误：200 {real_name,grade,grade_label,profile_required}；姓名先 NFC 归一、去首尾空白、连续空白并成一个，2–32 个字、只能是文字、空格和「·」，不对 400 bad_real_name；grade 只能是 1–4，不对 400。
 - 数据与副作用：只补还缺的那一项，已有的不覆盖；grade 按北京时间的学年换算成入学年份写 account_profiles.enrollment_year；写操作记录 account.real_info，meta 只有 {filled,grade}，不含姓名。
 
-源码：[app/server/src/routes/identity/account.ts:140](../../../app/server/src/routes/identity/account.ts#L140) · [app/server/src/routes/identity/contracts.ts:188](../../../app/server/src/routes/identity/contracts.ts#L188) · [app/server/src/lib/account-profiles.ts:21](../../../app/server/src/lib/account-profiles.ts#L21) · [app/server/src/lib/grade.ts:27](../../../app/server/src/lib/grade.ts#L27) · [app/server/src/lib/email-gate.ts:10](../../../app/server/src/lib/email-gate.ts#L10) · [app/console/src/pages/CompleteProfile.vue:73](../../../app/console/src/pages/CompleteProfile.vue#L73) · [app/console/src/lib/grade.ts:11](../../../app/console/src/lib/grade.ts#L11) · [app/console/src/router.ts:22](../../../app/console/src/router.ts#L22) · [app/console/src/lib/types.ts:17](../../../app/console/src/lib/types.ts#L17)
+源码：[app/server/src/routes/identity/account.ts:140](../../../app/server/src/routes/identity/account.ts#L140) · [app/server/src/routes/identity/contracts.ts:188](../../../app/server/src/routes/identity/contracts.ts#L188) · [app/server/src/lib/account-profiles.ts:21](../../../app/server/src/lib/account-profiles.ts#L21) · [app/server/src/lib/grade.ts:28](../../../app/server/src/lib/grade.ts#L28) · [app/server/src/lib/email-gate.ts:10](../../../app/server/src/lib/email-gate.ts#L10) · [app/console/src/pages/CompleteProfile.vue:73](../../../app/console/src/pages/CompleteProfile.vue#L73) · [app/console/src/lib/grade.ts:12](../../../app/console/src/lib/grade.ts#L12) · [app/console/src/router.ts:23](../../../app/console/src/router.ts#L23) · [app/console/src/lib/types.ts:19](../../../app/console/src/lib/types.ts#L19)
 
 测试入口：[tests/server/real-info.test.ts](../../../tests/server/real-info.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -471,7 +471,7 @@
 - 响应与错误：200 {invites:[{id,code,note,max_uses,used_count,expires_at,disabled,created_by,created_at,updated_at,usable}]}，按建立时间倒序；没权限 403 missing_capability。
 - 数据与副作用：只读。
 
-源码：[app/server/src/routes/console/invites.ts:17](../../../app/server/src/routes/console/invites.ts#L17) · [app/server/src/routes/console/contracts.ts:285](../../../app/server/src/routes/console/contracts.ts#L285) · [app/console/src/pages/Invites.vue:29](../../../app/console/src/pages/Invites.vue#L29)
+源码：[app/server/src/routes/console/invites.ts:17](../../../app/server/src/routes/console/invites.ts#L17) · [app/server/src/routes/console/contracts.ts:285](../../../app/server/src/routes/console/contracts.ts#L285) · [app/console/src/pages/Invites.vue:30](../../../app/console/src/pages/Invites.vue#L30)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts) · [tests/console/nav.test.ts](../../../tests/console/nav.test.ts)。生成器未执行这些测试。
 
@@ -523,7 +523,7 @@
 - 数据与副作用：只读；level/department/titles 来自 perm_members/perm_groups（不再是 role_assignments），permissions 是 effective().allow 加上「只在本部门范围内允许」的节点（SCOPE_AWARE_NODES：users.view、apply.view、apply.review、activity.read、dept.manage），给前端判断导航显隐用，范围由各接口自己再收窄。
 - CONTRACT-274 §5 把旧的 site_role、capabilities、head_of、github 字段整体下线：旧的 people/departments/titles/assignments/catalogue/audit 路由已删，是唯一读过旧形状的地方，确认没有别的调用方。
 
-源码：[app/server/src/routes/console/me.ts:29](../../../app/server/src/routes/console/me.ts#L29) · [app/server/src/lib/permissions.ts:365](../../../app/server/src/lib/permissions.ts#L365) · [app/console/src/pages/Overview.vue:68](../../../app/console/src/pages/Overview.vue#L68) · [app/console/src/lib/session.ts:49](../../../app/console/src/lib/session.ts#L49) · [app/console/src/components/ConsoleShell.vue:21](../../../app/console/src/components/ConsoleShell.vue#L21) · [app/console/src/pages/ConsoleRoot.vue:38](../../../app/console/src/pages/ConsoleRoot.vue#L38)
+源码：[app/server/src/routes/console/me.ts:29](../../../app/server/src/routes/console/me.ts#L29) · [app/server/src/lib/permissions.ts:365](../../../app/server/src/lib/permissions.ts#L365) · [app/console/src/pages/Overview.vue:70](../../../app/console/src/pages/Overview.vue#L70) · [app/console/src/lib/session.ts:49](../../../app/console/src/lib/session.ts#L49) · [app/console/src/components/ConsoleShell.vue:21](../../../app/console/src/components/ConsoleShell.vue#L21) · [app/console/src/pages/ConsoleRoot.vue:38](../../../app/console/src/pages/ConsoleRoot.vue#L38)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
 
@@ -575,9 +575,9 @@
 - 响应与错误：200 {items:[{id,at,account,visitor_id,surface,action,target_type,target_id,outcome,ip,ua,request_id,meta}],next_cursor,blocked_today:[{bucket,count}]}；cursor 按 at,id 倒序，固定 50 条一页。
 - 数据与副作用：只读；没有 activity.read.ip 时 IP 按 maskIp() 打码（IPv4 留前两段、IPv6 留前 4 组），有这个节点才给全量；blocked_today 统计今天北京时间以来 outcome=limited 的记录按 bucket 分组计数。
 
-源码：[app/server/src/routes/console/activity.ts:88](../../../app/server/src/routes/console/activity.ts#L88) · [app/server/src/lib/cursor.ts:6](../../../app/server/src/lib/cursor.ts#L6) · [app/server/src/routes/console/contracts.ts:313](../../../app/server/src/routes/console/contracts.ts#L313) · [app/console/src/pages/Activity.vue:26](../../../app/console/src/pages/Activity.vue#L26) · [app/console/src/lib/activity.ts:1](../../../app/console/src/lib/activity.ts#L1)
+源码：[app/server/src/routes/console/activity.ts:88](../../../app/server/src/routes/console/activity.ts#L88) · [app/server/src/lib/cursor.ts:6](../../../app/server/src/lib/cursor.ts#L6) · [app/server/src/routes/console/contracts.ts:313](../../../app/server/src/routes/console/contracts.ts#L313) · [app/console/src/pages/Activity.vue:27](../../../app/console/src/pages/Activity.vue#L27) · [app/console/src/lib/activity.ts:1](../../../app/console/src/lib/activity.ts#L1) · [app/console/src/mock/console.ts:978](../../../app/console/src/mock/console.ts#L978) · [app/console/src/components/DateField.vue:2](../../../app/console/src/components/DateField.vue#L2)
 
-测试入口：[tests/server/activity.test.ts](../../../tests/server/activity.test.ts)。生成器未执行这些测试。
+测试入口：[tests/server/activity.test.ts](../../../tests/server/activity.test.ts) · [tests/console/activity.test.ts](../../../tests/console/activity.test.ts)。生成器未执行这些测试。
 
 ### 控制台导出操作记录 CSV
 
@@ -622,13 +622,14 @@
 - 读取：
 - 写入：`activity_events`
 - 不入队：
-- 权限与资源：不要求登录，访客也能调；按账号或访客编号（不是 IP）限流 30 次每分钟，同一人多个标签页共享同一份配额。
-- 响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，多余字段 400 validation_error（契约在 routes/portal/contracts.ts）。
-- 数据与副作用：只有 lib/activity.ts 的 EVENT_WHITELIST 里的动作才记一行 activity_events；白名单外的全部丢弃，合并计一条 outcome=denied 的 events.rejected（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌等敏感字段（调用方自己决定 meta 放什么）。
+- 权限与资源：不要求登录，访客也能调；限流键登录的人按账号，没登录的按 IP 哈希（不是访客 cookie），30 次每分钟，同一人多个标签页共享同一份配额。
+- 请求：{ surface?: "portal"|"forum"|"console", events: [...] }；surface 不传按门户算，一批事件只属于一个来源。
+- 响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，surface 不认识的值或多余字段 400 validation_error（契约在 routes/portal/contracts.ts）。
+- 数据与副作用：只有对应来源在 lib/activity.ts 的白名单（EVENT_WHITELIST=门户、FORUM_EVENT_WHITELIST、CONSOLE_EVENT_WHITELIST）里的动作才记一行 activity_events；白名单外的全部丢弃，合并计一条 outcome=denied 的 events.rejected（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌、地址栏查询串、邮箱、真实姓名或帖子正文。
 
-源码：[app/server/src/routes/portal/events.ts:25](../../../app/server/src/routes/portal/events.ts#L25) · [app/server/src/routes/portal/contracts.ts:39](../../../app/server/src/routes/portal/contracts.ts#L39) · [app/server/src/lib/activity.ts:20](../../../app/server/src/lib/activity.ts#L20) · [app/web/sites/portal/lib/events.ts:16](../../../app/web/sites/portal/lib/events.ts#L16) · [app/web/sites/portal/components/boot/BootSequence.tsx:66](../../../app/web/sites/portal/components/boot/BootSequence.tsx#L66) · [app/web/sites/portal/lib/bootGate.ts:3](../../../app/web/sites/portal/lib/bootGate.ts#L3) · [app/web/sites/portal/components/boot/engine.ts:19](../../../app/web/sites/portal/components/boot/engine.ts#L19) · [app/web/sites/portal/components/boot/background.ts:10](../../../app/web/sites/portal/components/boot/background.ts#L10) · [app/web/sites/portal/components/boot/layout.ts:25](../../../app/web/sites/portal/components/boot/layout.ts#L25) · [app/web/sites/portal/components/boot/math.ts:5](../../../app/web/sites/portal/components/boot/math.ts#L5) · [app/web/sites/portal/components/boot/shapes.ts:5](../../../app/web/sites/portal/components/boot/shapes.ts#L5) · [app/web/sites/portal/components/boot/timeline.ts:7](../../../app/web/sites/portal/components/boot/timeline.ts#L7) · [app/web/sites/portal/components/os/SkyWallpaper.tsx:97](../../../app/web/sites/portal/components/os/SkyWallpaper.tsx#L97) · [app/web/sites/portal/components/os/Wallpaper.tsx:12](../../../app/web/sites/portal/components/os/Wallpaper.tsx#L12) · [app/web/sites/portal/lib/wallpapers.ts:18](../../../app/web/sites/portal/lib/wallpapers.ts#L18) · [app/web/sites/portal/components/os/Widgets.tsx:12](../../../app/web/sites/portal/components/os/Widgets.tsx#L12)
+源码：[app/server/src/routes/portal/events.ts:28](../../../app/server/src/routes/portal/events.ts#L28) · [app/server/src/routes/portal/contracts.ts:40](../../../app/server/src/routes/portal/contracts.ts#L40) · [app/server/src/lib/activity.ts:26](../../../app/server/src/lib/activity.ts#L26) · [app/server/src/lib/activity.ts:28](../../../app/server/src/lib/activity.ts#L28) · [app/server/src/lib/activity.ts:30](../../../app/server/src/lib/activity.ts#L30) · [app/forum/app/composables/useActivityBeacon.ts:26](../../../app/forum/app/composables/useActivityBeacon.ts#L26) · [app/console/src/lib/events.ts:23](../../../app/console/src/lib/events.ts#L23) · [app/console/src/router.ts:67](../../../app/console/src/router.ts#L67) · [app/forum/app/plugins/activity-beacon.client.ts:10](../../../app/forum/app/plugins/activity-beacon.client.ts#L10) · [app/forum/app/composables/useForumTheme.ts:36](../../../app/forum/app/composables/useForumTheme.ts#L36) · [app/forum/app/components/PostEditor.vue:182](../../../app/forum/app/components/PostEditor.vue#L182) · [app/web/sites/portal/lib/events.ts:16](../../../app/web/sites/portal/lib/events.ts#L16) · [app/web/sites/portal/components/boot/BootSequence.tsx:66](../../../app/web/sites/portal/components/boot/BootSequence.tsx#L66) · [app/web/sites/portal/lib/bootGate.ts:3](../../../app/web/sites/portal/lib/bootGate.ts#L3) · [app/web/sites/portal/components/boot/engine.ts:19](../../../app/web/sites/portal/components/boot/engine.ts#L19) · [app/web/sites/portal/components/boot/background.ts:10](../../../app/web/sites/portal/components/boot/background.ts#L10) · [app/web/sites/portal/components/boot/layout.ts:25](../../../app/web/sites/portal/components/boot/layout.ts#L25) · [app/web/sites/portal/components/boot/math.ts:5](../../../app/web/sites/portal/components/boot/math.ts#L5) · [app/web/sites/portal/components/boot/shapes.ts:5](../../../app/web/sites/portal/components/boot/shapes.ts#L5) · [app/web/sites/portal/components/boot/timeline.ts:7](../../../app/web/sites/portal/components/boot/timeline.ts#L7) · [app/web/sites/portal/components/os/SkyWallpaper.tsx:97](../../../app/web/sites/portal/components/os/SkyWallpaper.tsx#L97) · [app/web/sites/portal/components/os/Wallpaper.tsx:12](../../../app/web/sites/portal/components/os/Wallpaper.tsx#L12) · [app/web/sites/portal/lib/wallpapers.ts:18](../../../app/web/sites/portal/lib/wallpapers.ts#L18) · [app/web/sites/portal/components/os/Widgets.tsx:12](../../../app/web/sites/portal/components/os/Widgets.tsx#L12)
 
-测试入口：[tests/server/events.test.ts](../../../tests/server/events.test.ts)。生成器未执行这些测试。
+测试入口：[tests/server/events.test.ts](../../../tests/server/events.test.ts) · [app/forum/tests/activity-beacon.test.ts](../../../app/forum/tests/activity-beacon.test.ts)。生成器未执行这些测试。
 
 ### 筛选招新投递列表
 
@@ -643,7 +644,7 @@
 - 响应与错误：200 {items,total,counts}；特长摘要120字、last_review可空，来源IP/UA不下发；counts为未筛选的全局五状态计数。
 - 数据与副作用：只读；转义q中的LIKE通配符，按姓名/班级/邮箱搜索；查询latest review，不为列表记application.view。
 
-源码：[app/server/src/routes/console/applications.ts:49](../../../app/server/src/routes/console/applications.ts#L49) · [app/console/src/pages/Applications.vue:26](../../../app/console/src/pages/Applications.vue#L26)
+源码：[app/server/src/routes/console/applications.ts:49](../../../app/server/src/routes/console/applications.ts#L49) · [app/console/src/pages/Applications.vue:27](../../../app/console/src/pages/Applications.vue#L27)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -905,7 +906,7 @@
 - 数据与副作用：读论坛表与公开内容分类；GET也可能通过forumViewer刷新本人用户；不发送邮件、不写帖子。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/topics.ts:22](../../../app/server/src/routes/forum-api/topics.ts#L22) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/forum/app/app.vue:1](../../../app/forum/app/app.vue#L1) · [app/forum/app/components/TitleBadge.vue:1](../../../app/forum/app/components/TitleBadge.vue#L1) · [app/forum/app/components/TopicListNav.vue:1](../../../app/forum/app/components/TopicListNav.vue#L1) · [app/forum/app/composables/useCurrentUser.ts:16](../../../app/forum/app/composables/useCurrentUser.ts#L16) · [app/forum/app/composables/useForumTheme.ts:16](../../../app/forum/app/composables/useForumTheme.ts#L16) · [app/forum/app/composables/useOrgTitles.ts:16](../../../app/forum/app/composables/useOrgTitles.ts#L16) · [app/forum/app/data/account-badges.ts:16](../../../app/forum/app/data/account-badges.ts#L16) · [app/forum/app/data/permissions.ts:11](../../../app/forum/app/data/permissions.ts#L11) · [app/forum/app/data/titles.ts:27](../../../app/forum/app/data/titles.ts#L27) · [app/forum/app/data/types.ts:12](../../../app/forum/app/data/types.ts#L12) · [app/forum/app/pages/users.vue:1](../../../app/forum/app/pages/users.vue#L1) · [app/forum/app/plugins/opaque-surfaces.ts:12](../../../app/forum/app/plugins/opaque-surfaces.ts#L12) · [app/forum/app/stores/forum-server.ts:47](../../../app/forum/app/stores/forum-server.ts#L47) · [app/forum/shared/forum-api.ts:13](../../../app/forum/shared/forum-api.ts#L13)
+源码：[app/server/src/routes/forum-api/topics.ts:22](../../../app/server/src/routes/forum-api/topics.ts#L22) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/forum/app/app.vue:1](../../../app/forum/app/app.vue#L1) · [app/forum/app/components/TitleBadge.vue:1](../../../app/forum/app/components/TitleBadge.vue#L1) · [app/forum/app/components/TopicListNav.vue:1](../../../app/forum/app/components/TopicListNav.vue#L1) · [app/forum/app/composables/useCurrentUser.ts:16](../../../app/forum/app/composables/useCurrentUser.ts#L16) · [app/forum/app/composables/useForumTheme.ts:20](../../../app/forum/app/composables/useForumTheme.ts#L20) · [app/forum/app/composables/useOrgTitles.ts:16](../../../app/forum/app/composables/useOrgTitles.ts#L16) · [app/forum/app/data/account-badges.ts:16](../../../app/forum/app/data/account-badges.ts#L16) · [app/forum/app/data/permissions.ts:11](../../../app/forum/app/data/permissions.ts#L11) · [app/forum/app/data/titles.ts:27](../../../app/forum/app/data/titles.ts#L27) · [app/forum/app/data/types.ts:12](../../../app/forum/app/data/types.ts#L12) · [app/forum/app/pages/users.vue:1](../../../app/forum/app/pages/users.vue#L1) · [app/forum/app/plugins/opaque-surfaces.ts:12](../../../app/forum/app/plugins/opaque-surfaces.ts#L12) · [app/forum/app/stores/forum-server.ts:47](../../../app/forum/app/stores/forum-server.ts#L47) · [app/forum/shared/forum-api.ts:13](../../../app/forum/shared/forum-api.ts#L13)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -923,7 +924,7 @@
 - 数据与副作用：按话题读取帖子及点赞投影；软删正文为空；不把全论坛正文再次塞进首屏。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/topics.ts:34](../../../app/server/src/routes/forum-api/topics.ts#L34) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/forum/app/components/ForumMarkdown.vue:1](../../../app/forum/app/components/ForumMarkdown.vue#L1) · [app/forum/app/pages/t/[id].vue:1](../../../app/forum/app/pages/t/[id].vue#L1) · [app/forum/shared/post-markdown.ts:26](../../../app/forum/shared/post-markdown.ts#L26)
+源码：[app/server/src/routes/forum-api/topics.ts:34](../../../app/server/src/routes/forum-api/topics.ts#L34) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/forum/app/components/ForumMarkdown.vue:1](../../../app/forum/app/components/ForumMarkdown.vue#L1) · [app/forum/app/pages/t/[id].vue:1](../../../app/forum/app/pages/t/[id].vue#L1) · [app/forum/shared/post-markdown.ts:29](../../../app/forum/shared/post-markdown.ts#L29)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1030,7 +1031,7 @@
 - 数据与副作用：事务创建回复并更新最后活动、处理回复与提及通知；游客用户与回复同事务；PoW通过就记该IP尝试额度，成功才记全站额度；冒名检查读指派、历史登录审计及会话；不发送邮件。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/posts.ts:44](../../../app/server/src/routes/forum-api/posts.ts#L44) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/server/src/lib/forum-rules.ts:5](../../../app/server/src/lib/forum-rules.ts#L5) · [app/server/src/routes/forum-api/forum-limits.ts:14](../../../app/server/src/routes/forum-api/forum-limits.ts#L14) · [app/server/src/routes/forum-api/index.ts:12](../../../app/server/src/routes/forum-api/index.ts#L12) · [app/forum/app/components/PostEditor.vue:1](../../../app/forum/app/components/PostEditor.vue#L1) · [app/forum/app/components/ReplyComposer.vue:1](../../../app/forum/app/components/ReplyComposer.vue#L1) · [app/forum/app/composables/useForumActions.ts:19](../../../app/forum/app/composables/useForumActions.ts#L19) · [app/forum/app/composables/usePostDraft.ts:10](../../../app/forum/app/composables/usePostDraft.ts#L10) · [app/forum/app/editor/crepe-editor.ts:27](../../../app/forum/app/editor/crepe-editor.ts#L27)
+源码：[app/server/src/routes/forum-api/posts.ts:44](../../../app/server/src/routes/forum-api/posts.ts#L44) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/server/src/lib/forum-rules.ts:5](../../../app/server/src/lib/forum-rules.ts#L5) · [app/server/src/routes/forum-api/forum-limits.ts:14](../../../app/server/src/routes/forum-api/forum-limits.ts#L14) · [app/server/src/routes/forum-api/index.ts:12](../../../app/server/src/routes/forum-api/index.ts#L12) · [app/forum/app/components/PostEditor.vue:1](../../../app/forum/app/components/PostEditor.vue#L1) · [app/forum/app/components/ReplyComposer.vue:1](../../../app/forum/app/components/ReplyComposer.vue#L1) · [app/forum/app/composables/useForumActions.ts:19](../../../app/forum/app/composables/useForumActions.ts#L19) · [app/forum/app/composables/usePostDraft.ts:10](../../../app/forum/app/composables/usePostDraft.ts#L10) · [app/forum/app/editor/crepe-editor.ts:33](../../../app/forum/app/editor/crepe-editor.ts#L33) · [app/forum/app/editor/inline-stickers.ts:22](../../../app/forum/app/editor/inline-stickers.ts#L22) · [app/forum/shared/post-markdown.ts:63](../../../app/forum/shared/post-markdown.ts#L63)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1238,16 +1239,16 @@
 - 操作：`PUT /api/forum/posts/:post_id/reactions/:sticker_id`
 - 能力：
 - 读取：`forum_posts`、`forum_stickers`、`forum_reactions`、`forum_users`、`sessions`、`perm_members`、`perm_entries`、`perm_groups`、`limit_events`
-- 写入：`forum_reactions`、`forum_users`、`sessions`、`limit_events`
+- 写入：`forum_reactions`、`forum_users`、`sessions`、`limit_events`、`activity_events`
 - 不入队：
 - 权限与资源：需要 forum.react 节点（#276 迁移种子只发给 level.member），由 requireWriter 判定；访客401 signin_required，登录但没有该节点403 forbidden；帖子不存在404，已软删409 post_deleted。
 - 响应与错误：200 {reactions}，只回这条帖子的表情聚合（CONTRACT §4），不回整份changes或viewer；表情不存在或已停用400 unknown_sticker；超过meta.limit.forum.react.hourly回429 {error:rate_limited,bucket:"forum.react.hourly",retry_after}（按账号计数，和每分钟的洪泛线不是同一条）。
-- 数据与副作用：按 (post_id,account_id,sticker_id) 主键 INSERT OR IGNORE 写 forum_reactions，重复加同一表情不报错也不重复计数；不写活动审计（CONTRACT §4 没有要求）。
+- 数据与副作用：按 (post_id,account_id,sticker_id) 主键 INSERT OR IGNORE 写 forum_reactions，重复加同一表情不报错也不重复计数；记一条 outcome=ok 的 forum.react 操作记录（meta.sticker_id，#274：原来没有，补上）。
 - 身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。
 
-源码：[app/server/src/routes/forum-api/posts.ts:107](../../../app/server/src/routes/forum-api/posts.ts#L107) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320) · [app/server/src/lib/limits.ts:118](../../../app/server/src/lib/limits.ts#L118) · [app/forum/app/components/PostCard.vue:1](../../../app/forum/app/components/PostCard.vue#L1)
+源码：[app/server/src/routes/forum-api/posts.ts:107](../../../app/server/src/routes/forum-api/posts.ts#L107) · [app/server/src/routes/forum-api/posts.ts:116](../../../app/server/src/routes/forum-api/posts.ts#L116) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320) · [app/server/src/lib/limits.ts:118](../../../app/server/src/lib/limits.ts#L118) · [app/forum/app/components/PostCard.vue:1](../../../app/forum/app/components/PostCard.vue#L1)
 
-测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。生成器未执行这些测试。
+测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts) · [tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
 ### 取消一条表情回应
 
@@ -1256,16 +1257,16 @@
 - 操作：`DELETE /api/forum/posts/:post_id/reactions/:sticker_id`
 - 能力：
 - 读取：`forum_posts`、`forum_stickers`、`forum_reactions`、`forum_users`、`sessions`、`perm_members`、`perm_entries`、`perm_groups`
-- 写入：`forum_reactions`、`forum_users`、`sessions`
+- 写入：`forum_reactions`、`forum_users`、`sessions`、`activity_events`
 - 不入队：
 - 权限与资源：同PUT同一个节点 forum.react；不检查帖子是否已软删除——取消自己的表情回应即使帖子已删也允许。
 - 响应与错误：200 {reactions}，回这条帖子取消之后的表情聚合；不存在的帖子404；这条不限额（限额只拦住「加」，不拦「取消」）。
-- 数据与副作用：按 (post_id,account_id,sticker_id) DELETE forum_reactions，原本没有这条也不报错（幂等）。
+- 数据与副作用：按 (post_id,account_id,sticker_id) DELETE forum_reactions，原本没有这条也不报错（幂等）；同样记一条 outcome=ok 的 forum.react 操作记录，meta.removed=true 区分（#274：原来没有，补上）。
 - 身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。
 
-源码：[app/server/src/routes/forum-api/posts.ts:118](../../../app/server/src/routes/forum-api/posts.ts#L118) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320)
+源码：[app/server/src/routes/forum-api/posts.ts:120](../../../app/server/src/routes/forum-api/posts.ts#L120) · [app/server/src/routes/forum-api/posts.ts:124](../../../app/server/src/routes/forum-api/posts.ts#L124) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320)
 
-测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。生成器未执行这些测试。
+测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts) · [tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
 ### 读表情包列表
 
@@ -1280,7 +1281,7 @@
 - 响应与错误：200 {packs:[{id,name,stickers:[{id,shortcode,label,url}]}]}，只含 enabled=1 的包与表情；进程内缓存60秒（cache.cached），控制台改过表情后显式 invalidate 这个 key。
 - 数据与副作用：纯读，不写任何表；短码即表情 id，前端据此渲染正文里的短码。
 
-源码：[app/server/src/routes/forum-api/stickers.ts:11](../../../app/server/src/routes/forum-api/stickers.ts#L11) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/lib/migrations/2026-10-forum-v2.ts:15](../../../app/server/src/lib/migrations/2026-10-forum-v2.ts#L15) · [app/forum/app/components/StickerPicker.vue:1](../../../app/forum/app/components/StickerPicker.vue#L1) · [app/forum/app/composables/useStickers.ts:12](../../../app/forum/app/composables/useStickers.ts#L12)
+源码：[app/server/src/routes/forum-api/stickers.ts:11](../../../app/server/src/routes/forum-api/stickers.ts#L11) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/lib/migrations/2026-10-forum-v2.ts:16](../../../app/server/src/lib/migrations/2026-10-forum-v2.ts#L16) · [app/forum/app/components/StickerPicker.vue:1](../../../app/forum/app/components/StickerPicker.vue#L1) · [app/forum/app/composables/useStickers.ts:12](../../../app/forum/app/composables/useStickers.ts#L12)
 
 测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。生成器未执行这些测试。
 
@@ -1419,7 +1420,7 @@
 - 响应与错误：200 {packs:[{id,name,sort,enabled,stickers:[{id,shortcode,label,url,sort,enabled,use_count}]}]}，含停用的包/表情（和公开列表不同，管理员要看得到才能重新启用）。
 - 数据与副作用：纯读；use_count 由 forum_reactions 按 sticker_id 聚合算出，不是单独维护的列。
 
-源码：[app/server/src/routes/console/forum.ts:36](../../../app/server/src/routes/console/forum.ts#L36) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320) · [app/server/src/routes/console/index.ts:41](../../../app/server/src/routes/console/index.ts#L41) · [app/console/src/pages/forum/StickersTab.vue:1](../../../app/console/src/pages/forum/StickersTab.vue#L1)
+源码：[app/server/src/routes/console/forum.ts:36](../../../app/server/src/routes/console/forum.ts#L36) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320) · [app/server/src/routes/console/index.ts:42](../../../app/server/src/routes/console/index.ts#L42) · [app/console/src/pages/forum/StickersTab.vue:1](../../../app/console/src/pages/forum/StickersTab.vue#L1) · [app/console/src/pages/Forum.vue:1](../../../app/console/src/pages/Forum.vue#L1)
 
 测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。生成器未执行这些测试。
 
@@ -1436,7 +1437,7 @@
 - 响应与错误：200 {ok:true}。
 - 数据与副作用：按传了的字段 UPDATE forum_sticker_packs；成功后 invalidate 公开列表的缓存（forum:stickers）；写审计 forum.sticker_pack.update。
 
-源码：[app/server/src/routes/console/forum.ts:46](../../../app/server/src/routes/console/forum.ts#L46) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320)
+源码：[app/server/src/routes/console/forum.ts:58](../../../app/server/src/routes/console/forum.ts#L58) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320)
 
 测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。生成器未执行这些测试。
 
@@ -1453,9 +1454,26 @@
 - 响应与错误：200 {ok:true}。
 - 数据与副作用：按传了的字段 UPDATE forum_stickers；成功后 invalidate 公开列表缓存；写审计 forum.sticker.update；停用不删图片文件（forum_sticker_files 不受影响）。
 
-源码：[app/server/src/routes/console/forum.ts:56](../../../app/server/src/routes/console/forum.ts#L56) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320)
+源码：[app/server/src/routes/console/forum.ts:68](../../../app/server/src/routes/console/forum.ts#L68) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320)
 
 测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。生成器未执行这些测试。
+
+### 控制台新建表情包
+
+标识：`flow:console.forum.sticker_packs.create`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`POST /api/console/forum/sticker-packs`
+- 能力：
+- 读取：`sessions`、`users`、`perm_members`、`perm_entries`、`perm_groups`、`forum_sticker_packs`
+- 写入：`forum_sticker_packs`、`activity_events`、`sessions`
+- 不入队：
+- 权限与资源：requirePermission("forum.sticker.manage") + requireStepUp；body {id,name}，id 小写字母、数字和连字符，name 1–64 字。
+- 响应与错误：201 {id,name}；id 已被占用回409 pack_id_taken；格式不对400。
+- 数据与副作用：插一行 forum_sticker_packs（排在最后）；空包不在公开面板里出现；成功后 invalidate 公开列表缓存，写审计 forum.sticker_pack.create。
+
+源码：[app/server/src/routes/console/forum.ts:47](../../../app/server/src/routes/console/forum.ts#L47) · [app/server/src/lib/forum-store.ts:847](../../../app/server/src/lib/forum-store.ts#L847) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320) · [app/console/src/pages/forum/StickersTab.vue:113](../../../app/console/src/pages/forum/StickersTab.vue#L113) · [app/console/src/lib/forum.ts:104](../../../app/console/src/lib/forum.ts#L104) · [app/console/src/mock/console.ts:881](../../../app/console/src/mock/console.ts#L881)
+
+测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts) · [tests/console/forum.test.ts](../../../tests/console/forum.test.ts)。生成器未执行这些测试。
 
 ### 控制台给表情包新增一个表情
 
@@ -1470,7 +1488,7 @@
 - 响应与错误：201 {id,shortcode,label}；shortcode 已被（含停用的旧表情）占用回409 shortcode_taken，不会撞成裸的500；表情包不存在404 not_found。
 - 数据与副作用：复用头像同一套转码（256×256 webp，按 sha256 去重存 forum_sticker_files），表情 id 就是 shortcode；成功后 invalidate 公开列表缓存，写审计 forum.sticker.create。
 
-源码：[app/server/src/routes/console/forum.ts:75](../../../app/server/src/routes/console/forum.ts#L75) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320) · [app/console/src/pages/forum/NewStickerDialog.vue:1](../../../app/console/src/pages/forum/NewStickerDialog.vue#L1)
+源码：[app/server/src/routes/console/forum.ts:87](../../../app/server/src/routes/console/forum.ts#L87) · [app/server/src/lib/forum-store.ts:221](../../../app/server/src/lib/forum-store.ts#L221) · [app/server/src/lib/permissions.ts:320](../../../app/server/src/lib/permissions.ts#L320) · [app/console/src/pages/forum/NewStickerDialog.vue:1](../../../app/console/src/pages/forum/NewStickerDialog.vue#L1)
 
 测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。生成器未执行这些测试。
 
@@ -1615,7 +1633,7 @@
 - 200 {competitions}含offline；401未登录，403缺能力。列表按当前时间重算，样板重读同样更新，不冒充真实数据。
 - 共同身份路径：读取sessions与称号/部门权限，使用本人GitHub token查角色并缓存60秒；过期会话删除，上游拒绝token时删除并审计，不代表成功读取总是写库。
 
-源码：[app/server/src/routes/console/competitions.ts:38](../../../app/server/src/routes/console/competitions.ts#L38) · [app/server/src/routes/console/index.ts:29](../../../app/server/src/routes/console/index.ts#L29) · [app/console/src/pages/Competitions.vue:29](../../../app/console/src/pages/Competitions.vue#L29) · [app/console/src/lib/types.ts:194](../../../app/console/src/lib/types.ts#L194) · [app/console/src/lib/nav.ts:27](../../../app/console/src/lib/nav.ts#L27) · [app/console/src/lib/permission-nodes.ts:39](../../../app/console/src/lib/permission-nodes.ts#L39) · [app/console/src/router.ts:34](../../../app/console/src/router.ts#L34) · [app/console/src/mock/console.ts:561](../../../app/console/src/mock/console.ts#L561)
+源码：[app/server/src/routes/console/competitions.ts:38](../../../app/server/src/routes/console/competitions.ts#L38) · [app/server/src/routes/console/index.ts:30](../../../app/server/src/routes/console/index.ts#L30) · [app/console/src/pages/Competitions.vue:30](../../../app/console/src/pages/Competitions.vue#L30) · [app/console/src/lib/types.ts:195](../../../app/console/src/lib/types.ts#L195) · [app/console/src/lib/nav.ts:28](../../../app/console/src/lib/nav.ts#L28) · [app/console/src/lib/permission-nodes.ts:40](../../../app/console/src/lib/permission-nodes.ts#L40) · [app/console/src/router.ts:35](../../../app/console/src/router.ts#L35) · [app/console/src/mock/console.ts:563](../../../app/console/src/mock/console.ts#L563)
 
 测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts)。生成器未执行这些测试。
 
@@ -1654,7 +1672,7 @@
 - 比赛更新与competition.update审计同一事务，审计失败回滚，不发邮件。
 - #278：已经发布官网的内部赛不能改成外部赛（409 competition_site_published，先下线）；改完清掉这场比赛的公开缓存。
 
-源码：[app/server/src/routes/console/competitions.ts:61](../../../app/server/src/routes/console/competitions.ts#L61) · [app/console/src/lib/competitions.ts:113](../../../app/console/src/lib/competitions.ts#L113) · [app/console/src/pages/Competitions.vue:81](../../../app/console/src/pages/Competitions.vue#L81)
+源码：[app/server/src/routes/console/competitions.ts:61](../../../app/server/src/routes/console/competitions.ts#L61) · [app/console/src/lib/competitions.ts:113](../../../app/console/src/lib/competitions.ts#L113) · [app/console/src/pages/Competitions.vue:82](../../../app/console/src/pages/Competitions.vue#L82)
 
 测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts) · [tests/server/competition-site.test.ts](../../../tests/server/competition-site.test.ts)。生成器未执行这些测试。
 
@@ -1674,7 +1692,7 @@
 - 只删除本环境赛事记录，并与competition.delete审计在同一事务提交；审计失败保留赛事，业务删除不增加共同身份查询以外的外部请求。
 - #278：官网版本、发布状态、规则、GitLab 项目、候选、定榜与兑奖码随外键级联删掉，数据卷里的站点文件一起删，并清掉公开缓存。
 
-源码：[app/server/src/routes/console/competitions.ts:93](../../../app/server/src/routes/console/competitions.ts#L93) · [app/console/src/pages/Competitions.vue:91](../../../app/console/src/pages/Competitions.vue#L91)
+源码：[app/server/src/routes/console/competitions.ts:93](../../../app/server/src/routes/console/competitions.ts#L93) · [app/console/src/pages/Competitions.vue:92](../../../app/console/src/pages/Competitions.vue#L92)
 
 测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts) · [tests/server/competition-site.test.ts](../../../tests/server/competition-site.test.ts)。生成器未执行这些测试。
 
@@ -1692,7 +1710,7 @@
 - 角标口径是发给我的邀请加上我所在队伍收到的申请，我发出的申请不算；待处理明细只在本场相关人里下发（当事人自己的申请与邀请、本人所在队伍的待处理项），其他人看不到。
 - 只读，不写业务表；门户自助操作不写审计。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:37](../../../app/server/src/routes/portal/competition-signups.ts#L37) · [app/server/src/lib/competition-signup-store.ts:737](../../../app/server/src/lib/competition-signup-store.ts#L737) · [app/server/src/lib/competition-contract.ts:118](../../../app/server/src/lib/competition-contract.ts#L118) · [app/server/src/routes/portal/contracts.ts:60](../../../app/server/src/routes/portal/contracts.ts#L60) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:165](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L165)
+源码：[app/server/src/routes/portal/competition-signups.ts:37](../../../app/server/src/routes/portal/competition-signups.ts#L37) · [app/server/src/lib/competition-signup-store.ts:737](../../../app/server/src/lib/competition-signup-store.ts#L737) · [app/server/src/lib/competition-contract.ts:118](../../../app/server/src/lib/competition-contract.ts#L118) · [app/server/src/routes/portal/contracts.ts:62](../../../app/server/src/routes/portal/contracts.ts#L62) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:165](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L165)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -2149,7 +2167,7 @@
 - 200 {slug, live_version_id, site_url, versions}：每个版本带逐条校验结果 report、上传人、大小与文件数；只有通过的版本有一小时有效的 preview_url。
 - 只读，不写操作记录。控制台「官网」页签按这份状态列出版本、在线版本与预览链接。
 
-源码：[app/server/src/routes/console/competition-site.ts:52](../../../app/server/src/routes/console/competition-site.ts#L52) · [app/server/src/routes/console/contracts.ts:266](../../../app/server/src/routes/console/contracts.ts#L266) · [app/console/src/pages/competition/SitePanel.vue:31](../../../app/console/src/pages/competition/SitePanel.vue#L31) · [app/console/src/lib/types.ts:254](../../../app/console/src/lib/types.ts#L254) · [app/console/src/mock/console.ts:644](../../../app/console/src/mock/console.ts#L644) · [app/server/src/routes/console/index.ts:31](../../../app/server/src/routes/console/index.ts#L31) · [app/server/src/services.ts:134](../../../app/server/src/services.ts#L134) · [app/console/src/pages/CompetitionHub.vue:480](../../../app/console/src/pages/CompetitionHub.vue#L480)
+源码：[app/server/src/routes/console/competition-site.ts:52](../../../app/server/src/routes/console/competition-site.ts#L52) · [app/server/src/routes/console/contracts.ts:266](../../../app/server/src/routes/console/contracts.ts#L266) · [app/console/src/pages/competition/SitePanel.vue:31](../../../app/console/src/pages/competition/SitePanel.vue#L31) · [app/console/src/lib/types.ts:255](../../../app/console/src/lib/types.ts#L255) · [app/console/src/mock/console.ts:646](../../../app/console/src/mock/console.ts#L646) · [app/server/src/routes/console/index.ts:32](../../../app/server/src/routes/console/index.ts#L32) · [app/server/src/services.ts:137](../../../app/server/src/services.ts#L137) · [app/console/src/pages/CompetitionHub.vue:480](../../../app/console/src/pages/CompetitionHub.vue#L480)
 
 测试入口：[tests/server/competition-site.test.ts](../../../tests/server/competition-site.test.ts) · [tests/console/competition-contest.test.ts](../../../tests/console/competition-contest.test.ts)。生成器未执行这些测试。
 
@@ -2290,7 +2308,7 @@
 - 200 {items:[{competition_id, name, finalized_at, rank, points, prize:{amount_cny, title, code, redeemed_at}|null}]}：本人报名过、已经定榜的比赛；兑奖码明文只在这里给本人看（从密文解出），/api 一律 no-store。
 - 只读；门户「我的参赛」显示名次、奖项与兑奖码，可一键复制。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:40](../../../app/server/src/routes/portal/competition-signups.ts#L40) · [app/server/src/routes/portal/contracts.ts:61](../../../app/server/src/routes/portal/contracts.ts#L61) · [app/server/src/lib/competition-prizes.ts:56](../../../app/server/src/lib/competition-prizes.ts#L56) · [app/web/sites/portal/lib/competitionHub.ts:162](../../../app/web/sites/portal/lib/competitionHub.ts#L162) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:91](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L91)
+源码：[app/server/src/routes/portal/competition-signups.ts:40](../../../app/server/src/routes/portal/competition-signups.ts#L40) · [app/server/src/routes/portal/contracts.ts:63](../../../app/server/src/routes/portal/contracts.ts#L63) · [app/server/src/lib/competition-prizes.ts:56](../../../app/server/src/lib/competition-prizes.ts#L56) · [app/web/sites/portal/lib/competitionHub.ts:162](../../../app/web/sites/portal/lib/competitionHub.ts#L162) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:91](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L91)
 
 测试入口：[tests/server/competition-prizes.test.ts](../../../tests/server/competition-prizes.test.ts) · [tests/web/portal-competition-results.test.tsx](../../../tests/web/portal-competition-results.test.tsx)。生成器未执行这些测试。
 
@@ -2307,7 +2325,7 @@
 - 200 {items, next_cursor, counts, last_run}：按状态（pending/accepted/rejected）筛，每页 50 条，新的在前；counts 是三种状态的条数；last_run 只记在服务端进程里，重启后为 null，直到下一轮收集。
 - 只读。
 
-源码：[app/server/src/routes/console/competition-candidates.ts:31](../../../app/server/src/routes/console/competition-candidates.ts#L31) · [app/server/src/routes/console/contracts.ts:271](../../../app/server/src/routes/console/contracts.ts#L271) · [app/server/src/lib/competition-candidates.ts:84](../../../app/server/src/lib/competition-candidates.ts#L84) · [app/console/src/pages/competition/CandidatesPanel.vue:34](../../../app/console/src/pages/competition/CandidatesPanel.vue#L34) · [app/console/src/mock/console.ts:606](../../../app/console/src/mock/console.ts#L606) · [app/server/src/routes/console/index.ts:32](../../../app/server/src/routes/console/index.ts#L32)
+源码：[app/server/src/routes/console/competition-candidates.ts:31](../../../app/server/src/routes/console/competition-candidates.ts#L31) · [app/server/src/routes/console/contracts.ts:271](../../../app/server/src/routes/console/contracts.ts#L271) · [app/server/src/lib/competition-candidates.ts:84](../../../app/server/src/lib/competition-candidates.ts#L84) · [app/console/src/pages/competition/CandidatesPanel.vue:34](../../../app/console/src/pages/competition/CandidatesPanel.vue#L34) · [app/console/src/mock/console.ts:608](../../../app/console/src/mock/console.ts#L608) · [app/server/src/routes/console/index.ts:33](../../../app/server/src/routes/console/index.ts#L33)
 
 测试入口：[tests/server/competition-candidates.test.ts](../../../tests/server/competition-candidates.test.ts) · [tests/console/competition-contest.test.ts](../../../tests/console/competition-contest.test.ts)。生成器未执行这些测试。
 
@@ -2377,7 +2395,7 @@
 - 200 {grade_factors, grades, scoring, prizes, gitlab_projects, updated_at, updated_by, finalized}：系数是百分数（350 = 3.5）；没有规则行时回默认系数（大一 350、大二 220、大三 140、其余 100，由 scripts/contest-score-sim.mjs 的模拟选出）、没有奖项；另带只读的 scoring（两档基础分表、扣分与防刷规则）。
 - 只读。控制台积分记录里，这场比赛列的 GitLab 项目不拼 GitHub 链接。
 
-源码：[app/server/src/routes/console/competition-results.ts:83](../../../app/server/src/routes/console/competition-results.ts#L83) · [app/server/src/routes/console/contracts.ts:276](../../../app/server/src/routes/console/contracts.ts#L276) · [app/server/src/lib/competition-rubric.ts:43](../../../app/server/src/lib/competition-rubric.ts#L43) · [app/console/src/pages/competition/RulesPanel.vue:32](../../../app/console/src/pages/competition/RulesPanel.vue#L32) · [app/console/src/mock/console.ts:636](../../../app/console/src/mock/console.ts#L636) · [app/console/src/pages/CompetitionHub.vue:88](../../../app/console/src/pages/CompetitionHub.vue#L88) · [app/console/src/lib/competition-hub.ts:209](../../../app/console/src/lib/competition-hub.ts#L209)
+源码：[app/server/src/routes/console/competition-results.ts:83](../../../app/server/src/routes/console/competition-results.ts#L83) · [app/server/src/routes/console/contracts.ts:276](../../../app/server/src/routes/console/contracts.ts#L276) · [app/server/src/lib/competition-rubric.ts:43](../../../app/server/src/lib/competition-rubric.ts#L43) · [app/console/src/pages/competition/RulesPanel.vue:32](../../../app/console/src/pages/competition/RulesPanel.vue#L32) · [app/console/src/mock/console.ts:638](../../../app/console/src/mock/console.ts#L638) · [app/console/src/pages/CompetitionHub.vue:88](../../../app/console/src/pages/CompetitionHub.vue#L88) · [app/console/src/lib/competition-hub.ts:209](../../../app/console/src/lib/competition-hub.ts#L209)
 
 测试入口：[tests/server/competition-public.test.ts](../../../tests/server/competition-public.test.ts) · [tests/console/competition-contest.test.ts](../../../tests/console/competition-contest.test.ts)。生成器未执行这些测试。
 
@@ -2411,7 +2429,7 @@
 - 200 {finalized_at, finalized_by, standings, prizes, preview}：没定榜时 preview 是现在的严格名次（同分时先到这个分的在前，再按报名先后）与将要发的奖；定榜后 prizes 列出得奖人与是否核销，兑奖码只给末四位 code_hint。
 - 只读。
 
-源码：[app/server/src/routes/console/competition-results.ts:115](../../../app/server/src/routes/console/competition-results.ts#L115) · [app/server/src/routes/console/contracts.ts:278](../../../app/server/src/routes/console/contracts.ts#L278) · [app/console/src/pages/competition/FinalPanel.vue:28](../../../app/console/src/pages/competition/FinalPanel.vue#L28) · [app/console/src/mock/console.ts:651](../../../app/console/src/mock/console.ts#L651) · [app/server/src/routes/console/index.ts:33](../../../app/server/src/routes/console/index.ts#L33)
+源码：[app/server/src/routes/console/competition-results.ts:115](../../../app/server/src/routes/console/competition-results.ts#L115) · [app/server/src/routes/console/contracts.ts:278](../../../app/server/src/routes/console/contracts.ts#L278) · [app/console/src/pages/competition/FinalPanel.vue:28](../../../app/console/src/pages/competition/FinalPanel.vue#L28) · [app/console/src/mock/console.ts:653](../../../app/console/src/mock/console.ts#L653) · [app/server/src/routes/console/index.ts:34](../../../app/server/src/routes/console/index.ts#L34)
 
 测试入口：[tests/server/competition-prizes.test.ts](../../../tests/server/competition-prizes.test.ts) · [tests/console/competition-contest.test.ts](../../../tests/console/competition-contest.test.ts)。生成器未执行这些测试。
 
@@ -2479,7 +2497,7 @@
 - 200 {prize} 并写 redeemed_at/redeemed_by；查不到 404 code_not_found；已经核销 409 already_redeemed，带上次核销的那张奖。
 - 核销与 competition.prize.redeem 操作记录同一事务（结果为 denied 的也记），记录里只有末四位与金额。
 
-源码：[app/server/src/routes/console/competition-results.ts:196](../../../app/server/src/routes/console/competition-results.ts#L196) · [app/server/src/routes/console/contracts.ts:282](../../../app/server/src/routes/console/contracts.ts#L282) · [app/console/src/pages/PrizeRedeem.vue:52](../../../app/console/src/pages/PrizeRedeem.vue#L52) · [app/console/src/lib/competition-contest.ts:219](../../../app/console/src/lib/competition-contest.ts#L219) · [app/console/src/router.ts:36](../../../app/console/src/router.ts#L36) · [app/server/src/lib/permission-nodes.ts:55](../../../app/server/src/lib/permission-nodes.ts#L55) · [app/console/src/lib/permission-nodes.ts:42](../../../app/console/src/lib/permission-nodes.ts#L42) · [app/console/src/pages/Competitions.vue:100](../../../app/console/src/pages/Competitions.vue#L100)
+源码：[app/server/src/routes/console/competition-results.ts:196](../../../app/server/src/routes/console/competition-results.ts#L196) · [app/server/src/routes/console/contracts.ts:282](../../../app/server/src/routes/console/contracts.ts#L282) · [app/console/src/pages/PrizeRedeem.vue:52](../../../app/console/src/pages/PrizeRedeem.vue#L52) · [app/console/src/lib/competition-contest.ts:219](../../../app/console/src/lib/competition-contest.ts#L219) · [app/console/src/router.ts:37](../../../app/console/src/router.ts#L37) · [app/server/src/lib/permission-nodes.ts:55](../../../app/server/src/lib/permission-nodes.ts#L55) · [app/console/src/lib/permission-nodes.ts:43](../../../app/console/src/lib/permission-nodes.ts#L43) · [app/console/src/pages/Competitions.vue:101](../../../app/console/src/pages/Competitions.vue#L101)
 
 测试入口：[tests/server/competition-prizes.test.ts](../../../tests/server/competition-prizes.test.ts) · [tests/console/competition-contest.test.ts](../../../tests/console/competition-contest.test.ts)。生成器未执行这些测试。
 
@@ -2496,7 +2514,7 @@
 - 响应与错误：签发者 <PUBLIC_ORIGIN>/oidc，协议与主机按 PUBLIC_ORIGIN，不信请求头；未知客户端、错回调 400 中文错误页且不跳转；缺 PKCE 等带 error 回到下游；userinfo 只给 sub（pairwise）、name、preferred_username、picture，有 email scope 时给验证过的 email；账号不再是成员时 401。
 - 数据与副作用：是否登录以本站 sid 为准，不是成员、换了账号或账号还没有登录邮箱（#273，允许过这个应用、签发者会话还在也一样）时进交互；交互、会话与授权码写 oidc_payloads；第一次给某 sector 发 sub 时写 oauth_subjects；不发 refresh token。
 
-源码：[app/server/src/routes/oidc/index.ts:169](../../../app/server/src/routes/oidc/index.ts#L169) · [app/server/src/lib/oidc-provider.ts:74](../../../app/server/src/lib/oidc-provider.ts#L74) · [app/server/src/lib/oidc-store.ts:52](../../../app/server/src/lib/oidc-store.ts#L52) · [app/server/src/lib/account-directory.ts:19](../../../app/server/src/lib/account-directory.ts#L19) · [app/server/src/lib/db.ts:491](../../../app/server/src/lib/db.ts#L491) · [app/server/src/lib/identity-store.ts:757](../../../app/server/src/lib/identity-store.ts#L757) · [app/server/src/lib/forum-store.ts:672](../../../app/server/src/lib/forum-store.ts#L672) · [app/web/sites/portal/lib/links.ts:15](../../../app/web/sites/portal/lib/links.ts#L15) · [app/web/shared/config/index.ts:24](../../../app/web/shared/config/index.ts#L24) · [app/web/sites/portal/components/os/Widgets.tsx:64](../../../app/web/sites/portal/components/os/Widgets.tsx#L64)
+源码：[app/server/src/routes/oidc/index.ts:169](../../../app/server/src/routes/oidc/index.ts#L169) · [app/server/src/lib/oidc-provider.ts:74](../../../app/server/src/lib/oidc-provider.ts#L74) · [app/server/src/lib/oidc-store.ts:52](../../../app/server/src/lib/oidc-store.ts#L52) · [app/server/src/lib/account-directory.ts:19](../../../app/server/src/lib/account-directory.ts#L19) · [app/server/src/lib/db.ts:491](../../../app/server/src/lib/db.ts#L491) · [app/server/src/lib/identity-store.ts:768](../../../app/server/src/lib/identity-store.ts#L768) · [app/server/src/lib/forum-store.ts:672](../../../app/server/src/lib/forum-store.ts#L672) · [app/web/sites/portal/lib/links.ts:15](../../../app/web/sites/portal/lib/links.ts#L15) · [app/web/shared/config/index.ts:24](../../../app/web/shared/config/index.ts#L24) · [app/web/sites/portal/components/os/Widgets.tsx:64](../../../app/web/sites/portal/components/os/Widgets.tsx#L64)
 
 测试入口：[tests/server/oidc.test.ts](../../../tests/server/oidc.test.ts)。生成器未执行这些测试。
 
@@ -2547,7 +2565,7 @@
 - 响应与错误：200 {client:{id,name,host},scopes,account:{login,name,picture},expires_at}；账号还没有登录邮箱 403 email_required（#273）；交互过期 404 interaction_expired；不是要同意的交互或换了账号 409 interaction_mismatch；没登录 401。
 - 数据与副作用：只读，不改交互。
 
-源码：[app/server/src/routes/oidc/index.ts:117](../../../app/server/src/routes/oidc/index.ts#L117) · [app/server/src/middleware/http-policy.ts:80](../../../app/server/src/middleware/http-policy.ts#L80) · [app/server/src/routes/oidc/contracts.ts:19](../../../app/server/src/routes/oidc/contracts.ts#L19) · [app/console/src/pages/Authorize.vue:58](../../../app/console/src/pages/Authorize.vue#L58) · [app/console/src/lib/authorize.ts:18](../../../app/console/src/lib/authorize.ts#L18) · [app/console/src/router.ts:16](../../../app/console/src/router.ts#L16) · [app/console/src/mock/index.ts:38](../../../app/console/src/mock/index.ts#L38) · [app/console/src/pages/Authorize.vue:46](../../../app/console/src/pages/Authorize.vue#L46)
+源码：[app/server/src/routes/oidc/index.ts:117](../../../app/server/src/routes/oidc/index.ts#L117) · [app/server/src/middleware/http-policy.ts:80](../../../app/server/src/middleware/http-policy.ts#L80) · [app/server/src/routes/oidc/contracts.ts:19](../../../app/server/src/routes/oidc/contracts.ts#L19) · [app/console/src/pages/Authorize.vue:58](../../../app/console/src/pages/Authorize.vue#L58) · [app/console/src/lib/authorize.ts:18](../../../app/console/src/lib/authorize.ts#L18) · [app/console/src/router.ts:17](../../../app/console/src/router.ts#L17) · [app/console/src/mock/index.ts:38](../../../app/console/src/mock/index.ts#L38) · [app/console/src/pages/Authorize.vue:46](../../../app/console/src/pages/Authorize.vue#L46)
 
 测试入口：[tests/server/oidc.test.ts](../../../tests/server/oidc.test.ts) · [tests/console/authorize.test.ts](../../../tests/console/authorize.test.ts)。生成器未执行这些测试。
 
@@ -2598,7 +2616,7 @@
 - 响应与错误：200 {mode,gitlab_url,group,client_registered,accounts:[{account_id,login,username,gitlab_user_id,state,access_level,last_error,last_error_at,synced_at,pending}]}；pending 是现在还要做的事（同步关着时为空），client_registered 说明 gitlab 客户端登记了没有；没权限 403 missing_capability。
 - 数据与副作用：只读。控制台「成员与权限」在 mode 不是 off 时多一列「GitLab」，按 account_id 对上名单。
 
-源码：[app/server/src/routes/console/gitlab.ts:19](../../../app/server/src/routes/console/gitlab.ts#L19) · [app/server/src/routes/console/contracts.ts:165](../../../app/server/src/routes/console/contracts.ts#L165) · [app/server/src/lib/gitlab-sync.ts:82](../../../app/server/src/lib/gitlab-sync.ts#L82) · [app/server/src/routes/console/index.ts:35](../../../app/server/src/routes/console/index.ts#L35) · [app/console/src/pages/gitlab/Accounts.vue:25](../../../app/console/src/pages/gitlab/Accounts.vue#L25) · [app/console/src/lib/gitlab.ts:84](../../../app/console/src/lib/gitlab.ts#L84) · [app/console/src/mock/console.ts:1031](../../../app/console/src/mock/console.ts#L1031) · [app/console/src/lib/types.ts:138](../../../app/console/src/lib/types.ts#L138)
+源码：[app/server/src/routes/console/gitlab.ts:19](../../../app/server/src/routes/console/gitlab.ts#L19) · [app/server/src/routes/console/contracts.ts:165](../../../app/server/src/routes/console/contracts.ts#L165) · [app/server/src/lib/gitlab-sync.ts:82](../../../app/server/src/lib/gitlab-sync.ts#L82) · [app/server/src/routes/console/index.ts:36](../../../app/server/src/routes/console/index.ts#L36) · [app/console/src/pages/gitlab/Accounts.vue:25](../../../app/console/src/pages/gitlab/Accounts.vue#L25) · [app/console/src/lib/gitlab.ts:84](../../../app/console/src/lib/gitlab.ts#L84) · [app/console/src/mock/console.ts:1060](../../../app/console/src/mock/console.ts#L1060) · [app/console/src/lib/types.ts:139](../../../app/console/src/lib/types.ts#L139)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts) · [tests/console/gitlab.test.ts](../../../tests/console/gitlab.test.ts)。生成器未执行这些测试。
 
@@ -2615,7 +2633,7 @@
 - 响应与错误：200 {mode,account_id,login,actions,applied,error}；GITLAB_SYNC=off 时 409 gitlab_sync_off；账号不存在 404 account_not_found；GitLab 出错不回 5xx，写进 error 与 last_error。
 - 数据与副作用：按 OIDC 身份（provider=openid_connect，extern_uid=gitlab 客户端 sector 的 sub）找或建 GitLab 用户、调组权限、封禁或解封、传头像（论坛头像或 256 像素的 GitHub 头像，200 KiB 以内，来源记进 avatar_source，#271）、同步邮箱（主邮箱、账号页绑的其它邮箱和 GitHub noreply 邮箱以已确认的加到 GitLab 用户名下，在极客班删掉的从 GitLab 删掉，记进 emails_source，#272），从不删除 GitLab 用户；dry-run 只返回 actions 不写；写操作记录 gitlab.sync，操作人是会话账号。
 
-源码：[app/server/src/routes/console/gitlab.ts:23](../../../app/server/src/routes/console/gitlab.ts#L23) · [app/server/src/routes/console/contracts.ts:172](../../../app/server/src/routes/console/contracts.ts#L172) · [app/server/src/lib/gitlab-sync.ts:82](../../../app/server/src/lib/gitlab-sync.ts#L82) · [app/server/src/lib/db.ts:538](../../../app/server/src/lib/db.ts#L538) · [app/server/src/lib/identity-store.ts:763](../../../app/server/src/lib/identity-store.ts#L763) · [app/console/src/pages/gitlab/Accounts.vue:64](../../../app/console/src/pages/gitlab/Accounts.vue#L64) · [app/console/src/lib/gitlab.ts:80](../../../app/console/src/lib/gitlab.ts#L80) · [app/console/src/lib/types.ts:139](../../../app/console/src/lib/types.ts#L139)
+源码：[app/server/src/routes/console/gitlab.ts:23](../../../app/server/src/routes/console/gitlab.ts#L23) · [app/server/src/routes/console/contracts.ts:172](../../../app/server/src/routes/console/contracts.ts#L172) · [app/server/src/lib/gitlab-sync.ts:82](../../../app/server/src/lib/gitlab-sync.ts#L82) · [app/server/src/lib/db.ts:538](../../../app/server/src/lib/db.ts#L538) · [app/server/src/lib/identity-store.ts:774](../../../app/server/src/lib/identity-store.ts#L774) · [app/console/src/pages/gitlab/Accounts.vue:64](../../../app/console/src/pages/gitlab/Accounts.vue#L64) · [app/console/src/lib/gitlab.ts:80](../../../app/console/src/lib/gitlab.ts#L80) · [app/console/src/lib/types.ts:140](../../../app/console/src/lib/types.ts#L140)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts) · [tests/console/gitlab.test.ts](../../../tests/console/gitlab.test.ts)。生成器未执行这些测试。
 
@@ -2870,7 +2888,7 @@
 - 响应与错误：200 {groups:[{id,kind,name,description,weight,department_id,icon,tone,sort,system,parents,member_count,entries}]}，按 sort 升序。
 - 数据与副作用：只读；entries 的 value 保留原始三态（true/false/null，null 配 meta_value），不像判定引擎那样把 null 当 false。
 
-源码：[app/server/src/routes/console/permission-groups.ts:109](../../../app/server/src/routes/console/permission-groups.ts#L109) · [app/server/src/routes/console/contracts.ts:318](../../../app/server/src/routes/console/contracts.ts#L318) · [app/console/src/pages/permissions/GroupsTab.vue:13](../../../app/console/src/pages/permissions/GroupsTab.vue#L13) · [app/console/src/pages/permissions/GroupDetail.vue:26](../../../app/console/src/pages/permissions/GroupDetail.vue#L26) · [app/console/src/pages/permissions/CreateGroupDialog.vue:17](../../../app/console/src/pages/permissions/CreateGroupDialog.vue#L17) · [app/console/src/pages/permissions/EntryDialog.vue:16](../../../app/console/src/pages/permissions/EntryDialog.vue#L16) · [app/server/src/lib/migrations/2026-10-yugc-v2.ts:6](../../../app/server/src/lib/migrations/2026-10-yugc-v2.ts#L6)
+源码：[app/server/src/routes/console/permission-groups.ts:109](../../../app/server/src/routes/console/permission-groups.ts#L109) · [app/server/src/routes/console/contracts.ts:318](../../../app/server/src/routes/console/contracts.ts#L318) · [app/console/src/pages/permissions/GroupsTab.vue:13](../../../app/console/src/pages/permissions/GroupsTab.vue#L13) · [app/console/src/pages/permissions/GroupDetail.vue:27](../../../app/console/src/pages/permissions/GroupDetail.vue#L27) · [app/console/src/pages/permissions/CreateGroupDialog.vue:17](../../../app/console/src/pages/permissions/CreateGroupDialog.vue#L17) · [app/console/src/pages/permissions/EntryDialog.vue:17](../../../app/console/src/pages/permissions/EntryDialog.vue#L17) · [app/server/src/lib/migrations/2026-10-yugc-v2.ts:6](../../../app/server/src/lib/migrations/2026-10-yugc-v2.ts#L6)
 
 测试入口：[tests/server/console-permissions.test.ts](../../../tests/server/console-permissions.test.ts)。生成器未执行这些测试。
 
@@ -2989,7 +3007,7 @@
 - 响应与错误：200 {items:[{account_id,username,display_name,real_name?,grade,grade_label,avatar_url,status,level,department,titles,providers,gitlab,last_login_at,created_at}],next_cursor,counts}；real_name 只回给有 users.manage 的调用者，q 也只在这时按真实姓名搜（#280）；department=dept.none 筛出没有部门成员资格的账号；cursor 是按 created_at,id 的不透明游标，固定 50 条一页。
 - 数据与副作用：只读；gitlab 字段的 state 由 gitlab_accounts.state/last_error 映射成 synced|pending|failed|blocked|none；counts.visitor_today 在 #274 阶段 3（operation 记录）落地前固定 0。
 
-源码：[app/server/src/routes/console/users.ts:115](../../../app/server/src/routes/console/users.ts#L115) · [app/server/src/routes/console/contracts.ts:362](../../../app/server/src/routes/console/contracts.ts#L362) · [app/server/src/lib/console-scope.ts:26](../../../app/server/src/lib/console-scope.ts#L26) · [app/server/src/lib/cursor.ts:10](../../../app/server/src/lib/cursor.ts#L10) · [app/server/src/lib/sql-text.ts:10](../../../app/server/src/lib/sql-text.ts#L10) · [app/console/src/pages/Users.vue:29](../../../app/console/src/pages/Users.vue#L29) · [app/console/src/lib/users.ts:1](../../../app/console/src/lib/users.ts#L1) · [app/console/src/lib/levels.ts:1](../../../app/console/src/lib/levels.ts#L1) · [app/console/src/lib/statuses.ts:1](../../../app/console/src/lib/statuses.ts#L1) · [app/console/src/lib/tone.ts:1](../../../app/console/src/lib/tone.ts#L1) · [app/console/src/lib/tabs.ts:4](../../../app/console/src/lib/tabs.ts#L4) · [app/console/src/components/AccountPicker.vue:10](../../../app/console/src/components/AccountPicker.vue#L10) · [app/console/src/components/CapabilityGate.vue:9](../../../app/console/src/components/CapabilityGate.vue#L9) · [app/console/src/components/UserCell.vue:4](../../../app/console/src/components/UserCell.vue#L4) · [app/console/src/components/ErrorAlert.vue:10](../../../app/console/src/components/ErrorAlert.vue#L10) · [app/console/src/components/ErrorPanel.vue:11](../../../app/console/src/components/ErrorPanel.vue#L11) · [app/console/src/components/TitleBadge.vue:7](../../../app/console/src/components/TitleBadge.vue#L7) · [app/console/src/components/ToneTag.vue:7](../../../app/console/src/components/ToneTag.vue#L7) · [app/console/src/mock/console.ts:931](../../../app/console/src/mock/console.ts#L931)
+源码：[app/server/src/routes/console/users.ts:115](../../../app/server/src/routes/console/users.ts#L115) · [app/server/src/routes/console/contracts.ts:362](../../../app/server/src/routes/console/contracts.ts#L362) · [app/server/src/lib/console-scope.ts:26](../../../app/server/src/lib/console-scope.ts#L26) · [app/server/src/lib/cursor.ts:10](../../../app/server/src/lib/cursor.ts#L10) · [app/server/src/lib/sql-text.ts:10](../../../app/server/src/lib/sql-text.ts#L10) · [app/console/src/pages/Users.vue:29](../../../app/console/src/pages/Users.vue#L29) · [app/console/src/lib/users.ts:1](../../../app/console/src/lib/users.ts#L1) · [app/console/src/lib/levels.ts:1](../../../app/console/src/lib/levels.ts#L1) · [app/console/src/lib/statuses.ts:1](../../../app/console/src/lib/statuses.ts#L1) · [app/console/src/lib/tone.ts:1](../../../app/console/src/lib/tone.ts#L1) · [app/console/src/lib/tabs.ts:4](../../../app/console/src/lib/tabs.ts#L4) · [app/console/src/components/AccountPicker.vue:10](../../../app/console/src/components/AccountPicker.vue#L10) · [app/console/src/components/CapabilityGate.vue:9](../../../app/console/src/components/CapabilityGate.vue#L9) · [app/console/src/components/UserCell.vue:4](../../../app/console/src/components/UserCell.vue#L4) · [app/console/src/components/ErrorAlert.vue:10](../../../app/console/src/components/ErrorAlert.vue#L10) · [app/console/src/components/ErrorPanel.vue:11](../../../app/console/src/components/ErrorPanel.vue#L11) · [app/console/src/components/TitleBadge.vue:7](../../../app/console/src/components/TitleBadge.vue#L7) · [app/console/src/components/ToneTag.vue:7](../../../app/console/src/components/ToneTag.vue#L7) · [app/console/src/mock/console.ts:950](../../../app/console/src/mock/console.ts#L950)
 
 测试入口：[tests/server/console-users.test.ts](../../../tests/server/console-users.test.ts) · [tests/server/real-info.test.ts](../../../tests/server/real-info.test.ts) · [tests/console/users.test.ts](../../../tests/console/users.test.ts)。生成器未执行这些测试。
 
@@ -3009,6 +3027,23 @@
 源码：[app/server/src/routes/console/users.ts:162](../../../app/server/src/routes/console/users.ts#L162) · [app/server/src/routes/console/contracts.ts:369](../../../app/server/src/routes/console/contracts.ts#L369) · [app/console/src/pages/users/UserDrawer.vue:38](../../../app/console/src/pages/users/UserDrawer.vue#L38) · [app/server/src/middleware/require-auth.ts:4](../../../app/server/src/middleware/require-auth.ts#L4) · [app/server/src/middleware/require-permission.ts:6](../../../app/server/src/middleware/require-permission.ts#L6) · [app/server/src/middleware/require-step-up.ts:4](../../../app/server/src/middleware/require-step-up.ts#L4) · [app/server/src/middleware/visitor.ts:4](../../../app/server/src/middleware/visitor.ts#L4) · [app/server/src/lib/session.ts:4](../../../app/server/src/lib/session.ts#L4)
 
 测试入口：[tests/server/console-users.test.ts](../../../tests/server/console-users.test.ts) · [tests/server/real-info.test.ts](../../../tests/server/real-info.test.ts) · [tests/console/users.test.ts](../../../tests/console/users.test.ts)。生成器未执行这些测试。
+
+### 导出一键系统备份
+
+标识：`flow:platform.system_backup`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /api/console/backup`
+- 能力：
+- 读取：
+- 写入：`sessions`、`device_grants`、`oauth_grants`、`oidc_payloads`、`email_challenges`、`invite_attempts`、`application_limits`、`limit_events`、`forum_rate_events`、`activity_events`
+- 不入队：
+- 权限与资源：需要节点 system.backup；种子里只有站长的根通配 `*` 默认拿到，部门部长等curated 列表没有这个节点。
+- 响应与错误：200，content-type application/gzip，content-disposition 带 yzgc-backup-<environment>-<日期>.tar.gz 文件名；没有节点 403。
+- 数据与副作用：在线备份出 data.db 快照副本，清空副本里的短时安全数据（sessions/device_grants/oauth_grants/oidc_payloads/email_challenges/invite_attempts/application_limits/limit_events/forum_rate_events）后流式打包成 tar.gz（manifest.json + data.db + sites/ 下的站点文件），不缓冲整个归档；单账号 5 分钟限 1 次；只记 activity.events 的 system.backup.export 摘要（文件数、表名、排除了哪些表），不记归档内容本身；临时目录随流关闭清理。
+
+源码：[app/server/src/routes/console/backup.ts:34](../../../app/server/src/routes/console/backup.ts#L34) · [app/server/src/lib/system-backup.ts:106](../../../app/server/src/lib/system-backup.ts#L106) · [app/server/src/lib/tar-stream.ts:91](../../../app/server/src/lib/tar-stream.ts#L91) · [app/server/src/lib/permission-nodes.ts:79](../../../app/server/src/lib/permission-nodes.ts#L79) · [app/console/src/pages/Backup.vue:34](../../../app/console/src/pages/Backup.vue#L34) · [scripts/backup-restore.mjs:62](../../../scripts/backup-restore.mjs#L62)
+
+测试入口：[tests/server/tar-stream.test.ts](../../../tests/server/tar-stream.test.ts) · [tests/server/system-backup.test.ts](../../../tests/server/system-backup.test.ts) · [tests/server/backup-route.test.ts](../../../tests/server/backup-route.test.ts) · [tests/tooling/backup-restore.test.ts](../../../tests/tooling/backup-restore.test.ts) · [tests/console/nav.test.ts](../../../tests/console/nav.test.ts) · [tests/console/permissions.test.ts](../../../tests/console/permissions.test.ts)。生成器未执行这些测试。
 
 ## 核验边界
 

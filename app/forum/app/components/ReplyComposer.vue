@@ -20,6 +20,11 @@ import { quoteDraft } from '../../shared/post-markdown'
  * Guest replies are gone (#276): the drawer only opens for an account the
  * server lets reply.
  *
+ * Like Bilibili's comment box (#276, the owner on 2026-10-24: 「这个聊天回复框有普通聊天框模式，
+ * 和b站一样，也有放大写长文的模式」): it opens as a short drawer, a box a few lines tall
+ * with 表情 and 图片 under it and 取消 / 回复 on the same row; 展开 makes it most of the
+ * screen for a long post, 收起 brings it back. The choice is kept while the page is open.
+ *
  * Against the forum server the drawer closes as soon as a reply is sent
  * (#145). A reply the server refuses comes back into the drawer with the post
  * it answered, in front of whatever the drawer holds by then, so nothing
@@ -55,6 +60,9 @@ const submitting = ref(false)
 const draft = usePostDraft(() => props.topic.id, content)
 
 const contentMax = computed(() => (serverMode ? MEMBER_CONTENT_MAX : Number.POSITIVE_INFINITY))
+const expanded = ref(false)
+// Short: the box, its toolbar and the header; long: most of the screen, the box grows with it.
+const drawerSize = computed(() => (expanded.value ? '86vh' : 264))
 const tooLong = computed(() => text.value.length > contentMax.value)
 const canSend = computed(() => !!text.value && !tooLong.value)
 
@@ -180,47 +188,58 @@ async function submit() {
   <TxDrawer
     :visible="visible"
     direction="bottom"
-    :size="500"
+    :size="drawerSize"
     :close-on-click-mask="false"
     :title="title"
     @update:visible="emit('update:visible', $event)"
   >
     <template #header>
-      <TxFlex align="center" :gap="8">
-        <i class="i-carbon-reply" aria-hidden="true" />
-        <span class="font-medium">{{ title }}</span>
+      <TxFlex align="center" justify="space-between" :gap="8" class="w-full">
+        <TxFlex align="center" :gap="8" class="min-w-0">
+          <i class="i-carbon-reply shrink-0" aria-hidden="true" />
+          <span class="truncate font-medium">{{ title }}</span>
+        </TxFlex>
+        <TxButton
+          variant="bare"
+          size="sm"
+          :icon="expanded ? 'i-ri-collapse-diagonal-line' : 'i-ri-expand-diagonal-line'"
+          :aria-pressed="expanded ? 'true' : 'false'"
+          data-composer-expand
+          @click="expanded = !expanded"
+        >
+          {{ expanded ? '收起' : '展开' }}
+        </TxButton>
       </TxFlex>
     </template>
 
-    <TxStack :gap="12">
-      <PostEditor
-        :key="editorKey"
-        v-model="content"
-        :min-height="240"
-        placeholder="写下你的回复，输入 / 打开菜单，@ 可以提到人"
-        label="回复内容"
-        @submit="submit"
-      />
-
-      <p v-if="tooLong" class="text-sm text-$tx-color-danger">
-        正文超过了 {{ contentMax }} 字，删减一些再发。
-      </p>
-    </TxStack>
-
-    <template #footer>
-      <TxFlex justify="flex-end" :gap="8">
-        <TxButton variant="secondary" @click="close">
+    <PostEditor
+      :key="editorKey"
+      v-model="content"
+      :min-height="expanded ? 400 : 96"
+      :grow="expanded"
+      placeholder="写下你的回复，输入 / 打开菜单，@ 可以提到人"
+      label="回复内容"
+      @submit="submit"
+    >
+      <template #status>
+        <span v-if="tooLong" class="text-xs text-$tx-color-danger">
+          正文超过了 {{ contentMax }} 字，删减一些再发。
+        </span>
+      </template>
+      <template #actions>
+        <TxButton variant="secondary" size="sm" @click="close">
           取消
         </TxButton>
         <TxButton
           variant="primary"
+          size="sm"
           :loading="submitting"
           :disabled="!canSend"
           @click="submit"
         >
           回复
         </TxButton>
-      </TxFlex>
-    </template>
+      </template>
+    </PostEditor>
   </TxDrawer>
 </template>

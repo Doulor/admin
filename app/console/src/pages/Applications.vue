@@ -7,6 +7,7 @@ import { TxFilterChips } from "@talex-touch/tuffex/filter-chips";
 import { TxSearchInput } from "@talex-touch/tuffex/search-input";
 import { TxButton } from "@talex-touch/tuffex/button";
 import { TxCellLink } from "@talex-touch/tuffex/cell-link";
+import { TxCardItem } from "@talex-touch/tuffex/card-item";
 import { TxEmptyState } from "@talex-touch/tuffex/empty-state";
 import { TxPagination } from "@talex-touch/tuffex/pagination";
 import { TxTooltip } from "@talex-touch/tuffex/tooltip";
@@ -89,7 +90,7 @@ const exportHref = computed(() => `/api/console/applications/export.csv${status.
     <ErrorPanel v-if="list.error.value" :error="list.error.value" :retry="list.reload" />
     <LoadingBlock v-else-if="!list.data.value" :lines="8" />
     <TxCard v-else :padding="0" class="table-card">
-      <TxDataTable style="--table-min: 680px" :columns="columns" :data="list.data.value.items" row-key="id" table-layout="fixed" scroll-x :loading="list.loading.value" @row-click="({ row }: { row: ApplicationItem }) => router.push(detailHref(row))">
+      <TxDataTable class="applications-table" style="--table-min: 680px" :columns="columns" :data="list.data.value.items" row-key="id" table-layout="fixed" scroll-x :loading="list.loading.value" @row-click="({ row }: { row: ApplicationItem }) => router.push(detailHref(row))">
         <template #cell-name="{ row }: { row: ApplicationItem }">
           <span class="cell-stack">
             <TxCellLink :href="detailHref(row)" :label="row.name" @open="router.push(detailHref(row))" />
@@ -120,6 +121,29 @@ const exportHref = computed(() => `/api/console/applications/export.csv${status.
           />
         </template>
       </TxDataTable>
+      <!-- 窄屏一人一张卡，点开同一个详情页；宽屏只显示上面的表格（和用户页同一做法）。 -->
+      <div class="application-cards">
+        <ul v-if="list.data.value.items.length" class="application-cards__list" :aria-busy="list.loading.value || undefined">
+          <li v-for="row in list.data.value.items" :key="row.id">
+            <TxCardItem clickable role="button" :aria-label="`打开 ${row.name} 的投递`" class="application-card" @click="router.push(detailHref(row))">
+              <template #title>{{ row.name }}</template>
+              <template #subtitle>{{ row.class_name }} · <span :title="fmtDate(row.created_at)">{{ fmtRelative(row.created_at) }}</span></template>
+              <template #right><ToneTag :tone="statusMeta(row.status).tone" :label="statusMeta(row.status).label" /></template>
+              <template #description>
+                <span class="clamp-2">{{ row.strengths_excerpt }}</span>
+                <span class="application-card__meta mono ellipsis">{{ row.email }}<template v-if="row.last_review"> · @{{ row.last_review.reviewer }}</template></span>
+              </template>
+            </TxCardItem>
+          </li>
+        </ul>
+        <TxEmptyState
+          v-else
+          :variant="q || status ? 'search-empty' : 'no-data'"
+          :title="q || status ? '没有符合条件的投递' : '还没有收到投递'"
+          :description="q || status ? '换一个状态或关键词再试。' : '官网有人投递后会出现在这里。'"
+          size="small"
+        />
+      </div>
       <div v-if="list.data.value.total > PAGE_SIZE" class="pager">
         <TxPagination :current-page="page" :page-size="PAGE_SIZE" :total="list.data.value.total" show-info @update:current-page="(value: number) => setQuery({ page: value > 1 ? String(value) : undefined })" />
       </div>
@@ -147,6 +171,41 @@ const exportHref = computed(() => `/api/console/applications/export.csv${status.
   padding: 12px 16px;
   border-top: 1px solid var(--tx-border-color-lighter);
 }
+.application-cards {
+  display: none;
+}
+.application-cards__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.application-cards__list[aria-busy] {
+  opacity: 0.6;
+}
+.application-cards__list li + li {
+  border-top: 1px solid var(--tx-border-color-lighter);
+}
+.application-card {
+  --tx-card-item-padding: 14px 16px;
+  --tx-card-item-radius: 0;
+  min-height: 44px;
+}
+.application-card :deep(.tx-card-item__title) {
+  font-size: 15px;
+  font-weight: 500;
+}
+.application-card :deep(.tx-card-item__desc) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--tx-text-color-regular);
+}
+.application-card__meta {
+  font-size: 12px;
+  color: var(--tx-text-color-secondary);
+}
 @media (max-width: 900px) {
   .toolbar__end {
     margin-left: 0;
@@ -154,6 +213,14 @@ const exportHref = computed(() => `/api/console/applications/export.csv${status.
   }
   .search {
     width: 100%;
+  }
+}
+@media (max-width: 640px) {
+  .applications-table {
+    display: none;
+  }
+  .application-cards {
+    display: block;
   }
 }
 </style>

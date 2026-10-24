@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
+import { reportEvent } from "./lib/events";
 import { COMPETITION_MANAGE_PERMISSIONS, FORUM_PERMISSIONS, GITLAB_PERMISSIONS, USERS_PERMISSIONS } from "./lib/nav";
 
 /**
@@ -44,6 +45,7 @@ const routes: RouteRecordRaw[] = [
       { path: "gitlab/settings", ...gated(["gitlab.settings"], () => import("./pages/gitlab/Settings.vue")) },
       { path: "activity", ...gated(["activity.read"], () => import("./pages/Activity.vue")) },
       { path: "feedback", ...gated(["feedback.view"], () => import("./pages/Feedback.vue")) },
+      { path: "backup", ...gated(["system.backup"], () => import("./pages/Backup.vue")) },
       // 改版前的地址（#274）：成员与权限、审计日志拆成了用户、权限、操作记录；GitHub 组织整组去掉了。
       { path: "people", redirect: to => ({ path: "/console/users", query: to.query }) },
       { path: "audit", redirect: to => ({ path: "/console/activity", query: to.query }) },
@@ -57,4 +59,10 @@ export const router = createRouter({
   history: createWebHistory("/"),
   routes,
   scrollBehavior: (_to, _from, saved) => saved ?? { top: 0 },
+});
+
+// 页面浏览埋点（#274）：target_id 取匹配到的路由模式（如 `competitions/:id`），不是解析出的真实地址，
+// 不带比赛编号、用户名之类的参数真实值。
+router.afterEach(to => {
+  reportEvent("page.view", { target_type: "route", target_id: to.matched.at(-1)?.path ?? to.path });
 });
