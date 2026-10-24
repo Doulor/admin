@@ -56,95 +56,7 @@
       "implies": [],
       "label": "进入控制台",
       "source": {
-        "line": 74,
-        "path": "app/server/src/lib/roles.ts"
-      }
-    },
-    {
-      "capability": "github.org.read",
-      "capabilityDomain": "github",
-      "description": "查看组织概况、成员、仓库、团队、活动、安全",
-      "domain": "github",
-      "id": "capability:github.org.read",
-      "implies": [],
-      "label": "查看 GitHub 组织",
-      "source": {
-        "line": 75,
-        "path": "app/server/src/lib/roles.ts"
-      }
-    },
-    {
-      "capability": "github.org.manage",
-      "capabilityDomain": "github",
-      "description": "修改组织资料与设置",
-      "domain": "github",
-      "id": "capability:github.org.manage",
-      "implies": [
-        "github.org.read"
-      ],
-      "label": "修改组织资料",
-      "source": {
-        "line": 76,
-        "path": "app/server/src/lib/roles.ts"
-      }
-    },
-    {
-      "capability": "github.members.manage",
-      "capabilityDomain": "github",
-      "description": "移除成员、修改成员角色",
-      "domain": "github",
-      "id": "capability:github.members.manage",
-      "implies": [
-        "github.org.read"
-      ],
-      "label": "管理组织成员",
-      "source": {
-        "line": 77,
-        "path": "app/server/src/lib/roles.ts"
-      }
-    },
-    {
-      "capability": "github.repos.manage",
-      "capabilityDomain": "github",
-      "description": "新建或删除仓库、管理协作者",
-      "domain": "github",
-      "id": "capability:github.repos.manage",
-      "implies": [
-        "github.org.read"
-      ],
-      "label": "管理仓库",
-      "source": {
-        "line": 78,
-        "path": "app/server/src/lib/roles.ts"
-      }
-    },
-    {
-      "capability": "github.teams.manage",
-      "capabilityDomain": "github",
-      "description": "新建或删除团队",
-      "domain": "github",
-      "id": "capability:github.teams.manage",
-      "implies": [
-        "github.org.read"
-      ],
-      "label": "管理团队",
-      "source": {
-        "line": 79,
-        "path": "app/server/src/lib/roles.ts"
-      }
-    },
-    {
-      "capability": "github.invites.manage",
-      "capabilityDomain": "github",
-      "description": "管理邀请和邀请链接",
-      "domain": "github",
-      "id": "capability:github.invites.manage",
-      "implies": [
-        "github.org.read"
-      ],
-      "label": "管理邀请",
-      "source": {
-        "line": 80,
+        "line": 84,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -157,7 +69,7 @@
       "implies": [],
       "label": "置顶话题",
       "source": {
-        "line": 81,
+        "line": 85,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -170,7 +82,7 @@
       "implies": [],
       "label": "关闭话题",
       "source": {
-        "line": 82,
+        "line": 86,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -183,7 +95,7 @@
       "implies": [],
       "label": "管理帖子",
       "source": {
-        "line": 83,
+        "line": 87,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -196,7 +108,7 @@
       "implies": [],
       "label": "管理分类",
       "source": {
-        "line": 84,
+        "line": 88,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -209,7 +121,7 @@
       "implies": [],
       "label": "授予论坛徽章",
       "source": {
-        "line": 85,
+        "line": 89,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -222,7 +134,7 @@
       "implies": [],
       "label": "查看投递",
       "source": {
-        "line": 86,
+        "line": 90,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -237,7 +149,7 @@
       ],
       "label": "审核投递",
       "source": {
-        "line": 87,
+        "line": 91,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -252,7 +164,7 @@
       ],
       "label": "导出投递",
       "source": {
-        "line": 88,
+        "line": 92,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -265,7 +177,7 @@
       "implies": [],
       "label": "查看意见箱",
       "source": {
-        "line": 89,
+        "line": 93,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -280,7 +192,7 @@
       ],
       "label": "处理意见",
       "source": {
-        "line": 90,
+        "line": 94,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -293,7 +205,7 @@
       "implies": [],
       "label": "查看审计日志",
       "source": {
-        "line": 91,
+        "line": 95,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -308,7 +220,7 @@
       ],
       "label": "管理称号与部门",
       "source": {
-        "line": 92,
+        "line": 96,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -321,7 +233,7 @@
       "implies": [],
       "label": "任免本部门成员",
       "source": {
-        "line": 93,
+        "line": 97,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -334,7 +246,7 @@
       "implies": [],
       "label": "管理比赛",
       "source": {
-        "line": 94,
+        "line": 98,
         "path": "app/server/src/lib/roles.ts"
       }
     },
@@ -347,7 +259,7 @@
       "implies": [],
       "label": "管理注册邀请码",
       "source": {
-        "line": 95,
+        "line": 99,
         "path": "app/server/src/lib/roles.ts"
       }
     }
@@ -356,7 +268,7 @@
     "automaticHead": 81,
     "businessOperations": 164,
     "businessOperationsWithFlow": 164,
-    "capabilities": 22,
+    "capabilities": 16,
     "declaredFlows": 170,
     "responseSchemas": 130,
     "routeMethods": 274,
@@ -2349,7 +2261,7 @@
       "domain": "organization",
       "evidence": [
         {
-          "line": 28,
+          "line": 29,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -2414,7 +2326,7 @@
       "domain": "organization",
       "evidence": [
         {
-          "line": 59,
+          "line": 60,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -2422,7 +2334,7 @@
           "path": "app/server/src/lib/beijing-time.ts"
         },
         {
-          "line": 72,
+          "line": 73,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
@@ -3359,7 +3271,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -3423,7 +3335,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -3484,7 +3396,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -6056,7 +5968,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 94,
+          "line": 98,
           "path": "app/server/src/lib/roles.ts"
         },
         {
@@ -11467,36 +11379,6 @@
       "title": "置顶话题"
     },
     {
-      "id": "capability:github.invites.manage",
-      "kind": "capability",
-      "title": "管理邀请"
-    },
-    {
-      "id": "capability:github.members.manage",
-      "kind": "capability",
-      "title": "管理组织成员"
-    },
-    {
-      "id": "capability:github.org.manage",
-      "kind": "capability",
-      "title": "修改组织资料"
-    },
-    {
-      "id": "capability:github.org.read",
-      "kind": "capability",
-      "title": "查看 GitHub 组织"
-    },
-    {
-      "id": "capability:github.repos.manage",
-      "kind": "capability",
-      "title": "管理仓库"
-    },
-    {
-      "id": "capability:github.teams.manage",
-      "kind": "capability",
-      "title": "管理团队"
-    },
-    {
       "id": "capability:roles.department.manage",
       "kind": "capability",
       "title": "任免本部门成员"
@@ -14594,7 +14476,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "10b2e02fe7602c8c4194ddcb7c594f5be49af4f0bcec3a2c0c9c13014e1bd8ea",
+    "fingerprint": "5ba98642143a284cdc9cacc04240887dca879bd8fee7a64e9be3f1f5cc85a8cd",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -15362,7 +15244,7 @@
       },
       {
         "path": "app/server/src/config.ts",
-        "sha256": "c29acff156ca2af8a8e84d62f572253d459b5e08fe78c7c976aa628039f3234f"
+        "sha256": "b16b2072fbbe442d335d35c24e0ca919c5b11aba540b38d4708a72b9032b0e0c"
       },
       {
         "path": "app/server/src/index.ts",
@@ -15474,7 +15356,7 @@
       },
       {
         "path": "app/server/src/lib/feedback-store.ts",
-        "sha256": "599ea7cc90e2420d6c2145e2f140237ea25603308afc985c3c4a5f85f9a66e3f"
+        "sha256": "469801a2295dd5b5a8ee5377741048ffaa64d84975991aa3db8250d42cd018d8"
       },
       {
         "path": "app/server/src/lib/forum-avatar.ts",
@@ -15590,7 +15472,7 @@
       },
       {
         "path": "app/server/src/lib/roles.ts",
-        "sha256": "7ef8ebc7675bd2cbc84100d69b8aa2f8aaae090599a70f722ea99d1b28223f1a"
+        "sha256": "05fcc6daadf491e4a0a07720957fdb77b823e27b1d6d7cb908e12e08f2a9c6d5"
       },
       {
         "path": "app/server/src/lib/safe-return.ts",
@@ -15702,7 +15584,7 @@
       },
       {
         "path": "app/server/src/routes/console/feedback.ts",
-        "sha256": "1eb046f19d9fc0502827728c77db00c1d2c64ad13c66b9db26b640e64f959dec"
+        "sha256": "f678dccb8d4dec9a87af5b72263516cb3b3ce8d76b031cb343b0992c4e8e643b"
       },
       {
         "path": "app/server/src/routes/console/forum.ts",
@@ -15722,7 +15604,7 @@
       },
       {
         "path": "app/server/src/routes/console/me.ts",
-        "sha256": "3787c9bff983b280fede43b03db66fb24d043dc827cb95d2128bcd68b31a26b7"
+        "sha256": "69c351f3f34aec228a13dab208acd35e6fdf67827321689f21c8f261d0a8263a"
       },
       {
         "path": "app/server/src/routes/console/permission-groups.ts",
@@ -15842,7 +15724,7 @@
       },
       {
         "path": "app/server/src/routes/portal/feedback.ts",
-        "sha256": "d6046f8f7cf4d245000405f3207eb84cd6904ca62dc01afb22bd8ef6a531f231"
+        "sha256": "720a0b42a8edb98ca2bc225b234c65573ffb67e1767927147b6c042d5b73eccb"
       },
       {
         "path": "app/server/src/routes/portal/gitlab.ts",
@@ -15866,7 +15748,7 @@
       },
       {
         "path": "app/server/src/services.ts",
-        "sha256": "0c774380e58a1d1d6575f18eb7d1db19148acc898341ec8ae3960f4fc89e2a30"
+        "sha256": "0ea8111a138c0e79ea8e1b7c08338fe3d04544599850a91a7e2b1b7404e445ad"
       },
       {
         "path": "app/web/Dockerfile",
@@ -16278,11 +16160,11 @@
       },
       {
         "path": "deploy/compose/preview.yml",
-        "sha256": "d3ee9863fb00dc44250e7f74d0afa59c4191f86def836646f24519a9a22d2239"
+        "sha256": "f93533f4c975d6e6658fd21a5ff51ac79988b707216fe9e489a189755045e2cf"
       },
       {
         "path": "deploy/compose/production.yml",
-        "sha256": "d301d42c0184937360c0fb93a2f8e6662185523f4d1d4213c8bdbb986c01c36f"
+        "sha256": "ee43ce2cc001e813712853b5102a9473a02dc9e7836f397f66b6bfd467b1efb5"
       },
       {
         "path": "docs/architecture/API.md",
@@ -16298,7 +16180,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "da3986bc278549fef390f9c00766eeefd2fbb336786db2145dc7f568c3561b44"
+        "sha256": "be002be5613c739b44aedccd246b3b2f14d39a6155999663ea291203c3a17f1d"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -16342,7 +16224,7 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "d59fb29ef9d5bf5d946eec9a05dc09e95d56a35068f513ee103e98da1be0320e"
+        "sha256": "ae5009de0772b8eb73f99a414c2d5b06042aad22d8524f1dbc4ac27bd07672f4"
       },
       {
         "path": "docs/services/server/data-model.md",
@@ -16518,11 +16400,11 @@
       },
       {
         "path": "tests/server/console.test.ts",
-        "sha256": "32359328940f88f6839758a9c54894f93a4f4e21385bd2391d9ab66dae4c581e"
+        "sha256": "8a13298a4b542600b72f57d4b1fafa5eb7d26ef2df6a1bbc7bec9e6900e1611e"
       },
       {
         "path": "tests/server/core.test.ts",
-        "sha256": "ea71cc413088e1feea33cc084ff1f0ccd1bca8a4cf8698a56856d1dba6a03ad5"
+        "sha256": "4239ca91c6c8574b98c91ca013eb0af41bb3fca621381711827c51465b581c57"
       },
       {
         "path": "tests/server/device-flow.test.ts",
@@ -16534,7 +16416,7 @@
       },
       {
         "path": "tests/server/feedback-org.test.ts",
-        "sha256": "e65feb204918dc3f91e960631548302a9de5f621dd2c90c81b94aebced22d8d3"
+        "sha256": "0bc1ea97f2dedd9b3f1076cde9e865a34f63cd640cdba8fde3ee484d7cdd20df"
       },
       {
         "path": "tests/server/forum-v2-endpoints.test.ts",
@@ -17293,7 +17175,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 28,
+          "line": 29,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
@@ -17353,7 +17235,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 59,
+          "line": 60,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
@@ -18313,7 +18195,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 28,
+          "line": 29,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
@@ -18373,7 +18255,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 59,
+          "line": 60,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
@@ -20059,7 +19941,7 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 88,
+          "line": 92,
           "path": "app/server/src/lib/roles.ts"
         }
       ],
@@ -20083,7 +19965,7 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 87,
+          "line": 91,
           "path": "app/server/src/lib/roles.ts"
         }
       ],
@@ -20119,7 +20001,7 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 90,
+          "line": 94,
           "path": "app/server/src/lib/roles.ts"
         }
       ],
@@ -20165,102 +20047,6 @@
     },
     {
       "basis": "declaration",
-      "from": "capability:github.invites.manage",
-      "to": "domain:github",
-      "type": "belongs-to"
-    },
-    {
-      "basis": "static-evidence",
-      "evidence": [
-        {
-          "line": 80,
-          "path": "app/server/src/lib/roles.ts"
-        }
-      ],
-      "from": "capability:github.invites.manage",
-      "to": "capability:github.org.read",
-      "type": "implies"
-    },
-    {
-      "basis": "declaration",
-      "from": "capability:github.members.manage",
-      "to": "domain:github",
-      "type": "belongs-to"
-    },
-    {
-      "basis": "static-evidence",
-      "evidence": [
-        {
-          "line": 77,
-          "path": "app/server/src/lib/roles.ts"
-        }
-      ],
-      "from": "capability:github.members.manage",
-      "to": "capability:github.org.read",
-      "type": "implies"
-    },
-    {
-      "basis": "declaration",
-      "from": "capability:github.org.manage",
-      "to": "domain:github",
-      "type": "belongs-to"
-    },
-    {
-      "basis": "static-evidence",
-      "evidence": [
-        {
-          "line": 76,
-          "path": "app/server/src/lib/roles.ts"
-        }
-      ],
-      "from": "capability:github.org.manage",
-      "to": "capability:github.org.read",
-      "type": "implies"
-    },
-    {
-      "basis": "declaration",
-      "from": "capability:github.org.read",
-      "to": "domain:github",
-      "type": "belongs-to"
-    },
-    {
-      "basis": "declaration",
-      "from": "capability:github.repos.manage",
-      "to": "domain:github",
-      "type": "belongs-to"
-    },
-    {
-      "basis": "static-evidence",
-      "evidence": [
-        {
-          "line": 78,
-          "path": "app/server/src/lib/roles.ts"
-        }
-      ],
-      "from": "capability:github.repos.manage",
-      "to": "capability:github.org.read",
-      "type": "implies"
-    },
-    {
-      "basis": "declaration",
-      "from": "capability:github.teams.manage",
-      "to": "domain:github",
-      "type": "belongs-to"
-    },
-    {
-      "basis": "static-evidence",
-      "evidence": [
-        {
-          "line": 79,
-          "path": "app/server/src/lib/roles.ts"
-        }
-      ],
-      "from": "capability:github.teams.manage",
-      "to": "capability:github.org.read",
-      "type": "implies"
-    },
-    {
-      "basis": "declaration",
       "from": "capability:roles.department.manage",
       "to": "domain:organization",
       "type": "belongs-to"
@@ -20275,7 +20061,7 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 92,
+          "line": 96,
           "path": "app/server/src/lib/roles.ts"
         }
       ],
@@ -25397,7 +25183,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 94,
+          "line": 98,
           "path": "app/server/src/lib/roles.ts"
         },
         {
@@ -25425,7 +25211,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 94,
+          "line": 98,
           "path": "app/server/src/lib/roles.ts"
         },
         {
@@ -25453,7 +25239,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 94,
+          "line": 98,
           "path": "app/server/src/lib/roles.ts"
         },
         {
@@ -25481,7 +25267,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 94,
+          "line": 98,
           "path": "app/server/src/lib/roles.ts"
         },
         {
@@ -25509,7 +25295,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 94,
+          "line": 98,
           "path": "app/server/src/lib/roles.ts"
         },
         {
@@ -25537,7 +25323,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 94,
+          "line": 98,
           "path": "app/server/src/lib/roles.ts"
         },
         {
@@ -25589,7 +25375,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 94,
+          "line": 98,
           "path": "app/server/src/lib/roles.ts"
         },
         {
@@ -25617,7 +25403,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 94,
+          "line": 98,
           "path": "app/server/src/lib/roles.ts"
         },
         {
@@ -25645,7 +25431,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 94,
+          "line": 98,
           "path": "app/server/src/lib/roles.ts"
         },
         {
@@ -25673,7 +25459,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 94,
+          "line": 98,
           "path": "app/server/src/lib/roles.ts"
         },
         {
@@ -45297,7 +45083,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 28,
+          "line": 29,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -45329,7 +45115,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 28,
+          "line": 29,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -45361,7 +45147,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 28,
+          "line": 29,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -45393,7 +45179,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 28,
+          "line": 29,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -45443,7 +45229,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 28,
+          "line": 29,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -45499,7 +45285,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 59,
+          "line": 60,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -45507,7 +45293,7 @@
           "path": "app/server/src/lib/beijing-time.ts"
         },
         {
-          "line": 72,
+          "line": 73,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
@@ -45519,7 +45305,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 59,
+          "line": 60,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -45527,7 +45313,7 @@
           "path": "app/server/src/lib/beijing-time.ts"
         },
         {
-          "line": 72,
+          "line": 73,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
@@ -45539,7 +45325,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 59,
+          "line": 60,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -45547,7 +45333,7 @@
           "path": "app/server/src/lib/beijing-time.ts"
         },
         {
-          "line": 72,
+          "line": 73,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
@@ -45559,7 +45345,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 59,
+          "line": 60,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -45567,7 +45353,7 @@
           "path": "app/server/src/lib/beijing-time.ts"
         },
         {
-          "line": 72,
+          "line": 73,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
@@ -45585,7 +45371,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 59,
+          "line": 60,
           "path": "app/server/src/routes/console/me.ts"
         },
         {
@@ -45593,7 +45379,7 @@
           "path": "app/server/src/lib/beijing-time.ts"
         },
         {
-          "line": 72,
+          "line": 73,
           "path": "app/server/src/routes/console/me.ts"
         }
       ],
@@ -45765,7 +45551,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -45785,7 +45571,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -45805,7 +45591,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -45825,7 +45611,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -45845,7 +45631,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -45865,7 +45651,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -45903,7 +45689,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -45923,7 +45709,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -45943,7 +45729,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -45963,7 +45749,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46007,7 +45793,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46031,7 +45817,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46055,7 +45841,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46079,7 +45865,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46103,7 +45889,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46127,7 +45913,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46169,7 +45955,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46193,7 +45979,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46217,7 +46003,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46265,7 +46051,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46285,7 +46071,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46305,7 +46091,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46325,7 +46111,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46345,7 +46131,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46365,7 +46151,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46403,7 +46189,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46423,7 +46209,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46443,7 +46229,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -46463,7 +46249,7 @@
           "path": "app/server/src/routes/console/feedback.ts"
         },
         {
-          "line": 22,
+          "line": 24,
           "path": "app/server/src/lib/feedback-store.ts"
         },
         {
@@ -83170,7 +82956,7 @@
         }
       },
       "source": {
-        "line": 28,
+        "line": 29,
         "path": "app/server/src/routes/console/me.ts"
       }
     },
@@ -83975,7 +83761,7 @@
         }
       },
       "source": {
-        "line": 59,
+        "line": 60,
         "path": "app/server/src/routes/console/me.ts"
       }
     },
@@ -92631,7 +92417,7 @@
         }
       },
       "source": {
-        "line": 28,
+        "line": 29,
         "path": "app/server/src/routes/console/me.ts"
       }
     },
@@ -92960,7 +92746,7 @@
         }
       },
       "source": {
-        "line": 59,
+        "line": 60,
         "path": "app/server/src/routes/console/me.ts"
       }
     },
@@ -112380,7 +112166,6 @@
         "competitions",
         "feedback",
         "forum",
-        "github",
         "identity",
         "organization",
         "recruitment"

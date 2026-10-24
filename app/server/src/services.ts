@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { request } from "undici";
 import type { Octokit } from "@octokit/rest";
-import type { AppConfig } from "./config.js";
+import { DEFAULT_CONSOLE_ORG, type AppConfig } from "./config.js";
 import { createDatabase } from "./lib/db.js";
 import { createCrypto } from "./lib/crypto.js";
 import { createAuth } from "./lib/auth.js";
@@ -85,10 +85,10 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
   // 年级系数、奖项与 GitLab 项目（#278）：记分时按这里的系数加权，记下的分之后不再重算。
   const competitionRules = createCompetitionRulesStore(storage.db);
   const competitionScores = createCompetitionScoreStore(storage.db, competitions, competitionSignups, competitionRules);
-  // 历史数据一次性归一（#129）：把 org 只是大小写不同的旧行改成 CONSOLE_ORG 的写法，重复启动安全。
+  // 历史数据一次性归一（#129）：把 org 只是大小写不同的旧行改成 DEFAULT_CONSOLE_ORG 的写法，重复启动安全。
   // 改不动就让启动失败，失败前先关掉刚打开的库，与下面论坛、发信的处理一致。
   try {
-    feedback.normalizeOrgSpelling(config.consoleOrg);
+    feedback.normalizeOrgSpelling(DEFAULT_CONSOLE_ORG);
   } catch (error) {
     storage.db.close();
     throw error;

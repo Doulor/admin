@@ -323,7 +323,6 @@
     "roles": "organization",
     "applications": "recruitment",
     "feedback": "feedback",
-    "github": "github",
     "forum": "forum",
     "audit": "audit",
     "competitions": "competitions",
@@ -2957,7 +2956,7 @@
       "evidence": [
         {
           "path": "app/server/src/routes/portal/feedback.ts",
-          "needle": "  app.get(\"/api/feedback/categories\", async () => ({ categories: CATEGORIES, pow_difficulty: powDifficulty(), org: config.consoleOrg }));"
+          "needle": "  app.get(\"/api/feedback/categories\", async () => ({ categories: CATEGORIES, pow_difficulty: powDifficulty(), org: DEFAULT_CONSOLE_ORG }));"
         }
       ],
       "tests": [

@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`10b2e02fe7602c8c4194ddcb7c594f5be49af4f0bcec3a2c0c9c13014e1bd8ea`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`5ba98642143a284cdc9cacc04240887dca879bd8fee7a64e9be3f1f5cc85a8cd`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -12,7 +12,7 @@
 
 - 5 个源码应用，3 个运行单元。
 - 274 个已注册方法与路径，其中业务操作 164 个，自动 HEAD 81 个。
-- 68 张应用表，22 个能力，170 条显式业务流程。
+- 68 张应用表，16 个能力，170 条显式业务流程。
 - 响应 Schema：130/274。缺失不等于没有响应；不冒充完整 OpenAPI。
 
 业务流程关联：164/164 个业务操作；5/5 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
@@ -523,7 +523,7 @@
 - 数据与副作用：只读；level/department/titles 来自 perm_members/perm_groups（不再是 role_assignments），permissions 是 effective().allow 加上「只在本部门范围内允许」的节点（SCOPE_AWARE_NODES：users.view、apply.view、apply.review、activity.read、dept.manage），给前端判断导航显隐用，范围由各接口自己再收窄。
 - CONTRACT-274 §5 把旧的 site_role、capabilities、head_of、github 字段整体下线：旧的 people/departments/titles/assignments/catalogue/audit 路由已删，是唯一读过旧形状的地方，确认没有别的调用方。
 
-源码：[app/server/src/routes/console/me.ts:28](../../../app/server/src/routes/console/me.ts#L28) · [app/server/src/lib/permissions.ts:365](../../../app/server/src/lib/permissions.ts#L365) · [app/console/src/pages/Overview.vue:68](../../../app/console/src/pages/Overview.vue#L68) · [app/console/src/lib/session.ts:49](../../../app/console/src/lib/session.ts#L49) · [app/console/src/components/ConsoleShell.vue:21](../../../app/console/src/components/ConsoleShell.vue#L21) · [app/console/src/pages/ConsoleRoot.vue:38](../../../app/console/src/pages/ConsoleRoot.vue#L38)
+源码：[app/server/src/routes/console/me.ts:29](../../../app/server/src/routes/console/me.ts#L29) · [app/server/src/lib/permissions.ts:365](../../../app/server/src/lib/permissions.ts#L365) · [app/console/src/pages/Overview.vue:68](../../../app/console/src/pages/Overview.vue#L68) · [app/console/src/lib/session.ts:49](../../../app/console/src/lib/session.ts#L49) · [app/console/src/components/ConsoleShell.vue:21](../../../app/console/src/components/ConsoleShell.vue#L21) · [app/console/src/pages/ConsoleRoot.vue:38](../../../app/console/src/pages/ConsoleRoot.vue#L38)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
 
@@ -540,7 +540,7 @@
 - 响应与错误：200 只含获授权的统计键。
 - 数据与副作用：只读；candidates_pending 在 #278 落地前固定回 0；今日注册、今日被限流分别按北京时间当天零点起统计（beijingDayStart）。
 
-源码：[app/server/src/routes/console/me.ts:59](../../../app/server/src/routes/console/me.ts#L59) · [app/server/src/lib/beijing-time.ts:29](../../../app/server/src/lib/beijing-time.ts#L29) · [app/server/src/routes/console/me.ts:72](../../../app/server/src/routes/console/me.ts#L72)
+源码：[app/server/src/routes/console/me.ts:60](../../../app/server/src/routes/console/me.ts#L60) · [app/server/src/lib/beijing-time.ts:29](../../../app/server/src/lib/beijing-time.ts#L29) · [app/server/src/routes/console/me.ts:73](../../../app/server/src/routes/console/me.ts#L73)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -851,7 +851,7 @@
 - 数据与副作用：按org及可选status读列表与状态计数，不记查看审计。
 - 共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
-源码：[app/server/src/routes/console/feedback.ts:12](../../../app/server/src/routes/console/feedback.ts#L12) · [app/server/src/lib/feedback-store.ts:22](../../../app/server/src/lib/feedback-store.ts#L22) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/console/src/pages/Feedback.vue:29](../../../app/console/src/pages/Feedback.vue#L29)
+源码：[app/server/src/routes/console/feedback.ts:12](../../../app/server/src/routes/console/feedback.ts#L12) · [app/server/src/lib/feedback-store.ts:24](../../../app/server/src/lib/feedback-store.ts#L24) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/console/src/pages/Feedback.vue:29](../../../app/console/src/pages/Feedback.vue#L29)
 
 测试入口：[tests/server/feedback-org.test.ts](../../../tests/server/feedback-org.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts)。生成器未执行这些测试。
 
@@ -869,7 +869,7 @@
 - 数据与副作用：更新status、reply、replied_by/replied_at及updated_at，审计feedback.update；回复将由公开列表展示，不发邮件。
 - 共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
-源码：[app/server/src/routes/console/feedback.ts:18](../../../app/server/src/routes/console/feedback.ts#L18) · [app/server/src/lib/feedback-store.ts:22](../../../app/server/src/lib/feedback-store.ts#L22) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30)
+源码：[app/server/src/routes/console/feedback.ts:18](../../../app/server/src/routes/console/feedback.ts#L18) · [app/server/src/lib/feedback-store.ts:24](../../../app/server/src/lib/feedback-store.ts#L24) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30)
 
 测试入口：[tests/server/feedback-org.test.ts](../../../tests/server/feedback-org.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts)。生成器未执行这些测试。
 
@@ -887,7 +887,7 @@
 - 数据与副作用：删除反馈并审计feedback.delete，不能越过组织条件删除其他记录。
 - 共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
-源码：[app/server/src/routes/console/feedback.ts:31](../../../app/server/src/routes/console/feedback.ts#L31) · [app/server/src/lib/feedback-store.ts:22](../../../app/server/src/lib/feedback-store.ts#L22) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30)
+源码：[app/server/src/routes/console/feedback.ts:31](../../../app/server/src/routes/console/feedback.ts#L31) · [app/server/src/lib/feedback-store.ts:24](../../../app/server/src/lib/feedback-store.ts#L24) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30)
 
 测试入口：[tests/server/feedback-org.test.ts](../../../tests/server/feedback-org.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/core.test.ts](../../../tests/server/core.test.ts)。生成器未执行这些测试。
 
@@ -1633,7 +1633,7 @@
 - 201 {competition}；校验名称、时间范围和解析后的HTTPS地址；未知字段或错误时间/地址400，限流429。
 - 比赛行与competition.create审计同一事务提交；审计失败一起回滚，不发邮件，不创建报名或队伍。
 
-源码：[app/server/src/routes/console/competitions.ts:43](../../../app/server/src/routes/console/competitions.ts#L43) · [app/server/src/routes/console/contracts.ts:231](../../../app/server/src/routes/console/contracts.ts#L231) · [app/server/src/lib/db.ts:201](../../../app/server/src/lib/db.ts#L201) · [app/server/src/lib/roles.ts:94](../../../app/server/src/lib/roles.ts#L94) · [app/server/src/services.ts:82](../../../app/server/src/services.ts#L82)
+源码：[app/server/src/routes/console/competitions.ts:43](../../../app/server/src/routes/console/competitions.ts#L43) · [app/server/src/routes/console/contracts.ts:231](../../../app/server/src/routes/console/contracts.ts#L231) · [app/server/src/lib/db.ts:201](../../../app/server/src/lib/db.ts#L201) · [app/server/src/lib/roles.ts:98](../../../app/server/src/lib/roles.ts#L98) · [app/server/src/services.ts:82](../../../app/server/src/services.ts#L82)
 
 测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts)。生成器未执行这些测试。
 

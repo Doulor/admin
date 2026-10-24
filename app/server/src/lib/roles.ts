@@ -1,8 +1,12 @@
 /**
- * 极客班控制台的称号、部门与能力清单（纯数据 + 纯函数）。
+ * 极客班控制台旧的称号、部门与能力清单（纯数据 + 纯函数，role_assignments 时代）。
  *
- * 这里是服务端的唯一来源：接口 `/api/console/catalogue` 原样下发，授权中间件据此判定。
- * 不导入 Fastify，也不接触数据库；持久化见 `role-store.ts`，账号记下的站内角色见 `access.ts`。
+ * 不导入 Fastify，也不接触数据库；持久化见 `role-store.ts`，旧的站内角色计算见 `access.ts`。
+ * #276 核查发现：原先这里写「接口 `/api/console/catalogue` 原样下发，授权中间件据此判定」已经不是
+ * 真的——这个接口已经删除，真正的授权判定早就切到 #274 新权限体系（`lib/permissions.ts` 的
+ * `createPermissionEngine()`、`middleware/require-permission.ts`），这份清单与 `computeAccess()`
+ * 只剩 `GET /api/console/departments`（只读列表，按 ID 展示固定部门）和一条单测还在读；是不是整段删除
+ * 留给所有者或团队负责人决定，这次只按明确指出的 github.* 能力清理。
  */
 
 /** 徽章色调（浅色）。对比度按 WCAG 公式在白底与 12% 同色浅底上计算，均 ≥5.0:1。 */
@@ -56,12 +60,18 @@ export const TITLES: Record<TitleId, TitleDefinition> = {
 /** 部门舰员（`member` + 部门）：rank 3，中性色，徽章用 plain 变体；名字取舰员称号的名字。 */
 export const CREW_TITLE = { tag: "CREW", tone: "slate" as Tone, rank: 3 };
 
-export type CapabilityDomain = "console" | "github" | "forum" | "applications" | "feedback" | "audit" | "roles" | "competitions" | "accounts";
+// #276 挪来的 #274 清理：原来这里还有 github.* 六个能力和一个 "github" domain（查看/修改 GitHub
+// 组织、成员、仓库、团队、邀请），#274 把 GitHub 组织管理整组功能删除之后就没有任何接口按它们判定
+// （lib/access.ts 的 computeAccess() 虽然还在算这些能力，但它唯一的调用方 access.resolve() 在生产
+// 路由里零调用，见 services.ts 的 access 服务；/api/console/catalogue 本身也已经删除，不是本次改动
+// 新发现的）。grep 全仓确认零读者后删掉：GITHUB_CAPABILITIES 导出、IMPLIES 里五条指向
+// github.org.read 的蕴含关系、ROLE_BASE 里 head/member/alumni 的 github.org.read 授予、
+// DEFAULT_DEPARTMENTS 三个部门 head_capabilities 里的 github.* 项。
+export type CapabilityDomain = "console" | "forum" | "applications" | "feedback" | "audit" | "roles" | "competitions" | "accounts";
 export const DOMAINS: { id: CapabilityDomain; label: string }[] = [
   { id: "console", label: "控制台" },
   { id: "applications", label: "招新投递" },
   { id: "forum", label: "论坛" },
-  { id: "github", label: "GitHub 组织" },
   { id: "feedback", label: "意见箱" },
   { id: "audit", label: "审计" },
   { id: "roles", label: "称号与权限" },
@@ -72,12 +82,6 @@ export const DOMAINS: { id: CapabilityDomain; label: string }[] = [
 /** 能力清单：扁平、按类别分组。顺序即 `/api/console/me` 下发 capabilities 的顺序。 */
 export const CAPABILITIES = [
   { id: "console.access", domain: "console", label: "进入控制台", description: "进入控制台；持有任意一项能力就自动获得" },
-  { id: "github.org.read", domain: "github", label: "查看 GitHub 组织", description: "查看组织概况、成员、仓库、团队、活动、安全" },
-  { id: "github.org.manage", domain: "github", label: "修改组织资料", description: "修改组织资料与设置" },
-  { id: "github.members.manage", domain: "github", label: "管理组织成员", description: "移除成员、修改成员角色" },
-  { id: "github.repos.manage", domain: "github", label: "管理仓库", description: "新建或删除仓库、管理协作者" },
-  { id: "github.teams.manage", domain: "github", label: "管理团队", description: "新建或删除团队" },
-  { id: "github.invites.manage", domain: "github", label: "管理邀请", description: "管理邀请和邀请链接" },
   { id: "forum.topic.pin", domain: "forum", label: "置顶话题", description: "置顶话题" },
   { id: "forum.topic.close", domain: "forum", label: "关闭话题", description: "关闭话题" },
   { id: "forum.post.moderate", domain: "forum", label: "管理帖子", description: "编辑或删除他人帖子；在已关闭的话题里回复" },
@@ -105,15 +109,9 @@ export const CAPTAIN_ONLY: Capability[] = ["roles.manage"];
 /** 可以下放到部门权限包的能力。 */
 export const DELEGATABLE: Capability[] = CAPABILITY_IDS.filter(id => !CAPTAIN_ONLY.includes(id));
 export const FORUM_CAPABILITIES: Capability[] = CAPABILITY_IDS.filter(id => id.startsWith("forum."));
-export const GITHUB_CAPABILITIES: Capability[] = CAPABILITY_IDS.filter(id => id.startsWith("github."));
 
 /** 蕴含关系：持有左边即同时获得右边。计算时取闭包。 */
 export const IMPLIES: Partial<Record<Capability, Capability[]>> = {
-  "github.org.manage": ["github.org.read"],
-  "github.members.manage": ["github.org.read"],
-  "github.repos.manage": ["github.org.read"],
-  "github.teams.manage": ["github.org.read"],
-  "github.invites.manage": ["github.org.read"],
   "applications.review": ["applications.read"],
   "applications.export": ["applications.read"],
   "feedback.manage": ["feedback.read"],
@@ -124,9 +122,9 @@ export const IMPLIES: Partial<Record<Capability, Capability[]>> = {
 export const ROLE_BASE: Record<TitleId, Capability[]> = {
   admin: [...CAPABILITY_IDS],
   captain: [...CAPABILITY_IDS],
-  head: ["console.access", "github.org.read", "feedback.read", "roles.department.manage"],
-  member: ["console.access", "github.org.read"],
-  alumni: ["console.access", "github.org.read", "feedback.read"],
+  head: ["console.access", "feedback.read", "roles.department.manage"],
+  member: ["console.access"],
+  alumni: ["console.access", "feedback.read"],
   guest: [],
 };
 
@@ -173,13 +171,13 @@ export const DEFAULT_DEPARTMENTS: Omit<Department, "archived">[] = [
   {
     id: "recruitment", name: "招新部", tag: "RECRUIT", icon: "user-follow", tone: "coral", sort_order: 10,
     description: "负责招新宣传、投递评估与面试安排",
-    head_capabilities: ["applications.read", "applications.review", "applications.export", "github.invites.manage"],
+    head_capabilities: ["applications.read", "applications.review", "applications.export"],
     member_capabilities: ["applications.read", "applications.review"],
   },
   {
     id: "tech", name: "技术部", tag: "TECH", icon: "terminal", tone: "jade", sort_order: 20,
     description: "负责组织仓库、基础设施与技术规范",
-    head_capabilities: ["github.repos.manage", "github.teams.manage", "audit.read"],
+    head_capabilities: ["audit.read"],
     member_capabilities: [],
   },
   {
@@ -191,7 +189,7 @@ export const DEFAULT_DEPARTMENTS: Omit<Department, "archived">[] = [
   {
     id: "projects", name: "项目部", tag: "PROJECTS", icon: "application", tone: "cobalt", sort_order: 40,
     description: "负责项目立项、协作仓库与项目展示",
-    head_capabilities: ["github.repos.manage", "github.teams.manage", "forum.topic.pin"],
+    head_capabilities: ["forum.topic.pin"],
     member_capabilities: [],
   },
 ];
@@ -278,9 +276,13 @@ export type ComputeAccessInput = {
 };
 
 /**
- * 纯函数：由站内角色、显式指派与部门配置算出称号和能力。没有 GitHub 上限：`github.*` 和别的能力一样按称号给，
- * 在 GitHub 上真正去做由服务器接入的 GitHub（lib/github-connection.ts）执行。不是成员的人（站内角色改成「不是成员」、
+ * 纯函数：由站内角色、显式指派与部门配置算出称号和能力。不是成员的人（站内角色改成「不是成员」、
  * 或还没有账号）称号照常列出，方便控制台收回，但没有任何能力。
+ * #276 挪来的 #274 清理：原来这里还提着「没有 GitHub 上限，github.* 按称号给，真正去 GitHub 上做由
+ * lib/github-connection.ts 执行」——那六个 github.* 能力和 lib/github-connection.ts 都已经删除
+ * （CONTRACT-274 §8），这条函数本身（以及唯一的调用方 lib/access.ts 的 access.resolve()）在生产
+ * 路由里也已经零调用，只剩 tests/server/signin-methods.test.ts 单测它；没有在这轮一并删除，因为
+ * 那是比「去掉 github.* 能力」更大的一个决定，留给所有者或团队负责人另外定。
  */
 export function computeAccess({ login, siteRole, member = siteRole !== null, assignments, departments, titles: configs = DEFAULT_TITLE_CONFIGS }: ComputeAccessInput): Access {
   const byId = new Map(departments.filter(item => !item.archived).map(item => [item.id, item]));

@@ -33,8 +33,6 @@ MAIL_ALLOWLIST=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 COOKIE_DOMAIN=
-# 可不设，默认 Yangtze-University-Geek-Class；#274 起只给意见箱分类与审计用，不再有组织登录门槛
-CONSOLE_ORG=Yangtze-University-Geek-Class
 ```
 
 这些占位值不能直接用于运行，密钥必须满足实际尺寸校验。`PUBLIC_ORIGIN` 是唯一的对外地址：官网、管理后台、论坛同域，按路径区分；OAuth 回调为 `<PUBLIC_ORIGIN>/auth/callback`，本地 OAuth 应用要登记这一条。部署环境须使用 HTTPS 且 `PUBLIC_ORIGIN` 等于环境 origin，`COOKIE_DOMAIN` 留空（host-only）。详见 [ENVIRONMENTS](ENVIRONMENTS.md) 与 [部署规范](DEPLOY.md)。

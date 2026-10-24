@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import type { ServiceOverrides } from '../../app/server/src/services';
+import { DEFAULT_CONSOLE_ORG } from '../../app/server/src/config';
 import { safeReturnTo } from '../../app/server/src/lib/safe-return';
 import { withTimeout } from '../../app/server/src/lib/github-http';
 import { ADMIN_SPA_ENTRY, ADMIN_SPA_PATHS, PORTAL_SPA_ENTRY, buildApp, resolveSiteEntry } from '../../app/server/src/app';
@@ -228,10 +229,10 @@ it('serves the console or portal index for deep links on the same host', async (
 it('lists console feedback without the submitter IP, user agent or numeric account id', async () => {
   // #274：旧的 /api/admin/:org/feedback 删掉了，控制台只剩 /api/console/feedback，SQL 仍共用 lib/feedback-store.ts。
   const octokitFactory = (() => ({ request: async () => ({ data: { state: 'active', role: 'admin' } }) })) as unknown as ServiceOverrides['octokitFactory'];
-  const c = await testApp({ octokitFactory }, false, { CONSOLE_ORG: 'test-org' }); contexts.push(c);
+  const c = await testApp({ octokitFactory }); contexts.push(c);
   const { app } = c; const now = Date.now();
   app.services.storage.db.prepare('INSERT INTO feedback(org,content,category,contact,submitter_login,submitter_id,source_ip,user_agent,status,votes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
-    .run('test-org', 'test feedback body', '建议', 'test-contact', 'test-student', 424242, '203.0.113.9', 'test-agent/1.0', 'open', 3, now, now);
+    .run(DEFAULT_CONSOLE_ORG, 'test feedback body', '建议', 'test-contact', 'test-student', 424242, '203.0.113.9', 'test-agent/1.0', 'open', 3, now, now);
   const sid = signIn(app, 'test-admin', 1, null, 'test-access');
   grantPermGroup(app, accountIdOf(app, 'test-admin'), 'title.site.owner'); // #274：feedback.view 按新权限体系判定
   const response = await app.inject({ url: '/api/console/feedback', headers: { cookie: `sid=${sid}` } });
@@ -247,8 +248,8 @@ it('rejects invalid feedback data before persistence', async () => {
 });
 it('bounds the public feedback limit: only 1–9999 is accepted, then capped at 100', async () => {
   const { app } = await setup();
-  // 公开列表只服务本部署的组织（#129），所以夹具用 CONSOLE_ORG；本用例断言的是 limit 的边界，不是组织名。
-  const org = app.services.config.consoleOrg;
+  // 公开列表只服务本部署的组织（#129），所以夹具用 DEFAULT_CONSOLE_ORG；本用例断言的是 limit 的边界，不是组织名。
+  const org = DEFAULT_CONSOLE_ORG;
   const insert = app.services.storage.db.prepare("INSERT INTO feedback(org, content, status, created_at, updated_at) VALUES(?, ?, 'open', ?, ?)");
   for (let i = 0; i < 120; i++) insert.run(org, `意见 ${i}`, i, i);
   const count = async (query: string) => {

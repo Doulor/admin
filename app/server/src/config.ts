@@ -6,8 +6,9 @@ import { fileURLToPath } from "node:url";
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 /** 服务根：geek_main/app/。所有可部署服务都在 app/<service> 下。 */
 export const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-/** GitHub 用户名 / 组织名：字母数字与单个连字符，1–39 字符。 */
-export const GITHUB_LOGIN_REGEX = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
+/** 极客班固定管理的 GitHub 组织：只给 feedback.org 归一化与审计历史数据用（#129），不是环境变量——
+ * #276 挪来的清理（从 #274 遗留）：这个部署从来没有也不会配别的组织，`CONSOLE_ORG` 环境变量读取、
+ * 校验与 deploy 两份 .env 契约里的声明都已去掉，谁要用这个组织名直接导入这个常量。 */
 export const DEFAULT_CONSOLE_ORG = "Yangtze-University-Geek-Class";
 export function createConfig(env: Record<string, string | undefined>) {
   const required = (key: string): string => {
@@ -56,10 +57,6 @@ export function createConfig(env: Record<string, string | undefined>) {
     if (/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(raw)) throw new Error("TRUST_PROXY must be true, false, a hop count (0–10) or a list of proxy addresses");
     return raw;
   })();
-  // 极客班控制台固定管理的 GitHub 组织（非密钥，只给 GitHub App、feedback.org 和审计用）；本机与测试可不设。
-  // #274 删掉了 ALLOWED_ORGS：它原来只给已删除的 /api/me/orgs 过滤「本人加入的 GitHub 组织」用，现在没有任何读者。
-  const consoleOrg = (env.CONSOLE_ORG ?? "").trim() || DEFAULT_CONSOLE_ORG;
-  if (!GITHUB_LOGIN_REGEX.test(consoleOrg)) throw new Error("CONSOLE_ORG must be a GitHub organization login");
   // 发信（#148，lib/mail/）：全部可选，都不设时不发信（本机与测试），投递和改状态照常，信记成 skipped/mail_disabled。
   // 发信商要同时有密钥和发件地址才算配置好；阿里云的两把密钥要么都有、要么都没有。地址格式在 lib/mail/mailer.ts 里核对。
   const mail = (() => {
@@ -125,7 +122,7 @@ export function createConfig(env: Record<string, string | undefined>) {
     return { mode: mode as "off" | "dry-run" | "on", url, token, group };
   })();
   return {
-    production, port, publicOrigin, host: listenHost, trustProxy, consoleOrg,
+    production, port, publicOrigin, host: listenHost, trustProxy,
     oidc, gitlab,
     cookieDomain: env.COOKIE_DOMAIN || undefined,
     cookieSecure: publicOrigin.startsWith("https:"),

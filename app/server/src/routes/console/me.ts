@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { DEFAULT_CONSOLE_ORG } from "../../config.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { emailRequired, profileRequired } from "../../lib/email-gate.js";
 import { entriesForAccount, levelSuffix } from "../../lib/permissions.js";
@@ -85,7 +86,7 @@ export default async function consoleMeRoutes(app: FastifyInstance) {
       const { healthy } = await app.services.gitlab.health();
       result.gitlab = { mode: app.services.gitlab.mode, healthy, last_run: app.services.gitlab.lastRun() };
     }
-    if (check("feedback.view")) result.feedback = app.services.feedback.countFeedback(app.services.config.consoleOrg);
+    if (check("feedback.view")) result.feedback = app.services.feedback.countFeedback(DEFAULT_CONSOLE_ORG);
     return result;
   });
 }
