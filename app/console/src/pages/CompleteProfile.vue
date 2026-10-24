@@ -28,8 +28,8 @@ const view = ref<AccountView | null>(null);
 const loadError = ref<unknown>(null);
 
 const realName = ref("");
-const grade = ref<number | "">("");
-const gradeInput = computed({ get: () => grade.value, set: (value: string | number | (string | number)[]) => { grade.value = typeof value === "number" ? value : ""; } });
+const grade = ref<number | "graduated" | "">("");
+const gradeInput = computed({ get: () => grade.value, set: (value: string | number | (string | number)[]) => { grade.value = isSelectableGrade(value) ? value : ""; } });
 const error = ref<string | null>(null);
 const busy = ref<"save" | "leave" | null>(null);
 const saved = ref(false);
@@ -112,7 +112,7 @@ async function signOut() {
           <span class="profile__who-label">当前极客班账号</span>
           <span class="mono">{{ view.login }}</span>
         </div>
-        <p class="profile__intro">极客班要求实名。年级只能从下拉框里选，每年 9 月 1 日自动升一级，大四之后显示已毕业。填好后自己不能再改，填错了请联系管理员在控制台修改。</p>
+        <p class="profile__intro">极客班成员要实名。年级从下拉框里选，已经毕业的选「已毕业」；在读的每年 9 月 1 日自动升一级。填好后自己不能再改，填错了请联系管理员在控制台修改。</p>
 
         <TxForm label-position="top" class="profile__form" data-testid="profile-form" novalidate @submit="save">
           <TxFormItem v-slot="{ id }" label="真实姓名">

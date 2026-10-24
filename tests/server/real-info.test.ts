@@ -3,7 +3,7 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { accountIdOf, activityRows, completeProfile, grantPermNode, signIn, testApp } from './helpers';
+import { accountIdOf, activityRows, completeProfile, grantPermGroup, grantPermNode, signIn, testApp } from './helpers';
 
 /**
  * 真实姓名和年级（#280）：缺了先补资料，本人只能填一次，之后由有 users.manage 的管理员在控制台改；
@@ -36,7 +36,10 @@ const me = async (app: FastifyInstance, cookie: string) => (await app.inject({ u
 describe('补资料关口与本人填写（#280）', () => {
   it('缺姓名和年级时三个 me 接口都报 profile_required，命令行确认被拦，userinfo 也带着这个标记', async () => {
     const { app } = await setup();
-    const { cookie } = bare(app, 'alice', 101);
+    const { cookie, accountId } = bare(app, 'alice', 101);
+    // 普通注册用户不用填
+    expect(await me(app, cookie)).toMatchObject({ signed_in: true, profile_required: false, real_name: null, grade: null });
+    grantPermGroup(app, accountId, 'level.member');
     expect(await me(app, cookie)).toMatchObject({ signed_in: true, profile_required: true, real_name: null, grade: null, grade_label: null });
     expect((await app.inject({ url: '/api/identity/me', headers: { cookie } })).json()).toMatchObject({ profile_required: true, real_name: null, grade: null });
     grantPermNode(app, accountIdOf(app, 'alice'), 'console.access');
