@@ -13,6 +13,4 @@ export const links = {
   // 账号设置页属于控制台，但和 /signin 一样挂在官网域名根路径下（本机开发由 5173 转给控制台 dev server）
   account: (): string => "/account",
   gitlab: (): string => appConfig.urls.gitlab,
-  // 第一期比赛官网（#278）：站点包挂在官网域名的 /c/<比赛>/ 下
-  contestSite: (): string => "/c/oss-challenge-2026-1/",
 };

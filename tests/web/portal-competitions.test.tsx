@@ -151,8 +151,8 @@ describe("桌面：左边列表、右边详情", () => {
 });
 
 describe("比赛官网入口（#275 / #278）", () => {
-  it("列表顶上是第一期比赛官网的夜空横幅，「打开官网」在新标签页打开 /c/oss-challenge-2026-1/；手机进详情后收起", async () => {
-    serve(INTERNAL, EXTERNAL);
+  it("有比赛发布了官网时，列表顶上是夜空横幅，「打开官网」在新标签页打开它的 site_url；手机进详情后收起", async () => {
+    serve({ ...INTERNAL, site_url: "/c/oss-challenge-2026-1/" }, EXTERNAL);
     const view = render(<CompetitionsApp />);
     await waitFor(() => expect(card(INTERNAL.name)).toBeTruthy());
     const site = screen.getByRole("region", { name: "比赛官网" });
@@ -175,6 +175,14 @@ describe("比赛官网入口（#275 / #278）", () => {
     expect(screen.getByRole("region", { name: "比赛官网" })).toBeTruthy();
     fireEvent.click(card(EXTERNAL.name));
     expect(screen.queryByRole("region", { name: "比赛官网" })).toBeNull();
+  });
+
+  it("没有哪场比赛给出 site_url（官网还没发布）时不显示横幅，也不拿写死的地址兜底；不是本站 /c/<slug>/ 的写法当作没有", async () => {
+    serve(INTERNAL, { ...EXTERNAL, site_url: "https://evil.example/c/x/" }, { ...UPCOMING, site_url: "/c/../admin/" });
+    render(<CompetitionsApp />);
+    await waitFor(() => expect(card(INTERNAL.name)).toBeTruthy());
+    expect(screen.queryByRole("region", { name: "比赛官网" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /打开官网/ })).toBeNull();
   });
 
   it("星星按种子撒：同一个种子每次一样，换种子就换，坐标都在 400×100 的画布里，亮的是少数", () => {

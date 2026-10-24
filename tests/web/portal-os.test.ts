@@ -100,7 +100,6 @@ describe("YUGC OS 应用与启动器", () => {
     // 桌面上没有在新标签页打开的应用了；窗口里去 GitLab、比赛官网的链接给读屏补这一句
     expect(NEW_TAB_NOTE).toBe("（新标签页打开）");
     expect(links.gitlab()).toBe("https://git.yangtzeu.work/geek");
-    expect(links.contestSite()).toBe("/c/oss-challenge-2026-1/");
   });
 
   it("打开站外应用：新标签页用 noopener、不带 referrer；当前标签页整页跳转，两者不混用", () => {
