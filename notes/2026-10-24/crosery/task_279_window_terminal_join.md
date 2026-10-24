@@ -43,3 +43,24 @@
 - 做了什么：按 .agents/skills/code-review 两条线自审 ada1fc43（所有者 10-24 要求不开子 agent，没有独立审查人）。规范：检查脚本全过；安全核对无 eval/new Function/dangerouslySetInnerHTML、只把 https 地址变链接、存盘读回跳过 . 与 .. 路径、写入只限家目录和 /tmp；资源核对嵌套 16 层、seq 10000 行、界面 1000 行。需求：issue 列的 29 条命令、管道重定向等、三个按钮、加入我们窗口逐条对上；手机面板按 #233 不放珠子；超出 issue 的是意见箱两处 GitHub 字样和终端懒加载。审查中自己发现并修掉：$((2**64)) 显示 Infinity（改 64 位回绕）、for 循环多报 do/done、算术写错仍执行命令、直接敲 forum 打不开（装进 /usr/local/bin）、Windows.tsx 没用的导入。
 - 结果：结论：有条件通过（合并后发 rc.19 在预发布按人工验收步骤走一遍）。结论贴在 MR !9 正文和评论 754。未验证：预发布真实验收、登录后家目录与 neofetch 只有单测、Safari 与真机。
 - 下一步：合并进 stage（merge commit），关 #279，发 rc.19
+
+## 15:24:07 +08:00 · 合并 · #279 · MR !9 合进 stage（39ab81ab），#279 手工关闭
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：GitLab API 合并 MR !9（merge commit，sha 校验 74f88921），源分支随合并删除；合并后给 !9 补上改动类型标签（P1、enhancement、portal、ui:content、ui:interaction、ui:layout、ui:visual），本地 pr-contract 补完标签后通过；#279 写关闭记录（评论 758）后手工关闭；!9 审查标题时间写错（15:30），改成 15:19 并留更正评论 766。
+- 结果：stage e43df562 → 39ab81ab（父 e43df562、74f88921）；远端已无 task/279 分支；#279 closed 2026-10-24 15:23。
+- 下一步：清理 task-279 worktree 和本地分支，发 rc.19 到预发布（先备份预发布库，tag 不推送），按 !9 人工验收步骤核对
+
+## 15:24:39 +08:00 · 收尾 · #279 · 删 task-279 worktree 和本地分支
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：task.mjs finish 只查 GitHub 上的 PR 和 issue，GitLab 的 !9、#279 它认不出，所以手工收尾：确认 worktree 干净、本地分支头 74f88921 就是 !9 合并时的头；停掉本机 vite（PID 21409，端口 5279）；git worktree remove .claude/worktrees/task-279；git branch -D task/279/window_terminal_join。
+- 结果：见下一条命令的输出
+- 下一步：发 rc.19
+
+## 15:44:40 +08:00 · 验收 · #279 · rc.19 机器验收：!9 人工验收步骤 1–8 未登录状态全部通过
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：ego-browser 在 https://prev.yangtzeu.work 以访客身份，1440×900 与 390×844 按 !9 人工验收步骤走：三颗珠子悬停、放大后读屏名称变还原、Tab 焦点；终端六条命令；forum 跳 /forum/、./join 开窗口、learn 链接新标签页；刷新后 a.txt 与历史还在；Tab 补全、Ctrl+C、Ctrl+L、exit；/join-us、/apply 回首页开加入我们；意见箱没有 GitHub 字样；两种尺寸都没有横向滚动，手机输入框 16px。结果表和 6 张截图贴在 #279 评论 767、!9 评论 769。
+- 结果：未登录路径全部通过；登录后的家目录用户名、neofetch 部门称号、今天还能投几份没有在浏览器里验证（没有预发布登录账号），只有单测；Safari 与真机未测。
+- 下一步：等所有者在预发布验收；继续 #280
