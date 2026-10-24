@@ -210,6 +210,20 @@ server {
         try_files $uri /sites/console/index.html;
     }
 
+    # ── geek 命令行分发（#277，scripts/cli-dist.mjs 产出到 dist/cli/，由下面这条 COPY 带进镜像）──
+    # 版本化的二进制与 sha256：路径带版本号，内容不变路径也不变，和 /assets/ 一样能长缓存。
+    # 用正则（不加 ^~）：下面的图片/字体正则不会匹配 .exe/.sha256，顺序互不影响。
+    location ~ ^/cli/[^/]+/geek- {
+        expires 1y;
+        try_files $uri =404;
+        access_log off;
+    }
+    # install.sh / install.ps1 / latest.json：跟着发布更新，每次都要回源。
+    location /cli/ {
+        expires -1;
+        try_files $uri =404;
+    }
+
     # 带内容哈希的构建产物：内容不变则文件名不变，可以长缓存。
     # /assets/ 是官网（app/web），/console-assets/ 是控制台（app/console）。
     # ^~：前缀命中后不再看下面的图片正则。不写的话 nginx 先挑出最长的前缀，再按顺序试正则，正则命中就用正则，
@@ -275,6 +289,10 @@ COPY --from=builder /repo/app/web/dist /usr/share/nginx/html
 # 控制台产物叠进同一个站点根（sites/console/、console-assets/，与官网目录不重叠）。
 COPY --from=builder /repo/app/console/dist/ /usr/share/nginx/html/
 COPY --from=builder /release/release.json /usr/share/nginx/html/release.json
+# geek 命令行分发（#277）：交叉编译在宿主机做（zig/cargo-zigbuild 是开发工具，不进这个镜像），
+# 构建这个镜像之前必须先跑一次 `node scripts/cli-dist.mjs`，产出 dist/cli/（docs/services/cli/README.md）；
+# 这一步不走 builder 阶段，直接从构建上下文 COPY，缺这个目录会让构建在这里报错，不是默默跳过。
+COPY dist/cli/ /usr/share/nginx/html/cli/
 COPY --from=builder /nginx-out/nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /nginx-out/conf.d/ /etc/nginx/conf.d/
 

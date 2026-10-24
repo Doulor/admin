@@ -75,6 +75,14 @@ describe('hashed output folders are cached for a year, whatever the file type (c
     expect(web.get('~* \\.(?:png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf)$')).toContain('expires 7d;');
   });
 
+  it('web: geek 命令行的版本化产物长缓存一年，install.sh/install.ps1/latest.json 不缓存（#277）', () => {
+    const web = locations(webSite);
+    expect(web.get('~ ^/cli/[^/]+/geek-')).toContain('        expires 1y;\n');
+    expect(web.get('~ ^/cli/[^/]+/geek-')).not.toMatch(/add_header/);
+    expect(web.get('/cli/')).toContain('        expires -1;\n');
+    expect(web.has('^~ /cli/')).toBe(false);
+  });
+
   it('forum: /_nuxt/ is a ^~ prefix with a one-year expiry, except builds/latest.json, which is never cached', () => {
     const forum = locations(forumSite);
     expect(forum.get('^~ /_nuxt/')).toContain('        expires 1y;\n');
@@ -161,6 +169,9 @@ describe.skipIf(!nginxBinary)('hashed output folders through host → web → fo
     put(join(webHtml, 'sites', 'portal', 'index.html'), '<main data-entry="portal"></main>\n');
     put(join(webHtml, 'logo.png'));
     for (const [prefix, files] of Object.entries(webFiles)) for (const file of files) put(join(webHtml, prefix, file));
+    // geek 命令行分发（#277）：版本化的二进制长缓存，顶层的安装脚本/latest.json 不缓存。
+    put(join(webHtml, 'cli', '0.1.0', 'geek-aarch64-apple-darwin'));
+    put(join(webHtml, 'cli', 'install.sh'));
     const forumHtml = join(root, 'forum-html');
     // 带一段内联脚本：论坛 CSP 由 csp-header.mjs 按它算哈希，和镜像构建时一样。
     put(join(forumHtml, 'index.html'), '<!DOCTYPE html><html><body><script>window.__NUXT__={}</script></body></html>\n');
@@ -249,6 +260,14 @@ describe.skipIf(!nginxBinary)('hashed output folders through host → web → fo
     // 目录外的图片仍是 7 天；目录里没有的文件是 404，不回落到入口页。
     expect((await head('/logo.png')).headers['cache-control']).toBe(WEEK);
     expect((await head('/assets/missing-12345678.woff2')).status).toBe(404);
+  });
+
+  it('web: geek 命令行的版本化产物长缓存一年，install.sh 每次都要回源（#277）', async () => {
+    const binary = await head('/cli/0.1.0/geek-aarch64-apple-darwin');
+    expect([binary.status, binary.headers['cache-control']]).toEqual([200, YEAR]);
+    const installer = await head('/cli/install.sh');
+    expect([installer.status, installer.headers['cache-control']]).toEqual([200, 'no-cache']);
+    expect((await head('/cli/0.1.0/missing')).status).toBe(404);
   });
 
   it('forum: every file under /forum/_nuxt/ gets one year with the forum CSP, latest.json is not cached', async () => {
