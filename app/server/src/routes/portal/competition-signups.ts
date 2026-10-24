@@ -36,6 +36,9 @@ export default async function competitionSignupRoutes(app: FastifyInstance) {
 
   app.get("/api/me/competitions", read, async req => signups.myCompetitions(req.session!.account_id, Date.now()));
 
+  // 定榜后的结果（#278）：名次、分数，得奖的带奖项和兑奖码；只给本人看，响应不缓存（http-policy 给 /api 一律 no-store）。
+  app.get("/api/me/competition-results", read, async req => ({ items: app.services.competitionPrizes.myResults(req.session!.account_id) }));
+
   app.get<{ Params: { id: string } }>("/api/competitions/:id/my-status", read, async (req, reply) => {
     const result = signups.myStatus(req.params.id, req.session!.account_id, Date.now());
     return result.ok ? result.value : refuse(reply, result.error);

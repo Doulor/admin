@@ -55,7 +55,7 @@ export default async function consoleMeRoutes(app: FastifyInstance) {
     };
   });
 
-  /** 概览（CONTRACT-274 §7）：去掉所有 GitHub 字段，只回调用者有权看的键；candidates_pending 在 #278 落地前固定回 0。 */
+  /** 概览（CONTRACT-274 §7）：去掉所有 GitHub 字段，只回调用者有权看的键；candidates_pending 是还没定榜的比赛里待确认的 GitLab 贡献数（#278）。 */
   app.get("/api/console/summary", async (req) => {
     const accountId = req.session!.account_id;
     const check = (node: string) => permissions.check(accountId, node);
@@ -69,7 +69,7 @@ export default async function consoleMeRoutes(app: FastifyInstance) {
       const lastWeek = db.prepare("SELECT COUNT(*) AS n FROM applications WHERE created_at >= ?").get(Date.now() - 7 * DAY_MS) as { n: number };
       result.applications = { total: rows.reduce((sum, row) => sum + row.n, 0), by_status: byStatus, last_7d: lastWeek.n };
     }
-    if (check("competition.score.review")) result.candidates_pending = 0; // #278 之前先固定回 0
+    if (check("competition.score.review")) result.candidates_pending = app.services.competitionCandidates.pendingCount();
     const todayStart = beijingDayStart(Date.now());
     if (check("users.view")) {
       const registrations = db.prepare("SELECT COUNT(*) AS n FROM users WHERE created_at >= ?").get(todayStart) as { n: number };

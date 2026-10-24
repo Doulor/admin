@@ -2,8 +2,8 @@
 // 不渲染组件（tests/console 里没有挂载 Vue 页面的先例），只测这些函数与 mock 的只读样板。
 import { describe, expect, it } from "vitest";
 import {
-  SCORE_POINTS, activeSignups, defaultPoints, emptyScoreForm, exportRateLimitNotice, matchSignups, rosterCsvName, rosterCsvPath,
-  rosterStats, scoreErrors, scorePayload, scorePointsHint, scoreTargetText, scoreTargetUrl,
+  activeSignups, emptyScoreForm, exportRateLimitNotice, matchSignups, rosterCsvName, rosterCsvPath,
+  rosterStats, scoreErrors, scorePayload, scoreTargetText, scoreTargetUrl,
   settingsErrors, settingsForm, settingsPayload, teamLeader, type SettingsForm,
 } from "../../app/console/src/lib/competition-hub";
 import { ApiError } from "../../app/console/src/lib/http";
@@ -14,7 +14,7 @@ const settings = (patch: Partial<SettingsForm> = {}): SettingsForm => ({
   enabled: false, participation: "individual", teamMin: "1", teamMax: "1", scoring: "none", ...patch,
 });
 const scoreForm = (patch: Partial<ScoreForm> = {}): ScoreForm => ({
-  accountId: "acc-1", kind: "issue", repo: "Yangtze-University-Geek-Class/portal", number: "265", points: "15", reason: "修了一个问题", ...patch,
+  accountId: "acc-1", kind: "issue", repo: "Yangtze-University-Geek-Class/portal", number: "265", importance: "normal", core: "business", reason: "修了一个问题", ...patch,
 });
 const person = (login: string, patch: Partial<RosterSignup> = {}): RosterSignup => ({
   account_id: `mock-${login}`, login, avatar_url: null, status: "active", note: "", looking_for_team: false,
@@ -103,21 +103,14 @@ describe("roster stats", () => {
 });
 
 describe("score form validation", () => {
-  it("enforces the per-kind point ranges", () => {
-    expect(scoreErrors(scoreForm({ points: "5" }))).toEqual({});
-    expect(scoreErrors(scoreForm({ points: "4" })).points).toBeTruthy();
-    expect(scoreErrors(scoreForm({ points: "30" }))).toEqual({});
-    expect(scoreErrors(scoreForm({ points: "31" })).points).toBeTruthy();
-    expect(scoreErrors(scoreForm({ kind: "pr", points: "15" }))).toEqual({});
-    expect(scoreErrors(scoreForm({ kind: "pr", points: "14" })).points).toBeTruthy();
-    expect(scoreErrors(scoreForm({ kind: "pr", points: "100" }))).toEqual({});
-    expect(scoreErrors(scoreForm({ kind: "pr", points: "101" })).points).toBeTruthy();
-    expect(scoreErrors(scoreForm({ kind: "penalty", points: "-50", repo: "", number: "" }))).toEqual({});
-    for (const points of ["0", "-49", "-51", "50", ""]) {
-      expect(scoreErrors(scoreForm({ kind: "penalty", points, repo: "", number: "" })).points).toBeTruthy();
-    }
-    expect(SCORE_POINTS.penalty).toEqual({ min: -50, max: -50 });
-    expect(defaultPoints("penalty")).toBe(-50);
+  it("asks for both levels on an Issue or MR and none on a penalty (#278: no free points)", () => {
+    expect(scoreErrors(scoreForm())).toEqual({});
+    expect(scoreErrors(scoreForm({ kind: "pr", importance: "critical", core: "core" }))).toEqual({});
+    expect(scoreErrors(scoreForm({ importance: "" })).importance).toBeTruthy();
+    expect(scoreErrors(scoreForm({ kind: "pr", core: "" })).core).toBeTruthy();
+    expect(scoreErrors(scoreForm({ kind: "penalty", importance: "", core: "", repo: "", number: "" }))).toEqual({});
+    expect(emptyScoreForm("pr")).toMatchObject({ kind: "pr", accountId: "", importance: "", core: "" });
+    expect(emptyScoreForm()).not.toHaveProperty("points");
   });
 
   it("requires a positive integer number for issues and pull requests", () => {
@@ -127,12 +120,15 @@ describe("score form validation", () => {
       expect(scoreErrors(scoreForm({ number })).number).toBeTruthy();
     }
     // 扣分没有仓库和编号，这两个错误不能出现
-    expect(scoreErrors(scoreForm({ kind: "penalty", points: "-50", repo: "bad", number: "0" }))).toEqual({});
+    expect(scoreErrors(scoreForm({ kind: "penalty", importance: "", core: "", repo: "bad", number: "0" }))).toEqual({});
   });
 
   it("requires owner/name with the server's character set and length", () => {
     expect(scoreErrors(scoreForm({ repo: " owner/name " }))).toEqual({});
-    for (const repo of ["", "owner", "owner/name/extra", "owner/na me", "owner/名字", `${"a".repeat(70)}/${"b".repeat(70)}`]) {
+    // #278：GitLab 项目可以在子组里，服务端的 REPO_PATTERN 放宽到最多五段
+    expect(scoreErrors(scoreForm({ repo: "owner/name/extra" }))).toEqual({});
+    expect(scoreErrors(scoreForm({ repo: "a/b/c/d/e" }))).toEqual({});
+    for (const repo of ["", "owner", "a/b/c/d/e/f", "owner//name", "owner/na me", "owner/名字", `${"a".repeat(70)}/${"b".repeat(70)}`]) {
       expect(scoreErrors(scoreForm({ repo })).repo).toBeTruthy();
     }
     expect(scoreErrors(scoreForm({ repo: `${"a".repeat(69)}/${"b".repeat(70)}` })).repo).toBeUndefined();
@@ -145,20 +141,14 @@ describe("score form validation", () => {
     expect(scoreErrors(scoreForm({ accountId: " " })).accountId).toBeTruthy();
   });
 
-  it("builds the request body, leaving repo and number off a penalty", () => {
-    expect(scorePayload(scoreForm({ repo: " owner/name ", number: " 12 ", points: " 20 ", reason: " 修好了 " })))
-      .toEqual({ account_id: "acc-1", kind: "issue", repo: "owner/name", number: 12, points: 20, reason: "修好了" });
-    const penalty = scorePayload(scoreForm({ kind: "penalty", points: "-50", repo: "owner/name", number: "3", reason: "抄了" }));
-    expect(penalty).toEqual({ account_id: "acc-1", kind: "penalty", points: -50, reason: "抄了" });
+  it("builds the request body with the two levels and no points, leaving repo, number and levels off a penalty", () => {
+    expect(scorePayload(scoreForm({ repo: " owner/name ", number: " 12 ", importance: "important", core: "core", reason: " 修好了 " })))
+      .toEqual({ account_id: "acc-1", kind: "issue", repo: "owner/name", number: 12, importance: "important", core: "core", reason: "修好了" });
+    const penalty = scorePayload(scoreForm({ kind: "penalty", repo: "owner/name", number: "3", reason: "抄了" }));
+    expect(penalty).toEqual({ account_id: "acc-1", kind: "penalty", reason: "抄了" });
     expect(penalty).not.toHaveProperty("repo");
     expect(penalty).not.toHaveProperty("number");
-    expect(emptyScoreForm("pr")).toMatchObject({ kind: "pr", accountId: "", points: "15" });
-  });
-
-  it("names the range in the hint", () => {
-    expect(scorePointsHint("issue")).toContain("5–30");
-    expect(scorePointsHint("pr")).toContain("15–100");
-    expect(scorePointsHint("penalty")).toContain("−50");
+    expect(penalty).not.toHaveProperty("importance");
   });
 });
 
@@ -170,6 +160,12 @@ describe("score links", () => {
     expect(scoreTargetUrl({ kind: "issue", repo: null, number: 7 })).toBeNull();
     expect(scoreTargetText({ kind: "pr", repo: "owner/name", number: 265 })).toBe("owner/name#265");
     expect(scoreTargetText({ kind: "penalty", repo: null, number: null })).toBe("—");
+  });
+
+  it("does not build a GitHub link for the competition's GitLab projects (#278)", () => {
+    expect(scoreTargetUrl({ kind: "pr", repo: "geek/admin", number: 12 }, ["geek/admin"])).toBeNull();
+    expect(scoreTargetUrl({ kind: "pr", repo: "owner/name", number: 12 }, ["geek/admin"])).toBe("https://github.com/owner/name/pull/12");
+    expect(scoreTargetText({ kind: "pr", repo: "geek/admin", number: 12 })).toBe("geek/admin#12");
   });
 });
 
@@ -219,7 +215,7 @@ describe("console mock roster", () => {
 
   it("lists the score events, including the revoked one", () => {
     const { events } = routeConsole(new URL("http://mock.local/api/console/competitions/c1001/score-events")) as { events: { kind: string; status: string }[] };
-    expect(events.map(event => event.kind).sort()).toEqual(["issue", "penalty", "pr"]);
+    expect(events.map(event => event.kind).sort()).toEqual(["issue", "issue", "penalty", "pr"]);
     expect(events.find(event => event.kind === "penalty")?.status).toBe("revoked");
   });
 

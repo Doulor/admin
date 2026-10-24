@@ -21,6 +21,8 @@
 #
 # 反代约定（与 app/server 路由、deploy/compose/*.yml 一致）：
 #   /api/、/auth、/healthz → server:3000（Fastify）
+#   /c/                    → server:3000（比赛官网的同域托管，#278；sandbox CSP 由 server 下发）
+#   /sdk/                  → 本镜像里的 dist/sdk/（比赛官网 SDK 的 ESM，#278）
 #   /forum                 → 308 到相对地址 /forum/（不带协议、主机和容器端口，#140）
 #   /forum/                → forum:3000（Nuxt 产物以 /forum/ 为 baseURL 构建，转发时剥前缀，上游的相对跳转补回前缀）
 # 安全头（HSTS/CSP 等）由宿主 nginx 统一加，容器不重复下发，避免同一响应带两份 CSP。
@@ -66,7 +68,7 @@ COPY app/server/tsconfig.json app/server/tsconfig.json
 COPY app/web/sites app/web/sites
 COPY app/web/shared app/web/shared
 COPY app/web/public app/web/public
-COPY app/web/package.json app/web/tsconfig.json app/web/vite.config.ts app/web/postcss.config.js \
+COPY app/web/package.json app/web/tsconfig.json app/web/vite.config.ts app/web/sdk.vite.config.ts app/web/postcss.config.js \
      app/web/tailwind.config.js app/web/vite-env.d.ts app/web/
 # 控制台：源码与构建配置（check-boundaries.mjs 也会扫描 app/console/src）。
 COPY app/console/src app/console/src
@@ -87,6 +89,7 @@ RUN test -n "$GEEK_DEPLOYMENT_ENVIRONMENT" \
  && STATIC_CDN_BASE="$STATIC_CDN_BASE" pnpm --filter @yzgc/web build \
  && STATIC_CDN_BASE="$STATIC_CDN_BASE" pnpm --filter @yzgc/console build \
  && test -f app/console/dist/sites/console/index.html \
+ && test -f app/web/dist/sdk/competition/v1.js \
  && grep -q "src=\"${STATIC_CDN_BASE:-/}assets/" app/web/dist/sites/portal/index.html \
  && grep -q "src=\"${STATIC_CDN_BASE:-/}console-assets/" app/console/dist/sites/console/index.html
 
@@ -165,6 +168,18 @@ server {
     location ^~ /api/ {
         proxy_pass http://server:3000;
         include /etc/nginx/conf.d/90-proxy-headers.conf;
+        # 比赛官网站点包的上传（#278）：请求体就是 zip，上限 20MB，这一条单独放宽；宿主模板仍是 6m，经宿主时以宿主为准（见 DEPLOY）。
+        location ~ ^/api/console/competitions/[^/]+/site/versions$ {
+            client_max_body_size 21m;
+            proxy_pass http://server:3000;
+            include /etc/nginx/conf.d/90-proxy-headers.conf;
+        }
+    }
+    # 比赛官网的同域托管（#278）：/c/<slug>/… 由 server 读已发布的站点包，sandbox CSP 和缓存头都由 server 下发。
+    # ^~ 同 /api/，不让下面的图片正则把站点包里的图片截走。
+    location ^~ /c/ {
+        proxy_pass http://server:3000;
+        include /etc/nginx/conf.d/90-proxy-headers.conf;
     }
     location = /auth {
         proxy_pass http://server:3000;
@@ -239,6 +254,12 @@ server {
         expires 1y;
         try_files $uri =404;
         access_log off;
+    }
+    # 比赛官网 SDK（#278）：文件名不带哈希（v1 是接口版本），短缓存；托管的官网来源是 null，模块脚本按 CORS 取，要放开来源。
+    location ^~ /sdk/ {
+        expires 5m;
+        add_header Access-Control-Allow-Origin "*" always;
+        try_files $uri =404;
     }
     # 未哈希的图片/字体/图标：短缓存。
     location ~* \.(?:png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf)$ {

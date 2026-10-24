@@ -115,10 +115,12 @@ const FORUM_TABLES = [
 const MAIL_TABLES = ['mail_outbox'];
 /** 投递次数（#169）：同样只新增，`applications` 不改。 */
 const APPLY_TABLES = ['application_limits'];
-/** 比赛（#238）与报名、组队、积分（#239）：同样只新增，`competitions` 不改任何旧表。 */
+/** 比赛（#238）与报名、组队、积分（#239）、官网托管、贡献收集、规则、定榜与奖项（#278）：同样只新增，`competitions` 不改任何旧表。 */
 const COMPETITION_TABLES = [
   'competition_score_events', 'competition_signup_settings', 'competition_signups',
   'competition_team_members', 'competition_teams', 'competitions',
+  'competition_site_versions', 'competition_sites', 'competition_gitlab_sources', 'competition_score_candidates',
+  'competition_rules', 'competition_finals', 'competition_prizes',
 ];
 /** 极客班账号（#262）：新表之外，只给 sessions、role_assignments、forum_users、audit_logs 加可空列，旧列不动。 */
 const IDENTITY_TABLES = ['identities', 'identity_audit', 'users', 'invite_codes', 'email_challenges'];
@@ -398,7 +400,7 @@ describe('booting on the existing production data.db (legacy schema, no applicat
     const ids = second.services.roles.listDepartments().map(item => item.id).sort();
     expect(ids).toEqual(['community', 'design', 'recruitment', 'tech']);
     expect(second.services.storage.db.prepare("SELECT name FROM console_seeds ORDER BY name").all()).toEqual([
-      { name: 'competition_oss_2026_1' }, { name: 'departments' }, { name: 'identity_v1' },
+      { name: 'competition_oss_2026_1' }, { name: 'competition_oss_2026_1_rules' }, { name: 'departments' }, { name: 'identity_v1' },
     ]);
   });
 

@@ -52,6 +52,7 @@ export const PERMISSION_NODES: PermissionNodeDef[] = [
   { node: "competition.manage", domain: "competition", label: "管理比赛", description: "新建、编辑、下线比赛" },
   { node: "competition.score.review", domain: "competition", label: "审核积分", description: "确认或撤销比赛积分" },
   { node: "competition.site.publish", domain: "competition", label: "发布官网", description: "上传、发布比赛官网站点包" },
+  { node: "competition.prize.redeem", domain: "competition", label: "核销兑奖码", description: "在控制台输入得奖者的兑奖码，核对并标记已兑奖" },
   // 账号
   { node: "account.profile.edit", domain: "account", label: "改资料", description: "修改昵称、简介、头像、偏好" },
   { node: "account.invite.redeem", domain: "account", label: "兑换邀请码", description: "用邀请码升级为极客班成员" },

@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node ../../scripts/check-boundaries.mjs && tsc -b && vite build",
+    "build": "node ../../scripts/check-boundaries.mjs && tsc -b && vite build && vite build -c sdk.vite.config.ts",
+    "build:contest": "vite build -c sites/contests/oss-2026-1/vite.config.ts",
+    "dev:contest": "vite -c sites/contests/oss-2026-1/vite.config.ts",
     "preview": "vite preview",
     "check:boundaries": "node ../../scripts/check-boundaries.mjs"
   },

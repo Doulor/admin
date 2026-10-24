@@ -33,6 +33,25 @@ describe('web container nginx picks the SPA entry by path', () => {
     expect(siteConf).toMatch(/^\s*location \^~ \/forum\/ \{$/m);
     // 对外授权的端点整段交给 server（#270）
     expect(siteConf).toMatch(/^\s*location \^~ \/oidc\/ \{\n\s*proxy_pass http:\/\/server:3000;$/m);
+    // 比赛官网（#278）：/c/ 整段交给 server，SDK 是本镜像里的静态文件并放开来源
+    expect(siteConf).toMatch(/^\s*location \^~ \/c\/ \{\n\s*proxy_pass http:\/\/server:3000;$/m);
+    expect(siteConf).toMatch(/location \^~ \/sdk\/ \{[^}]*add_header Access-Control-Allow-Origin "\*" always;[^}]*try_files \$uri =404;/);
+    expect(dockerfile).toContain('test -f app/web/dist/sdk/competition/v1.js');
+  });
+
+  it('raises the body limit only for the contest site upload inside the container, and leaves both host templates at 6m (#278)', () => {
+    const upload = /location ~ \^\/api\/console\/competitions\/\[\^\/\]\+\/site\/versions\$ \{\s*client_max_body_size 21m;/;
+    expect(siteConf).toMatch(upload);
+    // 放在 /api/ 里面：^~ /api/ 命中后不再看外层的正则
+    const api = /location \^~ \/api\/ \{([\s\S]*?)\n    \}/.exec(siteConf)?.[1] ?? '';
+    expect(api).toMatch(upload);
+    expect(siteConf.match(/client_max_body_size/g)).toHaveLength(2);
+    // 宿主模板只有一个反代 location（X-Forwarded-For 只追加一次、上游端口只写一处），放宽上传要所有者另定，见 DEPLOY
+    for (const name of ['production', 'preview']) {
+      const text = hostConf(name);
+      expect(text).not.toMatch(upload);
+      expect(text.match(/client_max_body_size [^;]+;/g)).toEqual(['client_max_body_size 6m;']);
+    }
   });
 
   it('lets connect-src read blob: URLs, which GLTFLoader fetches for the embedded textures of the phone model (#240)', () => {
@@ -95,6 +114,8 @@ describe.skipIf(!nginxBinary)('web container nginx routing (live nginx on loopba
     writeFileSync(join(html, 'assets', 'app-abc123.js'), 'export {};\n');
     mkdirSync(join(html, 'console-assets'), { recursive: true });
     writeFileSync(join(html, 'console-assets', 'index-abc123.js'), 'export {};\n');
+    mkdirSync(join(html, 'sdk', 'competition'), { recursive: true });
+    writeFileSync(join(html, 'sdk', 'competition', 'v1.js'), 'export {};\n');
     writeFileSync(join(html, 'logo.png'), 'png');
     writeFileSync(join(html, 'release.json'), '{"environment":"test"}\n');
     // 只替换运行环境相关的五处：监听端口、站点根、include 路径、上游地址（server 不访问；forum 换成同一 nginx 里回显路径的桩）、
@@ -188,5 +209,13 @@ describe.skipIf(!nginxBinary)('web container nginx routing (live nginx on loopba
     expect(consoleAsset.headers.get('cache-control')).toContain('max-age=31536000');
     expect((await fetch(`http://127.0.0.1:${port}/console-assets/missing.js`)).status).toBe(404);
     expect((await fetch(`http://127.0.0.1:${port}/release.json`)).headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('serves the contest SDK with an open origin and short cache, and never falls back to the portal for it (#278)', async () => {
+    const sdk = await fetch(`http://127.0.0.1:${port}/sdk/competition/v1.js`, { headers: { Origin: 'null' } });
+    expect(sdk.status).toBe(200);
+    expect(sdk.headers.get('access-control-allow-origin')).toBe('*');
+    expect(sdk.headers.get('cache-control')).toBe('max-age=300');
+    expect((await fetch(`http://127.0.0.1:${port}/sdk/competition/v2.js`)).status).toBe(404);
   });
 });

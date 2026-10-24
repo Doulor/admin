@@ -1,4 +1,4 @@
-// 比赛积分账本与天梯（#239 第二部分）：分值边界、重复与撤销、审计，以及天梯的排序与并列名次。
+// 比赛积分账本与天梯（#239 第二部分）：两档评定查表（#278）、重复与撤销、审计，以及天梯的排序与并列名次。
 // 认人是会话里的极客班账号（#262）；#274 SPEC §3.2 去掉 GitHub 组织那道门之后，成员资格按权限节点
 // competition.signup/competition.team/competitions.manage 判定，不再查 GitHub 组织成员资格。
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -37,6 +37,8 @@ async function setup() {
         granted.add(login);
         const accountId = app.services.auth.getSession(sid)!.account_id;
         app.services.identity.setSiteRole({ accountId, role: login === 'alice' ? 'admin' : 'member', actor: 'system' });
+        // signIn() 按 #280 给新账号填了大二；#278 起积分按年级加权，这组用例只看名次与合计，从「没填年级、系数 1」起步
+        app.services.storage.db.prepare('UPDATE account_profiles SET enrollment_year = NULL WHERE account_id = ?').run(accountId);
       }
     }
     return { cookie: `sid=${sessions.get(login)!}` };
@@ -135,29 +137,84 @@ describe('seeded competition', () => {
 });
 
 describe('score events', () => {
-  it('enforces the point ranges and repository shape of each kind', async () => {
+  it('scores Issue and PR from the two levels, takes no free points, and checks the repository shape', async () => {
     const { signUp, scoreCompetition, addScore, accountId } = await setup();
     const id = await scoreCompetition();
     await signUp(id, 'alice');
     const alice = accountId('alice');
+    const levels = { importance: 'normal', core: 'edge' };
 
-    expect((await addScore(id, { account_id: alice, kind: 'issue', repo: 'org/repo', number: 1, points: 4 })).json().error).toBe('bad_points');
-    expect((await addScore(id, { account_id: alice, kind: 'issue', repo: 'org/repo', number: 2, points: 31 })).json().error).toBe('bad_points');
-    expect((await addScore(id, { account_id: alice, kind: 'pr', repo: 'org/repo', number: 3, points: 14 })).json().error).toBe('bad_points');
-    expect((await addScore(id, { account_id: alice, kind: 'pr', repo: 'org/repo', number: 4, points: 101 })).statusCode).toBe(400);
-    expect((await addScore(id, { account_id: alice, kind: 'penalty', points: -40 })).json().error).toBe('bad_points');
-    expect((await addScore(id, { account_id: alice, kind: 'issue', number: 5, points: 5 })).json().error).toBe('bad_repo');
-    expect((await addScore(id, { account_id: alice, kind: 'issue', repo: 'no-slash', number: 5, points: 5 })).json().error).toBe('bad_repo');
-    expect((await addScore(id, { account_id: alice, kind: 'issue', repo: 'org/repo', number: 0, points: 5 })).statusCode).toBe(400);
+    // 不收手填分数，两档缺一个、档位不认识、扣分带两档都拒绝
+    const freePoints = await addScore(id, { account_id: alice, kind: 'issue', repo: 'org/repo', number: 1, points: 30 });
+    expect(freePoints.statusCode).toBe(400);
+    expect(freePoints.json().error).toBe('validation_error');
+    expect((await addScore(id, { account_id: alice, kind: 'issue', repo: 'org/repo', number: 2 })).json().error).toBe('bad_levels');
+    expect((await addScore(id, { account_id: alice, kind: 'pr', repo: 'org/repo', number: 3, importance: 'critical' })).json().error).toBe('bad_levels');
+    expect((await addScore(id, { account_id: alice, kind: 'pr', repo: 'org/repo', number: 4, importance: 'huge', core: 'core' })).statusCode).toBe(400);
+    expect((await addScore(id, { account_id: alice, kind: 'penalty', ...levels })).json().error).toBe('bad_levels');
+    expect((await addScore(id, { account_id: alice, kind: 'issue', number: 5, ...levels })).json().error).toBe('bad_repo');
+    expect((await addScore(id, { account_id: alice, kind: 'issue', repo: 'no-slash', number: 5, ...levels })).json().error).toBe('bad_repo');
+    expect((await addScore(id, { account_id: alice, kind: 'issue', repo: 'org/repo', number: 0, ...levels })).statusCode).toBe(400);
 
-    const edge = await addScore(id, { account_id: alice, kind: 'issue', repo: 'org/repo', number: 6, points: 30 });
-    expect(edge.statusCode).toBe(201);
-    expect(edge.json().event).toMatchObject({
-      kind: 'issue', points: 30, repo: 'org/repo', number: 6, status: 'active', created_by_login: 'alice',
+    const top = await addScore(id, { account_id: alice, kind: 'issue', repo: 'org/repo', number: 6, importance: 'critical', core: 'core' });
+    expect(top.statusCode).toBe(201);
+    expect(top.json().event).toMatchObject({
+      kind: 'issue', points: 30, importance: 'critical', core: 'core', damp_percent: 100, weighted_points: 30,
+      contributed_at: expect.any(Number), repo: 'org/repo', number: 6, status: 'active', created_by_login: 'alice',
       person: { login: 'alice' }, revoked_at: null, revoke_reason: null, reason: '',
     });
-    expect((await addScore(id, { account_id: alice, kind: 'pr', repo: 'org/repo', number: 7, points: 15 })).statusCode).toBe(201);
-    expect((await addScore(id, { account_id: alice, kind: 'penalty', points: -50 })).statusCode).toBe(201);
+    // 同样两档，PR 比 Issue 高
+    const pr = await addScore(id, { account_id: alice, kind: 'pr', repo: 'org/repo', number: 7, importance: 'critical', core: 'core' });
+    expect(pr.json().event).toMatchObject({ points: 100, weighted_points: 100 });
+    const penalty = await addScore(id, { account_id: alice, kind: 'penalty' });
+    expect(penalty.statusCode).toBe(201);
+    expect(penalty.json().event).toMatchObject({ points: -50, importance: null, core: null, weighted_points: -50 });
+  });
+
+  it('counts only the first 一般 × 边缘 per person per week; the rest score 0 and stay on record', async () => {
+    const { app, as, signUp, scoreCompetition, addScore, revoke, accountId } = await setup();
+    const id = await scoreCompetition();
+    await signUp(id, 'alice');
+    await signUp(id, 'bob');
+    const alice = accountId('alice');
+    const trivial = { importance: 'normal', core: 'edge' };
+
+    const first = (await addScore(id, { account_id: alice, kind: 'issue', repo: 'org/repo', number: 1, ...trivial })).json().event;
+    expect(first).toMatchObject({ points: 5, damp_percent: 100, weighted_points: 5 });
+    const second = (await addScore(id, { account_id: alice, kind: 'pr', repo: 'org/repo', number: 2, ...trivial })).json().event;
+    expect(second).toMatchObject({ points: 15, damp_percent: 0, weighted_points: 0, status: 'active' });
+    // 别的格子不受影响；别人的第一条照算
+    expect((await addScore(id, { account_id: alice, kind: 'issue', repo: 'org/repo', number: 3, importance: 'normal', core: 'business' })).json().event)
+      .toMatchObject({ points: 8, damp_percent: 100, weighted_points: 8 });
+    expect((await addScore(id, { account_id: accountId('bob'), kind: 'issue', repo: 'org/repo', number: 4, ...trivial })).json().event)
+      .toMatchObject({ damp_percent: 100, weighted_points: 5 });
+
+    // 试算和登记是同一套算法：现在再登一条一般 × 边缘会是 0 分
+    const preview = await app.inject({ url: `/api/console/competitions/${id}/score-preview?account_id=${alice}&kind=pr&importance=normal&core=edge`, headers: as('alice') });
+    expect(preview.json()).toEqual({ points: 15, grade: 'none', grade_factor: 100, damp_percent: 0, weighted_points: 0 });
+    // 撤销照算的那条之后，新登记的又能照算一条；已经记成 0 的那条不回头改
+    expect((await revoke(id, first.id)).statusCode).toBe(200);
+    expect((await addScore(id, { account_id: alice, kind: 'issue', repo: 'org/repo', number: 5, ...trivial })).json().event)
+      .toMatchObject({ damp_percent: 100, weighted_points: 5 });
+    const events = (await app.inject({ url: `/api/console/competitions/${id}/score-events`, headers: as('alice') })).json().events;
+    expect(events.find((event: { id: string }) => event.id === second.id)).toMatchObject({ damp_percent: 0, weighted_points: 0 });
+    // 天梯里 0 分的那条照样算一个 PR
+    const board = (await app.inject({ url: `/api/competitions/${id}/leaderboard`, headers: as('alice') })).json();
+    expect(board.individuals.find((row: { person: { login: string } }) => row.person.login === 'alice')).toMatchObject({ points: 13, issues: 2, prs: 1 });
+  });
+
+  it('keeps rows written before the two levels as they were: points count, levels and discount stay empty', async () => {
+    const { app, as, signUp, scoreCompetition, accountId } = await setup();
+    const id = await scoreCompetition();
+    await signUp(id, 'alice');
+    const alice = accountId('alice');
+    // #239 时代手填分数登记的一条：没有年级、两档和折扣
+    app.services.storage.db.prepare(`INSERT INTO competition_score_events(id, competition_id, account_id, kind, repo, number, points, reason, status, created_by, created_at)
+      VALUES ('00000000-0000-4000-8000-000000000239', ?, ?, 'pr', 'org/old', 1, 37, '', 'active', ?, ?)`).run(id, alice, alice, Date.now() - HOUR);
+    const events = (await app.inject({ url: `/api/console/competitions/${id}/score-events`, headers: as('alice') })).json().events;
+    expect(events[0]).toMatchObject({ points: 37, weighted_points: 37, importance: null, core: null, grade: null, grade_factor: null, damp_percent: null, contributed_at: null });
+    const board = (await app.inject({ url: `/api/competitions/${id}/leaderboard`, headers: as('alice') })).json();
+    expect(board.individuals[0]).toMatchObject({ points: 37, prs: 1 });
   });
 
   it('refuses duplicates, unsigned-up members and competitions without scoring', async () => {
@@ -165,7 +222,7 @@ describe('score events', () => {
     const id = await scoreCompetition();
     await signUp(id, 'alice');
 
-    const payload = { account_id: accountId('alice'), kind: 'pr', repo: 'org/repo', number: 9, points: 20 };
+    const payload = { account_id: accountId('alice'), kind: 'pr', repo: 'org/repo', number: 9, importance: 'normal', core: 'business' };
     const created = await addScore(id, payload);
     expect(created.statusCode).toBe(201);
     const duplicate = await addScore(id, payload);
@@ -176,13 +233,13 @@ describe('score events', () => {
     expect((await revoke(id, created.json().event.id)).statusCode).toBe(200);
     expect((await addScore(id, payload)).statusCode).toBe(201);
 
-    const notSignedUp = await addScore(id, { account_id: accountId('bob'), kind: 'issue', repo: 'org/repo', number: 10, points: 10 });
+    const notSignedUp = await addScore(id, { account_id: accountId('bob'), kind: 'issue', repo: 'org/repo', number: 10, importance: 'normal', core: 'business' });
     expect(notSignedUp.statusCode).toBe(409);
     expect(notSignedUp.json().error).toBe('not_signed_up');
 
     const plain = await scoreCompetition({ scoring: 'none' });
     await signUp(plain, 'alice');
-    const disabled = await addScore(plain, { account_id: accountId('alice'), kind: 'issue', repo: 'org/repo', number: 11, points: 10 });
+    const disabled = await addScore(plain, { account_id: accountId('alice'), kind: 'issue', repo: 'org/repo', number: 11, importance: 'normal', core: 'business' });
     expect(disabled.statusCode).toBe(409);
     expect(disabled.json().error).toBe('scoring_not_enabled');
   });
@@ -192,7 +249,7 @@ describe('score events', () => {
     const id = await scoreCompetition();
     await signUp(id, 'alice');
     const created = (await addScore(id, {
-      account_id: accountId('alice'), kind: 'issue', repo: 'org/repo', number: 12, points: 10, reason: '修了文档',
+      account_id: accountId('alice'), kind: 'issue', repo: 'org/repo', number: 12, importance: 'normal', core: 'business', reason: '修了文档',
     })).json().event;
 
     const revoked = await revoke(id, created.id);
@@ -213,9 +270,9 @@ describe('score events', () => {
     const { app, as, signUp, scoreCompetition, addScore, accountId } = await setup();
     const id = await scoreCompetition();
     await signUp(id, 'alice');
-    await addScore(id, { account_id: accountId('alice'), kind: 'issue', repo: 'org/one', number: 1, points: 5 });
-    await addScore(id, { account_id: accountId('alice'), kind: 'issue', repo: 'org/two', number: 2, points: 6 });
-    await addScore(id, { account_id: accountId('alice'), kind: 'penalty', points: -50 });
+    await addScore(id, { account_id: accountId('alice'), kind: 'issue', repo: 'org/one', number: 1, importance: 'normal', core: 'edge' });
+    await addScore(id, { account_id: accountId('alice'), kind: 'issue', repo: 'org/two', number: 2, importance: 'normal', core: 'business' });
+    await addScore(id, { account_id: accountId('alice'), kind: 'penalty' });
 
     const events = (await app.inject({ url: `/api/console/competitions/${id}/score-events`, headers: as('alice') })).json().events;
     expect(events.map((event: { kind: string }) => event.kind)).toEqual(['penalty', 'issue', 'issue']);
@@ -234,15 +291,15 @@ describe('leaderboard', () => {
     const teamId = await joinTeam(id, 'alice', 'bob');
     const alice = accountId('alice');
 
-    await addScore(id, { account_id: alice, kind: 'pr', repo: 'org/alpha', number: 1, points: 50 });
-    await addScore(id, { account_id: accountId('bob'), kind: 'pr', repo: 'org/beta', number: 2, points: 50 });
-    await addScore(id, { account_id: accountId('carol'), kind: 'issue', repo: 'org/gamma', number: 3, points: 5 });
+    await addScore(id, { account_id: alice, kind: 'pr', repo: 'org/alpha', number: 1, importance: 'important', core: 'business' });
+    await addScore(id, { account_id: accountId('bob'), kind: 'pr', repo: 'org/beta', number: 2, importance: 'important', core: 'business' });
+    await addScore(id, { account_id: accountId('carol'), kind: 'issue', repo: 'org/gamma', number: 3, importance: 'normal', core: 'edge' });
 
     const leaderboard = await board(id);
     expect(leaderboard.updated_at).toBeGreaterThan(0);
     expect(leaderboard.individuals.map((row: { person: { login: string } }) => row.person.login)).toEqual(['alice', 'bob', 'carol', 'dave']);
     expect(leaderboard.individuals.map((row: { rank: number }) => row.rank)).toEqual([1, 1, 3, 4]);
-    expect(leaderboard.individuals.map((row: { points: number }) => row.points)).toEqual([50, 50, 5, 0]);
+    expect(leaderboard.individuals.map((row: { points: number }) => row.points)).toEqual([45, 45, 5, 0]);
     expect(leaderboard.individuals[0]).toMatchObject({
       team: { id: teamId, name: 'alice 队' }, prs: 1, issues: 0, penalties: 0,
       person: { account_id: alice, login: 'alice' },
@@ -250,11 +307,11 @@ describe('leaderboard', () => {
     expect(leaderboard.individuals[2].team).toBeNull();
     expect(leaderboard.individuals[2]).toMatchObject({ issues: 1, prs: 0 });
     expect(leaderboard.teams).toEqual([
-      { rank: 1, team: { id: teamId, name: 'alice 队', status: 'recruiting' }, points: 100, member_count: 2 },
+      { rank: 1, team: { id: teamId, name: 'alice 队', status: 'recruiting' }, points: 90, member_count: 2 },
     ]);
 
     // 扣分计入个人分，也计入队伍分
-    await addScore(id, { account_id: accountId('carol'), kind: 'penalty', points: -50 });
+    await addScore(id, { account_id: accountId('carol'), kind: 'penalty' });
     const afterPenalty = await board(id);
     expect(afterPenalty.individuals.find((row: { person: { login: string } }) => row.person.login === 'carol'))
       .toMatchObject({ points: -45, penalties: 1 });
@@ -265,9 +322,9 @@ describe('leaderboard', () => {
     const id = await scoreCompetition();
     for (const login of ['alice', 'bob', 'carol']) await signUp(id, login);
     const first = (await addScore(id, {
-      account_id: accountId('alice'), kind: 'pr', repo: 'org/alpha', number: 1, points: 50,
+      account_id: accountId('alice'), kind: 'pr', repo: 'org/alpha', number: 1, importance: 'important', core: 'business',
     })).json().event;
-    await addScore(id, { account_id: accountId('carol'), kind: 'issue', repo: 'org/gamma', number: 2, points: 5 });
+    await addScore(id, { account_id: accountId('carol'), kind: 'issue', repo: 'org/gamma', number: 2, importance: 'normal', core: 'edge' });
 
     expect((await revoke(id, first.id)).statusCode).toBe(200);
     const leaderboard = await board(id);

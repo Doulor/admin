@@ -15,26 +15,36 @@ import { TxInput } from "@talex-touch/tuffex/input";
 import { TxTextarea } from "@talex-touch/tuffex/textarea";
 import { TxRadio, TxRadioGroup } from "@talex-touch/tuffex/radio";
 import { TxEmptyState } from "@talex-touch/tuffex/empty-state";
+import { TxTabs, TxTabItem } from "@talex-touch/tuffex/tabs";
 import { toast } from "@talex-touch/tuffex/utils";
 import PageHeader from "../components/PageHeader.vue";
 import UserCell from "../components/UserCell.vue";
 import ErrorPanel from "../components/ErrorPanel.vue";
 import ErrorAlert from "../components/ErrorAlert.vue";
 import LoadingBlock from "../components/LoadingBlock.vue";
+import CandidatesPanel from "./competition/CandidatesPanel.vue";
+import RulesPanel from "./competition/RulesPanel.vue";
+import SitePanel from "./competition/SitePanel.vue";
+import FinalPanel from "./competition/FinalPanel.vue";
+import ScoreLevels from "./competition/ScoreLevels.vue";
 import { api, jsonBody } from "../lib/http";
+import { useSession } from "../lib/session";
+import { vSnapIndicator } from "../lib/tabs";
+import { eventPointsNote } from "../lib/competition-contest";
 import { fmtDate } from "../lib/format";
 import { useAction, useResource } from "../lib/resource";
 import { KIND_TEXT, STATUS_TEXT } from "../lib/competitions";
 import {
   PARTICIPATION_TEXT, ROLE_TEXT, SCORE_KIND_TEXT, SCORING_TEXT, SIGNUP_STATUS_TEXT, TEAM_STATUS_TEXT,
-  defaultPoints, emptyScoreForm, exportRateLimitNotice, matchSignups, rosterCsvName, rosterCsvPath, rosterStats, scoreErrors, scorePayload,
-  scorePointsHint, scoreTargetText, scoreTargetUrl, settingsErrors, settingsForm, settingsPayload, teamLeader,
+  emptyScoreForm, exportRateLimitNotice, matchSignups, rosterCsvName, rosterCsvPath, rosterStats, scoreErrors, scorePayload,
+  scoreTargetText, scoreTargetUrl, settingsErrors, settingsForm, settingsPayload, teamLeader,
   type ScoreErrors, type ScoreForm, type SettingsErrors, type SettingsForm,
 } from "../lib/competition-hub";
-import type { CompetitionRecord, CompetitionRoster, RosterSignup, RosterTeam, ScoreEvent, ScoreEventList } from "../lib/types";
+import type { CompetitionRecord, CompetitionRoster, CompetitionRules, RosterSignup, RosterTeam, ScoreEvent, ScoreEventList } from "../lib/types";
 
 const route = useRoute();
 const router = useRouter();
+const { can } = useSession();
 const id = computed(() => String(route.params.id ?? ""));
 
 /** 没有单场控制台接口：从列表里取这一场（已下线的也在）。 */
@@ -42,9 +52,42 @@ const competitions = useResource(() => api<{ competitions: CompetitionRecord[] }
 const competition = computed(() => competitions.data.value?.competitions.find(row => row.id === id.value));
 const isExternal = computed(() => competition.value?.kind === "external");
 
-const roster = useResource(() => api<CompetitionRoster>(`/api/console/competitions/${encodeURIComponent(id.value)}/roster`), [id]);
-const events = useResource(() => api<ScoreEventList>(`/api/console/competitions/${encodeURIComponent(id.value)}/score-events`), [id]);
+// 名单要 competition.manage，积分记录要 competition.score.review（服务端同样核验）；没有的不去读
+const roster = useResource(() => api<CompetitionRoster>(`/api/console/competitions/${encodeURIComponent(id.value)}/roster`), [id], {
+  enabled: () => can("competition.manage"),
+});
+const events = useResource(() => api<ScoreEventList>(`/api/console/competitions/${encodeURIComponent(id.value)}/score-events`), [id], {
+  enabled: () => can("competition.score.review"),
+});
 const scoringEnabled = computed(() => roster.data.value?.settings.scoring === "contribution");
+
+// —— 页签（#278）：报名与名单、积分是原来的两块（都读名单，要 competition.manage；积分另要 competition.score.review）；
+// 待确认贡献、计分与奖项、官网、定榜只对内部比赛。都按权限出现，默认开第一个 ——
+type Tab = "signup" | "scores" | "candidates" | "rules" | "site" | "final";
+const tabs = computed(() => {
+  const list: { id: Tab; label: string }[] = [];
+  if (can("competition.manage")) list.push({ id: "signup", label: "报名与名单" });
+  if (can("competition.manage") && can("competition.score.review")) list.push({ id: "scores", label: "积分" });
+  if (isExternal.value) return list;
+  if (can("competition.score.review")) list.push({ id: "candidates", label: "待确认贡献" });
+  if (can("competition.manage") || can("competition.score.review")) list.push({ id: "rules", label: "计分与奖项" });
+  if (can("competition.manage") || can("competition.site.publish")) list.push({ id: "site", label: "官网" });
+  if (can("competition.manage")) list.push({ id: "final", label: "定榜" });
+  return list;
+});
+const tab = computed<Tab | undefined>(() => tabs.value.find(item => item.id === route.query.tab)?.id ?? tabs.value[0]?.id);
+const setTab = (value: string) => void router.replace({ query: { ...route.query, tab: value === tabs.value[0]?.id ? undefined : value } });
+// 手机上页签条横向滚动，带 ?tab= 进来时当前页签可能在可视区外：渲染后滚到能看见
+const tabsRef = ref<{ $el: HTMLElement } | null>(null);
+watch([tab, tabsRef], () => tabsRef.value?.$el.querySelector(".tx-tab-item.is-active")?.scrollIntoView({ block: "nearest", inline: "nearest" }), { flush: "post" });
+
+// 积分记录里这场比赛的 GitLab 项目不拼 GitHub 链接；读不到规则（没有权限、外部比赛）时照旧
+const rules = useResource(() => api<CompetitionRules>(`/api/console/competitions/${encodeURIComponent(id.value)}/rules`), [id], {
+  enabled: () => can("competition.manage") || can("competition.score.review"),
+});
+const gitlabProjects = computed(() => rules.data.value?.gitlab_projects ?? []);
+/** 候选确认、驳回、改规则、定榜之后，积分记录与名单跟着重读。 */
+const onContestChanged = () => Promise.all([events.reload(), roster.reload(), rules.reload()]);
 
 // —— 报名设置 ——
 
@@ -114,10 +157,11 @@ const score = reactive<ScoreForm>(emptyScoreForm());
 const scoreErrorView = ref<ScoreErrors>({});
 const candidateQuery = ref("");
 watch(() => score.kind, kind => {
-  score.points = String(defaultPoints(kind));
   if (kind === "penalty") {
     score.repo = "";
     score.number = "";
+    score.importance = "";
+    score.core = "";
   }
 });
 
@@ -146,7 +190,7 @@ const scoreColumns = [
   { key: "person", title: "选手", width: 180 },
   { key: "kind", title: "类型", width: 108 },
   { key: "target", title: "仓库", width: 220 },
-  { key: "points", title: "分值", width: 76 },
+  { key: "points", title: "分值", width: 200 },
   { key: "reason", title: "说明" },
   { key: "created_by", title: "登记人", width: 140 },
   { key: "status", title: "状态", width: 150 },
@@ -190,7 +234,7 @@ const teamTone = (team: RosterTeam) => (team.status === "locked" ? "success" : t
   <div class="page">
     <PageHeader
       :title="competition?.name ?? '比赛报名'"
-      :description="competition ? `${KIND_TEXT[competition.kind]} · ${STATUS_TEXT[competition.status]}：报名设置、名单与积分。` : '报名设置、名单与积分。'"
+      :description="competition ? `${KIND_TEXT[competition.kind]} · ${STATUS_TEXT[competition.status]}：${isExternal ? '报名设置、名单与积分' : '报名、积分、官网与定榜'}。` : '报名、积分、官网与定榜。'"
     >
       <template #actions>
         <TxButton icon="i-carbon-arrow-left" @click="router.push('/console/competitions')">返回比赛列表</TxButton>
@@ -212,215 +256,231 @@ const teamTone = (team: RosterTeam) => (team.status === "locked" ? "success" : t
         官网的报名是意向，用来找人组队和统计；报名设置与积分由比赛主办方管理，这里不提供。
       </TxAlert>
 
-      <TxCard v-if="!isExternal && roster.data.value" class="section">
-        <div class="section-head">
-          <h2>报名设置</h2>
-          <span class="muted">只对内部比赛开放；保存后门户立即生效。</span>
-        </div>
-        <TxForm :model="settings" label-position="top" class="settings-form">
-          <div class="form-grid">
-            <TxFormItem label="在线报名" class="wide">
-              <TxSwitch v-model="settings.enabled" label="开放在线报名" aria-label="开放在线报名" />
-              <span class="field-hint">关闭后已有报名保留，门户不能再报名。</span>
-              <span v-if="settingsErrorView.enabled" class="field-error">{{ settingsErrorView.enabled }}</span>
-            </TxFormItem>
-            <TxFormItem label="参赛形式" class="wide">
-              <TxRadioGroup v-model="settings.participation" type="card" direction="row">
-                <TxRadio v-for="(text, value) in PARTICIPATION_TEXT" :key="value" :value="value" :label="text" />
-              </TxRadioGroup>
-              <span class="field-hint">有未取消的报名后不能再改参赛形式。</span>
-            </TxFormItem>
-            <template v-if="settings.participation === 'team'">
-              <TxFormItem label="每队最低人数">
-                <TxInput v-model="settings.teamMin" type="number" min="1" max="20" class="fill-width" />
-                <span v-if="settingsErrorView.teamMin" class="field-error">{{ settingsErrorView.teamMin }}</span>
-              </TxFormItem>
-              <TxFormItem label="每队最高人数">
-                <TxInput v-model="settings.teamMax" type="number" min="1" max="20" class="fill-width" />
-                <span v-if="settingsErrorView.teamMax" class="field-error">{{ settingsErrorView.teamMax }}</span>
-              </TxFormItem>
-            </template>
-            <TxFormItem label="计分" class="wide">
-              <TxRadioGroup v-model="settings.scoring" type="card" direction="row">
-                <TxRadio v-for="(text, value) in SCORING_TEXT" :key="value" :value="value" :label="text" />
-              </TxRadioGroup>
-              <span class="field-hint">开启后可以登记合入的 Issue、PR 与作弊扣分，门户显示积分天梯。</span>
-            </TxFormItem>
-          </div>
-          <ErrorAlert v-if="saveSettings.error.value" :error="saveSettings.error.value" @close="saveSettings.reset()" />
-          <div class="form-actions">
-            <TxButton variant="primary" :loading="saveSettings.pending.value" @click="saveSettings.execute()">保存设置</TxButton>
-          </div>
-        </TxForm>
-      </TxCard>
-
-      <ErrorPanel v-if="roster.error.value" :error="roster.error.value" :retry="roster.reload" />
-      <LoadingBlock v-else-if="!roster.data.value" :lines="6" />
-
-      <template v-else>
-        <TxCard class="section">
-          <div class="section-head">
-            <h2>名单</h2>
-            <span class="muted">{{ isExternal ? '外部比赛的报名只是意向。' : '含已取消的报名与已解散的队伍。' }}</span>
-            <span class="section-end">
-              <TxButton icon="i-carbon-download" :loading="exporting" @click="exportCsv">导出 CSV</TxButton>
-            </span>
-          </div>
-          <ErrorAlert v-if="exportError" :error="exportError" @close="exportError = null" />
-          <div class="stats">
-            <div v-for="item in rosterStats(roster.data.value, competition.kind)" :key="item.key" class="stat">
-              <span class="stat__value">{{ item.value }}</span>
-              <span class="stat__label">{{ item.label }}</span>
-              <span class="stat__hint">{{ item.hint }}</span>
-            </div>
-          </div>
-
-          <h3 class="subhead">报名</h3>
-          <TxDataTable style="--table-min: 880px" :columns="signupColumns" :data="roster.data.value.signups" row-key="account_id" table-layout="fixed" scroll-x>
-            <template #cell-person="{ row }: { row: RosterSignup }">
-              <UserCell :login="row.login" :src="row.avatar_url" />
-            </template>
-            <template #cell-status="{ row }: { row: RosterSignup }">
-              <TxStatusBadge :text="SIGNUP_STATUS_TEXT[row.status]" :status="signupTone(row)" size="sm" />
-            </template>
-            <template #cell-note="{ row }: { row: RosterSignup }">
-              <span v-if="row.note" class="clamp-2">{{ row.note }}</span>
-              <span v-else class="muted">—</span>
-            </template>
-            <template #cell-looking="{ row }: { row: RosterSignup }">
-              <span :class="row.looking_for_team ? '' : 'muted'">{{ row.looking_for_team ? "在找队伍" : "—" }}</span>
-            </template>
-            <template #cell-team="{ row }: { row: RosterSignup }">
-              <span v-if="row.team_name">{{ row.team_name }}</span>
-              <span v-else class="muted">未成队</span>
-            </template>
-            <template #cell-role="{ row }: { row: RosterSignup }">
-              <span v-if="row.role">{{ ROLE_TEXT[row.role] }}</span>
-              <span v-else class="muted">—</span>
-            </template>
-            <template #cell-created_at="{ row }: { row: RosterSignup }">
-              <span class="muted">{{ fmtDate(row.created_at) }}</span>
-            </template>
-            <template #empty><TxEmptyState title="还没有人报名" description="门户里有成员报名后会出现在这里。" size="small" /></template>
-          </TxDataTable>
-
-          <h3 class="subhead">队伍</h3>
-          <TxDataTable style="--table-min: 720px" :columns="teamColumns" :data="roster.data.value.teams" row-key="id" table-layout="fixed" scroll-x>
-            <template #cell-name="{ row }: { row: RosterTeam }">
-              <span class="cell-stack">
-                <b>{{ row.name }}</b>
-                <span v-if="row.slogan" class="cell-sub ellipsis">{{ row.slogan }}</span>
-              </span>
-            </template>
-            <template #cell-status="{ row }: { row: RosterTeam }">
-              <TxStatusBadge :text="TEAM_STATUS_TEXT[row.status]" :status="teamTone(row)" size="sm" />
-            </template>
-            <template #cell-member_count="{ row }: { row: RosterTeam }">
-              <span>{{ row.member_count }}</span>
-            </template>
-            <template #cell-leader="{ row }: { row: RosterTeam }">
-              <UserCell v-if="teamLeader(row)" :login="teamLeader(row)!.login" :src="teamLeader(row)!.avatar_url" />
-              <span v-else class="muted">—</span>
-            </template>
-            <template #cell-members="{ row }: { row: RosterTeam }">
-              <span v-if="row.members.length" class="mono ellipsis">{{ row.members.map(member => `@${member.login}`).join("、") }}</span>
-              <span v-else class="muted">—</span>
-            </template>
-            <template #empty><TxEmptyState title="还没有队伍" description="团队赛里领队建队后会出现在这里。" size="small" /></template>
-          </TxDataTable>
-        </TxCard>
-
-        <TxCard class="section">
-          <div class="section-head">
-            <h2>积分</h2>
-            <span class="muted">只记合入的 Issue、PR 与作弊扣分；记错了撤销，记录保留。</span>
-          </div>
-
-          <template v-if="scoringEnabled && !isExternal">
-            <TxForm :model="score" label-position="top" class="score-form">
-              <div class="form-grid">
-                <TxFormItem label="选手" class="wide">
-                  <TxSearchInput v-model="candidateQuery" placeholder="按登录名搜索已报名的选手" class="fill-width" />
-                  <TxFilterChips v-if="candidateChips.length" :model-value="score.accountId" :items="candidateChips" aria-label="选择选手" @update:model-value="value => { score.accountId = String(value); scoreErrorView.accountId = undefined; }" />
-                  <span v-if="!candidateChips.length" class="field-hint">还没有未取消的报名，门户有人报名后才能登记。</span>
-                  <span v-if="scoreErrorView.accountId" class="field-error">{{ scoreErrorView.accountId }}</span>
-                </TxFormItem>
-                <TxFormItem label="类型" class="wide">
-                  <TxRadioGroup v-model="score.kind" type="card" direction="row">
-                    <TxRadio v-for="(text, kind) in SCORE_KIND_TEXT" :key="kind" :value="kind" :label="text" />
-                  </TxRadioGroup>
-                </TxFormItem>
-                <template v-if="score.kind !== 'penalty'">
-                  <TxFormItem label="仓库 owner/name" class="wide">
-                    <TxInput v-model="score.repo" class="fill-width" placeholder="例如 yangtze-geek/portal" />
-                    <span v-if="scoreErrorView.repo" class="field-error">{{ scoreErrorView.repo }}</span>
+      <TxAlert v-if="!tabs.length" type="info" title="这里没有你能看的内容">外部比赛的意向名单要「管理比赛」权限。</TxAlert>
+      <TxTabs v-else ref="tabsRef" v-snap-indicator :model-value="tab" placement="top" indicator-variant="line" borderless :content-scrollable="false" :content-padding="0" class="hub-tabs" @update:model-value="setTab">
+        <TxTabItem v-for="item in tabs" :key="item.id" :name="item.id">
+          <template #name>{{ item.label }}</template>
+          <template v-if="item.id === 'signup'">
+            <TxCard v-if="!isExternal && roster.data.value" class="section">
+              <div class="section-head">
+                <h2>报名设置</h2>
+                <span class="muted">只对内部比赛开放；保存后门户立即生效。</span>
+              </div>
+              <TxForm :model="settings" label-position="top" class="settings-form">
+                <div class="form-grid">
+                  <TxFormItem label="在线报名" class="wide">
+                    <TxSwitch v-model="settings.enabled" label="开放在线报名" aria-label="开放在线报名" />
+                    <span class="field-hint">关闭后已有报名保留，门户不能再报名。</span>
+                    <span v-if="settingsErrorView.enabled" class="field-error">{{ settingsErrorView.enabled }}</span>
                   </TxFormItem>
-                  <TxFormItem label="编号">
-                    <TxInput v-model="score.number" type="number" min="1" class="fill-width" placeholder="Issue 或 PR 编号" />
-                    <span v-if="scoreErrorView.number" class="field-error">{{ scoreErrorView.number }}</span>
+                  <TxFormItem label="参赛形式" class="wide">
+                    <TxRadioGroup v-model="settings.participation" type="card" direction="row">
+                      <TxRadio v-for="(text, value) in PARTICIPATION_TEXT" :key="value" :value="value" :label="text" />
+                    </TxRadioGroup>
+                    <span class="field-hint">有未取消的报名后不能再改参赛形式。</span>
                   </TxFormItem>
+                  <template v-if="settings.participation === 'team'">
+                    <TxFormItem label="每队最低人数">
+                      <TxInput v-model="settings.teamMin" type="number" min="1" max="20" class="fill-width" />
+                      <span v-if="settingsErrorView.teamMin" class="field-error">{{ settingsErrorView.teamMin }}</span>
+                    </TxFormItem>
+                    <TxFormItem label="每队最高人数">
+                      <TxInput v-model="settings.teamMax" type="number" min="1" max="20" class="fill-width" />
+                      <span v-if="settingsErrorView.teamMax" class="field-error">{{ settingsErrorView.teamMax }}</span>
+                    </TxFormItem>
+                  </template>
+                  <TxFormItem label="计分" class="wide">
+                    <TxRadioGroup v-model="settings.scoring" type="card" direction="row">
+                      <TxRadio v-for="(text, value) in SCORING_TEXT" :key="value" :value="value" :label="text" />
+                    </TxRadioGroup>
+                    <span class="field-hint">开启后可以登记 Issue、合入的 MR 与作弊扣分，门户和官网显示积分天梯。</span>
+                  </TxFormItem>
+                </div>
+                <ErrorAlert v-if="saveSettings.error.value" :error="saveSettings.error.value" @close="saveSettings.reset()" />
+                <div class="form-actions">
+                  <TxButton variant="primary" :loading="saveSettings.pending.value" @click="saveSettings.execute()">保存设置</TxButton>
+                </div>
+              </TxForm>
+            </TxCard>
+            <ErrorPanel v-if="roster.error.value" :error="roster.error.value" :retry="roster.reload" />
+            <LoadingBlock v-else-if="!roster.data.value" :lines="6" />
+            <TxCard v-else class="section">
+              <div class="section-head">
+                <h2>名单</h2>
+                <span class="muted">{{ isExternal ? '外部比赛的报名只是意向。' : '含已取消的报名与已解散的队伍。' }}</span>
+                <span class="section-end">
+                  <TxButton icon="i-carbon-download" :loading="exporting" @click="exportCsv">导出 CSV</TxButton>
+                </span>
+              </div>
+              <ErrorAlert v-if="exportError" :error="exportError" @close="exportError = null" />
+              <div class="stats">
+                <div v-for="item in rosterStats(roster.data.value, competition.kind)" :key="item.key" class="stat">
+                  <span class="stat__value">{{ item.value }}</span>
+                  <span class="stat__label">{{ item.label }}</span>
+                  <span class="stat__hint">{{ item.hint }}</span>
+                </div>
+              </div>
+
+              <h3 class="subhead">报名</h3>
+              <TxDataTable style="--table-min: 880px" :columns="signupColumns" :data="roster.data.value.signups" row-key="account_id" table-layout="fixed" scroll-x>
+                <template #cell-person="{ row }: { row: RosterSignup }">
+                  <UserCell :login="row.login" :src="row.avatar_url" />
                 </template>
-                <TxFormItem :label="score.kind === 'penalty' ? '分值（固定 −50）' : '分值'">
-                  <TxInput v-model="score.points" type="number" :disabled="score.kind === 'penalty'" class="fill-width" />
-                  <span class="field-hint">{{ scorePointsHint(score.kind) }}</span>
-                  <span v-if="scoreErrorView.points" class="field-error">{{ scoreErrorView.points }}</span>
-                </TxFormItem>
-                <TxFormItem label="说明" class="wide">
-                  <TxTextarea v-model="score.reason" :rows="2" placeholder="写清合入的改动或扣分原因，≤200 字。" />
-                  <span v-if="scoreErrorView.reason" class="field-error">{{ scoreErrorView.reason }}</span>
-                </TxFormItem>
-              </div>
-              <ErrorAlert v-if="saveScore.error.value" :error="saveScore.error.value" @close="saveScore.reset()" />
-              <div class="form-actions">
-                <TxButton variant="primary" :loading="saveScore.pending.value" @click="saveScore.execute()">登记积分</TxButton>
-              </div>
-            </TxForm>
-          </template>
-          <p v-else class="muted">
-            {{ isExternal ? "外部比赛不在这里记积分。" : "这场比赛没有开启积分。在「报名设置」里选「开源贡献积分」后可以登记。" }}
-          </p>
+                <template #cell-status="{ row }: { row: RosterSignup }">
+                  <TxStatusBadge :text="SIGNUP_STATUS_TEXT[row.status]" :status="signupTone(row)" size="sm" />
+                </template>
+                <template #cell-note="{ row }: { row: RosterSignup }">
+                  <span v-if="row.note" class="clamp-2">{{ row.note }}</span>
+                  <span v-else class="muted">—</span>
+                </template>
+                <template #cell-looking="{ row }: { row: RosterSignup }">
+                  <span :class="row.looking_for_team ? '' : 'muted'">{{ row.looking_for_team ? "在找队伍" : "—" }}</span>
+                </template>
+                <template #cell-team="{ row }: { row: RosterSignup }">
+                  <span v-if="row.team_name">{{ row.team_name }}</span>
+                  <span v-else class="muted">未成队</span>
+                </template>
+                <template #cell-role="{ row }: { row: RosterSignup }">
+                  <span v-if="row.role">{{ ROLE_TEXT[row.role] }}</span>
+                  <span v-else class="muted">—</span>
+                </template>
+                <template #cell-created_at="{ row }: { row: RosterSignup }">
+                  <span class="muted">{{ fmtDate(row.created_at) }}</span>
+                </template>
+                <template #empty><TxEmptyState title="还没有人报名" description="门户里有成员报名后会出现在这里。" size="small" /></template>
+              </TxDataTable>
 
-          <h3 class="subhead">登记记录</h3>
-          <ErrorPanel v-if="events.error.value" :error="events.error.value" :retry="events.reload" />
-          <LoadingBlock v-else-if="!events.data.value" :lines="4" />
-          <TxDataTable v-else style="--table-min: 980px" :columns="scoreColumns" :data="events.data.value.events" row-key="id" table-layout="fixed" scroll-x>
-            <template #cell-created_at="{ row }: { row: ScoreEvent }">
-              <span class="muted">{{ fmtDate(row.created_at) }}</span>
-            </template>
-            <template #cell-person="{ row }: { row: ScoreEvent }">
-              <UserCell :login="row.person.login" :src="row.person.avatar_url" />
-            </template>
-            <template #cell-kind="{ row }: { row: ScoreEvent }">
-              <span>{{ SCORE_KIND_TEXT[row.kind] }}</span>
-            </template>
-            <template #cell-target="{ row }: { row: ScoreEvent }">
-              <a v-if="scoreTargetUrl(row)" class="mono" :href="scoreTargetUrl(row)!" target="_blank" rel="noreferrer">{{ scoreTargetText(row) }}</a>
-              <span v-else class="muted">—</span>
-            </template>
-            <template #cell-points="{ row }: { row: ScoreEvent }">
-              <span class="mono points" :class="row.points > 0 ? 'points--positive' : 'points--negative'">{{ row.points > 0 ? `+${row.points}` : row.points }}</span>
-            </template>
-            <template #cell-reason="{ row }: { row: ScoreEvent }">
-              <span v-if="row.reason" class="clamp-2">{{ row.reason }}</span>
-              <span v-else class="muted">—</span>
-            </template>
-            <template #cell-created_by="{ row }: { row: ScoreEvent }">
-              <span class="mono muted">@{{ row.created_by_login }}</span>
-            </template>
-            <template #cell-status="{ row }: { row: ScoreEvent }">
-              <span class="cell-stack">
-                <TxStatusBadge :text="row.status === 'active' ? '有效' : '已撤销'" :status="row.status === 'active' ? 'success' : 'muted'" size="sm" />
-                <span v-if="row.revoke_reason" class="cell-sub ellipsis">原因：{{ row.revoke_reason }}</span>
-              </span>
-            </template>
-            <template #cell-actions="{ row }: { row: ScoreEvent }">
-              <TxButton v-if="row.status === 'active'" size="sm" variant="ghost" class="danger-text" @click="askRevoke(row)">撤销</TxButton>
-              <span v-else class="muted">—</span>
-            </template>
-            <template #empty><TxEmptyState title="还没有积分记录" description="登记一条以后会出现在这里；撤销的记录也会保留。" size="small" /></template>
-          </TxDataTable>
-        </TxCard>
-      </template>
+              <h3 class="subhead">队伍</h3>
+              <TxDataTable style="--table-min: 720px" :columns="teamColumns" :data="roster.data.value.teams" row-key="id" table-layout="fixed" scroll-x>
+                <template #cell-name="{ row }: { row: RosterTeam }">
+                  <span class="cell-stack">
+                    <b>{{ row.name }}</b>
+                    <span v-if="row.slogan" class="cell-sub ellipsis">{{ row.slogan }}</span>
+                  </span>
+                </template>
+                <template #cell-status="{ row }: { row: RosterTeam }">
+                  <TxStatusBadge :text="TEAM_STATUS_TEXT[row.status]" :status="teamTone(row)" size="sm" />
+                </template>
+                <template #cell-member_count="{ row }: { row: RosterTeam }">
+                  <span>{{ row.member_count }}</span>
+                </template>
+                <template #cell-leader="{ row }: { row: RosterTeam }">
+                  <UserCell v-if="teamLeader(row)" :login="teamLeader(row)!.login" :src="teamLeader(row)!.avatar_url" />
+                  <span v-else class="muted">—</span>
+                </template>
+                <template #cell-members="{ row }: { row: RosterTeam }">
+                  <span v-if="row.members.length" class="mono ellipsis">{{ row.members.map(member => `@${member.login}`).join("、") }}</span>
+                  <span v-else class="muted">—</span>
+                </template>
+                <template #empty><TxEmptyState title="还没有队伍" description="团队赛里领队建队后会出现在这里。" size="small" /></template>
+              </TxDataTable>
+            </TxCard>
+          </template>
+          <template v-else-if="item.id === 'scores'">
+            <ErrorPanel v-if="roster.error.value" :error="roster.error.value" :retry="roster.reload" />
+            <LoadingBlock v-else-if="!roster.data.value" :lines="6" />
+            <TxCard v-else class="section">
+              <div class="section-head">
+                <h2>积分</h2>
+                <span class="muted">手动登记 Issue、合入的 MR 与作弊扣分。分数不手填：选重要程度和核心度查表，再乘记分那一刻的年级系数；GitLab 收来的在「待确认贡献」里确认。记错了撤销，记录保留。</span>
+              </div>
+
+              <template v-if="scoringEnabled && !isExternal">
+                <TxForm :model="score" label-position="top" class="score-form">
+                  <div class="form-grid">
+                    <TxFormItem label="选手" class="wide">
+                      <TxSearchInput v-model="candidateQuery" placeholder="按登录名搜索已报名的选手" class="fill-width" />
+                      <TxFilterChips v-if="candidateChips.length" :model-value="score.accountId" :items="candidateChips" aria-label="选择选手" @update:model-value="value => { score.accountId = String(value); scoreErrorView.accountId = undefined; }" />
+                      <span v-if="!candidateChips.length" class="field-hint">还没有未取消的报名，门户有人报名后才能登记。</span>
+                      <span v-if="scoreErrorView.accountId" class="field-error">{{ scoreErrorView.accountId }}</span>
+                    </TxFormItem>
+                    <TxFormItem label="类型" class="wide">
+                      <TxRadioGroup v-model="score.kind" type="card" direction="row">
+                        <TxRadio v-for="(text, kind) in SCORE_KIND_TEXT" :key="kind" :value="kind" :label="text" />
+                      </TxRadioGroup>
+                    </TxFormItem>
+                    <template v-if="score.kind !== 'penalty'">
+                      <TxFormItem label="仓库 owner/name" class="wide">
+                        <TxInput v-model="score.repo" class="fill-width" placeholder="例如 geek/admin" />
+                        <span v-if="scoreErrorView.repo" class="field-error">{{ scoreErrorView.repo }}</span>
+                      </TxFormItem>
+                      <TxFormItem label="编号">
+                        <TxInput v-model="score.number" type="number" min="1" class="fill-width" placeholder="Issue 或 MR 编号" />
+                        <span v-if="scoreErrorView.number" class="field-error">{{ scoreErrorView.number }}</span>
+                      </TxFormItem>
+                    </template>
+                    <ScoreLevels
+                      :competition-id="id" :account-id="score.accountId" :kind="score.kind" :errors="scoreErrorView"
+                      :importance="score.importance" :core="score.core"
+                      @update:importance="value => { score.importance = value; scoreErrorView.importance = undefined; }"
+                      @update:core="value => { score.core = value; scoreErrorView.core = undefined; }"
+                    />
+                    <TxFormItem label="说明" class="wide">
+                      <TxTextarea v-model="score.reason" :rows="2" placeholder="写清合入的改动或扣分原因，≤200 字。" />
+                      <span v-if="scoreErrorView.reason" class="field-error">{{ scoreErrorView.reason }}</span>
+                    </TxFormItem>
+                  </div>
+                  <ErrorAlert v-if="saveScore.error.value" :error="saveScore.error.value" @close="saveScore.reset()" />
+                  <div class="form-actions">
+                    <TxButton variant="primary" :loading="saveScore.pending.value" @click="saveScore.execute()">登记积分</TxButton>
+                  </div>
+                </TxForm>
+              </template>
+              <p v-else class="muted">
+                {{ isExternal ? "外部比赛不在这里记积分。" : "这场比赛没有开启积分。在「报名设置」里选「开源贡献积分」后可以登记。" }}
+              </p>
+
+              <h3 class="subhead">登记记录</h3>
+              <ErrorPanel v-if="events.error.value" :error="events.error.value" :retry="events.reload" />
+              <LoadingBlock v-else-if="!events.data.value" :lines="4" />
+              <TxDataTable v-else style="--table-min: 1104px" :columns="scoreColumns" :data="events.data.value.events" row-key="id" table-layout="fixed" scroll-x>
+                <template #cell-created_at="{ row }: { row: ScoreEvent }">
+                  <span class="muted">{{ fmtDate(row.created_at) }}</span>
+                </template>
+                <template #cell-person="{ row }: { row: ScoreEvent }">
+                  <UserCell :login="row.person.login" :src="row.person.avatar_url" />
+                </template>
+                <template #cell-kind="{ row }: { row: ScoreEvent }">
+                  <span>{{ SCORE_KIND_TEXT[row.kind] }}</span>
+                </template>
+                <template #cell-target="{ row }: { row: ScoreEvent }">
+                  <a v-if="scoreTargetUrl(row, gitlabProjects)" class="mono" :href="scoreTargetUrl(row, gitlabProjects)!" target="_blank" rel="noreferrer">{{ scoreTargetText(row) }}</a>
+                  <span v-else-if="row.repo" class="mono">{{ scoreTargetText(row) }}</span>
+                  <span v-else class="muted">—</span>
+                </template>
+                <template #cell-points="{ row }: { row: ScoreEvent }">
+                  <span class="cell-stack">
+                    <span class="mono points" :class="row.points > 0 ? 'points--positive' : 'points--negative'">{{ row.points > 0 ? `+${row.points}` : row.points }}</span>
+                    <span v-if="eventPointsNote(row)" class="cell-sub">{{ eventPointsNote(row) }}</span>
+                  </span>
+                </template>
+                <template #cell-reason="{ row }: { row: ScoreEvent }">
+                  <span v-if="row.reason" class="clamp-2">{{ row.reason }}</span>
+                  <span v-else class="muted">—</span>
+                </template>
+                <template #cell-created_by="{ row }: { row: ScoreEvent }">
+                  <span class="mono muted">@{{ row.created_by_login }}</span>
+                </template>
+                <template #cell-status="{ row }: { row: ScoreEvent }">
+                  <span class="cell-stack">
+                    <TxStatusBadge :text="row.status === 'active' ? '有效' : '已撤销'" :status="row.status === 'active' ? 'success' : 'muted'" size="sm" />
+                    <span v-if="row.revoke_reason" class="cell-sub ellipsis">原因：{{ row.revoke_reason }}</span>
+                  </span>
+                </template>
+                <template #cell-actions="{ row }: { row: ScoreEvent }">
+                  <TxButton v-if="row.status === 'active'" size="sm" variant="ghost" class="danger-text" @click="askRevoke(row)">撤销</TxButton>
+                  <span v-else class="muted">—</span>
+                </template>
+                <template #empty><TxEmptyState title="还没有积分记录" description="登记一条以后会出现在这里；撤销的记录也会保留。" size="small" /></template>
+              </TxDataTable>
+            </TxCard>
+          </template>
+          <CandidatesPanel v-else-if="item.id === 'candidates'" :competition-id="id" @changed="onContestChanged" />
+          <RulesPanel v-else-if="item.id === 'rules'" :competition-id="id" :can-edit="can('competition.manage')" @changed="onContestChanged" />
+          <SitePanel v-else-if="item.id === 'site'" :competition-id="id" :can-publish="can('competition.site.publish')" @changed="onContestChanged" />
+          <FinalPanel v-else :competition-id="id" :end-at="competition.end_at" :can-manage="can('competition.manage')" @changed="onContestChanged" />
+        </TxTabItem>
+      </TxTabs>
     </template>
 
     <TxModal :model-value="Boolean(revoking)" title="撤销这条积分" width="min(92vw, 520px)" @update:model-value="value => { if (!value) revoking = null; }">
@@ -430,7 +490,7 @@ const teamTone = (team: RosterTeam) => (team.status === "locked" ? "success" : t
       <p class="muted">撤销后这条记录不再计分，记录与原因会保留，可以追溯。</p>
       <TxForm :model="{ reason: revokeReason }" label-position="top">
         <TxFormItem label="撤销原因">
-          <TxTextarea v-model="revokeReason" :rows="3" placeholder="例如：重复登记，PR 实际没有合入。" />
+          <TxTextarea v-model="revokeReason" :rows="3" placeholder="例如：重复登记，MR 实际没有合入。" />
           <span v-if="revokeErrorText" class="field-error">{{ revokeErrorText }}</span>
         </TxFormItem>
       </TxForm>
@@ -547,6 +607,18 @@ const teamTone = (team: RosterTeam) => (team.status === "locked" ? "success" : t
 .revoke-summary {
   margin: 0 0 8px;
   font-weight: 600;
+}
+.hub-tabs :deep(.tx-tabs__nav) {
+  border-bottom: 1px solid var(--tx-border-color-lighter);
+}
+/* 六个页签在手机上放不下：不折行，横向滚动（导航条的 flex 子项要能缩到容器宽，滚动才落在 nav-inner 上） */
+.hub-tabs :deep(.tx-tabs__nav-bar) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.hub-tabs :deep(.tx-tab-item) {
+  flex: none;
+  white-space: nowrap;
 }
 .settings-form :deep(.tx-input),
 .score-form :deep(.tx-input) {

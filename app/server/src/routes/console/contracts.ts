@@ -5,6 +5,9 @@ import { INVITE_CODE_PATTERN } from "../../lib/invite-codes.js";
 import {
   competitionFields, competitionFailures, competitionDeleted, consoleCompetitionList, consoleCompetitionResult,
   competitionRoster, signupSettingsResult, signupBody, consoleCompetitionIdParam, scoreEventList, scoreEventResult, scoreEventParam,
+  scorePreview, scorePreviewQuery,
+  consoleSiteState, consoleSiteVersion, sitePublishBody, candidateList, candidateResult, collectResult, candidateQuery, candidateParam, candidateBody,
+  rulesView, rulesBody, finalView, redeemResult, prizeCodeBody,
 } from "../../lib/competition-contract.js";
 
 const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$";
@@ -241,6 +244,7 @@ export const consoleContracts: RouteContracts = {
     response: { 200: { type: "string", description: "text/csv; charset=utf-8" }, ...competitionFailures },
   },
   "GET /api/console/competitions/:competition_id/score-events": { ...noQuery, ...competitionParams, response: { 200: scoreEventList, ...competitionFailures } },
+  "GET /api/console/competitions/:competition_id/score-preview": { ...competitionParams, ...scorePreviewQuery, response: { 200: scorePreview, ...competitionFailures } },
   "POST /api/console/competitions/:competition_id/score-events": {
     ...noQuery, ...competitionParams,
     body: signupBody.scoreEvent,
@@ -251,6 +255,24 @@ export const consoleContracts: RouteContracts = {
     body: signupBody.revoke,
     response: { 200: scoreEventResult, ...competitionFailures },
   },
+  // 比赛官网托管（#278）：上传的请求体是 zip（application/zip），不在这里写 body Schema
+  "GET /api/console/competitions/:competition_id/site": { ...noQuery, ...competitionParams, response: { 200: consoleSiteState, ...competitionFailures } },
+  "POST /api/console/competitions/:competition_id/site/versions": { ...noQuery, ...competitionParams, response: { 201: consoleSiteVersion, ...competitionFailures } },
+  "POST /api/console/competitions/:competition_id/site/publish": { ...noQuery, ...competitionParams, body: sitePublishBody, response: { 200: consoleSiteState, ...competitionFailures } },
+  "DELETE /api/console/competitions/:competition_id/site": { ...noQuery, ...competitionParams, response: { 200: consoleSiteState, ...competitionFailures } },
+  // GitLab 候选贡献（#278）
+  "GET /api/console/competitions/:competition_id/candidates": { ...competitionParams, ...candidateQuery, response: { 200: candidateList, ...competitionFailures } },
+  "POST /api/console/competitions/:competition_id/candidates/:candidate_id/accept": { ...noQuery, ...candidateParam, body: candidateBody.accept, response: { 200: candidateResult, ...competitionFailures } },
+  "POST /api/console/competitions/:competition_id/candidates/:candidate_id/reject": { ...noQuery, ...candidateParam, body: candidateBody.reject, response: { 200: candidateResult, ...competitionFailures } },
+  "POST /api/console/competitions/:competition_id/candidates/collect": { ...noQuery, ...competitionParams, response: { 200: collectResult, ...competitionFailures } },
+  // 年级系数、奖项与 GitLab 项目；定榜与兑奖（#278）
+  "GET /api/console/competitions/:competition_id/rules": { ...noQuery, ...competitionParams, response: { 200: rulesView, ...competitionFailures } },
+  "PUT /api/console/competitions/:competition_id/rules": { ...noQuery, ...competitionParams, body: rulesBody, response: { 200: rulesView, ...competitionFailures } },
+  "GET /api/console/competitions/:competition_id/final": { ...noQuery, ...competitionParams, response: { 200: finalView, ...competitionFailures } },
+  "POST /api/console/competitions/:competition_id/final": { ...noQuery, ...competitionParams, response: { 201: finalView, ...competitionFailures } },
+  "DELETE /api/console/competitions/:competition_id/final": { ...noQuery, ...competitionParams, response: { 200: finalView, ...competitionFailures } },
+  "POST /api/console/prizes/lookup": { ...noQuery, body: prizeCodeBody, response: { 200: redeemResult, ...competitionFailures } },
+  "POST /api/console/prizes/redeem": { ...noQuery, body: prizeCodeBody, response: { 200: redeemResult, ...competitionFailures } },
   "DELETE /api/console/feedback/:id": noQuery,
   // 注册邀请码（#262）：次数上限、过期时间可以为空（不限）；邀请码本身建好后不能改
   "GET /api/console/invites": { ...noQuery, response: { 200: object({ invites: { type: "array", items: inviteView } }, ["invites"]), ...inviteFailures } },

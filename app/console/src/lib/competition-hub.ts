@@ -1,8 +1,8 @@
-// 比赛报名与积分（#239）控制台页面的纯逻辑：设置表单、积分表单、名单统计、GitHub 链接。
+// 比赛报名与积分（#239）控制台页面的纯逻辑：设置表单、积分表单、名单统计、GitHub 链接。#278 的官网、候选、规则、定榜与兑奖在 competition-contest.ts。
 // 不导入 Vue，tests/console/competition-hub.test.ts 直接测。规则以服务端 competition-contract.ts 为准，
-// 这里只做输入前的基本校验（必填、长度、分值范围），错误码与中文 message 仍原样显示服务端的。
+// 这里只做输入前的基本校验（必填、长度、两档要选），错误码与中文 message 仍原样显示服务端的。
 import type {
-  CompetitionKind, CompetitionRoster, RosterSignup, RosterTeam, ScoreEvent, ScoreKind, SignupSettings,
+  CompetitionKind, CompetitionRoster, Core, Importance, RosterSignup, RosterTeam, ScoreEvent, ScoreKind, SignupSettings,
 } from "./types";
 import { ApiError } from "./http";
 
@@ -20,18 +20,15 @@ export const SIGNUP_STATUS_TEXT: Record<RosterSignup["status"], string> = {
 };
 export const ROLE_TEXT: Record<"leader" | "member", string> = { leader: "领队", member: "队员" };
 export const SCORE_KIND_TEXT: Record<ScoreKind, string> = {
-  issue: "合入 Issue", pr: "合入 PR", penalty: "作弊扣分",
+  issue: "Issue", pr: "合入的 MR", penalty: "作弊扣分",
 };
 
-/** Issue 与 PR 的分值范围；扣分固定 −50（服务端另有表约束兜底）。 */
-export const SCORE_POINTS: Record<ScoreKind, { min: number; max: number }> = {
-  issue: { min: 5, max: 30 },
-  pr: { min: 15, max: 100 },
-  penalty: { min: -50, max: -50 },
-};
 
-/** 与服务端 `REPO_PATTERN` 一致：`owner/name`，各段只允许字母、数字、下划线、点和连字符。 */
-export const REPO_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+/**
+ * 与服务端 `REPO_PATTERN` 一致：`owner/name`，GitLab 的项目可以在子组里（#278，最多五段），
+ * 各段只允许字母、数字、下划线、点和连字符。
+ */
+export const REPO_PATTERN = /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+){1,4}$/;
 
 const charLength = (value: string) => [...value].length;
 const isInteger = (value: string) => /^-?\d+$/.test(value.trim());
@@ -141,36 +138,26 @@ export function exportRateLimitNotice(error: unknown): string | null {
 
 // —— 积分 ——
 
-/** 积分表单正在编辑的样子；编号与分值用字符串收输入框里的原值。 */
+/** 积分表单正在编辑的样子；编号用字符串收输入框里的原值，两档没选时是空字符串。分数不手填，由两档查表。 */
 export type ScoreForm = {
   accountId: string;
   kind: ScoreKind;
   repo: string;
   number: string;
-  points: string;
+  importance: Importance | "";
+  core: Core | "";
   reason: string;
 };
 
-export function defaultPoints(kind: ScoreKind): number {
-  return SCORE_POINTS[kind].min;
-}
-
 export function emptyScoreForm(kind: ScoreKind = "issue"): ScoreForm {
-  return { accountId: "", kind, repo: "", number: "", points: String(defaultPoints(kind)), reason: "" };
+  return { accountId: "", kind, repo: "", number: "", importance: "", core: "", reason: "" };
 }
 
-export type ScoreField = "accountId" | "repo" | "number" | "points" | "reason";
+export type ScoreField = "accountId" | "repo" | "number" | "importance" | "core" | "reason";
 export type ScoreErrors = Partial<Record<ScoreField, string>>;
 
-/** 分值提示，写在输入框下面。 */
-export function scorePointsHint(kind: ScoreKind): string {
-  if (kind === "penalty") return "作弊扣分固定 −50，不能改。";
-  const { min, max } = SCORE_POINTS[kind];
-  return `可填 ${min}–${max}。`;
-}
-
 /**
- * 积分表单校验。Issue 与 PR 必填仓库和正整数编号，扣分不带这两项；说明 ≤ 200 字。
+ * 积分表单校验。Issue 与 PR 必填仓库、正整数编号和两档，扣分不带这些；说明 ≤ 200 字。
  * 重复的 Issue / PR 由服务端判 `duplicate_score_event`，这里不查。
  */
 export function scoreErrors(form: ScoreForm): ScoreErrors {
@@ -180,43 +167,48 @@ export function scoreErrors(form: ScoreForm): ScoreErrors {
     const repo = form.repo.trim();
     if (!repo) errors.repo = "请填写 owner/name 形式的仓库。";
     else if (charLength(repo) > 140) errors.repo = "仓库最多 140 个字。";
-    else if (!REPO_PATTERN.test(repo)) errors.repo = "仓库要写成 owner/name，例如 yangtze-geek/portal。";
+    else if (!REPO_PATTERN.test(repo)) errors.repo = "仓库要写成 owner/name，例如 geek/admin。";
     const number = form.number.trim();
     if (!number) errors.number = "请填 Issue 或 PR 编号。";
     else if (!isInteger(number) || !/^\d+$/.test(number) || Number(number) < 1 || Number(number) > 1_000_000) {
       errors.number = "编号必须是 1–1000000 的整数。";
     }
   }
-  const points = form.points.trim();
-  const range = SCORE_POINTS[form.kind];
-  if (!points) errors.points = "请填分值。";
-  else if (!isInteger(points) || Number(points) < range.min || Number(points) > range.max) errors.points = `分值要填 ${range.min}–${range.max} 的整数。`;
+  if (form.kind !== "penalty") {
+    if (!form.importance) errors.importance = "请选重要程度。";
+    if (!form.core) errors.core = "请选核心度。";
+  }
   if (charLength(form.reason.trim()) > 200) errors.reason = "说明最多 200 个字。";
   return errors;
 }
 
 export type ScorePayload = {
-  account_id: string; kind: ScoreKind; points: number;
-  repo?: string; number?: number; reason: string;
+  account_id: string; kind: ScoreKind;
+  repo?: string; number?: number; importance?: Importance; core?: Core; reason: string;
 };
 
-/** 表单 → 请求体。扣分是一条针对人的记录，不带仓库与编号。 */
+/** 表单 → 请求体。扣分是一条针对人的记录，不带仓库、编号和两档。 */
 export function scorePayload(form: ScoreForm): ScorePayload {
   const reason = form.reason.trim();
-  if (form.kind === "penalty") return { account_id: form.accountId, kind: form.kind, points: Number(form.points.trim()), reason };
+  if (form.kind === "penalty") return { account_id: form.accountId, kind: form.kind, reason };
   return {
     account_id: form.accountId,
     kind: form.kind,
     repo: form.repo.trim(),
     number: Number(form.number.trim()),
-    points: Number(form.points.trim()),
+    importance: form.importance || undefined,
+    core: form.core || undefined,
     reason,
   };
 }
 
-/** Issue → `/issues/<编号>`，PR → `/pull/<编号>`，扣分没有链接。 */
-export function scoreTargetUrl(event: Pick<ScoreEvent, "kind" | "repo" | "number">): string | null {
+/**
+ * Issue → `/issues/<编号>`，PR → `/pull/<编号>`，扣分没有链接。
+ * 这场比赛配的 GitLab 项目（#278，`gitlabProjects`）不在 GitHub 上，不拼 GitHub 链接，原文显示；它们的链接在「待确认贡献」里。
+ */
+export function scoreTargetUrl(event: Pick<ScoreEvent, "kind" | "repo" | "number">, gitlabProjects: readonly string[] = []): string | null {
   if (!event.repo || event.number === null) return null;
+  if (gitlabProjects.includes(event.repo)) return null;
   if (event.kind === "issue") return `https://github.com/${event.repo}/issues/${event.number}`;
   if (event.kind === "pr") return `https://github.com/${event.repo}/pull/${event.number}`;
   return null;

@@ -32,6 +32,8 @@ const routes: RouteRecordRaw[] = [
       { path: "applications/:applicationId", ...gated(["apply.view"], () => import("./pages/ApplicationDetail.vue")) },
       { path: "forum", ...gated(FORUM_PERMISSIONS, () => import("./pages/Forum.vue")) },
       { path: "competitions", ...gated(COMPETITION_MANAGE_PERMISSIONS, () => import("./pages/Competitions.vue")) },
+      // 核销兑奖码（#278）：要排在 competitions/:id 前面，不然 redeem 会被当成比赛 id
+      { path: "competitions/redeem", ...gated(["competition.prize.redeem"], () => import("./pages/PrizeRedeem.vue")) },
       { path: "competitions/:id", ...gated(COMPETITION_MANAGE_PERMISSIONS, () => import("./pages/CompetitionHub.vue")) },
       { path: "users", ...gated(USERS_PERMISSIONS, () => import("./pages/Users.vue")) },
       { path: "permissions", ...gated(["perm.view", "perm.manage"], () => import("./pages/Permissions.vue")) },

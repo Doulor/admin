@@ -5,9 +5,9 @@
 import { ApiError } from "../lib/http";
 import { NODE_LABELS, PERMISSION_DOMAINS, nodeDomain } from "../lib/permission-nodes";
 import type {
-  ActivityEvent, ActivityList, ConsoleMe, ConsoleUser, DepartmentRef, EffectivePermissions, GitlabAccount, GitlabAccountsResponse, GitlabProjectsResponse, Grade,
+  ActivityEvent, ActivityList, Candidate, CompetitionRules, ConsoleMe, ConsoleUser, Core, DepartmentRef, EffectivePermissions, GitlabAccount, GitlabAccountsResponse, GitlabProjectsResponse, Grade,
   GitlabSettings, GitlabStatus, InviteCode, Level, PermissionEntry, PermissionExplain, PermissionExplainHit, PermissionGroup, PermissionGroupMember,
-  PermissionNodesResponse, PublicDepartment, RosterSignup, RosterStats, RosterTeam, ScoreEvent, SessionProvider, SignupSettings, SiteRole, Summary,
+  FinalView, Importance, PermissionNodesResponse, PublicDepartment, RosterSignup, RosterStats, RosterTeam, ScoreEvent, ScorePreview, Scoring, SessionProvider, SignupSettings, SiteRole, SiteState, Summary,
   UserPatch, UsersResponse,
 } from "../lib/types";
 
@@ -595,11 +595,71 @@ const MOCK_SIGNUPS: Record<string, RosterSignup[]> = {
 };
 const MOCK_SCORE_EVENTS: Record<string, ScoreEvent[]> = {
   c1001: [
-    { id: "s1001", competition_id: "c1001", person: mockPerson("chen_hang"), kind: "pr", repo: "geek/portal", number: 265, points: 60, reason: "比赛窗口的列表、详情与手机布局。", status: "active", created_by_login: "xu_yan", created_at: now - 6 * HOUR, revoked_at: null, revoke_reason: null },
-    { id: "s1002", competition_id: "c1001", person: mockPerson("li_xiaoman"), kind: "issue", repo: "geek/portal", number: 239, points: 20, reason: "补上名单导出与积分登记的接口。", status: "active", created_by_login: "xu_yan", created_at: now - DAY, revoked_at: null, revoke_reason: null },
-    { id: "s1003", competition_id: "c1001", person: mockPerson("wang_zhe"), kind: "penalty", repo: null, number: null, points: -50, reason: "提交里带了别人的代码。", status: "revoked", created_by_login: "xu_yan", created_at: now - 2 * DAY, revoked_at: now - 2 * HOUR, revoke_reason: "误判：改动是结对完成的。" },
+    { id: "s1001", competition_id: "c1001", person: mockPerson("chen_hang"), kind: "pr", repo: "geek/portal", number: 265, points: 45, importance: "important", core: "business", grade: "year1", grade_factor: 350, damp_percent: 100, weighted_points: 158, contributed_at: now - 6 * HOUR, reason: "比赛窗口的列表、详情与手机布局。", status: "active", created_by_login: "xu_yan", created_at: now - 6 * HOUR, revoked_at: null, revoke_reason: null },
+    { id: "s1004", competition_id: "c1001", person: mockPerson("chen_hang"), kind: "issue", repo: "geek/portal", number: 270, points: 5, importance: "normal", core: "edge", grade: "year1", grade_factor: 350, damp_percent: 0, weighted_points: 0, contributed_at: now - 5 * HOUR, reason: "说明文档里的错别字。", status: "active", created_by_login: "xu_yan", created_at: now - 5 * HOUR, revoked_at: null, revoke_reason: null },
+    { id: "s1002", competition_id: "c1001", person: mockPerson("li_xiaoman"), kind: "issue", repo: "geek/portal", number: 239, points: 20, importance: "important", core: "core", grade: "year3", grade_factor: 140, damp_percent: 100, weighted_points: 28, contributed_at: now - DAY, reason: "补上名单导出与积分登记的接口。", status: "active", created_by_login: "xu_yan", created_at: now - DAY, revoked_at: null, revoke_reason: null },
+    { id: "s1003", competition_id: "c1001", person: mockPerson("wang_zhe"), kind: "penalty", repo: null, number: null, points: -50, importance: null, core: null, grade: "year2", grade_factor: 100, damp_percent: 100, weighted_points: -50, contributed_at: now - 2 * DAY, reason: "提交里带了别人的代码。", status: "revoked", created_by_login: "xu_yan", created_at: now - 2 * DAY, revoked_at: now - 2 * HOUR, revoke_reason: "误判：改动是结对完成的。" },
   ],
 };
+// #278 的只读样板：一期开源赛的待确认贡献、计分规则与奖项、官网版本、定榜预览（写操作在开发预览里照旧回 501）
+const contestPerson = (login: string, name: string) => ({ account_id: `mock-${login}`, username: login, display_name: name, avatar_url: null });
+const MOCK_CANDIDATES: Candidate[] = [
+  { id: "cd1001", account: contestPerson("zhao_yi", "赵一"), kind: "pr", gitlab_project: "geek/admin", gitlab_iid: 41, url: "https://git.yangtzeu.work/geek/admin/-/merge_requests/41",
+    title: "天梯接口加十秒缓存", importance: "important", core: "core", status: "pending", final_points: null, reason: null, reviewed_by: null, reviewed_at: null, accepted_via: null,
+    note: "「有用」标签由 zhao_yi 添加，这是作者本人，未计分", contributed_at: now - 5 * HOUR, created_at: now - 4 * HOUR },
+  { id: "cd1002", account: contestPerson("sun_qiao", "孙乔"), kind: "issue", gitlab_project: "geek/admin", gitlab_iid: 77, url: "https://git.yangtzeu.work/geek/admin/-/issues/77",
+    title: "手机上天梯表格横向滚动", importance: null, core: null, status: "pending", final_points: null, reason: null, reviewed_by: null, reviewed_at: null, accepted_via: null,
+    note: null, contributed_at: now - DAY, created_at: now - DAY + HOUR },
+  { id: "cd1003", account: contestPerson("chen_hang", "陈航"), kind: "pr", gitlab_project: "geek/admin", gitlab_iid: 38, url: "https://git.yangtzeu.work/geek/admin/-/merge_requests/38",
+    title: "比赛官网的动态流", importance: "important", core: "business", status: "accepted", final_points: 45, reason: null, reviewed_by: contestPerson("xu_yan", "徐言"), reviewed_at: now - 3 * HOUR, accepted_via: "label",
+    note: null, contributed_at: now - 2 * DAY, created_at: now - 2 * DAY + HOUR },
+];
+// 和服务端 competition-rubric.ts 的表一致，只给开发预览用
+const MOCK_RUBRIC: Record<"issue" | "pr", Record<Importance, Record<Core, number>>> = {
+  issue: { normal: { edge: 5, business: 8, core: 12 }, important: { edge: 8, business: 14, core: 20 }, critical: { edge: 12, business: 20, core: 30 } },
+  pr: { normal: { edge: 15, business: 25, core: 40 }, important: { edge: 25, business: 45, core: 65 }, critical: { edge: 40, business: 65, core: 100 } },
+};
+const MOCK_SCORING: Scoring = {
+  importance: [{ key: "normal", label: "一般" }, { key: "important", label: "重要" }, { key: "critical", label: "关键" }],
+  core: [{ key: "edge", label: "边缘", hint: "文档、样式、小脚本" }, { key: "business", label: "业务", hint: "一个功能模块" }, { key: "core", label: "核心", hint: "身份、权限、数据、计分、部署" }],
+  points: (["issue", "pr"] as const).flatMap(kind => (["normal", "important", "critical"] as const).flatMap(importance =>
+    (["edge", "business", "core"] as const).map(core => ({ kind, importance, core, points: MOCK_RUBRIC[kind][importance][core] })))),
+  penalty: -50, trivial_per_week: 1, trivial_percent: 0,
+};
+/** 开发预览的试算：按样板选手的年级乘默认系数，不算防刷。 */
+function mockScorePreview(search: URLSearchParams): ScorePreview {
+  const kind = search.get("kind");
+  if (kind === "penalty") return { points: -50, grade: "none", grade_factor: 100, damp_percent: 100, weighted_points: -50 };
+  const points = MOCK_RUBRIC[kind === "pr" ? "pr" : "issue"][(search.get("importance") ?? "normal") as Importance][(search.get("core") ?? "edge") as Core];
+  return { points, grade: "year1", grade_factor: 350, damp_percent: 100, weighted_points: Math.round(points * 3.5) };
+}
+const MOCK_RULES: Record<string, CompetitionRules> = {
+  c1001: {
+    grade_factors: { year1: 350, year2: 220, year3: 140, year4: 100, graduated: 100, none: 100 },
+    grades: [{ grade: "year1", label: "大一" }, { grade: "year2", label: "大二" }, { grade: "year3", label: "大三" }, { grade: "year4", label: "大四" }, { grade: "graduated", label: "已毕业" }, { grade: "none", label: "无年级" }],
+    prizes: [{ from: 1, to: 1, amount_cny: 700, title: "GPT 5x 订阅的价格" }, { from: 2, to: 3, amount_cny: 140, title: "GPT Plus 订阅的价格" }, { from: 4, to: 8, amount_cny: 70, title: "" }],
+    gitlab_projects: ["geek/admin"], scoring: MOCK_SCORING, updated_at: null, updated_by: null, finalized: false,
+  },
+};
+const MOCK_SITE: SiteState = {
+  slug: "oss-challenge-2026-1", live_version_id: "sv1002", site_url: "/c/oss-challenge-2026-1/",
+  versions: [
+    { id: "sv1003", version: "1.0.1", size: 13_107_200, files: 3, sha256: "9f2c".repeat(16), status: "rejected", report: ["assets/intro.mp4：不允许的文件类型 .mp4"], uploaded_by: contestPerson("xu_yan", "徐言"), created_at: now - HOUR, preview_url: null },
+    { id: "sv1002", version: "1.0.0", size: 227_873, files: 5, sha256: "468f".repeat(16), status: "passed", report: [], uploaded_by: contestPerson("xu_yan", "徐言"), created_at: now - DAY, preview_url: "/c/oss-challenge-2026-1/~preview/sv1002/" },
+  ],
+};
+function mockFinal(competitionId: string): FinalView {
+  const events = (MOCK_SCORE_EVENTS[competitionId] ?? []).filter(row => row.status === "active");
+  const totals = new Map<string, number>();
+  for (const row of events) totals.set(row.person.login, (totals.get(row.person.login) ?? 0) + row.weighted_points);
+  const tiers = MOCK_RULES[competitionId]?.prizes ?? [];
+  const preview = [...totals].filter(([, points]) => points > 0).sort((a, b) => b[1] - a[1]).map(([login, points], index) => {
+    const tier = tiers.find(item => index + 1 >= item.from && index + 1 <= item.to);
+    return { rank: index + 1, points, account: contestPerson(login, login), amount_cny: tier?.amount_cny ?? null, title: tier ? tier.title : null };
+  });
+  return { finalized_at: null, finalized_by: null, standings: [], prizes: [], preview };
+}
+
 function mockRoster(competitionId: string) {
   const competition = MOCK_COMPETITIONS.find(row => row.id === competitionId);
   if (!competition) throw new ApiError(404, "not_found", "比赛不存在或已下线");
@@ -971,6 +1031,7 @@ export function routeConsole(url: URL): unknown {
     return { items, counts: statusCounts };
   }
   if (path === "/api/console/competitions") { gate(persona); return { competitions: competitionView() }; }
+  if (/^\/api\/console\/competitions\/[^/]+\/score-preview$/.test(path)) { gate(persona, "competition.score.review"); return mockScorePreview(search); }
   const roster = path.match(/^\/api\/console\/competitions\/([^/]+)\/(roster|roster\.csv|score-events)$/);
   if (roster) {
     gate(persona, "competition.manage");
@@ -978,6 +1039,22 @@ export function routeConsole(url: URL): unknown {
     if (roster[2] === "roster") return mockRoster(competitionId);
     if (roster[2] === "roster.csv") return mockRosterCsv(competitionId);
     return { events: MOCK_SCORE_EVENTS[competitionId] ?? [] };
+  }
+  const contest = path.match(/^\/api\/console\/competitions\/([^/]+)\/(candidates|rules|site|final)$/);
+  if (contest) {
+    const competitionId = decodeURIComponent(contest[1]);
+    if (contest[2] === "candidates") {
+      gate(persona, "competition.score.review");
+      const status = search.get("status") ?? "pending";
+      const items = competitionId === "c1001" ? MOCK_CANDIDATES : [];
+      const counts = { pending: 0, accepted: 0, rejected: 0 };
+      for (const row of items) counts[row.status] += 1;
+      return { items: items.filter(row => row.status === status), next_cursor: null, counts, last_run: competitionId === "c1001" ? { at: now - 20 * 60_000, fetched: 12, created: 2, skipped: 1, accepted: 1, revoked: 0, error: null } : null };
+    }
+    if (contest[2] === "rules") { gate(persona, "competition.manage", "competition.score.review"); return MOCK_RULES[competitionId] ?? { ...MOCK_RULES.c1001, prizes: [], gitlab_projects: [] }; }
+    if (contest[2] === "site") { gate(persona, "competition.manage", "competition.site.publish"); return competitionId === "c1001" ? MOCK_SITE : { slug: null, live_version_id: null, site_url: null, versions: [] }; }
+    gate(persona, "competition.manage");
+    return mockFinal(competitionId);
   }
   if (path === "/api/console/invites") { gate(persona, "invite.manage"); return { invites: MOCK_INVITES }; }
   return undefined;

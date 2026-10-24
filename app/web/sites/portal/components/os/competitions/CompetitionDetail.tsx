@@ -1,19 +1,20 @@
 // 比赛详情（#265 起；#239 加 Hero、时间线、报名组队与天梯）。
 // 顶部 Hero：按比赛生成的动态大图、类型与状态、倒计时、一键直达（外部赛直达官网，内部赛直达报名、组队）；下面是要点格子。
 // 内部赛开了在线报名时分页签：概览（介绍、赛程时间线、规则）/ 队伍（组队大厅）/ 找队友 / 天梯，没开时只有概览。
+// #278：概览里加两档基础分表（重要程度 × 核心度）、防刷规则、年级系数、「有用」才计分与奖项；发布了官网的比赛在 Hero 里多一个「比赛官网」；官网的「去组队」带 view=team 直接打开队伍页签。
 // 底部操作条：报名 → 组队 → 确认参赛的进度、现在怎么样的一句话、能做的事；按钮放不放以服务端 my-status 的 actions 为准。
 // 主按钮桌面在 Hero 里，手机在底部操作条里（拇指够得着），不在同一屏重复。
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type Ref } from "react";
 import Icon from "../../Icon";
 import type { IconName } from "../../../lib/icons";
-import type { Competition, SignupSettings } from "../../../lib/competitions";
+import type { Competition, Scoring, SignupSettings } from "../../../lib/competitions";
 import { signInHref } from "../../../lib/account";
 import {
   competitionAction, deadlineFact, deadlineLabel, participationText, scheduleFact, scheduleSteps, signupFact, siteHost, statusHint,
   STATUS_TEXT, timelineProgress, type Fact, type StepState,
 } from "../../../lib/competitionLabels";
 import {
-  hubPaths, hubSentence, journey, readFreeAgents, readLeaderboard, readTeams, SCORE_RULES, useHub, useMemberRead,
+  factorText, hubPaths, hubSentence, journey, rankRange, readFreeAgents, readLeaderboard, readTeams, SCORE_RULES, shortTime, trivialRuleText, useHub, useMemberRead,
   type AccountState, type HubAction, type HubPhase, type HubStats,
 } from "../../../lib/competitionHub";
 import CompetitionHero from "./CompetitionHero";
@@ -24,7 +25,7 @@ import { ApplyDialog, ConfirmDialog, CreateTeamDialog, InviteDialog, SignupDialo
 const STEP_NOTE: Record<StepState, string | null> = { done: "已过", now: "进行中", next: "接下来", later: null };
 const JOURNEY_SR = { done: "（已完成）", now: "（当前这一步）", todo: "", missed: "（没有完成）" } as const;
 
-type TabKey = "overview" | "teams" | "people" | "board";
+export type TabKey = "overview" | "teams" | "people" | "board";
 type Tab = { key: TabKey; label: string; count?: number };
 /** 主按钮：要么是链接（官网、登录），要么在窗口里做一件事。 */
 type Main = { label: string; icon: IconName; href?: string; external?: boolean; run?: () => void };
@@ -40,6 +41,8 @@ type Props = {
   phone?: boolean;
   /** 报名、组队变了：让「我的参赛」与角标重读。 */
   onChanged?: () => void;
+  /** 打开时先显示哪个页签（官网「去组队」的深链给 teams）；这场比赛没有这个页签时回到概览。 */
+  initialTab?: TabKey;
 };
 
 function FactCell({ term, fact }: { term: string; fact: Fact }) {
@@ -129,10 +132,80 @@ function Overview({ item, now, id, hubOn, settings }: { item: Competition; now: 
               </li>
             ))}
           </ul>
-          <p className="pt-cx-fine">只计比赛期间合入的贡献；积分由组织者核实后登记，天梯每 30 秒刷新。</p>
+          {item.scoring && <RubricTables scoring={item.scoring} />}
+          {item.grade_factors.length > 0 && (
+            <div className="pt-cx-grades">
+              <p>基础分再乘年级系数，低年级系数高。年级按记分那一刻算，记下后不再改。</p>
+              <ul aria-label="年级系数">
+                {item.grade_factors.map((grade) => (
+                  <li key={grade.grade}>
+                    <span>{grade.label}</span>
+                    <b>{factorText(grade.factor)}</b>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <p className="pt-cx-fine">只计比赛期间的贡献。Issue 和 MR 要被组织者标记「有用」才加分：在 GitLab 上打「有用」标签，或在控制台确认，自己给自己打的不算。天梯每 10 秒刷新。</p>
+        </section>
+      )}
+      {item.prizes.length > 0 && (
+        <section className="pt-cx-sec" aria-labelledby={`${id}-prizes`}>
+          <h4 id={`${id}-prizes`}>奖项</h4>
+          <ul className="pt-cx-prizes">
+            {item.prizes.map((prize) => (
+              <li key={prize.from}>
+                <span>{rankRange(prize.from, prize.to)}</span>
+                <b>{prize.amount_cny} 元</b>
+                {prize.title && <small>{prize.title}</small>}
+              </li>
+            ))}
+          </ul>
+          <p className="pt-cx-fine">
+            {item.finalized_at !== null
+              ? `${shortTime(item.finalized_at)} 已定榜，名次不再变化。得奖的同学在「我的参赛」里看兑奖码，凭码找组织者兑奖。`
+              : "比赛结束后定榜。得奖的同学在「我的参赛」里看到兑奖码，凭码找组织者兑奖。"}
+          </p>
         </section>
       )}
     </>
+  );
+}
+
+/** 基础分表：Issue、MR 各一张，行是重要程度，列是核心度；下面写防刷规则。 */
+function RubricTables({ scoring }: { scoring: Scoring }) {
+  return (
+    <div className="pt-cx-rubric">
+      <p>组织者标记「有用」时选两档：这条对项目有多重要、碰到的地方有多核心。基础分查下表，不看代码行数。</p>
+      <div className="pt-cx-rubric-pair">
+        {(["issue", "pr"] as const).map((kind) => (
+          <table key={kind}>
+            <caption>{kind === "pr" ? "合入的 MR" : "Issue"}</caption>
+            <thead>
+              <tr>
+                <th scope="col">重要程度</th>
+                {scoring.core.map((core) => (
+                  <th key={core.key} scope="col" title={core.hint}>
+                    {core.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {scoring.importance.map((importance) => (
+                <tr key={importance.key}>
+                  <th scope="row">{importance.label}</th>
+                  {scoring.core.map((core) => (
+                    <td key={core.key}>{scoring.points[kind][importance.key][core.key]}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))}
+      </div>
+      <p className="pt-cx-fine">核心度：{scoring.core.map((core) => `${core.label}是${core.hint}`).join("；")}。{trivialRuleText(scoring)}</p>
+    </div>
   );
 }
 
@@ -182,7 +255,7 @@ function MemberGate({ phase, reload }: { phase: HubPhase; reload: () => void }) 
   );
 }
 
-export default function CompetitionDetail({ item, now, headingRef, account = "signed_out", accountId = null, phone = false, onChanged }: Props) {
+export default function CompetitionDetail({ item, now, headingRef, account = "signed_out", accountId = null, phone = false, onChanged, initialTab }: Props) {
   const id = useId();
   const hubOn = item.kind === "internal" && item.signup.enabled;
   const hub = useHub(item.id, hubOn ? account : "signed_out", onChanged);
@@ -191,13 +264,14 @@ export default function CompetitionDetail({ item, now, headingRef, account = "si
   const settings = status?.settings.enabled ? status.settings : item.signup;
   const teamMode = settings.participation === "team";
   const scored = settings.scoring === "contribution";
-  const [tab, setTab] = useState<TabKey>("overview");
+  const [tab, setTab] = useState<TabKey>(initialTab ?? "overview");
   // 换标签时把标签栏带到滚动区顶上：Hero 和要点格子占了大半屏，不滚上来就看不到刚打开的内容。
   // 面板至少一屏高，加载中的短内容也能滚到位；标签栏已经贴在顶上（往下滚过了）就不动。
   const scrollRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [jump, setJump] = useState(0);
+  // 深链进来时也把标签栏带到顶上（jump 不为 0 才滚）
+  const [jump, setJump] = useState(initialTab && initialTab !== "overview" ? 1 : 0);
   const openTab = useCallback((key: TabKey) => {
     setTab(key);
     setJump((n) => n + 1);
@@ -226,7 +300,7 @@ export default function CompetitionDetail({ item, now, headingRef, account = "si
   const member = status !== null;
   const teams = useMemberRead(member && teamMode && current === "teams" ? hubPaths.teams(item.id) : null, readTeams, hub.version);
   const people = useMemberRead(member && teamMode && (current === "people" || dialog?.kind === "invite") ? hubPaths.freeAgents(item.id) : null, readFreeAgents, hub.version);
-  const board = useMemberRead(member && scored && current === "board" ? hubPaths.leaderboard(item.id) : null, readLeaderboard, hub.version, 30_000);
+  const board = useMemberRead(member && scored && current === "board" ? hubPaths.leaderboard(item.id) : null, readLeaderboard, hub.version, 10_000);
 
   useEffect(() => {
     if (!notice?.ok) return;
@@ -411,6 +485,14 @@ export default function CompetitionDetail({ item, now, headingRef, account = "si
         )}
       </span>
       {hubOn && <span className="pt-cx-hero-tag">{participationText(settings)}</span>}
+      {item.site_url && (
+        <a className="pt-cx-hero-tag" href={item.site_url} target="_blank" rel="noopener noreferrer">
+          <Icon name="global-line" size={13} />
+          比赛官网
+          <Icon name="external-link-line" size={12} />
+          <span className="pt-sr">（新标签页打开）</span>
+        </a>
+      )}
       {item.url && (
         <a className="pt-cx-hero-tag" href={item.url} target="_blank" rel="noopener noreferrer">
           <Icon name="global-line" size={13} />
@@ -460,7 +542,7 @@ export default function CompetitionDetail({ item, now, headingRef, account = "si
           {current !== "overview" && !status && <MemberGate phase={hub.phase} reload={hub.reload} />}
           {current === "teams" && status && <TeamPanel status={status} teams={teams} meId={accountId} busy={hub.busy} open={setDialog} act={act} onFindPeople={() => openTab("people")} />}
           {current === "people" && status && <PeoplePanel status={status} people={people} meId={accountId} busy={hub.busy} act={act} competitionId={item.id} />}
-          {current === "board" && status && <BoardPanel board={board} meId={accountId} myTeamId={status.team?.id ?? null} teamMode={teamMode} />}
+          {current === "board" && status && <BoardPanel board={board} meId={accountId} myTeamId={status.team?.id ?? null} teamMode={teamMode} scoring={item.scoring} />}
         </div>
       </div>
       <footer className="pt-cx-act">

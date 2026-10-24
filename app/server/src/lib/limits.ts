@@ -112,4 +112,6 @@ export const BUCKET_RETENTION_MS: Record<string, number> = {
   "forum.topic.view.dedup": HOUR_MS,
   "read.per_minute": HOUR_MS,
   "search.per_minute": HOUR_MS,
+  "public.competition.per_minute": HOUR_MS,
+  "competition.prize.lookup.fail": 2 * HOUR_MS,
 };

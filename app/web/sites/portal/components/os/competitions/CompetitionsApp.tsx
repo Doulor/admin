@@ -2,14 +2,16 @@
 // #239：内部赛开了在线报名时，详情里能报名、组队、看天梯；顶部多一个「赛事 / 我的参赛」切换，「我的参赛」只列自己报了名的比赛，
 // 角标是待处理的邀请与申请（GET /api/me/competitions，要登录且是成员）。登录状态用桌面 useAccount 读到的，不在这里再读一次。
 // 没有哪场比赛开在线报名时不放切换，界面与 #265 一样。方案与草图见 docs/plan/COMPETITION-APP.md「结构与呈现」。
+// #278：「我的参赛」顶上列定榜后的名次与兑奖码（GET /api/me/competition-results）；比赛官网跳过来的
+// `?competition=<id>`（加 `&view=team` 直接到队伍页签）选中那场比赛，用过就从地址里去掉。
 import { useCallback, useEffect, useRef, useState } from "react";
 import Icon from "../../Icon";
 import { signInHref, type Account } from "../../../lib/account";
 import { useCompetitions, type CompetitionKind } from "../../../lib/competitions";
 import { applyFilter, KIND_TEXT, NO_FILTER, type CompetitionFilter } from "../../../lib/competitionLabels";
-import { hubPaths, readMine, useMemberRead, type AccountState, type HubPhase } from "../../../lib/competitionHub";
+import { hubPaths, rankRange, readMine, readMyResults, shortTime, useMemberRead, type AccountState, type HubPhase, type MyResult } from "../../../lib/competitionHub";
 import CompetitionList from "./CompetitionList";
-import CompetitionDetail from "./CompetitionDetail";
+import CompetitionDetail, { type TabKey } from "./CompetitionDetail";
 import ContestSite from "./ContestSite";
 
 /** 手机详情页借用窗口标题栏左边的返回键：「比赛列表」代替「主屏幕」。 */
@@ -85,6 +87,59 @@ function MineEmpty({ account, phase, reload, showAll }: { account: AccountState;
   );
 }
 
+/** 定榜后的结果：名次、分数；得奖的给兑奖码和「复制」。兑奖码只在本人的「我的参赛」里出现。 */
+function MyResults({ items }: { items: MyResult[] }) {
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = (code: string) => {
+    const done = () => setCopied(code);
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(code).then(done, () => setCopied(null));
+  };
+  return (
+    <section className="pt-cx-results" aria-label="比赛结果">
+      {items.map((result) => (
+        <article key={result.competition_id} className={result.prize ? "pt-cx-result is-prize" : "pt-cx-result"}>
+          <Icon name={result.prize ? "gift-line" : "medal-line"} size={22} />
+          <div className="pt-cx-result-text">
+            <b>{result.name}</b>
+            <p>
+              {result.rank !== null ? `${rankRange(result.rank, result.rank)} · ${result.points} 分` : `${result.points} 分 · 没有进入名次`}
+              {` · ${shortTime(result.finalized_at)} 定榜`}
+            </p>
+            {result.prize && (
+              <p>
+                {result.prize.amount_cny} 元{result.prize.title ? `（${result.prize.title}）` : ""}
+                {result.prize.redeemed_at !== null ? ` · ${shortTime(result.prize.redeemed_at)} 已兑奖` : " · 凭兑奖码找组织者兑奖，不要发给别人"}
+              </p>
+            )}
+          </div>
+          {result.prize && (
+            <div className="pt-cx-code">
+              <code aria-label="兑奖码">{result.prize.code}</code>
+              <button type="button" className="pt-btn is-sm" onClick={() => copy(result.prize!.code)}>
+                <Icon name={copied === result.prize.code ? "check-line" : "file-copy-line"} size={15} />
+                {copied === result.prize.code ? "已复制" : "复制"}
+              </button>
+            </div>
+          )}
+        </article>
+      ))}
+      <p className="pt-sr" aria-live="polite">{copied ? "兑奖码已复制" : ""}</p>
+    </section>
+  );
+}
+
+/** 官网跳过来的深链：`?competition=<id>`，`view=team` 时直接到队伍页签。读一次，读完从地址里去掉，其余参数留着。 */
+function takeDeepLink(): { id: string; tab: TabKey | undefined } | null {
+  const url = new URL(window.location.href);
+  const id = url.searchParams.get("competition");
+  if (!id) return null;
+  const view = url.searchParams.get("view");
+  url.searchParams.delete("competition");
+  url.searchParams.delete("view");
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  return { id, tab: view === "team" ? "teams" : undefined };
+}
+
 const KINDS: CompetitionKind[] = ["internal", "external"];
 
 /** 按比赛 id 找卡片按钮：id 来自接口，不拼进选择器。 */
@@ -109,8 +164,10 @@ export default function CompetitionsApp({ phone = false, onPhoneNav, account = n
   const pendingTotal = mine.data?.pending_total ?? 0;
   const hubOn = items.some((item) => item.signup.enabled) || entries.size > 0;
   const mineScope = hubOn && scope === "mine";
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [view, setView] = useState<"list" | "detail">("list");
+  const results = useMemberRead(mineScope && accountState === "signed_in" ? hubPaths.results : null, readMyResults, mineVersion);
+  const [deepLink, setDeepLink] = useState(takeDeepLink);
+  const [selectedId, setSelectedId] = useState<string | null>(deepLink?.id ?? null);
+  const [view, setView] = useState<"list" | "detail">(deepLink ? "detail" : "list");
   const root = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   /** 从详情返回后要把焦点放回哪张卡片。 */
@@ -166,6 +223,7 @@ export default function CompetitionsApp({ phone = false, onPhoneNav, account = n
   }, [loading, failed, phone]);
 
   const pick = (id: string) => {
+    setDeepLink(null);
     setSelectedId(id);
     if (phone) setView("detail");
   };
@@ -300,6 +358,7 @@ export default function CompetitionsApp({ phone = false, onPhoneNav, account = n
           )}
         </div>
       )}
+      {!inDetail && mineScope && results.data && results.data.length > 0 && <MyResults items={results.data} />}
       {shown.length === 0 && !inDetail && mineScope ? (
         <MineEmpty account={accountState} phase={mine.phase} reload={mine.reload} showAll={showAll} />
       ) : shown.length === 0 && !inDetail ? (
@@ -334,6 +393,7 @@ export default function CompetitionsApp({ phone = false, onPhoneNav, account = n
               accountId={account?.accountId ?? null}
               phone={phone}
               onChanged={onChanged}
+              initialTab={deepLink?.id === selected.id ? deepLink.tab : undefined}
             />
           )}
         </div>

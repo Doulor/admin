@@ -16,6 +16,7 @@
     "docs:tuffex": "node scripts/tuffex-docs.mjs",
     "check:tuffex-docs": "node scripts/tuffex-docs.mjs check",
     "release:plan": "node scripts/release-policy.mjs",
+    "contest:site": "node scripts/contest-site.mjs",
     "check:environments": "node scripts/deployment-environment.mjs --check",
     "check:branch-invariants": "node scripts/check-branch-invariants.mjs",
     "hooks:enable": "git config core.hooksPath .githooks",

@@ -4,6 +4,7 @@ import consoleRoutes from "./routes/console/index.js";
 import forumRoutes from "./routes/forum-api/index.js";
 import identityRoutes from "./routes/identity/index.js";
 import oidcRoutes from "./routes/oidc/index.js";
+import siteRoutes from "./routes/sites/index.js";
 import Fastify, { type RouteOptions } from "fastify";
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
@@ -42,6 +43,7 @@ export function resolveSiteEntry(url: string): string {
  * `mailWorker`：开发信循环（每 15 秒发一次到期的信，app.close() 时停下）；只有 index.ts 打开，测试直接调 services.mail.drain()。
  * `sessionCleanup`：定时清过期会话（启动时一次，之后每小时；app.close() 时停下）；index.ts 和本机预览（scripts/local-preview.mjs）打开，测试直接调 auth.cleanupExpiredSessions()。
  * `gitlabSync`：GITLAB_SYNC=on 时定时对一次 GitLab 账号（启动时一次，之后每 10 分钟；app.close() 时等它停下）；只有 index.ts 打开，测试直接调 gitlab.reconcile()。
+ *   同一个开关也开比赛贡献收集（#278，GitLab 同步不是 off 时每 10 分钟一轮）；测试直接调 competitionCandidates.collect()。
  */
 /**
  * 请求日志的字段：同 Fastify 默认，只是 `/auth/*` 不记查询串——里面有 OAuth 的 code、state 和注册邀请码（#262）；
@@ -74,13 +76,14 @@ export async function buildApp(options: BuildAppOptions) {
     if (options.mailWorker) await services.mail.stop();
     if (options.sessionCleanup) services.auth.stopCleanup();
     if (options.gitlabSync) await services.gitlab.stop();
+    if (options.gitlabSync) await services.competitionCandidates.stop();
     stopActivityCleanup?.();
     if (!options.services) services.close();
   });
   // 应用就绪（listen 之前）才开发信循环：路由注册失败时不会留下一个没人关的定时器
   if (options.mailWorker) app.addHook("onReady", async () => { services.mail.start(app.log); });
   if (options.sessionCleanup) app.addHook("onReady", async () => { services.auth.startCleanup(app.log); });
-  if (options.gitlabSync) app.addHook("onReady", async () => { services.gitlab.start(app.log); });
+  if (options.gitlabSync) app.addHook("onReady", async () => { services.gitlab.start(app.log); services.competitionCandidates.start(app.log); });
   // 操作记录每天清一次过期行、按 90 天打码 IP（lib/activity.ts，SPEC §3.7），顺带清 lib/limits.ts 的
   // limit_events（SPEC §3.8）；测试直接调 services.activity.pruneExpired() / services.limits.pruneAll()。
   if (options.activityCleanup) app.addHook("onReady", async () => { stopActivityCleanup = startActivityCleanup(services.activity, app.log, services.limits); });
@@ -113,6 +116,8 @@ export async function buildApp(options: BuildAppOptions) {
   await app.register(consoleRoutes);
   await app.register(forumRoutes);
   await app.register(oidcRoutes);
+  // 比赛官网（#278）：/c/<slug>/ 由这里直接读数据卷里的站点文件，web 镜像的 nginx 把 /c/ 反代过来。
+  await app.register(siteRoutes);
   // 旧论坛接口已退役，不映射成新接口：新论坛接口（routes/forum-api）注册的具体路径优先匹配，
   // /api/forum 下其余的旧路径，以及 /auth/forum/*、/forum/u/*，一律 410。
   const retired = async (_req: unknown, reply: import("fastify").FastifyReply) => reply.code(410).send({

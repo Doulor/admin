@@ -1,7 +1,7 @@
 import { body, choices, integer, limitParam, nullableText, object, text, type RouteContracts } from "../../lib/http-contracts.js";
 import {
-  competitionFailures, competitionIdParam, competitionLeaderboard, freeAgentList, myCompetitionList, myStatus,
-  publicCompetition, publicCompetitionList, signupBody, teamIdParam, teamList,
+  competitionFailures, competitionIdParam, competitionLeaderboard, freeAgentList, myCompetitionList, myCompetitionResults, myStatus,
+  publicCompetition, publicCompetitionList, publicFeed, publicFeedQuery, publicLeaderboard, publicSnapshot, publicStats, signupBody, teamIdParam, teamList,
 } from "../../lib/competition-contract.js";
 import { APPLICATION_STATUS_IDS } from "../../lib/roles.js";
 const proof = object({ timestamp: { type: "integer" }, nonce: text(32, 1) }, ["timestamp", "nonce"]);
@@ -11,6 +11,11 @@ const APPLICATION_ID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab]
 export const portalContracts: RouteContracts = {
   "GET /api/public/competitions": { querystring: object({}), response: { 200: publicCompetitionList, ...competitionFailures } },
   "GET /api/public/competitions/:id": { ...competitionIdParam, response: { 200: publicCompetition, ...competitionFailures } },
+  // 比赛官网 SDK（#278，CONTRACT-278 §2）：匿名只读，按 IP 每分钟 120 次，成功和失败都回 Access-Control-Allow-Origin: *
+  "GET /api/public/competitions/:id/leaderboard": { ...competitionIdParam, querystring: object({}), response: { 200: publicLeaderboard, ...competitionFailures } },
+  "GET /api/public/competitions/:id/feed": { ...competitionIdParam, ...publicFeedQuery, response: { 200: publicFeed, ...competitionFailures } },
+  "GET /api/public/competitions/:id/stats": { ...competitionIdParam, querystring: object({}), response: { 200: publicStats, ...competitionFailures } },
+  "GET /api/public/competitions/:id/snapshot": { ...competitionIdParam, querystring: object({}), response: { 200: publicSnapshot, ...competitionFailures } },
   "GET /api/public/org": { querystring: object({}) },
   // 公开的部门与称号列表（#274）：给门户「组织架构」用，6 个新部门，不含任何人
   "GET /api/public/departments": { querystring: object({}), response: { 200: object({
@@ -54,6 +59,7 @@ export const portalContracts: RouteContracts = {
 
   // 报名与组队（#239）：全部要求登录且是极客班成员；写操作每人每分钟 30 次。
   "GET /api/me/competitions": { response: { 200: myCompetitionList, ...competitionFailures } },
+  "GET /api/me/competition-results": { querystring: object({}), response: { 200: myCompetitionResults, ...competitionFailures } },
   "GET /api/competitions/:id/my-status": { ...competitionIdParam, response: { 200: myStatus, ...competitionFailures } },
   "POST /api/competitions/:id/signup": { ...competitionIdParam, body: signupBody.signup, response: { 200: myStatus, ...competitionFailures } },
   "DELETE /api/competitions/:id/signup": { ...competitionIdParam, response: { 200: myStatus, ...competitionFailures } },

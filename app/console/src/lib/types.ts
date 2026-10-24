@@ -221,13 +221,74 @@ export type RosterTeam = {
 export type CompetitionRoster = { settings: SignupSettings; stats: RosterStats; signups: RosterSignup[]; teams: RosterTeam[] };
 
 export type ScoreKind = "issue" | "pr" | "penalty";
+/** 两档评定（#278，所有者 2026-10-24 16:59）：重要程度与核心度，基础分查表。 */
+export type Importance = "normal" | "important" | "critical";
+export type Core = "edge" | "business" | "core";
 export type ScoreEvent = {
   id: string; competition_id: string; person: RosterPerson; kind: ScoreKind;
-  repo: string | null; number: number | null; points: number; reason: string;
+  repo: string | null; number: number | null;
+  /** 基础分：两档查表的结果，扣分是 -50；两档评定之前登记的是当时手填的分。 */
+  points: number; reason: string;
+  importance: Importance | null; core: Core | null;
+  /** #278：记分那一刻的年级与系数（百分数，350 = 3.5）和乘过系数的分；#278 之前的记录年级为 null、系数按 1 算。 */
+  grade: GradeKey | null; grade_factor: number | null; weighted_points: number;
+  /** 防刷折扣：100 照算，0 是这一周已经照算过一条「一般 × 边缘」。之前的记录为 null。 */
+  damp_percent: number | null;
+  contributed_at: number | null;
   status: "active" | "revoked"; created_by_login: string; created_at: number;
   revoked_at: number | null; revoke_reason: string | null;
 };
 export type ScoreEventList = { events: ScoreEvent[] };
+/** `GET .../score-preview`：登记前试算，和真正登记是同一套算法。 */
+export type ScorePreview = { points: number; grade: GradeKey | null; grade_factor: number; damp_percent: number; weighted_points: number };
+
+// ---- 比赛官网、候选贡献、计分规则、定榜与兑奖（#278） ----
+
+export type GradeKey = "year1" | "year2" | "year3" | "year4" | "graduated" | "none";
+export type ContestPerson = { account_id: string; username: string; display_name: string; avatar_url: string | null };
+
+export type SiteVersion = {
+  id: string; version: string; size: number; files: number; sha256: string; status: "passed" | "rejected"; report: string[];
+  uploaded_by: { account_id: string; username: string; display_name: string }; created_at: number; preview_url: string | null;
+};
+export type SiteState = { slug: string | null; live_version_id: string | null; site_url: string | null; versions: SiteVersion[] };
+
+export type CandidateStatus = "pending" | "accepted" | "rejected";
+export type Candidate = {
+  id: string; account: ContestPerson; kind: "pr" | "issue"; gitlab_project: string; gitlab_iid: number; url: string; title: string;
+  /** 待确认的是 GitLab 标签上现在的两档（没有为 null），加过分的是加分时用的两档。 */
+  importance: Importance | null; core: Core | null; status: CandidateStatus; final_points: number | null; reason: string | null;
+  reviewed_by: ContestPerson | null; reviewed_at: number | null; accepted_via: "label" | "console" | null; note: string | null;
+  contributed_at: number; created_at: number;
+};
+export type CollectRun = { at: number; fetched: number; created: number; skipped: number; accepted: number; revoked: number; error: string | null };
+export type CandidateList = { items: Candidate[]; next_cursor: string | null; counts: Record<CandidateStatus, number>; last_run: CollectRun | null };
+
+export type PrizeTier = { from: number; to: number; amount_cny: number; title: string };
+/** 服务端的两档计分表（`scoring`）：官网、门户和控制台照它画表。 */
+export type Scoring = {
+  importance: { key: Importance; label: string }[];
+  core: { key: Core; label: string; hint: string }[];
+  points: { kind: "issue" | "pr"; importance: Importance; core: Core; points: number }[];
+  penalty: number; trivial_per_week: number; trivial_percent: number;
+};
+export type CompetitionRules = {
+  grade_factors: Record<GradeKey, number>; grades: { grade: GradeKey; label: string }[]; prizes: PrizeTier[]; gitlab_projects: string[];
+  scoring: Scoring;
+  updated_at: number | null; updated_by: ContestPerson | null; finalized: boolean;
+};
+
+export type CompetitionPrize = {
+  id: string; competition_id: string; rank: number; points: number; amount_cny: number; title: string; account: ContestPerson;
+  code_hint: string; created_at: number; redeemed_at: number | null; redeemed_by: ContestPerson | null;
+};
+export type FinalView = {
+  finalized_at: number | null; finalized_by: ContestPerson | null;
+  standings: { rank: number; points: number; account: ContestPerson }[];
+  prizes: CompetitionPrize[];
+  preview: { rank: number; points: number; account: ContestPerson; amount_cny: number | null; title: string | null }[];
+};
+export type RedeemPrize = CompetitionPrize & { competition_name: string };
 
 // ---- 注册邀请码（节点改为 invite.manage，形状不变） ----
 

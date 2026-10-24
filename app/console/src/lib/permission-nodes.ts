@@ -39,6 +39,7 @@ export const NODE_LABELS: Record<Permission, string> = {
   "competition.manage": "管理比赛",
   "competition.score.review": "审核积分",
   "competition.site.publish": "发布官网",
+  "competition.prize.redeem": "核销兑奖码",
   "account.profile.edit": "改资料",
   "account.invite.redeem": "兑换邀请码",
   "account.cli.login": "命令行登录",

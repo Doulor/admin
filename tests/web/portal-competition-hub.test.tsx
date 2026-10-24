@@ -16,6 +16,7 @@ import {
   SCORE_RULES, teamSlots, type MyStatus, type Pending, type Team,
 } from "../../app/web/sites/portal/lib/competitionHub";
 import { signupBody } from "../../app/server/src/lib/competition-contract";
+import { RUBRIC } from "../../app/server/src/lib/competition-rubric";
 
 beforeEach(() => localStorage.setItem("yugc:dev-data-source", "live"));
 afterEach(() => {
@@ -305,12 +306,12 @@ describe("里程碑、倒计时、槽位与待处理", () => {
     expect(hubSentence(none, TEAM_SETTINGS, due)).toBe(`报名截止 ${due}。报名后可以创建队伍，或申请加入别人的队伍。`);
     expect(hubSentence({ ...none, writable: false }, TEAM_SETTINGS, due)).toBe("报名已截止，这场比赛你没有报名。");
     expect(hubSentence(none, INDIVIDUAL, due)).toBe(`报名截止 ${due}。报名即参赛。`);
-    expect(hubSentence(none, { ...INDIVIDUAL, scoring: "contribution" }, due)).toBe(`报名截止 ${due}。报名即参赛，比赛期间合入的 Issue 与 PR 计入积分天梯。`);
+    expect(hubSentence(none, { ...INDIVIDUAL, scoring: "contribution" }, due)).toBe(`报名截止 ${due}。报名即参赛，比赛期间被标记「有用」的 Issue 与 MR 计入积分天梯。`);
     const signed = { state: "signed_up" as const, writable: true, team: null, role: null };
     expect(hubSentence(signed, TEAM_SETTINGS, due)).toBe("你已报名，还没有队伍：创建一支，或申请加入别人的队伍。");
     expect(hubSentence({ ...signed, writable: false }, TEAM_SETTINGS, due)).toBe("报名已截止，你还没有队伍。");
     expect(hubSentence(signed, INDIVIDUAL, due)).toBe("你已报名，等组织者的通知。");
-    expect(hubSentence(signed, { ...INDIVIDUAL, scoring: "contribution" }, due)).toBe("你已报名。比赛期间合入的 Issue 与 PR，由组织者核实后计入天梯。");
+    expect(hubSentence(signed, { ...INDIVIDUAL, scoring: "contribution" }, due)).toBe("你已报名。比赛期间被标记「有用」的 Issue 与 MR 计入天梯。");
     expect(hubSentence({ state: "in_team", writable: true, team: { ...TEAM, member_count: 1 }, role: "leader" }, TEAM_SETTINGS, due)).toBe("「长江 Commit 队」现在 1 人，还差 1 人才能确认参赛。");
     expect(hubSentence({ state: "in_team", writable: true, team: TEAM, role: "leader" }, TEAM_SETTINGS, due)).toBe("「长江 Commit 队」2/3 人。人齐了就点「确认参赛」锁定名单。");
     expect(hubSentence({ state: "in_team", writable: true, team: TEAM, role: "member" }, TEAM_SETTINGS, due)).toBe("你在「长江 Commit 队」，等领队确认参赛。");
@@ -335,10 +336,15 @@ describe("里程碑、倒计时、槽位与待处理", () => {
     expect(HUB_LIMITS.note).toBe(contractField(signupBody.signup, "note").maxLength);
     expect(HUB_LIMITS.message).toBe(contractField(signupBody.apply, "message").maxLength);
     expect(SCORE_RULES).toEqual([
-      { kind: "issue", label: "合入 Issue", points: "+5～+30", note: "按问题的价值与描述质量" },
-      { kind: "pr", label: "合入 PR", points: "+15～+100", note: "按改动的难度与影响" },
-      { kind: "penalty", label: "作弊", points: "−50", note: "刷量、抄袭、冒名提交等，每次核实扣分" },
+      { kind: "issue", label: "Issue", points: "+5～+30", note: "被标记「有用」才加分，按重要程度和核心度查表" },
+      { kind: "pr", label: "合入的 MR", points: "+15～+100", note: "被标记「有用」才加分，按重要程度和核心度查表，不看代码行数" },
+      { kind: "penalty", label: "作弊", points: "−50", note: "刷量、抄袭、冒名提交等，每次核实扣分，不乘年级系数" },
     ]);
+    // 区间就是服务端基础分表的最小与最大格
+    for (const [index, kind] of (["issue", "pr"] as const).entries()) {
+      const cells = Object.values(RUBRIC[kind]).flatMap((row) => Object.values(row));
+      expect(SCORE_RULES[index].points).toBe(`+${Math.min(...cells)}～+${Math.max(...cells)}`);
+    }
   });
 });
 
@@ -689,7 +695,7 @@ describe("天梯页签：领奖台、表格与轮询", () => {
     expect(rows[1]!.className).toBe("is-me");
     expect(within(rows[1]!).getByText("ada")).toBeTruthy();
     expect(within(rows[1]!).getByText("长江 Commit 队")).toBeTruthy();
-    expect(screen.getByText(/更新于 .* · 每 30 秒自动刷新/)).toBeTruthy();
+    expect(screen.getByText(/更新于 .* · 每 10 秒自动刷新 · 分数已乘年级系数/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "队伍榜" }));
     const teamTable = screen.getByRole("table");
@@ -709,12 +715,12 @@ describe("天梯页签：领奖台、表格与轮询", () => {
     render(<CompetitionDetail item={competition()} now={NOW} account="signed_in" accountId="a1" />);
     fireEvent.click(await screen.findByRole("tab", { name: "天梯" }));
     expect(await screen.findByText("还没有人得分")).toBeTruthy();
-    expect(screen.getByText(/合入的 Issue 与 PR 由组织者核实后登记积分/)).toBeTruthy();
+    expect(screen.getByText(/被标记「有用」的 Issue 与合入的 MR 计分后，10 秒内出现在这里/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "队伍榜" }));
     expect(screen.getByText("还没有队伍得分")).toBeTruthy();
   });
 
-  it("天梯开着时每 30 秒重读一次", async () => {
+  it("天梯开着时每 10 秒重读一次（#278）", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     let reads = 0;
@@ -731,7 +737,9 @@ describe("天梯页签：领奖台、表格与轮询", () => {
     await vi.waitFor(() => expect(screen.getByRole("table")).toBeTruthy());
     const before = calls.filter((call) => call.url === "/api/competitions/c1/leaderboard").length;
     expect(before).toBe(1);
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(9_000);
+    expect(calls.filter((call) => call.url === "/api/competitions/c1/leaderboard").length).toBe(before);
+    await vi.advanceTimersByTimeAsync(1_000);
     await vi.waitFor(() => expect(calls.filter((call) => call.url === "/api/competitions/c1/leaderboard").length).toBe(before + 1));
     expect(reads).toBe(2);
   });
