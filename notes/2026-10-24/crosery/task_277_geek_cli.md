@@ -77,3 +77,9 @@
 - 执行者：agent-c277（Claude Code 子 agent，claude-sonnet-5-5）
 - 做了什么：新增commands/status.rs（geek status：本机登录状态——令牌来自GEEK_TOKEN环境变量/系统钥匙串/本机文件哪一层、源站、探测/healthz与/auth/device/userinfo判服务端连不连得上和令牌是否有效、版本号，不要求已登录，绝不打印令牌本身）与commands/apply.rs（geek apply status：GET /api/me/applications）；forum.rs加show(GET /api/forum/topics/:id/posts)和reply(POST /api/forum/posts)；comp.rs加show(GET /api/public/competitions/:id)、signup(POST /api/competitions/:id/signup)、ladder(GET /api/competitions/:id/leaderboard)；team.rs加create(POST /api/competitions/:id/teams)；token_store.rs的load()换成load_with_source()，带来源标注(TokenSource::Env/Keyring/File)；cli.rs/main.rs接上8个新子命令；reply/signup/create各自拆出纯函数reply_body/signup_body/create_body方便不碰网络的单元测试
 - 结果：待下一条提交统一跑全量检查
+
+## 20:05:52 +08:00 · 提交 · #277 · 补齐新命令的服务契约、接口文档与宏观对齐声明
+
+- 执行者：agent-c277（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：docs/services/cli/README.md、app/cli/README.md、app/cli/skills/geek/SKILL.md 的命令表补齐 status/apply status/forum show/forum reply/comp show/comp signup/comp ladder/team create 八个新命令；docs/services/server/README.md、endpoint-contracts.md、docs/architecture/API.md 补 GET /api/me/applications 契约；ownership.json 登记 routeOwners 新一行 my-applications.ts→recruitment 与新流程 flow:application.my_status（domain recruitment, relatedDomains identity）；docs/changes/277.json 加 domains.gitlab、flows（application.my_status、gitlab.projects.public.list）、4 个新 coverage 分组（contracts.ts+index.ts 横跨 9 个域、my-applications.ts、两个新测试文件），assessments 的 business/backend/permissions/data/documentation/verification/delivery 补齐这一轮的证据与准确的用例数字；pnpm catalog:generate 与 pnpm docs:index 重新生成目录产物
+- 结果：node scripts/check-architecture.mjs --base 4c7c5dd5 --branch task/277/geek_cli 通过（67 个变更文件，84 个关联节点）；node scripts/check-doc-sync.mjs --base 4c7c5dd5 通过（7 组模块与文档）；pnpm check:catalog 通过；pnpm typecheck 通过；npx vitest run 114 个文件 1843 条用例全部通过；cargo fmt --check、cargo clippy --all-targets -- -D warnings、cargo test（26 个单元测试）全部通过

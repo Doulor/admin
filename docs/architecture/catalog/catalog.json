@@ -353,13 +353,13 @@
     }
   ],
   "coverage": {
-    "automaticHead": 63,
-    "businessOperations": 126,
-    "businessOperationsWithFlow": 126,
+    "automaticHead": 64,
+    "businessOperations": 127,
+    "businessOperationsWithFlow": 127,
     "capabilities": 22,
-    "declaredFlows": 132,
-    "responseSchemas": 88,
-    "routeMethods": 218,
+    "declaredFlows": 133,
+    "responseSchemas": 89,
+    "routeMethods": 220,
     "supplementalInterfaces": 5,
     "supplementalInterfacesWithFlow": 5,
     "tables": 55
@@ -998,7 +998,7 @@
           "path": "app/server/src/lib/device-store.ts"
         },
         {
-          "line": 59,
+          "line": 60,
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
@@ -2648,7 +2648,7 @@
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 32,
+          "line": 35,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -3025,6 +3025,53 @@
         "mail_outbox",
         "activity_events"
       ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/cli/README.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "recruitment",
+      "evidence": [
+        {
+          "line": 18,
+          "path": "app/server/src/routes/portal/my-applications.ts"
+        },
+        {
+          "line": 20,
+          "path": "app/server/src/middleware/bearer-auth.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/cli/src/commands/apply.rs"
+        }
+      ],
+      "id": "flow:application.my_status",
+      "invariants": [
+        "权限与资源：要求登录（requireAuth），geek 命令行令牌还要带 apply scope（middleware/bearer-auth.ts 的 SCOPE_BY_PREFIX）；applications 表没有 account_id，按账号已绑定的登录邮箱（identities 表 provider='email' 的全部行，绑定时已存成小写）匹配 applications.email（投递时原样保存，这里按小写比较），没绑邮箱直接回空列表。",
+        "响应与错误：200 {applications:[{id,status,created_at}]}；不回姓名、班级、邮箱、特长——命令行拿不到这些字段（#277 的硬约束，和 real_name 一样的边界）。",
+        "数据与副作用：只读；一个账号绑了多个邮箱时合并去重，按 created_at 倒序。"
+      ],
+      "operation": "GET /api/me/applications",
+      "operationLabel": "GET /api/me/applications",
+      "operationNodeId": "route:GET /api/me/applications",
+      "reads": [
+        "applications",
+        "identities"
+      ],
+      "relatedDomains": [
+        "identity"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/my-applications.test.ts"
+      ],
+      "title": "命令行查我自己的投递状态",
+      "writes": []
     },
     {
       "assessment": "declared-with-source-evidence",
@@ -4942,7 +4989,7 @@
           "path": "app/server/src/routes/portal/competitions.ts"
         },
         {
-          "line": 9,
+          "line": 12,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -5348,7 +5395,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 46,
+          "line": 56,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -6439,7 +6486,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 10,
+          "line": 13,
           "path": "app/server/src/routes/portal/contracts.ts"
         }
       ],
@@ -7595,7 +7642,7 @@
           "path": "app/server/src/routes/portal/gitlab.ts"
         },
         {
-          "line": 20,
+          "line": 23,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -8019,7 +8066,7 @@
           "path": "app/server/src/routes/portal/departments.ts"
         },
         {
-          "line": 13,
+          "line": 16,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -9066,6 +9113,11 @@
       "title": "筛选招新投递列表"
     },
     {
+      "id": "flow:application.my_status",
+      "kind": "flow",
+      "title": "命令行查我自己的投递状态"
+    },
+    {
       "id": "flow:application.review",
       "kind": "flow",
       "title": "审核投递、补备注与安排通知"
@@ -10016,6 +10068,11 @@
       "title": "GET /api/identity/profile"
     },
     {
+      "id": "route:GET /api/me/applications",
+      "kind": "route",
+      "title": "GET /api/me/applications"
+    },
+    {
       "id": "route:GET /api/me/competitions",
       "kind": "route",
       "title": "GET /api/me/competitions"
@@ -10334,6 +10391,11 @@
       "id": "route:HEAD /api/identity/profile",
       "kind": "route",
       "title": "HEAD /api/identity/profile"
+    },
+    {
+      "id": "route:HEAD /api/me/applications",
+      "kind": "route",
+      "title": "HEAD /api/me/applications"
     },
     {
       "id": "route:HEAD /api/me/competitions",
@@ -11301,6 +11363,11 @@
       "title": "tests/server/mail-outbox.test.ts"
     },
     {
+      "id": "test:tests/server/my-applications.test.ts",
+      "kind": "test",
+      "title": "tests/server/my-applications.test.ts"
+    },
+    {
       "id": "test:tests/server/oidc.test.ts",
       "kind": "test",
       "title": "tests/server/oidc.test.ts"
@@ -11358,11 +11425,15 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "2b6d3d445a5bb72651e460d670c47b53fe2871ed1b844abefe5a2223c8d9ad20",
+    "fingerprint": "d3d74fe7b4c4f9f70250c97ca59fdbe62d6284972c1b04771fad7fc52ae16d5f",
     "sources": [
       {
         "path": "app/cli/package.json",
         "sha256": "ec7b7edbb73a2d662d74db4064256283d175aecda9ea07ada42200e41768470a"
+      },
+      {
+        "path": "app/cli/src/commands/apply.rs",
+        "sha256": "088617dc1934c6a93d46b6907d7c514f327d5f2ea2ba2976c973b269b749b73e"
       },
       {
         "path": "app/console/package.json",
@@ -12310,7 +12381,7 @@
       },
       {
         "path": "app/server/src/middleware/bearer-auth.ts",
-        "sha256": "64d2b8466d387cd9f9136a757fa854d1f5d69d69e7edd22fe6098d9761b41c24"
+        "sha256": "c1968d1add52aeed89bb7ae1192753806e28a74f256d826f22ad9dad42fa9a4b"
       },
       {
         "path": "app/server/src/middleware/http-policy.ts",
@@ -12502,7 +12573,7 @@
       },
       {
         "path": "app/server/src/routes/portal/contracts.ts",
-        "sha256": "5663ef74040df243b6ab0824fb0ed2320b9967f7dfa30105b4714018772e4389"
+        "sha256": "79a9c26a236f46b6be7fa07b775db11f532bbfd3db62752e75119bc6f035d0b7"
       },
       {
         "path": "app/server/src/routes/portal/departments.ts",
@@ -12526,7 +12597,11 @@
       },
       {
         "path": "app/server/src/routes/portal/index.ts",
-        "sha256": "991fb6a54a419cb4cc97f1b25a9dd52292b286580ba7cd23f8d53a5b258c2f24"
+        "sha256": "2994fe961e01d40afb59ec902ab685089a6713efc7157a2a2838812ea5f6300b"
+      },
+      {
+        "path": "app/server/src/routes/portal/my-applications.ts",
+        "sha256": "dc6798690f322055d503266aed7dfe955eb76db3f5a23c9d4c6399bbb55b525f"
       },
       {
         "path": "app/server/src/routes/portal/org.ts",
@@ -12890,7 +12965,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "cbd45a0f2cd4f61e6ddb1af2d23dcdc52d08c272365261d6b10fada6a32a807d"
+        "sha256": "e38e9fb0c7d459508f0c6211cace20d059426c5dbe8fda08dcd2ce27c28fc40a"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -12902,7 +12977,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "364198d299738ad94615279f46533843d43c6243adff91ffac211af59bd7d981"
+        "sha256": "16ab89c15b1d29c87d7bd3db81fdf6fde52dad09ee206f1fba35b24a8286c35b"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -12930,7 +13005,7 @@
       },
       {
         "path": "docs/services/cli/README.md",
-        "sha256": "6bbecf4430eec9b0b980745a442641c3ad89e471ad662dd53ce2e4680e3b91d4"
+        "sha256": "c299ce71ffdfb25160d31965d291751315a48541eaa0183d277b075113d75252"
       },
       {
         "path": "docs/services/console/README.md",
@@ -12942,7 +13017,7 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "acfd9d236ccc241622c94a59a9b83cd1d52c4f427db7f2b047ccc9e50d6df8ed"
+        "sha256": "a889b8a7e001c3c5e44b9daa626415e26dd2255b8a5fc547bbaa92fefc2972cd"
       },
       {
         "path": "docs/services/server/data-model.md",
@@ -12950,7 +13025,7 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "fb068d2b59468689433a3625de83615bca8f21aef1befd75bd2d1f6348210472"
+        "sha256": "434130cbba9478a0ffc153f167bc348648f2a223afa442377330763af6725f5e"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -13131,6 +13206,10 @@
       {
         "path": "tests/server/mail-outbox.test.ts",
         "sha256": "a79db5a929f3ac2db75e0a568a194337d7c9917d6cbace1ac1847eafad643949"
+      },
+      {
+        "path": "tests/server/my-applications.test.ts",
+        "sha256": "47cba643634047abea1b03b795f6b2979bc3476436a519d8b2151a202e7e3192"
       },
       {
         "path": "tests/server/oidc.test.ts",
@@ -13969,6 +14048,18 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 18,
+          "path": "app/server/src/routes/portal/my-applications.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /api/me/applications",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 37,
           "path": "app/server/src/routes/portal/competition-signups.ts"
         }
@@ -14731,6 +14822,18 @@
       ],
       "from": "application:server",
       "to": "route:HEAD /api/identity/profile",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 18,
+          "path": "app/server/src/routes/portal/my-applications.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /api/me/applications",
       "type": "provides"
     },
     {
@@ -17103,6 +17206,96 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:application.my_status",
+      "to": "domain:recruitment",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:application.my_status",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:application.my_status",
+      "to": "document:docs/services/cli/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:application.my_status",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 18,
+          "path": "app/server/src/routes/portal/my-applications.ts"
+        },
+        {
+          "line": 20,
+          "path": "app/server/src/middleware/bearer-auth.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/cli/src/commands/apply.rs"
+        }
+      ],
+      "from": "flow:application.my_status",
+      "to": "table:applications",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 18,
+          "path": "app/server/src/routes/portal/my-applications.ts"
+        },
+        {
+          "line": 20,
+          "path": "app/server/src/middleware/bearer-auth.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/cli/src/commands/apply.rs"
+        }
+      ],
+      "from": "flow:application.my_status",
+      "to": "table:identities",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:application.my_status",
+      "to": "test:tests/server/my-applications.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 18,
+          "path": "app/server/src/routes/portal/my-applications.ts"
+        },
+        {
+          "line": 20,
+          "path": "app/server/src/middleware/bearer-auth.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/cli/src/commands/apply.rs"
+        }
+      ],
+      "from": "flow:application.my_status",
+      "to": "route:GET /api/me/applications",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
       "from": "flow:application.review",
       "to": "domain:recruitment",
       "type": "belongs-to"
@@ -18167,7 +18360,7 @@
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 32,
+          "line": 35,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -18239,7 +18432,7 @@
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 32,
+          "line": 35,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -20041,7 +20234,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 46,
+          "line": 56,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -20069,7 +20262,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 46,
+          "line": 56,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -20097,7 +20290,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 46,
+          "line": 56,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -20125,7 +20318,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 46,
+          "line": 56,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -20153,7 +20346,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 46,
+          "line": 56,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -20181,7 +20374,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 46,
+          "line": 56,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -20209,7 +20402,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 46,
+          "line": 56,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -20237,7 +20430,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 46,
+          "line": 56,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -20265,7 +20458,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 46,
+          "line": 56,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -20293,7 +20486,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 46,
+          "line": 56,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -20321,7 +20514,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 46,
+          "line": 56,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -20367,7 +20560,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 46,
+          "line": 56,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -20961,7 +21154,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 10,
+          "line": 13,
           "path": "app/server/src/routes/portal/contracts.ts"
         }
       ],
@@ -20981,7 +21174,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 10,
+          "line": 13,
           "path": "app/server/src/routes/portal/contracts.ts"
         }
       ],
@@ -21007,7 +21200,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 10,
+          "line": 13,
           "path": "app/server/src/routes/portal/contracts.ts"
         }
       ],
@@ -21059,7 +21252,7 @@
           "path": "app/server/src/routes/portal/competitions.ts"
         },
         {
-          "line": 9,
+          "line": 12,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -21169,7 +21362,7 @@
           "path": "app/server/src/routes/portal/competitions.ts"
         },
         {
-          "line": 9,
+          "line": 12,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -37971,7 +38164,7 @@
           "path": "app/server/src/routes/portal/gitlab.ts"
         },
         {
-          "line": 20,
+          "line": 23,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -42833,7 +43026,7 @@
           "path": "app/server/src/routes/portal/departments.ts"
         },
         {
-          "line": 13,
+          "line": 16,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -42859,7 +43052,7 @@
           "path": "app/server/src/routes/portal/departments.ts"
         },
         {
-          "line": 13,
+          "line": 16,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -43147,7 +43340,7 @@
           "path": "app/server/src/lib/device-store.ts"
         },
         {
-          "line": 59,
+          "line": 60,
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
@@ -43177,7 +43370,7 @@
           "path": "app/server/src/lib/device-store.ts"
         },
         {
-          "line": 59,
+          "line": 60,
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
@@ -43201,7 +43394,7 @@
           "path": "app/server/src/lib/device-store.ts"
         },
         {
-          "line": 59,
+          "line": 60,
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
@@ -43225,7 +43418,7 @@
           "path": "app/server/src/lib/device-store.ts"
         },
         {
-          "line": 59,
+          "line": 60,
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
@@ -50961,6 +51154,12 @@
     },
     {
       "basis": "declaration",
+      "from": "route:GET /api/me/applications",
+      "to": "domain:recruitment",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:GET /api/me/competitions",
       "to": "domain:competitions",
       "type": "belongs-to"
@@ -51341,6 +51540,12 @@
       "basis": "declaration",
       "from": "route:HEAD /api/identity/profile",
       "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:HEAD /api/me/applications",
+      "to": "domain:recruitment",
       "type": "belongs-to"
     },
     {
@@ -62410,6 +62615,92 @@
         ],
         "responseSchema": true
       },
+      "domain": "recruitment",
+      "id": "route:GET /api/me/applications",
+      "key": "GET /api/me/applications",
+      "kind": "business",
+      "method": "GET",
+      "path": "/api/me/applications",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "applications": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "created_at": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "id": {
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "received",
+                        "interview",
+                        "accepted",
+                        "rejected",
+                        "cancelled"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "status",
+                    "created_at"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "applications"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 18,
+        "path": "app/server/src/routes/portal/my-applications.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
       "domain": "competitions",
       "id": "route:GET /api/me/competitions",
       "key": "GET /api/me/competitions",
@@ -67316,6 +67607,70 @@
       "source": {
         "line": 23,
         "path": "app/server/src/routes/identity/profile.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "recruitment",
+      "id": "route:HEAD /api/me/applications",
+      "key": "HEAD /api/me/applications",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/api/me/applications",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 18,
+        "path": "app/server/src/routes/portal/my-applications.ts"
       }
     },
     {
@@ -81999,6 +82354,12 @@
         "recruitment"
       ],
       "path": "app/server/src/routes/portal/index.ts"
+    },
+    {
+      "domains": [
+        "recruitment"
+      ],
+      "path": "app/server/src/routes/portal/my-applications.ts"
     },
     {
       "domains": [

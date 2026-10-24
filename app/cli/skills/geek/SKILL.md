@@ -1,6 +1,6 @@
 ---
 name: geek
-description: 极客班命令行（geek）：用设备码登录极客班账号后，读写论坛、比赛、队伍与公开代码仓库。Agent 要代表极客班账号做这些事时用它，不要直接拼 curl 调内部接口。
+description: 极客班命令行（geek）：用设备码登录极客班账号后，读写论坛、比赛、队伍、公开代码仓库，查本机登录状态与自己的招新投递状态。Agent 要代表极客班账号做这些事时用它，不要直接拼 curl 调内部接口。
 ---
 
 # geek 命令行
@@ -32,14 +32,22 @@ echo $GEEK_TOKEN                # agent 场景：直接设环境变量，跳过 
 
 | 命令 | 作用 | 需要登录 | 需要的权限/scope |
 |---|---|---|---|
-| `geek whoami` | 查看当前登录的账号、昵称、部门 | 是 | — |
+| `geek whoami` | 查看当前登录的账号、昵称、部门、年级 | 是 | — |
+| `geek status` | 看本机登录状态：令牌来自哪一层、源站、服务端连不连得上、令牌是否有效、版本号 | 否（没登录也能跑，不发业务请求） | — |
 | `geek logout` | 撤销本机令牌，服务端立刻失效 | 是（没登录也能跑，是空操作） | — |
 | `geek forum list` | 列出最近话题 | 否 | `forum` |
+| `geek forum show <topic_id>` | 看一个话题的全部帖子（含正文） | 否 | `forum` |
 | `geek forum post --title T --category C --content X` | 发一个新话题 | 是 | `forum`，且账号要有 `forum.topic.create` 权限节点（注册用户默认没有，只有极客班成员才有） |
+| `geek forum reply <topic_id> --content X` | 回复一个话题 | 是 | `forum`，且账号要有 `forum.reply.create` 权限节点（注册用户默认没有） |
 | `geek comp list` | 列出公开比赛 | 否 | `competition` |
+| `geek comp show <id>` | 看一场比赛 | 否 | `competition` |
 | `geek comp mine` | 我参加的比赛 | 是 | `competition`，且要持有报名或组队权限 |
+| `geek comp signup <id> [--note N] [--looking-for-team]` | 报名一场比赛 | 是 | `competition`，且账号要有 `competition.signup` 权限节点 |
+| `geek comp ladder <id>` | 看一场比赛的榜 | 是 | `competition`，且要持有报名或组队权限 |
+| `geek team create <competition_id> --name N [--slogan S]` | 为一场比赛建一支新队伍 | 是 | `competition`，且账号要有 `competition.team` 权限节点 |
 | `geek team apply <team_id> --message M` | 申请加入一支队伍 | 是 | `apply`，且账号要有 `competition.team` 权限节点 |
 | `geek repo list` | 列出公开代码仓库 | 否 | `repo` |
+| `geek apply status` | 查自己的招新投递状态（按登录邮箱匹配，没绑邮箱是空列表） | 是 | `apply` |
 | `geek skill install [--target claude\|codex\|omp\|all]` | 把这份 SKILL.md 写到 Agent 的技能目录 | 否 | — |
 
 每个命令都接受 `--json`，输出 `{ ok: true, data }` 或 `{ ok: false, error: { code, message, retry_after? } }`，
@@ -49,10 +57,13 @@ echo $GEEK_TOKEN                # agent 场景：直接设环境变量，跳过 
 
 ```bash
 $ geek whoami --json
-{"ok":true,"data":{"account_id":"u_123","login":"yz_abc123","nickname":"路人","avatar_url":null,"department":"算法部门","scope":"openid profile forum apply competition repo"}}
+{"ok":true,"data":{"account_id":"u_123","login":"yz_abc123","nickname":"路人","avatar_url":null,"department":"算法部门","grade_label":"大二","scope":"openid profile forum apply competition repo","email_required":false,"profile_required":false,"hint":null}}
 
 $ geek forum post --title t --category general --content c --json
 {"ok":false,"error":{"code":"forbidden","message":"需要「forum.topic.create」权限"}}
+
+$ geek apply status --json
+{"ok":true,"data":{"applications":[{"id":"a1b2c3d4-...","status":"interview","created_at":1761292800000}]}}
 ```
 
 ## 退出码

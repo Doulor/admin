@@ -270,6 +270,7 @@
     "app/server/src/routes/forum-api/posts.ts": "forum",
     "app/server/src/routes/forum-api/topics.ts": "forum",
     "app/server/src/routes/portal/apply.ts": "recruitment",
+    "app/server/src/routes/portal/my-applications.ts": "recruitment",
     "app/server/src/routes/portal/docs.ts": "public_content",
     "app/server/src/routes/portal/events.ts": "audit",
     "app/server/src/routes/portal/feedback.ts": "feedback",
@@ -2752,6 +2753,50 @@
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/architecture/SECURITY.md"
+      ]
+    },
+    {
+      "id": "application.my_status",
+      "title": "命令行查我自己的投递状态",
+      "domain": "recruitment",
+      "relatedDomains": [
+        "identity"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/me/applications",
+      "capabilities": [],
+      "reads": [
+        "applications",
+        "identities"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：要求登录（requireAuth），geek 命令行令牌还要带 apply scope（middleware/bearer-auth.ts 的 SCOPE_BY_PREFIX）；applications 表没有 account_id，按账号已绑定的登录邮箱（identities 表 provider='email' 的全部行，绑定时已存成小写）匹配 applications.email（投递时原样保存，这里按小写比较），没绑邮箱直接回空列表。",
+        "响应与错误：200 {applications:[{id,status,created_at}]}；不回姓名、班级、邮箱、特长——命令行拿不到这些字段（#277 的硬约束，和 real_name 一样的边界）。",
+        "数据与副作用：只读；一个账号绑了多个邮箱时合并去重，按 created_at 倒序。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/portal/my-applications.ts",
+          "needle": "app.get(\"/api/me/applications\", { preHandler: requireAuth }, async (req) => {"
+        },
+        {
+          "path": "app/server/src/middleware/bearer-auth.ts",
+          "needle": "{ prefix: \"/api/me/applications\", scope: \"apply\" },"
+        },
+        {
+          "path": "app/cli/src/commands/apply.rs",
+          "needle": "pub async fn status(ctx: &Context, json: bool) -> i32 {"
+        }
+      ],
+      "tests": [
+        "tests/server/my-applications.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/cli/README.md"
       ]
     },
     {
