@@ -481,7 +481,8 @@
         "docs/architecture/catalog/routes.md",
         "docs/architecture/catalog/data-model.md",
         "docs/architecture/catalog/permissions.md",
-        "docs/architecture/catalog/map.html"
+        "docs/architecture/catalog/map.html",
+        "docs/INDEX.md"
       ],
       "domains": [
         "identity",
