@@ -223,15 +223,22 @@ export function bumpPermRevision(db: Database.Database): number {
  * level、department 组每账号最多一个（SPEC §3.6「身份唯一」）：写入前在同一事务里删除该账号在同类组下的
  * 旧成员资格，再插入新的。用「写入时检查」而不是触发器，便于在应用层测试和在迁移脚本里复用。
  * 调用方写完之后要自行 `bumpPermRevision(db)` 让缓存失效（迁移脚本在整段迁移结束后统一 bump 一次）。
+ * `expiresAt` 给 console/permission-groups.ts 的「加成员」接口用（可以带过期时间）；不传就是永久，
+ * 和原来的行为一样。调用方如果自己已经在一个事务里，better-sqlite3 的 transaction() 会自动退化成
+ * SAVEPOINT，不用调用方特地拆出来（console/users.ts 的 PATCH、迁移脚本的批量循环都是这样嵌套调用的）。
+ * #274 残留修复 P：console/users.ts、console/permission-groups.ts 原来各自写了一份一模一样的
+ * 「按 kind 删旧的再插入新的」SQL，这里是唯一实现，两处改成调用它。
  */
-export function setExclusiveGroupMembership(db: Database.Database, accountId: string, groupId: string, now: number, grantedBy: string) {
+export function setExclusiveGroupMembership(
+  db: Database.Database, accountId: string, groupId: string, now: number, grantedBy: string, expiresAt: number | null = null,
+) {
   const group = db.prepare("SELECT kind FROM perm_groups WHERE id = ?").get(groupId) as { kind: string } | undefined;
   if (!group) throw new Error(`perm group not found: ${groupId}`);
   const tx = db.transaction(() => {
     if (group.kind === "level" || group.kind === "department") {
       db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id IN (SELECT id FROM perm_groups WHERE kind = ?)").run(accountId, group.kind);
     }
-    db.prepare("INSERT INTO perm_members(account_id, group_id, expires_at, granted_by, created_at) VALUES (?, ?, NULL, ?, ?)").run(accountId, groupId, grantedBy, now);
+    db.prepare("INSERT INTO perm_members(account_id, group_id, expires_at, granted_by, created_at) VALUES (?, ?, ?, ?, ?)").run(accountId, groupId, expiresAt, grantedBy, now);
   });
   tx();
 }

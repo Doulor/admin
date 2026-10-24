@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`24bcf331ea94aa737b85a7a5fe4dcbf1a06e4c3886655549ec7460fbff2cef4d`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`ec0225b3bd13734edb50c2b6b78743f52a08d489c09001a591f1cdafca6c9a0e`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -63,6 +63,7 @@ flowchart LR
   perm_groups["perm_groups"]
   perm_members["perm_members"]
   perm_nodes["perm_nodes"]
+  perm_seed_applied["perm_seed_applied"]
   perm_state["perm_state"]
   role_assignments["role_assignments"]
   sessions["sessions"]
@@ -118,7 +119,7 @@ flowchart LR
 
 ## account_avatars
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:802](../../../app/server/src/lib/db.ts#L802)。
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:810](../../../app/server/src/lib/db.ts#L810)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -150,7 +151,7 @@ CREATE TABLE account_avatars (
 
 ## account_profiles
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:792](../../../app/server/src/lib/db.ts#L792)。
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:800](../../../app/server/src/lib/db.ts#L800)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -193,7 +194,7 @@ CREATE TABLE account_profiles (
 
 ## activity_events
 
-业务域：`audit`；结构来源：[app/server/src/lib/db.ts:813](../../../app/server/src/lib/db.ts#L813)。
+业务域：`audit`；结构来源：[app/server/src/lib/db.ts:821](../../../app/server/src/lib/db.ts#L821)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -1818,7 +1819,7 @@ CREATE TABLE invite_links (
 
 ## limit_events
 
-业务域：`platform`；结构来源：[app/server/src/lib/db.ts:834](../../../app/server/src/lib/db.ts#L834)。
+业务域：`platform`；结构来源：[app/server/src/lib/db.ts:842](../../../app/server/src/lib/db.ts#L842)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -2282,6 +2283,34 @@ CREATE TABLE perm_nodes (
   description TEXT NOT NULL DEFAULT '',
   meta INTEGER NOT NULL DEFAULT 0 CHECK (meta IN (0, 1)),
   sort INTEGER NOT NULL DEFAULT 0
+);
+```
+
+</details>
+
+## perm_seed_applied
+
+业务域：`permissions`；结构来源：[app/server/src/lib/db.ts:791](../../../app/server/src/lib/db.ts#L791)。
+
+字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `key` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `applied_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_perm_seed_applied_1` | `key` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE perm_seed_applied (
+  key TEXT PRIMARY KEY,
+  applied_at INTEGER NOT NULL
 );
 ```
 

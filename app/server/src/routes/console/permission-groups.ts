@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { requireStepUp } from "../../middleware/require-step-up.js";
 import { isKnownNode, PERMISSION_NODES } from "../../lib/permission-nodes.js";
-import { isSiteOwner, siteOwnerCount, SITE_OWNER_GROUP_ID, type Scope } from "../../lib/permissions.js";
+import { isSiteOwner, setExclusiveGroupMembership, siteOwnerCount, SITE_OWNER_GROUP_ID, type Scope } from "../../lib/permissions.js";
 
 const CUSTOM_GROUP_ID_PATTERN = /^custom\.[a-z0-9_]+$/;
 
@@ -253,12 +253,9 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
       if (id === SITE_OWNER_GROUP_ID && forbidUnlessSiteOwner(db, req, reply)) return;
       const now = Date.now();
       if (group.kind === "level" || group.kind === "department") {
-        // level、department 组每账号最多一个：同一事务里先删旧的再插入新的（lib/permissions.ts 的同一条规则）。
-        db.transaction(() => {
-          db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id IN (SELECT id FROM perm_groups WHERE kind = ?)").run(req.body.account_id, group.kind);
-          db.prepare("INSERT INTO perm_members(account_id, group_id, expires_at, granted_by, created_at) VALUES (?, ?, ?, ?, ?)")
-            .run(req.body.account_id, id, req.body.expires_at ?? null, req.session!.login, now);
-        })();
+        // level、department 组每账号最多一个：lib/permissions.ts 的 setExclusiveGroupMembership() 统一实现
+        // 「先删旧的再插入新的」，不在这里再写一份一样的 SQL（#274 残留修复 P）。
+        setExclusiveGroupMembership(db, req.body.account_id, id, now, req.session!.login, req.body.expires_at ?? null);
       } else {
         db.prepare("INSERT OR REPLACE INTO perm_members(account_id, group_id, expires_at, granted_by, created_at) VALUES (?, ?, ?, ?, ?)")
           .run(req.body.account_id, id, req.body.expires_at ?? null, req.session!.login, now);

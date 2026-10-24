@@ -3,7 +3,7 @@ import { requirePermission } from "../../middleware/require-permission.js";
 import { requireStepUp } from "../../middleware/require-step-up.js";
 import { requireScopedPermission } from "../../lib/console-scope.js";
 import { decodeCursor, encodeCursor } from "../../lib/cursor.js";
-import { isSiteOwner, levelGroupId, levelSuffix, siteOwnerCount, SITE_OWNER_GROUP_ID } from "../../lib/permissions.js";
+import { isSiteOwner, levelGroupId, levelSuffix, setExclusiveGroupMembership, siteOwnerCount, SITE_OWNER_GROUP_ID } from "../../lib/permissions.js";
 import { escapeLike } from "../../lib/sql-text.js";
 import { beijingDayStart } from "../../lib/beijing-time.js";
 
@@ -197,17 +197,13 @@ export default async function consoleUsersRoutes(app: FastifyInstance) {
       const now = Date.now();
       db.transaction(() => {
         if (status !== undefined) db.prepare("UPDATE users SET status = ?, updated_at = ? WHERE id = ?").run(status, now, id);
-        if (level !== undefined) {
-          db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id IN (SELECT id FROM perm_groups WHERE kind = 'level')").run(id);
-          db.prepare("INSERT INTO perm_members(account_id, group_id, expires_at, granted_by, created_at) VALUES (?, ?, NULL, ?, ?)")
-            .run(id, levelGroupId(level), req.session!.login, now);
-        }
+        if (level !== undefined) setExclusiveGroupMembership(db, id, levelGroupId(level), now, req.session!.login);
         const finalDepartment = department !== undefined ? department : (db.prepare(
           "SELECT pg.id AS id FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pm.account_id = ? AND pg.kind = 'department'",
         ).get(id) as { id: string } | undefined)?.id ?? null;
         if (department !== undefined) {
-          db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id IN (SELECT id FROM perm_groups WHERE kind = 'department')").run(id);
-          if (department !== null) db.prepare("INSERT INTO perm_members(account_id, group_id, expires_at, granted_by, created_at) VALUES (?, ?, NULL, ?, ?)").run(id, department, req.session!.login, now);
+          if (department === null) db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id IN (SELECT id FROM perm_groups WHERE kind = 'department')").run(id);
+          else setExclusiveGroupMembership(db, id, department, now, req.session!.login);
         }
         if (titles !== undefined) {
           db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id IN (SELECT id FROM perm_groups WHERE kind = 'title')").run(id);
