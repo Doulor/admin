@@ -45,3 +45,23 @@
 - 做了什么：task/277/geek_cli 从 39ab81ab rebase 到 4c7c5dd5（#280 真实姓名/年级合并进 stage）；middleware/bearer-auth.ts 的 cliGate() 改读 email-gate.ts 新加的 gateRefusal()/gateRefusalBody()，业务接口除了没绑邮箱也会被没填姓名和年级挡住（403 profile_required）；/auth/device/userinfo 加 grade/grade_label 两个只读字段（供命令行展示年级），real_name 不进任何命令行能读到的响应（新测试核对 tests/server/real-info.test.ts 的文件白名单不受影响）；app/cli 的 login.rs/whoami.rs 改成先读 userinfo 的 email_required/profile_required，挡住时打印提示（复用 api.rs 的 gate_message），不再对着一个注定 403 的 /api/console/me 静默失败；tests/server/bearer-auth.test.ts 补一个 profile_required 的用例，tests/server/device-flow.test.ts 的 userinfo 断言补上 grade/grade_label；重新跑 pnpm catalog:generate 与 docs:index
 - 结果：cargo fmt/clippy -D warnings/test 11/11 通过；pnpm typecheck 通过；pnpm test 113 文件 1835 条全部通过；check-doc-sync --base 4c7c5dd5 通过（7 组）；check-architecture --base 4c7c5dd5 通过（58 个变更文件，68 个关联节点）；check:catalog/check:cli/check:secrets 通过
 - 下一步：等团队负责人 push、开 MR、合并
+
+## 19:06:32 +08:00 · 审查 · #277 · 审查 task/277/geek_cli（1a32bffc 对 4c7c5dd5），两处要返工
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：按 .agents/skills/code-review 逐项核对 4c7c5dd5...1a32bffc 的 58 个文件，重点看服务端 Bearer 中间件、设备令牌撤销、web 镜像分发；用 docker 在本机试了具名构建上下文的两种情况
+- 结果：问题一（安全）：middleware/bearer-auth.ts 把令牌会话的 created_at 写成 Date.now()，require-step-up.ts:15 与 routes/identity/account.ts:34 只比 created_at，命令行每个请求都算刚登录过；令牌又对没分类的接口默认放行，拿到令牌就能不输旧密码改密码、绑邮箱、做控制台写操作，/auth/me、/api/identity/* 还会回真实姓名。问题二（发版）：.dockerignore 第 12 行 **/dist 把仓库根 dist/cli/ 排除在构建上下文之外，app/web/Dockerfile 的 COPY dist/cli/ 一定失败；CI 的 docker job（ci.yml:376）也没有产出 dist/cli/ 的步骤。其余（RFC 8628 流程、撤销幂等、mixed_credentials、操作记录 surface=cli、退出码、SKILL.md）符合 SPEC §6。两处都在本分支返工，见下面两条提交
+- 下一步：返工、全量测试、推到 GitLab 开 MR
+
+## 19:06:48 +08:00 · 提交 · #277 · 审查返工：命令行令牌的接口范围与 step-up
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：提交 e214eb03：middleware/bearer-auth.ts 改成只认命令行用到的接口（四类 scope 前缀、/auth/device/userinfo、/auth/device/revoke、/api/public/* 的 GET/HEAD、GET /api/console/me），其余带令牌 403 cli_not_allowed；令牌会话 created_at 记 0，require-step-up.ts 的 isSessionFresh 和 routes/identity/account.ts 的 fresh 对 via=cli 一律 false；tests/server/bearer-auth.test.ts 加 8 个接口的拒绝用例和 step-up 用例，原来用 /api/identity/profile 做业务接口的两条改用 /api/forum/state；API.md、cli 合同、SKILL.md 写上新规则；docs/changes/277.json 补登记两个文件与 identity.account.password 流程，重新生成目录
+- 结果：tests/server 33 文件 599 条通过；cargo test 11 条通过；check-architecture --base 4c7c5dd5 通过（60 个变更文件，77 个关联节点）；check:catalog、check:doc-sync 通过
+
+## 19:06:48 +08:00 · 提交 · #277 · 审查返工：命令行产物进镜像的方式
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：提交 d1eefb2b：app/web/Dockerfile 加 FROM scratch AS cli，运行阶段 COPY --from=cli / /usr/share/nginx/html/cli/，发版构建传 --build-context cli=dist/cli；cli、web 合同与 cli-dist.mjs 注释跟着改，写明 GitHub 两条部署工作流还没有产出 dist/cli/ 的步骤；tests/tooling/build-mirrors.test.ts 的阶段清单 web 改成 builder、cli、runtime，并断言 cli 阶段只有一行 FROM scratch
+- 结果：本机 docker 试过：不传 --build-context 时 /cli/ 下 0 个文件、构建成功，传了时 2 个文件都在；全量 vitest 113 文件 1837 条通过（返工前唯一失败的 build-mirrors 已修）
+- 下一步：推到 GitLab，开 MR，贴审查结论，合并
