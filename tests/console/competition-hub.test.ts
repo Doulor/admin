@@ -132,7 +132,10 @@ describe("score form validation", () => {
 
   it("requires owner/name with the server's character set and length", () => {
     expect(scoreErrors(scoreForm({ repo: " owner/name " }))).toEqual({});
-    for (const repo of ["", "owner", "owner/name/extra", "owner/na me", "owner/名字", `${"a".repeat(70)}/${"b".repeat(70)}`]) {
+    // #278：GitLab 项目可以在子组里，服务端的 REPO_PATTERN 放宽到最多五段
+    expect(scoreErrors(scoreForm({ repo: "owner/name/extra" }))).toEqual({});
+    expect(scoreErrors(scoreForm({ repo: "a/b/c/d/e" }))).toEqual({});
+    for (const repo of ["", "owner", "a/b/c/d/e/f", "owner//name", "owner/na me", "owner/名字", `${"a".repeat(70)}/${"b".repeat(70)}`]) {
       expect(scoreErrors(scoreForm({ repo })).repo).toBeTruthy();
     }
     expect(scoreErrors(scoreForm({ repo: `${"a".repeat(69)}/${"b".repeat(70)}` })).repo).toBeUndefined();
@@ -170,6 +173,12 @@ describe("score links", () => {
     expect(scoreTargetUrl({ kind: "issue", repo: null, number: 7 })).toBeNull();
     expect(scoreTargetText({ kind: "pr", repo: "owner/name", number: 265 })).toBe("owner/name#265");
     expect(scoreTargetText({ kind: "penalty", repo: null, number: null })).toBe("—");
+  });
+
+  it("does not build a GitHub link for the competition's GitLab projects (#278)", () => {
+    expect(scoreTargetUrl({ kind: "pr", repo: "geek/admin", number: 12 }, ["geek/admin"])).toBeNull();
+    expect(scoreTargetUrl({ kind: "pr", repo: "owner/name", number: 12 }, ["geek/admin"])).toBe("https://github.com/owner/name/pull/12");
+    expect(scoreTargetText({ kind: "pr", repo: "geek/admin", number: 12 })).toBe("geek/admin#12");
   });
 });
 

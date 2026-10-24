@@ -20,10 +20,12 @@ import { api, jsonBody } from "../lib/http";
 import { confirm } from "../lib/confirm";
 import { fmtDay } from "../lib/format";
 import { useAction, useResource } from "../lib/resource";
+import { useSession } from "../lib/session";
 import { KIND_TEXT, STATUS_TEXT, emptyForm, formErrors, formFrom, formPayload, isOneDay, type CompetitionForm } from "../lib/competitions";
 import type { CompetitionRecord, CompetitionStatus } from "../lib/types";
 
 const router = useRouter();
+const { can } = useSession();
 const list = useResource(() => api<{ competitions: CompetitionRecord[] }>("/api/console/competitions"), []);
 
 /** 状态色：报名中用成功色，进行中用主色，报不了名的与结束过的都弱化。 */
@@ -95,6 +97,7 @@ async function askRemove(row: CompetitionRecord) {
   <div class="page">
     <PageHeader title="比赛" description="官网桌面「比赛」应用显示的赛事。时间按北京时间选，服务端按 UTC 存。">
       <template #actions>
+        <TxButton v-if="can('competition.prize.redeem')" class="competition-create" icon="i-carbon-ticket" @click="router.push('/console/competitions/redeem')">核销兑奖码</TxButton>
         <TxButton class="competition-create" variant="primary" icon="i-carbon-add" @click="openCreate">新建比赛</TxButton>
       </template>
     </PageHeader>
@@ -129,7 +132,7 @@ async function askRemove(row: CompetitionRecord) {
         </template>
         <template #cell-actions="{ row }: { row: CompetitionRecord }">
           <span class="row-actions">
-            <TxButton v-if="row.kind === 'internal'" size="sm" variant="ghost" @click="router.push(`/console/competitions/${row.id}`)">报名与积分</TxButton>
+            <TxButton v-if="row.kind === 'internal'" size="sm" variant="ghost" @click="router.push(`/console/competitions/${row.id}`)">报名、积分与官网</TxButton>
             <TxButton size="sm" variant="ghost" @click="openEdit(row)">编辑</TxButton>
             <TxButton size="sm" variant="ghost" :disabled="toggleOffline.pending.value" @click="toggleOffline.execute(row)">{{ row.offline ? "上线" : "下线" }}</TxButton>
             <TxButton size="sm" variant="ghost" class="danger-text" :disabled="remove.pending.value" @click="askRemove(row)">删除</TxButton>

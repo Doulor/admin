@@ -50,3 +50,17 @@
 - 做了什么：competitions.ts 读 prizes、grade_factors、finalized_at；competitionHub 加 readMyResults、factorText、rankRange、shortTime 与 results 路径，计分规则与操作条文案改成「有用」才计分、MR；详情概览加年级系数与奖项、Hero 加「比赛官网」、initialTab；天梯轮询 30 秒改 10 秒；「我的参赛」顶上列定榜结果、兑奖码与复制；?competition=<id>&view=team 深链选中比赛并打开队伍页签，读完从地址去掉；icons 加 file-copy-line、gift-line、thumb-up-line；同步 docs/services/web/portal.md 与 docs/plan/COMPETITION-APP.md
 - 结果：npx vitest run tests/web 33 个文件 303 个测试通过（新增 portal-competition-results 8 个，hub 测试改 10 秒与新文案）；tsc -p app/web/tsconfig.json 无错误
 - 下一步：提交门户阶段；再做控制台（待确认贡献、计分与奖项、官网、定榜、兑奖页）
+
+## 15:21:35 +08:00 · 提交 · #278 · 提交门户阶段 157ce848
+
+- 执行者：agent-claude-geek-main-3c2a7a67-c278（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：按文件逐个 git add 12 个文件，提交 157ce848 feat(portal): 比赛窗口加奖项、年级系数、10 秒天梯、兑奖码与官网深链（Refs #278）
+- 结果：本地提交，没有推送
+- 下一步：控制台：待确认贡献、计分与奖项、官网上传发布、定榜、兑奖页
+
+## 16:47:04 +08:00 · 开发 · #278 · 控制台比赛页签、兑奖码核销、宿主上传上限回退与浏览器验收
+
+- 执行者：agent-claude-geek-main-3c2a7a67-c278（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：控制台比赛页按权限分六个页签：待确认贡献（确认/驳回/立即收集）、计分与奖项（年级系数与可选奖项）、官网（上传校验、预览、发布、下线，413 时说明网关拒收）、定榜（预览名次、定榜、撤销）；新增 /console/competitions/redeem 核销页（查找、二次确认、刚登录过才能核销）与比赛列表的「核销兑奖码」按钮；lib/competition-contest 放表单与提示逻辑，mock 补四个读接口。宿主 nginx 模板回退到 6m 单一反代（第二阶段加的上传 location 让 #168 的 XFF 与 upstream 测试失败），只在 web 容器里给上传放宽 21m，DEPLOY、web README、Dockerfile 注释与 web-nginx 测试同步。sites 路由补响应 Schema；ownership.json 补 22 条比赛流程与证据，重新生成目录，写 docs/changes/278.json。ego-browser 在 1440×900 与 390×844 看官网、门户比赛窗口与控制台：修了奖项卡第三张（无说明）内容下沉、页脚气泡折行与极客娘挡住窗口标题、天梯说明孤字折行、门户手机计分卡 +15～+100 折行、控制台上传人压到上传时间、上传区英文提示、核销结果定义列表错位、「@系统」字样、手机上六个页签折成三行并被裁掉（改成横向滚动并把当前页签滚进可视区）
+- 结果：pnpm test 119 个文件 1864 个测试全部通过；pnpm typecheck 通过；pnpm check 在 check:architecture 失败，原因是 origin/stage 停在 4beda55e（GitHub 封禁后没更新），把其他任务的 567 个文件算进来；node scripts/check-architecture.mjs --base 1bd64d6d --branch task/278/contest_site 通过（104 个变更文件、229 个关联节点）；check:catalog 通过；官网包 5 个文件、zip 227916 字节、首屏 JS 16.20 KB gzip；浏览器里官网 origin 为 null、没有 CSP 违规、两种尺寸无横向溢出、减少动态效果时 0 个运行中的动画、Tab 顺序 13 个焦点都有 3px 焦点环；本地核销一次成功，再查同一码显示已核销与核销人，查不存在的码提示「没有这个兑奖码」；截图在 /tmp/geek-takeover/c278/shots/
+- 下一步：按阶段提交控制台、宿主上传回退与页面修正、目录与变更清单；真实 GitLab 收集、预览环境与 >6MB 上传未验证

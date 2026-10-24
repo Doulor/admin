@@ -1,4 +1,4 @@
-// 比赛报名与积分（#239）控制台页面的纯逻辑：设置表单、积分表单、名单统计、GitHub 链接。
+// 比赛报名与积分（#239）控制台页面的纯逻辑：设置表单、积分表单、名单统计、GitHub 链接。#278 的官网、候选、规则、定榜与兑奖在 competition-contest.ts。
 // 不导入 Vue，tests/console/competition-hub.test.ts 直接测。规则以服务端 competition-contract.ts 为准，
 // 这里只做输入前的基本校验（必填、长度、分值范围），错误码与中文 message 仍原样显示服务端的。
 import type {
@@ -20,7 +20,7 @@ export const SIGNUP_STATUS_TEXT: Record<RosterSignup["status"], string> = {
 };
 export const ROLE_TEXT: Record<"leader" | "member", string> = { leader: "领队", member: "队员" };
 export const SCORE_KIND_TEXT: Record<ScoreKind, string> = {
-  issue: "合入 Issue", pr: "合入 PR", penalty: "作弊扣分",
+  issue: "Issue", pr: "合入的 MR", penalty: "作弊扣分",
 };
 
 /** Issue 与 PR 的分值范围；扣分固定 −50（服务端另有表约束兜底）。 */
@@ -30,8 +30,11 @@ export const SCORE_POINTS: Record<ScoreKind, { min: number; max: number }> = {
   penalty: { min: -50, max: -50 },
 };
 
-/** 与服务端 `REPO_PATTERN` 一致：`owner/name`，各段只允许字母、数字、下划线、点和连字符。 */
-export const REPO_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+/**
+ * 与服务端 `REPO_PATTERN` 一致：`owner/name`，GitLab 的项目可以在子组里（#278，最多五段），
+ * 各段只允许字母、数字、下划线、点和连字符。
+ */
+export const REPO_PATTERN = /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+){1,4}$/;
 
 const charLength = (value: string) => [...value].length;
 const isInteger = (value: string) => /^-?\d+$/.test(value.trim());
@@ -180,7 +183,7 @@ export function scoreErrors(form: ScoreForm): ScoreErrors {
     const repo = form.repo.trim();
     if (!repo) errors.repo = "请填写 owner/name 形式的仓库。";
     else if (charLength(repo) > 140) errors.repo = "仓库最多 140 个字。";
-    else if (!REPO_PATTERN.test(repo)) errors.repo = "仓库要写成 owner/name，例如 yangtze-geek/portal。";
+    else if (!REPO_PATTERN.test(repo)) errors.repo = "仓库要写成 owner/name，例如 geek/admin。";
     const number = form.number.trim();
     if (!number) errors.number = "请填 Issue 或 PR 编号。";
     else if (!isInteger(number) || !/^\d+$/.test(number) || Number(number) < 1 || Number(number) > 1_000_000) {
@@ -214,9 +217,13 @@ export function scorePayload(form: ScoreForm): ScorePayload {
   };
 }
 
-/** Issue → `/issues/<编号>`，PR → `/pull/<编号>`，扣分没有链接。 */
-export function scoreTargetUrl(event: Pick<ScoreEvent, "kind" | "repo" | "number">): string | null {
+/**
+ * Issue → `/issues/<编号>`，PR → `/pull/<编号>`，扣分没有链接。
+ * 这场比赛配的 GitLab 项目（#278，`gitlabProjects`）不在 GitHub 上，不拼 GitHub 链接，原文显示；它们的链接在「待确认贡献」里。
+ */
+export function scoreTargetUrl(event: Pick<ScoreEvent, "kind" | "repo" | "number">, gitlabProjects: readonly string[] = []): string | null {
   if (!event.repo || event.number === null) return null;
+  if (gitlabProjects.includes(event.repo)) return null;
   if (event.kind === "issue") return `https://github.com/${event.repo}/issues/${event.number}`;
   if (event.kind === "pr") return `https://github.com/${event.repo}/pull/${event.number}`;
   return null;

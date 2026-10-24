@@ -224,10 +224,51 @@ export type ScoreKind = "issue" | "pr" | "penalty";
 export type ScoreEvent = {
   id: string; competition_id: string; person: RosterPerson; kind: ScoreKind;
   repo: string | null; number: number | null; points: number; reason: string;
+  /** #278：记分那一刻的年级与系数（百分数，150 = 1.5）和乘过系数的分；#278 之前的记录年级为 null、系数按 1 算。 */
+  grade: GradeKey | null; grade_factor: number | null; weighted_points: number;
   status: "active" | "revoked"; created_by_login: string; created_at: number;
   revoked_at: number | null; revoke_reason: string | null;
 };
 export type ScoreEventList = { events: ScoreEvent[] };
+
+// ---- 比赛官网、候选贡献、计分规则、定榜与兑奖（#278） ----
+
+export type GradeKey = "year1" | "year2" | "year3" | "year4" | "graduated" | "none";
+export type ContestPerson = { account_id: string; username: string; display_name: string; avatar_url: string | null };
+
+export type SiteVersion = {
+  id: string; version: string; size: number; files: number; sha256: string; status: "passed" | "rejected"; report: string[];
+  uploaded_by: { account_id: string; username: string; display_name: string }; created_at: number; preview_url: string | null;
+};
+export type SiteState = { slug: string | null; live_version_id: string | null; site_url: string | null; versions: SiteVersion[] };
+
+export type CandidateStatus = "pending" | "accepted" | "rejected";
+export type Candidate = {
+  id: string; account: ContestPerson; kind: "pr" | "issue"; gitlab_project: string; gitlab_iid: number; url: string; title: string;
+  size_hint: number | null; suggested: number; status: CandidateStatus; final_points: number | null; reason: string | null;
+  reviewed_by: ContestPerson | null; reviewed_at: number | null; accepted_via: "label" | "console" | null; note: string | null;
+  contributed_at: number; created_at: number;
+};
+export type CollectRun = { at: number; fetched: number; created: number; skipped: number; accepted: number; revoked: number; error: string | null };
+export type CandidateList = { items: Candidate[]; next_cursor: string | null; counts: Record<CandidateStatus, number>; last_run: CollectRun | null };
+
+export type PrizeTier = { from: number; to: number; amount_cny: number; title: string };
+export type CompetitionRules = {
+  grade_factors: Record<GradeKey, number>; grades: { grade: GradeKey; label: string }[]; prizes: PrizeTier[]; gitlab_projects: string[];
+  updated_at: number | null; updated_by: ContestPerson | null; finalized: boolean;
+};
+
+export type CompetitionPrize = {
+  id: string; competition_id: string; rank: number; points: number; amount_cny: number; title: string; account: ContestPerson;
+  code_hint: string; created_at: number; redeemed_at: number | null; redeemed_by: ContestPerson | null;
+};
+export type FinalView = {
+  finalized_at: number | null; finalized_by: ContestPerson | null;
+  standings: { rank: number; points: number; account: ContestPerson }[];
+  prizes: CompetitionPrize[];
+  preview: { rank: number; points: number; account: ContestPerson; amount_cny: number | null; title: string | null }[];
+};
+export type RedeemPrize = CompetitionPrize & { competition_name: string; real_name: string | null };
 
 // ---- 注册邀请码（节点改为 invite.manage，形状不变） ----
 
