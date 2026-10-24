@@ -1157,7 +1157,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 44,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -1732,7 +1732,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 291,
+          "line": 69,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -4917,11 +4917,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 236,
+          "line": 250,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 158,
+          "line": 156,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -4929,7 +4929,7 @@
           "path": "app/web/sites/portal/lib/osApps.ts"
         },
         {
-          "line": 128,
+          "line": 132,
           "path": "app/web/shared/lib/mock-api.ts"
         },
         {
@@ -7775,7 +7775,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 55,
+          "line": 83,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -7865,7 +7865,7 @@
           "path": "app/server/src/lib/account-avatar.ts"
         },
         {
-          "line": 242,
+          "line": 308,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -7912,7 +7912,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 490,
+          "line": 534,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -11272,7 +11272,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "201df97d8770a0cdab9c575f0359c63e9971296162bdf32f86283d4a9aa0d0ab",
+    "fingerprint": "fd8d9776deacaf29ab1d271e6c04f99d24e43c024cb188a7f2eb4d40e69ab42b",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -11484,7 +11484,7 @@
       },
       {
         "path": "app/console/src/pages/CompleteProfile.vue",
-        "sha256": "c3d4553a0eb88338ff4c82d7c7d4a3dc274260c30ed4e6ef0f3e013268192799"
+        "sha256": "56f209c85ae106944a570efc51f9691708dbafcb86ec906164ec5cf7de1cb7e2"
       },
       {
         "path": "app/console/src/pages/ConsoleRoot.vue",
@@ -12472,7 +12472,7 @@
       },
       {
         "path": "app/web/shared/lib/mock-api.ts",
-        "sha256": "f715a3240f11a20e1d1c4d15a6d35048e043efa4c49fb6fbac42d430b4a0cae6"
+        "sha256": "c02c8af4ede6d8df5421181ddb1921991efa78cf7aba7b570d9418e38578b4a0"
       },
       {
         "path": "app/web/shared/lib/mount.tsx",
@@ -12592,7 +12592,7 @@
       },
       {
         "path": "app/web/sites/portal/components/os/ProfileCard.tsx",
-        "sha256": "fbdcb35bef26a9927b41fc14701ac88dfbe474c921465dc4983421122a2230e6"
+        "sha256": "f17b2fccbc85372f0c41597a8aee269604d2a4bd9f10865ab083a43177675828"
       },
       {
         "path": "app/web/sites/portal/components/os/SkyWallpaper.tsx",
@@ -12612,11 +12612,11 @@
       },
       {
         "path": "app/web/sites/portal/components/os/Windows.tsx",
-        "sha256": "46975da899267919fdad4f2cc9a440d7631f09dc235328849ae8191ef5ec0712"
+        "sha256": "e988544c50c35ef4070bd7ac135b7f9b0ec7a413c77bfe119659ecd567347fda"
       },
       {
         "path": "app/web/sites/portal/components/os/YugcOs.tsx",
-        "sha256": "6a1e038f5b7a07aa3b18510629c3301bf5347429d8e7acfefca7a0a3b09b512e"
+        "sha256": "555ce111c36afe9ac61ddbca5a48c77c2c25eced784e9493046e7bc36d830b29"
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/Avatar.tsx",
@@ -12836,7 +12836,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "2e2dde869fb5ead77397cdba9b6dda22a0a39b59f690f1d340b9ca70b730dfad"
+        "sha256": "3c21cdd68cfb7b21331f91eb5fa3f97caa9934a3a84976c8e7cecc3cfd809223"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -12864,11 +12864,11 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "714ab2a111990b18d556697fda5fd059bb9ae1e3fde3f80ebb6fa732f3486bc4"
+        "sha256": "1f2d5c56f8a0c517d814e7ffa32c8b7236144831897dca76936de188e1570608"
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "4a030ba1509ce31973bab429f85b201d0d8794bc67cb3f9f8ff4e5841b3164ed"
+        "sha256": "035706b564c9362834a5b157feeef9f7ec110f8e95c028108806c5c358becd89"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -13072,7 +13072,7 @@
       },
       {
         "path": "tests/web/portal-phone.test.tsx",
-        "sha256": "0d1a346a26365c36aeff3cf68c67e54aa5c2d578151f133f7f2a22e48d39a689"
+        "sha256": "4108750274d4d6966bd023d755b5a21d14385f581cc80a0d5bccd448acf45a38"
       }
     ]
   },
@@ -20969,11 +20969,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 236,
+          "line": 250,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 158,
+          "line": 156,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -20981,7 +20981,7 @@
           "path": "app/web/sites/portal/lib/osApps.ts"
         },
         {
-          "line": 128,
+          "line": 132,
           "path": "app/web/shared/lib/mock-api.ts"
         },
         {
@@ -21079,11 +21079,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 236,
+          "line": 250,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 158,
+          "line": 156,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -21091,7 +21091,7 @@
           "path": "app/web/sites/portal/lib/osApps.ts"
         },
         {
-          "line": 128,
+          "line": 132,
           "path": "app/web/shared/lib/mock-api.ts"
         },
         {
@@ -39905,7 +39905,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 291,
+          "line": 69,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -39969,7 +39969,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 291,
+          "line": 69,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -40033,7 +40033,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 291,
+          "line": 69,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -40097,7 +40097,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 291,
+          "line": 69,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -40161,7 +40161,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 291,
+          "line": 69,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -40249,7 +40249,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 291,
+          "line": 69,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -40313,7 +40313,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 291,
+          "line": 69,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -40477,7 +40477,7 @@
           "path": "app/server/src/lib/account-avatar.ts"
         },
         {
-          "line": 242,
+          "line": 308,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -40503,7 +40503,7 @@
           "path": "app/server/src/lib/account-avatar.ts"
         },
         {
-          "line": 242,
+          "line": 308,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -40523,7 +40523,7 @@
           "path": "app/server/src/lib/account-avatar.ts"
         },
         {
-          "line": 242,
+          "line": 308,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -40543,7 +40543,7 @@
           "path": "app/server/src/lib/account-avatar.ts"
         },
         {
-          "line": 242,
+          "line": 308,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -41175,7 +41175,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 44,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -41307,7 +41307,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 44,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -41439,7 +41439,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 44,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -41571,7 +41571,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 44,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -41703,7 +41703,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 44,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -41835,7 +41835,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 44,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -41967,7 +41967,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 44,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -42099,7 +42099,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 44,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -42315,7 +42315,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 44,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -42447,7 +42447,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 44,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -42579,7 +42579,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 44,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -44983,7 +44983,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 490,
+          "line": 534,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -45009,7 +45009,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 490,
+          "line": 534,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -45029,7 +45029,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 490,
+          "line": 534,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -45049,7 +45049,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 490,
+          "line": 534,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -47629,7 +47629,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 55,
+          "line": 83,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -47659,7 +47659,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 55,
+          "line": 83,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -47683,7 +47683,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 55,
+          "line": 83,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {

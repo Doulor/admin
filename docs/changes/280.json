@@ -2,7 +2,7 @@
   "version": 1,
   "issue": 280,
   "kind": "business",
-  "summary": "实名资料：所有账号（老账号和新注册的）都要有真实姓名和年级。年级只能从下拉框选大一到大四，存入学年份，按北京时间每年 9 月 1 日自动升一级，大四之后显示已毕业。缺了先到补资料页 /complete-profile 填，和绑邮箱同一道关口，先邮箱后资料；邮箱注册时就填；本人只能填一次，之后由有 users.manage 的管理员在控制台改。真实姓名只给本人和有 users.manage 的管理员看，不进论坛、天梯、比赛、对外授权声明和 GitLab 同步，操作记录不写姓名。登录页标题改成「极客班内部登录」，去掉强调统一登录的副标题。",
+  "summary": "实名资料：所有账号（老账号和新注册的）都要有真实姓名和年级。年级只能从下拉框选大一到大四，存入学年份，按北京时间每年 9 月 1 日自动升一级，大四之后显示已毕业。缺了先到补资料页 /complete-profile 填，和绑邮箱同一道关口，先邮箱后资料；邮箱注册时就填；本人只能填一次，之后由有 users.manage 的管理员在控制台改。真实姓名只给本人和有 users.manage 的管理员看，不进论坛、天梯、比赛、对外授权声明和 GitLab 同步，操作记录不写姓名。登录页标题改成「极客班内部登录」，去掉强调统一登录的副标题。官网菜单栏头像打开的账号资料从下拉弹层改成桌面窗口（所有者 16:38），里面改头像、昵称、用户名、简介，看实名信息；论坛、代码仓库照旧跳转。窗口左上角三个按钮去掉半透明胶囊底，图标一直显示（所有者 16:54）。",
   "applications": [
     "server",
     "console",
@@ -52,7 +52,7 @@
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "新增实名规则：每个账号都要有真实姓名和年级，缺了先补（不看能不能发信，与绑邮箱不同）；年级只有下拉框里的大一到大四，按学年自动升级，大四之后是已毕业，已毕业不算缺资料；本人只填一次，填错找管理员。邮箱注册在要建号时要求这两项，用验证码登录时邮箱没有账号转到「注册」补填。登录页标题按所有者 13:45 的要求改成「极客班内部登录」。",
+      "reason": "新增实名规则：每个账号都要有真实姓名和年级，缺了先补（不看能不能发信，与绑邮箱不同）；年级只有下拉框里的大一到大四，按学年自动升级，大四之后是已毕业，已毕业不算缺资料；本人只填一次，填错找管理员。邮箱注册在要建号时要求这两项，用验证码登录时邮箱没有账号转到「注册」补填。登录页标题按所有者 13:45 的要求改成「极客班内部登录」。官网账号资料改成桌面窗口，论坛和代码仓库照旧跳转。",
       "evidence": [
         "app/server/src/lib/email-gate.ts",
         "app/server/src/lib/grade.ts",
@@ -114,7 +114,7 @@
     },
     "documentation": {
       "status": "changed",
-      "reason": "接口文档与接口合同写入新字段、新接口、新的 400/403/409；安全文档加「实名资料必填」与「真实姓名」两段（英文版同步）；数据模型加迁移说明和 account_profiles 一行；server、oidc、console、web、portal、forum 文档写补资料页和跳转；目录登记新流程 identity.account.real_info，旧锚点换成新代码。",
+      "reason": "接口文档与接口合同写入新字段、新接口、新的 400/403/409；安全文档加「实名资料必填」与「真实姓名」两段（英文版同步）；数据模型加迁移说明和 account_profiles 一行；server、oidc、console、web、portal、forum 文档写补资料页和跳转；目录登记新流程 identity.account.real_info，旧锚点换成新代码。portal 合同的「账号资料窗口」一节、web README 和设计规范改写成窗口，窗口按钮的说明跟着改。",
       "evidence": [
         "docs/architecture/API.md",
         "docs/services/server/endpoint-contracts.md",
@@ -355,12 +355,15 @@
         "flow:identity.current",
         "flow:users.list"
       ],
-      "reason": "开发预览的样板数据加姓名、年级和缺资料的样板身份；没有 users.manage 的样板身份看不到姓名。"
+      "reason": "开发预览的样板数据加姓名、年级和缺资料的样板身份；没有 users.manage 的样板身份看不到姓名；官网样板的 /api/identity/me 也带姓名和年级，账号资料窗口在开发预览里能看到实名信息一栏。"
     },
     {
       "paths": [
         "app/web/sites/portal/lib/account.ts",
-        "app/web/sites/portal/components/os/ProfileCard.tsx"
+        "app/web/sites/portal/components/os/ProfileCard.tsx",
+        "app/web/sites/portal/components/os/Windows.tsx",
+        "app/web/sites/portal/components/os/YugcOs.tsx",
+        "app/web/sites/portal/styles/os.css"
       ],
       "domains": [
         "identity",
@@ -376,7 +379,7 @@
         "application:web",
         "flow:identity.current"
       ],
-      "reason": "官网读到 profile_required 整页跳补资料页；资料卡身份行加年级，不显示姓名。"
+      "reason": "官网读到 profile_required 整页跳补资料页；头像打开的账号资料从弹层改成桌面窗口（WindowId profile，开在右上角，焦点落在换头像上，关闭后回到头像），里面身份行加年级，实名信息一栏读 /api/identity/me 显示姓名和年级，菜单栏和身份行不显示姓名；窗口左上角三个按钮去掉半透明胶囊，图标一直显示。"
     },
     {
       "paths": [
@@ -441,7 +444,9 @@
         "tests/console/users.test.ts",
         "tests/web/portal-account.test.tsx",
         "tests/web/portal-profile-card.test.tsx",
-        "tests/web/portal-shell.test.ts"
+        "tests/web/portal-shell.test.ts",
+        "tests/web/portal-desktop-skin.test.tsx",
+        "tests/web/portal-phone.test.tsx"
       ],
       "domains": [
         "identity",
@@ -454,7 +459,7 @@
         "flow:users.update",
         "flow:identity.current"
       ],
-      "reason": "控制台与官网回归：注册表单检查、注册请求带姓名年级、补资料页回跳、用户编辑稿与 PATCH、样板列表的姓名可见性、官网跳转与资料卡年级。"
+      "reason": "控制台与官网回归：注册表单检查、注册请求带姓名年级、补资料页回跳、用户编辑稿与 PATCH、样板列表的姓名可见性、官网跳转与资料卡年级、账号资料窗口（窗口名、焦点、Esc、实名信息只出现一次、访客窗口）与窗口按钮样式。"
     },
     {
       "paths": [
@@ -469,6 +474,7 @@
         "docs/services/web/README.md",
         "docs/services/web/portal.md",
         "docs/services/forum/README.md",
+        "docs/design/DESIGN.md",
         "docs/architecture/catalog/ownership.json",
         "docs/architecture/catalog/catalog.json",
         "docs/architecture/catalog/CATALOG.md",
@@ -500,7 +506,8 @@
     "docs/services/console/README.md",
     "docs/services/web/README.md",
     "docs/services/web/portal.md",
-    "docs/services/forum/README.md"
+    "docs/services/forum/README.md",
+    "docs/design/DESIGN.md"
   ],
   "tests": [
     "tests/server/real-info.test.ts",
@@ -514,7 +521,9 @@
     "tests/web/portal-account.test.tsx",
     "tests/web/portal-profile-card.test.tsx",
     "tests/tooling/web-nginx.test.ts",
-    "app/forum/tests/site-account.test.ts"
+    "app/forum/tests/site-account.test.ts",
+    "tests/web/portal-desktop-skin.test.tsx",
+    "tests/web/portal-phone.test.tsx"
   ],
   "compatibility": "接口只加字段：旧前端不认识 profile_required 时照旧工作，只是不会主动跳补资料页，服务端的登录回调、对外授权和设备授权仍会拦。/auth/email/verify 的 real_name、grade 在 JSON Schema 里是选填，已有账号的登录不受影响；要建号却缺这两项时回 400 real_info_required，旧版登录页会显示服务端的说明文字。上线后所有还没填的账号（包括全部老账号）下次打开任何页面都会先到补资料页。",
   "migration": "account_profiles 加 real_name、enrollment_year 两列，启动时 addColumn 先查 PRAGMA table_info，没有才加，可以重复执行；不改任何已有行，已有行两列为空。迁移要在复制出来的预发布库上跑两次，第二次没有任何变化，前后各表行数贴进 MR。",

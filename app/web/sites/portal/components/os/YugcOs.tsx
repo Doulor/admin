@@ -1,6 +1,6 @@
 // YUGC OS：开机后的「极客班内部系统」，按桌面操作系统来排：菜单栏（YUGC 标志即系统菜单 / 前台应用 / 搜索 / 时钟 / 头像）、
 // 壁纸（默认「晴空」，接着开机动画的最后一帧画）、左上角一列应用图标、「新来的看这里」便签、可拖动窗口、带名字的 Dock、⌘K 启动器。
-// 头像点开是个人资料卡（ProfileCard.tsx）：访客在那里登录、注册，登录后改资料、绑定登录方式、填邀请码、退出。
+// 头像点开「账号资料」窗口（#280 起是桌面窗口，正文在 ProfileCard.tsx）：访客在那里登录、注册，登录后改资料、绑定登录方式、填邀请码、退出。
 // 加入我们、论坛、代码仓库（自建 GitLab，#270）都是桌面上的应用；便签按顺序告诉新来的人怎么加入。「宣传片」在桌面上重看（#77），不影响「只自动播一次」。
 // 论坛点一下直达论坛首页（#185），不经过 /forum-3d 场景页；代码仓库是桌面里的窗口，列出公开项目（#275）。
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -18,7 +18,6 @@ import { WALLPAPERS, prefetchWallpapersWhenIdle, readWallpaperChoice, saveWallpa
 import WallpaperLayer from "./Wallpaper";
 import { SkyThumb, type SkyBand } from "./SkyWallpaper";
 import { AppGlyph, DesktopIcons, StartNote } from "./Widgets";
-import ProfileCard from "./ProfileCard";
 import { LazyPromoPlayer } from "../PromoLazy";
 import "../../styles/os.css";
 
@@ -57,7 +56,6 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
   // 便签：auto 是还没看过、按账号上的记录决定；open 是「帮助」里打开或点过其中一步（点完不收起）；closed 是收起了
   const [noteMode, setNoteMode] = useState<"auto" | "open" | "closed">(() => (noteSeenHere() ? "closed" : "auto"));
   const note = noteMode === "open" || (noteMode === "auto" && !account?.prefs.startNoteSeenAt);
-  const [profile, setProfile] = useState(false);
   const [wallpaper, setWallpaper] = useState<Wallpaper>(() => readWallpaperChoice());
   // 新壁纸从点的那张缩略图展开（#147）
   const [wallpaperFrom, setWallpaperFrom] = useState<Box | null>(null);
@@ -155,7 +153,8 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, [phoneWallpaper, apps.length, loaded, atHome]);
-  const frontName = front ? { join: "加入我们", about: "关于极客班", org: "组织架构", competitions: "比赛", terminal: "终端", "forum-feed": "论坛", gitlab: "代码仓库", feedback: "意见箱" }[front.id] : "桌面";
+  const frontName = front ? { join: "加入我们", about: "关于极客班", org: "组织架构", competitions: "比赛", terminal: "终端", "forum-feed": "论坛", gitlab: "代码仓库", feedback: "意见箱", profile: account ? "账号资料" : "登录极客班" }[front.id] : "桌面";
+  const profileOpen = wins.some((w) => w.id === "profile" && !w.minimized);
   useEffect(() => {
     if (!homeFocusNeeded.current || front) return;
     homeFocusNeeded.current = false;
@@ -167,8 +166,10 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
       const existing = current.find((w) => w.id === id);
       const z = ++zTop.current;
       if (existing) return current.map((w) => (w.id === id ? { ...w, z, minimized: false } : w));
-      const n = cascade.current++ % 4;
       const width = Math.min(windowWidth(id), window.innerWidth - 24);
+      // 账号资料从菜单栏右边的头像打开，窗口也开在右上角，顶边和拖动时能到的最高处一样
+      if (id === "profile") return [...current, { id, z, x: Math.max(12, window.innerWidth - width - 16), y: 44, minimized: false, zoomed: false }];
+      const n = cascade.current++ % 4;
       const x = Math.max(12, Math.min(window.innerWidth - width - 140, window.innerWidth * 0.3 + n * 40));
       const y = 64 + n * 36;
       return [...current, { id, z, x, y, minimized: false, zoomed: false }];
@@ -223,6 +224,8 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
   };
 
   const closeWindow = (id: WindowId) => setWins((current) => current.filter((w) => w.id !== id));
+  /** 账号资料窗口关掉后焦点回到打开它的头像（菜单栏或手机状态栏） */
+  const focusAvatar = () => window.setTimeout(() => root.current?.querySelector<HTMLElement>(".pt-mb-avatar, .pt-phone-account")?.focus({ preventScroll: true }), 0);
   const patchWindow = (id: WindowId, patch: Partial<WindowState>) => setWins((current) => current.map((w) => (w.id === id ? { ...w, ...patch } : w)));
   const focusWindow = (id: WindowId) => {
     if (front?.id === id) return;
@@ -243,7 +246,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
     if (promo) return;
     const onKey = (event: KeyboardEvent) => {
       // 原生 dialog 的 inert 不会阻止 window 监听器，弹层快捷键交给弹层自身。
-      if (launcher || picker || phoneGuide || phoneSettings || profile) return;
+      if (launcher || picker || phoneGuide || phoneSettings) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setLauncher((value) => !value);
@@ -260,7 +263,9 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
         if (menu) return setMenu(null);
         if (front) {
           if (phone) return returnHome();
-          return closeWindow(front.id);
+          closeWindow(front.id);
+          if (front.id === "profile") focusAvatar();
+          return;
         }
         return;
       }
@@ -276,7 +281,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [front, launcher, menu, open, phone, phoneGuide, phoneSettings, picker, profile, promo]);
+  }, [front, launcher, menu, open, phone, phoneGuide, phoneSettings, picker, promo]);
 
   useEffect(() => {
     if (launcher) launcherInput.current?.focus();
@@ -348,8 +353,8 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
         {phone ? <header className="pt-phone-status" aria-label="手机状态栏">
           <time>{phoneTime}</time>
           <button type="button" className="pt-phone-system" aria-label="YUGC OS 系统设置" aria-haspopup="dialog" onClick={() => setPhoneSettings(true)}>YUGC OS</button>
-          {/* 和电脑菜单栏一样只放头像：访客点开也是资料卡（登录、注册和一句说明），不直接跳走 */}
-          {account || loaded ? <button type="button" className="pt-phone-account" aria-label={account ? `账号：${account.login}` : "登录或注册"} aria-haspopup="dialog" aria-expanded={profile} onClick={() => setProfile(true)}>
+          {/* 和电脑菜单栏一样只放头像：访客点开也是账号资料窗口（登录、注册和一句说明），不直接跳走 */}
+          {account || loaded ? <button type="button" className="pt-phone-account" aria-label={account ? `账号：${account.login}` : "登录或注册"} aria-haspopup="dialog" aria-expanded={profileOpen} onClick={() => openWindow("profile")}>
             <Avatar src={account?.avatarUrl} />
           </button> : <span />}
         </header> : <header className="pt-mb" aria-label="菜单栏">
@@ -373,9 +378,9 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
             <kbd>⌘K</kbd>
           </button>
           <span className="pt-mb-clock">{time}</span>
-          {/* 头像：资料卡的入口，也是全站唯一的登录入口（资料卡里去极客班统一登录页，登录后回到当前页面） */}
+          {/* 头像：账号资料窗口的入口，也是全站唯一的登录入口（窗口里去极客班内部登录页，登录后回到当前页面） */}
           {(account || loaded) && (
-            <button type="button" className="pt-mb-avatar" aria-label={account ? `账号：${account.login}` : "登录或注册"} aria-haspopup="dialog" aria-expanded={profile} onClick={() => setProfile(true)}>
+            <button type="button" className="pt-mb-avatar" aria-label={account ? `账号：${account.login}` : "登录或注册"} aria-haspopup="dialog" aria-expanded={profileOpen} onClick={() => openWindow("profile")}>
               <Avatar src={account?.avatarUrl} />
             </button>
           )}
@@ -439,9 +444,11 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
                 onFocus={() => focusWindow(win.id)}
                 onClose={() => {
                   closeWindow(win.id);
+                  // 账号资料窗口关掉后焦点回到头像；其余窗口在手机上回到主屏幕上的图标
+                  if (win.id === "profile") focusAvatar();
                   if (phone) {
                     returnHome();
-                    window.setTimeout(() => root.current?.querySelector<HTMLElement>(`[data-cta="${win.id}"]`)?.focus({ preventScroll: true }), 0);
+                    if (win.id !== "profile") window.setTimeout(() => root.current?.querySelector<HTMLElement>(`[data-cta="${win.id}"]`)?.focus({ preventScroll: true }), 0);
                   }
                 }}
                 onMinimize={() => phone ? returnHome() : patchWindow(win.id, { minimized: true })}
@@ -452,6 +459,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
                 onOpen={open}
                 apps={apps}
                 phone={phone}
+                profile={win.id === "profile" ? { signInLink, onPatch: patch, onReload: reload, onSignOut: () => void signOut().then(() => closeWindow("profile")) } : undefined}
               />
             ))}
           </div>
@@ -601,9 +609,6 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
         )}
         {phoneGuide && <Modal title="新来的看这里" className="pt-root pt-os-modal pt-phone-guide is-phone" onClose={() => { setPhoneGuide(false); markNoteSeen(); reportEvent("os.note.dismissed"); }}>
           <StartNote phone onOpen={(id, from) => { setPhoneGuide(false); markNoteSeen(); open(id, from); }} onClose={() => setPhoneGuide(false)} />
-        </Modal>}
-        {profile && <Modal title={account ? "个人资料" : "登录极客班"} className={`pt-root pt-os-modal pt-profile-modal${phone ? " is-phone" : ""}`} onClose={() => setProfile(false)}>
-          <ProfileCard account={account} signInLink={signInLink} onPatch={patch} onReload={reload} onSignOut={() => void signOut().then(() => setProfile(false))} />
         </Modal>}
         {phoneSettings && <Modal title="系统设置" className={`pt-root pt-os-modal pt-phone-settings${phone ? " is-phone" : ""}`} onClose={() => setPhoneSettings(false)}>
           <div className="pt-phone-settings-list">

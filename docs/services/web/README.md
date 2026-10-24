@@ -8,7 +8,7 @@
 
 | 路径 | 职责 |
 |---|---|
-| `app/web/sites/portal/` | 公开站点：`App.tsx` 路由（`/`、`/forum-3d`、`/docs`；`/?open=<应用>` 进桌面打开窗口，旧地址 `/join-us`、`/apply`、`/feedback` 只做跳转）、`pages/`、`three/`（按需加载的 three.js 场景：论坛气泡）、`components/`（`boot/` 开机动画、`os/` YUGC OS 桌面与窗口、个人资料卡、页面外壳）、`lib/`（进站规则、相机数学、链接、快照、图标、全站登录状态 `account.ts`、部门、代码仓库、埋点）、`styles/`（`--pt-*` 与 YUGC OS v2 的 `--os-*` 令牌）、`index.html` 入口；不自建登录态，菜单栏头像打开个人资料卡（见 [portal](portal.md)「个人资料卡」） |
+| `app/web/sites/portal/` | 公开站点：`App.tsx` 路由（`/`、`/forum-3d`、`/docs`；`/?open=<应用>` 进桌面打开窗口，旧地址 `/join-us`、`/apply`、`/feedback` 只做跳转）、`pages/`、`three/`（按需加载的 three.js 场景：论坛气泡）、`components/`（`boot/` 开机动画、`os/` YUGC OS 桌面与窗口（含「账号资料」窗口）、页面外壳）、`lib/`（进站规则、相机数学、链接、快照、图标、全站登录状态 `account.ts`、部门、代码仓库、埋点）、`styles/`（`--pt-*` 与 YUGC OS v2 的 `--os-*` 令牌）、`index.html` 入口；不自建登录态，菜单栏头像打开「账号资料」窗口（见 [portal](portal.md)「账号资料窗口」） |
 | `app/web/shared/lib/` | 网络（`api`、`http`、`runtime`）、URL/站点（`site`）、Markdown（`markdown`）、挂载（`mount`）、PoW、主题、只读 mock（含开发预览身份 `?__mock=member\|registered\|visitor`，正式构建删掉） |
 | `app/web/shared/ui/` | 官网复用的交互原语：Modal、ConfirmDialog、Select、ImageLightbox、TurnstileWidget 等 |
 | `app/web/shared/styles/` | 基础样式与令牌（`base.css`、`rounded.css`） |
@@ -27,7 +27,7 @@
 - **静态资源 CDN 开关**（#146）：构建参数 `STATIC_CDN_BASE` 为空时与原来一样同源；等于 `https://cdn.crosery.com/yzgc/static/site/` 时，`vite.config.ts` 用 `experimental.renderBuiltUrl` 把带哈希的构建资源（`assets/` 下的 JS、CSS、字体、图片）改写到 CDN，`base` 仍是 `/`，入口 HTML、路由和 `public/` 里不带哈希的文件（favicon、logo、论坛快照、邮件里引用的图）仍走源站；桌面壁纸由 `sites/portal/lib/wallpapers.ts` import（文件在 `sites/portal/assets/wallpapers/`），构建时带哈希，跟着开关走。别的非空值让构建失败。规则只在 `scripts/static-cdn-base.mjs`；`app/web/Dockerfile` 把同一个参数传给官网与控制台两次构建，并断言两个入口页引用的是对应地址。开关由部署工作流决定，上传与核对见 [CICD](../../ops/CICD.md)「静态资源 CDN」。两个环境用同一个 CDN 前缀，产物仍不含环境域名。
 - **UI 选型**：官网是既有 React 实现，后续新增/迁移界面按 [Tuffex 使用政策](../../components/tuffex/USAGE-POLICY.md)；控制台已迁到 Vue + Tuffex（`app/console`）。不引入平行基础 UI 体系。
 - **比赛窗口**（#238）：读匿名比赛接口，按时间显示五种状态，每分钟同步重排；日期不在当前北京年份时保留年份，起止同一天只写一个日期；内部与外部链接均可选，只有可解析的 HTTPS 地址可点。损坏的列表响应进入失败态，不冒充空数据；样板截止日期按北京时间日末构造。详见 [portal](portal.md)「比赛窗口」。
-- **首页与 YUGC OS v2**（#275）：首页先看今天（北京时间）播没播过开机动画（Canvas 2D，电脑与手机两套构图，能跳过、静音、重播），没播就播，播完淡出到桌面；播过或开了减少动态效果直接进桌面。三维书桌、加载动画、iPhone 模型首页、GitHub 天际线场景与旧吉祥物都已删除，three.js 只留给论坛场景页（加入我们在 #279 改成桌面窗口）。桌面默认壁纸「晴空」接着开机动画最后一帧画；菜单栏头像打开个人资料卡；组织架构读 `/api/public/departments`，代码仓库是读 `/api/public/gitlab/projects` 的窗口；加入我们是桌面窗口（#279），要登录并显示当天剩余投递份数；前端埋点攒批发 `POST /api/events`。手机是同一套组件的主屏幕形态（状态栏、四列应用、主屏幕加三个主入口的 Dock，窗口按 iOS 页面卡片从底部升起，#233）。细节见 [portal](portal.md)。
+- **首页与 YUGC OS v2**（#275）：首页先看今天（北京时间）播没播过开机动画（Canvas 2D，电脑与手机两套构图，能跳过、静音、重播），没播就播，播完淡出到桌面；播过或开了减少动态效果直接进桌面。三维书桌、加载动画、iPhone 模型首页、GitHub 天际线场景与旧吉祥物都已删除，three.js 只留给论坛场景页（加入我们在 #279 改成桌面窗口）。桌面默认壁纸「晴空」接着开机动画最后一帧画；菜单栏头像打开「账号资料」窗口（#280 起是桌面窗口）；组织架构读 `/api/public/departments`，代码仓库是读 `/api/public/gitlab/projects` 的窗口；加入我们是桌面窗口（#279），要登录并显示当天剩余投递份数；前端埋点攒批发 `POST /api/events`。手机是同一套组件的主屏幕形态（状态栏、四列应用、主屏幕加三个主入口的 Dock，窗口按 iOS 页面卡片从底部升起，#233）。细节见 [portal](portal.md)。
 
 ## 运行
 
