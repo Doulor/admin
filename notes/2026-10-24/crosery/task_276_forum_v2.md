@@ -99,3 +99,10 @@
 - 做了什么：recruitment.ts 的 rejectedMessage() 把『论坛不登录也能看帖，也可以用昵称回复』改成『论坛不登录只能看公开的帖子，发帖、回复要先登录』（#276 去掉了游客回帖，旧文案不再是真的）；mail-envelope.test.ts 的断言跟着改，去掉对『发帖』字样的全面禁止，只保留禁止『对所有人开放』
 - 结果：commit c6ea995c，2 files changed；npx vitest run tests/server/mail-envelope.test.ts → 22/22 通过
 - 下一步：补齐新端点专项测试、ownership.json flows、docs/changes/276.json、三项从 #274 挪来的清理
+
+## 19:56:17 +08:00 · 提交 · #276 · /api/public/org 退场，论坛改读 /api/public/departments
+
+- 执行者：agent-c276s（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：grep app/web、app/console、scripts 确认零读者后，删 routes/portal/org.ts 及其注册（portal/index.ts 重排 r5..r9→r4..r8）、合同条目（contracts.ts）；departments.ts 头注释去掉两套并存的旧说法；ownership.json 删 organization.public 流程节点与 org.ts 的 moduleOwners 映射，修正因重排/删文件失效的证据锚点，pnpm catalog:generate 重新生成；API.md/server README/data-model/endpoint-contracts 四份文档跟上，顺带把 server README 里论坛那行游客能回复的旧说法改成 #276 后的真实情况
+- 结果：commit c0ab5ca9，15 files changed；pnpm check:catalog 通过（4 应用 236 方法路径）；npx vitest run → 113/114 文件、1859/1860 通过，唯一失败是 tests/server/forum.test.ts『write responses read by the forum client (#145)』——这是撤回 app/forum 改动（上一个提交）的已知预期缺口，等团队负责人 cherry-pick 前端改动后自愈
+- 下一步：item 6：enable archiveOldDepartments 并做迁移两次演练；item 8：CONSOLE_ORG 改常量与 roles.ts 清理；补齐新端点专项测试；最终 docs/changes/276.json 与 check-architecture 全量核对
