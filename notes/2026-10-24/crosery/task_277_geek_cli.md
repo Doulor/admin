@@ -31,3 +31,10 @@
 - 执行者：agent-c277（Claude Code 子 agent，claude-sonnet-5-5）
 - 做了什么：新增 docs/services/cli/README.md 与 docs/changes/277.json；改 docs/README.md、docs/architecture/API.md、docs/services/server/README.md、endpoint-contracts.md、docs/services/web/README.md、docs/ops/CICD.md；ownership.json 登记新应用 cli 与流程 identity.device.revoke，pnpm catalog:generate 重新生成目录产物
 - 结果：commit 1e554a88；node scripts/check-doc-sync.mjs --base 39ab81ab 通过（7 组模块与文档）；node scripts/check-architecture.mjs --base 39ab81ab --branch task/277/geek_cli 通过（58 个变更文件，68 个关联节点）；pnpm check:catalog 通过
+
+## 18:04:42 +08:00 · 验收 · #277 · 本机 e2e 核对全部验收条件
+
+- 执行者：agent-c277（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：起一个真实监听的 server（app/server/src/app.ts 的 buildApp，端口 18285/18286，DB_PATH=:memory:），走真实设备码流程拿到真令牌，用编译好的 geek 二进制（非 inject，真实 TCP）跑 whoami/forum list/comp list/forum post/login --no-browser | cat/logout/skill install
+- 结果：全部通过：whoami/forum list/comp list --json 都是正确的结构化输出；注册用户 forum post 被权限节点拒绝，返回 {error:forbidden,message:需要「forum.topic.create」权限}，exit=4；login --no-browser | cat 输出为空，没有动画和控制字符；logout 撤销后同一令牌调 userinfo 直接 401，whoami 报 invalid_token exit=3；skill install --target all 在 .claude/.codex/.omp 三处写出同一份 SKILL.md，frontmatter 正确。过程中发现 app/cli/README.md 里 forum post 的参数写成位置参数，和实现的 --title/--category/--content 不一致，已改正（见下一条提交）。控制台「操作记录」UI 本身没有截图验收（没有可用的控制台前端环境），activity_events 写入由 tests/server/bearer-auth.test.ts 的 activityRows 断言覆盖
+- 下一步：控制台操作记录 UI 的真实截图验收、install.ps1 的真实 Windows 验证、本机 e2e 之外的预发布环境真机验收，都留给所有者/下一轮
