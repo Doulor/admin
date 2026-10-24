@@ -49,7 +49,7 @@ const submit = () => apply({ visitor: draft.visitor.trim(), action: draft.action
 const clearAll = () => { problem.value = null; void router.replace({ query: {} }); };
 const filtered = computed(() => Object.values(filters.value).some(Boolean));
 
-const list = useResource(() => api<ActivityList>(`/api/console/activity?${activityParams(filters.value, { limit: 50 })}`), [filters]);
+const list = useResource(() => api<ActivityList>(`/api/console/activity?${activityParams(filters.value)}`), [filters]);
 const extra = shallowRef<ActivityEvent[]>([]);
 const nextCursor = ref<string | null>(null);
 const more = ref<{ pending: boolean; error: unknown }>({ pending: false, error: null });
@@ -62,7 +62,7 @@ async function loadMore() {
   if (!nextCursor.value || more.value.pending) return;
   more.value = { pending: true, error: null };
   try {
-    const data = await api<ActivityList>(`/api/console/activity?${activityParams(filters.value, { cursor: nextCursor.value, limit: 50 })}`);
+    const data = await api<ActivityList>(`/api/console/activity?${activityParams(filters.value, { cursor: nextCursor.value })}`);
     extra.value = [...extra.value, ...data.items];
     nextCursor.value = data.next_cursor;
     more.value = { pending: false, error: null };

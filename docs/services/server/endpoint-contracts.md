@@ -2,7 +2,7 @@
 
 > 按真实 handler、授权执行点与存储实现核对现有接口；关联目录中的业务用例，区分存量人工说明与已挂载的机器响应契约。
 
-状态：`current` · 更新：2026-10-25
+状态：`current` · 更新：2026-10-24
 
 ## 口径与共同边界
 
@@ -331,15 +331,17 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 `POST /api/events` · `flow:audit.events.report`
 
-权限与资源：不要求登录，访客也能调；按账号或访客编号（不是 IP）限流 30 次每分钟，同一人多个标签页共享同一份配额。
+权限与资源：不要求登录，访客也能调；限流键登录的人按账号，没登录的按 IP 哈希（不是访客 cookie——那个 cookie 能被清掉重发一个新的，按它限流等于没限），30 次每分钟，同一人多个标签页共享同一份配额。
 
-响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，多余字段 400 validation_error。
+请求：`{ surface?: "portal"|"forum"|"console", events: [...] }`；`surface` 不传按门户算（既有调用点兼容），一批事件只属于一个来源，不支持混着报。
 
-数据与副作用：只有 `lib/activity.ts` 的 `EVENT_WHITELIST` 里的动作才记一行 `activity_events`；白名单外的全部丢弃，合并计一条 outcome=denied 的 `events.rejected`（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌等敏感字段（调用方自己决定 meta 放什么）。
+响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，`surface` 填了不认识的值或多余字段 400 validation_error。
+
+数据与副作用：只有对应来源在 `lib/activity.ts` 的白名单（`EVENT_WHITELIST`=门户、`FORUM_EVENT_WHITELIST`、`CONSOLE_EVENT_WHITELIST`）里的动作才记一行 `activity_events`（`surface` 写成请求体那个值）；白名单外的全部丢弃，合并计一条 outcome=denied 的 `events.rejected`（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌、地址栏查询串、邮箱、真实姓名或帖子正文（调用方自己决定 meta 放什么）。三端通用的 `page.view` 报路由名/路径，不带参数真实值；论坛另有 `forum.theme.change`（换主题，访客也报）、`forum.sticker.use`（插入表情，只记表情编号）。
 
 本地表读取：无。本地表写入：activity_events。
 
-源码：[app/server/src/routes/portal/events.ts](../../../app/server/src/routes/portal/events.ts)、[app/server/src/lib/activity.ts](../../../app/server/src/lib/activity.ts)（`EVENT_WHITELIST`）。验证入口：[tests/server/events.test.ts](../../../tests/server/events.test.ts)。
+源码：[app/server/src/routes/portal/events.ts](../../../app/server/src/routes/portal/events.ts)、[app/server/src/lib/activity.ts](../../../app/server/src/lib/activity.ts)（`EVENT_WHITELIST`/`FORUM_EVENT_WHITELIST`/`CONSOLE_EVENT_WHITELIST`）、[app/forum/app/composables/useActivityBeacon.ts](../../../app/forum/app/composables/useActivityBeacon.ts)、[app/console/src/lib/events.ts](../../../app/console/src/lib/events.ts)。验证入口：[tests/server/events.test.ts](../../../tests/server/events.test.ts)、[app/forum/tests/activity-beacon.test.ts](../../../app/forum/tests/activity-beacon.test.ts)。
 
 ## 筛选招新投递列表
 
@@ -793,11 +795,11 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 响应与错误：200 {reactions:[{stickerId,shortcode,url,count,mine}]}（camelCase，和帖子记录里的reactions字段同一套对象；CONTRACT-276 §4原定sticker_id，偏差记在DECISIONS-LOG），只回这条帖子的表情聚合，不回整份changes或viewer；mine按当前看的人是不是也回应过这条表情判定；表情不存在/已停用400 unknown_sticker；超过meta.limit.forum.react.hourly回429 {bucket:"forum.react.hourly",retry_after}。
 
-数据与副作用：按(post_id,account_id,sticker_id)主键INSERT OR IGNORE，重复加同一表情不报错也不重复计数；不写活动审计。
+数据与副作用：按(post_id,account_id,sticker_id)主键INSERT OR IGNORE，重复加同一表情不报错也不重复计数；记一条outcome=ok的forum.react操作记录（meta.sticker_id，#274：原来没有，补上）。
 
 身份条件副作用：forumViewer按会话的账号认人创建/刷新forum_users；sid过期或账号停用删除会话。
 
-本地表读取：forum_posts, forum_stickers, forum_reactions, forum_users, sessions, perm_members, perm_entries, perm_groups, limit_events。本地表写入：forum_reactions, forum_users, sessions, limit_events。
+本地表读取：forum_posts, forum_stickers, forum_reactions, forum_users, sessions, perm_members, perm_entries, perm_groups, limit_events。本地表写入：forum_reactions, forum_users, sessions, limit_events, activity_events。
 
 源码：[app/server/src/routes/forum-api/posts.ts:102](../../../app/server/src/routes/forum-api/posts.ts#L102)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
 
@@ -809,11 +811,11 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 响应与错误：200 {reactions:[{stickerId,shortcode,url,count,mine}]}（camelCase，同PUT；mine取消后按当前看的人重算），回取消之后的表情聚合；帖子不存在404；这条不限额。
 
-数据与副作用：按(post_id,account_id,sticker_id) DELETE forum_reactions，原本没有这条也不报错（幂等）。
+数据与副作用：按(post_id,account_id,sticker_id) DELETE forum_reactions，原本没有这条也不报错（幂等）；同样记一条outcome=ok的forum.react操作记录，meta.removed=true区分（#274：原来没有，补上）。
 
 身份条件副作用：forumViewer按会话的账号认人创建/刷新forum_users；sid过期或账号停用删除会话。
 
-本地表读取：forum_posts, forum_stickers, forum_reactions, forum_users, sessions, perm_members, perm_entries, perm_groups。本地表写入：forum_reactions, forum_users, sessions。
+本地表读取：forum_posts, forum_stickers, forum_reactions, forum_users, sessions, perm_members, perm_entries, perm_groups。本地表写入：forum_reactions, forum_users, sessions, activity_events。
 
 源码：[app/server/src/routes/forum-api/posts.ts:113](../../../app/server/src/routes/forum-api/posts.ts#L113)。验证入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。
 

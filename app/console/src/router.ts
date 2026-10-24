@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
+import { reportEvent } from "./lib/events";
 import { COMPETITION_MANAGE_PERMISSIONS, FORUM_PERMISSIONS, GITLAB_PERMISSIONS, USERS_PERMISSIONS } from "./lib/nav";
 
 /**
@@ -57,4 +58,10 @@ export const router = createRouter({
   history: createWebHistory("/"),
   routes,
   scrollBehavior: (_to, _from, saved) => saved ?? { top: 0 },
+});
+
+// 页面浏览埋点（#274）：target_id 取匹配到的路由模式（如 `competitions/:id`），不是解析出的真实地址，
+// 不带比赛编号、用户名之类的参数真实值。
+router.afterEach(to => {
+  reportEvent("page.view", { target_type: "route", target_id: to.matched.at(-1)?.path ?? to.path });
 });

@@ -16,9 +16,23 @@ function truncateUa(ua: string | null): string | null {
 export type ActivityOutcome = "ok" | "denied" | "limited" | "error";
 export type ActivitySurface = "portal" | "forum" | "console" | "cli" | "api" | "system";
 
-/** `POST /api/events` 只收这几种（SPEC §3.7）；不在白名单里的直接丢弃，合并计一条 `events.rejected`。 */
-export const EVENT_WHITELIST = ["os.boot.played", "os.boot.skipped", "os.app.open", "os.note.dismissed", "forum.theme.change", "page.view"] as const;
-export type WhitelistedEvent = (typeof EVENT_WHITELIST)[number];
+/**
+ * `POST /api/events` 只收这几种（SPEC §3.7）；不在对应来源白名单里的直接丢弃，合并计一条 `events.rejected`。
+ * #274：原来只有门户一份名单，论坛、控制台现在各自上报各自的名单（routes/portal/events.ts 按请求体的
+ * `surface` 字段挑对应这份），互不混用；通用的 `page.view`（路由名/路径，不带参数值）三边都能报。
+ * `forum.theme.change` 原来挂在门户名单下，但门户从来没真的发过它——这次连同调用点一起搬到论坛（见
+ * app/forum/app/composables/useForumTheme.ts），门户名单里去掉。
+ */
+export const EVENT_WHITELIST = ["os.boot.played", "os.boot.skipped", "os.app.open", "os.note.dismissed", "page.view"] as const;
+/** 论坛前端上报（app/forum/app/composables/useActivityBeacon.ts）：路由浏览、换主题、用表情。 */
+export const FORUM_EVENT_WHITELIST = ["page.view", "forum.theme.change", "forum.sticker.use"] as const;
+/** 控制台前端上报（app/console/src/lib/events.ts）：目前只有路由浏览。 */
+export const CONSOLE_EVENT_WHITELIST = ["page.view"] as const;
+export type EventsSurface = "portal" | "forum" | "console";
+export const EVENT_WHITELIST_BY_SURFACE: Record<EventsSurface, readonly string[]> = {
+  portal: EVENT_WHITELIST, forum: FORUM_EVENT_WHITELIST, console: CONSOLE_EVENT_WHITELIST,
+};
+export type WhitelistedEvent = (typeof EVENT_WHITELIST)[number] | (typeof FORUM_EVENT_WHITELIST)[number] | (typeof CONSOLE_EVENT_WHITELIST)[number];
 
 export type RecordActivityInput = {
   action: string;

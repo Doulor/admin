@@ -1137,7 +1137,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -2035,7 +2035,7 @@
           "path": "app/console/src/lib/grade.ts"
         },
         {
-          "line": 22,
+          "line": 23,
           "path": "app/console/src/router.ts"
         },
         {
@@ -2454,6 +2454,10 @@
           "path": "app/console/src/lib/activity.ts"
         },
         {
+          "line": 976,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
           "line": 2,
           "path": "app/console/src/components/DateField.vue"
         }
@@ -2479,7 +2483,8 @@
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
-        "tests/server/activity.test.ts"
+        "tests/server/activity.test.ts",
+        "tests/console/activity.test.ts"
       ],
       "title": "控制台查看操作记录（取代旧的 /api/console/audit）",
       "writes": []
@@ -2592,16 +2597,48 @@
       "domain": "audit",
       "evidence": [
         {
-          "line": 25,
+          "line": 28,
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 20,
+          "line": 26,
           "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 28,
+          "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 30,
+          "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/forum/app/composables/useActivityBeacon.ts"
+        },
+        {
+          "line": 23,
+          "path": "app/console/src/lib/events.ts"
+        },
+        {
+          "line": 66,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/forum/app/plugins/activity-beacon.client.ts"
+        },
+        {
+          "line": 36,
+          "path": "app/forum/app/composables/useForumTheme.ts"
+        },
+        {
+          "line": 182,
+          "path": "app/forum/app/components/PostEditor.vue"
         },
         {
           "line": 16,
@@ -2658,9 +2695,10 @@
       ],
       "id": "flow:audit.events.report",
       "invariants": [
-        "权限与资源：不要求登录，访客也能调；按账号或访客编号（不是 IP）限流 30 次每分钟，同一人多个标签页共享同一份配额。",
-        "响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，多余字段 400 validation_error（契约在 routes/portal/contracts.ts）。",
-        "数据与副作用：只有 lib/activity.ts 的 EVENT_WHITELIST 里的动作才记一行 activity_events；白名单外的全部丢弃，合并计一条 outcome=denied 的 events.rejected（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌等敏感字段（调用方自己决定 meta 放什么）。"
+        "权限与资源：不要求登录，访客也能调；限流键登录的人按账号，没登录的按 IP 哈希（不是访客 cookie），30 次每分钟，同一人多个标签页共享同一份配额。",
+        "请求：{ surface?: \"portal\"|\"forum\"|\"console\", events: [...] }；surface 不传按门户算，一批事件只属于一个来源。",
+        "响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，surface 不认识的值或多余字段 400 validation_error（契约在 routes/portal/contracts.ts）。",
+        "数据与副作用：只有对应来源在 lib/activity.ts 的白名单（EVENT_WHITELIST=门户、FORUM_EVENT_WHITELIST、CONSOLE_EVENT_WHITELIST）里的动作才记一行 activity_events；白名单外的全部丢弃，合并计一条 outcome=denied 的 events.rejected（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌、地址栏查询串、邮箱、真实姓名或帖子正文。"
       ],
       "operation": "POST /api/events",
       "operationLabel": "POST /api/events",
@@ -2669,7 +2707,8 @@
       "relatedDomains": [],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
-        "tests/server/events.test.ts"
+        "tests/server/events.test.ts",
+        "app/forum/tests/activity-beacon.test.ts"
       ],
       "title": "前端批量上报白名单动作（访客也能调）",
       "writes": [
@@ -3496,7 +3535,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -4803,6 +4842,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -4827,7 +4870,7 @@
       "invariants": [
         "权限与资源：需要 forum.react 节点（#276 迁移种子只发给 level.member），由 requireWriter 判定；访客401 signin_required，登录但没有该节点403 forbidden；帖子不存在404，已软删409 post_deleted。",
         "响应与错误：200 {reactions}，只回这条帖子的表情聚合（CONTRACT §4），不回整份changes或viewer；表情不存在或已停用400 unknown_sticker；超过meta.limit.forum.react.hourly回429 {error:rate_limited,bucket:\"forum.react.hourly\",retry_after}（按账号计数，和每分钟的洪泛线不是同一条）。",
-        "数据与副作用：按 (post_id,account_id,sticker_id) 主键 INSERT OR IGNORE 写 forum_reactions，重复加同一表情不报错也不重复计数；不写活动审计（CONTRACT §4 没有要求）。",
+        "数据与副作用：按 (post_id,account_id,sticker_id) 主键 INSERT OR IGNORE 写 forum_reactions，重复加同一表情不报错也不重复计数；记一条 outcome=ok 的 forum.react 操作记录（meta.sticker_id，#274：原来没有，补上）。",
         "身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。"
       ],
       "operation": "PUT /api/forum/posts/:post_id/reactions/:sticker_id",
@@ -4847,18 +4890,21 @@
       "relatedDomains": [
         "identity",
         "permissions",
-        "platform"
+        "platform",
+        "audit"
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
-        "tests/server/forum-v2-endpoints.test.ts"
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/server/forum.test.ts"
       ],
       "title": "给帖子加一个表情回应",
       "writes": [
         "forum_reactions",
         "forum_users",
         "sessions",
-        "limit_events"
+        "limit_events",
+        "activity_events"
       ]
     },
     {
@@ -4872,7 +4918,11 @@
       "domain": "forum",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -4892,7 +4942,7 @@
       "invariants": [
         "权限与资源：同PUT同一个节点 forum.react；不检查帖子是否已软删除——取消自己的表情回应即使帖子已删也允许。",
         "响应与错误：200 {reactions}，回这条帖子取消之后的表情聚合；不存在的帖子404；这条不限额（限额只拦住「加」，不拦「取消」）。",
-        "数据与副作用：按 (post_id,account_id,sticker_id) DELETE forum_reactions，原本没有这条也不报错（幂等）。",
+        "数据与副作用：按 (post_id,account_id,sticker_id) DELETE forum_reactions，原本没有这条也不报错（幂等）；同样记一条 outcome=ok 的 forum.react 操作记录，meta.removed=true 区分（#274：原来没有，补上）。",
         "身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。"
       ],
       "operation": "DELETE /api/forum/posts/:post_id/reactions/:sticker_id",
@@ -4910,17 +4960,20 @@
       ],
       "relatedDomains": [
         "identity",
-        "permissions"
+        "permissions",
+        "audit"
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
-        "tests/server/forum-v2-endpoints.test.ts"
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/server/forum.test.ts"
       ],
       "title": "取消一条表情回应",
       "writes": [
         "forum_reactions",
         "forum_users",
-        "sessions"
+        "sessions",
+        "activity_events"
       ]
     },
     {
@@ -6120,7 +6173,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -6403,7 +6456,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -8778,7 +8831,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -9599,7 +9652,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -9898,7 +9951,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -10090,7 +10143,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1048,
+          "line": 1058,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -14401,6 +14454,11 @@
       "title": "users"
     },
     {
+      "id": "test:app/forum/tests/activity-beacon.test.ts",
+      "kind": "test",
+      "title": "app/forum/tests/activity-beacon.test.ts"
+    },
+    {
       "id": "test:app/forum/tests/content-source.test.ts",
       "kind": "test",
       "title": "app/forum/tests/content-source.test.ts"
@@ -14434,6 +14492,11 @@
       "id": "test:tests/console/account.test.ts",
       "kind": "test",
       "title": "tests/console/account.test.ts"
+    },
+    {
+      "id": "test:tests/console/activity.test.ts",
+      "kind": "test",
+      "title": "tests/console/activity.test.ts"
     },
     {
       "id": "test:tests/console/authorize.test.ts",
@@ -14723,7 +14786,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "d8ad721f2e3da7f675291461c60f39a8476b8b64dcae2e54916a3d23380083b7",
+    "fingerprint": "7f57964d51fb79f9cb933f7ad692e4d4e7b4746604b08f5dc18a37aa0c30c75e",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -14799,7 +14862,7 @@
       },
       {
         "path": "app/console/src/lib/activity.ts",
-        "sha256": "1dcc7c638811bf4b0170ff38e52b102fbbeb429581429e3dd5c290d887f73778"
+        "sha256": "ad309d619a900b53155d9a4eb5f8eb7a2cabf046f9451d893e03dd7b2127ade1"
       },
       {
         "path": "app/console/src/lib/applications.ts",
@@ -14832,6 +14895,10 @@
       {
         "path": "app/console/src/lib/errors.ts",
         "sha256": "a8d32ca32d084da849bcf84517c14480ae94645d6f7da275f20c0136bc40fb4a"
+      },
+      {
+        "path": "app/console/src/lib/events.ts",
+        "sha256": "0eb5e868d85e510b17fca826643b8936b9489248346d402ef0d26352939dfd5e"
       },
       {
         "path": "app/console/src/lib/format.ts",
@@ -14915,7 +14982,7 @@
       },
       {
         "path": "app/console/src/mock/console.ts",
-        "sha256": "ff5237969eb2be54413e752eb9f2d1cda38470d7bffc47e0a66564b21cc3fe27"
+        "sha256": "ff7d27bcc1120af298e5d8da685c3b065a7a813a6b68721afa9bd3f0684e3ca3"
       },
       {
         "path": "app/console/src/mock/index.ts",
@@ -14927,7 +14994,7 @@
       },
       {
         "path": "app/console/src/pages/Activity.vue",
-        "sha256": "275ee493b59f08751ec78129ab944be10ab8e76bf1289caae5d69a84b8042ee5"
+        "sha256": "b5b0e89f202b18b597a8b9982b61eeb668313b9f4bd4901cbdd95e88652721a1"
       },
       {
         "path": "app/console/src/pages/ApplicationDetail.vue",
@@ -15075,7 +15142,7 @@
       },
       {
         "path": "app/console/src/router.ts",
-        "sha256": "b9a4419e607c97f93a6cea734f13fd9b8532f0411f07b2cb87477027f9379060"
+        "sha256": "45a5e279023d1a7af8bf4aade12c44c352b050795f517743130ac462db60fff4"
       },
       {
         "path": "app/forum/Dockerfile",
@@ -15131,7 +15198,7 @@
       },
       {
         "path": "app/forum/app/components/PostEditor.vue",
-        "sha256": "bf0306675c04348ad2289ecce739aedcefc951e7a5ad77cc78780bac50d08082"
+        "sha256": "682106919c1f72f01558066fe45b2ee63610f62f30bf1756a5de9cc30c60f651"
       },
       {
         "path": "app/forum/app/components/ReplyComposer.vue",
@@ -15182,6 +15249,10 @@
         "sha256": "f2e3992f306a30458fcc6c6fa5adefbbe6ee73d4b0917046fadb00ddb086d596"
       },
       {
+        "path": "app/forum/app/composables/useActivityBeacon.ts",
+        "sha256": "ca7277d537b1ae1f4dbee2a1affeb4444f97e61e25bf17fba9012be473b7ddcd"
+      },
+      {
         "path": "app/forum/app/composables/useAppLink.ts",
         "sha256": "b01538be3b5a0b9ce75f4ad8f881f92b76720832776dd9f5732a577207a498b7"
       },
@@ -15207,7 +15278,7 @@
       },
       {
         "path": "app/forum/app/composables/useForumTheme.ts",
-        "sha256": "446bdd4543af6b90ac07d14637f1a3a526b7d3fce0c9bb9e60fc43c41e1e124d"
+        "sha256": "8794128362242e7609f676ca61bd3c91df8a46e50d9ba14e0334f15a25d46dfd"
       },
       {
         "path": "app/forum/app/composables/useOrgTitles.ts",
@@ -15370,6 +15441,10 @@
         "sha256": "c6798bd364e09ac8acafdc041dc3c51094394b95fa12c4c24953466285952d3c"
       },
       {
+        "path": "app/forum/app/plugins/activity-beacon.client.ts",
+        "sha256": "81d199afc7287be10ee06f8ca3df294a9eec3a89ecf5fb395b74597ec3f11c79"
+      },
+      {
         "path": "app/forum/app/plugins/local-snapshot.client.ts",
         "sha256": "9d82f0d29b1d15bdac5f0d63cbd9a4410d9bf92253a48c7443179048da10198e"
       },
@@ -15486,6 +15561,10 @@
         "sha256": "ff1b1337638be9a4bd5e49ece3fd58414de793894718afb2e7ab7a8c77a84e2e"
       },
       {
+        "path": "app/forum/tests/activity-beacon.test.ts",
+        "sha256": "338c657b30388d745f9b7ea647db9125b31a2b3d9a234e38f4a20e09e7447b46"
+      },
+      {
         "path": "app/forum/tests/content-source.test.ts",
         "sha256": "ee98a4e8c7781861120cc08e20f524c11c177e7ddfb006c1b1f63818247e00be"
       },
@@ -15555,7 +15634,7 @@
       },
       {
         "path": "app/server/src/lib/activity.ts",
-        "sha256": "0da1a6329b7b3e28372e06807d87a35b24b4ca65fcb25a42943a9a48ef482bd7"
+        "sha256": "0a17e70cf5cd49aa252541717672853f1894f0ab3fc492ac0dcf77a57b27ee89"
       },
       {
         "path": "app/server/src/lib/apply-quota.ts",
@@ -15923,7 +16002,7 @@
       },
       {
         "path": "app/server/src/routes/forum-api/posts.ts",
-        "sha256": "4cf530cc7a3b9591dfc04197582102163224db259fd29b7566e0c65d78c82a0a"
+        "sha256": "68fc6a3e55e23fdc37c67583e75bc6d504129ad818702aad92e1603c65737f23"
       },
       {
         "path": "app/server/src/routes/forum-api/stickers.ts",
@@ -15995,7 +16074,7 @@
       },
       {
         "path": "app/server/src/routes/portal/contracts.ts",
-        "sha256": "4842ee560e5e179b1e106a1aec061ca7cc496b1b35116e3fd3a28448882c8a22"
+        "sha256": "71fdd5e333d8a014aaa1663776dc6411b059d6e81a36492e321e4b7e15ababf9"
       },
       {
         "path": "app/server/src/routes/portal/departments.ts",
@@ -16007,7 +16086,7 @@
       },
       {
         "path": "app/server/src/routes/portal/events.ts",
-        "sha256": "8b9938d997cad94e327b63de93d18b03d79ffc2e47b48e8cefdf863b3c9e8639"
+        "sha256": "25caf3e976dd16ca0dc5fd136eedde1a291370d113d741a9804159d5ec8ee4f8"
       },
       {
         "path": "app/server/src/routes/portal/feedback.ts",
@@ -16467,7 +16546,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "e4cd6a39c917a0469a466fb3501027278c34ee799d0a8d84fa7ca2229990b281"
+        "sha256": "33335236163d94746ac4eb377dfee6f42496ba31352d420c6a8d67761d08506d"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -16503,15 +16582,15 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "c831eae0e838189d40597cad6dd5a41d955f723b3490b345f304f80160fe05a0"
+        "sha256": "cf5ac8c99c8ea5bf686d170c8d8a2332220c0378567b0ccd404a437de5948134"
       },
       {
         "path": "docs/services/forum/README.md",
-        "sha256": "eb66d8b27b1444d692526d96f05652cc33a3af3e073dcb02a32e4cd746ed7a18"
+        "sha256": "b45a9bea48bfb6550e92d2f5a583124aa263c6f3fdc6dccd4d879282309d2ade"
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "be10b499beabee688d1d06069158faf289abff68c53e5caa110c18ac4590e0ff"
+        "sha256": "cc5a99bd4ce1551670ceb54c887986480a7b076538b271d504d79cd609e4af9a"
       },
       {
         "path": "docs/services/server/data-model.md",
@@ -16519,7 +16598,7 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "2b3cd31c4dc2800371c7805e886b917b9c148ee500d6079a06f873726811213a"
+        "sha256": "a38be914bdfb7ded4bc1f1b0d25013b1c3c9c29ad6a8efd4af414dddc4a65240"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -16580,6 +16659,10 @@
       {
         "path": "tests/console/account.test.ts",
         "sha256": "c245f6b3e661f82939d5e77608da0a9a0f738e082174148dec367c72c920b763"
+      },
+      {
+        "path": "tests/console/activity.test.ts",
+        "sha256": "5ac4cf01fcf2cfec4184b95e417150f1c2f740c65473f8db9c33259dad46982d"
       },
       {
         "path": "tests/console/authorize.test.ts",
@@ -16703,7 +16786,7 @@
       },
       {
         "path": "tests/server/events.test.ts",
-        "sha256": "021320e991ad7226028842d46e82e103630c4ba55d86091ff701774a914b3be2"
+        "sha256": "912198ba32b612bffd829ead15c0a2b7ea47940c6ac6598cd31a7074d20c3532"
       },
       {
         "path": "tests/server/feedback-org.test.ts",
@@ -16715,7 +16798,7 @@
       },
       {
         "path": "tests/server/forum.test.ts",
-        "sha256": "b67f199e1249a0e9e33d28738cbe647481a3472e8dc7ca415a68f72e9eba03bc"
+        "sha256": "d762526ab3614ab2fb08e192c8cbaa5da082aeddbc27345422a6d46f72d7a8e4"
       },
       {
         "path": "tests/server/gitlab-sync.test.ts",
@@ -17050,7 +17133,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
           "path": "app/server/src/routes/forum-api/posts.ts"
         }
       ],
@@ -19594,7 +19677,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 25,
+          "line": 28,
           "path": "app/server/src/routes/portal/events.ts"
         }
       ],
@@ -22392,6 +22475,10 @@
           "path": "app/console/src/lib/activity.ts"
         },
         {
+          "line": 976,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
           "line": 2,
           "path": "app/console/src/components/DateField.vue"
         }
@@ -22422,6 +22509,10 @@
         {
           "line": 1,
           "path": "app/console/src/lib/activity.ts"
+        },
+        {
+          "line": 976,
+          "path": "app/console/src/mock/console.ts"
         },
         {
           "line": 2,
@@ -22456,6 +22547,10 @@
           "path": "app/console/src/lib/activity.ts"
         },
         {
+          "line": 976,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
           "line": 2,
           "path": "app/console/src/components/DateField.vue"
         }
@@ -22488,6 +22583,10 @@
           "path": "app/console/src/lib/activity.ts"
         },
         {
+          "line": 976,
+          "path": "app/console/src/mock/console.ts"
+        },
+        {
           "line": 2,
           "path": "app/console/src/components/DateField.vue"
         }
@@ -22495,6 +22594,12 @@
       "from": "flow:audit.console.activity.list",
       "to": "table:perm_members",
       "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:audit.console.activity.list",
+      "to": "test:tests/console/activity.test.ts",
+      "type": "test-entry"
     },
     {
       "basis": "declaration",
@@ -22524,6 +22629,10 @@
         {
           "line": 1,
           "path": "app/console/src/lib/activity.ts"
+        },
+        {
+          "line": 976,
+          "path": "app/console/src/mock/console.ts"
         },
         {
           "line": 2,
@@ -22561,6 +22670,12 @@
     {
       "basis": "declaration",
       "from": "flow:audit.events.report",
+      "to": "test:app/forum/tests/activity-beacon.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:audit.events.report",
       "to": "test:tests/server/events.test.ts",
       "type": "test-entry"
     },
@@ -22568,16 +22683,48 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 25,
+          "line": 28,
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 20,
+          "line": 26,
           "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 28,
+          "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 30,
+          "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/forum/app/composables/useActivityBeacon.ts"
+        },
+        {
+          "line": 23,
+          "path": "app/console/src/lib/events.ts"
+        },
+        {
+          "line": 66,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/forum/app/plugins/activity-beacon.client.ts"
+        },
+        {
+          "line": 36,
+          "path": "app/forum/app/composables/useForumTheme.ts"
+        },
+        {
+          "line": 182,
+          "path": "app/forum/app/components/PostEditor.vue"
         },
         {
           "line": 16,
@@ -22640,16 +22787,48 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 25,
+          "line": 28,
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 39,
+          "line": 40,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 20,
+          "line": 26,
           "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 28,
+          "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 30,
+          "path": "app/server/src/lib/activity.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/forum/app/composables/useActivityBeacon.ts"
+        },
+        {
+          "line": 23,
+          "path": "app/console/src/lib/events.ts"
+        },
+        {
+          "line": 66,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 10,
+          "path": "app/forum/app/plugins/activity-beacon.client.ts"
+        },
+        {
+          "line": 36,
+          "path": "app/forum/app/composables/useForumTheme.ts"
+        },
+        {
+          "line": 182,
+          "path": "app/forum/app/components/PostEditor.vue"
         },
         {
           "line": 16,
@@ -25164,7 +25343,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25204,7 +25383,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25244,7 +25423,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25284,7 +25463,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25324,7 +25503,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25364,7 +25543,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25428,7 +25607,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25468,7 +25647,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -25508,7 +25687,7 @@
           "path": "app/console/src/lib/permission-nodes.ts"
         },
         {
-          "line": 34,
+          "line": 35,
           "path": "app/console/src/router.ts"
         },
         {
@@ -27964,7 +28143,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -27992,7 +28171,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28020,7 +28199,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28048,7 +28227,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28076,7 +28255,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28104,7 +28283,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28132,7 +28311,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28160,7 +28339,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28188,7 +28367,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28216,7 +28395,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28244,7 +28423,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28290,7 +28469,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 62,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28334,7 +28513,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28362,7 +28541,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28390,7 +28569,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28418,7 +28597,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28446,7 +28625,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28474,7 +28653,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28502,7 +28681,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28530,7 +28709,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28558,7 +28737,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28586,7 +28765,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28626,7 +28805,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -28654,7 +28833,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 61,
+          "line": 63,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -29736,7 +29915,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -29776,7 +29955,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -29816,7 +29995,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -29856,7 +30035,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -29896,7 +30075,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -29936,7 +30115,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -29976,7 +30155,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30016,7 +30195,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30056,7 +30235,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30096,7 +30275,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30148,7 +30327,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30188,7 +30367,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30228,7 +30407,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30268,7 +30447,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -30308,7 +30487,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 36,
+          "line": 37,
           "path": "app/console/src/router.ts"
         },
         {
@@ -52290,6 +52469,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -52322,6 +52505,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -52351,6 +52538,10 @@
       "evidence": [
         {
           "line": 107,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 116,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52386,6 +52577,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -52418,6 +52613,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -52447,6 +52646,10 @@
       "evidence": [
         {
           "line": 107,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 116,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52482,6 +52685,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -52511,6 +52718,10 @@
       "evidence": [
         {
           "line": 107,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 116,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52546,6 +52757,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -52578,9 +52793,19 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:forum.reactions.add",
+      "to": "test:tests/server/forum.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
       "evidence": [
         {
           "line": 107,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 116,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52616,6 +52841,46 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 221,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 55,
+          "path": "app/server/src/routes/forum-api/viewer.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        },
+        {
+          "line": 118,
+          "path": "app/server/src/lib/limits.ts"
+        },
+        {
+          "line": 1,
+          "path": "app/forum/app/components/PostCard.vue"
+        }
+      ],
+      "from": "flow:forum.reactions.add",
+      "to": "table:activity_events",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 107,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -52645,6 +52910,10 @@
       "evidence": [
         {
           "line": 107,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 116,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52680,6 +52949,10 @@
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
+          "line": 116,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
           "line": 221,
           "path": "app/server/src/lib/forum-store.ts"
         },
@@ -52709,6 +52982,10 @@
       "evidence": [
         {
           "line": 107,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 116,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52758,7 +53035,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52782,7 +53063,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52806,7 +53091,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52830,7 +53119,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52854,7 +53147,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52878,7 +53175,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52902,7 +53203,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52926,7 +53231,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52954,9 +53263,19 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:forum.reactions.remove",
+      "to": "test:tests/server/forum.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -52980,7 +53299,39 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 221,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 55,
+          "path": "app/server/src/routes/forum-api/viewer.ts"
+        },
+        {
+          "line": 320,
+          "path": "app/server/src/lib/permissions.ts"
+        }
+      ],
+      "from": "flow:forum.reactions.remove",
+      "to": "table:activity_events",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -53004,7 +53355,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -53028,7 +53383,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 118,
+          "line": 120,
+          "path": "app/server/src/routes/forum-api/posts.ts"
+        },
+        {
+          "line": 124,
           "path": "app/server/src/routes/forum-api/posts.ts"
         },
         {
@@ -53450,7 +53809,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53530,7 +53889,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53610,7 +53969,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53690,7 +54049,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53770,7 +54129,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53850,7 +54209,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -53930,7 +54289,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54010,7 +54369,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54090,7 +54449,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54170,7 +54529,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54250,7 +54609,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54330,7 +54689,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54410,7 +54769,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54496,7 +54855,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54576,7 +54935,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54656,7 +55015,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54736,7 +55095,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -54816,7 +55175,7 @@
           "path": "app/forum/app/composables/useCurrentUser.ts"
         },
         {
-          "line": 16,
+          "line": 20,
           "path": "app/forum/app/composables/useForumTheme.ts"
         },
         {
@@ -58978,7 +59337,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1048,
+          "line": 1058,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -59018,7 +59377,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1048,
+          "line": 1058,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -59058,7 +59417,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1048,
+          "line": 1058,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -59098,7 +59457,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1048,
+          "line": 1058,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -59138,7 +59497,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1048,
+          "line": 1058,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -59178,7 +59537,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1048,
+          "line": 1058,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -59218,7 +59577,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1048,
+          "line": 1058,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -59258,7 +59617,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1048,
+          "line": 1058,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -59298,7 +59657,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1048,
+          "line": 1058,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -59338,7 +59697,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1048,
+          "line": 1058,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -59390,7 +59749,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1048,
+          "line": 1058,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -59430,7 +59789,7 @@
           "path": "app/console/src/lib/gitlab.ts"
         },
         {
-          "line": 1048,
+          "line": 1058,
           "path": "app/console/src/mock/console.ts"
         },
         {
@@ -62164,7 +62523,7 @@
           "path": "app/console/src/lib/grade.ts"
         },
         {
-          "line": 22,
+          "line": 23,
           "path": "app/console/src/router.ts"
         },
         {
@@ -62208,7 +62567,7 @@
           "path": "app/console/src/lib/grade.ts"
         },
         {
-          "line": 22,
+          "line": 23,
           "path": "app/console/src/router.ts"
         },
         {
@@ -62264,7 +62623,7 @@
           "path": "app/console/src/lib/grade.ts"
         },
         {
-          "line": 22,
+          "line": 23,
           "path": "app/console/src/router.ts"
         },
         {
@@ -62308,7 +62667,7 @@
           "path": "app/console/src/lib/grade.ts"
         },
         {
-          "line": 22,
+          "line": 23,
           "path": "app/console/src/router.ts"
         },
         {
@@ -62352,7 +62711,7 @@
           "path": "app/console/src/lib/grade.ts"
         },
         {
-          "line": 22,
+          "line": 23,
           "path": "app/console/src/router.ts"
         },
         {
@@ -62396,7 +62755,7 @@
           "path": "app/console/src/lib/grade.ts"
         },
         {
-          "line": 22,
+          "line": 23,
           "path": "app/console/src/router.ts"
         },
         {
@@ -63750,7 +64109,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -63882,7 +64241,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -64014,7 +64373,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -64146,7 +64505,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -64278,7 +64637,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -64410,7 +64769,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -64542,7 +64901,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -64674,7 +65033,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -64890,7 +65249,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -65022,7 +65381,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -65154,7 +65513,7 @@
           "path": "app/console/src/lib/errors.ts"
         },
         {
-          "line": 14,
+          "line": 15,
           "path": "app/console/src/router.ts"
         },
         {
@@ -68842,7 +69201,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -68882,7 +69241,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -68922,7 +69281,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -68962,7 +69321,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -69002,7 +69361,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -69042,7 +69401,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -69094,7 +69453,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -69134,7 +69493,7 @@
           "path": "app/console/src/lib/authorize.ts"
         },
         {
-          "line": 16,
+          "line": 17,
           "path": "app/console/src/router.ts"
         },
         {
@@ -78442,7 +78801,7 @@
         }
       },
       "source": {
-        "line": 118,
+        "line": 120,
         "path": "app/server/src/routes/forum-api/posts.ts"
       }
     },
@@ -106244,6 +106603,14 @@
               "maxItems": 20,
               "minItems": 1,
               "type": "array"
+            },
+            "surface": {
+              "enum": [
+                "portal",
+                "forum",
+                "console"
+              ],
+              "type": "string"
             }
           },
           "required": [
@@ -106309,7 +106676,7 @@
         }
       },
       "source": {
-        "line": 25,
+        "line": 28,
         "path": "app/server/src/routes/portal/events.ts"
       }
     },
@@ -113925,6 +114292,12 @@
     },
     {
       "domains": [
+        "audit"
+      ],
+      "path": "app/console/src/lib/events.ts"
+    },
+    {
+      "domains": [
         "audit",
         "competitions",
         "feedback",
@@ -114591,6 +114964,13 @@
     },
     {
       "domains": [
+        "audit",
+        "forum"
+      ],
+      "path": "app/forum/app/composables/useActivityBeacon.ts"
+    },
+    {
+      "domains": [
         "forum"
       ],
       "path": "app/forum/app/composables/useAppLink.ts"
@@ -114870,6 +115250,13 @@
         "forum"
       ],
       "path": "app/forum/app/pages/users.vue"
+    },
+    {
+      "domains": [
+        "audit",
+        "forum"
+      ],
+      "path": "app/forum/app/plugins/activity-beacon.client.ts"
     },
     {
       "domains": [

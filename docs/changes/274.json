@@ -2,417 +2,126 @@
   "version": 1,
   "issue": 274,
   "kind": "business",
-  "summary": "YUGC OS v2 账号/权限/操作记录/防盗刷地基（#274，基线 9c5b74f7，CONTRACT-274 与 SPEC.md §3 定稿）：访客/注册用户/极客班成员/往届成员四级身份取代旧的 org_role 与按 GitHub 组织角色判定；新增点分权限节点、可继承的权限组（身份/部门/称号/自定义）与 scope/meta 求值引擎（perm_nodes/perm_groups/perm_group_parents/perm_entries/perm_members/perm_state），一次加法迁移把旧的 role_assignments/departments/audit_logs 接入新表，两轮演练在预发布库复制件上验证幂等；统一操作记录写入口 recordActivity 覆盖登录/投递/比赛/论坛/权限变更与全部 403/429，前端白名单动作走 POST /api/events；防盗刷限额统一到 limit_events 表，按北京时间或滚动窗口限投递/注册/验证码/发帖回帖/读接口/搜索/邀请码兑换/设备码；控制台删除整个「GitHub 组织」管理（路由、页面、env），改接 GitLab 概览/项目/设置，导航与用户/权限/操作记录三页按新权限节点重做。",
+  "summary": "操作记录像埋点一样覆盖全端（#274 重开后的收尾）：修好控制台操作记录页因为多传 limit 被服务端 activityQuery 契约拒绝的 400；POST /api/events 按来源（门户/论坛/控制台）分白名单，论坛和控制台各补上页面浏览等埋点；补上表情回应此前缺失的审计记录；控制台操作记录页的来源筛选与动作文案同步覆盖这些新动作。",
   "applications": [
     "console",
-    "server",
-    "forum"
+    "forum",
+    "server"
   ],
   "domains": [
     "audit",
-    "competitions",
-    "feedback",
     "forum",
-    "github",
-    "gitlab",
-    "identity",
-    "invitations",
-    "mail",
-    "organization",
     "permissions",
+    "identity",
     "platform",
-    "public_content",
-    "recruitment"
+    "organization",
+    "recruitment",
+    "feedback",
+    "competitions",
+    "gitlab",
+    "github",
+    "public_content"
   ],
   "flows": [
-    "flow:application.cancel",
-    "flow:application.detail",
-    "flow:application.export",
-    "flow:application.list",
-    "flow:application.review",
-    "flow:application.submit",
-    "flow:audit.console.activity.account",
-    "flow:audit.console.activity.export",
-    "flow:audit.console.activity.list",
     "flow:audit.events.report",
-    "flow:competition.console.list",
-    "flow:competition.create",
-    "flow:competition.delete",
-    "flow:competition.free_agents.list",
-    "flow:competition.leaderboard.read",
-    "flow:competition.me.list",
-    "flow:competition.my_status",
-    "flow:competition.public.detail",
-    "flow:competition.public.list",
-    "flow:competition.roster.export",
-    "flow:competition.roster.read",
-    "flow:competition.score_events.create",
-    "flow:competition.score_events.list",
-    "flow:competition.score_events.revoke",
-    "flow:competition.signup.cancel",
-    "flow:competition.signup.upsert",
-    "flow:competition.signup_settings.update",
-    "flow:competition.team.apply",
-    "flow:competition.team.create",
-    "flow:competition.team.disband",
-    "flow:competition.team.invite",
-    "flow:competition.team.leave",
-    "flow:competition.team.lock",
-    "flow:competition.team.respond",
-    "flow:competition.team.transfer",
-    "flow:competition.team.unlock",
-    "flow:competition.teams.list",
-    "flow:competition.update",
-    "flow:console.identity",
+    "flow:audit.console.activity.list",
+    "flow:forum.reactions.add",
+    "flow:forum.reactions.remove",
     "flow:console.summary",
-    "flow:documentation.list",
-    "flow:feedback.console.delete",
-    "flow:feedback.console.list",
-    "flow:feedback.console.update",
-    "flow:forum.avatar.clear",
-    "flow:forum.avatar.read",
-    "flow:forum.avatar.upload",
-    "flow:forum.notifications.read",
-    "flow:forum.notifications.read_all",
-    "flow:forum.posts.bookmark",
-    "flow:forum.posts.delete",
-    "flow:forum.posts.edit",
-    "flow:forum.posts.like",
-    "flow:forum.posts.reply",
-    "flow:forum.profile.update",
-    "flow:forum.search",
-    "flow:forum.state",
-    "flow:forum.topic_posts",
-    "flow:forum.topics.close",
-    "flow:forum.topics.create",
-    "flow:forum.topics.pin",
-    "flow:forum.topics.view",
-    "flow:forum.users.follow",
-    "flow:gitlab.accounts.list",
-    "flow:gitlab.accounts.sync",
-    "flow:gitlab.projects.console.list",
-    "flow:gitlab.projects.public.list",
-    "flow:gitlab.settings.read",
-    "flow:gitlab.settings.update",
-    "flow:gitlab.status.read",
-    "flow:identity.account.email.remove",
-    "flow:identity.account.email.start",
-    "flow:identity.account.email.verify",
-    "flow:identity.account.password",
-    "flow:identity.account.view",
-    "flow:identity.authorize",
-    "flow:identity.avatar.read",
-    "flow:identity.avatar.upload",
     "flow:identity.callback",
-    "flow:identity.current",
-    "flow:identity.departments.public",
-    "flow:identity.device.approve",
-    "flow:identity.device.code",
-    "flow:identity.device.token",
-    "flow:identity.device.userinfo",
-    "flow:identity.device.view",
-    "flow:identity.email.password",
-    "flow:identity.email.reset",
-    "flow:identity.email.start",
-    "flow:identity.email.verify",
-    "flow:identity.google.callback",
-    "flow:identity.google.start",
-    "flow:identity.invite.redeem",
-    "flow:identity.invites.create",
-    "flow:identity.invites.list",
-    "flow:identity.invites.update",
-    "flow:identity.oidc.details",
-    "flow:identity.oidc.interaction",
-    "flow:identity.oidc.protocol",
-    "flow:identity.profile.update",
-    "flow:identity.profile.view",
-    "flow:identity.providers",
-    "flow:identity.signout",
-    "flow:organization.departments.list",
-    "flow:permissions.accounts.effective",
-    "flow:permissions.explain",
-    "flow:permissions.groups.create",
-    "flow:permissions.groups.delete",
-    "flow:permissions.groups.list",
-    "flow:permissions.groups.members.add",
-    "flow:permissions.groups.members.list",
-    "flow:permissions.groups.members.remove",
-    "flow:permissions.groups.update",
-    "flow:permissions.nodes.list",
-    "flow:users.list",
-    "flow:users.update",
-    "flow:platform.public_config",
-    "flow:feedback.submit"
+    "flow:documentation.list",
+    "flow:console.identity",
+    "flow:application.list"
   ],
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "身份从「GitHub 组织角色」换成访客/注册用户/极客班成员/往届成员四级（SPEC §3.2）；权限从写死在 roles.ts 的 Capability 换成可在控制台编辑的点分节点与可继承的组（SPEC §3.3-3.5）；控制台「GitHub 组织」整组管理功能删除，改成只读的 GitLab 概览/项目/设置（CONTRACT-274 §6、§8）；新增统一操作记录与防盗刷限额两条平台能力（SPEC §3.7-3.8），供后续 #275-#278 直接复用。",
+      "reason": "操作记录从只认门户、只有部分写路径补齐成按来源分流且三端都有埋点：事件白名单拆成门户/论坛/控制台三份，论坛和控制台新增埋点上报，表情回应补上缺失的审计写入，控制台操作记录页同步按真实服务端契约取数。",
       "evidence": [
-        "app/server/src/lib/permission-nodes.ts",
-        "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
-        "app/console/src/pages/Users.vue",
-        "app/console/src/pages/Permissions.vue",
-        "app/console/src/pages/gitlab/Overview.vue",
-        "docs/services/server/README.md"
+        "app/server/src/lib/activity.ts",
+        "app/console/src/router.ts",
+        "app/forum/app/plugins/activity-beacon.client.ts"
       ]
     },
     "backend": {
       "status": "changed",
-      "reason": "新增权限引擎 lib/permissions.ts（explain()/effective()/evaluate()，先收集账号与所在组及继承组的条目，deny 优先于 allow，过期条目与过期成员资格读取时过滤，revision 加一后按 (account_id,revision) 缓存）与 节点目录 lib/permission-nodes.ts；requirePermission 中间件取代 requireCapability 判定控制台/投递/比赛/论坛各接口；控制台路由重做为 accounts/activity/permission-groups/permissions/users/gitlab/departments，删除 assignments/audit/catalogue/people/titles 与整个 admin/* GitHub 组织管理路由；身份路由补齐资料/头像/邀请码兑换；投递与比赛报名改成登录必须且按权限节点判定。",
+      "reason": "POST /api/events 的 body 加可选 surface 字段并按来源选白名单；forum-api/posts.ts 的表情回应新增与取消各补一次 recordActivity 写入。",
       "evidence": [
-        "app/server/src/lib/permissions.ts",
-        "app/server/src/middleware/require-permission.ts",
-        "app/server/src/routes/console/users.ts",
-        "app/server/src/routes/console/gitlab.ts",
-        "app/server/src/routes/identity/profile.ts",
-        "app/server/src/routes/portal/apply.ts"
+        "app/server/src/lib/activity.ts",
+        "app/server/src/routes/portal/events.ts",
+        "app/server/src/routes/portal/contracts.ts",
+        "app/server/src/routes/forum-api/posts.ts"
       ]
     },
     "permissions": {
-      "status": "changed",
-      "reason": "权限模型整体替换：节点格式 ^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$，通配只认 * 与前缀.*；组分 level/department/title/custom 四类，称号组继承部门组，部门组的 scope 限定在本部门真实论坛分类（本会话修复了迁移种子按部门 id 占位的 bug，改用 app/forum/content/curation.json 的真实分类 id）；站长 title.site.owner 持有 *，且最后一个站长不能被降级或删除；账号级条目覆盖组继承条目（deny-first，新增专项回归用例）；控制台写操作一律要求 step-up。",
+      "status": "unchanged",
+      "reason": "不新增、不修改任何权限节点、角色判定或可见范围；事件按来源分流和表情回应补审计都不改变原有的身份与授权判断。",
       "evidence": [
-        "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
-        "app/server/src/middleware/require-step-up.ts",
-        "app/server/src/routes/console/permission-groups.ts",
-        "tests/server/permissions.test.ts"
+        "app/server/src/lib/activity.ts"
       ]
     },
     "data": {
-      "status": "changed",
-      "reason": "加法迁移（不删旧表）：新增 perm_nodes/perm_groups/perm_group_parents/perm_entries/perm_members/perm_state/account_profiles/account_avatars/activity_events/limit_events，forum_users 加列 account_id 关联账号；迁移把旧 role_assignments 按 captain/head/member/alumni 映射到新组（head 先进 dept.none 并在报告里列出，不自动猜部门），旧 departments 整体 archived=1，audit_logs 整体复制进 activity_events；createDatabase() 每次打开都会跑迁移，已存在的节点/组/条目不覆盖。两轮演练用一份 预发布库复制件验证：第二轮零变化；本会话额外修了部门→论坛分类的种子 bug 并重新跑通两轮演练。",
+      "status": "unchanged",
+      "reason": "activity_events 表结构不变，只是新增写入点（forum.react）和按来源分流的白名单逻辑，不新增或修改表、列、索引或外键。",
       "evidence": [
-        "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
-        "app/server/src/lib/db.ts",
-        "tests/server/yugc-v2-migration.test.ts",
-        "tests/server/legacy-database.test.ts"
+        "app/server/src/lib/activity.ts"
       ]
     },
     "dependencies": {
-      "status": "changed",
-      "reason": "不新增生产依赖（oidc-provider 等依赖在基线 9c5b74f7 之前的 #270 已引入，本次没有改 app/server/package.json 或 pnpm-lock.yaml）；触发评估是因为改动集中在 app/server/src 下的路由、中间件与 lib，按仓库规则这类改动一律要过 dependencies 维度。",
+      "status": "unchanged",
+      "reason": "没有新增或升级任何依赖，论坛与控制台的埋点复用已有的 fetch keepalive 批量上报模式，不引入新包。",
       "evidence": [
-        "app/server/src/lib/limits.ts",
-        "app/server/src/routes/console/index.ts"
+        "app/server/src/routes/portal/events.ts"
       ]
     },
     "documentation": {
       "status": "changed",
-      "reason": "endpoint-contracts.md 删除全部已退役的 /api/admin/:org/* 与 /api/me/orgs 共 39 个小节，补齐权限体系（CONTRACT-274 §5）、操作记录（POST /api/events）、GitLab 控制台与身份资料/头像/邀请码几条链路；data-model.md、README.md、console/README.md、architecture/API.md 同步新表与新接口；docs/architecture/catalog/ownership.json 按真实源码重新核对路由归属、模块归属与业务流程证据，catalog 全量产物随之重新生成；新增 docs/plan/YUGC-OS-V2.md 记录 #274-#278 的整体计划与 #274 落地结论。",
+      "reason": "服务端、控制台、论坛三份服务文档同步写上新模块、新埋点位置和按来源分流的说明；endpoint-contracts.md 改写 /api/events 一节并修正一处过期的匿名限流描述。",
       "evidence": [
-        "docs/services/server/endpoint-contracts.md",
         "docs/services/server/README.md",
-        "docs/services/server/data-model.md",
+        "docs/services/server/endpoint-contracts.md",
         "docs/services/console/README.md",
-        "docs/architecture/API.md",
-        "docs/architecture/catalog/ownership.json"
+        "docs/services/forum/README.md"
       ]
     },
     "verification": {
       "status": "changed",
-      "reason": "服务端新增/改写回归覆盖权限向量（继承/scope/meta/过期/deny-first）、迁移两轮演练、操作记录写入与保留清理、限额 429 与北京时间零点重置、控制台用户与权限接口、GitLab 同步、投递/比赛/论坛改按权限节点判定；控制台前端回归覆盖新用户/权限/操作记录/GitLab 页面与登录态字段，删除针对已删页面的旧用例；端到端工作流按新导航调整。pnpm --filter server test 与 pnpm --filter console test 全量跑过，tests/tooling（33 文件/722 项）、typecheck、check:catalog 均已跑绿，结果见本任务执行记录。",
+      "reason": "新增/更新的回归测试覆盖：控制台不再传 limit 且拒绝未知查询字段、按来源过滤、事件按 surface 分流与未知 surface 拒绝、表情回应落审计行、论坛换主题与插表情上报、埋点节流与刷新。",
       "evidence": [
-        "tests/server/permissions.test.ts",
-        "tests/server/yugc-v2-migration.test.ts",
-        "tests/server/rate-limits.test.ts",
-        "tests/console/permissions.test.ts",
-        "tests/console/users.test.ts",
-        "notes/2026-10-24/crosery/task_274_unified_accounts.md"
+        "tests/console/activity.test.ts",
+        "tests/server/events.test.ts",
+        "tests/server/forum.test.ts",
+        "app/forum/tests/activity-beacon.test.ts"
       ]
     },
     "delivery": {
-      "status": "changed",
-      "reason": "部署配置去掉已删除的 ALLOWED_ORGS 环境变量（预发布与正式 compose、env 模板、deployment-environment.mjs 清单同步），CONSOLE_ORG 保留但注释改为「只给 GitHub App、意见箱分类和审计用，#274 起不再有组织登录门槛」；不改部署触发方式，仍由发布 tag 驱动，本任务不自行部署。",
+      "status": "not-applicable",
+      "reason": "不改动部署配置、CI 工作流、Dockerfile 或构建配置，只是服务端/控制台/论坛三个应用内部的业务代码与文档改动，发布链路不变。",
       "evidence": [
-        "deploy/compose/preview.yml",
-        "deploy/env/.env.preview",
-        "scripts/deployment-environment.mjs"
+        "app/forum/Dockerfile"
       ]
     }
   },
   "coverage": [
     {
       "paths": [
-        "app/console/src/components/AccountPicker.vue",
-        "app/console/src/components/CapabilityGate.vue",
-        "app/console/src/components/ConsoleNav.vue",
-        "app/console/src/components/ConsoleShell.vue",
-        "app/console/src/components/ErrorAlert.vue",
-        "app/console/src/components/ErrorPanel.vue",
-        "app/console/src/components/TitleBadge.vue",
-        "app/console/src/components/ToneTag.vue",
-        "app/console/src/components/UserCell.vue"
+        "app/console/src/lib/events.ts",
+        "app/console/src/pages/Activity.vue",
+        "tests/console/activity.test.ts"
       ],
       "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
+        "audit"
       ],
       "nodes": [
-        "domain:organization",
-        "domain:audit"
+        "domain:audit",
+        "application:console"
       ],
-      "reason": "用户/权限/操作记录等页面共用的展示组件（账号选择器、权限门禁、错误提示/面板、称号与状态标签、成员行）按新接口返回形状调整，组件本身不做鉴权判断。"
+      "reason": "控制台操作记录页改成不传 limit、按服务端 activityQuery 契约的字段集拼查询串；新增控制台页面浏览埋点库 lib/events.ts；回归测试覆盖越界查询被拒绝、按来源筛选论坛/控制台与不再传 limit。"
     },
     {
       "paths": [
-        "app/console/src/lib/account.ts",
         "app/console/src/lib/activity.ts",
-        "app/console/src/lib/errors.ts",
-        "app/console/src/lib/github.ts",
-        "app/console/src/lib/gitlab.ts",
-        "app/console/src/lib/icons.ts",
-        "app/console/src/lib/levels.ts",
-        "app/console/src/lib/nav.ts",
-        "app/console/src/lib/org-settings.ts",
-        "app/console/src/lib/people.ts",
-        "app/console/src/lib/permission-boundaries.ts",
-        "app/console/src/lib/permission-nodes.ts",
-        "app/console/src/lib/permission-tree.ts",
-        "app/console/src/lib/permissions.ts",
-        "app/console/src/lib/session.ts",
-        "app/console/src/lib/signin.ts",
-        "app/console/src/lib/statuses.ts",
-        "app/console/src/lib/tabs.ts",
-        "app/console/src/lib/titles.ts",
-        "app/console/src/lib/tone.ts",
-        "app/console/src/lib/types.ts",
-        "app/console/src/lib/users.ts"
-      ],
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "identity",
-        "organization",
-        "recruitment"
-      ],
-      "nodes": [
-        "domain:permissions",
-        "domain:identity",
-        "domain:gitlab"
-      ],
-      "reason": "控制台纯函数层按 #274 重做：权限节点标签、用户/权限页的筛选与请求体、GitLab 展示、称号与状态色调、登录与会话读取全部换成新接口形状；tests/console 直接测这些纯函数。"
-    },
-    {
-      "paths": [
         "app/console/src/mock/console.ts",
-        "app/console/src/mock/github.ts",
-        "app/console/src/mock/index.ts"
-      ],
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "nodes": [
-        "domain:organization"
-      ],
-      "reason": "开发预览的样板数据改成新接口形状（用户列表、权限组、GitLab 账号/项目），不再提供 GitHub 组织样板。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/github/Activity.vue",
-        "app/console/src/pages/github/CreateRepo.vue",
-        "app/console/src/pages/github/Invitations.vue",
-        "app/console/src/pages/github/InviteLinks.vue",
-        "app/console/src/pages/github/Members.vue",
-        "app/console/src/pages/github/OrgSettings.vue",
-        "app/console/src/pages/github/Overview.vue",
-        "app/console/src/pages/github/repo/BranchSelect.vue",
-        "app/console/src/pages/github/repo/CodeTab.vue",
-        "app/console/src/pages/github/repo/CommitsTab.vue",
-        "app/console/src/pages/github/repo/DiffBlock.vue",
-        "app/console/src/pages/github/repo/SettingsTab.vue",
-        "app/console/src/pages/github/repo/ThreadDetail.vue",
-        "app/console/src/pages/github/repo/ThreadsTab.vue",
-        "app/console/src/pages/github/repo/types.ts",
-        "app/console/src/pages/github/RepoDetail.vue",
-        "app/console/src/pages/github/Repos.vue",
-        "app/console/src/pages/github/Security.vue",
-        "app/console/src/pages/github/Teams.vue"
-      ],
-      "domains": [
-        "github",
-        "invitations"
-      ],
-      "nodes": [
-        "domain:github",
-        "domain:invitations"
-      ],
-      "reason": "删除「GitHub 组织」整组页面（概览/成员/仓库/团队/安全/邀请/邀请链接/创建仓库及仓库详情子页），控制台不再管理 GitHub 组织（SPEC §3.9）。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/gitlab/Accounts.vue",
-        "app/console/src/pages/gitlab/Overview.vue",
-        "app/console/src/pages/gitlab/Projects.vue",
-        "app/console/src/pages/gitlab/Settings.vue"
-      ],
-      "domains": [
-        "gitlab"
-      ],
-      "nodes": [
-        "domain:gitlab"
-      ],
-      "reason": "新增「GitLab」导航组：概览（同步模式/版本/健康/上次同步/近 24 小时错误数）、账号同步（沿用 #270 形状）、群组与项目、设置（同步开关/群组路径/同步间隔，令牌只显示配置状态）。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/people/AssignDialog.vue",
-        "app/console/src/pages/people/BundleDialog.vue",
-        "app/console/src/pages/people/PermissionTree.vue",
-        "app/console/src/pages/people/SiteRoleDialog.vue",
-        "app/console/src/pages/people/TitleDialog.vue",
-        "app/console/src/pages/people/TitleList.vue"
-      ],
-      "domains": [
-        "organization"
-      ],
-      "nodes": [
-        "domain:organization"
-      ],
-      "reason": "删除旧「成员与权限」的称号指派、权限包、权限树只读页、站内角色对话框等子页面，功能并入新的「用户」「权限」两组页面。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/permissions/CreateGroupDialog.vue",
-        "app/console/src/pages/permissions/EntryDialog.vue",
-        "app/console/src/pages/permissions/ExplainTab.vue",
-        "app/console/src/pages/permissions/GroupDetail.vue",
-        "app/console/src/pages/permissions/GroupsTab.vue",
-        "app/console/src/pages/permissions/NodesTab.vue"
-      ],
-      "domains": [
-        "permissions"
-      ],
-      "nodes": [
-        "domain:permissions"
-      ],
-      "reason": "新增「权限」页的三个页签（节点目录/权限组/求值解释）与新建分组、添加条目两个对话框，对接 CONTRACT-274 §5 的权限组接口。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/users/UserDrawer.vue"
-      ],
-      "domains": [
-        "permissions"
-      ],
-      "nodes": [
-        "domain:permissions"
-      ],
-      "reason": "新增用户详情抽屉：按 PATCH /api/console/users/:id 改身份、部门、称号与停用状态，复用列表行的回包直接更新。"
-    },
-    {
-      "paths": [
         "app/console/src/router.ts"
       ],
       "domains": [
@@ -424,550 +133,83 @@
         "recruitment"
       ],
       "nodes": [
-        "domain:organization"
-      ],
-      "reason": "路由表去掉 GitHub 组织与旧成员/权限子页，加入 /console/users、/console/permissions、/console/gitlab/* 几组新路由。"
-    },
-    {
-      "paths": [
-        "app/console/uno.config.ts"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "UnoCSS 预设按新页面用到的图标与类名更新，不改变设计令牌。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/Account.vue"
-      ],
-      "domains": [
-        "identity"
-      ],
-      "nodes": [
-        "domain:identity"
-      ],
-      "reason": "「我的账号」读取新版 /auth/me 形状（level_name、department、titles、identities），展示不变。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/Activity.vue"
-      ],
-      "domains": [
-        "audit"
-      ],
-      "nodes": [
-        "domain:audit"
-      ],
-      "reason": "新增「操作记录」页替换旧「审计日志」：账号/访客编号/动作前缀/来源/结果/时间段筛选，账号时间线与 CSV 导出（SPEC §3.7）。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/ApplicationDetail.vue"
-      ],
-      "domains": [
-        "recruitment"
-      ],
-      "nodes": [
-        "domain:recruitment"
-      ],
-      "reason": "投递详情页按权限节点（apply.review 等）判定可操作性，接口形状不变，门禁改走新中间件。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/Applications.vue"
-      ],
-      "domains": [
-        "recruitment"
-      ],
-      "nodes": [
-        "domain:recruitment"
-      ],
-      "reason": "投递列表页按权限节点（apply.view）判定可见性，筛选与分页不变。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/Audit.vue"
-      ],
-      "domains": [
-        "audit"
-      ],
-      "nodes": [
-        "domain:audit"
-      ],
-      "reason": "删除旧「审计日志」页面，替换为 Activity.vue（操作记录）。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/CompetitionHub.vue"
-      ],
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "nodes": [
-        "domain:competitions"
-      ],
-      "reason": "比赛管理页改按权限节点（competition.manage 等）判定，不再查 GitHub 组织资格。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/ConsoleRoot.vue"
-      ],
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "nodes": [
-        "domain:organization",
-        "domain:permissions"
-      ],
-      "reason": "控制台外壳读取 /api/console/me 的新字段（level、department、titles、permissions），没有 console.access 时显示「还不能使用控制台」而不是报错。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/Feedback.vue"
-      ],
-      "domains": [
-        "feedback"
-      ],
-      "nodes": [
-        "domain:feedback"
-      ],
-      "reason": "意见箱页按权限节点（feedback.view/feedback.handle）判定，节点名从 feedback.read/feedback.manage 改名。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/Forum.vue"
-      ],
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "nodes": [
-        "domain:permissions",
-        "domain:forum"
-      ],
-      "reason": "新增论坛管理占位页：展示当前账号持有的论坛版务权限节点，真正接入论坛接口留给 #276。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/Invites.vue"
-      ],
-      "domains": [
-        "identity"
-      ],
-      "nodes": [
-        "domain:identity"
-      ],
-      "reason": "邀请码管理页节点从旧能力改成 invite.manage。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/Overview.vue"
-      ],
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "nodes": [
-        "domain:organization"
-      ],
-      "reason": "概览页去掉所有 GitHub 字段，卡片改成待处理投递/待确认贡献/今天新注册/今天被拦下次数/GitLab 同步状态（SPEC §3.9）。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/People.vue"
-      ],
-      "domains": [
-        "organization"
-      ],
-      "nodes": [
-        "domain:organization"
-      ],
-      "reason": "删除旧「成员与权限」统一页，拆分为新的「用户」（Users.vue）与「权限」（Permissions.vue）两组页面。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/Permissions.vue"
-      ],
-      "domains": [
-        "permissions"
-      ],
-      "nodes": [
-        "domain:permissions"
-      ],
-      "reason": "新增「权限」页：组（身份/部门/称号/自定义）的条目与成员、全部节点目录、按账号与节点的求值解释，对应 SPEC §3.3-3.5。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/SignIn.vue"
-      ],
-      "domains": [
-        "identity"
-      ],
-      "nodes": [
-        "domain:identity"
-      ],
-      "reason": "登录页展示文案与跳转按新版 /auth/me 的 email_required、console_link 调整，登录方式本身不变（#262/#270 已完成）。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/Users.vue"
-      ],
-      "domains": [
-        "permissions"
-      ],
-      "nodes": [
-        "domain:permissions"
-      ],
-      "reason": "新增「用户」页：统一列表显示身份/部门/称号/GitLab 状态/最近登录，可停用启用、改身份部门称号，替换旧的「成员与权限」名单。"
-    },
-    {
-      "paths": [
-        "app/server/src/routes/admin/activity.ts",
-        "app/server/src/routes/admin/auth.ts",
-        "app/server/src/routes/admin/contracts.ts",
-        "app/server/src/routes/admin/feedback.ts",
-        "app/server/src/routes/admin/index.ts",
-        "app/server/src/routes/admin/invitations.ts",
-        "app/server/src/routes/admin/invite-links.ts",
-        "app/server/src/routes/admin/logs.ts",
-        "app/server/src/routes/admin/members.ts",
-        "app/server/src/routes/admin/org.ts",
-        "app/server/src/routes/admin/orgs.ts",
-        "app/server/src/routes/admin/overview.ts",
-        "app/server/src/routes/admin/repos.ts",
-        "app/server/src/routes/admin/security.ts",
-        "app/server/src/routes/admin/teams.ts"
-      ],
-      "domains": [
-        "audit",
-        "feedback",
-        "github",
-        "identity",
-        "invitations"
-      ],
-      "nodes": [
-        "domain:identity",
-        "domain:audit"
-      ],
-      "reason": "删除 GitHub 组织管理整条路由（activity/feedback/invitations/invite-links/logs/members/org/orgs/overview/repos/security/teams），只保留 GitHub OAuth 登录相关的 auth.ts/contracts.ts/index.ts（SPEC §3.9、CONTRACT-274 §8）。"
-    },
-    {
-      "paths": [
-        "app/server/src/routes/console/accounts.ts",
-        "app/server/src/routes/console/activity.ts",
-        "app/server/src/routes/console/applications.ts",
-        "app/server/src/routes/console/assignments.ts",
-        "app/server/src/routes/console/audit.ts",
-        "app/server/src/routes/console/catalogue.ts",
-        "app/server/src/routes/console/competition-roster.ts",
-        "app/server/src/routes/console/competitions.ts",
-        "app/server/src/routes/console/contracts.ts",
-        "app/server/src/routes/console/departments.ts",
-        "app/server/src/routes/console/feedback.ts",
-        "app/server/src/routes/console/gitlab.ts",
-        "app/server/src/routes/console/index.ts",
-        "app/server/src/routes/console/invites.ts",
-        "app/server/src/routes/console/me.ts",
-        "app/server/src/routes/console/people.ts",
-        "app/server/src/routes/console/permission-groups.ts",
-        "app/server/src/routes/console/permissions.ts",
-        "app/server/src/routes/console/titles.ts",
-        "app/server/src/routes/console/users.ts"
-      ],
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "gitlab",
-        "identity",
-        "organization",
-        "permissions",
-        "recruitment"
-      ],
-      "nodes": [
-        "domain:permissions",
-        "domain:organization",
-        "domain:gitlab",
         "domain:audit",
-        "domain:recruitment"
-      ],
-      "reason": "控制台路由按权限节点体系重做：新增 accounts/activity/permission-groups/permissions/users/gitlab/departments 路由，删除旧的 assignments/audit/catalogue/people/titles（CONTRACT-274 §5-7）。"
-    },
-    {
-      "paths": [
-        "app/server/src/routes/forum-api/forum-limits.ts",
-        "app/server/src/routes/forum-api/index.ts",
-        "app/server/src/routes/forum-api/people.ts",
-        "app/server/src/routes/forum-api/posts.ts",
-        "app/server/src/routes/forum-api/topics.ts",
-        "app/server/src/routes/forum-api/viewer.ts"
-      ],
-      "domains": [
-        "forum"
-      ],
-      "nodes": [
-        "domain:forum"
-      ],
-      "reason": "新增 forum-limits.ts 按等级实现论坛读/搜索/发帖/回帖/表情/上传的每小时与每分钟限额（SPEC §3.8），posts/topics/viewer 接入账号认人与限流判定；残留修复：话题/回复/点赞/收藏/关注改按权限节点（forum.topic.create/forum.reply.create/forum.react）判定写权限，取代旧的 access.member/access.capabilities（people.ts 的 follow 端点也改用 requireWriter）。"
-    },
-    {
-      "paths": [
-        "app/server/src/routes/identity/contracts.ts",
-        "app/server/src/routes/identity/device.ts",
-        "app/server/src/routes/identity/email.ts",
-        "app/server/src/routes/identity/google.ts",
-        "app/server/src/routes/identity/index.ts",
-        "app/server/src/routes/identity/profile.ts"
-      ],
-      "domains": [
-        "identity"
-      ],
-      "nodes": [
-        "domain:identity"
-      ],
-      "reason": "身份路由补齐资料、头像、邀请码兑换接口，GitHub/邮箱/Google 登录的邀请码改选填（CONTRACT-274 §1-2）。"
-    },
-    {
-      "paths": [
-        "app/server/src/routes/portal/apply.ts",
-        "app/server/src/routes/portal/competition-signups.ts",
-        "app/server/src/routes/portal/contracts.ts",
-        "app/server/src/routes/portal/departments.ts",
-        "app/server/src/routes/portal/events.ts",
-        "app/server/src/routes/portal/gitlab.ts",
-        "app/server/src/routes/portal/index.ts"
-      ],
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "gitlab",
-        "identity",
-        "invitations",
-        "organization",
-        "platform",
-        "public_content",
-        "recruitment"
-      ],
-      "nodes": [
+        "domain:competitions",
+        "domain:feedback",
+        "domain:github",
+        "domain:organization",
         "domain:recruitment",
-        "domain:identity",
-        "domain:audit",
-        "domain:gitlab"
+        "application:console"
       ],
-      "reason": "投递接口要求登录并按权限节点判定，按账号/IP/设备分别限额；新增公开部门列表、操作记录上报入口 POST /api/events、公开 GitLab 项目列表。"
+      "reason": "lib/activity.ts（查询串与动作文案）、mock/console.ts（整份 mock 后端）、router.ts（整份路由表）按模块归属覆盖控制台已有的六个业务域；这次改动只在查询参数、未知字段校验（和服务端 activityQuery 契约对齐）与一行页面浏览埋点上报里，其余五个域的现有行为不变。"
     },
     {
       "paths": [
-        "app/server/src/lib/account-avatar.ts",
-        "app/server/src/lib/account-directory.ts",
-        "app/server/src/lib/account-profiles.ts",
-        "app/server/src/lib/activity.ts",
-        "app/server/src/lib/apply-quota.ts",
-        "app/server/src/lib/beijing-time.ts",
-        "app/server/src/lib/competition-signup-store.ts",
-        "app/server/src/lib/console-scope.ts",
-        "app/server/src/lib/cursor.ts",
-        "app/server/src/lib/sql-text.ts",
-        "app/server/src/lib/db.ts",
-        "app/server/src/lib/forum-rules.ts",
-        "app/server/src/lib/forum-store.ts",
-        "app/server/src/lib/gitlab-sync.ts",
-        "app/server/src/lib/identity-store.ts",
-        "app/server/src/lib/limits.ts",
-        "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
-        "app/server/src/lib/permission-nodes.ts",
-        "app/server/src/lib/permissions.ts",
-        "app/server/src/lib/register-limits.ts",
-        "app/server/src/lib/safe-return.ts",
-        "app/server/src/lib/session.ts"
+        "app/forum/app/components/PostEditor.vue",
+        "app/forum/app/composables/useActivityBeacon.ts",
+        "app/forum/app/composables/useForumTheme.ts",
+        "app/forum/app/plugins/activity-beacon.client.ts",
+        "app/forum/tests/activity-beacon.test.ts",
+        "app/forum/tests/forum-theme.test.ts",
+        "app/forum/tests/post-editor.test.ts",
+        "app/forum/tests/support/post-editor.ts"
       ],
       "domains": [
-        "audit",
-        "competitions",
-        "feedback",
         "forum",
-        "gitlab",
-        "identity",
-        "invitations",
-        "mail",
-        "organization",
-        "permissions",
-        "platform",
-        "recruitment"
+        "audit"
       ],
       "nodes": [
-        "domain:permissions",
+        "domain:forum",
         "domain:audit",
-        "domain:identity"
+        "application:forum"
       ],
-      "reason": "新增权限引擎（permission-nodes.ts/permissions.ts）、统一迁移（migrations/2026-10-yugc-v2.ts）、账号资料/头像/邀请码目录（account-profiles.ts/account-avatar.ts/account-directory.ts）、操作记录写入口（activity.ts）、防盗刷计数引擎（limits.ts/apply-quota.ts）；db.ts 接入新迁移与 perm_* 建表。残留修复：新增 register-limits.ts（注册限额，按 IP/设备各走 hitAll），identity-store.ts 的 signInWithGithub/signInSecondChannel 在真的要建号那一步接入它；团队负责人两轮只读审查发现的阻塞与非阻塞项（A-Q）：permissions.ts 新增站长判定/等级组 id 辅助函数与 setExclusiveGroupMembership 的 expiresAt 参数（替代 users.ts、permission-groups.ts 各自重复的 DELETE+INSERT）；新增 cursor.ts（分页游标编解码，替代 users.ts/activity.ts 各一份重复实现）与 sql-text.ts（LIKE/CSV 转义，替代三处不一致的实现，activity.ts 那份原来没有防公式注入）；migrations/2026-10-yugc-v2.ts 新增 perm_seed_applied 台账（种子与 role_assignments 映射只应用一次，重启不再覆盖所有者的改动）、迁移第 6 步补搬论坛头像字节、第 7 步复制时打码邀请链接 token；db.ts 新增 perm_seed_applied 建表；activity.ts 新增 403/429 按主体+分钟合并写一行的 recordDenial，UA 截断 256 字符；console-scope.ts 的 departmentScopedAccess 改成部门级 allow 减去部门级 deny。"
+      "reason": "论坛新增批量上报组合式函数 useActivityBeacon 与按页面切换上报 page.view 的插件，换主题和插入表情各补一次上报；测试支持文件和既有用例补上 stub，验证换主题、插表情和埋点节流/刷新都按预期上报。"
     },
     {
       "paths": [
-        "app/server/src/middleware/http-policy.ts",
-        "app/server/src/middleware/require-auth.ts",
-        "app/server/src/middleware/require-capability.ts",
-        "app/server/src/middleware/require-github-session.ts",
-        "app/server/src/middleware/require-github.ts",
-        "app/server/src/middleware/require-member.ts",
-        "app/server/src/middleware/require-permission.ts",
-        "app/server/src/middleware/require-step-up.ts",
-        "app/server/src/middleware/visitor.ts"
+        "app/server/src/lib/activity.ts",
+        "app/server/src/routes/portal/contracts.ts",
+        "app/server/src/routes/portal/events.ts",
+        "tests/server/events.test.ts"
       ],
       "domains": [
         "audit",
         "competitions",
         "feedback",
-        "forum",
-        "github",
+        "gitlab",
         "identity",
-        "invitations",
-        "organization",
         "platform",
         "public_content",
         "recruitment"
       ],
       "nodes": [
-        "domain:permissions",
+        "domain:audit",
+        "domain:competitions",
+        "domain:feedback",
+        "domain:gitlab",
         "domain:identity",
-        "domain:platform"
+        "domain:platform",
+        "domain:public_content",
+        "domain:recruitment",
+        "application:server"
       ],
-      "reason": "新增按权限节点判定的 require-permission.ts（取代按 Capability 判定的 require-capability.ts）与控制台写操作的 require-step-up.ts；require-auth.ts/visitor.ts 的会话类型扩展挪到 lib/session.ts；http-policy.ts 补 /api/events 的白名单。残留修复：确认 require-capability.ts 零调用方后删除（见 removals）；http-policy.ts 的 recordDenialOrLimit 改调 recordDenial（403/429 合并写一行）并从响应体取 bucket 写进 meta.bucket。"
+      "reason": "按来源拆分事件白名单：forum.theme.change 和新增的 forum.sticker.use 只在论坛白名单里生效，控制台只认 page.view；POST /api/events 的 body 加可选 surface 字段。contracts.ts 是门户全部路由的共用契约文件，按模块归属覆盖门户已有的全部业务域，这次只改动事件上报这一段契约，其余路由契约不变。回归测试覆盖按来源过滤、未知 surface 拒绝、原有无 surface 调用仍按门户走。"
     },
     {
       "paths": [
-        "app/server/src/app.ts"
+        "app/server/src/routes/forum-api/posts.ts",
+        "tests/server/forum.test.ts"
       ],
       "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "应用入口去掉 admin 的 GitHub 组织路由注册，接入权限引擎初始化与操作记录清理调度。"
-    },
-    {
-      "paths": [
-        "app/server/src/config.ts"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "去掉 ALLOWED_ORGS 读取；CONSOLE_ORG 仅保留给 GitHub App、意见箱分类与审计使用的说明。"
-    },
-    {
-      "paths": [
-        "app/server/src/index.ts"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "启动流程接入新迁移与权限引擎、操作记录保留清理调度。"
-    },
-    {
-      "paths": [
-        "app/server/src/services.ts"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "服务容器去掉 GitHub 组织管理服务，接入 GitLab 同步与权限引擎依赖。"
-    },
-    {
-      "paths": [
-        "app/server/test/fixtures/permission-vectors.json"
-      ],
-      "domains": [
-        "permissions"
-      ],
-      "nodes": [
-        "domain:permissions"
-      ],
-      "reason": "按 ibuki-next 的权限向量格式搬入固定测试向量，覆盖继承、meta 取值与过期三类用例（SPEC §3.5）。"
-    },
-    {
-      "paths": [
-        "deploy/compose/preview.yml",
-        "deploy/compose/production.yml"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "预发布与正式 compose 去掉 ALLOWED_ORGS 环境变量传递，保留 CONSOLE_ORG。"
-    },
-    {
-      "paths": [
-        "deploy/env/.env.preview",
-        "deploy/env/.env.production"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "预发布与正式 env 模板去掉 ALLOWED_ORGS，CONSOLE_ORG 注释改为「只给 GitHub App、意见箱分类和审计用，#274 起不再有组织登录门槛」。"
-    },
-    {
-      "paths": [
-        "docs/architecture/API.md"
-      ],
-      "domains": [
-        "permissions"
-      ],
-      "nodes": [
-        "domain:permissions"
-      ],
-      "reason": "补齐权限体系、操作记录、GitLab 控制台几条链路的接口说明，去掉已删除的 GitHub 组织管理接口描述。"
-    },
-    {
-      "paths": [
-        "docs/architecture/SECURITY.md"
-      ],
-      "domains": [
-        "permissions",
+        "forum",
         "audit"
       ],
       "nodes": [
-        "domain:permissions",
-        "domain:audit"
+        "domain:forum",
+        "domain:audit",
+        "application:server"
       ],
-      "reason": "团队负责人只读审查后的残留修复（item Q）：「极客班控制台：称号与能力」整节改写成权限节点模型——perm_groups/perm_group_parents/perm_entries/perm_members 的数据形状、explain/evaluate 的 deny-first 判定、等级与部门继承链、站长保护（任免/编辑/最后一人）、requireScopedPermission 的部门范围判定与部门级 deny 减法、step-up、console.access、perm_seed_applied 种子台账、操作记录改走 recordActivity；不再出现已删除的旧称号模型（提督/舰长/队长/舰员/领航员/乘客）、/api/console/people、/api/admin/:org/*。"
+      "reason": "表情回应的新增与取消此前没写操作记录，补上 recordActivity(action: forum.react)；回归测试断言两种情况都落一条审计行。"
     },
     {
       "paths": [
@@ -980,923 +222,67 @@
         "docs/architecture/catalog/routes.md"
       ],
       "domains": [
-        "platform"
+        "audit"
       ],
       "nodes": [
-        "domain:platform"
+        "domain:audit"
       ],
-      "reason": "项目目录按本次路由/流程/归属改动重新生成（pnpm catalog:generate 的全部产物：catalog.json/CATALOG.md/data-model.md/map.html/permissions.md/routes.md）与手工维护的 ownership.json 输入。"
+      "reason": "ownership.json 补上新文件的模块归属、事件上报流程的证据锚点和表情回应流程的审计域关联，pnpm catalog:generate 重新生成其余产物。"
     },
     {
       "paths": [
-        "docs/services/console/README.md"
-      ],
-      "domains": [
-        "organization",
-        "permissions"
-      ],
-      "nodes": [
-        "domain:organization",
-        "domain:permissions"
-      ],
-      "reason": "控制台服务契约按新导航（用户/权限/GitLab/记录）与 #274 阶段性交付更新。"
-    },
-    {
-      "paths": [
-        "docs/services/server/data-model.md",
+        "docs/services/console/README.md",
+        "docs/services/forum/README.md",
         "docs/services/server/endpoint-contracts.md",
         "docs/services/server/README.md"
       ],
       "domains": [
-        "audit",
-        "identity",
-        "permissions"
+        "audit"
       ],
       "nodes": [
-        "domain:identity",
-        "domain:permissions",
         "domain:audit"
       ],
-      "reason": "服务端接口契约、数据模型与服务说明按本次新增/删除的接口与表结构同步（endpoint-contracts.md 删除全部已退役的 GitHub 组织管理章节，补齐权限/操作记录/GitLab/身份资料几条链路）。"
+      "reason": "三端服务文档同步写上新模块和埋点位置，endpoint-contracts.md 改写 /api/events 一节说明按来源分流，并修正一处过期的匿名限流描述。"
     },
     {
       "paths": [
-        "scripts/deployment-environment.mjs"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "部署环境变量清单去掉 ALLOWED_ORGS 对应条目。"
-    },
-    {
-      "paths": [
-        "tests/console/account.test.ts",
-        "tests/console/activity.test.ts",
-        "tests/console/competition-hub.test.ts",
-        "tests/console/gitlab.test.ts",
-        "tests/console/http.test.ts",
-        "tests/console/mock-sync.test.ts",
-        "tests/console/nav.test.ts",
-        "tests/console/org-settings.test.ts",
-        "tests/console/people.test.ts",
-        "tests/console/permission-tree.test.ts",
-        "tests/console/permissions.test.ts",
-        "tests/console/signed-out.test.ts",
-        "tests/console/signin.test.ts",
-        "tests/console/users.test.ts"
+        "app/console/src/pages/Overview.vue",
+        "app/console/src/pages/Applications.vue"
       ],
       "domains": [
         "audit",
-        "gitlab",
-        "identity",
-        "organization",
-        "permissions"
-      ],
-      "nodes": [
-        "domain:permissions",
-        "domain:organization",
-        "domain:gitlab",
-        "domain:audit",
-        "domain:identity"
-      ],
-      "reason": "控制台回归按新页面与接口形状重写（用户/权限/操作记录/GitLab/登录/签出状态/导航），删除 mock-sync/org-settings/people/permission-tree 几个针对已删页面的旧用例。"
-    },
-    {
-      "paths": [
-        "tests/e2e/workflows.spec.ts"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "端到端工作流用例按新控制台导航与登录态字段调整断言。"
-    },
-    {
-      "paths": [
-        "tests/server/activity.test.ts",
-        "tests/server/applications.test.ts",
-        "tests/server/competition-scores.test.ts",
-        "tests/server/competition-signups.test.ts",
-        "tests/server/competitions.test.ts",
-        "tests/server/console-permissions.test.ts",
-        "tests/server/console-scope.test.ts",
-        "tests/server/console-users.test.ts",
-        "tests/server/console.test.ts",
-        "tests/server/core.test.ts",
-        "tests/server/device-flow.test.ts",
-        "tests/server/events.test.ts",
-        "tests/server/forum.test.ts",
-        "tests/server/github-connection.test.ts",
-        "tests/server/gitlab-sync.test.ts",
-        "tests/server/helpers.ts",
-        "tests/server/identity.test.ts",
-        "tests/server/invitations.test.ts",
-        "tests/server/legacy-database.test.ts",
-        "tests/server/mail-outbox.test.ts",
-        "tests/server/oidc.test.ts",
-        "tests/server/permissions.test.ts",
-        "tests/server/profile.test.ts",
-        "tests/server/rate-limits.test.ts",
-        "tests/server/signin-methods.test.ts",
-        "tests/server/upstream-errors.test.ts",
-        "tests/server/visitor.test.ts",
-        "tests/server/yugc-v2-migration.test.ts"
-      ],
-      "domains": [
-        "audit",
-        "forum",
-        "gitlab",
-        "identity",
-        "permissions",
-        "platform",
-        "recruitment"
-      ],
-      "nodes": [
-        "domain:identity",
-        "domain:permissions",
-        "domain:audit",
-        "domain:platform",
-        "domain:recruitment",
-        "domain:forum",
-        "domain:gitlab"
-      ],
-      "reason": "服务端回归新增/改写：权限引擎求值、迁移两轮演练、操作记录写入与保留清理、各类限额 429、投递/比赛/论坛改按权限节点判定、控制台用户与权限接口、GitLab 同步、身份资料与头像、邀请码兑换。残留修复新增 console-scope.test.ts（departmentScopedAccess 纯函数：部门级 deny 减去部门级 allow）；console.test.ts/console-permissions.test.ts/console-users.test.ts/forum.test.ts/events.test.ts/rate-limits.test.ts/permissions.test.ts/yugc-v2-migration.test.ts/legacy-database.test.ts/signin-methods.test.ts 新增站长保护、部门范围投递接口、台账回填、403/429 合并写、IP 哈希限流等用例。"
-    },
-    {
-      "paths": [
-        "docs/ops/CICD.md",
-        "docs/ops/DEPLOY.md",
-        "docs/ops/ENVIRONMENTS.md"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "ENVIRONMENTS.md 去掉已删除的 ALLOWED_ORGS 条目、合并 CONSOLE_ORG 的新说明；DEPLOY.md、CICD.md 核对内容仍准确，更新日期跟上本次改动。"
-    },
-    {
-      "paths": [
-        "docs/INDEX.md"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "文档索引随 docs 改动重新生成（node scripts/docs-index.mjs）。"
-    },
-    {
-      "paths": [
-        "docs/plan/CONSOLE-PERMISSION-TREE.md",
-        "docs/plan/README.md",
-        "docs/plan/YUGC-OS-V2.md"
-      ],
-      "domains": [
-        "organization",
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform",
-        "domain:organization"
-      ],
-      "reason": "新增 #274-#278 批次总览 YUGC-OS-V2.md 并登记进 plan/README.md 索引；CONSOLE-PERMISSION-TREE.md 的死链接改成纯文本。"
-    },
-    {
-      "paths": [
-        "docs/plan/CONSOLE-PERMISSION-TREE.md"
-      ],
-      "domains": [
-        "organization"
-      ],
-      "nodes": [
-        "domain:organization"
-      ],
-      "reason": "#176 历史记录里指向已删除控制台文件（People.vue、PermissionTree.vue 等）的死链接改成纯文本，标注这些文件已随 #274 控制台改造删除或改名，不改写历史结论本身。"
-    },
-    {
-      "paths": [
-        "app/server/src/lib/github-http.ts",
-        "app/server/src/lib/auth.ts",
-        "app/server/src/lib/access.ts",
-        "app/server/src/routes/identity/account.ts",
-        "app/server/src/routes/oidc/index.ts",
-        "app/server/src/cli/account.ts",
-        "app/server/src/cli/oidc.ts",
-        "app/server/src/lib/google.ts"
-      ],
-      "domains": [
-        "identity",
-        "organization",
         "github",
-        "invitations"
-      ],
-      "nodes": [
-        "domain:identity",
-        "domain:organization",
-        "domain:github",
-        "domain:invitations"
-      ],
-      "reason": "review round 1 身份收尾：access.ts 不再查 GitHub 组织角色、身份只读权限表；lib/github.ts 去掉组织查询后改名 github-http.ts；auth.* 失败、绑定、解绑写操作记录；OIDC 与命令行工具跟着去掉组织门槛与 audit_logs。"
-    },
-    {
-      "paths": [
-        "app/server/src/routes/portal/public-config.ts",
-        "app/server/src/routes/portal/feedback.ts"
-      ],
-      "domains": [
-        "platform",
-        "feedback",
-        "invitations"
-      ],
-      "nodes": [
-        "domain:platform",
-        "domain:feedback",
-        "domain:invitations"
-      ],
-      "reason": "/api/join/:token 下线后公开配置接口单独成文件；意见箱提交改写操作记录（item I）。"
-    },
-    {
-      "paths": [
-        "app/forum/app/components/LoginModal.vue",
-        "app/forum/app/components/SignInState.vue",
-        "app/forum/app/composables/useSiteAccount.ts",
-        "app/forum/app/data/access.ts",
-        "app/forum/app/pages/new.vue",
-        "app/forum/shared/signin-outcomes.ts",
-        "app/forum/shared/site-account.ts",
-        "app/forum/shared/site-notice.ts",
-        "app/forum/tests/access.test.ts",
-        "app/forum/tests/login-modal.test.ts",
-        "app/forum/tests/signin-outcomes.test.ts",
-        "app/forum/tests/site-account.test.ts",
-        "docs/services/forum/README.md"
-      ],
-      "domains": [
-        "forum",
-        "identity"
-      ],
-      "nodes": [
-        "domain:forum",
-        "domain:identity"
-      ],
-      "reason": "/auth/me 按 CONTRACT-274 §1 改形状（level 不带前缀、permissions 是数组、identities 是对象）后，论坛读身份与登录结果的地方跟着改，登录被拒的文案去掉 GitHub 组织那一种。"
-    },
-    {
-      "paths": [
-        "scripts/deploy-manual.mjs",
-        ".github/workflows/deploy-preview.yml",
-        ".github/workflows/deploy-production.yml",
-        "tests/tooling/deployment-environment.test.ts",
-        "docs/ops/ENVIRONMENT.md"
-      ],
-      "domains": [
-        "platform",
-        "github"
-      ],
-      "nodes": [
-        "domain:platform",
-        "domain:github"
-      ],
-      "reason": "GitHub App 删除后 GH_APP_ID/GH_APP_PRIVATE_KEY 没有读者，从环境模板、手动部署脚本、部署工作流和 compose 里去掉；目标机旧 env 文件里残留这两个键不影响渲染（只按入库模板整份生成）。"
-    },
-    {
-      "paths": [
-        "app/server/src/lib/github.ts",
-        "app/server/src/routes/portal/join.ts",
-        "app/server/src/lib/github-connection.ts",
-        "app/server/src/lib/invite-reservation.ts"
-      ],
-      "domains": [
-        "github",
-        "identity",
         "organization",
-        "invitations",
-        "platform"
-      ],
-      "nodes": [
-        "domain:github",
-        "domain:identity",
-        "domain:organization",
-        "domain:invitations",
-        "domain:platform"
-      ],
-      "reason": "删除的 GitHub 组织代码：组织查询、GitHub App 接入、公开邀请链接与它的名额预占，删除依据见 removals。"
-    }
-  ],
-  "removals": [
-    {
-      "path": "app/server/src/middleware/require-github-session.ts",
-      "baseAnchor": "* 只对「本人的 GitHub」有意义的接口（现在只有 `GET /api/me/orgs`，列本人加入的 GitHub 组织）：邮箱、Google 会话没有 GitHub 令牌，",
-      "domains": [
-        "audit",
+        "recruitment",
         "competitions",
-        "feedback",
-        "forum",
-        "github",
-        "identity",
-        "invitations",
-        "organization",
-        "platform",
-        "public_content",
-        "recruitment"
-      ],
-      "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
-    },
-    {
-      "path": "app/server/src/middleware/require-github.ts",
-      "baseAnchor": "declare module \"fastify\" {",
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "forum",
-        "github",
-        "identity",
-        "invitations",
-        "organization",
-        "platform",
-        "public_content",
-        "recruitment"
-      ],
-      "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
-    },
-    {
-      "path": "app/server/src/middleware/require-capability.ts",
-      "baseAnchor": "export function requireCapability(...anyOf: Capability[]) {",
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "forum",
-        "github",
-        "identity",
-        "invitations",
-        "organization",
-        "platform",
-        "public_content",
-        "recruitment"
-      ],
-      "reason": "团队负责人只读审查后的残留修复（item A 收尾）：按能力判定的旧中间件已经没有任何真实调用方（路由早前全部切到按权限节点判定的 require-permission.ts，这里只是删掉确认死掉的文件），确认零调用方后删除；取代它的 require-permission.ts/lib/console-scope.ts 已在本次改动的其它 coverage 条目里。"
-    },
-    {
-      "path": "app/server/src/routes/admin/activity.ts",
-      "baseAnchor": "export default async function activityRoutes(app: FastifyInstance) {",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
-    },
-    {
-      "path": "app/server/src/routes/admin/feedback.ts",
-      "baseAnchor": "const VALID_STATUS: readonly string[] = FEEDBACK_STATUSES;",
-      "domains": [
         "feedback"
       ],
-      "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
-    },
-    {
-      "path": "app/server/src/routes/admin/invitations.ts",
-      "baseAnchor": "export default async function invitationsRoutes(app: FastifyInstance) {",
-      "domains": [
-        "invitations"
+      "nodes": [
+        "domain:audit",
+        "domain:recruitment",
+        "application:console",
+        "flow:console.identity",
+        "flow:application.list",
+        "flow:audit.console.activity.list"
       ],
-      "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
-    },
-    {
-      "path": "app/server/src/routes/admin/invite-links.ts",
-      "baseAnchor": "type CreateBody = {",
-      "domains": [
-        "invitations"
-      ],
-      "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
-    },
-    {
-      "path": "app/server/src/routes/admin/logs.ts",
-      "baseAnchor": "export default async function logsRoutes(app: FastifyInstance) {",
-      "domains": [
-        "audit"
-      ],
-      "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
-    },
-    {
-      "path": "app/server/src/routes/admin/members.ts",
-      "baseAnchor": "export default async function membersRoutes(app: FastifyInstance) {",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
-    },
-    {
-      "path": "app/server/src/routes/admin/org.ts",
-      "baseAnchor": "const EDITABLE_KEYS = [",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
-    },
-    {
-      "path": "app/server/src/routes/admin/orgs.ts",
-      "baseAnchor": "export default async function orgsRoutes(app: FastifyInstance) {",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
-    },
-    {
-      "path": "app/server/src/routes/admin/overview.ts",
-      "baseAnchor": "export default async function overviewRoutes(app: FastifyInstance) {",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
-    },
-    {
-      "path": "app/server/src/routes/admin/repos.ts",
-      "baseAnchor": "export default async function reposRoutes(app: FastifyInstance) {",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
-    },
-    {
-      "path": "app/server/src/routes/admin/security.ts",
-      "baseAnchor": "export default async function securityRoutes(app: FastifyInstance) {",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
-    },
-    {
-      "path": "app/server/src/routes/admin/teams.ts",
-      "baseAnchor": "export default async function teamsRoutes(app: FastifyInstance) {",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
-    },
-    {
-      "path": "app/server/src/routes/console/assignments.ts",
-      "baseAnchor": "/** 指派给谁：`account_id`（极客班账号，没绑 GitHub 的也行）或 `github_login`（GitHub 用户名），二选一（#262 第四期）。 */",
-      "domains": [
-        "organization"
-      ],
-      "reason": "#274 阶段2：assignments/audit/catalogue/people/titles 这几条旧控制台路由按权限节点体系重写（新路由 accounts.ts/activity.ts/users.ts/permission-groups.ts/permissions.ts/departments.ts），旧的按 Capability+GitHub 组织角色判定的实现整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/server/src/routes/console/audit.ts",
-      "baseAnchor": "type AuditRow = { id: number; actor: string; action: string; target: string | null; details: string | null; ip: string | null; created_at: number };",
-      "domains": [
-        "audit"
-      ],
-      "reason": "#274 阶段2：assignments/audit/catalogue/people/titles 这几条旧控制台路由按权限节点体系重写（新路由 accounts.ts/activity.ts/users.ts/permission-groups.ts/permissions.ts/departments.ts），旧的按 Capability+GitHub 组织角色判定的实现整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/server/src/routes/console/catalogue.ts",
-      "baseAnchor": "APPLICATION_STATUSES, CAPABILITIES, CAPTAIN_ONLY, CREW_TITLE, DEPARTMENT_ICONS, DOMAINS, IMPLIES, TITLES, TITLE_IDS, TONES,",
-      "domains": [
-        "organization"
-      ],
-      "reason": "#274 阶段2：assignments/audit/catalogue/people/titles 这几条旧控制台路由按权限节点体系重写（新路由 accounts.ts/activity.ts/users.ts/permission-groups.ts/permissions.ts/departments.ts），旧的按 Capability+GitHub 组织角色判定的实现整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/server/src/routes/console/people.ts",
-      "baseAnchor": "type Person = {",
-      "domains": [
-        "organization"
-      ],
-      "reason": "#274 阶段2：assignments/audit/catalogue/people/titles 这几条旧控制台路由按权限节点体系重写（新路由 accounts.ts/activity.ts/users.ts/permission-groups.ts/permissions.ts/departments.ts），旧的按 Capability+GitHub 组织角色判定的实现整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/server/src/routes/console/titles.ts",
-      "baseAnchor": "* 称号是数据：名字、标签、图标、色调、说明和权限包由提督（与持有 roles.manage 的舰长）在控制台改，不改代码。",
-      "domains": [
-        "organization"
-      ],
-      "reason": "#274 阶段2：assignments/audit/catalogue/people/titles 这几条旧控制台路由按权限节点体系重写（新路由 accounts.ts/activity.ts/users.ts/permission-groups.ts/permissions.ts/departments.ts），旧的按 Capability+GitHub 组织角色判定的实现整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/console/src/lib/github.ts",
-      "baseAnchor": "// GitHub 组织页面共用：接口前缀与「能否写」。组织固定为 /api/console/me 返回的 org（服务端 CONSOLE_ORG）；",
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/lib/icons.ts",
-      "baseAnchor": "// 运行时才知道的图标：称号与部门的图标由 /api/console/* 下发（Carbon 图标名，不带前缀），而且可以在控制台里改。",
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/lib/org-settings.ts",
-      "baseAnchor": "// 组织资料表单：字段清单与「改了什么」的计算。纯函数，tests/console 直接测。",
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/mock/github.ts",
-      "baseAnchor": "// 开发预览：`/api/admin/:org/*` 的只读样板数据（全部虚构）。形状与 app/server/src/routes/admin/*.ts 的返回一致。",
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/Activity.vue",
-      "baseAnchor": "type Event = { id: string; actor: string; actor_avatar: string | null; payload_summary: string; repo: string | null; created_at: string; type: string };",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/CreateRepo.vue",
-      "baseAnchor": "const router = useRouter();",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/Invitations.vue",
-      "baseAnchor": "type Pending = { id: number; login: string | null; email: string | null; role: string; inviter?: { login?: string } | null; created_at: string };",
-      "domains": [
-        "invitations"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/InviteLinks.vue",
-      "baseAnchor": "type Link = { token: string; note: string | null; max_uses: number; current_uses: number; expires_at: number; team_slug: string | null; disabled: number; created_by: string; created_at: number };",
-      "domains": [
-        "invitations"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/Members.vue",
-      "baseAnchor": "type Member = { login: string; avatar_url: string | null; role: string; state: string };",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/OrgSettings.vue",
-      "baseAnchor": "const { org, apiBase, can } = useOrg();",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/Overview.vue",
-      "baseAnchor": "type OrgInfo = { login: string; name: string | null; avatar_url: string | null; html_url: string; description: string | null; plan: string | null; public_repos: number; total_private_repos: number; two_factor_required: boolean; disk_usage_mb: number; created_at: string };",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/RepoDetail.vue",
-      "baseAnchor": "const route = useRoute();",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/Repos.vue",
-      "baseAnchor": "name: string; description: string | null; visibility: string; archived: boolean; default_branch: string; size_kb: number;",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/Security.vue",
-      "baseAnchor": "type Alert = { number: number; security_advisory?: { severity?: string; summary?: string }; repository?: { full_name?: string }; dependency?: { package?: { name?: string } } };",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/Teams.vue",
-      "baseAnchor": "type Team = { name: string; slug: string; description: string | null; privacy: string; member_count: number; repo_count: number };",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/repo/BranchSelect.vue",
-      "baseAnchor": "const props = defineProps<{ branches: Branch[]; modelValue: string }>();",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/repo/CodeTab.vue",
-      "baseAnchor": "type Entry = { name: string; path: string; type: \"dir\" | \"file\"; size: number };",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/repo/CommitsTab.vue",
-      "baseAnchor": "type Commit = { sha: string; short_sha: string; message: string; author: { name: string; date: string }; actor: Person | null };",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/repo/DiffBlock.vue",
-      "baseAnchor": "/** 文件改动列表：每个文件一个折叠面板，展开后显示 patch（增删行分别着色）。前三个文件默认展开。 */",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/repo/SettingsTab.vue",
-      "baseAnchor": "const props = defineProps<{ repoApi: string; detail: RepoResponse }>();",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/repo/ThreadDetail.vue",
-      "baseAnchor": "type Detail = {",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/repo/ThreadsTab.vue",
-      "baseAnchor": "type Thread = { number: number; title: string; state: string; draft?: boolean; merged?: boolean; comments?: number; user: Person; labels?: Label[]; head?: string; base?: string; created_at: string; updated_at: string };",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/pages/github/repo/types.ts",
-      "baseAnchor": "// 仓库详情接口的前端形状（服务端 app/server/src/routes/admin/repos.ts）。",
-      "domains": [
-        "github"
-      ],
-      "reason": "#274 阶段1/2a：控制台「GitHub 组织」整组页面随 GitHub 组织管理一起删除（SPEC §3.9），导航与数据改接 GitLab 概览/项目/设置（见 gitlab/*.vue）。"
-    },
-    {
-      "path": "app/console/src/lib/people.ts",
-      "baseAnchor": "// 「成员与权限」名单：每人一行（GET /api/console/people），像飞书通讯录一样按部门分组。纯函数，tests/console 直接测。",
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "reason": "#274 阶段2a：控制台「成员与权限」页改成按权限节点的「用户」「权限」两组新页面（Users.vue、Permissions.vue 及其子组件），旧的称号指派、权限树只读页、站内角色对话框整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/console/src/lib/permission-boundaries.ts",
-      "baseAnchor": "// 展示说明，不参与鉴权。执行点随 routes/console、routes/forum-api 和 API/SECURITY 契约同步。",
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "reason": "#274 阶段2a：控制台「成员与权限」页改成按权限节点的「用户」「权限」两组新页面（Users.vue、Permissions.vue 及其子组件），旧的称号指派、权限树只读页、站内角色对话框整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/console/src/lib/permission-tree.ts",
-      "baseAnchor": "export type PermissionNode = {",
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "reason": "#274 阶段2a：控制台「成员与权限」页改成按权限节点的「用户」「权限」两组新页面（Users.vue、Permissions.vue 及其子组件），旧的称号指派、权限树只读页、站内角色对话框整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/console/src/lib/titles.ts",
-      "baseAnchor": "// 称号的显示与编辑规则。纯函数，tests/console 直接测。",
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "reason": "#274 阶段2a：控制台「成员与权限」页改成按权限节点的「用户」「权限」两组新页面（Users.vue、Permissions.vue 及其子组件），旧的称号指派、权限树只读页、站内角色对话框整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/console/src/pages/Audit.vue",
-      "baseAnchor": "const PAGE_SIZE = 50;",
-      "domains": [
-        "audit"
-      ],
-      "reason": "#274 阶段2a：控制台「成员与权限」页改成按权限节点的「用户」「权限」两组新页面（Users.vue、Permissions.vue 及其子组件），旧的称号指派、权限树只读页、站内角色对话框整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/console/src/pages/People.vue",
-      "baseAnchor": "GROUP_ALL, GROUP_NONE, canAppointCaptain, githubRoleText, holdersOf, isOwnCaptainRow, leadsOf, mayRevoke, peopleGroups, peopleInGroup, personKey,",
-      "domains": [
-        "organization"
-      ],
-      "reason": "#274 阶段2a：控制台「成员与权限」页改成按权限节点的「用户」「权限」两组新页面（Users.vue、Permissions.vue 及其子组件），旧的称号指派、权限树只读页、站内角色对话框整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/console/src/pages/people/AssignDialog.vue",
-      "baseAnchor": "* 添加称号。能管理全部称号的人能指派 captain 以外的全部称号；captain 一项只有 admin 和现任 captain 能选，",
-      "domains": [
-        "organization"
-      ],
-      "reason": "#274 阶段2a：控制台「成员与权限」页改成按权限节点的「用户」「权限」两组新页面（Users.vue、Permissions.vue 及其子组件），旧的称号指派、权限树只读页、站内角色对话框整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/console/src/pages/people/BundleDialog.vue",
-      "baseAnchor": "* 编辑部门权限包：按能力类别分组，每项两个复选框（head / 带部门的 member，名字取 catalogue）。",
-      "domains": [
-        "organization"
-      ],
-      "reason": "#274 阶段2a：控制台「成员与权限」页改成按权限节点的「用户」「权限」两组新页面（Users.vue、Permissions.vue 及其子组件），旧的称号指派、权限树只读页、站内角色对话框整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/console/src/pages/people/PermissionTree.vue",
-      "baseAnchor": "const props = defineProps<{ departments: Resource<{ departments: Department[] }> }>();",
-      "domains": [
-        "organization"
-      ],
-      "reason": "#274 阶段2a：控制台「成员与权限」页改成按权限节点的「用户」「权限」两组新页面（Users.vue、Permissions.vue 及其子组件），旧的称号指派、权限树只读页、站内角色对话框整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/console/src/pages/people/SiteRoleDialog.vue",
-      "baseAnchor": "const props = defineProps<{ open: boolean; person: Person | null }>();",
-      "domains": [
-        "organization"
-      ],
-      "reason": "#274 阶段2a：控制台「成员与权限」页改成按权限节点的「用户」「权限」两组新页面（Users.vue、Permissions.vue 及其子组件），旧的称号指派、权限树只读页、站内角色对话框整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/console/src/pages/people/TitleDialog.vue",
-      "baseAnchor": "TITLE_DESCRIPTION_MAX, TITLE_LABEL_MAX, TONE_NAMES, closure, titleBundleError, titleDraftErrors, titleLabel, titlePatch, toneColor,",
-      "domains": [
-        "organization"
-      ],
-      "reason": "#274 阶段2a：控制台「成员与权限」页改成按权限节点的「用户」「权限」两组新页面（Users.vue、Permissions.vue 及其子组件），旧的称号指派、权限树只读页、站内角色对话框整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/console/src/pages/people/TitleList.vue",
-      "baseAnchor": "* 只有持有 roles.manage 的人看得到这个分区（服务端也只认这项能力）；最高的两级（admin、captain）只有 admin 本人能改，",
-      "domains": [
-        "organization"
-      ],
-      "reason": "#274 阶段2a：控制台「成员与权限」页改成按权限节点的「用户」「权限」两组新页面（Users.vue、Permissions.vue 及其子组件），旧的称号指派、权限树只读页、站内角色对话框整体删除，不是原地改名。"
-    },
-    {
-      "path": "app/server/src/lib/github.ts",
-      "baseAnchor": "export function createGithub(factory: (token: string) => Octokit = token => new Octokit({ auth: token, userAgent: \"yzgc-admin\", request: { fetch: withTimeout(fetch, GITHUB_TIMEOUT_MS) } })) {",
-      "domains": [
-        "github",
-        "identity",
-        "organization",
-        "invitations"
-      ],
-      "reason": "#274 review round 1（CONTRACT-274 §8）：GitHub 组织管理整段删除后，组织角色、成员、用户、邀请的 Octokit 查询没有调用方了；剩下的登录超时工具与测试用的 octokitWith 工厂改名为 lib/github-http.ts（只归身份域），GitHub 登录仍由 lib/auth.ts 直接请求。"
-    },
-    {
-      "path": "app/server/src/routes/portal/join.ts",
-      "baseAnchor": "export default async function joinRoutes(app: FastifyInstance) {",
-      "domains": [
-        "invitations",
-        "platform"
-      ],
-      "reason": "#274 review round 1（CONTRACT-274 §8）：GitHub 组织管理整段删除后，公开的 GitHub 组织邀请链接 GET/POST /api/join/:token 一起下线；和邀请链接无关的 GET /api/public/config 原样挪到 routes/portal/public-config.ts。invite_links/invitations/invite_attempts 三张表保留给历史数据，不再读写。"
-    },
-    {
-      "path": "app/server/src/lib/github-connection.ts",
-      "baseAnchor": "export function appJwt(app: GithubAppConfig, nowMs: number): string {",
-      "domains": [
-        "github",
-        "organization",
-        "invitations"
-      ],
-      "reason": "#274 review round 1（CONTRACT-274 §8）：GitHub 组织管理整段删除后，服务器接入的 GitHub App（安装令牌、组织读写）没有调用方了，连同 GH_APP_ID/GH_APP_PRIVATE_KEY 环境契约一起删除。"
-    },
-    {
-      "path": "app/server/src/lib/invite-reservation.ts",
-      "baseAnchor": "export function reserveInvite(db: Database.Database, token: string, recipient: string): Attempt {",
-      "domains": [
-        "invitations"
-      ],
-      "reason": "#274 review round 1（CONTRACT-274 §8）：GitHub 组织管理整段删除后，只有 /api/join/:token 用这个文件给组织邀请预占名额，随它一起删除。"
+      "reason": "控制台全量过一遍（所有者 2026-10-25 00:13「你去全量看看哪能有那么丑的啊」）时发现：概览「最近操作」请求操作记录带 `limit=6`，契约不认，整块 400，改成不带参数、只显示最新 6 条；投递列表在手机上横向溢出，窄于 640px 时换成一份一张卡。这两个页面在目录里登记在招新、组织、GitHub 等域下，本次只动操作记录读取和投递列表的窄屏显示。"
     }
   ],
   "documents": [
-    "docs/services/server/README.md",
-    "docs/services/server/endpoint-contracts.md",
-    "docs/services/server/data-model.md",
     "docs/services/console/README.md",
-    "docs/architecture/API.md",
-    "docs/architecture/SECURITY.md",
-    "docs/plan/YUGC-OS-V2.md",
     "docs/services/forum/README.md",
-    "docs/ops/ENVIRONMENT.md"
+    "docs/services/server/README.md",
+    "docs/services/server/endpoint-contracts.md"
   ],
   "tests": [
-    "tests/console/account.test.ts",
     "tests/console/activity.test.ts",
-    "tests/console/competition-hub.test.ts",
-    "tests/console/gitlab.test.ts",
-    "tests/console/http.test.ts",
-    "tests/console/nav.test.ts",
-    "tests/console/permissions.test.ts",
-    "tests/console/signed-out.test.ts",
-    "tests/console/signin.test.ts",
-    "tests/console/users.test.ts",
-    "tests/e2e/workflows.spec.ts",
-    "tests/server/activity.test.ts",
-    "tests/server/applications.test.ts",
-    "tests/server/competition-scores.test.ts",
-    "tests/server/competition-signups.test.ts",
-    "tests/server/competitions.test.ts",
-    "tests/server/console-permissions.test.ts",
-    "tests/server/console-scope.test.ts",
-    "tests/server/console-users.test.ts",
-    "tests/server/console.test.ts",
-    "tests/server/core.test.ts",
-    "tests/server/device-flow.test.ts",
     "tests/server/events.test.ts",
     "tests/server/forum.test.ts",
-    "tests/server/gitlab-sync.test.ts",
-    "tests/server/helpers.ts",
-    "tests/server/identity.test.ts",
-    "tests/server/legacy-database.test.ts",
-    "tests/server/mail-outbox.test.ts",
-    "tests/server/oidc.test.ts",
-    "tests/server/permissions.test.ts",
-    "tests/server/profile.test.ts",
-    "tests/server/rate-limits.test.ts",
-    "tests/server/signin-methods.test.ts",
-    "tests/server/upstream-errors.test.ts",
-    "tests/server/visitor.test.ts",
-    "tests/server/yugc-v2-migration.test.ts",
-    "tests/tooling/deployment-environment.test.ts",
-    "app/forum/tests/access.test.ts",
-    "app/forum/tests/login-modal.test.ts",
-    "app/forum/tests/signin-outcomes.test.ts",
-    "app/forum/tests/site-account.test.ts"
+    "app/forum/tests/activity-beacon.test.ts",
+    "app/forum/tests/forum-theme.test.ts",
+    "app/forum/tests/post-editor.test.ts"
   ],
-  "compatibility": "旧接口 /api/admin/:org/* 与 /api/me/orgs 整体下线（SPEC §3.9「去掉」），依赖它们的旧控制台页面一并删除；/auth/me、/api/console/me 等身份接口在旧字段基础上新增 level/level_name/department/titles/permissions 等字段，不删旧字段；旧 CAPABILITIES 到新权限节点按固定对照表迁移（如 applications.view→apply.view、forum.pin→forum.moderate.pin、roles.manage→perm.manage），找不到对应节点的在 MR 里列出，不静默丢弃；forum_users.account_id 是新增列，旧代码不读不受影响。",
-  "migration": "app/server/src/lib/migrations/2026-10-yugc-v2.ts 是加法迁移，createDatabase() 每次启动都会执行且可重复，已存在的节点/组/条目/资料不覆盖（所有者可能已在控制台改过）；旧表 role_assignments/departments/audit_logs 保留不删，新表并行写入；两轮演练在预发布库复制件上验证第二轮零变化，行数前后对照见执行记录。",
-  "rollback": "回滚即回退部署镜像：新表与新列旧代码不读不影响旧版本运行；迁移只加不删，无需反向迁移脚本；已迁移好的权限数据、操作记录、限额计数保留，不影响回滚后的旧版本继续用旧的 role_assignments/Capability 判定。"
+  "compatibility": "现有调用 POST /api/events 不传 surface 时仍按门户来源处理，向后兼容；控制台不再传 limit，服务端本来就不读这个参数，不是破坏性变更。",
+  "migration": "不涉及数据库迁移：activity_events 表结构不变，只是新增 forum.react 的写入点和按来源分流的事件白名单逻辑，不新增或修改表、列或索引。",
+  "rollback": "回滚这次提交即可；回滚后控制台操作记录页会恢复发送 limit 从而重新触发 400，论坛和控制台也不再上报埋点，表情回应也不再写审计行。"
 }
