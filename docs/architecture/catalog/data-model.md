@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`69fb98e20b99a536de01dc65e570a7f11b8e8eff6a6d24f4f83fee11d9a88b38`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`3e0cb7eed70451e909a8b8b0399fb0eaa8c80f06c80701128832b734537483b6`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -1052,6 +1052,10 @@ CREATE TABLE competition_team_members (
 | `disbanded_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
 | `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
 | `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `plaza_recruiting` | `INTEGER` | 1 | 0 | `0` | 0 |
+| `plaza_note` | `TEXT` | 1 | 0 | `''` | 0 |
+| `plaza_skills` | `TEXT` | 1 | 0 | `'[]'` | 0 |
+| `plaza_updated_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
 
 NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
 
@@ -1081,7 +1085,7 @@ CREATE TABLE competition_teams (
   disbanded_at INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
-);
+, plaza_recruiting INTEGER NOT NULL DEFAULT 0 CHECK (plaza_recruiting IN (0, 1)), plaza_note TEXT NOT NULL DEFAULT '', plaza_skills TEXT NOT NULL DEFAULT '[]', plaza_updated_at INTEGER);
 ```
 
 </details>
