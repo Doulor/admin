@@ -61,6 +61,9 @@ html[data-site="portal"] body { background: #f5f4f0 !important; }
   --os-dot-close: #ff7fb3;
   --os-dot-min: #ffd36e;
   --os-dot-max: #6fe0b9;
+  --os-dot-close-line: #dc4d93;
+  --os-dot-min-line: #d99a2b;
+  --os-dot-max-line: #1a9a7b;
   --os-panel: rgb(255 255 255 / 80%);
   --os-ink: #1d2b53;
   --os-ink-soft: #5b7fb5;

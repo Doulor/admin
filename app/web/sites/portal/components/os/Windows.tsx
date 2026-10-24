@@ -1,6 +1,6 @@
 // YUGC OS 的窗口：可拖动、最小化、放大、关闭、聚焦；内容有「加入我们」「关于」「组织架构」「论坛最新」「终端」「比赛」「代码仓库」「意见箱」八种。
 // 比赛窗口的内容在 competitions/（#265）：它在手机详情页会借标题栏左边的返回键回列表（PhoneNav）。
-// 意见箱、加入我们窗口的内容在 FeedbackBox.tsx、JoinBox.tsx，打开时才加载，防刷验证和表单样式不进桌面首屏。
+// 意见箱、加入我们、终端窗口的内容在 FeedbackBox.tsx、JoinBox.tsx、Terminal.tsx，打开时才加载：防刷验证、表单样式和终端的模拟 Linux（#279）不进桌面首屏。
 import { Suspense, lazy, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { appConfig } from "@shared/config";
@@ -8,7 +8,7 @@ import type { Account } from "../../lib/account";
 import { links } from "../../lib/links";
 import { useCodeRepos } from "../../lib/codeRepos";
 import { useDepartments } from "../../lib/departments";
-import { NEW_TAB_NOTE, agoLabel, runTerminal, type AppId, type OsApp, type TerminalLine } from "../../lib/osApps";
+import { NEW_TAB_NOTE, agoLabel, type AppId, type OsApp } from "../../lib/osApps";
 import { useForumSnapshot } from "../../lib/snapshots";
 import CompetitionsApp, { type PhoneNav } from "./competitions/CompetitionsApp";
 import Icon from "../Icon";
@@ -16,13 +16,13 @@ import Icon from "../Icon";
 export type WindowId = "join" | "about" | "org" | "terminal" | "forum-feed" | "competitions" | "gitlab" | "feedback";
 export type WindowState = { id: WindowId; z: number; x: number; y: number; minimized: boolean; zoomed: boolean };
 
-type OpenApp = (id: AppId | "forum-feed", from?: HTMLElement | null) => void;
+export type OpenApp = (id: AppId | "forum-feed", from?: HTMLElement | null) => void;
 
 const META: Record<WindowId, { title: string; width: number }> = {
   join: { title: "加入我们", width: 640 },
   about: { title: "关于极客班", width: 640 },
   org: { title: "组织架构", width: 760 },
-  terminal: { title: "nano@yugc — zsh", width: 640 },
+  terminal: { title: "终端", width: 680 },
   "forum-feed": { title: "论坛 · 最新", width: 780 },
   competitions: { title: "比赛", width: 1100 },
   gitlab: { title: "代码仓库", width: 720 },
@@ -31,6 +31,7 @@ const META: Record<WindowId, { title: string; width: number }> = {
 
 const FeedbackBox = lazy(() => import("./FeedbackBox"));
 const JoinBox = lazy(() => import("./JoinBox"));
+const Terminal = lazy(() => import("./Terminal"));
 
 export function windowWidth(id: WindowId): number {
   return META[id].width;
@@ -59,6 +60,8 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
   const width = Math.min(meta.width, window.innerWidth - 24);
   /** 手机上应用自己的上一级（比赛详情回列表）；没有时返回键回主屏幕。 */
   const [phoneNav, setPhoneNav] = useState<PhoneNav | null>(null);
+  /** 终端把标题换成「用户@yugc: 目录」，读屏仍念窗口名 */
+  const [title, setTitle] = useState<string | null>(null);
 
   // 在移动端支持下滑手势关闭窗口（iOS Sheet 拖拽收起体验）
   const touchStartY = useRef<number | null>(null);
@@ -192,26 +195,26 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
               <span>{phoneNav?.backText ?? "主屏幕"}</span>
             </button>
           ) : (
-            // 三个 12px 的圆点，每个按钮的点击区域是 44×44（styles/os.css 的 .pt-win-lights）
+            // 胶囊托着的三颗糖果珠，每个按钮的点击区域是 44×44（styles/os.css 的 .pt-win-lights）；放大后第三颗变成「还原」
             <span className="pt-win-lights">
-              <button type="button" aria-label="关闭" onClick={onClose}>
+              <button type="button" aria-label="关闭" title="关闭" onClick={onClose}>
                 <i>
-                  <Icon name="close-line" size={8} />
+                  <Icon name="close-line" size={11} />
                 </i>
               </button>
-              <button type="button" aria-label="最小化" onClick={onMinimize}>
+              <button type="button" aria-label="最小化" title="最小化" onClick={onMinimize}>
                 <i>
-                  <Icon name="subtract-line" size={8} />
+                  <Icon name="subtract-line" size={11} />
                 </i>
               </button>
-              <button type="button" aria-label="放大" onClick={onZoom}>
+              <button type="button" aria-label={win.zoomed ? "还原" : "放大"} title={win.zoomed ? "还原" : "放大"} onClick={onZoom}>
                 <i>
-                  <Icon name="fullscreen-line" size={7} />
+                  <Icon name={win.zoomed ? "fullscreen-exit-line" : "fullscreen-line"} size={9} />
                 </i>
               </button>
             </span>
           )}
-          <b>{meta.title}</b>
+          <b>{title ?? meta.title}</b>
           {phone ? (
             <button type="button" className="pt-phone-close" aria-label="关闭应用" onClick={onClose}>
               <Icon name="close-line" size={18} />
@@ -231,7 +234,11 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
           {win.id === "org" && <OrgChart />}
           {win.id === "forum-feed" && <ForumFeed />}
           {win.id === "competitions" && <CompetitionsApp phone={phone} onPhoneNav={setPhoneNav} account={account} accountLoaded={accountLoaded} />}
-          {win.id === "terminal" && <Terminal onOpen={onOpen} apps={apps} />}
+          {win.id === "terminal" && (
+            <Suspense fallback={<p className="pt-empty">正在打开终端…</p>}>
+              <Terminal onOpen={onOpen} onClose={onClose} onTitle={setTitle} apps={apps} account={account} />
+            </Suspense>
+          )}
           {win.id === "gitlab" && <CodeRepos />}
           {win.id === "feedback" && (
             <Suspense fallback={<p className="pt-empty">正在打开意见箱…</p>}>
@@ -421,83 +428,6 @@ function ForumFeed() {
           </a>
         </span>
       </footer>
-    </div>
-  );
-}
-
-function Terminal({ onOpen, apps }: { onOpen: OpenApp; apps: readonly OsApp[] }) {
-  const repos = useCodeRepos();
-  const [lines, setLines] = useState<TerminalLine[]>([{ kind: "dim", text: "输入 help 查看命令" }]);
-  const [value, setValue] = useState("");
-  const history = useRef<string[]>([]);
-  const cursor = useRef(0);
-  const out = useRef<HTMLDivElement>(null);
-  const input = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    out.current?.scrollTo({ top: out.current.scrollHeight });
-  }, [lines]);
-  const run = (command: string) => {
-    const result = runTerminal(command, repos.status === "ready" ? repos.projects : [], apps);
-    setLines((current) => (result.clear ? [] : [...current, ...result.lines]));
-    if (result.open) {
-      const id = result.open;
-      window.setTimeout(() => onOpen(id, input.current), 350);
-    }
-  };
-  const render = (line: TerminalLine, index: number): ReactNode => {
-    if (line.kind === "echo")
-      return (
-        <div key={index} className="is-echo">
-          <b>nano@yugc:~$</b> {line.text}
-        </div>
-      );
-    return (
-      <div key={index} className={`is-${line.kind}`}>
-        {line.key &&
-          (line.href ? (
-            <a className="pt-term-key" href={line.href} target="_blank" rel="noreferrer">
-              {line.key}
-            </a>
-          ) : (
-            <span className="pt-term-key">{line.key}</span>
-          ))}
-        {line.text}
-      </div>
-    );
-  };
-  return (
-    <div className="pt-term" onPointerDown={() => window.setTimeout(() => input.current?.focus(), 0)}>
-      <div className="pt-term-out" ref={out}>
-        {lines.map(render)}
-      </div>
-      <label className="pt-term-in">
-        <b>nano@yugc:~$</b>
-        <input
-          ref={input}
-          value={value}
-          spellCheck={false}
-          autoComplete="off"
-          aria-label="终端输入"
-          onChange={(event) => setValue(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              history.current.push(value);
-              cursor.current = history.current.length;
-              run(value);
-              setValue("");
-            } else if (event.key === "ArrowUp" && cursor.current > 0) {
-              cursor.current -= 1;
-              setValue(history.current[cursor.current] ?? "");
-              event.preventDefault();
-            } else if (event.key === "ArrowDown") {
-              cursor.current = Math.min(history.current.length, cursor.current + 1);
-              setValue(history.current[cursor.current] ?? "");
-            }
-            if (!((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") && event.key !== "Escape") event.stopPropagation();
-          }}
-        />
-      </label>
-      <p className="pt-sr">可用命令：{apps.map((app) => app.id).join("、")}</p>
     </div>
   );
 }

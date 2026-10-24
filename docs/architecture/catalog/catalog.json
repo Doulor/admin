@@ -1223,6 +1223,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 151,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "id": "flow:identity.current",
@@ -4794,7 +4806,7 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 233,
+          "line": 236,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
@@ -4802,7 +4814,7 @@
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
-          "line": 42,
+          "line": 41,
           "path": "app/web/sites/portal/lib/osApps.ts"
         },
         {
@@ -7425,6 +7437,30 @@
         {
           "line": 3,
           "path": "app/web/sites/portal/lib/snapshots.ts"
+        },
+        {
+          "line": 150,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1100,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/web/sites/portal/lib/shell/vfs.ts"
+        },
+        {
+          "line": 147,
+          "path": "app/web/sites/portal/lib/shell/parse.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/web/sites/portal/lib/shell/ansi.ts"
+        },
+        {
+          "line": 55,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "id": "flow:gitlab.projects.public.list",
@@ -11088,7 +11124,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "43bd801fa7b66d051ea79709229ec5741127f7d957b968db7eced47b080f3925",
+    "fingerprint": "1b088e219804115f371a7e42544640ce98082237e78383a03a8dfb9e3e50a4c5",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -12388,7 +12424,7 @@
       },
       {
         "path": "app/web/sites/portal/components/os/FeedbackBox.tsx",
-        "sha256": "daf29c128c5fb3f95b6d9ad78d40c592655dec1a6f518f094df2407bb7cf4d83"
+        "sha256": "31dd625918c4d42b96aeb29c775bc524556e1b64a8f2cfb9817290e68867ddc2"
       },
       {
         "path": "app/web/sites/portal/components/os/JoinBox.tsx",
@@ -12403,6 +12439,10 @@
         "sha256": "53ff9b4df2f42df5778504fe4a0aeb928634aa0761b33b183d6f5a53bcc1fe5c"
       },
       {
+        "path": "app/web/sites/portal/components/os/Terminal.tsx",
+        "sha256": "9cc0ffe8514ae1e16358b4e0f8884db1adfcc1b897d5d83f1604e68be533f808"
+      },
+      {
         "path": "app/web/sites/portal/components/os/Wallpaper.tsx",
         "sha256": "9abae51c5f589b48c479b600f4ea25be64603781cadde66d611af9d736cf4ac0"
       },
@@ -12412,7 +12452,7 @@
       },
       {
         "path": "app/web/sites/portal/components/os/Windows.tsx",
-        "sha256": "bfd8b080f10946ee95903cee0e62b5eaaf5de83f81a49e235185d5468c021c33"
+        "sha256": "d46f5b637c6ae8c85a6110b9e2b9af2889da22578d7bc7e8b627630c34e3b60c"
       },
       {
         "path": "app/web/sites/portal/components/os/YugcOs.tsx",
@@ -12500,7 +12540,7 @@
       },
       {
         "path": "app/web/sites/portal/lib/icons.ts",
-        "sha256": "d456ef04cef041b829e73e77f7ece63415a087a159a3b8a376516c4cd938cea8"
+        "sha256": "a99266b5218c1b4c05d04f3491f4caf291473e8b442fe059dfb2d511113d213a"
       },
       {
         "path": "app/web/sites/portal/lib/links.ts",
@@ -12512,7 +12552,7 @@
       },
       {
         "path": "app/web/sites/portal/lib/osApps.ts",
-        "sha256": "d3c206eeaa351d5fab13af6db1c4bdd2d4a1fa0e7697ea5e02079102a8b5a8a9"
+        "sha256": "e6844f15b795c52849028a2fa6d9f5e10ba7709c42f8840692915eb0cac4d452"
       },
       {
         "path": "app/web/sites/portal/lib/pixelRatio.ts",
@@ -12521,6 +12561,26 @@
       {
         "path": "app/web/sites/portal/lib/promo.ts",
         "sha256": "ce5e655f544b7c693c506b049e46d5040274e2d0a7fcaab482daf9b7e75b6efa"
+      },
+      {
+        "path": "app/web/sites/portal/lib/shell/ansi.ts",
+        "sha256": "4135b699d382d8bbd548c83ce1403eaf698ef2c8ebdd6cf0bd4836bb5fc9b591"
+      },
+      {
+        "path": "app/web/sites/portal/lib/shell/commands.ts",
+        "sha256": "1222d8231d4ead701784bda2bea70d5af6caa2b28ec0fe367193c2cb3ff07bd9"
+      },
+      {
+        "path": "app/web/sites/portal/lib/shell/index.ts",
+        "sha256": "7d8446e1b0c31fdb58affacc7facf2f958ca78f8fb6c4916524f0133e9e6c9b1"
+      },
+      {
+        "path": "app/web/sites/portal/lib/shell/parse.ts",
+        "sha256": "29bc9171b759196df491caeb4690c8074bd5a621e3fbdb06997356ff8920f935"
+      },
+      {
+        "path": "app/web/sites/portal/lib/shell/vfs.ts",
+        "sha256": "d3e093bd6c2ebecaf69f537bda4b97c5f555f63e40e273c02aca1264577333f2"
       },
       {
         "path": "app/web/sites/portal/lib/snapshots.ts",
@@ -12588,7 +12648,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "cd7509c84c737f96545cf9a8d6f047f45f3015fad3d5392985c82bc533beb1a5"
+        "sha256": "8ffa0c7807b36ab82651dec928ab0c1f6274d46fdb3f5611dff1bc46b7a0a7a9"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -12648,7 +12708,7 @@
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "f58d032ef713d531201ffd9dbe249da1b05d0b35ca53eb9415f6b537a80b527a"
+        "sha256": "56288f4208145294a161c8f0f6fd8c887dcc723c73be711dde7395b8dbdc13bb"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -12836,11 +12896,11 @@
       },
       {
         "path": "tests/web/portal-os.test.ts",
-        "sha256": "0d529d166e901d70b5320fb102c87377695709909df23934c28a1852c3caaed1"
+        "sha256": "7236ea06a18023350feb448532e7465841c474ba6b1bcf02899e0c6df1806357"
       },
       {
         "path": "tests/web/portal-phone.test.tsx",
-        "sha256": "057f5819d49f8484fa942b24fdc04a8712627ec089f4a525c91cbe6b9d938fc5"
+        "sha256": "0d1a346a26365c36aeff3cf68c67e54aa5c2d578151f133f7f2a22e48d39a689"
       }
     ]
   },
@@ -20725,7 +20785,7 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 233,
+          "line": 236,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
@@ -20733,7 +20793,7 @@
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
-          "line": 42,
+          "line": 41,
           "path": "app/web/sites/portal/lib/osApps.ts"
         },
         {
@@ -20835,7 +20895,7 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 233,
+          "line": 236,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
@@ -20843,7 +20903,7 @@
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
-          "line": 42,
+          "line": 41,
           "path": "app/web/sites/portal/lib/osApps.ts"
         },
         {
@@ -37615,6 +37675,30 @@
         {
           "line": 3,
           "path": "app/web/sites/portal/lib/snapshots.ts"
+        },
+        {
+          "line": 150,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1100,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 77,
+          "path": "app/web/sites/portal/lib/shell/vfs.ts"
+        },
+        {
+          "line": 147,
+          "path": "app/web/sites/portal/lib/shell/parse.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/web/sites/portal/lib/shell/ansi.ts"
+        },
+        {
+          "line": 55,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:gitlab.projects.public.list",
@@ -40547,6 +40631,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 151,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -40659,6 +40755,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 151,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -40771,6 +40879,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 151,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -40883,6 +41003,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 151,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -40995,6 +41127,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 151,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -41107,6 +41251,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 151,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -41219,6 +41375,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 151,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -41331,6 +41499,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 151,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -41515,6 +41695,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 151,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -41627,6 +41819,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 151,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -41739,6 +41943,18 @@
         {
           "line": 20,
           "path": "app/web/shared/lib/api.ts"
+        },
+        {
+          "line": 151,
+          "path": "app/web/sites/portal/lib/shell/index.ts"
+        },
+        {
+          "line": 1036,
+          "path": "app/web/sites/portal/lib/shell/commands.ts"
+        },
+        {
+          "line": 47,
+          "path": "app/web/sites/portal/components/os/Terminal.tsx"
         }
       ],
       "from": "flow:identity.current",
@@ -80358,6 +80574,19 @@
         "public_content",
         "recruitment"
       ],
+      "path": "app/web/sites/portal/components/os/Terminal.tsx"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
       "path": "app/web/sites/portal/components/os/Wallpaper.tsx"
     },
     {
@@ -80652,6 +80881,71 @@
         "recruitment"
       ],
       "path": "app/web/sites/portal/lib/promo.ts"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "path": "app/web/sites/portal/lib/shell/ansi.ts"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "path": "app/web/sites/portal/lib/shell/commands.ts"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "path": "app/web/sites/portal/lib/shell/index.ts"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "path": "app/web/sites/portal/lib/shell/parse.ts"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "path": "app/web/sites/portal/lib/shell/vfs.ts"
     },
     {
       "domains": [

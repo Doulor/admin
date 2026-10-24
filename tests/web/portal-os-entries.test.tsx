@@ -137,7 +137,7 @@ it("意见箱在桌面上开窗口（#275）：Dock、桌面图标、⌘K 都打
     const win = within(boxes()[0]);
     expect(await win.findByLabelText("想说什么"), name).toBeTruthy();
     expect(await win.findByRole("radio", { name: "Bug" }), name).toBeTruthy();
-    expect((win.getByLabelText("发往的 GitHub 组织") as HTMLInputElement).value, name).toBe("geek");
+    expect((win.getByLabelText("发往的组织") as HTMLInputElement).value, name).toBe("geek");
     expect(where(), name).toBe("/");
     fireEvent.click(win.getByRole("button", { name: "关闭" }));
     expect(boxes(), name).toHaveLength(0);
@@ -217,7 +217,7 @@ it("代码仓库在桌面上开窗口：Dock、桌面图标、3 键、菜单栏�
   }
 
   fireEvent.click(dock().getByRole("button", { name: "终端" }));
-  const input = screen.getByRole("textbox", { name: "终端输入" });
+  const input = await screen.findByRole("textbox", { name: "终端输入" });
   fireEvent.change(input, { target: { value: "open gitlab" } });
   fireEvent.keyDown(input, { key: "Enter" });
   await waitFor(() => expect(repos()).toHaveLength(1));
@@ -261,7 +261,7 @@ it("终端 open forum 同样直达；open github 报没有这个应用", async (
   Element.prototype.scrollTo ??= () => undefined;
   const { where } = renderDesktop();
   fireEvent.click(dock().getByRole("button", { name: "终端" }));
-  const input = screen.getByRole("textbox", { name: "终端输入" });
+  const input = await screen.findByRole("textbox", { name: "终端输入" });
   for (const command of ["open github", "open forum"]) {
     fireEvent.change(input, { target: { value: command } });
     fireEvent.keyDown(input, { key: "Enter" });

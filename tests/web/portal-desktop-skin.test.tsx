@@ -200,9 +200,11 @@ describe("窗口外框", () => {
     expect(OS_CSS).toMatch(/\.pt-win-bar \{[^}]*grid-template-columns: 132px minmax\(0, 1fr\) 132px;/);
   });
 
-  it("样式：圆点 12px、按钮 44×44；窗口圆角、粉色描边、标题栏粉色渐变都取令牌；打开 220ms 缩放加淡入，减少动态效果只淡入", () => {
+  it("样式：珠子 18px 放在一条浅色胶囊槽里、按钮 44×44，颜色取令牌；窗口圆角、粉色描边、标题栏粉色渐变都取令牌；打开 220ms 缩放加淡入，减少动态效果只淡入", () => {
     expect(OS_CSS).toMatch(/\.pt-win-lights button \{[^}]*width: 44px; height: 44px;/);
-    expect(OS_CSS).toMatch(/\.pt-win-lights i \{[^}]*width: 12px; height: 12px;/);
+    expect(OS_CSS).toMatch(/\.pt-win-lights i \{[^}]*--bead: var\(--os-dot-close\); --bead-line: var\(--os-dot-close-line\);[^}]*width: 18px; height: 18px;/);
+    expect(OS_CSS).toMatch(/\.pt-win-lights::before \{[^}]*border-radius: 999px;/);
+    expect(OS_CSS).toContain(".pt-win-lights button:nth-child(2) i { --bead: var(--os-dot-min); --bead-line: var(--os-dot-min-line); }");
     expect(OS_CSS).toMatch(/\.pt-win \{[^}]*border: 1px solid var\(--os-win-border\); border-radius: var\(--os-radius-win\); background: var\(--os-panel\);/);
     expect(OS_CSS).toMatch(/\.pt-win-bar \{[^}]*background: linear-gradient\(var\(--os-win-top\), var\(--os-win-bottom\)\);/);
     expect(OS_CSS).toMatch(/animation: pt-win-in \.22s var\(--pt-ease\);/);

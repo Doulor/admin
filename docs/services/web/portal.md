@@ -31,7 +31,8 @@
 | `lib/useMediaQuery.ts` | 响应式媒体查询订阅；OS 用 `PHONE_QUERY` 与 `PORTRAIT_QUERY`，变化时保留组件状态 |
 | `lib/cameraMath.ts`、`lib/motion.ts` | 相机距离（cover/contain）、像素 ↔ 相机平面换算、竖屏横带取景、缓动与插值 |
 | `lib/pixelRatio.ts` | 3D 像素比调速器：起步档位、降档规则、帧间隔预算（纯逻辑） |
-| `lib/osApps.ts` | YUGC OS 应用清单（每个应用打开什么只写在这里：`scene`、`window`、`panel`、`site` 四种；「代码仓库」「比赛」「意见箱」是 `{ kind: "window" }`）、站外应用的地址（`appLink`、`followAppLink`，只剩论坛和控制台）、启动器过滤、终端命令、时间文案、读屏用的 `NEW_TAB_NOTE` |
+| `lib/osApps.ts` | YUGC OS 应用清单（每个应用打开什么只写在这里：`scene`、`window`、`panel`、`site` 四种；「代码仓库」「比赛」「意见箱」是 `{ kind: "window" }`）、站外应用的地址（`appLink`、`followAppLink`，只剩论坛和控制台）、启动器过滤、时间文案、读屏用的 `NEW_TAB_NOTE` |
+| `lib/shell/*` | 终端窗口里的模拟 Linux（#279）：`vfs.ts` 文件系统、`parse.ts` 命令行解析、`commands.ts` 命令、`index.ts` 执行与存盘补全、`ansi.ts` 颜色码转片段；纯逻辑，不碰 DOM，见下文「窗口外框与终端」 |
 | `lib/promo.ts`、`components/PromoPlayer.tsx`、`components/PromoLazy.tsx`、`styles/promo.css` | 宣传片：CDN 地址、「只自动播一次」的 cookie、按浏览器能力挑编码与播放方式、起播预取（纯逻辑在 `lib/promo.ts`）；全屏播放层（见下文「宣传片」） |
 | `lib/links.ts` | 站外链接的唯一解析点：论坛首页/版块/话题、控制台、账号设置 `/account`、代码仓库（自建 GitLab，站点配置 `urls.gitlab`） |
 | `lib/departments.ts` | 「组织架构」窗口和「关于极客班」里的部门：读匿名 `GET /api/public/departments`（窗口打开时读一次、关掉即取消），`DEFAULT_DEPARTMENTS` 与 #274 迁移的初始数据一致（AI、算法、硬件、网安、管理五个部门加「无部门」），读到之前和读不到时显示它；`readDepartments` 把认不出的部门色换成次要文字色、认不出的图标换成 `team-line`，称号按 `weight` 从高到低 |
@@ -45,7 +46,7 @@
 | `lib/events.ts` | 埋点：`reportEvent` 攒批 `POST /api/events`（见下文「埋点」） |
 | `lib/snapshots.ts` | 读取 `public/portal/forum-latest.json` 论坛快照 |
 | `lib/icons.ts`、`components/Icon.tsx` | Remix Icon 路径注册表与图标组件 |
-| `components/os/*` | YUGC OS 桌面：`YugcOs.tsx`（菜单栏、Dock、启动器、换壁纸面板、手机状态栏与弹层）、`Widgets.tsx`（应用图标与「新来的看这里」便签）、`Windows.tsx`（窗口外框与关于、组织架构、代码仓库、论坛最新、终端等窗口正文；意见箱窗口的正文在 `FeedbackBox.tsx`；电脑上窗口从顶边往下最多到 Dock 上沿，内容长的窗口在里面滚动，不钻到 Dock 下面）、`ProfileCard.tsx`（个人资料卡）、`SkyWallpaper.tsx`（默认壁纸「晴空」）、`Wallpaper.tsx`（壁纸图层与换壁纸动效）；壁纸清单、下载解码与空闲预取在 `lib/wallpapers.ts`（图片地址只写在这里），文件在 `assets/wallpapers/`，见下文「壁纸」 |
+| `components/os/*` | YUGC OS 桌面：`YugcOs.tsx`（菜单栏、Dock、启动器、换壁纸面板、手机状态栏与弹层）、`Widgets.tsx`（应用图标与「新来的看这里」便签）、`Windows.tsx`（窗口外框与关于、组织架构、代码仓库、论坛最新等窗口正文；意见箱、加入我们、终端窗口的正文在 `FeedbackBox.tsx`、`JoinBox.tsx`、`Terminal.tsx`，打开时才加载；电脑上窗口从顶边往下最多到 Dock 上沿，内容长的窗口在里面滚动，不钻到 Dock 下面）、`ProfileCard.tsx`（个人资料卡）、`SkyWallpaper.tsx`（默认壁纸「晴空」）、`Wallpaper.tsx`（壁纸图层与换壁纸动效）；壁纸清单、下载解码与空闲预取在 `lib/wallpapers.ts`（图片地址只写在这里），文件在 `assets/wallpapers/`，见下文「壁纸」 |
 | `components/Emblem.tsx`、`SceneBar.tsx`、`PageShell.tsx` | 校徽几何、场景页顶栏、普通页外壳 |
 | `components/ChoiceChips.tsx` | 少量选项的单选胶囊（原生 radio，方向键切换）；官网表单不用原生下拉框 |
 | `styles/*.css` | 视觉令牌与组件样式（`.pt-root` 作用域）：`portal.css` 定义 `--pt-*`（场景页、普通页）与 `--os-*`（YUGC OS v2）两套令牌，`boot.css` 开机动画层，`os.css` 桌面与窗口，`competitions.css` 比赛窗口，`scenes.css` 论坛场景页；规范见 [DESIGN](../../design/DESIGN.md)「YUGC OS v2 视觉令牌」 |
@@ -83,8 +84,19 @@ three.js 只通过 `/forum-3d` 页里的 `import("../three/forum")` 进入，首
 ## 组织架构与代码仓库窗口（#275）
 
 - **组织架构**：按 `GET /api/public/departments` 的顺序画部门卡片：部门图标（Remix 图标名，服务端可以不给）、部门名、说明、按权重排的称号。部门色走 `data-tone`：AI = Y 青绿、算法 = U 蓝、硬件 = C 靛蓝、网安 = G 粉、管理 = 胶囊蓝（`pill`）、无部门 = 次要文字色（`ink`）。读到之前和读不到时显示默认值，不出错误提示。窗口底部一句说明身份怎么来：注册后是注册用户，填邀请码成为极客班成员，部门和称号由管理员在控制台里分。「关于极客班」里的部门名同样来自这份数据。单测 `tests/web/portal-org-window.test.tsx`。
-- **代码仓库**：原来的「代码仓库」应用在新标签页打开 GitLab，「GitHub 组织」应用另开 GitHub 组织页；#275 删掉 GitHub 组织应用，「代码仓库」改成桌面窗口，列 `GET /api/public/gitlab/projects` 给的公开项目（名字、说明或路径、最近活动），点项目在新标签页打开。读取中写「正在读取公开项目…」，服务端回 `unavailable: true` 写「代码仓库暂时连不上」，接口读不到写「公开项目没加载出来」，没有公开项目也照实说；窗口底部始终有「打开代码仓库」（`links.gitlab()`，新标签页）。终端 `repos` 列同一份数据，没有项目时写「没有公开项目」。单测 `tests/web/portal-code-repos.test.tsx`。
+- **代码仓库**：原来的「代码仓库」应用在新标签页打开 GitLab，「GitHub 组织」应用另开 GitHub 组织页；#275 删掉 GitHub 组织应用，「代码仓库」改成桌面窗口，列 `GET /api/public/gitlab/projects` 给的公开项目（名字、说明或路径、最近活动），点项目在新标签页打开。读取中写「正在读取公开项目…」，服务端回 `unavailable: true` 写「代码仓库暂时连不上」，接口读不到写「公开项目没加载出来」，没有公开项目也照实说；窗口底部始终有「打开代码仓库」（`links.gitlab()`，新标签页）。终端 `repos` 和 `~/projects` 列同一份数据，没有项目时写「代码仓库里还没有公开项目」。单测 `tests/web/portal-code-repos.test.tsx`。
 - **窗口正文的令牌**：窗口和桌面弹层里（`:is(.pt-win, .pt-os-modal)`）把 `--pt-*` 映射到 `--os-*`，用 `--pt-*` 写的旧样式（比赛窗口等）进了窗口也是 OS 的颜色；正文链接用 `--os-accent`，卡片圆角 14px，终端底色 `--os-term-bg`、文字用 `--os-bios-*`。
+
+## 窗口外框与终端（#279）
+
+- **左上角三个按钮**：一条浅色胶囊槽里排三颗 18px 的糖果珠，关闭粉、最小化黄、放大青绿，珠子颜色取 `--os-dot-close` / `-min` / `-max`，下沿描边取对应的 `-line` 令牌，上方一点高光；每颗有 44×44 的点击区。鼠标移到槽上或键盘聚焦时珠子上显示图标（关闭、减号、放大，放大后换成还原），悬停放大一点、按下缩一点，键盘焦点环用 `--os-accent`；不在最前的窗口珠子褪色，鼠标移上去恢复。读屏名称「关闭」「最小化」「放大」（放大后是「还原」）。单测 `tests/web/portal-desktop-skin.test.tsx`。
+- **终端是模拟的 Linux**：逻辑全在 `lib/shell/`，`components/os/Terminal.tsx` 只管显示、键盘和打开应用，打开终端窗口时才加载（gzip 约 28KB），不进桌面首屏。窗口标题跟着变成 `用户名@yugc: 目录`，提示符和 Ubuntu 默认的一样（用户名@主机绿色，目录蓝色）。
+- **文件系统**（`vfs.ts`）：整棵树在内存里。家目录是 `/home/<用户名>`，登录名符合 Linux 用户名规则时用它，否则（含没登录）用 `guest`；家目录和 `/tmp` 可写，其余目录只读，写进去报 `Permission denied`，`/root`、`/etc/shadow` 读不了。`/etc`、`/usr/bin`、`/var/log` 等每次打开终端时生成。桌面应用是 `~/Desktop/<应用>.app` 可执行脚本（内容是 `open <应用>`），跟着 `visibleApps(consoleLink)` 过滤；`~/projects` 是代码仓库的公开项目；`~/join` 打开「加入我们」。
+- **存盘**：家目录里自己建、改的文件和 `.bash_history` 存在本机 localStorage 的 `yugc:term:<用户名>`，最多 100000 个字符，超了报 `No space left on device`；生成的文件删了下次打开还在，不存盘。打开终端时执行 `~/.bashrc`（默认带 `ll`、`la` 两个别名）。
+- **命令行**（`parse.ts`、`index.ts`）：单双引号与转义、`$VAR` `${VAR}` `$?` `$$` `$#` `$@` `$1`、`$(…)` 命令替换（子 shell，里面的 `cd` 和赋值不影响外面）、`$((…))` 整数算术（自己解析，不用 `eval`）、通配符 `* ? [abc]`、`~`、管道、重定向（`> >> < 2> 2>> 2>&1 &>`）、`&& || ;`、`#` 注释、变量赋值、`alias`、`source`、脚本和 `PATH` 查找（要有可执行位）、`!!`。`if` / `for` / `while` 和后台任务 `&` 不支持，敲了给一句提示。
+- **命令**（`commands.ts`）：按 [Linux 启明道场](https://linux.yangtzeu.work) 的关卡准备，每一关教的命令都能敲：`pwd cd ls tree cat mkdir touch rm rmdir cp mv find file stat du df chmod chown ln echo printf head tail wc grep sort uniq cut tr sed rev tac less more tee seq xargs basename dirname expr test export unset env alias history type which man help whoami id groups hostname uname date uptime ps kill sudo su passwd neofetch` 等。报错照 coreutils 的英文原文，`man` 和 `--help` 是中文说明，`learn` 列道场的关卡和对应命令。和桌面有关的：`open <应用>`、运行 `.app`、`repos`、`neofetch`（身份、部门、称号取自 `/auth/me`），找不到命令而名字是应用时提示 `open <应用>`。`vim`、`top` 这类全屏程序和 `curl`、`ssh`、`git`、`apt` 这类要联网的命令提示这里没有。`sudo` 回「不在 sudoers 里」，`rm -rf /` 拒绝。
+- **显示和键盘**：`ansi.ts` 把颜色码切成片段、https 地址变成新标签页链接；颜色类 `is-c<码>` 对应到 `--os-*` 令牌，只在终端窗口里上色，管道和重定向的输出不带颜色码。回车运行，Tab 补全（能补就补到公共前缀，补不动再按一次列出候选），上下键翻历史，Ctrl+C 放弃当前行，Ctrl+L 清屏，Ctrl+U 清空输入；`open` 先输出、350ms 后打开窗口，`exit` 关掉终端；最多保留 1000 行。
+- 单测 `tests/web/portal-shell.test.ts`（按道场关卡的顺序排）。
 
 ## 埋点（#275）
 
@@ -129,12 +141,12 @@ three.js 只通过 `/forum-3d` 页里的 `import("../three/forum")` 进入，首
 
 - **去处只写在 `lib/osApps.ts`**：论坛是 `{ kind: "site", link: "forumHome" }`，在当前标签页进论坛首页（`links.forumHome()`）；控制台是 `{ kind: "site", link: "console" }`。论坛和控制台是本域名下的另一个端，和页头、页脚、场景页里的论坛链接一样在当前标签页。`appLink` 把 `site` 解析成地址，`followAppLink` 负责打开；其余应用留在官网里，`appLink` 返回 null。
 - **走这一处的入口**：桌面图标、Dock、2 键、菜单栏「前往」、⌘K 启动器、「新来的看这里」便签的第 2 行、终端 `open forum`，以及「加入我们」回执里的「去论坛看看」（`appLinkById("forum")`）。启动器原来单独有一条「进入论坛首页」，和论坛应用去同一个地方，已经去掉，它的搜索词 home、首页、bbs 并进了论坛应用。「代码仓库」的同一批入口（含 3 键、便签第 3 行、终端 `open gitlab`）打开桌面窗口，不离开官网。
-- **点下去当场打开，不播图标飞行**：去论坛是整页跳走，不播 520ms 的飞行动画；从论坛后退、浏览器从往返缓存恢复整页时，飞行图标不会停在屏幕上。终端是先输出「打开 …」、350ms 后再打开。
+- **点下去当场打开，不播图标飞行**：去论坛是整页跳走，不播 520ms 的飞行动画；从论坛后退、浏览器从往返缓存恢复整页时，飞行图标不会停在屏幕上。终端里 `open` 是命令跑完 350ms 后再打开。
 - **按住不放只算一次**：按住 2、或者焦点在桌面图标、Dock、便签、菜单的按钮上按住回车，浏览器的自动重复会一口气触发好几次。`YugcOs.tsx` 的全局按键处理遇到 `event.repeat` 直接返回，回车还要拦掉默认动作（浏览器不再把每次重复变成一次点击）；桌面图标自己处理回车和空格，同样只认按下去的那一次。
 - **从论坛后退**：桌面是首页的默认状态，去论坛前不在历史记录上记 state；从论坛后退回首页时，是否播开机动画只按 `yugc:boot-day` 判断（今天播过就直接进桌面）。
 - **读屏提示**：桌面上已经没有在新标签页打开的应用。窗口里在新标签页打开的链接（代码仓库窗口的项目与「打开代码仓库」、比赛窗口的「打开官网」）在视觉上隐藏的 `.pt-sr` 里补一句「（新标签页打开）」（`NEW_TAB_NOTE`）。
 - **旧地址**：`/forum-3d` 页与路由都不动，直接打开照常能用，#109 的往返缓存复位也还在；它另外还能从「论坛最新」窗口里的「3D 版块」按钮进。`/github` 已删除，落到兜底路由回首页。
-- **单测**：`tests/web/portal-os.test.ts` 核对每个应用的去处、`appLink` 与 `followAppLink`、启动器的搜索词、终端命令，以及源码里指向 `/forum-3d` 的只剩路由表和「3D 版块」、回执按钮取论坛应用的地址；`tests/web/portal-os-entries.test.tsx`（jsdom）渲染桌面，逐个入口点下去，核对论坛当场直达、代码仓库每个入口都开同一个窗口、路由不动、没有飞行图标、GitHub 组织应用不在，「加入我们」照旧飞图标后进 `/join-us`，另外核对按住不放只算一次、「论坛最新」窗口的「3D 版块」进 `/forum-3d`、读屏提示。
+- **单测**：`tests/web/portal-os.test.ts` 核对每个应用的去处、`appLink` 与 `followAppLink`、启动器的搜索词、终端里打开应用和 `repos`，以及源码里指向 `/forum-3d` 的只剩路由表和「3D 版块」、回执按钮取论坛应用的地址；`tests/web/portal-os-entries.test.tsx`（jsdom）渲染桌面，逐个入口点下去，核对论坛当场直达、代码仓库每个入口都开同一个窗口、路由不动、没有飞行图标、GitHub 组织应用不在，「加入我们」照旧飞图标后进 `/join-us`，另外核对按住不放只算一次、「论坛最新」窗口的「3D 版块」进 `/forum-3d`、读屏提示。
 
 ## 手机首页与主屏幕
 
@@ -152,7 +164,7 @@ three.js 只通过 `/forum-3d` 页里的 `import("../three/forum")` 进入，首
 
 官网不自建登录态，只显示核心服务的全站登录（官网、论坛、控制台共用同一个 `sid` 和一个极客班账号，见 [SECURITY](../../architecture/SECURITY.md)「登录门槛」）。菜单栏时钟右边、手机状态栏右上角是头像按钮，`lib/account.ts` 读完 `/auth/me` 之前不显示；点开是个人资料卡（见上文「个人资料卡」），登录、注册、退出、账号设置、控制台都在卡里。登录去 `/signin?return_to=<当前页面的 pathname + search + hash>`（#262），登录方式在统一登录页按 `/auth/providers` 列出。本机开发时 5173 把 `/auth`、`/signin` 转给核心后端与控制台 dev server（见 [LOCAL-PREVIEW](../../ops/LOCAL-PREVIEW.md)）。
 
-**控制台入口只给管理者**：`/auth/me` 的 `console_link` 为 true 时，桌面图标、Dock、「前往」菜单、启动器（⌘K）、终端的 `ls` / `open console`、资料卡和普通页面页脚才出现「控制台」；没登录和没有管理能力的人看不到。`lib/osApps.ts` 的 `visibleApps(consoleLink)` 是桌面这几处唯一的过滤，`components/PageShell.tsx` 的页脚同样按它显示。这只决定入口显不显示，控制台自己的准入不变（直接打开 `/console` 仍按能力判定）。单测 `tests/web/portal-os.test.ts`，浏览器用例 `tests/e2e/workflows.spec.ts`（页脚按 `console_link` 出现）。
+**控制台入口只给管理者**：`/auth/me` 的 `console_link` 为 true 时，桌面图标、Dock、「前往」菜单、启动器（⌘K）、终端的 `ls ~/Desktop` / `open console`、资料卡和普通页面页脚才出现「控制台」；没登录和没有管理能力的人看不到。`lib/osApps.ts` 的 `visibleApps(consoleLink)` 是桌面这几处唯一的过滤，`components/PageShell.tsx` 的页脚同样按它显示。这只决定入口显不显示，控制台自己的准入不变（直接打开 `/console` 仍按能力判定）。单测 `tests/web/portal-os.test.ts`，浏览器用例 `tests/e2e/workflows.spec.ts`（页脚按 `console_link` 出现）。
 
 官网不读 `?signin=`：从官网登录没成功时，核心服务把人送到统一登录页 `/signin?signin=<原因>&return_to=<刚才的官网路径>` 说明原因，登录页再回官网或重试（#262）。预发布与正式的论坛镜像是极客班论坛（见 [forum 合同](../forum/README.md)「服务端模式」），登录方式是统一登录，从官网登录后回到的页面顶部显示同一个账号；从论坛登录则回论坛（`/signin?return_to=/forum/…`）。退出等服务端确认后才显示未登录。
 
@@ -263,4 +275,4 @@ three.js 只通过 `/forum-3d` 页里的 `import("../three/forum")` 进入，首
 
 ## 验收
 
-`pnpm check && pnpm test && pnpm build`；浏览器验证见 [TESTING](../../conventions/TESTING.md)。单测覆盖进站规则与开机动画外壳、个人资料卡、便签、组织架构与代码仓库窗口、投递登录与限额、相机数学、像素比调速器、启动器过滤、终端、时间文案、快照结构、图标注册表与禁用字符。开机动画、3D 画面、动画节奏与帧率只能在真实浏览器里验收，截图与测量结果写进 MR。
+`pnpm check && pnpm test && pnpm build`；浏览器验证见 [TESTING](../../conventions/TESTING.md)。单测覆盖进站规则与开机动画外壳、个人资料卡、便签、组织架构与代码仓库窗口、投递登录与限额、相机数学、像素比调速器、启动器过滤、终端（模拟 Linux）、时间文案、快照结构、图标注册表与禁用字符。开机动画、3D 画面、动画节奏与帧率只能在真实浏览器里验收，截图与测量结果写进 MR。

@@ -118,7 +118,7 @@ export default function FeedbackBox() {
   ) : (
     <form onSubmit={submit} className="pt-form">
       <div className="pt-field">
-        <label htmlFor="fb-org">发往的 GitHub 组织</label>
+        <label htmlFor="fb-org">发往的组织</label>
         <input id="fb-org" className="pt-input is-mono" value={org} readOnly aria-readonly="true" aria-describedby="fb-org-hint" />
         <p className="pt-hint" id="fb-org-hint">
           意见箱只收本组织的意见，这里改不了。

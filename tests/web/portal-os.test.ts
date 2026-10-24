@@ -5,7 +5,10 @@ import { ICONS, isIconName } from "../../app/web/sites/portal/lib/icons";
 import { bindEmailHref, emailRequired, parseMe } from "../../app/web/sites/portal/lib/account";
 import { links } from "../../app/web/sites/portal/lib/links";
 import type { CodeProject } from "../../app/web/sites/portal/lib/codeRepos";
-import { NEW_TAB_NOTE, OS_APPS, agoLabel, appById, appByKey, appLink, appLinkById, filterCommands, followAppLink, launcherCommands, moveSelection, runTerminal, visibleApps } from "../../app/web/sites/portal/lib/osApps";
+import { NEW_TAB_NOTE, OS_APPS, agoLabel, appById, appByKey, appLink, appLinkById, filterCommands, followAppLink, launcherCommands, moveSelection, visibleApps } from "../../app/web/sites/portal/lib/osApps";
+import { createShell } from "../../app/web/sites/portal/lib/shell";
+
+const terminal = (apps: ReturnType<typeof visibleApps>, repos: CodeProject[] = []) => createShell({ account: null, apps, repos, storage: null });
 
 const PORTAL = new URL("../../app/web/sites/portal/", import.meta.url).pathname;
 
@@ -46,16 +49,18 @@ describe("控制台入口只给 console_link 为 true 的人", () => {
     const apps = visibleApps(false);
     expect(apps.map((app) => app.id)).toEqual(OS_APPS.map((app) => app.id).filter((id) => id !== "console"));
     expect(launcherCommands(apps).map((command) => command.id)).not.toContain("app:console");
-    expect(runTerminal("ls", [], apps).lines.map((line) => line.key)).not.toContain("console");
-    expect(runTerminal("open console", [], apps)).toMatchObject({ open: undefined });
-    expect(runTerminal("open console", [], apps).lines.at(-1)?.kind).toBe("err");
+    const shell = terminal(apps);
+    expect(shell.run("ls ~/Desktop").lines.map((line) => line.text).join("\n")).not.toContain("console");
+    const hidden = shell.run("open console");
+    expect(hidden.open).toEqual([]);
+    expect(hidden.lines.at(-1)?.kind).toBe("err");
   });
 
   it("有 console_link：控制台和其它应用一起出现，能从终端打开", () => {
     const apps = visibleApps(true);
     expect(apps).toEqual(OS_APPS);
     expect(launcherCommands(apps).map((command) => command.id)).toContain("app:console");
-    expect(runTerminal("open console", [], apps).open).toBe("console");
+    expect(terminal(apps).run("open console").open).toEqual(["console"]);
   });
 
   it("页脚与资料卡里的控制台链接都看 consoleLink", () => {
@@ -134,25 +139,23 @@ describe("YUGC OS 应用与启动器", () => {
     expect(moveSelection(3, 1, 0)).toBe(0);
   });
 
-  it("终端命令：repos 列代码仓库里的公开项目，没有说明时写路径", () => {
+  it("终端命令：help 有说明，join 和桌面应用能打开，repos 列代码仓库里的公开项目", () => {
     const repos: CodeProject[] = [
       { name: "geek-cli", path: "geek/geek-cli", description: "CLI", url: "https://git.example.invalid/geek/geek-cli", cloneUrl: "", activeAt: null },
       { name: "notes", path: "geek/notes", description: "", url: "https://git.example.invalid/geek/notes", cloneUrl: "", activeAt: null },
     ];
-    expect(runTerminal("help", repos).lines.length).toBeGreaterThan(3);
-    expect(runTerminal("help", repos).lines.find((line) => line.key === "repos")?.text).toBe("列出代码仓库里的公开项目");
-    expect(runTerminal("./join --yugc", repos).open).toBe("join");
-    expect(runTerminal("open github", repos)).toMatchObject({ open: undefined });
-    expect(runTerminal("open github", repos).lines.at(-1)?.kind).toBe("err");
-    expect(runTerminal("open gitlab", repos).open).toBe("gitlab");
-    expect(runTerminal("open nope", repos).lines.at(-1)?.kind).toBe("err");
-    expect(runTerminal("repos", repos).lines.slice(1)).toEqual([
-      { kind: "out", key: "geek-cli", text: "CLI", href: "https://git.example.invalid/geek/geek-cli" },
-      { kind: "out", key: "notes", text: "geek/notes", href: "https://git.example.invalid/geek/notes" },
-    ]);
-    expect(runTerminal("repos", []).lines[1]).toEqual({ kind: "dim", text: "没有公开项目" });
-    expect(runTerminal("clear", repos)).toEqual({ lines: [], clear: true });
-    expect(runTerminal("rm -rf /", repos).lines.at(-1)?.kind).toBe("err");
+    const shell = terminal(visibleApps(false), repos);
+    expect(shell.run("help").lines.length).toBeGreaterThan(3);
+    expect(shell.run("./join --yugc").open).toEqual(["join"]);
+    expect(shell.run("open github")).toMatchObject({ open: [] });
+    expect(shell.run("open gitlab").open).toEqual(["gitlab"]);
+    expect(shell.run("open nope").lines.at(-1)?.kind).toBe("err");
+    const listed = shell.run("repos").lines.map((line) => line.text).join("\n");
+    expect(listed).toContain("https://git.example.invalid/geek/geek-cli");
+    expect(listed).toContain("geek/notes");
+    expect(terminal(visibleApps(false)).run("repos").lines.at(-1)?.text).toContain("代码仓库里还没有公开项目");
+    expect(shell.run("clear")).toMatchObject({ lines: [], clear: true });
+    expect(shell.run("rm -rf /").lines.at(-1)?.kind).toBe("err");
   });
 });
 
