@@ -5,6 +5,8 @@ import { TxTabs, TxTabItem } from "@talex-touch/tuffex/tabs";
 import { TxForm, TxFormItem } from "@talex-touch/tuffex/form";
 import { TxRadioGroup, TxRadio } from "@talex-touch/tuffex/radio";
 import { TxSwitch } from "@talex-touch/tuffex/switch";
+import { TxInput } from "@talex-touch/tuffex/input";
+import { TxSelect } from "@talex-touch/tuffex/select";
 import { TxButton } from "@talex-touch/tuffex/button";
 import { TxAvatar } from "@talex-touch/tuffex/avatar";
 import { TxTag } from "@talex-touch/tuffex/tag";
@@ -23,6 +25,7 @@ import { actionText, outcomeText, surfaceText, targetText } from "../../lib/acti
 import { ASSIGNABLE_LEVELS, GITLAB_STATE_TEXT, LEVEL_TEXT, PROVIDER_TEXT, levelText } from "../../lib/levels";
 import { GROUP_KIND_TEXT, metaValueText, nodesByDomain } from "../../lib/permissions";
 import { useAction } from "../../lib/resource";
+import { GRADE_OPTIONS } from "../../lib/grade";
 import { useSession } from "../../lib/session";
 import { vSnapIndicator } from "../../lib/tabs";
 import { DEPT_TONE_SWATCH, deptTone } from "../../lib/tone";
@@ -30,7 +33,8 @@ import { SITE_OWNER_TITLE, departmentChoices, departmentOf, draftFromUser, nameO
 import type { ActivityEvent, ActivityList, ConsoleUser, EffectivePermissions, PublicDepartment } from "../../lib/types";
 
 /**
- * 用户详情抽屉：资料与修改（身份、部门、称号、站长、停用）、这个人的操作记录、有效权限。
+ * 用户详情抽屉：资料与修改（真实姓名和年级、身份、部门、称号、站长、停用）、这个人的操作记录、有效权限。
+ * 真实姓名只有 users.manage 才看得到（#280，接口不给就没有这一行）；本人填过以后只能在这里改。
  * 改动用 PATCH /api/console/users/:id，成功后把服务端回的那一行交给列表。
  */
 const props = defineProps<{ user: ConsoleUser | null; departments: PublicDepartment[] }>();
@@ -44,7 +48,9 @@ const canEffective = computed(() => can("perm.view"));
 const visible = computed({ get: () => props.user !== null, set: value => { if (!value) emit("close"); } });
 const tab = ref("profile");
 
-const draft = reactive<UserDraft>({ level: "registered", department: "dept.none", title: "", owner: false });
+const draft = reactive<UserDraft>({ level: "registered", department: "dept.none", title: "", owner: false, real_name: "", grade: "" });
+const gradeInput = computed({ get: () => draft.grade, set: (value: string | number | (string | number)[]) => { draft.grade = typeof value === "number" ? value : ""; } });
+const showsRealName = computed(() => props.user?.real_name !== undefined);
 const reset = (user: ConsoleUser) => Object.assign(draft, draftFromUser(user));
 
 const departmentOptions = computed(() => departmentChoices(props.departments));
@@ -165,6 +171,12 @@ const providerText = (user: ConsoleUser) => user.providers.map(item => PROVIDER_
           <template #name>资料</template>
           <div class="pane">
             <dl class="facts">
+              <template v-if="showsRealName">
+                <dt>真实姓名</dt>
+                <dd><span v-if="user.real_name">{{ user.real_name }}</span><span v-else class="muted">没填</span></dd>
+              </template>
+              <dt>年级</dt>
+              <dd><span v-if="user.grade_label">{{ user.grade_label }}</span><span v-else class="muted">没填</span></dd>
               <dt>身份</dt><dd>{{ levelText(user.level) }}</dd>
               <dt>部门</dt>
               <dd>
@@ -189,6 +201,17 @@ const providerText = (user: ConsoleUser) => user.providers.map(item => PROVIDER_
             <ErrorAlert v-if="save.error.value" :error="save.error.value" @close="save.reset()" />
             <TxForm v-if="canManage" :model="draft" label-position="top" class="edit" @submit="submit">
               <h3 class="section-title">修改</h3>
+              <TxFormItem v-if="showsRealName" v-slot="{ id }" label="真实姓名">
+                <TxInput :id="id" v-model="draft.real_name" class="fill-width" placeholder="和学籍上一致" maxlength="32" spellcheck="false" />
+              </TxFormItem>
+              <TxFormItem label="年级">
+                <!-- TxSelect 0.6.0 的 attrs 落在外层，用 label 给里面的输入框命名。 -->
+                <label class="fill-width">
+                  <span class="sr-only">年级</span>
+                  <TxSelect v-model="gradeInput" :options="GRADE_OPTIONS" :placeholder="user.grade === 'graduated' ? '已毕业' : '选择年级'" class="fill-width" />
+                </label>
+                <p class="hint">本人填过以后只能在这里改。年级每年 9 月 1 日自动升一级，大四之后是已毕业。</p>
+              </TxFormItem>
               <TxFormItem label="身份">
                 <TxRadioGroup v-model="draft.level" type="card" direction="row" class="choices choices--3" aria-label="身份">
                   <TxRadio v-for="level in ASSIGNABLE_LEVELS" :key="level" :value="level" :label="LEVEL_TEXT[level]" />
@@ -219,7 +242,7 @@ const providerText = (user: ConsoleUser) => user.providers.map(item => PROVIDER_
                 <TxButton variant="primary" native-type="submit" :disabled="!patch" :loading="save.pending.value">保存</TxButton>
               </div>
             </TxForm>
-            <p v-else class="hint">改身份、部门和称号需要「{{ permissionLabel("users.manage") }}」权限。</p>
+            <p v-else class="hint">改姓名、年级、身份、部门和称号需要「{{ permissionLabel("users.manage") }}」权限。</p>
 
             <section v-if="canDisable" class="status">
               <h3 class="section-title">账号状态</h3>

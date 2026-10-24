@@ -99,7 +99,8 @@ it('completes the real core callback with a stub provider and issues only sid, n
   const cookie = String(start.headers['set-cookie']).split(';')[0];
   const response = await app.inject({ url: `/auth/callback?code=isolated&state=${state}`, headers: { cookie } });
   expect(response.statusCode).toBe(302);
-  expect(response.headers.location).toBe('https://example.test/console');
+  // 新注册的账号还没有姓名和年级（#280）：先到补资料页，补好回控制台
+  expect(response.headers.location).toBe('https://example.test/complete-profile?return_to=%2Fconsole');
   const cookies = ([] as string[]).concat(response.headers['set-cookie'] || []);
   expect(cookies.some(c => c.startsWith('sid='))).toBe(true);
   expect(cookies.some(c => c.startsWith('forum_sid='))).toBe(false);
@@ -109,7 +110,7 @@ it('returns a signed-in user to the page that started the sign-in, without revok
   const { state, cookie } = await startSignIn(app, 'https://example.test/forum/t/12?page=2');
   const response = await app.inject({ url: `/auth/callback?code=ok&state=${state}`, headers: { cookie } });
   expect(response.statusCode).toBe(302);
-  expect(response.headers.location).toBe('https://example.test/forum/t/12?page=2');
+  expect(response.headers.location).toBe('https://example.test/complete-profile?return_to=%2Fforum%2Ft%2F12%3Fpage%3D2');
   expect(setCookies(response).some(c => c.startsWith('sid='))).toBe(true);
   // 登录成功的授权不撤销
   expect(providerCalls.some(call => call.url.includes('/grant'))).toBe(false);
@@ -198,7 +199,7 @@ it.each([
   expect(resolveSiteEntry(url)).toBe(site === 'admin' ? ADMIN_SPA_ENTRY : PORTAL_SPA_ENTRY);
 });
 it('keeps the admin path list and entry file in one place', () => {
-  expect(ADMIN_SPA_PATHS).toEqual({ exact: ['/signin', '/device', '/account', '/authorize', '/bind-email'], prefixes: ['/admin', '/console'] });
+  expect(ADMIN_SPA_PATHS).toEqual({ exact: ['/signin', '/device', '/account', '/authorize', '/bind-email', '/complete-profile'], prefixes: ['/admin', '/console'] });
   // 管理端是 Vue 控制台（app/console），入口在它自己的产物里。
   expect([ADMIN_SPA_ENTRY, PORTAL_SPA_ENTRY]).toEqual(['sites/console/index.html', 'sites/portal/index.html']);
 });

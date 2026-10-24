@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { ServiceOverrides } from '../../app/server/src/services';
 import { GOOGLE_JWKS_URL, GOOGLE_TOKEN_URL } from '../../app/server/src/lib/google';
-import { accountIdOf, activityRows, grantPermGroup, signIn, testApp } from './helpers';
+import { accountIdOf, activityRows, completeProfile, grantPermGroup, signIn, testApp } from './helpers';
 import { requestLogFields } from '../../app/server/src/app';
 import { PERMISSION_NODES } from '../../app/server/src/lib/permission-nodes';
 import { createLoginThrottle } from '../../app/server/src/lib/password-policy';
@@ -17,6 +17,8 @@ afterEach(async () => { for (const c of contexts.splice(0)) await c.close(); });
 
 const MAIL_ENV = { MAIL_RESEND_API_KEY: 're_test_resend_key_value', MAIL_RESEND_FROM: 'notify@example.test', MAIL_RECIPIENTS: 'all' };
 const GOOGLE_ENV = { GOOGLE_CLIENT_ID: 'google-test-client', GOOGLE_CLIENT_SECRET: 'google-test-secret' };
+/** 邮箱注册必填的姓名和年级（#280）；登录到已有账号时服务端不看这两项，所以每次核对验证码都带上 */
+const REAL = { real_name: '测试同学', grade: 2 };
 
 /** 假的发信商：记下每封信的收件人和正文，验证码从正文里取。 */
 function mailbox() {
@@ -136,6 +138,34 @@ describe('GET /auth/providers lists what this site has enabled (#262)', () => {
 });
 
 describe('email code sign-in and invite-code registration (#262)', () => {
+  it('asks a new address for a name and grade before registering, keeping the code and invite for the retry, and sends an existing account without them to the profile page (#280)', async () => {
+    const { app, db, mail, invite, tick } = await setup();
+    invite('yugc-test-2026', { max_uses: 1 });
+    const user = browser(app);
+    await user.send('POST', '/auth/email/start', { email: 'fresh@example.test', return_to: '/forum/' });
+    const code = await mail.codeFor('fresh@example.test');
+    const missing = await user.send('POST', '/auth/email/verify', { code, invite_code: 'yugc-test-2026' });
+    expect([missing.statusCode, missing.json().error]).toEqual([400, 'real_info_required']);
+    const badName = await user.send('POST', '/auth/email/verify', { code, invite_code: 'yugc-test-2026', real_name: '1', grade: 1 });
+    expect([badName.statusCode, badName.json().error]).toEqual([400, 'bad_real_name']);
+    // 年级只能是 1–4，合同直接挡下
+    expect((await user.send('POST', '/auth/email/verify', { code, real_name: '王小明', grade: 5 })).statusCode).toBe(400);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 0 });
+
+    const ok = await user.send('POST', '/auth/email/verify', { code, invite_code: 'yugc-test-2026', real_name: ' 王  小明 ', grade: 1 });
+    expect(ok.json()).toEqual({ return_to: 'https://example.test/forum/', registered: true });
+    const me = (await user.send('GET', '/auth/me')).json();
+    expect(me).toMatchObject({ level: 'member', real_name: '王 小明', grade: 1, grade_label: '大一', profile_required: false });
+
+    // 老账号缺姓名和年级：登录照常，return_to 先指向补资料页；登录到已有账号不要求带这两项
+    app.services.profiles.setRealInfo(me.account_id, null, null);
+    tick(61_000);
+    const again = browser(app);
+    await again.send('POST', '/auth/email/start', { email: 'fresh@example.test', return_to: '/forum/' });
+    const signedIn = await again.send('POST', '/auth/email/verify', { code: await mail.codeFor('fresh@example.test', 2) });
+    expect(signedIn.json()).toEqual({ return_to: 'https://example.test/complete-profile?return_to=%2Fforum%2F', registered: false });
+  });
+
   it('registers a plain registered user without an invite, never wasting the code on an invalid one (#274: invite code is optional)', async () => {
     const { app, db, mail, invite } = await setup();
     invite('yugc-test-2026');
@@ -148,12 +178,12 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     expect(mail.letters[0].text).not.toMatch(/https?:\/\/\S*(signin|auth)/);
 
     // 邀请码不对：拒绝、不建号、不白丢验证码（还能再试）
-    const wrong = await user.send('POST', '/auth/email/verify', { code, invite_code: 'not-a-real-code' });
+    const wrong = await user.send('POST', '/auth/email/verify', { ...REAL, code, invite_code: 'not-a-real-code' });
     expect(wrong.json()).toMatchObject({ error: 'invite_invalid', attempts_left: 4 });
     expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 0 });
 
     // 不填邀请码：注册成注册用户，不是错误（SPEC §3.2）
-    const ok = await user.send('POST', '/auth/email/verify', { code });
+    const ok = await user.send('POST', '/auth/email/verify', { ...REAL, code });
     expect(ok.statusCode).toBe(200);
     expect(ok.json()).toEqual({ return_to: 'https://example.test/forum/', registered: true });
     const me = (await user.send('GET', '/auth/me')).json();
@@ -172,14 +202,14 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     // 同一个验证码不能再用
     const again = browser(app);
     for (const [k, v] of user.jar) if (k === 'email_challenge') again.jar.set(k, v);
-    expect((await again.send('POST', '/auth/email/verify', { code })).json().error).toBe('code_expired');
+    expect((await again.send('POST', '/auth/email/verify', { ...REAL, code })).json().error).toBe('code_expired');
   });
 
   it('lets a plain registered email account (no invite, no GitHub id) be recognized as a real forum member, not a guest — but it still cannot post without forum.topic.create (#274 SPEC §3.2/§3.6)', async () => {
     const { app, mail } = await setup();
     const user = browser(app);
     await user.send('POST', '/auth/email/start', { email: 'no.invite.member@example.test' });
-    await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('no.invite.member@example.test') });
+    await user.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('no.invite.member@example.test') });
     const me = (await user.send('GET', '/auth/me')).json();
     expect(me).toMatchObject({ signed_in: true, provider: 'email', user_id: null, level: 'registered' });
 
@@ -211,7 +241,7 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     const user = browser(app);
     await user.send('POST', '/auth/email/start', { email: 'future.member@example.test', return_to: '/forum/' });
     const code = await mail.codeFor('future.member@example.test');
-    const ok = await user.send('POST', '/auth/email/verify', { code, invite_code: ' YUGC-test-2026 ' });
+    const ok = await user.send('POST', '/auth/email/verify', { ...REAL, code, invite_code: ' YUGC-test-2026 ' });
     expect(ok.statusCode).toBe(200);
     expect(ok.json()).toEqual({ return_to: 'https://example.test/forum/', registered: true });
     const me = (await user.send('GET', '/auth/me')).json();
@@ -227,7 +257,7 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     invite('yugc-test-2026');
     const first = browser(app);
     await first.send('POST', '/auth/email/start', { email: 'member@example.test' });
-    await first.send('POST', '/auth/email/verify', { code: await mail.codeFor('member@example.test'), invite_code: 'yugc-test-2026' });
+    await first.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('member@example.test'), invite_code: 'yugc-test-2026' });
     const accountId = (await first.send('GET', '/auth/me')).json().account_id;
     tick(61_000);
 
@@ -241,7 +271,7 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     expect(again.statusCode).toBe(429);
     expect(again.json()).toMatchObject({ error: 'rate_limited', retry_after: 60 });
     expect(again.headers['retry-after']).toBe('60');
-    const ok = await later.send('POST', '/auth/email/verify', { code: await mail.codeFor('member@example.test', 2) });
+    const ok = await later.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('member@example.test', 2) });
     expect(ok.json()).toMatchObject({ registered: false });
     expect((await later.send('GET', '/auth/me')).json().account_id).toBe(accountId);
   });
@@ -252,7 +282,7 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     expect((await user.send('POST', '/auth/email/start', { email: 'no-at-sign' })).json().error).toBe('bad_email');
     await user.send('POST', '/auth/email/start', { email: 'guess@example.test' });
     const answers = [];
-    for (let i = 0; i < 5; i++) answers.push((await user.send('POST', '/auth/email/verify', { code: '000000' })).json());
+    for (let i = 0; i < 5; i++) answers.push((await user.send('POST', '/auth/email/verify', { ...REAL, code: '000000' })).json());
     expect(answers.map(a => a.error)).toEqual(['invalid_code', 'invalid_code', 'invalid_code', 'invalid_code', 'code_expired']);
     expect(answers[0].attempts_left).toBe(4);
     // 五次验证码都算一次 auth.signin_failed（#274 review round 1，SPEC §3.7），不记邮箱和验证码本身。
@@ -273,11 +303,11 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     const a = browser(app);
     await a.send('POST', '/auth/email/start', { email: 'a@example.test' });
     const codeA = await mail.codeFor('a@example.test');
-    expect((await a.send('POST', '/auth/email/verify', { code: codeA, invite_code: 'closed-code' })).json().error).toBe('invite_invalid');
-    expect((await a.send('POST', '/auth/email/verify', { code: codeA, invite_code: 'one-shot' })).statusCode).toBe(200);
+    expect((await a.send('POST', '/auth/email/verify', { ...REAL, code: codeA, invite_code: 'closed-code' })).json().error).toBe('invite_invalid');
+    expect((await a.send('POST', '/auth/email/verify', { ...REAL, code: codeA, invite_code: 'one-shot' })).statusCode).toBe(200);
     const b = browser(app);
     await b.send('POST', '/auth/email/start', { email: 'b@example.test' });
-    expect((await b.send('POST', '/auth/email/verify', { code: await mail.codeFor('b@example.test'), invite_code: 'one-shot' })).json().error).toBe('invite_invalid');
+    expect((await b.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('b@example.test'), invite_code: 'one-shot' })).json().error).toBe('invite_invalid');
   });
 });
 
@@ -296,7 +326,7 @@ describe('registration limits: 5/IP/day, 3/device/day, only when a new account i
       const b = browser(app, '198.51.100.9');
       b.jar.set('yugc_vid', vid);
       await b.send('POST', '/auth/email/start', { email });
-      return b.send('POST', '/auth/email/verify', { code: await mail.codeFor(email) });
+      return b.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor(email) });
     };
     for (let i = 0; i < 5; i++) {
       const response = await register(`ip-bucket-${i}@example.test`, deviceOf(i));
@@ -316,7 +346,7 @@ describe('registration limits: 5/IP/day, 3/device/day, only when a new account i
       const b = browser(app, ip);
       b.jar.set('yugc_vid', FIXED_VID);
       await b.send('POST', '/auth/email/start', { email });
-      return b.send('POST', '/auth/email/verify', { code: await mail.codeFor(email) });
+      return b.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor(email) });
     };
     for (let i = 0; i < 3; i++) {
       const response = await register(`device-bucket-${i}@example.test`, `203.0.113.${i + 1}`);
@@ -338,18 +368,18 @@ describe('registration limits: 5/IP/day, 3/device/day, only when a new account i
       const b = freshBrowser();
       const email = `fill-${i}@example.test`;
       await b.send('POST', '/auth/email/start', { email });
-      expect((await b.send('POST', '/auth/email/verify', { code: await mail.codeFor(email) })).statusCode).toBe(200);
+      expect((await b.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor(email) })).statusCode).toBe(200);
     }
     // 新账号确实到了上限：第 6 个真的要注册的邮箱被拒。
     const blocked = freshBrowser();
     await blocked.send('POST', '/auth/email/start', { email: 'blocked@example.test' });
-    const blockedResult = await blocked.send('POST', '/auth/email/verify', { code: await mail.codeFor('blocked@example.test') });
+    const blockedResult = await blocked.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('blocked@example.test') });
     expect(blockedResult.statusCode).toBe(429);
     // 登录回上面已经注册过的账号（fill-0），同一个 IP、同一台设备，不受影响——这不是「新建账号」，不占额度。
     tick(61_000); // 同一个邮箱 60 秒内只能再要一次验证码，跳过这个冷却期
     const back = freshBrowser();
     await back.send('POST', '/auth/email/start', { email: 'fill-0@example.test' });
-    const signedIn = await back.send('POST', '/auth/email/verify', { code: await mail.codeFor('fill-0@example.test', 2) });
+    const signedIn = await back.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('fill-0@example.test', 2) });
     expect(signedIn.statusCode).toBe(200);
     expect(signedIn.json().registered).toBe(false);
   });
@@ -361,7 +391,7 @@ describe('email password sign-in (#262)', () => {
     invite('yugc-test-2026');
     const user = browser(app);
     await user.send('POST', '/auth/email/start', { email: 'pw@example.test' });
-    await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('pw@example.test'), invite_code: 'yugc-test-2026' });
+    await user.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('pw@example.test'), invite_code: 'yugc-test-2026' });
 
     expect((await user.send('POST', '/api/identity/password', { password: 'short' })).json().error).toBe('password_too_short');
     expect((await user.send('POST', '/api/identity/password', { password: 'abcd123' })).json()).toMatchObject({ error: 'password_too_short', message: '密码至少 8 位' });
@@ -370,7 +400,7 @@ describe('email password sign-in (#262)', () => {
     const view = (await user.send('GET', '/api/identity/me')).json();
     expect(view).toMatchObject({ has_password: true, identities: [{ provider: 'email', label: 'p***@example.test' }] });
     // 响应合同不删字段：账号页用到的每一项都在
-    expect(Object.keys(view).sort()).toEqual(['account_id', 'available', 'created_at', 'email_required', 'has_password', 'identities', 'login', 'membership', 'password_updated_at', 'recent', 'session']);
+    expect(Object.keys(view).sort()).toEqual(['account_id', 'available', 'created_at', 'email_required', 'grade', 'grade_label', 'has_password', 'identities', 'login', 'membership', 'password_updated_at', 'profile_required', 'real_name', 'recent', 'session']);
     expect(view.membership).toEqual({ state: 'active', org_role: 'member', via_invite: true });
     expect(view.session).toEqual(expect.objectContaining({ provider: 'email', step_up_until: view.session.created_at + 10 * 60 * 1000 }));
     expect(view.recent[0]).toEqual({ at: expect.any(Number), action: 'password_set', provider: 'email', result: 'ok' });
@@ -397,7 +427,7 @@ describe('email password sign-in (#262)', () => {
     invite('yugc-test-2026');
     const user = browser(app);
     await user.send('POST', '/auth/email/start', { email: 'old@example.test' });
-    await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('old@example.test'), invite_code: 'yugc-test-2026' });
+    await user.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('old@example.test'), invite_code: 'yugc-test-2026' });
     const activity = (action: string) => db.prepare('SELECT outcome, meta FROM activity_events WHERE action = ? ORDER BY id').all(action) as { outcome: string; meta: string }[];
     await user.send('POST', '/api/identity/password', { password: 'first passphrase is long' });
     // 第一次设密码记 auth.password_set，meta 不带密码本身（#274 review round 1，SPEC §3.7）。
@@ -421,7 +451,7 @@ describe('console permissions come only from the site account; GitHub is a conne
 
     const user = browser(app);
     await user.send('POST', '/auth/email/start', { email: 'owner@example.test' });
-    expect((await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('owner@example.test') })).json()).toMatchObject({ registered: false });
+    expect((await user.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('owner@example.test') })).json()).toMatchObject({ registered: false });
     expect((await user.send('GET', '/auth/me')).json()).toMatchObject({ login: 'Crosery', user_id: 130495739, account_id: owner.accountId, provider: 'email', console_link: true });
     const me = (await user.send('GET', '/api/console/me')).json();
     expect(me).toMatchObject({ account_id: owner.accountId, provider: 'email', level: 'member', level_name: '极客班成员', department: null });
@@ -456,7 +486,7 @@ describe('console permissions come only from the site account; GitHub is a conne
     const owner = app.services.identity.provisionAccount({ githubId: 130495739, githubLogin: 'Crosery', orgRole: 'admin', email: 'owner@example.test' });
     const user = browser(app);
     await user.send('POST', '/auth/email/start', { email: 'crew@example.test' });
-    await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('crew@example.test'), invite_code: 'yugc-test-2026' });
+    await user.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('crew@example.test'), invite_code: 'yugc-test-2026' });
     expect((await user.send('GET', '/api/me/competitions')).statusCode).toBe(200);
     const me = (await user.send('GET', '/api/console/me')).json();
     expect(me).toMatchObject({ level: 'member', department: null, titles: [] });
@@ -471,7 +501,7 @@ describe('console permissions come only from the site account; GitHub is a conne
     // 提督按账号给他部门部长称号，不用 GitHub 用户名（#274 的用户/权限组接口都按 account_id）
     const admiral = browser(app);
     await admiral.send('POST', '/auth/email/start', { email: 'owner@example.test' });
-    await admiral.send('POST', '/auth/email/verify', { code: await mail.codeFor('owner@example.test') });
+    await admiral.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('owner@example.test') });
     const crewId = (await user.send('GET', '/auth/me')).json().account_id as string;
     const assigned = await admiral.send('PATCH', `/api/console/users/${crewId}`, { titles: ['title.ai.head'] });
     expect(assigned.statusCode).toBe(200);
@@ -526,7 +556,7 @@ describe('site ownership in 成员与权限 (#274：按权限节点判定，取�
     const signInByEmail = async (email: string, invite_code?: string, nth = 1) => {
       const user = browser(app);
       await user.send('POST', '/auth/email/start', { email });
-      const verified = await user.send('POST', '/auth/email/verify', { code: await mail.codeFor(email, nth), ...(invite_code ? { invite_code } : {}) });
+      const verified = await user.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor(email, nth), ...(invite_code ? { invite_code } : {}) });
       return { user, verified };
     };
     const { user: admiral } = await signInByEmail('owner@example.test');
@@ -581,6 +611,8 @@ describe('GitHub sign-in: invite optional, no organization check (#274 rewrite o
   function noGithubCalls(calls: string[]) {
     return (() => ({ request: async (route: string) => { calls.push(route); throw new Error(`unexpected GitHub call ${route}`); } })) as unknown as ServiceOverrides['octokitFactory'];
   }
+  /** GitHub 注册的新账号还没有姓名和年级（#280）：登录后先到补资料页，补好再回论坛 */
+  const PROFILE_PAGE = 'https://example.test/complete-profile?return_to=%2Fforum%2F';
   async function callback(app: FastifyInstance, invite?: string) {
     const start = await app.inject(`/auth/github?return_to=https%3A%2F%2Fexample.test%2Fforum%2F${invite ? `&invite=${invite}` : ''}`);
     const state = new URL(String(start.headers.location)).searchParams.get('state');
@@ -594,12 +626,13 @@ describe('GitHub sign-in: invite optional, no organization check (#274 rewrite o
     const { app } = context;
     const db = app.services.storage.db;
     Object.assign(user, { id: 42, login: 'octocat' });
-    expect(await callback(app)).toBe('https://example.test/forum/');
+    expect(await callback(app)).toBe(PROFILE_PAGE);
     expect(calls).toEqual([]);
     // #274 review round 1（blocker）：没填邀请码的 org_state 记 not_member，不再统一写 active。
     expect(db.prepare('SELECT org_role, org_state FROM users').get()).toEqual({ org_role: null, org_state: 'not_member' });
 
-    // 再登录一次：同一个账号，不重新注册
+    // 补好姓名和年级后再登录一次：同一个账号，不重新注册，直接回论坛
+    completeProfile(app, (db.prepare('SELECT id FROM users').get() as { id: string }).id);
     expect(await callback(app)).toBe('https://example.test/forum/');
     expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 1 });
   });
@@ -613,7 +646,7 @@ describe('GitHub sign-in: invite optional, no organization check (#274 rewrite o
     Object.assign(user, { id: 43, login: 'newmember' });
     expect(await callback(app, 'not-a-real-code')).toContain('signin=invite_invalid');
     expect(db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 0 });
-    expect(await callback(app, 'yugc-test-2026')).toBe('https://example.test/forum/');
+    expect(await callback(app, 'yugc-test-2026')).toBe(PROFILE_PAGE);
     expect(db.prepare('SELECT org_role, org_state FROM users').get()).toEqual({ org_role: 'member', org_state: 'active' });
     expect(calls).toEqual([]);
   });
@@ -624,7 +657,7 @@ describe('GitHub sign-in: invite optional, no organization check (#274 rewrite o
     const { app } = context;
     const db = app.services.storage.db;
     Object.assign(user, { id: 44, login: 'firstuser' });
-    expect(await callback(app)).toBe('https://example.test/forum/');
+    expect(await callback(app)).toBe(PROFILE_PAGE);
     // #262 时代「空库第一个 GitHub 组织 owner 自动变站内管理员」已经去掉（SPEC §3.2）：第一个 GitHub 用户也只是注册用户
     expect(db.prepare('SELECT org_role FROM users').get()).toEqual({ org_role: null });
   });
@@ -636,7 +669,7 @@ describe('GitHub sign-in: invite optional, no organization check (#274 rewrite o
     const db = app.services.storage.db;
     const owner = app.services.identity.provisionAccount({ githubId: 42, githubLogin: 'octocat', orgRole: 'admin', email: 'owner@example.test' });
     Object.assign(user, { id: 42, login: 'octocat' });
-    expect(await callback(app)).toBe('https://example.test/forum/');
+    expect(await callback(app)).toBe(PROFILE_PAGE);
     expect(db.prepare('SELECT org_role FROM users WHERE id = ?').get(owner.accountId)).toEqual({ org_role: 'admin' });
     expect(calls).toEqual([]);
 
@@ -644,7 +677,7 @@ describe('GitHub sign-in: invite optional, no organization check (#274 rewrite o
     expect(await callback(app)).toContain('signin=account_disabled');
   });
 
-  it('sends a GitHub account without an email to the bind page first, and straight back once one is bound (#273)', async () => {
+  it('sends a GitHub account without an email to the bind page first, then to the profile page (#280), and straight back once both are done (#273)', async () => {
     const calls: string[] = [];
     const context = await testApp({ httpRequest, octokitFactory: noGithubCalls(calls) }, false, MAIL_ENV); contexts.push(context);
     const { app } = context;
@@ -652,6 +685,8 @@ describe('GitHub sign-in: invite optional, no organization check (#274 rewrite o
     expect(await callback(app)).toBe('https://example.test/bind-email?return_to=%2Fforum%2F');
     const accountId = (app.services.storage.db.prepare("SELECT user_id FROM identities WHERE provider = 'github' AND provider_uid = '45'").get() as { user_id: string }).user_id;
     app.services.identity.linkEmail({ accountId, email: 'needs@example.test', login: 'needsemail', claim: () => true });
+    expect(await callback(app)).toBe(PROFILE_PAGE);
+    completeProfile(app, accountId);
     expect(await callback(app)).toBe('https://example.test/forum/');
     expect(calls).toEqual([]);
   });
@@ -663,7 +698,7 @@ describe('binding an email to a GitHub account (#262)', () => {
     invite('yugc-test-2026');
     const other = browser(app);
     await other.send('POST', '/auth/email/start', { email: 'taken@example.test' });
-    await other.send('POST', '/auth/email/verify', { code: await mail.codeFor('taken@example.test'), invite_code: 'yugc-test-2026' });
+    await other.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('taken@example.test'), invite_code: 'yugc-test-2026' });
     tick(61_000);
 
     const user = browser(app);
@@ -677,7 +712,7 @@ describe('binding an email to a GitHub account (#262)', () => {
     tick(61_000);
     const later = browser(app);
     await later.send('POST', '/auth/email/start', { email: 'octo@example.test' });
-    await later.send('POST', '/auth/email/verify', { code: await mail.codeFor('octo@example.test', 2) });
+    await later.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('octo@example.test', 2) });
     expect((await later.send('GET', '/auth/me')).json()).toMatchObject({ login: 'octocat', user_id: 42, provider: 'email' });
   });
 
@@ -714,7 +749,7 @@ describe('binding an email to a GitHub account (#262)', () => {
     tick(61_000);
     const later = browser(app);
     await later.send('POST', '/auth/email/start', { email: 'work@example.test' });
-    await later.send('POST', '/auth/email/verify', { code: await mail.codeFor('work@example.test', 2) });
+    await later.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('work@example.test', 2) });
     expect((await later.send('GET', '/auth/me')).json()).toMatchObject({ login: 'octocat', account_id: accountId, provider: 'email' });
 
     for (const email of ['c@example.test', 'd@example.test', 'e@example.test']) expect(await bind(email)).toEqual({ ok: true });
@@ -741,7 +776,7 @@ describe('binding an email to a GitHub account (#262)', () => {
     tick(61_000);
     const removed = browser(app);
     await removed.send('POST', '/auth/email/start', { email: 'work@example.test' });
-    const rejoined = await removed.send('POST', '/auth/email/verify', { code: await mail.codeFor('work@example.test', 3) });
+    const rejoined = await removed.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('work@example.test', 3) });
     expect(rejoined.json()).toMatchObject({ registered: true });
     expect((await removed.send('GET', '/auth/me')).json().account_id).not.toBe(accountId);
     const stranger = browser(app);
@@ -838,9 +873,11 @@ describe('Google sign-in (#262)', () => {
     const me = (await first.user.send('GET', '/auth/me')).json();
     expect(me).toMatchObject({ signed_in: true, provider: 'google', email_required: true, level: 'registered' });
     expect(db.prepare("SELECT provider_uid, email FROM identities WHERE provider = 'google'").get()).toEqual({ provider_uid: 'google-sub-1', email: 'g.user@gmail.com' });
-    // 绑上同一个 Gmail 地址就行；之后用 Google 登录直接回原页，同一个账号
+    // 绑上同一个 Gmail 地址就行，再补好姓名和年级（#280）；之后用 Google 登录直接回原页，同一个账号
     expect((await first.user.send('POST', '/api/identity/email/start', { email: 'g.user@gmail.com' })).statusCode).toBe(202);
     expect((await first.user.send('POST', '/api/identity/email/verify', { code: await mail.codeFor('g.user@gmail.com') })).json()).toEqual({ ok: true });
+    expect((await googleFlow(app, google)).location).toBe('https://example.test/complete-profile?return_to=%2Fforum%2F');
+    completeProfile(app, me.account_id);
     const again = await googleFlow(app, google);
     expect(again.location).toBe('https://example.test/forum/');
     expect((await again.user.send('GET', '/auth/me')).json().account_id).toBe(me.account_id);
@@ -859,7 +896,7 @@ describe('Google sign-in (#262)', () => {
     invite('yugc-test-2026');
     const user = browser(app);
     await user.send('POST', '/auth/email/start', { email: 'g.user@gmail.com' });
-    await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('g.user@gmail.com'), invite_code: 'yugc-test-2026' });
+    await user.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('g.user@gmail.com'), invite_code: 'yugc-test-2026' });
     expect((await googleFlow(app, google, '&invite=yugc-test-2026')).location).toContain('signin=email_taken');
 
     google.claims.sub = 'google-sub-2';
@@ -874,7 +911,7 @@ describe('forgot password and the bind-email gate (#273)', () => {
   async function emailAccount(context: Awaited<ReturnType<typeof setup>>, email: string, passphrase?: string) {
     const user = browser(context.app);
     await user.send('POST', '/auth/email/start', { email });
-    await user.send('POST', '/auth/email/verify', { code: await context.mail.codeFor(email), invite_code: 'yugc-test-2026' });
+    await user.send('POST', '/auth/email/verify', { ...REAL, code: await context.mail.codeFor(email), invite_code: 'yugc-test-2026' });
     if (passphrase) expect((await user.send('POST', '/api/identity/password', { password: passphrase })).json()).toEqual({ ok: true });
     return { user, accountId: (await user.send('GET', '/auth/me')).json().account_id as string };
   }
@@ -1004,7 +1041,7 @@ describe('hardening from the #262 review', () => {
     app.services.identity.provisionAccount({ githubId: 130495739, githubLogin: 'Crosery', orgRole: 'admin', email: 'owner@example.test' });
     const user = browser(app);
     await user.send('POST', '/auth/email/start', { email: 'owner@example.test' });
-    await user.send('POST', '/auth/email/verify', { code: await mail.codeFor('owner@example.test') });
+    await user.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('owner@example.test') });
     expect((await user.send('GET', '/api/console/me')).json().titles).toEqual([expect.objectContaining({ id: 'title.site.owner' })]);
     expect((await user.send('GET', '/api/forum/state')).json().state.viewer.kind).toBe('member');
   });
@@ -1017,7 +1054,7 @@ describe('hardening from the #262 review', () => {
     const code = await mail.codeFor('v@example.test');
     tick(61_000);
     await browser(app).send('POST', '/auth/email/start', { email: 'v@example.test' });
-    expect((await victim.send('POST', '/auth/email/verify', { code, invite_code: 'yugc-test-2026' })).statusCode).toBe(200);
+    expect((await victim.send('POST', '/auth/email/verify', { ...REAL, code, invite_code: 'yugc-test-2026' })).statusCode).toBe(200);
 
     const me = browser(app);
     await me.send('POST', '/auth/email/start', { email: 'w@example.test' });
@@ -1025,7 +1062,7 @@ describe('hardening from the #262 review', () => {
     await me.send('POST', '/auth/email/start', { email: 'w@example.test' });
     const used = db.prepare('SELECT used_at IS NOT NULL AS used FROM email_challenges WHERE email = ? ORDER BY created_at').all('w@example.test');
     expect(used).toEqual([{ used: 1 }, { used: 0 }]);
-    expect((await me.send('POST', '/auth/email/verify', { code: await mail.codeFor('w@example.test', 2), invite_code: 'yugc-test-2026' })).statusCode).toBe(200);
+    expect((await me.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('w@example.test', 2), invite_code: 'yugc-test-2026' })).statusCode).toBe(200);
   });
 
   it('rate-limits both Google endpoints', async () => {

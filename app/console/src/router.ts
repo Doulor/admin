@@ -2,7 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router"
 import { COMPETITION_MANAGE_PERMISSIONS, FORUM_PERMISSIONS, GITLAB_PERMISSIONS, USERS_PERMISSIONS } from "./lib/nav";
 
 /**
- * 路由。控制台拥有 /console/**、/signin、/device、/account、/authorize、/bind-email。
+ * 路由。控制台拥有 /console/**、/signin、/device、/account、/authorize、/bind-email、/complete-profile。
  * `meta.anyOf` 是页面所需权限节点（任一即可），components/ConsoleShell.vue 把它交给 components/CapabilityGate.vue 显示「没有权限」。
  */
 const gated = (anyOf: string[], load: () => Promise<unknown>) => ({ component: load, meta: { anyOf } });
@@ -18,6 +18,8 @@ const routes: RouteRecordRaw[] = [
   { path: "/account", component: () => import("./pages/Account.vue") },
   // 绑定邮箱页（#273）：账号还没有登录邮箱时官网、论坛、控制台都先带人来这里。只有绑定和退出，不在控制台壳子里。
   { path: "/bind-email", component: () => import("./pages/BindEmail.vue") },
+  // 补资料页（#280）：缺真实姓名或年级时官网、论坛、控制台都先带人来这里。只有填写和退出，不在控制台壳子里。
+  { path: "/complete-profile", component: () => import("./pages/CompleteProfile.vue") },
   { path: "/console/signin", redirect: to => ({ path: "/signin", query: to.query }) },
   { path: "/admin/signin", redirect: to => ({ path: "/signin", query: to.query }) },
   { path: "/admin/:rest(.*)*", redirect: "/console" },

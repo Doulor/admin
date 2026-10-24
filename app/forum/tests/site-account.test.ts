@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { accountMenu } from '~/data/account-menu'
 import * as siteAccount from '../shared/site-account'
-import { bindEmailHref, emailRequired, parseMe } from '../shared/site-account'
+import { bindEmailHref, completeProfileHref, emailRequired, parseMe, profileRequired } from '../shared/site-account'
 import { loadModule } from './support/sfc'
 
 describe('parseMe', () => {
@@ -48,6 +48,19 @@ describe('emailRequired', () => {
   })
 })
 
+describe('profileRequired', () => {
+  it('is true only for a signed-in answer that says the name or grade is missing (#280)', () => {
+    expect(profileRequired({ signed_in: true, login: 'ada', profile_required: true })).toBe(true)
+    for (const body of [null, undefined, {}, { signed_in: true, login: 'ada' }, { signed_in: true, login: 'ada', profile_required: 'true' }, { signed_in: false, profile_required: true }])
+      expect(profileRequired(body)).toBe(false)
+  })
+
+  it('sends the browser to the profile page with the page it is on, site paths only', () => {
+    expect(completeProfileHref('/forum/t/7?page=2#p3')).toBe('/complete-profile?return_to=%2Fforum%2Ft%2F7%3Fpage%3D2%23p3')
+    expect(completeProfileHref('//evil.test/')).toBe('/complete-profile?return_to=%2F')
+  })
+})
+
 describe('useSiteAccount reading /auth/me', () => {
   const ADA: SiteAccount = { login: 'ada', avatarUrl: null, consoleLink: false }
 
@@ -88,6 +101,11 @@ describe('useSiteAccount reading /auth/me', () => {
     const { assign } = await ask({ signed_in: true, login: 'ada', email_required: true })
     expect(assign).toHaveBeenCalledWith('/bind-email?return_to=%2Fforum%2Ft%2F7%3Fpage%3D2%23p3')
     expect((await ask({ signed_in: true, login: 'ada', email_required: false })).assign).not.toHaveBeenCalled()
+  })
+
+  it('sends an account without a name or grade to the profile page, and to the bind page first when the email is missing too (#280)', async () => {
+    expect((await ask({ signed_in: true, login: 'ada', profile_required: true })).assign).toHaveBeenCalledWith('/complete-profile?return_to=%2Fforum%2Ft%2F7%3Fpage%3D2%23p3')
+    expect((await ask({ signed_in: true, login: 'ada', email_required: true, profile_required: true })).assign).toHaveBeenCalledWith('/bind-email?return_to=%2Fforum%2Ft%2F7%3Fpage%3D2%23p3')
   })
 
   it('reads a plain signed-in or signed-out answer straight into the account state', async () => {

@@ -4,7 +4,7 @@ import { normalizeEmail } from "../../lib/email-login.js";
 import { normalizeInviteCode } from "../../lib/invite-codes.js";
 import { registrationGuardFor } from "../../lib/register-limits.js";
 import { safeReturnTo, signinFailureUrl, type SigninOutcome } from "../../lib/safe-return.js";
-import { bindEmailUrl, emailRequired } from "../../lib/email-gate.js";
+import { gatedReturn } from "../../lib/email-gate.js";
 import { readOAuthState, setOAuthState } from "../../middleware/oauth-state.js";
 import { setSessionCookie } from "../../middleware/require-auth.js";
 import { attachVisitorId } from "../../middleware/visitor.js";
@@ -66,7 +66,7 @@ export default async function googleRoutes(app: FastifyInstance) {
     }
     setSessionCookie(reply, result.sid);
     app.services.activity.recordActivity(req, { action: result.registered ? "auth.register" : "auth.signin", surface: "portal", outcome: "ok", meta: { provider: "google" }, account_id: result.accountId });
-    // 账号还没有登录邮箱（#273，Google 给的邮箱不算登录邮箱）：先到绑定邮箱页，绑好再回 return_to
-    return reply.redirect(emailRequired(app.services, result.accountId) ? bindEmailUrl(config.publicOrigin, back) : back);
+    // 账号还没有登录邮箱（#273，Google 给的邮箱不算登录邮箱）或者缺姓名、年级（#280）：先到对应的页面，办好再回 return_to
+    return reply.redirect(gatedReturn(app.services, config.publicOrigin, result.accountId, back));
   });
 }

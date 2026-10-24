@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-// 个人资料卡和新生便签（#275，SPEC §4.3、§4.4）：头像点开资料卡，访客看到登录、注册，登录后能改资料、管登录方式、填邀请码、退出；
+// 账号资料窗口和新生便签（#275，SPEC §4.3、§4.4；#280 起资料从头像下面的弹层改成桌面窗口）：头像点开「账号资料」窗口，访客看到登录、注册，
+// 登录后能改资料、看实名信息、管登录方式、填邀请码、退出；
 // 「新来的看这里」只在这个浏览器第一次进来时自动出现，收起或点过其中一步就算看过，本地和账号上两处一起记。
 // 接口形状照 #274 的接口契约（/auth/me、/api/identity/*、/api/events）；fetch 换成按地址回答的假函数，并记下每次请求。
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -35,9 +36,10 @@ const MEMBER = {
   quota: { apply_left_today: 3, apply_daily_limit: 3 },
   prefs: { start_note_seen_at: null, forum_theme: null },
   identities: { emails: ["n***@qq.com"], google: true, github: "nano-dev" },
-  console_link: false, email_required: false,
+  console_link: false, email_required: false, profile_required: false,
+  real_name: "王小明", grade: 2, grade_label: "大二",
 };
-const REGISTERED = { ...MEMBER, account_id: "acc_2", login: "newbie", username: "newbie", display_name: "新同学", bio: "", level: "registered", level_name: "注册用户", department: null, titles: [], identities: { emails: ["x***@163.com"], google: false, github: null } };
+const REGISTERED = { ...MEMBER, grade: null, grade_label: null, account_id: "acc_2", login: "newbie", username: "newbie", display_name: "新同学", bio: "", level: "registered", level_name: "注册用户", department: null, titles: [], identities: { emails: ["x***@163.com"], google: false, github: null } };
 const IDENTITY_ME = {
   account_id: "acc_1", login: "nano", email_required: false,
   identities: [
@@ -45,6 +47,7 @@ const IDENTITY_ME = {
     { provider: "email", id: "idn_2", label: "n***@yangtzeu.edu.cn", primary: false, linked_at: 1, last_login_at: null },
     { provider: "github", label: "nano-dev", linked_at: 1, last_login_at: null },
   ],
+  real_name: "王小明", grade: 2, grade_label: "大二", profile_required: false,
 };
 
 type Call = { method: string; url: string; body: unknown };
@@ -97,18 +100,18 @@ async function openCard(name: string) {
   const avatar = await bar().findByRole("button", { name });
   avatar.focus();
   fireEvent.click(avatar);
-  return { avatar, card: within(screen.getByRole("dialog")) };
+  return { avatar, card: within(screen.getByRole("dialog", { name: /^(账号资料|登录极客班)$/ })) };
 }
 
 describe("/auth/me 的新字段（CONTRACT-274 §1）", () => {
   it("读出用户名、昵称、简介、身份、部门、称号、限额、偏好和登录方式；旧服务端没有这些字段时给空值", () => {
     expect(parseMe({ ...MEMBER, prefs: { start_note_seen_at: 1792768438000 } })).toMatchObject({
-      username: "nano", displayName: "Nano", bio: "喜欢写编译器", level: "member", levelName: "极客班成员",
+      username: "nano", displayName: "Nano", bio: "喜欢写编译器", gradeLabel: "大二", level: "member", levelName: "极客班成员",
       department: { id: "dept.ai", name: "AI部门", tone: "y" }, titles: [{ id: "title.ai.staff", name: "部员" }],
       quota: { left: 3, limit: 3 }, prefs: { startNoteSeenAt: 1792768438000 }, identities: { emails: ["n***@qq.com"], google: true, github: "nano-dev" },
     });
     expect(parseMe({ signed_in: true, login: "ada" })).toMatchObject({
-      username: "ada", displayName: "ada", bio: "", level: null, levelName: null, department: null, titles: [], quota: null,
+      username: "ada", displayName: "ada", bio: "", gradeLabel: null, level: null, levelName: null, department: null, titles: [], quota: null,
       prefs: { startNoteSeenAt: null }, identities: { emails: [], google: false, github: null },
     });
     // 不认识的部门色当作无部门的颜色，不认识的身份当作没有；不限投递时两个都是 -1
@@ -136,31 +139,44 @@ describe("/auth/me 的新字段（CONTRACT-274 §1）", () => {
   });
 });
 
-describe("个人资料卡", () => {
-  it("访客：登录、注册两个按钮和一句说明；Esc 关掉，焦点回到头像", async () => {
+describe("账号资料窗口", () => {
+  it("访客：窗口名是「登录极客班」，里面登录、注册两个按钮和一句说明；Esc 关掉窗口，焦点回到头像", async () => {
     mount();
     const { avatar, card } = await openCard("登录或注册");
-    expect(screen.getByRole("dialog", { name: "登录极客班" }).className).toContain("pt-profile-modal");
+    const win = screen.getByRole("dialog", { name: "登录极客班" });
+    expect(win.className).toContain("pt-win");
+    expect(avatar.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(card.getByRole("link", { name: "登录" }));
+    expect(document.querySelector(".pt-mb-app")?.textContent).toBe("登录极客班");
     expect(card.getByRole("link", { name: "登录" }).getAttribute("href")).toBe("/signin?return_to=%2F");
     expect(card.getByRole("link", { name: "注册" }).getAttribute("href")).toBe("/signin?return_to=%2F&tab=register");
     expect(card.getByText("注册不需要邀请码，有邀请码可以直接成为成员")).not.toBeNull();
     expect(card.queryByRole("button", { name: "退出" })).toBeNull();
-    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
+    fireEvent.keyDown(card.getByRole("link", { name: "登录" }), { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(document.activeElement).toBe(avatar);
+    await waitFor(() => expect(document.activeElement).toBe(avatar));
+    expect(avatar.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("成员：头像、昵称、@用户名、简介、身份 · 部门 · 称号，带 id 的邮箱列表、Google 已绑定、GitHub 只显示；没有邀请码输入框", async () => {
+  it("成员：头像、昵称、@用户名、简介、身份 · 年级 · 部门 · 称号，实名信息只在窗口里的「实名信息」一栏，带 id 的邮箱列表、Google 已绑定、GitHub 只显示；没有邀请码输入框", async () => {
     answer(MEMBER);
     mount();
     const { card } = await openCard("账号：nano");
+    // 焦点落在「换头像」上，不落在隐藏的选图输入框或昵称输入框里
+    expect(document.activeElement).toBe(card.getByRole("button", { name: "换头像" }));
     expect((card.getByRole("textbox", { name: "昵称" }) as HTMLInputElement).value).toBe("Nano");
     expect((card.getByRole("textbox", { name: "用户名" }) as HTMLInputElement).value).toBe("nano");
     expect((card.getByRole("textbox", { name: "简介" }) as HTMLTextAreaElement).value).toBe("喜欢写编译器");
     expect(card.getByRole("button", { name: "换头像" })).not.toBeNull();
     const meta = document.querySelector(".pt-profile-meta")!;
-    expect([...meta.children].map((item) => item.textContent)).toEqual(["极客班成员", "AI部门", "部员"]);
+    expect([...meta.children].map((item) => item.textContent)).toEqual(["极客班成员", "大二", "AI部门", "部员"]);
     expect(meta.querySelector("[data-tone]")?.getAttribute("data-tone")).toBe("y");
+    // 真实姓名读 /api/identity/me，只出现在窗口里的「实名信息」一栏；菜单栏和身份行都不显示
+    const real = within(await card.findByRole("region", { name: "实名信息" }));
+    expect([...real.getAllByRole("definition")].map((item) => item.textContent)).toEqual(["王小明", "大二"]);
+    expect(meta.textContent).not.toContain("王小明");
+    expect(bar().queryByText(/王小明/)).toBeNull();
+    expect(document.body.textContent?.split("王小明")).toHaveLength(2);
     // 邮箱列表换成 /api/identity/me 里带 id 的那份：主邮箱不能删，另一个可以
     await card.findByText("n***@yangtzeu.edu.cn");
     expect(card.getByText("主邮箱")).not.toBeNull();
@@ -253,6 +269,8 @@ describe("个人资料卡", () => {
     });
     mount();
     const { card } = await openCard("账号：newbie");
+    // 窗口底部的邀请码输入框也不抢焦点
+    expect(document.activeElement).toBe(card.getByRole("button", { name: "换头像" }));
     expect(document.querySelector(".pt-profile-meta")?.textContent).toBe("注册用户无部门");
     expect(document.querySelector(".pt-profile-meta [data-tone]")?.getAttribute("data-tone")).toBe("ink");
     expect(card.getByRole("link", { name: "绑定" }).getAttribute("href")).toBe("/auth/google?return_to=%2F");
@@ -267,7 +285,7 @@ describe("个人资料卡", () => {
     expect(writes().map((call) => call.body)).toEqual([{ code: "GEEK-2026" }, { code: "GEEK-2026" }]);
   });
 
-  it("有 console_link 时底部多一个控制台；退出后关掉资料卡，头像变回访客", async () => {
+  it("有 console_link 时底部多一个控制台；退出后关掉账号资料窗口，头像变回访客", async () => {
     answer({ ...MEMBER, console_link: true });
     mount();
     const { card } = await openCard("账号：nano");

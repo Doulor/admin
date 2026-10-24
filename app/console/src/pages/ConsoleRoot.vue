@@ -13,10 +13,10 @@ import { ApiError } from "../lib/http";
 import { ASSIGNER_TEXT } from "../lib/levels";
 import { loadMe, useSession } from "../lib/session";
 import { siteUrl } from "../lib/runtime";
-import { bindEmailPath } from "../lib/signin";
+import { bindEmailPath, completeProfilePath } from "../lib/signin";
 
 /**
- * /console 下所有页面的入口：先取身份，未登录去 /signin，还没有登录邮箱去 /bind-email（#273），
+ * /console 下所有页面的入口：先取身份，未登录去 /signin，还没有登录邮箱去 /bind-email（#273），缺姓名或年级去 /complete-profile（#280），
  * 没有「进入控制台」（console.access）时说明原因。CONTRACT §5 约定这种账号的 /api/console/me 照样回 200，
  * 服务端要是回了 403 forbidden（缺 console.access）也按同一种情况说明。
  */
@@ -36,8 +36,10 @@ watch(signedOut, value => {
 }, { immediate: true });
 
 const emailRequired = computed(() => me.value?.email_required === true);
-watch(emailRequired, value => {
-  if (value) void router.replace(bindEmailPath(route.fullPath));
+const profileRequired = computed(() => me.value?.profile_required === true);
+watch([emailRequired, profileRequired], ([email, profile]) => {
+  if (email) void router.replace(bindEmailPath(route.fullPath));
+  else if (profile) void router.replace(completeProfilePath(route.fullPath));
 }, { immediate: true });
 
 const noAccess = computed(() => meError.value instanceof ApiError && meError.value.status === 403 && meError.value.code === "forbidden");
@@ -48,7 +50,7 @@ const goAccount = () => void router.push("/account");
 </script>
 
 <template>
-  <div v-if="(meLoading && !me) || signedOut || emailRequired" class="root-state" role="status">
+  <div v-if="(meLoading && !me) || signedOut || emailRequired || profileRequired" class="root-state" role="status">
     <TxSpinner :size="24" label="正在确认登录状态" />
     <span class="muted">正在确认登录状态</span>
   </div>

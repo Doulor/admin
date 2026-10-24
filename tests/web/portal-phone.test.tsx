@@ -56,16 +56,17 @@ function mount() {
 
 it("手机有状态栏、应用和四项 Dock，没有电脑菜单和默认大便签；指引按需打开，设置里能重播开机动画", async () => {
   const { container, onReplayBoot } = mount();
-  // 访客右上角和电脑菜单栏一样只有头像（SPEC §4.3），点开是从底部升起的资料卡：登录、注册和一句说明，不直接跳走
+  // 访客右上角和电脑菜单栏一样只有头像（SPEC §4.3），点开是「登录极客班」窗口（#280 起和其他应用一样从底部升起）：登录、注册和一句说明，不直接跳走
   const entry = await screen.findByRole("button", { name: "登录或注册" });
   expect(entry.textContent).toBe("");
   fireEvent.click(entry);
   const card = screen.getByRole("dialog", { name: "登录极客班" });
-  expect(card.className).toContain("is-phone");
+  expect(card.className).toContain("pt-win");
   expect(within(card).getByRole("link", { name: "登录" }).getAttribute("href")).toBe(`/signin?return_to=${encodeURIComponent("/")}`);
   expect(within(card).getByRole("link", { name: "注册" })).toBeTruthy();
   expect(within(card).getByText("注册不需要邀请码，有邀请码可以直接成为成员")).toBeTruthy();
-  fireEvent.click(within(card).getByRole("button", { name: "关闭对话框" }));
+  fireEvent.click(within(card).getByRole("button", { name: "关闭应用" }));
+  expect(screen.queryByRole("dialog", { name: "登录极客班" })).toBeNull();
   expect(screen.queryByText(/GitHub 登录/)).toBeNull();
   expect(container.querySelector(".pt-phone-status")).not.toBeNull();
   expect(container.querySelector(".pt-phone-tools")).toBeNull();

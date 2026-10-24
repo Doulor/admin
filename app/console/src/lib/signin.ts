@@ -1,7 +1,9 @@
-// 极客班统一登录页（#262）：登录结果的说明、回跳地址的同源校验，以及按 GET /auth/providers 渲染的登录方式。
+// 极客班内部登录页（#262）：登录结果的说明、回跳地址的同源校验，以及按 GET /auth/providers 渲染的登录方式。
 // 官网、论坛、控制台的「登录」都进 /signin?return_to=<同源路径>；GitHub 只是登录方式之一，身份以极客班账号（account_id）为准。
 import { passwordRuleProblem } from "./account";
+import { gradeProblem, realNameProblem } from "./grade";
 import { ApiError, api, jsonBody } from "./http";
+import type { SelectableGrade } from "./types";
 
 export interface OutcomeAction {
   label: string;
@@ -59,6 +61,9 @@ export const DEFAULT_RETURN_PATH = "/console";
 /** 绑定邮箱页（#273）：账号还没有登录邮箱时，官网、论坛、控制台都先带人来这里，绑好回到 return_to。 */
 export const BIND_EMAIL_PATH = "/bind-email";
 export const bindEmailPath = (returnPath: string): string => `${BIND_EMAIL_PATH}?return_to=${encodeURIComponent(returnPath)}`;
+/** 补资料页（#280）：缺真实姓名或年级时同样先带人来这里，填好回到 return_to。两项都缺时先绑邮箱。 */
+export const COMPLETE_PROFILE_PATH = "/complete-profile";
+export const completeProfilePath = (returnPath: string): string => `${COMPLETE_PROFILE_PATH}?return_to=${encodeURIComponent(returnPath)}`;
 
 /**
  * 回跳地址只认本站路径（`/` 开头、不是 `//`、不带反斜杠与控制字符），解析后的 origin 必须等于本站 origin；
@@ -81,10 +86,17 @@ export function safeReturnPath(raw: unknown, origin: string, fallback = DEFAULT_
   return url.pathname === "/signin" ? fallback : path;
 }
 
-/** 绑定邮箱页绑好以后去哪：同上只认本站路径；指回绑定邮箱页自己时去控制台，免得原地打转。 */
+/** 绑定邮箱页绑好以后去哪：同上只认本站路径；指回绑定邮箱页自己时去控制台，免得原地打转。补资料页可以是下一站。 */
 export function bindEmailReturn(raw: unknown, origin: string): string {
   const path = safeReturnPath(raw, origin);
   return new URL(path, origin).pathname === BIND_EMAIL_PATH ? DEFAULT_RETURN_PATH : path;
+}
+
+/** 补资料页填好以后去哪：同上；指回补资料页或绑定邮箱页时去控制台。 */
+export function completeProfileReturn(raw: unknown, origin: string): string {
+  const path = safeReturnPath(raw, origin);
+  const { pathname } = new URL(path, origin);
+  return pathname === COMPLETE_PROFILE_PATH || pathname === BIND_EMAIL_PATH ? DEFAULT_RETURN_PATH : path;
 }
 
 /** 一种登录方式，形状与服务端 `GET /auth/providers` 一致（app/server/src/routes/identity/providers.ts）。`password` 是邮箱加密码登录的地址。 */
@@ -135,8 +147,11 @@ export const sendSigninCode = (email: string, returnPath: string, origin: string
   api<{ resend_after: number }>("/auth/email/start", {
     method: "POST", ...jsonBody({ email, return_to: `${origin}${returnPath}`, ...(purpose === "reset" && { purpose }) }),
   });
-export const verifySigninCode = (code: string, inviteCode?: string) =>
-  api<{ return_to: string; registered: boolean }>("/auth/email/verify", { method: "POST", ...jsonBody({ code, ...(inviteCode?.trim() && { invite_code: inviteCode.trim() }) }) });
+/** 邮箱还没有账号时这一步就是注册，要带真实姓名和年级（#280）；没带时服务端回 `real_info_required`，验证码不作废。 */
+export const verifySigninCode = (code: string, inviteCode?: string, realInfo?: { real_name: string; grade: SelectableGrade }) =>
+  api<{ return_to: string; registered: boolean }>("/auth/email/verify", {
+    method: "POST", ...jsonBody({ code, ...(inviteCode?.trim() && { invite_code: inviteCode.trim() }), ...(realInfo && { real_name: realInfo.real_name.trim(), grade: realInfo.grade }) }),
+  });
 export const signInWithPassword = (provider: Pick<LoginProvider, "password">, email: string, password: string, returnPath: string, origin: string) =>
   api<{ return_to: string }>(provider.password ?? "/auth/email/password", { method: "POST", ...jsonBody({ email, password, return_to: `${origin}${returnPath}` }) });
 /** 用邮箱验证码重设密码并登录（#273）。这个邮箱没有账号时回 `no_account`，不会顺手注册新账号。 */
@@ -181,12 +196,13 @@ export function resetProblem(form: { email: string; codeSent: boolean; code: str
 
 /**
  * 邮箱注册表单提交前的本地检查，按页面上从上到下的顺序报第一处问题；都对返回 null。
- * 邀请码选填（CONTRACT-274 §2：填了有效的进极客班成员，不填进注册用户，填错了服务端回 invite_invalid）。
+ * 真实姓名和年级必填（#280）。邀请码选填（CONTRACT-274 §2：填了有效的进极客班成员，不填进注册用户，填错了服务端回 invite_invalid）。
  * 密码可以不填（注册后到「我的账号」再设），填了就按账号页同一条规则。
  */
-export function registerProblem(form: { email: string; invite: string; codeSent: boolean; code: string; password: string }): string | null {
+export function registerProblem(form: { email: string; realName: string; grade: unknown; invite: string; codeSent: boolean; code: string; password: string }): string | null {
   if (!looksLikeEmail(form.email)) return "邮箱格式不对";
-  return codeProblem(form.codeSent, form.code) ?? (form.password ? passwordRuleProblem(form.password) : null);
+  return realNameProblem(form.realName) ?? gradeProblem(form.grade)
+    ?? codeProblem(form.codeSent, form.code) ?? (form.password ? passwordRuleProblem(form.password) : null);
 }
 
 /**
@@ -201,12 +217,12 @@ export type RegisterOutcome =
 /** 设密码（app/server/src/routes/identity/account.ts）。刚用验证码登录，会话 10 分钟内不用再验证，不要当前密码。 */
 const setPassword = (password: string) => api<{ ok: true }>("/api/identity/password", { method: "POST", ...jsonBody({ password }) });
 
-/** 用验证码和邀请码注册，填了密码就接着设上。验证码这一步的错误照常抛出，由页面按错误码处理。 */
+/** 用验证码、姓名、年级和邀请码注册，填了密码就接着设上。验证码这一步的错误照常抛出，由页面按错误码处理。 */
 export async function registerWithEmail(
-  input: { code: string; invite: string; password: string },
+  input: { code: string; invite: string; password: string; realName: string; grade: SelectableGrade },
   deps: { verify: typeof verifySigninCode; setPassword: (password: string) => Promise<unknown> } = { verify: verifySigninCode, setPassword },
 ): Promise<RegisterOutcome> {
-  const result = await deps.verify(input.code, input.invite);
+  const result = await deps.verify(input.code, input.invite, { real_name: input.realName, grade: input.grade });
   if (!input.password) return { kind: "done", returnTo: result.return_to };
   if (!result.registered) return { kind: "existing", returnTo: result.return_to };
   try {

@@ -21,6 +21,7 @@ const account = (over: Partial<Account> = {}): Account => ({
   bio: "",
   level: "member",
   levelName: "极客班成员",
+  gradeLabel: "大二",
   department: { id: "ai", name: "AI部门", tone: "u" },
   titles: [{ id: "title.ai.member", name: "部员" }],
   permissions: [],

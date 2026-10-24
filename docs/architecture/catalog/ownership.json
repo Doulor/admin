@@ -530,7 +530,7 @@
         },
         {
           "path": "app/console/src/pages/SignIn.vue",
-          "needle": "<h1>极客班统一登录</h1>"
+          "needle": "<h1>极客班内部登录</h1>"
         },
         {
           "path": "app/console/src/lib/signin.ts",
@@ -731,7 +731,11 @@
         },
         {
           "path": "app/server/src/routes/identity/device.ts",
-          "needle": "if (decision === \"approve\" && emailRequired(app.services, session.account_id)) {"
+          "needle": "const refusal = decision === \"approve\" ? gateRefusal(app.services, session.account_id) : null;"
+        },
+        {
+          "path": "app/console/src/lib/device.ts",
+          "needle": "export const deviceCompleteProfilePath = (userCode: string): string => completeProfilePath(devicePath(userCode));"
         }
       ],
       "tests": [
@@ -844,7 +848,7 @@
         },
         {
           "path": "app/server/src/routes/admin/auth.ts",
-          "needle": "emailRequired(app.services, signin.accountId) ? bindEmailUrl(config.publicOrigin, back) : back"
+          "needle": "return reply.redirect(gatedReturn(app.services, config.publicOrigin, signin.accountId, back));"
         },
         {
           "path": "app/server/src/routes/admin/contracts.ts",
@@ -950,7 +954,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：任何人可调，访客也回200（CONTRACT-274 §1）；console_link是显示提示（按新权限引擎的console.access节点算），不赋予后端权限。",
-        "响应与错误：200 {signed_in:false,level:\"visitor\",permissions,quota}（访客）或 {signed_in:true,login,user_id,avatar_url,account_id,provider,console_link,email_required,level,level_name,department,titles,permissions,quota,prefs,username,display_name,bio,identities}（#274 review round 1：level不带level.前缀，permissions是UI_NODES里实际放行的节点数组，identities是{emails,google,github}）；email_required为true（账号还没有登录邮箱、这个环境又能发信，#273）时官网、论坛、控制台整页跳到/bind-email；不会再有GitHub token被拒的session_expired分支（这条路径已经不调用GitHub）。",
+        "响应与错误：200 {signed_in:false,level:\"visitor\",permissions,quota}（访客）或 {signed_in:true,login,user_id,avatar_url,account_id,provider,console_link,email_required,profile_required,real_name,grade,grade_label,level,level_name,department,titles,permissions,quota,prefs,username,display_name,bio,identities}（#274 review round 1：level不带level.前缀，permissions是UI_NODES里实际放行的节点数组，identities是{emails,google,github}）；email_required为true（账号还没有登录邮箱、这个环境又能发信，#273）时官网、论坛、控制台整页跳到/bind-email；#280：real_name 只回本人，grade 是 1–4 或 graduated（由 account_profiles.enrollment_year 按北京时间的学年现算，每年 9 月 1 日升一级），profile_required 在缺姓名或年级时为 true（不看能不能发信），邮箱不缺时官网、论坛、控制台整页跳到/complete-profile；不会再有GitHub token被拒的session_expired分支（这条路径已经不调用GitHub）。",
         "数据与副作用：会话联查账号状态，过期、没有账号或账号不是active的会话按未登录处理并删除（lib/auth.ts的getSession）；级别、部门、称号、permissions、console_link都从新权限引擎（lib/permissions.ts的groupsOf/check，读perm_members/perm_entries/perm_groups/perm_group_parents）现查现算，不缓存、不写回；账号资料缺行时兜底插入account_profiles（ensure()，INSERT OR IGNORE，幂等）；不调用GitHub，不写identity_audit或audit_logs。"
       ],
       "evidence": [
@@ -1048,7 +1052,7 @@
         },
         {
           "path": "app/forum/app/composables/useSiteAccount.ts",
-          "needle": "window.location.assign(bindEmailHref(`${pathname}${search}${hash}`))"
+          "needle": "window.location.assign(emailRequired(body) ? bindEmailHref(back) : completeProfileHref(back))"
         },
         {
           "path": "app/console/src/pages/Device.vue",
@@ -1069,6 +1073,14 @@
         {
           "path": "app/web/sites/portal/components/os/Terminal.tsx",
           "needle": "  const shell = useMemo(() => createShell({ account, apps }), [account?.username, appKey]);"
+        },
+        {
+          "path": "app/server/src/lib/grade.ts",
+          "needle": "export function gradeOf(enrollmentYear: number | null | undefined, at: Date | number = Date.now()): Grade | null {"
+        },
+        {
+          "path": "app/server/src/lib/account-profiles.ts",
+          "needle": "export function normalizeRealName(value: unknown): string | null {"
         }
       ],
       "tests": [
@@ -1083,7 +1095,9 @@
         "tests/web/portal-os.test.ts",
         "tests/web/portal-account.test.tsx",
         "app/forum/tests/site-account.test.ts",
-        "tests/console/device.test.ts"
+        "tests/console/device.test.ts",
+        "tests/server/real-info.test.ts",
+        "tests/server/grade.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -1185,13 +1199,14 @@
         "invite_codes",
         "sessions",
         "identity_audit",
-        "activity_events"
+        "activity_events",
+        "account_profiles"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：匿名，凭 email_challenge cookie 与 6 位验证码；每分钟 30 次；验证码 10 分钟有效、最多试 5 次。",
-        "响应与错误：200 {return_to,registered} 并写 sid；验证码不对 400 invalid_code（带 attempts_left），失效 400 code_expired；邮箱没有账号且没填邀请码 400 invite_required（验证码不作废），邀请码无效 400 invalid_invite 并记一次失败；账号停用 403 account_disabled，不再是成员 403 not_member。",
-        "数据与副作用：在一个 BEGIN IMMEDIATE 事务里找身份或建号（兑换邀请码、建 users 与 email 身份、记 invite_code_id、org_state=active）、作废验证码、建会话（provider=email，GitHub 令牌为空）、写 identity_audit 与 auth.register/auth.signin；任何一步失败整体回滚，邀请码次数不扣。真的要新建账号这一步，同一 IP 今天已建满 5 个、同一设备（yugc_vid）已建满 3 个回 429 auth.register.daily，登录到已有账号不受影响（#274 残留修复，SPEC §3.8，lib/register-limits.ts）。"
+        "响应与错误：200 {return_to,registered} 并写 sid；验证码不对 400 invalid_code（带 attempts_left），失效 400 code_expired；邮箱没有账号且没填邀请码 400 invite_required（验证码不作废），邀请码无效 400 invalid_invite 并记一次失败；账号停用 403 account_disabled，不再是成员 403 not_member。#280：这个邮箱还没有账号、这次要注册时 real_name 和 grade（1–4）必填，缺了 400 real_info_required，姓名不对 400 bad_real_name，都在核对验证码之后、占用之前回，验证码和邀请码都不作废；已有账号的登录不看这两项。",
+        "数据与副作用：在一个 BEGIN IMMEDIATE 事务里找身份或建号（兑换邀请码、建 users 与 email 身份、记 invite_code_id、org_state=active）、作废验证码、建会话（provider=email，GitHub 令牌为空）、写 identity_audit 与 auth.register/auth.signin；任何一步失败整体回滚，邀请码次数不扣。真的要新建账号这一步，同一 IP 今天已建满 5 个、同一设备（yugc_vid）已建满 3 个回 429 auth.register.daily，登录到已有账号不受影响（#274 残留修复，SPEC §3.8，lib/register-limits.ts）。注册成功后把注册填的姓名和入学年份写进 account_profiles（#280）。"
       ],
       "evidence": [
         {
@@ -1213,6 +1228,14 @@
         {
           "path": "app/server/src/lib/register-limits.ts",
           "needle": "export function registrationLimitedBody("
+        },
+        {
+          "path": "app/server/src/routes/identity/email.ts",
+          "needle": "if (result.registered && realInfo) app.services.profiles.setRealInfo(result.accountId, realInfo.name, realInfo.enrollmentYear);"
+        },
+        {
+          "path": "app/console/src/pages/SignIn.vue",
+          "needle": "<TxFormItem v-if=\"registering\" v-slot=\"{ id }\" label=\"真实姓名\">"
         }
       ],
       "tests": [
@@ -1434,7 +1457,7 @@
         },
         {
           "path": "app/server/src/routes/identity/google.ts",
-          "needle": "emailRequired(app.services, result.accountId) ? bindEmailUrl(config.publicOrigin, back) : back"
+          "needle": "return reply.redirect(gatedReturn(app.services, config.publicOrigin, result.accountId, back));"
         },
         {
           "path": "app/server/src/lib/register-limits.ts",
@@ -1463,7 +1486,8 @@
         "sessions",
         "users",
         "identities",
-        "identity_audit"
+        "identity_audit",
+        "account_profiles"
       ],
       "writes": [
         "sessions"
@@ -1471,7 +1495,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：任何有效会话，不要控制台能力。",
-        "响应与错误：200 {account_id,login,identities(邮箱只给打码后的样子，另带身份 id 与 primary，主邮箱在前，#272),has_password,password_updated_at,membership{state,org_role,via_invite},created_at,recent(最近 20 条本人记录),available(还不到 5 个邮箱时是 [\"email\"]),email_required(#273，账号还没有登录邮箱、这个环境又能发信),session{provider,created_at,expires_at,step_up_until}}；没登录 401。",
+        "响应与错误：200 {account_id,login,identities(邮箱只给打码后的样子，另带身份 id 与 primary，主邮箱在前，#272),has_password,password_updated_at,membership{state,org_role,via_invite},created_at,recent(最近 20 条本人记录),available(还不到 5 个邮箱时是 [\"email\"]),email_required(#273，账号还没有登录邮箱、这个环境又能发信),real_name,grade,grade_label,profile_required(#280，同 /auth/me，补资料页读它),session{provider,created_at,expires_at,step_up_until}}；没登录 401。",
         "数据与副作用：只读；过期会话照共同规则删除。"
       ],
       "evidence": [
@@ -1509,7 +1533,7 @@
         },
         {
           "path": "app/console/src/pages/Account.vue",
-          "needle": "if (required) void router.replace(bindEmailPath(\"/account\"));"
+          "needle": "if (email) void router.replace(bindEmailPath(\"/account\"));"
         },
         {
           "path": "app/console/src/mock/index.ts",
@@ -1522,12 +1546,21 @@
         {
           "path": "app/web/sites/portal/lib/links.ts",
           "needle": "account: (): string => \"/account\","
+        },
+        {
+          "path": "app/console/src/pages/CompleteProfile.vue",
+          "needle": "view.value = await api<AccountView>(\"/api/identity/me\");"
+        },
+        {
+          "path": "app/console/src/pages/Account.vue",
+          "needle": "<h2>姓名和年级</h2>"
         }
       ],
       "tests": [
         "tests/server/signin-methods.test.ts",
         "tests/console/account.test.ts",
-        "tests/console/signin.test.ts"
+        "tests/console/signin.test.ts",
+        "tests/server/real-info.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -1751,6 +1784,81 @@
         "docs/architecture/API.md",
         "docs/architecture/SECURITY.md",
         "docs/plan/UNIFIED-LOGIN.md"
+      ]
+    },
+    {
+      "id": "identity.account.real_info",
+      "title": "补填真实姓名和年级",
+      "domain": "identity",
+      "relatedDomains": [
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/identity/real-info",
+      "capabilities": [],
+      "reads": [
+        "sessions",
+        "account_profiles"
+      ],
+      "writes": [
+        "account_profiles",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：任何有效会话，不要控制台能力；每分钟 10 次。本人只能填一次：两项都已经有了 409 real_info_locked，之后只有 users.manage 能改（PATCH /api/console/users/:id）。",
+        "响应与错误：200 {real_name,grade,grade_label,profile_required}；姓名先 NFC 归一、去首尾空白、连续空白并成一个，2–32 个字、只能是文字、空格和「·」，不对 400 bad_real_name；grade 只能是 1–4，不对 400。",
+        "数据与副作用：只补还缺的那一项，已有的不覆盖；grade 按北京时间的学年换算成入学年份写 account_profiles.enrollment_year；写操作记录 account.real_info，meta 只有 {filled,grade}，不含姓名。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/identity/account.ts",
+          "needle": "app.post<{ Body: { real_name: string; grade: SelectableGrade } }>(\"/api/identity/real-info\", writes, async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/routes/identity/contracts.ts",
+          "needle": "\"POST /api/identity/real-info\": {"
+        },
+        {
+          "path": "app/server/src/lib/account-profiles.ts",
+          "needle": "export function normalizeRealName(value: unknown): string | null {"
+        },
+        {
+          "path": "app/server/src/lib/grade.ts",
+          "needle": "export function enrollmentYearFor(grade: SelectableGrade, at: Date | number = Date.now()): number {"
+        },
+        {
+          "path": "app/server/src/lib/email-gate.ts",
+          "needle": "export const COMPLETE_PROFILE_PATH = \"/complete-profile\";"
+        },
+        {
+          "path": "app/console/src/pages/CompleteProfile.vue",
+          "needle": "await api(\"/api/identity/real-info\", { method: \"POST\", ...jsonBody({"
+        },
+        {
+          "path": "app/console/src/lib/grade.ts",
+          "needle": "export function realNameProblem("
+        },
+        {
+          "path": "app/console/src/router.ts",
+          "needle": "{ path: \"/complete-profile\", component: () => import(\"./pages/CompleteProfile.vue\") },"
+        },
+        {
+          "path": "app/console/src/lib/types.ts",
+          "needle": "export type SelectableGrade = 1 | 2 | 3 | 4;"
+        }
+      ],
+      "tests": [
+        "tests/server/real-info.test.ts",
+        "tests/console/signin.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/services/console/README.md",
+        "docs/services/server/data-model.md"
       ]
     },
     {
@@ -6448,7 +6556,7 @@
         },
         {
           "path": "app/server/src/routes/oidc/index.ts",
-          "needle": "if (emailRequired(app.services, accountId)) return reply.redirect(bindEmailUrl(config.publicOrigin, `/oidc/interaction/${encodeURIComponent(uid)}`), 303);"
+          "needle": "if (gateRefusal(app.services, accountId)) return reply.redirect(gatedReturn(app.services, config.publicOrigin, accountId, interaction), 303);"
         }
       ],
       "tests": [
@@ -6578,7 +6686,7 @@
         },
         {
           "path": "app/server/src/routes/oidc/index.ts",
-          "needle": "const refusedWithoutEmail = (req: FastifyRequest, reply: FastifyReply) => {"
+          "needle": "const refusedByGate = (req: FastifyRequest, reply: FastifyReply) => {"
         }
       ],
       "tests": [
@@ -7841,7 +7949,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：有全站 users.view 的 allow 就看全部；只有按部门限定 scope 的 allow（部长）就只看本部门；都没有 403 forbidden——不是单纯 requirePermission 门禁，因为部长的条目本身带 scope，空 scope 查询查不到它（见 lib/console-scope.ts 的说明）。",
-        "响应与错误：200 {items:[{account_id,username,display_name,avatar_url,status,level,department,titles,providers,gitlab,last_login_at,created_at}],next_cursor,counts}；department=dept.none 筛出没有部门成员资格的账号；cursor 是按 created_at,id 的不透明游标，固定 50 条一页。",
+        "响应与错误：200 {items:[{account_id,username,display_name,real_name?,grade,grade_label,avatar_url,status,level,department,titles,providers,gitlab,last_login_at,created_at}],next_cursor,counts}；real_name 只回给有 users.manage 的调用者，q 也只在这时按真实姓名搜（#280）；department=dept.none 筛出没有部门成员资格的账号；cursor 是按 created_at,id 的不透明游标，固定 50 条一页。",
         "数据与副作用：只读；gitlab 字段的 state 由 gitlab_accounts.state/last_error 映射成 synced|pending|failed|blocked|none；counts.visitor_today 在 #274 阶段 3（operation 记录）落地前固定 0。"
       ],
       "evidence": [
@@ -7916,10 +8024,16 @@
         {
           "path": "app/console/src/components/ToneTag.vue",
           "needle": "/** 状态标签：带色点的 TxTag，色调固定（lib/tone.ts），与称号/部门徽章用的色调是另一套取值。 */"
+        },
+        {
+          "path": "app/console/src/mock/console.ts",
+          "needle": "function routeUsers(persona: Persona, search: URLSearchParams): UsersResponse {"
         }
       ],
       "tests": [
-        "tests/server/console-users.test.ts"
+        "tests/server/console-users.test.ts",
+        "tests/server/real-info.test.ts",
+        "tests/console/users.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -7932,7 +8046,8 @@
       "title": "控制台改用户的身份、部门与称号",
       "domain": "permissions",
       "relatedDomains": [
-        "identity"
+        "identity",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "PATCH /api/console/users/:id",
@@ -7940,17 +8055,20 @@
       "reads": [
         "users",
         "perm_members",
-        "perm_groups"
+        "perm_groups",
+        "account_profiles"
       ],
       "writes": [
         "users",
-        "perm_members"
+        "perm_members",
+        "account_profiles",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：需要节点 users.manage 且刚登录过（step-up）；改 status 另外需要 users.disable。",
-        "响应与错误：200 {account_id}；账号不存在 404 not_found；部门不存在 400 invalid_department；称号不存在 400 invalid_title；会让站长一个不剩（停用或从 titles 里去掉最后一位站长）409 last_owner。",
-        "数据与副作用：level/department 按唯一约束换组（先删旧的）；department 变了且没有同时传 titles 时，自动去掉不属于新部门的称号（站长等无部门称号不受影响）；写完 bump() revision、写审计 users.update。"
+        "响应与错误：200 {account_id}；账号不存在 404 not_found；部门不存在 400 invalid_department；称号不存在 400 invalid_title；会让站长一个不剩（停用或从 titles 里去掉最后一位站长）409 last_owner。#280：body 可带 real_name（null 清空，或按补资料页的规则校验，不对 400 bad_real_name）和 grade（1–4 或 null，按当前学年换算成入学年份）。",
+        "数据与副作用：level/department 按唯一约束换组（先删旧的）；department 变了且没有同时传 titles 时，自动去掉不属于新部门的称号（站长等无部门称号不受影响）；写完 bump() revision、写审计 users.update。改姓名、年级时审计快照只记 has_real_name、enrollment_year 和 real_name_changed，不记姓名。"
       ],
       "evidence": [
         {
@@ -7987,7 +8105,9 @@
         }
       ],
       "tests": [
-        "tests/server/console-users.test.ts"
+        "tests/server/console-users.test.ts",
+        "tests/server/real-info.test.ts",
+        "tests/console/users.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -8239,6 +8359,9 @@
       "identity"
     ],
     "app/server/src/lib/session.ts": [
+      "identity"
+    ],
+    "app/server/src/lib/grade.ts": [
       "identity"
     ]
   }

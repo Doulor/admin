@@ -815,6 +815,9 @@ CREATE TABLE IF NOT EXISTS account_avatars (
   created_at INTEGER NOT NULL
 );
 `);
+// 实名信息（#280）：真实姓名只给本人和有 users.manage 的管理员看；年级不存，存入学年份，由 lib/grade.ts 按学年现算
+addColumn("account_profiles", "real_name", "TEXT");
+addColumn("account_profiles", "enrollment_year", "INTEGER");
 
 // 操作记录与限额（#274 SPEC §3.7、§3.8）：写入只走 lib/activity.ts 的 recordActivity()；
 // limit_events 是通用计数表，取代 application_limits 那种一事一表的模式（旧表保留，不再新增同类表）。

@@ -99,13 +99,16 @@ const effectiveResult = object({
 const userDepartmentView = { anyOf: [object({ id: groupId, name: text(64, 1), tone: { anyOf: [text(32), { type: "null" }] } }, ["id", "name", "tone"]), { type: "null" }] };
 const userTitleView = object({ id: groupId, name: text(64, 1), department_id: { anyOf: [groupId, { type: "null" }] } }, ["id", "name", "department_id"]);
 const gitlabStateView = object({ state: choices("synced", "pending", "failed", "blocked", "none"), gitlab_user_id: { anyOf: [integer(1), { type: "null" }] } }, ["state", "gitlab_user_id"]);
+// 实名信息（#280）：下拉框只能选 1–4，读出来的年级还可能是已毕业。`real_name` 只回给有 users.manage 的调用者，所以不设 required
+const selectableGrade = { type: "integer", enum: [1, 2, 3, 4] };
 const userView = object({
   account_id: accountId, username: { anyOf: [text(24, 1), { type: "null" }] }, display_name: { anyOf: [text(32, 0), { type: "null" }] },
+  real_name: { anyOf: [text(64, 1), { type: "null" }] }, grade: { anyOf: [selectableGrade, choices("graduated"), { type: "null" }] }, grade_label: { anyOf: [text(8, 1), { type: "null" }] },
   avatar_url: { anyOf: [text(500), { type: "null" }] }, status: choices("active", "disabled"), level: choices("registered", "member", "alumni"),
   department: userDepartmentView, titles: { type: "array", items: userTitleView },
   providers: { type: "array", items: choices("email", "google", "github") }, gitlab: gitlabStateView,
   last_login_at: nullableCount, created_at: integer(0),
-}, ["account_id", "username", "display_name", "avatar_url", "status", "level", "department", "titles", "providers", "gitlab", "last_login_at", "created_at"]);
+}, ["account_id", "username", "display_name", "grade", "grade_label", "avatar_url", "status", "level", "department", "titles", "providers", "gitlab", "last_login_at", "created_at"]);
 const usersListResult = object({
   items: { type: "array", items: userView }, next_cursor: { anyOf: [text(2000), { type: "null" }] },
   counts: object({ visitor_today: integer(0), registered: integer(0), member: integer(0), alumni: integer(0) }, ["visitor_today", "registered", "member", "alumni"]),
@@ -114,8 +117,8 @@ const meResult = object({
   account_id: accountId, login: text(100, 1), username: { anyOf: [text(24, 1), { type: "null" }] }, display_name: { anyOf: [text(32, 0), { type: "null" }] },
   avatar_url: { anyOf: [text(500), { type: "null" }] }, level: choices("registered", "member", "alumni"), level_name: text(16, 1),
   department: userDepartmentView, titles: { type: "array", items: userTitleView }, permissions: { type: "array", items: { type: "string" } },
-  provider: choices("github", "email", "google"), email_required: { type: "boolean" },
-}, ["account_id", "login", "username", "display_name", "avatar_url", "level", "level_name", "department", "titles", "permissions", "provider", "email_required"]);
+  provider: choices("github", "email", "google"), email_required: { type: "boolean" }, profile_required: { type: "boolean" },
+}, ["account_id", "login", "username", "display_name", "avatar_url", "level", "level_name", "department", "titles", "permissions", "provider", "email_required", "profile_required"]);
 // 概览：只回调用者有权看的键，所以响应体里全部字段都不是必填。
 const summaryResult = object({
   applications: object({ total: integer(0), by_status: freeObject, last_7d: integer(0) }, ["total", "by_status", "last_7d"]),
@@ -340,6 +343,7 @@ export const consoleContracts: RouteContracts = {
     body: object({
       status: choices("active", "disabled"), level: choices("registered", "member", "alumni"),
       department: { anyOf: [groupId, { type: "null" }] }, titles: { type: "array", items: groupId },
+      real_name: { anyOf: [text(64, 1), { type: "null" }] }, grade: { anyOf: [selectableGrade, { type: "null" }] },
     }),
     // #274 残留修复 D：回和列表一样形状的完整行（userView），不是只有 account_id——否则控制台改完一行，
     // 不重新拉一次列表就看不到刚改的用户名、等级、部门这些字段。

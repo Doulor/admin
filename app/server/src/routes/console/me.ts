@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { emailRequired } from "../../lib/email-gate.js";
+import { emailRequired, profileRequired } from "../../lib/email-gate.js";
 import { entriesForAccount, levelSuffix } from "../../lib/permissions.js";
 import { departmentScopedAccess } from "../../lib/console-scope.js";
 import { beijingDayStart } from "../../lib/beijing-time.js";
@@ -51,7 +51,7 @@ export default async function consoleMeRoutes(app: FastifyInstance) {
       avatar_url: profile.avatar_url, level, level_name: LEVEL_NAME[level] ?? level,
       department: row?.department_id ? { id: row.department_id, name: row.department_name, tone: row.department_tone } : null,
       titles, permissions: [...effective.allow, ...extra],
-      provider: req.session!.provider, email_required: emailRequired(app.services, accountId),
+      provider: req.session!.provider, email_required: emailRequired(app.services, accountId), profile_required: profileRequired(app.services, accountId),
     };
   });
 

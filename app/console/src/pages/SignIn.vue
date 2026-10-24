@@ -10,11 +10,13 @@ import { TxRadio, TxRadioGroup } from "@talex-touch/tuffex/radio";
 import { TxTabs, TxTabItem } from "@talex-touch/tuffex/tabs";
 import { TxForm, TxFormItem } from "@talex-touch/tuffex/form";
 import { TxDivider } from "@talex-touch/tuffex/divider";
+import { TxSelect } from "@talex-touch/tuffex/select";
 import logoUrl from "../assets/logo.png";
 import { ApiError, api } from "../lib/http";
 import { isMock, siteUrl } from "../lib/runtime";
 import { PASSWORD_MIN_LENGTH } from "../lib/account";
 import { vSnapIndicator } from "../lib/tabs";
+import { GRADE_OPTIONS, isSelectableGrade } from "../lib/grade";
 import {
   backFromGoogleForInvite, cleanCode, codeProblem, initialSignInTab, looksLikeEmail, parseSignInOutcome, providerHref, providerIcon, readProviders,
   registerProblem, registerWithEmail, resetPasswordWithCode, resetProblem, retryAfter, safeReturnPath, sendSigninCode, signInWithPassword, verifySigninCode,
@@ -22,12 +24,13 @@ import {
 } from "../lib/signin";
 
 /**
- * 极客班统一登录页（#262）。官网、论坛、控制台的「登录」都到这里：登录方式按 GET /auth/providers 渲染，前端不写死渠道；
+ * 极客班内部登录页（#262；#280 标题改成「极客班内部登录」，去掉副标题）。官网、论坛、控制台的「登录」都到这里：
+ * 登录方式按 GET /auth/providers 渲染，前端不写死渠道；
  * 登录后回到 return_to（只接受本站路径）；登录没成功时服务端也回到这里并带上 ?signin=<原因>，原因在这里讲清。
  * 上面是「登录」「注册」两个标签的邮箱表单，下面隔一条「或者」是 GitHub、Google 的跳转按钮（所有者 2026-10-23 10:32）。
- * 邮箱登录有验证码和密码两种；注册填邮箱、邀请码、验证码，密码可以顺手设。邀请码选填（#274 CONTRACT-274 §2）：
- * 用验证码在「登录」标签登录时邮箱还没有账号，直接注册成注册用户，不会转到「注册」；忘记密码（只认已有账号，不建号）
- * 遇到没有账号的邮箱才转到「注册」，已填的邮箱和验证码都留着。Google 注册也要邀请码，用「注册」里填的那个。
+ * 邮箱登录有验证码和密码两种；注册填邮箱、真实姓名、年级（#280，年级只能从下拉框选大一到大四）、邀请码、验证码，
+ * 密码可以顺手设。邀请码选填（#274 CONTRACT-274 §2）。用验证码在「登录」标签登录、或者忘记密码时邮箱还没有账号，
+ * 服务端回 real_info_required / no_account，转到「注册」补姓名和年级，已填的邮箱和验证码都留着。Google 注册也要邀请码，用「注册」里填的那个。
  * 注册后邮箱原来就有账号、或者填的密码没设上，先在页面上说一句，再让人选继续还是去「我的账号」。
  * 密码登录下面有「忘记密码？」（#273）：用邮箱验证码设新密码并直接登录；记得旧密码、只想换一个的，登录后到「我的账号」里改。
  */
@@ -85,9 +88,12 @@ const code = ref("");
 const password = ref("");
 const newPassword = ref("");
 const invite = ref("");
+const realName = ref("");
+const grade = ref<number | "">("");
+const gradeInput = computed({ get: () => grade.value, set: (value: string | number | (string | number)[]) => { grade.value = typeof value === "number" ? value : ""; } });
 /** 忘记密码（#273）：换成「邮箱、验证码、新密码」的表单，标签和登录方式先收起来。 */
 const forgot = ref(false);
-/** 用验证码登录时服务端说这个邮箱还没有账号，转到「注册」后在表单上方说明一句。 */
+/** 用验证码登录或忘记密码时服务端说这个邮箱还没有账号，转到「注册」后在表单上方说明一句。 */
 const movedToRegister = ref(false);
 /** 注册后要先说一句再走的两种情况（见 lib/signin.ts 的 RegisterOutcome）。 */
 const registerNotice = ref<Exclude<RegisterOutcome, { kind: "done" }> | null>(null);
@@ -161,7 +167,8 @@ async function submitCode() {
     leave(result.return_to);
   } catch (error) {
     submitting.value = false;
-    // #274：邮箱还没有账号时 /auth/email/verify 直接注册成注册用户，不会再回这里；只剩验证码本身的错误。
+    // 邮箱还没有账号（#280：注册要先填姓名和年级）：转到「注册」，验证码还能用
+    if (error instanceof ApiError && error.code === "real_info_required") { movedToRegister.value = true; tab.value = "register"; return; }
     if (error instanceof ApiError && error.code === "code_expired") resetCode();
     emailError.value = messageOf(error);
   }
@@ -183,11 +190,11 @@ async function submitPassword() {
 
 async function submitRegister() {
   emailError.value = null;
-  const problem = registerProblem({ email: email.value, invite: invite.value, codeSent: Boolean(sentTo.value), code: code.value, password: newPassword.value });
-  if (problem) { emailError.value = problem; return; }
+  const problem = registerProblem({ email: email.value, realName: realName.value, grade: grade.value, invite: invite.value, codeSent: Boolean(sentTo.value), code: code.value, password: newPassword.value });
+  if (problem || !isSelectableGrade(grade.value)) { emailError.value = problem; return; }
   submitting.value = true;
   try {
-    const outcome = await registerWithEmail({ code: code.value, invite: invite.value, password: newPassword.value });
+    const outcome = await registerWithEmail({ code: code.value, invite: invite.value, password: newPassword.value, realName: realName.value, grade: grade.value });
     if (outcome.kind === "done") { leave(outcome.returnTo); return; }
     submitting.value = false;
     registerNotice.value = outcome;
@@ -224,8 +231,7 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
       <div class="signin__brand">
         <img :src="logoUrl" alt="" width="52" height="52" class="signin__logo">
         <div class="signin__heading">
-          <h1>极客班统一登录</h1>
-          <p class="signin__lead">官网、论坛、控制台和比赛共用一个账号</p>
+          <h1>极客班内部登录</h1>
         </div>
       </div>
 
@@ -284,11 +290,23 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
             <TxRadio value="password" label="密码" />
           </TxRadioGroup>
           <TxAlert v-if="registering && movedToRegister" type="info" title="这个邮箱还没有极客班账号" :closable="false" class="signin__alert signin__alert--tight">
-            可以直接用它注册，刚才的验证码还能用。
+            填上姓名和年级就能用它注册，刚才的验证码还能用。
           </TxAlert>
 
           <TxFormItem v-slot="{ id }" label="邮箱">
             <TxInput :id="id" v-model="email" type="email" placeholder="name@example.com" autocomplete="email" inputmode="email" spellcheck="false" />
+          </TxFormItem>
+
+          <TxFormItem v-if="registering" v-slot="{ id }" label="真实姓名">
+            <TxInput :id="id" v-model="realName" placeholder="和学籍上一致" autocomplete="name" maxlength="32" spellcheck="false" />
+          </TxFormItem>
+          <TxFormItem v-if="registering" label="所在年级">
+            <!-- TxSelect 0.6.0 的 attrs 落在外层，用 label 给里面的输入框命名。 -->
+            <label class="fill-width">
+              <span class="sr-only">所在年级</span>
+              <TxSelect v-model="gradeInput" :options="GRADE_OPTIONS" placeholder="选择年级" class="fill-width" data-testid="register-grade" />
+            </label>
+            <p class="signin__hint">每年 9 月 1 日自动升一级。姓名和年级填好后自己不能改，填错了请联系管理员。</p>
           </TxFormItem>
 
           <TxFormItem v-if="registering" v-slot="{ id }" label="邀请码（选填）">
@@ -412,13 +430,6 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
   font-size: 22px;
   font-weight: 650;
   letter-spacing: 0.01em;
-}
-.signin__lead {
-  margin: 4px 0 0;
-  color: var(--tx-text-color-secondary);
-  font-size: 14px;
-  line-height: 20px;
-  text-wrap: balance;
 }
 .signin__alert {
   margin-bottom: 14px;

@@ -142,7 +142,7 @@ describe("桌面", () => {
     spy.mockRestore();
   });
 
-  it("菜单栏：左边 YUGC 四色标志打开系统菜单，右边搜索、时间、头像；没登录时头像打开资料卡，里面去统一登录页", async () => {
+  it("菜单栏：左边 YUGC 四色标志打开系统菜单，右边搜索、时间、头像；没登录时头像打开「登录极客班」窗口，里面去登录页", async () => {
     mount();
     const bar = within(screen.getByRole("banner", { name: "菜单栏" }));
     const logo = bar.getByRole("button", { name: "系统菜单" });
@@ -156,8 +156,9 @@ describe("桌面", () => {
     // 头像在最右边
     expect(avatar.parentElement?.lastElementChild).toBe(avatar);
     fireEvent.click(avatar);
-    const card = within(screen.getByRole("dialog", { name: "登录极客班" }));
-    expect(card.getByRole("link", { name: "登录" }).getAttribute("href")).toBe(`/signin?return_to=${encodeURIComponent("/")}`);
+    const win = screen.getByRole("dialog", { name: "登录极客班" });
+    expect(win.className).toContain("pt-win");
+    expect(within(win).getByRole("link", { name: "登录" }).getAttribute("href")).toBe(`/signin?return_to=${encodeURIComponent("/")}`);
   });
 
   it("登录后头像换成账号按钮，有头像图就显示图", async () => {
@@ -200,10 +201,13 @@ describe("窗口外框", () => {
     expect(OS_CSS).toMatch(/\.pt-win-bar \{[^}]*grid-template-columns: 132px minmax\(0, 1fr\) 132px;/);
   });
 
-  it("样式：珠子 18px 放在一条浅色胶囊槽里、按钮 44×44，颜色取令牌；窗口圆角、粉色描边、标题栏粉色渐变都取令牌；打开 220ms 缩放加淡入，减少动态效果只淡入", () => {
+  it("样式：珠子 22px、后面没有半透明胶囊，图标一直用深色显示，按钮 44×44，颜色取令牌；窗口圆角、粉色描边、标题栏粉色渐变都取令牌；打开 220ms 缩放加淡入，减少动态效果只淡入", () => {
     expect(OS_CSS).toMatch(/\.pt-win-lights button \{[^}]*width: 44px; height: 44px;/);
-    expect(OS_CSS).toMatch(/\.pt-win-lights i \{[^}]*--bead: var\(--os-dot-close\); --bead-line: var\(--os-dot-close-line\);[^}]*width: 18px; height: 18px;/);
-    expect(OS_CSS).toMatch(/\.pt-win-lights::before \{[^}]*border-radius: 999px;/);
+    expect(OS_CSS).toMatch(/\.pt-win-lights i \{[^}]*--bead: var\(--os-dot-close\); --bead-line: var\(--os-dot-close-line\);[^}]*width: 22px; height: 22px;/);
+    expect(OS_CSS).not.toContain(".pt-win-lights::before");
+    // 图标不等悬停：按钮平时的文字色就是深色，不是 transparent
+    expect(OS_CSS).toMatch(/\.pt-win-lights button \{[^}]*color: rgb\(29 43 83 \/ 80%\);/);
+    expect(OS_CSS).not.toMatch(/\.pt-win-lights button \{[^}]*color: transparent/);
     expect(OS_CSS).toContain(".pt-win-lights button:nth-child(2) i { --bead: var(--os-dot-min); --bead-line: var(--os-dot-min-line); }");
     expect(OS_CSS).toMatch(/\.pt-win \{[^}]*border: 1px solid var\(--os-win-border\); border-radius: var\(--os-radius-win\); background: var\(--os-panel\);/);
     expect(OS_CSS).toMatch(/\.pt-win-bar \{[^}]*background: linear-gradient\(var\(--os-win-top\), var\(--os-win-bottom\)\);/);
@@ -236,13 +240,10 @@ describe("资料卡样式", () => {
     expect(OS_CSS).toContain(".pt-profile-input :is(input, textarea):focus-visible { outline: none; }");
   });
 
-  it("手机：贴底的面板左右各留 8px（避让安全区），去掉 dialog 自带的 max-width；顶上圆角加拖拽条，内容在面板里滚，底部让出安全区", () => {
-    const sheet = OS_CSS.match(/\.pt-root\.pt-profile-modal\.is-phone \{([^}]*)\}/)?.[1] ?? "";
-    expect(sheet).toContain("inset: auto max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px));");
-    expect(sheet).toContain("box-sizing: border-box; width: auto; max-width: none;");
-    expect(sheet).toContain("max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px));");
-    expect(sheet).toContain("border-radius: 24px 24px 0 0;");
-    expect(OS_CSS).toMatch(/\.pt-root\.pt-profile-modal\.is-phone::before \{[^}]*width: 38px; height: 5px;[^}]*background: var\(--os-ink\);/);
-    expect(OS_CSS).toMatch(/\.pt-profile-modal\.is-phone > \.pt-profile \{[^}]*overflow: auto;[^}]*padding: 4px 18px calc\(18px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+  it("账号资料是桌面窗口（#280）：头像 88px，实名信息两列；头像下面弹层的样式已经去掉", () => {
+    expect(OS_CSS).not.toContain("pt-profile-modal");
+    expect(OS_CSS).toMatch(/\.pt-profile-head \{[^}]*grid-template-columns: 88px minmax\(0, 1fr\);/);
+    expect(OS_CSS).toContain(".pt-profile-head .pt-avatar.is-lg { width: 88px; height: 88px; }");
+    expect(OS_CSS).toMatch(/\.pt-profile-real dl \{[^}]*grid-template-columns: repeat\(auto-fit, minmax\(160px, 1fr\)\);/);
   });
 });

@@ -200,30 +200,26 @@
   border-bottom: 1px solid var(--os-win-border); background: linear-gradient(var(--os-win-top), var(--os-win-bottom)); color: var(--os-ink); cursor: grab; font-size: 13.5px;
 }
 .pt-win-bar b { justify-self: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
-/* 左上角三个按钮（#279）：一条半透明白胶囊托着三颗 18px 的糖果珠，关闭是 YUGC 的粉、最小化是暖黄、放大是薄荷绿，
-   珠子上半一块高光、下沿一道深一号的边。每个按钮仍是 44×44 的点击区（DESIGN.md 触控目标），所以珠子间隔 44px，胶囊把三颗收成一组。
-   悬停或键盘聚焦到这一组时三颗一起露出图标，单颗再放大一点，按下缩一下；不在最前面的窗口珠子褪成浅色 */
+/* 左上角三个按钮（#279；#280 按所有者 2026-10-24 16:54 去掉后面的半透明胶囊，图标一直显示）：三颗 22px 的糖果珠，
+   关闭是 YUGC 的粉、最小化是暖黄、放大是薄荷绿，珠子上半一块高光、下沿一道深一号的边，上面一直画着关闭、减号、放大的深色图标，
+   不用悬停就看得出是干什么的。每个按钮仍是 44×44 的点击区（DESIGN.md 触控目标），所以珠子间隔 44px。
+   悬停时单颗放大一点，按下缩一下；不在最前面的窗口珠子褪成浅色，图标照样显示 */
 .pt-win-lights { position: relative; display: flex; }
-.pt-win-lights::before {
-  content: ""; position: absolute; inset: 9px 6px; border-radius: 999px; pointer-events: none;
-  background: rgb(255 255 255 / 50%); box-shadow: inset 0 1px 2px rgb(220 77 147 / 22%), 0 1px 0 rgb(255 255 255 / 75%);
-}
-.pt-win-lights button { position: relative; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: none; color: transparent; cursor: pointer; }
+.pt-win-lights button { position: relative; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: none; color: rgb(29 43 83 / 80%); cursor: pointer; }
 .pt-win-lights i {
   --bead: var(--os-dot-close); --bead-line: var(--os-dot-close-line);
-  display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
   background: radial-gradient(circle at 50% 26%, rgb(255 255 255 / 90%) 0 14%, rgb(255 255 255 / 0%) 54%), var(--bead);
   box-shadow: inset 0 -1.5px 0 var(--bead-line), 0 1px 2px rgb(60 110 200 / 25%);
   transition: transform .14s var(--pt-ease), filter .14s var(--pt-ease);
 }
 .pt-win-lights button:nth-child(2) i { --bead: var(--os-dot-min); --bead-line: var(--os-dot-min-line); }
 .pt-win-lights button:nth-child(3) i { --bead: var(--os-dot-max); --bead-line: var(--os-dot-max-line); }
-.pt-win-lights:hover button, .pt-win-lights:focus-within button { color: rgb(29 43 83 / 72%); }
 .pt-win-lights button:hover i { transform: scale(1.12); }
 .pt-win-lights button:active i { transform: scale(.9); }
 .pt-win-lights button:focus-visible { outline: none; }
 .pt-win-lights button:focus-visible i { box-shadow: inset 0 -1.5px 0 var(--bead-line), 0 0 0 2px #fff, 0 0 0 4px var(--os-accent); }
-.pt-win:not(.is-front) .pt-win-lights i { filter: saturate(.3) brightness(1.12); }
+.pt-win:not(.is-front) .pt-win-lights i { filter: saturate(.45); }
 .pt-win:not(.is-front) .pt-win-lights:hover i { filter: none; }
 .pt-win-body { overflow: auto; padding: 20px 22px; font-size: 14px; line-height: 1.7; }
 /* 窗口和桌面弹层里的正文（比赛、意见箱等样式表里写的是官网外层的 --pt-*）在这里换成 YUGC OS 的令牌（SPEC §1）：
@@ -558,33 +554,18 @@
 .pt-os-modal.is-phone .pt-ln-box ul { max-height: min(340px, 48dvh); }
 .pt-os-modal.is-phone .pt-ln-box footer { display: none; }
 
-/* ── 个人资料卡（components/os/ProfileCard.tsx）：电脑上挂在菜单栏头像下面，360px 宽，背景不变暗；手机上是从底部升起的面板 ── */
-.pt-root.pt-profile-modal:not(.is-phone) { inset: 40px 8px auto auto; width: 360px; max-height: calc(100dvh - 56px); margin: 0; overflow: auto; transform-origin: top right; animation: pt-win-in .22s var(--pt-ease); }
-.pt-profile-modal:not(.is-phone)::backdrop { background: transparent; }
-/* 手机：左右各留 8px（再避让安全区）贴底，顶上两个圆角和一根拖拽条，标题栏不动、卡片内容在里面滚；
-   dialog 自带 max-width: calc(100% - 6px - 2em)，不去掉的话右边会空出 38px */
-.pt-root.pt-profile-modal.is-phone {
-  inset: auto max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px)); box-sizing: border-box; width: auto; max-width: none;
-  max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px)); margin: 0; padding: 0; overflow: hidden;
-  border-bottom: 0; border-radius: 24px 24px 0 0; box-shadow: 0 -8px 36px rgb(60 110 200 / 24%); animation: pt-sheet-up .3s cubic-bezier(.16, 1, .3, 1);
-}
-.pt-root.pt-profile-modal.is-phone[open] { display: flex; flex-direction: column; }
-.pt-root.pt-profile-modal.is-phone::before { content: ""; flex: none; align-self: center; width: 38px; height: 5px; margin-top: 8px; border-radius: 999px; background: var(--os-ink); opacity: .3; }
-.pt-profile-modal.is-phone > header { flex: none; margin: 0; padding: 4px 12px 8px 18px; }
-.pt-profile-modal.is-phone > .pt-profile { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 4px 18px calc(18px + env(safe-area-inset-bottom, 0px)); }
-.pt-profile { display: grid; gap: 14px; color: var(--os-ink); font-size: 13.5px; }
-.pt-profile-modal:not(.is-phone) .pt-profile {
-  padding: 18px; border: 1px solid var(--os-win-border); border-radius: var(--os-radius-win); background: var(--os-panel);
-  backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); box-shadow: var(--os-shadow);
-}
-.pt-profile.is-guest { justify-items: center; text-align: center; }
+/* ── 账号资料窗口的正文（components/os/ProfileCard.tsx，#280 起在桌面窗口里，外框是 .pt-win）── */
+.pt-profile { display: grid; gap: 16px; color: var(--os-ink); font-size: 13.5px; }
+.pt-profile.is-guest { justify-items: center; padding: 18px 0 6px; text-align: center; }
 .pt-profile-lead { font-size: 15px; font-weight: 700; }
 .pt-profile-actions { display: flex; gap: 10px; width: 100%; }
 .pt-profile-actions > .pt-btn { flex: 1; }
 .pt-profile-hint { font-size: 12.5px; line-height: 1.5; color: var(--os-ink-soft); }
 .pt-avatar.is-lg { width: 64px; height: 64px; }
-.pt-profile-head { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 14px; align-items: start; }
-.pt-profile-avatar > button { position: relative; display: grid; place-items: center; width: 64px; height: 64px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+/* 窗口里头像放大到 88px，点头像换图 */
+.pt-profile-head { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 18px; align-items: start; }
+.pt-profile-head .pt-avatar.is-lg { width: 88px; height: 88px; }
+.pt-profile-avatar > button { position: relative; display: grid; place-items: center; width: 88px; height: 88px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
 .pt-profile-avatar > button > i { position: absolute; right: -2px; bottom: -2px; display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--os-stroke); border-radius: 50%; background: var(--os-accent); color: #fff; }
 .pt-profile-avatar > button:hover .pt-avatar, .pt-profile-avatar > button:focus-visible .pt-avatar { box-shadow: 0 0 0 2px var(--os-accent); }
 .pt-profile-avatar > button:focus-visible { outline: none; }
@@ -611,8 +592,13 @@
 .pt-profile-meta { display: flex; flex-wrap: wrap; align-items: center; row-gap: 4px; color: var(--os-ink-soft); font-size: 12.5px; }
 .pt-profile-meta > span + span::before { content: "·"; margin: 0 6px; }
 .pt-profile-dept i { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; background: var(--tone); vertical-align: 1px; }
-.pt-profile-bind, .pt-profile-invite { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid rgb(58 118 214 / 12%); }
-.pt-profile-bind h3, .pt-profile-invite label { font-size: 12px; font-weight: 700; color: var(--os-ink-soft); }
+.pt-profile-bind, .pt-profile-invite, .pt-profile-real { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid rgb(58 118 214 / 12%); }
+.pt-profile-bind h3, .pt-profile-invite label, .pt-profile-real h3 { font-size: 12px; font-weight: 700; color: var(--os-ink-soft); }
+/* 实名信息：两列，左边真实姓名、右边年级；窄窗口里上下排 */
+.pt-profile-real dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: 0; }
+.pt-profile-real dl > div { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: rgb(58 118 214 / 6%); }
+.pt-profile-real dt { font-size: 11.5px; color: var(--os-ink-soft); }
+.pt-profile-real dd { margin: 0; font-size: 15px; font-weight: 700; }
 .pt-profile-bind ul { display: grid; margin: 0; padding: 0; list-style: none; }
 .pt-profile-bind li { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 2px; border-bottom: 1px solid rgb(58 118 214 / 8%); }
 .pt-profile-bind li > .pt-icon { flex: none; color: var(--os-ink-soft); }
@@ -640,6 +626,5 @@
 /* 减少动态效果：全站把动画压成 .01ms（styles/portal.css 的 .pt-root *）；窗口打开改成只淡入，保留原时长 */
 @media (prefers-reduced-motion: reduce) {
   .pt-os-shell .pt-win { animation-name: pt-win-fade-in; animation-duration: .22s !important; }
-  .pt-root.pt-profile-modal { animation-name: pt-win-fade-in !important; }
   .pt-dk:hover, .pt-dk:focus-visible { transform: none; }
 }

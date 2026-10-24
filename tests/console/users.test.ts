@@ -14,8 +14,11 @@ const list = (query = "") => routeConsole(new URL(`/api/console/users${query}`, 
 
 describe("user drawer draft", () => {
   it("reads level, department, the department title and the site owner flag apart", () => {
-    expect(draftFromUser(user("li_xiaoman"))).toEqual({ level: "member", department: "dept.ai", title: "title.ai.head", owner: false });
-    expect(draftFromUser(user("xu_yan"))).toEqual({ level: "member", department: NO_DEPARTMENT, title: "", owner: true });
+    expect(draftFromUser(user("li_xiaoman"))).toEqual({ level: "member", department: "dept.ai", title: "title.ai.head", owner: false, real_name: "李晓曼", grade: 2 });
+    expect(draftFromUser(user("xu_yan"))).toEqual({ level: "member", department: NO_DEPARTMENT, title: "", owner: true, real_name: "徐言", grade: 4 });
+    // 已毕业不在下拉框里，草稿里是空的；没填姓名是空串
+    expect(draftFromUser(user("gao_yuan"))).toMatchObject({ grade: "" });
+    expect(draftFromUser(user("yz_k3m9q2xa"))).toMatchObject({ real_name: "", grade: "" });
     expect(departmentOf({ department: { id: NO_DEPARTMENT, name: "无部门", tone: "ink" } })).toBeNull();
   });
   it("offers six departments and only the chosen department's titles, highest first", () => {
@@ -37,6 +40,20 @@ describe("user drawer draft", () => {
     expect(userPatch(target, withDepartment(draft, NO_DEPARTMENT))).toEqual({ department: null, titles: [] });
     expect(userPatch(target, { ...draft, title: "title.ai.deputy" })).toEqual({ titles: ["title.ai.deputy"] });
     expect(userPatch(target, { ...draft, owner: true })).toEqual({ titles: ["title.ai.staff", SITE_OWNER_TITLE.id] });
+    // 姓名和年级（#280）：改了才带；姓名清空不算修改；看不到姓名（没有这个键）时不带
+    expect(userPatch(target, { ...draft, real_name: " 何淼 ", grade: 3 })).toEqual({ real_name: "何淼", grade: 3 });
+    expect(userPatch(target, { ...draft, real_name: "" })).toBeNull();
+    const { real_name: _hidden, ...withoutName } = target;
+    expect(userPatch(withoutName, { ...draft, real_name: "何淼" })).toBeNull();
+  });
+  it("shows real names only to users.manage, and searches them only then (#280)", () => {
+    as("owner");
+    expect(list().items.find(item => item.username === "lu_mingyuan")).toMatchObject({ real_name: "陆明远", grade: 2, grade_label: "大二" });
+    expect(list("?q=陆明远").items.map(item => item.username)).toEqual(["lu_mingyuan"]);
+    as("ai_head");
+    const scoped = list().items;
+    expect(scoped.length).toBeGreaterThan(0);
+    expect(scoped.every(item => !("real_name" in item) && "grade_label" in item)).toBe(true);
   });
   it("shows one title in the header: the site owner first, in its own fixed colour, department titles coloured by their department", () => {
     const owner = user("xu_yan");

@@ -71,10 +71,14 @@ export function mockMe(persona: MockPersona) {
     identities: { emails: [member ? "n***@qq.com" : "x***@163.com"], google: member, github: member ? "nano-dev" : null },
     console_link: false,
     email_required: false,
+    profile_required: false,
+    real_name: member ? "王小明" : "李同学",
+    grade: member ? 2 : 1,
+    grade_label: member ? "大二" : "大一",
   };
 }
 
-/** GET /api/identity/me 里官网资料卡用到的部分：绑定的邮箱（带 id，删的时候要）；访客回 401 */
+/** GET /api/identity/me 里官网账号资料窗口用到的部分：绑定的邮箱（带 id，删的时候要）和实名信息（#280）；访客回 401 */
 function demoIdentity(persona: MockPersona) {
   if (persona === "visitor") throw new ApiError(401, "unauthenticated", "没有登录");
   const member = persona === "member";
@@ -90,6 +94,10 @@ function demoIdentity(persona: MockPersona) {
         ]
       : [{ provider: "email", id: "idn_email_3", label: "x***@163.com", primary: true, linked_at: now - DAY, last_login_at: now - HOUR }],
     email_required: false,
+    profile_required: false,
+    real_name: member ? "王小明" : "李同学",
+    grade: member ? 2 : 1,
+    grade_label: member ? "大二" : "大一",
   };
 }
 

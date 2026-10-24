@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { IncomingMessage } from "node:http";
 import type Provider from "oidc-provider";
-import { bindEmailUrl, emailRequired } from "../../lib/email-gate.js";
+import { gateRefusal, gateRefusalBody, gatedReturn } from "../../lib/email-gate.js";
 import { registerContracts } from "../../lib/http-contracts.js";
 import { OIDC_SCOPES, SITE_ACCOUNT, oidcErrorPage, type SiteAccountRequest } from "../../lib/oidc-provider.js";
 import { loadSession, requireAuth } from "../../middleware/require-auth.js";
@@ -36,14 +36,15 @@ export default async function oidcRoutes(app: FastifyInstance) {
 
   /**
    * 交给 oidc-provider 之前：按 PUBLIC_ORIGIN 定协议和主机（web 容器的 nginx 会把 X-Forwarded-Proto 改成 http），记下这次的极客班账号。
-   * 账号还没有登录邮箱时记成 null（#273）：oidc-provider 回到交互，由交互带人去绑定邮箱页；允许过这个应用、oidc-provider 的会话还在的也一样。
+   * 账号还没有登录邮箱（#273）或者缺姓名、年级（#280）时记成 null：oidc-provider 回到交互，由交互带人去对应的页面；
+   * 允许过这个应用、oidc-provider 的会话还在的也一样。
    */
   const prepared = (req: FastifyRequest): IncomingMessage => {
     const raw = req.raw as SiteAccountRequest;
     raw.headers["x-forwarded-proto"] = origin.protocol.slice(0, -1);
     raw.headers["x-forwarded-host"] = origin.host;
     const accountId = req.session?.account_id ?? null;
-    raw[SITE_ACCOUNT] = accountId && !emailRequired(app.services, accountId) ? accountId : null;
+    raw[SITE_ACCOUNT] = accountId && !gateRefusal(app.services, accountId) ? accountId : null;
     return raw;
   };
   const errorPage = (reply: FastifyReply, code: string, status = 400) =>
@@ -74,8 +75,9 @@ export default async function oidcRoutes(app: FastifyInstance) {
         // 停用的、不是成员的账号：回到应用，告诉它被拒绝了
         return reply.redirect(await redirectTo(req, reply, { error: "access_denied", error_description: "the account is not an active member" }, false), 303);
       }
-      // 还没有登录邮箱的账号（#273）：先绑邮箱，绑好回到这个交互接着走
-      if (emailRequired(app.services, accountId)) return reply.redirect(bindEmailUrl(config.publicOrigin, `/oidc/interaction/${encodeURIComponent(uid)}`), 303);
+      // 还没有登录邮箱（#273）或者缺姓名、年级（#280）的账号：先去办好，办好回到这个交互接着走
+      const interaction = `/oidc/interaction/${encodeURIComponent(uid)}`;
+      if (gateRefusal(app.services, accountId)) return reply.redirect(gatedReturn(app.services, config.publicOrigin, accountId, interaction), 303);
       if (details.prompt.name === "login") {
         if (details.session?.accountId && details.session.accountId !== accountId) {
           // 这个浏览器换了极客班账号：oidc-provider 的会话还是上一个账号的。删掉那份会话再按现在的账号登录，
@@ -104,15 +106,16 @@ export default async function oidcRoutes(app: FastifyInstance) {
       return details;
     };
 
-    /** 授权页读详情、点允许之前同样要先有登录邮箱（#273）：没有时回 403 email_required 并返回 true；拒绝不拦。 */
-    const refusedWithoutEmail = (req: FastifyRequest, reply: FastifyReply) => {
-      if (!emailRequired(app.services, req.session!.account_id)) return false;
-      void reply.code(403).send({ error: "email_required", message: "先绑定邮箱，再用极客班账号登录这个应用" });
+    /** 授权页读详情、点允许之前同样要先有登录邮箱（#273）、姓名和年级（#280）：缺时回 403 email_required 或 profile_required 并返回 true；拒绝不拦。 */
+    const refusedByGate = (req: FastifyRequest, reply: FastifyReply) => {
+      const refusal = gateRefusal(app.services, req.session!.account_id);
+      if (!refusal) return false;
+      void reply.code(403).send(gateRefusalBody(refusal, "用极客班账号登录这个应用"));
       return true;
     };
 
     scope.get<{ Params: { uid: string } }>("/oidc/interaction/:uid/details", { preHandler: requireAuth, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
-      if (refusedWithoutEmail(req, reply)) return reply;
+      if (refusedByGate(req, reply)) return reply;
       const details = await consentOf(req, reply);
       if (!details) return reply;
       const clientId = String(details.params.client_id);
@@ -129,7 +132,7 @@ export default async function oidcRoutes(app: FastifyInstance) {
     });
 
     scope.post<{ Params: { uid: string } }>("/oidc/interaction/:uid/confirm", { preHandler: requireAuth, config: { rateLimit: { max: 20, timeWindow: "1 minute" } } }, async (req, reply) => {
-      if (refusedWithoutEmail(req, reply)) return reply;
+      if (refusedByGate(req, reply)) return reply;
       const details = await consentOf(req, reply);
       if (!details) return reply;
       const accountId = req.session!.account_id;

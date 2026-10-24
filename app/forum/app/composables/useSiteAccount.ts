@@ -2,7 +2,7 @@ import type { SiteAccount } from '../../shared/site-account'
 import { toast } from '@talex-touch/tuffex/utils'
 import { publishedTopicIds } from '../../shared/published'
 import { signinOutcomes } from '../../shared/signin-outcomes'
-import { bindEmailHref, emailRequired, parseMe } from '../../shared/site-account'
+import { bindEmailHref, completeProfileHref, emailRequired, parseMe, profileRequired } from '../../shared/site-account'
 
 export type { SiteAccount } from '../../shared/site-account'
 
@@ -15,7 +15,8 @@ export type { SiteAccount } from '../../shared/site-account'
  * 不登录也能看论坛。
  * 论坛与官网、控制台同域（线上 `/forum/` 由 web 容器反代），所以直接读同域的 `/auth/me` 就知道是谁；
  * 本机独立端口上没有 `/auth/me`（返回 404 或 HTML），当作未登录。回答怎么读见 `shared/site-account.ts`。
- * 账号还没有登录邮箱（`email_required`，#273）时整页跳到绑定邮箱页，绑好回到当前页。
+ * 账号还没有登录邮箱（`email_required`，#273）时整页跳到绑定邮箱页，缺真实姓名或年级（`profile_required`，#280）时
+ * 跳到补资料页，办好都回到当前页。
  */
 /** 顶栏调用本组合函数；同一页面只发一次 /auth/me。 */
 let inflight: Promise<void> | null = null
@@ -40,9 +41,10 @@ export function useSiteAccount() {
       const body: unknown = response.ok && response.headers.get('content-type')?.includes('application/json')
         ? await response.json()
         : null
-      if (emailRequired(body)) {
+      if (emailRequired(body) || profileRequired(body)) {
         const { pathname, search, hash } = window.location
-        window.location.assign(bindEmailHref(`${pathname}${search}${hash}`))
+        const back = `${pathname}${search}${hash}`
+        window.location.assign(emailRequired(body) ? bindEmailHref(back) : completeProfileHref(back))
         return
       }
       account.value = parseMe(body)

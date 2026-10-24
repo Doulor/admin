@@ -1,7 +1,8 @@
-// 个人资料卡（SPEC §4.3）：菜单栏右边的头像点开，电脑上是挂在头像下面的 360px 卡片，手机上是从底部升起的面板。
+// 账号资料窗口的正文（SPEC §4.3；#280 起从头像下面的弹层改成桌面窗口，所有者 2026-10-24 16:38：「那个账号资料的改动也是一个个窗口在我们的桌面，
+// 然后里面可以改动对应的头像和相关的信息」）。窗口外框、拖动和关闭在 Windows.tsx，这里只管内容。
 // 访客：登录、注册两个按钮和一句说明。已登录：换头像（裁成方形后上传）、昵称、@用户名、简介（失焦或回车保存），
-// 身份、部门、称号，登录方式（邮箱可以添加和删除、Google 可以绑定、GitHub 只显示），注册用户填邀请码成为成员，
-// 底部是账号设置和退出。接口见 #274 的接口契约 §2；Esc 或点卡片外面关掉，焦点回到头像（@shared/ui/Modal）。
+// 身份、年级、部门、称号，实名信息（只读，读 /api/identity/me，不放进全站的登录状态），登录方式（邮箱可以添加和删除、
+// Google 可以绑定、GitHub 只显示），注册用户填邀请码成为成员，底部是账号设置和退出。接口见 #274 的接口契约 §2。
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { api, ApiError } from "@shared/lib/api";
 import { registerHref, type Account } from "../../lib/account";
@@ -50,6 +51,33 @@ function GuestCard({ signInLink }: { signInLink: string }) {
 
 type ProfileBody = { username?: string; display_name?: string; bio?: string; avatar_url?: string | null };
 
+type EmailRow = { id: string | null; label: string; primary: boolean };
+type IdentityView = {
+  identities?: Array<{ provider?: unknown; id?: unknown; label?: unknown; primary?: unknown }>;
+  real_name?: unknown;
+  grade_label?: unknown;
+};
+
+/**
+ * 窗口打开时读一次 /api/identity/me：带 id 的邮箱列表（删的时候要 id）和本人的实名信息。
+ * 读不到时邮箱只显示 /auth/me 里打了码的地址、不给删，实名信息不显示。
+ */
+function useIdentityView(version: number) {
+  const [view, setView] = useState<IdentityView | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void api<IdentityView>("/api/identity/me")
+      .then((next) => {
+        if (!cancelled && next && typeof next === "object") setView(next);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [version]);
+  return view;
+}
+
 function MemberCard({ account, signInLink, onPatch, onReload, onSignOut }: Props & { account: Account }) {
   const save = async (body: Record<string, string>) => {
     const next = await api<ProfileBody>("/api/identity/profile", { method: "PATCH", body: JSON.stringify(body) });
@@ -60,6 +88,8 @@ function MemberCard({ account, signInLink, onPatch, onReload, onSignOut }: Props
     });
   };
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [version, setVersion] = useState(0);
+  const view = useIdentityView(version);
   return (
     <div className="pt-profile">
       <section className="pt-profile-head">
@@ -74,6 +104,7 @@ function MemberCard({ account, signInLink, onPatch, onReload, onSignOut }: Props
             check={(value) => (/^[a-z0-9_]{3,24}$/.test(value) ? null : "用户名是 3 到 24 位小写字母、数字或下划线")}
             onSave={(value) => save({ username: value })}
           />
+          <IdentityLine account={account} />
         </div>
       </section>
       {avatarError && (
@@ -81,9 +112,17 @@ function MemberCard({ account, signInLink, onPatch, onReload, onSignOut }: Props
           {avatarError}
         </small>
       )}
-      <IdentityLine account={account} />
       <ProfileField label="简介" multiline placeholder="写一句介绍，最多 200 字" value={account.bio} check={(value) => (value.length > 200 ? "简介最多 200 字" : null)} onSave={(value) => save({ bio: value })} />
-      <Bindings account={account} signInLink={signInLink} onReload={onReload} />
+      <RealInfo view={view} />
+      <Bindings
+        account={account}
+        view={view}
+        signInLink={signInLink}
+        onChanged={() => {
+          setVersion((value) => value + 1);
+          onReload();
+        }}
+      />
       {account.level === "registered" && <InviteRedeem onReload={onReload} />}
       <footer className="pt-profile-foot">
         <a href={links.account()}>
@@ -98,13 +137,40 @@ function MemberCard({ account, signInLink, onPatch, onReload, onSignOut }: Props
   );
 }
 
-/** 身份、部门（带部门色的圆点）、称号，一行平铺，比如「注册用户 · 无部门」；旧服务端没有身份字段时整行不显示 */
+/**
+ * 实名信息（#280）：真实姓名和年级，只读。本人填过以后只能找管理员改；只在这个窗口里显示，
+ * 菜单栏、身份行和终端都不显示真实姓名。
+ */
+function RealInfo({ view }: { view: IdentityView | null }) {
+  const name = typeof view?.real_name === "string" && view.real_name ? view.real_name : null;
+  const grade = typeof view?.grade_label === "string" && view.grade_label ? view.grade_label : null;
+  if (!name && !grade) return null;
+  return (
+    <section className="pt-profile-real" aria-labelledby="pt-profile-real-title">
+      <h3 id="pt-profile-real-title">实名信息</h3>
+      <dl>
+        <div>
+          <dt>真实姓名</dt>
+          <dd>{name ?? "没填"}</dd>
+        </div>
+        <div>
+          <dt>所在年级</dt>
+          <dd>{grade ?? "没填"}</dd>
+        </div>
+      </dl>
+      <p className="pt-profile-hint">只有你自己和管理员看得到。年级每年 9 月 1 日自动升一级；填错了请联系管理员在控制台修改。</p>
+    </section>
+  );
+}
+
+/** 身份、年级（#280）、部门（带部门色的圆点）、称号，一行平铺，比如「注册用户 · 大一 · 无部门」；旧服务端没有身份字段时整行不显示 */
 function IdentityLine({ account }: { account: Account }) {
   if (!account.levelName) return null;
   const department = account.department ?? { name: "无部门", tone: "ink" as const };
   return (
     <p className="pt-profile-meta">
       <span>{account.levelName}</span>
+      {account.gradeLabel && <span>{account.gradeLabel}</span>}
       <span className="pt-profile-dept" data-tone={department.tone}>
         <i aria-hidden="true" />
         {department.name}
@@ -180,7 +246,8 @@ function ProfileField({ label, value, onSave, check, normalize = (text) => text,
       <span className="pt-profile-label">{label}</span>
       <span className="pt-profile-input">
         {prefix && <em aria-hidden="true">{prefix}</em>}
-        {multiline ? <textarea rows={2} maxLength={200} {...common} /> : <input type="text" autoComplete="off" spellCheck={false} {...common} />}
+        {/* data-no-autofocus：窗口打开时焦点先落在「换头像」上，不直接进输入框（这个窗口里的输入框都带这个标记） */}
+        {multiline ? <textarea rows={3} maxLength={200} data-no-autofocus {...common} /> : <input type="text" autoComplete="off" spellCheck={false} data-no-autofocus {...common} />}
       </span>
       {state.kind !== "idle" && (
         <small className={state.kind === "error" ? "pt-profile-msg is-error" : "pt-profile-msg"} role={state.kind === "error" ? "alert" : "status"}>
@@ -259,6 +326,7 @@ function AvatarPicker({ account, onPatch, onError }: AvatarProps) {
         type="file"
         accept={AVATAR_TYPES.join(",")}
         hidden
+        data-no-autofocus
         onChange={(event) => {
           void pick(event.target.files?.[0]);
           event.target.value = "";
@@ -268,39 +336,20 @@ function AvatarPicker({ account, onPatch, onError }: AvatarProps) {
   );
 }
 
-type EmailRow = { id: string | null; label: string; primary: boolean };
-type IdentityView = { identities?: Array<{ provider?: unknown; id?: unknown; label?: unknown; primary?: unknown }> };
-
 /** 改登录邮箱要 10 分钟内登录过（#262 的 step-up）：超时了就请人重新登录一次再回来 */
 function needsFreshLogin(error: unknown): boolean {
   return error instanceof ApiError && error.code === "step_up_required";
 }
 
 /** 登录方式：邮箱列表（主邮箱不能删）和添加邮箱、Google（没绑定时可以绑）、GitHub（只显示） */
-function Bindings({ account, signInLink, onReload }: { account: Account; signInLink: string; onReload: () => void }) {
-  const fallback: EmailRow[] = account.identities.emails.map((label, index) => ({ id: null, label, primary: index === 0 }));
-  const [emails, setEmails] = useState<EmailRow[]>(fallback);
-  const [version, setVersion] = useState(0);
+function Bindings({ account, view, signInLink, onChanged }: { account: Account; view: IdentityView | null; signInLink: string; onChanged: () => void }) {
+  const emails: EmailRow[] = Array.isArray(view?.identities)
+    ? view.identities
+        .filter((item) => item.provider === "email" && typeof item.label === "string")
+        .map((item) => ({ id: typeof item.id === "string" ? item.id : null, label: item.label as string, primary: item.primary === true }))
+    : account.identities.emails.map((label, index) => ({ id: null, label, primary: index === 0 }));
   const [error, setError] = useState<{ text: string; fresh: boolean } | null>(null);
   const [removing, setRemoving] = useState<{ id: string; confirm: boolean } | null>(null);
-
-  // 带 id 的邮箱列表在 /api/identity/me（删的时候要 id）；读不到就只显示 /auth/me 里打了码的地址，不给删
-  useEffect(() => {
-    let cancelled = false;
-    void api<IdentityView>("/api/identity/me")
-      .then((view) => {
-        if (cancelled || !Array.isArray(view?.identities)) return;
-        setEmails(
-          view.identities
-            .filter((item) => item.provider === "email" && typeof item.label === "string")
-            .map((item) => ({ id: typeof item.id === "string" ? item.id : null, label: item.label as string, primary: item.primary === true })),
-        );
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [version]);
 
   const remove = async (row: EmailRow) => {
     if (!row.id || row.primary) return;
@@ -312,8 +361,7 @@ function Bindings({ account, signInLink, onReload }: { account: Account; signInL
     setRemoving({ id: row.id, confirm: false });
     try {
       await api("/api/identity/email/remove", { method: "POST", body: JSON.stringify({ identity_id: row.id }) });
-      setVersion((value) => value + 1);
-      onReload();
+      onChanged();
     } catch (failure) {
       setError({ text: problem(failure), fresh: needsFreshLogin(failure) });
     } finally {
@@ -361,10 +409,7 @@ function Bindings({ account, signInLink, onReload }: { account: Account; signInL
         )}
       </ul>
       <AddEmail
-        onAdded={() => {
-          setVersion((value) => value + 1);
-          onReload();
-        }}
+        onAdded={onChanged}
         onFreshLogin={(text) => setError({ text, fresh: true })}
       />
       {error && (
@@ -449,14 +494,14 @@ function AddEmail({ onAdded, onFreshLogin }: { onAdded: () => void; onFreshLogin
   return (
     <div className="pt-profile-add">
       <form className="pt-profile-row" onSubmit={send}>
-        <input type="email" value={email} placeholder="新邮箱地址" aria-label="新邮箱地址" autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
+        <input type="email" value={email} placeholder="新邮箱地址" aria-label="新邮箱地址" autoComplete="email" data-no-autofocus onChange={(event) => setEmail(event.target.value)} />
         <button type="submit" className="pt-btn" disabled={busy || wait > 0}>
           {wait > 0 ? `${wait} 秒后重发` : sentTo ? "重发" : "发验证码"}
         </button>
       </form>
       {sentTo && (
         <form className="pt-profile-row" onSubmit={verify}>
-          <input inputMode="numeric" value={code} placeholder={`发到 ${sentTo} 的验证码`} aria-label="验证码" maxLength={6} autoComplete="one-time-code" onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} />
+          <input inputMode="numeric" value={code} placeholder={`发到 ${sentTo} 的验证码`} aria-label="验证码" maxLength={6} autoComplete="one-time-code" data-no-autofocus onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} />
           <button type="submit" className="pt-btn is-primary" disabled={busy}>
             确认
           </button>
@@ -499,7 +544,7 @@ function InviteRedeem({ onReload }: { onReload: () => void }) {
     <form className="pt-profile-invite" onSubmit={submit}>
       <label htmlFor="pt-profile-invite-code">填邀请码成为极客班成员</label>
       <div className="pt-profile-row">
-        <input id="pt-profile-invite-code" value={code} autoComplete="off" spellCheck={false} onChange={(event) => setCode(event.target.value)} />
+        <input id="pt-profile-invite-code" value={code} autoComplete="off" spellCheck={false} data-no-autofocus onChange={(event) => setCode(event.target.value)} />
         <button type="submit" className="pt-btn is-primary" disabled={busy}>
           提交
         </button>

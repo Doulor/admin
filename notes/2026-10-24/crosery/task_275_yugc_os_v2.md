@@ -90,3 +90,17 @@
 - 做了什么：按 .agents/skills/code-review 的两条线核对 b6420dee...924fad3b：规范与安全看资料卡登录链接（只带本站路径）、头像上传 2MB、样板身份只在开发和预览构建、开机动画模块没有网络和存储副作用、?open= 只认 window 应用；需求对照 SPEC §4、ACCEPTANCE A1–A7、B1、B3、B4 和所有者 10-24 的原话；扫 app/ 的 mascot/pose- 和 Mascot（0 处）与界面 emoji（只在 shapes.ts 的 4 行注释）。
 - 结果：结论：有条件通过，条件是合并后在预发布按 !8 的人工验收步骤走一遍。判断项 3 条（比赛官网入口的第一期文字、.pt-feedback.is-window 修饰类、开机动画引擎只核对副作用），未验证项 3 条（预发布验收、真机长按与 Safari、真实 site_url 下的官网入口），都写在 !8 的「审查结论」。
 - 下一步：合进 stage，手工关 #275，发 rc.18
+
+## 13:16:09 +08:00 · 合并 · #275 · MR !8 合进 stage（e43df562），#275 手工关闭
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：在推送用的克隆 /tmp/geek262/gl-push 里从 GitLab stage b6420dee 起 git merge --no-ff task/275/yugc_os_v2（be9ca49d），提交信息「Merge branch 'task/275/yugc_os_v2' into stage / Closes #275」，推送 stage；GitLab 把 !8 记为 merged。删掉远端分支 task/275/yugc_os_v2；在 #275（记录 723）和 !8（记录 730）各发一条「关闭」记录，然后关闭 #275。
+- 结果：stage b6420dee → e43df562，合并提交与 MR 头的树相同（git diff HEAD^2 HEAD 为空），main 61da3fea 仍是 stage 的祖先，pre-push 通过；MR !8 state merged、merge_commit_sha e43df562e37a8908c6f3cb0e437d6d1ac3ab1dbc；分支 DELETE 回 204、再查 404；#275 closed_at 2026-10-24T13:15:47+08:00。
+- 下一步：停掉本机开发服务器后手工收掉 task-275；发 v0.1.1-rc.18 到预发布（部署前备份预发布库，tag 不推送），按 !8 的人工验收步骤走一遍
+
+## 13:16:55 +08:00 · 收尾 · #275 · MR !8 合并（stage e43df562），清理 task-275 worktree 与本地分支
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：GitHub 账号被封，task.mjs finish 只认 gh、查不到 MR 与 issue 状态，按它的步骤手工做：先按 PID 停掉跑在 task-275 里的本机服务器和 vite（84663、84715、84665），以及跑在已删的 task-274 里的控制台 vite（46788）和对照用的旧版 vite（55949）；task-275 没有未提交的改动，be9ca49d 是 e43df562 的祖先；git worktree remove .claude/worktrees/task-275，git branch -D task/275/yugc_os_v2。远端分支合并时已删，#275 已关（issue 记录 723、MR 记录 730）。
+- 结果：git worktree list 里没有 task-274、task-275，本地没有 task/274/*、task/275/* 分支；5198、5199、5200、18275 端口没有监听。
+- 下一步：release worktree 已在 e43df562，构建并部署 v0.1.1-rc.18 到预发布

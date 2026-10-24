@@ -3,8 +3,9 @@ import { ApiError } from "../../app/console/src/lib/http";
 import {
   BIND_EMAIL_PATH, backFromGoogleForInvite, bindEmailPath, bindEmailReturn, cleanCode, codeProblem, initialSignInTab, looksLikeEmail,
   parseSignInOutcome, providerHref, providerIcon, readProviders, registerProblem, registerWithEmail, resetProblem, retryAfter, safeReturnPath, signInOutcomes,
+  COMPLETE_PROFILE_PATH, completeProfilePath, completeProfileReturn,
 } from "../../app/console/src/lib/signin";
-import { BIND_EMAIL_PATH as SERVER_BIND_EMAIL_PATH, bindEmailUrl } from "../../app/server/src/lib/email-gate";
+import { BIND_EMAIL_PATH as SERVER_BIND_EMAIL_PATH, COMPLETE_PROFILE_PATH as SERVER_COMPLETE_PROFILE_PATH, bindEmailUrl, gatedReturn } from "../../app/server/src/lib/email-gate";
 
 const ORIGIN = "https://yangtzeu.work";
 
@@ -167,10 +168,15 @@ describe("登录、注册两个标签 (initialSignInTab / registerProblem)", () 
     expect(codeProblem(true, "123456")).toBeNull();
   });
 
-  it("注册表单按从上到下的顺序报第一处问题，邀请码和密码可以不填，密码填了至少 8 位、不超过 72 字节", () => {
-    const ok = { email: "new@example.com", invite: "Fall-2026", codeSent: true, code: "123456", password: "" };
+  it("注册表单按从上到下的顺序报第一处问题，姓名和年级必填（#280），邀请码和密码可以不填，密码填了至少 8 位、不超过 72 字节", () => {
+    const ok = { email: "new@example.com", realName: "王小明", grade: 1, invite: "Fall-2026", codeSent: true, code: "123456", password: "" };
     expect(registerProblem(ok)).toBeNull();
     expect(registerProblem({ ...ok, email: "new@" })).toBe("邮箱格式不对");
+    expect(registerProblem({ ...ok, realName: " " })).toBe("填上真实姓名");
+    expect(registerProblem({ ...ok, realName: "a1" })).toBe("姓名填 2 到 32 个字，只能是文字、空格和「·」");
+    expect(registerProblem({ ...ok, realName: "阿卜杜·热合曼" })).toBeNull();
+    // 年级只能从下拉框里选 1–4，空着或别的值都不行
+    for (const grade of ["", 0, 5, "大一"]) expect(registerProblem({ ...ok, grade }), String(grade)).toBe("选一个年级");
     // 邀请码选填（CONTRACT §2）：不填注册成注册用户，填了由服务端核对
     expect(registerProblem({ ...ok, invite: "  " })).toBeNull();
     expect(registerProblem({ ...ok, codeSent: false })).toBe("先获取验证码");
@@ -183,22 +189,22 @@ describe("登录、注册两个标签 (initialSignInTab / registerProblem)", () 
 });
 
 describe("邮箱注册提交 (registerWithEmail)", () => {
-  const input = { code: "123456", invite: "Fall-2026", password: "a-long-enough-password" };
+  const input = { code: "123456", invite: "Fall-2026", password: "a-long-enough-password", realName: "王小明", grade: 2 as const };
   const fakes = (registered: boolean, setPassword: (password: string) => Promise<unknown> = async () => ({ ok: true })) => {
     const calls: unknown[][] = [];
     return {
       calls,
       deps: {
-        verify: async (code: string, invite?: string) => { calls.push(["verify", code, invite]); return { return_to: "/console", registered }; },
+        verify: async (code: string, invite?: string, realInfo?: unknown) => { calls.push(["verify", code, invite, realInfo]); return { return_to: "/console", registered }; },
         setPassword: async (password: string) => { calls.push(["password", password]); return setPassword(password); },
       },
     };
   };
 
-  it("新账号：带邀请码验证，再设上填的密码，然后回 return_to", async () => {
+  it("新账号：带邀请码、姓名和年级验证，再设上填的密码，然后回 return_to", async () => {
     const { calls, deps } = fakes(true);
     await expect(registerWithEmail(input, deps)).resolves.toEqual({ kind: "done", returnTo: "/console" });
-    expect(calls).toEqual([["verify", "123456", "Fall-2026"], ["password", "a-long-enough-password"]]);
+    expect(calls).toEqual([["verify", "123456", "Fall-2026", { real_name: "王小明", grade: 2 }], ["password", "a-long-enough-password"]]);
   });
 
   it("没填密码就不设，直接回 return_to", async () => {
@@ -210,7 +216,7 @@ describe("邮箱注册提交 (registerWithEmail)", () => {
   it("邮箱原来就有账号：只登录，不改它的密码，交给页面说一句", async () => {
     const { calls, deps } = fakes(false);
     await expect(registerWithEmail(input, deps)).resolves.toEqual({ kind: "existing", returnTo: "/console" });
-    expect(calls).toEqual([["verify", "123456", "Fall-2026"]]);
+    expect(calls).toEqual([["verify", "123456", "Fall-2026", { real_name: "王小明", grade: 2 }]]);
   });
 
   it("账号建好了但密码没设上：带着原因交给页面，不当作注册失败", async () => {
@@ -244,6 +250,23 @@ describe("忘记密码与绑定邮箱 (#273)", () => {
     expect(fromServer.pathname).toBe(BIND_EMAIL_PATH);
     expect(bindEmailReturn(fromServer.searchParams.get("return_to"), ORIGIN)).toBe("/forum/t/1?page=2#c3");
     expect(bindEmailReturn(new URLSearchParams(bindEmailPath("/account").split("?")[1]).get("return_to"), ORIGIN)).toBe("/account");
+  });
+
+  it("补资料页（#280）的地址与服务端一致；服务端先绑邮箱再补资料，填好以后不回到两个关口页", () => {
+    expect(COMPLETE_PROFILE_PATH).toBe(SERVER_COMPLETE_PROFILE_PATH);
+    expect(completeProfilePath("/forum/t/1?page=2")).toBe("/complete-profile?return_to=%2Fforum%2Ft%2F1%3Fpage%3D2");
+    const deps = (email: boolean, profile: boolean) => ({ identity: { hasEmail: () => !email }, mail: { sendingEnabled: true }, profiles: { profileRequired: () => profile } });
+    const back = `${ORIGIN}/forum/t/1?page=2#c3`;
+    expect(gatedReturn(deps(false, false), ORIGIN, "a", back)).toBe(back);
+    expect(new URL(gatedReturn(deps(true, true), ORIGIN, "a", back)).pathname).toBe(BIND_EMAIL_PATH);
+    const fromServer = new URL(gatedReturn(deps(false, true), ORIGIN, "a", back));
+    expect(fromServer.pathname).toBe(COMPLETE_PROFILE_PATH);
+    expect(completeProfileReturn(fromServer.searchParams.get("return_to"), ORIGIN)).toBe("/forum/t/1?page=2#c3");
+    expect(completeProfileReturn("/complete-profile?return_to=%2F", ORIGIN)).toBe("/console");
+    expect(completeProfileReturn("/bind-email", ORIGIN)).toBe("/console");
+    expect(completeProfileReturn("https://evil.test/", ORIGIN)).toBe("/console");
+    // 绑好邮箱可以接着去补资料页
+    expect(bindEmailReturn("/complete-profile?return_to=%2Fforum%2F", ORIGIN)).toBe("/complete-profile?return_to=%2Fforum%2F");
   });
 
   it("绑好以后不回到绑定邮箱页自己，也不去别的站点；登录页仍可以回到绑定邮箱页", () => {

@@ -24,7 +24,7 @@ const consoleDist = resolve(APP_ROOT, "console/dist");
  * 服务端只在这里定义一次；web 镜像内 nginx 的 location 必须与之一致（app/web/Dockerfile）。
  * 管理端是独立的 Vue 包 app/console（极客班控制台），产物入口在 app/console/dist/sites/console/index.html。
  */
-export const ADMIN_SPA_PATHS = Object.freeze({ exact: ["/signin", "/device", "/account", "/authorize", "/bind-email"], prefixes: ["/admin", "/console"] });
+export const ADMIN_SPA_PATHS = Object.freeze({ exact: ["/signin", "/device", "/account", "/authorize", "/bind-email", "/complete-profile"], prefixes: ["/admin", "/console"] });
 export const ADMIN_SPA_ENTRY = "sites/console/index.html";
 export const PORTAL_SPA_ENTRY = "sites/portal/index.html";
 

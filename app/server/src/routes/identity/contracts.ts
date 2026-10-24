@@ -44,6 +44,15 @@ const loginProvider = choices("github", "email", "google");
 const codeSent = object({ resend_after: integer(1) }, ["resend_after"]);
 const signedIn = object({ return_to: text(2048, 1), registered: { type: "boolean" } }, ["return_to"]);
 const done = object({ ok: { type: "boolean", const: true } }, ["ok"]);
+// 实名信息（#280）：下拉框只能选大一到大四（1–4），读出来的年级还可能是已毕业；真实姓名的字符规则在 lib/account-profiles.ts
+const selectableGrade = { type: "integer", enum: [1, 2, 3, 4] };
+const realName = text(64, 1);
+const realInfoView = {
+  real_name: { anyOf: [text(64, 1), { type: "null" }] },
+  grade: { anyOf: [selectableGrade, choices("graduated"), { type: "null" }] },
+  grade_label: { anyOf: [text(8, 1), { type: "null" }] },
+  profile_required: { type: "boolean" },
+};
 const accountView = object({
   account_id: text(64, 1),
   login: text(100, 1),
@@ -66,10 +75,11 @@ const accountView = object({
   },
   available: { type: "array", items: choices("email"), maxItems: 1 },
   email_required: { type: "boolean" },
+  ...realInfoView,
   session: object({
     provider: loginProvider, created_at: timestamp, expires_at: timestamp, step_up_until: timestamp,
   }, ["provider", "created_at", "expires_at", "step_up_until"]),
-}, ["account_id", "login", "identities", "has_password", "password_updated_at", "membership", "created_at", "recent", "available", "email_required", "session"]);
+}, ["account_id", "login", "identities", "has_password", "password_updated_at", "membership", "created_at", "recent", "available", "email_required", "real_name", "grade", "grade_label", "profile_required", "session"]);
 
 const deviceStatus = choices("pending", "approved", "denied", "expired", "consumed");
 const deviceCodeResult = object({
@@ -105,7 +115,9 @@ const deviceProfile = object({
   login: text(40),
   avatar_url: nullableText(500),
   scope: text(200),
-}, ["sub", "account_id", "login", "avatar_url", "scope"]);
+  email_required: { type: "boolean" },
+  profile_required: { type: "boolean" },
+}, ["sub", "account_id", "login", "avatar_url", "scope", "email_required", "profile_required"]);
 
 export const identityContracts: RouteContracts = {
   "GET /auth/providers": {
@@ -143,7 +155,8 @@ export const identityContracts: RouteContracts = {
   },
   "POST /auth/email/verify": {
     querystring: object({}),
-    body: object({ code, invite_code: inviteCode }, ["code"]),
+    // 新注册时姓名和年级必填（#280）；邮箱已经有账号时不看这两项。是不是新注册要核对过验证码才知道，所以合同里不设 required
+    body: object({ code, invite_code: inviteCode, real_name: realName, grade: selectableGrade }, ["code"]),
     response: { 200: signedIn, ...failures },
   },
   "POST /auth/email/password": {
@@ -164,6 +177,11 @@ export const identityContracts: RouteContracts = {
   "POST /api/identity/email/start": { querystring: object({}), body: object({ email }, ["email"]), response: { 202: codeSent, ...failures } },
   "POST /api/identity/email/verify": { querystring: object({}), body: object({ code }, ["code"]), response: { 200: done, ...failures } },
   "POST /api/identity/email/remove": { querystring: object({}), body: object({ identity_id: text(64, 1) }, ["identity_id"]), response: { 200: done, ...failures } },
+  "POST /api/identity/real-info": {
+    querystring: object({}),
+    body: object({ real_name: realName, grade: selectableGrade }, ["real_name", "grade"]),
+    response: { 200: object(realInfoView, ["real_name", "grade", "grade_label", "profile_required"]), ...failures },
+  },
   "POST /api/identity/password": {
     querystring: object({}),
     body: object({ password: text(200, 1), current_password: text(200) }, ["password"]),

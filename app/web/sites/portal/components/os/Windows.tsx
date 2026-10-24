@@ -1,4 +1,5 @@
-// YUGC OS 的窗口：可拖动、最小化、放大、关闭、聚焦；内容有「加入我们」「关于」「组织架构」「论坛最新」「终端」「比赛」「代码仓库」「意见箱」八种。
+// YUGC OS 的窗口：可拖动、最小化、放大、关闭、聚焦；内容有「加入我们」「关于」「组织架构」「论坛最新」「终端」「比赛」「代码仓库」「意见箱」「账号资料」九种。
+// 账号资料（#280）由菜单栏头像打开，正文在 ProfileCard.tsx；它不是桌面应用，不在 Dock 和启动器里。
 // 比赛窗口的内容在 competitions/（#265）：它在手机详情页会借标题栏左边的返回键回列表（PhoneNav）。
 // 意见箱、加入我们、终端窗口的内容在 FeedbackBox.tsx、JoinBox.tsx、Terminal.tsx，打开时才加载：防刷验证、表单样式和终端的模拟 Linux（#279）不进桌面首屏。
 import { Suspense, lazy, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
@@ -11,9 +12,10 @@ import { useDepartments } from "../../lib/departments";
 import { NEW_TAB_NOTE, agoLabel, type AppId, type OsApp } from "../../lib/osApps";
 import { useForumSnapshot } from "../../lib/snapshots";
 import CompetitionsApp, { type PhoneNav } from "./competitions/CompetitionsApp";
+import ProfileCard from "./ProfileCard";
 import Icon from "../Icon";
 
-export type WindowId = "join" | "about" | "org" | "terminal" | "forum-feed" | "competitions" | "gitlab" | "feedback";
+export type WindowId = "join" | "about" | "org" | "terminal" | "forum-feed" | "competitions" | "gitlab" | "feedback" | "profile";
 export type WindowState = { id: WindowId; z: number; x: number; y: number; minimized: boolean; zoomed: boolean };
 
 export type OpenApp = (id: AppId | "forum-feed", from?: HTMLElement | null) => void;
@@ -27,6 +29,15 @@ const META: Record<WindowId, { title: string; width: number }> = {
   competitions: { title: "比赛", width: 1100 },
   gitlab: { title: "代码仓库", width: 720 },
   feedback: { title: "意见箱", width: 860 },
+  profile: { title: "账号资料", width: 560 },
+};
+
+/** 账号资料窗口要用的登录状态操作（YugcOs 里的 useAccount） */
+export type ProfileActions = {
+  signInLink: string;
+  onPatch: (change: Partial<Account>) => void;
+  onReload: () => void;
+  onSignOut: () => void;
 };
 
 const FeedbackBox = lazy(() => import("./FeedbackBox"));
@@ -52,10 +63,12 @@ type Props = {
   /** 桌面读到的登录者：比赛窗口用它决定要不要读「我的参赛」、在队伍与天梯里认出「我」（#239）。 */
   account?: Account | null;
   accountLoaded?: boolean;
+  profile?: ProfileActions;
 };
 
-export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZoom, onMove, onOpen, apps, phone = false, account = null, accountLoaded = true }: Props) {
-  const meta = META[win.id];
+export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZoom, onMove, onOpen, apps, phone = false, account = null, accountLoaded = true, profile }: Props) {
+  // 没登录时账号资料窗口里只有登录、注册，窗口名也跟着说「登录极客班」
+  const meta = win.id === "profile" && !account ? { ...META.profile, title: "登录极客班" } : META[win.id];
   const ref = useRef<HTMLElement>(null);
   const width = Math.min(meta.width, window.innerWidth - 24);
   /** 手机上应用自己的上一级（比赛详情回列表）；没有时返回键回主屏幕。 */
@@ -195,21 +208,21 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
               <span>{phoneNav?.backText ?? "主屏幕"}</span>
             </button>
           ) : (
-            // 胶囊托着的三颗糖果珠，每个按钮的点击区域是 44×44（styles/os.css 的 .pt-win-lights）；放大后第三颗变成「还原」
+            // 三颗糖果珠，图标一直显示，每个按钮的点击区域是 44×44（styles/os.css 的 .pt-win-lights）；放大后第三颗变成「还原」
             <span className="pt-win-lights">
               <button type="button" aria-label="关闭" title="关闭" onClick={onClose}>
                 <i>
-                  <Icon name="close-line" size={11} />
+                  <Icon name="close-line" size={14} />
                 </i>
               </button>
               <button type="button" aria-label="最小化" title="最小化" onClick={onMinimize}>
                 <i>
-                  <Icon name="subtract-line" size={11} />
+                  <Icon name="subtract-line" size={14} />
                 </i>
               </button>
               <button type="button" aria-label={win.zoomed ? "还原" : "放大"} title={win.zoomed ? "还原" : "放大"} onClick={onZoom}>
                 <i>
-                  <Icon name={win.zoomed ? "fullscreen-exit-line" : "fullscreen-line"} size={9} />
+                  <Icon name={win.zoomed ? "fullscreen-exit-line" : "fullscreen-line"} size={12} />
                 </i>
               </button>
             </span>
@@ -233,6 +246,7 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
           {win.id === "about" && <About onOpen={onOpen} />}
           {win.id === "org" && <OrgChart />}
           {win.id === "forum-feed" && <ForumFeed />}
+          {win.id === "profile" && profile && <ProfileCard account={account} {...profile} />}
           {win.id === "competitions" && <CompetitionsApp phone={phone} onPhoneNav={setPhoneNav} account={account} accountLoaded={accountLoaded} />}
           {win.id === "terminal" && (
             <Suspense fallback={<p className="pt-empty">正在打开终端…</p>}>

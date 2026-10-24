@@ -21,12 +21,16 @@ import { api } from "../lib/http";
 import { fmtDate, fmtRelative } from "../lib/format";
 import { ASSIGNABLE_LEVELS, GITLAB_STATE_TEXT, LEVEL_TEXT, USER_STATUS_TEXT, levelText } from "../lib/levels";
 import { useResource } from "../lib/resource";
+import { useSession } from "../lib/session";
 import { DEPT_TONE_SWATCH, deptTone } from "../lib/tone";
 import { departmentChoices, departmentOf, nameOf, titleTone, userFiltersFromQuery, usersParams } from "../lib/users";
 import type { ConsoleUser, GitlabSyncState, PublicDepartmentsResponse, UsersResponse } from "../lib/types";
 
 const route = useRoute();
 const router = useRouter();
+const { can } = useSession();
+// 有用户管理权限的人看得到真实姓名，也能按姓名搜（#280）
+const searchPlaceholder = computed(() => (can("users.manage") ? "搜索用户名、昵称或姓名" : "搜索用户名或昵称"));
 
 const departments = useResource(() => api<PublicDepartmentsResponse>("/api/public/departments"));
 const filters = computed(() => userFiltersFromQuery(route.query));
@@ -87,6 +91,7 @@ const GITLAB_BADGE: Record<GitlabSyncState, "success" | "warning" | "danger" | "
 const columns = [
   { key: "user", title: "用户", width: 220 },
   { key: "level", title: "身份", width: 104 },
+  { key: "grade", title: "年级", width: 80 },
   { key: "department", title: "部门", width: 112 },
   { key: "titles", title: "称号", width: 150 },
   { key: "gitlab", title: "GitLab", width: 112 },
@@ -130,7 +135,7 @@ const searchHref = (row: ConsoleUser) => `/console/users?q=${encodeURIComponent(
           <TxSelect :model-value="filters.department" :options="departmentOptions" class="fill-width" @update:model-value="value => setQuery({ department: String(value) || undefined })" />
         </label>
         <form role="search" class="search" @submit.prevent="setQuery({ q: draftQ.trim() || undefined })">
-          <TxSearchInput v-model="draftQ" placeholder="搜索用户名或昵称" @search="setQuery({ q: draftQ.trim() || undefined })" @clear="setQuery({ q: undefined })" />
+          <TxSearchInput v-model="draftQ" :placeholder="searchPlaceholder" @search="setQuery({ q: draftQ.trim() || undefined })" @clear="setQuery({ q: undefined })" />
         </form>
       </div>
     </div>
@@ -140,7 +145,7 @@ const searchHref = (row: ConsoleUser) => `/console/users?q=${encodeURIComponent(
     <TxCard v-else :padding="0" class="table-card">
       <TxDataTable
         class="users-table"
-        style="--table-min: 900px"
+        style="--table-min: 980px"
         :columns="columns"
         :data="rows"
         row-key="account_id"
@@ -154,11 +159,15 @@ const searchHref = (row: ConsoleUser) => `/console/users?q=${encodeURIComponent(
             <TxAvatar :src="row.avatar_url ?? undefined" :name="nameOf(row)" :size="32" />
             <span class="cell-stack">
               <TxCellLink :href="searchHref(row)" :label="nameOf(row)" :aria-label="`打开 ${nameOf(row)} 的详情`" :title="nameOf(row)" class="ellipsis person__name" @open="openId = row.account_id" />
-              <span class="cell-sub mono ellipsis">@{{ row.username }}</span>
+              <span class="cell-sub ellipsis"><span class="mono">@{{ row.username }}</span><template v-if="row.real_name"> · {{ row.real_name }}</template></span>
             </span>
           </span>
         </template>
         <template #cell-level="{ row }: { row: ConsoleUser }">{{ levelText(row.level) }}</template>
+        <template #cell-grade="{ row }: { row: ConsoleUser }">
+          <span v-if="row.grade_label">{{ row.grade_label }}</span>
+          <span v-else class="muted">没填</span>
+        </template>
         <template #cell-department="{ row }: { row: ConsoleUser }">
           <span v-if="departmentOf(row)" class="dept">
             <span class="dept__dot" :style="{ background: DEPT_TONE_SWATCH[deptTone(departmentOf(row)!.tone)] }" aria-hidden="true" />
@@ -198,13 +207,14 @@ const searchHref = (row: ConsoleUser) => `/console/users?q=${encodeURIComponent(
             <TxCardItem clickable role="button" :aria-label="`打开 ${nameOf(row)} 的详情`" class="user-card" @click="openId = row.account_id">
               <template #avatar><TxAvatar :src="row.avatar_url ?? undefined" :name="nameOf(row)" :size="40" /></template>
               <template #title>{{ nameOf(row) }}</template>
-              <template #subtitle><span class="mono">@{{ row.username }}</span></template>
+              <template #subtitle><span class="mono">@{{ row.username }}</span><template v-if="row.real_name"> · {{ row.real_name }}</template></template>
               <template #right>
                 <TxStatusBadge :text="USER_STATUS_TEXT[row.status] ?? row.status" :status="row.status === 'active' ? 'success' : 'muted'" size="sm" />
               </template>
               <template #description>
                 <span class="user-card__line">
                   <span>{{ levelText(row.level) }}</span>
+                  <span>{{ row.grade_label ?? "年级没填" }}</span>
                   <span v-if="departmentOf(row)" class="dept">
                     <span class="dept__dot" :style="{ background: DEPT_TONE_SWATCH[deptTone(departmentOf(row)!.tone)] }" aria-hidden="true" />
                     <span class="ellipsis">{{ departmentOf(row)!.name }}</span>

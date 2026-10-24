@@ -1,6 +1,6 @@
 # Portal 模块合同（`app/web/sites/portal`）
 
-> 公开官网：开机动画与 YUGC OS 桌面（加入我们、意见箱等都是桌面窗口）、论坛 3D 场景和文档；不自建登录，菜单栏头像打开个人资料卡。
+> 公开官网：开机动画与 YUGC OS 桌面（加入我们、意见箱等都是桌面窗口）、论坛 3D 场景和文档；不自建登录，菜单栏头像打开「账号资料」窗口。
 
 状态：`current` · 更新：2026-10-24
 
@@ -18,7 +18,7 @@
 
 意见箱窗口（`components/os/FeedbackBox.tsx`，`Windows.tsx` 打开时才加载）只发本部署的组织（#129）：组织框只读（浅灰底、悬停不变色，说明「这里改不了」用 `aria-describedby` 挂在框上），展示 `GET /api/feedback/categories` 下发的 `org`（`CONSOLE_ORG`），读公开列表和提交都用同一个值；接口回来之前或失败时组织框先显示站点配置 `urls.githubOrg` 的最后一段，但提交按钮是灰的：组织名、分类和 PoW 难度都要等这个接口读到才能提交，失败时分类处显示「没读到分类和发往的组织，暂时不能提交」和「重新读取」按钮，已经写的正文不清空（`tests/web/portal-feedback-org.test.tsx`）。已经发出去的 `/feedback/:org` 链接跳到 `/?open=feedback`，URL 里的组织名不生效。
 
-招新投递在桌面的「加入我们」窗口里（#279 以前是 `/join-us` 信封场景页）。旧的 `/join/:token`（GitHub 组织邀请链接落地页）随 #274 删掉的 `/api/join/:token` 一起删掉，旧链接落到兜底路由回首页；注册邀请码在登录页和资料卡里填。首页之外的页面按路由懒加载。`/github`（GitHub 天际线场景页）在 #275 删掉，旧地址落到兜底路由回首页。#275 退场的页面、组件、样式、图片和模型，以及 #279 退场的信封场景，原样归档在 [docs/history/portal-yugc-os-v1](../../history/portal-yugc-os-v1/README.md)，那里写了每个文件原来是什么、换成了什么、旧地址现在去哪；归档目录不参与构建。`base.css` 不引远程字体（`cdn.jsdelivr.net` 的 Maple Mono 被站点 CSP 拦截），等宽字体走系统栈。
+招新投递在桌面的「加入我们」窗口里（#279 以前是 `/join-us` 信封场景页）。旧的 `/join/:token`（GitHub 组织邀请链接落地页）随 #274 删掉的 `/api/join/:token` 一起删掉，旧链接落到兜底路由回首页；注册邀请码在登录页和「账号资料」窗口里填。首页之外的页面按路由懒加载。`/github`（GitHub 天际线场景页）在 #275 删掉，旧地址落到兜底路由回首页。#275 退场的页面、组件、样式、图片和模型，以及 #279 退场的信封场景，原样归档在 [docs/history/portal-yugc-os-v1](../../history/portal-yugc-os-v1/README.md)，那里写了每个文件原来是什么、换成了什么、旧地址现在去哪；归档目录不参与构建。`base.css` 不引远程字体（`cdn.jsdelivr.net` 的 Maple Mono 被站点 CSP 拦截），等宽字体走系统栈。
 
 ## 模块地图
 
@@ -41,12 +41,12 @@
 | `lib/competitionLabels.ts` | 比赛窗口的文案与日期纯函数（北京时间）：状态与类型文案、星期与钟点、「还剩几天」、卡片上的日期、详情要点、赛程节点、操作条、搜索与筛选 |
 | `lib/competitionHub.ts` | 报名与组队的客户端（#239）：`hubPaths` 是成员接口的唯一路径集合（比赛 id 与队伍 id 都做路径段编码），`useHub` 负责写操作、失败文案与统一重读，`useMemberRead` 负责成员接口的读取、轮询（天梯 30 秒、页面不可见时不发）与响应形状校验；`readMyStatus` 等读出函数丢掉认不出的状态、未知操作与缺账号 id 的成员，`entryText`、`hubSentence`、`journey`、`pendingView`、`teamSlots`、`nextMilestone` 是状态文案、底部进度与槽位的纯函数，`failText` 把限流、登录过期与服务端中文说明分开说 |
 | `components/os/competitions/*` | 比赛窗口：#265 的浏览部分是 `CompetitionsApp`（筛选、搜索、选中、手机进出详情、读取中 / 没有 / 筛空 / 读不到四种状态）、`CompetitionList`（卡片、方向键与我的状态）、`CompetitionDetail`（Hero、概览、页签、操作条与弹窗入口）；#239 新增 `CompetitionHero`（夜空头图、倒计时、一键直达）、`TeamHub`（我的队伍、槽位、待处理、其他队伍与找队友）、`HubDialog`（报名、建队、申请、邀请、转让与确认的弹窗与表单）、`Leaderboard`（领奖台与个人 / 队伍榜）、`Avatar`（成员头像、领队金圈与队伍徽章）；#275 新增 `ContestSite`（比赛官网入口横幅）与 `NightSky`（按种子撒星星的夜空，横幅和 Hero 共用） |
-| `lib/account.ts` | 全站登录状态：`useAccount()` 读同域 `/auth/me`，按 CONTRACT-274 读出用户名、昵称、简介、身份、部门、称号、权限、投递限额（`readQuota`）、偏好与登录方式，`patch` 合并资料卡保存后的新值，`reload` 重读；`signOut()` 调 `POST /auth/signout`；`accountId` 是极客班账号（#262），比赛窗口用它认出「我」；`signInHref(returnTo)` 生成 `/signin?return_to=…`，`registerHref` 再加 `&tab=register`；`/auth/me` 带 `email_required: true`（#273）时经 `followAppLink` 整页跳到 `bindEmailHref()` 给的 `/bind-email?return_to=<当前页面>`（用例 `tests/web/portal-account.test.tsx`）。开发态和 PR 预览构建里地址带 `?__mock=member|registered|visitor` 时用 `@shared/lib/api` 的 `devPersonaMe()` 给的样板身份，正式构建里整段删掉 |
+| `lib/account.ts` | 全站登录状态：`useAccount()` 读同域 `/auth/me`，按 CONTRACT-274 读出用户名、昵称、简介、身份、部门、称号、权限、投递限额（`readQuota`）、偏好与登录方式，`patch` 合并「账号资料」窗口保存后的新值，`reload` 重读；`signOut()` 调 `POST /auth/signout`；`accountId` 是极客班账号（#262），比赛窗口用它认出「我」；`signInHref(returnTo)` 生成 `/signin?return_to=…`，`registerHref` 再加 `&tab=register`；`/auth/me` 带 `email_required: true`（#273）时经 `followAppLink` 整页跳到 `bindEmailHref()` 给的 `/bind-email?return_to=<当前页面>`；邮箱不缺、`profile_required: true`（#280，缺真实姓名或年级）时同样整页跳到 `completeProfileHref()` 给的 `/complete-profile?return_to=<当前页面>`（用例 `tests/web/portal-account.test.tsx`）；`gradeLabel` 是「账号资料」窗口身份行用的年级。开发态和 PR 预览构建里地址带 `?__mock=member|registered|visitor` 时用 `@shared/lib/api` 的 `devPersonaMe()` 给的样板身份，正式构建里整段删掉 |
 | `lib/startNote.ts` | 「新来的看这里」便签看过没有：本机 `localStorage["yugc:start-note-seen"]`，登录后再 `PATCH /api/identity/profile` 的 `prefs.start_note_seen_at` |
 | `lib/events.ts` | 埋点：`reportEvent` 攒批 `POST /api/events`（见下文「埋点」） |
 | `lib/snapshots.ts` | 读取 `public/portal/forum-latest.json` 论坛快照 |
 | `lib/icons.ts`、`components/Icon.tsx` | Remix Icon 路径注册表与图标组件 |
-| `components/os/*` | YUGC OS 桌面：`YugcOs.tsx`（菜单栏、Dock、启动器、换壁纸面板、手机状态栏与弹层）、`Widgets.tsx`（应用图标与「新来的看这里」便签）、`Windows.tsx`（窗口外框与关于、组织架构、代码仓库、论坛最新等窗口正文；意见箱、加入我们、终端窗口的正文在 `FeedbackBox.tsx`、`JoinBox.tsx`、`Terminal.tsx`，打开时才加载；电脑上窗口从顶边往下最多到 Dock 上沿，内容长的窗口在里面滚动，不钻到 Dock 下面）、`ProfileCard.tsx`（个人资料卡）、`SkyWallpaper.tsx`（默认壁纸「晴空」）、`Wallpaper.tsx`（壁纸图层与换壁纸动效）；壁纸清单、下载解码与空闲预取在 `lib/wallpapers.ts`（图片地址只写在这里），文件在 `assets/wallpapers/`，见下文「壁纸」 |
+| `components/os/*` | YUGC OS 桌面：`YugcOs.tsx`（菜单栏、Dock、启动器、换壁纸面板、手机状态栏与弹层）、`Widgets.tsx`（应用图标与「新来的看这里」便签）、`Windows.tsx`（窗口外框与关于、组织架构、代码仓库、论坛最新等窗口正文；意见箱、加入我们、终端窗口的正文在 `FeedbackBox.tsx`、`JoinBox.tsx`、`Terminal.tsx`，打开时才加载；电脑上窗口从顶边往下最多到 Dock 上沿，内容长的窗口在里面滚动，不钻到 Dock 下面）、`ProfileCard.tsx`（「账号资料」窗口的正文）、`SkyWallpaper.tsx`（默认壁纸「晴空」）、`Wallpaper.tsx`（壁纸图层与换壁纸动效）；壁纸清单、下载解码与空闲预取在 `lib/wallpapers.ts`（图片地址只写在这里），文件在 `assets/wallpapers/`，见下文「壁纸」 |
 | `components/Emblem.tsx`、`SceneBar.tsx`、`PageShell.tsx` | 校徽几何、场景页顶栏、普通页外壳 |
 | `components/ChoiceChips.tsx` | 少量选项的单选胶囊（原生 radio，方向键切换）；官网表单不用原生下拉框 |
 | `styles/*.css` | 视觉令牌与组件样式（`.pt-root` 作用域）：`portal.css` 定义 `--pt-*`（场景页、普通页）与 `--os-*`（YUGC OS v2）两套令牌，`boot.css` 开机动画层，`os.css` 桌面与窗口，`competitions.css` 比赛窗口，`scenes.css` 论坛场景页；规范见 [DESIGN](../../design/DESIGN.md)「YUGC OS v2 视觉令牌」 |
@@ -64,16 +64,17 @@ three.js 只通过 `/forum-3d` 页里的 `import("../three/forum")` 进入，首
 - **埋点**：播完报 `os.boot.played`，跳过报 `os.boot.skipped`，`meta.mobile` 记是不是手机版。
 - **单测**：`tests/web/portal-boot.test.tsx`（北京日期、进站规则、粒子预算、首页进站与交接、`?boot=1` 与重播不改记录、埋点攒批）。
 
-## 个人资料卡（#275）
+## 账号资料窗口（#275，#280 改成桌面窗口）
 
-菜单栏右上角的头像（手机在状态栏右上角）打开 `components/os/ProfileCard.tsx`，原来的账号下拉菜单去掉了。电脑上是挂在头像下面的 360px 卡片，手机上是贴底升起的面板：左右各留 8px（再避让安全区），顶上两个圆角和一根拖拽条，标题栏不动、卡片内容在面板里滚，底部让出安全区；原生 dialog 自带的 `max-width` 去掉，不然右边会多空出 38px。都复用 `shared/ui/Modal`，Esc 关闭后焦点回到头像。电脑菜单栏和手机状态栏上都只放头像，读屏名称是「账号：<login>」，没登录时是「登录或注册」，访客点开也是这张卡，不直接跳走。
+菜单栏右上角的头像（手机在状态栏右上角）打开「账号资料」窗口（`WindowId` 是 `profile`），正文是 `components/os/ProfileCard.tsx`。#275 时它是挂在头像下面的 360px 弹层；所有者 2026-10-24 16:38 要求「那个账号资料的改动也是一个个窗口在我们的桌面，然后里面可以改动对应的头像和相关的信息」，#280 起改成和其他应用一样的桌面窗口：电脑上 560px 宽，开在右上角、顶边和拖动能到的最高处一样，能拖动、最小化、放大，前台时菜单栏的应用名是「账号资料」；手机上和其他应用一样从底部升起。它不是桌面应用，不在 Dock、桌面图标和启动器里，只从头像打开；论坛、代码仓库等外部网站照旧跳转（所有者 16:42）。窗口打开时焦点落在「换头像」上（窗口里的输入框都带 `data-no-autofocus`，不抢焦点），点关闭或按 Esc 关掉后焦点回到头像；头像的 `aria-expanded` 跟着窗口开没开。电脑菜单栏和手机状态栏上都只放头像，读屏名称是「账号：<login>」，没登录时是「登录或注册」，访客点开也是这个窗口，窗口名和菜单栏应用名换成「登录极客班」，不直接跳走。
 
 - **没登录**：写「还没有登录」，给「登录」（`signInHref()`，回当前页面）和「注册」（`registerHref()`），下面一句「注册不需要邀请码，有邀请码可以直接成为成员」。
-- **登录后**：换头像（选图后裁成方形、最长边 1024px、转 webp，`PUT /api/identity/avatar`，失败原因写在头像下面）；昵称、@用户名（小写，`^[a-z0-9_]{3,24}$`）、简介（最多 200 字）在失焦或回车时 `PATCH /api/identity/profile`，前端先按契约校验；这三格的值和标签从同一处起，平时是一条虚下划线，编辑时换成实线；身份行写「身份 · 部门 · 称号」，没有部门写「无部门」，旧服务端没有身份字段时整行不显示。
+- **登录后**：换头像（选图后裁成方形、最长边 1024px、转 webp，`PUT /api/identity/avatar`，失败原因写在头像下面）；昵称、@用户名（小写，`^[a-z0-9_]{3,24}$`）、简介（最多 200 字）在失焦或回车时 `PATCH /api/identity/profile`，前端先按契约校验；这三格的值和标签从同一处起，平时是一条虚下划线，编辑时换成实线；身份行写「身份 · 年级 · 部门 · 称号」，年级是 `/auth/me` 的 `grade_label`（大一到大四、已毕业，#280；没填就不写这一段），没有部门写「无部门」，旧服务端没有身份字段时整行不显示。
+- **实名信息**（#280）：简介下面一栏，两格并排写真实姓名和所在年级，读 `GET /api/identity/me` 的 `real_name`、`grade_label`，只读，下面一句「只有你自己和管理员看得到。年级每年 9 月 1 日自动升一级；填错了请联系管理员在控制台修改。」。真实姓名只在这一栏出现，不进 `/auth/me` 读出的全站登录状态，菜单栏、身份行和终端都不显示；读不到 `/api/identity/me` 时这一栏不显示。
 - **登录方式**：邮箱列表来自 `GET /api/identity/me`（主邮箱不能删；删除要点两次，`POST /api/identity/email/remove`；服务端回 `step_up_required` 时给「重新登录」链接）；添加邮箱走 `email/start` 再 `email/verify`；Google 绑定是 `/auth/google?return_to=%2F`；GitHub 只显示已绑定的账号。
 - **邀请码**：只有注册用户看到输入框，`POST /api/identity/invite/redeem` 成功后重读 `/auth/me`，身份变成成员。
 - **底部**：账号设置（`/account`，控制台产物里的账号页）、控制台（只在 `console_link` 为 true 时出现）、退出（`POST /auth/signout`，服务端确认后才显示已退出）。
-- **单测**：`tests/web/portal-profile-card.test.tsx`。
+- **单测**：`tests/web/portal-profile-card.test.tsx`（窗口名、焦点、Esc、实名信息只出现一次）；`tests/web/portal-desktop-skin.test.tsx`、`tests/web/portal-phone.test.tsx` 核对访客窗口。
 
 ## 新来的看这里（便签，#275）
 
@@ -89,7 +90,7 @@ three.js 只通过 `/forum-3d` 页里的 `import("../three/forum")` 进入，首
 
 ## 窗口外框与终端（#279）
 
-- **左上角三个按钮**：一条浅色胶囊槽里排三颗 18px 的糖果珠，关闭粉、最小化黄、放大青绿，珠子颜色取 `--os-dot-close` / `-min` / `-max`，下沿描边取对应的 `-line` 令牌，上方一点高光；每颗有 44×44 的点击区。鼠标移到槽上或键盘聚焦时珠子上显示图标（关闭、减号、放大，放大后换成还原），悬停放大一点、按下缩一点，键盘焦点环用 `--os-accent`；不在最前的窗口珠子褪色，鼠标移上去恢复。读屏名称「关闭」「最小化」「放大」（放大后是「还原」）。单测 `tests/web/portal-desktop-skin.test.tsx`。
+- **左上角三个按钮**：三颗 22px 的糖果珠，关闭粉、最小化黄、放大青绿，珠子颜色取 `--os-dot-close` / `-min` / `-max`，下沿描边取对应的 `-line` 令牌，上方一点高光；每颗有 44×44 的点击区。珠子上一直显示深色图标（关闭、减号、放大，放大后换成还原），不用悬停就看得出是干什么的；#279 时后面那条半透明胶囊槽和「悬停才显示图标」在 #280 按所有者 2026-10-24 16:54 的意见去掉。悬停放大一点、按下缩一点，键盘焦点环用 `--os-accent`；不在最前的窗口珠子褪色，鼠标移上去恢复。读屏名称「关闭」「最小化」「放大」（放大后是「还原」）。单测 `tests/web/portal-desktop-skin.test.tsx`。
 - **终端是模拟的 Linux**：逻辑全在 `lib/shell/`，`components/os/Terminal.tsx` 只管显示、键盘和打开应用，打开终端窗口时才加载（gzip 约 28KB），不进桌面首屏。窗口标题跟着变成 `用户名@yugc: 目录`，提示符和 Ubuntu 默认的一样（用户名@主机绿色，目录蓝色）。
 - **文件系统**（`vfs.ts`）：整棵树在内存里。家目录是 `/home/<用户名>`，登录名符合 Linux 用户名规则时用它，否则（含没登录）用 `guest`；家目录和 `/tmp` 可写，其余目录只读，写进去报 `Permission denied`，`/root`、`/etc/shadow` 读不了。`/etc`、`/usr/bin`、`/var/log` 等每次打开终端时生成。桌面应用是 `~/Desktop/<应用>.app` 可执行脚本（内容是 `open <应用>`），同样的脚本装在 `/usr/local/bin/<应用>`，直接敲 `forum`、`join` 也能打开，两处都跟着 `visibleApps(consoleLink)` 过滤；`~/projects` 是代码仓库的公开项目；`~/join` 打开「加入我们」。
 - **存盘**：家目录里自己建、改的文件和 `.bash_history` 存在本机 localStorage 的 `yugc:term:<用户名>`，最多 100000 个字符，超了报 `No space left on device`；生成的文件删了下次打开还在，不存盘。打开终端时执行 `~/.bashrc`（默认带 `ll`、`la` 两个别名）。
@@ -152,19 +153,19 @@ three.js 只通过 `/forum-3d` 页里的 `import("../three/forum")` 进入，首
 
 #206 的竖屏书桌与 iPhone 模型、#213 的电脑笔记本都随三维书桌在 #275 删除；手机先看开机动画的手机版构图（宽度小于 768 或竖屏），再进移动 YUGC OS。
 
-- **手机壳层**：`PHONE_QUERY` 为宽 ≤860px，或粗指针、宽 ≤1024px 且高 ≤600px（手机横屏仍用手机壳层）。手机状态栏显示真实时间和头像（没登录也只是头像），点开是个人资料卡的底部面板；四列应用网格、Dock 是主屏幕加三个主入口（加入我们、论坛、代码仓库）。不在应用区摆工具条；搜索是 Dock 上方的单个紧凑入口，也可在主屏空白处下滑打开；壁纸沿用「壁纸」应用；顶部「YUGC OS」打开「系统设置」，里面能换壁纸、重播开机动画。不显示电脑「前往 / 窗口 / 帮助」菜单与默认便签，指引由「新来的看这里」按需打开。手机横着拿时应用网格只占左边六成宽，右边留给「晴空」里的极客娘。
+- **手机壳层**：`PHONE_QUERY` 为宽 ≤860px，或粗指针、宽 ≤1024px 且高 ≤600px（手机横屏仍用手机壳层）。手机状态栏显示真实时间和头像（没登录也只是头像），点开是「账号资料」窗口（和其他应用一样从底部升起）；四列应用网格、Dock 是主屏幕加三个主入口（加入我们、论坛、代码仓库）。不在应用区摆工具条；搜索是 Dock 上方的单个紧凑入口，也可在主屏空白处下滑打开；壁纸沿用「壁纸」应用；顶部「YUGC OS」打开「系统设置」，里面能换壁纸、重播开机动画。不显示电脑「前往 / 窗口 / 帮助」菜单与默认便签，指引由「新来的看这里」按需打开。手机横着拿时应用网格只占左边六成宽，右边留给「晴空」里的极客娘。
 - **下滑搜索**：仅主屏幕且滚动位置为顶部时响应单指、短距离纵向下滑；横滑、多指、取消、长按、应用内和按钮/输入框上的手势不响应，不阻止内容正常滚动。搜索进入及关闭复用 Modal，关闭返回搜索入口焦点，不用手势作为唯一入口。
 - **晴空壁纸**：手机竖屏上，开机动画层卸掉以后极客娘从开机动画里的位置滑到主屏幕图标下面、搜索框上面那一段，不压着图标。横屏（电脑、手机横着拿）她坐在开机动画最后一帧的位置，只有 Dock 会挡住她坐的粉窗口时（1024×768、1280×720、1440×900 都会）以头顶为准缩小，坐到 Dock 上面（`SkyWallpaper.tsx` 的 `landFit`，区间由 `YugcOs` 量菜单栏或状态栏下沿到 Dock 上沿）。
-- **应用操作**：单击打开。手机一次只显示前台面板，其余面板 `hidden` / `inert` 但不卸载；返回主屏幕最小化全部面板，保留终端输入和输出，关闭应用才卸载该面板并回主屏幕。手机不提供电脑拖动与放大控件；面板内容在状态栏与 Dock 之间独立滚动，触控控件 ≥44px，输入字号16px。安全区使用 `env(safe-area-inset-*)`，面板、Dock、资料卡和弹层同时避让左右 inset；Dock 按两侧分别留边后在安全宽度内居中，支持不对称 inset。
+- **应用操作**：单击打开。手机一次只显示前台面板，其余面板 `hidden` / `inert` 但不卸载；返回主屏幕最小化全部面板，保留终端输入和输出，关闭应用才卸载该面板并回主屏幕。手机不提供电脑拖动与放大控件；面板内容在状态栏与 Dock 之间独立滚动，触控控件 ≥44px，输入字号16px。安全区使用 `env(safe-area-inset-*)`，面板、Dock 和弹层同时避让左右 inset；Dock 按两侧分别留边后在安全宽度内居中，支持不对称 inset。
 - **共用状态和权限**：不是两套站点。旋转或改变窗口大小不重新挂载终端；应用清单、`visibleApps(consoleLink)`、`open()`、壁纸与登录协议沿用电脑端。论坛当前标签页一跳直达（#185），代码仓库开应用面板。
-- **弹层**：搜索、壁纸、手机指引、系统设置和资料卡用 shared Modal 的原生 dialog 顶层、焦点循环及关闭后焦点返回；弹层打开时隔离 OS 全局应用和搜索快捷键，避免从弹层按钮触发背景跳转。壁纸支持方向键选择；面板里几张缩略图一样大、同一个比例，竖屏是手机屏幕比例的竖图（「晴空」的缩略图也按竖屏画，极客娘在图标下面那一段），手机上一行排开；「晴空」按缩略图实际显示的大小重画，平板上放大了也不糊。搜索回车阻止默认按钮点击，避免焦点进入应用后误触「主屏幕」。电脑端保留原壁纸面板560px与启动器640px、顶部14vh位置，不增加启动器标题栏。
+- **弹层**：搜索、壁纸、手机指引和系统设置用 shared Modal 的原生 dialog 顶层、焦点循环及关闭后焦点返回；弹层打开时隔离 OS 全局应用和搜索快捷键，避免从弹层按钮触发背景跳转。壁纸支持方向键选择；面板里几张缩略图一样大、同一个比例，竖屏是手机屏幕比例的竖图（「晴空」的缩略图也按竖屏画，极客娘在图标下面那一段），手机上一行排开；「晴空」按缩略图实际显示的大小重画，平板上放大了也不糊。搜索回车阻止默认按钮点击，避免焦点进入应用后误触「主屏幕」。电脑端保留原壁纸面板560px与启动器640px、顶部14vh位置，不增加启动器标题栏。
 - **自动回归**：`tests/web/portal-phone.test.tsx` 覆盖手机结构、权限、直达、隐藏面板、返回主屏幕与窗口内容保留。原来的 `tests/e2e/portal-phone.spec.ts`（量 iPhone 模型投影与触点）随模型一起删除，手机主屏幕现在没有浏览器自动回归，改版后的手机画面只在真实浏览器里人工验收。
 
 ## 登录入口（菜单栏 / 手机状态栏）
 
-官网不自建登录态，只显示核心服务的全站登录（官网、论坛、控制台共用同一个 `sid` 和一个极客班账号，见 [SECURITY](../../architecture/SECURITY.md)「登录门槛」）。菜单栏时钟右边、手机状态栏右上角是头像按钮，`lib/account.ts` 读完 `/auth/me` 之前不显示；点开是个人资料卡（见上文「个人资料卡」），登录、注册、退出、账号设置、控制台都在卡里。登录去 `/signin?return_to=<当前页面的 pathname + search + hash>`（#262），登录方式在统一登录页按 `/auth/providers` 列出。本机开发时 5173 把 `/auth`、`/signin` 转给核心后端与控制台 dev server（见 [LOCAL-PREVIEW](../../ops/LOCAL-PREVIEW.md)）。
+官网不自建登录态，只显示核心服务的全站登录（官网、论坛、控制台共用同一个 `sid` 和一个极客班账号，见 [SECURITY](../../architecture/SECURITY.md)「登录门槛」）。菜单栏时钟右边、手机状态栏右上角是头像按钮，`lib/account.ts` 读完 `/auth/me` 之前不显示；点开是「账号资料」窗口（见上文「账号资料窗口」），登录、注册、退出、账号设置、控制台都在窗口里。登录去 `/signin?return_to=<当前页面的 pathname + search + hash>`（#262），登录方式在统一登录页按 `/auth/providers` 列出。本机开发时 5173 把 `/auth`、`/signin` 转给核心后端与控制台 dev server（见 [LOCAL-PREVIEW](../../ops/LOCAL-PREVIEW.md)）。
 
-**控制台入口只给管理者**：`/auth/me` 的 `console_link` 为 true 时，桌面图标、Dock、「前往」菜单、启动器（⌘K）、终端的 `ls ~/Desktop` / `open console`、资料卡和普通页面页脚才出现「控制台」；没登录和没有管理能力的人看不到。`lib/osApps.ts` 的 `visibleApps(consoleLink)` 是桌面这几处唯一的过滤，`components/PageShell.tsx` 的页脚同样按它显示。这只决定入口显不显示，控制台自己的准入不变（直接打开 `/console` 仍按能力判定）。单测 `tests/web/portal-os.test.ts`，浏览器用例 `tests/e2e/workflows.spec.ts`（页脚按 `console_link` 出现）。
+**控制台入口只给管理者**：`/auth/me` 的 `console_link` 为 true 时，桌面图标、Dock、「前往」菜单、启动器（⌘K）、终端的 `ls ~/Desktop` / `open console`、「账号资料」窗口和普通页面页脚才出现「控制台」；没登录和没有管理能力的人看不到。`lib/osApps.ts` 的 `visibleApps(consoleLink)` 是桌面这几处唯一的过滤，`components/PageShell.tsx` 的页脚同样按它显示。这只决定入口显不显示，控制台自己的准入不变（直接打开 `/console` 仍按能力判定）。单测 `tests/web/portal-os.test.ts`，浏览器用例 `tests/e2e/workflows.spec.ts`（页脚按 `console_link` 出现）。
 
 官网不读 `?signin=`：从官网登录没成功时，核心服务把人送到统一登录页 `/signin?signin=<原因>&return_to=<刚才的官网路径>` 说明原因，登录页再回官网或重试（#262）。预发布与正式的论坛镜像是极客班论坛（见 [forum 合同](../forum/README.md)「服务端模式」），登录方式是统一登录，从官网登录后回到的页面顶部显示同一个账号；从论坛登录则回论坛（`/signin?return_to=/forum/…`）。退出等服务端确认后才显示未登录。
 
@@ -275,4 +276,4 @@ three.js 只通过 `/forum-3d` 页里的 `import("../three/forum")` 进入，首
 
 ## 验收
 
-`pnpm check && pnpm test && pnpm build`；浏览器验证见 [TESTING](../../conventions/TESTING.md)。单测覆盖进站规则与开机动画外壳、个人资料卡、便签、组织架构与代码仓库窗口、投递登录与限额、相机数学、像素比调速器、启动器过滤、终端（模拟 Linux）、时间文案、快照结构、图标注册表与禁用字符。开机动画、3D 画面、动画节奏与帧率只能在真实浏览器里验收，截图与测量结果写进 MR。
+`pnpm check && pnpm test && pnpm build`；浏览器验证见 [TESTING](../../conventions/TESTING.md)。单测覆盖进站规则与开机动画外壳、账号资料窗口、便签、组织架构与代码仓库窗口、投递登录与限额、相机数学、像素比调速器、启动器过滤、终端（模拟 Linux）、时间文案、快照结构、图标注册表与禁用字符。开机动画、3D 画面、动画节奏与帧率只能在真实浏览器里验收，截图与测量结果写进 MR。

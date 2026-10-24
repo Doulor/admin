@@ -59,7 +59,7 @@
 | 文档 | 说明 | EN |
 |---|---|---|
 | [`admin.md`](./services/web/admin.md) | 管理端前端已从 `app/web/sites/admin`（React）迁到独立的 Vue 包 `app/console`；本页只记录迁移事实与仍然有效的服务端约定。 | — |
-| [`portal.md`](./services/web/portal.md) | 公开官网：开机动画与 YUGC OS 桌面（加入我们、意见箱等都是桌面窗口）、论坛 3D 场景和文档；不自建登录，菜单栏头像打开个人资料卡。 | — |
+| [`portal.md`](./services/web/portal.md) | 公开官网：开机动画与 YUGC OS 桌面（加入我们、意见箱等都是桌面窗口）、论坛 3D 场景和文档；不自建登录，菜单栏头像打开「账号资料」窗口。 | — |
 | [`shared.md`](./services/web/shared.md) | 共享 UI、网络、渲染和配置，不反向依赖站点。 | — |
 
 ## components/

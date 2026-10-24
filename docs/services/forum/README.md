@@ -10,7 +10,7 @@
 |---|---|
 | `app/forum/app/pages/` | Nuxt 路由（首页、话题、分类、标签、用户、通知等） |
 | `app/forum/app/components/` | 组合与展示；组件自动注册，不手工仿制同名 React 组件 |
-| `app/forum/app/composables/` `app/forum/app/stores/` | 交互状态与原仓数据操作（Pinia）；`useSiteAccount.ts` 读全站登录（同域 `/auth/me`，含 `console_link`；`email_required` 时跳绑定邮箱页，#273）、退出、说明登录结果；`stores/forum-server.ts` 在极客班论坛里读写论坛后端；`useForumActions.ts` 是页面唯一的写入口（服务端模式调接口，示例模式改本机 store）；`useSiteLinks.ts` 是登录、控制台、宣传主页三个站外地址 |
+| `app/forum/app/composables/` `app/forum/app/stores/` | 交互状态与原仓数据操作（Pinia）；`useSiteAccount.ts` 读全站登录（同域 `/auth/me`，含 `console_link`；`email_required` 时跳绑定邮箱页，#273；邮箱不缺、`profile_required` 时跳补资料页 `/complete-profile`，#280）、退出、说明登录结果；`stores/forum-server.ts` 在极客班论坛里读写论坛后端；`useForumActions.ts` 是页面唯一的写入口（服务端模式调接口，示例模式改本机 store）；`useSiteLinks.ts` 是登录、控制台、宣传主页三个站外地址 |
 | `app/forum/app/data/` | 类型、示例种子、权限 helper 与序列化；`access.ts`（各模式下谁能写、游客能不能回复）、`account-menu.ts`（头像菜单有哪些行） |
 | `app/forum/app/plugins/` | `persist.client.ts`（浏览器存储）、`local-snapshot.client.ts`（只读快照替换 store）、`site-state.client.ts`（极客班论坛：挂载前换成构建时的公开旧帖和游客会话，再向论坛后端要整份状态——帖子只有摘要，正文进话题页时按话题取，#156） |
 | `app/forum/server/routes/api/local-forum/` | dev 专用只读快照路由：`state`、`assets/[hash]` |

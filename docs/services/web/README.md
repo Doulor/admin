@@ -8,26 +8,26 @@
 
 | 路径 | 职责 |
 |---|---|
-| `app/web/sites/portal/` | 公开站点：`App.tsx` 路由（`/`、`/forum-3d`、`/docs`；`/?open=<应用>` 进桌面打开窗口，旧地址 `/join-us`、`/apply`、`/feedback` 只做跳转）、`pages/`、`three/`（按需加载的 three.js 场景：论坛气泡）、`components/`（`boot/` 开机动画、`os/` YUGC OS 桌面与窗口、个人资料卡、页面外壳）、`lib/`（进站规则、相机数学、链接、快照、图标、全站登录状态 `account.ts`、部门、代码仓库、埋点）、`styles/`（`--pt-*` 与 YUGC OS v2 的 `--os-*` 令牌）、`index.html` 入口；不自建登录态，菜单栏头像打开个人资料卡（见 [portal](portal.md)「个人资料卡」） |
+| `app/web/sites/portal/` | 公开站点：`App.tsx` 路由（`/`、`/forum-3d`、`/docs`；`/?open=<应用>` 进桌面打开窗口，旧地址 `/join-us`、`/apply`、`/feedback` 只做跳转）、`pages/`、`three/`（按需加载的 three.js 场景：论坛气泡）、`components/`（`boot/` 开机动画、`os/` YUGC OS 桌面与窗口（含「账号资料」窗口）、页面外壳）、`lib/`（进站规则、相机数学、链接、快照、图标、全站登录状态 `account.ts`、部门、代码仓库、埋点）、`styles/`（`--pt-*` 与 YUGC OS v2 的 `--os-*` 令牌）、`index.html` 入口；不自建登录态，菜单栏头像打开「账号资料」窗口（见 [portal](portal.md)「账号资料窗口」） |
 | `app/web/shared/lib/` | 网络（`api`、`http`、`runtime`）、URL/站点（`site`）、Markdown（`markdown`）、挂载（`mount`）、PoW、主题、只读 mock（含开发预览身份 `?__mock=member\|registered\|visitor`，正式构建删掉） |
 | `app/web/shared/ui/` | 官网复用的交互原语：Modal、ConfirmDialog、Select、ImageLightbox、TurnstileWidget 等 |
 | `app/web/shared/styles/` | 基础样式与令牌（`base.css`、`rounded.css`） |
 | `app/web/shared/config/` | 公开前端配置（`app.config.json` → `config/index.ts` 的站点标题与 basePath 合同；不含域名） |
 | `app/web/Dockerfile` | Node 22 构建官网（`app/web`）与控制台（`app/console`）两份产物，叠进同一个 nginx 站点根 → 静态托管与反代；容器内监听 8080（非特权），并生成 `release.json` 供发布身份核对 |
-| `app/web` 镜像内 nginx 配置 | 由 `Dockerfile` 生成：`/api/*` 使用 `location ^~ /api/` 前缀优先匹配（防止 `/api/forum/avatars/*.webp` 等动态文件接口被下方的静态图片正则拦截出 404，#173）；`/auth`、`/auth/*`（OAuth 登录与回调）、`/oidc/*`（对外授权的签发者，#270）、`/healthz` → `server:3000`；`/forum` 308 到相对地址 `/forum/`，`/forum/*`（含图片、字体，`location ^~` 不让官网的图片规则截走）剥掉前缀后 → `forum:3000`，论坛发出的相对跳转由 `proxy_redirect / /forum/` 补回前缀；server 块 `absolute_redirect off`，容器发出的跳转（含补过前缀的）都是相对地址，不会带上容器的 `http://…:8080`（#140）；`/admin`、`/console` 及其子路径与 `/signin`、`/device`（设备授权确认页）、`/account`（账号页，#262）、`/authorize`（对外授权的同意页，#270）、`/bind-email`（绑定邮箱页，#273）→ 控制台入口 `sites/console/index.html`，其余 → portal，与 Host 无关；`/assets/*`（官网）与 `/console-assets/*`（控制台）里只有带内容哈希的构建产物，用 `location ^~` 整个目录缓存一年（`max-age=31536000`），字体、壁纸、图片也是，不再被后面「图片、字体 7 天」的正则截走（#146；两个目录都不能有 public/ 里原样复制的文件，`scripts/static-cdn.mjs` 与 `tests/tooling/static-cdn.test.ts` 核对，缓存头由 `tests/tooling/hashed-asset-cache.test.ts` 在本机 nginx 上实测）；目录外不带哈希的图片、字体缓存 7 天；`/sites/*` 只提供真实文件，不存在即 404；安全头由宿主 nginx 统一下发，容器不重复 |
+| `app/web` 镜像内 nginx 配置 | 由 `Dockerfile` 生成：`/api/*` 使用 `location ^~ /api/` 前缀优先匹配（防止 `/api/forum/avatars/*.webp` 等动态文件接口被下方的静态图片正则拦截出 404，#173）；`/auth`、`/auth/*`（OAuth 登录与回调）、`/oidc/*`（对外授权的签发者，#270）、`/healthz` → `server:3000`；`/forum` 308 到相对地址 `/forum/`，`/forum/*`（含图片、字体，`location ^~` 不让官网的图片规则截走）剥掉前缀后 → `forum:3000`，论坛发出的相对跳转由 `proxy_redirect / /forum/` 补回前缀；server 块 `absolute_redirect off`，容器发出的跳转（含补过前缀的）都是相对地址，不会带上容器的 `http://…:8080`（#140）；`/admin`、`/console` 及其子路径与 `/signin`、`/device`（设备授权确认页）、`/account`（账号页，#262）、`/authorize`（对外授权的同意页，#270）、`/bind-email`（绑定邮箱页，#273）、`/complete-profile`（补资料页，#280）→ 控制台入口 `sites/console/index.html`，其余 → portal，与 Host 无关；`/assets/*`（官网）与 `/console-assets/*`（控制台）里只有带内容哈希的构建产物，用 `location ^~` 整个目录缓存一年（`max-age=31536000`），字体、壁纸、图片也是，不再被后面「图片、字体 7 天」的正则截走（#146；两个目录都不能有 public/ 里原样复制的文件，`scripts/static-cdn.mjs` 与 `tests/tooling/static-cdn.test.ts` 核对，缓存头由 `tests/tooling/hashed-asset-cache.test.ts` 在本机 nginx 上实测）；目录外不带哈希的图片、字体缓存 7 天；`/sites/*` 只提供真实文件，不存在即 404；安全头由宿主 nginx 统一下发，容器不重复 |
 
 模块细节：[portal](portal.md)、[shared](shared.md)；管理端已迁到 `app/console`（[console 合同](../console/README.md)，迁移说明见 [admin](admin.md)）。依赖方向：站点 → shared → 通用依赖；shared 不得反向导入站点；`app/web` 与 `app/console` 互不导入。
 
 ## 契约
 
 - **两个前端包、一个镜像**：官网由本包的 Vite 构建产出 `sites/portal/index.html`，控制台由 `app/console` 单独构建产出 `sites/console/index.html`；`web` 镜像同时承担 TLS 之后的静态托管与反向代理，是唯一对宿主机暴露业务端口的容器（容器内 8080，宿主 production `127.0.0.1:18100`、preview `127.0.0.1:18200`）。
-- **域名**：每个环境只有一个域名——正式 `yangtzeu.work`、预发布 `prev.yangtzeu.work`。portal、控制台、论坛同域，按路径区分：控制台是 `/console/…`（统一登录页 `/signin`、设备授权确认页 `/device`、账号页 `/account`、对外授权的同意页 `/authorize` 与绑定邮箱页 `/bind-email` 也在控制台产物里，旧的 `/admin/…` 跳到 `/console`），论坛是 `/forum/…`，其余路径是 portal。旧的管理端独立子域与论坛子域都已退役（见 [DEPLOY](../../ops/DEPLOY.md) 历史章节）。
+- **域名**：每个环境只有一个域名——正式 `yangtzeu.work`、预发布 `prev.yangtzeu.work`。portal、控制台、论坛同域，按路径区分：控制台是 `/console/…`（统一登录页 `/signin`、设备授权确认页 `/device`、账号页 `/account`、对外授权的同意页 `/authorize`、绑定邮箱页 `/bind-email` 与补资料页 `/complete-profile`（#280）也在控制台产物里，旧的 `/admin/…` 跳到 `/console`），论坛是 `/forum/…`，其余路径是 portal。旧的管理端独立子域与论坛子域都已退役（见 [DEPLOY](../../ops/DEPLOY.md) 历史章节）。
 - **HTTP 边界**：前端只通过 `shared/lib/api` 访问 `/api/*`；跨端链接使用 `externalUrl`，同端使用 Router。生产态跨端链接是同源路径（`/forum/…`、`/console`），不拼域名；开发态仍走 `/sites/<端>/…`，论坛指向本机 3456。
 - **配置**：构建期只读公开配置（`app.config.json`），不加载私有 `.env`，也不含任何域名，同一份产物在两个环境通用；`scripts/check-site-config.mjs`（`pnpm check:site-config`）校验站点不带 host、论坛 basePath 非空且不与其他站点重叠、production 数据源固定为 live。
 - **静态资源 CDN 开关**（#146）：构建参数 `STATIC_CDN_BASE` 为空时与原来一样同源；等于 `https://cdn.crosery.com/yzgc/static/site/` 时，`vite.config.ts` 用 `experimental.renderBuiltUrl` 把带哈希的构建资源（`assets/` 下的 JS、CSS、字体、图片）改写到 CDN，`base` 仍是 `/`，入口 HTML、路由和 `public/` 里不带哈希的文件（favicon、logo、论坛快照、邮件里引用的图）仍走源站；桌面壁纸由 `sites/portal/lib/wallpapers.ts` import（文件在 `sites/portal/assets/wallpapers/`），构建时带哈希，跟着开关走。别的非空值让构建失败。规则只在 `scripts/static-cdn-base.mjs`；`app/web/Dockerfile` 把同一个参数传给官网与控制台两次构建，并断言两个入口页引用的是对应地址。开关由部署工作流决定，上传与核对见 [CICD](../../ops/CICD.md)「静态资源 CDN」。两个环境用同一个 CDN 前缀，产物仍不含环境域名。
 - **UI 选型**：官网是既有 React 实现，后续新增/迁移界面按 [Tuffex 使用政策](../../components/tuffex/USAGE-POLICY.md)；控制台已迁到 Vue + Tuffex（`app/console`）。不引入平行基础 UI 体系。
 - **比赛窗口**（#238）：读匿名比赛接口，按时间显示五种状态，每分钟同步重排；日期不在当前北京年份时保留年份，起止同一天只写一个日期；内部与外部链接均可选，只有可解析的 HTTPS 地址可点。损坏的列表响应进入失败态，不冒充空数据；样板截止日期按北京时间日末构造。详见 [portal](portal.md)「比赛窗口」。
-- **首页与 YUGC OS v2**（#275）：首页先看今天（北京时间）播没播过开机动画（Canvas 2D，电脑与手机两套构图，能跳过、静音、重播），没播就播，播完淡出到桌面；播过或开了减少动态效果直接进桌面。三维书桌、加载动画、iPhone 模型首页、GitHub 天际线场景与旧吉祥物都已删除，three.js 只留给论坛场景页（加入我们在 #279 改成桌面窗口）。桌面默认壁纸「晴空」接着开机动画最后一帧画；菜单栏头像打开个人资料卡；组织架构读 `/api/public/departments`，代码仓库是读 `/api/public/gitlab/projects` 的窗口；加入我们是桌面窗口（#279），要登录并显示当天剩余投递份数；前端埋点攒批发 `POST /api/events`。手机是同一套组件的主屏幕形态（状态栏、四列应用、主屏幕加三个主入口的 Dock，窗口按 iOS 页面卡片从底部升起，#233）。细节见 [portal](portal.md)。
+- **首页与 YUGC OS v2**（#275）：首页先看今天（北京时间）播没播过开机动画（Canvas 2D，电脑与手机两套构图，能跳过、静音、重播），没播就播，播完淡出到桌面；播过或开了减少动态效果直接进桌面。三维书桌、加载动画、iPhone 模型首页、GitHub 天际线场景与旧吉祥物都已删除，three.js 只留给论坛场景页（加入我们在 #279 改成桌面窗口）。桌面默认壁纸「晴空」接着开机动画最后一帧画；菜单栏头像打开「账号资料」窗口（#280 起是桌面窗口）；组织架构读 `/api/public/departments`，代码仓库是读 `/api/public/gitlab/projects` 的窗口；加入我们是桌面窗口（#279），要登录并显示当天剩余投递份数；前端埋点攒批发 `POST /api/events`。手机是同一套组件的主屏幕形态（状态栏、四列应用、主屏幕加三个主入口的 Dock，窗口按 iOS 页面卡片从底部升起，#233）。细节见 [portal](portal.md)。
 
 ## 运行
 
@@ -38,7 +38,7 @@ pnpm dev            # 前后端开发（需要本机 .env，模板见 ../../ops/
 pnpm preview:local  # 核心 5173/3000 + 独立论坛 3456，见 ../../ops/LOCAL-PREVIEW.md
 ```
 
-本机地址：官网 `http://127.0.0.1:5173/sites/portal/`（不带尾斜杠的 `/sites/portal` 同样回落到入口，支持 Router 记录的首页后退与刷新）；控制台 `http://127.0.0.1:5186/console`（`pnpm dev:console`）。5173 上的 `/console`、`/admin`、`/signin`、`/device`、`/account`、`/authorize`、`/bind-email` 与旧的 `/sites/admin/*` 在开发态 302 到 5186；`/forum/<路径>` 302 到 `http://127.0.0.1:3456/<路径>`（去掉 `/forum` 前缀，查询参数保留，登录后回到论坛原页面靠它）。容器内由 nginx 托管构建产物并按路径选择入口；宿主 nginx 只做 TLS 终止与 `server_name` → 回环端口转发。
+本机地址：官网 `http://127.0.0.1:5173/sites/portal/`（不带尾斜杠的 `/sites/portal` 同样回落到入口，支持 Router 记录的首页后退与刷新）；控制台 `http://127.0.0.1:5186/console`（`pnpm dev:console`）。5173 上的 `/console`、`/admin`、`/signin`、`/device`、`/account`、`/authorize`、`/bind-email`、`/complete-profile` 与旧的 `/sites/admin/*` 在开发态 302 到 5186；`/forum/<路径>` 302 到 `http://127.0.0.1:3456/<路径>`（去掉 `/forum` 前缀，查询参数保留，登录后回到论坛原页面靠它）。容器内由 nginx 托管构建产物并按路径选择入口；宿主 nginx 只做 TLS 终止与 `server_name` → 回环端口转发。
 
 镜像的构建阶段 `node:22-bookworm-slim` 与运行阶段 `nginx:1.31-alpine` 在 `app/web/Dockerfile` 里按 digest 固定（`<tag>@sha256:<digest>`，#97）；换基础镜像的步骤见 [DEPLOY](../../ops/DEPLOY.md)「基础镜像按 digest 固定」。
 

@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`2127203bf4c72761c0b1ec4081330df11a3d29f39b8e251743ec321bb3ae5805`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`fd8d9776deacaf29ab1d271e6c04f99d24e43c024cb188a7f2eb4d40e69ab42b`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -164,6 +164,8 @@ CREATE TABLE account_avatars (
 | `avatar_hash` | `TEXT` | 0 | 0 | 未声明 | 0 |
 | `prefs` | `TEXT` | 1 | 0 | `'{}'` | 0 |
 | `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `real_name` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `enrollment_year` | `INTEGER` | 0 | 0 | 未声明 | 0 |
 
 NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
 
@@ -187,14 +189,14 @@ CREATE TABLE account_profiles (
   avatar_hash TEXT,
   prefs TEXT NOT NULL DEFAULT '{}',
   updated_at INTEGER NOT NULL
-);
+, real_name TEXT, enrollment_year INTEGER);
 ```
 
 </details>
 
 ## activity_events
 
-业务域：`audit`；结构来源：[app/server/src/lib/db.ts:822](../../../app/server/src/lib/db.ts#L822)。
+业务域：`audit`；结构来源：[app/server/src/lib/db.ts:825](../../../app/server/src/lib/db.ts#L825)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -1819,7 +1821,7 @@ CREATE TABLE invite_links (
 
 ## limit_events
 
-业务域：`platform`；结构来源：[app/server/src/lib/db.ts:843](../../../app/server/src/lib/db.ts#L843)。
+业务域：`platform`；结构来源：[app/server/src/lib/db.ts:846](../../../app/server/src/lib/db.ts#L846)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
