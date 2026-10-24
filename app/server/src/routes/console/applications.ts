@@ -6,6 +6,7 @@ import { beijingCompactDate, beijingDateTime } from "../../lib/beijing-time.js";
 import { APPLICATION_STATUSES, APPLICATION_STATUS_IDS, type ApplicationStatus } from "../../lib/roles.js";
 import { MailTemplateError, oneLine, type RenderedMail } from "../../lib/mail/envelope.js";
 import type { RecruitmentLetter } from "../../lib/mail/mailer.js";
+import { csvCell, escapeLike } from "../../lib/sql-text.js";
 
 type ApplicationRow = { id: string; name: string; class_name: string; email: string; strengths: string; status: string; created_at: number };
 type ReviewRow = { id: number; application_id: string; from_status: string; to_status: string; note: string | null; reviewer: string; created_at: number };
@@ -27,14 +28,6 @@ const LETTER_ERRORS: Partial<Record<MailTemplateError["code"], string>> = {
 const APPLICATION_COLUMNS = "id, name, class_name, email, strengths, status, created_at";
 const EXCERPT_LENGTH = 120;
 const excerpt = (value: string) => (value.length > EXCERPT_LENGTH ? `${value.slice(0, EXCERPT_LENGTH)}…` : value);
-const escapeLike = (value: string) => value.replace(/[\\%_]/g, match => `\\${match}`);
-
-/** 表格公式注入防护：以 = + - @ 制表符 回车 开头的单元格前加 '。 */
-export function csvCell(value: unknown): string {
-  let text = value === null || value === undefined ? "" : String(value);
-  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
-  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
 const statusLabel = (id: string) => APPLICATION_STATUSES.find(item => item.id === id)?.label ?? id;
 
 export default async function consoleApplicationRoutes(app: FastifyInstance) {

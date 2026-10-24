@@ -5,7 +5,7 @@ import { requireStepUp } from "../../middleware/require-step-up.js";
 import { beijingCompactDate, beijingDateTime } from "../../lib/beijing-time.js";
 import { SCORE_ERRORS, type ScoreErrorCode, type ScoreEventInput } from "../../lib/competition-score-store.js";
 import { SIGNUP_ERRORS, type SignupErrorCode, type SignupSettings } from "../../lib/competition-signup-store.js";
-import { csvCell } from "./applications.js";
+import { csvCell } from "../../lib/sql-text.js";
 
 const ERRORS: Record<SignupErrorCode | ScoreErrorCode, { status: number; message: string }> = { ...SIGNUP_ERRORS, ...SCORE_ERRORS };
 
