@@ -1,10 +1,15 @@
-// 贡献动态：竖直时间流，每条是头像、昵称、动作、标题、加分胶囊与相对时间。扣分只写「被扣分」，不写原因。
+// 贡献动态：竖直时间流，每条是头像、昵称、动作、两档（重要程度 × 核心度）、标题、加分胶囊与相对时间。扣分只写「被扣分」，不写原因。
 // 刷新时把新出现的条目插到最前面并返回它们，main.ts 用它们放彗星；「再看 20 条」按游标往后翻。
 import type { CompetitionClient, Feed, FeedItem } from "@shared/competition-sdk";
+import { FALLBACK } from "../site.config";
 import { iconSvg } from "./icons";
 import { avatarHtml, errorHtml, escapeHtml, formatPoints, relativeTime } from "./util";
 
 const ACTIONS: Record<FeedItem["kind"], string> = { pr: "合并了 MR", issue: "提交的 Issue 被采纳", penalty: "被扣分" };
+const LEVEL_LABELS = new Map<string, string>([...FALLBACK.scoring.importance, ...FALLBACK.scoring.core].map(item => [item.key, item.label]));
+/** 被防刷规则记成 0 分的「一般 × 边缘」：加一句原因，免得看成漏算。 */
+const isDamped = (item: FeedItem) => item.kind !== "penalty" && item.points === 0 && item.importance === "normal" && item.core === "edge";
+const levelsText = (item: FeedItem) => (item.importance && item.core ? `${LEVEL_LABELS.get(item.importance) ?? item.importance} × ${LEVEL_LABELS.get(item.core) ?? item.core}` : "");
 
 function itemHtml(item: FeedItem, fresh: boolean): string {
   const name = escapeHtml(item.display_name || item.username);
@@ -17,7 +22,7 @@ function itemHtml(item: FeedItem, fresh: boolean): string {
   return `<li class="feed-item kind-${item.kind}${fresh ? " is-new" : ""}" data-id="${escapeHtml(item.id)}">
     ${avatarHtml(item)}
     <div class="feed-main">
-      <p class="feed-line"><b>${name}</b><span class="feed-user">@${escapeHtml(item.username)}</span><span class="feed-action">${ACTIONS[item.kind]}</span></p>
+      <p class="feed-line"><b>${name}</b><span class="feed-user">@${escapeHtml(item.username)}</span><span class="feed-action">${ACTIONS[item.kind]}</span>${levelsText(item) ? `<span class="feed-levels">${escapeHtml(levelsText(item))}</span>` : ""}${isDamped(item) ? `<span class="feed-damped">本周的「一般 × 边缘」已算过一条，这条记 0 分</span>` : ""}</p>
       ${title}
     </div>
     <div class="feed-side">
@@ -37,7 +42,7 @@ export function createFeed(root: HTMLElement, client: CompetitionClient) {
 
   function render(freshIds: Set<string>) {
     if (items.length === 0) {
-      list.innerHTML = `<li class="empty">还没有计分的贡献。第一条被合并的 MR 会出现在这里。</li>`;
+      list.innerHTML = `<li class="empty">还没有计分的贡献。第一条被标「有用」的 Issue 或 MR 会出现在这里。</li>`;
     } else {
       list.innerHTML = items.map(item => itemHtml(item, freshIds.has(item.id))).join("");
     }

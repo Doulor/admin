@@ -10,6 +10,20 @@ export type PublicPerson = { username: string; display_name: string; avatar_url:
 export type CompetitionStatus = "upcoming" | "registering" | "closed" | "ongoing" | "ended";
 export type PrizeTier = { from: number; to: number; amount_cny: number; title: string };
 export type GradeFactor = { grade: string; label: string; factor: number };
+export type Importance = "normal" | "important" | "critical";
+export type Core = "edge" | "business" | "core";
+/**
+ * 两档计分表：组织者标记「有用」时选重要程度和核心度，基础分查 `points`，再乘年级系数；扣分 `penalty`、不乘系数；
+ * 每人每周「一般 × 边缘」只照算前 `trivial_per_week` 条，之后按 `trivial_percent`%。
+ */
+export type Scoring = {
+  importance: { key: Importance; label: string }[];
+  core: { key: Core; label: string; hint: string }[];
+  points: { kind: "issue" | "pr"; importance: Importance; core: Core; points: number }[];
+  penalty: number;
+  trivial_per_week: number;
+  trivial_percent: number;
+};
 
 export type PublicCompetition = {
   id: string;
@@ -26,6 +40,7 @@ export type PublicCompetition = {
   app_url: string;
   prizes: PrizeTier[];
   grade_factors: GradeFactor[];
+  scoring: Scoring;
   finalized_at: number | null;
 };
 
@@ -33,7 +48,11 @@ export type LeaderboardEntry = PublicPerson & { rank: number; team_name: string 
 export type LeaderboardTeam = { rank: number; name: string; members: PublicPerson[]; score: number };
 export type Leaderboard = { updated_at: number; individuals: LeaderboardEntry[]; teams: LeaderboardTeam[] };
 
-export type FeedItem = PublicPerson & { id: string; at: number; kind: "pr" | "issue" | "penalty"; title: string | null; url: string | null; points: number };
+/** `points` 已乘年级系数；`importance`、`core` 是标记时选的两档，扣分和两档评定之前的记录为 null。 */
+export type FeedItem = PublicPerson & {
+  id: string; at: number; kind: "pr" | "issue" | "penalty"; title: string | null; url: string | null; points: number;
+  importance: Importance | null; core: Core | null;
+};
 export type Feed = { items: FeedItem[]; next_cursor: string | null };
 
 export type Stats = { participants: number; teams: number; merged_prs: number; accepted_issues: number; total_points: number; updated_at: number };

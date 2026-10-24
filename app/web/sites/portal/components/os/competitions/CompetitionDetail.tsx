@@ -1,20 +1,20 @@
 // 比赛详情（#265 起；#239 加 Hero、时间线、报名组队与天梯）。
 // 顶部 Hero：按比赛生成的动态大图、类型与状态、倒计时、一键直达（外部赛直达官网，内部赛直达报名、组队）；下面是要点格子。
 // 内部赛开了在线报名时分页签：概览（介绍、赛程时间线、规则）/ 队伍（组队大厅）/ 找队友 / 天梯，没开时只有概览。
-// #278：概览里加年级系数、「有用」才计分与奖项；发布了官网的比赛在 Hero 里多一个「比赛官网」；官网的「去组队」带 view=team 直接打开队伍页签。
+// #278：概览里加两档基础分表（重要程度 × 核心度）、防刷规则、年级系数、「有用」才计分与奖项；发布了官网的比赛在 Hero 里多一个「比赛官网」；官网的「去组队」带 view=team 直接打开队伍页签。
 // 底部操作条：报名 → 组队 → 确认参赛的进度、现在怎么样的一句话、能做的事；按钮放不放以服务端 my-status 的 actions 为准。
 // 主按钮桌面在 Hero 里，手机在底部操作条里（拇指够得着），不在同一屏重复。
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type Ref } from "react";
 import Icon from "../../Icon";
 import type { IconName } from "../../../lib/icons";
-import type { Competition, SignupSettings } from "../../../lib/competitions";
+import type { Competition, Scoring, SignupSettings } from "../../../lib/competitions";
 import { signInHref } from "../../../lib/account";
 import {
   competitionAction, deadlineFact, deadlineLabel, participationText, scheduleFact, scheduleSteps, signupFact, siteHost, statusHint,
   STATUS_TEXT, timelineProgress, type Fact, type StepState,
 } from "../../../lib/competitionLabels";
 import {
-  factorText, hubPaths, hubSentence, journey, rankRange, readFreeAgents, readLeaderboard, readTeams, SCORE_RULES, shortTime, useHub, useMemberRead,
+  factorText, hubPaths, hubSentence, journey, rankRange, readFreeAgents, readLeaderboard, readTeams, SCORE_RULES, shortTime, trivialRuleText, useHub, useMemberRead,
   type AccountState, type HubAction, type HubPhase, type HubStats,
 } from "../../../lib/competitionHub";
 import CompetitionHero from "./CompetitionHero";
@@ -132,9 +132,10 @@ function Overview({ item, now, id, hubOn, settings }: { item: Competition; now: 
               </li>
             ))}
           </ul>
+          {item.scoring && <RubricTables scoring={item.scoring} />}
           {item.grade_factors.length > 0 && (
             <div className="pt-cx-grades">
-              <p>加分乘年级系数。年级按记分那一刻算，记下后不再改。</p>
+              <p>基础分再乘年级系数，低年级系数高。年级按记分那一刻算，记下后不再改。</p>
               <ul aria-label="年级系数">
                 {item.grade_factors.map((grade) => (
                   <li key={grade.grade}>
@@ -168,6 +169,43 @@ function Overview({ item, now, id, hubOn, settings }: { item: Competition; now: 
         </section>
       )}
     </>
+  );
+}
+
+/** 基础分表：Issue、MR 各一张，行是重要程度，列是核心度；下面写防刷规则。 */
+function RubricTables({ scoring }: { scoring: Scoring }) {
+  return (
+    <div className="pt-cx-rubric">
+      <p>组织者标记「有用」时选两档：这条对项目有多重要、碰到的地方有多核心。基础分查下表，不看代码行数。</p>
+      <div className="pt-cx-rubric-pair">
+        {(["issue", "pr"] as const).map((kind) => (
+          <table key={kind}>
+            <caption>{kind === "pr" ? "合入的 MR" : "Issue"}</caption>
+            <thead>
+              <tr>
+                <th scope="col">重要程度</th>
+                {scoring.core.map((core) => (
+                  <th key={core.key} scope="col" title={core.hint}>
+                    {core.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {scoring.importance.map((importance) => (
+                <tr key={importance.key}>
+                  <th scope="row">{importance.label}</th>
+                  {scoring.core.map((core) => (
+                    <td key={core.key}>{scoring.points[kind][importance.key][core.key]}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))}
+      </div>
+      <p className="pt-cx-fine">核心度：{scoring.core.map((core) => `${core.label}是${core.hint}`).join("；")}。{trivialRuleText(scoring)}</p>
+    </div>
   );
 }
 
@@ -504,7 +542,7 @@ export default function CompetitionDetail({ item, now, headingRef, account = "si
           {current !== "overview" && !status && <MemberGate phase={hub.phase} reload={hub.reload} />}
           {current === "teams" && status && <TeamPanel status={status} teams={teams} meId={accountId} busy={hub.busy} open={setDialog} act={act} onFindPeople={() => openTab("people")} />}
           {current === "people" && status && <PeoplePanel status={status} people={people} meId={accountId} busy={hub.busy} act={act} competitionId={item.id} />}
-          {current === "board" && status && <BoardPanel board={board} meId={accountId} myTeamId={status.team?.id ?? null} teamMode={teamMode} />}
+          {current === "board" && status && <BoardPanel board={board} meId={accountId} myTeamId={status.team?.id ?? null} teamMode={teamMode} scoring={item.scoring} />}
         </div>
       </div>
       <footer className="pt-cx-act">

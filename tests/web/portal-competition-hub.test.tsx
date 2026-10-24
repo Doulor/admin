@@ -16,6 +16,7 @@ import {
   SCORE_RULES, teamSlots, type MyStatus, type Pending, type Team,
 } from "../../app/web/sites/portal/lib/competitionHub";
 import { signupBody } from "../../app/server/src/lib/competition-contract";
+import { RUBRIC } from "../../app/server/src/lib/competition-rubric";
 
 beforeEach(() => localStorage.setItem("yugc:dev-data-source", "live"));
 afterEach(() => {
@@ -335,10 +336,15 @@ describe("里程碑、倒计时、槽位与待处理", () => {
     expect(HUB_LIMITS.note).toBe(contractField(signupBody.signup, "note").maxLength);
     expect(HUB_LIMITS.message).toBe(contractField(signupBody.apply, "message").maxLength);
     expect(SCORE_RULES).toEqual([
-      { kind: "issue", label: "Issue", points: "+5～+30", note: "被标记「有用」才加分，按问题的价值与描述质量" },
-      { kind: "pr", label: "合入的 MR", points: "+15～+100", note: "被标记「有用」才加分，按改动的难度与影响" },
+      { kind: "issue", label: "Issue", points: "+5～+30", note: "被标记「有用」才加分，按重要程度和核心度查表" },
+      { kind: "pr", label: "合入的 MR", points: "+15～+100", note: "被标记「有用」才加分，按重要程度和核心度查表，不看代码行数" },
       { kind: "penalty", label: "作弊", points: "−50", note: "刷量、抄袭、冒名提交等，每次核实扣分，不乘年级系数" },
     ]);
+    // 区间就是服务端基础分表的最小与最大格
+    for (const [index, kind] of (["issue", "pr"] as const).entries()) {
+      const cells = Object.values(RUBRIC[kind]).flatMap((row) => Object.values(row));
+      expect(SCORE_RULES[index].points).toBe(`+${Math.min(...cells)}～+${Math.max(...cells)}`);
+    }
   });
 });
 

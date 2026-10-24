@@ -1,7 +1,9 @@
 /*
  * 第一期比赛官网（#278）：独立的活动站，不沿用主站的桌面风格。浅色暖白底、粗墨线描边、实色错位投影，
  * 紫、粉、黄、绿、蓝五个强调色；正文一律是深墨色，彩色只做填充、描边和投影，文字对比度不低于 4.5:1。
- * 首屏是一张贡献热力图拼出的「OSS CHALLENGE」，下面一条斜着滚动的贡献条。减少动态效果时一切静止。
+ * 首屏（所有者 2026-10-24 16:57）：要炫，但第一眼就看明白——贡献热力图拼出的「OSS CHALLENGE」、逐字翻上来的比赛名、
+ * 怎么拿分三步、倒计时与报名，右边是奖金和实时天梯；背后几层光（柔光、光束、流动的透视网格、跟着指针的亮光），
+ * 两张卡随指针倾斜，往下滚时首屏像镜头往前推。下面一条斜着滚动的贡献条。减少动态效果时一切停在最终的样子。
  */
 @property --spin { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 
@@ -71,60 +73,186 @@ button { font: inherit; color: inherit; }
 .btn-sm { min-height: 44px; padding: 0 18px; font-size: 15px; box-shadow: 3px 3px 0 var(--ink); }
 .btn:disabled { cursor: progress; opacity: .7; }
 
-/* ── 首屏 ── */
-.hero { position: relative; min-height: 100svh; display: grid; place-items: center; padding: 56px 24px 150px; overflow: hidden; isolation: isolate; }
-.hero-glow { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+/* ── 首屏：左边是标题、怎么拿分、倒计时和报名；右边是奖金和实时天梯。背景是几层光：四团漂移的彩色柔光、
+   缓慢转动的光束、往前流动的透视网格地面，指针附近再跟一团亮光。 ── */
+.progress { position: fixed; left: 0; right: 0; top: 0; z-index: 70; height: 4px; background: var(--rainbow); transform: scaleX(0); transform-origin: 0 50%; display: none; pointer-events: none; }
+.hero { position: relative; min-height: 100svh; display: grid; place-items: center; padding: 40px 32px 112px; overflow: hidden; isolation: isolate; }
+.hero-bg { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.hero-glow { position: absolute; inset: 0; }
 .hero-glow i { position: absolute; width: 56vmax; height: 56vmax; border-radius: 50%; animation: drift 16s ease-in-out infinite alternate; }
 .hero-glow i:nth-child(1) { left: -22vmax; top: -26vmax; background: radial-gradient(closest-side, rgb(185 166 255 / 70%), rgb(185 166 255 / 0)); }
 .hero-glow i:nth-child(2) { right: -24vmax; top: -18vmax; background: radial-gradient(closest-side, rgb(255 125 187 / 55%), rgb(255 125 187 / 0)); animation-duration: 19s; animation-delay: -6s; }
 .hero-glow i:nth-child(3) { left: -14vmax; bottom: -30vmax; background: radial-gradient(closest-side, rgb(255 200 74 / 55%), rgb(255 200 74 / 0)); animation-duration: 21s; animation-delay: -3s; }
 .hero-glow i:nth-child(4) { right: -18vmax; bottom: -28vmax; background: radial-gradient(closest-side, rgb(94 227 154 / 50%), rgb(94 227 154 / 0)); animation-duration: 17s; animation-delay: -9s; }
 @keyframes drift { to { transform: translate3d(7vmax, 5vmax, 0) scale(1.15); } }
+.hero-beams {
+  position: absolute; left: 50%; top: -70vmax; width: 140vmax; height: 140vmax; margin-left: -70vmax;
+  background: repeating-conic-gradient(from 0deg, rgb(255 255 255 / 0) 0deg 7deg, rgb(255 255 255 / 95%) 9deg, rgb(255 255 255 / 0) 11deg 16deg, rgb(160 135 255 / 42%) 18deg, rgb(255 255 255 / 0) 20deg 30deg);
+  -webkit-mask-image: radial-gradient(closest-side, rgb(0 0 0 / 0) 18%, #000 40%, rgb(0 0 0 / 0) 72%);
+  mask-image: radial-gradient(closest-side, rgb(0 0 0 / 0) 18%, #000 40%, rgb(0 0 0 / 0) 72%);
+  animation: beams 90s linear infinite;
+}
+@keyframes beams { to { transform: rotate(360deg); } }
+.hero-floor {
+  position: absolute; left: -30%; right: -30%; bottom: 0; height: 44%; overflow: hidden; perspective: 340px; perspective-origin: 50% 0;
+  -webkit-mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0), #000 55%); mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0), #000 55%);
+}
+.hero-floor i {
+  position: absolute; left: 0; right: 0; top: -100%; bottom: 0; transform-origin: 50% 100%;
+  background-image: linear-gradient(rgb(91 60 245 / 26%) 2px, transparent 2px), linear-gradient(90deg, rgb(200 29 108 / 20%) 2px, transparent 2px);
+  background-size: 64px 64px; animation: floor 2.6s linear infinite;
+  transform: rotateX(66deg);
+}
+@keyframes floor { from { transform: rotateX(66deg) translate3d(0, 0, 0); } to { transform: rotateX(66deg) translate3d(0, 64px, 0); } }
+.hero-spot {
+  position: absolute; left: 0; top: 0; width: 620px; height: 620px; margin: -310px 0 0 -310px; border-radius: 50%; opacity: 0;
+  background: radial-gradient(closest-side, rgb(255 255 255 / 95%), rgb(255 240 250 / 55%) 45%, rgb(255 255 255 / 0));
+  transition: opacity .5s var(--ease); will-change: transform;
+}
+.hero.is-lit .hero-spot { opacity: 1; }
 
-.hero-inner { width: min(1180px, 100%); display: grid; justify-items: center; text-align: center; }
+.hero-inner { width: min(1320px, 100%); display: grid; grid-template-columns: minmax(0, 1.22fr) minmax(0, .9fr); align-items: center; gap: 44px; }
+.hero-main { min-width: 0; display: grid; justify-items: start; }
 .hero-tag {
   display: inline-flex; align-items: center; gap: 10px; padding: 7px 16px; border: var(--line); border-radius: 999px;
-  background: #fff; box-shadow: 3px 3px 0 var(--ink); font: 800 14px var(--font-ui); letter-spacing: .04em;
+  background: #fff; box-shadow: 3px 3px 0 var(--ink); font: 800 15px var(--font-ui); letter-spacing: .04em;
 }
 .hero-tag-sep { width: 6px; height: 6px; border-radius: 2px; background: var(--ink); transform: rotate(45deg); }
-.live-dot { position: relative; width: 10px; height: 10px; border-radius: 50%; background: var(--lime); border: 1.5px solid var(--ink); }
+.live-dot { position: relative; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--lime); border: 1.5px solid var(--ink); }
 .live-dot::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid var(--lime); animation: ping 1.6s ease-out infinite; }
 @keyframes ping { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
 
-.hero-title-box { width: 100%; margin: 26px 0 8px; }
+.hero-h1 { display: block; width: 100%; margin-top: 18px; font-weight: inherit; }
+.hero-title-box { display: block; width: 100%; margin-left: -4px; }
 .hero-title { display: block; width: 100%; cursor: crosshair; touch-action: manipulation; }
-.hero-name { font: 900 clamp(30px, 5.6vw, 68px)/1.15 var(--font-display); letter-spacing: .02em; text-wrap: balance; }
-.hero-name span { background: var(--text-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.hero-lead { max-width: 660px; margin-top: 14px; font-size: 17px; color: var(--ink-2); text-wrap: pretty; }
-
-.countdown { margin-top: 30px; display: grid; justify-items: center; gap: 12px; }
-.countdown-label { font: 800 14px var(--font-ui); letter-spacing: .12em; color: var(--ink-2); }
-.cd-units { display: flex; gap: 16px; }
-.cd-units[hidden] { display: none; }
-.cd-unit {
-  display: grid; justify-items: center; gap: 6px; min-width: 112px; padding: 14px 16px 10px;
-  border: var(--line); border-radius: 18px; background: #fff; box-shadow: 5px 5px 0 var(--tone);
+/* 比赛名逐字从下面翻上来，每个字切走渐变的一段，连起来是紫到粉到琥珀；之后一道光从左往右扫过 */
+.hero-name { position: relative; display: block; margin-top: 6px; font: 900 clamp(26px, 3.9vw, 58px)/1.18 var(--font-display); letter-spacing: .02em; white-space: nowrap; perspective: 600px; }
+.hero-name > span {
+  display: inline-block; background: var(--text-grad); background-size: calc(var(--n) * 100%) 100%;
+  background-position: calc(var(--i) / (var(--n) - 1) * 100%) 0; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: letter-in .9s var(--ease) both; animation-delay: calc(var(--i) * 45ms + 250ms); transform-origin: 50% 100%;
 }
-.cd-digits { display: flex; font: 800 56px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+@keyframes letter-in { from { opacity: 0; transform: translate3d(0, .5em, 0) rotateX(-75deg); } }
+.hero-name::after {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 30%; pointer-events: none; mix-blend-mode: soft-light;
+  background: linear-gradient(100deg, rgb(255 255 255 / 0), rgb(255 255 255 / 90%), rgb(255 255 255 / 0));
+  transform: translate3d(-120%, 0, 0); animation: sweep 5.5s var(--ease) 1.6s infinite;
+}
+@keyframes sweep { 0% { transform: translate3d(-120%, 0, 0); } 35%, 100% { transform: translate3d(360%, 0, 0); } }
+.hero-kicker { margin-top: 8px; font: 700 15px var(--font-ui); color: var(--ink-2); }
+
+.how { width: 100%; margin-top: 22px; }
+.how-title { font: 800 13px var(--font-ui); letter-spacing: .14em; color: var(--ink-2); }
+.how-list { list-style: none; display: grid; gap: 10px; margin-top: 10px; counter-reset: how; }
+.how-step {
+  position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 14px; padding: 10px 16px 10px 12px;
+  border: var(--line); border-radius: 16px; background: rgb(255 255 255 / 88%); box-shadow: 4px 4px 0 var(--tone);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  animation: step-in .7s var(--ease) both; animation-delay: calc(var(--k, 0) * 90ms + 700ms);
+}
+.how-step:nth-child(2) { --k: 1; }
+.how-step:nth-child(3) { --k: 2; }
+@keyframes step-in { from { opacity: 0; transform: translate3d(-28px, 0, 0); } }
+.how-icon { display: grid; place-items: center; width: 44px; height: 44px; border: var(--line); border-radius: 13px; background: var(--tone-fill); font-size: 22px; }
+.how-step h3 { font: 900 17px/1.35 var(--font-display); }
+.how-step p { font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+.how-step code { font-size: .9em; }
+
+.hero-act { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 26px; margin-top: 22px; }
+.countdown { display: grid; gap: 6px; }
+.countdown-label { display: flex; align-items: center; gap: 6px; font: 800 13px var(--font-ui); letter-spacing: .08em; color: var(--ink-2); }
+.countdown-label[hidden] { display: none; }
+.cd-units { display: flex; gap: 8px; }
+.cd-units[hidden] { display: none; }
+.cd-unit { display: flex; align-items: baseline; gap: 4px; padding: 6px 9px 6px 11px; border: var(--line); border-radius: 13px; background: #fff; box-shadow: 3px 3px 0 var(--tone); }
+.cd-digits { display: flex; font: 800 27px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
 .cd-digit { position: relative; display: inline-block; width: .62em; height: 1.08em; overflow: hidden; }
 .cd-digit b { position: absolute; inset: 0; display: grid; place-items: center; font-weight: inherit; }
 .cd-digit b.is-in { animation: roll-in .5s cubic-bezier(.2, 1.35, .4, 1) both; }
 .cd-digit b.is-out { animation: roll-out .38s ease-in both; }
 @keyframes roll-in { from { transform: translateY(100%); } }
 @keyframes roll-out { to { transform: translateY(-100%); opacity: 0; } }
-.cd-label { padding: 1px 12px; border-radius: 999px; background: var(--tone-soft); font: 800 13px var(--font-ui); color: var(--ink); }
-.countdown-ended { padding: 12px 22px; border: var(--line); border-radius: 16px; background: var(--amber-soft); font: 800 22px var(--font-ui); box-shadow: var(--shadow); }
-
-.cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; margin-top: 30px; }
+.cd-label { font: 800 12px var(--font-ui); color: var(--ink-2); }
+.countdown-ended { padding: 8px 16px; border: var(--line); border-radius: 14px; background: var(--amber-soft); font: 800 17px var(--font-ui); box-shadow: 3px 3px 0 var(--ink); }
+.cta { display: flex; flex-wrap: wrap; gap: 14px; }
 .term {
-  display: inline-flex; align-items: center; margin-top: 24px; padding: 8px 16px; min-height: 40px;
+  display: inline-flex; align-items: center; margin-top: 18px; padding: 6px 14px; min-height: 36px;
   border: 1.5px dashed rgb(22 20 31 / 45%); border-radius: 12px; background: rgb(255 255 255 / 75%);
-  font: 600 14px var(--font-mono); color: var(--ink-2); white-space: nowrap; max-width: 100%; overflow: hidden;
+  font: 600 13px var(--font-mono); color: var(--ink-2); white-space: nowrap; max-width: 100%; overflow: hidden;
 }
 .term-caret { width: .55em; height: 1.15em; margin-left: 2px; background: var(--violet-deep); animation: blink 1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
+
+/* 右侧两张卡：随指针轻微倾斜（hero.ts 写 transform） */
+.hero-side { min-width: 0; display: grid; gap: 20px; }
+.tilt { position: relative; will-change: transform; animation: card-in .9s var(--ease) backwards; }
+.mini.tilt { animation-delay: .5s; }
+.purse.tilt { animation-delay: .3s; }
+@keyframes card-in { from { opacity: 0; transform: perspective(1100px) translate3d(40px, 0, 0) rotateY(-18deg); } }
+.side-head { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap; }
+.side-head h2 { display: inline-flex; align-items: center; gap: 8px; font: 900 21px var(--font-display); }
+.side-sub { font: 700 14px var(--font-ui); color: var(--ink-2); }
+.side-link { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 4px; font: 800 14px var(--font-ui); color: var(--violet-deep); text-decoration: none; }
+.side-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* 奖金卡：彩色渐变底，一道反光定时扫过；第一名那格是一圈转动的彩虹边 */
+.purse {
+  overflow: hidden; padding: 18px 22px 16px; border: 2.5px solid var(--ink); border-radius: 24px; box-shadow: 7px 7px 0 var(--ink);
+  background: linear-gradient(130deg, #fff 0%, var(--violet-soft) 26%, var(--pink-soft) 52%, var(--amber-soft) 78%, #fff 100%);
+}
+.sheen {
+  position: absolute; top: -20%; bottom: -20%; left: 0; width: 45%; pointer-events: none;
+  background: linear-gradient(105deg, rgb(255 255 255 / 0), rgb(255 255 255 / 80%) 50%, rgb(255 255 255 / 0));
+  transform: translate3d(-130%, 0, 0) skewX(-12deg); animation: shine 4.8s var(--ease) 1.2s infinite;
+}
+@keyframes shine { 0% { transform: translate3d(-130%, 0, 0) skewX(-12deg); } 40%, 100% { transform: translate3d(330%, 0, 0) skewX(-12deg); } }
+.purse-tiers { position: relative; list-style: none; display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; margin-top: 12px; }
+.tier { display: grid; align-content: start; gap: 2px; min-width: 0; padding: 12px 14px; border: var(--line); border-radius: 16px; background: #fff; box-shadow: 3px 3px 0 var(--ink); animation: tier-in .7s var(--ease) both; }
+.tier:nth-child(1) { animation-delay: .55s; }
+.tier:nth-child(2) { animation-delay: .65s; }
+.tier:nth-child(3) { animation-delay: .75s; }
+@keyframes tier-in { from { opacity: 0; transform: translate3d(0, 16px, 0) scale(.9); } }
+.tier.is-top {
+  position: relative; border: 0; padding: 14px 16px; isolation: isolate;
+  background: conic-gradient(from var(--spin), var(--violet), var(--pink), var(--amber), var(--lime), var(--sky), var(--violet));
+  animation: tier-in .7s var(--ease) .55s both, spin 5s linear infinite;
+}
+.tier.is-top::before { content: ""; position: absolute; inset: 3px; z-index: -1; border-radius: 13px; background: #fff; }
+@keyframes spin { to { --spin: 360deg; } }
+.tier-empty { grid-column: 1 / -1; color: var(--ink-3); }
+.tier-rank { font: 800 13.5px var(--font-ui); color: var(--ink-2); white-space: nowrap; }
+.tier-amount { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 4px; font: 800 15px var(--font-ui); }
+.tier-amount b { font: 900 40px/1.05 var(--font-display); letter-spacing: -.02em; background: var(--text-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tier.is-top .tier-amount b { font-size: 56px; }
+.tier-amount small { flex-basis: 100%; font-size: 12.5px; font-weight: 700; color: var(--ink-3); }
+.purse-note { position: relative; display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; font-size: 14.5px; font-weight: 600; color: var(--ink); }
+.purse-note .icon { margin-top: .2em; color: var(--pink-deep); }
+
+/* 实时天梯前几名 */
+.mini { padding: 14px 20px 14px; border: 2.5px solid var(--ink); border-radius: 24px; background: #fff; box-shadow: 7px 7px 0 var(--lime); }
+.mini-body { margin-top: 2px; }
+.mini-list { list-style: none; display: grid; gap: 6px; }
+.mini-row {
+  display: grid; grid-template-columns: 30px 34px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 10px;
+  border: 1.5px solid rgb(22 20 31 / 14%); border-radius: 14px; background: #fcfbff;
+}
+.mini-rank { display: grid; place-items: center; width: 28px; height: 28px; border: var(--line); border-radius: 9px; background: #f1eff6; font: 800 14px var(--font-mono); }
+.mini-row.place-1 .mini-rank { background: var(--amber-fill); }
+.mini-row.place-2 .mini-rank { background: var(--violet-fill); }
+.mini-row.place-3 .mini-rank { background: var(--pink-fill); }
+.mini-row.place-1 { background: var(--amber-soft); border-color: rgb(22 20 31 / 30%); }
+.mini-name { display: grid; min-width: 0; line-height: 1.3; }
+.mini-name b, .mini-name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini-name b { font-size: 15px; }
+.mini-name small { font: 500 12px var(--font-mono); color: var(--ink-3); }
+.mini-score { white-space: nowrap; font-size: 13px; color: var(--ink-2); }
+.mini-score b { font: 800 19px var(--font-mono); color: var(--ink); }
+.mini .empty, .mini .loading { padding: 18px 6px; }
+.mini .data-error { margin-top: 6px; }
+.mini-meta { margin-top: 8px; font-size: 12.5px; color: var(--ink-3); }
+
 .scroll-hint {
-  position: absolute; left: 50%; bottom: 84px; display: grid; place-items: center; width: 46px; height: 46px; margin-left: -23px;
+  position: absolute; left: 50%; bottom: 70px; display: grid; place-items: center; width: 44px; height: 44px; margin-left: -22px;
   border: var(--line); border-radius: 50%; background: #fff; font-size: 20px; box-shadow: 3px 3px 0 var(--ink); animation: hop 1.8s var(--ease) infinite;
 }
 @keyframes hop { 50% { transform: translateY(6px); } }
@@ -153,10 +281,12 @@ button { font: inherit; color: inherit; }
 .sec:focus { outline: none; }
 .sec-head { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 30px; }
 .sec-no { padding: 3px 12px; border: var(--line); border-radius: 999px; background: var(--tone-fill); font: 800 15px var(--font-mono); box-shadow: 3px 3px 0 var(--ink); }
-.sec-head h2 {
-  font: 900 clamp(32px, 4.6vw, 52px)/1.12 var(--font-display); letter-spacing: .01em; padding: 0 6px;
-  background: linear-gradient(transparent 60%, var(--tone-fill) 60%, var(--tone-fill) 90%, transparent 90%);
-}
+.sec-head h2 { position: relative; z-index: 0; font: 900 clamp(32px, 4.6vw, 52px)/1.12 var(--font-display); letter-spacing: .01em; padding: 0 6px; }
+/* 标题下面那道荧光笔：段落出现时从左往右划出来 */
+.sec-head h2::before { content: ""; position: absolute; z-index: -1; left: 0; right: 0; top: 60%; height: 30%; background: var(--tone-fill); transform-origin: 0 50%; transition: transform .7s var(--ease) .25s; }
+.js .sec:not(.is-in) .sec-head h2::before { transform: scaleX(0); }
+.sec-no { transition: transform .6s var(--ease) .1s; }
+.js .sec:not(.is-in) .sec-no { transform: rotate(-12deg) scale(.6); }
 .live-tag { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; padding: 5px 14px; border: var(--line); border-radius: 999px; background: #fff; font: 800 14px var(--font-ui); }
 .card { background: #fff; border: var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 24px; }
 .loading, .empty { padding: 20px 8px; text-align: center; color: var(--ink-3); }
@@ -175,20 +305,35 @@ button { font: inherit; color: inherit; }
 .js .sec .step:nth-child(2) { transition-delay: .08s; }
 .js .sec .step:nth-child(3) { transition-delay: .16s; }
 
-/* 计分 */
-.score-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
-.score-card h3 { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font: 900 22px var(--font-display); }
-.score-list { list-style: none; }
-.score-list li { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1.5px dashed rgb(22 20 31 / 18%); }
-.score-list li:last-child { border-bottom: 0; }
+/* 计分：两张基础分表（格子按分值深浅上色，像贡献热力图）、年级系数柱和「算一算」 */
 .chip { flex: none; display: inline-block; min-width: 3.4em; padding: 2px 12px; border: var(--line); border-radius: 999px; background: var(--tone-fill); font: 800 15px var(--font-mono); text-align: center; }
+.score-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; margin-top: 24px; }
 .note { display: flex; align-items: flex-start; gap: 12px; margin-top: 22px; padding: 16px 18px; border: var(--line); border-radius: 16px; background: var(--sky-soft); color: var(--ink); }
+.sec-head + .note { margin-top: 0; }
 .note .icon { margin-top: .25em; }
+.note-warn { background: var(--amber-soft); }
 .note-bad { background: var(--red-soft); }
-.grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); align-items: end; gap: 28px; margin-top: 22px; }
-.grade h3 { display: flex; align-items: center; gap: 10px; font: 900 22px var(--font-display); }
-.grade-text p { margin-top: 8px; color: var(--ink-2); }
-.grade-bars { list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; height: 210px; }
+.rubric { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 24px; }
+.rubric-card { margin: 0; padding: 20px 22px 22px; }
+.rubric-card figcaption { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; font: 900 22px var(--font-display); }
+.rubric-card figcaption small { flex-basis: 100%; font: 600 13.5px var(--font-ui); color: var(--ink-3); }
+.rubric-table { width: 100%; margin-top: 14px; border-collapse: separate; border-spacing: 8px; table-layout: fixed; margin-inline: -8px; width: calc(100% + 16px); }
+.rubric-table th { font: 800 15px var(--font-ui); color: var(--ink-2); }
+.rubric-table thead th { padding-bottom: 2px; }
+.rubric-table tbody th { width: 64px; text-align: left; }
+.rubric-table thead td { width: 64px; }
+.rubric-table td { padding: 0; }
+.heat {
+  display: grid; place-items: center; height: 62px; border: var(--line); border-radius: 14px;
+  background: color-mix(in oklab, var(--tone-fill) calc(var(--h) * 100%), #fff); font: 800 26px var(--font-mono);
+  transition: transform .5s var(--ease) var(--d, 0s), opacity .5s var(--ease) var(--d, 0s), box-shadow .2s var(--ease);
+}
+.heat.is-pick { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--ink), 0 10px 30px rgb(91 60 245 / 35%); transform: translateY(-3px); }
+.js .sec:not(.is-in) .heat { opacity: 0; transform: scale(.5); }
+.rubric-legend { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 14px; font-size: 14.5px; color: var(--ink-2); }
+.grade h3, .calc h3 { display: flex; align-items: center; gap: 10px; font: 900 22px var(--font-display); }
+.grade > p { margin-top: 8px; color: var(--ink-2); }
+.grade-bars { list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; height: 200px; margin-top: 16px; }
 .grade-bars li { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; min-width: 0; }
 .grade-bars b { font: 800 16px var(--font-mono); }
 .grade-bars i { display: block; width: 100%; height: calc((100% - 56px) * var(--k, 1)); border: var(--line); border-radius: 12px 12px 4px 4px; background: var(--violet-fill); transform-origin: bottom; transition: transform .8s var(--ease); }
@@ -199,6 +344,22 @@ button { font: inherit; color: inherit; }
 .grade-bars li:nth-child(6) i { background: #e7e4ef; transition-delay: .3s; }
 .js .sec:not(.is-in) .grade-bars i { transform: scaleY(.05); }
 .grade-bars span { font-size: 14px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+.calc-groups { display: grid; gap: 10px; margin-top: 12px; }
+.seg { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: start; gap: 10px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.seg legend { float: left; padding: 0; font: 800 14px/40px var(--font-ui); color: var(--ink-2); }
+.seg-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg label { position: relative; display: inline-flex; cursor: pointer; }
+.seg input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.seg span { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: var(--line); border-radius: 999px; background: #fff; font: 700 15px var(--font-ui); transition: background .15s, color .15s; }
+.seg input:checked + span { background: var(--violet-deep); color: #fff; }
+.seg input:focus-visible + span { outline: 3px solid var(--violet-deep); outline-offset: 3px; }
+.seg label:hover input:not(:checked) + span { background: var(--violet-soft); }
+.calc-out { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-top: 16px; padding: 12px 16px; border: var(--line); border-radius: 16px; background: linear-gradient(120deg, var(--violet-soft), var(--pink-soft)); }
+.calc-formula { font: 800 22px var(--font-mono); }
+.calc-eq { font: 800 22px var(--font-mono); color: var(--ink-3); }
+.calc-total { font: 800 16px var(--font-ui); }
+.calc-total b { font: 900 40px/1 var(--font-display); background: var(--text-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.calc-note { margin-top: 8px; min-height: 1.6em; font-size: 14.5px; color: var(--ink-2); }
 
 /* 奖项 */
 .prizes { list-style: none; display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 24px; align-items: stretch; }
@@ -297,6 +458,8 @@ button { font: inherit; color: inherit; }
 .feed-line b { font-size: 16px; }
 .feed-user { font: 500 13px var(--font-mono); color: var(--ink-3); }
 .feed-action { color: var(--ink-2); }
+.feed-damped { font-size: 13px; color: var(--ink-3); }
+.feed-levels { padding: 0 9px; border: 1.5px solid rgb(22 20 31 / 35%); border-radius: 999px; background: var(--violet-soft); font: 700 12.5px/1.6 var(--font-ui); color: var(--ink); }
 .feed-title { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; margin-top: 2px; color: var(--violet-deep); font-weight: 600; text-decoration: none; }
 .feed-title:hover { text-decoration: underline; text-underline-offset: 3px; }
 .feed-side { display: grid; justify-items: end; gap: 4px; }
@@ -373,24 +536,80 @@ button { font: inherit; color: inherit; }
 
 .fx { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
 
-/* ── 手机 ── */
+/* 滚动驱动：顶上一条阅读进度；首屏往上滚走时内容上移缩小、背景下沉，像镜头往前推。不支持的浏览器就是静止的。 */
+@supports (animation-timeline: scroll()) {
+  .progress { display: block; animation: progress linear both; animation-timeline: scroll(root block); }
+  @keyframes progress { to { transform: scaleX(1); } }
+  .hero-inner { animation: hero-away linear both; animation-timeline: view(); animation-range: exit 0% exit 100%; }
+  @keyframes hero-away { to { transform: translate3d(0, -10vh, 0) scale(.93); opacity: .15; } }
+  .hero-bg { animation: hero-sink linear both; animation-timeline: view(); animation-range: exit 0% exit 100%; }
+  @keyframes hero-sink { to { transform: translate3d(0, 22vh, 0) scale(1.08); } }
+}
+
+/* 平板：首屏改成上下两段，奖金和天梯并排 */
+@media (min-width: 721px) and (max-width: 1080px) {
+  .hero-inner { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .hero-side { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+}
+
+/* ── 手机：首屏一屏装下比赛名、怎么拿分、倒计时与报名、奖金、天梯前三 ── */
 @media (max-width: 720px) {
   body { font-size: 15.5px; }
-  .hero { padding: 44px 16px 132px; }
-  .scroll-hint { bottom: 70px; }
-  .hero-title-box { margin: 22px 0 6px; }
-  .hero-name span { display: block; }
-  .hero-lead { font-size: 15.5px; }
-  .countdown { margin-top: 24px; width: 100%; }
-  .cd-units { gap: 8px; width: 100%; }
-  .cd-unit { flex: 1; min-width: 0; padding: 10px 4px 8px; border-radius: 14px; box-shadow: 4px 4px 0 var(--tone); }
-  .cd-digits { font-size: 36px; }
-  .cta { gap: 12px; margin-top: 24px; }
-  .btn { min-height: 50px; padding: 0 22px; font-size: 16px; }
-  .term { font-size: 12.5px; padding: 6px 12px; }
-  .ticker { margin-top: -50px; }
+  .hero { min-height: 0; padding: 14px 16px 18px; place-items: start center; }
+  .hero-inner { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .hero-tag { gap: 8px; padding: 4px 12px; font-size: 13px; box-shadow: 2px 2px 0 var(--ink); }
+  .hero-h1 { margin-top: 10px; }
+  .hero-name { margin-top: 4px; font-size: clamp(22px, 6.6vw, 30px); }
+  .hero-kicker { margin-top: 2px; font-size: 12.5px; }
+  .how { margin-top: 10px; }
+  .how-title { display: none; }
+  .how-list { gap: 6px; margin-top: 0; }
+  .how-step { grid-template-columns: 32px minmax(0, 1fr); gap: 10px; padding: 6px 10px 6px 8px; border-radius: 13px; box-shadow: 3px 3px 0 var(--tone); }
+  .how-icon { width: 32px; height: 32px; border-radius: 10px; font-size: 17px; }
+  .how-step h3 { font-size: 14.5px; line-height: 1.3; }
+  .how-step p { font-size: 12.5px; line-height: 1.45; }
+  .hero-act { width: 100%; flex-direction: column; align-items: stretch; gap: 8px; margin-top: 10px; }
+  .countdown { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; }
+  .countdown-label { font-size: 12px; letter-spacing: .02em; }
+  .countdown-label .icon { display: none; }
+  .cd-units { gap: 5px; justify-content: flex-end; }
+  .cd-unit { padding: 3px 6px 3px 7px; border-radius: 10px; box-shadow: 2px 2px 0 var(--tone); }
+  .cd-digits { font-size: 18px; }
+  .cd-label { font-size: 11px; }
+  .countdown-ended { grid-column: 1 / -1; font-size: 15px; padding: 6px 12px; }
+  .cta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cta .btn { min-height: 44px; padding: 0 12px; font-size: 15px; box-shadow: 3px 3px 0 var(--ink); }
+  .term, .scroll-hint { display: none; }
+  .hero-side { gap: 12px; }
+  .side-head h2 { font-size: 16px; gap: 6px; }
+  .side-sub { font-size: 12px; }
+  .side-link { min-height: 32px; font-size: 13px; }
+  .purse { padding: 10px 12px 10px; border-width: 2px; border-radius: 18px; box-shadow: 4px 4px 0 var(--ink); }
+  .purse-tiers { gap: 6px; margin-top: 6px; grid-template-columns: 1.15fr 1fr 1fr; }
+  .tier { padding: 6px 8px; border-radius: 12px; box-shadow: 2px 2px 0 var(--ink); }
+  .tier.is-top { padding: 7px 9px; }
+  .tier.is-top::before { border-radius: 10px; }
+  .tier-rank { font-size: 11.5px; }
+  .tier-amount { font-size: 12px; }
+  .tier-amount b { font-size: 24px; }
+  .tier.is-top .tier-amount b { font-size: 30px; }
+  .tier-amount small { font-size: 10.5px; }
+  .purse-note { margin-top: 6px; font-size: 12px; gap: 6px; }
+  .mini { padding: 8px 12px 8px; border-width: 2px; border-radius: 18px; box-shadow: 4px 4px 0 var(--lime); }
+  .mini-list { gap: 4px; }
+  .mini-row { grid-template-columns: 24px 28px minmax(0, 1fr) auto; gap: 8px; padding: 3px 8px; border-radius: 11px; }
+  .mini-row:nth-child(n + 4) { display: none; }
+  .mini-rank { width: 24px; height: 24px; border-radius: 7px; font-size: 12px; }
+  .mini-row .avatar { width: 28px; height: 28px; font-size: 12px; }
+  .mini-name b { font-size: 14px; }
+  .mini-name small { display: none; }
+  .mini-score b { font-size: 16px; }
+  .mini-score { font-size: 11.5px; }
+  .mini .empty, .mini .loading { padding: 10px 4px; font-size: 13px; }
+  .mini-meta { margin-top: 4px; font-size: 11px; }
+  .ticker { margin-top: 0; }
   .tk-item { font-size: 15px; }
-  .sections { padding: 64px 16px 40px; gap: 80px; }
+  .sections { padding: 56px 16px 40px; gap: 80px; }
   .sec-head { margin-bottom: 22px; }
   .live-tag { margin-left: 0; }
   .card { padding: 18px; }
@@ -398,8 +617,17 @@ button { font: inherit; color: inherit; }
   .steps::before { left: 46px; right: auto; top: 30px; bottom: 30px; border-top: 0; border-left: 3px dashed var(--ink); }
   .step { padding: 20px; }
   .step-no { font-size: 76px; }
-  .score-cols { grid-template-columns: minmax(0, 1fr); gap: 18px; }
-  .grade { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .rubric, .score-cols { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .rubric-card { padding: 16px 14px 16px; }
+  .rubric-table { border-spacing: 6px; margin-inline: -6px; width: calc(100% + 12px); }
+  .rubric-table tbody th, .rubric-table thead td { width: 44px; }
+  .rubric-table th { font-size: 14px; }
+  .heat { height: 52px; font-size: 22px; border-radius: 12px; }
+  .seg { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .seg legend { line-height: 1.4; }
+  .seg span { min-height: 40px; padding: 0 12px; font-size: 14.5px; }
+  .calc-formula, .calc-eq { font-size: 19px; }
+  .calc-total b { font-size: 34px; }
   .grade-bars { gap: 6px; height: 170px; }
   .grade-bars b { font-size: 13px; }
   .grade-bars span { font-size: 12px; }
@@ -436,9 +664,12 @@ button { font: inherit; color: inherit; }
   .finale-lead { font-size: 16px; }
 }
 
+/* 减少动态效果：一切停在最终的样子 */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .js .sec, .js .finale { opacity: 1; transform: none; }
-  .js .sec:not(.is-in) .step, .js .sec:not(.is-in) .grade-bars i { transform: none; }
+  .js .sec:not(.is-in) .step, .js .sec:not(.is-in) .grade-bars i, .js .sec:not(.is-in) .sec-head h2::before, .js .sec:not(.is-in) .sec-no { transform: none; }
+  .js .sec:not(.is-in) .heat { opacity: 1; transform: none; }
+  .progress, .sheen, .hero-name::after, .hero-spot { display: none; }
 }

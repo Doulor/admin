@@ -1,15 +1,18 @@
 // 第一期比赛官网入口（#278）。页面托管在 /c/<slug>/，在 sandbox CSP 下运行：
 // 来源是 null，只能匿名读同源的公开接口；报名、组队都是主站链接，在新标签页打开。
-// 数据全部来自 SDK 的快照（每 15 秒一次）；接口失败时各段显示「数据暂时取不到，稍后自动重试」，首屏标题与倒计时照常。
+// 数据全部来自 SDK 的快照（每 15 秒一次）；接口失败时各段显示「数据暂时取不到，稍后自动重试」，
+// 首屏标题、倒计时、怎么拿分、奖金和计分表照常（接口回来之前用 site.config.ts 的兜底值）。
 import "./styles.css";
-import { createClient, type FeedItem, type Snapshot } from "@shared/competition-sdk";
-import { SITE } from "../site.config";
+import { createClient, type FeedItem, type PublicCompetition, type Snapshot } from "@shared/competition-sdk";
+import { FALLBACK, SITE } from "../site.config";
 import { createBoard } from "./board";
 import { createCountdown } from "./countdown";
 import { createFeed } from "./feed";
 import { createFx } from "./fx";
+import { createMini, renderPurse, startHeroFx } from "./hero";
 import { hydrateIcons } from "./icons";
-import { failSlot, renderGradeFactors, renderPrizes, renderTeams, renderTexts, renderTimeline } from "./sections";
+import { createCalc, renderGradeFactors, renderRubric, renderScoringTexts } from "./scoring";
+import { failSlot, renderPrizes, renderTeams, renderTexts, renderTimeline } from "./sections";
 import { startTerminal } from "./terminal";
 import { createTicker } from "./ticker";
 import { createTitle } from "./title";
@@ -33,8 +36,25 @@ const ticker = createTicker($(".ticker"));
 const board = createBoard($("#board"));
 const feed = createFeed($("#feed"), client);
 const fx = createFx();
+const mini = createMini($('[data-slot="mini"]'));
+const calc = createCalc($('[data-slot="calc"]'), $('[data-slot="rubric"]'));
+
+// 计分表、年级系数和首屏的奖金先按 site.config.ts 的兜底值画出来，接口回来再换
+let rulesKey = "";
+function renderRules(competition: Pick<PublicCompetition, "scoring" | "grade_factors" | "prizes">) {
+  const key = JSON.stringify([competition.scoring, competition.grade_factors, competition.prizes]);
+  if (key === rulesKey) return;
+  rulesKey = key;
+  renderRubric($('[data-slot="rubric"]'), $('[data-slot="rubric-legend"]'), competition.scoring);
+  renderGradeFactors($("#grade-list"), competition.grade_factors);
+  renderScoringTexts(competition.scoring, competition.grade_factors);
+  renderPurse($('[data-slot="purse"]'), $('[data-slot="purse-total"]'), competition.prizes);
+  calc.update(competition.scoring, competition.grade_factors);
+}
+renderRules(FALLBACK);
 
 title.start();
+startHeroFx($(".hero"));
 startTerminal($(".term"));
 countdown.setTimes(SITE.fallback);
 renderTimeline($('[data-slot="timeline"]'), { ...SITE.fallback, signup_deadline: null });
@@ -68,7 +88,7 @@ function apply(snapshot: Snapshot) {
   countdown.setTimes(competition);
   renderTimeline($('[data-slot="timeline"]'), competition);
   renderTexts(competition);
-  renderGradeFactors($("#grade-list"), competition);
+  renderRules(competition);
   renderPrizes($('[data-slot="prizes"]'), competition);
   shown.prizes = true;
   renderTeams($('[data-slot="teams"]'), leaderboard.teams, client.teamUrl());
@@ -80,6 +100,7 @@ function apply(snapshot: Snapshot) {
   const flying = fresh.filter((item): item is FeedItem => item.kind !== "penalty" && item.points > 0).slice(0, 5);
   const held = new Set(flying.map(item => `u:${item.username}`));
   board.render(leaderboard, held);
+  mini.render(leaderboard.individuals);
   board.renderStats(stats);
   board.setMeta(competition.finalized_at
     ? "已定榜，名次不再变化"
@@ -94,6 +115,7 @@ function apply(snapshot: Snapshot) {
 
 function fail() {
   board.fail();
+  mini.fail();
   feed.fail();
   if (!shown.prizes) failSlot($('[data-slot="prizes"]'));
   if (!shown.teams) failSlot($('[data-slot="teams"]'));

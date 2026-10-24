@@ -36,6 +36,7 @@ function setDigit(slot: HTMLElement, ch: string) {
 
 export function createCountdown(root: HTMLElement, phase: HTMLElement | null = null) {
   const label = root.querySelector<HTMLElement>("#countdown-label")!;
+  const labelRow = label.closest<HTMLElement>(".countdown-label") ?? label;
   const ended = root.querySelector<HTMLElement>("#countdown-ended")!;
   const units = root.querySelector<HTMLElement>(".cd-units")!;
   const text = root.querySelector<HTMLElement>("#countdown-text")!;
@@ -61,7 +62,7 @@ export function createCountdown(root: HTMLElement, phase: HTMLElement | null = n
     label.textContent = before ? "距离开赛还有" : "距离截止还有";
     if (phase) phase.textContent = before ? "未开赛" : over ? "已结束" : "进行中";
     units.hidden = over;
-    label.hidden = over;
+    labelRow.hidden = over;
     ended.hidden = !over;
     if (over) {
       text.textContent = "比赛已结束，结果公布中";

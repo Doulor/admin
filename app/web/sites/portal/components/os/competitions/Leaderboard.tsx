@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Icon from "../../Icon";
 import Avatar, { TeamBadge } from "./Avatar";
-import type { BoardPerson, BoardTeam, Leaderboard, MemberRead } from "../../../lib/competitionHub";
+import { trivialRuleText, type BoardPerson, type BoardTeam, type Leaderboard, type MemberRead } from "../../../lib/competitionHub";
+import type { Scoring } from "../../../lib/competitions";
 
-type Props = { board: MemberRead<Leaderboard>; meId: string | null; myTeamId: string | null; teamMode: boolean };
+type Props = { board: MemberRead<Leaderboard>; meId: string | null; myTeamId: string | null; teamMode: boolean; scoring?: Scoring | null };
 
 const pad = (value: number) => String(value).padStart(2, "0");
 /** 北京时间的 `HH:mm:ss`：天梯每 10 秒刷新，精确到秒才看得出在动。 */
@@ -126,7 +127,7 @@ function Teams({ rows, myTeamId }: { rows: BoardTeam[]; myTeamId: string | null 
   );
 }
 
-export default function BoardPanel({ board, meId, myTeamId, teamMode }: Props) {
+export default function BoardPanel({ board, meId, myTeamId, teamMode, scoring = null }: Props) {
   const [view, setView] = useState<"people" | "teams">("people");
   const data = board.data;
   const stale = board.phase === "failed";
@@ -161,6 +162,9 @@ export default function BoardPanel({ board, meId, myTeamId, teamMode }: Props) {
       ) : (
         <People rows={data.individuals} meId={meId} />
       )}
+      <p className="pt-cx-fine">
+        只有组织者标记「有用」的 Issue 和 MR 计分：基础分按重要程度和核心度查表，不看代码行数，再乘年级系数。{scoring ? trivialRuleText(scoring) : ""}表在「概览」的计分规则里。
+      </p>
     </>
   );
 }

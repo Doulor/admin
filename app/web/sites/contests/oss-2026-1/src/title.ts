@@ -72,10 +72,11 @@ export function createTitle(canvas: HTMLCanvasElement) {
   let nextCommit = 0;
 
   function build() {
-    const narrow = host.clientWidth < 720;
-    const lines = narrow ? ["OSS", "CHALLENGE"] : ["OSS CHALLENGE"];
-    const padX = narrow ? 1 : 3;
-    const padY = narrow ? 1 : 2;
+    // 手机上也排一行，留出首屏给计分、奖金和天梯；格子小一些，四周只留一格
+    const narrow = host.clientWidth < 520;
+    const lines = ["OSS CHALLENGE"];
+    const padX = narrow ? 1 : 2;
+    const padY = 1;
     const laid = lines.map(layoutLine);
     const textW = Math.max(...laid.map(line => line.width));
     cols = textW + padX * 2;

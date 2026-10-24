@@ -8,7 +8,7 @@
 // 界面在 components/os/competitions/，单测在 tests/web/portal-competition-hub.test.tsx。
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "@shared/lib/api";
-import { readSignup, type Competition, type SignupSettings } from "./competitions";
+import { readSignup, type Competition, type Scoring, type SignupSettings } from "./competitions";
 
 export type Person = { account_id: string; login: string; avatar_url: string | null };
 export type Member = Person & { role: "leader" | "member"; joined_at: number };
@@ -344,14 +344,20 @@ export function useHub(competitionId: string, account: AccountState, onChanged?:
 export const HUB_LIMITS = { teamName: 30, teamNameMin: 2, slogan: 60, note: 200, message: 100 } as const;
 
 /**
- * 计分规则（与服务端登记积分时的取值范围一致）：Issue +5～+30，合入的 MR +15～+100，作弊 −50。
- * #278 起只有被标记「有用」的 Issue 和 MR 才加分，加分乘年级系数，扣分不乘。
+ * 计分规则（与服务端 competition-rubric.ts 的基础分表一致）：Issue +5～+30，合入的 MR +15～+100，作弊 −50。
+ * #278 起只有被标记「有用」的 Issue 和 MR 才加分，基础分按重要程度 × 核心度查表、不看代码行数，加分乘年级系数，扣分不乘。
  */
 export const SCORE_RULES = [
-  { kind: "issue", label: "Issue", points: "+5～+30", note: "被标记「有用」才加分，按问题的价值与描述质量" },
-  { kind: "pr", label: "合入的 MR", points: "+15～+100", note: "被标记「有用」才加分，按改动的难度与影响" },
+  { kind: "issue", label: "Issue", points: "+5～+30", note: "被标记「有用」才加分，按重要程度和核心度查表" },
+  { kind: "pr", label: "合入的 MR", points: "+15～+100", note: "被标记「有用」才加分，按重要程度和核心度查表，不看代码行数" },
   { kind: "penalty", label: "作弊", points: "−50", note: "刷量、抄袭、冒名提交等，每次核实扣分，不乘年级系数" },
 ] as const;
+
+/** 防刷规则的一句话：「防刷：每人每周「一般 × 边缘」只算 1 条，后面的记 0 分，记录照留。」最低的一档是表里的第一档。 */
+export function trivialRuleText(scoring: Pick<Scoring, "importance" | "core" | "trivial_per_week" | "trivial_percent">): string {
+  const rest = scoring.trivial_percent === 0 ? "后面的记 0 分" : `后面的按 ${scoring.trivial_percent}% 算`;
+  return `防刷：每人每周「${scoring.importance[0]?.label} × ${scoring.core[0]?.label}」只算 ${scoring.trivial_per_week} 条，${rest}，记录照留。`;
+}
 
 /** 年级系数写成「×1.5」：最多两位小数，去掉末尾的 0，但至少留一位（×1.0）。 */
 export function factorText(factor: number): string {

@@ -1,4 +1,4 @@
-// 跟着比赛数据变的几段：奖项、年级系数、时间线、队伍，以及规则与常见问题里随设置变化的那几句话。
+// 跟着比赛数据变的几段：奖项、时间线、队伍，以及首屏、规则与常见问题里随设置变化的那几句话。计分表和年级系数在 scoring.ts。
 import type { LeaderboardTeam, PublicCompetition } from "@shared/competition-sdk";
 import { iconSvg } from "./icons";
 import { avatarHtml, clamp, errorHtml, escapeHtml, formatClock, formatDay, formatDayTime, formatRanks, formatShortDay } from "./util";
@@ -24,14 +24,6 @@ export function renderPrizes(slot: HTMLElement, competition: PublicCompetition) 
     ? `已于 ${formatDayTime(competition.finalized_at)} 定榜，名次不再变化。得奖的同学在主站「我的参赛」里看到兑奖码，凭兑奖码找组织者兑奖。`
     : "比赛结束后定榜。得奖的同学在主站「我的参赛」里看到兑奖码，凭兑奖码找组织者兑奖。奖只发给个人，得分为 0 的不发。";
   slot.innerHTML = `<ul class="prizes">${cards}</ul><p class="prize-note">${iconSvg("gift-line")}<span>${final}</span></p>`;
-}
-
-/** 年级系数画成柱子：高度按系数相对最大值，柱顶写系数。 */
-export function renderGradeFactors(list: HTMLElement, competition: PublicCompetition) {
-  if (competition.grade_factors.length === 0) return;
-  const max = Math.max(...competition.grade_factors.map(item => item.factor));
-  list.innerHTML = competition.grade_factors
-    .map(item => `<li style="--k:${(item.factor / max).toFixed(3)}"><b>×${item.factor.toFixed(1)}</b><i aria-hidden="true"></i><span>${escapeHtml(item.label)}</span></li>`).join("");
 }
 
 export function renderTimeline(slot: HTMLElement, times: { start_at: number; end_at: number; signup_deadline: number | null }, now = Date.now()) {
@@ -99,6 +91,8 @@ export function renderTexts(competition: PublicCompetition) {
       : "可以，这场比赛本来就按个人计分。";
   }
   for (const node of document.querySelectorAll<HTMLElement>('[data-text="end-at"]')) node.textContent = formatDayTime(competition.end_at);
+  for (const node of document.querySelectorAll<HTMLElement>('[data-text="kicker-team"]')) node.textContent = team ? "一个人或组队都能参加" : "按个人计分";
+  for (const node of document.querySelectorAll<HTMLElement>('[data-text="span"]')) node.textContent = `${formatDay(competition.start_at)}到 ${formatDay(competition.end_at)}`;
 }
 
 export function failSlot(slot: HTMLElement) {

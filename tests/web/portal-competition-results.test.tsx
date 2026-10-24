@@ -6,8 +6,9 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import CompetitionsApp from "../../app/web/sites/portal/components/os/competitions/CompetitionsApp";
 import CompetitionDetail from "../../app/web/sites/portal/components/os/competitions/CompetitionDetail";
 import type { Account } from "../../app/web/sites/portal/lib/account";
-import { readCompetition, readGradeFactors, readPrizes, type Competition } from "../../app/web/sites/portal/lib/competitions";
-import { factorText, hubPaths, rankRange, readMyResults } from "../../app/web/sites/portal/lib/competitionHub";
+import { readCompetition, readGradeFactors, readPrizes, readScoring, type Competition } from "../../app/web/sites/portal/lib/competitions";
+import { factorText, hubPaths, rankRange, readMyResults, trivialRuleText } from "../../app/web/sites/portal/lib/competitionHub";
+import { scoringView } from "../../app/server/src/lib/competition-rubric";
 
 beforeEach(() => localStorage.setItem("yugc:dev-data-source", "live"));
 afterEach(() => {
@@ -26,7 +27,7 @@ const PRIZES = [
   { from: 4, to: 8, amount_cny: 70, title: "" },
 ];
 const FACTORS = [
-  { grade: "year1", label: "大一", factor: 1.5 }, { grade: "year2", label: "大二", factor: 1.3 }, { grade: "year3", label: "大三", factor: 1.1 },
+  { grade: "year1", label: "大一", factor: 3.5 }, { grade: "year2", label: "大二", factor: 2.2 }, { grade: "year3", label: "大三", factor: 1.4 },
   { grade: "year4", label: "大四", factor: 1 }, { grade: "graduated", label: "已毕业", factor: 1 }, { grade: "none", label: "无年级", factor: 1 },
 ];
 
@@ -35,7 +36,7 @@ const competition = (over: Record<string, unknown> = {}): Competition => readCom
   start_at: NOW - DAY, end_at: NOW + 20 * DAY, signup_deadline: NOW + 10 * DAY,
   url: null, description: "", status: "registering",
   signup: { enabled: true, participation: "team", team_min: 1, team_max: 3, scoring: "contribution" },
-  site_url: "/c/oss-challenge-2026-1/", prizes: PRIZES, grade_factors: FACTORS, finalized_at: null,
+  site_url: "/c/oss-challenge-2026-1/", prizes: PRIZES, grade_factors: FACTORS, scoring: scoringView(), finalized_at: null,
   ...over,
 })!;
 
@@ -67,8 +68,8 @@ describe("奖项与年级系数的读入", () => {
     expect(readPrizes([...PRIZES, { from: 3, to: 1, amount_cny: 10, title: "x" }, { from: 1, to: 1, amount_cny: -1 }, { from: 0, to: 1, amount_cny: 1 }, "x"])).toEqual(PRIZES);
     expect(readPrizes(undefined)).toEqual([]);
     expect(readGradeFactors([...FACTORS, { grade: "x", label: "", factor: 1 }, { grade: "y", label: "研一", factor: 0 }, { label: "研二", factor: Number.NaN }])).toEqual(FACTORS);
-    const item = competition({ prizes: "bad", grade_factors: null, finalized_at: "soon" });
-    expect([item.prizes, item.grade_factors, item.finalized_at]).toEqual([[], [], null]);
+    const item = competition({ prizes: "bad", grade_factors: null, scoring: { points: [] }, finalized_at: "soon" });
+    expect([item.prizes, item.grade_factors, item.scoring, item.finalized_at]).toEqual([[], [], null, null]);
     expect([factorText(1.5), factorText(1), factorText(1.25), factorText(1.3)]).toEqual(["×1.5", "×1.0", "×1.25", "×1.3"]);
     expect([rankRange(1, 1), rankRange(4, 8)]).toEqual(["第 1 名", "第 4–8 名"]);
   });
@@ -88,12 +89,31 @@ describe("奖项与年级系数的读入", () => {
   });
 });
 
+describe("两档计分表的读入", () => {
+  it("服务端的表整张读进来；缺一格就整张不要", () => {
+    const scoring = readScoring(scoringView())!;
+    expect(scoring.points.pr.critical.core).toBe(100);
+    expect(scoring.points.issue.normal.edge).toBe(5);
+    expect(scoring.core.map((level) => level.label)).toEqual(["边缘", "业务", "核心"]);
+    expect(trivialRuleText(scoring)).toBe("防刷：每人每周「一般 × 边缘」只算 1 条，后面的记 0 分，记录照留。");
+    const missing = { ...scoringView(), points: scoringView().points.slice(1) };
+    expect(readScoring(missing)).toBeNull();
+    expect(readScoring({ ...scoringView(), penalty: "x" })).toBeNull();
+    expect(readScoring(null)).toBeNull();
+  });
+});
+
 describe("比赛详情：计分、奖项与官网入口", () => {
-  it("概览写出「有用」才计分、年级系数与三档奖项，Hero 里有比赛官网", async () => {
+  it("概览写出「有用」才计分、两档基础分表、防刷、年级系数与三档奖项，Hero 里有比赛官网", async () => {
     serve({});
     render(<CompetitionDetail item={competition()} now={NOW} account="signed_out" />);
     const factors = screen.getByRole("list", { name: "年级系数" });
-    expect(within(factors).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["大一×1.5", "大二×1.3", "大三×1.1", "大四×1.0", "已毕业×1.0", "无年级×1.0"]);
+    expect(within(factors).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["大一×3.5", "大二×2.2", "大三×1.4", "大四×1.0", "已毕业×1.0", "无年级×1.0"]);
+    const mr = screen.getByRole("table", { name: "合入的 MR" });
+    expect(within(mr).getAllByRole("row").map((row) => row.textContent)).toEqual(["重要程度边缘业务核心", "一般152540", "重要254565", "关键4065100"]);
+    expect(within(screen.getByRole("table", { name: "Issue" })).getAllByRole("row")[1].textContent).toBe("一般5812");
+    expect(screen.getByText(/不看代码行数/, { selector: ".pt-cx-rubric > p" })).toBeTruthy();
+    expect(screen.getByText(/防刷：每人每周「一般 × 边缘」只算 1 条/)).toBeTruthy();
     expect(screen.getByText(/Issue 和 MR 要被组织者标记「有用」才加分/)).toBeTruthy();
     expect(screen.getByText(/天梯每 10 秒刷新/)).toBeTruthy();
     const prizes = screen.getByRole("heading", { name: "奖项" }).closest("section")!;

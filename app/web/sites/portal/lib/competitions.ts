@@ -27,11 +27,21 @@ export type Competition = {
   prizes: PrizeTier[];
   /** 年级系数（#278）：只有开了积分的内部赛才有意义，按服务端给的顺序（大一到无年级）。 */
   grade_factors: GradeFactor[];
+  /** 两档计分表（#278）：重要程度 × 核心度查基础分、扣分与防刷规则；服务端没给或形状不对时是 null，不显示半张表。 */
+  scoring: Scoring | null;
   /** 定榜时间（#278）：定榜后名次不再变，得奖的人在「我的参赛」看到兑奖码；没定榜是 null。 */
   finalized_at: number | null;
 };
 export type PrizeTier = { from: number; to: number; amount_cny: number; title: string };
 export type GradeFactor = { grade: string; label: string; factor: number };
+export type ScoringLevel = { key: string; label: string; hint: string };
+export type Scoring = {
+  importance: ScoringLevel[];
+  core: ScoringLevel[];
+  /** `points[kind][importance][core]`：基础分。 */
+  points: Record<"issue" | "pr", Record<string, Record<string, number>>>;
+  penalty: number; trivial_per_week: number; trivial_percent: number;
+};
 
 export const COMPETITIONS_URL = "/api/public/competitions";
 
@@ -40,7 +50,7 @@ const STATUSES: CompetitionStatus[] = ["upcoming", "registering", "closed", "ong
 /** 只认识要用的那几个字段：缺 `id`、名称或起止时间的条目直接丢掉，不显示半条。 */
 type RawCompetition = {
   id?: unknown; name?: unknown; kind?: unknown; start_at?: unknown; end_at?: unknown; signup_deadline?: unknown; url?: unknown; description?: unknown; status?: unknown; signup?: unknown;
-  site_url?: unknown; prizes?: unknown; grade_factors?: unknown; finalized_at?: unknown;
+  site_url?: unknown; prizes?: unknown; grade_factors?: unknown; scoring?: unknown; finalized_at?: unknown;
 };
 
 // 北京时间显示还要加八小时；UTC 有效但换算后越界的时间也不能交给界面。
@@ -77,6 +87,31 @@ export function readGradeFactors(value: unknown): GradeFactor[] {
   });
 }
 
+/** 两档计分表：每一档要有 key 和名字，每个格子都要有整数分；缺一格就整张不显示。 */
+export function readScoring(value: unknown): Scoring | null {
+  if (typeof value !== "object" || value === null) return null;
+  const raw = value as { importance?: unknown; core?: unknown; points?: unknown; penalty?: unknown; trivial_per_week?: unknown; trivial_percent?: unknown };
+  const levels = (list: unknown): ScoringLevel[] | null => {
+    if (!Array.isArray(list) || !list.length) return null;
+    const out = list.map((item) => {
+      const level = (typeof item === "object" && item !== null ? item : {}) as { key?: unknown; label?: unknown; hint?: unknown };
+      return { key: asText(level.key), label: asText(level.label), hint: asText(level.hint) };
+    });
+    return out.every((level) => level.key && level.label) ? out : null;
+  };
+  const importance = levels(raw.importance);
+  const core = levels(raw.core);
+  const whole = (n: unknown): n is number => typeof n === "number" && Number.isSafeInteger(n);
+  if (!importance || !core || !Array.isArray(raw.points) || !whole(raw.penalty) || !whole(raw.trivial_per_week) || !whole(raw.trivial_percent)) return null;
+  const points: Scoring["points"] = { issue: {}, pr: {} };
+  for (const item of raw.points as { kind?: unknown; importance?: unknown; core?: unknown; points?: unknown }[]) {
+    if (typeof item !== "object" || item === null || (item.kind !== "issue" && item.kind !== "pr") || !whole(item.points)) continue;
+    (points[item.kind][asText(item.importance)] ??= {})[asText(item.core)] = item.points;
+  }
+  const complete = (["issue", "pr"] as const).every((kind) => importance.every((i) => core.every((c) => whole(points[kind][i.key]?.[c.key]))));
+  return complete ? { importance, core, points, penalty: raw.penalty, trivial_per_week: raw.trivial_per_week, trivial_percent: raw.trivial_percent } : null;
+}
+
 /**
  * 读一条比赛。`id`、名称、起止时间缺一不可。服务端给的 `status` 认不出时按时间现算，
  * 不把状态显示错；所有类型的比赛都可以带有效的 https 链接。
@@ -106,7 +141,8 @@ export function readCompetition(value: unknown): Competition | null {
   const site_url = SITE_PATH.test(site) ? site : null;
   return {
     id, name, kind, start_at: start, end_at: end, signup_deadline, url, description: asText(raw.description), status, signup, site_url,
-    prizes: readPrizes(raw.prizes), grade_factors: readGradeFactors(raw.grade_factors), finalized_at: asTimestamp(raw.finalized_at),
+    prizes: readPrizes(raw.prizes), grade_factors: readGradeFactors(raw.grade_factors), scoring: readScoring(raw.scoring),
+    finalized_at: asTimestamp(raw.finalized_at),
   };
 }
 
