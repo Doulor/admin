@@ -867,29 +867,40 @@ CREATE INDEX IF NOT EXISTS idx_limit_events_at ON limit_events(at);
   const columns = db.pragma("table_info(forum_topics)") as { name: string; notnull: number }[];
   const visibility = columns.find(column => column.name === "visibility");
   if (visibility && visibility.notnull === 1) {
-    db.transaction(() => {
-      db.exec(`
-        CREATE TABLE forum_topics_new (
-          id TEXT PRIMARY KEY,
-          slug TEXT NOT NULL,
-          title TEXT NOT NULL,
-          category_id TEXT NOT NULL,
-          tag_ids TEXT NOT NULL DEFAULT '[]',
-          author_id TEXT NOT NULL REFERENCES forum_users(id),
-          created_at INTEGER NOT NULL,
-          last_activity_at INTEGER NOT NULL,
-          views INTEGER NOT NULL DEFAULT 0,
-          pinned INTEGER NOT NULL DEFAULT 0,
-          closed INTEGER NOT NULL DEFAULT 0,
-          visibility TEXT CHECK (visibility IS NULL OR visibility IN ('public', 'registered', 'member'))
-        );
-        INSERT INTO forum_topics_new(id, slug, title, category_id, tag_ids, author_id, created_at, last_activity_at, views, pinned, closed, visibility)
-          SELECT id, slug, title, category_id, tag_ids, author_id, created_at, last_activity_at, views, pinned, closed, NULL FROM forum_topics;
-        DROP TABLE forum_topics;
-        ALTER TABLE forum_topics_new RENAME TO forum_topics;
-        CREATE INDEX IF NOT EXISTS idx_forum_topics_author ON forum_topics(author_id, created_at);
-      `);
-    })();
+    // forum_topics 是好几张表的外键父表（forum_posts.topic_id 等）：FK 检查开着时重建它会在 DROP TABLE
+    // 那一步报 FOREIGN KEY constraint failed——SQLite 的已知限制，父表被删掉的那一刻子表还在引用它就不让
+    // 删，哪怕马上会建回同名的新表。按 SQLite 自己的重建表指南，这类操作要先关掉 FK 检查（不能在事务内切，
+    // 对已经开始的事务不生效），建完再开，开完用 foreign_key_check 核对真的没有留下悬空引用。
+    db.pragma("foreign_keys = OFF");
+    try {
+      db.transaction(() => {
+        db.exec(`
+          CREATE TABLE forum_topics_new (
+            id TEXT PRIMARY KEY,
+            slug TEXT NOT NULL,
+            title TEXT NOT NULL,
+            category_id TEXT NOT NULL,
+            tag_ids TEXT NOT NULL DEFAULT '[]',
+            author_id TEXT NOT NULL REFERENCES forum_users(id),
+            created_at INTEGER NOT NULL,
+            last_activity_at INTEGER NOT NULL,
+            views INTEGER NOT NULL DEFAULT 0,
+            pinned INTEGER NOT NULL DEFAULT 0,
+            closed INTEGER NOT NULL DEFAULT 0,
+            visibility TEXT CHECK (visibility IS NULL OR visibility IN ('public', 'registered', 'member'))
+          );
+          INSERT INTO forum_topics_new(id, slug, title, category_id, tag_ids, author_id, created_at, last_activity_at, views, pinned, closed, visibility)
+            SELECT id, slug, title, category_id, tag_ids, author_id, created_at, last_activity_at, views, pinned, closed, NULL FROM forum_topics;
+          DROP TABLE forum_topics;
+          ALTER TABLE forum_topics_new RENAME TO forum_topics;
+          CREATE INDEX IF NOT EXISTS idx_forum_topics_author ON forum_topics(author_id, created_at);
+        `);
+      })();
+      const dangling = db.pragma("foreign_key_check(forum_topics)") as unknown[];
+      if (dangling.length > 0) throw new Error(`forum_topics 重建后出现悬空外键：${JSON.stringify(dangling)}`);
+    } finally {
+      db.pragma("foreign_keys = ON");
+    }
   }
 })();
 addColumn("forum_topics", "visibility", "TEXT CHECK (visibility IS NULL OR visibility IN ('public', 'registered', 'member'))");

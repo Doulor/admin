@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../../app/server/src/app';
 import { testConfig } from './helpers';
 import { createCrypto } from '../../app/server/src/lib/crypto';
+import { createDatabase } from '../../app/server/src/lib/db';
 import { DEFAULT_DEPARTMENTS } from '../../app/server/src/lib/roles';
 import type { ServiceOverrides } from '../../app/server/src/services';
 
@@ -575,5 +576,57 @@ describe('several emails per account (#272)', () => {
     expect(db2.prepare("SELECT COUNT(*) AS n FROM identities WHERE user_id = '01JEMAILSAAAAAAAAAAAAAAAAA' AND provider = 'email'").get()).toEqual({ n: 2 });
     // 换回 #262 的镜像：它的建索引语句因为同名索引已经在而跳过，两个邮箱都留着也能启动
     expect(() => db2.exec('CREATE UNIQUE INDEX IF NOT EXISTS uq_identities_user_provider ON identities(user_id, provider);')).not.toThrow();
+  });
+});
+
+describe('relaxing forum_topics.visibility to a nullable column (#276)', () => {
+  it('rebuilds the table without tripping the foreign key check, even with posts already pointing at the topic', () => {
+    // 这是预发布库真实数据的样子：#274 建的 forum_topics.visibility 是 NOT NULL DEFAULT 'public'，
+    // forum_posts.topic_id 是它的外键子表且已经有真实行引用——演练迁移时在这种数据上第一次跑就撞上
+    // FOREIGN KEY constraint failed（SQLite 的已知限制：FK 检查开着时父表被 DROP，哪怕马上建回同名新表，
+    // 子表还在引用也会被挡住）；db.ts 现在重建前先关 FK 检查、重建后用 foreign_key_check 核对没有悬空引用。
+    const dir = mkdtempSync(join(tmpdir(), 'geek-legacy-forum-v2-'));
+    dirs.push(dir);
+    const path = join(dir, 'data.db');
+    const raw = new Database(path);
+    raw.pragma('foreign_keys = ON');
+    raw.exec(`
+      CREATE TABLE forum_users (
+        id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK (kind IN ('member','guest','official')),
+        github_user_id INTEGER UNIQUE, username TEXT NOT NULL UNIQUE COLLATE NOCASE, display_name TEXT NOT NULL,
+        bio TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '', website TEXT NOT NULL DEFAULT '',
+        avatar_color TEXT NOT NULL, github_avatar_url TEXT, avatar_hash TEXT,
+        role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin','moderator','member')), title TEXT,
+        notify_reply INTEGER NOT NULL DEFAULT 1, notify_like INTEGER NOT NULL DEFAULT 1, notify_follow INTEGER NOT NULL DEFAULT 1,
+        joined_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE forum_topics (
+        id TEXT PRIMARY KEY, slug TEXT NOT NULL, title TEXT NOT NULL, category_id TEXT NOT NULL,
+        tag_ids TEXT NOT NULL DEFAULT '[]', author_id TEXT NOT NULL REFERENCES forum_users(id),
+        created_at INTEGER NOT NULL, last_activity_at INTEGER NOT NULL, views INTEGER NOT NULL DEFAULT 0,
+        pinned INTEGER NOT NULL DEFAULT 0, closed INTEGER NOT NULL DEFAULT 0,
+        visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'registered', 'member'))
+      );
+      CREATE TABLE forum_posts (
+        id TEXT PRIMARY KEY, topic_id TEXT NOT NULL REFERENCES forum_topics(id), author_id TEXT NOT NULL,
+        content TEXT NOT NULL, created_at INTEGER NOT NULL
+      );
+      INSERT INTO forum_users(id, kind, username, display_name, avatar_color, joined_at, updated_at)
+        VALUES('u-geekclass', 'official', 'geekclass', '极客班', '#2f6fed', 0, 0);
+      INSERT INTO forum_topics(id, slug, title, category_id, author_id, created_at, last_activity_at)
+        VALUES('t1', 'topic-1', '旧话题', 'c-ai', 'u-geekclass', 0, 0);
+      INSERT INTO forum_posts(id, topic_id, author_id, content, created_at) VALUES('p1', 't1', 'u-geekclass', '正文', 0);
+    `);
+    raw.close();
+
+    expect(() => createDatabase(path)).not.toThrow();
+    const after = new Database(path, { readonly: true });
+    const column = (after.pragma('table_info(forum_topics)') as { name: string; notnull: number }[]).find(c => c.name === 'visibility')!;
+    expect(column.notnull).toBe(0);
+    // 原来落了默认值 'public' 的行改成 NULL（跟随分类），不是继续显示一个没人真的设置过的 'public'。
+    expect(after.prepare("SELECT visibility FROM forum_topics WHERE id = 't1'").get()).toEqual({ visibility: null });
+    expect(after.prepare("SELECT id, topic_id FROM forum_posts WHERE id = 'p1'").get()).toEqual({ id: 'p1', topic_id: 't1' });
+    expect(after.pragma('foreign_key_check')).toEqual([]);
+    after.close();
   });
 });

@@ -28,7 +28,7 @@ function tableCount(db: Database.Database, table: string): number {
  * 和这份清单不完全一致时，多出来的设置行不会被任何查询用到（EFFECTIVE_VISIBILITY_EXPR 按 category_id
  * 联接，联不上的分类按 'public' 兜底），缺的分类等那个分类真的存在时由控制台手动设置。
  */
-const CATEGORY_VISIBILITY_SEED: { categoryId: string; visibility: "public" | "registered" | "member" }[] = [
+export const CATEGORY_VISIBILITY_SEED: { categoryId: string; visibility: "public" | "registered" | "member" }[] = [
   { categoryId: "c-exam", visibility: "public" },
   { categoryId: "c-competitions", visibility: "public" },
   { categoryId: "c-ai", visibility: "public" },
