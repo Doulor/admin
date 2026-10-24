@@ -79,9 +79,9 @@ describe("YUGC OS 应用与启动器", () => {
     expect(new Set(OS_APPS.map((app) => app.id)).size).toBe(OS_APPS.length);
   });
 
-  it("入口指向：加入我们进 /join-us 场景，论坛直达（#185），代码仓库和意见箱在桌面开窗口（#275），控制台 /console", () => {
+  it("入口指向：加入我们（#279）、代码仓库和意见箱（#275）在桌面开窗口，论坛直达（#185），控制台 /console", () => {
     const open = Object.fromEntries(OS_APPS.map((app) => [app.id, app.open]));
-    expect(open.join).toEqual({ kind: "scene", path: "/join-us" });
+    expect(open.join).toEqual({ kind: "window" });
     expect(open.forum).toEqual({ kind: "site", link: "forumHome" });
     expect(open.gitlab).toEqual({ kind: "window" });
     expect(open.github).toBeUndefined();
@@ -166,10 +166,10 @@ describe("入口直达，不再经过 3D 场景页（#185）", () => {
     expect(hits).toEqual(["App.tsx", "components/os/Windows.tsx"]);
   });
 
-  it("「加入我们」回执里的「去论坛看看」和桌面上的论坛应用取同一个地址：论坛首页，当前标签页", () => {
+  it("「加入我们」窗口回执里的「去论坛看看」和桌面上的论坛应用取同一个地址：论坛首页，当前标签页", () => {
     expect(appLinkById("forum")).toEqual({ href: links.forumHome(), newTab: false });
     // 只认取地址的那一句，不认 JSX 的写法（属性顺序、换行改了不影响）
-    expect(readFileSync(`${PORTAL}pages/JoinUs.tsx`, "utf8")).toMatch(/appLinkById\("forum"\)/);
+    expect(readFileSync(`${PORTAL}components/os/JoinBox.tsx`, "utf8")).toMatch(/appLinkById\("forum"\)/);
   });
 });
 

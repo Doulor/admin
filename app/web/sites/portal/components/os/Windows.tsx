@@ -1,6 +1,6 @@
-// YUGC OS 的窗口：可拖动、最小化、放大、关闭、聚焦；内容有「关于」「组织架构」「论坛最新」「终端」「比赛」「代码仓库」「意见箱」七种。
+// YUGC OS 的窗口：可拖动、最小化、放大、关闭、聚焦；内容有「加入我们」「关于」「组织架构」「论坛最新」「终端」「比赛」「代码仓库」「意见箱」八种。
 // 比赛窗口的内容在 competitions/（#265）：它在手机详情页会借标题栏左边的返回键回列表（PhoneNav）。
-// 意见箱窗口的内容在 FeedbackBox.tsx，打开时才加载，防刷验证和表单样式不进桌面首屏。
+// 意见箱、加入我们窗口的内容在 FeedbackBox.tsx、JoinBox.tsx，打开时才加载，防刷验证和表单样式不进桌面首屏。
 import { Suspense, lazy, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { appConfig } from "@shared/config";
@@ -13,12 +13,13 @@ import { useForumSnapshot } from "../../lib/snapshots";
 import CompetitionsApp, { type PhoneNav } from "./competitions/CompetitionsApp";
 import Icon from "../Icon";
 
-export type WindowId = "about" | "org" | "terminal" | "forum-feed" | "competitions" | "gitlab" | "feedback";
+export type WindowId = "join" | "about" | "org" | "terminal" | "forum-feed" | "competitions" | "gitlab" | "feedback";
 export type WindowState = { id: WindowId; z: number; x: number; y: number; minimized: boolean; zoomed: boolean };
 
 type OpenApp = (id: AppId | "forum-feed", from?: HTMLElement | null) => void;
 
 const META: Record<WindowId, { title: string; width: number }> = {
+  join: { title: "加入我们", width: 640 },
   about: { title: "关于极客班", width: 640 },
   org: { title: "组织架构", width: 760 },
   terminal: { title: "nano@yugc — zsh", width: 640 },
@@ -29,6 +30,7 @@ const META: Record<WindowId, { title: string; width: number }> = {
 };
 
 const FeedbackBox = lazy(() => import("./FeedbackBox"));
+const JoinBox = lazy(() => import("./JoinBox"));
 
 export function windowWidth(id: WindowId): number {
   return META[id].width;
@@ -220,6 +222,11 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
           )}
         </header>
         <div className={win.id === "competitions" ? "pt-win-body is-flush" : "pt-win-body"}>
+          {win.id === "join" && (
+            <Suspense fallback={<p className="pt-empty">正在打开信纸…</p>}>
+              <JoinBox />
+            </Suspense>
+          )}
           {win.id === "about" && <About onOpen={onOpen} />}
           {win.id === "org" && <OrgChart />}
           {win.id === "forum-feed" && <ForumFeed />}

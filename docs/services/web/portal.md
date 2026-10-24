@@ -1,6 +1,6 @@
 # Portal 模块合同（`app/web/sites/portal`）
 
-> 公开官网：开机动画与 YUGC OS 桌面、加入我们（信封场景，要登录）、论坛 3D 场景、文档和意见箱；不自建登录，菜单栏头像打开个人资料卡。
+> 公开官网：开机动画与 YUGC OS 桌面（加入我们、意见箱等都是桌面窗口）、论坛 3D 场景和文档；不自建登录，菜单栏头像打开个人资料卡。
 
 状态：`current` · 更新：2026-10-24
 
@@ -11,15 +11,14 @@
 | 路由 | 页面 | 说明 |
 |---|---|---|
 | `/` | `pages/Home.tsx` | 今天（北京时间）没播过就先播开机动画，播完或跳过淡出到 YUGC OS 桌面；播过了或开了减少动态效果直接进桌面（见下文「开机动画与进站」）；`/?open=<窗口应用的 id>` 进桌面并打开这个窗口，打开后把参数去掉（`YugcOs.tsx`），控制台给的意见箱链接是 `/?open=feedback` |
-| `/join-us` | `pages/JoinUs.tsx` | 加入我们：信封场景，DOM 信纸就是表单，真实提交 `POST /api/portal/apply`；没登录时信纸上只有「先注册再投递」（见下文「加入我们（投递）」） |
-| `/apply` | — | 旧地址，`<Navigate replace>` 到 `/join-us`，已发出的链接不失效 |
+| `/join-us`、`/apply` | — | 旧地址，`<Navigate replace>` 到 `/?open=join`：进桌面打开「加入我们」窗口（`components/os/JoinBox.tsx`，#279），已发出的链接不失效；原来的信封场景页已归档 |
 | `/forum-3d` | `pages/Forum3D.tsx` | 论坛版块气泡场景，主入口「进入论坛首页」一直可见，版块图标为 Remix 线性图标；进论坛前镜头推近、遮罩盖满，从论坛按后退回来时浏览器可能从往返缓存（bfcache）恢复整页，`pageshow.persisted` 时调场景的 `reset()` 回到进场的样子（#109）。桌面上的「论坛」已直达论坛首页，不再经过这页（#185，见下文「桌面入口直达」）；这页留给旧地址和「论坛最新」窗口里的「3D 版块」按钮 |
 | `/docs`、`/docs/:id` | `pages/Docs.tsx` | 公开产品介绍与用户指南（白名单由 `/api/docs` 决定） |
 | `/feedback`、`/feedback/:org` | — | 旧地址，`<Navigate replace>` 到 `/?open=feedback`，进桌面打开「意见箱」窗口（#275）；不再有单独的页面，原来的页面归档在 `docs/history/portal-yugc-os-v1/` |
 
 意见箱窗口（`components/os/FeedbackBox.tsx`，`Windows.tsx` 打开时才加载）只发本部署的组织（#129）：组织框只读（浅灰底、悬停不变色，说明「这里改不了」用 `aria-describedby` 挂在框上），展示 `GET /api/feedback/categories` 下发的 `org`（`CONSOLE_ORG`），读公开列表和提交都用同一个值；接口回来之前或失败时组织框先显示站点配置 `urls.githubOrg` 的最后一段，但提交按钮是灰的：组织名、分类和 PoW 难度都要等这个接口读到才能提交，失败时分类处显示「没读到分类和发往的组织，暂时不能提交」和「重新读取」按钮，已经写的正文不清空（`tests/web/portal-feedback-org.test.tsx`）。已经发出去的 `/feedback/:org` 链接跳到 `/?open=feedback`，URL 里的组织名不生效。
 
-`/join-us` 是招新投递。旧的 `/join/:token`（GitHub 组织邀请链接落地页）随 #274 删掉的 `/api/join/:token` 一起删掉，旧链接落到兜底路由回首页；注册邀请码在登录页和资料卡里填。首页之外的页面按路由懒加载。`/github`（GitHub 天际线场景页）在 #275 删掉，旧地址落到兜底路由回首页。#275 退场的页面、组件、样式、图片和模型原样归档在 [docs/history/portal-yugc-os-v1](../../history/portal-yugc-os-v1/README.md)，那里写了每个文件原来是什么、换成了什么、旧地址现在去哪；归档目录不参与构建。`base.css` 不引远程字体（`cdn.jsdelivr.net` 的 Maple Mono 被站点 CSP 拦截），等宽字体走系统栈。
+招新投递在桌面的「加入我们」窗口里（#279 以前是 `/join-us` 信封场景页）。旧的 `/join/:token`（GitHub 组织邀请链接落地页）随 #274 删掉的 `/api/join/:token` 一起删掉，旧链接落到兜底路由回首页；注册邀请码在登录页和资料卡里填。首页之外的页面按路由懒加载。`/github`（GitHub 天际线场景页）在 #275 删掉，旧地址落到兜底路由回首页。#275 退场的页面、组件、样式、图片和模型，以及 #279 退场的信封场景，原样归档在 [docs/history/portal-yugc-os-v1](../../history/portal-yugc-os-v1/README.md)，那里写了每个文件原来是什么、换成了什么、旧地址现在去哪；归档目录不参与构建。`base.css` 不引远程字体（`cdn.jsdelivr.net` 的 Maple Mono 被站点 CSP 拦截），等宽字体走系统栈。
 
 ## 模块地图
 
@@ -27,8 +26,8 @@
 |---|---|
 | `components/boot/*` | 开机动画（#275）：`engine.ts` 是 Canvas 2D 引擎，移植自 `YUGC_OS_Boot_{Desktop,Mobile}_v2.html`；`timeline.ts` 时间轴、日志行与粒子预算，`background.ts` 天空、网格、云、粉窗口和极客娘（桌面「晴空」壁纸共用），`layout.ts` 电脑与手机两套构图，`shapes.ts` 矢量符号，`BootSequence.tsx` 是 React 外壳（起步、静音 / 重播 / 跳过、快捷键、预取桌面） |
 | `lib/bootGate.ts` | 进站规则：北京日期 `beijingDay`、`localStorage["yugc:boot-day"]`、`shouldPlayBoot`（减少动态效果优先，其次 `?boot=1`，再看今天播过没有） |
-| `three/stage.ts` | 两个 3D 场景（加入我们、论坛）共用的「摄影棚」：渲染器、按需渲染循环、指针视差、环境动画节流、资源释放 |
-| `three/join.ts`、`three/forum.ts` | 信封与论坛气泡场景的几何与动画，纯 three.js + TypeScript（strict），不依赖 React |
+| `three/stage.ts` | 论坛 3D 场景的「摄影棚」：渲染器、按需渲染循环、指针视差、环境动画节流、资源释放 |
+| `three/forum.ts` | 论坛气泡场景的几何与动画，纯 three.js + TypeScript（strict），不依赖 React |
 | `lib/useMediaQuery.ts` | 响应式媒体查询订阅；OS 用 `PHONE_QUERY` 与 `PORTRAIT_QUERY`，变化时保留组件状态 |
 | `lib/cameraMath.ts`、`lib/motion.ts` | 相机距离（cover/contain）、像素 ↔ 相机平面换算、竖屏横带取景、缓动与插值 |
 | `lib/pixelRatio.ts` | 3D 像素比调速器：起步档位、降档规则、帧间隔预算（纯逻辑） |
@@ -49,11 +48,11 @@
 | `components/os/*` | YUGC OS 桌面：`YugcOs.tsx`（菜单栏、Dock、启动器、换壁纸面板、手机状态栏与弹层）、`Widgets.tsx`（应用图标与「新来的看这里」便签）、`Windows.tsx`（窗口外框与关于、组织架构、代码仓库、论坛最新、终端等窗口正文；意见箱窗口的正文在 `FeedbackBox.tsx`；电脑上窗口从顶边往下最多到 Dock 上沿，内容长的窗口在里面滚动，不钻到 Dock 下面）、`ProfileCard.tsx`（个人资料卡）、`SkyWallpaper.tsx`（默认壁纸「晴空」）、`Wallpaper.tsx`（壁纸图层与换壁纸动效）；壁纸清单、下载解码与空闲预取在 `lib/wallpapers.ts`（图片地址只写在这里），文件在 `assets/wallpapers/`，见下文「壁纸」 |
 | `components/Emblem.tsx`、`SceneBar.tsx`、`PageShell.tsx` | 校徽几何、场景页顶栏、普通页外壳 |
 | `components/ChoiceChips.tsx` | 少量选项的单选胶囊（原生 radio，方向键切换）；官网表单不用原生下拉框 |
-| `styles/*.css` | 视觉令牌与组件样式（`.pt-root` 作用域）：`portal.css` 定义 `--pt-*`（场景页、普通页）与 `--os-*`（YUGC OS v2）两套令牌，`boot.css` 开机动画层，`os.css` 桌面与窗口，`competitions.css` 比赛窗口，`scenes.css` 场景页；规范见 [DESIGN](../../design/DESIGN.md)「YUGC OS v2 视觉令牌」 |
+| `styles/*.css` | 视觉令牌与组件样式（`.pt-root` 作用域）：`portal.css` 定义 `--pt-*`（场景页、普通页）与 `--os-*`（YUGC OS v2）两套令牌，`boot.css` 开机动画层，`os.css` 桌面与窗口，`competitions.css` 比赛窗口，`scenes.css` 论坛场景页；规范见 [DESIGN](../../design/DESIGN.md)「YUGC OS v2 视觉令牌」 |
 
 文档 API 仅允许公开产品介绍和用户指南；内部规范、部署、安全与审查材料不在白名单。反馈写入 data.db，管理侧由服务端 admin/console 接口读取、控制台（`app/console`）页面处理；两侧通过一致数据模型协作，不互相 import 路由。
 
-three.js 只通过 `/join-us`、`/forum-3d` 两页里的 `import("../three/<scene>")` 进入，首页不再下载 three；卸载时 `Stage.dispose()` 释放几何体、材质、贴图、环境贴图并丢弃 WebGL 上下文。没有 WebGL 时场景页的 DOM 入口（信纸、版块列表）照常可用。原来书桌上的手机模型 `iphone_15_pro_max.glb` 在 #275 以后没有页面加载，连同署名说明归档到 `docs/history/portal-yugc-os-v1/`。
+three.js 只通过 `/forum-3d` 页里的 `import("../three/forum")` 进入，首页不再下载 three；卸载时 `Stage.dispose()` 释放几何体、材质、贴图、环境贴图并丢弃 WebGL 上下文。没有 WebGL 时场景页的 DOM 入口（版块列表）照常可用。原来书桌上的手机模型 `iphone_15_pro_max.glb` 在 #275 以后没有页面加载，连同署名说明归档到 `docs/history/portal-yugc-os-v1/`。
 
 ## 开机动画与进站（#275）
 
@@ -159,12 +158,12 @@ three.js 只通过 `/join-us`、`/forum-3d` 两页里的 `import("../three/<scen
 
 ## 加入我们（投递）
 
-`POST /api/portal/apply` 要登录（#274：没登录 401 `unauthenticated`，要 `apply.submit`），准入同意见箱等公开表单（蜜罐 + PoW + 可选 Turnstile），落库 `applications` 表并写审计；接口细节见 [API](../../architecture/API.md)。前端 PoW 指纹与后端逐字一致：`apply:<姓名>:<邮箱>`（均为 trim 后取值），`pow` 只发 `{ timestamp, nonce }`（`powProof`）。表单的邮箱校验和后端用同一条正则（不收末尾带点、连续的点、引号、反斜杠和 IP 字面量，这些写法会绕开确认信的按收件箱限量，#148），`tests/web/portal-join.test.ts` 核对两边逐字一致。提交成功后才开始折信、封口、投递动画，回执显示服务端返回的编号、时间和原文消息；失败时信纸留在原位并显示错误，不做假成功。
+`POST /api/portal/apply` 要登录（#274：没登录 401 `unauthenticated`，要 `apply.submit`），准入同意见箱等公开表单（蜜罐 + PoW + 可选 Turnstile），落库 `applications` 表并写审计；接口细节见 [API](../../architecture/API.md)。前端 PoW 指纹与后端逐字一致：`apply:<姓名>:<邮箱>`（均为 trim 后取值），`pow` 只发 `{ timestamp, nonce }`（`powProof`）。表单的邮箱校验和后端用同一条正则（不收末尾带点、连续的点、引号、反斜杠和 IP 字面量，这些写法会绕开确认信的按收件箱限量，#148），`tests/web/portal-join.test.ts` 核对两边逐字一致。表单在桌面的「加入我们」窗口里（`components/os/JoinBox.tsx`，#279，打开时才加载），提交成功后信纸换成回执，显示服务端返回的编号、时间、原文消息和今天还能投几份；失败时信纸留在原位并显示错误，不做假成功。
 
-- **没登录**（#275）：读完 `/auth/me` 发现没登录时，信纸上只有「先注册再投递」、一句说明和「注册」「登录」两个按钮，都带 `return_to=/join-us`，注册或登录后回到这封信；不显示表单，免得写完了才发现要登录、跳走时内容丢掉。
+- **没登录**（#275）：读完 `/auth/me` 发现没登录时，信纸上只有「先注册再投递」、一句说明和「注册」「登录」两个按钮，都带 `return_to=/?open=join`，注册或登录后回到桌面并打开这个窗口；不显示表单，免得写完了才发现要登录、跳走时内容丢掉。
 - **限额**：注册用户每天 3 份，成员不限（SPEC §3.8，数字是服务端 meta 的初始值）。登录后信纸底部按 `/auth/me` 的 `quota` 写「今天还能投 N 份」；成员 `apply_daily_limit` 为 -1 时不写。今天投完了按钮变灰，写「今天的投递次数用完了，明天再来」。寄出成功后用 201 回执里的 `quota` 更新。
 - **失败**：写到一半登录失效（401）时信纸留着，寄出按钮换成「重新登录」，提示先把写好的内容复制下来；被每日限额挡下（429 `rate_limited`、`bucket: "apply.daily"`）照服务端的 message 说并把按钮置灰；按 IP 或设备的限额（429）同样照服务端原话显示（#169）。
-- **单测**：`tests/web/portal-join-gate.test.tsx`（没登录、限额显示与更新、投完、成员不限、401、429）。
+- **单测**：`tests/web/portal-join-gate.test.tsx`（没登录、限额显示与更新、投完、成员不限、401、429）；`tests/web/portal-os-entries.test.tsx` 核对 Dock 和 1 键开的是同一个窗口、旧地址 `/join-us`、`/apply` 跳到 `/?open=join`。
 
 ## 壁纸
 
@@ -184,7 +183,7 @@ three.js 只通过 `/join-us`、`/forum-3d` 两页里的 `import("../three/<scen
 
 2026-09-25：「点击投递简历的时候第一次默认会播放这个宣传视频，要求进行分片让人无感大小快速播放，也可以选择去进行跳过，只播放一次，跟随浏览器 cookie 走，也可以在桌面里面看到这个宣传片点击再次播放。」（#77）
 
-- **什么时候播**：`pages/JoinUs.tsx` 挂载时看 cookie `yugc_promo_seen`，没有就先挂全屏播放层，播完或跳过才开始信封动画。所有进入「加入我们」的路径（桌面、Dock、快捷键、页头链接、直接打开网址）都经过这里。cookie 是 host-only、一年、`Path=/`、`SameSite=Lax`（https 下 `Secure`），值只有 `1`。真正开始播放、跳过、播完或浏览器根本播不了时写入；加载失败不写，下次再试。
+- **什么时候播**：「加入我们」窗口（`components/os/JoinBox.tsx`）挂载时看 cookie `yugc_promo_seen`，没有就先挂全屏播放层（挂到 `body` 上，窗口的 `backdrop-filter` 会把 fixed 定位困在窗口里），播完或跳过才露出信纸。所有打开「加入我们」的路径（桌面、Dock、快捷键、页头链接、旧地址）都经过这里。cookie 是 host-only、一年、`Path=/`、`SameSite=Lax`（https 下 `Secure`），值只有 `1`。真正开始播放、跳过、播完或浏览器根本播不了时写入；加载失败不写，下次再试。
 - **分包未到的加载占位**（#122，依赖 #120）：没有预取、直接打开网址时，#122 本机 Slow 4G 实测：打开网址约 3.2 秒出现路由占位，约 4.0 秒出现遮罩，约 4.6 秒换成播放层（PR #95 量的是这之后的首帧：播放层出现后 Fast 4G 约 1.7–2.1 秒出第一帧，Slow 4G 约 8 秒，见下文「2026-09-26 实测」）；gate 一挂上整页就 inert，播放层分包还要再等约 0.65 秒才到，这段时间不能什么都不显示。gate 用 `components/PromoLazy.tsx` 的 `LazyPromoPlayer` 时带 `placeholder`，分包没到就先显示 `PromoFallback`：和播放层同一套全屏层、居中「正在加载…」与右上角「跳过 Esc」，跳过与播放层同一语义——写「看过」的 cookie 并让页面恢复可交互；键盘也和播放层一致：打开时焦点在「跳过」上，Tab 不离开它，Esc 跳过并且不再往外冒泡。分包到了以后 React 删掉遮罩、挂上真正的播放层，两个是不同的节点，播放层的进场淡入（`promo.css` 的 `pt-promo-in`）会从透明重来，透出下面的浅色页面；所以遮罩画出来时记下时刻（`coverSince`），播放层用负的 `animation-delay` 从遮罩已经淡到的地方接着走，遮罩早已盖满时直接不透明，中间没有浅色帧。`Suspense` 放在 `LazyPromoPlayer` 里面，等分包的整段时间里它的状态一直在。开了减少动态效果时 gate 根本不挂这层（见下文「自动播被拒与减少动态效果」）。桌面「宣传片」重看不带 `placeholder`，分包没到时和原来一样什么都不显示；遮罩本身也支持 replay（按钮叫「关闭」，图标和播放层一样是关闭图标）。
 - **桌面重看**：`lib/osApps.ts` 的「宣传片」应用（`{ kind: "panel", panel: "promo" }`）在桌面上打开同一个播放层，不读也不写 cookie。
 - **片源**：七牛 CDN `https://cdn.crosery.com/yzgc/static/promo/v5-tone-e1419fc9331a/`，地址只在 `lib/promo.ts` 的 `PROMO_BASE`。AV1 10-bit 三档（480p、720p、1080p）与 H.264 五档（240p、360p、480p、720p、1080p）各一份 master（`master-av1.m3u8`、`master-h264.m3u8`），fMP4 分片 4 秒一段、所有档位关键帧对齐；240p、360p 音频 64k（平均约 240、450kbps，峰值约 340、640kbps），给弱网手机（#103）。封面有两张：`poster.jpg`（1920 宽，171KB）给桌面，`poster-640.jpg`（58KB）给触屏，弱网时大封面会和第一个分片抢带宽。master 里的码率由片子目录的 `scripts/write-masters.py` 按实际分片算（BANDWIDTH 是单段峰值），编码串从各档 `init.mp4` 读。画质参数沿用片子目录 `qa/verification.md` 交付的 web264-28 与 av1-46；分片包由片子目录里的 `scripts/package-hls.sh` 生成、`scripts/qiniu-promo.mjs` 上传（insertOnly，只写 `yzgc/static/promo/` 下），不进 Git。路径带内容哈希，CDN 缓存一年；换片子就换目录并改 `PROMO_BASE`。
@@ -193,9 +192,9 @@ three.js 只通过 `/join-us`、`/forum-3d` 两页里的 `import("../three/<scen
 - **画面与控件**（#103，2026-09-26：「这些大额头和下巴丑死了，这些按钮可以融进宣传片里面，跟游戏一样」；#142，2026-09-26 22:14：「宣传片这边不需要这个进度条和播放暂停啥的，只需要右上角的跳过，就是让人无感播放」）：画面按 16:9 放进屏幕（`.pt-promo-stage` 用容器查询单位算最大尺寸），画面上只有右上角的「跳过 Esc」（replay 叫「关闭」），一直在；没有播放 / 暂停、进度条、时间、音量和「打开声音」，空格与 M 也不再有作用；播完自动关。点画面从不暂停，只会让片子往「在播、有声音」走：静音时打开声音，被系统或浏览器停下时接着播（点击是用户手势，浏览器这时允许带声音播）；停下时画面中间提示「点画面播放」，提示不挡点击。播放中 2.5 秒不动鼠标，指针隐藏，动一下就回来。画面上只有一个按钮，焦点一直在它身上（Tab 不会跑到下面的页面）。画面外的空白不是深色条：每 0.5 秒把当前画面缩成 32×18 画到背景画布，CSS 放大模糊（出画面前先画封面）。
 - **手机竖着拿**（要求：「能不能默认横屏播放」）：`(orientation: portrait) and (pointer: coarse) and (max-width: 600px)` 时画面框转 90 度（平板竖放不转）（宽 100dvh、高 100dvw），片子横过来铺满屏幕，控件跟着转；横过手机后媒体查询不再命中，就是正常横屏。
 - **缓冲**：播放中卡住（`waiting`）显示「正在缓冲…」，6 秒没恢复提示可以先跳过。
-- **自动播被拒与减少动态效果**（#142）：先带声音自动播；浏览器不让就静音播（点画面打开声音）。静音也不让播时，gate 直接结束（`blocked`），进信纸，不停在封面等人点；replay 是自己点开的，停在封面提示「点画面播放」。gate 遇到减少动态效果不自动播：`JoinUs.tsx` 挂载时就按 `blocked` 处理（写「看过」的 cookie），不挂播放层、不显示加载遮罩、不下载分包，直接进信纸（#122；`PromoPlayer` 里同样的判断留着）；replay 照常播。`blocked` 和 `unsupported` 一样算看过：是浏览器或用户的设置，以后多半也不会自动播，每次进「加入我们」都闪一下播放层没有意义，想看从桌面「宣传片」打开。没有采用「封面 + 跳过 + 几秒后自动关」：那只是让人对着静图多等几秒，和无感播放相反。减少动态效果时播放层不做淡入，加载圈不转。
-- **出错时**（#110）：播放层分包加载失败（断网、发版后旧页面找不到新文件名）按「加载失败」直接结束（`components/PromoLazy.tsx`），不让官网跟着卸载；失败只影响这一次打开，下次打开重新加载分包，网络恢复后照常能播。失败的那个要等失败真正显示出来（`PromoUnavailable` 挂上）才换新的：直接打开 `/join-us` 时播放层和外面的页面可能一起还没提交，React 等分包时会丢掉没提交的渲染重来，在 `LazyPromoPlayer` 初始化里换的话同一次打开会多加载几遍、把重试地址用光。加载中就关掉（gate 遮罩上点了跳过）、之后分包才失败时没人会把失败显示出来：`LazyPromoPlayer` 关掉时记下，失败一到就换新的，不会让下一次打开（比如桌面「宣传片」重看）一打开就按失败关掉。浏览器会记住加载失败的模块地址（Chrome、Firefox 按 HTML 规范如此，桌面预取时断网失败也算），同一地址再 import 不发请求直接失败，所以播放层和 hls.js 分包各写死原地址加 3 个 `?retry=n` 地址（`lib/promo.ts` 的 `retryableImport`）：生产构建把每个打成文件名不同的分包（`PromoPlayer` 约 5KB、`hls.light` 约 372KB 各多 3 份，只在重来时下载），原地址失败时马上换下一个试一次，之后每次重来换一个，用完停在最后一个，要刷新页面才会再从头来；换地址只以生产构建为准。边界检查不许非字面量 import、CSP 不许 eval，所以只能是有限个写死的地址。播放层样式 `styles/promo.css` 跟官网主包由 `PromoLazy.tsx` 引入，不跟播放层分包：Vite 的分包预加载把失败过的样式表记为已加载、不再重试。`play()` 被拒时，`NotSupportedError`（片源放不了）按加载失败结束；其他原因（如 `AbortError`）gate 按加载失败结束（不记看过，下次再试），replay 停在封面等点画面；起播过程中意外抛错按加载失败结束一次。
-- **起播预取**：桌面出现、这个浏览器还没看过宣传片、没开省流量时，先 preconnect CDN，空闲时预取「加入我们」页、播放器、hls.js 分包，以及起播那一档（与播放器同一个 `startLevelIndex`）的 master、播放列表、初始化段与第一个分片。点「加入我们」后这些都从缓存来。
+- **自动播被拒与减少动态效果**（#142）：先带声音自动播；浏览器不让就静音播（点画面打开声音）。静音也不让播时，gate 直接结束（`blocked`），进信纸，不停在封面等人点；replay 是自己点开的，停在封面提示「点画面播放」。gate 遇到减少动态效果不自动播：`JoinBox.tsx` 挂载时就按 `blocked` 处理（写「看过」的 cookie），不挂播放层、不显示加载遮罩、不下载分包，直接进信纸（#122；`PromoPlayer` 里同样的判断留着）；replay 照常播。`blocked` 和 `unsupported` 一样算看过：是浏览器或用户的设置，以后多半也不会自动播，每次进「加入我们」都闪一下播放层没有意义，想看从桌面「宣传片」打开。没有采用「封面 + 跳过 + 几秒后自动关」：那只是让人对着静图多等几秒，和无感播放相反。减少动态效果时播放层不做淡入，加载圈不转。
+- **出错时**（#110）：播放层分包加载失败（断网、发版后旧页面找不到新文件名）按「加载失败」直接结束（`components/PromoLazy.tsx`），不让官网跟着卸载；失败只影响这一次打开，下次打开重新加载分包，网络恢复后照常能播。失败的那个要等失败真正显示出来（`PromoUnavailable` 挂上）才换新的：第一次打开「加入我们」窗口时播放层和窗口内容可能一起还没提交，React 等分包时会丢掉没提交的渲染重来，在 `LazyPromoPlayer` 初始化里换的话同一次打开会多加载几遍、把重试地址用光。加载中就关掉（gate 遮罩上点了跳过）、之后分包才失败时没人会把失败显示出来：`LazyPromoPlayer` 关掉时记下，失败一到就换新的，不会让下一次打开（比如桌面「宣传片」重看）一打开就按失败关掉。浏览器会记住加载失败的模块地址（Chrome、Firefox 按 HTML 规范如此，桌面预取时断网失败也算），同一地址再 import 不发请求直接失败，所以播放层和 hls.js 分包各写死原地址加 3 个 `?retry=n` 地址（`lib/promo.ts` 的 `retryableImport`）：生产构建把每个打成文件名不同的分包（`PromoPlayer` 约 5KB、`hls.light` 约 372KB 各多 3 份，只在重来时下载），原地址失败时马上换下一个试一次，之后每次重来换一个，用完停在最后一个，要刷新页面才会再从头来；换地址只以生产构建为准。边界检查不许非字面量 import、CSP 不许 eval，所以只能是有限个写死的地址。播放层样式 `styles/promo.css` 跟官网主包由 `PromoLazy.tsx` 引入，不跟播放层分包：Vite 的分包预加载把失败过的样式表记为已加载、不再重试。`play()` 被拒时，`NotSupportedError`（片源放不了）按加载失败结束；其他原因（如 `AbortError`）gate 按加载失败结束（不记看过，下次再试），replay 停在封面等点画面；起播过程中意外抛错按加载失败结束一次。
+- **起播预取**：桌面出现、这个浏览器还没看过宣传片、没开省流量时，先 preconnect CDN，空闲时预取「加入我们」窗口、播放器、hls.js 分包，以及起播那一档（与播放器同一个 `startLevelIndex`）的 master、播放列表、初始化段与第一个分片。点「加入我们」后这些都从缓存来。
 - **CDN 预取**：CDN 边缘节点第一次被请求时回源（2026-09-26 实测五档 135 个分片几乎全是 `x-qnm-cache: Miss`，TTFB 0.33–0.48s；第二次请求变 `Hit`）。换片子上传后，用片子目录的 `node scripts/qiniu-promo.mjs prefetch` 让七牛预取两个 master、每档播放列表、初始化段与前 3 个分片和封面（44 个地址，七牛每天限额 100）。实测预取任务成功后边缘节点第一次请求仍是 `Miss`（七牛预取的是上层缓存），TTFB 降到 0.25–0.33s，改善有限；弱网能播主要靠低档位与缓冲。
 - **CSP 与防盗链**：宿主 nginx 的站点策略 `media-src` 与 `connect-src` 放行 `https://cdn.crosery.com`，`connect-src` 另放行 `blob:`（原为手机模型的内嵌贴图经 `GLTFLoader` 的 `blob:` 地址读取而加，#240；模型在 #275 停用，放行仍在宿主配置里，见 [DEPLOY](../../ops/DEPLOY.md)）；CDN 按 Referer 只放行本站域名、`localhost` 与空 Referer，**本机开发要用 `http://localhost:5173` 打开**，用 `127.0.0.1` 时 CDN 返回 403，播放层按「加载失败」直接放行到信纸。
 - **弱网实测**（#103，2026-09-26，ego-browser 内置 Chromium 模拟手机竖屏触屏，开发构建在 `localhost`，本页禁用缓存，CDP 限速 450kbps / RTT 400ms）：从请求 master 到第一帧 3.7 秒（360p 起播），之后降到 240p 连续播放，30 秒内起播后没有再卡，缓冲从 3.7 秒涨到 18.7 秒。改之前手机从 480p 以上起播，同样条件下首帧约 30 秒。
@@ -203,7 +202,7 @@ three.js 只通过 `/join-us`、`/forum-3d` 两页里的 `import("../three/<scen
 
 ## 性能预算
 
-三维书桌、加载动画与 GitHub 天际线在 #275 删除，现存的 3D 场景只有加入我们和论坛；下面涉及书桌、笔记本、加载动画、天际线的条目和表格行是删除前的实测记录，留作对照。开机动画是 Canvas 2D（`components/boot/engine.ts`），粒子数按设备核心数和像素比收紧（`timeline.ts` 的 `particleBudget`），还没有在真实浏览器里测帧率。
+三维书桌、加载动画与 GitHub 天际线在 #275 删除，加入我们的信封场景在 #279 改成桌面窗口，现存的 3D 场景只有论坛；下面涉及书桌、笔记本、加载动画、天际线、信封的条目和表格行是删除前的实测记录，留作对照。开机动画是 Canvas 2D（`components/boot/engine.ts`），粒子数按设备核心数和像素比收紧（`timeline.ts` 的 `particleBudget`），还没有在真实浏览器里测帧率。
 
 在 1440×900、DPR 2 的 M4 Pro 上验收（ego-browser，rAF 采样 120 帧 + WebGL 帧耗时插桩）：
 

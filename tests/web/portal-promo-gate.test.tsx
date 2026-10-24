@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// #122：直接打开 /join-us（没有 cookie、没有预取）时整页先被 inert，播放层分包在弱网下要几秒才到。
+// #122：第一次打开「加入我们」窗口（没有 cookie、没有预取）时信纸先被 inert，播放层分包在弱网下要几秒才到。
 // 以前 Suspense 的 fallback 是 null，这段空白期点不动、没有加载提示、也没有跳过入口。
 // 现在 fallback 是与播放层同一套的加载遮罩：有「正在加载…」，右上角「跳过」一直可用（Esc 同样能关），
 // 跳过与播放层同一语义：写「已看过」的 cookie 并让页面恢复可交互。
@@ -23,9 +23,7 @@ vi.mock("../../app/web/sites/portal/lib/promo", async (importOriginal) => ({
   detectCapabilities: () => new Promise(() => {}),
 }));
 
-let JoinUs: typeof import("../../app/web/sites/portal/pages/JoinUs").default;
-// react-router-dom 只装在 app/web 下，测试文件从仓库根解析不到：按页面实际用的那一份导入，路由器上下文要和页面同一个实例
-let MemoryRouter: typeof import("../../app/web/node_modules/react-router-dom/dist/index.mjs").MemoryRouter;
+let JoinBox: typeof import("../../app/web/sites/portal/components/os/JoinBox").default;
 
 beforeEach(async () => {
   // 每条用例一份新的模块：PromoLazy 记着上一次加载的播放层，分包也要重新「下载」
@@ -41,8 +39,7 @@ beforeEach(async () => {
   vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
   // 每个用例从「没看过」开始
   document.cookie = `${PROMO_COOKIE}=; Max-Age=0; Path=/`;
-  ({ default: JoinUs } = await import("../../app/web/sites/portal/pages/JoinUs"));
-  ({ MemoryRouter } = await import("../../app/web/node_modules/react-router-dom/dist/index.mjs"));
+  ({ default: JoinBox } = await import("../../app/web/sites/portal/components/os/JoinBox"));
 });
 afterEach(() => {
   cleanup();
@@ -50,8 +47,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const page = () => document.querySelector<HTMLElement>(".pt-join");
-const open = () => render(<MemoryRouter><JoinUs /></MemoryRouter>);
+const page = () => document.querySelector<HTMLElement>(".pt-joinbox");
+const open = () => render(<JoinBox />);
 
 describe("宣传片加载占位（#122）", () => {
   it("分包没到时显示加载遮罩，跳过可点，会写 cookie 并解除 inert", async () => {

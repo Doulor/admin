@@ -2551,12 +2551,20 @@
           "needle": "export type ApplyQuota = { apply_left_today: number; apply_daily_limit: number };"
         },
         {
-          "path": "app/web/sites/portal/pages/JoinUs.tsx",
+          "path": "app/web/sites/portal/components/os/JoinBox.tsx",
           "needle": "const result = await requestJson<Receipt>(\"/api/portal/apply\", {"
         },
         {
-          "path": "app/web/sites/portal/components/SceneBar.tsx",
-          "needle": "<Link className=\"pt-back\" to=\"/\">"
+          "path": "app/web/sites/portal/components/PromoLazy.tsx",
+          "needle": "export function LazyPromoPlayer({ placeholder = false, ...props }: Props & { placeholder?: boolean }) {"
+        },
+        {
+          "path": "app/web/sites/portal/components/PromoPlayer.tsx",
+          "needle": "export default function PromoPlayer({ mode, onSeen, onClose, coverSince }: Props) {"
+        },
+        {
+          "path": "app/server/src/lib/mail/envelope.ts",
+          "needle": "export function renderEnvelope(message: EnvelopeMessage, options: EnvelopeOptions): RenderedMail {"
         }
       ],
       "tests": [

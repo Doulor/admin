@@ -28,7 +28,7 @@ export default function PageShell({ path, children }: { path: string; children: 
           <NavLink to="/docs">文档</NavLink>
           <Link to="/?open=feedback">意见箱</Link>
           <a href={links.forumHome()}>论坛</a>
-          <Link className="pt-btn is-primary is-sm" to="/join-us">
+          <Link className="pt-btn is-primary is-sm" to="/?open=join">
             <Icon name="mail-send-line" size={15} /> 加入我们
           </Link>
         </nav>
@@ -40,7 +40,7 @@ export default function PageShell({ path, children }: { path: string; children: 
         </span>
         <nav aria-label="页脚导航">
           <Link to="/">回到桌面</Link>
-          <Link to="/join-us">加入我们</Link>
+          <Link to="/?open=join">加入我们</Link>
           <a href={links.forumHome()}>论坛</a>
           <Link to="/docs">文档</Link>
           {consoleLink && <a href={links.console()}>控制台</a>}

@@ -112,7 +112,7 @@ it("手机单击直达，双击事件不重复打开；论坛当前页，代码�
   expect(screen.getAllByRole("dialog", { name: "代码仓库" })).toHaveLength(1);
   expect(followed.calls).toHaveLength(1);
   expect(icons().queryByRole("button", { name: /GitHub/ })).toBeNull();
-  expect(container.querySelector(".pt-flight")).toBeNull();
+  expect(container.querySelector(".pt-scene")).toBeNull();
 });
 
 it("指引与壁纸弹层隔离背景数字键和搜索快捷键", () => {

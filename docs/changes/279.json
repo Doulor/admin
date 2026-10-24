@@ -1,0 +1,319 @@
+{
+  "version": 1,
+  "issue": 279,
+  "kind": "business",
+  "summary": "官网「加入我们」从单独的 3D 信封页改成桌面窗口：Dock、快捷键 1、终端 join 都在桌面上打开同一封信，旧地址 /join-us、/apply 跳到 /?open=join；投递规则、登录门槛、每日限额和第一次投递前的宣传片照旧。退场的 JoinUs 页面、信封场景和样式原样归档在 docs/history/portal-yugc-os-v1/。",
+  "applications": [
+    "web",
+    "server"
+  ],
+  "domains": [
+    "audit",
+    "competitions",
+    "feedback",
+    "identity",
+    "invitations",
+    "mail",
+    "organization",
+    "permissions",
+    "platform",
+    "public_content",
+    "recruitment"
+  ],
+  "flows": [
+    "flow:application.submit",
+    "flow:identity.current",
+    "flow:identity.account.view",
+    "flow:identity.invite.redeem",
+    "flow:competition.public.list",
+    "flow:feedback.public.list",
+    "flow:documentation.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "加入我们的打开方式变了：不再离开桌面飞进一个整页 3D 场景，而是在桌面上开一个信纸窗口，手机上同样是全屏窗口；没登录只给注册和登录，登录后写今天还能投几份，401 换成重新登录，429 照服务端的话说，这些规则与 #274/#275 相同。",
+      "evidence": [
+        "app/web/sites/portal/components/os/JoinBox.tsx",
+        "app/web/sites/portal/components/os/Windows.tsx",
+        "app/web/sites/portal/components/os/YugcOs.tsx",
+        "app/web/sites/portal/lib/osApps.ts",
+        "app/web/sites/portal/App.tsx",
+        "docs/services/web/portal.md"
+      ]
+    },
+    "backend": {
+      "status": "unchanged",
+      "reason": "窗口仍只调 POST /api/portal/apply、/auth/me 和 /api/public/config，请求体、PoW 前缀 （apply、姓名、邮箱拼成的串）、蜜罐和 Turnstile 都和原页面一致；服务端 apply.ts 与 envelope.ts 只改注释里指向前端文件的路径，没有行为变化。",
+      "evidence": [
+        "app/server/src/routes/portal/apply.ts",
+        "app/server/src/lib/mail/envelope.ts",
+        "app/web/sites/portal/components/os/JoinBox.tsx"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "投递权限仍由服务端判定：窗口只按 /auth/me 是否登录决定显示表单还是注册入口，提交结果按服务端回的 401/429 显示；服务端 apply.ts 与 envelope.ts 只改注释，不碰任何权限判定。",
+      "evidence": [
+        "app/server/src/routes/portal/apply.ts",
+        "app/server/src/lib/mail/envelope.ts",
+        "docs/architecture/SECURITY.md"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "不改数据库、接口字段和浏览器本地记录；宣传片看过仍写原来的 cookie。服务端 apply.ts 与 envelope.ts 只改注释，没有迁移或数据写入。",
+      "evidence": [
+        "app/server/src/routes/portal/apply.ts",
+        "app/server/src/lib/mail/envelope.ts",
+        "app/web/sites/portal/lib/promo.ts"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新增依赖包和外部服务；删掉的信封场景是加入我们唯一的 three.js 用户之一，three 依赖仍被论坛 3D 场景使用；服务端两个文件只改注释，服务装配和外部依赖不变。",
+      "evidence": [
+        "app/web/package.json",
+        "app/web/sites/portal/three/stage.ts",
+        "app/server/src/routes/portal/apply.ts",
+        "app/server/src/lib/mail/envelope.ts"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "portal 合同改写路由表、加入我们和宣传片各节，web README、接口合同、邮件文档跟着改；归档 README 记下退场的页面、场景和样式以及旧地址的去向；目录归属把投递流程的前端证据换成窗口和宣传片。",
+      "evidence": [
+        "docs/services/web/portal.md",
+        "docs/services/web/README.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/mail.md",
+        "docs/history/portal-yugc-os-v1/README.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "单测改为渲染窗口：门槛、限额、401、429、宣传片门控、Dock 与快捷键打开、旧地址跳转；端到端用例改为断言 /apply 与 /join-us 落到桌面上的加入我们窗口。未验证：预发布真实账号的投递与回执邮件。",
+      "evidence": [
+        "tests/web/portal-join-gate.test.tsx",
+        "tests/web/portal-promo-gate.test.tsx",
+        "tests/web/portal-os-entries.test.tsx",
+        "tests/web/portal-os.test.ts",
+        "tests/e2e/workflows.spec.ts"
+      ]
+    },
+    "delivery": {
+      "status": "unchanged",
+      "reason": "仍由原 web 镜像交付，不新增环境变量和运行单元；合并进 stage 只跑 CI，发到预发布要等 rc tag。",
+      "evidence": [
+        "app/web/Dockerfile",
+        "docs/services/web/README.md"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/web/sites/portal/components/os/JoinBox.tsx",
+        "app/web/sites/portal/components/os/Windows.tsx",
+        "app/web/sites/portal/components/os/YugcOs.tsx",
+        "app/web/sites/portal/lib/osApps.ts",
+        "app/web/sites/portal/styles/os.css"
+      ],
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:web",
+        "flow:application.submit",
+        "flow:identity.current",
+        "flow:competition.public.list"
+      ],
+      "reason": "加入我们改成桌面窗口：窗口登记、懒加载信纸、Dock 和快捷键打开，去掉飞入整页场景的过渡；信纸、回执和航空条纹样式搬进窗口样式。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/App.tsx",
+        "app/web/sites/portal/components/PageShell.tsx",
+        "app/web/sites/portal/lib/links.ts"
+      ],
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:web",
+        "flow:feedback.public.list",
+        "flow:identity.account.view",
+        "flow:documentation.list"
+      ],
+      "reason": "旧地址 /join-us、/apply 跳到 /?open=join，站内页面的加入我们链接改到同一个地址，链接说明去掉已退场的页面。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/components/PromoLazy.tsx",
+        "app/web/sites/portal/components/PromoPlayer.tsx",
+        "app/web/sites/portal/styles/portal.css",
+        "app/web/sites/portal/styles/scenes.css"
+      ],
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:web",
+        "flow:application.submit"
+      ],
+      "reason": "宣传片门控改由窗口挂出并挂到 body 上，不被窗口的毛玻璃困住；整页场景样式只剩论坛 3D 用的部分。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/pages/JoinUs.tsx",
+        "app/web/sites/portal/three/join.ts",
+        "docs/history/portal-yugc-os-v1/"
+      ],
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:web",
+        "flow:application.submit"
+      ],
+      "reason": "退场的加入我们整页和 3D 信封场景从源码删除，原样复制到归档目录，README 写明退场原因和旧地址去向。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/portal/apply.ts",
+        "app/server/src/lib/mail/envelope.ts",
+        "scripts/mail-envelope/build.py"
+      ],
+      "domains": [
+        "mail",
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:application.submit"
+      ],
+      "reason": "投递接口和邮件信封模板的注释、信封素材生成脚本的说明改指向窗口文件和归档路径，行为不变。"
+    },
+    {
+      "paths": [
+        "docs/services/web/portal.md",
+        "docs/services/web/README.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/mail.md",
+        "docs/architecture/catalog/ownership.json",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/routes.md",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/map.html",
+        "docs/INDEX.md"
+      ],
+      "domains": [
+        "mail",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:web",
+        "flow:application.submit"
+      ],
+      "reason": "文档和目录跟着改：投递流程的前端证据从整页换成窗口、宣传片和信封模板，生成目录重新生成。"
+    },
+    {
+      "paths": [
+        "tests/web/portal-join-gate.test.tsx",
+        "tests/web/portal-join.test.ts",
+        "tests/web/portal-os-entries.test.tsx",
+        "tests/web/portal-os.test.ts",
+        "tests/web/portal-phone.test.tsx",
+        "tests/web/portal-promo-gate.test.tsx",
+        "tests/web/portal-promo-lazy.test.tsx",
+        "tests/e2e/workflows.spec.ts"
+      ],
+      "domains": [
+        "recruitment",
+        "identity"
+      ],
+      "nodes": [
+        "application:web",
+        "flow:application.submit"
+      ],
+      "reason": "回归测试改为渲染加入我们窗口，补上旧地址跳转和桌面打开窗口的用例。"
+    }
+  ],
+  "removals": [
+    {
+      "path": "app/web/sites/portal/pages/JoinUs.tsx",
+      "baseAnchor": "export default function JoinUs() {",
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "reason": "加入我们整页退场，表单、门槛和回执搬进桌面窗口 JoinBox；原文件归档在 docs/history/portal-yugc-os-v1/files/。"
+    },
+    {
+      "path": "app/web/sites/portal/three/join.ts",
+      "baseAnchor": "export async function createJoinScene(canvas: HTMLCanvasElement, options: JoinOptions): Promise<JoinHandle> {",
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "reason": "3D 信封场景只给加入我们整页用，窗口不再需要它；原文件归档在 docs/history/portal-yugc-os-v1/files/。"
+    }
+  ],
+  "documents": [
+    "docs/services/web/portal.md",
+    "docs/services/web/README.md",
+    "docs/services/server/endpoint-contracts.md",
+    "docs/history/portal-yugc-os-v1/README.md"
+  ],
+  "tests": [
+    "tests/web/portal-join-gate.test.tsx",
+    "tests/web/portal-promo-gate.test.tsx",
+    "tests/web/portal-os-entries.test.tsx",
+    "tests/web/portal-os.test.ts",
+    "tests/e2e/workflows.spec.ts"
+  ],
+  "compatibility": "旧地址 /join-us、/apply 不再渲染整页，用 replace 跳到 /?open=join，桌面打开加入我们窗口后去掉这个参数；收藏的旧链接和邮件里的旧链接都能落到同一封信。接口和 cookie 不变。",
+  "migration": "不涉及数据迁移：没有数据库、接口字段或浏览器本地记录的变化，只是前端换了一个承载投递表单的容器。",
+  "rollback": "回滚这次合并即可恢复整页和 3D 信封场景；服务端只改了注释，没有需要回退的数据。"
+}

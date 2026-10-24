@@ -164,7 +164,7 @@ describe("播放层分包", () => {
     expect(net.retried).toEqual([1, 2]);
   });
 
-  it("外面的页面也还没提交时分包就失败了（直接打开 /join-us）：同一次打开不会因为 React 丢掉重来而多用重试地址", async () => {
+  it("外面的页面也还没提交时分包就失败了（第一次打开「加入我们」窗口）：同一次打开不会因为 React 丢掉重来而多用重试地址", async () => {
     // 页面自己的分包还没到：LazyPromoPlayer 渲染了但和页面一起没提交，React 等的时候会丢掉没提交的渲染重来
     let showPage!: () => void;
     const PageChunk = lazy(() => new Promise<{ default: ComponentType }>((resolve) => (showPage = () => resolve({ default: () => null }))));

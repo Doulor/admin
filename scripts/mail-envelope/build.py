@@ -7,8 +7,10 @@ Needs resvg, pngquant, oxipng on PATH and Pillow for Python; see docs/services/s
 Sources (official art shipped by the portal):
   app/web/public/portal/nano-wave-560.webp   the waving mascot on the portal boot screen
   app/web/public/logo.png                    the class emblem (stamp, wax seal)
-Colours follow app/web/sites/portal/three/join.ts (ivory envelope, cobalt/amber airmail
-stripes, cobalt hexagon liner, cobalt wax seal) and styles/scenes.css (letter paper).
+Colours follow the retired join-us envelope scene, archived since #279 under
+docs/history/portal-yugc-os-v1/files/app/web/sites/portal/: three/join.ts (ivory envelope,
+cobalt/amber airmail stripes, cobalt hexagon liner, cobalt wax seal) and styles/scenes.css
+(letter paper).
 
 Every piece is exported at 2x of its display size, quantised with pngquant, recompressed
 with oxipng and named <name>-<first 8 hex of sha256>.png. MANIFEST.txt and manifest.json

@@ -54,24 +54,37 @@ test("portal forum entry targets the adopted Nuxt module, not the retired React 
   await expect(footerLink).toHaveAttribute("href", "http://127.0.0.1:3456/");
 });
 
-test("legacy /apply redirects to the join-us letter", async ({ page }) => {
-  await page.goto("/sites/portal/apply");
-  await expect(page).toHaveURL(/\/sites\/portal\/join-us$/);
-  await expect(page.getByRole("heading", { level: 1, name: "加入我们" })).toBeVisible();
-  // 信纸在信封打开后才对辅助技术可见（此前 aria-hidden），给 3D 入场动画留足时间。
-  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 * SLOW });
+/** 今天（北京时间）已经播过开机动画：首页直接进 YUGC OS 桌面（#275，lib/bootGate.ts） */
+async function skipBoot(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem("yugc:boot-day", new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10));
+  });
+}
+
+test("legacy /apply and /join-us open the 加入我们 window on the desktop (#279)", async ({ page }) => {
+  await skipBoot(page);
+  for (const path of ["/sites/portal/apply", "/sites/portal/join-us"]) {
+    await page.goto(path);
+    await expect(page).toHaveURL(/\/sites\/portal\/$/);
+    const win = page.getByRole("dialog", { name: "加入我们" });
+    await expect(win.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 * SLOW });
+    // 这里的 /auth/me 被拦成 503，按访客处理：信纸上是先注册再投递
+    await expect(win.getByRole("heading", { name: "先注册再投递" })).toBeVisible();
+  }
 });
 
 const PROMO_CDN = "https://cdn.crosery.com/yzgc/static/promo/**";
 
-test("first visit to join-us never gets stuck behind the promo: whatever the player does, the letter opens", async ({ page }) => {
+test("first open of 加入我们 never gets stuck behind the promo: whatever the player does, the letter opens", async ({ page }) => {
+  await skipBoot(page);
   // beforeEach 已经拦掉所有外部请求：能播就加载失败，播不了就直接放行，两种都必须进到信纸。
   await page.goto("/sites/portal/join-us");
   await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 * SLOW });
   await expect(page.getByRole("dialog", { name: "极客班宣传片" })).toHaveCount(0);
 });
 
-test("the promo can be skipped on the first visit and does not autoplay again", async ({ page, context }) => {
+test("the promo can be skipped on the first open and does not autoplay again", async ({ page, context }) => {
+  await skipBoot(page);
   await page.goto("/sites/portal/docs");
   const canPlay = await page.evaluate(() => typeof MediaSource !== "undefined" && MediaSource.isTypeSupported('video/mp4; codecs="avc1.640029, mp4a.40.2"'));
   test.skip(!canPlay, "这个 Chromium 没有 H.264/AAC：播放层走「播不了就放行」，由上一条用例覆盖");
@@ -87,12 +100,13 @@ test("the promo can be skipped on the first visit and does not autoplay again", 
   await expect(promo).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 * SLOW });
   expect((await context.cookies()).find((cookie) => cookie.name === "yugc_promo_seen")?.value).toBe("1");
-  await page.reload();
+  await page.goto("/sites/portal/join-us");
   await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 * SLOW });
   await expect(promo).toHaveCount(0);
 });
 
 test("clicking the video keeps keyboard control: Esc still skips the promo", async ({ page }) => {
+  await skipBoot(page);
   await page.goto("/sites/portal/docs");
   const canPlay = await page.evaluate(() => typeof MediaSource !== "undefined" && MediaSource.isTypeSupported('video/mp4; codecs="avc1.640029, mp4a.40.2"'));
   test.skip(!canPlay, "这个 Chromium 没有 H.264/AAC：播放层走「播不了就放行」");
@@ -115,6 +129,7 @@ test.describe("promo on a phone", () => {
     const canPlay = await page.evaluate(() => typeof MediaSource !== "undefined" && MediaSource.isTypeSupported('video/mp4; codecs="avc1.640029, mp4a.40.2"'));
     test.skip(!canPlay, "这个 Chromium 没有 H.264/AAC：播放层走「播不了就放行」");
     await page.route(PROMO_CDN, () => {});
+    await skipBoot(page);
     await page.goto("/sites/portal/join-us");
     const promo = page.getByRole("dialog", { name: "极客班宣传片" });
     await expect(promo).toBeVisible();
