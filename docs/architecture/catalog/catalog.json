@@ -5629,7 +5629,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 847,
+          "line": 869,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -10102,7 +10102,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 672,
+          "line": 694,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -15332,7 +15332,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "86e67b4e3be0e8260485e3150965ab83e9869b72532c57e540a3957b159b5820",
+    "fingerprint": "48a44ba16465120204c4b0df847670f609e8187a84312ff99dd3673e093b0fd8",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -16140,7 +16140,7 @@
       },
       {
         "path": "app/server/Dockerfile",
-        "sha256": "0a3c1a9352cfed2a96f27bdec08987cd211482f30b082513ad5a93388ed10ea1"
+        "sha256": "a795520891cd20eca525b69bb9ef2318b3b1b417f09beb3591b927efc269de74"
       },
       {
         "path": "app/server/package.json",
@@ -16284,7 +16284,7 @@
       },
       {
         "path": "app/server/src/lib/forum-content.ts",
-        "sha256": "00ddda97962a0fe7ca3645f3681564fa71c8015021ee446e3395212087545f1d"
+        "sha256": "dcc7aad8f9cd92b159e6334b8b4b48e08d8349695cf43dc3d8767e23c0bd1bbf"
       },
       {
         "path": "app/server/src/lib/forum-rules.ts",
@@ -16292,7 +16292,7 @@
       },
       {
         "path": "app/server/src/lib/forum-store.ts",
-        "sha256": "4f9a043bb438f519db6def6365091c9f5d1a622aa185c0415ccd4f8867b26d7d"
+        "sha256": "0a66a40ef8f143ad4a612a49631562b98ac2f841332cec245130adb2527a5592"
       },
       {
         "path": "app/server/src/lib/github-http.ts",
@@ -16779,10 +16779,6 @@
         "sha256": "ec503b85901d61bdd6d18add7de562ed5990e193b4d4644f3c2e4dcea63ca4b7"
       },
       {
-        "path": "app/web/sites/contests/oss-2026-1/dist/site/assets/index-DjXYBoEn.js",
-        "sha256": "079184054663d12ca3d09313c383e7b169e7da9372a66c81bf572fc6852ca2ee"
-      },
-      {
         "path": "app/web/sites/contests/oss-2026-1/site.config.ts",
         "sha256": "d8353260c93d6b6b8b91d0be6b78a94e8f1f64a053ceca7d3ac37b6faf181184"
       },
@@ -17176,11 +17172,11 @@
       },
       {
         "path": "docs/services/forum/README.md",
-        "sha256": "b45a9bea48bfb6550e92d2f5a583124aa263c6f3fdc6dccd4d879282309d2ade"
+        "sha256": "525a735371abafff859e15c15091f51173fd19dbd757c273844779b1555d3709"
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "fe197ea0f2c641a4f3829ddb5b881e5fd8420eaa52765f2c81c8d12dff4df0a3"
+        "sha256": "64b8a6ae2a79e46c65e5a9eaa9897128fefa00ead320183e19476664c1acf325"
       },
       {
         "path": "docs/services/server/data-model.md",
@@ -17400,7 +17396,7 @@
       },
       {
         "path": "tests/server/forum.test.ts",
-        "sha256": "d762526ab3614ab2fb08e192c8cbaa5da082aeddbc27345422a6d46f72d7a8e4"
+        "sha256": "9f2c4d98e5b82c62fde19bfaf126b180c659c15f47d5cd417ada59ae790f9610"
       },
       {
         "path": "tests/server/gitlab-sync.test.ts",
@@ -47537,7 +47533,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 847,
+          "line": 869,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -47569,7 +47565,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 847,
+          "line": 869,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -47601,7 +47597,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 847,
+          "line": 869,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -47633,7 +47629,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 847,
+          "line": 869,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -47665,7 +47661,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 847,
+          "line": 869,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -47697,7 +47693,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 847,
+          "line": 869,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -47741,7 +47737,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 847,
+          "line": 869,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -47773,7 +47769,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 847,
+          "line": 869,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -47805,7 +47801,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 847,
+          "line": 869,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -47837,7 +47833,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 847,
+          "line": 869,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -72551,7 +72547,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 672,
+          "line": 694,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -72599,7 +72595,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 672,
+          "line": 694,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -72647,7 +72643,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 672,
+          "line": 694,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -72695,7 +72691,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 672,
+          "line": 694,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -72743,7 +72739,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 672,
+          "line": 694,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -72791,7 +72787,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 672,
+          "line": 694,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -72839,7 +72835,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 672,
+          "line": 694,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -72887,7 +72883,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 672,
+          "line": 694,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -72941,7 +72937,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 672,
+          "line": 694,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -72989,7 +72985,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 672,
+          "line": 694,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -73037,7 +73033,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 672,
+          "line": 694,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -73085,7 +73081,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 672,
+          "line": 694,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -122449,12 +122445,6 @@
         "competitions"
       ],
       "path": "app/web/sites/contests/_starter/vite.config.ts"
-    },
-    {
-      "domains": [
-        "competitions"
-      ],
-      "path": "app/web/sites/contests/oss-2026-1/dist/site/assets/index-DjXYBoEn.js"
     },
     {
       "domains": [
