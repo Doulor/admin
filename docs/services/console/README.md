@@ -18,7 +18,7 @@
 | `src/components/` | 外壳（`ConsoleShell`、`ConsoleNav`：只显示实际持有节点的页面；导航超出高度时整列滚动、品牌和账号区钉在上下两端，不让 `TxSidebarNav` 的列表区自己滚动，否则悬停高亮会比鼠标所在的条目高出滚动的距离）、权限门 `CapabilityGate`（直接访问没有权限的地址仍说明缺哪个节点）、状态组件（`ErrorPanel`、`ErrorAlert`：401 和 403 `step_up_required` 时主按钮是「重新登录」，带着当前地址去 `/signin?return_to=…`；`LoadingBlock`）、`TitleBadge`（按部门色调）/`ToneTag`/`UserCell`、`AccountPicker`（按用户名或昵称远程搜账号，给操作记录、权限解释和加组员用）、`PageHeader`、`ConfirmHost` |
 | `src/lib/` | 纯逻辑（可单测，不导入 Vue）：`http`（请求与 `ApiError`）、`errors`（错误 → 文案与错误卡片的主按钮）、`signin`（登录未成原因解析、`return_to` 同源校验 `safeReturnPath`、`/auth/providers` 的解析与跳转地址、邮箱验证码与密码登录的请求、发码冷却秒数、先开哪个标签 `initialSignInTab`、注册表单的本地检查 `registerProblem` 与提交流程 `registerWithEmail`；邮箱与验证码的检查 `looksLikeEmail`、`codeProblem` 账号页绑定邮箱也用；绑定邮箱页与补资料页的回跳 `bindEmailReturn`、`completeProfileReturn`，#280）、`grade`（#280：年级下拉框的选项、真实姓名与年级的本地检查，与服务端同一规则）、`account`（账号页的登录方式、成员资格与账号记录的说法，设密码前的本地检查；密码规则 `passwordRuleProblem` 登录页的注册也用）、`invites`（邀请码的状态、表单校验与提交内容）、`forum`（#276：可见范围的说法，表情和表情包编辑稿的检查与 PATCH 体，加表情时图片和短码的检查、上传地址）、`device`、`authorize`、`nav`（导航与节点可见性）、`permission-nodes`（节点的中文名与业务域，读不到节点目录时的兜底）、`levels`（四种身份、账号状态、登录方式、GitLab 同步状态的说法）、`tone`（部门色调，SPEC §1）、`users`（用户页的筛选、抽屉编辑稿与 PATCH 体）、`permissions`（组的分段排序、条目与范围的说法、添加条目与新建、修改组的请求体、解释结果的来源链）、`activity`（操作记录的筛选、北京时间起止、来源、结果、动作和限流桶的说法）、`gitlab`（同步模式、账号同步的状态与错误说法）、`applications`、`competitions`、`competition-hub`（报名设置与积分）、`competition-contest`（#278：计分规则与奖项的表单、待确认贡献、官网版本、兑奖码的校验与说法）、`statuses`、`format`（时间一律按北京时间）、`types`；带 Vue 的：`session`（身份与权限清单）、`resource`（读写状态）、`confirm`、`runtime`（数据源与跨服务链接）、`tabs`（`TxTabs` 首次显示时指示条不做滑入过渡的指令 `vSnapIndicator`） |
 | `src/mock/` | 开发预览样板数据（全部虚构），只在数据源为 mock 且（DEV 或 PR 预览构建 `VITE_PREVIEW_MOCK=1`，#245）时动态导入，镜像构建不含；`lib/runtime.ts` 的 `PREVIEW_MOCK` 只由根目录 `netlify.toml` 设置。`mock/console.ts` 照 SPEC §3.3–§3.5 做了一份简化的组与求值：通配展开、拒绝优先、过期条目不算、meta 取权重最高的组（同权重取更宽松的），范围只认 `department` 一个键（部门部长看用户和操作记录只看到本部门的人）；样板身份见「开发」。mock 的 `/auth/providers` 与服务端同形（样板列出 GitHub、Google 和带密码的邮箱三种），`/api/identity/me` 按样板身份给账号页数据（未登录样板回 401）；设备授权页用到的 `/auth/me` 与 `GET /api/identity/device`、同意页的 `GET /oidc/interaction/<uid>/details` 也同形，允许、拒绝回 501；样板身份 `no_email`、`no_email_stale` 带 `email_required: true`，用来看绑定邮箱页（#273）；论坛管理的分类和表情包（`/api/console/forum/*`，#276）也有样板，写操作先过节点和重新登录检查，再回 501（重名短码回 409）；比赛的待确认贡献、计分与奖项、官网、定榜四个读口也有样板（#278，第一期的三档奖项与年级系数） |
-| `src/styles/theme.css`、`layout.css` | 主题令牌覆盖与页面版式（见「设计令牌」） |
+| `src/styles/theme.css`、`layout.css`、`controls.css` | 主题令牌覆盖、页面版式与 Tuffex 控件的统一外观（见「设计令牌」和「控件外观」） |
 | `scripts/tuffex-icon-classes.mjs` | 扫描已安装 Tuffex 的 dist，给 UnoCSS 列出组件自带的 `i-carbon-*` 图标类（做法同论坛） |
 | `vite.config.ts`、`uno.config.ts`、`tsconfig.json` | 构建、图标、类型检查配置 |
 
@@ -262,6 +262,16 @@ pnpm test                               # tests/console/*：导航可见性（`n
 pnpm --filter @yzgc/console build       # 根 pnpm build 也会跑
 node scripts/check-boundaries.mjs       # console ↔ web ↔ server 互不导入
 ```
+
+### 控件外观（#283）
+
+所有者 2026-10-24 22:16：「论坛的这些ui太紧凑了，admin的ui你去优化下吧，你全量看看优化下ui，太丑了，而且很多的按钮也很丑」；22:17：「还有就是admin的这个弹窗丑死了」。`src/styles/controls.css` 只改控制台里的 Tuffex 控件，选择器前加 `body` 压过 Tuffex 带 `data-v` 的同名规则，不用 `!important`：
+
+- 按钮三档：`primary` 实心钴蓝白字（把 `fake-background` 那层 75% 浅色的 `--fake-opacity` 设成 0，不然发白），`secondary` 白底细边，`ghost` 文字按钮；`danger` 浅红底红字。去掉 80px 的最小宽度，常规高 32px、`sm` 28px、`lg` 40px。
+- 弹窗（`TxModal`）：最高到视口减 40px，标题和底部按钮固定，中间正文滚动，底部按钮上方一条分隔线；窄屏四周留 12px。表单再长也看得到「取消」「保存」。
+- 页签：鼠标点过不留粗框，键盘切换时留一条细框。
+- 日期：全部用 `components/DateField.vue`（`TxDatePicker` 的下拉日历，中文文案、周一开头，值仍是 `YYYY-MM-DD`，`clearable` 时选了以后旁边有「清除」）；Tuffex 0.9.1 的星期表头写死英文，`controls.css` 按周一开头换成「一」到「日」。日期框高至少 44px，浅底无边框，和输入框一致；Tuffex 的日期框样式是 scoped，`body` 压不过，选择器多带一层 `.date-field`。比赛弹窗里日期框和输入框一样是 46px。控制台里不再有原生日期框。
+- 论坛管理「我的论坛权限」改成卡片网格，每张卡片写权限名、能做什么和「有／没有」；「打开论坛」改成次按钮。
 
 ## 已知限制
 
