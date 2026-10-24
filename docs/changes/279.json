@@ -2,7 +2,7 @@
   "version": 1,
   "issue": 279,
   "kind": "business",
-  "summary": "官网桌面三处返工：「加入我们」从单独的 3D 信封页改成桌面窗口（Dock、快捷键 1、终端 ./join 都在桌面上打开同一封信，旧地址 /join-us、/apply 跳到 /?open=join，投递规则、登录门槛、每日限额和宣传片照旧，退场的页面、信封场景和样式归档在 docs/history/portal-yugc-os-v1/）；窗口左上角三个按钮换成胶囊槽里的三颗糖果珠；终端换成模拟的 Linux（文件系统、管道重定向、变量、通配符、脚本与 PATH、权限、本机存盘、Tab 补全，命令按 Linux 启明道场的关卡准备，桌面应用是 ~/Desktop 里的 .app）。意见箱的「发往的 GitHub 组织」改成「发往的组织」。",
+  "summary": "官网桌面三处返工：「加入我们」从单独的 3D 信封页改成桌面窗口（Dock、快捷键 1、终端 ./join 都在桌面上打开同一封信，旧地址 /join-us、/apply 跳到 /?open=join，投递规则、登录门槛、每日限额和宣传片照旧，退场的页面、信封场景和样式归档在 docs/history/portal-yugc-os-v1/）；窗口左上角三个按钮换成胶囊槽里的三颗糖果珠；终端换成模拟的 Linux（文件系统、管道重定向、变量、通配符、脚本与 PATH、权限、本机存盘、Tab 补全，命令按 Linux 启明道场的关卡准备，桌面应用是 ~/Desktop 里的 .app）。意见箱界面上的 GitHub 字样换掉（「发往的组织」「代码仓库用户名」）。",
   "applications": [
     "web",
     "server"
@@ -191,7 +191,7 @@
         "application:web",
         "flow:feedback.public.list"
       ],
-      "reason": "意见箱组织框的标签去掉 GitHub 字样，改成「发往的组织」；读取和提交的组织值、只读规则不变。"
+      "reason": "意见箱去掉界面上的 GitHub 字样：组织框标签改成「发往的组织」，联系方式的占位文字改成「邮箱、代码仓库用户名或微信」；读取和提交的组织值、只读规则不变。"
     },
     {
       "paths": [

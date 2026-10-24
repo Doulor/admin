@@ -173,7 +173,7 @@ export default function FeedbackBox() {
 
       <div className="pt-field">
         <label htmlFor="fb-contact">联系方式（选填，不公开）</label>
-        <input id="fb-contact" className="pt-input" placeholder="邮箱、GitHub 用户名或微信" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+        <input id="fb-contact" className="pt-input" placeholder="邮箱、代码仓库用户名或微信" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
       </div>
 
       {/* 蜜罐字段：真人看不见也不会填，机器人会填。 */}
