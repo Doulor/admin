@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`013bd4082eea47ad229073a437dea0f906df510b47290b135b46db125d7afefd`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`49c36170b2c8841cc672578aad03dbd6702f9ab0a45bfe0db2c170c18f7fc506`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -1850,7 +1850,7 @@
 - 匿名；只把 /c/<slug> 301 到 /c/<slug>/（Cache-Control: no-store），不查库、不读会话。
 - 和 /c/:slug/* 一样经站点路由的 onSend 带 sandbox CSP、nosniff、Access-Control-Allow-Origin: *，并去掉 Set-Cookie。
 
-源码：[app/server/src/routes/sites/index.ts:56](../../../app/server/src/routes/sites/index.ts#L56) · [app/server/src/routes/sites/index.ts:12](../../../app/server/src/routes/sites/index.ts#L12) · [app/server/src/app.ts:120](../../../app/server/src/app.ts#L120)
+源码：[app/server/src/routes/sites/index.ts:57](../../../app/server/src/routes/sites/index.ts#L57) · [app/server/src/routes/sites/index.ts:13](../../../app/server/src/routes/sites/index.ts#L13) · [app/server/src/app.ts:120](../../../app/server/src/app.ts#L120)
 
 测试入口：[tests/server/competition-site.test.ts](../../../tests/server/competition-site.test.ts)。生成器未执行这些测试。
 
@@ -1864,11 +1864,11 @@
 - 写入：`sessions`
 - 不入队：
 - 匿名读已发布版本的文件：目录回 index.html，没有扩展名但有同名目录的 301 到带 / 的地址；比赛下线、不是内部赛、没发布或文件不存在一律 404，不区分原因。
-- 所有响应带 sandbox CSP（来源是 null，读不到主站 cookie 与存储，只能连同源）、nosniff、Access-Control-Allow-Origin: *，去掉 Set-Cookie；已发布的文件 Cache-Control: public, max-age=300。
+- 所有响应带 sandbox CSP（来源是 null，读不到主站 cookie 与存储，只能连同源）、nosniff、Access-Control-Allow-Origin: *，去掉 Set-Cookie；已发布版本的 HTML Cache-Control: no-cache（换版本后旧页面不会去找已经不在的资源文件），其它文件 public, max-age=300。
 - 预览：~preview/<version_id>/ 要会话有 competition.site.publish 且版本通过校验，302 到一小时有效的签名地址 ~preview/<version_id>.<到期秒>.<签名>/（HMAC，SESSION_SECRET）；签名地址不看会话、private, no-store；条件不满足一律 404。
 - 只读，不写业务表；读会话时过期会话照常删除。web 容器的 nginx 只把 /c/ 原样转给 server，宿主的站点 CSP 与 sandbox CSP 叠加后同样只允许 'self'。
 
-源码：[app/server/src/routes/sites/index.ts:58](../../../app/server/src/routes/sites/index.ts#L58) · [app/server/src/lib/competition-site-store.ts:42](../../../app/server/src/lib/competition-site-store.ts#L42) · [app/server/src/lib/competition-site-store.ts:14](../../../app/server/src/lib/competition-site-store.ts#L14) · [app/web/sites/portal/components/os/competitions/ContestSite.tsx:12](../../../app/web/sites/portal/components/os/competitions/ContestSite.tsx#L12) · [app/web/Dockerfile:180](../../../app/web/Dockerfile#L180)
+源码：[app/server/src/routes/sites/index.ts:59](../../../app/server/src/routes/sites/index.ts#L59) · [app/server/src/lib/competition-site-store.ts:42](../../../app/server/src/lib/competition-site-store.ts#L42) · [app/server/src/lib/competition-site-store.ts:14](../../../app/server/src/lib/competition-site-store.ts#L14) · [app/web/sites/portal/components/os/competitions/ContestSite.tsx:12](../../../app/web/sites/portal/components/os/competitions/ContestSite.tsx#L12) · [app/web/Dockerfile:180](../../../app/web/Dockerfile#L180)
 
 测试入口：[tests/server/competition-site.test.ts](../../../tests/server/competition-site.test.ts) · [tests/tooling/web-nginx.test.ts](../../../tests/tooling/web-nginx.test.ts) · [tests/web/contest-site.test.ts](../../../tests/web/contest-site.test.ts)。生成器未执行这些测试。
 

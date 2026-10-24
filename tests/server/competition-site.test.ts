@@ -138,13 +138,15 @@ describe('上传、发布与托管（/api/console/competitions/:id/site、/c/:sl
     expect(page.statusCode).toBe(200);
     expect(page.headers['content-security-policy']).toBe(SITE_CSP);
     expect(SITE_CSP).toContain('sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox');
-    expect(page.headers['cache-control']).toBe('public, max-age=300');
+    expect(page.headers['cache-control']).toBe('no-cache');
     expect(page.headers['x-content-type-options']).toBe('nosniff');
     expect(page.headers['access-control-allow-origin']).toBe('*');
     expect(page.headers['set-cookie']).toBeUndefined();
     expect(page.headers['content-type']).toBe('text/html; charset=utf-8');
     expect(page.body).toContain('<title>oss</title>');
-    expect((await app.inject({ url: '/c/oss-2026/assets/app.js' })).headers['content-type']).toBe('text/javascript; charset=utf-8');
+    const script = await app.inject({ url: '/c/oss-2026/assets/app.js' });
+    expect(script.headers['content-type']).toBe('text/javascript; charset=utf-8');
+    expect(script.headers['cache-control']).toBe('public, max-age=300');
     const bare = await app.inject({ url: '/c/oss-2026' });
     expect(bare.statusCode).toBe(301);
     expect(bare.headers.location).toBe('/c/oss-2026/');

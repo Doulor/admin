@@ -6997,11 +6997,11 @@
       "domain": "competitions",
       "evidence": [
         {
-          "line": 56,
+          "line": 57,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
@@ -7039,7 +7039,7 @@
       "domain": "competitions",
       "evidence": [
         {
-          "line": 58,
+          "line": 59,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
@@ -7062,7 +7062,7 @@
       "id": "flow:competition.site.serve",
       "invariants": [
         "匿名读已发布版本的文件：目录回 index.html，没有扩展名但有同名目录的 301 到带 / 的地址；比赛下线、不是内部赛、没发布或文件不存在一律 404，不区分原因。",
-        "所有响应带 sandbox CSP（来源是 null，读不到主站 cookie 与存储，只能连同源）、nosniff、Access-Control-Allow-Origin: *，去掉 Set-Cookie；已发布的文件 Cache-Control: public, max-age=300。",
+        "所有响应带 sandbox CSP（来源是 null，读不到主站 cookie 与存储，只能连同源）、nosniff、Access-Control-Allow-Origin: *，去掉 Set-Cookie；已发布版本的 HTML Cache-Control: no-cache（换版本后旧页面不会去找已经不在的资源文件），其它文件 public, max-age=300。",
         "预览：~preview/<version_id>/ 要会话有 competition.site.publish 且版本通过校验，302 到一小时有效的签名地址 ~preview/<version_id>.<到期秒>.<签名>/（HMAC，SESSION_SECRET）；签名地址不看会话、private, no-store；条件不满足一律 404。",
         "只读，不写业务表；读会话时过期会话照常删除。web 容器的 nginx 只把 /c/ 原样转给 server，宿主的站点 CSP 与 sandbox CSP 叠加后同样只允许 'self'。"
       ],
@@ -13425,7 +13425,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "013bd4082eea47ad229073a437dea0f906df510b47290b135b46db125d7afefd",
+    "fingerprint": "49c36170b2c8841cc672578aad03dbd6702f9ab0a45bfe0db2c170c18f7fc506",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -14673,7 +14673,7 @@
       },
       {
         "path": "app/server/src/routes/sites/index.ts",
-        "sha256": "d3b3dbf42f8170952a8c59992e0b93be3af32c37829a13995a9a102f0d38803a"
+        "sha256": "06af1e1d6fa4c6699b886d415d4bd718c3395c8430de19237a1b517497cf3f83"
       },
       {
         "path": "app/server/src/services.ts",
@@ -15089,7 +15089,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "9c49449f2a007a1acaa1d628fdcb4b3af2aa91d6bdc7c8a20fabd97b7456367e"
+        "sha256": "cd91ba85f6f9bc315f3f71a5cf91f3dc5abfab9144aa9492895dc4b1ebdbfc83"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -15101,7 +15101,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "e5f13f926521983f20c92ce654135bf22df96e068c8b924cd372247f2bb22440"
+        "sha256": "ea12d1ee43df4130f9209c26c7e686c01fc14db8cefbc434e698befbb2ffc08c"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -15153,7 +15153,7 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "830778884ef5ce8cd664b32269893fd33d359f250d0743356bf5b4db1e709b59"
+        "sha256": "857731e5f79268b8b8cc5ac200ec3e0893cfc42fab270aefab96cefc02748320"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -15297,7 +15297,7 @@
       },
       {
         "path": "tests/server/competition-site.test.ts",
-        "sha256": "65975ce709a75f1a615c43661a0f47ac9893ff591a49e43159988a223baa0684"
+        "sha256": "bfebce7795072a2f6f06cfea521f0462b2923886d1934783ba5d160e20e403b6"
       },
       {
         "path": "tests/server/competitions.test.ts",
@@ -16544,7 +16544,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 56,
+          "line": 57,
           "path": "app/server/src/routes/sites/index.ts"
         }
       ],
@@ -16556,7 +16556,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 58,
+          "line": 59,
           "path": "app/server/src/routes/sites/index.ts"
         }
       ],
@@ -17456,7 +17456,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 56,
+          "line": 57,
           "path": "app/server/src/routes/sites/index.ts"
         }
       ],
@@ -17468,7 +17468,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 58,
+          "line": 59,
           "path": "app/server/src/routes/sites/index.ts"
         }
       ],
@@ -36140,11 +36140,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 57,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
@@ -36190,7 +36190,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 58,
+          "line": 59,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
@@ -36218,7 +36218,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 58,
+          "line": 59,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
@@ -36246,7 +36246,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 58,
+          "line": 59,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
@@ -36274,7 +36274,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 58,
+          "line": 59,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
@@ -36302,7 +36302,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 58,
+          "line": 59,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
@@ -36330,7 +36330,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 58,
+          "line": 59,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
@@ -36358,7 +36358,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 58,
+          "line": 59,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
@@ -36386,7 +36386,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 58,
+          "line": 59,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
@@ -36414,7 +36414,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 58,
+          "line": 59,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
@@ -36460,7 +36460,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 58,
+          "line": 59,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
@@ -36488,7 +36488,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 58,
+          "line": 59,
           "path": "app/server/src/routes/sites/index.ts"
         },
         {
@@ -81854,7 +81854,7 @@
         }
       },
       "source": {
-        "line": 56,
+        "line": 57,
         "path": "app/server/src/routes/sites/index.ts"
       }
     },
@@ -81899,7 +81899,7 @@
         }
       },
       "source": {
-        "line": 58,
+        "line": 59,
         "path": "app/server/src/routes/sites/index.ts"
       }
     },
@@ -86738,7 +86738,7 @@
         }
       },
       "source": {
-        "line": 56,
+        "line": 57,
         "path": "app/server/src/routes/sites/index.ts"
       }
     },
@@ -86783,7 +86783,7 @@
         }
       },
       "source": {
-        "line": 58,
+        "line": 59,
         "path": "app/server/src/routes/sites/index.ts"
       }
     },

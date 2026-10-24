@@ -186,7 +186,7 @@
         "table:competition_site_versions",
         "table:competition_sites"
       ],
-      "reason": "官网托管：站点包逐条校验后落到数据卷，发布后由 server 直接读文件回 /c/ 加比赛地址，所有响应带 sandbox CSP 与 nosniff、去掉 Set-Cookie；预览走一小时有效的签名地址；收集任务随 gitlabSync 开关在 app.ts 启停。"
+      "reason": "官网托管：站点包逐条校验后落到数据卷，发布后由 server 直接读文件回 /c/ 加比赛地址，所有响应带 sandbox CSP 与 nosniff、去掉 Set-Cookie，HTML 不缓存、其它文件缓存 5 分钟，换版本后不会拿旧页面找已经不在的资源；预览走一小时有效的签名地址；收集任务随 gitlabSync 开关在 app.ts 启停。"
     },
     {
       "paths": [

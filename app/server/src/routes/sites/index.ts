@@ -8,6 +8,7 @@ import { loadSession } from "../../lib/session.js";
  * 预览：直接打开 `~preview/<version_id>/` 时检查会话有没有 competition.site.publish（没有也回 404，不暴露版本在不在），
  * 通过后跳到带签名的 `~preview/<version_id>.<到期>.<签名>/`。sandbox 页面里的子资源请求不带 cookie，所以后面的文件靠这段签名放行，一小时后失效。
  * 模块脚本和带 crossorigin 的样式按 CORS 方式请求（来源 null），所以文件响应也带 `Access-Control-Allow-Origin: *`。
+ * 已发布版本的 HTML 回 no-cache、其它文件缓存 5 分钟：换版本后资源文件名跟着变，浏览器手里旧的 index.html 会指向已经没有的文件。
  */
 export const SITE_CSP = "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox; default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; frame-ancestors 'none'";
 const PREVIEW_PREFIX = "~preview/";
@@ -46,11 +47,11 @@ export default async function siteRoutes(app: FastifyInstance) {
     return Boolean(record && !record.offline && record.kind === "internal");
   };
 
-  function serve(reply: FastifyReply, competitionId: string, versionId: string, path: string, cacheControl: string) {
+  function serve(reply: FastifyReply, competitionId: string, versionId: string, path: string, cacheControl: (contentType: string) => string) {
     const hit = sites.readSiteFile(competitionId, versionId, path);
     if (hit.kind === "redirect") return reply.header("Cache-Control", "no-store").redirect(hit.location, 301);
     if (hit.kind === "missing") return missing(reply);
-    return reply.header("Cache-Control", cacheControl).type(hit.contentType).send(hit.data);
+    return reply.header("Cache-Control", cacheControl(hit.contentType)).type(hit.contentType).send(hit.data);
   }
 
   app.get<{ Params: { slug: string } }>("/c/:slug", redirectSchema, async (req, reply) => reply.header("Cache-Control", "no-store").redirect(`/c/${encodeURIComponent(req.params.slug)}/`, 301));
@@ -73,10 +74,10 @@ export default async function siteRoutes(app: FastifyInstance) {
       const versionId = sites.verifyPreviewToken(competitionId, segment, clock());
       if (!versionId || !sites.passedVersion(competitionId, versionId)) return missing(reply);
       if (inner === null) return reply.header("Cache-Control", "no-store").redirect(`${segment}/`, 301);
-      return serve(reply, competitionId, versionId, inner, "private, no-store");
+      return serve(reply, competitionId, versionId, inner, () => "private, no-store");
     }
     const live = sites.live(slug);
     if (!live || !hostable(live.competition_id)) return missing(reply);
-    return serve(reply, live.competition_id, live.version_id, rest, "public, max-age=300");
+    return serve(reply, live.competition_id, live.version_id, rest, type => (type.startsWith("text/html") ? "no-cache" : "public, max-age=300"));
   });
 }
