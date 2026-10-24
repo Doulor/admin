@@ -1,0 +1,51 @@
+[package]
+name = "geek-cli"
+version = "0.1.0"
+edition = "2021"
+description = "极客班命令行（#277）：设备码登录、论坛/比赛/代码仓库只读与写操作、Agent 技能安装"
+repository = "https://git.yangtzeu.work/geek/geek_main"
+readme = "README.md"
+keywords = ["cli", "agent", "yzgc"]
+categories = ["command-line-utilities"]
+
+[[bin]]
+name = "geek"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive", "env"] }
+dirs = "5"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "signal"] }
+url = "2"
+
+# 动画与 TTY 探测（SPEC §6）：只在终端、非 NO_COLOR、非 --json 时用。
+crossterm = "0.28"
+# 登录成功后把头像转成盲文图（kitty/iTerm 图像协议不可用时的退路）；只要三种解码器，不要默认特性里的
+# rayon 并行与一堆用不到的格式，交叉编译到 5 个目标时体积和编译时间都更可控。
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", default-features = false, features = ["apple-native"] }
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3", default-features = false, features = ["windows-native"] }
+# Linux 用内核 keyutils（`linux-native`，纯 Rust，只是系统调用），不用 D-Bus 的 secret-service：
+# 后者靠 libdbus-sys 链接系统的 libdbus，交叉编译到 musl 时没有对应的 sysroot 会直接编译失败
+# （.tools/ 的 zig/cargo-zigbuild 只解决链接器，不提供第三方 C 库的 sysroot）；内核 keyring 对一个
+# 命令行工具存令牌也够用，没有图形桌面会话的服务器/容器环境本来也没有 secret-service 这类守护进程。
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", default-features = false, features = ["linux-native"] }
+
+[build-dependencies]
+# 只在构建机上跑（build.rs 不会被交叉编译进目标产物）：把极客娘抠图在编译时转成盲文点阵，详见 build.rs。
+image = { version = "0.25", default-features = false, features = ["webp"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

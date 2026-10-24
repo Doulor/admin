@@ -1,0 +1,98 @@
+# geek
+
+极客班命令行，面向人和 AI agent：设备码登录极客班账号、看论坛/比赛/代码仓库、给 Claude Code/Codex/omp 装一份极客班技能。详细契约见 [docs/services/cli/README.md](../../docs/services/cli/README.md)。
+
+## 安装
+
+```bash
+# macOS / Linux
+curl -fsSL https://yangtzeu.work/cli/install.sh | sh
+
+# 预发布（测试用）
+curl -fsSL https://prev.yangtzeu.work/cli/install.sh | GEEK_ORIGIN=https://prev.yangtzeu.work sh
+
+# Windows PowerShell
+irm https://yangtzeu.work/cli/install.ps1 | iex
+```
+
+脚本自动识别平台（macOS/Linux × aarch64/x86_64，Windows 走 x86_64），下载二进制到 `~/.local/bin/geek`（Windows: `%USERPROFILE%\.local\bin\geek.exe`），校验 sha256 后再安装。`GEEK_INSTALL_DIR` 改安装目录，`GEEK_ORIGIN` 改源站（默认生产）。
+
+macOS 二进制未签名：curl 下载的文件没有 Gatekeeper 隔离属性，能直接执行。
+
+## 上手
+
+```bash
+geek login --env preview   # 设备码登录（动画 + 用户码），浏览器确认后显示头像、昵称、部门
+geek whoami --json         # 看登录信息
+geek forum list --json     # 板块与话题摘要
+geek comp list --json      # 公开比赛列表
+geek logout                # 撤销令牌、清掉本机凭据
+```
+
+默认源站生产 `https://yangtzeu.work`；`--env preview` 或 `GEEK_ORIGIN=https://prev.yangtzeu.work` 切到预发布。令牌存进系统钥匙串，没有钥匙串时退到 `~/.config/geek/credentials`（0600）。
+
+## 命令一览
+
+```
+geek login [--env production|preview] [--no-browser]   设备码登录
+geek logout                                             撤销令牌、清本机凭据
+geek whoami [--json]                                    看登录信息
+
+geek forum list [--json]                                板块与话题摘要
+geek forum post <标题> <正文> [--json]                   发帖（受权限节点限制）
+
+geek comp list [--json]                                 公开比赛列表
+geek comp mine [--json]                                 我报名的比赛
+
+geek team apply <团队 id> [--json]                       报名
+
+geek repo list [--json]                                 公开代码仓库列表
+
+geek skill install [--target claude|codex|omp|all]      给 agent 装极客班技能
+```
+
+## 输出格式
+
+默认人读格式；`--json` 输出 `{ "ok": true, "data": ... }` 或 `{ "ok": false, "error": { "code", "message", "retry_after"? } }`。agent 用 `--json`。
+
+退出码：`0` 成功、`2` 用法错误、`3` 未登录、`4` 被拒绝（权限/scope/邮箱未绑定）、`5` 限流、`6` 网络错误、`1` 其它。
+
+## 给 AI agent 使用
+
+内嵌 `skills/geek/SKILL.md`：
+
+```bash
+geek skill install --target claude   # 写到 ~/.claude/skills/geek
+geek skill install --target codex    # 写到 ~/.codex/skills/geek
+geek skill install --target omp      # 写到 ~/.omp/skills/geek
+geek skill install --target all      # 三个都装
+```
+
+## 鉴权与权限
+
+- 登录用 RFC 8628 设备码授权，`scope: openid profile forum apply competition repo`。
+- 令牌等价于浏览器会话：服务端按同一套权限节点判断能不能写（比如发帖要 `forum.topic.create`），scope 只是粗粒度的接口分类闸，两者都要过。
+- 账号没在浏览器绑定邮箱时，业务接口会被拒（`email_required`，退出码 4），提示打开 `<源站>/bind-email`。
+- `geek logout` 撤销令牌后，这个令牌调任何接口都是 401；控制台「操作记录」能看到 CLI 的登录与接口调用。
+
+## 环境变量
+
+| 变量 | 作用 |
+|---|---|
+| `GEEK_ORIGIN` | 覆盖源站（优先于 `--env`） |
+| `GEEK_TOKEN` | 跳过本地存储，临时用指定令牌（CI/agent 友好，不落盘） |
+| `GEEK_NO_KEYRING` | 设为任意非空值时跳过系统钥匙串，只用文件存储（无图形会话的环境） |
+| `NO_COLOR` | 设置后登录动画不画，输出不带颜色 |
+
+## 开发
+
+```bash
+cargo build
+cargo test
+cargo fmt --check && cargo clippy --all-targets -- -D warnings
+node ../../scripts/cli-dist.mjs   # 交叉编译全部发布目标，产出 ../../dist/cli/
+```
+
+## 已知限制
+
+见 [docs/services/cli/README.md](../../docs/services/cli/README.md)「已知限制」：没有 `geek self update`，Linux 只发 musl 静态二进制，`install.ps1` 未在真实 Windows 环境跑过。
