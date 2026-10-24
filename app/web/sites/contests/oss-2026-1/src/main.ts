@@ -1,4 +1,4 @@
-// 第一期比赛官网入口（#278，设计见交接目录的 DESIGN-278）。页面托管在 /c/<slug>/，在 sandbox CSP 下运行：
+// 第一期比赛官网入口（#278）。页面托管在 /c/<slug>/，在 sandbox CSP 下运行：
 // 来源是 null，只能匿名读同源的公开接口；报名、组队都是主站链接，在新标签页打开。
 // 数据全部来自 SDK 的快照（每 15 秒一次）；接口失败时各段显示「数据暂时取不到，稍后自动重试」，首屏标题与倒计时照常。
 import "./styles.css";
@@ -9,9 +9,9 @@ import { createCountdown } from "./countdown";
 import { createFeed } from "./feed";
 import { createFx } from "./fx";
 import { hydrateIcons } from "./icons";
-import { createSky } from "./sky";
 import { failSlot, renderGradeFactors, renderPrizes, renderTeams, renderTexts, renderTimeline } from "./sections";
 import { startTerminal } from "./terminal";
+import { createTicker } from "./ticker";
 import { createTitle } from "./title";
 import { formatClock, installAvatarFallback, onMotionChange, reducedMotion } from "./util";
 
@@ -25,20 +25,20 @@ const client = createClient({ competition: SITE.competition_id });
 for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-link="signup"]')) link.href = client.signupUrl();
 for (const node of document.querySelectorAll<HTMLElement>('[data-text="repository"]')) node.textContent = SITE.repository;
 for (const node of document.querySelectorAll<HTMLElement>('[data-text="origin"]')) node.textContent = location.host || "本站";
+for (const node of document.querySelectorAll<HTMLElement>('[data-text="refresh"]')) node.textContent = String(Math.round(SITE.refreshMs / 1000));
 
-const sky = createSky($<HTMLCanvasElement>("#sky"), $("#star-tip"));
 const title = createTitle($<HTMLCanvasElement>("#title"));
-const countdown = createCountdown($(".countdown"));
+const countdown = createCountdown($(".countdown"), $('[data-text="phase"]'));
+const ticker = createTicker($(".ticker"));
 const board = createBoard($("#board"));
 const feed = createFeed($("#feed"), client);
 const fx = createFx();
 
-sky.start();
 title.start();
 startTerminal($(".term"));
 countdown.setTimes(SITE.fallback);
 renderTimeline($('[data-slot="timeline"]'), { ...SITE.fallback, signup_deadline: null });
-onMotionChange(() => { sky.restart(); title.redraw(); });
+onMotionChange(() => title.redraw());
 
 new IntersectionObserver(([entry]) => title.setVisible(entry.isIntersecting)).observe($(".hero"));
 
@@ -58,7 +58,7 @@ for (const link of document.querySelectorAll<HTMLAnchorElement>("a[data-scroll]"
 const reveal = new IntersectionObserver(entries => {
   for (const entry of entries) if (entry.isIntersecting) { entry.target.classList.add("is-in"); reveal.unobserve(entry.target); }
 }, { rootMargin: "0px 0px -8% 0px" });
-document.querySelectorAll(".win, .finale").forEach(node => reveal.observe(node));
+document.querySelectorAll(".sec, .finale").forEach(node => reveal.observe(node));
 
 let hasSnapshot = false;
 const shown = { prizes: false, teams: false };
@@ -75,6 +75,8 @@ function apply(snapshot: Snapshot) {
   shown.teams = true;
 
   const fresh = feed.update(snapshot.feed);
+  ticker.update(snapshot.feed.items);
+  if (fresh.length) title.pulse();
   const flying = fresh.filter((item): item is FeedItem => item.kind !== "penalty" && item.points > 0).slice(0, 5);
   const held = new Set(flying.map(item => `u:${item.username}`));
   board.render(leaderboard, held);
@@ -87,9 +89,6 @@ function apply(snapshot: Snapshot) {
     fx.launch(feed.chipFor(item.id), board.rowFor(key), () => board.land(key), index * 260);
   });
 
-  sky.setPeople(leaderboard.individuals.map(person => ({
-    username: person.username, display_name: person.display_name, score: person.score, rank: person.rank, team: person.team_name,
-  })));
   hasSnapshot = true;
 }
 

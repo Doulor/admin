@@ -19,7 +19,7 @@ const withoutComments = (text: string) => text.replace(/\/\*[\s\S]*?\*\//g, "").
 
 describe("contest site oss-2026-1", () => {
   it("has its source files", () => {
-    expect(files.map(file => file.slice(ROOT.length)).sort()).toEqual(expect.arrayContaining(["index.html", "site.config.ts", "src/main.ts", "src/styles.css", "src/sky.ts", "src/title.ts"]));
+    expect(files.map(file => file.slice(ROOT.length)).sort()).toEqual(expect.arrayContaining(["index.html", "site.config.ts", "src/main.ts", "src/styles.css", "src/title.ts", "src/ticker.ts", "src/countdown.ts", "src/board.ts"]));
   });
 
   it("never references another origin: the sandbox CSP only allows 'self'", () => {
@@ -55,7 +55,7 @@ describe("contest site oss-2026-1", () => {
     const zip = writeZip([
       { path: "index.html", data: Buffer.from(read(join(ROOT, "index.html"))) },
       { path: "yzgc-site.json", data: Buffer.from(JSON.stringify(data)) },
-      { path: "geek-girl.webp", data: readFileSync(join(ROOT, "public/geek-girl.webp")) },
+      { path: "assets/styles.css", data: readFileSync(join(ROOT, "src/styles.css")) },
     ]);
     expect(checkSitePackage(zip, "oss-challenge-2026-1")).toMatchObject({ ok: true, report: [] });
     expect(checkSitePackage(zip, "another").ok).toBe(false);

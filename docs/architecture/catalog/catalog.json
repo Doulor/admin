@@ -7607,7 +7607,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -7627,15 +7627,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -13425,7 +13425,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "588e7a8bd9340cb3d0c3f9d815c470221238cf421a22fa32ab79f6d8806ea1d6",
+    "fingerprint": "013bd4082eea47ad229073a437dea0f906df510b47290b135b46db125d7afefd",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -14769,19 +14769,19 @@
       },
       {
         "path": "app/web/sites/contests/oss-2026-1/src/board.ts",
-        "sha256": "a0e4ca2f27ee134a11c847c31d840485bddbd774dee1632d02f6aa60eaab5188"
+        "sha256": "8b7752b5b0a79c38f56243a0d427c75c7f476b53bedcd61188e27103599a78f2"
       },
       {
         "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts",
-        "sha256": "56d996439851b6ba93b5a1a9d4de3c26475d1da409480062870e31c8bc489ac3"
+        "sha256": "f2db962a5999ef09b5e83ea22755da2fdce45d51a8531f44c568ccd9c08b3594"
       },
       {
         "path": "app/web/sites/contests/oss-2026-1/src/feed.ts",
-        "sha256": "cc14d05a1232494f4a640d8ce9fac1428b8ead586e6bacd456188fda8c050816"
+        "sha256": "9b818a5da307367e5302c6b5b45ae99b73433a8518f40c3c8f9f114f24a507fe"
       },
       {
         "path": "app/web/sites/contests/oss-2026-1/src/fx.ts",
-        "sha256": "4e24b47f18aca28f35e0512d0cc358a21f8ff1b91d0157d06ee303b2b868b740"
+        "sha256": "0ad316f99af52276ffa423cd44cce0dfbcd6ce504a8e14227670816a9f501278"
       },
       {
         "path": "app/web/sites/contests/oss-2026-1/src/icons.ts",
@@ -14789,31 +14789,31 @@
       },
       {
         "path": "app/web/sites/contests/oss-2026-1/src/main.ts",
-        "sha256": "8019f273e0a3cfe120985d090f9f98c3b836d92e3110d4bd43b6f2831224b8b5"
+        "sha256": "feaf5f8104bd92def3606afefd673f6fde2bb70bea40e1282d3c447f9cf5c5e2"
       },
       {
         "path": "app/web/sites/contests/oss-2026-1/src/sections.ts",
-        "sha256": "fc0e06ba95e6705b910d46d4ae31e5d6581a8c5995ae5fee6e702128eb43049a"
-      },
-      {
-        "path": "app/web/sites/contests/oss-2026-1/src/sky.ts",
-        "sha256": "db47d49361fca8b1fdd3a649fbbc9c8498a6685fadae95018d19832daa06caed"
+        "sha256": "04f6fc154d98491919f33f747c9cec5b5aba01c82c8a4afe68355d27f5c5a5b2"
       },
       {
         "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts",
-        "sha256": "1ae96719fadb4e03a07a9a298711767d7c701043fdc8fe8507126527db345ada"
+        "sha256": "98d75150eba6663b56eda52e139358aa754c188355f1230b59f439ff42e65d27"
+      },
+      {
+        "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts",
+        "sha256": "7487002aa9711713a8a96641f3701dc7f3bbe8c3f229bf38cf143a6643372fd4"
       },
       {
         "path": "app/web/sites/contests/oss-2026-1/src/title.ts",
-        "sha256": "1f50f959f57397a6778f8b682243e4c48e737868dd5b056e5480caf3aa69e5d8"
+        "sha256": "132f144d0d140489d8af20088294f72f22fd020e80d2b3d41ba16aff20ab1306"
       },
       {
         "path": "app/web/sites/contests/oss-2026-1/src/util.ts",
-        "sha256": "a3fd7eccb5bd7d418280899372779f67b92573009cf53c7a5407fa5c777cf193"
+        "sha256": "b73a7cba4891d55d4e9002585b101f9036a8e94ca8bcc276143ba1308accc658"
       },
       {
         "path": "app/web/sites/contests/oss-2026-1/vite.config.ts",
-        "sha256": "2732e74805bfdebd9b1d07a7701b2fa5ebc161c2238a5200eea54eeca4cc266b"
+        "sha256": "4059c998238887e030eba4f1678a5ccbaaab5490a36a60b0c867f0bce531fe8f"
       },
       {
         "path": "app/web/sites/portal/App.tsx",
@@ -15101,7 +15101,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "b7c0c377b18941de276bb68c82c04f4b696456f6a7b214cb8acb7a80ef14fccb"
+        "sha256": "e5f13f926521983f20c92ce654135bf22df96e068c8b924cd372247f2bb22440"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -15165,11 +15165,11 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "da61fe3eddf5f67b2496e63ffe33eb83dc855fabe603e5ef7b7c320b57f95859"
+        "sha256": "1b1d3e3767b8de73351f5abe25b8759f621e93105679f3f14a3a7d4ca2d6f7eb"
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "423eee0fee7db72a16ae600aab019bc45a650dddc6bfda534d4d367528a65329"
+        "sha256": "a1681ada0091d59a70cf8bf057364d1d99fdc423053336e870cbe28efe92f12c"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -15401,7 +15401,7 @@
       },
       {
         "path": "tests/web/contest-site.test.ts",
-        "sha256": "810eff3c3e0c8354b0497053943c8fa31dbc154625346a802aa4a7e38bba720f"
+        "sha256": "627114d21f20e92c96c8b60427157342cd20183df5eea8cff9c4b86bd178928e"
       },
       {
         "path": "tests/web/portal-account.test.tsx",
@@ -29892,7 +29892,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -29912,15 +29912,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -29960,7 +29960,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -29980,15 +29980,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -30028,7 +30028,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -30048,15 +30048,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -30096,7 +30096,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -30116,15 +30116,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -30164,7 +30164,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -30184,15 +30184,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -30232,7 +30232,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -30252,15 +30252,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -30300,7 +30300,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -30320,15 +30320,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -30368,7 +30368,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -30388,15 +30388,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -30436,7 +30436,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -30456,15 +30456,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -30504,7 +30504,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -30524,15 +30524,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -30572,7 +30572,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -30592,15 +30592,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -30640,7 +30640,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -30660,15 +30660,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -30708,7 +30708,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -30728,15 +30728,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -30794,7 +30794,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -30814,15 +30814,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -30862,7 +30862,7 @@
           "path": "app/web/sites/contests/oss-2026-1/src/board.ts"
         },
         {
-          "line": 15,
+          "line": 37,
           "path": "app/web/sites/contests/oss-2026-1/src/countdown.ts"
         },
         {
@@ -30882,15 +30882,15 @@
           "path": "app/web/sites/contests/oss-2026-1/src/sections.ts"
         },
         {
-          "line": 62,
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+          "line": 13,
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
         },
         {
           "line": 7,
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
         },
         {
-          "line": 103,
+          "line": 57,
           "path": "app/web/sites/contests/oss-2026-1/src/title.ts"
         },
         {
@@ -103584,13 +103584,13 @@
       "domains": [
         "competitions"
       ],
-      "path": "app/web/sites/contests/oss-2026-1/src/sky.ts"
+      "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
     },
     {
       "domains": [
         "competitions"
       ],
-      "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts"
+      "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts"
     },
     {
       "domains": [

@@ -337,7 +337,7 @@
         "flow:competition.site.serve",
         "flow:competition.site.upload"
       ],
-      "reason": "比赛 SDK 与第一期官网：SDK 只调公开接口、按快照轮询；官网是夜空到白天的 Canvas 场景、翻页倒计时、天梯与动态，减少动态效果时静态；pnpm contest:site 用服务端同一套校验打包；web 镜像构建 SDK，容器里的 nginx 反代 /c/ 并只给上传放宽请求体，宿主模板不动。"
+      "reason": "比赛 SDK 与第一期官网：SDK 只调公开接口、按快照轮询；官网是浅色底的独立风格：贡献热力图拼出的 Canvas 标题、滚动数字倒计时、斜着滚动的贡献条、天梯与动态，减少动态效果时静态；pnpm contest:site 用服务端同一套校验打包；web 镜像构建 SDK，容器里的 nginx 反代 /c/ 并只给上传放宽请求体，宿主模板不动。"
     },
     {
       "paths": [

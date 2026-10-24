@@ -1,21 +1,24 @@
 // 跟着比赛数据变的几段：奖项、年级系数、时间线、队伍，以及规则与常见问题里随设置变化的那几句话。
 import type { LeaderboardTeam, PublicCompetition } from "@shared/competition-sdk";
 import { iconSvg } from "./icons";
-import { avatarHtml, clamp, errorHtml, escapeHtml, formatClock, formatDay, formatDayTime, formatRanks, formatShortDay, formatYuan } from "./util";
+import { avatarHtml, clamp, errorHtml, escapeHtml, formatClock, formatDay, formatDayTime, formatRanks, formatShortDay } from "./util";
 
 const TEAMS_SHOWN = 12;
-const PRIZE_TONES = ["y", "u", "g", "c"];
+const PRIZE_TONES = ["violet", "pink", "amber", "lime", "sky"];
 
 export function renderPrizes(slot: HTMLElement, competition: PublicCompetition) {
   if (competition.prizes.length === 0) {
     slot.innerHTML = `<p class="empty">这场比赛没有设奖项，名次照常公布。</p>`;
     return;
   }
-  const cards = competition.prizes.map((tier, index) => `<li class="prize tone-${PRIZE_TONES[index % PRIZE_TONES.length]}">
-      <span class="prize-icon">${iconSvg(index === 0 ? "trophy-line" : "medal-line")}</span>
-      <p class="prize-rank">${formatRanks(tier.from, tier.to)}</p>
-      <p class="prize-amount">${formatYuan(tier.amount_cny)}<small>${tier.to > tier.from ? "每人" : ""}</small></p>
-      ${tier.title ? `<p class="prize-title">${escapeHtml(tier.title)}</p>` : ""}
+  // 第一档单独放大，边框是一圈转动的渐变
+  const cards = competition.prizes.map((tier, index) => `<li class="prize tone-${PRIZE_TONES[index % PRIZE_TONES.length]}${index === 0 ? " is-top" : ""}">
+      <div class="prize-inner">
+        <span class="prize-icon">${iconSvg(index === 0 ? "trophy-line" : "medal-line")}</span>
+        <p class="prize-rank">${formatRanks(tier.from, tier.to)}</p>
+        <p class="prize-amount"><b>${tier.amount_cny.toLocaleString("zh-CN")}</b> 元${tier.to > tier.from ? "<small>每人</small>" : ""}</p>
+        ${tier.title ? `<p class="prize-title">${escapeHtml(tier.title)}</p>` : ""}
+      </div>
     </li>`).join("");
   const final = competition.finalized_at
     ? `已于 ${formatDayTime(competition.finalized_at)} 定榜，名次不再变化。得奖的同学在主站「我的参赛」里看到兑奖码，凭兑奖码找组织者兑奖。`
@@ -23,10 +26,12 @@ export function renderPrizes(slot: HTMLElement, competition: PublicCompetition) 
   slot.innerHTML = `<ul class="prizes">${cards}</ul><p class="prize-note">${iconSvg("gift-line")}<span>${final}</span></p>`;
 }
 
+/** 年级系数画成柱子：高度按系数相对最大值，柱顶写系数。 */
 export function renderGradeFactors(list: HTMLElement, competition: PublicCompetition) {
   if (competition.grade_factors.length === 0) return;
+  const max = Math.max(...competition.grade_factors.map(item => item.factor));
   list.innerHTML = competition.grade_factors
-    .map(item => `<li><span>${escapeHtml(item.label)}</span><b>×${item.factor.toFixed(1)}</b></li>`).join("");
+    .map(item => `<li style="--k:${(item.factor / max).toFixed(3)}"><b>×${item.factor.toFixed(1)}</b><i aria-hidden="true"></i><span>${escapeHtml(item.label)}</span></li>`).join("");
 }
 
 export function renderTimeline(slot: HTMLElement, times: { start_at: number; end_at: number; signup_deadline: number | null }, now = Date.now()) {
@@ -35,7 +40,7 @@ export function renderTimeline(slot: HTMLElement, times: { start_at: number; end
   const progress = at(now);
   const over = now > times.end_at;
   const before = now < times.start_at;
-  const marker = before || over ? "" : `<span class="timeline-now" style="--at:${progress.toFixed(2)}%"><span class="timeline-heart">${iconSvg("heart-3-fill")}</span><span class="timeline-today">今天</span></span>`;
+  const marker = before || over ? "" : `<span class="timeline-now" style="--at:${progress.toFixed(2)}%"><span class="timeline-pin">${iconSvg("time-line")}今天</span></span>`;
   const deadline = times.signup_deadline && times.signup_deadline > times.start_at && times.signup_deadline < times.end_at
     ? `<li class="timeline-stop" style="--at:${at(times.signup_deadline).toFixed(2)}%"><b>报名截止</b><span>${formatShortDay(times.signup_deadline)}</span></li>`
     : "";
@@ -54,7 +59,7 @@ export function renderTimeline(slot: HTMLElement, times: { start_at: number; end
 }
 
 export function renderTeams(slot: HTMLElement, teams: LeaderboardTeam[], teamUrl: string) {
-  const join = `<a class="pill pill-soft" href="${escapeHtml(teamUrl)}" target="_blank" rel="noopener">去组队${iconSvg("external-link-line", "icon icon-xs")}</a>`;
+  const join = `<a class="btn btn-ghost btn-sm" href="${escapeHtml(teamUrl)}" target="_blank" rel="noopener">去组队${iconSvg("external-link-line", "icon icon-xs")}</a>`;
   if (teams.length === 0) {
     slot.innerHTML = `<p class="empty">还没有队伍。</p><div class="teams-cta">${join}</div>`;
     return;

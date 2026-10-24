@@ -9,7 +9,7 @@ export const smoothstep = (edge0: number, edge1: number, x: number) => {
   return t * t * (3 - 2 * t);
 };
 
-/** 由字符串得到 0–1 的稳定伪随机数：同一个用户名的星星每次都在同一个位置。 */
+/** 由字符串得到 0–1 的稳定伪随机数：同一个用户名每次取到同一个颜色。 */
 export function hashUnit(text: string, salt = 0): number {
   let h = 2166136261 ^ salt;
   for (let i = 0; i < text.length; i++) {
@@ -22,7 +22,7 @@ export function hashUnit(text: string, salt = 0): number {
   return (h >>> 0) / 4294967296;
 }
 
-/** 可复现的伪随机序列（装饰星星用）。 */
+/** 可复现的伪随机序列（首屏热力图的深浅用）。 */
 export function rng(seed: number): () => number {
   let s = seed >>> 0;
   return () => {
@@ -79,21 +79,20 @@ export function relativeTime(at: number, now = Date.now()): string {
   return `${formatDay(at)} ${shortTime.format(at)}`;
 }
 
-export const formatYuan = (amount: number) => `${amount.toLocaleString("zh-CN")} 元`;
 export const formatPoints = (points: number) => (points > 0 ? `+${points}` : `${points}`);
 
 /** 名次范围：「第 1 名」「第 2–3 名」 */
 export const formatRanks = (from: number, to: number) => (from === to ? `第 ${from} 名` : `第 ${from}–${to} 名`);
 
-const AVATAR_TONES = ["y", "u", "g", "c"] as const;
+export const TONES = ["violet", "pink", "amber", "lime", "sky"] as const;
 /**
  * 头像：只用同源地址（`/api/identity/avatar/…`）。sandbox CSP 的 img-src 只放行 'self'，
- * GitHub 之类的外部头像加载不了，这时退回首字母头像，颜色按用户名在四色里取。
+ * GitHub 之类的外部头像加载不了，这时退回首字母头像，颜色按用户名在五个强调色里取。
  */
 export function avatarHtml(person: { username: string; display_name: string; avatar_url: string | null }, className = "avatar"): string {
   const name = person.display_name || person.username;
   const initial = escapeHtml(Array.from(name.trim())[0]?.toUpperCase() ?? "?");
-  const tone = AVATAR_TONES[Math.floor(hashUnit(person.username) * AVATAR_TONES.length)];
+  const tone = TONES[Math.floor(hashUnit(person.username) * TONES.length)];
   if (person.avatar_url && person.avatar_url.startsWith("/") && !person.avatar_url.startsWith("//")) {
     return `<span class="${className} tone-${tone}" data-initial="${initial}"><img src="${escapeHtml(person.avatar_url)}" alt="" loading="lazy" decoding="async" /></span>`;
   }

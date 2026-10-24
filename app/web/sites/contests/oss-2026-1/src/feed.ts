@@ -13,7 +13,7 @@ function itemHtml(item: FeedItem, fresh: boolean): string {
       ? `<a class="feed-title" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}${iconSvg("external-link-line", "icon icon-xs")}</a>`
       : `<span class="feed-title">${escapeHtml(item.title)}</span>`
     : "";
-  const tone = item.kind === "penalty" ? "tone-bad" : item.kind === "pr" ? "tone-u" : "tone-y";
+  const tone = item.kind === "penalty" ? "tone-bad" : item.kind === "pr" ? "tone-violet" : "tone-lime";
   return `<li class="feed-item kind-${item.kind}${fresh ? " is-new" : ""}" data-id="${escapeHtml(item.id)}">
     ${avatarHtml(item)}
     <div class="feed-main">

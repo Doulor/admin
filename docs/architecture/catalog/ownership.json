@@ -7175,8 +7175,8 @@
           "needle": "export function renderPrizes("
         },
         {
-          "path": "app/web/sites/contests/oss-2026-1/src/sky.ts",
-          "needle": "export function createSky("
+          "path": "app/web/sites/contests/oss-2026-1/src/ticker.ts",
+          "needle": "export function createTicker("
         },
         {
           "path": "app/web/sites/contests/oss-2026-1/src/terminal.ts",

@@ -21,7 +21,7 @@ function siteManifest(): Plugin {
 export default defineConfig({
   root: here,
   base: "./",
-  publicDir: `${here}public`,
+  publicDir: false,
   resolve: { alias: { "@shared": fileURLToPath(new URL("../../../shared", import.meta.url)) } },
   plugins: [siteManifest()],
   server: {

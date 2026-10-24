@@ -1,12 +1,12 @@
 // 实时天梯（个人 / 队伍两个页签）与统计条：前三名是领奖台（高度 2:3:1.6，依次是第二、第一、第三），
-// 第四名起是列表，带一条按最高分归一化的进度条。分数变化时数字滚动、那一行闪一下；
-// 有彗星正在飞向某一行时，那一行先停在旧分数，等彗星到了再滚。
+// 第四名起是列表，带一条按最高分归一化的进度条。名次变了，列表行从旧位置滑到新位置；分数变化时数字滚动、
+// 那一行闪一下；有彗星正在飞向某一行时，那一行先停在旧分数，等彗星到了再滚。减少动态效果时不滑不闪。
 import type { Leaderboard, LeaderboardEntry, LeaderboardTeam, PublicPerson, Stats } from "@shared/competition-sdk";
-import { avatarHtml, errorHtml, escapeHtml, rollNumber } from "./util";
+import { avatarHtml, errorHtml, escapeHtml, reducedMotion, rollNumber } from "./util";
 
 const LIST_LIMIT = 50;
 const PODIUM_ORDER = [1, 0, 2];
-const PODIUM_TONES = ["y", "u", "g"];
+const PODIUM_TONES = ["pink", "violet", "amber"];
 
 type Row = { key: string; rank: number; score: number; title: string; sub: string; people: PublicPerson[] };
 
@@ -64,6 +64,7 @@ export function createBoard(root: HTMLElement) {
   const meta = root.querySelector<HTMLElement>('[data-slot="board-meta"]')!;
   const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
   let previous = new Map<string, number>();
+  const hasRendered = new WeakSet<HTMLElement>();
   let hasData = false;
 
   function select(index: number, focus = false) {
@@ -89,7 +90,20 @@ export function createBoard(root: HTMLElement) {
       panel.innerHTML = `<p class="empty">${team ? "还没有队伍。" : "还没有人报名。"}</p>`;
       return;
     }
+    const before = new Map<string, number>();
+    if (!panel.hidden) for (const node of panel.querySelectorAll<HTMLElement>(".board-row[data-key]")) before.set(node.dataset.key!, node.getBoundingClientRect().top);
     panel.innerHTML = podiumHtml(rows, team) + listHtml(rows, team);
+    if (!hasRendered.has(panel)) {
+      hasRendered.add(panel);
+      panel.classList.add("is-first");
+      setTimeout(() => panel.classList.remove("is-first"), 1600);
+    } else if (before.size && !reducedMotion()) {
+      for (const node of panel.querySelectorAll<HTMLElement>(".board-row[data-key]")) {
+        const old = before.get(node.dataset.key!);
+        const shift = old === undefined ? 0 : old - node.getBoundingClientRect().top;
+        if (Math.abs(shift) > 1) node.animate([{ transform: `translateY(${shift}px)` }, { transform: "none" }], { duration: 700, easing: "cubic-bezier(.2,.9,.25,1)" });
+      }
+    }
     for (const node of panel.querySelectorAll<HTMLElement>("[data-key]")) {
       const key = node.dataset.key!;
       const score = node.querySelector<HTMLElement>(".score")!;
@@ -105,6 +119,7 @@ export function createBoard(root: HTMLElement) {
   }
 
   function flash(node: Element) {
+    if (reducedMotion()) return;
     node.classList.remove("is-flash");
     void (node as HTMLElement).offsetWidth;
     node.classList.add("is-flash");

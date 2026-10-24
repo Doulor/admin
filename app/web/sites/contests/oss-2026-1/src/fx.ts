@@ -1,4 +1,4 @@
-// 彗星：新的一条贡献进来时，从动态里它的加分胶囊飞出一颗带渐隐尾迹的彗星，沿弧线飞到天梯里那个人的那一行，
+// 彗星：新的一条贡献进来时，从动态里它的加分胶囊飞出一颗带渐隐尾迹（紫到粉）的彗星，沿弧线飞到天梯里那个人的那一行，
 // 到达时那一行闪光、分数滚动。画在一张盖在内容上面、不接收指针的全屏画布上，没有彗星时不跑逐帧循环。
 // 减少动态效果时不飞，直接让那一行淡入闪一下。
 import { TAU, clamp, lerp, reducedMotion } from "./util";
@@ -39,7 +39,7 @@ export function createFx() {
       if (comet.trail.length > 26 || k >= 1) comet.trail.shift();
       for (let i = 1; i < comet.trail.length; i++) {
         const a = i / comet.trail.length;
-        ctx.strokeStyle = `rgba(${Math.round(lerp(169, 255, a))},${Math.round(lerp(156, 200, a))},${Math.round(lerp(255, 230, a))},${a * 0.85})`;
+        ctx.strokeStyle = `rgba(${Math.round(lerp(123, 255, a))},${Math.round(lerp(92, 79, a))},${Math.round(lerp(255, 163, a))},${a * 0.9})`;
         ctx.lineWidth = 1 + a * 5;
         ctx.lineCap = "round";
         ctx.beginPath();
@@ -49,9 +49,9 @@ export function createFx() {
       }
       if (k < 1) {
         const head = ctx.createRadialGradient(x, y, 0, x, y, 14);
-        head.addColorStop(0, "rgba(255,255,255,1)");
-        head.addColorStop(0.4, "rgba(255,169,210,.75)");
-        head.addColorStop(1, "rgba(124,200,255,0)");
+        head.addColorStop(0, "rgba(255,79,163,1)");
+        head.addColorStop(0.45, "rgba(255,184,28,.7)");
+        head.addColorStop(1, "rgba(255,184,28,0)");
         ctx.fillStyle = head;
         ctx.beginPath();
         ctx.arc(x, y, 14, 0, TAU);

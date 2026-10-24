@@ -9,7 +9,7 @@
 | 路径 | 职责 |
 |---|---|
 | `app/web/sites/portal/` | 公开站点：`App.tsx` 路由（`/`、`/forum-3d`、`/docs`；`/?open=<应用>` 进桌面打开窗口，旧地址 `/join-us`、`/apply`、`/feedback` 只做跳转）、`pages/`、`three/`（按需加载的 three.js 场景：论坛气泡）、`components/`（`boot/` 开机动画、`os/` YUGC OS 桌面与窗口（含「账号资料」窗口）、页面外壳）、`lib/`（进站规则、相机数学、链接、快照、图标、全站登录状态 `account.ts`、部门、代码仓库、埋点）、`styles/`（`--pt-*` 与 YUGC OS v2 的 `--os-*` 令牌）、`index.html` 入口；不自建登录态，菜单栏头像打开「账号资料」窗口（见 [portal](portal.md)「账号资料窗口」） |
-| `app/web/sites/contests/<比赛>/` | 比赛官网（#278）：每场比赛一个独立的 Vite 站点，单独构建成站点包，由控制台上传、server 在 `/c/<slug>/` 托管，不进 web 镜像。第一期是 `oss-2026-1/`：`site.config.ts`（名称、版本、比赛 id、兜底起止时间、刷新间隔，构建时生成 `yzgc-site.json`）、`index.html`、`src/`（Canvas 天空与参赛者星星、泡泡字标题、翻牌倒计时、终端打字、天梯与领奖台、动态与流星、各段落渲染）、`public/geek-girl.webp`。只能用同源资源：页面在 sandbox CSP 下运行，外部头像显示首字母 |
+| `app/web/sites/contests/<比赛>/` | 比赛官网（#278）：每场比赛一个独立的 Vite 站点，单独构建成站点包，由控制台上传、server 在 `/c/<slug>/` 托管，不进 web 镜像。第一期是 `oss-2026-1/`：`site.config.ts`（名称、版本、比赛 id、兜底起止时间、刷新间隔，构建时生成 `yzgc-site.json`）、`index.html`、`src/`（浅色底、不沿用主站风格：贡献热力图拼成的 Canvas 标题、滚动数字倒计时、斜着滚动的贡献条、终端打字、天梯与领奖台、动态与流星、各段落渲染）。只能用同源资源：页面在 sandbox CSP 下运行，外部头像显示首字母 |
 | `app/web/shared/competition-sdk/` | 比赛官网 SDK（#278，CONTRACT-278 §3）：`createClient({ competition })` 读 `/api/public/competitions/:id/*`（只发匿名 GET），错误归成 `network`、`not_found`、`rate_limited`、`server` 四种，`subscribe` 按间隔轮询（最短 5 秒，页面在后台时暂停，限流时等够 `retry_after`），`signupUrl`、`teamUrl` 跳回桌面的比赛窗口。官网站点直接打包进去；`sdk.vite.config.ts` 另外构建成 `dist/sdk/competition/v1.js`，由镜像在 `/sdk/competition/v1.js` 提供 |
 | `app/web/shared/lib/` | 网络（`api`、`http`、`runtime`）、URL/站点（`site`）、Markdown（`markdown`）、挂载（`mount`）、PoW、主题、只读 mock（含开发预览身份 `?__mock=member\|registered\|visitor`，正式构建删掉） |
 | `app/web/shared/ui/` | 官网复用的交互原语：Modal、ConfirmDialog、Select、ImageLightbox、TurnstileWidget 等 |
