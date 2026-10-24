@@ -4445,6 +4445,829 @@
       ]
     },
     {
+      "id": "forum.reactions.add",
+      "title": "给帖子加一个表情回应",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PUT /api/forum/posts/:post_id/reactions/:sticker_id",
+      "capabilities": [],
+      "reads": [
+        "forum_posts",
+        "forum_stickers",
+        "forum_reactions",
+        "forum_users",
+        "sessions",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "limit_events"
+      ],
+      "writes": [
+        "forum_reactions",
+        "forum_users",
+        "sessions",
+        "limit_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要 forum.react 节点（#276 迁移种子只发给 level.member），由 requireWriter 判定；访客401 signin_required，登录但没有该节点403 forbidden；帖子不存在404，已软删409 post_deleted。",
+        "响应与错误：200 {reactions}，只回这条帖子的表情聚合（CONTRACT §4），不回整份changes或viewer；表情不存在或已停用400 unknown_sticker；超过meta.limit.forum.react.hourly回429 {error:rate_limited,bucket:\"forum.react.hourly\",retry_after}（按账号计数，和每分钟的洪泛线不是同一条）。",
+        "数据与副作用：按 (post_id,account_id,sticker_id) 主键 INSERT OR IGNORE 写 forum_reactions，重复加同一表情不报错也不重复计数；不写活动审计（CONTRACT §4 没有要求）。",
+        "身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/forum-api/posts.ts",
+          "needle": "app.put<{ Params: ReactionParams }>(\"/api/forum/posts/:post_id/reactions/:sticker_id\", async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        },
+        {
+          "path": "app/server/src/routes/forum-api/viewer.ts",
+          "needle": "export async function forumViewer("
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function createPermissionEngine("
+        },
+        {
+          "path": "app/server/src/lib/limits.ts",
+          "needle": "\"forum.react.hourly\": 2 * HOUR_MS,"
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "forum.reactions.remove",
+      "title": "取消一条表情回应",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "DELETE /api/forum/posts/:post_id/reactions/:sticker_id",
+      "capabilities": [],
+      "reads": [
+        "forum_posts",
+        "forum_stickers",
+        "forum_reactions",
+        "forum_users",
+        "sessions",
+        "perm_members",
+        "perm_entries",
+        "perm_groups"
+      ],
+      "writes": [
+        "forum_reactions",
+        "forum_users",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：同PUT同一个节点 forum.react；不检查帖子是否已软删除——取消自己的表情回应即使帖子已删也允许。",
+        "响应与错误：200 {reactions}，回这条帖子取消之后的表情聚合；不存在的帖子404；这条不限额（限额只拦住「加」，不拦「取消」）。",
+        "数据与副作用：按 (post_id,account_id,sticker_id) DELETE forum_reactions，原本没有这条也不报错（幂等）。",
+        "身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/forum-api/posts.ts",
+          "needle": "app.delete<{ Params: ReactionParams }>(\"/api/forum/posts/:post_id/reactions/:sticker_id\", async req => {"
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        },
+        {
+          "path": "app/server/src/routes/forum-api/viewer.ts",
+          "needle": "export async function forumViewer("
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function createPermissionEngine("
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "forum.stickers.list",
+      "title": "读表情包列表",
+      "domain": "forum",
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/forum/stickers",
+      "capabilities": [],
+      "reads": [
+        "forum_sticker_packs",
+        "forum_stickers"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：公开只读，不要求登录，不判身份（CONTRACT §3）。",
+        "响应与错误：200 {packs:[{id,name,stickers:[{id,shortcode,label,url}]}]}，只含 enabled=1 的包与表情；进程内缓存60秒（cache.cached），控制台改过表情后显式 invalidate 这个 key。",
+        "数据与副作用：纯读，不写任何表；短码即表情 id，前端据此渲染正文里的短码。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/forum-api/stickers.ts",
+          "needle": "app.get(\"/api/forum/stickers\", async () => cache.cached(CACHE_KEY, CACHE_TTL_MS, async () => ({ packs: forum.listStickerPacks() })));"
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        },
+        {
+          "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts",
+          "needle": "export type ForumV2MigrationReport = {"
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "forum.stickers.read_file",
+      "title": "按内容哈希取表情图片",
+      "domain": "forum",
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/forum/stickers/:file",
+      "capabilities": [],
+      "reads": [
+        "forum_sticker_files"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：公开只读，不要求登录；文件名必须是64位小写十六进制哈希加.webp（contracts.ts 的 STICKER 文件参数校验）。",
+        "响应与错误：200 webp 图片，immutable 长期缓存；不存在404 not_found，不泄露哈希是否曾经存在过。",
+        "数据与副作用：纯读，按 sha256 寻址；内容永不改变，不需要失效缓存。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/forum-api/stickers.ts",
+          "needle": "app.get<{ Params: { file: string } }>(\"/api/forum/stickers/:file\", async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "forum.topics.page",
+      "title": "话题列表的游标分页",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/forum/topics",
+      "capabilities": [],
+      "reads": [
+        "forum_topics",
+        "forum_category_settings",
+        "sessions",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "limit_events",
+        "forum_users"
+      ],
+      "writes": [
+        "forum_users",
+        "sessions",
+        "limit_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：谁都能调；按身份的分级可见（CONTRACT §1）过滤（public/registered/member），过滤在 SQL WHERE 里做，不是查出来再筛（和 state()/search() 共用 visibilityWhere()）。",
+        "响应与错误：200 {topics,nextCursor}；按 last_activity_at DESC, rowid DESC 排序，游标是 base64url 编的排序键，解不出来当没有（从第一页开始）；limit 要求1–50的整数，不是回400 validation_error；q 超过100字400。",
+        "数据与副作用：访客翻页上限（SPEC §3.8，CONTRACT §9）——没带 cursor 的第一页不计数，带 cursor 的请求按访客 id（yugc_vid）或IP哈希、北京日历日窗口计最多10次，第11次429 {bucket:\"forum.visitor.pages\"}；注册用户、成员不限。",
+        "身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/forum-api/topics.ts",
+          "needle": "\"/api/forum/topics\", { ...perIp(FORUM_REQUEST_LIMITS.search), exposeHeadRoute: false },"
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        },
+        {
+          "path": "app/server/src/routes/forum-api/viewer.ts",
+          "needle": "export async function forumViewer("
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function createPermissionEngine("
+        },
+        {
+          "path": "app/server/src/lib/forum-rules.ts",
+          "needle": "export const VISITOR_PAGE_MAX = 10;"
+        },
+        {
+          "path": "app/server/src/routes/forum-api/forum-limits.ts",
+          "needle": "export function visitorPageLimited(req: FastifyRequest, reply: FastifyReply, isVisitor: boolean, hasCursor: boolean): boolean {"
+        },
+        {
+          "path": "app/forum/shared/forum-api.ts",
+          "needle": "level: level ?? 'public',"
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "forum.uploads.read_file",
+      "title": "按内容哈希取上传的图片",
+      "domain": "forum",
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/forum/uploads/:file",
+      "capabilities": [],
+      "reads": [
+        "forum_upload_files"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：公开只读，不要求登录（图片一旦发出就是帖子正文的一部分，帖子本身的可见范围由话题可见范围管，这里只管「有没有这个哈希」）。",
+        "响应与错误：200 原图（png/jpeg/webp转码后的webp，gif原样保留动图），immutable长期缓存；不存在404。",
+        "数据与副作用：纯读，按 sha256 寻址。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/forum-api/uploads.ts",
+          "needle": "app.get<{ Params: { file: string } }>(\"/api/forum/uploads/:file\", async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "forum.users.suggest",
+      "title": "@ 提及自动补全",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/forum/users/suggest",
+      "capabilities": [],
+      "reads": [
+        "users",
+        "forum_users",
+        "sessions",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "limit_events"
+      ],
+      "writes": [
+        "forum_users",
+        "sessions",
+        "limit_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：requireMember——只要求有效登录会话（CONTRACT §6：「需要登录，不需要是成员」），不要求 level.member，注册用户也能用；访客401 signin_required。",
+        "响应与错误：200 {users:[{username,display_name,avatar_url}]}，snake_case，不回邮箱或任何账号内部字段；q 必须1–24字，缺或超长400 validation_error。",
+        "数据与副作用：按 username/display_name 前缀、不分大小写匹配，只回 status=active 且 forum_users.kind=member 的账号；每账号每分钟30次，超了429 {bucket:\"forum.suggest.per_minute\"}（直接用 limits.hit，不经 meta 节点，所有等级同一个上限）。",
+        "身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/forum-api/people.ts",
+          "needle": "app.get<{ Querystring: { q: string } }>(\"/api/forum/users/suggest\", async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        },
+        {
+          "path": "app/server/src/routes/forum-api/viewer.ts",
+          "needle": "export async function forumViewer("
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function createPermissionEngine("
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "forum.topics.visibility",
+      "title": "改话题的可见范围",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PATCH /api/forum/topics/:topic_id/visibility",
+      "capabilities": [],
+      "reads": [
+        "forum_topics",
+        "forum_category_settings",
+        "forum_users",
+        "sessions",
+        "perm_members",
+        "perm_entries",
+        "perm_groups"
+      ],
+      "writes": [
+        "forum_topics",
+        "activity_events",
+        "forum_users",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：requireMember 之后按 canModerate(\"forum.moderate.edit\", 话题所在分类) 判定（部门组的 scope 限定在本部门分类）；话题不存在404，权限不够403 forbidden。",
+        "响应与错误：200 {changes:{topics:[...]}}，只回这个话题现在的记录；非 null 值比分类基线更松回400 visibility_too_open（CONTRACT §1：不能比分类更松，只能更严或跟随）。",
+        "数据与副作用：UPDATE forum_topics.visibility（null 表示跟随分类，COALESCE(topic.visibility, category.visibility, 'public') 决定生效值）；写审计 forum.topic.visibility（只记目标值，不记正文）。",
+        "身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/forum-api/topics.ts",
+          "needle": "\"/api/forum/topics/:topic_id/visibility\","
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        },
+        {
+          "path": "app/server/src/routes/forum-api/viewer.ts",
+          "needle": "export async function forumViewer("
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function createPermissionEngine("
+        },
+        {
+          "path": "app/server/src/routes/forum-api/contracts.ts",
+          "needle": "\"PATCH /api/forum/topics/:topic_id/visibility\": {"
+        },
+        {
+          "path": "app/server/src/middleware/http-policy.ts",
+          "needle": "const extra = !masked && !upstream && !error.validation ? error.extra : undefined;"
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "console.forum.categories.list",
+      "title": "控制台读分类的可见范围与话题数",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/forum/categories",
+      "capabilities": [],
+      "reads": [
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "forum_topics",
+        "forum_category_settings"
+      ],
+      "writes": [
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：requirePermission(\"forum.category.manage\")——没有效会话401 unauthenticated，没有这个节点403 forbidden，带 node。",
+        "响应与错误：200 {categories:[{id,name,visibility,topic_count}]}，按 curation.json 的分类顺序；topic_count 是真实话题数，不按身份过滤（给管理员看全量，CONTRACT §8）。",
+        "数据与副作用：纯读；只有 loadSession 发现会话过期时才会删那一行会话。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/forum.ts",
+          "needle": "app.get(\"/api/console/forum/categories\", { preHandler: requirePermission(\"forum.category.manage\") }, async () => ({"
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function createPermissionEngine("
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "\"GET /api/console/forum/categories\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "console.forum.categories.update",
+      "title": "控制台改一个分类的可见范围",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PATCH /api/console/forum/categories/:id",
+      "capabilities": [],
+      "reads": [
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "forum_category_settings"
+      ],
+      "writes": [
+        "forum_category_settings",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：requirePermission(\"forum.category.manage\") + requireStepUp（CONTRACT §8：所有写操作要求刚登录过，10分钟窗口）；没权限403 forbidden，没 step-up 403 step_up_required；未知分类404 not_found。",
+        "响应与错误：200 {id,visibility}。",
+        "数据与副作用：按 category_id upsert forum_category_settings（ON CONFLICT 覆盖），写审计 forum.category.visibility。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/forum.ts",
+          "needle": "\"/api/console/forum/categories/:id\","
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function createPermissionEngine("
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "console.forum.stickers.list",
+      "title": "控制台读表情包与表情（含使用次数）",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/forum/stickers",
+      "capabilities": [],
+      "reads": [
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "forum_sticker_packs",
+        "forum_stickers",
+        "forum_reactions"
+      ],
+      "writes": [
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：requirePermission(\"forum.sticker.manage\")；没权限403 forbidden。",
+        "响应与错误：200 {packs:[{id,name,sort,enabled,stickers:[{id,shortcode,label,url,sort,enabled,use_count}]}]}，含停用的包/表情（和公开列表不同，管理员要看得到才能重新启用）。",
+        "数据与副作用：纯读；use_count 由 forum_reactions 按 sticker_id 聚合算出，不是单独维护的列。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/forum.ts",
+          "needle": "app.get(\"/api/console/forum/stickers\", { preHandler: requirePermission(\"forum.sticker.manage\") }, async () => ({"
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function createPermissionEngine("
+        },
+        {
+          "path": "app/server/src/routes/console/index.ts",
+          "needle": "await app.register(forum);"
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "console.forum.sticker_packs.update",
+      "title": "控制台改表情包（改名/排序/启停）",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PATCH /api/console/forum/sticker-packs/:id",
+      "capabilities": [],
+      "reads": [
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "forum_sticker_packs"
+      ],
+      "writes": [
+        "forum_sticker_packs",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：requirePermission(\"forum.sticker.manage\") + requireStepUp；未知表情包404 not_found。",
+        "响应与错误：200 {ok:true}。",
+        "数据与副作用：按传了的字段 UPDATE forum_sticker_packs；成功后 invalidate 公开列表的缓存（forum:stickers）；写审计 forum.sticker_pack.update。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/forum.ts",
+          "needle": "\"/api/console/forum/sticker-packs/:id\","
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function createPermissionEngine("
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "console.forum.stickers.update",
+      "title": "控制台改单个表情（改标签/排序/启停）",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PATCH /api/console/forum/stickers/:id",
+      "capabilities": [],
+      "reads": [
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "forum_stickers"
+      ],
+      "writes": [
+        "forum_stickers",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：requirePermission(\"forum.sticker.manage\") + requireStepUp；未知表情404 not_found。",
+        "响应与错误：200 {ok:true}。",
+        "数据与副作用：按传了的字段 UPDATE forum_stickers；成功后 invalidate 公开列表缓存；写审计 forum.sticker.update；停用不删图片文件（forum_sticker_files 不受影响）。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/forum.ts",
+          "needle": "app.patch<{ Params: StickerParams; Body: { label?: string; sort?: number; enabled?: boolean } }>("
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function createPermissionEngine("
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "console.forum.stickers.create",
+      "title": "控制台给表情包新增一个表情",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PUT /api/console/forum/sticker-packs/:id/stickers",
+      "capabilities": [],
+      "reads": [
+        "sessions",
+        "users",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "forum_stickers"
+      ],
+      "writes": [
+        "forum_sticker_files",
+        "forum_stickers",
+        "activity_events",
+        "sessions"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：requirePermission(\"forum.sticker.manage\") + requireStepUp；请求体是图片本身（PNG/JPEG/WebP，≤2MB），类型不对415。",
+        "响应与错误：201 {id,shortcode,label}；shortcode 已被（含停用的旧表情）占用回409 shortcode_taken，不会撞成裸的500；表情包不存在404 not_found。",
+        "数据与副作用：复用头像同一套转码（256×256 webp，按 sha256 去重存 forum_sticker_files），表情 id 就是 shortcode；成功后 invalidate 公开列表缓存，写审计 forum.sticker.create。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/forum.ts",
+          "needle": "\"/api/console/forum/sticker-packs/:id/stickers\","
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function createPermissionEngine("
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "forum.uploads.create",
+      "title": "帖子正文的图片上传",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "audit",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PUT /api/forum/uploads",
+      "capabilities": [],
+      "reads": [
+        "forum_users",
+        "sessions",
+        "perm_members",
+        "perm_entries",
+        "perm_groups",
+        "limit_events"
+      ],
+      "writes": [
+        "forum_upload_files",
+        "activity_events",
+        "forum_users",
+        "sessions",
+        "limit_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要 forum.upload.image 节点（level.member 才有），由 onRequest 的 requireUploader 在读请求体之前就判定——访客连大请求体都不会被读进内存，直接401 signin_required；登录但没有该节点403 forbidden。",
+        "响应与错误：200 {url,width,height}；超过5MB请求体413 upload_too_large；超过4096×4096像素在解码前拦住400 image_too_large；不支持的内容类型415 unsupported_media_type；解不出图片400 invalid_image；超过meta.limit.forum.upload.hourly回429 {bucket:\"forum.upload.hourly\"}（限额检查排在类型校验和解码之前，坏请求也占额度）。",
+        "数据与副作用：PNG/JPEG/WebP 统一转 webp（sharp quality 85），GIF 若是动图原样保留；按 sha256 内容寻址存 forum_upload_files，去重不重复存；写审计 forum.upload.image。",
+        "身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/forum-api/uploads.ts",
+          "needle": "uploadApp.put(\"/api/forum/uploads\", { onRequest: requireUploader, errorHandler: tooLarge }, async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "export function createForumStore("
+        },
+        {
+          "path": "app/server/src/routes/forum-api/viewer.ts",
+          "needle": "export async function forumViewer("
+        },
+        {
+          "path": "app/server/src/lib/permissions.ts",
+          "needle": "export function createPermissionEngine("
+        },
+        {
+          "path": "app/server/src/routes/forum-api/index.ts",
+          "needle": "await app.register(uploads);"
+        }
+      ],
+      "tests": [
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
       "id": "forum.local.supervisor",
       "title": "辨认本机论坛运行模式",
       "domain": "platform",
@@ -10146,6 +10969,9 @@
     ],
     "app/server/src/lib/migrations/2026-10-yugc-v2.ts": [
       "permissions"
+    ],
+    "app/server/src/lib/migrations/2026-10-forum-v2.ts": [
+      "forum"
     ],
     "app/server/src/lib/permission-nodes.ts": [
       "permissions"

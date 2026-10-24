@@ -1,0 +1,395 @@
+{
+  "version": 1,
+  "issue": 276,
+  "kind": "business",
+  "summary": "论坛 v2 服务端半份：话题分级可见（public/registered/member，COALESCE(话题/分类/public)）、去掉游客回帖（CONTRACT §2）、表情包与表情回应、帖子图片上传、@ 提及自动补全、访客翻页上限（SPEC §3.8）、控制台「论坛管理」（分类可见范围、表情包/表情维护）；另加团队负责人追加的 viewer.level/viewer.nodes（分级可见等级与写权限节点子集，按钮显隐参考）和表情回应 mine 字段的真实 bug 修复。论坛 Nuxt 前端与控制台 Vue 页面的 UI 行为是另一位同事在 forum-ui-276 的独立 worktree 里做的，不在这份声明里；这里只碰了 app/forum/shared/forum-api.ts 这一个纯类型/解析器文件（和它的两个测试），让前端客户端认得服务端新加的 viewer.level/nodes 字段、不被 parseWriteResult 悄悄丢掉，没有改任何组件、按钮显隐或页面逻辑。",
+  "applications": [
+    "server",
+    "forum"
+  ],
+  "domains": [
+    "audit",
+    "competitions",
+    "feedback",
+    "forum",
+    "github",
+    "gitlab",
+    "identity",
+    "invitations",
+    "mail",
+    "organization",
+    "permissions",
+    "platform",
+    "public_content",
+    "recruitment"
+  ],
+  "flows": [
+    "flow:forum.reactions.add",
+    "flow:forum.reactions.remove",
+    "flow:forum.stickers.list",
+    "flow:forum.stickers.read_file",
+    "flow:forum.topics.page",
+    "flow:forum.uploads.read_file",
+    "flow:forum.users.suggest",
+    "flow:forum.topics.visibility",
+    "flow:console.forum.categories.list",
+    "flow:console.forum.categories.update",
+    "flow:console.forum.stickers.list",
+    "flow:console.forum.sticker_packs.update",
+    "flow:console.forum.stickers.update",
+    "flow:console.forum.stickers.create",
+    "flow:forum.uploads.create",
+    "flow:console.summary",
+    "flow:identity.callback",
+    "flow:identity.email.verify",
+    "flow:application.cancel",
+    "flow:documentation.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "论坛新增分级可见、表情、上传、@自动补全、访客翻页上限，并彻底去掉游客回帖这条旧业务路径（不再接受匿名发帖，只接受持 forum.reply.create 的登录成员）；控制台新增「论坛管理」页签让管理员改分类可见范围与维护表情包。这些都是面向真实用户/管理员的新业务能力，不是纯内部重构。",
+      "evidence": [
+        "app/server/src/routes/forum-api/posts.ts",
+        "app/server/src/routes/forum-api/topics.ts",
+        "app/server/src/routes/console/forum.ts",
+        "docs/architecture/API.md"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "新增 15 个接口（见 docs/services/server/endpoint-contracts.md 与 docs/architecture/API.md 的 #276 小节）：表情回应 PUT/DELETE、表情包公开列表与图片、上传 PUT/GET、话题游标分页 GET、话题可见范围 PATCH、@ 自动补全、5 个控制台论坛管理接口；posts.ts 的回复接口去掉游客分支，改成单一的 forum.reply.create 权限节点判定。全部 16 个新增/改过请求形状的接口（含 POST /api/forum/posts）都补了响应 Schema：有确定形状的（表情聚合、话题分页、表情包列表、上传结果、控制台论坛管理）按真实形状声明；两个图片文件路由用占位 Schema（Fastify 对 Buffer 响应整段绕过 JSON Schema 序列化，已读 node_modules/fastify/lib/reply.js 源码核实）；写接口回答复用的通用 ForumWriteResponse 形状（PATCH visibility、POST /posts）用最宽松占位（只声明是对象），不裁字段，和其余十几个既有写接口一样没有固定 Schema。团队负责人追加：GET /state 与每个写接口的 viewer 对象另加 level（分级可见等级）与 nodes（持有的论坛写权限节点子集），只做按钮显隐参考，前端 app/forum/shared/forum-api.ts 的 parseViewer 同步认得这两个字段。自查发现并修了两处真实 bug：(1) middleware/http-policy.ts 的错误处理器从来没有把 ForumError.extra（401 的 need、403 的 node）铺进响应体，CONTRACT-276 §1 要求的字段实际从未下发；(2) lib/forum-store.ts 的 reactionsByPost() 用论坛用户 id 去比对 forum_reactions.account_id（核心账号 id），两种 id 格式不同，表情回应的 mine 字段永远是 false。两处都已修复并有回归测试（三个身份——加表情的人/别人/游客——在 /state、话题正文、PUT/DELETE 回答三处核对 mine 口径一致）。",
+      "evidence": [
+        "app/server/src/routes/forum-api/posts.ts",
+        "app/server/src/routes/forum-api/stickers.ts",
+        "app/server/src/routes/forum-api/uploads.ts",
+        "app/server/src/routes/forum-api/people.ts",
+        "app/server/src/routes/forum-api/topics.ts",
+        "app/server/src/routes/forum-api/viewer.ts",
+        "app/server/src/routes/forum-api/contracts.ts",
+        "app/server/src/routes/console/forum.ts",
+        "app/server/src/routes/console/contracts.ts",
+        "app/server/src/middleware/http-policy.ts",
+        "app/server/src/lib/forum-store.ts",
+        "app/server/src/lib/forum-rules.ts",
+        "app/server/src/lib/limits.ts",
+        "app/forum/shared/forum-api.ts"
+      ]
+    },
+    "permissions": {
+      "status": "changed",
+      "reason": "论坛前台新节点：forum.reply.create（取代游客回帖判定）、forum.react、forum.upload.image，迁移种子只发给 level.member；GET /api/forum/users/suggest 只要求登录（不要求 level.member，requireMember 在这里的语义是「有会话」）。控制台新节点 forum.category.manage、forum.sticker.manage，写操作另加 requireStepUp（和账号页同一个 10 分钟窗口）。节点本身在上一轮 #274 迁移（2026-10-yugc-v2.ts）里已经种过，这一轮只是新路由开始消费它们，没有新增迁移种子。团队负责人追加：viewer.nodes 只是把 forum-api/viewer.ts 里固定的六个节点（forum.topic.create/forum.reply.create/forum.react/forum.sticker.use/forum.upload.image/forum.moderate.edit）逐条过一遍 permissions.check() 下发给前端做按钮显隐参考，不新增任何权限节点或授权路径，真正鉴权仍在 requireWriter/canModerate。",
+      "evidence": [
+        "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
+        "app/server/src/routes/forum-api/viewer.ts",
+        "app/server/src/routes/console/forum.ts",
+        "app/server/src/middleware/require-permission.ts"
+      ]
+    },
+    "data": {
+      "status": "changed",
+      "reason": "新增 6 张表（forum_category_settings、forum_sticker_packs、forum_stickers、forum_sticker_files、forum_reactions、forum_upload_files）与迁移 lib/migrations/2026-10-forum-v2.ts（分类可见范围种子、极客娘表情种子，只增不改、可重复执行）；forum_topics.visibility 列放宽成可空（重建表，PRAGMA foreign_keys 要在事务外先关再开，否则子表还有引用行时 DROP 旧表会撞 FK 约束——这是迁移演练阶段发现的真实 bug，已修复，回归测试见 legacy-database.test.ts 的新增用例）。两次迁移演练（见本轮汇报）之间与之后各表行数不变，确认迁移可重复执行不产生副作用。",
+      "evidence": [
+        "app/server/src/lib/db.ts",
+        "app/server/src/lib/migrations/2026-10-forum-v2.ts",
+        "tests/server/legacy-database.test.ts",
+        "tests/server/forum-v2-migration.test.ts",
+        "docs/services/server/data-model.md"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "不增删任何 npm 依赖；上传与表情图片转码复用已经在用的 sharp（头像上传已经依赖它），不引入新图像库。",
+      "evidence": [
+        "app/server/package.json",
+        "app/server/src/routes/forum-api/uploads.ts"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "docs/architecture/API.md 新增 #276 小节（分级可见、表情、上传、翻页上限、@自动补全、控制台论坛管理的方法/限流/响应/错误表，加一条团队负责人追加的「看的人（viewer）」说明 level/nodes），并去掉 POST /api/forum/posts 行、写接口回答形状、通知规则段落里已经不存在的 guestPolicy/游客回帖描述；docs/services/server/endpoint-contracts.md 新增 15 条接口的权限/响应/副作用/本地表/源码记录，补 viewer.level/nodes 与表情回应 camelCase 形状的说明，去掉 13 处已经不存在的 guestPolicy 响应字段，顺带修正了因为本轮在 topics.ts/posts.ts/people.ts 里插入新路由而错位的既有「源码」行号链接；docs/services/server/data-model.md 新增 6 张新表的说明，修正 forum_users、forum_rate_events、forum_topics 三行里已经不成立的游客回帖描述。docs/services/forum/README.md（论坛前端的 UI 行为文档）只加了两条新内容——「看的人（viewer）」说明 level/nodes、「表情回应」说明 camelCase 形状与 mine 的 bug 修复——都是团队负责人这一轮明确要求写进这份文档的服务端事实，没有动游客回复输入框、PoW、Turnstile 这些还没被另一位同事在 forum-ui-276 去掉的既有 UI 描述，避免和那边的并行改动冲突或把文档说得比代码还新。",
+      "evidence": [
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/forum/README.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "新建 tests/server/forum-v2-endpoints.test.ts（26 条用例）覆盖全部 15 个新接口在访客/注册用户/成员/版主四级身份下的权限矩阵、429 的 bucket 与 retry_after、可见范围的 401/403 不泄露标题、visibility_too_open、访客翻页上限、控制台的权限+step-up 矩阵；tests/server/forum.test.ts 大改：删掉全部游客回帖机制测试（昵称规则、PoW、蜜罐、Turnstile、按 IP 限流），改成成员专用路径的等价测试，新增可见范围、表情、称号/部门字段的断言，并补团队负责人追加的两项——(a) guest/alice（level.member+站长）/frank（level.registered 非成员）三种 viewer 的 level/nodes 精确断言；(b) 表情回应 mine 字段的三方视角回归（加表情的人看 true，别人和游客看 false），在 /state、GET 话题正文、PUT/DELETE 回答三处核对口径一致；tests/server/legacy-database.test.ts 新增 forum_topics.visibility 放宽成可空列的回归测试（复现并验证修复了上面提到的 FK 重建 bug）；tests/server/forum-v2-migration.test.ts 新建，覆盖迁移的种子内容、幂等性与资源目录缺失时的降级。app/forum 自己的回归套件（tests/forum-api.test.ts 等 30 个文件、553 条）因为 ForumViewer 加了 level/nodes 字段而同步改了 3 个文件（shared/forum-api.ts 的 parseViewer、tests/fixtures/server-state.ts 的 FixtureViewer 夹具、一处内联字面量），在 Node 24.21.0 下全部通过（本机 fnm 没有 app/forum 要求的 >=26，待团队负责人用真实版本复核）。全量 vitest（app/server 相关 611 条 + tooling）、pnpm check:catalog 均已在本机跑过并贴出计数，见本轮汇报；预发布/生产环境的真实验收未做（不在本次服务端半份的职责范围，等 UI 半份一起上预发布）。",
+      "evidence": [
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/server/forum.test.ts",
+        "tests/server/legacy-database.test.ts",
+        "tests/server/forum-v2-migration.test.ts",
+        "app/forum/tests/forum-api.test.ts",
+        "app/forum/tests/fixtures/server-state.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "app/server/Dockerfile 新增一行，把表情包第一套「极客娘」的源图片（app/server/assets/stickers/yugc/*.webp，24 张）复制进镜像——缺了这些文件，迁移的 seedYugcStickers() 虽然不会阻塞启动，但只会种出一部分（甚至零个）表情，公开列表就是空的；src/config.ts 新增 stickerAssetsDir 配置项指向这个目录。不新增环境变量、不新增运行单元，仍由现有 server 镜像交付。",
+      "evidence": [
+        "app/server/Dockerfile",
+        "app/server/src/config.ts",
+        "app/server/assets/stickers/yugc/wave.webp"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/server/src/routes/forum-api/topics.ts",
+        "app/server/src/routes/forum-api/posts.ts",
+        "app/server/src/routes/forum-api/people.ts",
+        "app/server/src/routes/forum-api/stickers.ts",
+        "app/server/src/routes/forum-api/uploads.ts",
+        "app/server/src/routes/forum-api/viewer.ts",
+        "app/server/src/routes/forum-api/forum-limits.ts",
+        "app/server/src/routes/forum-api/contracts.ts",
+        "app/server/src/routes/forum-api/index.ts",
+        "app/server/src/lib/forum-rules.ts",
+        "app/server/src/lib/forum-store.ts",
+        "app/server/src/routes/console/forum.ts",
+        "app/server/src/routes/console/contracts.ts"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "route:PUT /api/forum/posts/:post_id/reactions/:sticker_id",
+        "route:DELETE /api/forum/posts/:post_id/reactions/:sticker_id",
+        "route:GET /api/forum/stickers",
+        "route:GET /api/forum/stickers/:file",
+        "route:GET /api/forum/topics",
+        "route:PATCH /api/forum/topics/:topic_id/visibility",
+        "route:PUT /api/forum/uploads",
+        "route:GET /api/forum/uploads/:file",
+        "route:GET /api/forum/users/suggest",
+        "route:GET /api/console/forum/categories",
+        "route:PATCH /api/console/forum/categories/:id",
+        "route:GET /api/console/forum/stickers",
+        "route:PATCH /api/console/forum/sticker-packs/:id",
+        "route:PATCH /api/console/forum/stickers/:id",
+        "route:PUT /api/console/forum/sticker-packs/:id/stickers",
+        "flow:forum.reactions.add",
+        "flow:forum.reactions.remove",
+        "flow:forum.stickers.list",
+        "flow:forum.stickers.read_file",
+        "flow:forum.topics.page",
+        "flow:forum.uploads.read_file",
+        "flow:forum.users.suggest",
+        "flow:forum.topics.visibility",
+        "flow:forum.uploads.create",
+        "flow:console.forum.categories.list",
+        "flow:console.forum.categories.update",
+        "flow:console.forum.stickers.list",
+        "flow:console.forum.sticker_packs.update",
+        "flow:console.forum.stickers.update",
+        "flow:console.forum.stickers.create"
+      ],
+      "reason": "论坛前台新接口的路由、鉴权与业务规则：话题分级可见的 SQL 过滤与 401/403 不泄露标题、访客翻页上限、表情回应与它的 429、帖子图片上传的类型/尺寸限制、@ 自动补全只要求登录、POST /api/forum/posts 去掉游客分支改成单一权限节点判定；控制台「论坛管理」（console/forum.ts）的分类可见范围与表情包/表情维护，写操作一律 step-up。forum-rules.ts/forum-store.ts 是这些接口共用的规则与存储层（游标编解码、分页、EFFECTIVE_VISIBILITY_EXPR、表情聚合）；contracts.ts/index.ts/console/contracts.ts 只是新接口的输入协议、响应 Schema 与注册清单，没有独立业务逻辑。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/db.ts",
+        "app/server/src/lib/migrations/2026-10-forum-v2.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "gitlab",
+        "identity",
+        "invitations",
+        "mail",
+        "organization",
+        "permissions",
+        "platform",
+        "recruitment"
+      ],
+      "nodes": [
+        "table:forum_category_settings",
+        "table:forum_sticker_packs",
+        "table:forum_sticker_files",
+        "table:forum_stickers",
+        "table:forum_reactions",
+        "table:forum_upload_files",
+        "flow:forum.topics.visibility"
+      ],
+      "reason": "db.ts 新增 6 张 #276 表的 CREATE TABLE，并修了 forum_topics.visibility 放宽成可空列时的 FK 重建 bug（DROP 旧表前要先关 PRAGMA foreign_keys，否则子表还有引用行就会撞约束，迁移演练发现）；2026-10-forum-v2.ts 是这批表的种子（幂等、只增不改），已在 ownership.json 的 moduleOwners 里单独登记为 forum 域（不再静默落进 platform）。db.ts 本身是全站唯一的表结构文件，按目录登记规则它被算成 12 个业务域共同拥有（除 github、public_content 外的全部域）——这次改动实际只碰了论坛相关的 6 张新表和一处既有表的列约束，domains 列这 12 个纯粹是满足「源码影响业务域对齐」这道机械核对，不代表这次在其它 11 个域里做了设计，和 #274（同样改了 db.ts）的处理方式一致。"
+    },
+    {
+      "paths": [
+        "app/server/src/middleware/http-policy.ts",
+        "app/server/src/lib/limits.ts",
+        "app/server/src/config.ts",
+        "app/server/src/services.ts",
+        "app/server/src/routes/console/index.ts",
+        "app/server/src/routes/console/contracts.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "github",
+        "gitlab",
+        "identity",
+        "invitations",
+        "mail",
+        "organization",
+        "permissions",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:server",
+        "flow:console.summary",
+        "flow:identity.callback",
+        "flow:identity.email.verify",
+        "flow:application.cancel",
+        "flow:documentation.list"
+      ],
+      "reason": "这六个文件按目录登记规则（docs/architecture/catalog/ownership.json 的 moduleOwners，`app/server/src/middleware/` 整个前缀按文件级归属登记成 11 个业务域共用）被算成跨全部业务域，但这次实际改动是单一、局部的：http-policy.ts 只补上了 ForumError.extra 透传（见 backend 评估的 bug 1），不碰别的错误路径；limits.ts 只新增论坛相关的几个限流桶常量；config.ts/services.ts 只接上新的 stickerAssetsDir 配置；console/index.ts、console/contracts.ts 只注册新的 console/forum.ts 路由与它的输入协议。借用 console.summary、identity.callback、identity.email.verify、application.cancel、documentation.list 这五条已有流程，纯粹是为了让目录机制能把这六个文件实际没有触碰到的 competitions/feedback/github/gitlab/invitations/mail/organization/public_content/recruitment 九个业务域也挂上一条流程满足核对，不代表这次改动在这些域里做了任何设计——和 #274（同样改了这批共享文件）的处理方式一致。"
+    },
+    {
+      "paths": [
+        "app/server/Dockerfile",
+        "app/server/assets/stickers/yugc/angry.webp",
+        "app/server/assets/stickers/yugc/cheer.webp",
+        "app/server/assets/stickers/yugc/coding.webp",
+        "app/server/assets/stickers/yugc/confused.webp",
+        "app/server/assets/stickers/yugc/cry.webp",
+        "app/server/assets/stickers/yugc/debug.webp",
+        "app/server/assets/stickers/yugc/go.webp",
+        "app/server/assets/stickers/yugc/goodnight.webp",
+        "app/server/assets/stickers/yugc/happy.webp",
+        "app/server/assets/stickers/yugc/heart.webp",
+        "app/server/assets/stickers/yugc/hug.webp",
+        "app/server/assets/stickers/yugc/merged.webp",
+        "app/server/assets/stickers/yugc/popcorn.webp",
+        "app/server/assets/stickers/yugc/proud.webp",
+        "app/server/assets/stickers/yugc/roger.webp",
+        "app/server/assets/stickers/yugc/shocked.webp",
+        "app/server/assets/stickers/yugc/shy.webp",
+        "app/server/assets/stickers/yugc/sleepy.webp",
+        "app/server/assets/stickers/yugc/smirk.webp",
+        "app/server/assets/stickers/yugc/speechless.webp",
+        "app/server/assets/stickers/yugc/thanks.webp",
+        "app/server/assets/stickers/yugc/think.webp",
+        "app/server/assets/stickers/yugc/thumbsup.webp",
+        "app/server/assets/stickers/yugc/wave.webp"
+      ],
+      "domains": [
+        "forum",
+        "platform"
+      ],
+      "nodes": [
+        "table:forum_sticker_files",
+        "application:server"
+      ],
+      "reason": "把表情包源图片镶进镜像，否则 preview/production 启动时迁移种不全表情（见 delivery 评估）；24 张 webp 是纯素材，没有业务逻辑。"
+    },
+    {
+      "paths": [
+        "app/forum/shared/forum-api.ts",
+        "app/forum/tests/fixtures/server-state.ts",
+        "app/forum/tests/forum-api.test.ts"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "flow:forum.topics.page",
+        "application:forum"
+      ],
+      "reason": "服务端在 viewer 上加了 level/nodes 两个字段（backend 评估），tests/server/forum.test.ts 的「论坛前端只收认得的形状」回归测试会直接从 app/forum/shared/forum-api.ts 导入 parseWriteResult 喂真实服务端回答——不跟着把 ForumViewer/parseViewer 加上这两个字段，这条测试会稳定失败（前端解析器会把新字段悄悄丢掉）。这里只做了最小必要的加法：接口与解析器认得新字段、没给时退回保守默认值；两个测试文件（共享夹具常量、一处内联字面量）跟着补上，没有改任何 Vue 组件、按钮显隐或页面逻辑——UI 怎么用这两个字段仍是 forum-ui-276 的职责。"
+    },
+    {
+      "paths": [
+        "docs/architecture/API.md",
+        "docs/services/server/data-model.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/forum/README.md",
+        "docs/architecture/catalog/ownership.json",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/routes.md",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/map.html"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "document:docs/architecture/API.md",
+        "document:docs/services/server/data-model.md",
+        "document:docs/services/server/endpoint-contracts.md",
+        "flow:forum.reactions.add",
+        "flow:forum.reactions.remove",
+        "flow:forum.stickers.list",
+        "flow:forum.stickers.read_file",
+        "flow:forum.topics.page",
+        "flow:forum.uploads.read_file",
+        "flow:forum.users.suggest",
+        "flow:forum.topics.visibility",
+        "flow:console.forum.categories.list",
+        "flow:console.forum.categories.update",
+        "flow:console.forum.stickers.list",
+        "flow:console.forum.sticker_packs.update",
+        "flow:console.forum.stickers.update",
+        "flow:console.forum.stickers.create",
+        "flow:forum.uploads.create"
+      ],
+      "reason": "手工文档改动见 documentation 评估；ownership.json 是本次新增 15 条流程登记与 routeOwners 补全的源文件，后面 6 份 docs/architecture/catalog/*（catalog.json 等）是 pnpm catalog:generate 的生成物，随 ownership.json 一起重新生成，内容由脚本保证，不是本次手写的事实陈述。"
+    },
+    {
+      "paths": [
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/server/forum.test.ts",
+        "tests/server/legacy-database.test.ts",
+        "tests/server/forum-v2-migration.test.ts"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "flow:forum.reactions.add",
+        "flow:forum.reactions.remove",
+        "flow:forum.stickers.list",
+        "flow:forum.stickers.read_file",
+        "flow:forum.topics.page",
+        "flow:forum.uploads.read_file",
+        "flow:forum.users.suggest",
+        "flow:forum.topics.visibility",
+        "flow:console.forum.categories.list",
+        "flow:console.forum.categories.update",
+        "flow:console.forum.stickers.list",
+        "flow:console.forum.sticker_packs.update",
+        "flow:console.forum.stickers.update",
+        "flow:console.forum.stickers.create",
+        "flow:forum.uploads.create"
+      ],
+      "reason": "见 verification 评估：新接口权限矩阵、可见范围不泄露标题、429 的 bucket/retry_after、游客回帖机制整段删除改成成员专用路径、FK 重建 bug 的回归、迁移种子的幂等性与降级。"
+    }
+  ],
+  "documents": [
+    "docs/architecture/API.md",
+    "docs/services/server/data-model.md",
+    "docs/services/server/endpoint-contracts.md"
+  ],
+  "tests": [
+    "tests/server/forum-v2-endpoints.test.ts",
+    "tests/server/forum.test.ts",
+    "tests/server/legacy-database.test.ts",
+    "tests/server/forum-v2-migration.test.ts"
+  ],
+  "compatibility": "只增表、增列（nullable）、增路由，不改已有接口的请求/响应形状（除了去掉游客回帖分支——那条路径本身就是这次要去掉的业务行为，不是兼容性意外）；旧的 forum_rate_events 游客桶数据保留不清理。",
+  "migration": "lib/migrations/2026-10-forum-v2.ts 的两步（分类可见范围种子、表情种子）都是 INSERT OR IGNORE / upsert，可重复执行；forum_topics.visibility 放宽成可空列用重建表的方式（先关 PRAGMA foreign_keys，CREATE new → INSERT…SELECT → DROP old → RENAME，再用 foreign_key_check 校验后重新打开），已在拷贝的真实 preview 数据库上演练两遍，演练前、第一遍之后、第二遍之后每张表行数一致，详见本轮汇报。",
+  "rollback": "回滚就是部署上一个镜像：本迁移只加表、加列、加行，不删旧表旧列旧行；表情、分类可见范围这些新表就留在库里不再被读，不影响回滚后的旧版本代码运行。"
+}
