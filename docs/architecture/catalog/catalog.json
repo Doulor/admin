@@ -10949,7 +10949,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "3de35af2579786490839a532f1e0bd646a0dea25623539e369b871d67f700c32",
+    "fingerprint": "cfd08d41acae58e5da7825f189545a6ad95f7086e266ddde55754bbf8ea4b3e2",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -12421,11 +12421,11 @@
       },
       {
         "path": "deploy/compose/preview.yml",
-        "sha256": "2a6d20f14e3b52b3f6111086db670e806b883c7099910242e864cf41fe2cf058"
+        "sha256": "d3ee9863fb00dc44250e7f74d0afa59c4191f86def836646f24519a9a22d2239"
       },
       {
         "path": "deploy/compose/production.yml",
-        "sha256": "bfcf8092e024917aceac147cdd6c41ddcd165c18169a2a432cf2ed36c3342752"
+        "sha256": "d301d42c0184937360c0fb93a2f8e6662185523f4d1d4213c8bdbb986c01c36f"
       },
       {
         "path": "docs/architecture/API.md",
@@ -12477,7 +12477,7 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "dc32701effd9cf3fc2f17de371e456d1022d075026e663a33816d24fa7f17c00"
+        "sha256": "4545717c0cd67efbf8032f3b1ac2d3fdcc35af78ee6bb2250bfda1ea7d72950c"
       },
       {
         "path": "docs/services/server/data-model.md",
