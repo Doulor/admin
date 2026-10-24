@@ -631,7 +631,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 38,
+          "line": 37,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -980,7 +980,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 46,
+          "line": 45,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -1000,7 +1000,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 92,
+          "line": 91,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -1064,7 +1064,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 96,
+          "line": 95,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -1116,7 +1116,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 154,
+          "line": 152,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -7554,7 +7554,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 37,
+          "line": 36,
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
@@ -7594,7 +7594,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 56,
+          "line": 55,
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
@@ -7637,7 +7637,7 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 77,
+          "line": 75,
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
@@ -10951,7 +10951,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "fe3dc28830aaf287ebe548f35212e858623bcd5debaac1b138650040c2488744",
+    "fingerprint": "59045a9970ca0e49fe6df50408d524b729c1e2e53f280ad1bd1649e66e8e5f2e",
     "sources": [
       {
         "path": "app/console/package.json",
@@ -11919,7 +11919,7 @@
       },
       {
         "path": "app/server/src/routes/admin/auth.ts",
-        "sha256": "438a8f110c394d170a8fdc102c803369cc700ca97ecdfe23ea4aed7cef4fcca3"
+        "sha256": "6d19065982168cd3b27ac9fb15599548a6d5938a03c2008bb12404150d1653f5"
       },
       {
         "path": "app/server/src/routes/admin/contracts.ts",
@@ -12043,7 +12043,7 @@
       },
       {
         "path": "app/server/src/routes/identity/profile.ts",
-        "sha256": "aea32b52161605a610a6b77a3d9ba98d8fd30b3004fee32cdfd5f6eccff5489b"
+        "sha256": "9aeaab47f30680af291c9e3504dc514310104e71a1149bb41191cad692dee230"
       },
       {
         "path": "app/server/src/routes/identity/providers.ts",
@@ -12643,7 +12643,7 @@
       },
       {
         "path": "tests/server/identity.test.ts",
-        "sha256": "ba9f022910f12425f283ab6ce7e49d9d1fbfa9ef6d5b90fe023563063a8795e4"
+        "sha256": "5f5c1d648cf22874835cb55876d525b7eba3b0a8cc75ad9aa94630f9f7619e42"
       },
       {
         "path": "tests/server/legacy-database.test.ts",
@@ -13430,7 +13430,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 37,
+          "line": 36,
           "path": "app/server/src/routes/identity/profile.ts"
         }
       ],
@@ -13562,7 +13562,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 46,
+          "line": 45,
           "path": "app/server/src/routes/admin/auth.ts"
         }
       ],
@@ -13598,7 +13598,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 38,
+          "line": 37,
           "path": "app/server/src/routes/admin/auth.ts"
         }
       ],
@@ -13634,7 +13634,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 154,
+          "line": 152,
           "path": "app/server/src/routes/admin/auth.ts"
         }
       ],
@@ -14198,7 +14198,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 37,
+          "line": 36,
           "path": "app/server/src/routes/identity/profile.ts"
         }
       ],
@@ -14330,7 +14330,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 46,
+          "line": 45,
           "path": "app/server/src/routes/admin/auth.ts"
         }
       ],
@@ -14366,7 +14366,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 38,
+          "line": 37,
           "path": "app/server/src/routes/admin/auth.ts"
         }
       ],
@@ -14402,7 +14402,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 154,
+          "line": 152,
           "path": "app/server/src/routes/admin/auth.ts"
         }
       ],
@@ -15050,7 +15050,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 76,
+          "line": 74,
           "path": "app/server/src/routes/identity/profile.ts"
         }
       ],
@@ -15242,7 +15242,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 96,
+          "line": 95,
           "path": "app/server/src/routes/admin/auth.ts"
         }
       ],
@@ -15350,7 +15350,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 54,
+          "line": 53,
           "path": "app/server/src/routes/identity/profile.ts"
         }
       ],
@@ -39400,7 +39400,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 38,
+          "line": 37,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39440,7 +39440,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 37,
+          "line": 36,
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
@@ -39462,7 +39462,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 37,
+          "line": 36,
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
@@ -39502,7 +39502,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 55,
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
@@ -39524,7 +39524,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 55,
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
@@ -39540,7 +39540,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 55,
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
@@ -39556,7 +39556,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 56,
+          "line": 55,
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
@@ -39614,7 +39614,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 45,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39634,7 +39634,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 92,
+          "line": 91,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39658,7 +39658,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 45,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39678,7 +39678,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 92,
+          "line": 91,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39720,7 +39720,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 45,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39740,7 +39740,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 92,
+          "line": 91,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39764,7 +39764,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 45,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39784,7 +39784,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 92,
+          "line": 91,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39808,7 +39808,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 45,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39828,7 +39828,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 92,
+          "line": 91,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39852,7 +39852,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 45,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39872,7 +39872,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 92,
+          "line": 91,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39896,7 +39896,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 45,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39916,7 +39916,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 92,
+          "line": 91,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39940,7 +39940,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 45,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39960,7 +39960,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 92,
+          "line": 91,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -39984,7 +39984,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 45,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -40004,7 +40004,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 92,
+          "line": 91,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -40028,7 +40028,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 46,
+          "line": 45,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -40048,7 +40048,7 @@
           "path": "app/server/src/lib/email-gate.ts"
         },
         {
-          "line": 92,
+          "line": 91,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -40120,7 +40120,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 154,
+          "line": 152,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -40228,7 +40228,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 154,
+          "line": 152,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -40336,7 +40336,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 154,
+          "line": 152,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -40444,7 +40444,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 154,
+          "line": 152,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -40552,7 +40552,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 154,
+          "line": 152,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -40660,7 +40660,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 154,
+          "line": 152,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -40768,7 +40768,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 154,
+          "line": 152,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -40876,7 +40876,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 154,
+          "line": 152,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -41056,7 +41056,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 154,
+          "line": 152,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -41164,7 +41164,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 154,
+          "line": 152,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -41272,7 +41272,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 154,
+          "line": 152,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -43520,7 +43520,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 75,
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
@@ -43542,7 +43542,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 75,
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
@@ -43558,7 +43558,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 75,
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
@@ -43574,7 +43574,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 75,
           "path": "app/server/src/routes/identity/profile.ts"
         },
         {
@@ -46380,7 +46380,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 95,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -46414,7 +46414,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 95,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -46430,7 +46430,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 95,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -46446,7 +46446,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 95,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -46462,7 +46462,7 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 96,
+          "line": 95,
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
@@ -59711,7 +59711,7 @@
         }
       },
       "source": {
-        "line": 37,
+        "line": 36,
         "path": "app/server/src/routes/identity/profile.ts"
       }
     },
@@ -61428,7 +61428,7 @@
         }
       },
       "source": {
-        "line": 46,
+        "line": 45,
         "path": "app/server/src/routes/admin/auth.ts"
       }
     },
@@ -61649,7 +61649,7 @@
         }
       },
       "source": {
-        "line": 38,
+        "line": 37,
         "path": "app/server/src/routes/admin/auth.ts"
       }
     },
@@ -61912,7 +61912,7 @@
         }
       },
       "source": {
-        "line": 154,
+        "line": 152,
         "path": "app/server/src/routes/admin/auth.ts"
       }
     },
@@ -64988,7 +64988,7 @@
         }
       },
       "source": {
-        "line": 37,
+        "line": 36,
         "path": "app/server/src/routes/identity/profile.ts"
       }
     },
@@ -65699,7 +65699,7 @@
         }
       },
       "source": {
-        "line": 46,
+        "line": 45,
         "path": "app/server/src/routes/admin/auth.ts"
       }
     },
@@ -65853,7 +65853,7 @@
         }
       },
       "source": {
-        "line": 38,
+        "line": 37,
         "path": "app/server/src/routes/admin/auth.ts"
       }
     },
@@ -66045,7 +66045,7 @@
         }
       },
       "source": {
-        "line": 154,
+        "line": 152,
         "path": "app/server/src/routes/admin/auth.ts"
       }
     },
@@ -72541,7 +72541,7 @@
         }
       },
       "source": {
-        "line": 76,
+        "line": 74,
         "path": "app/server/src/routes/identity/profile.ts"
       }
     },
@@ -76476,7 +76476,7 @@
         }
       },
       "source": {
-        "line": 96,
+        "line": 95,
         "path": "app/server/src/routes/admin/auth.ts"
       }
     },
@@ -77198,7 +77198,7 @@
         }
       },
       "source": {
-        "line": 54,
+        "line": 53,
         "path": "app/server/src/routes/identity/profile.ts"
       }
     },
