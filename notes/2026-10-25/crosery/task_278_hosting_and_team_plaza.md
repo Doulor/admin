@@ -85,3 +85,17 @@
 - 做了什么：按 code-review 两条线在主会话逐个文件核对 d1f64ec5...c0b613f7：文档同步、宏观对齐、断言改动只跟需求走、隐私口径（公开人员接口不含邮箱与真实姓名，--api 不转发凭据）、Tuffex 与无 emoji；逐条对照所有者 22:17、22:25、22:27、23:38、01:03 的原话；核对规划中只在开赛前生效、广场满员现算、limit 截断与游标校验
 - 结果：通过；记一处规范偏差：269e6f4d 用了词表外的 fix(contest)，已推送不改写历史，写进审查结论。未验证项（预发布真实写入、--api 对预发布、新备份上的迁移演练）随 rc.21 补
 - 下一步：贴审查评论并合并进 stage
+
+## 03:34:46 +08:00 · 合并 · #278 · MR !20 合进 stage，手工关闭 #278
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：审查结论贴进 MR !20 后按 sha bf813e76 合并（merge commit，删源分支）；在 #278 留关闭记录后手工关闭
+- 结果：stage 合并提交 7aa5e777；#278 closed，关闭记录 note 1118
+- 下一步：收尾 worktree；rc.21 预发布按 !20 人工验收步骤核对
+
+## 03:34:59 +08:00 · 收尾 · #278 · 删除 task-278-host worktree 与本地分支
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：停掉这个 worktree 起的两个 vite（按 PID 22105、67291），git worktree remove 删 .claude/worktrees/task-278-host，git branch -D 删本地 task/278/hosting_and_team_plaza；远端分支已随合并删除
+- 结果：git worktree list 不再有 task-278-host
+- 下一步：无
