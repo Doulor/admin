@@ -11,6 +11,19 @@ import { loadSession } from "../../lib/session.js";
  */
 export const SITE_CSP = "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox; default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; frame-ancestors 'none'";
 const PREVIEW_PREFIX = "~preview/";
+// 回的是文件或跳转，不是 JSON：Schema 只登记状态码与内容类型（Buffer 与 text/plain 不经过序列化）
+const missingPage = { type: "string", description: "text/plain; charset=utf-8：没有这个页面" };
+const redirectSchema = { schema: { response: { 301: { type: "string", description: "跳到带 / 的地址" }, 404: missingPage } } };
+const fileSchema = {
+  schema: {
+    response: {
+      200: { type: "string", description: "站点文件，Content-Type 按扩展名" },
+      301: { type: "string", description: "目录或预览地址补 /" },
+      302: { type: "string", description: "预览：换成一小时有效的签名地址" },
+      404: missingPage,
+    },
+  },
+};
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export default async function siteRoutes(app: FastifyInstance) {
@@ -40,9 +53,9 @@ export default async function siteRoutes(app: FastifyInstance) {
     return reply.header("Cache-Control", cacheControl).type(hit.contentType).send(hit.data);
   }
 
-  app.get<{ Params: { slug: string } }>("/c/:slug", async (req, reply) => reply.header("Cache-Control", "no-store").redirect(`/c/${encodeURIComponent(req.params.slug)}/`, 301));
+  app.get<{ Params: { slug: string } }>("/c/:slug", redirectSchema, async (req, reply) => reply.header("Cache-Control", "no-store").redirect(`/c/${encodeURIComponent(req.params.slug)}/`, 301));
 
-  app.get<{ Params: { slug: string; "*": string } }>("/c/:slug/*", async (req: FastifyRequest<{ Params: { slug: string; "*": string } }>, reply) => {
+  app.get<{ Params: { slug: string; "*": string } }>("/c/:slug/*", fileSchema, async (req: FastifyRequest<{ Params: { slug: string; "*": string } }>, reply) => {
     const { slug } = req.params;
     const rest = req.params["*"] ?? "";
     if (rest === "~preview" || rest.startsWith(PREVIEW_PREFIX)) {
