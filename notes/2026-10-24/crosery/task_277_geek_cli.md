@@ -65,3 +65,9 @@
 - 做了什么：提交 d1eefb2b：app/web/Dockerfile 加 FROM scratch AS cli，运行阶段 COPY --from=cli / /usr/share/nginx/html/cli/，发版构建传 --build-context cli=dist/cli；cli、web 合同与 cli-dist.mjs 注释跟着改，写明 GitHub 两条部署工作流还没有产出 dist/cli/ 的步骤；tests/tooling/build-mirrors.test.ts 的阶段清单 web 改成 builder、cli、runtime，并断言 cli 阶段只有一行 FROM scratch
 - 结果：本机 docker 试过：不传 --build-context 时 /cli/ 下 0 个文件、构建成功，传了时 2 个文件都在；全量 vitest 113 文件 1837 条通过（返工前唯一失败的 build-mirrors 已修）
 - 下一步：推到 GitLab，开 MR，贴审查结论，合并
+
+## 20:05:03 +08:00 · 提交 · #277 · 新增 GET /api/me/applications，命令行查自己的投递状态
+
+- 执行者：agent-c277（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：新增app/server/src/routes/portal/my-applications.ts：requireAuth后按accountId查identities表provider='email'的全部绑定邮箱，和applications.email做LOWER()大小写不敏感匹配，合并去重按created_at倒序，没绑邮箱回空列表，只回id/status/created_at；routes/portal/index.ts多注册这一条路由，contracts.ts多这一条Fastify响应schema；middleware/bearer-auth.ts的SCOPE_BY_PREFIX加{prefix:"/api/me/applications",scope:"apply"}；新增tests/server/my-applications.test.ts共5个用例：只看到自己绑定邮箱匹配的投递、看不到别人的、邮箱大小写不敏感匹配、未登录401、令牌没apply scope时insufficient_scope
+- 结果：待下一条提交统一跑全量检查

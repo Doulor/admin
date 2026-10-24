@@ -17,6 +17,7 @@ import { gateRefusal, gateRefusalBody } from "../lib/email-gate.js";
 const SCOPE_BY_PREFIX: ReadonlyArray<{ prefix: string; scope: string }> = [
   { prefix: "/api/forum/", scope: "forum" },
   { prefix: "/api/teams/", scope: "apply" },
+  { prefix: "/api/me/applications", scope: "apply" },
   { prefix: "/api/competitions/", scope: "competition" },
   { prefix: "/api/me/competitions", scope: "competition" },
   { prefix: "/api/public/gitlab/", scope: "repo" },

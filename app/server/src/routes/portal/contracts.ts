@@ -1,10 +1,13 @@
-import { body, integer, limitParam, nullableText, object, text, type RouteContracts } from "../../lib/http-contracts.js";
+import { body, choices, integer, limitParam, nullableText, object, text, type RouteContracts } from "../../lib/http-contracts.js";
 import {
   competitionFailures, competitionIdParam, competitionLeaderboard, freeAgentList, myCompetitionList, myStatus,
   publicCompetition, publicCompetitionList, signupBody, teamIdParam, teamList,
 } from "../../lib/competition-contract.js";
+import { APPLICATION_STATUS_IDS } from "../../lib/roles.js";
 const proof = object({ timestamp: { type: "integer" }, nonce: text(32, 1) }, ["timestamp", "nonce"]);
 const abuse = { pow: proof, website: text(200), homepage: text(200), url_ref: text(200), turnstile_token: text(4096) };
+// UUID v4：applications.id 的生成方式（node:crypto 的 randomUUID()），和 console/contracts.ts 的 UUID_PATTERN 一致。
+const APPLICATION_ID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$";
 export const portalContracts: RouteContracts = {
   "GET /api/public/competitions": { querystring: object({}), response: { 200: publicCompetitionList, ...competitionFailures } },
   "GET /api/public/competitions/:id": { ...competitionIdParam, response: { 200: publicCompetition, ...competitionFailures } },
@@ -41,6 +44,13 @@ export const portalContracts: RouteContracts = {
   // 重复的 org 参数会被解析成数组，在合同这里回 400，不进路由变成 500（#129）。合同整份替换公共 querystring，limit 引用公共规则。
   "GET /api/feedback/public": { querystring: object({ org: text(39), limit: limitParam }, [], true) },
   "POST /api/feedback": body({ org: text(39, 1), content: text(5000, 5), category: text(20), contact: text(200), ...abuse }, ["org", "content"]),
+
+  // 我的投递状态（#277，geek apply status）：按账号已绑定的登录邮箱配 applications.email，不回姓名、班级、邮箱、特长。
+  "GET /api/me/applications": { querystring: object({}), response: { 200: object({
+    applications: { type: "array", items: object({
+      id: { type: "string", pattern: APPLICATION_ID_PATTERN }, status: choices(...APPLICATION_STATUS_IDS), created_at: integer(0),
+    }, ["id", "status", "created_at"]) },
+  }, ["applications"]) } },
 
   // 报名与组队（#239）：全部要求登录且是极客班成员；写操作每人每分钟 30 次。
   "GET /api/me/competitions": { response: { 200: myCompetitionList, ...competitionFailures } },
