@@ -29,3 +29,24 @@
 - 做了什么：审查人是写这次修复的主会话，属于作者自审。规范：提交类型与 scope 在 COMMITS 词表里（fix(forum)、docs(changes)、docs(notes)）；没有放宽内容文件的扫描；改校验写进 MR 和交付说明。需求：stage 上论坛镜像能构建（本机构建 exit 0），内容文件扫描不变，正例都能抓到。判断：JS 包里后缀大小写混写的真实邮箱抓不到，公开内容另有导出脚本和 vitest 两道检查。
 - 结果：通过，合并进 stage
 - 下一步：合并 MR !14，关闭 #276，重新构建 rc.20
+
+## 21:52:18 +08:00 · 合并 · #276 · MR !14 合进 stage（19c5db46），#276 再次手工关闭
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：按 sha 4f246640 合并 MR !14，merge commit 19c5db46（父 90ac3e5e、4f246640），GitLab 删了源分支。#276 发关闭记录后手工关闭，MR 里发了关闭追踪记录。
+- 结果：GitLab stage = 19c5db46；#276 已关
+- 下一步：删 task-276-scan worktree 与本地分支；按 19c5db46 构建 rc.20
+
+## 21:52:18 +08:00 · 收尾 · #276 · 删 task-276-scan worktree 和本地分支
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：git worktree remove .claude/worktrees/task-276-scan；git branch -D task/276/forum_image_scan。删之前 worktree 没有未提交的改动。
+- 结果：git worktree list 里没有 task-276-scan
+- 下一步：rc.20 发预发布后按 !13 人工验收步骤核对
+
+## 22:03:16 +08:00 · 发布 · #276 · 预发布 0.1.1-rc.20@19c5db4675d7（本机发版，tag 只在本地）
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：按 GitLab stage 19c5db46（含 !11 #277、!12 #278、!13 #276、!14 #276 修复）本机构建三个镜像，CDN 开关打开；static-cdn upload --owner-env-file 上传并核对 390 个文件（11.93 MiB）；rsync 增量传归档（新数据 172MB）并 sha256 核对；sqlite3 .backup 备份预发布库到 /root/yzgc-backups/preview-20261024-220157-39ab81ab9203.db（integrity_check ok）；备份并替换目标机 compose（去掉 CONSOLE_ORG）；env 只换 IMAGE_TAG；deploy-stack 部署；本地轻量 tag v0.1.1-rc.20，没有推送。
+- 结果：release.json version 0.1.1-rc.20@19c5db4675d7；两个 healthz 返回 ok；公开快照接口 200
+- 下一步：按 ACCEPTANCE A–G 在 1440×900 与 390×844 验收，截图贴回 !11、!12、!13、!14
