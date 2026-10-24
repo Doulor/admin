@@ -1,48 +1,49 @@
 // 比赛报名与组队（#239）：真实 HTTP 走完报名 → 建队 → 申请 / 邀请 → 确认参赛，以及控制台的设置、名单与导出。
-// 认人是会话里的极客班账号（#262）；组织成员资格由假 GitHub 回答，非成员回 404，守卫据此回 403 not_member。
+// 认人是会话里的极客班账号（#262）；#274 SPEC §3.2 去掉 GitHub 组织那道门之后，成员资格按权限节点
+// competition.signup/competition.team 判定（极客班成员天然持有，注册用户没有），不再查 GitHub 组织成员资格。
 import { afterEach, describe, expect, it } from 'vitest';
-import type { ServiceOverrides } from '../../app/server/src/services';
-import { signIn, testApp } from './helpers';
+import { activityRows, grantPermGroup, signIn, testApp } from './helpers';
 
 /** 测试里只需要 `app.inject`；不直接依赖 fastify 的类型（测试包没有装它）。 */
 type TestServer = Awaited<ReturnType<typeof testApp>>['app'];
 
-const CONSOLE_ORG = 'Yangtze-University-Geek-Class';
 const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
 afterEach(async () => { for (const c of contexts.splice(0)) await c.close(); });
 
 const USERS: Record<string, number> = { alice: 101, bob: 102, carol: 103, dave: 104, erin: 105 };
-/** erin 不是组织成员：她的资格查询回 404，守卫必须回 403 not_member 而不是放行。 */
+/** erin 没有被设成站内成员，一直是「注册用户」（level.registered）：报名与组队的权限节点守卫必须回 403 not_member。 */
 const MEMBERS = new Set(['alice', 'bob', 'carol', 'dave']);
 const HOUR = 3600_000;
 const DAY = 24 * HOUR;
-
-function github() {
-  return (() => ({
-    request: async (route: string, params: Record<string, string>) => {
-      if (route !== 'GET /orgs/{org}/memberships/{username}' || params.org !== CONSOLE_ORG) {
-        throw new Error(`Unexpected GitHub call ${route}`);
-      }
-      if (!MEMBERS.has(params.username)) throw Object.assign(new Error('Not Found'), { status: 404 });
-      return { data: { state: 'active', role: params.username === 'alice' ? 'admin' : 'member' } };
-    },
-  })) as unknown as ServiceOverrides['octokitFactory'];
-}
 
 const TEAM_SETTINGS = { enabled: true, participation: 'team', team_min: 1, team_max: 3, scoring: 'none' };
 type Headers = { cookie: string };
 
 async function setup() {
-  const context = await testApp({ octokitFactory: github() });
+  // 不传 octokitFactory：默认拒绝（helpers.ts），报名与组队这组接口真的调了 GitHub 这个用例就会报错——
+  // 证明新的权限节点守卫不依赖 GitHub 组织资格。
+  const context = await testApp();
   contexts.push(context);
   const { app } = context;
   const sessions = new Map<string, string>();
+  const granted = new Set<string>();
   const sign = (login: string) => {
-    if (!sessions.has(login)) sessions.set(login, signIn(app, login, USERS[login], `https://avatars.test/${login}.png`));
+    if (!sessions.has(login)) {
+      const sid = signIn(app, login, USERS[login], `https://avatars.test/${login}.png`);
+      sessions.set(login, sid);
+      // alice 是提督（控制台建比赛要 competitions.manage，旧能力系统，#274 阶段 2b 还没切换）；
+      // bob/carol/dave 是普通成员；两者都会被 syncPermissionLevel 同步进新权限引擎的 level.member 组。
+      if (MEMBERS.has(login) && !granted.has(login)) {
+        granted.add(login);
+        const accountId = app.services.auth.getSession(sid)!.account_id;
+        app.services.identity.setSiteRole({ accountId, role: login === 'alice' ? 'admin' : 'member', actor: 'system' });
+      }
+    }
     return sessions.get(login)!;
   };
   const as = (login: string): Headers => ({ cookie: `sid=${sign(login)}` });
   const accountId = (login: string) => app.services.auth.getSession(sign(login))!.account_id;
+  grantPermGroup(app, accountId('alice'), 'title.site.owner'); // #274：控制台比赛接口按新权限体系判定
   let seq = 0;
   const makeCompetition = async (input: Record<string, unknown> = {}) => {
     const now = Date.now();
@@ -550,11 +551,9 @@ describe('console roster', () => {
     expect(sizeConflict.statusCode).toBe(409);
     expect(sizeConflict.json().error).toBe('team_size_conflict');
 
-    const audits = app.services.storage.db
-      .prepare("SELECT details FROM audit_logs WHERE action = 'competition.signup_settings.update' ORDER BY id")
-      .all() as { details: string }[];
-    expect(audits).toHaveLength(1);
-    expect(JSON.parse(audits[0].details)).toEqual({
+    const rows = activityRows(app, { action: 'competition.signup_settings.update' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].meta).toEqual({
       before: { enabled: false, participation: 'individual', team_min: 1, team_max: 1, scoring: 'none' },
       after: { enabled: true, participation: 'team', team_min: 1, team_max: 3, scoring: 'none' },
     });
@@ -591,11 +590,9 @@ describe('console roster', () => {
     // 公式注入防护：以 = 开头的单元格前加 '
     expect(csv.body).toContain("'=SUM(1,2)");
 
-    const exported = app.services.storage.db
-      .prepare("SELECT target, details FROM audit_logs WHERE action = 'competition.roster.export'")
-      .get() as { target: string; details: string };
-    expect(exported.target).toBe(id);
-    expect(JSON.parse(exported.details)).toEqual({ rows: 3 });
+    const exported = activityRows(app, { action: 'competition.roster.export' })[0];
+    expect(exported.target_id).toBe(id);
+    expect(exported.meta).toEqual({ rows: 3 });
   });
 
   it('answers the three #238 constraints once signups exist', async () => {

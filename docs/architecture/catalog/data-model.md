@@ -2,9 +2,9 @@
 
 > 从真实建库函数产生的内存 SQLite 提取表、列、索引和物理外键；不读取业务记录。
 
-状态：`current` · 更新：2026-10-23 · 自动生成，不手工编辑。
+状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`1e2f0ea7f745b5eddf977be959a17e9227101a5dc1dabc28b70a7b03e8314fcb`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`be29345e4e0b8d6db812074faf8b44c03e02efad0e974aaa736b384ecb7eceee`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -14,6 +14,9 @@
 
 ```mermaid
 flowchart LR
+  account_avatars["account_avatars"]
+  account_profiles["account_profiles"]
+  activity_events["activity_events"]
   app_state["app_state"]
   application_limits["application_limits"]
   application_reviews["application_reviews"]
@@ -49,15 +52,24 @@ flowchart LR
   invite_attempts["invite_attempts"]
   invite_codes["invite_codes"]
   invite_links["invite_links"]
+  limit_events["limit_events"]
   mail_outbox["mail_outbox"]
   oauth_clients["oauth_clients"]
   oauth_grants["oauth_grants"]
   oauth_subjects["oauth_subjects"]
   oidc_payloads["oidc_payloads"]
+  perm_entries["perm_entries"]
+  perm_group_parents["perm_group_parents"]
+  perm_groups["perm_groups"]
+  perm_members["perm_members"]
+  perm_nodes["perm_nodes"]
+  perm_seed_applied["perm_seed_applied"]
+  perm_state["perm_state"]
   role_assignments["role_assignments"]
   sessions["sessions"]
   titles["titles"]
   users["users"]
+  account_profiles -->|"account_id → id"| users
   application_reviews -->|"application_id → id"| applications
   competition_score_events -->|"revoked_by → id"| users
   competition_score_events -->|"created_by → id"| users
@@ -95,15 +107,148 @@ flowchart LR
   oauth_grants -->|"client_id → client_id"| oauth_clients
   oauth_grants -->|"user_id → id"| users
   oauth_subjects -->|"user_id → id"| users
+  perm_group_parents -->|"parent_id → id"| perm_groups
+  perm_group_parents -->|"group_id → id"| perm_groups
+  perm_members -->|"group_id → id"| perm_groups
+  perm_members -->|"account_id → id"| users
   role_assignments -->|"account_id → id"| users
   sessions -->|"openid → id"| users
   users -->|"invite_code_id → id"| invite_codes
   users -->|"merged_into → id"| users
 ```
 
+## account_avatars
+
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:811](../../../app/server/src/lib/db.ts#L811)。
+
+字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `hash` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `data` | `BLOB` | 1 | 0 | 未声明 | 0 |
+| `mime` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_account_avatars_1` | `hash` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE account_avatars (
+  hash TEXT PRIMARY KEY,
+  data BLOB NOT NULL,
+  mime TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+```
+
+</details>
+
+## account_profiles
+
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:801](../../../app/server/src/lib/db.ts#L801)。
+
+字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `account_id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `username` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `display_name` | `TEXT` | 1 | 0 | `''` | 0 |
+| `bio` | `TEXT` | 1 | 0 | `''` | 0 |
+| `avatar_hash` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `prefs` | `TEXT` | 1 | 0 | `'{}'` | 0 |
+| `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `account_id` | `users.id` | NO ACTION | NO ACTION |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_account_profiles_1` | `account_id` | 1 | pk | 0 | `SQLite 自动索引` |
+| `sqlite_autoindex_account_profiles_2` | `username` | 1 | u | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE account_profiles (
+  account_id TEXT PRIMARY KEY REFERENCES users(id),
+  username TEXT UNIQUE COLLATE NOCASE,
+  display_name TEXT NOT NULL DEFAULT '',
+  bio TEXT NOT NULL DEFAULT '',
+  avatar_hash TEXT,
+  prefs TEXT NOT NULL DEFAULT '{}',
+  updated_at INTEGER NOT NULL
+);
+```
+
+</details>
+
+## activity_events
+
+业务域：`audit`；结构来源：[app/server/src/lib/db.ts:822](../../../app/server/src/lib/db.ts#L822)。
+
+字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `id` | `INTEGER` | 0 | 1 | 未声明 | 0 |
+| `at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `account_id` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `visitor_id` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `surface` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `action` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `target_type` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `target_id` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `outcome` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `ip` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `ua` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `request_id` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `meta` | `TEXT` | 1 | 0 | `'{}'` | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `idx_activity_events_account` | `account_id`、`at` | 0 | c | 0 | `CREATE INDEX idx_activity_events_account ON activity_events(account_id, at)` |
+| `idx_activity_events_action` | `action`、`at` | 0 | c | 0 | `CREATE INDEX idx_activity_events_action ON activity_events(action, at)` |
+| `idx_activity_events_at` | `at` | 0 | c | 0 | `CREATE INDEX idx_activity_events_at ON activity_events(at)` |
+| `idx_activity_events_outcome` | `outcome`、`at` | 0 | c | 0 | `CREATE INDEX idx_activity_events_outcome ON activity_events(outcome, at)` |
+| `idx_activity_events_visitor` | `visitor_id`、`at` | 0 | c | 0 | `CREATE INDEX idx_activity_events_visitor ON activity_events(visitor_id, at)` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE activity_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  at INTEGER NOT NULL,
+  account_id TEXT,
+  visitor_id TEXT,
+  surface TEXT NOT NULL CHECK (surface IN ('portal', 'forum', 'console', 'cli', 'api', 'system')),
+  action TEXT NOT NULL,
+  target_type TEXT,
+  target_id TEXT,
+  outcome TEXT NOT NULL CHECK (outcome IN ('ok', 'denied', 'limited', 'error')),
+  ip TEXT,
+  ua TEXT,
+  request_id TEXT,
+  meta TEXT NOT NULL DEFAULT '{}'
+);
+```
+
+</details>
+
 ## app_state
 
-业务域：`platform`；结构来源：[app/server/src/lib/db.ts:21](../../../app/server/src/lib/db.ts#L21)。
+业务域：`platform`；结构来源：[app/server/src/lib/db.ts:23](../../../app/server/src/lib/db.ts#L23)。
 
 预留表；当前没有业务读写消费者。存在表不代表已有业务能力。
 
@@ -133,7 +278,7 @@ CREATE TABLE app_state (
 
 ## application_limits
 
-业务域：`recruitment`；结构来源：[app/server/src/lib/db.ts:372](../../../app/server/src/lib/db.ts#L372)。
+业务域：`recruitment`；结构来源：[app/server/src/lib/db.ts:395](../../../app/server/src/lib/db.ts#L395)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -164,7 +309,7 @@ CREATE TABLE application_limits (
 
 ## application_reviews
 
-业务域：`recruitment`；结构来源：[app/server/src/lib/db.ts:175](../../../app/server/src/lib/db.ts#L175)。
+业务域：`recruitment`；结构来源：[app/server/src/lib/db.ts:177](../../../app/server/src/lib/db.ts#L177)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -206,7 +351,7 @@ CREATE TABLE application_reviews (
 
 ## applications
 
-业务域：`recruitment`；结构来源：[app/server/src/lib/db.ts:89](../../../app/server/src/lib/db.ts#L89)。
+业务域：`recruitment`；结构来源：[app/server/src/lib/db.ts:91](../../../app/server/src/lib/db.ts#L91)。
 
 包含候选人个人信息。具体读取范围、字段下发和取消规则见业务文档；目录不包含记录。
 
@@ -250,7 +395,7 @@ CREATE TABLE applications (
 
 ## audit_logs
 
-业务域：`audit`；结构来源：[app/server/src/lib/db.ts:102](../../../app/server/src/lib/db.ts#L102)。
+业务域：`audit`；结构来源：[app/server/src/lib/db.ts:104](../../../app/server/src/lib/db.ts#L104)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -293,7 +438,7 @@ CREATE TABLE audit_logs (
 
 ## competition_score_events
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:594](../../../app/server/src/lib/db.ts#L594)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:617](../../../app/server/src/lib/db.ts#L617)。
 
 积分账本：issue/pr 带仓库与编号并按 CHECK 限分（5–30、15–100），penalty 固定 −50 且不带仓库编号；撤销只改 status 为 revoked 并记撤销人与原因，不删行；唯一索引防止同一条 Issue/PR 重复记分。只有 lib/competition-score-store.ts 读写。
 
@@ -358,7 +503,7 @@ CREATE TABLE competition_score_events (
 
 ## competition_signup_settings
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:527](../../../app/server/src/lib/db.ts#L527)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:550](../../../app/server/src/lib/db.ts#L550)。
 
 每场一行；没有行就是未开放报名（默认个人赛、不计分）。enabled、participation、team_min/team_max（团队赛才有，1–20）、scoring（none / contribution）由控制台整体写入；更新人 updated_by 是操作人的极客班账号，系统种子为 NULL。只有 lib/competition-signup-store.ts 读写。
 
@@ -406,7 +551,7 @@ CREATE TABLE competition_signup_settings (
 
 ## competition_signups
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:541](../../../app/server/src/lib/db.ts#L541)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:564](../../../app/server/src/lib/db.ts#L564)。
 
 一人一场一行（UNIQUE(competition_id, account_id)），status 只取 active/cancelled，取消保留行与时间；note ≤200 字，成员可见，填写处提示不要写联系方式；looking_for_team 只在团队赛生效。身份键是会话里的 account_id，不按 GitHub 登录名。只有 lib/competition-signup-store.ts 读写。
 
@@ -456,7 +601,7 @@ CREATE TABLE competition_signups (
 
 ## competition_team_members
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:572](../../../app/server/src/lib/db.ts#L572)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:595](../../../app/server/src/lib/db.ts#L595)。
 
 在队成员与待处理的申请、邀请同一张表：status 取 applied/invited/active/declined/withdrawn/left/removed/disbanded；两个部分唯一索引分别保证一人一队和同一队伍对同一人只有一条待处理记录。message ≤100 字，只给队伍领队与当事人看。只有 lib/competition-signup-store.ts 读写。
 
@@ -517,7 +662,7 @@ CREATE TABLE competition_team_members (
 
 ## competition_teams
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:555](../../../app/server/src/lib/db.ts#L555)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:578](../../../app/server/src/lib/db.ts#L578)。
 
 队伍事实：name_key 是 trim + NFKC + 小写后的查重键，唯一索引只约束未解散的队伍；status 只改 recruiting/locked/disbanded 并记时间，不物理删除；leader_account_id 指向极客班账号。只有 lib/competition-signup-store.ts 读写。
 
@@ -570,7 +715,7 @@ CREATE TABLE competition_teams (
 
 ## competitions
 
-业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:192](../../../app/server/src/lib/db.ts#L192)。
+业务域：`competitions`；结构来源：[app/server/src/lib/db.ts:194](../../../app/server/src/lib/db.ts#L194)。
 
 只存赛事事实，不含参赛者或队伍；status由时间计算，offline仅控制公开可见性，删除与下线不同。有未取消的报名后不能改内外部，有报名记录的比赛不能真删；旧库启动时插入一期开源贡献赛（id 为 oss-challenge-2026-1），用 console_seeds 标记，只插一次。
 
@@ -620,7 +765,7 @@ CREATE TABLE competitions (
 
 ## console_seeds
 
-业务域：`organization`；结构来源：[app/server/src/lib/db.ts:126](../../../app/server/src/lib/db.ts#L126)。
+业务域：`organization`；结构来源：[app/server/src/lib/db.ts:128](../../../app/server/src/lib/db.ts#L128)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -648,7 +793,7 @@ CREATE TABLE console_seeds (
 
 ## departments
 
-业务域：`organization`；结构来源：[app/server/src/lib/db.ts:143](../../../app/server/src/lib/db.ts#L143)。
+业务域：`organization`；结构来源：[app/server/src/lib/db.ts:145](../../../app/server/src/lib/db.ts#L145)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -696,7 +841,7 @@ CREATE TABLE departments (
 
 ## device_grants
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:436](../../../app/server/src/lib/db.ts#L436)。
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:459](../../../app/server/src/lib/db.ts#L459)。
 
 命令行设备授权（RFC 8628，给 geek login）：一行是一次授权，device_code 与发出的访问令牌只存 sha256，account_id 是确认人的极客班账号；status 只存 pending/approved/denied/consumed，过期按 expires_at 现算。只有 lib/device-store.ts 读写，目录不读取记录。
 
@@ -752,7 +897,7 @@ CREATE TABLE device_grants (
 
 ## email_challenges
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:650](../../../app/server/src/lib/db.ts#L650)。
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:673](../../../app/server/src/lib/db.ts#L673)。
 
 邮箱验证码（#262）：一行是一次发码，只存验证码的 HMAC（密钥由 SESSION_SECRET 派生）、按邮箱的限流键和按 IP 前缀的 HMAC，不存验证码原文和 IP；10 分钟过期、最多试 5 次，用过写 used_at；过期一小时后由会话清理一起删除。只有 lib/email-login.ts 读写，目录不读取记录。
 
@@ -809,7 +954,7 @@ CREATE TABLE email_challenges (
 
 ## feedback
 
-业务域：`feedback`；结构来源：[app/server/src/lib/db.ts:69](../../../app/server/src/lib/db.ts#L69)。
+业务域：`feedback`；结构来源：[app/server/src/lib/db.ts:71](../../../app/server/src/lib/db.ts#L71)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -865,7 +1010,7 @@ CREATE TABLE feedback (
 
 ## forum_avatars
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:220](../../../app/server/src/lib/db.ts#L220)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:223](../../../app/server/src/lib/db.ts#L223)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -895,7 +1040,7 @@ CREATE TABLE forum_avatars (
 
 ## forum_bookmarks
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:291](../../../app/server/src/lib/db.ts#L291)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:294](../../../app/server/src/lib/db.ts#L294)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -931,7 +1076,7 @@ CREATE TABLE forum_bookmarks (
 
 ## forum_counters
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:215](../../../app/server/src/lib/db.ts#L215)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:217](../../../app/server/src/lib/db.ts#L217)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -950,7 +1095,8 @@ NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT N
 
 ```sql
 CREATE TABLE forum_counters (
-  name TEXT PRIMARY KEY CHECK (name IN ('topic','post','notification','tag','guest')),
+  -- member：没有 GitHub id 的成员论坛用户 id（a<n>，#274 SPEC §3.6）。
+  name TEXT PRIMARY KEY CHECK (name IN ('topic','post','notification','tag','guest','member')),
   value INTEGER NOT NULL
 );
 ```
@@ -959,7 +1105,7 @@ CREATE TABLE forum_counters (
 
 ## forum_follows
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:298](../../../app/server/src/lib/db.ts#L298)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:301](../../../app/server/src/lib/db.ts#L301)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -996,7 +1142,7 @@ CREATE TABLE forum_follows (
 
 ## forum_likes
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:284](../../../app/server/src/lib/db.ts#L284)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:287](../../../app/server/src/lib/db.ts#L287)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -1032,7 +1178,7 @@ CREATE TABLE forum_likes (
 
 ## forum_notifications
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:306](../../../app/server/src/lib/db.ts#L306)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:309](../../../app/server/src/lib/db.ts#L309)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -1078,7 +1224,7 @@ CREATE TABLE forum_notifications (
 
 ## forum_posts
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:271](../../../app/server/src/lib/db.ts#L271)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:274](../../../app/server/src/lib/db.ts#L274)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -1125,7 +1271,7 @@ CREATE TABLE forum_posts (
 
 ## forum_rate_events
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:326](../../../app/server/src/lib/db.ts#L326)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:329](../../../app/server/src/lib/db.ts#L329)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -1156,7 +1302,7 @@ CREATE TABLE forum_rate_events (
 
 ## forum_tags
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:247](../../../app/server/src/lib/db.ts#L247)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:250](../../../app/server/src/lib/db.ts#L250)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -1197,7 +1343,7 @@ CREATE TABLE forum_tags (
 
 ## forum_topic_views
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:318](../../../app/server/src/lib/db.ts#L318)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:321](../../../app/server/src/lib/db.ts#L321)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -1229,7 +1375,7 @@ CREATE TABLE forum_topic_views (
 
 ## forum_topics
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:256](../../../app/server/src/lib/db.ts#L256)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:259](../../../app/server/src/lib/db.ts#L259)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -1246,6 +1392,7 @@ CREATE TABLE forum_topic_views (
 | `views` | `INTEGER` | 1 | 0 | `0` | 0 |
 | `pinned` | `INTEGER` | 1 | 0 | `0` | 0 |
 | `closed` | `INTEGER` | 1 | 0 | `0` | 0 |
+| `visibility` | `TEXT` | 1 | 0 | `'public'` | 0 |
 
 NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
 
@@ -1273,14 +1420,14 @@ CREATE TABLE forum_topics (
   views INTEGER NOT NULL DEFAULT 0,
   pinned INTEGER NOT NULL DEFAULT 0,
   closed INTEGER NOT NULL DEFAULT 0
-);
+, visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'registered', 'member')));
 ```
 
 </details>
 
 ## forum_users
 
-业务域：`forum`；结构来源：[app/server/src/lib/db.ts:226](../../../app/server/src/lib/db.ts#L226)。
+业务域：`forum`；结构来源：[app/server/src/lib/db.ts:229](../../../app/server/src/lib/db.ts#L229)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -1349,7 +1496,7 @@ CREATE TABLE forum_users (
 
 ## gitlab_accounts
 
-业务域：`gitlab`；结构来源：[app/server/src/lib/db.ts:508](../../../app/server/src/lib/db.ts#L508)。
+业务域：`gitlab`；结构来源：[app/server/src/lib/db.ts:531](../../../app/server/src/lib/db.ts#L531)。
 
 极客班账号在自建 GitLab 上的用户（#270）：用户名在第一次同步时定下、之后不改（大小写不敏感唯一），state 只取 pending/active/blocked，从不删除；avatar_source 是传上去的头像来自哪里（forum:<散列> 或 GitHub 头像地址，#271），空是还没传过；emails_source 是上次同步过去的邮箱（JSON：主邮箱与其它邮箱，#272），空是还没同步过；last_error 只存错误代码。只有 lib/gitlab-sync.ts 读写。
 
@@ -1401,7 +1548,7 @@ CREATE TABLE gitlab_accounts (
 
 ## identities
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:403](../../../app/server/src/lib/db.ts#L403)。
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:426](../../../app/server/src/lib/db.ts#L426)。
 
 每种登录方式一行；GitHub 的 provider_uid 是数字 id 的十进制串，login、avatar_url 只是展示镜像。同一 GitHub 账号只能绑定一个极客班账号；一个账号 GitHub、Google 各最多一个，邮箱最多 5 个（#272）。目录不读取记录。
 
@@ -1457,9 +1604,9 @@ CREATE TABLE identities (
 
 ## identity_audit
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:421](../../../app/server/src/lib/db.ts#L421)。
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:444](../../../app/server/src/lib/db.ts#L444)。
 
-给本人看的账号记录（登录、被拒、退出），不存 IP、UA、邮箱原文和第三方标识；管理审计仍在 audit_logs。
+给本人看的账号记录（登录、被拒、退出），不存 IP、UA、邮箱原文和第三方标识；管理操作记在 activity_events（操作记录）。
 
 | 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
 |---|---|---|---|---|---|
@@ -1499,7 +1646,7 @@ CREATE TABLE identity_audit (
 
 ## invitations
 
-业务域：`invitations`；结构来源：[app/server/src/lib/db.ts:53](../../../app/server/src/lib/db.ts#L53)。
+业务域：`invitations`；结构来源：[app/server/src/lib/db.ts:55](../../../app/server/src/lib/db.ts#L55)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -1547,7 +1694,7 @@ CREATE TABLE invitations (
 
 ## invite_attempts
 
-业务域：`invitations`；结构来源：[app/server/src/lib/db.ts:118](../../../app/server/src/lib/db.ts#L118)。
+业务域：`invitations`；结构来源：[app/server/src/lib/db.ts:120](../../../app/server/src/lib/db.ts#L120)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -1581,7 +1728,7 @@ CREATE TABLE invite_attempts (
 
 ## invite_codes
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:637](../../../app/server/src/lib/db.ts#L637)。
+业务域：`invitations`；结构来源：[app/server/src/lib/db.ts:660](../../../app/server/src/lib/db.ts#L660)。
 
 注册邀请码（#262）：code 存小写明文（要能在控制台里复制给人），used_count 由注册事务里的条件更新加一，max_uses、expires_at 为空表示不限；不删，停用用 disabled。users.invite_code_id 记着账号是用哪一个注册的。只有 lib/invite-codes.ts 与 lib/identity-store.ts 读写。
 
@@ -1625,7 +1772,7 @@ CREATE TABLE invite_codes (
 
 ## invite_links
 
-业务域：`invitations`；结构来源：[app/server/src/lib/db.ts:38](../../../app/server/src/lib/db.ts#L38)。
+业务域：`invitations`；结构来源：[app/server/src/lib/db.ts:40](../../../app/server/src/lib/db.ts#L40)。
 
 包含能力令牌与加密上游凭据。目录不读取记录。
 
@@ -1670,9 +1817,40 @@ CREATE TABLE invite_links (
 
 </details>
 
+## limit_events
+
+业务域：`platform`；结构来源：[app/server/src/lib/db.ts:843](../../../app/server/src/lib/db.ts#L843)。
+
+字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `bucket` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `subject` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `idx_limit_events_at` | `at` | 0 | c | 0 | `CREATE INDEX idx_limit_events_at ON limit_events(at)` |
+| `idx_limit_events_subject` | `bucket`、`subject`、`at` | 0 | c | 0 | `CREATE INDEX idx_limit_events_subject ON limit_events(bucket, subject, at)` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE limit_events (
+  bucket TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  at INTEGER NOT NULL
+);
+```
+
+</details>
+
 ## mail_outbox
 
-业务域：`mail`；结构来源：[app/server/src/lib/db.ts:337](../../../app/server/src/lib/db.ts#L337)。
+业务域：`mail`；结构来源：[app/server/src/lib/db.ts:360](../../../app/server/src/lib/db.ts#L360)。
 
 包含发信中的个人信息；application_id、review_id 不是数据库外键。具体保留规则见 mail.md。
 
@@ -1747,7 +1925,7 @@ CREATE TABLE mail_outbox (
 
 ## oauth_clients
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:461](../../../app/server/src/lib/db.ts#L461)。
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:484](../../../app/server/src/lib/db.ts#L484)。
 
 对外授权登记的下游应用（#270）：回调地址必须同一个主机（就是 sector），secret 只存 AES-256-GCM 密文；停用用 status，不删。只有 lib/oidc-store.ts 读写，客户端只能用 cli/oidc.ts 登记。目录不读取记录。
 
@@ -1785,7 +1963,7 @@ CREATE TABLE oauth_clients (
 
 ## oauth_grants
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:480](../../../app/server/src/lib/db.ts#L480)。
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:503](../../../app/server/src/lib/db.ts#L503)。
 
 本人允许过的 (账号, 应用) → oidc-provider 的授权 id：之后同一应用登录不再问。授权被撤销（例如授权码重放）后这一行指向的授权不存在，下次登录重新同意并覆盖。只有 lib/oidc-store.ts 读写。
 
@@ -1823,7 +2001,7 @@ CREATE TABLE oauth_grants (
 
 ## oauth_subjects
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:471](../../../app/server/src/lib/db.ts#L471)。
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:494](../../../app/server/src/lib/db.ts#L494)。
 
 下游看到的 sub（ADR-0005 决策 3）：按 sector 给每个账号一个 32 字节随机值，(sector_id,user_id) 与 (sector_id,sub) 都唯一，不随登录或换签名密钥变化；内部 account_id 不下发。只有 lib/oidc-store.ts 读写。
 
@@ -1862,7 +2040,7 @@ CREATE TABLE oauth_subjects (
 
 ## oidc_payloads
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:488](../../../app/server/src/lib/db.ts#L488)。
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:511](../../../app/server/src/lib/db.ts#L511)。
 
 oidc-provider 的存储（会话、交互、授权码、访问令牌、授权）：payload 是它的 JSON，按 expires_at 过期，每小时顺手清一次过期行；令牌与授权码只在这里，不进日志。只有 lib/oidc-store.ts 读写，目录不读取记录。
 
@@ -1905,9 +2083,270 @@ CREATE TABLE oidc_payloads (
 
 </details>
 
+## perm_entries
+
+业务域：`permissions`；结构来源：[app/server/src/lib/db.ts:758](../../../app/server/src/lib/db.ts#L758)。
+
+字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `id` | `INTEGER` | 0 | 1 | 未声明 | 0 |
+| `subject_type` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `subject_id` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `node` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `value` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `meta_value` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `scope` | `TEXT` | 1 | 0 | `'{}'` | 0 |
+| `expires_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `granted_by` | `TEXT` | 1 | 0 | `''` | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `idx_perm_entries_node` | `node` | 0 | c | 0 | `CREATE INDEX idx_perm_entries_node ON perm_entries(node)` |
+| `idx_perm_entries_subject` | `subject_type`、`subject_id` | 0 | c | 0 | `CREATE INDEX idx_perm_entries_subject ON perm_entries(subject_type, subject_id)` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE perm_entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_type TEXT NOT NULL CHECK (subject_type IN ('group', 'account')),
+  subject_id TEXT NOT NULL,
+  node TEXT NOT NULL,
+  value INTEGER CHECK (value IS NULL OR value IN (0, 1)),
+  meta_value TEXT,
+  scope TEXT NOT NULL DEFAULT '{}',
+  expires_at INTEGER,
+  granted_by TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  CHECK ((value IS NULL) <> (meta_value IS NULL))
+);
+```
+
+</details>
+
+## perm_group_parents
+
+业务域：`permissions`；结构来源：[app/server/src/lib/db.ts:752](../../../app/server/src/lib/db.ts#L752)。
+
+字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `group_id` | `TEXT` | 1 | 1 | 未声明 | 0 |
+| `parent_id` | `TEXT` | 1 | 2 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `parent_id` | `perm_groups.id` | NO ACTION | CASCADE |
+| `group_id` | `perm_groups.id` | NO ACTION | CASCADE |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_perm_group_parents_1` | `group_id`、`parent_id` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE perm_group_parents (
+  group_id TEXT NOT NULL REFERENCES perm_groups(id) ON DELETE CASCADE,
+  parent_id TEXT NOT NULL REFERENCES perm_groups(id) ON DELETE CASCADE,
+  PRIMARY KEY (group_id, parent_id)
+);
+```
+
+</details>
+
+## perm_groups
+
+业务域：`permissions`；结构来源：[app/server/src/lib/db.ts:737](../../../app/server/src/lib/db.ts#L737)。
+
+字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `id` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `kind` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `name` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `description` | `TEXT` | 1 | 0 | `''` | 0 |
+| `weight` | `INTEGER` | 1 | 0 | `0` | 0 |
+| `department_id` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `icon` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `tone` | `TEXT` | 0 | 0 | 未声明 | 0 |
+| `sort` | `INTEGER` | 1 | 0 | `0` | 0 |
+| `system` | `INTEGER` | 1 | 0 | `0` | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+| `updated_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_perm_groups_1` | `id` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE perm_groups (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL CHECK (kind IN ('level', 'department', 'title', 'custom')),
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  weight INTEGER NOT NULL DEFAULT 0,
+  department_id TEXT,
+  icon TEXT,
+  tone TEXT,
+  sort INTEGER NOT NULL DEFAULT 0,
+  system INTEGER NOT NULL DEFAULT 0 CHECK (system IN (0, 1)),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+```
+
+</details>
+
+## perm_members
+
+业务域：`permissions`；结构来源：[app/server/src/lib/db.ts:774](../../../app/server/src/lib/db.ts#L774)。
+
+字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `account_id` | `TEXT` | 1 | 1 | 未声明 | 0 |
+| `group_id` | `TEXT` | 1 | 2 | 未声明 | 0 |
+| `expires_at` | `INTEGER` | 0 | 0 | 未声明 | 0 |
+| `granted_by` | `TEXT` | 1 | 0 | `''` | 0 |
+| `created_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 外键列 | 引用 | ON UPDATE | ON DELETE |
+|---|---|---|---|
+| `group_id` | `perm_groups.id` | NO ACTION | NO ACTION |
+| `account_id` | `users.id` | NO ACTION | NO ACTION |
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `idx_perm_members_group` | `group_id` | 0 | c | 0 | `CREATE INDEX idx_perm_members_group ON perm_members(group_id)` |
+| `sqlite_autoindex_perm_members_1` | `account_id`、`group_id` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE perm_members (
+  account_id TEXT NOT NULL REFERENCES users(id),
+  group_id TEXT NOT NULL REFERENCES perm_groups(id),
+  expires_at INTEGER,
+  granted_by TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (account_id, group_id)
+);
+```
+
+</details>
+
+## perm_nodes
+
+业务域：`permissions`；结构来源：[app/server/src/lib/db.ts:728](../../../app/server/src/lib/db.ts#L728)。
+
+字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `node` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `domain` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `label` | `TEXT` | 1 | 0 | 未声明 | 0 |
+| `description` | `TEXT` | 1 | 0 | `''` | 0 |
+| `meta` | `INTEGER` | 1 | 0 | `0` | 0 |
+| `sort` | `INTEGER` | 1 | 0 | `0` | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_perm_nodes_1` | `node` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE perm_nodes (
+  node TEXT PRIMARY KEY,
+  domain TEXT NOT NULL,
+  label TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  meta INTEGER NOT NULL DEFAULT 0 CHECK (meta IN (0, 1)),
+  sort INTEGER NOT NULL DEFAULT 0
+);
+```
+
+</details>
+
+## perm_seed_applied
+
+业务域：`permissions`；结构来源：[app/server/src/lib/db.ts:792](../../../app/server/src/lib/db.ts#L792)。
+
+字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `key` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `applied_at` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_perm_seed_applied_1` | `key` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE perm_seed_applied (
+  key TEXT PRIMARY KEY,
+  applied_at INTEGER NOT NULL
+);
+```
+
+</details>
+
+## perm_state
+
+业务域：`permissions`；结构来源：[app/server/src/lib/db.ts:784](../../../app/server/src/lib/db.ts#L784)。
+
+字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
+
+| 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
+|---|---|---|---|---|---|
+| `key` | `TEXT` | 0 | 1 | 未声明 | 0 |
+| `value` | `INTEGER` | 1 | 0 | 未声明 | 0 |
+
+NOT NULL 与主键分别保留 SQLite 元数据，不把主键标记当作 NOT NULL 标记。
+
+| 索引 | 列 | 唯一 | 来源 | 部分索引 | SQL |
+|---|---|---|---|---|---|
+| `sqlite_autoindex_perm_state_1` | `key` | 1 | pk | 0 | `SQLite 自动索引` |
+
+<details><summary>建表 SQL</summary>
+
+```sql
+CREATE TABLE perm_state (
+  key TEXT PRIMARY KEY,
+  value INTEGER NOT NULL
+);
+```
+
+</details>
+
 ## role_assignments
 
-业务域：`organization`；结构来源：[app/server/src/lib/db.ts:158](../../../app/server/src/lib/db.ts#L158)。
+业务域：`organization`；结构来源：[app/server/src/lib/db.ts:160](../../../app/server/src/lib/db.ts#L160)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -1959,7 +2398,7 @@ CREATE TABLE role_assignments (
 
 ## sessions
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:27](../../../app/server/src/lib/db.ts#L27)。
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:29](../../../app/server/src/lib/db.ts#L29)。
 
 包含加密会话凭据。目录仅记录列与约束，不读取会话值。
 
@@ -2005,7 +2444,7 @@ CREATE TABLE sessions (
 
 ## titles
 
-业务域：`organization`；结构来源：[app/server/src/lib/db.ts:131](../../../app/server/src/lib/db.ts#L131)。
+业务域：`organization`；结构来源：[app/server/src/lib/db.ts:133](../../../app/server/src/lib/db.ts#L133)。
 
 字段隐私、保留周期及读写范围需结合数据模型和业务实现核对，物理结构不能代替业务规则。
 
@@ -2047,7 +2486,7 @@ CREATE TABLE titles (
 
 ## users
 
-业务域：`identity`；结构来源：[app/server/src/lib/db.ts:389](../../../app/server/src/lib/db.ts#L389)。
+业务域：`identity`；结构来源：[app/server/src/lib/db.ts:412](../../../app/server/src/lib/db.ts#L412)。
 
 极客班账号：id 就是接口里的 account_id（极客班 OpenID），随机生成、永不复用；只有身份模块（lib/identity-store.ts）读写。目录不读取记录。
 

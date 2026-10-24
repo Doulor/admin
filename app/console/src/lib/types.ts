@@ -1,84 +1,124 @@
-// 控制台接口的前端类型。服务端 app/server/src/lib/roles.ts 是唯一来源；
-// 控制台不能导入服务端实现，这里只声明 HTTP 形状，能力 id 与中文名以 /api/console/catalogue 为准。
+// 控制台接口的前端类型。HTTP 形状以 .tools/handoff/2026-10-23-yugc-os-v2/CONTRACT-274.md 为准，
+// 控制台不能导入服务端实现，这里只手写一份声明。
 
-export type Capability = string;
+export type Permission = string;
+/** 部门色调（SPEC §1）：AI=y、算法=u、硬件=c、网安=g、管理=pill，无部门=ink。 */
+export type DeptTone = "y" | "u" | "c" | "g" | "pill" | "ink";
+/** 状态标签的色调（ToneTag.vue），和部门色调是两套独立的取值。 */
 export type Tone = "amber" | "cobalt" | "violet" | "jade" | "sky" | "coral" | "rose" | "slate";
-/** `admin` 是站内管理员，由站内角色自动获得、不能指派；`guest` 是没有任何称号。名字等显示信息见 catalogue。 */
-export type TitleId = "admin" | "captain" | "head" | "member" | "alumni" | "guest";
-/** GitHub 组织里的角色：只在「成员与权限」的名单里作参考，不决定任何权限。 */
-export type GithubRole = "admin" | "member" | null;
-/** 站内角色（#262 第四期，权限只认极客班账号）：管理员（提督）、成员（舰员）；null 是不是成员。 */
-export type SiteRole = "admin" | "member" | null;
-export type SiteRoleChoice = "admin" | "member" | "none";
-/** 这次请求接 GitHub 的方式：服务器的 GitHub App、你这次 GitHub 登录的本人令牌，或还没接上。 */
-export type GithubVia = "app" | "session" | "none";
-/** 这次会话的登录方式（#262）。权限与登录方式无关，只看账号。 */
+
+/** 这次会话的登录方式；权限只看账号，登录方式只决定这次能借用哪种本人授权。 */
 export type SessionProvider = "github" | "email" | "google";
+/** 四种身份，按 访客 → 注册用户 → 成员 依次升级；往届成员是成员的平行分支。 */
+export type Level = "visitor" | "registered" | "member" | "alumni";
 
-export type DepartmentView = { id: string; name: string; tag: string; icon: string; tone: Tone };
-export type TitleView = {
-  id: TitleId; label: string; tag: string; icon: string; tone: Tone;
-  department: DepartmentView | null;
-  source: "assignment" | "site" | "none";
-  assignment_id: number | null;
-};
+export type DepartmentRef = { id: string; name: string; tone: DeptTone };
+export type TitleRef = { id: string; name: string; department_id: string | null };
 
+/** GET /api/console/me：控制台会话身份；permissions 是这个账号在控制台用得到的全部具体节点。 */
 export type ConsoleMe = {
-  login: string; avatar_url: string | null; org: string;
+  account_id: string; login: string; username: string; display_name: string; avatar_url: string | null;
+  level: Level; level_name: string;
+  department: DepartmentRef | null;
+  titles: TitleRef[];
+  permissions: Permission[];
   provider: SessionProvider;
-  site_role: SiteRole;
-  github: GithubVia;
-  title: TitleView; titles: TitleView[];
-  capabilities: Capability[];
-  head_of: string[];
-  /** 账号还没有登录邮箱（#273）：控制台先带人去绑定邮箱页。 */
   email_required: boolean;
 };
 
-export type CatalogueCapability = { id: Capability; domain: string; label: string; description: string };
-export type CatalogueTitle = { id: TitleId; label: string; tag: string; icon: string; tone: Tone; rank: number; description: string };
-export type Catalogue = {
-  titles: CatalogueTitle[];
-  crew: { tag: string; tone: Tone; rank: number };
-  tones: Record<Tone, string>;
-  capabilities: CatalogueCapability[];
-  domains: { id: string; label: string }[];
-  role_base: Record<TitleId, Capability[]>;
-  implies?: Record<string, Capability[]>;
-  captain_only: Capability[];
-  department_icons: string[];
-  application_statuses: { id: string; label: string }[];
+/** GET /api/public/departments：公开的部门列表，顺序固定为 AI、算法、硬件、网安、管理、无部门。 */
+export type PublicDepartment = {
+  id: string; name: string; tone: DeptTone; icon: string; description: string;
+  titles: { id: string; name: string; weight: number }[];
+};
+export type PublicDepartmentsResponse = { departments: PublicDepartment[] };
+
+// ---- 用户（GET /api/console/users、PATCH /api/console/users/:id） ----
+
+export type GitlabSyncState = "synced" | "pending" | "failed" | "blocked" | "none";
+export type UserStatus = "active" | "disabled";
+export type ConsoleUser = {
+  account_id: string; username: string; display_name: string; avatar_url: string | null; status: UserStatus;
+  level: Level; department: DepartmentRef | null; titles: TitleRef[]; providers: SessionProvider[];
+  gitlab: { state: GitlabSyncState; gitlab_user_id: number | null };
+  last_login_at: number | null; created_at: number;
+};
+export type UsersCounts = { visitor_today: number; registered: number; member: number; alumni: number };
+export type UsersResponse = { items: ConsoleUser[]; next_cursor: string | null; counts: UsersCounts };
+export type UserPatch = Partial<{ status: UserStatus; level: Level; department: string | null; titles: string[] }>;
+
+// ---- 权限（节点、组、解释） ----
+
+export type PermissionNodeDef = { node: Permission; domain: string; label: string; description: string; meta: boolean };
+export type PermissionDomain = { id: string; label: string };
+export type PermissionNodesResponse = { nodes: PermissionNodeDef[]; domains: PermissionDomain[] };
+
+export type PermissionScope = Record<string, unknown>;
+export type PermissionGroupKind = "level" | "department" | "title" | "custom";
+export type PermissionEntry = {
+  id: number; node: Permission; value: boolean | null; meta_value: string | null; scope: PermissionScope; expires_at: number | null;
+};
+export type PermissionGroup = {
+  id: string; kind: PermissionGroupKind; name: string; description: string; weight: number;
+  department_id: string | null; icon: string; tone: DeptTone; sort: number; system: boolean;
+  parents: string[]; member_count: number; entries: PermissionEntry[];
+};
+export type PermissionGroupsResponse = { groups: PermissionGroup[] };
+/** GET /api/console/permission-groups/:id/members：组里的账号（CONTRACT §5，10-24 00:10 补）。 */
+export type PermissionGroupMember = {
+  account_id: string; username: string; display_name: string; avatar_url: string | null;
+  expires_at: number | null; granted_by: string | null; created_at: number;
+};
+export type PermissionGroupMembersResponse = { members: PermissionGroupMember[] };
+/** POST /api/console/permission-groups 的请求体。 */
+export type PermissionGroupCreate = { id: string; name: string; description?: string; weight: number; parents?: string[]; icon?: string; tone?: DeptTone };
+/** PATCH /api/console/permission-groups/:id 的请求体；entries 只带增删。 */
+export type PermissionEntryInput = { node: Permission; value?: boolean; meta_value?: string; scope?: PermissionScope; expires_at?: number | null };
+export type PermissionGroupPatch = Partial<{
+  name: string; description: string; weight: number; parents: string[]; icon: string; tone: DeptTone; sort: number;
+  entries: { add: PermissionEntryInput[]; remove: number[] };
+}>;
+
+export type PermissionExplainResult = "allow" | "deny" | "unset";
+export type PermissionExplainHit = {
+  source: "account" | "group"; group: { id: string; name: string } | null; via: string[];
+  entry: { node: Permission; value: boolean | null; scope: PermissionScope; expires_at: number | null };
+};
+export type PermissionExplain = { node: Permission; result: PermissionExplainResult; hits: PermissionExplainHit[]; meta_value?: string };
+export type EffectivePermissions = {
+  account_id: string; groups: { id: string; name: string; kind: PermissionGroupKind; via: string[] }[];
+  allow: Permission[]; deny: Permission[]; meta: Record<string, string>;
 };
 
-export type Department = DepartmentView & {
-  description: string; head_capabilities: Capability[]; member_capabilities: Capability[];
-  sort_order: number; archived: boolean; heads: string[]; crew_count: number;
-};
+// ---- 操作记录 ----
 
-export type AssignableRole = Exclude<TitleId, "admin" | "guest">;
-export type Assignment = {
-  id: number; github_login: string; github_user_id: number | null; account_id: string | null;
-  role: AssignableRole; department_id: string; note: string | null; granted_by: string; created_at: number;
+export type ActivitySurface = "portal" | "forum" | "console" | "cli" | "api" | "system";
+export type ActivityOutcome = "ok" | "denied" | "limited" | "error";
+export type ActivityAccountRef = { id: string; username: string; display_name: string; avatar_url: string | null };
+export type ActivityEvent = {
+  id: number; at: number; account: ActivityAccountRef | null; visitor_id: string | null;
+  surface: ActivitySurface; action: string; target_type: string | null; target_id: string | null;
+  outcome: ActivityOutcome; ip: string | null; ua: string | null; request_id: string | null; meta: Record<string, unknown>;
 };
-export type AssignmentsResponse = { assignments: Assignment[]; captain: { github_login: string } | null };
+export type ActivityBlockedBucket = { bucket: string; count: number };
+export type ActivityList = { items: ActivityEvent[]; next_cursor: string | null; blocked_today: ActivityBlockedBucket[] };
 
-/**
- * GET /api/console/people：每个极客班账号，接上 GitHub 时再加 GitHub 组织里还没登录过的人（account_id 为 null），
- * 最后是有称号但两边都没有的人。`github_role` 只在列出了 GitHub 组织成员时下发；`role_unrecorded` 是以前用 GitHub
- * 登录时建的老账号还没记过站内角色（下次用 GitHub 时按 GitHub 组织补记）。
- */
-export type Person = {
-  account_id: string | null; login: string; user_id: number | null; avatar_url: string | null;
-  site_role: SiteRole; role_unrecorded: boolean; member: boolean; status: "active" | "disabled" | null;
-  providers: SessionProvider[]; last_login_at: number | null;
-  github_role?: GithubRole;
-  titles: TitleView[];
+// ---- GitLab ----
+
+export type GitlabSyncMode = "off" | "dry-run" | "on";
+export type GitlabStatus = {
+  mode: GitlabSyncMode; url: string | null; group: string; token_configured: boolean; version: string | null;
+  healthy: boolean; last_run: { at: number; changed: number; failed: number } | null; errors_24h: number;
 };
-export type PeopleResponse = { people: Person[]; github: GithubVia; github_listed: boolean };
-export type SiteRoleResponse = { account_id: string; site_role: SiteRoleChoice; changed: boolean };
+export type GitlabProjectGroup = { id: number; full_path: string; name: string; visibility: string };
+export type GitlabProject = {
+  id: number; path_with_namespace: string; name: string; description: string | null; visibility: string;
+  web_url: string; http_url_to_repo: string; ssh_url_to_repo: string; last_activity_at: number | null; star_count: number;
+};
+export type GitlabProjectsResponse = { groups: GitlabProjectGroup[]; projects: GitlabProject[] };
+export type GitlabSettings = { sync_mode: GitlabSyncMode; group_path: string; interval_minutes: number; token_configured: boolean };
 
-/** GitLab 账号同步（#270，GET /api/console/gitlab/accounts）：每个极客班账号在 GitLab 上的用户、状态和还要做的事。 */
-export type GitlabMode = "off" | "dry-run" | "on";
+/** GitLab 账号同步（#270，沿用原形状，GET /api/console/gitlab/accounts）。 */
 export type GitlabAction =
   | { kind: "create"; username: string; access_level: number }
   | { kind: "block" | "unblock" | "find_and_block" | "set_avatar" | "set_emails" }
@@ -88,16 +128,22 @@ export type GitlabAccount = {
   state: "pending" | "active" | "blocked" | null; access_level: number | null;
   last_error: string | null; last_error_at: number | null; synced_at: number | null; pending: GitlabAction[];
 };
-export type GitlabAccountsResponse = { mode: GitlabMode; gitlab_url: string | null; group: string; client_registered: boolean; accounts: GitlabAccount[] };
-/** POST /api/console/gitlab/accounts/:account_id/sync：这一次做了什么、有没有出错。 */
-export type GitlabSyncOutcome = { mode: GitlabMode; account_id: string; login: string; actions: GitlabAction[]; applied: boolean; error: string | null };
+export type GitlabAccountsResponse = { mode: GitlabSyncMode; gitlab_url: string | null; group: string; client_registered: boolean; accounts: GitlabAccount[] };
+export type GitlabSyncOutcome = { mode: GitlabSyncMode; account_id: string; login: string; actions: GitlabAction[]; applied: boolean; error: string | null };
 
-/** 称号在服务端存的样子；PATCH /api/console/titles/:title_id 只提交改动的字段，返回改后的整条。 */
-export type TitleConfig = { id: TitleId; label: string; tag: string; icon: string; tone: Tone; description: string; capabilities: Capability[] };
-export type TitlePatch = Partial<Omit<TitleConfig, "id">>;
-export type TitlePatchResponse = { title: TitleConfig };
+// ---- 概览 ----
 
-/** 当前投递状态；审核记录中的旧状态按字符串收，见 statuses.ts 的 statusMeta。 */
+export type Summary = {
+  applications?: { total: number; by_status: Record<string, number>; last_7d: number };
+  candidates_pending?: number;
+  registrations_today?: number;
+  blocked_today?: number;
+  gitlab?: { mode: GitlabSyncMode; healthy: boolean; last_run: { at: number; changed: number; failed: number } | null };
+  feedback?: { open: number; total: number };
+};
+
+// ---- 投递（#148，不受本次权限改版影响） ----
+
 export type ApplicationStatus = "received" | "interview" | "accepted" | "rejected" | "cancelled";
 export type ApplicationItem = {
   id: string; name: string; class_name: string; email: string; strengths_excerpt: string; status: ApplicationStatus; created_at: number;
@@ -105,15 +151,12 @@ export type ApplicationItem = {
 };
 export type ApplicationList = { items: ApplicationItem[]; total: number; counts: Record<string, number> };
 
-/** 一封信在发信队列里的状态；地址和正文发完就删，只留主题。 */
 export type MailStatus = "pending" | "sending" | "sent" | "failed" | "skipped";
 export type MailSummary = {
   status: MailStatus; skip_reason: string | null; attempts: number; subject: string; sent_at: number | null; updated_at: number;
 };
-/** deliverable：给这位投递人的信现在会不会真的发出去（发信已配置，且 recipients 是 all 或地址在白名单里）。 */
 export type MailSettings = { enabled: boolean; recipients: "all" | "allowlist"; deliverable: boolean };
 
-/** from_status / to_status 是历史：可能是已退役的 `reviewing`。mail 是这次改状态发的信，没发为 null。 */
 export type ApplicationReview = {
   id: number; from_status: string; to_status: string; note: string | null; reviewer: string; created_at: number; mail: MailSummary | null;
 };
@@ -121,27 +164,16 @@ export type ApplicationRecord = { id: string; name: string; class_name: string; 
 export type ApplicationDetail = {
   application: ApplicationRecord;
   reviews: ApplicationReview[];
-  /** 投递时自动发的「已收到」确认信。 */
   received_mail: MailSummary | null;
   mail: MailSettings;
 };
-/** 通知信里投递人能看到的内容；notes 与 message 一行一条。 */
 export type ApplicationLetter = { time?: string; place?: string; notes?: string; message?: string };
-/**
- * PATCH /api/console/applications/:id。note 只给审核人看，不进信；notify 默认 true。
- * expected_status、expected_review_id 是页面上看到的状态和审核记录的版本号（最大的审核记录 id，没有记录时是 0）；
- * 库里已经被别人处理过时服务端回 409 status_changed，不改也不发信。要改状态时两项都得带。
- */
 export type ApplicationReviewPatch = {
   status?: ApplicationStatus; expected_status?: ApplicationStatus; expected_review_id?: number; note?: string; notify?: boolean; letter?: ApplicationLetter;
 };
 export type ApplicationReviewResult = { application: ApplicationRecord; review: ApplicationReview };
 
-export type Summary = {
-  applications?: { total: number; by_status: Record<string, number>; last_7d: number };
-  feedback?: { open: number; total: number };
-  people?: { assignments: number; departments: number };
-};
+// ---- 意见箱 ----
 
 export type FeedbackStatus = "open" | "triaged" | "in_progress" | "done" | "wont_do" | "spam";
 export type FeedbackItem = {
@@ -150,9 +182,8 @@ export type FeedbackItem = {
 };
 export type FeedbackList = { items: FeedbackItem[]; counts: Record<string, number> };
 
-export type AuditRow = { id: number; actor: string; action: string; target: string | null; ip: string | null; details: unknown; created_at: number };
+// ---- 比赛（#238/#239，不受本次权限改版影响） ----
 
-/** 比赛（#238）：状态由服务端按时间算好，控制台只负责显示。 */
 export type CompetitionStatus = "upcoming" | "registering" | "closed" | "ongoing" | "ended";
 export type CompetitionKind = "internal" | "external";
 export type CompetitionRecord = {
@@ -161,17 +192,14 @@ export type CompetitionRecord = {
   url: string | null; description: string; status: CompetitionStatus; offline: boolean;
 };
 
-/** 报名设置（#239）：没有设置行的比赛按默认值（未开放报名）。 */
 export type SignupParticipation = "individual" | "team";
 export type SignupScoring = "none" | "contribution";
 export type SignupSettings = {
   enabled: boolean; participation: SignupParticipation; team_min: number; team_max: number; scoring: SignupScoring;
 };
 
-/** 名单统计：口径见服务端 `statsOf`（个人赛的确认人数等于报名人数，没有「未成队」）。 */
 export type RosterStats = { signups: number; teams: number; locked_teams: number; confirmed_people: number; unplaced: number };
 export type RosterPerson = { account_id: string; login: string; avatar_url: string | null };
-/** 控制台名单里的报名：含已取消的历史行。 */
 export type RosterSignup = RosterPerson & {
   status: "active" | "cancelled"; note: string; looking_for_team: boolean;
   team_id: string | null; team_name: string | null; role: "leader" | "member" | null;
@@ -185,7 +213,6 @@ export type RosterTeam = {
 };
 export type CompetitionRoster = { settings: SignupSettings; stats: RosterStats; signups: RosterSignup[]; teams: RosterTeam[] };
 
-/** 积分账本：一条记录只改状态，撤销留痕。 */
 export type ScoreKind = "issue" | "pr" | "penalty";
 export type ScoreEvent = {
   id: string; competition_id: string; person: RosterPerson; kind: ScoreKind;
@@ -195,17 +222,18 @@ export type ScoreEvent = {
 };
 export type ScoreEventList = { events: ScoreEvent[] };
 
-/** 注册邀请码（GET /api/console/invites）：次数上限、过期时间为 null 表示不限；usable 是现在还能不能用。 */
+// ---- 注册邀请码（节点改为 invite.manage，形状不变） ----
+
 export type InviteCode = {
   id: number; code: string; note: string; max_uses: number | null; used_count: number; expires_at: number | null;
   disabled: boolean; created_by: string; created_at: number; updated_at: number; usable: boolean;
 };
 export type InviteList = { invites: InviteCode[] };
 
-/**
- * 账号页（GET /api/identity/me）：登录方式、密码、成员资格、这次登录与最近的账号记录。邮箱只下发打码后的样子，
- * 另带身份 `id`（删邮箱用）和是不是主邮箱 `primary`（#272）。
- */
+// ---- 账号页 /account（#262/#270/#272/#273，身份域，独立于控制台权限改版） ----
+
+/** 账号页用的站内角色；只用于 /api/identity/me 的成员资格展示，和控制台的 Level/权限节点是两套概念。 */
+export type SiteRole = "admin" | "member" | null;
 export type AccountIdentity = { provider: SessionProvider; label: string; linked_at: number; last_login_at: number | null; id?: string; primary?: boolean };
 export type AccountAction = "login" | "login_denied" | "logout" | "register" | "link" | "link_conflict" | "unlink" | "password_set" | "password_change" | "password_reset" | "role_change";
 export type AccountView = {

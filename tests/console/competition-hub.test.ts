@@ -213,8 +213,8 @@ describe("console mock roster", () => {
     const csv = routeConsole(new URL("http://mock.local/api/console/competitions/c1001/roster.csv")) as string;
     const [header, first] = csv.replace(/^\ufeff/, "").split("\r\n");
     expect(header).toBe("account_id,login,status,note,looking_for_team,team_name,role,created_at_beijing,updated_at_beijing,cancelled_at_beijing");
-    expect(first).toContain("chen-hang");
-    expect(csv).toContain("he-miao,cancelled");
+    expect(first).toContain("chen_hang");
+    expect(csv).toContain("he_miao,cancelled");
   });
 
   it("lists the score events, including the revoked one", () => {

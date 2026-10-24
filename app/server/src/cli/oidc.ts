@@ -51,7 +51,7 @@ async function main(argv: string[]): Promise<number> {
         return 2;
       }
       const { client, clientSecret } = store.registerClient({ name, redirectUris, clientId: option(args, "client-id") });
-      storage.audit(null, "system", "oidc.client.add", client.client_id, { name: client.name, redirect_uris: client.redirect_uris, via: "cli" });
+      storage.audit("system", "oidc.client.add", client.client_id, { name: client.name, redirect_uris: client.redirect_uris, via: "cli" }, undefined, { surface: "system" });
       print({ client_id: client.client_id, client_secret: clientSecret, redirect_uris: client.redirect_uris, issuer: config.oidc?.issuer ?? null });
       return 0;
     }
@@ -66,13 +66,13 @@ async function main(argv: string[]): Promise<number> {
     }
     if (sub === "rotate") {
       const clientSecret = store.rotateSecret(clientId);
-      storage.audit(null, "system", "oidc.client.rotate", clientId, { via: "cli" });
+      storage.audit("system", "oidc.client.rotate", clientId, { via: "cli" }, undefined, { surface: "system" });
       print({ client_id: clientId, client_secret: clientSecret });
       return 0;
     }
     if (sub === "disable" || sub === "enable") {
       store.setClientStatus(clientId, sub === "disable" ? "disabled" : "active");
-      storage.audit(null, "system", `oidc.client.${sub}`, clientId, { via: "cli" });
+      storage.audit("system", `oidc.client.${sub}`, clientId, { via: "cli" }, undefined, { surface: "system" });
       print({ client_id: clientId, status: sub === "disable" ? "disabled" : "active" });
       return 0;
     }

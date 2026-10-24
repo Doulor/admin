@@ -3,6 +3,16 @@ import {
 } from "../../lib/http-contracts.js";
 import { EMAILS_MAX } from "../../lib/identity-store.js";
 
+const pattern = (source: string) => ({ type: "string", pattern: source });
+/** 账号资料（#274 CONTRACT §2）。`prefs` 的具体字段由业务自行解释，合同只约束整体是个对象。 */
+const profileView = object({
+  username: text(24, 1), display_name: text(32, 1), bio: text(200),
+  avatar_url: { anyOf: [text(500), { type: "null" }] },
+  // `additionalProperties: true`：prefs 的字段由业务自行解释（见上），响应序列化(fast-json-stringify)
+  // 对没声明 additionalProperties 的裸 object 只会输出 `{}`，必须显式打开才能把内容序列化出来。
+  prefs: { type: "object", additionalProperties: true },
+}, ["username", "display_name", "bio", "avatar_url", "prefs"]);
+
 /** 一种登录方式（规格「接口」的 Providers）：前端按这个列表渲染按钮，不写死任何渠道。 */
 const provider = object({
   id: choices("github", "google", "email"),
@@ -158,5 +168,26 @@ export const identityContracts: RouteContracts = {
     querystring: object({}),
     body: object({ password: text(200, 1), current_password: text(200) }, ["password"]),
     response: { 200: done, ...failures },
+  },
+  // 账号资料、头像与邀请码兑换（#274 CONTRACT §2）
+  "GET /api/identity/profile": { querystring: object({}), response: { 200: profileView, ...failures } },
+  "PATCH /api/identity/profile": {
+    querystring: object({}),
+    body: object({
+      display_name: text(32, 1), bio: text(200), username: pattern("^[a-z0-9_]{3,24}$"),
+      prefs: object({ start_note_seen_at: { anyOf: [integer(0), { type: "null" }] }, forum_theme: { anyOf: [choices("sky", "light", "dark"), { type: "null" }] } }, [], true),
+    }),
+    response: { 200: profileView, ...failures },
+  },
+  // 响应是 webp 字节流，不是 JSON；caching、公开读取见 lib/account-avatar.ts。
+  "GET /api/identity/avatar/:file": {
+    params: object({ file: pattern("^[0-9a-f]{64}\\.webp$") }, ["file"]),
+    response: { 200: { type: "string", description: "image/webp; binary" } },
+  },
+  "PUT /api/identity/avatar": { querystring: object({}), response: { 200: object({ avatar_url: { anyOf: [text(500), { type: "null" }] } }, ["avatar_url"]), ...failures } },
+  "POST /api/identity/invite/redeem": {
+    querystring: object({}),
+    body: object({ code: inviteCode }, ["code"]),
+    response: { 200: object({ level: { type: "string", const: "member" } }, ["level"]), ...failures },
   },
 };

@@ -2,7 +2,7 @@
 
 > 持续集成、宏观对齐与 `.env` 驱动的发布控制；发版只由发布 tag 触发（`vX.Y.Z-rc.N` → 预发布，`vX.Y.Z` → 正式），push 分支只跑 CI；部署开关默认关闭，机器检查不替代人工验收。
 
-状态：`accepted` · 更新：2026-10-23 · 实施状态：工作流为 `.github/workflows/ci.yml`、`deploy-preview.yml`、`deploy-production.yml`、`branch-hygiene.yml`、`issue-lifecycle.yml`、`issue-gate.yml`、`cert-watch.yml`、`pr-agent.yml`、`test-report.yml`、`architecture-alignment.yml`，actionlint 全绿，所有 job 只跑在 GitHub 托管 runner 上（见下文「运行位置」）。两条部署工作流由 SemVer 发布 tag 触发（2026-09-24 指令），此前「push `stage`/`main` 即部署」的触发方式已删除；更早的 `preview.yml`、`release.yml`（`release-*`/`prev-*` tag）也早已删除。首次上线（2026-09-25，#63）已配置：`preview` Environment 的环境级 secrets（部署 SSH、OAuth、会话与加密密钥；Turnstile 两项未配＝关闭）与 `DEPLOY_TARGET_ENVIRONMENT=preview`，目标机 `/opt/yzgc/preview`、`prev.yangtzeu.work` 证书与站点配置。组织是 GitHub 免费版；仓库原本私有，2026-09-26 17:49 因 CI 排队决定公开（见下文「平台能力实测」的更新）。公开之后 `production` 的 required reviewers 才能配置；2026-09-27 建了 `production` Environment，配了 required reviewers 与自定义部署分支规则，并打开 `DEPLOY_PRODUCTION_ENABLED`，`v0.1.0` 的正式部署由 `deploy-production.yml` 在审批后跑完（运行 36314912545）。下文「维护者机器部署」只在部署 job 拿不到环境时作退路。这些前置条件都靠手工完成，任何工作流都不会自动创建。
+状态：`accepted` · 更新：2026-10-24 · 实施状态：工作流为 `.github/workflows/ci.yml`、`deploy-preview.yml`、`deploy-production.yml`、`branch-hygiene.yml`、`issue-lifecycle.yml`、`issue-gate.yml`、`cert-watch.yml`、`pr-agent.yml`、`test-report.yml`、`architecture-alignment.yml`，actionlint 全绿，所有 job 只跑在 GitHub 托管 runner 上（见下文「运行位置」）。两条部署工作流由 SemVer 发布 tag 触发（2026-09-24 指令），此前「push `stage`/`main` 即部署」的触发方式已删除；更早的 `preview.yml`、`release.yml`（`release-*`/`prev-*` tag）也早已删除。首次上线（2026-09-25，#63）已配置：`preview` Environment 的环境级 secrets（部署 SSH、OAuth、会话与加密密钥；Turnstile 两项未配＝关闭）与 `DEPLOY_TARGET_ENVIRONMENT=preview`，目标机 `/opt/yzgc/preview`、`prev.yangtzeu.work` 证书与站点配置。组织是 GitHub 免费版；仓库原本私有，2026-09-26 17:49 因 CI 排队决定公开（见下文「平台能力实测」的更新）。公开之后 `production` 的 required reviewers 才能配置；2026-09-27 建了 `production` Environment，配了 required reviewers 与自定义部署分支规则，并打开 `DEPLOY_PRODUCTION_ENABLED`，`v0.1.0` 的正式部署由 `deploy-production.yml` 在审批后跑完（运行 36314912545）。下文「维护者机器部署」只在部署 job 拿不到环境时作退路。这些前置条件都靠手工完成，任何工作流都不会自动创建。
 
 发布规则以 [RELEASES](../conventions/RELEASES.md) 为唯一完整规范，分支模型以 [BRANCHING](../conventions/BRANCHING.md) 为准，环境字段契约见 [ENVIRONMENTS](ENVIRONMENTS.md)。
 
@@ -78,7 +78,7 @@
 | `DEPLOY_SSH_USER` | 部署用户 |
 | `DEPLOY_SSH_KEY` | SSH 私钥全文 |
 | `DEPLOY_SSH_KNOWN_HOSTS` | 目标机主机公钥行（`StrictHostKeyChecking=yes`） |
-| `OAUTH_CLIENT_ID` | GitHub OAuth 应用（每个环境一个，Callback URL 为 `<origin>/auth/callback`，见 [ENVIRONMENTS](ENVIRONMENTS.md#github-oauth-app-回调地址)） |
+| `OAUTH_CLIENT_ID` | GitHub OAuth 应用（每个环境一个，Callback URL 为 `<origin>/auth/callback`，见 [ENVIRONMENTS](ENVIRONMENTS.md#github-oauth-app-回调地址)）。GitHub 不允许 secret 名以 `GITHUB_` 开头，所以这两项叫 `OAUTH_CLIENT_*` 而不是 `GITHUB_CLIENT_*` |
 | `OAUTH_CLIENT_SECRET` | GitHub OAuth 应用密钥 |
 | `SESSION_SECRET` | 会话签名密钥（≥32 字符随机值） |
 | `ENCRYPTION_KEY` | 32 字节密钥的 base64（GitHub token 加密） |
@@ -90,12 +90,10 @@
 | `MAIL_ALLOWLIST` | 收件名单，英文逗号隔开的邮箱（可选；只在 `MAIL_RECIPIENTS=allowlist` 时起作用，两个环境现在都是 `all`） |
 | `GOOGLE_CLIENT_ID` | Google 登录的 OAuth 客户端 ID（可选，和下一项要么都配、要么都不配；回调地址 `<origin>/auth/google/callback`，#262） |
 | `GOOGLE_CLIENT_SECRET` | Google 登录的 OAuth 客户端密钥 |
-| `GH_APP_ID` | 服务器接 GitHub 用的 GitHub App 的数字 ID（可选，和下一项要么都配、要么都不配，#262 第四期）。GitHub 不允许 secret 名以 `GITHUB_` 开头，所以这两项用 `GH_`，GitHub OAuth 那两项也因此叫 `OAUTH_CLIENT_*` |
-| `GH_APP_PRIVATE_KEY` | 这个 App 的私钥：整份 PEM 再 base64 成一行 |
 | `OIDC_JWKS` | 对外授权的签名私钥（可选，#270）：`dist/cli/oidc.js keygen` 输出的一行 base64；为空时 `/oidc/*` 一律 404 |
 | `GITLAB_API_TOKEN` | 自建 GitLab 管理员的 `api` 令牌（#270）：只在 `GITLAB_SYNC=on` 时必填 |
 
-两条部署工作流的「渲染运行时 env 文件」步骤把上表从 `OAUTH_CLIENT_ID` 起的每一项按同名传给 `scripts/deployment-environment.mjs render`，`scripts/deploy-manual.mjs` 的 `SECRET_ENV` 也是同一份名单；`tests/tooling/deploy-manual.test.ts` 核对这三处与 `SECRET_FIELDS` 一致。发信四项都没配时照常部署，server 不发信；Google 两项都没配时照常部署，登录页不出现 Google；GitHub App 两项都没配时照常部署，控制台的 GitHub 组织页面只在用 GitHub 登录时借本人令牌；`OIDC_JWKS` 没配时照常部署，对外授权关闭，`GITLAB_API_TOKEN` 没配而 `GITLAB_SYNC=on` 时渲染失败、不部署，见 [ENVIRONMENTS](ENVIRONMENTS.md)。
+两条部署工作流的「渲染运行时 env 文件」步骤把上表从 `OAUTH_CLIENT_ID` 起的每一项按同名传给 `scripts/deployment-environment.mjs render`，`scripts/deploy-manual.mjs` 的 `SECRET_ENV` 也是同一份名单；`tests/tooling/deploy-manual.test.ts` 核对这三处与 `SECRET_FIELDS` 一致。发信四项都没配时照常部署，server 不发信；Google 两项都没配时照常部署，登录页不出现 Google；`OIDC_JWKS` 没配时照常部署，对外授权关闭，`GITLAB_API_TOKEN` 没配而 `GITLAB_SYNC=on` 时渲染失败、不部署，见 [ENVIRONMENTS](ENVIRONMENTS.md)。
 
 ### vars
 

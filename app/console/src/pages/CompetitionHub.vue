@@ -220,7 +220,7 @@ const teamTone = (team: RosterTeam) => (team.status === "locked" ? "success" : t
         <TxForm :model="settings" label-position="top" class="settings-form">
           <div class="form-grid">
             <TxFormItem label="在线报名" class="wide">
-              <TxSwitch v-model="settings.enabled" label="开放在线报名" />
+              <TxSwitch v-model="settings.enabled" label="开放在线报名" aria-label="开放在线报名" />
               <span class="field-hint">关闭后已有报名保留，门户不能再报名。</span>
               <span v-if="settingsErrorView.enabled" class="field-error">{{ settingsErrorView.enabled }}</span>
             </TxFormItem>
@@ -278,7 +278,7 @@ const teamTone = (team: RosterTeam) => (team.status === "locked" ? "success" : t
           <h3 class="subhead">报名</h3>
           <TxDataTable style="--table-min: 880px" :columns="signupColumns" :data="roster.data.value.signups" row-key="account_id" table-layout="fixed" scroll-x>
             <template #cell-person="{ row }: { row: RosterSignup }">
-              <UserCell :login="row.login" :src="row.avatar_url" link />
+              <UserCell :login="row.login" :src="row.avatar_url" />
             </template>
             <template #cell-status="{ row }: { row: RosterSignup }">
               <TxStatusBadge :text="SIGNUP_STATUS_TEXT[row.status]" :status="signupTone(row)" size="sm" />
@@ -319,7 +319,7 @@ const teamTone = (team: RosterTeam) => (team.status === "locked" ? "success" : t
               <span>{{ row.member_count }}</span>
             </template>
             <template #cell-leader="{ row }: { row: RosterTeam }">
-              <UserCell v-if="teamLeader(row)" :login="teamLeader(row)!.login" :src="teamLeader(row)!.avatar_url" link />
+              <UserCell v-if="teamLeader(row)" :login="teamLeader(row)!.login" :src="teamLeader(row)!.avatar_url" />
               <span v-else class="muted">—</span>
             </template>
             <template #cell-members="{ row }: { row: RosterTeam }">
@@ -388,7 +388,7 @@ const teamTone = (team: RosterTeam) => (team.status === "locked" ? "success" : t
               <span class="muted">{{ fmtDate(row.created_at) }}</span>
             </template>
             <template #cell-person="{ row }: { row: ScoreEvent }">
-              <UserCell :login="row.person.login" :src="row.person.avatar_url" link />
+              <UserCell :login="row.person.login" :src="row.person.avatar_url" />
             </template>
             <template #cell-kind="{ row }: { row: ScoreEvent }">
               <span>{{ SCORE_KIND_TEXT[row.kind] }}</span>

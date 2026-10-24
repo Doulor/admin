@@ -1,5 +1,9 @@
-// 「成员与权限」名单上的 GitLab 列（#270）：把 GET /api/console/gitlab/accounts 的状态写成文字。纯函数，tests/console 直接测。
-import type { GitlabAccount, GitlabAccountsResponse, GitlabAction } from "./types";
+// GitLab 各页（#270、SPEC §3.9）：同步模式、账号同步名单上的状态和要做的事写成文字。纯函数，tests/console 直接测。
+import type { GitlabAccount, GitlabAccountsResponse, GitlabAction, GitlabSyncMode } from "./types";
+
+/** 同步模式：关闭、预演（只算要做的事，不改 GitLab）、打开。 */
+export const MODE_TEXT: Record<GitlabSyncMode, string> = { off: "已关闭", "dry-run": "预演", on: "已打开" };
+export const modeText = (mode: string): string => MODE_TEXT[mode as GitlabSyncMode] ?? mode;
 
 /** GitLab 组权限：同步只给开发者（30）和所有者（50），其余按 GitLab 的叫法写。 */
 const ACCESS_TEXT: Record<number, string> = { 10: "访客", 20: "报告者", 30: "开发者", 40: "维护者", 50: "所有者" };

@@ -33,7 +33,9 @@ describe("账号页 (lib/account)", () => {
     expect(membershipText({ state: "active", org_role: "admin", via_invite: false })).toBe("极客班成员 · 站内管理员");
     expect(membershipText({ state: "active", org_role: "member", via_invite: true })).toBe("极客班成员 · 用邀请码注册");
     expect(membershipText({ state: "active", org_role: "member", via_invite: false })).toBe("极客班成员");
-    expect(membershipText({ state: "not_member", org_role: null, via_invite: false })).toBe("已经不是极客班成员");
+    // #274：没填邀请码注册的账号从没当过成员，不说成「已经不是」；曾经用邀请码进来、后来被收回的才这样说。
+    expect(membershipText({ state: "not_member", org_role: null, via_invite: false })).toBe("不是极客班成员");
+    expect(membershipText({ state: "not_member", org_role: null, via_invite: true })).toBe("已经不是极客班成员");
   });
 
   it("记录与登录方式的中文名，未知的原样显示", () => {
@@ -52,7 +54,7 @@ describe("账号页 (lib/account)", () => {
   });
 
   it("开发预览的账号样板只给打码后的邮箱", () => {
-    const view = mockAccount(MOCK_PERSONAS.admin_email);
+    const view = mockAccount(MOCK_PERSONAS.owner_email);
     expect(view.session.provider).toBe("email");
     for (const item of view.identities) if (item.provider === "email") expect(item.label).toMatch(/^.\*\*\*@/);
     // 和服务端一样：邮箱带 id，主邮箱在前（#272）
@@ -68,7 +70,7 @@ describe("账号页 (lib/account)", () => {
     expect(fresh.identities.map(item => item.provider)).toEqual(["github"]);
     expect(loginIsFresh(fresh)).toBe(true);
     expect(loginIsFresh(mockAccount(MOCK_PERSONAS.no_email_stale))).toBe(false);
-    for (const name of ["admin", "admin_email", "member", "guest"]) expect(mockAccount(MOCK_PERSONAS[name]).email_required, name).toBe(false);
+    for (const name of ["owner", "owner_email", "member", "alumni", "registered"]) expect(mockAccount(MOCK_PERSONAS[name]).email_required, name).toBe(false);
 
     vi.stubGlobal("window", { location: { search: "?__persona=no_email" } });
     expect(routeConsole(new URL("http://mock.local/api/console/me"))).toMatchObject({ email_required: true });

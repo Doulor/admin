@@ -2,7 +2,18 @@ import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { OIDC_PROTOCOL_LIMIT } from '../../app/server/src/routes/oidc/index';
-import { signIn, testApp } from './helpers';
+import { activityRows, signIn as rawSignIn, testApp } from './helpers';
+
+/**
+ * 对外授权只发给成员（lib/account-directory.ts 的 oidcAccount()，#274 按 level.member 判定，不再是
+ * 「登录了就算」）：这个文件测的是 OIDC 协议本身，不是成员资格判定，所以登录顺手设成成员，和 #262 之前
+ * 「GitHub 组织成员」同义；要测「不是成员」在这之后自己再调一次 setSiteRole('none')。
+ */
+function signIn(app: FastifyInstance, login: string, githubId: number, avatarUrl: string | null = null): string {
+  const sid = rawSignIn(app, login, githubId, avatarUrl);
+  app.services.identity.setSiteRole({ accountId: app.services.identity.accountForGithub(githubId)!, role: 'member', actor: 'system' });
+  return sid;
+}
 
 /**
  * 对外授权（#270，ADR-0005 决策 3、8）：GitLab 这样不同源的应用用极客班账号登录。用 app.inject 走完整的授权码 + PKCE 往返，
@@ -171,7 +182,7 @@ describe('OIDC provider for downstream apps (#270)', () => {
     expect(second.consented).toBe(false);
     const again = JSON.parse(Buffer.from(second.token.json().id_token.split('.')[1], 'base64url').toString());
     expect(again.sub).toBe(sub);
-    const audit = app.services.storage.db.prepare("SELECT action, target FROM audit_logs WHERE action LIKE 'oidc.%'").all();
+    const audit = activityRows(app, { actionLike: 'oidc.%' }).map(row => ({ action: row.action, target: row.target_id }));
     expect(audit).toEqual([{ action: 'oidc.consent', target: 'gitlab' }]);
 
     // 授权码只能用一次；重放时按规范撤销这份授权，它发出的令牌一起失效，下次登录要重新同意
@@ -203,6 +214,25 @@ describe('OIDC provider for downstream apps (#270)', () => {
     const { token } = await signInThroughGitlab(app, jar, clientSecret);
     const userinfo = await app.inject({ url: '/oidc/me', headers: { authorization: `Bearer ${token.json().access_token}` } });
     expect(userinfo.json()).toMatchObject({ email: 'alice@example.test', email_verified: true });
+  });
+
+  it('stops serving userinfo for an already-issued token once the account is disabled (SPEC §3.8：停用后 OIDC 令牌全部失效)', async () => {
+    const { app, clientSecret } = await setup();
+    const sid = signIn(app, 'alice', 101);
+    const accountId = accountOf(app, 101);
+    const jar = new Jar();
+    jar.set('sid', sid);
+    const { token } = await signInThroughGitlab(app, jar, clientSecret);
+    const accessToken = token.json().access_token;
+    // 停用前，这个令牌还能正常用
+    const before = await app.inject({ url: '/oidc/me', headers: { authorization: `Bearer ${accessToken}` } });
+    expect(before.statusCode).toBe(200);
+
+    app.services.storage.db.prepare("UPDATE users SET status = 'disabled' WHERE id = ?").run(accountId);
+    // findAccount（lib/oidc-provider.ts）经 account-directory.ts 的 oidcAccount() 每次都查 getAccountClaims()，
+    // member 需要 status === 'active'；这里把这条既有行为锁进回归测试，停用这个动作本身不用另外去撤销令牌。
+    const after = await app.inject({ url: '/oidc/me', headers: { authorization: `Bearer ${accessToken}` } });
+    expect(after.statusCode).toBe(401);
   });
 
   it('refuses an unknown client and a redirect URI that was not registered, without redirecting', async () => {
@@ -297,7 +327,7 @@ describe('OIDC provider for downstream apps (#270)', () => {
     const aborted = await visit(app, jar, `/oidc/interaction/${consentUid}/abort`, { method: 'POST' });
     const { location } = await follow(app, jar, aborted.json().redirect_to);
     expect(new URL(location!).searchParams.get('error')).toBe('access_denied');
-    expect(app.services.storage.db.prepare("SELECT action FROM audit_logs WHERE action = 'oidc.deny'").all()).toHaveLength(1);
+    expect(activityRows(app, { action: 'oidc.deny' })).toHaveLength(1);
   });
 
   it('keeps the consent endpoints to the signed-in account that started the login', async () => {

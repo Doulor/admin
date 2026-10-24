@@ -10,12 +10,12 @@
 - 分支 `task/176/permission_tree`，独立 worktree `.claude/worktrees/task-176`。初始 `stage 9b38684cee4409a309052f4aefa3673106f5c7b0`，实施前整体快进至 `origin/stage f9da30f`，保留计划与执行记录；没有在主工作区开发。
 - 经授权，已保全16份任务文件后将 task 从 `f9da30f19344f04e9fc00cf991f085b477f636a6` 快进至 `origin/stage 0c32616dcfd4224c64ef13efd0d347361548d444`（含 #174 论坛状态拆分），恢复未提交实现，无冲突。15份文件哈希未变，`TESTING.md` 同时保留上游与本任务说明；下述同步轮证据覆盖新基线加本地权限树改动，不代表该功能已合入 stage。
 - 页面为「成员与权限」第四页签 `/console/people?view=permissions`。当前接口、刷新/错误、来源与状态、执行边界和 Tuffex 交互只在 [console 服务合同](../services/console/README.md#只读权限树) 维护；不再保存一份重复的待实施规则。
-- 实现位置：[People.vue](../../app/console/src/pages/People.vue)、[PermissionTree.vue](../../app/console/src/pages/people/PermissionTree.vue)、[permission-tree.ts](../../app/console/src/lib/permission-tree.ts)、[permission-boundaries.ts](../../app/console/src/lib/permission-boundaries.ts)。样式限于页面私有 scoped CSS，没有新增基础组件库或改变全局主题。
+- 实现位置（历史快照，#274 GitLab-only 控制台改造已经删除或改名这几个文件，不再是可点击链接）：`app/console/src/pages/People.vue`、`app/console/src/pages/people/PermissionTree.vue`、`app/console/src/lib/permission-tree.ts`、`app/console/src/lib/permission-boundaries.ts`。样式限于页面私有 scoped CSS，没有新增基础组件库或改变全局主题。
 - 复用真实 `/me`、catalogue、departments 和现有闭包函数；不复制服务端 `computeAccess`，不新增角色、能力、写接口或真实成员模拟器，父页能力门不变。API 与安全事实仍以 [API](../architecture/API.md)、[SECURITY](../architecture/SECURITY.md) 为准。
 
 ## 验证与边界
 
-- [展示模型回归](../../tests/console/permission-tree.test.ts) 覆盖权威结果优先、蕴含链/环、多来源唯一节点、动态包、归档/缺失部门、领航员与 member、owner/guest 固定规则和未知能力。
+- 展示模型回归 `tests/console/permission-tree.test.ts`（历史快照，文件已随 #274 改造删除，不再是可点击链接）覆盖权威结果优先、蕴含链/环、多来源唯一节点、动态包、归档/缺失部门、领航员与 member、owner/guest 固定规则和未知能力。
 - 实际浏览器分别使用 DEV mock 与隔离真实 Fastify 路由。后者使用内存 SQLite、虚构 GitHub 外部响应、夹具论坛内容，禁止真实网络与邮件，不读取 `.env` 或业务库；该证据不是 OAuth 往返或部署验收。
 - 前轮隔离夹具逐项比较 20 项树状态与 `/me`：owner 20 有效/0受限，captain 15/5，双部门队长8/3，自定义领航员3/0，离组队长6/2；来源无不一致警告。最终构建复核使用招新部与社区部双部门夹具，结果13/1（配置不同，不是默认固定数量）；其余四种身份结果一致。修改称号名、部门名与权限包、归档部门后重新读取，旧能力与旧来源不再当作当前结果。
 - 桌面与390px：两视角、搜索保留祖先/清空恢复展开、键盘、详情焦点往返、预留能力、页面门、401回跳、失败隐藏旧树与重试、URL刷新和历史导航已实际操作。动态部门名称验证发现页头重复拼接服务端 label，已修正并在真实路由下复核。

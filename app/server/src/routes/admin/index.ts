@@ -1,32 +1,17 @@
 import type { FastifyInstance } from "fastify";
 import { registerContracts } from "../../lib/http-contracts.js";
 import { adminContracts } from "./contracts.js";
-import r0 from "./invitations.js";
-import r1 from "./logs.js";
-import r2 from "./repos.js";
-import r3 from "./overview.js";
-import r4 from "./activity.js";
-import r5 from "./security.js";
-import r6 from "./teams.js";
-import r7 from "./orgs.js";
-import r8 from "./feedback.js";
-import r9 from "./members.js";
-import r10 from "./invite-links.js";
-import r11 from "./org.js";
-import r12 from "./auth.js";
+import auth from "./auth.js";
+
+/**
+ * 登录与会话（`/auth/*`、`/api/me/*`）：GitHub 登录、回调、退出、`/auth/me`。GitHub 组织管理
+ * （`/api/admin/:org/*`、`/api/me/orgs`）#274 起整组删除——权限只认极客班账号，不再有「控制台管理的 GitHub 组织」
+ * 这个概念；控制台改接 GitLab（见 routes/console/gitlab.ts）。
+ * 没有挂 middleware/visitor.ts 的 attachVisitorId：这组路由不需要自己发访客 cookie（auth.ts 的 GitHub 回调按
+ * 注册限额只在已经有这个 cookie 时才用它，见 auth.ts 的说明），避免 `/auth/github` 的跳转多带一个 Set-Cookie，
+ * 弄坏一大批测试里「取第一个 set-cookie 的第一段」这种朴素的 cookie 提取写法。
+ */
 export default async function adminRoutes(app: FastifyInstance) {
   registerContracts(app, adminContracts);
-  await app.register(r0);
-  await app.register(r1);
-  await app.register(r2);
-  await app.register(r3);
-  await app.register(r4);
-  await app.register(r5);
-  await app.register(r6);
-  await app.register(r7);
-  await app.register(r8);
-  await app.register(r9);
-  await app.register(r10);
-  await app.register(r11);
-  await app.register(r12);
+  await app.register(auth);
 }

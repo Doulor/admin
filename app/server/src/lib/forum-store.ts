@@ -86,8 +86,12 @@ export type ChangeOptions = {
    */
   posts?: "excerpt" | "full";
 };
-/** `accountId`：会话的极客班账号（#262），论坛按它认人；`githubUserId` 只用来给新成员编 `m<id>`。 */
-export type MemberIdentity = { accountId: string; githubUserId: number; login: string; avatarUrl: string | null; role: "admin" | "member"; title: ForumTitle | null };
+/**
+ * `accountId`：会话的极客班账号（#262），论坛按它认人；`githubUserId` 只用来给新成员编 `m<id>`，接旧账号
+ * 早年按 GitHub id 建的论坛用户行。邮箱、Google 注册的账号没有 GitHub id（#274 SPEC §3.6），传 null，
+ * 新成员编 `a<序号>`，不再把这类账号当游客。
+ */
+export type MemberIdentity = { accountId: string; githubUserId: number | null; login: string; avatarUrl: string | null; role: "admin" | "member"; title: ForumTitle | null };
 export type NewPost = { topicId: string; authorId: string; content: string; replyToPostId?: string };
 export type ProfilePatch = { displayName?: string; bio?: string; location?: string; website?: string; notifyPrefs?: Partial<NotifyPrefs> };
 
@@ -390,21 +394,24 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
     },
 
     /**
-     * 成员的论坛用户：先按极客班账号找（#262）；没有就是 `m<GitHub user_id>`，第一次请求时建并写上账号
-     * （登录事务已经认领过同一个 GitHub id 的旧行）。之后每次请求刷新角色、称号与 GitHub 头像地址；
-     * 用户自己改过的昵称、签名、上传的头像不动。GitHub 改了登录名时，新名字没人占就跟着改。
+     * 成员的论坛用户：先按极客班账号找（#262）；没有就按有没有 GitHub id 分两条路——有的接 `m<GitHub user_id>`
+     * （登录事务已经认领过同一个 GitHub id 的旧行），没有的（邮箱、Google 注册，#274 SPEC §3.6）编一个新的
+     * `a<序号>`，第一次请求时建并写上账号。之后每次请求刷新角色、称号与头像地址；用户自己改过的昵称、
+     * 签名、上传的头像不动。登录名变了（GitHub 改名）时，新名字没人占就跟着改。
      */
     ensureMember(identity: MemberIdentity, now = Date.now()): string {
       const claimed = selectUserByAccount.get(identity.accountId) as UserRow | undefined;
-      const id = claimed?.id ?? `m${identity.githubUserId}`;
+      const id = claimed?.id ?? (identity.githubUserId !== null ? `m${identity.githubUserId}` : `a${next("member")}`);
       const title = identity.title ? JSON.stringify(identity.title) : null;
       const avatarUrl = identity.avatarUrl || null;
       const row = claimed ?? user(id);
       if (!row) {
+        // 头像色号：有 GitHub id 用它（和老账号的旧头像色一致），没有就用刚编的序号。
+        const seed = identity.githubUserId ?? Number(id.slice(1));
         db.prepare(
           `INSERT INTO forum_users(id, kind, github_user_id, username, display_name, avatar_color, github_avatar_url, role, title, joined_at, updated_at, account_id)
            VALUES(?, 'member', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).run(id, identity.githubUserId, freeUsername(identity.login, identity.githubUserId), identity.login, paletteColor(identity.githubUserId), avatarUrl, identity.role, title, now, now, identity.accountId);
+        ).run(id, identity.githubUserId, freeUsername(identity.login, seed), identity.login, paletteColor(seed), avatarUrl, identity.role, title, now, now, identity.accountId);
         return id;
       }
       const username = row.username.toLowerCase() !== identity.login.toLowerCase() && !usernameTaken(identity.login) ? identity.login : row.username;

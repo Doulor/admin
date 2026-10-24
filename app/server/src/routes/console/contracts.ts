@@ -1,7 +1,5 @@
 import { choices, integer, object, text, type RouteContracts } from "../../lib/http-contracts.js";
-import {
-  APPLICATION_STATUS_IDS, ASSIGNABLE_ROLES, CAPABILITY_IDS, DEPARTMENT_ICONS, DEPARTMENT_ID_PATTERN, DEPARTMENT_TAG_PATTERN, TITLE_IDS, TITLE_TAG_PATTERN, TONE_IDS,
-} from "../../lib/roles.js";
+import { APPLICATION_STATUS_IDS } from "../../lib/roles.js";
 import { FEEDBACK_STATUSES } from "../../lib/feedback-store.js";
 import { INVITE_CODE_PATTERN } from "../../lib/invite-codes.js";
 import {
@@ -9,27 +7,17 @@ import {
   competitionRoster, signupSettingsResult, signupBody, consoleCompetitionIdParam, scoreEventList, scoreEventResult, scoreEventParam,
 } from "../../lib/competition-contract.js";
 
-/** 与 config.GITHUB_LOGIN_REGEX 一致；这里写成 JSON Schema 可用的字符串。 */
-const GITHUB_LOGIN_PATTERN = "^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$";
 const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$";
 
-const login = { type: "string", pattern: GITHUB_LOGIN_PATTERN };
 /** 极客班账号 id：26 位 Crockford Base32（lib/identity-store.ts 的 newAccountId）。 */
 const accountId = { type: "string", pattern: "^[0-9A-HJKMNP-TV-Z]{26}$" };
 const nullableInteger = { anyOf: [integer(), { type: "null" }] };
 const nullableString = (max: number) => ({ anyOf: [text(max), { type: "null" }] });
-const assignmentView = object({
-  id: integer(), github_login: text(64, 1), github_user_id: nullableInteger, account_id: { anyOf: [accountId, { type: "null" }] },
-  role: choices(...ASSIGNABLE_ROLES), department_id: text(64), note: nullableString(200), granted_by: text(100), created_at: integer(0),
-}, ["id", "github_login", "github_user_id", "account_id", "role", "department_id", "note", "granted_by", "created_at"]);
 // 失败体保留共同错误处理器的扩展字段（capability、any_of）
 const consoleFailures = {
   "4xx": object({ error: { type: "string" }, message: { type: "string" }, request_id: { type: "string" }, capability: { type: "string" }, any_of: { type: "array", items: { type: "string" } } }, ["error"], true),
   "5xx": object({ error: { type: "string" }, message: { type: "string" }, request_id: { type: "string" } }, ["error"], true),
 };
-const departmentId = { type: "string", pattern: DEPARTMENT_ID_PATTERN };
-/** 权限包：只接受清单内的能力 id；仅舰长能力在路由里单独拒绝（captain_only_capability），重复项在存储时去重。 */
-const bundle = { type: "array", items: choices(...CAPABILITY_IDS), maxItems: CAPABILITY_IDS.length * 2 };
 /** 查询串里的有界正整数（coerceTypes 关闭，查询值都是字符串）。 */
 const LIMIT_PATTERNS = { 200: "^(?:[1-9][0-9]?|1[0-9]{2}|200)$", 500: "^(?:[1-9][0-9]?|[1-4][0-9]{2}|500)$" } as const;
 const limit = (max: keyof typeof LIMIT_PATTERNS) => ({ type: "string", pattern: LIMIT_PATTERNS[max] });
@@ -49,6 +37,9 @@ const gitlabAccountView = object({
   state: { anyOf: [choices("pending", "active", "blocked"), { type: "null" }] }, access_level: nullableInteger,
   last_error: nullableString(64), last_error_at: nullableCount, synced_at: nullableCount, pending: { type: "array", items: gitlabAction },
 }, ["account_id", "login", "username", "gitlab_user_id", "state", "access_level", "last_error", "last_error_at", "synced_at", "pending"]);
+const gitlabSettingsResult = object({
+  sync_mode: choices("off", "dry-run", "on"), group_path: text(255, 1), interval_minutes: integer(5, 1440), token_configured: { type: "boolean" },
+}, ["sync_mode", "group_path", "interval_minutes", "token_configured"]);
 const inviteView = object({
   id: integer(), code: text(40, 1), note: text(100), max_uses: nullableCount, used_count: integer(0), expires_at: nullableCount,
   disabled: { type: "boolean" }, created_by: text(100), created_at: integer(0), updated_at: integer(0), usable: { type: "boolean" },
@@ -58,81 +49,105 @@ const inviteFailures = {
   "4xx": object({ error: { type: "string" }, message: { type: "string" }, request_id: { type: "string" }, capability: { type: "string" } }, ["error"], true),
   "5xx": object({ error: { type: "string" }, message: { type: "string" }, request_id: { type: "string" } }, ["error"], true),
 };
-const departmentFields = {
-  name: text(12, 2), tag: { type: "string", pattern: DEPARTMENT_TAG_PATTERN },
-  icon: choices(...DEPARTMENT_ICONS), tone: choices(...TONE_IDS), description: text(200),
-  head_capabilities: bundle, member_capabilities: bundle, sort_order: integer(0, 10000),
-};
-// 新能力也扩展了这些权限包接口的入参枚举，响应合同必须保留原有展示、计数与时间字段。
-const departmentViewFields = {
-  id: departmentId, ...departmentFields, archived: { type: "boolean" },
-  created_at: integer(0), updated_at: integer(0),
-  heads: { type: "array", items: login }, crew_count: integer(0),
-};
-const departmentResult = object({
-  department: object(departmentViewFields, Object.keys(departmentViewFields)),
-}, ["department"]);
-const titleViewFields = {
-  id: choices(...TITLE_IDS), label: text(8, 1), tag: text(16, 1), icon: { type: "string" },
-  tone: choices(...TONE_IDS), description: text(200), capabilities: bundle,
-};
-const titleResult = object({ title: object(titleViewFields, Object.keys(titleViewFields)) }, ["title"]);
 const applicationParams = { params: object({ application_id: { type: "string", pattern: UUID_PATTERN } }, ["application_id"]) };
 // 比赛 id 是 UUID，但种子比赛用的是可读 slug（oss-challenge-2026-1），路径参数不能只收 UUID。
 const competitionParams = consoleCompetitionIdParam;
 
+// #274 新权限体系（CONTRACT-274 §5）：权限节点、权限组、按节点算出来的用户列表。
+// 权限组 id 不是数字（level.member、dept.ai、title.ai.staff、custom.<slug>……），`:id` 不能用
+// registerContracts 默认给 `:id` 的数字正则，这里的每个路由都要显式覆盖 params。
+const groupId = { type: "string", pattern: "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$" };
+// 自由形态的对象（scope、meta、条目的 meta）：响应序列化用 fast-json-stringify，裸 `{type:"object"}`
+// 没有 additionalProperties:true 会被序列化成空对象（这次改动里已经踩过一次这个坑，profile.ts 的 prefs 字段）。
+const freeObject = { type: "object", additionalProperties: true };
+const nodeView = object({
+  node: { type: "string" }, domain: { type: "string" }, label: text(64, 1), description: text(300), meta: { type: "boolean" },
+}, ["node", "domain", "label", "description", "meta"]);
+const entryView = object({
+  id: integer(), node: { type: "string" }, value: { anyOf: [{ type: "boolean" }, { type: "null" }] },
+  meta_value: { anyOf: [text(200), { type: "null" }] }, scope: freeObject, expires_at: nullableCount,
+}, ["id", "node", "value", "meta_value", "scope", "expires_at"]);
+const groupView = object({
+  id: groupId, kind: choices("level", "department", "title", "custom"), name: text(64, 1), description: text(200),
+  weight: integer(0, 100000), department_id: { anyOf: [groupId, { type: "null" }] },
+  icon: { anyOf: [text(64), { type: "null" }] }, tone: { anyOf: [text(32), { type: "null" }] },
+  sort: integer(0, 100000), system: { type: "boolean" }, parents: { type: "array", items: groupId },
+  member_count: integer(0), entries: { type: "array", items: entryView },
+}, ["id", "kind", "name", "description", "weight", "department_id", "icon", "tone", "sort", "system", "parents", "member_count", "entries"]);
+// display_name 读出来允许空字符串（minLength 0）：account-profiles.ts 的 ensure() 给新账号兜底写的是 ""，
+// 不是 null；这里是 anyOf，fast-json-stringify 序列化时要能分支选中，minLength:1 的话空字符串两边都不匹配，
+// 会直接抛 TypeError（这次改动踩过一次，GET /api/console/me 对刚建号、还没设过昵称的账号 500）。写接口
+// （PATCH /api/identity/profile 等）仍然不让把它显式改成空，这里只管「读」。
+const groupMemberView = object({
+  account_id: accountId, username: { anyOf: [text(24, 1), { type: "null" }] }, display_name: { anyOf: [text(32, 0), { type: "null" }] },
+  avatar_url: { anyOf: [text(500), { type: "null" }] }, expires_at: nullableCount, granted_by: text(100), created_at: integer(0),
+}, ["account_id", "username", "display_name", "avatar_url", "expires_at", "granted_by", "created_at"]);
+const explainHit = object({
+  source: choices("account", "group"), group: { anyOf: [object({ id: groupId, name: text(64, 1) }, ["id", "name"]), { type: "null" }] },
+  via: { type: "array", items: groupId },
+  entry: object({ node: { type: "string" }, value: { type: "boolean" }, scope: freeObject, expires_at: nullableCount }, ["node", "value", "scope", "expires_at"]),
+}, ["source", "group", "via", "entry"]);
+const explainResult = object({
+  node: { type: "string" }, result: choices("allow", "deny", "unset"), hits: { type: "array", items: explainHit },
+  meta_value: { anyOf: [text(200), { type: "null" }] },
+}, ["node", "result", "hits"]);
+const effectiveResult = object({
+  account_id: accountId,
+  groups: { type: "array", items: object({ id: groupId, name: text(64, 1), kind: text(16, 1), via: { type: "array", items: groupId } }, ["id", "name", "kind", "via"]) },
+  allow: { type: "array", items: { type: "string" } }, deny: { type: "array", items: { type: "string" } }, meta: freeObject,
+}, ["account_id", "groups", "allow", "deny", "meta"]);
+const userDepartmentView = { anyOf: [object({ id: groupId, name: text(64, 1), tone: { anyOf: [text(32), { type: "null" }] } }, ["id", "name", "tone"]), { type: "null" }] };
+const userTitleView = object({ id: groupId, name: text(64, 1), department_id: { anyOf: [groupId, { type: "null" }] } }, ["id", "name", "department_id"]);
+const gitlabStateView = object({ state: choices("synced", "pending", "failed", "blocked", "none"), gitlab_user_id: { anyOf: [integer(1), { type: "null" }] } }, ["state", "gitlab_user_id"]);
+const userView = object({
+  account_id: accountId, username: { anyOf: [text(24, 1), { type: "null" }] }, display_name: { anyOf: [text(32, 0), { type: "null" }] },
+  avatar_url: { anyOf: [text(500), { type: "null" }] }, status: choices("active", "disabled"), level: choices("registered", "member", "alumni"),
+  department: userDepartmentView, titles: { type: "array", items: userTitleView },
+  providers: { type: "array", items: choices("email", "google", "github") }, gitlab: gitlabStateView,
+  last_login_at: nullableCount, created_at: integer(0),
+}, ["account_id", "username", "display_name", "avatar_url", "status", "level", "department", "titles", "providers", "gitlab", "last_login_at", "created_at"]);
+const usersListResult = object({
+  items: { type: "array", items: userView }, next_cursor: { anyOf: [text(2000), { type: "null" }] },
+  counts: object({ visitor_today: integer(0), registered: integer(0), member: integer(0), alumni: integer(0) }, ["visitor_today", "registered", "member", "alumni"]),
+}, ["items", "next_cursor", "counts"]);
+const meResult = object({
+  account_id: accountId, login: text(100, 1), username: { anyOf: [text(24, 1), { type: "null" }] }, display_name: { anyOf: [text(32, 0), { type: "null" }] },
+  avatar_url: { anyOf: [text(500), { type: "null" }] }, level: choices("registered", "member", "alumni"), level_name: text(16, 1),
+  department: userDepartmentView, titles: { type: "array", items: userTitleView }, permissions: { type: "array", items: { type: "string" } },
+  provider: choices("github", "email", "google"), email_required: { type: "boolean" },
+}, ["account_id", "login", "username", "display_name", "avatar_url", "level", "level_name", "department", "titles", "permissions", "provider", "email_required"]);
+// 概览：只回调用者有权看的键，所以响应体里全部字段都不是必填。
+const summaryResult = object({
+  applications: object({ total: integer(0), by_status: freeObject, last_7d: integer(0) }, ["total", "by_status", "last_7d"]),
+  candidates_pending: integer(0), registrations_today: integer(0), blocked_today: integer(0),
+  gitlab: object({ mode: choices("off", "dry-run", "on"), healthy: { type: "boolean" }, last_run: { anyOf: [object({ at: integer(0), changed: integer(0), failed: integer(0) }, ["at", "changed", "failed"]), { type: "null" }] } }, ["mode", "healthy", "last_run"]),
+  feedback: freeObject,
+});
+const activityAccountView = { anyOf: [object({ id: accountId, username: { anyOf: [text(24, 1), { type: "null" }] }, display_name: { anyOf: [text(32, 0), { type: "null" }] }, avatar_url: { anyOf: [text(500), { type: "null" }] } }, ["id", "username", "display_name", "avatar_url"]), { type: "null" }] };
+const activityItemView = object({
+  id: integer(), at: integer(0), account: activityAccountView, visitor_id: { anyOf: [text(64), { type: "null" }] },
+  surface: choices("portal", "forum", "console", "cli", "api", "system"), action: text(100, 1),
+  target_type: { anyOf: [text(32), { type: "null" }] }, target_id: { anyOf: [text(100), { type: "null" }] },
+  outcome: choices("ok", "denied", "limited", "error"), ip: { anyOf: [text(64), { type: "null" }] }, ua: { anyOf: [text(300), { type: "null" }] },
+  request_id: { anyOf: [text(64), { type: "null" }] }, meta: freeObject,
+}, ["id", "at", "account", "visitor_id", "surface", "action", "target_type", "target_id", "outcome", "ip", "ua", "request_id", "meta"]);
+const activityListResult = object({
+  items: { type: "array", items: activityItemView }, next_cursor: { anyOf: [text(2000), { type: "null" }] },
+  blocked_today: { type: "array", items: object({ bucket: { type: "string" }, count: integer(0) }, ["bucket", "count"]) },
+}, ["items", "next_cursor", "blocked_today"]);
+const accountActivityListResult = object({ items: { type: "array", items: activityItemView }, next_cursor: { anyOf: [text(2000), { type: "null" }] } }, ["items", "next_cursor"]);
+const activityQuery = object({
+  account: accountId, visitor: text(64), action: text(100), surface: choices("portal", "forum", "console", "cli", "api", "system"),
+  outcome: choices("ok", "denied", "limited", "error"), from: { type: "string", pattern: "^[0-9]{1,15}$" }, to: { type: "string", pattern: "^[0-9]{1,15}$" },
+  cursor: text(2000),
+});
+
 /** `/api/console/*` 的输入协议源。所有 body 与 query 都拒绝未知字段。 */
 export const consoleContracts: RouteContracts = {
-  "GET /api/console/me": noQuery,
-  "GET /api/console/catalogue": noQuery,
-  "GET /api/console/summary": noQuery,
+  "GET /api/console/me": { ...noQuery, response: { 200: meResult } },
+  "GET /api/console/summary": { ...noQuery, response: { 200: summaryResult } },
+  // 部门是固定清单（SPEC §1），不再支持控制台里新建/改名/归档/删除，写路由跟着一起删；只留这条只读列表（部门 + 人数）。
   "GET /api/console/departments": noQuery,
-  "POST /api/console/departments": {
-    ...noQuery,
-    body: object({ id: departmentId, ...departmentFields }, ["id", "name", "tag", "icon", "tone", "head_capabilities"]),
-    response: { 201: departmentResult },
-  },
-  "PATCH /api/console/titles/:title_id": {
-    ...noQuery,
-    params: object({ title_id: choices(...TITLE_IDS) }, ["title_id"]),
-    body: {
-      ...object({
-        label: { ...text(8, 1), pattern: "\\S" }, tag: { type: "string", pattern: TITLE_TAG_PATTERN }, icon: choices(...DEPARTMENT_ICONS),
-        tone: choices(...TONE_IDS), description: text(200), capabilities: bundle,
-      }),
-      minProperties: 1,
-    },
-    response: { 200: titleResult },
-  },
-  "PATCH /api/console/departments/:department_id": {
-    ...noQuery,
-    params: object({ department_id: departmentId }, ["department_id"]),
-    body: { ...object({ ...departmentFields, archived: { type: "boolean" } }), minProperties: 1 },
-    response: { 200: departmentResult },
-  },
-  "DELETE /api/console/departments/:department_id": {
-    ...noQuery,
-    params: object({ department_id: departmentId }, ["department_id"]),
-  },
-  "GET /api/console/assignments": {
-    querystring: object({ department_id: departmentId, role: choices(...ASSIGNABLE_ROLES) }),
-  },
-  // 指派给极客班账号（account_id）或 GitHub 用户名（github_login），二选一（#262 第四期）
-  "POST /api/console/assignments": {
-    ...noQuery,
-    body: {
-      ...object({ github_login: login, account_id: accountId, role: choices(...ASSIGNABLE_ROLES), department_id: departmentId, note: text(200) }, ["role"]),
-      oneOf: [{ required: ["github_login"] }, { required: ["account_id"] }],
-    },
-    response: { 201: object({ assignment: assignmentView }, ["assignment"]), ...consoleFailures },
-  },
-  // 站内角色：管理员（提督）、成员（舰员）、不是成员（移出极客班）；只有提督能改
-  "PATCH /api/console/people/:account_id/site-role": {
-    ...noQuery,
-    params: object({ account_id: accountId }, ["account_id"]),
-    body: object({ site_role: choices("admin", "member", "none") }, ["site_role"]),
-    response: { 200: object({ account_id: accountId, site_role: choices("admin", "member", "none"), changed: { type: "boolean" } }, ["account_id", "site_role", "changed"]), ...consoleFailures },
-  },
   // GitLab 账号同步（#270）：mode 是 off、dry-run 或 on；pending 是现在还要做的事，dry-run 时只列出、不做
   "GET /api/console/gitlab/accounts": {
     ...noQuery,
@@ -141,7 +156,7 @@ export const consoleContracts: RouteContracts = {
       accounts: { type: "array", items: gitlabAccountView },
     }, ["mode", "gitlab_url", "group", "client_registered", "accounts"]), ...consoleFailures },
   },
-  "POST /api/console/gitlab/accounts/:account_id/sync": {
+  "POST /api/console/gitlab/accounts/:account_id/resync": {
     ...noQuery,
     params: object({ account_id: accountId }, ["account_id"]),
     response: { 200: object({
@@ -149,8 +164,35 @@ export const consoleContracts: RouteContracts = {
       applied: { type: "boolean" }, error: nullableString(64),
     }, ["mode", "account_id", "login", "actions", "applied", "error"]), ...consoleFailures },
   },
-  "DELETE /api/console/assignments/:id": noQuery,
-  "GET /api/console/people": noQuery,
+  // 控制台概览（#274）：同步开关、能不能连上、GitLab 版本号、上一轮对账小结、过去 24 小时还在失败状态的账号数
+  "GET /api/console/gitlab/status": {
+    ...noQuery,
+    response: { 200: object({
+      mode: choices("off", "dry-run", "on"), url: nullableString(255), group: text(255, 1), token_configured: { type: "boolean" },
+      version: nullableString(32), healthy: { type: "boolean" },
+      last_run: { anyOf: [object({ at: integer(0), changed: integer(0), failed: integer(0) }, ["at", "changed", "failed"]), { type: "null" }] },
+      errors_24h: integer(0),
+    }, ["mode", "url", "group", "token_configured", "version", "healthy", "last_run", "errors_24h"]), ...consoleFailures },
+  },
+  "GET /api/console/gitlab/projects": {
+    ...noQuery,
+    response: { 200: object({
+      groups: { type: "array", items: object({ id: integer(1), full_path: text(255, 1), name: text(255, 1), visibility: text(20, 1) }, ["id", "full_path", "name", "visibility"]) },
+      projects: { type: "array", items: object({
+        id: integer(1), path_with_namespace: text(255, 1), name: text(255, 1), description: nullableString(2000), visibility: text(20, 1),
+        web_url: text(500, 1), http_url_to_repo: text(500, 1), ssh_url_to_repo: text(500, 1), last_activity_at: nullableString(40), star_count: integer(0),
+      }, ["id", "path_with_namespace", "name", "description", "visibility", "web_url", "http_url_to_repo", "ssh_url_to_repo", "last_activity_at", "star_count"]) },
+    }, ["groups", "projects"]), ...consoleFailures },
+  },
+  "GET /api/console/gitlab/settings": {
+    ...noQuery,
+    response: { 200: gitlabSettingsResult, ...consoleFailures },
+  },
+  "PATCH /api/console/gitlab/settings": {
+    ...noQuery,
+    body: object({ sync_mode: choices("off", "dry-run", "on"), group_path: text(255, 1), interval_minutes: integer(5, 1440) }),
+    response: { 200: gitlabSettingsResult, ...consoleFailures },
+  },
   "GET /api/console/applications": {
     querystring: object({ status: choices(...APPLICATION_STATUS_IDS), q: text(100), limit: limit(200), offset }),
   },
@@ -207,7 +249,6 @@ export const consoleContracts: RouteContracts = {
     response: { 200: scoreEventResult, ...competitionFailures },
   },
   "DELETE /api/console/feedback/:id": noQuery,
-  "GET /api/console/audit": { querystring: object({ limit: limit(200), offset, action: text(64) }) },
   // 注册邀请码（#262）：次数上限、过期时间可以为空（不限）；邀请码本身建好后不能改
   "GET /api/console/invites": { ...noQuery, response: { 200: object({ invites: { type: "array", items: inviteView } }, ["invites"]), ...inviteFailures } },
   "POST /api/console/invites": {
@@ -225,5 +266,83 @@ export const consoleContracts: RouteContracts = {
       expires_at: { anyOf: [integer(0), { type: "null" }] }, disabled: { type: "boolean" },
     }),
     response: { 200: inviteView, ...inviteFailures },
+  },
+  // #274 新权限体系（CONTRACT-274 §5）
+  "GET /api/console/permissions/nodes": {
+    ...noQuery,
+    response: { 200: object({ nodes: { type: "array", items: nodeView }, domains: { type: "array", items: object({ id: { type: "string" }, label: text(32, 1) }, ["id", "label"]) } }, ["nodes", "domains"]) },
+  },
+  "GET /api/console/permissions/explain": {
+    querystring: object({ account: accountId, node: { type: "string", minLength: 1, maxLength: 128 } }, ["account", "node"]),
+    response: { 200: explainResult },
+  },
+  "GET /api/console/accounts/:id/effective": { ...noQuery, params: object({ id: accountId }, ["id"]), response: { 200: effectiveResult } },
+  // 操作记录（CONTRACT-274 §4），取代旧的 /api/console/audit。
+  "GET /api/console/activity": { querystring: activityQuery, response: { 200: activityListResult } },
+  "GET /api/console/activity.csv": { querystring: activityQuery, response: { 200: { type: "string", description: "text/csv; charset=utf-8" } } },
+  "GET /api/console/accounts/:id/activity": {
+    querystring: activityQuery, params: object({ id: accountId }, ["id"]), response: { 200: accountActivityListResult },
+  },
+  "GET /api/console/permission-groups": { ...noQuery, response: { 200: object({ groups: { type: "array", items: groupView } }, ["groups"]) } },
+  "POST /api/console/permission-groups": {
+    ...noQuery,
+    // id 的 custom.<slug> 格式校验留给路由自己做（回具体的 invalid_group_id），这里只管长度，
+    // 不然格式不对会先被 Schema 挡成笼统的 validation_error。
+    body: object({
+      id: text(64, 1), name: text(64, 1), description: text(200),
+      weight: integer(0, 100000), parents: { type: "array", items: groupId }, icon: text(64), tone: text(32),
+    }, ["id", "name", "weight"]),
+    response: { 201: groupView },
+  },
+  "PATCH /api/console/permission-groups/:id": {
+    querystring: object({}),
+    params: object({ id: groupId }, ["id"]),
+    body: object({
+      name: text(64, 1), description: text(200), weight: integer(0, 100000), parents: { type: "array", items: groupId },
+      icon: { anyOf: [text(64), { type: "null" }] }, tone: { anyOf: [text(32), { type: "null" }] }, sort: integer(0, 100000),
+      entries: object({
+        add: { type: "array", items: object({ node: { type: "string" }, value: { type: "boolean" }, meta_value: text(200), scope: freeObject, expires_at: integer(0) }, ["node"]) },
+        remove: { type: "array", items: integer(1) },
+      }),
+    }),
+    response: { 200: groupView },
+  },
+  "DELETE /api/console/permission-groups/:id": {
+    querystring: object({}), params: object({ id: groupId }, ["id"]),
+    response: { 200: object({ ok: { type: "boolean" } }, ["ok"]) },
+  },
+  "GET /api/console/permission-groups/:id/members": {
+    ...noQuery,
+    params: object({ id: groupId }, ["id"]),
+    response: { 200: object({ members: { type: "array", items: groupMemberView } }, ["members"]) },
+  },
+  "POST /api/console/permission-groups/:id/members": {
+    querystring: object({}),
+    params: object({ id: groupId }, ["id"]),
+    body: object({ account_id: accountId, expires_at: integer(0) }, ["account_id"]),
+    response: { 201: object({ ok: { type: "boolean" } }, ["ok"]) },
+  },
+  "DELETE /api/console/permission-groups/:id/members/:account_id": {
+    querystring: object({}),
+    params: object({ id: groupId, account_id: accountId }, ["id", "account_id"]),
+    response: { 200: object({ ok: { type: "boolean" } }, ["ok"]) },
+  },
+  "GET /api/console/users": {
+    querystring: object({
+      q: text(100), level: choices("registered", "member", "alumni"), department: groupId,
+      status: choices("active", "disabled"), cursor: text(2000),
+    }),
+    response: { 200: usersListResult },
+  },
+  "PATCH /api/console/users/:id": {
+    querystring: object({}),
+    params: object({ id: accountId }, ["id"]),
+    body: object({
+      status: choices("active", "disabled"), level: choices("registered", "member", "alumni"),
+      department: { anyOf: [groupId, { type: "null" }] }, titles: { type: "array", items: groupId },
+    }),
+    // #274 残留修复 D：回和列表一样形状的完整行（userView），不是只有 account_id——否则控制台改完一行，
+    // 不重新拉一次列表就看不到刚改的用户名、等级、部门这些字段。
+    response: { 200: userView },
   },
 };

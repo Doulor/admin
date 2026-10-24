@@ -13,6 +13,7 @@ import { existsSync } from "node:fs";
 import { APP_ROOT, type AppConfig } from "./config.js";
 import { createServices, type AppServices, type ServiceOverrides } from "./services.js";
 import { rateLimited, registerHttpPolicy } from "./middleware/http-policy.js";
+import { startActivityCleanup } from "./lib/activity.js";
 
 /** 官网产物（app/web）与控制台产物（app/console）分开构建，静态托管时两个目录叠在一起。 */
 const webDist = resolve(APP_ROOT, "web/dist");
@@ -52,7 +53,7 @@ export function requestLogFields(req: { method: string; url: string; host?: stri
 
 export type BuildAppOptions = {
   config: AppConfig; services?: AppServices; overrides?: ServiceOverrides; staticRoot?: string | string[] | false; logger?: boolean;
-  mailWorker?: boolean; sessionCleanup?: boolean; gitlabSync?: boolean; observeRoute?: (route: RouteOptions) => void;
+  mailWorker?: boolean; sessionCleanup?: boolean; gitlabSync?: boolean; activityCleanup?: boolean; observeRoute?: (route: RouteOptions) => void;
 };
 export async function buildApp(options: BuildAppOptions) {
   const config = options.config;
@@ -66,17 +67,37 @@ export async function buildApp(options: BuildAppOptions) {
   if (options.observeRoute) app.addHook("onRoute", options.observeRoute);
 
   app.decorate("services", services);
+  let stopActivityCleanup: (() => void) | null = null;
   app.addHook("onClose", async () => {
     // 先等发信循环收尾，再关库
     if (options.mailWorker) await services.mail.stop();
     if (options.sessionCleanup) services.auth.stopCleanup();
     if (options.gitlabSync) await services.gitlab.stop();
+    stopActivityCleanup?.();
     if (!options.services) services.close();
   });
   // 应用就绪（listen 之前）才开发信循环：路由注册失败时不会留下一个没人关的定时器
   if (options.mailWorker) app.addHook("onReady", async () => { services.mail.start(app.log); });
   if (options.sessionCleanup) app.addHook("onReady", async () => { services.auth.startCleanup(app.log); });
   if (options.gitlabSync) app.addHook("onReady", async () => { services.gitlab.start(app.log); });
+  // 操作记录每天清一次过期行、按 90 天打码 IP（lib/activity.ts，SPEC §3.7），顺带清 lib/limits.ts 的
+  // limit_events（SPEC §3.8）；测试直接调 services.activity.pruneExpired() / services.limits.pruneAll()。
+  if (options.activityCleanup) app.addHook("onReady", async () => { stopActivityCleanup = startActivityCleanup(services.activity, app.log, services.limits); });
+  // #274 残留修复 N：迁移报告只在启动时记一次，只记数量（表的前后行数、各类 this_run 计数），
+  // 不记 unmapped_heads 里真实的 GitHub 登录名——那是个人数据，只记条数。
+  app.addHook("onReady", async () => {
+    const report = services.storage.yugcV2Migration;
+    app.log.info({
+      msg: "yugc-v2 迁移报告",
+      tables: report.tables,
+      unmapped_heads_count: report.unmapped_heads.length,
+      unmapped_capabilities_count: report.unmapped_capabilities.length,
+      forum_users_linked_this_run: report.forum_users_linked_this_run,
+      account_profiles_created_this_run: report.account_profiles_created_this_run,
+      activity_events_copied_this_run: report.activity_events_copied_this_run,
+      skipped_role_assignments: report.skipped_role_assignments,
+    });
+  });
   registerHttpPolicy(app);
   await app.register(cookie, { secret: config.sessionSecret });
   // 只限写了 config.rateLimit 的路由；超额一律 429 rate_limited，路由不另写 errorResponseBuilder（#191）

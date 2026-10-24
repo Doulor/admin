@@ -298,7 +298,6 @@ const goPortal = () => window.location.assign(siteUrl("portal", "/"));
             <dt>有效到</dt>
             <dd>{{ fmtDate(view.session.expires_at) }}</dd>
           </dl>
-          <p v-if="view.session.provider !== 'github'" class="account__hint">控制台里 GitHub 组织的页面要用 GitHub 登录才能打开，其他页面不受影响。</p>
           <div class="account__actions">
             <TxButton variant="secondary" icon="i-carbon-logout" :loading="leaving" @click="signOut">退出登录</TxButton>
           </div>

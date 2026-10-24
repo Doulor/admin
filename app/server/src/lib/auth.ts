@@ -4,7 +4,7 @@ import type Database from "better-sqlite3";
 import type { AppConfig } from "../config.js";
 import type { createCrypto } from "./crypto.js";
 import { truncateWal } from "./db.js";
-import { GITHUB_TIMEOUT_MS } from "./github.js";
+import { GITHUB_TIMEOUT_MS } from "./github-http.js";
 import type { IdentityProvider, NewSession } from "./identity-store.js";
 import { CHALLENGE_RETENTION_MS } from "./email-login.js";
 /**
@@ -133,12 +133,22 @@ function stopCleanup(): void {
 }
 
 /**
- * 登录过的人：审计里每条 auth.signin 的登录名（只有 CONSOLE_ORG 的 active 成员能登录，所以都是组织成员，
- * 包括组织 owner），加上当前会话。论坛用它挡游客冒名；从没登录过的组织成员不在这里。
+ * 登录过的人：按 activity_events 里每条 auth.signin 的账号 id 解出登录名（#274 item I：audit_logs 不再有人写，
+ * auth.signin 改记在 activity_events，只有 account_id，没有现成的登录名列），加上当前会话。按 identity-store.ts
+ * 的 sessionProfile() 同一套规则解：有绑定 GitHub 的用 GitHub 登录名，没有的用站内 yz_ 登录名。论坛用它挡游客
+ * 冒名；从没登录过的组织成员不在这里。
  */
 function signedInLogins(): string[] {
-  return (db.prepare("SELECT actor AS login FROM audit_logs WHERE action = 'auth.signin' UNION SELECT login FROM sessions").all() as { login: string }[])
-    .map(row => row.login);
+  return (db.prepare(`
+    SELECT COALESCE(
+      (SELECT login FROM identities WHERE user_id = u.id AND provider = 'github'),
+      u.handle,
+      'yz_' || lower(substr(u.id, 1, 8))
+    ) AS login
+    FROM users u
+    WHERE u.id IN (SELECT DISTINCT account_id FROM activity_events WHERE action = 'auth.signin' AND account_id IS NOT NULL)
+    UNION SELECT login FROM sessions
+  `).all() as { login: string }[]).map(row => row.login);
 }
 
 function buildAuthorizeUrl(state: string): string {

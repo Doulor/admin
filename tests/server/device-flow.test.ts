@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { DEVICE_GRANT_TYPE } from '../../app/server/src/lib/device-store';
-import { signIn, testApp } from './helpers';
+import { activityRows, signIn, testApp } from './helpers';
 
 /**
  * RFC 8628 设备授权（#262，为 `geek login` 预留）：命令行发码、用户确认、轮询换一次性令牌、userinfo。
@@ -129,7 +129,11 @@ describe('device authorization (#262, RFC 8628)', () => {
     const { app } = await setup();
     const code = (await issueCode(app)).json();
     expect((await app.inject(`/api/identity/device?user_code=${encodeURIComponent(code.user_code)}`)).statusCode).toBe(401);
-    expect((await app.inject({ method: 'POST', url: approveUrl, payload: { user_code: code.user_code, decision: 'approve' } })).statusCode).toBe(401);
+    const approve = await app.inject({ method: 'POST', url: approveUrl, payload: { user_code: code.user_code, decision: 'approve' } });
+    expect(approve.statusCode).toBe(401);
+    // #274 item I 的 extras c：preHandler 以前多挂了一个 requireAuth，它先回自己的 401 not_signed_in，
+    // 盖掉 requirePermission 回的通用 401 unauthenticated（和 portal/apply.ts 同一类 bug，同样的修法）。
+    expect(approve.json()).toEqual({ error: 'unauthenticated', message: '请先登录' });
     expect((await app.inject('/api/identity/device?user_code=ZZZZ-ZZZZ')).statusCode).toBe(401);
   });
 
@@ -195,11 +199,11 @@ describe('device authorization (#262, RFC 8628)', () => {
     expect(rejected.json().error).toBe('invalid_token');
     expect(rejected.headers['www-authenticate']).toBe('Bearer error="invalid_token"');
 
-    const audits = db.prepare("SELECT action, details FROM audit_logs WHERE action LIKE 'identity.device.%'").all() as { action: string; details: string }[];
-    expect(audits.map(row => row.action)).toEqual(['identity.device.approve']);
-    expect(JSON.parse(audits[0].details)).toEqual({ client_id: 'geek-cli', scope: 'openid profile' });
-    expect(audits[0].details).not.toContain(code.device_code);
-    expect(audits[0].details).not.toContain(token.access_token);
+    const rows = activityRows(app, { actionLike: 'identity.device.%' });
+    expect(rows.map(row => row.action)).toEqual(['identity.device.approve']);
+    expect(rows[0].meta).toEqual({ client_id: 'geek-cli', scope: 'openid profile' });
+    expect(JSON.stringify(rows[0].meta)).not.toContain(code.device_code);
+    expect(JSON.stringify(rows[0].meta)).not.toContain(token.access_token);
   });
 
   it('turns a denial into access_denied and records the decision', async () => {
@@ -212,7 +216,7 @@ describe('device authorization (#262, RFC 8628)', () => {
     expect(denied.json()).toEqual({ ok: true, status: 'denied' });
     expect((await pollToken(app, code.device_code)).json().error).toBe('access_denied');
     expect(db.prepare('SELECT status, account_id FROM device_grants').get()).toEqual({ status: 'denied', account_id: null });
-    expect(db.prepare("SELECT action FROM audit_logs WHERE action LIKE 'identity.device.%'").all()).toEqual([{ action: 'identity.device.deny' }]);
+    expect(activityRows(app, { actionLike: 'identity.device.%' }).map(row => row.action)).toEqual(['identity.device.deny']);
   });
 
   it('never approves a code after the ten minutes are up', async () => {
@@ -236,6 +240,26 @@ describe('device authorization (#262, RFC 8628)', () => {
     expect((await decide(app, sid, code.user_code, 'approve')).statusCode).toBe(200);
     db.prepare("UPDATE users SET status = 'disabled' WHERE id = ?").run(accountId);
     expect((await pollToken(app, code.device_code)).json().error).toBe('access_denied');
+  });
+
+  it('stops accepting an already-issued token once the account is disabled afterwards (SPEC §3.8：停用后命令行令牌全部失效)', async () => {
+    const { app } = await setup();
+    const db = app.services.storage.db;
+    const sid = signIn(app, 'octocat', 4242);
+    const accountId = accountOfGithub(db, '4242');
+    const code = (await issueCode(app)).json();
+    expect((await decide(app, sid, code.user_code, 'approve')).statusCode).toBe(200);
+    const token = (await pollToken(app, code.device_code)).json();
+    // 停用前，这个令牌还能正常用
+    const before = await app.inject({ url: '/auth/device/userinfo', headers: { authorization: `Bearer ${token.access_token}` } });
+    expect(before.statusCode).toBe(200);
+
+    db.prepare("UPDATE users SET status = 'disabled' WHERE id = ?").run(accountId);
+    // device.authenticate() 每次都联查账号状态（lib/device-store.ts），不是靠令牌本身过期或被撤销——
+    // 这里把这条既有行为锁进回归测试，停用这个动作本身不用另外去吊销已经发出去的令牌。
+    const after = await app.inject({ url: '/auth/device/userinfo', headers: { authorization: `Bearer ${token.access_token}` } });
+    expect(after.statusCode).toBe(401);
+    expect(after.json().error).toBe('invalid_token');
   });
 
   it('stops accepting a token after its 30 days', async () => {
@@ -265,5 +289,22 @@ describe('device authorization (#262, RFC 8628)', () => {
     app.services.identity.linkEmail({ accountId, email: 'octo@example.test', login: 'octocat', claim: () => true });
     const second = (await issueCode(app)).json();
     expect((await decide(app, sid, second.user_code, 'approve')).statusCode).toBe(200);
+  });
+
+  it('limits approving a device code to 20 a day per account (SPEC §3.8), but never blocks a denial', async () => {
+    const { app } = await setup();
+    const sid = signIn(app, 'octocat', 4242);
+    const accountId = accountOfGithub(app.services.storage.db, '4242');
+    // 预先垫 19 次，不占用路由自己每分钟 20 次的额度（否则分不清是哪条线拦下来的）。
+    for (let i = 0; i < 19; i += 1) app.services.limits.hit({ bucket: 'account.cli.login.daily', subject: accountId, window: 'day-bj', max: 20 });
+    const ok = (await issueCode(app)).json();
+    expect((await decide(app, sid, ok.user_code, 'approve')).statusCode).toBe(200);
+    const blocked = (await issueCode(app)).json();
+    const refused = await decide(app, sid, blocked.user_code, 'approve');
+    expect(refused.statusCode).toBe(429);
+    expect(refused.json()).toMatchObject({ error: 'rate_limited', bucket: 'account.cli.login.daily' });
+    // 这个码没有被 approve 耗掉（账号停在 pending），拒绝（deny）不占这条额度，照常能用。
+    expect((await detail(app, sid, blocked.user_code)).json().status).toBe('pending');
+    expect((await decide(app, sid, blocked.user_code, 'deny')).statusCode).toBe(200);
   });
 });
