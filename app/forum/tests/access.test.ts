@@ -46,7 +46,7 @@ describe('who may write, per mode', () => {
     expect(UNAVAILABLE_COPY.busy.title).not.toContain('连不上')
   })
 
-  it('signed in site-wide but served as a guest (left the organization): no sign-in loop, still a guest reply', () => {
+  it('signed in site-wide but served as a guest (account disabled): no sign-in loop, still a guest reply', () => {
     const access = forumAccess('server', 'ready', null, true)
     expect(access).toEqual({ writable: true, offline: false, guestReply: true, loginPrompt: 'not-member' })
     expect(forumAccess('server', 'ready', null, false).loginPrompt).toBe('sign-in')
@@ -71,7 +71,7 @@ describe('what a login-required control says to someone who cannot write', () =>
     expect(loginPromptToast(forumAccess('server', 'ready', null).loginPrompt)).toEqual({
       id: 'forum-sign-in',
       title: '登录后才能继续',
-      description: '发新话题、点赞、收藏和关注要先登录，只有极客班成员能登录。不登录也能看帖和回复。',
+      description: '发新话题、点赞、收藏和关注要先登录。不登录也能看帖和回复。',
       duration: 6000,
       signIn: true,
     })
@@ -97,7 +97,7 @@ describe('what the forum says once the server ended the sign-in (#164)', () => {
     })
   })
 
-  it('says what failed and that the account is not in the organisation when it is still signed in', () => {
+  it('says what failed and that the account is disabled when it is still signed in', () => {
     expect(refusedNotMemberToast('没有赞上')).toEqual({
       id: 'forum-not-member',
       title: '没有赞上',

@@ -2,14 +2,14 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { AVATAR_TYPES, processAvatar } from "../../lib/forum-avatar.js";
 import { FORUM_LIMITS, ForumError, NAME_RULE_MESSAGE, hasControlChars, hasControlCharsMultiline, isAllowedName, isAllowedWebsite, normalizeName } from "../../lib/forum-rules.js";
 import type { ProfilePatch } from "../../lib/forum-store.js";
-import { forumChanges, notFound, rateLimited, requireMember } from "./viewer.js";
+import { forumChanges, notFound, rateLimited, requireMember, requireWriter } from "./viewer.js";
 
 /** 关注、通知、账号资料与头像。 */
 export default async function forumPeopleRoutes(app: FastifyInstance) {
   const { forum } = app.services;
 
   app.post<{ Params: { forum_user_id: string } }>("/api/forum/users/:forum_user_id/follow", async req => {
-    const viewer = await requireMember(req);
+    const viewer = await requireWriter(req, "forum.react");
     const target = forum.user(req.params.forum_user_id);
     if (!target) throw notFound("用户不存在");
     if (target.id === viewer.userId) throw new ForumError(400, "cannot_follow_self", "不能关注自己");

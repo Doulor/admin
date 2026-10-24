@@ -2,7 +2,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createConfig } from '../../app/server/src/config';
 import { gitlabUsername } from '../../app/server/src/lib/gitlab-sync';
-import { signIn, testApp } from './helpers';
+import { activityRows, signIn as rawSignIn, testApp } from './helpers';
+
+/**
+ * 这个文件里登录的每一个人都是在测「同步给成员做的事」（GitLab 账号、OIDC 身份、头像、组权限），
+ * 和 #262 之前「GitHub 组织成员」同义——#274 去掉组织那道门之后，登录不再自动是成员，这里补上
+ * setSiteRole('member')，让本文件的 signIn() 仍然按「这是个成员」的前提工作，不用改每一处调用。
+ * 要测「不是成员」「从成员变回注册用户」的用例，在这之后自己再调一次 setSiteRole('none')。
+ */
+function signIn(app: FastifyInstance, login: string, githubId: number, avatarUrl: string | null = null): string {
+  const sid = rawSignIn(app, login, githubId, avatarUrl);
+  app.services.identity.setSiteRole({ accountId: app.services.identity.accountForGithub(githubId)!, role: 'member', actor: 'system' });
+  return sid;
+}
 
 /**
  * GitLab 账号同步（#270）：每个成员在 GitLab 上有一个按 OIDC 身份认人的用户，进 geek 组；离开的封禁，回来的解封，从不删除。
@@ -34,6 +46,14 @@ function fakeGitlab() {
   const holds: { match: string; reached: () => void; released: Promise<void> }[] = [];
   let unreachable = false;
   let nextId = 100;
+  // #274 控制台概览、项目列表：版本号、group 本身、子组、组内项目，都给合理的默认值，用例可以用 setVersion/setProjects 改。
+  let version: string | null = '17.5.0';
+  let groupData: Record<string, unknown> = { id: 1, full_path: 'geek', name: '极客班', visibility: 'private' };
+  let subgroupsData: Record<string, unknown>[] = [];
+  let projectsData: Record<string, unknown>[] = [
+    { id: 10, path_with_namespace: 'geek/admin', name: 'admin', description: '极客班官网与后端', visibility: 'private', web_url: `${GITLAB}/geek/admin`, http_url_to_repo: `${GITLAB}/geek/admin.git`, ssh_url_to_repo: 'git@git.example.test:geek/admin.git', last_activity_at: '2026-10-20T00:00:00.000Z', star_count: 3 },
+    { id: 11, path_with_namespace: 'geek/site', name: 'site', description: '开源站点', visibility: 'public', web_url: `${GITLAB}/geek/site`, http_url_to_repo: `${GITLAB}/geek/site.git`, ssh_url_to_repo: 'git@git.example.test:geek/site.git', last_activity_at: '2026-10-18T00:00:00.000Z', star_count: 1 },
+  ];
   const json = (status: number, data: unknown) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
   async function fetch(input: string, init: RequestInit = {}): Promise<Response> {
     if (unreachable) throw new TypeError('fetch failed');
@@ -131,6 +151,10 @@ function fakeGitlab() {
       members.set(Number(match[1]), Number(body!.access_level));
       return json(200, { id: Number(match[1]), access_level: body!.access_level });
     }
+    if (method === 'GET' && path === '/version') return version === null ? json(500, { message: 'down for maintenance' }) : json(200, { version, revision: 'abc123def' });
+    if (method === 'GET' && path === '/groups/geek') return json(200, groupData);
+    if (method === 'GET' && path === '/groups/geek/subgroups') return json(200, subgroupsData);
+    if (method === 'GET' && path === '/groups/geek/projects') return json(200, projectsData);
     return json(404, { message: `unexpected ${call}` });
   }
   return {
@@ -145,6 +169,8 @@ function fakeGitlab() {
       return { hit, release: () => release() };
     },
     setUnreachable(value: boolean) { unreachable = value; },
+    setVersion(value: string | null) { version = value; },
+    setProjects(value: Record<string, unknown>[]) { projectsData = value; },
     writes: () => calls.filter(call => !call.startsWith('GET ')),
   };
 }
@@ -237,8 +263,24 @@ describe('GitLab account sync (#270)', () => {
     expect(gitlab.writes()).toHaveLength(writes);
     expect(github.calls).toHaveLength(githubCalls);
     // 两个账号同一毫秒建号，对账顺序由 ULID 的随机部分决定，这里不比较先后
-    const audit = app.services.storage.db.prepare("SELECT actor, target FROM audit_logs WHERE action = 'gitlab.sync' ORDER BY target").all();
-    expect(audit).toEqual([{ actor: 'system', target: 'admiral' }, { actor: 'system', target: 'alice' }]);
+    const audit = activityRows(app, { action: 'gitlab.sync' }).map(row => row.target_id).sort();
+    expect(audit).toEqual(['admiral', 'alice']);
+  });
+
+  it('gives GitLab Owner to whoever is in the site owner group, not to the old org_role (#274)', async () => {
+    const { app, gitlab, accountOf, db } = await setup(SYNC_ENV);
+    signIn(app, 'bob', 202);
+    // 控制台任命站长只写 perm_members（PATCH /api/console/users/:id），不碰 users.org_role
+    db.prepare("INSERT INTO perm_members(account_id, group_id, expires_at, granted_by, created_at) VALUES (?, 'title.site.owner', NULL, 'test', ?)").run(accountOf(202), Date.now());
+    app.services.permissions.bump();
+    await app.services.gitlab.reconcile();
+    const bob = userNamed(gitlab, 'bob')!;
+    expect(gitlab.members.get(bob.id)).toBe(50);
+
+    db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id = 'title.site.owner'").run(accountOf(202));
+    app.services.permissions.bump();
+    await app.services.gitlab.reconcile();
+    expect(gitlab.members.get(bob.id)).toBe(30);
   });
 
   it('uses the verified email, and falls back to a noreply address when GitLab already has it', async () => {
@@ -326,15 +368,17 @@ describe('GitLab account sync (#270)', () => {
     expect(gitlab.members.get(42)).toBe(30);
   });
 
-  it('prefers the forum profile and its uploaded avatar over GitHub', async () => {
+  it('prefers the unified account profile and its uploaded avatar over GitHub (#274: profile source moved from forum_users to account_profiles)', async () => {
     const { app, gitlab, github, accountOf, db } = await setup();
     signIn(app, 'alice', 101, 'https://avatars.githubusercontent.com/u/101');
     const now = Date.now();
-    db.prepare('INSERT INTO forum_avatars(hash, data, created_at) VALUES(?, ?, ?)').run('a'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), now);
-    db.prepare(`INSERT INTO forum_users(id, kind, github_user_id, username, display_name, bio, location, website, avatar_color, avatar_hash, joined_at, updated_at, account_id)
-      VALUES('fu-alice', 'member', 101, 'alice', '刘爱丽', '写编译器', '武汉', 'https://alice.dev', '#336699', ?, ?, ?, ?)`).run('a'.repeat(64), now, now, accountOf(101));
+    db.prepare('INSERT INTO account_avatars(hash, data, mime, created_at) VALUES(?, ?, ?, ?)').run('a'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), 'image/webp', now);
+    db.prepare('INSERT INTO account_profiles(account_id, username, display_name, bio, avatar_hash, updated_at) VALUES(?, ?, ?, ?, ?, ?)')
+      .run(accountOf(101), 'alice', '刘爱丽', '写编译器', 'a'.repeat(64), now);
     await app.services.gitlab.reconcile();
-    expect(userNamed(gitlab, 'alice')).toMatchObject({ name: '刘爱丽', bio: '写编译器', location: '武汉', website_url: 'https://alice.dev', avatar: 'image/webp 16 avatar.webp' });
+    // account_profiles 没有「所在地」「网站」这两项（统一资料只剩用户名、显示名、简介、头像，SPEC §3.6）：本地已经有简介时
+    // 不再去读 GitHub 公开资料补这两项，所以这里是空的——这是模型简化后的真实行为，不是漏填。
+    expect(userNamed(gitlab, 'alice')).toMatchObject({ name: '刘爱丽', bio: '写编译器', location: '', website_url: '', avatar: 'image/webp 16 avatar.webp' });
     expect(github.calls).toEqual([]);
   });
 
@@ -389,16 +433,13 @@ describe('GitLab account sync (#270)', () => {
     github.avatar(() => new Response('<html></html>', { status: 200, headers: { 'content-type': 'text/html' } }));
     expect((await app.services.gitlab.reconcile()).outcomes.find(item => item.login === 'bob')!.error).toBe('github_avatar_not_image');
 
-    // 论坛头像指向的图已经不在库里
+    // 账号资料指向的头像已经不在库里（#274：头像来源换成 account_avatars，没有外键约束，不用切 foreign_keys）
     signIn(app, 'carol', 103);
     const now = Date.now();
-    app.services.storage.db.prepare(`INSERT INTO forum_users(id, kind, github_user_id, username, display_name, avatar_color, avatar_hash, joined_at, updated_at, account_id)
-      VALUES('fu-carol', 'member', 103, 'carol', 'carol', '#336699', NULL, ?, ?, ?)`).run(now, now, app.services.identity.accountForGithub(103)!);
-    app.services.storage.db.prepare('INSERT INTO forum_avatars(hash, data, created_at) VALUES(?, ?, ?)').run('c'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), now);
-    app.services.storage.db.prepare("UPDATE forum_users SET avatar_hash = ? WHERE id = 'fu-carol'").run('c'.repeat(64));
-    app.services.storage.db.pragma('foreign_keys = OFF');
-    app.services.storage.db.prepare('DELETE FROM forum_avatars WHERE hash = ?').run('c'.repeat(64));
-    app.services.storage.db.pragma('foreign_keys = ON');
+    const carolAccountId = app.services.identity.accountForGithub(103)!;
+    app.services.storage.db.prepare('INSERT INTO account_avatars(hash, data, mime, created_at) VALUES(?, ?, ?, ?)').run('c'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), 'image/webp', now);
+    app.services.storage.db.prepare('INSERT INTO account_profiles(account_id, username, display_name, avatar_hash, updated_at) VALUES(?, ?, ?, ?, ?)').run(carolAccountId, 'carol', 'carol', 'c'.repeat(64), now);
+    app.services.storage.db.prepare('DELETE FROM account_avatars WHERE hash = ?').run('c'.repeat(64));
     expect((await app.services.gitlab.reconcile()).outcomes.find(item => item.login === 'carol')!.error).toBe('forum_avatar_missing');
 
     // 头像小下来以后，下一轮传上去，错误清掉
@@ -436,7 +477,7 @@ describe('GitLab account sync (#270)', () => {
     expect(gitlab.users.filter(user => user.username === 'alice')).toHaveLength(1);
   });
 
-  it('uploads the avatar for accounts synced before avatars were tracked, and again when the forum avatar changes (#271)', async () => {
+  it('uploads the avatar for accounts synced before avatars were tracked, and again when the account avatar changes (#271, #274)', async () => {
     const { app, gitlab, accountOf, row, db } = await setup();
     signIn(app, 'alice', 101, 'https://avatars.githubusercontent.com/u/101?v=4');
     await app.services.gitlab.reconcile();
@@ -450,11 +491,11 @@ describe('GitLab account sync (#270)', () => {
     expect(gitlab.writes().slice(before)).toEqual([`PUT /users/${alice.id}`]);
     expect(alice.avatar).toBe(`image/png ${PNG.length} avatar.png`);
 
-    // 在论坛上换了头像：下一轮传论坛的
+    // 账号换了头像（#274：头像来源从 forum_users/forum_avatars 换成 account_profiles/account_avatars）：下一轮传新的
     const now = Date.now();
-    db.prepare('INSERT INTO forum_avatars(hash, data, created_at) VALUES(?, ?, ?)').run('b'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), now);
-    db.prepare(`INSERT INTO forum_users(id, kind, github_user_id, username, display_name, avatar_color, avatar_hash, joined_at, updated_at, account_id)
-      VALUES('fu-alice', 'member', 101, 'alice', 'alice', '#336699', ?, ?, ?, ?)`).run('b'.repeat(64), now, now, accountOf(101));
+    db.prepare('INSERT INTO account_avatars(hash, data, mime, created_at) VALUES(?, ?, ?, ?)').run('b'.repeat(64), Buffer.from('RIFF0000WEBPVP8 '), 'image/webp', now);
+    // 第一轮 reconcile 已经 ensure() 过这一行（account-profiles.ts 的兜底）：这里是改头像，不是建新资料
+    db.prepare('UPDATE account_profiles SET avatar_hash = ?, updated_at = ? WHERE account_id = ?').run('b'.repeat(64), now, accountOf(101));
     expect(app.services.gitlab.status()[0].pending).toEqual([{ kind: 'set_avatar' }]);
     await app.services.gitlab.reconcile();
     expect(alice.avatar).toBe('image/webp 16 avatar.webp');
@@ -481,7 +522,7 @@ describe('GitLab account sync (#270)', () => {
     expect(gitlab.calls.filter(call => call === 'POST /users')).toEqual([]);
 
     // 对上了的不再找；没对上的 erin 每轮照样按身份找一次，没找到就不写也不记审计
-    const audit = () => app.services.storage.db.prepare("SELECT COUNT(*) AS n FROM audit_logs WHERE action = 'gitlab.sync'").get();
+    const audit = () => activityRows(app, { action: 'gitlab.sync' }).length;
     const audits = audit();
     const calls = gitlab.calls.length;
     expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 0, failed: 0 });
@@ -606,7 +647,7 @@ describe('GitLab account sync (#270)', () => {
     await vi.waitFor(() => expect(logs).toEqual([['error', { reason: 'gitlab_client_missing', client_id: 'gitlab' }, 'gitlab sync skipped']]));
     await missing.app.services.gitlab.stop();
     expect(missing.gitlab.calls).toEqual([]);
-    expect(missing.db.prepare("SELECT COUNT(*) AS n FROM audit_logs WHERE action = 'gitlab.sync'").get()).toEqual({ n: 0 });
+    expect(activityRows(missing.app, { action: 'gitlab.sync' })).toEqual([]);
   });
 
   it('drops a GitHub blog that is not a web address', async () => {
@@ -771,7 +812,7 @@ describe('console GitLab sync endpoints (#270)', () => {
     return { ...context, admiral: as(admiralSid), member: as(memberSid) };
   }
   const sync = (app: FastifyInstance, accountId: string, headers: Record<string, string>) =>
-    app.inject({ method: 'POST', url: `/api/console/gitlab/accounts/${accountId}/sync`, headers });
+    app.inject({ method: 'POST', url: `/api/console/gitlab/accounts/${accountId}/resync`, headers });
 
   it('lists every account with what is still to do, for the people who manage roles', async () => {
     const { app, admiral, member, accountOf } = await consoleSetup();
@@ -795,8 +836,10 @@ describe('console GitLab sync endpoints (#270)', () => {
       mode: 'on', account_id: accountOf(101), applied: true, error: null, actions: [{ kind: 'create', username: 'alice', access_level: 30 }, { kind: 'set_avatar' }, { kind: 'set_emails' }],
     });
     expect(userNamed(gitlab, 'alice')).toBeDefined();
-    const audit = app.services.storage.db.prepare("SELECT actor, actor_account_id FROM audit_logs WHERE action = 'gitlab.sync'").get();
-    expect(audit).toEqual({ actor: 'admiral', actor_account_id: accountOf(1) });
+    // gitlab.sync 这个名字和权限节点 gitlab.sync 撞了：member 那次 403 被 http-policy.ts 的全局钩子按
+    // node 记成了同名的一条 outcome=denied 记录，和真正同步完成的这条区分不开，按 outcome 过滤。
+    const audit = activityRows(app, { action: 'gitlab.sync' }).find(row => row.outcome === 'ok')!;
+    expect(audit.account_id).toBe(accountOf(1));
     expect((await sync(app, '01ARZ3NDEKTSV4RRFFQ69G5FAV', admiral)).statusCode).toBe(404);
     expect((await sync(app, accountOf(101), { ...admiral, origin: 'https://evil.test' })).statusCode).toBe(403);
   });
@@ -806,6 +849,119 @@ describe('console GitLab sync endpoints (#270)', () => {
     const res = await sync(app, accountOf(101), admiral);
     expect(res.statusCode).toBe(409);
     expect(res.json().error).toBe('gitlab_sync_off');
+  });
+});
+
+describe('GitLab console overview, projects and settings (#274)', () => {
+  async function consoleSetup(env: Record<string, string> = SYNC_ENV) {
+    const context = await setup(env);
+    const admiralSid = signIn(context.app, 'admiral', 1);
+    context.promote(1);
+    const memberSid = signIn(context.app, 'alice', 101);
+    context.app.services.identity.setSiteRole({ accountId: context.accountOf(101), role: 'member', actor: 'system' });
+    const as = (sid: string) => ({ cookie: `sid=${sid}`, origin: 'https://example.test' });
+    return { ...context, admiral: as(admiralSid), member: as(memberSid) };
+  }
+
+  it('reports health, version, the last reconcile summary and recent failures only to role managers', async () => {
+    const { app, admiral, member, gitlab } = await consoleSetup();
+    expect((await app.inject({ url: '/api/console/gitlab/status' })).statusCode).toBe(401);
+    expect((await app.inject({ url: '/api/console/gitlab/status', headers: member })).statusCode).toBe(403);
+    const first = await app.inject({ url: '/api/console/gitlab/status', headers: admiral });
+    expect(first.statusCode).toBe(200);
+    expect(first.json()).toMatchObject({ mode: 'on', url: GITLAB, group: 'geek', token_configured: true, version: '17.5.0', healthy: true, last_run: null, errors_24h: 0 });
+
+    gitlab.fail('POST /users', 500);
+    const summary = await app.services.gitlab.reconcile();
+    expect(summary.failed).toBe(1);
+    const after = await app.inject({ url: '/api/console/gitlab/status', headers: admiral });
+    expect(after.json()).toMatchObject({ last_run: { changed: summary.changed, failed: 1 }, errors_24h: 1 });
+    expect(after.json().last_run.at).toEqual(expect.any(Number));
+
+    // GitLab 连不上：健康检查本身也失败，不让 /version 的异常冒出到控制台接口
+    gitlab.setUnreachable(true);
+    expect((await app.inject({ url: '/api/console/gitlab/status', headers: admiral })).json()).toMatchObject({ healthy: false, version: null });
+  });
+
+  it('lists the group, its subgroups and every project (including private ones) for role managers, cached for 5 minutes', async () => {
+    const { app, admiral, gitlab } = await consoleSetup();
+    gitlab.setProjects([
+      { id: 20, path_with_namespace: 'geek/secret', name: 'secret', description: null, visibility: 'private', web_url: `${GITLAB}/geek/secret`, http_url_to_repo: `${GITLAB}/geek/secret.git`, ssh_url_to_repo: 'git@git.example.test:geek/secret.git', last_activity_at: '2026-10-21T00:00:00.000Z', star_count: 0 },
+    ]);
+    const res = await app.inject({ url: '/api/console/gitlab/projects', headers: admiral });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      groups: [{ id: 1, full_path: 'geek', name: '极客班', visibility: 'private' }],
+      projects: [{ id: 20, path_with_namespace: 'geek/secret', name: 'secret', description: null, visibility: 'private', web_url: `${GITLAB}/geek/secret`, http_url_to_repo: `${GITLAB}/geek/secret.git`, ssh_url_to_repo: 'git@git.example.test:geek/secret.git', last_activity_at: '2026-10-21T00:00:00.000Z', star_count: 0 }],
+    });
+    const calls = gitlab.calls.length;
+    gitlab.setProjects([]); // 改了也读不到：5 分钟内还是缓存
+    expect((await app.inject({ url: '/api/console/gitlab/projects', headers: admiral })).json().projects).toHaveLength(1);
+    expect(gitlab.calls).toHaveLength(calls);
+  });
+
+  it('reads and writes sync settings, validating bounds and refusing to flip to on without a token', async () => {
+    const { app, admiral, member } = await consoleSetup();
+    expect((await app.inject({ url: '/api/console/gitlab/settings', headers: admiral })).json()).toEqual({
+      sync_mode: 'on', group_path: 'geek', interval_minutes: 10, token_configured: true,
+    });
+    expect((await app.inject({ method: 'PATCH', url: '/api/console/gitlab/settings', headers: member, payload: { sync_mode: 'off' } })).statusCode).toBe(403);
+
+    const bad = await app.inject({ method: 'PATCH', url: '/api/console/gitlab/settings', headers: admiral, payload: { group_path: 'bad group!' } });
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().error).toBe('invalid_group_path');
+    expect((await app.inject({ method: 'PATCH', url: '/api/console/gitlab/settings', headers: admiral, payload: { interval_minutes: 2 } })).json().error).toBe('validation_error');
+
+    const patched = await app.inject({ method: 'PATCH', url: '/api/console/gitlab/settings', headers: admiral, payload: { sync_mode: 'dry-run', group_path: 'yzgc-geek', interval_minutes: 30 } });
+    expect(patched.statusCode).toBe(200);
+    expect(patched.json()).toEqual({ sync_mode: 'dry-run', group_path: 'yzgc-geek', interval_minutes: 30, token_configured: true });
+    // 改过的设置持久化在 app_state，不止是进程内存里
+    const row = app.services.storage.db.prepare("SELECT value FROM app_state WHERE key = 'gitlab_settings'").get() as { value: string };
+    expect(JSON.parse(row.value)).toEqual({ mode: 'dry-run', group: 'yzgc-geek', interval_minutes: 30 });
+    expect((await app.inject({ url: '/api/console/gitlab/settings', headers: admiral })).json().sync_mode).toBe('dry-run');
+  });
+
+  it('refuses turning sync on without a configured token, and keeps the URL requirement for dry-run', async () => {
+    const { app, admiral } = await consoleSetup({ GITLAB_URL: GITLAB }); // 没有 GITLAB_API_TOKEN：on 需要令牌
+    const noToken = await app.inject({ method: 'PATCH', url: '/api/console/gitlab/settings', headers: admiral, payload: { sync_mode: 'on' } });
+    expect(noToken.statusCode).toBe(409);
+    expect(noToken.json().error).toBe('gitlab_token_missing');
+    expect((await app.inject({ url: '/api/console/gitlab/settings', headers: admiral })).json().sync_mode).toBe('off');
+
+    const { app: app2, admiral: admiral2 } = await consoleSetup({}); // 完全没配 GITLAB_URL：dry-run 需要 URL
+    const noUrl = await app2.inject({ method: 'PATCH', url: '/api/console/gitlab/settings', headers: admiral2, payload: { sync_mode: 'dry-run' } });
+    expect(noUrl.statusCode).toBe(409);
+    expect(noUrl.json().error).toBe('gitlab_url_missing');
+  });
+
+  it('re-arms the reconcile timer on the new interval once a running sync is told to change settings', async () => {
+    const { app, admiral } = await consoleSetup();
+    await app.services.gitlab.start({ info() {}, error() {} });
+    const patched = await app.inject({ method: 'PATCH', url: '/api/console/gitlab/settings', headers: admiral, payload: { interval_minutes: 15 } });
+    expect(patched.json().interval_minutes).toBe(15);
+    await app.services.gitlab.stop();
+  });
+
+  it('serves only public projects anonymously, straight from the same list the console sees', async () => {
+    const { app, gitlab } = await consoleSetup();
+    gitlab.setProjects([
+      { id: 10, path_with_namespace: 'geek/admin', name: 'admin', description: '极客班官网与后端', visibility: 'private', web_url: `${GITLAB}/geek/admin`, http_url_to_repo: `${GITLAB}/geek/admin.git`, ssh_url_to_repo: 'x', last_activity_at: '2026-10-20T00:00:00.000Z', star_count: 3 },
+      { id: 11, path_with_namespace: 'geek/site', name: 'site', description: '开源站点', visibility: 'public', web_url: `${GITLAB}/geek/site`, http_url_to_repo: `${GITLAB}/geek/site.git`, ssh_url_to_repo: 'y', last_activity_at: '2026-10-18T00:00:00.000Z', star_count: 1 },
+    ]);
+    const res = await app.inject('/api/public/gitlab/projects');
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ projects: [{ name: 'site', path_with_namespace: 'geek/site', description: '开源站点', web_url: `${GITLAB}/geek/site`, http_url_to_repo: `${GITLAB}/geek/site.git`, last_activity_at: '2026-10-18T00:00:00.000Z' }] });
+  });
+
+  it('tells the public endpoint apart from "really has zero public projects" when GitLab cannot be reached', async () => {
+    const { app, gitlab } = await consoleSetup();
+    gitlab.setUnreachable(true);
+    expect((await app.inject('/api/public/gitlab/projects')).json()).toEqual({ projects: [], unavailable: true });
+  });
+
+  it('reports unavailable without calling out when GitLab sync is not configured at all', async () => {
+    const { app } = await setup({});
+    expect((await app.inject('/api/public/gitlab/projects')).json()).toEqual({ projects: [], unavailable: true });
   });
 });
 

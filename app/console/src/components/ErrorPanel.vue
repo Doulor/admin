@@ -6,16 +6,15 @@ import { TxPermissionState } from "@talex-touch/tuffex/permission-state";
 import { describeError, errorAction, errorTrace } from "../lib/errors";
 import { signInHref } from "../lib/runtime";
 import { useSession } from "../lib/session";
-import { assignerText } from "../lib/titles";
 
 /**
- * 读取失败：说清楚出了什么事、下一步做什么；缺能力时改用权限不足状态。`retry` 给了才显示「重试」。
+ * 读取失败：说清楚出了什么事、下一步做什么；缺权限时改用权限不足状态。`retry` 给了才显示「重试」。
  * 登录已失效时重试只会再拿到 401，改成「重新登录」，登录后回到当前页面（#133）。
  */
 const props = withDefaults(defineProps<{ error: unknown; retry?: () => unknown; size?: "small" | "medium" | "large" }>(), { retry: undefined, size: "medium" });
-const { catalogue, capabilityLabel } = useSession();
+const { permissionLabel } = useSession();
 const route = useRoute();
-const view = computed(() => describeError(props.error, capabilityLabel, assignerText(catalogue.value)));
+const view = computed(() => describeError(props.error, permissionLabel));
 const trace = computed(() => errorTrace(view.value));
 const action = computed(() => errorAction(view.value, Boolean(props.retry)));
 const primaryAction = computed(() => (action.value ? { label: action.value.label, variant: action.value.variant } : undefined));

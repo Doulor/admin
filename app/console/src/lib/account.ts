@@ -23,10 +23,14 @@ export const RESULT_TEXT: Record<AccountView["recent"][number]["result"], string
 export const providerText = (id: string | null): string => (id && id in PROVIDER_TEXT ? PROVIDER_TEXT[id as SessionProvider] : "-");
 export const actionText = (action: string): string => ACTION_TEXT[action] ?? action;
 
-/** 成员资格的一句话：GitHub 组织里的角色，或者用邀请码注册。 */
+/**
+ * 成员资格的一句话：站内角色，或者用邀请码注册。
+ * #274 review round 1：邀请码改成选填，没填邀请码直接注册成注册用户，`org_state` 一开始就是 `not_member`——
+ * 这种账号从没当过成员，`via_invite` 区分这一种和「曾经用邀请码进来、后来被站长收回」那一种，不把两种都说成「已经不是」。
+ */
 export function membershipText(membership: AccountView["membership"]): string {
-  if (membership.state !== "active") return "已经不是极客班成员";
-  // 站内角色（#262 第四期）：管理员是提督；成员只说是怎么加入的
+  if (membership.state !== "active") return membership.via_invite ? "已经不是极客班成员" : "不是极客班成员";
+  // 站内角色（#262 第四期）：管理员单独说；成员只说是怎么加入的
   if (membership.org_role === "admin") return "极客班成员 · 站内管理员";
   return membership.via_invite ? "极客班成员 · 用邀请码注册" : "极客班成员";
 }

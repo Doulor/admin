@@ -1,6 +1,6 @@
 import { createHash, createPublicKey, verify as verifySignature, type JsonWebKey, type KeyObject } from "node:crypto";
 import { request as defaultRequest } from "undici";
-import { GITHUB_TIMEOUT_MS } from "./github.js";
+import { GITHUB_TIMEOUT_MS } from "./github-http.js";
 
 /**
  * Google 登录（#262，ADR-0005「Google 登录」）：OIDC 授权码 + PKCE S256 + state + nonce，只申请 `openid email profile`。

@@ -1,4 +1,5 @@
 import { isIPv4, isIPv6 } from "node:net";
+import { createHash } from "node:crypto";
 
 /**
  * 论坛的纯规则（#57）：长度上限、提及、标签 slug、头像底色、文本检查、按 IP 计数的主体。
@@ -57,8 +58,9 @@ export const FORUM_REQUEST_LIMITS = {
 /** 同一 IP 同一话题一小时只算一次浏览。 */
 export const VIEW_WINDOW_MS = 60 * 60_000;
 
-/** 新编号的起点：旧帖编号都小于 1000，新话题从 t1001、新帖子从 p10001 起。 */
-export const COUNTER_START = { topic: 1000, post: 10000, notification: 0, tag: 0, guest: 0 } as const;
+/** 新编号的起点：旧帖编号都小于 1000，新话题从 t1001、新帖子从 p10001 起。
+ *  member：没有 GitHub id 的成员（邮箱、Google 注册，#274 SPEC §3.6）论坛用户 id（a<n>），有 GitHub id 的仍用 m<GitHub id>。 */
+export const COUNTER_START = { topic: 1000, post: 10000, notification: 0, tag: 0, guest: 0, member: 0 } as const;
 export type CounterName = keyof typeof COUNTER_START;
 
 export const AVATAR_PALETTE = ["#e5484d", "#f76b15", "#f5a524", "#30a46c", "#0ea5e9", "#3e63dd", "#8e4ec6", "#d6409f"] as const;
@@ -205,6 +207,13 @@ export function ipSubject(ip: string): string {
   const right = tail === undefined ? [] : groups(tail);
   const full = tail === undefined ? left : [...left, ...Array<string>(8 - left.length - right.length).fill("0"), ...right];
   return `${full.slice(0, 4).map(group => parseInt(group, 16).toString(16)).join(":")}::/64`;
+}
+
+/** 按 IP 存计数主体时一律存 sha256(ipSubject(ip))，不存明文（#274 残留修复 K/P：以前 forum-api/posts.ts
+ * 自己定义过一份一模一样的实现，forum-limits.ts 的访客读限额那条线甚至直接存了明文 ipSubject，这里
+ * 收成一份共享实现，两边都改成调它）。 */
+export function ipHash(ip: string): string {
+  return createHash("sha256").update(ipSubject(ip)).digest("hex");
 }
 
 /** 个人网站：空串表示清空，否则必须是不带账号密码的 https 地址。 */

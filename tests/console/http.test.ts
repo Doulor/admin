@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError, requestJson } from "../../app/console/src/lib/http";
-import { describeError, errorTrace } from "../../app/console/src/lib/errors";
+import { describeError, errorAction, errorTrace } from "../../app/console/src/lib/errors";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -17,10 +17,10 @@ describe("requestJson", () => {
   });
 
   it("keeps the server's error shape: status, code, message, request id and payload", async () => {
-    const body = { error: "missing_capability", capability: "audit.read", any_of: ["audit.read"], message: "需要「查看审计日志」权限", request_id: "req-1" };
+    const body = { error: "forbidden", node: "activity.read", message: "需要「查看操作记录」权限", request_id: "req-1" };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(403, body)));
-    await expect(requestJson("/api/console/audit")).rejects.toMatchObject({
-      name: "ApiError", status: 403, code: "missing_capability", message: "需要「查看审计日志」权限", requestId: "req-1", payload: body,
+    await expect(requestJson("/api/console/activity")).rejects.toMatchObject({
+      name: "ApiError", status: 403, code: "forbidden", message: "需要「查看操作记录」权限", requestId: "req-1", payload: body,
     });
   });
 
@@ -36,29 +36,30 @@ describe("requestJson", () => {
 });
 
 describe("describeError", () => {
-  const labels: Record<string, string> = { "audit.read": "查看审计日志", "github.invites.manage": "管理邀请" };
+  const labels: Record<string, string> = { "activity.read": "查看操作记录", "invite.manage": "管理邀请码" };
   const labelOf = (id: string) => labels[id] ?? id;
 
-  it("names the missing capability", () => {
-    const error = new ApiError(403, "missing_capability", "x", undefined, { capability: "audit.read" });
+  it("names the missing permission node", () => {
+    const error = new ApiError(403, "forbidden", "x", undefined, { node: "activity.read" });
     const view = describeError(error, labelOf);
     expect(view.kind).toBe("forbidden");
-    expect(view.title).toBe("没有「查看审计日志」权限");
-    expect(view.detail).toContain("舰长");
-    // 称号名字是数据：提示里联系谁，跟着 catalogue 的名字走。
-    expect(describeError(error, labelOf, "提督或船长").detail).toContain("请联系提督或船长");
+    expect(view.title).toBe("没有「查看操作记录」权限");
+    expect(view.detail).toContain("站长或有权限的部门负责人");
+    // 联系谁是数据：传了具体称呼就用它，不用默认的 ASSIGNER_TEXT。
+    expect(describeError(error, labelOf, "管理部部长").detail).toContain("请联系管理部部长");
   });
 
-  it("tells a missing GitHub connection and a broken GitHub App apart from a missing capability (#262 第四期)", () => {
-    const missing = describeError(new ApiError(409, "github_not_connected", "x"), labelOf);
-    expect(missing).toMatchObject({ kind: "conflict", title: "GitHub 还没接上" });
-    expect(missing.detail).toContain("GitHub App");
-    const broken = describeError(new ApiError(503, "github_connection_failed", "x"), labelOf);
-    expect(broken).toMatchObject({ kind: "server", title: "GitHub App 暂时用不了" });
-    // 能力缺失不再带 GitHub 原因：只说找谁指派
-    const denied = describeError(new ApiError(403, "missing_capability", "x", undefined, { capability: "github.invites.manage" }), labelOf);
-    expect(denied).not.toHaveProperty("reason");
-    expect(denied.detail).toContain("指派");
+  it("asks for a fresh login when a sensitive action needs step-up, separately from a missing node (#274)", () => {
+    const stepUp = describeError(new ApiError(403, "step_up_required", "x"), labelOf);
+    expect(stepUp).toMatchObject({ kind: "step_up", title: "需要重新登录" });
+    expect(stepUp.detail).toContain("重新登录");
+    // 和未登录一样给「重新登录」按钮（/signin?return_to=…），不给「重试」
+    expect(errorAction(stepUp, true)).toMatchObject({ kind: "signin", label: "重新登录" });
+    expect(errorAction(describeError(new ApiError(401, "not_signed_in", "x")), true)).toMatchObject({ kind: "signin" });
+    // 缺节点不带「重新登录」的说法：只说找谁加权限
+    const denied = describeError(new ApiError(403, "forbidden", "x", undefined, { node: "invite.manage" }), labelOf);
+    expect(denied.title).toBe("没有「管理邀请码」权限");
+    expect(denied.detail).toContain("加上这项权限");
   });
 
   it("maps sign-out, not found, read-only preview, rate limit and server errors", () => {
@@ -69,6 +70,11 @@ describe("describeError", () => {
     expect(describeError(new ApiError(500, "internal_error", "x")).kind).toBe("server");
   });
 
+  it("names a wait time from retry_after when the server gives one", () => {
+    expect(describeError(new ApiError(429, "rate_limited", "x", undefined, { retry_after: 30 })).detail).toBe("请 30 秒后再试。");
+    expect(describeError(new ApiError(429, "rate_limited", "x")).detail).toBe("请稍等再试。");
+  });
+
   it("keeps a validation message from the server", () => {
     expect(describeError(new ApiError(400, "department_required", "请选择部门")).detail).toBe("请选择部门");
   });
@@ -77,8 +83,8 @@ describe("describeError", () => {
     expect(describeError(new TypeError("Failed to fetch"))).toMatchObject({ kind: "network", status: null });
   });
 
-  it("prints a one-line trace with status, code, capability and request id", () => {
-    const view = describeError(new ApiError(403, "missing_capability", "x", "req-9", { capability: "audit.read" }), labelOf);
-    expect(errorTrace(view)).toBe("HTTP 403 · missing_capability · audit.read · request req-9");
+  it("prints a one-line trace with status, code, node and request id", () => {
+    const view = describeError(new ApiError(403, "forbidden", "x", "req-9", { node: "activity.read" }), labelOf);
+    expect(errorTrace(view)).toBe("HTTP 403 · forbidden · activity.read · request req-9");
   });
 });

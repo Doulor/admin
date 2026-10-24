@@ -1,4 +1,4 @@
-// 投递与意见的状态名和色调。色调取自 catalogue 的 tones（与称号徽章同一套）。
+// 投递与意见的状态名和色调。色调固定在 lib/tone.ts。
 import type { ApplicationStatus, FeedbackStatus, Tone } from "./types";
 
 type StatusMeta = { label: string; tone: Tone };

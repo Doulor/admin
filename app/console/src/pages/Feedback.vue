@@ -22,21 +22,21 @@ import { fmtDate, fmtRelative } from "../lib/format";
 import { useAction, useResource } from "../lib/resource";
 import { siteUrl } from "../lib/runtime";
 import { useSession } from "../lib/session";
-import { toneColor } from "../lib/titles";
+import { toneColor } from "../lib/tone";
 import { FEEDBACK_STATUS, FEEDBACK_STATUSES } from "../lib/statuses";
 import type { FeedbackItem, FeedbackList, FeedbackStatus } from "../lib/types";
 
 const route = useRoute();
 const router = useRouter();
-const { me, can, catalogue } = useSession();
-const canManage = computed(() => can("feedback.manage"));
+const { me, can } = useSession();
+const canManage = computed(() => can("feedback.handle"));
 
 const status = computed(() => (typeof route.query.status === "string" && (FEEDBACK_STATUSES as string[]).includes(route.query.status) ? route.query.status : ""));
 const list = useResource(() => api<FeedbackList>(`/api/console/feedback${status.value ? `?status=${status.value}` : ""}`), [status]);
 const total = computed(() => Object.values(list.data.value?.counts ?? {}).reduce((sum, n) => sum + n, 0));
 const chips = computed(() => [
   { value: "", label: "全部", count: total.value },
-  ...FEEDBACK_STATUSES.map(id => ({ value: id, label: FEEDBACK_STATUS[id].label, count: list.data.value?.counts[id] ?? 0, dot: toneColor(FEEDBACK_STATUS[id].tone, catalogue.value) })),
+  ...FEEDBACK_STATUSES.map(id => ({ value: id, label: FEEDBACK_STATUS[id].label, count: list.data.value?.counts[id] ?? 0, dot: toneColor(FEEDBACK_STATUS[id].tone) })),
 ]);
 const setStatus = (value: string | number) => void router.replace({ query: { ...route.query, status: value ? String(value) : undefined } });
 
@@ -65,8 +65,9 @@ async function askRemove(item: FeedbackItem) {
   if (await confirm({ title: `删除意见 #${item.id}？`, body: "删除后不能恢复，官网的公开意见页也不再显示它。", confirmText: "删除", danger: true })) await remove.execute(item);
 }
 
-const publicPath = computed(() => `/feedback/${me.value?.org ?? ""}`);
-const publicUrl = computed(() => new URL(siteUrl("portal", publicPath.value), window.location.origin).toString());
+// 单一站点，不再按 GitHub 组织分路径（/feedback/:org 仍接住旧链接，见 app/web/sites/portal/App.tsx）。
+const publicPath = "/feedback";
+const publicUrl = computed(() => new URL(siteUrl("portal", publicPath), window.location.origin).toString());
 </script>
 
 <template>

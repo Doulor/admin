@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "../../app/console/src/lib/http";
 import {
-  BIND_EMAIL_PATH, GITHUB_INVITATION_URL, backFromGoogleForInvite, bindEmailPath, bindEmailReturn, cleanCode, codeProblem, initialSignInTab, looksLikeEmail,
+  BIND_EMAIL_PATH, backFromGoogleForInvite, bindEmailPath, bindEmailReturn, cleanCode, codeProblem, initialSignInTab, looksLikeEmail,
   parseSignInOutcome, providerHref, providerIcon, readProviders, registerProblem, registerWithEmail, resetProblem, retryAfter, safeReturnPath, signInOutcomes,
 } from "../../app/console/src/lib/signin";
 import { BIND_EMAIL_PATH as SERVER_BIND_EMAIL_PATH, bindEmailUrl } from "../../app/server/src/lib/email-gate";
@@ -9,32 +9,12 @@ import { BIND_EMAIL_PATH as SERVER_BIND_EMAIL_PATH, bindEmailUrl } from "../../a
 const ORIGIN = "https://yangtzeu.work";
 
 describe("登录结果提示与行动点解析 (signin)", () => {
-  it("not_member：提示不是成员（新用户要先加入组织，老账号由站内管理员决定），并提供「申请加入极客班」引导链接", () => {
-    const outcome = parseSignInOutcome("not_member");
-    expect(outcome).not.toBeNull();
-    expect(outcome?.type).toBe("warning");
-    expect(outcome?.title).toBe("只有极客班成员可以登录");
-    expect(outcome?.body).toContain("先加入极客班的 GitHub 组织");
-    expect(outcome?.body).toContain("由站内管理员决定");
-    expect(outcome?.action).toEqual({
-      label: "申请加入极客班",
-      icon: "i-carbon-email",
-      href: expect.stringContaining("/join-us"),
-    });
-  });
-
-  it("invite_pending：提示待接受邀请，并提供跳转 GitHub 组织邀请页面的外链", () => {
-    const outcome = parseSignInOutcome("invite_pending");
-    expect(outcome).not.toBeNull();
-    expect(outcome?.type).toBe("warning");
-    expect(outcome?.title).toBe("还没接受组织邀请");
-    expect(outcome?.body).toContain("接受极客班组织的邀请");
-    expect(outcome?.action).toEqual({
-      label: "前往 GitHub 接受邀请",
-      icon: "i-carbon-launch",
-      href: GITHUB_INVITATION_URL,
-      target: "_blank",
-    });
+  it("GitHub 组织那道门去掉以后（#274），not_member、invite_pending、invite_required、invalid_invite 都不再是服务端会给的原因", () => {
+    for (const dead of ["not_member", "invite_pending", "invite_required", "invalid_invite"]) expect(parseSignInOutcome(dead)).toBeNull();
+    for (const [key, outcome] of Object.entries(signInOutcomes())) {
+      expect(`${outcome.title}${outcome.body ?? ""}`, key).not.toMatch(/GitHub 组织|组织邀请/);
+      expect(outcome.action?.href ?? "", key).not.toContain("github.com");
+    }
   });
 
   it("cancelled 与 failed：只展示状态，不包含额外行动点", () => {
@@ -60,19 +40,19 @@ describe("登录结果提示与行动点解析 (signin)", () => {
 
   it("signInOutcomes 完整导出所有状态定义", () => {
     const outcomes = signInOutcomes();
-    // 与服务端 SigninOutcome（app/server/src/lib/safe-return.ts）逐个对应
+    // 与服务端 SigninOutcome（app/server/src/lib/safe-return.ts）逐个对应；#274 review round 1：邀请码选填后
+    // not_member、invite_pending、invite_required 都去掉了，invalid_invite 改名 invite_invalid，
+    // 另外补上 no_account、code_expired、rate_limited（服务端类型里有，这里原来缺）；
+    // registration_limited 是 #274 残留修复加的（SPEC §3.8：同一 IP/设备每天新建账号的次数到了上限）。
     expect(Object.keys(outcomes)).toEqual([
-      "not_member", "invite_pending", "cancelled", "failed", "account_disabled", "invite_required", "invalid_invite", "email_taken",
+      "cancelled", "failed", "account_disabled", "invite_invalid", "email_taken", "no_account", "code_expired", "rate_limited", "registration_limited",
     ]);
   });
 
-  it("Google 注册要邀请码、邀请码无效、邮箱已被别的账号用：各有一句说明，没有外链", () => {
-    expect(parseSignInOutcome("invite_required")).toMatchObject({ type: "info", title: "这个 Google 账号还没有极客班账号" });
-    // 说明里点的按钮名要和「注册」标签里的 Google 按钮一样
-    expect(parseSignInOutcome("invite_required")?.body).toContain("「用 Google 注册」");
-    expect(parseSignInOutcome("invalid_invite")?.title).toBe("邀请码无效");
+  it("邀请码无效、邮箱已被别的账号用：各有一句说明，没有外链", () => {
+    expect(parseSignInOutcome("invite_invalid")?.title).toBe("邀请码无效");
     expect(parseSignInOutcome("email_taken")?.body).toContain("用邮箱验证码登录");
-    for (const key of ["invite_required", "invalid_invite", "email_taken"]) expect(parseSignInOutcome(key)?.action, key).toBeUndefined();
+    for (const key of ["invite_invalid", "email_taken"]) expect(parseSignInOutcome(key)?.action, key).toBeUndefined();
   });
 
   it("account_disabled：说明账号已停用，不给重试以外的行动点", () => {
@@ -169,15 +149,14 @@ describe("邮箱登录的小工具 (retryAfter / cleanCode)", () => {
 });
 
 describe("登录、注册两个标签 (initialSignInTab / registerProblem)", () => {
-  it("默认开「登录」；Google 因为没有账号、邀请码不对回来时开「注册」", () => {
+  it("默认开「登录」；Google 填的邀请码不对回来时开「注册」（#274：Google 不再有「还没有账号」这一种）", () => {
     expect(initialSignInTab({})).toBe("signin");
-    expect(initialSignInTab({ signin: "invite_required", provider: "google" })).toBe("register");
-    expect(initialSignInTab({ signin: "invalid_invite", provider: "google" })).toBe("register");
-    expect(initialSignInTab({ signin: "invite_required" })).toBe("signin");
-    expect(initialSignInTab({ signin: "not_member", provider: "google" })).toBe("signin");
+    expect(initialSignInTab({ signin: "invite_invalid", provider: "google" })).toBe("register");
+    expect(initialSignInTab({ signin: "invite_invalid" })).toBe("signin");
+    expect(initialSignInTab({ signin: "account_disabled", provider: "google" })).toBe("signin");
     expect(initialSignInTab({ mode: "register" })).toBe("signin");
-    expect(backFromGoogleForInvite({ signin: "invalid_invite", provider: "google" })).toBe(true);
-    expect(backFromGoogleForInvite({ signin: "invalid_invite", provider: "github" })).toBe(false);
+    expect(backFromGoogleForInvite({ signin: "invite_invalid", provider: "google" })).toBe(true);
+    expect(backFromGoogleForInvite({ signin: "invite_invalid", provider: "github" })).toBe(false);
   });
 
   it("邮箱只挡明显填错的；验证码要先发过、再填满 6 位", () => {
@@ -188,11 +167,12 @@ describe("登录、注册两个标签 (initialSignInTab / registerProblem)", () 
     expect(codeProblem(true, "123456")).toBeNull();
   });
 
-  it("注册表单按从上到下的顺序报第一处问题，密码可以不填，填了至少 8 位、不超过 72 字节", () => {
+  it("注册表单按从上到下的顺序报第一处问题，邀请码和密码可以不填，密码填了至少 8 位、不超过 72 字节", () => {
     const ok = { email: "new@example.com", invite: "Fall-2026", codeSent: true, code: "123456", password: "" };
     expect(registerProblem(ok)).toBeNull();
     expect(registerProblem({ ...ok, email: "new@" })).toBe("邮箱格式不对");
-    expect(registerProblem({ ...ok, invite: "  " })).toBe("填上邀请码才能注册");
+    // 邀请码选填（CONTRACT §2）：不填注册成注册用户，填了由服务端核对
+    expect(registerProblem({ ...ok, invite: "  " })).toBeNull();
     expect(registerProblem({ ...ok, codeSent: false })).toBe("先获取验证码");
     expect(registerProblem({ ...ok, code: "12345" })).toBe("验证码是 6 位数字");
     expect(registerProblem({ ...ok, password: "short" })).toBe("密码至少 8 位");

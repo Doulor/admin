@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { requireCapability } from "../../middleware/require-capability.js";
+import { requirePermission } from "../../middleware/require-permission.js";
+import { requireStepUp } from "../../middleware/require-step-up.js";
 import {
   competitionError, newCompetitionId, toConsoleCompetition,
   type CompetitionDraft, type CompetitionPatch, type CompetitionRecord,
@@ -27,13 +28,13 @@ const refuse = (reply: FastifyReply, error: SignupErrorCode) =>
  */
 export default async function consoleCompetitionRoutes(app: FastifyInstance) {
   const { competitions, competitionSignups, config } = app.services;
-  const { audit, db } = app.services.storage;
+  const { db } = app.services.storage;
   app.addHook("preHandler", requireAuth);
 
-  const manage = [requireCapability("competitions.manage")];
+  const manage = [requirePermission("competition.manage"), requireStepUp];
 
   /** 控制台看全部，含已下线的；公开接口把 `offline` 的滤掉。 */
-  app.get("/api/console/competitions", { preHandler: requireCapability("console.access") }, async () => {
+  app.get("/api/console/competitions", { preHandler: requirePermission("console.access") }, async () => {
     const now = Date.now();
     return { competitions: competitions.list(now).map(record => toConsoleCompetition(record, now)) };
   });
@@ -49,7 +50,7 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
       const created = db.transaction(() => {
         const record = competitions.insert(id, draft, Date.now());
         if (!record) throw new Error("Competition insert returned no row");
-        audit(config.consoleOrg, req.session!, "competition.create", id, { name: record.name, kind: record.kind }, req.ip);
+        app.services.activity.recordActivity(req, { action: "competition.create", surface: "console", target_type: "competition", target_id: id, outcome: "ok", meta: { name: record.name, kind: record.kind } });
         return record;
       })();
       return reply.code(201).send({ competition: toConsoleCompetition(created, Date.now()) });
@@ -73,7 +74,9 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
       if (patch.name !== undefined) patch.name = patch.name.trim();
       const changed = db.transaction(() => {
         const record = competitions.update(id, patch, Date.now());
-        if (record) audit(config.consoleOrg, req.session!, "competition.update", id, { changed: Object.keys(req.body) }, req.ip);
+        if (record) {
+          app.services.activity.recordActivity(req, { action: "competition.update", surface: "console", target_type: "competition", target_id: id, outcome: "ok", meta: { changed: Object.keys(req.body) } });
+        }
         return record;
       })();
       if (!changed) return reply.code(404).send({ error: "not_found", message: "比赛不存在" });
@@ -91,7 +94,7 @@ export default async function consoleCompetitionRoutes(app: FastifyInstance) {
       const removed = db.transaction(() => {
         const record = competitions.get(id);
         if (!record || !competitions.remove(id)) return false;
-        audit(config.consoleOrg, req.session!, "competition.delete", id, { name: record.name }, req.ip);
+        app.services.activity.recordActivity(req, { action: "competition.delete", surface: "console", target_type: "competition", target_id: id, outcome: "ok", meta: { name: record.name } });
         return true;
       })();
       if (!removed) return reply.code(404).send({ error: "not_found", message: "比赛不存在" });

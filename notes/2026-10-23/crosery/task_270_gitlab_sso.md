@@ -134,3 +134,23 @@
 - 做了什么：MR !2 正文：关联写明合进了 stage 6f574328；变更范围写明立即同步只给 roles.manage（比 issue 严）、改站内角色后 GitLab 列重新读、正式改接 GitLab 的顺序；验证按 bb576862 重写，加隔离后端上的对照核对；验收证据加截图 12、13（上传到项目，地址 /-/project/1/uploads/…，逐个 curl 200）；人工验收第 5 步改成合并人先 dry-run 上线、核对预发布账号名单、记下预演结果再改 on，并加改站内角色后 GitLab 列当场变化的一步；正式环境按先预发布 off、再迁 sub 改 issuer、最后正式 on 的顺序；审查结论加第四轮（三条应修、需求对齐、建议、记录偏差、两条剩余风险）；风险加两条剩余风险。
 - 结果：本地 node scripts/pr-contract.mjs check 通过（10 个段落齐全，有验收证据）；MR 的 sha 是 bb576862。
 - 下一步：把新分支头发给 geek-main-56 复核、合并、发 rc.14
+
+## 15:13:10 +08:00 · 合并 · #270 · MR !2 合进 GitLab stage（cfb9b0fb），关 #270，删源分支
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：合并人 geek-main-56 复核 b521261c（两轴子 agent，评论 344，三条应修）与 4471c4e9（合并人逐行复核，评论 359，结论通过）后，在 release 工作区（分离头，6f574328）git merge --no-ff 4471c4e9，合并提交 cfb9b0fb；从 /tmp/geek262/gl-push 克隆把本地 stage 指到 cfb9b0fb、启用 .githooks 推 stage；MR !2 显示已合并后用接口删掉 task/270/gitlab_sso；GitLab 只在合进 main 时自动关 issue，按 Closes #270 手工关闭，issue 与 MR 各留一条「关闭」记录（issue 评论 360、MR 评论 363）
+- 结果：6f57432..cfb9b0f 快进，pre-push 通过；cfb9b0fb 与 4471c4e9 树相同；合并结果上 pnpm check 九项、check-doc-sync --base 6f574328、typecheck 通过，pnpm test 97 个文件 1596 条通过；MR !2 merged，#270 closed（15:12:59）；删分支 204。geek-main-1c 的本机 worktree 由它自己清理
+- 下一步：构建并部署 rc.14：先 dry-run、登记 gitlab 客户端、记预演结果，再改 on 看第一轮对账
+
+## 15:27:34 +08:00 · 发布 · #270 · 本机构建并部署预发布 rc.14（cfb9b0fb10d5），先 dry-run 预演，再打开 GitLab 同步
+
+- 执行者：agent-claude-geek-main-8f7d12b7（Claude Code，claude-opus-5-5）
+- 做了什么：在 cfb9b0fb 上打本地 tag v0.1.1-rc.14（没推送）；本机 docker build --platform linux/amd64，GEEK_RELEASE_VERSION=0.1.1-rc.14@cfb9b0fb10d5，归档 sha256 77f40170…ea39a；部署前 sqlite3 .backup 到 /root/yzgc-backups/preview-20261023-071438-6f574328cc5c.db（integrity ok，600）。目标机上用 /root/yzgc-ops/env-prep-rc14.sh 生成 env：IMAGE_TAG 换新、加 GITLAB_SYNC/URL/GROUP，GITLAB_API_TOKEN 从凭据库 GITLAB_SYNC_API_TOKEN 经标准输入写入，OIDC_JWKS 用新镜像 oidc.js keygen 在目标机生成，两者都不进命令行与日志。第一次用 dry-run 部署（不清 incoming）；docker exec 跑 oidc.js client add --client-id gitlab，secret 经 crosery-ct cred reveal --save 直接存进凭据库 GITLAB_OIDC_CLIENT_SECRET；用新镜像对库的 .backup 副本 --network none、GITLAB_SYNC=dry-run 跑 gitlab.status() 预演，副本跑完删掉；再生成 on 的 env 重新部署并清理 incoming
+- 结果：release.json 0.1.1-rc.14@cfb9b0fb10d5；/oidc/.well-known/openid-configuration 200，issuer https://prev.yangtzeu.work/oidc，PKCE S256；/oidc/jwks 1 把公钥。预演：client_registered true，Crosery create 50、LYsnowQ create 30，预演后 GitLab 只有 root、geek-sync、项目机器人，gitlab_accounts 0 行。on 后第一轮 changed 2 failed 0：GitLab 用户 4 Crosery（geek 组 50）、5 LYsnowQ（30），各一个 openid_connect 身份，extern_uid 与 oauth_subjects 的 sub 按 sha256 前缀一致；审计 gitlab.sync 2、oidc.client.add 1。证据贴在 MR !2 评论 365。未验证：GitLab omniauth 真实往返（1c 还没配）、成员页 GitLab 列的真实数据显示。回滚镜像 6f574328cc5c 仍在目标机
+- 下一步：geek-main-1c 在 GitLab 主机配 omniauth（issuer 用预发布），真实往返后开自动跳转、改私有；所有者在预发布验收
+
+## 15:50:23 +08:00 · 收尾 · #270 · MR !2 合并（stage cfb9b0fb），清理 task-270 worktree 与本地分支
+
+- 执行者：agent-claude-geek-main-1c（Claude Code，claude-opus-5-5）
+- 做了什么：GitHub 账号被封，task.mjs finish 查不到 PR 与 issue 状态（只认 gh），按它的步骤手工做：git fetch 自建 GitLab 的 stage（cfb9b0fb），git merge-base --is-ancestor 4471c4e9 cfb9b0fb 成立，worktree 没有未提交的改动；git worktree remove .claude/worktrees/task-270，git branch -D task/270/gitlab_sso。GitLab 上的远端分支合并人已删，#270 已关（issue 评论 360、MR 评论 363）。
+- 结果：git worktree list 里没有 task-270，本地没有 task/270/* 分支。

@@ -1,8 +1,7 @@
 // 开发预览的接口入口：只读，写请求一律 501 mock_read_only，不伪造写成功（与 docs/architecture/API.md 的约定一致）；
-// 只有改称号的请求会先按服务端规则核对，不合法的照服务端返回 403/400。
+// 控制台的写请求先按服务端规则核对权限、step-up 和几种业务错误（mock/console.ts 的 checkConsoleWrite），不合法的照服务端返回 401/403/400/409。
 import { ApiError } from "../lib/http";
 import { checkConsoleWrite, mockAccount, mockPersona, routeConsole } from "./console";
-import { routeGithub } from "./github";
 
 export async function mockApi<T>(path: string, init?: RequestInit): Promise<T> {
   await new Promise(resolve => setTimeout(resolve, 120));
@@ -22,7 +21,7 @@ export async function mockApi<T>(path: string, init?: RequestInit): Promise<T> {
   if (url.pathname === "/auth/me") {
     const persona = mockPersona();
     return (persona
-      ? { signed_in: true, login: persona.login, avatar_url: null, account_id: `mock-${persona.login}`, email_required: persona.email_required }
+      ? { signed_in: true, login: persona.username, avatar_url: null, account_id: `mock-${persona.username}`, email_required: persona.email_required }
       : { signed_in: false }) as T;
   }
   const method = (init?.method ?? "GET").toUpperCase();
@@ -43,7 +42,7 @@ export async function mockApi<T>(path: string, init?: RequestInit): Promise<T> {
     if (persona.email_required) throw new ApiError(403, "email_required", "先绑定邮箱，再用极客班账号登录这个应用", undefined, { error: "email_required" });
     return {
       client: { id: "gitlab", name: "GitLab", host: "git.yangtzeu.work" }, scopes: ["openid", "profile", "email"],
-      account: { login: persona.login, name: persona.login, picture: null }, expires_at: Date.now() + 10 * 60 * 1000,
+      account: { login: persona.username, name: persona.display_name, picture: null }, expires_at: Date.now() + 10 * 60 * 1000,
     } as T;
   }
   // 与服务端 GET /api/identity/me 同形（app/server/src/routes/identity/account.ts）：账号页的样板；绑定或删除邮箱、设密码是写请求，按只读回 501
@@ -56,7 +55,7 @@ export async function mockApi<T>(path: string, init?: RequestInit): Promise<T> {
     if (url.pathname.startsWith("/api/console/")) checkConsoleWrite(url, method, parseBody(init?.body));
     throw new ApiError(501, "mock_read_only", "开发预览是只读的", undefined, { error: "mock_read_only" });
   }
-  const result = url.pathname.startsWith("/api/console/") ? routeConsole(url) : routeGithub(url);
+  const result = routeConsole(url);
   if (result === undefined) throw new ApiError(404, "mock_route_missing", `开发预览没有这个接口：${url.pathname}`);
   return structuredClone(result) as T;
 }

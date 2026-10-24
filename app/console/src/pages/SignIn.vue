@@ -14,6 +14,7 @@ import logoUrl from "../assets/logo.png";
 import { ApiError, api } from "../lib/http";
 import { isMock, siteUrl } from "../lib/runtime";
 import { PASSWORD_MIN_LENGTH } from "../lib/account";
+import { vSnapIndicator } from "../lib/tabs";
 import {
   backFromGoogleForInvite, cleanCode, codeProblem, initialSignInTab, looksLikeEmail, parseSignInOutcome, providerHref, providerIcon, readProviders,
   registerProblem, registerWithEmail, resetPasswordWithCode, resetProblem, retryAfter, safeReturnPath, sendSigninCode, signInWithPassword, verifySigninCode,
@@ -24,8 +25,9 @@ import {
  * 极客班统一登录页（#262）。官网、论坛、控制台的「登录」都到这里：登录方式按 GET /auth/providers 渲染，前端不写死渠道；
  * 登录后回到 return_to（只接受本站路径）；登录没成功时服务端也回到这里并带上 ?signin=<原因>，原因在这里讲清。
  * 上面是「登录」「注册」两个标签的邮箱表单，下面隔一条「或者」是 GitHub、Google 的跳转按钮（所有者 2026-10-23 10:32）。
- * 邮箱登录有验证码和密码两种；注册填邮箱、邀请码、验证码，密码可以顺手设。用验证码登录时邮箱还没有账号，会转到「注册」，
- * 已填的邮箱和验证码都留着。Google 注册也要邀请码，用「注册」里填的那个。
+ * 邮箱登录有验证码和密码两种；注册填邮箱、邀请码、验证码，密码可以顺手设。邀请码选填（#274 CONTRACT-274 §2）：
+ * 用验证码在「登录」标签登录时邮箱还没有账号，直接注册成注册用户，不会转到「注册」；忘记密码（只认已有账号，不建号）
+ * 遇到没有账号的邮箱才转到「注册」，已填的邮箱和验证码都留着。Google 注册也要邀请码，用「注册」里填的那个。
  * 注册后邮箱原来就有账号、或者填的密码没设上，先在页面上说一句，再让人选继续还是去「我的账号」。
  * 密码登录下面有「忘记密码？」（#273）：用邮箱验证码设新密码并直接登录；记得旧密码、只想换一个的，登录后到「我的账号」里改。
  */
@@ -64,7 +66,6 @@ const googleFirst = computed(() => registering.value && backFromGoogleForInvite(
 
 const googleRegister = (provider: LoginProvider) => provider.id === "google" && registering.value;
 const providerLabel = (provider: LoginProvider) => (googleRegister(provider) ? "用 Google 注册" : `通过 ${provider.name} 继续`);
-const providerBlocked = (provider: LoginProvider) => googleRegister(provider) && !invite.value.trim();
 
 const start = (provider: LoginProvider) => {
   leaving.value = provider.id;
@@ -160,7 +161,7 @@ async function submitCode() {
     leave(result.return_to);
   } catch (error) {
     submitting.value = false;
-    if (error instanceof ApiError && error.code === "invite_required") { movedToRegister.value = true; tab.value = "register"; return; }
+    // #274：邮箱还没有账号时 /auth/email/verify 直接注册成注册用户，不会再回这里；只剩验证码本身的错误。
     if (error instanceof ApiError && error.code === "code_expired") resetCode();
     emailError.value = messageOf(error);
   }
@@ -207,8 +208,8 @@ async function submitReset() {
     leave(result.return_to);
   } catch (error) {
     submitting.value = false;
-    // 这个邮箱还没有账号：和验证码登录一样转到「注册」，验证码还能用
-    if (error instanceof ApiError && error.code === "invite_required") { forgot.value = false; movedToRegister.value = true; tab.value = "register"; return; }
+    // 这个邮箱还没有账号（忘记密码不建号，#274：no_account 取代旧的 invite_required）：转到「注册」，验证码还能用
+    if (error instanceof ApiError && error.code === "no_account") { forgot.value = false; movedToRegister.value = true; tab.value = "register"; return; }
     if (error instanceof ApiError && error.code === "code_expired") resetCode();
     emailError.value = messageOf(error);
   }
@@ -264,6 +265,7 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
         <TxTabs
           v-else-if="emailProvider"
           v-model="tab"
+          v-snap-indicator
           placement="top"
           indicator-variant="line"
           borderless
@@ -282,15 +284,15 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
             <TxRadio value="password" label="密码" />
           </TxRadioGroup>
           <TxAlert v-if="registering && movedToRegister" type="info" title="这个邮箱还没有极客班账号" :closable="false" class="signin__alert signin__alert--tight">
-            填上邀请码就能用它注册，刚才的验证码还能用。
+            可以直接用它注册，刚才的验证码还能用。
           </TxAlert>
 
           <TxFormItem v-slot="{ id }" label="邮箱">
             <TxInput :id="id" v-model="email" type="email" placeholder="name@example.com" autocomplete="email" inputmode="email" spellcheck="false" />
           </TxFormItem>
 
-          <TxFormItem v-if="registering" v-slot="{ id }" label="邀请码">
-            <TxInput :id="id" v-model="invite" placeholder="向邀请你的人要" autocomplete="off" spellcheck="false" />
+          <TxFormItem v-if="registering" v-slot="{ id }" label="邀请码（选填）">
+            <TxInput :id="id" v-model="invite" placeholder="有的话填上" autocomplete="off" spellcheck="false" />
           </TxFormItem>
 
           <TxFormItem v-if="registering || forgot || mode === 'code'" v-slot="{ id }" label="验证码">
@@ -341,8 +343,8 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
         </TxForm>
 
         <TxForm v-if="inviteWithoutEmail" label-position="top" class="signin__form">
-          <TxFormItem v-slot="{ id }" label="邀请码">
-            <TxInput :id="id" v-model="invite" placeholder="向邀请你的人要" autocomplete="off" spellcheck="false" />
+          <TxFormItem v-slot="{ id }" label="邀请码（选填）">
+            <TxInput :id="id" v-model="invite" placeholder="有的话填上" autocomplete="off" spellcheck="false" />
           </TxFormItem>
         </TxForm>
 
@@ -356,7 +358,6 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
             size="lg"
             :icon="providerIcon(provider)"
             :loading="leaving === provider.id"
-            :disabled="providerBlocked(provider)"
             :data-provider="provider.id"
             block
             @click="start(provider)"
@@ -365,7 +366,7 @@ const submitEmail = () => (forgot.value ? submitReset() : registering.value ? su
 
         <p class="signin__note">
           <template v-if="forgot">验证码发到账号绑定的邮箱。记得旧密码、只想换一个的话，登录后到「我的账号」里改。只用 GitHub 或 Google 登录、还没绑邮箱的账号，先用原来的方式登录再绑邮箱。</template>
-          <template v-else-if="registering">邮箱和 Google 注册要邀请码，向邀请你的人要。GitHub 组织的成员直接用 GitHub 登录，账号会自动建好。</template>
+          <template v-else-if="registering">邀请码选填：填了有效的邀请码，注册后就是极客班成员；不填也能注册，先是注册用户，以后拿到邀请码再兑换。</template>
           <template v-else>登录后全站认的是你的极客班账号，改密码在「我的账号」里。还没有账号就切到「注册」。</template>
         </p>
       </template>

@@ -6,7 +6,7 @@ import { aliyunSignature, ALIYUN_ENDPOINT, RESEND_ENDPOINT } from '../../app/ser
 import { MAX_ATTEMPTS, RETRY_DELAYS_MS, SEND_LEASE_MS } from '../../app/server/src/lib/mail/outbox';
 import { formatMailDateTime } from '../../app/server/src/lib/mail/envelope';
 import type { ServiceOverrides } from '../../app/server/src/services';
-import { signIn, testApp, testConfig } from './helpers';
+import { accountIdOf, activityRows, grantPermGroup, signIn, testApp, testConfig } from './helpers';
 
 /**
  * 发信队列与触发点（#148）：投递发「已收到」、控制台改状态发对应的信；同一事件只发一封；
@@ -68,8 +68,12 @@ async function setup(env: Record<string, string> = {}, fetch = fakeFetch(), time
   const { app } = context;
   const { db } = app.services.storage;
   const alice = { cookie: `sid=${signIn(app, 'alice', 101, null, 'token-alice')}` };
+  grantPermGroup(app, accountIdOf(app, 'alice'), 'title.site.owner'); // #274：apply.* 节点按新权限体系判定
+  // #274 SPEC §3.2：投递要先登录（level.registered 就有 apply.submit），不再是匿名表单；
+  // 这个账号专门扮演投递人，跟控制台审核用的 alice 分开。
+  const applicant = { cookie: `sid=${signIn(app, 'mail-applicant', 9001, null)}` };
   const apply = async (patch: Record<string, unknown> = {}) => {
-    const response = await app.inject({ method: 'POST', url: '/api/portal/apply', payload: { ...APPLICANT, pow: { timestamp: Date.now(), nonce: 'test' }, ...patch } });
+    const response = await app.inject({ method: 'POST', url: '/api/portal/apply', headers: applicant, payload: { ...APPLICANT, pow: { timestamp: Date.now(), nonce: 'test' }, ...patch } });
     expect(response.statusCode).toBe(201);
     return response.json().id as string;
   };
@@ -83,7 +87,7 @@ async function setup(env: Record<string, string> = {}, fetch = fakeFetch(), time
   const review = (id: string, payload: Record<string, unknown>) => patch(id, { ...seen(id), ...payload });
   const detail = async (id: string) => (await app.inject({ url: `/api/console/applications/${id}`, headers: alice })).json();
   const rows = () => db.prepare('SELECT * FROM mail_outbox ORDER BY id').all() as Record<string, unknown>[];
-  return { app, db, fetch, time, apply, review, patch, seen, detail, rows, mail: app.services.mail };
+  return { app, db, fetch, time, apply, applicant, review, patch, seen, detail, rows, mail: app.services.mail };
 }
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -161,11 +165,11 @@ describe('limits on the 已收到 letter', () => {
   });
 
   it('refuses a domain ending in a dot, quoted or backslashed local parts and IP literals when applying', async () => {
-    const { app, rows } = await setup(BOTH);
+    const { app, applicant, rows } = await setup(BOTH);
     const odd = ['victim@gmail.com.', 'a@b..c', 'a@.b.c', 'vic..tim@gmail.com', '"victim"@gmail.com', 'vi\\ctim@gmail.com', 'victim@[1.2.3.4]'];
     for (const [i, email] of odd.entries()) {
-      // 每个换一个来源 IP，不碰每个 IP 每分钟 5 次的限流
-      const response = await app.inject({ method: 'POST', url: '/api/portal/apply', remoteAddress: `198.51.100.${10 + i}`, payload: { ...APPLICANT, email, pow: { timestamp: Date.now(), nonce: 'test' } } });
+      // 每个换一个来源 IP，不碰每个 IP 每分钟 5 次的限流，也不碰每个 IP 每天 10 次的投递上限
+      const response = await app.inject({ method: 'POST', url: '/api/portal/apply', headers: applicant, remoteAddress: `198.51.100.${10 + i}`, payload: { ...APPLICANT, email, pow: { timestamp: Date.now(), nonce: 'test' } } });
       expect(response.statusCode, email).toBe(400);
       expect(response.json().fields, email).toHaveProperty('email');
     }
@@ -412,7 +416,8 @@ describe('sending: provider order, retries and the final state', () => {
     const app = await buildApp({ config, staticRoot: false, mailWorker: true, overrides: { mailFetch: fetch.fetch } });
     await app.ready();
     try {
-      const response = await app.inject({ method: 'POST', url: '/api/portal/apply', payload: { ...APPLICANT, pow: { timestamp: Date.now(), nonce: 'test' } } });
+      const headers = { cookie: `sid=${signIn(app, 'mail-worker-applicant', 9002, null)}` };
+      const response = await app.inject({ method: 'POST', url: '/api/portal/apply', headers, payload: { ...APPLICANT, pow: { timestamp: Date.now(), nonce: 'test' } } });
       expect(response.statusCode).toBe(201);
       await vi.waitFor(() => expect(app.services.storage.db.prepare('SELECT status FROM mail_outbox').get()).toEqual({ status: 'sent' }), { timeout: 5000 });
       expect(fetch.calls).toHaveLength(1);
@@ -438,11 +443,14 @@ describe('many letters at once (#169)', () => {
     const app = await buildApp({ config, staticRoot: false, mailWorker: true, overrides: { mailFetch: slow } });
     await app.ready();
     const { db } = app.services.storage;
-    // 50 个人同时投递：各自一个 IP，碰不到每个 IP 的限流和投递次数
-    const burst = (n: number) => Promise.all(Array.from({ length: n }, (_, i) => app.inject({
-      method: 'POST', url: '/api/portal/apply', remoteAddress: `198.18.0.${i + 1}`,
-      payload: { ...APPLICANT, email: `u${i}@example.test`, pow: { timestamp: Date.now(), nonce: 'test' } },
-    })));
+    // 50 个人同时投递：各自一个账号、一个 IP，碰不到每个账号/IP 的限流和投递次数
+    const burst = (n: number) => Promise.all(Array.from({ length: n }, (_, i) => {
+      const headers = { cookie: `sid=${signIn(app, `burst-applicant-${i}`, 20000 + i, null)}` };
+      return app.inject({
+        method: 'POST', url: '/api/portal/apply', headers, remoteAddress: `198.18.0.${i + 1}`,
+        payload: { ...APPLICANT, email: `u${i}@example.test`, pow: { timestamp: Date.now(), nonce: 'test' } },
+      });
+    }));
     const sentCount = () => (db.prepare("SELECT COUNT(*) AS n FROM mail_outbox WHERE status = 'sent'").get() as { n: number }).n;
     return { app, db, calls: fake.calls, burst, sentCount };
   }
@@ -650,7 +658,7 @@ describe('console status changes', () => {
   });
 
   it.each(['received', 'interview', 'accepted', 'rejected'])('cancels from %s without a new mail, even when notify and letter are forced', async (from) => {
-    const { apply, review, rows, detail, mail, fetch, db } = await setup(BOTH);
+    const { app, apply, review, rows, detail, mail, fetch } = await setup(BOTH);
     const id = await apply();
     await mail.drain();
     if (from !== 'received') {
@@ -674,8 +682,8 @@ describe('console status changes', () => {
     expect(rows()).toEqual(queued);
     await mail.drain();
     expect(fetch.calls).toHaveLength(calls);
-    const audit = db.prepare("SELECT details FROM audit_logs WHERE action = 'application.review' ORDER BY id DESC LIMIT 1").get() as { details: string };
-    expect(JSON.parse(audit.details)).toEqual({ from, to: 'cancelled', has_note: true, mail: false });
+    const rowsFor = activityRows(app, { action: 'application.review' });
+    expect(rowsFor[rowsFor.length - 1].meta).toEqual({ from, to: 'cancelled', has_note: true, mail: false });
   });
 
   it('keeps cancellation silent by default, permits notes and restoration, and rejects stale pages', async () => {

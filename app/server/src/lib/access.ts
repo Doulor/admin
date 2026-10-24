@@ -3,38 +3,32 @@ import type { RoleStore } from "./role-store.js";
 import type { IdentityProvider } from "./identity-store.js";
 
 export type AccessDeps = {
-  consoleOrg: string;
-  getOrgRole: (token: string, org: string, login: string) => Promise<OrgRole>;
-  cached: <T>(key: string, ttlMs: number, fn: () => Promise<T>) => Promise<T>;
   roles: RoleStore;
-  /** 账号记下的成员资格与站内角色（lib/identity-store.ts 的 membershipOf / roleUnrecorded / recordOrgRole）。 */
+  /** 账号记下的成员资格与站内角色（lib/identity-store.ts 的 membershipOf）。 */
   membership: {
     of: (accountId: string) => { member: boolean; orgRole: OrgRole };
-    unrecorded: (accountId: string) => boolean;
-    record: (accountId: string, role: OrgRole) => void;
   };
 };
-/** `accountId`：会话的极客班账号（#262），称号先按它认人；`provider`：这次的登录方式，只有 GitHub 会话有 GitHub 令牌。 */
+/**
+ * `accountId`：会话的极客班账号（#262），称号先按它认人。`accessToken`、`provider` 留着不删——
+ * middleware/require-capability.ts 的 `resolveAccess()` 仍然按这个形状传参（它不是本次改动的范围），
+ * 这里不再读它们：#274 去掉 GitHub 组织那道门之后，成员资格和站内角色只认账号自己记的，不再查 GitHub
+ * （CONTRACT-274 §8，见下面 resolve() 的改动说明）。
+ */
 export type ResolveInput = { login: string; userId: number | null; accountId: string | null; accessToken: string; provider: IdentityProvider };
-
-/** 补记站内角色时查到的 GitHub 组织角色缓存 60 秒。错误不缓存（由 cache 保证）。 */
-export const ORG_ROLE_TTL_MS = 60_000;
 
 /**
  * 身份解析：只接受普通参数，不接触 Fastify 请求。
- * 权限只认极客班账号（#262 第四期，所有者 2026-10-23「有关 GitHub 的权限是要放权的」）：不论用哪种方式登录，
- * 成员资格和站内角色都按账号记下的给，不调用 GitHub。唯一的例外是回填建的老账号还没记过站内角色：它的 GitHub 会话
- * 第一次用到时用本人令牌查一次 GitHub 组织角色并记下来，之后就只认站内记录、由控制台改。
- * 查 GitHub 失败直接抛出，由 http-policy 统一映射，绝不把失败当成「不是成员」。
+ * #274 review round 1（blocker）：原来这里在账号「还没记过站内角色」时，会用会话自带的 GitHub 令牌实时查一次
+ * GitHub 组织角色并写回站内角色/新权限引擎（membership.record → identity-store 的 applyOrgRole →
+ * syncPermissionLevel），这就让任何 GitHub 组织管理员一旦调用到走这条路径的接口（例如论坛），不填邀请码也能
+ * 被悄悄提升为 level.member 甚至站长，绕开了邀请码制度——这正是本轮复核要堵的洞。现在彻底不查 GitHub：
+ * 成员资格、站内角色和站长身份只认账号自己在新权限引擎里记的（perm_members），由注册时的邀请码结果
+ * （lib/identity-store.ts 的 signInWithGithub/signInSecondChannel）或控制台/命令行的显式操作
+ * （setSiteRole、provisionAccount）写入，不会再被一次路由调用悄悄改变。
  */
-export function createAccess({ consoleOrg, getOrgRole, cached, roles, membership }: AccessDeps) {
-  async function orgRole(login: string, accessToken: string): Promise<OrgRole> {
-    return cached(`console:orgrole:${login.toLowerCase()}`, ORG_ROLE_TTL_MS, () => getOrgRole(accessToken, consoleOrg, login));
-  }
-  async function resolve({ login, userId, accountId, accessToken, provider }: ResolveInput): Promise<Access> {
-    if (accountId && provider === "github" && accessToken && membership.unrecorded(accountId)) {
-      membership.record(accountId, await orgRole(login, accessToken));
-    }
+export function createAccess({ roles, membership }: AccessDeps) {
+  async function resolve({ login, userId, accountId }: ResolveInput): Promise<Access> {
     const { member, orgRole: siteRole } = accountId ? membership.of(accountId) : { member: false, orgRole: null };
     return computeAccess({
       login, siteRole, member,
@@ -43,6 +37,6 @@ export function createAccess({ consoleOrg, getOrgRole, cached, roles, membership
       titles: roles.titleConfigs(),
     });
   }
-  return { consoleOrg, resolve };
+  return { resolve };
 }
 export type AccessService = ReturnType<typeof createAccess>;

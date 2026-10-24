@@ -28,7 +28,7 @@ const blocked = computed(() => {
     case 'pick-identity':
       return { title: '登录后才能发布话题', description: '选择一个身份即可发起新话题。', action: '登录' }
     case 'sign-in':
-      return { title: '登录后才能发帖', description: '只有极客班成员能登录。不登录也能看帖，也能在话题里回复。', action: '登录' }
+      return { title: '登录后才能发帖', description: '注册或登录极客班账号即可。不登录也能看帖，也能在话题里回复。', action: '登录' }
     case 'offline':
     case 'busy':
     case 'not-member':

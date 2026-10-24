@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { ServiceOverrides } from '../../app/server/src/services';
 import { MERGE_HOPS_MAX } from '../../app/server/src/lib/identity-store';
-import { signIn, testApp } from './helpers';
+import { activityRows, signIn, testApp } from './helpers';
 
 /**
  * 极客班账号与 GitHub 登录事务（#262 交付 1，docs/plan/UNIFIED-LOGIN.md「登录事务」「交付 1：回填」）。
@@ -54,15 +54,28 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
     const second = await callback(first.sid!);
     expect(accountOf(7)).toBe(accountId);
     expect(count('users')).toBe(1);
-    expect(await me(first.sid!)).toEqual({ signed_in: false });
+    // 作废的旧会话按访客处理（#274）：signed_in 为 false，但仍然回 200 带访客的 level/permissions/quota
+    expect(await me(first.sid!)).toMatchObject({ signed_in: false, level: 'visitor' });
     expect((await me(second.sid!)).account_id).toBe(accountId);
-    // 审计带上账号；本人可见的账号记录不存 IP
-    expect(db.prepare("SELECT actor, actor_account_id, details FROM audit_logs WHERE action = 'auth.signin'").all())
-      .toEqual([1, 2].map(() => ({ actor: 'test-github-user', actor_account_id: accountId, details: JSON.stringify({ provider: 'github' }) })));
+    // 操作记录带上账号；本人可见的账号记录不存 IP。第一次登录是新账号，记 auth.register，不再额外多记一条
+    // auth.signin（#274 item I：以前 identity-store.ts 内部不管注没注册都会再写一条 auth.signin，和路由这边
+    // 按 signin.registered 选一个记的 recordActivity 重复，删掉了那条内部重复调用）。
+    expect(activityRows(app, { actionLike: 'auth.%' }).map(row => ({ action: row.action, account_id: row.account_id, meta: row.meta })))
+      .toEqual([
+        { action: 'auth.register', account_id: accountId, meta: { provider: 'github' } },
+        { action: 'auth.signin', account_id: accountId, meta: { provider: 'github' } },
+      ]);
+    // 第一次登录是新账号：多写一条 register（#274，GitHub 现在和邮箱、Google 一样会「注册」）
     expect(db.prepare('SELECT user_id, action, provider, result FROM identity_audit ORDER BY id').all())
-      .toEqual([1, 2].map(() => ({ user_id: accountId, action: 'login', provider: 'github', result: 'ok' })));
+      .toEqual([
+        { user_id: accountId, action: 'register', provider: 'github', result: 'ok' },
+        { user_id: accountId, action: 'login', provider: 'github', result: 'ok' },
+        { user_id: accountId, action: 'login', provider: 'github', result: 'ok' },
+      ]);
     expect((await app.inject({ method: 'POST', url: '/auth/signout', headers: { cookie: `sid=${second.sid}`, origin: 'https://example.test' } })).statusCode).toBe(200);
-    expect(db.prepare("SELECT actor_account_id FROM audit_logs WHERE action = 'auth.signout'").get()).toEqual({ actor_account_id: accountId });
+    // #274 review round 1：退出不再单独写 audit_logs（避免和下面的操作记录重复写同一件事），只经
+    // recordActivity 写进 activity_events，本人可见的账号记录（identity_audit）照旧写。
+    expect(db.prepare("SELECT account_id, action, outcome FROM activity_events WHERE action = 'auth.signout'").get()).toEqual({ account_id: accountId, action: 'auth.signout', outcome: 'ok' });
     expect(db.prepare("SELECT action FROM identity_audit ORDER BY id DESC LIMIT 1").get()).toEqual({ action: 'logout' });
   });
 
@@ -92,14 +105,16 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
     const sid = signIn(app, 'test-github-user', 7);
     const accountId = accountOf(7);
     db.prepare("UPDATE users SET status = 'disabled' WHERE id = ?").run(accountId);
-    expect(await me(sid)).toEqual({ signed_in: false });
+    // 停用账号的旧会话读不到人了，按访客处理（#274），不再是裸 { signed_in: false }
+    expect(await me(sid)).toMatchObject({ signed_in: false, level: 'visitor' });
     expect(count('sessions')).toBe(0);
     const result = await callback();
     expect(result).toEqual({ location: 'https://example.test/signin?signin=account_disabled&return_to=%2Fforum%2F', sid: null });
     expect(count('sessions')).toBe(0);
     expect(grantRevokes).toEqual([JSON.stringify({ access_token: 'test-provider-token' })]);
-    expect(db.prepare("SELECT actor_account_id, details FROM audit_logs WHERE action = 'auth.signin_denied'").get())
-      .toEqual({ actor_account_id: accountId, details: JSON.stringify({ org: 'Yangtze-University-Geek-Class', reason: 'account_disabled', provider: 'github' }) });
+    // #274 item I：这条现在只由 routes/admin/auth.ts 的 recordActivity 记一次（identity-store.ts 内部那条
+    // 重复的 deps.audit() 删掉了），org 字段也跟着去掉（CONSOLE_ORG 之后只是个常量，不写进操作记录）。
+    expect(activityRows(app, { action: 'auth.signin_denied' })[0]).toMatchObject({ account_id: accountId, meta: { reason: 'account_disabled', provider: 'github' } });
     expect(db.prepare("SELECT action, result, reason FROM identity_audit ORDER BY id DESC LIMIT 1").get()).toEqual({ action: 'login_denied', result: 'denied', reason: 'account_disabled' });
   });
 
@@ -118,9 +133,9 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
     const link = db.prepare("UPDATE users SET status = 'merged', merged_into = ? WHERE id = ?");
     for (let i = chain.length - 2; i >= 0; i--) link.run(chain[i + 1], chain[i]);
     if (cycle) link.run(start, chain.at(-1));
-    const before = { users: count('users'), sessions: count('sessions'), audits: count('audit_logs') };
+    const before = { users: count('users'), sessions: count('sessions'), audits: count('activity_events') };
     expect(await callback(bob)).toEqual({ location: 'https://example.test/signin?signin=failed&return_to=%2Fforum%2F', sid: null });
-    expect({ users: count('users'), sessions: count('sessions'), audits: count('audit_logs') }).toEqual(before);
+    expect({ users: count('users'), sessions: count('sessions'), audits: count('activity_events') }).toEqual(before);
     expect((await me(bob)).login).toBe('bob');
   });
 

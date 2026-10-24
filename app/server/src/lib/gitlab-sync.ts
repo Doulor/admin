@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { AuditActor } from "./db.js";
+import type { ActivityOutcome, ActivitySurface } from "./activity.js";
 import type { DirectoryAccount } from "./account-directory.js";
 
 /**
@@ -58,6 +59,15 @@ export type SyncOutcome = { account_id: string; login: string; actions: SyncActi
 /** `skipped` 不为空时这一轮没做：GitLab 的客户端还没登记（gitlab_client_missing）。 */
 export type SyncSummary = { mode: GitlabSyncConfig["mode"]; accounts: number; changed: number; failed: number; skipped: string | null; outcomes: SyncOutcome[] };
 export type SyncLogger = { info(details: Record<string, unknown>, message: string): void; error(details: Record<string, unknown>, message: string): void };
+/** 上一轮全量对账的小结（#274 控制台概览用），进程重启后清空。 */
+export type LastRun = { at: number; changed: number; failed: number };
+export type GitlabGroupInfo = { id: number; full_path: string; name: string; visibility: string };
+export type GitlabProjectInfo = {
+  id: number; path_with_namespace: string; name: string; description: string | null; visibility: string;
+  web_url: string; http_url_to_repo: string; ssh_url_to_repo: string; last_activity_at: string | null; star_count: number;
+};
+/** `available`：false 表示没配 URL、连不上或 GitLab 拒绝了请求——这时 groups/projects 一定是空的，但空也可能只是真的没有项目。 */
+export type GitlabProjectsSummary = { groups: GitlabGroupInfo[]; projects: GitlabProjectInfo[]; available: boolean };
 
 class SyncError extends Error {
   constructor(readonly code: string) { super(code); this.name = "SyncError"; }
@@ -75,12 +85,27 @@ export function createGitlabSync(db: Database.Database, deps: {
   subjects: { subjectFor(sectorId: string, accountId: string): string; existingSubject(sectorId: string, accountId: string): string | null };
   clients: { sectorOf(clientId: string): string | null };
   avatars: { avatar(hash: string): Buffer | null };
-  audit: (org: string | null, actor: AuditActor, action: string, target?: string, details?: unknown, ip?: string) => void;
+  audit: (actor: AuditActor, action: string, target?: string, details?: unknown, ip?: string, opts?: { surface?: ActivitySurface; outcome?: ActivityOutcome }) => void;
   fetch?: FetchLike;
   githubFetch?: FetchLike;
   clock?: () => number;
 }) {
-  const { config } = deps;
+  // 可变：控制台「GitLab 设置」（#274）能在运行时改 mode、group、对账间隔，存在 app_state（键 gitlab_settings），
+  // 重启后从这里读回来盖在 env 的初始值上；令牌只读 env，不在这里改、不持久化。
+  const SETTINGS_KEY = "gitlab_settings";
+  type PersistedSettings = { mode?: GitlabSyncConfig["mode"]; group?: string; interval_minutes?: number };
+  function readPersisted(): PersistedSettings | null {
+    const row = db.prepare("SELECT value FROM app_state WHERE key = ?").get(SETTINGS_KEY) as { value: string } | undefined;
+    if (!row) return null;
+    try { return JSON.parse(row.value) as PersistedSettings; } catch { return null; }
+  }
+  function writePersisted(settings: Required<PersistedSettings>): void {
+    db.prepare("INSERT INTO app_state(key, value, updated_at) VALUES(?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at")
+      .run(SETTINGS_KEY, JSON.stringify(settings), Date.now());
+  }
+  const persisted = readPersisted();
+  let config = { ...deps.config, ...(persisted?.mode !== undefined ? { mode: persisted.mode } : {}), ...(persisted?.group !== undefined ? { group: persisted.group } : {}) };
+  let intervalMs = persisted?.interval_minutes !== undefined ? persisted.interval_minutes * 60_000 : GITLAB_SYNC_INTERVAL_MS;
   const clock = deps.clock ?? Date.now;
   const fetchGitlab = deps.fetch ?? fetch;
   const fetchGithub = deps.githubFetch ?? fetch;
@@ -191,11 +216,16 @@ export function createGitlabSync(db: Database.Database, deps: {
     return null;
   }
 
-  /** 建号时一次性补资料：论坛资料优先；没有论坛资料的 GitHub 账号匿名读一次 GitHub 公开资料。读不到就只用登录名，不让同步失败。头像另算（set_avatar）。 */
+  /**
+   * 建号时一次性补资料（#274 改成统一资料 account_profiles 优先）：显示名、简介有本地值就用本地的；
+   * account_profiles 没有「所在地」「网站」这两项（统一资料只有用户名、显示名、简介、头像，SPEC §3.6），
+   * 这两项、以及本地简介还没填时的兜底，都读一次 GitHub 公开资料（匿名，只在有 GitHub 身份时读）。
+   * 读不到就只用登录名，不让同步失败。头像另算（set_avatar）。
+   */
   type GithubProfile = { name?: string | null; bio?: string | null; blog?: string | null; location?: string | null };
   async function profileFor(account: DirectoryAccount) {
     let github: GithubProfile | null = null;
-    if (!account.profile && account.github) {
+    if (account.github && !account.profile?.bio) {
       try {
         const res = await fetchGithub(`https://api.github.com/user/${account.github.id}`, {
           headers: { Accept: "application/vnd.github+json", "User-Agent": "yzgc-gitlab-sync" }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -206,8 +236,8 @@ export function createGitlabSync(db: Database.Database, deps: {
     return {
       name: (account.profile?.displayName.trim() || github?.name?.trim() || account.name || account.login).slice(0, 255),
       bio: (account.profile?.bio || github?.bio || "").slice(0, 255),
-      location: (account.profile?.location || github?.location || "").slice(0, 255),
-      website_url: websiteOf(account.profile?.website || github?.blog || ""),
+      location: (github?.location || "").slice(0, 255),
+      website_url: websiteOf(github?.blog || ""),
     };
   }
 
@@ -456,8 +486,8 @@ export function createGitlabSync(db: Database.Database, deps: {
     // 按身份找、没找到人，或者找的时候就失败了（还没有这一行，什么也没改）：不写审计，免得 GitLab 出故障时这类账号每人每轮记一条
     const row = rowOf(account.account_id);
     if (done.length || (outcome.error && row)) {
-      deps.audit(null, actor, "gitlab.sync", row?.username ?? account.login,
-        { account_id: account.account_id, actions: actions.map(item => item.kind), error: outcome.error });
+      deps.audit(actor, "gitlab.sync", row?.username ?? account.login,
+        { account_id: account.account_id, actions: actions.map(item => item.kind), error: outcome.error }, undefined, { surface: "system" });
     }
     return outcome;
   }
@@ -475,6 +505,8 @@ export function createGitlabSync(db: Database.Database, deps: {
 
   let running: Promise<SyncSummary> | null = null;
   let stopping = false;
+  /** 上一轮全量对账的小结（#274 `GET /api/console/gitlab/status` 用），只存在进程内存里，重启后为 null。 */
+  let lastRun: LastRun | null = null;
   /**
    * 全部账号对一次账；上一次还没跑完时返回同一个结果，不同时跑两轮。停下（stop）时做完手上这个账号就结束。
    * on 模式下 GitLab 的客户端还没登记时整轮跳过（skipped），不逐个账号记错误和审计。
@@ -492,7 +524,10 @@ export function createGitlabSync(db: Database.Database, deps: {
         mode: config.mode, accounts: outcomes.length,
         changed: outcomes.filter(item => item.applied).length, failed: outcomes.filter(item => item.error).length, skipped: null, outcomes,
       };
-    })().finally(() => { running = null; });
+    })().then(summary => {
+      if (!summary.skipped) lastRun = { at: clock(), changed: summary.changed, failed: summary.failed };
+      return summary;
+    }).finally(() => { running = null; });
     return running;
   }
 
@@ -528,8 +563,10 @@ export function createGitlabSync(db: Database.Database, deps: {
   }
 
   let timer: ReturnType<typeof setInterval> | null = null;
-  /** on 模式才开定时对账（buildApp 的 gitlabSync，index.ts 打开）；立即对一次，之后每 10 分钟。出错只记日志。 */
+  let activeLogger: SyncLogger | null = null;
+  /** on 模式才开定时对账（buildApp 的 gitlabSync，index.ts 打开）；立即对一次，之后每 intervalMs。出错只记日志。 */
   function start(logger: SyncLogger): void {
+    activeLogger = logger;
     if (timer || config.mode !== "on") return;
     stopping = false;
     const run = () => {
@@ -539,7 +576,7 @@ export function createGitlabSync(db: Database.Database, deps: {
       }).catch(error => logger.error({ error: (error as Error)?.name ?? "error" }, "gitlab sync failed"));
     };
     run();
-    timer = setInterval(run, GITLAB_SYNC_INTERVAL_MS);
+    timer = setInterval(run, intervalMs);
     timer.unref();
   }
   async function stop(): Promise<void> {
@@ -552,6 +589,86 @@ export function createGitlabSync(db: Database.Database, deps: {
   /** GitLab 的客户端（client id gitlab）登记了没有；没登记时 on 模式什么也不做。 */
   const clientRegistered = () => sector() !== null;
 
-  return { mode: config.mode, plan, reconcile, syncAccount, status, clientRegistered, gitlabUserFor, accountForGitlabUser, start, stop };
+  /** 过去 24 小时内仍处于失败状态的账号数（不是错误事件总数，只是当前 last_error_at 落在这个窗口里的账号）。 */
+  function errors24h(): number {
+    const since = clock() - 24 * 60 * 60 * 1000;
+    return (db.prepare("SELECT COUNT(*) AS n FROM gitlab_accounts WHERE last_error_at IS NOT NULL AND last_error_at >= ?").get(since) as { n: number }).n;
+  }
+
+  /** 控制台概览的健康检查：能不能连上、GitLab 版本号。没配 URL 时不发请求，直接当作不健康。 */
+  async function health(): Promise<{ version: string | null; healthy: boolean }> {
+    if (!config.url) return { version: null, healthy: false };
+    try {
+      const result = await gitlab("GET", "/version");
+      if (result.status !== 200) return { version: null, healthy: false };
+      const version = (result.data as { version?: unknown } | null)?.version;
+      return { version: typeof version === "string" ? version : null, healthy: true };
+    } catch {
+      return { version: null, healthy: false };
+    }
+  }
+
+  /**
+   * 控制台「代码仓库」与门户公开列表共用的项目清单（#274）：`GITLAB_GROUP` 本身加它的子组，以及组内全部项目
+   * （含子组，按最近活跃排序，最多 100 个）。用管理令牌读，私有项目也在列表里；只给公开项目的过滤由调用方做
+   * （`GET /api/public/gitlab/projects`）。没配 URL、连不上或 GitLab 拒绝时给空列表，不让调用方的接口跟着报错。
+   */
+  async function listProjects(): Promise<GitlabProjectsSummary> {
+    if (!config.url) return { groups: [], projects: [], available: false };
+    const groupPath = encodeURIComponent(config.group);
+    try {
+      const groups: GitlabGroupInfo[] = [];
+      const own = await gitlab("GET", `/groups/${groupPath}`);
+      if (own.status !== 200) return { groups: [], projects: [], available: false };
+      const data = own.data as { id?: unknown; full_path?: unknown; name?: unknown; visibility?: unknown };
+      if (typeof data.id === "number") groups.push({ id: data.id, full_path: String(data.full_path ?? config.group), name: String(data.name ?? config.group), visibility: String(data.visibility ?? "private") });
+      const subgroups = await gitlab("GET", `/groups/${groupPath}/subgroups?per_page=100`);
+      if (subgroups.status === 200 && Array.isArray(subgroups.data)) {
+        for (const item of subgroups.data as Record<string, unknown>[]) {
+          if (typeof item.id === "number") groups.push({ id: item.id, full_path: String(item.full_path ?? ""), name: String(item.name ?? ""), visibility: String(item.visibility ?? "private") });
+        }
+      }
+      const projects: GitlabProjectInfo[] = [];
+      const listed = await gitlab("GET", `/groups/${groupPath}/projects?include_subgroups=true&per_page=100&order_by=last_activity_at`);
+      if (listed.status === 200 && Array.isArray(listed.data)) {
+        for (const item of listed.data as Record<string, unknown>[]) {
+          if (typeof item.id !== "number") continue;
+          projects.push({
+            id: item.id, path_with_namespace: String(item.path_with_namespace ?? ""), name: String(item.name ?? ""),
+            description: typeof item.description === "string" ? item.description : null,
+            visibility: String(item.visibility ?? "private"), web_url: String(item.web_url ?? ""),
+            http_url_to_repo: String(item.http_url_to_repo ?? ""), ssh_url_to_repo: String(item.ssh_url_to_repo ?? ""),
+            last_activity_at: typeof item.last_activity_at === "string" ? item.last_activity_at : null,
+            star_count: typeof item.star_count === "number" ? item.star_count : 0,
+          });
+        }
+      }
+      return { groups, projects, available: true };
+    } catch {
+      return { groups: [], projects: [], available: false };
+    }
+  }
+
+  /**
+   * 控制台「GitLab 设置」的写口（#274）：改 mode（同步开关）、group（成员进的组路径）、intervalMinutes（对账间隔）。
+   * 令牌只读 env，这里不改。mode 从 on 切走、切回来，或者间隔变了都要重新排定时器，统一做法是先停（等手上这一轮跑完）
+   * 再按新设置决定要不要重开；没调用过 `start()` 时（例如测试直接 new 一个 sync 不跑定时器）就什么也不重开，
+   * 只更新设置，下次手动 `reconcile()`/`syncAccount()` 用的已经是新设置。
+   */
+  async function applySettings(patch: { mode?: GitlabSyncConfig["mode"]; group?: string; intervalMinutes?: number }): Promise<void> {
+    await stop();
+    stopping = false; // stop() 是为关进程设计的永久停止；这里只是暂停去换设置，manual reconcile/syncAccount 照常要能跑
+    config = { ...config, ...(patch.mode !== undefined ? { mode: patch.mode } : {}), ...(patch.group !== undefined ? { group: patch.group } : {}) };
+    if (patch.intervalMinutes !== undefined) intervalMs = patch.intervalMinutes * 60_000;
+    writePersisted({ mode: config.mode, group: config.group, interval_minutes: Math.round(intervalMs / 60_000) });
+    if (activeLogger) start(activeLogger);
+  }
+
+  return {
+    get mode() { return config.mode; }, get url() { return config.url; }, get group() { return config.group; },
+    get intervalMinutes() { return Math.round(intervalMs / 60_000); },
+    plan, reconcile, syncAccount, status, clientRegistered, gitlabUserFor, accountForGitlabUser, start, stop, applySettings,
+    lastRun: () => lastRun, errors24h, health, listProjects,
+  };
 }
 export type GitlabSync = ReturnType<typeof createGitlabSync>;
