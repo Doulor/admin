@@ -2,8 +2,9 @@ import type Database from "better-sqlite3";
 import type { ForumContent, ForumTag } from "./forum-content.js";
 import type { AccountDepartmentView, AccountTitleView } from "./permissions.js";
 import {
-  COUNTER_START, FORUM_LIMITS, FORUM_RATE_LIMITS, ForumError, POST_EXCERPT_MAX, SEARCH_EXCERPT_MAX, SEARCH_LIMIT, VIEW_WINDOW_MS,
-  allowedVisibilities, extractMentions, isStricterOrEqual, matchExcerpt, nameKey, paletteColor, postExcerpt, tagSlug,
+  COUNTER_START, FORUM_LIMITS, FORUM_RATE_LIMITS, ForumError, POST_EXCERPT_MAX, SEARCH_EXCERPT_MAX, SEARCH_LIMIT, TOPIC_PAGE_SIZE,
+  TOPIC_PAGE_SIZE_MAX, VIEW_WINDOW_MS, allowedVisibilities, decodeTopicCursor, encodeTopicCursor, extractMentions, isStricterOrEqual,
+  matchExcerpt, nameKey, paletteColor, postExcerpt, tagSlug,
   type CounterName, type RateBucket, type ViewerLevel,
 } from "./forum-rules.js";
 
@@ -367,13 +368,19 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
    * `search()`、话题页共用这一份，和 likesByPost() 同一种「批量取一次」模式。
    */
   const reactionsByPost = (viewerId: string | null): Map<string, ForumReactionSummary[]> => {
+    // forum_reactions.account_id 存的是核心账号 id（db.ts 里 `REFERENCES users(id)`），不是论坛用户 id——
+    // 这个函数所有调用点（state()/search()/changes()/topicPosts()、路由层的 reactionsForPost）传的都是论坛
+    // 用户 id（和 toUser() 判断「是不是本人」、通知/书签按论坛用户 id 查是统一口径），两种 id 的格式从不相同，
+    // 直接拿论坛用户 id 去比 r.account_id 永远比不上，`mine` 原来永远是 false（#276 自查发现，不是所有者报的）。
+    // 按论坛用户 id 反查一次它绑定的账号 id 再参与比较。
+    const accountId = viewerId ? user(viewerId)?.account_id ?? null : null;
     const rows = db.prepare(`
       SELECT r.post_id AS post_id, r.sticker_id AS sticker_id, s.shortcode AS shortcode, s.file_hash AS file_hash,
         COUNT(*) AS count, SUM(CASE WHEN r.account_id = ? THEN 1 ELSE 0 END) AS mine, MIN(r.created_at) AS first_at
       FROM forum_reactions r JOIN forum_stickers s ON s.id = r.sticker_id
       GROUP BY r.post_id, r.sticker_id
       ORDER BY first_at, r.post_id
-    `).all(viewerId) as (ReactionAggRow & { first_at: number })[];
+    `).all(accountId) as (ReactionAggRow & { first_at: number })[];
     const map = new Map<string, ForumReactionSummary[]>();
     for (const row of rows) {
       const list = map.get(row.post_id) ?? [];
@@ -408,6 +415,33 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
     return { topics, posts, users };
   }
 
+  /**
+   * 话题列表的游标分页（#276 CONTRACT §9「列表与搜索接口改成游标分页」）：按 `last_activity_at DESC, rowid DESC`
+   * 翻页，和 search() 的话题排序同一个顺序，续页靠游标接着上一页最后一条排序键继续，不是页码。按身份过滤在
+   * SQL 的 WHERE 里做，和其它读接口共用同一份 visibilityWhere()。`q` 给了就按标题筛，和 search() 的话题部分
+   * 是同一张表、同一种匹配，只是这里支持翻页、search() 只回第一页（见 forum-api/topics.ts 的路由注释）。
+   */
+  function topicsPage(level: ViewerLevel, options: { cursor?: string; limit?: number; q?: string } = {}): { topics: ForumTopic[]; nextCursor: string | null } {
+    const visible = visibilityWhere(level);
+    const limit = Math.min(Math.max(1, options.limit ?? TOPIC_PAGE_SIZE), TOPIC_PAGE_SIZE_MAX);
+    const cursor = options.cursor ? decodeTopicCursor(options.cursor) : null;
+    const conditions = [visible.sql];
+    const params: (string | number)[] = [...visible.params];
+    if (options.q) { conditions.push("t.title LIKE ? ESCAPE '\\'"); params.push(`%${escapeLike(options.q)}%`); }
+    if (cursor) {
+      conditions.push("(t.last_activity_at < ? OR (t.last_activity_at = ? AND t.rowid < ?))");
+      params.push(cursor.lastActivityAt, cursor.lastActivityAt, cursor.rowid);
+    }
+    const rows = db.prepare(`
+        SELECT t.*, t.rowid AS rowid, ${EFFECTIVE_VISIBILITY_EXPR} AS effective_visibility FROM forum_topics t ${TOPIC_VISIBILITY_JOIN}
+        WHERE ${conditions.join(" AND ")} ORDER BY t.last_activity_at DESC, t.rowid DESC LIMIT ?
+      `).all(...params, limit + 1) as (TopicRow & { rowid: number })[];
+    const page = rows.slice(0, limit);
+    const last = page.at(-1);
+    const nextCursor = rows.length > limit && last ? encodeTopicCursor(last.last_activity_at, last.rowid) : null;
+    return { topics: page.map(toTopic), nextCursor };
+  }
+
   return {
     content,
     hasCategory: (id: string) => categoryIds.has(id),
@@ -435,6 +469,8 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
     },
     /** 搜索（#156，#276）：正文不在浏览器里了，匹配改在服务端做；可见性按身份在 SQL 层过滤，与 `/state` 相同。 */
     search,
+    /** 话题列表的游标分页（#276 CONTRACT §9）。 */
+    topicsPage,
     /** 话题的第一帖承载整个话题，不能删。 */
     isFirstPost(postId: string, topicId: string): boolean {
       const first = db.prepare("SELECT id FROM forum_posts WHERE topic_id = ? ORDER BY created_at, rowid LIMIT 1").get(topicId) as { id: string } | undefined;

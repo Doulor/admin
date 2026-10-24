@@ -82,7 +82,7 @@ export function registerHttpPolicy(app: FastifyInstance) {
     return payload;
   });
   app.setErrorHandler((cause, req, reply) => {
-    const error = cause as { statusCode?: number; status?: number; code?: string; message: string; validation?: unknown };
+    const error = cause as { statusCode?: number; status?: number; code?: string; message: string; validation?: unknown; extra?: Record<string, unknown> };
     // #274 item I 的 extras d：这里原来有一段专接「会话自己的 GitHub 令牌被 401」的分支（#164），删 GitHub
     // 组织管理、lib/github-connection.ts 和 /api/join/:token 之后，服务端生产代码不再用会话自己的令牌调
     // GitHub（services.ts 的 github 工厂只给既有测试用，见那边的注释），这个分支永远不会被真实触发，删掉。
@@ -94,10 +94,16 @@ export function registerHttpPolicy(app: FastifyInstance) {
     const masked = status >= 500 && error.code !== "github_connection_failed";
     if (status >= 500) req.log.error({ code: error.code, status, upstreamStatus: (cause as { upstreamStatus?: unknown }).upstreamStatus, requestId: req.id }, "request failed");
     else if (upstream) req.log.warn({ status, requestId: req.id }, "upstream request rejected");
+    // #276 修复：ForumError 的 `extra`（CONTRACT-276 §1 的 401 `need`、403 的 `node`+`need`）一直没有真的铺进响应体——
+    // 这里原来只回 `{ error, message, request_id }` 三个字段，视觉上看不出来，论坛前端据 `need` 判断缺哪一级的分支
+    // 一直拿不到这个字段。masked/upstream/validation 这三支是别的中间件/插件自己造的错误对象，不会带 `extra`，
+    // 这里仍然显式排掉，不让以后哪个 5xx 错误顺手挂了个 extra 就泄出去。
+    const extra = !masked && !upstream && !error.validation ? error.extra : undefined;
     return reply.code(status).send({
       error: error.validation ? "validation_error" : masked ? "internal_error" : upstream ? "upstream_rejected" : error.code ?? "request_error",
       message: masked ? "服务暂时不可用，请稍后重试" : upstream ? UPSTREAM_MESSAGES[status] ?? `GitHub 拒绝了该请求（HTTP ${status}）` : error.message,
       request_id: req.id,
+      ...(extra ?? {}),
     });
   });
 }

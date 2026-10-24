@@ -106,6 +106,27 @@ export const SEARCH_EXCERPT_MAX = 120;
 export const SEARCH_LIMIT = 50;
 /** 搜索词的长度上限。 */
 export const SEARCH_QUERY_MAX = 100;
+/** 话题列表/搜索的游标分页（#276 CONTRACT §9）：默认每页条数、可要求的最大条数。 */
+export const TOPIC_PAGE_SIZE = 20;
+export const TOPIC_PAGE_SIZE_MAX = 50;
+/** 访客翻页上限（SPEC §3.8）：免费看第一页，往后每翻一页（带 cursor 的请求）按访客 id 计数，每天最多这么多次。 */
+export const VISITOR_PAGE_MAX = 10;
+
+/**
+ * 话题列表/搜索的分页游标：不透明字符串，编的是排序键（最后一条的 `last_activity_at:rowid`），客户端不用也不该
+ * 解析它的内容，只管原样带回来要下一页。解不出来的游标当作没有（从第一页开始），不抛错——比起 400，静默兜底
+ * 对一个纯防抓取用途的分页更稳妥，省得客户端拼错一个字符就整个报错。
+ */
+export function encodeTopicCursor(lastActivityAt: number, rowid: number): string {
+  return Buffer.from(`${lastActivityAt}:${rowid}`, "utf8").toString("base64url");
+}
+export function decodeTopicCursor(cursor: string): { lastActivityAt: number; rowid: number } | null {
+  try {
+    const [lastActivityAt, rowid] = Buffer.from(cursor, "base64url").toString("utf8").split(":").map(Number);
+    if (!Number.isFinite(lastActivityAt) || !Number.isFinite(rowid)) return null;
+    return { lastActivityAt, rowid };
+  } catch { return null; }
+}
 
 /**
  * Markdown 帖子正文压成一行纯文本，供摘要使用。故意是有损的：代码块整段消失，链接只留文字，

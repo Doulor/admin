@@ -1,4 +1,4 @@
-import { object, text, type RouteContracts } from "../../lib/http-contracts.js";
+import { integer, object, text, type RouteContracts } from "../../lib/http-contracts.js";
 import { FORUM_LIMITS } from "../../lib/forum-rules.js";
 import type { forumChanges } from "./viewer.js";
 
@@ -8,7 +8,7 @@ import type { forumChanges } from "./viewer.js";
  * 去掉首尾空白后的判断在路由里做。
  */
 /**
- * 输出协议（#145）。GET /api/forum/state 回 `{ state }`：整份 ForumState，加 `viewer`、`guestPolicy`。
+ * 输出协议（#145）。GET /api/forum/state 回 `{ state }`：整份 ForumState，加 `viewer`。
  * 写接口不再回整份状态，一律回 {@link ForumWriteResponse}：`changes` 里只有这次写入改动的记录（lib/forum-store.ts 的
  * ForumChanges，每条与 /state 里同一条完全一样，可见性也一样），前端 app/forum/shared/forum-api.ts 的 `parseWriteResult`
  * 按同一形状解析，按 id 并进手里的状态。POST /topics 另带 `topicId`、`postId`，POST /posts 另带 `postId`（这两个是 201，其余 200）。
@@ -37,6 +37,30 @@ const topicParams = { params: object({ topic_id: pattern(TOPIC_ID_PATTERN) }, ["
 const postParams = { params: object({ post_id: pattern(POST_ID_PATTERN) }, ["post_id"]) };
 const reactionParams = { params: object({ post_id: pattern(POST_ID_PATTERN), sticker_id: pattern(STICKER_ID_PATTERN) }, ["post_id", "sticker_id"]) };
 
+/**
+ * 响应 Schema（宏观对齐要求：新增或修改的接口契约要声明 response）。写接口一律回通用的 ForumWriteResponse
+ * （forumChanges()，字段多、随 keys/options 变化，和其余十几个既有写接口共用同一个没固定 Schema 的形状）——
+ * 这里不单独为 PATCH visibility、POST /posts 另定一份，用最宽松的占位（只声明是对象，不限制字段），不会把
+ * 任何字段裁掉；真正有确定形状的几个新接口（表情聚合、话题分页、表情包列表、上传结果）按真实形状声明。
+ */
+const writeResultShape = { type: "object", additionalProperties: true } as const;
+const reactionSummary = object({
+  stickerId: pattern(STICKER_ID_PATTERN), shortcode: pattern(STICKER_ID_PATTERN), url: text(200, 1), count: integer(0), mine: { type: "boolean" },
+}, ["stickerId", "shortcode", "url", "count", "mine"]);
+const reactionsResult = object({ reactions: { type: "array", items: reactionSummary } }, ["reactions"]);
+const publicSticker = object({ id: pattern(STICKER_ID_PATTERN), shortcode: pattern(STICKER_ID_PATTERN), label: text(FORUM_LIMITS.stickerLabelMax, 1), url: text(200, 1) }, ["id", "shortcode", "label", "url"]);
+const publicStickerPack = object({ id: text(40, 1), name: text(40, 1), stickers: { type: "array", items: publicSticker } }, ["id", "name", "stickers"]);
+const stickersListResult = object({ packs: { type: "array", items: publicStickerPack } }, ["packs"]);
+const topicView = object({
+  id: pattern(TOPIC_ID_PATTERN), slug: text(200, 1), title: text(FORUM_LIMITS.titleMax, 1), categoryId: pattern("^[a-z0-9][a-z0-9-]{0,39}$"),
+  tagIds: { type: "array", items: text(40, 1) }, authorId: text(60, 1), createdAt: integer(0), lastActivityAt: integer(0),
+  views: integer(0), pinned: { type: "boolean" }, closed: { type: "boolean" }, visibility: { type: "string", enum: ["public", "registered", "member"] },
+}, ["id", "slug", "title", "categoryId", "tagIds", "authorId", "createdAt", "lastActivityAt", "views", "pinned", "closed", "visibility"]);
+const topicsPageResult = object({ topics: { type: "array", items: topicView }, nextCursor: { anyOf: [text(2000, 1), { type: "null" }] } }, ["topics", "nextCursor"]);
+const uploadResult = object({ url: text(200, 1), width: integer(0), height: integer(0) }, ["url", "width", "height"]);
+const suggestedUser = object({ username: text(FORUM_LIMITS.displayNameMax, 1), display_name: text(FORUM_LIMITS.displayNameMax, 1), avatar_url: { anyOf: [text(500, 1), { type: "null" }] } }, ["username", "display_name", "avatar_url"]);
+const suggestResult = object({ users: { type: "array", items: suggestedUser } }, ["users"]);
+
 export const forumContracts: RouteContracts = {
   "POST /api/forum/topics": {
     body: object({
@@ -53,15 +77,19 @@ export const forumContracts: RouteContracts = {
       content: text(FORUM_LIMITS.memberContentMax, 1),
       replyToPostId: pattern(POST_ID_PATTERN),
     }, ["topicId", "content"]),
+    response: { 201: writeResultShape },
   },
   "PATCH /api/forum/posts/:post_id": { ...postParams, body: object({ content: text(FORUM_LIMITS.memberContentMax, 1) }, ["content"]) },
   "DELETE /api/forum/posts/:post_id": postParams,
   "POST /api/forum/posts/:post_id/like": postParams,
   "POST /api/forum/posts/:post_id/bookmark": postParams,
-  "PUT /api/forum/posts/:post_id/reactions/:sticker_id": reactionParams,
-  "DELETE /api/forum/posts/:post_id/reactions/:sticker_id": reactionParams,
+  "PUT /api/forum/posts/:post_id/reactions/:sticker_id": { ...reactionParams, response: { 200: reactionsResult } },
+  "DELETE /api/forum/posts/:post_id/reactions/:sticker_id": { ...reactionParams, response: { 200: reactionsResult } },
   "POST /api/forum/users/:forum_user_id/follow": { params: object({ forum_user_id: pattern(USER_ID_PATTERN) }, ["forum_user_id"]) },
-  "GET /api/forum/users/suggest": { querystring: object({ q: text(FORUM_LIMITS.suggestQueryMax, 1) }, ["q"]) },
+  "GET /api/forum/users/suggest": { querystring: object({ q: text(FORUM_LIMITS.suggestQueryMax, 1) }, ["q"]), response: { 200: suggestResult } },
+  "GET /api/forum/stickers": { response: { 200: stickersListResult } },
+  "GET /api/forum/topics": { response: { 200: topicsPageResult } },
+  "PUT /api/forum/uploads": { response: { 200: uploadResult } },
   "POST /api/forum/topics/:topic_id/pin": { ...topicParams, body: object({ pinned: flag }, ["pinned"]) },
   "POST /api/forum/topics/:topic_id/close": { ...topicParams, body: object({ closed: flag }, ["closed"]) },
   "POST /api/forum/topics/:topic_id/view": topicParams,
@@ -69,6 +97,7 @@ export const forumContracts: RouteContracts = {
   "PATCH /api/forum/topics/:topic_id/visibility": {
     ...topicParams,
     body: object({ visibility: { type: ["string", "null"], enum: ["public", "registered", "member", null] } }, ["visibility"]),
+    response: { 200: writeResultShape },
   },
   "POST /api/forum/notifications/:notification_id/read": { params: object({ notification_id: pattern("^n[1-9][0-9]{0,9}$") }, ["notification_id"]) },
   "PATCH /api/forum/me/profile": {
@@ -84,8 +113,10 @@ export const forumContracts: RouteContracts = {
     },
   },
   "GET /api/forum/avatars/:file": { params: object({ file: pattern("^[0-9a-f]{64}\\.webp$") }, ["file"]) },
-  "GET /api/forum/stickers/:file": { params: object({ file: pattern("^[0-9a-f]{64}\\.webp$") }, ["file"]) },
-  "GET /api/forum/uploads/:file": { params: object({ file: pattern("^[0-9a-f]{64}\\.[a-z0-9]{1,8}$") }, ["file"]) },
+  // 图片文件响应是 Buffer：Fastify 发 Buffer 时整段绕过 JSON Schema 序列化（lib/reply.js 的 payload.buffer
+  // instanceof ArrayBuffer 分支直接进 onSend，不走序列化），占位 Schema 只为满足宏观对齐的声明要求，不会真的生效。
+  "GET /api/forum/stickers/:file": { params: object({ file: pattern("^[0-9a-f]{64}\\.webp$") }, ["file"]), response: { 200: { type: "string" } } },
+  "GET /api/forum/uploads/:file": { params: object({ file: pattern("^[0-9a-f]{64}\\.[a-z0-9]{1,8}$") }, ["file"]), response: { 200: { type: "string" } } },
 };
 
 const FIELD_LABELS: Record<string, string> = {

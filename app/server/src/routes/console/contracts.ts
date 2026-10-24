@@ -380,21 +380,49 @@ export const consoleContracts: RouteContracts = {
   },
 
   // ---- #276 论坛管理（分类可见范围、表情包） ---------------------------------------------------
+  "GET /api/console/forum/categories": {
+    querystring: object({}),
+    response: { 200: object({ categories: { type: "array", items: object({ id: forumCategoryId, name: text(64, 1), visibility: visibilityChoice, topic_count: integer(0) }, ["id", "name", "visibility", "topic_count"]) } }, ["categories"]) },
+  },
   "PATCH /api/console/forum/categories/:id": {
     querystring: object({}), params: object({ id: forumCategoryId }, ["id"]),
     body: object({ visibility: visibilityChoice }, ["visibility"]),
+    response: { 200: object({ id: forumCategoryId, visibility: visibilityChoice }, ["id", "visibility"]) },
+  },
+  "GET /api/console/forum/stickers": {
+    querystring: object({}),
+    response: {
+      200: object({
+        packs: {
+          type: "array",
+          items: object({
+            id: stickerPackId, name: text(64, 1), sort: integer(0, 100000), enabled: { type: "boolean" },
+            stickers: {
+              type: "array",
+              items: object({
+                id: stickerPackId, shortcode: stickerShortcode, label: text(FORUM_LIMITS.stickerLabelMax, 1), url: text(200, 1),
+                sort: integer(0, 100000), enabled: { type: "boolean" }, use_count: integer(0),
+              }, ["id", "shortcode", "label", "url", "sort", "enabled", "use_count"]),
+            },
+          }, ["id", "name", "sort", "enabled", "stickers"]),
+        },
+      }, ["packs"]),
+    },
   },
   "PATCH /api/console/forum/sticker-packs/:id": {
     querystring: object({}), params: object({ id: stickerPackId }, ["id"]),
     body: object({ name: text(64, 1), sort: integer(0, 100000), enabled: { type: "boolean" } }),
+    response: { 200: object({ ok: { type: "boolean" } }, ["ok"]) },
   },
   "PATCH /api/console/forum/stickers/:id": {
     querystring: object({}), params: object({ id: stickerPackId }, ["id"]),
     body: object({ label: text(FORUM_LIMITS.stickerLabelMax, 1), sort: integer(0, 100000), enabled: { type: "boolean" } }),
+    response: { 200: object({ ok: { type: "boolean" } }, ["ok"]) },
   },
   // 请求体是图片本身（同头像处理），这里只管路径与查询串；内容类型由路由自己的 addContentTypeParser 接。
   "PUT /api/console/forum/sticker-packs/:id/stickers": {
     params: object({ id: stickerPackId }, ["id"]),
     querystring: object({ shortcode: stickerShortcode, label: text(FORUM_LIMITS.stickerLabelMax, 1) }, ["shortcode", "label"]),
+    response: { 201: object({ id: stickerPackId, shortcode: stickerShortcode, label: text(FORUM_LIMITS.stickerLabelMax, 1) }, ["id", "shortcode", "label"]) },
   },
 };

@@ -132,9 +132,23 @@ export function assertVisible(req: FastifyRequest, viewer: ForumViewer, effectiv
   throw visibilityDenied(viewer.kind, effective as Exclude<ViewerLevel, "public">);
 }
 
+/**
+ * 写权限节点清单（团队负责人 #276 追加要求）：`kind` 只分 guest/member 两档，一个「已登录但不是极客班成员」
+ * 的注册用户和成员看起来都是 `kind: "member"`，前端分不出谁能发话题、回复、点表情、传图——这里把
+ * `level`（分级可见等级，复用 `levelOf()`）与 `nodes`（持有的写权限节点子集）下发，只做按钮显隐的参考，
+ * 真正能不能操作仍由 `requireWriter`/`canModerate` 判定，不能只信这两个字段。
+ */
+const FORUM_WRITE_NODES = [
+  "forum.topic.create", "forum.reply.create", "forum.react",
+  "forum.sticker.use", "forum.upload.image", "forum.moderate.edit",
+] as const;
+
 /** 看的人（前端据此判断按钮显隐）：GET /state 与每个写接口都带。 */
-function viewerAndPolicy(_req: FastifyRequest, viewer: ForumViewer) {
-  return { viewer: { userId: viewer.userId, kind: viewer.kind, capabilities: viewer.capabilities } };
+function viewerAndPolicy(req: FastifyRequest, viewer: ForumViewer) {
+  const { permissions } = req.server.services;
+  const level = levelOf(permissions, viewer.accountId);
+  const nodes = FORUM_WRITE_NODES.filter(node => permissions.check(viewer.accountId, node));
+  return { viewer: { userId: viewer.userId, kind: viewer.kind, capabilities: viewer.capabilities, level, nodes } };
 }
 
 /**

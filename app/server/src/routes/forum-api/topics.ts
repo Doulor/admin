@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { FORUM_REQUEST_LIMITS, ForumError, SEARCH_QUERY_MAX, hasControlChars, ipSubject } from "../../lib/forum-rules.js";
+import { FORUM_REQUEST_LIMITS, ForumError, SEARCH_QUERY_MAX, TOPIC_PAGE_SIZE_MAX, hasControlChars, ipSubject } from "../../lib/forum-rules.js";
 import { assertVisible, canModerate, forbidden, forumChanges, forumState, forumViewer, levelOf, notFound, rateLimited, requireMember, requireWriter } from "./viewer.js";
-import { hourlyLimited, levelRateLimited } from "./forum-limits.js";
+import { hourlyLimited, levelRateLimited, visitorPageLimited } from "./forum-limits.js";
 import { loadSession } from "../../middleware/require-auth.js";
 
 type TopicParams = { topic_id: string };
@@ -43,7 +43,9 @@ export default async function forumTopicRoutes(app: FastifyInstance) {
   /**
    * 搜索（#156，#276）：首屏不再带正文，浏览器的子串匹配做不到了，改在服务端按话题标题、帖子正文、用户名与昵称匹配。
    * 只在 `/state` 也不给的正文里搜不到时就搜不到（已删除的帖子不参与，与之前一致）；空词回空结果。
-   * 话题、帖子按身份在 SQL 层过滤（CONTRACT-276 §1），看不到的不出现在结果里。
+   * 话题、帖子按身份在 SQL 层过滤（CONTRACT-276 §1），看不到的不出现在结果里。只回第一屏（SEARCH_LIMIT 条），
+   * 要翻页浏览话题用下面的 `GET /api/forum/topics`——这里是跨话题/帖子/用户的综合检索，不是单一列表，
+   * 翻页语义不好套（第二页帖子、用户要不要跟着变、要怎么变没有自然的答案），不强行拼一个。
    */
   app.get<{ Querystring: { q?: string } }>("/api/forum/search", { ...perIp(FORUM_REQUEST_LIMITS.search), exposeHeadRoute: false }, async (req, reply) => {
     const viewer = await forumViewer(req);
@@ -55,6 +57,30 @@ export default async function forumTopicRoutes(app: FastifyInstance) {
     const level = levelOf(req.server.services.permissions, viewer.accountId);
     return { results: forum.search(viewer.userId, query, level) };
   });
+
+  /**
+   * 话题列表的游标分页（#276 CONTRACT §9）：按最后活跃时间倒序翻页，`q` 可选，给了就按标题筛（和 search()
+   * 的话题部分同一张表、同一种匹配，这里能翻页）。访客翻页上限（SPEC §3.8）：第一页（没有 `cursor`）免费，
+   * 从第二页起按访客 id 计数，一天最多翻 10 页；注册用户、成员不限——判断放在限额判断之前就查好 viewer，
+   * 不让访客绕过（没有 forumViewer() 就没有 viewer.kind，无法判断是不是访客）。
+   */
+  app.get<{ Querystring: { cursor?: string; limit?: string; q?: string } }>(
+    "/api/forum/topics", { ...perIp(FORUM_REQUEST_LIMITS.search), exposeHeadRoute: false },
+    async (req, reply) => {
+      const viewer = await forumViewer(req);
+      if (levelRateLimited(req, reply, "read")) return;
+      if (visitorPageLimited(req, reply, viewer.kind === "guest", Boolean(req.query.cursor))) return;
+      const query = (req.query.q ?? "").trim();
+      if (query.length > SEARCH_QUERY_MAX) throw new ForumError(400, "validation_error", `搜索词最长 ${SEARCH_QUERY_MAX} 个字`);
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > TOPIC_PAGE_SIZE_MAX)) {
+        throw new ForumError(400, "validation_error", `limit 要是 1 到 ${TOPIC_PAGE_SIZE_MAX} 的整数`);
+      }
+      const level = levelOf(req.server.services.permissions, viewer.accountId);
+      const { topics, nextCursor } = forum.topicsPage(level, { cursor: req.query.cursor, limit, q: query || undefined });
+      return { topics, nextCursor };
+    },
+  );
 
   /** 只有持 forum.topic.create 的人能发帖（#274 起登录但没有邀请码的注册用户没有这个节点）；游客只能回复。 */
   app.post<{ Body: { title: string; categoryId: string; tags?: string[]; content: string } }>("/api/forum/topics", async (req, reply) => {
