@@ -76,3 +76,17 @@
 - 做了什么：所有者原话：「记住，只要是我们进行了页面改动和大改动，那些内容都要归档到一个文件夹里面，然后里面写说明，而且不要让这些页面和旧路由地址上线，不然会影响交互体验和agent的体验」。f5d52f2a 建 docs/history/portal-yugc-os-v1/：这次删掉的 28 个文件和原来的意见箱页面按原路径放进 files/（和 b6420dee 逐字节相同，git hash-object 逐个核对），README 写每个文件原来是什么、换成了什么、哪个提交删的、旧地址去哪；书桌用的手机模型和署名说明从 app/ 移进来，CDN 上传用例的 GLB 样本改用临时文件。fbd4facd /feedback、/feedback/:org 改成跳到 /?open=feedback，YugcOs 读 ?open= 打开窗口并去掉参数；表单移到 components/os/FeedbackBox.tsx；文档页顶栏和控制台意见箱页的分享链接改成新地址。b16bb217 清单加 console 应用、归档目录覆盖、pages/Feedback.tsx 的 removals，ownership 证据改指新位置，目录重建。没动的旧页面：/forum-3d 和 /docs 这次没改版，照旧上线，作为候选写进 MR。
 - 结果：新增两条用例（旧地址跳转、?open=feedback 打开窗口并去掉参数），把修复退回去时两条都失败。ego-browser 在 1440×900 和 390×844 打开 /sites/portal/feedback、/sites/portal/feedback/geek 和文档页顶栏的「意见箱」：都进桌面并打开意见箱窗口，地址剩 /sites/portal，没有单独的意见箱页，没有横向溢出（截图 /tmp/geek-takeover/cmp/redir-*）。pnpm test 109 个文件 1776 条通过；check:runtime、site-config、environments、boundaries、docs、secrets、catalog 和 typecheck 通过；check-architecture 宏观对齐通过（152 个变更文件，34 个关联节点）。
 - 下一步：推到 GitLab，开 MR，审查后合进 stage，发 rc.18 到预发布
+
+## 13:13:19 +08:00 · PR · #275 · #275 推到自建 GitLab，开 MR !8（task/275/yugc_os_v2 → stage）
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：从 /tmp/geek262/gl-push 克隆推 task/275/yugc_os_v2（924fad3b），pre-push 通过；上传 14 张截图（改前 3、返工前 1、改后 10）；用接口开 MR !8，标签 P1、enhancement、ui:layout、ui:visual、ui:interaction、ui:content，正文按 PULL-REQUESTS 的 10 段写，含 Closes #275、解决链路、验证命令与结果、真实接口请求、人工验收步骤和审查结论。
+- 结果：本地 node scripts/pr-contract.mjs check --branch task/275/yugc_os_v2 --body-file <正文> --labels-file <标签> 通过：10 个段落齐全，有验收证据。MR !8 状态 opened：https://git.yangtzeu.work/geek/admin/-/merge_requests/8
+- 下一步：审查结论写进 MR 正文，合进 stage
+
+## 13:13:19 +08:00 · 审查 · #275 · #275 MR !8 审查：有条件通过（作者自审，所有者要求不开子 agent）
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：按 .agents/skills/code-review 的两条线核对 b6420dee...924fad3b：规范与安全看资料卡登录链接（只带本站路径）、头像上传 2MB、样板身份只在开发和预览构建、开机动画模块没有网络和存储副作用、?open= 只认 window 应用；需求对照 SPEC §4、ACCEPTANCE A1–A7、B1、B3、B4 和所有者 10-24 的原话；扫 app/ 的 mascot/pose- 和 Mascot（0 处）与界面 emoji（只在 shapes.ts 的 4 行注释）。
+- 结果：结论：有条件通过，条件是合并后在预发布按 !8 的人工验收步骤走一遍。判断项 3 条（比赛官网入口的第一期文字、.pt-feedback.is-window 修饰类、开机动画引擎只核对副作用），未验证项 3 条（预发布验收、真机长按与 Safari、真实 site_url 下的官网入口），都写在 !8 的「审查结论」。
+- 下一步：合进 stage，手工关 #275，发 rc.18
