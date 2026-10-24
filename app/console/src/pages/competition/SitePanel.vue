@@ -6,7 +6,6 @@ import { TxDataTable } from "@talex-touch/tuffex/data-table";
 import { TxButton } from "@talex-touch/tuffex/button";
 import { TxStatusBadge } from "@talex-touch/tuffex/status-badge";
 import { TxFileUploader } from "@talex-touch/tuffex/file-uploader";
-import { TxFormItem } from "@talex-touch/tuffex/form";
 import { TxInput } from "@talex-touch/tuffex/input";
 import { TxEmptyState } from "@talex-touch/tuffex/empty-state";
 import { toast } from "@talex-touch/tuffex/utils";
@@ -120,9 +119,29 @@ const columns = [
       <TxAlert v-if="!canPublish" type="info" title="只能查看">上传和发布官网要「发布官网」权限。</TxAlert>
 
       <template v-if="canPublish">
+        <div class="dev-guide">
+          <h3 class="subhead">怎么开发</h3>
+          <ol class="steps">
+            <li>复制起步模板 <code>app/web/sites/contests/_starter</code>，在 <code>site.config.ts</code> 里填这场比赛的 id：<code>{{ competitionId }}</code>。比赛信息、人员、队伍、奖项和天梯都用模板里的 SDK 读，不用自己写接口。</li>
+            <li>构建后用 <code>pnpm contest:site dev &lt;构建产物目录&gt;</code> 在本机预览，默认用示例数据；加 <code>--api https://prev.yangtzeu.work</code> 改读预发布上这场比赛的真实公开数据。</li>
+            <li>用 <code>pnpm contest:site pack &lt;构建产物目录&gt; --competition {{ competitionId }}</code> 打成 zip，跑的是和这里同一套校验，通过了再上传。</li>
+          </ol>
+          <p class="muted lead">完整步骤和 SDK 接口见论坛的<a href="/forum/t/t910" target="_blank" rel="noreferrer">《用 SDK 接入比赛官网》</a>。</p>
+        </div>
+
+        <label v-if="!site.data.value.slug" class="slug">
+          <span class="slug-label">官网地址（第一次发布时定下，之后不能改）</span>
+          <TxInput v-model="slug" class="fill-width" placeholder="oss-challenge-2026-1">
+            <template #prefix><span class="mono muted">/c/</span></template>
+          </TxInput>
+          <span v-if="slugProblem" class="field-error">{{ slugProblem }}</span>
+        </label>
+
         <h3 class="subhead">上传新版本</h3>
-        <p class="muted lead">站点包是 zip，最大 20MB、最多 500 个文件，根目录要有 index.html 与 yzgc-site.json；页面只能引用本站的文件。本地先用 pnpm contest:site pack 打包，它跑的是同一套校验。</p>
-        <TxFileUploader v-model="files" accept=".zip,application/zip" :max="1" button-text="选择 zip" drop-text="把 zip 拖到这里" hint-text="也可以点下面的按钮选文件" :disabled="upload.pending.value" />
+        <p class="muted lead">站点包是 zip，最大 20MB、最多 500 个文件，根目录要有 index.html 与 yzgc-site.json；页面只能引用本站的文件。</p>
+        <div class="upload">
+          <TxFileUploader v-model="files" accept=".zip,application/zip" :max="1" button-text="选择 zip" drop-text="把 zip 拖到这里" hint-text="也可以点下面的按钮选文件" :disabled="upload.pending.value" />
+        </div>
         <span v-if="fileProblem" class="field-error">{{ fileProblem }}</span>
         <TxAlert v-if="report" type="error" title="没通过校验">
           <ul class="report">
@@ -130,16 +149,10 @@ const columns = [
           </ul>
         </TxAlert>
         <ErrorAlert v-if="upload.error.value" :error="upload.error.value" @close="upload.reset()" />
-        <div class="form-actions">
+        <div class="upload-actions">
+          <span class="muted">{{ files.length ? `已选 ${files[0].name}（${fmtBytes(files[0].size)}）` : "还没有选文件" }}</span>
           <TxButton variant="primary" :disabled="!files.length" :loading="upload.pending.value" @click="upload.execute()">上传并校验</TxButton>
         </div>
-
-        <TxFormItem v-if="!site.data.value.slug" label="官网地址（第一次发布时定下，之后不能改）" class="slug">
-          <TxInput v-model="slug" class="fill-width" placeholder="oss-challenge-2026-1">
-            <template #prefix><span class="mono muted">/c/</span></template>
-          </TxInput>
-          <span v-if="slugProblem" class="field-error">{{ slugProblem }}</span>
-        </TxFormItem>
       </template>
     </TxCard>
 
@@ -201,8 +214,54 @@ const columns = [
   padding-left: 1.2em;
 }
 .slug {
-  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 14px 0 4px;
   max-width: 420px;
+}
+.slug-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.dev-guide {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--tx-fill-color-light, rgb(0 0 0 / 3%));
+}
+.dev-guide .subhead {
+  margin-top: 0;
+}
+.steps {
+  margin: 0 0 8px;
+  padding-left: 1.3em;
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+.steps code {
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+.upload {
+  min-width: 0;
+}
+.upload :deep(.tx-file-uploader) {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+.upload-actions .muted {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.8125rem;
 }
 .row-actions {
   display: inline-flex;
