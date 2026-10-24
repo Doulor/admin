@@ -23,8 +23,10 @@ export type ServerStatus = 'idle' | 'loading' | 'ready' | 'busy' | 'error'
 /**
  * What a control that needs a forum user does for someone who has none:
  * pick a demo identity, sign in, or explain why nothing can be written now
- * (`not-member`: signed in site-wide, but the server serves this account as a
- * guest because it is no longer in the 极客班 GitHub organization).
+ * (`not-member`: signed in site-wide, but the server still serves this
+ * account as a guest — the only way that happens now is the account having
+ * been disabled after the session started; #274 dropped every other gate,
+ * registering or signing in is enough to write).
  */
 export type LoginPrompt = 'pick-identity' | 'sign-in' | 'not-member' | 'busy' | 'offline' | 'not-open'
 
@@ -59,7 +61,7 @@ export function forumAccess(mode: ForumMode, status: ServerStatus, user: User | 
 export const UNAVAILABLE_COPY = {
   'offline': { title: '论坛服务暂时连不上', description: '现在只能看帖子，稍后刷新页面再试。' },
   'busy': { title: '请求太频繁，稍后再试', description: '论坛过一会儿会自动重新加载，现在可以看帖子。' },
-  'not-member': { title: '这个账号现在不能在论坛里发帖', description: '论坛只给极客班 GitHub 组织的成员用；这个账号不在组织里，和没登录一样只能看帖、用昵称回复。' },
+  'not-member': { title: '这个账号现在不能在论坛里发帖', description: '这个极客班账号已经停用，和没登录一样只能看帖、用昵称回复。' },
 } as const satisfies Record<Extract<LoginPrompt, 'offline' | 'busy' | 'not-member'>, { title: string, description: string }>
 
 /**
@@ -83,7 +85,7 @@ export function loginPromptToast(prompt: LoginPrompt): PromptToast {
     return {
       id: 'forum-sign-in',
       title: '登录后才能继续',
-      description: '发新话题、点赞、收藏和关注要先登录，只有极客班成员能登录。不登录也能看帖和回复。',
+      description: '发新话题、点赞、收藏和关注要先登录。不登录也能看帖和回复。',
       duration: 6000,
       signIn: true,
     }
@@ -95,9 +97,9 @@ export function loginPromptToast(prompt: LoginPrompt): PromptToast {
 }
 
 /**
- * What the forum says once the sign-in turned out to be gone (#164): the server
- * ended it because GitHub took back the token the session held, or it ended in
- * another tab or ran out. The page turns guest at the same time.
+ * What the forum says once the sign-in turned out to be gone: the server
+ * answered a request with `session_expired` (the cookie ran out, or the
+ * session ended in another tab). The page turns guest at the same time.
  * `failed` is what did not happen because of it (「没有点上赞」); one toast
  * says both. LoginModal shows it and adds the 登录 action.
  */
@@ -115,8 +117,8 @@ export function signinLapsedToast(failed: string | null): PromptToast {
 
 /**
  * A member's write refused because the server now serves this person as a
- * guest while they are still signed in: they were taken out of the
- * organisation (#164). Says what failed and why, with the not-member words.
+ * guest while they are still signed in: the account was disabled after the
+ * session started. Says what failed and why, with the not-member words.
  */
 export function refusedNotMemberToast(failed: string): PromptToast {
   return { id: 'forum-not-member', title: failed, description: UNAVAILABLE_COPY['not-member'].description, variant: 'warning', signIn: false }

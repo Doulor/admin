@@ -82,6 +82,8 @@ export default async function accountRoutes(app: FastifyInstance) {
       return reply.code(409).send({ error: "identity_conflict", message: "这个邮箱已经绑定了别的极客班账号" });
     }
     clearChallengeCookie(reply, CHALLENGE_PATH);
+    // #274 review round 1（SPEC §3.7「auth.* 的绑定、解绑」）：只记种类，不记邮箱本身。
+    app.services.activity.recordActivity(req, { action: "auth.email_link", surface: "portal", outcome: "ok" });
     return { ok: true };
   });
 
@@ -94,6 +96,7 @@ export default async function accountRoutes(app: FastifyInstance) {
         ? reply.code(409).send({ error: "primary_email", message: "主邮箱用来收验证码和通知，不能删" })
         : reply.code(404).send({ error: "not_found", message: "这个邮箱已经不在你的账号上了" });
     }
+    app.services.activity.recordActivity(req, { action: "auth.email_unlink", surface: "portal", outcome: "ok" });
     return { ok: true };
   });
 
@@ -107,13 +110,18 @@ export default async function accountRoutes(app: FastifyInstance) {
     if (invalid) {
       return reply.code(400).send({ error: invalid, message: invalid === "password_too_short" ? `密码至少 ${PASSWORD_MIN_LENGTH} 位` : "密码太长了（不能超过 72 个字节）" });
     }
+    const hadPassword = identity.passwordHashOf(session.account_id) !== null;
     if (!fresh(req)) {
       const hash = identity.passwordHashOf(session.account_id);
       const given = req.body.current_password;
       if (!hash || typeof given !== "string" || !given) return stepUp(reply);
-      if (!(await bcrypt.compare(given, hash))) return reply.code(400).send({ error: "invalid_credentials", message: "当前密码不对" });
+      if (!(await bcrypt.compare(given, hash))) {
+        app.services.activity.recordActivity(req, { action: "auth.password_change_failed", surface: "portal", outcome: "denied", meta: { reason: "invalid_credentials" } });
+        return reply.code(400).send({ error: "invalid_credentials", message: "当前密码不对" });
+      }
     }
     identity.setPassword(session.account_id, await hashPassword(req.body.password), { login: session.login, ip: req.ip });
+    app.services.activity.recordActivity(req, { action: hadPassword ? "auth.password_change" : "auth.password_set", surface: "portal", outcome: "ok" });
     return { ok: true };
   });
 }

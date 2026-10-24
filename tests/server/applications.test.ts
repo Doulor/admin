@@ -60,7 +60,7 @@ async function fixture(member = false) {
   return { ...ctx, submit, count };
 }
 
-it('没登录回 401，不落库', async () => {
+it('没登录回 401 unauthenticated，不落库', async () => {
   const context = await testApp();
   contexts.push(context);
   const res = await context.app.inject({
@@ -68,6 +68,9 @@ it('没登录回 401，不落库', async () => {
     payload: { ...VALID, pow: { timestamp: Date.now(), nonce: 'test' } },
   });
   expect(res.statusCode).toBe(401);
+  // #274 review round 1：preHandler 只挂 requirePermission（它自己判定登录态），不再多挂一个 requireAuth——
+  // 两个一起挂时 requireAuth 先回它自己的 not_signed_in，盖掉通用错误码约定的 401 unauthenticated。
+  expect(res.json()).toEqual({ error: 'unauthenticated', message: '请先登录' });
   expect(context.app.services.storage.db.prepare('SELECT COUNT(*) AS n FROM applications').get()).toEqual({ n: 0 });
 });
 
@@ -236,7 +239,7 @@ describe('每天的投递额度（#274 SPEC §3：按账号 / IP / 设备三条�
       const fourth = await submit({ email: 'c3@example.test' });
       expect(fourth.statusCode).toBe(429);
       const expectedRetry = Math.ceil((beijingDayBounds(now).end - now) / 1000);
-      expect(fourth.json()).toMatchObject({ error: 'apply_limited', bucket: 'apply.daily', retry_after: expectedRetry });
+      expect(fourth.json()).toMatchObject({ error: 'rate_limited', bucket: 'apply.daily', retry_after: expectedRetry });
       expect(fourth.headers['retry-after']).toBe(String(expectedRetry));
       expect(count('applications')).toEqual({ n: 3 });
     } finally {
@@ -279,7 +282,7 @@ describe('每天的投递额度（#274 SPEC §3：按账号 / IP / 设备三条�
     for (let n = 1; n <= 10; n += 1) expect((await submitFrom(`2001:db8:1:2::${n}`, `ip${n}@example.test`)).statusCode).toBe(201);
     const eleventh = await submitFrom('2001:db8:1:2::b', 'ip11@example.test');
     expect(eleventh.statusCode).toBe(429);
-    expect(eleventh.json()).toMatchObject({ error: 'apply_limited', bucket: 'apply.daily' });
+    expect(eleventh.json()).toMatchObject({ error: 'rate_limited', bucket: 'apply.daily' });
     // 换一个不在这个 /64 里的地址照样能投
     expect((await submitFrom('203.0.113.9', 'ip12@example.test')).statusCode).toBe(201);
     // 库里只有 IP 的哈希，不是原文
@@ -298,7 +301,7 @@ describe('每天的投递额度（#274 SPEC §3：按账号 / IP / 设备三条�
     for (let n = 1; n <= 5; n += 1) expect((await submitAs(`198.51.100.${n}`, `dev${n}@example.test`)).statusCode).toBe(201);
     const sixth = await submitAs('198.51.100.6', 'dev6@example.test');
     expect(sixth.statusCode).toBe(429);
-    expect(sixth.json()).toMatchObject({ error: 'apply_limited', bucket: 'apply.daily' });
+    expect(sixth.json()).toMatchObject({ error: 'rate_limited', bucket: 'apply.daily' });
     const deviceRows = app.services.storage.db.prepare("SELECT subject FROM limit_events WHERE bucket = 'apply.daily.device'").all() as { subject: string }[];
     expect(new Set(deviceRows.map(row => row.subject))).toEqual(new Set([sha256(device)]));
   });

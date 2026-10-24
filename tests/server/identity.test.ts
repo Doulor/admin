@@ -55,7 +55,7 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
     expect(accountOf(7)).toBe(accountId);
     expect(count('users')).toBe(1);
     // 作废的旧会话按访客处理（#274）：signed_in 为 false，但仍然回 200 带访客的 level/permissions/quota
-    expect(await me(first.sid!)).toMatchObject({ signed_in: false, level: 'level.visitor' });
+    expect(await me(first.sid!)).toMatchObject({ signed_in: false, level: 'visitor' });
     expect((await me(second.sid!)).account_id).toBe(accountId);
     // 审计带上账号；本人可见的账号记录不存 IP
     expect(db.prepare("SELECT actor, actor_account_id, details FROM audit_logs WHERE action = 'auth.signin'").all())
@@ -68,7 +68,9 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
         { user_id: accountId, action: 'login', provider: 'github', result: 'ok' },
       ]);
     expect((await app.inject({ method: 'POST', url: '/auth/signout', headers: { cookie: `sid=${second.sid}`, origin: 'https://example.test' } })).statusCode).toBe(200);
-    expect(db.prepare("SELECT actor_account_id FROM audit_logs WHERE action = 'auth.signout'").get()).toEqual({ actor_account_id: accountId });
+    // #274 review round 1：退出不再单独写 audit_logs（避免和下面的操作记录重复写同一件事），只经
+    // recordActivity 写进 activity_events，本人可见的账号记录（identity_audit）照旧写。
+    expect(db.prepare("SELECT account_id, action, outcome FROM activity_events WHERE action = 'auth.signout'").get()).toEqual({ account_id: accountId, action: 'auth.signout', outcome: 'ok' });
     expect(db.prepare("SELECT action FROM identity_audit ORDER BY id DESC LIMIT 1").get()).toEqual({ action: 'logout' });
   });
 
@@ -99,7 +101,7 @@ describe('GitHub sign-in creates or finds the 极客班 account (#262)', () => {
     const accountId = accountOf(7);
     db.prepare("UPDATE users SET status = 'disabled' WHERE id = ?").run(accountId);
     // 停用账号的旧会话读不到人了，按访客处理（#274），不再是裸 { signed_in: false }
-    expect(await me(sid)).toMatchObject({ signed_in: false, level: 'level.visitor' });
+    expect(await me(sid)).toMatchObject({ signed_in: false, level: 'visitor' });
     expect(count('sessions')).toBe(0);
     const result = await callback();
     expect(result).toEqual({ location: 'https://example.test/signin?signin=account_disabled&return_to=%2Fforum%2F', sid: null });

@@ -33,7 +33,9 @@ describe("账号页 (lib/account)", () => {
     expect(membershipText({ state: "active", org_role: "admin", via_invite: false })).toBe("极客班成员 · 站内管理员");
     expect(membershipText({ state: "active", org_role: "member", via_invite: true })).toBe("极客班成员 · 用邀请码注册");
     expect(membershipText({ state: "active", org_role: "member", via_invite: false })).toBe("极客班成员");
-    expect(membershipText({ state: "not_member", org_role: null, via_invite: false })).toBe("已经不是极客班成员");
+    // #274：没填邀请码注册的账号从没当过成员，不说成「已经不是」；曾经用邀请码进来、后来被收回的才这样说。
+    expect(membershipText({ state: "not_member", org_role: null, via_invite: false })).toBe("不是极客班成员");
+    expect(membershipText({ state: "not_member", org_role: null, via_invite: true })).toBe("已经不是极客班成员");
   });
 
   it("记录与登录方式的中文名，未知的原样显示", () => {

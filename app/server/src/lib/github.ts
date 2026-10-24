@@ -1,8 +1,5 @@
 import { Octokit } from "@octokit/rest";
 
-export type OrgRole = "admin" | "member" | null;
-export type OrgMember = { login: string; id: number; avatar_url: string; role: "admin" | "member" };
-
 /** GitHub 调用一律 15 秒超时：卡住时尽快失败（登录回到原页面、接口报错），而不是挂到 undici 默认的 300 秒。 */
 export const GITHUB_TIMEOUT_MS = 15_000;
 
@@ -14,63 +11,14 @@ export function withTimeout(base: typeof fetch, ms: number): typeof fetch {
   };
 }
 
-export function createGithub(factory: (token: string) => Octokit = token => new Octokit({ auth: token, userAgent: "yzgc-admin", request: { fetch: withTimeout(fetch, GITHUB_TIMEOUT_MS) } })) {
-const octokitWith = factory;
-
-
-
-async function getOrgRole(token: string, org: string, login: string): Promise<OrgRole> {
-  const octokit = octokitWith(token);
-  try {
-    const res = await octokit.request("GET /orgs/{org}/memberships/{username}", { org, username: login });
-    return res.data.state === "active" ? res.data.role as OrgRole : null;
-  } catch (e: any) {
-    if (e.status === 404) return null;
-    throw e;
-  }
-}
-
 /**
- * 登录用：当前用户自己在组织里的成员状态和角色（用刚换到的 token，需要 read:org）。只在这个 GitHub id 还没有账号、
- * 或老账号还没记过站内角色时查（#262 第四期）。不是成员（404）返回 null；已受邀未接受是 "pending"。
- * 其它错误（含组织限制 OAuth App 时的 403）原样抛出，不能当成「不是成员」告诉用户。
+ * #274 review round 1（CONTRACT-274 §8）：GitHub 登录本身（换码、取 /user）不经这里，是 lib/auth.ts 自己
+ * 直接发的 HTTP 请求，不用 Octokit。这个模块原来是给服务器接入的 GitHub App（lib/github-connection.ts，已删）
+ * 和 `/api/join/:token` 的组织邀请链接（routes/portal/join.ts，组织那部分已删）查组织角色、查成员、查用户用的，
+ * 这几个查询现在没有任何调用方了（access.ts 不再查 GitHub 组织角色，见 lib/access.ts 的改动说明），一并删掉。
+ * 保留 `octokitWith` 这一个工厂：ServiceOverrides.octokitFactory 这个测试覆盖点还有大量既有测试在用
+ * （`testApp({ octokitFactory })`），不在本轮复核范围内逐一核对、挪走。
  */
-async function getOwnMembership(token: string, org: string): Promise<{ state: "active" | "pending"; role: "admin" | "member" } | null> {
-  const octokit = octokitWith(token);
-  try {
-    const res = await octokit.request("GET /user/memberships/orgs/{org}", { org });
-    const state = res.data.state;
-    if (state !== "active" && state !== "pending") return null;
-    return { state, role: res.data.role === "admin" ? "admin" : "member" };
-  } catch (e: any) {
-    if (e.status === 404) return null;
-    throw e;
-  }
-}
-
-/** 按用户名查 GitHub 账号（用接入的 GitHub 客户端，lib/github-connection.ts）；不存在返回 null，其它错误原样抛出。 */
-async function getUser(octokit: Pick<Octokit, "request">, login: string): Promise<{ login: string; id: number } | null> {
-  try {
-    const res = await octokit.request("GET /users/{username}", { username: login });
-    return { login: String(res.data.login), id: Number(res.data.id) };
-  } catch (e: any) {
-    if (e.status === 404) return null;
-    throw e;
-  }
-}
-
-/** 组织的全部正式成员与角色（用接入的 GitHub 客户端）。按角色分两次列，省掉逐个查成员身份；错误原样抛出。 */
-async function listOrgMembers(octokit: Pick<Octokit, "request">, org: string): Promise<OrgMember[]> {
-  const result: OrgMember[] = [];
-  for (const role of ["admin", "member"] as const) {
-    for (let page = 1; ; page += 1) {
-      const res = await octokit.request("GET /orgs/{org}/members", { org, role, per_page: 100, page });
-      for (const member of res.data) result.push({ login: String(member.login), id: Number(member.id), avatar_url: String(member.avatar_url ?? ""), role });
-      if (res.data.length < 100) break;
-    }
-  }
-  return result;
-}
-
-return { octokitWith, getOrgRole, getOwnMembership, getUser, listOrgMembers };
+export function createGithub(factory: (token: string) => Octokit = token => new Octokit({ auth: token, userAgent: "yzgc-admin", request: { fetch: withTimeout(fetch, GITHUB_TIMEOUT_MS) } })) {
+  return { octokitWith: factory };
 }

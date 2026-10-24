@@ -156,7 +156,7 @@ describe('邀请码兑换（POST /api/identity/invite/redeem，#274）', () => {
     app.services.invites.create({ code: 'late-valid' }, 'test');
     const locked = await app.inject({ method: 'POST', url: '/api/identity/invite/redeem', headers: { cookie }, payload: { code: 'late-valid' } });
     expect(locked.statusCode).toBe(429);
-    expect(locked.json()).toMatchObject({ error: 'invite_locked', retry_after: 3600 });
+    expect(locked.json()).toMatchObject({ error: 'rate_limited', bucket: 'invite.redeem.fail.account', retry_after: 3600 });
     expect(app.services.permissions.check(accountId, 'forum.topic.create')).toBe(false);
   });
 
@@ -164,7 +164,8 @@ describe('邀请码兑换（POST /api/identity/invite/redeem，#274）', () => {
     const { app, cookie } = await setup();
     const db = app.services.storage.db;
     const ip = '203.0.113.9';
-    // limit_events 存的是 IP 的哈希，不是原文（和 app/server/src/routes/identity/profile.ts 的 ipHash 同一个算法）
+    // limit_events 存的是 IP 的哈希，不是原文（和 lib/identity-store.ts 的 hashIp 同一个算法，profile.ts 的
+    // 兑换接口现在也直接导入它，不再自己另写一份）。
     const ipHash = createHash('sha256').update(ip).digest('hex');
     const now = Date.now();
     for (let i = 0; i < 19; i++) db.prepare('INSERT INTO limit_events(bucket, subject, at) VALUES (?, ?, ?)').run('invite.redeem.fail.ip', ipHash, now - 1000);
@@ -174,7 +175,7 @@ describe('邀请码兑换（POST /api/identity/invite/redeem，#274）', () => {
     app.services.invites.create({ code: 'ip-late-valid' }, 'test');
     const locked = await app.inject({ method: 'POST', url: '/api/identity/invite/redeem', headers: { cookie }, remoteAddress: ip, payload: { code: 'ip-late-valid' } });
     expect(locked.statusCode).toBe(429);
-    expect(locked.json().error).toBe('invite_locked');
+    expect(locked.json()).toMatchObject({ error: 'rate_limited', bucket: 'invite.redeem.fail.ip' });
   });
 });
 

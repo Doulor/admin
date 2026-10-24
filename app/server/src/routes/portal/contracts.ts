@@ -28,7 +28,6 @@ export const portalContracts: RouteContracts = {
     }, ["projects"]) },
   },
   "GET /api/docs/:id": { params: object({ id: text(64, 1) }, ["id"]) },
-  "POST /api/join/:token": body({ github_login: text(39), email: text(254), note: text(280), ...abuse }),
   // 前端批量上报动作（#274 SPEC §3.7）：访客也能调，最多 20 条；白名单在 lib/activity.ts，不在契约里重复列。
   "POST /api/events": {
     ...body({

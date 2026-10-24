@@ -3,7 +3,6 @@ import type { FastifyInstance } from "fastify";
 import { MailTemplateError } from "../../lib/mail/envelope.js";
 import { RECEIVED_LETTER_LIMITS } from "../../lib/mail/mailer.js";
 import { ipSubject } from "../../lib/forum-rules.js";
-import { requireAuth } from "../../middleware/require-auth.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { applyQuota } from "../../lib/apply-quota.js";
 import type { LimitCheck } from "../../lib/limits.js";
@@ -110,7 +109,10 @@ export default async function applyRoutes(app: FastifyInstance) {
   app.post<{ Body: Body }>(
     "/api/portal/apply",
     {
-      preHandler: [requireAuth, requirePermission("apply.submit")],
+      // #274 review round 1（CONTRACT-274 通用规则）：requirePermission 自己调 loadSession，不用再挂 requireAuth——
+      // 两个一起挂时 requireAuth 先跑、先回它自己的 not_signed_in，没登录时拿不到 requirePermission 回的
+      // 401 unauthenticated（通用错误码约定的是后者）。
+      preHandler: [requirePermission("apply.submit")],
       config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
     },
     async (req, reply) => {
@@ -150,8 +152,11 @@ export default async function applyRoutes(app: FastifyInstance) {
       });
 
       const now = Date.now();
+      // #274 review round 1：meta 值非数字时按 0（最严）算，不按 3（兜底默认）算——Number(rawMax) 可能是
+      // NaN，NaN 和任何数比较都是 false，hitAll 的 count >= max 永远不成立，等于悄悄不限额。
       const rawMax = permissions.meta(accountId, "meta.limit.apply.daily");
-      const dailyMax = rawMax === null ? 3 : Number(rawMax);
+      const parsedMax = rawMax === null ? 3 : Number(rawMax);
+      const dailyMax = Number.isFinite(parsedMax) ? parsedMax : 0;
       const checks: LimitCheck[] = [
         { bucket: "apply.daily", subject: accountId, window: "day-bj", max: dailyMax },
         { bucket: "apply.daily.ip", subject: sha256(ipSubject(req.ip)), window: "day-bj", max: APPLY_IP_DAILY_MAX },
@@ -168,7 +173,7 @@ export default async function applyRoutes(app: FastifyInstance) {
       if (!admitted) {
         const retryAfter = Math.max(1, Math.ceil((limits.beijingDayBounds(now).end - now) / 1000));
         return reply.code(429).header("Retry-After", String(retryAfter)).send({
-          error: "apply_limited", bucket: "apply.daily", message: APPLY_LIMITED_MESSAGE, retry_after: retryAfter,
+          error: "rate_limited", bucket: "apply.daily", message: APPLY_LIMITED_MESSAGE, retry_after: retryAfter,
         });
       }
 

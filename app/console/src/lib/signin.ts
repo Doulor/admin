@@ -2,7 +2,6 @@
 // 官网、论坛、控制台的「登录」都进 /signin?return_to=<同源路径>；GitHub 只是登录方式之一，身份以极客班账号（account_id）为准。
 import { passwordRuleProblem } from "./account";
 import { ApiError, api, jsonBody } from "./http";
-import { siteUrl } from "./runtime";
 
 export interface OutcomeAction {
   label: string;
@@ -20,16 +19,6 @@ export interface OutcomeInfo {
 
 export function signInOutcomes(): Record<string, OutcomeInfo> {
   return {
-    not_member: {
-      type: "warning",
-      title: "只有极客班成员可以登录",
-      body: "这个账号现在不是极客班成员。身份由站长或有权限的部门负责人在控制台里改；有邀请码的话，登录后可以兑换。不登录也能浏览官网和论坛。",
-      action: {
-        label: "申请加入极客班",
-        icon: "i-carbon-email",
-        href: siteUrl("portal", "/join-us"),
-      },
-    },
     cancelled: { type: "info", title: "已取消登录" },
     failed: { type: "warning", title: "登录没有完成", body: "请稍后再试一次。" },
     account_disabled: {
@@ -37,21 +26,20 @@ export function signInOutcomes(): Record<string, OutcomeInfo> {
       title: "这个极客班账号已停用",
       body: "账号停用后不能登录，已有的会话也已失效。如有疑问请联系站长。",
     },
-    invite_required: {
-      type: "info",
-      title: "这个 Google 账号还没有极客班账号",
-      body: "点「用 Google 注册」，就会用这个 Google 账号注册一个极客班账号。有邀请码的话先填在下面，注册后就是极客班成员。",
-    },
-    invalid_invite: {
+    // #274 review round 1：邀请码改成选填，不填直接注册成注册用户；这个码只在填了但无效时才会回来。
+    invite_invalid: {
       type: "warning",
       title: "邀请码无效",
-      body: "邀请码不对、已停用、过期或者次数用完了。向发给你邀请码的人要一个新的。",
+      body: "邀请码不对、已停用、过期或者次数用完了。不填邀请码也能注册成注册用户，或者向发给你邀请码的人要一个新的。",
     },
     email_taken: {
       type: "warning",
       title: "这个邮箱已经有极客班账号",
       body: "Google 账号的邮箱已经绑定了别的极客班账号。用邮箱验证码登录那个账号就好。",
     },
+    no_account: { type: "info", title: "这个邮箱还没有极客班账号", body: "先用验证码登录注册一个。" },
+    code_expired: { type: "warning", title: "验证码已失效", body: "请重新获取验证码再试。" },
+    rate_limited: { type: "warning", title: "试得太频繁了", body: "请稍后再试。" },
     registration_limited: {
       type: "warning",
       title: "今天新注册的账号太多了",
@@ -151,7 +139,7 @@ export const verifySigninCode = (code: string, inviteCode?: string) =>
   api<{ return_to: string; registered: boolean }>("/auth/email/verify", { method: "POST", ...jsonBody({ code, ...(inviteCode?.trim() && { invite_code: inviteCode.trim() }) }) });
 export const signInWithPassword = (provider: Pick<LoginProvider, "password">, email: string, password: string, returnPath: string, origin: string) =>
   api<{ return_to: string }>(provider.password ?? "/auth/email/password", { method: "POST", ...jsonBody({ email, password, return_to: `${origin}${returnPath}` }) });
-/** 用邮箱验证码重设密码并登录（#273）。没有账号的邮箱和验证码登录一样回 `invite_required`，不会注册。 */
+/** 用邮箱验证码重设密码并登录（#273）。这个邮箱没有账号时回 `no_account`，不会顺手注册新账号。 */
 export const resetPasswordWithCode = (code: string, password: string) =>
   api<{ return_to: string }>("/auth/email/reset", { method: "POST", ...jsonBody({ code, password }) });
 
@@ -168,9 +156,9 @@ export const cleanCode = (raw: string | number): string => String(raw).replace(/
 /** 登录页的两个标签：登录、注册（所有者 2026-10-23 10:32：要有邮箱注册）。 */
 export type SignInTab = "signin" | "register";
 
-/** Google 因为没有账号、邀请码不对回到登录页（`provider=google` 且 `signin=invite_required|invalid_invite`）：要在「注册」里填邀请码再走 Google。 */
+/** Google 填的邀请码无效回到登录页（`provider=google` 且 `signin=invite_invalid`，#274：邀请码选填后 Google 不会再有「还没有账号」这一种）：要在「注册」里填邀请码再走 Google。 */
 export function backFromGoogleForInvite(query: Record<string, unknown>): boolean {
-  return query.provider === "google" && (query.signin === "invite_required" || query.signin === "invalid_invite");
+  return query.provider === "google" && query.signin === "invite_invalid";
 }
 
 /** 先打开哪个标签：从 Google 回来要邀请码时开「注册」，其余开「登录」。 */

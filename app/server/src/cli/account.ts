@@ -2,6 +2,7 @@ import { loadConfig } from "../config.js";
 import { createDatabase } from "../lib/db.js";
 import { createIdentityStore } from "../lib/identity-store.js";
 import { createInviteCodeStore, InviteCodeError } from "../lib/invite-codes.js";
+import { createLimits } from "../lib/limits.js";
 import { normalizeEmail } from "../lib/email-login.js";
 
 /**
@@ -42,7 +43,8 @@ async function main(argv: string[]): Promise<number> {
       }
       const identity = createIdentityStore(storage.db, {
         createSession: () => { throw new Error("provision never creates sessions"); },
-        audit: storage.audit, consoleOrg: config.consoleOrg,
+        // provisionAccount 不走注册限额/邀请码猜测锁定那几条路径，这里的 limits 只是满足类型，不会被真的调用。
+        audit: storage.audit, consoleOrg: config.consoleOrg, limits: createLimits(storage.db),
       });
       const result = identity.provisionAccount({ githubId, githubLogin, orgRole, email });
       process.stdout.write(`${JSON.stringify(result)}\n`);
