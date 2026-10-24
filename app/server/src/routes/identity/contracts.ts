@@ -109,15 +109,18 @@ const deviceDecision = object({
   ok: { type: "boolean", const: true },
   status: choices("approved", "denied"),
 }, ["ok", "status"]);
+// 命令行拿不到 real_name（#277 的硬约束），只给年级——身份展示够用，不碰姓名
 const deviceProfile = object({
   sub: text(64, 1),
   account_id: text(64, 1),
   login: text(40),
   avatar_url: nullableText(500),
   scope: text(200),
+  grade: { anyOf: [selectableGrade, choices("graduated"), { type: "null" }] },
+  grade_label: { anyOf: [text(8, 1), { type: "null" }] },
   email_required: { type: "boolean" },
   profile_required: { type: "boolean" },
-}, ["sub", "account_id", "login", "avatar_url", "scope", "email_required", "profile_required"]);
+}, ["sub", "account_id", "login", "avatar_url", "scope", "grade", "grade_label", "email_required", "profile_required"]);
 
 export const identityContracts: RouteContracts = {
   "GET /auth/providers": {
@@ -147,6 +150,11 @@ export const identityContracts: RouteContracts = {
   "GET /auth/device/userinfo": {
     querystring: object({}),
     response: { 200: deviceProfile, ...failures },
+  },
+  // RFC 7009 式幂等：令牌缺失、不存在、已撤销或已过期都回同一个 200，不区分哪种情况。
+  "POST /auth/device/revoke": {
+    querystring: object({}),
+    response: { 200: done },
   },
   "POST /auth/email/start": {
     querystring: object({}),

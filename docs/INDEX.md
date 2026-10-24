@@ -33,6 +33,10 @@
 
 与 `app/` 一一对应的服务文档：每个服务一份 README（源码地图、契约、运行、验证、限制）。
 
+## services/cli/
+
+极客班命令行 `geek`（Rust）：设备码登录、论坛/比赛/代码仓库只读与写操作、给 Claude Code/Codex/omp 装一份极客班技能（#277）。独立工具链，不进 Node 工作区；产物不单独成镜像，随 `app/web` 镜像的 `/cli/` 路径分发。
+
 ## services/console/
 
 极客班控制台前端：Vue 3 + Tuffex 单页应用，按权限节点显示页面；接口全部来自 `app/server`，产物由 web 镜像托管。

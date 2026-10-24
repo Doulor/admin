@@ -13,6 +13,7 @@ import { existsSync } from "node:fs";
 import { APP_ROOT, type AppConfig } from "./config.js";
 import { createServices, type AppServices, type ServiceOverrides } from "./services.js";
 import { rateLimited, registerHttpPolicy } from "./middleware/http-policy.js";
+import { registerBearerAuth } from "./middleware/bearer-auth.js";
 import { startActivityCleanup } from "./lib/activity.js";
 
 /** 官网产物（app/web）与控制台产物（app/console）分开构建，静态托管时两个目录叠在一起。 */
@@ -100,6 +101,9 @@ export async function buildApp(options: BuildAppOptions) {
   });
   registerHttpPolicy(app);
   await app.register(cookie, { secret: config.sessionSecret });
+  // geek 命令行的 Bearer 鉴权（#277）：必须在 cookie 插件之后挂，它要读 req.cookies 判断「同一个请求
+  // 不能同时带 cookie 和 Bearer」。
+  registerBearerAuth(app);
   // 只限写了 config.rateLimit 的路由；超额一律 429 rate_limited，路由不另写 errorResponseBuilder（#191）
   await app.register(rateLimit, { global: false, errorResponseBuilder: () => rateLimited() });
 

@@ -1,0 +1,6 @@
+{
+  "name": "geek-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "极客班命令行（Rust，不是 Node 包）：只给 scripts/catalog 读取名字与版本当应用清单的元数据，不在 pnpm-workspace.yaml 里，没有脚本和依赖；真正的构建与测试见 Cargo.toml、docs/services/cli/README.md。"
+}

@@ -12,6 +12,8 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 export const STEP_UP_MS = 10 * 60_000;
 
 export function isSessionFresh(req: FastifyRequest): boolean {
+  // geek 命令行的令牌不是一次登录（middleware/bearer-auth.ts），永远不算刚登录过
+  if (req.via === "cli") return false;
   return req.server.services.clock() - req.session!.created_at <= STEP_UP_MS;
 }
 

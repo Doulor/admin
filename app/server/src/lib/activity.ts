@@ -66,13 +66,22 @@ export function createActivityRecorder(db: Database.Database, clock: () => numbe
     return { accountId, visitorId: accountId ? null : req.visitorId ?? null };
   }
 
+  /**
+   * #277：这次请求是 middleware/bearer-auth.ts 用 geek 命令行的令牌挂上的身份，一律记成 `surface: "cli"`——
+   * 不管调用点自己传了 "forum"/"portal" 哪个值。调用点不用为了命令行各自改一遍，控制台的操作记录照样能
+   * 按 surface 筛出「这条是命令行发的」。
+   */
+  function surfaceOf(req: FastifyRequest, surface: ActivitySurface): ActivitySurface {
+    return req.via === "cli" ? "cli" : surface;
+  }
+
   function recordActivity(req: FastifyRequest, input: RecordActivityInput): void {
     const { accountId, visitorId } = subjectOf(req, input);
     insert.run({
       at: clock(),
       account_id: accountId,
       visitor_id: visitorId,
-      surface: input.surface,
+      surface: surfaceOf(req, input.surface),
       action: input.action,
       target_type: input.target_type ?? null,
       target_id: input.target_id ?? null,
@@ -105,7 +114,7 @@ export function createActivityRecorder(db: Database.Database, clock: () => numbe
       at: now,
       account_id: accountId,
       visitor_id: visitorId,
-      surface: input.surface,
+      surface: surfaceOf(req, input.surface),
       action: input.action,
       target_type: input.target_type ?? null,
       target_id: input.target_id ?? null,

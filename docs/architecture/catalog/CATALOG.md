@@ -4,18 +4,18 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`fd8d9776deacaf29ab1d271e6c04f99d24e43c024cb188a7f2eb4d40e69ab42b`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`d3d74fe7b4c4f9f70250c97ca59fdbe62d6284972c1b04771fad7fc52ae16d5f`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
 ## 基线
 
-- 4 个源码应用，3 个运行单元。
-- 217 个已注册方法与路径，其中业务操作 125 个，自动 HEAD 63 个。
-- 55 张应用表，22 个能力，131 条显式业务流程。
-- 响应 Schema：87/217。缺失不等于没有响应；不冒充完整 OpenAPI。
+- 5 个源码应用，3 个运行单元。
+- 220 个已注册方法与路径，其中业务操作 127 个，自动 HEAD 64 个。
+- 55 张应用表，22 个能力，133 条显式业务流程。
+- 响应 Schema：89/220。缺失不等于没有响应；不冒充完整 OpenAPI。
 
-业务流程关联：125/125 个业务操作；5/5 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
+业务流程关联：127/127 个业务操作；5/5 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
 
 ## 应用与运行单元
 
@@ -25,6 +25,7 @@
 | 控制台 | `app/console` | `@yzgc/console` | `web` | [docs/services/console/README.md](../../../docs/services/console/README.md) |
 | 核心后端 | `app/server` | `@yzgc/server` | `server` | [docs/services/server/README.md](../../../docs/services/server/README.md) |
 | 论坛 | `app/forum` | `tuff-forum` | `forum` | [docs/services/forum/README.md](../../../docs/services/forum/README.md) |
+| 命令行 | `app/cli` | `geek-cli` | `web` | [docs/services/cli/README.md](../../../docs/services/cli/README.md) |
 
 运行单元从两套 compose 核对；控制台是独立源码应用，但产物随 web 镜像交付。
 
@@ -32,10 +33,10 @@
 
 | 业务 | 接口注册 | 数据表 | 业务说明 |
 |---|---:|---|---|
-| 身份与会话 | 53 | `sessions`、`users`、`identities`、`identity_audit`、`device_grants`、`email_challenges`、`oauth_clients`、`oauth_subjects`、`oauth_grants`、`oidc_payloads`、`account_profiles`、`account_avatars` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/plan/UNIFIED-LOGIN.md](../../../docs/plan/UNIFIED-LOGIN.md) · [docs/services/server/oidc.md](../../../docs/services/server/oidc.md) |
+| 身份与会话 | 54 | `sessions`、`users`、`identities`、`identity_audit`、`device_grants`、`email_challenges`、`oauth_clients`、`oauth_subjects`、`oauth_grants`、`oidc_payloads`、`account_profiles`、`account_avatars` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/plan/UNIFIED-LOGIN.md](../../../docs/plan/UNIFIED-LOGIN.md) · [docs/services/server/oidc.md](../../../docs/services/server/oidc.md) |
 | 组织与权限 | 8 | `departments`、`titles`、`role_assignments`、`console_seeds` | [docs/services/console/README.md](../../../docs/services/console/README.md) · [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) |
 | 权限 | 18 | `perm_nodes`、`perm_groups`、`perm_group_parents`、`perm_entries`、`perm_members`、`perm_state`、`perm_seed_applied` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
-| 招新投递 | 8 | `applications`、`application_reviews`、`application_limits` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) · [docs/ops/USAGE.md](../../../docs/ops/USAGE.md) |
+| 招新投递 | 10 | `applications`、`application_reviews`、`application_limits` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) · [docs/ops/USAGE.md](../../../docs/ops/USAGE.md) |
 | 意见反馈 | 9 | `feedback` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
 | 邀请 | 0 | `invite_codes`、`invite_links`、`invite_attempts`、`invitations` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
 | GitHub 组织代理 | 0 | 无本地表 | [docs/services/console/README.md](../../../docs/services/console/README.md) · [docs/architecture/API.md](../../../docs/architecture/API.md) |
@@ -96,7 +97,7 @@
 - 响应与错误：200 {providers:[...]}，每项含id、name、kind、start、can_register，邮箱另有password；按GitHub、Google、邮箱的顺序，Google只在配了GOOGLE_CLIENT_ID与GOOGLE_CLIENT_SECRET时出现，邮箱只在发信已配置时出现；响应Schema固定字段。
 - 数据与副作用：按配置算出固定列表，不读写数据库、不请求GitHub。
 
-源码：[app/server/src/routes/identity/providers.ts:30](../../../app/server/src/routes/identity/providers.ts#L30) · [app/server/src/routes/identity/contracts.ts:123](../../../app/server/src/routes/identity/contracts.ts#L123) · [app/server/src/routes/identity/index.ts:13](../../../app/server/src/routes/identity/index.ts#L13) · [app/console/src/pages/SignIn.vue:234](../../../app/console/src/pages/SignIn.vue#L234) · [app/console/src/lib/signin.ts:73](../../../app/console/src/lib/signin.ts#L73) · [app/console/src/mock/index.ts:11](../../../app/console/src/mock/index.ts#L11)
+源码：[app/server/src/routes/identity/providers.ts:30](../../../app/server/src/routes/identity/providers.ts#L30) · [app/server/src/routes/identity/contracts.ts:126](../../../app/server/src/routes/identity/contracts.ts#L126) · [app/server/src/routes/identity/index.ts:13](../../../app/server/src/routes/identity/index.ts#L13) · [app/console/src/pages/SignIn.vue:234](../../../app/console/src/pages/SignIn.vue#L234) · [app/console/src/lib/signin.ts:73](../../../app/console/src/lib/signin.ts#L73) · [app/console/src/mock/index.ts:11](../../../app/console/src/mock/index.ts#L11)
 
 测试入口：[tests/server/identity.test.ts](../../../tests/server/identity.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -113,7 +114,7 @@
 - 响应与错误：200 {device_code,user_code(XXXX-XXXX),verification_uri=<PUBLIC_ORIGIN>/device,verification_uri_complete,expires_in=600,interval=5}，Cache-Control no-store；未登记客户端 400 invalid_client，未知 scope 400 invalid_scope。
 - 数据与副作用：写一行 pending 的 device_grants，device_code 只存 sha256；顺手删掉过期超过一天且令牌已失效的旧行；不读会话、不请求 GitHub。
 
-源码：[app/server/src/routes/identity/device.ts:35](../../../app/server/src/routes/identity/device.ts#L35) · [app/server/src/routes/identity/contracts.ts:128](../../../app/server/src/routes/identity/contracts.ts#L128) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103)
+源码：[app/server/src/routes/identity/device.ts:35](../../../app/server/src/routes/identity/device.ts#L35) · [app/server/src/routes/identity/contracts.ts:131](../../../app/server/src/routes/identity/contracts.ts#L131) · [app/server/src/lib/device-store.ts:108](../../../app/server/src/lib/device-store.ts#L108)
 
 测试入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts)。生成器未执行这些测试。
 
@@ -130,7 +131,7 @@
 - 响应与错误：按 RFC 8628 §3.5 回 400 authorization_pending、slow_down（轮询间隔加 5 秒写回）、access_denied（用户拒绝或账号不是 active）、expired_token、invalid_grant（不存在或已换过令牌）、invalid_client、unsupported_grant_type；批准后 200 {access_token(gk_…),token_type:Bearer,expires_in=2592000,scope,account_id}，Cache-Control no-store。
 - 数据与副作用：在 BEGIN IMMEDIATE 事务里判定并改状态；令牌只发一次，库里只存 sha256 与到期时间，明文只在这次响应里。
 
-源码：[app/server/src/routes/identity/device.ts:59](../../../app/server/src/routes/identity/device.ts#L59) · [app/server/src/routes/identity/contracts.ts:133](../../../app/server/src/routes/identity/contracts.ts#L133) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103)
+源码：[app/server/src/routes/identity/device.ts:59](../../../app/server/src/routes/identity/device.ts#L59) · [app/server/src/routes/identity/contracts.ts:136](../../../app/server/src/routes/identity/contracts.ts#L136) · [app/server/src/lib/device-store.ts:108](../../../app/server/src/lib/device-store.ts#L108)
 
 测试入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts)。生成器未执行这些测试。
 
@@ -147,7 +148,7 @@
 - 响应与错误：200 {user_code,client_id,client_name,scope,status(pending|approved|denied|consumed|expired),expires_at}；user_code 不合法或不存在 404 device_code_not_found；没登录 401。
 - 数据与副作用：只读，不改状态、不续期；不返回 device_code 与令牌。
 
-源码：[app/server/src/routes/identity/device.ts:93](../../../app/server/src/routes/identity/device.ts#L93) · [app/server/src/routes/identity/contracts.ts:138](../../../app/server/src/routes/identity/contracts.ts#L138) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103) · [app/console/src/pages/Device.vue:64](../../../app/console/src/pages/Device.vue#L64) · [app/console/src/lib/device.ts:19](../../../app/console/src/lib/device.ts#L19)
+源码：[app/server/src/routes/identity/device.ts:93](../../../app/server/src/routes/identity/device.ts#L93) · [app/server/src/routes/identity/contracts.ts:141](../../../app/server/src/routes/identity/contracts.ts#L141) · [app/server/src/lib/device-store.ts:108](../../../app/server/src/lib/device-store.ts#L108) · [app/console/src/pages/Device.vue:64](../../../app/console/src/pages/Device.vue#L64) · [app/console/src/lib/device.ts:19](../../../app/console/src/lib/device.ts#L19)
 
 测试入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts) · [tests/console/device.test.ts](../../../tests/console/device.test.ts)。生成器未执行这些测试。
 
@@ -164,7 +165,7 @@
 - 响应与错误：200 {ok:true,status:approved|denied}；不存在 404 device_code_not_found；不是 pending 或已过期 409 device_code_not_pending；decision 不合法 400；允许时账号还没有登录邮箱（这个环境能发信）403 email_required，拒绝不拦（#273）。
 - 数据与副作用：条件 UPDATE 只改 pending 且未过期的行，并发的确认只有一次生效；写操作记录 identity.device.approve 或 identity.device.deny，只含 client_id 与 scope，不含 device_code 与令牌。
 
-源码：[app/server/src/routes/identity/device.ts:104](../../../app/server/src/routes/identity/device.ts#L104) · [app/server/src/routes/identity/contracts.ts:142](../../../app/server/src/routes/identity/contracts.ts#L142) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103) · [app/console/src/pages/Device.vue:175](../../../app/console/src/pages/Device.vue#L175) · [app/server/src/routes/identity/device.ts:116](../../../app/server/src/routes/identity/device.ts#L116) · [app/console/src/lib/device.ts:25](../../../app/console/src/lib/device.ts#L25)
+源码：[app/server/src/routes/identity/device.ts:104](../../../app/server/src/routes/identity/device.ts#L104) · [app/server/src/routes/identity/contracts.ts:145](../../../app/server/src/routes/identity/contracts.ts#L145) · [app/server/src/lib/device-store.ts:108](../../../app/server/src/lib/device-store.ts#L108) · [app/console/src/pages/Device.vue:175](../../../app/console/src/pages/Device.vue#L175) · [app/server/src/routes/identity/device.ts:116](../../../app/server/src/routes/identity/device.ts#L116) · [app/console/src/lib/device.ts:25](../../../app/console/src/lib/device.ts#L25)
 
 测试入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts) · [tests/console/device.test.ts](../../../tests/console/device.test.ts)。生成器未执行这些测试。
 
@@ -181,9 +182,26 @@
 - 响应与错误：200 {sub=account_id,account_id,login,avatar_url,scope}；令牌缺失、不存在、过期或账号不是 active 时 401 invalid_token，并带 WWW-Authenticate: Bearer error="invalid_token"。
 - 数据与副作用：只读；按令牌的 sha256 查行，不记录令牌明文。
 
-源码：[app/server/src/routes/identity/device.ts:140](../../../app/server/src/routes/identity/device.ts#L140) · [app/server/src/routes/identity/contracts.ts:147](../../../app/server/src/routes/identity/contracts.ts#L147) · [app/server/src/lib/device-store.ts:103](../../../app/server/src/lib/device-store.ts#L103)
+源码：[app/server/src/routes/identity/device.ts:140](../../../app/server/src/routes/identity/device.ts#L140) · [app/server/src/routes/identity/contracts.ts:150](../../../app/server/src/routes/identity/contracts.ts#L150) · [app/server/src/lib/device-store.ts:108](../../../app/server/src/lib/device-store.ts#L108)
 
 测试入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts)。生成器未执行这些测试。
+
+### geek logout 撤销命令行令牌
+
+标识：`flow:identity.device.revoke`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`POST /auth/device/revoke`
+- 能力：
+- 读取：`device_grants`
+- 写入：`device_grants`、`activity_events`
+- 不入队：
+- 权限与资源：只认 Authorization: Bearer <access_token>，不读 cookie、不要会话；每分钟 30 次。
+- 响应与错误：200 {ok:true}，即便令牌缺失、不存在、已经撤销或已经过期也一样（RFC 7009 的惯例，不回答「这个令牌是否存在过」）。
+- 数据与副作用：只改 token_expires_at（撤销和自然过期走同一条判定，authenticate() 不用再认一个新状态），只对 status=consumed 的行生效；真的撤销成功才写一条操作记录 identity.device.revoke（surface=cli），不记明文令牌。
+
+源码：[app/server/src/routes/identity/device.ts:174](../../../app/server/src/routes/identity/device.ts#L174) · [app/server/src/lib/device-store.ts:230](../../../app/server/src/lib/device-store.ts#L230) · [app/server/src/middleware/bearer-auth.ts:60](../../../app/server/src/middleware/bearer-auth.ts#L60) · [app/server/src/routes/identity/contracts.ts:155](../../../app/server/src/routes/identity/contracts.ts#L155)
+
+测试入口：[tests/server/bearer-auth.test.ts](../../../tests/server/bearer-auth.test.ts)。生成器未执行这些测试。
 
 ### 校验登录回调，在一个事务里建号或找到账号并建立统一会话
 
@@ -249,7 +267,7 @@
 - 响应与错误：202 {resend_after:60} 并写签名、HttpOnly 的 email_challenge cookie（path=/auth/email，10 分钟）；邮箱有没有账号响应都一样；body 可带 purpose=reset（忘了密码，#273），只换成重设密码的信，挑战还是登录用的那一种；格式不对 400 bad_email；太频繁 429 rate_limited，带 Retry-After 与 retry_after 秒数。
 - 数据与副作用：写一行 email_challenges，只存验证码 HMAC，这个浏览器上一次的发码作废（别人替这个邮箱要码不影响本人手上的验证码）；验证码由 mail.sendNow 直接发（Aliyun 或 Resend，受 MAIL_RECIPIENTS 与白名单约束），不进 mail_outbox，日志不记地址和验证码。
 
-源码：[app/server/src/routes/identity/email.ts:90](../../../app/server/src/routes/identity/email.ts#L90) · [app/server/src/routes/identity/contracts.ts:151](../../../app/server/src/routes/identity/contracts.ts#L151) · [app/server/src/lib/email-login.ts:70](../../../app/server/src/lib/email-login.ts#L70) · [app/server/src/lib/mail/mailer.ts:93](../../../app/server/src/lib/mail/mailer.ts#L93) · [app/server/src/lib/mail/login-code.ts:9](../../../app/server/src/lib/mail/login-code.ts#L9) · [app/server/src/lib/mail/login-code.ts:7](../../../app/server/src/lib/mail/login-code.ts#L7) · [app/console/src/lib/signin.ts:148](../../../app/console/src/lib/signin.ts#L148)
+源码：[app/server/src/routes/identity/email.ts:90](../../../app/server/src/routes/identity/email.ts#L90) · [app/server/src/routes/identity/contracts.ts:159](../../../app/server/src/routes/identity/contracts.ts#L159) · [app/server/src/lib/email-login.ts:70](../../../app/server/src/lib/email-login.ts#L70) · [app/server/src/lib/mail/mailer.ts:93](../../../app/server/src/lib/mail/mailer.ts#L93) · [app/server/src/lib/mail/login-code.ts:9](../../../app/server/src/lib/mail/login-code.ts#L9) · [app/server/src/lib/mail/login-code.ts:7](../../../app/server/src/lib/mail/login-code.ts#L7) · [app/console/src/lib/signin.ts:148](../../../app/console/src/lib/signin.ts#L148)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -266,7 +284,7 @@
 - 响应与错误：200 {return_to,registered} 并写 sid；验证码不对 400 invalid_code（带 attempts_left），失效 400 code_expired；邮箱没有账号且没填邀请码 400 invite_required（验证码不作废），邀请码无效 400 invalid_invite 并记一次失败；账号停用 403 account_disabled，不再是成员 403 not_member。#280：这个邮箱还没有账号、这次要注册时 real_name 和 grade（1–4）必填，缺了 400 real_info_required，姓名不对 400 bad_real_name，都在核对验证码之后、占用之前回，验证码和邀请码都不作废；已有账号的登录不看这两项。
 - 数据与副作用：在一个 BEGIN IMMEDIATE 事务里找身份或建号（兑换邀请码、建 users 与 email 身份、记 invite_code_id、org_state=active）、作废验证码、建会话（provider=email，GitHub 令牌为空）、写 identity_audit 与 auth.register/auth.signin；任何一步失败整体回滚，邀请码次数不扣。真的要新建账号这一步，同一 IP 今天已建满 5 个、同一设备（yugc_vid）已建满 3 个回 429 auth.register.daily，登录到已有账号不受影响（#274 残留修复，SPEC §3.8，lib/register-limits.ts）。注册成功后把注册填的姓名和入学年份写进 account_profiles（#280）。
 
-源码：[app/server/src/routes/identity/email.ts:105](../../../app/server/src/routes/identity/email.ts#L105) · [app/server/src/routes/identity/contracts.ts:156](../../../app/server/src/routes/identity/contracts.ts#L156) · [app/server/src/lib/identity-store.ts:436](../../../app/server/src/lib/identity-store.ts#L436) · [app/server/src/lib/invite-codes.ts:41](../../../app/server/src/lib/invite-codes.ts#L41) · [app/server/src/lib/register-limits.ts:39](../../../app/server/src/lib/register-limits.ts#L39) · [app/server/src/routes/identity/email.ts:148](../../../app/server/src/routes/identity/email.ts#L148) · [app/console/src/pages/SignIn.vue:300](../../../app/console/src/pages/SignIn.vue#L300)
+源码：[app/server/src/routes/identity/email.ts:105](../../../app/server/src/routes/identity/email.ts#L105) · [app/server/src/routes/identity/contracts.ts:164](../../../app/server/src/routes/identity/contracts.ts#L164) · [app/server/src/lib/identity-store.ts:436](../../../app/server/src/lib/identity-store.ts#L436) · [app/server/src/lib/invite-codes.ts:41](../../../app/server/src/lib/invite-codes.ts#L41) · [app/server/src/lib/register-limits.ts:39](../../../app/server/src/lib/register-limits.ts#L39) · [app/server/src/routes/identity/email.ts:148](../../../app/server/src/routes/identity/email.ts#L148) · [app/console/src/pages/SignIn.vue:300](../../../app/console/src/pages/SignIn.vue#L300)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -283,7 +301,7 @@
 - 响应与错误：200 {return_to} 并写 sid；没账号、没设密码、密码不对一律 400 invalid_credentials，没账号时也算一次 bcrypt，响应时间不随邮箱是否注册变化；账号停用 403 account_disabled，不再是成员 403 not_member。
 - 数据与副作用：不能注册新账号；成功时建会话（provider=email）、写 identity_audit 与 auth.signin（method=password）；密码只存 bcrypt 哈希（cost 12）。
 
-源码：[app/server/src/routes/identity/email.ts:157](../../../app/server/src/routes/identity/email.ts#L157) · [app/server/src/routes/identity/contracts.ts:162](../../../app/server/src/routes/identity/contracts.ts#L162) · [app/server/src/lib/identity-store.ts:440](../../../app/server/src/lib/identity-store.ts#L440) · [app/server/src/lib/password-policy.ts:18](../../../app/server/src/lib/password-policy.ts#L18)
+源码：[app/server/src/routes/identity/email.ts:157](../../../app/server/src/routes/identity/email.ts#L157) · [app/server/src/routes/identity/contracts.ts:170](../../../app/server/src/routes/identity/contracts.ts#L170) · [app/server/src/lib/identity-store.ts:440](../../../app/server/src/lib/identity-store.ts#L440) · [app/server/src/lib/password-policy.ts:18](../../../app/server/src/lib/password-policy.ts#L18)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -300,7 +318,7 @@
 - 响应与错误：200 {return_to} 并写 sid（provider=email）；先查新密码，不到 8 位 400 password_too_short、超过 72 字节 400 password_exceeds_bcrypt_limit，这时不碰验证码；验证码不对 400 invalid_code（带 attempts_left），失效 400 code_expired；邮箱没有账号时和验证码登录一样 400 invite_required（不注册，验证码不作废，登录页转到「注册」）；停用 403 account_disabled，不是成员 403 not_member。
 - 数据与副作用：占用验证码、建会话、删旧会话、写 users.password_hash（bcrypt cost 12）、identity_audit（login 与 password_reset）、auth.signin（method=reset）与 account.password（action=reset）在一个 BEGIN IMMEDIATE 事务里；成功后这个邮箱的密码错误计数清零。
 
-源码：[app/server/src/routes/identity/email.ts:185](../../../app/server/src/routes/identity/email.ts#L185) · [app/server/src/routes/identity/contracts.ts:167](../../../app/server/src/routes/identity/contracts.ts#L167) · [app/server/src/lib/identity-store.ts:489](../../../app/server/src/lib/identity-store.ts#L489) · [app/console/src/lib/signin.ts:158](../../../app/console/src/lib/signin.ts#L158) · [app/console/src/pages/SignIn.vue:208](../../../app/console/src/pages/SignIn.vue#L208)
+源码：[app/server/src/routes/identity/email.ts:185](../../../app/server/src/routes/identity/email.ts#L185) · [app/server/src/routes/identity/contracts.ts:175](../../../app/server/src/routes/identity/contracts.ts#L175) · [app/server/src/lib/identity-store.ts:489](../../../app/server/src/lib/identity-store.ts#L489) · [app/console/src/lib/signin.ts:158](../../../app/console/src/lib/signin.ts#L158) · [app/console/src/pages/SignIn.vue:208](../../../app/console/src/pages/SignIn.vue#L208)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -317,7 +335,7 @@
 - 响应与错误：302 到 Google 授权页（scope openid email profile，prompt=select_account，PKCE S256、state、nonce）；return_to 只接受本站。
 - 数据与副作用：state、nonce、PKCE verifier 与可选的邀请码存进签名 cookie google_oauth_state（path=/auth/google），不读写数据库。
 
-源码：[app/server/src/routes/identity/google.ts:24](../../../app/server/src/routes/identity/google.ts#L24) · [app/server/src/routes/identity/contracts.ts:173](../../../app/server/src/routes/identity/contracts.ts#L173) · [app/server/src/lib/google.ts:35](../../../app/server/src/lib/google.ts#L35)
+源码：[app/server/src/routes/identity/google.ts:24](../../../app/server/src/routes/identity/google.ts#L24) · [app/server/src/routes/identity/contracts.ts:181](../../../app/server/src/routes/identity/contracts.ts#L181) · [app/server/src/lib/google.ts:35](../../../app/server/src/lib/google.ts#L35)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -334,7 +352,7 @@
 - 响应与错误：成功 302 回 return_to，账号还没有登录邮箱（Google 给的邮箱不算）、这个环境又能发信时改为 302 到 /bind-email?return_to=<原路径>（#273）；取消、上游失败、没有账号且没带邀请码、邀请码无效、Google 邮箱已属于别的账号、账号停用或不再是成员时 302 到 /signin?signin=<原因>&provider=google；缺参数 400，state 无效 400。
 - 数据与副作用：外部请求在事务外；建号、兑换邀请码、建会话（provider=google）、写 identity_audit 与 auth.register/auth.signin 在一个 BEGIN IMMEDIATE 事务里，失败整体回滚；失败日志不输出令牌。真的要新建账号这一步，同一 IP 今天已建满 5 个、同一设备（yugc_vid）已建满 3 个回 registration_limited，登录到已有账号不受影响（#274 残留修复，SPEC §3.8，lib/register-limits.ts）。
 
-源码：[app/server/src/routes/identity/google.ts:35](../../../app/server/src/routes/identity/google.ts#L35) · [app/server/src/routes/identity/contracts.ts:175](../../../app/server/src/routes/identity/contracts.ts#L175) · [app/server/src/lib/identity-store.ts:445](../../../app/server/src/lib/identity-store.ts#L445) · [app/server/src/lib/safe-return.ts:31](../../../app/server/src/lib/safe-return.ts#L31) · [app/server/src/routes/identity/google.ts:70](../../../app/server/src/routes/identity/google.ts#L70) · [app/server/src/lib/register-limits.ts:16](../../../app/server/src/lib/register-limits.ts#L16)
+源码：[app/server/src/routes/identity/google.ts:35](../../../app/server/src/routes/identity/google.ts#L35) · [app/server/src/routes/identity/contracts.ts:183](../../../app/server/src/routes/identity/contracts.ts#L183) · [app/server/src/lib/identity-store.ts:445](../../../app/server/src/lib/identity-store.ts#L445) · [app/server/src/lib/safe-return.ts:31](../../../app/server/src/lib/safe-return.ts#L31) · [app/server/src/routes/identity/google.ts:70](../../../app/server/src/routes/identity/google.ts#L70) · [app/server/src/lib/register-limits.ts:16](../../../app/server/src/lib/register-limits.ts#L16)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)。生成器未执行这些测试。
 
@@ -351,7 +369,7 @@
 - 响应与错误：200 {account_id,login,identities(邮箱只给打码后的样子，另带身份 id 与 primary，主邮箱在前，#272),has_password,password_updated_at,membership{state,org_role,via_invite},created_at,recent(最近 20 条本人记录),available(还不到 5 个邮箱时是 ["email"]),email_required(#273，账号还没有登录邮箱、这个环境又能发信),real_name,grade,grade_label,profile_required(#280，同 /auth/me，补资料页读它),session{provider,created_at,expires_at,step_up_until}}；没登录 401。
 - 数据与副作用：只读；过期会话照共同规则删除。
 
-源码：[app/server/src/routes/identity/account.ts:46](../../../app/server/src/routes/identity/account.ts#L46) · [app/server/src/routes/identity/contracts.ts:176](../../../app/server/src/routes/identity/contracts.ts#L176) · [app/server/src/lib/identity-store.ts:576](../../../app/server/src/lib/identity-store.ts#L576) · [app/console/src/pages/Account.vue:30](../../../app/console/src/pages/Account.vue#L30) · [app/console/src/components/ConsoleNav.vue:42](../../../app/console/src/components/ConsoleNav.vue#L42) · [app/console/src/pages/ConsoleRoot.vue:49](../../../app/console/src/pages/ConsoleRoot.vue#L49) · [app/console/src/lib/account.ts:31](../../../app/console/src/lib/account.ts#L31) · [app/console/src/pages/BindEmail.vue:70](../../../app/console/src/pages/BindEmail.vue#L70) · [app/console/src/pages/Account.vue:36](../../../app/console/src/pages/Account.vue#L36) · [app/console/src/mock/index.ts:50](../../../app/console/src/mock/index.ts#L50) · [app/web/sites/portal/components/os/ProfileCard.tsx:69](../../../app/web/sites/portal/components/os/ProfileCard.tsx#L69) · [app/web/sites/portal/lib/links.ts:14](../../../app/web/sites/portal/lib/links.ts#L14) · [app/console/src/pages/CompleteProfile.vue:49](../../../app/console/src/pages/CompleteProfile.vue#L49) · [app/console/src/pages/Account.vue:294](../../../app/console/src/pages/Account.vue#L294)
+源码：[app/server/src/routes/identity/account.ts:47](../../../app/server/src/routes/identity/account.ts#L47) · [app/server/src/routes/identity/contracts.ts:184](../../../app/server/src/routes/identity/contracts.ts#L184) · [app/server/src/lib/identity-store.ts:576](../../../app/server/src/lib/identity-store.ts#L576) · [app/console/src/pages/Account.vue:30](../../../app/console/src/pages/Account.vue#L30) · [app/console/src/components/ConsoleNav.vue:42](../../../app/console/src/components/ConsoleNav.vue#L42) · [app/console/src/pages/ConsoleRoot.vue:49](../../../app/console/src/pages/ConsoleRoot.vue#L49) · [app/console/src/lib/account.ts:31](../../../app/console/src/lib/account.ts#L31) · [app/console/src/pages/BindEmail.vue:70](../../../app/console/src/pages/BindEmail.vue#L70) · [app/console/src/pages/Account.vue:36](../../../app/console/src/pages/Account.vue#L36) · [app/console/src/mock/index.ts:50](../../../app/console/src/mock/index.ts#L50) · [app/web/sites/portal/components/os/ProfileCard.tsx:69](../../../app/web/sites/portal/components/os/ProfileCard.tsx#L69) · [app/web/sites/portal/lib/links.ts:14](../../../app/web/sites/portal/lib/links.ts#L14) · [app/console/src/pages/CompleteProfile.vue:49](../../../app/console/src/pages/CompleteProfile.vue#L49) · [app/console/src/pages/Account.vue:294](../../../app/console/src/pages/Account.vue#L294)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts) · [tests/server/real-info.test.ts](../../../tests/server/real-info.test.ts)。生成器未执行这些测试。
 
@@ -368,7 +386,7 @@
 - 响应与错误：202 {resend_after:60} 并写 email_challenge cookie（path=/api/identity/email）；格式不对 400 bad_email；这个邮箱已经绑在本账号上 409 identity_exists，已经有 5 个邮箱 409 email_limit（#272），都不发信；太频繁 429。
 - 数据与副作用：写一行 purpose=link 的 email_challenges，绑定发起的账号与会话指纹；验证码直接发信，不进 mail_outbox。
 
-源码：[app/server/src/routes/identity/account.ts:62](../../../app/server/src/routes/identity/account.ts#L62) · [app/server/src/routes/identity/contracts.ts:177](../../../app/server/src/routes/identity/contracts.ts#L177) · [app/server/src/lib/identity-store.ts:43](../../../app/server/src/lib/identity-store.ts#L43)
+源码：[app/server/src/routes/identity/account.ts:63](../../../app/server/src/routes/identity/account.ts#L63) · [app/server/src/routes/identity/contracts.ts:185](../../../app/server/src/routes/identity/contracts.ts#L185) · [app/server/src/lib/identity-store.ts:43](../../../app/server/src/lib/identity-store.ts#L43)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)。生成器未执行这些测试。
 
@@ -385,7 +403,7 @@
 - 响应与错误：200 {ok:true}；验证码不对 400 invalid_code，失效 400 code_expired；邮箱已属于别的账号 409 identity_conflict，已经绑在本账号上 409 identity_exists，已经有 5 个邮箱 409 email_limit（#272）。
 - 数据与副作用：在一个事务里作废验证码并写 email 身份、identity_audit 与 identity.link，账号还没有主邮箱时写 canonical_email；冲突时只记 identity.link_conflict，不合并账号。
 
-源码：[app/server/src/routes/identity/account.ts:76](../../../app/server/src/routes/identity/account.ts#L76) · [app/server/src/routes/identity/contracts.ts:178](../../../app/server/src/routes/identity/contracts.ts#L178) · [app/server/src/lib/identity-store.ts:507](../../../app/server/src/lib/identity-store.ts#L507)
+源码：[app/server/src/routes/identity/account.ts:77](../../../app/server/src/routes/identity/account.ts#L77) · [app/server/src/routes/identity/contracts.ts:186](../../../app/server/src/routes/identity/contracts.ts#L186) · [app/server/src/lib/identity-store.ts:507](../../../app/server/src/lib/identity-store.ts#L507)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)。生成器未执行这些测试。
 
@@ -402,7 +420,7 @@
 - 响应与错误：200 {ok:true}；body {identity_id} 是 GET /api/identity/me 给的邮箱 id；主邮箱（canonical_email）409 primary_email；不是本账号的邮箱或已经删掉 404 not_found。
 - 数据与副作用：在一个事务里删掉这一行 email 身份，写 identity_audit（unlink）与 identity.unlink；之后不能再用这个邮箱登录，用它登录的会话不动；下一轮 GitLab 同步从 GitLab 用户名下删掉这个邮箱（#272）。
 
-源码：[app/server/src/routes/identity/account.ts:101](../../../app/server/src/routes/identity/account.ts#L101) · [app/server/src/routes/identity/contracts.ts:179](../../../app/server/src/routes/identity/contracts.ts#L179) · [app/server/src/lib/identity-store.ts:542](../../../app/server/src/lib/identity-store.ts#L542) · [app/console/src/pages/Account.vue:110](../../../app/console/src/pages/Account.vue#L110)
+源码：[app/server/src/routes/identity/account.ts:102](../../../app/server/src/routes/identity/account.ts#L102) · [app/server/src/routes/identity/contracts.ts:187](../../../app/server/src/routes/identity/contracts.ts#L187) · [app/server/src/lib/identity-store.ts:542](../../../app/server/src/lib/identity-store.ts#L542) · [app/console/src/pages/Account.vue:110](../../../app/console/src/pages/Account.vue#L110)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
 
@@ -419,7 +437,7 @@
 - 响应与错误：200 {ok:true}；不到 8 位 400 password_too_short，超过 72 字节 400 password_exceeds_bcrypt_limit，当前密码不对 400 invalid_credentials。
 - 数据与副作用：users.password_hash 存 bcrypt（cost 12）与 password_updated_at；写 identity_audit（password_set 或 password_change）与 account.password 审计，不记密码。
 
-源码：[app/server/src/routes/identity/account.ts:114](../../../app/server/src/routes/identity/account.ts#L114) · [app/server/src/routes/identity/contracts.ts:185](../../../app/server/src/routes/identity/contracts.ts#L185) · [app/server/src/lib/identity-store.ts:481](../../../app/server/src/lib/identity-store.ts#L481) · [app/console/src/lib/account.ts:54](../../../app/console/src/lib/account.ts#L54)
+源码：[app/server/src/routes/identity/account.ts:115](../../../app/server/src/routes/identity/account.ts#L115) · [app/server/src/routes/identity/contracts.ts:193](../../../app/server/src/routes/identity/contracts.ts#L193) · [app/server/src/lib/identity-store.ts:481](../../../app/server/src/lib/identity-store.ts#L481) · [app/console/src/lib/account.ts:54](../../../app/console/src/lib/account.ts#L54)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/console/account.test.ts](../../../tests/console/account.test.ts)。生成器未执行这些测试。
 
@@ -436,7 +454,7 @@
 - 响应与错误：200 {real_name,grade,grade_label,profile_required}；姓名先 NFC 归一、去首尾空白、连续空白并成一个，2–32 个字、只能是文字、空格和「·」，不对 400 bad_real_name；grade 只能是 1–4，不对 400。
 - 数据与副作用：只补还缺的那一项，已有的不覆盖；grade 按北京时间的学年换算成入学年份写 account_profiles.enrollment_year；写操作记录 account.real_info，meta 只有 {filled,grade}，不含姓名。
 
-源码：[app/server/src/routes/identity/account.ts:139](../../../app/server/src/routes/identity/account.ts#L139) · [app/server/src/routes/identity/contracts.ts:180](../../../app/server/src/routes/identity/contracts.ts#L180) · [app/server/src/lib/account-profiles.ts:21](../../../app/server/src/lib/account-profiles.ts#L21) · [app/server/src/lib/grade.ts:27](../../../app/server/src/lib/grade.ts#L27) · [app/server/src/lib/email-gate.ts:10](../../../app/server/src/lib/email-gate.ts#L10) · [app/console/src/pages/CompleteProfile.vue:73](../../../app/console/src/pages/CompleteProfile.vue#L73) · [app/console/src/lib/grade.ts:11](../../../app/console/src/lib/grade.ts#L11) · [app/console/src/router.ts:22](../../../app/console/src/router.ts#L22) · [app/console/src/lib/types.ts:17](../../../app/console/src/lib/types.ts#L17)
+源码：[app/server/src/routes/identity/account.ts:140](../../../app/server/src/routes/identity/account.ts#L140) · [app/server/src/routes/identity/contracts.ts:188](../../../app/server/src/routes/identity/contracts.ts#L188) · [app/server/src/lib/account-profiles.ts:21](../../../app/server/src/lib/account-profiles.ts#L21) · [app/server/src/lib/grade.ts:27](../../../app/server/src/lib/grade.ts#L27) · [app/server/src/lib/email-gate.ts:10](../../../app/server/src/lib/email-gate.ts#L10) · [app/console/src/pages/CompleteProfile.vue:73](../../../app/console/src/pages/CompleteProfile.vue#L73) · [app/console/src/lib/grade.ts:11](../../../app/console/src/lib/grade.ts#L11) · [app/console/src/router.ts:22](../../../app/console/src/router.ts#L22) · [app/console/src/lib/types.ts:17](../../../app/console/src/lib/types.ts#L17)
 
 测试入口：[tests/server/real-info.test.ts](../../../tests/server/real-info.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts)。生成器未执行这些测试。
 
@@ -607,7 +625,7 @@
 - 响应与错误：200 {accepted,rejected}；单次最多 20 条、至少 1 条，多余字段 400 validation_error（契约在 routes/portal/contracts.ts）。
 - 数据与副作用：只有 lib/activity.ts 的 EVENT_WHITELIST 里的动作才记一行 activity_events；白名单外的全部丢弃，合并计一条 outcome=denied 的 events.rejected（meta 记被丢弃的动作名与条数），不逐条记垃圾数据；不记密码、验证码、令牌等敏感字段（调用方自己决定 meta 放什么）。
 
-源码：[app/server/src/routes/portal/events.ts:25](../../../app/server/src/routes/portal/events.ts#L25) · [app/server/src/routes/portal/contracts.ts:32](../../../app/server/src/routes/portal/contracts.ts#L32) · [app/server/src/lib/activity.ts:20](../../../app/server/src/lib/activity.ts#L20) · [app/web/sites/portal/lib/events.ts:16](../../../app/web/sites/portal/lib/events.ts#L16) · [app/web/sites/portal/components/boot/BootSequence.tsx:66](../../../app/web/sites/portal/components/boot/BootSequence.tsx#L66) · [app/web/sites/portal/lib/bootGate.ts:3](../../../app/web/sites/portal/lib/bootGate.ts#L3) · [app/web/sites/portal/components/boot/engine.ts:19](../../../app/web/sites/portal/components/boot/engine.ts#L19) · [app/web/sites/portal/components/boot/background.ts:10](../../../app/web/sites/portal/components/boot/background.ts#L10) · [app/web/sites/portal/components/boot/layout.ts:25](../../../app/web/sites/portal/components/boot/layout.ts#L25) · [app/web/sites/portal/components/boot/math.ts:5](../../../app/web/sites/portal/components/boot/math.ts#L5) · [app/web/sites/portal/components/boot/shapes.ts:5](../../../app/web/sites/portal/components/boot/shapes.ts#L5) · [app/web/sites/portal/components/boot/timeline.ts:7](../../../app/web/sites/portal/components/boot/timeline.ts#L7) · [app/web/sites/portal/components/os/SkyWallpaper.tsx:97](../../../app/web/sites/portal/components/os/SkyWallpaper.tsx#L97) · [app/web/sites/portal/components/os/Wallpaper.tsx:12](../../../app/web/sites/portal/components/os/Wallpaper.tsx#L12) · [app/web/sites/portal/lib/wallpapers.ts:18](../../../app/web/sites/portal/lib/wallpapers.ts#L18) · [app/web/sites/portal/components/os/Widgets.tsx:12](../../../app/web/sites/portal/components/os/Widgets.tsx#L12)
+源码：[app/server/src/routes/portal/events.ts:25](../../../app/server/src/routes/portal/events.ts#L25) · [app/server/src/routes/portal/contracts.ts:35](../../../app/server/src/routes/portal/contracts.ts#L35) · [app/server/src/lib/activity.ts:20](../../../app/server/src/lib/activity.ts#L20) · [app/web/sites/portal/lib/events.ts:16](../../../app/web/sites/portal/lib/events.ts#L16) · [app/web/sites/portal/components/boot/BootSequence.tsx:66](../../../app/web/sites/portal/components/boot/BootSequence.tsx#L66) · [app/web/sites/portal/lib/bootGate.ts:3](../../../app/web/sites/portal/lib/bootGate.ts#L3) · [app/web/sites/portal/components/boot/engine.ts:19](../../../app/web/sites/portal/components/boot/engine.ts#L19) · [app/web/sites/portal/components/boot/background.ts:10](../../../app/web/sites/portal/components/boot/background.ts#L10) · [app/web/sites/portal/components/boot/layout.ts:25](../../../app/web/sites/portal/components/boot/layout.ts#L25) · [app/web/sites/portal/components/boot/math.ts:5](../../../app/web/sites/portal/components/boot/math.ts#L5) · [app/web/sites/portal/components/boot/shapes.ts:5](../../../app/web/sites/portal/components/boot/shapes.ts#L5) · [app/web/sites/portal/components/boot/timeline.ts:7](../../../app/web/sites/portal/components/boot/timeline.ts#L7) · [app/web/sites/portal/components/os/SkyWallpaper.tsx:97](../../../app/web/sites/portal/components/os/SkyWallpaper.tsx#L97) · [app/web/sites/portal/components/os/Wallpaper.tsx:12](../../../app/web/sites/portal/components/os/Wallpaper.tsx#L12) · [app/web/sites/portal/lib/wallpapers.ts:18](../../../app/web/sites/portal/lib/wallpapers.ts#L18) · [app/web/sites/portal/components/os/Widgets.tsx:12](../../../app/web/sites/portal/components/os/Widgets.tsx#L12)
 
 测试入口：[tests/server/events.test.ts](../../../tests/server/events.test.ts)。生成器未执行这些测试。
 
@@ -698,6 +716,23 @@
 源码：[app/server/src/routes/portal/apply.ts:109](../../../app/server/src/routes/portal/apply.ts#L109) · [app/server/src/lib/mail/mailer.ts:50](../../../app/server/src/lib/mail/mailer.ts#L50) · [app/server/src/lib/limits.ts:4](../../../app/server/src/lib/limits.ts#L4) · [app/server/src/lib/apply-quota.ts:4](../../../app/server/src/lib/apply-quota.ts#L4) · [app/web/sites/portal/components/os/JoinBox.tsx:125](../../../app/web/sites/portal/components/os/JoinBox.tsx#L125) · [app/web/sites/portal/components/PromoLazy.tsx:72](../../../app/web/sites/portal/components/PromoLazy.tsx#L72) · [app/web/sites/portal/components/PromoPlayer.tsx:52](../../../app/web/sites/portal/components/PromoPlayer.tsx#L52) · [app/server/src/lib/mail/envelope.ts:321](../../../app/server/src/lib/mail/envelope.ts#L321)
 
 测试入口：[tests/server/applications.test.ts](../../../tests/server/applications.test.ts) · [tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts) · [tests/server/rate-limits.test.ts](../../../tests/server/rate-limits.test.ts)。生成器未执行这些测试。
+
+### 命令行查我自己的投递状态
+
+标识：`flow:application.my_status`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /api/me/applications`
+- 能力：
+- 读取：`applications`、`identities`
+- 写入：
+- 不入队：
+- 权限与资源：要求登录（requireAuth），geek 命令行令牌还要带 apply scope（middleware/bearer-auth.ts 的 SCOPE_BY_PREFIX）；applications 表没有 account_id，按账号已绑定的登录邮箱（identities 表 provider='email' 的全部行，绑定时已存成小写）匹配 applications.email（投递时原样保存，这里按小写比较），没绑邮箱直接回空列表。
+- 响应与错误：200 {applications:[{id,status,created_at}]}；不回姓名、班级、邮箱、特长——命令行拿不到这些字段（#277 的硬约束，和 real_name 一样的边界）。
+- 数据与副作用：只读；一个账号绑了多个邮箱时合并去重，按 created_at 倒序。
+
+源码：[app/server/src/routes/portal/my-applications.ts:18](../../../app/server/src/routes/portal/my-applications.ts#L18) · [app/server/src/middleware/bearer-auth.ts:20](../../../app/server/src/middleware/bearer-auth.ts#L20) · [app/cli/src/commands/apply.rs:8](../../../app/cli/src/commands/apply.rs#L8)
+
+测试入口：[tests/server/my-applications.test.ts](../../../tests/server/my-applications.test.ts)。生成器未执行这些测试。
 
 ### 读取公开防滥用配置
 
@@ -1316,7 +1351,7 @@
 - 每场带报名摘要signup（enabled、participation、team_min、team_max、scoring），没有设置行时回默认值；摘要不含报名人数、队伍或任何成员信息。
 - 官网按关键词、可报名（报名中）与内部/外部筛选，每60秒重算状态与排序，损坏响应显示失败并可重试；全部类型链接可选且必须可解析HTTPS。
 
-源码：[app/server/src/routes/portal/competitions.ts:13](../../../app/server/src/routes/portal/competitions.ts#L13) · [app/server/src/routes/portal/contracts.ts:9](../../../app/server/src/routes/portal/contracts.ts#L9) · [app/server/src/routes/portal/index.ts:10](../../../app/server/src/routes/portal/index.ts#L10) · [app/server/src/lib/competition-store.ts:126](../../../app/server/src/lib/competition-store.ts#L126) · [app/server/src/lib/competition-contract.ts:34](../../../app/server/src/lib/competition-contract.ts#L34) · [app/web/sites/portal/lib/competitions.ts:121](../../../app/web/sites/portal/lib/competitions.ts#L121) · [app/web/sites/portal/lib/competitionLabels.ts:222](../../../app/web/sites/portal/lib/competitionLabels.ts#L222) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:98](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L98) · [app/web/sites/portal/components/os/competitions/CompetitionList.tsx:32](../../../app/web/sites/portal/components/os/competitions/CompetitionList.tsx#L32) · [app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx:185](../../../app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx#L185) · [app/web/sites/portal/components/os/Windows.tsx:250](../../../app/web/sites/portal/components/os/Windows.tsx#L250) · [app/web/sites/portal/components/os/YugcOs.tsx:156](../../../app/web/sites/portal/components/os/YugcOs.tsx#L156) · [app/web/sites/portal/lib/osApps.ts:41](../../../app/web/sites/portal/lib/osApps.ts#L41) · [app/web/shared/lib/mock-api.ts:132](../../../app/web/shared/lib/mock-api.ts#L132) · [app/web/sites/portal/pages/Home.tsx:12](../../../app/web/sites/portal/pages/Home.tsx#L12) · [app/web/sites/portal/lib/icons.ts:5](../../../app/web/sites/portal/lib/icons.ts#L5) · [app/web/sites/portal/components/os/competitions/ContestSite.tsx:12](../../../app/web/sites/portal/components/os/competitions/ContestSite.tsx#L12) · [app/web/sites/portal/components/os/competitions/NightSky.tsx:8](../../../app/web/sites/portal/components/os/competitions/NightSky.tsx#L8)
+源码：[app/server/src/routes/portal/competitions.ts:13](../../../app/server/src/routes/portal/competitions.ts#L13) · [app/server/src/routes/portal/contracts.ts:12](../../../app/server/src/routes/portal/contracts.ts#L12) · [app/server/src/routes/portal/index.ts:10](../../../app/server/src/routes/portal/index.ts#L10) · [app/server/src/lib/competition-store.ts:126](../../../app/server/src/lib/competition-store.ts#L126) · [app/server/src/lib/competition-contract.ts:34](../../../app/server/src/lib/competition-contract.ts#L34) · [app/web/sites/portal/lib/competitions.ts:121](../../../app/web/sites/portal/lib/competitions.ts#L121) · [app/web/sites/portal/lib/competitionLabels.ts:222](../../../app/web/sites/portal/lib/competitionLabels.ts#L222) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:98](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L98) · [app/web/sites/portal/components/os/competitions/CompetitionList.tsx:32](../../../app/web/sites/portal/components/os/competitions/CompetitionList.tsx#L32) · [app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx:185](../../../app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx#L185) · [app/web/sites/portal/components/os/Windows.tsx:250](../../../app/web/sites/portal/components/os/Windows.tsx#L250) · [app/web/sites/portal/components/os/YugcOs.tsx:156](../../../app/web/sites/portal/components/os/YugcOs.tsx#L156) · [app/web/sites/portal/lib/osApps.ts:41](../../../app/web/sites/portal/lib/osApps.ts#L41) · [app/web/shared/lib/mock-api.ts:132](../../../app/web/shared/lib/mock-api.ts#L132) · [app/web/sites/portal/pages/Home.tsx:12](../../../app/web/sites/portal/pages/Home.tsx#L12) · [app/web/sites/portal/lib/icons.ts:5](../../../app/web/sites/portal/lib/icons.ts#L5) · [app/web/sites/portal/components/os/competitions/ContestSite.tsx:12](../../../app/web/sites/portal/components/os/competitions/ContestSite.tsx#L12) · [app/web/sites/portal/components/os/competitions/NightSky.tsx:8](../../../app/web/sites/portal/components/os/competitions/NightSky.tsx#L8)
 
 测试入口：[tests/server/competitions.test.ts](../../../tests/server/competitions.test.ts) · [tests/console/competitions.test.ts](../../../tests/console/competitions.test.ts) · [tests/web/portal-competitions.test.tsx](../../../tests/web/portal-competitions.test.tsx) · [tests/e2e/competitions.spec.mts](../../../tests/e2e/competitions.spec.mts) · [tests/e2e/portal-competitions.spec.ts](../../../tests/e2e/portal-competitions.spec.ts)。生成器未执行这些测试。
 
@@ -1408,7 +1443,7 @@
 - 角标口径是发给我的邀请加上我所在队伍收到的申请，我发出的申请不算；待处理明细只在本场相关人里下发（当事人自己的申请与邀请、本人所在队伍的待处理项），其他人看不到。
 - 只读，不写业务表；门户自助操作不写审计。
 
-源码：[app/server/src/routes/portal/competition-signups.ts:37](../../../app/server/src/routes/portal/competition-signups.ts#L37) · [app/server/src/lib/competition-signup-store.ts:737](../../../app/server/src/lib/competition-signup-store.ts#L737) · [app/server/src/lib/competition-contract.ts:95](../../../app/server/src/lib/competition-contract.ts#L95) · [app/server/src/routes/portal/contracts.ts:46](../../../app/server/src/routes/portal/contracts.ts#L46) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:110](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L110)
+源码：[app/server/src/routes/portal/competition-signups.ts:37](../../../app/server/src/routes/portal/competition-signups.ts#L37) · [app/server/src/lib/competition-signup-store.ts:737](../../../app/server/src/lib/competition-signup-store.ts#L737) · [app/server/src/lib/competition-contract.ts:95](../../../app/server/src/lib/competition-contract.ts#L95) · [app/server/src/routes/portal/contracts.ts:56](../../../app/server/src/routes/portal/contracts.ts#L56) · [app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx:110](../../../app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx#L110)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts) · [tests/server/competition-scores.test.ts](../../../tests/server/competition-scores.test.ts) · [tests/web/portal-competition-hub.test.tsx](../../../tests/web/portal-competition-hub.test.tsx)。生成器未执行这些测试。
 
@@ -1687,7 +1722,7 @@
 - 只在这个成功响应上放开 Access-Control-Allow-Origin: *，只读、不带 cookie；为比赛官网的状态卡片预留。
 - 不读会话、不写库、不发外部请求。
 
-源码：[app/server/src/routes/portal/competitions.ts:24](../../../app/server/src/routes/portal/competitions.ts#L24) · [app/server/src/lib/competition-contract.ts:36](../../../app/server/src/lib/competition-contract.ts#L36) · [app/server/src/routes/portal/contracts.ts:10](../../../app/server/src/routes/portal/contracts.ts#L10)
+源码：[app/server/src/routes/portal/competitions.ts:24](../../../app/server/src/routes/portal/competitions.ts#L24) · [app/server/src/lib/competition-contract.ts:36](../../../app/server/src/lib/competition-contract.ts#L36) · [app/server/src/routes/portal/contracts.ts:13](../../../app/server/src/routes/portal/contracts.ts#L13)
 
 测试入口：[tests/server/competition-signups.test.ts](../../../tests/server/competition-signups.test.ts)。生成器未执行这些测试。
 
@@ -1979,7 +2014,7 @@
 - 响应与错误：200 {projects:[{name,path_with_namespace,description,web_url,http_url_to_repo,last_activity_at}]}；只给 visibility=public 的项目，不含私有项目、不含 star_count 等内部字段；GitLab 没配、连不上或拒绝时 {projects:[],unavailable:true}，不回 5xx。
 - 数据与副作用：只读，不落库，不需要会话；门户「代码仓库」应用据此渲染。
 
-源码：[app/server/src/routes/portal/gitlab.ts:12](../../../app/server/src/routes/portal/gitlab.ts#L12) · [app/server/src/routes/portal/contracts.ts:20](../../../app/server/src/routes/portal/contracts.ts#L20) · [app/server/src/lib/gitlab-sync.ts:70](../../../app/server/src/lib/gitlab-sync.ts#L70) · [app/web/sites/portal/lib/codeRepos.ts:10](../../../app/web/sites/portal/lib/codeRepos.ts#L10) · [app/web/sites/portal/lib/snapshots.ts:3](../../../app/web/sites/portal/lib/snapshots.ts#L3) · [app/web/sites/portal/lib/shell/index.ts:158](../../../app/web/sites/portal/lib/shell/index.ts#L158) · [app/web/sites/portal/lib/shell/commands.ts:1100](../../../app/web/sites/portal/lib/shell/commands.ts#L1100) · [app/web/sites/portal/lib/shell/vfs.ts:77](../../../app/web/sites/portal/lib/shell/vfs.ts#L77) · [app/web/sites/portal/lib/shell/parse.ts:147](../../../app/web/sites/portal/lib/shell/parse.ts#L147) · [app/web/sites/portal/lib/shell/ansi.ts:9](../../../app/web/sites/portal/lib/shell/ansi.ts#L9) · [app/web/sites/portal/components/os/Terminal.tsx:55](../../../app/web/sites/portal/components/os/Terminal.tsx#L55)
+源码：[app/server/src/routes/portal/gitlab.ts:12](../../../app/server/src/routes/portal/gitlab.ts#L12) · [app/server/src/routes/portal/contracts.ts:23](../../../app/server/src/routes/portal/contracts.ts#L23) · [app/server/src/lib/gitlab-sync.ts:70](../../../app/server/src/lib/gitlab-sync.ts#L70) · [app/web/sites/portal/lib/codeRepos.ts:10](../../../app/web/sites/portal/lib/codeRepos.ts#L10) · [app/web/sites/portal/lib/snapshots.ts:3](../../../app/web/sites/portal/lib/snapshots.ts#L3) · [app/web/sites/portal/lib/shell/index.ts:158](../../../app/web/sites/portal/lib/shell/index.ts#L158) · [app/web/sites/portal/lib/shell/commands.ts:1100](../../../app/web/sites/portal/lib/shell/commands.ts#L1100) · [app/web/sites/portal/lib/shell/vfs.ts:77](../../../app/web/sites/portal/lib/shell/vfs.ts#L77) · [app/web/sites/portal/lib/shell/parse.ts:147](../../../app/web/sites/portal/lib/shell/parse.ts#L147) · [app/web/sites/portal/lib/shell/ansi.ts:9](../../../app/web/sites/portal/lib/shell/ansi.ts#L9) · [app/web/sites/portal/components/os/Terminal.tsx:55](../../../app/web/sites/portal/components/os/Terminal.tsx#L55)
 
 测试入口：[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)。生成器未执行这些测试。
 
@@ -2115,7 +2150,7 @@
 - 响应与错误：200 {departments:[{id,name,tone,icon,description,titles:[{id,name,weight}]}]}；按 perm_groups.sort 升序（6 个新部门，dept.none 固定排最后），称号按 weight 升序。
 - 数据与副作用：只读 perm_groups（kind=department/title），和 GET /api/public/org 读的旧 departments/titles 表并存，不互相影响；不需要会话。
 
-源码：[app/server/src/routes/portal/departments.ts:17](../../../app/server/src/routes/portal/departments.ts#L17) · [app/server/src/routes/portal/contracts.ts:13](../../../app/server/src/routes/portal/contracts.ts#L13) · [app/web/sites/portal/lib/departments.ts:12](../../../app/web/sites/portal/lib/departments.ts#L12)
+源码：[app/server/src/routes/portal/departments.ts:17](../../../app/server/src/routes/portal/departments.ts#L17) · [app/server/src/routes/portal/contracts.ts:16](../../../app/server/src/routes/portal/contracts.ts#L16) · [app/web/sites/portal/lib/departments.ts:12](../../../app/web/sites/portal/lib/departments.ts#L12)
 
 测试入口：[tests/server/profile.test.ts](../../../tests/server/profile.test.ts)。生成器未执行这些测试。
 

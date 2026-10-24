@@ -31,7 +31,8 @@ export default async function accountRoutes(app: FastifyInstance) {
   const { emailLogin, identity, mail, google, profiles } = app.services;
   const writes = { preHandler: requireAuth, config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
 
-  const fresh = (req: FastifyRequest) => Date.now() - req.session!.created_at <= STEP_UP_MS;
+  // geek 命令行的令牌不是一次登录（middleware/bearer-auth.ts），永远不算刚登录过
+  const fresh = (req: FastifyRequest) => req.via !== "cli" && Date.now() - req.session!.created_at <= STEP_UP_MS;
   const emailExists = (reply: FastifyReply) => reply.code(409).send({ error: "identity_exists", message: "这个邮箱已经绑在你的账号上了" });
   const emailLimit = (reply: FastifyReply) => reply.code(409).send({ error: "email_limit", message: `一个账号最多绑 ${EMAILS_MAX} 个邮箱，先删掉一个再加` });
   const stepUp = (reply: FastifyReply) => reply.code(403).send({

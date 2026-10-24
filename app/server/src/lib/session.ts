@@ -16,6 +16,8 @@ declare module "fastify" {
       created_at: number;
       expires_at: number;
     };
+    /** #277：这个请求的身份是 middleware/bearer-auth.ts 从 Authorization: Bearer 挂上去的，不是 cookie 会话。 */
+    via?: "cli";
   }
 }
 
