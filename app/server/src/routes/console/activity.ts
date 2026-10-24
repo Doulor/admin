@@ -3,13 +3,23 @@ import { requireAuth } from "../../middleware/require-auth.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { requireScopedPermission } from "../../lib/console-scope.js";
 import { beijingDayStart } from "../../lib/beijing-time.js";
+import { decodeCursor, encodeCursor } from "../../lib/cursor.js";
+import { csvCell, escapeLike } from "../../lib/sql-text.js";
 
+/** IPv4 映射的 IPv6（`::ffff:a.b.c.d`）按 IPv4 处理，和 lib/forum-rules.ts 的 ipSubject 同一条规则——
+ * 否则这种地址会先命中下面的「包含冒号」分支，打码成乱码（`::ffff:1.2.3.4::*`），露出比打码后的 IPv4
+ * 更多的信息，也不符合「IPv4 只留前两段」的既定规则。 */
+const IPV4_MAPPED = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i;
 /** 没有 activity.read.ip 时打码：IPv4 只留前两段，IPv6 只留前 4 组（CONTRACT-274 §4）。 */
 function maskIp(ip: string | null): string | null {
   if (!ip) return ip;
-  if (ip.includes(":")) return `${ip.split(":").slice(0, 4).join(":")}::*`;
-  const parts = ip.split(".");
-  return parts.length === 4 ? `${parts[0]}.${parts[1]}.*.*` : ip;
+  const mapped = IPV4_MAPPED.exec(ip)?.[1];
+  const ipv4 = mapped ?? (ip.includes(":") ? null : ip);
+  if (ipv4) {
+    const parts = ipv4.split(".");
+    return parts.length === 4 ? `${parts[0]}.${parts[1]}.*.*` : ip;
+  }
+  return `${ip.split(":").slice(0, 4).join(":")}::*`;
 }
 
 type Row = {
@@ -19,14 +29,8 @@ type Row = {
 };
 
 type Cursor = { at: number; id: number };
-function encodeCursor(cursor: Cursor): string { return Buffer.from(JSON.stringify(cursor)).toString("base64url"); }
-function decodeCursor(raw: string | undefined): Cursor | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(Buffer.from(raw, "base64url").toString("utf8"));
-    return typeof parsed?.at === "number" && typeof parsed?.id === "number" ? parsed : null;
-  } catch { return null; }
-}
+const isCursor = (value: unknown): value is Cursor =>
+  typeof (value as Cursor)?.at === "number" && typeof (value as Cursor)?.id === "number";
 
 const PAGE_SIZE = 50;
 
@@ -39,13 +43,13 @@ export default async function consoleActivityRoutes(app: FastifyInstance) {
 
   function buildQuery(req: { query: Record<string, string | undefined> }, departmentScope: string[] | null | undefined, accountId?: string) {
     const { account, visitor, action, surface, outcome, from, to, cursor: cursorParam } = req.query;
-    const cursor = decodeCursor(cursorParam);
+    const cursor = decodeCursor(cursorParam, isCursor);
     const conditions: string[] = [];
     const params: unknown[] = [];
     if (accountId) { conditions.push("e.account_id = ?"); params.push(accountId); }
     else if (account) { conditions.push("e.account_id = ?"); params.push(account); }
     if (visitor) { conditions.push("e.visitor_id = ?"); params.push(visitor); }
-    if (action) { conditions.push("e.action LIKE ? ESCAPE '\\'"); params.push(`${action.replace(/[\\%_]/g, m => `\\${m}`)}%`); }
+    if (action) { conditions.push("e.action LIKE ? ESCAPE '\\'"); params.push(`${escapeLike(action)}%`); }
     if (surface) { conditions.push("e.surface = ?"); params.push(surface); }
     if (outcome) { conditions.push("e.outcome = ?"); params.push(outcome); }
     if (from) { conditions.push("e.at >= ?"); params.push(Number(from)); }
@@ -88,8 +92,10 @@ export default async function consoleActivityRoutes(app: FastifyInstance) {
     const page = rows.slice(0, PAGE_SIZE);
     const nextCursor = rows.length > PAGE_SIZE ? encodeCursor({ at: page[page.length - 1]!.at, id: page[page.length - 1]!.id }) : null;
     const todayStart = beijingDayStart(Date.now());
+    // 被拦下的请求按 (subject, action,分钟) 合并成一行、累加 meta.count（lib/activity.ts 的 recordDenial，
+    // #274 残留修复 F），这里要按合并后的次数求和，不能直接数行——数行只会数出「合并成了多少行」，不是真实拦截次数。
     const blockedRows = db.prepare(
-      "SELECT json_extract(meta, '$.bucket') AS bucket, COUNT(*) AS n FROM activity_events WHERE outcome = 'limited' AND at >= ? AND json_extract(meta, '$.bucket') IS NOT NULL GROUP BY bucket",
+      "SELECT json_extract(meta, '$.bucket') AS bucket, SUM(COALESCE(json_extract(meta, '$.count'), 1)) AS n FROM activity_events WHERE outcome = 'limited' AND at >= ? AND json_extract(meta, '$.bucket') IS NOT NULL GROUP BY bucket",
     ).all(todayStart) as { bucket: string; n: number }[];
     return { items: page.map(row => itemView(row, fullIp)), next_cursor: nextCursor, blocked_today: blockedRows.map(row => ({ bucket: row.bucket, count: row.n })) };
   });
@@ -98,16 +104,11 @@ export default async function consoleActivityRoutes(app: FastifyInstance) {
     const fullIp = app.services.permissions.check(req.session!.account_id, "activity.read.ip");
     const { where, params } = buildQuery(req as never, null);
     const rows = fetchRows(where, params, 5000);
-    const cell = (value: string | number | null) => {
-      if (value === null) return "";
-      const text = String(value);
-      return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-    };
     const header = ["id", "at", "account_id", "username", "visitor_id", "surface", "action", "target_type", "target_id", "outcome", "ip", "request_id"];
     const lines = rows.map(row => [
       row.id, row.at, row.account_id ?? "", row.username ?? "", row.visitor_id ?? "", row.surface, row.action,
       row.target_type ?? "", row.target_id ?? "", row.outcome, fullIp ? row.ip ?? "" : maskIp(row.ip) ?? "", row.request_id ?? "",
-    ].map(cell).join(","));
+    ].map(csvCell).join(","));
     app.services.storage.audit(null, req.session!, "activity.export", undefined, { rows: rows.length }, req.ip);
     reply.header("Content-Type", "text/csv; charset=utf-8").header("Content-Disposition", "attachment; filename=\"activity.csv\"");
     return `﻿${[header.join(","), ...lines].join("\r\n")}\r\n`;

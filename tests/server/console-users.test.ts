@@ -70,7 +70,7 @@ describe('用户列表（GET /api/console/users，#274 CONTRACT §5）', () => {
     void member;
   });
 
-  it('部长只按本部门 scope 看账号，查询参数改不了范围', async () => {
+  it('部长只按本部门 scope 看账号，查询参数改不了范围；等级计数也按同一个范围收窄（#274 残留修复 J）', async () => {
     const { app, cookie: headCookie } = await setup();
     const head = accountIdFor(app, 'users-owner');
     grantNode(app, head, 'users.view', { department: ['dept.ai'] });
@@ -81,11 +81,48 @@ describe('用户列表（GET /api/console/users，#274 CONTRACT §5）', () => {
     setDepartment(app, accountIdFor(app, 'algo-member'), 'dept.algo');
 
     const res = await app.inject({ url: '/api/console/users?department=dept.algo', headers: { cookie: headCookie } });
-    const ids = (res.json() as { items: { account_id: string }[] }).items.map(i => i.account_id);
+    const body = res.json() as { items: { account_id: string }[]; counts: { registered: number } };
+    const ids = body.items.map(i => i.account_id);
     expect(ids).toContain(head);
     expect(ids).toContain(accountIdFor(app, 'ai-member'));
     expect(ids).not.toContain(accountIdFor(app, 'algo-member'));
+    // 以前这张计数永远是全站的（3 个注册用户），不管部长的范围是什么；现在只数 dept.ai 范围内的 2 个
+    // （head 自己 + ai-member），不把 algo-member 算进去，也不会让部长从计数反推出全站规模。
+    expect(body.counts.registered).toBe(2);
     void aiMemberSid; void algoMemberSid;
+  });
+
+  it('counts.visitor_today 是北京时间今天去重后的访客数，不是写死的 0（#274 残留修复 M）', async () => {
+    const { app, cookie } = await setup();
+    const owner = accountIdFor(app, 'users-owner');
+    grantNode(app, owner, 'users.view');
+    const db = app.services.storage.db;
+    const insertEvent = db.prepare(
+      "INSERT INTO activity_events(at, account_id, visitor_id, surface, action, outcome, meta) VALUES (?, NULL, ?, 'portal', 'page.view', 'ok', '{}')",
+    );
+    const now = Date.now();
+    insertEvent.run(now, 'visitor-a');
+    insertEvent.run(now, 'visitor-a'); // 同一个访客多条不重复计数
+    insertEvent.run(now, 'visitor-b');
+    insertEvent.run(now - 2 * 24 * 60 * 60 * 1000, 'visitor-c'); // 两天前的不算进「今天」
+    const res = await app.inject({ url: '/api/console/users', headers: { cookie } });
+    expect((res.json() as { counts: { visitor_today: number } }).counts.visitor_today).toBe(2);
+  });
+
+  it('搜索框里的 % 和 _ 按字面匹配，不当 LIKE 通配符（#274 残留修复 O）', async () => {
+    const { app, cookie } = await setup();
+    const owner = accountIdFor(app, 'users-owner');
+    grantNode(app, owner, 'users.view');
+    const weirdAccount = accountIdFor(app, 'users-owner');
+    app.services.profiles.update(weirdAccount, { display_name: '50%_off' }); // profiles.update() 兜底先建行，直接 UPDATE 在新账号上是 0 行
+    signIn(app, 'users-plain', 306);
+
+    const literal = await app.inject({ url: `/api/console/users?q=${encodeURIComponent('50%_off')}`, headers: { cookie } });
+    expect((literal.json() as { items: { account_id: string }[] }).items.map(i => i.account_id)).toEqual([weirdAccount]);
+
+    // 没转义的话 "%" 会当通配符，把名字里完全没有 "50" 的账号也搜出来；这里确认不会
+    const notWildcard = await app.inject({ url: `/api/console/users?q=${encodeURIComponent('50%nope%')}`, headers: { cookie } });
+    expect((notWildcard.json() as { items: unknown[] }).items).toEqual([]);
   });
 });
 
@@ -147,6 +184,40 @@ describe('改用户身份（PATCH /api/console/users/:id，#274 CONTRACT §5）'
     app.services.permissions.bump();
     const nowOk = await app.inject({ method: 'PATCH', url: `/api/console/users/${owner}`, headers: { cookie }, payload: { titles: [] } });
     expect(nowOk.statusCode).toBe(200);
+    void second;
+  });
+
+  it('只有站长自己才能任免站长（#274 残留修复 B）：持有 users.manage 的管理部部长既不能把自己或别人升成站长，也不能把现任站长降下来', async () => {
+    const { app, cookie } = await setup();
+    const owner = accountIdFor(app, 'users-owner'); // 只有 users.manage，不是站长
+    grantNode(app, owner, 'users.manage');
+    const target = signIn(app, 'users-target', 309);
+    const targetAccount = accountIdFor(app, 'users-target');
+
+    // 给别人升站长：拒绝
+    const promote = await app.inject({ method: 'PATCH', url: `/api/console/users/${targetAccount}`, headers: { cookie }, payload: { titles: ['title.site.owner'] } });
+    expect(promote.statusCode).toBe(403);
+    expect(promote.json()).toMatchObject({ error: 'forbidden', node: 'title.site.owner' });
+    expect(app.services.storage.db.prepare("SELECT 1 FROM perm_members WHERE account_id = ? AND group_id = 'title.site.owner'").get(targetAccount)).toBeUndefined();
+
+    // 给自己升站长：同样拒绝（自己改自己也不行）
+    const selfPromote = await app.inject({ method: 'PATCH', url: `/api/console/users/${owner}`, headers: { cookie }, payload: { titles: ['title.site.owner'] } });
+    expect(selfPromote.statusCode).toBe(403);
+    expect(selfPromote.json()).toMatchObject({ error: 'forbidden', node: 'title.site.owner' });
+
+    // 现任站长要被降：owner 自己不是站长，摘不掉别人的站长称号
+    app.services.storage.db.prepare("INSERT INTO perm_members(account_id, group_id, granted_by, created_at) VALUES (?, 'title.site.owner', 'test', ?)").run(targetAccount, Date.now());
+    const second = signIn(app, 'second-site-owner', 310);
+    app.services.storage.db.prepare("INSERT INTO perm_members(account_id, group_id, granted_by, created_at) VALUES (?, 'title.site.owner', 'test', ?)").run(accountIdFor(app, 'second-site-owner'), Date.now());
+    app.services.permissions.bump();
+    const demote = await app.inject({ method: 'PATCH', url: `/api/console/users/${targetAccount}`, headers: { cookie }, payload: { titles: [] } });
+    expect(demote.statusCode).toBe(403);
+    expect(demote.json()).toMatchObject({ error: 'forbidden', node: 'title.site.owner' });
+    expect(app.services.storage.db.prepare("SELECT 1 FROM perm_members WHERE account_id = ? AND group_id = 'title.site.owner'").get(targetAccount)).toBeTruthy();
+
+    // 改和站长无关的字段（部门）不触发这条门禁，owner 本来就有 users.manage
+    const deptOnly = await app.inject({ method: 'PATCH', url: `/api/console/users/${targetAccount}`, headers: { cookie }, payload: { department: 'dept.ai' } });
+    expect(deptOnly.statusCode).toBe(200);
     void second;
   });
 

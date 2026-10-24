@@ -169,6 +169,100 @@ describe('权限组（/api/console/permission-groups，#274 CONTRACT §5）', ()
   });
 });
 
+describe('站长组的保护（#274 残留修复 B/E）', () => {
+  it('只有站长自己才能改站长组的继承、条目或成员，哪怕持有 perm.manage', async () => {
+    const { app, cookie } = await setup();
+    const owner = accountIdFor(app, 'perm-owner'); // 只有 perm.manage/perm.view，不是站长
+    grantNode(app, owner, 'perm.manage');
+    grantNode(app, owner, 'perm.view');
+    const other = signIn(app, 'perm-not-owner', 203);
+    const otherAccount = accountIdFor(app, 'perm-not-owner');
+
+    const addMember = await app.inject({ method: 'POST', url: '/api/console/permission-groups/title.site.owner/members', headers: { cookie }, payload: { account_id: otherAccount } });
+    expect(addMember.statusCode).toBe(403);
+    expect(addMember.json()).toMatchObject({ error: 'forbidden', node: 'title.site.owner' });
+
+    const editEntries = await app.inject({
+      method: 'PATCH', url: '/api/console/permission-groups/title.site.owner', headers: { cookie },
+      payload: { entries: { add: [{ node: 'forum.read.public', value: true }] } },
+    });
+    expect(editEntries.statusCode).toBe(403);
+    expect(editEntries.json()).toMatchObject({ error: 'forbidden', node: 'title.site.owner' });
+
+    const editParents = await app.inject({ method: 'PATCH', url: '/api/console/permission-groups/title.site.owner', headers: { cookie }, payload: { parents: [] } });
+    expect(editParents.statusCode).toBe(403);
+    // 改名字、权重这些和站长自己的权限无关的字段，不触发这条门禁
+    const rename = await app.inject({ method: 'PATCH', url: '/api/console/permission-groups/title.site.owner', headers: { cookie }, payload: { weight: 100 } });
+    expect(rename.statusCode).toBe(200);
+
+    // 直接把 otherAccount 塞进 perm_members，再试删——同样要求操作者是站长
+    app.services.storage.db.prepare("INSERT INTO perm_members(account_id, group_id, granted_by, created_at) VALUES (?, 'title.site.owner', 'test', ?)").run(otherAccount, Date.now());
+    app.services.permissions.bump();
+    const removeMember = await app.inject({ method: 'DELETE', url: `/api/console/permission-groups/title.site.owner/members/${otherAccount}`, headers: { cookie } });
+    expect(removeMember.statusCode).toBe(403);
+    expect(removeMember.json()).toMatchObject({ error: 'forbidden', node: 'title.site.owner' });
+  });
+
+  it('站长组至少留一位成员、至少留一条通配条目', async () => {
+    const { app, cookie } = await setup();
+    const owner = accountIdFor(app, 'perm-owner');
+    app.services.storage.db.prepare("INSERT INTO perm_members(account_id, group_id, granted_by, created_at) VALUES (?, 'title.site.owner', 'test', ?)").run(owner, Date.now());
+    app.services.permissions.bump();
+
+    // 只有 owner 一位站长：摘掉自己 → 409
+    const removeSelf = await app.inject({ method: 'DELETE', url: `/api/console/permission-groups/title.site.owner/members/${owner}`, headers: { cookie } });
+    expect(removeSelf.statusCode).toBe(409);
+    expect(removeSelf.json().error).toBe('last_owner');
+
+    // 删掉种子给的那条 node:"*" 条目、不补一条等效的 → 409
+    const wildcardId = (app.services.storage.db.prepare("SELECT id FROM perm_entries WHERE subject_type = 'group' AND subject_id = 'title.site.owner' AND node = '*'").get() as { id: number }).id;
+    const removeWildcard = await app.inject({
+      method: 'PATCH', url: '/api/console/permission-groups/title.site.owner', headers: { cookie }, payload: { entries: { remove: [wildcardId] } },
+    });
+    expect(removeWildcard.statusCode).toBe(409);
+    expect(removeWildcard.json().error).toBe('last_owner');
+    // 条目还在，没有被两阶段里先删后面才发现超限的方式删掉
+    expect(app.services.storage.db.prepare("SELECT 1 FROM perm_entries WHERE id = ?").get(wildcardId)).toBeTruthy();
+
+    // 删掉同时换一条等效的（同样是 node:"*", value:true）：允许
+    const swap = await app.inject({
+      method: 'PATCH', url: '/api/console/permission-groups/title.site.owner', headers: { cookie },
+      payload: { entries: { remove: [wildcardId], add: [{ node: '*', value: true }] } },
+    });
+    expect(swap.statusCode).toBe(200);
+
+    // 现在有两位站长：第二位摘掉 owner 就不再是「最后一位」
+    const second = signIn(app, 'perm-second-owner', 204);
+    app.services.storage.db.prepare("INSERT INTO perm_members(account_id, group_id, granted_by, created_at) VALUES (?, 'title.site.owner', 'test', ?)").run(accountIdFor(app, 'perm-second-owner'), Date.now());
+    app.services.permissions.bump();
+    const removeOk = await app.inject({ method: 'DELETE', url: `/api/console/permission-groups/title.site.owner/members/${owner}`, headers: { cookie } });
+    expect(removeOk.statusCode).toBe(200);
+    void second;
+  });
+
+  it('meta_value 必须是 -1 或非负整数（#274 残留修复 K）', async () => {
+    const { app, cookie } = await setup();
+    grantNode(app, accountIdFor(app, 'perm-owner'), 'perm.manage');
+    const bad = await app.inject({
+      method: 'PATCH', url: '/api/console/permission-groups/dept.ai', headers: { cookie },
+      payload: { entries: { add: [{ node: 'meta.limit.forum.topic.hourly', meta_value: 'abc' }] } },
+    });
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().error).toBe('invalid_meta_value');
+    const belowRange = await app.inject({
+      method: 'PATCH', url: '/api/console/permission-groups/dept.ai', headers: { cookie },
+      payload: { entries: { add: [{ node: 'meta.limit.forum.topic.hourly', meta_value: '-2' }] } },
+    });
+    expect(belowRange.statusCode).toBe(400);
+    expect(belowRange.json().error).toBe('invalid_meta_value');
+    const ok = await app.inject({
+      method: 'PATCH', url: '/api/console/permission-groups/dept.ai', headers: { cookie },
+      payload: { entries: { add: [{ node: 'meta.limit.forum.topic.hourly', meta_value: '-1' }] } },
+    });
+    expect(ok.statusCode).toBe(200);
+  });
+});
+
 describe('权限组成员（/api/console/permission-groups/:id/members）', () => {
   it('level/department 组换组前先删旧的；成员不存在时删除回 404', async () => {
     const { app, cookie } = await setup();

@@ -462,6 +462,18 @@ describe('topics', () => {
     expect((await s.state()).topics.find((t: { id: string }) => t.id === 't9').views).toBe(6);
   });
 
+  it('attributes a signed-in view to the account, not the visitor (#274 残留修复 G)', async () => {
+    const s = await setup();
+    const response = await s.call('POST', '/api/forum/topics/t9/view', 'bob');
+    expect(response.statusCode).toBe(204);
+    const bobId = accountIdOf(s.app, 'bob');
+    const rows = s.db.prepare(
+      "SELECT account_id, visitor_id FROM activity_events WHERE action = 'forum.topic.view' AND target_id = 't9'",
+    ).all() as { account_id: string | null; visitor_id: string | null }[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual({ account_id: bobId, visitor_id: null });
+  });
+
   it('counts an IPv6 /64 as one viewer and limits view pings to 60 a minute per IP', async () => {
     const s = await setup();
     const view = (remoteAddress: string, topic = 't9') => s.app.inject({ method: 'POST', url: `/api/forum/topics/${topic}/view`, remoteAddress });

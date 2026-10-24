@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { FORUM_REQUEST_LIMITS, ForumError, SEARCH_QUERY_MAX, hasControlChars, ipSubject } from "../../lib/forum-rules.js";
 import { canModerate, forbidden, forumChanges, forumState, forumViewer, notFound, rateLimited, requireMember, requireWriter } from "./viewer.js";
 import { hourlyLimited, levelRateLimited } from "./forum-limits.js";
+import { loadSession } from "../../middleware/require-auth.js";
 
 type TopicParams = { topic_id: string };
 
@@ -91,6 +92,10 @@ export default async function forumTopicRoutes(app: FastifyInstance) {
     const topic = forum.topic(req.params.topic_id);
     if (!topic) throw notFound("话题不存在");
     forum.recordView(req.params.topic_id, ipSubject(req.ip));
+    // #274 残留修复 G：这条路由之前没有任何 preHandler 加载过会话，req.session 永远是 undefined——
+    // 下面按账号归因的这次操作记录实际上从来没有把登录的人算成账号，一律落到访客那一支。先补一次
+    // loadSession()（和 forumViewer() 的做法一样，只读不写，不强制要求登录）。
+    loadSession(req);
     // forum.topic.view 这条操作记录（SPEC §3.7）和上面的浏览计数是两回事：计数永远按 IP 一小时去重，
     // 这里按「同一账号或同一访客」10 分钟只记一次，账号和访客分开计（同一个人同时有两者时按账号）。
     const viewerSubject = req.session?.account_id ?? req.visitorId ?? ipSubject(req.ip);

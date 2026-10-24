@@ -68,10 +68,13 @@ describe('GET /api/console/me、/api/console/summary（CONTRACT-274 §5、§7：
     const me = (await app.inject({ url: '/api/console/me', headers: as('erin') })).json();
     expect(me.department).toMatchObject({ id: 'dept.ai', name: 'AI部门', tone: 'y' });
     expect(me.titles).toEqual([expect.objectContaining({ id: 'title.ai.head', department_id: 'dept.ai' })]);
-    // console.access 是全站授权；users.view/apply.view/apply.review/activity.read/dept.manage 只在本部门范围内授权，
+    // console.access 是全站授权；users.view/apply.view/apply.review/activity.read 只在本部门范围内授权，
     // /me 靠 SCOPE_AWARE_NODES 把它们也并进 permissions，供前端判断导航显隐（见 routes/console/me.ts）。
-    expect(me.permissions).toEqual(expect.arrayContaining(['console.access', 'users.view', 'apply.view', 'apply.review', 'activity.read', 'dept.manage']));
+    // dept.manage 不在这张清单里（#274 残留修复 J）：种子发了这个节点，但没有任何接口按它判定，放进
+    // SCOPE_AWARE_NODES 只会让前端多出一个没有对应功能的导航项。
+    expect(me.permissions).toEqual(expect.arrayContaining(['console.access', 'users.view', 'apply.view', 'apply.review', 'activity.read']));
     expect(me.permissions).not.toContain('apply.export');
+    expect(me.permissions).not.toContain('dept.manage');
   });
 
   it('summary 只给有权限看的键', async () => {
@@ -127,6 +130,21 @@ describe('GET /api/console/applications 与审核（CONTRACT-274 §5：apply.vie
     expect(searched.items.map((item: { name: string }) => item.name)).toEqual(['另一位']);
     expect((await app.inject({ url: '/api/console/applications?q=%25', headers: as('erin') })).json().total).toBe(0);
     expect((await app.inject({ url: '/api/console/applications?status=interview&limit=1', headers: as('erin') })).json().items).toHaveLength(1);
+  });
+
+  it('部门部长（只有按部门限定的 apply.view/apply.review）能看列表、详情，也能审核（#274 残留修复 J.1）', async () => {
+    const { app, as, accountId, db } = await setupConsole();
+    grantPermGroup(app, accountId('dave'), 'title.ai.head'); // 种子只给这个节点按部门限定，没有任何人直接持有不限定的 apply.view/apply.review（除了站长的通配 `*`）
+    const row = insertApplication(db);
+    const list = await app.inject({ url: '/api/console/applications', headers: as('dave') });
+    expect(list.statusCode).toBe(200); // 改之前 requirePermission 一律 403，部长完全看不到投递
+    expect(list.json().total).toBe(1);
+    expect((await app.inject({ url: `/api/console/applications/${row.id}`, headers: as('dave') })).statusCode).toBe(200);
+    const review = await app.inject({
+      method: 'PATCH', url: `/api/console/applications/${row.id}`, headers: as('dave'),
+      payload: { status: 'interview', expected_status: 'received', expected_review_id: 0, notify: false },
+    });
+    expect(review.statusCode).toBe(200);
   });
 
   it('records a review in a transaction and keeps the note out of the audit log', async () => {

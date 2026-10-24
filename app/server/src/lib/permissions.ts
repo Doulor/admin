@@ -223,17 +223,44 @@ export function bumpPermRevision(db: Database.Database): number {
  * level、department 组每账号最多一个（SPEC §3.6「身份唯一」）：写入前在同一事务里删除该账号在同类组下的
  * 旧成员资格，再插入新的。用「写入时检查」而不是触发器，便于在应用层测试和在迁移脚本里复用。
  * 调用方写完之后要自行 `bumpPermRevision(db)` 让缓存失效（迁移脚本在整段迁移结束后统一 bump 一次）。
+ * `expiresAt` 给 console/permission-groups.ts 的「加成员」接口用（可以带过期时间）；不传就是永久，
+ * 和原来的行为一样。调用方如果自己已经在一个事务里，better-sqlite3 的 transaction() 会自动退化成
+ * SAVEPOINT，不用调用方特地拆出来（console/users.ts 的 PATCH、迁移脚本的批量循环都是这样嵌套调用的）。
+ * #274 残留修复 P：console/users.ts、console/permission-groups.ts 原来各自写了一份一模一样的
+ * 「按 kind 删旧的再插入新的」SQL，这里是唯一实现，两处改成调用它。
  */
-export function setExclusiveGroupMembership(db: Database.Database, accountId: string, groupId: string, now: number, grantedBy: string) {
+export function setExclusiveGroupMembership(
+  db: Database.Database, accountId: string, groupId: string, now: number, grantedBy: string, expiresAt: number | null = null,
+) {
   const group = db.prepare("SELECT kind FROM perm_groups WHERE id = ?").get(groupId) as { kind: string } | undefined;
   if (!group) throw new Error(`perm group not found: ${groupId}`);
   const tx = db.transaction(() => {
     if (group.kind === "level" || group.kind === "department") {
       db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id IN (SELECT id FROM perm_groups WHERE kind = ?)").run(accountId, group.kind);
     }
-    db.prepare("INSERT INTO perm_members(account_id, group_id, expires_at, granted_by, created_at) VALUES (?, ?, NULL, ?, ?)").run(accountId, groupId, grantedBy, now);
+    db.prepare("INSERT INTO perm_members(account_id, group_id, expires_at, granted_by, created_at) VALUES (?, ?, ?, ?, ?)").run(accountId, groupId, expiresAt, grantedBy, now);
   });
   tx();
+}
+
+/**
+ * 站长组 id；全站最高权限（种子里是唯一拿到 `node:"*"` 的组），不能被收回或删除（接口层强制，这里只给
+ * 两个共享的查询，不重复写 SQL）。`levelGroupId`/`levelSuffix` 把 `level.` 前缀集中在一处：console/users.ts、
+ * console/me.ts 以前各自用 `SUBSTR(pg.id, 7)`、`` `level.${x}` `` 拼字符串，魔术数字 7 一旦前缀改名就全部错位。
+ */
+export const SITE_OWNER_GROUP_ID = "title.site.owner";
+const LEVEL_PREFIX = "level.";
+export function levelGroupId(suffix: string): string { return `${LEVEL_PREFIX}${suffix}`; }
+export function levelSuffix(groupId: string): string { return groupId.startsWith(LEVEL_PREFIX) ? groupId.slice(LEVEL_PREFIX.length) : groupId; }
+
+/** 这个账号现在是不是站长（`title.site.owner` 的直接成员）。 */
+export function isSiteOwner(db: Database.Database, accountId: string): boolean {
+  return !!db.prepare("SELECT 1 FROM perm_members WHERE group_id = ? AND account_id = ?").get(SITE_OWNER_GROUP_ID, accountId);
+}
+
+/** 现在一共有几位站长（用于「至少留一位」的判断）。 */
+export function siteOwnerCount(db: Database.Database): number {
+  return (db.prepare("SELECT COUNT(*) AS n FROM perm_members WHERE group_id = ?").get(SITE_OWNER_GROUP_ID) as { n: number }).n;
 }
 
 export type ExplainHit = {

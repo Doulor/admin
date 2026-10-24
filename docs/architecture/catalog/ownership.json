@@ -100,7 +100,8 @@
         "perm_group_parents",
         "perm_entries",
         "perm_members",
-        "perm_state"
+        "perm_state",
+        "perm_seed_applied"
       ]
     },
     {
@@ -432,7 +433,7 @@
       "evidence": [
         {
           "path": "app/server/src/routes/console/applications.ts",
-          "needle": "\"/api/console/applications/:application_id\",\n    { preHandler: [requirePermission(\"apply.review\"), requireStepUp] },"
+          "needle": "\"/api/console/applications/:application_id\",\n    { preHandler: [requireScopedPermission(\"apply.review\"), requireStepUp] },"
         },
         {
           "path": "app/server/src/routes/console/applications.ts",
@@ -2065,6 +2066,10 @@
           "needle": "app.get(\"/api/console/activity\", { preHandler: requireScopedPermission(\"activity.read\") }, async (req) => {"
         },
         {
+          "path": "app/server/src/lib/cursor.ts",
+          "needle": "export function encodeCursor(cursor: unknown): string {"
+        },
+        {
           "path": "app/server/src/routes/console/contracts.ts",
           "needle": "\"GET /api/console/activity\": { querystring: activityQuery, response: { 200: activityListResult } },"
         },
@@ -2114,6 +2119,10 @@
         {
           "path": "app/server/src/routes/console/activity.ts",
           "needle": "app.get(\"/api/console/activity.csv\", { preHandler: requirePermission(\"activity.export\") }, async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/lib/sql-text.ts",
+          "needle": "export function csvCell(value: unknown): string {"
         },
         {
           "path": "app/server/src/routes/console/contracts.ts",
@@ -2228,14 +2237,14 @@
       "writes": [],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：需要节点 apply.view（#274 切到权限节点体系）；无部门/个人记录限制，有此节点可读全部候选人列表。",
+        "权限与资源：需要节点 apply.view，按 requireScopedPermission 判定（#274 残留修复 J：部门部长只有按部门限定的 apply.view，原来的 requirePermission 会把他们一律拦在外面）；applications 表没有部门列，命中范围的账号（含部门部长）看到的是全部候选人列表，不额外按部门过滤。",
         "响应与错误：200 {items,total,counts}；特长摘要120字、last_review可空，来源IP/UA不下发；counts为未筛选的全局五状态计数。",
         "数据与副作用：只读；转义q中的LIKE通配符，按姓名/班级/邮箱搜索；查询latest review，不为列表记application.view。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/console/applications.ts",
-          "needle": "app.get<{ Querystring: ListQuery }>(\"/api/console/applications\", { preHandler: requirePermission(\"apply.view\") }, async (req) => {"
+          "needle": "app.get<{ Querystring: ListQuery }>(\"/api/console/applications\", { preHandler: requireScopedPermission(\"apply.view\") }, async (req) => {"
         },
         {
           "path": "app/console/src/pages/Applications.vue",
@@ -2296,10 +2305,6 @@
           "needle": "export function createAccess("
         },
         {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
           "path": "app/console/src/pages/ApplicationDetail.vue",
           "needle": "LETTER_LIMITS, emptyLetterDraft, letterErrors, mailState, newestReviewId, noticePlan, reviewPatch, savedMessage, serverFieldErrors, statusChangedMessage,"
         }
@@ -2354,10 +2359,6 @@
         {
           "path": "app/server/src/lib/access.ts",
           "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
         }
       ],
       "tests": [
@@ -2420,10 +2421,6 @@
         {
           "path": "app/server/src/lib/access.ts",
           "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
         }
       ],
       "tests": [
@@ -2783,10 +2780,6 @@
           "needle": "export function createAccess("
         },
         {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
-        },
-        {
           "path": "app/console/src/pages/Feedback.vue",
           "needle": "const route = useRoute();"
         }
@@ -2847,10 +2840,6 @@
         {
           "path": "app/server/src/lib/access.ts",
           "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
         }
       ],
       "tests": [
@@ -2909,10 +2898,6 @@
         {
           "path": "app/server/src/lib/access.ts",
           "needle": "export function createAccess("
-        },
-        {
-          "path": "app/server/src/middleware/require-capability.ts",
-          "needle": "export function requireCapability("
         }
       ],
       "tests": [
@@ -7693,6 +7678,14 @@
           "needle": "export function departmentScopedAccess("
         },
         {
+          "path": "app/server/src/lib/cursor.ts",
+          "needle": "export function decodeCursor<T>(raw: string | undefined, isValid: (value: unknown) => value is T): T | null {"
+        },
+        {
+          "path": "app/server/src/lib/sql-text.ts",
+          "needle": "export function escapeLike(value: string): string {"
+        },
+        {
           "path": "app/console/src/pages/Users.vue",
           "needle": "const route = useRoute();"
         },
@@ -7834,6 +7827,16 @@
     "app/server/src/lib/access.ts": [
       "identity",
       "organization"
+    ],
+    "app/server/src/lib/cursor.ts": [
+      "permissions",
+      "audit"
+    ],
+    "app/server/src/lib/sql-text.ts": [
+      "permissions",
+      "audit",
+      "recruitment",
+      "competitions"
     ],
     "app/server/src/lib/auth.ts": [
       "identity"

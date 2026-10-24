@@ -787,6 +787,8 @@
         "app/server/src/lib/beijing-time.ts",
         "app/server/src/lib/competition-signup-store.ts",
         "app/server/src/lib/console-scope.ts",
+        "app/server/src/lib/cursor.ts",
+        "app/server/src/lib/sql-text.ts",
         "app/server/src/lib/db.ts",
         "app/server/src/lib/forum-rules.ts",
         "app/server/src/lib/forum-store.ts",
@@ -819,12 +821,13 @@
         "domain:audit",
         "domain:identity"
       ],
-      "reason": "新增权限引擎（permission-nodes.ts/permissions.ts）、统一迁移（migrations/2026-10-yugc-v2.ts）、账号资料/头像/邀请码目录（account-profiles.ts/account-avatar.ts/account-directory.ts）、操作记录写入口（activity.ts）、防盗刷计数引擎（limits.ts/apply-quota.ts）；db.ts 接入新迁移与 perm_* 建表。残留修复：新增 register-limits.ts（注册限额，按 IP/设备各走 hitAll），identity-store.ts 的 signInWithGithub/signInSecondChannel 在真的要建号那一步接入它。"
+      "reason": "新增权限引擎（permission-nodes.ts/permissions.ts）、统一迁移（migrations/2026-10-yugc-v2.ts）、账号资料/头像/邀请码目录（account-profiles.ts/account-avatar.ts/account-directory.ts）、操作记录写入口（activity.ts）、防盗刷计数引擎（limits.ts/apply-quota.ts）；db.ts 接入新迁移与 perm_* 建表。残留修复：新增 register-limits.ts（注册限额，按 IP/设备各走 hitAll），identity-store.ts 的 signInWithGithub/signInSecondChannel 在真的要建号那一步接入它；团队负责人两轮只读审查发现的阻塞与非阻塞项（A-Q）：permissions.ts 新增站长判定/等级组 id 辅助函数与 setExclusiveGroupMembership 的 expiresAt 参数（替代 users.ts、permission-groups.ts 各自重复的 DELETE+INSERT）；新增 cursor.ts（分页游标编解码，替代 users.ts/activity.ts 各一份重复实现）与 sql-text.ts（LIKE/CSV 转义，替代三处不一致的实现，activity.ts 那份原来没有防公式注入）；migrations/2026-10-yugc-v2.ts 新增 perm_seed_applied 台账（种子与 role_assignments 映射只应用一次，重启不再覆盖所有者的改动）、迁移第 6 步补搬论坛头像字节、第 7 步复制时打码邀请链接 token；db.ts 新增 perm_seed_applied 建表；activity.ts 新增 403/429 按主体+分钟合并写一行的 recordDenial，UA 截断 256 字符；console-scope.ts 的 departmentScopedAccess 改成部门级 allow 减去部门级 deny。"
     },
     {
       "paths": [
         "app/server/src/middleware/http-policy.ts",
         "app/server/src/middleware/require-auth.ts",
+        "app/server/src/middleware/require-capability.ts",
         "app/server/src/middleware/require-github-session.ts",
         "app/server/src/middleware/require-github.ts",
         "app/server/src/middleware/require-member.ts",
@@ -850,7 +853,7 @@
         "domain:identity",
         "domain:platform"
       ],
-      "reason": "新增按权限节点判定的 require-permission.ts（取代按 Capability 判定的 require-capability.ts）与控制台写操作的 require-step-up.ts；require-auth.ts/visitor.ts 的会话类型扩展挪到 lib/session.ts；http-policy.ts 补 /api/events 的白名单。"
+      "reason": "新增按权限节点判定的 require-permission.ts（取代按 Capability 判定的 require-capability.ts）与控制台写操作的 require-step-up.ts；require-auth.ts/visitor.ts 的会话类型扩展挪到 lib/session.ts；http-policy.ts 补 /api/events 的白名单。残留修复：确认 require-capability.ts 零调用方后删除（见 removals）；http-policy.ts 的 recordDenialOrLimit 改调 recordDenial（403/429 合并写一行）并从响应体取 bucket 写进 meta.bucket。"
     },
     {
       "paths": [
@@ -949,6 +952,20 @@
         "domain:permissions"
       ],
       "reason": "补齐权限体系、操作记录、GitLab 控制台几条链路的接口说明，去掉已删除的 GitHub 组织管理接口描述。"
+    },
+    {
+      "paths": [
+        "docs/architecture/SECURITY.md"
+      ],
+      "domains": [
+        "permissions",
+        "audit"
+      ],
+      "nodes": [
+        "domain:permissions",
+        "domain:audit"
+      ],
+      "reason": "团队负责人只读审查后的残留修复（item Q）：「极客班控制台：称号与能力」整节改写成权限节点模型——perm_groups/perm_group_parents/perm_entries/perm_members 的数据形状、explain/evaluate 的 deny-first 判定、等级与部门继承链、站长保护（任免/编辑/最后一人）、requireScopedPermission 的部门范围判定与部门级 deny 减法、step-up、console.access、perm_seed_applied 种子台账、操作记录改走 recordActivity；不再出现已删除的旧称号模型（提督/舰长/队长/舰员/领航员/乘客）、/api/console/people、/api/admin/:org/*。"
     },
     {
       "paths": [
@@ -1065,6 +1082,7 @@
         "tests/server/competition-signups.test.ts",
         "tests/server/competitions.test.ts",
         "tests/server/console-permissions.test.ts",
+        "tests/server/console-scope.test.ts",
         "tests/server/console-users.test.ts",
         "tests/server/console.test.ts",
         "tests/server/core.test.ts",
@@ -1105,7 +1123,7 @@
         "domain:forum",
         "domain:gitlab"
       ],
-      "reason": "服务端回归新增/改写：权限引擎求值、迁移两轮演练、操作记录写入与保留清理、各类限额 429、投递/比赛/论坛改按权限节点判定、控制台用户与权限接口、GitLab 同步、身份资料与头像、邀请码兑换。"
+      "reason": "服务端回归新增/改写：权限引擎求值、迁移两轮演练、操作记录写入与保留清理、各类限额 429、投递/比赛/论坛改按权限节点判定、控制台用户与权限接口、GitLab 同步、身份资料与头像、邀请码兑换。残留修复新增 console-scope.test.ts（departmentScopedAccess 纯函数：部门级 deny 减去部门级 allow）；console.test.ts/console-permissions.test.ts/console-users.test.ts/forum.test.ts/events.test.ts/rate-limits.test.ts/permissions.test.ts/yugc-v2-migration.test.ts/legacy-database.test.ts/signin-methods.test.ts 新增站长保护、部门范围投递接口、台账回填、403/429 合并写、IP 哈希限流等用例。"
     },
     {
       "paths": [
@@ -1198,6 +1216,24 @@
         "recruitment"
       ],
       "reason": "#274 阶段1：删 GitHub 组织管理整条链路（SPEC §3.9「去掉」、CONTRACT-274 §8），控制台改接 GitLab 概览/项目/设置，不再读 GitHub 组织角色；requireGithub/requireGithubSession 中间件随之删除，登录仍走 GitHub OAuth（保留 OAUTH_CLIENT_ID/SECRET）。"
+    },
+    {
+      "path": "app/server/src/middleware/require-capability.ts",
+      "baseAnchor": "export function requireCapability(...anyOf: Capability[]) {",
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "github",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "reason": "团队负责人只读审查后的残留修复（item A 收尾）：按能力判定的旧中间件已经没有任何真实调用方（路由早前全部切到按权限节点判定的 require-permission.ts，这里只是删掉确认死掉的文件），确认零调用方后删除；取代它的 require-permission.ts/lib/console-scope.ts 已在本次改动的其它 coverage 条目里。"
     },
     {
       "path": "app/server/src/routes/admin/activity.ts",
@@ -1683,6 +1719,7 @@
     "tests/server/competition-signups.test.ts",
     "tests/server/competitions.test.ts",
     "tests/server/console-permissions.test.ts",
+    "tests/server/console-scope.test.ts",
     "tests/server/console-users.test.ts",
     "tests/server/console.test.ts",
     "tests/server/core.test.ts",

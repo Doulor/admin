@@ -125,6 +125,21 @@ describe("组继承（真实种子数据：level.member → level.registered →
     expect(engine.check(account, "perm.manage")).toBe(true);
     expect(engine.check(account, "gitlab.settings")).toBe(true);
   });
+
+  it("setExclusiveGroupMembership 的 expiresAt 参数：不传是永久，传了就原样存（#274 残留修复 P：console/users.ts 与 permission-groups.ts 共用这一份实现）", () => {
+    const db = makeDb();
+    const now = Date.now();
+    const account = makeAccount(db, now);
+    setExclusiveGroupMembership(db, account, "level.member", now, "test");
+    expect((db.prepare("SELECT expires_at FROM perm_members WHERE account_id = ? AND group_id = 'level.member'").get(account) as { expires_at: number | null }).expires_at).toBeNull();
+    const laterExpiry = now + 86_400_000;
+    setExclusiveGroupMembership(db, account, "dept.ai", now, "test", laterExpiry);
+    expect((db.prepare("SELECT expires_at FROM perm_members WHERE account_id = ? AND group_id = 'dept.ai'").get(account) as { expires_at: number | null }).expires_at).toBe(laterExpiry);
+    // 同一账号的 level/department 类组每账号最多一个：换一个 level 组，旧的那条（包括它的 expires_at）被换掉，不是叠加
+    setExclusiveGroupMembership(db, account, "level.registered", now, "test");
+    const levels = db.prepare("SELECT pm.group_id FROM perm_members pm JOIN perm_groups pg ON pg.id = pm.group_id WHERE pm.account_id = ? AND pg.kind = 'level'").all(account);
+    expect(levels).toEqual([{ group_id: "level.registered" }]);
+  });
 });
 
 describe("meta 取值（SPEC §3.5 第 4 条）", () => {

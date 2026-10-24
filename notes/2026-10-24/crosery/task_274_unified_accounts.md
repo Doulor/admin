@@ -279,3 +279,45 @@
   已单独报告给 team-lead，由其决定是否单开 issue。
 - 下一步：残留修复 A/B 到这里完成，已向 team-lead 报告三个 SHA（ee204c12、72e972fb、988759e4）与完整命令输出，
   以及上面这条未修的 roleUnrecorded 歧义。#274 本任务到此没有更多待办。
+
+## 08:31:45 +08:00 · 提交 · #274 · 残留修复 C（blocker）/N：种子与映射改台账、迁移报告启动日志
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：88112262：db.ts 加 perm_seed_applied(key, applied_at) 台账表；migrations/2026-10-yugc-v2.ts 的 seedGroupsAndEntries（组/继承边/条目）与 mapRoleAssignments（role_assignments 整行）全部改成按稳定 key 查台账、应用过不再比对种子要的值，修掉重启会把所有者删掉/收紧/撤销的权限改动种回来的回归；新增 backfillSeedLedger() 给老库升级时按现状回填台账（已知限制已在代码注释写明：台账上线前就删掉的种子会在升级后这一次启动被种回来一次，此后记住不再种第二次）；MigrationReport 加 skipped_role_assignments（account_id 为空的行数），app.ts 加 onReady 钩子把迁移报告记一次日志，只记数量不记 unmapped_heads 里的真实 GitHub 登录名。
+- 结果：tests/server/yugc-v2-migration.test.ts 新增 8 条（撤销站长/删条目/删继承边/收紧 meta/alumni 降级/head 改派重跑均保持不变、台账回填不重复种、skipped_role_assignments 计数）；legacy-database.test.ts 同步新表清单。npx vitest run tests/server → 31 files / 589 tests 全过。
+- 下一步：继续 team-lead #274 review round 1 fix274-srv.md 剩余项：F（recordDenial 写侧合并+UA 截断）、H（迁移第 6 步头像字节）、I（audit() 去重+invite_link 打码）、J 剩余（applications.ts 改 requireScopedPermission、console-scope.ts 的部门级 deny 减法）、K 剩余（events.ts 按 IP 哈希限流+meta 2KB 上限）、P 剩余（setExclusiveGroupMembership 合并、删 require-capability.ts）、Q（SECURITY.md 重写）。
+
+## 08:38:51 +08:00 · 提交 · #274 · 残留修复 B/D/E/F/G/J.3/K.1/K.3/L/M/O/P：5 个提交，站长保护到 403/429 合并写
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：5 个提交（72bfa30c 共享游标/LIKE-CSV 转义库+权限引擎站长与等级辅助函数 → a7228a57 站长组保护/PATCH 返回完整行/部门计数收窄/meta_value 校验/visitor_today/LIKE 转义 → 126363de 操作记录/投递/竞赛名单接共享库 → a553d763 话题浏览数归账号+限流主体统一 IP 哈希 → 21bc07e8 403/429 操作记录按主体+分钟合并写一行+UA 截断）。按文件依赖顺序拆分，保证每个提交都能独立编译。
+- 结果：每个提交各自跑过对应范围的测试；最后跑 npx vitest run tests/server → 31 files / 583 tests 全过（较上一条记录 +22：站长保护 4 条、部门计数 1 条、visitor_today 1 条、LIKE 字面匹配 1 条、话题浏览归账号 1 条、429 合并写 1 条，其余为既有用例随断言调整）。npx tsc -p app/server/tsconfig.json --noEmit 无报错。
+- 下一步：继续剩余项：H（迁移第 6 步复制论坛头像字节）、I（audit() 去重确认+invite_link 打码+preview-copy 未过期 invite_links 计数）、J 剩余（applications.ts 改 requireScopedPermission、console-scope.ts 部门级 deny 减法）、K.2（events.ts 按 IP 哈希限流+meta 2KB 上限）、P 剩余（setExclusiveGroupMembership 合并、删 require-capability.ts）、Q（SECURITY.md 重写）；全部完成后跑迁移演练与 pnpm check --base 9c5b74f7，向 team-lead 报告全部 SHA。
+
+## 08:48:39 +08:00 · 提交 · #274 · 残留修复 H + I 一部分：迁移搬头像字节、复制时打码邀请 token；audit() 全局改写已撤回
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：27056cc4：buildAccountProfiles() 补搬 forum_avatars 字节进 account_avatars（mime 固定 image/webp）；copyAuditLogsToActivity() 复制历史行时按旧 /api/console/audit 的口径打码 invite_link.* 的 target 和 invite.* 里 public:<token> 的 actor。item I 的另一半（audit() 改走 recordActivity、不再写 audit_logs）试做后撤回：db.ts 的 audit() 实际仍在写 audit_logs，和团队负责人描述的前提不符；全局改写会牵连 14 个测试文件 36 条用例，不少在 identity/oidc/device-flow/gitlab-sync（不在我的文件范围），还有一个被很多测试共用、读 audit_logs.org 字段的 audits() 帮手（activity_events 没有对应字段）。已用 git checkout 撤回 db.ts、permission-groups.ts、users.ts 的改动，只保留这次两处独立验证过的修复。
+- 结果：tests/server/yugc-v2-migration.test.ts 新增 2 条；npx vitest run tests/server → 31 files / 585 tests 全过。
+- 下一步：已私信 team-lead 确认 item I 剩余部分的范围（audit() 全局改写由谁来做、要不要同步改 identity/oidc/device-flow/gitlab-sync 的测试）；preview-copy 未过期 invite_links 计数留到那之后一起报。与此同时继续 J 剩余（applications.ts 改 requireScopedPermission、console-scope.ts 部门级 deny 减法）、K.2（events.ts 按 IP 哈希限流+meta 2KB 上限）、P 剩余（setExclusiveGroupMembership 合并、删 require-capability.ts）、Q（SECURITY.md 重写）。
+
+## 08:53:12 +08:00 · 提交 · #274 · 残留修复 J：投递接口改范围判定、部门级 deny 减法
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：e6102486：console/applications.ts 的列表/详情/审核三个路由从 requirePermission 改 requireScopedPermission（部长此前因为只有部门范围的 apply.view/apply.review、requirePermission 按全局判定而一律 403，完全看不到投递）；lib/console-scope.ts 的 departmentScopedAccess() 改成按部门分别收集 allow/deny 集合、结果取差集，修掉按部门限定的 deny 被忽略的问题。
+- 结果：新增 tests/server/console-scope.test.ts 6 条（纯函数单测）+ console.test.ts 1 条（部长现在能看/能审投递）。npx vitest run tests/server → 32 files / 592 tests 全过。
+- 下一步：继续 K.2（portal/events.ts 按 IP 哈希限流+meta 2KB 上限）、P 剩余（setExclusiveGroupMembership 合并、删 require-capability.ts）、Q（SECURITY.md 重写），然后迁移演练与 pnpm check --base 9c5b74f7。
+
+## 08:56:08 +08:00 · 提交 · #274 · 残留修复 K.2：/api/events 限流改按 IP 哈希、meta 加 2KB 上限
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：5bf0bda9：portal/events.ts 的限流键从「账号或访客 cookie 或 IP」改成「账号或 IP 哈希」，不再用能被清掉重发的访客 cookie 当限流身份；新增 2048 字节的 meta 序列化长度上限，超限按拒绝处理、合并计入 events.rejected。
+- 结果：tests/server/events.test.ts 新增 2 条；npx vitest run tests/server → 32 files / 594 tests 全过。
+- 下一步：继续 P 剩余（setExclusiveGroupMembership 合并、删 require-capability.ts）、Q（SECURITY.md 重写），然后迁移演练（.tools/yugc-v2/db/preview-copy.db 临时副本两遍 createDatabase）与 pnpm check --base 9c5b74f7，最后汇总全部 SHA 和测试数向 team-lead 报告。
+
+## 09:17:20 +08:00 · 提交 · #274 · 残留修复 P/Q：成员写入收敛、删 require-capability.ts、SECURITY.md 改写；#274 残留修复清单（A-Q）全部完成
+
+- 执行者：agent-claude-geek-main-3c2a7a67-srv274（Claude Code 子 agent，claude-sonnet-5-5）
+- 做了什么：b923ee85：setExclusiveGroupMembership 加 expiresAt 可选参数，users.ts/permission-groups.ts 的 level/department 写入改调它，删掉两处重复 SQL；删 app/server/src/middleware/require-capability.ts（确认零调用方）；docs/architecture/SECURITY.md「极客班控制台：称号与能力」整节改写为权限节点模型（perm_groups/entries/members、deny-first、站长三条保护、部门范围判定与 deny 减法、step-up、console.access、perm_seed_applied 台账、操作记录改走 recordActivity）；ownership.json 补 perm_seed_applied/cursor.ts/sql-text.ts 归属与证据、修两处改名失效的锚点、删 6 处指向已删文件的证据；274.json 补 coverage/removals；pnpm catalog:generate 重新生成产物。
+- 结果：npx vitest run（全仓库）→ 106 files / 1758 tests 全过；pnpm typecheck 无报错；pnpm check:runtime/check:site-config/check:environments/check:boundaries/check:docs/check:doc-sync/check:notes/check:secrets/check:catalog 全部通过；node scripts/check-architecture.mjs --base 9c5b74f7 --branch task/274/unified_accounts → 宏观对齐通过：#274，251 个变更文件，368 个关联节点。
+- 下一步：team-lead #274 review round 1 fix274-srv.md 的 A-Q 全部完成并提交（8 个提交：88112262 C/N、72bfa30c 共享库、a7228a57 B/D/E/J.3/K.3/M/O/P-partial、126363de L/O、a553d763 G/K.1/K.3-reader、21bc07e8 F、27056cc4 H+I一部分、e6102486 J、5bf0bda9 K.2、b923ee85 P/Q）。还差两件事再报告 team-lead：迁移演练（.tools/yugc-v2/db/preview-copy.db 临时副本两遍 createDatabase）、item I 剩余部分（audit() 改走 recordActivity 的范围确认，已私信 team-lead 待回复）。

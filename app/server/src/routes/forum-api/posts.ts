@@ -1,12 +1,10 @@
-import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { FORUM_LIMITS, ForumError, GUEST_POST_SITE_SUBJECT, NAME_RULE_MESSAGE, ipSubject, isAllowedName, normalizeName } from "../../lib/forum-rules.js";
+import { FORUM_LIMITS, ForumError, GUEST_POST_SITE_SUBJECT, NAME_RULE_MESSAGE, ipHash, ipSubject, isAllowedName, normalizeName } from "../../lib/forum-rules.js";
 import { canModerate, forbidden, forumChanges, forumViewer, guestRepliesPaused, notFound, rateLimited, requireMember, requireWriter, type MemberViewer } from "./viewer.js";
 import { hourlyLimited } from "./forum-limits.js";
 
 /** 同一 IP 上所有账号加起来，回帖每小时 200 次（SPEC §3.8），防止一个 IP 换着账号刷。只存哈希，不存原文。 */
 const REPLY_IP_HOURLY_MAX = 200;
-const ipHash = (ip: string) => createHash("sha256").update(ipSubject(ip)).digest("hex");
 
 type PostParams = { post_id: string };
 type ReplyBody = {
