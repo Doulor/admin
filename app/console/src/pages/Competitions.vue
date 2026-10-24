@@ -12,6 +12,7 @@ import { TxTextarea } from "@talex-touch/tuffex/textarea";
 import { TxRadio, TxRadioGroup } from "@talex-touch/tuffex/radio";
 import { TxEmptyState } from "@talex-touch/tuffex/empty-state";
 import { toast } from "@talex-touch/tuffex/utils";
+import DateField from "../components/DateField.vue";
 import PageHeader from "../components/PageHeader.vue";
 import ErrorPanel from "../components/ErrorPanel.vue";
 import ErrorAlert from "../components/ErrorAlert.vue";
@@ -155,15 +156,15 @@ async function askRemove(row: CompetitionRecord) {
             </TxRadioGroup>
           </TxFormItem>
           <TxFormItem label="开始日期" class="wide">
-            <TxInput v-model="form.startDate" type="date" class="fill-width" />
+            <DateField v-model="form.startDate" />
             <span v-if="errors.startDate" class="field-error">{{ errors.startDate }}</span>
           </TxFormItem>
           <TxFormItem label="结束日期" class="wide">
-            <TxInput v-model="form.endDate" type="date" class="fill-width" />
+            <DateField v-model="form.endDate" />
             <span v-if="errors.endDate" class="field-error">{{ errors.endDate }}</span>
           </TxFormItem>
           <TxFormItem label="报名截止（选填，当天整天都能报）" class="wide">
-            <TxInput v-model="form.deadlineDate" type="date" class="fill-width" />
+            <DateField v-model="form.deadlineDate" clearable />
             <span v-if="errors.deadlineDate" class="field-error">{{ errors.deadlineDate }}</span>
           </TxFormItem>
           <TxFormItem label="官方链接（选填，https）" class="wide">

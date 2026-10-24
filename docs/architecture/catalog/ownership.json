@@ -1319,7 +1319,7 @@
         },
         {
           "path": "app/console/src/pages/SignIn.vue",
-          "needle": "<TxFormItem v-if=\"registering\" v-slot=\"{ id }\" label=\"真实姓名\">"
+          "needle": "<TxFormItem v-if=\"registering\" v-slot=\"{ id }\" :label=\"invite.trim() ? '真实姓名' : '真实姓名（成员必填）'\">"
         }
       ],
       "tests": [
@@ -1930,7 +1930,7 @@
         },
         {
           "path": "app/console/src/lib/types.ts",
-          "needle": "export type SelectableGrade = 1 | 2 | 3 | 4;"
+          "needle": "export type SelectableGrade = Grade;"
         }
       ],
       "tests": [
@@ -2322,6 +2322,10 @@
         {
           "path": "app/console/src/lib/activity.ts",
           "needle": "// 操作记录（SPEC §3.7）：筛选条件 ↔ 地址参数 ↔ 接口参数，以及来源、结果、动作、限流桶的说法。纯函数，tests/console 直接测。"
+        },
+        {
+          "path": "app/console/src/components/DateField.vue",
+          "needle": "// 日期框（#283）：Tuffex 日期选择器配上控制台的默认值——中文文案、周一开头、桌面和手机都是下拉日历。"
         }
       ],
       "tests": [

@@ -5,6 +5,7 @@ import "@talex-touch/tuffex/style.css";
 import "virtual:uno.css";
 import "./styles/theme.css";
 import "./styles/layout.css";
+import "./styles/controls.css";
 import { setSurfacePerformanceMode } from "@talex-touch/tuffex/base-surface";
 import App from "./App.vue";
 import { router } from "./router";

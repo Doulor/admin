@@ -52,7 +52,7 @@ const openForum = () => window.open(siteUrl("forum", "/"), "_blank", "noopener")
   <div class="page">
     <PageHeader title="论坛管理" description="分类谁能看、论坛里有哪些表情，在这里改；置顶、关闭和编辑别人的帖子在论坛页面上做。谁能做这些，由「权限」里的组决定。">
       <template #actions>
-        <TxButton class="open-forum" variant="primary" icon="i-carbon-launch" @click="openForum">打开论坛</TxButton>
+        <TxButton variant="secondary" icon="i-carbon-launch" @click="openForum">打开论坛</TxButton>
       </template>
     </PageHeader>
 
@@ -68,12 +68,12 @@ const openForum = () => window.open(siteUrl("forum", "/"), "_blank", "noopener")
               <span class="count">{{ mine.filter(row => row.has).length }} / {{ mine.length }}</span>
             </div>
             <ul class="caps">
-              <li v-for="row in mine" :key="row.id" class="caps__row">
-                <TxStatusBadge :text="row.has ? '有' : '无'" :status="row.has ? 'success' : 'muted'" size="sm" />
+              <li v-for="row in mine" :key="row.id" class="caps__row" :class="{ 'caps__row--off': !row.has }">
                 <span class="caps__text">
-                  <span>{{ row.label }}</span>
-                  <span class="muted">{{ row.action }}</span>
+                  <span class="caps__label">{{ row.label }}</span>
+                  <span class="caps__action">{{ row.action }}</span>
                 </span>
+                <TxStatusBadge :text="row.has ? '有' : '没有'" :status="row.has ? 'success' : 'muted'" size="sm" />
               </li>
             </ul>
             <TxButton v-if="can('perm.view')" variant="ghost" size="sm" icon="i-carbon-security" class="caps__link" @click="router.push('/console/permissions?tab=nodes')">看哪些组有这些权限</TxButton>
@@ -85,42 +85,61 @@ const openForum = () => window.open(siteUrl("forum", "/"), "_blank", "noopener")
 </template>
 
 <style scoped>
-.open-forum {
-  min-height: 44px;
-}
 .forum-card :deep(.tx-tabs__nav) {
   border-bottom: 1px solid var(--tx-border-color-lighter);
-  padding: 0 16px;
+  padding: 4px 20px 0;
 }
 .mine {
-  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 .caps {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
 }
 .caps__row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--tx-border-color-lighter);
+  border-radius: 12px;
+  background: var(--tx-bg-color-overlay, #fff);
+}
+.caps__row--off {
+  background: var(--tx-fill-color-lighter, #fafafa);
 }
 .caps__text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
-  font-size: 13px;
 }
-.caps__text > span:first-child {
+.caps__label {
   font-size: 14px;
+  font-weight: 500;
   color: var(--tx-text-color-primary);
 }
+.caps__action {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--tx-text-color-secondary);
+}
 .caps__link {
-  margin-top: 14px;
-  min-height: 44px;
+  align-self: flex-start;
+}
+@media (max-width: 640px) {
+  .mine {
+    padding: 16px;
+  }
 }
 </style>
