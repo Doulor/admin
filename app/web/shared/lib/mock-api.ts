@@ -153,8 +153,20 @@ function route(path: string): unknown {
   if (pathname === "/api/public/competitions") return { competitions: mockPersona() === "member" ? withDemoSignup(demoCompetitions(now)) : demoCompetitions(now) };
   if (pathname === "/api/team-plaza" || pathname.startsWith("/api/me/competition")) {
     if (mockPersona() !== "member") throw new ApiError(401, "unauthorized", "请先登录");
-    if (pathname === "/api/me/competitions") return { items: [], pending_total: 0 };
-    if (pathname === "/api/me/competition-results") return { items: [] };
+    // 「我的参赛」样板（#281 使用说明截图）：秋季黑客松在队里、有一条待处理，春季编程挑战赛已定榜拿了第二名
+    if (pathname === "/api/me/competitions") {
+      return {
+        items: [
+          { competition_id: "c1001", state: "in_team", pending_count: 1, team: { id: "t1", name: "长江 Commit 队", status: "recruiting", member_count: 2, team_max: 5 } },
+          { competition_id: "c1007", state: "signed_up", pending_count: 0, team: null },
+        ],
+        pending_total: 1,
+      };
+    }
+    if (pathname === "/api/me/competition-results") {
+      const prize = { amount_cny: 140, title: "GPT Plus 一个月订阅的价格", code: "YUGC-DEMO-7Q4M-2KXD", redeemed_at: null };
+      return { items: [{ competition_id: "c1007", name: "春季编程挑战赛", finalized_at: now - 38 * 86_400_000, rank: 2, points: 158, prize }] };
+    }
     if (pathname === "/api/team-plaza") {
       const kind = url.searchParams.get("kind");
       return { items: demoPlaza(now).filter((item) => !kind || item.kind === kind), next_cursor: null };
