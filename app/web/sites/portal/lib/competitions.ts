@@ -23,14 +23,25 @@ export type Competition = {
   signup: SignupSettings;
   /** 这场比赛已发布的官网（#278，`/c/<slug>/`）；没发布或服务端还没给这个字段时是 null。 */
   site_url: string | null;
+  /** 奖项（#278，可选）：名次从小到大，没有奖项是空数组。 */
+  prizes: PrizeTier[];
+  /** 年级系数（#278）：只有开了积分的内部赛才有意义，按服务端给的顺序（大一到无年级）。 */
+  grade_factors: GradeFactor[];
+  /** 定榜时间（#278）：定榜后名次不再变，得奖的人在「我的参赛」看到兑奖码；没定榜是 null。 */
+  finalized_at: number | null;
 };
+export type PrizeTier = { from: number; to: number; amount_cny: number; title: string };
+export type GradeFactor = { grade: string; label: string; factor: number };
 
 export const COMPETITIONS_URL = "/api/public/competitions";
 
 const KINDS: CompetitionKind[] = ["internal", "external"];
 const STATUSES: CompetitionStatus[] = ["upcoming", "registering", "closed", "ongoing", "ended"];
 /** 只认识要用的那几个字段：缺 `id`、名称或起止时间的条目直接丢掉，不显示半条。 */
-type RawCompetition = { id?: unknown; name?: unknown; kind?: unknown; start_at?: unknown; end_at?: unknown; signup_deadline?: unknown; url?: unknown; description?: unknown; status?: unknown; signup?: unknown; site_url?: unknown };
+type RawCompetition = {
+  id?: unknown; name?: unknown; kind?: unknown; start_at?: unknown; end_at?: unknown; signup_deadline?: unknown; url?: unknown; description?: unknown; status?: unknown; signup?: unknown;
+  site_url?: unknown; prizes?: unknown; grade_factors?: unknown; finalized_at?: unknown;
+};
 
 // 北京时间显示还要加八小时；UTC 有效但换算后越界的时间也不能交给界面。
 const asTimestamp = (value: unknown): number | null =>
@@ -38,6 +49,33 @@ const asTimestamp = (value: unknown): number | null =>
 const asText = (value: unknown): string => (typeof value === "string" ? value : "");
 /** 比赛官网只认本站的 `/c/<slug>/`，别的写法当作没有，不拿去拼外链。 */
 const SITE_PATH = /^\/c\/[a-z0-9][a-z0-9-]*\/$/;
+const rankOf = (value: unknown): number | null => (typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 100 ? value : null);
+
+/** 奖项：名次是 1–100 的整数且 from ≤ to、金额是不小于 0 的整数，否则丢掉这一档，不显示「第 3–1 名」。 */
+export function readPrizes(value: unknown): PrizeTier[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw): PrizeTier[] => {
+    if (typeof raw !== "object" || raw === null) return [];
+    const tier = raw as { from?: unknown; to?: unknown; amount_cny?: unknown; title?: unknown };
+    const from = rankOf(tier.from);
+    const to = rankOf(tier.to);
+    const amount = typeof tier.amount_cny === "number" && Number.isSafeInteger(tier.amount_cny) && tier.amount_cny >= 0 ? tier.amount_cny : null;
+    if (from === null || to === null || from > to || amount === null) return [];
+    return [{ from, to, amount_cny: amount, title: asText(tier.title) }];
+  });
+}
+
+/** 年级系数：要有年级名和一个大于 0 的系数。 */
+export function readGradeFactors(value: unknown): GradeFactor[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw): GradeFactor[] => {
+    if (typeof raw !== "object" || raw === null) return [];
+    const item = raw as { grade?: unknown; label?: unknown; factor?: unknown };
+    const label = asText(item.label);
+    if (!label || typeof item.factor !== "number" || !Number.isFinite(item.factor) || item.factor <= 0) return [];
+    return [{ grade: asText(item.grade) || label, label, factor: item.factor }];
+  });
+}
 
 /**
  * 读一条比赛。`id`、名称、起止时间缺一不可。服务端给的 `status` 认不出时按时间现算，
@@ -66,7 +104,10 @@ export function readCompetition(value: unknown): Competition | null {
   const signup = kind === "internal" ? readSignup(raw.signup) : NO_SIGNUP;
   const site = asText(raw.site_url);
   const site_url = SITE_PATH.test(site) ? site : null;
-  return { id, name, kind, start_at: start, end_at: end, signup_deadline, url, description: asText(raw.description), status, signup, site_url };
+  return {
+    id, name, kind, start_at: start, end_at: end, signup_deadline, url, description: asText(raw.description), status, signup, site_url,
+    prizes: readPrizes(raw.prizes), grade_factors: readGradeFactors(raw.grade_factors), finalized_at: asTimestamp(raw.finalized_at),
+  };
 }
 
 /**

@@ -193,6 +193,31 @@ a.pt-cx-hero-tag:hover { background: rgb(255 255 255 / 22%); }
 .pt-cx-score small { font-size: 12px; color: var(--pt-ink-soft); }
 .pt-cx-fine { margin-top: 8px; font-size: 12px; color: var(--pt-ink-soft); }
 
+/* 年级系数与奖项（#278）：系数是一排小格，奖项一档一行，金额用金色 */
+.pt-cx-grades { margin-top: 12px; }
+.pt-cx-grades p { font-size: 13px; color: var(--pt-ink-soft); }
+.pt-cx-grades ul { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+.pt-cx-grades li { display: grid; justify-items: center; gap: 0; padding: 8px 4px; border: 1px solid var(--pt-line); border-radius: 10px; background: #fff; }
+.pt-cx-grades span { font-size: 12px; color: var(--pt-ink-soft); }
+.pt-cx-grades b { font: 800 16px/1.3 var(--pt-mono); color: var(--pt-cobalt-deep); font-variant-numeric: tabular-nums; }
+.pt-cx-prizes { display: grid; gap: 8px; }
+.pt-cx-prizes li { display: grid; grid-template-columns: 7em auto minmax(0, 1fr); align-items: baseline; gap: 0 14px; padding: 10px 14px; border: 1px solid var(--pt-line); border-radius: 12px; background: linear-gradient(90deg, var(--cx-gold-soft), #fff 60%); }
+.pt-cx-prizes span { font-size: 13.5px; font-weight: 700; }
+.pt-cx-prizes b { font: 800 18px/1.3 var(--pt-mono); color: var(--cx-gold-ink); font-variant-numeric: tabular-nums; }
+.pt-cx-prizes small { font-size: 12.5px; color: var(--pt-ink-soft); overflow-wrap: anywhere; }
+
+/* 「我的参赛」顶上的定榜结果与兑奖码（#278）：兑奖码整段可选，复制按钮在旁边 */
+.pt-cx-results { flex: none; display: grid; gap: 8px; max-height: 40%; overflow-y: auto; padding: 12px 16px; border-bottom: 1px solid var(--pt-line); background: #fff; }
+.pt-cx-result { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; border: 1px solid var(--pt-line); border-radius: 14px; background: var(--pt-ice); }
+.pt-cx-result.is-prize { border-color: rgb(192 138 30 / 35%); background: linear-gradient(90deg, var(--cx-gold-soft), #fff 70%); }
+.pt-cx-result > .pt-icon { flex: none; color: var(--pt-cobalt); }
+.pt-cx-result.is-prize > .pt-icon { color: var(--cx-gold-ink); }
+.pt-cx-result-text { flex: 1 1 16em; display: grid; gap: 2px; min-width: 0; }
+.pt-cx-result-text b { font-size: 14px; }
+.pt-cx-result-text p { font-size: 13px; color: var(--pt-ink-soft); font-variant-numeric: tabular-nums; }
+.pt-cx-code { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pt-cx-code code { padding: 6px 10px; border: 1px dashed rgb(122 82 0 / 45%); border-radius: 8px; background: #fff; font: 700 14px/1.3 var(--pt-mono); color: var(--cx-gold-ink); letter-spacing: .04em; user-select: all; overflow-wrap: anywhere; }
+
 /* 提示块：没登录、不是成员、还没队伍……一句话加能做的事 */
 .pt-cx-callout { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; margin-top: 18px; padding: 14px 16px; border: 1px solid rgb(51 70 200 / 18%); border-radius: 14px; background: var(--pt-cobalt-wash); }
 .pt-cx-callout > .pt-icon { flex: none; color: var(--pt-cobalt); }
@@ -435,6 +460,10 @@ button.pt-cx-slot:disabled { opacity: .6; cursor: not-allowed; }
 .is-phone .pt-cx-score { grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .is-phone .pt-cx-score li { grid-template-columns: 6.5em minmax(0, 1fr); align-items: center; gap: 0 12px; padding: 10px 14px; }
 .is-phone .pt-cx-score b { grid-row: 1 / span 2; font-size: 18px; }
+.is-phone .pt-cx-grades ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.is-phone .pt-cx-prizes li { grid-template-columns: minmax(0, 1fr) auto; }
+.is-phone .pt-cx-prizes small { grid-column: 1 / -1; }
+.is-phone .pt-cx-results { max-height: 50%; }
 .is-phone .pt-cx-slots { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
 .is-phone .pt-cx-team { padding: 14px 14px 16px; }
 .is-phone .pt-cx-teams { grid-template-columns: minmax(0, 1fr); }

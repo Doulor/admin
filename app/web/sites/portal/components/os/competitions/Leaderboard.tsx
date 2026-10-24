@@ -1,5 +1,5 @@
 // 积分天梯（#239）：个人榜与队伍榜。个人榜前三名上领奖台，其余进表格；我所在的行高亮。
-// 数据每 30 秒重读（useMemberRead 的轮询），重读失败时保留上一份并标「没刷新上」。积分由组织者核实后在控制台登记。
+// 数据每 10 秒重读（useMemberRead 的轮询，#278），重读失败时保留上一份并标「没刷新上」。被标记「有用」的 Issue 与 MR 才计分，分数已乘年级系数。
 import { useState } from "react";
 import Icon from "../../Icon";
 import Avatar, { TeamBadge } from "./Avatar";
@@ -8,13 +8,13 @@ import type { BoardPerson, BoardTeam, Leaderboard, MemberRead } from "../../../l
 type Props = { board: MemberRead<Leaderboard>; meId: string | null; myTeamId: string | null; teamMode: boolean };
 
 const pad = (value: number) => String(value).padStart(2, "0");
-/** 北京时间的 `HH:mm:ss`：天梯每 30 秒刷新，精确到秒才看得出在动。 */
+/** 北京时间的 `HH:mm:ss`：天梯每 10 秒刷新，精确到秒才看得出在动。 */
 function clock(at: number): string {
   const d = new Date(at + 8 * 3600_000);
   return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
 }
 
-const split = (row: BoardPerson) => `Issue ${row.issues} · PR ${row.prs}${row.penalties > 0 ? ` · 扣分 ${row.penalties} 次` : ""}`;
+const split = (row: BoardPerson) => `Issue ${row.issues} · MR ${row.prs}${row.penalties > 0 ? ` · 扣分 ${row.penalties} 次` : ""}`;
 
 function Empty({ text }: { text: string }) {
   return (
@@ -22,7 +22,7 @@ function Empty({ text }: { text: string }) {
       <Icon name="medal-line" size={22} />
       <div>
         <b>{text}</b>
-        <p>合入的 Issue 与 PR 由组织者核实后登记积分，登记后半分钟内出现在这里。</p>
+        <p>被标记「有用」的 Issue 与合入的 MR 计分后，10 秒内出现在这里。</p>
       </div>
     </div>
   );
@@ -145,7 +145,7 @@ export default function BoardPanel({ board, meId, myTeamId, teamMode }: Props) {
         ) : (
           <h4>个人榜</h4>
         )}
-        {data && <p className={stale ? "pt-cx-live is-stale" : "pt-cx-live"}>{stale ? "没刷新上，稍后自动重试" : `更新于 ${clock(data.updated_at)} · 每 30 秒自动刷新`}</p>}
+        {data && <p className={stale ? "pt-cx-live is-stale" : "pt-cx-live"}>{stale ? "没刷新上，稍后自动重试" : `更新于 ${clock(data.updated_at)} · 每 10 秒自动刷新 · 分数已乘年级系数`}</p>}
       </div>
       {!data ? (
         board.phase === "loading" ? (

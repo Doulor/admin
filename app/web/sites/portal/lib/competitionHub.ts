@@ -1,10 +1,10 @@
 // 比赛报名、组队、积分天梯（#239）的数据：成员接口的读写、两个读数据的 hook，以及算界面文案的纯函数。
 //
 // 都是同源请求、带 sid cookie：/api/competitions/:id/*（我的状态、报名、队伍、找队友、天梯）、/api/teams/:id/*
-// （申请、邀请、处理、退出、转让、锁队、解散）、/api/me/competitions（「我的参赛」与角标）。
+// （申请、邀请、处理、退出、转让、锁队、解散）、/api/me/competitions（「我的参赛」与角标）、/api/me/competition-results（定榜后的名次与兑奖码，#278）。
 // 服务端按会话里的 account_id 认人，能不能做由服务端判断：按钮放不放看 my-status 的 `actions`，
 // 做完一件事就用响应里的新 MyStatus 换掉旧的，不在前端自己推算名单。
-// 没登录（401）给「登录」，不是极客班成员（403）如实说，其余读失败给「重试」。天梯每 30 秒重读（页面在后台时不读）。
+// 没登录（401）给「登录」，不是极客班成员（403）如实说，其余读失败给「重试」。天梯每 10 秒重读（页面在后台时不读，#278）。
 // 界面在 components/os/competitions/，单测在 tests/web/portal-competition-hub.test.tsx。
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "@shared/lib/api";
@@ -35,6 +35,9 @@ export type MyEntry = {
   team: { id: string; name: string; status: TeamStatus; member_count: number; team_max: number } | null;
 };
 export type MyCompetitions = { items: MyEntry[]; pending_total: number };
+/** 定榜后本人的结果（#278）：`rank` 为 null 是没进名次（0 分）；`prize` 里的兑奖码只在这里给本人看。 */
+export type MyPrize = { amount_cny: number; title: string; code: string; redeemed_at: number | null };
+export type MyResult = { competition_id: string; name: string; finalized_at: number; rank: number | null; points: number; prize: MyPrize | null };
 export type BoardPerson = { rank: number; person: Person; team: { id: string; name: string } | null; points: number; issues: number; prs: number; penalties: number };
 export type BoardTeam = { rank: number; team: { id: string; name: string; status: TeamStatus }; points: number; member_count: number };
 export type Leaderboard = { updated_at: number; individuals: BoardPerson[]; teams: BoardTeam[] };
@@ -155,6 +158,26 @@ export function readMine(body: unknown): MyCompetitions | null {
   return { items, pending_total: int(raw.pending_total) };
 }
 
+/** 定榜结果：缺比赛 id 或定榜时间的条目丢掉；兑奖码不是 YUGC- 开头的当作没有奖，不显示半张。 */
+export function readMyResults(body: unknown): MyResult[] | null {
+  const raw = obj(body);
+  if (!raw || !Array.isArray(raw.items)) return null;
+  return list(raw.items, (item): MyResult | null => {
+    const row = obj(item);
+    const competition_id = key(row?.competition_id);
+    if (!row || !competition_id || typeof row.finalized_at !== "number") return null;
+    const prize = obj(row.prize);
+    const code = str(prize?.code);
+    return {
+      competition_id, name: str(row.name) || competition_id, finalized_at: int(row.finalized_at),
+      rank: typeof row.rank === "number" && row.rank >= 1 ? int(row.rank) : null, points: int(row.points),
+      prize: prize && /^YUGC-[0-9A-Z-]+$/.test(code)
+        ? { amount_cny: int(prize.amount_cny), title: str(prize.title), code, redeemed_at: typeof prize.redeemed_at === "number" ? int(prize.redeemed_at) : null }
+        : null,
+    };
+  });
+}
+
 export function readLeaderboard(body: unknown): Leaderboard | null {
   const raw = obj(body);
   if (!raw || !Array.isArray(raw.individuals)) return null;
@@ -188,6 +211,7 @@ export const hubPaths = {
   leaderboard: (competition: string) => `/api/competitions/${seg(competition)}/leaderboard`,
   team: (team: string, what?: "apply" | "invite" | "respond" | "leave" | "transfer" | "lock") => `/api/teams/${seg(team)}${what ? `/${what}` : ""}`,
   mine: "/api/me/competitions",
+  results: "/api/me/competition-results",
 };
 
 const ACCEPT = { Accept: "application/json" };
@@ -319,12 +343,33 @@ export function useHub(competitionId: string, account: AccountState, onChanged?:
 /** 输入字数上限，与服务端请求契约一致（competition-contract.ts）：队名 2–30 字、口号 60、报名留言 200、申请留言 100。 */
 export const HUB_LIMITS = { teamName: 30, teamNameMin: 2, slogan: 60, note: 200, message: 100 } as const;
 
-/** 计分规则（与服务端登记积分时的取值范围一致）：合入 Issue +5～+30，合入 PR +15～+100，作弊 −50。 */
+/**
+ * 计分规则（与服务端登记积分时的取值范围一致）：Issue +5～+30，合入的 MR +15～+100，作弊 −50。
+ * #278 起只有被标记「有用」的 Issue 和 MR 才加分，加分乘年级系数，扣分不乘。
+ */
 export const SCORE_RULES = [
-  { kind: "issue", label: "合入 Issue", points: "+5～+30", note: "按问题的价值与描述质量" },
-  { kind: "pr", label: "合入 PR", points: "+15～+100", note: "按改动的难度与影响" },
-  { kind: "penalty", label: "作弊", points: "−50", note: "刷量、抄袭、冒名提交等，每次核实扣分" },
+  { kind: "issue", label: "Issue", points: "+5～+30", note: "被标记「有用」才加分，按问题的价值与描述质量" },
+  { kind: "pr", label: "合入的 MR", points: "+15～+100", note: "被标记「有用」才加分，按改动的难度与影响" },
+  { kind: "penalty", label: "作弊", points: "−50", note: "刷量、抄袭、冒名提交等，每次核实扣分，不乘年级系数" },
 ] as const;
+
+/** 年级系数写成「×1.5」：最多两位小数，去掉末尾的 0，但至少留一位（×1.0）。 */
+export function factorText(factor: number): string {
+  const fixed = (Math.round(factor * 100) / 100).toFixed(2).replace(/0$/, "");
+  return `×${fixed}`;
+}
+
+/** 奖项的名次：「第 1 名」「第 2–3 名」。 */
+export function rankRange(from: number, to: number): string {
+  return from === to ? `第 ${from} 名` : `第 ${from}–${to} 名`;
+}
+
+/** 北京时间的 `MM-DD HH:mm`：定榜、兑奖的时间。 */
+export function shortTime(at: number): string {
+  const d = new Date(at + 8 * 3600_000);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+}
 
 /** 倒计时要数到的下一个节点：报名截止、开赛、比赛结束里最早还没到的那个；同一刻的合成一句（「报名截止 · 比赛结束」）。 */
 export function nextMilestone(item: Pick<Competition, "start_at" | "end_at" | "signup_deadline">, now: number): { label: string; at: number } | null {
@@ -404,9 +449,9 @@ export function hubSentence(status: Pick<MyStatus, "state" | "writable" | "team"
       if (!status.writable) return "报名已截止，这场比赛你没有报名。";
       return settings.participation === "team"
         ? `报名截止 ${due}。报名后可以创建队伍，或申请加入别人的队伍。`
-        : `报名截止 ${due}。报名即参赛${scored ? "，比赛期间合入的 Issue 与 PR 计入积分天梯" : ""}。`;
+        : `报名截止 ${due}。报名即参赛${scored ? "，比赛期间被标记「有用」的 Issue 与 MR 计入积分天梯" : ""}。`;
     case "signed_up":
-      if (settings.participation === "individual") return scored ? "你已报名。比赛期间合入的 Issue 与 PR，由组织者核实后计入天梯。" : "你已报名，等组织者的通知。";
+      if (settings.participation === "individual") return scored ? "你已报名。比赛期间被标记「有用」的 Issue 与 MR 计入天梯。" : "你已报名，等组织者的通知。";
       return status.writable ? "你已报名，还没有队伍：创建一支，或申请加入别人的队伍。" : "报名已截止，你还没有队伍。";
     case "in_team": {
       if (!team) return "你已经在一支队伍里。";

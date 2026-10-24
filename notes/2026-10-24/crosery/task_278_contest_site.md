@@ -36,3 +36,17 @@
 - 做了什么：新增 shared/competition-sdk（匿名 GET、四种错误、subscribe 最短 5 秒、限流等 retry_after）与 sdk.vite.config.ts 构建 /sdk/competition/v1.js；新增 sites/contests/oss-2026-1 官网（Canvas 天空与参赛者星星、泡泡字标题、翻牌倒计时、终端打字、领奖台天梯、动态流星、规则计分奖项时间线组队 FAQ，减少动态效果时静态）；scripts/contest-site.mjs pack/check 复用服务端校验；web 容器与宿主 nginx 加 /c/、/sdk/，只给站点包上传放宽 21m；同步 docs/services/web/README.md、docs/ops/DEPLOY.md，根目录加 contest:site
 - 结果：vitest 4 个文件 46 个测试通过（competition-sdk 5、contest-site 6、tooling/contest-site 3、web-nginx 32）；check-boundaries 通过；tsc -p app/web/tsconfig.json 无错误；node scripts/contest-site.mjs pack 第一期产物：5 个文件、zip 227873 字节，校验通过
 - 下一步：提交这一阶段；再做门户比赛窗口（奖项、年级系数、10 秒刷新、我的兑奖码、深链）
+
+## 15:12:37 +08:00 · 提交 · #278 · 提交 SDK 与官网阶段 2510bf2f
+
+- 执行者：agent-claude-geek-main-3c2a7a67-c278（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：按文件逐个 git add 32 个文件，提交 2510bf2f feat(portal): 第一期比赛官网、比赛 SDK 与站点包打包脚本（Refs #278）；第一次提交的说明少了标题后的空行，本地 amend 改正，没有推送过
+- 结果：本地提交，没有推送
+- 下一步：门户比赛窗口：奖项、年级系数与「有用」规则、天梯 10 秒刷新、我的兑奖码、?competition= 深链
+
+## 15:21:20 +08:00 · 开发 · #278 · 门户比赛窗口：奖项、年级系数、10 秒天梯、兑奖码与官网深链
+
+- 执行者：agent-claude-geek-main-3c2a7a67-c278（Claude Code 子 agent，claude-opus-5-5）
+- 做了什么：competitions.ts 读 prizes、grade_factors、finalized_at；competitionHub 加 readMyResults、factorText、rankRange、shortTime 与 results 路径，计分规则与操作条文案改成「有用」才计分、MR；详情概览加年级系数与奖项、Hero 加「比赛官网」、initialTab；天梯轮询 30 秒改 10 秒；「我的参赛」顶上列定榜结果、兑奖码与复制；?competition=<id>&view=team 深链选中比赛并打开队伍页签，读完从地址去掉；icons 加 file-copy-line、gift-line、thumb-up-line；同步 docs/services/web/portal.md 与 docs/plan/COMPETITION-APP.md
+- 结果：npx vitest run tests/web 33 个文件 303 个测试通过（新增 portal-competition-results 8 个，hub 测试改 10 秒与新文案）；tsc -p app/web/tsconfig.json 无错误
+- 下一步：提交门户阶段；再做控制台（待确认贡献、计分与奖项、官网、定榜、兑奖页）
