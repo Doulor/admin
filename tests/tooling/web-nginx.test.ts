@@ -39,17 +39,18 @@ describe('web container nginx picks the SPA entry by path', () => {
     expect(dockerfile).toContain('test -f app/web/dist/sdk/competition/v1.js');
   });
 
-  it('raises the body limit only for the contest site upload, to the same value in the container and both host templates (#278)', () => {
+  it('raises the body limit only for the contest site upload inside the container, and leaves both host templates at 6m (#278)', () => {
     const upload = /location ~ \^\/api\/console\/competitions\/\[\^\/\]\+\/site\/versions\$ \{\s*client_max_body_size 21m;/;
     expect(siteConf).toMatch(upload);
     // 放在 /api/ 里面：^~ /api/ 命中后不再看外层的正则
     const api = /location \^~ \/api\/ \{([\s\S]*?)\n    \}/.exec(siteConf)?.[1] ?? '';
     expect(api).toMatch(upload);
     expect(siteConf.match(/client_max_body_size/g)).toHaveLength(2);
+    // 宿主模板只有一个反代 location（X-Forwarded-For 只追加一次、上游端口只写一处），放宽上传要所有者另定，见 DEPLOY
     for (const name of ['production', 'preview']) {
       const text = hostConf(name);
-      expect(text).toMatch(upload);
-      expect(text.match(/client_max_body_size 21m;/g)).toHaveLength(1);
+      expect(text).not.toMatch(upload);
+      expect(text.match(/client_max_body_size [^;]+;/g)).toEqual(['client_max_body_size 6m;']);
     }
   });
 

@@ -168,7 +168,7 @@ server {
     location ^~ /api/ {
         proxy_pass http://server:3000;
         include /etc/nginx/conf.d/90-proxy-headers.conf;
-        # 比赛官网站点包的上传（#278）：请求体就是 zip，上限 20MB，这一条单独放宽；宿主 nginx 同样只放宽这一条。
+        # 比赛官网站点包的上传（#278）：请求体就是 zip，上限 20MB，这一条单独放宽；宿主模板仍是 6m，经宿主时以宿主为准（见 DEPLOY）。
         location ~ ^/api/console/competitions/[^/]+/site/versions$ {
             client_max_body_size 21m;
             proxy_pass http://server:3000;
