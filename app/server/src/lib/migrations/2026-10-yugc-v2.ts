@@ -22,6 +22,8 @@ export type MigrationReport = {
   forum_users_linked_this_run: number;
   account_profiles_created_this_run: number;
   activity_events_copied_this_run: number;
+  /** role_assignments 里 account_id 为空、从来没被映射过的行数（旧 GitHub 登录名没能关联到账号）。 */
+  skipped_role_assignments: number;
 };
 
 function tableCount(db: Database.Database, table: string): number {
@@ -164,31 +166,82 @@ export function entrySeeds(): EntrySeed[] {
   return entries;
 }
 
+// ---- 种子只应用一次的台账（#274 残留修复 C） ---------------------------------------------------
+// 旧写法判断「现在的状态符不符合种子要的样子」（组/边用 INSERT OR IGNORE，条目靠精确值匹配再决定
+// 插不插）：这分不清「所有者故意改掉了」和「这台账号从来没种过」，服务器每次重启都会把所有者删掉的
+// 继承边、删掉的条目、收紧过的 meta 又种回来；role_assignments 的映射同理——alumni 的 weight<15、
+// head 的 hasDepartment 这类按「现在状态」判断的守卫，所有者降级/清空之后重跑又会把人升回去。
+// 改成按稳定 key 的台账：一个 key 只应用一次，应用过就不再看种子要它变成什么样，所有者怎么改都算数。
+function seedApplied(db: Database.Database, key: string): boolean {
+  return !!db.prepare("SELECT 1 FROM perm_seed_applied WHERE key = ?").get(key);
+}
+function markSeedApplied(db: Database.Database, key: string, now: number) {
+  db.prepare("INSERT OR IGNORE INTO perm_seed_applied(key, applied_at) VALUES (?, ?)").run(key, now);
+}
+
+/**
+ * 给台账表刚创建那一刻、数据库里已经有迁移产物的情况（已经跑过旧版迁移很多次的库）补一份底账：
+ * 把当前已经存在的组、继承边、条目、role_assignments 映射都记成「早就应用过」，不然下一次重启会把
+ * 台账当成全新的、把所有这些年的种子重新种一遍，覆盖所有者这期间做的改动。只在台账是空表时做，
+ * 台账一旦有内容就说明已经接管，不再回填（正常情况下只会在升级后的第一次启动触发一次）。
+ * 已知限制：如果所有者在台账上线之前就删掉过某条种子（现在已经不存在了），回填看不到已经删除的东西，
+ * 这一条会在台账上线后的这一次启动被重新种回来、但从此以后台账记住、不会再种第二次——这是追溯补台账
+ * 本身的局限（补的是「现在」的底账，不是完整历史），不是本次要解决的回归。
+ */
+function backfillSeedLedger(db: Database.Database, now: number) {
+  const empty = (db.prepare("SELECT COUNT(*) AS n FROM perm_seed_applied").get() as { n: number }).n === 0;
+  if (!empty) return;
+  const tx = db.transaction(() => {
+    for (const group of db.prepare("SELECT id FROM perm_groups").all() as { id: string }[]) {
+      markSeedApplied(db, `group:${group.id}`, now);
+    }
+    for (const parent of db.prepare("SELECT group_id, parent_id FROM perm_group_parents").all() as { group_id: string; parent_id: string }[]) {
+      markSeedApplied(db, `parent:${parent.group_id}:${parent.parent_id}`, now);
+    }
+    for (const entry of db.prepare("SELECT subject_id, node, scope FROM perm_entries WHERE subject_type = 'group'").all() as { subject_id: string; node: string; scope: string }[]) {
+      markSeedApplied(db, `entry:${entry.subject_id}:${entry.node}:${entry.scope}`, now);
+    }
+    for (const row of db.prepare("SELECT id FROM role_assignments WHERE account_id IS NOT NULL").all() as { id: number }[]) {
+      markSeedApplied(db, `role_assignment:${row.id}`, now);
+    }
+  });
+  tx();
+}
+
 export function seedGroupsAndEntries(db: Database.Database, now: number) {
+  backfillSeedLedger(db, now);
   const insertGroup = db.prepare(`
     INSERT OR IGNORE INTO perm_groups(id, kind, name, description, weight, department_id, icon, tone, sort, system, created_at, updated_at)
     VALUES (@id, @kind, @name, @description, @weight, @departmentId, @icon, @tone, @sort, 1, @now, @now)
   `);
   const insertParent = db.prepare("INSERT OR IGNORE INTO perm_group_parents(group_id, parent_id) VALUES (?, ?)");
-  const findExisting = db.prepare(`
-    SELECT 1 FROM perm_entries WHERE subject_type = 'group' AND subject_id = ? AND node = ?
-      AND IFNULL(value, -9) = IFNULL(?, -9) AND IFNULL(meta_value, '') = IFNULL(?, '') AND scope = ?
-  `);
   const insertEntry = db.prepare(`
     INSERT INTO perm_entries(subject_type, subject_id, node, value, meta_value, scope, expires_at, granted_by, created_at)
     VALUES ('group', ?, ?, ?, ?, ?, NULL, 'migration:2026-10-yugc-v2', ?)
   `);
   const tx = db.transaction(() => {
     for (const group of groupSeeds()) {
-      insertGroup.run({ id: group.id, kind: group.kind, name: group.name, description: group.description, weight: group.weight, departmentId: group.departmentId, icon: group.icon, tone: group.tone, sort: group.sort, now });
-      for (const parent of group.parents) insertParent.run(group.id, parent);
+      const groupKey = `group:${group.id}`;
+      if (!seedApplied(db, groupKey)) {
+        insertGroup.run({ id: group.id, kind: group.kind, name: group.name, description: group.description, weight: group.weight, departmentId: group.departmentId, icon: group.icon, tone: group.tone, sort: group.sort, now });
+        markSeedApplied(db, groupKey, now);
+      }
+      for (const parent of group.parents) {
+        const parentKey = `parent:${group.id}:${parent}`;
+        if (!seedApplied(db, parentKey)) {
+          insertParent.run(group.id, parent);
+          markSeedApplied(db, parentKey, now);
+        }
+      }
     }
     for (const entry of entrySeeds()) {
       const value = entry.value === undefined ? null : entry.value ? 1 : 0;
       const metaValue = entry.metaValue ?? null;
       const scope = JSON.stringify(entry.scope ?? {});
-      if (!findExisting.get(entry.subjectId, entry.node, value, metaValue, scope)) {
+      const entryKey = `entry:${entry.subjectId}:${entry.node}:${scope}`;
+      if (!seedApplied(db, entryKey)) {
         insertEntry.run(entry.subjectId, entry.node, value, metaValue, scope, now);
+        markSeedApplied(db, entryKey, now);
       }
     }
   });
@@ -221,6 +274,7 @@ export function assignAccountIdentities(db: Database.Database, now: number) {
 // ---- 步骤 3：role_assignments 映射（SPEC §3.6 第 3 条） -----------------------------------------
 
 export function mapRoleAssignments(db: Database.Database, now: number) {
+  backfillSeedLedger(db, now);
   const rows = db.prepare("SELECT id, github_login, account_id, role, department_id FROM role_assignments WHERE account_id IS NOT NULL").all() as
     { id: number; github_login: string; account_id: string; role: string; department_id: string }[];
   const addTitle = db.prepare("INSERT OR IGNORE INTO perm_members(account_id, group_id, expires_at, granted_by, created_at) VALUES (?, ?, NULL, 'migration:2026-10-yugc-v2:role_assignments', ?)");
@@ -228,6 +282,10 @@ export function mapRoleAssignments(db: Database.Database, now: number) {
   const hasDepartment = db.prepare("SELECT 1 FROM perm_members pm JOIN perm_groups g ON g.id = pm.group_id WHERE pm.account_id = ? AND g.kind = 'department'");
   const tx = db.transaction(() => {
     for (const row of rows) {
+      // 每一条 role_assignments 只映射一次，不管这次映射有没有真的改动账号（比如 alumni/head 分支的
+      // 守卫判断「不用动」）：标记过之后，所有者后续不管怎么改这个账号的身份，重跑都不再回头重新判断。
+      const key = `role_assignment:${row.id}`;
+      if (seedApplied(db, key)) continue;
       if (row.role === "captain") {
         addTitle.run(row.account_id, "title.site.owner", now);
       } else if (row.role === "member") {
@@ -238,9 +296,9 @@ export function mapRoleAssignments(db: Database.Database, now: number) {
         if (!current || current.weight < 15) setExclusiveGroupMembership(db, row.account_id, "level.alumni", now, "migration:2026-10-yugc-v2:role_assignments");
       } else if (row.role === "head") {
         // 旧部门（招新/技术/社区/项目）和新部门对不上，不硬映射；先进 dept.none，由站长在控制台重新任命。
-        // 账号一旦有了任何部门（包括这里给的 dept.none），往后重跑不再碰它，不会覆盖管理员后续在控制台的改动。
         if (!hasDepartment.get(row.account_id)) setExclusiveGroupMembership(db, row.account_id, "dept.none", now, "migration:2026-10-yugc-v2:role_assignments");
       }
+      markSeedApplied(db, key, now);
     }
   });
   tx();
@@ -368,5 +426,6 @@ export function runYugcV2Migration(db: Database.Database, now: number = Date.now
     forum_users_linked_this_run: forumLinked,
     account_profiles_created_this_run: profilesCreated,
     activity_events_copied_this_run: activityCopied,
+    skipped_role_assignments: (db.prepare("SELECT COUNT(*) AS n FROM role_assignments WHERE account_id IS NULL").get() as { n: number }).n,
   };
 }

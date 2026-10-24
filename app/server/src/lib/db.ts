@@ -784,6 +784,14 @@ CREATE TABLE IF NOT EXISTS perm_state (
   key TEXT PRIMARY KEY,
   value INTEGER NOT NULL
 );
+
+-- 种子只应用一次的台账（#274 残留修复 C）：组、继承边、条目、role_assignments 映射各自按稳定 key 记一次
+-- 「已经处理过」，往后重启不再重复判断"现在的状态是不是种子要的样子"——那种判法分不清"所有者故意改掉了"
+-- 和"从来没种过"，重启就会把所有者删掉的条目、收紧的 meta、撤销的授权又种回来。
+CREATE TABLE IF NOT EXISTS perm_seed_applied (
+  key TEXT PRIMARY KEY,
+  applied_at INTEGER NOT NULL
+);
 `);
 
 // 账号资料与头像（#274）：论坛、控制台、GitLab 同步、OIDC userinfo、命令行统一读这里。

@@ -200,4 +200,102 @@ describe("迁移报告：旧能力对照", () => {
     expect(report.unmapped_capabilities).toContain("github.invites.manage");
     expect(report.unmapped_capabilities).not.toContain("roles.manage");
   });
+
+  it("role_assignments 里 account_id 为空的行数，原样计入 skipped_role_assignments（#274 残留修复 N）", () => {
+    const { db } = makeStorage();
+    const now = Date.now();
+    db.prepare("INSERT INTO role_assignments(github_login, role, department_id, granted_by, created_at, account_id) VALUES ('ghost', 'member', '', 'test', ?, NULL)").run(now);
+    const report = runYugcV2Migration(db, now);
+    expect(report.skipped_role_assignments).toBe(1);
+  });
+});
+
+describe("种子台账：所有者的改动不会被重跑覆盖（#274 残留修复 C，blocker）", () => {
+  it("撤销一个由 role_assignments captain 映射出来的站长，重跑不会被种回来", () => {
+    const { db } = makeStorage();
+    const now = Date.now();
+    const account = "acct-captain-revoke";
+    db.prepare("INSERT INTO users(id, created_at, updated_at) VALUES (?, ?, ?)").run(account, now, now);
+    db.prepare("INSERT INTO role_assignments(github_login, role, department_id, granted_by, created_at, account_id) VALUES ('c', 'captain', '', 'test', ?, ?)").run(now, account);
+    runYugcV2Migration(db, now);
+    expect(db.prepare("SELECT 1 FROM perm_members WHERE account_id = ? AND group_id = 'title.site.owner'").get(account)).toBeTruthy();
+    db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id = 'title.site.owner'").run(account); // 所有者在控制台撤销
+    runYugcV2Migration(db, Date.now());
+    expect(db.prepare("SELECT 1 FROM perm_members WHERE account_id = ? AND group_id = 'title.site.owner'").get(account)).toBeFalsy();
+  });
+
+  it("删掉一条种子条目，重跑不会把它种回来", () => {
+    const { db } = makeStorage();
+    expect(db.prepare("SELECT 1 FROM perm_entries WHERE subject_type = 'group' AND subject_id = 'level.member' AND node = 'forum.topic.create'").get()).toBeTruthy();
+    db.prepare("DELETE FROM perm_entries WHERE subject_type = 'group' AND subject_id = 'level.member' AND node = 'forum.topic.create'").run(); // 所有者删掉这条
+    runYugcV2Migration(db, Date.now());
+    expect(db.prepare("SELECT 1 FROM perm_entries WHERE subject_type = 'group' AND subject_id = 'level.member' AND node = 'forum.topic.create'").get()).toBeFalsy();
+  });
+
+  it("删掉一条种子继承边，重跑不会把它种回来", () => {
+    const { db } = makeStorage();
+    expect(db.prepare("SELECT 1 FROM perm_group_parents WHERE group_id = 'level.registered' AND parent_id = 'level.visitor'").get()).toBeTruthy();
+    db.prepare("DELETE FROM perm_group_parents WHERE group_id = 'level.registered' AND parent_id = 'level.visitor'").run();
+    runYugcV2Migration(db, Date.now());
+    expect(db.prepare("SELECT 1 FROM perm_group_parents WHERE group_id = 'level.registered' AND parent_id = 'level.visitor'").get()).toBeFalsy();
+  });
+
+  it("收紧一条 meta 限额条目之后，重跑不会把它放宽回种子的值", () => {
+    const { db } = makeStorage();
+    const before = db.prepare("SELECT meta_value FROM perm_entries WHERE subject_type = 'group' AND subject_id = 'level.member' AND node = 'meta.limit.apply.daily'").get() as { meta_value: string };
+    expect(before.meta_value).toBe("-1"); // 种子给的是不限
+    db.prepare("UPDATE perm_entries SET meta_value = '5' WHERE subject_type = 'group' AND subject_id = 'level.member' AND node = 'meta.limit.apply.daily'").run(); // 所有者收紧到 5
+    runYugcV2Migration(db, Date.now());
+    const after = db.prepare("SELECT meta_value FROM perm_entries WHERE subject_type = 'group' AND subject_id = 'level.member' AND node = 'meta.limit.apply.daily'").get() as { meta_value: string };
+    expect(after.meta_value).toBe("5");
+  });
+
+  it("alumni 记录映射之后所有者把账号降级，重跑不会把账号升回往届成员", () => {
+    const { db } = makeStorage();
+    const now = Date.now();
+    const account = "acct-alumni-demote";
+    db.prepare("INSERT INTO users(id, created_at, updated_at) VALUES (?, ?, ?)").run(account, now, now);
+    db.prepare("INSERT INTO role_assignments(github_login, role, department_id, granted_by, created_at, account_id) VALUES ('a', 'alumni', '', 'test', ?, ?)").run(now, account);
+    runYugcV2Migration(db, now);
+    expect(db.prepare("SELECT group_id FROM perm_members pm JOIN perm_groups g ON g.id = pm.group_id WHERE pm.account_id = ? AND g.kind = 'level'").get(account)).toEqual({ group_id: "level.alumni" });
+    // 所有者后来把这个账号降回注册用户
+    db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id = 'level.alumni'").run(account);
+    db.prepare("INSERT INTO perm_members(account_id, group_id, expires_at, granted_by, created_at) VALUES (?, 'level.registered', NULL, 'test', ?)").run(account, Date.now());
+    runYugcV2Migration(db, Date.now());
+    expect(db.prepare("SELECT group_id FROM perm_members pm JOIN perm_groups g ON g.id = pm.group_id WHERE pm.account_id = ? AND g.kind = 'level'").get(account)).toEqual({ group_id: "level.registered" });
+  });
+
+  it("head 记录映射进 dept.none 之后所有者改派了真实部门，重跑不会把账号塞回 dept.none", () => {
+    const { db } = makeStorage();
+    const now = Date.now();
+    const account = "acct-head-reassign";
+    db.prepare("INSERT INTO users(id, created_at, updated_at) VALUES (?, ?, ?)").run(account, now, now);
+    db.prepare("INSERT INTO role_assignments(github_login, role, department_id, granted_by, created_at, account_id) VALUES ('h', 'head', 'tech', 'test', ?, ?)").run(now, account);
+    runYugcV2Migration(db, now);
+    expect(db.prepare("SELECT 1 FROM perm_members WHERE account_id = ? AND group_id = 'dept.none'").get(account)).toBeTruthy();
+    // 站长在控制台把这个账号改派到 AI 部门
+    db.prepare("DELETE FROM perm_members WHERE account_id = ? AND group_id = 'dept.none'").run(account);
+    db.prepare("INSERT INTO perm_members(account_id, group_id, expires_at, granted_by, created_at) VALUES (?, 'dept.ai', NULL, 'test', ?)").run(account, Date.now());
+    runYugcV2Migration(db, Date.now());
+    expect(db.prepare("SELECT group_id FROM perm_members pm JOIN perm_groups g ON g.id = pm.group_id WHERE pm.account_id = ? AND g.kind = 'department'").get(account)).toEqual({ group_id: "dept.ai" });
+  });
+
+  it("升级老库时，台账第一次创建按现状回填，不会把现有的组、边、条目、映射重新种一遍", () => {
+    const { db } = makeStorage(); // createDatabase() 已经跑过一次迁移，台账已经按这次的种子结果建好
+    const beforeCounts = {
+      groups: (db.prepare("SELECT COUNT(*) AS n FROM perm_groups").get() as { n: number }).n,
+      entries: (db.prepare("SELECT COUNT(*) AS n FROM perm_entries").get() as { n: number }).n,
+      parents: (db.prepare("SELECT COUNT(*) AS n FROM perm_group_parents").get() as { n: number }).n,
+      ledger: (db.prepare("SELECT COUNT(*) AS n FROM perm_seed_applied").get() as { n: number }).n,
+    };
+    expect(beforeCounts.ledger).toBeGreaterThan(0); // 第一次迁移已经把台账填满
+    runYugcV2Migration(db, Date.now());
+    const after = {
+      groups: (db.prepare("SELECT COUNT(*) AS n FROM perm_groups").get() as { n: number }).n,
+      entries: (db.prepare("SELECT COUNT(*) AS n FROM perm_entries").get() as { n: number }).n,
+      parents: (db.prepare("SELECT COUNT(*) AS n FROM perm_group_parents").get() as { n: number }).n,
+      ledger: (db.prepare("SELECT COUNT(*) AS n FROM perm_seed_applied").get() as { n: number }).n,
+    };
+    expect(after).toEqual(beforeCounts); // 台账不是空表，不会再触发回填，也不会重新种
+  });
 });

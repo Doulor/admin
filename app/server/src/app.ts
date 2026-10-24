@@ -83,6 +83,21 @@ export async function buildApp(options: BuildAppOptions) {
   // 操作记录每天清一次过期行、按 90 天打码 IP（lib/activity.ts，SPEC §3.7），顺带清 lib/limits.ts 的
   // limit_events（SPEC §3.8）；测试直接调 services.activity.pruneExpired() / services.limits.pruneAll()。
   if (options.activityCleanup) app.addHook("onReady", async () => { stopActivityCleanup = startActivityCleanup(services.activity, app.log, services.limits); });
+  // #274 残留修复 N：迁移报告只在启动时记一次，只记数量（表的前后行数、各类 this_run 计数），
+  // 不记 unmapped_heads 里真实的 GitHub 登录名——那是个人数据，只记条数。
+  app.addHook("onReady", async () => {
+    const report = services.storage.yugcV2Migration;
+    app.log.info({
+      msg: "yugc-v2 迁移报告",
+      tables: report.tables,
+      unmapped_heads_count: report.unmapped_heads.length,
+      unmapped_capabilities_count: report.unmapped_capabilities.length,
+      forum_users_linked_this_run: report.forum_users_linked_this_run,
+      account_profiles_created_this_run: report.account_profiles_created_this_run,
+      activity_events_copied_this_run: report.activity_events_copied_this_run,
+      skipped_role_assignments: report.skipped_role_assignments,
+    });
+  });
   registerHttpPolicy(app);
   await app.register(cookie, { secret: config.sessionSecret });
   // 只限写了 config.rateLimit 的路由；超额一律 429 rate_limited，路由不另写 errorResponseBuilder（#191）

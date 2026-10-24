@@ -128,7 +128,7 @@ const DEVICE_TABLES = ['device_grants'];
 const OIDC_TABLES = ['oauth_clients', 'oauth_subjects', 'oauth_grants', 'oidc_payloads', 'gitlab_accounts'];
 /** 账号、权限、操作记录统一（#274）：同样只新增，forum_topics 加了可空列 visibility（默认 public）。 */
 const YUGC_V2_TABLES = [
-  'perm_nodes', 'perm_groups', 'perm_group_parents', 'perm_entries', 'perm_members', 'perm_state',
+  'perm_nodes', 'perm_groups', 'perm_group_parents', 'perm_entries', 'perm_members', 'perm_state', 'perm_seed_applied',
   'account_profiles', 'account_avatars', 'activity_events', 'limit_events',
 ];
 
