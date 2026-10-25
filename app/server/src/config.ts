@@ -135,8 +135,8 @@ export function createConfig(env: Record<string, string | undefined>) {
     // 论坛的公开内容（分类、标签、公开旧帖），启动时读来播种。不是环境变量：仓库里和镜像里都在同一个相对位置
     // （app/server/Dockerfile 把两份 JSON 复制到 /app/app/forum/content）；测试直接换成夹具目录。
     forumContentDir: resolve(APP_ROOT, "forum/content"),
-    // 表情包第一套「极客娘」的源图片（#276），仓库里的通用素材，不按环境或测试换目录。
-    stickerAssetsDir: resolve(APP_ROOT, "server/assets/stickers/yugc"),
+    // 内置表情包（#276、#286）：清单 manifest.json 与各包的图片，仓库里的通用素材，不按环境或测试换目录。
+    stickerAssetsDir: resolve(APP_ROOT, "server/assets/stickers"),
     turnstile: { siteKey: env.TURNSTILE_SITE_KEY ?? "", secretKey: env.TURNSTILE_SECRET_KEY ?? "" },
     powDifficulty,
     mail,

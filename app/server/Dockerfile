@@ -126,10 +126,11 @@ COPY --chown=node:node app/forum/content/curation.json /app/app/forum/content/cu
 COPY --chown=node:node app/forum/content/published/topics.json /app/app/forum/content/published/topics.json
 COPY --chown=node:node app/forum/content/guides/ /app/app/forum/content/guides/
 
-# 表情包第一套「极客娘」的源图片（#276，src/config.ts 的 stickerAssetsDir = APP_ROOT/server/assets/stickers/yugc）：
-# 启动时读进来按内容哈希种进 forum_sticker_files，缺文件不阻塞启动（见 migrations/2026-10-forum-v2.ts），
-# 但缺了就只会种出一部分表情，所以镶进镜像。
-COPY --chown=node:node app/server/assets/stickers/yugc /app/app/server/assets/stickers/yugc
+# 内置表情包的源图片与清单（#276、#286，src/config.ts 的 stickerAssetsDir = APP_ROOT/server/assets/stickers）：
+# 整个目录镶进镜像，每个包一个子目录（pack.json 和图片），外加 manifest.json。启动时按清单读图片、按内容哈希种进
+# forum_sticker_files 与表情包表，库里已有的包和表情不动（migrations/2026-10-sticker-packs.ts）；缺图片不阻塞启动，
+# 但缺了就只会种出一部分表情。清单也决定哪些图片可以走 CDN。加一个包 = 在这个目录里加一个子目录并重新生成清单。
+COPY --chown=node:node app/server/assets/stickers/ /app/app/server/assets/stickers/
 
 # 命名卷挂到 /data 时由镜像目录继承属主，容器内的 node 用户才能写 SQLite 与上传文件。
 RUN mkdir -p /data && chown node:node /data

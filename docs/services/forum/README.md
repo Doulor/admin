@@ -32,6 +32,45 @@
 
 页面 CSP 取自宿主模板，`script-src`、`style-src`、`font-src` 已放行这个前缀。上传、核对与凭据见 [CICD](../../ops/CICD.md)「静态资源 CDN」。
 
+## 表情包（#286）
+
+内置表情包在仓库里是一个目录加一份清单，服务启动时补进库里；加一个新包不用改代码。
+
+```text
+app/server/assets/stickers/
+  manifest.json          脚本生成，服务和 CDN 上传都读它，不手改
+  <包 id>/
+    pack.json            手写：这个包叫什么、里面有哪些表情
+    <表情 id>.webp       图片，文件名也可以在 pack.json 里另指
+```
+
+`pack.json` 的字段：
+
+| 字段 | 写法 |
+|---|---|
+| `id` | 必填，和目录名一致，1–20 位小写字母、数字、连字符，字母或数字开头；也是短码的前缀 |
+| `name` | 必填，1–40 字，包的显示名，不含方括号和首尾空白，包与包之间不重名 |
+| `description` | 选填，一句话（≤100 字），写给审稿和检索的人，不进清单，也不进库 |
+| `order` | 选填，0–1000 的整数，越小越靠前，默认 100；只在新建这个包时决定排在哪里，站长在控制台排过之后以控制台为准 |
+| `stickers` | 必填，至少一个。每个：`id`（1–19 位，写法同包 id）、`label`（1–20 字，表情名，不含方括号，同一个包里不重名）、`caption`（选填，≤12 字，图上写的小字，只做记录）、`file`（选填，包目录里的 `.webp` 文件名，默认 `<id>.webp`） |
+
+短码是 `<包 id>-<表情 id>`（例如 `yugc-wave`，整体 ≤40 位，全站不重复），帖子里存的就是 `:短码:`。包目录里只放 `pack.json` 和 `.webp` 普通文件；每张图都要写进 `stickers`，写进去的也要真有这张图；图片要是 WebP（看文件头），单张不超过 1 MiB（图片会存进 `data.db`）。
+
+`node scripts/sticker-manifest.mjs`：
+
+- `write`：从目录生成 `manifest.json`（每张图的 sha256、字节数和 CDN 对象键），有任何问题一起报出来，不生成半份；
+- `check`：只读，清单和目录不一致就失败；`tests/tooling/sticker-manifest.test.ts` 对仓库里的目录也跑这一项；
+- `report`：只读，列出每张表情的字节数，超过 60 KB 的标出来（面板里最大只画 64px）；
+- `urls`：只读，每张图的 CDN 地址，一行一个，上传后逐个核对用。
+
+服务启动时 `lib/migrations/2026-10-sticker-packs.ts` 照清单把库里没有的包、表情和图片补进去，只增不改，可以重复执行：库里已有的包和表情整行不碰（站长改过的名字、排序、停用、换过的图都保留）；新包排在现有的包后面、启用；老包里新增的表情排在那个包的最后；图片按内容 sha256 去重，哈希按文件真实内容现算；清单里列了而目录里没有的图片跳过，记在迁移报告的 `stickers_missing_files` 里，不让启动失败。清单文件不存在算没有内置表情包，存在但读不出来或形状不对，服务拒绝启动。回滚就是部署上一个镜像，迁移只加行、不删行。`tests/server/sticker-packs-migration.test.ts` 用临时目录里的两个包跑：第一次启动建出两个包，站长改名、停用之后重启不被覆盖，第二次启动行数不变。
+
+新增一个包：
+
+1. 在 `app/server/assets/stickers/` 下建 `<包 id>/`，放 `pack.json` 和图片；
+2. 运行 `node scripts/sticker-manifest.mjs write`，再用 `report` 看字节数；
+3. 提交目录和 `manifest.json`，`tests/tooling/sticker-manifest.test.ts` 核对两者一致；
+
 ## 所有权与来源
 
 唯一活动实现为 `app/forum`。上游 `talex-touch/tuff-forum`，固定提交 `37164f75c0258b65922ea2151592e1f4efce8bde`，MIT © 2026 TalexDreamSoul。原始文件摘要见 `UPSTREAM.json`。旧 React 页面、Fastify 论坛路由和专属身份实现已归档，不再修出平行论坛。决策见 [ADR-0003](../../decisions/0003-adopt-tuff-forum.md)。

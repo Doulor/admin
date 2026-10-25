@@ -6,16 +6,19 @@ import { backfillIdentity } from "./identity-store.js";
 import { runYugcV2Migration } from "./migrations/2026-10-yugc-v2.js";
 import { DEFAULT_GRADE_FACTORS } from "./competition-rubric.js";
 import { runForumV2Migration } from "./migrations/2026-10-forum-v2.js";
+import { loadStickerManifest } from "./sticker-manifest.js";
 import type { ActivityOutcome, ActivitySurface } from "./activity.js";
 
 /** 审计里的操作者：GitHub 登录名，或带上极客班账号的会话（写进 actor_account_id，#262）。 */
 export type AuditActor = string | { login: string; account_id?: string | null };
 
-const DEFAULT_STICKER_ASSETS_DIR = resolve(APP_ROOT, "server/assets/stickers/yugc");
+const DEFAULT_STICKER_ASSETS_DIR = resolve(APP_ROOT, "server/assets/stickers");
 
-/** `stickerAssetsDir`（#276）：第一套「极客娘」表情图片所在目录，启动时种进 forum_sticker_files；默认就是仓库里
- * 的真实素材（这批表情是通用素材，不像论坛分类/标签要按测试隔离出一份夹具），`cli/*.ts` 与既有测试不用跟着传。 */
+/** `stickerAssetsDir`（#276、#286）：内置表情包目录（manifest.json 与各包的目录），启动时照清单把没有的包和表情种进库；
+ * 默认就是仓库里的真实素材（这批表情是通用素材，不像论坛分类/标签要按测试隔离出一份夹具），`cli/*.ts` 与既有测试不用跟着传。 */
 export function createDatabase(path: string, stickerAssetsDir: string = DEFAULT_STICKER_ASSETS_DIR) {
+// 清单读不出来就在打开数据库之前失败；读到的清单同时给迁移播种和调用方（接口按它决定图片走不走 CDN）。
+const stickerManifest = loadStickerManifest(stickerAssetsDir);
 if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
 
 const db = new Database(path);
@@ -969,8 +972,8 @@ CREATE TABLE IF NOT EXISTS forum_upload_files (
 // 账号、权限、操作记录统一迁移（#274，lib/migrations/2026-10-yugc-v2.ts）：种子只增不改所有者改过的数据，
 // 账号身份与 role_assignments 映射只在账号还没有对应分组时写入，可以重复执行。报告供迁移演练与 MR 贴数用。
 const yugcV2Migration = runYugcV2Migration(db, Date.now());
-// 论坛 v2 迁移（#276，lib/migrations/2026-10-forum-v2.ts）：分类可见范围种子、表情包种子，同样只增不改、可重复执行。
-const forumV2Migration = runForumV2Migration(db, Date.now(), stickerAssetsDir);
+// 论坛 v2 迁移（#276，lib/migrations/2026-10-forum-v2.ts）：分类可见范围种子、表情包种子（#286 起照清单播种），同样只增不改、可重复执行。
+const forumV2Migration = runForumV2Migration(db, Date.now(), stickerAssetsDir, stickerManifest);
 
 // 第一期开源贡献赛（#239）：比赛与报名设置种子，用 `console_seeds` 标记，只插一次。
 // 组织者之后把比赛删掉或改掉，重启也不再补回来。
@@ -1187,7 +1190,7 @@ function audit(actor: AuditActor, action: string, target?: string, details?: unk
   `).run(Date.now(), accountId, opts.surface ?? "system", action, target ?? null, opts.outcome ?? "ok", ip ?? null, JSON.stringify(details ?? {}));
 }
 
-return { db, audit, identityBackfill, yugcV2Migration, forumV2Migration };
+return { db, audit, identityBackfill, yugcV2Migration, forumV2Migration, stickerManifest };
 }
 
 /**
