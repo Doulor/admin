@@ -56,3 +56,17 @@
 - 做了什么：把 GitLab stage（含 #285 邮件模板、#291 Google 绑定、#292 启动动画）并入 task/284/recruit_switch_player：权限节点、操作记录中文名、控制台 mock 与两个文档的清单类冲突两边都保留；YugcOs.tsx 的深链接 effect 合成 先处理 #291 的 link 与 provider，再处理 #284 的 ?open=promo 与窗口应用；窗口属性里保留 applyOpen、onApplyOpen、onAutoPromo、promo，并带上 #291 的 linkNotice；server 文档四行用基线三方合并，#284 的招新开关与 #285 的邮件模板说明都在。合并提交只含冲突解决，目录在下一个提交里重新生成，影响声明补上 mail 业务域
 - 结果：门禁：vitest tests/server tests/console tests/web tests/tooling 144 个文件 2289 条通过；typecheck、check:catalog、check-architecture（54 个变更文件）、check-doc-sync、check-docs、check-secrets、check-boundaries 全部通过
 - 下一步：推送并开 MR，补 PR 与审查记录
+
+## 17:35:57 +08:00 · PR · #284 · PR：GitLab !29
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：并入 stage a275e517 后推送 task/284/recruit_switch_player，开 !29（目标 stage，Closes #284，标签 func:api、func:data、portal、ui:interaction、ui:layout）；正文 10 段，验收证据是改前改后桌面与手机截图 14 张、隔离栈真实请求记录
+- 结果：https://git.yangtzeu.work/geek/admin/-/merge_requests/29；门禁：vitest tests/server tests/console tests/web tests/tooling 144 个文件 2289 条通过，typecheck、catalog、architecture、doc-sync、docs、secrets、boundaries 全部通过
+- 下一步：审查后合并
+
+## 17:35:57 +08:00 · 审查 · #284 · 审查：!29 无阻塞、无应修条目
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：按 CODE-REVIEW 清单逐项核对 diff（54 个文件）：服务端逐行读了 apply-settings、投递接口的拒绝点、开关的读写接口与公开配置：关闭只认明确写下的 0，读不懂的值按开放算；403 apply_closed 排在登录与权限判定之后、人机验证与限额之前，被拒的投递不写库、不占额度；写开关要 apply.settings 加 step-up，状态没变不写库也不记操作；官网读不到配置按开放，提交时服务端说已关则切到关闭页。前端用单测与截图核对，没有逐行读 UI 代码；并入 stage 的冲突解决单独核对了 YugcOs.tsx 的深链接合并与 server 文档四行
+- 结果：结论：通过；评论贴在 !29「代码审查」；未验证项已写进 MR：并入 stage 后没有重取真实请求与截图、e2e 用例未在本机运行、预发布页面
+- 下一步：推送记录后按审查过的提交合并
