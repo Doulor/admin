@@ -87,7 +87,8 @@ const columns = [
   { key: "at", title: "时间", width: 112 },
   { key: "who", title: "谁", width: 180 },
   { key: "surface", title: "来源", width: 80 },
-  { key: "action", title: "动作", width: 220, align: "left" as const },
+  // key 不能叫 action：Tuffex 把叫 action(s) 的列当操作列，钉在表格右边，窄屏会盖住别的列
+  { key: "event", title: "动作", width: 220, align: "left" as const },
   { key: "target", title: "目标", width: 160 },
   { key: "outcome", title: "结果", width: 80 },
   { key: "ip", title: "IP", width: 130 },
@@ -203,7 +204,7 @@ async function copy(text: string) {
           </span>
         </template>
         <template #cell-surface="{ row }: { row: ActivityEvent }">{{ surfaceText(row.surface) }}</template>
-        <template #cell-action="{ row }: { row: ActivityEvent }">
+        <template #cell-event="{ row }: { row: ActivityEvent }">
           <span class="cell-stack">
             <span v-if="actionText(row.action)" class="ellipsis">{{ actionText(row.action) }}</span>
             <span class="mono ellipsis" :class="{ 'cell-sub': actionText(row.action) }" :title="row.action">{{ row.action }}</span>

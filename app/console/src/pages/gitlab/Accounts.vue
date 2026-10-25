@@ -98,7 +98,7 @@ const columns = computed(() => [
         </form>
       </div>
       <TxCard :padding="0">
-        <TxDataTable :style="{ '--table-min': canSync ? '884px' : '772px' }" :columns="columns" :data="shown" row-key="id" table-layout="fixed" scroll-x :loading="gitlab.loading.value">
+        <TxDataTable class="table-wide" :style="{ '--table-min': canSync ? '884px' : '772px' }" :columns="columns" :data="shown" row-key="id" table-layout="fixed" scroll-x :loading="gitlab.loading.value">
           <template #cell-login="{ row }: { row: Row }">
             <UserCell :login="row.account.login" />
           </template>
@@ -142,6 +142,46 @@ const columns = computed(() => [
             />
           </template>
         </TxDataTable>
+        <!-- 窄屏一个账号一张卡；宽屏只显示上面的表格。 -->
+        <ul class="row-cards" :aria-busy="gitlab.loading.value || undefined">
+          <li v-for="row in shown" :key="row.id">
+            <div class="row-card__head">
+              <UserCell :login="row.account.login" />
+              <span v-if="row.account.synced_at" class="cell-sub" :title="fmtDate(row.account.synced_at)">{{ fmtRelative(row.account.synced_at) }}同步</span>
+              <span v-else class="cell-sub">还没同步过</span>
+            </div>
+            <div class="row-card__lines">
+              <span class="row-card__line">
+                <span class="muted">GitLab</span>
+                <a v-if="row.link" class="mono" :href="row.link" target="_blank" rel="noreferrer">@{{ row.username }}</a>
+                <span v-else-if="row.username" class="mono">@{{ row.username }}</span>
+                <span v-if="row.state" :class="row.username ? 'cell-sub' : 'muted'">{{ row.state }}</span>
+              </span>
+              <span v-if="row.error" class="cell-sub danger-text" :title="row.errorAt ? `${row.errorAt} 失败` : undefined">{{ row.error }}</span>
+              <span v-if="row.pending" class="cell-sub">{{ row.pending }}</span>
+            </div>
+            <div v-if="row.syncable" class="row-card__actions">
+              <TxButton
+                variant="secondary"
+                size="sm"
+                :aria-label="`重新把 @${row.account.login} 同步到 GitLab`"
+                :loading="busy === row.account.account_id"
+                :disabled="busy !== null && busy !== row.account.account_id"
+                @click="run(row.account)"
+              >
+                {{ row.error ? "重试" : "立即同步" }}
+              </TxButton>
+            </div>
+          </li>
+          <li v-if="!shown.length">
+            <TxEmptyState
+              :variant="view || q ? 'search-empty' : 'no-data'"
+              :title="view || q ? '没有符合条件的账号' : '还没有账号'"
+              :description="view || q ? '换一个筛选条件再试。' : '有人注册极客班账号后会出现在这里。'"
+              size="small"
+            />
+          </li>
+        </ul>
       </TxCard>
     </template>
   </div>

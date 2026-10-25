@@ -9659,7 +9659,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -15340,7 +15340,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "d9ab921ec19c1fa9df9ea38448c54e9fcbac4abf9e2ad95220434f87588e24ad",
+    "fingerprint": "173e9d3b2554883aa0a10ad40876ad983faf3801cf27aacd2ff32eeb7cd1f8b1",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -15548,7 +15548,7 @@
       },
       {
         "path": "app/console/src/pages/Activity.vue",
-        "sha256": "b5b0e89f202b18b597a8b9982b61eeb668313b9f4bd4901cbdd95e88652721a1"
+        "sha256": "e909771f824436c4f48b7f215e8c7c1e63bd6de60613931ab6f742b411e7888e"
       },
       {
         "path": "app/console/src/pages/ApplicationDetail.vue",
@@ -15564,7 +15564,7 @@
       },
       {
         "path": "app/console/src/pages/Backup.vue",
-        "sha256": "a458d9177babde3bc12d0fb9362d991d191520c341acfa4592b02c77288e56ac"
+        "sha256": "3c41aebbcf4957096e51e051e96ee29424f05a791b5d0790d3f399acc9078511"
       },
       {
         "path": "app/console/src/pages/BindEmail.vue",
@@ -15600,7 +15600,7 @@
       },
       {
         "path": "app/console/src/pages/Invites.vue",
-        "sha256": "81930fe0b9b63a9465e995febbd41f4f5ef1a89eacbd7984ddaba0189c64c324"
+        "sha256": "f43c11965b96f67f6059e8a3a7f030b03b1e10348880848d2e7a55dc4bd2e31f"
       },
       {
         "path": "app/console/src/pages/Overview.vue",
@@ -15632,7 +15632,7 @@
       },
       {
         "path": "app/console/src/pages/competition/RulesPanel.vue",
-        "sha256": "d046679b6599dfe06d52c798b197b8b4937486ae6e2f04830744c5fbb2fc905e"
+        "sha256": "ef93d7306a90563741b2ad2ec2b1a7f5414c53ac85f32bc7b2be7d88725c76dd"
       },
       {
         "path": "app/console/src/pages/competition/ScoreLevels.vue",
@@ -15644,7 +15644,7 @@
       },
       {
         "path": "app/console/src/pages/forum/CategoriesTab.vue",
-        "sha256": "63c746b83f41d7c5663a2cb2d03f5ccf771ede6fe6b9daf811aadc29908bee21"
+        "sha256": "690c7a42cfe31ed97fa4f188b7ac2a7d8dbd59c0b3fa3f8888ba0008796236b1"
       },
       {
         "path": "app/console/src/pages/forum/NewStickerDialog.vue",
@@ -15656,7 +15656,7 @@
       },
       {
         "path": "app/console/src/pages/gitlab/Accounts.vue",
-        "sha256": "f2bf4b4550808bcb9aebf4d0750b29c74686a7f3046484ea660e36c048e3aebd"
+        "sha256": "cea45dd895b5789e813a1834c88be292c833b12cd3358906f4e372b89442b9d2"
       },
       {
         "path": "app/console/src/pages/gitlab/Overview.vue",
@@ -15692,7 +15692,7 @@
       },
       {
         "path": "app/console/src/pages/permissions/NodesTab.vue",
-        "sha256": "f7979233a13951284cc861c71d304ae20cb3e1939ab0a07867ac010a9798d877"
+        "sha256": "e26b8ba2f670d4c5f01a1d13aa3d9aec43c7563a2e4f132202494a1bc422fd8d"
       },
       {
         "path": "app/console/src/pages/users/UserDrawer.vue",
@@ -16787,10 +16787,6 @@
         "sha256": "ec503b85901d61bdd6d18add7de562ed5990e193b4d4644f3c2e4dcea63ca4b7"
       },
       {
-        "path": "app/web/sites/contests/oss-2026-1/dist/site/assets/index-DjXYBoEn.js",
-        "sha256": "079184054663d12ca3d09313c383e7b169e7da9372a66c81bf572fc6852ca2ee"
-      },
-      {
         "path": "app/web/sites/contests/oss-2026-1/site.config.ts",
         "sha256": "d8353260c93d6b6b8b91d0be6b78a94e8f1f64a053ceca7d3ac37b6faf181184"
       },
@@ -17180,7 +17176,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "72342063d9d59d1457a7614976174a73704970fefc8d5de4d8751f32563f0214"
+        "sha256": "421b70b57b4f562928a89c66a9927b085bef3b99b876182ede3175798dde8d3d"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -36093,7 +36089,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36121,7 +36117,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36149,7 +36145,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36177,7 +36173,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36205,7 +36201,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36233,7 +36229,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36261,7 +36257,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36289,7 +36285,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36317,7 +36313,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36345,7 +36341,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36391,7 +36387,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36419,7 +36415,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36447,7 +36443,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36475,7 +36471,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36503,7 +36499,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -122581,12 +122577,6 @@
         "competitions"
       ],
       "path": "app/web/sites/contests/_starter/vite.config.ts"
-    },
-    {
-      "domains": [
-        "competitions"
-      ],
-      "path": "app/web/sites/contests/oss-2026-1/dist/site/assets/index-DjXYBoEn.js"
     },
     {
       "domains": [
