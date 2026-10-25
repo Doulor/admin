@@ -100,6 +100,18 @@
         "application:web"
       ],
       "reason": "Portal 模块合同补一句三个视图按钮互斥。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "application:web"
+      ],
+      "reason": "按当前源码重新生成项目目录，来源摘要随影响声明与文档的改动变化，不手改。"
     }
   ],
   "documents": [
