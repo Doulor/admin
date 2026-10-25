@@ -59,14 +59,14 @@
 
 ## 登录动画（SPEC §6）
 
-`show_letters`（truecolor 渐变画 YUGC 四个字母）→ `show_mascot`（极客娘盲文点阵，`build.rs` 编译期生成）→ `begin_waiting`/`spin`（用户码的框 + spinner，轮询期间每 120ms 推进一帧）→ `show_welcome`（确认后头像，kitty/iTerm2 内联图像协议优先，不支持就落到运行时盲文头像，加「欢迎回来，&lt;昵称&gt;」）。非 TTY、`NO_COLOR`、`--json` 下一律不画（acceptance #4：`geek login | cat` 没有动画也没有控制字符）。
+`show_letters`（truecolor 渐变画 YUGC 四个字母）→ `show_mascot`（极客娘盲文点阵，`build.rs` 编译期生成）→ `begin_waiting`/`spin`（用户码的框 + spinner，轮询期间每 120ms 推进一帧；框的边框按两行内容的显示宽度算，中文占 2 列，网址再长也对齐，#289）→ `show_welcome`（确认后头像，kitty/iTerm2 内联图像协议优先，不支持就落到运行时盲文头像，加「欢迎回来，&lt;昵称&gt;」）。非 TTY、`NO_COLOR`、`--json` 下一律不画（acceptance #4：`geek login | cat` 没有动画也没有控制字符）。
 
 ## 分发
 
 - **交叉编译在宿主机做**：`node scripts/cli-dist.mjs` 用 `cargo zigbuild`（zig 当交叉链接器）把 5 个目标（`aarch64-apple-darwin`、`x86_64-apple-darwin`、`x86_64-unknown-linux-musl`、`aarch64-unknown-linux-musl`、`x86_64-pc-windows-gnu`）编译、算 sha256，产出 `dist/cli/<version>/geek-<target>[.exe]`、`dist/cli/{install.sh,install.ps1,latest.json}`。`dist/` 已被 `.gitignore` 覆盖，产物不进仓库。
 - **zig 与 cargo-zigbuild 是开发机工具，不是生产依赖**：按约定路径 `.tools/zig/zig-macos-aarch64-0.13.0/zig`、`.tools/cargo/bin/cargo-zigbuild`（装法：下载 zig 0.13.0 macOS aarch64 解到前者；`CARGO_INSTALL_ROOT=$(pwd)/.tools/cargo cargo install cargo-zigbuild --locked`），两者都在 `.gitignore` 的 `.tools/` 里，不进仓库也不进镜像。
 - 进镜像：`app/web/Dockerfile` 有一个空的 `cli` 阶段（`FROM scratch AS cli`），运行阶段 `COPY --from=cli / /usr/share/nginx/html/cli/`。发版构建先跑 `node scripts/cli-dist.mjs`，再用 `docker build --build-context cli=dist/cli …` 把产物换进这个阶段；不传时（CI 的镜像构建验证）镜像照样能建，`/cli/` 下没有文件，访问是 404。仓库根的 `.dockerignore` 排除 `**/dist`，所以不从普通构建上下文复制。GitHub 的两条部署工作流还没有产出 `dist/cli/` 的步骤（Linux runner 交叉编译 macOS 目标缺 SDK），用它们发版时 `/cli/` 是空的。镜像内 nginx 的 `/cli/` 路径与缓存策略见 [web 合同](../web/README.md)。
-- **安装脚本**：`dist/cli/install.sh`、`install.ps1` 默认源站生产 `https://yangtzeu.work`，`GEEK_ORIGIN` 环境变量覆盖（和 `geek` 自己的源站解析一致），预发布装机：`curl -fsSL https://prev.yangtzeu.work/cli/install.sh | GEEK_ORIGIN=https://prev.yangtzeu.work sh`。生产安装命令（acceptance #1）：`curl -fsSL https://yangtzeu.work/cli/install.sh | sh`。两个脚本都先下 `.sha256` 校验、不匹配就失败，不执行除了这个仓库自己产出的任何远端内容。
+- **安装脚本**：`dist/cli/install.sh`、`install.ps1` 默认源站生产 `https://yangtzeu.work`，`GEEK_ORIGIN` 环境变量覆盖（和 `geek` 自己的源站解析一致），镜像内 nginx 在 `/cli/` 下把脚本里的生产域名换成请求的域名（`sub_filter`，见 [web 合同](../web/README.md)），所以预发布直接 `curl -fsSL https://prev.yangtzeu.work/cli/install.sh | sh` 就从预发布装，`GEEK_ORIGIN` 仍然优先（#289）。生产安装命令（acceptance #1）：`curl -fsSL https://yangtzeu.work/cli/install.sh | sh`。两个脚本都先下 `.sha256` 校验、不匹配就失败，不执行除了这个仓库自己产出的任何远端内容。
 - **macOS 二进制未签名**：curl 下载的文件没有 Gatekeeper 的隔离属性（quarantine，只有浏览器直接下载才会打），可以直接执行，不会跳 Gatekeeper 的「打不开」提示。
 
 ## CI 与本机检查

@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "issue": 289,
+  "kind": "engineering",
+  "summary": "命令行验收（V02/V03）在预发布 rc.22 上发现的三处缺陷：预发布的 install.sh 默认从生产装，按验收单原样执行会报「latest.json 里没有 version」；技能文件示例会把令牌回显到屏幕；登录提示框的网址行比边框宽 10 列。镜像内 nginx 让安装脚本的默认源站跟着访问的域名走，技能示例改成不回显令牌，登录框按显示宽度算边框。",
+  "applications": [
+    "web",
+    "cli"
+  ],
+  "domains": [
+    "platform",
+    "identity"
+  ],
+  "flows": [],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "命令行是账号在终端的入口，业务规则不变：设备码登录、令牌与权限沿用 #277。变的是预发布验收路径——同一条安装命令在预发布装预发布分发的版本，在生产装生产的版本。",
+      "evidence": [
+        "app/web/Dockerfile",
+        "docs/services/cli/README.md"
+      ]
+    },
+    "backend": {
+      "status": "not-applicable",
+      "reason": "服务端接口、路由与中间件都没有改；只有镜像内 nginx 对 /cli/ 下的静态文本做域名替换，二进制与 sha256 走另一个 location，不经过替换。",
+      "evidence": [
+        "app/web/Dockerfile",
+        "tests/tooling/hashed-asset-cache.test.ts"
+      ]
+    },
+    "permissions": {
+      "status": "not-applicable",
+      "reason": "没有新的鉴权点：/cli/ 是公开静态分发，替换用的 $host 只影响发给请求者自己的脚本文本；令牌存取和 scope 判定在 CLI 与服务端，未改动。",
+      "evidence": [
+        "app/web/Dockerfile",
+        "app/cli/skills/geek/SKILL.md"
+      ]
+    },
+    "data": {
+      "status": "not-applicable",
+      "reason": "不涉及表、字段或存储：登录框只是终端输出，安装脚本是静态文件，令牌存储（钥匙串/文件）未改。",
+      "evidence": [
+        "app/cli/src/ui/login_anim.rs",
+        "scripts/cli-dist.mjs"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新增依赖：登录框宽度用本文件里的小函数，没有引入 unicode-width；nginx 的 sub_filter 是官方镜像自带模块，本机实测用的是同一份配置。",
+      "evidence": [
+        "app/cli/src/ui/login_anim.rs",
+        "app/web/Dockerfile"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "web 合同写明 /cli/ 的 sub_filter、替换值只认字母数字点连字符的 map 和测试位置，cli 合同改了预发布安装命令与登录框说明；技能文件去掉回显令牌的示例并补一条禁止项。",
+      "evidence": [
+        "docs/services/web/README.md",
+        "docs/services/cli/README.md",
+        "app/cli/skills/geek/SKILL.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "本机 nginx 实测两个域名下的 install.sh/install.ps1 逐字等于生成文本加域名替换，二进制与 latest.json 不受影响；Rust 单测覆盖登录框每行同宽（长网址、长用户码、中文）；cargo clippy -D warnings 与 cargo test 全绿。",
+      "evidence": [
+        "tests/tooling/hashed-asset-cache.test.ts",
+        "app/cli/src/ui/login_anim.rs"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "镜像里 nginx 配置多四行；CLI 二进制要重编才带上新技能文件和新登录框（技能文件由 include_str! 内嵌），随下一个预发布版本分发；回滚就是换回上一个镜像和上一个二进制。",
+      "evidence": [
+        "app/web/Dockerfile",
+        "scripts/cli-dist.mjs"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/web/Dockerfile",
+        "scripts/cli-dist.mjs",
+        "tests/tooling/hashed-asset-cache.test.ts",
+        "docs/services/web/README.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "application:web"
+      ],
+      "reason": "镜像内 nginx 的 /cli/ 加 sub_filter，把安装脚本里的生产域名换成访问的域名，域名经 map 限定字符集，带 $、引号等字符的 Host 退回生产域名；cli-dist.mjs 导出两个生成函数给测试用；本机 nginx 实测用例逐字核对；web 合同同步。"
+    },
+    {
+      "paths": [
+        "app/cli/src/ui/login_anim.rs",
+        "app/cli/skills/geek/SKILL.md",
+        "docs/services/cli/README.md"
+      ],
+      "domains": [
+        "identity",
+        "platform"
+      ],
+      "nodes": [
+        "application:cli"
+      ],
+      "reason": "登录提示框按显示宽度算边框，加四个单测；技能文件的示例不再回显令牌，补一条禁止项；cli 合同同步。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "application:web"
+      ],
+      "reason": "按当前源码重新生成项目目录，来源摘要随 Dockerfile、技能文件和登录框的改动变化，不手改。"
+    }
+  ],
+  "documents": [
+    "docs/services/web/README.md",
+    "docs/services/cli/README.md"
+  ],
+  "tests": [
+    "tests/tooling/hashed-asset-cache.test.ts"
+  ],
+  "compatibility": "GEEK_ORIGIN 仍然优先，生产域名下的安装命令输出与之前逐字一致；已安装的 geek 不受影响，新登录框和新技能文件随下一个二进制到达。",
+  "migration": "不涉及迁移：没有表结构、配置键或存储格式变化。",
+  "rollback": "镜像换回上一个版本即可恢复旧的 /cli/ 配置；二进制换回上一个版本即恢复旧登录框和旧技能文件，不影响令牌与账号。"
+}

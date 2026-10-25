@@ -8392,7 +8392,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -15340,7 +15340,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "173e9d3b2554883aa0a10ad40876ad983faf3801cf27aacd2ff32eeb7cd1f8b1",
+    "fingerprint": "779c40df77e3cc47c133142ecbb1c4fb7e77aa0cf5b3d1eb7350763a96db382b",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -16692,7 +16692,7 @@
       },
       {
         "path": "app/web/Dockerfile",
-        "sha256": "3ebf6794069b5e7ee3dc67f3f81e270ef2be70d9d6107a4716b45140fbce7614"
+        "sha256": "01fd104d8ae531e1171c9fb102980c6064ba3dea7d8d200b63a5ad9ea8aa9411"
       },
       {
         "path": "app/web/package.json",
@@ -17172,7 +17172,7 @@
       },
       {
         "path": "docs/services/cli/README.md",
-        "sha256": "772786bcd88e1f2a120655279cbbe8792fb93a041365f21199bee781883ef477"
+        "sha256": "4ad4d308dedb0dcdf1bba8a83b0f7ecc57642b36241d4f60baeccc2836d054c2"
       },
       {
         "path": "docs/services/console/README.md",
@@ -17204,7 +17204,7 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "dad21521226d948fb56b70b9ef882c92eeaca3aaa7c8dcc5de8834c781448a23"
+        "sha256": "36b3da6a7e5e7cf65951fa0a4cdc18f2f0acab9c09b6613420208ab930a6c1f9"
       },
       {
         "path": "docs/services/web/portal.md",
@@ -40559,7 +40559,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40587,7 +40587,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40615,7 +40615,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40643,7 +40643,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40671,7 +40671,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40699,7 +40699,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40727,7 +40727,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40755,7 +40755,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40783,7 +40783,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40829,7 +40829,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40857,7 +40857,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],

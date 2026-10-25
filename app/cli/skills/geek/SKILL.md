@@ -21,7 +21,7 @@ description: 极客班命令行（geek）：用设备码登录极客班账号后
 ```bash
 geek login --env preview        # 交互式：打印用户码，在浏览器确认
 geek login --env preview --json # 非交互：没有动画，打印 JSON，仍然要在浏览器确认一次
-echo $GEEK_TOKEN                # agent 场景：直接设环境变量，跳过 login
+geek status                     # agent 场景：令牌已由环境变量 GEEK_TOKEN 注入时不用 login，用它确认令牌来自哪一层、是否有效
 ```
 
 `--env` 只能是 `production`（默认，`https://yangtzeu.work`）或 `preview`
@@ -86,5 +86,6 @@ $ geek apply status --json
 ## 不要做的事
 
 - 不要把 `GEEK_TOKEN` 打进日志、提交记录或任何会被别人看到的地方——它等同于这个账号的密码。
+- 确认登录状态用 `geek status`，它不打印令牌；不要用 `echo $GEEK_TOKEN`、`env`、`printenv` 这类会把令牌显示出来的命令。
 - 看到 `forbidden`/`insufficient_scope` 不要换着接口试探绕过；这是账号真实的权限边界。
 - `geek forum post` 失败不代表命令行本身坏了，大多数时候是账号级别不够（注册用户默认不能发帖）。

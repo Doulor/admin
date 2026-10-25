@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`173e9d3b2554883aa0a10ad40876ad983faf3801cf27aacd2ff32eeb7cd1f8b1`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`779c40df77e3cc47c133142ecbb1c4fb7e77aa0cf5b3d1eb7350763a96db382b`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -2201,7 +2201,7 @@
 - 预览：~preview/<version_id>/ 要会话有 competition.site.publish 且版本通过校验，302 到一小时有效的签名地址 ~preview/<version_id>.<到期秒>.<签名>/（HMAC，SESSION_SECRET）；签名地址不看会话、private, no-store；条件不满足一律 404。
 - 只读，不写业务表；读会话时过期会话照常删除。web 容器的 nginx 只把 /c/ 原样转给 server，宿主的站点 CSP 与 sandbox CSP 叠加后同样只允许 'self'。
 
-源码：[app/server/src/routes/sites/index.ts:59](../../../app/server/src/routes/sites/index.ts#L59) · [app/server/src/lib/competition-site-store.ts:42](../../../app/server/src/lib/competition-site-store.ts#L42) · [app/server/src/lib/competition-site-store.ts:14](../../../app/server/src/lib/competition-site-store.ts#L14) · [app/web/sites/portal/components/os/competitions/ContestSite.tsx:8](../../../app/web/sites/portal/components/os/competitions/ContestSite.tsx#L8) · [app/web/Dockerfile:180](../../../app/web/Dockerfile#L180)
+源码：[app/server/src/routes/sites/index.ts:59](../../../app/server/src/routes/sites/index.ts#L59) · [app/server/src/lib/competition-site-store.ts:42](../../../app/server/src/lib/competition-site-store.ts#L42) · [app/server/src/lib/competition-site-store.ts:14](../../../app/server/src/lib/competition-site-store.ts#L14) · [app/web/sites/portal/components/os/competitions/ContestSite.tsx:8](../../../app/web/sites/portal/components/os/competitions/ContestSite.tsx#L8) · [app/web/Dockerfile:187](../../../app/web/Dockerfile#L187)
 
 测试入口：[tests/server/competition-site.test.ts](../../../tests/server/competition-site.test.ts) · [tests/tooling/web-nginx.test.ts](../../../tests/tooling/web-nginx.test.ts) · [tests/web/contest-site.test.ts](../../../tests/web/contest-site.test.ts)。生成器未执行这些测试。
 

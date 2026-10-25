@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildForumCsp } from '../../app/forum/scripts/csp-header.mjs';
+import { installPs1, installSh } from '../../scripts/cli-dist.mjs';
 
 // #146 审查：带内容哈希的产物目录（官网 /assets/、控制台 /console-assets/、论坛 /_nuxt/）整个目录缓存一年。
 // nginx 先挑最长的前缀，再按顺序试正则，正则命中就用正则；普通前缀 location 会被「图片/字体 7 天」的正则截走，
@@ -149,6 +150,15 @@ describe.skipIf(!nginxBinary)('hashed output folders through host → web → fo
     req.on('error', reject);
     req.end();
   });
+  const get = (path: string, hostHeader: string) => new Promise<{ status: number; body: string }>((resolve, reject) => {
+    const req = request({ host: '127.0.0.1', port: ports.host, path, method: 'GET', agent: false, headers: { host: hostHeader } }, response => {
+      const chunks: Buffer[] = [];
+      response.on('data', chunk => chunks.push(chunk));
+      response.on('end', () => resolve({ status: response.statusCode ?? 0, body: Buffer.concat(chunks).toString('utf8') }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
   const security = (headers: Record<string, string | undefined>) => Object.fromEntries(SECURITY_HEADERS.map(name => [name, headers[name] ?? null]));
 
   const webFiles = {
@@ -156,6 +166,8 @@ describe.skipIf(!nginxBinary)('hashed output folders through host → web → fo
     '/console-assets/': ['index-Da-v5ibB.js', 'index-BDUuSmcz.css', 'font-Ab_cd-12.woff2', 'logo-B8XWu1eE.png'],
   };
   const forumFiles = ['BsIrHTXA.js', 'entry.CWRjoBJd.css', 'inter.Dx3Kp_9a.woff2', 'logo.aFxUkDTw.webp'];
+  // 真实的 geek 二进制里内嵌生产域名（config.rs 的 PRODUCTION_ORIGIN）：夹具带上这个字面量，才能证明版本化产物不经过 sub_filter。
+  const BINARY = 'x\u0000https://yangtzeu.work\u0000x';
 
   beforeAll(async () => {
     root = mkdtempSync(join(tmpdir(), 'geek-asset-cache-'));
@@ -170,8 +182,11 @@ describe.skipIf(!nginxBinary)('hashed output folders through host → web → fo
     put(join(webHtml, 'logo.png'));
     for (const [prefix, files] of Object.entries(webFiles)) for (const file of files) put(join(webHtml, prefix, file));
     // geek 命令行分发（#277）：版本化的二进制长缓存，顶层的安装脚本/latest.json 不缓存。
-    put(join(webHtml, 'cli', '0.1.0', 'geek-aarch64-apple-darwin'));
-    put(join(webHtml, 'cli', 'install.sh'));
+    put(join(webHtml, 'cli', '0.1.0', 'geek-aarch64-apple-darwin'), BINARY);
+    // 安装脚本用 cli-dist.mjs 真实生成的文本：nginx 改写默认源站时匹配的就是这份文本里的域名（#289）。
+    put(join(webHtml, 'cli', 'install.sh'), installSh());
+    put(join(webHtml, 'cli', 'install.ps1'), installPs1());
+    put(join(webHtml, 'cli', 'latest.json'), '{"version":"0.1.0","note":"https://yangtzeu.work"}\n');
     const forumHtml = join(root, 'forum-html');
     // 带一段内联脚本：论坛 CSP 由 csp-header.mjs 按它算哈希，和镜像构建时一样。
     put(join(forumHtml, 'index.html'), '<!DOCTYPE html><html><body><script>window.__NUXT__={}</script></body></html>\n');
@@ -268,6 +283,45 @@ describe.skipIf(!nginxBinary)('hashed output folders through host → web → fo
     const installer = await head('/cli/install.sh');
     expect([installer.status, installer.headers['cache-control']]).toEqual([200, 'no-cache']);
     expect((await head('/cli/0.1.0/missing')).status).toBe(404);
+  });
+
+  it('web: install.sh / install.ps1 的默认源站跟着请求的域名走，其余文件原样返回（#289）', async () => {
+    for (const host of ['prev.yangtzeu.work', 'yangtzeu.work']) {
+      const sh = await get('/cli/install.sh', host);
+      expect([host, sh.status]).toEqual([host, 200]);
+      expect(sh.body, host).toContain(`ORIGIN="\${GEEK_ORIGIN:-https://${host}}"`);
+      const ps1 = await get('/cli/install.ps1', host);
+      expect([host, ps1.status]).toEqual([host, 200]);
+      expect(ps1.body, host).toContain(`else { "https://${host}" }`);
+      // GEEK_ORIGIN 的覆盖仍然生效，脚本其余部分一字不动。
+      expect(sh.body).toContain('${GEEK_ORIGIN:-');
+      expect(ps1.body).toContain('$env:GEEK_ORIGIN');
+    }
+    // 只有生产域名这一个字面量被换掉，脚本其余部分与生成的文本逐字一致。
+    expect((await get('/cli/install.sh', 'prev.yangtzeu.work')).body).toBe(installSh().replaceAll('https://yangtzeu.work', 'https://prev.yangtzeu.work'));
+    expect((await get('/cli/install.sh', 'yangtzeu.work')).body).toBe(installSh());
+    expect((await get('/cli/install.ps1', 'prev.yangtzeu.work')).body).toBe(installPs1().replaceAll('https://yangtzeu.work', 'https://prev.yangtzeu.work'));
+    // Host 头里带 $、引号、空白的请求：脚本最后会交给 sh 执行，这些字符不能写进脚本。
+    // nginx 自己会拒掉一部分（400）；放行到容器里的，默认源站一律退回生产域名，脚本与生成文本逐字一致。
+    const reached: string[] = [];
+    for (const hostile of ['evil";echo pwn;"x.example', 'a$(id).example', 'a b.example', '-leading.example']) {
+      const response = await get('/cli/install.sh', hostile);
+      if (response.status === 200) {
+        reached.push(hostile);
+        expect([hostile, response.body]).toEqual([hostile, installSh()]);
+      } else {
+        expect([hostile, response.status]).toEqual([hostile, 400]);
+      }
+    }
+    // 至少 `$(...)` 这种能放行进容器的，确实走到了上面的断言，不是空转。
+    expect(reached).toEqual(expect.arrayContaining(['a$(id).example']));
+    // latest.json 也在 /cli/ 下，改写之后仍是合法 JSON，安装脚本读的 version 不变。
+    expect(JSON.parse((await get('/cli/latest.json', 'prev.yangtzeu.work')).body).version).toBe('0.1.0');
+    // 版本化产物走另一个 location，不经过改写。
+    for (const host of ['prev.yangtzeu.work', 'yangtzeu.work']) {
+      const binary = await get('/cli/0.1.0/geek-aarch64-apple-darwin', host);
+      expect([host, binary.status, binary.body]).toEqual([host, 200, BINARY]);
+    }
   });
 
   it('forum: every file under /forum/_nuxt/ gets one year with the forum CSP, latest.json is not cached', async () => {
