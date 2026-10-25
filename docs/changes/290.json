@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "issue": 290,
+  "kind": "business",
+  "summary": "比赛窗口顶部的「赛事 / 我的参赛 / 组队广场」三个切换按钮，选中「组队广场」时「赛事」也保持按下状态，两个按钮同时是白底选中样式。「赛事」的选中判定补上「不是组队广场」，三个视图任何时候只有一个按下；补一条三视图轮流切换的回归测试。",
+  "applications": [
+    "web"
+  ],
+  "domains": [
+    "competitions"
+  ],
+  "flows": [
+    "flow:competition.team_plaza.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "unchanged",
+      "reason": "业务规则不变：三个视图各自读的数据、筛选和空状态都沿用原来的，组队广场仍只收正在报名的团队赛；只改「赛事」按钮的选中判定。",
+      "evidence": [
+        "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
+      ]
+    },
+    "backend": {
+      "status": "not-applicable",
+      "reason": "没有改服务端：不新增接口，也不改接口参数、返回和错误处理。",
+      "evidence": [
+        "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "权限判断不变：组队广场仍按登录与成员身份读 GET /api/team-plaza，未登录显示登录入口；本次不动读取条件。",
+      "evidence": [
+        "app/web/sites/portal/components/os/competitions/TeamPlaza.tsx"
+      ]
+    },
+    "data": {
+      "status": "not-applicable",
+      "reason": "不涉及数据：没有表、字段、存储或迁移，页面读同一批接口。",
+      "evidence": [
+        "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新增依赖，也没有改样式表：白底选中样式本来就跟 aria-pressed 走。",
+      "evidence": [
+        "app/web/sites/portal/styles/competitions.css"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "web 服务的 Portal 模块合同写明三个视图按钮互斥，任何时候只有一个按下。",
+      "evidence": [
+        "docs/services/web/portal.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "tests/web/portal-competition-hub.test.tsx 新增一条用例，轮流切到三个视图并断言按下状态只有一个；改前该用例在「组队广场」处失败（赛事、组队广场同时为 true）。",
+      "evidence": [
+        "tests/web/portal-competition-hub.test.tsx"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "只改官网前端产物，随下一个预发布镜像发布；回滚换回上一个镜像，没有数据变化。",
+      "evidence": [
+        "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx",
+        "tests/web/portal-competition-hub.test.tsx"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "application:web",
+        "flow:competition.team_plaza.list"
+      ],
+      "reason": "比赛窗口的视图切换：「赛事」按钮的按下判定补上不是组队广场；三视图互斥的回归测试。"
+    },
+    {
+      "paths": [
+        "docs/services/web/portal.md"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "application:web"
+      ],
+      "reason": "Portal 模块合同补一句三个视图按钮互斥。"
+    }
+  ],
+  "documents": [
+    "docs/services/web/portal.md"
+  ],
+  "tests": [
+    "tests/web/portal-competition-hub.test.tsx"
+  ],
+  "compatibility": "接口、路由与权限不变；只是「赛事」按钮在选中组队广场时不再显示为按下。",
+  "migration": "不涉及迁移：没有表结构、配置键或存储格式变化。",
+  "rollback": "换回上一个镜像即可恢复原来的行为；没有数据变化，不需要回滚数据。"
+}
