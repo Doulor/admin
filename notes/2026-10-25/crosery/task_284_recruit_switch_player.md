@@ -36,3 +36,16 @@
 - 做了什么：宣传片从盖住整个页面的全屏层改成桌面里的「宣传片」窗口：osApps 里 promo 的打开方式从 panel 改成 window，窗口复用桌面已有的窗口管理（层叠、拖动、关闭、最小化、放大，手机上是底部面板），没有另写一套。lib/promoWindow.ts 放纯逻辑：promoEntry（什么时候自动弹）、visibilityStep（窗口收起时暂停、露出来接着播）、promoWidth 与 promoTop（按屏幕高度算窗口宽度和顶边，画面 16:9 不被截）。PromoPlayer 改成窗口正文，画面上没有按钮：窗口最小化（手机上被别的窗口盖住）时暂停，露出来从停下的位置接着播，关闭窗口播放器卸载，停止播放并释放片源和 hls.js，播完由桌面关窗口。首次自动弹出的条件原样保留：「加入我们」窗口挂上时这个浏览器没有 yugc_promo_seen 就弹一次，开了减少动态效果只写 cookie、不弹也不下载播放器；cookie 只在自动弹的那一次写，自己点开重看不写，加载失败不写。信纸上和关闭页都有「看宣传片」。放不了、加载失败、静音也不让播时窗口留着，画面上说明。手机上关掉宣传片时下面还有别的窗口就露出它，不一起回主屏幕。tests/web 新增 portal-promo-desktop.test.tsx（18 条）和 portal-promo-window.test.ts（7 条），portal-promo-player、lazy、gate 三份按窗口改写，tests/e2e/workflows.spec.ts 的宣传片部分改写。同步 docs/services/web/portal.md、docs/design/DESIGN.md，ownership.json 补证据后重新生成项目目录。
 - 结果：npx vitest run tests/web tests/console tests/server：103 个文件 1334 条全部通过（web 38 个文件 377 条，console 20 个 248 条，server 45 个 709 条）；把宣传片的 23 处逻辑逐个破坏（关闭不记看过、active 恒为 true、active 不看最小化、promoEntry 不看 seen、promoEntry 不看减少动态效果、露出来总是恢复、露出来不恢复、收起不暂停、卸载不释放片源、手机关宣传片一律回主屏、顶边不夹、播完不关窗口、点画面暂停、Esc 被播放器拦下等），各有用例变红，恢复后全绿；pnpm typecheck 通过；pnpm check:docs、node scripts/check-doc-sync.mjs --base gitlab/stage、pnpm check:catalog、node scripts/check-architecture.mjs --base gitlab/stage、pnpm check:boundaries、pnpm check:secrets 通过；pnpm check:notes 仍报 notes/2026-10-24/crosery/task_276_forum_image_scan.md:47（该文件与 gitlab/stage 一致，不是这个分支改的）。没有在浏览器里看过（任务书不让起浏览器）：窗口在 1440×900 与 390×844 的版面、真视频的暂停与恢复、改写后的 e2e（本机不能跑）都未验证；手机竖屏不再把画面转 90 度铺满，是这次有意去掉的。
 - 下一步：补 docs/changes/284.json 宏观对齐声明，然后回报主控
+
+## 14:26:38 +08:00 · 提交 · #284 · 宏观对齐声明
+
+- 执行者：agent-claude-geek-main-recruit（Claude Code，claude-sonnet-5-5）
+- 做了什么：新增 docs/changes/284.json 宏观对齐声明：类型 business，涉及 server、console、web 三个应用；写明 14 个领域、21 条流程、8 条评估（权限、step-up、操作记录、公开配置、投递拒绝、官网关闭页、宣传片窗口、首次自动弹出条件）、6 组覆盖，文档 8 份、测试 9 份；兼容、迁移、回滚三段说清：接口只加不改，不加表不加列，开关是 app_state 里的一行、没有这一行就是开放，回滚换回上一版镜像即可，留下的 apply_open 一行没有程序读它。
+- 结果：node scripts/check-architecture.mjs --base gitlab/stage：宏观对齐通过，#284，54 个变更文件，50 个关联节点；node scripts/check-doc-sync.mjs --base gitlab/stage 与 pnpm check:catalog 通过。这份声明只描述改动，没有增加新的验证；浏览器验收仍未做。
+- 下一步：向主控回报：提交清单、各判据的测试证据、浏览器核对清单
+
+## 14:27:09 +08:00 · 提交 · #284 · 更正宏观对齐声明记录里的评估项
+
+- 执行者：agent-claude-geek-main-recruit（Claude Code，claude-sonnet-5-5）
+- 做了什么：更正上一条「宏观对齐声明」记录：那条里「8 条评估」后面括号列出的事项写错了，不是 docs/changes/284.json 里评估的内容。声明里 8 条评估的键是 business、backend、permissions、data、dependencies、documentation、verification、delivery；其余数字（14 个领域、21 条流程、6 组覆盖、文档 8 份、测试 9 份）与文件一致。
+- 结果：已对照 docs/changes/284.json 逐项核对：applications 3、domains 14、flows 21、assessments 8、coverage 6、documents 8、tests 9；上一条里这些数字属实，只有评估项的括号说法不对，以本条为准。
