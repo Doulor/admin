@@ -1,4 +1,4 @@
-import { oneLine, safeMailLink, type EnvelopeBlock, type EnvelopeMessage } from "./envelope.js";
+import { oneLine, safeMailLink, type EnvelopeBlock, type EnvelopeMessage, type MailTemplateError } from "./envelope.js";
 
 /**
  * 招聘信模板的内容（#285）：一封信的主题、摘要、小字、抬头、正文块、按钮、页脚，全是数据。
@@ -23,6 +23,7 @@ export type TemplateBlock =
   | { kind: "quote"; title: string; text: string };
 export type TemplateBlockKind = TemplateBlock["kind"];
 export const TEMPLATE_BLOCK_KINDS: readonly TemplateBlockKind[] = ["paragraph", "list", "facts", "quote"];
+export const BLOCK_KIND_LABELS: Record<TemplateBlockKind, string> = { paragraph: "段落", list: "要点列表", facts: "信息表", quote: "引用" };
 
 /** 按钮的链接只写站内路径，拼上站点地址后还要过 safeMailLink（只放行 yangtzeu.work / prev.yangtzeu.work）。 */
 export type TemplateButton = { label: string; path: string };
@@ -174,6 +175,14 @@ export type TemplateIssue = { path: string; message: string };
 
 const KIND_LABELS: Record<RecruitmentKind, string> = { received: "已收到", interview: "待面试", accepted: "已录取", rejected: "未通过" };
 export const kindLabel = (kind: RecruitmentKind): string => KIND_LABELS[kind];
+
+/** 信渲染不出来（MailTemplateError）时给控制台的话：改状态、预览、保存模板共用。 */
+export function renderErrorMessage(error: MailTemplateError): string {
+  if (error.code === "missing_reply_to") return "现在没有配置回信地址，信里不能请对方直接回复这封邮件，换个说法";
+  if (error.code === "missing_field") return error.message;
+  if (error.code === "invalid_link") return "信里的链接只能指向官网（yangtzeu.work 或 prev.yangtzeu.work）";
+  return "信的内容不合规，改一下再发";
+}
 
 /** 单行文字：去掉控制字符，换行变空格。 */
 const single = (value: string) => oneLine(value);

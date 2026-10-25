@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-24",
+  "updated": "2026-10-25",
   "applications": [
     {
       "id": "web",
@@ -204,7 +204,8 @@
         "docs/services/server/mail.md"
       ],
       "tables": [
-        "mail_outbox"
+        "mail_outbox",
+        "mail_templates"
       ]
     },
     {
@@ -278,6 +279,7 @@
     "app/server/src/routes/admin/auth.ts": "identity",
     "app/server/src/routes/identity/providers.ts": "identity",
     "app/server/src/routes/console/applications.ts": "recruitment",
+    "app/server/src/routes/console/mail-templates.ts": "mail",
     "app/server/src/routes/console/activity.ts": "audit",
     "app/server/src/routes/console/departments.ts": "organization",
     "app/server/src/routes/console/feedback.ts": "feedback",
@@ -339,6 +341,7 @@
     "identity_audit": "给本人看的账号记录（登录、被拒、退出），不存 IP、UA、邮箱原文和第三方标识；管理操作记在 activity_events（操作记录）。",
     "invite_links": "包含能力令牌与加密上游凭据。目录不读取记录。",
     "mail_outbox": "包含发信中的个人信息；application_id、review_id 不是数据库外键。具体保留规则见 mail.md。",
+    "mail_templates": "招聘邮件的模板文字（主题、抬头、正文块、按钮、落款），不含任何投递人的信息；每类信有且只有一套默认，种子来自代码里的内置默认。改模板不影响已入队的信，信在入队时已渲染成成品。",
     "competitions": "只存赛事事实，不含参赛者或队伍；status由时间计算，offline仅控制公开可见性，删除与下线不同。有未取消的报名后不能改内外部，有报名记录的比赛不能真删；旧库启动时插入一期开源贡献赛（id 为 oss-challenge-2026-1），用 console_seeds 标记，只插一次。",
     "competition_signup_settings": "每场一行；没有行就是未开放报名（默认个人赛、不计分）。enabled、participation、team_min/team_max（团队赛才有，1–20）、scoring（none / contribution）由控制台整体写入；更新人 updated_by 是操作人的极客班账号，系统种子为 NULL。只有 lib/competition-signup-store.ts 读写。",
     "competition_signups": "一人一场一行（UNIQUE(competition_id, account_id)），status 只取 active/cancelled，取消保留行与时间；note ≤200 字，成员可见，填写处提示不要写联系方式；looking_for_team 只在团队赛生效。身份键是会话里的 account_id，不按 GitHub 登录名。只有 lib/competition-signup-store.ts 读写。",
@@ -2621,7 +2624,8 @@
         "sessions",
         "role_assignments",
         "departments",
-        "titles"
+        "titles",
+        "mail_templates"
       ],
       "writes": [
         "activity_events",
@@ -2630,7 +2634,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：applications.read；按UUID定位任意候选人，无部门范围限制。",
-        "响应与错误：200 {application,reviews,received_mail,mail}；404 not_found。邮件摘要不含地址/正文，application不含source_ip/UA。",
+        "响应与错误：200 {application,reviews,received_mail,mail,letter_templates}；404 not_found。邮件摘要不含地址/正文，application不含source_ip/UA；letter_templates 是待面试、已录取、未通过三类各自启用的模板，只有 id、名称、是否默认。",
         "数据与副作用：读简历、审核历史和mail_outbox摘要，写application.view审计，不触发发信。",
         "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
       ],
@@ -2732,7 +2736,8 @@
         "sessions",
         "role_assignments",
         "departments",
-        "titles"
+        "titles",
+        "mail_templates"
       ],
       "writes": [
         "applications",
@@ -2744,8 +2749,8 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：applications.review；按id审核，状态变更必须携带expected_status和expected_review_id；取消分支规则仍唯一见application.cancel。",
-        "响应与错误：200 {application,review}；400 invalid_status/no_change/letter_required/letter_invalid，404 not_found，409 status_changed。",
-        "数据与副作用：变更到interview/accepted/rejected且notify不为false才渲染邮件；状态、审核行和邮件入队同事务，实际发送由后台worker。备注不写信或审计正文；本路由不新增任何取消规则。",
+        "响应与错误：200 {application,review}；400 invalid_status/no_change/letter_required/letter_invalid/template_invalid，404 not_found，409 status_changed。",
+        "数据与副作用：变更到interview/accepted/rejected且notify不为false才渲染邮件，用的模板是请求里的 template_id（必须是同一类、已启用），不传用这一类的默认模板；状态、审核行和邮件入队同事务，实际发送由后台worker。备注不写信或审计正文；本路由不新增任何取消规则。",
         "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
       ],
       "evidence": [
@@ -2763,13 +2768,18 @@
         },
         {
           "path": "app/server/src/lib/mail/recruitment.ts",
-          "needle": "export function rejectedMessage(input: RejectedInput): EnvelopeMessage {"
+          "needle": "export function recruitmentMessage<K extends RecruitmentKind>(kind: K, input: RecruitmentInput[K], content: TemplateContent = DEFAULT_TEMPLATES[kind].content): EnvelopeMessage {"
+        },
+        {
+          "path": "app/server/src/lib/mail/template-store.ts",
+          "needle": "pick(kind: RecruitmentKind, id?: string): PickedTemplate {"
         }
       ],
       "tests": [
         "tests/server/console.test.ts",
         "tests/server/mail-outbox.test.ts",
-        "tests/server/mail-envelope.test.ts"
+        "tests/server/mail-envelope.test.ts",
+        "tests/server/mail-templates.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -2891,6 +2901,349 @@
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/cli/README.md"
+      ]
+    },
+    {
+      "id": "application.letter_preview",
+      "title": "投递详情里预览将要发的信",
+      "domain": "recruitment",
+      "relatedDomains": [
+        "mail"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/applications/:application_id/letter-preview",
+      "capabilities": [
+        "applications.review"
+      ],
+      "reads": [
+        "applications",
+        "mail_templates"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [
+        "mail_outbox"
+      ],
+      "invariants": [
+        "权限与资源：需要节点 apply.review（按部门范围，和改状态同一个节点），账号维度每分钟 240 次；审核人没有 mail.template.manage 也能预览自己要发的信。",
+        "响应与错误：200 {subject,html,text}；400 no_letter（只有待面试、已录取、未通过有信）、template_invalid（选的模板不存在、不是这一类或已停用）、letter_invalid（渲染不出来）；404 not_found。",
+        "数据与副作用：用这份投递的真实字段和页面上填的内容，按选的模板渲染；不发信、不入队、不改状态、不写审核记录；待面试还没填时间、地点时用占位文字，真正改状态时仍然要求必填。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/applications.ts",
+          "needle": "\"/api/console/applications/:application_id/letter-preview\","
+        },
+        {
+          "path": "app/server/src/lib/mail/mailer.ts",
+          "needle": "function previewLetter(kind: RecruitmentKind, content: TemplateContent, application: ApplicationForMail, letter: RecruitmentLetter = {}): RenderedMail {"
+        },
+        {
+          "path": "app/server/src/lib/mail/template-contract.ts",
+          "needle": "\"POST /api/console/applications/:application_id/letter-preview\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/mail-templates.test.ts",
+        "tests/server/applications.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/mail.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "mail.template.list",
+      "title": "查看招聘邮件模板与变量清单",
+      "domain": "mail",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/mail-templates",
+      "capabilities": [],
+      "reads": [
+        "mail_templates"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 mail.template.manage（默认只有站长的根通配 * 拿到，不往下发）。",
+        "响应与错误：200 {templates,kinds,block_kinds,variables,limits,mail,test_send}；templates 按信的类别、默认在前、名字排序，每套带 id、name、kind、enabled、is_default 和内容字段；variables 是代码里唯一一份变量清单（TEMPLATE_VARIABLES），编辑页的变量速查表只读它。",
+        "数据与副作用：只读；mail 只给 enabled、recipients 和回信地址是否已配置，不含发信商密钥和回信地址本身。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/mail-templates.ts",
+          "needle": "app.get(\"/api/console/mail-templates\", { preHandler: manage }, async () => ({"
+        },
+        {
+          "path": "app/server/src/lib/mail/template-content.ts",
+          "needle": "export const TEMPLATE_VARIABLES: readonly TemplateVariable[] = ["
+        },
+        {
+          "path": "app/server/src/lib/mail/template-contract.ts",
+          "needle": "\"GET /api/console/mail-templates\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/mail-templates.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/mail.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "mail.template.create",
+      "title": "新建一套招聘邮件模板",
+      "domain": "mail",
+      "relatedDomains": [
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/mail-templates",
+      "capabilities": [],
+      "reads": [
+        "mail_templates"
+      ],
+      "writes": [
+        "mail_templates",
+        "activity_events"
+      ],
+      "doesNotEnqueue": [
+        "mail_outbox"
+      ],
+      "invariants": [
+        "权限与资源：需要节点 mail.template.manage（默认只有站长的根通配 * 拿到，不往下发），且刚登录过（step-up）。",
+        "响应与错误：201 模板；400 template_invalid 带 issues[{path,message}]（变量不在清单里、按钮路径不在官网、结构或长度不合规，或用示例数据渲不出来）；409 template_name_taken（同一类里名字不分大小写重复）。",
+        "数据与副作用：内容先过 normalizeContent，再用示例数据真渲两遍（第二遍说明、原因为空）才落库；这一类还没有默认、而且新模板启用时它成为默认；操作记录 mail.template.create 只记类别、名称和是否启用，不记内容；不入队任何邮件。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/mail-templates.ts",
+          "needle": "app.post<{ Body: CreateBody }>(\"/api/console/mail-templates\", { preHandler: [manage, requireStepUp] }, async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/lib/mail/template-content.ts",
+          "needle": "export function normalizeContent(kind: RecruitmentKind, raw: Raw): { content: TemplateContent; issues: TemplateIssue[] } {"
+        },
+        {
+          "path": "app/server/src/lib/mail/template-store.ts",
+          "needle": "export function createTemplateStore(db: Database.Database) {"
+        },
+        {
+          "path": "app/server/src/lib/mail/template-contract.ts",
+          "needle": "\"POST /api/console/mail-templates\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/mail-templates.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/mail.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "mail.template.update",
+      "title": "编辑、启停或设为默认一套招聘邮件模板",
+      "domain": "mail",
+      "relatedDomains": [
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PATCH /api/console/mail-templates/:template_id",
+      "capabilities": [],
+      "reads": [
+        "mail_templates"
+      ],
+      "writes": [
+        "mail_templates",
+        "activity_events"
+      ],
+      "doesNotEnqueue": [
+        "mail_outbox"
+      ],
+      "invariants": [
+        "权限与资源：需要节点 mail.template.manage（默认只有站长的根通配 * 拿到，不往下发），且刚登录过（step-up）。",
+        "响应与错误：200 模板；404 not_found；400 template_invalid；409 template_name_taken、default_template（默认模板不能停用）、template_changed（expected_updated_at 与库里不同，说明别人改过）、template_disabled（停用的模板不能设为默认）。",
+        "数据与副作用：没给的项沿用库里的，整套再核对和试渲一遍；is_default 只能设成 true，同事务把同一类原来的默认取消，只改默认标记不动更新人和更新时间；操作记录 mail.template.update 只记改了哪几项，不记内容。已入队的信在入队时已渲成成品，改模板不影响它们。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/mail-templates.ts",
+          "needle": "app.patch<{ Params: { template_id: string }; Body: PatchBody }>(\"/api/console/mail-templates/:template_id\", { preHandler: [manage, requireStepUp] }, async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/lib/mail/template-store.ts",
+          "needle": "update(id: string, patch: TemplatePatch, by: string, at: number, expectedUpdatedAt?: number): MailTemplate {"
+        },
+        {
+          "path": "app/server/src/lib/mail/template-contract.ts",
+          "needle": "\"PATCH /api/console/mail-templates/:template_id\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/mail-templates.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/mail.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "mail.template.delete",
+      "title": "删除一套招聘邮件模板",
+      "domain": "mail",
+      "relatedDomains": [
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "DELETE /api/console/mail-templates/:template_id",
+      "capabilities": [],
+      "reads": [
+        "mail_templates"
+      ],
+      "writes": [
+        "mail_templates",
+        "activity_events"
+      ],
+      "doesNotEnqueue": [
+        "mail_outbox"
+      ],
+      "invariants": [
+        "权限与资源：需要节点 mail.template.manage（默认只有站长的根通配 * 拿到，不往下发），且刚登录过（step-up）。",
+        "响应与错误：200 {ok:true}；404 not_found；409 default_template（默认模板不能删，先把同一类里的另一套设为默认）。",
+        "数据与副作用：只删这一行 mail_templates；已入队或已发出的信不受影响（成品内容在 mail_outbox 里，不引用模板）；操作记录 mail.template.delete 只记类别和名称。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/mail-templates.ts",
+          "needle": "app.delete<{ Params: { template_id: string } }>(\"/api/console/mail-templates/:template_id\", { preHandler: [manage, requireStepUp] }, async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/lib/mail/template-store.ts",
+          "needle": "delete(id: string): MailTemplate {"
+        },
+        {
+          "path": "app/server/src/lib/mail/template-contract.ts",
+          "needle": "\"DELETE /api/console/mail-templates/:template_id\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/mail-templates.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/mail.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "mail.template.preview",
+      "title": "编辑时实时预览一套招聘邮件",
+      "domain": "mail",
+      "relatedDomains": [
+        "recruitment",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/mail-templates/preview",
+      "capabilities": [],
+      "reads": [
+        "mail_templates",
+        "applications"
+      ],
+      "writes": [
+        "activity_events"
+      ],
+      "doesNotEnqueue": [
+        "mail_outbox"
+      ],
+      "invariants": [
+        "权限与资源：需要节点 mail.template.manage（默认只有站长的根通配 * 拿到，不往下发）；不要求刚登录过（编辑时每停一下就请求一次），账号维度每分钟 240 次。给了 application_id 要另外有 apply.view（按部门范围），否则 403。",
+        "响应与错误：200 {subject,html,text}；400 template_required（template_id 和 draft 要给且只给一个）、template_invalid（draft 不合规）、preview_failed（渲染不出来）；404 not_found。",
+        "数据与副作用：渲染的是 template_id 对应的已存模板，或还没保存的 draft；不入队、不发信、不写投递和审核记录；没给 application_id 用示例投递，给了就用这份投递的真实字段，并记 mail.template.preview（只记模板 id 和投递 id）。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/mail-templates.ts",
+          "needle": "\"/api/console/mail-templates/preview\","
+        },
+        {
+          "path": "app/server/src/lib/mail/mailer.ts",
+          "needle": "function previewLetter(kind: RecruitmentKind, content: TemplateContent, application: ApplicationForMail, letter: RecruitmentLetter = {}): RenderedMail {"
+        },
+        {
+          "path": "app/server/src/lib/mail/template-contract.ts",
+          "needle": "\"POST /api/console/mail-templates/preview\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/mail-templates.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/mail.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ]
+    },
+    {
+      "id": "mail.template.test_send",
+      "title": "向测试邮箱试发一封样信",
+      "domain": "mail",
+      "relatedDomains": [
+        "platform",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/console/mail-templates/test-send",
+      "capabilities": [],
+      "reads": [
+        "mail_templates",
+        "mail_outbox",
+        "limit_events"
+      ],
+      "writes": [
+        "mail_outbox",
+        "limit_events",
+        "activity_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：需要节点 mail.template.manage（默认只有站长的根通配 * 拿到，不往下发），且刚登录过（step-up）；每个账号每小时 10 封（桶 mail.test.hourly），全站每小时 30 封，超过回 429 rate_limited 并带 bucket 和 retry_after。",
+        "响应与错误：200 {status,skip_reason,error,subject,to}，status 是 sent、failed、skipped 或 pending，to 是脱敏后的地址；400 invalid_address、template_required、template_invalid、preview_failed；404 not_found。没配置发信商或收件地址不在白名单里回 skipped，不入队，也不占次数。",
+        "数据与副作用：只发给请求里填的这一个地址、一封，kind 为 recruitment.test，事件键 test:<随机 UUID>，主题前加「【测试】」；数据只用示例，不带任何真实投递人的内容，不读不写 applications 和 application_reviews；这种信只试一次、失败不重试，失败原因回给页面；操作记录 mail.template.test_send 只留脱敏邮箱和模板 id，不留邮箱明文和信的内容。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/mail-templates.ts",
+          "needle": "app.post<{ Body: TestSendBody }>(\"/api/console/mail-templates/test-send\", { preHandler: [manage, requireStepUp] }, async (req, reply) => {"
+        },
+        {
+          "path": "app/server/src/lib/mail/outbox.ts",
+          "needle": "const ONE_SHOT_KIND: MailKind = \"recruitment.test\";"
+        },
+        {
+          "path": "app/server/src/lib/mail/mailer.ts",
+          "needle": "export const TEST_LETTER_LIMITS: EnqueueLimits = { perHour: 30 };"
+        },
+        {
+          "path": "app/server/src/lib/mail/template-contract.ts",
+          "needle": "\"POST /api/console/mail-templates/test-send\": {"
+        }
+      ],
+      "tests": [
+        "tests/server/mail-templates.test.ts",
+        "tests/server/mail-outbox.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/mail.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md"
       ]
     },
     {
