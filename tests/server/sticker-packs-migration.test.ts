@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createDatabase } from '../../app/server/src/lib/db';
 import { loadStickerManifest } from '../../app/server/src/lib/sticker-manifest';
-import { buildManifest, manifestText } from '../../scripts/sticker-manifest.mjs';
+import { STICKER_ASSETS_DIR, buildManifest, manifestText } from '../../scripts/sticker-manifest.mjs';
 
 /**
  * 内置表情包的播种（#286，lib/migrations/2026-10-sticker-packs.ts）：加一个包就是加一个目录（pack.json 和图片）、
@@ -187,5 +187,83 @@ describe('清单读不出来', () => {
     const { assets, dbPath } = fixture();
     write(assets, text);
     expect(() => createDatabase(dbPath, assets)).toThrow(/sticker manifest/);
+  });
+});
+
+describe('仓库里的三个内置包：极客娘、极客日常、聊天回应（#286）', () => {
+  const NEW_PACKS = [['geekdaily', '极客日常'], ['chatreply', '聊天回应']] as const;
+  /** 把仓库里真实的一个包（pack.json 和图片）原样拷进临时目录。 */
+  const realPack = (assets: string, id: string) => cpSync(join(STICKER_ASSETS_DIR, id), join(assets, id), { recursive: true });
+  const count = (db: ReturnType<typeof createDatabase>['db'], table: string) => rows<{ n: number }>(db, `SELECT COUNT(*) AS n FROM ${table}`)[0].n;
+  const totals = (db: ReturnType<typeof createDatabase>['db']) => ({ packs: count(db, 'forum_sticker_packs'), stickers: count(db, 'forum_stickers'), files: count(db, 'forum_sticker_files') });
+
+  it('新库直接用仓库里的目录启动：三个包依次排好，56 张表情，库里存的图片字节就是目录里的文件', () => {
+    const root = mkdtempSync(join(tmpdir(), 'geek-sticker-real-'));
+    dirs.push(root);
+    const storage = start(join(root, 'data', 'data.db'), STICKER_ASSETS_DIR);
+    expect(rows<PackRow>(storage.db, PACKS).map(pack => [pack.id, pack.name, pack.enabled])).toEqual([['yugc', '极客娘', 1], ['geekdaily', '极客日常', 1], ['chatreply', '聊天回应', 1]]);
+    expect(storage.forumV2Migration).toMatchObject({ packs_seeded_this_run: 3, stickers_seeded_this_run: 56, stickers_missing_files: [] });
+    for (const pack of storage.stickerManifest.packs) {
+      const stored = rows<StickerRow>(storage.db, STICKERS, pack.id);
+      expect(stored.map(row => [row.shortcode, row.label, row.sort])).toEqual(pack.stickers.map((sticker, index) => [`${pack.id}-${sticker.id}`, sticker.label, index]));
+      for (const [index, sticker] of pack.stickers.entries()) {
+        expect(stored[index].file_hash, sticker.id).toBe(sticker.sha256);
+        const file = readFileSync(join(STICKER_ASSETS_DIR, pack.id, sticker.file));
+        expect(rows<{ bytes: Buffer }>(storage.db, 'SELECT bytes FROM forum_sticker_files WHERE hash = ?', sticker.sha256)[0].bytes.equals(file), sticker.id).toBe(true);
+      }
+    }
+    expect(totals(storage.db)).toEqual({ packs: 3, stickers: 56, files: 56 });
+  });
+
+  it('旧库只有极客娘：升级后多出两个包和 32 张表情，极客娘的包和 24 张表情一行不动（站长改过的还在），再启动一次行数不变', () => {
+    const root = mkdtempSync(join(tmpdir(), 'geek-sticker-upgrade-'));
+    dirs.push(root);
+    const assets = join(root, 'stickers');
+    mkdirSync(assets);
+    realPack(assets, 'yugc');
+    regenerate(assets);
+    const dbPath = join(root, 'data', 'data.db');
+
+    // 升级前的库：只有极客娘，站长在控制台改过它。
+    const old = start(dbPath, assets);
+    expect(rows<PackRow>(old.db, PACKS).map(pack => pack.id)).toEqual(['yugc']);
+    old.db.prepare("UPDATE forum_sticker_packs SET name = '小极客', enabled = 0 WHERE id = 'yugc'").run();
+    old.db.prepare("UPDATE forum_stickers SET label = '招招手', sort = 40, enabled = 0 WHERE id = 'yugc-wave'").run();
+    const yugc = { pack: rows<PackRow>(old.db, PACKS)[0], stickers: rows<StickerRow>(old.db, STICKERS, 'yugc') };
+    expect(yugc.stickers).toHaveLength(24);
+    expect(totals(old.db)).toEqual({ packs: 1, stickers: 24, files: 24 });
+    old.db.close();
+
+    // 部署新版本：目录里多了两个包，清单重新生成。
+    for (const [id] of NEW_PACKS) realPack(assets, id);
+    regenerate(assets);
+    const upgraded = start(dbPath, assets);
+    expect(upgraded.forumV2Migration).toMatchObject({ packs_seeded_this_run: 2, stickers_seeded_this_run: 32, stickers_missing_files: [] });
+    const packs = rows<PackRow>(upgraded.db, PACKS);
+    expect(packs.map(pack => pack.id)).toEqual(['yugc', 'geekdaily', 'chatreply']);
+    expect(packs[0]).toEqual(yugc.pack);
+    expect(packs[0]).toMatchObject({ name: '小极客', enabled: 0 });
+    expect(packs[1].sort).toBeGreaterThan(packs[0].sort);
+    expect(packs[2].sort).toBeGreaterThan(packs[1].sort);
+    expect(packs.slice(1)).toMatchObject([{ id: 'geekdaily', name: '极客日常', enabled: 1 }, { id: 'chatreply', name: '聊天回应', enabled: 1 }]);
+    expect(rows<StickerRow>(upgraded.db, STICKERS, 'yugc')).toEqual(yugc.stickers);
+    for (const [id] of NEW_PACKS) {
+      const stickers = rows<StickerRow>(upgraded.db, STICKERS, id);
+      const pack = upgraded.stickerManifest.packs.find(item => item.id === id)!;
+      expect(stickers, id).toHaveLength(16);
+      expect(stickers.map(row => row.sort), id).toEqual(Array.from({ length: 16 }, (_, index) => index));
+      expect(stickers.map(row => [row.shortcode, row.label, row.file_hash, row.enabled]), id).toEqual(pack.stickers.map(sticker => [`${id}-${sticker.id}`, sticker.label, sticker.sha256, 1]));
+    }
+    const after = totals(upgraded.db);
+    expect(after).toEqual({ packs: 3, stickers: 56, files: 56 });
+    upgraded.db.close();
+
+    // 再启动一次：什么都不新增，什么都不改。
+    const again = start(dbPath, assets);
+    expect(again.forumV2Migration).toMatchObject({ packs_seeded_this_run: 0, stickers_seeded_this_run: 0, stickers_missing_files: [] });
+    for (const row of again.forumV2Migration.tables) expect(row.after, row.table).toBe(row.before);
+    expect(rows<PackRow>(again.db, PACKS)).toEqual(packs);
+    expect(rows<StickerRow>(again.db, STICKERS, 'yugc')).toEqual(yugc.stickers);
+    expect(totals(again.db)).toEqual(after);
   });
 });

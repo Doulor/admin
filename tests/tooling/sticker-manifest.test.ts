@@ -51,6 +51,21 @@ function twoPacks() {
 const sha = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex');
 const problemsOf = (root: string) => { try { buildManifest(root); return ''; } catch (error) { return (error as Error).message; } };
 
+// 第二、第三个内置包（#286，art 交付的 256×256 透明底 WebP）：表情 id 是原文件名去掉序号、下划线换成连字符，
+// 名字是 art 的 name 字段。表在这里写死一份，改了 id 或名字（短码、[包名_名字] 随之变）要同时改这里。
+const GEEKDAILY: [string, string][] = [
+  ['early-class', '早八上课'], ['ddl', '赶 DDL'], ['coffee', '咖啡续命'], ['commit', '提交'],
+  ['ci-pass', 'CI 绿了'], ['ci-fail', 'CI 红了'], ['release', '上线'], ['rollback', '回滚'],
+  ['read-logs', '翻日志'], ['read-docs', '查文档'], ['ask-review', '求 review'], ['lgtm', 'LGTM'],
+  ['slack-off', '摸鱼'], ['stuck', '卡住了'], ['done', '搞定'], ['off-work', '下班'],
+];
+const CHATREPLY: [string, string][] = [
+  ['yay', '好耶'], ['no-way', '不要啊'], ['hold-on', '等一下'], ['good-work', '辛苦了'],
+  ['awesome', '牛啊'], ['really', '真的吗'], ['haha', '哈哈哈'], ['touched', '泪目'],
+  ['dash-off', '我先冲了'], ['one-moment', '稍等'], ['ask-help', '请教'], ['please', '拜托了'],
+  ['sorry', '抱歉'], ['no-problem', '没问题'], ['let-me-see', '让我康康'], ['farewell', '告辞'],
+];
+
 describe('the manifest in the repo', () => {
   it('matches app/server/assets/stickers byte for byte; regenerating changes nothing', () => {
     expect(manifestProblem()).toBe('');
@@ -84,6 +99,36 @@ describe('the manifest in the repo', () => {
     expect(first.id).toBe('yugc');
     expect(first.stickers).toHaveLength(24);
     for (const pack of buildManifest().packs) for (const sticker of pack.stickers) expect(sticker.size, `${pack.id}-${sticker.id}`).toBeLessThanOrEqual(LARGE_STICKER_BYTES);
+  });
+
+  it('ships three built-in packs in this order: 极客娘 24, 极客日常 16, 聊天回应 16', () => {
+    expect(buildManifest().packs.map(pack => [pack.id, pack.name, pack.stickers.length])).toEqual([['yugc', '极客娘', 24], ['geekdaily', '极客日常', 16], ['chatreply', '聊天回应', 16]]);
+  });
+
+  it.each<[string, [string, string][]]>([['geekdaily', GEEKDAILY], ['chatreply', CHATREPLY]])(
+    '%s: 16 stickers with the delivered ids and names, one <id>.webp each, and the hash in the manifest is the hash of the real file',
+    (packId, expected) => {
+      const pack = buildManifest().packs.find(item => item.id === packId)!;
+      expect(pack.stickers).toHaveLength(16);
+      expect(pack.stickers.map(sticker => [sticker.id, sticker.label])).toEqual(expected);
+      const dir = join(STICKER_ASSETS_DIR, packId);
+      // 目录里只有 pack.json 和这 16 张图，没有多的、没有少的。
+      expect(readdirSync(dir).sort()).toEqual([...expected.map(([id]) => `${id}.webp`), PACK_FILE].sort());
+      for (const sticker of pack.stickers) {
+        const file = join(dir, sticker.file);
+        expect(sticker.file, sticker.id).toBe(`${sticker.id}.webp`);
+        expect(sticker.sha256, sticker.id).toBe(sha(file));
+        expect(sticker.size, sticker.id).toBe(statSync(file).size);
+        expect(`${packId}-${sticker.id}`, sticker.id).toMatch(FORUM_LIMITS.stickerShortcodePattern);
+      }
+    },
+  );
+
+  it('keeps the short codes and the [包名_名字] writings unique over all three packs', () => {
+    const stickers = buildManifest().packs.flatMap(pack => pack.stickers.map(sticker => ({ shortcode: `${pack.id}-${sticker.id}`, token: `[${pack.name}_${sticker.label}]` })));
+    expect(stickers).toHaveLength(56);
+    expect(new Set(stickers.map(sticker => sticker.shortcode)).size).toBe(56);
+    expect(new Set(stickers.map(sticker => sticker.token)).size).toBe(56);
   });
 });
 

@@ -15404,7 +15404,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "870db0b57fd6ac54bb64ed4fa9115efb234fce665625a532058049de7fe9216e",
+    "fingerprint": "d26362e0df1bd1d12c97e3b025e241df14ff4ac3c0ac90d764df18eca755722a",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -17264,7 +17264,7 @@
       },
       {
         "path": "docs/services/forum/README.md",
-        "sha256": "d506d3dc8a086875e13acb23af5f4bdcffa936bc1ab65fc604fd88ea74c0b763"
+        "sha256": "f2d509d35d601aa3356f4386ac8697fdc4be7742b4e7b4b925c2a6347c357ba3"
       },
       {
         "path": "docs/services/server/README.md",
@@ -17272,7 +17272,7 @@
       },
       {
         "path": "docs/services/server/data-model.md",
-        "sha256": "f58ee78af707b2616d931707783bd09da91869817a02ab05090aa6f5d998dd39"
+        "sha256": "f71d6cb935ec2c36e439ae87892311e05c068fde6fda401a4770c210ac1f1cd7"
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
@@ -17548,7 +17548,7 @@
       },
       {
         "path": "tests/server/sticker-packs-migration.test.ts",
-        "sha256": "f9d2ffbf9810f80f82e2fcf964fc5808ebcd780f0108f69853de8422f63bbc6f"
+        "sha256": "3a10dae23b896db91a34e6328c6f16811413eb1f2c4d262a35aa60f16655e86e"
       },
       {
         "path": "tests/server/system-backup.test.ts",

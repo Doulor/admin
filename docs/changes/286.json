@@ -2,7 +2,7 @@
   "version": 1,
   "issue": 286,
   "kind": "business",
-  "summary": "论坛表情走受控 CDN，并把加表情包做成加一个目录：内置表情的图片地址按构建开关给 CDN 或同源，前端白名单同时认这两种，启动时按清单补包补表情（只增不改），图片随部署上传 CDN。",
+  "summary": "论坛表情走受控 CDN，并把加表情包做成加一个目录：内置表情的图片地址按构建开关给 CDN 或同源，前端白名单同时认这两种，启动时按清单补包补表情（只增不改），图片随部署上传 CDN；美术交付的「极客日常」「聊天回应」两个包（各 16 张）按这个机制加进内置表情，内置表情由 24 张变成 56 张。",
   "applications": [
     "server",
     "forum"
@@ -39,11 +39,12 @@
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "表情面板、编辑器、帖子正文和回应里的内置表情图片，在 CDN 开关打开时从 https://cdn.crosery.com/yzgc/static/site/forum/stickers/ 加载，关闭时仍是同源；站长在控制台上传的表情不在清单里，一直同源。新增表情包不再改代码：在 app/server/assets/stickers/ 下加一个目录和 pack.json，重新生成清单，启动时补进库里，控制台已有的包卡片、启停、改名、排序、上传、新建包照常用，新包同样可以管理。",
+      "reason": "表情面板、编辑器、帖子正文和回应里的内置表情图片，在 CDN 开关打开时从 https://cdn.crosery.com/yzgc/static/site/forum/stickers/ 加载，关闭时仍是同源；站长在控制台上传的表情不在清单里，一直同源。新增表情包不再改代码：在 app/server/assets/stickers/ 下加一个目录和 pack.json，重新生成清单，启动时补进库里，控制台已有的包卡片、启停、改名、排序、上传、新建包照常用，新包同样可以管理。第一次用这个机制加包：「极客日常」16 张、「聊天回应」16 张，排在「极客娘」之后。",
       "evidence": [
         "app/server/src/lib/sticker-manifest.ts",
         "app/server/src/lib/migrations/2026-10-sticker-packs.ts",
-        "app/forum/shared/sticker-url.ts"
+        "app/forum/shared/sticker-url.ts",
+        "app/server/assets/stickers/manifest.json"
       ]
     },
     "backend": {
@@ -68,7 +69,7 @@
     },
     "data": {
       "status": "changed",
-      "reason": "没有新表和新列。迁移改为按清单播种（只增不改、可重复执行）：已有的包和表情整行不碰，站长改的名字、排序、停用、换图都保留；新包排在现有的包后面，老包新增的表情排在该包最后；图片哈希按文件真实内容现算，缺图跳过并记录，不阻塞启动。极客娘 24 个表情的 id、短码、名字、顺序与原来逐一相同。",
+      "reason": "没有新表和新列。迁移改为按清单播种（只增不改、可重复执行）：已有的包和表情整行不碰，站长改的名字、排序、停用、换图都保留；新包排在现有的包后面，老包新增的表情排在该包最后；图片哈希按文件真实内容现算，缺图跳过并记录，不阻塞启动。极客娘 24 个表情的 id、短码、名字、顺序与原来逐一相同；清单另有「极客日常」「聊天回应」两个包共 32 张表情，旧库启动后补进这两个包，极客娘的行不动，再启动一次行数不变。",
       "evidence": [
         "app/server/src/lib/migrations/2026-10-sticker-packs.ts",
         "app/server/src/lib/migrations/2026-10-forum-v2.ts",
@@ -102,7 +103,7 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "新增：开关关闭全部同源、打开时内置走 CDN 而运行时上传的同源、一年 immutable 与列表仍 no-store；迁移用两个临时包验证第一次建出、站长改动重启后保留、第二次启动行数不变；清单与目录一致、各种写错 pack.json 的报错；服务端与脚本的开关规则逐项一致；Dockerfile 构建阶段的核对实跑；plan 打印 forum/stickers 的对象数和字节、upload 只增不改与 CDN 核对；前端白名单的接受与拒绝表、渲染、进出编辑器、编辑器图片块。未做：浏览器验收、真实 CDN 上传与核对（没有凭据，也不属于本任务）。",
+      "reason": "新增：开关关闭全部同源、打开时内置走 CDN 而运行时上传的同源、一年 immutable 与列表仍 no-store；迁移用两个临时包验证第一次建出、站长改动重启后保留、第二次启动行数不变，并用仓库里的真实目录验证新库建出三个包 56 张、只有极客娘的旧库升级后多出两个包 32 张且极客娘一行不动、再启动一次行数不变；清单与目录一致、两个新包各 16 张且短码与 [包名_名字] 写法全站不重复、图片真实哈希与清单一致、各种写错 pack.json 的报错；服务端与脚本的开关规则逐项一致；Dockerfile 构建阶段的核对实跑；plan 打印 forum/stickers 的对象数和字节、upload 只增不改与 CDN 核对；前端白名单的接受与拒绝表、渲染、进出编辑器、编辑器图片块。未做：浏览器验收、真实 CDN 上传与核对（没有凭据，也不属于本任务）。",
       "evidence": [
         "tests/server/forum-sticker-cdn.test.ts",
         "tests/server/sticker-packs-migration.test.ts",
@@ -234,7 +235,23 @@
       "nodes": [
         "application:server"
       ],
-      "reason": "极客娘包的 pack.json（24 个表情，名字、顺序与原来相同）和由脚本生成的清单（每张图的哈希、字节数和 CDN 对象键）。"
+      "reason": "极客娘包的 pack.json（24 个表情，名字、顺序与原来相同）和由脚本生成的清单（三个包共 56 张图的哈希、字节数和 CDN 对象键，极客娘那 24 条与加包前逐字相同）。"
+    },
+    {
+      "paths": [
+        "app/server/assets/stickers/geekdaily/",
+        "app/server/assets/stickers/chatreply/"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "flow:forum.stickers.list",
+        "table:forum_sticker_packs",
+        "table:forum_stickers",
+        "table:forum_sticker_files"
+      ],
+      "reason": "美术交付的两个新表情包：「极客日常」16 张、「聊天回应」16 张，256×256 透明底 WebP，每张 20–36 KB，共 916344 字节。表情 id 取交付文件名去掉序号、下划线换成连字符，pack.json 的 label 取图上的名字，美术另给的 alt、text 库里没有对应的列，不收进来。图片和 pack.json 一起提交，manifest.json 由脚本重新生成。"
     },
     {
       "paths": [
@@ -374,7 +391,7 @@
     "tests/tooling/static-cdn.test.ts",
     "app/forum/tests/sticker-url.test.ts"
   ],
-  "compatibility": "接口路径、参数和状态码不变；极客娘 24 个表情的 id、短码、名字和顺序与原来相同，库里已有的包和表情不动。开关关闭时每个表情的地址与今天完全一样；打开时只有清单里的内置图片换成 CDN 地址，前端同时认两种地址，同一张图的两种地址哈希相同。",
+  "compatibility": "接口路径、参数和状态码不变；极客娘 24 个表情的 id、短码、名字和顺序与原来相同，库里已有的包和表情不动；「极客日常」「聊天回应」是新增的两个包，不改已有帖子与回应。开关关闭时每个表情的地址与今天完全一样；打开时只有清单里的内置图片换成 CDN 地址，前端同时认两种地址，同一张图的两种地址哈希相同。",
   "migration": "没有表结构变化。启动时按清单补库里没有的包、表情和图片（只增不改，可重复执行，第二次启动行数不变），缺图跳过并记录；清单存在但读不出来时服务拒绝启动，不带着不知道对不对的清单上线。",
   "rollback": "回滚旧镜像即回到原来的行为：旧迁移照旧播种极客娘，新补进库里的包和表情留在库里，旧代码按普通表情显示；CDN 上已上传的对象不删，旧镜像不引用它们。要关掉 CDN 地址，删掉 static-cdn 环境里的上传 token 后重新部署，这次就是同源构建。"
 }
