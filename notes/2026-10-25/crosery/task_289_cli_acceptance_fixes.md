@@ -15,3 +15,10 @@
 - 做了什么：a95a40d9 修 install.sh 默认源站（nginx sub_filter）、SKILL.md 示例、登录框宽度；8efacf2b 重新生成项目目录；9d11955a 补影响声明。红绿：nginx 实测用例先红（预发布 Host 下默认源站仍是生产域名）后绿；Rust 单测 4 个；cargo clippy -D warnings、fmt、test 32 通过；vitest tests/tooling 816 通过；check:architecture 与 check:doc-sync 对 gitlab/stage 通过
 - 结果：文档核对：docs/services/web/README.md 与 docs/services/cli/README.md 已随改动更新；pnpm check 在 check:notes 停在 #276 历史记录冲突（K10，非本任务），其后的 secrets/catalog/architecture/cli/typecheck 已逐项单独跑过通过
 - 下一步：合并前等 rc.23 构建后用隔离 HOME 复验 G 节，再开 MR 做审查
+
+## 14:28:33 +08:00 · 提交 · #289 · 安装脚本源站只认合规域名
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：审查前自查发现 sub_filter 直接用 $host，Host 头里带 $(...) 会写进用户要交给 sh 执行的脚本；改成 map 限定字母数字点连字符，其余退回生产域名；二进制夹具内嵌生产域名证明版本化产物不经过 sub_filter
+- 结果：hashed-asset-cache.test.ts 9 条在真实 nginx 上通过；突变验证：退回 $host 时恶意 Host 用例变红，去掉二进制 location 时 3 条变红
+- 下一步：更新 MR 正文，审查后合并
