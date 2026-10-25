@@ -402,6 +402,21 @@ describe("比赛应用：赛事 / 我的参赛", () => {
     expect(calls.some((call) => call.url.endsWith("/my-status"))).toBe(false);
   });
 
+  it("三个视图轮流切换，任何时候只有一个按钮是按下状态（组队广场不连带「赛事」）", async () => {
+    serveHub({ "GET /api/public/competitions": () => ({ competitions: [competition()] }) });
+    render(<CompetitionsApp account={null} />);
+    const group = await screen.findByRole("group", { name: "切换列表" });
+    const pressed = () => within(group).getAllByRole("button").filter((button) => button.getAttribute("aria-pressed") === "true").map((button) => button.textContent?.trim());
+    expect(pressed()).toEqual(["赛事"]);
+    fireEvent.click(within(group).getByRole("button", { name: /组队广场/ }));
+    expect(pressed()).toEqual(["组队广场"]);
+    fireEvent.click(within(group).getByRole("button", { name: /我的参赛/ }));
+    expect(pressed()).toEqual(["我的参赛"]);
+    fireEvent.click(within(group).getByRole("button", { name: /组队广场/ }));
+    fireEvent.click(within(group).getByRole("button", { name: /赛事/ }));
+    expect(pressed()).toEqual(["赛事"]);
+  });
+
   it("登录后读我的参赛：卡片写报名到哪一步与待处理条数，切换上角标是 total", async () => {
     const calls = serveHub({
       "GET /api/public/competitions": () => ({ competitions: [competition()] }),
