@@ -15541,7 +15541,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "311067eda4bfc064982528885b40b2680a4d8f03b489b763d913e23ab73aa759",
+    "fingerprint": "af3a45872be58cdac7cf85a5d35a223243b93a52276db1477d485217388ae8a4",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -17169,7 +17169,7 @@
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/CompetitionsApp.tsx",
-        "sha256": "3ecebeac5a62cb9d69f0ef003f5f3af870bcbabb4fd1c94ff921df75b05690a3"
+        "sha256": "5ccfd76e62b8d21814644104577ed081806c590d67a886ad41083398e192681a"
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/ContestBackdrop.tsx",
@@ -17425,7 +17425,7 @@
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "db5598397c444507a723a6d0c11eebeeb1b2ddf875c38775c5d6b555031bacab"
+        "sha256": "99848e44db0102625f3c48022b0ee62a20be3d460cf0f105da07b0880bdc76eb"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -17721,7 +17721,7 @@
       },
       {
         "path": "tests/web/portal-competition-hub.test.tsx",
-        "sha256": "5b10cbede05c9a2d58b3f9a9670a265baadc8bb7101c1989e20170ef93dbfc53"
+        "sha256": "aeeb7e906e9f27b2d5eba5df4fa17e5189f6eb9cc83081bc2b457d591d1bf48d"
       },
       {
         "path": "tests/web/portal-competition-results.test.tsx",
