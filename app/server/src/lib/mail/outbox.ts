@@ -20,9 +20,13 @@ import { MailProviderError, type MailProvider } from "./providers.js";
  * - 信到了最终状态（sent / failed / skipped）就清掉收件地址、HTML 和纯文本，只留收件地址的 sha256、主题和结果。
  * - last_error 只有发信商名、HTTP 状态和对方的错误码，不含密钥、地址和正文；日志同样不记地址和正文。
  *   前一家失败、后一家发出时，前一家的错误也留在 last_error 里。
+ * - 控制台的测试信（kind recruitment.test，#285）只试一次：失败就是 failed，不排重试，发到一半进程断了也不在租约到期后补发——
+ *   填邮箱的人当场就看到了结果，过一阵子再冒出一封样信只会让人困惑。
  */
 
-export type MailKind = "recruitment.received" | "recruitment.interview" | "recruitment.accepted" | "recruitment.rejected";
+export type MailKind = "recruitment.received" | "recruitment.interview" | "recruitment.accepted" | "recruitment.rejected" | "recruitment.test";
+/** 只试一次、不重试的信：控制台向测试邮箱发的样信 */
+const ONE_SHOT_KIND: MailKind = "recruitment.test";
 export type MailStatus = "pending" | "sending" | "sent" | "failed" | "skipped";
 export type MailSkipReason = "mail_disabled" | "not_allowlisted" | "recipient_limited" | "source_limited" | "rate_limited";
 
@@ -129,7 +133,8 @@ export function createMailOutbox(db: Database.Database, options: OutboxOptions) 
     VALUES (@event_key, @kind, @application_id, @review_id, @recipient, @recipient_hash, @limit_hash, @source_hash, @subject, @html, @text, @reply_to, @status, @skip_reason, 0, @at, @at, @at)`);
   const byEvent = db.prepare("SELECT id, status FROM mail_outbox WHERE event_key = ?");
   const summaryByEvent = db.prepare(`SELECT ${SUMMARY_COLUMNS} FROM mail_outbox WHERE event_key = ?`);
-  const due = db.prepare("SELECT id, status, attempts FROM mail_outbox WHERE status IN ('pending', 'sending') AND next_attempt_at <= ? ORDER BY next_attempt_at, id LIMIT ?");
+  const errorByEvent = db.prepare("SELECT last_error FROM mail_outbox WHERE event_key = ?");
+  const due = db.prepare("SELECT id, kind, status, attempts FROM mail_outbox WHERE status IN ('pending', 'sending') AND next_attempt_at <= ? ORDER BY next_attempt_at, id LIMIT ?");
   const claim = db.prepare(`UPDATE mail_outbox SET status = 'sending', attempts = attempts + 1, next_attempt_at = @lease, updated_at = @at
     WHERE id = @id AND status IN ('pending', 'sending') AND next_attempt_at <= @at`);
   const load = db.prepare("SELECT id, event_key, kind, recipient, recipient_hash, subject, html, text, reply_to, status, attempts, created_at FROM mail_outbox WHERE id = ?");
@@ -214,7 +219,7 @@ export function createMailOutbox(db: Database.Database, options: OutboxOptions) 
       }
     }
     const lastError = (errors.join("; ") || "stopped").slice(0, 300);
-    if (row.attempts >= MAX_ATTEMPTS) {
+    if (row.attempts >= MAX_ATTEMPTS || row.kind === ONE_SHOT_KIND) {
       end(id, { status: "failed", last_error: lastError });
       log?.error({ mail_id: id, kind: row.kind, attempts: row.attempts, error: lastError }, "mail failed for good");
       return;
@@ -226,12 +231,12 @@ export function createMailOutbox(db: Database.Database, options: OutboxOptions) 
 
   async function drainOnce(signal: AbortSignal): Promise<number> {
     const at = now();
-    const rows = due.all(at, BATCH) as { id: number; status: MailStatus; attempts: number }[];
+    const rows = due.all(at, BATCH) as { id: number; kind: string; status: MailStatus; attempts: number }[];
     let handled = 0;
     for (const row of rows) {
       if (signal.aborted) break;
-      // 发到一半断掉、已经试满次数的，不再领
-      if (row.status === "sending" && row.attempts >= MAX_ATTEMPTS) {
+      // 发到一半断掉、已经试满次数的，不再领；只试一次的信发到一半断掉，也不再领
+      if (row.status === "sending" && (row.attempts >= MAX_ATTEMPTS || row.kind === ONE_SHOT_KIND)) {
         end(row.id, { status: "failed", last_error: "lease_expired" });
         handled += 1;
         continue;
@@ -299,6 +304,10 @@ export function createMailOutbox(db: Database.Database, options: OutboxOptions) 
     },
     summary(eventKey: string): MailSummary | null {
       return (summaryByEvent.get(eventKey) as MailSummary | undefined) ?? null;
+    },
+    /** 最近一次失败的原因（发信商名、HTTP 状态、对方的错误码，不含地址和正文）；没有失败过是 null */
+    lastError(eventKey: string): string | null {
+      return (errorByEvent.get(eventKey) as { last_error: string | null } | undefined)?.last_error ?? null;
     },
     /** 审核记录 id → 那次改状态发的信 */
     reviewSummaries(reviewIds: readonly number[]): Map<number, MailSummary> {

@@ -24,6 +24,7 @@ export const NAV_GROUPS: { key: NavGroupId; label: string }[] = [
 export const CONSOLE_NAV: NavItem[] = [
   { id: "overview", to: "/console", label: "概览", anyOf: ["console.access"], icon: "i-carbon-dashboard", end: true },
   { id: "applications", to: "/console/applications", label: "投递管理", anyOf: ["apply.view"], icon: "i-carbon-document-attachment", group: "recruit" },
+  { id: "mail-templates", to: "/console/mail-templates", label: "邮件模板", anyOf: ["mail.template.manage"], icon: "i-carbon-email", group: "recruit" },
   { id: "forum", to: "/console/forum", label: "论坛管理", anyOf: FORUM_PERMISSIONS, icon: "i-carbon-forum", group: "community" },
   { id: "competitions", to: "/console/competitions", label: "比赛", anyOf: COMPETITION_MANAGE_PERMISSIONS, icon: "i-carbon-trophy", group: "community" },
   { id: "users", to: "/console/users", label: "用户", anyOf: USERS_PERMISSIONS, icon: "i-carbon-user-multiple", group: "users" },
