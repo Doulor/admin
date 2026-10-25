@@ -8392,7 +8392,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -15340,7 +15340,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "063a17313afe47608bb832f1a208dc9f0171291c69530ade54ec91df9433c4de",
+    "fingerprint": "5a82fc2d73efb84eafb604be8fe03912fb68892f0c4a5c00d1a37f57805686f6",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -16692,7 +16692,7 @@
       },
       {
         "path": "app/web/Dockerfile",
-        "sha256": "63fdf057ab0eac68f23c448a9172d0b4338fd95b54fb0450630328ef2873514a"
+        "sha256": "01fd104d8ae531e1171c9fb102980c6064ba3dea7d8d200b63a5ad9ea8aa9411"
       },
       {
         "path": "app/web/package.json",
@@ -17204,7 +17204,7 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "3606b28b095b4808790de0e03362cf8c7b0de4edd17d41e43c847731447eaefb"
+        "sha256": "36b3da6a7e5e7cf65951fa0a4cdc18f2f0acab9c09b6613420208ab930a6c1f9"
       },
       {
         "path": "docs/services/web/portal.md",
@@ -40559,7 +40559,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40587,7 +40587,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40615,7 +40615,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40643,7 +40643,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40671,7 +40671,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40699,7 +40699,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40727,7 +40727,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40755,7 +40755,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40783,7 +40783,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40829,7 +40829,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -40857,7 +40857,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
