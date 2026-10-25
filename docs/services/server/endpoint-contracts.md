@@ -506,19 +506,47 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 源码：[app/server/src/routes/console/mail-templates.ts:244](../../../app/server/src/routes/console/mail-templates.ts#L244)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)。
 
+## 读取招新总开关（#284）
+
+`GET /api/console/applications/settings` · `flow:application.settings.read`
+
+权限与资源：节点 `apply.view`，按 `requireScopedPermission` 判定（部门部长拿到的是按部门限定的 `apply.view`，也放行；开关全站只有一个，不分部门）。
+
+响应与错误：200 `{open,updated_at}`，`open` 是布尔，`updated_at` 是最近一次开关的毫秒时间戳，从没改过为 `null`（等于默认开放）；没登录 401，没有节点 403 `forbidden`（`node: "apply.view"`）。
+
+数据与副作用：只读 `app_state` 里键 `apply_open` 的一行；没有这一行是开放，读不懂的值也按开放算。
+
+本地表读取：app_state。本地表写入：无。
+
+源码：[app/server/src/routes/console/applications.ts:80](../../../app/server/src/routes/console/applications.ts#L80)、[app/server/src/lib/apply-settings.ts](../../../app/server/src/lib/apply-settings.ts)。验证入口：[tests/server/apply-switch.test.ts](../../../tests/server/apply-switch.test.ts)。
+
+## 开放或关闭招新（#284）
+
+`PATCH /api/console/applications/settings` · `flow:application.settings.update`
+
+权限与资源：节点 `apply.settings`（`lib/permission-nodes.ts`，种子里只有站长的根通配 `*` 默认拿到，部门部长等 curated 列表没有），并且 10 分钟内登录过（`requireStepUp`，否则 403 `step_up_required`，状态不变）；每个账号 30 次/分钟。
+
+响应与错误：200 `{open,updated_at}`（改完之后的状态）；请求体 Schema 只接受 `{open: boolean}`，缺字段、不是布尔或多出字段都 400 `validation_error`；没登录 401，没有节点 403 `forbidden`（`node: "apply.settings"`）。
+
+数据与副作用：状态真的变了才写 `app_state`（键 `apply_open`，值 `1` 开放、`0` 关闭）并在同一个事务里写一条 `application.settings.update` 操作记录（`target_type` 为 `application_settings`，`meta` 只有 `{open}`）；再提交当前已有的值原样回当前状态，不写库、不记。关闭只拦新的投递：`POST /api/portal/apply` 回 403 `apply_closed`，`GET /api/public/config` 的 `apply_open` 变成 `false`；已经收到的投递照常列表、审核、发信，每日额度的规则不变。
+
+本地表读取：app_state。本地表写入：app_state, activity_events。
+
+源码：[app/server/src/routes/console/applications.ts:83](../../../app/server/src/routes/console/applications.ts#L83)、[app/server/src/lib/apply-settings.ts](../../../app/server/src/lib/apply-settings.ts)。验证入口：[tests/server/apply-switch.test.ts](../../../tests/server/apply-switch.test.ts)。
+
 ## 提交加入我们申请
 
 `POST /api/portal/apply` · `flow:application.submit`
 
-权限与资源：#274 SPEC §3 起要先登录并持有 `apply.submit`（`level.registered` 天然有，访客没有）——不再接受匿名投递；蜜罐、PoW、可选Turnstile之外，按账号每天（北京时间零点重置）核对 `meta.limit.apply.daily`（注册用户 3 份、极客班成员 `level.member` 不限，没有这个 meta 时兜底按 3 份算），另按来源 IP（IPv6 按 /64）每天最多 10 份、按设备（这个接口自己发的 cookie）每天最多 5 份；每IP每分钟 5 次的旧限流不变。
+权限与资源：#274 SPEC §3 起要先登录并持有 `apply.submit`（`level.registered` 天然有，访客没有）——不再接受匿名投递；#284 起招新总开关关着时在权限之后直接 403 `apply_closed`（见下）；蜜罐、PoW、可选Turnstile之外，按账号每天（北京时间零点重置）核对 `meta.limit.apply.daily`（注册用户 3 份、极客班成员 `level.member` 不限，没有这个 meta 时兜底按 3 份算），另按来源 IP（IPv6 按 /64）每天最多 10 份、按设备（这个接口自己发的 cookie）每天最多 5 份；每IP每分钟 5 次的旧限流不变。
 
-响应与错误：201 {id,submitted_at,message,quota:{apply_left_today,apply_daily_limit}}；字段错误400附fields；没登录401 `unauthenticated`（#274 review round 1：preHandler 只挂 requirePermission，不再多挂一个 requireAuth，避免它先回 `not_signed_in` 盖掉这个通用错误码），没有 `apply.submit`403 `forbidden`；三条限额任一超限统一 429 `{error:"rate_limited",bucket:"apply.daily",message,retry_after}`（到下一个北京零点），不细分是哪条线触发；另有按 IP 的路由级限流（5次/分钟）同样回 429 rate_limited。蜜罐回相同201形状但不落库，也不计数。
+响应与错误：201 {id,submitted_at,message,quota:{apply_left_today,apply_daily_limit}}；字段错误400附fields；没登录401 `unauthenticated`（#274 review round 1：preHandler 只挂 requirePermission，不再多挂一个 requireAuth，避免它先回 `not_signed_in` 盖掉这个通用错误码），没有 `apply.submit`403 `forbidden`；三条限额任一超限统一 429 `{error:"rate_limited",bucket:"apply.daily",message,retry_after}`（到下一个北京零点），不细分是哪条线触发；另有按 IP 的路由级限流（5次/分钟）同样回 429 rate_limited。蜜罐回相同201形状但不落库，也不计数。招新总开关关着（#284）时 403 `{error:"apply_closed",message:"招新暂未开放"}`，在权限节点之后、蜜罐与字段校验之前判断，所以没登录仍先回 401。
 
-数据与副作用：三条限额核对与写投递在同一个事务里（`limits.hitAll`，全有或全没有，中间没有 await），超限不留半份投递；续发或换发设备 cookie（1 年，仅本接口路径）；记脱敏application.received审计（含 `account_id`），尽力入队已收到邮件（每小时总量限制），入队失败仅日志不回滚投递。IP、设备只存 sha256（`lib/limits.ts` 的 `limit_events`），不存原文。
+数据与副作用：三条限额核对与写投递在同一个事务里（`limits.hitAll`，全有或全没有，中间没有 await），超限不留半份投递；续发或换发设备 cookie（1 年，仅本接口路径）；记脱敏application.received审计（含 `account_id`），尽力入队已收到邮件（每小时总量限制），入队失败仅日志不回滚投递。IP、设备只存 sha256（`lib/limits.ts` 的 `limit_events`），不存原文。总开关关着时被拒的请求什么都不写：不落 `applications`、不占 `limit_events` 里的任何一条额度、不入队信、不下发设备 cookie；`middleware/http-policy.ts` 按 403 记一条 outcome 为 `denied`、动作为 `http.apply_closed` 的操作记录（同一分钟同一对象合并）。路由级 5 次/分钟的限流在更早一步，被拒的请求照常计一次。
 
-本地表读取：limit_events, mail_outbox。本地表写入：applications, limit_events, mail_outbox, activity_events。`application_limits` 表已不再由这个接口读写，留给历史数据（#274，新计数统一走 `limit_events`）。
+本地表读取：app_state, limit_events, mail_outbox。本地表写入：applications, limit_events, mail_outbox, activity_events。`application_limits` 表已不再由这个接口读写，留给历史数据（#274，新计数统一走 `limit_events`）。
 
-源码：[app/server/src/routes/portal/apply.ts:110](../../../app/server/src/routes/portal/apply.ts#L110)、[app/server/src/lib/limits.ts](../../../app/server/src/lib/limits.ts)、[app/server/src/lib/apply-quota.ts](../../../app/server/src/lib/apply-quota.ts)。验证入口：[tests/server/applications.test.ts](../../../tests/server/applications.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)、[tests/server/rate-limits.test.ts](../../../tests/server/rate-limits.test.ts)。
+源码：[app/server/src/routes/portal/apply.ts:119](../../../app/server/src/routes/portal/apply.ts#L119)、[app/server/src/lib/limits.ts](../../../app/server/src/lib/limits.ts)、[app/server/src/lib/apply-quota.ts](../../../app/server/src/lib/apply-quota.ts)、[app/server/src/lib/apply-settings.ts](../../../app/server/src/lib/apply-settings.ts)。验证入口：[tests/server/applications.test.ts](../../../tests/server/applications.test.ts)、[tests/server/apply-switch.test.ts](../../../tests/server/apply-switch.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)、[tests/server/rate-limits.test.ts](../../../tests/server/rate-limits.test.ts)。
 
 **下游已同步**（#275、#279）：官网「加入我们」是桌面窗口（`app/web/sites/portal/components/os/JoinBox.tsx`），没登录时只显示「先注册再投递」，登录后显示当天还能投几份（注册用户 3 份、成员不限），与这个接口同版本上线。
 
@@ -526,15 +554,15 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 `GET /api/public/config` · `flow:platform.public_config`
 
-权限与资源：匿名可读；仅公开site key或null与PoW难度，不含Turnstile secret。
+权限与资源：匿名可读；仅公开site key或null、PoW难度和招新总开关的当前状态，不含Turnstile secret。
 
-响应与错误：200 {turnstile_site_key,pow_difficulty}。
+响应与错误：200 {turnstile_site_key,pow_difficulty,apply_open}；`apply_open` 是布尔（#284），没设过为 `true`。
 
-数据与副作用：只读配置，无业务数据库读取和写入，不调用验证码服务。
+数据与副作用：只读；`apply_open` 读 `app_state` 里键 `apply_open` 的一行，其余是配置，不写库，不调用验证码服务。
 
-本地表读取：无。本地表写入：无。
+本地表读取：app_state。本地表写入：无。
 
-源码：[app/server/src/routes/portal/public-config.ts:15](../../../app/server/src/routes/portal/public-config.ts#L15)（#274 review round 1：原来和邀请链接接口挤在 `join.ts` 里，邀请链接整段删除后单独搬出来，这个接口本身没变）。验证入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts)、[tests/server/configuration.test.ts](../../../tests/server/configuration.test.ts)。
+源码：[app/server/src/routes/portal/public-config.ts:17](../../../app/server/src/routes/portal/public-config.ts#L17)（#274 review round 1：原来和邀请链接接口挤在 `join.ts` 里，邀请链接整段删除后单独搬出来；#284 起多下发 `apply_open`）。验证入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts)、[tests/server/configuration.test.ts](../../../tests/server/configuration.test.ts)、[tests/server/apply-switch.test.ts](../../../tests/server/apply-switch.test.ts)。
 
 ## 阅读公开部门与称号（新权限体系，#274）
 

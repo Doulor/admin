@@ -29,7 +29,7 @@ const excerpt = (value: string) => (value.length > EXCERPT_LENGTH ? `${value.sli
 const statusLabel = (id: string) => APPLICATION_STATUSES.find(item => item.id === id)?.label ?? id;
 
 export default async function consoleApplicationRoutes(app: FastifyInstance) {
-  const { mail } = app.services;
+  const { mail, applySettings } = app.services;
   const { db } = app.services.storage;
   app.addHook("preHandler", requireAuth);
 
@@ -70,6 +70,26 @@ export default async function consoleApplicationRoutes(app: FastifyInstance) {
       total, counts,
     };
   });
+
+  // 招新总开关（#284）：读随投递列表的 apply.view（部门部长也能看到现在是开还是关），改要 apply.settings 加刚登录过。
+  // 关掉以后官网「加入我们」显示关闭页、POST /api/portal/apply 回 403 apply_closed；已收到的投递和审核不受影响。
+  // 状态没变（比如两个人先后点了「关闭」）回当前状态，不写库也不记操作。
+  app.get("/api/console/applications/settings", { preHandler: requireScopedPermission("apply.view") }, async () => applySettings.get());
+
+  app.patch<{ Body: { open: boolean } }>(
+    "/api/console/applications/settings",
+    { preHandler: [requirePermission("apply.settings"), requireStepUp], config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+    async (req) => db.transaction(() => {
+      const { settings, changed } = applySettings.setOpen(req.body.open);
+      if (changed) {
+        app.services.activity.recordActivity(req, {
+          action: "application.settings.update", surface: "console", target_type: "application_settings", target_id: "apply_open", outcome: "ok",
+          meta: { open: settings.open },
+        });
+      }
+      return settings;
+    })(),
+  );
 
   // 静态路由优先于 /:application_id，Fastify 不会把 export.csv 当成 id。
   app.get<{ Querystring: { status?: ApplicationStatus } }>(

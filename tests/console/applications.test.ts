@@ -1,10 +1,15 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { PERMISSION_NODES } from "../../app/server/src/lib/permission-nodes";
+import { actionText } from "../../app/console/src/lib/activity";
+import { describeError } from "../../app/console/src/lib/errors";
 import { ApiError } from "../../app/console/src/lib/http";
 import { fmtDate, fmtDay } from "../../app/console/src/lib/format";
+import { NODE_LABELS } from "../../app/console/src/lib/permission-nodes";
 import { APPLICATION_STATUSES, statusMeta } from "../../app/console/src/lib/statuses";
 import {
-  emptyLetterDraft, letterErrors, letterPayload, letterPreviewBody, mailState, newestReviewId, noticePlan, reviewPatch, savedMessage, serverFieldErrors, statusChangedMessage,
-  templateChoice, type LetterDraft,
+  applySwitchConfirm, applySwitchSaved, applySwitchView, emptyLetterDraft, letterErrors, letterPayload, letterPreviewBody, mailState, newestReviewId, noticePlan, reviewPatch, savedMessage,
+  serverFieldErrors, statusChangedMessage, templateChoice,
+  type LetterDraft,
 } from "../../app/console/src/lib/applications";
 import type { LetterTemplates, MailSettings, MailSummary } from "../../app/console/src/lib/types";
 
@@ -290,5 +295,48 @@ describe("console times are Beijing time", () => {
       expect(fmtDate(instant), zone).toBe("2026/09/27 01:05");
       expect(fmtDay(instant), zone).toBe("2026/09/27");
     }
+  });
+});
+
+describe("招新总开关（#284）", () => {
+  it("says open or closed and what that means for the website; the last change only shows once there was one", () => {
+    expect(applySwitchView({ open: true, updated_at: null })).toEqual({
+      title: "招新投递：开放中", hint: "官网「加入我们」窗口可以投递。", changed: null,
+    });
+    const closedAt = Date.UTC(2026, 9, 25, 4, 30);
+    expect(applySwitchView({ open: false, updated_at: closedAt })).toEqual({
+      title: "招新投递：已关闭",
+      hint: "官网「加入我们」窗口显示招新暂未开放，新的投递会被拒绝。已经收到的投递照常处理。",
+      changed: `上次改动：${fmtDate(closedAt)}`,
+    });
+  });
+
+  it("asks before closing as a risky action and before reopening as a plain one, with different buttons", () => {
+    const close = applySwitchConfirm(false);
+    const open = applySwitchConfirm(true);
+    expect(close).toMatchObject({ title: "关闭招新？", confirmText: "关闭招新", danger: true });
+    expect(open).toMatchObject({ title: "重新开放招新？", confirmText: "开放招新" });
+    expect(open.danger).toBeFalsy();
+    // 关闭时要让人知道已经收到的投递不受影响；重新开放时要说明每日限制没变
+    expect(close.body).toContain("已经收到的投递和审核不受影响");
+    expect(open.body).toContain("每天能投几份的限制不变");
+  });
+
+  it("tells the admin the website picks the new state up when the window is opened again", () => {
+    expect(applySwitchSaved(false)).toBe("已关闭招新，官网「加入我们」窗口重新打开后显示招新暂未开放");
+    expect(applySwitchSaved(true)).toBe("已开放招新，官网「加入我们」窗口重新打开后可以投递");
+  });
+
+  it("names the node for someone who lacks it, and labels the audit actions the switch leaves", () => {
+    const refused = new ApiError(403, "forbidden", "", undefined, { error: "forbidden", node: "apply.settings" });
+    expect(describeError(refused).title).toBe("没有「招新开关」权限");
+    expect(actionText("application.settings.update")).toBe("开放或关闭招新");
+    // 关闭期间被拒的投递由 http-policy 记成 http.apply_closed，操作记录里要看得懂
+    expect(actionText("http.apply_closed")).toBe("投递被拒（招新已关闭）");
+  });
+
+  it("keeps a local name for every permission node the server defines, so a refusal never shows a raw node id", () => {
+    const unnamed = PERMISSION_NODES.filter(def => !def.deprecated && !NODE_LABELS[def.node]).map(def => def.node);
+    expect(unnamed).toEqual([]);
   });
 });

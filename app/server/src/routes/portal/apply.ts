@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { MailTemplateError } from "../../lib/mail/envelope.js";
 import { RECEIVED_LETTER_LIMITS } from "../../lib/mail/mailer.js";
 import { ipSubject } from "../../lib/forum-rules.js";
@@ -51,6 +51,7 @@ export const APPLY_DEVICE_COOKIE = "yugc_apply_device";
 export const APPLY_IP_DAILY_MAX = 10;
 export const APPLY_DEVICE_DAILY_MAX = 5;
 const APPLY_LIMITED_MESSAGE = "今天的投递次数用完了，北京时间零点以后可以再投。";
+const APPLY_CLOSED_MESSAGE = "招新暂未开放";
 const DEVICE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 
@@ -101,10 +102,19 @@ export default async function applyRoutes(app: FastifyInstance) {
   const { db } = app.services.storage;
   const { verifyTurnstile } = app.services.turnstile;
   const { preflightPublicSubmission, checkHoneypot } = app.services.publicSubmission;
-  const { config, mail, permissions, limits } = app.services;
+  const { config, mail, permissions, limits, applySettings } = app.services;
   const insertApplication = db.prepare(
     "INSERT INTO applications(id, name, class_name, email, strengths, source_ip, user_agent, status, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, 'received', ?)"
   );
+
+  /**
+   * 招新总开关（#284，控制台「投递」页）：关闭时直接回 403 apply_closed，排在登录和权限判定之后、人机验证和限额之前，
+   * 所以被拒的请求不写 applications、不消耗每天的投递份数，也不下发设备 cookie。403 由 middleware/http-policy.ts
+   * 统一记一条 outcome 为 denied 的操作记录（action 是 http.apply_closed）。
+   */
+  const requireApplyOpen = async (_req: FastifyRequest, reply: FastifyReply) => {
+    if (!applySettings.isOpen()) return reply.code(403).send({ error: "apply_closed", message: APPLY_CLOSED_MESSAGE });
+  };
 
   app.post<{ Body: Body }>(
     "/api/portal/apply",
@@ -112,7 +122,7 @@ export default async function applyRoutes(app: FastifyInstance) {
       // #274 review round 1（CONTRACT-274 通用规则）：requirePermission 自己调 loadSession，不用再挂 requireAuth——
       // 两个一起挂时 requireAuth 先跑、先回它自己的 not_signed_in，没登录时拿不到 requirePermission 回的
       // 401 unauthenticated（通用错误码约定的是后者）。
-      preHandler: [requirePermission("apply.submit")],
+      preHandler: [requirePermission("apply.submit"), requireApplyOpen],
       config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
     },
     async (req, reply) => {

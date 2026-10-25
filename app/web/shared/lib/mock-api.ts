@@ -148,7 +148,7 @@ function route(path: string): unknown {
   if (pathname === "/api/docs") return { items: [{ id: "usage", label: "使用指南", lang: "zh" }, { id: "usage-en", label: "Usage", lang: "en" }] };
   if (pathname.startsWith("/api/docs/")) return { id: pathname.split("/").pop(), label: "使用指南", lang: pathname.endsWith("-en") ? "en" : "zh", file: "docs/ops/USAGE.md", content: "# 开发预览\n\n当前使用本地 mock 数据。" };
   if (pathname === "/api/feedback/categories") return { categories: ["建议", "Bug", "新功能", "其他"], pow_difficulty: 1, org: demoOrg };
-  if (pathname === "/api/public/config") return { turnstile_site_key: null, pow_difficulty: 1 };
+  if (pathname === "/api/public/config") return { turnstile_site_key: null, pow_difficulty: 1, apply_open: true };
   if (pathname === "/api/feedback/public") return { items: [] };
   if (pathname === "/api/public/competitions") return { competitions: mockPersona() === "member" ? withDemoSignup(demoCompetitions(now)) : demoCompetitions(now) };
   if (pathname === "/api/team-plaza" || pathname.startsWith("/api/me/competition")) {

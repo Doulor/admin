@@ -62,9 +62,9 @@ describe("宣传片：挑播放方式", () => {
 });
 
 describe("宣传片：桌面应用", () => {
-  it("桌面上有「宣传片」，打开的是全屏面板，不是主入口、没有快捷键", () => {
+  it("桌面上有「宣传片」，打开的是桌面窗口（#284，原来是全屏面板），不是主入口、没有快捷键", () => {
     const promo = OS_APPS.find((app) => app.id === "promo");
-    expect(promo).toMatchObject({ name: "宣传片", icon: "film-line", open: { kind: "panel", panel: "promo" } });
+    expect(promo).toMatchObject({ name: "宣传片", icon: "film-line", open: { kind: "window" } });
     expect(promo?.key).toBeUndefined();
     expect(promo?.primary).toBeUndefined();
     expect(OS_APPS.find((app) => app.id === "wallpaper")?.open).toEqual({ kind: "panel", panel: "wallpaper" });

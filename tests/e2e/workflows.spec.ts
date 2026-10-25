@@ -74,73 +74,104 @@ test("legacy /apply and /join-us open the 加入我们 window on the desktop (#2
 });
 
 const PROMO_CDN = "https://cdn.crosery.com/yzgc/static/promo/**";
+const LETTER = "致 长江大学极客班：";
 
 test("first open of 加入我们 never gets stuck behind the promo: whatever the player does, the letter opens", async ({ page }) => {
   await skipBoot(page);
-  // beforeEach 已经拦掉所有外部请求：能播就加载失败，播不了就直接放行，两种都必须进到信纸。
+  // beforeEach 已经拦掉所有外部请求：能播就加载失败，播不了就在窗口里说明。宣传片是单独的桌面窗口（#284），两种都不挡信纸，也能直接关掉。
   await page.goto("/sites/portal/join-us");
-  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 * SLOW });
-  await expect(page.getByRole("dialog", { name: "极客班宣传片" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: LETTER })).toBeVisible({ timeout: 15_000 * SLOW });
+  const promo = page.getByRole("dialog", { name: "宣传片" });
+  await expect(promo).toBeVisible();
+  await promo.getByRole("button", { name: "关闭" }).click();
+  await expect(promo).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "加入我们" })).toBeVisible();
 });
 
-test("the promo can be skipped on the first open and does not autoplay again", async ({ page, context }) => {
+test("the promo window can be closed on the first open and does not pop up again", async ({ page, context }) => {
   await skipBoot(page);
   await page.goto("/sites/portal/docs");
   const canPlay = await page.evaluate(() => typeof MediaSource !== "undefined" && MediaSource.isTypeSupported('video/mp4; codecs="avc1.640029, mp4a.40.2"'));
-  test.skip(!canPlay, "这个 Chromium 没有 H.264/AAC：播放层走「播不了就放行」，由上一条用例覆盖");
-  // CDN 挂起不应答：播放层停在加载中，等人点「跳过」
+  test.skip(!canPlay, "这个 Chromium 没有 H.264/AAC：播放器在窗口里说明「放不了」，由上一条用例覆盖");
+  // CDN 挂起不应答：播放器停在加载中，等人关掉窗口
   await page.route(PROMO_CDN, () => {});
   await page.goto("/sites/portal/join-us");
-  const promo = page.getByRole("dialog", { name: "极客班宣传片" });
+  const promo = page.getByRole("dialog", { name: "宣传片" });
   await expect(promo).toBeVisible();
-  await expect(page.getByRole("button", { name: /跳过/ })).toBeFocused();
-  // 画面上只有「跳过」一个按钮：没有播放 / 暂停、进度、音量、「打开声音」（#142）
-  await expect(promo.getByRole("button")).toHaveCount(1);
-  await page.getByRole("button", { name: /跳过/ }).click();
+  // 画面上没有按钮：没有播放 / 暂停、进度、音量、「打开声音」（#142）；窗口标题栏只有关闭、最小化、放大
+  await expect(promo.locator(".pt-promo").getByRole("button")).toHaveCount(0);
+  await expect(promo.getByRole("button")).toHaveCount(3);
+  await promo.getByRole("button", { name: "关闭" }).click();
   await expect(promo).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 * SLOW });
+  await expect(page.getByRole("heading", { name: LETTER })).toBeVisible({ timeout: 15_000 * SLOW });
   expect((await context.cookies()).find((cookie) => cookie.name === "yugc_promo_seen")?.value).toBe("1");
   await page.goto("/sites/portal/join-us");
-  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 * SLOW });
+  await expect(page.getByRole("heading", { name: LETTER })).toBeVisible({ timeout: 15_000 * SLOW });
   await expect(promo).toHaveCount(0);
 });
 
-test("clicking the video keeps keyboard control: Esc still skips the promo", async ({ page }) => {
+test("clicking the video does not take keyboard control: Esc still closes the promo window", async ({ page }) => {
   await skipBoot(page);
   await page.goto("/sites/portal/docs");
   const canPlay = await page.evaluate(() => typeof MediaSource !== "undefined" && MediaSource.isTypeSupported('video/mp4; codecs="avc1.640029, mp4a.40.2"'));
-  test.skip(!canPlay, "这个 Chromium 没有 H.264/AAC：播放层走「播不了就放行」");
+  test.skip(!canPlay, "这个 Chromium 没有 H.264/AAC：播放器在窗口里说明「放不了」");
   await page.route(PROMO_CDN, () => {});
   await page.goto("/sites/portal/join-us");
-  const promo = page.getByRole("dialog", { name: "极客班宣传片" });
+  const promo = page.getByRole("dialog", { name: "宣传片" });
   await expect(promo).toBeVisible();
   await page.locator(".pt-promo-video").click();
-  await expect(promo).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(promo).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "致 长江大学极客班：" })).toBeVisible({ timeout: 15_000 * SLOW });
+  await expect(page.getByRole("heading", { name: LETTER })).toBeVisible({ timeout: 15_000 * SLOW });
+});
+
+test("the promo window minimizes and restores from the Dock with the same video, and closing it releases the video", async ({ page }) => {
+  await skipBoot(page);
+  await page.goto("/sites/portal/docs");
+  const canPlay = await page.evaluate(() => typeof MediaSource !== "undefined" && MediaSource.isTypeSupported('video/mp4; codecs="avc1.640029, mp4a.40.2"'));
+  test.skip(!canPlay, "这个 Chromium 没有 H.264/AAC：播放器在窗口里说明「放不了」");
+  await page.route(PROMO_CDN, () => {});
+  await page.goto("/sites/portal/join-us");
+  const promo = page.getByRole("dialog", { name: "宣传片" });
+  await expect(promo).toBeVisible();
+  await expect(page.locator("video")).toHaveCount(1);
+
+  await promo.getByRole("button", { name: "最小化" }).click();
+  await expect(promo).toBeHidden();
+  // 最小化只是收起：播放器还在，没有被卸载
+  await expect(page.locator("video")).toHaveCount(1);
+
+  await page.getByRole("navigation", { name: "Dock" }).getByRole("button", { name: "宣传片" }).click();
+  await expect(promo).toBeVisible();
+  await expect(page.locator("video")).toHaveCount(1);
+
+  await promo.getByRole("button", { name: "关闭" }).click();
+  await expect(promo).toHaveCount(0);
+  await expect(page.locator("video")).toHaveCount(0);
 });
 
 test.describe("promo on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
-  test("held upright, the promo turns sideways to fill the screen and 跳过 still works", async ({ page }) => {
+  test("the promo opens as a bottom sheet that fits the screen with a 16:9 picture, and closing it reveals the letter", async ({ page }) => {
     await page.goto("/sites/portal/docs");
     const canPlay = await page.evaluate(() => typeof MediaSource !== "undefined" && MediaSource.isTypeSupported('video/mp4; codecs="avc1.640029, mp4a.40.2"'));
-    test.skip(!canPlay, "这个 Chromium 没有 H.264/AAC：播放层走「播不了就放行」");
+    test.skip(!canPlay, "这个 Chromium 没有 H.264/AAC：播放器在窗口里说明「放不了」");
     await page.route(PROMO_CDN, () => {});
     await skipBoot(page);
     await page.goto("/sites/portal/join-us");
-    const promo = page.getByRole("dialog", { name: "极客班宣传片" });
-    await expect(promo).toBeVisible();
-    const frame = await page.locator(".pt-promo-frame").evaluate((element) => ({ transform: getComputedStyle(element).transform, box: element.getBoundingClientRect().toJSON() }));
-    // rotate(90deg) 的矩阵是 matrix(0, 1, -1, 0, …)；转过来以后画面框占满竖着的屏幕
-    expect(frame.transform).toMatch(/^matrix\(0, 1, -1, 0,/);
-    expect(Math.round(frame.box.width)).toBe(390);
-    expect(Math.round(frame.box.height)).toBe(844);
+    const sheet = page.getByRole("dialog", { name: "宣传片" });
+    await expect(sheet).toBeVisible();
+    // 手机上画面不再转 90 度：竖着的面板里放 16:9 的画面，宽度就是面板宽度，页面不出现横向滚动
+    const frame = await page.locator(".pt-promo-frame").evaluate((element) => element.getBoundingClientRect().toJSON());
+    expect(frame.width).toBeGreaterThan(360);
+    expect(frame.width).toBeLessThanOrEqual(390);
+    expect(Math.abs(frame.width / frame.height - 16 / 9)).toBeLessThan(0.02);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     expect(await page.locator(".pt-promo").getAttribute("data-codec")).toBe("h264");
-    await page.getByRole("button", { name: /跳过/ }).tap();
-    await expect(promo).toHaveCount(0);
+    await sheet.getByRole("button", { name: "关闭应用" }).tap();
+    await expect(sheet).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "加入我们" })).toBeVisible();
   });
 });
 

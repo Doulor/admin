@@ -60,6 +60,8 @@ const inviteFailures = {
   "4xx": object({ error: { type: "string" }, message: { type: "string" }, request_id: { type: "string" }, capability: { type: "string" } }, ["error"], true),
   "5xx": object({ error: { type: "string" }, message: { type: "string" }, request_id: { type: "string" } }, ["error"], true),
 };
+// 招新总开关（#284）：updated_at 是最近一次开关的时间，从没动过为 null
+const applySettingsResult = object({ open: { type: "boolean" }, updated_at: nullableCount }, ["open", "updated_at"]);
 const applicationParams = { params: object({ application_id: { type: "string", pattern: UUID_PATTERN } }, ["application_id"]) };
 // 比赛 id 是 UUID，但种子比赛用的是可读 slug（oss-challenge-2026-1），路径参数不能只收 UUID。
 const competitionParams = consoleCompetitionIdParam;
@@ -209,6 +211,12 @@ export const consoleContracts: RouteContracts = {
   },
   "GET /api/console/applications": {
     querystring: object({ status: choices(...APPLICATION_STATUS_IDS), q: text(100), limit: limit(200), offset }),
+  },
+  "GET /api/console/applications/settings": { ...noQuery, response: { 200: applySettingsResult, ...consoleFailures } },
+  "PATCH /api/console/applications/settings": {
+    ...noQuery,
+    body: object({ open: { type: "boolean" } }, ["open"]),
+    response: { 200: applySettingsResult, ...consoleFailures },
   },
   "GET /api/console/applications/export.csv": { querystring: object({ status: choices(...APPLICATION_STATUS_IDS) }) },
   "GET /api/console/applications/:application_id": { ...noQuery, ...applicationParams },
