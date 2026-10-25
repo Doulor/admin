@@ -46,7 +46,7 @@ export type Capabilities = {
 /**
  * 先用 hls.js（有 MediaSource 的浏览器，包括桌面 Safari 与 iOS 17.1+ 的 ManagedMediaSource），
  * 再退到原生 HLS（老 iOS、微信内置浏览器）。AV1 只在桌面上确定能硬解流畅时用，否则一律 H.264。
- * 两条路都走不通返回 null：不播，直接放行到表单。
+ * 两条路都走不通返回 null：不播，宣传片窗口里说明（components/PromoPlayer.tsx）。
  */
 export function choosePlayback(caps: Capabilities): Playback | null {
   if (caps.mse) {

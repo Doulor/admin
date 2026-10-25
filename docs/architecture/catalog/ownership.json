@@ -2949,11 +2949,27 @@
         },
         {
           "path": "app/web/sites/portal/components/PromoLazy.tsx",
-          "needle": "export function LazyPromoPlayer({ placeholder = false, ...props }: Props & { placeholder?: boolean }) {"
+          "needle": "export function LazyPromoPlayer(props: Props) {"
         },
         {
           "path": "app/web/sites/portal/components/PromoPlayer.tsx",
-          "needle": "export default function PromoPlayer({ mode, onSeen, onClose, coverSince }: Props) {"
+          "needle": "export default function PromoPlayer({ active = true, onSeen, onEnd }: Props) {"
+        },
+        {
+          "path": "app/web/sites/portal/lib/promoWindow.ts",
+          "needle": "export function promoEntry({ seen, reducedMotion }: { seen: boolean; reducedMotion: boolean }): PromoEntry {"
+        },
+        {
+          "path": "app/web/sites/portal/lib/promo.ts",
+          "needle": "export function hasSeenPromo(cookie: string): boolean {"
+        },
+        {
+          "path": "app/web/sites/portal/lib/applyOpen.ts",
+          "needle": "export function applyOpenOf(config: unknown): boolean {"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/JoinClosed.tsx",
+          "needle": "export default function JoinClosed({ onOpen }: { onOpen?: OpenApp }) {"
         },
         {
           "path": "app/server/src/lib/mail/envelope.ts",
@@ -2964,7 +2980,10 @@
         "tests/server/apply-switch.test.ts",
         "tests/server/applications.test.ts",
         "tests/server/mail-outbox.test.ts",
-        "tests/server/rate-limits.test.ts"
+        "tests/server/rate-limits.test.ts",
+        "tests/web/portal-apply-switch.test.tsx",
+        "tests/web/portal-promo-desktop.test.tsx",
+        "tests/web/portal-promo-window.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",

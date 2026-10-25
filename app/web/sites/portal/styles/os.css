@@ -488,6 +488,7 @@
 /* 加入我们窗口（#279）：一张信纸就是表单。顶边是航空信封那样的斜纹，用 YUGC 四个字母色；控件沿用 pages.css 的 .pt-field / .pt-input，
    配色换成窗口的。回执也在窗口里，不再有信封和信箱。招新关闭时（#284）整个窗口是一张关闭页，纸面和回执一样。 */
 .pt-joinbox-lead { margin-bottom: 14px; font-size: 13.5px; color: var(--os-ink-soft); }
+.pt-joinbox-promo { margin: -6px 0 14px; }
 .pt-joinbox-letter, .pt-joinbox-receipt, .pt-joinbox-closed {
   position: relative; display: grid; gap: 14px; padding: 26px 24px 20px; overflow: hidden;
   border: 1px solid rgb(58 118 214 / 16%); border-radius: var(--os-radius-card); background: rgb(255 255 255 / 92%);

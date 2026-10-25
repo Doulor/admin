@@ -7,20 +7,20 @@
 // PoW 指纹 `apply:<姓名>:<邮箱>`（trim 后）与后端逐字一致；没有 mock 分支，也不做假成功。
 // 投递要登录（#274）：没登录时只有「先注册再投递」，注册或登录后回到 /?open=join，桌面直接打开这个窗口；
 // 登录后底部写今天还能投几份（/auth/me 的 quota，成员不限时不显示），投完了按钮变灰。
-// 这个浏览器第一次打开时先全屏播宣传片（#77，能跳过），播完或跳过才露出信纸；之后靠 cookie 不再自动播。
+// 这个浏览器第一次打开时自动弹出「宣传片」窗口（#77；#284 起是单独的桌面窗口，不再是盖住信纸的全屏层，信纸不用等它），之后靠 cookie 不再自动弹。
+// 信纸上和关闭页上都有「看宣传片」，随时能自己打开。
 import TurnstileWidget from "@shared/ui/TurnstileWidget";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react";
-import { createPortal } from "react-dom";
 import { appConfig } from "@shared/config";
 import { ApiError, requestJson } from "@shared/lib/http";
 import { computePow, powProof } from "@shared/lib/pow";
 import Icon from "../Icon";
-import { LazyPromoPlayer } from "../PromoLazy";
 import { readQuota, registerHref, signInHref, useAccount, type ApplyQuota } from "../../lib/account";
 import { applyOpenOf, joinView } from "../../lib/applyOpen";
 import { appLinkById } from "../../lib/osApps";
 import { hasSeenPromo, promoCookie } from "../../lib/promo";
-import { useInert, useReducedMotion } from "../../lib/useReducedMotion";
+import { promoEntry } from "../../lib/promoWindow";
+import { useReducedMotion } from "../../lib/useReducedMotion";
 import JoinClosed from "./JoinClosed";
 import type { OpenApp } from "./Windows";
 import "../../styles/pages.css";
@@ -64,21 +64,20 @@ type Props = {
   onOpen?: OpenApp;
   /** 读到招新开关就报给桌面（打开窗口时、寄信被服务端说已经关了时），便签、「关于」窗口、图标说明跟着变 */
   onApplyOpen?: (open: boolean) => void;
+  /** 这个浏览器第一次进来、还没看过宣传片时，请桌面自动弹出宣传片窗口（条件见 lib/promoWindow.ts 的 promoEntry，和原来全屏播放层的一致） */
+  onAutoPromo?: () => void;
 };
 
-export default function JoinBox({ onOpen, onApplyOpen }: Props) {
+export default function JoinBox({ onOpen, onApplyOpen, onAutoPromo }: Props) {
   const reducedMotion = useReducedMotion();
-  // 开了减少动态效果不播（和 PromoPlayer 的 autoplayOff 同一条规则）：按看过算，不挂播放层、不下载分包，直接给信纸（#122）
-  const [promoBlocked] = useState(() => reducedMotion && !hasSeenPromo(document.cookie));
-  const [promo, setPromo] = useState(() => !promoBlocked && !hasSeenPromo(document.cookie));
-  const box = useInert<HTMLDivElement>(promo);
-  const onPromoSeen = useCallback(() => {
-    document.cookie = promoCookie(window.location.protocol === "https:");
-  }, []);
-  const onPromoClose = useCallback(() => setPromo(false), []);
+  // 只在窗口挂上那一刻判断一次。开了减少动态效果不自动播：按看过算，只写 cookie，什么都不弹、不下载播放器（#122）
+  const [entry] = useState(() => promoEntry({ seen: hasSeenPromo(document.cookie), reducedMotion }));
+  const autoPromo = useRef(onAutoPromo);
+  autoPromo.current = onAutoPromo;
   useEffect(() => {
-    if (promoBlocked) onPromoSeen();
-  }, [promoBlocked, onPromoSeen]);
+    if (entry === "mark_seen") document.cookie = promoCookie(window.location.protocol === "https:");
+    else if (entry === "open") autoPromo.current?.();
+  }, [entry]);
 
   // 招新开关和防刷参数一起从 /api/public/config 来，每次打开窗口都重读：开关在刷新页面或重新打开窗口时生效。
   // 读不到按开放处理（信纸里提示连不上服务器），寄出时仍由服务端裁决；这时不报给桌面，因为并不知道开关是什么状态。
@@ -107,20 +106,16 @@ export default function JoinBox({ onOpen, onApplyOpen }: Props) {
 
   const view = joinView({ loaded: config !== null, open: config?.open ?? true, closedByServer });
   return (
-    <>
-      <div ref={box} className="pt-joinbox">
-        {view === "loading" && <p className="pt-empty">正在打开信纸…</p>}
-        {view === "closed" && <JoinClosed onOpen={onOpen} />}
-        {view === "letter" && config && <JoinLetter config={config} onClosed={onClosed} />}
-      </div>
-      {/* 分包没到时先显示同一套加载遮罩（placeholder，#122）。挂到 body 上：窗口有 backdrop-filter，fixed 的播放层放在窗口里只会盖住窗口 */}
-      {promo && createPortal(<LazyPromoPlayer mode="gate" placeholder onSeen={onPromoSeen} onClose={onPromoClose} />, document.body)}
-    </>
+    <div className="pt-joinbox">
+      {view === "loading" && <p className="pt-empty">正在打开信纸…</p>}
+      {view === "closed" && <JoinClosed onOpen={onOpen} />}
+      {view === "letter" && config && <JoinLetter config={config} onClosed={onClosed} onOpen={onOpen} />}
+    </div>
   );
 }
 
 /** 招新开着时窗口里的信纸：表单、登录门槛、回执和每日限额 */
-function JoinLetter({ config, onClosed }: { config: Loaded; onClosed: () => void }) {
+function JoinLetter({ config, onClosed, onOpen }: { config: Loaded; onClosed: () => void; onOpen?: OpenApp }) {
   const { powDifficulty, siteKey } = config;
   // 回执里的「去论坛看看」和桌面上的论坛应用同一个去处：直达论坛首页（#185）
   const forumLink = appLinkById("forum");
@@ -256,6 +251,14 @@ function JoinLetter({ config, onClosed }: { config: Loaded; onClosed: () => void
   return (
     <>
       <p className="pt-joinbox-lead">给极客班写一封信，写上姓名、班级、邮箱，再说说你会什么、想做什么。寄出之后，我们用邮件联系你。</p>
+      {onOpen && (
+        <div className="pt-row-btns pt-joinbox-promo">
+          <button type="button" className="pt-btn is-sm" onClick={(event) => onOpen("promo", event.currentTarget)}>
+            <Icon name="film-line" size={15} />
+            看宣传片
+          </button>
+        </div>
+      )}
 
       {receipt ? (
         <section className="pt-joinbox-receipt" role="status" aria-live="polite">

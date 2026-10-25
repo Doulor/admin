@@ -7,14 +7,14 @@ import { links } from "./links";
 export type AppId = "join" | "forum" | "gitlab" | "promo" | "about" | "org" | "competitions" | "terminal" | "feedback" | "console" | "wallpaper";
 
 /**
- * window：在桌面里开窗口；panel：桌面自带的全屏面板（换壁纸、重看宣传片）；site：同一个域名下的另一个端（论坛、控制台），当前标签页整页跳过去。
+ * window：在桌面里开窗口；panel：桌面自带的全屏面板（换壁纸）；site：同一个域名下的另一个端（论坛、控制台），当前标签页整页跳过去。
  * 论坛点一下直达论坛首页（#185），不再先进 /forum-3d 场景页；那个页面留给旧地址和「论坛最新」窗口里的「3D 版块」。
- * 「代码仓库」「意见箱」（#275）和「加入我们」（#279）都是桌面里的窗口，不再跳到单独的页面；旧地址 /feedback、/join-us、/apply
+ * 「代码仓库」「意见箱」（#275）、「加入我们」（#279）和「宣传片」（#284，原来是全屏面板）都是桌面里的窗口，不再跳到单独的页面；旧地址 /feedback、/join-us、/apply
  * 跳到 /?open=<id>，进桌面打开对应窗口。
  */
 export type AppOpen =
   | { kind: "window" }
-  | { kind: "panel"; panel: "wallpaper" | "promo" }
+  | { kind: "panel"; panel: "wallpaper" }
   | { kind: "site"; link: "forumHome" | "console" };
 
 export type OsApp = {
@@ -35,7 +35,7 @@ export const OS_APPS: readonly OsApp[] = [
   { id: "join", name: "加入我们", icon: "mail-send-line", key: "1", primary: true, open: { kind: "window" }, blurb: "写封信报名，我们用邮件联系你" },
   { id: "forum", name: "论坛", icon: "discuss-line", key: "2", open: { kind: "site", link: "forumHome" }, blurb: "班级公告，课程、竞赛和求职讨论", keywords: "bbs home 首页" },
   { id: "gitlab", name: "代码仓库", icon: "git-repository-line", key: "3", open: { kind: "window" }, blurb: "极客班自己的 GitLab，用极客班账号登录", keywords: "gitlab git repo code 代码 仓库" },
-  { id: "promo", name: "宣传片", icon: "film-line", open: { kind: "panel", panel: "promo" }, blurb: "极客班宣传片，1 分 45 秒" },
+  { id: "promo", name: "宣传片", icon: "film-line", open: { kind: "window" }, blurb: "极客班宣传片，1 分 45 秒" },
   { id: "about", name: "关于极客班", icon: "book-2-line", open: { kind: "window" }, blurb: "极客班是做什么的" },
   { id: "org", name: "组织架构", icon: "organization-chart", open: { kind: "window" }, blurb: "有哪些部门，谁负责什么" },
   { id: "competitions", name: "比赛", icon: "trophy-line", open: { kind: "window" }, blurb: "近期有什么比赛，哪天截止", keywords: "contest 赛事 竞赛 报名" },

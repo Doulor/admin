@@ -1146,7 +1146,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 46,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -3097,16 +3097,32 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 172,
+          "line": 167,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 72,
+          "line": 88,
           "path": "app/web/sites/portal/components/PromoLazy.tsx"
         },
         {
-          "line": 52,
+          "line": 48,
           "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/lib/promoWindow.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/web/sites/portal/lib/promo.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/web/sites/portal/lib/applyOpen.ts"
+        },
+        {
+          "line": 7,
+          "path": "app/web/sites/portal/components/os/JoinClosed.tsx"
         },
         {
           "line": 321,
@@ -3138,7 +3154,10 @@
         "tests/server/apply-switch.test.ts",
         "tests/server/applications.test.ts",
         "tests/server/mail-outbox.test.ts",
-        "tests/server/rate-limits.test.ts"
+        "tests/server/rate-limits.test.ts",
+        "tests/web/portal-apply-switch.test.tsx",
+        "tests/web/portal-promo-desktop.test.tsx",
+        "tests/web/portal-promo-window.test.ts"
       ],
       "title": "提交加入我们申请",
       "writes": [
@@ -6205,7 +6224,7 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 253,
+          "line": 271,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
@@ -15480,6 +15499,11 @@
       "title": "tests/web/portal-account.test.tsx"
     },
     {
+      "id": "test:tests/web/portal-apply-switch.test.tsx",
+      "kind": "test",
+      "title": "tests/web/portal-apply-switch.test.tsx"
+    },
+    {
       "id": "test:tests/web/portal-competition-hub.test.tsx",
       "kind": "test",
       "title": "tests/web/portal-competition-hub.test.tsx"
@@ -15503,11 +15527,21 @@
       "id": "test:tests/web/portal-phone.test.tsx",
       "kind": "test",
       "title": "tests/web/portal-phone.test.tsx"
+    },
+    {
+      "id": "test:tests/web/portal-promo-desktop.test.tsx",
+      "kind": "test",
+      "title": "tests/web/portal-promo-desktop.test.tsx"
+    },
+    {
+      "id": "test:tests/web/portal-promo-window.test.ts",
+      "kind": "test",
+      "title": "tests/web/portal-promo-window.test.ts"
     }
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "65a63ba8f94f9d0c19df5be79526b5b1e0cd468461b23bdbf6e2921bdfe0c02b",
+    "fingerprint": "211789400d8cb4e2acf211906d980abaa9240547b82590a12904fbc0831917b0",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -17039,11 +17073,11 @@
       },
       {
         "path": "app/web/sites/portal/components/PromoLazy.tsx",
-        "sha256": "c2c576221eeff535a51c57ad30a2126e110498c3834012790b84f0495fe4878a"
+        "sha256": "b5df5ed601fb087da3e8dfdf7cf137fb149dfc3b78ba7c55f87802997606dc1a"
       },
       {
         "path": "app/web/sites/portal/components/PromoPlayer.tsx",
-        "sha256": "4f40c6f4407a51138594c139a43ed7e0f6a4817f3e3c87ae4e3088a388d6a91d"
+        "sha256": "ee56b125faf808d829ee986720b8cbe66fb5e726c47dc96bc3cf55fa48afbe45"
       },
       {
         "path": "app/web/sites/portal/components/SceneBar.tsx",
@@ -17083,7 +17117,7 @@
       },
       {
         "path": "app/web/sites/portal/components/os/JoinBox.tsx",
-        "sha256": "2b746d292aea97eaa3158c9cced22fa99b8ef6c979535246130a0663f0af36e2"
+        "sha256": "f125f61d67f269a27e966c59227e4de9442b7f4048153d1fa5a3b0dc5073c87e"
       },
       {
         "path": "app/web/sites/portal/components/os/JoinClosed.tsx",
@@ -17111,11 +17145,11 @@
       },
       {
         "path": "app/web/sites/portal/components/os/Windows.tsx",
-        "sha256": "42f224846139db8dd62a32509137efed8edf8d40509702d32081bbf32f21fbde"
+        "sha256": "8d3a915346f19556eec95621bb602612055ea96a3fb41e2483d5b4a611c8f8f8"
       },
       {
         "path": "app/web/sites/portal/components/os/YugcOs.tsx",
-        "sha256": "818e77faf3e48aeff7584b47ce5bbd766cf8b49183be6cc910d4fd191d10b813"
+        "sha256": "53e919bc02257c7a5f9421644c29a62e53f8a40898fccfc805269d4d6c8f071d"
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/Avatar.tsx",
@@ -17219,7 +17253,7 @@
       },
       {
         "path": "app/web/sites/portal/lib/osApps.ts",
-        "sha256": "d531e728de4a40adc662c902dae36c2329fccdf1e56b0288fc272b4fc9641c09"
+        "sha256": "aaacb1b28e0a5f46133179046061ac82f2a0d1aa6929d8219d3c33b6ceaeed7a"
       },
       {
         "path": "app/web/sites/portal/lib/pixelRatio.ts",
@@ -17227,7 +17261,11 @@
       },
       {
         "path": "app/web/sites/portal/lib/promo.ts",
-        "sha256": "ce5e655f544b7c693c506b049e46d5040274e2d0a7fcaab482daf9b7e75b6efa"
+        "sha256": "6d5e698eb57e60e3fec89c1fdfaf24f4f33c5ab7f82d0680bb50152fddb4203a"
+      },
+      {
+        "path": "app/web/sites/portal/lib/promoWindow.ts",
+        "sha256": "cbca37934902ca0144dd111d8b618851bceab970ce058e8a7e89e0cb07a98d2c"
       },
       {
         "path": "app/web/sites/portal/lib/shell/ansi.ts",
@@ -17315,7 +17353,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "e4fb26ba28552c20667e12ce292132845c75e565ccfca2405a5f3e97aab9fdea"
+        "sha256": "e38737128c29daf5867cd0f6f8edca6e5de732af7e252bc64fc1b2a84e8d01ce"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -17387,7 +17425,7 @@
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "17d59e27858fc0d391fe697d994aa699b131e83ad30894433014716c80f24ae0"
+        "sha256": "db5598397c444507a723a6d0c11eebeeb1b2ddf875c38775c5d6b555031bacab"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -17499,7 +17537,7 @@
       },
       {
         "path": "tests/e2e/workflows.spec.ts",
-        "sha256": "b0df95c313eaa57e79fb5207f2114f655ab5ac648c4b6348fa03dbc0baf37be0"
+        "sha256": "781d8c64ec536c52160396be5fd894c434744c2f90bf9588b1ea932e1cc7f337"
       },
       {
         "path": "tests/server/activity.test.ts",
@@ -17678,6 +17716,10 @@
         "sha256": "8d17d10932d8ac7c73ebb511cc78292d36cc6e069805f6dd1261e12cc17f6093"
       },
       {
+        "path": "tests/web/portal-apply-switch.test.tsx",
+        "sha256": "ec28597c3b0235ea43a0a9ef6e0c37a55a9c46409f549556e7398ad9bb94276d"
+      },
+      {
         "path": "tests/web/portal-competition-hub.test.tsx",
         "sha256": "5b10cbede05c9a2d58b3f9a9670a265baadc8bb7101c1989e20170ef93dbfc53"
       },
@@ -17696,6 +17738,14 @@
       {
         "path": "tests/web/portal-phone.test.tsx",
         "sha256": "4108750274d4d6966bd023d755b5a21d14385f581cc80a0d5bccd448acf45a38"
+      },
+      {
+        "path": "tests/web/portal-promo-desktop.test.tsx",
+        "sha256": "590362ba7cade15485329d31b0a8674a27ef7811b24d026864c404bb4e531eec"
+      },
+      {
+        "path": "tests/web/portal-promo-window.test.ts",
+        "sha256": "f724dd7ca8a6a53e672c0e123a15aa14a2e3f0a725bbe0eab2f666e354679dc9"
       }
     ]
   },
@@ -23170,16 +23220,32 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 172,
+          "line": 167,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 72,
+          "line": 88,
           "path": "app/web/sites/portal/components/PromoLazy.tsx"
         },
         {
-          "line": 52,
+          "line": 48,
           "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/lib/promoWindow.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/web/sites/portal/lib/promo.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/web/sites/portal/lib/applyOpen.ts"
+        },
+        {
+          "line": 7,
+          "path": "app/web/sites/portal/components/os/JoinClosed.tsx"
         },
         {
           "line": 321,
@@ -23218,16 +23284,32 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 172,
+          "line": 167,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 72,
+          "line": 88,
           "path": "app/web/sites/portal/components/PromoLazy.tsx"
         },
         {
-          "line": 52,
+          "line": 48,
           "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/lib/promoWindow.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/web/sites/portal/lib/promo.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/web/sites/portal/lib/applyOpen.ts"
+        },
+        {
+          "line": 7,
+          "path": "app/web/sites/portal/components/os/JoinClosed.tsx"
         },
         {
           "line": 321,
@@ -23266,16 +23348,32 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 172,
+          "line": 167,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 72,
+          "line": 88,
           "path": "app/web/sites/portal/components/PromoLazy.tsx"
         },
         {
-          "line": 52,
+          "line": 48,
           "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/lib/promoWindow.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/web/sites/portal/lib/promo.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/web/sites/portal/lib/applyOpen.ts"
+        },
+        {
+          "line": 7,
+          "path": "app/web/sites/portal/components/os/JoinClosed.tsx"
         },
         {
           "line": 321,
@@ -23312,6 +23410,24 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:application.submit",
+      "to": "test:tests/web/portal-apply-switch.test.tsx",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:application.submit",
+      "to": "test:tests/web/portal-promo-desktop.test.tsx",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:application.submit",
+      "to": "test:tests/web/portal-promo-window.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
       "evidence": [
         {
           "line": 119,
@@ -23338,16 +23454,32 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 172,
+          "line": 167,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 72,
+          "line": 88,
           "path": "app/web/sites/portal/components/PromoLazy.tsx"
         },
         {
-          "line": 52,
+          "line": 48,
           "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/lib/promoWindow.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/web/sites/portal/lib/promo.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/web/sites/portal/lib/applyOpen.ts"
+        },
+        {
+          "line": 7,
+          "path": "app/web/sites/portal/components/os/JoinClosed.tsx"
         },
         {
           "line": 321,
@@ -23386,16 +23518,32 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 172,
+          "line": 167,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 72,
+          "line": 88,
           "path": "app/web/sites/portal/components/PromoLazy.tsx"
         },
         {
-          "line": 52,
+          "line": 48,
           "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/lib/promoWindow.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/web/sites/portal/lib/promo.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/web/sites/portal/lib/applyOpen.ts"
+        },
+        {
+          "line": 7,
+          "path": "app/web/sites/portal/components/os/JoinClosed.tsx"
         },
         {
           "line": 321,
@@ -23434,16 +23582,32 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 172,
+          "line": 167,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 72,
+          "line": 88,
           "path": "app/web/sites/portal/components/PromoLazy.tsx"
         },
         {
-          "line": 52,
+          "line": 48,
           "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/lib/promoWindow.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/web/sites/portal/lib/promo.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/web/sites/portal/lib/applyOpen.ts"
+        },
+        {
+          "line": 7,
+          "path": "app/web/sites/portal/components/os/JoinClosed.tsx"
         },
         {
           "line": 321,
@@ -23482,16 +23646,32 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 172,
+          "line": 167,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 72,
+          "line": 88,
           "path": "app/web/sites/portal/components/PromoLazy.tsx"
         },
         {
-          "line": 52,
+          "line": 48,
           "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/lib/promoWindow.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/web/sites/portal/lib/promo.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/web/sites/portal/lib/applyOpen.ts"
+        },
+        {
+          "line": 7,
+          "path": "app/web/sites/portal/components/os/JoinClosed.tsx"
         },
         {
           "line": 321,
@@ -23530,16 +23710,32 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 172,
+          "line": 167,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
-          "line": 72,
+          "line": 88,
           "path": "app/web/sites/portal/components/PromoLazy.tsx"
         },
         {
-          "line": 52,
+          "line": 48,
           "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/lib/promoWindow.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/web/sites/portal/lib/promo.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/web/sites/portal/lib/applyOpen.ts"
+        },
+        {
+          "line": 7,
+          "path": "app/web/sites/portal/components/os/JoinClosed.tsx"
         },
         {
           "line": 321,
@@ -32750,7 +32946,7 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 253,
+          "line": 271,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
@@ -32834,7 +33030,7 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 253,
+          "line": 271,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
@@ -32918,7 +33114,7 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 253,
+          "line": 271,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
@@ -33002,7 +33198,7 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 253,
+          "line": 271,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
@@ -33122,7 +33318,7 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 253,
+          "line": 271,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
@@ -67556,7 +67752,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 46,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -67688,7 +67884,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 46,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -67820,7 +68016,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 46,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -67952,7 +68148,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 46,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68084,7 +68280,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 46,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68216,7 +68412,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 46,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68348,7 +68544,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 46,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68480,7 +68676,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 46,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68696,7 +68892,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 46,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68828,7 +69024,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 46,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68960,7 +69156,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 45,
+          "line": 46,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -124214,6 +124410,19 @@
         "recruitment"
       ],
       "path": "app/web/sites/portal/lib/promo.ts"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "path": "app/web/sites/portal/lib/promoWindow.ts"
     },
     {
       "domains": [
