@@ -7,9 +7,12 @@
     "forum"
   ],
   "domains": [
-    "forum"
+    "forum",
+    "platform"
   ],
-  "flows": [],
+  "flows": [
+    "flow:forum.stickers.list"
+  ],
   "assessments": {
     "business": {
       "status": "unchanged",
