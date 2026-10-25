@@ -33,7 +33,7 @@ function pick(route: StatusRoute, id: unknown) {
       <template v-if="route.choices.length">
         <label class="route__pick">
           <span class="sr-only">「{{ route.label }}」发信用的模板</span>
-          <TxSelect :model-value="route.current?.id ?? ''" :options="options(route)" :disabled="busy" class="fill-width" panel-background="pure" @update:model-value="pick(route, $event)" />
+          <TxSelect :model-value="route.current?.id ?? ''" :options="options(route)" :searchable="false" :disabled="busy" class="fill-width" panel-background="pure" @update:model-value="pick(route, $event)" />
         </label>
         <p class="route__subject" :title="route.current?.subject">{{ route.current ? `主题：${route.current.subject}` : "没有默认的一套，发信时用代码里内置的文字。" }}</p>
       </template>
