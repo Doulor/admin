@@ -1,24 +1,12 @@
-// 招聘邮件模板页（#285）的纯逻辑：表单草稿与接口内容互转、正文块的增删移、变量插入、服务端指出的问题标到输入框、
-// 实时预览的节流与过期响应丢弃、试发的结果说法。不导入 Vue，tests/console/mail-templates.test.ts 直接测。
+// 招聘邮件模板页（#285、#293）的纯逻辑：草稿与接口内容互转、正文文字与块互转、变量插入、服务端指出的问题标到输入框、
+// 实时预览的节流与过期响应丢弃、试发的结果说法、状态与模板的对应。不导入 Vue，tests/console/mail-templates.test.ts 直接测。
 // 字段名、长度上限和错误码与服务端 lib/mail/template-content.ts、routes/console/mail-templates.ts 一致。
 import { ApiError } from "./http";
 import type {
-  MailBlock, MailBlockKind, MailKind, MailRendered, MailTemplate, MailTemplateContent, MailTemplateIssue, MailTemplateLimits, MailTestSend, MailVariable,
+  MailBlock, MailFact, MailKind, MailRendered, MailTemplate, MailTemplateContent, MailTemplateIssue, MailTestSend, MailVariable,
 } from "./types";
 
 // ---- 草稿 ----
-
-let uidSeq = 0;
-/** 块和信息表的行在列表里的稳定标识，调换顺序时输入框不会串。只在页面内用，不进请求体。 */
-export const nextUid = (): number => ++uidSeq;
-
-export type DraftFact = { uid: number; label: string; value: string };
-/** 要点列表在表单里是一个多行输入框，一行一条。 */
-export type DraftBlock =
-  | { uid: number; kind: "paragraph"; text: string }
-  | { uid: number; kind: "list"; title: string; items: string }
-  | { uid: number; kind: "facts"; title: string; rows: DraftFact[] }
-  | { uid: number; kind: "quote"; title: string; text: string };
 
 export type TemplateDraft = {
   /** null 是还没保存的新模板 */
@@ -29,7 +17,8 @@ export type TemplateDraft = {
   preheader: string;
   kicker: string;
   greeting: string;
-  blocks: DraftBlock[];
+  /** 正文是一份类 Markdown 的文字：空一行是新的一段，要点列表、信息表、引用写成「:::」围起来的一段，写法见 blocksToText */
+  body: string;
   buttonOn: boolean;
   buttonLabel: string;
   buttonPath: string;
@@ -39,29 +28,100 @@ export type TemplateDraft = {
 
 const lines = (value: string): string[] => value.split(/\r\n?|\n/).map(line => line.trim()).filter(Boolean);
 
-export const blankFact = (): DraftFact => ({ uid: nextUid(), label: "", value: "" });
+// ---- 正文：块与文字互转 ----
 
-export function blankBlock(kind: MailBlockKind): DraftBlock {
-  const uid = nextUid();
-  if (kind === "paragraph") return { uid, kind, text: "" };
-  if (kind === "list") return { uid, kind, title: "", items: "" };
-  if (kind === "facts") return { uid, kind, title: "", rows: [blankFact()] };
-  return { uid, kind, title: "", text: "" };
+/**
+ * 正文里要点列表、信息表、引用的写法：
+ *   :::要点 标题（标题可不写）      :::信息 标题（可不写）      :::引用 标题
+ *   一行一条                        名称：内容                  引用的话
+ *   :::                             :::                         :::
+ * 其余的文字按空行分段，一段就是一个段落块。以「:::」开头的普通文字写成「\:::」。
+ * 文字与块一一对应，接口和已存的模板格式不变；转换只发生在这个页面里。
+ */
+const FENCE = ":::";
+const FENCE_KIND: Record<string, "list" | "facts" | "quote"> = { 要点: "list", 要点列表: "list", 列表: "list", 信息: "facts", 信息表: "facts", 引用: "quote" };
+const FENCE_NAME = { list: "要点", facts: "信息", quote: "引用" } as const;
+export type FenceKind = keyof typeof FENCE_NAME;
+
+const escapeLine = (line: string): string => (line.trimStart().startsWith(FENCE) ? `\\${line.trimStart()}` : line);
+const unescapeLine = (line: string): string => (line.trimStart().startsWith(`\\${FENCE}`) ? line.trimStart().slice(1) : line);
+
+/** 块 → 正文文字 */
+export function blocksToText(blocks: readonly MailBlock[]): string {
+  const open = (kind: FenceKind, title: string | undefined) => `${FENCE}${FENCE_NAME[kind]}${title ? ` ${title}` : ""}`;
+  return blocks.map(block => {
+    if (block.kind === "paragraph") return block.text.split("\n").map(escapeLine).join("\n");
+    if (block.kind === "list") return [open("list", block.title), ...block.items.map(escapeLine), FENCE].join("\n");
+    if (block.kind === "facts") return [open("facts", block.title), ...block.items.map(item => `${item.label}：${item.value}`), FENCE].join("\n");
+    return [open("quote", block.title), ...block.text.split("\n").map(escapeLine), FENCE].join("\n");
+  }).join("\n\n");
 }
 
-function draftBlock(block: MailBlock): DraftBlock {
-  const uid = nextUid();
-  if (block.kind === "paragraph") return { uid, kind: "paragraph", text: block.text };
-  if (block.kind === "quote") return { uid, kind: "quote", title: block.title, text: block.text };
-  if (block.kind === "list") return { uid, kind: "list", title: block.title ?? "", items: block.items.join("\n") };
-  return { uid, kind: "facts", title: block.title ?? "", rows: block.items.map(item => ({ uid: nextUid(), ...item })) };
+const splitFact = (line: string): MailFact => {
+  const at = line.search(/[：:]/);
+  return at < 0 ? { label: line, value: "" } : { label: line.slice(0, at).trim(), value: line.slice(at + 1).trim() };
+};
+
+function fenced(kind: FenceKind, title: string, inner: string[]): MailBlock {
+  const head = title ? { title } : {};
+  if (kind === "list") return { kind, ...head, items: lines(inner.join("\n")) };
+  if (kind === "facts") return { kind, ...head, items: lines(inner.join("\n")).map(splitFact) };
+  return { kind: "quote", title, text: inner.join("\n").trim() };
 }
+
+/** 正文文字 → 块。写得不全的（没有结尾的「:::」、没有内容的块）照样转成块，由服务端指出缺什么。 */
+export function textToBlocks(text: string): MailBlock[] {
+  const blocks: MailBlock[] = [];
+  const rows = text.split(/\r\n?|\n/);
+  let paragraph: string[] = [];
+  const flush = () => {
+    const joined = paragraph.join("\n").trim();
+    if (joined) blocks.push({ kind: "paragraph", text: joined });
+    paragraph = [];
+  };
+  for (let i = 0; i < rows.length; i += 1) {
+    const open = /^\s*:::\s*([^\s:]+)?\s*(.*?)\s*$/.exec(rows[i]);
+    const kind = open ? FENCE_KIND[open[1] ?? ""] : undefined;
+    if (!open || !kind) {
+      if (rows[i].trim() === "") flush();
+      else paragraph.push(unescapeLine(rows[i]));
+      continue;
+    }
+    flush();
+    const inner: string[] = [];
+    while (i + 1 < rows.length && rows[i + 1].trim() !== FENCE) {
+      i += 1;
+      inner.push(unescapeLine(rows[i]));
+    }
+    i += 1;
+    blocks.push(fenced(kind, open[2], inner));
+  }
+  flush();
+  return blocks;
+}
+
+/** 在光标处插入一段要点列表、信息表或引用的写法，前后各空一行；返回新值和第一行内容的起点。 */
+export function insertFence(value: string, caret: Caret | null, kind: FenceKind): { value: string; caret: number } {
+  const sample = { list: "第一条\n第二条", facts: "名称：内容\n名称：内容", quote: "引用的话" }[kind];
+  const title = kind === "quote" ? " 标题" : "";
+  const head = `${FENCE}${FENCE_NAME[kind]}${title}`;
+  const start = caret ? Math.min(Math.max(0, Math.min(caret.start, caret.end)), value.length) : value.length;
+  const end = caret ? Math.min(Math.max(caret.start, caret.end, start), value.length) : value.length;
+  const before = value.slice(0, start);
+  const after = value.slice(end);
+  const lead = !before ? "" : before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+  const tail = !after ? "\n" : after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
+  const piece = `${head}\n${sample}\n${FENCE}`;
+  return { value: `${before}${lead}${piece}${tail}${after}`, caret: before.length + lead.length + head.length + 1 };
+}
+
+// ---- 草稿与请求内容互转 ----
 
 function fromContent(id: string | null, name: string, kind: MailKind, content: MailTemplateContent): TemplateDraft {
   return {
     id, name, kind,
     subject: content.subject, preheader: content.preheader, kicker: content.kicker, greeting: content.greeting,
-    blocks: content.blocks.map(draftBlock),
+    body: blocksToText(content.blocks),
     buttonOn: content.button !== null, buttonLabel: content.button?.label ?? "", buttonPath: content.button?.path ?? "",
     footer: content.footer.join("\n"),
   };
@@ -69,26 +129,17 @@ function fromContent(id: string | null, name: string, kind: MailKind, content: M
 
 export const draftFromTemplate = (template: MailTemplate): TemplateDraft => fromContent(template.id, template.name, template.kind, template);
 
-/** 新模板或复制出来的草稿：内容取自 base（通常是这一类的默认模板），没有 base 时只放一个空段落。 */
+/** 新模板或复制出来的草稿：内容取自 base（通常是这一类的默认模板），没有 base 时正文是空的。 */
 export function newDraft(kind: MailKind, base: MailTemplateContent | null, name = ""): TemplateDraft {
-  const content: MailTemplateContent = base ?? { subject: "", preheader: "", kicker: "", greeting: "{{称呼}}", blocks: [{ kind: "paragraph", text: "" }], button: null, footer: [] };
+  const content: MailTemplateContent = base ?? { subject: "", preheader: "", kicker: "", greeting: "{{称呼}}", blocks: [], button: null, footer: [] };
   return fromContent(null, name, kind, content);
-}
-
-function blockContent(block: DraftBlock): MailBlock {
-  if (block.kind === "paragraph") return { kind: "paragraph", text: block.text };
-  if (block.kind === "quote") return { kind: "quote", title: block.title.trim(), text: block.text };
-  const title = block.title.trim();
-  if (block.kind === "list") return title ? { kind: "list", title, items: lines(block.items) } : { kind: "list", items: lines(block.items) };
-  const items = block.rows.map(row => ({ label: row.label.trim(), value: row.value }));
-  return title ? { kind: "facts", title, items } : { kind: "facts", items };
 }
 
 /** 草稿 → 请求里的内容。没写的标题不带，按钮没打开就是 null。 */
 export function draftContent(draft: TemplateDraft): MailTemplateContent {
   return {
     subject: draft.subject, preheader: draft.preheader, kicker: draft.kicker, greeting: draft.greeting,
-    blocks: draft.blocks.map(blockContent),
+    blocks: textToBlocks(draft.body),
     button: draft.buttonOn ? { label: draft.buttonLabel, path: draft.buttonPath.trim() } : null,
     footer: lines(draft.footer),
   };
@@ -99,7 +150,7 @@ export const createBody = (draft: TemplateDraft) => ({ name: draft.name, kind: d
 /** 编辑的请求体：整套内容加上读到它时的更新时间，别人改过服务端回 409。 */
 export const updateBody = (draft: TemplateDraft, expectedUpdatedAt: number) => ({ name: draft.name, ...draftContent(draft), expected_updated_at: expectedUpdatedAt });
 
-/** 草稿的快照，用来判断有没有没保存的修改（块的 uid 不算）。 */
+/** 草稿的快照，用来判断有没有没保存的修改。 */
 export const draftSnapshot = (draft: TemplateDraft): string => JSON.stringify({ id: draft.id, name: draft.name, kind: draft.kind, ...draftContent(draft) });
 
 /** 复制出来的名字不能和同一类里已有的重名（服务端不分大小写），也不超过名字的长度上限。 */
@@ -112,29 +163,10 @@ export function copyName(name: string, existing: readonly string[], max: number)
   }
 }
 
-// ---- 正文块 ----
-
-/** 调换相邻两块的位置；到头了返回原数组。 */
-export function moveBlock<T>(blocks: readonly T[], index: number, delta: -1 | 1): T[] {
-  const target = index + delta;
-  if (index < 0 || index >= blocks.length || target < 0 || target >= blocks.length) return [...blocks];
-  const next = [...blocks];
-  [next[index], next[target]] = [next[target], next[index]];
-  return next;
-}
-
-export const removeBlock = <T>(blocks: readonly T[], index: number): T[] => blocks.filter((_, i) => i !== index);
-
-export const canAddBlock = (draft: Pick<TemplateDraft, "blocks">, limits: Pick<MailTemplateLimits, "blocks">): boolean => draft.blocks.length < limits.blocks;
-
 // ---- 输入框的位置、变量 ----
 
-/**
- * 输入框的编号：和服务端指出问题时用的路径写法一样（subject、blocks[1].text、blocks[2].items[0].value、button.label），
- * 要点列表是一个多行输入框，编号就是 blocks[i].items。
- */
-export const blockField = (index: number, part: "text" | "title" | "items"): string => `blocks[${index}].${part}`;
-export const factField = (index: number, row: number, part: "label" | "value"): string => `blocks[${index}].items[${row}].${part}`;
+/** 输入框的编号：和服务端指出问题时用的路径写法一样（subject、button.label），正文是 body，页脚是 footer。 */
+const TOP_FIELDS = ["name", "subject", "preheader", "kicker", "greeting", "body", "footer"] as const;
 
 /** 编号对应的草稿里的值；不认识的编号返回 null。 */
 export function fieldValue(draft: TemplateDraft, field: string): string | null {
@@ -151,7 +183,6 @@ export function setFieldValue(draft: TemplateDraft, field: string, value: string
 }
 
 type Access = { get: () => string; set: (value: string) => void };
-const TOP_FIELDS = ["name", "subject", "preheader", "kicker", "greeting", "footer"] as const;
 
 function locate(draft: TemplateDraft, field: string): Access | null {
   if ((TOP_FIELDS as readonly string[]).includes(field)) {
@@ -160,22 +191,6 @@ function locate(draft: TemplateDraft, field: string): Access | null {
   }
   if (field === "button.label") return { get: () => draft.buttonLabel, set: value => { draft.buttonLabel = value; } };
   if (field === "button.path") return { get: () => draft.buttonPath, set: value => { draft.buttonPath = value; } };
-  const fact = /^blocks\[(\d+)\]\.items\[(\d+)\]\.(label|value)$/.exec(field);
-  if (fact) {
-    const block = draft.blocks[Number(fact[1])];
-    const row = block?.kind === "facts" ? block.rows[Number(fact[2])] : undefined;
-    const part = fact[3] as "label" | "value";
-    return row ? { get: () => row[part], set: value => { row[part] = value; } } : null;
-  }
-  const own = /^blocks\[(\d+)\]\.(text|title|items)$/.exec(field);
-  if (own) {
-    const block = draft.blocks[Number(own[1])];
-    const part = own[2];
-    if (!block) return null;
-    if (part === "text" && (block.kind === "paragraph" || block.kind === "quote")) return { get: () => block.text, set: value => { block.text = value; } };
-    if (part === "title" && block.kind !== "paragraph") return { get: () => block.title, set: value => { block.title = value; } };
-    if (part === "items" && block.kind === "list") return { get: () => block.items, set: value => { block.items = value; } };
-  }
   return null;
 }
 
@@ -218,21 +233,22 @@ export function variablesFor(kind: MailKind, variables: readonly MailVariable[])
 export type FieldIssues = { byField: Record<string, string[]>; general: string[] };
 
 /**
- * 把服务端指出的问题标到输入框上。同一个输入框的几条都留着；要点列表的第几条出问题，标在整个列表的输入框上；
- * 页脚同理。认不出对应输入框的（整份模板的问题、块本身的问题）放进 general，由页面单独写出来。
+ * 把服务端指出的问题标到输入框上。同一个输入框的几条都留着；正文里任何一块的问题都标在正文输入框上（服务端的话里已经写了第几块），
+ * 页脚第几行出问题标在整个页脚输入框上。保存和预览指出的同一句话只留一条。认不出对应输入框的（整份模板的问题）放进 general，由页面单独写出来。
  */
-export function placeIssues(issues: readonly MailTemplateIssue[], draft: TemplateDraft): FieldIssues {
+export function placeIssues(issues: readonly MailTemplateIssue[]): FieldIssues {
   const byField: Record<string, string[]> = {};
   const general: string[] = [];
-  const add = (field: string, message: string) => { (byField[field] ??= []).push(message); };
+  const add = (field: string, message: string) => {
+    const messages = (byField[field] ??= []);
+    if (!messages.includes(message)) messages.push(message);
+  };
   for (const issue of issues) {
     const path = issue.path;
-    const list = /^blocks\[(\d+)\]\.items\[\d+\]$/.exec(path);
-    if (list && draft.blocks[Number(list[1])]?.kind === "list") add(`blocks[${list[1]}].items`, issue.message);
+    if (path === "blocks" || /^blocks\[\d+\]/.test(path)) add("body", issue.message);
     else if (/^footer\[\d+\]$/.test(path)) add("footer", issue.message);
-    else if (path === "name" || path === "footer" || path === "blocks" || path === "button" || locate(draft, path)) add(path, issue.message);
-    else if (/^blocks\[\d+\]$/.test(path)) add(path, issue.message);
-    else general.push(issue.message);
+    else if (path === "button" || path === "button.label" || path === "button.path" || (TOP_FIELDS as readonly string[]).includes(path)) add(path, issue.message);
+    else if (!general.includes(issue.message)) general.push(issue.message);
   }
   return { byField, general };
 }
@@ -414,4 +430,15 @@ export function groupByKind(templates: readonly MailTemplate[], kinds: readonly 
 /** 一行模板旁边的标记 */
 export function templateFlags(template: Pick<MailTemplate, "is_default" | "enabled">): string[] {
   return [...(template.is_default ? ["默认"] : []), ...(template.enabled ? [] : ["已停用"])];
+}
+
+export type StatusRoute = { kind: MailKind; label: string; choices: MailTemplate[]; current: MailTemplate | null; total: number };
+
+/** 「状态与模板」一行：每个状态能选的（已启用的）模板，和现在发信用的那一套（这一类的默认）。 */
+export function statusRoutes(groups: readonly KindGroup[]): StatusRoute[] {
+  return groups.map(group => ({
+    kind: group.kind, label: group.label, total: group.templates.length,
+    choices: group.templates.filter(template => template.enabled),
+    current: group.templates.find(template => template.is_default) ?? null,
+  }));
 }

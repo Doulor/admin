@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from "vue";
-import { TxCard } from "@talex-touch/tuffex/card";
+import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { TxButton } from "@talex-touch/tuffex/button";
 import { TxEmptyState } from "@talex-touch/tuffex/empty-state";
 import { toast } from "@talex-touch/tuffex/utils";
@@ -8,26 +7,33 @@ import PageHeader from "../components/PageHeader.vue";
 import ErrorPanel from "../components/ErrorPanel.vue";
 import ErrorAlert from "../components/ErrorAlert.vue";
 import LoadingBlock from "../components/LoadingBlock.vue";
+import StatusRoutes from "./mail-templates/StatusRoutes.vue";
 import TemplateList from "./mail-templates/TemplateList.vue";
 import TemplateEditor from "./mail-templates/TemplateEditor.vue";
 import TemplatePreview from "./mail-templates/TemplatePreview.vue";
-import TestSend from "./mail-templates/TestSend.vue";
 import { ApiError, api, jsonBody } from "../lib/http";
 import { confirm } from "../lib/confirm";
 import { useAction, useResource } from "../lib/resource";
 import {
-  IDLE_PREVIEW, copyName, createBody, createPreviewer, draftFromTemplate, draftSnapshot, groupByKind, issuesOf, newDraft, placeIssues, previewPayload, updateBody,
+  IDLE_PREVIEW, copyName, createBody, createPreviewer, draftFromTemplate, draftSnapshot, groupByKind, issuesOf, newDraft, placeIssues, previewPayload, statusRoutes, updateBody,
   type PreviewLetter, type PreviewSample, type PreviewState, type TemplateDraft,
 } from "../lib/mail-templates";
 import type { MailKind, MailRendered, MailTemplate, MailTemplateIssue, MailTemplateList } from "../lib/types";
 
 /**
- * 招聘邮件模板（#285）：已收到、待面试、已录取、未通过四种信，每种可以有几套模板。左边是模板列表（复制、设为默认、停用、删除），
- * 中间编辑，右边是实时预览和向测试邮箱试发。改投递状态时（投递详情页）在同一类的几套里选一套发；不选就用这一类的默认。
+ * 招聘邮件模板（#285、#293）：已收到、待面试、已录取、未通过四种信，每种可以有几套模板。
+ * 顶上「状态与模板」选每个状态发信用哪一套（就是这一类的默认），下面固定高度的工作台：左边模板库，中间像写 Markdown 一样编辑，
+ * 右边实时预览和向测试邮箱试发，三栏各自滚动，整页不随内容变长；窄屏用页签一次显示一栏。改投递状态时（投递详情页）在同一类的几套里选一套发；不选就用这一类的默认。
  */
 const list = useResource(() => api<MailTemplateList>("/api/console/mail-templates"), []);
 const data = computed(() => list.data.value);
 const groups = computed(() => (data.value ? groupByKind(data.value.templates, data.value.kinds) : []));
+const routes = computed(() => statusRoutes(groups.value));
+
+// 窄屏上状态、模板库、编辑、预览一次只显示一栏
+type Pane = "routes" | "lib" | "edit" | "preview";
+const PANES: { id: Pane; label: string }[] = [{ id: "routes", label: "状态" }, { id: "lib", label: "模板库" }, { id: "edit", label: "编辑" }, { id: "preview", label: "预览" }];
+const pane = ref<Pane>("lib");
 
 // ---- 正在编辑的草稿 ----
 
@@ -42,7 +48,7 @@ const kindLabel = computed(() => data.value?.kinds.find(item => item.id === draf
 
 const saveIssues = ref<MailTemplateIssue[]>([]);
 const previewIssues = ref<MailTemplateIssue[]>([]);
-const placed = computed(() => placeIssues([...saveIssues.value, ...previewIssues.value], draft));
+const placed = computed(() => placeIssues([...saveIssues.value, ...previewIssues.value]));
 // 改过草稿以后，保存时指出的问题先收起来，等再保存或预览时重新核对
 watch(() => draftSnapshot(draft), () => { saveIssues.value = []; });
 
@@ -63,7 +69,6 @@ watch(payload, value => { if (editing.value) previewer.request(value); });
 onBeforeUnmount(() => previewer.reset());
 
 const testTo = ref("");
-const workbench = ref<HTMLElement>();
 
 function open(next: TemplateDraft, template: MailTemplate | null) {
   Object.assign(draft, next);
@@ -81,29 +86,26 @@ async function leave(): Promise<boolean> {
   return confirm({ title: "放弃没保存的修改？", body: "这套模板改过的地方还没有保存，离开后会丢掉。", confirmText: "放弃修改", danger: true });
 }
 
-/** 手机上编辑区在列表下面，选中以后滚过去 */
-async function reveal() {
-  if (!window.matchMedia?.("(max-width: 899px)").matches) return;
-  await nextTick();
-  workbench.value?.querySelector(".workbench__edit")?.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
 async function select(template: MailTemplate) {
-  if (template.id === selectedId.value || !(await leave())) return;
+  if (template.id === selectedId.value) {
+    pane.value = "edit";
+    return;
+  }
+  if (!(await leave())) return;
   open(draftFromTemplate(template), template);
-  await reveal();
+  pane.value = "edit";
 }
 async function create(kind: MailKind) {
   if (!(await leave())) return;
   const base = data.value?.templates.find(item => item.kind === kind && item.is_default) ?? null;
   open(newDraft(kind, base), null);
-  await reveal();
+  pane.value = "edit";
 }
 async function copy(template: MailTemplate) {
   if (!data.value || !(await leave())) return;
   const names = data.value.templates.filter(item => item.kind === template.kind).map(item => item.name);
   open(newDraft(template.kind, template, copyName(template.name, names, data.value.limits.name)), null);
-  await reveal();
+  pane.value = "edit";
 }
 async function discard() {
   const template = saved.value ? data.value?.templates.find(item => item.id === saved.value?.id) ?? saved.value : null;
@@ -209,7 +211,7 @@ watch(data, value => {
   <div class="page">
     <PageHeader
       title="邮件模板"
-      description="投递人会收到四种信：已收到、待面试、已录取、未通过。每种信可以有几套模板，改投递状态时选一套发出，不选就用这一类的默认。"
+      description="投递人会收到四种信。上面选每个状态发信用哪一套，下面在模板库里点一套来改，右边马上看到它发出去的样子。"
     />
     <ErrorAlert v-if="actionError" :error="actionError" @close="resetActions" />
 
@@ -217,49 +219,69 @@ watch(data, value => {
     <LoadingBlock v-else-if="!data" :lines="8" />
     <template v-else>
       <p v-if="!data.mail.enabled" class="mail-note">发信还没有配置：可以编辑和预览，试发会如实告诉你没有发出。</p>
-      <div ref="workbench" class="workbench">
-        <TemplateList
-          class="workbench__list"
-          :groups="groups"
-          :selected-id="selectedId"
-          :busy="busy"
-          @select="select"
-          @create="create"
-          @copy="copy"
-          @toggle="toggle.execute($event)"
-          @make-default="makeDefault.execute($event)"
-          @remove="remove.execute($event)"
-        />
-
-        <div class="workbench__edit">
-          <template v-if="editing">
-            <TemplateEditor
-              :draft="draft"
-              :limits="data.limits"
-              :block-kinds="data.block_kinds"
-              :variables="data.variables"
-              :issues="placed"
-              :kind-label="kindLabel"
-              :is-new="saved === null"
-              :dirty="dirty"
-              :saving="save.pending.value"
-              :error="save.error.value"
-              @save="save.execute()"
-              @discard="discard"
-              @close-error="save.reset()"
-            />
-            <div v-if="changed" class="changed">
-              <TxButton variant="secondary" icon="i-carbon-renew" @click="loadLatest">载入别人改过的版本</TxButton>
-            </div>
-          </template>
-          <TxCard v-else>
-            <TxEmptyState title="选一套模板来编辑" description="在列表里点一套模板，或者在某一类下面新建一套。" size="small" />
-          </TxCard>
+      <div class="panes">
+        <div class="panes__tabs" role="group" aria-label="切换区域">
+          <TxButton v-for="item in PANES" :key="item.id" size="sm" :variant="pane === item.id ? 'secondary' : 'ghost'" :aria-pressed="pane === item.id" @click="pane = item.id">{{ item.label }}</TxButton>
         </div>
 
-        <div v-if="editing" class="workbench__side">
-          <TemplatePreview :state="previewState" :kind="draft.kind" :sample="sample" :letter="letter" @refresh="previewer.flush(payload)" />
-          <TestSend v-model:to="testTo" :key="saved?.id ?? 'new'" :payload="payload" :mail="data.mail" :quota="data.test_send" />
+        <StatusRoutes class="panes__routes" :class="{ 'is-active': pane === 'routes' }" :routes="routes" :busy="busy" @choose="makeDefault.execute($event)" />
+
+        <div class="studio">
+          <TemplateList
+            class="studio__pane"
+            :class="{ 'is-active': pane === 'lib' }"
+            :groups="groups"
+            :selected-id="selectedId"
+            :busy="busy"
+            @select="select"
+            @create="create"
+            @copy="copy"
+            @toggle="toggle.execute($event)"
+            @make-default="makeDefault.execute($event)"
+            @remove="remove.execute($event)"
+          />
+
+          <div class="studio__pane" :class="{ 'is-active': pane === 'edit' }">
+            <template v-if="editing">
+              <TemplateEditor
+                class="studio__fill"
+                :draft="draft"
+                :limits="data.limits"
+                :variables="data.variables"
+                :issues="placed"
+                :kind-label="kindLabel"
+                :is-new="saved === null"
+                :dirty="dirty"
+                :saving="save.pending.value"
+                :error="save.error.value"
+                @save="save.execute()"
+                @discard="discard"
+                @close-error="save.reset()"
+              />
+              <div v-if="changed" class="changed">
+                <TxButton variant="secondary" icon="i-carbon-renew" @click="loadLatest">载入别人改过的版本</TxButton>
+              </div>
+            </template>
+            <TxEmptyState v-else title="选一套模板来编辑" description="在模板库里点一套模板，或者新建一套。" size="small" />
+          </div>
+
+          <div class="studio__pane" :class="{ 'is-active': pane === 'preview' }">
+            <TemplatePreview
+              v-if="editing"
+              v-model:test-to="testTo"
+              :key="saved?.id ?? 'new'"
+              class="studio__fill"
+              :state="previewState"
+              :kind="draft.kind"
+              :sample="sample"
+              :letter="letter"
+              :payload="payload"
+              :mail="data.mail"
+              :quota="data.test_send"
+              @refresh="previewer.flush(payload)"
+            />
+            <TxEmptyState v-else title="还没有可预览的内容" description="打开一套模板以后，这里显示它发出去的样子。" size="small" />
+          </div>
         </div>
       </div>
     </template>
@@ -273,52 +295,63 @@ watch(data, value => {
   line-height: 20px;
   color: var(--tx-color-warning);
 }
-.workbench {
+.panes {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.panes__tabs {
+  display: none;
+  flex: none;
+  gap: 4px;
+}
+.studio {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-areas: "list edit side";
-  gap: 16px;
-  align-items: start;
+  grid-template-columns: 270px minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 12px;
+  height: clamp(520px, calc(100dvh - 372px), 940px);
+  min-height: 0;
 }
-.workbench__list {
-  grid-area: list;
-}
-.workbench__edit {
-  grid-area: edit;
+.studio__pane {
   display: flex;
   flex-direction: column;
-  gap: 16px;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--tx-border-color-lighter);
+  border-radius: var(--tx-border-radius-base);
+  background: var(--tx-bg-color-overlay, #fff);
 }
-.workbench__side {
-  grid-area: side;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
-  position: sticky;
-  top: 16px;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
+.studio__fill {
+  flex: 1;
+  min-height: 0;
 }
 .changed {
   display: flex;
+  flex: none;
+  padding: 10px 14px;
+  border-top: 1px solid var(--tx-border-color-lighter);
 }
-@media (max-width: 1279px) {
-  .workbench {
-    grid-template-columns: 240px minmax(0, 1fr);
-    grid-template-areas: "list edit" "list side";
+@media (max-width: 1179px) {
+  .panes {
+    height: clamp(520px, calc(100dvh - 250px), 940px);
   }
-  .workbench__side {
-    position: static;
-    max-height: none;
-    overflow: visible;
+  .panes__tabs {
+    display: flex;
   }
-}
-@media (max-width: 899px) {
-  .workbench {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "list" "edit" "side";
+  .panes__routes:not(.is-active),
+  .studio__pane:not(.is-active) {
+    display: none;
+  }
+  .studio {
+    display: contents;
+  }
+  .panes__routes.is-active,
+  .studio__pane.is-active {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
   }
 }
 </style>
