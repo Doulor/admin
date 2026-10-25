@@ -143,7 +143,8 @@
         "forum",
         "gitlab",
         "identity",
-        "organization"
+        "organization",
+        "mail"
       ],
       "nodes": [
         "application:server",
