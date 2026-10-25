@@ -166,6 +166,8 @@ describe.skipIf(!nginxBinary)('hashed output folders through host → web → fo
     '/console-assets/': ['index-Da-v5ibB.js', 'index-BDUuSmcz.css', 'font-Ab_cd-12.woff2', 'logo-B8XWu1eE.png'],
   };
   const forumFiles = ['BsIrHTXA.js', 'entry.CWRjoBJd.css', 'inter.Dx3Kp_9a.woff2', 'logo.aFxUkDTw.webp'];
+  // 真实的 geek 二进制里内嵌生产域名（config.rs 的 PRODUCTION_ORIGIN）：夹具带上这个字面量，才能证明版本化产物不经过 sub_filter。
+  const BINARY = 'x\u0000https://yangtzeu.work\u0000x';
 
   beforeAll(async () => {
     root = mkdtempSync(join(tmpdir(), 'geek-asset-cache-'));
@@ -180,7 +182,7 @@ describe.skipIf(!nginxBinary)('hashed output folders through host → web → fo
     put(join(webHtml, 'logo.png'));
     for (const [prefix, files] of Object.entries(webFiles)) for (const file of files) put(join(webHtml, prefix, file));
     // geek 命令行分发（#277）：版本化的二进制长缓存，顶层的安装脚本/latest.json 不缓存。
-    put(join(webHtml, 'cli', '0.1.0', 'geek-aarch64-apple-darwin'));
+    put(join(webHtml, 'cli', '0.1.0', 'geek-aarch64-apple-darwin'), BINARY);
     // 安装脚本用 cli-dist.mjs 真实生成的文本：nginx 改写默认源站时匹配的就是这份文本里的域名（#289）。
     put(join(webHtml, 'cli', 'install.sh'), installSh());
     put(join(webHtml, 'cli', 'install.ps1'), installPs1());
@@ -302,8 +304,10 @@ describe.skipIf(!nginxBinary)('hashed output folders through host → web → fo
     // latest.json 也在 /cli/ 下，改写之后仍是合法 JSON，安装脚本读的 version 不变。
     expect(JSON.parse((await get('/cli/latest.json', 'prev.yangtzeu.work')).body).version).toBe('0.1.0');
     // 版本化产物走另一个 location，不经过改写。
-    const binary = await get('/cli/0.1.0/geek-aarch64-apple-darwin', 'prev.yangtzeu.work');
-    expect([binary.status, binary.body]).toEqual([200, 'x']);
+    for (const host of ['prev.yangtzeu.work', 'yangtzeu.work']) {
+      const binary = await get('/cli/0.1.0/geek-aarch64-apple-darwin', host);
+      expect([host, binary.status, binary.body]).toEqual([host, 200, BINARY]);
+    }
   });
 
   it('forum: every file under /forum/_nuxt/ gets one year with the forum CSP, latest.json is not cached', async () => {
