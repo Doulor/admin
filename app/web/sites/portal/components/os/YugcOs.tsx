@@ -8,6 +8,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Modal from "@shared/ui/Modal";
 import { PHONE_QUERY, PORTRAIT_QUERY, useMediaQuery } from "../../lib/useMediaQuery";
 import { signInHref, useAccount } from "../../lib/account";
+import { useApplyOpen } from "../../lib/applyOpen";
 import { reportEvent } from "../../lib/events";
 import { noteSeenHere, rememberNoteHere, rememberNoteOnAccount } from "../../lib/startNote";
 import { appById, appByKey, appLink, filterCommands, followAppLink, launcherCommands, moveSelection, visibleApps, type AppId } from "../../lib/osApps";
@@ -45,7 +46,9 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
   const { account, loaded, signOut, patch, reload } = useAccount();
   // 控制台只给 console_link 为 true 的人：其他人的桌面、Dock、资料卡、启动器、终端里都没有它。
   const consoleLink = account?.consoleLink === true;
-  const apps = useMemo(() => visibleApps(consoleLink), [consoleLink]);
+  // 招新总开关（#284）：关着时图标说明、便签、「关于」窗口都不再叫人去报名；「加入我们」窗口每次打开重读，读到的值通过 setApplyOpen 同步回来
+  const [applyOpen, setApplyOpen] = useApplyOpen();
+  const apps = useMemo(() => visibleApps(consoleLink, applyOpen), [consoleLink, applyOpen]);
   const [now, setNow] = useState(() => new Date());
   const [wins, setWins] = useState<WindowState[]>([]);
   const [menu, setMenu] = useState<{ name: MenuName; left: number } | null>(null);
@@ -432,7 +435,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
           <div className="pt-home-apps" ref={(node) => { if (node) node.inert = phone && !!front; }}>
             {phone && <div className="pt-phone-heading"><h2>极客班</h2><button type="button" onClick={() => setPhoneGuide(true)}>新来的看这里 <Icon name="arrow-right-s-line" size={14} /></button></div>}
             <DesktopIcons apps={apps} selected={selectedIcon} onSelect={setSelectedIcon} onOpen={open} phone={phone} />
-            {!phone && note && <StartNote onOpen={openFromNote} onClose={closeNote} />}
+            {!phone && note && <StartNote onOpen={openFromNote} onClose={closeNote} applyOpen={applyOpen} />}
           </div>
 
           <div className="pt-windows">
@@ -459,6 +462,8 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
                 onOpen={open}
                 apps={apps}
                 phone={phone}
+                applyOpen={applyOpen}
+                onApplyOpen={setApplyOpen}
                 profile={win.id === "profile" ? { signInLink, onPatch: patch, onReload: reload, onSignOut: () => void signOut().then(() => closeWindow("profile")) } : undefined}
               />
             ))}
@@ -608,7 +613,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
           </Modal>
         )}
         {phoneGuide && <Modal title="新来的看这里" className="pt-root pt-os-modal pt-phone-guide is-phone" onClose={() => { setPhoneGuide(false); markNoteSeen(); reportEvent("os.note.dismissed"); }}>
-          <StartNote phone onOpen={(id, from) => { setPhoneGuide(false); markNoteSeen(); open(id, from); }} onClose={() => setPhoneGuide(false)} />
+          <StartNote phone applyOpen={applyOpen} onOpen={(id, from) => { setPhoneGuide(false); markNoteSeen(); open(id, from); }} onClose={() => setPhoneGuide(false)} />
         </Modal>}
         {phoneSettings && <Modal title="系统设置" className={`pt-root pt-os-modal pt-phone-settings${phone ? " is-phone" : ""}`} onClose={() => setPhoneSettings(false)}>
           <div className="pt-phone-settings-list">

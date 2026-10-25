@@ -1146,7 +1146,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -3097,7 +3097,7 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 125,
+          "line": 172,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
@@ -6205,11 +6205,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 250,
+          "line": 253,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 156,
+          "line": 159,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -10254,7 +10254,7 @@
           "path": "app/web/shared/config/index.ts"
         },
         {
-          "line": 64,
+          "line": 65,
           "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
@@ -15507,7 +15507,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "8164230e7a971f212c16899c26be99c2d73dbda6168adbfdabe560d8eea474fc",
+    "fingerprint": "65a63ba8f94f9d0c19df5be79526b5b1e0cd468461b23bdbf6e2921bdfe0c02b",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -16895,7 +16895,7 @@
       },
       {
         "path": "app/web/shared/lib/mock-api.ts",
-        "sha256": "9b0bb37e4ef218b119341fd073e5673adc9606f99f49144673db55a7cf0bdfcd"
+        "sha256": "528cacf175ec6a2978bbe37635e28a3e6c0c3cfabe75d977b929a802c68c4f92"
       },
       {
         "path": "app/web/shared/lib/mount.tsx",
@@ -17083,7 +17083,11 @@
       },
       {
         "path": "app/web/sites/portal/components/os/JoinBox.tsx",
-        "sha256": "a2b02be2e7e1c2613cdb03a6d5c4db956ad919d96196fd8bf91d77d373e6f0f4"
+        "sha256": "2b746d292aea97eaa3158c9cced22fa99b8ef6c979535246130a0663f0af36e2"
+      },
+      {
+        "path": "app/web/sites/portal/components/os/JoinClosed.tsx",
+        "sha256": "d3507319df45978a2740223222e8a9b155b3e7a57e2469feca158ec9472e8599"
       },
       {
         "path": "app/web/sites/portal/components/os/ProfileCard.tsx",
@@ -17103,15 +17107,15 @@
       },
       {
         "path": "app/web/sites/portal/components/os/Widgets.tsx",
-        "sha256": "cb0d8639757967cfc2492031d6320cd6dd41b4cd93ffebda65c32539f487273a"
+        "sha256": "b9cab3e36d928be5e62d69f4f1a7b60b94a918f57ce4d4b8ed79c36ac221b855"
       },
       {
         "path": "app/web/sites/portal/components/os/Windows.tsx",
-        "sha256": "e988544c50c35ef4070bd7ac135b7f9b0ec7a413c77bfe119659ecd567347fda"
+        "sha256": "42f224846139db8dd62a32509137efed8edf8d40509702d32081bbf32f21fbde"
       },
       {
         "path": "app/web/sites/portal/components/os/YugcOs.tsx",
-        "sha256": "555ce111c36afe9ac61ddbca5a48c77c2c25eced784e9493046e7bc36d830b29"
+        "sha256": "818e77faf3e48aeff7584b47ce5bbd766cf8b49183be6cc910d4fd191d10b813"
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/Avatar.tsx",
@@ -17166,6 +17170,10 @@
         "sha256": "74775360555d87bdc555d322423a1cb458a2f6a0e14aa83ef8909c83a7180901"
       },
       {
+        "path": "app/web/sites/portal/lib/applyOpen.ts",
+        "sha256": "af96c7abf5674110098dedfddda29c679d566191d90ac56c45f012e0793d4b6c"
+      },
+      {
         "path": "app/web/sites/portal/lib/bootGate.ts",
         "sha256": "24f1aa96bcbcfe1587878072770551c3cda44a9167c70567c7a85dcd250a6052"
       },
@@ -17211,7 +17219,7 @@
       },
       {
         "path": "app/web/sites/portal/lib/osApps.ts",
-        "sha256": "e6844f15b795c52849028a2fa6d9f5e10ba7709c42f8840692915eb0cac4d452"
+        "sha256": "d531e728de4a40adc662c902dae36c2329fccdf1e56b0288fc272b4fc9641c09"
       },
       {
         "path": "app/web/sites/portal/lib/pixelRatio.ts",
@@ -17379,7 +17387,7 @@
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "fa15b69414ac95038d73d271338fded8e0c9eaf392318b987fb64bb04c7702a0"
+        "sha256": "17d59e27858fc0d391fe697d994aa699b131e83ad30894433014716c80f24ae0"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -23162,7 +23170,7 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 125,
+          "line": 172,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
@@ -23210,7 +23218,7 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 125,
+          "line": 172,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
@@ -23258,7 +23266,7 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 125,
+          "line": 172,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
@@ -23330,7 +23338,7 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 125,
+          "line": 172,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
@@ -23378,7 +23386,7 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 125,
+          "line": 172,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
@@ -23426,7 +23434,7 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 125,
+          "line": 172,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
@@ -23474,7 +23482,7 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 125,
+          "line": 172,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
@@ -23522,7 +23530,7 @@
           "path": "app/server/src/lib/apply-quota.ts"
         },
         {
-          "line": 125,
+          "line": 172,
           "path": "app/web/sites/portal/components/os/JoinBox.tsx"
         },
         {
@@ -32742,11 +32750,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 250,
+          "line": 253,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 156,
+          "line": 159,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -32826,11 +32834,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 250,
+          "line": 253,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 156,
+          "line": 159,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -32910,11 +32918,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 250,
+          "line": 253,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 156,
+          "line": 159,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -32994,11 +33002,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 250,
+          "line": 253,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 156,
+          "line": 159,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -33114,11 +33122,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 250,
+          "line": 253,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 156,
+          "line": 159,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -67548,7 +67556,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -67680,7 +67688,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -67812,7 +67820,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -67944,7 +67952,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68076,7 +68084,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68208,7 +68216,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68340,7 +68348,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68472,7 +68480,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68688,7 +68696,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68820,7 +68828,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68952,7 +68960,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -73282,7 +73290,7 @@
           "path": "app/web/shared/config/index.ts"
         },
         {
-          "line": 64,
+          "line": 65,
           "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
@@ -73330,7 +73338,7 @@
           "path": "app/web/shared/config/index.ts"
         },
         {
-          "line": 64,
+          "line": 65,
           "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
@@ -73378,7 +73386,7 @@
           "path": "app/web/shared/config/index.ts"
         },
         {
-          "line": 64,
+          "line": 65,
           "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
@@ -73426,7 +73434,7 @@
           "path": "app/web/shared/config/index.ts"
         },
         {
-          "line": 64,
+          "line": 65,
           "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
@@ -73474,7 +73482,7 @@
           "path": "app/web/shared/config/index.ts"
         },
         {
-          "line": 64,
+          "line": 65,
           "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
@@ -73522,7 +73530,7 @@
           "path": "app/web/shared/config/index.ts"
         },
         {
-          "line": 64,
+          "line": 65,
           "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
@@ -73570,7 +73578,7 @@
           "path": "app/web/shared/config/index.ts"
         },
         {
-          "line": 64,
+          "line": 65,
           "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
@@ -73618,7 +73626,7 @@
           "path": "app/web/shared/config/index.ts"
         },
         {
-          "line": 64,
+          "line": 65,
           "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
@@ -73672,7 +73680,7 @@
           "path": "app/web/shared/config/index.ts"
         },
         {
-          "line": 64,
+          "line": 65,
           "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
@@ -73720,7 +73728,7 @@
           "path": "app/web/shared/config/index.ts"
         },
         {
-          "line": 64,
+          "line": 65,
           "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
@@ -73768,7 +73776,7 @@
           "path": "app/web/shared/config/index.ts"
         },
         {
-          "line": 64,
+          "line": 65,
           "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
@@ -73816,7 +73824,7 @@
           "path": "app/web/shared/config/index.ts"
         },
         {
-          "line": 64,
+          "line": 65,
           "path": "app/web/sites/portal/components/os/Widgets.tsx"
         }
       ],
@@ -123848,6 +123856,19 @@
         "public_content",
         "recruitment"
       ],
+      "path": "app/web/sites/portal/components/os/JoinClosed.tsx"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
       "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
     },
     {
@@ -124019,6 +124040,19 @@
         "recruitment"
       ],
       "path": "app/web/sites/portal/lib/account.ts"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "path": "app/web/sites/portal/lib/applyOpen.ts"
     },
     {
       "domains": [

@@ -32,6 +32,7 @@
 | `lib/cameraMath.ts`、`lib/motion.ts` | 相机距离（cover/contain）、像素 ↔ 相机平面换算、竖屏横带取景、缓动与插值 |
 | `lib/pixelRatio.ts` | 3D 像素比调速器：起步档位、降档规则、帧间隔预算（纯逻辑） |
 | `lib/osApps.ts` | YUGC OS 应用清单（每个应用打开什么只写在这里：`scene`、`window`、`panel`、`site` 四种；「代码仓库」「比赛」「意见箱」是 `{ kind: "window" }`）、站外应用的地址（`appLink`、`followAppLink`，只剩论坛和控制台）、启动器过滤、时间文案、读屏用的 `NEW_TAB_NOTE` |
+| `lib/applyOpen.ts` | 招新总开关（#284）在官网这一侧的读法：`applyOpenOf` 只认明确的 `apply_open: false` 为关闭（没有字段、读不到都按开放），`joinView` 把「配置读到没有、开关、寄信时服务端说已关」映射成窗口的 loading / letter / closed 三种，`useApplyOpen` 给桌面挂载时读一次 `GET /api/public/config` |
 | `lib/shell/*` | 终端窗口里的模拟 Linux（#279）：`vfs.ts` 文件系统、`parse.ts` 命令行解析、`commands.ts` 命令、`index.ts` 执行与存盘补全、`ansi.ts` 颜色码转片段；纯逻辑，不碰 DOM，见下文「窗口外框与终端」 |
 | `lib/promo.ts`、`components/PromoPlayer.tsx`、`components/PromoLazy.tsx`、`styles/promo.css` | 宣传片：CDN 地址、「只自动播一次」的 cookie、按浏览器能力挑编码与播放方式、起播预取（纯逻辑在 `lib/promo.ts`）；全屏播放层（见下文「宣传片」） |
 | `lib/links.ts` | 站外链接的唯一解析点：论坛首页/版块/话题、控制台、账号设置 `/account`、代码仓库（自建 GitLab，站点配置 `urls.gitlab`） |
@@ -46,7 +47,7 @@
 | `lib/events.ts` | 埋点：`reportEvent` 攒批 `POST /api/events`（见下文「埋点」） |
 | `lib/snapshots.ts` | 读取 `public/portal/forum-latest.json` 论坛快照 |
 | `lib/icons.ts`、`components/Icon.tsx` | Remix Icon 路径注册表与图标组件 |
-| `components/os/*` | YUGC OS 桌面：`YugcOs.tsx`（菜单栏、Dock、启动器、换壁纸面板、手机状态栏与弹层）、`Widgets.tsx`（应用图标与「新来的看这里」便签）、`Windows.tsx`（窗口外框与关于、组织架构、代码仓库、论坛最新等窗口正文；意见箱、加入我们、终端窗口的正文在 `FeedbackBox.tsx`、`JoinBox.tsx`、`Terminal.tsx`，打开时才加载；电脑上窗口从顶边往下最多到 Dock 上沿，内容长的窗口在里面滚动，不钻到 Dock 下面）、`ProfileCard.tsx`（「账号资料」窗口的正文）、`SkyWallpaper.tsx`（默认壁纸「晴空」）、`Wallpaper.tsx`（壁纸图层与换壁纸动效）；壁纸清单、下载解码与空闲预取在 `lib/wallpapers.ts`（图片地址只写在这里），文件在 `assets/wallpapers/`，见下文「壁纸」 |
+| `components/os/*` | YUGC OS 桌面：`YugcOs.tsx`（菜单栏、Dock、启动器、换壁纸面板、手机状态栏与弹层）、`Widgets.tsx`（应用图标与「新来的看这里」便签）、`Windows.tsx`（窗口外框与关于、组织架构、代码仓库、论坛最新等窗口正文；意见箱、加入我们、终端窗口的正文在 `FeedbackBox.tsx`、`JoinBox.tsx`（招新关着时换成同目录的 `JoinClosed.tsx`）、`Terminal.tsx`，打开时才加载；电脑上窗口从顶边往下最多到 Dock 上沿，内容长的窗口在里面滚动，不钻到 Dock 下面）、`ProfileCard.tsx`（「账号资料」窗口的正文）、`SkyWallpaper.tsx`（默认壁纸「晴空」）、`Wallpaper.tsx`（壁纸图层与换壁纸动效）；壁纸清单、下载解码与空闲预取在 `lib/wallpapers.ts`（图片地址只写在这里），文件在 `assets/wallpapers/`，见下文「壁纸」 |
 | `components/Emblem.tsx`、`SceneBar.tsx`、`PageShell.tsx` | 校徽几何、场景页顶栏、普通页外壳 |
 | `components/ChoiceChips.tsx` | 少量选项的单选胶囊（原生 radio，方向键切换）；官网表单不用原生下拉框 |
 | `styles/*.css` | 视觉令牌与组件样式（`.pt-root` 作用域）：`portal.css` 定义 `--pt-*`（场景页、普通页）与 `--os-*`（YUGC OS v2）两套令牌，`boot.css` 开机动画层，`os.css` 桌面与窗口，`competitions.css` 比赛窗口，`scenes.css` 论坛场景页；规范见 [DESIGN](../../design/DESIGN.md)「YUGC OS v2 视觉令牌」 |
@@ -78,7 +79,7 @@ three.js 只通过 `/forum-3d` 页里的 `import("../three/forum")` 进入，首
 
 ## 新来的看这里（便签，#275）
 
-- 便签换成窗口外框：粉色标题栏、一个关闭圆点（读屏名称「收起这张便签」）和标题，下面三行：在「加入我们」写封信（实色主行）、去「论坛」看看、去「代码仓库」看我们的代码，每行点下去打开那个应用。
+- 便签换成窗口外框：粉色标题栏、一个关闭圆点（读屏名称「收起这张便签」）和标题，下面三行：在「加入我们」写封信（实色主行）、去「论坛」看看、去「代码仓库」看我们的代码，每行点下去打开那个应用。招新关着时（#284）去掉「在「加入我们」写封信」那一行，只剩论坛和代码仓库两行，开头那句改成「现在不招新；可以先看看论坛和我们的代码」。
 - 什么时候自动出现：本机 `yugc:start-note-seen` 和账号的 `prefs.start_note_seen_at` 都没有记录时出现；收起或点了其中一行，两处一起记（账号那一处失败不影响界面）。账号里有记录时同步到本机。点了某一行之后便签这次照样开着，下次不再自动出现。菜单栏「帮助」能再打开；手机上不默认展开，「新来的看这里」按需打开。
 - 收起报 `os.note.dismissed`。
 
@@ -179,7 +180,10 @@ three.js 只通过 `/forum-3d` 页里的 `import("../three/forum")` 进入，首
 - **没登录**（#275）：读完 `/auth/me` 发现没登录时，信纸上只有「先注册再投递」、一句说明和「注册」「登录」两个按钮，都带 `return_to=/?open=join`，注册或登录后回到桌面并打开这个窗口；不显示表单，免得写完了才发现要登录、跳走时内容丢掉。
 - **限额**：注册用户每天 3 份，成员不限（SPEC §3.8，数字是服务端 meta 的初始值）。登录后信纸底部按 `/auth/me` 的 `quota` 写「今天还能投 N 份」；成员 `apply_daily_limit` 为 -1 时不写。今天投完了按钮变灰，写「今天的投递次数用完了，明天再来」。寄出成功后用 201 回执里的 `quota` 更新。
 - **失败**：写到一半登录失效（401）时信纸留着，寄出按钮换成「重新登录」，提示先把写好的内容复制下来；被每日限额挡下（429 `rate_limited`、`bucket: "apply.daily"`）照服务端的 message 说并把按钮置灰；按 IP 或设备的限额（429）同样照服务端原话显示（#169）。
-- **单测**：`tests/web/portal-join-gate.test.tsx`（没登录、限额显示与更新、投完、成员不限、401、429）；`tests/web/portal-os-entries.test.tsx` 核对 Dock 和 1 键开的是同一个窗口、旧地址 `/join-us`、`/apply` 跳到 `/?open=join`。
+- **招新总开关**（#284，2026-10-25 00:15：「投递的话可以选择开启和关闭，关闭的时候会有个单独的页面」）：开关在控制台「投递」页顶部（权限 `apply.settings`），状态由 `GET /api/public/config` 的 `apply_open` 带给官网（没设过为 `true`）。「加入我们」窗口每次打开都重读一遍：读到之前只显示「正在打开信纸…」，不先闪出表单；开着是信纸，关着整个窗口换成 `components/os/JoinClosed.tsx`：「招新暂未开放」、一句说明、刷新或重新打开窗口能看到最新状态，下面是「看宣传片」「关于极客班」两个去别的窗口的入口和一个去论坛的链接；没有表单，也没有注册、登录这类报名入口，也不去读 `/auth/me`。读不到配置不算关闭：信纸照常出来并提示连不上服务器，关不关由服务端在寄出时裁决。
+- **寄信时被关**（#284）：服务端回 403 `apply_closed` 时整个窗口同样换成关闭页（没寄出去的内容不保留），并把「关了」报给桌面。
+- **桌面上其它叫人去报名的地方**（#284）：`YugcOs` 挂载时读一次开关（`useApplyOpen`），「加入我们」窗口读到的开关也会同步回来。关着时：「加入我们」图标、启动器和终端里的说明换成「招新暂未开放」（`visibleApps(consoleLink, applyOpen)`，应用本身还在，点开是关闭页）；「新来的看这里」便签去掉写信那一行；「关于极客班」窗口的「怎么加入」写「现在不招新」，并去掉「加入我们」按钮。页头和页脚的「加入我们」链接只是打开这个窗口，不改；`index.html` 的 meta 描述是静态文字，跟不上开关；终端里一条 10-24 的「apply: 投递成功」是装样子的历史记录，不改。
+- **单测**：`tests/web/portal-apply-switch.test.tsx`（开关的读法与窗口三种状态、关闭页没有表单和报名入口、不闪表单、403 换页、重新打开窗口重读、读不到配置、桌面三处文案和窗口读到后同步）；`tests/web/portal-join-gate.test.tsx`（没登录、限额显示与更新、投完、成员不限、401、429）；`tests/web/portal-os-entries.test.tsx` 核对 Dock 和 1 键开的是同一个窗口、旧地址 `/join-us`、`/apply` 跳到 `/?open=join`。
 
 ## 壁纸
 

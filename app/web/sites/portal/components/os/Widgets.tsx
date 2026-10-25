@@ -56,10 +56,11 @@ export function AppGlyph({ app, size = 24 }: { app: OsApp; size?: number }) {
 /**
  * 「新来的看这里」：像贴在桌面上的便签，说清怎么加入、另外两个应用是什么；每一行点下去就打开写着的那个应用。
  * 只在这个浏览器第一次进来时自动出现，收起或点过其中一步就算看过（lib/startNote.ts）；之后在菜单栏「帮助」里重新打开。
+ * 招新关着时（#284）不再叫人写信：去掉「加入我们」那一步，开头那句也改成现在不招新。
  */
-export function StartNote({ onOpen, onClose, phone = false }: { onOpen: OpenApp; onClose: () => void; phone?: boolean }) {
+export function StartNote({ onOpen, onClose, phone = false, applyOpen = true }: { onOpen: OpenApp; onClose: () => void; phone?: boolean; applyOpen?: boolean }) {
   const steps: Array<{ id: AppId; title: string; text: string }> = [
-    { id: "join", title: "在「加入我们」写封信", text: "写上姓名、班级、邮箱，再说说你会什么。招新部看完用邮件联系你。" },
+    ...(applyOpen ? [{ id: "join" as const, title: "在「加入我们」写封信", text: "写上姓名、班级、邮箱，再说说你会什么。招新部看完用邮件联系你。" }] : []),
     { id: "forum", title: "去「论坛」看看大家在聊什么", text: "公告、课程、竞赛和求职都在这里，不用登录也能看。" },
     { id: "gitlab", title: "去「代码仓库」看我们的代码", text: "极客班的仓库都在这里，成员用极客班账号登录。" },
   ];
@@ -78,7 +79,7 @@ export function StartNote({ onOpen, onClose, phone = false }: { onOpen: OpenApp;
         <span aria-hidden="true" />
       </header>}
       <div className="pt-note-body">
-        <p className="pt-note-lead">这是长江大学极客班的{phone ? "主屏幕" : "桌面"}。想加入就写封信；也可以先看看论坛和我们的代码。</p>
+        <p className="pt-note-lead">这是长江大学极客班的{phone ? "主屏幕" : "桌面"}。{applyOpen ? "想加入就写封信；也可以先看看论坛和我们的代码。" : "现在不招新；可以先看看论坛和我们的代码。"}</p>
         <ol>
           {steps.map((step, index) => (
             <li key={step.id}>

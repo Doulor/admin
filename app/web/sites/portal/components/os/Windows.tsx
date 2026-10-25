@@ -64,9 +64,12 @@ type Props = {
   account?: Account | null;
   accountLoaded?: boolean;
   profile?: ProfileActions;
+  /** 招新总开关（#284）：桌面读到的状态，「关于」窗口据此不再叫人去写信；「加入我们」窗口每次打开重读开关，读到就用 onApplyOpen 报回桌面。 */
+  applyOpen?: boolean;
+  onApplyOpen?: (open: boolean) => void;
 };
 
-export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZoom, onMove, onOpen, apps, phone = false, account = null, accountLoaded = true, profile }: Props) {
+export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZoom, onMove, onOpen, apps, phone = false, account = null, accountLoaded = true, profile, applyOpen = true, onApplyOpen }: Props) {
   // 没登录时账号资料窗口里只有登录、注册，窗口名也跟着说「登录极客班」
   const meta = win.id === "profile" && !account ? { ...META.profile, title: "登录极客班" } : META[win.id];
   const ref = useRef<HTMLElement>(null);
@@ -240,10 +243,10 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
         <div className={win.id === "competitions" ? "pt-win-body is-flush" : "pt-win-body"}>
           {win.id === "join" && (
             <Suspense fallback={<p className="pt-empty">正在打开信纸…</p>}>
-              <JoinBox />
+              <JoinBox onOpen={onOpen} onApplyOpen={onApplyOpen} />
             </Suspense>
           )}
-          {win.id === "about" && <About onOpen={onOpen} />}
+          {win.id === "about" && <About onOpen={onOpen} applyOpen={applyOpen} />}
           {win.id === "org" && <OrgChart />}
           {win.id === "forum-feed" && <ForumFeed />}
           {win.id === "profile" && profile && <ProfileCard account={account} {...profile} />}
@@ -265,7 +268,7 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
   );
 }
 
-function About({ onOpen }: { onOpen: OpenApp }) {
+function About({ onOpen, applyOpen }: { onOpen: OpenApp; applyOpen: boolean }) {
   const { brand } = appConfig.portal;
   const departments = useDepartments().filter((department) => department.titles.length > 0);
   // 称号名字在控制台改，这里照数据说，不写死（tests/web/portal-org-window.test.tsx 扫源码）
@@ -296,13 +299,15 @@ function About({ onOpen }: { onOpen: OpenApp }) {
               <Icon name="mail-line" size={15} />
               怎么加入
             </dt>
-            <dd>注册极客班账号，在「加入我们」写封信，我们用邮件联系你</dd>
+            <dd>{applyOpen ? "注册极客班账号，在「加入我们」写封信，我们用邮件联系你" : "现在不招新"}</dd>
           </div>
         </dl>
         <div className="pt-row-btns">
-          <button type="button" className="pt-btn is-primary" onClick={(e) => onOpen("join", e.currentTarget)}>
-            <Icon name="mail-send-line" size={16} /> 加入我们
-          </button>
+          {applyOpen && (
+            <button type="button" className="pt-btn is-primary" onClick={(e) => onOpen("join", e.currentTarget)}>
+              <Icon name="mail-send-line" size={16} /> 加入我们
+            </button>
+          )}
           <button type="button" className="pt-btn" onClick={(e) => onOpen("org", e.currentTarget)}>
             <Icon name="organization-chart" size={16} /> 查看组织架构
           </button>

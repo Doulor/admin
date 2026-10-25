@@ -54,12 +54,16 @@ export function appTone(app: OsApp): AppTone {
   return TONES[Math.max(0, OS_APPS.findIndex((candidate) => candidate.id === app.id)) % TONES.length];
 }
 
+/** 招新关着时「加入我们」图标、启动器和终端里的说明（#284）：不再写「报名」，窗口里是招新暂未开放的页面 */
+const JOIN_CLOSED_BLURB = "招新暂未开放";
+
 /**
  * 这个人能看到的应用：控制台只给在里面能管点什么的人（`/auth/me` 的 `console_link`）；没登录和没有管理能力的人，
  * 桌面、Dock、菜单、启动器和终端里都没有它。控制台自己的准入不变。
+ * `applyOpen` 是招新总开关（lib/applyOpen.ts）：关着时「加入我们」的说明换成「招新暂未开放」，应用本身仍在，点开是关闭页。
  */
-export function visibleApps(consoleLink: boolean): OsApp[] {
-  return OS_APPS.filter((app) => consoleLink || app.id !== "console");
+export function visibleApps(consoleLink: boolean, applyOpen = true): OsApp[] {
+  return OS_APPS.filter((app) => consoleLink || app.id !== "console").map((app) => (app.id === "join" && !applyOpen ? { ...app, blurb: JOIN_CLOSED_BLURB } : app));
 }
 
 export function appById(id: string): OsApp | undefined {
