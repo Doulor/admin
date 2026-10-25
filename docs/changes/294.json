@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "issue": 294,
+  "kind": "business",
+  "summary": "所有者 2026-10-25 18:57：「表情包太大了，一般你看b站里面的，它们的表情包和文字大小一致，而且看起来也清晰，这个很好修复的，你快速修复去发版」；问大小时答：「不一定需要文字和表情包一样大，但是底部需要对齐」。实测原因：回复框里表情的样式只认同源地址 /api/forum/stickers/，#286 起内置表情走 CDN 地址，规则不再命中，回复框里的表情按图片原尺寸撑成 256px；帖子里则写死 4rem。改成一条规则（shared/sticker-css.ts）：帖子的 .forum-sticker 和回复框里同源或 CDN 地址的表情图片都是两个字高，底部对齐文字底部（vertical-align: text-bottom，量过 B 站评论区：表情 21px、正文 15px，同样对齐）。地址前缀取自 shared/sticker-url.ts 的白名单常量。",
+  "applications": [
+    "forum"
+  ],
+  "domains": [
+    "forum"
+  ],
+  "flows": [],
+  "assessments": {
+    "business": {
+      "status": "unchanged",
+      "reason": "业务规则不变：表情的短码与 [包名_名字] 写法、地址白名单、渲染与存储都沿用原来的，只改表情在行里的尺寸和对齐方式。",
+      "evidence": [
+        "app/forum/shared/sticker-css.ts"
+      ]
+    },
+    "backend": {
+      "status": "not-applicable",
+      "reason": "没有改服务端：不新增接口，也不改接口参数、返回和错误处理。",
+      "evidence": [
+        "app/forum/shared/sticker-css.ts"
+      ]
+    },
+    "permissions": {
+      "status": "not-applicable",
+      "reason": "表情的显示尺寸不涉及登录与权限判断，没有新增读取条件。",
+      "evidence": [
+        "app/forum/shared/sticker-css.ts"
+      ]
+    },
+    "data": {
+      "status": "not-applicable",
+      "reason": "不涉及数据：没有表、字段、存储或迁移，帖子正文里存的还是 :短码:。",
+      "evidence": [
+        "app/forum/shared/sticker-css.ts"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新增依赖；样式仍在 FORUM_THEME_CSS 这一处登记过的例外里，只把表情那条规则换成共享模块生成。",
+      "evidence": [
+        "app/forum/uno.config.ts"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "论坛服务合同「表情与回应」「写正文」两处改成新的尺寸与对齐说明，采用登记 ADOPTION.json 里 uno.config.ts 的两处描述同步。",
+      "evidence": [
+        "docs/services/forum/README.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "新增 app/forum/tests/sticker-size-css.test.ts：帖子与回复框两种地址都被规则覆盖、不碰上传图片与别的域名、尺寸取自字号、底部对齐、uno.config.ts 不留写死尺寸；在预发布真实论坛里取改前改后的桌面与手机截图。",
+      "evidence": [
+        "app/forum/tests/sticker-size-css.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "只改论坛前端样式，随下一个预发布镜像发布；回滚换回上一个镜像，没有数据变化。",
+      "evidence": [
+        "app/forum/uno.config.ts"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/forum/shared/sticker-css.ts",
+        "app/forum/uno.config.ts",
+        "app/forum/tests/sticker-size-css.test.ts"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "application:forum"
+      ],
+      "reason": "表情在行里的尺寸与对齐：一条规则管帖子和回复框，覆盖同源与 CDN 两种地址；单测。"
+    },
+    {
+      "paths": [
+        "docs/services/forum/README.md",
+        "app/forum/ADOPTION.json"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "application:forum"
+      ],
+      "reason": "论坛服务合同与采用登记里的表情尺寸说明。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "application:forum"
+      ],
+      "reason": "按当前源码重新生成项目目录，来源摘要随源码与文档的改动变化，不手改。"
+    }
+  ],
+  "documents": [
+    "docs/services/forum/README.md"
+  ],
+  "tests": [
+    "app/forum/tests/sticker-size-css.test.ts"
+  ],
+  "compatibility": "接口、路由、权限、存储格式与表情地址白名单不变；已发出的帖子不用改，刷新后按新尺寸显示。",
+  "migration": "不涉及迁移：没有表结构、配置键或存储格式变化。",
+  "rollback": "换回上一个镜像即可恢复原来的尺寸；没有数据变化，不需要回滚数据。"
+}
