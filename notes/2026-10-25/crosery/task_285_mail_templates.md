@@ -36,3 +36,10 @@
 - 做了什么：contracts.ts 给 PATCH /api/console/applications/:application_id 补响应 Schema（application、review 用开放对象原样保留，失败体用控制台共同的开放形状）：新增可选的 template_id 让这条接口的合同变了，目录要求变了的接口要有响应 Schema；template-contract.ts 的试发响应状态补上 pending（入队后还没发出时回这个值）；template-content.ts 总字数上限的注释改成实测数字（用满上限约 33KB，全是要转义的 & 时约 45KB）；tests/server 新增 2 个用例：模板文字用满上限、投递内容取最长时渲染结果仍小于 102KB；改状态接口的成功体、409、400 失败体的字段与详情接口一致（临时把 application 的 Schema 改成只含 id，这个用例会失败，说明它能发现字段丢失，已改回）。
 - 结果：tests/server/mail-templates.test.ts 37 项、mail-template-content.test.ts 16 项、applications.test.ts 24 项通过；tests/server、tests/console、tests/tooling 全量 104 个文件 1865 项通过；pnpm typecheck 退出码 0。
 - 下一步：文档与目录重新生成、docs/changes/285.json 和宏观对齐检查，随后收尾提交。
+
+## 14:52:42 +08:00 · 提交 · #285 · 邮件模板的文档、项目目录与宏观对齐声明
+
+- 执行者：agent-claude-geek-main-mail（Claude Code，claude-sonnet-5-5）
+- 做了什么：文档：mail.md 新增『邮件模板』一节并更新现状、接口、隐私、安全、验证、已知限制；data-model.md 登记 mail_templates 与迁移；endpoint-contracts.md、API.md 登记 7 个接口（改状态接口补写响应 Schema 已挂载）；SECURITY.md 补招聘邮件模板与试发的防滥用段；server、console 服务文档补页面、组件、权限节点和开发预览数据；docs/INDEX.md 由 docs:index 重新生成。目录：ownership.json 补迁移文件的模块归属，给 mail.template.* 与 application.letter_preview 流程补 db.ts、权限节点、接口合同、路由注册、控制台共享文件的证据和 3 个测试文件，pnpm catalog:generate 重新生成。docs/changes/285.json 写宏观对齐声明。
+- 结果：pnpm check:docs、check:doc-sync（对 130a58b8）、check:catalog、check:architecture（对 130a58b8，55 个变更文件）、check:boundaries、check:secrets 退出码都是 0，pnpm typecheck 退出码 0。pnpm check:notes 失败在 notes/2026-10-24/crosery/task_276_forum_image_scan.md:47（链路已收尾后还有记录）：用 git archive 导出 130a58b8 的 notes 和 scripts 单独跑，同样失败，这份文件本分支没改过，不属于 #285，没有动它。
+- 下一步：无；剩下的是浏览器里的人工验收（1440×900 与 390×844）和所有者在预发布环境的验收。

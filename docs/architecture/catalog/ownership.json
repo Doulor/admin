@@ -2749,7 +2749,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：applications.review；按id审核，状态变更必须携带expected_status和expected_review_id；取消分支规则仍唯一见application.cancel。",
-        "响应与错误：200 {application,review}；400 invalid_status/no_change/letter_required/letter_invalid/template_invalid，404 not_found，409 status_changed。",
+        "响应与错误：200 {application,review}；400 invalid_status/no_change/letter_required/letter_invalid/template_invalid，404 not_found，409 status_changed。响应 Schema 已挂载（#285）：成功体的 application、review 原样保留，失败体保留 application、fields 等扩展字段。",
         "数据与副作用：变更到interview/accepted/rejected且notify不为false才渲染邮件，用的模板是请求里的 template_id（必须是同一类、已启用），不传用这一类的默认模板；状态、审核行和邮件入队同事务，实际发送由后台worker。备注不写信或审计正文；本路由不新增任何取消规则。",
         "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
       ],
@@ -3005,10 +3005,52 @@
         {
           "path": "app/console/src/lib/nav.ts",
           "needle": "{ id: \"mail-templates\", to: \"/console/mail-templates\","
+        },
+        {
+          "path": "app/console/src/pages/mail-templates/TemplateList.vue",
+          "needle": "defineProps<{ groups: KindGroup[]; selectedId: string | null; busy: boolean }>();"
+        },
+        {
+          "path": "app/console/src/mock/mail-templates.ts",
+          "needle": "export const MOCK_MAIL_LIST: MailTemplateList = {"
+        },
+        {
+          "path": "app/server/src/lib/migrations/2026-10-mail-templates.ts",
+          "needle": "export function runMailTemplatesMigration(db: Database.Database, now: number): MailTemplatesMigrationReport {"
+        },
+        {
+          "path": "app/server/src/lib/db.ts",
+          "needle": "CREATE TABLE IF NOT EXISTS mail_templates ("
+        },
+        {
+          "path": "app/server/src/lib/permission-nodes.ts",
+          "needle": "{ node: \"mail.template.manage\", domain: \"apply\","
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "...mailTemplateContracts,"
+        },
+        {
+          "path": "app/server/src/routes/console/index.ts",
+          "needle": "await app.register(mailTemplates);"
+        },
+        {
+          "path": "app/console/src/router.ts",
+          "needle": "{ path: \"mail-templates\", ...gated([\"mail.template.manage\"], () => import(\"./pages/MailTemplates.vue\")) },"
+        },
+        {
+          "path": "app/console/src/lib/permission-nodes.ts",
+          "needle": "\"mail.template.manage\": \"管理招聘邮件模板\","
+        },
+        {
+          "path": "app/console/src/lib/types.ts",
+          "needle": "export type MailTemplate = MailTemplateContent & {"
         }
       ],
       "tests": [
         "tests/server/mail-templates.test.ts",
+        "tests/server/mail-template-content.test.ts",
+        "tests/server/legacy-database.test.ts",
         "tests/console/mail-templates.test.ts",
         "tests/console/nav.test.ts"
       ],
@@ -3067,10 +3109,27 @@
         {
           "path": "app/console/src/lib/mail-templates.ts",
           "needle": "export const createBody = (draft: TemplateDraft) =>"
+        },
+        {
+          "path": "app/console/src/pages/mail-templates/TemplateEditor.vue",
+          "needle": "defineEmits<{ save: []; discard: []; closeError: [] }>();"
+        },
+        {
+          "path": "app/console/src/pages/mail-templates/FieldRow.vue",
+          "needle": "defineProps<{ label: string; hint?: string; messages?: string[]; required?: boolean }>();"
+        },
+        {
+          "path": "app/console/src/lib/activity.ts",
+          "needle": "\"mail.template.create\": \"新建邮件模板\", \"mail.template.update\": \"修改邮件模板\", \"mail.template.delete\": \"删除邮件模板\","
+        },
+        {
+          "path": "app/console/src/mock/console.ts",
+          "needle": "if ((/^\\/api\\/console\\/mail-templates(?:\\/[^/]+)?$/.test(path) && [\"POST\", \"PATCH\", \"DELETE\"].includes(method)) || path === \"/api/console/mail-templates/test-send\") {"
         }
       ],
       "tests": [
         "tests/server/mail-templates.test.ts",
+        "tests/server/mail-template-content.test.ts",
         "tests/console/mail-templates.test.ts"
       ],
       "docs": [
@@ -3239,10 +3298,23 @@
         {
           "path": "app/console/src/components/MailPreviewFrame.vue",
           "needle": "referrerpolicy=\"no-referrer\""
+        },
+        {
+          "path": "app/console/src/pages/mail-templates/TemplatePreview.vue",
+          "needle": "defineEmits<{ refresh: [] }>();"
+        },
+        {
+          "path": "app/console/src/mock/mail-templates.ts",
+          "needle": "export function mockMailPreview(body: unknown): MailRendered {"
+        },
+        {
+          "path": "app/console/src/mock/index.ts",
+          "needle": "if (method === \"POST\" && url.pathname === \"/api/console/mail-templates/preview\") return structuredClone(routeMailPreview(parseBody(init?.body))) as T;"
         }
       ],
       "tests": [
         "tests/server/mail-templates.test.ts",
+        "tests/server/mail-template-content.test.ts",
         "tests/console/mail-templates.test.ts"
       ],
       "docs": [
@@ -3302,6 +3374,10 @@
         {
           "path": "app/console/src/lib/mail-templates.ts",
           "needle": "export function testSendOutcome(result: MailTestSend): TestOutcome {"
+        },
+        {
+          "path": "app/server/src/lib/limits.ts",
+          "needle": "\"mail.test.hourly\": 2 * HOUR_MS,"
         }
       ],
       "tests": [
@@ -12100,6 +12176,9 @@
     ],
     "app/server/src/lib/migrations/2026-10-forum-v2.ts": [
       "forum"
+    ],
+    "app/server/src/lib/migrations/2026-10-mail-templates.ts": [
+      "mail"
     ],
     "app/server/src/lib/permission-nodes.ts": [
       "permissions"

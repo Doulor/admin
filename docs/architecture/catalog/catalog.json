@@ -270,7 +270,7 @@
     "businessOperationsWithFlow": 178,
     "capabilities": 16,
     "declaredFlows": 184,
-    "responseSchemas": 145,
+    "responseSchemas": 146,
     "routeMethods": 293,
     "supplementalInterfaces": 5,
     "supplementalInterfacesWithFlow": 5,
@@ -2093,7 +2093,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 290,
+          "line": 292,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -2153,7 +2153,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 291,
+          "line": 293,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -2213,7 +2213,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 299,
+          "line": 301,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -2444,7 +2444,7 @@
           "path": "app/server/src/lib/cursor.ts"
         },
         {
-          "line": 318,
+          "line": 320,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -2511,7 +2511,7 @@
           "path": "app/server/src/lib/sql-text.ts"
         },
         {
-          "line": 319,
+          "line": 321,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -2557,7 +2557,7 @@
           "path": "app/server/src/routes/console/activity.ts"
         },
         {
-          "line": 320,
+          "line": 322,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -2917,7 +2917,7 @@
       "id": "flow:application.review",
       "invariants": [
         "权限与资源：applications.review；按id审核，状态变更必须携带expected_status和expected_review_id；取消分支规则仍唯一见application.cancel。",
-        "响应与错误：200 {application,review}；400 invalid_status/no_change/letter_required/letter_invalid/template_invalid，404 not_found，409 status_changed。",
+        "响应与错误：200 {application,review}；400 invalid_status/no_change/letter_required/letter_invalid/template_invalid，404 not_found，409 status_changed。响应 Schema 已挂载（#285）：成功体的 application、review 原样保留，失败体保留 application、fields 等扩展字段。",
         "数据与副作用：变更到interview/accepted/rejected且notify不为false才渲染邮件，用的模板是请求里的 template_id（必须是同一类、已启用），不传用这一类的默认模板；状态、审核行和邮件入队同事务，实际发送由后台worker。备注不写信或审计正文；本路由不新增任何取消规则。",
         "共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。"
       ],
@@ -3171,6 +3171,46 @@
         {
           "line": 27,
           "path": "app/console/src/lib/nav.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/console/src/pages/mail-templates/TemplateList.vue"
+        },
+        {
+          "line": 114,
+          "path": "app/console/src/mock/mail-templates.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/lib/migrations/2026-10-mail-templates.ts"
+        },
+        {
+          "line": 972,
+          "path": "app/server/src/lib/db.ts"
+        },
+        {
+          "line": 50,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 231,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 45,
+          "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 34,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 38,
+          "path": "app/console/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 201,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "id": "flow:mail.template.list",
@@ -3189,6 +3229,8 @@
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
         "tests/server/mail-templates.test.ts",
+        "tests/server/mail-template-content.test.ts",
+        "tests/server/legacy-database.test.ts",
         "tests/console/mail-templates.test.ts",
         "tests/console/nav.test.ts"
       ],
@@ -3231,6 +3273,22 @@
         {
           "line": 98,
           "path": "app/console/src/lib/mail-templates.ts"
+        },
+        {
+          "line": 36,
+          "path": "app/console/src/pages/mail-templates/TemplateEditor.vue"
+        },
+        {
+          "line": 5,
+          "path": "app/console/src/pages/mail-templates/FieldRow.vue"
+        },
+        {
+          "line": 76,
+          "path": "app/console/src/lib/activity.ts"
+        },
+        {
+          "line": 894,
+          "path": "app/console/src/mock/console.ts"
         }
       ],
       "id": "flow:mail.template.create",
@@ -3251,6 +3309,7 @@
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
         "tests/server/mail-templates.test.ts",
+        "tests/server/mail-template-content.test.ts",
         "tests/console/mail-templates.test.ts"
       ],
       "title": "新建一套招聘邮件模板",
@@ -3411,6 +3470,18 @@
         {
           "line": 28,
           "path": "app/console/src/components/MailPreviewFrame.vue"
+        },
+        {
+          "line": 18,
+          "path": "app/console/src/pages/mail-templates/TemplatePreview.vue"
+        },
+        {
+          "line": 228,
+          "path": "app/console/src/mock/mail-templates.ts"
+        },
+        {
+          "line": 56,
+          "path": "app/console/src/mock/index.ts"
         }
       ],
       "id": "flow:mail.template.preview",
@@ -3433,6 +3504,7 @@
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
         "tests/server/mail-templates.test.ts",
+        "tests/server/mail-template-content.test.ts",
         "tests/console/mail-templates.test.ts"
       ],
       "title": "编辑时实时预览一套招聘邮件",
@@ -3475,6 +3547,10 @@
         {
           "line": 378,
           "path": "app/console/src/lib/mail-templates.ts"
+        },
+        {
+          "line": 123,
+          "path": "app/server/src/lib/limits.ts"
         }
       ],
       "id": "flow:mail.template.test_send",
@@ -5785,7 +5861,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 388,
+          "line": 390,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -6687,7 +6763,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 236,
+          "line": 238,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -8281,7 +8357,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -8636,7 +8712,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -8890,7 +8966,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 271,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -8974,7 +9050,7 @@
           "path": "app/server/src/lib/site-package.ts"
         },
         {
-          "line": 272,
+          "line": 274,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -9049,7 +9125,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 273,
+          "line": 275,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -9114,7 +9190,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 274,
+          "line": 276,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -9704,7 +9780,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 276,
+          "line": 278,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -9774,7 +9850,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -9853,7 +9929,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -9917,7 +9993,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -10017,7 +10093,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 281,
+          "line": 283,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -10093,7 +10169,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -10165,7 +10241,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -10236,7 +10312,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -10309,7 +10385,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -10371,7 +10447,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -10446,7 +10522,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -11694,7 +11770,7 @@
           "path": "app/server/src/routes/console/permissions.ts"
         },
         {
-          "line": 308,
+          "line": 310,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -11752,7 +11828,7 @@
           "path": "app/server/src/routes/console/permissions.ts"
         },
         {
-          "line": 312,
+          "line": 314,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -11802,7 +11878,7 @@
           "path": "app/server/src/routes/console/accounts.ts"
         },
         {
-          "line": 316,
+          "line": 318,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -11848,7 +11924,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 323,
+          "line": 325,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -11911,7 +11987,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 324,
+          "line": 326,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -11954,7 +12030,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 334,
+          "line": 336,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -11998,7 +12074,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 347,
+          "line": 349,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -12043,7 +12119,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 351,
+          "line": 353,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -12087,7 +12163,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 356,
+          "line": 358,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -12132,7 +12208,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 362,
+          "line": 364,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -12172,7 +12248,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 367,
+          "line": 369,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -12290,7 +12366,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 374,
+          "line": 376,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -15770,6 +15846,11 @@
       "title": "tests/server/mail-outbox.test.ts"
     },
     {
+      "id": "test:tests/server/mail-template-content.test.ts",
+      "kind": "test",
+      "title": "tests/server/mail-template-content.test.ts"
+    },
+    {
       "id": "test:tests/server/mail-templates.test.ts",
       "kind": "test",
       "title": "tests/server/mail-templates.test.ts"
@@ -15877,7 +15958,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "283aed92af3d7802385b89ddce04bb3c00ce3a195ce5b8a1de15b42158dc2a0d",
+    "fingerprint": "559eb4614c1ebc6e41a96ed19127708e8e32607c664e73c564bf0db39de15927",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -16937,11 +17018,11 @@
       },
       {
         "path": "app/server/src/lib/mail/template-content.ts",
-        "sha256": "d44451a52830e9122f513c79dfd55e640b14d2fe27405d66c6da8af307c079b1"
+        "sha256": "1b32803b53fa6101b1750ca62effb18b6768865189ac7eab85fbfd2ad0908904"
       },
       {
         "path": "app/server/src/lib/mail/template-contract.ts",
-        "sha256": "d07a039f0f02f0fbf5de712c4b4803efb65948d256825180b15b26dfbd547e34"
+        "sha256": "5c34f5d11aee815859ea6da9ea54768164e659952cd68932376c2de112118f5b"
       },
       {
         "path": "app/server/src/lib/mail/template-store.ts",
@@ -17105,7 +17186,7 @@
       },
       {
         "path": "app/server/src/routes/console/contracts.ts",
-        "sha256": "22acd7e0273fbae59defd30a33ef8b43fd4a8de4867cc37dc5bece5790348935"
+        "sha256": "ee96d85bdd260f3e6a0485ea2e4ccf9963b6f739a29507991443a18fbc8892b9"
       },
       {
         "path": "app/server/src/routes/console/departments.ts",
@@ -17717,7 +17798,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "ec7d9f1587bb691738ebdd4546d46f4ff1513cabedd227c3265c5febeab1e895"
+        "sha256": "2285b9594336212ceb881dc74da16cb057ab1d672e4b6edabfec64b3627fc5f3"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -17725,11 +17806,11 @@
       },
       {
         "path": "docs/architecture/SECURITY.md",
-        "sha256": "df408f9c44cc9ebd14af8f7439c45f6a2465231f42fc2ddbcb64d7c174fecb40"
+        "sha256": "5aa84e502cd96a3c222207b826700d58ce94bb49261f0ac70612848ebe54a496"
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "5bc71f93a11e87ab79955653b6ae5960de7039f6ce570d198e33b3da373ba72a"
+        "sha256": "0d00bb4de62f1b04e4888333a472d1995dd9325f45c2f015fb4bcb3595b46dab"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -17769,7 +17850,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "72342063d9d59d1457a7614976174a73704970fefc8d5de4d8751f32563f0214"
+        "sha256": "2f7185898a2edfccae37563421fc7c8d900e2776ebb9b69430c4f5f4e1f2d37d"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -17777,19 +17858,19 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "64b8a6ae2a79e46c65e5a9eaa9897128fefa00ead320183e19476664c1acf325"
+        "sha256": "44ec41960b57ed1f1df535fdb72d70de003b699711969b85d5d4189ca2c8e0a4"
       },
       {
         "path": "docs/services/server/data-model.md",
-        "sha256": "439d8332f3a24ce2e7bef886546988dbd2f7d14e7eafddc3f0dd47b5c2f9316e"
+        "sha256": "8ea61144eafedf948edd9db18ffe0cffcfa302a5656a121f7b5bfa429f6f3175"
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "833d59b5acd68618437ae9bd5917b531669d251715667eed9442131b2320da9f"
+        "sha256": "7310eaa56c34040b937de8bf500f88ec8904fc76da1c8037288c03e3a92ab3ec"
       },
       {
         "path": "docs/services/server/mail.md",
-        "sha256": "832aec7b1c04d28e12eec1363efc4ff72eac8082bbfb021e3fdf01f2ce331485"
+        "sha256": "00b8d9da2cbb4adac1ebb25324f91b3aa3f1c6ce9b442bd0609089e109db26ac"
       },
       {
         "path": "docs/services/server/oidc.md",
@@ -18032,8 +18113,12 @@
         "sha256": "a79db5a929f3ac2db75e0a568a194337d7c9917d6cbace1ac1847eafad643949"
       },
       {
+        "path": "tests/server/mail-template-content.test.ts",
+        "sha256": "47858d1201beef68f388b007f71c0fdb7c52c34004d7087e775a44ece363854b"
+      },
+      {
         "path": "tests/server/mail-templates.test.ts",
-        "sha256": "ef67335395c68c0307e20716629786f350460b655f200085822c4e48e996f8b5"
+        "sha256": "5bffecf5e30f817ca9c43013b21bd1c385dd6fe1e52c4fdd92abc20b7648599b"
       },
       {
         "path": "tests/server/my-applications.test.ts",
@@ -24048,7 +24133,7 @@
           "path": "app/server/src/routes/console/activity.ts"
         },
         {
-          "line": 320,
+          "line": 322,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -24064,7 +24149,7 @@
           "path": "app/server/src/routes/console/activity.ts"
         },
         {
-          "line": 320,
+          "line": 322,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -24080,7 +24165,7 @@
           "path": "app/server/src/routes/console/activity.ts"
         },
         {
-          "line": 320,
+          "line": 322,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -24096,7 +24181,7 @@
           "path": "app/server/src/routes/console/activity.ts"
         },
         {
-          "line": 320,
+          "line": 322,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -24118,7 +24203,7 @@
           "path": "app/server/src/routes/console/activity.ts"
         },
         {
-          "line": 320,
+          "line": 322,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -24162,7 +24247,7 @@
           "path": "app/server/src/lib/sql-text.ts"
         },
         {
-          "line": 319,
+          "line": 321,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -24182,7 +24267,7 @@
           "path": "app/server/src/lib/sql-text.ts"
         },
         {
-          "line": 319,
+          "line": 321,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -24208,7 +24293,7 @@
           "path": "app/server/src/lib/sql-text.ts"
         },
         {
-          "line": 319,
+          "line": 321,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -24228,7 +24313,7 @@
           "path": "app/server/src/lib/sql-text.ts"
         },
         {
-          "line": 319,
+          "line": 321,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -24272,7 +24357,7 @@
           "path": "app/server/src/lib/cursor.ts"
         },
         {
-          "line": 318,
+          "line": 320,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -24308,7 +24393,7 @@
           "path": "app/server/src/lib/cursor.ts"
         },
         {
-          "line": 318,
+          "line": 320,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -24344,7 +24429,7 @@
           "path": "app/server/src/lib/cursor.ts"
         },
         {
-          "line": 318,
+          "line": 320,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -24380,7 +24465,7 @@
           "path": "app/server/src/lib/cursor.ts"
         },
         {
-          "line": 318,
+          "line": 320,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -24428,7 +24513,7 @@
           "path": "app/server/src/lib/cursor.ts"
         },
         {
-          "line": 318,
+          "line": 320,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -24734,7 +24819,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -24766,7 +24851,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -24798,7 +24883,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -24830,7 +24915,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -24862,7 +24947,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -24894,7 +24979,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -24926,7 +25011,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -24958,7 +25043,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -24990,7 +25075,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25022,7 +25107,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25054,7 +25139,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25086,7 +25171,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25118,7 +25203,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25150,7 +25235,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25194,7 +25279,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25226,7 +25311,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25258,7 +25343,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25290,7 +25375,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25322,7 +25407,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 277,
+          "line": 279,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25384,7 +25469,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25432,7 +25517,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25480,7 +25565,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25528,7 +25613,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25576,7 +25661,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25624,7 +25709,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25672,7 +25757,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25720,7 +25805,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25768,7 +25853,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25816,7 +25901,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25864,7 +25949,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25912,7 +25997,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -25960,7 +26045,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26008,7 +26093,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26056,7 +26141,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26104,7 +26189,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26164,7 +26249,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26212,7 +26297,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26260,7 +26345,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26308,7 +26393,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26356,7 +26441,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 279,
+          "line": 281,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26428,7 +26513,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 276,
+          "line": 278,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26460,7 +26545,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 276,
+          "line": 278,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26492,7 +26577,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 276,
+          "line": 278,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26524,7 +26609,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 276,
+          "line": 278,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26556,7 +26641,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 276,
+          "line": 278,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26588,7 +26673,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 276,
+          "line": 278,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26620,7 +26705,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 276,
+          "line": 278,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26652,7 +26737,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 276,
+          "line": 278,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26696,7 +26781,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 276,
+          "line": 278,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26728,7 +26813,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 276,
+          "line": 278,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26784,7 +26869,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26804,7 +26889,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26824,7 +26909,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26844,7 +26929,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26864,7 +26949,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26884,7 +26969,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26904,7 +26989,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26924,7 +27009,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26944,7 +27029,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26964,7 +27049,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -26996,7 +27081,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -27016,7 +27101,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -27036,7 +27121,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -27056,7 +27141,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -27076,7 +27161,7 @@
           "path": "app/server/src/routes/console/competition-candidates.ts"
         },
         {
-          "line": 278,
+          "line": 280,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -27552,7 +27637,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 236,
+          "line": 238,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -27580,7 +27665,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 236,
+          "line": 238,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -27608,7 +27693,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 236,
+          "line": 238,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -27636,7 +27721,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 236,
+          "line": 238,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -27664,7 +27749,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 236,
+          "line": 238,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -27692,7 +27777,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 236,
+          "line": 238,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -27744,7 +27829,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 236,
+          "line": 238,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -27772,7 +27857,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 236,
+          "line": 238,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -27800,7 +27885,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 236,
+          "line": 238,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -27828,7 +27913,7 @@
           "path": "app/server/src/routes/console/competitions.ts"
         },
         {
-          "line": 236,
+          "line": 238,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28218,7 +28303,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28246,7 +28331,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28274,7 +28359,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28302,7 +28387,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28330,7 +28415,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28358,7 +28443,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28386,7 +28471,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28414,7 +28499,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28442,7 +28527,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28470,7 +28555,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28498,7 +28583,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28526,7 +28611,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28554,7 +28639,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28594,7 +28679,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28622,7 +28707,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 283,
+          "line": 285,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28680,7 +28765,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28708,7 +28793,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28736,7 +28821,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28764,7 +28849,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28792,7 +28877,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28820,7 +28905,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28848,7 +28933,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28876,7 +28961,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28904,7 +28989,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28932,7 +29017,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28960,7 +29045,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -28988,7 +29073,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -29028,7 +29113,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -29056,7 +29141,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -29084,7 +29169,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -29112,7 +29197,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -29140,7 +29225,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 284,
+          "line": 286,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31228,7 +31313,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31260,7 +31345,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31292,7 +31377,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31324,7 +31409,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31356,7 +31441,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31388,7 +31473,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31420,7 +31505,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31452,7 +31537,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31484,7 +31569,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31516,7 +31601,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31560,7 +31645,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31592,7 +31677,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31624,7 +31709,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31656,7 +31741,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 286,
+          "line": 288,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31712,7 +31797,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31752,7 +31837,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31792,7 +31877,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31832,7 +31917,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31872,7 +31957,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31912,7 +31997,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31952,7 +32037,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -31992,7 +32077,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -32032,7 +32117,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -32072,7 +32157,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -32124,7 +32209,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -32164,7 +32249,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -32204,7 +32289,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -32244,7 +32329,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -32284,7 +32369,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 287,
+          "line": 289,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36672,7 +36757,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 281,
+          "line": 283,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36708,7 +36793,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 281,
+          "line": 283,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36744,7 +36829,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 281,
+          "line": 283,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36780,7 +36865,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 281,
+          "line": 283,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36816,7 +36901,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 281,
+          "line": 283,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36852,7 +36937,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 281,
+          "line": 283,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36888,7 +36973,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 281,
+          "line": 283,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36924,7 +37009,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 281,
+          "line": 283,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36960,7 +37045,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 281,
+          "line": 283,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -36996,7 +37081,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 281,
+          "line": 283,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37044,7 +37129,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 281,
+          "line": 283,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37080,7 +37165,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 281,
+          "line": 283,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37146,7 +37231,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37174,7 +37259,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37202,7 +37287,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37230,7 +37315,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37258,7 +37343,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37286,7 +37371,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37314,7 +37399,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37342,7 +37427,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37370,7 +37455,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37398,7 +37483,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37444,7 +37529,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37472,7 +37557,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37500,7 +37585,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37528,7 +37613,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -37556,7 +37641,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 282,
+          "line": 284,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -38548,7 +38633,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -38584,7 +38669,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -38620,7 +38705,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -38656,7 +38741,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -38692,7 +38777,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -38728,7 +38813,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -38764,7 +38849,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -38800,7 +38885,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -38836,7 +38921,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -38872,7 +38957,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -38908,7 +38993,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -38944,7 +39029,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -38980,7 +39065,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -39028,7 +39113,7 @@
           "path": "app/server/src/routes/console/competition-roster.ts"
         },
         {
-          "line": 259,
+          "line": 261,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40202,7 +40287,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40238,7 +40323,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40274,7 +40359,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40310,7 +40395,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40346,7 +40431,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40382,7 +40467,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40418,7 +40503,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40454,7 +40539,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40490,7 +40575,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40526,7 +40611,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40562,7 +40647,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40610,7 +40695,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40646,7 +40731,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40682,7 +40767,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 247,
+          "line": 249,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40732,7 +40817,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 273,
+          "line": 275,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40756,7 +40841,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 273,
+          "line": 275,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40780,7 +40865,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 273,
+          "line": 275,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40804,7 +40889,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 273,
+          "line": 275,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40828,7 +40913,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 273,
+          "line": 275,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40852,7 +40937,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 273,
+          "line": 275,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40876,7 +40961,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 273,
+          "line": 275,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40900,7 +40985,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 273,
+          "line": 275,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40924,7 +41009,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 273,
+          "line": 275,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40960,7 +41045,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 273,
+          "line": 275,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -40984,7 +41069,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 273,
+          "line": 275,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41008,7 +41093,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 273,
+          "line": 275,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41032,7 +41117,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 273,
+          "line": 275,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41080,7 +41165,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 271,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41120,7 +41205,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 271,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41160,7 +41245,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 271,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41200,7 +41285,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 271,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41240,7 +41325,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 271,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41280,7 +41365,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 271,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41320,7 +41405,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 271,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41360,7 +41445,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 271,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41400,7 +41485,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 271,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41452,7 +41537,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 271,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41492,7 +41577,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 271,
+          "line": 273,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41962,7 +42047,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 274,
+          "line": 276,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -41982,7 +42067,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 274,
+          "line": 276,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42002,7 +42087,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 274,
+          "line": 276,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42022,7 +42107,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 274,
+          "line": 276,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42042,7 +42127,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 274,
+          "line": 276,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42062,7 +42147,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 274,
+          "line": 276,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42082,7 +42167,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 274,
+          "line": 276,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42102,7 +42187,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 274,
+          "line": 276,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42134,7 +42219,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 274,
+          "line": 276,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42154,7 +42239,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 274,
+          "line": 276,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42174,7 +42259,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 274,
+          "line": 276,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42194,7 +42279,7 @@
           "path": "app/server/src/routes/console/competition-site.ts"
         },
         {
-          "line": 274,
+          "line": 276,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42254,7 +42339,7 @@
           "path": "app/server/src/lib/site-package.ts"
         },
         {
-          "line": 272,
+          "line": 274,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42290,7 +42375,7 @@
           "path": "app/server/src/lib/site-package.ts"
         },
         {
-          "line": 272,
+          "line": 274,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42326,7 +42411,7 @@
           "path": "app/server/src/lib/site-package.ts"
         },
         {
-          "line": 272,
+          "line": 274,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42362,7 +42447,7 @@
           "path": "app/server/src/lib/site-package.ts"
         },
         {
-          "line": 272,
+          "line": 274,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42398,7 +42483,7 @@
           "path": "app/server/src/lib/site-package.ts"
         },
         {
-          "line": 272,
+          "line": 274,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42434,7 +42519,7 @@
           "path": "app/server/src/lib/site-package.ts"
         },
         {
-          "line": 272,
+          "line": 274,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42470,7 +42555,7 @@
           "path": "app/server/src/lib/site-package.ts"
         },
         {
-          "line": 272,
+          "line": 274,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42506,7 +42591,7 @@
           "path": "app/server/src/lib/site-package.ts"
         },
         {
-          "line": 272,
+          "line": 274,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42560,7 +42645,7 @@
           "path": "app/server/src/lib/site-package.ts"
         },
         {
-          "line": 272,
+          "line": 274,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42596,7 +42681,7 @@
           "path": "app/server/src/lib/site-package.ts"
         },
         {
-          "line": 272,
+          "line": 274,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42632,7 +42717,7 @@
           "path": "app/server/src/lib/site-package.ts"
         },
         {
-          "line": 272,
+          "line": 274,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -42668,7 +42753,7 @@
           "path": "app/server/src/lib/site-package.ts"
         },
         {
-          "line": 272,
+          "line": 274,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -47464,7 +47549,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -47484,7 +47569,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -47504,7 +47589,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -47524,7 +47609,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -47544,7 +47629,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -47564,7 +47649,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -47584,7 +47669,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -47604,7 +47689,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -47624,7 +47709,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -47656,7 +47741,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -47676,7 +47761,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -47696,7 +47781,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -47716,7 +47801,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -47736,7 +47821,7 @@
           "path": "app/server/src/routes/console/competition-results.ts"
         },
         {
-          "line": 285,
+          "line": 287,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -48068,7 +48153,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 388,
+          "line": 390,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -48096,7 +48181,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 388,
+          "line": 390,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -48124,7 +48209,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 388,
+          "line": 390,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -48152,7 +48237,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 388,
+          "line": 390,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -48180,7 +48265,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 388,
+          "line": 390,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -48208,7 +48293,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 388,
+          "line": 390,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -48236,7 +48321,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 388,
+          "line": 390,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -48270,7 +48355,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 388,
+          "line": 390,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -48298,7 +48383,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 388,
+          "line": 390,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72074,7 +72159,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 291,
+          "line": 293,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72094,7 +72179,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 291,
+          "line": 293,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72114,7 +72199,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 291,
+          "line": 293,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72134,7 +72219,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 291,
+          "line": 293,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72154,7 +72239,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 291,
+          "line": 293,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72186,7 +72271,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 291,
+          "line": 293,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72206,7 +72291,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 291,
+          "line": 293,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72226,7 +72311,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 291,
+          "line": 293,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72246,7 +72331,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 291,
+          "line": 293,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72302,7 +72387,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 290,
+          "line": 292,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72322,7 +72407,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 290,
+          "line": 292,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72342,7 +72427,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 290,
+          "line": 292,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72362,7 +72447,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 290,
+          "line": 292,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72382,7 +72467,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 290,
+          "line": 292,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72402,7 +72487,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 290,
+          "line": 292,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72440,7 +72525,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 290,
+          "line": 292,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72460,7 +72545,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 290,
+          "line": 292,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -72516,7 +72601,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 299,
+          "line": 301,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -72532,7 +72617,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 299,
+          "line": 301,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -72548,7 +72633,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 299,
+          "line": 301,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -72564,7 +72649,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 299,
+          "line": 301,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -72580,7 +72665,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 299,
+          "line": 301,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -72596,7 +72681,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 299,
+          "line": 301,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -72624,7 +72709,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 299,
+          "line": 301,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -72640,7 +72725,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 299,
+          "line": 301,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -72656,7 +72741,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 299,
+          "line": 301,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -72672,7 +72757,7 @@
           "path": "app/server/src/routes/console/invites.ts"
         },
         {
-          "line": 299,
+          "line": 301,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -74986,6 +75071,22 @@
         {
           "line": 98,
           "path": "app/console/src/lib/mail-templates.ts"
+        },
+        {
+          "line": 36,
+          "path": "app/console/src/pages/mail-templates/TemplateEditor.vue"
+        },
+        {
+          "line": 5,
+          "path": "app/console/src/pages/mail-templates/FieldRow.vue"
+        },
+        {
+          "line": 76,
+          "path": "app/console/src/lib/activity.ts"
+        },
+        {
+          "line": 894,
+          "path": "app/console/src/mock/console.ts"
         }
       ],
       "from": "flow:mail.template.create",
@@ -75018,6 +75119,22 @@
         {
           "line": 98,
           "path": "app/console/src/lib/mail-templates.ts"
+        },
+        {
+          "line": 36,
+          "path": "app/console/src/pages/mail-templates/TemplateEditor.vue"
+        },
+        {
+          "line": 5,
+          "path": "app/console/src/pages/mail-templates/FieldRow.vue"
+        },
+        {
+          "line": 76,
+          "path": "app/console/src/lib/activity.ts"
+        },
+        {
+          "line": 894,
+          "path": "app/console/src/mock/console.ts"
         }
       ],
       "from": "flow:mail.template.create",
@@ -75028,6 +75145,12 @@
       "basis": "declaration",
       "from": "flow:mail.template.create",
       "to": "test:tests/console/mail-templates.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:mail.template.create",
+      "to": "test:tests/server/mail-template-content.test.ts",
       "type": "test-entry"
     },
     {
@@ -75062,6 +75185,22 @@
         {
           "line": 98,
           "path": "app/console/src/lib/mail-templates.ts"
+        },
+        {
+          "line": 36,
+          "path": "app/console/src/pages/mail-templates/TemplateEditor.vue"
+        },
+        {
+          "line": 5,
+          "path": "app/console/src/pages/mail-templates/FieldRow.vue"
+        },
+        {
+          "line": 76,
+          "path": "app/console/src/lib/activity.ts"
+        },
+        {
+          "line": 894,
+          "path": "app/console/src/mock/console.ts"
         }
       ],
       "from": "flow:mail.template.create",
@@ -75094,6 +75233,22 @@
         {
           "line": 98,
           "path": "app/console/src/lib/mail-templates.ts"
+        },
+        {
+          "line": 36,
+          "path": "app/console/src/pages/mail-templates/TemplateEditor.vue"
+        },
+        {
+          "line": 5,
+          "path": "app/console/src/pages/mail-templates/FieldRow.vue"
+        },
+        {
+          "line": 76,
+          "path": "app/console/src/lib/activity.ts"
+        },
+        {
+          "line": 894,
+          "path": "app/console/src/mock/console.ts"
         }
       ],
       "from": "flow:mail.template.create",
@@ -75126,6 +75281,22 @@
         {
           "line": 98,
           "path": "app/console/src/lib/mail-templates.ts"
+        },
+        {
+          "line": 36,
+          "path": "app/console/src/pages/mail-templates/TemplateEditor.vue"
+        },
+        {
+          "line": 5,
+          "path": "app/console/src/pages/mail-templates/FieldRow.vue"
+        },
+        {
+          "line": 76,
+          "path": "app/console/src/lib/activity.ts"
+        },
+        {
+          "line": 894,
+          "path": "app/console/src/mock/console.ts"
         }
       ],
       "from": "flow:mail.template.create",
@@ -75334,6 +75505,46 @@
         {
           "line": 27,
           "path": "app/console/src/lib/nav.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/console/src/pages/mail-templates/TemplateList.vue"
+        },
+        {
+          "line": 114,
+          "path": "app/console/src/mock/mail-templates.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/lib/migrations/2026-10-mail-templates.ts"
+        },
+        {
+          "line": 972,
+          "path": "app/server/src/lib/db.ts"
+        },
+        {
+          "line": 50,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 231,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 45,
+          "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 34,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 38,
+          "path": "app/console/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 201,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:mail.template.list",
@@ -75350,6 +75561,18 @@
       "basis": "declaration",
       "from": "flow:mail.template.list",
       "to": "test:tests/console/nav.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:mail.template.list",
+      "to": "test:tests/server/legacy-database.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:mail.template.list",
+      "to": "test:tests/server/mail-template-content.test.ts",
       "type": "test-entry"
     },
     {
@@ -75380,6 +75603,46 @@
         {
           "line": 27,
           "path": "app/console/src/lib/nav.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/console/src/pages/mail-templates/TemplateList.vue"
+        },
+        {
+          "line": 114,
+          "path": "app/console/src/mock/mail-templates.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/lib/migrations/2026-10-mail-templates.ts"
+        },
+        {
+          "line": 972,
+          "path": "app/server/src/lib/db.ts"
+        },
+        {
+          "line": 50,
+          "path": "app/server/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 231,
+          "path": "app/server/src/routes/console/contracts.ts"
+        },
+        {
+          "line": 45,
+          "path": "app/server/src/routes/console/index.ts"
+        },
+        {
+          "line": 34,
+          "path": "app/console/src/router.ts"
+        },
+        {
+          "line": 38,
+          "path": "app/console/src/lib/permission-nodes.ts"
+        },
+        {
+          "line": 201,
+          "path": "app/console/src/lib/types.ts"
         }
       ],
       "from": "flow:mail.template.list",
@@ -75436,6 +75699,18 @@
         {
           "line": 28,
           "path": "app/console/src/components/MailPreviewFrame.vue"
+        },
+        {
+          "line": 18,
+          "path": "app/console/src/pages/mail-templates/TemplatePreview.vue"
+        },
+        {
+          "line": 228,
+          "path": "app/console/src/mock/mail-templates.ts"
+        },
+        {
+          "line": 56,
+          "path": "app/console/src/mock/index.ts"
         }
       ],
       "from": "flow:mail.template.preview",
@@ -75468,6 +75743,18 @@
         {
           "line": 28,
           "path": "app/console/src/components/MailPreviewFrame.vue"
+        },
+        {
+          "line": 18,
+          "path": "app/console/src/pages/mail-templates/TemplatePreview.vue"
+        },
+        {
+          "line": 228,
+          "path": "app/console/src/mock/mail-templates.ts"
+        },
+        {
+          "line": 56,
+          "path": "app/console/src/mock/index.ts"
         }
       ],
       "from": "flow:mail.template.preview",
@@ -75500,6 +75787,18 @@
         {
           "line": 28,
           "path": "app/console/src/components/MailPreviewFrame.vue"
+        },
+        {
+          "line": 18,
+          "path": "app/console/src/pages/mail-templates/TemplatePreview.vue"
+        },
+        {
+          "line": 228,
+          "path": "app/console/src/mock/mail-templates.ts"
+        },
+        {
+          "line": 56,
+          "path": "app/console/src/mock/index.ts"
         }
       ],
       "from": "flow:mail.template.preview",
@@ -75510,6 +75809,12 @@
       "basis": "declaration",
       "from": "flow:mail.template.preview",
       "to": "test:tests/console/mail-templates.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:mail.template.preview",
+      "to": "test:tests/server/mail-template-content.test.ts",
       "type": "test-entry"
     },
     {
@@ -75544,6 +75849,18 @@
         {
           "line": 28,
           "path": "app/console/src/components/MailPreviewFrame.vue"
+        },
+        {
+          "line": 18,
+          "path": "app/console/src/pages/mail-templates/TemplatePreview.vue"
+        },
+        {
+          "line": 228,
+          "path": "app/console/src/mock/mail-templates.ts"
+        },
+        {
+          "line": 56,
+          "path": "app/console/src/mock/index.ts"
         }
       ],
       "from": "flow:mail.template.preview",
@@ -75576,6 +75893,18 @@
         {
           "line": 28,
           "path": "app/console/src/components/MailPreviewFrame.vue"
+        },
+        {
+          "line": 18,
+          "path": "app/console/src/pages/mail-templates/TemplatePreview.vue"
+        },
+        {
+          "line": 228,
+          "path": "app/console/src/mock/mail-templates.ts"
+        },
+        {
+          "line": 56,
+          "path": "app/console/src/mock/index.ts"
         }
       ],
       "from": "flow:mail.template.preview",
@@ -75638,6 +75967,10 @@
         {
           "line": 378,
           "path": "app/console/src/lib/mail-templates.ts"
+        },
+        {
+          "line": 123,
+          "path": "app/server/src/lib/limits.ts"
         }
       ],
       "from": "flow:mail.template.test_send",
@@ -75670,6 +76003,10 @@
         {
           "line": 378,
           "path": "app/console/src/lib/mail-templates.ts"
+        },
+        {
+          "line": 123,
+          "path": "app/server/src/lib/limits.ts"
         }
       ],
       "from": "flow:mail.template.test_send",
@@ -75702,6 +76039,10 @@
         {
           "line": 378,
           "path": "app/console/src/lib/mail-templates.ts"
+        },
+        {
+          "line": 123,
+          "path": "app/server/src/lib/limits.ts"
         }
       ],
       "from": "flow:mail.template.test_send",
@@ -75752,6 +76093,10 @@
         {
           "line": 378,
           "path": "app/console/src/lib/mail-templates.ts"
+        },
+        {
+          "line": 123,
+          "path": "app/server/src/lib/limits.ts"
         }
       ],
       "from": "flow:mail.template.test_send",
@@ -75784,6 +76129,10 @@
         {
           "line": 378,
           "path": "app/console/src/lib/mail-templates.ts"
+        },
+        {
+          "line": 123,
+          "path": "app/server/src/lib/limits.ts"
         }
       ],
       "from": "flow:mail.template.test_send",
@@ -75816,6 +76165,10 @@
         {
           "line": 378,
           "path": "app/console/src/lib/mail-templates.ts"
+        },
+        {
+          "line": 123,
+          "path": "app/server/src/lib/limits.ts"
         }
       ],
       "from": "flow:mail.template.test_send",
@@ -75848,6 +76201,10 @@
         {
           "line": 378,
           "path": "app/console/src/lib/mail-templates.ts"
+        },
+        {
+          "line": 123,
+          "path": "app/server/src/lib/limits.ts"
         }
       ],
       "from": "flow:mail.template.test_send",
@@ -76164,7 +76521,7 @@
           "path": "app/server/src/routes/console/accounts.ts"
         },
         {
-          "line": 316,
+          "line": 318,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76180,7 +76537,7 @@
           "path": "app/server/src/routes/console/accounts.ts"
         },
         {
-          "line": 316,
+          "line": 318,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76196,7 +76553,7 @@
           "path": "app/server/src/routes/console/accounts.ts"
         },
         {
-          "line": 316,
+          "line": 318,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76212,7 +76569,7 @@
           "path": "app/server/src/routes/console/accounts.ts"
         },
         {
-          "line": 316,
+          "line": 318,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76228,7 +76585,7 @@
           "path": "app/server/src/routes/console/accounts.ts"
         },
         {
-          "line": 316,
+          "line": 318,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76250,7 +76607,7 @@
           "path": "app/server/src/routes/console/accounts.ts"
         },
         {
-          "line": 316,
+          "line": 318,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76290,7 +76647,7 @@
           "path": "app/server/src/routes/console/permissions.ts"
         },
         {
-          "line": 312,
+          "line": 314,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -76310,7 +76667,7 @@
           "path": "app/server/src/routes/console/permissions.ts"
         },
         {
-          "line": 312,
+          "line": 314,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -76330,7 +76687,7 @@
           "path": "app/server/src/routes/console/permissions.ts"
         },
         {
-          "line": 312,
+          "line": 314,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -76350,7 +76707,7 @@
           "path": "app/server/src/routes/console/permissions.ts"
         },
         {
-          "line": 312,
+          "line": 314,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -76370,7 +76727,7 @@
           "path": "app/server/src/routes/console/permissions.ts"
         },
         {
-          "line": 312,
+          "line": 314,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -76396,7 +76753,7 @@
           "path": "app/server/src/routes/console/permissions.ts"
         },
         {
-          "line": 312,
+          "line": 314,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -76440,7 +76797,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 324,
+          "line": 326,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76462,7 +76819,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 324,
+          "line": 326,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76478,7 +76835,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 324,
+          "line": 326,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76494,7 +76851,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 324,
+          "line": 326,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76534,7 +76891,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 347,
+          "line": 349,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76556,7 +76913,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 347,
+          "line": 349,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76572,7 +76929,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 347,
+          "line": 349,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76588,7 +76945,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 347,
+          "line": 349,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76604,7 +76961,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 347,
+          "line": 349,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76620,7 +76977,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 347,
+          "line": 349,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76660,7 +77017,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 323,
+          "line": 325,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -76696,7 +77053,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 323,
+          "line": 325,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -76732,7 +77089,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 323,
+          "line": 325,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -76768,7 +77125,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 323,
+          "line": 325,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -76810,7 +77167,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 323,
+          "line": 325,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -76870,7 +77227,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 356,
+          "line": 358,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76886,7 +77243,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 356,
+          "line": 358,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76908,7 +77265,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 356,
+          "line": 358,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76924,7 +77281,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 356,
+          "line": 358,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76964,7 +77321,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 351,
+          "line": 353,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76980,7 +77337,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 351,
+          "line": 353,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -76996,7 +77353,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 351,
+          "line": 353,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -77018,7 +77375,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 351,
+          "line": 353,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -77064,7 +77421,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 362,
+          "line": 364,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -77080,7 +77437,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 362,
+          "line": 364,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -77120,7 +77477,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 334,
+          "line": 336,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -77142,7 +77499,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 334,
+          "line": 336,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -77158,7 +77515,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 334,
+          "line": 336,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -77174,7 +77531,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 334,
+          "line": 336,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -77190,7 +77547,7 @@
           "path": "app/server/src/routes/console/permission-groups.ts"
         },
         {
-          "line": 334,
+          "line": 336,
           "path": "app/server/src/routes/console/contracts.ts"
         }
       ],
@@ -77236,7 +77593,7 @@
           "path": "app/server/src/routes/console/permissions.ts"
         },
         {
-          "line": 308,
+          "line": 310,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -77778,7 +78135,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 367,
+          "line": 369,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -77862,7 +78219,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 367,
+          "line": 369,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -77946,7 +78303,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 367,
+          "line": 369,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -78030,7 +78387,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 367,
+          "line": 369,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -78114,7 +78471,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 367,
+          "line": 369,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -78198,7 +78555,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 367,
+          "line": 369,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -78300,7 +78657,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 367,
+          "line": 369,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -78408,7 +78765,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 374,
+          "line": 376,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -78448,7 +78805,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 374,
+          "line": 376,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -78488,7 +78845,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 374,
+          "line": 376,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -78528,7 +78885,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 374,
+          "line": 376,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -78586,7 +78943,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 374,
+          "line": 376,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -78626,7 +78983,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 374,
+          "line": 376,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -78666,7 +79023,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 374,
+          "line": 376,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -78706,7 +79063,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 374,
+          "line": 376,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -78746,7 +79103,7 @@
           "path": "app/server/src/routes/console/users.ts"
         },
         {
-          "line": 374,
+          "line": 376,
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
@@ -107018,7 +107375,7 @@
           "querystring",
           "body"
         ],
-        "responseSchema": false
+        "responseSchema": true
       },
       "domain": "recruitment",
       "id": "route:PATCH /api/console/applications/:application_id",
@@ -107112,6 +107469,68 @@
           "properties": {},
           "required": [],
           "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "application": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "review": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "4xx": {
+            "additionalProperties": true,
+            "properties": {
+              "any_of": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "capability": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          "5xx": {
+            "additionalProperties": true,
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          }
         }
       },
       "source": {
@@ -115129,7 +115548,8 @@
                 "enum": [
                   "sent",
                   "failed",
-                  "skipped"
+                  "skipped",
+                  "pending"
                 ],
                 "type": "string"
               },
@@ -126193,6 +126613,12 @@
         "forum"
       ],
       "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts"
+    },
+    {
+      "domains": [
+        "mail"
+      ],
+      "path": "app/server/src/lib/migrations/2026-10-mail-templates.ts"
     },
     {
       "domains": [
@@ -139228,9 +139654,7 @@
       "sql": "CREATE TABLE users (\n  id TEXT PRIMARY KEY,\n  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled','merged')),\n  merged_into TEXT REFERENCES users(id),\n  canonical_email TEXT,\n  org_state TEXT NOT NULL DEFAULT 'active' CHECK (org_state IN ('active','pending','not_member','unknown')),\n  org_checked_at INTEGER,\n  membership_version INTEGER NOT NULL DEFAULT 0,\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL, org_role TEXT, handle TEXT, invite_code_id INTEGER REFERENCES invite_codes(id), password_hash TEXT, password_updated_at INTEGER,\n  CHECK ((status = 'merged') = (merged_into IS NOT NULL)),\n  CHECK (merged_into <> id)\n)"
     }
   ],
-  "unmappedSources": [
-    "app/server/src/lib/migrations/2026-10-mail-templates.ts"
-  ],
+  "unmappedSources": [],
   "updated": "2026-10-25",
   "version": 1,
   "visibility": "internal-engineering"

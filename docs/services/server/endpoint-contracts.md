@@ -365,15 +365,15 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：applications.read；按UUID定位任意候选人，无部门范围限制。
 
-响应与错误：200 {application,reviews,received_mail,mail}；404 not_found。邮件摘要不含地址/正文，application不含source_ip/UA。
+响应与错误：200 {application,reviews,received_mail,mail,letter_templates}；404 not_found。邮件摘要不含地址/正文，application不含source_ip/UA；letter_templates 是待面试、已录取、未通过三类各自启用的模板，只有 id、名称、是否默认（#285，改状态的「用哪一套信」下拉框用）。
 
-数据与副作用：读简历、审核历史和mail_outbox摘要，写application.view审计，不触发发信。
+数据与副作用：读简历、审核历史、mail_outbox摘要和启用的邮件模板名，写application.view审计，不触发发信。
 
 共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
-本地表读取：applications, application_reviews, mail_outbox, sessions, role_assignments, departments, titles。本地表写入：activity_events, sessions。
+本地表读取：applications, application_reviews, mail_outbox, sessions, role_assignments, departments, titles, mail_templates。本地表写入：activity_events, sessions。
 
-源码：[app/server/src/routes/console/applications.ts:104](../../../app/server/src/routes/console/applications.ts#L104)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)。
+源码：[app/server/src/routes/console/applications.ts:117](../../../app/server/src/routes/console/applications.ts#L117)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)。
 
 ## 导出候选人CSV
 
@@ -397,15 +397,113 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：applications.review；按id审核，状态变更必须携带expected_status和expected_review_id；取消分支规则仍唯一见application.cancel。
 
-响应与错误：200 {application,review}；400 invalid_status/no_change/letter_required/letter_invalid，404 not_found，409 status_changed。
+响应与错误：200 {application,review}；400 invalid_status/no_change/letter_required/letter_invalid/template_invalid，404 not_found，409 status_changed。响应 Schema 已挂载（#285）：成功体的 application、review 原样保留，失败体保留 application、fields 等扩展字段，回归见 `tests/server/mail-templates.test.ts` 的「改状态的接口挂上响应合同后」。可选 template_id（#285）：必须是同一类、已启用的模板，类别不符、已停用、不存在都是 400 template_invalid，状态不改、不入队；不传用这一类的默认模板；没有信的状态（已取消、改回已收到）或 notify 为 false 时忽略它。
 
-数据与副作用：变更到interview/accepted/rejected且notify不为false才渲染邮件；状态、审核行和邮件入队同事务，实际发送由后台worker。备注不写信或审计正文；本路由不新增任何取消规则。
+数据与副作用：变更到interview/accepted/rejected且notify不为false才渲染邮件，用选中的模板；状态、审核行和邮件入队同事务，实际发送由后台worker。备注不写信或审计正文；本路由不新增任何取消规则。
 
 共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
-本地表读取：applications, application_reviews, mail_outbox, sessions, role_assignments, departments, titles。本地表写入：applications, application_reviews, mail_outbox, activity_events, sessions。
+本地表读取：applications, application_reviews, mail_outbox, sessions, role_assignments, departments, titles, mail_templates。本地表写入：applications, application_reviews, mail_outbox, activity_events, sessions。
 
-源码：[app/server/src/routes/console/applications.ts:120](../../../app/server/src/routes/console/applications.ts#L120)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)。
+源码：[app/server/src/routes/console/applications.ts:135](../../../app/server/src/routes/console/applications.ts#L135)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)、[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)。
+
+## 投递详情里预览将要发的信
+
+`POST /api/console/applications/:application_id/letter-preview` · `flow:application.letter_preview`
+
+权限与资源：需要节点 apply.review（按部门范围，和改状态同一个节点），账号维度每分钟 240 次；审核人没有 mail.template.manage 也能预览自己要发的信。
+
+响应与错误：200 {subject,html,text}；400 no_letter（只有待面试、已录取、未通过有信）、template_invalid（选的模板不存在、不是这一类或已停用）、letter_invalid（渲染不出来）；404 not_found。
+
+数据与副作用：用这份投递的真实字段和页面上填的内容，按选的模板（不传用默认）渲染；不发信、不入队、不改状态、不写审核记录；待面试还没填时间、地点时用占位文字，真正改状态时仍然要求必填。
+
+本地表读取：applications, mail_templates。本地表写入：无。
+
+源码：[app/server/src/routes/console/applications.ts:209](../../../app/server/src/routes/console/applications.ts#L209)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)、[tests/server/applications.test.ts](../../../tests/server/applications.test.ts)。
+
+## 查看招聘邮件模板与变量清单
+
+`GET /api/console/mail-templates` · `flow:mail.template.list`
+
+权限与资源：需要节点 mail.template.manage（默认只有站长的根通配 * 拿到，不往下发）。
+
+响应与错误：200 {templates,kinds,block_kinds,variables,limits,mail,test_send}；templates 按信的类别、默认在前、名字排序，每套带 id、name、kind、enabled、is_default 和内容字段；variables 是代码里唯一一份变量清单（TEMPLATE_VARIABLES），编辑页的变量速查表只读它；limits 是各字段的长度上限；mail 只给 enabled、recipients 和回信地址是否已配置，不含发信商密钥和回信地址本身；test_send 是试发的次数上限。
+
+数据与副作用：只读。
+
+本地表读取：mail_templates。本地表写入：无。
+
+源码：[app/server/src/routes/console/mail-templates.ts:133](../../../app/server/src/routes/console/mail-templates.ts#L133)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)。
+
+## 新建一套招聘邮件模板
+
+`POST /api/console/mail-templates` · `flow:mail.template.create`
+
+权限与资源：需要节点 mail.template.manage，且刚登录过（step-up）。
+
+响应与错误：201 模板；400 template_invalid 带 issues[{path,message}]（变量不在清单里、按钮路径不在官网、结构或长度不合规，或用示例数据渲不出来）；409 template_name_taken（同一类里名字不分大小写重复）。
+
+数据与副作用：内容先过 normalizeContent，再用示例数据真渲两遍（第二遍说明、原因为空）才落库；这一类还没有默认、而且新模板启用时它成为默认；操作记录 mail.template.create 只记类别、名称和是否启用，不记内容；不入队任何邮件。
+
+本地表读取：mail_templates。本地表写入：mail_templates, activity_events。
+
+源码：[app/server/src/routes/console/mail-templates.ts:146](../../../app/server/src/routes/console/mail-templates.ts#L146)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)。
+
+## 编辑、启停或设为默认一套招聘邮件模板
+
+`PATCH /api/console/mail-templates/:template_id` · `flow:mail.template.update`
+
+权限与资源：需要节点 mail.template.manage，且刚登录过（step-up）。
+
+响应与错误：200 模板；404 not_found；400 template_invalid；409 template_name_taken、default_template（默认模板不能停用）、template_changed（expected_updated_at 与库里不同，说明别人改过）、template_disabled（停用的模板不能设为默认）。类别建好以后不能改。
+
+数据与副作用：没给的项沿用库里的，整套再核对和试渲一遍；is_default 只能设成 true，同事务把同一类原来的默认取消，只改默认标记不动更新人和更新时间；操作记录 mail.template.update 只记改了哪几项，不记内容。已入队的信在入队时已渲成成品，改模板不影响它们。
+
+本地表读取：mail_templates。本地表写入：mail_templates, activity_events。
+
+源码：[app/server/src/routes/console/mail-templates.ts:164](../../../app/server/src/routes/console/mail-templates.ts#L164)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)。
+
+## 删除一套招聘邮件模板
+
+`DELETE /api/console/mail-templates/:template_id` · `flow:mail.template.delete`
+
+权限与资源：需要节点 mail.template.manage，且刚登录过（step-up）。
+
+响应与错误：200 {ok:true}；404 not_found；409 default_template（默认模板不能删，先把同一类里的另一套设为默认）。
+
+数据与副作用：只删这一行 mail_templates；已入队或已发出的信不受影响（成品内容在 mail_outbox 里，不引用模板）；操作记录 mail.template.delete 只记类别和名称。
+
+本地表读取：mail_templates。本地表写入：mail_templates, activity_events。
+
+源码：[app/server/src/routes/console/mail-templates.ts:202](../../../app/server/src/routes/console/mail-templates.ts#L202)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)。
+
+## 编辑时实时预览一套招聘邮件
+
+`POST /api/console/mail-templates/preview` · `flow:mail.template.preview`
+
+权限与资源：需要节点 mail.template.manage；不要求刚登录过（编辑时每停一下就请求一次），账号维度每分钟 240 次。给了 application_id 要另外有 apply.view（按部门范围），否则 403。
+
+响应与错误：200 {subject,html,text}；400 template_required（template_id 和 draft 要给且只给一个）、template_invalid（draft 不合规）、preview_failed（渲染不出来）；404 not_found。
+
+数据与副作用：渲染的是 template_id 对应的已存模板，或还没保存的 draft；不入队、不发信、不写投递和审核记录；没给 application_id 用示例投递，给了就用这份投递的真实字段，并记 mail.template.preview（只记模板 id 和投递 id）。
+
+本地表读取：mail_templates, applications。本地表写入：activity_events。
+
+源码：[app/server/src/routes/console/mail-templates.ts:214](../../../app/server/src/routes/console/mail-templates.ts#L214)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)。
+
+## 向测试邮箱试发一封样信
+
+`POST /api/console/mail-templates/test-send` · `flow:mail.template.test_send`
+
+权限与资源：需要节点 mail.template.manage，且刚登录过（step-up）；每个账号每小时 10 封（桶 mail.test.hourly），全站每小时 30 封，超过回 429 rate_limited 并带 bucket 和 retry_after。
+
+响应与错误：200 {status,skip_reason,error,subject,to}，status 是 sent、failed、skipped 或 pending，to 是脱敏后的地址；400 invalid_address、template_required、template_invalid、preview_failed；404 not_found。没配置发信商或收件地址不在白名单里回 skipped，不入队，也不占次数。
+
+数据与副作用：只发给请求里填的这一个地址、一封，kind 为 recruitment.test，事件键 test:<随机 UUID>，主题前加「【测试】」；数据只用示例，不带任何真实投递人的内容，不读不写 applications 和 application_reviews；这种信只试一次、失败不重试，失败原因回给页面；操作记录 mail.template.test_send 只留脱敏邮箱和模板 id，不留邮箱明文和信的内容。
+
+本地表读取：mail_templates, mail_outbox, limit_events。本地表写入：mail_outbox, limit_events, activity_events。
+
+源码：[app/server/src/routes/console/mail-templates.ts:244](../../../app/server/src/routes/console/mail-templates.ts#L244)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)。
 
 ## 提交加入我们申请
 
