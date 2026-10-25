@@ -65,6 +65,8 @@ app/server/assets/stickers/
 
 服务启动时 `lib/migrations/2026-10-sticker-packs.ts` 照清单把库里没有的包、表情和图片补进去，只增不改，可以重复执行：库里已有的包和表情整行不碰（站长改过的名字、排序、停用、换过的图都保留）；新包排在现有的包后面、启用；老包里新增的表情排在那个包的最后；图片按内容 sha256 去重，哈希按文件真实内容现算；清单里列了而目录里没有的图片跳过，记在迁移报告的 `stickers_missing_files` 里，不让启动失败。清单文件不存在算没有内置表情包，存在但读不出来或形状不对，服务拒绝启动。回滚就是部署上一个镜像，迁移只加行、不删行。`tests/server/sticker-packs-migration.test.ts` 用临时目录里的两个包跑：第一次启动建出两个包，站长改名、停用之后重启不被覆盖，第二次启动行数不变。
 
+图片地址由服务端决定：`GET /api/forum/stickers`、控制台列表和表情回应里每个表情的 `url`。CDN 开关（`STATIC_CDN_BASE`，见上节与 [CICD](../../ops/CICD.md)）关闭时全是同源的 `/api/forum/stickers/<哈希>.webp`，按内容哈希，响应头一年 `immutable`，不压缩（WebP 本身已经压缩，宿主与两个容器的 `gzip_types` 都不含它）；打开时清单里的内置表情是 `https://cdn.crosery.com/yzgc/static/site/forum/stickers/<哈希>.webp`，站长在控制台上传的、不在清单里的仍是同源地址（`tests/server/forum-sticker-cdn.test.ts`）。
+
 新增一个包：
 
 1. 在 `app/server/assets/stickers/` 下建 `<包 id>/`，放 `pack.json` 和图片；

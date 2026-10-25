@@ -14,6 +14,7 @@ import { createGoogle } from "./lib/google.js";
 import { createDeviceStore } from "./lib/device-store.js";
 import { createGithub } from "./lib/github-http.js";
 import { createCache } from "./lib/cache.js";
+import { createStickerUrl } from "./lib/sticker-manifest.js";
 import { createRoleStore } from "./lib/role-store.js";
 import { archiveOldDepartments } from "./lib/migrations/2026-10-yugc-v2.js";
 import { createPermissionEngine } from "./lib/permissions.js";
@@ -100,6 +101,8 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
       // 没打开过论坛的组织成员也不能被冒名：登录名取控制台的称号指派，加上登录过的人（审计里的 auth.signin 与当前会话）。
       const store = createForumStore(storage.db, loadForumContent(config.forumContentDir), {
         orgLogins: () => [...roles.listAssignments().map(row => row.github_login), ...auth.signedInLogins()],
+        // 表情图片地址（#286）：STATIC_CDN_BASE 打开时，仓库内置的表情是 CDN 地址，站长在控制台上传的仍是同源地址。
+        stickerUrl: createStickerUrl({ cdnBase: config.staticCdnBase, manifest: storage.stickerManifest }),
       });
       store.seed();
       return store;
