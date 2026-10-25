@@ -308,7 +308,7 @@ node scripts/check-boundaries.mjs       # console ↔ web ↔ server 互不导�
 
 ## 已知限制
 
-- 邮件模板页（#285、#293）在隔离栈的真实浏览器里看过 1440×900 与 390×844（三栏各自滚动、手机四个页签、变量与写法插入、下拉换默认、保存后刷新一致、测试邮件小窗）；预览 iframe 在预发布内容安全策略下的显示和 1180px 附近的断点没有单独核对；页面逻辑只靠 `tests/console/` 的纯逻辑测试和样板数据覆盖，没有挂载组件的测试。
+- 邮件模板页（#285、#293）在隔离栈的真实浏览器里看过 1440×900 与 390×844（三栏各自滚动、手机四个页签、变量与写法插入、下拉换默认、保存后刷新一致、测试邮件小窗）；预览 iframe 在预发布内容安全策略下的显示和 1180px 附近的断点没有单独核对；页面逻辑只靠 `tests/console/` 的纯逻辑测试和样板数据覆盖，没有挂载组件的测试。信息表的一行按第一个冒号（全角或半角）切成名称和内容，所以名称里不能带冒号，内容里可以；之前存下来的模板如果信息表的名称里带冒号，打开后预览会按新的切法排，改好名称再保存。
 - Tuffex 0.9.1 发布包里 18 个子路径（error-state、permission-state、empty、loading-state 等）的 `style.css` 是空文件，只能整包引入 `@talex-touch/tuffex/style.css`（与论坛相同）。2026-10-24 从 0.6.0 升到 0.9.1（所有者：「组件库都更新下」）后，构建出的主 CSS 从约 622KB（gzip 约 91KB）变成约 936KB（gzip 约 137KB），主 JS 的 gzip 从约 91KB 变成约 109KB，多出来的是 0.7–0.9 新增组件的样式。上游把这些子路径补齐后可改回按组件引入。
 - Tuffex 与其依赖 `@talex-touch/utils` 声明 `engines.node >=26`，工作区是 Node 22；实测构建与运行正常；pnpm 默认不开 engine-strict，仓库也没有打开它。`@talex-touch/utils` 把 `electron` 声明为 peer：根 `package.json` 用 `pnpm.packageExtensions` 标成可选，锁文件里没有 electron。`@unocss/inspector` 通过 `pnpm.overrides` 固定 `@vitejs/devtools-kit@0.7.3`（与论坛同版本），0.7.5 依赖的 devframe 1.0 与 0.9 混装会让 Vite 配置加载失败。
 - TxFormItem 在标签置顶时不会撑满宽度、TxDataTable 在窄屏会把固定布局的列压到重叠：`layout.css` 用两条选择器补上（见文件注释），没有改组件内部结构。
