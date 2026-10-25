@@ -109,6 +109,18 @@
         "application:cli"
       ],
       "reason": "登录提示框按显示宽度算边框，加四个单测；技能文件的示例不再回显令牌，补一条禁止项；cli 合同同步。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "application:web"
+      ],
+      "reason": "按当前源码重新生成项目目录，来源摘要随 Dockerfile、技能文件和登录框的改动变化，不手改。"
     }
   ],
   "documents": [
