@@ -7,6 +7,8 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 
 import { api, ApiError } from "@shared/lib/api";
 import { registerHref, type Account } from "../../lib/account";
 import { links } from "../../lib/links";
+import type { LinkNotice } from "../../lib/linkNotice";
+import { goTo } from "../../lib/navigate";
 import Icon from "../Icon";
 
 type Props = {
@@ -16,6 +18,8 @@ type Props = {
   onPatch: (change: Partial<Account>) => void;
   onReload: () => void;
   onSignOut: () => void;
+  /** 从 Google 绑定回来时地址上带的结果（lib/linkNotice.ts） */
+  linkNotice?: LinkNotice | null;
 };
 
 /** 接口回的错误说明（契约里都是中文）；连不上服务器时给一句通用的 */
@@ -24,9 +28,9 @@ function problem(error: unknown): string {
   return "没有连上服务器，稍后再试一次。";
 }
 
-export default function ProfileCard({ account, signInLink, onPatch, onReload, onSignOut }: Props) {
+export default function ProfileCard({ account, signInLink, onPatch, onReload, onSignOut, linkNotice = null }: Props) {
   if (!account) return <GuestCard signInLink={signInLink} />;
-  return <MemberCard account={account} signInLink={signInLink} onPatch={onPatch} onReload={onReload} onSignOut={onSignOut} />;
+  return <MemberCard account={account} signInLink={signInLink} onPatch={onPatch} onReload={onReload} onSignOut={onSignOut} linkNotice={linkNotice} />;
 }
 
 function GuestCard({ signInLink }: { signInLink: string }) {
@@ -78,7 +82,7 @@ function useIdentityView(version: number) {
   return view;
 }
 
-function MemberCard({ account, signInLink, onPatch, onReload, onSignOut }: Props & { account: Account }) {
+function MemberCard({ account, signInLink, onPatch, onReload, onSignOut, linkNotice }: Props & { account: Account }) {
   const save = async (body: Record<string, string>) => {
     const next = await api<ProfileBody>("/api/identity/profile", { method: "PATCH", body: JSON.stringify(body) });
     onPatch({
@@ -118,6 +122,7 @@ function MemberCard({ account, signInLink, onPatch, onReload, onSignOut }: Props
         account={account}
         view={view}
         signInLink={signInLink}
+        linkNotice={linkNotice ?? null}
         onChanged={() => {
           setVersion((value) => value + 1);
           onReload();
@@ -342,7 +347,7 @@ function needsFreshLogin(error: unknown): boolean {
 }
 
 /** 登录方式：邮箱列表（主邮箱不能删）和添加邮箱、Google（没绑定时可以绑）、GitHub（只显示） */
-function Bindings({ account, view, signInLink, onChanged }: { account: Account; view: IdentityView | null; signInLink: string; onChanged: () => void }) {
+function Bindings({ account, view, signInLink, linkNotice, onChanged }: { account: Account; view: IdentityView | null; signInLink: string; linkNotice: LinkNotice | null; onChanged: () => void }) {
   const emails: EmailRow[] = Array.isArray(view?.identities)
     ? view.identities
         .filter((item) => item.provider === "email" && typeof item.label === "string")
@@ -350,6 +355,22 @@ function Bindings({ account, view, signInLink, onChanged }: { account: Account; 
     : account.identities.emails.map((label, index) => ({ id: null, label, primary: index === 0 }));
   const [error, setError] = useState<{ text: string; fresh: boolean } | null>(null);
   const [removing, setRemoving] = useState<{ id: string; confirm: boolean } | null>(null);
+  const [linking, setLinking] = useState(false);
+
+  // 绑定 Google 不能直接链到 /auth/google：那是登录入口，Google 账号没绑过任何账号时会注册出一个新账号并换掉当前会话（#291）。
+  // 这里先让服务端记下「给当前账号绑定」，拿到授权地址再跳过去；回来时地址上带 link=<结果>&provider=google。
+  const linkGoogle = async () => {
+    setError(null);
+    setLinking(true);
+    try {
+      const started = await api<{ authorize_url?: unknown }>("/api/identity/link", { method: "POST", body: JSON.stringify({ provider: "google", return_to: "/?open=profile" }) });
+      if (typeof started?.authorize_url !== "string") throw new Error("missing authorize url");
+      goTo(started.authorize_url);
+    } catch (failure) {
+      setLinking(false);
+      setError({ text: problem(failure), fresh: needsFreshLogin(failure) });
+    }
+  };
 
   const remove = async (row: EmailRow) => {
     if (!row.id || row.primary) return;
@@ -369,7 +390,6 @@ function Bindings({ account, view, signInLink, onChanged }: { account: Account; 
     }
   };
 
-  const googleHref = `/auth/google?return_to=${encodeURIComponent("/")}`;
   return (
     <section className="pt-profile-bind" aria-labelledby="pt-profile-bind-title">
       <h3 id="pt-profile-bind-title">登录方式</h3>
@@ -395,9 +415,9 @@ function Bindings({ account, view, signInLink, onChanged }: { account: Account; 
           {account.identities.google ? (
             <small>已绑定</small>
           ) : (
-            <a className="pt-profile-link" href={googleHref}>
-              绑定
-            </a>
+            <button type="button" className="pt-profile-link" disabled={linking} onClick={() => void linkGoogle()}>
+              {linking ? "正在跳转…" : "绑定"}
+            </button>
           )}
         </li>
         {account.identities.github && (
@@ -408,6 +428,11 @@ function Bindings({ account, view, signInLink, onChanged }: { account: Account; 
           </li>
         )}
       </ul>
+      {linkNotice && (
+        <small className={`pt-profile-msg ${linkNotice.tone === "ok" ? "is-ok" : "is-error"}`} role={linkNotice.tone === "ok" ? "status" : "alert"}>
+          {linkNotice.text}
+        </small>
+      )}
       <AddEmail
         onAdded={onChanged}
         onFreshLogin={(text) => setError({ text, fresh: true })}

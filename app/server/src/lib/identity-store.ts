@@ -536,6 +536,36 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     }).immediate();
   }
 
+  /** 这个账号有没有绑定 Google：资料窗口据此决定出「绑定」还是「已绑定」，发起绑定前也先看一眼。 */
+  function hasGoogle(accountId: string): boolean {
+    return Boolean(providerOfAccount.get(accountId, "google"));
+  }
+
+  /**
+   * 绑定 Google（资料窗口，#291）：把 Google 的 `sub` 绑到已登录的账号上；不登录、不建号、不动会话。
+   * 这个 Google 账号已属于别的账号回 identity_conflict（不说是谁，同时记 link_conflict）；本账号已经绑了 Google
+   * （同一个或另一个）回 identity_exists。成功写身份与账号事件 link。Google 给的邮箱只记在身份行上，不算登录邮箱（#273），
+   * 不改 canonical_email，也不因为它和某个账号的邮箱相同就合并（ADR-0005「不按邮箱合并」）。
+   */
+  function linkGoogle(input: { accountId: string; sub: string; email: string | null; login: string; ip?: string }): LinkResult {
+    return db.transaction((): LinkResult => {
+      const now = clock();
+      const account = terminalAccount(db, input.accountId);
+      const owner = identityOf.get("google", input.sub) as { user_id: string } | undefined;
+      if (owner && terminalAccount(db, owner.user_id).id !== account.id) {
+        accountEvent(account.id, "link_conflict", "google", "denied", "identity_conflict", now);
+        // 和绑定邮箱一样：这条失败只在这里记一次，路由不再重复记
+        deps.audit({ login: input.login, account_id: account.id }, "identity.link_conflict", undefined, { provider: "google" }, input.ip, { surface: "portal", outcome: "denied" });
+        return { ok: false, reason: "identity_conflict" };
+      }
+      if (owner || providerOfAccount.get(account.id, "google")) return { ok: false, reason: "identity_exists" };
+      insertChannel.run({ id: newUlid(now), user_id: account.id, provider: "google", uid: input.sub, email: input.email, verified: input.email ? 1 : 0, now, last_login_at: null });
+      accountEvent(account.id, "link", "google", "ok", null, now);
+      // identity.link 不在这里记：路由（回调）已经记过 auth.link（provider=google）
+      return { ok: true };
+    }).immediate();
+  }
+
   /**
    * 本账号还能不能加这个邮箱（#272）：已经绑在本账号上回 identity_exists，已经有 EMAILS_MAX 个回 email_limit，能加回 null。
    * 不给邮箱时只看个数。发码前（账号页接口）和写入时（linkEmail 的事务里）都按它判断。
@@ -777,7 +807,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
 
   return {
     signInWithGithub, recordSignout, accountForGithub,
-    signInWithEmailCode, signInWithPassword, signInWithGoogle, passwordFor, passwordHashOf, setPassword, resetPassword, hasEmail, isMember, linkEmail, unlinkEmail, emailAddRefusal,
+    signInWithEmailCode, signInWithPassword, signInWithGoogle, passwordFor, passwordHashOf, setPassword, resetPassword, hasEmail, isMember, linkEmail, unlinkEmail, emailAddRefusal, hasGoogle, linkGoogle,
     membershipOf, accountView, provisionAccount, listAccounts, setSiteRole, githubIdentityByLogin, accountTarget,
     getAccountClaims, listAccountsForSync,
   };

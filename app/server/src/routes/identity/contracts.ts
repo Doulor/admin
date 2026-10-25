@@ -44,6 +44,7 @@ const loginProvider = choices("github", "email", "google");
 const codeSent = object({ resend_after: integer(1) }, ["resend_after"]);
 const signedIn = object({ return_to: text(2048, 1), registered: { type: "boolean" } }, ["return_to"]);
 const done = object({ ok: { type: "boolean", const: true } }, ["ok"]);
+const googleLink = object({ authorize_url: text(2048, 1) }, ["authorize_url"]);
 // 实名信息（#280）：下拉框能选大一到大四（1–4）和已毕业（"graduated"）；真实姓名的字符规则在 lib/account-profiles.ts
 const selectableGrade = { anyOf: [{ type: "integer", enum: [1, 2, 3, 4] }, { type: "string", enum: ["graduated"] }] };
 const realName = text(64, 1);
@@ -181,6 +182,8 @@ export const identityContracts: RouteContracts = {
   "GET /auth/google": { querystring: object({ return_to: returnTo, invite: inviteCode }), response: failures },
   // Google 回调还会带 scope、authuser、prompt、hd、iss 等参数，不一一列出
   "GET /auth/google/callback": { querystring: object({ code: text(2048), state: text(128), error: text(128) }, [], true), response: failures },
+  // 绑定 Google（#291）：返回 Google 的授权地址，页面再跳过去；回调是上面那个 GET，成功与失败都是 302 回官网
+  "POST /api/identity/link": { querystring: object({}), body: object({ provider: choices("google"), return_to: returnTo }, ["provider"]), response: { 200: googleLink, ...failures } },
   "GET /api/identity/me": { querystring: object({}), response: { 200: accountView, ...failures } },
   "POST /api/identity/email/start": { querystring: object({}), body: object({ email }, ["email"]), response: { 202: codeSent, ...failures } },
   "POST /api/identity/email/verify": { querystring: object({}), body: object({ code }, ["code"]), response: { 200: done, ...failures } },

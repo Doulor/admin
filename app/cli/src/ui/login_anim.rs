@@ -134,20 +134,13 @@ impl LoginAnimation for TerminalAnimation {
     }
 
     fn begin_waiting(&mut self, user_code: &str, verification_uri: &str) -> io::Result<()> {
-        let width = user_code.len().max(verification_uri.len()) + 4;
-        let border = "─".repeat(width);
+        let [top, code, uri, bottom] = waiting_box(user_code, verification_uri);
         execute!(
             self.out,
-            Print(format!("┌{border}┐\n")),
-            Print(format!(
-                "│ 用户码：{user_code:<width$}│\n",
-                width = width - 9
-            )),
-            Print(format!(
-                "│ 在浏览器打开 {verification_uri:<width$}│\n",
-                width = width.saturating_sub(16)
-            )),
-            Print(format!("└{border}┘\n")),
+            Print(format!("{top}\n")),
+            Print(format!("{code}\n")),
+            Print(format!("{uri}\n")),
+            Print(format!("{bottom}\n")),
             Print(format!("{} 等待确认…\n", SPINNER_FRAMES[0])),
         )?;
         self.waiting_lines = 5;
@@ -278,11 +271,89 @@ mod base64_lite {
     }
 }
 
+/// 终端里一个字符占几列：东亚宽字符和全角符号占 2 列，其余 1 列。提示框只要求对得齐，不去覆盖全部 Unicode。
+fn display_width(text: &str) -> usize {
+    text.chars()
+        .map(|c| match c as u32 {
+            0x1100..=0x115F
+            | 0x2E80..=0xA4CF
+            | 0xAC00..=0xD7A3
+            | 0xF900..=0xFAFF
+            | 0xFE30..=0xFE6F
+            | 0xFF00..=0xFF60
+            | 0xFFE0..=0xFFE6
+            | 0x20000..=0x3FFFD => 2,
+            _ => 1,
+        })
+        .sum()
+}
+
+/// 等待确认时的提示框四行（不含换行）：边框宽度按两行内容的显示宽度算，网址再长也对齐。
+fn waiting_box(user_code: &str, verification_uri: &str) -> [String; 4] {
+    const CODE_LABEL: &str = "用户码：";
+    const URI_LABEL: &str = "在浏览器打开 ";
+    // 两条竖线之间：一个前导空格 + 标签 + 内容 + 补齐的空格，最长的一行末尾留一个空格。
+    let used = |label: &str, content: &str| 1 + display_width(label) + display_width(content);
+    let inner = used(CODE_LABEL, user_code).max(used(URI_LABEL, verification_uri)) + 1;
+    let line = |label: &str, content: &str| {
+        format!(
+            "│ {label}{content}{}│",
+            " ".repeat(inner - used(label, content))
+        )
+    };
+    let border = "─".repeat(inner);
+    [
+        format!("┌{border}┐"),
+        line(CODE_LABEL, user_code),
+        line(URI_LABEL, verification_uri),
+        format!("└{border}┘"),
+    ]
+}
+
 /// `--json`、非 TTY、`NO_COLOR`、`CI` 下给 `NullAnimation`，否则给真的终端动画。
 pub fn pick(interactive: bool) -> Box<dyn LoginAnimation> {
     if interactive {
         Box::new(TerminalAnimation::new())
     } else {
         Box::new(NullAnimation)
+    }
+}
+
+#[cfg(test)]
+mod waiting_box_tests {
+    use super::{display_width, waiting_box};
+
+    fn widths(user_code: &str, uri: &str) -> Vec<usize> {
+        waiting_box(user_code, uri)
+            .iter()
+            .map(|line| display_width(line))
+            .collect()
+    }
+
+    #[test]
+    fn every_line_has_the_same_width_for_a_long_preview_url() {
+        // 预发布验收时的真实输入：网址比用户码长得多，旧实现的网址行比边框宽 10 列。
+        let w = widths("VTHJ-LSBL", "https://prev.yangtzeu.work/device");
+        assert!(w.iter().all(|n| *n == w[0]), "{w:?}");
+    }
+
+    #[test]
+    fn every_line_has_the_same_width_when_the_code_is_the_longer_part() {
+        let w = widths("ABCDEFGH-IJKLMNOP-QRSTUVWX", "http://x/d");
+        assert!(w.iter().all(|n| *n == w[0]), "{w:?}");
+    }
+
+    #[test]
+    fn wide_characters_in_the_content_count_two_columns() {
+        assert_eq!(display_width("用户码："), 8);
+        let w = widths("AB", "https://例子.中国/device");
+        assert!(w.iter().all(|n| *n == w[0]), "{w:?}");
+    }
+
+    #[test]
+    fn the_box_keeps_both_values_intact() {
+        let lines = waiting_box("VTHJ-LSBL", "https://prev.yangtzeu.work/device");
+        assert!(lines[1].contains("VTHJ-LSBL"));
+        assert!(lines[2].contains("https://prev.yangtzeu.work/device"));
     }
 }
