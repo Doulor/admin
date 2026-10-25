@@ -50,3 +50,17 @@
 - 做了什么：按 code-review 两条线在主会话核对 7aa5e777...e6067db5：文档同步、宏观对齐、没有放宽校验（哈希带 __ 的截图换压缩质量重生成）、写法检查、截图里没有真实姓名和邮箱；逐条对照所有者 21:16、21:17、22:22；核对播种只动官方账号的说明帖、编号段查重、CDN 只增不改
 - 结果：通过；记一处规范偏差：25f0524c 用了词表外的 docs(architecture)，已推送不改写历史。未验证项（预发布显示、可见范围、CDN 图片）随 rc.22 补
 - 下一步：贴审查评论并合并
+
+## 04:11:34 +08:00 · 合并 · #281 · MR !21 合进 stage，手工关闭 #281
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：审查结论贴进 MR !21 后按 sha fbb4f0af 合并（merge commit，删源分支）；在 #281 留关闭记录后手工关闭
+- 结果：stage 合并提交 130a58b8；#281 closed，关闭记录 note 1149
+- 下一步：收尾 worktree；rc.22 核对说明帖显示
+
+## 04:11:43 +08:00 · 收尾 · #281 · 删除 task-281 worktree 与本地分支
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：按 PID 停掉这个 worktree 起的两个 vite（75046、98524），git worktree remove 删 .claude/worktrees/task-281，git branch -D 删本地 task/281/usage_guides；远端分支已随合并删除
+- 结果：git worktree list 不再有 task-281
+- 下一步：无

@@ -317,7 +317,7 @@ export default function CompetitionsApp({ phone = false, onPhoneNav, account = n
         <div className="pt-cx-bar">
           {hubOn && (
             <div className="pt-cx-views" role="group" aria-label="切换列表">
-              <button type="button" className="pt-cx-view" aria-pressed={!mineScope} onClick={() => setScope("all")}>
+              <button type="button" className="pt-cx-view" aria-pressed={!mineScope && !plazaScope} onClick={() => setScope("all")}>
                 <Icon name="trophy-line" size={15} />
                 赛事
               </button>

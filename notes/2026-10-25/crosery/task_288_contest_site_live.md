@@ -29,3 +29,17 @@
 - 做了什么：按 CODE-REVIEW 十二项逐条核对被审查提交 32d2b185，结论写在 MR 评论 1198
 - 结果：结论：通过（详见评论）
 - 下一步：合并进 stage，随 rc.23 部署后在预发布复核
+
+## 14:42:17 +08:00 · 合并 · #288 · GitLab !22 合并进 stage
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：审查结论通过后，把当时的 stage 合进来源分支（只有目录生成文件冲突，重新生成），再在 GitLab 以 merge commit 合并 !22，GitLab 同时删除了来源分支
+- 结果：合并提交 abbdcba7；check:catalog、check-architecture、check-doc-sync 在合并后的分支上通过；issue 暂不关，预发布验收等 rc.23
+- 下一步：rc.23 部署后在预发布核对，通过后写关闭记录并关 issue
+
+## 14:44:26 +08:00 · 收尾 · #288 · 清理本机 worktree 与本地分支
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：task.mjs finish 依赖 GitHub，这里手工清理：确认分支提示已是 gitlab/stage 的祖先、worktree 无未提交内容后，git worktree remove 并删本地分支；GitLab 在合并时已删远端分支
+- 结果：远端与本机都没有 task/288/contest_site_live；worktree 已删
+- 下一步：无；issue 等 rc.23 预发布验收后关闭
