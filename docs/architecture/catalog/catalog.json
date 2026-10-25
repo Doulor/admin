@@ -266,12 +266,12 @@
   ],
   "coverage": {
     "automaticHead": 85,
-    "businessOperations": 171,
-    "businessOperationsWithFlow": 171,
+    "businessOperations": 172,
+    "businessOperationsWithFlow": 172,
     "capabilities": 16,
-    "declaredFlows": 177,
-    "responseSchemas": 138,
-    "routeMethods": 285,
+    "declaredFlows": 178,
+    "responseSchemas": 139,
+    "routeMethods": 286,
     "supplementalInterfaces": 5,
     "supplementalInterfacesWithFlow": 5,
     "tables": 68
@@ -573,7 +573,7 @@
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
-          "line": 29,
+          "line": 31,
           "path": "app/server/src/middleware/oauth-state.ts"
         }
       ],
@@ -612,7 +612,7 @@
           "path": "app/server/src/routes/identity/providers.ts"
         },
         {
-          "line": 126,
+          "line": 127,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -667,7 +667,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 131,
+          "line": 132,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -711,7 +711,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 136,
+          "line": 137,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -760,7 +760,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 141,
+          "line": 142,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -815,7 +815,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 145,
+          "line": 146,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -877,7 +877,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 150,
+          "line": 151,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -930,7 +930,7 @@
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
-          "line": 155,
+          "line": 156,
           "path": "app/server/src/routes/identity/contracts.ts"
         }
       ],
@@ -1146,7 +1146,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -1304,7 +1304,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 159,
+          "line": 160,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -1371,7 +1371,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 164,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -1448,7 +1448,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 170,
+          "line": 171,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -1507,7 +1507,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 175,
+          "line": 176,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -1567,11 +1567,11 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 24,
+          "line": 29,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 181,
+          "line": 182,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -1611,11 +1611,11 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 35,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 183,
+          "line": 184,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -1627,19 +1627,23 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 70,
+          "line": 118,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
           "line": 16,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 550,
+          "path": "app/server/src/lib/identity-store.ts"
         }
       ],
       "id": "flow:identity.google.callback",
       "invariants": [
         "权限与资源：每分钟 10 次（按 IP）；state 与签名 cookie 必须相符；ID Token 用 Google JWKS 验签（RS256），核对 iss、aud、exp、nonce，按 Google sub 认人，不按邮箱合并账号。",
-        "响应与错误：成功 302 回 return_to，账号还没有登录邮箱（Google 给的邮箱不算）、这个环境又能发信时改为 302 到 /bind-email?return_to=<原路径>（#273）；取消、上游失败、没有账号且没带邀请码、邀请码无效、Google 邮箱已属于别的账号、账号停用或不再是成员时 302 到 /signin?signin=<原因>&provider=google；缺参数 400，state 无效 400。",
-        "数据与副作用：外部请求在事务外；建号、兑换邀请码、建会话（provider=google）、写 identity_audit 与 auth.register/auth.signin 在一个 BEGIN IMMEDIATE 事务里，失败整体回滚；失败日志不输出令牌。真的要新建账号这一步，同一 IP 今天已建满 5 个、同一设备（yugc_vid）已建满 3 个回 registration_limited，登录到已有账号不受影响（#274 残留修复，SPEC §3.8，lib/register-limits.ts）。"
+        "响应与错误：成功 302 回 return_to，账号还没有登录邮箱（Google 给的邮箱不算）、这个环境又能发信时改为 302 到 /bind-email?return_to=<原路径>（#273）；取消、上游失败、没有账号且没带邀请码、邀请码无效、Google 邮箱已属于别的账号、账号停用或不再是成员时 302 到 /signin?signin=<原因>&provider=google；缺参数 400，state 无效 400。 绑定（cookie 的 kind 是 google-link，#291）时一律 302 回发起页 ?link=<linked|conflict|exists|cancelled|failed>&provider=google，不去登录页。",
+        "数据与副作用：外部请求在事务外；建号、兑换邀请码、建会话（provider=google）、写 identity_audit 与 auth.register/auth.signin 在一个 BEGIN IMMEDIATE 事务里，失败整体回滚；失败日志不输出令牌。真的要新建账号这一步，同一 IP 今天已建满 5 个、同一设备（yugc_vid）已建满 3 个回 registration_limited，登录到已有账号不受影响（#274 残留修复，SPEC §3.8，lib/register-limits.ts）。 绑定分支不登录、不建号、不换会话：核对当前还是发起绑定的那个会话，在一个事务里判重、写 identities 与 identity_audit（link 或 link_conflict），再写 auth.link（只记 provider，不记 sub 与邮箱）。"
       ],
       "operation": "GET /auth/google/callback",
       "operationLabel": "GET /auth/google/callback",
@@ -1647,7 +1651,8 @@
       "reads": [
         "identities",
         "users",
-        "invite_codes"
+        "invite_codes",
+        "sessions"
       ],
       "relatedDomains": [
         "audit",
@@ -1657,7 +1662,7 @@
       "tests": [
         "tests/server/signin-methods.test.ts"
       ],
-      "title": "校验 Google 回调后登录，没有账号时凭邀请码注册",
+      "title": "校验 Google 回调：登录（没有账号时凭邀请码注册）或给当前账号绑定",
       "writes": [
         "users",
         "identities",
@@ -1685,11 +1690,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 184,
+          "line": 187,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 587,
+          "line": 617,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -1721,7 +1726,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 69,
+          "line": 73,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -1772,6 +1777,53 @@
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
+        "docs/services/web/portal.md",
+        "docs/plan/UNIFIED-LOGIN.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "identity",
+      "evidence": [
+        {
+          "line": 42,
+          "path": "app/server/src/routes/identity/google.ts"
+        },
+        {
+          "line": 186,
+          "path": "app/server/src/routes/identity/contracts.ts"
+        },
+        {
+          "line": 540,
+          "path": "app/server/src/lib/identity-store.ts"
+        }
+      ],
+      "id": "flow:identity.account.link",
+      "invariants": [
+        "权限与资源：有效会话，且这次登录不超过 10 分钟（命令行令牌不算，否则 403 step_up_required）；每账号每分钟 10 次；没配 GOOGLE_CLIENT_ID 与 GOOGLE_CLIENT_SECRET 时 404 provider_not_enabled。",
+        "响应与错误：200 {authorize_url}；provider 不是 google 400；本账号已经绑了 Google 409 identity_exists，不去 Google；return_to 只接受本站，缺省 /account。",
+        "数据与副作用：只写签名 cookie google_oauth_state（kind 为 google-link，带账号 id 与会话指纹，path=/auth/google，10 分钟），不写数据库；真正的绑定在 GET /auth/google/callback，绑的是发起的那个账号，不登录、不建号。"
+      ],
+      "operation": "POST /api/identity/link",
+      "operationLabel": "POST /api/identity/link",
+      "operationNodeId": "route:POST /api/identity/link",
+      "reads": [
+        "sessions",
+        "identities"
+      ],
+      "relatedDomains": [],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/signin-methods.test.ts",
+        "tests/web/portal-profile-card.test.tsx"
+      ],
+      "title": "给账号绑定 Google：发起授权",
+      "writes": []
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
         "docs/architecture/SECURITY.md",
         "docs/plan/UNIFIED-LOGIN.md"
       ],
@@ -1781,11 +1833,11 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 63,
+          "line": 64,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -1833,11 +1885,11 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 186,
+          "line": 189,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -1889,15 +1941,15 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 102,
+          "line": 103,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 187,
+          "line": 190,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 553,
+          "line": 583,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -1948,11 +2000,11 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 115,
+          "line": 116,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 193,
+          "line": 196,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -2008,11 +2060,11 @@
       "domain": "identity",
       "evidence": [
         {
-          "line": 140,
+          "line": 141,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 188,
+          "line": 191,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -6073,11 +6125,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 250,
+          "line": 253,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 156,
+          "line": 158,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -10106,7 +10158,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 768,
+          "line": 798,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -10580,7 +10632,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -11023,7 +11075,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 83,
+          "line": 87,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -11113,7 +11165,7 @@
           "path": "app/server/src/lib/account-avatar.ts"
         },
         {
-          "line": 308,
+          "line": 313,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -11160,7 +11212,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 534,
+          "line": 559,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -12928,6 +12980,11 @@
       "title": "给账号绑定邮箱：核对验证码"
     },
     {
+      "id": "flow:identity.account.link",
+      "kind": "flow",
+      "title": "给账号绑定 Google：发起授权"
+    },
+    {
       "id": "flow:identity.account.password",
       "kind": "flow",
       "title": "设置或修改密码"
@@ -13025,7 +13082,7 @@
     {
       "id": "flow:identity.google.callback",
       "kind": "flow",
-      "title": "校验 Google 回调后登录，没有账号时凭邀请码注册"
+      "title": "校验 Google 回调：登录（没有账号时凭邀请码注册）或给当前账号绑定"
     },
     {
       "id": "flow:identity.google.start",
@@ -14458,6 +14515,11 @@
       "title": "POST /api/identity/invite/redeem"
     },
     {
+      "id": "route:POST /api/identity/link",
+      "kind": "route",
+      "title": "POST /api/identity/link"
+    },
+    {
       "id": "route:POST /api/identity/password",
       "kind": "route",
       "title": "POST /api/identity/password"
@@ -15336,11 +15398,16 @@
       "id": "test:tests/web/portal-phone.test.tsx",
       "kind": "test",
       "title": "tests/web/portal-phone.test.tsx"
+    },
+    {
+      "id": "test:tests/web/portal-profile-card.test.tsx",
+      "kind": "test",
+      "title": "tests/web/portal-profile-card.test.tsx"
     }
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "4dec02d2dfeb4127bd557c8b020a9ff855c49da1785f9bc2ba04ec25390cc8f6",
+    "fingerprint": "2c95129744bf0674b4674d8f1a1ba668495072ea94760c7a85d8bea2618bccd9",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -16324,7 +16391,7 @@
       },
       {
         "path": "app/server/src/lib/identity-store.ts",
-        "sha256": "8dd5360d62a7643a032fd01614d25e6e5f50fbf05d1a6dffa2aac7e41282812f"
+        "sha256": "ea272af10ddc40b13b5dd0df56b461e1ce31939013bf1e8623893cdb329aa24d"
       },
       {
         "path": "app/server/src/lib/invite-codes.ts",
@@ -16404,7 +16471,7 @@
       },
       {
         "path": "app/server/src/lib/safe-return.ts",
-        "sha256": "1a066b64eda29195aadebc5868c54fa42c2c152d95eed536c58eeadbca45b0b4"
+        "sha256": "3fc253196b44d83011e867b1250b1cf8c0ec3d103fc359169b95a46819b45a0d"
       },
       {
         "path": "app/server/src/lib/session.ts",
@@ -16436,7 +16503,7 @@
       },
       {
         "path": "app/server/src/middleware/oauth-state.ts",
-        "sha256": "28e0db12bd6d94918f5f9e10c7c17ad49a71e0c2655afc83f98234433fc9bc70"
+        "sha256": "b58844b89aad908551ae090e797187377959ae4ccb681ce7d56c8fe060ee58d7"
       },
       {
         "path": "app/server/src/middleware/pow.ts",
@@ -16596,11 +16663,11 @@
       },
       {
         "path": "app/server/src/routes/identity/account.ts",
-        "sha256": "ddbbdfe7eda68697a3c98974f9160b6a3414beff341e63931c0e33e6feab0644"
+        "sha256": "cc5a0c2f63e440a1d0d0c8b8a82164c433f73d43620041d3a63443bd7410b046"
       },
       {
         "path": "app/server/src/routes/identity/contracts.ts",
-        "sha256": "2e573b8c7cbac4b8b4b44b48298b27e56d6858aac0dcb67f23d0264e6bccb598"
+        "sha256": "bedf006db554366f505e3088a2a8b033540570e30b47f9033609234113bf79b2"
       },
       {
         "path": "app/server/src/routes/identity/device.ts",
@@ -16612,7 +16679,7 @@
       },
       {
         "path": "app/server/src/routes/identity/google.ts",
-        "sha256": "f96af137734a907d35154c97ccbb01a8d74c7bd26f3956795632123624647595"
+        "sha256": "3bd12acc7ddd0475a6232fe985d2f5b1168b0a370ec79600e0984f50519898b6"
       },
       {
         "path": "app/server/src/routes/identity/index.ts",
@@ -16916,7 +16983,7 @@
       },
       {
         "path": "app/web/sites/portal/components/os/ProfileCard.tsx",
-        "sha256": "f17b2fccbc85372f0c41597a8aee269604d2a4bd9f10865ab083a43177675828"
+        "sha256": "6474c38264b2e24e2042647b3a01ea94d493fa9ca656c519a2da05bf9a0a6beb"
       },
       {
         "path": "app/web/sites/portal/components/os/SkyWallpaper.tsx",
@@ -16936,11 +17003,11 @@
       },
       {
         "path": "app/web/sites/portal/components/os/Windows.tsx",
-        "sha256": "e988544c50c35ef4070bd7ac135b7f9b0ec7a413c77bfe119659ecd567347fda"
+        "sha256": "9906f984f8c1d7c1438d10b5f31d1786d30ef2247e38905993496a27d7d8aa28"
       },
       {
         "path": "app/web/sites/portal/components/os/YugcOs.tsx",
-        "sha256": "555ce111c36afe9ac61ddbca5a48c77c2c25eced784e9493046e7bc36d830b29"
+        "sha256": "290c0b75d62702307097d1621b2ee03801a57008c8af0de4d41a485f9c2294a2"
       },
       {
         "path": "app/web/sites/portal/components/os/competitions/Avatar.tsx",
@@ -17031,12 +17098,20 @@
         "sha256": "25229c47f5bce9bb7481634c56fe6a723872c5c5e58e895089cf2f43f82f4c9a"
       },
       {
+        "path": "app/web/sites/portal/lib/linkNotice.ts",
+        "sha256": "d6ac96ffed70a71f6468ca51cf5265f262a2bb3600e35ad6855014494af64a56"
+      },
+      {
         "path": "app/web/sites/portal/lib/links.ts",
         "sha256": "fc94c96bde51cd3b8ea3a06a0a5446647a7d7100fd4a4208d6c9b18772324ab1"
       },
       {
         "path": "app/web/sites/portal/lib/motion.ts",
         "sha256": "23d1bee8bb72625be0e3531acdafadbaa50ce88a1d48047a9bc018235ff28c0a"
+      },
+      {
+        "path": "app/web/sites/portal/lib/navigate.ts",
+        "sha256": "2f6ec2ce668d87bd376bdeece51ab38b34f9475fab6040135c183a989e29dcfd"
       },
       {
         "path": "app/web/sites/portal/lib/osApps.ts",
@@ -17124,7 +17199,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "ec7d9f1587bb691738ebdd4546d46f4ff1513cabedd227c3265c5febeab1e895"
+        "sha256": "4a253a8c70d1e853fa654e04e086e4bc514fb4bc16943ef122d94b2e4db77c0a"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -17136,7 +17211,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "cc6ef1c69cb73c6eb112c1f43caaa1144bc9d7724d79187d17010237d9ceebec"
+        "sha256": "e1852c2f0cdae397e0e4b2b5e54158a126e487527df5d5aad2ae42ef0df12fa6"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -17168,7 +17243,7 @@
       },
       {
         "path": "docs/plan/UNIFIED-LOGIN.md",
-        "sha256": "813d562d0044c9a2faa90e82d01f43caa42565550f78c9e3588b2ad23040c64c"
+        "sha256": "9487dc1e07b2b7fb4da990e3e64343fa43db9341dcdae55702efff4ce34d4644"
       },
       {
         "path": "docs/services/cli/README.md",
@@ -17184,7 +17259,7 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "64b8a6ae2a79e46c65e5a9eaa9897128fefa00ead320183e19476664c1acf325"
+        "sha256": "e7d1bdd4bdc38bd32f531e3997dd809d2c89683b1143b2952b296c78237c484f"
       },
       {
         "path": "docs/services/server/data-model.md",
@@ -17192,7 +17267,7 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "833d59b5acd68618437ae9bd5917b531669d251715667eed9442131b2320da9f"
+        "sha256": "d2f6f0e93c7a82754136c6ace95ab9bc489a98376189d759b275567e0ac584ad"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -17208,7 +17283,7 @@
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "41c321019b15abedb6af846019d08c84f545d62968800bf4bb2b660f718ece89"
+        "sha256": "43626f74eb58893c25d2d84d60eb0d1d3218722896d40b7c2ee0b811e87c7ec8"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -17456,7 +17531,7 @@
       },
       {
         "path": "tests/server/signin-methods.test.ts",
-        "sha256": "1acc2475c32292750ca8cb66d151b8989da95d9c549d9a80d2bb83c57e39664a"
+        "sha256": "6ef7a34da6ccd03e6776cb24d736dbc55114ab20820392006e11e715937a8008"
       },
       {
         "path": "tests/server/system-backup.test.ts",
@@ -17509,6 +17584,10 @@
       {
         "path": "tests/web/portal-phone.test.tsx",
         "sha256": "4108750274d4d6966bd023d755b5a21d14385f581cc80a0d5bccd448acf45a38"
+      },
+      {
+        "path": "tests/web/portal-profile-card.test.tsx",
+        "sha256": "a21a8e9b5b22a63fa3bf25df68ca9ede26a3432df7d53b1374597774159bacda"
       }
     ]
   },
@@ -18735,7 +18814,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 24,
+          "line": 29,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -18747,7 +18826,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 35,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -19767,7 +19846,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 24,
+          "line": 29,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -19779,7 +19858,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 35,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         }
       ],
@@ -20583,7 +20662,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 102,
+          "line": 103,
           "path": "app/server/src/routes/identity/account.ts"
         }
       ],
@@ -20595,7 +20674,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 63,
+          "line": 64,
           "path": "app/server/src/routes/identity/account.ts"
         }
       ],
@@ -20607,7 +20686,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/identity/account.ts"
         }
       ],
@@ -20631,7 +20710,19 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 115,
+          "line": 42,
+          "path": "app/server/src/routes/identity/google.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:POST /api/identity/link",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 116,
           "path": "app/server/src/routes/identity/account.ts"
         }
       ],
@@ -20643,7 +20734,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 140,
+          "line": 141,
           "path": "app/server/src/routes/identity/account.ts"
         }
       ],
@@ -32151,11 +32242,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 250,
+          "line": 253,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 156,
+          "line": 158,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -32235,11 +32326,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 250,
+          "line": 253,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 156,
+          "line": 158,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -32319,11 +32410,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 250,
+          "line": 253,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 156,
+          "line": 158,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -32403,11 +32494,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 250,
+          "line": 253,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 156,
+          "line": 158,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -32523,11 +32614,11 @@
           "path": "app/web/sites/portal/components/os/competitions/CompetitionDetail.tsx"
         },
         {
-          "line": 250,
+          "line": 253,
           "path": "app/web/sites/portal/components/os/Windows.tsx"
         },
         {
-          "line": 156,
+          "line": 158,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -62691,7 +62782,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -62731,7 +62822,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -62771,7 +62862,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -62811,7 +62902,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -62851,7 +62942,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -62891,7 +62982,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -62931,7 +63022,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -62971,7 +63062,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -63011,7 +63102,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -63051,7 +63142,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -63091,7 +63182,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -63143,7 +63234,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -63183,7 +63274,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -63223,7 +63314,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -63263,7 +63354,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -63303,7 +63394,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 774,
+          "line": 804,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -64449,15 +64540,15 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 102,
+          "line": 103,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 187,
+          "line": 190,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 553,
+          "line": 583,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -64473,15 +64564,15 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 102,
+          "line": 103,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 187,
+          "line": 190,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 553,
+          "line": 583,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -64497,15 +64588,15 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 102,
+          "line": 103,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 187,
+          "line": 190,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 553,
+          "line": 583,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -64533,15 +64624,15 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 102,
+          "line": 103,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 187,
+          "line": 190,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 553,
+          "line": 583,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -64557,15 +64648,15 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 102,
+          "line": 103,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 187,
+          "line": 190,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 553,
+          "line": 583,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -64581,15 +64672,15 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 102,
+          "line": 103,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 187,
+          "line": 190,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 553,
+          "line": 583,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -64605,15 +64696,15 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 102,
+          "line": 103,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 187,
+          "line": 190,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 553,
+          "line": 583,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -64629,15 +64720,15 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 102,
+          "line": 103,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 187,
+          "line": 190,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 553,
+          "line": 583,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -64683,11 +64774,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 64,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -64703,11 +64794,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 64,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -64723,11 +64814,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 64,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -64743,11 +64834,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 64,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -64769,11 +64860,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 64,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -64789,11 +64880,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 64,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -64809,11 +64900,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 63,
+          "line": 64,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 185,
+          "line": 188,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -64859,11 +64950,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 186,
+          "line": 189,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -64879,11 +64970,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 186,
+          "line": 189,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -64899,11 +64990,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 186,
+          "line": 189,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -64925,11 +65016,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 186,
+          "line": 189,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -64945,11 +65036,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 186,
+          "line": 189,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -64965,11 +65056,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 186,
+          "line": 189,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -64985,11 +65076,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 186,
+          "line": 189,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65005,11 +65096,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 186,
+          "line": 189,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65025,11 +65116,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 186,
+          "line": 189,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65045,11 +65136,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 77,
+          "line": 78,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 186,
+          "line": 189,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65060,6 +65151,108 @@
       "from": "flow:identity.account.email.verify",
       "to": "table:users",
       "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.account.link",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.account.link",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.account.link",
+      "to": "document:docs/plan/UNIFIED-LOGIN.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.account.link",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.account.link",
+      "to": "document:docs/services/web/portal.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 42,
+          "path": "app/server/src/routes/identity/google.ts"
+        },
+        {
+          "line": 186,
+          "path": "app/server/src/routes/identity/contracts.ts"
+        },
+        {
+          "line": 540,
+          "path": "app/server/src/lib/identity-store.ts"
+        }
+      ],
+      "from": "flow:identity.account.link",
+      "to": "table:identities",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 42,
+          "path": "app/server/src/routes/identity/google.ts"
+        },
+        {
+          "line": 186,
+          "path": "app/server/src/routes/identity/contracts.ts"
+        },
+        {
+          "line": 540,
+          "path": "app/server/src/lib/identity-store.ts"
+        }
+      ],
+      "from": "flow:identity.account.link",
+      "to": "table:sessions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.account.link",
+      "to": "test:tests/server/signin-methods.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:identity.account.link",
+      "to": "test:tests/web/portal-profile-card.test.tsx",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 42,
+          "path": "app/server/src/routes/identity/google.ts"
+        },
+        {
+          "line": 186,
+          "path": "app/server/src/routes/identity/contracts.ts"
+        },
+        {
+          "line": 540,
+          "path": "app/server/src/lib/identity-store.ts"
+        }
+      ],
+      "from": "flow:identity.account.link",
+      "to": "route:POST /api/identity/link",
+      "type": "uses"
     },
     {
       "basis": "declaration",
@@ -65095,11 +65288,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 115,
+          "line": 116,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 193,
+          "line": 196,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65119,11 +65312,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 115,
+          "line": 116,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 193,
+          "line": 196,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65143,11 +65336,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 115,
+          "line": 116,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 193,
+          "line": 196,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65179,11 +65372,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 115,
+          "line": 116,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 193,
+          "line": 196,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65203,11 +65396,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 115,
+          "line": 116,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 193,
+          "line": 196,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65227,11 +65420,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 115,
+          "line": 116,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 193,
+          "line": 196,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65251,11 +65444,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 115,
+          "line": 116,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 193,
+          "line": 196,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65275,11 +65468,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 115,
+          "line": 116,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 193,
+          "line": 196,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65335,11 +65528,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 140,
+          "line": 141,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 188,
+          "line": 191,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65379,11 +65572,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 140,
+          "line": 141,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 188,
+          "line": 191,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65435,11 +65628,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 140,
+          "line": 141,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 188,
+          "line": 191,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65479,11 +65672,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 140,
+          "line": 141,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 188,
+          "line": 191,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65523,11 +65716,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 140,
+          "line": 141,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 188,
+          "line": 191,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65567,11 +65760,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 140,
+          "line": 141,
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 188,
+          "line": 191,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -65651,11 +65844,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 184,
+          "line": 187,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 587,
+          "line": 617,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -65687,7 +65880,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 69,
+          "line": 73,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -65715,11 +65908,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 184,
+          "line": 187,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 587,
+          "line": 617,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -65751,7 +65944,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 69,
+          "line": 73,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -65779,11 +65972,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 184,
+          "line": 187,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 587,
+          "line": 617,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -65815,7 +66008,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 69,
+          "line": 73,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -65843,11 +66036,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 184,
+          "line": 187,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 587,
+          "line": 617,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -65879,7 +66072,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 69,
+          "line": 73,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -65907,11 +66100,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 184,
+          "line": 187,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 587,
+          "line": 617,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -65943,7 +66136,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 69,
+          "line": 73,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -65995,11 +66188,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 184,
+          "line": 187,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 587,
+          "line": 617,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -66031,7 +66224,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 69,
+          "line": 73,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -66059,11 +66252,11 @@
           "path": "app/server/src/routes/identity/account.ts"
         },
         {
-          "line": 184,
+          "line": 187,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
-          "line": 587,
+          "line": 617,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -66095,7 +66288,7 @@
           "path": "app/console/src/mock/index.ts"
         },
         {
-          "line": 69,
+          "line": 73,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -66153,7 +66346,7 @@
           "path": "app/server/src/routes/admin/auth.ts"
         },
         {
-          "line": 29,
+          "line": 31,
           "path": "app/server/src/middleware/oauth-state.ts"
         }
       ],
@@ -66259,7 +66452,7 @@
           "path": "app/server/src/lib/account-avatar.ts"
         },
         {
-          "line": 308,
+          "line": 313,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -66285,7 +66478,7 @@
           "path": "app/server/src/lib/account-avatar.ts"
         },
         {
-          "line": 308,
+          "line": 313,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -66305,7 +66498,7 @@
           "path": "app/server/src/lib/account-avatar.ts"
         },
         {
-          "line": 308,
+          "line": 313,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -66325,7 +66518,7 @@
           "path": "app/server/src/lib/account-avatar.ts"
         },
         {
-          "line": 308,
+          "line": 313,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -66957,7 +67150,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -67089,7 +67282,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -67221,7 +67414,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -67353,7 +67546,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -67485,7 +67678,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -67617,7 +67810,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -67749,7 +67942,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -67881,7 +68074,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68097,7 +68290,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68229,7 +68422,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68361,7 +68554,7 @@
           "path": "app/web/sites/portal/lib/account.ts"
         },
         {
-          "line": 44,
+          "line": 45,
           "path": "app/web/sites/portal/components/os/YugcOs.tsx"
         },
         {
@@ -68571,7 +68764,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 145,
+          "line": 146,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -68615,7 +68808,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 145,
+          "line": 146,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -68647,7 +68840,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 145,
+          "line": 146,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -68679,7 +68872,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 145,
+          "line": 146,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -68741,7 +68934,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 131,
+          "line": 132,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -68761,7 +68954,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 131,
+          "line": 132,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -68807,7 +69000,7 @@
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
-          "line": 155,
+          "line": 156,
           "path": "app/server/src/routes/identity/contracts.ts"
         }
       ],
@@ -68837,7 +69030,7 @@
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
-          "line": 155,
+          "line": 156,
           "path": "app/server/src/routes/identity/contracts.ts"
         }
       ],
@@ -68861,7 +69054,7 @@
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
-          "line": 155,
+          "line": 156,
           "path": "app/server/src/routes/identity/contracts.ts"
         }
       ],
@@ -68885,7 +69078,7 @@
           "path": "app/server/src/middleware/bearer-auth.ts"
         },
         {
-          "line": 155,
+          "line": 156,
           "path": "app/server/src/routes/identity/contracts.ts"
         }
       ],
@@ -68925,7 +69118,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 136,
+          "line": 137,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -68945,7 +69138,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 136,
+          "line": 137,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -68965,7 +69158,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 136,
+          "line": 137,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -68991,7 +69184,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 136,
+          "line": 137,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69011,7 +69204,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 136,
+          "line": 137,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69055,7 +69248,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 150,
+          "line": 151,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69075,7 +69268,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 150,
+          "line": 151,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69095,7 +69288,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 150,
+          "line": 151,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69121,7 +69314,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 150,
+          "line": 151,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69171,7 +69364,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 141,
+          "line": 142,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69211,7 +69404,7 @@
           "path": "app/server/src/routes/identity/device.ts"
         },
         {
-          "line": 141,
+          "line": 142,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69269,7 +69462,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 170,
+          "line": 171,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69293,7 +69486,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 170,
+          "line": 171,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69329,7 +69522,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 170,
+          "line": 171,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69353,7 +69546,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 170,
+          "line": 171,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69377,7 +69570,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 170,
+          "line": 171,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69401,7 +69594,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 170,
+          "line": 171,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69467,7 +69660,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 175,
+          "line": 176,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69495,7 +69688,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 175,
+          "line": 176,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69523,7 +69716,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 175,
+          "line": 176,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69563,7 +69756,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 175,
+          "line": 176,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69591,7 +69784,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 175,
+          "line": 176,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69619,7 +69812,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 175,
+          "line": 176,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69647,7 +69840,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 175,
+          "line": 176,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69675,7 +69868,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 175,
+          "line": 176,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69703,7 +69896,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 175,
+          "line": 176,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69767,7 +69960,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 159,
+          "line": 160,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69803,7 +69996,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 159,
+          "line": 160,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69851,7 +70044,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 159,
+          "line": 160,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69887,7 +70080,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 159,
+          "line": 160,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69959,7 +70152,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 164,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -69995,7 +70188,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 164,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70031,7 +70224,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 164,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70067,7 +70260,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 164,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70115,7 +70308,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 164,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70151,7 +70344,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 164,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70187,7 +70380,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 164,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70223,7 +70416,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 164,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70259,7 +70452,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 164,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70295,7 +70488,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 164,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70331,7 +70524,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 164,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70367,7 +70560,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 164,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70403,7 +70596,7 @@
           "path": "app/server/src/routes/identity/email.ts"
         },
         {
-          "line": 164,
+          "line": 165,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70465,11 +70658,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 35,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 183,
+          "line": 184,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70481,12 +70674,16 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 70,
+          "line": 118,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
           "line": 16,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 550,
+          "path": "app/server/src/lib/identity-store.ts"
         }
       ],
       "from": "flow:identity.google.callback",
@@ -70497,11 +70694,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 35,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 183,
+          "line": 184,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70513,12 +70710,16 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 70,
+          "line": 118,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
           "line": 16,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 550,
+          "path": "app/server/src/lib/identity-store.ts"
         }
       ],
       "from": "flow:identity.google.callback",
@@ -70529,11 +70730,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 35,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 183,
+          "line": 184,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70545,12 +70746,52 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 70,
+          "line": 118,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
           "line": 16,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 550,
+          "path": "app/server/src/lib/identity-store.ts"
+        }
+      ],
+      "from": "flow:identity.google.callback",
+      "to": "table:sessions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 62,
+          "path": "app/server/src/routes/identity/google.ts"
+        },
+        {
+          "line": 184,
+          "path": "app/server/src/routes/identity/contracts.ts"
+        },
+        {
+          "line": 445,
+          "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 31,
+          "path": "app/server/src/lib/safe-return.ts"
+        },
+        {
+          "line": 118,
+          "path": "app/server/src/routes/identity/google.ts"
+        },
+        {
+          "line": 16,
+          "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 550,
+          "path": "app/server/src/lib/identity-store.ts"
         }
       ],
       "from": "flow:identity.google.callback",
@@ -70567,11 +70808,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 35,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 183,
+          "line": 184,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70583,12 +70824,16 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 70,
+          "line": 118,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
           "line": 16,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 550,
+          "path": "app/server/src/lib/identity-store.ts"
         }
       ],
       "from": "flow:identity.google.callback",
@@ -70599,11 +70844,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 35,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 183,
+          "line": 184,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70615,12 +70860,16 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 70,
+          "line": 118,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
           "line": 16,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 550,
+          "path": "app/server/src/lib/identity-store.ts"
         }
       ],
       "from": "flow:identity.google.callback",
@@ -70631,11 +70880,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 35,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 183,
+          "line": 184,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70647,12 +70896,16 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 70,
+          "line": 118,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
           "line": 16,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 550,
+          "path": "app/server/src/lib/identity-store.ts"
         }
       ],
       "from": "flow:identity.google.callback",
@@ -70663,11 +70916,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 35,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 183,
+          "line": 184,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70679,12 +70932,16 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 70,
+          "line": 118,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
           "line": 16,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 550,
+          "path": "app/server/src/lib/identity-store.ts"
         }
       ],
       "from": "flow:identity.google.callback",
@@ -70695,11 +70952,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 35,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 183,
+          "line": 184,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70711,12 +70968,16 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 70,
+          "line": 118,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
           "line": 16,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 550,
+          "path": "app/server/src/lib/identity-store.ts"
         }
       ],
       "from": "flow:identity.google.callback",
@@ -70727,11 +70988,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 35,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 183,
+          "line": 184,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70743,12 +71004,16 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 70,
+          "line": 118,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
           "line": 16,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 550,
+          "path": "app/server/src/lib/identity-store.ts"
         }
       ],
       "from": "flow:identity.google.callback",
@@ -70759,11 +71024,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 35,
+          "line": 62,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 183,
+          "line": 184,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70775,12 +71040,16 @@
           "path": "app/server/src/lib/safe-return.ts"
         },
         {
-          "line": 70,
+          "line": 118,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
           "line": 16,
           "path": "app/server/src/lib/register-limits.ts"
+        },
+        {
+          "line": 550,
+          "path": "app/server/src/lib/identity-store.ts"
         }
       ],
       "from": "flow:identity.google.callback",
@@ -70833,11 +71102,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 24,
+          "line": 29,
           "path": "app/server/src/routes/identity/google.ts"
         },
         {
-          "line": 181,
+          "line": 182,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -70885,7 +71154,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 534,
+          "line": 559,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -70911,7 +71180,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 534,
+          "line": 559,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -70931,7 +71200,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 534,
+          "line": 559,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -70951,7 +71220,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 534,
+          "line": 559,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         }
       ],
@@ -72675,7 +72944,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 768,
+          "line": 798,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -72723,7 +72992,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 768,
+          "line": 798,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -72771,7 +73040,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 768,
+          "line": 798,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -72819,7 +73088,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 768,
+          "line": 798,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -72867,7 +73136,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 768,
+          "line": 798,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -72915,7 +73184,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 768,
+          "line": 798,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -72963,7 +73232,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 768,
+          "line": 798,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -73011,7 +73280,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 768,
+          "line": 798,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -73065,7 +73334,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 768,
+          "line": 798,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -73113,7 +73382,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 768,
+          "line": 798,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -73161,7 +73430,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 768,
+          "line": 798,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -73209,7 +73478,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 768,
+          "line": 798,
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
@@ -73531,7 +73800,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 83,
+          "line": 87,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -73561,7 +73830,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 83,
+          "line": 87,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -73585,7 +73854,7 @@
           "path": "app/server/src/lib/account-profiles.ts"
         },
         {
-          "line": 83,
+          "line": 87,
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
@@ -73725,7 +73994,7 @@
           "path": "app/server/src/routes/identity/providers.ts"
         },
         {
-          "line": 126,
+          "line": 127,
           "path": "app/server/src/routes/identity/contracts.ts"
         },
         {
@@ -78152,6 +78421,12 @@
     {
       "basis": "declaration",
       "from": "route:POST /api/identity/invite/redeem",
+      "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:POST /api/identity/link",
       "to": "domain:identity",
       "type": "belongs-to"
     },
@@ -97806,7 +98081,7 @@
         }
       },
       "source": {
-        "line": 24,
+        "line": 29,
         "path": "app/server/src/routes/identity/google.ts"
       }
     },
@@ -97908,7 +98183,7 @@
         }
       },
       "source": {
-        "line": 35,
+        "line": 62,
         "path": "app/server/src/routes/identity/google.ts"
       }
     },
@@ -103462,7 +103737,7 @@
         }
       },
       "source": {
-        "line": 24,
+        "line": 29,
         "path": "app/server/src/routes/identity/google.ts"
       }
     },
@@ -103526,7 +103801,7 @@
         }
       },
       "source": {
-        "line": 35,
+        "line": 62,
         "path": "app/server/src/routes/identity/google.ts"
       }
     },
@@ -113160,7 +113435,7 @@
         }
       },
       "source": {
-        "line": 102,
+        "line": 103,
         "path": "app/server/src/routes/identity/account.ts"
       }
     },
@@ -113275,7 +113550,7 @@
         }
       },
       "source": {
-        "line": 63,
+        "line": 64,
         "path": "app/server/src/routes/identity/account.ts"
       }
     },
@@ -113389,7 +113664,7 @@
         }
       },
       "source": {
-        "line": 77,
+        "line": 78,
         "path": "app/server/src/routes/identity/account.ts"
       }
     },
@@ -113525,6 +113800,127 @@
         "responseSchema": true
       },
       "domain": "identity",
+      "id": "route:POST /api/identity/link",
+      "key": "POST /api/identity/link",
+      "kind": "business",
+      "method": "POST",
+      "path": "/api/identity/link",
+      "registration": "explicit",
+      "schema": {
+        "body": {
+          "additionalProperties": false,
+          "properties": {
+            "provider": {
+              "enum": [
+                "google"
+              ],
+              "type": "string"
+            },
+            "return_to": {
+              "maxLength": 2048,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [
+            "provider"
+          ],
+          "type": "object"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "additionalProperties": false,
+            "properties": {
+              "authorize_url": {
+                "maxLength": 2048,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "authorize_url"
+            ],
+            "type": "object"
+          },
+          "4xx": {
+            "additionalProperties": true,
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "error_description": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          "5xx": {
+            "additionalProperties": true,
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "error_description": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 42,
+        "path": "app/server/src/routes/identity/google.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring",
+          "body"
+        ],
+        "responseSchema": true
+      },
+      "domain": "identity",
       "id": "route:POST /api/identity/password",
       "key": "POST /api/identity/password",
       "kind": "business",
@@ -113622,7 +114018,7 @@
         }
       },
       "source": {
-        "line": 115,
+        "line": 116,
         "path": "app/server/src/routes/identity/account.ts"
       }
     },
@@ -113814,7 +114210,7 @@
         }
       },
       "source": {
-        "line": 140,
+        "line": 141,
         "path": "app/server/src/routes/identity/account.ts"
       }
     },
@@ -123179,6 +123575,19 @@
         "public_content",
         "recruitment"
       ],
+      "path": "app/web/sites/portal/lib/linkNotice.ts"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
       "path": "app/web/sites/portal/lib/links.ts"
     },
     {
@@ -123193,6 +123602,19 @@
         "recruitment"
       ],
       "path": "app/web/sites/portal/lib/motion.ts"
+    },
+    {
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "path": "app/web/sites/portal/lib/navigate.ts"
     },
     {
       "domains": [
@@ -134593,7 +135015,7 @@
     }
   ],
   "unmappedSources": [],
-  "updated": "2026-10-24",
+  "updated": "2026-10-25",
   "version": 1,
   "visibility": "internal-engineering"
 }

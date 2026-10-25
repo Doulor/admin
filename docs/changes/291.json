@@ -1,0 +1,211 @@
+{
+  "version": 1,
+  "issue": 291,
+  "kind": "business",
+  "summary": "P0（所有者 2026-10-25 15:28：「登录账号之后里面资料不是可以绑定谷歌还有一堆身份信息吗？但是实际这些绑定之后是新创建了账号」）：官网资料窗口里 Google 的「绑定」原来直接链到 /auth/google，那是登录入口，这个 Google 账号没绑过任何账号时会注册成新账号并换掉当前会话。改成按规划文档的接口绑定：POST /api/identity/link { provider: \"google\" } 记下给哪个账号、哪个会话绑并返回授权地址，/auth/google/callback 按 cookie 的 kind 分登录与绑定，绑定时不登录、不建号、不换会话，结果用 ?link=<结果>&provider=google 带回资料窗口。",
+  "applications": [
+    "server",
+    "web"
+  ],
+  "domains": [
+    "identity",
+    "audit",
+    "competitions",
+    "feedback",
+    "forum",
+    "github",
+    "invitations",
+    "organization",
+    "platform",
+    "public_content",
+    "recruitment",
+    "permissions",
+    "mail"
+  ],
+  "flows": [
+    "flow:identity.account.link",
+    "flow:identity.google.callback",
+    "flow:competition.public.list",
+    "flow:feedback.categories",
+    "flow:forum.state",
+    "flow:identity.callback",
+    "flow:console.identity",
+    "flow:platform.public_config",
+    "flow:documentation.list",
+    "flow:application.cancel",
+    "flow:identity.authorize",
+    "flow:identity.account.view"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "资料窗口的 Google「绑定」只给当前账号加一个登录方式：Google 账号已属于别的账号时拒绝并说明，不再新建账号；绑定成功后用这个 Google 登录进的就是原来的账号。登录页上的 Google 登录规则不变。",
+      "evidence": [
+        "app/server/src/routes/identity/google.ts",
+        "app/server/src/lib/identity-store.ts",
+        "app/web/sites/portal/components/os/ProfileCard.tsx"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "新增 POST /api/identity/link（只认 provider=google，回 authorize_url，写 kind 为 google-link 的签名 cookie，带账号 id 与会话指纹）；/auth/google/callback 对 google-link 走绑定分支：核对会话、写 identities、identity_audit 与 activity_events，结果 302 回发起页并带 link、provider 参数。identity-store 新增 hasGoogle、linkGoogle（事务内判重、写身份、写审计）。",
+      "evidence": [
+        "app/server/src/routes/identity/google.ts",
+        "app/server/src/routes/identity/contracts.ts",
+        "app/server/src/lib/identity-store.ts",
+        "app/server/src/lib/safe-return.ts",
+        "app/server/src/middleware/oauth-state.ts"
+      ]
+    },
+    "permissions": {
+      "status": "changed",
+      "reason": "发起绑定要有效登录会话且这次登录不超过 10 分钟（命令行令牌不算），每账号每分钟 10 次；回调只认发起绑定的那个会话（账号与会话指纹都对得上），换了账号或重新登录算失败；登录用的 state 不能当绑定用，绑定用的 state 也不能当登录用。没有新增权限节点。",
+      "evidence": [
+        "app/server/src/routes/identity/google.ts",
+        "app/server/src/middleware/oauth-state.ts",
+        "app/server/src/routes/identity/account.ts"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "不加表、不加列，没有迁移；绑定成功多写 identities 一行、identity_audit 一行和 activity_events 一行（只记 provider，不记 Google 的 sub 与邮箱）。已经因为这个问题多出来的 Google 单独账号不动，只报告。",
+      "evidence": [
+        "app/server/src/lib/identity-store.ts"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新增依赖，也没有改部署配置：沿用已有的 GOOGLE_CLIENT_ID 与 GOOGLE_CLIENT_SECRET。",
+      "evidence": [
+        "app/server/src/routes/identity/google.ts"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "接口契约、API 文档、server 与 web 的服务合同、统一登录规划文档同步：新接口、回调的两种用法、官网资料窗口的绑定流程和结果参数。",
+      "evidence": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/README.md",
+        "docs/services/web/portal.md",
+        "docs/plan/UNIFIED-LOGIN.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "tests/server/signin-methods.test.ts 新增 Google 绑定一组用例（不建号、不换会话、冲突、已绑、会话变了、取消、篡改 state、过期登录、限流、默认返回地址、只认 google）；tests/web/portal-profile-card.test.tsx 覆盖按钮、结果提示与参数清理。另在隔离栈上用真实请求和浏览器前后对比，见 MR。",
+      "evidence": [
+        "tests/server/signin-methods.test.ts",
+        "tests/web/portal-profile-card.test.tsx"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "server 与 web 一起随下一个预发布镜像发布；没有数据迁移。回滚换回上一个镜像：绑定按钮回到直接链接 /auth/google，已经绑好的 Google 身份仍然有效。",
+      "evidence": [
+        "app/server/src/routes/identity/google.ts",
+        "app/web/sites/portal/components/os/ProfileCard.tsx"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/server/src/routes/identity/google.ts",
+        "app/server/src/routes/identity/contracts.ts",
+        "app/server/src/routes/identity/account.ts",
+        "app/server/src/lib/identity-store.ts",
+        "app/server/src/lib/safe-return.ts",
+        "app/server/src/middleware/oauth-state.ts",
+        "tests/server/signin-methods.test.ts"
+      ],
+      "domains": [
+        "identity",
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "github",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:server",
+        "flow:identity.account.link",
+        "flow:identity.google.callback"
+      ],
+      "reason": "新增绑定接口、回调的绑定分支、身份存储的绑定事务与对应测试。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/components/os/ProfileCard.tsx",
+        "app/web/sites/portal/components/os/Windows.tsx",
+        "app/web/sites/portal/components/os/YugcOs.tsx",
+        "app/web/sites/portal/lib/linkNotice.ts",
+        "app/web/sites/portal/lib/navigate.ts",
+        "tests/web/portal-profile-card.test.tsx"
+      ],
+      "domains": [
+        "identity",
+        "competitions",
+        "feedback",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:web",
+        "flow:identity.account.link"
+      ],
+      "reason": "资料窗口的「绑定」改成调接口再跳转，回来时读 link、provider 参数显示结果。"
+    },
+    {
+      "paths": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/README.md",
+        "docs/services/web/portal.md",
+        "docs/plan/UNIFIED-LOGIN.md"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "application:server",
+        "application:web"
+      ],
+      "reason": "接口、服务合同与规划文档同步。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "application:server"
+      ],
+      "reason": "按当前源码重新生成项目目录，来源摘要随影响声明与文档的改动变化，不手改。"
+    }
+  ],
+  "documents": [
+    "docs/services/server/endpoint-contracts.md",
+    "docs/architecture/API.md",
+    "docs/services/server/README.md",
+    "docs/services/web/portal.md",
+    "docs/plan/UNIFIED-LOGIN.md"
+  ],
+  "tests": [
+    "tests/server/signin-methods.test.ts",
+    "tests/web/portal-profile-card.test.tsx"
+  ],
+  "compatibility": "新增接口，不改已有接口的字段。/auth/google 与 /auth/google/callback 的登录用法不变；旧版官网页面还在用 /auth/google 当绑定入口时行为同修复前（仍会建号），随新版发布后消失。",
+  "migration": "不涉及迁移：没有表结构、配置键或存储格式变化。",
+  "rollback": "换回上一个镜像即可；没有数据变化。已经绑好的 Google 身份留在 identities 里，回滚后用它登录仍然进原来的账号。"
+}
