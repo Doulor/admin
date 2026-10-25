@@ -36,3 +36,10 @@
 - 做了什么：提交 feat(forum)：新增 app/forum/shared/sticker-url.ts，表情图片地址的白名单只此一处，只收同源 /api/forum/stickers/ 加 64 位小写十六进制哈希加 .webp，或固定 CDN 前缀 https://cdn.crosery.com/yzgc/static/site/forum/stickers/ 下同样的哈希；forum-api.ts（接口数据校验）、post-markdown.ts（帖子正文渲染与进出编辑器）、editor/inline-stickers.ts（编辑器图片块）原来各写一份，现在都从它取；进出编辑器按哈希认，开关在两次页面加载之间变了也能换回短码。tests/server/forum.test.ts 把论坛前端的 parseWriteResult 复制到临时目录来读，副本里补上新导入的 sticker-url.ts，断言不变。同提交带 forum 服务文档里白名单与进出编辑器的说明。文档核对：docs/services/web/README.md 不用改——官网没有表情图片，这次没碰 app/web。
 - 结果：最终树上：app/forum 的 tests/sticker-url.test.ts 41、forum-api.test.ts 40、post-markdown.test.ts 102、inline-stickers.test.ts 4 通过（共 187）；tests/tooling/forum-sticker-url-parity.test.ts 2 通过（前端白名单与服务端、脚本给出的地址一致）；tests/server/forum.test.ts 60 通过。整份论坛套件 644 通过、1 失败：tests/site-state.test.ts 期望 6 个分类、实际 7 个（多了 c-guides「使用说明」），该文件与 app/forum/content 都不在本任务的改动里，分类来自基线 stage 的 753cdbac（#281），属基线问题，本任务没有处理。未单独构建本提交的中间状态。
 - 下一步：提交宏观对齐声明、归属登记与重新生成的项目目录，再跑全部门禁
+
+## 14:05:50 +08:00 · 提交 · #286 · 宏观对齐声明、新文件归属与重新生成的项目目录
+
+- 执行者：agent-claude-geek-main-stickers（Claude Code，claude-sonnet-5-5）
+- 做了什么：提交 docs(docs)：新增 docs/changes/286.json（8 个评估维度、全部变更路径的 coverage；db.ts 与 http-policy.ts 是各业务域共用的文件，按目录的文件级归属声明了全部相关业务域和对应流程，实际只改了清单读取与缓存头）；ownership.json 登记 sticker-manifest.ts、2026-10-sticker-packs.ts、static-cdn.ts 三个新增服务端文件的归属，给 forum.stickers.list 与 forum.stickers.read_file 补证据锚点、响应说明和测试链接；其余目录文件由 pnpm catalog:generate 重新生成。本机 origin/stage 落后 GitLab stage，检查时用 --base gitlab/stage。
+- 结果：node scripts/check-architecture.mjs --base gitlab/stage：宏观对齐通过，50 个变更文件、95 个关联节点；pnpm check:catalog：项目目录核对通过，来源摘要 870db0b5；node scripts/check-doc-sync.mjs：通过；pnpm typecheck 通过；tests/server 与 tests/tooling 全量此前跑出 1 个失败（tests/server/forum.test.ts 的临时副本缺 sticker-url.ts），已在论坛前端提交里修复并单跑 60 通过。pnpm check:notes 报 notes/2026-10-24/crosery/task_276_forum_image_scan.md:47 链路已收尾后又有记录，这条是基线上的旧记录，不在本任务改动里，未处理。
+- 下一步：最终树上再跑一遍门禁，然后向主控回报

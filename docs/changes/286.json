@@ -1,0 +1,380 @@
+{
+  "version": 1,
+  "issue": 286,
+  "kind": "business",
+  "summary": "论坛表情走受控 CDN，并把加表情包做成加一个目录：内置表情的图片地址按构建开关给 CDN 或同源，前端白名单同时认这两种，启动时按清单补包补表情（只增不改），图片随部署上传 CDN。",
+  "applications": [
+    "server",
+    "forum"
+  ],
+  "domains": [
+    "forum",
+    "platform",
+    "identity",
+    "audit",
+    "permissions",
+    "recruitment",
+    "competitions",
+    "organization",
+    "feedback",
+    "gitlab",
+    "invitations",
+    "mail",
+    "github",
+    "public_content"
+  ],
+  "flows": [
+    "flow:forum.stickers.list",
+    "flow:forum.stickers.read_file",
+    "flow:console.forum.stickers.list",
+    "flow:forum.reactions.add",
+    "flow:application.submit",
+    "flow:competition.public.list",
+    "flow:feedback.public.list",
+    "flow:gitlab.accounts.list",
+    "flow:identity.invites.list",
+    "flow:identity.callback",
+    "flow:documentation.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "表情面板、编辑器、帖子正文和回应里的内置表情图片，在 CDN 开关打开时从 https://cdn.crosery.com/yzgc/static/site/forum/stickers/ 加载，关闭时仍是同源；站长在控制台上传的表情不在清单里，一直同源。新增表情包不再改代码：在 app/server/assets/stickers/ 下加一个目录和 pack.json，重新生成清单，启动时补进库里，控制台已有的包卡片、启停、改名、排序、上传、新建包照常用，新包同样可以管理。",
+      "evidence": [
+        "app/server/src/lib/sticker-manifest.ts",
+        "app/server/src/lib/migrations/2026-10-sticker-packs.ts",
+        "app/forum/shared/sticker-url.ts"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "forum-store 的表情地址改由 createStickerUrl 决定（清单里的内置图片哈希且开关打开才给 CDN 地址，否则同源），公开列表、控制台列表和表情回应共用；db 启动时读一次清单，迁移与地址决策用同一份；config 读 STATIC_CDN_BASE（空或固定值，别的值启动失败）；http-policy 对 /api/forum/stickers/ 下按哈希取图的 200 不再覆盖成 no-store，让路由自己发的一年 immutable 生效（原来被盖掉了）。接口路径、参数、状态码不变。",
+      "evidence": [
+        "app/server/src/lib/forum-store.ts",
+        "app/server/src/lib/db.ts",
+        "app/server/src/config.ts",
+        "app/server/src/services.ts",
+        "app/server/src/middleware/http-policy.ts"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "没有新节点、没有改授权：公开表情列表与按哈希取图仍然公开只读，控制台表情管理仍是 forum.sticker.manage 加 step-up，回应仍是 forum.react，论坛话题的可见范围不动。CDN 上只放表情图片，桶的公开设置与上传 token 的前缀、只增不改策略都没有改；前端白名单只收同源哈希地址和固定 CDN 前缀下同一个哈希的地址。",
+      "evidence": [
+        "app/server/src/lib/forum-store.ts",
+        "app/forum/shared/sticker-url.ts",
+        "scripts/static-cdn.mjs"
+      ]
+    },
+    "data": {
+      "status": "changed",
+      "reason": "没有新表和新列。迁移改为按清单播种（只增不改、可重复执行）：已有的包和表情整行不碰，站长改的名字、排序、停用、换图都保留；新包排在现有的包后面，老包新增的表情排在该包最后；图片哈希按文件真实内容现算，缺图跳过并记录，不阻塞启动。极客娘 24 个表情的 id、短码、名字、顺序与原来逐一相同。",
+      "evidence": [
+        "app/server/src/lib/migrations/2026-10-sticker-packs.ts",
+        "app/server/src/lib/migrations/2026-10-forum-v2.ts",
+        "app/server/assets/stickers/manifest.json"
+      ]
+    },
+    "dependencies": {
+      "status": "changed",
+      "reason": "没有新增依赖。新增的是构建参数 STATIC_CDN_BASE 传给 server 镜像（原来只有 web、forum），server 在 config.ts 与 lib/static-cdn.ts 里读它，deploy/env 里没有新条目；清单生成脚本和上传脚本只用 node 自带模块；CDN 上传沿用 static-cdn 的前缀守卫、只增不改 token 和 CDN 核对，只多一个对象目录 forum/stickers/。",
+      "evidence": [
+        "app/server/src/config.ts",
+        "app/server/src/lib/static-cdn.ts",
+        "app/server/Dockerfile",
+        ".github/workflows/deploy-preview.yml",
+        ".github/workflows/deploy-production.yml",
+        "scripts/static-cdn.mjs"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "论坛服务文档新增「表情包」一节（pack.json 格式、清单脚本、启动补库规则、地址与白名单、新增一个包的步骤）；server 文档、数据模型、接口合同和 API 总表补上图片地址按开关决定与缓存头；CI/CD 与部署文档补上 server 接开关、plan 与 upload 带上表情图片、新增包后的上传方法。",
+      "evidence": [
+        "docs/services/forum/README.md",
+        "docs/services/server/README.md",
+        "docs/services/server/data-model.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/ops/CICD.md",
+        "docs/ops/DEPLOY.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "新增：开关关闭全部同源、打开时内置走 CDN 而运行时上传的同源、一年 immutable 与列表仍 no-store；迁移用两个临时包验证第一次建出、站长改动重启后保留、第二次启动行数不变；清单与目录一致、各种写错 pack.json 的报错；服务端与脚本的开关规则逐项一致；Dockerfile 构建阶段的核对实跑；plan 打印 forum/stickers 的对象数和字节、upload 只增不改与 CDN 核对；前端白名单的接受与拒绝表、渲染、进出编辑器、编辑器图片块。未做：浏览器验收、真实 CDN 上传与核对（没有凭据，也不属于本任务）。",
+      "evidence": [
+        "tests/server/forum-sticker-cdn.test.ts",
+        "tests/server/sticker-packs-migration.test.ts",
+        "tests/server/forum-v2-migration.test.ts",
+        "tests/tooling/sticker-manifest.test.ts",
+        "tests/tooling/static-cdn.test.ts",
+        "tests/tooling/static-cdn-parity.test.ts",
+        "tests/tooling/static-cdn-switch.test.ts",
+        "tests/tooling/static-cdn-workflows.test.ts",
+        "tests/tooling/forum-sticker-url-parity.test.ts",
+        "app/forum/tests/sticker-url.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "server 镜像整目录复制 app/server/assets/stickers/（原来只复制 yugc/），多接构建参数 STATIC_CDN_BASE 并在构建阶段核对；两条部署工作流给三个镜像都传这个参数；static-cdn 的 plan 与 upload 多带 forum/stickers/ 下的对象。开关关闭时与今天一样全部同源，开关打开前图片必须已上传（cdn-upload 在 deploy 之前）。回滚旧镜像即回到原来的行为。",
+      "evidence": [
+        "app/server/Dockerfile",
+        ".github/workflows/deploy-preview.yml",
+        ".github/workflows/deploy-production.yml",
+        "scripts/static-cdn.mjs"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/server/src/lib/sticker-manifest.ts",
+        "app/server/src/lib/migrations/2026-10-sticker-packs.ts",
+        "app/server/src/lib/migrations/2026-10-forum-v2.ts"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "flow:forum.stickers.list",
+        "table:forum_sticker_packs",
+        "table:forum_stickers",
+        "table:forum_sticker_files"
+      ],
+      "reason": "sticker-manifest 读并校验清单、按开关和哈希决定图片地址；2026-10-sticker-packs 按清单播种包、表情和图片（只增不改、可重复执行）；forum-v2 迁移去掉写死的 24 个表情，改走清单。三张表的结构不变。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/static-cdn.ts",
+        "app/server/src/config.ts",
+        "app/server/src/services.ts"
+      ],
+      "domains": [
+        "platform",
+        "forum"
+      ],
+      "nodes": [
+        "flow:forum.stickers.list",
+        "domain:platform"
+      ],
+      "reason": "static-cdn 是 STATIC_CDN_BASE 在服务端的读法（空或固定值，别的值启动失败）；config 把它放进配置；services 把按开关建好的地址函数交给论坛 store。config 与 services 是平台装配文件，这次只多这三处，其它装配不变。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/forum-store.ts"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "flow:forum.stickers.list",
+        "flow:console.forum.stickers.list",
+        "flow:forum.reactions.add"
+      ],
+      "reason": "forum-store 的公开列表、控制台列表和表情回应共用一个地址函数，由 services 传入；没传时仍是同源地址，既有调用和测试不变。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/db.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "gitlab",
+        "identity",
+        "invitations",
+        "mail",
+        "organization",
+        "permissions",
+        "platform",
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:forum.stickers.list",
+        "table:forum_sticker_packs",
+        "table:forum_stickers",
+        "table:forum_sticker_files"
+      ],
+      "reason": "db.ts 是全库表定义的唯一来源，文件级归属会牵连它定义的全部业务域；这次只在 createDatabase 开头读一次清单、给论坛迁移多传这份清单、返回值多一项 stickerManifest，没有改任何表和列，其它业务域的表、迁移和接口不变。"
+    },
+    {
+      "paths": [
+        "app/server/src/middleware/http-policy.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "github",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:forum.stickers.read_file"
+      ],
+      "reason": "http-policy 是所有接口共用的响应头与错误处理，文件级归属牵连全部业务域；这次只让 /api/forum/stickers/ 下按哈希取图的 200 响应不再被统一的 no-store 覆盖，路由自己发的一年 immutable 生效；404、表情列表接口和其它 /api 响应仍是 no-store，来源校验与错误处理不变。"
+    },
+    {
+      "paths": [
+        "app/server/assets/stickers/manifest.json",
+        "app/server/assets/stickers/yugc/pack.json"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "application:server"
+      ],
+      "reason": "极客娘包的 pack.json（24 个表情，名字、顺序与原来相同）和由脚本生成的清单（每张图的哈希、字节数和 CDN 对象键）。"
+    },
+    {
+      "paths": [
+        "app/server/Dockerfile",
+        ".github/workflows/deploy-preview.yml",
+        ".github/workflows/deploy-production.yml"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "server 镜像接构建参数 STATIC_CDN_BASE（构建阶段核对，运行阶段写成环境变量）并复制整个表情目录；两条部署工作流给三个镜像都传这个参数，只增参数，不放宽任何已有核对。"
+    },
+    {
+      "paths": [
+        "scripts/sticker-manifest.mjs",
+        "scripts/static-cdn.mjs"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "sticker-manifest 从目录生成和核对清单、报告字节数、列出 CDN 地址；static-cdn 的 plan 与 upload 带上表情图片，要求清单与目录一致，打印 forum/stickers 的对象数和字节。"
+    },
+    {
+      "paths": [
+        "app/forum/shared/sticker-url.ts",
+        "app/forum/shared/forum-api.ts",
+        "app/forum/shared/post-markdown.ts",
+        "app/forum/app/editor/inline-stickers.ts"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "flow:forum.stickers.list",
+        "application:forum"
+      ],
+      "reason": "表情图片地址的白名单收到 sticker-url 一处：同源哈希地址或固定 CDN 前缀下同一个哈希的地址；接口数据校验、正文渲染、进出编辑器和编辑器图片块都从它取，进出编辑器按哈希认，开关在两次页面加载之间变了也能换回短码。"
+    },
+    {
+      "paths": [
+        "tests/server/forum-sticker-cdn.test.ts",
+        "tests/server/sticker-packs-migration.test.ts",
+        "tests/server/forum-v2-migration.test.ts",
+        "tests/server/forum.test.ts"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "application:server"
+      ],
+      "reason": "开关两种状态下列表、控制台列表和回应的图片地址，同源路由的缓存头；两个临时包的播种、站长改动保留、重启行数不变、缺图跳过；原迁移用例改为从清单取期望；forum.test.ts 把论坛前端的 parseWriteResult 复制到临时目录来读，副本里补上它新导入的 sticker-url.ts，断言不变。"
+    },
+    {
+      "paths": [
+        "tests/tooling/sticker-manifest.test.ts",
+        "tests/tooling/static-cdn.test.ts",
+        "tests/tooling/static-cdn-parity.test.ts",
+        "tests/tooling/static-cdn-switch.test.ts",
+        "tests/tooling/static-cdn-workflows.test.ts",
+        "tests/tooling/forum-sticker-url-parity.test.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "清单与目录一致、写错 pack.json 的报错、命令行；plan 与 upload 带上表情图片；服务端与脚本开关规则一致；Dockerfile 构建阶段核对与不压缩 WebP；三个镜像都传构建参数；前端白名单与服务端、脚本给出的地址一致。"
+    },
+    {
+      "paths": [
+        "app/forum/tests/sticker-url.test.ts",
+        "app/forum/tests/forum-api.test.ts",
+        "app/forum/tests/post-markdown.test.ts",
+        "app/forum/tests/inline-stickers.test.ts"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "application:forum"
+      ],
+      "reason": "白名单接受与拒绝表（别的域名、路径穿越、javascript:、data:、查询串等）；接口数据、渲染、进出编辑器、编辑器图片块在 CDN 地址下的行为。"
+    },
+    {
+      "paths": [
+        "docs/services/forum/README.md",
+        "docs/services/server/README.md",
+        "docs/services/server/data-model.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/ops/CICD.md",
+        "docs/ops/DEPLOY.md"
+      ],
+      "domains": [
+        "forum",
+        "platform"
+      ],
+      "nodes": [
+        "application:forum",
+        "application:server"
+      ],
+      "reason": "表情包格式与新增步骤、地址按开关决定、缓存头、server 接开关、plan 与 upload 的变化写进对应服务与运维文档。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/"
+      ],
+      "domains": [
+        "forum",
+        "platform"
+      ],
+      "nodes": [
+        "flow:forum.stickers.list",
+        "flow:forum.stickers.read_file",
+        "application:server"
+      ],
+      "reason": "ownership.json 登记三个新增服务端文件的归属，并给表情列表与按哈希取图两个流程补证据锚点、响应说明和测试链接；其余文件由 pnpm catalog:generate 按当前源码重新生成，不手改，合并 stage 后要再生成一次。"
+    }
+  ],
+  "documents": [
+    "docs/services/forum/README.md",
+    "docs/services/server/README.md",
+    "docs/ops/CICD.md"
+  ],
+  "tests": [
+    "tests/server/forum-sticker-cdn.test.ts",
+    "tests/server/sticker-packs-migration.test.ts",
+    "tests/tooling/sticker-manifest.test.ts",
+    "tests/tooling/static-cdn.test.ts",
+    "app/forum/tests/sticker-url.test.ts"
+  ],
+  "compatibility": "接口路径、参数和状态码不变；极客娘 24 个表情的 id、短码、名字和顺序与原来相同，库里已有的包和表情不动。开关关闭时每个表情的地址与今天完全一样；打开时只有清单里的内置图片换成 CDN 地址，前端同时认两种地址，同一张图的两种地址哈希相同。",
+  "migration": "没有表结构变化。启动时按清单补库里没有的包、表情和图片（只增不改，可重复执行，第二次启动行数不变），缺图跳过并记录；清单存在但读不出来时服务拒绝启动，不带着不知道对不对的清单上线。",
+  "rollback": "回滚旧镜像即回到原来的行为：旧迁移照旧播种极客娘，新补进库里的包和表情留在库里，旧代码按普通表情显示；CDN 上已上传的对象不删，旧镜像不引用它们。要关掉 CDN 地址，删掉 static-cdn 环境里的上传 token 后重新部署，这次就是同源构建。"
+}
