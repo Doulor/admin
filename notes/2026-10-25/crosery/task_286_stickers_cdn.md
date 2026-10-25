@@ -57,3 +57,17 @@
 - 做了什么：并入含 #285、#291、#292 的 stage：db.ts 的两个导入和两处迁移调用两边都保留（论坛 v2 迁移带清单参数，随后是邮件模板迁移）；ownership.json 同时登记邮件模板迁移与 sticker 清单、迁移、static-cdn 三个文件；server 文档四行用基线三方合并；六个生成目录文件取己方后重新生成，合并提交只含冲突解决。按文档用本机凭据在进程里签只增不改的 1 小时 token，把 81 个源文件（56 张表情图加 25 张使用说明截图）上传 CDN 前缀，脚本核对 81 个全部一致，键已存在 0 个；在预发布 13:15 备份副本上连启两次新代码核对表情表行数；构建控制台并在隔离栈里用站长会话看论坛管理的表情页
 - 结果：CDN：56 张表情 HTTP 200、image/webp、Cache-Control public max-age=31536000、无内容编码、CORS *，合计 1434858 字节、最大 36720 字节；迁移：forum_sticker_packs 1 到 3 到 3、forum_stickers 24 到 56 到 56、forum_sticker_files 39 到 71 到 71；接口 GET /api/forum/stickers 3 个包 56 张、地址全部是 CDN 前缀；控制台桌面与手机截图 6 张，溢出 0；门禁 vitest 149 个文件 2399 条通过，typecheck 与其余门禁全部通过
 - 下一步：推送并开 MR，补 PR 与审查记录
+
+## 17:47:18 +08:00 · PR · #286 · PR：GitLab !30
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：并入 stage a275e517 后推送 task/286/stickers_cdn，开 !30（目标 stage，Closes #286，标签 forum、func:data、func:external、ui:visual）；正文 10 段，验收证据是控制台表情页桌面与手机截图 6 张、CDN 逐个取头记录、迁移两次启动行数、接口返回
+- 结果：https://git.yangtzeu.work/geek/admin/-/merge_requests/30；门禁：vitest tests/server tests/console tests/web tests/tooling 149 个文件 2399 条通过，typecheck、catalog、architecture、doc-sync、docs、secrets、boundaries 全部通过
+- 下一步：审查后合并
+
+## 17:47:18 +08:00 · 审查 · #286 · 审查：!30 无阻塞、无应修条目
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：按 CODE-REVIEW 清单逐项核对 diff（84 个文件）：论坛白名单只认同源 64 位哈希 webp 与受控 CDN 前缀加同样哈希两种地址，别的域名、http、路径穿越、查询串、多一层目录都不进页面；服务端 STATIC_CDN_BASE 只能为空或逐字等于常量，其他值启动失败；迁移只增不改，清单读不出来拒绝启动；上传 token 只能写 yzgc/static/site/ 且只增不改，CI 拒绝 owner-env-file；实测 CDN 56 张 200、一年缓存、CORS，迁移两次启动行数不变；并入 stage 的冲突逐个核对
+- 结果：结论：通过；评论贴在 !30「代码审查」；未验证项已写进 MR：论坛编辑器里的面板、行内与正文截图、改前截图、docker 构建断言、预发布 CSP
+- 下一步：推送记录后按审查过的提交合并
