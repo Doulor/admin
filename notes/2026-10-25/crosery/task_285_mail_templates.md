@@ -43,3 +43,24 @@
 - 做了什么：文档：mail.md 新增『邮件模板』一节并更新现状、接口、隐私、安全、验证、已知限制；data-model.md 登记 mail_templates 与迁移；endpoint-contracts.md、API.md 登记 7 个接口（改状态接口补写响应 Schema 已挂载）；SECURITY.md 补招聘邮件模板与试发的防滥用段；server、console 服务文档补页面、组件、权限节点和开发预览数据；docs/INDEX.md 由 docs:index 重新生成。目录：ownership.json 补迁移文件的模块归属，给 mail.template.* 与 application.letter_preview 流程补 db.ts、权限节点、接口合同、路由注册、控制台共享文件的证据和 3 个测试文件，pnpm catalog:generate 重新生成。docs/changes/285.json 写宏观对齐声明。
 - 结果：pnpm check:docs、check:doc-sync（对 130a58b8）、check:catalog、check:architecture（对 130a58b8，55 个变更文件）、check:boundaries、check:secrets 退出码都是 0，pnpm typecheck 退出码 0。pnpm check:notes 失败在 notes/2026-10-24/crosery/task_276_forum_image_scan.md:47（链路已收尾后还有记录）：用 git archive 导出 130a58b8 的 notes 和 scripts 单独跑，同样失败，这份文件本分支没改过，不属于 #285，没有动它。
 - 下一步：无；剩下的是浏览器里的人工验收（1440×900 与 390×844）和所有者在预发布环境的验收。
+
+## 16:39:34 +08:00 · 开发 · #285 · 开发：复核验收，补预发布备份副本的迁移演练与改前截图
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：接手邮件模板分支后并入 stage 3438a07d，重新生成项目目录；在隔离栈（临时库）逐接口发真实请求（权限、新建、重名、变量与按钮校验、乐观并发、预览、试发、删除），预览与试发前后数 applications、application_reviews、mail_outbox 行数；在预发布 13:15 的备份副本上连启两次迁移并数表数与行数；桌面 1440×900 与手机 390×844 在真实浏览器里走模板列表、编辑、预览、试发、投递详情选信；用 stage 基线的控制台开发预览数据补改前截图
+- 结果：迁移：表数 69→70→70，mail_templates 0→5→5，applications 9→9→9；删掉一条非默认种子后再启动两次 4→4→4；接口各步结果与预期一致，试发在没有发信商时如实回答 skipped、不入队；文档溢出 0；门禁 vitest 140 个文件 2227 条通过，typecheck、catalog、architecture、doc-sync、docs、secrets、boundaries 全部 exit 0
+- 下一步：开 MR、写审查、合并；真实发信要等预发布配置发信商后用自己填的邮箱验
+
+## 16:39:34 +08:00 · PR · #285 · PR：GitLab !27
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：推送 task/285/mail_templates，开 !27（目标 stage，Closes #285，标签 admin、func:api、func:data、func:external、ui:interaction、ui:layout）；正文 10 段，验收证据是改前改后桌面与手机截图 13 张、隔离栈真实请求记录与迁移演练
+- 结果：https://git.yangtzeu.work/geek/admin/-/merge_requests/27；门禁：vitest tests/server tests/console tests/web tests/tooling 140 个文件 2227 条通过，typecheck、catalog、architecture、doc-sync、docs、secrets、boundaries 全部通过
+- 下一步：审查后合并
+
+## 16:39:55 +08:00 · 审查 · #285 · 审查：!27 无阻塞、无应修条目
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：按 CODE-REVIEW 清单逐项核对 diff，并做对外发信与管理员写入内容的安全专项：所有接口过 mail.template.manage，写接口与试发另过 requireStepUp，用真实投递字段预览另要 apply.view；试发只发到请求里填的地址并要过发信白名单，每账号每小时 10 次、全站每小时 30 封，操作记录只留脱敏邮箱；预览不入队、不写投递相关三表，放在无权限的 sandbox iframe；变量只能用清单里的 16 个，转义与链接白名单仍由 renderEnvelope 负责，按钮只能指向站内路径；修改带 expected_updated_at，默认模板不能停用或删除；UI 专项：控件与名称、错误标在输入框下、桌面与 390×844 实测
+- 结果：结论：通过；评论贴在 !27「代码审查」
+- 下一步：推送记录后按审查过的提交合并
