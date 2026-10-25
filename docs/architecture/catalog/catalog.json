@@ -16037,7 +16037,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "d3611e99fddffcc4ba9186dda2d3c03476609c6c780d1c4cc0cd225da80c43b0",
+    "fingerprint": "c95d5078829c9dfc61b3af5129db510f6b03441a4aa9e75d334bf2b0d9093095",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -17641,7 +17641,7 @@
       },
       {
         "path": "app/web/sites/portal/components/boot/engine.ts",
-        "sha256": "96359cd595e8542a900e2b537ba73a5d1c6856dadf2d2377d9bc207b4137ab42"
+        "sha256": "934c3a41fc155efeffc40f5130feaaf63411bb486560418440b719f80bb236c3"
       },
       {
         "path": "app/web/sites/portal/components/boot/layout.ts",
@@ -17657,7 +17657,7 @@
       },
       {
         "path": "app/web/sites/portal/components/boot/timeline.ts",
-        "sha256": "c35860905eafb57719d4a43f6b76a8aef03fea290649beaa4570de98d3494af9"
+        "sha256": "64506c0ff47857dd1f64be256873166d38b74b5566860aa02679fe8601f56dac"
       },
       {
         "path": "app/web/sites/portal/components/os/FeedbackBox.tsx",
@@ -17969,7 +17969,7 @@
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "43626f74eb58893c25d2d84d60eb0d1d3218722896d40b7c2ee0b811e87c7ec8"
+        "sha256": "11ad6b658ae12a0fb9a49b7bf887c877e726169b834e62f521c87ea8d7f93491"
       },
       {
         "path": "pnpm-lock.yaml",

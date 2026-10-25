@@ -32,7 +32,8 @@ vi.mock("../../app/web/sites/portal/lib/wallpapers", async (importOriginal) => (
 
 import Home from "../../app/web/sites/portal/pages/Home";
 import { BOOT_DAY_KEY, beijingDay, bootMobile, forcedReplay, shouldPlayBoot } from "../../app/web/sites/portal/lib/bootGate";
-import { particleBudget } from "../../app/web/sites/portal/components/boot/timeline";
+import { READY_BUBBLE } from "../../app/web/sites/portal/components/boot/layout";
+import { particleBudget, TL, WARM_TIMES } from "../../app/web/sites/portal/components/boot/timeline";
 import { flushEvents, reportEvent } from "../../app/web/sites/portal/lib/events";
 
 let reducedMotion = false;
@@ -87,6 +88,23 @@ describe("播不播开机动画", () => {
     expect(particleBudget({ ...desk, dpr: 3 })).toBeLessThan(particleBudget(desk));
     expect(particleBudget({ ...desk, width: 5120, height: 2880 })).toBe(Math.round(14000 * 1.4));
     expect(particleBudget({ mobile: true, width: 390, height: 844, dpr: 3, cores: 6 })).toBeLessThan(7000);
+  });
+});
+
+describe("起步门预热", () => {
+  it("预热时间点升序不重复，每个阶段至少画一帧（#292）", () => {
+    const t = [...WARM_TIMES];
+    expect([...t].sort((a, b) => a - b)).toEqual(t);
+    expect(new Set(t).size).toBe(t.length);
+    expect(t[0]).toBeGreaterThan(0);
+    expect(t.some((x) => x < TL.dis)).toBe(true);
+    expect(t.some((x) => x >= TL.dis && x < TL.scan0)).toBe(true);
+    // 两行公式到 4.4 秒打完，公式整行出现后的第一帧要在预热里
+    expect(t.some((x) => x >= 4.4 && x < TL.flash)).toBe(true);
+    expect(t.some((x) => x >= TL.flash && x < TL.logo)).toBe(true);
+    expect(t.some((x) => x >= TL.os && x < TL.p1)).toBe(true);
+    expect(t.some((x) => x >= READY_BUBBLE.at)).toBe(true);
+    expect(t[t.length - 1]).toBeLessThan(READY_BUBBLE.at + READY_BUBBLE.seconds);
   });
 });
 
