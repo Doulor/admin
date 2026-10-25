@@ -29,3 +29,10 @@
 - 做了什么：提交 feat(deploy)：app/server/Dockerfile 构建阶段核对 STATIC_CDN_BASE（空或固定值，别的值构建失败）并在运行阶段写成环境变量，不新增 deploy/env 条目；deploy-preview 与 deploy-production 给三个镜像都传这个构建参数（只增参数，不放宽已有核对）；scripts/static-cdn.mjs 的 plan 与 upload 带上 forum/stickers/ 下的内置表情图片（键由图片 sha256 决定，insertOnly，同样的前缀守卫与 CDN 核对），要求清单与目录一致，plan 单独打印这个目录的对象数与字节；同提交更新 CICD、DEPLOY 与 forum 服务文档里新增表情包后的上传步骤。没有运行 upload，没有碰真实 CDN 与凭据。文档核对：docs/ops/ENVIRONMENTS.md 不用改——deploy/env 里没有新条目，开关是构建参数不是环境变量项。
 - 结果：最终树上：tests/tooling/static-cdn.test.ts 109 通过、static-cdn-switch.test.ts 11 通过、static-cdn-workflows.test.ts 4 通过（共 124）；本机只读运行 node scripts/static-cdn.mjs plan（空目录充当 web 与 forum 产物）输出「共 49 个文件，1.69 MiB」「其中内置表情图片（forum/stickers/）24 个对象，518514 字节（506.4 KB）」；upload 未运行（需要所有者凭据，未验证）；CI 里 docker build 的 server 构建阶段核对未在本机跑 docker，只用 sh -c 在测试里实跑了同一段 case 判断（未验证 docker 路径）。
 - 下一步：提交论坛前端白名单，再提交宏观对齐声明与重新生成的项目目录
+
+## 14:04:21 +08:00 · 提交 · #286 · 表情图片白名单收到一处并放行受控 CDN
+
+- 执行者：agent-claude-geek-main-stickers（Claude Code，claude-sonnet-5-5）
+- 做了什么：提交 feat(forum)：新增 app/forum/shared/sticker-url.ts，表情图片地址的白名单只此一处，只收同源 /api/forum/stickers/ 加 64 位小写十六进制哈希加 .webp，或固定 CDN 前缀 https://cdn.crosery.com/yzgc/static/site/forum/stickers/ 下同样的哈希；forum-api.ts（接口数据校验）、post-markdown.ts（帖子正文渲染与进出编辑器）、editor/inline-stickers.ts（编辑器图片块）原来各写一份，现在都从它取；进出编辑器按哈希认，开关在两次页面加载之间变了也能换回短码。tests/server/forum.test.ts 把论坛前端的 parseWriteResult 复制到临时目录来读，副本里补上新导入的 sticker-url.ts，断言不变。同提交带 forum 服务文档里白名单与进出编辑器的说明。文档核对：docs/services/web/README.md 不用改——官网没有表情图片，这次没碰 app/web。
+- 结果：最终树上：app/forum 的 tests/sticker-url.test.ts 41、forum-api.test.ts 40、post-markdown.test.ts 102、inline-stickers.test.ts 4 通过（共 187）；tests/tooling/forum-sticker-url-parity.test.ts 2 通过（前端白名单与服务端、脚本给出的地址一致）；tests/server/forum.test.ts 60 通过。整份论坛套件 644 通过、1 失败：tests/site-state.test.ts 期望 6 个分类、实际 7 个（多了 c-guides「使用说明」），该文件与 app/forum/content 都不在本任务的改动里，分类来自基线 stage 的 753cdbac（#281），属基线问题，本任务没有处理。未单独构建本提交的中间状态。
+- 下一步：提交宏观对齐声明、归属登记与重新生成的项目目录，再跑全部门禁

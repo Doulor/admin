@@ -283,3 +283,51 @@ describe('the Bilibili way of writing a sticker, [包名_名字] (#276)', () => 
     expect(tokenIndex(twin).get('[极客娘_打招呼]')?.shortcode).toBe('yugc-wave')
   })
 })
+
+describe('stickers served from the controlled CDN (#286)', () => {
+  const hash = 'c'.repeat(64)
+  const CDN = `https://cdn.crosery.com/yzgc/static/site/forum/stickers/${hash}.webp`
+  const SAME = `/api/forum/stickers/${hash}.webp`
+  const WAVE = { shortcode: 'yugc-wave', label: '挥手', url: CDN }
+  const stickers = stickerIndex([{ name: '极客娘', stickers: [WAVE] }])
+  const rendered = (source: string, list = stickers) => marked.parse(renderableMarkdown(source, list))
+
+  it('renders a shortcode with the address the sticker list gives, the CDN one included', () => {
+    expect(rendered(':yugc-wave:')).toContain(`<img class="forum-sticker" alt="挥手" title="[极客娘_挥手]" src="${CDN}">`)
+    expect(rendered('[极客娘_挥手]')).toContain(`src="${CDN}"`)
+  })
+
+  it('never turns a list entry on another domain, another CDN folder or with a path trick into a picture', () => {
+    for (const url of [
+      `https://evil.example/yzgc/static/site/forum/stickers/${hash}.webp`,
+      `https://cdn.crosery.com/yzgc/static/site/forum/guides/${hash}.webp`,
+      `https://cdn.crosery.com/yzgc/static/site/forum/stickers/../${hash}.webp`,
+      `http://cdn.crosery.com/yzgc/static/site/forum/stickers/${hash}.webp`,
+      'javascript:alert(1)',
+    ])
+      expect(rendered(':odd:', stickerIndex([{ stickers: [{ shortcode: 'odd', label: '外', url }] }]))).not.toContain('<img')
+  })
+
+  it('goes into the editor as the CDN picture and comes back as the same shortcode, code untouched', () => {
+    const source = '早 :yugc-wave: `:yugc-wave:`'
+    const inEditor = stickersToImages(source, stickers)
+    expect(inEditor).toBe(`早 ![挥手](${CDN}) \`:yugc-wave:\``)
+    expect(imagesToStickers(inEditor, stickers)).toBe(source)
+    expect(imagesToStickers(`![挥手](${CDN} "挥手")`, stickers)).toBe(':yugc-wave:')
+  })
+
+  it('recognises one picture by its content hash whichever address form it carries (the switch may flip between page loads)', () => {
+    expect(imagesToStickers(`![挥手](${SAME})`, stickers)).toBe(':yugc-wave:')
+    const sameOriginList = stickerIndex([{ name: '极客娘', stickers: [{ ...WAVE, url: SAME }] }])
+    expect(imagesToStickers(`![挥手](${CDN})`, sameOriginList)).toBe(':yugc-wave:')
+    expect(imagesToStickers(`![挥手](${SAME}) ![挥手](${CDN})`, sameOriginList)).toBe(':yugc-wave: :yugc-wave:')
+  })
+
+  it('leaves a picture of another hash, another domain or another CDN folder a picture', () => {
+    const other = `https://cdn.crosery.com/yzgc/static/site/forum/stickers/${'d'.repeat(64)}.webp`
+    const guide = `https://cdn.crosery.com/yzgc/static/site/forum/guides/${hash}.webp`
+    const evil = `https://evil.example/yzgc/static/site/forum/stickers/${hash}.webp`
+    expect(imagesToStickers(`![a](${other}) ![b](${guide}) ![c](${evil})`, stickers)).toBe(`![a](${other}) ![b](${guide}) ![c](${evil})`)
+  })
+})
+

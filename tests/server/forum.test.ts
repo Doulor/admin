@@ -931,15 +931,15 @@ describe('write responses (#145)', () => {
 
 /**
  * 论坛前端的 `parseWriteResult`，从副本导入：在原处导入时 vite 会读 app/forum/tsconfig.json，它引用的
- * .nuxt/ 只有装过论坛依赖才有，CI 的 core job 没有。副本只有它和它导入的 app/data/types.ts，目录结构
- * 不变，代码就是论坛里的那份；放在仓库里被忽略的 .tools/ 下，因为 vite 只加载项目目录里的文件，
- * 而那里往上没有 tsconfig.json。
+ * .nuxt/ 只有装过论坛依赖才有，CI 的 core job 没有。副本只有它和它导入的 app/data/types.ts、
+ * shared/sticker-url.ts（#286），目录结构不变，代码就是论坛里的那份；放在仓库里被忽略的 .tools/ 下，
+ * 因为 vite 只加载项目目录里的文件，而那里往上没有 tsconfig.json。
  */
 async function forumWriteParser(): Promise<typeof import('../../app/forum/shared/forum-api').parseWriteResult> {
   mkdirSync(join(REPO_ROOT, '.tools'), { recursive: true });
   const dir = mkdtempSync(join(REPO_ROOT, '.tools', 'forum-api-'));
   dirs.push(dir);
-  for (const file of ['shared/forum-api.ts', 'app/data/types.ts']) {
+  for (const file of ['shared/forum-api.ts', 'shared/sticker-url.ts', 'app/data/types.ts']) {
     mkdirSync(dirname(join(dir, file)), { recursive: true });
     cpSync(join(REPO_ROOT, 'app/forum', file), join(dir, file));
   }

@@ -12,8 +12,9 @@
  *    等其它协议（包括写成实体、夹着控制字符的）前面加 `#`，变成页内锚点。引用式定义 `[x]: …` 同样处理。
  *
  * 4. 表情（#276）：代码之外的 `:yugc-wave:` 这类短码，只要在表情白名单里（`GET /api/forum/stickers`
- *    给的、启用中的），换成 `<img class="forum-sticker" alt="<名字>" title="[包名_名字]" src="<站内地址>">`。
- *    这一步在第 1 步之后做，插进去的标签不会被当成文字；地址只认站内按哈希的表情地址，名字按属性转义。
+ *    给的、启用中的），换成 `<img class="forum-sticker" alt="<名字>" title="[包名_名字]" src="<图片地址>">`。
+ *    这一步在第 1 步之后做，插进去的标签不会被当成文字；地址只认 shared/sticker-url.ts 的白名单（站内按哈希的地址，
+ *    或 CDN 开关打开时受控 CDN 上同一个哈希的地址，#286），名字按属性转义。
  *    不在白名单里的（停用的、拼错的）原样显示。服务端存的仍是短码。
  *    照 B 站的写法，`[极客娘_打招呼]` 这样的「[包名_名字]」也认：先换成短码再按上面处理，所以手打、粘贴、
  *    从别处复制来的都显示成表情；后面紧跟 `(`、`[`、`:` 的不换，那是 Markdown 的链接写法。
@@ -25,10 +26,11 @@
  */
 
 import { postLine } from '../app/utils/excerpt'
+import { isStickerUrl, STICKER_URL_PATTERN, stickerHash } from './sticker-url'
 
 export const WORD_JOINER = '\u2060'
 
-/** 白名单里的一个表情：短码（不带冒号）、名字、站内图片地址，和 B 站那样的写法 `[包名_名字]`。 */
+/** 白名单里的一个表情：短码（不带冒号）、名字、图片地址（同源或受控 CDN，见 shared/sticker-url.ts），和 B 站那样的写法 `[包名_名字]`。 */
 export interface StickerRef {
   shortcode: string
   label: string
@@ -38,10 +40,8 @@ export interface StickerRef {
 
 /** 短码的写法与服务端 `STICKER_ID_PATTERN` 相同，两边用冒号包住。 */
 const SHORTCODE = /:([a-z0-9][a-z0-9-]{1,39}):/g
-/** 站内按内容哈希的表情地址（与 shared/forum-api.ts 的 isStickerUrl 同一条规则）。 */
-const STICKER_URL = /^\/api\/forum\/stickers\/[0-9a-f]{64}\.webp$/
-/** 编辑器里的表情图片 `![名字](地址)` 或 `![名字](地址 "标题")`。 */
-const STICKER_IMAGE = /!\[[^\]\n]*\]\((\/api\/forum\/stickers\/[0-9a-f]{64}\.webp)(?:\s+"[^"\n]*")?\)/g
+/** 编辑器里的表情图片 `![名字](地址)` 或 `![名字](地址 "标题")`；地址只认 shared/sticker-url.ts 的白名单（同源或受控 CDN）。 */
+const STICKER_IMAGE = new RegExp(`!\\[[^\\]\\n]*\\]\\((${STICKER_URL_PATTERN})(?:\\s+"[^"\\n]*")?\\)`, 'g')
 
 /** `[包名_名字]`；后面紧跟 `(`、`[`、`:` 的是 Markdown 链接或引用，不算。 */
 const TOKEN = /\[([^[\]\n]{1,64})\](?![([:])/g
@@ -72,9 +72,9 @@ export function renderableMarkdown(source: string, stickers?: ReadonlyMap<string
   return mapOutsideCode(escaped, text => withShortcodes(text, byToken).replace(SHORTCODE, (match, code: string) => stickerTag(stickers.get(code)) ?? match))
 }
 
-/** 短码换成的标签；地址不是站内表情地址时不换（返回 null，原样显示短码）。 */
+/** 短码换成的标签；地址不在表情图片白名单里时不换（返回 null，原样显示短码）。 */
 function stickerTag(sticker: StickerRef | undefined): string | null {
-  if (!sticker || !STICKER_URL.test(sticker.url))
+  if (!sticker || !isStickerUrl(sticker.url))
     return null
   const title = sticker.token ? ` title="${escapeAttribute(sticker.token)}"` : ''
   return `<img class="forum-sticker" alt="${escapeAttribute(sticker.label)}"${title} src="${sticker.url}">`
@@ -119,7 +119,7 @@ export function stickersToImages(source: string, stickers: ReadonlyMap<string, S
   const byToken = tokenIndex(stickers)
   return mapOutsideCode(source, text => withShortcodes(text, byToken).replace(SHORTCODE, (match, code: string) => {
     const sticker = stickers.get(code)
-    return sticker && STICKER_URL.test(sticker.url) ? `![${sticker.label.replace(/[\\[\]]/g, '')}](${sticker.url})` : match
+    return sticker && isStickerUrl(sticker.url) ? `![${sticker.label.replace(/[\\[\]]/g, '')}](${sticker.url})` : match
   }))
 }
 
@@ -127,10 +127,17 @@ export function stickersToImages(source: string, stickers: ReadonlyMap<string, S
 export function imagesToStickers(source: string, stickers: ReadonlyMap<string, StickerRef>): string {
   if (!stickers.size)
     return source
-  const byUrl = new Map([...stickers.values()].map(sticker => [sticker.url, sticker.shortcode]))
+  // 按内容哈希认，不按整条地址：同一张图的同源地址和 CDN 地址哈希相同，页面加载之后开关变了、
+  // 或者从别处复制来另一种地址的图，都照样换回短码。
+  const byHash = new Map<string, string>()
+  for (const sticker of stickers.values()) {
+    const hash = stickerHash(sticker.url)
+    if (hash)
+      byHash.set(hash, sticker.shortcode)
+  }
   const byToken = tokenIndex(stickers)
   return mapOutsideCode(source, text => withShortcodes(text.replace(STICKER_IMAGE, (match, url: string) => {
-    const code = byUrl.get(url)
+    const code = byHash.get(stickerHash(url) ?? '')
     return code ? `:${code}:` : match
   }), byToken))
 }
