@@ -7,10 +7,14 @@
     "web"
   ],
   "domains": [
-    "competitions"
+    "competitions",
+    "identity",
+    "organization",
+    "platform"
   ],
   "flows": [
-    "flow:competition.team_plaza.list"
+    "flow:competition.team_plaza.list",
+    "flow:competition.public.list"
   ],
   "assessments": {
     "business": {
