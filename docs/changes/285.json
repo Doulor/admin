@@ -485,6 +485,6 @@
     "tests/console/nav.test.ts"
   ],
   "compatibility": "全部是追加：新表、新接口、新权限节点和新页面。PATCH 投递的 template_id 可选，不带时按该类的默认模板发信，四类默认内容与改动前一致，只有一处已知差异：姓名只有空白时不再画空的姓名行，投递接口本来就不收空白或过短的姓名；mail-envelope、mail-outbox、applications 三份已有测试的断言没有改。没有 mail.template.manage 的账号看不到「邮件模板」入口也调不通模板接口，旧版镜像不读 mail_templates，新旧可以交替部署。PATCH 投递新挂的响应 Schema 用开放对象保留 application、review 和失败体里的全部字段，回归测试逐字段核对过。",
-  "migration": "不需要手工迁移：db.ts 的 CREATE TABLE IF NOT EXISTS 在启动时建 mail_templates 和两个索引，迁移 2026-10-mail-templates.ts 紧接着种 5 行，用 console_seeds 的 mail_templates_v1 标记保证只种一次，已有 data.db 重启即升级，第二次启动表和行数不变（tests/server/mail-templates.test.ts 的迁移用例与 legacy-database.test.ts 的升级用例覆盖）。没有拿预览库的副本演练过，上线时随部署自动执行。",
+  "migration": "不需要手工迁移：db.ts 的 CREATE TABLE IF NOT EXISTS 在启动时建 mail_templates 和两个索引，迁移 2026-10-mail-templates.ts 紧接着种 5 行，用 console_seeds 的 mail_templates_v1 标记保证只种一次，已有 data.db 重启即升级，第二次启动表和行数不变（tests/server/mail-templates.test.ts 的迁移用例与 legacy-database.test.ts 的升级用例覆盖）。用预发布 13:15 的备份副本演练过：连续启动两次，表数 69 → 70 → 70，mail_templates 0 → 5 → 5，applications 9 → 9 → 9；删掉一条非默认的种子后再启动两次，行数停在 4，不会被补回。上线时随部署自动执行。",
   "rollback": "回滚就是部署上一个镜像：旧代码不读 mail_templates，表和种子行留在库里无害，再次升级后控制台里改过的模板仍在；已排队或已发出的信是入队时渲好的成品，不引用模板，回滚不影响它们；权限节点和控制台页面随镜像一起消失，不留需要清理的残留文件。"
 }
