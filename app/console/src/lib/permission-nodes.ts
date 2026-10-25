@@ -35,6 +35,7 @@ export const NODE_LABELS: Record<Permission, string> = {
   "apply.view": "查看投递",
   "apply.review": "审核投递",
   "apply.export": "导出投递",
+  "apply.settings": "招新开关",
   "competition.signup": "报名比赛",
   "competition.team": "组队",
   "competition.manage": "管理比赛",

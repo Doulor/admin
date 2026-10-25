@@ -5,7 +5,7 @@
 import { ApiError } from "../lib/http";
 import { NODE_LABELS, PERMISSION_DOMAINS, nodeDomain } from "../lib/permission-nodes";
 import type {
-  ActivityEvent, ActivityList, Candidate, CompetitionRules, ConsoleMe, ConsoleStickerPack, ConsoleUser, Core, DepartmentRef, EffectivePermissions, ForumCategoryRow, GitlabAccount, GitlabAccountsResponse, GitlabProjectsResponse, Grade,
+  ActivityEvent, ActivityList, ApplySettings, Candidate, CompetitionRules, ConsoleMe, ConsoleStickerPack, ConsoleUser, Core, DepartmentRef, EffectivePermissions, ForumCategoryRow, GitlabAccount, GitlabAccountsResponse, GitlabProjectsResponse, Grade,
   GitlabSettings, GitlabStatus, InviteCode, Level, PermissionEntry, PermissionExplain, PermissionExplainHit, PermissionGroup, PermissionGroupMember,
   FinalView, Importance, PermissionNodesResponse, PublicDepartment, RosterSignup, RosterStats, RosterTeam, ScoreEvent, ScorePreview, Scoring, SessionProvider, SignupSettings, SiteRole, SiteState, Summary,
   UserPatch, UsersResponse,
@@ -72,6 +72,7 @@ const NODE_DESCRIPTIONS: Record<string, string> = {
   "gitlab.settings": "改同步模式、群组路径和同步间隔。",
   "forum.moderate.delete": "删除别人的帖子和回复。",
   "system.backup": "下载整个系统的数据库快照与站点文件打包。",
+  "apply.settings": "开放或关闭招新；关闭后官网显示关闭页，新的投递被拒绝，已收到的投递照常处理。",
 };
 export const MOCK_NODES: PermissionNodesResponse = {
   nodes: ALL_NODES.map(node => ({
@@ -473,6 +474,8 @@ const MOCK_GITLAB_PROJECTS: GitlabProjectsResponse = {
   ],
 };
 const MOCK_GITLAB_SETTINGS: GitlabSettings = { sync_mode: "on", group_path: "geek", interval_minutes: 10, token_configured: true };
+/** 招新总开关（#284）：样板里是开放、从没改过；写请求按只读回 501。 */
+const MOCK_APPLY_SETTINGS: ApplySettings = { open: true, updated_at: null };
 
 /** GitLab 账号同步：极客班成员都要进组，几种常见错误各留一个样本。 */
 export function mockGitlabAccounts(): GitlabAccountsResponse {
@@ -856,6 +859,11 @@ export function checkConsoleWrite(url: URL, method: string, body: unknown): void
   const persona = requireSignedIn();
   const application = path.match(/^\/api\/console\/applications\/([0-9a-f-]{36})$/);
   if (method === "PATCH" && application) return checkApplicationReview(application[1], body);
+  if (path === "/api/console/applications/settings" && method === "PATCH") {
+    gate(persona, "apply.settings");
+    requireStepUp(persona);
+    return;
+  }
   if (/^\/api\/console\/competitions(?:\/[^/]+)?$/.test(path) && ["POST", "PATCH", "DELETE"].includes(method)) {
     gate(persona, "competition.manage");
     return;
@@ -1077,6 +1085,7 @@ export function routeConsole(url: URL): unknown {
       total: filtered.length, counts: counts(),
     };
   }
+  if (path === "/api/console/applications/settings") { gate(persona, "apply.view"); return MOCK_APPLY_SETTINGS; }
   const detail = path.match(/^\/api\/console\/applications\/([0-9a-f-]{36})$/);
   if (detail) {
     gate(persona, "apply.view");

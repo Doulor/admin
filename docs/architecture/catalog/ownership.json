@@ -2809,15 +2809,21 @@
         {
           "path": "app/server/src/lib/apply-settings.ts",
           "needle": "export function createApplySettings("
+        },
+        {
+          "path": "app/console/src/pages/Applications.vue",
+          "needle": "const settings = useResource(() => api<ApplySettings>(\"/api/console/applications/settings\"));"
         }
       ],
       "tests": [
-        "tests/server/apply-switch.test.ts"
+        "tests/server/apply-switch.test.ts",
+        "tests/console/applications.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
-        "docs/services/server/README.md"
+        "docs/services/server/README.md",
+        "docs/services/console/README.md"
       ]
     },
     {
@@ -2860,16 +2866,26 @@
         {
           "path": "app/server/src/lib/permission-nodes.ts",
           "needle": "node: \"apply.settings\","
+        },
+        {
+          "path": "app/console/src/pages/Applications.vue",
+          "needle": "const change = useAction(async (next: boolean) => {"
+        },
+        {
+          "path": "app/console/src/lib/applications.ts",
+          "needle": "export function applySwitchConfirm(next: boolean): ConfirmOptions {"
         }
       ],
       "tests": [
-        "tests/server/apply-switch.test.ts"
+        "tests/server/apply-switch.test.ts",
+        "tests/console/applications.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/README.md",
-        "docs/architecture/SECURITY.md"
+        "docs/architecture/SECURITY.md",
+        "docs/services/console/README.md"
       ]
     },
     {

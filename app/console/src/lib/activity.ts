@@ -73,6 +73,7 @@ const ACTION_TEXT: Record<string, string> = {
   "os.boot.played": "看完开机动画", "os.boot.skipped": "跳过开机动画", "os.app.open": "打开桌面应用", "os.note.dismissed": "收起新生便签",
   "forum.theme.change": "换论坛主题", "page.view": "打开页面", "events.rejected": "上报被丢弃",
   "system.backup.export": "导出系统备份",
+  "application.settings.update": "开放或关闭招新", "http.apply_closed": "投递被拒（招新已关闭）",
 };
 const ACTION_PREFIX_TEXT: [string, string][] = [
   ["auth.", "登录与账号"], ["perm.", "权限"], ["users.", "用户管理"], ["profile.", "个人资料"], ["gitlab.", "GitLab"],

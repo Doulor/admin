@@ -11,18 +11,24 @@ import { TxCardItem } from "@talex-touch/tuffex/card-item";
 import { TxEmptyState } from "@talex-touch/tuffex/empty-state";
 import { TxPagination } from "@talex-touch/tuffex/pagination";
 import { TxTooltip } from "@talex-touch/tuffex/tooltip";
+import { TxSwitch } from "@talex-touch/tuffex/switch";
+import { toast } from "@talex-touch/tuffex/utils";
 import PageHeader from "../components/PageHeader.vue";
 import ToneTag from "../components/ToneTag.vue";
+import ErrorAlert from "../components/ErrorAlert.vue";
 import ErrorPanel from "../components/ErrorPanel.vue";
 import LoadingBlock from "../components/LoadingBlock.vue";
-import { api } from "../lib/http";
+import { api, jsonBody } from "../lib/http";
+import { applySwitchConfirm, applySwitchSaved, applySwitchView } from "../lib/applications";
+import { confirm } from "../lib/confirm";
 import { fmtDate, fmtRelative } from "../lib/format";
+import { nodeLabel } from "../lib/permission-nodes";
 import { isMock } from "../lib/runtime";
-import { useResource } from "../lib/resource";
+import { useAction, useResource } from "../lib/resource";
 import { useSession } from "../lib/session";
 import { toneColor } from "../lib/tone";
 import { APPLICATION_STATUS, APPLICATION_STATUSES, isApplicationStatus, statusMeta } from "../lib/statuses";
-import type { ApplicationItem, ApplicationList } from "../lib/types";
+import type { ApplicationItem, ApplicationList, ApplySettings } from "../lib/types";
 
 const PAGE_SIZE = 20;
 const route = useRoute();
@@ -41,6 +47,20 @@ const list = useResource(() => {
   if (q.value) query.set("q", q.value);
   return api<ApplicationList>(`/api/console/applications?${query}`);
 }, [status, q, page]);
+
+// 招新总开关（#284）：读随 apply.view，改要 apply.settings 并且刚登录过。开关是受控的，服务端确认之后才换成新状态；
+// 点之前先确认一次，失败时（含要求重新登录）开关留在原状态，横幅里说明原因。
+const settings = useResource(() => api<ApplySettings>("/api/console/applications/settings"));
+const switchView = computed(() => (settings.data.value ? applySwitchView(settings.data.value) : null));
+const change = useAction(async (next: boolean) => {
+  const saved = await api<ApplySettings>("/api/console/applications/settings", { method: "PATCH", ...jsonBody({ open: next }) });
+  settings.data.value = saved;
+  toast({ title: applySwitchSaved(saved.open), variant: "success" });
+});
+async function askChange(next: boolean) {
+  if (next === settings.data.value?.open) return;
+  if (await confirm(applySwitchConfirm(next))) await change.execute(next);
+}
 
 function setQuery(next: Record<string, string | undefined>) {
   const merged: Record<string, string> = {};
@@ -79,6 +99,24 @@ const exportHref = computed(() => `/api/console/applications/export.csv${status.
         </template>
       </template>
     </PageHeader>
+
+    <ErrorAlert v-if="change.error.value" :error="change.error.value" @close="change.reset()" />
+    <TxCard class="apply-switch" aria-label="招新开关">
+      <template v-if="switchView && settings.data.value">
+        <div class="apply-switch__text">
+          <p class="apply-switch__title">{{ switchView.title }}</p>
+          <p class="apply-switch__hint">{{ switchView.hint }}</p>
+          <p v-if="switchView.changed" class="apply-switch__hint">{{ switchView.changed }}</p>
+        </div>
+        <TxSwitch v-if="can('apply.settings')" :model-value="settings.data.value.open" :loading="change.pending.value" aria-label="招新投递" @change="askChange" />
+        <p v-else class="apply-switch__hint">没有「{{ nodeLabel("apply.settings") }}」权限，只能查看。</p>
+      </template>
+      <template v-else-if="settings.error.value">
+        <p class="apply-switch__hint">读不到招新开关的状态。</p>
+        <TxButton @click="settings.reload">重试</TxButton>
+      </template>
+      <p v-else class="apply-switch__hint" role="status">正在读取招新开关…</p>
+    </TxCard>
 
     <div class="toolbar">
       <TxFilterChips :model-value="status" :items="chips" aria-label="按状态筛选" @update:model-value="value => setQuery({ status: String(value) || undefined, page: undefined })" />
@@ -152,6 +190,30 @@ const exportHref = computed(() => `/api/console/applications/export.csv${status.
 </template>
 
 <style scoped>
+.apply-switch :deep(.tx-card__body) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.apply-switch__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.apply-switch__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tx-text-color-primary);
+}
+.apply-switch__hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--tx-text-color-secondary);
+}
 .search {
   width: min(280px, 100%);
 }

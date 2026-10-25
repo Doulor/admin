@@ -35,7 +35,7 @@
 | `/device` | 设备授权确认页（RFC 8628）：带入或输入 8 位 `user_code`，显示客户端、权限、剩余时间与防钓鱼提示，允许或拒绝；没登录先去 `/signin?return_to=/device?user_code=…` | 无（要极客班会话，页面自己读 `/auth/me`） |
 | `/authorize` | 对外授权的同意页（#270）：GitLab 这样的应用第一次用极客班账号登录时，服务端带着 `?uid=<交互编号>` 跳来；显示当前账号、应用名、回到哪个主机、要哪些信息和剩余时间，允许或拒绝后回到应用 | 无（要极客班会话，页面自己读 `/oidc/interaction/<uid>/details`） |
 | `/console` | 概览：你的身份、能做的事和五张数字卡（待处理投递、待确认贡献、今天新注册、今天被拦下、GitLab 同步），只显示有权看的卡 | `console.access` |
-| `/console/applications`、`/console/applications/:id` | 投递管理、投递详情 | `apply.view` |
+| `/console/applications`、`/console/applications/:id` | 投递管理、投递详情；列表顶部是招新总开关（#284），看是 `apply.view`，改要 `apply.settings` | `apply.view` |
 | `/console/forum` | 论坛管理 | 任一 `forum.moderate.*`、`forum.category.manage`、`forum.sticker.manage`、`forum.badge.grant` |
 | `/console/competitions` | 比赛：新建、编辑、下线、删除；日期按北京时间选，服务端按 UTC 存；有 `competition.prize.redeem` 时右上多一个「核销兑奖码」 | 任一 `competition.manage`、`competition.score.review`、`competition.site.publish` |
 | `/console/competitions/redeem` | 核销兑奖码（#278）：输入兑奖码查出是谁、哪张奖，核对后核销 | `competition.prize.redeem` |
@@ -200,6 +200,12 @@ PR 预览只读，合法写操作返回 501 `mock_read_only`，不能用预览�
 `/console/competitions/redeem`（`PrizeRedeem.vue`，要 `competition.prize.redeem`）：得奖的同学在门户「我的参赛」里看到兑奖码，拿来找所有者兑奖。输入兑奖码（不分大小写，空格、连字符与 `YUGC` 前缀可有可无，按服务端同一套规范化先在页面检查格式），「查找」调 `POST /api/console/prizes/lookup`，显示比赛、名次、奖项、分数、得奖人（用户名与昵称；比赛这边不读真实姓名，#280，要核对本人到用户页看）、兑奖码末四位和是否核销；核对后「核销」先确认，再调 `POST /api/console/prizes/redeem`（要刚登录过）。查不到写「没有这个兑奖码」，已经核销过写「这个兑奖码已经核销过了，不能再兑一次」并显示那张奖和核销人，输错太多次（每人每小时 20 次）写「一小时后再试」；其余错误交给 `ErrorAlert`。「换一个」清空重来。
 
 纯逻辑与样板读口的单测在 `tests/console/competition-contest.test.ts`（规则表单与服务端 Schema 对齐、两档选项与基础分表、试算请求与说法、奖项档位校验、GitLab 项目、候选两档与收集结果的说法、官网地址与文件检查、版本状态、被拒原因、兑奖码与服务端同一套规范化、兑奖失败的三种说法、样板的候选、规则、官网和定榜预览）；接口、权限、step-up 与操作记录由 `tests/server/` 下 #278 的用例覆盖。页面在本地服务上用浏览器看过，见 #278 的执行记录。
+
+## 招新总开关（#284）
+
+投递管理（`/console/applications`）页头下面有一栏「招新投递：开放中 / 已关闭」，写明现在官网「加入我们」窗口是什么状态、上次是什么时候改的（从没改过不写这一行）。栏里的开关是 Tuffex 的 `TxSwitch`：只有持有 `apply.settings`（「招新开关」，种子里只有站长）的人看得到开关，别人只看到状态和「没有「招新开关」权限，只能查看」。开关是受控的：点一下先弹确认框（关闭按危险操作的样式，说明新的投递会被拒绝、已收到的投递不受影响；重新开放说明每天能投几份的限制不变），确认后发 `PATCH /api/console/applications/settings`，服务端回来才换成新状态，期间开关显示加载；失败（包括 10 分钟内没登录过的 `step_up_required`）时开关留在原状态，栏上方出现横幅，要重新登录的给「重新登录」。改成功弹出提示，说明官网已经打开的「加入我们」窗口要重新打开才会取到新状态。
+
+文字与确认框的内容是 `lib/applications.ts` 里的纯函数 `applySwitchView`、`applySwitchConfirm`、`applySwitchSaved`，`tests/console/applications.test.ts` 直接测；权限节点的中文名在 `lib/permission-nodes.ts`，操作记录里的 `application.settings.update`（开放或关闭招新）和关闭期间被拒的投递 `http.apply_closed` 在 `lib/activity.ts` 有对应的中文名。开发预览里读到的永远是「开放中」，改是写请求，按只读回 501，但会先按服务端的顺序核对 `apply.settings` 与 step-up。
 
 ## 投递详情与通知信
 

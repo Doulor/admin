@@ -158,6 +158,8 @@ export type ApplicationItem = {
   last_review: { to_status: string; reviewer: string; created_at: number } | null;
 };
 export type ApplicationList = { items: ApplicationItem[]; total: number; counts: Record<string, number> };
+/** 招新总开关（GET/PATCH /api/console/applications/settings，#284）；updated_at 为 null 表示从没改过，等于默认开放。 */
+export type ApplySettings = { open: boolean; updated_at: number | null };
 
 export type MailStatus = "pending" | "sending" | "sent" | "failed" | "skipped";
 export type MailSummary = {
