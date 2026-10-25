@@ -168,8 +168,12 @@ function devApiResponse(pathname, snapshot) {
   return snapshot[part];
 }
 
-/** 转发给真实后端时不带回的响应头：这些公开接口本来就不该读写会话，上游真的带了也不转给站点。 */
-const STRIP_PROXY_RESPONSE_HEADERS = new Set(["set-cookie"]);
+/** 转发给真实后端时不带回的响应头：这些公开接口本来就不该读写会话，上游真的带了也不转给站点；编码、长度类的头按实际响应体重写。 */
+const STRIP_PROXY_RESPONSE_HEADERS = new Set([
+  "set-cookie",
+  // fetch 已经把响应体解压成明文：原来的编码与长度头不再描述现在的响应体，透传会让浏览器按 gzip 再解一次而失败（#288）。
+  "content-encoding", "content-length", "transfer-encoding", "connection", "keep-alive",
+]);
 
 /**
  * 原样转发到真实源：不带浏览器传来的任何请求头（自然也就不转发 cookie / 鉴权头），只发一个干净的 GET；
@@ -184,7 +188,9 @@ async function proxyPublicCompetition(apiOrigin, pathname, search) {
     if (STRIP_PROXY_RESPONSE_HEADERS.has(key.toLowerCase()) || key.toLowerCase() in headers) continue;
     headers[key] = value;
   }
-  return { status: response.status, headers, body: Buffer.from(await response.arrayBuffer()) };
+  const body = Buffer.from(await response.arrayBuffer());
+  headers["content-length"] = String(body.length);
+  return { status: response.status, headers, body };
 }
 
 /** 把目录里的一个相对路径安全地读出来；越界、不存在、扩展名不在站点包白名单里都算读不到（和生产的 readSiteFile 同一套判断）。 */

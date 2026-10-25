@@ -53,7 +53,7 @@ node scripts/contest-site.mjs dev app/web/sites/contests/<比赛 slug>/dist/site
 node scripts/contest-site.mjs dev app/web/sites/contests/<比赛 slug>/dist/site --api https://prev.yangtzeu.work
 ```
 
-只转发这几条只读接口（比赛信息、天梯、动态、统计、快照、人员、队伍），只认 GET，不会把浏览器的 cookie 或登录态转过去，上游的 `set-cookie` 也不会带回来——这几个接口本来就是匿名的，不涉及任何人的登录态。`--api` 只接受 `https://` 开头的地址，或者本机的 `http://127.0.0.1` / `http://localhost`（比如本机另开了一个 server 实例），别的地址一律拒绝、不起服务。比赛 id 以站点代码里 `site.config.ts` 填的那个为准，要用线上真实存在的比赛 id，不能是本地瞎编的。
+只转发这几条只读接口（比赛信息、天梯、动态、统计、快照、人员、队伍），只认 GET，不会把浏览器的 cookie 或登录态转过去，上游的 `set-cookie` 也不会带回来——这几个接口本来就是匿名的，不涉及任何人的登录态。上游若返回压缩过的响应体（`Content-Encoding: gzip`），本地预览读到的是解压后的明文，所以带回来的编码和长度头会按明文重写，浏览器不会再按 gzip 解一次（#288）。`--api` 只接受 `https://` 开头的地址，或者本机的 `http://127.0.0.1` / `http://localhost`（比如本机另开了一个 server 实例），别的地址一律拒绝、不起服务。比赛 id 以站点代码里 `site.config.ts` 填的那个为准，要用线上真实存在的比赛 id，不能是本地瞎编的。
 
 **要连本机 server 调试，或要测写接口（报名、组队这些）**：正常起 Vite 开发服务器，`/api` 会转发到本机跑着的 server（端口 3000，可以用 `CONTEST_API` 环境变量换成别的地址，包括上面说的 `--api` 同一个源）：
 
