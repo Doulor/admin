@@ -7,9 +7,17 @@
     "console"
   ],
   "domains": [
-    "mail"
+    "mail",
+    "audit",
+    "recruitment",
+    "platform"
   ],
-  "flows": [],
+  "flows": [
+    "flow:mail.template.list",
+    "flow:mail.template.create",
+    "flow:mail.template.preview",
+    "flow:mail.template.test_send"
+  ],
   "assessments": {
     "business": {
       "status": "changed",

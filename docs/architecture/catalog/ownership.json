@@ -3214,6 +3214,10 @@
           "needle": "defineProps<{ groups: KindGroup[]; selectedId: string | null; busy: boolean }>();"
         },
         {
+          "path": "app/console/src/pages/mail-templates/StatusRoutes.vue",
+          "needle": "defineProps<{ routes: StatusRoute[]; busy: boolean }>();"
+        },
+        {
           "path": "app/console/src/mock/mail-templates.ts",
           "needle": "export const MOCK_MAIL_LIST: MailTemplateList = {"
         },
@@ -3386,6 +3390,10 @@
         {
           "path": "app/console/src/pages/MailTemplates.vue",
           "needle": "...jsonBody({ is_default: true })"
+        },
+        {
+          "path": "app/console/src/pages/mail-templates/StatusRoutes.vue",
+          "needle": "if (next && next.id !== route.current?.id) emit(\"choose\", next);"
         }
       ],
       "tests": [
