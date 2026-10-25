@@ -13,7 +13,7 @@ import { drawBubble, drawClouds, drawDecor, drawGirl, drawSeatShadow, drawSky, d
 import { bootLayout, READY_BUBBLE, type BootLayout, type TermLayout } from "./layout";
 import { clamp, easeBack, easeElastic, easeInOut, easeOut, hash, lerp, makeRng, smoothstep, TAU } from "./math";
 import { drawSegments, heartPath, measureSegments, paint, roundRectPath, segmentsLength, sliceSegments, sparklePath, type Segment } from "./shapes";
-import { buildBootLog, drawBurst, drawGlyphBubble, LOADING_MESSAGES, logLineTime, logoGlyphs, particleBudget, readDeviceInfo, TL } from "./timeline";
+import { buildBootLog, drawBurst, drawGlyphBubble, LOADING_MESSAGES, logLineTime, logoGlyphs, particleBudget, readDeviceInfo, TL, WARM_TIMES } from "./timeline";
 
 /** gate 等起步；dark 深色 BIOS 段；light 闪光之后的晴空段；ready 就绪 */
 export type BootPhase = "gate" | "dark" | "light" | "ready";
@@ -51,6 +51,34 @@ function makeOffscreen(w: number, h: number): HTMLCanvasElement {
   c.width = Math.max(1, w | 0);
   c.height = Math.max(1, h | 0);
   return c;
+}
+
+/** 抬头显示里的两行公式，3.0 与 3.4 秒起逐字打出来 */
+const HUD_FORMULAS = ["r(θ) = r₀·e^{−kθ}·(1 + ε·cos 3θ)", "ψ(x,t) = Σ cₙ φₙ(x) e^{−iEₙt/ħ}"] as const;
+const HUD_FORMULA_COLOR = "rgba(170,220,255,.92)";
+const hudFormulaSize = (land: boolean) => (land ? 13 : 11);
+
+/**
+ * 一行文字预先画成位图，并记下每个前缀的宽度，逐字打出来时按前缀宽度裁一块贴上去。
+ * 公式里的下标 ₙ（U+2099）不在等宽字体里，每次 fillText 都要找回退字体：3.8 秒打到它时主线程停 50 到 160 毫秒、
+ * 画面再冻住约 1 秒，而回退字体的缓存不可靠（预热过也会在几秒后失效）。位图在起步门时画好，播放途中不再碰字体（#292）。
+ */
+type TextSheet = { canvas: HTMLCanvasElement; widths: number[]; height: number };
+
+function makeTextSheet(text: string, font: string, fontSize: number, color: string, dpr: number): TextSheet {
+  const measure = makeOffscreen(1, 1).getContext("2d")!;
+  measure.font = font;
+  const widths = [0];
+  for (let i = 1; i <= text.length; i++) widths.push(measure.measureText(text.slice(0, i)).width);
+  const height = Math.ceil(fontSize * 1.8);
+  const sheet = makeOffscreen(Math.ceil((widths[text.length] + 4) * dpr), Math.ceil(height * dpr));
+  const g = sheet.getContext("2d")!;
+  g.scale(dpr, dpr);
+  g.font = font;
+  g.fillStyle = color;
+  g.textBaseline = "middle";
+  g.fillText(text, 0, height / 2);
+  return { canvas: sheet, widths, height };
 }
 
 export function createBootEngine(canvas: HTMLCanvasElement, opts: BootEngineOptions): BootEngine {
@@ -121,6 +149,7 @@ export function createBootEngine(canvas: HTMLCanvasElement, opts: BootEngineOpti
   let pImage: ImageData | null = null;
   let bloom: HTMLCanvasElement | null = null;
   let bloomCtx: CanvasRenderingContext2D | null = null;
+  let hudSheets: TextSheet[] | null = null;
   let bw = 1, bh = 1;
   let holo: HTMLCanvasElement | null = null;
 
@@ -216,6 +245,8 @@ export function createBootEngine(canvas: HTMLCanvasElement, opts: BootEngineOpti
     pImage = pCtx.createImageData(bw, bh);
     bloom = makeOffscreen(Math.ceil(bw / 5), Math.ceil(bh / 5));
     bloomCtx = bloom.getContext("2d")!;
+    const hudFont = hudFormulaSize(L.land);
+    hudSheets = HUD_FORMULAS.map((text) => makeTextSheet(text, `500 ${hudFont}px ${MONO}`, hudFont, HUD_FORMULA_COLOR, DPR));
   }
 
   // ── 深色世界（日志 → 解体 → 粒子汇聚 → 扫描重组）──
@@ -482,21 +513,35 @@ export function createBootEngine(canvas: HTMLCanvasElement, opts: BootEngineOpti
       c.lineTo(cx + Math.cos(an) * q1, cy + Math.sin(an) * q1);
     }
     c.stroke();
-    c.font = `500 ${fs + 1}px ${MONO}`;
-    c.fillStyle = "rgba(170,220,255,.92)";
-    c.textBaseline = "middle";
-    const typed = (s: string, t: number) => s.slice(0, Math.ceil(s.length * clamp(t)));
-    const f1 = typed("r(θ) = r₀·e^{−kθ}·(1 + ε·cos 3θ)", T - 3.0), f2 = typed("ψ(x,t) = Σ cₙ φₙ(x) e^{−iEₙt/ħ}", T - 3.4);
+    const typed = (text: string, t: number) => Math.ceil(text.length * clamp(t));
+    const [k1, k2] = [typed(HUD_FORMULAS[0], T - 3.0), typed(HUD_FORMULAS[1], T - 3.4)];
     if (L.land) {
-      c.textAlign = "right";
-      c.fillText(f1, x0 - 28, cy - 12);
-      c.fillText(f2, x0 - 28, cy + 12);
-      c.textAlign = "left";
+      typedFormula(0, k1, x0 - 28, cy - 12, true);
+      typedFormula(1, k2, x0 - 28, cy + 12, true);
     } else {
-      c.fillText(f1, x0, y0 - 44);
-      c.fillText(f2, x0, y0 - 27);
+      typedFormula(0, k1, x0, y0 - 44, false);
+      typedFormula(1, k2, x0, y0 - 27, false);
     }
     c.restore();
+  }
+
+  /** 公式第 i 行打出前 k 个字：有预画的位图就按前缀宽度裁一块贴上去（对齐到设备像素，和直接写字一样清晰）；图还没载入时直接写字 */
+  function typedFormula(i: 0 | 1, k: number, x: number, y: number, alignRight: boolean): void {
+    if (k <= 0) return;
+    const sheet = hudSheets?.[i];
+    if (!sheet) {
+      ctx.font = `500 ${hudFormulaSize(L!.land)}px ${MONO}`;
+      ctx.fillStyle = HUD_FORMULA_COLOR;
+      ctx.textBaseline = "middle";
+      ctx.textAlign = alignRight ? "right" : "left";
+      ctx.fillText(HUD_FORMULAS[i].slice(0, k), x, y);
+      ctx.textAlign = "left";
+      return;
+    }
+    const sw = Math.round(sheet.widths[k] * DPR), sh = Math.round(sheet.height * DPR);
+    if (sw <= 0) return;
+    const w = sw / DPR;
+    ctx.drawImage(sheet.canvas, 0, 0, sw, sh, Math.round((alignRight ? x - w : x) * DPR) / DPR, Math.round((y - sheet.height / 2) * DPR) / DPR, w, sh / DPR);
   }
 
   // ── 闪光之后 ──
@@ -989,6 +1034,31 @@ export function createBootEngine(canvas: HTMLCanvasElement, opts: BootEngineOpti
   // ── 控制 ──
   const now = () => performance.now() / 1000;
   let startedAt: number | null = null;
+  let warmStep = 0, warmHandle = 0;
+
+  // ── 预热：起步门停着的时候，把各阶段的画面各画一帧（时间点见 timeline.ts 的 WARM_TIMES）──
+  // 画在主画布上没关系：起步门的每一帧都会把整张画布重画，而预热只在没开始播放时进行。
+  // 一帧一个任务、中间留出空档，起步门的闪烁提示照常重画；点得比预热快时，start() 先把剩下的补完再计时，播放途中不再遇到首次开销。
+  function warmNext(): void {
+    warmHandle = 0;
+    if (disposed || startedAt !== null || !L || !imgReady || warmStep >= WARM_TIMES.length) return;
+    render(WARM_TIMES[warmStep++], now());
+    if (warmStep < WARM_TIMES.length) warmHandle = window.setTimeout(warmNext, 40);
+  }
+  function cancelWarm(): void {
+    window.clearTimeout(warmHandle);
+    warmHandle = 0;
+  }
+  function scheduleWarm(): void {
+    cancelWarm();
+    warmStep = 0;
+    warmHandle = window.setTimeout(warmNext, 60);
+  }
+  function finishWarm(): void {
+    cancelWarm();
+    if (!L || !imgReady) return;
+    while (warmStep < WARM_TIMES.length) render(WARM_TIMES[warmStep++], now());
+  }
   let readyFired = false;
   let skipped = false;
   let phase: BootPhase | null = null;
@@ -1058,7 +1128,10 @@ export function createBootEngine(canvas: HTMLCanvasElement, opts: BootEngineOpti
     SAT = insets.top;
     SAB = insets.bottom;
     layout();
-    if (imgReady) prep();
+    if (imgReady) {
+      prep();
+      scheduleWarm();
+    }
   }
   // 拖动改窗口大小时每帧都会触发：等停下 120ms 再重算粒子（和原版一样）
   let resizeTimer = 0;
@@ -1086,6 +1159,7 @@ export function createBootEngine(canvas: HTMLCanvasElement, opts: BootEngineOpti
   function start(): void {
     if (startedAt !== null) return;
     holdAt = null;
+    finishWarm();
     startedAt = now();
     ensureAudio();
     scheduled = false;
@@ -1130,6 +1204,7 @@ export function createBootEngine(canvas: HTMLCanvasElement, opts: BootEngineOpti
     },
     dispose() {
       disposed = true;
+      cancelWarm();
       cancelAnimationFrame(rafId);
       window.clearTimeout(resizeTimer);
       observer.disconnect();
