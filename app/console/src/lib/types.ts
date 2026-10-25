@@ -176,12 +176,58 @@ export type ApplicationDetail = {
   reviews: ApplicationReview[];
   received_mail: MailSummary | null;
   mail: MailSettings;
+  /** 改状态时能选的信（#285）：待面试、已录取、未通过各自启用的模板，只有名字；旧版本的服务端没有这一项 */
+  letter_templates?: LetterTemplates;
 };
 export type ApplicationLetter = { time?: string; place?: string; notes?: string; message?: string };
 export type ApplicationReviewPatch = {
-  status?: ApplicationStatus; expected_status?: ApplicationStatus; expected_review_id?: number; note?: string; notify?: boolean; letter?: ApplicationLetter;
+  status?: ApplicationStatus; expected_status?: ApplicationStatus; expected_review_id?: number; note?: string; notify?: boolean; template_id?: string; letter?: ApplicationLetter;
 };
 export type ApplicationReviewResult = { application: ApplicationRecord; review: ApplicationReview };
+
+// ---- 招聘邮件模板（#285） ----
+
+export type MailKind = "received" | "interview" | "accepted" | "rejected";
+export type MailBlockKind = "paragraph" | "list" | "facts" | "quote";
+export type MailFact = { label: string; value: string };
+export type MailBlock =
+  | { kind: "paragraph"; text: string }
+  | { kind: "list"; title?: string; items: string[] }
+  | { kind: "facts"; title?: string; items: MailFact[] }
+  | { kind: "quote"; title: string; text: string };
+export type MailButton = { label: string; path: string };
+/** 一封信的文字：主题、摘要、小标题、抬头、正文块、按钮、页脚；保存和预览的请求体里平铺这几项 */
+export type MailTemplateContent = {
+  subject: string; preheader: string; kicker: string; greeting: string; blocks: MailBlock[]; button: MailButton | null; footer: string[];
+};
+export type MailTemplate = MailTemplateContent & {
+  id: string; name: string; kind: MailKind; enabled: boolean; is_default: boolean;
+  created_by: string; created_at: number; updated_by: string; updated_at: number;
+};
+export type MailVariable = {
+  name: string; group: string; group_label: string; description: string; kinds: MailKind[]; multiline: boolean;
+};
+/** 服务端 TEMPLATE_LIMITS：各项文字的长度上限，编辑页的字数提示用它 */
+export type MailTemplateLimits = {
+  name: number; subject: number; preheader: number; kicker: number; greeting: number;
+  blocks: number; paragraph: number; title: number; listItems: number; listItem: number; factItems: number; factLabel: number; factValue: number; quote: number;
+  footerLines: number; footerLine: number; buttonLabel: number; buttonPath: number; totalText: number;
+};
+export type MailTemplateList = {
+  templates: MailTemplate[];
+  kinds: { id: MailKind; label: string }[];
+  block_kinds: { id: MailBlockKind; label: string }[];
+  variables: MailVariable[];
+  limits: MailTemplateLimits;
+  mail: { enabled: boolean; recipients: "all" | "allowlist"; reply_to: boolean };
+  test_send: { per_hour_per_account: number; per_hour_site: number };
+};
+/** 保存时服务端指出的问题：path 是出问题的字段，例如 subject、blocks[1].text、button.path；空串是整份模板的问题 */
+export type MailTemplateIssue = { path: string; message: string };
+export type MailRendered = { subject: string; html: string; text: string };
+export type MailTestSend = { status: "sent" | "failed" | "skipped" | "pending"; skip_reason: string | null; error: string | null; subject: string; to: string };
+export type LetterTemplateOption = { id: string; name: string; is_default: boolean };
+export type LetterTemplates = Record<"interview" | "accepted" | "rejected", LetterTemplateOption[]>;
 
 // ---- 意见箱 ----
 

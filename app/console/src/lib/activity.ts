@@ -74,11 +74,13 @@ const ACTION_TEXT: Record<string, string> = {
   "forum.theme.change": "换论坛主题", "page.view": "打开页面", "events.rejected": "上报被丢弃",
   "system.backup.export": "导出系统备份",
   "application.settings.update": "开放或关闭招新", "http.apply_closed": "投递被拒（招新已关闭）",
+  "mail.template.create": "新建邮件模板", "mail.template.update": "修改邮件模板", "mail.template.delete": "删除邮件模板",
+  "mail.template.preview": "预览投递人的邮件", "mail.template.test_send": "发测试邮件",
 };
 const ACTION_PREFIX_TEXT: [string, string][] = [
   ["auth.", "登录与账号"], ["perm.", "权限"], ["users.", "用户管理"], ["profile.", "个人资料"], ["gitlab.", "GitLab"],
   ["competition.", "比赛"], ["invite.", "邀请码"], ["apply.", "投递"], ["forum.", "论坛"], ["activity.", "操作记录"],
-  ["feedback.", "意见箱"], ["os.", "官网桌面"], ["cli.", "命令行"], ["system.", "系统"],
+  ["feedback.", "意见箱"], ["os.", "官网桌面"], ["cli.", "命令行"], ["system.", "系统"], ["mail.", "邮件"],
 ];
 export function actionText(action: string): string {
   if (ACTION_TEXT[action]) return ACTION_TEXT[action];
@@ -94,6 +96,7 @@ export const ACTION_PREFIXES = [
 /** 今天被拦下的限流桶：认识的写中文，不认识的原样显示桶名。 */
 const BUCKET_TEXT: Record<string, string> = {
   "apply.daily": "每天投递份数", "events.rejected": "上报被丢弃",
+  "mail.test.hourly": "每小时测试邮件（每个账号）", "mail.test.site": "每小时测试邮件（全站）",
 };
 const BUCKET_PREFIX_TEXT: [string, string][] = [
   ["apply.", "投递"], ["register", "注册"], ["email", "发验证码"], ["forum.", "论坛"], ["invite", "兑换邀请码"],

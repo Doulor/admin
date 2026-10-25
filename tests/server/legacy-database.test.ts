@@ -138,6 +138,8 @@ const YUGC_V2_TABLES = [
 const FORUM_V2_TABLES = [
   'forum_category_settings', 'forum_sticker_packs', 'forum_sticker_files', 'forum_stickers', 'forum_reactions', 'forum_upload_files',
 ];
+/** 招聘邮件模板（#285）：同样只新增；首次启动把四类信现在的内容种成默认模板，另加一套面试邀请的简短版。 */
+const MAIL_TEMPLATE_TABLES = ['mail_templates'];
 
 const dirs: string[] = [];
 const apps: { close: () => Promise<unknown> }[] = [];
@@ -242,7 +244,7 @@ describe('booting on the existing production data.db (legacy schema, no applicat
 
     // 新表全部建好；旧表一行不少、旧列一字不变（#262 加的列和启动回填写的那条审计另外核对）。
     const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all() as { name: string }[]).map(row => row.name);
-    expect(tables).toEqual([...new Set([...LEGACY_TABLES, ...CONSOLE_TABLES, ...FORUM_TABLES, ...MAIL_TABLES, ...APPLY_TABLES, ...COMPETITION_TABLES, ...IDENTITY_TABLES, ...DEVICE_TABLES, ...OIDC_TABLES, ...YUGC_V2_TABLES, ...FORUM_V2_TABLES])].sort());
+    expect(tables).toEqual([...new Set([...LEGACY_TABLES, ...CONSOLE_TABLES, ...FORUM_TABLES, ...MAIL_TABLES, ...APPLY_TABLES, ...COMPETITION_TABLES, ...IDENTITY_TABLES, ...DEVICE_TABLES, ...OIDC_TABLES, ...YUGC_V2_TABLES, ...FORUM_V2_TABLES, ...MAIL_TEMPLATE_TABLES])].sort());
     for (const [table, rows] of Object.entries(before.rows)) {
       expect(legacyColumns(db, table, rows), table).toEqual(rows);
     }
@@ -405,7 +407,7 @@ describe('booting on the existing production data.db (legacy schema, no applicat
     const ids = second.services.roles.listDepartments().map(item => item.id).sort();
     expect(ids).toEqual(['community', 'design', 'recruitment', 'tech']);
     expect(second.services.storage.db.prepare("SELECT name FROM console_seeds ORDER BY name").all()).toEqual([
-      { name: 'competition_oss_2026_1' }, { name: 'competition_oss_2026_1_rules' }, { name: 'departments' }, { name: 'identity_v1' },
+      { name: 'competition_oss_2026_1' }, { name: 'competition_oss_2026_1_rules' }, { name: 'departments' }, { name: 'identity_v1' }, { name: 'mail_templates_v1' },
     ]);
   });
 

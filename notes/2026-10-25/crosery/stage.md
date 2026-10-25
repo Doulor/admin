@@ -36,3 +36,17 @@
 - 做了什么：release worktree 切到 stage 130a58b8（rc.21 之上加 #281 !21）；build-rc.sh 22 构建三个镜像；deploy-rc.sh：CDN 上传 421 个文件核对通过（含 25 张说明帖配图）、rsync 传镜像、部署前备份预发布库 preview-20261025-042944-7aa5e7777726.db、换 compose 与 env、deploy-stack；本地轻量 tag v0.1.1-rc.22；v0.1.1-rc.21 与 v0.1.1-rc.22 两个 tag 推到 GitLab（pre-push 发布 tag 规则通过，GitLab 没有起流水线）
 - 结果：健康检查 18200/18201 ok，部署成功 preview 130a58b84bc7；/release.json 为 0.1.1-rc.22@130a58b84bc7；游客读 /api/forum/state 看到使用说明 4 篇 public；成员账号在 ego-browser 看到 26 篇（public 4、registered 1、member 21）；t906 两张配图、t903 三张配图在 1440 宽下 naturalWidth 1440/1100 均加载成功；1440 说明帖正文与配图、说明帖列表、390 窄屏 t903 截图看过没有重叠
 - 下一步：所有者在预发布验收 rc.22 并在仓库里写「批准发布 v0.1.1」后，main 快进到 130a58b8 再打 v0.1.1
+
+## 16:41:49 +08:00 · 合并 · #285 · 合并：!27 进 stage
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：按审查过的提交 4f10185e 合并 !27（merge commit，目标 stage），GitLab 随之删除来源分支
+- 结果：stage 486a4667；issue #285 已关闭并留了「关闭」追踪记录
+- 下一步：随 rc.23 部署到预发布后，用预发布配置的发信商给自己填的邮箱真发一封样信
+
+## 16:41:49 +08:00 · 收尾 · #285 · 收尾：清理 #285 的 worktree 与本地分支
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：task.mjs finish 查不到 GitHub 上的 issue 状态而保留，改为确认 4f10185e 已是 gitlab/stage 的祖先后，手工移除 .claude/worktrees/task-285、删除本地分支 task/285/mail_templates，核对远端 task/285/* 分支为 0 个，停掉隔离栈并删除临时库
+- 结果：worktree 与本地、远端分支都已清理；仓库里 task/285 相关分支为 0
+- 下一步：无

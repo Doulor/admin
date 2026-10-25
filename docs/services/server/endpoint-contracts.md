@@ -169,7 +169,8 @@
 | `POST /auth/email/password` · `flow:identity.email.password` | 匿名；每分钟 10 次（按 IP），另按邮箱 15 分钟 10 次 | 200 `{return_to}` 并写 `sid`；没账号、没设密码、密码不对一律 400 `invalid_credentials`，没有账号时也跑一次 bcrypt，响应时间不泄露邮箱是否注册；按邮箱超次数 429 `rate_limited`；停用 403 `account_disabled`。会话 provider=email。 |
 | `POST /auth/email/reset` · `flow:identity.email.reset` | 匿名，凭 `/auth/email/start` 发的挑战 cookie；每分钟 10 次；同一个码最多错 5 次（#273，忘了密码） | body `{code,password}`；200 `{return_to}` 并写 `sid`（provider=email）。先看新密码：不到 8 位 400 `password_too_short`、超过 72 字节 400 `password_exceeds_bcrypt_limit`，这时不碰验证码；验证码不对 400 `invalid_code`（带 `attempts_left`），过期、用过或错满 400 `code_expired`；邮箱没有账号时不能顺手注册，回 400 `no_account`（不注册，验证码不作废，登录页转到「注册」）；停用 403 `account_disabled`。占用验证码、建会话、删旧会话、写 `users.password_hash`、`identity_audit`（`login` 与 `password_reset`）、审计 `auth.signin`（method=reset）与 `account.password`（action=reset）在一个 `BEGIN IMMEDIATE` 事务里；成功后这个邮箱的密码错误计数清零。 |
 | `GET /auth/google` · `flow:identity.google.start` | 匿名；每分钟 20 次（按 IP）；没配凭据时 404 `provider_not_enabled` | 302 到 Google 授权页（openid email profile，带 state、nonce 与 PKCE S256）；state、nonce、verifier、return_to 和 `invite`（选填，#274 SPEC §3.2）存进签名 cookie `google_oauth_state`。 |
-| `GET /auth/google/callback` · `flow:identity.google.callback` | 每分钟 10 次（按 IP）；state 与签名 cookie 相符；ID Token 用 Google JWKS 验签（RS256），核对 iss、aud、exp、nonce；按 Google `sub` 认人，不按邮箱合并账号 | 成功 302 回 `return_to`，账号还没有登录邮箱、这个环境又能发信时改为 302 到 `/bind-email?return_to=<原路径>`（#273，Google 给的邮箱不算登录邮箱），邮箱有了但还没填真实姓名或年级时改为 302 到 `/complete-profile?return_to=<原路径>`（#280）；没有账号时不带邀请码也注册成功，不是错误；取消、上游失败、邀请码无效、Google 邮箱已属于别的账号、停用、真的要新建账号这一步同一 IP 今天已建满 5 个或同一设备已建满 3 个（#274 残留修复，SPEC §3.8，登录到已有账号不受影响）时 302 到 `/signin?signin=<cancelled|failed|invite_invalid|email_taken|account_disabled|registration_limited>&provider=google&return_to=<原路径>`；缺参数或 state 无效 400。外部请求在事务外，建号与会话同上一个事务；日志不输出令牌。 |
+| `GET /auth/google/callback` · `flow:identity.google.callback` | 每分钟 10 次（按 IP）；state 与签名 cookie 相符；ID Token 用 Google JWKS 验签（RS256），核对 iss、aud、exp、nonce；按 Google `sub` 认人，不按邮箱合并账号 | cookie 的 `kind` 是 `google-link`（`POST /api/identity/link` 发起）时是绑定，不登录、不建号、不换会话：当前会话必须还是发起绑定的那个（账号和会话指纹都相符），否则不绑；绑上写 `identities`、`identity_audit`（`link`）与 `activity_events`（`auth.link`，只记 `provider`，不记 `sub` 和邮箱），Google 账号已属于别的账号写 `identity_audit`（`link_conflict`）、不改任何数据；结果一律 302 回发起时的页面 `?link=<linked|conflict|exists|cancelled|failed>&provider=google`（授权期间换了账号或重新登录算 `failed`），失败不去登录页（#291）。登录时成功 302 回 `return_to`，账号还没有登录邮箱、这个环境又能发信时改为 302 到 `/bind-email?return_to=<原路径>`（#273，Google 给的邮箱不算登录邮箱），邮箱有了但还没填真实姓名或年级时改为 302 到 `/complete-profile?return_to=<原路径>`（#280）；没有账号时不带邀请码也注册成功，不是错误；取消、上游失败、邀请码无效、Google 邮箱已属于别的账号、停用、真的要新建账号这一步同一 IP 今天已建满 5 个或同一设备已建满 3 个（#274 残留修复，SPEC §3.8，登录到已有账号不受影响）时 302 到 `/signin?signin=<cancelled|failed|invite_invalid|email_taken|account_disabled|registration_limited>&provider=google&return_to=<原路径>`；缺参数或 state 无效 400。外部请求在事务外，建号与会话同上一个事务；日志不输出令牌。 |
+| `POST /api/identity/link` · `flow:identity.account.link` | 有效会话，这次登录不超过 10 分钟（geek 命令行令牌不算）；每账号每分钟 10 次；没配 Google 凭据时 404 `provider_not_enabled` | body `{provider:"google",return_to?}`（`provider` 只认 `google`，别的值 400）；200 `{authorize_url}`，写签名、HttpOnly 的 `google_oauth_state` cookie（path=/auth/google，10 分钟，`kind:"google-link"`，带账号 id 与会话指纹），`return_to` 只收本站地址、缺省 `/account`；超过 10 分钟 403 `step_up_required`；本账号已绑 Google 409 `identity_exists`，不去 Google。这个接口不绑定，只记下「给哪个账号、哪个会话绑」；真正的绑定在 `/auth/google/callback`（#291）。 |
 | `GET /api/identity/me` · `flow:identity.account.view` | 任何有效会话，不要控制台能力 | 200 `{account_id,login,identities,has_password,password_updated_at,membership{state,org_role,via_invite},created_at,recent,available,email_required,real_name,grade,grade_label,profile_required,session{provider,created_at,expires_at,step_up_until}}`；`email_required`（#273）是账号还没有邮箱登录方式、这个环境又能发信，绑定邮箱页 `/bind-email` 读它；实名资料四项同 `/auth/me`（#280），补资料页 `/complete-profile` 读它；邮箱只给打码后的样子，每个邮箱另带身份 `id`（删邮箱用）和 `primary`（主邮箱，排在别的邮箱前面，#272）；`recent` 是本人最近 20 条 `identity_audit`；`available` 只可能是 `["email"]` 或 `[]`：发信打开、还不到 5 个邮箱时是 `["email"]`，满了或发信关着时是 `[]`（GitHub、Google 的绑定没做，不列）。没登录 401。只读。 |
 | `POST /api/identity/email/start` · `flow:identity.account.email.start` | 有效会话，这次登录不超过 10 分钟；每分钟 10 次，发码限额同登录 | 202 `{resend_after:60}`，挑战绑定这个账号与这次会话，cookie path=/api/identity/email；一个账号最多 5 个邮箱（#272），这个邮箱已经绑在本账号上 409 `identity_exists`、已经有 5 个 409 `email_limit`，都不发信；超过 10 分钟 403 `step_up_required`（带 `reauth.return_to:"/account"`）；400 `bad_email`；429 `rate_limited`。 |
 | `POST /api/identity/email/verify` · `flow:identity.account.email.verify` | 同一会话 | 200 `{ok:true}`；换了账号或会话、过期 400 `code_expired`；码不对 400 `invalid_code`；邮箱已属于别的账号 409 `identity_conflict`；已经绑在本账号上 409 `identity_exists`；已经有 5 个 409 `email_limit`。占用验证码、插入邮箱身份、写 `identity_audit` 在一个事务里；账号还没有主邮箱时这个就是主邮箱（`canonical_email`）。 |
@@ -365,15 +366,15 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：applications.read；按UUID定位任意候选人，无部门范围限制。
 
-响应与错误：200 {application,reviews,received_mail,mail}；404 not_found。邮件摘要不含地址/正文，application不含source_ip/UA。
+响应与错误：200 {application,reviews,received_mail,mail,letter_templates}；404 not_found。邮件摘要不含地址/正文，application不含source_ip/UA；letter_templates 是待面试、已录取、未通过三类各自启用的模板，只有 id、名称、是否默认（#285，改状态的「用哪一套信」下拉框用）。
 
-数据与副作用：读简历、审核历史和mail_outbox摘要，写application.view审计，不触发发信。
+数据与副作用：读简历、审核历史、mail_outbox摘要和启用的邮件模板名，写application.view审计，不触发发信。
 
 共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
-本地表读取：applications, application_reviews, mail_outbox, sessions, role_assignments, departments, titles。本地表写入：activity_events, sessions。
+本地表读取：applications, application_reviews, mail_outbox, sessions, role_assignments, departments, titles, mail_templates。本地表写入：activity_events, sessions。
 
-源码：[app/server/src/routes/console/applications.ts:104](../../../app/server/src/routes/console/applications.ts#L104)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)。
+源码：[app/server/src/routes/console/applications.ts:117](../../../app/server/src/routes/console/applications.ts#L117)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)。
 
 ## 导出候选人CSV
 
@@ -397,15 +398,113 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：applications.review；按id审核，状态变更必须携带expected_status和expected_review_id；取消分支规则仍唯一见application.cancel。
 
-响应与错误：200 {application,review}；400 invalid_status/no_change/letter_required/letter_invalid，404 not_found，409 status_changed。
+响应与错误：200 {application,review}；400 invalid_status/no_change/letter_required/letter_invalid/template_invalid，404 not_found，409 status_changed。响应 Schema 已挂载（#285）：成功体的 application、review 原样保留，失败体保留 application、fields 等扩展字段，回归见 `tests/server/mail-templates.test.ts` 的「改状态的接口挂上响应合同后」。可选 template_id（#285）：必须是同一类、已启用的模板，类别不符、已停用、不存在都是 400 template_invalid，状态不改、不入队；不传用这一类的默认模板；没有信的状态（已取消、改回已收到）或 notify 为 false 时忽略它。
 
-数据与副作用：变更到interview/accepted/rejected且notify不为false才渲染邮件；状态、审核行和邮件入队同事务，实际发送由后台worker。备注不写信或审计正文；本路由不新增任何取消规则。
+数据与副作用：变更到interview/accepted/rejected且notify不为false才渲染邮件，用选中的模板；状态、审核行和邮件入队同事务，实际发送由后台worker。备注不写信或审计正文；本路由不新增任何取消规则。
 
 共同身份路径：读取当前sid、账号记下的站内角色与称号权限包，不调用 GitHub；只有还没记过站内角色的老账号，它的 GitHub 会话第一次用到时查一次 GitHub 组织角色并记下（缓存60秒）。仅过期/令牌失效才删除会话，令牌失效还写一次审计，不代表每次成功读都审计（#262 第四期）。
 
-本地表读取：applications, application_reviews, mail_outbox, sessions, role_assignments, departments, titles。本地表写入：applications, application_reviews, mail_outbox, activity_events, sessions。
+本地表读取：applications, application_reviews, mail_outbox, sessions, role_assignments, departments, titles, mail_templates。本地表写入：applications, application_reviews, mail_outbox, activity_events, sessions。
 
-源码：[app/server/src/routes/console/applications.ts:120](../../../app/server/src/routes/console/applications.ts#L120)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)。
+源码：[app/server/src/routes/console/applications.ts:135](../../../app/server/src/routes/console/applications.ts#L135)。验证入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)、[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)。
+
+## 投递详情里预览将要发的信
+
+`POST /api/console/applications/:application_id/letter-preview` · `flow:application.letter_preview`
+
+权限与资源：需要节点 apply.review（按部门范围，和改状态同一个节点），账号维度每分钟 240 次；审核人没有 mail.template.manage 也能预览自己要发的信。
+
+响应与错误：200 {subject,html,text}；400 no_letter（只有待面试、已录取、未通过有信）、template_invalid（选的模板不存在、不是这一类或已停用）、letter_invalid（渲染不出来）；404 not_found。
+
+数据与副作用：用这份投递的真实字段和页面上填的内容，按选的模板（不传用默认）渲染；不发信、不入队、不改状态、不写审核记录；待面试还没填时间、地点时用占位文字，真正改状态时仍然要求必填。
+
+本地表读取：applications, mail_templates。本地表写入：无。
+
+源码：[app/server/src/routes/console/applications.ts:209](../../../app/server/src/routes/console/applications.ts#L209)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)、[tests/server/applications.test.ts](../../../tests/server/applications.test.ts)。
+
+## 查看招聘邮件模板与变量清单
+
+`GET /api/console/mail-templates` · `flow:mail.template.list`
+
+权限与资源：需要节点 mail.template.manage（默认只有站长的根通配 * 拿到，不往下发）。
+
+响应与错误：200 {templates,kinds,block_kinds,variables,limits,mail,test_send}；templates 按信的类别、默认在前、名字排序，每套带 id、name、kind、enabled、is_default 和内容字段；variables 是代码里唯一一份变量清单（TEMPLATE_VARIABLES），编辑页的变量速查表只读它；limits 是各字段的长度上限；mail 只给 enabled、recipients 和回信地址是否已配置，不含发信商密钥和回信地址本身；test_send 是试发的次数上限。
+
+数据与副作用：只读。
+
+本地表读取：mail_templates。本地表写入：无。
+
+源码：[app/server/src/routes/console/mail-templates.ts:133](../../../app/server/src/routes/console/mail-templates.ts#L133)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)。
+
+## 新建一套招聘邮件模板
+
+`POST /api/console/mail-templates` · `flow:mail.template.create`
+
+权限与资源：需要节点 mail.template.manage，且刚登录过（step-up）。
+
+响应与错误：201 模板；400 template_invalid 带 issues[{path,message}]（变量不在清单里、按钮路径不在官网、结构或长度不合规，或用示例数据渲不出来）；409 template_name_taken（同一类里名字不分大小写重复）。
+
+数据与副作用：内容先过 normalizeContent，再用示例数据真渲两遍（第二遍说明、原因为空）才落库；这一类还没有默认、而且新模板启用时它成为默认；操作记录 mail.template.create 只记类别、名称和是否启用，不记内容；不入队任何邮件。
+
+本地表读取：mail_templates。本地表写入：mail_templates, activity_events。
+
+源码：[app/server/src/routes/console/mail-templates.ts:146](../../../app/server/src/routes/console/mail-templates.ts#L146)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)。
+
+## 编辑、启停或设为默认一套招聘邮件模板
+
+`PATCH /api/console/mail-templates/:template_id` · `flow:mail.template.update`
+
+权限与资源：需要节点 mail.template.manage，且刚登录过（step-up）。
+
+响应与错误：200 模板；404 not_found；400 template_invalid；409 template_name_taken、default_template（默认模板不能停用）、template_changed（expected_updated_at 与库里不同，说明别人改过）、template_disabled（停用的模板不能设为默认）。类别建好以后不能改。
+
+数据与副作用：没给的项沿用库里的，整套再核对和试渲一遍；is_default 只能设成 true，同事务把同一类原来的默认取消，只改默认标记不动更新人和更新时间；操作记录 mail.template.update 只记改了哪几项，不记内容。已入队的信在入队时已渲成成品，改模板不影响它们。
+
+本地表读取：mail_templates。本地表写入：mail_templates, activity_events。
+
+源码：[app/server/src/routes/console/mail-templates.ts:164](../../../app/server/src/routes/console/mail-templates.ts#L164)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)。
+
+## 删除一套招聘邮件模板
+
+`DELETE /api/console/mail-templates/:template_id` · `flow:mail.template.delete`
+
+权限与资源：需要节点 mail.template.manage，且刚登录过（step-up）。
+
+响应与错误：200 {ok:true}；404 not_found；409 default_template（默认模板不能删，先把同一类里的另一套设为默认）。
+
+数据与副作用：只删这一行 mail_templates；已入队或已发出的信不受影响（成品内容在 mail_outbox 里，不引用模板）；操作记录 mail.template.delete 只记类别和名称。
+
+本地表读取：mail_templates。本地表写入：mail_templates, activity_events。
+
+源码：[app/server/src/routes/console/mail-templates.ts:202](../../../app/server/src/routes/console/mail-templates.ts#L202)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)。
+
+## 编辑时实时预览一套招聘邮件
+
+`POST /api/console/mail-templates/preview` · `flow:mail.template.preview`
+
+权限与资源：需要节点 mail.template.manage；不要求刚登录过（编辑时每停一下就请求一次），账号维度每分钟 240 次。给了 application_id 要另外有 apply.view（按部门范围），否则 403。
+
+响应与错误：200 {subject,html,text}；400 template_required（template_id 和 draft 要给且只给一个）、template_invalid（draft 不合规）、preview_failed（渲染不出来）；404 not_found。
+
+数据与副作用：渲染的是 template_id 对应的已存模板，或还没保存的 draft；不入队、不发信、不写投递和审核记录；没给 application_id 用示例投递，给了就用这份投递的真实字段，并记 mail.template.preview（只记模板 id 和投递 id）。
+
+本地表读取：mail_templates, applications。本地表写入：activity_events。
+
+源码：[app/server/src/routes/console/mail-templates.ts:214](../../../app/server/src/routes/console/mail-templates.ts#L214)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)。
+
+## 向测试邮箱试发一封样信
+
+`POST /api/console/mail-templates/test-send` · `flow:mail.template.test_send`
+
+权限与资源：需要节点 mail.template.manage，且刚登录过（step-up）；每个账号每小时 10 封（桶 mail.test.hourly），全站每小时 30 封，超过回 429 rate_limited 并带 bucket 和 retry_after。
+
+响应与错误：200 {status,skip_reason,error,subject,to}，status 是 sent、failed、skipped 或 pending，to 是脱敏后的地址；400 invalid_address、template_required、template_invalid、preview_failed；404 not_found。没配置发信商或收件地址不在白名单里回 skipped，不入队，也不占次数。
+
+数据与副作用：只发给请求里填的这一个地址、一封，kind 为 recruitment.test，事件键 test:<随机 UUID>，主题前加「【测试】」；数据只用示例，不带任何真实投递人的内容，不读不写 applications 和 application_reviews；这种信只试一次、失败不重试，失败原因回给页面；操作记录 mail.template.test_send 只留脱敏邮箱和模板 id，不留邮箱明文和信的内容。
+
+本地表读取：mail_templates, mail_outbox, limit_events。本地表写入：mail_outbox, limit_events, activity_events。
+
+源码：[app/server/src/routes/console/mail-templates.ts:244](../../../app/server/src/routes/console/mail-templates.ts#L244)。验证入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts)、[tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts)。
 
 ## 读取招新总开关（#284）
 

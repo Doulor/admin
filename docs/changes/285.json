@@ -1,0 +1,490 @@
+{
+  "version": 1,
+  "issue": 285,
+  "kind": "business",
+  "summary": "招聘邮件多套模板（#285）：控制台新增「邮件模板」页，按已收到、面试、录取、未通过四类信维护多套模板，编辑时 400 毫秒防抖实时预览，可向自己填的测试邮箱试发样信（不改任何投递记录）；投递详情改状态时可选模板并先预览这封信。新增表 mail_templates、权限节点 mail.template.manage 和 7 个接口，内置默认文字与迁移种子同源，渲染仍走 renderEnvelope。",
+  "applications": [
+    "server",
+    "console"
+  ],
+  "domains": [
+    "audit",
+    "competitions",
+    "feedback",
+    "forum",
+    "github",
+    "gitlab",
+    "identity",
+    "invitations",
+    "mail",
+    "organization",
+    "permissions",
+    "platform",
+    "recruitment"
+  ],
+  "flows": [
+    "flow:mail.template.list",
+    "flow:mail.template.create",
+    "flow:mail.template.update",
+    "flow:mail.template.delete",
+    "flow:mail.template.preview",
+    "flow:mail.template.test_send",
+    "flow:application.letter_preview",
+    "flow:application.review",
+    "flow:application.detail",
+    "flow:console.summary",
+    "flow:identity.callback",
+    "flow:identity.invites.list",
+    "flow:permissions.nodes.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "所有者 2026-10-25 00:15 要求招聘邮件不再固定为一个模板：不同投递可以用不同的信，信里的内容可编辑，随时预览，并能填一个邮箱试发。落到四类信各自可有多套模板（新建、编辑、启停、设为默认、删除），编辑页实时预览，试发只发给填写的那个地址，投递详情里改状态时可选模板并先预览。",
+      "evidence": [
+        "app/server/src/routes/console/mail-templates.ts",
+        "app/console/src/pages/MailTemplates.vue",
+        "docs/services/server/mail.md"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "新增 /api/console/mail-templates 的列表、新建、修改、删除、预览、试发 6 个接口，以及 /api/console/applications/:application_id/letter-preview 预览接口，PATCH 投递多一个可选的 template_id，并同时补上响应 Schema（application、review 和失败体的字段原样保留，有回归测试）。渲染仍走 renderEnvelope，变量只认 template-content.ts 里 TEMPLATE_VARIABLES 这一份清单，未知变量回 400；mailer 新增 previewLetter，outbox 新增只试一次的 recruitment.test 类别，限流新增每个账号每小时的试发桶。",
+      "evidence": [
+        "app/server/src/routes/console/mail-templates.ts",
+        "app/server/src/lib/mail/template-content.ts",
+        "app/server/src/lib/mail/mailer.ts",
+        "app/server/src/lib/mail/outbox.ts",
+        "app/server/src/routes/console/applications.ts"
+      ]
+    },
+    "permissions": {
+      "status": "changed",
+      "reason": "新增权限节点 mail.template.manage（apply 域），种子里只有站长的根通配默认拿到，不往下发。模板的新建、修改、删除和试发要求刚登录过（step-up）；预览不要求，但每分钟 240 次，带 application_id 预览要另外有 apply.view；审核人预览自己要发的信只需 apply.review。",
+      "evidence": [
+        "app/server/src/lib/permission-nodes.ts",
+        "app/server/src/routes/console/mail-templates.ts",
+        "docs/architecture/SECURITY.md"
+      ]
+    },
+    "data": {
+      "status": "changed",
+      "reason": "新增表 mail_templates（建表语句和索引在 db.ts：每类信只能有一套默认，同一类里名字不分大小写唯一）和迁移 2026-10-mail-templates.ts：首次启动种 5 行（四类默认各一套，另加「面试邀请 · 简短」），用 console_seeds 的 mail_templates_v1 标记只种一次，重复执行表和行数都不变，之后在控制台改过、停用或删掉的不会被补回。mail_outbox 新增 recruitment.test 类别，kind 列没有取值约束，不用改表结构。模板不被投递或审核记录引用，成品内容在入队时已渲进 mail_outbox。",
+      "evidence": [
+        "app/server/src/lib/db.ts",
+        "app/server/src/lib/migrations/2026-10-mail-templates.ts",
+        "docs/services/server/data-model.md"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新增或升级任何依赖，package.json 和锁文件都没改：渲染、转义和限流复用已有的 renderEnvelope、limits 与发信队列，控制台只用已有的 Tuffex 组件，预览用浏览器自带的 iframe（sandbox 加 srcdoc）。",
+      "evidence": [
+        "app/server/src/lib/mail/template-content.ts",
+        "app/console/src/components/MailPreviewFrame.vue"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "mail.md 新增「邮件模板」一节（存储、内容限制、变量清单、替换与转义、预览、试发、权限与审计、控制台页面），data-model.md 登记 mail_templates 和迁移，endpoint-contracts.md、API.md 登记 7 个接口，SECURITY.md 补招聘邮件模板与试发的防滥用说明，server 与 console 服务文档补页面、组件、权限节点和 mock 说明；各文档头的更新日期同步到 2026-10-25，docs/INDEX.md 由 docs:index 重新生成。",
+      "evidence": [
+        "docs/services/server/mail.md",
+        "docs/services/server/data-model.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/SECURITY.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "新增 tests/server/mail-templates.test.ts（37 个用例）、tests/server/mail-template-content.test.ts（16 个）和 tests/console/mail-templates.test.ts（43 个），扩展 legacy-database、nav、console applications 的用例，旧期望只追加新项、没有删；tests/server 下的 mail-envelope、mail-outbox、applications 三份已有测试没有改动，仍然通过。本地 Node 22 跑 npx vitest run tests/server tests/console tests/tooling：104 个文件、1865 个用例全部通过；pnpm typecheck、check:catalog、check:boundaries、check:secrets、check:docs 通过。尚未在真实浏览器里看过页面布局，生产 CSP 下的 srcdoc 预览、真实邮件客户端的渲染和真实发信商的试发也没有验证。",
+      "evidence": [
+        "tests/server/mail-templates.test.ts",
+        "tests/server/mail-template-content.test.ts",
+        "tests/console/mail-templates.test.ts",
+        "tests/server/legacy-database.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "not-applicable",
+      "reason": "不改部署 compose、CI 工作流、Dockerfile 或构建配置：新表随服务启动由 db.ts 的建表语句和迁移自动创建，控制台页面随现有的 web 镜像构建发布，试发沿用现有的发信商配置，没有新增环境变量。",
+      "evidence": [
+        "docs/ops/DEPLOY.md",
+        "app/server/src/lib/db.ts"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/server/src/lib/mail/mailer.ts",
+        "app/server/src/lib/mail/outbox.ts",
+        "app/server/src/lib/mail/recruitment.ts",
+        "app/server/src/lib/mail/template-content.ts",
+        "app/server/src/lib/mail/template-contract.ts",
+        "app/server/src/lib/mail/template-store.ts"
+      ],
+      "domains": [
+        "mail",
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:mail",
+        "domain:recruitment",
+        "table:mail_templates",
+        "table:mail_outbox",
+        "flow:mail.template.preview",
+        "flow:mail.template.test_send",
+        "flow:application.review",
+        "flow:application.letter_preview",
+        "application:server"
+      ],
+      "reason": "发信库的核心改动：四封招聘信的内容抽成模板数据（template-content.ts 的变量清单、校验与替换，template-store.ts 的存取），mailer 新增 previewLetter 与试发限额，outbox 新增只试一次的 recruitment.test 类别，recruitment.ts 按选定模板渲信；渲染仍走 renderEnvelope，不另起一套发信系统。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/migrations/2026-10-mail-templates.ts"
+      ],
+      "domains": [
+        "mail"
+      ],
+      "nodes": [
+        "domain:mail",
+        "table:mail_templates",
+        "flow:mail.template.list",
+        "application:server"
+      ],
+      "reason": "新增迁移：首次启动把四类信现在的内容种成默认模板，另加一套面试邀请的简短版，用 console_seeds 的标记保证只种一次；表本身的建表语句在 db.ts，这里只管种子，重复执行行数不变。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/console/mail-templates.ts"
+      ],
+      "domains": [
+        "mail"
+      ],
+      "nodes": [
+        "domain:mail",
+        "route:GET /api/console/mail-templates",
+        "route:POST /api/console/mail-templates",
+        "route:PATCH /api/console/mail-templates/:template_id",
+        "route:DELETE /api/console/mail-templates/:template_id",
+        "route:POST /api/console/mail-templates/preview",
+        "route:POST /api/console/mail-templates/test-send",
+        "flow:mail.template.list",
+        "flow:mail.template.create",
+        "flow:mail.template.update",
+        "flow:mail.template.delete",
+        "flow:mail.template.preview",
+        "flow:mail.template.test_send",
+        "application:server"
+      ],
+      "reason": "新增邮件模板的 6 个控制台接口：列表、新建、修改、删除、预览、向测试邮箱试发，授权用 mail.template.manage，写操作和试发要求刚登录过，试发有每个账号和全站两层次数上限。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/console/applications.ts"
+      ],
+      "domains": [
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:recruitment",
+        "route:PATCH /api/console/applications/:application_id",
+        "route:POST /api/console/applications/:application_id/letter-preview",
+        "flow:application.review",
+        "flow:application.letter_preview",
+        "flow:application.detail",
+        "application:server"
+      ],
+      "reason": "投递改状态的接口多收一个可选的 template_id（类别不符回 400），并新增 letter-preview 接口让审核人先看将要发的信；没有 template_id 时按该类的默认模板发，行为与改动前一致。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/db.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "gitlab",
+        "identity",
+        "invitations",
+        "mail",
+        "organization",
+        "permissions",
+        "platform",
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:audit",
+        "domain:competitions",
+        "domain:feedback",
+        "domain:forum",
+        "domain:gitlab",
+        "domain:identity",
+        "domain:invitations",
+        "domain:mail",
+        "domain:organization",
+        "domain:permissions",
+        "domain:platform",
+        "domain:recruitment",
+        "table:mail_templates",
+        "flow:mail.template.list",
+        "application:server"
+      ],
+      "reason": "db.ts 登记了全站的数据表，目录按它承载的全部业务域声明；这次只新增 mail_templates 的建表语句与两个索引，以及启动时调用邮件模板迁移的一行，其余表和迁移调用没有动。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/console/contracts.ts",
+        "app/server/src/routes/console/index.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "gitlab",
+        "identity",
+        "mail",
+        "organization",
+        "permissions",
+        "platform",
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:audit",
+        "domain:competitions",
+        "domain:feedback",
+        "domain:forum",
+        "domain:gitlab",
+        "domain:identity",
+        "domain:mail",
+        "domain:organization",
+        "domain:permissions",
+        "domain:platform",
+        "domain:recruitment",
+        "route:GET /api/console/mail-templates",
+        "route:POST /api/console/mail-templates",
+        "route:PATCH /api/console/mail-templates/:template_id",
+        "route:DELETE /api/console/mail-templates/:template_id",
+        "route:POST /api/console/mail-templates/preview",
+        "route:POST /api/console/mail-templates/test-send",
+        "flow:mail.template.list",
+        "application:server"
+      ],
+      "reason": "控制台接口的汇总文件，目录按它汇总的全部业务域声明；这次在 contracts.ts 里展开 mailTemplateContracts，给 PATCH 投递补上响应 Schema（新增 template_id 让它的合同变了，目录要求有响应 Schema），在 index.ts 里多注册一个 mail-templates 路由，别的路由和合同没有动。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/limits.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform",
+        "flow:mail.template.test_send",
+        "application:server"
+      ],
+      "reason": "限流事件保留表 BUCKET_RETENTION_MS 里登记 mail.test.hourly：试发按账号每小时计数，窗口 1 小时，事件留 2 小时再清；别的桶没有改。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/permission-nodes.ts"
+      ],
+      "domains": [
+        "permissions"
+      ],
+      "nodes": [
+        "domain:permissions",
+        "flow:mail.template.list",
+        "application:server"
+      ],
+      "reason": "新增权限节点 mail.template.manage，归在招新投递这一组；只影响权限节点目录本身，默认只有站长的根通配拿到。"
+    },
+    {
+      "paths": [
+        "app/console/src/components/MailPreviewFrame.vue",
+        "app/console/src/lib/mail-templates.ts",
+        "app/console/src/mock/mail-templates.ts",
+        "app/console/src/pages/MailTemplates.vue",
+        "app/console/src/pages/mail-templates/FieldRow.vue",
+        "app/console/src/pages/mail-templates/TemplateEditor.vue",
+        "app/console/src/pages/mail-templates/TemplateList.vue",
+        "app/console/src/pages/mail-templates/TemplatePreview.vue",
+        "app/console/src/pages/mail-templates/TestSend.vue"
+      ],
+      "domains": [
+        "mail",
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:mail",
+        "domain:recruitment",
+        "route:GET /api/console/mail-templates",
+        "route:POST /api/console/mail-templates",
+        "route:PATCH /api/console/mail-templates/:template_id",
+        "route:DELETE /api/console/mail-templates/:template_id",
+        "route:POST /api/console/mail-templates/preview",
+        "route:POST /api/console/mail-templates/test-send",
+        "flow:mail.template.list",
+        "flow:mail.template.create",
+        "flow:mail.template.update",
+        "flow:mail.template.delete",
+        "flow:mail.template.preview",
+        "flow:mail.template.test_send",
+        "application:console"
+      ],
+      "reason": "控制台「邮件模板」页和它的纯逻辑、预览框与 mock：按类别分组的列表、编辑器、400 毫秒防抖的实时预览（iframe 加 sandbox 与 srcdoc）、试发区；预览框同时给投递详情里的「预览这封信」用，所以也挂 recruitment。"
+    },
+    {
+      "paths": [
+        "app/console/src/lib/applications.ts",
+        "app/console/src/pages/ApplicationDetail.vue"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "github",
+        "organization",
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:audit",
+        "domain:competitions",
+        "domain:feedback",
+        "domain:github",
+        "domain:organization",
+        "domain:recruitment",
+        "route:PATCH /api/console/applications/:application_id",
+        "route:POST /api/console/applications/:application_id/letter-preview",
+        "flow:application.review",
+        "flow:application.letter_preview",
+        "flow:application.detail",
+        "application:console"
+      ],
+      "reason": "投递详情页新增模板下拉（只列这一类启用的模板）和「预览这封信」，改状态时把选定的 template_id 一并提交；lib/applications.ts 按目录里它登记的业务域声明，这次只新增 letterPreviewBody 与 template_id 的组装。"
+    },
+    {
+      "paths": [
+        "app/console/src/lib/activity.ts",
+        "app/console/src/lib/nav.ts",
+        "app/console/src/lib/permission-nodes.ts",
+        "app/console/src/lib/types.ts",
+        "app/console/src/mock/console.ts",
+        "app/console/src/mock/index.ts",
+        "app/console/src/router.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "github",
+        "organization",
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:audit",
+        "domain:competitions",
+        "domain:feedback",
+        "domain:github",
+        "domain:organization",
+        "domain:recruitment",
+        "flow:mail.template.list",
+        "flow:mail.template.create",
+        "flow:mail.template.preview",
+        "application:console"
+      ],
+      "reason": "控制台共享注册表接入新页面：导航里加「邮件模板」、权限节点目录镜像加 mail.template.manage、活动文案加 mail.template.* 的动作、类型加模板与预览结果、mock 与路由加页面入口；这些文件原本就按 app/console/src/ 的目录声明覆盖这些业务域，这次只各加相关条目，不改变它们原有的覆盖范围。"
+    },
+    {
+      "paths": [
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/services/console/README.md",
+        "docs/services/server/README.md",
+        "docs/services/server/data-model.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/mail.md"
+      ],
+      "domains": [
+        "mail",
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:mail",
+        "domain:recruitment",
+        "document:docs/services/server/mail.md",
+        "document:docs/services/server/data-model.md",
+        "document:docs/services/server/endpoint-contracts.md",
+        "document:docs/architecture/API.md",
+        "document:docs/architecture/SECURITY.md",
+        "application:server"
+      ],
+      "reason": "文档跟着模块改：mail.md 新增邮件模板一节，data-model.md 登记新表，endpoint-contracts.md 与 API.md 登记 7 个接口，SECURITY.md 补试发的防滥用，两份服务文档补页面和权限节点。"
+    },
+    {
+      "paths": [
+        "docs/INDEX.md",
+        "docs/architecture/catalog/"
+      ],
+      "domains": [
+        "mail"
+      ],
+      "nodes": [
+        "domain:mail",
+        "flow:mail.template.list",
+        "application:server"
+      ],
+      "reason": "docs/INDEX.md 随 pnpm docs:index 重新生成（mail.md 的摘要变了），docs/architecture/catalog/ 下的产物随 pnpm catalog:generate 重新生成，其中 ownership.json 新增 mail.template.* 6 条流程、application.letter_preview 流程和相关模块归属，不是手改的生成物。"
+    },
+    {
+      "paths": [
+        "tests/console/applications.test.ts",
+        "tests/console/mail-templates.test.ts",
+        "tests/console/nav.test.ts",
+        "tests/server/legacy-database.test.ts",
+        "tests/server/mail-template-content.test.ts",
+        "tests/server/mail-templates.test.ts"
+      ],
+      "domains": [
+        "mail",
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:mail",
+        "domain:recruitment",
+        "test:tests/server/mail-templates.test.ts",
+        "test:tests/console/mail-templates.test.ts",
+        "test:tests/server/legacy-database.test.ts"
+      ],
+      "reason": "新增邮件模板的服务端、内容渲染和控制台测试；legacy-database 的表清单与种子标记、nav 的导航 id 清单只在原期望里追加了 mail_templates、mail_templates_v1 和 mail-templates，没有删旧项，tests/console/applications.test.ts 追加了 template_id 与预览请求体的用例。"
+    }
+  ],
+  "documents": [
+    "docs/services/server/mail.md",
+    "docs/services/server/data-model.md",
+    "docs/services/server/endpoint-contracts.md",
+    "docs/services/server/README.md",
+    "docs/services/console/README.md",
+    "docs/architecture/API.md",
+    "docs/architecture/SECURITY.md"
+  ],
+  "tests": [
+    "tests/server/mail-templates.test.ts",
+    "tests/server/mail-template-content.test.ts",
+    "tests/server/legacy-database.test.ts",
+    "tests/server/mail-envelope.test.ts",
+    "tests/server/mail-outbox.test.ts",
+    "tests/server/applications.test.ts",
+    "tests/console/mail-templates.test.ts",
+    "tests/console/applications.test.ts",
+    "tests/console/nav.test.ts"
+  ],
+  "compatibility": "全部是追加：新表、新接口、新权限节点和新页面。PATCH 投递的 template_id 可选，不带时按该类的默认模板发信，四类默认内容与改动前一致，只有一处已知差异：姓名只有空白时不再画空的姓名行，投递接口本来就不收空白或过短的姓名；mail-envelope、mail-outbox、applications 三份已有测试的断言没有改。没有 mail.template.manage 的账号看不到「邮件模板」入口也调不通模板接口，旧版镜像不读 mail_templates，新旧可以交替部署。PATCH 投递新挂的响应 Schema 用开放对象保留 application、review 和失败体里的全部字段，回归测试逐字段核对过。",
+  "migration": "不需要手工迁移：db.ts 的 CREATE TABLE IF NOT EXISTS 在启动时建 mail_templates 和两个索引，迁移 2026-10-mail-templates.ts 紧接着种 5 行，用 console_seeds 的 mail_templates_v1 标记保证只种一次，已有 data.db 重启即升级，第二次启动表和行数不变（tests/server/mail-templates.test.ts 的迁移用例与 legacy-database.test.ts 的升级用例覆盖）。用预发布 13:15 的备份副本演练过：连续启动两次，表数 69 → 70 → 70，mail_templates 0 → 5 → 5，applications 9 → 9 → 9；删掉一条非默认的种子后再启动两次，行数停在 4，不会被补回。上线时随部署自动执行。",
+  "rollback": "回滚就是部署上一个镜像：旧代码不读 mail_templates，表和种子行留在库里无害，再次升级后控制台里改过的模板仍在；已排队或已发出的信是入队时渲好的成品，不引用模板，回滚不影响它们；权限节点和控制台页面随镜像一起消失，不留需要清理的残留文件。"
+}

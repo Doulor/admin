@@ -31,6 +31,7 @@ const routes: RouteRecordRaw[] = [
       { path: "", ...gated(["console.access"], () => import("./pages/Overview.vue")) },
       { path: "applications", ...gated(["apply.view"], () => import("./pages/Applications.vue")) },
       { path: "applications/:applicationId", ...gated(["apply.view"], () => import("./pages/ApplicationDetail.vue")) },
+      { path: "mail-templates", ...gated(["mail.template.manage"], () => import("./pages/MailTemplates.vue")) },
       { path: "forum", ...gated(FORUM_PERMISSIONS, () => import("./pages/Forum.vue")) },
       { path: "competitions", ...gated(COMPETITION_MANAGE_PERMISSIONS, () => import("./pages/Competitions.vue")) },
       // 核销兑奖码（#278）：要排在 competitions/:id 前面，不然 redeem 会被当成比赛 id

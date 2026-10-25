@@ -61,9 +61,10 @@ three.js 只通过 `/forum-3d` 页里的 `import("../three/forum")` 进入，首
 - **什么时候播**：`pages/Home.tsx` 挂载时按 `lib/bootGate.ts` 决定：开了减少动态效果直接进桌面；地址带 `?boot=1` 强制重播且不写记录（验收和录屏用）；否则看 `localStorage["yugc:boot-day"]` 是不是今天的北京日期，不是就播。播完或跳过时写今天的日期。桌面菜单「系统 → 重播开机动画」和手机「系统设置」里的同名按钮也不写记录。
 - **按需加载**：开机动画（`BootSequence`）和桌面（`YugcOs`）都是懒加载分包；直接进桌面的人不下载开机动画，播动画期间浏览器空闲时预取桌面分包。用户选了图片壁纸时，首页挂载就开始下载解码那张图；默认的「晴空」是画出来的，不用下。
 - **起步**：电脑上点画面或按任意键开始；手机上按下屏幕开始画长按进度环，按满 0.7 秒自动开始，没按满就松手也开始，系统取消（手势变成滚动之类）不算；画面上盖一个透明按钮（「启动 YUGC OS」，手机写「长按启动 YUGC OS」），键盘和读屏也能起步。右上角静音、重播，右下角跳过，都是 44px 的真实按钮；Esc 跳过、M 静音、R 重播，静音记在 `localStorage["yugc:boot-muted"]`。宽度小于 768 或竖屏时用手机版（`lib/bootGate.ts` 的 `bootMobile`）；停在起步门时视口变了（转屏、缩放窗口）重新判断并按新版本重画，开始播放后不再换。单测 `tests/web/portal-boot-gate.test.tsx`。
+- **预热**：起步门停着的时候，引擎用一串 `setTimeout` 在主画布上把六个时间点各画一帧（`timeline.ts` 的 `WARM_TIMES`：终端打字、解体、公式打完后的扫描重组、闪光后的晴空、字标、标语与就绪气泡），一帧一个任务、中间隔 40ms；点得比预热快时，`start()` 先同步补完剩下的再开始计时。HUD 里两行公式（含 θ、ε₀、ψ、ₙ、ħ）在 `prep()` 里各画成一张位图，播放时按已打出的字数裁剪后 `drawImage`，不再逐帧 `fillText`，窗口尺寸变了随 `prep()` 重画。原因：画布文字第一次出现时，浏览器要给这些希腊字母和下标找回退字体，原先这笔开销落在 3.8 秒公式打到下标 n 的那一帧，主线程停 50 到 160 毫秒，随后画面冻住约 1 秒（#292）。
 - **交接**：就绪后在最后一帧停 0.8 秒（跳过时 0.3 秒），桌面分包没下完就等它，再用 320ms 淡出开机动画层，露出底下已经挂好的桌面；开机动画盖着时桌面是 `inert`。默认壁纸「晴空」用开机动画的起点当时间零点接上最后一帧，看不出接缝。直接进桌面时桌面淡入 300ms。开机动画层卸掉后焦点在 `<body>` 上就放进「加入我们」图标。
 - **埋点**：播完报 `os.boot.played`，跳过报 `os.boot.skipped`，`meta.mobile` 记是不是手机版。
-- **单测**：`tests/web/portal-boot.test.tsx`（北京日期、进站规则、粒子预算、首页进站与交接、`?boot=1` 与重播不改记录、埋点攒批）。
+- **单测**：`tests/web/portal-boot.test.tsx`（北京日期、进站规则、粒子预算、起步门预热的时间点、首页进站与交接、`?boot=1` 与重播不改记录、埋点攒批）。
 
 ## 账号资料窗口（#275，#280 改成桌面窗口）
 
@@ -72,7 +73,7 @@ three.js 只通过 `/forum-3d` 页里的 `import("../three/forum")` 进入，首
 - **没登录**：写「还没有登录」，给「登录」（`signInHref()`，回当前页面）和「注册」（`registerHref()`），下面一句「注册不需要邀请码，有邀请码可以直接成为成员」。
 - **登录后**：换头像（选图后裁成方形、最长边 1024px、转 webp，`PUT /api/identity/avatar`，失败原因写在头像下面）；昵称、@用户名（小写，`^[a-z0-9_]{3,24}$`）、简介（最多 200 字）在失焦或回车时 `PATCH /api/identity/profile`，前端先按契约校验；这三格的值和标签从同一处起，平时是一条虚下划线，编辑时换成实线；身份行写「身份 · 年级 · 部门 · 称号」，年级是 `/auth/me` 的 `grade_label`（大一到大四、已毕业，#280；没填就不写这一段），没有部门写「无部门」，旧服务端没有身份字段时整行不显示。
 - **实名信息**（#280）：简介下面一栏，两格并排写真实姓名和所在年级，读 `GET /api/identity/me` 的 `real_name`、`grade_label`，只读，下面一句「只有你自己和管理员看得到。年级每年 9 月 1 日自动升一级；填错了请联系管理员在控制台修改。」。真实姓名只在这一栏出现，不进 `/auth/me` 读出的全站登录状态，菜单栏、身份行和终端都不显示；读不到 `/api/identity/me` 时这一栏不显示。
-- **登录方式**：邮箱列表来自 `GET /api/identity/me`（主邮箱不能删；删除要点两次，`POST /api/identity/email/remove`；服务端回 `step_up_required` 时给「重新登录」链接）；添加邮箱走 `email/start` 再 `email/verify`；Google 绑定是 `/auth/google?return_to=%2F`；GitHub 只显示已绑定的账号。
+- **登录方式**：邮箱列表来自 `GET /api/identity/me`（主邮箱不能删；删除要点两次，`POST /api/identity/email/remove`；服务端回 `step_up_required` 时给「重新登录」链接）；添加邮箱走 `email/start` 再 `email/verify`；Google 绑定是一个按钮：先 `POST /api/identity/link`（`{ provider: "google", return_to: "/?open=profile" }`，回 `{ authorize_url }`）再整页跳到 Google，不能直接链到 `/auth/google`——那是登录入口，这个 Google 账号没绑过任何账号时会建一个新账号并换掉当前会话（#291）；授权走完回到 `/?open=profile&link=<linked|conflict|exists|cancelled|failed>&provider=google`，官网自动打开资料窗口，把结果写在登录方式下面（`lib/linkNotice.ts`），地址上的 `link`、`provider` 随即清掉；GitHub 只显示已绑定的账号。
 - **邀请码**：只有注册用户看到输入框，`POST /api/identity/invite/redeem` 成功后重读 `/auth/me`，身份变成成员。
 - **底部**：账号设置（`/account`，控制台产物里的账号页）、控制台（只在 `console_link` 为 true 时出现）、退出（`POST /auth/signout`，服务端确认后才显示已退出）。
 - **单测**：`tests/web/portal-profile-card.test.tsx`（窗口名、焦点、Esc、实名信息只出现一次）；`tests/web/portal-desktop-skin.test.tsx`、`tests/web/portal-phone.test.tsx` 核对访客窗口。

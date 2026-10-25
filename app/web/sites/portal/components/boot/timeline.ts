@@ -6,6 +6,16 @@ import { sparklePath, type RichPart } from "./shapes";
 
 export { TL };
 
+/**
+ * 起步门停着的时候趁空闲预画的时间点（秒），一个阶段一帧：终端打字、解体与 HUD、公式打完后的扫描重组、
+ * 闪光后的晴空、字标与徽章、标语打完加就绪气泡。
+ * 画布文字第一次出现时，浏览器要给公式里的希腊字母和下标（θ、ε₀、ψ、ₙ、ħ）找回退字体，
+ * 各阶段的绘制函数第一次执行也慢，贴图第一次上传同样；不预热的话它们落在播放途中，
+ * 3.8 秒公式打到下标 n 时主线程停 50 到 160 毫秒，接着整张画面冻住约 1 秒（#292）。
+ * 预热把这些首次开销挪到起步门停留的空闲时间里，到播放那一刻字体、字形和代码路径都已就绪。
+ */
+export const WARM_TIMES = [0.6, 2.7, 4.6, 5.6, 7.3, 9.5] as const;
+
 type Glyph = { w: number; path: Path2D; colors: readonly [string, string, string] };
 
 function glyphPath(build: (p: Path2D) => void): Path2D {

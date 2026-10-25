@@ -1,8 +1,8 @@
 # Server 站内发信（lib/mail）
 
-> 招新的四封信怎么拼、怎么渲染、怎么排队发出去：信先写进 data.db 的发信队列，再由服务进程里的发信循环交给阿里云邮件推送或 Resend；信封版式照官网「加入我们」的信纸，图片部件放在 CDN 上。
+> 招新的四封信怎么拼、怎么渲染、怎么排队发出去：每类信的内容是库里的模板（可以有多套，控制台里编辑、预览、向测试邮箱试发），拼好后先写进 data.db 的发信队列，再由服务进程里的发信循环交给阿里云邮件推送或 Resend；信封版式照官网「加入我们」的信纸，图片部件放在 CDN 上。
 
-状态：`current` · 更新：2026-10-24 · 源码：`app/server/src/lib/mail/` · 上级合同：[server](README.md) · issue：#148、#204、#262
+状态：`current` · 更新：2026-10-25 · 源码：`app/server/src/lib/mail/` · 上级合同：[server](README.md) · issue：#148、#204、#262、#285
 
 ## 现状
 
@@ -12,17 +12,20 @@
 - 发信商按顺序是阿里云邮件推送（SingleSendMail）、Resend。两家都没配置时信照样写一行，记成 `skipped` / `mail_disabled`，不发。
 - 控制台的投递详情显示「已收到」那封和每次改状态那封的结果（`received_mail`、`reviews[].mail`），见 [API](../../architecture/API.md)。
 - 邮箱登录与绑定邮箱的验证码信（#262）不进 `mail_outbox`：验证码 10 分钟就过期，等不了队列 15 秒一轮和失败退避，由 `mail.sendNow` 当场发——发信商按顺序试（阿里云在前，失败立刻改走 Resend），每家最多等 15 秒，同样遵守 `MAIL_RECIPIENTS` / `MAIL_ALLOWLIST`，没配发信商不发。接口不等发信结果就回 202，结果只记一条日志（发信商名、错误码），不记地址和验证码，控制台里也看不到。信里只有验证码、有效期、只能用一次和「不是你本人操作请忽略」，正文不放登录或确认链接，不带回信地址。`GET /auth/providers` 只在配了发信商时列出邮箱登录。
-- 源码：`envelope.ts`（渲染）、`envelope-pieces.ts`（图片部件清单）、`recruitment.ts`（四封信的内容）、`login-code.ts`（验证码信的内容）、`outbox.ts`（发信队列与发信循环）、`providers.ts`（两家发信商）、`mailer.ts`（按配置组装，给路由用）。部件生成脚本 `scripts/mail-envelope/build.py`。
+- 四封信的内容从 #285 起是模板数据，不再写死在代码里：每类信可以有多套模板，其中一套是默认；改状态时请求里的 `template_id` 选哪一套，不传用这一类的默认；投递成功后的「已收到」永远用默认。模板的编辑、实时预览和向测试邮箱试发见「邮件模板」一节。
+- 源码：`envelope.ts`（渲染）、`envelope-pieces.ts`（图片部件清单）、`template-content.ts`（模板的内容结构、变量清单与替换、保存前的核对、四类默认内容与示例数据）、`template-store.ts`（`mail_templates` 表的读写）、`template-contract.ts`（模板接口的 Schema）、`recruitment.ts`（按投递算出变量的值，再交给模板拼成信）、`login-code.ts`（验证码信的内容）、`outbox.ts`（发信队列与发信循环）、`providers.ts`（两家发信商）、`mailer.ts`（按配置组装，给路由用）。部件生成脚本 `scripts/mail-envelope/build.py`。
 - 还没有：CID 内嵌图片、退信与投诉回调、真实发信商上的收发验证。成员绑定邮箱、站内通知发邮件、退订在 #149。
 
 ## 接口
 
 ```ts
 renderEnvelope(message: EnvelopeMessage, { assetBase, allowFileAssets? }): { subject, html, text, replyTo }
-recruitmentMessage(kind: "received" | "interview" | "accepted" | "rejected", input): EnvelopeMessage
+recruitmentMessage(kind: "received" | "interview" | "accepted" | "rejected", input, content?): EnvelopeMessage  // content 是模板内容，不传用内置默认
 
 // services.mail（mailer.ts）
-mail.recruitmentLetter(kind, application, letter?): RenderedMail   // 按投递拼信并渲染，内容不合规抛 MailTemplateError
+mail.recruitmentLetter(kind, application, letter?, template?): RenderedMail   // 按投递和模板拼信并渲染，不传模板用这一类的默认，内容不合规抛 MailTemplateError
+mail.previewLetter(kind, content, application, letter?): RenderedMail         // 预览与试发：同一条渲染路径，待面试没填时间地点时用占位文字
+mail.templates                                                               // template-store：list / get / defaultFor / defaultContent / enabledOptions / pick(kind, id?) / create / update / delete
 mail.loginCodeLetter(code, purpose, minutes): RenderedMail           // 登录（signin）或绑定（link）的验证码信（#262）
 mail.sendNow(to, mail, idempotencyKey): { status, provider?, error? } // 不进队列、当场发，验证码信用
 mail.sendingEnabled                                                  // 配了能用的发信商
@@ -44,6 +47,70 @@ mail.drain() / mail.start(logger) / mail.stop()
 - 抬头按姓称呼（2026-09-27，`recruitment.ts` 的 `greetingFor`）：汉字开头的名字取姓，张三写「张同学，你好：」；以复姓清单（`COMPOUND_SURNAMES`，欧阳、司马、上官、诸葛等 37 个）里的一个开头、并且至少三个字的，按复姓，欧阳娜娜写「欧阳同学，你好：」；清单里没有「单于」（它是称号，姓单、名字以「于」开头的单于洋写「单同学，你好：」）；只有两个字的名字分不清是复姓还是姓加名，一律按单姓，欧阳写「欧同学，你好：」。不是汉字开头的名字照写全名，以字母结尾时中间空一格（「Alice 同学，你好：」）；姓名是空白时只写「你好：」。取姓之前先去掉控制字符；按码点取，不会切开补充平面的汉字。「你的报名信息」里仍写全名。信里没有头像。
 - 信里的时间和日期（投递时间、落款日期）一律按北京时间写，与服务器的时区无关（容器是 UTC）：`formatMailDate` / `formatMailDateTime` 按 UTC+8 算（中国不用夏令时），投递时间后面写明「（北京时间）」。面试时间是审核人照北京时间填的文字，原样写进信里。
 - 控制台审核时填的备注只给审核人看，不进信里。
+
+## 邮件模板
+
+四类信的文字、顺序和要不要按钮都是库里的模板（#285，所有者 2026-10-25 00:15：「邮件的做成那种多模板可控的，而不是固定的……编辑然后可随时预览然后可以填写对应的邮箱发送测试」）。版式不开放：模板只能选正文块的类型和顺序，所有渲染仍走 `renderEnvelope`，不是第二套发信系统。
+
+**存放与规则**
+
+- `mail_templates` 表（[数据模型](data-model.md)）。每类信（`received`、`interview`、`accepted`、`rejected`）可以有多套，每类有且只有一个默认：默认必须启用，不能停用或删除，换默认时同一事务里取消原来的；同一类里名字不重复（不分大小写）；类别建好以后不能改。
+- 首次建库把四类信当时的内容种成名叫「默认」的模板，另加一套「面试邀请 · 简短」，`console_seeds` 的 `mail_templates_v1` 标记保证只种一次，控制台之后改过、停用、删掉的不会被补回。种子和没有库模板时代码里用的内置默认读同一份 `DEFAULT_TEMPLATES`，不另抄；某一类一套模板都没有时回退到内置默认，改状态和投递后的「已收到」不会因此发不出去。
+- 控制台改状态时（`PATCH /api/console/applications/:application_id`）可选 `template_id`：必须是同一类、已启用的模板，类别不符、已停用、不存在都是 400 `template_invalid`，状态不改、不入队；不传用这一类的默认。投递成功后的「已收到」永远用默认。模板在库里是坏的（绕过了保存时的核对）时渲染仍会失败，同样回 400，状态不改。
+- 信在入队时已经渲成成品，`mail_outbox` 不引用模板：之后改、停用、删模板不影响已经入队或发出的信。
+
+**内容**
+
+- 一套模板：名称（≤40 字）、主题（≤100）、收件箱摘要（≤200）、信纸左上角的小字（≤60）、抬头（≤120，默认 `{{称呼}}`）、正文块（1 到 20 块）、可选按钮（文字 ≤30，路径 ≤200）、页脚（≤4 行，每行 ≤200）。所有文字加起来 ≤6000 字。Gmail 超过 102KB 的信会被截断：用满上限的模板加上最长的投递内容（40 个字的姓名、2000 字的特长）渲染出来约 33KB，全是要转义的 `&` 的最坏情形约 45KB，`tests/server/mail-template-content.test.ts` 核对它小于 102KB。
+- 正文块四种：`paragraph` 段落（≤2000）、`list` 要点列表（标题可选，1 到 20 条，每条 ≤500）、`facts` 信息表（标题可选，1 到 12 行，名称 ≤30、内容 ≤500）、`quote` 引用（标题必填 ≤60，正文 ≤2000）。块里多出不认识的字段会被拒绝。
+- 按钮只写站内路径（`/forum/`，从 `/` 开始，不收 `//` 开头的），拼上站点地址后还要过链接白名单（只放行 `yangtzeu.work` 与 `prev.yangtzeu.work`）。不能写任意网址、不能写 HTML 或 CSS。
+
+**变量**
+
+写成 `{{变量名}}`，清单只在 `template-content.ts` 的 `TEMPLATE_VARIABLES` 一处，`GET /api/console/mail-templates` 的 `variables` 原样返回，编辑页的速查表只读它。每个变量标明哪几类信里有，用在别的类别里保存时被拒绝。
+
+| 分组 | 变量 | 说明 | 哪几类信 |
+|---|---|---|---|
+| 投递人 | `称呼` | 抬头用的称呼，按姓写，例如「张同学，你好：」 | 四类 |
+| 投递人 | `姓名`、`班级`、`邮箱`、`投递时间`、`报名编号`、`官网` | 投递人填的内容；投递时间写明是北京时间；官网是首页地址 | 四类 |
+| 投递人 | `特长` | 投递人写的特长与优点，可能有好几行 | 四类 |
+| 改状态时填的 | `面试时间`、`面试地点` | 改成待面试时填的 | 待面试 |
+| 改状态时填的 | `说明` | 改状态时填的内容，一行一条：待面试是面试说明，已录取是接下来要做的事，未通过是写给投递人的话 | 待面试、已录取、未通过 |
+| 整句 | `有问题怎么问`、`不清楚怎么问` | 有回信地址时请对方直接回复，没有时指向官网意见箱；后者开头是「有不清楚的地方」 | 四类 |
+| 整句 | `来不了怎么说` | 待面试时请对方改约，写法同上 | 待面试 |
+| 整句 | `面试说明提示` | 填了面试说明时是「面试说明在信里。」，没填是空的 | 待面试 |
+| 整句 | `接下来未填时` | 没填「接下来要做的事」时是「接下来的安排我们会另外发邮件告诉你。」，填了是空的 | 已录取 |
+
+- 只做替换，不写表达式，不递归：值里再出现的 `{{…}}` 只是普通文字；没有的值按空替换。`applications` 表没有部门或投递方向这一列，所以没有 `{{部门}}`。「整句」是随情况变化的固定句子（有没有回信地址、有没有填说明，写法不一样），整句写好，模板后面自己补句号。
+- 替换出来的值原样放进信的文字字段，转义、控制字符、链接白名单都由 `renderEnvelope` 统一处理：投递人的姓名或特长里写 `<script>`、`<img onerror=…>` 只会被当成文字显示；值里的网址不会变成可点的链接。替换后为空的段落、列表项、信息表的行直接去掉；列表项整条只写一个多行变量（`{{说明}}`、`{{特长}}`）时，每一行展开成一条；信息表里内容只写 `{{报名编号}}` 的行用等宽字体。
+
+**保存前的核对**
+
+- 新建和编辑都先过 `normalizeContent`：长度、块的结构、变量是不是清单里的、是不是这一类信有的、`{{ }}` 配没配成对，所有问题一起列出来，回 400 `template_invalid`，`issues[{path,message}]` 的 `path` 和请求字段一一对应（`subject`、`blocks[1].items[0].value`、`button.path` 等），前端据此标在对应输入框下面。
+- 过了再用示例数据真渲两遍（第二遍的说明、原因为空），渲染不出来同样回 400，不等到发信那一刻：没配回信地址却请对方「直接回复这封邮件」、按钮指向官网以外的页面、主题或抬头只靠可能为空的变量（没填说明时会渲成空）。
+
+**预览**
+
+- `POST /api/console/mail-templates/preview`：`template_id`（已保存的模板）和 `draft`（还没保存的内容，带 `kind`）给且只给一个；可选 `sample`（姓名、班级、特长）和 `letter`（面试时间、地点、说明、写给投递人的话）换示例数据；返回 `{subject, html, text}`。示例投递人是「张三，计科 2301 班」，示例面试是「9 月 30 日（周三）19:00，东校区 3 教 301」。
+- 不入队、不发信、不请求发信商、不写投递和审核记录；节点 `mail.template.manage`，不要求刚登录过（编辑时每停一下就请求一次），账号维度每分钟 240 次。给了 `application_id` 就用这份投递的真实字段，另外要有 `apply.view`（按部门范围），并记一条 `mail.template.preview`（只记模板 id 和投递 id）。
+- 投递详情里「预览这封信」走 `POST /api/console/applications/:application_id/letter-preview`（节点 `apply.review`，和改状态同一个，审核人没有模板管理权限也能预览自己要发的信）：用这份投递的真实字段和页面上正在填的内容，按选的模板渲染；待面试还没填时间、地点时用占位文字「【面试时间待填】」「【面试地点待填】」，真正改状态时仍然要求必填。
+
+**向测试邮箱试发**
+
+- `POST /api/console/mail-templates/test-send`：同样的 `template_id` 或 `draft`，加 `to`（要发到哪个邮箱）；节点 `mail.template.manage` 且要刚登录过（step-up）。只发给请求里填的这一个地址、一封，数据只用示例，不带任何真实投递人的内容，不读不写 `applications` 和 `application_reviews`。
+- 信的种类是 `recruitment.test`，事件键 `test:<随机 UUID>`（连点两次是两封），主题前加「【测试】」。这种信只试一次：失败记 `failed`，不排重试，发到一半进程断了租约到期后也不补发（正式的信会重新领走）；失败原因回给页面。
+- 返回 `{status, skip_reason, error, subject, to}`，`status` 是 `sent`、`failed`、`skipped` 或 `pending`，`to` 是脱敏后的地址。没配置发信商、或地址不在白名单里回 `skipped`，不入队，也不占次数。
+- 限量：每个账号每小时 10 封（`limits` 的桶 `mail.test.hourly`），全站每小时 30 封（发信队列的 `perHour` 只数 `recruitment.test` 这一种，429 里的 `bucket` 写 `mail.test.site`），超过回 429 `rate_limited`，带 `bucket` 和 `retry_after`。地址不合法、模板有问题、渲染不出来时不入队也不占次数。
+- 信发完收件地址和正文照常清掉（见「隐私」）；操作记录 `mail.template.test_send` 只留脱敏的邮箱和模板 id，没有邮箱明文和信的内容。
+
+**权限与操作记录**
+
+- 节点 `mail.template.manage`（管理招聘邮件模板），默认只有站长的根通配 `*` 拿到，不往下发：试发会真的往外发信，预览也能带投递的真实字段。读真实投递预览另外还要 `apply.view`。
+- 操作记录：`mail.template.create`（类别、名称、是否启用）、`mail.template.update`（改了哪几项）、`mail.template.delete`（类别、名称）、`mail.template.preview`、`mail.template.test_send`；都不记模板内容。
+
+**控制台页面**
+
+- 页面 `/console/mail-templates`：左边按类别列出模板（启用与停用、设为默认、复制、删除），右边是编辑器、实时预览（编辑停手 400 毫秒后请求一次，预览放在不带任何权限的 `sandbox` iframe 里）和测试邮箱试发区；投递详情里这一类信有两套以上启用的模板时，改状态的区域多一个「用哪一套信」下拉框和「预览这封信」。见 [console](../console/README.md)。
 
 ## 回信
 
@@ -94,11 +161,12 @@ mail.drain() / mail.start(logger) / mail.stop()
 - 信到了最终状态（`sent`、`failed`、`skipped`）就把收件地址、HTML 和纯文本改成 NULL；不发的信写入时就不存这三样。留下的是收件地址的 sha256（去掉首尾空白、转小写之后算）、主题、结果、尝试次数、发信商和对方的消息编号。还没发出的信（`pending`、`sending`）在库里带着收件地址和正文，最长到第 6 次失败，约 8 个半小时。
 - `last_error` 只有发信商名、HTTP 状态和对方的错误码（发出的信也可能有，是换发信商之前那一家的错误）（只留字母、数字和 `. _ -`，最长 64 个字符），例如 `aliyun http 400 InvalidMailAddress.NotFound; resend http 500 internal_server_error`，不含密钥、地址、正文和对方回答的原文；网络错误只记错误类型名。日志只记信的编号、种类、次数和同样的错误摘要。
 - 审计 `application.review` 的 details 多了 `mail`（这次改状态有没有写信），不记信的内容。
+- 模板（#285）里只有带 `{{变量}}` 的文字，没有任何投递人的内容；预览和测试邮箱试发用示例投递人「张三」，不读真实投递（投递详情里的「预览这封信」例外，它用这份投递的真实字段，只返回给有 `apply.review` 的审核人，不入队、不记内容）。试发的信也是 `mail_outbox` 的一行，发完照样清掉收件地址和正文；操作记录只留脱敏邮箱和模板 id。
 - 投递的「已收到」写不进队列（模板出错、写库失败）时，投递照样成功，服务端只记一条带投递编号和错误码的日志。
 
 ## 安全
 
-- 所有动态文字（姓名、班级、面试时间地点、按钮文字、页脚）都经过 HTML 转义；控制字符和双向文字控制符在渲染前去掉。
+- 所有动态文字（姓名、班级、面试时间地点、按钮文字、页脚）都经过 HTML 转义；控制字符和双向文字控制符在渲染前去掉。模板（#285）不改这一点：变量的值先替换进文字字段，再由 `renderEnvelope` 统一转义，模板作者写不了 HTML、CSS 和脚本，也写不了任意链接——按钮只写站内路径，拼成完整地址后过下面的链接白名单；`tests/server/mail-templates.test.ts` 用带 `<script>`、`<img onerror>`、`javascript:` 和外站链接的姓名、班级、面试说明走了一遍预览，用带同样内容的姓名和写给投递人的话走了一遍改状态，生成的信里没有可执行的标签，链接都只指向官网。
 - 主题、抬头、事实栏是单行文字：换行、制表符和 U+2028 / U+2029（有的客户端会显示成换行）都变成空格，主题里不会混进 `\r\n`，发信时不会被拼出额外的邮件头。
 - 按钮和页脚链接只接受 `https` 的 `yangtzeu.work` 与 `prev.yangtzeu.work`，不能带账号或端口；`javascript:`、`http:`、`data:`、其它域名一律抛 `MailTemplateError`，不会降级成纯文字。
 - 纯文本版本不转义（`text/plain` 不会被当成 HTML），同样去掉控制字符。
@@ -143,7 +211,22 @@ pnpm exec vitest run tests/server/mail-envelope.test.ts tests/server/mail-outbox
 
 `tests/server/mail-envelope.test.ts` 覆盖：四封信都能渲染；恶意姓名 `<img src=x onerror=alert(1)> & "q"` 在 HTML 的每个位置都被转义；`javascript:`、`http:`、其它域名、带账号或端口的链接被拒绝；纯文本版本有编号、时间、地点等关键事实；四封信都有「你的报名信息」（姓名、班级、邮箱、投递时间、报名编号）；已收到的信完整引用特长与优点（转义、按行换行、只在这一封里），投递人自己写了「回复这封邮件」不算请人回信；2000 字的特长加 40 个字的名字仍小于 102KB；抬头按姓称呼（张三、李小满、欧阳娜娜、司马光、叱干阿利、清单里每个复姓加一个字、两个字的欧阳按单姓、不在清单里的张王五按单姓、补充平面的汉字、Alice、空白名字），事实栏仍写全名，抬头的「你好：」不拆开，四封信里都没有头像，恶意姓名在抬头里照写全名并转义，控制字符先去掉再取姓；进程时区是 UTC、洛杉矶、上海时，`2026-09-27T03:00:00Z` 都写成「2026 年 9 月 27 日 11:00」，落款日期同样按北京时间；没有外链样式表、脚本、flex、grid、position；解析后的属性都合法、内联样式真的生效（字体名曾经用双引号，把 `style` 属性截断过）；图片地址都以 `assetBase` 开头并带宽高和替代文字，`file://` 只在 `allowFileAssets` 时放行；主题里没有换行和 U+2028 / U+2029；HTML 小于 102KB；未通过的信不再写「论坛对所有人开放」和名额的理由，传了 `reason` 才有原因；给了 `replyTo` 才请人回信，待面试的信没有 `replyTo` 时指向意见箱，自定义的信请人回复却没有 `replyTo`、`replyTo` 带换行或多个地址都抛错；待面试的时间地点不能为空，没有面试说明时摘要不提；抬头等动态文字带断行规则、邮票格按比例；按钮格子带 `mso-padding-alt`。
 
+邮件模板（#285）：
+
+```bash
+pnpm exec vitest run tests/server/mail-template-content.test.ts tests/server/mail-templates.test.ts tests/console/mail-templates.test.ts
+```
+
+`tests/server/mail-template-content.test.ts` 覆盖模板内容本身：内置默认和迁移种子过同一套校验、规整后不变；清单之外的变量、别的类别的变量、没配成对的括号、坏的按钮路径、块的结构和长度上限都被拒绝并指出位置；变量只替换一次、值里的 `{{…}}` 是普通文字；多行变量展开成列表项；值在 HTML 里转义、值里的链接不可点；用满上限的模板加上最长的投递内容仍小于 102KB。四类信改成读模板以后，`tests/server/mail-envelope.test.ts`、`mail-outbox.test.ts`、`applications.test.ts` 里原有的断言一条没改，仍然全部通过。
+
+`tests/server/mail-templates.test.ts` 覆盖：迁移跑两次表和行数不变、改过或删掉的种子不被补回；权限（只有站长默认能用，缺哪个节点说清楚，写操作和试发要刚登录过）；增删改查（同类同名被拒、类别不能改、别人先改过回 409、每类有且只有一个默认、默认不能停用或删除）；保存时指出不认识的变量和位置、没配回信地址却请人回复的模板被拒；预览不入队、不改投递和审核、不请求发信商，变量的值被转义，用真实投递预览要 `apply.view`；试发只发一封、主题带「【测试】」、投递和审核记录行数不变、每账号每小时 10 封和全站每小时 30 封的上限、没配置发信商或不在白名单照实回 `skipped`、发信商失败只试一次、操作记录没有邮箱明文；改状态时选不同的模板得到不同的主题和正文，`template_id` 类别不对、已停用、不存在都被拒；审核人也能预览将要发的信。
+
+`tests/console/mail-templates.test.ts` 覆盖控制台页面的纯逻辑：草稿与请求体互转、变量点一下插入到光标处、服务端指出的问题标到对应输入框、预览停手 400 毫秒才请求且先发的旧请求后回来会被丢掉、渲染不出来时保留上一版预览、试发结果的说法、开发预览数据的权限与只读。
+
 ## 已知限制
+
+- 邮件模板（#285）没有在真实浏览器里验证过控制台页面的布局，也没有在生产的内容安全策略下看过预览 iframe（`srcdoc` 继承页面的策略，内联样式和 https 图片应当能显示，`deploy/nginx/production.conf` 的 `frame-src` 不管它）；没有在真实邮件客户端里看过用模板拼出来的信，也没有用真实发信商试发过测试信。
+- 模板只能选正文块的类型、顺序和文字，不能写任意 HTML 或 CSS，也没有附件、批量发送和定时发送。预览里的示例投递人是固定的「张三」，换示例数据只影响预览和测试邮件。
 
 - 结果不明的失败也会换下一家：阿里云其实收下了、只是 15 秒内没回应（或回应读到一半断了）时，这一次尝试接着交给 Resend，投递人会收到两封一样的信。部署时 `app.close()` 打断正在发的请求，下一轮还是先发阿里云，阿里云没有按封的去重，同样可能重复。这两种都只在超时或断线时出现，没有改：把结果不明的当成失败、只等下一轮重试阿里云，重复反而可能更多。
 - 审核人写进信里的面试时间以外的内容（地点、面试说明、已录取的「接下来」、未通过的原因）只在信里：信发出后正文就清掉，控制台里只看得到主题（待面试的主题带面试时间）。另一位审核人要知道地点，得看备注。

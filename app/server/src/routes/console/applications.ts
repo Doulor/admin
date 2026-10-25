@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { requirePermission } from "../../middleware/require-permission.js";
 import { requireScopedPermission } from "../../lib/console-scope.js";
@@ -7,27 +7,24 @@ import { beijingCompactDate, beijingDateTime } from "../../lib/beijing-time.js";
 import { APPLICATION_STATUSES, APPLICATION_STATUS_IDS, type ApplicationStatus } from "../../lib/roles.js";
 import { MailTemplateError, oneLine, type RenderedMail } from "../../lib/mail/envelope.js";
 import type { RecruitmentLetter } from "../../lib/mail/mailer.js";
+import { TemplateStoreError } from "../../lib/mail/template-store.js";
+import { renderErrorMessage, type TemplateContent } from "../../lib/mail/template-content.js";
 import { csvCell, escapeLike } from "../../lib/sql-text.js";
 
 type ApplicationRow = { id: string; name: string; class_name: string; email: string; strengths: string; status: string; created_at: number };
 type ReviewRow = { id: number; application_id: string; from_status: string; to_status: string; note: string | null; reviewer: string; created_at: number };
 type ListQuery = { status?: ApplicationStatus; q?: string; limit?: string; offset?: string };
-type ReviewBody = { status?: string; expected_status?: ApplicationStatus; expected_review_id?: number; note?: string; notify?: boolean; letter?: RecruitmentLetter };
+type ReviewBody = { status?: string; expected_status?: ApplicationStatus; expected_review_id?: number; note?: string; notify?: boolean; template_id?: string; letter?: RecruitmentLetter };
 
 /** 只有这三种状态发通知信；已取消、改回已收到、只写备注都不发。 */
 const LETTER_STATUSES = ["interview", "accepted", "rejected"] as const;
 type LetterStatus = (typeof LETTER_STATUSES)[number];
 const isLetterStatus = (value: string): value is LetterStatus => (LETTER_STATUSES as readonly string[]).includes(value);
 
-/** 信的内容不合规时给改状态的人看的话（MailTemplateError 的 code → 中文） */
-const LETTER_ERRORS: Partial<Record<MailTemplateError["code"], string>> = {
-  missing_reply_to: "现在没有配置回信地址，信里不能请对方直接回复这封邮件，换个说法",
-  missing_field: "信里缺了必填的内容",
-};
-
 /** 列表与详情只下发这些列；来源 IP 与 User-Agent 留在服务端。 */
 const APPLICATION_COLUMNS = "id, name, class_name, email, strengths, status, created_at";
 const EXCERPT_LENGTH = 120;
+const byAccount = (req: FastifyRequest) => req.session!.account_id;
 const excerpt = (value: string) => (value.length > EXCERPT_LENGTH ? `${value.slice(0, EXCERPT_LENGTH)}…` : value);
 const statusLabel = (id: string) => APPLICATION_STATUSES.find(item => item.id === id)?.label ?? id;
 
@@ -122,6 +119,21 @@ export default async function consoleApplicationRoutes(app: FastifyInstance) {
     return reviews.map(review => ({ ...review, mail: summaries.get(review.id) ?? null }));
   };
 
+  const letterTemplates = () => {
+    const { interview, accepted, rejected } = mail.templates.enabledOptions();
+    return { interview, accepted, rejected };
+  };
+  /** 选这次要发的信：不指定用这一类的默认；指定了必须存在、是这一类、已启用。选不出来时回复 400 并返回 null */
+  const pickTemplate = (kind: LetterStatus, templateId: string | undefined, reply: FastifyReply): TemplateContent | null => {
+    try {
+      return mail.templates.pick(kind, templateId).content;
+    } catch (error) {
+      if (!(error instanceof TemplateStoreError)) throw error;
+      reply.code(400).send({ error: "template_invalid", message: error.message, reason: error.code });
+      return null;
+    }
+  };
+
   app.get<{ Params: { application_id: string } }>(
     "/api/console/applications/:application_id",
     { preHandler: requireScopedPermission("apply.view") },
@@ -134,6 +146,8 @@ export default async function consoleApplicationRoutes(app: FastifyInstance) {
         reviews: withMail(reviewsOf(application.id)),
         received_mail: mail.summary(`application:${application.id}:received`),
         mail: { enabled: mail.enabled, recipients: mail.recipients, deliverable: mail.deliverable(application.email) },
+        // 改状态时能选的信（#285）：每一类启用的模板，只有名字，内容留在 mail.template.manage 那边
+        letter_templates: letterTemplates(),
       };
     },
   );
@@ -179,11 +193,13 @@ export default async function consoleApplicationRoutes(app: FastifyInstance) {
           if (!oneLine(letter.place ?? "")) fields.place = "请填面试地点";
           if (fields.time || fields.place) return reply.code(400).send({ error: "letter_required", message: "要发待面试的信，请填面试时间和地点", fields });
         }
+        const content = pickTemplate(letterKind, req.body.template_id, reply);
+        if (!content) return reply;
         try {
-          letterMail = mail.recruitmentLetter(letterKind, current, letter);
+          letterMail = mail.recruitmentLetter(letterKind, current, letter, content);
         } catch (error) {
           if (!(error instanceof MailTemplateError)) throw error;
-          return reply.code(400).send({ error: "letter_invalid", message: LETTER_ERRORS[error.code] ?? "信的内容不合规，改一下再发" });
+          return reply.code(400).send({ error: "letter_invalid", message: renderErrorMessage(error) });
         }
       }
 
@@ -204,6 +220,28 @@ export default async function consoleApplicationRoutes(app: FastifyInstance) {
       // 备注属于候选人相关信息，只进 application_reviews，不写进审计；信的内容也不进审计，只记这次有没有发信。
       app.services.activity.recordActivity(req, { action: "application.review", surface: "console", target_type: "application", target_id: current.id, outcome: "ok", meta: { from: current.status, to: next, has_note: Boolean(note), mail: Boolean(letterKind) } });
       return { application: findApplication(current.id), review: withMail([review])[0] };
+    },
+  );
+
+  // 预览将要发的信（#285）：用这份投递的真实字段和页面上填的内容，按选的模板渲染，不发信、不改状态、不写审核记录。
+  // 面试时间、地点还没填时用占位文字，让预览里看得出它们出现的位置；真正改状态时仍然要求必填。
+  app.post<{ Params: { application_id: string }; Body: { status: string; template_id?: string; letter?: RecruitmentLetter } }>(
+    "/api/console/applications/:application_id/letter-preview",
+    { preHandler: requireScopedPermission("apply.review"), config: { rateLimit: { max: 240, timeWindow: "1 minute", keyGenerator: byAccount, hook: "preHandler" } } },
+    async (req, reply) => {
+      const application = findApplication(req.params.application_id);
+      if (!application) return reply.code(404).send({ error: "not_found", message: "投递不存在" });
+      const { status, template_id: templateId, letter = {} } = req.body;
+      if (!isLetterStatus(status)) return reply.code(400).send({ error: "no_letter", message: "只有改成待面试、已录取、未通过才会发信，其它状态没有信可以预览" });
+      const content = pickTemplate(status, templateId, reply);
+      if (!content) return reply;
+      try {
+        const { subject, html, text } = mail.previewLetter(status, content, application, letter);
+        return { subject, html, text };
+      } catch (error) {
+        if (!(error instanceof MailTemplateError)) throw error;
+        return reply.code(400).send({ error: "letter_invalid", message: renderErrorMessage(error) });
+      }
     },
   );
 }
