@@ -16305,7 +16305,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "cd29529c75dede92ae0e26cf09b34b1f4a641f13831b77e82f5b57a530e00f92",
+    "fingerprint": "5cddc947e42c1fcb03f796ece7b1559021a248e9fc982feb719b257c92989e85",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -16657,7 +16657,7 @@
       },
       {
         "path": "app/console/src/pages/mail-templates/StatusRoutes.vue",
-        "sha256": "7bb770113894814f816e47db085019837901141d5dea10bf9de7b1a49c3cc9ae"
+        "sha256": "bfd35539206a22a432aac2695a435238f757bfbf3ab9479e6d961371c224f12c"
       },
       {
         "path": "app/console/src/pages/mail-templates/TemplateEditor.vue",
