@@ -5512,13 +5512,22 @@
         {
           "path": "app/forum/app/editor/inline-stickers.ts",
           "needle": "import { isStickerUrl } from '../../shared/sticker-url'"
+        },
+        {
+          "path": "app/forum/shared/sticker-css.ts",
+          "needle": "export function stickerInlineCss(): string {"
+        },
+        {
+          "path": "app/forum/uno.config.ts",
+          "needle": "${stickerInlineCss()}"
         }
       ],
       "tests": [
         "tests/server/forum-v2-endpoints.test.ts",
         "tests/server/forum-sticker-cdn.test.ts",
         "tests/server/sticker-packs-migration.test.ts",
-        "app/forum/tests/sticker-url.test.ts"
+        "app/forum/tests/sticker-url.test.ts",
+        "app/forum/tests/sticker-size-css.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",

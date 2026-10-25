@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig, presetIcons, presetWind3 } from 'unocss'
 import curation from './content/curation.json'
 import { tuffexIconClasses } from './scripts/tuffex-icon-classes.mjs'
+import { stickerInlineCss } from './shared/sticker-css'
 
 const iconClassesScript = fileURLToPath(
   new URL('./scripts/tuffex-icon-classes.mjs', import.meta.url),
@@ -38,8 +39,10 @@ const snapshotIconClasses = [
  *   comment box (#276) it is a filled box that turns white with a primary
  *   border while focused; the row under it uses the regular text colour, not
  *   the faint secondary one.
- * - stickers: 4rem in posts (`.forum-sticker`), a 3rem picture in the line
- *   inside the editor; the files are 256px and would otherwise fill the line.
+ * - stickers: one rule (shared/sticker-css.ts) sizes the picture in a post
+ *   (`.forum-sticker`) and in the editor (same-origin or CDN address) at a
+ *   two characters tall, bottom on the text bottom, sitting in the line; the
+ *   files are 256px and would otherwise fill it.
  */
 const FORUM_THEME_CSS = `
 html.sky {
@@ -122,22 +125,7 @@ html.sky {
 .forum-editor-toolbar > :first-child > span {
   color: var(--tx-text-color-regular);
 }
-.forum-sticker {
-  display: inline-block;
-  width: 4rem;
-  height: 4rem;
-  object-fit: contain;
-  vertical-align: bottom;
-}
-/* In the box a sticker sits in the line between words, as in Bilibili's comment box, at 48px: the stickers are whole figures with a word on them and turn into a smudge any smaller. */
-.milkdown img[src^="/api/forum/stickers/"] {
-  display: inline-block;
-  width: 3rem;
-  height: 3rem;
-  margin: 0 2px;
-  object-fit: contain;
-  vertical-align: middle;
-}
+${stickerInlineCss()}
 /* 回复 under the box is a solid button, like Bilibili's 发布; Tuffex's fake background would wash it out. */
 .forum-editor-toolbar .tx-button.variant-primary.fake-background {
   --fake-opacity: 0;

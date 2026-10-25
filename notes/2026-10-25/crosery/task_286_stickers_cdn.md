@@ -71,3 +71,17 @@
 - 做了什么：按 CODE-REVIEW 清单逐项核对 diff（84 个文件）：论坛白名单只认同源 64 位哈希 webp 与受控 CDN 前缀加同样哈希两种地址，别的域名、http、路径穿越、查询串、多一层目录都不进页面；服务端 STATIC_CDN_BASE 只能为空或逐字等于常量，其他值启动失败；迁移只增不改，清单读不出来拒绝启动；上传 token 只能写 yzgc/static/site/ 且只增不改，CI 拒绝 owner-env-file；实测 CDN 56 张 200、一年缓存、CORS，迁移两次启动行数不变；并入 stage 的冲突逐个核对
 - 结果：结论：通过；评论贴在 !30「代码审查」；未验证项已写进 MR：论坛编辑器里的面板、行内与正文截图、改前截图、docker 构建断言、预发布 CSP
 - 下一步：推送记录后按审查过的提交合并
+
+## 17:51:59 +08:00 · 合并 · #286 · 合并：!30 进 stage
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：并入 stage a275e517 解决 9 个冲突、81 个源文件上传 CDN 之后，按审查过的提交 e5a8a2ec 以 merge commit 合并 GitLab !30 进 stage
+- 结果：stage 合并提交 375fba2f；审查结论在 !30 评论
+- 下一步：清理分支与 worktree，关闭 issue
+
+## 17:51:59 +08:00 · 收尾 · #286 · 收尾：分支、worktree 与 issue 清理
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：停掉隔离栈（按 pid 文件），worktree remove 与 branch -D，GitLab 上源分支随合并删除；issue #286 写关闭记录后关闭
+- 结果：三者均已核对：本地分支与 worktree 已无，远端 task/286/* 已无，issue 已关闭
+- 下一步：无；预发布验收待 rc.23

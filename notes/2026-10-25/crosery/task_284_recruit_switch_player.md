@@ -70,3 +70,17 @@
 - 做了什么：按 CODE-REVIEW 清单逐项核对 diff（54 个文件）：服务端逐行读了 apply-settings、投递接口的拒绝点、开关的读写接口与公开配置：关闭只认明确写下的 0，读不懂的值按开放算；403 apply_closed 排在登录与权限判定之后、人机验证与限额之前，被拒的投递不写库、不占额度；写开关要 apply.settings 加 step-up，状态没变不写库也不记操作；官网读不到配置按开放，提交时服务端说已关则切到关闭页。前端用单测与截图核对，没有逐行读 UI 代码；并入 stage 的冲突解决单独核对了 YugcOs.tsx 的深链接合并与 server 文档四行
 - 结果：结论：通过；评论贴在 !29「代码审查」；未验证项已写进 MR：并入 stage 后没有重取真实请求与截图、e2e 用例未在本机运行、预发布页面
 - 下一步：推送记录后按审查过的提交合并
+
+## 17:51:59 +08:00 · 合并 · #284 · 合并：!29 进 stage
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：并入 stage a275e517 解决 15 个冲突后，按审查过的提交 87295340 以 merge commit 合并 GitLab !29 进 stage
+- 结果：stage 合并提交 87a7047d；审查结论在 !29 评论
+- 下一步：清理分支与 worktree，关闭 issue
+
+## 17:51:59 +08:00 · 收尾 · #284 · 收尾：分支、worktree 与 issue 清理
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：停掉隔离栈（按 pid 文件），worktree remove 与 branch -D，GitLab 上源分支随合并删除；issue #284 写关闭记录后关闭
+- 结果：三者均已核对：本地分支与 worktree 已无，远端 task/284/* 已无，issue 已关闭
+- 下一步：无；预发布验收待 rc.23

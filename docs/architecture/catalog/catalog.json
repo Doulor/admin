@@ -5792,6 +5792,14 @@
         {
           "line": 3,
           "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/shared/sticker-css.ts"
+        },
+        {
+          "line": 128,
+          "path": "app/forum/uno.config.ts"
         }
       ],
       "id": "flow:forum.stickers.list",
@@ -5815,7 +5823,8 @@
         "tests/server/forum-v2-endpoints.test.ts",
         "tests/server/forum-sticker-cdn.test.ts",
         "tests/server/sticker-packs-migration.test.ts",
-        "app/forum/tests/sticker-url.test.ts"
+        "app/forum/tests/sticker-url.test.ts",
+        "app/forum/tests/sticker-size-css.test.ts"
       ],
       "title": "读表情包列表",
       "writes": []
@@ -15923,6 +15932,11 @@
       "title": "app/forum/tests/site-state.test.ts"
     },
     {
+      "id": "test:app/forum/tests/sticker-size-css.test.ts",
+      "kind": "test",
+      "title": "app/forum/tests/sticker-size-css.test.ts"
+    },
+    {
       "id": "test:app/forum/tests/sticker-url.test.ts",
       "kind": "test",
       "title": "app/forum/tests/sticker-url.test.ts"
@@ -16305,7 +16319,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "b13e7a60250ac093e5dc2afc6b30b80d410005360f75a5b195351fc2b9811791",
+    "fingerprint": "896bc51a07678ec0287ef81ceee1d239a3c374c08a57e77294c18e5a691a2d1d",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -17124,6 +17138,10 @@
         "sha256": "ff1b1337638be9a4bd5e49ece3fd58414de793894718afb2e7ab7a8c77a84e2e"
       },
       {
+        "path": "app/forum/shared/sticker-css.ts",
+        "sha256": "dc6b611403386319541e7e67194e8ec9bc0a8d939e011cbecc4865fd55272691"
+      },
+      {
         "path": "app/forum/shared/sticker-url.ts",
         "sha256": "5a4e6ddc1d52cf06caf15238f3c4dbbe8676548ce116886e77befd485d951ac1"
       },
@@ -17156,8 +17174,16 @@
         "sha256": "94841a7861584d7a913a1660e85e67ce4e689367f914d629140db02d162e18dc"
       },
       {
+        "path": "app/forum/tests/sticker-size-css.test.ts",
+        "sha256": "4cbc84e937d5971a5d48bded6953b53814de5c4205bef082a67a6b07b7e5c26e"
+      },
+      {
         "path": "app/forum/tests/sticker-url.test.ts",
         "sha256": "efa561edf2f012affe764acc9c842487cc7f2832a7d860922a8eeb28e6664c60"
+      },
+      {
+        "path": "app/forum/uno.config.ts",
+        "sha256": "b1ff73e3855a5d249caac166e4f1b056bfe9bcdc2223333025f351f89f0777b5"
       },
       {
         "path": "app/server/Dockerfile",
@@ -18205,7 +18231,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "b2e5b237a08d7dea0063a3db2cead5c6825da94dcb3bb87fa9c5c47799e608ff"
+        "sha256": "680b94cdc1e159ddc4866385285dc551f0b5ae2dbaf23a1bfbc5ee0ef02fe8a1"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -18249,7 +18275,7 @@
       },
       {
         "path": "docs/services/forum/README.md",
-        "sha256": "f2d509d35d601aa3356f4386ac8697fdc4be7742b4e7b4b925c2a6347c357ba3"
+        "sha256": "1463924428cb13bddc9ca01a21395e3fde7b514b60a04a7143490be0ce36c240"
       },
       {
         "path": "docs/services/server/README.md",
@@ -60238,6 +60264,14 @@
         {
           "line": 3,
           "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/shared/sticker-css.ts"
+        },
+        {
+          "line": 128,
+          "path": "app/forum/uno.config.ts"
         }
       ],
       "from": "flow:forum.stickers.list",
@@ -60302,11 +60336,25 @@
         {
           "line": 3,
           "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/shared/sticker-css.ts"
+        },
+        {
+          "line": 128,
+          "path": "app/forum/uno.config.ts"
         }
       ],
       "from": "flow:forum.stickers.list",
       "to": "table:forum_stickers",
       "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.stickers.list",
+      "to": "test:app/forum/tests/sticker-size-css.test.ts",
+      "type": "test-entry"
     },
     {
       "basis": "declaration",
@@ -60390,6 +60438,14 @@
         {
           "line": 3,
           "path": "app/forum/app/editor/inline-stickers.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/shared/sticker-css.ts"
+        },
+        {
+          "line": 128,
+          "path": "app/forum/uno.config.ts"
         }
       ],
       "from": "flow:forum.stickers.list",
@@ -128113,6 +128169,12 @@
         "forum"
       ],
       "path": "app/forum/shared/site-state.ts"
+    },
+    {
+      "domains": [
+        "forum"
+      ],
+      "path": "app/forum/shared/sticker-css.ts"
     },
     {
       "domains": [

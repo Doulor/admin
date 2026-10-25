@@ -50,3 +50,10 @@
 - 做了什么：task.mjs finish 查不到 GitHub 上的 issue 状态而保留，改为确认 4f10185e 已是 gitlab/stage 的祖先后，手工移除 .claude/worktrees/task-285、删除本地分支 task/285/mail_templates，核对远端 task/285/* 分支为 0 个，停掉隔离栈并删除临时库
 - 结果：worktree 与本地、远端分支都已清理；仓库里 task/285 相关分支为 0
 - 下一步：无
+
+## 18:50:10 +08:00 · 发布 · #284 #285 #286 #287 #288 #289 #290 #291 #292 · 预发布 0.1.1-rc.23@375fba2f9cb5（本机发版，server 镜像补 STATIC_CDN_BASE 后重发）
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：所有者 2026-10-23 决定本机发预发布、2026-10-25 12:52 接手指令范围内；本地 tag v0.1.1-rc.23 → 375fba2f（未推送）；docker build --platform linux/amd64 三个镜像；17:55:29 第一次部署，部署前备份预发布库（18:02:04，integrity ok），18:02:51 健康检查通过；随后发现 server 镜像没带 STATIC_CDN_BASE，表情接口仍给同源地址，补参数重建 server 镜像，18:06:04 到 18:11:05 重发同一提交（部署前再备份一份 18:10:20，integrity ok），健康检查通过
+- 结果：release.json 0.1.1-rc.23@375fba2f9cb5；GET /api/forum/stickers 3 包 56 张地址全部在 CDN（18:49 复核）；公开赛事描述第三行是个人赛、官网 /c/oss-challenge-2026-1/ 200 16227 字节（18:49 复核）；回滚用 130a58b84bc7（rc.22）镜像与 18:02:04 的库备份
+- 下一步：rc.24 随 #293 发出；所有者在预发布验收
