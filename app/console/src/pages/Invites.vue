@@ -97,7 +97,7 @@ async function copy(code: string) {
     <ErrorPanel v-if="list.error.value" :error="list.error.value" :retry="list.reload" />
     <LoadingBlock v-else-if="!list.data.value" :lines="5" />
     <TxCard v-else :padding="0">
-      <TxDataTable style="--table-min: 760px" :columns="columns" :data="list.data.value.invites" row-key="id" table-layout="fixed" scroll-x>
+      <TxDataTable class="table-wide" style="--table-min: 760px" :columns="columns" :data="list.data.value.invites" row-key="id" table-layout="fixed" scroll-x>
         <template #cell-code="{ row }: { row: InviteCode }">
           <span class="cell-stack">
             <span class="cell-title">
@@ -120,6 +120,30 @@ async function copy(code: string) {
         </template>
         <template #empty><TxEmptyState title="还没有邀请码" description="用右上角的「新建邀请码」建第一个，发给要注册的人。" size="small" /></template>
       </TxDataTable>
+      <!-- 窄屏一个邀请码一张卡；宽屏只显示上面的表格。 -->
+      <ul class="row-cards">
+        <li v-for="row in list.data.value.invites" :key="row.id">
+          <div class="row-card__head">
+            <span class="cell-title">
+              <b class="mono">{{ row.code }}</b>
+              <TxButton size="sm" variant="ghost" icon="i-carbon-copy" :aria-label="`复制 ${row.code}`" @click="copy(row.code)" />
+            </span>
+            <TxStatusBadge :text="INVITE_STATE_TEXT[inviteState(row)]" :status="STATE_TONE[inviteState(row)]" size="sm" />
+          </div>
+          <div class="row-card__lines">
+            <span class="row-card__line">
+              <span>已用 {{ usesText(row) }}</span>
+              <span>过期 {{ row.expires_at === null ? "不过期" : fmtDay(row.expires_at) }}</span>
+            </span>
+            <span class="cell-sub">{{ row.note || "没有备注" }} · {{ row.created_by }} 建于 {{ fmtDate(row.created_at) }}</span>
+          </div>
+          <div class="row-card__actions">
+            <TxButton size="sm" variant="ghost" @click="openEdit(row)">编辑</TxButton>
+            <TxButton size="sm" variant="ghost" :class="{ 'danger-text': !row.disabled }" :disabled="toggle.pending.value" @click="toggle.execute(row)">{{ row.disabled ? "启用" : "停用" }}</TxButton>
+          </div>
+        </li>
+        <li v-if="!list.data.value.invites.length"><TxEmptyState title="还没有邀请码" description="用右上角的「新建邀请码」建第一个，发给要注册的人。" size="small" /></li>
+      </ul>
     </TxCard>
 
     <TxModal v-model="editing" :title="original ? '编辑邀请码' : '新建邀请码'" width="min(92vw, 520px)">

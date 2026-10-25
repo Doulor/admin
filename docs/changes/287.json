@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "issue": 287,
+  "kind": "business",
+  "summary": "控制台全量界面审计（P01）：在预发布真实数据上逐页逐尺寸（1440×900、390×844）测量并查看，修掉窄屏遗留。邀请码、GitLab 账号同步、论坛分类、备份记录、权限节点、计分基础分六处表格在手机上横向滚动、右边的列被截掉，窄于 640px 时改成一行一张卡；表格里的空状态改成贴着可见区域居中，不再被滚动区截掉；操作记录里「动作」列的键改名，避开 Tuffex 对 action 列钉在右边的处理。",
+  "applications": [
+    "console"
+  ],
+  "domains": [
+    "identity",
+    "gitlab",
+    "forum",
+    "platform",
+    "permissions",
+    "competitions",
+    "audit"
+  ],
+  "flows": [
+    "flow:identity.invites.list",
+    "flow:gitlab.accounts.list",
+    "flow:console.forum.categories.list",
+    "flow:platform.system_backup",
+    "flow:permissions.nodes.list",
+    "flow:competition.rules.read",
+    "flow:audit.console.activity.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "unchanged",
+      "reason": "业务规则不变：邀请码、GitLab 同步、论坛分类可见范围、备份记录、权限节点、计分规则的含义与操作都沿用原来的。变的只是手机上列表怎么排：同一份数据，窄屏一行一张卡，操作按钮和宽屏一样。",
+      "evidence": [
+        "app/console/src/pages/Invites.vue",
+        "app/console/src/pages/gitlab/Accounts.vue",
+        "app/console/src/pages/forum/CategoriesTab.vue"
+      ]
+    },
+    "backend": {
+      "status": "not-applicable",
+      "reason": "没有改服务端：所有页面读写的接口、参数和错误处理都未动；卡片和表格用同一份 resource 数据与同一组操作函数（编辑、停用、重试同步、改可见范围）。",
+      "evidence": [
+        "app/console/src/pages/Invites.vue",
+        "app/console/src/pages/gitlab/Accounts.vue",
+        "app/console/src/pages/forum/CategoriesTab.vue"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "权限判断不变：同步按钮仍只在 gitlab.sync 且账号可同步时出现，备份记录仍要 activity.read，路由守卫未动；卡片复用表格里同一条 v-if 与 disabled 条件。",
+      "evidence": [
+        "app/console/src/pages/gitlab/Accounts.vue",
+        "app/console/src/pages/Backup.vue",
+        "app/console/src/router.ts"
+      ]
+    },
+    "data": {
+      "status": "not-applicable",
+      "reason": "不涉及数据：没有表、字段、存储或迁移，页面只读同一批接口返回。",
+      "evidence": [
+        "app/console/src/pages/Backup.vue",
+        "app/console/src/pages/permissions/NodesTab.vue"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新增依赖，也没有新组件库：沿用 Tuffex 的 TxRadioGroup、TxStatusBadge、TxButton、TxEmptyState；卡片样式在 layout.css 里，和用户页 .user-cards 同一种做法。",
+      "evidence": [
+        "app/console/src/styles/layout.css",
+        "app/console/src/pages/Users.vue"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "控制台服务文档写明窄屏表格的约定（哪些表换卡片、哪些继续横向滚动、空状态怎么居中）和 Tuffex 对 action 列的特殊处理。",
+      "evidence": [
+        "docs/services/console/README.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "新增 tests/console/narrow-layout.test.ts（4 条）核对源码约定；预发布 rc.22 上逐页测量并截图得到问题清单，改完在样板数据与注入新样式的真实页面上复看；控制台全部 247 条测试、类型检查、构建通过。",
+      "evidence": [
+        "tests/console/narrow-layout.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "只改控制台前端产物，随下一个预发布镜像发布；回滚换回上一个镜像即可，没有数据变化。",
+      "evidence": [
+        "app/console/src/styles/layout.css"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/console/src/pages/Invites.vue"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:identity.invites.list"
+      ],
+      "reason": "邀请码列表窄屏改成一码一卡：状态、已用次数、过期日、备注与建立信息，编辑和停用/启用按钮沿用原有处理函数。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/gitlab/Accounts.vue"
+      ],
+      "domains": [
+        "gitlab"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:gitlab.accounts.list"
+      ],
+      "reason": "GitLab 账号同步窄屏改成一账号一卡：头像与用户名、上次同步、GitLab 用户名与状态、错误与待办、重试按钮。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/forum/CategoriesTab.vue"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:console.forum.categories.list"
+      ],
+      "reason": "论坛分类窄屏一类一卡：名称、编号、话题数，下面整行的「谁能看」三选一，改动沿用原有保存函数。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/Backup.vue"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:platform.system_backup"
+      ],
+      "reason": "备份记录窄屏一条一卡：时间、结果、发起人、归档内容。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/permissions/NodesTab.vue"
+      ],
+      "domains": [
+        "permissions"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:permissions.nodes.list"
+      ],
+      "reason": "权限节点窄屏一节点一卡：名称、编号、取值标记、说明、直接授予它的组。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/competition/RulesPanel.vue"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:competition.rules.read"
+      ],
+      "reason": "计分基础分表窄屏一档一卡，三种核心度的说明收成一行。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/Activity.vue"
+      ],
+      "domains": [
+        "audit"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:audit.console.activity.list"
+      ],
+      "reason": "「动作」列的键从 action 改成 event：Tuffex 把叫 action 的列当操作列钉在右边，窄屏横向滚动时盖住「谁」。"
+    },
+    {
+      "paths": [
+        "app/console/src/styles/layout.css",
+        "tests/console/narrow-layout.test.ts",
+        "docs/services/console/README.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "application:console"
+      ],
+      "reason": "共用的窄屏卡片样式、表格空状态贴着可见区域居中的规则、核对这些约定的测试，以及控制台文档。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "application:console"
+      ],
+      "reason": "按当前源码重新生成项目目录，来源摘要随控制台页面改动变化，不手改。"
+    }
+  ],
+  "documents": [
+    "docs/services/console/README.md"
+  ],
+  "tests": [
+    "tests/console/narrow-layout.test.ts"
+  ],
+  "compatibility": "接口、路由与权限不变；宽屏（641px 以上）的表格和原来一致，只有窄屏显示卡片；操作记录的列键改名不影响接口字段。",
+  "migration": "不涉及迁移：没有表结构、配置键或存储格式变化。",
+  "rollback": "换回上一个镜像即可恢复原来的窄屏表格；没有数据变化，不需要回滚数据。"
+}

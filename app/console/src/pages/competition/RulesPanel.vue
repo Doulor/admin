@@ -39,10 +39,11 @@ watch(() => rules.data.value, value => {
 }, { immediate: true });
 
 const rubric = computed(() => (rules.data.value ? rubricRows(rules.data.value.scoring) : []));
+const CORE_ORDER = ["edge", "business", "core"] as const;
 const rubricColumns = [
   { key: "kind", title: "类型", width: 80 },
   { key: "importance", title: "重要程度", width: 96 },
-  ...(["edge", "business", "core"] as const).map(key => ({ key, title: `${CORE_TEXT[key]}（${CORE_HINT[key]}）` })),
+  ...CORE_ORDER.map(key => ({ key, title: `${CORE_TEXT[key]}（${CORE_HINT[key]}）` })),
 ];
 const trivialRule = computed(() => {
   const scoring = rules.data.value?.scoring;
@@ -84,11 +85,23 @@ const save = useAction(async () => {
 
     <h3 class="subhead">基础分</h3>
     <p class="muted lead">标记「有用」时选这条对项目的重要程度和核心度，基础分查下表；同样两档，MR 比 Issue 高。不看代码行数、文件数和提交数。</p>
-    <TxDataTable style="--table-min: 640px" :columns="rubricColumns" :data="rubric" row-key="key" table-layout="fixed" scroll-x class="rubric">
+    <TxDataTable style="--table-min: 640px" :columns="rubricColumns" :data="rubric" row-key="key" table-layout="fixed" scroll-x class="rubric table-wide">
       <template #cell-edge="{ row }: { row: RubricRow }"><span class="mono">{{ row.edge }}</span></template>
       <template #cell-business="{ row }: { row: RubricRow }"><span class="mono">{{ row.business }}</span></template>
       <template #cell-core="{ row }: { row: RubricRow }"><span class="mono">{{ row.core }}</span></template>
     </TxDataTable>
+    <!-- 窄屏一档一张卡，三种核心度的说明收成下面一行；宽屏只显示上面的表格。 -->
+    <ul class="row-cards rubric-cards">
+      <li v-for="row in rubric" :key="row.key">
+        <span class="row-card__title">{{ row.kind }} · {{ row.importance }}</span>
+        <span class="row-card__lines">
+          <span class="row-card__line">
+            <span v-for="core in CORE_ORDER" :key="core">{{ CORE_TEXT[core] }} <b class="mono">{{ row[core] }}</b></span>
+          </span>
+        </span>
+      </li>
+    </ul>
+    <p class="muted lead rubric-legend">{{ CORE_ORDER.map(core => `${CORE_TEXT[core]}：${CORE_HINT[core]}`).join("；") }}。</p>
     <p class="muted lead rule">{{ trivialRule }}</p>
 
     <TxForm :model="form" label-position="top" class="rules-form">
@@ -188,6 +201,17 @@ const save = useAction(async () => {
   }
   .prize-title {
     grid-column: 1 / -1;
+  }
+}
+.rubric-cards > li {
+  padding-inline: 0;
+}
+.rubric-legend {
+  display: none;
+}
+@media (max-width: 640px) {
+  .rubric-legend {
+    display: block;
   }
 }
 </style>

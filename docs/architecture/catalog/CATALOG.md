@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
 
-来源摘要：`7e83b4534c289e3a69446c5e935bfd718e54593a44c5eaf5bcf3da3823b53ad4`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`7e6d1874259d064327b50c53795cff8867127b18a56dc0355733a79cff55c535`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -2498,7 +2498,7 @@
 - body {grade_factors:{year1…none: 50–500}, prizes:[{from, to, amount_cny, title}], gitlab_projects:[]} 整份替换：奖项名次从小到大不重叠、最多 20 档、金额 ≤ 100000、说明 ≤ 40 字；项目最多 10 个、两到五段路径。
 - 改系数只影响之后记的分，已经记下的年级与系数不重算；写 competition.rules.update 操作记录（带改前改后），清掉公开缓存。
 
-源码：[app/server/src/routes/console/competition-results.ts:88](../../../app/server/src/routes/console/competition-results.ts#L88) · [app/server/src/routes/console/contracts.ts:277](../../../app/server/src/routes/console/contracts.ts#L277) · [app/server/src/lib/competition-contract.ts:342](../../../app/server/src/lib/competition-contract.ts#L342) · [app/console/src/pages/competition/RulesPanel.vue:60](../../../app/console/src/pages/competition/RulesPanel.vue#L60) · [app/console/src/lib/competition-contest.ts:112](../../../app/console/src/lib/competition-contest.ts#L112)
+源码：[app/server/src/routes/console/competition-results.ts:88](../../../app/server/src/routes/console/competition-results.ts#L88) · [app/server/src/routes/console/contracts.ts:277](../../../app/server/src/routes/console/contracts.ts#L277) · [app/server/src/lib/competition-contract.ts:342](../../../app/server/src/lib/competition-contract.ts#L342) · [app/console/src/pages/competition/RulesPanel.vue:61](../../../app/console/src/pages/competition/RulesPanel.vue#L61) · [app/console/src/lib/competition-contest.ts:112](../../../app/console/src/lib/competition-contest.ts#L112)
 
 测试入口：[tests/server/competition-public.test.ts](../../../tests/server/competition-public.test.ts) · [tests/server/competition-prizes.test.ts](../../../tests/server/competition-prizes.test.ts) · [tests/console/competition-contest.test.ts](../../../tests/console/competition-contest.test.ts)。生成器未执行这些测试。
 
