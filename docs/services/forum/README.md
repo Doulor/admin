@@ -72,6 +72,7 @@ app/server/assets/stickers/
 1. 在 `app/server/assets/stickers/` 下建 `<包 id>/`，放 `pack.json` 和图片；
 2. 运行 `node scripts/sticker-manifest.mjs write`，再用 `report` 看字节数；
 3. 提交目录和 `manifest.json`，`tests/tooling/sticker-manifest.test.ts` 核对两者一致；
+4. 部署后服务启动时补进库里；开关打开时图片由部署的 `cdn-upload` 一起上传，想提前上传见 [CICD](../../ops/CICD.md)「静态资源 CDN」。
 
 ## 所有权与来源
 

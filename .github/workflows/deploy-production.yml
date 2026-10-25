@@ -361,11 +361,8 @@ jobs:
               server) mirror_args=(--build-arg NPM_REGISTRY="$NPM_REGISTRY" --build-arg DEBIAN_MIRROR="$DEBIAN_MIRROR" --build-arg BETTER_SQLITE3_BINARY_HOST="$BETTER_SQLITE3_BINARY_HOST") ;;
               *) mirror_args=(--build-arg NPM_REGISTRY="$NPM_REGISTRY") ;;
             esac
-            # 静态资源 CDN 开关（#146）只影响 web、forum 的前端产物；空 = 同源。server 的 Dockerfile 没有这个参数。
-            case "$service" in
-              server) cdn_args=() ;;
-              *) cdn_args=(--build-arg STATIC_CDN_BASE="$STATIC_CDN_BASE") ;;
-            esac
+            # 静态资源 CDN 开关（#146、#286）：web、forum 的前端产物，以及 server 里内置表情图片的地址都跟着它；空 = 同源。
+            cdn_args=(--build-arg STATIC_CDN_BASE="$STATIC_CDN_BASE")
             docker build \
               --file "app/${service}/Dockerfile" \
               --build-arg GEEK_DEPLOYMENT_ENVIRONMENT=production \

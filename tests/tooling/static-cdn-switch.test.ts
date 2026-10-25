@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -81,7 +82,6 @@ describe('images', () => {
       expect(builder, service).toContain('\nARG STATIC_CDN_BASE=""\n');
       expect(runtime, service).not.toMatch(/STATIC_CDN/);
     }
-    expect(read('app/server/Dockerfile')).not.toMatch(/STATIC_CDN/);
     const web = read('app/web/Dockerfile');
     expect(web).toContain('STATIC_CDN_BASE="$STATIC_CDN_BASE" pnpm --filter @yzgc/web build');
     expect(web).toContain('STATIC_CDN_BASE="$STATIC_CDN_BASE" pnpm --filter @yzgc/console build');
@@ -93,9 +93,50 @@ describe('images', () => {
     expect(forum).toContain('grep -q "\\"#entry\\":\\"${entry:-/forum/_nuxt/}" .output/public/index.html');
   });
 
+  it('declare STATIC_CDN_BASE in the server image too (#286): checked in the build stage, handed to the process as ENV, and the whole stickers folder copied', () => {
+    const dockerfile = read('app/server/Dockerfile');
+    const [preamble, builder, runtime] = dockerfile.split(/^(?=FROM )/m);
+    expect(preamble).not.toMatch(/STATIC_CDN/);
+    expect(builder).toContain('\nARG STATIC_CDN_BASE=""\n');
+    // 声明在编译之后：开关变化不让依赖层和编译层失效。
+    expect(builder.indexOf('pnpm --filter @yzgc/server build')).toBeGreaterThan(0);
+    expect(builder.indexOf('pnpm --filter @yzgc/server build')).toBeLessThan(builder.indexOf('ARG STATIC_CDN_BASE'));
+    expect(runtime).toContain('\nARG STATIC_CDN_BASE=""\nENV STATIC_CDN_BASE=${STATIC_CDN_BASE}\n');
+    expect(runtime).toContain('COPY --chown=node:node app/server/assets/stickers/ /app/app/server/assets/stickers/\n');
+    expect(dockerfile).not.toMatch(/assets\/stickers\/yugc/);
+  });
+
+  it('the server build stage accepts exactly the empty value and the one CDN base, the same answer as staticCdnBase', () => {
+    const check = /\nRUN (case "\$STATIC_CDN_BASE" in[\s\S]*?\n {4}esac)\n/.exec(read('app/server/Dockerfile'));
+    expect(check, '找不到构建阶段对 STATIC_CDN_BASE 的核对').not.toBeNull();
+    const runs = (value: string) => {
+      try {
+        execFileSync('sh', ['-c', check![1]], { env: { STATIC_CDN_BASE: value, PATH: process.env.PATH }, stdio: 'pipe' });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    // 纯空白：staticCdnBase 当作空，镜像里的核对更严（不接受），所以不放进对照表；工作流只会传空或固定值。
+    for (const value of ['', STATIC_CDN_BASE, 'https://cdn.crosery.com/', 'https://cdn.crosery.com/yzgc/static/site', 'http://cdn.crosery.com/yzgc/static/site/', 'https://evil.example/yzgc/static/site/', `${STATIC_CDN_BASE}forum/`, 'https://cdn.crosery.com/yzgc/promo/', '$(id)', '"; exit 0; "']) {
+      const accepted = (() => { try { staticCdnBase({ STATIC_CDN_BASE: value }); return true; } catch { return false; } })();
+      expect(runs(value), JSON.stringify(value)).toBe(accepted);
+    }
+    expect(runs(' ')).toBe(false);
+  });
+
   it('compress text at the same gzip level in the web and forum containers (the web proxy does not re-compress forum responses)', () => {
     const level = (dockerfile: string) => [...dockerfile.matchAll(/^\s*gzip_comp_level (\d+);/gm)].map(match => match[1]);
     expect(level(read('app/web/Dockerfile'))).toEqual(['6']);
     expect(level(read('app/forum/Dockerfile'))).toEqual(['6']);
+  });
+
+  it('never compress WebP (#286): none of the gzip_types lists of the host templates and the web and forum containers names it, or uses *', () => {
+    // 表情图片是 WebP，本身已经压缩过，再 gzip 只多花 CPU；列表里没有它，nginx 就不压。
+    for (const path of ['deploy/nginx/preview.conf', 'deploy/nginx/production.conf', 'app/web/Dockerfile', 'app/forum/Dockerfile']) {
+      const lists = [...read(path).matchAll(/^\s*gzip_types ([^;]+);/gm)].map(match => match[1]);
+      expect(lists.length, path).toBeGreaterThan(0);
+      for (const list of lists) expect(list, path).not.toMatch(/image\/webp|image\/\*|\*/);
+    }
   });
 });

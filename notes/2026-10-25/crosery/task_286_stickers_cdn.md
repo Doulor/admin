@@ -22,3 +22,10 @@
 - 做了什么：提交 feat(server)：新增 lib/static-cdn.ts（STATIC_CDN_BASE 在服务端的读法，空或固定值，别的值启动失败），config.ts 读它，services.ts 把按开关建好的地址函数交给 forum-store；forum-store 的公开列表、控制台列表和表情回应共用这一个地址函数，没传时仍是同源；middleware/http-policy.ts 对 /api/forum/stickers/ 下 200 的响应不再覆盖成 no-store（原来把路由自己发的一年 immutable 盖掉了，404 与列表接口仍是 no-store）。同提交带接口合同、API 总表、server README 与 forum 服务文档里地址与缓存头的说明。文档核对：docs/services/console/README.md 不用改——控制台表情列表的 url 字段由服务端按同一规则给，页面只是把它放进 img。
 - 结果：最终树上：tests/server/forum-sticker-cdn.test.ts 11 通过（开关关闭全同源；打开时内置走 CDN、站长上传的同源；一年 immutable；列表仍 no-store）、tests/tooling/static-cdn-parity.test.ts 23 通过（服务端与 scripts/static-cdn-base.mjs 的开关规则逐项一致）、tests/server/forum-v2-endpoints.test.ts 32 通过（共 66）。未单独构建本提交的中间状态。
 - 下一步：提交 server 镜像接 STATIC_CDN_BASE 与 CDN 上传带上表情图片，再提交论坛前端白名单、宏观对齐声明
+
+## 14:03:41 +08:00 · 提交 · #286 · server 镜像接 STATIC_CDN_BASE，CDN 上传带上内置表情图片
+
+- 执行者：agent-claude-geek-main-stickers（Claude Code，claude-sonnet-5-5）
+- 做了什么：提交 feat(deploy)：app/server/Dockerfile 构建阶段核对 STATIC_CDN_BASE（空或固定值，别的值构建失败）并在运行阶段写成环境变量，不新增 deploy/env 条目；deploy-preview 与 deploy-production 给三个镜像都传这个构建参数（只增参数，不放宽已有核对）；scripts/static-cdn.mjs 的 plan 与 upload 带上 forum/stickers/ 下的内置表情图片（键由图片 sha256 决定，insertOnly，同样的前缀守卫与 CDN 核对），要求清单与目录一致，plan 单独打印这个目录的对象数与字节；同提交更新 CICD、DEPLOY 与 forum 服务文档里新增表情包后的上传步骤。没有运行 upload，没有碰真实 CDN 与凭据。文档核对：docs/ops/ENVIRONMENTS.md 不用改——deploy/env 里没有新条目，开关是构建参数不是环境变量项。
+- 结果：最终树上：tests/tooling/static-cdn.test.ts 109 通过、static-cdn-switch.test.ts 11 通过、static-cdn-workflows.test.ts 4 通过（共 124）；本机只读运行 node scripts/static-cdn.mjs plan（空目录充当 web 与 forum 产物）输出「共 49 个文件，1.69 MiB」「其中内置表情图片（forum/stickers/）24 个对象，518514 字节（506.4 KB）」；upload 未运行（需要所有者凭据，未验证）；CI 里 docker build 的 server 构建阶段核对未在本机跑 docker，只用 sh -c 在测试里实跑了同一段 case 判断（未验证 docker 路径）。
+- 下一步：提交论坛前端白名单，再提交宏观对齐声明与重新生成的项目目录
