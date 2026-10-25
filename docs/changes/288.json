@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "issue": 288,
+  "kind": "business",
+  "summary": "第一期比赛官网上线验收（P02）与个人赛文案统一（C28）发现的两处缺陷：库里第一期赛事的描述还写着团队赛的旧文案，而第一期是个人赛；比赛官网 SDK 的 --api 代理把上游的压缩响应解开后仍带着原来的编码与长度头，浏览器读到乱码或被截断。启动迁移把旧描述行改成个人赛的写法，代理按解压后的响应体重写这两个头。",
+  "applications": [
+    "server"
+  ],
+  "domains": [
+    "competitions",
+    "identity",
+    "audit",
+    "platform",
+    "recruitment",
+    "organization",
+    "feedback",
+    "forum",
+    "gitlab",
+    "invitations",
+    "mail",
+    "permissions",
+    "github"
+  ],
+  "flows": [
+    "flow:identity.authorize",
+    "flow:audit.console.activity.list",
+    "flow:platform.public_config",
+    "flow:application.cancel",
+    "flow:competition.public.list",
+    "flow:console.identity",
+    "flow:feedback.categories",
+    "flow:forum.state",
+    "flow:gitlab.accounts.list",
+    "flow:identity.email.verify",
+    "flow:permissions.nodes.list",
+    "flow:identity.callback"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "第一期是个人赛，赛事描述是报名页和桌面窗口展示给参赛者的第一段话，不能写成按团队报名。规则本身（个人报名、个人计分）不变，只改描述文字。",
+      "evidence": [
+        "app/server/src/lib/db.ts",
+        "tests/server/competitions.test.ts"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "启动迁移只改 competitions.description 里命中旧团队赛原句的那一行，别的行不动；公开列表与详情读到的是改后的文字，接口形状不变。",
+      "evidence": [
+        "app/server/src/lib/db.ts",
+        "tests/server/competitions.test.ts"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "权限节点、角色与授权判断都没有改，没有新的接口或鉴权点；迁移在服务启动时执行，不接受外部输入，只改赛事描述这一列文字。SDK 代理只在开发者本机转发，不带站点的会话。",
+      "evidence": [
+        "app/server/src/lib/db.ts",
+        "scripts/contest-site.mjs"
+      ]
+    },
+    "data": {
+      "status": "changed",
+      "reason": "competitions.description 一列的内容变化，无表结构变化。迁移只匹配旧原句，重复执行行数不再变化；已经手工改过描述的赛事不命中，不被覆盖。",
+      "evidence": [
+        "app/server/src/lib/db.ts",
+        "docs/services/server/data-model.md"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新增或升级依赖：迁移只用已有的 better-sqlite3 语句，代理只用 Node 自带的 http 与已解压的响应体。",
+      "evidence": [
+        "app/server/src/lib/db.ts",
+        "scripts/contest-site.mjs"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "数据模型文档写明描述迁移的匹配条件与幂等性，比赛官网快速接入文档去掉团队赛的示例说法。",
+      "evidence": [
+        "docs/services/server/data-model.md",
+        "docs/services/server/contest-site-quickstart.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "服务端用例对旧原句、已改过的描述、别的赛事三种行跑两次迁移并核对行数与内容；工具用例用 gzip 响应核对代理转发的编码头与长度头同响应体一致。",
+      "evidence": [
+        "tests/server/competitions.test.ts",
+        "tests/tooling/contest-site.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "迁移随服务镜像发布，首次启动执行一次；回滚换回上一个镜像即可，已改的描述不影响旧代码读取。SDK 代理是仓库脚本，随仓库更新。",
+      "evidence": [
+        "app/server/src/lib/db.ts",
+        "scripts/contest-site.mjs"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/server/src/lib/db.ts",
+        "tests/server/competitions.test.ts",
+        "docs/services/server/data-model.md"
+      ],
+      "domains": [
+        "competitions",
+        "identity",
+        "audit",
+        "platform",
+        "recruitment",
+        "organization",
+        "feedback",
+        "forum",
+        "gitlab",
+        "invitations",
+        "mail",
+        "permissions"
+      ],
+      "nodes": [
+        "application:server"
+      ],
+      "reason": "启动迁移把第一期赛事描述里的团队赛旧原句改成个人赛的写法；用例覆盖命中、不命中和重复执行；数据模型文档同步。"
+    },
+    {
+      "paths": [
+        "scripts/contest-site.mjs",
+        "tests/tooling/contest-site.test.ts",
+        "docs/services/server/contest-site-quickstart.md"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "application:server"
+      ],
+      "reason": "官网 SDK 的 --api 代理按解压后的响应体重写 content-encoding 与 content-length；快速接入文档同步。"
+    }
+  ],
+  "documents": [
+    "docs/services/server/data-model.md",
+    "docs/services/server/contest-site-quickstart.md"
+  ],
+  "tests": [
+    "tests/server/competitions.test.ts",
+    "tests/tooling/contest-site.test.ts"
+  ],
+  "compatibility": "接口形状与字段不变，只有第一期赛事描述的文字变化；SDK 代理对不压缩的响应行为不变。",
+  "migration": "启动迁移只更新命中旧原句的 competitions 行，幂等；执行前后用 sqlite3 对比行数，部署前备份预发布库。",
+  "rollback": "换回上一个镜像即可；描述文字留在库里不影响旧代码。要还原文字时，从部署前的数据库备份取回 competitions.description。"
+}
