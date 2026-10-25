@@ -2,9 +2,9 @@
 
 > 从真实建库函数产生的内存 SQLite 提取表、列、索引和物理外键；不读取业务记录。
 
-状态：`current` · 更新：2026-10-24 · 自动生成，不手工编辑。
+状态：`current` · 更新：2026-10-25 · 自动生成，不手工编辑。
 
-来源摘要：`7e83b4534c289e3a69446c5e935bfd718e54593a44c5eaf5bcf3da3823b53ad4`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`071ec5dc6f21b7041587500e68e174fdf74e3a35dd0fdb16cf35f0d6dcc07517`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -284,7 +284,7 @@ CREATE TABLE activity_events (
 
 业务域：`platform`；结构来源：[app/server/src/lib/db.ts:30](../../../app/server/src/lib/db.ts#L30)。
 
-预留表；当前没有业务读写消费者。存在表不代表已有业务能力。
+键值表：现有 gitlab_settings（GitLab 同步设置的覆盖值，lib/gitlab-sync.ts）与 apply_open（招新总开关，#284，lib/apply-settings.ts）两个键；没有 apply_open 这一行就是开放。目录不读取记录。
 
 | 列 | 类型 | NOT NULL | 主键序号 | 默认值 | 隐藏/生成标记 |
 |---|---|---|---|---|---|

@@ -71,7 +71,7 @@
 | `oauth_grants` | 本人允许过的 (账号, 应用)（#270） | 只有 `lib/oidc-store.ts`：同意页 `POST /oidc/interaction/:uid/confirm` 时写或覆盖 | `oidc-provider` 的 `loadExistingGrant`：换个浏览器登录也不再问 | `grant_id` 指向 `oidc_payloads` 里的授权；授权被撤销（授权码重放）后这一行悬空，下次登录重新同意时覆盖 |
 | `oidc_payloads` | `oidc-provider` 的存储（#270）：签发者的会话、登录交互、授权码、访问令牌、授权 | 只有 `lib/oidc-store.ts`（`oidc-provider` 的适配器）：写入时按 `expires_at` 每小时删一次过期行；授权码用过写 `consumed_at`；撤销按 `grant_id` 删 | 同一个适配器 | `payload` 是 `oidc-provider` 的 JSON，含授权码、令牌 id 与账号 id，不进日志；`expires_at`、`consumed_at` 是毫秒（交给 `oidc-provider` 时换成秒）；`uid`、`grant_id`、`user_code` 各有部分索引 |
 | `gitlab_accounts` | 极客班账号在自建 GitLab 上的用户（#270） | 只有 `lib/gitlab-sync.ts`：建号前先写一行 `pending` 占下用户名，建好写 `gitlab_user_id` 和 `active`，封禁、解封改 `state`，改组权限写 `access_level`，传完头像写 `avatar_source`（#271），同步完邮箱写 `emails_source`（#272），失败写 `last_error`（错误代码）与时间 | 同一个模块：控制台 `GET /api/console/gitlab/accounts`；`gitlabUserFor` / `accountForGitlabUser` 给以后的比赛记分（#239） | `username` 大小写不敏感唯一，第一次同步时定下、之后不改；`state` 只取 `pending` / `active` / `blocked`；还没同步过就离开、但在 GitLab 上按身份找到了人的，这时才写一行（直接对上那个用户并封禁）；从不删除行，也从不删除 GitLab 用户 |
-| `app_state` | 键值状态 | 无 | 无 | 未使用，见下节 |
+| `app_state` | 键值状态，一行一个键：`gitlab_settings`（GitLab 同步设置的覆盖值，JSON）与 `apply_open`（招新总开关，#284，`1` 开放、`0` 关闭） | `lib/gitlab-sync.ts` 改 GitLab 设置时写 `gitlab_settings`；`lib/apply-settings.ts` 在控制台 `PATCH /api/console/applications/settings` 真的改了状态时写 `apply_open`（`INSERT … ON CONFLICT DO UPDATE`，同时写 `updated_at`） | 同上两个模块；`GET /api/public/config`、`POST /api/portal/apply` 与控制台读开关都经 `apply-settings` | 没有个人信息；没有 `apply_open` 这一行就是开放，所以升级不需要迁移，回滚到没有这个键的版本时这一行被忽略 |
 
 ### 论坛（`forum_*`，#57）
 
@@ -100,7 +100,6 @@
 
 下列对象由 `db.ts` 创建，但当前代码没有消费者。在出现消费者之前，不能把它们写成已有能力。
 
-- `app_state` 表：`src` 中没有任何读写，按预留处理（例如以后存 schema 版本）。
 - `feedback.votes` 列：没有写入路径，值恒为默认的 0，只被 `GET /api/feedback/public` 原样返回。
 - `idx_applications_email` 索引：没有按邮箱查询 `applications` 的代码，可以视为给将来去重预留。
 - #262 为后续交付预先建好、交付 1 还没有消费者的：`users.canonical_email`、`users.membership_version`（交付 2 的邮箱登录与资格版本），`users.org_state`、`users.org_checked_at`（登录时写、还没有读），`identities.provider_union_id`、`identities.email`、`identities.email_verified` 与 `idx_identities_union`（交付 2、3）；`identity_audit` 只写不读。
@@ -111,6 +110,6 @@
 ## 验证
 
 ```bash
-grep -rn "app_state\|votes\|idx_applications_email" app/server/src                      # 核对「未使用」结论
+grep -rn "votes\|idx_applications_email" app/server/src                                 # 核对「未使用」结论；app_state 有读写，见 gitlab-sync.ts 与 apply-settings.ts
 pnpm test                                                                                   # 真实路由 + 内存 data.db
 ```

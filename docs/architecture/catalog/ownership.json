@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-24",
+  "updated": "2026-10-25",
   "applications": [
     {
       "id": "web",
@@ -331,7 +331,7 @@
     "accounts": "identity"
   },
   "tableNotes": {
-    "app_state": "预留表；当前没有业务读写消费者。存在表不代表已有业务能力。",
+    "app_state": "键值表：现有 gitlab_settings（GitLab 同步设置的覆盖值，lib/gitlab-sync.ts）与 apply_open（招新总开关，#284，lib/apply-settings.ts）两个键；没有 apply_open 这一行就是开放。目录不读取记录。",
     "applications": "包含候选人个人信息。具体读取范围、字段下发和取消规则见业务文档；目录不包含记录。",
     "sessions": "包含加密会话凭据。目录仅记录列与约束，不读取会话值。",
     "users": "极客班账号：id 就是接口里的 account_id（极客班 OpenID），随机生成、永不复用；只有身份模块（lib/identity-store.ts）读写。目录不读取记录。",
@@ -2778,19 +2778,116 @@
       ]
     },
     {
+      "id": "application.settings.read",
+      "title": "控制台查看招新总开关",
+      "domain": "recruitment",
+      "relatedDomains": [
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/console/applications/settings",
+      "capabilities": [],
+      "reads": [
+        "app_state"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：节点 apply.view，按 requireScopedPermission 判定（部门部长的按部门限定 apply.view 也放行；开关全站一个，不分部门）。",
+        "响应与错误：200 {open,updated_at}，updated_at 是最近一次开关的毫秒时间戳，从没改过为 null（等于默认开放）；没登录 401，没有节点 403 forbidden。",
+        "数据与副作用：只读 app_state 里键 apply_open 的一行；没有这一行是开放，读不懂的值也按开放算。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/applications.ts",
+          "needle": "app.get(\"/api/console/applications/settings\", { preHandler: requireScopedPermission(\"apply.view\") }"
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "  \"GET /api/console/applications/settings\": {"
+        },
+        {
+          "path": "app/server/src/lib/apply-settings.ts",
+          "needle": "export function createApplySettings("
+        }
+      ],
+      "tests": [
+        "tests/server/apply-switch.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/README.md"
+      ]
+    },
+    {
+      "id": "application.settings.update",
+      "title": "控制台开放或关闭招新",
+      "domain": "recruitment",
+      "relatedDomains": [
+        "platform",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "PATCH /api/console/applications/settings",
+      "capabilities": [],
+      "reads": [
+        "app_state"
+      ],
+      "writes": [
+        "app_state",
+        "activity_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：节点 apply.settings（种子里只有站长的根通配 * 默认拿到），并且 10 分钟内登录过（requireStepUp，否则 403 step_up_required 且状态不变）；每个账号 30 次/分钟。",
+        "响应与错误：200 {open,updated_at}（改完之后的状态）；请求体只接受 {open:boolean}，缺字段、不是布尔或多出字段都 400 validation_error；没登录 401，没有节点 403 forbidden。",
+        "数据与副作用：状态真的变了才写 app_state（键 apply_open，1 开放 0 关闭）并在同一个事务里写 application.settings.update 操作记录（meta 只有 open）；再提交同一个值原样回当前状态，不写库、不记。关闭只拦新的投递：POST /api/portal/apply 回 403 apply_closed，GET /api/public/config 的 apply_open 变 false；已经收到的投递照常列表、审核、发信，每日额度规则不变。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/console/applications.ts",
+          "needle": "app.patch<{ Body: { open: boolean } }>("
+        },
+        {
+          "path": "app/server/src/routes/console/contracts.ts",
+          "needle": "  \"PATCH /api/console/applications/settings\": {"
+        },
+        {
+          "path": "app/server/src/lib/apply-settings.ts",
+          "needle": "function setOpen(open: boolean)"
+        },
+        {
+          "path": "app/server/src/lib/permission-nodes.ts",
+          "needle": "node: \"apply.settings\","
+        }
+      ],
+      "tests": [
+        "tests/server/apply-switch.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/server/README.md",
+        "docs/architecture/SECURITY.md"
+      ]
+    },
+    {
       "id": "application.submit",
       "title": "提交加入我们申请",
       "domain": "recruitment",
       "relatedDomains": [
         "mail",
-        "audit"
+        "audit",
+        "platform"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/portal/apply",
       "capabilities": [],
       "reads": [
         "application_limits",
-        "mail_outbox"
+        "mail_outbox",
+        "app_state"
       ],
       "writes": [
         "applications",
@@ -2802,12 +2899,21 @@
       "invariants": [
         "权限与资源：匿名；蜜罐、PoW、可选Turnstile、每IP分钟5次和IP(/64)/设备24小时各5份。",
         "响应与错误：201 {id,submitted_at,message}；字段错误400附fields，429 apply_limited/rate_limited。蜜罐回相同201形状但不落库。",
-        "数据与副作用：计数与投递同事务，发设备cookie；记脱敏application.received审计，尽力入队已收到邮件（每小时总量限制），入队失败仅日志不回滚投递；无需会话。"
+        "数据与副作用：计数与投递同事务，发设备cookie；记脱敏application.received审计，尽力入队已收到邮件（每小时总量限制），入队失败仅日志不回滚投递；无需会话。",
+        "招新总开关（#284）：app_state 里 apply_open 为关闭时，权限节点之后直接 403 {error:\"apply_closed\",message:\"招新暂未开放\"}，不落 applications、不占任何一条每日额度、不入队信、不发设备 cookie；被拒的请求由 http-policy 记 outcome 为 denied 的 http.apply_closed；没登录仍先回 401，路由级每 IP 每分钟 5 次的限流更早，照常计一次。"
       ],
       "evidence": [
         {
           "path": "app/server/src/routes/portal/apply.ts",
           "needle": "  app.post<{ Body: Body }>("
+        },
+        {
+          "path": "app/server/src/routes/portal/apply.ts",
+          "needle": "const requireApplyOpen = async (_req: FastifyRequest, reply: FastifyReply) => {"
+        },
+        {
+          "path": "app/server/src/lib/apply-settings.ts",
+          "needle": "export function createApplySettings("
         },
         {
           "path": "app/server/src/lib/mail/mailer.ts",
@@ -2839,6 +2945,7 @@
         }
       ],
       "tests": [
+        "tests/server/apply-switch.test.ts",
         "tests/server/applications.test.ts",
         "tests/server/mail-outbox.test.ts",
         "tests/server/rate-limits.test.ts"
@@ -2901,13 +3008,15 @@
       "assessment": "declared-with-source-evidence",
       "operation": "GET /api/public/config",
       "capabilities": [],
-      "reads": [],
+      "reads": [
+        "app_state"
+      ],
       "writes": [],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：匿名可读；仅公开site key或null与PoW难度，不含Turnstile secret。",
-        "响应与错误：200 {turnstile_site_key,pow_difficulty}。",
-        "数据与副作用：只读配置，无业务数据库读取和写入，不调用验证码服务。"
+        "权限与资源：匿名可读；仅公开site key或null、PoW难度和招新总开关的当前状态，不含Turnstile secret。",
+        "响应与错误：200 {turnstile_site_key,pow_difficulty,apply_open}；apply_open 是布尔（#284），没设过为 true。",
+        "数据与副作用：只读；apply_open 读 app_state 里键 apply_open 的一行，其余是配置，不写库，不调用验证码服务。"
       ],
       "evidence": [
         {
@@ -2921,7 +3030,8 @@
       ],
       "tests": [
         "tests/server/core.test.ts",
-        "tests/server/configuration.test.ts"
+        "tests/server/configuration.test.ts",
+        "tests/server/apply-switch.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -11648,6 +11758,9 @@
       "audit"
     ],
     "app/server/src/lib/apply-quota.ts": [
+      "recruitment"
+    ],
+    "app/server/src/lib/apply-settings.ts": [
       "recruitment"
     ],
     "app/server/src/lib/console-scope.ts": [

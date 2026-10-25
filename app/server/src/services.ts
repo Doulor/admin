@@ -18,6 +18,7 @@ import { createRoleStore } from "./lib/role-store.js";
 import { archiveOldDepartments } from "./lib/migrations/2026-10-yugc-v2.js";
 import { createPermissionEngine } from "./lib/permissions.js";
 import { createLimits } from "./lib/limits.js";
+import { createApplySettings } from "./lib/apply-settings.js";
 import { createAccountProfiles } from "./lib/account-profiles.js";
 import { createActivityRecorder } from "./lib/activity.js";
 import { createAccess } from "./lib/access.js";
@@ -172,6 +173,8 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     // 操作记录唯一写入口（#274 SPEC §3.7）：lib/activity.ts 的 recordActivity，路由自己调用；清理定时器由 buildApp 的 activityCleanup 决定开不开。
     activity: createActivityRecorder(storage.db, overrides.clock),
     limits,
+    // 招新总开关（#284）：官网公开配置、投递接口和控制台「投递」页读写的是同一个值。
+    applySettings: createApplySettings(storage.db, overrides.clock),
     feedback,
     forum,
     mail,
