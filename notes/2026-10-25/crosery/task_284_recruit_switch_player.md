@@ -49,3 +49,10 @@
 - 执行者：agent-claude-geek-main-recruit（Claude Code，claude-sonnet-5-5）
 - 做了什么：更正上一条「宏观对齐声明」记录：那条里「8 条评估」后面括号列出的事项写错了，不是 docs/changes/284.json 里评估的内容。声明里 8 条评估的键是 business、backend、permissions、data、dependencies、documentation、verification、delivery；其余数字（14 个领域、21 条流程、6 组覆盖、文档 8 份、测试 9 份）与文件一致。
 - 结果：已对照 docs/changes/284.json 逐项核对：applications 3、domains 14、flows 21、assessments 8、coverage 6、documents 8、tests 9；上一条里这些数字属实，只有评估项的括号说法不对，以本条为准。
+
+## 17:33:28 +08:00 · 提交 · #284 · 并入 stage a275e517：解决 15 个冲突文件，重新生成目录，补影响声明的邮件业务域
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：把 GitLab stage（含 #285 邮件模板、#291 Google 绑定、#292 启动动画）并入 task/284/recruit_switch_player：权限节点、操作记录中文名、控制台 mock 与两个文档的清单类冲突两边都保留；YugcOs.tsx 的深链接 effect 合成 先处理 #291 的 link 与 provider，再处理 #284 的 ?open=promo 与窗口应用；窗口属性里保留 applyOpen、onApplyOpen、onAutoPromo、promo，并带上 #291 的 linkNotice；server 文档四行用基线三方合并，#284 的招新开关与 #285 的邮件模板说明都在。合并提交只含冲突解决，目录在下一个提交里重新生成，影响声明补上 mail 业务域
+- 结果：门禁：vitest tests/server tests/console tests/web tests/tooling 144 个文件 2289 条通过；typecheck、check:catalog、check-architecture（54 个变更文件）、check-doc-sync、check-docs、check-secrets、check-boundaries 全部通过
+- 下一步：推送并开 MR，补 PR 与审查记录
