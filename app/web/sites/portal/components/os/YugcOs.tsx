@@ -9,6 +9,7 @@ import Modal from "@shared/ui/Modal";
 import { PHONE_QUERY, PORTRAIT_QUERY, useMediaQuery } from "../../lib/useMediaQuery";
 import { signInHref, useAccount } from "../../lib/account";
 import { reportEvent } from "../../lib/events";
+import { linkNoticeOf, type LinkNotice } from "../../lib/linkNotice";
 import { noteSeenHere, rememberNoteHere, rememberNoteOnAccount } from "../../lib/startNote";
 import { appById, appByKey, appLink, filterCommands, followAppLink, launcherCommands, moveSelection, visibleApps, type AppId } from "../../lib/osApps";
 import { browserEstimate, choosePlayback, detectCapabilities, hasSeenPromo, preconnectPromo, prefetchPromoStart } from "../../lib/promo";
@@ -63,6 +64,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
   const [promo, setPromo] = useState(false);
   const [phoneGuide, setPhoneGuide] = useState(false);
   const [phoneSettings, setPhoneSettings] = useState(false);
+  const [linkNotice, setLinkNotice] = useState<LinkNotice | null>(null);
   const searchFocus = useRef<HTMLButtonElement>(null);
   const swipe = useRef<{ x: number; y: number; at: number } | null>(null);
   const wallpaperFocus = useRef<HTMLButtonElement>(null);
@@ -180,10 +182,23 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const id = params.get("open");
-    if (id === null) return;
+    // link=<结果>&provider=google：资料窗口里绑定 Google 走完授权回来（#291）。打开资料窗口，把结果写在登录方式下面
+    const linked = params.get("link");
+    const linkedProvider = params.get("provider");
+    if (id === null && linked === null) return;
     params.delete("open");
+    if (linked !== null) {
+      params.delete("link");
+      params.delete("provider");
+    }
     const rest = params.toString();
     navigate({ search: rest ? `?${rest}` : "" }, { replace: true });
+    const notice = linkNoticeOf(linked, linkedProvider);
+    if (id === "profile" || notice) {
+      if (notice) setLinkNotice(notice);
+      openWindow("profile");
+      return;
+    }
     if (apps.some((app) => app.id === id && app.open.kind === "window")) openWindow(id as WindowId);
   }, [location.search, apps, navigate, openWindow]);
 
@@ -459,7 +474,7 @@ export default function YugcOs({ onReplayBoot, boot = null }: Props) {
                 onOpen={open}
                 apps={apps}
                 phone={phone}
-                profile={win.id === "profile" ? { signInLink, onPatch: patch, onReload: reload, onSignOut: () => void signOut().then(() => closeWindow("profile")) } : undefined}
+                profile={win.id === "profile" ? { signInLink, onPatch: patch, onReload: reload, onSignOut: () => void signOut().then(() => closeWindow("profile")), linkNotice } : undefined}
               />
             ))}
           </div>

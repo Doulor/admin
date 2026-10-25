@@ -1094,3 +1094,204 @@ describe('hardening from the #262 review', () => {
     expect(requestLogFields({ method: 'GET', url: '/api/console/audit?limit=5' }).url).toBe('/api/console/audit?limit=5');
   });
 });
+
+describe('Google link (#291)', () => {
+  const countUsers = (db: ReturnType<typeof testAppDb>) => (db.prepare('SELECT COUNT(*) AS n FROM users').get() as { n: number }).n;
+  type Db = Awaited<ReturnType<typeof setup>>['db'];
+  const testAppDb = (db: Db) => db;
+  const googleRows = (db: Db) => db.prepare("SELECT user_id, provider_uid, email, email_verified, last_login_at FROM identities WHERE provider = 'google' ORDER BY created_at").all();
+  const events = (db: Db, action: string) => db.prepare('SELECT user_id, provider, result, reason FROM identity_audit WHERE action = ?').all(action);
+
+  /** 已登录的人：用 GitHub 身份签一个会话（刚签出来，算刚登录过）。 */
+  function signedIn(app: FastifyInstance, login: string, githubId: number) {
+    const user = browser(app);
+    user.jar.set('sid', signIn(app, login, githubId));
+    return user;
+  }
+  /** 资料窗口的「绑定」：先 POST 拿授权地址，再带着 Google 的回调回来；返回回官网的地址。 */
+  async function linkFlow(user: ReturnType<typeof browser>, google: ReturnType<typeof googleStub>, returnTo: string | null = '/?open=profile') {
+    const start = await user.send('POST', '/api/identity/link', { provider: 'google', ...(returnTo === null ? {} : { return_to: returnTo }) });
+    expect(start.statusCode).toBe(200);
+    const location = new URL(start.json().authorize_url);
+    expect(location.origin + location.pathname).toBe('https://accounts.google.com/o/oauth2/v2/auth');
+    expect(location.searchParams.get('code_challenge_method')).toBe('S256');
+    google.setNonce(location.searchParams.get('nonce')!);
+    const back = await user.send('GET', `/auth/google/callback?code=ok&state=${location.searchParams.get('state')}`);
+    expect(back.statusCode).toBe(302);
+    return String(back.headers.location);
+  }
+  /** 登录页上的 Google 登录（不是绑定）。 */
+  async function googleSignIn(app: FastifyInstance, google: ReturnType<typeof googleStub>) {
+    const user = browser(app);
+    const start = await user.send('GET', '/auth/google?return_to=%2Fforum%2F');
+    const location = new URL(String(start.headers.location));
+    google.setNonce(location.searchParams.get('nonce')!);
+    const back = await user.send('GET', `/auth/google/callback?code=ok&state=${location.searchParams.get('state')}`);
+    return { user, location: String(back.headers.location) };
+  }
+
+  it('binds Google to the signed-in account: no new account, same session, and Google sign-in then lands in it', async () => {
+    const google = googleStub();
+    const { app, db } = await setup({ env: GOOGLE_ENV, google });
+    const alice = signedIn(app, 'alice', 1001);
+    const aliceId = accountIdOf(app, 'alice');
+    const sid = alice.jar.get('sid');
+    expect(countUsers(db)).toBe(1);
+
+    expect(await linkFlow(alice, google)).toBe('https://example.test/?open=profile&link=linked&provider=google');
+    expect(countUsers(db)).toBe(1);
+    expect(googleRows(db)).toEqual([{ user_id: aliceId, provider_uid: 'google-sub-1', email: 'g.user@gmail.com', email_verified: 1, last_login_at: null }]);
+    expect(alice.jar.get('sid')).toBe(sid);
+    expect((await alice.send('GET', '/auth/me')).json().account_id).toBe(aliceId);
+    expect(activityRows(app, { action: 'auth.link' })).toMatchObject([{ account_id: aliceId, outcome: 'ok', meta: { provider: 'google' } }]);
+    expect(events(db, 'link')).toEqual([{ user_id: aliceId, provider: 'google', result: 'ok', reason: null }]);
+    // 授权地址的 sub、邮箱不写进操作记录
+    expect(JSON.stringify(activityRows(app, { action: 'auth.link' }))).not.toMatch(/google-sub-1|gmail/);
+    expect((await alice.send('GET', '/api/identity/me')).json().identities).toEqual(expect.arrayContaining([expect.objectContaining({ provider: 'google' })]));
+
+    // 以后用 Google 登录，进的就是这个账号，没有多出账号
+    const again = await googleSignIn(app, google);
+    expect((await again.user.send('GET', '/auth/me')).json().account_id).toBe(aliceId);
+    expect(countUsers(db)).toBe(1);
+  });
+
+  it('keeps /auth/google a sign-in: an unknown Google account still becomes a new account, which is why the profile window must not link to it (#291 repro)', async () => {
+    const google = googleStub();
+    const { app, db } = await setup({ env: GOOGLE_ENV, google });
+    const alice = signedIn(app, 'alice', 1001);
+    const aliceId = accountIdOf(app, 'alice');
+    // 资料窗口原来的「绑定」就是这条链接：已登录的人走完 Google 授权，得到的是另一个账号和新会话，原来的账号没有绑上 Google
+    const start = await alice.send('GET', '/auth/google?return_to=%2F');
+    const location = new URL(String(start.headers.location));
+    google.setNonce(location.searchParams.get('nonce')!);
+    await alice.send('GET', `/auth/google/callback?code=ok&state=${location.searchParams.get('state')}`);
+    expect(countUsers(db)).toBe(2);
+    expect((await alice.send('GET', '/auth/me')).json().account_id).not.toBe(aliceId);
+    expect(googleRows(db)).toMatchObject([{ provider_uid: 'google-sub-1' }]);
+    expect(googleRows(db)).not.toMatchObject([{ user_id: aliceId }]);
+  });
+
+  it('refuses a Google account that already belongs to another account, without creating or switching anything', async () => {
+    const google = googleStub();
+    const { app, db } = await setup({ env: GOOGLE_ENV, google });
+    const bob = await googleSignIn(app, google);
+    const bobId = (await bob.user.send('GET', '/auth/me')).json().account_id;
+    const alice = signedIn(app, 'alice', 1001);
+    const aliceId = accountIdOf(app, 'alice');
+    const sid = alice.jar.get('sid');
+    expect(countUsers(db)).toBe(2);
+
+    expect(await linkFlow(alice, google)).toBe('https://example.test/?open=profile&link=conflict&provider=google');
+    expect(countUsers(db)).toBe(2);
+    expect(googleRows(db)).toMatchObject([{ user_id: bobId, provider_uid: 'google-sub-1' }]);
+    expect(alice.jar.get('sid')).toBe(sid);
+    expect((await alice.send('GET', '/auth/me')).json().account_id).toBe(aliceId);
+    expect(events(db, 'link_conflict')).toEqual([{ user_id: aliceId, provider: 'google', result: 'denied', reason: 'identity_conflict' }]);
+    expect(activityRows(app, { action: 'auth.link' })).toEqual([]);
+  });
+
+  it('does not start a second binding when the account already has Google, and a stale second authorization is refused', async () => {
+    const google = googleStub();
+    const { app, db } = await setup({ env: GOOGLE_ENV, google });
+    const alice = signedIn(app, 'alice', 1001);
+    // 先发起两次授权（两个标签页），第一次绑好以后第二次回来：本账号已经有 Google
+    const first = new URL((await alice.send('POST', '/api/identity/link', { provider: 'google' })).json().authorize_url);
+    const cookieOfFirst = alice.jar.get('google_oauth_state')!;
+    const second = new URL((await alice.send('POST', '/api/identity/link', { provider: 'google' })).json().authorize_url);
+    const cookieOfSecond = alice.jar.get('google_oauth_state')!;
+    expect(cookieOfFirst).not.toBe(cookieOfSecond);
+    google.setNonce(second.searchParams.get('nonce')!);
+    expect(String((await alice.send('GET', `/auth/google/callback?code=ok&state=${second.searchParams.get('state')}`)).headers.location)).toBe('https://example.test/account?link=linked&provider=google');
+    // 已经绑了：再发起直接 409，不去 Google
+    const third = await alice.send('POST', '/api/identity/link', { provider: 'google' });
+    expect(third.statusCode).toBe(409);
+    expect(third.json().error).toBe('identity_exists');
+    // 第一次的授权（另一个 Google 账号）这时才回来：本账号已有 Google，拒绝
+    alice.jar.set('google_oauth_state', cookieOfFirst);
+    google.claims.sub = 'google-sub-2';
+    google.claims.email = 'second@gmail.com';
+    google.setNonce(first.searchParams.get('nonce')!);
+    expect(String((await alice.send('GET', `/auth/google/callback?code=ok&state=${first.searchParams.get('state')}`)).headers.location)).toBe('https://example.test/account?link=exists&provider=google');
+    expect(googleRows(db)).toMatchObject([{ provider_uid: 'google-sub-1' }]);
+  });
+
+  it('wants a login and a recent sign-in, and is absent without Google credentials', async () => {
+    const google = googleStub();
+    const { app, db } = await setup({ env: GOOGLE_ENV, google });
+    expect((await app.inject({ method: 'POST', url: '/api/identity/link', payload: { provider: 'google' }, headers: { origin: 'https://example.test' } })).statusCode).toBe(401);
+    const alice = signedIn(app, 'alice', 1001);
+    // 登录超过 10 分钟：和绑定邮箱一样要求重新登录，不发起授权
+    db.prepare('UPDATE sessions SET created_at = ? WHERE login = ?').run(Date.now() - 11 * 60_000, 'alice');
+    const stale = await alice.send('POST', '/api/identity/link', { provider: 'google' });
+    expect(stale.statusCode).toBe(403);
+    expect(stale.json().error).toBe('step_up_required');
+    expect(alice.jar.has('google_oauth_state')).toBe(false);
+    expect(googleRows(db)).toEqual([]);
+
+    const bare = await setup();
+    const bobSid = signIn(bare.app, 'bob', 1002);
+    const response = await bare.app.inject({ method: 'POST', url: '/api/identity/link', payload: { provider: 'google' }, headers: { cookie: `sid=${bobSid}`, origin: 'https://example.test' } });
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error).toBe('provider_not_enabled');
+  });
+
+  it('only completes in the session that started it, and a cancelled or tampered authorization binds nothing', async () => {
+    const google = googleStub();
+    const { app, db } = await setup({ env: GOOGLE_ENV, google });
+    const alice = signedIn(app, 'alice', 1001);
+    const start = new URL((await alice.send('POST', '/api/identity/link', { provider: 'google' })).json().authorize_url);
+    google.setNonce(start.searchParams.get('nonce')!);
+    // 授权过程中换成了另一个账号：带着发起时的 cookie，会话却是 carol 的
+    const carol = signedIn(app, 'carol', 1003);
+    carol.jar.set('google_oauth_state', alice.jar.get('google_oauth_state')!);
+    expect(String((await carol.send('GET', `/auth/google/callback?code=ok&state=${start.searchParams.get('state')}`)).headers.location)).toBe('https://example.test/account?link=failed&provider=google');
+    expect(googleRows(db)).toEqual([]);
+    // 回调里的 state 被改过
+    const tampered = await alice.send('GET', '/auth/google/callback?code=ok&state=not-the-state');
+    expect(tampered.statusCode).toBe(400);
+    expect(googleRows(db)).toEqual([]);
+    // 在 Google 那边点了取消：回官网原来的账号，不去登录页
+    const cancelled = new URL((await alice.send('POST', '/api/identity/link', { provider: 'google' })).json().authorize_url);
+    const back = await alice.send('GET', `/auth/google/callback?error=access_denied&state=${cancelled.searchParams.get('state')}`);
+    expect(String(back.headers.location)).toBe('https://example.test/account?link=cancelled&provider=google');
+    expect(googleRows(db)).toEqual([]);
+    expect(countUsers(db)).toBe(2);
+    // 登录用的授权不能当绑定用：登录流程的 state 没有账号和会话，这个 cookie 在绑定回调里不会被当成绑定
+    const signinStart = await alice.send('GET', '/auth/google?return_to=%2F');
+    const signinState = new URL(String(signinStart.headers.location)).searchParams.get('state');
+    expect(signinState).toBeTruthy();
+  });
+
+  it('returns to /account when the caller names no page, and refuses return_to outside this site', async () => {
+    const google = googleStub();
+    const { app, db } = await setup({ env: GOOGLE_ENV, google });
+    const alice = signedIn(app, 'alice', 1001);
+    expect(await linkFlow(alice, google, null)).toBe('https://example.test/account?link=linked&provider=google');
+    expect(googleRows(db)).toHaveLength(1);
+    const bob = signedIn(app, 'bob', 1002);
+    google.claims.sub = 'google-sub-bob';
+    expect(await linkFlow(bob, google, 'https://evil.example/steal')).toBe('https://example.test/account?link=linked&provider=google');
+  });
+
+  it('only knows how to bind Google', async () => {
+    const google = googleStub();
+    const { app } = await setup({ env: GOOGLE_ENV, google });
+    const alice = signedIn(app, 'alice', 1001);
+    for (const body of [{ provider: 'github' }, { provider: 'email' }, {}, { provider: 'google', return_to: 5 }]) {
+      const response = await alice.send('POST', '/api/identity/link', body);
+      expect(response.statusCode, JSON.stringify(body)).toBe(400);
+    }
+    expect(alice.jar.has('google_oauth_state')).toBe(false);
+  });
+
+  it('rate-limits binding per account: ten starts a minute, and another account is not affected', async () => {
+    const google = googleStub();
+    const { app } = await setup({ env: GOOGLE_ENV, google });
+    const alice = signedIn(app, 'alice', 1001);
+    const statuses = [];
+    for (let i = 0; i < 11; i++) statuses.push((await alice.send('POST', '/api/identity/link', { provider: 'google' })).statusCode);
+    expect(statuses).toEqual([...Array(10).fill(200), 429]);
+    const bob = signedIn(app, 'bob', 1002);
+    expect((await bob.send('POST', '/api/identity/link', { provider: 'google' })).statusCode).toBe(200);
+  });
+});

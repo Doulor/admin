@@ -4,7 +4,7 @@
 // 「新来的看这里」只在这个浏览器第一次进来时自动出现，收起或点过其中一步就算看过，本地和账号上两处一起记。
 // 接口形状照 #274 的接口契约（/auth/me、/api/identity/*、/api/events）；fetch 换成按地址回答的假函数，并记下每次请求。
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // 便签的步骤会打开论坛、代码仓库：jsdom 不能整页跳转或开新标签页，换成什么都不做
@@ -12,6 +12,8 @@ vi.mock("../../app/web/sites/portal/lib/osApps", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../app/web/sites/portal/lib/osApps")>()),
   followAppLink: () => undefined,
 }));
+const navigated: string[] = [];
+vi.mock("../../app/web/sites/portal/lib/navigate", () => ({ goTo: (url: string) => { navigated.push(url); } }));
 vi.mock("../../app/web/sites/portal/components/os/Wallpaper", () => ({ default: () => null }));
 vi.mock("../../app/web/sites/portal/components/PromoLazy", () => ({ LazyPromoPlayer: () => null }));
 vi.mock("../../app/web/sites/portal/lib/wallpapers", async (importOriginal) => ({
@@ -68,6 +70,7 @@ function answer(me: unknown, extra: Record<string, (body: unknown) => Response> 
 
 beforeEach(() => {
   calls = [];
+  navigated.length = 0;
   answer({ signed_in: false });
   // 资料卡里的写请求走 @shared/lib/api：开发态默认读样板数据，这里切到真接口（也就是下面的假 fetch）
   localStorage.setItem("yugc:dev-data-source", "live");
@@ -273,7 +276,9 @@ describe("账号资料窗口", () => {
     expect(document.activeElement).toBe(card.getByRole("button", { name: "换头像" }));
     expect(document.querySelector(".pt-profile-meta")?.textContent).toBe("注册用户无部门");
     expect(document.querySelector(".pt-profile-meta [data-tone]")?.getAttribute("data-tone")).toBe("ink");
-    expect(card.getByRole("link", { name: "绑定" }).getAttribute("href")).toBe("/auth/google?return_to=%2F");
+    // 绑定不是登录链接（#291）：是一个按钮，走 POST /api/identity/link
+    expect(card.queryByRole("link", { name: "绑定" })).toBeNull();
+    expect(card.getByRole("button", { name: "绑定" })).toBeTruthy();
     const code = card.getByLabelText("填邀请码成为极客班成员");
     fireEvent.change(code, { target: { value: "GEEK-2026" } });
     fireEvent.click(card.getByRole("button", { name: "提交" }));
@@ -349,5 +354,79 @@ describe("「新来的看这里」只出现一次", () => {
     await waitFor(() => expect(note()).toBeNull());
     expect(localStorage.getItem(NOTE_SEEN_KEY)).toBe("1792768438000");
     expect(writes()).toEqual([]);
+  });
+});
+
+describe("绑定 Google（#291）：给当前账号绑定，不是再登录一次", () => {
+  const link = (card: ReturnType<typeof within>) => card.getByRole("button", { name: "绑定" });
+
+  it("点「绑定」先 POST /api/identity/link 再整页跳到 Google；不再链到 /auth/google 登录入口", async () => {
+    answer(REGISTERED, { "POST /api/identity/link": () => json({ authorize_url: "https://accounts.google.com/o/oauth2/v2/auth?state=s1" }) });
+    mount();
+    const { card } = await openCard("账号：newbie");
+    expect(document.querySelector('a[href^="/auth/google"]')).toBeNull();
+    fireEvent.click(link(card));
+    await waitFor(() => expect(navigated).toEqual(["https://accounts.google.com/o/oauth2/v2/auth?state=s1"]));
+    expect(writes()).toEqual([{ method: "POST", url: "/api/identity/link", body: { provider: "google", return_to: "/?open=profile" } }]);
+  });
+
+  it("登录超过 10 分钟：显示接口说明和「重新登录」链接，不跳转；已经绑了的显示「已绑定」", async () => {
+    answer(REGISTERED, {
+      "POST /api/identity/link": () => json({ error: "step_up_required", message: "这一步要求刚登录过，请重新登录后再试" }, 403),
+    });
+    mount();
+    const { card } = await openCard("账号：newbie");
+    fireEvent.click(link(card));
+    expect((await card.findByRole("alert")).textContent).toContain("这一步要求刚登录过");
+    expect(card.getByRole("link", { name: "重新登录" })).toBeTruthy();
+    expect(navigated).toEqual([]);
+    // 按钮恢复，可以再点
+    expect((link(card) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("本账号已经有 Google 时没有绑定按钮", async () => {
+    answer(MEMBER);
+    mount();
+    const { card } = await openCard("账号：nano");
+    expect(card.queryByRole("button", { name: "绑定" })).toBeNull();
+    expect(card.getByText("已绑定")).toBeTruthy();
+  });
+
+  it("从 Google 绑定回来：地址带 ?open=profile&link=linked&provider=google 时自动打开资料窗口并显示结果，地址上的参数被清掉", async () => {
+    answer(MEMBER);
+    const Where = () => <output data-testid="where">{useLocation().search}</output>;
+    render(<MemoryRouter initialEntries={["/?open=profile&link=linked&provider=google&keep=1"]}><YugcOs /><Where /></MemoryRouter>);
+    const card = within(await screen.findByRole("dialog", { name: "账号资料" }));
+    expect((await card.findByRole("status")).textContent).toBe("已绑定 Google，以后可以直接用它登录这个账号。");
+    await waitFor(() => expect(screen.getByTestId("where").textContent).toBe("?keep=1"));
+  });
+
+  it("link 不是 Google 的结果（provider 不是 google）：不弹窗口，也不显示结果", async () => {
+    answer(REGISTERED);
+    render(<MemoryRouter initialEntries={["/?link=linked&provider=github"]}><YugcOs /></MemoryRouter>);
+    await bar().findByRole("button", { name: "账号：newbie" });
+    expect(screen.queryByRole("dialog", { name: "账号资料" })).toBeNull();
+    expect(screen.queryByText(/已绑定 Google/)).toBeNull();
+  });
+
+  it("绑定被拒时说清原因：Google 账号属于别的账号、本账号已有、取消、失败；不认识的值不弹窗口", async () => {
+    const cases: [string, string][] = [
+      ["conflict", "这个 Google 账号已经绑在别的极客班账号上，没有绑到你现在的账号。"],
+      ["exists", "你的账号已经绑定了 Google。"],
+      ["cancelled", "你取消了 Google 授权，没有绑定。"],
+      ["failed", "Google 授权没有完成，没有绑定。再点一次「绑定」试试。"],
+    ];
+    for (const [value, text] of cases) {
+      answer(REGISTERED);
+      const view = render(<MemoryRouter initialEntries={[`/?open=profile&link=${value}&provider=google`]}><YugcOs /></MemoryRouter>);
+      const card = within(await screen.findByRole("dialog", { name: "账号资料" }));
+      expect((await card.findByRole("alert")).textContent).toBe(text);
+      view.unmount();
+      cleanup();
+    }
+    answer(REGISTERED);
+    render(<MemoryRouter initialEntries={["/?link=hacked&provider=google"]}><YugcOs /></MemoryRouter>);
+    await bar().findByRole("button", { name: "账号：newbie" });
+    expect(screen.queryByRole("dialog", { name: "账号资料" })).toBeNull();
   });
 });
