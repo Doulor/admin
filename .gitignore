@@ -1,5 +1,7 @@
 node_modules
 dist
+# Rust 构建产物（app/cli/target/，#277）
+target/
 .env
 .env.local
 *.db

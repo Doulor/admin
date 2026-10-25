@@ -1,0 +1,32 @@
+{
+  "id": "yugc",
+  "name": "极客娘",
+  "description": "极客娘的 Q 版日常表情",
+  "order": 0,
+  "stickers": [
+    { "id": "wave", "label": "打招呼" },
+    { "id": "thumbsup", "label": "点赞" },
+    { "id": "heart", "label": "比心" },
+    { "id": "confused", "label": "疑惑" },
+    { "id": "shocked", "label": "震惊" },
+    { "id": "cry", "label": "哭哭" },
+    { "id": "happy", "label": "开心" },
+    { "id": "angry", "label": "生气" },
+    { "id": "sleepy", "label": "困了" },
+    { "id": "cheer", "label": "加油" },
+    { "id": "thanks", "label": "谢谢" },
+    { "id": "hug", "label": "抱抱" },
+    { "id": "think", "label": "思考" },
+    { "id": "smirk", "label": "坏笑" },
+    { "id": "shy", "label": "害羞" },
+    { "id": "proud", "label": "得意" },
+    { "id": "speechless", "label": "无语" },
+    { "id": "popcorn", "label": "吃瓜" },
+    { "id": "coding", "label": "敲代码" },
+    { "id": "debug", "label": "debug" },
+    { "id": "merged", "label": "合并了" },
+    { "id": "go", "label": "冲" },
+    { "id": "goodnight", "label": "晚安" },
+    { "id": "roger", "label": "收到" }
+  ]
+}

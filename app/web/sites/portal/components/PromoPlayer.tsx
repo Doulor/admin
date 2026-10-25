@@ -1,37 +1,33 @@
-// 宣传片播放层（#77、#103、#142）：全屏盖在页面上，画面上只有右上角的「跳过」（重看时叫「关闭」），Esc 同样能关。
-// gate：第一次点「加入我们」时由 JoinUs 挂出来，播完、跳过都会进信纸；replay：桌面「宣传片」应用重看，关掉回桌面。
+// 宣传片播放器（#77、#103、#142）。#284 起它是桌面「宣传片」窗口的正文，不再是盖住整个页面的全屏层：
+// 关闭、最小化、放大、层叠都用桌面窗口自己的，画面上不放任何按钮，播完由桌面关掉窗口；Esc 也是桌面的（关掉最前面的窗口）。
 // 2026-09-26（#142）：「宣传片这边不需要这个进度条和播放暂停啥的，只需要右上角的跳过，就是让人无感播放」。
-// 所以没有播放 / 暂停、进度、时间、音量这些控件，播完自动关。点画面从不暂停，只会让片子往「在播、有声音」走：
+// 所以没有播放 / 暂停、进度、时间、音量这些控件。点画面从不暂停，只会让片子往「在播、有声音」走：
 // 被系统或浏览器停下了就接着播，静音就打开声音（点击是用户手势，浏览器这时允许带声音播）。
-// 画面按 16:9 放进屏幕，画面外的空白由画面本身的低清模糊色填满；手机竖着拿时整个画面转 90 度横过来铺满
-// （promo.css，由 PromoLazy 跟官网主包加载），横过手机就是正常横屏。播放中几秒不动鼠标，指针隐藏。
+// 画面按 16:9 铺满窗口宽度，窗口放大或手机上窗口比画面高时，空白由画面本身的低清模糊色填满。播放中几秒不动鼠标，指针隐藏。
+// 窗口最小化（手机上是被别的窗口盖住）时 active 变 false：正在播的暂停，露出来时从停下的位置接着播；起播时窗口已经收起就先不出声，露出来再播。
 // 播放按 lib/promo.ts 的规则挑 hls.js 或原生 HLS、AV1 或 H.264，从估计带宽撑得住的一档起播；hls.js 按需加载，不进首屏包，
-// 分包加载失败过（包括桌面预取时断网）下次换地址重新加载（lib/promo.ts 的 retryableImport，#110）。
-// 能带声音自动播就带声音；浏览器不让就静音播。静音也不让播时：gate 直接结束（blocked），不让人对着封面等；
-// replay 是自己点开的，停在封面，点画面就播。gate 遇到减少动态效果时不自动播，什么都不加载就结束（blocked）；replay 照常播。
-// 浏览器两种方式都不支持（unsupported）或加载失败（failed）时直接结束（gate 进信纸），宣传片不挡报名；
+// 分包加载失败过（包括桌面预取时断网）下次换地址重新加载（lib/promo.ts 的 retryableImport，#110）。窗口关掉（组件卸载）就停止播放并释放片源。
+// 能带声音自动播就带声音；浏览器不让就静音播。静音也不让播时（blocked）停在封面，点画面就播：窗口不挡着别的东西，不用像全屏层那样直接关掉。
+// 浏览器两种方式都不支持（unsupported）或加载失败（failed）时在画面上说明，宣传片不挡报名；
 // unsupported、blocked 是浏览器或用户的设置，以后多半也不会自动播，算作看过；failed 可能只是网络问题，不记，下次再试。
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type Hls from "hls.js/light";
 import { PROMO, browserEstimate, choosePlayback, detectCapabilities, retryableImport, startLevelIndex, type Playback } from "../lib/promo";
-import { useReducedMotion } from "../lib/useReducedMotion";
+import { PROMO_FAILED, PROMO_UNSUPPORTED, visibilityStep, type PromoPhase } from "../lib/promoWindow";
 import Icon from "./Icon";
 
-export type PromoEnd = "ended" | "skipped" | "blocked" | "unsupported" | "failed";
+export type PromoEnd = "ended" | "blocked" | "unsupported" | "failed";
 
 type Props = {
-  mode: "gate" | "replay";
-  /** 真正开始播放、跳过、播完或浏览器根本不让播时调用一次（gate 用它写「已播过」的 cookie） */
+  /** 窗口露出来才播：最小化（手机上是被别的窗口盖住）就暂停，露出来从停下的位置接着播；默认一直露着 */
+  active?: boolean;
+  /** 真正开始播放、播完或浏览器根本不让播时调用一次（自动弹出的那次用它写「已播过」的 cookie） */
   onSeen?: () => void;
-  onClose: (reason: PromoEnd) => void;
-  /**
-   * 加载遮罩（PromoLazy 的 PromoFallback）开始显示的时刻（performance.now()）。分包到了以后播放层顶替遮罩，
-   * 是新挂上的节点，会重播一遍进场淡入：传了这个时刻就从遮罩已经淡到的地方接着走，遮罩早就盖满时直接不透明（#122）
-   */
-  coverSince?: number;
+  /** 播完（ended）、静音也不让自动播（blocked，停在封面）、两种播放方式都没有（unsupported）、加载失败（failed）时各调用一次；blocked 之后点画面播完还会再来一次 ended */
+  onEnd: (reason: PromoEnd) => void;
 };
 
-/** 过了这么久还没出画面（或卡住没恢复），就提示可以先跳过 */
+/** 过了这么久还没出画面（或卡住没恢复），就提示可以先关掉 */
 const SLOW_MS = 6000;
 /** 播放中这么久不动鼠标，指针隐藏 */
 const IDLE_MS = 2500;
@@ -49,40 +45,49 @@ const importHls = retryableImport([
   () => import("hls.js/light?retry=3"),
 ]);
 
-export default function PromoPlayer({ mode, onSeen, onClose, coverSince }: Props) {
-  // 只看挂上那一刻的设置：播放中改了系统设置，不会把正在播的片子收掉
-  const reducedMotion = useReducedMotion();
-  const [autoplayOff] = useState(() => mode === "gate" && reducedMotion);
+export default function PromoPlayer({ active = true, onSeen, onEnd }: Props) {
   const video = useRef<HTMLVideoElement>(null);
-  const close = useRef<HTMLButtonElement>(null);
   const ambient = useRef<HTMLCanvasElement>(null);
   const hls = useRef<Hls | null>(null);
   const seen = useRef(false);
-  const closed = useRef(false);
+  const finished = useRef(false);
+  const blockedSent = useRef(false);
   const idleTimer = useRef<number | undefined>(undefined);
   const [playback, setPlayback] = useState<Playback | null>(null);
-  const [state, setState] = useState<"loading" | "playing" | "buffering" | "paused">("loading");
+  const [state, setState] = useState<PromoPhase>("loading");
+  const [over, setOver] = useState<"unsupported" | "failed" | null>(null);
   const [slow, setSlow] = useState(false);
   const [idle, setIdle] = useState(false);
-  // 负的 animation-delay：进场淡入从「遮罩已经盖了多久」那一刻开始，超过淡入时长就是已经播完、直接不透明
-  const [fadeFrom] = useState(() => (coverSince === undefined ? undefined : `${-Math.round(performance.now() - coverSince)}ms`));
   const [poster] = useState(() => (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches ? PROMO.posterSmall : PROMO.poster));
+  // 起播流程只在挂载时跑一次，父组件之后每次渲染传来的新回调和窗口是否露着，都要读到最新的
+  const seenCallback = useRef(onSeen);
+  seenCallback.current = onSeen;
+  const endCallback = useRef(onEnd);
+  endCallback.current = onEnd;
+  const visible = useRef(active);
+  visible.current = active;
+  const phase = useRef(state);
+  phase.current = state;
+  /** 是窗口收起时我们自己暂停的：露出来才恢复；被浏览器停下的不算 */
+  const pausedByHide = useRef(false);
 
   const markSeen = useCallback(() => {
     if (seen.current) return;
     seen.current = true;
-    onSeen?.();
-  }, [onSeen]);
+    seenCallback.current?.();
+  }, []);
 
+  /** 播完、放不了、加载失败：只结束一次 */
   const finish = useCallback(
-    (reason: PromoEnd) => {
-      if (closed.current) return;
-      closed.current = true;
+    (reason: Exclude<PromoEnd, "blocked">) => {
+      if (finished.current) return;
+      finished.current = true;
       if (reason !== "failed") markSeen();
       video.current?.pause();
-      onClose(reason);
+      if (reason === "unsupported" || reason === "failed") setOver(reason);
+      endCallback.current(reason);
     },
-    [markSeen, onClose],
+    [markSeen],
   );
 
   /** 指针回来，并重新计时隐藏 */
@@ -98,21 +103,20 @@ export default function PromoPlayer({ mode, onSeen, onClose, coverSince }: Props
 
   // 挑播放方式并挂上片源
   useEffect(() => {
-    if (autoplayOff) {
-      finish("blocked");
-      return;
-    }
     const element = video.current;
     if (!element) return;
     let cancelled = false;
     // hls.js 分包与能力探测同时开始：多数浏览器会用 hls.js，串行等会多一次往返
     const hlsModule = importHls();
     hlsModule.catch(() => undefined);
-    /** 自动播被拒：片源放不了按加载失败结束；其余 gate 直接结束（不停在封面等人点），replay 停在封面等点画面 */
+    /** 自动播被拒：片源放不了或被打断按加载失败结束；静音也不让播（NotAllowedError）停在封面等人点 */
     const refused = (name: string) => {
-      if (name === "NotSupportedError") return finish("failed");
-      if (mode === "replay") return setState("paused");
-      finish(name === "NotAllowedError" ? "blocked" : "failed");
+      if (name !== "NotAllowedError") return finish("failed");
+      setState("paused");
+      markSeen();
+      if (blockedSent.current) return;
+      blockedSent.current = true;
+      endCallback.current("blocked");
     };
     (async () => {
       const caps = await detectCapabilities(element);
@@ -127,7 +131,7 @@ export default function PromoPlayer({ mode, onSeen, onClose, coverSince }: Props
         try {
           HlsJs = (await hlsModule).default;
         } catch {
-          // 卸载后分包才失败：播放层已经不在了，不再结束一次
+          // 卸载后分包才失败：播放器已经不在了，不再结束一次
           if (!cancelled) finish("failed");
           return;
         }
@@ -182,7 +186,7 @@ export default function PromoPlayer({ mode, onSeen, onClose, coverSince }: Props
         refused(name);
       }
     })().catch(() => {
-      // 起播过程中意外抛错（能力探测、hls.js 初始化等）：按加载失败结束，不留一直转圈的播放层
+      // 起播过程中意外抛错（能力探测、hls.js 初始化等）：按加载失败结束，不留一直转圈的播放器
       if (!cancelled) finish("failed");
     });
     return () => {
@@ -194,6 +198,16 @@ export default function PromoPlayer({ mode, onSeen, onClose, coverSince }: Props
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 只在挂载时挑一次片源
   }, []);
+
+  // 窗口收起就暂停、露出来接着播（lib/promoWindow.ts 的 visibilityStep）
+  useEffect(() => {
+    const element = video.current;
+    if (!element) return;
+    const step = visibilityStep(active, phase.current, pausedByHide.current);
+    pausedByHide.current = step.pausedByHide;
+    if (step.act === "pause") element.pause();
+    else if (step.act === "play") void element.play().catch(() => undefined);
+  }, [active]);
 
   // 画面外的空白：把当前画面缩成 32×18 画到背景画布上，CSS 再放大模糊。出画面之前先用封面。
   // 跨域的原生 HLS 会让画布「受污染」，但这里只显示、从不读像素，不受影响。
@@ -220,12 +234,7 @@ export default function PromoPlayer({ mode, onSeen, onClose, coverSince }: Props
     return () => window.clearTimeout(timer);
   }, [state]);
 
-  // 打开时把焦点放在「跳过 / 关闭」上
-  useEffect(() => {
-    close.current?.focus({ preventScroll: true });
-  }, []);
-
-  /** 点画面：从不暂停。静音就打开声音；停着（被系统或浏览器暂停，或 replay 自动播被拒）就接着播 */
+  /** 点画面：从不暂停。静音就打开声音；停着（被系统或浏览器暂停，或自动播被拒）就接着播 */
   const engage = () => {
     const element = video.current;
     if (!element) return;
@@ -233,36 +242,23 @@ export default function PromoPlayer({ mode, onSeen, onClose, coverSince }: Props
     if (state === "paused") void element.play().catch(() => undefined);
   };
 
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Escape") {
-      event.stopPropagation();
-      finish("skipped");
-    } else if (event.key === "Tab") {
-      // 画面上只有这一个按钮：焦点留在它身上，不跑到下面的页面或浏览器界面
-      event.preventDefault();
-      close.current?.focus();
-    }
-  };
-
-  if (autoplayOff) return null;
-  const closeLabel = mode === "gate" ? "跳过" : "关闭";
   const waiting = state === "loading" || state === "buffering";
   const status =
-    state === "paused" ? "点画面播放" : !waiting ? null : slow ? `网络有点慢，可以先点「${closeLabel}」` : state === "buffering" ? "正在缓冲…" : "正在加载…";
+    over === "unsupported"
+      ? PROMO_UNSUPPORTED
+      : over === "failed"
+        ? PROMO_FAILED
+        : state === "paused"
+          ? "点画面播放"
+          : !waiting
+            ? null
+            : slow
+              ? "网络有点慢，再等一等，或者先关掉这个窗口"
+              : state === "buffering"
+                ? "正在缓冲…"
+                : "正在加载…";
   return (
-    // tabIndex -1：点视频或空白处时焦点落在播放层上而不是 body，Esc 照样能用
-    <div
-      className={`pt-root pt-promo${idle && state === "playing" ? " is-idle" : ""}`}
-      role="dialog"
-      aria-modal="true"
-      aria-label="极客班宣传片"
-      tabIndex={-1}
-      style={fadeFrom ? { animationDelay: fadeFrom } : undefined}
-      onKeyDown={onKeyDown}
-      onPointerMove={(event) => event.pointerType === "mouse" && wake()}
-      data-codec={playback?.codec}
-      data-engine={playback?.engine}
-    >
+    <div className={`pt-promo${idle && state === "playing" ? " is-idle" : ""}`} onPointerMove={(event) => event.pointerType === "mouse" && wake()} data-codec={playback?.codec} data-engine={playback?.engine}>
       <canvas ref={ambient} className="pt-promo-ambient" width={32} height={18} aria-hidden="true" />
       <div className="pt-promo-frame">
         <div className="pt-promo-stage">
@@ -272,7 +268,13 @@ export default function PromoPlayer({ mode, onSeen, onClose, coverSince }: Props
             poster={poster}
             playsInline
             preload="auto"
-            onPlaying={() => {
+            onPlaying={(event) => {
+              if (!visible.current) {
+                // 起播时窗口已经收起：不在后台出声，记下是我们停的，露出来再接着播
+                pausedByHide.current = true;
+                event.currentTarget.pause();
+                return;
+              }
               setState("playing");
               setSlow(false);
               markSeen();
@@ -285,15 +287,9 @@ export default function PromoPlayer({ mode, onSeen, onClose, coverSince }: Props
             onClick={engage}
           />
 
-          <button ref={close} type="button" className="pt-promo-chip pt-promo-close" onClick={() => finish("skipped")}>
-            <Icon name={mode === "gate" ? "skip-forward-line" : "close-line"} size={16} />
-            {closeLabel}
-            <kbd>Esc</kbd>
-          </button>
-
           {status && (
             <p className="pt-promo-status" role="status">
-              {waiting && <Icon name="loader-4-line" size={18} className="pt-spin" />}
+              {!over && waiting && <Icon name="loader-4-line" size={18} className="pt-spin" />}
               {status}
             </p>
           )}

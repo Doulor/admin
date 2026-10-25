@@ -1,11 +1,19 @@
 {
   "name": "@talex-touch/tuffex",
-  "version": "0.6.0",
+  "version": "0.9.1",
   "engines": {
     "node": ">=26.0.0"
   },
   "author": "TalexDreamSoul<TalexDreamSoul@gmail.com>",
   "description": "TuffEx - Vue 3 UI source package for the Tuff ecosystem.",
+  "license": "(MIT AND Apache-2.0 AND ISC)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/talex-touch/tuff.git",
+    "directory": "packages/tuffex"
+  },
+  "homepage": "https://tuff.tagzxia.com",
+  "bugs": "https://github.com/talex-touch/tuff/issues",
   "keywords": [
     "tuff",
     "tuffex",
@@ -70,14 +78,31 @@
     "audit:size": "node ./scripts/audit-package-size.mjs",
     "audit:size:self-test": "node ./scripts/audit-package-size.mjs --self-test",
     "audit:cursor": "node ./scripts/audit-interactive-cursor.mjs",
-    "audit:cursor:self-test": "node ./scripts/audit-interactive-cursor.mjs --self-test"
+    "audit:cursor:self-test": "node ./scripts/audit-interactive-cursor.mjs --self-test",
+    "audit:changelog": "node ./scripts/audit-version-changelog.mjs",
+    "audit:changelog:self-test": "node ./scripts/audit-version-changelog.mjs --self-test",
+    "audit:colors": "node ./scripts/audit-color-literals.mjs",
+    "audit:colors:self-test": "node ./scripts/audit-color-literals.mjs --self-test"
   },
   "files": [
-    "dist"
+    "dist",
+    "AMICRO-LICENSE",
+    "AMICRO-APACHE-LICENSE",
+    "LUCIDE-LICENSE",
+    "REMIXICON-LICENSE"
   ],
-  "license": "MIT",
   "peerDependencies": {
+    "echarts": "^6.1.0",
+    "three": ">=0.149.0",
     "vue": "^3.5.27"
+  },
+  "peerDependenciesMeta": {
+    "echarts": {
+      "optional": true
+    },
+    "three": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@better-scroll/core": "^2.5.1",
@@ -98,8 +123,16 @@
     "@lezer/highlight": "^1.2.3",
     "@shikijs/engine-javascript": "^4.4.2",
     "@talex-touch/utils": "workspace:^",
+    "@types/three": "^0.186.0",
     "@vue/reactivity": "^3.5.27",
     "@vueuse/core": "^14.4.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "d3-array": "^3.2.4",
+    "d3-geo": "^3.1.1",
+    "d3-sankey": "^0.12.3",
+    "d3-scale": "^4.0.2",
+    "d3-shape": "^3.2.0",
     "dompurify": "^3.4.13",
     "gsap": "^3.15.0",
     "katex": "^0.16.45",
@@ -110,21 +143,28 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
+    "@types/d3-array": "^3.2.2",
+    "@types/d3-geo": "^3.1.1",
+    "@types/d3-sankey": "^0.12.5",
+    "@types/d3-scale": "^4.0.9",
+    "@types/d3-shape": "^3.2.0",
     "@types/gulp": "^4.0.18",
     "@types/gulp-autoprefixer": "^0.0.37",
-    "@types/gulp-sass": "^5.0.4",
+    "@types/gulp-sass": "^6.0.0",
     "@types/katex": "^0.16.8",
     "@types/node": "catalog:dev",
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/test-utils": "^2.4.11",
     "chalk": "^5.6.2",
     "dotenv": "^16.6.1",
+    "echarts": "catalog:",
     "esno": "^4.8.0",
     "gulp": "^5.0.1",
     "gulp-autoprefixer": "^9.0.0",
     "postcss": "8.5.23",
     "sass": "^1.101.0",
     "sucrase": "^3.35.1",
+    "three": "catalog:",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "vite": "^7.3.6",

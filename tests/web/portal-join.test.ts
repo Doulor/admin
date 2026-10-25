@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { validateJoin } from "../../app/web/sites/portal/pages/JoinUs";
+import { validateJoin } from "../../app/web/sites/portal/components/os/JoinBox";
 
 // 「加入我们」的邮箱校验必须和后端同一条：前端放过、后端回 400 的话，投递人要点了寄出才看到错（#148）。
 // 两边的正则按源码里的字面量核对。
@@ -13,7 +13,7 @@ const literal = (path: string, name: string) => {
 
 describe("join-us email check", () => {
   it("uses the same regex as the apply route", () => {
-    expect(literal("app/web/sites/portal/pages/JoinUs.tsx", "EMAIL_RE")).toBe(literal("app/server/src/routes/portal/apply.ts", "EMAIL_REGEX"));
+    expect(literal("app/web/sites/portal/components/os/JoinBox.tsx", "EMAIL_RE")).toBe(literal("app/server/src/routes/portal/apply.ts", "EMAIL_REGEX"));
   });
 
   it("says what to fix: a missing @, or a stray dot, comma or space", () => {

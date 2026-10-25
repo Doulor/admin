@@ -20,15 +20,23 @@ describe('post bodies are written in PostEditor and shown through ForumMarkdown'
     }
   })
 
-  it('PostEditor previews through ForumMarkdown, never TxMarkdownView or another renderer directly', () => {
+  it('PostEditor renders no post itself: no Markdown renderer, no v-html', () => {
     const editor = source('components/PostEditor.vue')
-    expect(editor).toMatch(/<ForumMarkdown [^>]*:content="content"/)
     expect(editor).not.toMatch(/TxMarkdownView|TxMarkdownEditor|marked|v-html/)
   })
 
-  it('ForumMarkdown hands TxMarkdownView only renderableMarkdown of the text', () => {
+  // #276: Milkdown is loaded when someone writes, so the first screen does not carry it.
+  it('only app/editor/crepe-editor.ts imports Milkdown, and PostEditor imports that file dynamically', () => {
+    const editor = source('components/PostEditor.vue')
+    expect(editor).toMatch(/await import\('~\/editor\/crepe-editor'\)/)
+    expect(editor).not.toMatch(/^import (?!type )[^\n]*crepe-editor/m)
+    expect(editor).not.toMatch(/@milkdown/)
+    expect(source('editor/crepe-editor.ts')).toMatch(/from '@milkdown\/crepe'/)
+  })
+
+  it('ForumMarkdown hands TxMarkdownView only renderableMarkdown of the text and the sticker list', () => {
     const view = source('components/ForumMarkdown.vue')
-    expect(view).toMatch(/const safe = computed\(\(\) => renderableMarkdown\(props\.content\)\)/)
+    expect(view).toMatch(/const safe = computed\(\(\) => renderableMarkdown\(props\.content, stickers\.value\)\)/)
     expect(view).toMatch(/<TxMarkdownView :content="safe" \/>/)
   })
 

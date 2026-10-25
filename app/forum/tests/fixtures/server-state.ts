@@ -1,16 +1,22 @@
 /**
  * A made-up `/api/forum/state` answer in the shape the contract fixes: the
  * official account, one member (`m1001`, the viewer when signed in) and one
- * guest who replied. Nothing here is real data.
+ * guest who replied before guest replies were removed (#276). Nothing here
+ * is real data.
  */
 
 export interface FixtureViewer {
   userId: string | null
   kind: 'guest' | 'member'
   capabilities: string[]
+  level?: 'public' | 'registered' | 'member'
+  nodes?: string[]
 }
 
-const GUEST_VIEWER: FixtureViewer = { userId: null, kind: 'guest', capabilities: [] }
+const GUEST_VIEWER: FixtureViewer = { userId: null, kind: 'guest', capabilities: [], level: 'public', nodes: [] }
+
+/** What a member holds (#276): every forum write node except moderation. */
+export const MEMBER_NODES = ['forum.topic.create', 'forum.reply.create', 'forum.react', 'forum.sticker.use', 'forum.upload.image']
 
 export function serverState(viewer: FixtureViewer = GUEST_VIEWER) {
   const prefs = { reply: true, like: true, follow: true }
@@ -42,7 +48,6 @@ export function serverState(viewer: FixtureViewer = GUEST_VIEWER) {
     bookmarks: [] as Array<Record<string, unknown>>,
     follows: [] as Array<Record<string, unknown>>,
     viewer,
-    guestPolicy: { powDifficulty: 2, turnstileSiteKey: null, nameMax: 20, contentMax: 2000 },
   }
 }
 
@@ -50,12 +55,14 @@ export function serverBody(viewer: FixtureViewer = GUEST_VIEWER) {
   return { state: serverState(viewer) }
 }
 
-export const MEMBER_VIEWER: FixtureViewer = { userId: 'm1001', kind: 'member', capabilities: [] }
-export const MODERATOR_VIEWER: FixtureViewer = { userId: 'm1001', kind: 'member', capabilities: ['forum.topic.pin', 'forum.topic.close', 'forum.post.moderate'] }
+export const MEMBER_VIEWER: FixtureViewer = { userId: 'm1001', kind: 'member', capabilities: [], level: 'member', nodes: MEMBER_NODES }
+export const MODERATOR_VIEWER: FixtureViewer = { userId: 'm1001', kind: 'member', capabilities: ['forum.topic.pin', 'forum.topic.close', 'forum.post.moderate'], level: 'member', nodes: [...MEMBER_NODES, 'forum.moderate.edit'] }
+/** A registered account before the invite code (#276): reads public and registered topics, writes nothing. */
+export const REGISTERED_VIEWER: FixtureViewer = { userId: 'm1001', kind: 'member', capabilities: [], level: 'registered', nodes: [] }
 
 /**
  * A write's answer in the shape the contract fixes (#145): only the changed
- * records, plus the same `viewer` and `guestPolicy` as `/state`. Like the
+ * records, plus the same `viewer` as `/state`. Like the
  * server's, a member's answer always carries the member's own user record
  * (first, unless `changes.users` has it already); tests/server/forum.test.ts
  * checks that on the real answers.
@@ -64,7 +71,7 @@ export function writeBody(changes: Record<string, unknown>, viewer: FixtureViewe
   const state = serverState(viewer)
   const users = (changes.users ?? []) as Array<Record<string, unknown>>
   const own = viewer.userId === null || users.some(user => user.id === viewer.userId) ? [] : state.users.filter(user => user.id === viewer.userId)
-  return { changes: own.length ? { ...changes, users: [...own, ...users] } : changes, viewer, guestPolicy: state.guestPolicy, ...extra }
+  return { changes: own.length ? { ...changes, users: [...own, ...users] } : changes, viewer, ...extra }
 }
 
 /** `GET /api/forum/topics/:id/posts` 的回答（#156）：与 `/state` 里同一条相同，只是带正文。 */

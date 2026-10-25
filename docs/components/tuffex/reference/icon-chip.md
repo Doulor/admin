@@ -1,95 +1,75 @@
 # IconChip 图标角标
 
-> 承载文件类型角标、首字母方块或小图标的填充色块。
+> 承载格式标记、首字母或小图标的色块
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/icon-chip) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/icon-chip.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/icon-chip.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/icon-chip) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/icon-chip.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/icon-chip.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
 上游标记：status=`beta`，since=`0.3.9`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# IconChip 图标角标
+## 用法
 
-## 基础用法
-
-### IconChip
+### 尺寸与色调
 官方示例：`IconChipIconChipDemo`（完整源码见本页末尾）
 
 ```vue
 <template>
   <TxIconChip :size="14" tone="red" label="PDF" />
+  <TxIconChip :size="14" tone="ink" label="JSON" />
   <TxIconChip :size="18" tone="accent" variant="soft">
-    <svg viewBox="0 0 24 24" fill="currentColor">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
     </svg>
   </TxIconChip>
   <TxIconChip :size="32" tone="ink" :font-size="13" label="C" />
+  <TxIconChip :size="14" tone="green" shape="circle" />
 </template>
 ```
 
-## 尺寸与圆角的推导关系
+### 最佳实践
 
-`radius` 与 `fontSize` 都可以不传，由 `size` 推导：
+- 文件类型角标固定 14px，用 `tone` 区分格式（PDF 红、CSV 绿），全站保持一致。
+- 四个字母以上的格式（`JSON`、`YAML`）照常传 `label`，角标会变宽；不要调小 `fontSize` 硬塞进方块。
+- 首字母方块用 32px 与 `tone="ink"`，它随深浅主题反色，不要写死颜色。
+- 状态点用 `TxDotIndicator`，不要把 `TxIconChip` 缩到 6px 充当圆点。
+- 没有设计依据时不要覆盖 `radius`，推导出的阶梯就是这套视觉语言。
 
-- 圆角 = `round(size / 4)`，即 14→4、18→5、32→8，与 Beautiful UI 的三处实际用法逐一吻合。
-- 字号 = `max(7, round(size * 0.4))`，即 14→7（要放下三个大写字母）、32→13。
+## API 参考
 
-需要偏离时显式传 `radius` / `fontSize` 覆盖即可；`shape="circle"` 会忽略 `radius`，不与之相争。
-
-## API
-
-### Props
+### 属性
 
 | 属性名 | 类型 | 默认值 | 说明 |
 |------|------|---------|------|
-| `size` | `number` | `14` | 边长（px）。上游用到 14（文件角标）、18（图标片）、32（首字母方块）。 |
-| `radius` | `number \| string` | - | 圆角，数字按 px 处理。缺省按 `round(size / 4)` 推导；`shape="circle"` 时忽略。 |
+| `size` | `number` | `14` | 边长（px）：14 文件角标、18 图标片、32 首字母方块。 |
+| `radius` | `number \| string` | - | 圆角，数字按 px 计；缺省由 `size` 推导，圆形时忽略。 |
 | `tone` | `'neutral' \| 'ink' \| 'accent' \| 'green' \| 'orange' \| 'red'` | `'neutral'` | 配色。 |
-| `variant` | `'solid' \| 'soft'` | `'solid'` | `solid` 用整块填充；`soft` 用同色浅底 + 30% 发丝环。 |
+| `variant` | `'solid' \| 'soft'` | `'solid'` | `solid` 整块填充；`soft` 用同色浅底加 30% 发丝环。 |
 | `shape` | `'square' \| 'circle'` | `'square'` | 形状。 |
-| `label` | `string` | - | 短文本，如 `PDF`。默认插槽优先级更高。 |
+| `label` | `string` | - | 短文本，如 `PDF`；超过三个字符时角标变宽，默认插槽优先。 |
 | `fontSize` | `number` | - | 覆盖推导出的字号。 |
-| `ariaLabel` | `string` | - | 传入后角标变为 `role="img"` 并带上该名称；不传则 `aria-hidden`。 |
+| `ariaLabel` | `string` | - | 设置后为 `role="img"` 并使用该名称；否则 `aria-hidden`。 |
 
-### Slots
+### 插槽
 
 | 名称 | 说明 |
 |------|------|
-| `default` | 角标内容，通常是内联 SVG 或短文本；提供后覆盖 `label`。 |
+| `default` | 角标内容，通常是内联 SVG 或短文本；覆盖 `label`。 |
 
-### Events
+## 概述
 
-`TxIconChip` 是纯展示叶子组件，不派发事件。
+- 圆角缺省为 `round(size / 4)`（14→4、18→5、32→8），字号缺省为 `max(7, round(size * 0.4))`（14→7、32→13）；显式传入即覆盖。
+- 宽度默认等于 `size`；`label` 超过三个字符时随文字增长，最小为 `size`，左右各留 `size × 0.2` 内边距，高度、圆角与字号不变；默认插槽内容不参与。
+- 默认 `aria-hidden="true"`：角标几乎总与相邻文本重复（`report.pdf` 旁的 `PDF`）；只有角标是唯一信息载体时才传 `ariaLabel`。
+- `soft` 的发丝环是 `box-shadow` 而非 `border`，不占布局，高度始终等于 `size`（长标签只放宽宽度）。
+- `neutral` 在两种 `variant` 下外观相同（`inset` 底加发丝环）。
 
-## 交互契约
+## 技术实现
 
-- 默认 `aria-hidden="true"`：角标几乎总是与相邻文本重复（`report.pdf` 旁边的 `PDF` 角标）。只有当它是唯一信息载体时才传 `ariaLabel`。
-- `soft` 的发丝环走 `box-shadow` 而非 `border`，因此不占布局，角标的盒尺寸始终等于 `size`。
-- `neutral` 在两种 `variant` 下观感一致（`inset` 底 + 发丝环），它本来就不是填充色。
-
-## 最佳实践
-
-- 文件类型角标固定用 14px，配 `tone` 区分格式（PDF 红、CSV 绿等），并保持全站一致。
-- 首字母方块用 32px + `tone="ink"`，深浅主题会自动反色，不要写死颜色。
-- 需要状态点而不是角标时用 `TxDotIndicator`，不要把 `TxIconChip` 缩到 6px 当圆点使。
-- 除非确有设计依据，不要覆盖 `radius`：推导出的阶梯就是这套视觉语言本身。
-
-## Source
-
-- Component source: `packages/tuffex/packages/components/src/icon-chip/src/TxIconChip.vue`。
-- Types: `packages/tuffex/packages/components/src/icon-chip/src/types.ts`。
-- **实测覆盖:** `packages/tuffex/packages/components/src/icon-chip/__tests__/icon-chip.test.ts` 验证圆角/字号阶梯在 14/18/32 三档的推导值、显式覆盖优先、圆形忽略 `radius`、`aria-hidden` 与 `role="img"` 的切换，以及默认插槽覆盖 `label`。
-- 改编自 [Beautiful UI](https://www.beautifului.dev)，© 2026 Shane Levine，MIT 协议。
-
-
-
-## 审阅说明
-
-- **共享原语:** 该组件被 ContextCards（文件角标）与 SidebarNav（工作区方块）共用，改动尺寸推导会同时影响两者。
-- **偏离上游:** 新增了 `variant="soft"`。上游 18px 的图标片是浅色底加 30% 描边，不是填充色，只有 `solid` 无法表达。
-- **可访问性:** 默认对辅助技术隐藏是刻意选择，不是遗漏。
+- 源码：`packages/tuffex/packages/components/src/icon-chip/`。
+- 改编自 [Beautiful UI](https://www.beautifului.dev)，© 2026 Shane Levine，MIT 协议；`variant="soft"` 为新增。
 
 ## 离线完整示例源码
 

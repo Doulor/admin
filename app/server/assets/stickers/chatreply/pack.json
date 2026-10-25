@@ -1,0 +1,24 @@
+{
+  "id": "chatreply",
+  "name": "聊天回应",
+  "description": "论坛回帖用的 16 张表情：好耶、不要啊、等一下、辛苦了、牛啊、真的吗、哈哈哈、泪目、先冲了、稍等、请教、拜托了、抱歉、没问题、让我康康、告辞。",
+  "order": 2,
+  "stickers": [
+    { "id": "yay", "label": "好耶" },
+    { "id": "no-way", "label": "不要啊" },
+    { "id": "hold-on", "label": "等一下" },
+    { "id": "good-work", "label": "辛苦了" },
+    { "id": "awesome", "label": "牛啊" },
+    { "id": "really", "label": "真的吗" },
+    { "id": "haha", "label": "哈哈哈" },
+    { "id": "touched", "label": "泪目" },
+    { "id": "dash-off", "label": "我先冲了" },
+    { "id": "one-moment", "label": "稍等" },
+    { "id": "ask-help", "label": "请教" },
+    { "id": "please", "label": "拜托了" },
+    { "id": "sorry", "label": "抱歉" },
+    { "id": "no-problem", "label": "没问题" },
+    { "id": "let-me-see", "label": "让我康康" },
+    { "id": "farewell", "label": "告辞" }
+  ]
+}

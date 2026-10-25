@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { postExcerpt } from '~/utils/excerpt'
-import { isUnsafeDestination, QUOTE_LENGTH, quoteDraft, renderableMarkdown, replyQuote, WORD_JOINER } from '../shared/post-markdown'
+import { imagesToStickers, isUnsafeDestination, QUOTE_LENGTH, quoteDraft, renderableMarkdown, replyQuote, stickerIndex, stickersToImages, stickerToken, tokenIndex, WORD_JOINER } from '../shared/post-markdown'
 import { loadMarked } from './support/tuffex-stubs'
 
 // Run the text through the parser TxMarkdownView uses (see loadMarked).
@@ -194,3 +194,140 @@ describe('someone else\'s text in a draft', () => {
     }
   })
 })
+
+describe('quoting a reply (#276)', () => {
+  it('names the author before the first 80 characters', () => {
+    const content = '字'.repeat(120)
+    expect(quoteDraft({ content }, 'ada')).toBe(`> @ada：${postExcerpt(content, QUOTE_LENGTH)}\n\n`)
+    expect(replyQuote('一行', 'ada')).toBe('> @ada：一行\n\n')
+  })
+})
+
+describe('stickers (#276)', () => {
+  const WAVE = { shortcode: 'yugc-wave', label: '挥手', url: `/api/forum/stickers/${'a'.repeat(64)}.webp` }
+  const stickers = stickerIndex([{ stickers: [WAVE] }, { stickers: [{ shortcode: 'odd', label: '外站', url: 'https://evil.example/x.webp' }] }])
+  const rendered = (source: string) => marked.parse(renderableMarkdown(source, stickers))
+
+  it('shows a whitelisted shortcode as its picture and leaves every other one as text', () => {
+    const out = rendered('你好 :yugc-wave: 和 :yugc-unknown:')
+    expect(out).toContain(`<img class="forum-sticker" alt="挥手" src="${WAVE.url}">`)
+    expect(out).toContain(':yugc-unknown:')
+  })
+
+  it('never turns a sticker whose address is off the forum into a picture', () => {
+    expect(rendered(':odd:')).not.toContain('<img')
+  })
+
+  it('leaves shortcodes in inline code and code blocks alone', () => {
+    const out = rendered('`:yugc-wave:`\n\n```\n:yugc-wave:\n```')
+    expect(out).not.toContain('<img')
+    expect(out.match(/:yugc-wave:/g)).toHaveLength(2)
+  })
+
+  it('escapes the label, and raw HTML around a sticker still shows as text', () => {
+    const odd = stickerIndex([{ stickers: [{ ...WAVE, label: '"><script>x</script>' }] }])
+    const out = marked.parse(renderableMarkdown('<b>粗</b> :yugc-wave:', odd))
+    expect(out).not.toMatch(/<script|<b>/)
+    expect(out).toContain('alt="&quot;&gt;&lt;script&gt;x&lt;/script&gt;"')
+  })
+
+  it('renders shortcodes as text when there is no sticker list (the demo)', () => {
+    expect(marked.parse(renderableMarkdown(':yugc-wave:'))).not.toContain('<img')
+  })
+
+  it('goes into the editor as pictures and comes back as the same shortcodes, code untouched', () => {
+    const source = '早 :yugc-wave: `:yugc-wave:` :yugc-unknown:'
+    const inEditor = stickersToImages(source, stickers)
+    expect(inEditor).toBe(`早 ![挥手](${WAVE.url}) \`:yugc-wave:\` :yugc-unknown:`)
+    expect(imagesToStickers(inEditor, stickers)).toBe(source)
+    // The editor may write the image back with a title; any other picture stays a picture.
+    expect(imagesToStickers(`![挥手](${WAVE.url} "挥手") ![图](/api/forum/uploads/b.png)`, stickers)).toBe(':yugc-wave: ![图](/api/forum/uploads/b.png)')
+  })
+
+  it('changes nothing without a sticker list', () => {
+    expect(stickersToImages(':yugc-wave:', new Map())).toBe(':yugc-wave:')
+    expect(imagesToStickers(`![挥手](${WAVE.url})`, new Map())).toBe(`![挥手](${WAVE.url})`)
+  })
+})
+
+describe('the Bilibili way of writing a sticker, [包名_名字] (#276)', () => {
+  const WAVE = { shortcode: 'yugc-wave', label: '打招呼', url: `/api/forum/stickers/${'a'.repeat(64)}.webp` }
+  const stickers = stickerIndex([{ name: '极客娘', stickers: [WAVE] }])
+  const rendered = (source: string) => marked.parse(renderableMarkdown(source, stickers))
+
+  it('gives every sticker its [包名_名字], and a pack without a name gives none', () => {
+    expect(stickers.get('yugc-wave')?.token).toBe('[极客娘_打招呼]')
+    expect(stickerToken('猫猫', '招手')).toBe('[猫猫_招手]')
+    expect(stickerIndex([{ stickers: [WAVE] }]).get('yugc-wave')?.token).toBeUndefined()
+  })
+
+  it('renders [极客娘_打招呼] as the sticker, with the way to type it as the title', () => {
+    const out = rendered('早 [极客娘_打招呼] 好')
+    expect(out).toContain(`<img class="forum-sticker" alt="打招呼" title="[极客娘_打招呼]" src="${WAVE.url}">`)
+    expect(rendered(':yugc-wave:')).toContain('title="[极客娘_打招呼]"')
+  })
+
+  it('leaves links, unknown names and code alone', () => {
+    expect(rendered('[极客娘_打招呼](https://example.com)')).toContain('<a href="https://example.com">极客娘_打招呼</a>')
+    expect(rendered('[极客娘_没有这张] [打招呼]')).not.toContain('<img')
+    expect(rendered('`[极客娘_打招呼]`')).not.toContain('<img')
+  })
+
+  it('goes into the editor as the picture and is stored as the shortcode', () => {
+    expect(stickersToImages('[极客娘_打招呼]', stickers)).toBe(`![打招呼](${WAVE.url})`)
+    expect(imagesToStickers('早[极客娘_打招呼]好 [极客娘_打招呼](x)', stickers)).toBe('早:yugc-wave:好 [极客娘_打招呼](x)')
+  })
+
+  it('uses the first sticker when two share a name', () => {
+    const twin = stickerIndex([{ name: '极客娘', stickers: [WAVE, { ...WAVE, shortcode: 'yugc-wave-2' }] }])
+    expect(tokenIndex(twin).get('[极客娘_打招呼]')?.shortcode).toBe('yugc-wave')
+  })
+})
+
+describe('stickers served from the controlled CDN (#286)', () => {
+  const hash = 'c'.repeat(64)
+  const CDN = `https://cdn.crosery.com/yzgc/static/site/forum/stickers/${hash}.webp`
+  const SAME = `/api/forum/stickers/${hash}.webp`
+  const WAVE = { shortcode: 'yugc-wave', label: '挥手', url: CDN }
+  const stickers = stickerIndex([{ name: '极客娘', stickers: [WAVE] }])
+  const rendered = (source: string, list = stickers) => marked.parse(renderableMarkdown(source, list))
+
+  it('renders a shortcode with the address the sticker list gives, the CDN one included', () => {
+    expect(rendered(':yugc-wave:')).toContain(`<img class="forum-sticker" alt="挥手" title="[极客娘_挥手]" src="${CDN}">`)
+    expect(rendered('[极客娘_挥手]')).toContain(`src="${CDN}"`)
+  })
+
+  it('never turns a list entry on another domain, another CDN folder or with a path trick into a picture', () => {
+    for (const url of [
+      `https://evil.example/yzgc/static/site/forum/stickers/${hash}.webp`,
+      `https://cdn.crosery.com/yzgc/static/site/forum/guides/${hash}.webp`,
+      `https://cdn.crosery.com/yzgc/static/site/forum/stickers/../${hash}.webp`,
+      `http://cdn.crosery.com/yzgc/static/site/forum/stickers/${hash}.webp`,
+      'javascript:alert(1)',
+    ])
+      expect(rendered(':odd:', stickerIndex([{ stickers: [{ shortcode: 'odd', label: '外', url }] }]))).not.toContain('<img')
+  })
+
+  it('goes into the editor as the CDN picture and comes back as the same shortcode, code untouched', () => {
+    const source = '早 :yugc-wave: `:yugc-wave:`'
+    const inEditor = stickersToImages(source, stickers)
+    expect(inEditor).toBe(`早 ![挥手](${CDN}) \`:yugc-wave:\``)
+    expect(imagesToStickers(inEditor, stickers)).toBe(source)
+    expect(imagesToStickers(`![挥手](${CDN} "挥手")`, stickers)).toBe(':yugc-wave:')
+  })
+
+  it('recognises one picture by its content hash whichever address form it carries (the switch may flip between page loads)', () => {
+    expect(imagesToStickers(`![挥手](${SAME})`, stickers)).toBe(':yugc-wave:')
+    const sameOriginList = stickerIndex([{ name: '极客娘', stickers: [{ ...WAVE, url: SAME }] }])
+    expect(imagesToStickers(`![挥手](${CDN})`, sameOriginList)).toBe(':yugc-wave:')
+    expect(imagesToStickers(`![挥手](${SAME}) ![挥手](${CDN})`, sameOriginList)).toBe(':yugc-wave: :yugc-wave:')
+  })
+
+  it('leaves a picture of another hash, another domain or another CDN folder a picture', () => {
+    const other = `https://cdn.crosery.com/yzgc/static/site/forum/stickers/${'d'.repeat(64)}.webp`
+    const guide = `https://cdn.crosery.com/yzgc/static/site/forum/guides/${hash}.webp`
+    const evil = `https://evil.example/yzgc/static/site/forum/stickers/${hash}.webp`
+    expect(imagesToStickers(`![a](${other}) ![b](${guide}) ![c](${evil})`, stickers)).toBe(`![a](${other}) ![b](${guide}) ![c](${evil})`)
+  })
+})
+

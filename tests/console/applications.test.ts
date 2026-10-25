@@ -1,12 +1,17 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { PERMISSION_NODES } from "../../app/server/src/lib/permission-nodes";
+import { actionText } from "../../app/console/src/lib/activity";
+import { describeError } from "../../app/console/src/lib/errors";
 import { ApiError } from "../../app/console/src/lib/http";
 import { fmtDate, fmtDay } from "../../app/console/src/lib/format";
+import { NODE_LABELS } from "../../app/console/src/lib/permission-nodes";
 import { APPLICATION_STATUSES, statusMeta } from "../../app/console/src/lib/statuses";
 import {
-  emptyLetterDraft, letterErrors, letterPayload, mailState, newestReviewId, noticePlan, reviewPatch, savedMessage, serverFieldErrors, statusChangedMessage,
+  applySwitchConfirm, applySwitchSaved, applySwitchView, emptyLetterDraft, letterErrors, letterPayload, letterPreviewBody, mailState, newestReviewId, noticePlan, reviewPatch, savedMessage,
+  serverFieldErrors, statusChangedMessage, templateChoice,
   type LetterDraft,
 } from "../../app/console/src/lib/applications";
-import type { MailSettings, MailSummary } from "../../app/console/src/lib/types";
+import type { LetterTemplates, MailSettings, MailSummary } from "../../app/console/src/lib/types";
 
 const ALL: MailSettings = { enabled: true, recipients: "all", deliverable: true };
 const ALLOWLIST_MISS: MailSettings = { enabled: true, recipients: "allowlist", deliverable: false };
@@ -138,6 +143,69 @@ describe("reviewPatch", () => {
     expect(reviewPatch({ latestReviewId: 0, current: "accepted", status: "rejected", note: "", notify: false, draft: letter })).toMatchObject({ expected_status: "accepted", expected_review_id: 0 });
     expect(reviewPatch({ latestReviewId: 3, current: "reviewing", status: "received", note: "", notify: true, draft: letter })).toEqual({ status: "received" });
   });
+
+  it("sends template_id only for a template other than the default of that kind (#285)", () => {
+    const base = { latestReviewId: 3, current: "received", status: "interview" as const, note: "", notify: true, draft: letter };
+    expect(reviewPatch({ ...base, templateId: "interview-short", defaultTemplateId: "default-interview" })).toEqual({
+      expected_status: "received", expected_review_id: 3, status: "interview", notify: true, template_id: "interview-short", letter: { time: "19:00", place: "三教" },
+    });
+    expect(reviewPatch({ ...base, templateId: "default-interview", defaultTemplateId: "default-interview" })).not.toHaveProperty("template_id");
+    expect(reviewPatch({ ...base })).not.toHaveProperty("template_id");
+    expect(reviewPatch({ ...base, templateId: "", defaultTemplateId: "default-interview" })).not.toHaveProperty("template_id");
+  });
+
+  it("does not send a template when no letter goes out, or when the status does not mail", () => {
+    const pick = { templateId: "interview-short", defaultTemplateId: "default-interview" };
+    expect(reviewPatch({ latestReviewId: 3, current: "received", status: "interview", note: "", notify: false, draft: letter, ...pick })).not.toHaveProperty("template_id");
+    expect(reviewPatch({ latestReviewId: 3, current: "interview", status: "cancelled", note: "", notify: true, draft: letter, ...pick })).not.toHaveProperty("template_id");
+    expect(reviewPatch({ latestReviewId: 3, current: "interview", status: "interview", note: "改到周五", notify: true, draft: letter, ...pick })).not.toHaveProperty("template_id");
+  });
+});
+
+describe("templateChoice (#285)", () => {
+  const templates: LetterTemplates = {
+    interview: [{ id: "default-interview", name: "默认", is_default: true }, { id: "interview-short", name: "面试邀请 · 简短", is_default: false }],
+    accepted: [{ id: "default-accepted", name: "默认", is_default: true }],
+    rejected: [{ id: "r-a", name: "未通过 · 温和", is_default: false }, { id: "r-b", name: "未通过 · 简短", is_default: true }],
+  };
+
+  it("offers no choice while a kind has only one enabled template, or the page has none", () => {
+    expect(templateChoice(templates, "accepted")).toBeNull();
+    expect(templateChoice(undefined, "interview")).toBeNull();
+    expect(templateChoice({ interview: [], accepted: [], rejected: [] }, "interview")).toBeNull();
+  });
+
+  it("lists the templates of the kind, names the default one, and remembers which it is", () => {
+    expect(templateChoice(templates, "interview")).toEqual({
+      defaultId: "default-interview",
+      options: [{ value: "default-interview", label: "默认" }, { value: "interview-short", label: "面试邀请 · 简短" }],
+    });
+    expect(templateChoice(templates, "rejected")).toEqual({
+      defaultId: "r-b",
+      options: [{ value: "r-a", label: "未通过 · 温和" }, { value: "r-b", label: "未通过 · 简短（默认）" }],
+    });
+  });
+
+  it("falls back to the first template when the list somehow carries no default", () => {
+    const choice = templateChoice({ interview: [{ id: "a", name: "甲", is_default: false }, { id: "b", name: "乙", is_default: false }], accepted: [], rejected: [] }, "interview");
+    expect(choice?.defaultId).toBe("a");
+  });
+});
+
+describe("letterPreviewBody (#285)", () => {
+  it("sends the status and the letter fields that are filled in, and leaves the blank ones out", () => {
+    expect(letterPreviewBody({ status: "interview", draft: draft({ time: " 19:00 ", place: "", interviewNotes: "" }) })).toEqual({ status: "interview", letter: { time: "19:00" } });
+    expect(letterPreviewBody({ status: "interview", draft: draft() })).toEqual({ status: "interview", letter: {} });
+    expect(letterPreviewBody({ status: "accepted", draft: draft({ time: "19:00", acceptedNotes: "进群" }) })).toEqual({ status: "accepted", letter: { notes: "进群" } });
+    expect(letterPreviewBody({ status: "rejected", draft: draft({ message: "谢谢" }) })).toEqual({ status: "rejected", letter: { message: "谢谢" } });
+  });
+
+  it("names the template only when it is not the default of the kind", () => {
+    expect(letterPreviewBody({ status: "interview", draft: draft(), templateId: "interview-short", defaultTemplateId: "default-interview" })).toEqual({
+      status: "interview", template_id: "interview-short", letter: {},
+    });
+    expect(letterPreviewBody({ status: "interview", draft: draft(), templateId: "default-interview", defaultTemplateId: "default-interview" })).not.toHaveProperty("template_id");
+  });
 });
 
 describe("statusChangedMessage", () => {
@@ -167,6 +235,11 @@ describe("serverFieldErrors", () => {
   it("puts letter_invalid in the notice section, since it names no single field", () => {
     const message = "现在没有配置回信地址，信里不能请对方直接回复这封邮件，换个说法";
     expect(serverFieldErrors(error("letter_invalid", {}, message))).toEqual({ notice: message, letter: {} });
+  });
+
+  it("puts template_invalid, a template that is gone, of another kind or disabled, in the notice section too (#285)", () => {
+    expect(serverFieldErrors(error("template_invalid", {}, "选的这套信不是待面试的"))).toEqual({ notice: "选的这套信不是待面试的", letter: {} });
+    expect(serverFieldErrors(error("template_invalid", {}))?.notice).toContain("换一套");
   });
 
   it("leaves every other error to the alert", () => {
@@ -222,5 +295,48 @@ describe("console times are Beijing time", () => {
       expect(fmtDate(instant), zone).toBe("2026/09/27 01:05");
       expect(fmtDay(instant), zone).toBe("2026/09/27");
     }
+  });
+});
+
+describe("招新总开关（#284）", () => {
+  it("says open or closed and what that means for the website; the last change only shows once there was one", () => {
+    expect(applySwitchView({ open: true, updated_at: null })).toEqual({
+      title: "招新投递：开放中", hint: "官网「加入我们」窗口可以投递。", changed: null,
+    });
+    const closedAt = Date.UTC(2026, 9, 25, 4, 30);
+    expect(applySwitchView({ open: false, updated_at: closedAt })).toEqual({
+      title: "招新投递：已关闭",
+      hint: "官网「加入我们」窗口显示招新暂未开放，新的投递会被拒绝。已经收到的投递照常处理。",
+      changed: `上次改动：${fmtDate(closedAt)}`,
+    });
+  });
+
+  it("asks before closing as a risky action and before reopening as a plain one, with different buttons", () => {
+    const close = applySwitchConfirm(false);
+    const open = applySwitchConfirm(true);
+    expect(close).toMatchObject({ title: "关闭招新？", confirmText: "关闭招新", danger: true });
+    expect(open).toMatchObject({ title: "重新开放招新？", confirmText: "开放招新" });
+    expect(open.danger).toBeFalsy();
+    // 关闭时要让人知道已经收到的投递不受影响；重新开放时要说明每日限制没变
+    expect(close.body).toContain("已经收到的投递和审核不受影响");
+    expect(open.body).toContain("每天能投几份的限制不变");
+  });
+
+  it("tells the admin the website picks the new state up when the window is opened again", () => {
+    expect(applySwitchSaved(false)).toBe("已关闭招新，官网「加入我们」窗口重新打开后显示招新暂未开放");
+    expect(applySwitchSaved(true)).toBe("已开放招新，官网「加入我们」窗口重新打开后可以投递");
+  });
+
+  it("names the node for someone who lacks it, and labels the audit actions the switch leaves", () => {
+    const refused = new ApiError(403, "forbidden", "", undefined, { error: "forbidden", node: "apply.settings" });
+    expect(describeError(refused).title).toBe("没有「招新开关」权限");
+    expect(actionText("application.settings.update")).toBe("开放或关闭招新");
+    // 关闭期间被拒的投递由 http-policy 记成 http.apply_closed，操作记录里要看得懂
+    expect(actionText("http.apply_closed")).toBe("投递被拒（招新已关闭）");
+  });
+
+  it("keeps a local name for every permission node the server defines, so a refusal never shows a raw node id", () => {
+    const unnamed = PERMISSION_NODES.filter(def => !def.deprecated && !NODE_LABELS[def.node]).map(def => def.node);
+    expect(unnamed).toEqual([]);
   });
 });

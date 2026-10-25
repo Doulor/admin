@@ -4,14 +4,27 @@ import type Database from "better-sqlite3";
 import type { AppConfig } from "../config.js";
 import type { createCrypto } from "./crypto.js";
 import { truncateWal } from "./db.js";
-import { GITHUB_TIMEOUT_MS } from "./github.js";
+import { GITHUB_TIMEOUT_MS } from "./github-http.js";
+import type { IdentityProvider, NewSession } from "./identity-store.js";
+import { CHALLENGE_RETENTION_MS } from "./email-login.js";
+/**
+ * 会话（#262）：`account_id` 是极客班账号（sessions.openid），`provider` 是这次的登录方式；`login`、`user_id`、
+ * `avatar_url` 是绑定的 GitHub 账号，语义不变（user_id 仍是 GitHub 数字 id）。
+ */
 export type Session = {
   id: string;
+  account_id: string;
+  provider: IdentityProvider;
   login: string;
   user_id: number | null;
   avatar_url: string | null;
   accessToken: string;
+  created_at: number;
   expires_at: number;
+};
+type SessionRow = {
+  id: string; login: string; user_id: number | null; avatar_url: string | null; access_token_encrypted: string;
+  created_at: number; expires_at: number; openid: string | null; provider: string | null; account_status: string | null;
 };
 
 /** 清理循环只记日志：一次清理失败不影响服务，也不抛出（#128）。 */
@@ -29,34 +42,41 @@ export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export function createAuth(db: Database.Database, crypto: ReturnType<typeof createCrypto>, config: AppConfig, undiciRequest = defaultRequest, clock: () => number = Date.now) {
 const { encrypt, decrypt } = crypto;
 
-function createSession(
-  login: string,
-  userId: number | null,
-  avatarUrl: string | null,
-  accessToken: string
-): string {
+/**
+ * 插入一个会话。只由登录事务调用（lib/identity-store.ts），和建号、认领、审计在同一个事务里；
+ * 新列 openid、provider 与旧列一起写，换回旧镜像时旧代码照样读得到登录名、GitHub id 和 token。
+ * 邮箱、Google 会话没有 GitHub 令牌，`access_token_encrypted` 存空串加密后的值（列是 NOT NULL；重建表放到以后）。
+ */
+function createSession(input: NewSession): string {
   const id = randomBytes(24).toString("base64url");
   const now = clock();
   db.prepare(
-    "INSERT INTO sessions(id, login, user_id, avatar_url, access_token_encrypted, created_at, expires_at) VALUES(?, ?, ?, ?, ?, ?, ?)"
-  ).run(id, login, userId, avatarUrl, encrypt(accessToken), now, now + SESSION_TTL_MS);
+    "INSERT INTO sessions(id, login, user_id, avatar_url, access_token_encrypted, created_at, expires_at, openid, provider) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run(id, input.login, input.userId, input.avatarUrl, encrypt(input.accessToken), now, now + SESSION_TTL_MS, input.accountId, input.provider);
   return id;
 }
 
+/**
+ * 读会话并联查账号。过期的、没有账号的（#262 之前留下、没有 GitHub user_id 的旧会话，回填映射不到）、
+ * 账号已不是 active 的（停用、合并）一律按未登录处理并删掉这一行。
+ */
 function getSession(id: string): Session | null {
-  const row = db.prepare("SELECT * FROM sessions WHERE id = ?").get(id) as any;
+  const row = db.prepare("SELECT s.*, u.status AS account_status FROM sessions s LEFT JOIN users u ON u.id = s.openid WHERE s.id = ?").get(id) as SessionRow | undefined;
   if (!row) return null;
-  if (row.expires_at < clock()) {
+  if (row.expires_at < clock() || row.openid === null || row.account_status !== "active") {
     db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
     return null;
   }
   try {
     return {
       id: row.id,
+      account_id: row.openid,
+      provider: (row.provider ?? "github") as IdentityProvider,
       login: row.login,
       user_id: row.user_id,
       avatar_url: row.avatar_url,
       accessToken: decrypt(row.access_token_encrypted),
+      created_at: row.created_at,
       expires_at: row.expires_at,
     };
   } catch {
@@ -78,6 +98,8 @@ function destroySession(id: string): boolean {
  */
 function cleanupExpiredSessions(): { deleted: number; walTruncated: boolean } {
   const deleted = db.prepare("DELETE FROM sessions WHERE expires_at < ?").run(clock()).changes;
+  // 邮箱验证码的挑战（#262）随这一趟一起清：过期一小时以上的删掉（限流按一小时窗口从这张表计数），里面有收件地址
+  db.prepare("DELETE FROM email_challenges WHERE expires_at < ?").run(clock() - CHALLENGE_RETENTION_MS);
   return { deleted, walTruncated: truncateWal(db) };
 }
 
@@ -111,12 +133,22 @@ function stopCleanup(): void {
 }
 
 /**
- * 登录过的人：审计里每条 auth.signin 的登录名（只有 CONSOLE_ORG 的 active 成员能登录，所以都是组织成员，
- * 包括组织 owner），加上当前会话。论坛用它挡游客冒名；从没登录过的组织成员不在这里。
+ * 登录过的人：按 activity_events 里每条 auth.signin 的账号 id 解出登录名（#274 item I：audit_logs 不再有人写，
+ * auth.signin 改记在 activity_events，只有 account_id，没有现成的登录名列），加上当前会话。按 identity-store.ts
+ * 的 sessionProfile() 同一套规则解：有绑定 GitHub 的用 GitHub 登录名，没有的用站内 yz_ 登录名。论坛用它挡游客
+ * 冒名；从没登录过的组织成员不在这里。
  */
 function signedInLogins(): string[] {
-  return (db.prepare("SELECT actor AS login FROM audit_logs WHERE action = 'auth.signin' UNION SELECT login FROM sessions").all() as { login: string }[])
-    .map(row => row.login);
+  return (db.prepare(`
+    SELECT COALESCE(
+      (SELECT login FROM identities WHERE user_id = u.id AND provider = 'github'),
+      u.handle,
+      'yz_' || lower(substr(u.id, 1, 8))
+    ) AS login
+    FROM users u
+    WHERE u.id IN (SELECT DISTINCT account_id FROM activity_events WHERE action = 'auth.signin' AND account_id IS NOT NULL)
+    UNION SELECT login FROM sessions
+  `).all() as { login: string }[]).map(row => row.login);
 }
 
 function buildAuthorizeUrl(state: string): string {

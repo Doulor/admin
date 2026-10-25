@@ -23,6 +23,11 @@ export interface DropdownMenuProps {
   offset?: number
   closeOnSelect?: boolean
   /**
+   * Briefly clears then confirms a closing item before `select` and close.
+   * Reduced-motion users keep the immediate path.
+   */
+  activationFeedback?: boolean
+  /**
    * Where focus lands when the menu opens. `'first-item'` moves it to the
    * first enabled item, which is what a plain command list wants. `'none'`
    * leaves focus alone for a host that places it itself — a panel that opens
@@ -39,10 +44,18 @@ export interface DropdownMenuProps {
   panelCard?: BaseAnchorPanelCardProps
 
   panelVariant?: 'solid' | 'dashed' | 'plain'
-  panelBackground?: 'pure' | 'mask' | 'blur' | 'glass' | 'refraction'
+  panelBackground?: 'pure' | 'mask' | 'blur' | 'glass' | 'refraction' | 'acrylic' | 'mica' | 'flat' | 'plain'
   panelShadow?: 'none' | 'soft' | 'medium'
   panelRadius?: number
   panelPadding?: number
+}
+
+export interface DropdownMenuContext {
+  close: () => void
+  closeOnSelect: boolean
+  activationFeedback: boolean
+  /** The root menu's `panelCard`: submenus take its flow light unless they name their own. */
+  readonly panelCard?: BaseAnchorPanelCardProps
 }
 
 export interface DropdownItemProps {
@@ -55,6 +68,21 @@ export interface DropdownItemProps {
    * row so clicking the row opens the nested panel instead of closing the menu.
    */
   closeOnSelect?: boolean
+  /** Per-item override of the menu-level activation feedback. */
+  activationFeedback?: boolean
+  /**
+   * Makes the row checkable: it becomes a `menuitemcheckbox` (or
+   * `menuitemradio`, see `checkType`) whose `aria-checked` follows this value,
+   * and a check mark sits at the right edge while it is `true`. Left unset, the
+   * row stays a plain command.
+   */
+  checked?: boolean
+  /**
+   * The role a checkable row takes: `checkbox` for an independent toggle,
+   * `radio` for one choice out of a group.
+   * @default 'checkbox'
+   */
+  checkType?: 'checkbox' | 'radio'
 }
 
 export interface DropdownSubmenuProps {
@@ -69,8 +97,10 @@ export interface DropdownSubmenuProps {
   panelCard?: BaseAnchorPanelCardProps
 
   panelVariant?: 'solid' | 'dashed' | 'plain'
-  panelBackground?: 'pure' | 'mask' | 'blur' | 'glass' | 'refraction'
+  panelBackground?: 'pure' | 'mask' | 'blur' | 'glass' | 'refraction' | 'acrylic' | 'mica' | 'flat' | 'plain'
   panelShadow?: 'none' | 'soft' | 'medium'
   panelRadius?: number
   panelPadding?: number
 }
+
+export const TX_DROPDOWN_MENU_INJECTION_KEY = 'txDropdownMenu'

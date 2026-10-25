@@ -14,19 +14,15 @@ test.beforeEach(async ({ page, context }) => {
     if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/")) return route.fulfill({ status: 503, json: { error: "unexpected_live_request_in_test" } });
     return route.continue();
   });
-  // 不进 3D 书桌：没有 WebGL 时官网直接进 YUGC OS 桌面
+  // 今天（北京时间）已经播过开机动画：首页直接进 YUGC OS 桌面（#275，lib/bootGate.ts）
   await page.addInitScript(() => {
-    const original = HTMLCanvasElement.prototype.getContext;
-    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", { value: function (this: HTMLCanvasElement, type: string, ...args: unknown[]) {
-      return type.startsWith("webgl") ? null : Reflect.apply(original, this, [type, ...args]);
-    } });
+    localStorage.setItem("yugc:boot-day", new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10));
   });
 });
 
 async function home(page: Page) {
   await page.goto("/sites/portal/");
-  await expect(page.locator(".pt-home")).toHaveAttribute("data-state", "desktop", { timeout: 20_000 * SLOW });
-  await expect(page.locator(".pt-os-shell")).toBeVisible();
+  await expect(page.locator(".pt-os-shell")).toBeVisible({ timeout: 20_000 * SLOW });
 }
 
 /** 页面和窗口里几个滚动区都没有横向滚动。 */
@@ -79,8 +75,11 @@ test.describe("比赛窗口 #265", () => {
     await win.getByRole("button", { name: "外部", exact: true }).click();
     await expect(cards).toHaveCount(1);
     await expect(heading).toHaveText("CCPC 2026 哈尔滨站");
-    const go = win.getByRole("link", { name: /去官网报名/ });
+    // 桌面主按钮在 Hero 里；官网链接也收在 Hero 的标签里
+    const go = win.locator(".pt-cx-hero .pt-btn");
+    await expect(go).toHaveText(/去官网报名/);
     await expect(go).toHaveAttribute("href", "https://ccpc.io/");
+    await expect(win.locator("a.pt-cx-hero-tag")).toHaveCount(1);
     await expect(go).toHaveAttribute("target", "_blank");
     await expect(go).toHaveAttribute("rel", "noopener noreferrer");
     await page.screenshot({ path: testInfo.outputPath("desktop-1440-ccpc.png"), animations: "disabled" });
@@ -136,8 +135,12 @@ test.describe("比赛窗口 #265", () => {
       await expect(list).toHaveCount(0);
       const back = win.getByRole("button", { name: "返回比赛列表" });
       await expect(back).toHaveText("比赛列表");
-      const go = win.getByRole("link", { name: /去官网报名/ });
-      await atLeast44(win.locator(".pt-cx-site, .pt-cx-act .pt-btn, .pt-phone-back"));
+      // 手机上主按钮在底部操作条里（拇指够得着），Hero 里只放官网链接
+      const go = win.locator(".pt-cx-act .pt-btn");
+      await expect(go).toHaveText(/去官网报名/);
+      await expect(win.locator(".pt-cx-hero .pt-btn")).toHaveCount(0);
+      await expect(win.locator("a.pt-cx-hero-tag")).toHaveCount(1);
+      await atLeast44(win.locator(".pt-cx-act .pt-btn, .pt-phone-back"));
       // 手机上窗口是停在 Dock 上方的整页卡片（卡片下面是手机 Dock）：操作条贴在卡片底部
       const sheet = (await win.boundingBox())!;
       const goBox = (await go.boundingBox())!;

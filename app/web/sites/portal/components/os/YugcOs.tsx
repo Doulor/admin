@@ -1,78 +1,83 @@
-// YUGC OS：开机后的「极客班内部系统」，按桌面操作系统来排：菜单栏（系统菜单 / 前台应用 / 搜索 / 时钟）、
-// 极客娘壁纸、左上角一列应用图标、右上角「新来的看这里」便签、可拖动窗口、带名字的 Dock、⌘K 启动器。
-// 加入我们、论坛、GitHub 组织都是桌面上的应用；便签按顺序告诉新来的人怎么加入。「宣传片」在桌面上重看（#77），不影响「只自动播一次」。
-// 论坛和 GitHub 组织点一下直达（#185）：论坛在当前标签页进论坛首页，GitHub 组织在新标签页打开，不经过 /forum-3d、/github 场景页。
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { appConfig } from "@shared/config";
+// YUGC OS：开机后的「极客班内部系统」，按桌面操作系统来排：菜单栏（YUGC 标志即系统菜单 / 前台应用 / 搜索 / 时钟 / 头像）、
+// 壁纸（默认「晴空」，接着开机动画的最后一帧画）、左上角一列应用图标、「新来的看这里」便签、可拖动窗口、带名字的 Dock、⌘K 启动器。
+// 头像点开「账号资料」窗口（#280 起是桌面窗口，正文在 ProfileCard.tsx）：访客在那里登录、注册，登录后改资料、绑定登录方式、填邀请码、退出。
+// 加入我们、论坛、代码仓库（自建 GitLab，#270）都是桌面上的应用；便签按顺序告诉新来的人怎么加入。「宣传片」是桌面里的一个窗口（#284，原来是全屏层），
+// 「加入我们」第一次打开时自动弹出一次（#77），自己点开重看不影响「只自动播一次」。
+// 论坛点一下直达论坛首页（#185），不经过 /forum-3d 场景页；代码仓库是桌面里的窗口，列出公开项目（#275）。
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Modal from "@shared/ui/Modal";
 import { PHONE_QUERY, PORTRAIT_QUERY, useMediaQuery } from "../../lib/useMediaQuery";
 import { signInHref, useAccount } from "../../lib/account";
-import { RESUME_DESKTOP, links } from "../../lib/links";
-import { NEW_TAB_NOTE, appById, appByKey, appLink, filterCommands, followAppLink, launcherCommands, moveSelection, opensNewTab, visibleApps, type AppId, type OsApp } from "../../lib/osApps";
-import { browserEstimate, choosePlayback, detectCapabilities, hasSeenPromo, preconnectPromo, prefetchPromoStart } from "../../lib/promo";
+import { useApplyOpen } from "../../lib/applyOpen";
+import { reportEvent } from "../../lib/events";
+import { linkNoticeOf, type LinkNotice } from "../../lib/linkNotice";
+import { noteSeenHere, rememberNoteHere, rememberNoteOnAccount } from "../../lib/startNote";
+import { appById, appByKey, appLink, filterCommands, followAppLink, launcherCommands, moveSelection, visibleApps, type AppId } from "../../lib/osApps";
+import { browserEstimate, choosePlayback, detectCapabilities, hasSeenPromo, preconnectPromo, prefetchPromoStart, promoCookie } from "../../lib/promo";
+import { promoTop } from "../../lib/promoWindow";
 import Icon from "../Icon";
-import OsWindow, { windowWidth, type WindowId, type WindowState } from "./Windows";
+import OsWindow, { windowWidth, type PromoActions, type WindowId, type WindowState } from "./Windows";
 import { WALLPAPERS, prefetchWallpapersWhenIdle, readWallpaperChoice, saveWallpaperChoice, wallpaperForScreen, type Box, type Wallpaper } from "../../lib/wallpapers";
 import WallpaperLayer from "./Wallpaper";
+import { SkyThumb, type SkyBand } from "./SkyWallpaper";
 import { AppGlyph, DesktopIcons, StartNote } from "./Widgets";
-import { LazyPromoPlayer } from "../PromoLazy";
+import "../../styles/os.css";
 
+type MenuName = "system" | "go" | "window" | "help";
 
 type Props = {
-  /** 桌面是否在前台（开机画面播完）；为 false 时不响应快捷键 */
-  active: boolean;
-  onBack: () => void;
+  /** 系统菜单和手机设置里的「重播开机动画」 */
+  onReplayBoot?: () => void;
+  /** 刚播完开机动画时：它的起点和它卸掉没有，「晴空」壁纸用来接上最后一帧 */
+  boot?: { epoch: number; settled: boolean } | null;
 };
 
-type MenuName = "system" | "go" | "window" | "help" | "account";
+/** YUGC 标志：四个字母用各自的品牌色（SPEC §1） */
+const WORDMARK = ["Y", "U", "G", "C"] as const;
 
-const NOTE_KEY = "yugc:start-note";
-
-export default function YugcOs({ active, onBack }: Props) {
+/** 首页（pages/Home.tsx）在开机动画就绪后或直接进站时挂载；开机动画还盖在上面时外层是 inert。 */
+export default function YugcOs({ onReplayBoot, boot = null }: Props) {
   const phone = useMediaQuery(PHONE_QUERY);
   const portrait = useMediaQuery(PORTRAIT_QUERY);
   const phoneWallpaper = phone && portrait;
   const navigate = useNavigate();
-  const { account, loaded, signOut } = useAccount();
-  // 控制台只给 console_link 为 true 的人：其他人的桌面、Dock、菜单、启动器、终端里都没有它。
+  // 登录后回到当前页面：订阅路由变化，让 signInHref() 按浏览器当前地址（含开发态的 /sites/portal 前缀）重算 return_to，交给资料卡
+  const location = useLocation();
+  const signInLink = signInHref();
+  const { account, loaded, signOut, patch, reload } = useAccount();
+  // 控制台只给 console_link 为 true 的人：其他人的桌面、Dock、资料卡、启动器、终端里都没有它。
   const consoleLink = account?.consoleLink === true;
-  const apps = useMemo(() => visibleApps(consoleLink), [consoleLink]);
+  // 招新总开关（#284）：关着时图标说明、便签、「关于」窗口都不再叫人去报名；「加入我们」窗口每次打开重读，读到的值通过 setApplyOpen 同步回来
+  const [applyOpen, setApplyOpen] = useApplyOpen();
+  const apps = useMemo(() => visibleApps(consoleLink, applyOpen), [consoleLink, applyOpen]);
   const [now, setNow] = useState(() => new Date());
   const [wins, setWins] = useState<WindowState[]>([]);
   const [menu, setMenu] = useState<{ name: MenuName; left: number } | null>(null);
   const [launcher, setLauncher] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
-  const [flight, setFlight] = useState<{ app: OsApp; x: number; y: number } | null>(null);
   const [selectedIcon, setSelectedIcon] = useState<AppId | null>(null);
-  // 便签收起后本次浏览不再自动出现（菜单栏「帮助」里能重新打开）
-  const [note, setNote] = useState(() => {
-    try {
-      return sessionStorage.getItem(NOTE_KEY) !== "closed";
-    } catch {
-      return true;
-    }
-  });
+  // 便签：auto 是还没看过、按账号上的记录决定；open 是「帮助」里打开或点过其中一步（点完不收起）；closed 是收起了
+  const [noteMode, setNoteMode] = useState<"auto" | "open" | "closed">(() => (noteSeenHere() ? "closed" : "auto"));
+  const note = noteMode === "open" || (noteMode === "auto" && !account?.prefs.startNoteSeenAt);
   const [wallpaper, setWallpaper] = useState<Wallpaper>(() => readWallpaperChoice());
   // 新壁纸从点的那张缩略图展开（#147）
   const [wallpaperFrom, setWallpaperFrom] = useState<Box | null>(null);
   const [picker, setPicker] = useState(false);
-  const [promo, setPromo] = useState(false);
   const [phoneGuide, setPhoneGuide] = useState(false);
   const [phoneSettings, setPhoneSettings] = useState(false);
+  const [linkNotice, setLinkNotice] = useState<LinkNotice | null>(null);
   const searchFocus = useRef<HTMLButtonElement>(null);
   const swipe = useRef<{ x: number; y: number; at: number } | null>(null);
   const wallpaperFocus = useRef<HTMLButtonElement>(null);
   const pickerBox = useRef<HTMLDivElement>(null);
-  /** 当前标签页去了论坛或控制台，离开前在历史记录上记了「回来直接进桌面」 */
-  const leftForSite = useRef(false);
   // 打开面板时把焦点放到当前壁纸上；preventScroll：autoFocus 会让浏览器滚动整个桌面去「露出」按钮，桌面整体上移
   useEffect(() => {
     if (picker) pickerBox.current?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus({ preventScroll: true });
   }, [picker]);
   const chooseWallpaper = (next: Wallpaper, button: HTMLElement) => {
-    const { left, top, width, height } = (button.querySelector("img") ?? button).getBoundingClientRect();
+    const { left, top, width, height } = (button.querySelector("img, canvas") ?? button).getBoundingClientRect();
     setWallpaperFrom({ left, top, width, height });
     setWallpaper(next);
     saveWallpaperChoice(next.id);
@@ -80,14 +85,29 @@ export default function YugcOs({ active, onBack }: Props) {
   // 桌面空闲后预取其余壁纸，之后换壁纸不用等下载；开了省流量或 2G 时不预取（lib/wallpapers.ts）
   const wallpaperId = useRef(wallpaper.id);
   wallpaperId.current = wallpaper.id;
-  useEffect(() => (active ? prefetchWallpapersWhenIdle(wallpaperId.current, phoneWallpaper) : undefined), [active, phoneWallpaper]);
-  const toggleNote = (show: boolean) => {
-    setNote(show);
-    try {
-      sessionStorage.setItem(NOTE_KEY, show ? "open" : "closed");
-    } catch {
-      /* 隐私模式下写不了：只影响刷新后是否再次显示 */
-    }
+  useEffect(() => prefetchWallpapersWhenIdle(wallpaperId.current, phoneWallpaper), [phoneWallpaper]);
+  // 账号上记过、这个浏览器还没记：补记到本地，下次在这里打开时登录信息回来之前也不会先闪出便签
+  const seenOnAccount = account?.prefs.startNoteSeenAt ?? null;
+  useEffect(() => {
+    if (seenOnAccount && !noteSeenHere()) rememberNoteHere(seenOnAccount);
+  }, [seenOnAccount]);
+  /** 关掉便签或点了其中一步都算看过：本地和账号（已登录时）一起记 */
+  const markNoteSeen = () => {
+    const at = Date.now();
+    rememberNoteHere(at);
+    if (!account || account.prefs.startNoteSeenAt) return;
+    patch({ prefs: { startNoteSeenAt: at } });
+    void rememberNoteOnAccount(at);
+  };
+  const closeNote = () => {
+    markNoteSeen();
+    setNoteMode("closed");
+    reportEvent("os.note.dismissed");
+  };
+  const openFromNote = (id: AppId | "forum-feed", from?: HTMLElement | null) => {
+    markNoteSeen();
+    setNoteMode((mode) => (mode === "closed" ? mode : "open"));
+    open(id, from);
   };
   const zTop = useRef(20);
   const cascade = useRef(0);
@@ -95,24 +115,51 @@ export default function YugcOs({ active, onBack }: Props) {
   const launcherInput = useRef<HTMLInputElement>(null);
   const homeFocusNeeded = useRef(false);
 
-  // 桌面变为可交互时（开机结束、跳过动画、从场景页返回），把焦点放进桌面：
-  // 触发开机的按钮所在的书桌层此时已 inert，不移焦点的话键盘用户会落在 <body> 上。
+  // 桌面一挂载（开机结束、跳过动画）就把焦点放进去：触发开机的按钮所在的开机动画层这时已经卸载，
+  // 不移焦点的话键盘用户会落在 <body> 上。
   useEffect(() => {
-    if (!active) return;
     const current = document.activeElement;
     if (current && current !== document.body && root.current?.contains(current)) return;
     root.current?.querySelector<HTMLElement>('[data-cta="join"]')?.focus({ preventScroll: true });
-  }, [active]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 只在挂载时对焦一次
+  }, []);
 
   useEffect(() => {
-    if (!active) return;
     setNow(new Date());
     const timer = window.setInterval(() => setNow(new Date()), 15000);
     return () => window.clearInterval(timer);
-  }, [active]);
+  }, []);
 
   const front = useMemo(() => wins.filter((w) => !w.minimized).sort((a, b) => b.z - a.z)[0] ?? null, [wins]);
-  const frontName = front ? { about: "关于极客班", org: "组织架构", competitions: "比赛", terminal: "终端", "forum-feed": "论坛" }[front.id] : "桌面";
+  const atHome = front === null;
+  // 「晴空」壁纸里留给极客娘的一段，她滑到这里，不压着桌面上的东西：手机竖屏是图标下沿到搜索框上沿；
+  // 横屏（电脑、手机横着拿）是菜单栏或状态栏下沿到 Dock 上沿，她只在坐的窗口会被 Dock 挡住时缩小（SkyWallpaper.tsx 的 landFit）
+  const [band, setBand] = useState<SkyBand | null>(null);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const shell = root.current;
+      if (!shell) return;
+      let next: SkyBand;
+      if (phoneWallpaper) {
+        const icons = shell.querySelector(".pt-icons")?.getBoundingClientRect();
+        const floor = shell.querySelector(".pt-phone-search, .pt-dock")?.getBoundingClientRect();
+        // 开着应用时主屏是收起的（量不到），回到主屏再量
+        if (!icons || !floor || (icons.height === 0 && icons.bottom === 0 && floor.top > 0)) return;
+        next = { top: Math.round(icons.bottom + 12), bottom: Math.round(floor.top - 4) };
+      } else {
+        const bar = shell.querySelector(".pt-mb, .pt-phone-status")?.getBoundingClientRect();
+        const dock = shell.querySelector(".pt-dock")?.getBoundingClientRect();
+        if (!bar || !dock || dock.height === 0) return;
+        next = { top: Math.round(bar.bottom + 8), bottom: Math.round(dock.top - 8) };
+      }
+      setBand((current) => (current && current.top === next.top && current.bottom === next.bottom ? current : next));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [phoneWallpaper, apps.length, loaded, atHome]);
+  const frontName = front ? { join: "加入我们", promo: "宣传片", about: "关于极客班", org: "组织架构", competitions: "比赛", terminal: "终端", "forum-feed": "论坛", gitlab: "代码仓库", feedback: "意见箱", profile: account ? "账号资料" : "登录极客班" }[front.id] : "桌面";
+  const profileOpen = wins.some((w) => w.id === "profile" && !w.minimized);
   useEffect(() => {
     if (!homeFocusNeeded.current || front) return;
     homeFocusNeeded.current = false;
@@ -124,77 +171,98 @@ export default function YugcOs({ active, onBack }: Props) {
       const existing = current.find((w) => w.id === id);
       const z = ++zTop.current;
       if (existing) return current.map((w) => (w.id === id ? { ...w, z, minimized: false } : w));
-      const n = cascade.current++ % 4;
       const width = Math.min(windowWidth(id), window.innerWidth - 24);
+      // 账号资料从菜单栏右边的头像打开，窗口也开在右上角，顶边和拖动时能到的最高处一样
+      if (id === "profile") return [...current, { id, z, x: Math.max(12, window.innerWidth - width - 16), y: 44, minimized: false, zoomed: false }];
+      const n = cascade.current++ % 4;
       const x = Math.max(12, Math.min(window.innerWidth - width - 140, window.innerWidth * 0.3 + n * 40));
-      const y = 64 + n * 36;
+      // 宣传片窗口的高度是画面 16:9 加标题栏，层叠位置太靠下时往上提，免得被窗口的 max-height 截掉下半截画面
+      const y = id === "promo" ? promoTop({ width: window.innerWidth, height: window.innerHeight }, 64 + n * 36) : 64 + n * 36;
       return [...current, { id, z, x, y, minimized: false, zoomed: false }];
     });
   }, []);
 
-  const launchScene = useCallback(
-    (app: OsApp, from?: HTMLElement | null) => {
-      if (app.open.kind !== "scene") return;
-      const path = app.open.path;
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (reduced) {
-        navigate(path);
-        return;
+  // 宣传片窗口（#284）：是「加入我们」第一次打开时自动弹的（auto），还是自己点开的。只有自动弹的那次才写「看过」的 cookie（#77：桌面上重看不写）；
+  // 加载失败（failed）不记，下次再试。自己关掉（右上角关闭、Esc、关闭全部）和播放开始、播完一样算看过。
+  const winsNow = useRef(wins);
+  winsNow.current = wins;
+  const promoAuto = useRef(false);
+  const promoFailed = useRef(false);
+  const promoOpen = () => winsNow.current.some((w) => w.id === "promo");
+  const markPromoSeen = useCallback(() => {
+    if (promoAuto.current) document.cookie = promoCookie(window.location.protocol === "https:");
+  }, []);
+  /** 打开宣传片窗口：窗口已经开着就只是带到最前面，不改它是怎么开的 */
+  const openPromo = useCallback(
+    (auto: boolean) => {
+      if (!winsNow.current.some((w) => w.id === "promo")) {
+        promoAuto.current = auto;
+        promoFailed.current = false;
       }
-      const rect = from?.getBoundingClientRect();
-      setFlight({ app, x: rect ? rect.left + rect.width / 2 : window.innerWidth / 2, y: rect ? rect.top + rect.height / 2 : window.innerHeight / 2 });
-      window.setTimeout(() => navigate(path), 520);
+      openWindow("promo");
     },
-    [navigate],
+    [openWindow],
   );
+  const promoActions: PromoActions = {
+    onSeen: markPromoSeen,
+    onEnd: (reason) => {
+      if (reason === "failed") promoFailed.current = true;
+      // 播完自动关；放不了、加载失败、静音也不让播时窗口留着，画面上有说明（停在封面的可以点画面播）
+      if (reason === "ended") closeWindow("promo");
+    },
+  };
+
+  // ?open=<窗口应用的 id>：控制台给的意见箱链接、旧地址 /feedback 跳过来时直接打开对应窗口（#275），打开后把参数从地址里去掉
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const id = params.get("open");
+    // link=<结果>&provider=google：资料窗口里绑定 Google 走完授权回来（#291）。打开资料窗口，把结果写在登录方式下面
+    const linked = params.get("link");
+    const linkedProvider = params.get("provider");
+    if (id === null && linked === null) return;
+    params.delete("open");
+    if (linked !== null) {
+      params.delete("link");
+      params.delete("provider");
+    }
+    const rest = params.toString();
+    navigate({ search: rest ? `?${rest}` : "" }, { replace: true });
+    const notice = linkNoticeOf(linked, linkedProvider);
+    if (id === "profile" || notice) {
+      if (notice) setLinkNotice(notice);
+      openWindow("profile");
+      return;
+    }
+    if (!apps.some((app) => app.id === id && app.open.kind === "window")) return;
+    if (id === "promo") openPromo(false);
+    else openWindow(id as WindowId);
+  }, [location.search, apps, navigate, openWindow, openPromo]);
 
   const open = useCallback(
     (id: AppId | "forum-feed", from?: HTMLElement | null) => {
       setMenu(null);
+      reportEvent("os.app.open", { target_type: "app", target_id: id });
       if (id === "forum-feed") return openWindow("forum-feed");
       const app = appById(id);
       if (!app) return;
       switch (app.open.kind) {
         case "window":
-          return openWindow(app.id as WindowId);
-        case "route":
-          return navigate(app.open.path);
-        case "site":
-        case "external": {
-          // 点下去当场打开，不播图标飞行：新标签页放进计时器里可能被当成弹窗拦掉；整页跳走后从论坛后退、
-          // 页面从往返缓存恢复时，飞行图标也不会停在屏幕上
+          return app.id === "promo" ? openPromo(false) : openWindow(app.id as WindowId);
+        case "site": {
+          // 点下去当场整页跳走，不播图标飞行。不用再记「回来直接进桌面」——桌面现在是默认状态，刷新或后退回首页照样直接进桌面
+          // （pages/Home.tsx 按 yugc:boot-day 判断，不读路由 state）。
           const link = appLink(app);
           if (!link) return;
-          // 当前标签页整页跳走（论坛、控制台）：先在这条历史记录上记下「回来直接进桌面」。浏览器没用往返缓存时，
-          // 后退会重新加载首页，Home 读到它就跳过加载动画和书桌，和从场景页返回一样；用了往返缓存时由下面的 pageshow 清掉
-          if (!link.newTab) {
-            navigate(".", { replace: true, state: RESUME_DESKTOP });
-            leftForSite.current = true;
-          }
           followAppLink(link);
           return;
         }
         case "panel":
-          if (app.open.panel === "promo") setPromo(true);
-          else setPicker(true);
+          setPicker(true);
           return;
-        case "scene":
-          return launchScene(app, from);
       }
     },
-    [launchScene, navigate, openWindow],
+    [openWindow, openPromo],
   );
-
-  // 去论坛后从往返缓存回来：桌面原样还在，把离开前记下的「回来直接进桌面」清掉，之后刷新照常从书桌开始
-  useEffect(() => {
-    const onShow = (event: PageTransitionEvent) => {
-      if (!event.persisted || !leftForSite.current) return;
-      leftForSite.current = false;
-      navigate(".", { replace: true, state: null });
-    };
-    window.addEventListener("pageshow", onShow);
-    return () => window.removeEventListener("pageshow", onShow);
-  }, [navigate]);
 
   const commands = useMemo(() => launcherCommands(apps), [apps]);
   const shown = useMemo(() => filterCommands(commands, query), [commands, query]);
@@ -203,10 +271,14 @@ export default function YugcOs({ active, onBack }: Props) {
     if (id.startsWith("app:")) return open(id.slice(4) as AppId);
     if (id === "forum-feed") return open("forum-feed");
     if (id === "docs") return navigate("/docs");
-    if (id === "back") return onBack();
   };
 
-  const closeWindow = (id: WindowId) => setWins((current) => current.filter((w) => w.id !== id));
+  function closeWindow(id: WindowId) {
+    if (id === "promo" && !promoFailed.current) markPromoSeen();
+    setWins((current) => current.filter((w) => w.id !== id));
+  }
+  /** 账号资料窗口关掉后焦点回到打开它的头像（菜单栏或手机状态栏） */
+  const focusAvatar = () => window.setTimeout(() => root.current?.querySelector<HTMLElement>(".pt-mb-avatar, .pt-phone-account")?.focus({ preventScroll: true }), 0);
   const patchWindow = (id: WindowId, patch: Partial<WindowState>) => setWins((current) => current.map((w) => (w.id === id ? { ...w, ...patch } : w)));
   const focusWindow = (id: WindowId) => {
     if (front?.id === id) return;
@@ -224,7 +296,6 @@ export default function YugcOs({ active, onBack }: Props) {
 
   // 键盘：⌘K 启动器、Esc 逐层关闭、1/2/3 打开主入口
   useEffect(() => {
-    if (!active || promo) return;
     const onKey = (event: KeyboardEvent) => {
       // 原生 dialog 的 inert 不会阻止 window 监听器，弹层快捷键交给弹层自身。
       if (launcher || picker || phoneGuide || phoneSettings) return;
@@ -244,13 +315,15 @@ export default function YugcOs({ active, onBack }: Props) {
         if (menu) return setMenu(null);
         if (front) {
           if (phone) return returnHome();
-          return closeWindow(front.id);
+          closeWindow(front.id);
+          if (front.id === "profile") focusAvatar();
+          return;
         }
-        return onBack();
+        return;
       }
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       // 按住不放时浏览器自动重复的按键不算再按一次：1/2/3 只打开一次；焦点在 Dock、便签、菜单的按钮上按住回车，
-      // 拦掉默认动作，浏览器就不会每次重复都补一次点击。GitHub 组织每打开一次就多一个新标签页
+      // 拦掉默认动作，浏览器就不会每次重复都补一次点击（不然同一个窗口要开好几次，论坛也会被跳转好几次）
       if (event.repeat) {
         if (event.key === "Enter") event.preventDefault();
         return;
@@ -260,7 +333,7 @@ export default function YugcOs({ active, onBack }: Props) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, front, launcher, menu, onBack, open, phone, phoneGuide, phoneSettings, picker, promo]);
+  }, [front, launcher, menu, open, phone, phoneGuide, phoneSettings, picker]);
 
   useEffect(() => {
     if (launcher) launcherInput.current?.focus();
@@ -269,7 +342,7 @@ export default function YugcOs({ active, onBack }: Props) {
   // 还没看过宣传片的人接下来多半点「加入我们」：桌面出现时就和 CDN 握手，空闲时预取「加入我们」页、播放器、
   // hls.js 分包和起播那一段（#77 验收：点下去 1 秒内出第一帧）。开了省流量就只握手。
   useEffect(() => {
-    if (!active || hasSeenPromo(document.cookie)) return;
+    if (hasSeenPromo(document.cookie)) return;
     preconnectPromo();
     const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
     if (connection?.saveData) return;
@@ -277,7 +350,7 @@ export default function YugcOs({ active, onBack }: Props) {
     const idle = window.requestIdleCallback ?? ((run: () => void) => window.setTimeout(run, 1200));
     idle(() => {
       if (cancelled) return;
-      void Promise.all([import("../../pages/JoinUs"), import("../PromoPlayer"), import("hls.js/light")])
+      void Promise.all([import("./JoinBox"), import("../PromoPlayer"), import("hls.js/light")])
         .then(() => detectCapabilities(document.createElement("video")))
         .then((caps) => {
           const choice = choosePlayback(caps);
@@ -288,41 +361,26 @@ export default function YugcOs({ active, onBack }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [active]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 只在挂载时判断一次要不要预取
+  }, []);
 
-  // 宣传片盖住桌面时桌面不可聚焦、不可点（播放层挂在桌面外面）
-  useEffect(() => {
-    if (root.current) root.current.inert = promo;
-  }, [promo]);
-  const closePromo = () => {
-    setPromo(false);
-    window.setTimeout(() => root.current?.querySelector<HTMLElement>('[data-cta="promo"]')?.focus({ preventScroll: true }), 0);
-  };
-
-  const MENUS: Record<MenuName, Array<{ label: string; run: () => void; key?: string; note?: string } | null>> = {
-    system: [{ label: "关于极客班", run: () => open("about") }, { label: "组织架构", run: () => open("org") }, null, { label: "回到书桌", run: onBack, key: "Esc" }],
-    go: apps.map((app) => ({ label: app.name, run: () => open(app.id), key: app.key, note: opensNewTab(app) ? NEW_TAB_NOTE : undefined })),
+  const MENUS: Record<MenuName, Array<{ label: string; run: () => void; key?: string } | null>> = {
+    system: [{ label: "关于极客班", run: () => open("about") }, { label: "组织架构", run: () => open("org") }, ...(onReplayBoot ? [null, { label: "重播开机动画", run: onReplayBoot }] : [])],
+    go: apps.map((app) => ({ label: app.name, run: () => open(app.id), key: app.key })),
     window: [
       { label: "更换壁纸…", run: () => setPicker(true) },
       { label: "全部最小化", run: () => setWins((current) => current.map((w) => ({ ...w, minimized: true }))) },
-      { label: "关闭全部", run: () => setWins([]) },
+      { label: "关闭全部", run: () => { if (promoOpen()) closeWindow("promo"); setWins([]); } },
     ],
     help: [
-      { label: "新来的看这里", run: () => toggleNote(true) },
+      { label: "新来的看这里", run: () => setNoteMode("open") },
       { label: "打开终端", run: () => open("terminal") },
       { label: "文档", run: () => navigate("/docs") },
       { label: "搜索应用和命令", run: () => setLauncher(true), key: "⌘K" },
     ],
-    // 控制台只给在里面能管点什么的人（/auth/me 的 console_link），普通成员的菜单里没有这一项。
-    account: [
-      { label: "论坛", run: () => window.location.assign(links.forumHome()) },
-      ...(consoleLink ? [{ label: "控制台", run: () => window.location.assign(links.console()) }] : []),
-      null,
-      { label: "退出", run: () => void signOut() },
-    ],
   };
   const toggleMenu = (name: MenuName, anchor: HTMLElement) => {
-    // 菜单宽约 220px：靠右的菜单（头像）往左收，不出屏幕
+    // 菜单宽约 220px：靠右时往左收，不出屏幕
     const left = Math.min(anchor.getBoundingClientRect().left, window.innerWidth - 228);
     setMenu((current) => (current?.name === name ? null : { name, left }));
   };
@@ -333,15 +391,22 @@ export default function YugcOs({ active, onBack }: Props) {
   return (
     <>
       <div className={phone ? "pt-os-shell is-phone" : "pt-os-shell"} ref={root} onPointerDown={(event) => !(event.target as HTMLElement).closest(".pt-menu, [data-menu]") && setMenu(null)}>
+        {/* 壁纸铺满整个屏幕（菜单栏是半透明的），和开机动画的画布一样大，最后一帧才对得上 */}
+        <WallpaperLayer wallpaper={wallpaperForScreen(wallpaper, phoneWallpaper)} from={wallpaperFrom} sky={{ epoch: boot?.epoch ?? null, settled: boot?.settled ?? true, band }} />
         {phone ? <header className="pt-phone-status" aria-label="手机状态栏">
           <time>{phoneTime}</time>
           <button type="button" className="pt-phone-system" aria-label="YUGC OS 系统设置" aria-haspopup="dialog" onClick={() => setPhoneSettings(true)}>YUGC OS</button>
-          {account ? <button type="button" className="pt-phone-account" data-menu aria-label={`账号：${account.login}`} aria-haspopup="menu" aria-expanded={menu?.name === "account"} onClick={(e) => toggleMenu("account", e.currentTarget)}>
-            {account.avatarUrl ? <img src={account.avatarUrl} alt="" /> : <Icon name="user-line" size={18} />}
-          </button> : loaded ? <a className="pt-phone-signin" href={signInHref()}><Icon name="github-line" size={18} /> 登录<span className="pt-sr">，用 GitHub 登录</span></a> : <span />}
+          {/* 和电脑菜单栏一样只放头像：访客点开也是账号资料窗口（登录、注册和一句说明），不直接跳走 */}
+          {account || loaded ? <button type="button" className="pt-phone-account" aria-label={account ? `账号：${account.login}` : "登录或注册"} aria-haspopup="dialog" aria-expanded={profileOpen} onClick={() => openWindow("profile")}>
+            <Avatar src={account?.avatarUrl} />
+          </button> : <span />}
         </header> : <header className="pt-mb" aria-label="菜单栏">
           <button type="button" className="pt-mb-logo" data-menu aria-label="系统菜单" aria-haspopup="menu" aria-expanded={menu?.name === "system"} onClick={(e) => toggleMenu("system", e.currentTarget)}>
-            <img src={appConfig.portal.brand.logo} alt="" />
+            <span className="pt-wordmark" aria-hidden="true">
+              {WORDMARK.map((letter) => (
+                <span key={letter} data-tone={letter.toLowerCase()}>{letter}</span>
+              ))}
+            </span>
           </button>
           <b className="pt-mb-app">{frontName}</b>
           {(["go", "window", "help"] as const).map((name) => (
@@ -355,24 +420,13 @@ export default function YugcOs({ active, onBack }: Props) {
             <span>搜索</span>
             <kbd>⌘K</kbd>
           </button>
-          <span className="pt-mb-stat" aria-hidden="true">
-            <Icon name="wifi-line" size={15} />
-          </span>
-          {/* 全站唯一的登录入口：用 GitHub 登录，登录后默认进论坛；登录后换成头像菜单（论坛 / 控制台（仅 console_link）/ 退出） */}
-          {account ? (
-            <button type="button" className="pt-mb-account" data-menu aria-haspopup="menu" aria-expanded={menu?.name === "account"} onClick={(e) => toggleMenu("account", e.currentTarget)}>
-              {account.avatarUrl ? <img src={account.avatarUrl} alt="" /> : <Icon name="user-line" size={15} />}
-              <span>{account.login}</span>
-            </button>
-          ) : (
-            loaded && (
-              <a className="pt-mb-signin" href={signInHref()}>
-                <Icon name="github-line" size={15} />
-                <span>用 GitHub 登录</span>
-              </a>
-            )
-          )}
           <span className="pt-mb-clock">{time}</span>
+          {/* 头像：账号资料窗口的入口，也是全站唯一的登录入口（窗口里去极客班内部登录页，登录后回到当前页面） */}
+          {(account || loaded) && (
+            <button type="button" className="pt-mb-avatar" aria-label={account ? `账号：${account.login}` : "登录或注册"} aria-haspopup="dialog" aria-expanded={profileOpen} onClick={() => openWindow("profile")}>
+              <Avatar src={account?.avatarUrl} />
+            </button>
+          )}
         </header>}
         {menu && (
           <div className="pt-menu" role="menu" style={{ left: menu.left }}>
@@ -389,7 +443,6 @@ export default function YugcOs({ active, onBack }: Props) {
                   }}
                 >
                   {item.label}
-                  {item.note && <span className="pt-sr">{item.note}</span>}
                   {item.key && <kbd>{item.key}</kbd>}
                 </button>
               ) : (
@@ -403,7 +456,7 @@ export default function YugcOs({ active, onBack }: Props) {
           onPointerDown={(event) => event.target === event.currentTarget && setSelectedIcon(null)}
           onTouchStart={(event) => {
             swipe.current = null;
-            if (!phone || !active || front || launcher || picker || phoneGuide || phoneSettings || promo || event.touches.length !== 1 || event.currentTarget.scrollTop !== 0) return;
+            if (!phone || front || launcher || picker || phoneGuide || phoneSettings || event.touches.length !== 1 || event.currentTarget.scrollTop !== 0) return;
             if ((event.target as HTMLElement).closest("button, a, input, textarea, dialog")) return;
             const touch = event.touches[0];
             swipe.current = { x: touch.clientX, y: touch.clientY, at: performance.now() };
@@ -418,12 +471,11 @@ export default function YugcOs({ active, onBack }: Props) {
             searchFocus.current?.focus({ preventScroll: true });
             search();
           }}>
-          <WallpaperLayer wallpaper={wallpaperForScreen(wallpaper, phoneWallpaper)} from={wallpaperFrom} />
           <h1 className="pt-sr">长江大学极客班 · YUGC OS</h1>
           <div className="pt-home-apps" ref={(node) => { if (node) node.inert = phone && !!front; }}>
             {phone && <div className="pt-phone-heading"><h2>极客班</h2><button type="button" onClick={() => setPhoneGuide(true)}>新来的看这里 <Icon name="arrow-right-s-line" size={14} /></button></div>}
             <DesktopIcons apps={apps} selected={selectedIcon} onSelect={setSelectedIcon} onOpen={open} phone={phone} />
-            {!phone && note && <StartNote onOpen={open} onClose={() => toggleNote(false)} />}
+            {!phone && note && <StartNote onOpen={openFromNote} onClose={closeNote} applyOpen={applyOpen} />}
           </div>
 
           <div className="pt-windows">
@@ -435,17 +487,27 @@ export default function YugcOs({ active, onBack }: Props) {
                 onFocus={() => focusWindow(win.id)}
                 onClose={() => {
                   closeWindow(win.id);
-                  if (phone) {
+                  // 账号资料窗口关掉后焦点回到头像；其余窗口在手机上回到主屏幕上的图标
+                  if (win.id === "profile") focusAvatar();
+                  // 宣传片是从别的窗口里打开的（「加入我们」第一次打开自动弹，或信纸上点的「看宣传片」）：手机上关掉后露出下面那个窗口，不一起收到主屏幕
+                  if (phone && !(win.id === "promo" && wins.some((w) => w.id !== "promo" && !w.minimized))) {
                     returnHome();
-                    window.setTimeout(() => root.current?.querySelector<HTMLElement>(`[data-cta="${win.id}"]`)?.focus({ preventScroll: true }), 0);
+                    if (win.id !== "profile") window.setTimeout(() => root.current?.querySelector<HTMLElement>(`[data-cta="${win.id}"]`)?.focus({ preventScroll: true }), 0);
                   }
                 }}
                 onMinimize={() => phone ? returnHome() : patchWindow(win.id, { minimized: true })}
                 onZoom={() => patchWindow(win.id, { zoomed: !win.zoomed })}
                 onMove={(x, y) => patchWindow(win.id, { x, y })}
+                account={account}
+                accountLoaded={loaded}
                 onOpen={open}
                 apps={apps}
                 phone={phone}
+                applyOpen={applyOpen}
+                onApplyOpen={setApplyOpen}
+                onAutoPromo={() => openPromo(true)}
+                promo={win.id === "promo" ? promoActions : undefined}
+                profile={win.id === "profile" ? { signInLink, onPatch: patch, onReload: reload, onSignOut: () => void signOut().then(() => closeWindow("profile")), linkNotice } : undefined}
               />
             ))}
           </div>
@@ -453,19 +515,21 @@ export default function YugcOs({ active, onBack }: Props) {
 
         {phone && !front && <button ref={searchFocus} type="button" className="pt-phone-search" onClick={search}><span><Icon name="search-line" size={14} /> 搜索</span></button>}
         <nav className="pt-dock" aria-label="Dock">
-          <button type="button" className="pt-dk is-back" aria-label={phone ? "返回主屏幕" : "回到书桌"} onClick={phone ? returnHome : onBack}>
-            <Icon name={phone ? "home-4-line" : "arrow-left-line"} size={20} />
-            <span className="pt-dk-label" aria-hidden="true">
-              {phone ? "主屏幕" : <>回到书桌 <kbd>Esc</kbd></>}
-            </span>
-          </button>
-          <span className="pt-dk-sep" aria-hidden="true" />
+          {phone && (
+            <>
+              <button type="button" className="pt-dk is-back" aria-label="返回主屏幕" onClick={returnHome}>
+                <Icon name="home-4-line" size={20} />
+                <span className="pt-dk-label" aria-hidden="true">主屏幕</span>
+              </button>
+              <span className="pt-dk-sep" aria-hidden="true" />
+            </>
+          )}
           {(phone ? apps.filter((app) => app.key) : apps).map((app) => (
             <button
               key={app.id}
               type="button"
               className={["pt-dk", app.key ? "" : "is-extra", wins.some((w) => w.id === app.id) ? "is-running" : ""].filter(Boolean).join(" ")}
-              aria-label={opensNewTab(app) ? app.name + NEW_TAB_NOTE : app.name}
+              aria-label={app.name}
               onClick={(e) => open(app.id, e.currentTarget)}
             >
               <AppGlyph app={app} size={20} />
@@ -479,7 +543,7 @@ export default function YugcOs({ active, onBack }: Props) {
         </nav>
 
         {picker && (
-          <Modal title="更换壁纸" className={`pt-root pt-os-modal pt-picker-modal${phone ? " is-phone" : ""}`} onClose={() => setPicker(false)} initialFocusRef={wallpaperFocus}>
+          <Modal title="更换壁纸" className={`pt-root pt-os-modal pt-picker-modal${phone ? " is-phone" : ""}${phoneWallpaper ? " is-tall" : ""}`} onClose={() => setPicker(false)} initialFocusRef={wallpaperFocus}>
             <div className="pt-picker-box" ref={pickerBox}>
               {!phone && <header>
                 <h2>更换壁纸</h2>
@@ -506,7 +570,11 @@ export default function YugcOs({ active, onBack }: Props) {
                       className={wallpaper.id === item.id ? "is-on" : undefined}
                       onClick={(event) => chooseWallpaper(item, event.currentTarget)}
                     >
-                      <img src={wallpaperForScreen(item, phoneWallpaper).thumb} alt="" width={phoneWallpaper ? 90 : 160} height={phoneWallpaper ? 195 : 90} loading="lazy" />
+                      {item.kind === "sky" ? (
+                        <SkyThumb width={phoneWallpaper ? 90 : 160} height={phoneWallpaper ? 195 : 90} band={phoneWallpaper ? band : null} />
+                      ) : (
+                        <img src={phoneWallpaper ? item.phone.thumb : item.thumb} alt="" width={phoneWallpaper ? 90 : 160} height={phoneWallpaper ? 195 : 90} loading="lazy" />
+                      )}
                       <span>{item.name}</span>
                     </button>
                   </li>
@@ -551,26 +619,20 @@ export default function YugcOs({ active, onBack }: Props) {
                 />
               </label>
               <ul id="pt-ln-list" role="listbox" aria-label="结果">
-                {shown.map((command, index) => {
-                  const app = command.id.startsWith("app:") ? appById(command.id.slice(4) as AppId) : undefined;
-                  return (
-                    <li
-                      key={command.id}
-                      id={`pt-ln-${command.id}`}
-                      role="option"
-                      aria-selected={index === selected}
-                      onPointerEnter={() => setSelected(index)}
-                      onClick={() => runCommand(command.id)}
-                    >
-                      <Icon name={command.icon} size={17} />
-                      <b>
-                        {command.label}
-                        {app && opensNewTab(app) && <span className="pt-sr">{NEW_TAB_NOTE}</span>}
-                      </b>
-                      <span>{command.hint}</span>
-                    </li>
-                  );
-                })}
+                {shown.map((command, index) => (
+                  <li
+                    key={command.id}
+                    id={`pt-ln-${command.id}`}
+                    role="option"
+                    aria-selected={index === selected}
+                    onPointerEnter={() => setSelected(index)}
+                    onClick={() => runCommand(command.id)}
+                  >
+                    <Icon name={command.icon} size={17} />
+                    <b>{command.label}</b>
+                    <span>{command.hint}</span>
+                  </li>
+                ))}
                 {shown.length === 0 && <li className="pt-empty">没找到「{query.trim()}」。试试「论坛」或「加入」</li>}
               </ul>
               <footer>
@@ -593,23 +655,22 @@ export default function YugcOs({ active, onBack }: Props) {
             </div>
           </Modal>
         )}
-        {phoneGuide && <Modal title="新来的看这里" className="pt-root pt-os-modal pt-phone-guide is-phone" onClose={() => setPhoneGuide(false)}>
-          <StartNote phone onOpen={(id, from) => { setPhoneGuide(false); open(id, from); }} onClose={() => setPhoneGuide(false)} />
+        {phoneGuide && <Modal title="新来的看这里" className="pt-root pt-os-modal pt-phone-guide is-phone" onClose={() => { setPhoneGuide(false); markNoteSeen(); reportEvent("os.note.dismissed"); }}>
+          <StartNote phone applyOpen={applyOpen} onOpen={(id, from) => { setPhoneGuide(false); markNoteSeen(); open(id, from); }} onClose={() => setPhoneGuide(false)} />
         </Modal>}
         {phoneSettings && <Modal title="系统设置" className={`pt-root pt-os-modal pt-phone-settings${phone ? " is-phone" : ""}`} onClose={() => setPhoneSettings(false)}>
           <div className="pt-phone-settings-list">
             <button type="button" onClick={() => { setPhoneSettings(false); setPicker(true); }}><Icon name="image-line" size={20} /> 更换壁纸 <Icon name="arrow-right-s-line" size={18} /></button>
-            <button type="button" onClick={() => { setPhoneSettings(false); onBack(); }}><Icon name="arrow-left-line" size={20} /> 回到书桌 <Icon name="arrow-right-s-line" size={18} /></button>
+            {onReplayBoot && <button type="button" onClick={() => { setPhoneSettings(false); onReplayBoot(); }}><Icon name="restart-line" size={20} /> 重播开机动画 <Icon name="arrow-right-s-line" size={18} /></button>}
           </div>
         </Modal>}
 
-        {flight && (
-          <div className="pt-flight" aria-hidden="true" style={{ left: flight.x - 36, top: flight.y - 36, ["--tint" as string]: flight.app.tint }}>
-            <Icon name={flight.app.icon} size={30} />
-          </div>
-        )}
       </div>
-      {promo && <LazyPromoPlayer mode="replay" onClose={closePromo} />}
     </>
   );
+}
+
+/** 菜单栏和手机状态栏上的头像（28px 圆）：没有头像图时是一个人形图标 */
+function Avatar({ src }: { src?: string | null }) {
+  return <span className="pt-avatar">{src ? <img src={src} alt="" /> : <Icon name="user-3-line" size={16} />}</span>;
 }

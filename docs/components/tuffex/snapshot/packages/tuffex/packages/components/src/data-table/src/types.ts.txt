@@ -13,6 +13,22 @@ export interface DataTableSortState {
   order: DataTableSortOrder
 }
 
+export type DataTableColumnType = 'text' | 'number' | 'datetime' | 'date' | 'tag' | 'source' | 'actions'
+
+export interface DataTableFilterOption {
+  label: string
+  value: unknown
+  tone?: string
+  /**
+   * Rows behind the option, shown beside its label. Options gathered from the
+   * rows count themselves while filtering runs on the client; pass it for
+   * server-side counts.
+   */
+  count?: number
+}
+
+export type DataTableFilterState = Record<string, unknown>
+
 /**
  * How repeated clicks on a sortable header cycle.
  *
@@ -20,6 +36,58 @@ export interface DataTableSortState {
  * - `bi`: ascending → descending → ascending; the table is never unsorted.
  */
 export type DataTableSortCycle = 'tri' | 'bi'
+
+/**
+ * What `loading` draws.
+ *
+ * - `overlay`: a blurred veil and a spinner over the visible table, rows or not.
+ * - `skeleton`: placeholder rows shaped like the columns while there are no rows
+ *   yet; once rows exist they stay as they are, and a thin bar under the header
+ *   says a refresh is running.
+ * - `shimmer`: a band of light sweeps across each row in turn — over placeholder
+ *   rows before the first rows land, over the rows themselves during a refresh.
+ */
+export type DataTableLoadingVariant = 'overlay' | 'skeleton' | 'shimmer'
+
+/**
+ * Every string the table renders around the data. TuffEx owns no message
+ * catalog, so a host localizes by passing the slice it needs through `labels`.
+ */
+export interface DataTableLabels {
+  /** Accessible name of a column's filter button; `{column}` becomes the column title. */
+  filter: string
+  /** Option that clears a tag filter. */
+  filterAll: string
+  /** Option that clears a date filter. */
+  filterAnyTime: string
+  filterToday: string
+  filterLast3Days: string
+  filterLast7Days: string
+  filterLast30Days: string
+  /** Placeholder of the text filter, and of the option search a long tag filter gets. */
+  filterSearch: string
+  filterMin: string
+  filterMax: string
+  /** Clears a number range. */
+  filterReset: string
+  /** Closes a number range. */
+  filterApply: string
+}
+
+export const DATA_TABLE_DEFAULT_LABELS: DataTableLabels = {
+  filter: 'Filter {column}',
+  filterAll: 'All',
+  filterAnyTime: 'Any time',
+  filterToday: 'Today',
+  filterLast3Days: 'Last 3 days',
+  filterLast7Days: 'Last 7 days',
+  filterLast30Days: 'Last 30 days',
+  filterSearch: 'Search',
+  filterMin: 'Min',
+  filterMax: 'Max',
+  filterReset: 'Reset',
+  filterApply: 'Done',
+}
 
 /**
  * Class contribution for a row: anything Vue's `class` binding accepts.
@@ -39,9 +107,24 @@ export interface DataTableHeaderSlotProps<T = any> {
   toggle: () => void
 }
 
+/**
+ * Scope handed to a `filter-<key>` slot, which replaces the column's built-in
+ * filter panel.
+ */
+export interface DataTableFilterSlotProps<T = any> {
+  column: DataTableColumn<T>
+  /** This column's entry in the active filter state. */
+  filterValue: unknown
+  setFilter: (value: unknown) => void
+  clearFilter: () => void
+  /** Closes the panel. */
+  close: () => void
+}
+
 export interface DataTableColumn<T = any> {
   key: string
   title: string
+  type?: DataTableColumnType
   dataIndex?: string
   width?: string | number
   minWidth?: string | number
@@ -55,6 +138,16 @@ export interface DataTableColumn<T = any> {
   format?: (value: any, row: T, index: number) => string
   headerClass?: string
   cellClass?: string
+  /**
+   * Enables column filtering in the header.
+   * @default false
+   */
+  filter?: boolean
+  /**
+   * Custom options for tag/enum filtering. If omitted for a tag column,
+   * options are automatically gathered from distinct row values.
+   */
+  filterOptions?: DataTableFilterOption[]
 }
 
 export type DataTableRowKey<T = any> = keyof T | ((row: T, index: number) => DataTableKey)
@@ -64,6 +157,21 @@ export interface DataTableProps<T = any> {
   data: T[]
   rowKey?: DataTableRowKey<T>
   loading?: boolean
+  /**
+   * How `loading` is drawn. `skeleton` and `shimmer` render placeholder rows only
+   * while there is no row to show, and keep existing rows in place during a
+   * refresh.
+   * @default 'overlay'
+   */
+  loadingVariant?: DataTableLoadingVariant
+  /**
+   * Placeholder rows drawn by the `skeleton` and `shimmer` variants before the
+   * first rows land. Match it to the page size so nothing moves when the data
+   * arrives. A table whose height is set by its host adds rows until the
+   * placeholders reach its bottom edge.
+   * @default 5
+   */
+  skeletonRows?: number
   emptyText?: string
   striped?: boolean
   bordered?: boolean
@@ -116,6 +224,41 @@ export interface DataTableProps<T = any> {
    * @default false
    */
   stickyFooter?: boolean
+  /**
+   * Renders a leading toggle column and lets a row open a detail row of its
+   * own. Off by default: existing tables render exactly as before.
+   * @default false
+   */
+  expandable?: boolean
+  /**
+   * Initial expanded rows for the uncontrolled mode; the component owns the
+   * state after that.
+   *
+   * Mutually exclusive with {@link DataTableProps.expandedKeys}: passing that
+   * one puts the component in controlled mode and this prop is ignored.
+   */
+  defaultExpandedKeys?: DataTableKey[]
+  /**
+   * Controlled expanded rows. Supply it (including as `[]`) and the component
+   * stops holding its own state — it reports what the reader toggled through
+   * `update:expandedKeys` / `expand` and renders whatever comes back.
+   */
+  expandedKeys?: DataTableKey[]
+  /**
+   * Per-row gate for the toggle. Rows it rejects keep an empty leading cell so
+   * the columns stay aligned, and their detail row cannot be opened.
+   */
+  rowExpandable?: (row: T, index: number) => boolean
+  /**
+   * Accessible name of a closed toggle.
+   * @default 'Expand row'
+   */
+  expandLabel?: string
+  /**
+   * Accessible name of an open toggle.
+   * @default 'Collapse row'
+   */
+  collapseLabel?: string
   /** Extra classes per row, e.g. to tint a row by its state. */
   rowClass?: (row: T, index: number) => DataTableRowClass
   /**
@@ -124,12 +267,41 @@ export interface DataTableProps<T = any> {
    * @default false
    */
   highlightSelected?: boolean
+  /**
+   * Initial filter state for uncontrolled mode.
+   */
+  defaultFilter?: DataTableFilterState
+  /**
+   * Controlled filter state. When provided, the component reports changes
+   * through `update:filter` / `filterChange`.
+   */
+  filter?: DataTableFilterState
+  /**
+   * Filters rows in memory on the client when `true`.
+   * @default true
+   */
+  filterOnClient?: boolean
+  /**
+   * Automatically fixes actions columns (key `actions`/`action` or title containing '操作')
+   * to the right edge unless `fixed` is explicitly configured.
+   * @default true
+   */
+  autoStickyActions?: boolean
+  /**
+   * Text for the filter controls. Pass only the strings to replace; the rest
+   * keep their English defaults (see `DATA_TABLE_DEFAULT_LABELS`).
+   */
+  labels?: Partial<DataTableLabels>
 }
 
 export interface DataTableEmits<T = any> {
   (e: 'update:selectedKeys', value: DataTableKey[]): void
   (e: 'selectionChange', value: DataTableKey[]): void
+  (e: 'update:expandedKeys', value: DataTableKey[]): void
+  (e: 'expand', payload: { row: T, index: number, expanded: boolean }): void
   (e: 'sortChange', value: DataTableSortState | null): void
   (e: 'update:sort', value: DataTableSortState | null): void
   (e: 'rowClick', payload: { row: T, index: number }): void
+  (e: 'update:filter', value: DataTableFilterState): void
+  (e: 'filterChange', value: DataTableFilterState): void
 }

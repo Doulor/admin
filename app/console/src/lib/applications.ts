@@ -1,10 +1,12 @@
 // 投递详情页「处理这份投递」的纯逻辑：改状态时要不要给投递人发通知信、提示怎么写、信里的字段怎么校验、
-// PATCH 体怎么拼，以及审核记录里每封信的状态怎么说。不导入 Vue，tests/console/applications.test.ts 直接测。
+// PATCH 体怎么拼，以及审核记录里每封信的状态怎么说；末尾是投递列表页顶部招新总开关的文字（#284）。
+// 不导入 Vue，tests/console/applications.test.ts 直接测。
 // 字段名、长度上限和错误码与服务端 PATCH /api/console/applications/:id 一致（#148）。
+import type { ConfirmOptions } from "./confirm";
 import { fmtDate } from "./format";
 import { ApiError } from "./http";
 import { APPLICATION_STATUS, isApplicationStatus } from "./statuses";
-import type { ApplicationLetter, ApplicationReviewPatch, ApplicationStatus, MailSettings, MailSummary } from "./types";
+import type { ApplicationLetter, ApplicationReviewPatch, ApplicationStatus, ApplySettings, LetterTemplates, MailSettings, MailSummary } from "./types";
 
 /** 只有这三种状态有通知信；已取消、改回已收到、只写备注都不发。 */
 export type LetterKind = Extract<ApplicationStatus, "interview" | "accepted" | "rejected">;
@@ -77,13 +79,30 @@ export function newestReviewId(reviews: readonly { id: number }[]): number {
   return reviews.reduce((newest, review) => Math.max(newest, review.id), 0);
 }
 
+/** 改状态时的模板下拉框（#285）：这一类启用的模板有两套以上才出现，只有一套时没得选。 */
+export type TemplateChoice = { defaultId: string; options: { value: string; label: string }[] };
+export function templateChoice(templates: LetterTemplates | undefined, kind: LetterKind): TemplateChoice | null {
+  const options = templates?.[kind] ?? [];
+  if (options.length < 2) return null;
+  const defaultId = (options.find(item => item.is_default) ?? options[0]).id;
+  return {
+    defaultId,
+    options: options.map(item => ({ value: item.id, label: item.is_default && !item.name.includes("默认") ? `${item.name}（默认）` : item.name })),
+  };
+}
+
+/** 选了默认以外的模板才带 template_id；不带就是用这一类的默认模板，服务端和这里说的是同一套。 */
+const pickedTemplate = (templateId: string | undefined, defaultTemplateId: string | null | undefined): { template_id?: string } =>
+  templateId && templateId !== defaultTemplateId ? { template_id: templateId } : {};
+
 /**
- * PATCH 体：只带改了的状态、非空备注；改到要发信的状态时带上 notify，勾了才带信的内容。
+ * PATCH 体：只带改了的状态、非空备注；改到要发信的状态时带上 notify，勾了才带信的内容和选的模板。
  * 总是带上页面上看到的状态和审核记录的版本号（latestReviewId，见 newestReviewId），
  * 别人在这之间处理过时服务端回 409，不按旧画面改、不发信；只比状态会漏掉「改走又改回」。
  */
 export function reviewPatch(input: {
   current: string; latestReviewId: number; status: ApplicationStatus; note: string; notify: boolean; draft: LetterDraft;
+  templateId?: string; defaultTemplateId?: string | null;
 }): ApplicationReviewPatch {
   const body: ApplicationReviewPatch = isApplicationStatus(input.current) ? { expected_status: input.current, expected_review_id: input.latestReviewId } : {};
   const changed = input.status !== input.current;
@@ -91,9 +110,20 @@ export function reviewPatch(input: {
   if (input.note.trim()) body.note = input.note.trim();
   if (changed && isLetterKind(input.status)) {
     body.notify = input.notify;
-    if (input.notify) body.letter = letterPayload(input.status, input.draft);
+    if (input.notify) {
+      Object.assign(body, pickedTemplate(input.templateId, input.defaultTemplateId));
+      body.letter = letterPayload(input.status, input.draft);
+    }
   }
   return body;
+}
+
+/**
+ * 「预览这封信」的请求体：和保存时发信用的是同一份内容。面试时间、地点还没填的不带，服务端在预览里用占位文字顶上。
+ */
+export function letterPreviewBody(input: { status: LetterKind; draft: LetterDraft; templateId?: string; defaultTemplateId?: string | null }) {
+  const letter = Object.fromEntries(Object.entries(letterPayload(input.status, input.draft)).filter(([, value]) => value)) as ApplicationLetter;
+  return { status: input.status, ...pickedTemplate(input.templateId, input.defaultTemplateId), letter };
 }
 
 /** 409 status_changed：别人刚改过这份投递的状态。页面刷新后用这句话提示。 */
@@ -104,13 +134,15 @@ export function statusChangedMessage(error: unknown): string | null {
 
 /**
  * 服务端按字段拒绝的错误，显示在对应的输入框下面：invalid_status 在状态上，letter_required 在面试时间、地点上，
- * letter_invalid（信渲染不出来，例如没配回信地址却写了「直接回复这封邮件」）在「通知投递人」一栏里。
+ * letter_invalid（信渲染不出来，例如没配回信地址却写了「直接回复这封邮件」）和 template_invalid（选的模板不存在、
+ * 不是这一类或已经停用）在「通知投递人」一栏里。
  * 其它错误返回 null，交给 ErrorAlert。
  */
 export function serverFieldErrors(error: unknown): { status?: string; notice?: string; letter: LetterErrors } | null {
   if (!(error instanceof ApiError) || error.status !== 400) return null;
   if (error.code === "invalid_status") return { status: error.message || "状态只能是已收到、待面试、已录取、未通过、已取消。", letter: {} };
   if (error.code === "letter_invalid") return { notice: error.message || "信的内容不合规，改一下再发。", letter: {} };
+  if (error.code === "template_invalid") return { notice: error.message || "选的这套信现在不能用，换一套再发。", letter: {} };
   if (error.code !== "letter_required") return null;
   const fields = error.payload?.fields;
   if (!fields || typeof fields !== "object") return null;
@@ -163,3 +195,30 @@ export function savedMessage(mail: MailSummary | null, status?: ApplicationStatu
   if (mail.skip_reason === "mail_disabled") return "这封信没有发出：发信还没有配置。";
   return "审核记录已更新。";
 }
+
+/**
+ * 招新总开关那一栏（#284）：状态一句话、这个状态对官网意味着什么、上次是什么时候改的（从没改过就不写）。
+ * 服务端的 updated_at 为 null 表示从没动过，等于默认开放。
+ */
+export function applySwitchView(settings: ApplySettings): { title: string; hint: string; changed: string | null } {
+  const changed = settings.updated_at === null ? null : `上次改动：${fmtDate(settings.updated_at)}`;
+  return settings.open
+    ? { title: "招新投递：开放中", hint: "官网「加入我们」窗口可以投递。", changed }
+    : { title: "招新投递：已关闭", hint: "官网「加入我们」窗口显示招新暂未开放，新的投递会被拒绝。已经收到的投递照常处理。", changed };
+}
+
+/** 改开关之前的确认。关闭影响所有想投递的人，按危险操作的样式；重新开放不是。 */
+export function applySwitchConfirm(next: boolean): ConfirmOptions {
+  return next
+    ? { title: "重新开放招新？", body: "官网「加入我们」窗口恢复投递表单。每个账号每天能投几份的限制不变。", confirmText: "开放招新" }
+    : {
+      title: "关闭招新？",
+      body: "官网「加入我们」窗口换成「招新暂未开放」，新的投递会被拒绝。已经收到的投递和审核不受影响，之后可以重新开放。",
+      confirmText: "关闭招新",
+      danger: true,
+    };
+}
+
+/** 改成功之后的提示：官网已经打开的窗口要重新打开才会取到新状态，这里说明白。 */
+export const applySwitchSaved = (open: boolean): string =>
+  open ? "已开放招新，官网「加入我们」窗口重新打开后可以投递" : "已关闭招新，官网「加入我们」窗口重新打开后显示招新暂未开放";

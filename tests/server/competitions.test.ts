@@ -1,10 +1,14 @@
 // 比赛（#238）：公开列表与控制台维护。公开接口不带成员信息，写入只在服务端按能力判定。
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ServiceOverrides } from '../../app/server/src/services';
-import { competitionStatus, compareCompetitions } from '../../app/server/src/lib/competition-store';
+import { competitionStatus, compareCompetitions, createCompetitionStore, newCompetitionId } from '../../app/server/src/lib/competition-store';
+import { createDatabase } from '../../app/server/src/lib/db';
 import { formFrom, formPayload } from '../../app/console/src/lib/competitions';
 import { buildApp, type BuildAppOptions } from '../../app/server/src/app';
-import { testApp, testConfig } from './helpers';
+import { accountIdOf, activityRows, grantPermGroup, signIn, testApp, testConfig } from './helpers';
 
 const CONSOLE_ORG = 'Yangtze-University-Geek-Class';
 const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
@@ -25,12 +29,15 @@ function github(roles: Record<string, 'admin' | 'member'>) {
   })) as unknown as ServiceOverrides['octokitFactory'];
 }
 
-/** alice 是提督（全部能力），bob 是没登录管理的舰员（有 console.access，没有 competitions.manage）。 */
+/** alice 是提督（全部能力），bob 是没登录管理的舰员（有 console.access，没有 competitions.manage）。
+ * #274：站长身份按新权限体系的 perm_members 判定，不再靠 GitHub 组织角色桩动态认出，显式放进 title.site.owner。 */
 async function setup() {
   const context = await testApp({ octokitFactory: github({ alice: 'admin', bob: 'member' }) });
   contexts.push(context);
   const { app } = context;
-  const as = (login: string) => ({ cookie: `sid=${app.services.auth.createSession(login, USERS[login] ?? null, null, `token-${login}`)}` });
+  const as = (login: string) => ({ cookie: `sid=${signIn(app, login, USERS[login], null, `token-${login}`)}` });
+  signIn(app, 'alice', USERS.alice); // 先建号，才能查到 account_id 去加站长组
+  grantPermGroup(app, accountIdOf(app, 'alice'), 'title.site.owner');
   return { app, as };
 }
 
@@ -41,6 +48,10 @@ const DRAFT = {
   start_at: BASE, end_at: BASE + 3 * HOUR,
   signup_deadline: BASE - 24 * HOUR, url: null as string | null, description: '班内选拔',
 };
+
+/** #239 的种子比赛（报名与积分演练用）：这里只关心本用例造的比赛，按 id 排除，不删用例。 */
+const SEED_COMPETITION_ID = 'oss-challenge-2026-1';
+const own = <T extends { id: string }>(rows: T[]) => rows.filter(row => row.id !== SEED_COMPETITION_ID);
 
 it('registers response contracts for competition and capability configuration operations', async () => {
   const routes: Parameters<NonNullable<BuildAppOptions['observeRoute']>>[0][] = [];
@@ -62,9 +73,11 @@ it('registers response contracts for competition and capability configuration op
       ['POST', '/api/console/competitions', 201],
       ['PATCH', '/api/console/competitions/:competition_id', 200],
       ['DELETE', '/api/console/competitions/:competition_id', 200],
-      ['POST', '/api/console/departments', 201],
-      ['PATCH', '/api/console/departments/:department_id', 200],
-      ['PATCH', '/api/console/titles/:title_id', 200],
+      // #274 删掉了 /api/console/departments 的写路由和 /api/console/titles/:title_id；换成同样「创建/编辑一个
+      // 控制台配置资源」形状的权限组与用户接口，验证同一套 registerContracts 合并机制。
+      ['POST', '/api/console/permission-groups', 201],
+      ['PATCH', '/api/console/permission-groups/:id', 200],
+      ['PATCH', '/api/console/users/:id', 200],
     ] as const) {
       const route = routes.find(item => item.url === path && [item.method].flat().includes(method));
       expect(route?.schema, `${method} ${path}`).toHaveProperty(`response.${status}`);
@@ -75,7 +88,7 @@ it('registers response contracts for competition and capability configuration op
 });
 
 describe('competition status and ordering', () => {
-  const at = (start: number, end: number, deadline: number | null) => ({ start_at: start, end_at: end, signup_deadline: deadline });
+  const at = (start: number, end: number, deadline: number | null, planning = false) => ({ start_at: start, end_at: end, signup_deadline: deadline, planning });
   const NOW = 1_800_000_000_000;
 
   it('reads the phase off the clock, not off a stored column', () => {
@@ -92,6 +105,19 @@ describe('competition status and ordering', () => {
   it('treats the end timestamp as the boundary of "ended"', () => {
     expect(competitionStatus(at(NOW - 2 * HOUR, NOW, null), NOW)).toBe('ongoing');
     expect(competitionStatus(at(NOW - 2 * HOUR, NOW - 1, null), NOW)).toBe('ended');
+  });
+
+  // 规划中（#278，所有者 2026-10-25 01:03）：开赛前压过未开始/报名中/报名已截止；一过开赛时间就不再生效，
+  // 照原有规则走进行中/已结束，不会把已经开赛的比赛卡在「规划中」。
+  it('planning overrides the pre-start phases, but stops mattering once the start time passes', () => {
+    // 开赛前：即使报名截止时间还没到（本来该是「报名中」），规划中照样压过去
+    expect(competitionStatus(at(NOW + HOUR, NOW + 2 * HOUR, NOW + 30 * 60_000, true), NOW)).toBe('planning');
+    // 开赛前、没登记报名截止（本来该是「未开始」），规划中照样压过去
+    expect(competitionStatus(at(NOW + HOUR, NOW + 2 * HOUR, null, true), NOW)).toBe('planning');
+    // 到了开赛那一刻，规划中就不再生效了：按原有规则算成进行中
+    expect(competitionStatus(at(NOW - HOUR, NOW + HOUR, null, true), NOW)).toBe('ongoing');
+    // 已经结束：同样按原有规则，不会被规划中标记卡住
+    expect(competitionStatus(at(NOW - 2 * HOUR, NOW - HOUR, null, true), NOW)).toBe('ended');
   });
 
   it('puts what you can still catch above what is over, and is stable on ties', () => {
@@ -121,10 +147,18 @@ describe('public list', () => {
 
     const listed = await app.inject({ url: '/api/public/competitions' });
     expect(listed.statusCode).toBe(200);
-    expect(listed.json().competitions.map((row: { name: string }) => row.name)).toEqual(['极客班算法赛', '校外赛']);
-    // 公开形状里没有内部字段，也没有任何成员信息
-    const row = listed.json().competitions[0];
-    expect(Object.keys(row).sort()).toEqual(['description', 'end_at', 'id', 'kind', 'name', 'signup_deadline', 'start_at', 'status', 'url']);
+    expect(own(listed.json().competitions).map((row: { name: string }) => row.name)).toEqual(['极客班算法赛', '校外赛']);
+    // 公开形状里没有内部字段，也没有任何成员信息；每场多一个报名摘要（#239），不含报名人数；
+    // #278 加官网地址、门户深链、奖项、年级系数、两档计分表与定榜时间；规划中（#278 重开）要给，官网本地重算
+    // 状态要用到它
+    const row = own(listed.json().competitions)[0];
+    expect(Object.keys(row).sort()).toEqual([
+      'app_url', 'description', 'end_at', 'finalized_at', 'grade_factors', 'id', 'kind', 'name', 'planning', 'prizes',
+      'scoring', 'signup', 'signup_deadline', 'site_url', 'start_at', 'status', 'url',
+    ]);
+    expect(row).toMatchObject({ site_url: null, prizes: [], finalized_at: null, planning: false });
+    expect(row.app_url).toBe(`/?open=competitions&competition=${encodeURIComponent(row.id)}`);
+    expect(row.signup).toEqual({ enabled: false, participation: 'individual', team_min: 1, team_max: 1, scoring: 'none' });
     expect(JSON.stringify(listed.json())).not.toMatch(/offline|created_at|login|user_id/);
 
     // 下线之后公开列表不再返回，控制台仍看得到
@@ -132,50 +166,59 @@ describe('public list', () => {
     const offline = await app.inject({ method: 'PATCH', url: `/api/console/competitions/${id}`, headers: as('alice'), payload: { offline: true } });
     expect(offline.statusCode).toBe(200);
     const after = await app.inject({ url: '/api/public/competitions' });
-    expect(after.json().competitions.map((row: { name: string }) => row.name)).toEqual(['校外赛']);
+    expect(own(after.json().competitions).map((row: { name: string }) => row.name)).toEqual(['校外赛']);
     const consoleList = await app.inject({ url: '/api/console/competitions', headers: as('alice') });
     expect(consoleList.json().competitions.map((row: { id: string }) => row.id)).toContain(id);
   });
 });
 
 describe('console writes need competitions.manage', () => {
-  it('keeps capability configuration responses complete and grants competition access explicitly', async () => {
+  it('keeps permission group responses complete and grants competition access through a custom group, not a blanket title edit', async () => {
     const { app, as } = await setup();
     const before = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('bob'), payload: DRAFT });
     expect(before.statusCode).toBe(403);
-    const catalogue = (await app.inject({ url: '/api/console/catalogue', headers: as('alice') })).json();
-    const granted = await app.inject({
-      method: 'PATCH', url: '/api/console/titles/member', headers: as('alice'),
-      payload: { capabilities: [...catalogue.role_base.member, 'competitions.manage'] },
-    });
-    expect(granted.statusCode).toBe(200);
-    expect(Object.keys(granted.json().title).sort()).toEqual(['capabilities', 'description', 'icon', 'id', 'label', 'tag', 'tone']);
-    expect(granted.json().title.capabilities).toContain('competitions.manage');
-    expect((await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('bob'), payload: DRAFT })).statusCode).toBe(201);
+    expect(before.json()).toMatchObject({ error: 'forbidden', node: 'competition.manage' });
 
+    // #274：称号的权限包（旧 PATCH /api/console/titles/:title_id）已经删掉，新系统按权限组授权；
+    // 自定义组 + 一条 competition.manage 条目，只加给 bob，不像旧的「给 member 称号整体加能力」那样影响所有成员。
     const created = await app.inject({
-      method: 'POST', url: '/api/console/departments', headers: as('alice'),
-      payload: { id: 'contests', name: '赛事部', tag: 'CONTEST', icon: 'trophy', tone: 'cobalt', head_capabilities: ['competitions.manage'] },
+      method: 'POST', url: '/api/console/permission-groups', headers: as('alice'),
+      payload: { id: 'custom.contest_crew', name: '赛事干事', weight: 10 },
     });
     expect(created.statusCode).toBe(201);
-    const readDepartment = async () => (await app.inject({ url: '/api/console/departments', headers: as('alice') })).json().departments.find((row: { id: string }) => row.id === 'contests');
-    expect(created.json().department).toEqual(await readDepartment());
-    expect(created.json().department).toMatchObject({ archived: false, heads: [], crew_count: 0, created_at: expect.any(Number), updated_at: expect.any(Number) });
-    const updated = await app.inject({
-      method: 'PATCH', url: '/api/console/departments/contests', headers: as('alice'),
-      payload: { member_capabilities: ['competitions.manage'] },
+    expect(Object.keys(created.json()).sort()).toEqual([
+      'department_id', 'description', 'entries', 'icon', 'id', 'kind', 'member_count', 'name', 'parents', 'sort', 'system', 'tone', 'weight',
+    ]);
+    expect(created.json()).toMatchObject({ id: 'custom.contest_crew', kind: 'custom', name: '赛事干事', member_count: 0, entries: [] });
+
+    const granted = await app.inject({
+      method: 'PATCH', url: '/api/console/permission-groups/custom.contest_crew', headers: as('alice'),
+      payload: { entries: { add: [{ node: 'competition.manage', value: true }] } },
     });
-    expect(updated.statusCode).toBe(200);
-    expect(updated.json().department).toEqual(await readDepartment());
-    expect(updated.json().department.created_at).toBe(created.json().department.created_at);
+    expect(granted.statusCode).toBe(200);
+    expect(granted.json().entries).toEqual([expect.objectContaining({ node: 'competition.manage', value: true })]);
+
+    const bobId = accountIdOf(app, 'bob');
+    const addedMember = await app.inject({
+      method: 'POST', url: '/api/console/permission-groups/custom.contest_crew/members', headers: as('alice'),
+      payload: { account_id: bobId },
+    });
+    expect(addedMember.statusCode).toBe(201);
+
+    expect((await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('bob'), payload: DRAFT })).statusCode).toBe(201);
+    // 没拿到这个组的人仍然没有这个权限
+    const carol = { cookie: `sid=${signIn(app, 'carol', 103, null, 'token-carol')}` };
+    expect((await app.inject({ method: 'POST', url: '/api/console/competitions', headers: carol, payload: DRAFT })).statusCode).toBe(403);
   });
 
-  it('rolls back competition writes when their audit record cannot be saved', async () => {
+  it('rolls back competition writes when their activity record cannot be saved', async () => {
     const { app, as } = await setup();
     const created = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: DRAFT });
     const original = created.json().competition;
+    // #274 item I：recordActivity 写 activity_events，和比赛写入在同一个 db.transaction() 里，原来对 audit_logs
+    // 下的这个触发器改成对它，验证的是同一件事——操作记录写不进去，比赛写入也要整体回滚。
     app.services.storage.db.exec(`
-      CREATE TRIGGER reject_competition_audit BEFORE INSERT ON audit_logs
+      CREATE TRIGGER reject_competition_audit BEFORE INSERT ON activity_events
       WHEN NEW.action LIKE 'competition.%'
       BEGIN SELECT RAISE(ABORT, 'injected audit failure'); END;
     `);
@@ -186,7 +229,7 @@ describe('console writes need competitions.manage', () => {
     ]) {
       expect((await app.inject({ ...request, headers: as('alice') })).statusCode).toBe(500);
       const listed = await app.inject({ url: '/api/public/competitions' });
-      expect(listed.json().competitions).toEqual([expect.objectContaining({ id: original.id, name: original.name })]);
+      expect(own(listed.json().competitions)).toEqual([expect.objectContaining({ id: original.id, name: original.name })]);
     }
   });
 
@@ -210,6 +253,26 @@ describe('console writes need competitions.manage', () => {
     });
   });
 
+  // 规划中（#278）：创建、修改都能带上这个字段；DRAFT 的报名截止时间还没到，不规划的话本该是「报名中」，
+  // 规划中要压过去；关掉之后状态照旧按时间算。
+  it('round-trips planning through create and update, and it overrides the registering phase', async () => {
+    const { app, as } = await setup();
+    const created = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: { ...DRAFT, planning: true } });
+    expect(created.statusCode).toBe(201);
+    expect(created.json().competition).toMatchObject({ planning: true, status: 'planning' });
+    const id = created.json().competition.id;
+
+    const closed = await app.inject({ method: 'PATCH', url: `/api/console/competitions/${id}`, headers: as('alice'), payload: { planning: false } });
+    expect(closed.statusCode).toBe(200);
+    // 关掉规划中之后，状态照常按时间算：DRAFT 的报名截止时间还没到，变回报名中
+    expect(closed.json().competition).toMatchObject({ planning: false, status: 'registering' });
+
+    // 没填 planning 的创建按不规划处理（默认值 false，不是漏填就报错）
+    const withoutPlanning = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: { ...DRAFT, name: '另一场比赛' } });
+    expect(withoutPlanning.statusCode).toBe(201);
+    expect(withoutPlanning.json().competition).toMatchObject({ planning: false });
+  });
+
   it('rejects invisible names and timestamps that cannot be displayed in Beijing time', async () => {
     const { app, as } = await setup();
     for (const payload of [
@@ -223,7 +286,7 @@ describe('console writes need competitions.manage', () => {
       const rejected = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload });
       expect(rejected.statusCode).toBe(400);
     }
-    expect((await app.inject({ url: '/api/public/competitions' })).json().competitions).toEqual([]);
+    expect(own((await app.inject({ url: '/api/public/competitions' })).json().competitions)).toEqual([]);
     const created = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: { ...DRAFT, name: '  极客班算法赛  ' } });
     expect(created.json().competition.name).toBe('极客班算法赛');
     const id = created.json().competition.id;
@@ -249,8 +312,8 @@ describe('console writes need competitions.manage', () => {
     expect(rejected.statusCode).toBe(400);
     expect(rejected.json().error).toBe('bad_url');
     const listed = await app.inject({ url: '/api/public/competitions' });
-    expect(listed.json().competitions).toHaveLength(1);
-    expect(listed.json().competitions[0].url).toBe('https://example.test/contest');
+    expect(own(listed.json().competitions)).toHaveLength(1);
+    expect(own(listed.json().competitions)[0].url).toBe('https://example.test/contest');
   });
 
   it('refuses an unauthenticated caller and a member without the capability', async () => {
@@ -261,9 +324,12 @@ describe('console writes need competitions.manage', () => {
 
     const member = await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('bob'), payload: DRAFT });
     expect(member.statusCode).toBe(403);
-    expect(member.json()).toMatchObject({ error: 'missing_capability', capability: 'competitions.manage' });
-    // 舰员连读都要 console.access，这里他确实有；确认没有写入发生
-    expect((await app.inject({ url: '/api/console/competitions', headers: as('bob') })).json().competitions).toEqual([]);
+    expect(member.json()).toMatchObject({ error: 'forbidden', node: 'competition.manage' });
+    // #274：console.access 只默认发给部门部长和站长（CONTRACT-274 §5），普通成员进不了控制台，连列表都读不到；确认没有写入发生。
+    const listAsMember = await app.inject({ url: '/api/console/competitions', headers: as('bob') });
+    expect(listAsMember.statusCode).toBe(403);
+    expect(listAsMember.json()).toMatchObject({ error: 'forbidden', node: 'console.access' });
+    expect(own((await app.inject({ url: '/api/console/competitions', headers: as('alice') })).json().competitions)).toEqual([]);
   });
 
   it('rejects an end before the start and a deadline after the end', async () => {
@@ -325,7 +391,7 @@ describe('console writes need competitions.manage', () => {
     expect(first.json()).toEqual({ ok: true });
     expect((await app.inject({ method: 'DELETE', url: `/api/console/competitions/${id}`, headers: as('alice') })).statusCode).toBe(404);
 
-    const actions = (app.services.storage.db.prepare("SELECT action FROM audit_logs WHERE action LIKE 'competition.%' ORDER BY id").all() as { action: string }[]).map(row => row.action);
+    const actions = activityRows(app, { actionLike: 'competition.%' }).map(row => row.action);
     expect(actions).toEqual(['competition.create', 'competition.delete']);
   });
 
@@ -333,5 +399,79 @@ describe('console writes need competitions.manage', () => {
     const { app, as } = await setup();
     expect((await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: { ...DRAFT, offline: true } })).statusCode).toBe(400);
     expect((await app.inject({ method: 'POST', url: '/api/console/competitions', headers: as('alice'), payload: { ...DRAFT, kind: 'external', url: 'http://example.test/x' } })).statusCode).toBe(400);
+  });
+});
+
+describe('planning column migration (#278)', () => {
+  // 迁移要能重复跑：`db.ts` 的 `addColumn` 先看 PRAGMA table_info 再决定要不要 ALTER TABLE，这里用真实文件
+  // 模拟「进程重启、createDatabase 再跑一次」，确认不会因为列已经存在而报错，也不会把列加出两份、丢掉已有数据。
+  it('adds the planning column once, and a second createDatabase() on the same file does not throw or duplicate it', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'geek-competitions-migration-'));
+    const path = join(dir, 'data.db');
+    try {
+      const first = createDatabase(path);
+      const id = newCompetitionId();
+      createCompetitionStore(first.db).insert(id, { ...DRAFT, planning: true }, Date.now());
+      first.db.close();
+
+      let second: ReturnType<typeof createDatabase> | undefined;
+      expect(() => { second = createDatabase(path); }).not.toThrow();
+      const planningColumns = (second!.db.pragma('table_info(competitions)') as { name: string }[]).filter(c => c.name === 'planning');
+      expect(planningColumns).toHaveLength(1);
+      expect(second!.db.prepare('SELECT planning FROM competitions WHERE id = ?').get(id)).toEqual({ planning: 1 });
+      second!.db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('first-period description is rewritten to individual play (#288)', () => {
+  // 第一期最初按团队赛种库，描述第三行写着「1–3 人组队」；赛制改成个人赛后，库里的描述要跟着改，且只改种子原文那一行。
+  const TEAM_LINE = '1–3 人组队（一个人也可以自成一队），队伍积分是在队成员积分之和。比赛时间 2026-10-21 至 2026-11-15 23:59:59（北京时间）。';
+  const SEED_ID = 'oss-challenge-2026-1';
+
+  it('replaces the seeded team line once, keeps what organisers edited, and is a no-op on the second boot', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'geek-competition-description-'));
+    const path = join(dir, 'data.db');
+    try {
+      const first = createDatabase(path);
+      const original = (first.db.prepare('SELECT description FROM competitions WHERE id = ?').get(SEED_ID) as { description: string }).description;
+      expect(original).not.toContain('组队');
+      // 还原成上线时的团队赛文案，外加组织者自己在前面补的一句
+      const legacy = `组织者补充：欢迎大一同学。\n${original.split('\n').slice(0, 2).join('\n')}\n${TEAM_LINE}`;
+      first.db.prepare('UPDATE competitions SET description = ? WHERE id = ?').run(legacy, SEED_ID);
+      first.db.close();
+
+      const second = createDatabase(path);
+      const fixed = (second.db.prepare('SELECT description FROM competitions WHERE id = ?').get(SEED_ID) as { description: string }).description;
+      expect(fixed).not.toContain('组队');
+      expect(fixed).toContain('个人赛，按个人合入结果计分。');
+      expect(fixed.startsWith('组织者补充：欢迎大一同学。')).toBe(true);
+      const updatedAt = (second.db.prepare('SELECT updated_at FROM competitions WHERE id = ?').get(SEED_ID) as { updated_at: number }).updated_at;
+      second.db.close();
+
+      const third = createDatabase(path);
+      expect(third.db.prepare('SELECT description, updated_at FROM competitions WHERE id = ?').get(SEED_ID)).toEqual({ description: fixed, updated_at: updatedAt });
+      third.db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('leaves a description alone when organisers rewrote the team line', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'geek-competition-description-'));
+    const path = join(dir, 'data.db');
+    try {
+      const first = createDatabase(path);
+      const edited = '组织者改写：1–3 人组队，具体规则以群公告为准。';
+      first.db.prepare('UPDATE competitions SET description = ? WHERE id = ?').run(edited, SEED_ID);
+      first.db.close();
+      const second = createDatabase(path);
+      expect(second.db.prepare('SELECT description FROM competitions WHERE id = ?').get(SEED_ID)).toEqual({ description: edited });
+      second.db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

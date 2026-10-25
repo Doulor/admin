@@ -1,4 +1,5 @@
 import { isIPv4, isIPv6 } from "node:net";
+import { createHash } from "node:crypto";
 
 /**
  * 论坛的纯规则（#57）：长度上限、提及、标签 slug、头像底色、文本检查、按 IP 计数的主体。
@@ -6,16 +7,18 @@ import { isIPv4, isIPv6 } from "node:net";
  * 逐条对齐；服务端不导入论坛代码（两边是不同的包），改一边要同步另一边。
  */
 
-/** 论坛接口的业务错误。路由直接抛出，http-policy 的错误处理按 statusCode 与 code 输出 `{ error, message }`。 */
+/**
+ * 论坛接口的业务错误。路由直接抛出，http-policy 的错误处理按 statusCode 与 code 输出 `{ error, message }`。
+ * `extra`（#276）：401/403 要带 `need`（CONTRACT-276 §1：分级可见被拦下时要说清楚缺哪一级），403 的版务
+ * 错误要带 `node`；http-policy.ts 的错误处理器把它原样铺进响应体，不是只有 `{ error, message }` 两个字段。
+ */
 export class ForumError extends Error {
-  constructor(readonly statusCode: number, readonly code: string, message: string) { super(message); }
+  constructor(readonly statusCode: number, readonly code: string, message: string, readonly extra?: Record<string, unknown>) { super(message); }
 }
 
 export const FORUM_LIMITS = {
   titleMax: 120,
   memberContentMax: 20_000,
-  guestContentMax: 2_000,
-  guestNameMax: 20,
   tagsMax: 5,
   tagNameMax: 20,
   displayNameMax: 30,
@@ -28,21 +31,39 @@ export const FORUM_LIMITS = {
   avatarSize: 256,
   /** 一条帖子里的 @提及最多通知这么多人，再多的不通知（防止一帖刷全体成员的通知）。 */
   mentionNotifyMax: 10,
+  /** 上传图片（#276 CONTRACT §5）：≤5MB、≤4096×4096，sharp 转 webp。 */
+  uploadBytesMax: 5 * 1024 * 1024,
+  uploadPixelsMax: 4096 * 4096,
+  /** @ 自动补全（#276 CONTRACT §6）：1–24 字，最多回 8 个。 */
+  suggestQueryMax: 24,
+  suggestLimit: 8,
+  /** 表情包短码（#276 CONTRACT §8）：控制台新增表情时校验。 */
+  stickerShortcodePattern: /^[a-z0-9][a-z0-9-]{1,39}$/,
+  stickerLabelMax: 20,
 } as const;
 
-/**
- * 限流（按主体计数，记录在 forum_rate_events，重启不清零）。游客回复按 IP 计（IPv6 按 /64，见 ipSubject），
- * 另有全站的游客回复总量（主体固定为 GUEST_POST_SITE_SUBJECT）：换着 IP 刷也只能刷到这么多，超了之后游客暂时不能回复，成员不受影响。
- */
+/** 限流（按主体计数，记录在 forum_rate_events，重启不清零）。 */
 export const FORUM_RATE_LIMITS = {
-  guestPost: [{ windowMs: 60_000, max: 5 }, { windowMs: 24 * 60 * 60_000, max: 30 }],
-  guestPostSite: [{ windowMs: 60 * 60_000, max: 200 }],
   topic: [{ windowMs: 60_000, max: 10 }],
   reply: [{ windowMs: 60_000, max: 30 }],
   avatar: [{ windowMs: 60 * 60_000, max: 10 }],
 } as const;
 export type RateBucket = keyof typeof FORUM_RATE_LIMITS;
-export const GUEST_POST_SITE_SUBJECT = "site";
+
+/**
+ * 分级可见（#276 CONTRACT §1）：`public < registered < member`，只有这一处定义顺序。
+ * `allowedVisibilities(level)` 是这个身份能看到的可见范围清单（比自己级别更松的全看得到），
+ * forum-store.ts 的 SQL 过滤与路由层的 401/403 判断都调它，不另写一份顺序。
+ */
+export const VISIBILITY_LEVELS = ["public", "registered", "member"] as const;
+export type ViewerLevel = (typeof VISIBILITY_LEVELS)[number];
+export function allowedVisibilities(level: ViewerLevel): ViewerLevel[] {
+  return VISIBILITY_LEVELS.slice(0, VISIBILITY_LEVELS.indexOf(level) + 1);
+}
+/** 严格顺序比较：`stricterThan('member', 'public')` 为真。供 PATCH 话题可见范围校验「不能比分类更松」用。 */
+export function isStricterOrEqual(a: ViewerLevel, b: ViewerLevel): boolean {
+  return VISIBILITY_LEVELS.indexOf(a) >= VISIBILITY_LEVELS.indexOf(b);
+}
 
 /** 不登录也能调的读接口按 IP 限流（@fastify/rate-limit，进程内计数，重启清零）。 */
 export const FORUM_REQUEST_LIMITS = {
@@ -57,8 +78,9 @@ export const FORUM_REQUEST_LIMITS = {
 /** 同一 IP 同一话题一小时只算一次浏览。 */
 export const VIEW_WINDOW_MS = 60 * 60_000;
 
-/** 新编号的起点：旧帖编号都小于 1000，新话题从 t1001、新帖子从 p10001 起。 */
-export const COUNTER_START = { topic: 1000, post: 10000, notification: 0, tag: 0, guest: 0 } as const;
+/** 新编号的起点：旧帖编号都小于 1000，新话题从 t1001、新帖子从 p10001 起。
+ *  member：没有 GitHub id 的成员（邮箱、Google 注册，#274 SPEC §3.6）论坛用户 id（a<n>），有 GitHub id 的仍用 m<GitHub id>。 */
+export const COUNTER_START = { topic: 1000, post: 10000, notification: 0, tag: 0, guest: 0, member: 0 } as const;
 export type CounterName = keyof typeof COUNTER_START;
 
 export const AVATAR_PALETTE = ["#e5484d", "#f76b15", "#f5a524", "#30a46c", "#0ea5e9", "#3e63dd", "#8e4ec6", "#d6409f"] as const;
@@ -84,6 +106,27 @@ export const SEARCH_EXCERPT_MAX = 120;
 export const SEARCH_LIMIT = 50;
 /** 搜索词的长度上限。 */
 export const SEARCH_QUERY_MAX = 100;
+/** 话题列表/搜索的游标分页（#276 CONTRACT §9）：默认每页条数、可要求的最大条数。 */
+export const TOPIC_PAGE_SIZE = 20;
+export const TOPIC_PAGE_SIZE_MAX = 50;
+/** 访客翻页上限（SPEC §3.8）：免费看第一页，往后每翻一页（带 cursor 的请求）按访客 id 计数，每天最多这么多次。 */
+export const VISITOR_PAGE_MAX = 10;
+
+/**
+ * 话题列表/搜索的分页游标：不透明字符串，编的是排序键（最后一条的 `last_activity_at:rowid`），客户端不用也不该
+ * 解析它的内容，只管原样带回来要下一页。解不出来的游标当作没有（从第一页开始），不抛错——比起 400，静默兜底
+ * 对一个纯防抓取用途的分页更稳妥，省得客户端拼错一个字符就整个报错。
+ */
+export function encodeTopicCursor(lastActivityAt: number, rowid: number): string {
+  return Buffer.from(`${lastActivityAt}:${rowid}`, "utf8").toString("base64url");
+}
+export function decodeTopicCursor(cursor: string): { lastActivityAt: number; rowid: number } | null {
+  try {
+    const [lastActivityAt, rowid] = Buffer.from(cursor, "base64url").toString("utf8").split(":").map(Number);
+    if (!Number.isFinite(lastActivityAt) || !Number.isFinite(rowid)) return null;
+    return { lastActivityAt, rowid };
+  } catch { return null; }
+}
 
 /**
  * Markdown 帖子正文压成一行纯文本，供摘要使用。故意是有损的：代码块整段消失，链接只留文字，
@@ -205,6 +248,13 @@ export function ipSubject(ip: string): string {
   const right = tail === undefined ? [] : groups(tail);
   const full = tail === undefined ? left : [...left, ...Array<string>(8 - left.length - right.length).fill("0"), ...right];
   return `${full.slice(0, 4).map(group => parseInt(group, 16).toString(16)).join(":")}::/64`;
+}
+
+/** 按 IP 存计数主体时一律存 sha256(ipSubject(ip))，不存明文（#274 残留修复 K/P：以前 forum-api/posts.ts
+ * 自己定义过一份一模一样的实现，forum-limits.ts 的访客读限额那条线甚至直接存了明文 ipSubject，这里
+ * 收成一份共享实现，两边都改成调它）。 */
+export function ipHash(ip: string): string {
+  return createHash("sha256").update(ipSubject(ip)).digest("hex");
 }
 
 /** 个人网站：空串表示清空，否则必须是不带账号密码的 https 地址。 */

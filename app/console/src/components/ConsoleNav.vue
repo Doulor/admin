@@ -6,6 +6,7 @@ import type { SidebarNavItem } from "@talex-touch/tuffex/sidebar-nav";
 import { TxCardItem } from "@talex-touch/tuffex/card-item";
 import { TxButton } from "@talex-touch/tuffex/button";
 import { TxAvatar } from "@talex-touch/tuffex/avatar";
+import { primaryTitle as pickTitle, titleTone } from "../lib/users";
 import TitleBadge from "./TitleBadge.vue";
 import logoUrl from "../assets/logo.png";
 import { NAV_GROUPS, activeNavId, visibleNav } from "../lib/nav";
@@ -31,10 +32,16 @@ const items = computed<SidebarNavItem[]>(() => entries.value.map(item => ({
 })));
 const groups = computed(() => NAV_GROUPS);
 const active = computed(() => activeNavId(route.path) ?? "");
-const workspace = computed(() => ({ name: "极客班控制台", description: props.me.org }));
+const workspace = computed(() => ({ name: "极客班控制台", description: props.me.level_name }));
+const primaryTitle = computed(() => pickTitle(props.me.titles));
 
 function openSite(target: "portal" | "forum") {
   window.location.assign(siteUrl(target, "/"));
+}
+
+function openAccount() {
+  void router.push("/account");
+  emit("navigate");
 }
 
 function onSelect(item: SidebarNavItem) {
@@ -57,11 +64,13 @@ function onSelect(item: SidebarNavItem) {
       @select="onSelect"
     >
       <template #workspace>
-        <TxCardItem clickable role="link" :title="workspace.name" :subtitle="workspace.description" class="console-nav__brand" @click="onSelect({ value: 'overview', label: '概览' })">
-          <template #avatar>
-            <img :src="logoUrl" alt="" class="console-nav__logo" width="32" height="32">
-          </template>
-        </TxCardItem>
+        <div class="console-nav__head">
+          <TxCardItem clickable role="link" :title="workspace.name" :subtitle="workspace.description" class="console-nav__brand" @click="onSelect({ value: 'overview', label: '概览' })">
+            <template #avatar>
+              <img :src="logoUrl" alt="" class="console-nav__logo" width="32" height="32">
+            </template>
+          </TxCardItem>
+        </div>
       </template>
 
       <template #item-icon="{ item }">
@@ -71,15 +80,16 @@ function onSelect(item: SidebarNavItem) {
       <template #footer>
         <div class="console-nav__footer">
           <div class="console-nav__me">
-            <TxAvatar :src="me.avatar_url ?? undefined" :name="me.login" :size="36" />
+            <TxAvatar :src="me.avatar_url ?? undefined" :name="me.display_name || me.username" :size="36" />
             <div class="console-nav__me-text">
-              <span class="mono console-nav__login" :title="`@${me.login}`">@{{ me.login }}</span>
-              <TitleBadge :title="me.title" />
+              <span class="mono console-nav__login" :title="`@${me.username}`">@{{ me.username }}</span>
+              <TitleBadge v-if="primaryTitle" :label="primaryTitle.name" :tone="titleTone(primaryTitle, me.department)" />
             </div>
           </div>
           <div class="console-nav__links">
             <TxButton variant="ghost" size="sm" icon="i-carbon-home" @click="openSite('portal')">官网</TxButton>
             <TxButton variant="ghost" size="sm" icon="i-carbon-forum" @click="openSite('forum')">论坛</TxButton>
+            <TxButton variant="ghost" size="sm" icon="i-carbon-user-avatar" @click="openAccount">账号</TxButton>
             <TxButton variant="ghost" size="sm" icon="i-carbon-logout" class="console-nav__signout" @click="emit('signout')">退出</TxButton>
           </div>
         </div>
@@ -94,21 +104,32 @@ function onSelect(item: SidebarNavItem) {
   --tx-bui-sidebar-nav-width: 100%;
 }
 /* TxSidebarNav 的根是一列普通块：品牌、导航、footer 依次往下排，footer 会跟在最后一项后面悬在半中间。
-   改成满高的纵向 flex：导航区吃掉剩余高度并在超出时自己滚动，账号区钉在底部。 */
+   改成满高的纵向 flex，账号区钉在底部。超出时滚动的是根而不是 __body：悬停高亮是 __body 里的绝对定位块，
+   位置按「条目框 − __body 框」算、不加 scrollTop，__body 自己滚动后高亮会比鼠标所在的条目高出滚动的距离。
+   根滚动时 __body 和条目一起移动，高亮跟得上；品牌和账号区用 sticky 留在上下两端。 */
 .console-nav :deep(.tx-bui-sidebar-nav) {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
-}
-.console-nav :deep(.tx-bui-sidebar-nav__body) {
-  flex: 1 1 auto;
-  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+.console-nav :deep(.tx-bui-sidebar-nav__body) {
+  flex: 1 0 auto;
+}
+.console-nav__head {
+  position: sticky;
+  top: 0;
+  /* 条目行自带 z-index: 1（压在悬停高亮上面），同级时后出现的盖住前面的，品牌和账号区要高一级 */
+  z-index: 2;
+  flex: none;
+  padding: 8px 0;
+  background: var(--tx-bui-surface);
+}
 .console-nav__brand {
-  margin-bottom: 8px;
   --tx-card-item-gap: 10px;
   --tx-card-item-padding: 6px;
 }
@@ -120,13 +141,17 @@ function onSelect(item: SidebarNavItem) {
   object-fit: contain;
 }
 .console-nav__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   flex: none;
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-top: 8px;
-  padding: 12px 4px 2px;
+  padding: 12px 4px 10px;
   border-top: 1px solid var(--tx-border-color-light);
+  background: var(--tx-bui-surface);
 }
 .console-nav__me {
   display: flex;
@@ -148,10 +173,10 @@ function onSelect(item: SidebarNavItem) {
   white-space: nowrap;
   color: var(--tx-text-color-primary);
 }
-/* 三个按钮等宽排一行，不再按字数长短一左一右参差换行 */
+/* 四个按钮等宽排两行，不再按字数长短一左一右参差换行 */
 .console-nav__links {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
 }
 .console-nav__links :deep(.tx-button) {

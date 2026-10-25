@@ -2,14 +2,15 @@
 import type { TxSelectOption } from '@talex-touch/tuffex/select'
 import type { Topic } from '~/data/types'
 import { toast } from '@talex-touch/tuffex/utils'
-import { UNAVAILABLE_COPY } from '~/data/access'
+import { MEMBER_ONLY_COPY, UNAVAILABLE_COPY } from '~/data/access'
 
 /**
  * Discourse's bar under the last post: bookmark the topic, share it, pick a
  * notification level, reply. A closed topic replaces the reply button with the
- * reason it is gone; a guest gets the login prompt instead of the whole bar —
- * except in 极客班论坛, where a guest replies under a nickname: they get the
- * bar with 回复, and 书签 asks them to sign in.
+ * reason it is gone; someone signed out gets the login prompt instead of the
+ * whole bar (guest replies are gone, #276). An account that may read but not
+ * reply (a registered user before the invite code) gets the bar without 回复
+ * and a line saying how to become a member.
  */
 const props = defineProps<{ topic: Topic }>()
 
@@ -17,7 +18,7 @@ const emit = defineEmits<{ reply: [] }>()
 
 const forum = useForumStore()
 const actions = useForumActions()
-const { user, isLoggedIn, access, can, guestCanReply } = useCurrentUser()
+const { user, isLoggedIn, access, can, signedInReader } = useCurrentUser()
 const { loginOpen } = useShell()
 const { absoluteUrl } = useAppLink()
 
@@ -34,7 +35,8 @@ const notificationLevel = ref('tracking')
 const firstPost = computed(() => forum.firstPostOf(props.topic.id))
 const bookmarked = computed(() =>
   !!user.value && !!firstPost.value && forum.isBookmarked(user.value.id, firstPost.value.id))
-const canReply = computed(() => can('reply', { topic: props.topic }) || guestCanReply(props.topic))
+const canReply = computed(() => can('reply', { topic: props.topic }))
+const memberOnly = computed(() => signedInReader('reply', { topic: props.topic }))
 const shareLink = computed(() => absoluteUrl(`/t/${props.topic.id}`))
 
 /** Why there is no bar at all: the demo wants an identity, the rest cannot write. */
@@ -42,8 +44,11 @@ const blocked = computed(() => {
   switch (access.value.loginPrompt) {
     case 'pick-identity':
       return { title: '登录后参与讨论', description: '选择一个身份即可回复、点赞和收藏。', login: true }
+    case 'sign-in':
+      return { title: '登录后参与讨论', description: '登录后可以回复、点赞和收藏。没登录只能看公开的帖子。', login: true }
     case 'offline':
     case 'busy':
+    case 'not-member':
       return { ...UNAVAILABLE_COPY[access.value.loginPrompt], login: false }
     default:
       return { title: '回复还没开放', description: '回复、点赞和收藏正在接入。', login: false }
@@ -68,7 +73,7 @@ async function bookmark() {
 <template>
   <TxCard variant="plain">
     <TxEmptyState
-      v-if="!isLoggedIn && !access.guestReply"
+      v-if="!isLoggedIn"
       variant="permission"
       size="small"
       layout="horizontal"
@@ -92,6 +97,8 @@ async function bookmark() {
           v-model="notificationLevel"
           :options="NOTIFICATION_LEVELS"
           placeholder="通知级别"
+          :searchable="false"
+          panel-background="pure"
         />
 
         <TxButton
@@ -105,8 +112,9 @@ async function bookmark() {
         </TxButton>
       </TxFlex>
 
+      <TxAlert v-if="memberOnly" type="info" :message="MEMBER_ONLY_COPY.reply" />
       <TxAlert
-        v-if="!canReply"
+        v-else-if="!canReply && topic.closed"
         type="warning"
         title="此话题已关闭，不再接受新回复"
         message="如果还有要补充的内容，可以联系管理团队重新开放。"

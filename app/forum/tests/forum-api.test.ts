@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { avatarFileProblem, changedDisplayName, createForumApi, DEFAULT_GUEST_POLICY, ForumApiError, linkableWebsite, NAME_CHARS_HINT, parseServerSnapshot, parseWriteResult, PROFILE_LIMITS, profileBody, profileProblem, STATE_TIMEOUT_MS, websiteProblem } from '../shared/forum-api'
+import { avatarFileProblem, changedDisplayName, createForumApi, ForumApiError, isStickerUrl, linkableWebsite, NAME_CHARS_HINT, parseReactions, parseServerSnapshot, parseStickerPacks, parseWriteResult, PROFILE_LIMITS, profileBody, profileProblem, STATE_TIMEOUT_MS, uploadFileProblem, websiteProblem } from '../shared/forum-api'
 import { MEMBER_VIEWER, serverBody, serverState, writeBody } from './fixtures/server-state'
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -7,12 +7,10 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe('parseServerSnapshot', () => {
-  it('takes viewer and guestPolicy out of state, and leaves a plain ForumState', () => {
-    const { state, viewer, guestPolicy } = parseServerSnapshot(serverBody({ userId: 'm1001', kind: 'member', capabilities: ['forum.topic.pin'] }))
-    expect(viewer).toEqual({ userId: 'm1001', kind: 'member', capabilities: ['forum.topic.pin'] })
-    expect(guestPolicy).toEqual({ powDifficulty: 2, turnstileSiteKey: null, nameMax: 20, contentMax: 2000 })
+  it('takes the viewer out of state, and leaves a plain ForumState', () => {
+    const { state, viewer } = parseServerSnapshot(serverBody({ userId: 'm1001', kind: 'member', capabilities: ['forum.topic.pin'], level: 'member', nodes: ['forum.reply.create'] }))
+    expect(viewer).toEqual({ userId: 'm1001', kind: 'member', capabilities: ['forum.topic.pin'], level: 'member', nodes: ['forum.reply.create'] })
     expect(state).not.toHaveProperty('viewer')
-    expect(state).not.toHaveProperty('guestPolicy')
     expect(state.users.map(user => user.id)).toEqual(['u-geekclass', 'm1001', 'g1'])
     expect(state.users.find(user => user.id === 'g1')?.kind).toBe('guest')
   })
@@ -34,27 +32,115 @@ describe('parseServerSnapshot', () => {
     expect(() => parseServerSnapshot('<!doctype html>')).toThrow(ForumApiError)
   })
 
-  it('falls back to the contract defaults when guestPolicy is missing', () => {
+  it('reads a viewer without level and nodes (an older server) as signed out of every write (#276)', () => {
+    const { viewer } = parseServerSnapshot(serverBody({ userId: 'm1001', kind: 'member', capabilities: [] }))
+    expect(viewer).toMatchObject({ level: 'public', nodes: [] })
+    const odd = parseServerSnapshot(serverBody({ userId: 'm1001', kind: 'member', capabilities: [], level: 'admin' as never, nodes: ['forum.react', 7 as never] }))
+    expect(odd.viewer).toMatchObject({ level: 'public', nodes: ['forum.react'] })
+  })
+
+  it('gives every post its reactions, dropping the ones that are not well formed (#276)', () => {
     const body = serverBody()
-    delete (body.state as { guestPolicy?: unknown }).guestPolicy
-    expect(parseServerSnapshot(body).guestPolicy).toEqual(DEFAULT_GUEST_POLICY)
+    const url = `/api/forum/stickers/${'a'.repeat(64)}.webp`
+    Object.assign(body.state.posts[0]!, { reactions: [{ stickerId: 'yugc-wave', shortcode: 'yugc-wave', url, count: 2, mine: true }, { stickerId: 'x', shortcode: 'x', url: 'https://evil.example/x.webp', count: 1, mine: false }] })
+    const { state } = parseServerSnapshot(body)
+    expect(state.posts[0]!.reactions).toEqual([{ stickerId: 'yugc-wave', shortcode: 'yugc-wave', url, count: 2, mine: true }])
+    expect(state.posts[1]!.reactions).toEqual([])
+  })
+})
+
+describe('stickers, reactions and uploads (#276)', () => {
+  const hash = 'b'.repeat(64)
+
+  it('takes only on-site, content-addressed sticker pictures', () => {
+    expect(isStickerUrl(`/api/forum/stickers/${hash}.webp`)).toBe(true)
+    for (const url of ['https://cdn.example/a.webp', `/api/forum/stickers/${hash}.png`, `/api/forum/stickers/${hash}.webp?x=1`, 'javascript:alert(1)', 7])
+      expect(isStickerUrl(url)).toBe(false)
+  })
+
+  it('takes the controlled CDN address of a content hash too (#286), and no other off-site address', () => {
+    const cdn = `https://cdn.crosery.com/yzgc/static/site/forum/stickers/${hash}.webp`
+    expect(isStickerUrl(cdn)).toBe(true)
+    for (const url of [`https://evil.example/yzgc/static/site/forum/stickers/${hash}.webp`, `http://cdn.crosery.com/yzgc/static/site/forum/stickers/${hash}.webp`, `https://cdn.crosery.com/yzgc/static/site/forum/stickers/../x/${hash}.webp`, `${cdn}?x=1`])
+      expect(isStickerUrl(url)).toBe(false)
+  })
+
+  it('keeps sticker packs, reactions and snapshot reactions whose picture is on the CDN, and drops the ones whose picture is on another domain', () => {
+    const cdn = `https://cdn.crosery.com/yzgc/static/site/forum/stickers/${hash}.webp`
+    const evil = `https://evil.example/yzgc/static/site/forum/stickers/${hash}.webp`
+    expect(parseStickerPacks({ packs: [{ id: 'yugc', name: '极客娘', stickers: [
+      { id: 'yugc-wave', shortcode: 'yugc-wave', label: '打招呼', url: cdn },
+      { id: 'yugc-bad', shortcode: 'yugc-bad', label: '坏的', url: evil },
+    ] }] })).toEqual([{ id: 'yugc', name: '极客娘', stickers: [{ id: 'yugc-wave', shortcode: 'yugc-wave', label: '打招呼', url: cdn }] }])
+    expect(parseReactions({ reactions: [{ stickerId: 'yugc-wave', shortcode: 'yugc-wave', url: cdn, count: 1, mine: false }, { stickerId: 'yugc-bad', shortcode: 'yugc-bad', url: evil, count: 1, mine: false }] }))
+      .toEqual([{ stickerId: 'yugc-wave', shortcode: 'yugc-wave', url: cdn, count: 1, mine: false }])
+  })
+
+  it('reads the sticker packs and skips a malformed sticker instead of refusing the panel', () => {
+    const packs = parseStickerPacks({ packs: [{ id: 'yugc', name: '极客娘', stickers: [
+      { id: 'yugc-wave', shortcode: 'yugc-wave', label: '打招呼', url: `/api/forum/stickers/${hash}.webp` },
+      { id: 'bad', shortcode: 'bad', label: '坏的', url: 'https://evil.example/x.webp' },
+    ] }] })
+    expect(packs).toEqual([{ id: 'yugc', name: '极客娘', stickers: [{ id: 'yugc-wave', shortcode: 'yugc-wave', label: '打招呼', url: `/api/forum/stickers/${hash}.webp` }] }])
+    expect(() => parseStickerPacks({})).toThrow(ForumApiError)
+  })
+
+  it('reads a reaction answer and keeps counts above zero only', () => {
+    const url = `/api/forum/stickers/${hash}.webp`
+    expect(parseReactions({ reactions: [{ stickerId: 'yugc-wave', shortcode: 'yugc-wave', url, count: 1, mine: true }, { stickerId: 'yugc-cry', shortcode: 'yugc-cry', url, count: 0, mine: false }] }))
+      .toEqual([{ stickerId: 'yugc-wave', shortcode: 'yugc-wave', url, count: 1, mine: true }])
+    expect(() => parseReactions({ reactions: 'x' })).toThrow(ForumApiError)
+  })
+
+  it('says why an image cannot be uploaded before it is sent', () => {
+    expect(uploadFileProblem({ size: 10, type: 'image/png' })).toBeNull()
+    expect(uploadFileProblem({ size: 10, type: 'image/gif' })).toBeNull()
+    expect(uploadFileProblem({ size: 10, type: 'image/svg+xml' })).toBe('只能上传 PNG、JPEG、WebP 或 GIF 图片。')
+    expect(uploadFileProblem({ size: 5 * 1024 * 1024 + 1, type: 'image/png' })).toBe('图片不能超过 5MB。')
+    expect(uploadFileProblem({ size: 0, type: 'image/png' })).toBe('这个文件是空的。')
+  })
+
+  it('sends the reaction to its own path and the upload as the file itself', async () => {
+    const url = `/api/forum/stickers/${hash}.webp`
+    const fetch = vi.fn(async (input: string, init?: RequestInit) => {
+      if (input.includes('/reactions/'))
+        return jsonResponse({ reactions: [{ stickerId: 'yugc-wave', shortcode: 'yugc-wave', url, count: 1, mine: init?.method === 'PUT' }] })
+      return jsonResponse({ url: `/api/forum/uploads/${hash}.webp`, width: 10, height: 10 })
+    })
+    const api = createForumApi(fetch)
+    expect((await api.react('p1', 'yugc-wave', true))[0]!.mine).toBe(true)
+    expect(fetch).toHaveBeenLastCalledWith('/api/forum/posts/p1/reactions/yugc-wave', expect.objectContaining({ method: 'PUT' }))
+    await api.react('p1', 'yugc-wave', false)
+    expect(fetch).toHaveBeenLastCalledWith('/api/forum/posts/p1/reactions/yugc-wave', expect.objectContaining({ method: 'DELETE' }))
+    const file = new Blob(['x'], { type: 'image/png' })
+    expect(await api.uploadImage(file)).toBe(`/api/forum/uploads/${hash}.webp`)
+    expect(fetch).toHaveBeenLastCalledWith('/api/forum/uploads', expect.objectContaining({ method: 'PUT', body: file, headers: expect.objectContaining({ 'content-type': 'image/png' }) }))
+  })
+
+  it('refuses an upload answer that points off the site', async () => {
+    const api = createForumApi(vi.fn(async () => jsonResponse({ url: 'https://evil.example/x.webp' })))
+    await expect(api.uploadImage(new Blob(['x'], { type: 'image/png' }))).rejects.toMatchObject({ code: 'invalid_response' })
+  })
+
+  it('carries the identity a hidden topic needs, and nothing else from the refusal', async () => {
+    const api = createForumApi(vi.fn(async () => jsonResponse({ error: 'forbidden', node: 'forum.read.member', need: 'member', message: '需要「极客班成员」身份才能查看' }, 403)))
+    await expect(api.topicPosts('t9')).rejects.toMatchObject({ status: 403, need: 'member' })
   })
 })
 
 describe('parseWriteResult', () => {
   const state = serverState(MEMBER_VIEWER)
 
-  it('takes only the records a write changed, and the viewer and guest policy beside them', () => {
+  it('takes only the records a write changed, and the viewer beside them', () => {
     const result = parseWriteResult(writeBody({
       posts: [state.posts[1]],
       bookmarks: [{ userId: 'm1001', postId: 'p10001', createdAt: 40 }],
       removed: { follows: [{ followerId: 'm1001', followeeId: 'u-geekclass', createdAt: 1 }] },
     }, MEMBER_VIEWER))
     expect(result.viewer).toEqual(MEMBER_VIEWER)
-    expect(result.guestPolicy).toEqual({ powDifficulty: 2, turnstileSiteKey: null, nameMax: 20, contentMax: 2000 })
     expect(result.changes).toEqual({
       users: [state.users[1]],
-      posts: [state.posts[1]],
+      posts: [{ ...state.posts[1], reactions: [] }],
       bookmarks: [{ userId: 'm1001', postId: 'p10001', createdAt: 40 }],
       removed: { follows: [{ followerId: 'm1001', followeeId: 'u-geekclass' }] },
     })
@@ -115,21 +201,15 @@ describe('createForumApi', () => {
     expect(fetch.mock.calls[0]![1]).not.toHaveProperty('signal')
   })
 
-  it('sends a guest reply with the name, the proof and an empty honeypot', async () => {
+  it('sends a reply as the topic, the text and the post it answers, nothing else (#276: no guest fields)', async () => {
     const fetch = vi.fn(async () => jsonResponse(writeBody({}, undefined, { postId: 'p10001' }), 201))
-    const result = await createForumApi(fetch).createPost({
-      topicId: 't73',
-      content: '你好',
-      guest: { name: '路过的同学' },
-      pow: { timestamp: 1, nonce: 'a' },
-      website: '',
-    })
+    const result = await createForumApi(fetch).createPost({ topicId: 't73', content: '你好', replyToPostId: 'body-73' })
     expect(result.postId).toBe('p10001')
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe('/api/forum/posts')
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>)['content-type']).toBe('application/json')
-    expect(JSON.parse(String(init.body))).toEqual({ topicId: 't73', content: '你好', guest: { name: '路过的同学' }, pow: { timestamp: 1, nonce: 'a' }, website: '' })
+    expect(JSON.parse(String(init.body))).toEqual({ topicId: 't73', content: '你好', replyToPostId: 'body-73' })
   })
 
   it('returns the new topic id with what changed', async () => {

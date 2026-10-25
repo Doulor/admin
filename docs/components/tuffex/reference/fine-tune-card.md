@@ -1,21 +1,19 @@
 # FineTuneCard 属性检查器
 
-> 紧凑的属性面板：布局分段、四个拖拽数值域、类型选择器，共用一个值对象。
+> 共用一个值对象的紧凑属性检查器
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/fine-tune-card) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/fine-tune-card.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/fine-tune-card.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/fine-tune-card) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/fine-tune-card.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/fine-tune-card.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
 上游标记：status=`beta`，since=`0.3.9`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# FineTuneCard 属性检查器
+## 用法
 
-## 基础用法
-
-### FineTuneCard
-
+### 基础
+六个字段走同一个 `values` 对象；与 `defaults` 不同时，头部翻到「已修改」并高亮改动的字段。
 官方示例：`FineTuneCardFineTuneCardDemo`（完整源码见本页末尾）
 
 ```vue
@@ -41,77 +39,57 @@ const typeOptions = [
 </template>
 ```
 
-## 一个值对象
+### 最佳实践
 
-六个字段（`layout` / `width` / `height` / `radius` / `opacity` / `type`）走同一个 `values` 对象，用 `v-model:values` 绑定，而不是六个独立的 `v-model`。任何一处改动都会发出整个新对象，同时用 `change` 报出「改的是哪个键、改成了什么」，方便宿主做撤销栈或增量落库。
+- `defaults` 传当前预设的初始值，不是常量：切换预设时一起换。
+- 撤销栈用 `change`，状态用 `update:values`；两者同时发出，不要在一个处理器里做两遍。
+- `ranges` 贴合真实约束（如 `radius` 不超过短边的一半），让夹取挡住非法值。
+- 检查器很窄（240px），标签用缩写；`fieldLabels` 可整套替换为本地化文案。
+- 非英文界面传入 `layoutLabels`：三个布局选项只有图形，读屏读到的就是这些名称。
+- 每个数值框的 `aria-label` 由 `valueLabelFormatter` 从标签生成；非英文界面一并传入，否则读屏读作「<标签> value」。
 
-`defaults` 是比较基准，同时决定两件事：头部显示「可调整」还是「已修改」，以及每个数值域是否高亮成已改动。上游把 `324/96/28/100` 直接写死在组件里，换一套预设就全错了；这里跟着数据走。需要自己判断时传 `edited` 覆盖。
+## API 参考
 
-## 组成
-
-布局分段复用 **`TxFlatRadio`**：因此它是一个真正的 `radiogroup`，方向键可以在三个选项间移动、只占一个 Tab 停靠点——上游那里是三个各自带 `aria-pressed` 的独立按钮。几何尺寸（28px 高、8px 外圆角、6px 滑块圆角）通过 `--tx-flat-radio-*` 变量覆写到 BUI 的刻度上。选项内边距和图标间距是这张卡片**没有**覆写的两个变量，因此保持梯度里的 `0 8px` / `4px`。滑块动效来自 `TxFlatRadio` 自身：位移与改变宽度共用一条曲线、几何尺寸从带小数的 rect 读取、`prefers-reduced-motion` 下去掉位移——这些这张卡片都没有覆写。
-
-四个数值域是 **`TxScrubField`**：标签即手柄，可拖、可键盘、可键入，详见它自己的文档。
-
-类型选择器是卡片内部的轻量控件，不单独导出。它补齐了上游缺的全部可访问性：`role="combobox"` + `aria-haspopup="listbox"` + `aria-expanded` / `aria-controls` / `aria-activedescendant`，真实的 `listbox` / `option`，方向键漫游（打开时落在当前选中项而不是第一项）、Home / End、Enter / 空格提交、Esc 关闭并把焦点还给触发器、点击外部关闭、焦点移出关闭。
-
-## API
-
-### Props
+### 属性
 
 | 属性名 | 类型 | 默认值 | 说明 |
 |------|------|---------|------|
 | `values` | `FineTuneValues` | — | 六个字段的值对象，受控。 |
-| `defaults` | `Partial<FineTuneValues>` | — | 比较基准，驱动头部状态与逐字段高亮。 |
+| `defaults` | `Partial<FineTuneValues>` | — | 比较基准，决定头部状态与逐字段高亮。 |
 | `edited` | `boolean` | — | 强制头部状态，忽略 `defaults`。 |
 | `title` | `string` | `'Fine-tune'` | 卡片标题。 |
 | `layoutLabel` / `typeLabel` | `string` | `'Layout'` / `'Type'` | 两个分区的标题。 |
-| `typeOptions` | `FineTuneTypeOption[]` | `[]` | 类型选项，`{ value, label }`。 |
+| `layoutLabels` | `Partial<Record<FineTuneLayout, string>>` | `row layout / col layout / grid layout` | 三个布局选项的可访问名称。 |
+| `typeOptions` | `FineTuneTypeOption[]` | `[]` | 类型选项 `{ value, label }`。 |
 | `typePlaceholder` | `string` | `'Select type'` | 未选择时的占位文案。 |
 | `adjustLabel` / `editedLabel` | `string` | `'Adjust'` / `'Edited'` | 头部两态的文案。 |
 | `fieldLabels` | `Partial<Record<FineTuneField, string>>` | `W / H / Radius / Opacity` | 四个数值域的标签。 |
+| `valueLabelFormatter` | `(label: string) => string` | `` (label) => `${label} value` `` | 由标签生成每个数值框的 `aria-label`。 |
 | `ranges` | `Partial<Record<FineTuneField, FineTuneRange>>` | 见下 | 逐字段的取值范围。 |
 | `disabled` | `boolean` | `false` | 一次性禁用全部控件。 |
 
 默认范围：`width` 40–999、`height` 24–999、`radius` 0–64、`opacity` 0–100。
 
-### Events
+### 事件
 
 | 事件名 | 回调参数 | 说明 |
 |------|------|------|
-| `update:values` | `(values: FineTuneValues)` | 整个新对象。 |
-| `change` | `(key, value)` | 改动的键与新值。 |
+| `update:values` | `(values: FineTuneValues)` | 任一字段改动时触发，参数为整个新对象。 |
+| `change` | `(key, value)` | 与 `update:values` 同时触发，参数为改动的键与新值。 |
 
-## 交互契约
+## 概述
 
-- 布局分段是 `radiogroup`，每个选项带 `aria-label`（如 `row layout`）与 `aria-checked`；图形是纯 CSS 点阵，本身对辅助技术隐藏。
-- 类型选择器的菜单**向上弹出**（检查器通常贴在面板底部），`transform-origin` 在右下角。
-- 头部两态是 `v-if` / `v-else` 的两个节点，翻转时节点会重建，入场动画因此每次都重放，不需要额外的 `:key`。
-- 「可调整」的微光把文字画成透明再用渐变填充。减弱动效下不只是停掉动画，还会把颜色还原成实色——否则会留下一个看不见的标签。这条由测试单独锁住。
-- 值不变时不发事件；`disabled` 会一路传给分段、四个数值域与选择器。
-- 卡片外框走环形阴影（`--tx-bui-shadow-raised`），内部分隔线才是真 `border`——与上游一致，避免双线。
+- 布局分段复用 `TxFlatRadio`：是真正的 `radiogroup`，方向键切换，只占一个 Tab 停靠点。
+- 四个数值域是 `TxScrubField`：标签即手柄，可拖动、键盘步进或直接键入。
+- 类型选择器向上弹出，为 `combobox` + `listbox`：方向键从当前选中项开始漫游，Home / End、Enter / 空格提交，Esc 关闭并归还焦点，点击外部或焦点移出时关闭。
+- 值不变时不发事件；`disabled` 传给分段、数值域与选择器。
+- 减弱动效时，「可调整」的微光停止并恢复为实色文字。
 
-## 最佳实践
+## 技术实现
 
-- `defaults` 传的是「当前这套预设的初始值」，不是常量：切换预设时一起换，头部与高亮才说得准。
-- `change` 用来记录撤销栈，`update:values` 用来落状态——两者同时发出，不要在同一个处理器里做两遍。
-- 数值域的范围要贴合真实约束（比如 `radius` 不超过短边的一半），让夹取替宿主挡住非法值。
-- 检查器很窄（240px），标签请用缩写；`fieldLabels` 支持整套替换成本地化文案。
-
-## Source
-
-- 组件源码：`packages/tuffex/packages/components/src/fine-tune-card/src/TxFineTuneCard.vue`、`TxFineTuneChipSelect.vue`（内部件）。
-- 类型：`packages/tuffex/packages/components/src/fine-tune-card/src/types.ts`。
-- **实测覆盖:** `packages/tuffex/packages/components/src/fine-tune-card/__tests__/fine-tune-card.test.ts`（24 项）覆盖版式与四个数值域、头部两态与节点重建、逐字段高亮、分段的 aria 与值回路、范围覆写、本地化文案、整体禁用、类型选择的完整键盘与外部关闭路径；`fine-tune-card-motion.test.ts`（8 项）对编译后的 CSS 断言减弱动效契约。
-- 移植自 Beautiful UI（https://www.beautifului.dev），© 2026 Shane Levine，MIT。
-
-
-
-## 审阅说明
-
-- **`TxFlatRadio` 的复用边界:** 行为与语义直接可用，视觉需要覆写。几何尺寸是变量驱动的（干净），但轨道底色、滑块底色/阴影/缓动、选项配色都写死在它的 scoped 样式里（`.tx-flat-radio[data-v-hash]`，特异度 0,2,0）。这里通过重复一次包裹类名拿到确定的 0,3,0 优先级，而不是用 `!important`。`--tx-flat-radio-track-bg`、`--tx-flat-radio-indicator-bg`、`--tx-flat-radio-indicator-shadow` 现已存在，轨道底色、滑块底色与滑块阴影不再需要打特异度战争，只剩写死的选项配色还需要覆写。
-- **类型选择器不导出:** 它只服务这张卡；等真的出现第二个用例再考虑抽成独立组件。
-- **微光的渐变是手写的:** 共享的 `bui-shimmer-text` 混入扫的是墨色阶梯，这里扫的是强调色，所以渐变写在组件里，但共用同一份 keyframes。
+- 类型选择器 `TxFineTuneChipSelect` 是内部件，不导出。
+- 移植自 [Beautiful UI](https://www.beautifului.dev)（© 2026 Shane Levine，MIT）。
+- 源码：`packages/tuffex/packages/components/src/fine-tune-card/`。
 
 ## 离线完整示例源码
 

@@ -2,12 +2,16 @@ import type Database from "better-sqlite3";
 import type { MailConfig } from "../../config.js";
 import { MAIL_LINK_HOSTS, renderEnvelope, safeAssetBase, safeReplyTo, type RenderedMail } from "./envelope.js";
 import { createAliyunProvider, createResendProvider, type FetchLike, type MailProvider } from "./providers.js";
-import { createMailOutbox, type EnqueueLimits } from "./outbox.js";
+import { createMailOutbox, normalizeAddress, type EnqueueLimits } from "./outbox.js";
 import { recruitmentMessage, type RecruitmentKind } from "./recruitment.js";
+import { createTemplateStore } from "./template-store.js";
+import type { TemplateContent } from "./template-content.js";
+import { loginCodeMessage, type LoginCodePurpose } from "./login-code.js";
 
 /**
  * 站内发信的组装（#148）：按配置建发信商、发信队列，并把一份投递拼成招新的信。
  * 路由只调这里：recruitmentLetter 渲染（模板出错就在写库之前抛出），enqueue 放进队列。
+ * 招聘信的文字来自模板（#285，lib/mail/template-store.ts）：没指定就用这一类信的默认模板，改状态时可以指定另一套。
  */
 
 /** 招新的信要用到的投递字段（applications 表的列） */
@@ -26,6 +30,12 @@ export type MailerDeps = { fetch?: FetchLike; now?: () => number };
  * （recipientWindowMs、perSourceHour、perSourceDay）还在，确认信现在不用。
  */
 export const RECEIVED_LETTER_LIMITS: EnqueueLimits = { perHour: 200 };
+
+/**
+ * 控制台向测试邮箱试发样信（#285）的全站上限：一小时 30 封，和 enqueue 的 perHour 一起数 recruitment.test 这一种信。
+ * 每个账号每小时的次数另算（routes/console/mail-templates.ts 的 TEST_SEND_PER_ACCOUNT_HOUR，limits 的 mail.test.hourly 桶）。
+ */
+export const TEST_LETTER_LIMITS: EnqueueLimits = { perHour: 30 };
 
 /** 发件地址、回信地址只收一个普通的邮箱地址；错误信息不带配置的值。 */
 function address(value: string, key: string): string {
@@ -65,20 +75,63 @@ export function createMailer(db: Database.Database, config: MailConfig, publicOr
   const usable = replyTo ? providers.filter(provider => provider.supportsReplyTo) : providers;
   const outbox = createMailOutbox(db, { providers: usable, recipients: config.recipients, allowlist: config.allowlist, now });
 
-  /** 按投递和信的内容拼一封招新的信并渲染；内容不合规（例如没配回信地址却请人直接回复）抛 MailTemplateError。 */
-  function recruitmentLetter(kind: RecruitmentKind, application: ApplicationForMail, letter: RecruitmentLetter = {}): RenderedMail {
+  const templates = createTemplateStore(db);
+
+  /**
+   * 按投递和信的内容拼一封招新的信并渲染；内容不合规（例如没配回信地址却请人直接回复）抛 MailTemplateError。
+   * template 是选出来的模板内容（templates.pick），不传用这一类信的默认模板。
+   */
+  function recruitmentLetter(kind: RecruitmentKind, application: ApplicationForMail, letter: RecruitmentLetter = {}, template?: TemplateContent): RenderedMail {
+    const content = template ?? templates.defaultContent(kind);
     const common = {
       name: application.name, className: application.class_name, email: application.email, submittedAt: application.created_at,
       applicationId: application.id, siteOrigin, sentAt: now(), replyTo,
     };
-    const message = kind === "received" ? recruitmentMessage("received", { ...common, strengths: application.strengths })
-      : kind === "interview" ? recruitmentMessage("interview", { ...common, time: letter.time ?? "", place: letter.place ?? "", notes: lines(letter.notes) })
-      : kind === "accepted" ? recruitmentMessage("accepted", { ...common, steps: lines(letter.notes) })
-      : recruitmentMessage("rejected", { ...common, reason: letter.message?.trim() || undefined });
+    const message = kind === "received" ? recruitmentMessage("received", { ...common, strengths: application.strengths }, content)
+      : kind === "interview" ? recruitmentMessage("interview", { ...common, time: letter.time ?? "", place: letter.place ?? "", notes: lines(letter.notes), strengths: application.strengths }, content)
+      : kind === "accepted" ? recruitmentMessage("accepted", { ...common, steps: lines(letter.notes), strengths: application.strengths }, content)
+      : recruitmentMessage("rejected", { ...common, reason: letter.message?.trim() || undefined, strengths: application.strengths }, content);
     return renderEnvelope(message, { assetBase });
   }
 
-  return { ...outbox, replyTo: replyTo ?? null, recruitmentLetter };
+  /**
+   * 预览和试发用的渲染：按给定的模板内容渲染，不碰库、不入队。待面试还没填时间、地点时用占位文字，
+   * 让预览里看得出它们会出现在哪里（真正改状态时仍然要求必填，见 routes/console/applications.ts）。
+   */
+  function previewLetter(kind: RecruitmentKind, content: TemplateContent, application: ApplicationForMail, letter: RecruitmentLetter = {}): RenderedMail {
+    const filled = kind === "interview"
+      ? { ...letter, time: letter.time?.trim() || "【面试时间待填】", place: letter.place?.trim() || "【面试地点待填】" }
+      : letter;
+    return recruitmentLetter(kind, application, filled, content);
+  }
+
+  /** 登录、绑定用的验证码信（#262）。 */
+  function loginCodeLetter(code: string, purpose: LoginCodePurpose, minutes: number): RenderedMail {
+    return renderEnvelope(loginCodeMessage({ code, purpose, minutes, siteOrigin, sentAt: now() }), { assetBase });
+  }
+
+  const allowlist = new Set(config.allowlist.map(normalizeAddress));
+  /**
+   * 即时发一封信，不进 mail_outbox（#262 的验证码：10 分钟就过期，等不了队列 15 秒一轮和失败退避）。
+   * 发信商按顺序试（阿里云在前，失败立刻改走 Resend），每家最多等 15 秒；遵守 MAIL_RECIPIENTS / MAIL_ALLOWLIST，
+   * 没配发信商不发。结果只给调用方记日志：发信商名、错误码，不含地址和正文。
+   */
+  async function sendNow(to: string, mail: RenderedMail, idempotencyKey: string): Promise<{ status: "sent" | "skipped" | "failed"; provider?: string; error?: string }> {
+    if (!providers.length) return { status: "skipped", error: "mail_disabled" };
+    if (config.recipients !== "all" && !allowlist.has(normalizeAddress(to))) return { status: "skipped", error: "not_allowlisted" };
+    let error = "";
+    for (const provider of providers) {
+      try {
+        await provider.send({ to, subject: mail.subject, html: mail.html, text: mail.text, replyTo: null, idempotencyKey }, AbortSignal.timeout(15_000));
+        return { status: "sent", provider: provider.name };
+      } catch (cause) {
+        error = (cause as Error)?.message?.slice(0, 120) ?? "error";
+      }
+    }
+    return { status: "failed", error };
+  }
+
+  return { ...outbox, replyTo: replyTo ?? null, templates, recruitmentLetter, previewLetter, loginCodeLetter, sendNow, sendingEnabled: providers.length > 0 };
 }
 
 export type Mailer = ReturnType<typeof createMailer>;

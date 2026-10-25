@@ -259,3 +259,81 @@ span.ellipsis {
     margin-bottom: 8px;
   }
 }
+
+/*
+ * 窄屏的行列表（#287）：表格有最小宽度，手机上要横向滚动，右边的列被截掉。
+ * 列不多、一行能讲清楚的表（邀请码、GitLab 账号、论坛分类、备份记录）窄屏改成一行一张卡：
+ * 表格加 .table-wide，卡片列表用 .row-cards，≤640px 时互换；和用户页的 .user-cards 是同一种做法。
+ */
+.row-cards {
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.row-cards > li {
+  padding: 14px 16px;
+}
+.row-cards > li + li {
+  border-top: 1px solid var(--tx-border-color-lighter);
+}
+.row-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.row-card__title {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+.row-card__lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--tx-text-color-regular);
+}
+.row-card__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-width: 0;
+}
+.row-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.row-card__actions button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/*
+ * 表格里的空状态按整张表的宽度居中，表比卡片宽、要横向滚动时，居中的文字落在可见区域外被截掉。
+ * 让它贴着可见区域的左边、宽度取滚动容器的宽度（container query 单位）。
+ */
+.tx-data-table.is-scroll-x {
+  container-type: inline-size;
+}
+.tx-data-table.is-scroll-x .tx-data-table__empty > * {
+  position: sticky;
+  left: 0;
+  box-sizing: border-box;
+  width: calc(100cqw - 24px);
+}
+
+@media (max-width: 640px) {
+  .table-wide {
+    display: none;
+  }
+  .row-cards {
+    display: block;
+  }
+}

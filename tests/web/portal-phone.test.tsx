@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -11,8 +12,10 @@ vi.mock("../../app/web/sites/portal/lib/osApps", async (original) => ({
   followAppLink: (link: AppLink) => followed.calls.push(link),
 }));
 vi.mock("../../app/web/sites/portal/components/os/Wallpaper", () => ({
-  default: ({ wallpaper }: { wallpaper: { image: string } }) => <div data-testid="wallpaper" data-image={wallpaper.image} />,
+  default: ({ wallpaper }: { wallpaper: { id: string; image?: string } }) => <div data-testid="wallpaper" data-id={wallpaper.id} data-image={wallpaper.image} />,
 }));
+// jsdom 没有 canvas：壁纸面板里「晴空」的缩略图换成空元素
+vi.mock("../../app/web/sites/portal/components/os/SkyWallpaper", () => ({ SkyThumb: () => <canvas /> }));
 vi.mock("../../app/web/sites/portal/components/PromoLazy", () => ({ LazyPromoPlayer: () => null }));
 vi.mock("../../app/web/sites/portal/lib/wallpapers", async (original) => ({
   ...(await original<typeof import("../../app/web/sites/portal/lib/wallpapers")>()),
@@ -47,13 +50,24 @@ afterEach(() => {
 const icons = () => within(screen.getByRole("list", { name: "主屏幕上的应用" }));
 const dock = () => within(screen.getByRole("navigation", { name: "Dock" }));
 function mount() {
-  const onBack = vi.fn();
-  return { ...render(<MemoryRouter><YugcOs active onBack={onBack} /></MemoryRouter>), onBack };
+  const onReplayBoot = vi.fn();
+  return { ...render(<MemoryRouter><YugcOs onReplayBoot={onReplayBoot} /></MemoryRouter>), onReplayBoot };
 }
 
-it("手机有状态栏、应用和四项 Dock，没有电脑菜单和默认大便签；指引按需打开，书桌仍可到达", async () => {
-  const { container, onBack } = mount();
-  await screen.findByRole("link", { name: /用 GitHub 登录/ });
+it("手机有状态栏、应用和四项 Dock，没有电脑菜单和默认大便签；指引按需打开，设置里能重播开机动画", async () => {
+  const { container, onReplayBoot } = mount();
+  // 访客右上角和电脑菜单栏一样只有头像（SPEC §4.3），点开是「登录极客班」窗口（#280 起和其他应用一样从底部升起）：登录、注册和一句说明，不直接跳走
+  const entry = await screen.findByRole("button", { name: "登录或注册" });
+  expect(entry.textContent).toBe("");
+  fireEvent.click(entry);
+  const card = screen.getByRole("dialog", { name: "登录极客班" });
+  expect(card.className).toContain("pt-win");
+  expect(within(card).getByRole("link", { name: "登录" }).getAttribute("href")).toBe(`/signin?return_to=${encodeURIComponent("/")}`);
+  expect(within(card).getByRole("link", { name: "注册" })).toBeTruthy();
+  expect(within(card).getByText("注册不需要邀请码，有邀请码可以直接成为成员")).toBeTruthy();
+  fireEvent.click(within(card).getByRole("button", { name: "关闭应用" }));
+  expect(screen.queryByRole("dialog", { name: "登录极客班" })).toBeNull();
+  expect(screen.queryByText(/GitHub 登录/)).toBeNull();
   expect(container.querySelector(".pt-phone-status")).not.toBeNull();
   expect(container.querySelector(".pt-phone-tools")).toBeNull();
   for (const name of ["前往", "窗口", "帮助"]) expect(screen.queryByRole("button", { name })).toBeNull();
@@ -66,8 +80,9 @@ it("手机有状态栏、应用和四项 Dock，没有电脑菜单和默认大�
   const settings = screen.getByRole("button", { name: "YUGC OS 系统设置", exact: true });
   expect(settings.textContent).toBe("YUGC OS");
   fireEvent.click(settings);
-  fireEvent.click(screen.getByRole("button", { name: "回到书桌", exact: true }));
-  expect(onBack).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole("button", { name: "重播开机动画", exact: true }));
+  expect(onReplayBoot).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("dialog", { name: "系统设置" })).toBeNull();
 });
 
 it.each([null, false, true])("手机控制台沿用 console_link=%s，图标、搜索、终端都一致", async (consoleLink) => {
@@ -75,7 +90,7 @@ it.each([null, false, true])("手机控制台沿用 console_link=%s，图标、�
     consoleLink === null ? { signed_in: false } : { signed_in: true, login: "test-member", user_id: 1, console_link: consoleLink },
   ), { status: 200, headers: { "content-type": "application/json" } })));
   mount();
-  if (consoleLink === null) await screen.findByRole("link", { name: /用 GitHub 登录/ });
+  if (consoleLink === null) await screen.findByRole("button", { name: "登录或注册" });
   else await screen.findByRole("button", { name: "账号：test-member" });
   expect(icons().queryByRole("button", { name: "控制台" }) !== null).toBe(consoleLink === true);
   fireEvent.click(screen.getByRole("button", { name: "搜索", exact: true }));
@@ -83,20 +98,24 @@ it.each([null, false, true])("手机控制台沿用 console_link=%s，图标、�
   expect(screen.queryByRole("option", { name: /控制台/ }) !== null).toBe(consoleLink === true);
   fireEvent.click(screen.getByRole("button", { name: "关闭对话框" }));
   fireEvent.click(icons().getByRole("button", { name: "终端" }));
-  const input = screen.getByRole("textbox", { name: "终端输入" });
-  fireEvent.change(input, { target: { value: "ls" } });
+  const input = await screen.findByRole("textbox", { name: "终端输入" });
+  fireEvent.change(input, { target: { value: "ls ~/Desktop" } });
   fireEvent.keyDown(input, { key: "Enter" });
-  expect(screen.queryByText("console", { selector: ".pt-term-key" }) !== null).toBe(consoleLink === true);
+  const listed = document.querySelector(".pt-term-out")?.textContent ?? "";
+  expect(listed).toContain("forum.app");
+  expect(listed.includes("console.app")).toBe(consoleLink === true);
 });
 
-it("手机单击直达，双击事件不重复打开；论坛当前页，GitHub 新标签", () => {
+it("手机单击直达，双击事件不重复打开；论坛当前页，代码仓库在应用里打开", () => {
   const { container } = mount();
   fireEvent.click(icons().getByRole("button", { name: "论坛" }));
-  fireEvent.click(icons().getByRole("button", { name: /GitHub 组织/ }));
-  fireEvent.doubleClick(icons().getByRole("button", { name: /GitHub 组织/ }));
-  expect(followed.calls.map((link) => link.newTab)).toEqual([false, true]);
-  expect(followed.calls[0].href).toBe("http://127.0.0.1:3456/");
-  expect(container.querySelector(".pt-flight")).toBeNull();
+  expect(followed.calls).toEqual([{ href: "http://127.0.0.1:3456/", newTab: false }]);
+  fireEvent.click(icons().getByRole("button", { name: "代码仓库" }));
+  fireEvent.doubleClick(icons().getByRole("button", { name: "代码仓库" }));
+  expect(screen.getAllByRole("dialog", { name: "代码仓库" })).toHaveLength(1);
+  expect(followed.calls).toHaveLength(1);
+  expect(icons().queryByRole("button", { name: /GitHub/ })).toBeNull();
+  expect(container.querySelector(".pt-scene")).toBeNull();
 });
 
 it("指引与壁纸弹层隔离背景数字键和搜索快捷键", () => {
@@ -118,7 +137,7 @@ it("指引与壁纸弹层隔离背景数字键和搜索快捷键", () => {
 it("返回主屏幕保留终端输入和输出，切电脑模式不重挂应用，关闭应用才清空", async () => {
   mount();
   fireEvent.click(icons().getByRole("button", { name: "终端" }));
-  const input = screen.getByRole("textbox", { name: "终端输入" });
+  const input = await screen.findByRole("textbox", { name: "终端输入" });
   fireEvent.change(input, { target: { value: "help" } });
   fireEvent.keyDown(input, { key: "Enter" });
   fireEvent.change(input, { target: { value: "unfinished" } });
@@ -135,7 +154,7 @@ it("返回主屏幕保留终端输入和输出，切电脑模式不重挂应用�
   expect((screen.getByRole("textbox", { name: "终端输入" }) as HTMLInputElement).value).toBe("unfinished");
   fireEvent.click(screen.getByRole("button", { name: "关闭应用" }));
   fireEvent.click(icons().getByRole("button", { name: "终端" }));
-  expect((screen.getByRole("textbox", { name: "终端输入" }) as HTMLInputElement).value).toBe("");
+  expect((await screen.findByRole("textbox", { name: "终端输入" }) as HTMLInputElement).value).toBe("");
 });
 
 it("手机一次只显示前台面板，关闭回主屏幕；搜索可打开应用，壁纸支持方向键选择", () => {
@@ -156,13 +175,17 @@ it("手机一次只显示前台面板，关闭回主屏幕；搜索可打开应�
   expect(document.activeElement).toBe(choices[1]);
 });
 
-it("手机壁纸和选择预览使用独立竖图，切电脑时同一选择切回横图", () => {
+it("默认「晴空」；手机上图片壁纸和选择预览使用独立竖图，切电脑时同一选择切回横图", () => {
   mount();
-  expect(screen.getByTestId("wallpaper").dataset.image).toContain("yugc-phone.webp");
+  expect(screen.getByTestId("wallpaper").dataset.id).toBe("sky");
   fireEvent.click(icons().getByRole("button", { name: "壁纸" }));
   const choices = screen.getAllByRole("radio");
-  expect(choices[0].querySelector("img")?.getAttribute("src")).toContain("yugc-phone-thumb.webp");
-  fireEvent.click(choices[1]);
+  expect(choices.map((choice) => choice.textContent)).toEqual(["晴空", "极客娘 1", "极客娘 2"]);
+  // 竖屏面板（is-tall）里三张缩略图一样是竖图：「晴空」的画布和图片走同一条比例规则（styles/os.css）
+  expect(screen.getByRole("dialog", { name: "更换壁纸" }).classList.contains("is-tall")).toBe(true);
+  expect(choices[0].querySelector("canvas")).not.toBeNull();
+  expect(choices[1].querySelector("img")?.getAttribute("src")).toContain("yugc-phone-thumb.webp");
+  fireEvent.click(choices[2]);
   expect(screen.getByTestId("wallpaper").dataset.image).toContain("geek-phone.webp");
   fireEvent.click(screen.getByRole("button", { name: "关闭对话框" }));
   act(() => { phone = false; changes.forEach((fn) => fn()); });
@@ -170,7 +193,7 @@ it("手机壁纸和选择预览使用独立竖图，切电脑时同一选择切�
   expect(localStorage.getItem("yugc:wallpaper")).toBe("geek");
 });
 
-it("主屏空白处下滑搜索，横滑、多指、取消和应用内手势不触发", () => {
+it("主屏空白处下滑搜索，横滑、多指、取消和应用内手势不触发", async () => {
   const { container } = mount();
   const main = container.querySelector<HTMLElement>(".pt-dt")!;
   const swipe = (target: HTMLElement, dx = 0, fingers = 1) => {
@@ -192,7 +215,7 @@ it("主屏空白处下滑搜索，横滑、多指、取消和应用内手势不�
   expect(screen.queryByRole("combobox")).toBeNull();
   main.scrollTop = 0;
   fireEvent.click(icons().getByRole("button", { name: "终端" }));
-  swipe(screen.getByRole("textbox", { name: "终端输入" }));
+  swipe(await screen.findByRole("textbox", { name: "终端输入" }));
   expect(screen.queryByRole("combobox")).toBeNull();
   expect(screen.queryByRole("button", { name: "搜索", exact: true })).toBeNull();
 });
@@ -239,4 +262,12 @@ it("电脑模式下窗口不渲染手机拖拽条与遮罩背景，保留 macOS 
   expect(container.querySelector(".pt-win-lights")).not.toBeNull();
   fireEvent.click(within(screen.getByRole("dialog", { name: "关于极客班" })).getByRole("button", { name: "关闭" }));
   expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("壁纸面板的缩略图：每张同一个比例，竖屏是手机屏幕的竖图，手机上一行排开，不再有只管图片、不管画布的比例规则", () => {
+  const css = readFileSync(`${process.cwd()}/app/web/sites/portal/styles/os.css`, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  expect(css).toMatch(/\.pt-picker-box img, \.pt-picker-box canvas \{[^}]*aspect-ratio: 16 \/ 9;/);
+  expect(css).toMatch(/\.pt-picker-modal\.is-tall \.pt-picker-box img, \.pt-picker-modal\.is-tall \.pt-picker-box canvas \{ aspect-ratio: 9 \/ 19\.5; \}/);
+  expect(css).toMatch(/\.pt-os-modal\.is-phone \.pt-picker-box ul \{ grid-template-columns: repeat\(auto-fit, minmax\(88px, 1fr\)\);/);
+  expect(css).not.toMatch(/\.pt-picker-box img \{[^}]*aspect-ratio: auto/);
 });

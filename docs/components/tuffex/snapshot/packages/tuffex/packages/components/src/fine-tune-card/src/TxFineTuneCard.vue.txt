@@ -16,12 +16,14 @@ const props = withDefaults(defineProps<FineTuneCardProps>(), {
   edited: undefined,
   title: 'Fine-tune',
   layoutLabel: 'Layout',
+  layoutLabels: undefined,
   typeLabel: 'Type',
   typeOptions: () => [],
   typePlaceholder: 'Select type',
   adjustLabel: 'Adjust',
   editedLabel: 'Edited',
   fieldLabels: undefined,
+  valueLabelFormatter: (label: string) => `${label} value`,
   ranges: undefined,
   disabled: false,
 })
@@ -57,6 +59,10 @@ const SEGMENTED_STYLE = {
 
 function labelOf(field: FineTuneField): string {
   return props.fieldLabels?.[field] ?? DEFAULT_LABELS[field]
+}
+
+function layoutLabelOf(layout: FineTuneLayout): string {
+  return props.layoutLabels?.[layout] ?? `${layout} layout`
 }
 
 function rangeOf(field: FineTuneField): FineTuneRange {
@@ -129,7 +135,7 @@ function onLayout(value: TxFlatRadioValue | TxFlatRadioValue[]): void {
           v-for="layout in LAYOUTS"
           :key="layout"
           :value="layout"
-          :aria-label="`${layout} layout`"
+          :aria-label="layoutLabelOf(layout)"
         >
           <span class="tx-bui-fine-tune-card__glyph" :class="`is-${layout}`" aria-hidden="true">
             <span v-for="dot in LAYOUT_DOTS[layout]" :key="dot" class="tx-bui-fine-tune-card__dot" />
@@ -141,6 +147,7 @@ function onLayout(value: TxFlatRadioValue | TxFlatRadioValue[]): void {
         <TxScrubField
           :model-value="values.width"
           :label="labelOf('width')"
+          :value-label="valueLabelFormatter(labelOf('width'))"
           :min="rangeOf('width').min"
           :max="rangeOf('width').max"
           :active="isChanged('width')"
@@ -150,6 +157,7 @@ function onLayout(value: TxFlatRadioValue | TxFlatRadioValue[]): void {
         <TxScrubField
           :model-value="values.height"
           :label="labelOf('height')"
+          :value-label="valueLabelFormatter(labelOf('height'))"
           :min="rangeOf('height').min"
           :max="rangeOf('height').max"
           :active="isChanged('height')"
@@ -162,6 +170,7 @@ function onLayout(value: TxFlatRadioValue | TxFlatRadioValue[]): void {
         <TxScrubField
           :model-value="values.radius"
           :label="labelOf('radius')"
+          :value-label="valueLabelFormatter(labelOf('radius'))"
           :min="rangeOf('radius').min"
           :max="rangeOf('radius').max"
           :active="isChanged('radius')"
@@ -171,6 +180,7 @@ function onLayout(value: TxFlatRadioValue | TxFlatRadioValue[]): void {
         <TxScrubField
           :model-value="values.opacity"
           :label="labelOf('opacity')"
+          :value-label="valueLabelFormatter(labelOf('opacity'))"
           :min="rangeOf('opacity').min"
           :max="rangeOf('opacity').max"
           suffix="%"
@@ -231,7 +241,7 @@ function onLayout(value: TxFlatRadioValue | TxFlatRadioValue[]): void {
 
 .tx-bui-fine-tune-card__title {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: var(--tx-font-weight-medium, 500);
   color: var(--tx-bui-ink, #1f2124);
 }
 
@@ -242,7 +252,7 @@ function onLayout(value: TxFlatRadioValue | TxFlatRadioValue[]): void {
   gap: 6px;
   align-items: center;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: var(--tx-font-weight-medium, 500);
   color: var(--tx-bui-green, #189a4d);
 }
 
@@ -268,7 +278,7 @@ function onLayout(value: TxFlatRadioValue | TxFlatRadioValue[]): void {
 // so the gradient is written out rather than pulled from `bui-shimmer-text`.
 .tx-bui-fine-tune-card__adjust-label {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: var(--tx-font-weight-medium, 500);
   color: transparent;
   background-image: linear-gradient(
     90deg,
@@ -299,7 +309,7 @@ function onLayout(value: TxFlatRadioValue | TxFlatRadioValue[]): void {
 .tx-bui-fine-tune-card__section-title {
   margin: 0;
   font-size: 12.5px;
-  font-weight: 500;
+  font-weight: var(--tx-font-weight-medium, 500);
   color: var(--tx-bui-ink, #1f2124);
 }
 
@@ -326,7 +336,13 @@ function onLayout(value: TxFlatRadioValue | TxFlatRadioValue[]): void {
     flex: 1;
     padding: 0;
     color: var(--tx-bui-ink-3, #9a9da3);
-    transition: color 0.2s var(--tx-ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1));
+    // The ink eases only while TxFlatRadioItem holds `is-morphing` after a
+    // pick; a hover repaints at once.
+    transition: none;
+
+    &.is-morphing {
+      transition: color 0.2s var(--tx-ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1));
+    }
 
     &:hover:not(.is-selected) {
       color: var(--tx-bui-ink-2, #62656b);
@@ -338,20 +354,18 @@ function onLayout(value: TxFlatRadioValue | TxFlatRadioValue[]): void {
     }
   }
 
+  // Fill and shadow only. The thumb's motion stays TxFlatRadio's: its
+  // indicator engine writes the transform and width every frame, and a transition
+  // restated here would re-ease each of those frames.
   .tx-flat-radio__indicator {
     background: var(--tx-bui-surface, #fff);
     // The thumb rides on a ring-plus-shadow like every other raised BUI
     // surface; tuffex's default thumb shadow is a plain drop shadow.
     box-shadow: var(--tx-bui-shadow-btn, 0 0 0 1px #e0e2e5, 0 1px 2px #1018280d);
-    transition:
-      transform 0.3s var(--tx-ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1)),
-      width 0.3s var(--tx-ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1)),
-      opacity 0.15s ease;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .tx-flat-radio-item,
-    .tx-flat-radio__indicator {
+    .tx-flat-radio-item.is-morphing {
       transition: none;
     }
   }

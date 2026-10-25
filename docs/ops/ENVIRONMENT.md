@@ -2,7 +2,7 @@
 
 > 仅包含占位符；已有环境文件不由代码规范化任务读取或覆盖。
 
-状态：`current` · 更新：2026-10-02 · 本机开发专用；**部署**环境的字段契约见 [ENVIRONMENTS](ENVIRONMENTS.md)
+状态：`current` · 更新：2026-10-24 · 本机开发专用；**部署**环境的字段契约见 [ENVIRONMENTS](ENVIRONMENTS.md)
 
 只做 UI 预览使用根 `pnpm dev:web`，无需以下配置。需要真实本地后端时，由操作者在仓库根创建自己的 `.env`，使用本地专用 OAuth 应用和数据库，不能复制生产凭据或数据。
 
@@ -29,10 +29,10 @@ MAIL_RESEND_FROM=
 MAIL_REPLY_TO=
 MAIL_RECIPIENTS=allowlist
 MAIL_ALLOWLIST=
+# Google 登录（可选，#262）：两项都设才开启；本机的重定向 URI 是 <PUBLIC_ORIGIN>/auth/google/callback
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 COOKIE_DOMAIN=
-ALLOWED_ORGS=
-# 可不设，默认 Yangtze-University-Geek-Class
-CONSOLE_ORG=Yangtze-University-Geek-Class
 ```
 
 这些占位值不能直接用于运行，密钥必须满足实际尺寸校验。`PUBLIC_ORIGIN` 是唯一的对外地址：官网、管理后台、论坛同域，按路径区分；OAuth 回调为 `<PUBLIC_ORIGIN>/auth/callback`，本地 OAuth 应用要登记这一条。部署环境须使用 HTTPS 且 `PUBLIC_ORIGIN` 等于环境 origin，`COOKIE_DOMAIN` 留空（host-only）。详见 [ENVIRONMENTS](ENVIRONMENTS.md) 与 [部署规范](DEPLOY.md)。

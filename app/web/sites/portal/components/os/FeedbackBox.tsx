@@ -1,0 +1,259 @@
+// YUGC OS 的「意见箱」窗口（#275）：匿名向组织提建议 / 报 bug，旁边列出该组织公开的近期反馈。Windows.tsx 打开窗口时才加载，
+// 防刷验证和表单样式不进桌面首屏。旧地址 /feedback、/feedback/:org 不再有单独的页面，只跳到桌面打开这个窗口（App.tsx）；
+// 原来的页面在 docs/history/portal-yugc-os-v1/。准入同其它公开表单（PoW + 蜜罐 + 可选 Turnstile）。
+// 分类只有几项，用单选按钮组（../ChoiceChips.tsx）而不是原生下拉框。
+import TurnstileWidget from "@shared/ui/TurnstileWidget";
+import { useCallback, useEffect, useState } from "react";
+import { api, fmtRelative } from "@shared/lib/api";
+import { appConfig } from "@shared/config";
+import { computePow, powProof } from "@shared/lib/pow";
+import ChoiceChips from "../ChoiceChips";
+import Icon from "../Icon";
+import "../../styles/pages.css";
+
+/**
+ * 意见箱收哪个组织以服务端为准：`GET /api/feedback/categories` 下发的 `org`（部署配置的 CONSOLE_ORG）。
+ * 站点配置里 GitHub 组织地址的最后一段只在接口回来之前、或接口失败时顶上展示（#129）。页面只展示，提交者改不了；
+ * 接口没读到时不让提交，发出去的组织名、分类和 PoW 难度都只用服务端给的。
+ */
+const SITE_ORG = appConfig.urls.githubOrg.split("/").filter(Boolean).pop() ?? "";
+
+/** `GET /api/feedback/public` 下发的字段（正文已截到前 280 字）。 */
+type PublicFeedback = { id: number; category: string | null; content: string; status: string; reply: string | null; created_at: number };
+
+const LEAD = "对官网、论坛或极客班有意见，写在这里，不用登录。社区部会在控制台里看到，回复会公开显示在「最近的意见」里。";
+
+/** 表单和「最近的意见」：窗口本身就是外框，表单不再套卡片 */
+export default function FeedbackBox() {
+  const [form, setForm] = useState({ category: "建议", content: "", contact: "", website: "" });
+  const [org, setOrg] = useState(SITE_ORG);
+  const [err, setErr] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"" | "pow" | "submit">("");
+  const [powTries, setPowTries] = useState(0);
+  const [categories, setCategories] = useState<string[]>([]);
+  /** `GET /api/feedback/categories` 的状态；只有 ready 时能提交。retrying 是失败后点了「重新读取」、还没回来。 */
+  const [meta, setMeta] = useState<"loading" | "ready" | "failed" | "retrying">("loading");
+  const [powDiff, setPowDiff] = useState(3);
+  const [recent, setRecent] = useState<PublicFeedback[]>([]);
+  const [recentFailed, setRecentFailed] = useState(false);
+  const [siteKey, setSiteKey] = useState<string | null>(null);
+  const [tsToken, setTsToken] = useState("");
+  const [captchaEpoch, setCaptchaEpoch] = useState(0);
+
+  const loadMeta = useCallback(() => {
+    api<{ categories: string[]; pow_difficulty: number; org?: string }>("/api/feedback/categories")
+      .then((d) => {
+        setCategories(d.categories);
+        setPowDiff(d.pow_difficulty);
+        if (d.org) setOrg(d.org);
+        setMeta("ready");
+      })
+      .catch(() => setMeta("failed"));
+  }, []);
+
+  useEffect(() => {
+    loadMeta();
+    api<{ turnstile_site_key: string | null }>("/api/public/config")
+      .then((c) => setSiteKey(c.turnstile_site_key))
+      .catch(() => undefined);
+  }, [loadMeta]);
+
+  useEffect(() => {
+    // 组织名从回退值换成服务端的值时会再读一次；先发出的那次晚回来也不覆盖后一次的结果。
+    let current = true;
+    setRecentFailed(false);
+    api<{ items: PublicFeedback[] }>(`/api/feedback/public?org=${encodeURIComponent(org)}&limit=10`)
+      .then((d) => {
+        if (current) setRecent(d.items);
+      })
+      .catch(() => {
+        if (!current) return;
+        setRecent([]);
+        setRecentFailed(true);
+      });
+    return () => {
+      current = false;
+    };
+  }, [org, done]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // 按钮已是灰的；这里再拦一次，任何途径触发的提交都不带回退的组织名和默认难度出去
+    if (meta !== "ready") return;
+    setErr(null);
+    setBusy("pow");
+    setPowTries(0);
+    try {
+      const bodyForHash = `fb:${org}:${form.content.trim()}`;
+      const pow = await computePow(bodyForHash, powDiff, (n) => setPowTries(n));
+      setBusy("submit");
+      const r = await api<{ ok: boolean; message: string }>("/api/feedback", {
+        method: "POST",
+        body: JSON.stringify({ ...form, org, turnstile_token: tsToken, pow: powProof(pow) }),
+      });
+      setDone(r.message);
+      setForm({ ...form, content: "", contact: "", website: "" });
+      setCaptchaEpoch(value => value + 1);
+      setTsToken("");
+    } catch (e) {
+      setErr((e as Error).message);
+      setCaptchaEpoch(value => value + 1); setTsToken("");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const body = done ? (
+    <div className="pt-form" role="status" aria-live="polite">
+      <p className="pt-alert is-success">
+        <Icon name="checkbox-circle-line" size={16} /> {done}
+      </p>
+      <div className="pt-form-actions">
+        <button type="button" className="pt-btn" onClick={() => setDone(null)}>
+          再写一条
+        </button>
+      </div>
+    </div>
+  ) : (
+    <form onSubmit={submit} className="pt-form">
+      <div className="pt-field">
+        <label htmlFor="fb-org">发往的组织</label>
+        <input id="fb-org" className="pt-input is-mono" value={org} readOnly aria-readonly="true" aria-describedby="fb-org-hint" />
+        <p className="pt-hint" id="fb-org-hint">
+          意见箱只收本组织的意见，这里改不了。
+        </p>
+      </div>
+
+      <div className="pt-field">
+        <span className="pt-field-label" id="fb-category-label">
+          分类
+        </span>
+        {meta === "failed" || meta === "retrying" ? (
+          <>
+            <p className="pt-alert is-error" role="alert">
+              <Icon name="error-warning-line" size={16} /> 没读到分类和发往的组织，暂时不能提交。点「重新读取」再试，已经写的内容不会丢。
+            </p>
+            <div className="pt-form-actions">
+              <button
+                type="button"
+                className="pt-btn"
+                disabled={meta === "retrying"}
+                onClick={() => {
+                  setMeta("retrying");
+                  loadMeta();
+                }}
+              >
+                {meta === "retrying" ? "正在读取…" : "重新读取"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <ChoiceChips name="category" labelledBy="fb-category-label" value={form.category} options={categories} onChange={(category) => setForm({ ...form, category })} />
+        )}
+      </div>
+
+      <div className="pt-field">
+        <label htmlFor="fb-content">想说什么</label>
+        <textarea
+          id="fb-content"
+          className="pt-input pt-textarea"
+          required
+          minLength={5}
+          maxLength={5000}
+          placeholder="比如：哪个页面、做了什么、看到了什么、你觉得应该怎样。"
+          aria-describedby="fb-content-count"
+          value={form.content}
+          onChange={(e) => setForm({ ...form, content: e.target.value })}
+        />
+        <p className="pt-hint" id="fb-content-count">
+          <span className="pt-num">{form.content.length}</span> / 5000 字，至少 5 字。内容和回复会公开显示，别写隐私信息。
+        </p>
+      </div>
+
+      <div className="pt-field">
+        <label htmlFor="fb-contact">联系方式（选填，不公开）</label>
+        <input id="fb-contact" className="pt-input" placeholder="邮箱、代码仓库用户名或微信" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+      </div>
+
+      {/* 蜜罐字段：真人看不见也不会填，机器人会填。 */}
+      <div className="pt-trap" aria-hidden="true">
+        <label>
+          请勿填写：
+          <input tabIndex={-1} autoComplete="off" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+        </label>
+      </div>
+
+      <TurnstileWidget siteKey={siteKey} onToken={setTsToken} resetKey={captchaEpoch} />
+      {err && (
+        <p className="pt-alert is-error" role="alert">
+          <Icon name="error-warning-line" size={16} /> {err}
+        </p>
+      )}
+
+      <div className="pt-form-actions">
+        <button type="submit" className="pt-btn is-primary" disabled={Boolean(busy) || meta !== "ready" || form.content.length < 5 || (!!siteKey && !tsToken)}>
+          <Icon name="send-plane-2-line" size={16} />
+          {busy === "pow" ? "正在做防刷验证…" : busy === "submit" ? "正在提交…" : "提交意见"}
+        </button>
+        {busy === "pow" && (
+          <span className="pt-hint">
+            浏览器在算一道防刷题，一两秒就好（已试 <span className="pt-num">{Math.round(powTries / 1000)}k</span> 次）
+          </span>
+        )}
+      </div>
+    </form>
+  );
+
+  return (
+    <div className="pt-feedback is-window">
+      <section className="pt-feedback-form" aria-label="写意见">
+        <p className="pt-feedback-lead">{LEAD}</p>
+        {body}
+      </section>
+
+      <aside className="pt-feed-side" aria-labelledby="fb-recent-title">
+        <h2 className="pt-side-title" id="fb-recent-title">
+          最近的意见
+        </h2>
+        {recentFailed ? (
+          <div className="pt-feed-empty">
+            <Icon name="error-warning-line" size={24} />
+            <p>没读到「{org}」的公开意见，稍后刷新试试。</p>
+          </div>
+        ) : recent.length === 0 ? (
+          <div className="pt-feed-empty">
+            <Icon name="inbox-line" size={24} />
+            <p>{org} 还没有公开的意见。</p>
+          </div>
+        ) : (
+          <ul>
+            {recent.map((r) => (
+              <li key={r.id} className="pt-feed-item">
+                <div className="pt-feed-meta">
+                  <span className="pt-tag">{r.category ?? "其他"}</span>
+                  <StatusTag s={r.status} />
+                  <span className="pt-feed-time">{fmtRelative(r.created_at)}</span>
+                </div>
+                <p>{r.content}</p>
+                {r.reply && (
+                  <p className="pt-feed-reply">
+                    <strong>回复</strong>：{r.reply}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  open: "待处理", triaged: "已查看", in_progress: "处理中", done: "已完成", wont_do: "不做", spam: "垃圾",
+};
+const StatusTag = ({ s }: { s: string }) => {
+  const tone = s === "done" ? "is-done" : s === "wont_do" ? "is-no" : s === "in_progress" ? "is-doing" : "";
+  return <span className={`pt-tag ${tone}`}>{STATUS_LABEL[s] ?? s}</span>;
+};

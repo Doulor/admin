@@ -2,7 +2,7 @@
 
 > 同机两套 Docker 栈 + 宿主 nginx TLS 终止；生产发布为独立授权操作，模板存在不等于已经部署。
 
-状态：`current` · 更新：2026-10-18
+状态：`current` · 更新：2026-10-25
 
 ## 发布前置
 
@@ -21,6 +21,8 @@
                  ├─ /console、/admin、/signin（含子路径） → sites/console/index.html（app/console，Vue + Tuffex）
                  ├─ /healthz  → server:3000（web 也代理，部署脚本用它做健康门）
                  ├─ /api/*、/auth/* → server:3000（Fastify + /data 命名卷）
+                 ├─ /c/*      → server:3000（比赛官网站点包，server 下发 sandbox CSP，#278）
+                 ├─ /sdk/*    → 镜像里的比赛 SDK（/sdk/competition/v1.js，缓存 5 分钟，带 Access-Control-Allow-Origin: *）
                  ├─ /forum    → 308 到相对地址 /forum/（web 与论坛两个容器都 absolute_redirect off，跳转不带协议、主机和容器端口）
                  ├─ /forum/*  → forum:3000（Nuxt 静态产物；镜像按 GEEK_FORUM_BASE_PATH=/forum/ 构建，proxy_pass 带尾斜杠剥离前缀，proxy_redirect 把论坛的相对跳转补回前缀；location ^~，图片、字体也转给论坛）
                  ├─ /admin、/admin/*、/console、/console/*、/signin → admin SPA 入口
@@ -137,15 +139,16 @@ bash deploy-stack.sh --environment production \
 
 环境变量**只**经 `.env` 文件：`deploy/env/.env.production` 与 `deploy/env/.env.preview` 提交入库，非密值（地址、端口、域名、路径、开关）预填真实值，密钥字段留空由 CI/CD 注入。完整字段契约、可见性规则与 GitHub 环境 secrets/vars 清单见 [ENVIRONMENTS](ENVIRONMENTS.md)；本机开发模板见 [ENVIRONMENT](ENVIRONMENT.md)。
 
-关键非密字段：`GEEK_DEPLOYMENT_ENVIRONMENT`、`GEEK_ENVIRONMENT_ORIGIN`、`COMPOSE_PROJECT_NAME`、`STACK_ROOT`、`DEPLOY_HOST`、`DEPLOY_PORT`、`DEPLOY_USER`、`IMAGE_TAG`、`WEB_BIND`、`SERVER_BIND`、`SERVER_PORT`、`FORUM_PORT`、`PUBLIC_ORIGIN`（环境唯一的对外地址，逐字等于 `deploy/environments.json` 的 origin）、`NODE_ENV`、`PORT`、`HOST`（容器内必须 `0.0.0.0`，否则 web 容器连不上）、`TRUST_PROXY`（反代层数，必须为 `2`：宿主 nginx 与 web 容器 nginx 两层；写 `true` 会让客户端伪造 IP，见 [ENVIRONMENTS](ENVIRONMENTS.md)）、`DB_PATH`、`POW_DIFFICULTY`、`COOKIE_DOMAIN`（留空 = host-only）、发信的 `MAIL_ALIYUN_FROM`、`MAIL_RESEND_FROM`、`MAIL_ASSET_BASE`、`MAIL_REPLY_TO`（留空 = 不带 Reply-To）、`MAIL_RECIPIENTS`（预发布和正式均为 `all`，#169）。密钥字段：`OAUTH_CLIENT_ID`、`OAUTH_CLIENT_SECRET`、`SESSION_SECRET`、`ENCRYPTION_KEY`、`TURNSTILE_SITE_KEY`、`TURNSTILE_SECRET_KEY`，以及可以不配的 `MAIL_ALIYUN_ACCESS_KEY_ID`、`MAIL_ALIYUN_ACCESS_KEY_SECRET`、`MAIL_RESEND_API_KEY`、`MAIL_ALLOWLIST`——**仓库里必须留空**。发布身份（`GEEK_RELEASE_VERSION`、`GEEK_RELEASE_COMMIT`、`GEEK_RELEASE_DISPLAY_SUFFIX`）是 `BUILD_ONLY_FIELDS`：只经 build args 注入，写在 env 文件里不会被读取。
+关键非密字段：`GEEK_DEPLOYMENT_ENVIRONMENT`、`GEEK_ENVIRONMENT_ORIGIN`、`COMPOSE_PROJECT_NAME`、`STACK_ROOT`、`DEPLOY_HOST`、`DEPLOY_PORT`、`DEPLOY_USER`、`IMAGE_TAG`、`WEB_BIND`、`SERVER_BIND`、`SERVER_PORT`、`FORUM_PORT`、`PUBLIC_ORIGIN`（环境唯一的对外地址，逐字等于 `deploy/environments.json` 的 origin）、`NODE_ENV`、`PORT`、`HOST`（容器内必须 `0.0.0.0`，否则 web 容器连不上）、`TRUST_PROXY`（反代层数，必须为 `2`：宿主 nginx 与 web 容器 nginx 两层；写 `true` 会让客户端伪造 IP，见 [ENVIRONMENTS](ENVIRONMENTS.md)）、`DB_PATH`、`POW_DIFFICULTY`、`COOKIE_DOMAIN`（留空 = host-only）、发信的 `MAIL_ALIYUN_FROM`、`MAIL_RESEND_FROM`、`MAIL_ASSET_BASE`、`MAIL_REPLY_TO`（留空 = 不带 Reply-To）、`MAIL_RECIPIENTS`（预发布和正式均为 `all`，#169），自建 GitLab 的 `GITLAB_SYNC`（正式 `off`、预发布 `on`）、`GITLAB_URL`、`GITLAB_GROUP`（#270）。密钥字段：`OAUTH_CLIENT_ID`、`OAUTH_CLIENT_SECRET`、`SESSION_SECRET`、`ENCRYPTION_KEY`、`TURNSTILE_SITE_KEY`、`TURNSTILE_SECRET_KEY`，以及可以不配的 `MAIL_ALIYUN_ACCESS_KEY_ID`、`MAIL_ALIYUN_ACCESS_KEY_SECRET`、`MAIL_RESEND_API_KEY`、`MAIL_ALLOWLIST`、`GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`OIDC_JWKS`、`GITLAB_API_TOKEN`（#270，后者只在 `GITLAB_SYNC=on` 时必填）——**仓库里必须留空**。发布身份（`GEEK_RELEASE_VERSION`、`GEEK_RELEASE_COMMIT`、`GEEK_RELEASE_DISPLAY_SUFFIX`）是 `BUILD_ONLY_FIELDS`：只经 build args 注入，写在 env 文件里不会被读取。
 
 禁止把真实密钥写入仓库、镜像、日志或发布记录；`.env` 由目标机最小权限保存，不打印、不提交。
 
 ## 数据与备份
 
-- 每个环境的数据都在自己的命名卷里（server 的 `/data`：`data.db`、旧论坛兼容路径）；forum 容器当前不挂卷、无服务端持久化。两栈互不可见。
+- 每个环境的数据都在自己的命名卷里（server 的 `/data`：`data.db`、比赛官网站点包解开后的文件 `sites/<比赛>/<版本>/`（#278，与 `DB_PATH` 同目录，备份数据库时一起备份）、旧论坛兼容路径）；forum 容器当前不挂卷、无服务端持久化。两栈互不可见。
 - 旧站数据已按独立授权拉到 Mac 私有目录，见 [FORUM-DATA-CAPTURE](FORUM-DATA-CAPTURE.md)；这是源数据保全，不是 schema 迁移，不自动替换线上库，也不放进镜像或 CI。
 - 变更表结构尽量增量兼容，不自动删除或重排。变更前使用 SQLite 在线 backup API 或停服的一致性备份，不能只复制活动 WAL 主文件并假定完整。备份同时记录镜像 tag、环境与应用版本，并完成恢复演练。
+- 日常备份、搬迁和恢复演练走控制台「备份」页一键导出（#282，节点 `system.backup`，`GET /api/console/backup`）：正是上一条的实现，归档里带着 SQLite 在线备份的快照、`sites/` 站点文件和一份 manifest（镜像 tag、环境、每张表的行数、每个文件的 sha256）；恢复用 `scripts/backup-restore.mjs`。完整说明、排除哪些数据和跨环境搬迁步骤见 [BACKUP](BACKUP.md)。
 - 镜像保留策略（最新 5 个 tag + 当前 + 上一个）只清理镜像，不清理数据卷；**回滚不重置数据库**，结构不兼容时停下来由人处理。
 - 禁止把业务数据库用于自动测试。
 
@@ -167,6 +170,7 @@ bash rollback-stack.sh --environment production --to <sha12|previous>
 
 - 容器内进程非 root 运行（web 容器 nginx 以 nginx 用户跑非特权 8080）；镜像只含运行必需的代码与静态产物。
 - 宿主 nginx 只做 TLS 终止与反代，不读取应用密钥；安全头统一在宿主下发，容器不重复。唯一例外是论坛页面的 CSP：论坛容器下发站点策略加上论坛内联脚本的哈希，宿主模板开头的 `map` 只在 `/forum/` 下、上游已带 CSP 时不再叠加第二份，其它路径照发站点策略（#78）。站点策略的 `media-src` 与 `connect-src` 放行 `https://cdn.crosery.com`（官网宣传片是 HLS，hls.js 用 XHR 取分片、以 `blob:` 地址交给 `<video>`，#77）。`connect-src` 另放行 `blob:`（手机 3D 模型的 GLB 内嵌贴图，three.js 的 `GLTFLoader` 先转成 `blob:` 地址再用 `fetch` 读取，#240）；论坛容器的策略取自同一份模板，会一起带上。`script-src`、`style-src`、`font-src` 只放行 CDN 上的 `https://cdn.crosery.com/yzgc/static/site/` 前缀（带哈希的静态文件，#146，见下文「静态资源 CDN」）；论坛容器的 CSP 取自同一份模板，构建时就带上。改宿主模板后要重新安装到服务器（只装对应环境那一份，先备份、`nginx -t` 再 reload），这一步不在 CI 里；发版后经公网确认 `/forum/` 只有一条带 `sha256-` 的 CSP（部署脚本的健康检查不经过宿主 nginx，查不出来）。
+- 比赛官网（#278）：`/c/<slug>/` 由 server 下发 `sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox; default-src 'self'; …` 这份 CSP，宿主的站点策略照常叠加，浏览器取交集（两份都只放行 `'self'`，站点包不能引用外部地址）。上传站点包的 `POST /api/console/competitions/<id>/site/versions` 请求体是 zip（服务端上限 20MB）：web 容器只给这一条路径放宽到 `client_max_body_size 21m`，其余仍是 6m；宿主模板没有改，整站仍是 6m，所以经正式域名上传时超过 6MB 的包会被宿主 nginx 回 413（控制台写「文件超过了网关允许的上传大小」）。宿主模板只有一个反代 location，`X-Forwarded-For` 只追加一次、上游端口只写一处（`tests/tooling/deployment-environment.test.ts` 与 `hashed-asset-cache.test.ts` 核对），要放宽到 20MB 由所有者决定怎么改；第一期站点包约 230KB，不受影响。`tests/tooling/web-nginx.test.ts` 核对容器与宿主的上限。
 - 部署用户的 SSH 密钥只存在于 GitHub 环境级 secrets 与维护者机器（`scripts/deploy-manual.mjs` 通过 `DEPLOY_SSH_KEY_FILE` 读取）；不在仓库、脚本或日志中出现。
 - 镜像与 env 文件按 600/最小权限落在栈根，发布产物不包含 `.env`、真实数据库或 SSH 材料；incoming 里分发来的归档与 env 副本在部署成功后删除（见「incoming 清理」）。
 
@@ -175,7 +179,7 @@ bash rollback-stack.sh --environment production --to <sha12|previous>
 开关、工作流、凭据与手工操作的顺序见 [CICD](CICD.md)「静态资源 CDN」。这里只写与宿主机、CDN 有关的部分。
 
 - **先装模板，再给凭据**：部署工作流的 `cdn-plan` 在构建前 HEAD 一次环境首页，读线上 CSP；`script-src`、`style-src`、`font-src` 没有放行 `https://cdn.crosery.com/yzgc/static/site/` 就告警并同源构建。所以宿主机还是旧模板时，即使配了上传 token，页面也不会引用 CDN，不会出现样式、脚本被 CSP 拦下的情况。装模板的步骤同上文「最小权限」：只装对应环境那一份，先备份、`nginx -t` 再 reload。
-- **镜像里仍有全部文件**：开关只改页面引用的地址，web 与 forum 镜像照样带着 `/assets/`、`/console-assets/`、`/forum/_nuxt/`。CDN 回源不经过我们的源站（文件是上传进七牛存储的），源站上的这些路径只是兜底，不会自动切换。
+- **镜像里仍有全部文件**：开关只改页面引用的地址，web 与 forum 镜像照样带着 `/assets/`、`/console-assets/`、`/forum/_nuxt/`；server 镜像（#286）带着内置表情包的源图片和清单，内置表情图片的 CDN 地址只在开关打开时给，同源的 `/api/forum/stickers/<哈希>.webp`（图片本来就存在 `data.db` 里）始终可用。CDN 回源不经过我们的源站（文件是上传进七牛存储的），源站上的这些路径只是兜底，不会自动切换。
 - **CDN 出问题时**：删掉 GitHub Environment `static-cdn` 里的 `STATIC_CDN_UPLOAD_TOKEN`，重新运行这个 tag 的部署工作流（或打下一个 rc），这次就是同源构建。已经上线的镜像不会自己回到同源。
 - **回滚**：`rollback-stack.sh` 切回的旧镜像如果是开关打开时构建的，它引用的 CDN 对象仍在（上传只增不改，没有任何流程删除它们）。不要手工删 `yzgc/static/site/` 下的对象。
 - **CDN 的防盗链与 CORS（2026-09-26 用 curl 实测，不需要改 CDN 配置）**：`Referer: https://prev.yangtzeu.work/` 与 `https://yangtzeu.work/` 返回 200；别的站点（如 `https://evil.example/`）返回 403；不带 Referer 返回 200。`.js` 是 `text/javascript`，`.css` 是 `text/css`，`.woff2` 是 `font/woff2`，都带 `Access-Control-Allow-Origin: *`、`Cache-Control: public, max-age=31536000`、`Vary: Origin, Accept-Encoding`。CDN 对文本做 gzip（论坛入口 CSS 626,718 → 95,554 字节），不支持 brotli。站点的 `Referrer-Policy: strict-origin-when-cross-origin` 让浏览器发出 `https://<域名>/`，正好命中白名单。

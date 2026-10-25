@@ -9,37 +9,32 @@ import { TxTag } from "@talex-touch/tuffex/tag";
 import { TxButton } from "@talex-touch/tuffex/button";
 import { TxEmptyState } from "@talex-touch/tuffex/empty-state";
 import { TxSkeleton } from "@talex-touch/tuffex/skeleton";
+import { TxStatusBadge } from "@talex-touch/tuffex/status-badge";
 import PageHeader from "../components/PageHeader.vue";
 import TitleBadge from "../components/TitleBadge.vue";
 import ErrorPanel from "../components/ErrorPanel.vue";
 import { api } from "../lib/http";
 import { fmtDate, fmtRelative } from "../lib/format";
-import { BLOCK_REASON_TEXT } from "../lib/nav";
 import { useResource } from "../lib/resource";
+import { actionText, actorText, outcomeText, surfaceText } from "../lib/activity";
+import { modeText } from "../lib/gitlab";
+import { ASSIGNER_TEXT, PROVIDER_TEXT } from "../lib/levels";
+import { nodeLabel } from "../lib/permission-nodes";
+import { nodesByDomain } from "../lib/permissions";
+import { titleTone } from "../lib/users";
 import { useSession } from "../lib/session";
-import { assignerText } from "../lib/titles";
-import type { AuditRow, Summary } from "../lib/types";
+import type { ActivityList, Summary } from "../lib/types";
 
 const router = useRouter();
-const { me, catalogue, can } = useSession();
+const { me, can } = useSession();
 const summary = useResource(() => api<Summary>("/api/console/summary"));
-const audit = useResource(() => api<{ logs: AuditRow[] }>("/api/console/audit?limit=6"), [], { enabled: () => can("audit.read") });
+// 接口每页固定 50 条，不认 `limit`（带了整页 400，#274），这里只显示最新的 6 条。
+const activity = useResource(() => api<ActivityList>("/api/console/activity"), [], { enabled: () => can("activity.read") });
+const recent = computed(() => activity.data.value?.items.slice(0, 6) ?? []);
 
-const roleText = computed(() => me.value?.github_role === "admin" ? "管理员" : me.value?.github_role === "member" ? "成员" : "未加入");
-const held = computed(() => (me.value?.capabilities ?? []).filter(id => id !== "console.access"));
-
-/** 按能力类别列出：我有的、被 GitHub 组织角色挡住的。没有任何能力的类别不列。 */
-const domains = computed(() => {
-  const cat = catalogue.value;
-  if (!cat || !me.value) return [];
-  return cat.domains.filter(domain => domain.id !== "console").map(domain => {
-    const inDomain = cat.capabilities.filter(item => item.domain === domain.id);
-    const granted = inDomain.filter(item => me.value!.capabilities.includes(item.id));
-    const blocked = inDomain.filter(item => me.value!.blocked.some(b => b.capability === item.id));
-    const reason = me.value!.blocked.find(b => blocked.some(item => item.id === b.capability))?.reason ?? null;
-    return { ...domain, granted, blocked, reason };
-  }).filter(domain => domain.granted.length + domain.blocked.length > 0);
-});
+const held = computed(() => (me.value?.permissions ?? []).filter(id => id !== "console.access"));
+/** 按业务域列出我持有的权限节点；没有节点的域不列。 */
+const domains = computed(() => nodesByDomain(held.value));
 
 type Stat = { label: string; value: number; meta: string; to: string; icon: string };
 const stats = computed<Stat[]>(() => {
@@ -48,30 +43,33 @@ const stats = computed<Stat[]>(() => {
   const list: Stat[] = [];
   if (s.applications) {
     list.push({ label: "待处理投递", value: s.applications.by_status.received ?? 0, meta: `共 ${s.applications.total} 份，近 7 天 ${s.applications.last_7d} 份`, to: "/console/applications?status=received", icon: "i-carbon-document-attachment" });
-    list.push({ label: "待面试", value: s.applications.by_status.interview ?? 0, meta: `已录取 ${s.applications.by_status.accepted ?? 0} 人`, to: "/console/applications?status=interview", icon: "i-carbon-time" });
   }
-  if (s.feedback) list.push({ label: "待处理意见", value: s.feedback.open, meta: `共 ${s.feedback.total} 条`, to: "/console/feedback?status=open", icon: "i-carbon-chat" });
-  if (s.people) list.push({ label: "称号指派", value: s.people.assignments, meta: `${s.people.departments} 个部门`, to: "/console/people", icon: "i-carbon-user-admin" });
+  if (s.candidates_pending !== undefined) list.push({ label: "待确认贡献", value: s.candidates_pending, meta: "比赛里等人确认的积分", to: "/console/competitions", icon: "i-carbon-trophy" });
+  if (s.registrations_today !== undefined) list.push({ label: "今天新注册", value: s.registrations_today, meta: "北京时间今天", to: "/console/users", icon: "i-carbon-user-follow" });
+  if (s.blocked_today !== undefined) list.push({ label: "今天被拦下", value: s.blocked_today, meta: "被限流的请求", to: "/console/activity?outcome=limited", icon: "i-carbon-security" });
   return list;
 });
+const gitlabStat = computed(() => summary.data.value?.gitlab ?? null);
 </script>
 
 <template>
   <div v-if="me" class="page">
-    <PageHeader title="概览" description="你的称号、能做的事，以及需要你处理的数量。" />
+    <PageHeader title="概览" description="你的身份、能做的事，以及需要你处理的数量。" />
 
     <TxCard>
       <div class="identity">
-        <TxAvatar :src="me.avatar_url ?? undefined" :name="me.login" :size="52" />
+        <TxAvatar :src="me.avatar_url ?? undefined" :name="me.display_name || me.username" :size="52" />
         <div class="identity__text">
-          <span class="mono identity__login">@{{ me.login }}</span>
-          <div class="tags">
-            <TitleBadge v-for="title in me.titles" :key="`${title.id}-${title.assignment_id ?? title.source}`" :title="title" size="md" />
+          <span class="identity__name ellipsis">{{ me.display_name || me.username }}</span>
+          <span class="mono muted ellipsis">@{{ me.username }}</span>
+          <div v-if="me.titles.length" class="tags">
+            <TitleBadge v-for="title in me.titles" :key="title.id" :label="title.name" :tone="titleTone(title, me.department)" />
           </div>
         </div>
         <dl class="identity__facts">
-          <div><dt>GitHub 组织</dt><dd class="mono ellipsis" :title="me.org">{{ me.org }}</dd></div>
-          <div><dt>组织角色</dt><dd>{{ roleText }}</dd></div>
+          <div><dt>身份</dt><dd>{{ me.level_name }}</dd></div>
+          <div><dt>部门</dt><dd>{{ me.department && me.department.id !== "dept.none" ? me.department.name : "无部门" }}</dd></div>
+          <div><dt>这次登录</dt><dd>{{ PROVIDER_TEXT[me.provider] ?? me.provider }}</dd></div>
           <div><dt>权限</dt><dd>{{ held.length }} 项</dd></div>
         </dl>
       </div>
@@ -81,7 +79,7 @@ const stats = computed<Stat[]>(() => {
     <div v-else-if="summary.loading.value && !summary.data.value" class="grid-stats">
       <TxCard v-for="n in 3" :key="n"><TxSkeleton :loading="true" :lines="3" :height="14" /></TxCard>
     </div>
-    <div v-else-if="stats.length" class="grid-stats">
+    <div v-else-if="stats.length || gitlabStat" class="grid-stats">
       <TxStatCard
         v-for="stat in stats"
         :key="stat.label"
@@ -100,6 +98,13 @@ const stats = computed<Stat[]>(() => {
           <span class="stat__meta">{{ stat.meta }}</span>
         </template>
       </TxStatCard>
+      <TxCard v-if="gitlabStat" class="stat gitlab-stat" role="link" tabindex="0" @click="router.push('/console/gitlab')" @keydown.enter="router.push('/console/gitlab')">
+        <div class="gitlab-stat__head">
+          <span class="stat__label">GitLab 同步</span>
+          <TxStatusBadge :text="gitlabStat.healthy ? '连接正常' : '连不上'" :status="gitlabStat.healthy ? 'success' : 'danger'" size="sm" />
+        </div>
+        <span class="stat__meta">同步{{ modeText(gitlabStat.mode) }}{{ gitlabStat.last_run ? ` · 上次同步 ${fmtRelative(gitlabStat.last_run.at)}` : "" }}</span>
+      </TxCard>
     </div>
 
     <div class="grid-2">
@@ -110,59 +115,43 @@ const stats = computed<Stat[]>(() => {
             <span class="count">{{ held.length }} 项</span>
           </div>
         </template>
-        <TxSkeleton v-if="!catalogue" :loading="true" :lines="4" />
-        <div v-else class="domains">
+        <div v-if="domains.length" class="domains">
           <section v-for="domain in domains" :key="domain.id" class="domain">
             <h3>{{ domain.label }}</h3>
             <div class="tags">
-              <TxTag v-for="item in domain.granted" :key="item.id" :label="item.label" variant="soft" size="sm" />
-              <TxTag v-for="item in domain.blocked" :key="item.id" :label="item.label" icon="i-carbon-locked" variant="plain" size="sm" />
+              <TxTag v-for="node in domain.nodes" :key="node" :label="nodeLabel(node)" variant="soft" size="sm" />
             </div>
-            <p v-if="domain.reason" class="domain__note">带锁的一项{{ BLOCK_REASON_TEXT[domain.reason] }}才能使用。</p>
           </section>
-          <p class="domain__note">需要更多权限，请联系{{ assignerText(catalogue) }}指派称号。</p>
         </div>
+        <p class="domain__note">需要更多权限，请联系{{ ASSIGNER_TEXT }}。</p>
       </TxCard>
 
-      <TxCard v-if="can('audit.read')">
+      <TxCard v-if="can('activity.read')">
         <template #header>
           <div class="card-head">
             <h2 class="section-title">最近操作</h2>
             <div class="card-head__actions">
-              <TxButton variant="ghost" size="sm" @click="router.push('/console/audit')">查看全部</TxButton>
+              <TxButton variant="ghost" size="sm" @click="router.push('/console/activity')">查看全部</TxButton>
             </div>
           </div>
         </template>
-        <ErrorPanel v-if="audit.error.value" :error="audit.error.value" :retry="audit.reload" size="small" />
-        <TxSkeleton v-else-if="!audit.data.value" :loading="true" :lines="5" />
-        <TxEmptyState v-else-if="!audit.data.value.logs.length" title="还没有记录" description="控制台里的写操作会记在这里。" size="small" />
+        <ErrorPanel v-if="activity.error.value" :error="activity.error.value" :retry="activity.reload" size="small" />
+        <TxSkeleton v-else-if="!activity.data.value" :loading="true" :lines="5" />
+        <TxEmptyState v-else-if="!recent.length" title="还没有记录" description="登录、发帖、投递和控制台里的操作会记在这里。" size="small" />
         <div v-else class="recent">
           <TxCardItem
-            v-for="row in audit.data.value.logs"
+            v-for="row in recent"
             :key="row.id"
-            :title="row.actor"
-            :avatar-text="row.actor.slice(0, 2).toUpperCase()"
+            :title="actorText(row).text"
+            :avatar-text="actorText(row).text.slice(0, 1)"
             :avatar-size="28"
           >
             <template #subtitle>
-              <span class="mono recent__action">{{ row.action }}</span>
-              <span v-if="row.target" class="mono muted recent__target">{{ row.target.length > 24 ? row.target.slice(0, 8) : row.target }}</span>
+              <span class="recent__action">{{ actionText(row.action) || row.action }}</span>
+              <span class="muted recent__surface">{{ surfaceText(row.surface) }} · {{ outcomeText(row.outcome) }}</span>
             </template>
             <template #right>
-              <span class="muted recent__time" :title="fmtDate(row.created_at)">{{ fmtRelative(row.created_at) }}</span>
-            </template>
-          </TxCardItem>
-        </div>
-      </TxCard>
-
-      <TxCard v-else>
-        <template #header>
-          <div class="card-head"><h2 class="section-title">称号说明</h2></div>
-        </template>
-        <div class="recent">
-          <TxCardItem v-for="title in catalogue?.titles ?? []" :key="title.id" :description="title.description">
-            <template #title>
-              <TitleBadge :title="{ ...title, department: null }" />
+              <span class="muted recent__time" :title="fmtDate(row.at)">{{ fmtRelative(row.at) }}</span>
             </template>
           </TxCardItem>
         </div>
@@ -181,18 +170,18 @@ const stats = computed<Stat[]>(() => {
 .identity__text {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   flex: 1 1 260px;
   min-width: 0;
 }
-.identity__login {
+.identity__name {
   font-size: 18px;
   font-weight: 600;
   color: var(--tx-text-color-primary);
 }
 .identity__facts {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, auto));
+  grid-template-columns: repeat(4, minmax(0, auto));
   gap: 8px 28px;
   margin: 0;
   min-width: 0;
@@ -219,6 +208,18 @@ const stats = computed<Stat[]>(() => {
   font-weight: 400;
   color: var(--tx-text-color-secondary);
 }
+.gitlab-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+.gitlab-stat__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
 .domains {
   display: flex;
   flex-direction: column;
@@ -243,7 +244,7 @@ const stats = computed<Stat[]>(() => {
 .recent__action {
   color: var(--tx-color-primary);
 }
-.recent__target {
+.recent__surface {
   margin-left: 8px;
 }
 .recent__time {

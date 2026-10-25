@@ -1,0 +1,681 @@
+{
+  "version": 1,
+  "issue": 275,
+  "kind": "business",
+  "summary": "官网改成新的 YUGC OS：进站直接播开机动画进桌面（一天一次），默认壁纸「晴空」接着开机动画最后一帧画；桌面、窗口和 Dock 换成新外观，菜单栏头像打开个人资料卡（登录、注册、改资料、绑定登录方式、填邀请码、退出），新生便签每个账号只出现一次；组织架构、代码仓库、意见箱都是桌面窗口；加入我们要先登录并显示今天还能投几份；删掉旧吉祥物图、3D 书桌、GitHub 天际线页、旧的组织邀请落地页和单独的意见箱页，退场的内容原样归档在 docs/history/portal-yugc-os-v1/。",
+  "applications": [
+    "web",
+    "server",
+    "console"
+  ],
+  "domains": [
+    "audit",
+    "competitions",
+    "feedback",
+    "gitlab",
+    "identity",
+    "invitations",
+    "mail",
+    "organization",
+    "permissions",
+    "platform",
+    "public_content",
+    "recruitment"
+  ],
+  "flows": [
+    "flow:identity.current",
+    "flow:identity.authorize",
+    "flow:identity.signout",
+    "flow:identity.profile.view",
+    "flow:identity.profile.update",
+    "flow:identity.avatar.read",
+    "flow:identity.avatar.upload",
+    "flow:identity.account.view",
+    "flow:identity.invite.redeem",
+    "flow:identity.departments.public",
+    "flow:application.submit",
+    "flow:feedback.categories",
+    "flow:feedback.public.list",
+    "flow:feedback.submit",
+    "flow:documentation.list",
+    "flow:platform.public_config",
+    "flow:organization.public",
+    "flow:competition.public.list",
+    "flow:gitlab.projects.public.list",
+    "flow:audit.events.report",
+    "flow:competition.my_status",
+    "flow:gitlab.projects.console.list",
+    "flow:feedback.console.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "官网的进站路径、桌面形态和各入口打开方式变了：开机动画替代书桌和加载页，桌面应用改成窗口（组织架构、代码仓库、意见箱），资料卡集中登录注册与账号操作，加入我们要求登录并按 #274 的限额显示剩余份数，比赛窗口只在有官网时给官网入口；投递、意见箱、比赛的业务规则仍由服务端决定。",
+      "evidence": [
+        "app/web/sites/portal/components/os/YugcOs.tsx",
+        "app/web/sites/portal/components/os/ProfileCard.tsx",
+        "app/web/sites/portal/pages/JoinUs.tsx",
+        "app/web/sites/portal/lib/osApps.ts",
+        "docs/services/web/portal.md"
+      ]
+    },
+    "backend": {
+      "status": "unchanged",
+      "reason": "只调用 #274 已上线的接口（/auth/me、/api/identity/*、/api/public/departments、/api/public/gitlab/projects、/api/events、/api/portal/apply、/api/feedback*），请求和响应形状照 #274 合同；服务端只改了 services.ts 里一段说明为什么还不归档旧部门的注释，没有行为变化。",
+      "evidence": [
+        "app/server/src/services.ts",
+        "app/web/sites/portal/lib/account.ts",
+        "app/web/sites/portal/lib/codeRepos.ts",
+        "app/web/sites/portal/lib/departments.ts",
+        "app/web/sites/portal/lib/events.ts"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "权限仍只在服务端判定：控制台入口只给 /auth/me 的 console_link 为真的人，资料卡里的写操作都走带会话的 #274 接口，投递按服务端回的 401/429 显示；前端不新增任何能力判断。服务端这次只改了 services.ts 的一段注释，不碰任何权限判定。",
+      "evidence": [
+        "app/web/sites/portal/lib/osApps.ts",
+        "app/web/sites/portal/components/os/ProfileCard.tsx",
+        "docs/architecture/SECURITY.md",
+        "app/server/src/services.ts"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "不改数据库和接口字段；浏览器里新增两项本地记录：开机动画今天播过（yugc:boot-day）和便签看过（同时写账号的 prefs.startNoteSeenAt，经 #274 的资料接口），壁纸选择沿用原来的键。services.ts 只改注释：旧部门照旧不归档（论坛还在读 /api/public/org），没有迁移或数据写入。",
+      "evidence": [
+        "app/web/sites/portal/lib/bootGate.ts",
+        "app/web/sites/portal/lib/startNote.ts",
+        "app/web/sites/portal/lib/wallpapers.ts",
+        "app/server/src/services.ts"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新增依赖包和外部服务；开机动画是自写的 Canvas 2D，删掉了只给书桌和天际线用的 three.js 场景文件（three 依赖仍被加入我们和论坛 3D 场景使用），GitLab 项目只经服务端的公开接口读。服务端 services.ts 只改注释，服务装配和外部依赖不变。",
+      "evidence": [
+        "app/web/package.json",
+        "app/web/sites/portal/components/boot/engine.ts",
+        "app/web/sites/portal/three/stage.ts",
+        "app/server/src/services.ts"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "portal 合同重写开机动画、桌面、窗口、资料卡、便签、壁纸、意见箱窗口和手机壳层各节，web README、设计规范和测试规范跟着改；产品介绍去掉已删的邀请落地；比赛方案注明称号守卫换了位置；目录归属更新证据锚点。",
+      "evidence": [
+        "docs/services/web/portal.md",
+        "docs/services/web/README.md",
+        "docs/design/DESIGN.md",
+        "docs/conventions/TESTING.md",
+        "docs/public/README.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "新增开机动画、开机门控、桌面换肤、资料卡、加入我们门槛、代码仓库、旧角色清除等单测，改写入口、手机、壁纸、比赛用例；浏览器在 1440×900、1280×720、1024×768、390×844、547×950、820×1180、844×390 下核对壁纸、窗口和意见箱。未验证：预发布真实账号的资料卡写操作与读屏软件实机朗读。",
+      "evidence": [
+        "tests/web/portal-boot.test.tsx",
+        "tests/web/portal-desktop-skin.test.tsx",
+        "tests/web/portal-profile-card.test.tsx",
+        "tests/web/portal-os-entries.test.tsx",
+        "tests/web/portal-phone.test.tsx"
+      ]
+    },
+    "delivery": {
+      "status": "unchanged",
+      "reason": "仍由原 web 镜像交付，不新增环境变量和运行单元；站点配置删掉没人读的 GitHub 组织仓库快照地址；合并进 stage 只跑 CI，发到预发布要等 rc tag。",
+      "evidence": [
+        "app/web/shared/config/app.config.json",
+        "docs/services/web/README.md",
+        "app/web/Dockerfile"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/web/sites/portal/components/boot/",
+        "app/web/sites/portal/lib/bootGate.ts",
+        "app/web/sites/portal/pages/Home.tsx",
+        "app/web/sites/portal/index.html",
+        "app/web/sites/portal/styles/boot.css",
+        "app/web/sites/portal/assets/mascot/geek-girl.webp"
+      ],
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:web"
+      ],
+      "reason": "开机动画和进站门控：一天播一次，能跳过、静音、重播，播完淡出露出已经挂好的桌面；替代原来的加载页和 3D 书桌。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/components/os/",
+        "app/web/sites/portal/lib/osApps.ts",
+        "app/web/sites/portal/lib/wallpapers.ts",
+        "app/web/sites/portal/lib/icons.ts",
+        "app/web/sites/portal/lib/links.ts",
+        "app/web/sites/portal/lib/snapshots.ts",
+        "app/web/sites/portal/lib/startNote.ts",
+        "app/web/sites/portal/lib/events.ts",
+        "app/web/sites/portal/styles/os.css",
+        "app/web/sites/portal/styles/portal.css"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "gitlab",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:web",
+        "flow:identity.current",
+        "flow:identity.profile.update",
+        "flow:identity.invite.redeem",
+        "flow:identity.departments.public",
+        "flow:gitlab.projects.public.list",
+        "flow:audit.events.report",
+        "flow:competition.public.list",
+        "flow:feedback.submit"
+      ],
+      "reason": "桌面外壳、窗口（组织架构读公开部门、代码仓库读公开 GitLab 项目、意见箱窗口用 /feedback 同一份表单）、资料卡、便签、壁纸面板与「晴空」、比赛窗口的官网入口和夜空头图；打开应用写操作记录。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/lib/account.ts",
+        "app/web/sites/portal/lib/codeRepos.ts",
+        "app/web/sites/portal/lib/departments.ts",
+        "app/web/sites/portal/lib/competitions.ts"
+      ],
+      "domains": [
+        "competitions",
+        "feedback",
+        "gitlab",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:identity.current",
+        "flow:identity.profile.view",
+        "flow:identity.account.view",
+        "flow:identity.departments.public",
+        "flow:gitlab.projects.public.list",
+        "flow:competition.public.list"
+      ],
+      "reason": "读 #274 接口的数据层：/auth/me 的身份、限额与偏好，公开部门，公开 GitLab 项目；比赛只认 「/c/比赛代号/」形式的官网地址。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/pages/JoinUs.tsx",
+        "app/web/sites/portal/components/SceneBar.tsx",
+        "app/web/sites/portal/styles/scenes.css"
+      ],
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:application.submit",
+        "flow:identity.current"
+      ],
+      "reason": "加入我们没登录时只给注册和登录，登录后显示今天还能投几份，投完按钮变灰，会话失效时换成重新登录。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/pages/Feedback.tsx",
+        "app/web/sites/portal/components/os/FeedbackBox.tsx",
+        "app/web/sites/portal/styles/pages.css",
+        "app/web/sites/portal/components/PageShell.tsx"
+      ],
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:feedback.categories",
+        "flow:feedback.public.list",
+        "flow:feedback.submit"
+      ],
+      "reason": "意见箱表单移到 components/os/FeedbackBox.tsx，只在桌面窗口里用；/feedback 旧地址跳到 /?open=feedback，原来的页面归档；文档页外壳的「意见箱」链接改成新地址；删掉已退场的邀请落地页样式，页脚换成代码仓库。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/App.tsx",
+        "app/web/sites/portal/styles/competitions.css"
+      ],
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:web",
+        "flow:competition.public.list"
+      ],
+      "reason": "路由去掉 /github 和旧的 /join/:token（落到兜底回首页），保留 /feedback 分享地址；比赛官网横幅与夜空样式。"
+    },
+    {
+      "paths": [
+        "app/web/shared/config/app.config.json",
+        "app/web/shared/config/index.ts",
+        "app/web/shared/lib/api.ts",
+        "app/web/shared/lib/mock-api.ts",
+        "app/web/shared/ui/DevControlCenter.tsx"
+      ],
+      "domains": [
+        "platform",
+        "identity",
+        "gitlab",
+        "organization"
+      ],
+      "nodes": [
+        "application:web",
+        "flow:platform.public_config",
+        "flow:gitlab.projects.public.list",
+        "flow:identity.departments.public"
+      ],
+      "reason": "站点配置去掉 GitHub 组织仓库快照；开发样板补公开部门、公开 GitLab 项目和资料接口，删掉 /api/join 样板；api 帮手支持 PATCH 与上传。"
+    },
+    {
+      "paths": [
+        "app/server/src/services.ts"
+      ],
+      "domains": [
+        "platform",
+        "organization"
+      ],
+      "nodes": [
+        "flow:organization.public"
+      ],
+      "reason": "只改注释：官网不再读 /api/public/org，论坛还在读，所以旧部门暂不归档；没有行为变化。"
+    },
+    {
+      "paths": [
+        "docs/services/web/portal.md",
+        "docs/services/web/README.md",
+        "docs/design/DESIGN.md",
+        "docs/conventions/TESTING.md",
+        "docs/public/README.md",
+        "docs/plan/COMPETITION-APP.md",
+        "docs/architecture/catalog/ownership.json",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md",
+        "docs/INDEX.md"
+      ],
+      "domains": [
+        "public_content",
+        "organization",
+        "platform"
+      ],
+      "nodes": [
+        "document:docs/services/web/portal.md",
+        "flow:organization.public"
+      ],
+      "reason": "合同与规范跟着新桌面改；ownership 去掉指向已删 lib/org.ts 的证据锚点；其余目录文件按 pnpm catalog:generate 重建。"
+    },
+    {
+      "paths": [
+        "tests/web/",
+        "tests/e2e/portal-competitions.spec.ts",
+        "tests/e2e/portal-phone.spec.ts",
+        "tests/tooling/static-cdn.test.ts"
+      ],
+      "domains": [
+        "competitions",
+        "feedback",
+        "gitlab",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:web",
+        "flow:identity.current",
+        "flow:competition.public.list",
+        "flow:feedback.submit",
+        "flow:gitlab.projects.public.list"
+      ],
+      "reason": "新桌面的单测和比赛 e2e；删掉只测旧书桌、旧组织数据和旧手机 3D 场景的用例，称号守卫改在组织架构窗口用例里。 CDN 上传用例里要求 CORS 的 GLB 样本改用临时文件，不再读已归档的手机模型。"
+    },
+    {
+      "paths": [
+        "app/web/public/mascot/",
+        "app/web/public/portal/geek-girl-portrait.webp",
+        "app/web/public/portal/repos.json",
+        "app/web/shared/styles/mascot.css",
+        "app/web/shared/ui/Mascot.tsx",
+        "app/web/sites/portal/components/Loader.tsx",
+        "app/web/sites/portal/lib/deskMachine.ts",
+        "app/web/sites/portal/lib/loaderProgress.ts",
+        "app/web/sites/portal/lib/org.ts",
+        "app/web/sites/portal/lib/skyline.ts",
+        "app/web/sites/portal/pages/GithubScene.tsx",
+        "app/web/sites/portal/pages/JoinByToken.tsx",
+        "app/web/sites/portal/three/",
+        "app/web/sites/portal/styles/desk.css",
+        "app/web/sites/portal/assets/models/"
+      ],
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:web"
+      ],
+      "reason": "删除旧吉祥物图和组件、3D 书桌与加载页、GitHub 天际线页、旧的组织邀请落地页、只给旧组织架构用的 lib/org.ts 和 GitHub 仓库快照；删除依据见 removals，three/ 下加入我们和论坛 3D 场景用的 stage.ts、join.ts、forum.ts 保留。 书桌用的手机模型和署名说明移到归档目录，官网不再加载。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/Feedback.vue",
+        "docs/services/console/README.md"
+      ],
+      "domains": [
+        "feedback"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:feedback.console.list"
+      ],
+      "reason": "控制台意见箱页的公开提交链接改成官网的 /?open=feedback，说明文字里的「意见页」改成意见箱的「最近的意见」；接口和权限没变。"
+    },
+    {
+      "paths": [
+        "docs/history/README.md",
+        "docs/history/portal-yugc-os-v1/"
+      ],
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:web"
+      ],
+      "reason": "所有者 2026-10-24 要求改版退场的内容归档并写说明：本次退场的页面、组件、样式、图片和模型按原路径放进 docs/history/portal-yugc-os-v1/，除模型署名说明加了状态行外都和 b6420dee 逐字节相同；docs/ 不进镜像构建上下文，也不在公开文档接口里，不会上线。"
+    }
+  ],
+  "documents": [
+    "docs/services/web/portal.md",
+    "docs/services/web/README.md",
+    "docs/design/DESIGN.md",
+    "docs/conventions/TESTING.md",
+    "docs/public/README.md",
+    "docs/services/console/README.md"
+  ],
+  "tests": [
+    "tests/web/portal-boot.test.tsx",
+    "tests/web/portal-boot-gate.test.tsx",
+    "tests/web/portal-desktop-skin.test.tsx",
+    "tests/web/portal-profile-card.test.tsx",
+    "tests/web/portal-join-gate.test.tsx",
+    "tests/web/portal-code-repos.test.tsx",
+    "tests/web/old-character-removed.test.ts",
+    "tests/web/portal-os-entries.test.tsx",
+    "tests/web/portal-phone.test.tsx",
+    "tests/web/portal-org-window.test.tsx",
+    "tests/web/portal-competitions.test.tsx",
+    "tests/web/portal-wallpapers.test.ts"
+  ],
+  "compatibility": "旧地址 /github、/join/:token 落到兜底路由回首页；/feedback 和 /feedback/:org 跳到 /?open=feedback，进桌面打开意见箱窗口，控制台给的分享链接改成 /?open=feedback；之前存的壁纸选择照用，没选过的人默认「晴空」。",
+  "migration": "没有数据或接口迁移；新的浏览器本地记录第一次访问时写入，便签看过的记录随资料接口写到账号上。",
+  "rollback": "合并后在 stage 上用 git revert -m 1 撤销本 PR 的合并提交并重新构建 web 镜像即可，不涉及数据，也不移动发布 tag。",
+  "removals": [
+    {
+      "path": "app/web/sites/portal/lib/deskMachine.ts",
+      "baseAnchor": "export type DeskState = \"loading\" | \"idle\" | \"focusing\" | \"booting\" | \"desktop\" | \"returning\";",
+      "domains": [
+        "public_content",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "organization",
+        "identity",
+        "platform",
+        "competitions"
+      ],
+      "reason": "3D 书桌的状态机，开机动画替代书桌后没有读者（#275 SPEC：进站直接播开机动画进桌面）。"
+    },
+    {
+      "path": "app/web/sites/portal/lib/loaderProgress.ts",
+      "baseAnchor": "export const LOADER_SESSION_KEY = \"yugc:booted\";",
+      "domains": [
+        "public_content",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "organization",
+        "identity",
+        "platform",
+        "competitions"
+      ],
+      "reason": "旧加载页的进度计算，开机动画替代加载页后没有读者。"
+    },
+    {
+      "path": "app/web/sites/portal/lib/org.ts",
+      "baseAnchor": "export type OrgTitleId = \"admin\" | \"captain\" | \"head\" | \"member\" | \"alumni\" | \"guest\";",
+      "domains": [
+        "public_content",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "organization",
+        "identity",
+        "platform",
+        "competitions"
+      ],
+      "reason": "读旧的 GET /api/public/org 和 ORG_DEFAULTS；组织架构窗口改读 /api/public/departments，官网里已没有引用。"
+    },
+    {
+      "path": "app/web/sites/portal/lib/skyline.ts",
+      "baseAnchor": "export const WEEKS = 53;",
+      "domains": [
+        "public_content",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "organization",
+        "identity",
+        "platform",
+        "competitions"
+      ],
+      "reason": "GitHub 天际线场景的数据整理，/github 页删除后没有读者。"
+    },
+    {
+      "path": "app/web/sites/portal/pages/GithubScene.tsx",
+      "baseAnchor": "export default function GithubScene() {",
+      "domains": [
+        "public_content",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "organization",
+        "identity",
+        "platform",
+        "competitions"
+      ],
+      "reason": "GitHub 天际线场景页；GitHub 组织应用随 #274 去掉，/github 旧地址落到兜底路由回首页。"
+    },
+    {
+      "path": "app/web/sites/portal/pages/JoinByToken.tsx",
+      "baseAnchor": "type LinkInfo = {",
+      "domains": [
+        "public_content",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "organization",
+        "identity",
+        "platform",
+        "competitions"
+      ],
+      "reason": "旧的 GitHub 组织邀请链接落地页，调的 /api/join/:token 随 #274 删除，打开只会报错；旧链接落到兜底路由回首页。"
+    },
+    {
+      "path": "app/web/sites/portal/three/desk.ts",
+      "baseAnchor": "export type DeskOptions = {",
+      "domains": [
+        "public_content",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "organization",
+        "identity",
+        "platform",
+        "competitions"
+      ],
+      "reason": "3D 书桌场景，开机动画替代书桌后删除。"
+    },
+    {
+      "path": "app/web/sites/portal/three/github.ts",
+      "baseAnchor": "export type GithubOptions = {",
+      "domains": [
+        "public_content",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "organization",
+        "identity",
+        "platform",
+        "competitions"
+      ],
+      "reason": "GitHub 天际线 3D 场景，随 /github 页删除。"
+    },
+    {
+      "path": "app/web/sites/portal/three/laptop.ts",
+      "baseAnchor": "export const LAPTOP_DISPLAY = { width: 1.2, height: 0.75, y: 0.396, z: 0.0116 } as const;",
+      "domains": [
+        "public_content",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "organization",
+        "identity",
+        "platform",
+        "competitions"
+      ],
+      "reason": "书桌上的 3D 笔记本模型，随书桌删除。"
+    },
+    {
+      "path": "app/web/sites/portal/three/phone.ts",
+      "baseAnchor": "  screen: \"xXDHkMplTIDAXLN\",",
+      "domains": [
+        "public_content",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "organization",
+        "identity",
+        "platform",
+        "competitions"
+      ],
+      "reason": "竖屏书桌上的 3D 手机模型，随书桌删除。"
+    },
+    {
+      "path": "app/web/sites/portal/three/props.ts",
+      "baseAnchor": "const v2 = (x: number, y: number) => new THREE.Vector2(x, y);",
+      "domains": [
+        "public_content",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "organization",
+        "identity",
+        "platform",
+        "competitions"
+      ],
+      "reason": "书桌上的 3D 摆件，随书桌删除。"
+    },
+    {
+      "path": "app/web/sites/portal/components/Loader.tsx",
+      "baseAnchor": "export type LoaderApi = { progress: (value: number, text?: string) => void };",
+      "domains": [
+        "public_content",
+        "recruitment",
+        "feedback",
+        "invitations",
+        "organization",
+        "identity",
+        "platform",
+        "competitions"
+      ],
+      "reason": "旧的加载页，开机动画替代后删除。"
+    },
+    {
+      "path": "app/web/shared/ui/Mascot.tsx",
+      "baseAnchor": "export type MascotPose = MascotPoseName;",
+      "domains": [
+        "platform"
+      ],
+      "reason": "旧吉祥物图（八张姿势图）的组件，#275 删除旧吉祥物图后没有读者。"
+    },
+    {
+      "path": "app/web/sites/portal/pages/Feedback.tsx",
+      "baseAnchor": "export default function Feedback() {",
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "reason": "单独的意见箱页退场：表单移到 components/os/FeedbackBox.tsx 只在桌面窗口里用，/feedback 跳到 /?open=feedback，原来的页面归档在 docs/history/portal-yugc-os-v1/。"
+    }
+  ]
+}

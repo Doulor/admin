@@ -2,7 +2,7 @@
 import type { FormRules, TxFormInstance } from '@talex-touch/tuffex/form'
 import type { TxSelectModelValue, TxSelectOption } from '@talex-touch/tuffex/select'
 import { toast } from '@talex-touch/tuffex/utils'
-import { UNAVAILABLE_COPY } from '~/data/access'
+import { MEMBER_ONLY_COPY, UNAVAILABLE_COPY } from '~/data/access'
 import { MEMBER_CONTENT_MAX, TOPIC_TAG_MAX, TOPIC_TITLE_MAX } from '../../shared/forum-api'
 
 // Discourse composes a new topic in the same bottom panel as a reply; here it
@@ -17,7 +17,7 @@ const route = useRoute()
 const router = useRouter()
 const forum = useForumStore()
 const actions = useForumActions()
-const { user, isLoggedIn, access, can } = useCurrentUser()
+const { user, isLoggedIn, access, can, signedInReader } = useCurrentUser()
 const { loginOpen } = useShell()
 const { serverMode } = useContentSource()
 const { signIn } = useSiteLinks()
@@ -28,7 +28,7 @@ const blocked = computed(() => {
     case 'pick-identity':
       return { title: '登录后才能发布话题', description: '选择一个身份即可发起新话题。', action: '登录' }
     case 'sign-in':
-      return { title: '登录后才能发帖', description: '只有极客班成员能用 GitHub 登录。不登录也能看帖，也能在话题里回复。', action: '用 GitHub 登录' }
+      return { title: '登录后才能发帖', description: '登录极客班账号，成为成员后可以发帖。没登录只能看公开的帖子。', action: '登录' }
     case 'offline':
     case 'busy':
     case 'not-member':
@@ -57,6 +57,14 @@ const model = reactive({
   tagIds: [] as string[],
   content: '',
 })
+/** Kept in this browser every 2 seconds under `forum:draft:new` (#276), put back on the next visit, cleared once posted. */
+const draft = usePostDraft('new', toRef(model, 'content'))
+onMounted(() => {
+  if (!model.content)
+    model.content = draft.read()
+})
+/** Signed in, but the server grants no `forum.topic.create` (a registered user before the invite code). */
+const memberOnly = computed(() => signedInReader('createTopic'))
 
 // The server's limits (title ≤120, ≤5 tags, body ≤20000) only apply against
 // it; the demo keeps the upstream rules.
@@ -128,6 +136,7 @@ async function submit() {
     })
     if (!topicId)
       return
+    draft.clear()
     toast({ title: '话题已发布', variant: 'success' })
     await router.push(`/t/${topicId}`)
   }
@@ -144,8 +153,15 @@ async function submit() {
       variant="permission"
       :title="blocked.title"
       :description="blocked.description"
-      :primary-action="blocked.action ? { label: blocked.action, variant: 'primary', icon: access.loginPrompt === 'sign-in' ? 'i-carbon-logo-github' : undefined } : undefined"
+      :primary-action="blocked.action ? { label: blocked.action, variant: 'primary', icon: access.loginPrompt === 'sign-in' ? 'i-carbon-login' : undefined } : undefined"
       @primary="onBlockedAction"
+    />
+
+    <TxEmptyState
+      v-else-if="memberOnly"
+      variant="permission"
+      title="成为极客班成员后可以发帖"
+      :description="MEMBER_ONLY_COPY.topic"
     />
 
     <TxForm
@@ -174,6 +190,9 @@ async function submit() {
             v-model="model.categoryId"
             :options="categoryOptions"
             placeholder="选择一个类别"
+            search-placeholder="搜索类别"
+            empty-text="没有这个类别"
+            panel-background="pure"
           />
         </TxFormItem>
 
@@ -188,6 +207,7 @@ async function submit() {
             create-text="创建这个标签"
             search-placeholder="搜索或新建标签"
             empty-text="没有匹配的标签"
+            panel-background="pure"
             @update:model-value="pickTags"
           />
         </TxFormItem>
@@ -197,8 +217,9 @@ async function submit() {
         <PostEditor
           v-model="model.content"
           :min-height="320"
-          placeholder="在这里输入内容…"
+          placeholder="在这里输入内容，输入 / 打开菜单"
           label="话题正文"
+          @submit="submit"
         />
       </TxFormItem>
 

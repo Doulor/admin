@@ -14,13 +14,15 @@
 # 127.0.0.1:<WEB_BIND> 控制。宿主 nginx 只做 TLS 终止与 server_name 转发。
 #
 # 每个环境只有一个域名，SPA 入口只按 URL 路径选择，与 Host 头无关：
-#   /admin、/admin/…、/console、/console/…、/signin → sites/console/index.html（app/console）
+#   /admin、/admin/…、/console、/console/…、/signin、/device → sites/console/index.html（app/console）
 #   其余路径                                         → sites/portal/index.html（app/web）
 # 规则与 app/server/src/app.ts 的 resolveSiteEntry 保持一致。镜像里不含任何域名，
 # 同一个镜像在两个环境通用。
 #
 # 反代约定（与 app/server 路由、deploy/compose/*.yml 一致）：
 #   /api/、/auth、/healthz → server:3000（Fastify）
+#   /c/                    → server:3000（比赛官网的同域托管，#278；sandbox CSP 由 server 下发）
+#   /sdk/                  → 本镜像里的 dist/sdk/（比赛官网 SDK 的 ESM，#278）
 #   /forum                 → 308 到相对地址 /forum/（不带协议、主机和容器端口，#140）
 #   /forum/                → forum:3000（Nuxt 产物以 /forum/ 为 baseURL 构建，转发时剥前缀，上游的相对跳转补回前缀）
 # 安全头（HSTS/CSP 等）由宿主 nginx 统一加，容器不重复下发，避免同一响应带两份 CSP。
@@ -66,7 +68,7 @@ COPY app/server/tsconfig.json app/server/tsconfig.json
 COPY app/web/sites app/web/sites
 COPY app/web/shared app/web/shared
 COPY app/web/public app/web/public
-COPY app/web/package.json app/web/tsconfig.json app/web/vite.config.ts app/web/postcss.config.js \
+COPY app/web/package.json app/web/tsconfig.json app/web/vite.config.ts app/web/sdk.vite.config.ts app/web/postcss.config.js \
      app/web/tailwind.config.js app/web/vite-env.d.ts app/web/
 # 控制台：源码与构建配置（check-boundaries.mjs 也会扫描 app/console/src）。
 COPY app/console/src app/console/src
@@ -87,6 +89,7 @@ RUN test -n "$GEEK_DEPLOYMENT_ENVIRONMENT" \
  && STATIC_CDN_BASE="$STATIC_CDN_BASE" pnpm --filter @yzgc/web build \
  && STATIC_CDN_BASE="$STATIC_CDN_BASE" pnpm --filter @yzgc/console build \
  && test -f app/console/dist/sites/console/index.html \
+ && test -f app/web/dist/sdk/competition/v1.js \
  && grep -q "src=\"${STATIC_CDN_BASE:-/}assets/" app/web/dist/sites/portal/index.html \
  && grep -q "src=\"${STATIC_CDN_BASE:-/}console-assets/" app/console/dist/sites/console/index.html
 
@@ -130,6 +133,13 @@ http {
 NGINX_MAIN
 
 COPY <<'NGINX_SITE' /nginx-out/conf.d/10-web.conf
+# geek 命令行安装脚本的默认源站取请求的域名（#289）。只放行由字母、数字、点和连字符组成的名字，
+# 其余（引号、分号、$、空白等）一律退回生产域名：这段文字最后会被用户交给 sh 执行，不能让 Host 头里的内容写进去。
+map $host $cli_origin {
+    default "https://yangtzeu.work";
+    "~^(?<cli_host>[a-z0-9][a-z0-9.-]*)$" "https://$cli_host";
+}
+
 server {
     listen 8080;
     server_name _;
@@ -165,12 +175,29 @@ server {
     location ^~ /api/ {
         proxy_pass http://server:3000;
         include /etc/nginx/conf.d/90-proxy-headers.conf;
+        # 比赛官网站点包的上传（#278）：请求体就是 zip，上限 20MB，这一条单独放宽；宿主模板仍是 6m，经宿主时以宿主为准（见 DEPLOY）。
+        location ~ ^/api/console/competitions/[^/]+/site/versions$ {
+            client_max_body_size 21m;
+            proxy_pass http://server:3000;
+            include /etc/nginx/conf.d/90-proxy-headers.conf;
+        }
+    }
+    # 比赛官网的同域托管（#278）：/c/<slug>/… 由 server 读已发布的站点包，sandbox CSP 和缓存头都由 server 下发。
+    # ^~ 同 /api/，不让下面的图片正则把站点包里的图片截走。
+    location ^~ /c/ {
+        proxy_pass http://server:3000;
+        include /etc/nginx/conf.d/90-proxy-headers.conf;
     }
     location = /auth {
         proxy_pass http://server:3000;
         include /etc/nginx/conf.d/90-proxy-headers.conf;
     }
     location /auth/ {
+        proxy_pass http://server:3000;
+        include /etc/nginx/conf.d/90-proxy-headers.conf;
+    }
+    # 对外授权（#270）：发现文档、JWKS、授权、换令牌与登录交互；^~ 同 /api/，不让下面的正则截走
+    location ^~ /oidc/ {
         proxy_pass http://server:3000;
         include /etc/nginx/conf.d/90-proxy-headers.conf;
     }
@@ -196,13 +223,32 @@ server {
     }
 
     # ── 管理端（控制台）SPA 入口：路径清单与入口文件都只写在这一处 ──
-    # /admin、/console 及其子路径，外加 /signin；与 app/server/src/app.ts 的
+    # /admin、/console 及其子路径，外加 /signin、/device（设备授权确认页）、/account（账号页）、/authorize（对外授权的同意页）、/bind-email（绑定邮箱页）与 /complete-profile（补姓名和年级的页）；与 app/server/src/app.ts 的
     # ADMIN_SPA_PATHS / ADMIN_SPA_ENTRY 一致。/administrator、/consoles 不匹配。
     # 必须放在下面的图片正则之前：nginx 取第一个匹配的正则，仓库名这类路径段
     # 即使以 .svg/.png 结尾，也要进控制台入口而不是 404。入口页每次部署都换哈希，回源校验。
-    location ~ ^/(?:(?:admin|console)(?:/|$)|signin$) {
+    location ~ ^/(?:(?:admin|console)(?:/|$)|signin$|device$|account$|authorize$|bind-email$|complete-profile$) {
         expires -1;
         try_files $uri /sites/console/index.html;
+    }
+
+    # ── geek 命令行分发（#277，scripts/cli-dist.mjs 产出到 dist/cli/，由下面这条 COPY 带进镜像）──
+    # 版本化的二进制与 sha256：路径带版本号，内容不变路径也不变，和 /assets/ 一样能长缓存。
+    # 用正则（不加 ^~）：下面的图片/字体正则不会匹配 .exe/.sha256，顺序互不影响。
+    location ~ ^/cli/[^/]+/geek- {
+        expires 1y;
+        try_files $uri =404;
+        access_log off;
+    }
+    # install.sh / install.ps1 / latest.json：跟着发布更新，每次都要回源。
+    # 安装脚本的默认源站在构建时写成生产域名；预发布的 install.sh 要从预发布装，所以默认值在这里换成请求的域名
+    # （宿主 nginx 用 Host $host 透传，$host 就是 curl 访问的域名），GEEK_ORIGIN 仍然优先（#289）。
+    location /cli/ {
+        expires -1;
+        sub_filter_types *;
+        sub_filter_once off;
+        sub_filter 'https://yangtzeu.work' $cli_origin;
+        try_files $uri =404;
     }
 
     # 带内容哈希的构建产物：内容不变则文件名不变，可以长缓存。
@@ -220,6 +266,12 @@ server {
         expires 1y;
         try_files $uri =404;
         access_log off;
+    }
+    # 比赛官网 SDK（#278）：文件名不带哈希（v1 是接口版本），短缓存；托管的官网来源是 null，模块脚本按 CORS 取，要放开来源。
+    location ^~ /sdk/ {
+        expires 5m;
+        add_header Access-Control-Allow-Origin "*" always;
+        try_files $uri =404;
     }
     # 未哈希的图片/字体/图标：短缓存。
     location ~* \.(?:png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf)$ {
@@ -250,6 +302,13 @@ proxy_set_header Connection "";
 proxy_read_timeout 60s;
 NGINX_HEADERS
 
+# ── geek 命令行分发产物（#277）──
+# 交叉编译在宿主机做（zig/cargo-zigbuild 是开发工具，不进镜像）：`node scripts/cli-dist.mjs` 产出 dist/cli/，
+# 发版构建用 `docker build --build-context cli=dist/cli ...` 把它换进这个阶段。CI 的镜像构建验证不传，
+# 这里是空的，镜像照样能建，只是 /cli/ 下没有文件（docs/services/cli/README.md「分发」）。
+# 仓库根的 .dockerignore 排除 `**/dist`，所以不能从普通构建上下文 COPY dist/cli/。
+FROM scratch AS cli
+
 # ── 运行阶段：nginx 1.31（alpine），以 nginx 用户（uid 101）运行 ──
 # 版本说明：任务书建议的 1.27 已从 Docker Hub 下线（官方只维护 1.30/1.31 两条线），
 # 1.31 也是本地实测配置所用的版本（nginx 1.31.6）。
@@ -270,6 +329,8 @@ COPY --from=builder /repo/app/web/dist /usr/share/nginx/html
 # 控制台产物叠进同一个站点根（sites/console/、console-assets/，与官网目录不重叠）。
 COPY --from=builder /repo/app/console/dist/ /usr/share/nginx/html/
 COPY --from=builder /release/release.json /usr/share/nginx/html/release.json
+# geek 命令行分发（#277）：见上面的 cli 阶段。
+COPY --from=cli / /usr/share/nginx/html/cli/
 COPY --from=builder /nginx-out/nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /nginx-out/conf.d/ /etc/nginx/conf.d/
 

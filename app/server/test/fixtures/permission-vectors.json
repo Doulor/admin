@@ -1,0 +1,350 @@
+[
+  {
+    "name": "exact-node-allow",
+    "entries": [{"node": "xc.content.resource.view", "value": true, "scope": {}}],
+    "request": {"node": "xc.content.resource.view", "scope": {}},
+    "expect": true
+  },
+  {
+    "name": "exact-node-does-not-cover-a-sibling",
+    "entries": [{"node": "xc.content.resource.view", "value": true, "scope": {}}],
+    "request": {"node": "xc.content.resource.download", "scope": {}},
+    "expect": false
+  },
+  {
+    "name": "no-entries-is-not-allowed",
+    "entries": [],
+    "request": {"node": "xc.content.resource.view", "scope": {}},
+    "expect": false
+  },
+  {
+    "name": "suffix-wildcard-covers-children",
+    "entries": [{"node": "xc.content.resource.*", "value": true, "scope": {}}],
+    "request": {"node": "xc.content.resource.download", "scope": {}},
+    "expect": true
+  },
+  {
+    "name": "suffix-wildcard-covers-grandchildren",
+    "entries": [{"node": "xc.content.*", "value": true, "scope": {}}],
+    "request": {"node": "xc.content.resource.source.manage", "scope": {}},
+    "expect": true
+  },
+  {
+    "name": "suffix-wildcard-does-not-cover-its-own-base",
+    "entries": [{"node": "xc.content.resource.*", "value": true, "scope": {}}],
+    "request": {"node": "xc.content.resource", "scope": {}},
+    "expect": false
+  },
+  {
+    "name": "suffix-wildcard-respects-the-dot-boundary",
+    "entries": [{"node": "xc.content.resource.*", "value": true, "scope": {}}],
+    "request": {"node": "xc.content.resourcex.view", "scope": {}},
+    "expect": false
+  },
+  {
+    "name": "suffix-wildcard-of-another-namespace",
+    "entries": [{"node": "xc.storage.*", "value": true, "scope": {}}],
+    "request": {"node": "xc.content.resource.view", "scope": {}},
+    "expect": false
+  },
+  {
+    "name": "root-wildcard-allows-everything",
+    "entries": [{"node": "*", "value": true, "scope": {}}],
+    "request": {"node": "xc.content.resource.manage", "scope": {"resource": "RES-00000000000000000001"}},
+    "expect": true
+  },
+  {
+    "name": "wildcard-query-is-never-granted",
+    "entries": [{"node": "*", "value": true, "scope": {}}],
+    "request": {"node": "xc.content.resource.*", "scope": {}},
+    "expect": false
+  },
+  {
+    "name": "invalid-query-node-is-never-granted",
+    "entries": [{"node": "*", "value": true, "scope": {}}],
+    "request": {"node": "XC.Content.View", "scope": {}},
+    "expect": false
+  },
+  {
+    "name": "unscoped-grant-matches-any-request-scope",
+    "entries": [{"node": "xc.content.resource.download", "value": true, "scope": {}}],
+    "request": {"node": "xc.content.resource.download", "scope": {"resource": "RES-00000000000000000001", "format": "pdf"}},
+    "expect": true
+  },
+  {
+    "name": "scoped-grant-against-empty-request-scope",
+    "entries": [{"node": "xc.content.resource.download", "value": true, "scope": {"resource": ["RES-00000000000000000001"]}}],
+    "request": {"node": "xc.content.resource.download", "scope": {}},
+    "expect": false
+  },
+  {
+    "name": "scoped-grant-key-missing-from-request",
+    "entries": [{"node": "xc.content.resource.download", "value": true, "scope": {"resource": ["RES-00000000000000000001"]}}],
+    "request": {"node": "xc.content.resource.download", "scope": {"kind": "score"}},
+    "expect": false
+  },
+  {
+    "name": "scope-list-contains-the-request-value",
+    "entries": [{"node": "xc.content.resource.view", "value": true, "scope": {"resource": ["RES-00000000000000000001", "RES-00000000000000000002"]}}],
+    "request": {"node": "xc.content.resource.view", "scope": {"resource": "RES-00000000000000000002"}},
+    "expect": true
+  },
+  {
+    "name": "scope-value-outside-the-list",
+    "entries": [{"node": "xc.content.resource.view", "value": true, "scope": {"resource": ["RES-00000000000000000001", "RES-00000000000000000002"]}}],
+    "request": {"node": "xc.content.resource.view", "scope": {"resource": "RES-00000000000000000003"}},
+    "expect": false
+  },
+  {
+    "name": "extra-request-keys-are-ignored",
+    "entries": [{"node": "xc.content.resource.view", "value": true, "scope": {"resource": ["RES-00000000000000000001"]}}],
+    "request": {"node": "xc.content.resource.view", "scope": {"resource": "RES-00000000000000000001", "kind": "score", "variant": "jianpu", "source": "xc-analytics"}},
+    "expect": true
+  },
+  {
+    "name": "scalar-grant-value",
+    "entries": [{"node": "xc.content.resource.view", "value": true, "scope": {"kind": "score"}}],
+    "request": {"node": "xc.content.resource.view", "scope": {"kind": "score"}},
+    "expect": true
+  },
+  {
+    "name": "request-list-with-every-member-allowed",
+    "entries": [{"node": "xc.content.resource.download", "value": true, "scope": {"format": ["pdf", "musicxml"]}}],
+    "request": {"node": "xc.content.resource.download", "scope": {"format": ["pdf", "musicxml"]}},
+    "expect": true
+  },
+  {
+    "name": "request-list-with-one-member-outside",
+    "entries": [{"node": "xc.content.resource.download", "value": true, "scope": {"format": ["pdf"]}}],
+    "request": {"node": "xc.content.resource.download", "scope": {"format": ["pdf", "musicxml"]}},
+    "expect": false
+  },
+  {
+    "name": "resource-and-format-both-hold",
+    "entries": [{"node": "xc.content.resource.download", "value": true, "scope": {"resource": ["RES-00000000000000000001"], "format": ["pdf"]}}],
+    "request": {"node": "xc.content.resource.download", "scope": {"resource": "RES-00000000000000000001", "kind": "score", "format": "pdf"}},
+    "expect": true
+  },
+  {
+    "name": "resource-and-format-other-format",
+    "entries": [{"node": "xc.content.resource.download", "value": true, "scope": {"resource": ["RES-00000000000000000001"], "format": ["pdf"]}}],
+    "request": {"node": "xc.content.resource.download", "scope": {"resource": "RES-00000000000000000001", "kind": "score", "format": "musicxml"}},
+    "expect": false
+  },
+  {
+    "name": "resource-and-format-request-without-format",
+    "entries": [{"node": "xc.content.resource.download", "value": true, "scope": {"resource": ["RES-00000000000000000001"], "format": ["pdf"]}}],
+    "request": {"node": "xc.content.resource.download", "scope": {"resource": "RES-00000000000000000001", "kind": "score"}},
+    "expect": false
+  },
+  {
+    "name": "kind-default-grant",
+    "entries": [{"node": "xc.content.resource.preview", "value": true, "scope": {"kind": ["score"], "variant": ["jianpu"]}}],
+    "request": {"node": "xc.content.resource.preview", "scope": {"resource": "RES-00000000000000000001", "kind": "score", "variant": "jianpu", "source": "xc-analytics"}},
+    "expect": true
+  },
+  {
+    "name": "kind-default-grant-other-variant",
+    "entries": [{"node": "xc.content.resource.preview", "value": true, "scope": {"kind": ["score"], "variant": ["jianpu"]}}],
+    "request": {"node": "xc.content.resource.preview", "scope": {"resource": "RES-00000000000000000001", "kind": "score", "variant": "staff", "source": "xc-analytics"}},
+    "expect": false
+  },
+  {
+    "name": "deny-beats-root-allow",
+    "entries": [
+      {"node": "*", "value": true, "scope": {}},
+      {"node": "xc.content.resource.download", "value": false, "scope": {}}
+    ],
+    "request": {"node": "xc.content.resource.download", "scope": {}},
+    "expect": false
+  },
+  {
+    "name": "deny-only-blocks-its-own-node",
+    "entries": [
+      {"node": "*", "value": true, "scope": {}},
+      {"node": "xc.content.resource.download", "value": false, "scope": {}}
+    ],
+    "request": {"node": "xc.content.resource.preview", "scope": {}},
+    "expect": true
+  },
+  {
+    "name": "deny-beats-allow-with-the-same-scope",
+    "entries": [
+      {"node": "xc.content.resource.view", "value": true, "scope": {"resource": ["RES-00000000000000000001"]}},
+      {"node": "xc.content.resource.view", "value": false, "scope": {"resource": ["RES-00000000000000000001"]}}
+    ],
+    "request": {"node": "xc.content.resource.view", "scope": {"resource": "RES-00000000000000000001"}},
+    "expect": false
+  },
+  {
+    "name": "format-deny-leaves-other-formats",
+    "entries": [
+      {"node": "xc.content.resource.download", "value": true, "scope": {"resource": ["RES-00000000000000000001"]}},
+      {"node": "xc.content.resource.download", "value": false, "scope": {"resource": ["RES-00000000000000000001"], "format": ["musicxml"]}}
+    ],
+    "request": {"node": "xc.content.resource.download", "scope": {"resource": "RES-00000000000000000001", "format": "pdf"}},
+    "expect": true
+  },
+  {
+    "name": "format-deny-blocks-its-format",
+    "entries": [
+      {"node": "xc.content.resource.download", "value": true, "scope": {"resource": ["RES-00000000000000000001"]}},
+      {"node": "xc.content.resource.download", "value": false, "scope": {"resource": ["RES-00000000000000000001"], "format": ["musicxml"]}}
+    ],
+    "request": {"node": "xc.content.resource.download", "scope": {"resource": "RES-00000000000000000001", "format": "musicxml"}},
+    "expect": false
+  },
+  {
+    "name": "wildcard-deny-hides-one-resource",
+    "entries": [
+      {"node": "xc.content.resource.view", "value": true, "scope": {"kind": ["score"]}},
+      {"node": "xc.content.resource.*", "value": false, "scope": {"resource": ["RES-00000000000000000001"]}}
+    ],
+    "request": {"node": "xc.content.resource.view", "scope": {"resource": "RES-00000000000000000001", "kind": "score"}},
+    "expect": false
+  },
+  {
+    "name": "wildcard-deny-leaves-other-resources",
+    "entries": [
+      {"node": "xc.content.resource.view", "value": true, "scope": {"kind": ["score"]}},
+      {"node": "xc.content.resource.*", "value": false, "scope": {"resource": ["RES-00000000000000000001"]}}
+    ],
+    "request": {"node": "xc.content.resource.view", "scope": {"resource": "RES-00000000000000000002", "kind": "score"}},
+    "expect": true
+  },
+  {
+    "name": "resource-deny-overrides-kind-default",
+    "entries": [
+      {"node": "xc.content.resource.download", "value": true, "scope": {"kind": ["score"]}},
+      {"node": "xc.content.resource.download", "value": false, "scope": {"resource": ["RES-00000000000000000009"]}}
+    ],
+    "request": {"node": "xc.content.resource.download", "scope": {"resource": "RES-00000000000000000009", "kind": "score", "format": "pdf"}},
+    "expect": false
+  },
+  {
+    "name": "deny-alone-is-not-allow",
+    "entries": [{"node": "xc.content.resource.view", "value": false, "scope": {}}],
+    "request": {"node": "xc.content.resource.view", "scope": {}},
+    "expect": false
+  },
+  {
+    "name": "one-matching-allow-among-mismatches",
+    "entries": [
+      {"node": "xc.content.resource.view", "value": true, "scope": {"resource": ["RES-00000000000000000002"]}},
+      {"node": "xc.content.resource.view", "value": true, "scope": {"resource": ["RES-00000000000000000001"]}}
+    ],
+    "request": {"node": "xc.content.resource.view", "scope": {"resource": "RES-00000000000000000001"}},
+    "expect": true
+  },
+  {
+    "name": "app-instance-scope-is-bound-to-its-environment",
+    "entries": [{"node": "xc.content.object.upload", "value": true, "scope": {"app_id": "xc-video", "environment": "production"}}],
+    "request": {"node": "xc.content.object.upload", "scope": {"app_id": "xc-video", "environment": "staging"}},
+    "expect": false
+  },
+  {
+    "name": "expired-allow-is-ignored",
+    "entries": [{"node": "xc.content.resource.download", "value": true, "scope": {}, "expires_in": -60}],
+    "request": {"node": "xc.content.resource.download", "scope": {}},
+    "expect": false
+  },
+  {
+    "name": "unexpired-allow-counts",
+    "entries": [{"node": "xc.content.resource.download", "value": true, "scope": {}, "expires_in": 3600}],
+    "request": {"node": "xc.content.resource.download", "scope": {}},
+    "expect": true
+  },
+  {
+    "name": "expired-deny-no-longer-blocks",
+    "entries": [
+      {"node": "xc.content.resource.download", "value": true, "scope": {}},
+      {"node": "xc.content.resource.download", "value": false, "scope": {}, "expires_in": -60}
+    ],
+    "request": {"node": "xc.content.resource.download", "scope": {}},
+    "expect": true
+  },
+  {
+    "name": "empty-list-request-does-not-satisfy-a-scoped-grant",
+    "entries": [{"node": "xc.content.resource.download", "value": true, "scope": {"format": ["pdf"]}}],
+    "request": {"node": "xc.content.resource.download", "scope": {"format": []}},
+    "expect": false
+  },
+  {
+    "name": "empty-resource-list-request-does-not-satisfy-a-resource-grant",
+    "entries": [{"node": "xc.content.resource.view", "value": true, "scope": {"resource": ["RES-00000000000000000001"]}}],
+    "request": {"node": "xc.content.resource.view", "scope": {"resource": [], "kind": "score"}},
+    "expect": false
+  },
+  {
+    "name": "null-request-value-does-not-satisfy-a-scoped-grant",
+    "entries": [{"node": "xc.content.resource.view", "value": true, "scope": {"resource": ["RES-00000000000000000001"]}}],
+    "request": {"node": "xc.content.resource.view", "scope": {"resource": null}},
+    "expect": false
+  },
+  {
+    "name": "empty-list-request-is-fine-for-an-unscoped-grant",
+    "entries": [{"node": "xc.content.resource.download", "value": true, "scope": {}}],
+    "request": {"node": "xc.content.resource.download", "scope": {"format": []}},
+    "expect": true
+  },
+  {
+    "name": "empty-allow-list-grants-nothing",
+    "entries": [{"node": "xc.content.resource.download", "value": true, "scope": {"format": []}}],
+    "request": {"node": "xc.content.resource.download", "scope": {"format": "pdf"}},
+    "expect": false
+  },
+  {
+    "name": "empty-allow-list-against-an-empty-request-list",
+    "entries": [{"node": "xc.content.resource.download", "value": true, "scope": {"format": []}}],
+    "request": {"node": "xc.content.resource.download", "scope": {"format": []}},
+    "expect": false
+  },
+  {
+    "name": "empty-list-request-behaves-like-a-missing-key-for-deny-too",
+    "entries": [
+      {"node": "xc.content.resource.download", "value": true, "scope": {}},
+      {"node": "xc.content.resource.download", "value": false, "scope": {"format": ["musicxml"]}}
+    ],
+    "request": {"node": "xc.content.resource.download", "scope": {"resource": "RES-00000000000000000001", "format": []}},
+    "expect": true
+  },
+  {
+    "name": "yugc-real-node-forum-read-member-allow",
+    "entries": [{"node": "forum.read.member", "value": true, "scope": {}}],
+    "request": {"node": "forum.read.member", "scope": {}},
+    "expect": true
+  },
+  {
+    "name": "yugc-department-scoped-moderate-wildcard-matches-own-category",
+    "entries": [{"node": "forum.moderate.*", "value": true, "scope": {"category": ["ai"]}}],
+    "request": {"node": "forum.moderate.pin", "scope": {"category": "ai"}},
+    "expect": true
+  },
+  {
+    "name": "yugc-department-scoped-moderate-wildcard-does-not-reach-other-category",
+    "entries": [{"node": "forum.moderate.*", "value": true, "scope": {"category": ["ai"]}}],
+    "request": {"node": "forum.moderate.pin", "scope": {"category": "algo"}},
+    "expect": false
+  },
+  {
+    "name": "yugc-expires-in-exact-zero-counts-as-expired",
+    "entries": [{"node": "apply.submit", "value": true, "scope": {}, "expires_in": 0}],
+    "request": {"node": "apply.submit", "scope": {}},
+    "expect": false
+  },
+  {
+    "name": "yugc-multiple-entries-one-expired-one-not-still-allows",
+    "entries": [
+      {"node": "apply.submit", "value": true, "scope": {}, "expires_in": -10},
+      {"node": "apply.submit", "value": true, "scope": {}, "expires_in": 600}
+    ],
+    "request": {"node": "apply.submit", "scope": {}},
+    "expect": true
+  },
+  {
+    "name": "yugc-site-owner-root-wildcard-covers-meta-looking-node",
+    "entries": [{"node": "*", "value": true, "scope": {}}],
+    "request": {"node": "gitlab.settings", "scope": {}},
+    "expect": true
+  }
+]

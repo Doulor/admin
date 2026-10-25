@@ -48,6 +48,59 @@ html[data-site="portal"] body { background: #f5f4f0 !important; }
   --pt-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --pt-mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
 
+  /* YUGC OS v2 视觉令牌（docs/plan/YUGC-OS-V2.md §1，同一份表也写进 docs/design/DESIGN.md）：
+     取自开机动画最后一帧，只给 YUGC OS 桌面、开机动画、窗口用；外层官网页面（/docs、/forum-3d）仍用上面的 --pt-*。
+     canvas 里不能读 CSS 变量，components/boot/background.ts 的 SKY 有一份同值的 TS 常量，改这里要一起改那边。 */
+  --os-sky-0: #9fd6ff;
+  --os-sky-1: #cfeaff;
+  --os-sky-2: #f4faff;
+  --os-grid: rgb(255 255 255 / 55%);
+  --os-win-top: #ffdcec;
+  --os-win-bottom: #ffbad8;
+  --os-win-border: #f3a2c6;
+  --os-dot-close: #ff7fb3;
+  --os-dot-min: #ffd36e;
+  --os-dot-max: #6fe0b9;
+  --os-dot-close-line: #dc4d93;
+  --os-dot-min-line: #d99a2b;
+  --os-dot-max-line: #1a9a7b;
+  --os-panel: rgb(255 255 255 / 80%);
+  --os-ink: #1d2b53;
+  --os-ink-soft: #5b7fb5;
+  --os-accent: #3a76d6;
+  --os-pill-from: #6fb8ff;
+  --os-pill-to: #3a78f0;
+  --os-y-light: #c8fdec;
+  --os-y: #3fd0a5;
+  --os-y-line: #1a9a7b;
+  --os-u-light: #cdeaff;
+  --os-u: #4aa6ff;
+  --os-u-line: #2a6fd6;
+  --os-g-light: #ffd7e9;
+  --os-g: #ff83bb;
+  --os-g-line: #dc4d93;
+  --os-c-light: #dcdfff;
+  --os-c: #8b93ff;
+  --os-c-line: #565de0;
+  --os-heart: #ffa9d2;
+  --os-ok: #1fb487;
+  --os-ok-press: #17a77a;
+  --os-progress: linear-gradient(90deg, #7cc8ff, #a99cff 55%, #ff9fd0);
+  --os-term-bg: #030914;
+  /* 开机动画前段与终端窗口的 BIOS 配色（取自开机日志） */
+  --os-bios-glow: #0d2347;
+  --os-bios-text: #cfe6ff;
+  --os-bios-dim: #3d67a3;
+  --os-bios-key: #6fb0ff;
+  --os-bios-cyan: #9fd8ff;
+  --os-bios-ok: #5ef2c2;
+  --os-bios-pink: #ff8fd0;
+  --os-bios-line: rgb(120 190 255 / 60%);
+  --os-radius-win: 18px;
+  --os-radius-card: 14px;
+  --os-shadow: 0 12px 32px rgb(60 110 200 / 18%);
+  --os-stroke: rgb(255 255 255 / 75%);
+
   position: relative;
   min-height: 100vh;
   min-height: 100svh;
@@ -78,7 +131,7 @@ html[data-site="portal"] body { background: #f5f4f0 !important; }
 :where(.pt-root) :where(ol, ul) { padding: 0; list-style: none; }
 :where(.pt-root) :where(img, svg, canvas) { display: block; }
 :where(.pt-root) a { color: inherit; }
-/* 零优先级：组件类（.pt-btn、.pt-chip、.pt-termmini…）自己的字体设置必须能覆盖它 */
+/* 零优先级：组件类（.pt-btn、.pt-termmini…）自己的字体设置必须能覆盖它 */
 :where(.pt-root) button { font: inherit; color: inherit; }
 .pt-root :focus-visible { outline: 2px solid var(--pt-cobalt); outline-offset: 2px; border-radius: 4px; }
 .pt-icon { flex: none; display: inline-block; vertical-align: -0.18em; }
@@ -118,18 +171,6 @@ html[data-site="portal"] body { background: #f5f4f0 !important; }
 .pt-btn:disabled { opacity: .6; cursor: not-allowed; }
 .pt-btn[aria-busy="true"] { cursor: progress; }
 .pt-row-btns { display: flex; flex-wrap: wrap; gap: 8px; }
-
-/* 称号 / 部门小标签 */
-.pt-chip {
-  display: inline-flex; align-items: center; gap: 5px; max-width: 100%; min-width: 0;
-  padding: 4px 10px; border: 1px solid color-mix(in srgb, var(--c, #3346c8) 30%, #fff); border-radius: 999px;
-  background: color-mix(in srgb, var(--c, #3346c8) 11%, #fff); color: var(--c, #3346c8);
-  font: 600 12px/1.3 var(--pt-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-button.pt-chip { cursor: pointer; transition: transform .15s var(--pt-ease), box-shadow .15s; }
-button.pt-chip:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--c, #3346c8) 55%, #fff); }
-.pt-chip.is-soft { background: #fff; font-weight: 500; }
-.pt-chip small { font-weight: 400; color: var(--pt-ink-soft); }
 
 @media (prefers-reduced-motion: reduce) {
   .pt-root *, .pt-root *::before, .pt-root *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

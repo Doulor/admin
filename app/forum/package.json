@@ -26,9 +26,11 @@
   "dependencies": {
     "@iconify-json/carbon": "1.2.27",
     "@iconify-json/ri": "1.2.10",
+    "@milkdown/crepe": "7.22.3",
+    "@milkdown/kit": "7.22.3",
     "@nuxtjs/color-mode": "4.0.1",
     "@pinia/nuxt": "1.0.2",
-    "@talex-touch/tuffex": "0.6.0",
+    "@talex-touch/tuffex": "0.9.1",
     "@unocss/nuxt": "66.10.2",
     "@unocss/reset": "66.10.2",
     "@vueuse/core": "14.4.0",

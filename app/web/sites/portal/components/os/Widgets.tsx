@@ -1,6 +1,6 @@
-// YUGC OS 桌面上的东西：左上角一列应用图标（加入我们、论坛、GitHub 组织在最前面），
+// YUGC OS 桌面上的东西：左上角一列应用图标（加入我们、论坛、代码仓库在最前面），
 // 图标右边、壁纸天空里一张「新来的看这里」便签，按顺序说清怎么加入。壁纸是极客娘，桌面上不再铺组件卡片。
-import { NEW_TAB_NOTE, appById, opensNewTab, type AppId, type OsApp } from "../../lib/osApps";
+import { appTone, type AppId, type OsApp } from "../../lib/osApps";
 import Icon from "../Icon";
 
 type OpenApp = (id: AppId | "forum-feed", from?: HTMLElement | null) => void;
@@ -25,14 +25,13 @@ export function DesktopIcons({ apps, selected, onSelect, onOpen, phone = false }
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                // 按住不放时浏览器自动重复的按键不算再按一次（GitHub 组织每打开一次就多一个新标签页）
+                // 按住不放时浏览器自动重复的按键不算再按一次（不然同一个应用要打开好几次）
                 if (!event.repeat) onOpen(app.id, event.currentTarget);
               }
             }}
           >
-            <AppGlyph app={app} size={26} />
+            <AppGlyph app={app} size={28} />
             <span className="pt-dti-name">{app.name}</span>
-            {opensNewTab(app) && <span className="pt-sr">{NEW_TAB_NOTE}</span>}
           </button>
         </li>
       ))}
@@ -40,9 +39,10 @@ export function DesktopIcons({ apps, selected, onSelect, onOpen, phone = false }
   );
 }
 
+/** 应用图标：圆角方块，底色是 YUGC 四个字母色之一（亮面到主色的渐变），上面一个白色线性图标 */
 export function AppGlyph({ app, size = 24 }: { app: OsApp; size?: number }) {
   return (
-    <span className="pt-glyph" style={{ ["--tint" as string]: app.tint }}>
+    <span className="pt-glyph" data-tone={appTone(app)}>
       <Icon name={app.icon} size={size} />
       {app.lock && (
         <em>
@@ -55,42 +55,47 @@ export function AppGlyph({ app, size = 24 }: { app: OsApp; size?: number }) {
 
 /**
  * 「新来的看这里」：像贴在桌面上的便签，说清怎么加入、另外两个应用是什么；每一行点下去就打开写着的那个应用。
- * 可以收起；收起后只在菜单栏「帮助」里重新打开，本次浏览不再自动出现。
+ * 只在这个浏览器第一次进来时自动出现，收起或点过其中一步就算看过（lib/startNote.ts）；之后在菜单栏「帮助」里重新打开。
+ * 招新关着时（#284）不再叫人写信：去掉「加入我们」那一步，开头那句也改成现在不招新。
  */
-export function StartNote({ onOpen, onClose, phone = false }: { onOpen: OpenApp; onClose: () => void; phone?: boolean }) {
+export function StartNote({ onOpen, onClose, phone = false, applyOpen = true }: { onOpen: OpenApp; onClose: () => void; phone?: boolean; applyOpen?: boolean }) {
   const steps: Array<{ id: AppId; title: string; text: string }> = [
-    { id: "join", title: "在「加入我们」写封信", text: "写上姓名、班级、邮箱，再说说你会什么。招新部看完用邮件联系你。" },
+    ...(applyOpen ? [{ id: "join" as const, title: "在「加入我们」写封信", text: "写上姓名、班级、邮箱，再说说你会什么。招新部看完用邮件联系你。" }] : []),
     { id: "forum", title: "去「论坛」看看大家在聊什么", text: "公告、课程、竞赛和求职都在这里，不用登录也能看。" },
-    { id: "github", title: "去「GitHub 组织」看我们的代码", text: "极客班的公开仓库都在这里。" },
+    { id: "gitlab", title: "去「代码仓库」看我们的代码", text: "极客班的仓库都在这里，成员用极客班账号登录。" },
   ];
   return (
     <aside className="pt-note" aria-label={phone ? "加入指引" : undefined} aria-labelledby={phone ? undefined : "pt-note-title"}>
-      {!phone && <header>
+      {/* 和窗口一样的粉色标题栏，只有一个关闭圆点（styles/os.css 的 .pt-win-lights） */}
+      {!phone && <header className="pt-note-bar">
+        <span className="pt-win-lights">
+          <button type="button" aria-label="收起这张便签" onClick={onClose}>
+            <i>
+              <Icon name="close-line" size={8} />
+            </i>
+          </button>
+        </span>
         <h2 id="pt-note-title">新来的看这里</h2>
-        <button type="button" className="pt-note-close" aria-label="收起这张便签" onClick={onClose}>
-          <Icon name="close-line" size={14} />
-        </button>
+        <span aria-hidden="true" />
       </header>}
-      <p className="pt-note-lead">这是长江大学极客班的{phone ? "主屏幕" : "桌面"}。想加入就写封信；也可以先看看论坛和我们的代码。</p>
-      <ol>
-        {steps.map((step, index) => {
-          const app = appById(step.id);
-          return (
+      <div className="pt-note-body">
+        <p className="pt-note-lead">这是长江大学极客班的{phone ? "主屏幕" : "桌面"}。{applyOpen ? "想加入就写封信；也可以先看看论坛和我们的代码。" : "现在不招新；可以先看看论坛和我们的代码。"}</p>
+        <ol>
+          {steps.map((step, index) => (
             <li key={step.id}>
               <button type="button" onClick={(event) => onOpen(step.id, event.currentTarget)}>
                 <b>{index + 1}</b>
                 <span>
                   <strong>{step.title}</strong>
                   <small>{step.text}</small>
-                  {app && opensNewTab(app) && <span className="pt-sr">{NEW_TAB_NOTE}</span>}
                 </span>
                 <Icon name="arrow-right-s-line" size={16} />
               </button>
             </li>
-          );
-        })}
-      </ol>
-      <p className="pt-note-foot">{phone ? "点一下主屏幕上的图标就能打开应用。" : "双击桌面上的图标也能打开应用，按 ⌘K 可以搜索。"}</p>
+          ))}
+        </ol>
+        <p className="pt-note-foot">{phone ? "点一下主屏幕上的图标就能打开应用。" : "双击桌面上的图标也能打开应用，按 ⌘K 可以搜索。"}</p>
+      </div>
     </aside>
   );
 }

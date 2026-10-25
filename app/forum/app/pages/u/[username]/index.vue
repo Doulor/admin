@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FilterChipItem } from '@talex-touch/tuffex/filter-chips'
 import type { ActivityEvent, ActivityKind } from '~/stores/forum'
+import { hasTitleBadge } from '~/data/account-badges'
 import { linkableWebsite } from '../../../../shared/forum-api'
 
 // Discourse's /u/<name>: the profile banner, the stat strip and the
@@ -194,7 +195,7 @@ function openWebsite(href: string) {
               The profile is the full identity card: the 极客班 title and, for
               admins and moderators, the forum role as well.
             -->
-            <TitleBadge v-if="profile.title" :title="profile.title" size="md" />
+            <TitleBadge v-if="hasTitleBadge(profile)" :user="profile" size="md" />
             <span v-if="isGuest" class="text-sm text-$tx-text-color-secondary">游客</span>
             <TxStatusBadge
               v-if="profile.role !== 'member'"

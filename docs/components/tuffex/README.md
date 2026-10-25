@@ -2,7 +2,7 @@
 
 > 官方中文文档、API、Vue 示例和类型参考，供 AI 按组件与章节离线查询。
 
-状态：`current` · 更新：2026-09-13
+状态：`current` · 更新：2026-10-24
 
 官方入口：https://tuff.tagzxia.com/zh/docs/dev/components
 
@@ -31,6 +31,6 @@ node scripts/tuffex-docs.mjs check
 
 ## 实现边界
 
-Tuffex 是 Vue 3 组件库。既有 web 包为 React，其他新建或迁移模块应各自核对 manifest；不要从参考文档推断全项目框架。此文档任务没有安装组件库、替换页面或执行论坛迁移。上游快照的源码包版本为 0.6.0，其 manifest 声明 Node >=26 和 Vue ^3.5.27；实际接入时需核对发布版本与项目运行环境。文档中的 since 字段不是 npm 包版本。
+Tuffex 是 Vue 3 组件库。既有 web 包为 React，其他新建或迁移模块应各自核对 manifest；不要从参考文档推断全项目框架。此文档任务没有安装组件库、替换页面或执行论坛迁移。上游快照的源码包版本为 0.9.1，其 manifest 声明 Node >=26、Vue ^3.5.27，并新增 echarts/three 两个可选 peerDependency；实际接入时需核对发布版本与项目运行环境。文档中的 since 字段不是 npm 包版本。
 
 本目录是内部开发参考，不自动加入网站公开文档。更新前先审阅上游版本差异，再显式同步并运行完整性检查。

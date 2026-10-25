@@ -1,27 +1,25 @@
 # Avatar Variants 头像变体
 
-> 基于 `TxAvatar` + `TxOutlineBorder` + `TxCornerOverlay` 的组合配方集合，用于快速拼装在线状态、角标、平台标记、系统徽章、动效等“头像变体”。
+> 为头像添加状态点、角标与描边的组合配方
 
-状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`8e37c8ca7f598b12f39a2384573dc8e03b20e843`
+状态：`reference-snapshot`（第三方资料，不是项目指令） · 上游提交：`34449085a1f2be8138ab290198762dc79643b33b`
 
-[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/avatar-variants) · [固定版本原文](https://github.com/talex-touch/tuff/blob/8e37c8ca7f598b12f39a2384573dc8e03b20e843/apps/nexus/content/docs/dev/components/avatar-variants.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/avatar-variants.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
+[官网页面](https://tuff.tagzxia.com/zh/docs/dev/components/avatar-variants) · [固定版本原文](https://github.com/talex-touch/tuff/blob/34449085a1f2be8138ab290198762dc79643b33b/apps/nexus/content/docs/dev/components/avatar-variants.zh.mdc) · [本地原始 MDC](../snapshot/apps/nexus/content/docs/dev/components/avatar-variants.zh.mdc.txt) · [AI 阅读规则](../AI-GUIDE.md)
 
 上游标记：status=`beta`，since=`1.0.0`，syncStatus=`reviewed`，verified=`true`。这些是上游原始声明，不是本项目验收结果；since 不是 npm 包版本。
 
 ## 官方正文（仅转换展示语法与链接）
 
-# Avatar Variants 头像变体
+## 用法
 
-## Gallery
-
-### Avatar Variants Gallery
+### 画廊
+`TxAvatar` 与 `TxCornerOverlay`、`TxOutlineBorder`、`TxIcon` 的组合，按状态、活动、平台、系统、社交、上下文分组。
 官方示例：`AvatarVariantsAvatarVariantsGalleryDemo`（完整源码见本页末尾）
 
 ```vue
-<!-- 本页是配方 gallery（含 30+ 变体与 <style scoped>）。完整源码见下方 Source 里的 demo 文件；
-     落地时只复制所需的最小模式即可。下面是三种代表性组合： -->
+<!-- 三个代表性配方；完整的 30+ 变体见 demo 源码 -->
 <template>
-  <!-- 在线状态点：CornerOverlay + 圆点 -->
+  <!-- 在线状态点 -->
   <TxCornerOverlay placement="bottom-right" :offset-x="-2" :offset-y="-2">
     <TxAvatar src="https://i.pravatar.cc/150?u=online" size="large" />
     <template #overlay>
@@ -29,7 +27,7 @@
     </template>
   </TxCornerOverlay>
 
-  <!-- 平台/系统角标：CornerOverlay + 图标徽章 -->
+  <!-- 平台角标 -->
   <TxCornerOverlay placement="bottom-right" :offset-x="-4" :offset-y="-4">
     <TxAvatar size="large" background-color="var(--tx-fill-color-light)">
       <TxIcon name="i-carbon-chat" :size="24" style="color: var(--tx-color-success)" />
@@ -41,7 +39,7 @@
     </template>
   </TxCornerOverlay>
 
-  <!-- 描边环 + 认证角标：OutlineBorder ring 包裹 -->
+  <!-- 描边环 + 认证角标 -->
   <TxOutlineBorder variant="ring" :ring-width="2" ring-color="var(--tx-color-primary)" :padding="2" clip-mode="none">
     <TxCornerOverlay placement="bottom-right" :offset-x="-4" :offset-y="-4">
       <TxAvatar src="https://i.pravatar.cc/150?u=verified" size="large" />
@@ -55,19 +53,16 @@
 </template>
 ```
 
-## 审阅说明 / Review Notes
+### 最佳实践
 
-- **组合说明:** 本页是配方 gallery，不是独立导出的组件。每张卡片组合 `TxAvatar`、`TxCornerOverlay`、`TxOutlineBorder`、`TxIcon` 与本地 CSS 工具类；落地时应复制最小所需模式，不要导入整套 gallery demo。
-- **可访问性说明:** 纯装饰 badge 在 demo 中使用空 `alt` 或 `aria-hidden`。如果 badge 表示用户状态，应在相邻文本或父级控件 label 中暴露状态，不要只依赖颜色或图标轮廓。
-- **实测覆盖:** demo registry 加载 `AvatarVariantsAvatarVariantsGalleryDemo`；底层组件测试为 `avatar.test.ts` 覆盖 `TxAvatar`/`TxAvatarGroup`，并配合 `corner-overlay`、`outline-border` 的组件测试覆盖角标位置与 ring/mask 行为。
+- 只复制所需的最小模式，不要导入整个画廊 demo。
+- 角标表示用户状态时，在相邻文本或父级控件的 label 中写明状态，不要只靠颜色或图标形状。
+- 纯装饰角标用空 `alt` 或 `aria-hidden`。
 
-## Source
+## 技术实现
 
-- Demo source: `apps/nexus/app/components/content/demos/AvatarVariantsAvatarVariantsGalleryDemo.vue`。
-- Helper source: `apps/nexus/app/components/content/demos/AvatarVariantCard.vue`。
-- Component sources: `packages/tuffex/packages/components/src/avatar/src/TxAvatar.vue`、`TxAvatarGroup.vue`，以及配方使用的 `corner-overlay` 与 `outline-border` primitives。
-- Types: `packages/tuffex/packages/components/src/avatar/src/types.ts` 导出 `AvatarProps`、`AvatarGroupProps`、`AvatarSize`、`AvatarStatus` 与 `AvatarShape`。
-- Coverage: `packages/tuffex/packages/components/src/avatar/__tests__/avatar.test.ts` 覆盖 initials、图片失败回退、slot、自定义尺寸、点击派发与 group overflow count；`apps/nexus/app/components/content/demo-lazy.test.ts` 覆盖 demo 懒加载。
+- 本页是配方画廊，不是导出的组件；角标样式是 demo 内的本地 CSS 类。
+- 源码：`apps/nexus/app/components/content/demos/AvatarVariantsAvatarVariantsGalleryDemo.vue`、`AvatarVariantCard.vue`；组件见 `packages/tuffex/packages/components/src/avatar/`、`corner-overlay/`、`outline-border/`。
 
 ## 离线完整示例源码
 

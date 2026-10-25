@@ -2,10 +2,13 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ICONS, isIconName } from "../../app/web/sites/portal/lib/icons";
-import { ORG_ICONS } from "../../app/web/sites/portal/lib/org";
-import { parseMe } from "../../app/web/sites/portal/lib/account";
+import { bindEmailHref, emailRequired, parseMe } from "../../app/web/sites/portal/lib/account";
 import { links } from "../../app/web/sites/portal/lib/links";
-import { NEW_TAB_NOTE, OS_APPS, agoLabel, appById, appByKey, appLink, appLinkById, filterCommands, followAppLink, launcherCommands, moveSelection, opensNewTab, runTerminal, visibleApps } from "../../app/web/sites/portal/lib/osApps";
+import type { CodeProject } from "../../app/web/sites/portal/lib/codeRepos";
+import { NEW_TAB_NOTE, OS_APPS, agoLabel, appById, appByKey, appLink, appLinkById, filterCommands, followAppLink, launcherCommands, moveSelection, visibleApps } from "../../app/web/sites/portal/lib/osApps";
+import { createShell } from "../../app/web/sites/portal/lib/shell";
+
+const terminal = (apps: ReturnType<typeof visibleApps>, repos: CodeProject[] = []) => createShell({ account: null, apps, repos, storage: null });
 
 const PORTAL = new URL("../../app/web/sites/portal/", import.meta.url).pathname;
 
@@ -18,34 +21,54 @@ function sources(dir: string): string[] {
 }
 
 describe("控制台入口只给 console_link 为 true 的人", () => {
-  it("/auth/me 的 console_link 原样读出，缺失或不是 true 都当作 false", () => {
-    expect(parseMe({ signed_in: true, login: "ada", avatar_url: null, console_link: true })).toEqual({ login: "ada", avatarUrl: null, consoleLink: true });
+  it("/auth/me 的 console_link 原样读出，缺失或不是 true 都当作 false；account_id 读出极客班账号", () => {
+    expect(parseMe({ signed_in: true, login: "ada", avatar_url: null, console_link: true, account_id: "acc_1" })).toMatchObject({
+      login: "ada", avatarUrl: null, consoleLink: true, accountId: "acc_1",
+    });
+    expect(parseMe({ signed_in: true, login: "ada", avatar_url: null, console_link: true })).toMatchObject({
+      login: "ada", avatarUrl: null, consoleLink: true, accountId: null,
+    });
+    // 旧会话没有 account_id：比赛窗口靠它为 null 判断认不出「我」，不当成空字符串
+    expect(parseMe({ signed_in: true, login: "ada", account_id: "" })?.accountId).toBeNull();
+    expect(parseMe({ signed_in: true, login: "ada", account_id: 7 })?.accountId).toBeNull();
     expect(parseMe({ signed_in: true, login: "ada", avatar_url: null })?.consoleLink).toBe(false);
     expect(parseMe({ signed_in: true, login: "ada", console_link: "true" })?.consoleLink).toBe(false);
     expect(parseMe({ signed_in: false })).toBeNull();
+  });
+
+  it("账号还没有登录邮箱（#273）：只认已登录且 email_required 为 true，跳到绑定邮箱页时带上本站路径", () => {
+    expect(emailRequired({ signed_in: true, login: "ada", email_required: true })).toBe(true);
+    for (const body of [null, {}, { signed_in: true, login: "ada" }, { signed_in: true, login: "ada", email_required: "true" }, { signed_in: false, email_required: true }]) {
+      expect(emailRequired(body)).toBe(false);
+    }
+    expect(bindEmailHref("/competitions/7?tab=teams#me")).toBe("/bind-email?return_to=%2Fcompetitions%2F7%3Ftab%3Dteams%23me");
+    expect(bindEmailHref("//evil.test/")).toBe("/bind-email?return_to=%2F");
   });
 
   it("没有 console_link：桌面、Dock、启动器、终端里都没有控制台，其余应用照旧", () => {
     const apps = visibleApps(false);
     expect(apps.map((app) => app.id)).toEqual(OS_APPS.map((app) => app.id).filter((id) => id !== "console"));
     expect(launcherCommands(apps).map((command) => command.id)).not.toContain("app:console");
-    expect(runTerminal("ls", [], apps).lines.map((line) => line.key)).not.toContain("console");
-    expect(runTerminal("open console", [], apps)).toMatchObject({ open: undefined });
-    expect(runTerminal("open console", [], apps).lines.at(-1)?.kind).toBe("err");
+    const shell = terminal(apps);
+    expect(shell.run("ls ~/Desktop").lines.map((line) => line.text).join("\n")).not.toContain("console");
+    const hidden = shell.run("open console");
+    expect(hidden.open).toEqual([]);
+    expect(hidden.lines.at(-1)?.kind).toBe("err");
   });
 
   it("有 console_link：控制台和其它应用一起出现，能从终端打开", () => {
     const apps = visibleApps(true);
     expect(apps).toEqual(OS_APPS);
     expect(launcherCommands(apps).map((command) => command.id)).toContain("app:console");
-    expect(runTerminal("open console", [], apps).open).toBe("console");
+    expect(terminal(apps).run("open console").open).toEqual(["console"]);
   });
 
-  it("页脚与头像菜单里的控制台链接都看 consoleLink", () => {
+  it("页脚与资料卡里的控制台链接都看 consoleLink", () => {
     const shell = readFileSync(`${PORTAL}components/PageShell.tsx`, "utf8");
+    const card = readFileSync(`${PORTAL}components/os/ProfileCard.tsx`, "utf8");
     const os = readFileSync(`${PORTAL}components/os/YugcOs.tsx`, "utf8");
     expect(shell).toMatch(/consoleLink && <a href=\{links\.console\(\)\}>控制台<\/a>/);
-    expect(os).toMatch(/\.\.\.\(consoleLink \? \[\{ label: "控制台"/);
+    expect(card).toMatch(/account\.consoleLink && <a href=\{links\.console\(\)\}>控制台<\/a>/);
     expect(os).not.toMatch(/OS_APPS\.map/);
   });
 });
@@ -54,32 +77,34 @@ describe("YUGC OS 应用与启动器", () => {
   it("三个主入口有 1/2/3 快捷键，加入我们是唯一的主操作", () => {
     expect(appByKey("1")?.id).toBe("join");
     expect(appByKey("2")?.id).toBe("forum");
-    expect(appByKey("3")?.id).toBe("github");
+    expect(appByKey("3")?.id).toBe("gitlab");
+    // GitHub 组织应用删掉了（#275）：代码放在自建的代码仓库
+    expect(appById("github")).toBeUndefined();
     expect(OS_APPS.filter((app) => app.primary).map((app) => app.id)).toEqual(["join"]);
     expect(new Set(OS_APPS.map((app) => app.id)).size).toBe(OS_APPS.length);
   });
 
-  it("入口指向：加入我们进 /join-us 场景，论坛与 GitHub 组织直达（#185），意见箱 /feedback，控制台 /console", () => {
+  it("入口指向：加入我们（#279）、代码仓库和意见箱（#275）在桌面开窗口，论坛直达（#185），控制台 /console", () => {
     const open = Object.fromEntries(OS_APPS.map((app) => [app.id, app.open]));
-    expect(open.join).toEqual({ kind: "scene", path: "/join-us" });
+    expect(open.join).toEqual({ kind: "window" });
     expect(open.forum).toEqual({ kind: "site", link: "forumHome" });
-    expect(open.github).toEqual({ kind: "external", link: "githubOrg" });
-    expect(open.feedback).toEqual({ kind: "route", path: "/feedback" });
+    expect(open.gitlab).toEqual({ kind: "window" });
+    expect(open.github).toBeUndefined();
+    expect(open.feedback).toEqual({ kind: "window" });
     expect(open.console).toEqual({ kind: "site", link: "console" });
     // 没有哪个应用再经过 /forum-3d、/github 场景页
     expect(JSON.stringify(OS_APPS)).not.toMatch(/forum-3d|"\/github"/);
   });
 
-  it("站外应用的地址与打开方式：论坛、控制台当前标签页，GitHub 组织新标签页；留在官网里的应用没有站外地址", () => {
+  it("站外应用的地址与打开方式：论坛、控制台当前标签页；留在官网里的应用（包括代码仓库窗口）没有站外地址", () => {
     expect(appLink(appById("forum")!)).toEqual({ href: links.forumHome(), newTab: false });
     expect(appLink(appById("console")!)).toEqual({ href: links.console(), newTab: false });
-    expect(appLink(appById("github")!)).toEqual({ href: "https://github.com/Yangtze-University-Geek-Class", newTab: true });
-    for (const id of ["join", "promo", "about", "org", "terminal", "wallpaper", "feedback"]) expect(appLink(appById(id)!), id).toBeNull();
+    for (const id of ["join", "gitlab", "promo", "about", "org", "competitions", "terminal", "wallpaper", "feedback"]) expect(appLink(appById(id)!), id).toBeNull();
     expect(appLinkById("forum")).toEqual({ href: links.forumHome(), newTab: false });
     expect(() => appLinkById("join")).toThrow();
-    // 只有在新标签页打开的应用给读屏补「（新标签页打开）」
-    expect(OS_APPS.filter(opensNewTab).map((app) => app.id)).toEqual(["github"]);
+    // 桌面上没有在新标签页打开的应用了；窗口里去 GitLab、比赛官网的链接给读屏补这一句
     expect(NEW_TAB_NOTE).toBe("（新标签页打开）");
+    expect(links.gitlab()).toBe("https://git.yangtzeu.work/geek");
   });
 
   it("打开站外应用：新标签页用 noopener、不带 referrer；当前标签页整页跳转，两者不混用", () => {
@@ -101,7 +126,9 @@ describe("YUGC OS 应用与启动器", () => {
     expect(filterCommands(commands, "forum home").map((c) => c.id)).toEqual(["app:forum"]);
     expect(filterCommands(commands, "首页")[0].id).toBe("app:forum");
     expect(filterCommands(commands, "bbs")[0].id).toBe("app:forum");
-    expect(filterCommands(commands, "github")[0].id).toBe("app:github");
+    expect(filterCommands(commands, "github")).toEqual([]);
+    expect(filterCommands(commands, "gitlab")[0].id).toBe("app:gitlab");
+    expect(filterCommands(commands, "代码")[0].id).toBe("app:gitlab");
     expect(filterCommands(commands, "zzz-没有这个")).toEqual([]);
   });
 
@@ -112,16 +139,23 @@ describe("YUGC OS 应用与启动器", () => {
     expect(moveSelection(3, 1, 0)).toBe(0);
   });
 
-  it("终端命令", () => {
-    const repos = [{ name: "geek-cli", description: "CLI", language: "Rust", pushed: "2026-05-16", url: "https://example.invalid/geek-cli", stars: 0 }];
-    expect(runTerminal("help", repos).lines.length).toBeGreaterThan(3);
-    expect(runTerminal("./join --yugc", repos).open).toBe("join");
-    expect(runTerminal("open github", repos).open).toBe("github");
-    expect(runTerminal("open nope", repos).lines.at(-1)?.kind).toBe("err");
-    expect(runTerminal("repos", repos).lines[1]).toMatchObject({ key: "geek-cli", href: "https://example.invalid/geek-cli" });
-    expect(runTerminal("repos", []).lines[1].kind).toBe("dim");
-    expect(runTerminal("clear", repos)).toEqual({ lines: [], clear: true });
-    expect(runTerminal("rm -rf /", repos).lines.at(-1)?.kind).toBe("err");
+  it("终端命令：help 有说明，join 和桌面应用能打开，repos 列代码仓库里的公开项目", () => {
+    const repos: CodeProject[] = [
+      { name: "geek-cli", path: "geek/geek-cli", description: "CLI", url: "https://git.example.invalid/geek/geek-cli", cloneUrl: "", activeAt: null },
+      { name: "notes", path: "geek/notes", description: "", url: "https://git.example.invalid/geek/notes", cloneUrl: "", activeAt: null },
+    ];
+    const shell = terminal(visibleApps(false), repos);
+    expect(shell.run("help").lines.length).toBeGreaterThan(3);
+    expect(shell.run("./join --yugc").open).toEqual(["join"]);
+    expect(shell.run("open github")).toMatchObject({ open: [] });
+    expect(shell.run("open gitlab").open).toEqual(["gitlab"]);
+    expect(shell.run("open nope").lines.at(-1)?.kind).toBe("err");
+    const listed = shell.run("repos").lines.map((line) => line.text).join("\n");
+    expect(listed).toContain("https://git.example.invalid/geek/geek-cli");
+    expect(listed).toContain("geek/notes");
+    expect(terminal(visibleApps(false)).run("repos").lines.at(-1)?.text).toContain("代码仓库里还没有公开项目");
+    expect(shell.run("clear")).toMatchObject({ lines: [], clear: true });
+    expect(shell.run("rm -rf /").lines.at(-1)?.kind).toBe("err");
   });
 });
 
@@ -135,10 +169,10 @@ describe("入口直达，不再经过 3D 场景页（#185）", () => {
     expect(hits).toEqual(["App.tsx", "components/os/Windows.tsx"]);
   });
 
-  it("「加入我们」回执里的「去论坛看看」和桌面上的论坛应用取同一个地址：论坛首页，当前标签页", () => {
+  it("「加入我们」窗口回执里的「去论坛看看」和桌面上的论坛应用取同一个地址：论坛首页，当前标签页", () => {
     expect(appLinkById("forum")).toEqual({ href: links.forumHome(), newTab: false });
     // 只认取地址的那一句，不认 JSX 的写法（属性顺序、换行改了不影响）
-    expect(readFileSync(`${PORTAL}pages/JoinUs.tsx`, "utf8")).toMatch(/appLinkById\("forum"\)/);
+    expect(readFileSync(`${PORTAL}components/os/JoinBox.tsx`, "utf8")).toMatch(/appLinkById\("forum"\)/);
   });
 });
 
@@ -158,20 +192,14 @@ describe("图标注册表与界面禁用字符", () => {
 
   it("官网源码里用到的每个图标名都在注册表里", () => {
     const used = new Set<string>();
-    // lib/org.ts 的默认称号与部门用服务端的 Carbon 图标名，渲染前经 ORG_ICONS 换成注册表里的图标，单独核对
-    const carbon = new Set<string>();
     for (const file of files) {
       const text = readFileSync(file, "utf8");
-      const org = file.slice(PORTAL.length) === "lib/org.ts";
       for (const match of text.matchAll(/<Icon\s+name="([a-z0-9-]+)"/g)) used.add(match[1]);
-      for (const match of text.matchAll(/\bicon:\s*"([a-z0-9-]+)"/g)) (org ? carbon : used).add(match[1]);
+      for (const match of text.matchAll(/\bicon:\s*"([a-z0-9-]+)"/g)) used.add(match[1]);
       for (const match of text.matchAll(/drawIcon\(\s*\w+,\s*"([a-z0-9-]+)"/g)) used.add(match[1]);
     }
     expect(used.size).toBeGreaterThan(20);
     expect([...used].filter((name) => !isIconName(name))).toEqual([]);
-    expect(carbon.size).toBeGreaterThan(5);
-    expect([...carbon].filter((name) => !(name in ORG_ICONS))).toEqual([]);
-    expect(Object.values(ORG_ICONS).filter((name) => !isIconName(name))).toEqual([]);
   });
 
   it("每个图标都有路径数据", () => {

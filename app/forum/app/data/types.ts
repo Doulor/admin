@@ -14,6 +14,35 @@ export const FORUM_STATE_VERSION = 1
 export type UserRole = 'admin' | 'moderator' | 'member'
 
 /**
+ * 谁能看到（#276）：公开、注册用户可见、极客班成员可见。话题上是生效值（话题自己的设置，
+ * 没有就跟分类），服务端已经按看的人过滤过，看不到的话题根本不在 state 里。
+ */
+export type Visibility = 'public' | 'registered' | 'member'
+
+/** 帖子上的一种表情回应（#276）：用的哪个表情、几个人、自己有没有贴。 */
+export interface Reaction {
+  stickerId: string
+  shortcode: string
+  url: string
+  count: number
+  mine: boolean
+}
+
+/** 账号所在部门（#276，和 `/auth/me`、`/api/public/departments` 同一套数据）。 */
+export interface AccountDepartment {
+  id: string
+  name: string
+  tone: string | null
+}
+
+/** 账号的一个称号（控制台发的，名字由管理员定）。 */
+export interface AccountTitle {
+  id: string
+  name: string
+  department_id: string | null
+}
+
+/**
  * Who the account belongs to, set by the forum server (`/api/forum/state`):
  * a signed-in 极客班 member, a guest who replied under a nickname (no login,
  * no editable profile), or the 极客班 account that owns the published old
@@ -53,6 +82,9 @@ export interface User {
    * carries (`hasForumCapability` in `permissions.ts`).
    */
   title?: UserTitle
+  /** 论坛服务端给的部门与称号（#276），示例数据和快照没有。 */
+  department?: AccountDepartment | null
+  titles?: AccountTitle[]
   notifyPrefs: NotifyPrefs
 }
 
@@ -87,6 +119,8 @@ export interface Topic {
   views: number
   pinned: boolean
   closed: boolean
+  /** 生效的可见范围（#276）；示例数据和快照没有，按公开处理。 */
+  visibility?: Visibility
 }
 
 export interface Post {
@@ -112,6 +146,8 @@ export interface Post {
   /** Set when the reply targets a specific post rather than the topic. */
   replyToPostId?: string
   likeUserIds: string[]
+  /** 表情回应（#276），只含有人贴的，按第一次出现排序；示例数据和快照没有。 */
+  reactions?: Reaction[]
   deleted?: boolean
 }
 

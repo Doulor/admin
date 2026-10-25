@@ -11,14 +11,40 @@
  * 3. 链接和图片的地址只放行 http(s)、mailto 和不带协议的站内地址；`javascript:`、`data:`、`vbscript:`
  *    等其它协议（包括写成实体、夹着控制字符的）前面加 `#`，变成页内锚点。引用式定义 `[x]: …` 同样处理。
  *
+ * 4. 表情（#276）：代码之外的 `:yugc-wave:` 这类短码，只要在表情白名单里（`GET /api/forum/stickers`
+ *    给的、启用中的），换成 `<img class="forum-sticker" alt="<名字>" title="[包名_名字]" src="<图片地址>">`。
+ *    这一步在第 1 步之后做，插进去的标签不会被当成文字；地址只认 shared/sticker-url.ts 的白名单（站内按哈希的地址，
+ *    或 CDN 开关打开时受控 CDN 上同一个哈希的地址，#286），名字按属性转义。
+ *    不在白名单里的（停用的、拼错的）原样显示。服务端存的仍是短码。
+ *    照 B 站的写法，`[极客娘_打招呼]` 这样的「[包名_名字]」也认：先换成短码再按上面处理，所以手打、粘贴、
+ *    从别处复制来的都显示成表情；后面紧跟 `(`、`[`、`:` 的不换，那是 Markdown 的链接写法。
+ *
  * TxMarkdownView 默认还会用 DOMPurify 清理一遍，这里是第一道；任何一道的默认值变了，另一道仍然挡着。
- * 写帖子的编辑器（PostEditor.vue）是纯文本框，预览同样用 ForumMarkdown 渲染、经过这里，所以别人的文字
- * （回复时的引用、版主编辑别人的帖子）原样放进文本框，不另做转义。
+ * 写帖子的编辑器（PostEditor.vue）里别人的文字（回复时的引用、版主编辑别人的帖子）原样放进去，不另做转义；
+ * 编辑器里表情显示成图片，进出编辑器时用 `stickersToImages` / `imagesToStickers` 在短码和图片之间换，
+ * 「[包名_名字]」出编辑器时也换成短码。
  */
 
 import { postLine } from '../app/utils/excerpt'
+import { isStickerUrl, STICKER_URL_PATTERN, stickerHash } from './sticker-url'
 
 export const WORD_JOINER = '\u2060'
+
+/** 白名单里的一个表情：短码（不带冒号）、名字、图片地址（同源或受控 CDN，见 shared/sticker-url.ts），和 B 站那样的写法 `[包名_名字]`。 */
+export interface StickerRef {
+  shortcode: string
+  label: string
+  url: string
+  token?: string
+}
+
+/** 短码的写法与服务端 `STICKER_ID_PATTERN` 相同，两边用冒号包住。 */
+const SHORTCODE = /:([a-z0-9][a-z0-9-]{1,39}):/g
+/** 编辑器里的表情图片 `![名字](地址)` 或 `![名字](地址 "标题")`；地址只认 shared/sticker-url.ts 的白名单（同源或受控 CDN）。 */
+const STICKER_IMAGE = new RegExp(`!\\[[^\\]\\n]*\\]\\((${STICKER_URL_PATTERN})(?:\\s+"[^"\\n]*")?\\)`, 'g')
+
+/** `[包名_名字]`；后面紧跟 `(`、`[`、`:` 的是 Markdown 链接或引用，不算。 */
+const TOKEN = /\[([^[\]\n]{1,64})\](?![([:])/g
 
 const SAFE_SCHEMES = new Set(['http', 'https', 'mailto'])
 
@@ -34,28 +60,102 @@ const AUTOLINK = /<(?:https?:\/\/|mailto:)[^\s<>]*>/iy
 const INLINE_DESTINATION = /(\]\(\s*<?)([^\s)>]*)/g
 const DEFINITION_DESTINATION = /(\]:[ \t]*(?:\n[ \t]*)?<?)([^\s>]*)/g
 
-export function renderableMarkdown(source: string): string {
+export function renderableMarkdown(source: string, stickers?: ReadonlyMap<string, StickerRef>): string {
   const withImages = convertImgTags(source)
   const withSafeLinks = withImages
     .replace(INLINE_DESTINATION, neutralize)
     .replace(DEFINITION_DESTINATION, neutralize)
-  return escapeHtmlStarts(withSafeLinks)
+  const escaped = escapeHtmlStarts(withSafeLinks)
+  if (!stickers?.size)
+    return escaped
+  const byToken = tokenIndex(stickers)
+  return mapOutsideCode(escaped, text => withShortcodes(text, byToken).replace(SHORTCODE, (match, code: string) => stickerTag(stickers.get(code)) ?? match))
 }
 
-/** 回复框里预填的引用：被回复那一帖的一行摘要，原样放进文本框。 */
-export function replyQuote(excerpt: string): string {
-  return `> ${excerpt}\n\n`
+/** 短码换成的标签；地址不在表情图片白名单里时不换（返回 null，原样显示短码）。 */
+function stickerTag(sticker: StickerRef | undefined): string | null {
+  if (!sticker || !isStickerUrl(sticker.url))
+    return null
+  const title = sticker.token ? ` title="${escapeAttribute(sticker.token)}"` : ''
+  return `<img class="forum-sticker" alt="${escapeAttribute(sticker.label)}"${title} src="${sticker.url}">`
+}
+
+/** B 站那样的写法：`[包名_名字]`。 */
+export function stickerToken(packName: string, label: string): string {
+  return `[${packName}_${label}]`
+}
+
+/** 按 `[包名_名字]` 查表情；同一个写法有两张时用排在前面的那张。 */
+export function tokenIndex(stickers: ReadonlyMap<string, StickerRef>): Map<string, StickerRef> {
+  const byToken = new Map<string, StickerRef>()
+  for (const sticker of stickers.values()) {
+    if (sticker.token && !byToken.has(sticker.token))
+      byToken.set(sticker.token, sticker)
+  }
+  return byToken
+}
+
+/** 一段（代码之外的）文字里认得的 `[包名_名字]` 换成 `:短码:`。 */
+function withShortcodes(text: string, byToken: ReadonlyMap<string, StickerRef>): string {
+  return byToken.size ? text.replace(TOKEN, match => (byToken.has(match) ? `:${byToken.get(match)!.shortcode}:` : match)) : text
+}
+
+function escapeAttribute(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+/** 白名单按短码查：服务端给的表情包摊平成一张表，每张带上自己的 `[包名_名字]`。 */
+export function stickerIndex(packs: ReadonlyArray<{ name?: string, stickers: ReadonlyArray<StickerRef> }>): Map<string, StickerRef> {
+  return new Map(packs.flatMap(pack => pack.stickers.map(sticker => ({
+    ...sticker,
+    ...(pack.name ? { token: stickerToken(pack.name, sticker.label) } : {}),
+  }))).map(sticker => [sticker.shortcode, sticker]))
+}
+
+/** 进编辑器之前：代码之外白名单里的短码（和 `[包名_名字]`）换成 Markdown 图片，编辑时看到的就是表情。 */
+export function stickersToImages(source: string, stickers: ReadonlyMap<string, StickerRef>): string {
+  if (!stickers.size)
+    return source
+  const byToken = tokenIndex(stickers)
+  return mapOutsideCode(source, text => withShortcodes(text, byToken).replace(SHORTCODE, (match, code: string) => {
+    const sticker = stickers.get(code)
+    return sticker && isStickerUrl(sticker.url) ? `![${sticker.label.replace(/[\\[\]]/g, '')}](${sticker.url})` : match
+  }))
+}
+
+/** 从编辑器出来以后：表情图片和 `[包名_名字]` 换回短码，存进服务端的仍是 `:yugc-wave:`。认不出的原样留下。 */
+export function imagesToStickers(source: string, stickers: ReadonlyMap<string, StickerRef>): string {
+  if (!stickers.size)
+    return source
+  // 按内容哈希认，不按整条地址：同一张图的同源地址和 CDN 地址哈希相同，页面加载之后开关变了、
+  // 或者从别处复制来另一种地址的图，都照样换回短码。
+  const byHash = new Map<string, string>()
+  for (const sticker of stickers.values()) {
+    const hash = stickerHash(sticker.url)
+    if (hash)
+      byHash.set(hash, sticker.shortcode)
+  }
+  const byToken = tokenIndex(stickers)
+  return mapOutsideCode(source, text => withShortcodes(text.replace(STICKER_IMAGE, (match, url: string) => {
+    const code = byHash.get(stickerHash(url) ?? '')
+    return code ? `:${code}:` : match
+  }), byToken))
 }
 
 /** 回复框引用的摘要最多这么长。 */
 export const QUOTE_LENGTH = 80
 
+/** 引用一条回复时插入的文字（#276）：`> @用户名：那一帖的前 80 个字`。 */
+export function replyQuote(excerpt: string, username?: string): string {
+  return username ? `> @${username}：${excerpt}\n\n` : `> ${excerpt}\n\n`
+}
+
 /**
- * 回复某一帖时回复框里预填的内容（ReplyComposer.vue）。
+ * 点「引用」时插入的内容（ReplyComposer.vue）。
  * 引的是那一帖的一行文字（#156）：页面在列表里拿到的可能只有服务端截好的 `excerpt`。
  */
-export function quoteDraft(post: { content?: string, excerpt?: string }): string {
-  return replyQuote(postLine(post, QUOTE_LENGTH))
+export function quoteDraft(post: { content?: string, excerpt?: string }, username?: string): string {
+  return replyQuote(postLine(post, QUOTE_LENGTH), username)
 }
 
 function neutralize(match: string, lead: string, destination: string): string {
@@ -92,6 +192,11 @@ function escapeHtmlStarts(text: string): string {
  * 第 1 步当作文字），只影响代码里的 `<img>` 会不会被改写。
  */
 function convertImgTags(source: string): string {
+  return mapOutsideCode(source, text => text.replace(/<img\b[^>]*>/gi, imgToMarkdown))
+}
+
+/** 对围栏代码块和行内代码之外的文字做 `map`；表情短码与 `<img>` 改写共用。 */
+function mapOutsideCode(source: string, map: (text: string) => string): string {
   let fence: string | null = null
   return source.split('\n').map((line) => {
     if (fence !== null) {
@@ -104,7 +209,7 @@ function convertImgTags(source: string): string {
       fence = open[1] as string
       return line
     }
-    return mapOutsideCodeSpans(line, text => text.replace(/<img\b[^>]*>/gi, imgToMarkdown))
+    return mapOutsideCodeSpans(line, map)
   }).join('\n')
 }
 

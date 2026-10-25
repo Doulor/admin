@@ -1,8 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { MailTemplateError } from "../../lib/mail/envelope.js";
 import { RECEIVED_LETTER_LIMITS } from "../../lib/mail/mailer.js";
 import { ipSubject } from "../../lib/forum-rules.js";
+import { requirePermission } from "../../middleware/require-permission.js";
+import { applyQuota } from "../../lib/apply-quota.js";
+import type { LimitCheck } from "../../lib/limits.js";
 
 type Body = {
   name?: string;
@@ -29,23 +32,26 @@ const STRENGTHS_MAX = 2000;
 const CLASS_NAME_REGEX = /^[\p{Script=Han}a-zA-Z0-9 ·-]+$/u;
 // 本地部分和域名都按点分段、每段非空，不收引号、反斜杠、方括号和 RFC 5322 的其它分隔符：不收 a@b..c、a@.b.c、
 // 末尾带点的 a@b.c.、带引号的 "a"@b.c 和 IP 字面量 a@[1.2.3.4]。这些写法指向同一个收件箱却能绕开确认信的按收件箱限量。
-// 官网表单（app/web/sites/portal/pages/JoinUs.tsx）用同一条，改的时候一起改。
+// 官网表单（app/web/sites/portal/components/os/JoinBox.tsx）用同一条，改的时候一起改。
 const EMAIL_REGEX = /^[^\s@"\\()<>,;:[\].]+(\.[^\s@"\\()<>,;:[\].]+)*@[^\s@"\\()<>,;:[\].]+(\.[^\s@"\\()<>,;:[\].]+)+$/;
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 
 const SUCCESS_MESSAGE = "投递成功，我们会在 3 个工作日内联系你。";
 
 /**
- * 投递次数（#169）：2026-09-27 14:20「为了防止别人申请时盗刷，可以在申请时限制一个设备或一个IP最多申请5次，
- * 也就是只能申请5个邮件」。同一个来源 IP（IPv6 按 /64，ipSubject）、同一个设备各自在滚动的 24 小时里最多 5 份成功的投递，
- * 第 6 份回 429、不落库、不发信。只数成功的投递：蜜罐、校验不过、人机验证不过、被拦下的都不算。
- * 设备是这个接口自己发的 cookie（APPLY_DEVICE_COOKIE），清掉 cookie 或换浏览器就算新设备，主要靠 IP 这一道。
- * 共用出口（校园网、宿舍、热点）的人算同一个 IP：一天里第 6 个人投不了，第二天可以再投。
- * 计数在 application_limits 表，只存 sha256 和时间。每个 IP 每分钟 5 次的请求限流（下面的 rateLimit）另外算。
+ * 投递次数（#169；#274 SPEC §3 改成按统一账号认人、按权限节点 apply.submit 判定，不再接受匿名投递）：
+ * 账号每天（北京时间零点重置）按 `meta.limit.apply.daily` 算上限——注册用户 3 份、极客班成员不限（-1），
+ * 没有这个 meta 时兜底按注册用户的 3 份算（lib/apply-quota.ts）；另外同一个来源 IP（IPv6 按 /64）每天最多
+ * 10 份、同一个设备（这个接口自己发的 cookie，APPLY_DEVICE_COOKIE）每天最多 5 份，三条线都在
+ * `limit_events` 表里用 lib/limits.ts 的 hitAll() 一次核对、一次写入（全有或全没有）。超限统一回
+ * `bucket: "apply.daily"`，retry_after 到下一个北京零点，不细分是哪条线触发——不给探测哪条限额更松的机会。
+ * 设备、IP 这两条只存 sha256，不存原文（和 #169 原来的 application_limits 同一个数据最小化口径）。
  */
-export const APPLY_LIMITS = { windowMs: 24 * 3600_000, perSource: 5, perDevice: 5 } as const;
 export const APPLY_DEVICE_COOKIE = "yugc_apply_device";
-const APPLY_LIMITED_MESSAGE = "同一台设备或同一个网络 24 小时内最多投递 5 次，之前投的都已经收到了。";
+export const APPLY_IP_DAILY_MAX = 10;
+export const APPLY_DEVICE_DAILY_MAX = 5;
+const APPLY_LIMITED_MESSAGE = "今天的投递次数用完了，北京时间零点以后可以再投。";
+const APPLY_CLOSED_MESSAGE = "招新暂未开放";
 const DEVICE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 
@@ -93,31 +99,30 @@ function maskEmail(email: string): string {
 }
 
 export default async function applyRoutes(app: FastifyInstance) {
-  const { audit, db } = app.services.storage;
+  const { db } = app.services.storage;
   const { verifyTurnstile } = app.services.turnstile;
   const { preflightPublicSubmission, checkHoneypot } = app.services.publicSubmission;
-  const { config, mail } = app.services;
-  const countSince = db.prepare("SELECT COUNT(*) AS n FROM application_limits WHERE bucket = ? AND subject_hash = ? AND created_at > ?");
-  const recordAttempt = db.prepare("INSERT INTO application_limits(bucket, subject_hash, created_at) VALUES(?, ?, ?)");
-  const pruneAttempts = db.prepare("DELETE FROM application_limits WHERE created_at <= ?");
+  const { config, mail, permissions, limits, applySettings } = app.services;
   const insertApplication = db.prepare(
     "INSERT INTO applications(id, name, class_name, email, strengths, source_ip, user_agent, status, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, 'received', ?)"
   );
-  // 查次数和写入放在同一个同步事务里：中间没有 await，两个请求不会同时通过检查。
-  const admit = db.transaction((row: { id: string; name: string; className: string; email: string; strengths: string; ip: string; userAgent: string | null; at: number }, source: string, device: string) => {
-    const since = row.at - APPLY_LIMITS.windowMs;
-    const used = (bucket: string, subject: string) => (countSince.get(bucket, subject, since) as { n: number }).n;
-    if (used("source", source) >= APPLY_LIMITS.perSource || used("device", device) >= APPLY_LIMITS.perDevice) return false;
-    pruneAttempts.run(since);
-    insertApplication.run(row.id, row.name, row.className, row.email, row.strengths, row.ip, row.userAgent, row.at);
-    recordAttempt.run("source", source, row.at);
-    recordAttempt.run("device", device, row.at);
-    return true;
-  });
+
+  /**
+   * 招新总开关（#284，控制台「投递」页）：关闭时直接回 403 apply_closed，排在登录和权限判定之后、人机验证和限额之前，
+   * 所以被拒的请求不写 applications、不消耗每天的投递份数，也不下发设备 cookie。403 由 middleware/http-policy.ts
+   * 统一记一条 outcome 为 denied 的操作记录（action 是 http.apply_closed）。
+   */
+  const requireApplyOpen = async (_req: FastifyRequest, reply: FastifyReply) => {
+    if (!applySettings.isOpen()) return reply.code(403).send({ error: "apply_closed", message: APPLY_CLOSED_MESSAGE });
+  };
 
   app.post<{ Body: Body }>(
     "/api/portal/apply",
     {
+      // #274 review round 1（CONTRACT-274 通用规则）：requirePermission 自己调 loadSession，不用再挂 requireAuth——
+      // 两个一起挂时 requireAuth 先跑、先回它自己的 not_signed_in，没登录时拿不到 requirePermission 回的
+      // 401 unauthenticated（通用错误码约定的是后者）。
+      preHandler: [requirePermission("apply.submit"), requireApplyOpen],
       config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
     },
     async (req, reply) => {
@@ -147,6 +152,8 @@ export default async function applyRoutes(app: FastifyInstance) {
       const captchaOk = await verifyTurnstile(body.turnstile_token, req.ip);
       if (!captchaOk) return reply.code(400).send({ error: "人机验证失败，请刷新重试" });
 
+      const accountId = req.session!.account_id;
+
       // 设备 id：带来的不像我们发的就换一个新的；每次都续一年，只在这个接口的路径下发送。
       const carried = req.cookies[APPLY_DEVICE_COOKIE];
       const device = carried && DEVICE_ID.test(carried) ? carried : randomUUID();
@@ -154,25 +161,43 @@ export default async function applyRoutes(app: FastifyInstance) {
         httpOnly: true, secure: config.cookieSecure, sameSite: "lax", path: "/api/portal/apply", maxAge: 365 * 24 * 3600,
       });
 
-      const id = randomUUID();
-      const submittedAt = Date.now();
-      const admitted = admit({
-        id, name: name.value, className: className.value, email: email.value, strengths: strengths.value,
-        ip: req.ip, userAgent: req.headers["user-agent"] ?? null, at: submittedAt,
-      }, sha256(ipSubject(req.ip)), sha256(device));
-      if (!admitted) return reply.code(429).send({ error: "apply_limited", message: APPLY_LIMITED_MESSAGE });
+      const now = Date.now();
+      // #274 review round 1：meta 值非数字时按 0（最严）算，不按 3（兜底默认）算——Number(rawMax) 可能是
+      // NaN，NaN 和任何数比较都是 false，hitAll 的 count >= max 永远不成立，等于悄悄不限额。
+      const rawMax = permissions.meta(accountId, "meta.limit.apply.daily");
+      const parsedMax = rawMax === null ? 3 : Number(rawMax);
+      const dailyMax = Number.isFinite(parsedMax) ? parsedMax : 0;
+      const checks: LimitCheck[] = [
+        { bucket: "apply.daily", subject: accountId, window: "day-bj", max: dailyMax },
+        { bucket: "apply.daily.ip", subject: sha256(ipSubject(req.ip)), window: "day-bj", max: APPLY_IP_DAILY_MAX },
+        { bucket: "apply.daily.device", subject: sha256(device), window: "day-bj", max: APPLY_DEVICE_DAILY_MAX },
+      ];
 
-      audit(null, "public:apply", "application.received", id, {
-        email: maskEmail(email.value),
-        class_name: className.value,
-        name_length: name.value.length,
-        strengths_length: strengths.value.length,
-      }, req.ip);
+      const id = randomUUID();
+      // 核对三条限额与写入投递在同一个事务里：中间没有 await，两个请求不会同时通过检查；超限不留半份投递。
+      const admitted = db.transaction(() => {
+        if (limits.hitAll(checks, now).some(outcome => !outcome.ok)) return false;
+        insertApplication.run(id, name.value, className.value, email.value, strengths.value, req.ip, req.headers["user-agent"] ?? null, now);
+        return true;
+      })();
+      if (!admitted) {
+        const retryAfter = Math.max(1, Math.ceil((limits.beijingDayBounds(now).end - now) / 1000));
+        return reply.code(429).header("Retry-After", String(retryAfter)).send({
+          error: "rate_limited", bucket: "apply.daily", message: APPLY_LIMITED_MESSAGE, retry_after: retryAfter,
+        });
+      }
+
+      // #274 item I：application.received 原来是单独一条 audit()，和下面这条 apply.submit 是同一个事件，
+      // 合并成一条——它多出来的字段（已经掩码过的邮箱、班级、长度）折进 meta，不是原文，没有裸邮箱。
+      app.services.activity.recordActivity(req, {
+        action: "apply.submit", surface: "portal", target_type: "application", target_id: id, outcome: "ok",
+        meta: { email: maskEmail(email.value), class_name: className.value, name_length: name.value.length, strengths_length: strengths.value.length },
+      });
 
       // 投递已经落库；「已收到」的信拼不出来或写不进队列只记日志（不记地址和正文），不让投递失败。
       // 每份投递都发一封，只有全站每小时的上限（RECEIVED_LETTER_LIMITS）；防盗刷靠上面的投递次数。
       try {
-        const application = { id, name: name.value, class_name: className.value, email: email.value, strengths: strengths.value, created_at: submittedAt };
+        const application = { id, name: name.value, class_name: className.value, email: email.value, strengths: strengths.value, created_at: now };
         mail.enqueue({
           eventKey: `application:${id}:received`, kind: "recruitment.received", applicationId: id, to: email.value,
           mail: mail.recruitmentLetter("received", application),
@@ -181,7 +206,7 @@ export default async function applyRoutes(app: FastifyInstance) {
         req.log.error({ application_id: id, error: error instanceof MailTemplateError ? error.code : (error as Error)?.name ?? "error" }, "received letter not queued");
       }
 
-      return reply.code(201).send({ id, submitted_at: submittedAt, message: SUCCESS_MESSAGE });
+      return reply.code(201).send({ id, submitted_at: now, message: SUCCESS_MESSAGE, quota: applyQuota({ permissions, limits }, accountId, now) });
     }
   );
 }

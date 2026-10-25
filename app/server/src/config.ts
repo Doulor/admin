@@ -1,13 +1,15 @@
 import { config as loadEnv } from "dotenv";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseStaticCdnBase } from "./lib/static-cdn.js";
 
 /** 仓库根：geek_main/。配置、docs、pnpm 工作区清单都在这里。 */
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 /** 服务根：geek_main/app/。所有可部署服务都在 app/<service> 下。 */
 export const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-/** GitHub 用户名 / 组织名：字母数字与单个连字符，1–39 字符。 */
-export const GITHUB_LOGIN_REGEX = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
+/** 极客班固定管理的 GitHub 组织：只给 feedback.org 归一化与审计历史数据用（#129），不是环境变量——
+ * #276 挪来的清理（从 #274 遗留）：这个部署从来没有也不会配别的组织，`CONSOLE_ORG` 环境变量读取、
+ * 校验与 deploy 两份 .env 契约里的声明都已去掉，谁要用这个组织名直接导入这个常量。 */
 export const DEFAULT_CONSOLE_ORG = "Yangtze-University-Geek-Class";
 export function createConfig(env: Record<string, string | undefined>) {
   const required = (key: string): string => {
@@ -56,11 +58,6 @@ export function createConfig(env: Record<string, string | undefined>) {
     if (/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(raw)) throw new Error("TRUST_PROXY must be true, false, a hop count (0–10) or a list of proxy addresses");
     return raw;
   })();
-  const allowedOrgs = (env.ALLOWED_ORGS ?? "").split(",").map(value => value.trim().toLowerCase()).filter(Boolean);
-  // 极客班控制台固定管理的 GitHub 组织（非密钥）；本机与测试可不设。
-  const consoleOrg = (env.CONSOLE_ORG ?? "").trim() || DEFAULT_CONSOLE_ORG;
-  if (!GITHUB_LOGIN_REGEX.test(consoleOrg)) throw new Error("CONSOLE_ORG must be a GitHub organization login");
-  if (allowedOrgs.length > 0 && !allowedOrgs.includes(consoleOrg.toLowerCase())) throw new Error("ALLOWED_ORGS must include CONSOLE_ORG");
   // 发信（#148，lib/mail/）：全部可选，都不设时不发信（本机与测试），投递和改状态照常，信记成 skipped/mail_disabled。
   // 发信商要同时有密钥和发件地址才算配置好；阿里云的两把密钥要么都有、要么都没有。地址格式在 lib/mail/mailer.ts 里核对。
   const mail = (() => {
@@ -84,17 +81,66 @@ export function createConfig(env: Record<string, string | undefined>) {
       allowlist: [...new Set(value("MAIL_ALLOWLIST").split(",").map(item => item.trim().toLowerCase()).filter(Boolean))],
     };
   })();
+  // Google 登录（#262）：两项都设才启用，只设一项让启动失败；都不设时登录页不出现 Google（本机、测试与凭据到位之前）。
+  const google = (() => {
+    const clientId = (env.GOOGLE_CLIENT_ID ?? "").trim();
+    const clientSecret = (env.GOOGLE_CLIENT_SECRET ?? "").trim();
+    if (Boolean(clientId) !== Boolean(clientSecret)) throw new Error("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together");
+    return clientId ? { clientId, clientSecret } : null;
+  })();
+  // 对外授权（#270，ADR-0005 决策 8）：OIDC_JWKS 是签名私钥（JWK Set 的 JSON，或它的 base64，`node dist/cli/oidc.js keygen` 生成）。
+  // 没设时不开 /oidc（本机与测试）；设了但读不出来让启动失败，错误信息不带配置的值。签发者固定是 PUBLIC_ORIGIN + /oidc。
+  const oidc = (() => {
+    const raw = (env.OIDC_JWKS ?? "").trim();
+    if (!raw) return null;
+    let jwks: { keys?: unknown };
+    try { jwks = JSON.parse(raw.startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8")) as { keys?: unknown }; } catch { throw new Error("OIDC_JWKS is not a readable JWK Set"); }
+    const keys = Array.isArray(jwks.keys) ? jwks.keys as Record<string, unknown>[] : [];
+    if (keys.length === 0 || keys.some(key => typeof key?.kty !== "string" || typeof key?.d !== "string")) throw new Error("OIDC_JWKS must be a JWK Set of private keys");
+    if (!keys.some(key => key.kty === "RSA")) throw new Error("OIDC_JWKS must contain an RSA key (ID tokens are signed with RS256)");
+    return { issuer: `${publicOrigin}/oidc`, jwks: { keys } };
+  })();
+  // GitLab 账号同步（#270）：GITLAB_SYNC 是 off（不同步）、dry-run（只算出要做什么，不调 GitLab）或 on。不是 off 时要有
+  // GITLAB_URL（GitLab 的 origin），on 时还要 GITLAB_API_TOKEN（管理员令牌，api 范围）；GITLAB_GROUP 是成员进的组，默认 geek。
+  const gitlab = (() => {
+    const value = (key: string) => (env[key] ?? "").trim();
+    const mode = value("GITLAB_SYNC").toLowerCase() || "off";
+    if (mode !== "off" && mode !== "dry-run" && mode !== "on") throw new Error("GITLAB_SYNC must be off, dry-run or on");
+    const rawUrl = value("GITLAB_URL");
+    let url: string | null = null;
+    if (rawUrl) {
+      const parsed = (() => { try { return new URL(rawUrl); } catch { return null; } })();
+      if (!parsed || !["http:", "https:"].includes(parsed.protocol) || parsed.pathname !== "/" || parsed.search || parsed.hash || parsed.username) {
+        throw new Error("GITLAB_URL must be a plain HTTP(S) origin");
+      }
+      url = parsed.origin;
+    }
+    const token = value("GITLAB_API_TOKEN") || null;
+    const group = value("GITLAB_GROUP") || "geek";
+    if (!/^[A-Za-z0-9_.-]{1,255}$/.test(group)) throw new Error("GITLAB_GROUP must be a group path");
+    if (mode !== "off" && !url) throw new Error("GITLAB_SYNC needs GITLAB_URL");
+    if (mode === "on" && !token) throw new Error("GITLAB_SYNC=on needs GITLAB_API_TOKEN");
+    return { mode: mode as "off" | "dry-run" | "on", url, token, group };
+  })();
   return {
-    production, port, publicOrigin, host: listenHost, trustProxy, consoleOrg,
+    production, port, publicOrigin, host: listenHost, trustProxy,
+    oidc, gitlab,
     cookieDomain: env.COOKIE_DOMAIN || undefined,
     cookieSecure: publicOrigin.startsWith("https:"),
-    oauth: { clientId: required("OAUTH_CLIENT_ID"), clientSecret: required("OAUTH_CLIENT_SECRET"), scope: "read:user user:email admin:org read:org repo" },
+    // #274 review round 1（CONTRACT-274 §8）：GitHub 组织那道门去掉之后，登录只要读身份和邮箱，
+    // 不再需要管理组织、仓库的范围（原来给控制台 GitHub 组织页面用的 admin:org/read:org/repo 已经没有读者）。
+    oauth: { clientId: required("OAUTH_CLIENT_ID"), clientSecret: required("OAUTH_CLIENT_SECRET"), scope: "read:user user:email" },
+    google,
     sessionSecret, encryptionKey, dbPath, forumDbPath,
     uploadDir: resolve(REPO_ROOT, env.FORUM_UPLOAD_DIR ?? "data/forum-uploads"),
     // 论坛的公开内容（分类、标签、公开旧帖），启动时读来播种。不是环境变量：仓库里和镜像里都在同一个相对位置
     // （app/server/Dockerfile 把两份 JSON 复制到 /app/app/forum/content）；测试直接换成夹具目录。
     forumContentDir: resolve(APP_ROOT, "forum/content"),
-    allowedOrgs,
+    // 内置表情包（#276、#286）：清单 manifest.json 与各包的图片，仓库里的通用素材，不按环境或测试换目录。
+    stickerAssetsDir: resolve(APP_ROOT, "server/assets/stickers"),
+    // 静态资源 CDN 开关（#146、#286）：构建参数 STATIC_CDN_BASE 由 app/server/Dockerfile 带进运行环境，空 = 同源；
+    // 非空只能是 lib/static-cdn.ts 里的那个常量，别的值直接让启动失败。不是 deploy/env/*.env 里的项，部署不用配。
+    staticCdnBase: parseStaticCdnBase(env.STATIC_CDN_BASE),
     turnstile: { siteKey: env.TURNSTILE_SITE_KEY ?? "", secretKey: env.TURNSTILE_SECRET_KEY ?? "" },
     powDifficulty,
     mail,

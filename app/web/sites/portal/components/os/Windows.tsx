@@ -1,30 +1,67 @@
-// YUGC OS 的窗口：可拖动、最小化、放大、关闭、聚焦；内容有「关于」「组织架构」「论坛最新」「终端」「比赛」五种。
+// YUGC OS 的窗口：可拖动、最小化、放大、关闭、聚焦；内容有「加入我们」「宣传片」「关于」「组织架构」「论坛最新」「终端」「比赛」「代码仓库」「意见箱」「账号资料」十种。
+// 宣传片（#284）是单独的一个窗口，正文是 PromoLazy.tsx 的播放器；最小化、关闭、放大、手机上的底部面板都走这里同一套窗口外框。
+// 账号资料（#280）由菜单栏头像打开，正文在 ProfileCard.tsx；它不是桌面应用，不在 Dock 和启动器里。
 // 比赛窗口的内容在 competitions/（#265）：它在手机详情页会借标题栏左边的返回键回列表（PhoneNav）。
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+// 意见箱、加入我们、终端窗口的内容在 FeedbackBox.tsx、JoinBox.tsx、Terminal.tsx，打开时才加载：防刷验证、表单样式和终端的模拟 Linux（#279）不进桌面首屏。
+import type { LinkNotice } from "../../lib/linkNotice";
+import { Suspense, lazy, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Link } from "react-router-dom";
 import { appConfig } from "@shared/config";
+import type { Account } from "../../lib/account";
 import { links } from "../../lib/links";
-import { agoLabel, runTerminal, type AppId, type OsApp, type TerminalLine } from "../../lib/osApps";
-import { orgChartModel, orgSummary, useOrg, type OrgBadge } from "../../lib/org";
-import { useForumSnapshot, useRepoSnapshot } from "../../lib/snapshots";
+import { useCodeRepos } from "../../lib/codeRepos";
+import { useDepartments } from "../../lib/departments";
+import { NEW_TAB_NOTE, agoLabel, type AppId, type OsApp } from "../../lib/osApps";
+import { promoWidth } from "../../lib/promoWindow";
+import { useForumSnapshot } from "../../lib/snapshots";
 import CompetitionsApp, { type PhoneNav } from "./competitions/CompetitionsApp";
+import ProfileCard from "./ProfileCard";
 import Icon from "../Icon";
+import { LazyPromoPlayer } from "../PromoLazy";
+import type { PromoEnd } from "../PromoPlayer";
 
-export type WindowId = "about" | "org" | "terminal" | "forum-feed" | "competitions";
+export type WindowId = "join" | "promo" | "about" | "org" | "terminal" | "forum-feed" | "competitions" | "gitlab" | "feedback" | "profile";
 export type WindowState = { id: WindowId; z: number; x: number; y: number; minimized: boolean; zoomed: boolean };
 
-type OpenApp = (id: AppId | "forum-feed", from?: HTMLElement | null) => void;
+export type OpenApp = (id: AppId | "forum-feed", from?: HTMLElement | null) => void;
 
-const META: Record<WindowId, { title: string; icon: "book-2-line" | "organization-chart" | "terminal-box-line" | "fire-line" | "trophy-line"; width: number; path: string }> = {
-  about: { title: "关于极客班", icon: "book-2-line", width: 640, path: "~/yugc/about" },
-  org: { title: "组织架构", icon: "organization-chart", width: 760, path: "~/yugc/org" },
-  terminal: { title: "nano@yugc — zsh", icon: "terminal-box-line", width: 640, path: "~/yugc" },
-  "forum-feed": { title: "论坛 · 最新", icon: "fire-line", width: 780, path: "~/yugc/forum" },
-  competitions: { title: "比赛", icon: "trophy-line", width: 1100, path: "~/yugc/competitions" },
+const META: Record<WindowId, { title: string; width: number }> = {
+  join: { title: "加入我们", width: 640 },
+  // 宽度按屏幕高度算（promoWidth），这里是电脑上的上限
+  promo: { title: "宣传片", width: 860 },
+  about: { title: "关于极客班", width: 640 },
+  org: { title: "组织架构", width: 760 },
+  terminal: { title: "终端", width: 680 },
+  "forum-feed": { title: "论坛 · 最新", width: 780 },
+  competitions: { title: "比赛", width: 1100 },
+  gitlab: { title: "代码仓库", width: 720 },
+  feedback: { title: "意见箱", width: 860 },
+  profile: { title: "账号资料", width: 560 },
 };
 
+/** 宣传片窗口里播放器的回调（YugcOs 里决定写不写「看过」的 cookie、播完关窗口） */
+export type PromoActions = {
+  onSeen?: () => void;
+  onEnd: (reason: PromoEnd) => void;
+};
+const NO_END = () => undefined;
+
+/** 账号资料窗口要用的登录状态操作（YugcOs 里的 useAccount） */
+export type ProfileActions = {
+  signInLink: string;
+  onPatch: (change: Partial<Account>) => void;
+  onReload: () => void;
+  onSignOut: () => void;
+  /** 从 Google 绑定回来时地址上带的结果（lib/linkNotice.ts），显示在登录方式下面 */
+  linkNotice?: LinkNotice | null;
+};
+
+const FeedbackBox = lazy(() => import("./FeedbackBox"));
+const JoinBox = lazy(() => import("./JoinBox"));
+const Terminal = lazy(() => import("./Terminal"));
+
 export function windowWidth(id: WindowId): number {
-  return META[id].width;
+  return id === "promo" ? promoWidth({ width: window.innerWidth, height: window.innerHeight }) : META[id].width;
 }
 
 type Props = {
@@ -39,14 +76,27 @@ type Props = {
   /** 这个人能打开的应用（visibleApps），终端的 ls / open 只认这些。 */
   apps: readonly OsApp[];
   phone?: boolean;
+  /** 桌面读到的登录者：比赛窗口用它决定要不要读「我的参赛」、在队伍与天梯里认出「我」（#239）。 */
+  account?: Account | null;
+  accountLoaded?: boolean;
+  profile?: ProfileActions;
+  /** 招新总开关（#284）：桌面读到的状态，「关于」窗口据此不再叫人去写信；「加入我们」窗口每次打开重读开关，读到就用 onApplyOpen 报回桌面。 */
+  applyOpen?: boolean;
+  onApplyOpen?: (open: boolean) => void;
+  /** 「加入我们」窗口在这个浏览器第一次打开时请桌面自动弹出宣传片窗口（#77，条件见 lib/promoWindow.ts 的 promoEntry） */
+  onAutoPromo?: () => void;
+  promo?: PromoActions;
 };
 
-export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZoom, onMove, onOpen, apps, phone = false }: Props) {
-  const meta = META[win.id];
+export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZoom, onMove, onOpen, apps, phone = false, account = null, accountLoaded = true, profile, applyOpen = true, onApplyOpen, onAutoPromo, promo }: Props) {
+  // 没登录时账号资料窗口里只有登录、注册，窗口名也跟着说「登录极客班」
+  const meta = win.id === "profile" && !account ? { ...META.profile, title: "登录极客班" } : META[win.id];
   const ref = useRef<HTMLElement>(null);
-  const width = Math.min(meta.width, window.innerWidth - 24);
+  const width = Math.min(windowWidth(win.id), window.innerWidth - 24);
   /** 手机上应用自己的上一级（比赛详情回列表）；没有时返回键回主屏幕。 */
   const [phoneNav, setPhoneNav] = useState<PhoneNav | null>(null);
+  /** 终端把标题换成「用户@yugc: 目录」，读屏仍念窗口名 */
+  const [title, setTitle] = useState<string | null>(null);
 
   // 在移动端支持下滑手势关闭窗口（iOS Sheet 拖拽收起体验）
   const touchStartY = useRef<number | null>(null);
@@ -151,7 +201,7 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
         role="dialog"
         aria-label={meta.title}
         hidden={win.minimized || (phone && !front)}
-        style={{ left: win.x, top: win.y, width, zIndex: win.z }}
+        style={{ left: win.x, top: win.y, width, zIndex: win.z, ["--win-y" as string]: `${win.y}px` }}
         onPointerDown={onFocus}
       >
         {phone && (
@@ -180,50 +230,76 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
               <span>{phoneNav?.backText ?? "主屏幕"}</span>
             </button>
           ) : (
+            // 三颗糖果珠，图标一直显示，每个按钮的点击区域是 44×44（styles/os.css 的 .pt-win-lights）；放大后第三颗变成「还原」
             <span className="pt-win-lights">
-              <button type="button" aria-label="关闭" onClick={onClose}>
-                <Icon name="close-line" size={10} />
+              <button type="button" aria-label="关闭" title="关闭" onClick={onClose}>
+                <i>
+                  <Icon name="close-line" size={14} />
+                </i>
               </button>
-              <button type="button" aria-label="最小化" onClick={onMinimize}>
-                <Icon name="subtract-line" size={10} />
+              <button type="button" aria-label="最小化" title="最小化" onClick={onMinimize}>
+                <i>
+                  <Icon name="subtract-line" size={14} />
+                </i>
               </button>
-              <button type="button" aria-label="放大" onClick={onZoom}>
-                <Icon name="fullscreen-line" size={9} />
+              <button type="button" aria-label={win.zoomed ? "还原" : "放大"} title={win.zoomed ? "还原" : "放大"} onClick={onZoom}>
+                <i>
+                  <Icon name={win.zoomed ? "fullscreen-exit-line" : "fullscreen-line"} size={12} />
+                </i>
               </button>
             </span>
           )}
-          <b>
-            <Icon name={meta.icon} size={14} /> {meta.title}
-          </b>
+          <b>{title ?? meta.title}</b>
           {phone ? (
             <button type="button" className="pt-phone-close" aria-label="关闭应用" onClick={onClose}>
               <Icon name="close-line" size={18} />
             </button>
           ) : (
-            <span className="pt-win-path">{meta.path}</span>
+            // 和左边三个圆点一样宽，标题才在标题栏正中
+            <span aria-hidden="true" />
           )}
         </header>
-        <div className={win.id === "competitions" ? "pt-win-body is-flush" : "pt-win-body"}>
-          {win.id === "about" && <About onOpen={onOpen} />}
+        <div className={win.id === "competitions" ? "pt-win-body is-flush" : win.id === "promo" ? "pt-win-body is-flush is-promo" : "pt-win-body"}>
+          {win.id === "join" && (
+            <Suspense fallback={<p className="pt-empty">正在打开信纸…</p>}>
+              <JoinBox onOpen={onOpen} onApplyOpen={onApplyOpen} onAutoPromo={onAutoPromo} />
+            </Suspense>
+          )}
+          {/* 窗口收起（最小化；手机上被别的窗口盖住）时 active 为 false：播放器暂停，露出来接着播；关掉窗口播放器卸载，停止播放并释放片源 */}
+          {win.id === "promo" && <LazyPromoPlayer active={!win.minimized && (!phone || front)} onSeen={promo?.onSeen} onEnd={promo?.onEnd ?? NO_END} />}
+          {win.id === "about" && <About onOpen={onOpen} applyOpen={applyOpen} />}
           {win.id === "org" && <OrgChart />}
           {win.id === "forum-feed" && <ForumFeed />}
-          {win.id === "competitions" && <CompetitionsApp phone={phone} onPhoneNav={setPhoneNav} />}
-          {win.id === "terminal" && <Terminal onOpen={onOpen} apps={apps} />}
+          {win.id === "profile" && profile && <ProfileCard account={account} {...profile} />}
+          {win.id === "competitions" && <CompetitionsApp phone={phone} onPhoneNav={setPhoneNav} account={account} accountLoaded={accountLoaded} />}
+          {win.id === "terminal" && (
+            <Suspense fallback={<p className="pt-empty">正在打开终端…</p>}>
+              <Terminal onOpen={onOpen} onClose={onClose} onTitle={setTitle} apps={apps} account={account} />
+            </Suspense>
+          )}
+          {win.id === "gitlab" && <CodeRepos />}
+          {win.id === "feedback" && (
+            <Suspense fallback={<p className="pt-empty">正在打开意见箱…</p>}>
+              <FeedbackBox />
+            </Suspense>
+          )}
         </div>
       </section>
     </>
   );
 }
 
-function About({ onOpen }: { onOpen: OpenApp }) {
+function About({ onOpen, applyOpen }: { onOpen: OpenApp; applyOpen: boolean }) {
   const { brand } = appConfig.portal;
-  const summary = orgSummary(useOrg());
+  const departments = useDepartments().filter((department) => department.titles.length > 0);
+  // 称号名字在控制台改，这里照数据说，不写死（tests/web/portal-org-window.test.tsx 扫源码）
+  const titleNames = [...new Set(departments.flatMap((department) => department.titles.map((title) => title.name)))];
   return (
     <div className="pt-about">
       <img src={brand.logo} alt="长江大学计算机科学学院极客班徽标" width={112} height={112} />
       <div>
         <h3>{brand.title}</h3>
-        <p>极客班在长江大学计算机科学学院。{summary.members}大家在论坛讨论课程、竞赛和求职，代码放在 GitHub 组织里。</p>
+        <p>极客班在长江大学计算机科学学院。大家在论坛讨论课程、竞赛和求职，代码放在极客班自己的代码仓库里。</p>
         <dl>
           <div>
             <dt>
@@ -237,20 +313,22 @@ function About({ onOpen }: { onOpen: OpenApp }) {
               <Icon name="team-line" size={15} />
               怎么分工
             </dt>
-            <dd>{summary.roles}</dd>
+            <dd>{departments.length ? `分成${departments.map((department) => department.name).join("、")}，每个部门有${titleNames.join("、")}` : "按部门分工"}</dd>
           </div>
           <div>
             <dt>
               <Icon name="mail-line" size={15} />
               怎么加入
             </dt>
-            <dd>在「加入我们」写封信，我们用邮件联系你</dd>
+            <dd>{applyOpen ? "注册极客班账号，在「加入我们」写封信，我们用邮件联系你" : "现在不招新"}</dd>
           </div>
         </dl>
         <div className="pt-row-btns">
-          <button type="button" className="pt-btn is-primary" onClick={(e) => onOpen("join", e.currentTarget)}>
-            <Icon name="mail-send-line" size={16} /> 加入我们
-          </button>
+          {applyOpen && (
+            <button type="button" className="pt-btn is-primary" onClick={(e) => onOpen("join", e.currentTarget)}>
+              <Icon name="mail-send-line" size={16} /> 加入我们
+            </button>
+          )}
           <button type="button" className="pt-btn" onClick={(e) => onOpen("org", e.currentTarget)}>
             <Icon name="organization-chart" size={16} /> 查看组织架构
           </button>
@@ -258,78 +336,80 @@ function About({ onOpen }: { onOpen: OpenApp }) {
             <Icon name="file-text-line" size={16} /> 文档
           </Link>
         </div>
-        <p>3D 手机模型为 Apple iPhone 15 Pro Max Black，已轻量化并替换屏幕内容。</p>
-        <div className="pt-row-btns">
-          <a className="pt-btn" href="https://sketchfab.com/3d-models/apple-iphone-15-pro-max-black-df17520841214c1792fb8a44c6783ee7" target="_blank" rel="noopener noreferrer">
-            模型作者：polyman<span className="pt-sr">（新标签页打开）</span>
-          </a>
-          <a className="pt-btn" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">
-            CC BY 4.0<span className="pt-sr">（新标签页打开）</span>
-          </a>
-        </div>
       </div>
     </div>
   );
 }
 
 /**
- * 组织架构。称号与部门都是数据（在控制台改名字、图标、色调和说明），这里只按称号 id 摆位置：
- * admin → captain 的直属链、每个部门一张卡片（卡片上是 head 称号）、member 一行、alumni 与 guest 在底部。
- * 数据没到之前显示默认值，见 lib/org.ts。
+ * 组织架构：AI、算法、硬件、网安、管理五个部门和「无部门」，每个部门一张卡片，底色是它的部门色（SPEC §1），
+ * 卡片上按权重列出称号。名字、图标、部门色、说明和称号都在控制台改，数据没到之前显示默认值（lib/departments.ts）。
  */
 export function OrgChart() {
-  const chart = orgChartModel(useOrg());
+  const departments = useDepartments();
   return (
     <div className="pt-orgc">
-      <ol className="pt-orgc-chain">
-        {chart.chain.map((item) => (
-          <li key={item.id}>
-            <OrgChip badge={item} className="is-lead" size={14} />
-            <small>{item.description}</small>
+      <ul className="pt-orgc-depts" aria-label="部门">
+        {departments.map((department) => (
+          <li key={department.id} data-tone={department.tone}>
+            <span className="pt-orgc-icon" aria-hidden="true">
+              <Icon name={department.icon} size={24} />
+            </span>
+            <h3>{department.name}</h3>
+            {department.description && <p>{department.description}</p>}
+            {department.titles.length > 0 && (
+              <ul className="pt-orgc-titles" aria-label={`${department.name}的称号`}>
+                {department.titles.map((title) => (
+                  <li key={title.id}>{title.name}</li>
+                ))}
+              </ul>
+            )}
           </li>
         ))}
-      </ol>
-      {chart.departments.length > 0 && (
-        <>
-          <div className="pt-orgc-line" aria-hidden="true" />
-          <div className="pt-orgc-depts">
-            {chart.departments.map((dept) => (
-              <article key={dept.id} style={{ ["--tint" as string]: dept.color }}>
-                <header>
-                  <Icon name={dept.icon} size={18} />
-                  <b>{dept.name}</b>
-                </header>
-                <OrgChip badge={dept.head} size={12} />
-                <p>{dept.description}</p>
-              </article>
-            ))}
-          </div>
-        </>
-      )}
-      <div className="pt-orgc-crew">
-        <OrgChip badge={chart.crew} className="is-soft" size={13} />
-        <small>{chart.crew.description}</small>
-      </div>
-      <div className="pt-orgc-foot">
-        {chart.foot.map((item) => (
-          <p key={item.id}>
-            <OrgChip badge={item} className={item.id === "guest" ? "is-soft" : undefined} size={13} />
-            <small>{item.description}</small>
-          </p>
-        ))}
-      </div>
+      </ul>
       <p className="pt-orgc-note">
-        <Icon name="lock-line" size={13} /> 只有 GitHub 组织里的人能登录。称号显示在论坛和控制台；称号、部门和各自的权限都在控制台里设置，这张图跟着更新。
+        <Icon name="lock-line" size={13} /> 注册后是注册用户，填邀请码成为极客班成员；部门和称号由管理员在控制台里分，资料卡上能看到自己的。
       </p>
     </div>
   );
 }
 
-function OrgChip({ badge, className, size }: { badge: OrgBadge; className?: string; size: number }) {
+/** 代码仓库：自建 GitLab 上的公开项目（#274 的 GET /api/public/gitlab/projects），点项目在新标签页打开；GitLab 连不上时照实说 */
+export function CodeRepos() {
+  const repos = useCodeRepos();
+  const now = Date.now();
+  const gitlab = links.gitlab();
   return (
-    <span className={className ? `pt-chip ${className}` : "pt-chip"} style={{ ["--c" as string]: badge.color }}>
-      <Icon name={badge.icon} size={size} /> {badge.label}
-    </span>
+    <div className="pt-repos">
+      {repos.status === "loading" && <p className="pt-empty">正在读取公开项目…</p>}
+      {repos.status === "error" && <p className="pt-empty">公开项目没加载出来，可以直接去代码仓库看。</p>}
+      {repos.status === "unavailable" && <p className="pt-empty">代码仓库暂时连不上，稍后再试，或者直接去代码仓库看。</p>}
+      {repos.status === "ready" && repos.projects.length === 0 && <p className="pt-empty">还没有公开的项目。成员登录代码仓库后能看到全部项目。</p>}
+      {repos.status === "ready" && repos.projects.length > 0 && (
+        <ul className="pt-repos-list" aria-label="公开项目">
+          {repos.projects.map((project) => (
+            <li key={project.path}>
+              <a href={project.url} target="_blank" rel="noopener noreferrer">
+                <Icon name="git-repository-line" size={18} />
+                <span>
+                  <b>{project.name}</b>
+                  <small>{project.description || project.path}</small>
+                </span>
+                {project.activeAt !== null && <time dateTime={new Date(project.activeAt).toISOString()}>{agoLabel(project.activeAt, now)}</time>}
+                <span className="pt-sr">{NEW_TAB_NOTE}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      <footer>
+        <span>极客班自己的 GitLab，成员用极客班账号登录</span>
+        <a className="pt-btn is-primary" href={gitlab} target="_blank" rel="noopener noreferrer">
+          <Icon name="gitlab-line" size={16} /> 打开代码仓库
+          <span className="pt-sr">{NEW_TAB_NOTE}</span>
+        </a>
+      </footer>
+    </div>
   );
 }
 
@@ -388,83 +468,6 @@ function ForumFeed() {
           </a>
         </span>
       </footer>
-    </div>
-  );
-}
-
-function Terminal({ onOpen, apps }: { onOpen: OpenApp; apps: readonly OsApp[] }) {
-  const repos = useRepoSnapshot();
-  const [lines, setLines] = useState<TerminalLine[]>([{ kind: "dim", text: "输入 help 查看命令" }]);
-  const [value, setValue] = useState("");
-  const history = useRef<string[]>([]);
-  const cursor = useRef(0);
-  const out = useRef<HTMLDivElement>(null);
-  const input = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    out.current?.scrollTo({ top: out.current.scrollHeight });
-  }, [lines]);
-  const run = (command: string) => {
-    const result = runTerminal(command, repos.status === "ready" ? repos.data.repos : [], apps);
-    setLines((current) => (result.clear ? [] : [...current, ...result.lines]));
-    if (result.open) {
-      const id = result.open;
-      window.setTimeout(() => onOpen(id, input.current), 350);
-    }
-  };
-  const render = (line: TerminalLine, index: number): ReactNode => {
-    if (line.kind === "echo")
-      return (
-        <div key={index} className="is-echo">
-          <b>nano@yugc:~$</b> {line.text}
-        </div>
-      );
-    return (
-      <div key={index} className={`is-${line.kind}`}>
-        {line.key &&
-          (line.href ? (
-            <a className="pt-term-key" href={line.href} target="_blank" rel="noreferrer">
-              {line.key}
-            </a>
-          ) : (
-            <span className="pt-term-key">{line.key}</span>
-          ))}
-        {line.text}
-      </div>
-    );
-  };
-  return (
-    <div className="pt-term" onPointerDown={() => window.setTimeout(() => input.current?.focus(), 0)}>
-      <div className="pt-term-out" ref={out}>
-        {lines.map(render)}
-      </div>
-      <label className="pt-term-in">
-        <b>nano@yugc:~$</b>
-        <input
-          ref={input}
-          value={value}
-          spellCheck={false}
-          autoComplete="off"
-          aria-label="终端输入"
-          onChange={(event) => setValue(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              history.current.push(value);
-              cursor.current = history.current.length;
-              run(value);
-              setValue("");
-            } else if (event.key === "ArrowUp" && cursor.current > 0) {
-              cursor.current -= 1;
-              setValue(history.current[cursor.current] ?? "");
-              event.preventDefault();
-            } else if (event.key === "ArrowDown") {
-              cursor.current = Math.min(history.current.length, cursor.current + 1);
-              setValue(history.current[cursor.current] ?? "");
-            }
-            if (!((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") && event.key !== "Escape") event.stopPropagation();
-          }}
-        />
-      </label>
-      <p className="pt-sr">可用命令：{apps.map((app) => app.id).join("、")}</p>
     </div>
   );
 }

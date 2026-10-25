@@ -1,4 +1,5 @@
-import type { ReplyAsGuestInput, ReplyShown } from '~/stores/forum-server'
+import type { Reaction, Visibility } from '~/data/types'
+import type { ReplyShown } from '~/stores/forum-server'
 import type { CreatePostInput, CreateTopicInput, ProfilePatch } from '~/stores/forum'
 
 /**
@@ -33,9 +34,14 @@ export function useForumActions() {
     return server.createPost({ topicId: input.topicId, content: input.content, ...(input.replyToPostId ? { replyToPostId: input.replyToPostId } : {}) }, shown)
   }
 
-  /** Server mode only: nobody replies without an identity in the demo. */
-  async function replyAsGuest(input: ReplyAsGuestInput, shown?: ReplyShown): Promise<string | null> {
-    return serverMode ? server.replyAsGuest(input, shown) : null
+  /** Server mode only (#276): the stickers live on the forum server, the demo has none to react with. */
+  async function react(postId: string, sticker: Pick<Reaction, 'stickerId' | 'shortcode' | 'url'>, on: boolean): Promise<boolean> {
+    return serverMode ? server.react(postId, sticker, on) : false
+  }
+
+  /** Server mode only (#276): the demo has no visibility levels. */
+  async function setVisibility(topicId: string, visibility: Visibility | null): Promise<boolean> {
+    return serverMode ? server.setVisibility(topicId, visibility) : false
   }
 
   async function editPost(postId: string, content: string): Promise<boolean> {
@@ -105,7 +111,8 @@ export function useForumActions() {
   return {
     createTopic,
     createPost,
-    replyAsGuest,
+    react,
+    setVisibility,
     editPost,
     deletePost,
     toggleLike,

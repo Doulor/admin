@@ -1,0 +1,11 @@
+/* 比赛官网起步模板：只给最基本的可读性，不是设计稿——每场比赛的真实视觉在复制出去的目录里自己做。 */
+:root { color-scheme: light; }
+body { margin: 0 auto; max-width: 720px; padding: 32px 20px 80px; font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: #16141f; }
+header { margin-bottom: 32px; }
+header h1 { margin: 0 0 8px; font-size: 28px; }
+header p { margin: 0 0 12px; color: #474456; }
+header a { display: inline-block; padding: 8px 16px; border-radius: 999px; background: #16141f; color: #fff; text-decoration: none; }
+section { margin-bottom: 32px; }
+section h2 { font-size: 18px; margin: 0 0 12px; }
+ul, ol { margin: 0; padding-left: 20px; }
+li { margin-bottom: 6px; }

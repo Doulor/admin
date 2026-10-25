@@ -35,6 +35,10 @@ export const SECRET_FIELDS = Object.freeze([
   'MAIL_ALIYUN_ACCESS_KEY_SECRET',
   'MAIL_RESEND_API_KEY',
   'MAIL_ALLOWLIST',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'OIDC_JWKS',
+  'GITLAB_API_TOKEN',
 ]);
 /**
  * Cloudflare Turnstile 是可选的一对：两项都为空 = 明确关闭（服务端 middleware/turnstile.ts 此时只靠工作量证明与限流），
@@ -43,19 +47,28 @@ export const SECRET_FIELDS = Object.freeze([
 export const OPTIONAL_SECRET_PAIR = Object.freeze(['TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY']);
 /** 阿里云邮件推送的 AccessKey 同样是可选的一对：都空 = 不走阿里云，只填一项拒绝渲染。 */
 export const MAIL_ALIYUN_SECRET_PAIR = Object.freeze(['MAIL_ALIYUN_ACCESS_KEY_ID', 'MAIL_ALIYUN_ACCESS_KEY_SECRET']);
+/** Google 登录（#262）的 OAuth 客户端也是可选的一对：都空 = 登录页不出现 Google，只填一项拒绝渲染（server 启动也会拒绝）。 */
+export const GOOGLE_SECRET_PAIR = Object.freeze(['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET']);
 /**
  * 可选的单项密钥：MAIL_RESEND_API_KEY 空 = 不走 Resend；MAIL_ALLOWLIST 是 MAIL_RECIPIENTS=allowlist 时的收件名单（逗号隔开的邮箱，个人信息，所以当密钥存）。
  * 阿里云与 Resend 都没配时发信关闭，server 把每封信记为「发信没有配置」，一封也不发。
  */
 export const OPTIONAL_SECRETS = Object.freeze(['MAIL_RESEND_API_KEY', 'MAIL_ALLOWLIST']);
-/** 渲染时必填的密钥：上面三类可选项之外的全部。 */
+/**
+ * 对外授权与 GitLab 同步（#270）的两项单独可选密钥：OIDC_JWKS 空 = /oidc/* 一律 404，GitLab 不能用极客班账号登录，
+ * 写成一行 base64（`oidc.js keygen` 直接输出这种形式）；GITLAB_API_TOKEN 只在 GITLAB_SYNC=on 时必填（server 启动也会拒绝）。
+ */
+export const OIDC_GITLAB_SECRETS = Object.freeze(['OIDC_JWKS', 'GITLAB_API_TOKEN']);
+/** 渲染时必填的密钥：上面几类可选项之外的全部。 */
 export const REQUIRED_SECRET_FIELDS = Object.freeze(
-  SECRET_FIELDS.filter(field => ![...OPTIONAL_SECRET_PAIR, ...MAIL_ALIYUN_SECRET_PAIR, ...OPTIONAL_SECRETS].includes(field)),
+  SECRET_FIELDS.filter(field => ![...OPTIONAL_SECRET_PAIR, ...MAIL_ALIYUN_SECRET_PAIR, ...GOOGLE_SECRET_PAIR, ...OPTIONAL_SECRETS, ...OIDC_GITLAB_SECRETS].includes(field)),
 );
 /** 收件范围：all 发给所有人；allowlist 只发给 MAIL_ALLOWLIST 里的地址。两个环境现在都是 all（#169）。 */
 export const MAIL_RECIPIENT_MODES = Object.freeze(['all', 'allowlist']);
+/** GitLab 账号同步（#270）：off 不同步，dry-run 只算出要做什么（不要令牌），on 照做。 */
+export const GITLAB_SYNC_MODES = Object.freeze(['off', 'dry-run', 'on']);
 /** 允许为空但不属于密钥的字段（留空是明确的语义）。MAIL_REPLY_TO 空 = 信里不带 Reply-To，改指向官网意见箱。 */
-const EMPTY_IS_MEANINGFUL = Object.freeze(new Set([...SECRET_FIELDS, 'COOKIE_DOMAIN', 'ALLOWED_ORGS', 'MAIL_REPLY_TO']));
+const EMPTY_IS_MEANINGFUL = Object.freeze(new Set([...SECRET_FIELDS, 'COOKIE_DOMAIN', 'MAIL_REPLY_TO']));
 /** 模板里必须存在的非密钥字段。 */
 const REQUIRED_FIELDS = Object.freeze([
   'GEEK_DEPLOYMENT_ENVIRONMENT',
@@ -79,12 +92,14 @@ const REQUIRED_FIELDS = Object.freeze([
   'FORUM_DB_PATH',
   'FORUM_UPLOAD_DIR',
   'POW_DIFFICULTY',
-  'CONSOLE_ORG',
   'MAIL_ALIYUN_FROM',
   'MAIL_RESEND_FROM',
   'MAIL_ASSET_BASE',
   'MAIL_REPLY_TO',
   'MAIL_RECIPIENTS',
+  'GITLAB_SYNC',
+  'GITLAB_URL',
+  'GITLAB_GROUP',
   ...SECRET_FIELDS,
 ]);
 /** 发布身份是构建期 build args：绝不写进部署 env 文件。 */
@@ -393,6 +408,18 @@ export function validateEnvironmentFiles({ root = repositoryRoot(), checkCompose
       // 预发布以前只能是 allowlist；2026-09-27 14:20 要求预发布的信都发出去（「我们官方发的那些邮件，肯定必须发过去」），#169 放开。
       if (!MAIL_RECIPIENT_MODES.includes(recipients)) problem(`MAIL_RECIPIENTS 只能是 ${MAIL_RECIPIENT_MODES.join(' 或 ')}：${recipients}`);
     }
+    // GitLab 账号同步（#270）：开关、GitLab 的 https origin、组路径都是可见事实；管理员令牌在密钥段。
+    if (values.has('GITLAB_SYNC') && !GITLAB_SYNC_MODES.includes(values.get('GITLAB_SYNC'))) {
+      problem(`GITLAB_SYNC 只能是 ${GITLAB_SYNC_MODES.join(' / ')}：${values.get('GITLAB_SYNC')}`);
+    }
+    if (values.has('GITLAB_URL')) {
+      try {
+        if (parseHttpsOrigin(values.get('GITLAB_URL'), 'GITLAB_URL') !== values.get('GITLAB_URL')) problem(`GITLAB_URL 必须写成不带结尾 / 的 origin：${values.get('GITLAB_URL')}`);
+      } catch (error) {
+        problem(error.message);
+      }
+    }
+    if (values.has('GITLAB_GROUP') && !/^[A-Za-z0-9_.-]{1,255}$/.test(values.get('GITLAB_GROUP'))) problem(`GITLAB_GROUP 必须是 GitLab 的组路径：${values.get('GITLAB_GROUP')}`);
     const ignored = spawnSync('git', ['-c', 'core.hooksPath=/dev/null', 'check-ignore', '--quiet', path], {
       cwd: root,
       stdio: ['ignore', 'ignore', 'ignore'],
@@ -476,10 +503,14 @@ export function renderRuntimeEnv({ root = repositoryRoot(), environment, out, im
   const updated = new Map(deployment.values);
   const secretFields = [];
   const filled = field => typeof env[field] === 'string' && env[field] !== '';
-  for (const [pair, enable] of [[OPTIONAL_SECRET_PAIR, '开启 Turnstile'], [MAIL_ALIYUN_SECRET_PAIR, '开启阿里云邮件推送']]) {
+  for (const [pair, enable] of [[OPTIONAL_SECRET_PAIR, '开启 Turnstile'], [MAIL_ALIYUN_SECRET_PAIR, '开启阿里云邮件推送'], [GOOGLE_SECRET_PAIR, '开启 Google 登录']]) {
     if (filled(pair[0]) !== filled(pair[1])) fail(`${pair.join(' 与 ')} 只配了一项：要么都填（${enable}），要么都留空（关闭）`);
   }
+  if (deployment.values.get('GITLAB_SYNC') === 'on' && !filled('GITLAB_API_TOKEN')) {
+    fail('GITLAB_SYNC=on 要 GITLAB_API_TOKEN：拒绝生成会让 server 启动失败的运行时环境文件');
+  }
   const turnstileOff = !filled(OPTIONAL_SECRET_PAIR[0]);
+  const googleOff = !filled(GOOGLE_SECRET_PAIR[0]);
   const mailProviders = [
     ...(filled(MAIL_ALIYUN_SECRET_PAIR[0]) ? ['aliyun'] : []),
     ...(filled('MAIL_RESEND_API_KEY') ? ['resend'] : []),
@@ -487,7 +518,8 @@ export function renderRuntimeEnv({ root = repositoryRoot(), environment, out, im
   // 没填的可选密钥照模板写空值（模板里本来就是空）；必填密钥缺一项就失败关闭。
   const skipped = new Set([
     ...(turnstileOff ? OPTIONAL_SECRET_PAIR : []),
-    ...[...MAIL_ALIYUN_SECRET_PAIR, ...OPTIONAL_SECRETS].filter(field => !filled(field)),
+    ...(googleOff ? GOOGLE_SECRET_PAIR : []),
+    ...[...MAIL_ALIYUN_SECRET_PAIR, ...OPTIONAL_SECRETS, ...OIDC_GITLAB_SECRETS].filter(field => !filled(field)),
   ]);
   for (const field of SECRET_FIELDS) {
     const value = env[field];
@@ -518,6 +550,8 @@ export function renderRuntimeEnv({ root = repositoryRoot(), environment, out, im
   // 给操作者的提示：只说哪些功能关着、哪些组合发不出信，不回显任何值。
   const notices = [];
   if (turnstileOff) notices.push(`${OPTIONAL_SECRET_PAIR.join('、')} 都为空：Turnstile 关闭，公开表单只靠工作量证明与限流。`);
+  if (googleOff) notices.push(`${GOOGLE_SECRET_PAIR.join('、')} 都为空：Google 登录关闭，登录页不出现 Google。`);
+  if (!filled('OIDC_JWKS')) notices.push('OIDC_JWKS 为空：对外授权关闭，/oidc/* 一律 404，GitLab 不能用极客班账号登录。');
   if (!mailProviders.length) {
     notices.push(`${[...MAIL_ALIYUN_SECRET_PAIR, 'MAIL_RESEND_API_KEY'].join('、')} 都为空：发信关闭，server 把每封信记为「发信没有配置」，一封也不发。`);
   } else {
@@ -534,6 +568,9 @@ export function renderRuntimeEnv({ root = repositoryRoot(), environment, out, im
     imageTag: tag,
     secretFields,
     turnstile: turnstileOff ? 'off' : 'on',
+    google: googleOff ? 'off' : 'on',
+    oidc: filled('OIDC_JWKS') ? 'on' : 'off',
+    gitlabSync: deployment.values.get('GITLAB_SYNC') ?? 'off',
     mail: mailProviders.length ? 'on' : 'off',
     mailProviders,
     notices,

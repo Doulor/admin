@@ -7,6 +7,7 @@ import { TxInput } from "@talex-touch/tuffex/input";
 import { TxTextarea } from "@talex-touch/tuffex/textarea";
 import { TxCheckbox } from "@talex-touch/tuffex/checkbox";
 import { TxButton } from "@talex-touch/tuffex/button";
+import { TxModal } from "@talex-touch/tuffex/modal";
 import { TxTimeline, TxTimelineItem } from "@talex-touch/tuffex/timeline";
 import { TxSteps, TxStep } from "@talex-touch/tuffex/steps";
 import { TxEmptyState } from "@talex-touch/tuffex/empty-state";
@@ -17,16 +18,18 @@ import ToneTag from "../components/ToneTag.vue";
 import ErrorPanel from "../components/ErrorPanel.vue";
 import ErrorAlert from "../components/ErrorAlert.vue";
 import LoadingBlock from "../components/LoadingBlock.vue";
+import MailPreviewFrame from "../components/MailPreviewFrame.vue";
 import { api, jsonBody } from "../lib/http";
 import { fmtDate, fmtRelative } from "../lib/format";
 import { useAction, useResource } from "../lib/resource";
 import { useSession } from "../lib/session";
 import { APPLICATION_STATUS, APPLICATION_STATUSES, isApplicationStatus, statusMeta } from "../lib/statuses";
 import {
-  LETTER_LIMITS, emptyLetterDraft, letterErrors, mailState, newestReviewId, noticePlan, reviewPatch, savedMessage, serverFieldErrors, statusChangedMessage,
+  LETTER_LIMITS, emptyLetterDraft, letterErrors, letterPreviewBody, mailState, newestReviewId, noticePlan, reviewPatch, savedMessage, serverFieldErrors, statusChangedMessage,
+  templateChoice,
   type LetterErrors,
 } from "../lib/applications";
-import type { ApplicationDetail, ApplicationReviewResult, ApplicationStatus } from "../lib/types";
+import type { ApplicationDetail, ApplicationReviewResult, ApplicationStatus, MailRendered } from "../lib/types";
 
 const route = useRoute();
 const { can } = useSession();
@@ -52,9 +55,15 @@ const plan = computed(() => {
 });
 const unchanged = computed(() => !detail.data.value || (status.value === current.value && !note.value.trim()));
 
+// 这一类信有两套以上启用的模板时，让审核人选一套；选默认的那套就不带 template_id（#285）
+const templateId = ref("");
+const choice = computed(() => (plan.value.kind === "letter" && plan.value.notify ? templateChoice(detail.data.value?.letter_templates, plan.value.letter) : null));
+watch(choice, value => { templateId.value = value?.defaultId ?? ""; }, { immediate: true });
+
 const review = useAction(async () => {
   const body = reviewPatch({
     current: current.value, latestReviewId: newestReviewId(detail.data.value?.reviews ?? []), status: status.value, note: note.value, notify: notify.value, draft: letter,
+    templateId: templateId.value, defaultTemplateId: choice.value?.defaultId,
   });
   let result: ApplicationReviewResult;
   try {
@@ -92,6 +101,21 @@ async function submit() {
   touched.value = true;
   if (Object.keys(localErrors.value).length > 0) return;
   await review.execute();
+}
+
+// 「预览这封信」：用这份投递的真实字段和现在填的内容，按选的模板渲染一遍，不发信、不改状态
+const previewOpen = ref(false);
+const rendered = ref<MailRendered | null>(null);
+const preview = useAction(async () => {
+  if (plan.value.kind !== "letter") return;
+  rendered.value = null;
+  const body = letterPreviewBody({ status: plan.value.letter, draft: letter, templateId: templateId.value, defaultTemplateId: choice.value?.defaultId });
+  rendered.value = await api<MailRendered>(`/api/console/applications/${id.value}/letter-preview`, { method: "POST", ...jsonBody(body) });
+});
+async function openPreview() {
+  previewOpen.value = true;
+  preview.reset();
+  await preview.execute();
 }
 </script>
 
@@ -170,12 +194,12 @@ async function submit() {
               <h2 class="section-title">处理这份投递</h2>
             </template>
             <!-- 面试时间、地点是单行输入框：按回车会隐式提交表单并马上发信，所以回车在这两个框里不提交。 -->
-            <TxForm v-if="can('applications.review')" :model="{ status, note, notify, ...letter }" label-position="top" class="review-form" @submit="submit">
+            <TxForm v-if="can('apply.review')" :model="{ status, note, notify, ...letter }" label-position="top" class="review-form" @submit="submit">
               <TxFormItem label="状态">
                 <!-- TxSelect 0.6.0 的 attrs 落在外层，原生 label 给内层输入框命名。 -->
                 <label class="fill-width">
                   <span class="sr-only">状态</span>
-                  <TxSelect v-model="status" :options="statusOptions" :status="serverErrors?.status ? 'error' : 'default'" class="fill-width" />
+                  <TxSelect v-model="status" :options="statusOptions" :status="serverErrors?.status ? 'error' : 'default'" class="fill-width" :searchable="false" panel-background="pure" />
                 </label>
                 <span v-if="serverErrors?.status" class="field-error">{{ serverErrors.status }}</span>
               </TxFormItem>
@@ -185,6 +209,12 @@ async function submit() {
                 <template v-if="plan.kind === 'letter'">
                   <TxCheckbox v-model="notify" label="给投递人发邮件" />
                   <template v-if="notify">
+                    <TxFormItem v-if="choice" label="用哪一套信">
+                      <label class="fill-width">
+                        <span class="sr-only">用哪一套信</span>
+                        <TxSelect v-model="templateId" :options="choice.options" class="fill-width" :searchable="false" panel-background="pure" />
+                      </label>
+                    </TxFormItem>
                     <template v-if="plan.letter === 'interview'">
                       <TxFormItem label="面试时间" required>
                         <template #default="field">
@@ -247,6 +277,7 @@ async function submit() {
                       />
                       <span v-if="shown.message" class="field-error">{{ shown.message }}</span>
                     </TxFormItem>
+                    <TxButton class="notice__preview" size="sm" variant="secondary" icon="i-carbon-view" :loading="preview.pending.value" @click="openPreview">预览这封信</TxButton>
                   </template>
                 </template>
                 <p class="hint notice__hint">{{ plan.hint }}</p>
@@ -282,6 +313,18 @@ async function submit() {
         </div>
       </div>
     </template>
+
+    <TxModal v-model="previewOpen" title="这封信发出去的样子" width="min(94vw, 720px)">
+      <p class="hint">用这份投递的真实内容渲染，不会发出，也不改状态。还没填的面试时间、地点显示为待填。</p>
+      <ErrorAlert v-if="preview.error.value" :error="preview.error.value" @close="preview.reset()" />
+      <LoadingBlock v-else-if="preview.pending.value" :lines="6" />
+      <MailPreviewFrame v-else-if="rendered" class="letter-frame" :html="rendered.html" :text="rendered.text" :subject="rendered.subject" />
+      <template #footer>
+        <div class="dialog-actions">
+          <TxButton variant="secondary" @click="previewOpen = false">关闭</TxButton>
+        </div>
+      </template>
+    </TxModal>
   </div>
 </template>
 
@@ -379,6 +422,17 @@ async function submit() {
 .notice__hint {
   margin: 0;
   overflow-wrap: anywhere;
+}
+.notice__preview {
+  align-self: flex-start;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.letter-frame {
+  --mail-frame-height: min(560px, calc(100dvh - 300px));
 }
 .field-error.notice__error {
   margin-top: 0;

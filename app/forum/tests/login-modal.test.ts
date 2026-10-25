@@ -18,7 +18,7 @@ const NONE: SigninLapse = { count: 0, ended: false, failed: null, message: null 
 function setup(lapse: SigninLapse = NONE, stillSignedIn = false, holdMe = false) {
   const toast = vi.fn()
   const signIn = vi.fn()
-  const account = ref<SiteAccount | null>({ login: 'ada', avatarUrl: null, consoleLink: false })
+  const account = ref<SiteAccount | null>({ login: 'ada', avatarUrl: null, consoleLink: false, forumTheme: null })
   let answer!: () => void
   const answered = new Promise<void>((resolve) => {
     answer = resolve
@@ -26,7 +26,7 @@ function setup(lapse: SigninLapse = NONE, stillSignedIn = false, holdMe = false)
   /** What /auth/me says when asked again; held until the test calls `answer()` (answered at once unless `holdMe`). */
   const refresh = vi.fn(async () => {
     await answered
-    account.value = stillSignedIn ? { login: 'ada', avatarUrl: null, consoleLink: false } : null
+    account.value = stillSignedIn ? { login: 'ada', avatarUrl: null, consoleLink: false, forumTheme: null } : null
   })
   const server = reactive({ signinLapse: lapse })
   const states = new Map<string, Ref<unknown>>()
@@ -66,7 +66,7 @@ describe('LoginModal when the server ends the sign-in (#164)', () => {
     expect(refresh).not.toHaveBeenCalled()
     expect(toast).toHaveBeenCalledTimes(1)
     const shown = toast.mock.calls[0]![0] as { id: string, title: string, description: string, action: { label: string, onClick: () => void } }
-    expect(shown).toMatchObject({ id: 'forum-signin-lapsed', title: '没有加上书签', description: '登录已失效，请重新用 GitHub 登录。不登录也能看帖和回复。', variant: 'warning' })
+    expect(shown).toMatchObject({ id: 'forum-signin-lapsed', title: '没有加上书签', description: '登录已失效，请重新登录。不登录只能看公开的帖子。', variant: 'warning' })
     expect(shown).not.toHaveProperty('signIn')
     expect(shown.action.label).toBe('登录')
     shown.action.onClick()
@@ -98,19 +98,19 @@ describe('LoginModal when the server ends the sign-in (#164)', () => {
     await vi.waitFor(() => expect(toast).toHaveBeenCalledTimes(1))
     expect(refresh).toHaveBeenCalledTimes(1)
     expect(account.value).toBeNull()
-    expect(toast.mock.calls[0]![0]).toMatchObject({ id: 'forum-signin-lapsed', title: '没有赞上', description: '登录已失效，请重新用 GitHub 登录。不登录也能看帖和回复。', action: { label: '登录' } })
+    expect(toast.mock.calls[0]![0]).toMatchObject({ id: 'forum-signin-lapsed', title: '没有赞上', description: '登录已失效，请重新登录。不登录只能看公开的帖子。', action: { label: '登录' } })
   })
 
-  it('says what failed and that the account is not in the organisation when /auth/me still has the person signed in', async () => {
+  it('says what failed and that the account is disabled when /auth/me still has the person signed in', async () => {
     const { toast, account, server, answer } = setup(NONE, true, true)
     server.signinLapse = { count: 1, ended: false, failed: '没有赞上', message: '登录后才能操作' }
     await nextTick()
-    // Until /auth/me answers, the page counts as signed out, so it never says 「这个账号不在组织里」 to someone whose sign-in is gone.
+    // Until /auth/me answers, the page counts as signed out, so it never says 「这个账号现在不能在论坛里发帖」 to someone whose sign-in is gone.
     expect(account.value).toBeNull()
     expect(toast).not.toHaveBeenCalled()
     answer()
     await vi.waitFor(() => expect(toast).toHaveBeenCalledTimes(1))
-    expect(account.value).toEqual({ login: 'ada', avatarUrl: null, consoleLink: false })
+    expect(account.value).toEqual({ login: 'ada', avatarUrl: null, consoleLink: false, forumTheme: null })
     expect(toast.mock.calls[0]![0]).toEqual({ id: 'forum-not-member', title: '没有赞上', description: access.UNAVAILABLE_COPY['not-member'].description, variant: 'warning' })
   })
 })

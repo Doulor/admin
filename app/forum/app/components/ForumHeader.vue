@@ -10,6 +10,7 @@ const session = useSessionStore()
 const forum = useForumStore()
 const router = useRouter()
 const colorMode = useColorMode()
+const theme = useForumTheme()
 
 const query = ref('')
 const isDark = computed(() => colorMode.value === 'dark')
@@ -26,8 +27,9 @@ function search(value: string) {
     go(`/search?q=${encodeURIComponent(q)}`)
 }
 
+// Dark ↔ light; 晴空 is picked in 设置 → 外观 (#276). Signed in, the account follows (useForumTheme).
 function toggleTheme() {
-  colorMode.preference = isDark.value ? 'light' : 'dark'
+  void theme.set(isDark.value ? 'light' : 'dark')
 }
 
 function logout() {
@@ -45,12 +47,12 @@ function logout() {
           `src` so the build rewrites it under app.baseURL (/forum/logo.png in
           the image). Decorative: the link's name is the visible site name.
         -->
-        <NuxtLink to="/" class="inline-flex items-center gap-2 text-inherit no-underline">
+        <NuxtLink to="/" class="min-w-0 inline-flex items-center gap-2 text-inherit no-underline">
           <img src="/logo.png" alt="" class="block h-7 w-7 shrink-0 object-contain">
-          <span class="text-lg font-semibold">{{ siteName }}</span>
+          <span class="min-w-0 truncate text-lg font-semibold">{{ siteName }}</span>
         </NuxtLink>
 
-        <TxFlex align="center" :gap="8" class="ml-auto">
+        <TxFlex align="center" :gap="isDesktop ? 8 : 0" class="ml-auto">
           <TxFlex v-if="isDesktop" align="center" :gap="6" class="w-64">
             <TxSearchInput
               v-model="query"
@@ -122,15 +124,14 @@ function logout() {
           </template>
 
           <!--
-            统一登录：只有这一个登录入口，走全站统一的 GitHub 登录（同一个 cookie）；登录后是头像菜单
+            统一登录（#262）：只有这一个「登录」入口，去极客班统一登录页 /signin（GitHub 只是登录方式之一，同一个 cookie）；登录后是头像菜单
             （AccountMenu：主页、资料、书签、通知、按权限出现的控制台、宣传主页、环境与版本、退出），
             不登录也能以游客身份看帖子，极客班论坛里还能回复。
           -->
           <template v-else-if="siteLogin">
             <AccountMenu v-if="account" :account="account" />
-            <!-- 手机顶栏放不下完整文字，只写「登录」，读屏仍读完整说明 -->
-            <TxButton v-else-if="loaded" variant="primary" size="sm" icon="i-carbon-logo-github" :aria-label="isDesktop ? undefined : '用 GitHub 登录'" @click="signIn">
-              {{ isDesktop ? '用 GitHub 登录' : '登录' }}
+            <TxButton v-else-if="loaded" variant="primary" size="sm" icon="i-carbon-login" @click="signIn">
+              登录
             </TxButton>
           </template>
           <TxButton v-else variant="primary" size="sm" @click="loginOpen = true">

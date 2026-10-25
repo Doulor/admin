@@ -1,0 +1,193 @@
+{
+  "version": 1,
+  "issue": 262,
+  "kind": "business",
+  "summary": "统一登录第六期（#262，所有者 2026-10-23 13:52「为什么设计的那么复杂，支持（两个密码例子，是所有者的真实密码，已本地核对，不公开）这样就行了啊」）：账号密码最短从 15 位降到 8 位，不要求大小写、数字或符号；上限仍是 UTF-8 72 字节，设密码的其它规则不变。",
+  "applications": [
+    "server",
+    "console"
+  ],
+  "domains": [
+    "identity",
+    "audit"
+  ],
+  "flows": [
+    "flow:identity.account.password",
+    "flow:identity.email.password",
+    "flow:identity.email.verify",
+    "flow:identity.account.view",
+    "flow:identity.providers"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "设密码的最短长度从 15 位改成 8 位，8 位以上的密码不论有没有大写、数字或符号都能设；只在账号页设、设密码要求这次登录不超过 10 分钟或填当前密码、登录时没账号与密码不对回同一个错误，这些规则不变。已经设过的密码照常能登录。",
+      "evidence": [
+        "app/server/src/lib/password-policy.ts",
+        "app/console/src/lib/account.ts",
+        "docs/decisions/0005-sso-extend-core-server.md"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "服务端 passwordError 的最短长度改用常量 PASSWORD_MIN_LENGTH = 8，POST /api/identity/password 不到 8 位回 400 password_too_short，提示「密码至少 8 位」；接口路径、请求与响应结构、其它错误码不变。POST /auth/email/password 只改了注释。",
+      "evidence": [
+        "app/server/src/lib/password-policy.ts",
+        "app/server/src/routes/identity/account.ts",
+        "app/server/src/routes/identity/email.ts"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "谁能设密码、谁能用密码登录不变：设密码仍要有效会话、账号已绑邮箱、这次登录不超过 10 分钟或填当前密码；登录后能力仍只按站内角色与称号给。",
+      "evidence": [
+        "app/server/src/routes/identity/account.ts",
+        "docs/architecture/SECURITY.md"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "不改表和字段，users.password_hash 仍存 bcrypt cost 12 的散列；已有的散列不用迁移。",
+      "evidence": [
+        "app/server/src/lib/password-policy.ts",
+        "docs/services/server/endpoint-contracts.md"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新增依赖或外部调用，仍用 bcryptjs；按 IP 每分钟 10 次、按邮箱 15 分钟 10 次的限次不变，短密码的在线猜测靠它挡。设密码、密码登录照旧写 identity_audit（audit 域），写入内容不变。",
+      "evidence": [
+        "app/server/src/lib/password-policy.ts",
+        "docs/architecture/SECURITY.md"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "把「至少 15 位」改成「至少 8 位」：接口文档、安全说明（中英）、服务端与控制台服务契约；ADR-0005 加「2026-10-23 第三次修订」记下所有者原话和代价。",
+      "evidence": [
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/architecture/SECURITY.en.md",
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/services/server/README.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "服务端测试改成 7 位被拒（提示「密码至少 8 位」）、正好 8 位能设并能用邮箱加密码登录；控制台测试核对页面检查与服务端在 7、8、15、72、73 位等边界上结果一致（8 位纯字母也通过），注册表单 8 位通过。未验证：预发布上真人设短密码后登录，等所有者自己设。",
+      "evidence": [
+        "tests/server/signin-methods.test.ts",
+        "tests/console/account.test.ts",
+        "tests/console/signin.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "随 server 与 web（控制台）镜像发布，不改环境变量和部署配置；回滚只需 revert 合并提交，已经按 8 位设的密码在回滚后照常能登录（登录不检查长度），只是不能再设新的短密码。",
+      "evidence": [
+        "app/server/src/lib/password-policy.ts",
+        "docs/services/server/README.md"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/server/src/lib/password-policy.ts",
+        "app/server/src/routes/identity/account.ts",
+        "app/server/src/routes/identity/email.ts"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "domain:identity",
+        "route:POST /api/identity/password",
+        "route:POST /auth/email/password",
+        "table:users",
+        "flow:identity.account.password",
+        "flow:identity.email.password"
+      ],
+      "reason": "服务端密码规则：最短 8 位，设密码接口的提示跟着常量走。"
+    },
+    {
+      "paths": [
+        "app/console/src/lib/account.ts",
+        "app/console/src/pages/Account.vue",
+        "app/console/src/pages/SignIn.vue"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "domain:identity",
+        "flow:identity.account.password",
+        "flow:identity.email.password",
+        "flow:identity.email.verify",
+        "flow:identity.account.view",
+        "flow:identity.providers"
+      ],
+      "reason": "控制台账号页（flow:identity.account.view 的页面）与登录页（flow:identity.providers 的页面，含注册的可选密码与密码登录）在提交前按同一条规则检查，提示文字改成至少 8 位。"
+    },
+    {
+      "paths": [
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/architecture/SECURITY.en.md",
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/services/server/README.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/console/README.md",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md",
+        "docs/architecture/catalog/ownership.json"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "domain:identity",
+        "route:POST /api/identity/password"
+      ],
+      "reason": "文档与流程登记（ownership.json 里设密码流程的错误说明）里的最短长度跟着改，ADR 记下所有者的决定；项目目录随源码重新生成。"
+    },
+    {
+      "paths": [
+        "tests/server/signin-methods.test.ts",
+        "tests/console/account.test.ts",
+        "tests/console/signin.test.ts"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "flow:identity.account.password",
+        "flow:identity.email.password"
+      ],
+      "reason": "回归：服务端 7 位被拒、8 位能设能登录；页面检查与服务端规则一致。"
+    }
+  ],
+  "documents": [
+    "docs/architecture/API.md",
+    "docs/architecture/SECURITY.md",
+    "docs/architecture/SECURITY.en.md",
+    "docs/decisions/0005-sso-extend-core-server.md",
+    "docs/services/server/README.md",
+    "docs/services/server/endpoint-contracts.md",
+    "docs/services/console/README.md"
+  ],
+  "tests": [
+    "tests/server/signin-methods.test.ts",
+    "tests/console/account.test.ts",
+    "tests/console/signin.test.ts"
+  ],
+  "compatibility": "接口和响应结构不变，只是原来会回 password_too_short 的 8 到 14 位密码现在能设；已经设过的密码照常能登录。新版本部署前就打开、没刷新的旧页面，本地检查仍按 15 位拦下 8 到 14 位的密码，刷新后按新规则。",
+  "migration": "没有数据迁移：不改表，已有的 bcrypt 散列不用动。",
+  "rollback": "在 stage 上 git revert -m 1 合并提交并重新发 rc；回滚后已经设下的短密码仍能登录（登录只比对散列），只是不能再设不到 15 位的新密码。"
+}

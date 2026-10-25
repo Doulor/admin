@@ -111,13 +111,6 @@
 .pt-tag.is-doing { background: var(--pt-cobalt-soft); color: var(--pt-cobalt); }
 .pt-tag.is-no { background: rgb(193 57 57 / 10%); color: #a82f2f; }
 
-/* 邀请加入 */
-.pt-invite { width: min(620px, 100%); margin: 0 auto; }
-.pt-page-main:has(.pt-invite) { display: grid; align-content: center; }
-.pt-invite-state h1 { margin: 6px 0 8px; font-size: 28px; }
-.pt-invite-state p { color: var(--pt-ink-soft); }
-.pt-invite-next { margin-top: 8px; }
-
 @media (max-width: 860px) {
   .pt-docs, .pt-feedback { grid-template-columns: minmax(0, 1fr); }
   .pt-docs-nav { position: static; }

@@ -11,7 +11,7 @@ vi.mock("../../app/web/sites/portal/components/PageShell", () => ({
   WindowCard: ({ children }: { children: ReactNode }) => children,
 }));
 
-import Feedback from "../../app/web/sites/portal/pages/Feedback";
+import FeedbackBox from "../../app/web/sites/portal/components/os/FeedbackBox";
 
 const ORG = "Yangtze-University-Geek-Class";
 let posted: { org?: string; content?: string; pow?: unknown } | null = null;
@@ -53,11 +53,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const orgField = () => screen.getByLabelText("发往的 GitHub 组织") as HTMLInputElement;
+const orgField = () => screen.getByLabelText("发往的组织") as HTMLInputElement;
 const submitButton = () => screen.getByRole("button", { name: /提交意见/ }) as HTMLButtonElement;
 
 it("组织框只读展示本站组织", async () => {
-  render(<Feedback />);
+  render(<FeedbackBox />);
   await waitFor(() => expect(orgField().value).toBe(ORG));
   expect(orgField().readOnly).toBe(true);
   // 「这里改不了」的说明挂在框上，读屏聚焦到框时一起读出
@@ -66,7 +66,7 @@ it("组织框只读展示本站组织", async () => {
 });
 
 it("提交体里的组织是本站组织，页面没有可改的入口", async () => {
-  render(<Feedback />);
+  render(<FeedbackBox />);
   // 表单里只有组织框指向本站组织；联系方式等其它输入框都不影响它。
   expect(screen.getAllByRole("textbox")).toHaveLength(3);
   expect(orgField().value).toBe(ORG);
@@ -83,7 +83,7 @@ it("提交体里的组织是本站组织，页面没有可改的入口", async (
 
 it("服务端下发的组织名与站点配置不同时，页面照服务端的展示、读列表和提交", async () => {
   servedOrg = "Some-Other-Org";
-  render(<Feedback />);
+  render(<FeedbackBox />);
   await waitFor(() => expect(orgField().value).toBe("Some-Other-Org"));
   await waitFor(() => expect(publicQueries.at(-1)).toBe("Some-Other-Org"));
   expect(screen.getByText("Some-Other-Org 还没有公开的意见。")).toBeTruthy();
@@ -96,7 +96,7 @@ it("服务端下发的组织名与站点配置不同时，页面照服务端的�
 it("categories 没读到时不让提交，点「重新读取」读到服务端的组织名后才能提交", async () => {
   categoriesFailures = 1;
   servedOrg = "Some-Other-Org";
-  render(<Feedback />);
+  render(<FeedbackBox />);
   const alert = await screen.findByRole("alert");
   expect(alert.textContent).toContain("暂时不能提交");
   // 只有站点配置里的组织名可展示，正文写够了也提交不了

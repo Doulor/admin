@@ -7,26 +7,33 @@ import { TxFilterChips } from "@talex-touch/tuffex/filter-chips";
 import { TxSearchInput } from "@talex-touch/tuffex/search-input";
 import { TxButton } from "@talex-touch/tuffex/button";
 import { TxCellLink } from "@talex-touch/tuffex/cell-link";
+import { TxCardItem } from "@talex-touch/tuffex/card-item";
 import { TxEmptyState } from "@talex-touch/tuffex/empty-state";
 import { TxPagination } from "@talex-touch/tuffex/pagination";
 import { TxTooltip } from "@talex-touch/tuffex/tooltip";
+import { TxSwitch } from "@talex-touch/tuffex/switch";
+import { toast } from "@talex-touch/tuffex/utils";
 import PageHeader from "../components/PageHeader.vue";
 import ToneTag from "../components/ToneTag.vue";
+import ErrorAlert from "../components/ErrorAlert.vue";
 import ErrorPanel from "../components/ErrorPanel.vue";
 import LoadingBlock from "../components/LoadingBlock.vue";
-import { api } from "../lib/http";
+import { api, jsonBody } from "../lib/http";
+import { applySwitchConfirm, applySwitchSaved, applySwitchView } from "../lib/applications";
+import { confirm } from "../lib/confirm";
 import { fmtDate, fmtRelative } from "../lib/format";
+import { nodeLabel } from "../lib/permission-nodes";
 import { isMock } from "../lib/runtime";
-import { useResource } from "../lib/resource";
+import { useAction, useResource } from "../lib/resource";
 import { useSession } from "../lib/session";
-import { toneColor } from "../lib/titles";
+import { toneColor } from "../lib/tone";
 import { APPLICATION_STATUS, APPLICATION_STATUSES, isApplicationStatus, statusMeta } from "../lib/statuses";
-import type { ApplicationItem, ApplicationList } from "../lib/types";
+import type { ApplicationItem, ApplicationList, ApplySettings } from "../lib/types";
 
 const PAGE_SIZE = 20;
 const route = useRoute();
 const router = useRouter();
-const { can, catalogue } = useSession();
+const { can } = useSession();
 
 const status = computed(() => (isApplicationStatus(route.query.status) ? route.query.status : ""));
 const q = computed(() => (typeof route.query.q === "string" ? route.query.q : ""));
@@ -41,6 +48,20 @@ const list = useResource(() => {
   return api<ApplicationList>(`/api/console/applications?${query}`);
 }, [status, q, page]);
 
+// 招新总开关（#284）：读随 apply.view，改要 apply.settings 并且刚登录过。开关是受控的，服务端确认之后才换成新状态；
+// 点之前先确认一次，失败时（含要求重新登录）开关留在原状态，横幅里说明原因。
+const settings = useResource(() => api<ApplySettings>("/api/console/applications/settings"));
+const switchView = computed(() => (settings.data.value ? applySwitchView(settings.data.value) : null));
+const change = useAction(async (next: boolean) => {
+  const saved = await api<ApplySettings>("/api/console/applications/settings", { method: "PATCH", ...jsonBody({ open: next }) });
+  settings.data.value = saved;
+  toast({ title: applySwitchSaved(saved.open), variant: "success" });
+});
+async function askChange(next: boolean) {
+  if (next === settings.data.value?.open) return;
+  if (await confirm(applySwitchConfirm(next))) await change.execute(next);
+}
+
 function setQuery(next: Record<string, string | undefined>) {
   const merged: Record<string, string> = {};
   for (const [key, value] of Object.entries({ ...route.query, ...next })) if (typeof value === "string" && value) merged[key] = value;
@@ -50,7 +71,7 @@ function setQuery(next: Record<string, string | undefined>) {
 const total = computed(() => Object.values(list.data.value?.counts ?? {}).reduce((sum, n) => sum + n, 0));
 const chips = computed(() => [
   { value: "", label: "全部", count: total.value },
-  ...APPLICATION_STATUSES.map(id => ({ value: id, label: APPLICATION_STATUS[id].label, count: list.data.value?.counts[id] ?? 0, dot: toneColor(APPLICATION_STATUS[id].tone, catalogue.value) })),
+  ...APPLICATION_STATUSES.map(id => ({ value: id, label: APPLICATION_STATUS[id].label, count: list.data.value?.counts[id] ?? 0, dot: toneColor(APPLICATION_STATUS[id].tone) })),
 ]);
 
 const columns = [
@@ -66,9 +87,9 @@ const exportHref = computed(() => `/api/console/applications/export.csv${status.
 
 <template>
   <div class="page">
-    <PageHeader title="投递管理" description="官网「投递简历」收到的投递。打开详情和导出都会记入审计日志。">
+    <PageHeader title="投递管理" description="官网「投递简历」收到的投递。打开详情和导出都会记入操作记录。">
       <template #actions>
-        <template v-if="can('applications.export')">
+        <template v-if="can('apply.export')">
           <TxTooltip v-if="isMock()" content="开发预览不能导出，请连接本地后端">
             <TxButton icon="i-carbon-download" disabled>导出 CSV</TxButton>
           </TxTooltip>
@@ -78,6 +99,24 @@ const exportHref = computed(() => `/api/console/applications/export.csv${status.
         </template>
       </template>
     </PageHeader>
+
+    <ErrorAlert v-if="change.error.value" :error="change.error.value" @close="change.reset()" />
+    <TxCard class="apply-switch" aria-label="招新开关">
+      <template v-if="switchView && settings.data.value">
+        <div class="apply-switch__text">
+          <p class="apply-switch__title">{{ switchView.title }}</p>
+          <p class="apply-switch__hint">{{ switchView.hint }}</p>
+          <p v-if="switchView.changed" class="apply-switch__hint">{{ switchView.changed }}</p>
+        </div>
+        <TxSwitch v-if="can('apply.settings')" :model-value="settings.data.value.open" :loading="change.pending.value" aria-label="招新投递" @change="askChange" />
+        <p v-else class="apply-switch__hint">没有「{{ nodeLabel("apply.settings") }}」权限，只能查看。</p>
+      </template>
+      <template v-else-if="settings.error.value">
+        <p class="apply-switch__hint">读不到招新开关的状态。</p>
+        <TxButton @click="settings.reload">重试</TxButton>
+      </template>
+      <p v-else class="apply-switch__hint" role="status">正在读取招新开关…</p>
+    </TxCard>
 
     <div class="toolbar">
       <TxFilterChips :model-value="status" :items="chips" aria-label="按状态筛选" @update:model-value="value => setQuery({ status: String(value) || undefined, page: undefined })" />
@@ -89,7 +128,7 @@ const exportHref = computed(() => `/api/console/applications/export.csv${status.
     <ErrorPanel v-if="list.error.value" :error="list.error.value" :retry="list.reload" />
     <LoadingBlock v-else-if="!list.data.value" :lines="8" />
     <TxCard v-else :padding="0" class="table-card">
-      <TxDataTable style="--table-min: 680px" :columns="columns" :data="list.data.value.items" row-key="id" table-layout="fixed" scroll-x :loading="list.loading.value" @row-click="({ row }: { row: ApplicationItem }) => router.push(detailHref(row))">
+      <TxDataTable class="applications-table" style="--table-min: 680px" :columns="columns" :data="list.data.value.items" row-key="id" table-layout="fixed" scroll-x :loading="list.loading.value" @row-click="({ row }: { row: ApplicationItem }) => router.push(detailHref(row))">
         <template #cell-name="{ row }: { row: ApplicationItem }">
           <span class="cell-stack">
             <TxCellLink :href="detailHref(row)" :label="row.name" @open="router.push(detailHref(row))" />
@@ -120,6 +159,29 @@ const exportHref = computed(() => `/api/console/applications/export.csv${status.
           />
         </template>
       </TxDataTable>
+      <!-- 窄屏一人一张卡，点开同一个详情页；宽屏只显示上面的表格（和用户页同一做法）。 -->
+      <div class="application-cards">
+        <ul v-if="list.data.value.items.length" class="application-cards__list" :aria-busy="list.loading.value || undefined">
+          <li v-for="row in list.data.value.items" :key="row.id">
+            <TxCardItem clickable role="button" :aria-label="`打开 ${row.name} 的投递`" class="application-card" @click="router.push(detailHref(row))">
+              <template #title>{{ row.name }}</template>
+              <template #subtitle>{{ row.class_name }} · <span :title="fmtDate(row.created_at)">{{ fmtRelative(row.created_at) }}</span></template>
+              <template #right><ToneTag :tone="statusMeta(row.status).tone" :label="statusMeta(row.status).label" /></template>
+              <template #description>
+                <span class="clamp-2">{{ row.strengths_excerpt }}</span>
+                <span class="application-card__meta mono ellipsis">{{ row.email }}<template v-if="row.last_review"> · @{{ row.last_review.reviewer }}</template></span>
+              </template>
+            </TxCardItem>
+          </li>
+        </ul>
+        <TxEmptyState
+          v-else
+          :variant="q || status ? 'search-empty' : 'no-data'"
+          :title="q || status ? '没有符合条件的投递' : '还没有收到投递'"
+          :description="q || status ? '换一个状态或关键词再试。' : '官网有人投递后会出现在这里。'"
+          size="small"
+        />
+      </div>
       <div v-if="list.data.value.total > PAGE_SIZE" class="pager">
         <TxPagination :current-page="page" :page-size="PAGE_SIZE" :total="list.data.value.total" show-info @update:current-page="(value: number) => setQuery({ page: value > 1 ? String(value) : undefined })" />
       </div>
@@ -128,6 +190,30 @@ const exportHref = computed(() => `/api/console/applications/export.csv${status.
 </template>
 
 <style scoped>
+.apply-switch :deep(.tx-card__body) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.apply-switch__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.apply-switch__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tx-text-color-primary);
+}
+.apply-switch__hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--tx-text-color-secondary);
+}
 .search {
   width: min(280px, 100%);
 }
@@ -147,6 +233,41 @@ const exportHref = computed(() => `/api/console/applications/export.csv${status.
   padding: 12px 16px;
   border-top: 1px solid var(--tx-border-color-lighter);
 }
+.application-cards {
+  display: none;
+}
+.application-cards__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.application-cards__list[aria-busy] {
+  opacity: 0.6;
+}
+.application-cards__list li + li {
+  border-top: 1px solid var(--tx-border-color-lighter);
+}
+.application-card {
+  --tx-card-item-padding: 14px 16px;
+  --tx-card-item-radius: 0;
+  min-height: 44px;
+}
+.application-card :deep(.tx-card-item__title) {
+  font-size: 15px;
+  font-weight: 500;
+}
+.application-card :deep(.tx-card-item__desc) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--tx-text-color-regular);
+}
+.application-card__meta {
+  font-size: 12px;
+  color: var(--tx-text-color-secondary);
+}
 @media (max-width: 900px) {
   .toolbar__end {
     margin-left: 0;
@@ -154,6 +275,14 @@ const exportHref = computed(() => `/api/console/applications/export.csv${status.
   }
   .search {
     width: 100%;
+  }
+}
+@media (max-width: 640px) {
+  .applications-table {
+    display: none;
+  }
+  .application-cards {
+    display: block;
   }
 }
 </style>

@@ -1,0 +1,373 @@
+{
+  "version": 1,
+  "issue": 280,
+  "kind": "business",
+  "summary": "#280 验收后的修正（所有者 2026-10-24 22:05：「少了一个已毕业，年级里面必须包含已毕业，而且必须是极客班成员才要填这些」）：年级下拉框加「已毕业」（存成五年前入学，之后一直算已毕业）；补资料关口只拦极客班的人（权限等级是成员或往届成员），普通注册用户不用填；邮箱注册只有填了邀请码才要姓名和年级，没填邀请码可以不填，填了一项就两项都要。",
+  "applications": [
+    "server",
+    "console"
+  ],
+  "domains": [
+    "identity",
+    "audit",
+    "competitions",
+    "feedback",
+    "forum",
+    "gitlab",
+    "invitations",
+    "mail",
+    "organization",
+    "permissions",
+    "platform",
+    "recruitment",
+    "github",
+    "public_content"
+  ],
+  "flows": [
+    "flow:identity.current",
+    "flow:identity.account.real_info",
+    "flow:identity.callback",
+    "flow:identity.google.callback",
+    "flow:identity.oidc.interaction",
+    "flow:identity.oidc.details",
+    "flow:identity.oidc.confirm",
+    "flow:identity.device.approve",
+    "flow:identity.device.userinfo",
+    "flow:console.identity",
+    "flow:identity.account.view",
+    "flow:identity.email.verify",
+    "flow:identity.email.password",
+    "flow:identity.email.reset",
+    "flow:users.list",
+    "flow:users.update",
+    "flow:platform.public_config",
+    "flow:application.submit",
+    "flow:competition.public.list",
+    "flow:feedback.public.list",
+    "flow:documentation.list",
+    "flow:gitlab.projects.public.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "年级可以选已毕业；只有成员和往届成员要补姓名和年级，注册用户不被带去补资料页；邮箱注册不填邀请码时不要求姓名和年级。",
+      "evidence": [
+        "app/server/src/lib/email-gate.ts",
+        "app/server/src/lib/identity-store.ts",
+        "app/server/src/lib/grade.ts",
+        "app/server/src/routes/identity/email.ts",
+        "app/console/src/pages/SignIn.vue",
+        "app/console/src/pages/CompleteProfile.vue"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "profileRequired 先看 identity.isMember（账号启用且在 level.member 或 level.alumni 组），再看资料缺没缺；grade 合同改成 1–4 或 \"graduated\"；/auth/email/verify 只在带邀请码或带了姓名、年级之一时才校验这两项。接口字段不变。",
+      "evidence": [
+        "app/server/src/lib/email-gate.ts",
+        "app/server/src/lib/identity-store.ts",
+        "app/server/src/lib/grade.ts",
+        "app/server/src/routes/identity/email.ts",
+        "app/server/src/routes/identity/contracts.ts",
+        "app/server/src/routes/console/contracts.ts"
+      ]
+    },
+    "permissions": {
+      "status": "changed",
+      "reason": "补资料关口按权限引擎的等级组判断谁要填，不再对所有账号生效；不加节点，不改谁能看真实姓名。",
+      "evidence": [
+        "app/server/src/lib/identity-store.ts",
+        "app/server/src/lib/email-gate.ts"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "不加表不加列；选已毕业时照旧写 account_profiles.enrollment_year，没有迁移。",
+      "evidence": [
+        "app/server/src/lib/grade.ts"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新增或升级依赖，package.json 和锁文件都没动；只改了已有模块里的判断和文案。",
+      "evidence": [
+        "app/server/src/lib/grade.ts"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "接口合同、服务端和控制台文档写明已毕业可选、只拦成员和往届成员、注册时什么情况要填。",
+      "evidence": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/services/console/README.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "real-info、bearer-auth、signin-methods 的用例改成成员才被拦、注册用户直接回原页，加了成员兑换邀请码后再登录先去补资料、已毕业可选且一直是已毕业、不填邀请码注册不带姓名年级的用例；控制台用例加了非成员不拦、抽屉里已毕业可选。未验证：预发布上用真实账号走一遍（发 rc 后在浏览器验收）。",
+      "evidence": [
+        "tests/server/real-info.test.ts",
+        "tests/server/grade.test.ts",
+        "tests/server/signin-methods.test.ts",
+        "tests/server/bearer-auth.test.ts",
+        "tests/console/signin.test.ts",
+        "tests/console/users.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "unchanged",
+      "reason": "不改镜像、部署和发布流程。",
+      "evidence": [
+        "app/server/src/lib/grade.ts"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/server/src/lib/grade.ts"
+      ],
+      "domains": [
+        "identity",
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "gitlab",
+        "invitations",
+        "mail",
+        "organization",
+        "permissions",
+        "platform",
+        "recruitment",
+        "public_content"
+      ],
+      "nodes": [
+        "application:server",
+        "table:account_profiles",
+        "flow:identity.current",
+        "flow:identity.account.real_info",
+        "flow:platform.public_config",
+        "flow:application.submit",
+        "flow:competition.public.list",
+        "flow:feedback.public.list",
+        "flow:documentation.list",
+        "flow:gitlab.projects.public.list"
+      ],
+      "reason": "年级合同加已毕业：选已毕业存成五年前入学。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/email-gate.ts",
+        "app/server/src/lib/identity-store.ts"
+      ],
+      "domains": [
+        "identity",
+        "audit",
+        "organization",
+        "permissions",
+        "forum",
+        "github",
+        "invitations",
+        "platform"
+      ],
+      "nodes": [
+        "application:server",
+        "flow:identity.callback",
+        "flow:identity.google.callback",
+        "flow:identity.oidc.interaction",
+        "flow:identity.oidc.details",
+        "flow:identity.oidc.confirm",
+        "flow:identity.device.approve",
+        "flow:identity.device.userinfo",
+        "flow:console.identity",
+        "flow:identity.current"
+      ],
+      "reason": "补资料关口先看是不是成员或往届成员（identity-store 的 isMember），注册用户不拦。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/identity/contracts.ts",
+        "app/server/src/routes/identity/email.ts"
+      ],
+      "domains": [
+        "identity",
+        "audit",
+        "invitations"
+      ],
+      "nodes": [
+        "application:server",
+        "flow:identity.account.view",
+        "flow:identity.account.real_info",
+        "flow:identity.email.verify",
+        "flow:identity.email.password",
+        "flow:identity.email.reset"
+      ],
+      "reason": "邮箱注册只有带邀请码或带了姓名、年级之一时才校验实名；年级合同加 graduated。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/console/contracts.ts"
+      ],
+      "domains": [
+        "permissions",
+        "identity",
+        "audit",
+        "competitions",
+        "feedback",
+        "gitlab",
+        "organization",
+        "recruitment",
+        "forum"
+      ],
+      "nodes": [
+        "application:server",
+        "flow:users.list",
+        "flow:users.update"
+      ],
+      "reason": "控制台改年级的合同加 graduated。"
+    },
+    {
+      "paths": [
+        "app/console/src/lib/grade.ts",
+        "app/console/src/lib/types.ts",
+        "app/console/src/pages/CompleteProfile.vue"
+      ],
+      "domains": [
+        "identity",
+        "organization",
+        "permissions",
+        "audit",
+        "competitions",
+        "feedback",
+        "github",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:identity.account.real_info",
+        "flow:identity.account.view",
+        "flow:console.identity",
+        "flow:identity.device.approve",
+        "flow:identity.oidc.confirm"
+      ],
+      "reason": "补资料页的年级选项加已毕业，说明改成成员要实名。"
+    },
+    {
+      "paths": [
+        "app/console/src/lib/signin.ts",
+        "app/console/src/pages/SignIn.vue"
+      ],
+      "domains": [
+        "identity",
+        "invitations",
+        "audit",
+        "competitions",
+        "feedback",
+        "github",
+        "organization",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:identity.email.verify"
+      ],
+      "reason": "登录页注册：没填邀请码时姓名和年级可以不填。"
+    },
+    {
+      "paths": [
+        "app/console/src/lib/users.ts",
+        "app/console/src/pages/users/UserDrawer.vue"
+      ],
+      "domains": [
+        "permissions",
+        "identity",
+        "audit",
+        "competitions",
+        "feedback",
+        "github",
+        "organization",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:users.list",
+        "flow:users.update"
+      ],
+      "reason": "用户抽屉的年级下拉框能选已毕业。"
+    },
+    {
+      "paths": [
+        "tests/server/bearer-auth.test.ts",
+        "tests/server/grade.test.ts",
+        "tests/server/real-info.test.ts",
+        "tests/server/signin-methods.test.ts"
+      ],
+      "domains": [
+        "identity",
+        "audit",
+        "permissions"
+      ],
+      "nodes": [
+        "application:server",
+        "flow:identity.account.real_info",
+        "flow:identity.email.verify",
+        "flow:identity.oidc.interaction",
+        "flow:users.update"
+      ],
+      "reason": "服务端用例：成员才被拦、已毕业可选、不填邀请码注册不带实名。"
+    },
+    {
+      "paths": [
+        "tests/console/signin.test.ts",
+        "tests/console/users.test.ts"
+      ],
+      "domains": [
+        "identity",
+        "permissions"
+      ],
+      "nodes": [
+        "application:console",
+        "application:web",
+        "flow:identity.email.verify",
+        "flow:users.update",
+        "flow:identity.current"
+      ],
+      "reason": "控制台用例：非成员不拦、抽屉里已毕业可选。"
+    },
+    {
+      "paths": [
+        "docs/services/console/README.md",
+        "docs/services/server/README.md",
+        "docs/services/server/endpoint-contracts.md"
+      ],
+      "domains": [
+        "identity",
+        "audit",
+        "permissions"
+      ],
+      "nodes": [
+        "application:server",
+        "flow:identity.account.real_info"
+      ],
+      "reason": "接口合同、服务端和控制台文档跟着改。"
+    }
+  ],
+  "documents": [
+    "docs/services/server/endpoint-contracts.md",
+    "docs/services/server/README.md",
+    "docs/services/console/README.md"
+  ],
+  "tests": [
+    "tests/server/real-info.test.ts",
+    "tests/server/grade.test.ts",
+    "tests/server/signin-methods.test.ts",
+    "tests/server/bearer-auth.test.ts",
+    "tests/console/signin.test.ts",
+    "tests/console/users.test.ts"
+  ],
+  "compatibility": "接口字段不变，只是 profile_required 对注册用户变成 false、grade 多了 \"graduated\" 这个可提交的值。旧版控制台不认识已毕业选项时照旧能选大一到大四；旧版登录页不填邀请码注册时会带上姓名和年级，服务端照常接受。",
+  "migration": "没有数据迁移：不加表不加列，已有的 account_profiles 行不改；已经被要求补资料的注册用户上线后下次打开页面不再被带去补资料页。",
+  "rollback": "回滚这次合并、换回上一版镜像：补资料关口重新对所有账号生效，已经选了已毕业的账号读出来仍是已毕业（入学年份早于四年前）。"
+}

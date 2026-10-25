@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-// 桌面入口一跳直达（#185）：论坛、GitHub 组织的每个入口（桌面图标、Dock、2/3 键、菜单栏「前往」、⌘K、便签两条、终端）
-// 都当场打开 osApps 给的地址，不经过 /forum-3d、/github 场景页；「加入我们」照旧飞图标再进 /join-us。
+// 桌面入口一跳直达（#185）：论坛的每个入口（桌面图标、Dock、2 键、菜单栏「前往」、⌘K、便签、终端）都当场打开 osApps 给的地址，
+// 不经过 /forum-3d 场景页；「代码仓库」（#275）的同一批入口在桌面上开窗口，不离开官网；GitHub 组织应用已经删掉；
+// 「加入我们」（#279）也在桌面上开窗口，旧地址 /join-us、/apply 跳到 /?open=join。
 // jsdom 改不了 window.location.assign，所以把 osApps 的 followAppLink 换成记录调用的假函数，地址仍由真的 appLink 算。
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 // react-router-dom 只装在 app/web 里，vitest.config.ts 给它设了别名，和桌面用的是同一份
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -21,11 +22,17 @@ vi.mock("../../app/web/sites/portal/lib/wallpapers", async (importOriginal) => (
   prefetchWallpapersWhenIdle: () => () => undefined,
 }));
 
+// 旧地址跳转的用例只看 App 的路由表，首页换成显示当前地址的桩，不播开机动画
+vi.mock("../../app/web/sites/portal/pages/Home", async () => {
+  const { useLocation: useWhere } = await import("react-router-dom");
+  return { default: () => <output data-testid="home-at">{`${useWhere().pathname}${useWhere().search}`}</output> };
+});
+
+import App from "../../app/web/sites/portal/App";
 import YugcOs from "../../app/web/sites/portal/components/os/YugcOs";
-import { RESUME_DESKTOP, links, wantsDesktop } from "../../app/web/sites/portal/lib/links";
+import { links } from "../../app/web/sites/portal/lib/links";
 
 const FORUM = { href: links.forumHome(), newTab: false };
-const GITHUB = { href: "https://github.com/Yangtze-University-Geek-Class", newTab: true };
 
 let reducedMotion = false;
 
@@ -44,6 +51,8 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   sessionStorage.clear();
+  // 点过便签的步骤就记下「看过」（lib/startNote.ts），不清掉的话后面的用例里便签不再出现
+  localStorage.clear();
 });
 
 function Where() {
@@ -60,7 +69,7 @@ function renderDesktop() {
   const view = render(
     <MemoryRouter initialEntries={["/"]}>
       <Routes>
-        <Route path="/" element={<YugcOs active onBack={() => undefined} />} />
+        <Route path="/" element={<YugcOs />} />
         <Route path="*" element={null} />
       </Routes>
       <Where />
@@ -73,45 +82,161 @@ function renderDesktop() {
 
 const dock = () => within(screen.getByRole("navigation", { name: "Dock" }));
 
-it("Dock、桌面图标、便签：论坛当前标签页直达论坛首页，GitHub 组织新标签页打开，点下去当场打开、路由不动", () => {
+/** 意见箱窗口要读的几个接口：分类和发往的组织、公开意见、站点配置 */
+function stubFeedbackApi() {
+  localStorage.setItem("yugc:dev-data-source", "live");
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    const body = url.startsWith("/api/feedback/categories") ? { categories: ["建议", "Bug"], pow_difficulty: 0, org: "geek" }
+      : url.startsWith("/api/feedback/public") ? { items: [] }
+        : url === "/api/public/config" ? { turnstile_site_key: null, pow_difficulty: 0 }
+          : { signed_in: false };
+    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  }));
+}
+
+it("Dock、桌面图标、便签：论坛当前标签页直达论坛首页，点下去当场打开、路由不动；GitHub 组织应用没有了", () => {
   const { container, where } = renderDesktop();
   fireEvent.click(dock().getByRole("button", { name: "论坛" }));
   expect(followed.calls).toEqual([FORUM]);
-  fireEvent.click(dock().getByRole("button", { name: "GitHub 组织（新标签页打开）" }));
-  expect(followed.calls).toEqual([FORUM, GITHUB]);
 
   // 桌面图标：鼠标单击只选中，双击打开
-  const icon = (id: string) => container.querySelector<HTMLElement>(`.pt-icons [data-cta="${id}"]`)!;
-  fireEvent.click(icon("forum"));
-  expect(followed.calls).toHaveLength(2);
-  fireEvent.doubleClick(icon("forum"));
-  fireEvent.doubleClick(icon("github"));
-  expect(followed.calls.slice(2)).toEqual([FORUM, GITHUB]);
+  const icon = (id: string) => container.querySelector<HTMLElement>(`.pt-icons [data-cta="${id}"]`);
+  fireEvent.click(icon("forum")!);
+  expect(followed.calls).toHaveLength(1);
+  fireEvent.doubleClick(icon("forum")!);
+  expect(followed.calls).toEqual([FORUM, FORUM]);
 
   fireEvent.click(screen.getByRole("button", { name: /去「论坛」看看/ }));
-  fireEvent.click(screen.getByRole("button", { name: /去「GitHub 组织」/ }));
-  expect(followed.calls.slice(4)).toEqual([FORUM, GITHUB]);
+  expect(followed.calls).toEqual([FORUM, FORUM, FORUM]);
 
-  // 没有图标飞行，也没有进场景页
-  expect(container.querySelector(".pt-flight")).toBeNull();
+  expect(icon("github")).toBeNull();
+  expect(dock().queryByRole("button", { name: /GitHub/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /去「GitHub 组织」/ })).toBeNull();
+  // 没有进场景页
+  expect(container.querySelector(".pt-scene")).toBeNull();
   expect(where()).toBe("/");
 });
 
-it("2、3 键与菜单栏「前往」同样直达", () => {
+it("意见箱在桌面上开窗口（#275）：Dock、桌面图标、⌘K 都打开同一个窗口，路由不动", async () => {
+  stubFeedbackApi();
+  const { container, where } = renderDesktop();
+  const boxes = () => screen.queryAllByRole("dialog", { name: "意见箱" });
+  const entries: Array<[string, () => void]> = [
+    ["Dock", () => fireEvent.click(dock().getByRole("button", { name: "意见箱" }))],
+    ["桌面图标", () => fireEvent.doubleClick(container.querySelector<HTMLElement>('.pt-icons [data-cta="feedback"]')!)],
+    ["⌘K", () => {
+      fireEvent.click(screen.getByRole("button", { name: /搜索/ }));
+      const input = screen.getByRole("combobox");
+      fireEvent.change(input, { target: { value: "意见" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+    }],
+  ];
+  for (const [name, open] of entries) {
+    open();
+    expect(boxes(), name).toHaveLength(1);
+    const win = within(boxes()[0]);
+    expect(await win.findByLabelText("想说什么"), name).toBeTruthy();
+    expect(await win.findByRole("radio", { name: "Bug" }), name).toBeTruthy();
+    expect((win.getByLabelText("发往的组织") as HTMLInputElement).value, name).toBe("geek");
+    expect(where(), name).toBe("/");
+    fireEvent.click(win.getByRole("button", { name: "关闭" }));
+    expect(boxes(), name).toHaveLength(0);
+  }
+});
+
+it("旧地址 /feedback、/feedback/:org 不再有单独的页面，跳到 /?open=feedback（#275）", () => {
+  for (const path of ["/feedback", "/feedback/geek"]) {
+    const view = render(
+      <MemoryRouter initialEntries={[path]}>
+        <App />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("home-at").textContent, path).toBe("/?open=feedback");
+    expect(document.querySelector(".pt-feedback"), path).toBeNull();
+    view.unmount();
+  }
+});
+
+it("/?open=feedback 进桌面就打开意见箱窗口，打开后把参数从地址里去掉，别的参数留着；不是窗口的应用不打开", async () => {
+  stubFeedbackApi();
+  function Search() {
+    return <output data-testid="search">{useLocation().search}</output>;
+  }
+  const view = render(
+    <MemoryRouter initialEntries={["/?open=feedback&__data=live"]}>
+      <Routes>
+        <Route path="/" element={<YugcOs />} />
+      </Routes>
+      <Search />
+    </MemoryRouter>,
+  );
+  expect(screen.getAllByRole("dialog", { name: "意见箱" })).toHaveLength(1);
+  expect(await screen.findByLabelText("想说什么")).toBeTruthy();
+  await waitFor(() => expect(screen.getByTestId("search").textContent).toBe("?__data=live"));
+  view.unmount();
+
+  render(
+    <MemoryRouter initialEntries={["/?open=forum"]}>
+      <Routes>
+        <Route path="/" element={<YugcOs />} />
+      </Routes>
+      <Search />
+    </MemoryRouter>,
+  );
+  await waitFor(() => expect(screen.getByTestId("search").textContent).toBe(""));
+  expect(screen.queryAllByRole("dialog")).toHaveLength(0);
+});
+
+it("代码仓库在桌面上开窗口：Dock、桌面图标、3 键、菜单栏「前往」、便签、⌘K、终端都打开同一个窗口，不离开官网", async () => {
+  // jsdom 没有 scrollTo（终端每多一行滚到底）
+  Element.prototype.scrollTo ??= () => undefined;
+  const { container, where } = renderDesktop();
+  const repos = () => screen.queryAllByRole("dialog", { name: "代码仓库" });
+  const close = () => fireEvent.click(within(repos()[0]).getByRole("button", { name: "关闭" }));
+  const entries: Array<[string, () => void]> = [
+    ["Dock", () => fireEvent.click(dock().getByRole("button", { name: "代码仓库" }))],
+    ["桌面图标", () => fireEvent.doubleClick(container.querySelector<HTMLElement>('.pt-icons [data-cta="gitlab"]')!)],
+    ["3 键", () => fireEvent.keyDown(document.body, { key: "3" })],
+    ["菜单栏", () => {
+      fireEvent.click(screen.getByRole("button", { name: "前往" }));
+      fireEvent.click(screen.getByRole("menuitem", { name: /^代码仓库\s*3$/ }));
+    }],
+    ["便签", () => fireEvent.click(screen.getByRole("button", { name: /去「代码仓库」/ }))],
+    ["⌘K", () => {
+      fireEvent.click(screen.getByRole("button", { name: /搜索/ }));
+      const input = screen.getByRole("combobox");
+      fireEvent.change(input, { target: { value: "代码" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+    }],
+  ];
+  for (const [name, open] of entries) {
+    open();
+    expect(repos(), name).toHaveLength(1);
+    close();
+    expect(repos(), name).toHaveLength(0);
+  }
+
+  fireEvent.click(dock().getByRole("button", { name: "终端" }));
+  const input = await screen.findByRole("textbox", { name: "终端输入" });
+  fireEvent.change(input, { target: { value: "open gitlab" } });
+  fireEvent.keyDown(input, { key: "Enter" });
+  await waitFor(() => expect(repos()).toHaveLength(1));
+
+  expect(followed.calls).toEqual([]);
+  expect(where()).toBe("/");
+});
+
+it("2 键与菜单栏「前往」的论坛同样直达", () => {
   const { where } = renderDesktop();
   fireEvent.keyDown(document.body, { key: "2" });
-  fireEvent.keyDown(document.body, { key: "3" });
-  expect(followed.calls).toEqual([FORUM, GITHUB]);
-
   fireEvent.click(screen.getByRole("button", { name: "前往" }));
   fireEvent.click(screen.getByRole("menuitem", { name: "论坛 2" }));
-  fireEvent.click(screen.getByRole("button", { name: "前往" }));
-  fireEvent.click(screen.getByRole("menuitem", { name: /^GitHub 组织\s*（新标签页打开）\s*3$/ }));
-  expect(followed.calls.slice(2)).toEqual([FORUM, GITHUB]);
+  expect(followed.calls).toEqual([FORUM, FORUM]);
+  expect(screen.queryByRole("menuitem", { name: /GitHub/ })).toBeNull();
   expect(where()).toBe("/");
 });
 
-it("⌘K 启动器：搜「论坛」「首页」「github」回车直达；不再有重复的「进入论坛首页」命令", () => {
+it("⌘K 启动器：搜「论坛」「首页」回车直达；不再有重复的「进入论坛首页」命令，也搜不到 GitHub 组织", () => {
   const { where } = renderDesktop();
   const search = (text: string) => {
     fireEvent.click(screen.getByRole("button", { name: /搜索/ }));
@@ -124,91 +249,88 @@ it("⌘K 启动器：搜「论坛」「首页」「github」回车直达；不�
   fireEvent.keyDown(input, { key: "Enter" });
   input = search("首页");
   fireEvent.keyDown(input, { key: "Enter" });
+  expect(followed.calls).toEqual([FORUM, FORUM]);
   input = search("github");
+  expect(screen.queryByRole("option", { name: /GitHub/ })).toBeNull();
   fireEvent.keyDown(input, { key: "Enter" });
-  expect(followed.calls).toEqual([FORUM, FORUM, GITHUB]);
+  expect(followed.calls).toEqual([FORUM, FORUM]);
   expect(where()).toBe("/");
 });
 
-it("终端 open forum / open github 同样直达", async () => {
-  // jsdom 没有 scrollTo（终端每多一行滚到底）
+it("终端 open forum 同样直达；open github 报没有这个应用", async () => {
   Element.prototype.scrollTo ??= () => undefined;
   const { where } = renderDesktop();
   fireEvent.click(dock().getByRole("button", { name: "终端" }));
-  const input = screen.getByRole("textbox", { name: "终端输入" });
-  for (const command of ["open forum", "open github"]) {
+  const input = await screen.findByRole("textbox", { name: "终端输入" });
+  for (const command of ["open github", "open forum"]) {
     fireEvent.change(input, { target: { value: command } });
     fireEvent.keyDown(input, { key: "Enter" });
   }
-  await waitFor(() => expect(followed.calls).toEqual([FORUM, GITHUB]));
+  expect(screen.getByText(/open: 没有叫 github 的应用/)).toBeTruthy();
+  await waitFor(() => expect(followed.calls).toEqual([FORUM]));
   expect(where()).toBe("/");
 });
 
-it("「加入我们」不变：图标飞行后进 /join-us；减少动态效果时直接进", async () => {
-  vi.useFakeTimers();
-  try {
-    const first = renderDesktop();
-    fireEvent.click(dock().getByRole("button", { name: "加入我们" }));
-    expect(first.container.querySelector(".pt-flight")).not.toBeNull();
-    expect(first.where()).toBe("/");
-    await act(async () => {
-      vi.advanceTimersByTime(520);
-    });
-    expect(first.where()).toBe("/join-us");
-    first.unmount();
+it("「加入我们」在桌面上开窗口（#279）：Dock、1 键都打开同一个窗口，路由不动；没登录时信纸上是「先注册再投递」", async () => {
+  stubFeedbackApi();
+  const { where } = renderDesktop();
+  const boxes = () => screen.queryAllByRole("dialog", { name: "加入我们" });
+  fireEvent.click(dock().getByRole("button", { name: "加入我们" }));
+  expect(boxes()).toHaveLength(1);
+  const win = within(boxes()[0]);
+  expect(await win.findByRole("heading", { name: "先注册再投递" })).toBeTruthy();
+  expect(win.getByRole("link", { name: /注册/ }).getAttribute("href")).toBe("/signin?return_to=%2F%3Fopen%3Djoin&tab=register");
+  expect(where()).toBe("/");
+  fireEvent.click(win.getByRole("button", { name: "关闭" }));
+  expect(boxes()).toHaveLength(0);
 
-    reducedMotion = true;
-    const second = renderDesktop();
-    fireEvent.click(dock().getByRole("button", { name: "加入我们" }));
-    expect(second.where()).toBe("/join-us");
-    expect(followed.calls).toEqual([]);
-  } finally {
-    vi.useRealTimers();
+  fireEvent.keyDown(document.body, { key: "1" });
+  expect(boxes()).toHaveLength(1);
+  expect(where()).toBe("/");
+  expect(followed.calls).toEqual([]);
+});
+
+it("旧地址 /join-us、/apply 不再有单独的页面，跳到 /?open=join（#279）", () => {
+  for (const path of ["/join-us", "/apply"]) {
+    const view = render(
+      <MemoryRouter initialEntries={[path]}>
+        <App />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("home-at").textContent, path).toBe("/?open=join");
+    expect(document.querySelector(".pt-scene"), path).toBeNull();
+    view.unmount();
   }
 });
 
-it("按住不放的自动重复不算再按一次：按住 3、在图标或 Dock、便签按钮上按住回车，GitHub 组织只开一个新标签页（审查 F1）", () => {
+it("按住不放的自动重复不算再按一次：按住 2、在图标或 Dock、便签按钮上按住回车，论坛只跳一次（审查 F1）", () => {
   const { container } = renderDesktop();
-  fireEvent.keyDown(document.body, { key: "3" });
-  for (let i = 0; i < 4; i += 1) fireEvent.keyDown(document.body, { key: "3", repeat: true });
-  expect(followed.calls).toEqual([GITHUB]);
+  fireEvent.keyDown(document.body, { key: "2" });
+  for (let i = 0; i < 4; i += 1) fireEvent.keyDown(document.body, { key: "2", repeat: true });
+  expect(followed.calls).toEqual([FORUM]);
 
   // 桌面图标自己处理回车：只有按下去的那一次打开
-  const icon = container.querySelector<HTMLElement>('.pt-icons [data-cta="github"]')!;
+  const icon = container.querySelector<HTMLElement>('.pt-icons [data-cta="forum"]')!;
   fireEvent.keyDown(icon, { key: "Enter" });
   fireEvent.keyDown(icon, { key: "Enter", repeat: true });
   fireEvent.keyDown(icon, { key: "Enter", repeat: true });
-  expect(followed.calls).toEqual([GITHUB, GITHUB]);
+  expect(followed.calls).toEqual([FORUM, FORUM]);
 
   // Dock、便签、菜单上的按钮由浏览器把回车变成点击：按下去的那一次照常（不拦默认动作），
   // 自动重复的回车拦掉默认动作，浏览器就不会再补一次点击（fireEvent 返回 false 表示默认动作被拦）
-  for (const button of [dock().getByRole("button", { name: /GitHub 组织/ }), screen.getByRole("button", { name: /去「GitHub 组织」/ })]) {
+  for (const button of [dock().getByRole("button", { name: "论坛" }), screen.getByRole("button", { name: /去「论坛」/ })]) {
     expect(fireEvent.keyDown(button, { key: "Enter" })).toBe(true);
     expect(fireEvent.keyDown(button, { key: "Enter", repeat: true })).toBe(false);
   }
   expect(followed.calls).toHaveLength(2);
 });
 
-it("当前标签页去论坛前，在这条历史记录上记下「回来直接进桌面」；GitHub 组织开新标签页不记；从往返缓存恢复时清掉（审查 S1）", () => {
+it("当前标签页去论坛直接跳走，不在历史记录上记 state：桌面是首页的默认状态，回来按 yugc:boot-day 决定播不播开机动画（#275）", () => {
   const { state, where } = renderDesktop();
-  fireEvent.click(dock().getByRole("button", { name: /GitHub 组织/ }));
-  expect(state()).toBeNull();
   fireEvent.click(dock().getByRole("button", { name: "论坛" }));
-  expect(followed.calls).toEqual([GITHUB, FORUM]);
-  expect(state()).toEqual(RESUME_DESKTOP);
-  expect(where()).toBe("/");
-
-  // 浏览器没用往返缓存时，后退会重新加载首页，Home 用 wantsDesktop 读到这个 state 就直接进桌面（状态机的 resume 见 portal-desk.test.ts）；
-  // 用了往返缓存时桌面原样还在，把 state 清掉，之后刷新照常从书桌开始
-  expect(wantsDesktop(state())).toBe(true);
-  act(() => {
-    window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: false }));
-  });
-  expect(state()).toEqual(RESUME_DESKTOP);
-  act(() => {
-    window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
-  });
+  expect(followed.calls).toEqual([FORUM]);
   expect(state()).toBeNull();
+  expect(where()).toBe("/");
 });
 
 it("「论坛最新」窗口：写明的「3D 版块」进 /forum-3d 场景页，「进入论坛首页」直达论坛首页（审查 S3）", async () => {
@@ -229,26 +351,26 @@ it("「论坛最新」窗口：写明的「3D 版块」进 /forum-3d 场景页�
   expect(followed.calls).toEqual([]);
 });
 
-it("会在新标签页打开的 GitHub 组织，给读屏补一句「新标签页打开」，界面上不显示；论坛不加（审查 S4）", () => {
+it("桌面上的入口都留在本页或当前标签页，不补「新标签页打开」；代码仓库窗口里去 GitLab 的链接在新标签页打开，给读屏补这一句（审查 S4）", () => {
   renderDesktop();
-  dock().getByRole("button", { name: "GitHub 组织（新标签页打开）" });
+  dock().getByRole("button", { name: "代码仓库" });
   dock().getByRole("button", { name: "论坛" });
   const icons = within(screen.getByRole("list", { name: "桌面上的应用" }));
-  icons.getByRole("button", { name: /^GitHub 组织\s*（新标签页打开）$/ });
+  icons.getByRole("button", { name: "代码仓库" });
   icons.getByRole("button", { name: "论坛" });
-  screen.getByRole("button", { name: /^3\s*去「GitHub 组织」看我们的代码.*（新标签页打开）$/ });
-
+  screen.getByRole("button", { name: /^3\s*去「代码仓库」看我们的代码/ });
   fireEvent.click(screen.getByRole("button", { name: "前往" }));
-  screen.getByRole("menuitem", { name: /^GitHub 组织\s*（新标签页打开）\s*3$/ });
+  screen.getByRole("menuitem", { name: /^代码仓库\s*3$/ });
   screen.getByRole("menuitem", { name: /^论坛\s*2$/ });
   fireEvent.keyDown(document.body, { key: "Escape" });
+  expect([...document.querySelectorAll(".pt-sr")].filter((node) => node.textContent?.includes("新标签页"))).toHaveLength(0);
 
-  fireEvent.click(screen.getByRole("button", { name: /搜索/ }));
-  fireEvent.change(screen.getByRole("combobox"), { target: { value: "github" } });
-  screen.getByRole("option", { name: /^GitHub 组织\s*（新标签页打开）/ });
-
-  // 补的这句只给读屏：Dock 写在 aria-label 里，其余放在视觉上隐藏的 .pt-sr 里（这时开着的是桌面图标、便签、启动器结果三处）
-  const notes = [...document.querySelectorAll(".pt-sr")].filter((node) => node.textContent?.includes("新标签页"));
-  expect(notes).toHaveLength(3);
-  for (const node of notes) expect(node.textContent).toBe("（新标签页打开）");
+  fireEvent.click(dock().getByRole("button", { name: "代码仓库" }));
+  const win = screen.getByRole("dialog", { name: "代码仓库" });
+  const gitlab = within(win).getByRole("link", { name: /打开代码仓库/ });
+  expect(gitlab.getAttribute("href")).toBe(links.gitlab());
+  expect(gitlab.getAttribute("target")).toBe("_blank");
+  expect(gitlab.getAttribute("rel")).toBe("noopener noreferrer");
+  expect(gitlab.querySelector(".pt-sr")?.textContent).toBe("（新标签页打开）");
+  expect(followed.calls).toEqual([]);
 });

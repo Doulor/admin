@@ -9,21 +9,23 @@ syncStatus: reviewed
 verified: false
 ---
 
-## 套件定位
+## 安装
 
-进阶套件承载重交互与视觉表达：**高级交互**是命令面板、搜索面板、双编辑器与虚拟列表这类完整交互件；**视觉效果**是玻璃拟态、流光边框、渐变模糊、文本动效与液态流体这类表达层；**底层原语**（BaseSurface、BaseAnchor、Floating、AutoSizer、ResizeBox）是其余组件搭在其上的地基，业务侧极少直接使用。全部经 `@talex-touch/tuffex/pro` 分类入口引入。数据可视化与图表族已拆至**数据**套件，见《[数据套件](/docs/dev/components/data-suite)》。
+:::TuffCodeBlock{lang="typescript"}
+---
+code: |
+  import { TxCommandPalette, TxGlassSurface } from '@talex-touch/tuffex/pro'
+  import '@talex-touch/tuffex/base.css'
+  import '@talex-touch/tuffex/command-palette/style.css'
+  import '@talex-touch/tuffex/glass-surface/style.css'
+---
+:::
 
-## 组件预览
-
-每个格子都是可交互的真实组件，点击左上角名称进入对应组件文档。
+## 用法
 
 ::DocsComponentsGallery{suite="pro"}
 ::
 
-## 分组一览
+## 相关组件
 
-下面按分组列出该套件的**全部**组件，数据来自每个文档的 `category` frontmatter，新增组件会自动出现。
-
-::DocsSuiteCatalog{suite="pro"}
-::
-
+- [数据套件](./data-suite.zh.mdc)、[动效套件](./motion-suite.zh.mdc)：组件同样从 `/pro` 引入；图表族（含 MonoChart、DitherChart）从 `@talex-touch/tuffex/charts` 引入。

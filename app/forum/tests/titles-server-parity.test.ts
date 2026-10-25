@@ -3,15 +3,13 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { CREW, DEPARTMENT_ID_PATTERN, DEPARTMENTS, FORUM_CAPABILITIES, ICON_CLASSES, TITLE_FORUM, TITLES, TONES } from '../app/data/titles'
 
-// The forum keeps its own copy of the server catalogue's defaults because it
-// must not import core code at runtime (the live values come from
-// /api/public/org). This test reads the real server files as text and fails
-// when the two drift. It does not import the server module: the forum
+// The forum keeps its own copy of the server catalogue's defaults (for the demo
+// seed and the local snapshot) because it must not import core code at
+// runtime. This test reads the real server file as text and fails when the two
+// drift. It does not import the server module: the forum
 // toolchain (Node 26, its own tsconfig) never compiles app/server.
 const serverFile = fileURLToPath(new URL('../../server/src/lib/roles.ts', import.meta.url))
 const source = readFileSync(serverFile, 'utf8')
-const orgRouteFile = fileURLToPath(new URL('../../server/src/routes/portal/org.ts', import.meta.url))
-const orgRoute = readFileSync(orgRouteFile, 'utf8')
 
 function block(name: string): string {
   const start = source.indexOf(`export const ${name}`)
@@ -70,12 +68,6 @@ describe('forum titles match app/server/src/lib/roles.ts', () => {
     expect(crew).not.toBeNull()
     expect({ tag: crew![1], tone: crew![2], rank: Number(crew![3]) }).toEqual({ tag: TITLES.member.tag, tone: CREW.tone, rank: CREW.rank })
     expect(/DEPARTMENT_ID_PATTERN\s*=\s*"([^"]+)"/.exec(source)?.[1]).toBe(DEPARTMENT_ID_PATTERN)
-  })
-
-  it('reads /api/public/org in the shape the server answers', () => {
-    expect(orgRoute).toMatch(/app\.get\("\/api\/public\/org"/)
-    expect(orgRoute, 'titles: { id, label, tag, icon, tone, description, rank }').toMatch(/\{\s*id,\s*label,\s*tag,\s*icon,\s*tone,\s*description,\s*rank:/)
-    expect(orgRoute, 'departments: { id, name, tag, icon, tone, description }').toMatch(/\(\{\s*id,\s*name,\s*tag,\s*icon,\s*tone,\s*description\s*\}\)/)
   })
 
   it('lists the same forum capabilities in the same order', () => {

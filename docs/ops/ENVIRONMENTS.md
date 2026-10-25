@@ -2,14 +2,14 @@
 
 > 两份入库 `.env` 的字段契约与可见性规则；地址端口直接写，密钥留空由 CI/CD 注入。
 
-状态：`current` · 更新：2026-10-18 · 机器配置：[deploy/environments.json](../../deploy/environments.json)
+状态：`current` · 更新：2026-10-24 · 机器配置：[deploy/environments.json](../../deploy/environments.json)
 
 ## 可见性规则
 
 1. **环境变量只经 `.env` 文件**，不同环境用不同后缀：`deploy/env/.env.production`、`deploy/env/.env.preview`。
 2. 这两个文件**提交入库**。**非密钥项**（服务地址、端口、域名、路径、开关）全部预填真实值——部署事实直接可见，机器与人都能一眼看清每个环境长什么样。
 3. **密钥项必须留空**（`KEY=`），由 CI/CD 用 GitHub 环境级 secrets 渲染到目标机 `<STACK_ROOT>/.env.<environment>`，仓库里永远没有真值。必填的密钥留空时，渲染/校验**失败关闭**：缺必填密钥就没有部署；Turnstile 和发信的几项可以不配，见下文「环境级 secrets」。
-4. 语义上「留空即代表无值」的字段（`COOKIE_DOMAIN`、`ALLOWED_ORGS`、`MAIL_REPLY_TO`）同样留空，但含义明确，不算缺失。
+4. 语义上「留空即代表无值」的字段（`COOKIE_DOMAIN`、`MAIL_REPLY_TO`）同样留空，但含义明确，不算缺失。
 5. 目标机运行时文件名固定为 `<STACK_ROOT>/.env.production` / `<STACK_ROOT>/.env.preview`，由 `docker compose --env-file <文件> -f deploy/compose/<环境>.yml` 消费。
 6. 禁止把真实密钥写入仓库、镜像、日志或发布记录；不得把某环境的密钥复用到另一环境。
 
@@ -40,13 +40,14 @@
 | `FORUM_DB_PATH` / `FORUM_UPLOAD_DIR` | 可见（兼容字段，服务不打开旧 `forum.db`、不写上传目录；论坛数据在 `DB_PATH` 的 `forum_*` 表，头像也存在库里，#57） | `/data/forum.db` / `/data/forum-uploads` | 同左 |
 | `COOKIE_DOMAIN` | 可见·留空 | 空 = host-only；**禁止**填写 | 空 = host-only；**禁止** `.yangtzeu.work` |
 | `POW_DIFFICULTY` | 可见 | `3` | `3` |
-| `ALLOWED_ORGS` | 可见·留空 | 空 = 不限制组织允许列表 | 空 |
-| `CONSOLE_ORG` | 可见 | `Yangtze-University-Geek-Class`（极客班控制台 `/api/console/*` 固定管理的组织；也是官网意见箱唯一收的组织：`GET /api/feedback/categories` 把它下发给官网，`POST /api/feedback` 只收它、`GET /api/feedback/public` 只列它，#129；`ALLOWED_ORGS` 非空时必须包含它，否则 server 启动失败） | 同左 |
 | `MAIL_ALIYUN_FROM` | 可见 | `notify@mail.email-crosery.cn`（阿里云邮件推送的发信地址，不带显示名） | 同左 |
 | `MAIL_RESEND_FROM` | 可见 | `notify@email-crosery.cn`（Resend 的发件地址，发出时写成 `长江大学极客班 <地址>`） | 同左 |
 | `MAIL_ASSET_BASE` | 可见 | `https://cdn.crosery.com/yzgc/mail/v1/`（信里图片的地址前缀：https，以 `/` 结尾，不带查询串） | 同左 |
 | `MAIL_REPLY_TO` | 可见·留空 | 空 = 信里不带 Reply-To，改请对方到官网意见箱留言；要填就写一个不带显示名的地址 | 空 |
 | `MAIL_RECIPIENTS` | 可见 | `all`：发给每一个投递的人 | `all`（#169 起；以前只能是 `allowlist`）；改成 `allowlist` 就只发 `MAIL_ALLOWLIST` 里的地址 |
+| `GITLAB_SYNC` | 可见 | `off`：不在 GitLab 上建号。改 `on` 要所有者在预发布验收、填好 `GITLAB_API_TOKEN`，并且按顺序来：先把预发布改 `off`，再迁 GitLab 的 `sub`、改 GitLab 的 `issuer`，最后正式改 `on`；两边同时 `on` 会反复封禁、解封同一批人 | `on`：正式站上线前 GitLab 接预发布的签发者，按预发布的账号建号、封禁（所有者 2026-10-23 选定；#270） |
+| `GITLAB_URL` | 可见 | `https://git.yangtzeu.work`（自建 GitLab 的 origin，https、不带尾斜杠） | 同左 |
+| `GITLAB_GROUP` | 可见 | `geek`（成员进的组） | 同左 |
 | `GEEK_RELEASE_DISPLAY_SUFFIX` | **已移除** | 不再出现在 env 文件里：它是 `BUILD_ONLY_FIELDS`（发布身份只走 build args），写进 `.env` 不会被读取 | 同左 |
 | `OAUTH_CLIENT_ID` | **密钥·必须留空** | CI/CD 注入 | CI/CD 注入 |
 | `OAUTH_CLIENT_SECRET` | **密钥·必须留空** | CI/CD 注入 | CI/CD 注入 |
@@ -57,8 +58,11 @@
 | `MAIL_ALIYUN_ACCESS_KEY_ID` / `MAIL_ALIYUN_ACCESS_KEY_SECRET` | 密钥·留空，可选的一对 | CI/CD 注入，可以不配 | 同左 |
 | `MAIL_RESEND_API_KEY` | 密钥·留空，可选 | CI/CD 注入，可以不配 | 同左 |
 | `MAIL_ALLOWLIST` | 密钥·留空，可选 | `MAIL_RECIPIENTS=allowlist` 时才用 | 同左，现在不用 |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 密钥·留空，可选的一对 | 没配：登录页不出现 Google | 同左 |
+| `OIDC_JWKS` | 密钥·留空，可选 | 没配：对外授权关闭，`/oidc/*` 一律 404 | 同左 |
+| `GITLAB_API_TOKEN` | 密钥·留空，`GITLAB_SYNC=on` 时必填 | `GITLAB_SYNC=on` 才用 | 同左，`on` 时必填 |
 
-**一个环境只有一个域名**（2026-09-23 决定）：官网、管理端、论坛共用 `PUBLIC_ORIGIN`，按 URL 路径区分——`/admin`、`/admin/…`、`/console`、`/console/…`、`/signin` 进管理端 SPA，`/forum/…` 进论坛，其余进官网。旧的按站点分域名字段 `SITE_ORIGIN`、`ADMIN_HOST`、`PORTAL_HOST`、`FORUM_HOST` 已退役，校验器把模板里任何契约外的字段判为失败，防止重新长出第二份域名配置。
+**一个环境只有一个域名**（2026-09-23 决定）：官网、管理端、论坛共用 `PUBLIC_ORIGIN`，按 URL 路径区分——`/admin`、`/admin/…`、`/console`、`/console/…`、`/signin`、`/device`、`/account`、`/authorize` 进管理端 SPA，`/forum/…` 进论坛，`/oidc/…`（对外授权，#270）进 server，其余进官网。旧的按站点分域名字段 `SITE_ORIGIN`、`ADMIN_HOST`、`PORTAL_HOST`、`FORUM_HOST` 已退役，校验器把模板里任何契约外的字段判为失败，防止重新长出第二份域名配置。
 
 校验：`node scripts/deployment-environment.mjs --check`（`pnpm check:environments`）核对模板字段完整性、契约外字段、密钥留空、`PUBLIC_ORIGIN` 与 `deploy/environments.json` 逐字一致、两环境取值差异，以及发信字段：两个发件地址是不带显示名的邮箱，`MAIL_REPLY_TO` 为空或是一个邮箱，`MAIL_ASSET_BASE` 是以 `/` 结尾的 https 地址，`MAIL_RECIPIENTS` 只能是 `all` 或 `allowlist`（两个环境模板现在都是 `all`，#169）；`node scripts/deployment-environment.mjs render --environment <env> --out <路径> --image-tag <sha12>` 生成目标机运行时文件（只读仓库、只写显式 `--out`）。
 
@@ -89,10 +93,17 @@
 | `MAIL_ALIYUN_ACCESS_KEY_SECRET` | 阿里云邮件推送的 AccessKey Secret |
 | `MAIL_RESEND_API_KEY` | Resend 的 API Key（可选） |
 | `MAIL_ALLOWLIST` | 收件名单：英文逗号隔开的邮箱，不带空格（可选；`MAIL_RECIPIENTS=allowlist` 时只发给这些地址） |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google 登录的 OAuth 客户端（可选的一对；Google Cloud 里类型选「Web 应用」，已获授权的重定向 URI 填 `<origin>/auth/google/callback`） |
+| `OIDC_JWKS` | 对外授权的签名私钥（可选，#270）：在 server 容器里 `node app/server/dist/cli/oidc.js keygen` 生成的一行 base64（RSA 2048 的 JWK Set），环境密钥不收引号，不用 JSON 原文 |
+| `GITLAB_API_TOKEN` | 自建 GitLab 管理员的个人访问令牌（`api` 范围，#270）；`GITLAB_SYNC=on` 时必填，`off`、`dry-run` 可以留空 |
 
 Turnstile 两项是可选的一对（`scripts/deployment-environment.mjs` 的 `OPTIONAL_SECRET_PAIR`）：**都为空＝明确关闭**，渲染时写空值并提示；只填一项仍拒绝渲染；除 Turnstile 和下面的发信密钥外，其余密钥一律必填。关闭时服务端 `middleware/turnstile.ts` 不校验人机验证，公开的投递、反馈、邀请只靠工作量证明（`POW_DIFFICULTY`）、蜜罐字段与限流；遗留风险是批量脚本的成本只剩计算量，要开启时在 Cloudflare 建站点后把两项同时配进环境级 secrets 并重新部署。首次上线（2026-09-25）两个环境都关闭。
 
 发信的四项也都可以不配（同一脚本的 `MAIL_ALIYUN_SECRET_PAIR` 与 `OPTIONAL_SECRETS`，#148）。阿里云的 AccessKey ID 和 Secret 是一对，只填一项拒绝渲染；`MAIL_RESEND_API_KEY` 单独一项。server 先用阿里云发，失败再换 Resend；阿里云适配器还没写按封的回信地址（SingleSendMail 有 `ReplyAddress` 参数，没用真实发信试过，见 [mail](../services/server/mail.md)「已知限制」），所以 `MAIL_REPLY_TO` 不为空时信只交给 Resend，只配了阿里云时 server 按没有配置发信商处理、一封也不发，render 会提示。阿里云和 Resend 都没配时发信关闭：server 照常启动，投递和改状态照常成功，每封信在发信记录里记为「发信没有配置」，一封也不发，render 同样会提示。`MAIL_RECIPIENTS=allowlist` 时只给 `MAIL_ALLOWLIST` 里的地址发信（不分大小写），其余的信记为不在名单里、不发。两个环境现在都是 `all`：2026-09-27 14:20 要求「邮件不要做限制吧，不然我这边收不到邮件，没法测试。我们官方发的那些邮件，肯定必须发过去」，#169 去掉了「预发布只能是 `allowlist`」这条校验，预发布上投递、改状态的信都会发给投递人。改成 `allowlist` 而名单为空时一封也不发，render 会提示。名单里是真人的邮箱，属于个人信息，所以和密钥放在一起，不写进模板。渲染时名单只接受英文逗号隔开的邮箱，出错时报错里不带名单内容。2026-09-27 同意后，`preview` 环境配上了 `MAIL_ALIYUN_ACCESS_KEY_ID`、`MAIL_ALIYUN_ACCESS_KEY_SECRET`、`MAIL_RESEND_API_KEY`，`MAIL_ALLOWLIST` 里只有一个邮箱（#169 之后预发布是 `all`，这一项不起作用）。`production` 环境的发信密钥还没配，正式环境不发信。
+
+Google 登录的两项也是可选的一对（同一脚本的 `GOOGLE_SECRET_PAIR`，#262）：都为空时登录页不出现 Google，`/auth/google` 回 404，渲染时提示；只填一项拒绝渲染，server 启动也会拒绝。两个环境现在都没配。要开启时在 Google Cloud 为每个环境建一个 OAuth 客户端（Web 应用，重定向 URI 是本环境的 `<origin>/auth/google/callback`），授权页上要有隐私政策地址，然后把两项写进目标机的 `.env.<环境>`（或环境级 secrets）并重新部署。
+
+对外授权与 GitLab 同步的两项（同一脚本的 `OIDC_GITLAB_SECRETS`，#270）：`OIDC_JWKS` 为空时对外授权关闭，`/oidc/*` 一律 404，渲染时提示，照常部署；`GITLAB_API_TOKEN` 只在 `GITLAB_SYNC=on` 时必填，缺了拒绝渲染，server 启动也会拒绝。`GITLAB_SYNC` 只能是 `off`、`dry-run`、`on`，`GITLAB_URL` 是不带尾斜杠的 https origin，`GITLAB_GROUP` 是 GitLab 的组路径，`pnpm check:environments` 核对。两个环境的 `.env` 现在都还没填这两项。GitLab 只有一台，正式站上线前接预发布（所有者 2026-10-23 选定），所以先在预发布按下面的顺序开；预发布的数据库从此不能清空重建，否则 GitLab 上的身份（`sub`）对不上；正式站上线后改接正式环境，按这个顺序：先把预发布的 `GITLAB_SYNC` 改成 `off`，再把预发布里 GitLab 的 `sub` 迁到正式库、改 GitLab 的 `issuer`，最后正式改 `on`，大家的 GitLab 账号不变；两边同时 `on` 时两份名单对不上，会反复封禁、解封同一批人。开启顺序：在目标机 server 容器里生成签名密钥写进 `.env.<环境>` 的 `OIDC_JWKS`、重新部署；再用同一个 CLI 登记 GitLab 客户端，client id 必须是 `gitlab`（同步按它的回调主机算 `sub`）；然后把 `GITLAB_SYNC` 改成 `on`、填 `GITLAB_API_TOKEN`、重新部署，看到第一轮对账成功（控制台 `client_registered` 为 `true`、没有 `last_error`）；最后才配 GitLab 的 omniauth。同步没开时成员离开不会被封禁，所以 GitLab 的统一登录不能先开（[对外授权与 GitLab 账号同步](../services/server/oidc.md)「客户端与密钥」「GitLab 一侧的配置」）。正式环境改 `GITLAB_SYNC=on` 要所有者先在预发布验收并批准，改之前先备份数据库。
 
 ### vars
 

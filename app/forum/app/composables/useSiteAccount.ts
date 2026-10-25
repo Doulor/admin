@@ -2,17 +2,21 @@ import type { SiteAccount } from '../../shared/site-account'
 import { toast } from '@talex-touch/tuffex/utils'
 import { publishedTopicIds } from '../../shared/published'
 import { signinOutcomes } from '../../shared/signin-outcomes'
-import { parseMe, sessionExpired } from '../../shared/site-account'
+import { bindEmailHref, completeProfileHref, emailRequired, parseMe, profileRequired } from '../../shared/site-account'
 
 export type { SiteAccount } from '../../shared/site-account'
 
 /**
  * 极客班统一登录的会话（真实数据模式用）。
  *
- * 登录只有一个入口：核心服务的 `/auth/github` → `/auth/callback` 写下 `sid` cookie，官网、论坛、控制台共用；
- * 只有极客班 GitHub 组织的成员能登录成功，其他人不登录照样能看论坛。
+ * 登录只有一个入口：极客班统一登录页 `/signin`（#262）→ 选一种登录方式 → `/auth/callback` 写下 `sid` cookie，官网、论坛、控制台共用；
+ * 登录没成功时核心服务回到 `/signin` 说明原因；这里只处理旧链接里残留的 `?signin=`（说一次再从地址里拿掉）。
+ * 注册邀请码从 #274 起选填：邮箱、Google、GitHub 注册都不再要求先加入极客班 GitHub 组织，登录成功就是真实成员；
+ * 不登录也能看论坛。
  * 论坛与官网、控制台同域（线上 `/forum/` 由 web 容器反代），所以直接读同域的 `/auth/me` 就知道是谁；
  * 本机独立端口上没有 `/auth/me`（返回 404 或 HTML），当作未登录。回答怎么读见 `shared/site-account.ts`。
+ * 账号还没有登录邮箱（`email_required`，#273）时整页跳到绑定邮箱页，缺真实姓名或年级（`profile_required`，#280）时
+ * 跳到补资料页，办好都回到当前页。
  */
 /** 顶栏调用本组合函数；同一页面只发一次 /auth/me。 */
 let inflight: Promise<void> | null = null
@@ -23,7 +27,6 @@ export function useSiteAccount() {
   const outcomeShown = useState<boolean>('site-account:outcome-shown', () => false)
   const route = useRoute()
   const router = useRouter()
-  const { serverMode } = useContentSource()
 
   function refresh(): Promise<void> {
     if (!import.meta.client)
@@ -38,10 +41,13 @@ export function useSiteAccount() {
       const body: unknown = response.ok && response.headers.get('content-type')?.includes('application/json')
         ? await response.json()
         : null
+      if (emailRequired(body) || profileRequired(body)) {
+        const { pathname, search, hash } = window.location
+        const back = `${pathname}${search}${hash}`
+        window.location.assign(emailRequired(body) ? bindEmailHref(back) : completeProfileHref(back))
+        return
+      }
       account.value = parseMe(body)
-      // 服务端刚结束了这次登录（GitHub 收回了会话里的授权，#164）：和论坛读到 session_expired 一样，页面按游客重读，由 LoginModal 说一次。
-      if (serverMode && sessionExpired(body))
-        useForumServerStore().noteSessionEnded()
     }
     catch {
       account.value = null

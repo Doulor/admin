@@ -11,7 +11,7 @@ const DAY_MS = 24 * 3600_000;
 const pad = (value: number) => String(value).padStart(2, "0");
 
 export const STATUS_TEXT: Record<CompetitionStatus, string> = {
-  upcoming: "未开始", registering: "报名中", closed: "报名已截止", ongoing: "进行中", ended: "已结束",
+  planning: "规划中", upcoming: "未开始", registering: "报名中", closed: "报名已截止", ongoing: "进行中", ended: "已结束",
 };
 
 export const KIND_TEXT = { internal: "内部", external: "外部" } as const;
@@ -48,22 +48,24 @@ export function dateEdge(date: string, edge: "start" | "end"): number | null {
 export type CompetitionForm = {
   name: string; kind: "internal" | "external";
   startDate: string; endDate: string; deadlineDate: string; url: string; description: string;
+  /** 规划中（#278）：开赛前不开放报名，官网显示「规划中」。 */
+  planning: boolean;
 };
 
 export function emptyForm(): CompetitionForm {
-  return { name: "", kind: "internal", startDate: "", endDate: "", deadlineDate: "", url: "", description: "" };
+  return { name: "", kind: "internal", startDate: "", endDate: "", deadlineDate: "", url: "", description: "", planning: false };
 }
 
 /** 从服务端返回的一条记录填出表单。截止时间取北京日期，不显示当天的最后一毫秒。 */
 export function formFrom(record: {
   name: string; kind: "internal" | "external"; start_at: number; end_at: number;
-  signup_deadline: number | null; url: string | null; description: string;
+  signup_deadline: number | null; url: string | null; description: string; planning: boolean;
 }): CompetitionForm {
   return {
     name: record.name, kind: record.kind,
     startDate: beijingDate(record.start_at), endDate: beijingDate(record.end_at),
     deadlineDate: beijingDate(record.signup_deadline),
-    url: record.url ?? "", description: record.description,
+    url: record.url ?? "", description: record.description, planning: record.planning,
   };
 }
 
@@ -90,8 +92,9 @@ export function formErrors(form: CompetitionForm): Partial<Record<Field, string>
   const deadline = form.deadlineDate.trim() ? dateEdge(form.deadlineDate, "end") : null;
   if (form.deadlineDate.trim() && deadline === null) errors.deadlineDate = "报名截止的日期不对。";
   else if (deadline !== null && end !== null && deadline > end) errors.deadlineDate = "报名截止不能晚于比赛结束。";
-  // 链接对所有比赛类型都可选：不填就不跳转，填了必须是 https（比赛官网可以是站内的，也要 https 的对外地址）
+  // 外部比赛只是登记一个去处，链接必填；内部比赛的官网由站内托管（/c/<地址>/），链接可不填。填了都必须是 https。
   const url = form.url.trim();
+  if (!url && form.kind === "external") errors.url = "外部比赛要填赛事官网的 https:// 链接。";
   if (url) {
     try {
       if (!/^https:\/\/\S+$/.test(url) || new URL(url).protocol !== "https:") errors.url = "请填写有效的 https:// 官方链接。";
@@ -119,6 +122,7 @@ export function formPayload(form: CompetitionForm, original?: Parameters<typeof 
     signup_deadline: form.deadlineDate.trim() ? dateEdge(form.deadlineDate, "end") : null,
     url: form.url.trim() || null,
     description: form.description.trim(),
+    planning: form.planning,
   };
   if (!original) return payload;
   const before = formFrom(original);
@@ -131,5 +135,6 @@ export function formPayload(form: CompetitionForm, original?: Parameters<typeof 
     ...(form.deadlineDate.trim() !== before.deadlineDate ? { signup_deadline: payload.signup_deadline } : {}),
     ...(payload.url !== original.url ? { url: payload.url } : {}),
     ...(payload.description !== original.description ? { description: payload.description } : {}),
+    ...(payload.planning !== original.planning ? { planning: payload.planning } : {}),
   };
 }

@@ -1,10 +1,10 @@
-// 文档、意见箱、邀请加入三张普通页面的外壳：和 YUGC OS 同一套浅色语言（纸色底 + 淡图纸线 + 窗口式卡片）。
+// 文档页的外壳（意见箱和邀请加入原来也用它，#275 起意见箱是桌面窗口、邀请落地页已删）：和 YUGC OS 同一套浅色语言（纸色底 + 淡图纸线 + 窗口式卡片）。
 // 顶部是一条细的「系统栏」：品牌 + 回到桌面 + 三个主入口；底部一行版权与链接。不放吉祥物插画。
 import type { ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { appConfig } from "@shared/config";
 import { useAccount } from "../lib/account";
-import { RESUME_DESKTOP, links } from "../lib/links";
+import { links } from "../lib/links";
 import Icon from "./Icon";
 import "../styles/portal.css";
 import "../styles/pages.css";
@@ -26,9 +26,9 @@ export default function PageShell({ path, children }: { path: string; children: 
         </Link>
         <nav className="pt-pagebar-nav" aria-label="主导航">
           <NavLink to="/docs">文档</NavLink>
-          <NavLink to="/feedback">意见箱</NavLink>
+          <Link to="/?open=feedback">意见箱</Link>
           <a href={links.forumHome()}>论坛</a>
-          <Link className="pt-btn is-primary is-sm" to="/join-us">
+          <Link className="pt-btn is-primary is-sm" to="/?open=join">
             <Icon name="mail-send-line" size={15} /> 加入我们
           </Link>
         </nav>
@@ -39,15 +39,13 @@ export default function PageShell({ path, children }: { path: string; children: 
           © {brand.title} · {brand.subtitle}
         </span>
         <nav aria-label="页脚导航">
-          <Link to="/" state={RESUME_DESKTOP}>
-            回到桌面
-          </Link>
-          <Link to="/join-us">加入我们</Link>
+          <Link to="/">回到桌面</Link>
+          <Link to="/?open=join">加入我们</Link>
           <a href={links.forumHome()}>论坛</a>
           <Link to="/docs">文档</Link>
           {consoleLink && <a href={links.console()}>控制台</a>}
-          <a href={links.githubOrg()} target="_blank" rel="noreferrer">
-            GitHub 组织
+          <a href={links.gitlab()} target="_blank" rel="noreferrer">
+            代码仓库
           </a>
         </nav>
       </footer>

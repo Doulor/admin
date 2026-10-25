@@ -1,16 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createHash, createHmac } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { siteCsp } from '../../app/forum/scripts/csp-header.mjs';
 import { STATIC_CDN_BASE, STATIC_CDN_BUCKET, STATIC_CDN_ORIGIN, STATIC_CDN_PREFIX } from '../../scripts/static-cdn-base.mjs';
 import {
-  AREAS, DECIDE_MIN_REMAINING_SECONDS, MAX_FILE_BYTES, MAX_TOKEN_SECONDS, PUBLIC_DIRS, UPLOAD_HOST, UPLOAD_MIN_REMAINING_SECONDS,
-  assertKey, collect, cspAllows, decide, main, mimeFor, originPathOf, parseArgs, qetag,
+  AREAS, DECIDE_MIN_REMAINING_SECONDS, GUIDE_IMAGES, MAX_FILE_BYTES, MAX_TOKEN_SECONDS, PUBLIC_DIRS, STICKERS, UPLOAD_HOST, UPLOAD_MIN_REMAINING_SECONDS,
+  assertKey, collect, collectGuideImages, collectStickers, cspAllows, guideImageHash, decide, main, mimeFor, originPathOf, parseArgs, qetag,
   readUploadPolicy, signUploadToken, uploadAll, uploadOne, uploadPolicy,
 } from '../../scripts/static-cdn.mjs';
+import { buildManifest, manifestText } from '../../scripts/sticker-manifest.mjs';
 
 // 静态资源 CDN（#146）的上传脚本 scripts/static-cdn.mjs：对象键与前缀守卫、只增不改的上传 token、没有凭据时的同源路径、
 // 宿主 CSP 的核对。上传与 CDN 都用假的 fetch，不联网、不用真实凭据。构建开关在 static-cdn-switch.test.ts。
@@ -180,6 +181,160 @@ describe('collect: which files of a build get uploaded', () => {
   });
 });
 
+describe('usage guide screenshots (#281)', () => {
+  it('uploads the repo screenshots under forum/guides/ only when the name carries the content hash', () => {
+    const root = mkdtempSync(join(tmpdir(), 'geek-guide-images-'));
+    try {
+      expect(collectGuideImages(root)).toEqual([]);
+      const dir = join(root, GUIDE_IMAGES.dir);
+      mkdirSync(dir, { recursive: true });
+      const png = Buffer.from('fake png bytes');
+      const name = `console-competitions.${guideImageHash(png)}.png`;
+      writeFileSync(join(dir, name), png);
+      expect(collectGuideImages(root)).toEqual([{ file: join(dir, name), key: `${STATIC_CDN_PREFIX}forum/guides/${name}`, size: png.length, mime: 'image/png' }]);
+      expect(originPathOf(`${STATIC_CDN_PREFIX}forum/guides/${name}`)).toBe(`/forum/guides/${name}`);
+      writeFileSync(join(dir, 'stale.AAAAAAAA.webp'), 'other');
+      expect(() => collectGuideImages(root)).toThrow(/stale\.AAAAAAAA\.webp（内容哈希是/);
+      rmSync(join(dir, 'stale.AAAAAAAA.webp'));
+      writeFileSync(join(dir, 'no-hash.webp'), 'x');
+      expect(() => collectGuideImages(root)).toThrow(/no-hash\.webp（要是/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps every screenshot in the repo valid and referenced by a guide, and every guide image on the CDN', () => {
+    const entries = collectGuideImages();
+    const guidesDir = join(repoRoot, 'app/forum/content/guides');
+    const text = existsSync(guidesDir) ? readdirSync(guidesDir).filter(name => name.endsWith('.md')).map(name => read(`app/forum/content/guides/${name}`)).join('\n') : '';
+    const used = new Set([...text.matchAll(/!\[[^\]]*\]\(([^)\s]+)\)/g)].map(match => match[1]));
+    for (const url of used) expect(url.startsWith(`${STATIC_CDN_BASE}forum/guides/`), url).toBe(true);
+    expect([...used].sort()).toEqual(entries.map(entry => `${STATIC_CDN_ORIGIN}/${entry.key}`).sort());
+  });
+});
+
+describe('built-in sticker images (#286)', () => {
+  /** 过得了清单校验的假 WebP：RIFF 头加上按名字不同的内容。 */
+  const fakeWebp = (seed: string) => {
+    const payload = Buffer.from(seed.repeat(8));
+    const header = Buffer.alloc(12);
+    header.write('RIFF', 0, 'latin1');
+    header.writeUInt32LE(payload.length + 4, 4);
+    header.write('WEBP', 8, 'latin1');
+    return Buffer.concat([header, payload]);
+  };
+  const sha256 = (buffer: Buffer) => createHash('sha256').update(buffer).digest('hex');
+  const roots: string[] = [];
+  afterAll(() => { for (const root of roots) rmSync(root, { recursive: true, force: true }); });
+
+  /** 仓库根的替身：app/server/assets/stickers 下两个包、三个表情，其中 cats-bye 与 cats-hi 是同一张图。 */
+  function repo() {
+    const root = mkdtempSync(join(tmpdir(), 'geek-stickers-cdn-'));
+    roots.push(root);
+    const assets = join(root, STICKERS.dir);
+    const pack = (id: string, name: string, stickers: { id: string; label: string }[], images: Record<string, Buffer>) => {
+      mkdirSync(join(assets, id), { recursive: true });
+      writeFileSync(join(assets, id, 'pack.json'), JSON.stringify({ id, name, stickers }));
+      for (const [file, bytes] of Object.entries(images)) writeFileSync(join(assets, id, file), bytes);
+    };
+    const hi = fakeWebp('cats/hi');
+    pack('cats', '猫猫', [{ id: 'hi', label: '招手' }, { id: 'bye', label: '再见' }], { 'hi.webp': hi, 'bye.webp': hi });
+    pack('dogs', '狗狗', [{ id: 'run', label: '跑' }], { 'run.webp': fakeWebp('dogs/run') });
+    const regenerate = () => writeFileSync(join(assets, 'manifest.json'), manifestText(buildManifest(assets)));
+    regenerate();
+    return { root, assets, regenerate, hi };
+  }
+
+  it('plans one object per distinct image at forum/stickers/<sha256>.webp, the same image in two stickers once', () => {
+    const { root, assets, hi } = repo();
+    const entries = collectStickers(root);
+    const run = fakeWebp('dogs/run');
+    expect(entries).toEqual([hi, run].map(bytes => ({ file: expect.any(String), key: `${STATIC_CDN_PREFIX}forum/stickers/${sha256(bytes)}.webp`, size: bytes.length, mime: 'image/webp' })).sort((a, b) => a.key.localeCompare(b.key)));
+    expect(entries.find(entry => entry.key.includes(sha256(run)))!.file).toBe(join(assets, 'dogs/run.webp'));
+    for (const entry of entries) {
+      expect(assertKey(entry.key)).toBe(entry.key);
+      expect(originPathOf(entry.key)).toBe(`/forum/stickers/${entry.key.split('/').pop()}`);
+    }
+  });
+
+  it('plans nothing when the folder does not exist, and the real repo plans exactly the manifest', () => {
+    const empty = mkdtempSync(join(tmpdir(), 'geek-stickers-none-'));
+    roots.push(empty);
+    expect(collectStickers(empty)).toEqual([]);
+    const manifest = buildManifest();
+    const keys = new Set(manifest.packs.flatMap(pack => pack.stickers.map(sticker => `${STATIC_CDN_PREFIX}${sticker.key}`)));
+    expect(collectStickers().map(entry => entry.key).sort()).toEqual([...keys].sort());
+    expect(keys.size).toBeGreaterThanOrEqual(24);
+  });
+
+  it.each([
+    ['manifest.json is missing', (c: ReturnType<typeof repo>) => rmSync(join(c.assets, 'manifest.json')), /manifest\.json 不存在/],
+    ['an image was added and the manifest not regenerated', (c: ReturnType<typeof repo>) => { writeFileSync(join(c.assets, 'dogs/sit.webp'), fakeWebp('sit')); writeFileSync(join(c.assets, 'dogs/pack.json'), JSON.stringify({ id: 'dogs', name: '狗狗', stickers: [{ id: 'run', label: '跑' }, { id: 'sit', label: '坐' }] })); }, /manifest\.json 和目录对不上/],
+    ['an image changed after the manifest was written', (c: ReturnType<typeof repo>) => writeFileSync(join(c.assets, 'dogs/run.webp'), fakeWebp('changed')), /manifest\.json 和目录对不上/],
+    ['pack.json is broken', (c: ReturnType<typeof repo>) => writeFileSync(join(c.assets, 'dogs/pack.json'), '{'), /不能上传：.*dogs\/pack\.json：读不出来/s],
+    ['an image is not listed in pack.json', (c: ReturnType<typeof repo>) => writeFileSync(join(c.assets, 'dogs/extra.webp'), fakeWebp('extra')), /dogs\/extra\.webp：没有写进 pack\.json/],
+    ['a file is not a WebP', (c: ReturnType<typeof repo>) => writeFileSync(join(c.assets, 'dogs/run.webp'), Buffer.from('not an image at all')), /不是 WebP 图片/],
+  ])('fails the whole plan when %s, so the CDN never lacks an address the manifest lists', (_name, change, error) => {
+    const context = repo();
+    change(context);
+    expect(() => collectStickers(context.root)).toThrow(error);
+  });
+
+  it('plan prints the forum/stickers object count and total bytes, offline and read-only', async () => {
+    const web = mkdtempSync(join(tmpdir(), 'geek-stickers-plan-'));
+    roots.push(web);
+    for (const path of ['web/assets/portal-Br-Bop_b.js', 'web/console-assets/index-12345678.css', 'forum/_nuxt/Bh2i2wUT.js']) {
+      mkdirSync(dirname(join(web, path)), { recursive: true });
+      writeFileSync(join(web, path), 'x');
+    }
+    const lines: string[] = [];
+    const logs: string[] = [];
+    const offline = (() => { throw new Error('plan 不联网'); }) as unknown as typeof fetch;
+    const { entries } = await main(['plan', '--web', join(web, 'web'), '--forum', join(web, 'forum')], { env: {}, stdout: { write: (text: string) => { lines.push(text); return true; } } as never, log: (text: string) => { logs.push(text); }, fetch: offline, now: NOW });
+    const stickers = entries.filter((entry: { key: string }) => entry.key.startsWith(`${STATIC_CDN_PREFIX}forum/stickers/`));
+    const manifest = buildManifest();
+    const distinct = new Set(manifest.packs.flatMap(pack => pack.stickers.map(sticker => sticker.sha256)));
+    const bytes = manifest.packs.flatMap(pack => pack.stickers).filter((sticker, index, all) => all.findIndex(other => other.sha256 === sticker.sha256) === index).reduce((sum, sticker) => sum + sticker.size, 0);
+    expect(stickers).toHaveLength(distinct.size);
+    expect(logs.join('\n')).toContain(`其中内置表情图片（forum/stickers/）${distinct.size} 个对象，${bytes} 字节（${(bytes / 1024).toFixed(1)} KB）`);
+    expect(lines.filter(line => line.includes('/forum/stickers/'))).toHaveLength(distinct.size);
+    for (const line of lines.filter(line => line.includes('/forum/stickers/'))) expect(line).toMatch(/^yzgc\/static\/site\/forum\/stickers\/[0-9a-f]{64}\.webp\t\d+\timage\/webp\n$/);
+    expect(entries.length).toBe(3 + collectGuideImages().length + distinct.size);
+  });
+
+  it('uploads them insert-only through the same form upload and checks each through the CDN; images need no CORS header', async () => {
+    const { root } = repo();
+    const qiniu = fakeQiniu({ cdn: { acao: null } });
+    const token = tokenFor(uploadPolicy({ now: Date.now(), seconds: DAY }));
+    const result = await uploadAll(collectStickers(root), { token, referer: 'https://prev.yangtzeu.work/', fetch: qiniu.fetch, log: () => {}, backoff: 0 });
+    expect(result).toMatchObject({ stored: 2, exists: 0, total: 2 });
+    for (const key of qiniu.bucket.keys()) {
+      expect(key).toMatch(/^yzgc\/static\/site\/forum\/stickers\/[0-9a-f]{64}\.webp$/);
+      expect(qiniu.bucket.get(key)!.type).toBe('image/webp');
+    }
+    const again = await uploadAll(collectStickers(root), { token, referer: 'https://yangtzeu.work/', fetch: qiniu.fetch, log: () => {}, backoff: 0 });
+    expect(again).toMatchObject({ total: 2 });
+  });
+
+  it('fails when a sticker key already holds different content, and never overwrites it', async () => {
+    const { root } = repo();
+    const [first] = collectStickers(root);
+    const qiniu = fakeQiniu();
+    qiniu.bucket.set(first.key, { etag: qetag(Buffer.from('someone else')), size: 12, type: 'image/webp' });
+    const token = tokenFor(uploadPolicy({ now: Date.now(), seconds: DAY }));
+    await expect(uploadAll(collectStickers(root), { token, referer: 'https://prev.yangtzeu.work/', fetch: qiniu.fetch, log: () => {}, backoff: 0 })).rejects.toThrow(/ETag .* ≠ 本地/);
+    expect(qiniu.bucket.get(first.key)!.etag).toBe(qetag(Buffer.from('someone else')));
+  });
+
+  it('keeps the prefix guard: the stickers folder is open, its siblings and path tricks are not', () => {
+    const hash = 'ab'.repeat(32);
+    expect(assertKey(`${STATIC_CDN_PREFIX}forum/stickers/${hash}.webp`)).toBe(`${STATIC_CDN_PREFIX}forum/stickers/${hash}.webp`);
+    for (const key of [`${STATIC_CDN_PREFIX}forum/stickers`, `${STATIC_CDN_PREFIX}forum/stickers/`, `${STATIC_CDN_PREFIX}forum/stickers/../index.html`, `${STATIC_CDN_PREFIX}forum/stickers//x.webp`, `${STATIC_CDN_PREFIX}forum/sticker/${hash}.webp`, `${STATIC_CDN_PREFIX}stickers/${hash}.webp`, `yzgc/promo/forum/stickers/${hash}.webp`]) {
+      expect(() => assertKey(key), key).toThrow(/拒绝写入/);
+    }
+  });
+});
+
 describe('upload token: prefix-scoped, insert-only, expiring', () => {
   it('signs the Qiniu way (AK:urlsafe_b64(hmac_sha1(SK, policy)):policy) with the narrow policy', () => {
     const policy = uploadPolicy({ now: NOW, seconds: 180 * DAY });
@@ -281,6 +436,17 @@ describe('CSP: the CDN must be allowed before the switch goes on', () => {
         expect(cspAllows(policy, directive, STATIC_CDN_BASE), `${name} ${directive}`).toBe(true);
         expect(cspAllows(policy, directive, `${STATIC_CDN_ORIGIN}/yzgc/promo/x.js`), `${name} ${directive} 不能放行整个 CDN 域名`).toBe(false);
       }
+    }
+  });
+});
+
+describe('CSP: built-in sticker images (#286)', () => {
+  it('both host templates already let images load from the CDN prefix (img-src), so the switch needs no CSP change for stickers', () => {
+    const url = `${STATIC_CDN_BASE}forum/stickers/${'ab'.repeat(32)}.webp`;
+    for (const name of ['preview', 'production']) {
+      const policy = siteCsp(read(`deploy/nginx/${name}.conf`));
+      expect(cspAllows(policy, 'img-src', url), name).toBe(true);
+      expect(cspAllows(policy, 'img-src', 'http://cdn.crosery.com/yzgc/static/site/forum/stickers/x.webp'), `${name} 不放行 http`).toBe(false);
     }
   });
 });
@@ -402,8 +568,10 @@ describe('upload and verification', () => {
     await expect(uploadAll(png, { token, referer: REFERER, fetch: qiniu.fetch, log: quiet, backoff: 0 })).resolves.toMatchObject({ total: 1 });
   });
 
-  it('requires CORS for the fetched iPhone GLB, even when its hash, size and MIME type match', async () => {
-    const file = join(repoRoot, 'app/web/sites/portal/assets/models/iphone_15_pro_max.glb');
+  it('requires CORS for a fetched GLB model, even when its hash, size and MIME type match', async () => {
+    // 官网原来的手机模型随 #275 归档（docs/history/portal-yugc-os-v1/），这里用一份放在 web、forum 之外的样本，不进 entries()
+    const file = join(dir, 'iphone_15_pro_max.glb');
+    writeFileSync(file, 'glTF');
     const entry = {
       file,
       key: `${STATIC_CDN_PREFIX}assets/iphone_15_pro_max-XxYyZz12.glb`,

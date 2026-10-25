@@ -1,31 +1,26 @@
-// YUGC OS 的应用清单、启动器过滤、终端命令与时间文案（纯逻辑，tests/web/portal-os.test.ts 覆盖）。
-// 每个应用打开什么只写在 OS_APPS 里：桌面图标、Dock、1/2/3、菜单栏「前往」、⌘K、便签、终端和「加入我们」回执页都从这里取。
-// 去别的站点的应用（论坛、控制台、GitHub 组织）只写指向 ./links 里的哪一条，由 appLink 解析成地址；地址规则仍只在 ./links。
+// YUGC OS 的应用清单、启动器过滤与时间文案（纯逻辑，tests/web/portal-os.test.ts 覆盖）；终端在 ./shell（#279）。
+// 每个应用打开什么只写在 OS_APPS 里：桌面图标、Dock、1/2/3、菜单栏「前往」、⌘K、便签、终端和「加入我们」窗口的回执都从这里取。
+// 去别的站点的应用（论坛、控制台）只写指向 ./links 里的哪一条，由 appLink 解析成地址；地址规则仍只在 ./links。
 import type { IconName } from "./icons";
 import { links } from "./links";
 
-export type AppId = "join" | "forum" | "github" | "promo" | "about" | "org" | "competitions" | "terminal" | "feedback" | "console" | "wallpaper";
+export type AppId = "join" | "forum" | "gitlab" | "promo" | "about" | "org" | "competitions" | "terminal" | "feedback" | "console" | "wallpaper";
 
 /**
- * scene：进入官网内的 3D 场景页（只有「加入我们」）；window：在桌面里开窗口；panel：桌面自带的全屏面板（换壁纸、重看宣传片）；
- * route：站内普通页面；site：同一个域名下的另一个端（论坛、控制台），当前标签页整页跳过去；
- * external：别人的网站（GitHub 组织），新标签页打开。
- * 论坛与 GitHub 组织点一下直达（#185），不再先进 /forum-3d、/github 场景页；那两个页面留给旧地址，直接打开照常能用。
+ * window：在桌面里开窗口；panel：桌面自带的全屏面板（换壁纸）；site：同一个域名下的另一个端（论坛、控制台），当前标签页整页跳过去。
+ * 论坛点一下直达论坛首页（#185），不再先进 /forum-3d 场景页；那个页面留给旧地址和「论坛最新」窗口里的「3D 版块」。
+ * 「代码仓库」「意见箱」（#275）、「加入我们」（#279）和「宣传片」（#284，原来是全屏面板）都是桌面里的窗口，不再跳到单独的页面；旧地址 /feedback、/join-us、/apply
+ * 跳到 /?open=<id>，进桌面打开对应窗口。
  */
 export type AppOpen =
-  | { kind: "scene"; path: "/join-us" }
   | { kind: "window" }
-  | { kind: "panel"; panel: "wallpaper" | "promo" }
-  | { kind: "route"; path: string }
-  | { kind: "site"; link: "forumHome" | "console" }
-  | { kind: "external"; link: "githubOrg" };
+  | { kind: "panel"; panel: "wallpaper" }
+  | { kind: "site"; link: "forumHome" | "console" };
 
 export type OsApp = {
   id: AppId;
   name: string;
   icon: IconName;
-  /** 桌面图标底色（只用于图标方块） */
-  tint: string;
   blurb: string;
   open: AppOpen;
   /** 单键快捷键，只给三个主入口 */
@@ -37,25 +32,38 @@ export type OsApp = {
 };
 
 export const OS_APPS: readonly OsApp[] = [
-  { id: "join", name: "加入我们", icon: "mail-send-line", tint: "#3346c8", key: "1", primary: true, open: { kind: "scene", path: "/join-us" }, blurb: "写封信报名，我们用邮件联系你" },
-  { id: "forum", name: "论坛", icon: "discuss-line", tint: "#5b5fd6", key: "2", open: { kind: "site", link: "forumHome" }, blurb: "班级公告，课程、竞赛和求职讨论", keywords: "bbs home 首页" },
-  { id: "github", name: "GitHub 组织", icon: "github-line", tint: "#1b2140", key: "3", open: { kind: "external", link: "githubOrg" }, blurb: "极客班的公开仓库" },
-  { id: "promo", name: "宣传片", icon: "film-line", tint: "#d4478a", open: { kind: "panel", panel: "promo" }, blurb: "极客班宣传片，1 分 45 秒" },
-  { id: "about", name: "关于极客班", icon: "book-2-line", tint: "#0e8fc9", open: { kind: "window" }, blurb: "极客班是做什么的" },
-  { id: "org", name: "组织架构", icon: "organization-chart", tint: "#128a7e", open: { kind: "window" }, blurb: "有哪些部门，谁负责什么" },
-  { id: "competitions", name: "比赛", icon: "trophy-line", tint: "#b4761f", open: { kind: "window" }, blurb: "近期有什么比赛，哪天截止", keywords: "contest 赛事 竞赛 报名" },
-  { id: "terminal", name: "终端", icon: "terminal-box-line", tint: "#2b3150", open: { kind: "window" }, blurb: "输入 help 查看命令" },
-  { id: "wallpaper", name: "壁纸", icon: "image-line", tint: "#0e9f8f", open: { kind: "panel", panel: "wallpaper" }, blurb: "换一张桌面壁纸" },
-  { id: "feedback", name: "意见箱", icon: "feedback-line", tint: "#c9821a", open: { kind: "route", path: "/feedback" }, blurb: "提建议或报 bug，不用登录" },
-  { id: "console", name: "控制台", icon: "shield-user-line", tint: "#c9453c", lock: true, open: { kind: "site", link: "console" }, blurb: "管理组织、成员和论坛" },
+  { id: "join", name: "加入我们", icon: "mail-send-line", key: "1", primary: true, open: { kind: "window" }, blurb: "写封信报名，我们用邮件联系你" },
+  { id: "forum", name: "论坛", icon: "discuss-line", key: "2", open: { kind: "site", link: "forumHome" }, blurb: "班级公告，课程、竞赛和求职讨论", keywords: "bbs home 首页" },
+  { id: "gitlab", name: "代码仓库", icon: "git-repository-line", key: "3", open: { kind: "window" }, blurb: "极客班自己的 GitLab，用极客班账号登录", keywords: "gitlab git repo code 代码 仓库" },
+  { id: "promo", name: "宣传片", icon: "film-line", open: { kind: "window" }, blurb: "极客班宣传片，1 分 45 秒" },
+  { id: "about", name: "关于极客班", icon: "book-2-line", open: { kind: "window" }, blurb: "极客班是做什么的" },
+  { id: "org", name: "组织架构", icon: "organization-chart", open: { kind: "window" }, blurb: "有哪些部门，谁负责什么" },
+  { id: "competitions", name: "比赛", icon: "trophy-line", open: { kind: "window" }, blurb: "近期有什么比赛，哪天截止", keywords: "contest 赛事 竞赛 报名" },
+  { id: "terminal", name: "终端", icon: "terminal-box-line", open: { kind: "window" }, blurb: "输入 help 查看命令" },
+  { id: "wallpaper", name: "壁纸", icon: "image-line", open: { kind: "panel", panel: "wallpaper" }, blurb: "换一张桌面壁纸" },
+  { id: "feedback", name: "意见箱", icon: "feedback-line", open: { kind: "window" }, blurb: "提建议或报 bug，不用登录" },
+  { id: "console", name: "控制台", icon: "shield-user-line", lock: true, open: { kind: "site", link: "console" }, blurb: "管理组织、成员和论坛" },
 ];
+
+/** 图标方块的底色：YUGC 四个字母的品牌色（styles/portal.css 的 --os-y/-u/-g/-c） */
+export type AppTone = "y" | "u" | "g" | "c";
+const TONES: readonly AppTone[] = ["y", "u", "g", "c"];
+
+/** 按应用在 OS_APPS 里的顺序在四个字母色里轮换（SPEC §4.2）；同一个应用在桌面、Dock、启动动画里颜色一样 */
+export function appTone(app: OsApp): AppTone {
+  return TONES[Math.max(0, OS_APPS.findIndex((candidate) => candidate.id === app.id)) % TONES.length];
+}
+
+/** 招新关着时「加入我们」图标、启动器和终端里的说明（#284）：不再写「报名」，窗口里是招新暂未开放的页面 */
+const JOIN_CLOSED_BLURB = "招新暂未开放";
 
 /**
  * 这个人能看到的应用：控制台只给在里面能管点什么的人（`/auth/me` 的 `console_link`）；没登录和没有管理能力的人，
  * 桌面、Dock、菜单、启动器和终端里都没有它。控制台自己的准入不变。
+ * `applyOpen` 是招新总开关（lib/applyOpen.ts）：关着时「加入我们」的说明换成「招新暂未开放」，应用本身仍在，点开是关闭页。
  */
-export function visibleApps(consoleLink: boolean): OsApp[] {
-  return OS_APPS.filter((app) => consoleLink || app.id !== "console");
+export function visibleApps(consoleLink: boolean, applyOpen = true): OsApp[] {
+  return OS_APPS.filter((app) => consoleLink || app.id !== "console").map((app) => (app.id === "join" && !applyOpen ? { ...app, blurb: JOIN_CLOSED_BLURB } : app));
 }
 
 export function appById(id: string): OsApp | undefined {
@@ -68,19 +76,9 @@ export function appByKey(key: string): OsApp | undefined {
 
 export type AppLink = { href: string; newTab: boolean };
 
-/**
- * 去别的站点的应用指向哪里、怎么打开：本域名下的论坛和控制台在当前标签页打开（和官网其它论坛链接一样）；
- * GitHub 组织在新标签页打开（和页脚、GitHub 场景页里的 GitHub 链接一样）。留在官网里的应用返回 null。
- */
+/** 去别的站点的应用指向哪里：本域名下的论坛和控制台，在当前标签页打开（和官网其它论坛链接一样）。留在官网里的应用返回 null。 */
 export function appLink(app: OsApp): AppLink | null {
-  switch (app.open.kind) {
-    case "site":
-      return { href: links[app.open.link](), newTab: false };
-    case "external":
-      return { href: links[app.open.link](), newTab: true };
-    default:
-      return null;
-  }
+  return app.open.kind === "site" ? { href: links[app.open.link](), newTab: false } : null;
 }
 
 /**
@@ -93,14 +91,10 @@ export function followAppLink(link: AppLink, win: Pick<Window, "open" | "locatio
 }
 
 /**
- * 点下去在新标签页打开的应用（GitHub 组织）给读屏补的一句：焦点会直接跑到新标签页，先说一声。
- * 只放进视觉上隐藏的 .pt-sr 或 aria-label，界面上看不到（Dock、桌面图标、菜单栏「前往」、⌘K、便签都加）。
+ * 点下去在新标签页打开的链接（代码仓库里的项目、比赛官网）给读屏补的一句：焦点会直接跑到新标签页，先说一声。
+ * 只放进视觉上隐藏的 .pt-sr 里，界面上看不到。
  */
 export const NEW_TAB_NOTE = "（新标签页打开）";
-
-export function opensNewTab(app: OsApp): boolean {
-  return appLink(app)?.newTab === true;
-}
 
 /** 按 id 取应用的站外地址；不是站外应用时抛错（只给写死 id 的调用方用，例如「加入我们」回执页的「去论坛看看」） */
 export function appLinkById(id: AppId): AppLink {
@@ -127,7 +121,6 @@ export function launcherCommands(apps: readonly OsApp[] = OS_APPS): LauncherComm
     ...apps.map((app) => ({ id: `app:${app.id}`, label: app.name, hint: app.blurb, icon: app.icon, keywords: [app.id, app.name, app.keywords].filter(Boolean).join(" ") })),
     { id: "forum-feed", label: "论坛最新", hint: "最近的话题", icon: "fire-line", keywords: "latest feed 最新 帖子 话题 topic" },
     { id: "docs", label: "文档", hint: "官网和论坛的使用说明", icon: "file-text-line", keywords: "docs 文档 guide 指南 help" },
-    { id: "back", label: "回到书桌", hint: "Esc", icon: "arrow-left-line", keywords: "back desk 书桌 返回 exit" },
   ];
 }
 
@@ -154,57 +147,6 @@ export function filterCommands(commands: readonly LauncherCommand[], query: stri
 export function moveSelection(current: number, delta: number, length: number): number {
   if (length <= 0) return 0;
   return Math.min(length - 1, Math.max(0, current + delta));
-}
-
-// ── 终端 ────────────────────────────────────────────────────────────────
-
-export type TerminalLine = { kind: "echo" | "out" | "ok" | "err" | "dim"; text: string; key?: string; href?: string };
-export type TerminalResult = { lines: TerminalLine[]; open?: AppId; clear?: boolean };
-
-export type RepoSnapshot = { name: string; description: string | null; language: string | null; pushed: string; url: string; stars: number };
-
-const HELP: Array<[string, string]> = [
-  ["help", "显示这份帮助"],
-  ["ls", "列出应用"],
-  ["open <app>", "打开应用，例如 open forum"],
-  ["./join", "打开「加入我们」"],
-  ["repos", "列出公开仓库"],
-  ["whoami", "显示当前身份"],
-  ["clear", "清屏"],
-];
-
-export function runTerminal(input: string, repos: readonly RepoSnapshot[], apps: readonly OsApp[] = OS_APPS): TerminalResult {
-  const [command = "", ...rest] = input.trim().split(/\s+/);
-  const echo: TerminalLine = { kind: "echo", text: input.trim() };
-  if (!command) return { lines: [echo] };
-  const reply = (lines: TerminalLine[], open?: AppId): TerminalResult => ({ lines: [echo, ...lines], open });
-  switch (command) {
-    case "help":
-      return reply(HELP.map(([key, text]) => ({ kind: "out", key, text })));
-    case "ls":
-      return reply(apps.map((app) => ({ kind: "out", key: app.id, text: app.name })));
-    case "clear":
-      return { lines: [], clear: true };
-    case "whoami":
-      return reply([{ kind: "out", text: "访客（官网不需要登录）" }]);
-    case "repos":
-      return reply(
-        repos.length
-          ? repos.map((repo) => ({ kind: "out", key: repo.name, text: `${repo.language ?? "—"} · ${repo.description ?? ""}`, href: repo.url }))
-          : [{ kind: "dim", text: "没有公开仓库" }],
-      );
-    case "./join":
-      return reply([{ kind: "ok", text: "打开 加入我们" }], "join");
-    case "sudo":
-      return reply([{ kind: "err", text: "sudo: 这个终端没有管理员权限。管理组织请用控制台。" }]);
-    case "open": {
-      const app = apps.find((candidate) => candidate.id === (rest[0] ?? ""));
-      if (!app) return reply([{ kind: "err", text: `open: 没有叫 ${rest[0] ?? "（空）"} 的应用，试试 ls` }]);
-      return reply([{ kind: "ok", text: `打开 ${app.name}` }], app.id);
-    }
-    default:
-      return reply([{ kind: "err", text: `zsh: command not found: ${command}  试试 help` }]);
-  }
 }
 
 // ── 时间 ───────────────────────────────────────────────────────────────

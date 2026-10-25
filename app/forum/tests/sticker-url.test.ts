@@ -1,0 +1,83 @@
+import { describe, expect, it } from 'vitest'
+import { isStickerUrl, STICKER_CDN_PREFIX, STICKER_SAME_ORIGIN_PREFIX, STICKER_URL_PATTERN, stickerHash } from '../shared/sticker-url'
+
+/**
+ * The one rule for a sticker picture address (#286): the same-origin content-hash address and the same hash on the
+ * controlled CDN are taken, nothing else. forum-api.ts (what the server sends), post-markdown.ts (post bodies and
+ * the way in and out of the editor) and editor/inline-stickers.ts (picture blocks in the editor) all use it.
+ */
+const HASH = 'ab12'.repeat(16)
+const SAME = `/api/forum/stickers/${HASH}.webp`
+const CDN = `https://cdn.crosery.com/yzgc/static/site/forum/stickers/${HASH}.webp`
+
+describe('sticker picture addresses', () => {
+  it('takes the same-origin address and the controlled CDN address of a 64-hex content hash', () => {
+    expect(STICKER_SAME_ORIGIN_PREFIX).toBe('/api/forum/stickers/')
+    expect(STICKER_CDN_PREFIX).toBe('https://cdn.crosery.com/yzgc/static/site/forum/stickers/')
+    expect(isStickerUrl(SAME)).toBe(true)
+    expect(isStickerUrl(CDN)).toBe(true)
+    expect(isStickerUrl(`/api/forum/stickers/${'0'.repeat(64)}.webp`)).toBe(true)
+    expect(isStickerUrl(`${STICKER_CDN_PREFIX}${'f'.repeat(64)}.webp`)).toBe(true)
+  })
+
+  it.each([
+    ['another domain', `https://cdn.example.com/yzgc/static/site/forum/stickers/${HASH}.webp`],
+    ['another domain with the same path', `https://evil.example/forum/stickers/${HASH}.webp`],
+    ['a host that starts with the CDN host', `https://cdn.crosery.com.evil.example/yzgc/static/site/forum/stickers/${HASH}.webp`],
+    ['the CDN address behind a userinfo', `https://cdn.crosery.com@evil.example/yzgc/static/site/forum/stickers/${HASH}.webp`],
+    ['the CDN address inside another URL', `https://evil.example/${CDN}`],
+    ['the CDN host on another port', `https://cdn.crosery.com:8443/yzgc/static/site/forum/stickers/${HASH}.webp`],
+    ['http instead of https', `http://cdn.crosery.com/yzgc/static/site/forum/stickers/${HASH}.webp`],
+    ['an upper-case host', `https://CDN.crosery.com/yzgc/static/site/forum/stickers/${HASH}.webp`],
+    ['a protocol-relative address', `//cdn.crosery.com/yzgc/static/site/forum/stickers/${HASH}.webp`],
+    ['another folder of the CDN', `https://cdn.crosery.com/yzgc/static/site/forum/guides/${HASH}.webp`],
+    ['another prefix of the CDN', `https://cdn.crosery.com/yzgc/promo/forum/stickers/${HASH}.webp`],
+    ['a path trick on the CDN', `https://cdn.crosery.com/yzgc/static/site/forum/stickers/../guides/${HASH}.webp`],
+    ['a doubled slash on the CDN', `https://cdn.crosery.com/yzgc/static/site/forum/stickers//${HASH}.webp`],
+    ['a subfolder on the CDN', `https://cdn.crosery.com/yzgc/static/site/forum/stickers/sub/${HASH}.webp`],
+    ['a path trick on the same origin', `/api/forum/stickers/../uploads/${HASH}.webp`],
+    ['an encoded path trick on the same origin', `/api/forum/stickers/%2e%2e/${HASH}.webp`],
+    ['a path trick behind the hash', `/api/forum/stickers/${HASH}/../${HASH}.webp`],
+    ['another API folder', `/api/forum/uploads/${HASH}.webp`],
+    ['a relative address', `api/forum/stickers/${HASH}.webp`],
+    ['a query string', `${SAME}?x=1`],
+    ['a query string on the CDN', `${CDN}?x=1`],
+    ['a fragment', `${CDN}#x`],
+    ['the wrong extension', `/api/forum/stickers/${HASH}.png`],
+    ['an upper-case extension', `/api/forum/stickers/${HASH}.WEBP`],
+    ['a doubled extension', `${SAME}.png`],
+    ['a short hash', `/api/forum/stickers/${HASH.slice(1)}.webp`],
+    ['a long hash', `/api/forum/stickers/${HASH}0.webp`],
+    ['an upper-case hash', `/api/forum/stickers/${HASH.toUpperCase()}.webp`],
+    ['a hash with a non-hex letter', `/api/forum/stickers/${HASH.slice(1)}g.webp`],
+    ['javascript:', 'javascript:alert(1)'],
+    ['javascript: dressed as the CDN', `javascript:void("${CDN}")`],
+    ['data:', 'data:image/webp;base64,UklGRg=='],
+    ['blob:', `blob:${CDN}`],
+    ['a leading space', ` ${SAME}`],
+    ['a trailing newline', `${SAME}\n`],
+    ['an embedded newline', `/api/forum/stickers/\n${HASH}.webp`],
+    ['an empty string', ''],
+  ])('refuses %s', (_name, url) => {
+    expect(isStickerUrl(url)).toBe(false)
+    expect(stickerHash(url)).toBeNull()
+  })
+
+  it('refuses what is not a string', () => {
+    for (const value of [undefined, null, 7, {}, [SAME], true])
+      expect(isStickerUrl(value)).toBe(false)
+  })
+
+  it('gives the same hash for both forms of one picture, and null for anything else', () => {
+    expect(stickerHash(SAME)).toBe(HASH)
+    expect(stickerHash(CDN)).toBe(HASH)
+    expect(stickerHash('https://evil.example/x.webp')).toBeNull()
+    expect(stickerHash(undefined)).toBeNull()
+  })
+
+  it('offers the address as a pattern a Markdown image regex can embed, with the same two forms and nothing more', () => {
+    const image = new RegExp(`!\\[[^\\]\\n]*\\]\\((${STICKER_URL_PATTERN})\\)`, 'g')
+    expect([...`![a](${SAME}) ![b](${CDN}) ![c](https://evil.example/x.webp) ![d](${SAME}?x=1)`.matchAll(image)].map(match => match[1])).toEqual([SAME, CDN])
+    expect(new RegExp(`^${STICKER_URL_PATTERN}$`).test(CDN)).toBe(true)
+  })
+})

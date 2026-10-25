@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import {
-  CAPABILITY_IDS, CAPTAIN_ONLY, DEFAULT_DEPARTMENTS, DEFAULT_TITLE_CONFIGS, TITLE_IDS, isCapability, normalizeBundle,
+  CAPABILITY_IDS, CAPTAIN_ONLY, DEFAULT_DEPARTMENTS, DEFAULT_TITLE_CONFIGS, LEGACY_TITLE_DESCRIPTIONS, TITLE_IDS, isCapability, normalizeBundle,
   type AssignableRole, type AssignmentRow, type Capability, type Department, type DepartmentIcon, type TitleConfigs, type TitleId, type Tone,
 } from "./roles.js";
 
@@ -16,13 +16,14 @@ export type DepartmentInput = {
 export type DepartmentPatch = Partial<Omit<DepartmentInput, "id">> & { archived?: boolean };
 export type TitlePatch = Partial<{ label: string; tag: string; icon: string; tone: Tone; description: string; capabilities: Capability[] }>;
 type TitleRecord = { id: TitleId; label: string; tag: string; icon: string; tone: string; description: string; capabilities: string; updated_by: string | null; updated_at: number };
+/** `account_id`：对方已经有极客班账号时授予就写上（#262）；还没登录过的人为空，第一次登录时按 GitHub id 认领。 */
 export type AssignmentInput = {
   github_login: string; github_user_id: number | null; role: AssignableRole; department_id: string;
-  note: string | null; granted_by: string;
+  note: string | null; granted_by: string; account_id?: string | null;
 };
 export type AssignmentFilter = { role?: AssignableRole; department_id?: string; departments?: string[] };
 
-const ASSIGNMENT_COLUMNS = "id, github_login, github_user_id, role, department_id, note, granted_by, created_at";
+const ASSIGNMENT_COLUMNS = "id, github_login, github_user_id, account_id, role, department_id, note, granted_by, created_at";
 
 function parseBundle(raw: string): Capability[] {
   try {
@@ -50,11 +51,14 @@ export function createRoleStore(db: Database.Database) {
   // 称号：代码里的默认值只在第一次启动写入，之后以数据库为准（提督在控制台改的不会被覆盖）。
   const seedTitle = db.prepare(`INSERT OR IGNORE INTO titles(id, label, tag, icon, tone, description, capabilities, updated_by, updated_at)
     VALUES(@id, @label, @tag, @icon, @tone, @description, @capabilities, NULL, @now)`);
+  // 提督、舰员的说明还是旧默认值（「GitHub 组织的所有者」「加入 GitHub 组织后」）的，换成 #262 的新默认值；改过的不动
+  const renewDescription = db.prepare("UPDATE titles SET description = ? WHERE id = ? AND description = ?");
   db.transaction(() => {
     for (const id of TITLE_IDS) {
       const title = DEFAULT_TITLE_CONFIGS[id];
       seedTitle.run({ ...title, capabilities: JSON.stringify(title.capabilities), now: Date.now() });
     }
+    for (const id of ["admin", "member"] as const) renewDescription.run(DEFAULT_TITLE_CONFIGS[id].description, id, LEGACY_TITLE_DESCRIPTIONS[id]);
   })();
 
   /** 全部称号设置。提督的权限包不管库里存了什么都是全部能力，乘客没有权限包。 */
@@ -178,11 +182,16 @@ export function createRoleStore(db: Database.Database) {
     return changed;
   }
 
-  /** 当前用户的指派：优先按 GitHub 数字 id 匹配（抗改名），尚未记录 id 的行按小写 login 匹配。 */
-  function assignmentsFor(login: string, userId: number | null): AssignmentRow[] {
+  /**
+   * 当前用户的指派，依次按极客班账号、GitHub 数字 id（抗改名）、小写登录名匹配（#262）。已认领到账号的行只认账号；
+   * 没有 GitHub id 的旧行只能按登录名读、从不认领（旧登录名可能已被别人注册）。
+   */
+  function assignmentsFor(login: string, userId: number | null, accountId: string | null = null): AssignmentRow[] {
     return db.prepare(`SELECT ${ASSIGNMENT_COLUMNS} FROM role_assignments
-      WHERE (github_user_id IS NOT NULL AND github_user_id = ?) OR (github_user_id IS NULL AND github_login = ?)
-      ORDER BY created_at ASC, id ASC`).all(userId ?? -1, login.toLowerCase()) as AssignmentRow[];
+      WHERE (account_id IS NOT NULL AND account_id = ?)
+        OR (account_id IS NULL AND github_user_id IS NOT NULL AND github_user_id = ?)
+        OR (account_id IS NULL AND github_user_id IS NULL AND github_login = ?)
+      ORDER BY created_at ASC, id ASC`).all(accountId, userId ?? -1, login.toLowerCase()) as AssignmentRow[];
   }
   function listAssignments(filter: AssignmentFilter = {}): AssignmentRow[] {
     const where: string[] = [];
@@ -208,8 +217,8 @@ export function createRoleStore(db: Database.Database) {
   /** 插入一条指派；唯一约束冲突返回 null。captain 行请走 transferCaptain。 */
   function insertAssignment(input: AssignmentInput): AssignmentRow | null {
     try {
-      const result = db.prepare(`INSERT INTO role_assignments(github_login, github_user_id, role, department_id, note, granted_by, created_at)
-        VALUES(?, ?, ?, ?, ?, ?, ?)`).run(input.github_login.toLowerCase(), input.github_user_id, input.role, input.department_id, input.note, input.granted_by, Date.now());
+      const result = db.prepare(`INSERT INTO role_assignments(github_login, github_user_id, role, department_id, note, granted_by, created_at, account_id)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?)`).run(input.github_login.toLowerCase(), input.github_user_id, input.role, input.department_id, input.note, input.granted_by, Date.now(), input.account_id ?? null);
       return getAssignment(Number(result.lastInsertRowid));
     } catch (error) {
       if ((error as { code?: string }).code === "SQLITE_CONSTRAINT_UNIQUE") return null;
@@ -221,8 +230,8 @@ export function createRoleStore(db: Database.Database) {
     return db.transaction(() => {
       const previous = (db.prepare(`SELECT ${ASSIGNMENT_COLUMNS} FROM role_assignments WHERE role = 'captain'`).get() as AssignmentRow | undefined) ?? null;
       if (previous) db.prepare("DELETE FROM role_assignments WHERE id = ?").run(previous.id);
-      const result = db.prepare(`INSERT INTO role_assignments(github_login, github_user_id, role, department_id, note, granted_by, created_at)
-        VALUES(?, ?, 'captain', '', ?, ?, ?)`).run(input.github_login.toLowerCase(), input.github_user_id, input.note, input.granted_by, Date.now());
+      const result = db.prepare(`INSERT INTO role_assignments(github_login, github_user_id, role, department_id, note, granted_by, created_at, account_id)
+        VALUES(?, ?, 'captain', '', ?, ?, ?, ?)`).run(input.github_login.toLowerCase(), input.github_user_id, input.note, input.granted_by, Date.now(), input.account_id ?? null);
       return { previous, assignment: getAssignment(Number(result.lastInsertRowid))! };
     })();
   }

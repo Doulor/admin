@@ -1,5 +1,5 @@
-import type { FastifyInstance } from "fastify";
-import { endRejectedSession, isRejectedToken } from "./require-auth.js";
+import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { ActivitySurface } from "../lib/activity.js";
 
 /** User-facing summaries for GitHub 4xx; the upstream text itself is never echoed. */
 const UPSTREAM_MESSAGES: Record<number, string> = {
@@ -21,6 +21,46 @@ const UPSTREAM_MESSAGES: Record<number, string> = {
  */
 export const rateLimited = () => Object.assign(new Error("操作太频繁，请稍后再试"), { statusCode: 429, code: "rate_limited" });
 
+/** 粗按 URL 前缀分 surface（SPEC §3.7 的 activity_events.surface）；只用来分类，不影响鉴权。 */
+function surfaceFor(url: string): ActivitySurface {
+  if (url.startsWith("/api/console/")) return "console";
+  if (url.startsWith("/api/forum/")) return "forum";
+  if (url.startsWith("/auth/device/") || url.startsWith("/oidc/")) return "cli";
+  if (url.startsWith("/api/events")) return "api";
+  return "portal";
+}
+
+/**
+ * 403/429 响应体里已经带了最具体的线索：权限中间件回 `{ error: "forbidden", node }`，限额回
+ * `{ error: "rate_limited", bucket }`（路由自己数的）或没有 bucket（`@fastify/rate-limit` 插件按路由限流的）。
+ * 按这个顺序取 action，取不到就退回 `http.<error>`，保证每一条都有可读的名字。
+ */
+function actionFor(body: unknown): string {
+  const b = body as { node?: unknown; bucket?: unknown; error?: unknown } | null;
+  if (typeof b?.node === "string") return b.node;
+  if (typeof b?.bucket === "string") return b.bucket;
+  if (typeof b?.error === "string") return `http.${b.error}`;
+  return "http.denied";
+}
+
+/**
+ * 所有被 403 拒绝、被 429 拦下的请求记一条操作记录（SPEC §3.7「所有被 403 拒绝的请求记 outcome = 'denied'，
+ * 被 429 拦下的记 outcome = 'limited'」），集中在这一个钩子里做，不要求每个路由自己记——这样新加的写接口
+ * 天然就有这条覆盖，不会漏。放在 onSend（有响应体可读）而不是 onResponse（没有）。
+ */
+function recordDenialOrLimit(req: FastifyRequest, statusCode: number, payload: unknown): void {
+  if (statusCode !== 403 && statusCode !== 429) return;
+  let body: unknown = null;
+  if (typeof payload === "string") { try { body = JSON.parse(payload); } catch { /* 不是 JSON，按通用名记 */ } }
+  // console/activity.ts 的 blocked_today 按 meta.bucket 分组统计；只有路由自己数的限额（回了 bucket 字段的）
+  // 才有名字可分组，@fastify/rate-limit 插件按路由限流的通用 429 没有 bucket，不写这个字段。
+  const bucket = (body as { bucket?: unknown } | null)?.bucket;
+  req.server.services.activity.recordDenial(req, {
+    action: actionFor(body), surface: surfaceFor(req.url), outcome: statusCode === 429 ? "limited" : "denied",
+    meta: typeof bucket === "string" ? { bucket } : undefined,
+  });
+}
+
 /** Fail closed for browser cross-origin writes; bearer-only clients remain usable. */
 export function registerHttpPolicy(app: FastifyInstance) {
   app.addHook("onRequest", async (req, reply) => {
@@ -35,30 +75,37 @@ export function registerHttpPolicy(app: FastifyInstance) {
     reply.header("X-Content-Type-Options", "nosniff");
     reply.header("X-Frame-Options", "DENY");
     reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
-    // 唯一的例外：论坛头像按内容哈希寻址、内容永不改变，成功的响应由路由自己下发长期缓存。
-    const immutable = reply.statusCode === 200 && req.url.startsWith("/api/forum/avatars/");
-    if ((req.url.startsWith("/auth") || req.url.startsWith("/api")) && !immutable) reply.header("Cache-Control", "no-store");
+    // 例外：论坛头像、账号头像（#274）、论坛表情图片（#286）都按内容哈希寻址、内容永不改变，成功的响应由路由自己下发长期缓存。
+    // 表情的列表接口（/api/forum/stickers，没有斜杠与哈希）不在其中，仍然不缓存。
+    const immutable = reply.statusCode === 200
+      && (req.url.startsWith("/api/forum/avatars/") || req.url.startsWith("/api/identity/avatar/") || req.url.startsWith("/api/forum/stickers/"));
+    if ((req.url.startsWith("/auth") || req.url.startsWith("/api") || req.url.startsWith("/oidc/")) && !immutable) reply.header("Cache-Control", "no-store");
+    recordDenialOrLimit(req, reply.statusCode, payload);
     return payload;
   });
   app.setErrorHandler((cause, req, reply) => {
-    const error = cause as { statusCode?: number; status?: number; code?: string; message: string; validation?: unknown };
-    // 带会话的请求调 GitHub 用的都是这个会话自己的令牌。邀请链接用发起人的令牌，但 join.ts 不加载会话（req.session 为空）、
-    // 也自己接住上游错误，不会走到这里；以后有路由在加载会话之后用别人的令牌调 GitHub，要自己接住它的 401。
-    // GitHub 拒绝了它，这个会话就没用了：结束会话，和会话到期一样回 401 session_expired，页面按未登录处理（#164）。
-    if (req.session && isRejectedToken(cause)) {
-      endRejectedSession(req, reply, req.session);
-      return reply.code(401).send({ error: "session_expired", message: "登录已失效，请重新登录", request_id: req.id });
-    }
+    const error = cause as { statusCode?: number; status?: number; code?: string; message: string; validation?: unknown; extra?: Record<string, unknown> };
+    // #274 item I 的 extras d：这里原来有一段专接「会话自己的 GitHub 令牌被 401」的分支（#164），删 GitHub
+    // 组织管理、lib/github-connection.ts 和 /api/join/:token 之后，服务端生产代码不再用会话自己的令牌调
+    // GitHub（services.ts 的 github 工厂只给既有测试用，见那边的注释），这个分支永远不会被真实触发，删掉。
     // Octokit's RequestError only carries `status`; Fastify's own errors carry `statusCode`.
     const upstream = error.statusCode === undefined && typeof error.status === "number";
     const raw = error.statusCode ?? error.status;
     const status = raw && raw >= 400 && raw <= 599 ? raw : 500;
-    if (status >= 500) req.log.error({ code: error.code, status, requestId: req.id }, "request failed");
+    // GitHub App 用不了（503）照实说，让管理员知道该查 App 的配置；别的 5xx 一律只说「服务暂时不可用」
+    const masked = status >= 500 && error.code !== "github_connection_failed";
+    if (status >= 500) req.log.error({ code: error.code, status, upstreamStatus: (cause as { upstreamStatus?: unknown }).upstreamStatus, requestId: req.id }, "request failed");
     else if (upstream) req.log.warn({ status, requestId: req.id }, "upstream request rejected");
+    // #276 修复：ForumError 的 `extra`（CONTRACT-276 §1 的 401 `need`、403 的 `node`+`need`）一直没有真的铺进响应体——
+    // 这里原来只回 `{ error, message, request_id }` 三个字段，视觉上看不出来，论坛前端据 `need` 判断缺哪一级的分支
+    // 一直拿不到这个字段。masked/upstream/validation 这三支是别的中间件/插件自己造的错误对象，不会带 `extra`，
+    // 这里仍然显式排掉，不让以后哪个 5xx 错误顺手挂了个 extra 就泄出去。
+    const extra = !masked && !upstream && !error.validation ? error.extra : undefined;
     return reply.code(status).send({
-      error: error.validation ? "validation_error" : status >= 500 ? "internal_error" : upstream ? "upstream_rejected" : error.code ?? "request_error",
-      message: status >= 500 ? "服务暂时不可用，请稍后重试" : upstream ? UPSTREAM_MESSAGES[status] ?? `GitHub 拒绝了该请求（HTTP ${status}）` : error.message,
+      error: error.validation ? "validation_error" : masked ? "internal_error" : upstream ? "upstream_rejected" : error.code ?? "request_error",
+      message: masked ? "服务暂时不可用，请稍后重试" : upstream ? UPSTREAM_MESSAGES[status] ?? `GitHub 拒绝了该请求（HTTP ${status}）` : error.message,
       request_id: req.id,
+      ...(extra ?? {}),
     });
   });
 }

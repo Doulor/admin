@@ -1,7 +1,7 @@
-// 论坛最新话题与公开仓库的静态快照（public/portal/*.json）。不是实时数据：界面上必须写「快照 <日期>」。
+// 论坛最新话题的静态快照（public/portal/forum-latest.json）。不是实时数据：界面上必须写「快照 <日期>」。
 // 论坛的实时接口只在本机开发时存在，生产官网拿不到，所以这里只读随构建发布的快照文件。
+// 代码仓库的公开项目改成读接口（lib/codeRepos.ts），原来 GitHub 仓库的快照已删（#275）。
 import { useEffect, useState } from "react";
-import type { RepoSnapshot } from "./osApps";
 
 /**
  * 快照只收录已在仓库里公开编辑过的话题（app/forum/content/curation.json 的 topics），
@@ -24,8 +24,6 @@ export type ForumSnapshot = {
   summary: { capturedAt: string; topics: number; posts: number; users: number; categories: ForumCategory[] };
   latest: ForumTopic[];
 };
-
-export type RepoList = { capturedAt: string; org: string; repos: RepoSnapshot[] };
 
 export type Snapshot<T> = { status: "loading" } | { status: "ready"; data: T } | { status: "error" };
 
@@ -60,9 +58,6 @@ function useSnapshot<T>(url: string): Snapshot<T> {
 }
 
 export const FORUM_SNAPSHOT_URL = "/portal/forum-latest.json";
-export const REPOS_SNAPSHOT_URL = "/portal/repos.json";
 
 export const useForumSnapshot = () => useSnapshot<ForumSnapshot>(FORUM_SNAPSHOT_URL);
-export const useRepoSnapshot = () => useSnapshot<RepoList>(REPOS_SNAPSHOT_URL);
-export const loadRepoSnapshot = () => load<RepoList>(REPOS_SNAPSHOT_URL);
 

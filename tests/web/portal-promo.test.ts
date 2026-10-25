@@ -62,14 +62,14 @@ describe("宣传片：挑播放方式", () => {
 });
 
 describe("宣传片：桌面应用", () => {
-  it("桌面上有「宣传片」，打开的是全屏面板，不是主入口、没有快捷键", () => {
+  it("桌面上有「宣传片」，打开的是桌面窗口（#284，原来是全屏面板），不是主入口、没有快捷键", () => {
     const promo = OS_APPS.find((app) => app.id === "promo");
-    expect(promo).toMatchObject({ name: "宣传片", icon: "film-line", open: { kind: "panel", panel: "promo" } });
+    expect(promo).toMatchObject({ name: "宣传片", icon: "film-line", open: { kind: "window" } });
     expect(promo?.key).toBeUndefined();
     expect(promo?.primary).toBeUndefined();
     expect(OS_APPS.find((app) => app.id === "wallpaper")?.open).toEqual({ kind: "panel", panel: "wallpaper" });
-    // 三个主入口仍排在最前
-    expect(OS_APPS.slice(0, 4).map((app) => app.id)).toEqual(["join", "forum", "github", "promo"]);
+    // 三个主入口仍排在最前，宣传片紧跟代码仓库（GitHub 组织应用在 #275 删掉了）
+    expect(OS_APPS.slice(0, 4).map((app) => app.id)).toEqual(["join", "forum", "gitlab", "promo"]);
   });
 });
 

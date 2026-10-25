@@ -33,13 +33,17 @@
 
 与 `app/` 一一对应的服务文档：每个服务一份 README（源码地图、契约、运行、验证、限制）。
 
+## services/cli/
+
+极客班命令行 `geek`（Rust）：设备码登录、论坛/比赛/代码仓库只读与写操作、给 Claude Code/Codex/omp 装一份极客班技能（#277）。独立工具链，不进 Node 工作区；产物不单独成镜像，随 `app/web` 镜像的 `/cli/` 路径分发。
+
 ## services/console/
 
-极客班控制台前端：Vue 3 + Tuffex 单页应用，按称号能力显示页面；接口全部来自 `app/server`，产物由 web 镜像托管。
+极客班控制台前端：Vue 3 + Tuffex 单页应用，按权限节点显示页面；接口全部来自 `app/server`，产物由 web 镜像托管。
 
 ## services/forum/
 
-直接采用 Tuff Forum 原代码、TuffEx 组件与验证方式；线上镜像是极客班论坛：帖子、回复、资料存在核心服务（同域 `/api/forum/*`，#57），游客能看帖和用昵称回复，成员用全站 GitHub 登录后发帖、点赞、收藏、关注、改资料；本机可显示极客班论坛快照；上游验收与本机示例预览仍是浏览器里的示例数据。
+直接采用 Tuff Forum 原代码、TuffEx 组件与验证方式；线上镜像是极客班论坛：帖子、回复、资料存在核心服务（同域 `/api/forum/*`，#57），话题按身份分级可见（公开、注册用户、成员），没登录只能看公开的帖子；成员用全站登录（极客班账号）后发帖、回复、点赞、用表情回应、收藏、关注、改资料，注册用户填邀请码成为成员之前只能看；本机可显示极客班论坛快照；上游验收与本机示例预览仍是浏览器里的示例数据。
 
 ## services/server/
 
@@ -47,9 +51,11 @@
 
 | 文档 | 说明 | EN |
 |---|---|---|
+| [`contest-site-quickstart.md`](./services/server/contest-site-quickstart.md) | 给要给自己的内部比赛做一个官网的组织者看：从建比赛到发布官网的完整步骤，接口清单，以及几条容易踩的坑。这份文档本身是给论坛「举办内部比赛指南」（t910）直接引用的材料，写法上不假设读者先看过别的文档。 | — |
 | [`data-model.md`](./services/server/data-model.md) | data.db 每张表的用途、写入方、读取方和个人信息字段，以及当前没有消费者的表、列和索引；表结构以 `app/server/src/lib/db.ts` 为唯一来源。 | — |
 | [`endpoint-contracts.md`](./services/server/endpoint-contracts.md) | 按真实 handler、授权执行点与存储实现核对现有接口；关联目录中的业务用例，区分存量人工说明与已挂载的机器响应契约。 | — |
-| [`mail.md`](./services/server/mail.md) | 招新的四封信怎么拼、怎么渲染、怎么排队发出去：信先写进 data.db 的发信队列，再由服务进程里的发信循环交给阿里云邮件推送或 Resend；信封版式照官网「加入我们」的信纸，图片部件放在 CDN 上。 | — |
+| [`mail.md`](./services/server/mail.md) | 招新的四封信怎么拼、怎么渲染、怎么排队发出去：每类信的内容是库里的模板（可以有多套，控制台里编辑、预览、向测试邮箱试发），拼好后先写进 data.db 的发信队列，再由服务进程里的发信循环交给阿里云邮件推送或 Resend；信封版式照官网「加入我们」的信纸，图片部件放在 CDN 上。 | — |
+| [`oidc.md`](./services/server/oidc.md) | 不同源的应用用极客班账号登录：核心服务内嵌一个 OpenID Connect 签发者，第一个下游是自建的 GitLab（`https://git.yangtzeu.work`）。同一模块按极客班账号在 GitLab 上建好用户、放进 `geek` 组，离开的封禁。 | — |
 
 ## services/web/
 
@@ -58,7 +64,7 @@
 | 文档 | 说明 | EN |
 |---|---|---|
 | [`admin.md`](./services/web/admin.md) | 管理端前端已从 `app/web/sites/admin`（React）迁到独立的 Vue 包 `app/console`；本页只记录迁移事实与仍然有效的服务端约定。 | — |
-| [`portal.md`](./services/web/portal.md) | 公开官网：3D 书桌与 YUGC OS 桌面、加入我们（信封场景）、论坛与 GitHub 场景、文档、意见箱和邀请落地；不自建登录，菜单栏显示全站 GitHub 登录的账号或登录入口。 | — |
+| [`portal.md`](./services/web/portal.md) | 公开官网：开机动画与 YUGC OS 桌面（加入我们、意见箱等都是桌面窗口）、论坛 3D 场景和文档；不自建登录，菜单栏头像打开「账号资料」窗口。 | — |
 | [`shared.md`](./services/web/shared.md) | 共享 UI、网络、渲染和配置，不反向依赖站点。 | — |
 
 ## components/
@@ -116,8 +122,9 @@
 | [`COMPETITION-APP.md`](./plan/COMPETITION-APP.md) | #239 的目标方案（未实施）：把官网「比赛」窗口升级为「赛事 / 我的参赛」两个视图的应用——所有人看到同一份赛事，极客班成员在上面叠加自己的报名、组队与参赛状态；参赛者按极客班统一账号（`account_id`）识别，不按 GitHub 账号；同时约定接口、业务规则、数据库草图、控制台报名名单、内部比赛官网托管与 SDK、与统一登录等其他业务的协调，以及与后端草稿 90fc376 的对齐清单。 | — |
 | [`CONSOLE-PERMISSION-TREE.md`](./plan/CONSOLE-PERMISSION-TREE.md) | #176 的离线参考与接入计划已落实为控制台只读页签；当前契约迁回 console 服务文档。本记录是实施结论，不代替人工验收；合并、tag 与部署状态以 issue #176 的追踪记录为准。 | — |
 | [`REFACTOR.md`](./plan/REFACTOR.md) | 历史阶段记录：旧路径、版本、数量和完成声明仅供追溯。 | [EN](./plan/REFACTOR.en.md) |
-| [`UNIFIED-LOGIN.md`](./plan/UNIFIED-LOGIN.md) | #237 的实施规格（未实施）：把 ADR-0005 落到可以直接开工的颗粒度——统一登录页 `/signin`、账号页 `/account` 与控制台的界面状态，三种登录方式的后端流程，全站一套的个人资料（头像、昵称），新表与迁移，要会话的接口在邮箱或 Google 会话下怎么处理，以及各业务要改什么、怎么验收；按四个候选 issue 拆分交付。 | — |
+| [`UNIFIED-LOGIN.md`](./plan/UNIFIED-LOGIN.md) | #237 的实施规格（交付 1 已由 #262 实施：账号底座与 GitHub 登录事务、统一登录页 `/signin`、三端入口改「登录」、RFC 8628 设备授权；#262 第二、三期按所有者 2026-10-23 的决定实施了邮箱验证码与密码登录、Google 登录、邀请码注册与账号页 `/account`，见「实施进度」；交付 4 与渠道绑定的其余部分未实施）：把 ADR-0005 落到可以直接开工的颗粒度——统一登录页 `/signin`、账号页 `/account` 与控制台的界面状态，三种登录方式的后端流程，全站一套的个人资料（头像、昵称），新表与迁移，要会话的接口在邮箱或 Google 会话下怎么处理，以及各业务要改什么、怎么验收；按四个候选 issue 拆分交付。 | — |
 | [`WEB-SPLIT.md`](./plan/WEB-SPLIT.md) | 历史阶段记录：旧路径、版本、数量和完成声明仅供追溯。 | [EN](./plan/WEB-SPLIT.en.md) |
+| [`YUGC-OS-V2.md`](./plan/YUGC-OS-V2.md) | 批次源自开机动画视觉令牌与门户桌面改版，所有者 2026-10-23 批准按 `#274 账号/权限地基 → #275 门户桌面 → #276 论坛可见范围 → #277 geek 命令行 → #278 第一期比赛官网` 顺序推进。本文件收录设计方案第 1–3 章的要点（视觉令牌去向、执行顺序与分工、#274 的设计与落地结论）；第 1 章的令牌取值写进 `docs/design/DESIGN.md`（由 #275 补充），逐字段的接口契约在各自服务契约文档里；#275-#278 各章的要点由对应 issue 的 MR 补进本文件。 | — |
 
 ## ops/
 
@@ -125,6 +132,7 @@
 
 | 文档 | 说明 | EN |
 |---|---|---|
+| [`BACKUP.md`](./ops/BACKUP.md) | 控制台「备份」页一键导出整个系统的数据快照，方便服务挂了重建，或者搬到新机器。 | — |
 | [`CICD.md`](./ops/CICD.md) | 持续集成、宏观对齐与 `.env` 驱动的发布控制；发版只由发布 tag 触发（`vX.Y.Z-rc.N` → 预发布，`vX.Y.Z` → 正式），push 分支只跑 CI；部署开关默认关闭，机器检查不替代人工验收。 | — |
 | [`DEPLOY.md`](./ops/DEPLOY.md) | 同机两套 Docker 栈 + 宿主 nginx TLS 终止；生产发布为独立授权操作，模板存在不等于已经部署。 | [EN](./ops/DEPLOY.en.md) |
 | [`ENVIRONMENT.md`](./ops/ENVIRONMENT.md) | 仅包含占位符；已有环境文件不由代码规范化任务读取或覆盖。 | — |
@@ -132,7 +140,7 @@
 | [`FORUM-DATA-CAPTURE.md`](./ops/FORUM-DATA-CAPTURE.md) | 已通过 Mac SSH 获取三份 SQLite 在线备份及两代附件；本机论坛可只读显示由此生成的投影，未导入可写库或切换线上服务。 | — |
 | [`LOCAL-PREVIEW.md`](./ops/LOCAL-PREVIEW.md) | 本机起官网、核心后端与论坛；启动时给出 GitHub OAuth 应用的两项凭据就走真实 GitHub 登录（数据留在 `.tools/local-preview/`），不给就是隔离的内存模式。 | — |
 | [`RELEASE-ACCEPTANCE-TEMPLATE.md`](./ops/RELEASE-ACCEPTANCE-TEMPLATE.md) | 空白模板，供验收人逐字段手工填写；不是流水线自动生成的通过证明。 | — |
-| [`TUFF-FORUM.md`](./ops/TUFF-FORUM.md) | 独立启动直接引入的 Nuxt/TuffEx 原仓；本机有私有快照时显示极客班论坛内容，登录只走全站 GitHub 登录，不将其冒充生产论坛。 | — |
+| [`TUFF-FORUM.md`](./ops/TUFF-FORUM.md) | 独立启动直接引入的 Nuxt/TuffEx 原仓；本机有私有快照时显示极客班论坛内容，登录只走全站统一登录页（GitHub 是目前唯一的登录方式），不将其冒充生产论坛。 | — |
 | [`USAGE.md`](./ops/USAGE.md) | 公开访问说明：全站 GitHub 登录、加入我们、核心 GitHub 管理和新论坛浏览器演示分别怎么用；不包含内部凭据。 | [EN](./ops/USAGE.en.md) |
 
 ## changes/
@@ -172,6 +180,18 @@
 | [`STACK.md`](./history/STACK.md) | 历史材料：旧版本事实、路径和设计，不作为当前实施指令。 | [EN](./history/STACK.en.md) |
 | [`USAGE.md`](./history/USAGE.md) | 历史材料：旧版本事实、路径和设计，不作为当前实施指令。 | [EN](./history/USAGE.en.md) |
 
+## history/portal-contest-night/
+
+#278 把主站比赛窗口的官网入口横幅和比赛详情头图从夜空改成和第一期比赛官网同一套浅色时退场的组件与样式，原样放在这里备查；它们不参与构建，也不会上线。
+
+## history/portal-yugc-os-v1/
+
+#275 把官网换成 YUGC OS v2 桌面时退场的页面、组件、样式、图片和模型，以及 #279 把「加入我们」改成桌面窗口时退场的信封场景，原样放在这里备查；它们不参与构建，也不会上线。
+
+## history/portal-yugc-os-v1/files/app/web/sites/portal/assets/models/
+
+iPhone 15 Pro Max model attribution
+
 ## public/
 
 长江大学极客班官网、论坛和组织管理服务。
@@ -194,4 +214,4 @@
 
 ---
 
-共 68 篇文档（另有 20 篇英文版）。索引按目录分组，组内按文件名排序。
+共 72 篇文档（另有 20 篇英文版）。索引按目录分组，组内按文件名排序。

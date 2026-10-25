@@ -2,43 +2,39 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { TxPermissionState } from "@talex-touch/tuffex/permission-state";
-import { BLOCK_REASON_TEXT } from "../lib/nav";
+import { ASSIGNER_TEXT } from "../lib/levels";
 import { useSession } from "../lib/session";
-import { assignerText } from "../lib/titles";
 
 /**
- * 页面级能力门：前端只做提示，服务端仍独立校验。
- * 没有任何一项所需能力时，说明缺哪项；称号给了但被 GitHub 组织角色挡住时，说明是这个原因。
+ * 页面级权限门：前端只做提示，服务端仍独立校验。权限只看权限节点（SPEC §3.3）。
  */
 const props = defineProps<{ anyOf: string[] }>();
-const { me, catalogue, canAny, capabilityLabel } = useSession();
+const { canAny, permissionLabel } = useSession();
 const router = useRouter();
 
-const allowed = computed(() => canAny(props.anyOf));
-const blocked = computed(() => me.value?.blocked.find(item => props.anyOf.includes(item.capability)) ?? null);
-const needed = computed(() => capabilityLabel(blocked.value?.capability ?? props.anyOf[0]));
+const open = computed(() => canAny(props.anyOf));
+const needed = computed(() => permissionLabel(props.anyOf[0]));
 const title = computed(() => `你没有「${needed.value}」权限`);
-const description = computed(() => blocked.value
-  ? `你的称号包含这项权限，但${BLOCK_REASON_TEXT[blocked.value.reason]}才能使用。控制台不能超出你在 GitHub 组织里的角色。`
-  : `请联系${assignerText(catalogue.value)}，在「成员与权限」里给你指派带有「${needed.value}」的称号。`);
+const description = computed(() => `请联系${ASSIGNER_TEXT}，给你的账号或所在组加上「${needed.value}」。`);
+const trace = computed(() => `403 forbidden`);
 </script>
 
 <template>
-  <slot v-if="allowed" />
+  <slot v-if="open" />
   <div v-else class="page">
     <TxPermissionState
       :title="title"
       :description="description"
       size="large"
       surface="card"
-      :primary-action="{ label: '回到概览', variant: 'secondary' }"
-      @primary="router.push('/console')"
+      :secondary-action="{ label: '回到概览', variant: 'secondary' }"
+      @secondary="router.push('/console')"
     >
       <template #icon>
         <i class="i-carbon-locked gate-icon" aria-hidden="true" />
       </template>
     </TxPermissionState>
-    <p class="mono gate-trace">403 missing_capability · {{ anyOf.join(" | ") }}</p>
+    <p class="mono gate-trace">{{ trace }} · {{ anyOf.join(" | ") }}</p>
   </div>
 </template>
 

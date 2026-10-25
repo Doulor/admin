@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "issue": 293,
+  "kind": "business",
+  "summary": "所有者 2026-10-25 18:12：「邮件模板这块设计有大问题，而且还会无线向下扩展，甚至我觉得大部分人进来都看不懂怎么去用，我理解的和makrdown编辑器一样，编辑就能看的很明白，而且模板是有个模板库点击就能看到所有的模板，还可以管理不同的状态用什么模板去投递，测试的那个按钮都很丑」。控制台邮件模板页重做：固定高度的工作台（模板库、编辑、预览三栏各自滚动，整页不随内容变长，窄屏用页签），顶上「状态与模板」一行直接选每个状态发信用哪一套（就是这一类的默认），编辑区改成类 Markdown 的正文输入框加工具栏（正文文字与现有的块结构互相转换，接口与已存模板格式不变），测试邮件改成预览栏按钮弹出的小窗。服务端、接口、权限、迁移都不动。",
+  "applications": [
+    "console"
+  ],
+  "domains": [
+    "mail",
+    "audit",
+    "recruitment",
+    "platform"
+  ],
+  "flows": [
+    "flow:mail.template.list",
+    "flow:mail.template.create",
+    "flow:mail.template.preview",
+    "flow:mail.template.test_send"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "页面交互重做：模板库与状态筛选、「状态与模板」按状态选默认、类 Markdown 的正文编辑、预览栏的示例数据与测试邮件小窗；发信规则、模板数据结构、默认与停用规则不变。",
+      "evidence": [
+        "app/console/src/pages/MailTemplates.vue",
+        "app/console/src/pages/mail-templates/StatusRoutes.vue",
+        "app/console/src/pages/mail-templates/TemplateEditor.vue"
+      ]
+    },
+    "backend": {
+      "status": "not-applicable",
+      "reason": "不改服务端：不新增接口，也不改接口参数、返回和错误处理；正文文字在页面里与块互相转换，请求体里仍是块的列表。",
+      "evidence": [
+        "app/console/src/lib/mail-templates.ts"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "页面仍由 mail.template.manage 开放，设默认、停用、删除、保存、预览、试发调用的接口与权限判断都沿用原来的；「状态与模板」里选模板调用的就是原来的设为默认接口。",
+      "evidence": [
+        "app/console/src/pages/MailTemplates.vue"
+      ]
+    },
+    "data": {
+      "status": "not-applicable",
+      "reason": "不涉及数据：没有表、字段、存储或迁移；已存模板的块结构不变，页面只是换了编辑的写法。",
+      "evidence": [
+        "app/console/src/lib/mail-templates.ts"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新增依赖；用控制台已有的 Tuffex 组件（按钮、输入框、文本域、选择框、筛选芯片、弹窗、折叠），没有新建样式表。",
+      "evidence": [
+        "app/console/package.json"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "console 服务合同的「邮件模板」一节、源码地图、路由表、测试清单和已知限制按新页面重写。",
+      "evidence": [
+        "docs/services/console/README.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "tests/console/mail-templates.test.ts 改成新的草稿模型并新增正文文字与块互转（含全部内置模板往返）、写法插入、问题标位去重、状态与模板的用例；隔离栈的真实浏览器里看过 1440×900 与 390×844，并走过下拉换默认、保存后刷新一致、服务端问题标位、新建与删除。",
+      "evidence": [
+        "tests/console/mail-templates.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "只改控制台前端产物，随下一个预发布镜像发布；回滚换回上一个镜像，没有数据变化。",
+      "evidence": [
+        "app/console/src/pages/MailTemplates.vue"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/console/src/lib/mail-templates.ts",
+        "app/console/src/pages/MailTemplates.vue",
+        "app/console/src/pages/mail-templates/StatusRoutes.vue",
+        "app/console/src/pages/mail-templates/TemplateList.vue",
+        "app/console/src/pages/mail-templates/TemplateEditor.vue",
+        "app/console/src/pages/mail-templates/TemplatePreview.vue",
+        "app/console/src/pages/mail-templates/TestSend.vue",
+        "tests/console/mail-templates.test.ts"
+      ],
+      "domains": [
+        "mail"
+      ],
+      "nodes": [
+        "application:console"
+      ],
+      "reason": "邮件模板页重做：模板库、状态与模板、类 Markdown 编辑、预览栏与测试邮件小窗，正文文字与块互转及其测试。"
+    },
+    {
+      "paths": [
+        "docs/services/console/README.md"
+      ],
+      "domains": [
+        "mail"
+      ],
+      "nodes": [
+        "application:console"
+      ],
+      "reason": "console 服务合同的邮件模板一节随页面重写。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/"
+      ],
+      "domains": [
+        "mail"
+      ],
+      "nodes": [
+        "application:console"
+      ],
+      "reason": "按当前源码重新生成项目目录，来源摘要随源码与文档的改动变化，不手改。"
+    }
+  ],
+  "documents": [
+    "docs/services/console/README.md"
+  ],
+  "tests": [
+    "tests/console/mail-templates.test.ts"
+  ],
+  "compatibility": "接口、路由、权限与已存模板的格式不变；页面里正文改成文字编辑，读到模板时转成文字，保存和预览时转回块，全部内置模板往返后逐块相同。",
+  "migration": "不涉及迁移：没有表结构、配置键或存储格式变化。",
+  "rollback": "换回上一个镜像即可恢复旧页面；没有数据变化，不需要回滚数据。"
+}

@@ -40,8 +40,6 @@ services:
       # 正式环境只设 host-only cookie：留空即不写 Domain。
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       POW_DIFFICULTY: ${POW_DIFFICULTY:-3}
-      ALLOWED_ORGS: ${ALLOWED_ORGS:-}
-      CONSOLE_ORG: ${CONSOLE_ORG:-}
       DB_PATH: ${DB_PATH:?}
       FORUM_DB_PATH: ${FORUM_DB_PATH:?}
       FORUM_UPLOAD_DIR: ${FORUM_UPLOAD_DIR:?}
@@ -66,6 +64,16 @@ services:
       MAIL_ALIYUN_ACCESS_KEY_SECRET: ${MAIL_ALIYUN_ACCESS_KEY_SECRET:-}
       MAIL_RESEND_API_KEY: ${MAIL_RESEND_API_KEY:-}
       MAIL_ALLOWLIST: ${MAIL_ALLOWLIST:-}
+      # Google 登录（#262）：可选的一对，都空时登录页不出现 Google；只填一项 server 启动失败。
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      # 对外授权（#270）：签名私钥，空时 /oidc/* 一律 404；填了读不出来 server 启动失败。
+      OIDC_JWKS: ${OIDC_JWKS:-}
+      # GitLab 账号同步（#270）：开关、地址、组是 env 文件里的可见值；管理员令牌是密钥，GITLAB_SYNC=on 而令牌空时 server 启动失败。
+      GITLAB_SYNC: ${GITLAB_SYNC:-off}
+      GITLAB_URL: ${GITLAB_URL:-}
+      GITLAB_GROUP: ${GITLAB_GROUP:-}
+      GITLAB_API_TOKEN: ${GITLAB_API_TOKEN:-}
     ports:
       # 宿主回环，只给本机调试与部署脚本的健康检查用。
       - "${SERVER_BIND:?}:${SERVER_PORT:?}"

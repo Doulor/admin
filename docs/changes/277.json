@@ -1,0 +1,376 @@
+{
+  "version": 1,
+  "issue": 277,
+  "kind": "business",
+  "summary": "geek 命令行搬进这个仓库的 app/cli（Rust），配服务端的设备令牌 Bearer 鉴权（#277）：geek login 用既有的 RFC 8628 设备码换令牌，令牌在 middleware/bearer-auth.ts 里换成和 cookie 会话同形的 req.session，下游权限中间件不用改；两道闸——按 URL 前缀的 OAuth scope 与既有的权限节点——都要过；geek logout 调新的 POST /auth/device/revoke 撤销令牌；dist/cli/ 由 scripts/cli-dist.mjs 交叉编译产出，随 app/web 镜像的 /cli/ 路径分发。在 #280（真实姓名、年级）合并进 stage 之后 rebase 到 4c7c5dd5：bearer-auth.ts 的邮箱闸换成 email-gate.ts 新加的 gateRefusal()/gateRefusalBody()，命令行的业务接口除了没绑邮箱也会被没填姓名和年级挡住；/auth/device/userinfo 多给 grade/grade_label（年级展示用），但命令行拿不到任何账号的真实姓名——哪怕是本人；geek login、geek whoami 读这两个旗子，挡住时打印去哪补的提示，不再对着一个注定 403 的 /api/console/me 静默失败。",
+  "applications": [
+    "server",
+    "web",
+    "cli"
+  ],
+  "domains": [
+    "identity",
+    "audit",
+    "permissions",
+    "organization",
+    "forum",
+    "github",
+    "gitlab",
+    "invitations",
+    "recruitment",
+    "feedback",
+    "competitions",
+    "platform",
+    "public_content"
+  ],
+  "flows": [
+    "flow:identity.device.revoke",
+    "flow:users.update",
+    "flow:audit.events.report",
+    "flow:identity.callback",
+    "flow:identity.invites.list",
+    "flow:application.list",
+    "flow:feedback.categories",
+    "flow:competition.public.list",
+    "flow:documentation.list",
+    "flow:identity.account.password",
+    "flow:application.my_status",
+    "flow:gitlab.projects.public.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "新业务目标：geek 命令行是极客班账号在终端的入口，登录后能力和网页会话一样——用权限节点判断能不能发帖、报名、看仓库，不是另一套规则。新增的只是「怎么把一次性令牌换成等价身份」和「怎么撤销」，不改变既有登录、权限或论坛/比赛业务规则本身。这一轮补全验收项#3剩下的一半：geek status看本机登录状态、geek forum show/reply、geek comp show/signup/ladder、geek team create，以及服务端此前没有读接口的geek apply status——新增GET /api/me/applications，按登录邮箱匹配投递记录，只回id/status/created_at。",
+      "evidence": [
+        "app/server/src/middleware/bearer-auth.ts",
+        "app/server/src/routes/portal/my-applications.ts",
+        "docs/services/cli/README.md"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "新增middleware/bearer-auth.ts：onRequest钩子读Authorization头，查device-store.authenticate()，挂等价req.session与req.via='cli'；require-auth.ts在最前面加req.session短路，否则Bearer请求会被cookie检查先拦住；device-store.ts加revoke()与scopes扩展（forum/apply/competition/repo）；routes/identity/device.ts加POST /auth/device/revoke；/auth/device/userinfo多读一次profiles.realInfo()只取grade/grade_label两个字段（不取real_name）；activity.ts的surfaceOf()按req.via改写操作记录的来源。新增routes/portal/my-applications.ts（GET /api/me/applications）：按accountId查identities表里provider='email'的全部绑定邮箱，和applications.email做大小写不敏感匹配，合并去重按created_at倒序，没绑邮箱回空列表；routes/portal/index.ts多注册这一个路由，routes/portal/contracts.ts多这一条Fastify响应schema。",
+      "evidence": [
+        "app/server/src/middleware/bearer-auth.ts",
+        "app/server/src/middleware/require-auth.ts",
+        "app/server/src/lib/device-store.ts",
+        "app/server/src/routes/identity/device.ts",
+        "app/server/src/routes/portal/my-applications.ts"
+      ]
+    },
+    "permissions": {
+      "status": "changed",
+      "reason": "两道独立的闸：bearer-auth.ts按URL前缀核对OAuth scope（粗粒度，SCOPE_BY_PREFIX），下游requirePermission/requireWriter等既有中间件按权限节点判断（细粒度，不变）；一个请求同时带cookie和Bearer回400 mixed_credentials；业务接口（userinfo/revoke除外）先过cliGate()，#280合并后改读email-gate.ts新加的gateRefusal()——先判没绑邮箱403 email_required，再判没填姓名和年级403 profile_required，调用点没变；注册用户有forum scope但没有forum.topic.create权限节点，发帖仍被requireWriter拒绝，不是scope决定的。/auth/device/userinfo多给grade/grade_label两个只读字段，real_name不在命令行能读到的任何响应里（硬约束，tests/server/real-info.test.ts的文件白名单核对）。SCOPE_BY_PREFIX新增一行{prefix:\"/api/me/applications\",scope:\"apply\"}：GET /api/me/applications要求requireAuth且令牌带apply scope，缺scope回insufficient_scope；默认拒绝模型（cliMayUse）不变，这条只是四类scope前缀业务路径之一。",
+      "evidence": [
+        "app/server/src/middleware/bearer-auth.ts",
+        "app/server/src/routes/identity/device.ts",
+        "app/server/src/routes/portal/my-applications.ts",
+        "tests/server/bearer-auth.test.ts"
+      ]
+    },
+    "data": {
+      "status": "changed",
+      "reason": "不加表、不加列：revoke()只在device_grants上做一次UPDATE，把status=consumed且未过期的行的token_expires_at改成当前时间，和令牌自然过期走同一条判定（authenticate()不用再认一个新状态），只对已经consumed的行生效；撤销成功才写一条activity_events（surface:'cli'），不记明文令牌，撤销不存在或已撤销的令牌不写。my-applications.ts只读：applications表没有account_id列（投递系统早于账号系统），查identities表里当前账号全部provider='email'的绑定邮箱（绑定时已存小写），和applications.email做LOWER()比较，不新增索引也不写任何表。",
+      "evidence": [
+        "app/server/src/lib/device-store.ts",
+        "app/server/src/lib/activity.ts",
+        "app/server/src/routes/portal/my-applications.ts"
+      ]
+    },
+    "dependencies": {
+      "status": "changed",
+      "reason": "package.json新增check:cli脚本接进pnpm check链，只在app/cli相对base真的有改动时才跑cargo fmt/clippy/test，没装Rust工具链的人跑pnpm check不受影响；app/cli/Cargo.toml是全新的Rust依赖树（reqwest/tokio/clap/keyring/image等），和Node工作区完全隔离，不写进pnpm-workspace.yaml；交叉编译用.tools/下的zig与cargo-zigbuild，属开发机工具，不是生产依赖，不进镜像。",
+      "evidence": [
+        "package.json",
+        "app/cli/Cargo.toml",
+        "scripts/check-cli.mjs"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "新增docs/services/cli/README.md（CLI服务契约）并在docs/README.md「文档跟着模块改」表里加一行；docs/services/server/README.md「设备授权」一段与endpoint-contracts.md补齐POST /auth/device/revoke与userinfo现状的说明；docs/architecture/API.md加「geek命令行令牌」一节；docs/services/web/README.md说明/cli/的nginx缓存策略与dist/cli/前置步骤；docs/ops/CICD.md说明check:cli怎么接进core job。这一轮：docs/services/cli/README.md、docs/services/server/README.md、endpoint-contracts.md、docs/architecture/API.md补上GET /api/me/applications契约与bearer-auth默认拒绝模型（cliMayUse：四类scope前缀+userinfo/revoke+公开只读GET/HEAD，其余一律cli_not_allowed）；app/cli/README.md与app/cli/skills/geek/SKILL.md的命令表补齐status/forum show/reply/comp show/signup/ladder/team create/apply status八个新命令。",
+      "evidence": [
+        "docs/services/cli/README.md",
+        "docs/services/server/README.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "app/cli/README.md",
+        "app/cli/skills/geek/SKILL.md",
+        "docs/README.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "tests/server/bearer-auth.test.ts新增10个用例（#280合并后再加2个：cli_not_allowed覆盖、step-up永远不过）：令牌等价会话、禁止同带cookie与Bearer、无效令牌当未登录、scope不够拒绝业务接口、权限节点拒绝发帖（错误可读）、没绑邮箱业务接口被挡但userinfo/revoke不算、没填姓名和年级同样被挡且userinfo的grade/grade_label是null、撤销后同一令牌401且撤销不存在的令牌仍200、cli调用记一条surface=cli的操作记录、四个新scope都能申请；rebase到4c7c5dd5后tests/server/device-flow.test.ts的userinfo断言补上grade/grade_label两个新字段（随现有用例一起跑，不是新用例）；tests/tooling/hashed-asset-cache.test.ts加2个用例核对/cli/的缓存头（字符串断言+本机真实nginx）；新增tests/server/my-applications.test.ts共5个用例：只看到自己绑定邮箱匹配的投递、看不到别人的、邮箱大小写不敏感匹配、未登录401、令牌没apply scope时insufficient_scope；新增tests/tooling/build-mirrors.test.ts核对app/web/Dockerfile的空cli构建阶段不带参数或命令；app/cli这一轮新增status/apply两个命令模块与forum show/reply、comp show/signup/ladder、team create，cli.rs加9个clap参数解析用例，token_store.rs加load_with_source来源标注用例，status.rs/forum.rs/comp.rs/team.rs各自的body构建函数与渲染逻辑都有对应单测；pnpm test（114个文件、1843条用例）、pnpm typecheck、check-doc-sync/check-architecture（--base 4c7c5dd5）、pnpm check:catalog全部通过；cargo test（26个单元测试）、cargo clippy --all-targets -D warnings、cargo fmt --check全部通过；e2e：本机起testApp+signIn的真实监听服务器（127.0.0.1随机端口），setInterval轮询自动批准待批准的device_grants，cargo build --release后用target/release/geek实跑全部命令，GEEK_NO_KEYRING=1+临时HOME（不碰真实系统钥匙串），跑完删临时目录；login/whoami/status/forum list+show+reply+post/comp list+show+signup+mine+ladder/team create/apply status/repo list/skill install/logout全部成功，未登录和退出登录后whoami/status正确回not_signed_in（退出码3），comp ladder在报名设置scoring=contribution时才有数据，验证了这条边界；记录在/tmp/e2e277/transcript-2.txt（本机临时文件，不随PR提交）；未验证：install.ps1只做了语法审阅，没有真实Windows/PowerShell环境跑过；控制台操作记录的截图未补（本机没有可登录的预发布/正式环境）。",
+      "evidence": [
+        "tests/server/bearer-auth.test.ts",
+        "tests/server/device-flow.test.ts",
+        "tests/tooling/hashed-asset-cache.test.ts",
+        "tests/server/my-applications.test.ts",
+        "tests/tooling/build-mirrors.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "app/web/Dockerfile新增两条location（版本化产物长缓存一年，install.sh/install.ps1/latest.json不缓存）与一条COPY dist/cli/，dist/cli/由scripts/cli-dist.mjs在构建这个镜像之前产出（不经过Node builder阶段）；改成空的`FROM scratch AS cli`构建阶段+`COPY --from=cli / .../cli/`，发版时用`docker build --build-context cli=dist/cli`换成真实产物（仓库根.dockerignore排除dist，普通构建上下文拿不到），CI的镜像构建验证不传这个build-context，镜像照样能建，只是/cli/下没文件；不改deploy/环境变量契约，不改CI触发方式，check:cli搭在core job既有的pnpm check里，没有新开工作流job。",
+      "evidence": [
+        "app/web/Dockerfile",
+        "scripts/cli-dist.mjs",
+        "tests/tooling/build-mirrors.test.ts"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/server/src/app.ts",
+        "app/server/src/lib/activity.ts",
+        "app/server/src/lib/device-store.ts",
+        "app/server/src/lib/session.ts",
+        "app/server/src/middleware/bearer-auth.ts",
+        "app/server/src/middleware/require-auth.ts",
+        "app/server/src/routes/identity/device.ts",
+        "app/server/src/routes/identity/contracts.ts",
+        "app/server/src/middleware/require-step-up.ts",
+        "app/server/src/routes/identity/account.ts"
+      ],
+      "domains": [
+        "identity",
+        "audit",
+        "permissions",
+        "organization",
+        "forum",
+        "github",
+        "invitations",
+        "recruitment",
+        "feedback",
+        "competitions",
+        "platform",
+        "public_content"
+      ],
+      "nodes": [
+        "domain:identity",
+        "domain:audit",
+        "table:device_grants",
+        "table:activity_events",
+        "route:POST /auth/device/revoke",
+        "flow:identity.device.revoke",
+        "flow:users.update",
+        "flow:audit.events.report",
+        "flow:identity.callback",
+        "flow:identity.account.password",
+        "flow:identity.account.email.start"
+      ],
+      "reason": "Bearer中间件把设备令牌接到既有权限体系：require-auth.ts、bearer-auth.ts在app/server/src/middleware/下按现有归属覆盖这份中间件目录声明的全部业务域（这套中间件是所有域的路由共用的auth门），app.ts挂载新中间件，device-store.ts/routes/identity/device.ts加revoke，activity.ts改写操作记录来源；identity.device.revoke是本次新增的流程，其余几个是require-auth.ts/session.ts/activity.ts既有归属已关联的流程，用来覆盖中间件目录声明里的其余业务域。审查时补上：命令行令牌不算一次登录，require-step-up.ts 的 isSessionFresh 和 routes/identity/account.ts 的 10 分钟窗口对 via=cli 一律不通过（users.update 是 require-step-up.ts 既有归属的流程，identity.account.password、identity.account.email.start 是 account.ts 的流程），bearer-auth.ts 改成只认命令行用到的接口。"
+    },
+    {
+      "paths": [
+        "app/cli/"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "application:cli",
+        "runtime:web"
+      ],
+      "reason": "全新的Rust命令行应用，产物随web运行单元分发（不是独立容器），登录/退出/whoami/论坛/比赛/报名/仓库/技能安装八个命令只接入服务端既有接口，不新增业务规则。"
+    },
+    {
+      "paths": [
+        "scripts/check-cli.mjs",
+        "scripts/cli-dist.mjs",
+        "package.json",
+        ".gitignore"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "application:cli"
+      ],
+      "reason": "CLI的检查与分发工具：check-cli.mjs按改动路径决定要不要跑cargo检查、接进package.json的check链；cli-dist.mjs交叉编译5个目标产出dist/cli/；.gitignore补上target/，否则Rust构建产物会被当成未跟踪文件扫进本仓库各处的git ls-files调用。"
+    },
+    {
+      "paths": [
+        "app/web/Dockerfile"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "runtime:web"
+      ],
+      "reason": "nginx配置加/cli/的两条location（版本化长缓存、安装脚本不缓存）与一条COPY dist/cli/，web镜像多托管CLI的分发产物。"
+    },
+    {
+      "paths": [
+        "tests/server/bearer-auth.test.ts",
+        "tests/server/device-flow.test.ts"
+      ],
+      "domains": [
+        "identity",
+        "audit"
+      ],
+      "nodes": [
+        "route:POST /auth/device/revoke",
+        "flow:identity.device.revoke"
+      ],
+      "reason": "回归：令牌等价身份、scope与权限节点两道闸、邮箱闸与资料闸例外、撤销幂等与401、操作记录surface；device-flow.test.ts的userinfo断言随#280补上grade/grade_label。"
+    },
+    {
+      "paths": [
+        "tests/tooling/hashed-asset-cache.test.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "runtime:web"
+      ],
+      "reason": "回归：/cli/的版本化产物长缓存一年、install.sh不缓存，字符串断言与本机真实nginx各一条。"
+    },
+    {
+      "paths": [
+        "docs/README.md",
+        "docs/ops/CICD.md",
+        "docs/services/web/README.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "application:cli",
+        "runtime:web"
+      ],
+      "reason": "模块与文档对照表加app/cli一行；CICD说明check:cli怎么接进core job；web合同说明/cli/的nginx策略与dist/cli/前置步骤。"
+    },
+    {
+      "paths": [
+        "docs/services/server/README.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md"
+      ],
+      "domains": [
+        "identity",
+        "audit"
+      ],
+      "nodes": [
+        "flow:identity.device.revoke",
+        "route:POST /auth/device/revoke"
+      ],
+      "reason": "服务端合同、接口契约与API文档补齐Bearer中间件接到哪些接口、撤销端点的权限与副作用。"
+    },
+    {
+      "paths": [
+        "docs/services/cli/"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "application:cli"
+      ],
+      "reason": "CLI的服务契约：命令范围、鉴权两道闸、登录动画、分发与CI检查，新服务的文档。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/",
+        "docs/INDEX.md"
+      ],
+      "domains": [
+        "identity",
+        "audit",
+        "platform"
+      ],
+      "nodes": [
+        "flow:identity.device.revoke",
+        "flow:application.my_status",
+        "application:cli"
+      ],
+      "reason": "生成物：ownership.json登记新流程identity.device.revoke、application.my_status与新应用cli，routeOwners多一行my-applications.ts归recruitment，CATALOG.md/catalog.json/data-model.md/map.html/permissions.md/routes.md随pnpm catalog:generate重新生成。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/portal/contracts.ts",
+        "app/server/src/routes/portal/index.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "gitlab",
+        "identity",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:gitlab",
+        "domain:recruitment",
+        "flow:application.my_status",
+        "flow:gitlab.projects.public.list",
+        "route:GET /api/me/applications"
+      ],
+      "reason": "两个文件是portal路由的共享基础设施，登记/注册的接口横跨9个业务域；本次改动只在其中加一条GET /api/me/applications契约与注册（import r10/app.register(r10)），不动其余已登记路由的契约或注册顺序。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/portal/my-applications.ts"
+      ],
+      "domains": [
+        "recruitment"
+      ],
+      "nodes": [
+        "route:GET /api/me/applications",
+        "flow:application.my_status",
+        "table:applications",
+        "table:identities"
+      ],
+      "reason": "新路由：requireAuth后按accountId查identities表里provider='email'的全部绑定邮箱，和applications.email按小写比较匹配，没绑邮箱回空列表；只回id、status、created_at，不回姓名、班级、邮箱、特长。"
+    },
+    {
+      "paths": [
+        "tests/server/my-applications.test.ts"
+      ],
+      "domains": [
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:application.my_status",
+        "route:GET /api/me/applications"
+      ],
+      "reason": "回归：只看到自己绑定邮箱匹配的投递、看不到别人的、邮箱大小写不敏感匹配、未登录401、令牌没有apply scope时insufficient_scope、带apply scope的令牌200成功。"
+    },
+    {
+      "paths": [
+        "tests/tooling/build-mirrors.test.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "application:cli",
+        "runtime:web"
+      ],
+      "reason": "回归：app/web/Dockerfile多出的空cli构建阶段（FROM scratch AS cli，发版时用--build-context cli=dist/cli换成命令行产物）不带任何参数或命令，和server/forum两阶段结构一致。"
+    }
+  ],
+  "documents": [
+    "docs/services/cli/README.md",
+    "docs/services/server/README.md",
+    "docs/services/server/endpoint-contracts.md",
+    "docs/architecture/API.md",
+    "docs/services/web/README.md",
+    "docs/ops/CICD.md"
+  ],
+  "tests": [
+    "tests/server/bearer-auth.test.ts",
+    "tests/server/device-flow.test.ts",
+    "tests/tooling/hashed-asset-cache.test.ts"
+  ],
+  "compatibility": "接口路径、既有会话Cookie的行为、既有geek-cli令牌（旧scope openid profile）不变；旧令牌仍能用，只是没有新scope对应的业务接口权限，调用会收到403 insufficient_scope而不是报错或崩溃。POST /auth/device/revoke是新端点，不影响任何既有调用方。",
+  "migration": "不涉及数据库结构迁移；device_grants表结构不变，只是revoke()多了一种会修改token_expires_at的路径。",
+  "rollback": "在stage上git revert -m 1合并提交并重新发rc；回滚后旧版本geek-cli（如果已经分发过）会因为服务端不再认has revoke端点而登出命令失效，退回「清本机凭据但不通知服务端」的行为，不影响安全性（令牌本身仍按原30天有效期过期）。"
+}

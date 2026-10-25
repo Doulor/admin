@@ -1,0 +1,24 @@
+{
+  "id": "geekdaily",
+  "name": "极客日常",
+  "description": "课程与开发日常用的 16 张表情：早八、赶 DDL、提交、CI 通过与失败、上线、回滚、翻日志、查文档、求 review、LGTM、摸鱼、卡住、搞定、下班。",
+  "order": 1,
+  "stickers": [
+    { "id": "early-class", "label": "早八上课" },
+    { "id": "ddl", "label": "赶 DDL" },
+    { "id": "coffee", "label": "咖啡续命" },
+    { "id": "commit", "label": "提交" },
+    { "id": "ci-pass", "label": "CI 绿了" },
+    { "id": "ci-fail", "label": "CI 红了" },
+    { "id": "release", "label": "上线" },
+    { "id": "rollback", "label": "回滚" },
+    { "id": "read-logs", "label": "翻日志" },
+    { "id": "read-docs", "label": "查文档" },
+    { "id": "ask-review", "label": "求 review" },
+    { "id": "lgtm", "label": "LGTM" },
+    { "id": "slack-off", "label": "摸鱼" },
+    { "id": "stuck", "label": "卡住了" },
+    { "id": "done", "label": "搞定" },
+    { "id": "off-work", "label": "下班" }
+  ]
+}
