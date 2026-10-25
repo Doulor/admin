@@ -140,6 +140,18 @@
         "application:server"
       ],
       "reason": "官网 SDK 的 --api 代理按解压后的响应体重写 content-encoding 与 content-length；快速接入文档同步。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/"
+      ],
+      "domains": [
+        "competitions"
+      ],
+      "nodes": [
+        "application:server"
+      ],
+      "reason": "按当前源码重新生成项目目录，来源摘要随迁移和代理脚本的改动变化，不手改。"
     }
   ],
   "documents": [
