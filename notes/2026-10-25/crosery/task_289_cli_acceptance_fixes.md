@@ -22,3 +22,17 @@
 - 做了什么：审查前自查发现 sub_filter 直接用 $host，Host 头里带 $(...) 会写进用户要交给 sh 执行的脚本；改成 map 限定字母数字点连字符，其余退回生产域名；二进制夹具内嵌生产域名证明版本化产物不经过 sub_filter
 - 结果：hashed-asset-cache.test.ts 9 条在真实 nginx 上通过；突变验证：退回 $host 时恶意 Host 用例变红，去掉二进制 location 时 3 条变红
 - 下一步：更新 MR 正文，审查后合并
+
+## 14:38:00 +08:00 · PR · #289 · GitLab !24
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：推送 task/289/cli_acceptance_fixes 并在 GitLab 开 MR !24（目标 stage），正文按 PR 契约写，pr-contract 核对通过
+- 结果：https://git.yangtzeu.work/geek/admin/-/merge_requests/24，标签与 issue 一致
+- 下一步：审查后合并
+
+## 14:38:00 +08:00 · 审查 · #289 · !24 代码审查
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：按 CODE-REVIEW 十二项逐条核对被审查提交 6ed7f664，结论写在 MR 评论 1204
+- 结果：结论：通过（详见评论）
+- 下一步：合并进 stage，随 rc.23 部署后在预发布复核
