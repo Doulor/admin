@@ -15340,7 +15340,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "7e83b4534c289e3a69446c5e935bfd718e54593a44c5eaf5bcf3da3823b53ad4",
+    "fingerprint": "063a17313afe47608bb832f1a208dc9f0171291c69530ade54ec91df9433c4de",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -16692,7 +16692,7 @@
       },
       {
         "path": "app/web/Dockerfile",
-        "sha256": "3ebf6794069b5e7ee3dc67f3f81e270ef2be70d9d6107a4716b45140fbce7614"
+        "sha256": "63fdf057ab0eac68f23c448a9172d0b4338fd95b54fb0450630328ef2873514a"
       },
       {
         "path": "app/web/package.json",
@@ -17172,7 +17172,7 @@
       },
       {
         "path": "docs/services/cli/README.md",
-        "sha256": "772786bcd88e1f2a120655279cbbe8792fb93a041365f21199bee781883ef477"
+        "sha256": "4ad4d308dedb0dcdf1bba8a83b0f7ecc57642b36241d4f60baeccc2836d054c2"
       },
       {
         "path": "docs/services/console/README.md",
@@ -17204,7 +17204,7 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "dad21521226d948fb56b70b9ef882c92eeaca3aaa7c8dcc5de8834c781448a23"
+        "sha256": "3606b28b095b4808790de0e03362cf8c7b0de4edd17d41e43c847731447eaefb"
       },
       {
         "path": "docs/services/web/portal.md",
