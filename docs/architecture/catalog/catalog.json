@@ -16305,7 +16305,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "5cddc947e42c1fcb03f796ece7b1559021a248e9fc982feb719b257c92989e85",
+    "fingerprint": "b13e7a60250ac093e5dc2afc6b30b80d410005360f75a5b195351fc2b9811791",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -18245,7 +18245,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "3de54b371f1aa7b5b934c95474583876f1f9a5ed9bf372c73bf0b9c79963a7d9"
+        "sha256": "24bc86e91daa91a692e403e9a3cf4233da836d5dd937988d4b015d7a92aed85c"
       },
       {
         "path": "docs/services/forum/README.md",
