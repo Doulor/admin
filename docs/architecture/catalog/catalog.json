@@ -3385,8 +3385,12 @@
           "path": "app/console/src/lib/nav.ts"
         },
         {
-          "line": 9,
+          "line": 10,
           "path": "app/console/src/pages/mail-templates/TemplateList.vue"
+        },
+        {
+          "line": 10,
+          "path": "app/console/src/pages/mail-templates/StatusRoutes.vue"
         },
         {
           "line": 114,
@@ -3479,15 +3483,15 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 129,
+          "line": 131,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
-          "line": 98,
+          "line": 149,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 36,
+          "line": 33,
           "path": "app/console/src/pages/mail-templates/TemplateEditor.vue"
         },
         {
@@ -3556,12 +3560,16 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 130,
+          "line": 132,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
-          "line": 174,
+          "line": 176,
           "path": "app/console/src/pages/MailTemplates.vue"
+        },
+        {
+          "line": 22,
+          "path": "app/console/src/pages/mail-templates/StatusRoutes.vue"
         }
       ],
       "id": "flow:mail.template.update",
@@ -3616,7 +3624,7 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 183,
+          "line": 185,
           "path": "app/console/src/pages/MailTemplates.vue"
         }
       ],
@@ -3672,11 +3680,11 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 301,
+          "line": 317,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 56,
+          "line": 62,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
@@ -3684,7 +3692,7 @@
           "path": "app/console/src/components/MailPreviewFrame.vue"
         },
         {
-          "line": 18,
+          "line": 27,
           "path": "app/console/src/pages/mail-templates/TemplatePreview.vue"
         },
         {
@@ -3753,11 +3761,11 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 28,
+          "line": 26,
           "path": "app/console/src/pages/mail-templates/TestSend.vue"
         },
         {
-          "line": 378,
+          "line": 394,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
@@ -16297,7 +16305,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "6f5e40df297438b4381fb18ef4398d6ca7b9266b5e13dcae65e5711382e9df2b",
+    "fingerprint": "b13e7a60250ac093e5dc2afc6b30b80d410005360f75a5b195351fc2b9811791",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -16445,7 +16453,7 @@
       },
       {
         "path": "app/console/src/lib/mail-templates.ts",
-        "sha256": "213d96d7725b2d1683b5c75501bac6009bdd94a8ba3375214970eb2f2504ad16"
+        "sha256": "af114630302565e4a69c4645bb8a60ce0ce61fb62bdf3a9e15a8e591b538364b"
       },
       {
         "path": "app/console/src/lib/nav.ts",
@@ -16573,7 +16581,7 @@
       },
       {
         "path": "app/console/src/pages/MailTemplates.vue",
-        "sha256": "ca7cb1c8f53ee585c415bdcc1b51b95eede4bad1f33a99a9089685539ebcb476"
+        "sha256": "d54b94b549c866f8ae3b7e051d5a80d108be00ca3f876281feedb06f9211ab0c"
       },
       {
         "path": "app/console/src/pages/Overview.vue",
@@ -16648,20 +16656,24 @@
         "sha256": "8efd981f6712c5a23ebb4163faf7157749fd8a3c94f9ec3e6df428c3b17d8271"
       },
       {
+        "path": "app/console/src/pages/mail-templates/StatusRoutes.vue",
+        "sha256": "bfd35539206a22a432aac2695a435238f757bfbf3ab9479e6d961371c224f12c"
+      },
+      {
         "path": "app/console/src/pages/mail-templates/TemplateEditor.vue",
-        "sha256": "3653219e956cd6db20b1fd92317692f0159d2b5602f122a31c765a85769df9cb"
+        "sha256": "88796c89618550c1234bf21568cb6ccef3e04a970bab49e9480f38d6e4de31c6"
       },
       {
         "path": "app/console/src/pages/mail-templates/TemplateList.vue",
-        "sha256": "a7ec3d4a4192e19007546b21304ff23c5f820e4ff01f56d5682dafe3109eec0c"
+        "sha256": "e3d6477e74e3652c1511cef10b47ab7b40c79fda94c52c14381f47ccd9307a5a"
       },
       {
         "path": "app/console/src/pages/mail-templates/TemplatePreview.vue",
-        "sha256": "48ff9a6d0d0c63e55c9a5086d80e031be370f23030fb2f880c106364e73a8f31"
+        "sha256": "6c02fb78496d8ed2db061a98ab2ceb046120469b6b1af5102cbc750c92087468"
       },
       {
         "path": "app/console/src/pages/mail-templates/TestSend.vue",
-        "sha256": "98b70b7f276e0b504526abc772665e1745acce85af4efb9a27eb6962a309b28b"
+        "sha256": "5fa0d868b25d138a10cbf091e0fd59478f489fe267664177b218f166b39a6eaa"
       },
       {
         "path": "app/console/src/pages/permissions/CreateGroupDialog.vue",
@@ -18193,7 +18205,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "99f7260b9dc5e8c14d877adb9a2184e6ae44864d14668fe370984c267cc00eee"
+        "sha256": "b2e5b237a08d7dea0063a3db2cead5c6825da94dcb3bb87fa9c5c47799e608ff"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -18233,7 +18245,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "a4f00b8db02a965e749c1d84bc26a99eed865ab3def61bbdb36d662d47272739"
+        "sha256": "24bc86e91daa91a692e403e9a3cf4233da836d5dd937988d4b015d7a92aed85c"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -18353,7 +18365,7 @@
       },
       {
         "path": "tests/console/mail-templates.test.ts",
-        "sha256": "96b253cf5a58a0c6a22eee7514527030f40759758a7e4def63e2503b7ca56843"
+        "sha256": "2ee7f9cc7f950ab9a83cda5f9c20f4ce5243c05ee91c72d456558bfbaeb87340"
       },
       {
         "path": "tests/console/nav.test.ts",
@@ -76412,15 +76424,15 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 129,
+          "line": 131,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
-          "line": 98,
+          "line": 149,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 36,
+          "line": 33,
           "path": "app/console/src/pages/mail-templates/TemplateEditor.vue"
         },
         {
@@ -76460,15 +76472,15 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 129,
+          "line": 131,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
-          "line": 98,
+          "line": 149,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 36,
+          "line": 33,
           "path": "app/console/src/pages/mail-templates/TemplateEditor.vue"
         },
         {
@@ -76526,15 +76538,15 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 129,
+          "line": 131,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
-          "line": 98,
+          "line": 149,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 36,
+          "line": 33,
           "path": "app/console/src/pages/mail-templates/TemplateEditor.vue"
         },
         {
@@ -76574,15 +76586,15 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 129,
+          "line": 131,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
-          "line": 98,
+          "line": 149,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 36,
+          "line": 33,
           "path": "app/console/src/pages/mail-templates/TemplateEditor.vue"
         },
         {
@@ -76622,15 +76634,15 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 129,
+          "line": 131,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
-          "line": 98,
+          "line": 149,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 36,
+          "line": 33,
           "path": "app/console/src/pages/mail-templates/TemplateEditor.vue"
         },
         {
@@ -76690,7 +76702,7 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 183,
+          "line": 185,
           "path": "app/console/src/pages/MailTemplates.vue"
         }
       ],
@@ -76714,7 +76726,7 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 183,
+          "line": 185,
           "path": "app/console/src/pages/MailTemplates.vue"
         }
       ],
@@ -76750,7 +76762,7 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 183,
+          "line": 185,
           "path": "app/console/src/pages/MailTemplates.vue"
         }
       ],
@@ -76774,7 +76786,7 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 183,
+          "line": 185,
           "path": "app/console/src/pages/MailTemplates.vue"
         }
       ],
@@ -76798,7 +76810,7 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 183,
+          "line": 185,
           "path": "app/console/src/pages/MailTemplates.vue"
         }
       ],
@@ -76854,8 +76866,12 @@
           "path": "app/console/src/lib/nav.ts"
         },
         {
-          "line": 9,
+          "line": 10,
           "path": "app/console/src/pages/mail-templates/TemplateList.vue"
+        },
+        {
+          "line": 10,
+          "path": "app/console/src/pages/mail-templates/StatusRoutes.vue"
         },
         {
           "line": 114,
@@ -76952,8 +76968,12 @@
           "path": "app/console/src/lib/nav.ts"
         },
         {
-          "line": 9,
+          "line": 10,
           "path": "app/console/src/pages/mail-templates/TemplateList.vue"
+        },
+        {
+          "line": 10,
+          "path": "app/console/src/pages/mail-templates/StatusRoutes.vue"
         },
         {
           "line": 114,
@@ -77036,11 +77056,11 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 301,
+          "line": 317,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 56,
+          "line": 62,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
@@ -77048,7 +77068,7 @@
           "path": "app/console/src/components/MailPreviewFrame.vue"
         },
         {
-          "line": 18,
+          "line": 27,
           "path": "app/console/src/pages/mail-templates/TemplatePreview.vue"
         },
         {
@@ -77080,11 +77100,11 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 301,
+          "line": 317,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 56,
+          "line": 62,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
@@ -77092,7 +77112,7 @@
           "path": "app/console/src/components/MailPreviewFrame.vue"
         },
         {
-          "line": 18,
+          "line": 27,
           "path": "app/console/src/pages/mail-templates/TemplatePreview.vue"
         },
         {
@@ -77124,11 +77144,11 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 301,
+          "line": 317,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 56,
+          "line": 62,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
@@ -77136,7 +77156,7 @@
           "path": "app/console/src/components/MailPreviewFrame.vue"
         },
         {
-          "line": 18,
+          "line": 27,
           "path": "app/console/src/pages/mail-templates/TemplatePreview.vue"
         },
         {
@@ -77186,11 +77206,11 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 301,
+          "line": 317,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 56,
+          "line": 62,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
@@ -77198,7 +77218,7 @@
           "path": "app/console/src/components/MailPreviewFrame.vue"
         },
         {
-          "line": 18,
+          "line": 27,
           "path": "app/console/src/pages/mail-templates/TemplatePreview.vue"
         },
         {
@@ -77230,11 +77250,11 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 301,
+          "line": 317,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 56,
+          "line": 62,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
@@ -77242,7 +77262,7 @@
           "path": "app/console/src/components/MailPreviewFrame.vue"
         },
         {
-          "line": 18,
+          "line": 27,
           "path": "app/console/src/pages/mail-templates/TemplatePreview.vue"
         },
         {
@@ -77308,11 +77328,11 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 28,
+          "line": 26,
           "path": "app/console/src/pages/mail-templates/TestSend.vue"
         },
         {
-          "line": 378,
+          "line": 394,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
@@ -77344,11 +77364,11 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 28,
+          "line": 26,
           "path": "app/console/src/pages/mail-templates/TestSend.vue"
         },
         {
-          "line": 378,
+          "line": 394,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
@@ -77380,11 +77400,11 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 28,
+          "line": 26,
           "path": "app/console/src/pages/mail-templates/TestSend.vue"
         },
         {
-          "line": 378,
+          "line": 394,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
@@ -77434,11 +77454,11 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 28,
+          "line": 26,
           "path": "app/console/src/pages/mail-templates/TestSend.vue"
         },
         {
-          "line": 378,
+          "line": 394,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
@@ -77470,11 +77490,11 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 28,
+          "line": 26,
           "path": "app/console/src/pages/mail-templates/TestSend.vue"
         },
         {
-          "line": 378,
+          "line": 394,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
@@ -77506,11 +77526,11 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 28,
+          "line": 26,
           "path": "app/console/src/pages/mail-templates/TestSend.vue"
         },
         {
-          "line": 378,
+          "line": 394,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
@@ -77542,11 +77562,11 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 28,
+          "line": 26,
           "path": "app/console/src/pages/mail-templates/TestSend.vue"
         },
         {
-          "line": 378,
+          "line": 394,
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
@@ -77598,12 +77618,16 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 130,
+          "line": 132,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
-          "line": 174,
+          "line": 176,
           "path": "app/console/src/pages/MailTemplates.vue"
+        },
+        {
+          "line": 22,
+          "path": "app/console/src/pages/mail-templates/StatusRoutes.vue"
         }
       ],
       "from": "flow:mail.template.update",
@@ -77626,12 +77650,16 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 130,
+          "line": 132,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
-          "line": 174,
+          "line": 176,
           "path": "app/console/src/pages/MailTemplates.vue"
+        },
+        {
+          "line": 22,
+          "path": "app/console/src/pages/mail-templates/StatusRoutes.vue"
         }
       ],
       "from": "flow:mail.template.update",
@@ -77666,12 +77694,16 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 130,
+          "line": 132,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
-          "line": 174,
+          "line": 176,
           "path": "app/console/src/pages/MailTemplates.vue"
+        },
+        {
+          "line": 22,
+          "path": "app/console/src/pages/mail-templates/StatusRoutes.vue"
         }
       ],
       "from": "flow:mail.template.update",
@@ -77694,12 +77726,16 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 130,
+          "line": 132,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
-          "line": 174,
+          "line": 176,
           "path": "app/console/src/pages/MailTemplates.vue"
+        },
+        {
+          "line": 22,
+          "path": "app/console/src/pages/mail-templates/StatusRoutes.vue"
         }
       ],
       "from": "flow:mail.template.update",
@@ -77722,12 +77758,16 @@
           "path": "app/server/src/lib/mail/template-contract.ts"
         },
         {
-          "line": 130,
+          "line": 132,
           "path": "app/console/src/pages/MailTemplates.vue"
         },
         {
-          "line": 174,
+          "line": 176,
           "path": "app/console/src/pages/MailTemplates.vue"
+        },
+        {
+          "line": 22,
+          "path": "app/console/src/pages/mail-templates/StatusRoutes.vue"
         }
       ],
       "from": "flow:mail.template.update",
@@ -127382,6 +127422,12 @@
         "mail"
       ],
       "path": "app/console/src/pages/mail-templates/FieldRow.vue"
+    },
+    {
+      "domains": [
+        "mail"
+      ],
+      "path": "app/console/src/pages/mail-templates/StatusRoutes.vue"
     },
     {
       "domains": [

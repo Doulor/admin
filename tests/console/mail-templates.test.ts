@@ -2,11 +2,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../app/console/src/lib/http";
 import {
-  IDLE_PREVIEW, blankBlock, blockField, canAddBlock, copyName, createBody, createPreviewer, draftContent, draftFromTemplate, draftSnapshot, factField, fieldValue,
-  groupByKind, insertAtCaret, insertVariable, issueCount, issuesOf, moveBlock, newDraft, placeIssues, previewFailure, previewPayload, removeBlock,
-  setFieldValue, templateFlags, testAddressError, testSendFailure, testSendOutcome, updateBody, variableToken, variablesFor,
+  IDLE_PREVIEW, blocksToText, copyName, createBody, createPreviewer, draftContent, draftFromTemplate, draftSnapshot, fieldValue,
+  groupByKind, insertAtCaret, insertFence, insertVariable, issueCount, issuesOf, newDraft, placeIssues, previewFailure, previewPayload,
+  setFieldValue, statusRoutes, templateFlags, testAddressError, testSendFailure, testSendOutcome, textToBlocks, updateBody, variableToken, variablesFor,
   type PreviewPayload, type PreviewState, type Timers,
 } from "../../app/console/src/lib/mail-templates";
+import { SEED_TEMPLATES } from "../../app/server/src/lib/mail/template-content";
 import { MOCK_MAIL_LIST, MOCK_MAIL_TEMPLATES, mockLetterTemplates } from "../../app/console/src/mock/mail-templates";
 import { routeConsole } from "../../app/console/src/mock/console";
 import { mockApi } from "../../app/console/src/mock";
@@ -38,22 +39,39 @@ describe("draft and request body", () => {
     expect(draftContent(draftFromTemplate(original))).toEqual(content());
   });
 
-  it("writes a list as one box with a line per item, and a footer likewise", () => {
+  it("writes the body as plain text: paragraphs split by a blank line, a fact table, a list and a quote as fenced parts", () => {
     const draft = draftFromTemplate(template());
-    const list = draft.blocks[2];
-    expect(list.kind === "list" && list.items).toBe("{{说明}}\n带上学生证");
+    expect(draft.body).toBe([
+      "请按下面的时间和地点来面试。",
+      "",
+      ":::信息",
+      "时间：{{面试时间}}",
+      "地点：{{面试地点}}",
+      ":::",
+      "",
+      ":::要点 面试说明",
+      "{{说明}}",
+      "带上学生证",
+      ":::",
+      "",
+      ":::引用 你写的",
+      "{{特长}}",
+      ":::",
+    ].join("\n"));
     expect(draft.footer).toBe("第一行\n第二行");
   });
 
-  it("drops blank lines from lists and footers, and blank titles from lists and facts", () => {
+  it("reads typed text back into blocks, dropping blank lines and blank titles and trimming each item", () => {
     const draft = draftFromTemplate(template());
-    const list = draft.blocks[2];
-    if (list.kind !== "list") throw new Error("expected a list");
-    list.items = "\n  一条  \n\n另一条\n";
-    list.title = "  ";
+    draft.body = "第一段\n接着写\n\n\n第二段\n\n:::要点\n\n  一条  \n\n另一条\n:::\n\n:::信息   \n时间 : {{面试时间}}\n地点：东校区：3 教\n:::";
     draft.footer = "只有一行\n\n";
     const out = draftContent(draft);
-    expect(out.blocks[2]).toEqual({ kind: "list", items: ["一条", "另一条"] });
+    expect(out.blocks).toEqual([
+      { kind: "paragraph", text: "第一段\n接着写" },
+      { kind: "paragraph", text: "第二段" },
+      { kind: "list", items: ["一条", "另一条"] },
+      { kind: "facts", items: [{ label: "时间", value: "{{面试时间}}" }, { label: "地点", value: "东校区：3 教" }] },
+    ]);
     expect(out.footer).toEqual(["只有一行"]);
   });
 
@@ -73,23 +91,27 @@ describe("draft and request body", () => {
     expect(update).not.toHaveProperty("kind");
   });
 
-  it("starts a new draft from the default of its kind, with no id, or from one empty paragraph", () => {
+  it("starts a new draft from the default of its kind, with no id, or with an empty body", () => {
     const fromDefault = newDraft("interview", content(), "新的一套");
     expect(fromDefault.id).toBeNull();
     expect(fromDefault.name).toBe("新的一套");
     expect(draftContent(fromDefault)).toEqual(content());
     const empty = newDraft("rejected", null);
-    expect(empty.blocks).toHaveLength(1);
+    expect(empty.body).toBe("");
     expect(empty.greeting).toBe("{{称呼}}");
     expect(empty.buttonOn).toBe(false);
+    expect(draftContent(empty).blocks).toEqual([]);
   });
 
-  it("sees an edit in the snapshot but ignores internal block ids", () => {
+  it("sees an edit in the snapshot, in the body too", () => {
     const a = draftFromTemplate(template());
     const b = draftFromTemplate(template());
     expect(draftSnapshot(a)).toBe(draftSnapshot(b));
     b.subject = "改过了";
     expect(draftSnapshot(a)).not.toBe(draftSnapshot(b));
+    const c = draftFromTemplate(template());
+    c.body += "\n\n多一段";
+    expect(draftSnapshot(a)).not.toBe(draftSnapshot(c));
   });
 
   it("names a copy after the original and skips names already taken in the same kind, ignoring case", () => {
@@ -100,26 +122,40 @@ describe("draft and request body", () => {
   });
 });
 
-describe("blocks", () => {
-  it("moves a block up or down by one and stays put at either end", () => {
-    expect(moveBlock(["a", "b", "c"], 1, -1)).toEqual(["b", "a", "c"]);
-    expect(moveBlock(["a", "b", "c"], 1, 1)).toEqual(["a", "c", "b"]);
-    expect(moveBlock(["a", "b", "c"], 0, -1)).toEqual(["a", "b", "c"]);
-    expect(moveBlock(["a", "b", "c"], 2, 1)).toEqual(["a", "b", "c"]);
+describe("body text", () => {
+  it("turns every built-in template into text and back without changing a block", () => {
+    expect(SEED_TEMPLATES.length).toBeGreaterThanOrEqual(5);
+    for (const seed of SEED_TEMPLATES) expect(textToBlocks(blocksToText(seed.content.blocks as never))).toEqual(seed.content.blocks);
   });
-  it("removes one block without touching the others and caps the count at the server limit", () => {
-    expect(removeBlock(["a", "b", "c"], 1)).toEqual(["a", "c"]);
-    const draft = newDraft("received", null);
-    expect(canAddBlock(draft, { blocks: 2 })).toBe(true);
-    draft.blocks.push(blankBlock("list"));
-    expect(canAddBlock(draft, { blocks: 2 })).toBe(false);
+
+  it("keeps a line that starts with ::: as plain text by escaping it, in a paragraph, a list item and a quote", () => {
+    const blocks = [
+      { kind: "paragraph" as const, text: "第一行\n:::要点 不是块\n第三行" },
+      { kind: "list" as const, items: [":::", "正常一条"] },
+      { kind: "quote" as const, title: "标题", text: ":::\n引用里的冒号：不用转义" },
+    ];
+    const text = blocksToText(blocks);
+    expect(text).toContain("\\:::要点 不是块");
+    expect(textToBlocks(text)).toEqual(blocks);
   });
-  it("starts every kind of block empty, with a quote needing a title and facts one empty row", () => {
-    expect(blankBlock("paragraph")).toMatchObject({ kind: "paragraph", text: "" });
-    expect(blankBlock("list")).toMatchObject({ kind: "list", title: "", items: "" });
-    expect(blankBlock("quote")).toMatchObject({ kind: "quote", title: "", text: "" });
-    const facts = blankBlock("facts");
-    expect(facts.kind === "facts" && facts.rows).toHaveLength(1);
+
+  it("accepts the longer names and a block that was never closed, leaving the server to say what is missing", () => {
+    expect(textToBlocks(":::要点列表 说明\n一条")).toEqual([{ kind: "list", title: "说明", items: ["一条"] }]);
+    expect(textToBlocks(":::信息表\n没有冒号的一行")).toEqual([{ kind: "facts", items: [{ label: "没有冒号的一行", value: "" }] }]);
+    expect(textToBlocks(":::引用")).toEqual([{ kind: "quote", title: "", text: "" }]);
+    expect(textToBlocks(":::不认识的 名字\n照样是一段")).toEqual([{ kind: "paragraph", text: ":::不认识的 名字\n照样是一段" }]);
+    expect(textToBlocks("  \n\n")).toEqual([]);
+  });
+
+  it("inserts the writing of a list, a fact table or a quote at the caret as its own part, with a blank line either side", () => {
+    expect(insertFence("", null, "list")).toEqual({ value: ":::要点\n第一条\n第二条\n:::\n", caret: ":::要点\n".length });
+    const middle = insertFence("上一段\n\n下一段", { start: 4, end: 4 }, "facts");
+    expect(middle.value).toBe("上一段\n\n:::信息\n名称：内容\n名称：内容\n:::\n\n下一段");
+    expect(middle.value.slice(middle.caret, middle.caret + 5)).toBe("名称：内容");
+    expect(insertFence("只有一段", null, "quote").value).toBe("只有一段\n\n:::引用 标题\n引用的话\n:::\n");
+    expect(textToBlocks(insertFence("上一段", null, "quote").value)).toEqual([
+      { kind: "paragraph", text: "上一段" }, { kind: "quote", title: "标题", text: "引用的话" },
+    ]);
   });
 });
 
@@ -141,17 +177,11 @@ describe("inserting a variable (click-to-insert)", () => {
     expect(insertVariable(draft, { field: "subject", caret: { start: 0, end: 0 } }, "姓名")).toBe("{{姓名}}".length);
     expect(draft.subject).toBe("{{姓名}}极客班面试：{{面试时间}}");
 
-    insertVariable(draft, { field: blockField(0, "text"), caret: null }, "官网");
-    const paragraph = draft.blocks[0];
-    expect(paragraph.kind === "paragraph" && paragraph.text).toBe("请按下面的时间和地点来面试。{{官网}}");
-
-    insertVariable(draft, { field: factField(1, 1, "value"), caret: { start: 0, end: "{{面试地点}}".length } }, "班级");
-    const facts = draft.blocks[1];
-    expect(facts.kind === "facts" && facts.rows[1].value).toBe("{{班级}}");
-
-    insertVariable(draft, { field: blockField(2, "items"), caret: { start: 0, end: 0 } }, "说明");
-    const list = draft.blocks[2];
-    expect(list.kind === "list" && list.items.startsWith("{{说明}}{{说明}}")).toBe(true);
+    insertVariable(draft, { field: "body", caret: { start: 0, end: 0 } }, "官网");
+    expect(draft.body.startsWith("{{官网}}请按下面的时间和地点来面试。")).toBe(true);
+    expect(textToBlocks(draft.body)[0]).toEqual({ kind: "paragraph", text: "{{官网}}请按下面的时间和地点来面试。" });
+    insertVariable(draft, { field: "body", caret: null }, "称呼");
+    expect(draft.body.endsWith(":::{{称呼}}")).toBe(true);
 
     insertVariable(draft, { field: "button.label", caret: null }, "称呼");
     expect(draft.buttonLabel).toBe("去论坛看看{{称呼}}");
@@ -162,8 +192,7 @@ describe("inserting a variable (click-to-insert)", () => {
   it("refuses a field that does not exist instead of writing somewhere else", () => {
     const draft = draftFromTemplate(template());
     const before = draftSnapshot(draft);
-    expect(insertVariable(draft, { field: "blocks[9].text", caret: null }, "姓名")).toBeNull();
-    expect(insertVariable(draft, { field: "blocks[2].text", caret: null }, "姓名")).toBeNull();
+    expect(insertVariable(draft, { field: "blocks[0].text", caret: null }, "姓名")).toBeNull();
     expect(insertVariable(draft, { field: "nope", caret: null }, "姓名")).toBeNull();
     expect(fieldValue(draft, "nope")).toBeNull();
     expect(setFieldValue(draft, "nope", "x")).toBe(false);
@@ -182,45 +211,46 @@ describe("inserting a variable (click-to-insert)", () => {
 });
 
 describe("server problems shown at the field", () => {
-  const draft = () => draftFromTemplate(template());
-
-  it("puts each problem on its own input, keeping several for one input", () => {
+  it("puts each problem on its own input, keeping several for one input, and every block problem on the body", () => {
     const placed = placeIssues([
       { path: "subject", message: "主题里的「部门」不是可用的变量" },
       { path: "subject", message: "主题最多 100 个字" },
       { path: "blocks[0].text", message: "第 1 块的段落不能为空" },
       { path: "blocks[1].items[1].value", message: "第 2 块第 2 行的内容不能为空" },
+      { path: "blocks[2].items[1]", message: "第 3 块的第 2 条不能为空" },
+      { path: "blocks[3]", message: "第 4 块多了不认识的内容" },
+      { path: "blocks", message: "整份模板的文字最多 6000 个字" },
       { path: "button.path", message: "按钮的路径要从 / 开始" },
       { path: "name", message: "名称不能为空" },
-    ], draft());
+    ]);
     expect(placed.byField.subject).toEqual(["主题里的「部门」不是可用的变量", "主题最多 100 个字"]);
-    expect(placed.byField["blocks[0].text"]).toEqual(["第 1 块的段落不能为空"]);
-    expect(placed.byField["blocks[1].items[1].value"]).toHaveLength(1);
+    expect(placed.byField.body).toEqual([
+      "第 1 块的段落不能为空", "第 2 块第 2 行的内容不能为空", "第 3 块的第 2 条不能为空", "第 4 块多了不认识的内容", "整份模板的文字最多 6000 个字",
+    ]);
     expect(placed.byField["button.path"]).toHaveLength(1);
     expect(placed.byField.name).toHaveLength(1);
     expect(placed.general).toEqual([]);
-    expect(issueCount(placed)).toBe(6);
+    expect(issueCount(placed)).toBe(9);
   });
 
-  it("puts a problem with one item of a list on the whole list box, and one footer line on the footer box", () => {
+  it("keeps one copy of a problem that both the save and the preview pointed at", () => {
     const placed = placeIssues([
-      { path: "blocks[2].items[1]", message: "第 3 块的第 2 条不能为空" },
+      { path: "blocks", message: "正文至少要有一块" }, { path: "blocks", message: "正文至少要有一块" },
+      { path: "", message: "没有配置回信地址" }, { path: "", message: "没有配置回信地址" },
+    ]);
+    expect(placed.byField.body).toEqual(["正文至少要有一块"]);
+    expect(placed.general).toEqual(["没有配置回信地址"]);
+    expect(issueCount(placed)).toBe(2);
+  });
+
+  it("puts one footer line on the footer box, and keeps whole-template and unknown problems for the page to write out", () => {
+    const placed = placeIssues([
       { path: "footer[1]", message: "页脚第 2 行最多 200 个字" },
-    ], draft());
-    expect(placed.byField["blocks[2].items"]).toEqual(["第 3 块的第 2 条不能为空"]);
-    expect(placed.byField.footer).toEqual(["页脚第 2 行最多 200 个字"]);
-  });
-
-  it("keeps whole-template and unknown problems for the page to write out", () => {
-    const placed = placeIssues([
       { path: "", message: "没有配置回信地址，信里不能请对方直接回复" },
-      { path: "blocks[7].text", message: "指向一个已经不存在的块" },
-      { path: "blocks", message: "整份模板的文字最多 6000 个字" },
-      { path: "blocks[3]", message: "第 4 块多了不认识的内容" },
-    ], draft());
-    expect(placed.general).toEqual(["没有配置回信地址，信里不能请对方直接回复", "指向一个已经不存在的块"]);
-    expect(placed.byField.blocks).toEqual(["整份模板的文字最多 6000 个字"]);
-    expect(placed.byField["blocks[3]"]).toEqual(["第 4 块多了不认识的内容"]);
+      { path: "somewhere", message: "不认识的位置" },
+    ]);
+    expect(placed.byField.footer).toEqual(["页脚第 2 行最多 200 个字"]);
+    expect(placed.general).toEqual(["没有配置回信地址，信里不能请对方直接回复", "不认识的位置"]);
   });
 
   it("reads the problems out of a 400 template_invalid and ignores anything else", () => {
@@ -455,6 +485,29 @@ describe("template list", () => {
     expect(templateFlags({ is_default: true, enabled: true })).toEqual(["默认"]);
     expect(templateFlags({ is_default: false, enabled: false })).toEqual(["已停用"]);
     expect(templateFlags({ is_default: false, enabled: true })).toEqual([]);
+  });
+});
+
+describe("status and template", () => {
+  it("lists, for each status, the enabled templates to choose from and the default now in use", () => {
+    const groups = groupByKind(MOCK_MAIL_TEMPLATES, MOCK_MAIL_LIST.kinds);
+    const routes = statusRoutes(groups);
+    expect(routes.map(route => route.label)).toEqual(MOCK_MAIL_LIST.kinds.map(kind => kind.label));
+    for (const route of routes) {
+      expect(route.current?.is_default).toBe(true);
+      expect(route.choices.every(choice => choice.enabled && choice.kind === route.kind)).toBe(true);
+      expect(route.choices).toContain(route.current);
+      expect(route.total).toBe(groups.find(group => group.kind === route.kind)?.templates.length);
+    }
+    const off = MOCK_MAIL_TEMPLATES.find(item => !item.enabled);
+    expect(off).toBeDefined();
+    expect(routes.find(route => route.kind === off?.kind)?.choices.map(choice => choice.id)).not.toContain(off?.id);
+  });
+
+  it("has no current template for a status with none, and still shows the status", () => {
+    const routes = statusRoutes(groupByKind([], MOCK_MAIL_LIST.kinds));
+    expect(routes).toHaveLength(MOCK_MAIL_LIST.kinds.length);
+    expect(routes.every(route => route.current === null && route.choices.length === 0 && route.total === 0)).toBe(true);
   });
 });
 
