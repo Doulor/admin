@@ -22,3 +22,17 @@
 - 做了什么：提交 fix(forum) 表情样式、docs(changes) 影响声明、docs(catalog) 把规则登记进「读表情包列表」流程的证据并重新生成目录
 - 结果：check-architecture 通过：#294，13 个变更文件，3 个关联节点
 - 下一步：门禁全绿后推送开 MR，写审查记录
+
+## 19:28:07 +08:00 · PR · #294 · PR：!32 论坛表情改成两个字高、底部对齐
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：推送分支，开 MR !32（标签 forum、ui:visual、ui:layout），正文按 PR 契约写，附改前改后截图：桌面与手机、帖子与回复框、行内对照；改后截图是把同一条规则注入 rc.24 真实页面得到的，正文里写明
+- 结果：https://git.yangtzeu.work/geek/admin/-/merge_requests/32；宏观对齐通过：#294，19 个变更文件，3 个关联节点
+- 下一步：写审查结论，合并后发 rc.25 预发布并在真实页面补改后截图
+
+## 19:28:07 +08:00 · 审查 · #294 · 审查：!32 通过，无阻塞
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：按 CODE-REVIEW 清单逐项核对 diff；用 @unocss/config 在 app/forum 真实加载 uno.config.ts，预置样式里是新规则、旧 4rem 规则不在；新增行表情符号扫描 0 处；确认 app/forum 与文档里没有别处再定义表情尺寸
+- 结果：无阻塞、无应修条目；未验证：rc.25 真实页面上的显示、Safari/Firefox/真机、tests/server 与 tests/web 整体、论坛 site-state 的已有失败
+- 下一步：合并后建 rc.25 并在预发布真实页面补改后截图，再关 issue、清理分支与 worktree
