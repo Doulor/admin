@@ -47,7 +47,8 @@ export default async function accountRoutes(app: FastifyInstance) {
   app.get("/api/identity/me", { preHandler: requireAuth }, async (req) => {
     const session = req.session!;
     const view = identity.accountView(session.account_id);
-    // `available`：账号页上现在就能绑定的方式。只有邮箱有绑定接口，没到上限就还能再加；GitHub、Google 的绑定还没做，不列出来
+    // `available`：账号页上现在就能绑定的方式。只有邮箱，没到上限就还能再加；GitHub 没有绑定接口；Google 的绑定接口（POST /api/identity/link，#291）
+    // 目前只有官网资料窗口在用，账号页还没有入口，所以不列出来
     const available = loginProviders({ mailEnabled: mail.sendingEnabled, googleEnabled: google.enabled })
       .map(provider => provider.id).filter((id): id is "email" => id === "email" && identity.emailAddRefusal(session.account_id) === null);
     return {

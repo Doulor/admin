@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-24",
+  "updated": "2026-10-25",
   "applications": [
     {
       "id": "web",
@@ -1496,7 +1496,7 @@
     },
     {
       "id": "identity.google.callback",
-      "title": "校验 Google 回调后登录，没有账号时凭邀请码注册",
+      "title": "校验 Google 回调：登录（没有账号时凭邀请码注册）或给当前账号绑定",
       "domain": "identity",
       "relatedDomains": [
         "audit",
@@ -1508,7 +1508,8 @@
       "reads": [
         "identities",
         "users",
-        "invite_codes"
+        "invite_codes",
+        "sessions"
       ],
       "writes": [
         "users",
@@ -1521,8 +1522,8 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：每分钟 10 次（按 IP）；state 与签名 cookie 必须相符；ID Token 用 Google JWKS 验签（RS256），核对 iss、aud、exp、nonce，按 Google sub 认人，不按邮箱合并账号。",
-        "响应与错误：成功 302 回 return_to，账号还没有登录邮箱（Google 给的邮箱不算）、这个环境又能发信时改为 302 到 /bind-email?return_to=<原路径>（#273）；取消、上游失败、没有账号且没带邀请码、邀请码无效、Google 邮箱已属于别的账号、账号停用或不再是成员时 302 到 /signin?signin=<原因>&provider=google；缺参数 400，state 无效 400。",
-        "数据与副作用：外部请求在事务外；建号、兑换邀请码、建会话（provider=google）、写 identity_audit 与 auth.register/auth.signin 在一个 BEGIN IMMEDIATE 事务里，失败整体回滚；失败日志不输出令牌。真的要新建账号这一步，同一 IP 今天已建满 5 个、同一设备（yugc_vid）已建满 3 个回 registration_limited，登录到已有账号不受影响（#274 残留修复，SPEC §3.8，lib/register-limits.ts）。"
+        "响应与错误：成功 302 回 return_to，账号还没有登录邮箱（Google 给的邮箱不算）、这个环境又能发信时改为 302 到 /bind-email?return_to=<原路径>（#273）；取消、上游失败、没有账号且没带邀请码、邀请码无效、Google 邮箱已属于别的账号、账号停用或不再是成员时 302 到 /signin?signin=<原因>&provider=google；缺参数 400，state 无效 400。 绑定（cookie 的 kind 是 google-link，#291）时一律 302 回发起页 ?link=<linked|conflict|exists|cancelled|failed>&provider=google，不去登录页。",
+        "数据与副作用：外部请求在事务外；建号、兑换邀请码、建会话（provider=google）、写 identity_audit 与 auth.register/auth.signin 在一个 BEGIN IMMEDIATE 事务里，失败整体回滚；失败日志不输出令牌。真的要新建账号这一步，同一 IP 今天已建满 5 个、同一设备（yugc_vid）已建满 3 个回 registration_limited，登录到已有账号不受影响（#274 残留修复，SPEC §3.8，lib/register-limits.ts）。 绑定分支不登录、不建号、不换会话：核对当前还是发起绑定的那个会话，在一个事务里判重、写 identities 与 identity_audit（link 或 link_conflict），再写 auth.link（只记 provider，不记 sub 与邮箱）。"
       ],
       "evidence": [
         {
@@ -1548,6 +1549,10 @@
         {
           "path": "app/server/src/lib/register-limits.ts",
           "needle": "export const REGISTER_IP_DAILY_MAX = 5;"
+        },
+        {
+          "path": "app/server/src/lib/identity-store.ts",
+          "needle": "  function linkGoogle(input: { accountId: string; sub: string; email: string | null; login: string; ip?: string }): LinkResult {"
         }
       ],
       "tests": [
@@ -1654,6 +1659,62 @@
         "docs/architecture/SECURITY.md",
         "docs/plan/UNIFIED-LOGIN.md",
         "docs/services/console/README.md"
+      ]
+    },
+    {
+      "id": "identity.account.link",
+      "title": "给账号绑定 Google：发起授权",
+      "domain": "identity",
+      "relatedDomains": [],
+      "assessment": "declared-with-source-evidence",
+      "operation": "POST /api/identity/link",
+      "capabilities": [],
+      "reads": [
+        "sessions",
+        "identities"
+      ],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：有效会话，且这次登录不超过 10 分钟（命令行令牌不算，否则 403 step_up_required）；每账号每分钟 10 次；没配 GOOGLE_CLIENT_ID 与 GOOGLE_CLIENT_SECRET 时 404 provider_not_enabled。",
+        "响应与错误：200 {authorize_url}；provider 不是 google 400；本账号已经绑了 Google 409 identity_exists，不去 Google；return_to 只接受本站，缺省 /account。",
+        "数据与副作用：只写签名 cookie google_oauth_state（kind 为 google-link，带账号 id 与会话指纹，path=/auth/google，10 分钟），不写数据库；真正的绑定在 GET /auth/google/callback，绑的是发起的那个账号，不登录、不建号。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/identity/google.ts",
+          "needle": "  app.post<{ Body: { provider: \"google\"; return_to?: string } }>(\"/api/identity/link\", {"
+        },
+        {
+          "path": "app/server/src/routes/identity/contracts.ts",
+          "needle": "  \"POST /api/identity/link\": {"
+        },
+        {
+          "path": "app/server/src/lib/identity-store.ts",
+          "needle": "  function hasGoogle(accountId: string): boolean {"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx",
+          "needle": "  const linkGoogle = async () => {"
+        },
+        {
+          "path": "app/web/sites/portal/lib/linkNotice.ts",
+          "needle": "export function linkNoticeOf(link: string | null, provider: string | null): LinkNotice | null {"
+        },
+        {
+          "path": "app/web/sites/portal/lib/navigate.ts",
+          "needle": "export function goTo(url: string): void {"
+        }
+      ],
+      "tests": [
+        "tests/server/signin-methods.test.ts",
+        "tests/web/portal-profile-card.test.tsx"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/web/portal.md",
+        "docs/plan/UNIFIED-LOGIN.md"
       ]
     },
     {
