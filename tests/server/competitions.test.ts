@@ -425,3 +425,53 @@ describe('planning column migration (#278)', () => {
     }
   });
 });
+
+describe('first-period description is rewritten to individual play (#288)', () => {
+  // 第一期最初按团队赛种库，描述第三行写着「1–3 人组队」；赛制改成个人赛后，库里的描述要跟着改，且只改种子原文那一行。
+  const TEAM_LINE = '1–3 人组队（一个人也可以自成一队），队伍积分是在队成员积分之和。比赛时间 2026-10-21 至 2026-11-15 23:59:59（北京时间）。';
+  const SEED_ID = 'oss-challenge-2026-1';
+
+  it('replaces the seeded team line once, keeps what organisers edited, and is a no-op on the second boot', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'geek-competition-description-'));
+    const path = join(dir, 'data.db');
+    try {
+      const first = createDatabase(path);
+      const original = (first.db.prepare('SELECT description FROM competitions WHERE id = ?').get(SEED_ID) as { description: string }).description;
+      expect(original).not.toContain('组队');
+      // 还原成上线时的团队赛文案，外加组织者自己在前面补的一句
+      const legacy = `组织者补充：欢迎大一同学。\n${original.split('\n').slice(0, 2).join('\n')}\n${TEAM_LINE}`;
+      first.db.prepare('UPDATE competitions SET description = ? WHERE id = ?').run(legacy, SEED_ID);
+      first.db.close();
+
+      const second = createDatabase(path);
+      const fixed = (second.db.prepare('SELECT description FROM competitions WHERE id = ?').get(SEED_ID) as { description: string }).description;
+      expect(fixed).not.toContain('组队');
+      expect(fixed).toContain('个人赛，按个人合入结果计分。');
+      expect(fixed.startsWith('组织者补充：欢迎大一同学。')).toBe(true);
+      const updatedAt = (second.db.prepare('SELECT updated_at FROM competitions WHERE id = ?').get(SEED_ID) as { updated_at: number }).updated_at;
+      second.db.close();
+
+      const third = createDatabase(path);
+      expect(third.db.prepare('SELECT description, updated_at FROM competitions WHERE id = ?').get(SEED_ID)).toEqual({ description: fixed, updated_at: updatedAt });
+      third.db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('leaves a description alone when organisers rewrote the team line', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'geek-competition-description-'));
+    const path = join(dir, 'data.db');
+    try {
+      const first = createDatabase(path);
+      const edited = '组织者改写：1–3 人组队，具体规则以群公告为准。';
+      first.db.prepare('UPDATE competitions SET description = ? WHERE id = ?').run(edited, SEED_ID);
+      first.db.close();
+      const second = createDatabase(path);
+      expect(second.db.prepare('SELECT description FROM competitions WHERE id = ?').get(SEED_ID)).toEqual({ description: edited });
+      second.db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

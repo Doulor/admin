@@ -986,7 +986,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 1182,
+          "line": 1196,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -7639,7 +7639,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 1138,
+          "line": 1152,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -8543,7 +8543,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -8699,7 +8699,7 @@
           "path": "scripts/contest-site.mjs"
         },
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -9646,7 +9646,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -9810,7 +9810,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -9957,7 +9957,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -15541,7 +15541,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "211789400d8cb4e2acf211906d980abaa9240547b82590a12904fbc0831917b0",
+    "fingerprint": "311067eda4bfc064982528885b40b2680a4d8f03b489b763d913e23ab73aa759",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -15749,7 +15749,7 @@
       },
       {
         "path": "app/console/src/pages/Activity.vue",
-        "sha256": "b5b0e89f202b18b597a8b9982b61eeb668313b9f4bd4901cbdd95e88652721a1"
+        "sha256": "e909771f824436c4f48b7f215e8c7c1e63bd6de60613931ab6f742b411e7888e"
       },
       {
         "path": "app/console/src/pages/ApplicationDetail.vue",
@@ -15765,7 +15765,7 @@
       },
       {
         "path": "app/console/src/pages/Backup.vue",
-        "sha256": "a458d9177babde3bc12d0fb9362d991d191520c341acfa4592b02c77288e56ac"
+        "sha256": "3c41aebbcf4957096e51e051e96ee29424f05a791b5d0790d3f399acc9078511"
       },
       {
         "path": "app/console/src/pages/BindEmail.vue",
@@ -15801,7 +15801,7 @@
       },
       {
         "path": "app/console/src/pages/Invites.vue",
-        "sha256": "81930fe0b9b63a9465e995febbd41f4f5ef1a89eacbd7984ddaba0189c64c324"
+        "sha256": "f43c11965b96f67f6059e8a3a7f030b03b1e10348880848d2e7a55dc4bd2e31f"
       },
       {
         "path": "app/console/src/pages/Overview.vue",
@@ -15833,7 +15833,7 @@
       },
       {
         "path": "app/console/src/pages/competition/RulesPanel.vue",
-        "sha256": "d046679b6599dfe06d52c798b197b8b4937486ae6e2f04830744c5fbb2fc905e"
+        "sha256": "ef93d7306a90563741b2ad2ec2b1a7f5414c53ac85f32bc7b2be7d88725c76dd"
       },
       {
         "path": "app/console/src/pages/competition/ScoreLevels.vue",
@@ -15845,7 +15845,7 @@
       },
       {
         "path": "app/console/src/pages/forum/CategoriesTab.vue",
-        "sha256": "63c746b83f41d7c5663a2cb2d03f5ccf771ede6fe6b9daf811aadc29908bee21"
+        "sha256": "690c7a42cfe31ed97fa4f188b7ac2a7d8dbd59c0b3fa3f8888ba0008796236b1"
       },
       {
         "path": "app/console/src/pages/forum/NewStickerDialog.vue",
@@ -15857,7 +15857,7 @@
       },
       {
         "path": "app/console/src/pages/gitlab/Accounts.vue",
-        "sha256": "f2bf4b4550808bcb9aebf4d0750b29c74686a7f3046484ea660e36c048e3aebd"
+        "sha256": "cea45dd895b5789e813a1834c88be292c833b12cd3358906f4e372b89442b9d2"
       },
       {
         "path": "app/console/src/pages/gitlab/Overview.vue",
@@ -15893,7 +15893,7 @@
       },
       {
         "path": "app/console/src/pages/permissions/NodesTab.vue",
-        "sha256": "f7979233a13951284cc861c71d304ae20cb3e1939ab0a07867ac010a9798d877"
+        "sha256": "e26b8ba2f670d4c5f01a1d13aa3d9aec43c7563a2e4f132202494a1bc422fd8d"
       },
       {
         "path": "app/console/src/pages/users/UserDrawer.vue",
@@ -16473,7 +16473,7 @@
       },
       {
         "path": "app/server/src/lib/db.ts",
-        "sha256": "78cd980bbf86ed36e934109c6f1e0066da83276256e75ab50ea218b77282c51f"
+        "sha256": "5833ebcd6b555e60b7f82ea44c210e477ecfbb9096fc2b7539c4b831aa4d1afa"
       },
       {
         "path": "app/server/src/lib/device-store.ts",
@@ -16897,7 +16897,7 @@
       },
       {
         "path": "app/web/Dockerfile",
-        "sha256": "3ebf6794069b5e7ee3dc67f3f81e270ef2be70d9d6107a4716b45140fbce7614"
+        "sha256": "01fd104d8ae531e1171c9fb102980c6064ba3dea7d8d200b63a5ad9ea8aa9411"
       },
       {
         "path": "app/web/package.json",
@@ -17389,11 +17389,11 @@
       },
       {
         "path": "docs/services/cli/README.md",
-        "sha256": "772786bcd88e1f2a120655279cbbe8792fb93a041365f21199bee781883ef477"
+        "sha256": "4ad4d308dedb0dcdf1bba8a83b0f7ecc57642b36241d4f60baeccc2836d054c2"
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "6723892806ee7bee8c047c72c8fd2da828b3756a50be5e709194bd4eadd4f309"
+        "sha256": "7bc4cce25945466babd843b1c758ec6e0b3614b5c84d260fda19235fd05a367c"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -17405,7 +17405,7 @@
       },
       {
         "path": "docs/services/server/data-model.md",
-        "sha256": "c542741829b5c47220edfb0db3cd4c37daefca00a76af812f41e2d03e73fef34"
+        "sha256": "e25d1f67bea1e402df3b80ab6d5d7c146e056cce315bf4df456e7004485c4390"
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
@@ -17421,7 +17421,7 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "dad21521226d948fb56b70b9ef882c92eeaca3aaa7c8dcc5de8834c781448a23"
+        "sha256": "36b3da6a7e5e7cf65951fa0a4cdc18f2f0acab9c09b6613420208ab930a6c1f9"
       },
       {
         "path": "docs/services/web/portal.md",
@@ -17465,7 +17465,7 @@
       },
       {
         "path": "scripts/contest-site.mjs",
-        "sha256": "21b0e84169305595486df59975e33ef2f30ff966803a4d0aca10d079f4ee7a94"
+        "sha256": "b553e0efb4279a937f9a4a9e8c57349eb6a281b1ae37539c3f35df0aa9566e4a"
       },
       {
         "path": "scripts/project-catalog.ts",
@@ -17589,7 +17589,7 @@
       },
       {
         "path": "tests/server/competitions.test.ts",
-        "sha256": "2f79ecb545a3f695db6269385fae8ba182588a936c5e20d380ff5c8a64006f4f"
+        "sha256": "8ba2a90846e3a1d1c1a498122e9162ad01732562d816b0e8053ef81f81b3e50a"
       },
       {
         "path": "tests/server/configuration.test.ts",
@@ -17697,7 +17697,7 @@
       },
       {
         "path": "tests/tooling/contest-site.test.ts",
-        "sha256": "fb026ae5649eebba38f2f94a1974f06d626774815cad2ab1c7d933bdb10f7281"
+        "sha256": "f2b0d1af55eeef46a6a72000eb7cfe68ea1fdc9f0c05092074dd92474eee2716"
       },
       {
         "path": "tests/tooling/web-nginx.test.ts",
@@ -25134,7 +25134,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25182,7 +25182,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25230,7 +25230,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25278,7 +25278,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25326,7 +25326,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25374,7 +25374,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25422,7 +25422,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25470,7 +25470,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25518,7 +25518,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25566,7 +25566,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25614,7 +25614,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25662,7 +25662,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25710,7 +25710,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25758,7 +25758,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25806,7 +25806,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25854,7 +25854,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25914,7 +25914,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -25962,7 +25962,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -26010,7 +26010,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -26058,7 +26058,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -26106,7 +26106,7 @@
           "path": "app/console/src/lib/competition-contest.ts"
         },
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -28422,7 +28422,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28450,7 +28450,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28478,7 +28478,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28506,7 +28506,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28534,7 +28534,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28562,7 +28562,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28590,7 +28590,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28618,7 +28618,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28646,7 +28646,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28674,7 +28674,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28702,7 +28702,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28730,7 +28730,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28770,7 +28770,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28798,7 +28798,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28826,7 +28826,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28854,7 +28854,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -28882,7 +28882,7 @@
           "path": "app/console/src/pages/competition/FinalPanel.vue"
         },
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -36884,7 +36884,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36912,7 +36912,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36940,7 +36940,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36968,7 +36968,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -36996,7 +36996,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -37024,7 +37024,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -37052,7 +37052,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -37080,7 +37080,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -37108,7 +37108,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -37136,7 +37136,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -37182,7 +37182,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -37210,7 +37210,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -37238,7 +37238,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -37266,7 +37266,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -37294,7 +37294,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 60,
+          "line": 61,
           "path": "app/console/src/pages/competition/RulesPanel.vue"
         },
         {
@@ -41354,7 +41354,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -41382,7 +41382,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -41410,7 +41410,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -41438,7 +41438,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -41466,7 +41466,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -41494,7 +41494,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -41522,7 +41522,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -41550,7 +41550,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -41578,7 +41578,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -41624,7 +41624,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -41652,7 +41652,7 @@
           "path": "app/web/sites/portal/components/os/competitions/ContestSite.tsx"
         },
         {
-          "line": 180,
+          "line": 187,
           "path": "app/web/Dockerfile"
         }
       ],
@@ -42000,7 +42000,7 @@
           "path": "scripts/contest-site.mjs"
         },
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -42036,7 +42036,7 @@
           "path": "scripts/contest-site.mjs"
         },
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -42072,7 +42072,7 @@
           "path": "scripts/contest-site.mjs"
         },
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -42108,7 +42108,7 @@
           "path": "scripts/contest-site.mjs"
         },
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -42144,7 +42144,7 @@
           "path": "scripts/contest-site.mjs"
         },
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -42180,7 +42180,7 @@
           "path": "scripts/contest-site.mjs"
         },
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -42216,7 +42216,7 @@
           "path": "scripts/contest-site.mjs"
         },
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -42252,7 +42252,7 @@
           "path": "scripts/contest-site.mjs"
         },
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -42306,7 +42306,7 @@
           "path": "scripts/contest-site.mjs"
         },
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -42342,7 +42342,7 @@
           "path": "scripts/contest-site.mjs"
         },
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -42378,7 +42378,7 @@
           "path": "scripts/contest-site.mjs"
         },
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -42414,7 +42414,7 @@
           "path": "scripts/contest-site.mjs"
         },
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -44632,7 +44632,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 1138,
+          "line": 1152,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -44664,7 +44664,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 1138,
+          "line": 1152,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -44696,7 +44696,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 1138,
+          "line": 1152,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -44728,7 +44728,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 1138,
+          "line": 1152,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -44760,7 +44760,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 1138,
+          "line": 1152,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -44792,7 +44792,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 1138,
+          "line": 1152,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -44824,7 +44824,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 1138,
+          "line": 1152,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -44856,7 +44856,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 1138,
+          "line": 1152,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -44888,7 +44888,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 1138,
+          "line": 1152,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -44920,7 +44920,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 1138,
+          "line": 1152,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -44952,7 +44952,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 1138,
+          "line": 1152,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -44990,7 +44990,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 1138,
+          "line": 1152,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -45022,7 +45022,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 1138,
+          "line": 1152,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -67186,7 +67186,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 1182,
+          "line": 1196,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -67234,7 +67234,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 1182,
+          "line": 1196,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -67300,7 +67300,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 1182,
+          "line": 1196,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -67348,7 +67348,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 1182,
+          "line": 1196,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -67396,7 +67396,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 1182,
+          "line": 1196,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -67444,7 +67444,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 1182,
+          "line": 1196,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -67492,7 +67492,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 1182,
+          "line": 1196,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -67540,7 +67540,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 1182,
+          "line": 1196,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -67588,7 +67588,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 1182,
+          "line": 1196,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -67636,7 +67636,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 1182,
+          "line": 1196,
           "path": "app/server/src/lib/db.ts"
         },
         {
@@ -79372,7 +79372,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1097,
+          "line": 1111,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79384,7 +79384,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1097,
+          "line": 1111,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79396,7 +79396,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1097,
+          "line": 1111,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79414,7 +79414,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1051,
+          "line": 1065,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79426,7 +79426,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1051,
+          "line": 1065,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79444,7 +79444,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79456,7 +79456,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79468,7 +79468,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79480,7 +79480,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1104,
+          "line": 1118,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79498,7 +79498,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1088,
+          "line": 1102,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79510,7 +79510,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1088,
+          "line": 1102,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79528,7 +79528,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79540,7 +79540,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79552,7 +79552,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79564,7 +79564,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1060,
+          "line": 1074,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79732,7 +79732,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79744,7 +79744,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1029,
+          "line": 1043,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79762,7 +79762,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1043,
+          "line": 1057,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79774,7 +79774,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1043,
+          "line": 1057,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -79786,7 +79786,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 1043,
+          "line": 1057,
           "path": "app/server/src/lib/db.ts"
         }
       ],
@@ -126007,7 +126007,7 @@
       "name": "competition_finals",
       "note": "定榜：一场一行，standings 是定榜那一刻的严格名次快照，之后加分、撤销都不再改它；撤销定榜删行。只有 lib/competition-prizes.ts 读写。",
       "source": {
-        "line": 1097,
+        "line": 1111,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE competition_finals (\n  competition_id TEXT PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,\n  finalized_at INTEGER NOT NULL,\n  finalized_by TEXT NOT NULL REFERENCES users(id),\n  standings TEXT NOT NULL\n)"
@@ -126086,7 +126086,7 @@
       "name": "competition_gitlab_sources",
       "note": "比赛从哪些 GitLab 项目收集贡献，控制台「计分与奖项」整份替换；没有行的比赛不收集。由 lib/competition-rules-store.ts 写，收集任务读。",
       "source": {
-        "line": 1051,
+        "line": 1065,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE competition_gitlab_sources (\n  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,\n  project_path TEXT NOT NULL,\n  PRIMARY KEY (competition_id, project_path)\n)"
@@ -126334,7 +126334,7 @@
       "name": "competition_prizes",
       "note": "定榜时给每个得奖的人一行：兑奖码只存 SHA-256 散列、AES-GCM 密文与末四位，不存明文；核销只改 redeemed_at/redeemed_by；公开接口从不返回这三列。只有 lib/competition-prizes.ts 读写。",
       "source": {
-        "line": 1104,
+        "line": 1118,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE competition_prizes (\n  id TEXT PRIMARY KEY,\n  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,\n  account_id TEXT NOT NULL REFERENCES users(id),\n  rank INTEGER NOT NULL,\n  points INTEGER NOT NULL,\n  amount_cny INTEGER NOT NULL,\n  title TEXT NOT NULL DEFAULT '',\n  code_hash TEXT NOT NULL UNIQUE,\n  code_cipher TEXT NOT NULL,\n  code_hint TEXT NOT NULL,\n  created_at INTEGER NOT NULL,\n  redeemed_at INTEGER,\n  redeemed_by TEXT REFERENCES users(id),\n  UNIQUE (competition_id, account_id)\n)"
@@ -126432,7 +126432,7 @@
       "name": "competition_rules",
       "note": "比赛的计分规则：年级系数（百分数，150 = 1.5）与可选奖项 JSON；没有行用默认系数、没有奖项；定榜后不能改。只有 lib/competition-rules-store.ts 读写。",
       "source": {
-        "line": 1088,
+        "line": 1102,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE competition_rules (\n  competition_id TEXT PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,\n  grade_factors TEXT NOT NULL,\n  prizes TEXT NOT NULL DEFAULT '[]',\n  updated_at INTEGER NOT NULL,\n  updated_by TEXT\n)"
@@ -126809,7 +126809,7 @@
       "name": "competition_score_candidates",
       "note": "GitLab 收来的候选贡献（合并的 MR、带「有用」标签或被 MR 关闭的 Issue）：唯一约束挡住重复收集；accepted_via 区分 GitLab 标签与控制台确认；状态变化只改列，不删行。只有 lib/competition-candidates.ts 读写。",
       "source": {
-        "line": 1060,
+        "line": 1074,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE competition_score_candidates (\n  id TEXT PRIMARY KEY,\n  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,\n  account_id TEXT NOT NULL REFERENCES users(id),\n  kind TEXT NOT NULL CHECK (kind IN ('pr', 'issue')),\n  gitlab_project TEXT NOT NULL,\n  gitlab_iid INTEGER NOT NULL,\n  url TEXT NOT NULL,\n  title TEXT NOT NULL,\n  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),\n  reviewed_by TEXT REFERENCES users(id),\n  reviewed_at INTEGER,\n  importance TEXT CHECK (importance IS NULL OR importance IN ('normal', 'important', 'critical')),\n  core TEXT CHECK (core IS NULL OR core IN ('edge', 'business', 'core')),\n  final_points INTEGER,\n  reason TEXT,\n  score_event_id TEXT,\n  accepted_via TEXT CHECK (accepted_via IS NULL OR accepted_via IN ('label', 'console')),\n  note TEXT,\n  contributed_at INTEGER NOT NULL,\n  created_at INTEGER NOT NULL,\n  updated_at INTEGER NOT NULL,\n  UNIQUE (competition_id, kind, gitlab_project, gitlab_iid)\n)"
@@ -127709,7 +127709,7 @@
       "name": "competition_site_versions",
       "note": "比赛官网站点包的版本：一次上传一行，通过（passed）或拒绝（rejected）都留，report 是逐条校验结果；拒绝的版本不落文件。文件本身在数据库旁边的 sites/<competition_id>/<version_id>/，不进库。只有 lib/competition-site-store.ts 读写。",
       "source": {
-        "line": 1029,
+        "line": 1043,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE competition_site_versions (\n  id TEXT PRIMARY KEY,\n  competition_id TEXT NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,\n  version TEXT NOT NULL,\n  size INTEGER NOT NULL,\n  files INTEGER NOT NULL,\n  sha256 TEXT NOT NULL,\n  uploaded_by TEXT NOT NULL,\n  created_at INTEGER NOT NULL,\n  status TEXT NOT NULL CHECK (status IN ('passed', 'rejected')),\n  report TEXT NOT NULL\n)"
@@ -127842,7 +127842,7 @@
       "name": "competition_sites",
       "note": "比赛官网的发布状态：一场一行，slug 唯一且第一次发布后不能改，live_version_id 为空即已下线（版本与 slug 保留）。只有 lib/competition-site-store.ts 读写。",
       "source": {
-        "line": 1043,
+        "line": 1057,
         "path": "app/server/src/lib/db.ts"
       },
       "sql": "CREATE TABLE competition_sites (\n  competition_id TEXT PRIMARY KEY REFERENCES competitions(id) ON DELETE CASCADE,\n  slug TEXT NOT NULL UNIQUE,\n  live_version_id TEXT REFERENCES competition_site_versions(id),\n  updated_at INTEGER NOT NULL,\n  updated_by TEXT\n)"

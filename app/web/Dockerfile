@@ -133,6 +133,13 @@ http {
 NGINX_MAIN
 
 COPY <<'NGINX_SITE' /nginx-out/conf.d/10-web.conf
+# geek 命令行安装脚本的默认源站取请求的域名（#289）。只放行由字母、数字、点和连字符组成的名字，
+# 其余（引号、分号、$、空白等）一律退回生产域名：这段文字最后会被用户交给 sh 执行，不能让 Host 头里的内容写进去。
+map $host $cli_origin {
+    default "https://yangtzeu.work";
+    "~^(?<cli_host>[a-z0-9][a-z0-9.-]*)$" "https://$cli_host";
+}
+
 server {
     listen 8080;
     server_name _;
@@ -234,8 +241,13 @@ server {
         access_log off;
     }
     # install.sh / install.ps1 / latest.json：跟着发布更新，每次都要回源。
+    # 安装脚本的默认源站在构建时写成生产域名；预发布的 install.sh 要从预发布装，所以默认值在这里换成请求的域名
+    # （宿主 nginx 用 Host $host 透传，$host 就是 curl 访问的域名），GEEK_ORIGIN 仍然优先（#289）。
     location /cli/ {
         expires -1;
+        sub_filter_types *;
+        sub_filter_once off;
+        sub_filter 'https://yangtzeu.work' $cli_origin;
         try_files $uri =404;
     }
 
