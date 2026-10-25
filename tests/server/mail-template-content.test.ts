@@ -193,5 +193,22 @@ describe("招聘信模板的内容", () => {
       const hrefs = [...mail.html.matchAll(/href="([^"]*)"/g)].map(match => match[1]);
       expect(hrefs.every(href => /^https:\/\/(prev\.)?yangtzeu\.work\//.test(href) || href.startsWith("mailto:"))).toBe(true);
     });
+
+    it("文字用满上限的模板，连同最长的投递内容渲染出来仍小于 Gmail 会截断的 102KB", () => {
+      // 20 块、一共 5980 个字；全是要转义的 & 是体积最大的情形（每个字变成 5 个字符）
+      const worst = (filler: string) => normalizeContent("received", {
+        subject: "主题",
+        blocks: Array.from({ length: 20 }, (_, index) => ({ kind: "paragraph", text: filler.repeat(index < 19 ? 300 : 280) })),
+        button: { label: "去论坛", path: "/forum/" },
+        footer: ["页脚一", "页脚二"],
+      });
+      for (const filler of ["字", "&"]) {
+        const { content, issues } = worst(filler);
+        expect(issues, filler).toEqual([]);
+        const longest = { ...values, 称呼: `${"名".repeat(40)}同学，你好：`, 姓名: "名".repeat(40), 班级: "班".repeat(40), 特长: "特".repeat(2000) };
+        const { html } = renderEnvelope(fillTemplate(content, longest, CONTEXT), { assetBase: CDN });
+        expect(Buffer.byteLength(html, "utf8"), filler).toBeLessThan(102 * 1024);
+      }
+    });
   });
 });

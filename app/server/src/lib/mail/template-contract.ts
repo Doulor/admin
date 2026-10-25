@@ -94,7 +94,7 @@ export const mailTemplateContracts: RouteContracts = {
     body: object({ template_id: templateId, draft, to: text(320, 3), sample, letter }, ["to"]),
     response: {
       200: object({
-        status: choices("sent", "failed", "skipped"), skip_reason: nullable(text(40)), error: nullable(text(300)), subject: loose, to: text(320),
+        status: choices("sent", "failed", "skipped", "pending"), skip_reason: nullable(text(40)), error: nullable(text(300)), subject: loose, to: text(320),
       }, ["status", "skip_reason", "error", "subject", "to"]),
       ...failures,
     },

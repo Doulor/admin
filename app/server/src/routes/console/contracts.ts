@@ -224,6 +224,8 @@ export const consoleContracts: RouteContracts = {
       template_id: templateId,
       letter: object({ time: text(60), place: text(120), notes: text(1000), message: text(1000) }),
     }),
+    // 成功回 { application, review }，两项原样保留（开放对象）；失败体用共同的开放形状，409 status_changed 另带 application，400 letter_required 另带 fields。
+    response: { 200: object({ application: freeObject, review: freeObject }), ...consoleFailures },
   },
   // 招聘邮件模板（#285）：模板的增删改查、预览、试发，以及投递详情里的信预览
   ...mailTemplateContracts,

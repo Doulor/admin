@@ -634,6 +634,30 @@ describe('改状态时选模板', () => {
     expect((await review(id, { status: 'rejected', notify: false, template_id: 'default-interview' })).statusCode).toBe(200);
   });
 
+  it('改状态的接口挂上响应合同后，成功体和 409、400 的失败体仍带着原来的全部字段', async () => {
+    const { apply, review, call, owner } = await setup();
+    const id = await apply();
+    const url = `/api/console/applications/${id}`;
+
+    const missing = await review(id, { status: 'interview' });
+    expect(missing.statusCode).toBe(400);
+    expect(missing.json()).toMatchObject({ error: 'letter_required', message: '要发待面试的信，请填面试时间和地点', fields: { time: '请填面试时间', place: '请填面试地点' } });
+
+    const changed = await review(id, { status: 'interview', letter: { time: '9 月 30 日 19:00', place: '东校区 3 教 301' } });
+    expect(changed.statusCode).toBe(200);
+    const detail = (await call(owner, 'GET', url)).json();
+    // 成功体：application 和详情接口里的是同一份，review 带着写进去的那条记录和它的邮件状态
+    expect(changed.json().application).toEqual(detail.application);
+    expect(Object.keys(changed.json().review).sort()).toEqual(['created_at', 'from_status', 'id', 'mail', 'note', 'reviewer', 'to_status']);
+    expect(changed.json().review).toMatchObject({ from_status: 'received', to_status: 'interview', mail: expect.objectContaining({ status: expect.any(String) }) });
+
+    // 拿着旧画面再改：409 带着最新的 application，不改状态
+    const stale = await call(owner, 'PATCH', url, { status: 'accepted', expected_status: 'received', expected_review_id: 0, letter: { notes: '欢迎。' } });
+    expect(stale.statusCode).toBe(409);
+    expect(stale.json()).toMatchObject({ error: 'status_changed', application: detail.application });
+    expect(stale.json().message).toContain('刚被别人处理过');
+  });
+
   it('模板在库里是坏的（绕过了保存时的核对）时，渲染失败仍回 400，状态不改', async () => {
     const { apply, review, db, footprint } = await setup();
     const id = await apply();

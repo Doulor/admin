@@ -29,3 +29,10 @@
 - 做了什么：新增控制台页 /console/mail-templates（节点 mail.template.manage）：左边按类别列出模板，可启停、设默认、复制、删除；右边是编辑区（名称、主题、预览摘要、抬头、正文块的增删移与调序、按钮、页脚、变量速查表点一下插入到光标处）、实时预览（停手 400 毫秒后请求，过期响应丢弃，渲染不出来时保留上一版并把服务端指出的问题标在对应输入框下）、测试邮箱试发区；预览放在不带任何权限的 iframe（sandbox、srcdoc）里。投递详情里这一类有两套以上启用的模板时出现『用哪一套信』下拉框和『预览这封信』，请求只在选了非默认模板时带 template_id。导航、路由、权限节点说法、操作记录说法、开发预览数据同步更新；ownership.json 给新增的控制台文件和相关流程补了归属与证据。
 - 结果：tests/console 21 个文件 295 项通过，其中新增 tests/console/mail-templates.test.ts 43 项（草稿与请求体互转、变量插入、问题标到输入框、预览防抖与过期响应、试发结果、开发预览数据的权限与只读）和 applications.test.ts 新增 8 项（模板下拉框、template_id 规则、预览请求体、template_invalid 的位置）；pnpm --filter @yzgc/console typecheck 通过；pnpm check:catalog 通过（5 应用 293 方法路径 69 表）；tests/tooling 37 个文件 822 项通过。没有在真实浏览器里看过页面，布局和 iframe 在生产 CSP 下的显示都还没有验证。
 - 下一步：更新 server 与 console 的服务文档、API 与接口契约，补 docs/changes/285.json
+
+## 14:51:23 +08:00 · 提交 · #285 · 补全邮件模板接口合同：改状态接口挂响应 Schema、试发响应补 pending、内容体积用例
+
+- 执行者：agent-claude-geek-main-mail（Claude Code，claude-sonnet-5-5）
+- 做了什么：contracts.ts 给 PATCH /api/console/applications/:application_id 补响应 Schema（application、review 用开放对象原样保留，失败体用控制台共同的开放形状）：新增可选的 template_id 让这条接口的合同变了，目录要求变了的接口要有响应 Schema；template-contract.ts 的试发响应状态补上 pending（入队后还没发出时回这个值）；template-content.ts 总字数上限的注释改成实测数字（用满上限约 33KB，全是要转义的 & 时约 45KB）；tests/server 新增 2 个用例：模板文字用满上限、投递内容取最长时渲染结果仍小于 102KB；改状态接口的成功体、409、400 失败体的字段与详情接口一致（临时把 application 的 Schema 改成只含 id，这个用例会失败，说明它能发现字段丢失，已改回）。
+- 结果：tests/server/mail-templates.test.ts 37 项、mail-template-content.test.ts 16 项、applications.test.ts 24 项通过；tests/server、tests/console、tests/tooling 全量 104 个文件 1865 项通过；pnpm typecheck 退出码 0。
+- 下一步：文档与目录重新生成、docs/changes/285.json 和宏观对齐检查，随后收尾提交。

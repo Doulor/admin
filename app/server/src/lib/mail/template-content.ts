@@ -46,7 +46,7 @@ export const TEMPLATE_LIMITS = {
   name: 40, subject: 100, preheader: 200, kicker: 60, greeting: 120,
   blocks: 20, paragraph: 2000, title: 60, listItems: 20, listItem: 500, factItems: 12, factLabel: 30, factValue: 500, quote: 2000,
   footerLines: 4, footerLine: 200, buttonLabel: 30, buttonPath: 200,
-  /** 所有文字加起来的上限：Gmail 超过 102KB 的信会被截断，6000 字的模板加上投递人写的内容仍在 40KB 以内 */
+  /** 所有文字加起来的上限：Gmail 超过 102KB 的信会被截断，用满上限的模板加上最长的投递内容，渲染出来约 33KB（全是要转义的 & 时约 45KB） */
   totalText: 6000,
 } as const;
 
