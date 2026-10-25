@@ -301,6 +301,20 @@ describe.skipIf(!nginxBinary)('hashed output folders through host → web → fo
     expect((await get('/cli/install.sh', 'prev.yangtzeu.work')).body).toBe(installSh().replaceAll('https://yangtzeu.work', 'https://prev.yangtzeu.work'));
     expect((await get('/cli/install.sh', 'yangtzeu.work')).body).toBe(installSh());
     expect((await get('/cli/install.ps1', 'prev.yangtzeu.work')).body).toBe(installPs1().replaceAll('https://yangtzeu.work', 'https://prev.yangtzeu.work'));
+    // Host 头里带 $、引号、空白的请求：脚本最后会交给 sh 执行，这些字符不能写进脚本。
+    // nginx 自己会拒掉一部分（400）；放行到容器里的，默认源站一律退回生产域名，脚本与生成文本逐字一致。
+    const reached: string[] = [];
+    for (const hostile of ['evil";echo pwn;"x.example', 'a$(id).example', 'a b.example', '-leading.example']) {
+      const response = await get('/cli/install.sh', hostile);
+      if (response.status === 200) {
+        reached.push(hostile);
+        expect([hostile, response.body]).toEqual([hostile, installSh()]);
+      } else {
+        expect([hostile, response.status]).toEqual([hostile, 400]);
+      }
+    }
+    // 至少 `$(...)` 这种能放行进容器的，确实走到了上面的断言，不是空转。
+    expect(reached).toEqual(expect.arrayContaining(['a$(id).example']));
     // latest.json 也在 /cli/ 下，改写之后仍是合法 JSON，安装脚本读的 version 不变。
     expect(JSON.parse((await get('/cli/latest.json', 'prev.yangtzeu.work')).body).version).toBe('0.1.0');
     // 版本化产物走另一个 location，不经过改写。

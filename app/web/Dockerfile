@@ -133,6 +133,13 @@ http {
 NGINX_MAIN
 
 COPY <<'NGINX_SITE' /nginx-out/conf.d/10-web.conf
+# geek 命令行安装脚本的默认源站取请求的域名（#289）。只放行由字母、数字、点和连字符组成的名字，
+# 其余（引号、分号、$、空白等）一律退回生产域名：这段文字最后会被用户交给 sh 执行，不能让 Host 头里的内容写进去。
+map $host $cli_origin {
+    default "https://yangtzeu.work";
+    "~^(?<cli_host>[a-z0-9][a-z0-9.-]*)$" "https://$cli_host";
+}
+
 server {
     listen 8080;
     server_name _;
@@ -240,7 +247,7 @@ server {
         expires -1;
         sub_filter_types *;
         sub_filter_once off;
-        sub_filter 'https://yangtzeu.work' 'https://$host';
+        sub_filter 'https://yangtzeu.work' $cli_origin;
         try_files $uri =404;
     }
 

@@ -55,7 +55,7 @@
     },
     "documentation": {
       "status": "changed",
-      "reason": "web 合同写明 /cli/ 的 sub_filter 和测试位置，cli 合同改了预发布安装命令与登录框说明；技能文件去掉回显令牌的示例并补一条禁止项。",
+      "reason": "web 合同写明 /cli/ 的 sub_filter、替换值只认字母数字点连字符的 map 和测试位置，cli 合同改了预发布安装命令与登录框说明；技能文件去掉回显令牌的示例并补一条禁止项。",
       "evidence": [
         "docs/services/web/README.md",
         "docs/services/cli/README.md",
@@ -93,7 +93,7 @@
       "nodes": [
         "application:web"
       ],
-      "reason": "镜像内 nginx 的 /cli/ 加 sub_filter，把安装脚本里的生产域名换成访问的域名；cli-dist.mjs 导出两个生成函数给测试用；本机 nginx 实测用例逐字核对；web 合同同步。"
+      "reason": "镜像内 nginx 的 /cli/ 加 sub_filter，把安装脚本里的生产域名换成访问的域名，域名经 map 限定字符集，带 $、引号等字符的 Host 退回生产域名；cli-dist.mjs 导出两个生成函数给测试用；本机 nginx 实测用例逐字核对；web 合同同步。"
     },
     {
       "paths": [
