@@ -1021,6 +1021,20 @@ const COMPETITION_SEED_DEADLINE = Date.parse("2026-11-15T23:59:59.999+08:00");
   }
 }
 
+// 更正（#288）：第一期按团队赛种下的库，描述第三行写着「1–3 人组队……」。上面只改赛制字段，描述留在库里，
+// 官网、桌面比赛窗口、公开接口和命令行都照着显示。赛制已经是个人赛时，把种子原文那一行换成个人赛的说法；
+// 组织者改过这一行就不匹配，不动。可以重复执行：换完之后旧行不在了。
+{
+  const SEED_TEAM_LINE = "1–3 人组队（一个人也可以自成一队），队伍积分是在队成员积分之和。比赛时间 2026-10-21 至 2026-11-15 23:59:59（北京时间）。";
+  const SEED_INDIVIDUAL_LINE = "个人赛，按个人合入结果计分。比赛时间 2026-10-21 至 2026-11-15 23:59:59（北京时间）。";
+  const row = db.prepare(`SELECT c.description AS description, s.participation AS participation
+    FROM competitions c JOIN competition_signup_settings s ON s.competition_id = c.id WHERE c.id = ?`).get(COMPETITION_SEED_ID) as { description: string; participation: string } | undefined;
+  if (row?.participation === "individual" && row.description.includes(SEED_TEAM_LINE)) {
+    db.prepare("UPDATE competitions SET description = ?, updated_at = ? WHERE id = ?")
+      .run(row.description.replace(SEED_TEAM_LINE, SEED_INDIVIDUAL_LINE), Date.now(), COMPETITION_SEED_ID);
+  }
+}
+
 // 比赛官网托管、GitLab 贡献收集、年级系数与奖项、定榜与兑奖码（#278，CONTRACT-278）：只新增表与可空列。
 // 站点文件不进库，放在数据卷 `sites/<competition_id>/<version_id>/`（lib/competition-site-store.ts）；
 // 候选贡献由 lib/competition-candidates.ts 写；规则与奖项由 lib/competition-rules-store.ts 写；

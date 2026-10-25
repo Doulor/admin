@@ -49,7 +49,7 @@ const columns = [
         <TxSearchInput v-model="q" placeholder="搜索中文名或节点" @clear="q = ''" />
       </form>
     </div>
-    <TxDataTable style="--table-min: 760px" :columns="columns" :data="rows" row-key="node" table-layout="fixed" scroll-x>
+    <TxDataTable class="table-wide" style="--table-min: 760px" :columns="columns" :data="rows" row-key="node" table-layout="fixed" scroll-x>
       <template #cell-node="{ row }: { row: PermissionNodeDef }">
         <span class="cell-stack">
           <span class="ellipsis">{{ row.label }}</span>
@@ -70,6 +70,28 @@ const columns = [
         <TxEmptyState variant="search-empty" title="没有符合条件的节点" description="换一个业务域或关键词再试。" size="small" />
       </template>
     </TxDataTable>
+    <!-- 窄屏一个节点一张卡；宽屏只显示上面的表格。 -->
+    <ul class="row-cards node-cards">
+      <li v-for="row in rows" :key="row.node">
+        <div class="row-card__head">
+          <span class="cell-stack">
+            <span class="row-card__title">{{ row.label }}</span>
+            <span class="cell-sub mono">{{ row.node }}</span>
+          </span>
+          <TxTag v-if="row.meta" label="取值" variant="outline" size="sm" />
+        </div>
+        <div class="row-card__lines">
+          <span class="muted">{{ row.description || "-" }}</span>
+          <span v-if="grantedBy(row.node).length" class="tags">
+            <TxButton v-for="group in grantedBy(row.node)" :key="group.id" size="sm" variant="ghost" class="group-link" @click="openGroup(group.id)">{{ groupLabel(group, groups) }}</TxButton>
+          </span>
+          <span v-else class="muted">没有组直接写它</span>
+        </div>
+      </li>
+      <li v-if="!rows.length">
+        <TxEmptyState variant="search-empty" title="没有符合条件的节点" description="换一个业务域或关键词再试。" size="small" />
+      </li>
+    </ul>
   </div>
 </template>
 

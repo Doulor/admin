@@ -44,7 +44,7 @@ const change = useAction(async (row: ForumCategoryRow, value: ForumVisibility) =
     <ErrorAlert v-if="change.error.value" :error="change.error.value" @close="change.reset()" />
     <ErrorPanel v-if="list.error.value" :error="list.error.value" :retry="list.reload" />
     <LoadingBlock v-else-if="!list.data.value" :lines="6" />
-    <TxDataTable v-else style="--table-min: 620px" :columns="columns" :data="list.data.value.categories" row-key="id" table-layout="fixed" scroll-x>
+    <TxDataTable v-else class="table-wide" style="--table-min: 620px" :columns="columns" :data="list.data.value.categories" row-key="id" table-layout="fixed" scroll-x>
       <template #cell-name="{ row }: { row: ForumCategoryRow }">
         <span class="cell-stack">
           <span>{{ row.name }}</span>
@@ -65,6 +65,29 @@ const change = useAction(async (row: ForumCategoryRow, value: ForumVisibility) =
       </template>
       <template #empty><TxEmptyState title="还没有分类" description="分类写在论坛的 content/curation.json 里，发版后出现在这里。" size="small" /></template>
     </TxDataTable>
+    <!-- 窄屏一个分类一张卡；宽屏只显示上面的表格。 -->
+    <ul v-if="list.data.value" class="row-cards category-cards">
+      <li v-for="row in list.data.value.categories" :key="row.id">
+        <div class="row-card__head">
+          <span class="cell-stack">
+            <span class="row-card__title">{{ row.name }}</span>
+            <span class="cell-sub mono">{{ row.id }}</span>
+          </span>
+          <span class="cell-sub">{{ row.topic_count }} 个话题</span>
+        </div>
+        <TxRadioGroup
+          class="category-cards__visibility"
+          :model-value="row.visibility"
+          type="button"
+          :disabled="saving !== null"
+          :aria-label="`${row.name}谁能看`"
+          @update:model-value="change.execute(row, $event as ForumVisibility)"
+        >
+          <TxRadio v-for="option in VISIBILITY_OPTIONS" :key="option.value" :value="option.value" :label="option.label" />
+        </TxRadioGroup>
+      </li>
+      <li v-if="!list.data.value.categories.length"><TxEmptyState title="还没有分类" description="分类写在论坛的 content/curation.json 里，发版后出现在这里。" size="small" /></li>
+    </ul>
   </div>
 </template>
 
@@ -78,5 +101,11 @@ const change = useAction(async (row: ForumCategoryRow, value: ForumVisibility) =
 .intro {
   margin: 0;
   font-size: 13px;
+}
+.category-cards > li {
+  padding-inline: 0;
+}
+.category-cards__visibility {
+  margin-top: 10px;
 }
 </style>

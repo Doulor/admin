@@ -1,6 +1,7 @@
 // scripts/contest-site.mjs（#278）：pack 把目录打成能过服务端校验的 zip，不合规时不写文件、退出码 1；
 // check 只校验；dev 起一个带示例数据的本地预览服务，不连后端和数据库；--api（#278 重开，本地对接线上数据）
 // 把公开接口原样转发到真实源。
+import { gzipSync } from "node:zlib";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync, existsSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -193,6 +194,31 @@ describe("scripts/contest-site.mjs --api（#278 重开，本地对接线上数�
       expect((await fetch(`http://127.0.0.1:${dev.port}/api/public/competitions/whatever-id`, { method: "POST" })).status).toBe(405);
       // 别的静态文件仍是本地的，不受转发影响
       expect(await (await fetch(`http://127.0.0.1:${dev.port}/`)).text()).toContain("<title>t</title>");
+    } finally {
+      dev.stop();
+      await new Promise(pass => upstream.close(pass));
+    }
+  });
+
+  it("上游返回 gzip 时，转发给浏览器的响应头与明文响应体一致（#288）", async () => {
+    const payload = JSON.stringify({ id: "real-competition", leaderboard: [{ rank: 1, name: "测试", points: 15 }] });
+    const compressed = gzipSync(Buffer.from(payload));
+    const upstream = createServer((_, res) => {
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8", "content-encoding": "gzip", "content-length": String(compressed.length), vary: "Accept-Encoding" });
+      res.end(compressed);
+    });
+    await new Promise<void>(pass => upstream.listen(0, "127.0.0.1", pass));
+    const upstreamPort = (upstream.address() as { port: number }).port;
+
+    const dir = site();
+    const dev = await startDev([dir, "--api", `http://127.0.0.1:${upstreamPort}`]);
+    try {
+      // 浏览器会按响应头解码：头说 gzip、体是明文时，fetch 在这里直接抛错（原缺陷）
+      const response = await fetch(`http://127.0.0.1:${dev.port}/api/public/competitions/whatever-id/leaderboard`);
+      expect(response.headers.get("content-encoding")).toBeNull();
+      const text = await response.text();
+      expect(text).toBe(payload);
+      expect(response.headers.get("content-length")).toBe(String(Buffer.byteLength(text)));
     } finally {
       dev.stop();
       await new Promise(pass => upstream.close(pass));
