@@ -5431,6 +5431,9 @@
       "id": "forum.stickers.list",
       "title": "读表情包列表",
       "domain": "forum",
+      "relatedDomains": [
+        "platform"
+      ],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /api/forum/stickers",
       "capabilities": [],
@@ -5442,7 +5445,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：公开只读，不要求登录，不判身份（CONTRACT §3）。",
-        "响应与错误：200 {packs:[{id,name,stickers:[{id,shortcode,label,url}]}]}，只含 enabled=1 的包与表情；进程内缓存60秒（cache.cached），控制台改过表情后显式 invalidate 这个 key。",
+        "响应与错误：200 {packs:[{id,name,stickers:[{id,shortcode,label,url}]}]}，只含 enabled=1 的包与表情；url 由 forum-store 的 stickerUrl 决定：构建参数 STATIC_CDN_BASE 打开时仓库内置的表情（按图片哈希在 manifest.json 里）是 CDN 地址，其余（开关关闭、站长在控制台上传的）是同源 /api/forum/stickers/哈希.webp；进程内缓存60秒（cache.cached），控制台改过表情后显式 invalidate 这个 key。",
         "数据与副作用：纯读，不写任何表；短码即表情 id，前端据此渲染正文里的短码。"
       ],
       "evidence": [
@@ -5465,14 +5468,54 @@
         {
           "path": "app/forum/app/composables/useStickers.ts",
           "needle": "export function useStickers() {"
+        },
+        {
+          "path": "app/server/src/lib/sticker-manifest.ts",
+          "needle": "export function loadStickerManifest(assetsDir: string): StickerManifest {"
+        },
+        {
+          "path": "app/server/src/lib/sticker-manifest.ts",
+          "needle": "export function createStickerUrl("
+        },
+        {
+          "path": "app/server/src/lib/static-cdn.ts",
+          "needle": "export function parseStaticCdnBase(raw: string | undefined): string {"
+        },
+        {
+          "path": "app/server/src/lib/migrations/2026-10-sticker-packs.ts",
+          "needle": "export function seedStickerPacks("
+        },
+        {
+          "path": "app/server/src/lib/db.ts",
+          "needle": "const stickerManifest = loadStickerManifest(stickerAssetsDir);"
+        },
+        {
+          "path": "app/forum/shared/sticker-url.ts",
+          "needle": "export function isStickerUrl(value: unknown): value is string {"
+        },
+        {
+          "path": "app/forum/shared/forum-api.ts",
+          "needle": "import { isStickerUrl } from './sticker-url'"
+        },
+        {
+          "path": "app/forum/shared/post-markdown.ts",
+          "needle": "const STICKER_IMAGE = new RegExp("
+        },
+        {
+          "path": "app/forum/app/editor/inline-stickers.ts",
+          "needle": "import { isStickerUrl } from '../../shared/sticker-url'"
         }
       ],
       "tests": [
-        "tests/server/forum-v2-endpoints.test.ts"
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/server/forum-sticker-cdn.test.ts",
+        "tests/server/sticker-packs-migration.test.ts",
+        "app/forum/tests/sticker-url.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
-        "docs/architecture/API.md"
+        "docs/architecture/API.md",
+        "docs/services/forum/README.md"
       ]
     },
     {
@@ -5489,7 +5532,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：公开只读，不要求登录；文件名必须是64位小写十六进制哈希加.webp（contracts.ts 的 STICKER 文件参数校验）。",
-        "响应与错误：200 webp 图片，immutable 长期缓存；不存在404 not_found，不泄露哈希是否曾经存在过。",
+        "响应与错误：200 webp 图片，Cache-Control: public, max-age=31536000, immutable（#286 起 middleware/http-policy.ts 对这条路径的 200 不再统一覆盖成 no-store，404 仍是 no-store）；不存在404 not_found，不泄露哈希是否曾经存在过。",
         "数据与副作用：纯读，按 sha256 寻址；内容永不改变，不需要失效缓存。"
       ],
       "evidence": [
@@ -5500,10 +5543,15 @@
         {
           "path": "app/server/src/lib/forum-store.ts",
           "needle": "export function createForumStore("
+        },
+        {
+          "path": "app/server/src/middleware/http-policy.ts",
+          "needle": "req.url.startsWith(\"/api/forum/stickers/\")"
         }
       ],
       "tests": [
-        "tests/server/forum-v2-endpoints.test.ts"
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/server/forum-sticker-cdn.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -5887,7 +5935,7 @@
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：requirePermission(\"forum.sticker.manage\")；没权限403 forbidden。",
-        "响应与错误：200 {packs:[{id,name,sort,enabled,stickers:[{id,shortcode,label,url,sort,enabled,use_count}]}]}，含停用的包/表情（和公开列表不同，管理员要看得到才能重新启用）。",
+        "响应与错误：200 {packs:[{id,name,sort,enabled,stickers:[{id,shortcode,label,url,sort,enabled,use_count}]}]}，含停用的包/表情（和公开列表不同，管理员要看得到才能重新启用）。url 与公开列表同一条规则（forum-store 的 stickerUrl）：开关打开时内置表情是 CDN 地址，站长上传的是同源地址。",
         "数据与副作用：纯读；use_count 由 forum_reactions 按 sticker_id 聚合算出，不是单独维护的列。"
       ],
       "evidence": [
@@ -5917,7 +5965,8 @@
         }
       ],
       "tests": [
-        "tests/server/forum-v2-endpoints.test.ts"
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/server/forum-sticker-cdn.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -12388,6 +12437,15 @@
     ],
     "app/server/src/lib/migrations/2026-10-mail-templates.ts": [
       "mail"
+    ],
+    "app/server/src/lib/migrations/2026-10-sticker-packs.ts": [
+      "forum"
+    ],
+    "app/server/src/lib/sticker-manifest.ts": [
+      "forum"
+    ],
+    "app/server/src/lib/static-cdn.ts": [
+      "platform"
     ],
     "app/server/src/lib/permission-nodes.ts": [
       "permissions"

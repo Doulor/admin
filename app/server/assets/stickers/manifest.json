@@ -1,0 +1,471 @@
+{
+  "version": 1,
+  "packs": [
+    {
+      "id": "yugc",
+      "name": "极客娘",
+      "stickers": [
+        {
+          "id": "wave",
+          "label": "打招呼",
+          "file": "wave.webp",
+          "sha256": "7770b10bdc40583720876ac4b05d0e24702c113796cf7c66dbc6a7f4660ae359",
+          "size": 21406,
+          "key": "forum/stickers/7770b10bdc40583720876ac4b05d0e24702c113796cf7c66dbc6a7f4660ae359.webp"
+        },
+        {
+          "id": "thumbsup",
+          "label": "点赞",
+          "file": "thumbsup.webp",
+          "sha256": "0245187a0feaa6032415c225c3020d57b56fed5a0e929a792044311df814ceb5",
+          "size": 22356,
+          "key": "forum/stickers/0245187a0feaa6032415c225c3020d57b56fed5a0e929a792044311df814ceb5.webp"
+        },
+        {
+          "id": "heart",
+          "label": "比心",
+          "file": "heart.webp",
+          "sha256": "3c3420f7eacbc5cdf0e9a0c7a5895dca33dd6d03ec68a5ea9e3ce5188f1f9298",
+          "size": 22306,
+          "key": "forum/stickers/3c3420f7eacbc5cdf0e9a0c7a5895dca33dd6d03ec68a5ea9e3ce5188f1f9298.webp"
+        },
+        {
+          "id": "confused",
+          "label": "疑惑",
+          "file": "confused.webp",
+          "sha256": "60a4582752e40d9ac0fa51e815357931d5d10a898a46ca834e0e314145fdc982",
+          "size": 19120,
+          "key": "forum/stickers/60a4582752e40d9ac0fa51e815357931d5d10a898a46ca834e0e314145fdc982.webp"
+        },
+        {
+          "id": "shocked",
+          "label": "震惊",
+          "file": "shocked.webp",
+          "sha256": "e191e4f27d2f99f4693c4228e55fccc23360298b345f85f650d33e1742466822",
+          "size": 23908,
+          "key": "forum/stickers/e191e4f27d2f99f4693c4228e55fccc23360298b345f85f650d33e1742466822.webp"
+        },
+        {
+          "id": "cry",
+          "label": "哭哭",
+          "file": "cry.webp",
+          "sha256": "29d264ef94a6e46a40bb1d2789c9bcf7765d502c8099f83497546703df7f1ec4",
+          "size": 21228,
+          "key": "forum/stickers/29d264ef94a6e46a40bb1d2789c9bcf7765d502c8099f83497546703df7f1ec4.webp"
+        },
+        {
+          "id": "happy",
+          "label": "开心",
+          "file": "happy.webp",
+          "sha256": "166a7c54163ba5bdc1d949dd3b11625795151d472656766afd257e6957c192c1",
+          "size": 19038,
+          "key": "forum/stickers/166a7c54163ba5bdc1d949dd3b11625795151d472656766afd257e6957c192c1.webp"
+        },
+        {
+          "id": "angry",
+          "label": "生气",
+          "file": "angry.webp",
+          "sha256": "0cbccd107dc9a5fb702346da7296b89c9b22aed573ee2da053678099ddf68b13",
+          "size": 20378,
+          "key": "forum/stickers/0cbccd107dc9a5fb702346da7296b89c9b22aed573ee2da053678099ddf68b13.webp"
+        },
+        {
+          "id": "sleepy",
+          "label": "困了",
+          "file": "sleepy.webp",
+          "sha256": "59780a1fcd2ed6b8404322e73ef84d824775a6e7396769500c6a5bac9184ae43",
+          "size": 19908,
+          "key": "forum/stickers/59780a1fcd2ed6b8404322e73ef84d824775a6e7396769500c6a5bac9184ae43.webp"
+        },
+        {
+          "id": "cheer",
+          "label": "加油",
+          "file": "cheer.webp",
+          "sha256": "1cee785eb8ee67efc3558f70ffecd7b5ca4f8311aad24f5d7ab6a03d05d3a40f",
+          "size": 23684,
+          "key": "forum/stickers/1cee785eb8ee67efc3558f70ffecd7b5ca4f8311aad24f5d7ab6a03d05d3a40f.webp"
+        },
+        {
+          "id": "thanks",
+          "label": "谢谢",
+          "file": "thanks.webp",
+          "sha256": "705b8dbd60b5446946ae8ef35ed8e861e4aeed7472d7f3e3b7e41c1c6405d586",
+          "size": 19830,
+          "key": "forum/stickers/705b8dbd60b5446946ae8ef35ed8e861e4aeed7472d7f3e3b7e41c1c6405d586.webp"
+        },
+        {
+          "id": "hug",
+          "label": "抱抱",
+          "file": "hug.webp",
+          "sha256": "cbc2442f1da25ffc5914f2f6e78f0ca29d4faa6386f26f86f3acd7320c1850f7",
+          "size": 21450,
+          "key": "forum/stickers/cbc2442f1da25ffc5914f2f6e78f0ca29d4faa6386f26f86f3acd7320c1850f7.webp"
+        },
+        {
+          "id": "think",
+          "label": "思考",
+          "file": "think.webp",
+          "sha256": "bd047a3a2475313d33cf8a80a14b4dea17f8b383ee50557a15fb2fea476ecf30",
+          "size": 21056,
+          "key": "forum/stickers/bd047a3a2475313d33cf8a80a14b4dea17f8b383ee50557a15fb2fea476ecf30.webp"
+        },
+        {
+          "id": "smirk",
+          "label": "坏笑",
+          "file": "smirk.webp",
+          "sha256": "3a2afa4d1275dfdfaebc4ffb40a5f0de3b294ffd723ba5506c76c74698327a6e",
+          "size": 22510,
+          "key": "forum/stickers/3a2afa4d1275dfdfaebc4ffb40a5f0de3b294ffd723ba5506c76c74698327a6e.webp"
+        },
+        {
+          "id": "shy",
+          "label": "害羞",
+          "file": "shy.webp",
+          "sha256": "105dc039f81042ba708abea7da6864f32899e59221a0e29a71816cab6b31825c",
+          "size": 19662,
+          "key": "forum/stickers/105dc039f81042ba708abea7da6864f32899e59221a0e29a71816cab6b31825c.webp"
+        },
+        {
+          "id": "proud",
+          "label": "得意",
+          "file": "proud.webp",
+          "sha256": "edb4ec75582c50b667d3c194647b9e14dd261ee7f45f3cccd950d33441fae967",
+          "size": 22474,
+          "key": "forum/stickers/edb4ec75582c50b667d3c194647b9e14dd261ee7f45f3cccd950d33441fae967.webp"
+        },
+        {
+          "id": "speechless",
+          "label": "无语",
+          "file": "speechless.webp",
+          "sha256": "7201a8b82c9a6cef7319bba7557436dc8325d41f54b9af104b0f611cc759d3ae",
+          "size": 21210,
+          "key": "forum/stickers/7201a8b82c9a6cef7319bba7557436dc8325d41f54b9af104b0f611cc759d3ae.webp"
+        },
+        {
+          "id": "popcorn",
+          "label": "吃瓜",
+          "file": "popcorn.webp",
+          "sha256": "8bb84ae2bdc70b5fb0a4e424dc06fa4ec492a1ab99d47c727e0c861c5eb15c31",
+          "size": 22940,
+          "key": "forum/stickers/8bb84ae2bdc70b5fb0a4e424dc06fa4ec492a1ab99d47c727e0c861c5eb15c31.webp"
+        },
+        {
+          "id": "coding",
+          "label": "敲代码",
+          "file": "coding.webp",
+          "sha256": "ac14a24654a944fe13a0dc64bc11bd3f06261fbb3a8599cd784a74816f6646d5",
+          "size": 20224,
+          "key": "forum/stickers/ac14a24654a944fe13a0dc64bc11bd3f06261fbb3a8599cd784a74816f6646d5.webp"
+        },
+        {
+          "id": "debug",
+          "label": "debug",
+          "file": "debug.webp",
+          "sha256": "0865aa7ed35e67dc6b4bb50c2f7adfd83c29e0796b998b4d485f3992b9dc2799",
+          "size": 23018,
+          "key": "forum/stickers/0865aa7ed35e67dc6b4bb50c2f7adfd83c29e0796b998b4d485f3992b9dc2799.webp"
+        },
+        {
+          "id": "merged",
+          "label": "合并了",
+          "file": "merged.webp",
+          "sha256": "6ec52251fa4de34575a1309490d7a8df660387df41a9961f59e7e18a6e96e896",
+          "size": 23656,
+          "key": "forum/stickers/6ec52251fa4de34575a1309490d7a8df660387df41a9961f59e7e18a6e96e896.webp"
+        },
+        {
+          "id": "go",
+          "label": "冲",
+          "file": "go.webp",
+          "sha256": "e843fd9bde864b40f8eb1e0ec5478b661343059638ee9befb781490f3cf21fb4",
+          "size": 22430,
+          "key": "forum/stickers/e843fd9bde864b40f8eb1e0ec5478b661343059638ee9befb781490f3cf21fb4.webp"
+        },
+        {
+          "id": "goodnight",
+          "label": "晚安",
+          "file": "goodnight.webp",
+          "sha256": "a62f77155897822a3a2d07ae096d22f7749131e77659dbd08a91e5d48d59d0f9",
+          "size": 22956,
+          "key": "forum/stickers/a62f77155897822a3a2d07ae096d22f7749131e77659dbd08a91e5d48d59d0f9.webp"
+        },
+        {
+          "id": "roger",
+          "label": "收到",
+          "file": "roger.webp",
+          "sha256": "8387df70270622ca5769b2d31be1a373c38038d8095c413d6cb648b783509970",
+          "size": 21766,
+          "key": "forum/stickers/8387df70270622ca5769b2d31be1a373c38038d8095c413d6cb648b783509970.webp"
+        }
+      ]
+    },
+    {
+      "id": "geekdaily",
+      "name": "极客日常",
+      "stickers": [
+        {
+          "id": "early-class",
+          "label": "早八上课",
+          "file": "early-class.webp",
+          "sha256": "c8b5a5804472d0eaa3430f9eee1c7ba4d3a6434c0d347e7968694ce9f64c44de",
+          "size": 28764,
+          "key": "forum/stickers/c8b5a5804472d0eaa3430f9eee1c7ba4d3a6434c0d347e7968694ce9f64c44de.webp"
+        },
+        {
+          "id": "ddl",
+          "label": "赶 DDL",
+          "file": "ddl.webp",
+          "sha256": "2e878734a893adfc897281e638ab70ab563ac478c0ea0324da738daae4b45bfd",
+          "size": 35078,
+          "key": "forum/stickers/2e878734a893adfc897281e638ab70ab563ac478c0ea0324da738daae4b45bfd.webp"
+        },
+        {
+          "id": "coffee",
+          "label": "咖啡续命",
+          "file": "coffee.webp",
+          "sha256": "17801862a38d50ed1a32f7aa3ebef4f0512bdb2863104b04a9043430ab0fad43",
+          "size": 29332,
+          "key": "forum/stickers/17801862a38d50ed1a32f7aa3ebef4f0512bdb2863104b04a9043430ab0fad43.webp"
+        },
+        {
+          "id": "commit",
+          "label": "提交",
+          "file": "commit.webp",
+          "sha256": "060d3620f284ae8f91f120edc51165cc3395c1785378a8b2b6b603b938caa599",
+          "size": 32198,
+          "key": "forum/stickers/060d3620f284ae8f91f120edc51165cc3395c1785378a8b2b6b603b938caa599.webp"
+        },
+        {
+          "id": "ci-pass",
+          "label": "CI 绿了",
+          "file": "ci-pass.webp",
+          "sha256": "f90d4e7059b784752859dab78ab7cdab3e531e247aa3b6c8bb4ae5ffe5e04cb9",
+          "size": 31470,
+          "key": "forum/stickers/f90d4e7059b784752859dab78ab7cdab3e531e247aa3b6c8bb4ae5ffe5e04cb9.webp"
+        },
+        {
+          "id": "ci-fail",
+          "label": "CI 红了",
+          "file": "ci-fail.webp",
+          "sha256": "c37456b28f48be378a9db18edc1655f102d477ecdcf097e40bb20e116cd0ccc1",
+          "size": 33164,
+          "key": "forum/stickers/c37456b28f48be378a9db18edc1655f102d477ecdcf097e40bb20e116cd0ccc1.webp"
+        },
+        {
+          "id": "release",
+          "label": "上线",
+          "file": "release.webp",
+          "sha256": "f511fc085e69214e232dd835c541f1b94ed6aad7b8af2102d3312cead665688e",
+          "size": 32582,
+          "key": "forum/stickers/f511fc085e69214e232dd835c541f1b94ed6aad7b8af2102d3312cead665688e.webp"
+        },
+        {
+          "id": "rollback",
+          "label": "回滚",
+          "file": "rollback.webp",
+          "sha256": "2757ad6e9d1e38b789c2bfb5f4a49527843f90efe3f6db81bdbd80c5f16452bc",
+          "size": 36330,
+          "key": "forum/stickers/2757ad6e9d1e38b789c2bfb5f4a49527843f90efe3f6db81bdbd80c5f16452bc.webp"
+        },
+        {
+          "id": "read-logs",
+          "label": "翻日志",
+          "file": "read-logs.webp",
+          "sha256": "57bf82e7323fb781ca6a69dca28ae3691b44d4d44413392a5db6c24e5a478792",
+          "size": 25666,
+          "key": "forum/stickers/57bf82e7323fb781ca6a69dca28ae3691b44d4d44413392a5db6c24e5a478792.webp"
+        },
+        {
+          "id": "read-docs",
+          "label": "查文档",
+          "file": "read-docs.webp",
+          "sha256": "55f524564f76bcecd85c6c2cdc13ff81fe187ef77f1b7e2eb8fea2f6c713e587",
+          "size": 30684,
+          "key": "forum/stickers/55f524564f76bcecd85c6c2cdc13ff81fe187ef77f1b7e2eb8fea2f6c713e587.webp"
+        },
+        {
+          "id": "ask-review",
+          "label": "求 review",
+          "file": "ask-review.webp",
+          "sha256": "839605856215e13e6ba0ac2733a1fcc1a50ae04ea5ada5b98cf7143eaf7b744d",
+          "size": 25006,
+          "key": "forum/stickers/839605856215e13e6ba0ac2733a1fcc1a50ae04ea5ada5b98cf7143eaf7b744d.webp"
+        },
+        {
+          "id": "lgtm",
+          "label": "LGTM",
+          "file": "lgtm.webp",
+          "sha256": "e51a52478eae16916165d99e9cc7292d38d90f6fed5ec3d8c08af32356f425ff",
+          "size": 33480,
+          "key": "forum/stickers/e51a52478eae16916165d99e9cc7292d38d90f6fed5ec3d8c08af32356f425ff.webp"
+        },
+        {
+          "id": "slack-off",
+          "label": "摸鱼",
+          "file": "slack-off.webp",
+          "sha256": "97b615e393a8601f37657e74b602f0517db058808a8f242dfc4b45b2ea6f7d8b",
+          "size": 28490,
+          "key": "forum/stickers/97b615e393a8601f37657e74b602f0517db058808a8f242dfc4b45b2ea6f7d8b.webp"
+        },
+        {
+          "id": "stuck",
+          "label": "卡住了",
+          "file": "stuck.webp",
+          "sha256": "c3953dde2c4b0724e881519c7efb85353f889d20295947fb2ed327dc3c1d6910",
+          "size": 30636,
+          "key": "forum/stickers/c3953dde2c4b0724e881519c7efb85353f889d20295947fb2ed327dc3c1d6910.webp"
+        },
+        {
+          "id": "done",
+          "label": "搞定",
+          "file": "done.webp",
+          "sha256": "9c7a37f777689a6e754a35afadfd30a0ecebd7ddc84c6642dc03a5919b2e5b76",
+          "size": 29236,
+          "key": "forum/stickers/9c7a37f777689a6e754a35afadfd30a0ecebd7ddc84c6642dc03a5919b2e5b76.webp"
+        },
+        {
+          "id": "off-work",
+          "label": "下班",
+          "file": "off-work.webp",
+          "sha256": "ab53e7a6d2e18e52bb859bc079fae902e690b7a9bda1da466abc5b1ab72fc467",
+          "size": 23936,
+          "key": "forum/stickers/ab53e7a6d2e18e52bb859bc079fae902e690b7a9bda1da466abc5b1ab72fc467.webp"
+        }
+      ]
+    },
+    {
+      "id": "chatreply",
+      "name": "聊天回应",
+      "stickers": [
+        {
+          "id": "yay",
+          "label": "好耶",
+          "file": "yay.webp",
+          "sha256": "75365f67ad73345b802b94edf54a96a22d8ca285147eb82d8b6437193a17484f",
+          "size": 32564,
+          "key": "forum/stickers/75365f67ad73345b802b94edf54a96a22d8ca285147eb82d8b6437193a17484f.webp"
+        },
+        {
+          "id": "no-way",
+          "label": "不要啊",
+          "file": "no-way.webp",
+          "sha256": "2d23ab9bdd3fd8ff340d6961d61f7ef56735936086f6045bd40a1109e8f0b0b6",
+          "size": 27664,
+          "key": "forum/stickers/2d23ab9bdd3fd8ff340d6961d61f7ef56735936086f6045bd40a1109e8f0b0b6.webp"
+        },
+        {
+          "id": "hold-on",
+          "label": "等一下",
+          "file": "hold-on.webp",
+          "sha256": "81faf480fdfdf9a395779d492aa3a8261fd3df7a9e36d9abb8e22491c3100754",
+          "size": 25372,
+          "key": "forum/stickers/81faf480fdfdf9a395779d492aa3a8261fd3df7a9e36d9abb8e22491c3100754.webp"
+        },
+        {
+          "id": "good-work",
+          "label": "辛苦了",
+          "file": "good-work.webp",
+          "sha256": "edc7aaa3c3e3d1ef294b6535ecd51f4cde73163c4d8e2c592fb9ca58513827f3",
+          "size": 25506,
+          "key": "forum/stickers/edc7aaa3c3e3d1ef294b6535ecd51f4cde73163c4d8e2c592fb9ca58513827f3.webp"
+        },
+        {
+          "id": "awesome",
+          "label": "牛啊",
+          "file": "awesome.webp",
+          "sha256": "0e6689d773bb25180ea0c7ea9b36e0e19536a2ee059288a7c8ab21608aba2d82",
+          "size": 27426,
+          "key": "forum/stickers/0e6689d773bb25180ea0c7ea9b36e0e19536a2ee059288a7c8ab21608aba2d82.webp"
+        },
+        {
+          "id": "really",
+          "label": "真的吗",
+          "file": "really.webp",
+          "sha256": "8db3f62503cad77bfb070bd1680e6c31d9a05efc1246dce401e926cea1e49b75",
+          "size": 25654,
+          "key": "forum/stickers/8db3f62503cad77bfb070bd1680e6c31d9a05efc1246dce401e926cea1e49b75.webp"
+        },
+        {
+          "id": "haha",
+          "label": "哈哈哈",
+          "file": "haha.webp",
+          "sha256": "dadb3e892bb6fdae8fa8bb65e0e101a8f18c94dc00fa8681bae6a03a1dae91ab",
+          "size": 25506,
+          "key": "forum/stickers/dadb3e892bb6fdae8fa8bb65e0e101a8f18c94dc00fa8681bae6a03a1dae91ab.webp"
+        },
+        {
+          "id": "touched",
+          "label": "泪目",
+          "file": "touched.webp",
+          "sha256": "5d0a8c4c90969b205f520fa7df424695fd45feb6315b10ce650510153082c54e",
+          "size": 28566,
+          "key": "forum/stickers/5d0a8c4c90969b205f520fa7df424695fd45feb6315b10ce650510153082c54e.webp"
+        },
+        {
+          "id": "dash-off",
+          "label": "我先冲了",
+          "file": "dash-off.webp",
+          "sha256": "ca6204444d5e2012c968d09f67a0a45f1574d91423f31d0a352636194027ff95",
+          "size": 36720,
+          "key": "forum/stickers/ca6204444d5e2012c968d09f67a0a45f1574d91423f31d0a352636194027ff95.webp"
+        },
+        {
+          "id": "one-moment",
+          "label": "稍等",
+          "file": "one-moment.webp",
+          "sha256": "a5c8c095e86a17ee1f5cf2b33094032179ba139096ccf20f3bf63c718e7e32fd",
+          "size": 23484,
+          "key": "forum/stickers/a5c8c095e86a17ee1f5cf2b33094032179ba139096ccf20f3bf63c718e7e32fd.webp"
+        },
+        {
+          "id": "ask-help",
+          "label": "请教",
+          "file": "ask-help.webp",
+          "sha256": "77e3514424a9ae9593229b3be3646b2e2481c1ee3aa80dea91ca5f30f68ce5ae",
+          "size": 24408,
+          "key": "forum/stickers/77e3514424a9ae9593229b3be3646b2e2481c1ee3aa80dea91ca5f30f68ce5ae.webp"
+        },
+        {
+          "id": "please",
+          "label": "拜托了",
+          "file": "please.webp",
+          "sha256": "f031dcbb0cb327c8f1f58939ac2f7be9cb6ae8515b5b143abb1e3c7c97de147d",
+          "size": 25536,
+          "key": "forum/stickers/f031dcbb0cb327c8f1f58939ac2f7be9cb6ae8515b5b143abb1e3c7c97de147d.webp"
+        },
+        {
+          "id": "sorry",
+          "label": "抱歉",
+          "file": "sorry.webp",
+          "sha256": "50081ffda1c97553ce513164c57b794809758d411cbf8d3bf550612bf4abbc0f",
+          "size": 21032,
+          "key": "forum/stickers/50081ffda1c97553ce513164c57b794809758d411cbf8d3bf550612bf4abbc0f.webp"
+        },
+        {
+          "id": "no-problem",
+          "label": "没问题",
+          "file": "no-problem.webp",
+          "sha256": "2f5347ee0605943f72f5d0f1eb94f0c575a647116bd72b3bcb7bc724dae7a779",
+          "size": 25372,
+          "key": "forum/stickers/2f5347ee0605943f72f5d0f1eb94f0c575a647116bd72b3bcb7bc724dae7a779.webp"
+        },
+        {
+          "id": "let-me-see",
+          "label": "让我康康",
+          "file": "let-me-see.webp",
+          "sha256": "a41b8f4f4d83f852acd908eaae5327ebba5d6e8861f806f39303628719441161",
+          "size": 27488,
+          "key": "forum/stickers/a41b8f4f4d83f852acd908eaae5327ebba5d6e8861f806f39303628719441161.webp"
+        },
+        {
+          "id": "farewell",
+          "label": "告辞",
+          "file": "farewell.webp",
+          "sha256": "0459c97503f0a24f9ea3bc3aaa1ddfdebdb7eab8a55e2ab98357444b79915f5d",
+          "size": 27994,
+          "key": "forum/stickers/0459c97503f0a24f9ea3bc3aaa1ddfdebdb7eab8a55e2ab98357444b79915f5d.webp"
+        }
+      ]
+    }
+  ]
+}

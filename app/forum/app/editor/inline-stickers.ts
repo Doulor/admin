@@ -1,5 +1,6 @@
 import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import type { EditorState, Transaction } from '@milkdown/kit/prose/state'
+import { isStickerUrl } from '../../shared/sticker-url'
 
 /**
  * Stickers in the post editor (#276), kept apart from crepe-editor.ts so the
@@ -8,8 +9,6 @@ import type { EditorState, Transaction } from '@milkdown/kit/prose/state'
 
 export type StickerLookup = (key: { src: string } | { token: string }) => { src: string, label: string } | undefined
 
-/** Site sticker files (the same rule as shared/forum-api.ts isStickerUrl). */
-const STICKER_SRC = /^\/api\/forum\/stickers\/[0-9a-f]{64}\.webp$/
 /** `[包名_名字]` (shared/post-markdown.ts TOKEN), checked against the sticker list. */
 const STICKER_TOKEN = /\[[^[\]\n]{1,64}\]/g
 
@@ -25,7 +24,8 @@ export function inlineStickers(state: EditorState, find: StickerLookup): Transac
     return null
   const edits: { from: number, to: number, node: ProseNode }[] = []
   state.doc.descendants((node, pos, parent) => {
-    if (node.type.name === 'image-block' && STICKER_SRC.test(String(node.attrs.src))) {
+    // Only the sticker picture addresses of shared/sticker-url.ts (same origin or the controlled CDN) count as stickers.
+    if (node.type.name === 'image-block' && isStickerUrl(String(node.attrs.src))) {
       const sticker = find({ src: String(node.attrs.src) })
       edits.push({ from: pos, to: pos + node.nodeSize, node: paragraph.create(null, image.create({ src: node.attrs.src, alt: sticker?.label ?? '' })) })
       return false

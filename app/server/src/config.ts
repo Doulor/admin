@@ -1,6 +1,7 @@
 import { config as loadEnv } from "dotenv";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseStaticCdnBase } from "./lib/static-cdn.js";
 
 /** 仓库根：geek_main/。配置、docs、pnpm 工作区清单都在这里。 */
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -135,8 +136,11 @@ export function createConfig(env: Record<string, string | undefined>) {
     // 论坛的公开内容（分类、标签、公开旧帖），启动时读来播种。不是环境变量：仓库里和镜像里都在同一个相对位置
     // （app/server/Dockerfile 把两份 JSON 复制到 /app/app/forum/content）；测试直接换成夹具目录。
     forumContentDir: resolve(APP_ROOT, "forum/content"),
-    // 表情包第一套「极客娘」的源图片（#276），仓库里的通用素材，不按环境或测试换目录。
-    stickerAssetsDir: resolve(APP_ROOT, "server/assets/stickers/yugc"),
+    // 内置表情包（#276、#286）：清单 manifest.json 与各包的图片，仓库里的通用素材，不按环境或测试换目录。
+    stickerAssetsDir: resolve(APP_ROOT, "server/assets/stickers"),
+    // 静态资源 CDN 开关（#146、#286）：构建参数 STATIC_CDN_BASE 由 app/server/Dockerfile 带进运行环境，空 = 同源；
+    // 非空只能是 lib/static-cdn.ts 里的那个常量，别的值直接让启动失败。不是 deploy/env/*.env 里的项，部署不用配。
+    staticCdnBase: parseStaticCdnBase(env.STATIC_CDN_BASE),
     turnstile: { siteKey: env.TURNSTILE_SITE_KEY ?? "", secretKey: env.TURNSTILE_SECRET_KEY ?? "" },
     powDifficulty,
     mail,

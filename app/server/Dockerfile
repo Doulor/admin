@@ -96,6 +96,16 @@ RUN test -n "$GEEK_DEPLOYMENT_ENVIRONMENT" \
  && pnpm --filter @yzgc/server build \
  && pnpm install --frozen-lockfile --prod --filter @yzgc/server... --filter yzgc-admin
 
+# 静态资源 CDN 开关（#146、#286）：与 web、forum 镜像是同一个构建参数 STATIC_CDN_BASE，决定内置表情图片的地址
+# 指向 CDN 还是同源（src/lib/sticker-manifest.ts 的 createStickerUrl）。空 = 同源；非空只能逐字等于下面这个值。
+# 规则的唯一来源是 scripts/static-cdn-base.mjs，本镜像的构建上下文里没有 scripts/，所以这里和 src/lib/static-cdn.ts
+# 各写一份，tests/tooling/static-cdn-parity.test.ts 核对一致。放在编译之后：开关变化不让依赖层和编译层失效。
+ARG STATIC_CDN_BASE=""
+RUN case "$STATIC_CDN_BASE" in \
+      "" | "https://cdn.crosery.com/yzgc/static/site/") ;; \
+      *) echo "STATIC_CDN_BASE 只能为空或 https://cdn.crosery.com/yzgc/static/site/：${STATIC_CDN_BASE}" >&2; exit 1 ;; \
+    esac
+
 # ── 运行阶段：Node 22、非 root、保持仓库布局 ──────────────────
 FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS runtime
 
@@ -109,6 +119,11 @@ ARG GEEK_RELEASE_COMMIT=""
 ENV GEEK_DEPLOYMENT_ENVIRONMENT=${GEEK_DEPLOYMENT_ENVIRONMENT} \
     GEEK_RELEASE_VERSION=${GEEK_RELEASE_VERSION} \
     GEEK_RELEASE_COMMIT=${GEEK_RELEASE_COMMIT}
+
+# 静态资源 CDN 开关（#286）：进程在启动时读它（src/config.ts 的 parseStaticCdnBase 会再核对一次，值不对就拒绝启动）。
+# 它只改表情图片的地址，不是密钥，也不是 env 文件里的必填项：不传就是空，和今天一样全部同源。
+ARG STATIC_CDN_BASE=""
+ENV STATIC_CDN_BASE=${STATIC_CDN_BASE}
 
 WORKDIR /app
 
@@ -126,10 +141,11 @@ COPY --chown=node:node app/forum/content/curation.json /app/app/forum/content/cu
 COPY --chown=node:node app/forum/content/published/topics.json /app/app/forum/content/published/topics.json
 COPY --chown=node:node app/forum/content/guides/ /app/app/forum/content/guides/
 
-# 表情包第一套「极客娘」的源图片（#276，src/config.ts 的 stickerAssetsDir = APP_ROOT/server/assets/stickers/yugc）：
-# 启动时读进来按内容哈希种进 forum_sticker_files，缺文件不阻塞启动（见 migrations/2026-10-forum-v2.ts），
-# 但缺了就只会种出一部分表情，所以镶进镜像。
-COPY --chown=node:node app/server/assets/stickers/yugc /app/app/server/assets/stickers/yugc
+# 内置表情包的源图片与清单（#276、#286，src/config.ts 的 stickerAssetsDir = APP_ROOT/server/assets/stickers）：
+# 整个目录镶进镜像，每个包一个子目录（pack.json 和图片），外加 manifest.json。启动时按清单读图片、按内容哈希种进
+# forum_sticker_files 与表情包表，库里已有的包和表情不动（migrations/2026-10-sticker-packs.ts）；缺图片不阻塞启动，
+# 但缺了就只会种出一部分表情。清单也决定哪些图片可以走 CDN。加一个包 = 在这个目录里加一个子目录并重新生成清单。
+COPY --chown=node:node app/server/assets/stickers/ /app/app/server/assets/stickers/
 
 # 命名卷挂到 /data 时由镜像目录继承属主，容器内的 node 用户才能写 SQLite 与上传文件。
 RUN mkdir -p /data && chown node:node /data

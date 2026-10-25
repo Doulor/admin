@@ -44,6 +44,18 @@ describe('stickers in the post editor', () => {
     ])
   })
 
+  it('treats a picture block on the controlled CDN the same way (#286), and not one on another domain', () => {
+    const cdn = `https://cdn.crosery.com/yzgc/static/site/forum/stickers/${'a'.repeat(64)}.webp`
+    const findCdn: StickerLookup = key => ('src' in key ? key.src === cdn : false) ? { src: cdn, label: '打招呼' } : undefined
+    const inline = (...blocks: Node[]) => inlineStickers(EditorState.create({ schema, doc: doc.create(null, blocks) }), findCdn)?.doc.toJSON()
+    expect(inline(block.create({ src: cdn, ratio: 1 }))).toEqual({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'image', attrs: { src: cdn, alt: '打招呼', title: '' } }] }],
+    })
+    for (const src of [`https://evil.example/yzgc/static/site/forum/stickers/${'a'.repeat(64)}.webp`, `https://cdn.crosery.com/yzgc/static/site/forum/guides/${'a'.repeat(64)}.webp`, `https://cdn.crosery.com/yzgc/static/site/forum/stickers/../x/${'a'.repeat(64)}.webp`])
+      expect(inline(block.create({ src }))).toBeUndefined()
+  })
+
   it('leaves other pictures, code and unknown names alone', () => {
     expect(run(block.create({ src: '/api/forum/uploads/b.png' }))).toBeUndefined()
     expect(run(codeBlock.create(null, schema.text('[极客娘_打招呼]')))).toBeUndefined()

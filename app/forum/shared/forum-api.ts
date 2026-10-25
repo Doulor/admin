@@ -1,5 +1,6 @@
 import type { ForumChanges, ForumState, NotifyPrefs, Post, Reaction, Topic, User, Visibility } from '../app/data/types'
 import { FORUM_STATE_VERSION } from '../app/data/types'
+import { isStickerUrl } from './sticker-url'
 
 /**
  * 论坛后端的浏览器客户端（接口约定见 docs/services/forum/README.md「服务端模式」）。
@@ -431,10 +432,8 @@ export function parseStickerPacks(body: unknown): StickerPack[] {
   })
 }
 
-/** 表情图片只认站内按内容哈希的地址（#276 CONTRACT §3），别的地址不进页面。 */
-export function isStickerUrl(value: unknown): value is string {
-  return typeof value === 'string' && /^\/api\/forum\/stickers\/[0-9a-f]{64}\.webp$/.test(value)
-}
+/** 表情图片只认站内按内容哈希的地址和受控 CDN 上同一个哈希的地址（#276 CONTRACT §3，#286），别的地址不进页面。规则见 shared/sticker-url.ts。 */
+export { isStickerUrl }
 
 /** 帖子上的表情回应（`reactions`），`/state`、话题帖子和回应接口同一个形状；不合格的条目跳过。 */
 export function parseReactions(body: unknown): Reaction[] {

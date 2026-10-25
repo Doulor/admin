@@ -7,6 +7,7 @@ import {
   matchExcerpt, nameKey, paletteColor, postExcerpt, tagSlug,
   type CounterName, type RateBucket, type ViewerLevel,
 } from "./forum-rules.js";
+import { stickerSameOriginUrl } from "./sticker-manifest.js";
 
 /**
  * 论坛的持久化与业务规则（#57）：forum_* 表的全部 SQL、编号、通知规则和整份 `ForumState` 的组装。
@@ -216,10 +217,13 @@ export type ForumStoreOptions = {
    * 当前会话）。没打开过论坛的人还没有论坛用户，靠它挡住冒名；从没登录过的组织成员不在这里。
    */
   orgLogins?: () => string[];
+  /** 表情图片的地址（#286）：按图片内容哈希，开关打开时内置素材是 CDN 地址（lib/sticker-manifest.ts 的 createStickerUrl）；不传都是同源地址。 */
+  stickerUrl?: (hash: string) => string;
 };
 
 export function createForumStore(db: Database.Database, content: ForumContent, options: ForumStoreOptions = {}) {
   const orgLogins = options.orgLogins ?? (() => []);
+  const stickerFileUrl = options.stickerUrl ?? stickerSameOriginUrl;
   const categoryIds = new Set(content.categories.map(item => item.id));
   const curatedTags = new Map(content.tags.map(tag => [tag.id, tag]));
 
@@ -236,7 +240,6 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
     const allowed = allowedVisibilities(level);
     return { sql: `${EFFECTIVE_VISIBILITY_EXPR} IN (${allowed.map(() => "?").join(",")})`, params: [...allowed] };
   };
-  const stickerFileUrl = (hash: string) => `/api/forum/stickers/${hash}.webp`;
   /** 这个分类的基线可见范围；没有种子行时按 'public' 兜底，和 EFFECTIVE_VISIBILITY_EXPR 的 COALESCE 一致。 */
   const categoryVisibilityOf = (categoryId: string): ViewerLevel =>
     (db.prepare("SELECT visibility FROM forum_category_settings WHERE category_id = ?").get(categoryId) as { visibility: ViewerLevel } | undefined)?.visibility ?? "public";

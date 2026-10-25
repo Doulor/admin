@@ -920,7 +920,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：需要 forum.react 节点（迁移种子只发给 level.member）；访客401 signin_required，登录但没有该节点403 forbidden；帖子不存在404，已软删409 post_deleted。
 
-响应与错误：200 {reactions:[{stickerId,shortcode,url,count,mine}]}（camelCase，和帖子记录里的reactions字段同一套对象；CONTRACT-276 §4原定sticker_id，偏差记在DECISIONS-LOG），只回这条帖子的表情聚合，不回整份changes或viewer；mine按当前看的人是不是也回应过这条表情判定；表情不存在/已停用400 unknown_sticker；超过meta.limit.forum.react.hourly回429 {bucket:"forum.react.hourly",retry_after}。
+响应与错误：200 {reactions:[{stickerId,shortcode,url,count,mine}]}（camelCase，和帖子记录里的reactions字段同一套对象；CONTRACT-276 §4原定sticker_id，偏差记在DECISIONS-LOG；url同表情包列表，按CDN开关给同源或CDN地址），只回这条帖子的表情聚合，不回整份changes或viewer；mine按当前看的人是不是也回应过这条表情判定；表情不存在/已停用400 unknown_sticker；超过meta.limit.forum.react.hourly回429 {bucket:"forum.react.hourly",retry_after}。
 
 数据与副作用：按(post_id,account_id,sticker_id)主键INSERT OR IGNORE，重复加同一表情不报错也不重复计数；记一条outcome=ok的forum.react操作记录（meta.sticker_id，#274：原来没有，补上）。
 
@@ -1078,7 +1078,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：公开只读，不要求登录，不判身份。
 
-响应与错误：200 {packs:[{id,name,stickers:[{id,shortcode,label,url}]}]}，只含enabled=1的包与表情；进程内缓存60秒，控制台改过表情后显式invalidate这个key。
+响应与错误：200 {packs:[{id,name,stickers:[{id,shortcode,label,url}]}]}，只含enabled=1的包与表情；进程内缓存60秒，控制台改过表情后显式invalidate这个key。url由服务端按CDN开关决定（#286，STATIC_CDN_BASE）：开关关闭全是同源/api/forum/stickers/<哈希>.webp；开关打开，清单（app/server/assets/stickers/manifest.json）里的内置表情是CDN绝对地址https://cdn.crosery.com/yzgc/static/site/forum/stickers/<哈希>.webp，站长在控制台上传的、不在清单里的仍是同源地址。
 
 数据与副作用：纯读，不写任何表；短码即表情id，前端据此渲染正文里的短码。
 
@@ -1092,7 +1092,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：公开只读，不要求登录；文件名必须是64位小写十六进制哈希加.webp。
 
-响应与错误：200 webp图片，immutable长期缓存；不存在404 not_found，不泄露哈希是否曾经存在过。
+响应与错误：200 webp图片，Cache-Control: public, max-age=31536000, immutable（middleware/http-policy.ts 给/api响应统一加的no-store对这条路径的200不生效，#286；404仍是no-store），不带Content-Encoding；不存在404 not_found，不泄露哈希是否曾经存在过。开关打开时内置表情的图片由CDN提供，这条路由是退路，也是站长上传的表情的唯一来源。
 
 数据与副作用：纯读，按sha256寻址；内容永不改变，不需要失效缓存。
 
@@ -1164,7 +1164,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：requirePermission("forum.sticker.manage")；没权限403 forbidden。
 
-响应与错误：200 {packs:[{id,name,sort,enabled,stickers:[{id,shortcode,label,url,sort,enabled,use_count}]}]}，含停用的包/表情（管理员要看得到才能重新启用）。
+响应与错误：200 {packs:[{id,name,sort,enabled,stickers:[{id,shortcode,label,url,sort,enabled,use_count}]}]}，含停用的包/表情（管理员要看得到才能重新启用）；url同公开列表，按CDN开关给同源或CDN地址。
 
 数据与副作用：纯读；use_count由forum_reactions按sticker_id聚合算出，不是单独维护的列。
 
