@@ -37,3 +37,18 @@ export function signinFailureUrl(publicOrigin: string, back: string, outcome: Si
   url.searchParams.set("return_to", `${target.pathname}${target.search}${target.hash}`);
   return url.toString();
 }
+
+/**
+ * 绑定登录方式（#291）的结果：写进回到原页面的地址，`?link=<结果>&provider=google`（docs/plan/UNIFIED-LOGIN.md「绑定与解绑」）。
+ * 绑定不走登录页：人是登录着的，失败也留在原来的账号里。
+ * linked：绑上了；conflict：这个 Google 账号已属于别的账号；exists：本账号已经绑了 Google；
+ * cancelled：在 Google 页点了拒绝；failed：其余都算失败（授权没通过，或授权过程中换了账号、重新登录过）。
+ */
+export type LinkOutcome = "linked" | "conflict" | "exists" | "cancelled" | "failed";
+
+export function linkResultUrl(back: string, provider: "google", outcome: LinkOutcome): string {
+  const url = new URL(back);
+  url.searchParams.set("link", outcome);
+  url.searchParams.set("provider", provider);
+  return url.toString();
+}

@@ -22,3 +22,31 @@
 - 做了什么：00:04:12 把 2026-10-24 22:03:16 的 rc.20 发布记录从 notes/2026-10-24/crosery/task_276_forum_image_scan.md 拿掉，note.mjs check --pr 报「发现删除或修改已有记录的行」：记录只能往末尾追加，已写的不改不删。改正：那个文件恢复成 stage（6b71db41）上的原样，原记录留在原处；00:04:12 那条里「从那条链路拿掉」不再成立，以这条为准，它只是把 rc.20 的发布记录在 stage 链路上再登记一次。原记录挂在收尾之后的问题是 !16 合并时带进 stage 的，留在原处，不再改动。
 - 结果：notes/2026-10-24/crosery/task_276_forum_image_scan.md 与 6b71db41 没有差异。
 - 下一步：重跑 note.mjs check --pr，合并 MR !17。
+
+## 04:12:30 +08:00 · 发布 · #278 · 预发布 0.1.1-rc.21@7aa5e7777726（本机发版，tag 只在本地）
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：release worktree 切到 stage 7aa5e777（含 #276 !17、#274 !18、#282 !19、#283 !16、#280 !15、#278 !20）；部署前在预发布库新备份 preview-20261025-033905-rehearsal-rc21.db 的本机副本上跑两次迁移（第二次表数、列数、各表行数不变，副本已删）；build-rc.sh 21 构建三个镜像，deploy-rc.sh：CDN 上传 396 个文件核对通过、rsync 传镜像、部署前备份预发布库 preview-20261025-035636-19c5db4675d7.db、换 compose 与 env、deploy-stack，本地轻量 tag v0.1.1-rc.21
+- 结果：健康检查 18200/18201 ok，部署成功 preview 7aa5e7777726；线上库 68 张表，competitions 11→12 列、competition_teams 11→15 列，users/forum_topics/forum_posts 等行数不变，forum_sticker_files 24→39、perm_nodes 51→52 按种子增加；第一期比赛已是个人赛；ego-browser 1440/390 看过控制台比赛、新建弹窗、官网页签、备份、操作记录与门户比赛窗口、组队广场
+- 下一步：rc.22 带上 #281
+
+## 04:34:07 +08:00 · 发布 · #281 · 预发布 0.1.1-rc.22@130a58b84bc7（本机发版）
+
+- 执行者：agent-claude-geek-main-3c2a7a67（Claude Code 主会话，claude-opus-5-5）
+- 做了什么：release worktree 切到 stage 130a58b8（rc.21 之上加 #281 !21）；build-rc.sh 22 构建三个镜像；deploy-rc.sh：CDN 上传 421 个文件核对通过（含 25 张说明帖配图）、rsync 传镜像、部署前备份预发布库 preview-20261025-042944-7aa5e7777726.db、换 compose 与 env、deploy-stack；本地轻量 tag v0.1.1-rc.22；v0.1.1-rc.21 与 v0.1.1-rc.22 两个 tag 推到 GitLab（pre-push 发布 tag 规则通过，GitLab 没有起流水线）
+- 结果：健康检查 18200/18201 ok，部署成功 preview 130a58b84bc7；/release.json 为 0.1.1-rc.22@130a58b84bc7；游客读 /api/forum/state 看到使用说明 4 篇 public；成员账号在 ego-browser 看到 26 篇（public 4、registered 1、member 21）；t906 两张配图、t903 三张配图在 1440 宽下 naturalWidth 1440/1100 均加载成功；1440 说明帖正文与配图、说明帖列表、390 窄屏 t903 截图看过没有重叠
+- 下一步：所有者在预发布验收 rc.22 并在仓库里写「批准发布 v0.1.1」后，main 快进到 130a58b8 再打 v0.1.1
+
+## 16:41:49 +08:00 · 合并 · #285 · 合并：!27 进 stage
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：按审查过的提交 4f10185e 合并 !27（merge commit，目标 stage），GitLab 随之删除来源分支
+- 结果：stage 486a4667；issue #285 已关闭并留了「关闭」追踪记录
+- 下一步：随 rc.23 部署到预发布后，用预发布配置的发信商给自己填的邮箱真发一封样信
+
+## 16:41:49 +08:00 · 收尾 · #285 · 收尾：清理 #285 的 worktree 与本地分支
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：task.mjs finish 查不到 GitHub 上的 issue 状态而保留，改为确认 4f10185e 已是 gitlab/stage 的祖先后，手工移除 .claude/worktrees/task-285、删除本地分支 task/285/mail_templates，核对远端 task/285/* 分支为 0 个，停掉隔离栈并删除临时库
+- 结果：worktree 与本地、远端分支都已清理；仓库里 task/285 相关分支为 0
+- 下一步：无

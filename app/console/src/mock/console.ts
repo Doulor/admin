@@ -4,8 +4,9 @@
 // 范围只认 department 一个键（部长的「查看用户」「查看操作记录」只看到本部门的人），其余键不判断。
 import { ApiError } from "../lib/http";
 import { NODE_LABELS, PERMISSION_DOMAINS, nodeDomain } from "../lib/permission-nodes";
+import { MOCK_MAIL_LIST, MOCK_MAIL_TEMPLATES, mockLetterPreview, mockLetterTemplates, mockMailPreview } from "./mail-templates";
 import type {
-  ActivityEvent, ActivityList, Candidate, CompetitionRules, ConsoleMe, ConsoleStickerPack, ConsoleUser, Core, DepartmentRef, EffectivePermissions, ForumCategoryRow, GitlabAccount, GitlabAccountsResponse, GitlabProjectsResponse, Grade,
+  ActivityEvent, ActivityList, ApplySettings, Candidate, CompetitionRules, ConsoleMe, ConsoleStickerPack, ConsoleUser, Core, DepartmentRef, EffectivePermissions, ForumCategoryRow, GitlabAccount, GitlabAccountsResponse, GitlabProjectsResponse, Grade,
   GitlabSettings, GitlabStatus, InviteCode, Level, PermissionEntry, PermissionExplain, PermissionExplainHit, PermissionGroup, PermissionGroupMember,
   FinalView, Importance, PermissionNodesResponse, PublicDepartment, RosterSignup, RosterStats, RosterTeam, ScoreEvent, ScorePreview, Scoring, SessionProvider, SignupSettings, SiteRole, SiteState, Summary,
   UserPatch, UsersResponse,
@@ -72,6 +73,8 @@ const NODE_DESCRIPTIONS: Record<string, string> = {
   "gitlab.settings": "改同步模式、群组路径和同步间隔。",
   "forum.moderate.delete": "删除别人的帖子和回复。",
   "system.backup": "下载整个系统的数据库快照与站点文件打包。",
+  "apply.settings": "开放或关闭招新；关闭后官网显示关闭页，新的投递被拒绝，已收到的投递照常处理。",
+  "mail.template.manage": "新建、编辑、停用招聘邮件的模板，预览，并向自己填的测试邮箱试发样信。",
 };
 export const MOCK_NODES: PermissionNodesResponse = {
   nodes: ALL_NODES.map(node => ({
@@ -473,6 +476,8 @@ const MOCK_GITLAB_PROJECTS: GitlabProjectsResponse = {
   ],
 };
 const MOCK_GITLAB_SETTINGS: GitlabSettings = { sync_mode: "on", group_path: "geek", interval_minutes: 10, token_configured: true };
+/** 招新总开关（#284）：样板里是开放、从没改过；写请求按只读回 501。 */
+const MOCK_APPLY_SETTINGS: ApplySettings = { open: true, updated_at: null };
 
 /** GitLab 账号同步：极客班成员都要进组，几种常见错误各留一个样本。 */
 export function mockGitlabAccounts(): GitlabAccountsResponse {
@@ -856,6 +861,11 @@ export function checkConsoleWrite(url: URL, method: string, body: unknown): void
   const persona = requireSignedIn();
   const application = path.match(/^\/api\/console\/applications\/([0-9a-f-]{36})$/);
   if (method === "PATCH" && application) return checkApplicationReview(application[1], body);
+  if (path === "/api/console/applications/settings" && method === "PATCH") {
+    gate(persona, "apply.settings");
+    requireStepUp(persona);
+    return;
+  }
   if (/^\/api\/console\/competitions(?:\/[^/]+)?$/.test(path) && ["POST", "PATCH", "DELETE"].includes(method)) {
     gate(persona, "competition.manage");
     return;
@@ -889,6 +899,11 @@ export function checkConsoleWrite(url: URL, method: string, body: unknown): void
     if (MOCK_STICKER_PACKS.some(pack => pack.id === id)) fail(409, "pack_id_taken", "这个表情包 id 已经被用过了");
     return;
   }
+  if ((/^\/api\/console\/mail-templates(?:\/[^/]+)?$/.test(path) && ["POST", "PATCH", "DELETE"].includes(method)) || path === "/api/console/mail-templates/test-send") {
+    gate(persona, "mail.template.manage");
+    requireStepUp(persona);
+    return;
+  }
   if (/^\/api\/console\/invites/.test(path) && ["POST", "PATCH"].includes(method)) {
     gate(persona, "invite.manage");
     requireStepUp(persona);
@@ -912,7 +927,7 @@ function checkApplicationReview(id: string, body: unknown): void {
   need(persona, "apply.review");
   const application = APPLICATIONS.find(a => a.id === id);
   if (!application) throw new ApiError(404, "not_found", "投递不存在");
-  const input = (body && typeof body === "object" ? body : {}) as { status?: unknown; expected_status?: unknown; expected_review_id?: unknown; notify?: unknown; letter?: unknown };
+  const input = (body && typeof body === "object" ? body : {}) as { status?: unknown; expected_status?: unknown; expected_review_id?: unknown; notify?: unknown; template_id?: unknown; letter?: unknown };
   if (input.status !== undefined && !STATUSES.some(s => s.id === input.status)) {
     const message = "状态只能是已收到、待面试、已录取、未通过、已取消";
     throw new ApiError(400, "invalid_status", message, undefined, { error: "invalid_status", message });
@@ -926,6 +941,13 @@ function checkApplicationReview(id: string, body: unknown): void {
   }
   if (input.status !== undefined && input.status !== application.status && (input.expected_status === undefined || input.expected_review_id === undefined)) {
     throw changed("这个页面是旧版本，刷新后再改");
+  }
+  if (typeof input.template_id === "string" && input.notify !== false && input.status !== application.status) {
+    const chosen = MOCK_MAIL_TEMPLATES.find(item => item.id === input.template_id);
+    if (!chosen || chosen.kind !== input.status || !chosen.enabled) {
+      const message = "选的这套信不存在、不是这一类，或者已经停用";
+      throw new ApiError(400, "template_invalid", message, undefined, { error: "template_invalid", message, reason: "kind_mismatch" });
+    }
   }
   if (input.status !== "interview" || application.status === "interview" || input.notify === false) return;
   const letter = (input.letter && typeof input.letter === "object" ? input.letter : {}) as { time?: unknown; place?: unknown };
@@ -1013,6 +1035,19 @@ function routeSummary(persona: Persona): Summary {
   return result;
 }
 
+/** 预览不是写操作（不发信、不改任何记录），开发预览里照样渲染，只是用的是 mock/mail-templates.ts 里的简易渲染。 */
+export function routeMailPreview(body: unknown) {
+  gate(requireSignedIn(), "mail.template.manage");
+  return mockMailPreview(body);
+}
+export function routeLetterPreview(id: string, body: unknown) {
+  const persona = requireSignedIn();
+  gate(persona, "apply.review");
+  const application = APPLICATIONS.find(item => item.id === id);
+  if (!application) fail(404, "not_found", "投递不存在");
+  return mockLetterPreview(application, body);
+}
+
 /** 处理 `/api/console/*` 与 `/api/public/departments` 的 GET；未知路径返回 undefined，交回上层报 404。 */
 export function routeConsole(url: URL): unknown {
   const path = url.pathname;
@@ -1077,13 +1112,18 @@ export function routeConsole(url: URL): unknown {
       total: filtered.length, counts: counts(),
     };
   }
+  if (path === "/api/console/applications/settings") { gate(persona, "apply.view"); return MOCK_APPLY_SETTINGS; }
   const detail = path.match(/^\/api\/console\/applications\/([0-9a-f-]{36})$/);
   if (detail) {
     gate(persona, "apply.view");
     const application = APPLICATIONS.find(a => a.id === detail[1]);
     if (!application) fail(404, "not_found", "投递不存在");
-    return { application, reviews: REVIEWS[application.id] ?? [], received_mail: RECEIVED_MAIL[application.id] ?? null, mail: mailSettings(application.email) };
+    return {
+      application, reviews: REVIEWS[application.id] ?? [], received_mail: RECEIVED_MAIL[application.id] ?? null, mail: mailSettings(application.email),
+      letter_templates: mockLetterTemplates(),
+    };
   }
+  if (path === "/api/console/mail-templates") { gate(persona, "mail.template.manage"); return MOCK_MAIL_LIST; }
   if (path === "/api/console/feedback") {
     gate(persona, "feedback.view");
     const status = search.get("status");

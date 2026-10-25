@@ -4,11 +4,13 @@ import type { AppConfig } from "../config.js";
 
 export type OAuthState = {
   state: string;
-  kind: "admin" | "forum-login" | "forum-bind" | "google-signin";
+  kind: "admin" | "forum-login" | "forum-bind" | "google-signin" | "google-link";
   returnTo: string;
   issuedAt: number;
   userId?: number;
   sessionHash?: string;
+  /** 绑定 Google（#291，kind 为 google-link）：发起绑定的账号；sessionHash 是发起绑定的那个会话 */
+  accountId?: string;
   /** Google（#262）：ID Token 里要带回的 nonce、PKCE 的 code_verifier，以及第一次登录建号用的邀请码 */
   nonce?: string;
   verifier?: string;
@@ -19,7 +21,7 @@ export type OAuthCookie = "oauth_state" | "forum_oauth_state" | "google_oauth_st
 const COOKIE_KINDS: Record<OAuthCookie, OAuthState["kind"][]> = {
   oauth_state: ["admin"],
   forum_oauth_state: ["forum-login", "forum-bind"],
-  google_oauth_state: ["google-signin"],
+  google_oauth_state: ["google-signin", "google-link"],
 };
 const cookiePath = (name: OAuthCookie) => name === "google_oauth_state" ? "/auth/google" : "/auth";
 const TTL_MS = 10 * 60_000;
@@ -45,7 +47,8 @@ export function readOAuthState(req: FastifyRequest, reply: FastifyReply, name: O
     if (!value || value.state !== expected || typeof value.returnTo !== "string" ||
       !Number.isFinite(value.issuedAt) || value.issuedAt > Date.now() || Date.now() - value.issuedAt > TTL_MS) return null;
     if (!COOKIE_KINDS[name].includes(value.kind)) return null;
-    if (value.kind === "google-signin" && (typeof value.nonce !== "string" || typeof value.verifier !== "string")) return null;
+    if ((value.kind === "google-signin" || value.kind === "google-link") && (typeof value.nonce !== "string" || typeof value.verifier !== "string")) return null;
+    if (value.kind === "google-link" && (typeof value.accountId !== "string" || typeof value.sessionHash !== "string")) return null;
     if (value.kind === "forum-bind" && (!Number.isSafeInteger(value.userId) || typeof value.sessionHash !== "string")) return null;
     return value;
   } catch { return null; }

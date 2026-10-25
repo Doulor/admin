@@ -88,7 +88,7 @@ const columns = [
       <h2 class="section-title with-padding">最近的备份记录</h2>
       <ErrorPanel v-if="records.error.value" :error="records.error.value" :retry="records.reload" />
       <LoadingBlock v-else-if="!records.data.value" :lines="3" />
-      <TxDataTable v-else :columns="columns" :data="records.data.value.items" row-key="id" table-layout="fixed">
+      <TxDataTable v-else class="table-wide" :columns="columns" :data="records.data.value.items" row-key="id" table-layout="fixed">
         <template #cell-at="{ row }: { row: ActivityList['items'][number] }">{{ fmtDate(row.at) }}</template>
         <template #cell-who="{ row }: { row: ActivityList['items'][number] }">{{ row.account?.display_name || row.account?.username || "系统" }}</template>
         <template #cell-outcome="{ row }: { row: ActivityList['items'][number] }">
@@ -99,6 +99,20 @@ const columns = [
         </template>
         <template #empty><TxEmptyState title="还没有导出过备份" description="点右上角的「下载完整备份」导出第一份。" size="small" /></template>
       </TxDataTable>
+      <!-- 窄屏一条记录一张卡；宽屏只显示上面的表格。 -->
+      <ul v-if="records.data.value" class="row-cards">
+        <li v-for="row in records.data.value.items" :key="row.id">
+          <div class="row-card__head">
+            <span class="row-card__title">{{ fmtDate(row.at) }}</span>
+            <TxStatusBadge :text="OUTCOME_TEXT[row.outcome]" :status="OUTCOME_STATUS[row.outcome]" size="sm" />
+          </div>
+          <div class="row-card__lines">
+            <span>{{ row.account?.display_name || row.account?.username || "系统" }}</span>
+            <span class="cell-sub">{{ typeof row.meta.files === "number" ? `${row.meta.files} 个文件、${row.meta.tables} 张表` : "没有记下归档内容" }}</span>
+          </div>
+        </li>
+        <li v-if="!records.data.value.items.length"><TxEmptyState title="还没有导出过备份" description="点右上角的「下载完整备份」导出第一份。" size="small" /></li>
+      </ul>
     </TxCard>
   </div>
 </template>

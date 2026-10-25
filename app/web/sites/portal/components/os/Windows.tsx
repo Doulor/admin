@@ -1,7 +1,9 @@
-// YUGC OS 的窗口：可拖动、最小化、放大、关闭、聚焦；内容有「加入我们」「关于」「组织架构」「论坛最新」「终端」「比赛」「代码仓库」「意见箱」「账号资料」九种。
+// YUGC OS 的窗口：可拖动、最小化、放大、关闭、聚焦；内容有「加入我们」「宣传片」「关于」「组织架构」「论坛最新」「终端」「比赛」「代码仓库」「意见箱」「账号资料」十种。
+// 宣传片（#284）是单独的一个窗口，正文是 PromoLazy.tsx 的播放器；最小化、关闭、放大、手机上的底部面板都走这里同一套窗口外框。
 // 账号资料（#280）由菜单栏头像打开，正文在 ProfileCard.tsx；它不是桌面应用，不在 Dock 和启动器里。
 // 比赛窗口的内容在 competitions/（#265）：它在手机详情页会借标题栏左边的返回键回列表（PhoneNav）。
 // 意见箱、加入我们、终端窗口的内容在 FeedbackBox.tsx、JoinBox.tsx、Terminal.tsx，打开时才加载：防刷验证、表单样式和终端的模拟 Linux（#279）不进桌面首屏。
+import type { LinkNotice } from "../../lib/linkNotice";
 import { Suspense, lazy, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Link } from "react-router-dom";
 import { appConfig } from "@shared/config";
@@ -10,18 +12,23 @@ import { links } from "../../lib/links";
 import { useCodeRepos } from "../../lib/codeRepos";
 import { useDepartments } from "../../lib/departments";
 import { NEW_TAB_NOTE, agoLabel, type AppId, type OsApp } from "../../lib/osApps";
+import { promoWidth } from "../../lib/promoWindow";
 import { useForumSnapshot } from "../../lib/snapshots";
 import CompetitionsApp, { type PhoneNav } from "./competitions/CompetitionsApp";
 import ProfileCard from "./ProfileCard";
 import Icon from "../Icon";
+import { LazyPromoPlayer } from "../PromoLazy";
+import type { PromoEnd } from "../PromoPlayer";
 
-export type WindowId = "join" | "about" | "org" | "terminal" | "forum-feed" | "competitions" | "gitlab" | "feedback" | "profile";
+export type WindowId = "join" | "promo" | "about" | "org" | "terminal" | "forum-feed" | "competitions" | "gitlab" | "feedback" | "profile";
 export type WindowState = { id: WindowId; z: number; x: number; y: number; minimized: boolean; zoomed: boolean };
 
 export type OpenApp = (id: AppId | "forum-feed", from?: HTMLElement | null) => void;
 
 const META: Record<WindowId, { title: string; width: number }> = {
   join: { title: "加入我们", width: 640 },
+  // 宽度按屏幕高度算（promoWidth），这里是电脑上的上限
+  promo: { title: "宣传片", width: 860 },
   about: { title: "关于极客班", width: 640 },
   org: { title: "组织架构", width: 760 },
   terminal: { title: "终端", width: 680 },
@@ -32,12 +39,21 @@ const META: Record<WindowId, { title: string; width: number }> = {
   profile: { title: "账号资料", width: 560 },
 };
 
+/** 宣传片窗口里播放器的回调（YugcOs 里决定写不写「看过」的 cookie、播完关窗口） */
+export type PromoActions = {
+  onSeen?: () => void;
+  onEnd: (reason: PromoEnd) => void;
+};
+const NO_END = () => undefined;
+
 /** 账号资料窗口要用的登录状态操作（YugcOs 里的 useAccount） */
 export type ProfileActions = {
   signInLink: string;
   onPatch: (change: Partial<Account>) => void;
   onReload: () => void;
   onSignOut: () => void;
+  /** 从 Google 绑定回来时地址上带的结果（lib/linkNotice.ts），显示在登录方式下面 */
+  linkNotice?: LinkNotice | null;
 };
 
 const FeedbackBox = lazy(() => import("./FeedbackBox"));
@@ -45,7 +61,7 @@ const JoinBox = lazy(() => import("./JoinBox"));
 const Terminal = lazy(() => import("./Terminal"));
 
 export function windowWidth(id: WindowId): number {
-  return META[id].width;
+  return id === "promo" ? promoWidth({ width: window.innerWidth, height: window.innerHeight }) : META[id].width;
 }
 
 type Props = {
@@ -64,13 +80,19 @@ type Props = {
   account?: Account | null;
   accountLoaded?: boolean;
   profile?: ProfileActions;
+  /** 招新总开关（#284）：桌面读到的状态，「关于」窗口据此不再叫人去写信；「加入我们」窗口每次打开重读开关，读到就用 onApplyOpen 报回桌面。 */
+  applyOpen?: boolean;
+  onApplyOpen?: (open: boolean) => void;
+  /** 「加入我们」窗口在这个浏览器第一次打开时请桌面自动弹出宣传片窗口（#77，条件见 lib/promoWindow.ts 的 promoEntry） */
+  onAutoPromo?: () => void;
+  promo?: PromoActions;
 };
 
-export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZoom, onMove, onOpen, apps, phone = false, account = null, accountLoaded = true, profile }: Props) {
+export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZoom, onMove, onOpen, apps, phone = false, account = null, accountLoaded = true, profile, applyOpen = true, onApplyOpen, onAutoPromo, promo }: Props) {
   // 没登录时账号资料窗口里只有登录、注册，窗口名也跟着说「登录极客班」
   const meta = win.id === "profile" && !account ? { ...META.profile, title: "登录极客班" } : META[win.id];
   const ref = useRef<HTMLElement>(null);
-  const width = Math.min(meta.width, window.innerWidth - 24);
+  const width = Math.min(windowWidth(win.id), window.innerWidth - 24);
   /** 手机上应用自己的上一级（比赛详情回列表）；没有时返回键回主屏幕。 */
   const [phoneNav, setPhoneNav] = useState<PhoneNav | null>(null);
   /** 终端把标题换成「用户@yugc: 目录」，读屏仍念窗口名 */
@@ -237,13 +259,15 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
             <span aria-hidden="true" />
           )}
         </header>
-        <div className={win.id === "competitions" ? "pt-win-body is-flush" : "pt-win-body"}>
+        <div className={win.id === "competitions" ? "pt-win-body is-flush" : win.id === "promo" ? "pt-win-body is-flush is-promo" : "pt-win-body"}>
           {win.id === "join" && (
             <Suspense fallback={<p className="pt-empty">正在打开信纸…</p>}>
-              <JoinBox />
+              <JoinBox onOpen={onOpen} onApplyOpen={onApplyOpen} onAutoPromo={onAutoPromo} />
             </Suspense>
           )}
-          {win.id === "about" && <About onOpen={onOpen} />}
+          {/* 窗口收起（最小化；手机上被别的窗口盖住）时 active 为 false：播放器暂停，露出来接着播；关掉窗口播放器卸载，停止播放并释放片源 */}
+          {win.id === "promo" && <LazyPromoPlayer active={!win.minimized && (!phone || front)} onSeen={promo?.onSeen} onEnd={promo?.onEnd ?? NO_END} />}
+          {win.id === "about" && <About onOpen={onOpen} applyOpen={applyOpen} />}
           {win.id === "org" && <OrgChart />}
           {win.id === "forum-feed" && <ForumFeed />}
           {win.id === "profile" && profile && <ProfileCard account={account} {...profile} />}
@@ -265,7 +289,7 @@ export default function OsWindow({ win, front, onFocus, onClose, onMinimize, onZ
   );
 }
 
-function About({ onOpen }: { onOpen: OpenApp }) {
+function About({ onOpen, applyOpen }: { onOpen: OpenApp; applyOpen: boolean }) {
   const { brand } = appConfig.portal;
   const departments = useDepartments().filter((department) => department.titles.length > 0);
   // 称号名字在控制台改，这里照数据说，不写死（tests/web/portal-org-window.test.tsx 扫源码）
@@ -296,13 +320,15 @@ function About({ onOpen }: { onOpen: OpenApp }) {
               <Icon name="mail-line" size={15} />
               怎么加入
             </dt>
-            <dd>注册极客班账号，在「加入我们」写封信，我们用邮件联系你</dd>
+            <dd>{applyOpen ? "注册极客班账号，在「加入我们」写封信，我们用邮件联系你" : "现在不招新"}</dd>
           </div>
         </dl>
         <div className="pt-row-btns">
-          <button type="button" className="pt-btn is-primary" onClick={(e) => onOpen("join", e.currentTarget)}>
-            <Icon name="mail-send-line" size={16} /> 加入我们
-          </button>
+          {applyOpen && (
+            <button type="button" className="pt-btn is-primary" onClick={(e) => onOpen("join", e.currentTarget)}>
+              <Icon name="mail-send-line" size={16} /> 加入我们
+            </button>
+          )}
           <button type="button" className="pt-btn" onClick={(e) => onOpen("org", e.currentTarget)}>
             <Icon name="organization-chart" size={16} /> 查看组织架构
           </button>

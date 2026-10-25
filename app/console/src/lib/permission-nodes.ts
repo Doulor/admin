@@ -35,6 +35,8 @@ export const NODE_LABELS: Record<Permission, string> = {
   "apply.view": "查看投递",
   "apply.review": "审核投递",
   "apply.export": "导出投递",
+  "apply.settings": "招新开关",
+  "mail.template.manage": "管理招聘邮件模板",
   "competition.signup": "报名比赛",
   "competition.team": "组队",
   "competition.manage": "管理比赛",
@@ -73,8 +75,11 @@ export const NODE_LABELS: Record<Permission, string> = {
 export const nodeLabel = (node: Permission): string => NODE_LABELS[node] ?? node;
 /** 控制台域的节点前缀不统一（users.、perm.、invite.…），按 SPEC §3.3 的表归到「控制台」。 */
 const CONSOLE_PREFIXES = ["console", "users", "perm", "invite", "activity", "feedback", "dept"];
+/** 招聘邮件模板（#285）的节点 mail.template.manage，服务端把它归在「招新投递」 */
+const APPLY_PREFIXES = ["mail"];
 export const nodeDomain = (node: Permission): string => {
   const head = node.split(".")[0] ?? "";
-  return CONSOLE_PREFIXES.includes(head) ? "console" : head || "unknown";
+  if (CONSOLE_PREFIXES.includes(head)) return "console";
+  return APPLY_PREFIXES.includes(head) ? "apply" : head || "unknown";
 };
 export const domainLabel = (id: string): string => PERMISSION_DOMAINS.find(item => item.id === id)?.label ?? id;

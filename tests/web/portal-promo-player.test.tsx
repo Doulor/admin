@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-// 宣传片播放层的交互：画面上只有「跳过 / 关闭」（#142）、Esc、点画面不暂停、只记一次「看过」、
-// 浏览器不让自动播时的退路（gate 直接结束，replay 停在封面点画面播）、减少动态效果、播不了时直接放行。
+// 宣传片播放器（桌面「宣传片」窗口的正文，#284 以前是全屏层）的交互：画面上没有按钮（#142）、点画面不暂停、只记一次「看过」、
+// 浏览器不让自动播时的退路（停在封面，点画面播）、播不了时在画面上说明、窗口收起就暂停露出来接着播、卸载（关窗口）停止播放并释放片源。
+// 关闭、最小化、Esc 是桌面窗口的事（tests/web/portal-promo-window.test.tsx）。
 // jsdom 没有 MediaSource、视频解码与 canvas：能力探测用桩，video.play/pause/load 用桩，canvas 的 2D 上下文返回 null（不画背景），
 // hls.js 换成记录调用的假对象，片源只核对地址。
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -21,6 +22,7 @@ const fakeHls = vi.hoisted(() => {
     /** startLoad 被调用那一刻的 startLevel：起播档必须在开始加载之前设好 */
     levelAtStart: number | null = null;
     source = "";
+    destroyed = false;
     constructor(public config: Record<string, unknown>) {
       FakeHls.last = this;
     }
@@ -36,11 +38,13 @@ const fakeHls = vi.hoisted(() => {
       this.levelAtStart = this.startLevel;
     }
     recoverMediaError() {}
-    destroy() {}
+    destroy() {
+      this.destroyed = true;
+    }
   }
   return FakeHls;
 });
-// hls.js 只装在 app/web 下，从测试文件解析不到 "hls.js/light"：按播放层实际加载的文件路径换掉它
+// hls.js 只装在 app/web 下，从测试文件解析不到 "hls.js/light"：按播放器实际加载的文件路径换掉它
 vi.mock("../../app/web/node_modules/hls.js/dist/hls.light.mjs", () => ({ default: fakeHls }));
 vi.mock("../../app/web/sites/portal/lib/promo", async (original) => ({
   ...(await original<typeof import("../../app/web/sites/portal/lib/promo")>()),
@@ -49,6 +53,7 @@ vi.mock("../../app/web/sites/portal/lib/promo", async (original) => ({
 
 import PromoPlayer from "../../app/web/sites/portal/components/PromoPlayer";
 import { PROMO, detectCapabilities } from "../../app/web/sites/portal/lib/promo";
+import { PROMO_FAILED, PROMO_UNSUPPORTED } from "../../app/web/sites/portal/lib/promoWindow";
 
 let play: ReturnType<typeof vi.fn>;
 beforeEach(() => {
@@ -69,6 +74,8 @@ afterEach(() => {
 });
 
 const video = () => document.querySelector("video") as HTMLVideoElement;
+const root = () => document.querySelector(".pt-promo") as HTMLElement;
+const notAllowed = () => new DOMException("blocked", "NotAllowedError");
 /** jsdom 的指针事件不带 pointerType：自己造一个带上它的事件 */
 function pointer(target: Element, type: "pointerdown" | "pointermove", pointerType: "mouse" | "touch") {
   const event = new MouseEvent(type, { bubbles: true });
@@ -83,104 +90,84 @@ function trackPaused() {
   Object.defineProperty(video(), "paused", { configurable: true, get: () => paused });
   return (value: boolean) => (paused = value);
 }
-/** 画面上只有一个按钮「跳过 / 关闭 Esc」：没有播放 / 暂停、进度、时间、音量、「打开声音」「播放宣传片」 */
-function expectOnlyClose(label: "跳过" | "关闭") {
-  const dialog = screen.getByRole("dialog", { name: "极客班宣传片" });
-  const buttons = within(dialog).getAllByRole("button");
-  expect(buttons.map((button) => button.textContent)).toEqual([`${label}Esc`]);
-  expect(within(dialog).queryAllByRole("slider")).toEqual([]);
-  expect(within(dialog).queryAllByRole("progressbar")).toEqual([]);
-  expect(dialog.textContent).not.toMatch(/\d:\d\d|打开声音|播放宣传片|静音|暂停/);
+/** 画面上没有任何按钮：没有播放 / 暂停、进度、时间、音量、「打开声音」「播放宣传片」，也没有「跳过」「关闭」（那是窗口标题栏的事） */
+function expectNoControls() {
+  expect(within(root()).queryAllByRole("button")).toEqual([]);
+  expect(within(root()).queryAllByRole("slider")).toEqual([]);
+  expect(within(root()).queryAllByRole("progressbar")).toEqual([]);
+  expect(root().textContent).not.toMatch(/\d:\d\d|打开声音|播放宣传片|静音|暂停|跳过|关闭/);
 }
 
-it("gate：原生 HLS 播 H.264 片源，带声音自动播；点「跳过」结束，只记一次看过", async () => {
-  const onClose = vi.fn();
+it("原生 HLS 播 H.264 片源，带声音自动播；画面上没有按钮；真正开始播放时记一次看过", async () => {
+  const onEnd = vi.fn();
   const onSeen = vi.fn();
-  render(<PromoPlayer mode="gate" onSeen={onSeen} onClose={onClose} />);
-  const dialog = screen.getByRole("dialog", { name: "极客班宣传片" });
+  render(<PromoPlayer onSeen={onSeen} onEnd={onEnd} />);
   await waitFor(() => expect(video().getAttribute("src")).toBe(PROMO.masters.h264));
-  expect(dialog.dataset.engine).toBe("native");
+  expect(root().dataset.engine).toBe("native");
   expect(play).toHaveBeenCalled();
   expect(video().muted).toBe(false);
-  expectOnlyClose("跳过");
-  // 真正开始播放时记一次
+  expectNoControls();
+  expect(onSeen).not.toHaveBeenCalled();
   fireEvent.playing(video());
   expect(onSeen).toHaveBeenCalledTimes(1);
-  expectOnlyClose("跳过");
-  fireEvent.click(screen.getByRole("button", { name: /跳过/ }));
-  expect(onClose).toHaveBeenCalledWith("skipped");
-  expect(onSeen).toHaveBeenCalledTimes(1);
-});
-
-it("Esc 等于跳过；replay 模式的按钮叫「关闭」，画面上也只有它", async () => {
-  const onClose = vi.fn();
-  render(<PromoPlayer mode="replay" onClose={onClose} />);
-  await waitFor(() => expect(video().getAttribute("src")).toBeTruthy());
+  expectNoControls();
   fireEvent.playing(video());
-  expectOnlyClose("关闭");
-  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
-  expect(onClose).toHaveBeenCalledWith("skipped");
+  expect(onSeen).toHaveBeenCalledTimes(1);
+  expect(onEnd).not.toHaveBeenCalled();
 });
 
-it("gate 里 Esc 也能跳过；打开时焦点在「跳过」上，Tab 留在它身上", async () => {
-  const onClose = vi.fn();
-  render(<PromoPlayer mode="gate" onClose={onClose} />);
-  const skip = screen.getByRole("button", { name: /跳过/ });
-  expect(document.activeElement).toBe(skip);
-  const dialog = screen.getByRole("dialog");
-  // 点过画面以后焦点在播放层自己身上，Tab 回到「跳过」
-  act(() => dialog.focus());
-  fireEvent.keyDown(dialog, { key: "Tab" });
-  expect(document.activeElement).toBe(skip);
-  fireEvent.keyDown(skip, { key: "Tab", shiftKey: true });
-  expect(document.activeElement).toBe(skip);
-  fireEvent.keyDown(dialog, { key: "Escape" });
-  expect(onClose).toHaveBeenCalledWith("skipped");
-  expect(onClose).toHaveBeenCalledTimes(1);
-});
-
-it("播完也算看过", async () => {
-  const onClose = vi.fn();
+it("播完：报 ended 一次，也算看过", async () => {
+  const onEnd = vi.fn();
   const onSeen = vi.fn();
-  render(<PromoPlayer mode="gate" onSeen={onSeen} onClose={onClose} />);
+  render(<PromoPlayer onSeen={onSeen} onEnd={onEnd} />);
   await waitFor(() => expect(video().getAttribute("src")).toBeTruthy());
   fireEvent.ended(video());
-  expect(onClose).toHaveBeenCalledWith("ended");
+  expect(onEnd).toHaveBeenCalledWith("ended");
+  expect(onEnd).toHaveBeenCalledTimes(1);
   expect(onSeen).toHaveBeenCalledTimes(1);
 });
 
-it("不让带声音自动播：静音播，画面上仍只有「跳过」；点画面打开声音，不暂停", async () => {
-  play.mockRejectedValueOnce(new DOMException("blocked", "NotAllowedError"));
+it("Esc、Tab 不在播放器里拦下：Esc 交给桌面关掉最前面的窗口，Tab 照常走", async () => {
+  const onKey = vi.fn();
+  window.addEventListener("keydown", onKey);
+  try {
+    render(<PromoPlayer onEnd={vi.fn()} />);
+    await waitFor(() => expect(video().getAttribute("src")).toBeTruthy());
+    act(() => root().focus());
+    expect(fireEvent.keyDown(root(), { key: "Escape" })).toBe(true);
+    expect(fireEvent.keyDown(root(), { key: "Tab" })).toBe(true);
+    expect(onKey.mock.calls.map(([event]) => (event as KeyboardEvent).key)).toEqual(["Escape", "Tab"]);
+  } finally {
+    window.removeEventListener("keydown", onKey);
+  }
+});
+
+it("不让带声音自动播：静音播，画面上仍没有按钮；点画面打开声音，不暂停", async () => {
+  play.mockRejectedValueOnce(notAllowed());
   const pause = vi.spyOn(HTMLMediaElement.prototype, "pause");
-  render(<PromoPlayer mode="gate" onClose={vi.fn()} />);
+  render(<PromoPlayer onEnd={vi.fn()} />);
   await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
   expect(video().muted).toBe(true);
   fireEvent.playing(video());
-  expectOnlyClose("跳过");
+  expectNoControls();
   fireEvent.click(video());
   expect(video().muted).toBe(false);
   expect(pause).not.toHaveBeenCalled();
   expect(play).toHaveBeenCalledTimes(2);
 });
 
-it("gate 静音也不让播：直接结束（blocked），算看过，不停在封面等人点", async () => {
-  play.mockRejectedValue(new DOMException("blocked", "NotAllowedError"));
-  const onClose = vi.fn();
+it("静音也不让播（blocked）：算看过，窗口不关，停在封面只有「点画面播放」的提示；点画面带声音播，播完照样报 ended", async () => {
+  play.mockRejectedValueOnce(notAllowed()).mockRejectedValueOnce(notAllowed());
+  const onEnd = vi.fn();
   const onSeen = vi.fn();
-  render(<PromoPlayer mode="gate" onSeen={onSeen} onClose={onClose} />);
-  await waitFor(() => expect(onClose).toHaveBeenCalledWith("blocked"));
-  expect(onClose).toHaveBeenCalledTimes(1);
+  render(<PromoPlayer onSeen={onSeen} onEnd={onEnd} />);
+  await waitFor(() => expect(onEnd).toHaveBeenCalledWith("blocked"));
+  expect(onEnd).toHaveBeenCalledTimes(1);
   expect(onSeen).toHaveBeenCalledTimes(1);
   expect(play).toHaveBeenCalledTimes(2);
-});
+  expect(screen.getByRole("status").textContent).toBe("点画面播放");
+  expectNoControls();
 
-it("replay 静音也不让播：停在封面，只有「关闭」和「点画面播放」的提示；点画面带声音播", async () => {
-  play.mockRejectedValueOnce(new DOMException("blocked", "NotAllowedError")).mockRejectedValueOnce(new DOMException("blocked", "NotAllowedError"));
-  const onClose = vi.fn();
-  render(<PromoPlayer mode="replay" onClose={onClose} />);
-  await waitFor(() => expect(screen.getByRole("status").textContent).toBe("点画面播放"));
-  expectOnlyClose("关闭");
-  expect(onClose).not.toHaveBeenCalled();
   const setPaused = trackPaused();
   fireEvent.click(video());
   expect(play).toHaveBeenCalledTimes(3);
@@ -188,102 +175,94 @@ it("replay 静音也不让播：停在封面，只有「关闭」和「点画面
   setPaused(false);
   fireEvent.playing(video());
   expect(screen.queryByRole("status")).toBeNull();
+  fireEvent.ended(video());
+  expect(onEnd).toHaveBeenLastCalledWith("ended");
+  expect(onEnd).toHaveBeenCalledTimes(2);
+  expect(onSeen).toHaveBeenCalledTimes(1);
 });
 
-it("gate 里 play() 被打断（AbortError 等）：按加载失败结束一次，不停在封面、不记看过", async () => {
+it("play() 被打断（AbortError 等）：按加载失败结束一次，画面上说明，不记看过，也不再静音重试", async () => {
   play.mockRejectedValueOnce(new DOMException("interrupted", "AbortError"));
-  const onClose = vi.fn();
+  const onEnd = vi.fn();
   const onSeen = vi.fn();
-  render(<PromoPlayer mode="gate" onSeen={onSeen} onClose={onClose} />);
-  await waitFor(() => expect(onClose).toHaveBeenCalledWith("failed"));
-  expect(onClose).toHaveBeenCalledTimes(1);
+  render(<PromoPlayer onSeen={onSeen} onEnd={onEnd} />);
+  await waitFor(() => expect(onEnd).toHaveBeenCalledWith("failed"));
+  expect(onEnd).toHaveBeenCalledTimes(1);
   expect(onSeen).not.toHaveBeenCalled();
+  expect(screen.getByRole("status").textContent).toBe(PROMO_FAILED);
   // 被打断不是「不让带声音」：不再静音重试
   expect(play).toHaveBeenCalledTimes(1);
 });
 
-it("gate 遇到减少动态效果：不自动播，什么都不加载就结束（blocked），算看过，不画播放层", async () => {
+it("开了减少动态效果也照常播：播放器本身不看这个设置，要不要自动弹出由「加入我们」窗口决定（promoEntry）", async () => {
   vi.stubGlobal("matchMedia", (query: string) => ({ matches: query === "(prefers-reduced-motion: reduce)", media: query, addEventListener() {}, removeEventListener() {} }));
-  const onClose = vi.fn();
-  const onSeen = vi.fn();
-  render(<PromoPlayer mode="gate" onSeen={onSeen} onClose={onClose} />);
-  expect(onClose).toHaveBeenCalledWith("blocked");
-  expect(onClose).toHaveBeenCalledTimes(1);
-  expect(onSeen).toHaveBeenCalledTimes(1);
-  expect(screen.queryByRole("dialog")).toBeNull();
-  expect(document.querySelector("video")).toBeNull();
-  await act(async () => {});
-  expect(detectCapabilities).not.toHaveBeenCalled();
-  expect(play).not.toHaveBeenCalled();
-});
-
-it("replay 遇到减少动态效果照常播：是自己点开的", async () => {
-  vi.stubGlobal("matchMedia", (query: string) => ({ matches: query === "(prefers-reduced-motion: reduce)", media: query, addEventListener() {}, removeEventListener() {} }));
-  const onClose = vi.fn();
-  render(<PromoPlayer mode="replay" onClose={onClose} />);
+  const onEnd = vi.fn();
+  render(<PromoPlayer onEnd={onEnd} />);
   await waitFor(() => expect(play).toHaveBeenCalledTimes(1));
   expect(video().muted).toBe(false);
-  expect(onClose).not.toHaveBeenCalled();
-  expectOnlyClose("关闭");
+  expect(onEnd).not.toHaveBeenCalled();
+  expectNoControls();
 });
 
 it("片源放不了（play() 报 NotSupportedError）：按加载失败结束一次，不记看过", async () => {
   play.mockRejectedValue(new DOMException("no source", "NotSupportedError"));
-  const onClose = vi.fn();
+  const onEnd = vi.fn();
   const onSeen = vi.fn();
-  render(<PromoPlayer mode="gate" onSeen={onSeen} onClose={onClose} />);
-  await waitFor(() => expect(onClose).toHaveBeenCalledWith("failed"));
-  expect(onClose).toHaveBeenCalledTimes(1);
+  render(<PromoPlayer onSeen={onSeen} onEnd={onEnd} />);
+  await waitFor(() => expect(onEnd).toHaveBeenCalledWith("failed"));
+  expect(onEnd).toHaveBeenCalledTimes(1);
   expect(onSeen).not.toHaveBeenCalled();
 });
 
 it("起播时意外抛错（能力探测失败）：按加载失败结束一次", async () => {
   vi.mocked(detectCapabilities).mockRejectedValueOnce(new Error("probe crashed"));
-  const onClose = vi.fn();
+  const onEnd = vi.fn();
   const onSeen = vi.fn();
-  render(<PromoPlayer mode="gate" onSeen={onSeen} onClose={onClose} />);
-  await waitFor(() => expect(onClose).toHaveBeenCalledWith("failed"));
-  expect(onClose).toHaveBeenCalledTimes(1);
+  render(<PromoPlayer onSeen={onSeen} onEnd={onEnd} />);
+  await waitFor(() => expect(onEnd).toHaveBeenCalledWith("failed"));
+  expect(onEnd).toHaveBeenCalledTimes(1);
   expect(onSeen).not.toHaveBeenCalled();
 });
 
-it("播放层卸载以后能力探测才出错：不再结束一次（不调 onClose）", async () => {
+it("播放器卸载以后能力探测才出错：不再结束一次（不调 onEnd）", async () => {
   let crash!: (error: Error) => void;
   // 项目 lib 是 ES2022，没有 Promise.withResolvers
   vi.mocked(detectCapabilities).mockReturnValueOnce(new Promise<Capabilities>((_, reject) => (crash = reject)));
-  const onClose = vi.fn();
-  const view = render(<PromoPlayer mode="gate" onClose={onClose} />);
+  const onEnd = vi.fn();
+  const view = render(<PromoPlayer onEnd={onEnd} />);
   view.unmount();
   await act(async () => {
     crash(new Error("probe crashed"));
   });
-  expect(onClose).not.toHaveBeenCalled();
+  expect(onEnd).not.toHaveBeenCalled();
 });
 
-it("两种播放方式都没有：直接结束，算看过（以后也播不了）", async () => {
+it("两种播放方式都没有：报 unsupported，算看过（以后也播不了），画面上说明", async () => {
   caps.current = { mse: false, mseAv1Smooth: false, native: false, nativeAv1: false, touch: false };
-  const onClose = vi.fn();
+  const onEnd = vi.fn();
   const onSeen = vi.fn();
-  render(<PromoPlayer mode="gate" onSeen={onSeen} onClose={onClose} />);
-  await waitFor(() => expect(onClose).toHaveBeenCalledWith("unsupported"));
+  render(<PromoPlayer onSeen={onSeen} onEnd={onEnd} />);
+  await waitFor(() => expect(onEnd).toHaveBeenCalledWith("unsupported"));
   expect(onSeen).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("status").textContent).toBe(PROMO_UNSUPPORTED);
+  expect(play).not.toHaveBeenCalled();
 });
 
-it("原生播放加载失败：结束但不记看过，下次再试", async () => {
-  const onClose = vi.fn();
+it("原生播放加载失败：报 failed 但不记看过，下次再试", async () => {
+  const onEnd = vi.fn();
   const onSeen = vi.fn();
-  render(<PromoPlayer mode="gate" onSeen={onSeen} onClose={onClose} />);
+  render(<PromoPlayer onSeen={onSeen} onEnd={onEnd} />);
   await waitFor(() => expect(video().getAttribute("src")).toBeTruthy());
   await act(async () => {
     fireEvent.error(video());
   });
-  expect(onClose).toHaveBeenCalledWith("failed");
+  expect(onEnd).toHaveBeenCalledWith("failed");
   expect(onSeen).not.toHaveBeenCalled();
 });
 
 it("hls.js：先解析档位再按估计带宽定起播档，缓冲 30 秒，不开 worker", async () => {
   caps.current = { mse: true, mseAv1Smooth: false, native: false, nativeAv1: false, touch: true };
-  render(<PromoPlayer mode="gate" onClose={vi.fn()} />);
+  render(<PromoPlayer onEnd={vi.fn()} />);
   await waitFor(() => expect(fakeHls.last?.source).toBe(PROMO.masters.h264));
   const player = fakeHls.last!;
   expect(player.config).toMatchObject({ enableWorker: false, autoStartLoad: false, maxBufferLength: 30, capLevelToPlayerSize: true });
@@ -295,29 +274,28 @@ it("hls.js：先解析档位再按估计带宽定起播档，缓冲 30 秒，不
   expect(player.levelAtStart).toBe(3);
 });
 
-it("播放中几秒不动鼠标，指针隐藏；「跳过」一直在；动一下鼠标就回来", async () => {
+it("播放中几秒不动鼠标，指针隐藏；动一下鼠标就回来", async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   try {
-    render(<PromoPlayer mode="gate" onClose={vi.fn()} />);
-    const dialog = screen.getByRole("dialog");
+    render(<PromoPlayer onEnd={vi.fn()} />);
     await waitFor(() => expect(video().getAttribute("src")).toBeTruthy());
     fireEvent.playing(video());
     act(() => vi.advanceTimersByTime(2600));
-    expect(dialog.classList.contains("is-idle")).toBe(true);
-    expectOnlyClose("跳过");
-    pointer(dialog, "pointermove", "mouse");
-    expect(dialog.classList.contains("is-idle")).toBe(false);
+    expect(root().classList.contains("is-idle")).toBe(true);
+    expectNoControls();
+    pointer(root(), "pointermove", "mouse");
+    expect(root().classList.contains("is-idle")).toBe(false);
     // 叫醒后重新计时，再不动又会淡出
     act(() => vi.advanceTimersByTime(2600));
-    expect(dialog.classList.contains("is-idle")).toBe(true);
+    expect(root().classList.contains("is-idle")).toBe(true);
     // 手指划过不算
-    pointer(dialog, "pointermove", "touch");
-    expect(dialog.classList.contains("is-idle")).toBe(true);
+    pointer(root(), "pointermove", "touch");
+    expect(root().classList.contains("is-idle")).toBe(true);
     // 停下时不隐藏
-    pointer(dialog, "pointermove", "mouse");
+    pointer(root(), "pointermove", "mouse");
     fireEvent.pause(video());
     act(() => vi.advanceTimersByTime(5000));
-    expect(dialog.classList.contains("is-idle")).toBe(false);
+    expect(root().classList.contains("is-idle")).toBe(false);
   } finally {
     vi.useRealTimers();
   }
@@ -325,29 +303,28 @@ it("播放中几秒不动鼠标，指针隐藏；「跳过」一直在；动一�
 
 it("点画面从不暂停（鼠标、手指都一样），空格和 M 也不暂停、不静音", async () => {
   const pause = vi.spyOn(HTMLMediaElement.prototype, "pause");
-  render(<PromoPlayer mode="gate" onClose={vi.fn()} />);
-  const dialog = screen.getByRole("dialog");
+  render(<PromoPlayer onEnd={vi.fn()} />);
   await waitFor(() => expect(video().getAttribute("src")).toBeTruthy());
   const setPaused = trackPaused();
   setPaused(false);
   fireEvent.playing(video());
   for (const kind of ["mouse", "touch"] as const) {
     pointer(video(), "pointerdown", kind);
-    act(() => dialog.focus());
+    act(() => root().focus());
     fireEvent.click(video());
   }
-  fireEvent.keyDown(dialog, { key: " " });
-  fireEvent.keyDown(dialog, { key: "m" });
+  fireEvent.keyDown(root(), { key: " " });
+  fireEvent.keyDown(root(), { key: "m" });
   expect(pause).not.toHaveBeenCalled();
   expect(video().muted).toBe(false);
   expect(play).toHaveBeenCalledTimes(1);
   expect(screen.queryByRole("status")).toBeNull();
-  expectOnlyClose("跳过");
+  expectNoControls();
 });
 
 it("被系统停下（手机切到后台等）：提示「点画面播放」，点画面接着播；播完那一下的 pause 不算停下", async () => {
-  const onClose = vi.fn();
-  render(<PromoPlayer mode="gate" onClose={onClose} />);
+  const onEnd = vi.fn();
+  render(<PromoPlayer onEnd={onEnd} />);
   await waitFor(() => expect(video().getAttribute("src")).toBeTruthy());
   const setPaused = trackPaused();
   setPaused(false);
@@ -355,7 +332,7 @@ it("被系统停下（手机切到后台等）：提示「点画面播放」，�
   setPaused(true);
   fireEvent.pause(video());
   expect(screen.getByRole("status").textContent).toBe("点画面播放");
-  expectOnlyClose("跳过");
+  expectNoControls();
   fireEvent.click(video());
   expect(play).toHaveBeenCalledTimes(2);
   setPaused(false);
@@ -367,11 +344,11 @@ it("被系统停下（手机切到后台等）：提示「点画面播放」，�
   fireEvent.pause(video());
   expect(screen.queryByRole("status")).toBeNull();
   fireEvent.ended(video());
-  expect(onClose).toHaveBeenCalledWith("ended");
+  expect(onEnd).toHaveBeenCalledWith("ended");
 });
 
 it("播放中卡住：显示「正在缓冲…」，恢复后消失", async () => {
-  render(<PromoPlayer mode="gate" onClose={vi.fn()} />);
+  render(<PromoPlayer onEnd={vi.fn()} />);
   await waitFor(() => expect(video().getAttribute("src")).toBeTruthy());
   fireEvent.playing(video());
   expect(screen.queryByRole("status")).toBeNull();
@@ -379,4 +356,91 @@ it("播放中卡住：显示「正在缓冲…」，恢复后消失", async () =
   expect(screen.getByRole("status").textContent).toContain("正在缓冲");
   fireEvent.playing(video());
   expect(screen.queryByRole("status")).toBeNull();
+});
+
+it("窗口收起（active 为 false）：正在播的暂停，露出来从停下的位置接着播", async () => {
+  const pause = vi.spyOn(HTMLMediaElement.prototype, "pause");
+  const view = render(<PromoPlayer onEnd={vi.fn()} />);
+  await waitFor(() => expect(video().getAttribute("src")).toBeTruthy());
+  fireEvent.playing(video());
+  expect(play).toHaveBeenCalledTimes(1);
+
+  view.rerender(<PromoPlayer active={false} onEnd={vi.fn()} />);
+  expect(pause).toHaveBeenCalledTimes(1);
+  fireEvent.pause(video());
+
+  view.rerender(<PromoPlayer active onEnd={vi.fn()} />);
+  expect(play).toHaveBeenCalledTimes(2);
+  expect(video().getAttribute("src")).toBe(PROMO.masters.h264);
+  fireEvent.playing(video());
+  expect(screen.queryByRole("status")).toBeNull();
+  expect(pause).toHaveBeenCalledTimes(1);
+});
+
+it("收起前就被浏览器停下的，露出来时不替它恢复；还没出画面时收起也不去暂停", async () => {
+  const pause = vi.spyOn(HTMLMediaElement.prototype, "pause");
+  const view = render(<PromoPlayer onEnd={vi.fn()} />);
+  await waitFor(() => expect(video().getAttribute("src")).toBeTruthy());
+
+  // 还没出画面（loading）：收起、露出都不碰视频
+  view.rerender(<PromoPlayer active={false} onEnd={vi.fn()} />);
+  view.rerender(<PromoPlayer active onEnd={vi.fn()} />);
+  expect(pause).not.toHaveBeenCalled();
+  expect(play).toHaveBeenCalledTimes(1);
+
+  // 在播时被浏览器停下（paused），再收起、露出：停着的不动，也不恢复
+  fireEvent.playing(video());
+  fireEvent.pause(video());
+  view.rerender(<PromoPlayer active={false} onEnd={vi.fn()} />);
+  view.rerender(<PromoPlayer active onEnd={vi.fn()} />);
+  expect(pause).not.toHaveBeenCalled();
+  expect(play).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("status").textContent).toBe("点画面播放");
+});
+
+it("起播时窗口已经收起：不在后台出声，也不算看过；露出来再接着播", async () => {
+  const pause = vi.spyOn(HTMLMediaElement.prototype, "pause");
+  const onSeen = vi.fn();
+  const view = render(<PromoPlayer active={false} onSeen={onSeen} onEnd={vi.fn()} />);
+  await waitFor(() => expect(video().getAttribute("src")).toBeTruthy());
+
+  fireEvent.playing(video());
+  expect(pause).toHaveBeenCalledTimes(1);
+  expect(onSeen).not.toHaveBeenCalled();
+
+  view.rerender(<PromoPlayer active onSeen={onSeen} onEnd={vi.fn()} />);
+  expect(play).toHaveBeenCalledTimes(2);
+  fireEvent.playing(video());
+  expect(onSeen).toHaveBeenCalledTimes(1);
+});
+
+it("关掉窗口（播放器卸载）：停止播放并释放片源，hls.js 也销毁", async () => {
+  const load = vi.spyOn(HTMLMediaElement.prototype, "load");
+  const native = render(<PromoPlayer onEnd={vi.fn()} />);
+  await waitFor(() => expect(video().getAttribute("src")).toBeTruthy());
+  const element = video();
+  load.mockClear();
+  native.unmount();
+  expect(element.hasAttribute("src")).toBe(false);
+  expect(load).toHaveBeenCalledTimes(1);
+
+  caps.current = { mse: true, mseAv1Smooth: false, native: false, nativeAv1: false, touch: false };
+  const engine = render(<PromoPlayer onEnd={vi.fn()} />);
+  await waitFor(() => expect(fakeHls.last?.source).toBe(PROMO.masters.h264));
+  const player = fakeHls.last!;
+  expect(player.destroyed).toBe(false);
+  engine.unmount();
+  expect(player.destroyed).toBe(true);
+});
+
+it("回调每次渲染都可以是新函数：起播只跑一次，之后的结果报给最新的那个", async () => {
+  const first = vi.fn();
+  const latest = vi.fn();
+  const view = render(<PromoPlayer onEnd={first} />);
+  await waitFor(() => expect(video().getAttribute("src")).toBeTruthy());
+  view.rerender(<PromoPlayer onEnd={latest} />);
+  fireEvent.ended(video());
+  expect(first).not.toHaveBeenCalled();
+  expect(latest).toHaveBeenCalledWith("ended");
+  expect(detectCapabilities).toHaveBeenCalledTimes(1);
 });

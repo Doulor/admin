@@ -7,6 +7,7 @@ import { runYugcV2Migration } from "./migrations/2026-10-yugc-v2.js";
 import { DEFAULT_GRADE_FACTORS } from "./competition-rubric.js";
 import { runForumV2Migration } from "./migrations/2026-10-forum-v2.js";
 import { loadStickerManifest } from "./sticker-manifest.js";
+import { runMailTemplatesMigration } from "./migrations/2026-10-mail-templates.js";
 import type { ActivityOutcome, ActivitySurface } from "./activity.js";
 
 /** 审计里的操作者：GitHub 登录名，或带上极客班账号的会话（写进 actor_account_id，#262）。 */
@@ -967,6 +968,33 @@ CREATE TABLE IF NOT EXISTS forum_upload_files (
   uploaded_by TEXT REFERENCES users(id),
   created_at INTEGER NOT NULL
 );
+
+-- 招聘邮件模板（#285）：blocks、footer 是 JSON 文本，结构由 lib/mail/template-content.ts 的 normalizeContent 在写入前核对；
+-- 按钮文字和路径要么都有、要么都没有；默认模板必须是启用的；同一类信里名字不重复（不分大小写），默认只有一个。
+-- 首次启动的种子由 lib/migrations/2026-10-mail-templates.ts 写入。
+CREATE TABLE IF NOT EXISTS mail_templates (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('received','interview','accepted','rejected')),
+  subject TEXT NOT NULL,
+  preheader TEXT NOT NULL DEFAULT '',
+  kicker TEXT NOT NULL DEFAULT '',
+  greeting TEXT NOT NULL DEFAULT '{{称呼}}',
+  blocks TEXT NOT NULL,
+  button_label TEXT,
+  button_path TEXT,
+  footer TEXT NOT NULL DEFAULT '[]',
+  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+  is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_by TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  CHECK ((button_label IS NULL) = (button_path IS NULL)),
+  CHECK (is_default = 0 OR enabled = 1)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mail_templates_kind_name ON mail_templates(kind, name COLLATE NOCASE);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mail_templates_default ON mail_templates(kind) WHERE is_default = 1;
 `);
 
 // 账号、权限、操作记录统一迁移（#274，lib/migrations/2026-10-yugc-v2.ts）：种子只增不改所有者改过的数据，
@@ -974,6 +1002,8 @@ CREATE TABLE IF NOT EXISTS forum_upload_files (
 const yugcV2Migration = runYugcV2Migration(db, Date.now());
 // 论坛 v2 迁移（#276，lib/migrations/2026-10-forum-v2.ts）：分类可见范围种子、表情包种子（#286 起照清单播种），同样只增不改、可重复执行。
 const forumV2Migration = runForumV2Migration(db, Date.now(), stickerAssetsDir, stickerManifest);
+// 招聘邮件模板迁移（#285，lib/migrations/2026-10-mail-templates.ts）：把四类信现在的内容种成「默认」模板，另加一套面试邀请的简短版；种子只插一次、可重复执行。
+runMailTemplatesMigration(db, Date.now());
 
 // 第一期开源贡献赛（#239）：比赛与报名设置种子，用 `console_seeds` 标记，只插一次。
 // 组织者之后把比赛删掉或改掉，重启也不再补回来。
@@ -1021,6 +1051,20 @@ const COMPETITION_SEED_DEADLINE = Date.parse("2026-11-15T23:59:59.999+08:00");
       db.prepare("UPDATE competition_signup_settings SET participation = 'individual', team_min = NULL, team_max = NULL, updated_at = ? WHERE competition_id = ?")
         .run(Date.now(), COMPETITION_SEED_ID);
     }
+  }
+}
+
+// 更正（#288）：第一期按团队赛种下的库，描述第三行写着「1–3 人组队……」。上面只改赛制字段，描述留在库里，
+// 官网、桌面比赛窗口、公开接口和命令行都照着显示。赛制已经是个人赛时，把种子原文那一行换成个人赛的说法；
+// 组织者改过这一行就不匹配，不动。可以重复执行：换完之后旧行不在了。
+{
+  const SEED_TEAM_LINE = "1–3 人组队（一个人也可以自成一队），队伍积分是在队成员积分之和。比赛时间 2026-10-21 至 2026-11-15 23:59:59（北京时间）。";
+  const SEED_INDIVIDUAL_LINE = "个人赛，按个人合入结果计分。比赛时间 2026-10-21 至 2026-11-15 23:59:59（北京时间）。";
+  const row = db.prepare(`SELECT c.description AS description, s.participation AS participation
+    FROM competitions c JOIN competition_signup_settings s ON s.competition_id = c.id WHERE c.id = ?`).get(COMPETITION_SEED_ID) as { description: string; participation: string } | undefined;
+  if (row?.participation === "individual" && row.description.includes(SEED_TEAM_LINE)) {
+    db.prepare("UPDATE competitions SET description = ?, updated_at = ? WHERE id = ?")
+      .run(row.description.replace(SEED_TEAM_LINE, SEED_INDIVIDUAL_LINE), Date.now(), COMPETITION_SEED_ID);
   }
 }
 

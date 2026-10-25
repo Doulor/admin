@@ -139,7 +139,7 @@ function main() {
 
 /** 默认源站生产，`GEEK_ORIGIN` 覆盖——和 geek 自己的源站解析（app/cli/src/config.rs）一致，预发布装机器用
  *  `curl -fsSL https://prev.yangtzeu.work/cli/install.sh | GEEK_ORIGIN=https://prev.yangtzeu.work sh`。 */
-function installSh() {
+export function installSh() {
   return `#!/usr/bin/env sh
 # geek 命令行安装脚本（#277）：
 #   curl -fsSL https://yangtzeu.work/cli/install.sh | sh
@@ -199,7 +199,7 @@ esac
 `;
 }
 
-function installPs1() {
+export function installPs1() {
   return `# geek 命令行安装脚本（#277，Windows）：
 #   irm https://yangtzeu.work/cli/install.ps1 | iex
 # 预发布：

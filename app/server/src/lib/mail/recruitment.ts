@@ -1,18 +1,25 @@
-import { formatMailDateTime, oneLine, required, safeMailLink, type EnvelopeBlock, type EnvelopeMessage } from "./envelope.js";
+import { formatMailDateTime, oneLine, required, safeMailLink, type EnvelopeMessage } from "./envelope.js";
+import {
+  DEFAULT_TEMPLATES, fillTemplate, type RecruitmentKind, type TemplateContent, type TemplateValues,
+} from "./template-content.js";
 
 /**
  * 招新流程的四封信（#148）：投递成功、待面试、已录取、未通过。
  * 只拼内容（EnvelopeMessage），版式和转义由 renderEnvelope 负责；什么时候发、发给谁由发信模块决定。
  * 只为 received / interview / accepted / rejected 拼信；控制台的 cancelled 没有通知信。
  *
- * 每封信都附上「你的报名信息」（姓名、班级、邮箱、投递时间、报名编号），已收到的信另外原样引用特长与优点；
+ * 信的文字不写在这里了（#285）：它们是 template-content.ts 里的模板数据（DEFAULT_TEMPLATES 是内置默认，
+ * 也是迁移种子），这里只把投递和控制台填的内容变成模板变量（recruitmentValues），再交给 fillTemplate 拼成信。
+ * 没传模板时用内置默认，输出和改成数据之前逐字相同。
+ *
+ * 每封信默认都附上「你的报名信息」（姓名、班级、邮箱、投递时间、报名编号），已收到的信另外原样引用特长与优点；
  * 抬头按姓称呼（「张同学，你好：」，greetingFor）。时间一律按北京时间写（formatMailDateTime）。
  *
- * 回信：给了 replyTo，信里才请对方「直接回复这封邮件」，没给就指向官网意见箱（待面试的信也一样）。
- * renderEnvelope 会拒绝请人回复却没有 replyTo 的信。
+ * 回信：给了 replyTo，信里才请对方「直接回复这封邮件」，没给就指向官网意见箱（待面试的信也一样），
+ * 这几句整句写在变量里（有问题怎么问、不清楚怎么问、来不了怎么说）。renderEnvelope 会拒绝请人回复却没有 replyTo 的信。
  */
 
-export type RecruitmentKind = "received" | "interview" | "accepted" | "rejected";
+export type { RecruitmentKind } from "./template-content.js";
 
 type Common = {
   /** 投递人填写的姓名 */
@@ -31,6 +38,8 @@ type Common = {
   sentAt: Date | number;
   /** 回信地址：有人在看的邮箱，发信模块写进 Reply-To */
   replyTo?: string;
+  /** 投递人写的特长与优点；模板里的 {{特长}} 取它，已收到的信必填（ReceivedInput），其余的信可以不给 */
+  strengths?: string;
 };
 
 export type ReceivedInput = Common & {
@@ -62,26 +71,6 @@ export type RecruitmentInput = {
   rejected: RejectedInput;
 };
 
-const FOOTER = "你在长江大学极客班官网报名时填写了这个邮箱，所以会收到这封信。";
-
-/** 没有回信地址时，有问题去哪里问 */
-const ASK_ON_FEEDBACK = "可以到官网的意见箱留言，联系方式一栏填这个邮箱。";
-
-/** 「你的报名信息」：每封信都带，收信人能核对是哪一份报名。投递时间按北京时间写，并写明是北京时间。 */
-function applicationFacts(input: Common): EnvelopeBlock {
-  return {
-    kind: "facts",
-    title: "你的报名信息",
-    items: [
-      { label: "姓名", value: input.name },
-      { label: "班级", value: input.className },
-      { label: "邮箱", value: input.email },
-      { label: "投递时间", value: `${formatMailDateTime(input.submittedAt)}（北京时间）` },
-      { label: "报名编号", value: input.applicationId, mono: true },
-    ],
-  };
-}
-
 const CJK_END = /[㐀-鿿豈-﫿]$/;
 const HAN = /^\p{Script=Han}$/u;
 
@@ -111,112 +100,47 @@ export function greetingFor(name: string): string {
   return `${clean}${CJK_END.test(clean) ? "" : " "}同学，你好：`;
 }
 
-function page(origin: string, path: string): string {
-  return new URL(path, safeMailLink(origin)).href;
-}
+/** 没有回信地址时，有问题去哪里问 */
+const ASK_ON_FEEDBACK = "可以到官网的意见箱留言，联系方式一栏填这个邮箱";
 
-function frame(input: Common, parts: Pick<EnvelopeMessage, "subject" | "preheader" | "kicker" | "blocks" | "action">): EnvelopeMessage {
+type Filled = Common & { time?: string; place?: string; notes?: readonly string[]; steps?: readonly string[]; reason?: string };
+
+const filled = (items: readonly string[] | undefined): string[] => (items ?? []).filter(item => item.trim());
+
+/**
+ * 把一封信的输入变成模板变量（TEMPLATE_VARIABLES 的每一项）。待面试的时间和地点必填，空的抛 MailTemplateError；
+ * 站点地址不是正式或预发布站点同样抛错。有没有回信地址、有没有填说明，决定「整句」变量写成什么。
+ */
+export function recruitmentValues(kind: RecruitmentKind, input: Filled): TemplateValues {
+  const time = kind === "interview" ? required(oneLine(input.time ?? ""), "面试时间") : "";
+  const place = kind === "interview" ? required(oneLine(input.place ?? ""), "面试地点") : "";
+  const notes = filled(input.notes);
+  const steps = filled(input.steps);
+  const reply = Boolean(input.replyTo);
   return {
-    ...parts,
-    greeting: greetingFor(input.name),
-    signedAt: input.sentAt,
-    footer: [FOOTER, `报名编号 ${oneLine(input.applicationId)}`],
-    siteUrl: page(input.siteOrigin, "/"),
-    replyTo: input.replyTo,
+    称呼: greetingFor(input.name),
+    姓名: input.name,
+    班级: input.className,
+    邮箱: input.email,
+    投递时间: `${formatMailDateTime(input.submittedAt)}（北京时间）`,
+    报名编号: oneLine(input.applicationId),
+    特长: input.strengths ?? "",
+    官网: new URL(safeMailLink(input.siteOrigin)).origin,
+    面试时间: time,
+    面试地点: place,
+    说明: kind === "interview" ? notes.join("\n") : kind === "accepted" ? steps.join("\n") : kind === "rejected" ? input.reason ?? "" : "",
+    有问题怎么问: reply ? "有问题直接回复这封邮件" : `有问题${ASK_ON_FEEDBACK}`,
+    不清楚怎么问: reply ? "有不清楚的地方，直接回复这封邮件问我们" : `有不清楚的地方，${ASK_ON_FEEDBACK}`,
+    来不了怎么说: reply ? "这个时间来不了的话，直接回复这封邮件说一声，我们再约" : "这个时间来不了的话，到官网的意见箱留言，联系方式一栏填这个邮箱，我们再约",
+    面试说明提示: kind === "interview" && notes.length ? "面试说明在信里。" : "",
+    接下来未填时: kind === "accepted" && !steps.length ? "接下来的安排我们会另外发邮件告诉你。" : "",
   };
 }
 
-export function receivedMessage(input: ReceivedInput): EnvelopeMessage {
-  const ask = input.replyTo ? "有问题直接回复这封邮件。" : `有问题${ASK_ON_FEEDBACK}`;
-  const blocks: EnvelopeBlock[] = [
-    { kind: "paragraph", text: "你寄给极客班的报名信，我们已经收到了。3 个工作日内会有人看完，并用这个邮箱联系你。" },
-    applicationFacts(input),
-    { kind: "quote", title: "你写的特长与优点", text: input.strengths },
-    { kind: "paragraph", text: `官网上查不到进度，面试安排和结果都会发到这个邮箱，记得也看一眼垃圾邮件。${ask}` },
-    { kind: "paragraph", text: "等消息的这几天，可以先去论坛逛逛，看看大家在做什么。" },
-  ];
-  return frame(input, {
-    subject: "极客班收到了你的报名信",
-    preheader: "3 个工作日内我们会用这个邮箱联系你，报名编号在信里。",
-    kicker: "招新进度 · 已收到",
-    blocks,
-    action: { label: "去论坛看看", url: page(input.siteOrigin, "/forum/") },
-  });
-}
-
-export function interviewMessage(input: InterviewInput): EnvelopeMessage {
-  const time = required(oneLine(input.time), "面试时间");
-  const place = required(oneLine(input.place), "面试地点");
-  const notes = (input.notes ?? []).filter(note => note.trim());
-  const blocks: EnvelopeBlock[] = [
-    { kind: "paragraph", text: "你的报名信我们看过了，想请你来当面聊一聊。" },
-    {
-      kind: "facts",
-      items: [
-        { label: "时间", value: time },
-        { label: "地点", value: place },
-      ],
-    },
-  ];
-  if (notes.length) blocks.push({ kind: "list", title: "面试说明", items: notes });
-  blocks.push({
-    kind: "paragraph",
-    text: input.replyTo
-      ? "这个时间来不了的话，直接回复这封邮件说一声，我们再约。"
-      : "这个时间来不了的话，到官网的意见箱留言，联系方式一栏填这个邮箱，我们再约。",
-  });
-  blocks.push(applicationFacts(input));
-  return frame(input, {
-    subject: `极客班面试安排：${time}`,
-    preheader: `${time}，${place}。${notes.length ? "面试说明在信里。" : ""}`,
-    kicker: "招新进度 · 待面试",
-    blocks,
-  });
-}
-
-export function acceptedMessage(input: AcceptedInput): EnvelopeMessage {
-  const blocks: EnvelopeBlock[] = [
-    { kind: "paragraph", text: "你通过了这一轮招新，欢迎加入长江大学极客班。" },
-  ];
-  const steps = (input.steps ?? []).filter(step => step.trim());
-  if (steps.length) blocks.push({ kind: "list", title: "接下来", items: steps });
-  else blocks.push({ kind: "paragraph", text: "接下来的安排我们会另外发邮件告诉你。" });
-  blocks.push({ kind: "paragraph", text: input.replyTo ? "有不清楚的地方，直接回复这封邮件问我们。" : `有不清楚的地方，${ASK_ON_FEEDBACK}` });
-  blocks.push(applicationFacts(input));
-  return frame(input, {
-    subject: "你已通过极客班招新",
-    preheader: "欢迎加入长江大学极客班，接下来的安排在信里。",
-    kicker: "招新进度 · 已录取",
-    blocks,
-    action: input.action,
-  });
-}
-
-export function rejectedMessage(input: RejectedInput): EnvelopeMessage {
-  const blocks: EnvelopeBlock[] = [
-    { kind: "paragraph", text: "谢谢你给极客班写信，把做过的事和想做的事讲给我们听。" },
-    { kind: "paragraph", text: "这一轮没能请你加入极客班。" },
-  ];
-  if (input.reason?.trim()) blocks.push({ kind: "paragraph", text: input.reason });
-  blocks.push({ kind: "paragraph", text: "论坛不登录只能看公开的帖子，发帖、回复要先登录。下一轮招新开始时，欢迎你再写信来。" });
-  blocks.push(applicationFacts(input));
-  return frame(input, {
-    subject: "极客班招新结果",
-    preheader: "谢谢你给极客班写信，这一轮的结果在信里。",
-    kicker: "招新进度 · 结果",
-    blocks,
-    action: { label: "去论坛看看", url: page(input.siteOrigin, "/forum/") },
-  });
-}
-
-const BUILDERS: { [K in RecruitmentKind]: (input: RecruitmentInput[K]) => EnvelopeMessage } = {
-  received: receivedMessage,
-  interview: interviewMessage,
-  accepted: acceptedMessage,
-  rejected: rejectedMessage,
-};
-
-/** 按投递状态取信的内容。 */
-export function recruitmentMessage<K extends RecruitmentKind>(kind: K, input: RecruitmentInput[K]): EnvelopeMessage {
-  return BUILDERS[kind](input);
+/** 按投递状态取信的内容。content 不传时用内置默认模板；传了就按那份模板拼（库里选出来的模板）。 */
+export function recruitmentMessage<K extends RecruitmentKind>(kind: K, input: RecruitmentInput[K], content: TemplateContent = DEFAULT_TEMPLATES[kind].content): EnvelopeMessage {
+  const message = fillTemplate(content, recruitmentValues(kind, input), { siteOrigin: input.siteOrigin, sentAt: input.sentAt, replyTo: input.replyTo });
+  // 已录取的信可以由调用方带一个按钮（例如组织邀请链接），盖过模板里的按钮
+  const action = kind === "accepted" ? (input as AcceptedInput).action : undefined;
+  return action ? { ...message, action } : message;
 }

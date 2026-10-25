@@ -2,6 +2,7 @@ import { choices, integer, object, text, type RouteContracts } from "../../lib/h
 import { APPLICATION_STATUS_IDS } from "../../lib/roles.js";
 import { FEEDBACK_STATUSES } from "../../lib/feedback-store.js";
 import { INVITE_CODE_PATTERN } from "../../lib/invite-codes.js";
+import { mailTemplateContracts, templateId } from "../../lib/mail/template-contract.js";
 import { FORUM_LIMITS } from "../../lib/forum-rules.js";
 import {
   competitionFields, competitionFailures, competitionDeleted, consoleCompetitionList, consoleCompetitionResult,
@@ -59,6 +60,8 @@ const inviteFailures = {
   "4xx": object({ error: { type: "string" }, message: { type: "string" }, request_id: { type: "string" }, capability: { type: "string" } }, ["error"], true),
   "5xx": object({ error: { type: "string" }, message: { type: "string" }, request_id: { type: "string" } }, ["error"], true),
 };
+// 招新总开关（#284）：updated_at 是最近一次开关的时间，从没动过为 null
+const applySettingsResult = object({ open: { type: "boolean" }, updated_at: nullableCount }, ["open", "updated_at"]);
 const applicationParams = { params: object({ application_id: { type: "string", pattern: UUID_PATTERN } }, ["application_id"]) };
 // 比赛 id 是 UUID，但种子比赛用的是可读 slug（oss-challenge-2026-1），路径参数不能只收 UUID。
 const competitionParams = consoleCompetitionIdParam;
@@ -209,6 +212,12 @@ export const consoleContracts: RouteContracts = {
   "GET /api/console/applications": {
     querystring: object({ status: choices(...APPLICATION_STATUS_IDS), q: text(100), limit: limit(200), offset }),
   },
+  "GET /api/console/applications/settings": { ...noQuery, response: { 200: applySettingsResult, ...consoleFailures } },
+  "PATCH /api/console/applications/settings": {
+    ...noQuery,
+    body: object({ open: { type: "boolean" } }, ["open"]),
+    response: { 200: applySettingsResult, ...consoleFailures },
+  },
   "GET /api/console/applications/export.csv": { querystring: object({ status: choices(...APPLICATION_STATUS_IDS) }) },
   "GET /api/console/applications/:application_id": { ...noQuery, ...applicationParams },
   "PATCH /api/console/applications/:application_id": {
@@ -217,11 +226,17 @@ export const consoleContracts: RouteContracts = {
     // letter 是改状态时发的信的内容（#148）：待面试的时间、地点、说明，已录取的「接下来」，未通过的原因。
     // expected_status、expected_review_id 是控制台页面上看到的状态和审核记录的版本号（最大的审核记录 id，没有记录时是 0），
     // 和库里不同时回 409 status_changed，不改也不发信；要改状态时两项都得带。
+    // template_id（#285）是这次发信选的模板，不传用这一类信的默认模板；要发信时必须是同一类、已启用的模板，否则回 400 template_invalid。
     body: object({
       status: text(32), expected_status: choices(...APPLICATION_STATUS_IDS), expected_review_id: integer(0), note: text(2000), notify: { type: "boolean" },
+      template_id: templateId,
       letter: object({ time: text(60), place: text(120), notes: text(1000), message: text(1000) }),
     }),
+    // 成功回 { application, review }，两项原样保留（开放对象）；失败体用共同的开放形状，409 status_changed 另带 application，400 letter_required 另带 fields。
+    response: { 200: object({ application: freeObject, review: freeObject }), ...consoleFailures },
   },
+  // 招聘邮件模板（#285）：模板的增删改查、预览、试发，以及投递详情里的信预览
+  ...mailTemplateContracts,
   "GET /api/console/feedback": { querystring: object({ status: choices(...FEEDBACK_STATUSES), limit: limit(500) }) },
   "PATCH /api/console/feedback/:id": {
     ...noQuery,

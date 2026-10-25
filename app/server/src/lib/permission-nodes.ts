@@ -46,6 +46,9 @@ export const PERMISSION_NODES: PermissionNodeDef[] = [
   { node: "apply.view", domain: "apply", label: "查看投递", description: "查看投递列表与详情" },
   { node: "apply.review", domain: "apply", label: "审核投递", description: "修改投递状态、写备注" },
   { node: "apply.export", domain: "apply", label: "导出投递", description: "导出投递 CSV" },
+  { node: "apply.settings", domain: "apply", label: "招新开关", description: "开放或关闭招新；关闭后官网显示关闭页，新的投递被拒绝，已收到的投递照常处理" },
+  // 招聘邮件模板（#285）：试发会真的往外发信，所以和 system.backup 一样不往下发，只留给站长的根通配 `*`
+  { node: "mail.template.manage", domain: "apply", label: "管理招聘邮件模板", description: "新建、编辑、停用招聘邮件的模板，预览，并向自己填的测试邮箱试发样信" },
   // 比赛
   { node: "competition.signup", domain: "competition", label: "报名比赛", description: "报名参加比赛" },
   { node: "competition.team", domain: "competition", label: "组队", description: "创建、加入、管理比赛队伍" },

@@ -4,11 +4,14 @@ import { MAIL_LINK_HOSTS, renderEnvelope, safeAssetBase, safeReplyTo, type Rende
 import { createAliyunProvider, createResendProvider, type FetchLike, type MailProvider } from "./providers.js";
 import { createMailOutbox, normalizeAddress, type EnqueueLimits } from "./outbox.js";
 import { recruitmentMessage, type RecruitmentKind } from "./recruitment.js";
+import { createTemplateStore } from "./template-store.js";
+import type { TemplateContent } from "./template-content.js";
 import { loginCodeMessage, type LoginCodePurpose } from "./login-code.js";
 
 /**
  * 站内发信的组装（#148）：按配置建发信商、发信队列，并把一份投递拼成招新的信。
  * 路由只调这里：recruitmentLetter 渲染（模板出错就在写库之前抛出），enqueue 放进队列。
+ * 招聘信的文字来自模板（#285，lib/mail/template-store.ts）：没指定就用这一类信的默认模板，改状态时可以指定另一套。
  */
 
 /** 招新的信要用到的投递字段（applications 表的列） */
@@ -27,6 +30,12 @@ export type MailerDeps = { fetch?: FetchLike; now?: () => number };
  * （recipientWindowMs、perSourceHour、perSourceDay）还在，确认信现在不用。
  */
 export const RECEIVED_LETTER_LIMITS: EnqueueLimits = { perHour: 200 };
+
+/**
+ * 控制台向测试邮箱试发样信（#285）的全站上限：一小时 30 封，和 enqueue 的 perHour 一起数 recruitment.test 这一种信。
+ * 每个账号每小时的次数另算（routes/console/mail-templates.ts 的 TEST_SEND_PER_ACCOUNT_HOUR，limits 的 mail.test.hourly 桶）。
+ */
+export const TEST_LETTER_LIMITS: EnqueueLimits = { perHour: 30 };
 
 /** 发件地址、回信地址只收一个普通的邮箱地址；错误信息不带配置的值。 */
 function address(value: string, key: string): string {
@@ -66,17 +75,34 @@ export function createMailer(db: Database.Database, config: MailConfig, publicOr
   const usable = replyTo ? providers.filter(provider => provider.supportsReplyTo) : providers;
   const outbox = createMailOutbox(db, { providers: usable, recipients: config.recipients, allowlist: config.allowlist, now });
 
-  /** 按投递和信的内容拼一封招新的信并渲染；内容不合规（例如没配回信地址却请人直接回复）抛 MailTemplateError。 */
-  function recruitmentLetter(kind: RecruitmentKind, application: ApplicationForMail, letter: RecruitmentLetter = {}): RenderedMail {
+  const templates = createTemplateStore(db);
+
+  /**
+   * 按投递和信的内容拼一封招新的信并渲染；内容不合规（例如没配回信地址却请人直接回复）抛 MailTemplateError。
+   * template 是选出来的模板内容（templates.pick），不传用这一类信的默认模板。
+   */
+  function recruitmentLetter(kind: RecruitmentKind, application: ApplicationForMail, letter: RecruitmentLetter = {}, template?: TemplateContent): RenderedMail {
+    const content = template ?? templates.defaultContent(kind);
     const common = {
       name: application.name, className: application.class_name, email: application.email, submittedAt: application.created_at,
       applicationId: application.id, siteOrigin, sentAt: now(), replyTo,
     };
-    const message = kind === "received" ? recruitmentMessage("received", { ...common, strengths: application.strengths })
-      : kind === "interview" ? recruitmentMessage("interview", { ...common, time: letter.time ?? "", place: letter.place ?? "", notes: lines(letter.notes) })
-      : kind === "accepted" ? recruitmentMessage("accepted", { ...common, steps: lines(letter.notes) })
-      : recruitmentMessage("rejected", { ...common, reason: letter.message?.trim() || undefined });
+    const message = kind === "received" ? recruitmentMessage("received", { ...common, strengths: application.strengths }, content)
+      : kind === "interview" ? recruitmentMessage("interview", { ...common, time: letter.time ?? "", place: letter.place ?? "", notes: lines(letter.notes), strengths: application.strengths }, content)
+      : kind === "accepted" ? recruitmentMessage("accepted", { ...common, steps: lines(letter.notes), strengths: application.strengths }, content)
+      : recruitmentMessage("rejected", { ...common, reason: letter.message?.trim() || undefined, strengths: application.strengths }, content);
     return renderEnvelope(message, { assetBase });
+  }
+
+  /**
+   * 预览和试发用的渲染：按给定的模板内容渲染，不碰库、不入队。待面试还没填时间、地点时用占位文字，
+   * 让预览里看得出它们会出现在哪里（真正改状态时仍然要求必填，见 routes/console/applications.ts）。
+   */
+  function previewLetter(kind: RecruitmentKind, content: TemplateContent, application: ApplicationForMail, letter: RecruitmentLetter = {}): RenderedMail {
+    const filled = kind === "interview"
+      ? { ...letter, time: letter.time?.trim() || "【面试时间待填】", place: letter.place?.trim() || "【面试地点待填】" }
+      : letter;
+    return recruitmentLetter(kind, application, filled, content);
   }
 
   /** 登录、绑定用的验证码信（#262）。 */
@@ -105,7 +131,7 @@ export function createMailer(db: Database.Database, config: MailConfig, publicOr
     return { status: "failed", error };
   }
 
-  return { ...outbox, replyTo: replyTo ?? null, recruitmentLetter, loginCodeLetter, sendNow, sendingEnabled: providers.length > 0 };
+  return { ...outbox, replyTo: replyTo ?? null, templates, recruitmentLetter, previewLetter, loginCodeLetter, sendNow, sendingEnabled: providers.length > 0 };
 }
 
 export type Mailer = ReturnType<typeof createMailer>;

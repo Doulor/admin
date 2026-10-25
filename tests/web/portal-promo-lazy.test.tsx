@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// 宣传片分包加载失败（断网、发版后旧页面找不到新文件名）：播放层分包失败时不能让整个官网卸载，当作「播放失败」直接结束；
+// 宣传片分包加载失败（断网、发版后旧页面找不到新文件名）：播放器分包失败时不能让整个官网卸载，当作「播放失败」在宣传片窗口里说明（窗口留着，不自己消失）；
 // 失败只算这一次打开，下次打开重新加载（#110）。hls.js 分包同理。
 // 浏览器按 HTML 规范记住加载失败的模块地址，同一个地址以后都直接失败，所以重来要换地址。这里照这个样子模拟：
 // 原地址一旦失败就一直失败；写死的重试地址（?retry=n，生产构建里是文件名不同的分包）换成按当时网络决定成败的桩。
@@ -8,6 +8,7 @@ import { lazy, Suspense, type ComponentType } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as PromoLazy from "../../app/web/sites/portal/components/PromoLazy";
 import type * as PromoLib from "../../app/web/sites/portal/lib/promo";
+import { PROMO_FAILED } from "../../app/web/sites/portal/lib/promoWindow";
 
 const LIB = "../../app/web/sites/portal/lib/promo";
 const PLAYER = "../../app/web/sites/portal/components/PromoPlayer";
@@ -72,8 +73,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("播放层分包", () => {
-  const Stub = () => <div role="dialog" aria-label="极客班宣传片" />;
+describe("播放器分包", () => {
+  const Stub = () => <div data-testid="promo-stub" />;
   let LazyPromoPlayer: typeof PromoLazy.LazyPromoPlayer;
   beforeEach(async () => {
     vi.doMock(PLAYER, () => original(() => ({ default: Stub })));
@@ -81,22 +82,23 @@ describe("播放层分包", () => {
     ({ LazyPromoPlayer } = await import("../../app/web/sites/portal/components/PromoLazy"));
   });
 
-  function open(onClose: (reason: string) => void) {
+  function open(onEnd: (reason: string) => void) {
     return (
       <Suspense fallback={null}>
-        <LazyPromoPlayer mode="gate" onClose={(reason) => onClose(reason)} />
+        <LazyPromoPlayer onEnd={(reason) => onEnd(reason)} />
       </Suspense>
     );
   }
 
-  it("分包加载失败时调用 onClose(\"failed\")，不抛到外面；父组件重渲染换了新的 onClose 也只调一次", async () => {
-    const onClose = vi.fn();
-    const view = render(open(onClose));
-    await waitFor(() => expect(onClose).toHaveBeenCalledWith("failed"));
-    view.rerender(open(onClose));
+  it("分包加载失败时调用 onEnd(\"failed\")，窗口里说明，不抛到外面；父组件重渲染换了新的 onEnd 也只调一次", async () => {
+    const onEnd = vi.fn();
+    const view = render(open(onEnd));
+    await waitFor(() => expect(onEnd).toHaveBeenCalledWith("failed"));
+    expect(screen.getByRole("status").textContent).toBe(PROMO_FAILED);
+    view.rerender(open(onEnd));
     await act(async () => {});
-    expect(onClose).toHaveBeenCalledTimes(1);
-    // 打开期间父组件重渲染还是同一个播放层：不会换成新的再加载一遍、多用掉一个重试地址
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    // 打开期间父组件重渲染还是同一个播放器：不会换成新的再加载一遍、多用掉一个重试地址
     expect(net.retried).toEqual([1]);
   });
 
@@ -115,13 +117,13 @@ describe("播放层分包", () => {
     net.down = false;
     const third = vi.fn();
     render(open(third));
-    expect(await screen.findByRole("dialog", { name: "极客班宣传片" })).toBeTruthy();
+    expect(await screen.findByTestId("promo-stub")).toBeTruthy();
     expect(third).not.toHaveBeenCalled();
     // 原地址失败后马上换第 1 个重试地址试一次，之后每次打开换一个新地址
     expect(net.retried).toEqual([1, 2, 3]);
   });
 
-  it("加载中就关掉（gate 点了跳过）、之后分包才失败：下次打开换地址重新加载，不会一打开就按失败关掉", async () => {
+  it("加载中就关掉窗口、之后分包才失败：下次打开换地址重新加载，不会一打开就按失败结束", async () => {
     const skipped = vi.fn();
     const view = render(open(skipped));
     // 分包还没结果就卸载：这次失败没有人显示出来
@@ -134,12 +136,12 @@ describe("播放层分包", () => {
     net.down = false;
     const replay = vi.fn();
     render(open(replay));
-    expect(await screen.findByRole("dialog", { name: "极客班宣传片" })).toBeTruthy();
+    expect(await screen.findByTestId("promo-stub")).toBeTruthy();
     expect(replay).not.toHaveBeenCalled();
     expect(net.retried).toEqual([1, 2]);
   });
 
-  it("分包已经失败、React 还没把失败显示出来就关掉了：下次打开换地址重新加载，不会一打开就按失败关掉", async () => {
+  it("分包已经失败、React 还没把失败显示出来就关掉了：下次打开换地址重新加载，不会一打开就按失败结束", async () => {
     // 第 1 个重试地址由用例放行。放行以后，失败送到 PromoLazy 只经过微任务；
     // React 要在之后的宏任务里才重渲染、提交 PromoUnavailable，所以只排空微任务就卸载，正好落在这段空档里
     let fail!: () => void;
@@ -159,19 +161,19 @@ describe("播放层分包", () => {
     net.down = false;
     const replay = vi.fn();
     render(open(replay));
-    expect(await screen.findByRole("dialog", { name: "极客班宣传片" })).toBeTruthy();
+    expect(await screen.findByTestId("promo-stub")).toBeTruthy();
     expect(replay).not.toHaveBeenCalled();
     expect(net.retried).toEqual([1, 2]);
   });
 
-  it("外面的页面也还没提交时分包就失败了（第一次打开「加入我们」窗口）：同一次打开不会因为 React 丢掉重来而多用重试地址", async () => {
-    // 页面自己的分包还没到：LazyPromoPlayer 渲染了但和页面一起没提交，React 等的时候会丢掉没提交的渲染重来
+  it("外面的窗口也还没提交时分包就失败了（第一次打开宣传片窗口）：同一次打开不会因为 React 丢掉重来而多用重试地址", async () => {
+    // 窗口自己的分包还没到：LazyPromoPlayer 渲染了但和窗口一起没提交，React 等的时候会丢掉没提交的渲染重来
     let showPage!: () => void;
     const PageChunk = lazy(() => new Promise<{ default: ComponentType }>((resolve) => (showPage = () => resolve({ default: () => null }))));
-    const onClose = vi.fn();
+    const onEnd = vi.fn();
     render(
       <Suspense fallback={null}>
-        <LazyPromoPlayer mode="gate" onClose={(reason) => onClose(reason)} />
+        <LazyPromoPlayer onEnd={(reason) => onEnd(reason)} />
         <PageChunk />
       </Suspense>,
     );
@@ -182,18 +184,18 @@ describe("播放层分包", () => {
     expect(net.retried).toEqual([1]);
 
     await act(async () => showPage());
-    await waitFor(() => expect(onClose).toHaveBeenCalledWith("failed"));
-    expect(onClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onEnd).toHaveBeenCalledWith("failed"));
+    expect(onEnd).toHaveBeenCalledTimes(1);
     expect(net.retried).toEqual([1]);
   });
 
   it("桌面预取时断网、后来网络恢复：第一次打开就换地址加载，直接能播", async () => {
     net.poisoned = true;
     net.down = false;
-    const onClose = vi.fn();
-    render(open(onClose));
-    expect(await screen.findByRole("dialog", { name: "极客班宣传片" })).toBeTruthy();
-    expect(onClose).not.toHaveBeenCalled();
+    const onEnd = vi.fn();
+    render(open(onEnd));
+    expect(await screen.findByTestId("promo-stub")).toBeTruthy();
+    expect(onEnd).not.toHaveBeenCalled();
     expect(net.retried).toEqual([1]);
   });
 });
@@ -215,7 +217,7 @@ describe("hls.js 分包", () => {
     recoverMediaError() {}
     destroy() {}
   }
-  let PromoPlayer: ComponentType<{ mode: "gate" | "replay"; onClose: (reason: string) => void }>;
+  let PromoPlayer: ComponentType<{ onEnd: (reason: string) => void }>;
   beforeEach(async () => {
     FakeHls.created = 0;
     vi.doMock(HLS, () => original(() => ({ default: FakeHls })));
@@ -233,19 +235,19 @@ describe("hls.js 分包", () => {
 
   it("失败只算这一次：网络恢复后再打开，换地址重新加载 hls.js 并开始播放", async () => {
     const first = vi.fn();
-    render(<PromoPlayer mode="gate" onClose={first} />);
+    render(<PromoPlayer onEnd={first} />);
     await waitFor(() => expect(first).toHaveBeenCalledWith("failed"));
     cleanup();
 
     net.down = false;
     const second = vi.fn();
-    render(<PromoPlayer mode="gate" onClose={second} />);
+    render(<PromoPlayer onEnd={second} />);
     await waitFor(() => expect(FakeHls.created).toBe(1));
     expect(second).not.toHaveBeenCalled();
     expect(net.retried.at(-1)).toBe(2);
   });
 
-  it("播放层卸载以后 hls.js 分包才失败：不再结束一次（不调 onClose）", async () => {
+  it("播放器卸载以后 hls.js 分包才失败：不再结束一次（不调 onEnd）", async () => {
     let fail!: () => void;
     // 项目 lib 是 ES2022，没有 Promise.withResolvers
     const gate = new Promise<void>((resolve) => (fail = resolve));
@@ -259,16 +261,16 @@ describe("hls.js 分包", () => {
     }, {
       detectCapabilities: async () => ({ mse: true, mseAv1Smooth: false, native: false, nativeAv1: false, touch: false }),
     });
-    // 要在换过 hls.js 分包的桩之后重新加载播放层，所以只能动态加载
+    // 要在换过 hls.js 分包的桩之后重新加载播放器，所以只能动态加载
     const { default: Player } = await import("../../app/web/sites/portal/components/PromoPlayer");
-    const onClose = vi.fn();
-    const view = render(<Player mode="gate" onClose={onClose} />);
+    const onEnd = vi.fn();
+    const view = render(<Player onEnd={onEnd} />);
     await act(async () => {});
     view.unmount();
     await act(async () => {
       fail();
       await new Promise((resolve) => setTimeout(resolve, 20));
     });
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onEnd).not.toHaveBeenCalled();
   });
 });
