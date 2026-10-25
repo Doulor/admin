@@ -234,8 +234,13 @@ server {
         access_log off;
     }
     # install.sh / install.ps1 / latest.json：跟着发布更新，每次都要回源。
+    # 安装脚本的默认源站在构建时写成生产域名；预发布的 install.sh 要从预发布装，所以默认值在这里换成请求的域名
+    # （宿主 nginx 用 Host $host 透传，$host 就是 curl 访问的域名），GEEK_ORIGIN 仍然优先（#289）。
     location /cli/ {
         expires -1;
+        sub_filter_types *;
+        sub_filter_once off;
+        sub_filter 'https://yangtzeu.work' 'https://$host';
         try_files $uri =404;
     }
 
