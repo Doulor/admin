@@ -1692,6 +1692,18 @@
         {
           "path": "app/server/src/lib/identity-store.ts",
           "needle": "  function hasGoogle(accountId: string): boolean {"
+        },
+        {
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx",
+          "needle": "  const linkGoogle = async () => {"
+        },
+        {
+          "path": "app/web/sites/portal/lib/linkNotice.ts",
+          "needle": "export function linkNoticeOf(link: string | null, provider: string | null): LinkNotice | null {"
+        },
+        {
+          "path": "app/web/sites/portal/lib/navigate.ts",
+          "needle": "export function goTo(url: string): void {"
         }
       ],
       "tests": [

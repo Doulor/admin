@@ -1794,6 +1794,18 @@
         {
           "line": 540,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 362,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 13,
+          "path": "app/web/sites/portal/lib/linkNotice.ts"
+        },
+        {
+          "line": 2,
+          "path": "app/web/sites/portal/lib/navigate.ts"
         }
       ],
       "id": "flow:identity.account.link",
@@ -15407,7 +15419,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "2c95129744bf0674b4674d8f1a1ba668495072ea94760c7a85d8bea2618bccd9",
+    "fingerprint": "cff9db0b927f1bb52530a96c6d190bd2ce8ec3769efed1c5dc0d649be79c459d",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -17211,7 +17223,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "e1852c2f0cdae397e0e4b2b5e54158a126e487527df5d5aad2ae42ef0df12fa6"
+        "sha256": "93fe1a6a27048db61df95da8ef49cef9a3234341e44e200c21887cf56f34eb6a"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -65196,6 +65208,18 @@
         {
           "line": 540,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 362,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 13,
+          "path": "app/web/sites/portal/lib/linkNotice.ts"
+        },
+        {
+          "line": 2,
+          "path": "app/web/sites/portal/lib/navigate.ts"
         }
       ],
       "from": "flow:identity.account.link",
@@ -65216,6 +65240,18 @@
         {
           "line": 540,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 362,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 13,
+          "path": "app/web/sites/portal/lib/linkNotice.ts"
+        },
+        {
+          "line": 2,
+          "path": "app/web/sites/portal/lib/navigate.ts"
         }
       ],
       "from": "flow:identity.account.link",
@@ -65248,6 +65284,18 @@
         {
           "line": 540,
           "path": "app/server/src/lib/identity-store.ts"
+        },
+        {
+          "line": 362,
+          "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
+        },
+        {
+          "line": 13,
+          "path": "app/web/sites/portal/lib/linkNotice.ts"
+        },
+        {
+          "line": 2,
+          "path": "app/web/sites/portal/lib/navigate.ts"
         }
       ],
       "from": "flow:identity.account.link",

@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-25 · 自动生成，不手工编辑。
 
-来源摘要：`2c95129744bf0674b4674d8f1a1ba668495072ea94760c7a85d8bea2618bccd9`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`cff9db0b927f1bb52530a96c6d190bd2ce8ec3769efed1c5dc0d649be79c459d`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -386,7 +386,7 @@
 - 响应与错误：200 {authorize_url}；provider 不是 google 400；本账号已经绑了 Google 409 identity_exists，不去 Google；return_to 只接受本站，缺省 /account。
 - 数据与副作用：只写签名 cookie google_oauth_state（kind 为 google-link，带账号 id 与会话指纹，path=/auth/google，10 分钟），不写数据库；真正的绑定在 GET /auth/google/callback，绑的是发起的那个账号，不登录、不建号。
 
-源码：[app/server/src/routes/identity/google.ts:42](../../../app/server/src/routes/identity/google.ts#L42) · [app/server/src/routes/identity/contracts.ts:186](../../../app/server/src/routes/identity/contracts.ts#L186) · [app/server/src/lib/identity-store.ts:540](../../../app/server/src/lib/identity-store.ts#L540)
+源码：[app/server/src/routes/identity/google.ts:42](../../../app/server/src/routes/identity/google.ts#L42) · [app/server/src/routes/identity/contracts.ts:186](../../../app/server/src/routes/identity/contracts.ts#L186) · [app/server/src/lib/identity-store.ts:540](../../../app/server/src/lib/identity-store.ts#L540) · [app/web/sites/portal/components/os/ProfileCard.tsx:362](../../../app/web/sites/portal/components/os/ProfileCard.tsx#L362) · [app/web/sites/portal/lib/linkNotice.ts:13](../../../app/web/sites/portal/lib/linkNotice.ts#L13) · [app/web/sites/portal/lib/navigate.ts:2](../../../app/web/sites/portal/lib/navigate.ts#L2)
 
 测试入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/web/portal-profile-card.test.tsx](../../../tests/web/portal-profile-card.test.tsx)。生成器未执行这些测试。
 
