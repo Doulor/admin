@@ -22,3 +22,10 @@
 - 做了什么：新增 mail_templates 表（建表语句在 db.ts，目录校验要从那里找锚点）和 lib/migrations/2026-10-mail-templates.ts（首次把四类信种成默认模板，另加一套面试邀请简短版，console_seeds 标记只插一次）；新增 lib/mail/template-store.ts（每类唯一默认、默认不能停用或删除、同类名字不重复）与 template-contract.ts；新增权限节点 mail.template.manage（默认只有站长的根通配拿到）；新增接口：模板的列表、新建、编辑、删除、预览、测试邮箱试发，以及投递详情里的 letter-preview；PATCH 投递加可选 template_id，详情响应加 letter_templates；outbox 加只试一次的 recruitment.test 和 lastError；ownership.json 加 mail_templates 的归属与用途、7 条新流程，重新生成目录；legacy-database 测试的表清单与种子标记补上新表和 mail_templates_v1。
 - 结果：tests/server/mail-templates.test.ts 36 项通过（增删改查与权限、未知变量被拒、转义与恶意链接、预览不入队不写投递记录、试发只发一封且投递与审核记录行数不变、试发限流、不同模板主题正文不同、template_id 类别不符被拒）；tests/server + tests/tooling 全量重跑中的目录与 legacy-database 失败已修，tests/tooling 与 legacy-database 与两个 mail-template 测试共 40 个文件 882 项通过；pnpm check:catalog 通过（5 应用 293 方法路径 69 表）；服务端 tsc 通过。
 - 下一步：控制台模板页、实时预览、测试邮箱试发区与投递详情里的模板选择，然后文档
+
+## 14:12:48 +08:00 · 提交 · #285 · 控制台邮件模板页、实时预览、测试邮箱试发与投递详情里的模板选择
+
+- 执行者：agent-claude-geek-main-mail（Claude Code，claude-sonnet-5-5）
+- 做了什么：新增控制台页 /console/mail-templates（节点 mail.template.manage）：左边按类别列出模板，可启停、设默认、复制、删除；右边是编辑区（名称、主题、预览摘要、抬头、正文块的增删移与调序、按钮、页脚、变量速查表点一下插入到光标处）、实时预览（停手 400 毫秒后请求，过期响应丢弃，渲染不出来时保留上一版并把服务端指出的问题标在对应输入框下）、测试邮箱试发区；预览放在不带任何权限的 iframe（sandbox、srcdoc）里。投递详情里这一类有两套以上启用的模板时出现『用哪一套信』下拉框和『预览这封信』，请求只在选了非默认模板时带 template_id。导航、路由、权限节点说法、操作记录说法、开发预览数据同步更新；ownership.json 给新增的控制台文件和相关流程补了归属与证据。
+- 结果：tests/console 21 个文件 295 项通过，其中新增 tests/console/mail-templates.test.ts 43 项（草稿与请求体互转、变量插入、问题标到输入框、预览防抖与过期响应、试发结果、开发预览数据的权限与只读）和 applications.test.ts 新增 8 项（模板下拉框、template_id 规则、预览请求体、template_invalid 的位置）；pnpm --filter @yzgc/console typecheck 通过；pnpm check:catalog 通过（5 应用 293 方法路径 69 表）；tests/tooling 37 个文件 822 项通过。没有在真实浏览器里看过页面，布局和 iframe 在生产 CSP 下的显示都还没有验证。
+- 下一步：更新 server 与 console 的服务文档、API 与接口契约，补 docs/changes/285.json

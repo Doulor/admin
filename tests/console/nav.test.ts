@@ -24,7 +24,7 @@ describe("console navigation per persona (#274)", () => {
   it("follows SPEC §3.9: 概览, then 招新, 社区, 用户, GitLab, 记录, 系统, with no GitHub organisation pages", () => {
     expect(NAV_GROUPS.map(group => group.label)).toEqual(["招新", "社区", "用户", "GitLab", "记录", "系统"]);
     expect(CONSOLE_NAV.map(item => item.id)).toEqual([
-      "overview", "applications", "forum", "competitions", "users", "permissions", "invites",
+      "overview", "applications", "mail-templates", "forum", "competitions", "users", "permissions", "invites",
       "gitlab-overview", "gitlab-accounts", "gitlab-projects", "gitlab-settings", "activity", "feedback", "backup",
     ]);
     for (const item of CONSOLE_NAV) {
@@ -56,6 +56,15 @@ describe("console navigation per persona (#274)", () => {
     expect(me("ai_staff").permissions).toContain("console.access");
     expect(ids("ai_staff")).toContain("competitions");
     expect(ids("ai_staff")).not.toContain("users");
+  });
+  it("shows the mail templates page only to whoever holds mail.template.manage, which only the owner's root wildcard has by default (#285)", () => {
+    expect(ids("owner")).toContain("mail-templates");
+    expect(me("owner").permissions).toContain("mail.template.manage");
+    for (const name of ["management_head", "ai_head", "ai_staff"]) {
+      expect(ids(name), name).not.toContain("mail-templates");
+      expect(me(name).permissions, name).not.toContain("mail.template.manage");
+    }
+    expect(CONSOLE_NAV.find(item => item.id === "mail-templates")).toMatchObject({ to: "/console/mail-templates", anyOf: ["mail.template.manage"], group: "recruit" });
   });
   it("keeps members, alumni and registered users out: /api/console/me answers but without console.access", () => {
     for (const name of ["member", "alumni", "registered"]) expect(me(name).permissions, name).not.toContain("console.access");

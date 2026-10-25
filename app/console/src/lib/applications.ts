@@ -4,7 +4,7 @@
 import { fmtDate } from "./format";
 import { ApiError } from "./http";
 import { APPLICATION_STATUS, isApplicationStatus } from "./statuses";
-import type { ApplicationLetter, ApplicationReviewPatch, ApplicationStatus, MailSettings, MailSummary } from "./types";
+import type { ApplicationLetter, ApplicationReviewPatch, ApplicationStatus, LetterTemplates, MailSettings, MailSummary } from "./types";
 
 /** 只有这三种状态有通知信；已取消、改回已收到、只写备注都不发。 */
 export type LetterKind = Extract<ApplicationStatus, "interview" | "accepted" | "rejected">;
@@ -77,13 +77,30 @@ export function newestReviewId(reviews: readonly { id: number }[]): number {
   return reviews.reduce((newest, review) => Math.max(newest, review.id), 0);
 }
 
+/** 改状态时的模板下拉框（#285）：这一类启用的模板有两套以上才出现，只有一套时没得选。 */
+export type TemplateChoice = { defaultId: string; options: { value: string; label: string }[] };
+export function templateChoice(templates: LetterTemplates | undefined, kind: LetterKind): TemplateChoice | null {
+  const options = templates?.[kind] ?? [];
+  if (options.length < 2) return null;
+  const defaultId = (options.find(item => item.is_default) ?? options[0]).id;
+  return {
+    defaultId,
+    options: options.map(item => ({ value: item.id, label: item.is_default && !item.name.includes("默认") ? `${item.name}（默认）` : item.name })),
+  };
+}
+
+/** 选了默认以外的模板才带 template_id；不带就是用这一类的默认模板，服务端和这里说的是同一套。 */
+const pickedTemplate = (templateId: string | undefined, defaultTemplateId: string | null | undefined): { template_id?: string } =>
+  templateId && templateId !== defaultTemplateId ? { template_id: templateId } : {};
+
 /**
- * PATCH 体：只带改了的状态、非空备注；改到要发信的状态时带上 notify，勾了才带信的内容。
+ * PATCH 体：只带改了的状态、非空备注；改到要发信的状态时带上 notify，勾了才带信的内容和选的模板。
  * 总是带上页面上看到的状态和审核记录的版本号（latestReviewId，见 newestReviewId），
  * 别人在这之间处理过时服务端回 409，不按旧画面改、不发信；只比状态会漏掉「改走又改回」。
  */
 export function reviewPatch(input: {
   current: string; latestReviewId: number; status: ApplicationStatus; note: string; notify: boolean; draft: LetterDraft;
+  templateId?: string; defaultTemplateId?: string | null;
 }): ApplicationReviewPatch {
   const body: ApplicationReviewPatch = isApplicationStatus(input.current) ? { expected_status: input.current, expected_review_id: input.latestReviewId } : {};
   const changed = input.status !== input.current;
@@ -91,9 +108,20 @@ export function reviewPatch(input: {
   if (input.note.trim()) body.note = input.note.trim();
   if (changed && isLetterKind(input.status)) {
     body.notify = input.notify;
-    if (input.notify) body.letter = letterPayload(input.status, input.draft);
+    if (input.notify) {
+      Object.assign(body, pickedTemplate(input.templateId, input.defaultTemplateId));
+      body.letter = letterPayload(input.status, input.draft);
+    }
   }
   return body;
+}
+
+/**
+ * 「预览这封信」的请求体：和保存时发信用的是同一份内容。面试时间、地点还没填的不带，服务端在预览里用占位文字顶上。
+ */
+export function letterPreviewBody(input: { status: LetterKind; draft: LetterDraft; templateId?: string; defaultTemplateId?: string | null }) {
+  const letter = Object.fromEntries(Object.entries(letterPayload(input.status, input.draft)).filter(([, value]) => value)) as ApplicationLetter;
+  return { status: input.status, ...pickedTemplate(input.templateId, input.defaultTemplateId), letter };
 }
 
 /** 409 status_changed：别人刚改过这份投递的状态。页面刷新后用这句话提示。 */
@@ -104,13 +132,15 @@ export function statusChangedMessage(error: unknown): string | null {
 
 /**
  * 服务端按字段拒绝的错误，显示在对应的输入框下面：invalid_status 在状态上，letter_required 在面试时间、地点上，
- * letter_invalid（信渲染不出来，例如没配回信地址却写了「直接回复这封邮件」）在「通知投递人」一栏里。
+ * letter_invalid（信渲染不出来，例如没配回信地址却写了「直接回复这封邮件」）和 template_invalid（选的模板不存在、
+ * 不是这一类或已经停用）在「通知投递人」一栏里。
  * 其它错误返回 null，交给 ErrorAlert。
  */
 export function serverFieldErrors(error: unknown): { status?: string; notice?: string; letter: LetterErrors } | null {
   if (!(error instanceof ApiError) || error.status !== 400) return null;
   if (error.code === "invalid_status") return { status: error.message || "状态只能是已收到、待面试、已录取、未通过、已取消。", letter: {} };
   if (error.code === "letter_invalid") return { notice: error.message || "信的内容不合规，改一下再发。", letter: {} };
+  if (error.code === "template_invalid") return { notice: error.message || "选的这套信现在不能用，换一套再发。", letter: {} };
   if (error.code !== "letter_required") return null;
   const fields = error.payload?.fields;
   if (!fields || typeof fields !== "object") return null;

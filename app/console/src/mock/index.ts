@@ -1,7 +1,7 @@
 // 开发预览的接口入口：只读，写请求一律 501 mock_read_only，不伪造写成功（与 docs/architecture/API.md 的约定一致）；
 // 控制台的写请求先按服务端规则核对权限、step-up 和几种业务错误（mock/console.ts 的 checkConsoleWrite），不合法的照服务端返回 401/403/400/409。
 import { ApiError } from "../lib/http";
-import { checkConsoleWrite, mockAccount, mockPersona, routeConsole } from "./console";
+import { checkConsoleWrite, mockAccount, mockPersona, routeConsole, routeLetterPreview, routeMailPreview } from "./console";
 
 export async function mockApi<T>(path: string, init?: RequestInit): Promise<T> {
   await new Promise(resolve => setTimeout(resolve, 120));
@@ -52,6 +52,10 @@ export async function mockApi<T>(path: string, init?: RequestInit): Promise<T> {
     if (!persona) throw new ApiError(401, "not_signed_in", "请先登录", undefined, { error: "not_signed_in" });
     return mockAccount(persona) as T;
   }
+  // 招聘邮件的预览（#285）：POST 但不是写操作，不发信、不改任何记录，开发预览里照样渲染
+  if (method === "POST" && url.pathname === "/api/console/mail-templates/preview") return structuredClone(routeMailPreview(parseBody(init?.body))) as T;
+  const letterPreview = method === "POST" ? /^\/api\/console\/applications\/([0-9a-f-]{36})\/letter-preview$/.exec(url.pathname) : null;
+  if (letterPreview) return structuredClone(routeLetterPreview(letterPreview[1], parseBody(init?.body))) as T;
   if (method !== "GET") {
     if (url.pathname.startsWith("/api/console/")) checkConsoleWrite(url, method, parseBody(init?.body));
     throw new ApiError(501, "mock_read_only", "开发预览是只读的", undefined, { error: "mock_read_only" });

@@ -2649,7 +2649,7 @@
         },
         {
           "path": "app/console/src/pages/ApplicationDetail.vue",
-          "needle": "LETTER_LIMITS, emptyLetterDraft, letterErrors, mailState, newestReviewId, noticePlan, reviewPatch, savedMessage, serverFieldErrors, statusChangedMessage,"
+          "needle": "LETTER_LIMITS, emptyLetterDraft, letterErrors, letterPreviewBody, mailState, newestReviewId, noticePlan, reviewPatch, savedMessage, serverFieldErrors, statusChangedMessage,"
         }
       ],
       "tests": [
@@ -2773,13 +2773,18 @@
         {
           "path": "app/server/src/lib/mail/template-store.ts",
           "needle": "pick(kind: RecruitmentKind, id?: string): PickedTemplate {"
+        },
+        {
+          "path": "app/console/src/lib/applications.ts",
+          "needle": "const pickedTemplate = (templateId: string | undefined, defaultTemplateId: string | null | undefined)"
         }
       ],
       "tests": [
         "tests/server/console.test.ts",
         "tests/server/mail-outbox.test.ts",
         "tests/server/mail-envelope.test.ts",
-        "tests/server/mail-templates.test.ts"
+        "tests/server/mail-templates.test.ts",
+        "tests/console/applications.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -2940,11 +2945,21 @@
         {
           "path": "app/server/src/lib/mail/template-contract.ts",
           "needle": "\"POST /api/console/applications/:application_id/letter-preview\": {"
+        },
+        {
+          "path": "app/console/src/pages/ApplicationDetail.vue",
+          "needle": "rendered.value = await api<MailRendered>(`/api/console/applications/${id.value}/letter-preview`, { method: \"POST\", ...jsonBody(body) });"
+        },
+        {
+          "path": "app/console/src/lib/applications.ts",
+          "needle": "export function letterPreviewBody(input: {"
         }
       ],
       "tests": [
         "tests/server/mail-templates.test.ts",
-        "tests/server/applications.test.ts"
+        "tests/server/applications.test.ts",
+        "tests/console/applications.test.ts",
+        "tests/console/mail-templates.test.ts"
       ],
       "docs": [
         "docs/services/server/mail.md",
@@ -2982,10 +2997,20 @@
         {
           "path": "app/server/src/lib/mail/template-contract.ts",
           "needle": "\"GET /api/console/mail-templates\": {"
+        },
+        {
+          "path": "app/console/src/pages/MailTemplates.vue",
+          "needle": "const list = useResource(() => api<MailTemplateList>(\"/api/console/mail-templates\"), []);"
+        },
+        {
+          "path": "app/console/src/lib/nav.ts",
+          "needle": "{ id: \"mail-templates\", to: \"/console/mail-templates\","
         }
       ],
       "tests": [
-        "tests/server/mail-templates.test.ts"
+        "tests/server/mail-templates.test.ts",
+        "tests/console/mail-templates.test.ts",
+        "tests/console/nav.test.ts"
       ],
       "docs": [
         "docs/services/server/mail.md",
@@ -3034,10 +3059,19 @@
         {
           "path": "app/server/src/lib/mail/template-contract.ts",
           "needle": "\"POST /api/console/mail-templates\": {"
+        },
+        {
+          "path": "app/console/src/pages/MailTemplates.vue",
+          "needle": "await api<MailTemplate>(\"/api/console/mail-templates\", { method: \"POST\", ...jsonBody(createBody(draft)) })"
+        },
+        {
+          "path": "app/console/src/lib/mail-templates.ts",
+          "needle": "export const createBody = (draft: TemplateDraft) =>"
         }
       ],
       "tests": [
-        "tests/server/mail-templates.test.ts"
+        "tests/server/mail-templates.test.ts",
+        "tests/console/mail-templates.test.ts"
       ],
       "docs": [
         "docs/services/server/mail.md",
@@ -3082,10 +3116,19 @@
         {
           "path": "app/server/src/lib/mail/template-contract.ts",
           "needle": "\"PATCH /api/console/mail-templates/:template_id\": {"
+        },
+        {
+          "path": "app/console/src/pages/MailTemplates.vue",
+          "needle": "{ method: \"PATCH\", ...jsonBody(updateBody(draft, saved.value!.updated_at)) }"
+        },
+        {
+          "path": "app/console/src/pages/MailTemplates.vue",
+          "needle": "...jsonBody({ is_default: true })"
         }
       ],
       "tests": [
-        "tests/server/mail-templates.test.ts"
+        "tests/server/mail-templates.test.ts",
+        "tests/console/mail-templates.test.ts"
       ],
       "docs": [
         "docs/services/server/mail.md",
@@ -3130,10 +3173,15 @@
         {
           "path": "app/server/src/lib/mail/template-contract.ts",
           "needle": "\"DELETE /api/console/mail-templates/:template_id\": {"
+        },
+        {
+          "path": "app/console/src/pages/MailTemplates.vue",
+          "needle": "await api(`/api/console/mail-templates/${template.id}`, { method: \"DELETE\" });"
         }
       ],
       "tests": [
-        "tests/server/mail-templates.test.ts"
+        "tests/server/mail-templates.test.ts",
+        "tests/console/mail-templates.test.ts"
       ],
       "docs": [
         "docs/services/server/mail.md",
@@ -3179,10 +3227,23 @@
         {
           "path": "app/server/src/lib/mail/template-contract.ts",
           "needle": "\"POST /api/console/mail-templates/preview\": {"
+        },
+        {
+          "path": "app/console/src/lib/mail-templates.ts",
+          "needle": "export function createPreviewer(options: {"
+        },
+        {
+          "path": "app/console/src/pages/MailTemplates.vue",
+          "needle": "run: body => api<MailRendered>(\"/api/console/mail-templates/preview\", { method: \"POST\", ...jsonBody(body) }),"
+        },
+        {
+          "path": "app/console/src/components/MailPreviewFrame.vue",
+          "needle": "referrerpolicy=\"no-referrer\""
         }
       ],
       "tests": [
-        "tests/server/mail-templates.test.ts"
+        "tests/server/mail-templates.test.ts",
+        "tests/console/mail-templates.test.ts"
       ],
       "docs": [
         "docs/services/server/mail.md",
@@ -3233,11 +3294,20 @@
         {
           "path": "app/server/src/lib/mail/template-contract.ts",
           "needle": "\"POST /api/console/mail-templates/test-send\": {"
+        },
+        {
+          "path": "app/console/src/pages/mail-templates/TestSend.vue",
+          "needle": "result.value = await api<MailTestSend>(\"/api/console/mail-templates/test-send\","
+        },
+        {
+          "path": "app/console/src/lib/mail-templates.ts",
+          "needle": "export function testSendOutcome(result: MailTestSend): TestOutcome {"
         }
       ],
       "tests": [
         "tests/server/mail-templates.test.ts",
-        "tests/server/mail-outbox.test.ts"
+        "tests/server/mail-outbox.test.ts",
+        "tests/console/mail-templates.test.ts"
       ],
       "docs": [
         "docs/services/server/mail.md",
@@ -11897,6 +11967,22 @@
       "competitions"
     ],
     "app/console/src/pages/Application": [
+      "recruitment"
+    ],
+    "app/console/src/pages/MailTemplates.vue": [
+      "mail"
+    ],
+    "app/console/src/pages/mail-templates/": [
+      "mail"
+    ],
+    "app/console/src/lib/mail-templates.ts": [
+      "mail"
+    ],
+    "app/console/src/mock/mail-templates.ts": [
+      "mail"
+    ],
+    "app/console/src/components/MailPreviewFrame.vue": [
+      "mail",
       "recruitment"
     ],
     "app/console/src/pages/Feedback.vue": [
