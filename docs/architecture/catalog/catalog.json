@@ -16319,7 +16319,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "b8ac5ce46fac703b37885bdd81a7d5eaed61f21351e60136f6a57f1fce24a6a8",
+    "fingerprint": "70cfb06a2c7d4583cc01da65b40739de520fb2653f1f0157a1d10959647c0ebd",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -18211,11 +18211,11 @@
       },
       {
         "path": "deploy/compose/preview.yml",
-        "sha256": "f93533f4c975d6e6658fd21a5ff51ac79988b707216fe9e489a189755045e2cf"
+        "sha256": "46780c506bdcca3d58fed0e3040d10d7878c43df50098d782831b3cc3dea7999"
       },
       {
         "path": "deploy/compose/production.yml",
-        "sha256": "ee43ce2cc001e813712853b5102a9473a02dc9e7836f397f66b6bfd467b1efb5"
+        "sha256": "645b7492718b7f0d816ce3052f1787926022f8675fb9041699b3dde134987fb7"
       },
       {
         "path": "docs/architecture/API.md",
@@ -18247,11 +18247,11 @@
       },
       {
         "path": "docs/ops/BACKUP.md",
-        "sha256": "f30a00359b102165305a0e19662f4ca2987d8564780503fd09ddd26ee50dc5d0"
+        "sha256": "1e98849be1fed471722fb1147ffdcdc5e8f9d267a98e184de6b4c1e35c32e276"
       },
       {
         "path": "docs/ops/DEPLOY.md",
-        "sha256": "297a830672cceff05f421f2100c7338bbd0d16519c791e49ec512be17ea594b4"
+        "sha256": "d9d25fb6d5dee252ac326e29f675f2b4ae1af30a36ce64d33be0b787a334982d"
       },
       {
         "path": "docs/ops/USAGE.md",
@@ -18267,7 +18267,7 @@
       },
       {
         "path": "docs/services/cli/README.md",
-        "sha256": "4ad4d308dedb0dcdf1bba8a83b0f7ecc57642b36241d4f60baeccc2836d054c2"
+        "sha256": "a49dd0e2f934d50ee6bb92c07dd0a8bb3b58516b0e45a70ad4e7940d4b1131ca"
       },
       {
         "path": "docs/services/console/README.md",

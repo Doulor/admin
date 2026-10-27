@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily GitLab Backup Timer (03:30 Asia/Shanghai)
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 Asia/Shanghai
+Persistent=true
+Unit=gitlab-backup.service
+
+[Install]
+WantedBy=timers.target

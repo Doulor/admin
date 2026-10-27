@@ -36,3 +36,16 @@
 - 做了什么：按 CODE-REVIEW 清单逐项核对 diff；用 @unocss/config 在 app/forum 真实加载 uno.config.ts，预置样式里是新规则、旧 4rem 规则不在；新增行表情符号扫描 0 处；确认 app/forum 与文档里没有别处再定义表情尺寸
 - 结果：无阻塞、无应修条目；未验证：rc.25 真实页面上的显示、Safari/Firefox/真机、tests/server 与 tests/web 整体、论坛 site-state 的已有失败
 - 下一步：合并后建 rc.25 并在预发布真实页面补改后截图，再关 issue、清理分支与 worktree
+## 19:31:28 +08:00 · 合并 · #294 · 合并：!32 合入 stage
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：审查通过后用 merge commit 把 !32 合入 gitlab/stage，合并提交 02cb751c；#294 写了关闭记录（issue 与 MR 各一条）并关闭
+- 结果：stage 02cb751c0b830c0e686a180f6c6c5870c0c055ec；GitLab 随合并删了远端分支
+- 下一步：清理 worktree 与本地分支，发 rc.25 预发布并在真实页面补改后截图
+
+## 19:31:29 +08:00 · 收尾 · #294 · 收尾：清理 #294 的 worktree 与本地分支
+
+- 执行者：agent-claude-geek-main-completion（Claude Code，claude-sonnet-5-5）
+- 做了什么：核对分支末提交 4bd3ca85 已在 gitlab/stage 里，删除 worktree task-294 与本地分支 task/294/forum_sticker_size
+- 结果：git worktree list 里没有 task-294；git ls-remote gitlab refs/heads/task/294/* 没有结果
+- 下一步：rc.25 上线后在预发布真实页面补改后截图，记入 #294

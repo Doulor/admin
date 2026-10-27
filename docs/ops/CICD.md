@@ -2,20 +2,32 @@
 
 > 持续集成、宏观对齐与 `.env` 驱动的发布控制；发版只由发布 tag 触发（`vX.Y.Z-rc.N` → 预发布，`vX.Y.Z` → 正式），push 分支只跑 CI；部署开关默认关闭，机器检查不替代人工验收。
 
-状态：`accepted` · 更新：2026-10-25 · 实施状态：工作流为 `.github/workflows/ci.yml`、`deploy-preview.yml`、`deploy-production.yml`、`branch-hygiene.yml`、`issue-lifecycle.yml`、`issue-gate.yml`、`cert-watch.yml`、`pr-agent.yml`、`test-report.yml`、`architecture-alignment.yml`，actionlint 全绿，所有 job 只跑在 GitHub 托管 runner 上（见下文「运行位置」）。两条部署工作流由 SemVer 发布 tag 触发（2026-09-24 指令），此前「push `stage`/`main` 即部署」的触发方式已删除；更早的 `preview.yml`、`release.yml`（`release-*`/`prev-*` tag）也早已删除。首次上线（2026-09-25，#63）已配置：`preview` Environment 的环境级 secrets（部署 SSH、OAuth、会话与加密密钥；Turnstile 两项未配＝关闭）与 `DEPLOY_TARGET_ENVIRONMENT=preview`，目标机 `/opt/yzgc/preview`、`prev.yangtzeu.work` 证书与站点配置。组织是 GitHub 免费版；仓库原本私有，2026-09-26 17:49 因 CI 排队决定公开（见下文「平台能力实测」的更新）。公开之后 `production` 的 required reviewers 才能配置；2026-09-27 建了 `production` Environment，配了 required reviewers 与自定义部署分支规则，并打开 `DEPLOY_PRODUCTION_ENABLED`，`v0.1.0` 的正式部署由 `deploy-production.yml` 在审批后跑完（运行 36314912545）。下文「维护者机器部署」只在部署 job 拿不到环境时作退路。这些前置条件都靠手工完成，任何工作流都不会自动创建。
+状态：`accepted` · 更新：2026-10-27 · 适用：现有发布流程及 GitHub admin#270 的 Arch 迁移接管。源码入口为 `.github/workflows/ci.yml`、两条 `deploy-*.yml`、架构/issue/分支/测试报告工作流；CI 与部署使用 GitHub 托管 runner。历史已发布状态、保护配置与本 task 未提交变更分别取证，不把旧 actionlint/CI 通过记录推广到本次候选。
 
 发布规则以 [RELEASES](../conventions/RELEASES.md) 为唯一完整规范，分支模型以 [BRANCHING](../conventions/BRANCHING.md) 为准，环境字段契约见 [ENVIRONMENTS](ENVIRONMENTS.md)。
+
+## 迁移集成与双仓边界
+
+2026-10-26 协调者只读 refs 比较：两仓 main 同为 `61da3fea76f6f22aa53e731d98c842ac4a38d54f`；GitHub stage 为 `4beda55e7e6eb2dbd95206484ddaa18a72989ff0`，GitLab stage 为 `02cb751c0b830c0e686a180f6c6c5870c0c055ec`，GitHub 落后 473 提交，两者都包含 main。GitHub/GitLab tag 为 36/41，GitHub 缺 `v0.1.1-rc.21` 至 `rc.25`；共有 tag 对象与 peeled commit 无差。证据为主工作区 `.tools/handoff/2026-10-26-control/evidence/refs-comparison.json` 及风险登记；不是本轮已完成同步。
+
+- task270 相对 GitHub stage 的既有集成基线有 **2363 文件**（459552 新增/113173 删除），不是只含迁移脚本。必须完整覆盖代码审查与 GitHub 必需门禁；局部语法、测试和文档检查不能替整段历史给绿。
+- `docs/changes/270.json` 现在描述 **GitHub admin#270**（Arch 预部署 + GitLab 运维纳管）；历史 **GitLab geek/admin#270 OIDC** 的原影响声明已原样归档在 [history/changes/gitlab/270.json](../history/changes/gitlab/270.json) 与同名 `.md`，逐字保留、不是重写，也不是删除。两个平台的同号 issue 不是同一件事，引用时写全平台与项目。
+- notes 收尾后追加与论坛分类数 6/7 的已知基线失败保留原记录/断言；不重复确认、不放宽校验。全局 notes、索引、影响声明及完整 PR 审查由协调者集成。
+- 旧 tag 执行自己的工作流，不会自动得到 ProxyJump 和新目标校验。GitHub SSH secrets 已指 Arch，旧 tag 缺少跳板能力，应失败关闭，不能靠补推旧 tag 验证新链路；不 force/mirror 或重造 tag 对象。
+- 原版双栈已由 Arch 接管，版本未变，见 [DEPLOY](DEPLOY.md#迁移现状与授权边界)。本轮只更新后续发布连接及源码合同，没有新的 rc 或正式版本批准；两个已有 enabled 开关保持不变，没有触发发布工作流。
+- 2026-10-26 实测 GitHub 账号及 admin 权限恢复。双环境各 5 项 SSH secrets 已更新，正式 10 项、预发布 12 项应用 secrets 按 Arch 原运行值同步；预发布补齐 Google 两项、OIDC_JWKS、GITLAB_API_TOKEN。API 回读共 preview 17 / production 15 项。环境哨兵、required reviewers、tag 规则、分支保护保持不变。
+
 
 ## 触发与职责
 
 | 工作流 | 触发 | 行为 |
 |---|---|---|
 | `architecture-alignment.yml` | 每个 PR 的 opened / reopened / synchronize / edited / ready_for_review / labeled / unlabeled，无路径或分支过滤 | 只读真实 base/head Git 对象及 `docs/changes/<issue>.json`，核对八维评估、分类、精确覆盖、目录引用、相关文档与回归；常规 PR 使用 base 中的检查器，首次安装仍完整运行引导检查；不执行候选应用、不安装依赖、不拿 secrets；产物 architecture-impact 保留 14 天 |
-| `ci.yml` | PR → `main`/`stage`；push `main`/`stage`/`task/**`/`dev/**`（不含 tag）；`workflow_dispatch` | `branch-guard`（分支不变量；task 分支的 PR 另查执行记录与本 PR 的文档同步）→ `core`（Node 22：check/test/build，检出完整历史；`pnpm check` 里的 `check:cli` 只在这个 task 相对 `origin/stage` 真的改了 `app/cli` 时才跑 `cargo fmt --check`/`clippy -D warnings`/`test`，ubuntu-latest 自带 Rust 工具链）∥ `forum`（Node ≥26：check/generate）∥ `env-contract`（`.env` 与 `environments.json`、compose 一致性，前端站点配置不含域名）∥ `docker`（`deploy/compose/{production,preview}.yml` 解析 + 三条镜像构建验证）∥ `docker-cdn`（静态资源 CDN 开关打开时的 web、forum 镜像构建，再像部署工作流一样取出产物、`static-cdn.mjs plan` 列上传清单，不上传，见下文「静态资源 CDN」）→ `verify` 汇总 |
-| `deploy-preview.yml` | push tag `v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+`；`workflow_dispatch`（必填 `tag`，并从同名 tag 运行） | 断言 ref 是 `refs/tags/vX.Y.Z-rc.N` → `release-policy` 规划（提交在 `origin/stage` 上、版本等于 `package.json`）→ 文档同步（tag 指向的提交，见下文）→ `cdn-plan` 决定静态资源 CDN 开关 → 构建镜像 → `cdn-upload` 上传并核对带哈希的静态文件（开关关闭时只报告状态，见下文「静态资源 CDN」）→ 渲染 `.env.preview` → SSH 分发镜像与环境文件 → `deploy-stack.sh` → 健康检查 → 记录 deployment（payload 带 rc tag）。开关 `vars.DEPLOY_PREVIEW_ENABLED`；同一时刻只跑一个，不取消正在跑的运行 |
-| `deploy-production.yml` | push tag `v[0-9]+.[0-9]+.[0-9]+`；`workflow_dispatch`（必填 `tag`，并从同名 tag 运行） | 断言 ref 是 `refs/tags/vX.Y.Z`（rc tag 被拒绝）→ `release-policy` 规划（提交在 `origin/main` 上、同一提交有 `vX.Y.Z-rc.N`）→ 文档同步（tag 指向的提交，见下文）→ 证据检查（见下文）→ `cdn-plan` → 构建镜像 → `cdn-upload` → 分发 `.env.production` → 部署 → 记录 deployment。开关 `vars.DEPLOY_PRODUCTION_ENABLED`，`environment: production`，不取消正在跑的运行 |
+| `ci.yml` | PR → `main`/`stage`；push `main`/`stage`/`task/**`/`dev/**`（不含 tag）；`workflow_dispatch` | `branch-guard`（分支不变量；task 分支的 PR 另查执行记录与本 PR 的文档同步）→ `core`（Node 22：check/test/build，检出完整历史；`pnpm check` 里的 `check:cli` 只在这个 task 相对 `origin/stage` 真的改了 `app/cli` 时才跑 `cargo fmt --check`/`clippy -D warnings`/`test`，ubuntu-latest 自带 Rust 工具链）∥ `forum`（Node ≥26：check/generate）∥ `env-contract`（`.env` 与 `environments.json`、compose 一致性，前端站点配置不含域名）∥ `docker`（`deploy/compose/{production,preview}.yml` 解析；固定容器构建并核对 CLI 五目标物料；三条镜像构建验证，web 显式接收 `cli=dist/cli`）∥ `docker-cdn`（静态资源 CDN 开关打开时的 web、forum 镜像构建，再像部署工作流一样取出产物、`static-cdn.mjs plan` 列上传清单，不上传，见下文「静态资源 CDN」）→ `verify` 汇总 |
+| `deploy-preview.yml` | push tag `v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+`；`workflow_dispatch`（必填 `tag`，并从同名 tag 运行） | 断言 ref 是 `refs/tags/vX.Y.Z-rc.N` → `release-policy` 规划（提交在 `origin/stage` 上、版本等于 `package.json`）→ 文档同步（tag 指向的提交，见下文）→ `cdn-plan` 决定静态资源 CDN 开关 → 固定容器构建并核对 CLI 五目标物料 → 构建镜像（仅 web 接收 `cli=dist/cli`）→ `cdn-upload` 上传并核对带哈希的静态文件（开关关闭时只报告状态，见下文「静态资源 CDN」）→ 渲染 `.env.preview` → SSH 分发镜像与环境文件 → `deploy-stack.sh` → 健康检查 → 记录 deployment（payload 带 rc tag）。开关 `vars.DEPLOY_PREVIEW_ENABLED`；同一时刻只跑一个，不取消正在跑的运行 |
+| `deploy-production.yml` | push tag `v[0-9]+.[0-9]+.[0-9]+`；`workflow_dispatch`（必填 `tag`，并从同名 tag 运行） | 断言 ref 是 `refs/tags/vX.Y.Z`（rc tag 被拒绝）→ `release-policy` 规划（提交在 `origin/main` 上、同一提交有 `vX.Y.Z-rc.N`）→ 文档同步（tag 指向的提交，见下文）→ 证据检查（见下文）→ `cdn-plan` → 固定容器构建并核对 CLI 五目标物料 → 构建镜像（仅 web 接收 `cli=dist/cli`）→ `cdn-upload` → 分发 `.env.production` → 部署 → 记录 deployment。开关 `vars.DEPLOY_PRODUCTION_ENABLED`，`environment: production`，不取消正在跑的运行 |
 | `branch-hygiene.yml` | PR `closed`（`merged == true`）、每周一 03:17 UTC、`workflow_dispatch` | 合并后删除 head 为 `task/**` 的本仓分支（`contents: write`，只删 `task/**`，**永不**自动删 `dev/**` 或长期分支）；每周巡检远端 `task/**`，对「14 天无提交活动且无 open PR」的残留分支只输出 `::warning::` 与 step summary，不删除 |
-| `cert-watch.yml` | 每天 01:43 UTC、`workflow_dispatch`（都只在默认分支 `main` 上的文件生效，合入 `main` 后才开始） | 从公网用 `openssl s_client -verify_return_error -verify_hostname` 核对 `yangtzeu.work`、`prev.yangtzeu.work` 的证书：连不上、链不可信、名字不匹配或剩余不到总有效期的四分之一即失败（GitHub 通知维护者）。`permissions: {}`，不接触任何 secrets；续期本身由目标机的 certbot 负责，见 [DEPLOY](DEPLOY.md#证书续期与到期监控) |
+| `cert-watch.yml` | 每天 01:43 UTC、`workflow_dispatch`（都只在默认分支 `main` 上的文件生效，合入 `main` 后才开始） | 从公网用 `openssl s_client -verify_return_error -verify_hostname` 核对 `yangtzeu.work`、`prev.yangtzeu.work` 的证书：连不上、链不可信、名字不匹配或剩余不到总有效期的四分之一即失败（GitHub 通知维护者）。`permissions: {}`，不接触任何 secrets；香港入口由 Caddy 续期，旧转发入口在 DNS 过渡期仍由 certbot 续期，见 [DEPLOY](DEPLOY.md#证书续期与到期监控) |
 | `issue-lifecycle.yml` | PR 指向 `stage` 的 opened / edited / synchronize / reopened / closed / labeled / unlabeled、每天 03:37 UTC、`workflow_dispatch`（可勾「只读」） | `pr-contract`：核对 PR 正文契约（`Closes #<issue>` 与 task 分支号一致、issue 存在且开着、十个必需段落、验收证据、审查结论；issue 编号 ≥ 235 时再核对 PR 的「组:类」标签覆盖 issue 的标签、`ui:*` 有截图、`func:*` 有接口测试与接口验证；`scripts/pr-contract.mjs`、`scripts/issue-labels.mjs`，只检出目标分支上的脚本，不执行 PR 代码）；`close-on-merge`：合并进 `stage` 后关闭 issue 并在 issue 与 PR 上各留一条追踪记录（`issues: write`、`pull-requests: write`）；`sweep` 每天巡检（`scripts/issue-sweep.mjs`，规则见 [TRACKING](../conventions/TRACKING.md) §1）：关联 PR 已合并进 `stage` 还开着的 issue 自动关闭并留「关闭」记录（合并后重开过的、还有开着的 PR 的、合并不到一小时的不关），14 天没动静的留「超期」记录，14 天内关闭却没有合并 PR 也没有「关闭」记录的留「缺记录」，不重开（`issues: write`，只检出两个脚本）。定时任务只跑默认分支 `main` 上的文件，合入 `main` 之前仍是旧的每周只告警 |
 | `issue-gate.yml` | issue 的 opened / edited / labeled / unlabeled | `gate`：把表单「改动类型」选的值加成「组:类」标签；核对标签、`ui:*` 截图、`func:*` 涉及接口，缺则加 `needs-evidence` 并评论，补齐后摘掉；评论里列出标题相似的开放与已关闭 issue（`scripts/issue-gate.mjs`、`scripts/issue-labels.mjs`；`issues: write`，只检出这两个脚本，不执行 issue 正文）。没有表单的 CLI / API 建单只给关键词推测，不自动加标签。只提示和标记，不关闭、不重开。issues 事件只跑默认分支 `main` 上的文件，所以要随发布进入 `main` 才生效 |
 | `pr-agent.yml` | PR 指向 `stage` 的 opened / reopened / ready_for_review | `review`：用开源 PR-Agent（镜像按摘要固定，`docker://pragent/pr-agent@sha256:…`）读 PR diff，经 `https://ai.crosery.com/v1` 调模型（主 `gemini-3.8-flash-high`，备 `gemini-3.5-flash-lite`），在 PR 里写**一条**审查评论。只用 `pull_request`、不检出 PR 代码、不监听 `issue_comment`；只处理同仓库分支的 PR（fork 的拿不到 secrets，跳过）；关掉 describe 与 improve（describe 会改写 PR 正文，破坏十段契约）。密钥只有仓库级 secret `PR_AGENT_LLM_KEY`（网关 key，不属于环境级清单）。**只评论，不批准、不阻塞合并**，也不是审查结论（[CODE-REVIEW](../conventions/CODE-REVIEW.md)「机器审查的边界」）。另有 CodeRabbit 免费版（GitHub App，仅装在本仓库，配置 `.coderabbit.yaml`，不推代码、不批准、关掉所有 finishing touches）。升级镜像要核对新摘要后改工作流并走 PR 审查 |
@@ -38,6 +50,7 @@
 - 部署工作流用 **build args** 把发布身份注入镜像：`GEEK_RELEASE_VERSION`（正式 `X.Y.Z`，预发布 `X.Y.Z-rc.N@<sha12>`）与 `GEEK_RELEASE_COMMIT`（完整 SHA），不写进 `.env`；展示规则见 [RELEASES](../conventions/RELEASES.md)。
 - plan job 检出发布 tag（`fetch-depth: 0`，带全部分支与 tag），核对检出的 HEAD 就是 tag 指向的提交；build 与 deploy job 按 plan 输出的完整 SHA 检出，不再按 tag 名重新解析。
 - **镜像名按环境分开**：`deploy-preview.yml` 构建并打包 `yzgc-preview/{server,web,forum}:<sha12>`，`deploy-production.yml` 构建并打包 `yzgc-production/{server,web,forum}:<sha12>`（仓库名来自 plan 输出的 `imageRepository`，归档名 `yzgc-images-<environment>-<sha12>.tar.gz`）。目标机的 `deploy-stack.sh` 在 `docker load` 之前读归档清单，出现别的仓库或别的 tag 就拒绝。`ci.yml` 的 `docker` job 按正式身份构建 `yzgc-production/*`，并用同一个 `IMAGE_TAG` 解析两套 compose，两边出现相同镜像引用即失败；`docker-cdn` 在另一个 runner 上按同样的身份、打开静态资源 CDN 开关再构建 web、forum 两个镜像。
+- **CLI 发布物料与 web 镜像同一次构建闭合**：`ci.yml` 的 docker job 与两条部署工作流都调用 `node scripts/cli-dist.mjs --container`；固定到 digest 的 `cargo-zigbuild` 镜像提供 Rust、Zig、cargo-zigbuild 和 macOS SDK，内部逐目标 `rustup target add` 后按 `--locked --jobs 2` 交叉编译。分发器把二进制写成 `dist/cli/<CLI版本>/geek-<target>-<sha256>[.exe]`：同内容 URL 稳定、不同内容换 URL，已存在的摘要路径只在字节一致时复用，不覆盖或删除旧产物。`node scripts/check-cli-dist.mjs` 随后核对 CLI 版本、五目标清单、内容寻址文件名、非空二进制、manifest/sidecar/实际字节三方 sha256 和安装脚本；任一步失败都在 Docker build 前停止。server/forum 不接收 CLI 目录，web 构建显式传 `--build-context cli=dist/cli`，由 `app/web/Dockerfile` 的 scratch `cli` 阶段复制到 `/usr/share/nginx/html/cli/`。本机复现发布物料使用同两条命令；本机 Docker 不可用时只报告未运行，不把普通空 context 镜像称为通过。
 - `verify` 是单一 required check 输出，供分支保护引用；任一上游 job 失败即汇总为失败。不得用 `continue-on-error` 掩盖失败。
 - **历史核对：2026-10-02 当时没有分支保护或 ruleset 引用 `verify`**（2026-10-02 只读核对：`gh api repos/Yangtze-University-Geek-Class/admin/rulesets` 返回 `[]`，`stage`、`main` 的 `branches/<分支>/protection` 都返回 404 `Branch not protected`）。名字里的 required 不是 GitHub 意义上的必需检查：CI 报红不会自动拦住合并，直推 `stage`/`main`（hot-fix 合回）也不经过 PR 检查。例：`9b38684`（#173 的 hot-fix 直接合回 `stage`）改了 `app/web/`、`app/forum/`、`deploy/` 却没跟文档，push `stage` 的 CI（运行 36318197583）`core` 报文档不同步、`verify` 失败，没有拦住任何东西；PR #174 最后一次 CI（运行 36322153265）的 `branch-guard` 报 `stage` 本来就不同步，`core`、`verify` 也失败，照样在 2026-09-27T16:06:26Z 合进了 `stage`。把 `verify (required check)` 设成 `stage`、`main` 的必需检查、要不要禁止直推，是仓库设置，决定后在 Settings → Rules 里配置（需要仓库 admin 权限），#192 的 PR 不改设置。2026-10-18 启用前，合并的人自己确认 CI 全绿（门禁没通过，[CODE-REVIEW](../conventions/CODE-REVIEW.md) 的结论就是阻塞），发版时 plan job 的文档同步再拦一次（见上文）。
 - **部署开关默认关闭**：`DEPLOY_PREVIEW_ENABLED`、`DEPLOY_PRODUCTION_ENABLED` 不设置即不部署；不设置时 `ci`/构建仍照常运行并产出镜像校验结果。取值必须逐字为 `enabled`。
@@ -73,11 +86,11 @@
 
 | 名称 | 用途 |
 |---|---|
-| `DEPLOY_SSH_HOST` | 部署目标机地址 |
-| `DEPLOY_SSH_PORT` | SSH 端口 |
-| `DEPLOY_SSH_USER` | 部署用户 |
-| `DEPLOY_SSH_KEY` | SSH 私钥全文 |
-| `DEPLOY_SSH_KNOWN_HOSTS` | 目标机主机公钥行（`StrictHostKeyChecking=yes`） |
+| `DEPLOY_SSH_HOST` | 与 tag 物料中模板 `DEPLOY_HOST` 逐字匹配；Arch 候选为 `10.66.0.2`，旧源值不符则失败 |
+| `DEPLOY_SSH_PORT` | 与模板 `DEPLOY_PORT` 逐字匹配 |
+| `DEPLOY_SSH_USER` | 与模板 `DEPLOY_USER` 逐字匹配；不表示已具目标权限 |
+| `DEPLOY_SSH_KEY` | 本次专用部署私钥，权限需预配；禁止个人 root 私钥进入 CI |
+| `DEPLOY_SSH_KNOWN_HOSTS` | 预先核验的香港跳板与 Arch 双端主机公钥，`StrictHostKeyChecking=yes` |
 | `OAUTH_CLIENT_ID` | GitHub OAuth 应用（每个环境一个，Callback URL 为 `<origin>/auth/callback`，见 [ENVIRONMENTS](ENVIRONMENTS.md#github-oauth-app-回调地址)）。GitHub 不允许 secret 名以 `GITHUB_` 开头，所以这两项叫 `OAUTH_CLIENT_*` 而不是 `GITHUB_CLIENT_*` |
 | `OAUTH_CLIENT_SECRET` | GitHub OAuth 应用密钥 |
 | `SESSION_SECRET` | 会话签名密钥（≥32 字符随机值） |
@@ -87,7 +100,7 @@
 | `MAIL_ALIYUN_ACCESS_KEY_ID` | 阿里云邮件推送的 AccessKey ID（可选，和下一项要么都配、要么都不配） |
 | `MAIL_ALIYUN_ACCESS_KEY_SECRET` | 阿里云邮件推送的 AccessKey Secret |
 | `MAIL_RESEND_API_KEY` | Resend 的 API Key（可选） |
-| `MAIL_ALLOWLIST` | 收件名单，英文逗号隔开的邮箱（可选；只在 `MAIL_RECIPIENTS=allowlist` 时起作用，两个环境现在都是 `all`） |
+| `MAIL_ALLOWLIST` | allowlist 模式的私密收件名单；当前权威源保持 all，独立恢复副本必须另行禁用外发 |
 | `GOOGLE_CLIENT_ID` | Google 登录的 OAuth 客户端 ID（可选，和下一项要么都配、要么都不配；回调地址 `<origin>/auth/google/callback`，#262） |
 | `GOOGLE_CLIENT_SECRET` | Google 登录的 OAuth 客户端密钥 |
 | `OIDC_JWKS` | 对外授权的签名私钥（可选，#270）：`dist/cli/oidc.js keygen` 输出的一行 base64；为空时 `/oidc/*` 一律 404 |
@@ -104,6 +117,19 @@
 | 仓库级 | `DEPLOY_PRODUCTION_ENABLED` | 取值 `enabled` 才运行 `deploy-production` 的部署 job |
 
 密钥只经环境级 secrets 注入渲染后的运行时 env 文件（`<栈根>/.env.<environment>`），**不写入仓库、镜像、日志或发布记录**；`deploy/env/.env.*` 模板中的密钥字段必须保持空值，由 `env-contract` 强制。
+
+两条 deploy job 使用 `environment.deployment: false` 保留环境 secrets/vars、required reviewers 等保护，同时避免在步骤执行前创建隐式部署记录；目标校验后才执行显式 record/status。自定义 deployment protection App 与该模式不兼容时失败关闭，不移除审批求通。本轮 actionlint 与隔离 shell 已验证，未执行 GitHub Actions 平台实验。该门禁保护 deploy 阶段的目标机传输和记录，不改变上游 CDN job 的上传顺序。
+
+CI/manual 均从同一 tag 物料分发 `deploy-stack.sh` 和 `rollback-stack.sh` 到 `<STACK_ROOT>/incoming/`；不得从工作区拼进历史 tag。历史 tag 没有新 `ssh-config` 命令时失败关闭，不能把当前脚本能力倒算给旧版本。
+
+### SSH 目标与 ProxyJump 失败关闭
+
+两条候选部署工作流在检出 plan 核对的提交后、下载归档/渲染及任何 SSH/SCP 前，调用该提交的 `deployment-environment.mjs ssh-config`；manual 使用从 tag 归档得到的同一入口。要求环境哨兵、模板环境身份与 `DEPLOY_SSH_HOST/PORT/USER` 全部匹配，缺失或旧源地址与 Arch `10.66.0.2` 不符即失败，不以 fallback 静默选目标。
+
+`DEPLOY_PROXY_JUMP` 从模板取值，当前候选为 `root@156.238.244.78:22`，直连必须显式留空。生成的 0600 配置同时供 `ssh -F <配置> yzgc-target`、`scp -F <配置>` 使用，固定专用 key、known_hosts、`IdentitiesOnly`、`BatchMode`、严格主机校验及 `ProxyJump`；跳板与目标双端都须有经核验的主机公钥/专用部署授权，不能复制个人 root key 或关闭校验求通。
+
+这是待合并源码的合同，不会回溯修改旧 tag。2026-10-26 已用同一 `ssh-config` 入口、项目专用 key、双端严格 known_hosts 实测两环境 SSH/SCP 成功；香港该 key 的本地 TCP 转发目标限制为 Arch:22，执行 shell 被拒绝。此证据来自维护者机器，不冒称 GitHub runner 已运行新流程。恢复副本隔离仍见 [ENVIRONMENTS](ENVIRONMENTS.md#副本启动安全门禁)，已接管的权威源不套用副本关闭外发的值。
+
 
 ## 证据链与失败关闭
 
@@ -153,7 +179,7 @@
 
 按顺序手工做（任一步没做，部署照常同源构建）：
 
-1. 把入库的 `deploy/nginx/preview.conf`、`production.conf` 装到宿主机（[DEPLOY](DEPLOY.md)「静态资源 CDN」），公网确认 CSP 的 `script-src`、`style-src`、`font-src` 带 `https://cdn.crosery.com/yzgc/static/site/`。
+1. 在香港现行 Caddy 配置核对两环境 CSP，变更先 validate 再获批 reload（[DEPLOY](DEPLOY.md)「静态资源 CDN」）；公网确认 `script-src`、`style-src`、`font-src` 放行 `https://cdn.crosery.com/yzgc/static/site/`。不把旧 Nginx 应用模板装回过渡入口。
 2. **合并本改动（#146）之后、打下一个 rc tag 之前**，在仓库 Settings → Environments 新建 `static-cdn`，Deployment branches and tags 选 Selected branches and tags，只加 tag 规则 `v*`（与发布 tag 一致）。顺序不能反：`cdn-plan`、`cdn-upload` 引用这个 Environment，GitHub 运行引用了不存在的 Environment 的工作流时会自动建一个同名的，自动建的没有任何保护规则（官方文档「Managing environments for deployment」）。它已经被某次 tag 运行自动建出来时，先打开它补上这条规则，再做第 5 步。不要在仓库级建同名 secret（环境级缺失时会回落到仓库级）。2026-09-27 只读核对（`gh api repos/Yangtze-University-Geek-Class/admin/environments`）：仓库里只有 `preview`，还没有 `static-cdn`。
 3. **在放 token 之前实测 tag 规则管不管 `deployment: false` 的 job**。两个 job 都写了 `deployment: false`（不产生部署记录）；官方文档（「Deploying with GitHub Actions」）只写了这种 job 照样受 wait timer 与 required reviewers 约束、自定义保护规则会让 job 直接失败，没写 deployment branches and tags 规则，所以第一次要自己看：
    - 第 2 步之后的第一个 rc tag：`cdn-plan`、`cdn-upload` 照常运行（tag 匹配 `v*`），`cdn-plan` 的日志写没有配置 token、这次同源构建；
@@ -186,9 +212,9 @@
 
 1. **GitHub Environment**：创建 `preview`、`production`；`production` 必须配置 required reviewers（若计划不支持私有仓库的该能力，见下）；deployment branches and tags 建议只放行发布 tag（`v*`），只做粗筛；rc 与正式的精确区分以两条部署工作流 plan job 的正则为准，禁止自批。
 2. **环境级 secrets/vars**：按上表配置两套，取值互不相同。
-3. **目标机**：安装 Docker 与 Compose v2；创建 `/opt/yzgc/production`、`/opt/yzgc/preview`（属部署用户）；宿主机 nginx 安装 `deploy/nginx/{production,preview}.conf`（`yangtzeu.work`、`prev.yangtzeu.work` 两个入口，外加 `github.yangtzeu.work` 的 301）；certbot 证书就绪。
-4. **DNS 与 OAuth**：`prev.yangtzeu.work` 的 A 记录已指向同一主机（2026-09-24 核对），不需要管理端子域；两个环境的 GitHub OAuth App Callback URL 分别为 `https://yangtzeu.work/auth/callback`、`https://prev.yangtzeu.work/auth/callback`。
-5. **仓库级开关**：确认第 1–4 步与一次手工演练通过后，才把 `DEPLOY_PREVIEW_ENABLED` 设为 `enabled`；正式部署开关在预发布稳定运行且人工验收流程跑通后再打开。
+3. **目标机**：已运行 Arch 双栈与香港入口；后续发布保留固定子网、server DNS 与出网编排，不能覆回旧机的回环绑定或缺失网络配置。旧 Nginx 只作过渡转发。
+4. **DNS 与 OAuth**：DNS 由所有者切换；新旧入口 TLS、原会话、OIDC discovery、客户端 IP 已验证，新的 GitHub/Google 完整授权往返仍未验证。
+5. **仓库级开关**：两个 enabled 开关保持原样，不是新版本授权。源码集成受原门禁约束；没有触发工作流或补推 tag。
 
 ### 平台能力实测（2026-09-13，`gh api` 只读核对）
 
@@ -207,13 +233,13 @@
 仓库原先私有时免费版配不了 `production` 的审批人，部署 job 在「production 环境保护」核对处失败关闭，正式环境只能从维护者机器部署。2026-09-27 起 `production` 有 required reviewers（2026-10-02 只读核对 `gh api repos/<仓库>/environments/production`），`DEPLOY_PRODUCTION_ENABLED` 已打开，正式部署照常走 `deploy-production.yml`：开关关闭时部署 job **跳过**；环境保护被删掉或审批人被清空时，它仍在「production 环境保护」核对处**失败关闭**，这是正确行为，不得放宽。build job 都会产出镜像归档（正式保留 30 天，预发布保留 7 天，过期要重新运行工作流）。GitHub 计划让部署 job 按设计失败关闭时（例如仓库改回私有、免费版配不了 required reviewers），或 `preview` 的部署 job 拿不到 secrets 时，改用 `scripts/deploy-manual.mjs` 从维护者机器部署；环境保护被删掉、审批人被清空时，先查清原因、恢复保护再重跑工作流，不改用本脚本。谁可以运行见 [AGENTS](../../AGENTS.md) §3 与 [RELEASES](../conventions/RELEASES.md)「授权门禁」。步骤与 CI 的 deploy job 一一对应，**一切部署物料取自 tag 指向的提交**，不取当前工作区：
 
 1. 进程环境里的 `DEPLOY_TARGET_ENVIRONMENT` 必须等于 `--environment`（对应 CI 的环境哨兵，防止导出的是另一个环境的密钥）；仓库取自 `origin` 远端。
-2. `git archive <提交> deploy scripts package.json` 解到临时目录（不是 Git 仓库，所以 `--check` 会打两条「无法通过 git check-ignore 判定」的警告，这是预期的：物料来自 `git archive`，必然是入库文件），用**这一份**的 `release-policy` 规划（与工作流同一个 `--branch-ref`、`--require-tag`，`--root` 指向这份物料）并跑环境契约 `--check`；rc tag 只能进 `preview`，正式 tag 只能进 `production`。`DEPLOY_SSH_HOST/PORT/USER` 必须与这份物料里该环境模板的 `DEPLOY_HOST/PORT/USER` 一致。
+2. `git archive <提交> deploy scripts package.json` 解到临时目录，用该 tag 物料里的 release-policy 及环境契约核对版本/分支/来源；rc 只能进 preview，正式只能进 production。再调用其中的 `ssh-config`，严格核对 `DEPLOY_SSH_HOST/PORT/USER` 与该环境模板及跳板，生成共享 SSH/SCP 配置；任何不符在连接/上传前拒绝，不能用旧源 fallback。
 3. 正式环境先核对批准评论：`--acceptance` 必须是本仓库 issue 或 PR 里的一条评论链接（评论确实在链接写的那个编号下），作者是仓库管理员，**没有被编辑过**（按 GraphQL `IssueComment.lastEditedAt` 判断，表情回应不算编辑；有写权限的人能改别人的评论而作者不变，编辑过就请重新发一条）、没有被折叠隐藏（`isMinimized`），发在预发布部署成功之后，并且**整条评论只有一行** `批准发布 vX.Y.Z`（CRLF 当作 LF，末尾的空格、制表符与换行不算，别的一个字符都不能多：`v` 不能省，不能加句号，不能用全角空格，前面不能有缩进或空行，不能加粗、放进引用、代码块或 HTML，不能再写一句试用结论，「暂不批准发布」、只写 rc 的都不算）。这是白名单：脚本不去推测 GitHub 怎么渲染 Markdown 与 HTML，#69 第一轮审查找出了十几种页面上看不到、或和别的字连在一起，却能被逐行规则接受的写法。试用结论、验收记录（[RELEASE-ACCEPTANCE-TEMPLATE](RELEASE-ACCEPTANCE-TEMPLATE.md)）写在别的评论里，批准另发一条只写这一行的新评论；再重做证据 job 的三项核对（同一提交上有同版本的 rc tag、`preview` 有 payload.tag 为这些 rc 之一且最新状态 `success` 的部署记录、`https://prev.yangtzeu.work/release.json` 就是这个提交的 rc 版本）。都在下载之前。
 4. 找到这个 tag 的 push 触发的 `deploy-<environment>.yml` 运行（tag 名与提交都要对上、build job 成功；有 `cdn-upload` job 的运行还要它成功，否则镜像里的页面可能引用 CDN 上还没有的文件，见上文「静态资源 CDN」），用 `gh run download` 取镜像归档，**先在本机流式核对 sha256**；从不在本机或目标机构建镜像。
-5. 用这份物料里的 `render` 在临时目录渲染 0600 的运行时 env：密钥只经 render 的子进程环境传入（其它子进程的环境里去掉了密钥），不进命令行；子进程都用和脚本同一个 Node（`process.execPath`）；临时目录在结束、出错或 Ctrl-C 时删除。SSH 用 `-F none`、只认 `DEPLOY_SSH_KNOWN_HOSTS_FILE`、`StrictHostKeyChecking=yes`。
-6. 写 GitHub 部署记录（payload 键与 CI 相同，正式另有 `preview_tags`，另加 `deployed_from: "maintainer"` 与批准链接；与两条部署工作流一样用 `required_contexts=["verify (required check)"]`：GitHub 默认要求提交上的全部检查都已通过，会把正在运行或已失败的部署 job 也算进去而一直返回 409，`v0.1.0-rc.1` 首次部署时实测；与工作流一样显式 `-F auto_merge=false`，不让 GitHub 去合并默认分支，状态一律 `-F auto_inactive=false`，见上文「证据链」第 2 条），把这份物料里的 compose 与 `deploy-stack.sh` 分发到同样的远端路径，运行同样参数的 `deploy-stack.sh`，按结果把记录置为 `success` / `failure`。
+5. 用该物料的 render 生成 0600 临时 env；应用密钥只经 render 子进程环境注入、不进 argv，其它子进程不继承；使用同一 `process.execPath`。SSH/SCP 使用 `-F <本次生成配置>` 与 `yzgc-target`，不再用缺少跳板策略的 `-F none`；known_hosts 与专用 key 由操作者提供，双端严格验证，结束/出错/中断清理临时目录。
+6. 写 GitHub 部署记录（payload 键与 CI 相同，正式另有 `preview_tags`，另加 `deployed_from: "maintainer"` 与批准链接；与两条部署工作流一样用 `required_contexts=["verify (required check)"]`：GitHub 默认要求提交上的全部检查都已通过，会把正在运行或已失败的部署 job 也算进去而一直返回 409，`v0.1.0-rc.1` 首次部署时实测；与工作流一样显式 `-F auto_merge=false`，不让 GitHub 去合并默认分支，状态一律 `-F auto_inactive=false`，见上文「证据链」第 2 条），把这份物料里的 compose 与 `deploy-stack.sh` / `rollback-stack.sh` 分发到同样的远端路径，运行同样参数的 `deploy-stack.sh`，按结果把记录置为 `success` / `failure`。
 
-`--dry-run` 做完核对、下载与渲染后停下，不连目标机、不写记录。脚本不创建、不移动 tag，也不替代在预发布上的试用与批准。编排顺序（先核对后下载、物料来自该提交、dry-run 不连目标机、失败置 failure 并清理）由 `tests/tooling/deploy-manual.test.ts` 用注入的假依赖核对；批准评论的白名单正反例（含第一轮审查的全部反例）、评论编辑状态的解析和部署记录的参数（含两条工作流的写法）也在同一个文件里。
+`--dry-run` 做完 Git/GitHub 证据读取、下载及临时渲染后停下，不连部署目标、不写部署记录；它**不是纯本地只读检查**，仍会联网和写临时物料，本次文档任务没有执行。脚本不创建/移动 tag、不构成人工试用或批准。`tests/tooling/deploy-manual.test.ts` 的隔离编排/批准用例不等于真实 ProxyJump、目标部署或当前整个集成历史通过。
 
 ## 运行位置
 
@@ -271,7 +297,7 @@ deploy job 不用 `actions/download-artifact`，改用 `scripts/fetch-artifact.m
 
 ## 双工具链
 
-核心按根 manifest/锁文件使用 Node 22 + pnpm 9.15.9；论坛按独立 manifest/锁文件使用 Node ≥26 + pnpm 11.24.0。分别安装、分别运行现有测试，避免用一套 Node 运行另一 ABI 的原生 SQLite 模块。CI 使用临时测试库和虚构数据；线上目标为 Linux，不上传 Mac 原生依赖。
+核心按根 manifest/锁文件使用 Node 22 + pnpm 9.15.9；论坛按独立 manifest/锁文件使用 Node ≥26 + pnpm 11.24.0；CLI 发布物料由固定 digest 的 Linux 构建容器独立交叉编译，不复用 Node 原生依赖。分别安装、分别运行现有测试，避免用一套 Node 运行另一 ABI 的原生 SQLite 模块。CI 使用临时测试库和虚构数据；线上目标为 Linux，不上传 Mac 原生依赖。
 
 ## 官方依据
 

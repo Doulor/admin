@@ -91,13 +91,17 @@ fn render_braille(path: &Path) -> Option<String> {
                     }
                 }
             }
-            if sum.3 > 0 {
+            if let (Some(r), Some(g), Some(b)) = (
+                sum.0.checked_div(sum.3),
+                sum.1.checked_div(sum.3),
+                sum.2.checked_div(sum.3),
+            ) {
                 cells.push(format!(
                     "({:#06x}u32,{},{},{})",
                     0x2800 + mask as u32,
-                    sum.0 / sum.3,
-                    sum.1 / sum.3,
-                    sum.2 / sum.3
+                    r,
+                    g,
+                    b
                 ));
             } else {
                 cells.push(format!("({:#06x}u32,0,0,0)", 0x2800 + mask as u32));

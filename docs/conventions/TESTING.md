@@ -2,7 +2,7 @@
 
 > 核心真实路由与上游论坛演示分别验收；类型、行为、构建和生产证据不相互替代。
 
-状态：`current` · 更新：2026-10-24
+状态：`current` · 更新：2026-10-27
 
 ## 根入口和分工
 
@@ -65,6 +65,8 @@
 `tests/tooling/deploy-doc-sync.test.ts` 覆盖发版前的文档同步（#192，[CICD](../ops/CICD.md)）：两条部署工作流的 plan job 都有「文档同步（发布 tag 指向的提交）」，排在完整历史的 tag 检出与 Node 安装之后，没有 `if`、`continue-on-error`、`|| true`，plan job 不装依赖（`check-doc-sync.mjs` 与 `note.mjs` 只导入 Node 内置模块），其它 job 都 `needs: plan` 且不带 `always()` 这类条件，两条工作流的这一步逐字相同；再在临时仓库里照工作流的写法用 bash 跑这一步：检出不同步的 rc tag 失败并报出那一对和那个提交，同步的通过，HEAD 不是 tag 指向的提交、浅克隆都失败。删掉这一步、加上吞掉失败的写法或让 build 不依赖 plan，测试都会失败。
 
 `tests/tooling/release-policy.test.ts` 在临时 Git 仓库里覆盖 tag 模型：tag 正则与 RELEASES.md 逐字一致；`vX.Y.Z-rc.N` → preview、`vX.Y.Z` → production；拒绝分支名、`latest`、短 SHA 与格式错误的 tag；拒绝不在 `stage` 上的 rc、不在 `main` 上的正式 tag、同一提交没有同版本 rc 的正式 tag、版本与该提交 `package.json` 不符、已正式发布的版本再打 rc、本地 tag 指向别的提交；拒绝已退役的 `--branch`/版本/批准开关；以及「规划只读」（不写文件、不改 refs、不动工作区）。论坛的 `app/forum/tests/deployment.test.ts` 覆盖展示值：预发布只接受 `X.Y.Z-rc.N@<sha12>`，正式只接受 `X.Y.Z`。`scripts/release-bundle.mjs` 与 `tests/tooling/release-bundle.test.ts` 已随发布包模型一起删除。任何规划输出都**不授予**部署批准（`deploymentAuthorized: false`），自动测试也不替代人工试用。
+
+`tests/tooling/cli-release-wiring.test.ts` 通过真实 `scripts/cli-dist.mjs` 命令和合成 cargo adapter 连续构建同一 CLI 版本：五目标内容变化时五个摘要 URL 全部变化、旧字节仍存在，相同内容重建 URL 稳定，已存在的摘要路径字节不符时拒绝覆盖；`check-cli-dist.mjs` 必须核对五目标、内容寻址文件名及 manifest/sidecar/实际字节三方 sha256。Shell 安装器在隔离 `HOME` 中实际下载、校验、试运行后替换，覆盖新版和旧 manifest、路径逃逸、任意 URL、错误目标、摘要不一致、下载字节不符与不可执行失败；PowerShell 安装器使用同一 manifest 选择契约，测试机有 `pwsh` 时实际运行恶意 manifest 拒绝用例，没有 `pwsh` 必须报告跳过，不能把源码字符串断言写成 PowerShell 已验证。
 
 授权数据拉取后使用 `scripts/forum-migration/verify.py` 逐文件核对哈希，并将冻结的 SQLite 在线备份恢复到内存核对所有表/条数。它是这次数据交付的单独核验，不是让常规 CI 使用真实用户数据。未来 capture/verify 工具单测只能使用虚构临时文件。
 

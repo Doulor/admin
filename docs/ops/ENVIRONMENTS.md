@@ -1,13 +1,13 @@
 # 环境与 `.env` 契约
 
-> 两份入库 `.env` 的字段契约与可见性规则；地址端口直接写，密钥留空由 CI/CD 注入。
+> 两份仓库环境模板、Arch/HK 发布目标与副本外发门禁；已接管的权威源保持原行为，模板、运行配置和数据库有效设置分别核对。
 
-状态：`current` · 更新：2026-10-24 · 机器配置：[deploy/environments.json](../../deploy/environments.json)
+状态：`current` · 更新：2026-10-27 · 适用：两套隔离栈；机器身份：[deploy/environments.json](../../deploy/environments.json)，运行现状及授权见 [DEPLOY](DEPLOY.md#迁移现状与授权边界)。
 
 ## 可见性规则
 
 1. **环境变量只经 `.env` 文件**，不同环境用不同后缀：`deploy/env/.env.production`、`deploy/env/.env.preview`。
-2. 这两个文件**提交入库**。**非密钥项**（服务地址、端口、域名、路径、开关）全部预填真实值——部署事实直接可见，机器与人都能一眼看清每个环境长什么样。
+2. 这两个文件**提交入库**；非密地址、端口、路径和开关对齐 Arch 目标。模板、真实运行配置、GitHub 配置和工作流执行仍分别取证。
 3. **密钥项必须留空**（`KEY=`），由 CI/CD 用 GitHub 环境级 secrets 渲染到目标机 `<STACK_ROOT>/.env.<environment>`，仓库里永远没有真值。必填的密钥留空时，渲染/校验**失败关闭**：缺必填密钥就没有部署；Turnstile 和发信的几项可以不配，见下文「环境级 secrets」。
 4. 语义上「留空即代表无值」的字段（`COOKIE_DOMAIN`、`MAIL_REPLY_TO`）同样留空，但含义明确，不算缺失。
 5. 目标机运行时文件名固定为 `<STACK_ROOT>/.env.production` / `<STACK_ROOT>/.env.preview`，由 `docker compose --env-file <文件> -f deploy/compose/<环境>.yml` 消费。
@@ -15,7 +15,7 @@
 
 ## 字段契约
 
-下表列出两份模板中都存在的字段。取值列为当前入库值（地址/端口是部署事实）。
+下表是已接管的 Arch 双栈配置。2026-10-26 无损迁移保留原应用设置，两个环境邮件 all、预发布 sync on；这些是权威源而非同时运行的副本。模板与真实配置仍须分别核对，隔离副本另遵守下文安全门禁。
 
 | 字段 | 可见性 | production | preview |
 |---|---|---|---|
@@ -23,17 +23,18 @@
 | `GEEK_ENVIRONMENT_ORIGIN` | 可见 | `https://yangtzeu.work` | `https://prev.yangtzeu.work` |
 | `COMPOSE_PROJECT_NAME` | 可见 | `yzgc-production` | `yzgc-preview` |
 | `STACK_ROOT` | 可见 | `/opt/yzgc/production` | `/opt/yzgc/preview` |
-| `DEPLOY_HOST` | 可见 | `103.117.123.226` | 同左（同机不同栈） |
-| `DEPLOY_PORT` | 可见 | `22000` | `22000` |
-| `DEPLOY_USER` | 可见 | `root` | `root` |
+| `DEPLOY_HOST` | 可见 | `10.66.0.2`（Arch tun0） | 同左（同机双栈） |
+| `DEPLOY_PORT` | 可见 | `22` | `22` |
+| `DEPLOY_USER` | 可见 | `root`（模板目标，非权限/连通证明） | 同左 |
+| `DEPLOY_PROXY_JUMP` | 可见·可留空 | `root@156.238.244.78:22`（香港跳板） | 同左；直连必须显式留空 |
 | `IMAGE_TAG` | 可见 | `unset`（部署时写入本次 `<sha12>`） | 同左 |
-| `WEB_BIND` | 可见 | `127.0.0.1:18100`（宿主 → web 容器 8080） | `127.0.0.1:18200`（宿主 → web 容器 8080） |
+| `WEB_BIND` | 可见 | `10.66.0.2:18100`（tun0 → web 容器 8080） | `10.66.0.2:18200` |
 | `SERVER_BIND` | 可见 | `127.0.0.1:18101` | `127.0.0.1:18201` |
 | `SERVER_PORT` / `FORUM_PORT` | 可见 | `3000` / `3000`（容器内） | `3000` / `3000`（容器内） |
 | `PORT` | 可见 | `3000`（容器内监听） | `3000` |
 | `FORUM_PORT` 改值注意 | — | 必须与 forum 镜像内 nginx 的 `listen`/`EXPOSE` 及 web 容器 `proxy_pass http://forum:3000/` 三处同时改 | 同左 |
 | `HOST` | 可见 | `0.0.0.0`（容器内必须绑定全网卡，否则 web 容器连不上） | `0.0.0.0` |
-| `TRUST_PROXY` | 可见 | `2`：反代层数（客户端 → 宿主 nginx → web 容器 nginx → server），只信任这两层追加的 `X-Forwarded-For`。**不能写 `true`**：会把客户端自己填的最左边一段当成客户端 IP，所有按 IP 的限流（投递、邀请、反馈、论坛）和审计 IP 都能伪造。`pnpm check:environments` 要求等于 `scripts/deployment-environment.mjs` 的 `PROXY_HOPS`，测试核对它与两份 nginx 配置一致 | `2` |
+| `TRUST_PROXY` | 可见 | `2`：Caddy → web nginx → server；过渡旧入口的客户端地址由 Caddy 按来源重新构造，隧道不计 HTTP 层；禁止 `true` | `2` |
 | `PUBLIC_ORIGIN` | 可见 | `https://yangtzeu.work`（必须逐字等于 `deploy/environments.json` 的 origin） | `https://prev.yangtzeu.work`（同左） |
 | `NODE_ENV` | 可见 | `production` | `production` |
 | `DB_PATH` | 可见 | `/data/data.db`（命名卷内） | `/data/data.db` |
@@ -44,8 +45,8 @@
 | `MAIL_RESEND_FROM` | 可见 | `notify@email-crosery.cn`（Resend 的发件地址，发出时写成 `长江大学极客班 <地址>`） | 同左 |
 | `MAIL_ASSET_BASE` | 可见 | `https://cdn.crosery.com/yzgc/mail/v1/`（信里图片的地址前缀：https，以 `/` 结尾，不带查询串） | 同左 |
 | `MAIL_REPLY_TO` | 可见·留空 | 空 = 信里不带 Reply-To，改请对方到官网意见箱留言；要填就写一个不带显示名的地址 | 空 |
-| `MAIL_RECIPIENTS` | 可见 | `all`：发给每一个投递的人 | `all`（#169 起；以前只能是 `allowlist`）；改成 `allowlist` 就只发 `MAIL_ALLOWLIST` 里的地址 |
-| `GITLAB_SYNC` | 可见 | `off`：不在 GitLab 上建号。改 `on` 要所有者在预发布验收、填好 `GITLAB_API_TOKEN`，并且按顺序来：先把预发布改 `off`，再迁 GitLab 的 `sub`、改 GitLab 的 `issuer`，最后正式改 `on`；两边同时 `on` 会反复封禁、解封同一批人 | `on`：正式站上线前 GitLab 接预发布的签发者，按预发布的账号建号、封禁（所有者 2026-10-23 选定；#270） |
+| `MAIL_RECIPIENTS` | 可见 | `all`，沿用接管前设置 | `all`，沿用接管前设置 |
+| `GITLAB_SYNC` | 可见 | `off`，不在迁移中切换身份源 | `on`，保留预发布权威源；数据库 effective mode 仍需独立核对 |
 | `GITLAB_URL` | 可见 | `https://git.yangtzeu.work`（自建 GitLab 的 origin，https、不带尾斜杠） | 同左 |
 | `GITLAB_GROUP` | 可见 | `geek`（成员进的组） | 同左 |
 | `GEEK_RELEASE_DISPLAY_SUFFIX` | **已移除** | 不再出现在 env 文件里：它是 `BUILD_ONLY_FIELDS`（发布身份只走 build args），写进 `.env` 不会被读取 | 同左 |
@@ -57,18 +58,32 @@
 | `TURNSTILE_SECRET_KEY` | **密钥·必须留空** | CI/CD 注入 | CI/CD 注入 |
 | `MAIL_ALIYUN_ACCESS_KEY_ID` / `MAIL_ALIYUN_ACCESS_KEY_SECRET` | 密钥·留空，可选的一对 | CI/CD 注入，可以不配 | 同左 |
 | `MAIL_RESEND_API_KEY` | 密钥·留空，可选 | CI/CD 注入，可以不配 | 同左 |
-| `MAIL_ALLOWLIST` | 密钥·留空，可选 | `MAIL_RECIPIENTS=allowlist` 时才用 | 同左，现在不用 |
+| `MAIL_ALLOWLIST` | 密钥·留空，可选 | `allowlist` 模式使用；迁移副本必须空，不得从原环境秘密注入后误放行 | 同左 |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 密钥·留空，可选的一对 | 没配：登录页不出现 Google | 同左 |
 | `OIDC_JWKS` | 密钥·留空，可选 | 没配：对外授权关闭，`/oidc/*` 一律 404 | 同左 |
 | `GITLAB_API_TOKEN` | 密钥·留空，`GITLAB_SYNC=on` 时必填 | `GITLAB_SYNC=on` 才用 | 同左，`on` 时必填 |
 
 **一个环境只有一个域名**（2026-09-23 决定）：官网、管理端、论坛共用 `PUBLIC_ORIGIN`，按 URL 路径区分——`/admin`、`/admin/…`、`/console`、`/console/…`、`/signin`、`/device`、`/account`、`/authorize` 进管理端 SPA，`/forum/…` 进论坛，`/oidc/…`（对外授权，#270）进 server，其余进官网。旧的按站点分域名字段 `SITE_ORIGIN`、`ADMIN_HOST`、`PORTAL_HOST`、`FORUM_HOST` 已退役，校验器把模板里任何契约外的字段判为失败，防止重新长出第二份域名配置。
 
-校验：`node scripts/deployment-environment.mjs --check`（`pnpm check:environments`）核对模板字段完整性、契约外字段、密钥留空、`PUBLIC_ORIGIN` 与 `deploy/environments.json` 逐字一致、两环境取值差异，以及发信字段：两个发件地址是不带显示名的邮箱，`MAIL_REPLY_TO` 为空或是一个邮箱，`MAIL_ASSET_BASE` 是以 `/` 结尾的 https 地址，`MAIL_RECIPIENTS` 只能是 `all` 或 `allowlist`（两个环境模板现在都是 `all`，#169）；`node scripts/deployment-environment.mjs render --environment <env> --out <路径> --image-tag <sha12>` 生成目标机运行时文件（只读仓库、只写显式 `--out`）。
+校验：`node scripts/deployment-environment.mjs --check`（`pnpm check:environments`）核对模板字段、密钥留空、origin、两环境隔离、受限 bind 与 ProxyJump 语法；不会连接目标或读取业务数据库。`render --environment <env> --out <路径> --image-tag <sha12>` 只把模板与环境级秘密渲染到显式目标，不验证恢复库 effective mode 或收件人是否为空，不能单独作为副本启动门禁。
 
 **不在 env 文件里的发布身份**：`GEEK_RELEASE_VERSION`（正式 tag `vX.Y.Z` → `X.Y.Z`；预发布 tag `vX.Y.Z-rc.N` → `X.Y.Z-rc.N@<sha12>`）与 `GEEK_RELEASE_COMMIT`（完整 40 位 SHA）由 CI/CD 作为**构建参数**传给镜像构建，不写进 `.env`——写死就等于让展示值与实际 commit 脱钩。展示规则见 [RELEASES](../conventions/RELEASES.md)。
 
 本机开发用的 `.env` 是另一回事：模板见 [ENVIRONMENT](ENVIRONMENT.md)，由操作者自建、不入库、只连本机数据。
+
+## 副本启动安全门禁
+
+- 仓库模板、`render` 或 `prepare-arch-runtime.mjs` 只处理 env，不清洗数据库业务设置。`app/server/src/lib/gitlab-sync.ts` 从 `app_state` 中 `key='gitlab_settings'` 的 JSON 读取 `mode`，覆盖 env；仅看到 `GITLAB_SYNC=off` 或准备器回执不能启动副本。
+- `verify-arch-replica.mjs` 可只读核对指定 env/独立一致快照；持久 on/dry-run、缺原加密密钥、WAL/SHM/journal 状态均拒绝。成功只表示配置满足当前预部署合同，不证明密钥与原快照匹配或真实循环无外发；分发和命令见 [DEPLOY](DEPLOY.md#arch-副本启动前的独立门禁)。
+- 核心真实入口会启动 GitLab 同步和贡献收集循环；`competition-candidates.ts` 按有效 GitLab mode 判定，`dry-run` 不等同 off。启动前须在出站隔离中证明恢复库 **effective mode=off**、贡献收集不外发/不计分、邮件空白名单及队列无外发；Compose bridge 网络名 `internal` 不会自动断网。
+- 对恢复副本的设置调整属于数据写入，必须取得该环境和目标的明确批准；只操作获批复制库，保留原快照和旧源，不给出任意 UPDATE 线上库的捷径。保留原 `ENCRYPTION_KEY`、client、sector/sub 与 GitLab 关联；不为“安全副本”重建账号或随机换加密密钥。
+- 最终接管身份源按单写者顺序：先停旧源的**有效**同步/贡献收集并证明停止 → 对账/保全关联与 sub → 获批切换 issuer/client → 只开启新权威源。邮件恢复外发也须单独批准；真实 SSO 故障未因配置迁移解决。
+
+## SSH 与跳板绑定
+
+`deployment-environment.mjs ssh-config` 在任何 SSH/SCP 之前严格核对环境哨兵和 `DEPLOY_SSH_HOST/PORT/USER` 与该提交模板；缺失或旧源 `103.117.123.226:22000` 不符时失败关闭，不用 fallback。`DEPLOY_PROXY_JUMP` 必须存在，非空只收单个 `[user@]host[:port]`；可选进程变量 `DEPLOY_SSH_PROXY_JUMP` 仅能逐字一致，不能覆盖模板跳板。
+
+CI/manual 都用生成的 `-F <配置> yzgc-target`，同一配置供 SSH/SCP：固定 `IdentitiesOnly`、`BatchMode`、`StrictHostKeyChecking=yes`、专用 `UserKnownHostsFile`，不读全局 known_hosts。应事先核验跳板与 Arch 双端主机公钥及专用部署 key 的权限；不得把个人 root 私钥给 CI，不能把生成成功当连通性证明。旧 tag 仍执行旧版本脚本，不因当前模板更新自动获得新门禁。
 
 ## GitHub Environment 配置
 
@@ -78,11 +93,11 @@
 
 | 名称 | 用途 |
 |---|---|
-| `DEPLOY_SSH_HOST` | 部署目标机地址 |
-| `DEPLOY_SSH_PORT` | SSH 端口 |
-| `DEPLOY_SSH_USER` | 部署用户 |
-| `DEPLOY_SSH_KEY` | SSH 私钥全文 |
-| `DEPLOY_SSH_KNOWN_HOSTS` | 目标机主机公钥行（`StrictHostKeyChecking=yes`） |
+| `DEPLOY_SSH_HOST` | 必须逐字等于该提交模板 `DEPLOY_HOST`，不得静默回落旧源 |
+| `DEPLOY_SSH_PORT` | 必须逐字等于模板 `DEPLOY_PORT` |
+| `DEPLOY_SSH_USER` | 必须逐字等于模板 `DEPLOY_USER` |
+| `DEPLOY_SSH_KEY` | 本次专用部署私钥；不使用个人 root 私钥；权限由目标方预先配置 |
+| `DEPLOY_SSH_KNOWN_HOSTS` | 已核验的香港跳板与 Arch 主机公钥行，严格校验双端，不用关闭检查换连通 |
 | `OAUTH_CLIENT_ID` | GitHub OAuth 应用 ID → 渲染进运行时 `.env`（每个环境一个独立的 OAuth App，见下文） |
 | `OAUTH_CLIENT_SECRET` | GitHub OAuth 应用密钥 → 运行时 `.env` |
 | `SESSION_SECRET` | 会话签名密钥（≥32 字符随机值） |
@@ -99,11 +114,11 @@
 
 Turnstile 两项是可选的一对（`scripts/deployment-environment.mjs` 的 `OPTIONAL_SECRET_PAIR`）：**都为空＝明确关闭**，渲染时写空值并提示；只填一项仍拒绝渲染；除 Turnstile 和下面的发信密钥外，其余密钥一律必填。关闭时服务端 `middleware/turnstile.ts` 不校验人机验证，公开的投递、反馈、邀请只靠工作量证明（`POW_DIFFICULTY`）、蜜罐字段与限流；遗留风险是批量脚本的成本只剩计算量，要开启时在 Cloudflare 建站点后把两项同时配进环境级 secrets 并重新部署。首次上线（2026-09-25）两个环境都关闭。
 
-发信的四项也都可以不配（同一脚本的 `MAIL_ALIYUN_SECRET_PAIR` 与 `OPTIONAL_SECRETS`，#148）。阿里云的 AccessKey ID 和 Secret 是一对，只填一项拒绝渲染；`MAIL_RESEND_API_KEY` 单独一项。server 先用阿里云发，失败再换 Resend；阿里云适配器还没写按封的回信地址（SingleSendMail 有 `ReplyAddress` 参数，没用真实发信试过，见 [mail](../services/server/mail.md)「已知限制」），所以 `MAIL_REPLY_TO` 不为空时信只交给 Resend，只配了阿里云时 server 按没有配置发信商处理、一封也不发，render 会提示。阿里云和 Resend 都没配时发信关闭：server 照常启动，投递和改状态照常成功，每封信在发信记录里记为「发信没有配置」，一封也不发，render 同样会提示。`MAIL_RECIPIENTS=allowlist` 时只给 `MAIL_ALLOWLIST` 里的地址发信（不分大小写），其余的信记为不在名单里、不发。两个环境现在都是 `all`：2026-09-27 14:20 要求「邮件不要做限制吧，不然我这边收不到邮件，没法测试。我们官方发的那些邮件，肯定必须发过去」，#169 去掉了「预发布只能是 `allowlist`」这条校验，预发布上投递、改状态的信都会发给投递人。改成 `allowlist` 而名单为空时一封也不发，render 会提示。名单里是真人的邮箱，属于个人信息，所以和密钥放在一起，不写进模板。渲染时名单只接受英文逗号隔开的邮箱，出错时报错里不带名单内容。2026-09-27 同意后，`preview` 环境配上了 `MAIL_ALIYUN_ACCESS_KEY_ID`、`MAIL_ALIYUN_ACCESS_KEY_SECRET`、`MAIL_RESEND_API_KEY`，`MAIL_ALLOWLIST` 里只有一个邮箱（#169 之后预发布是 `all`，这一项不起作用）。`production` 环境的发信密钥还没配，正式环境不发信。
+发信密钥可不配：阿里云 AK/SK 成对，Resend 为单项；全部为空时不外发，失败仍记录脱敏结果。带 `MAIL_REPLY_TO` 时只使用能承载该字段的 Resend，具体限制见 [mail 合同](../services/server/mail.md)。`MAIL_RECIPIENTS=allowlist` 只发送到名单，空名单不发；格式错误不回显名单。当前 Arch 已接管原权威源，模板与原运行设置均为 all；另建复制环境仍要使用空白名单和出站隔离，不能因为权威源获批外发就同时启动第二个发送者。
 
-Google 登录的两项也是可选的一对（同一脚本的 `GOOGLE_SECRET_PAIR`，#262）：都为空时登录页不出现 Google，`/auth/google` 回 404，渲染时提示；只填一项拒绝渲染，server 启动也会拒绝。两个环境现在都没配。要开启时在 Google Cloud 为每个环境建一个 OAuth 客户端（Web 应用，重定向 URI 是本环境的 `<origin>/auth/google/callback`），授权页上要有隐私政策地址，然后把两项写进目标机的 `.env.<环境>`（或环境级 secrets）并重新部署。
+Google 两项为可选的一对：都空时登录页不出现 Google、端点 404；只填一项拒绝渲染/启动。实际配置状态不由仓库空字段推断；迁移后的真实提供商回调、同意与绑定另验，不在本任务重配凭据或代替本人操作。
 
-对外授权与 GitLab 同步的两项（同一脚本的 `OIDC_GITLAB_SECRETS`，#270）：`OIDC_JWKS` 为空时对外授权关闭，`/oidc/*` 一律 404，渲染时提示，照常部署；`GITLAB_API_TOKEN` 只在 `GITLAB_SYNC=on` 时必填，缺了拒绝渲染，server 启动也会拒绝。`GITLAB_SYNC` 只能是 `off`、`dry-run`、`on`，`GITLAB_URL` 是不带尾斜杠的 https origin，`GITLAB_GROUP` 是 GitLab 的组路径，`pnpm check:environments` 核对。两个环境的 `.env` 现在都还没填这两项。GitLab 只有一台，正式站上线前接预发布（所有者 2026-10-23 选定），所以先在预发布按下面的顺序开；预发布的数据库从此不能清空重建，否则 GitLab 上的身份（`sub`）对不上；正式站上线后改接正式环境，按这个顺序：先把预发布的 `GITLAB_SYNC` 改成 `off`，再把预发布里 GitLab 的 `sub` 迁到正式库、改 GitLab 的 `issuer`，最后正式改 `on`，大家的 GitLab 账号不变；两边同时 `on` 时两份名单对不上，会反复封禁、解封同一批人。开启顺序：在目标机 server 容器里生成签名密钥写进 `.env.<环境>` 的 `OIDC_JWKS`、重新部署；再用同一个 CLI 登记 GitLab 客户端，client id 必须是 `gitlab`（同步按它的回调主机算 `sub`）；然后把 `GITLAB_SYNC` 改成 `on`、填 `GITLAB_API_TOKEN`、重新部署，看到第一轮对账成功（控制台 `client_registered` 为 `true`、没有 `last_error`）；最后才配 GitLab 的 omniauth。同步没开时成员离开不会被封禁，所以 GitLab 的统一登录不能先开（[对外授权与 GitLab 账号同步](../services/server/oidc.md)「客户端与密钥」「GitLab 一侧的配置」）。正式环境改 `GITLAB_SYNC=on` 要所有者先在预发布验收并批准，改之前先备份数据库。
+OIDC/GitLab 环境字段承接历史 **GitLab geek/admin#270**，不是 GitHub admin#270 迁移单。`OIDC_JWKS` 为空时对外授权关闭；render 仅按 env 的 `GITLAB_SYNC=on` 要求令牌，不能发现数据库有效 mode 的覆盖，见上文安全门禁。GitLab 客户端 id `gitlab`、sector 取回调主机，持久 pairwise sub 不随内部账号 ID 或签名密钥重新计算；保全原 `oauth_clients`/`oauth_subjects`/`gitlab_accounts` 和 `ENCRYPTION_KEY`。改接正式权威源、真实登录与至少两轮正常同步均需独立验收，详见 [OIDC 服务合同](../services/server/oidc.md) 与 [GitLab 运维合同](GITLAB.md)，不能用“同步错误 0”核销现有 SSO 故障。
 
 ### vars
 
@@ -121,31 +136,29 @@ Google 登录的两项也是可选的一对（同一脚本的 `GOOGLE_SECRET_PAI
 
 | 环境 | Callback URL | 说明 |
 |---|---|---|
-| production | `https://yangtzeu.work/auth/callback` | 沿用现有 OAuth App，**切换当天要把它的 Callback URL 从 `https://github.yangtzeu.work/auth/callback` 改成这一条**；不改则正式环境登录失败 |
-| preview | `https://prev.yangtzeu.work/auth/callback` | 需要单独建一个 OAuth App：密钥永不跨环境共用，它的 ID/密钥只放进 `preview` 环境的 secrets |
+| production | `https://yangtzeu.work/auth/callback` | 保留已发布环境的精确回调；迁移不顺带新建/修改 OAuth 应用，实际登记另核对 |
+| preview | `https://prev.yangtzeu.work/auth/callback` | 独立客户端与密钥，不与正式复用；真实往返需在新代理链验证 |
 
 登录成功后默认回到 `<PUBLIC_ORIGIN>/console`；`return_to` 只接受同一个 origin。
 
 ## DNS / TLS 前置
 
-| 域名 | 指向 | 用途 |
+| 域名 | 2026-10-26 迁移后的解析 / 行为 | 后续 |
 |---|---|---|
-| `yangtzeu.work` | `103.117.123.226` | 正式环境唯一入口（官网、`/admin`、`/console`、`/forum`） |
-| `prev.yangtzeu.work` | `103.117.123.226`（A 记录已生效） | 预发布环境唯一入口（同上） |
-| `github.yangtzeu.work` | `103.117.123.226` | 已退役的正式管理端域名：宿主 nginx 整站 301 到 `https://yangtzeu.work`（保留路径），旧书签和已发出的 `/join/<token>` 邀请链接继续可用；保留证书续期即可 |
+| `yangtzeu.work` | A 仍为 `103.117.123.226`，无 AAAA；旧入口转发到 Arch 正式 | 所有者将 A 指向香港 `156.238.244.78` |
+| `prev.yangtzeu.work` | A 仍为 `103.117.123.226`，无 AAAA；旧入口转发到 Arch 预发布 | 同上；香港可信 TLS 与指定 IP 路径已验证 |
+| `github.yangtzeu.work` | 旧 VPS 保留 301；legacy Node 已停用 | 兼容入口收尾前不关闭旧机 |
+| `git.yangtzeu.work` | 香港 → Arch GitLab 原链路 | 本迁移不改其 DNS 或身份源 |
 
-- 2026-09-24 用 `dig +short` 核对：上面三个域名都解析到 `103.117.123.226`。预发布**不需要**额外的管理端子域名记录。
-- `prev.yangtzeu.work` 的证书尚未确认已签发；签发前预发布入口不可用（容器端口可通，但 HTTPS 访问失败）。
-- TLS 由宿主 nginx 终止，证书用 certbot 按域名签发；本地开发不执行这些操作。
-- 改完 nginx 配置先 `nginx -t` 再 reload；不要为了排错关闭 HTTPS 或引入 HTTP 回退。
+DNS 由所有者操作；切前核对 A/AAAA/CAA/TTL、SNI、证书签发/续期与回调。旧源 nginx/certbot 保留观察窗口；新边缘使用 Caddy 签证书，不搬私钥、不在 Arch 额外叠宿主 nginx。模板/回环 HTTP 不证明 HTTPS 或身份安全，真实验收见 [DEPLOY](DEPLOY.md)。
 
 ## 环境同构性原则（预防线上 Hotfix）
 
 避免线上紧急缺陷（`hot-fix`）的根本前提是预发布与正式环境保持最高程度的**同构一致性**。线上出现环境级问题的三大主要根因与必检清单：
 
-1. **宿主 Nginx 配置同构（最易忽视点）**：
-   - 两套栈宿主 Nginx（`yzgc-preview.conf` 与 `yzgc-production.conf`）的 CSP 安全头规则、上游旁路映射（如论坛容器 CSP 旁路 Map）、历史路径 301 重定向（`/forum/t/` 与 `/forum/archive/t/`）、反代超时与安全头部必须保持完全同构，仅允许域名与端口绑定不同；
-   - 严禁「预发布加了旁路或放行策略，正式环境 Nginx 漏配或各写一套」，改动任一环境模板必须同步核对另一环境。
+1. **网关策略同构**：
+   - 两份 nginx 模板保留为策略源；现行香港配置由迁移工具从各环境实际配置提取。`scripts/render-arch-caddy.mjs` 尚未覆盖旧入口过渡的 IP 信任逻辑，不可直接安装覆盖 live 配置。
+   - 保留论坛上游内联哈希和比赛 sandbox CSP；新目标保持两层代理。模板一致不证明旧源或新边缘已安装，Caddy 生成/语法/真实域名分别取证。
 2. **七牛云 CDN 防盗链与鉴权白名单**：
    - 宣传片 HLS 流媒体与静态资源依赖七牛 CDN（`cdn.crosery.com` 等）；
    - CDN 空间的 **HTTP Referer 防盗链白名单**必须同时配置预发布域名（`prev.yangtzeu.work`）与正式域名（`yangtzeu.work`、`github.yangtzeu.work`）以及本地测试来源，避免预发布跑通而正式环境因 Referer 不在白名单直接报 403 阻断流媒体；

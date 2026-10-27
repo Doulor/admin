@@ -354,6 +354,15 @@ jobs:
             exit 1
           fi
 
+      - name: 构建并核对 CLI 五目标分发物料
+        shell: bash
+        # 固定 digest 的 cargo-zigbuild 容器内含 macOS SDK，不依赖 runner 临时安装的 Zig/Cargo 版本；
+        # 产物仍由仓库自己的 cli-dist.mjs 生成清单、安装脚本和 sha256，再做独立完整性核对。
+        run: |
+          set -eu
+          node scripts/cli-dist.mjs --container
+          node scripts/check-cli-dist.mjs
+
       - name: 构建 server 镜像
         shell: bash
         run: |
@@ -374,6 +383,7 @@ jobs:
           set -eu
           docker build \
             --file app/web/Dockerfile \
+            --build-context cli=dist/cli \
             --build-arg GEEK_DEPLOYMENT_ENVIRONMENT=production \
             --build-arg GEEK_RELEASE_VERSION="$GEEK_RELEASE_VERSION" \
             --build-arg GEEK_RELEASE_COMMIT="$GEEK_RELEASE_COMMIT" \
