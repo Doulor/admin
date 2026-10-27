@@ -168,9 +168,17 @@ OBJECT_COUNT="${RUN_FIELDS[2]}"
 OBJECT_BYTES="${RUN_FIELDS[3]}"
 echo "Restoring run: ${REMOTE_PREFIX} (${OBJECT_COUNT} objects, ${OBJECT_BYTES} bytes); no other run will be considered"
 
-STAMP="$(TZ=Asia/Shanghai date +%Y%m%dT%H%M%S)"
+STAMP="${GITLAB_DRILL_STAMP:-$(TZ=Asia/Shanghai date +%Y%m%dT%H%M%S)}"
 WORK_DIR="${DRILL_ROOT}/${STAMP}"
-mkdir -p "${WORK_DIR}"/{config,data/backups,logs}
+# 演练目录必须由本次运行独占：同一秒重跑、并发运行、或上一次保留下来的现场，都不能被复用——
+# 否则失败时的 EXIT 清理会 rm -rf 掉别人保留的演练现场（含明文密钥与日志）。用不带 -p 的 mkdir 原子占位，撞上就失败。
+[[ -d "${DRILL_ROOT}" ]] || { mkdir -p "${DRILL_ROOT}"; chmod 700 "${DRILL_ROOT}"; }
+mkdir -m 700 "${WORK_DIR}" 2>/dev/null || {
+    echo "Error: 演练目录已存在，拒绝复用（换一次运行或先人工确认 ${WORK_DIR}）：${WORK_DIR}" >&2
+    WORK_DIR=""
+    exit 1
+}
+for sub in config data data/backups logs; do mkdir -m 700 "${WORK_DIR}/${sub}"; done
 
 warn() {
     echo "Warning: $*" >&2

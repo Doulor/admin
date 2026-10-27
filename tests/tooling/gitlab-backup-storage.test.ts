@@ -20,12 +20,13 @@ const REAL_SHA256SUM = (() => {
   }
 })();
 const roots: string[] = [];
+let drillRunSerial = 0;
 afterEach(() => {
   for (const path of roots.splice(0)) rmSync(path, { recursive: true, force: true });
 });
 
 // 假 docker / gpg / node / sha256sum + 假 Garage 对象树：不连真实主机，只在临时目录里跑完整演练
-function drillFixture(options: { image?: string; archiveImage?: string; configArchive?: 'symlink' | 'absolute'; failAt?: 'restore'; removeContainerFails?: boolean } = {}) {
+function drillFixture(options: { image?: string; archiveImage?: string; configArchive?: 'symlink' | 'absolute'; failAt?: 'restore'; removeContainerFails?: boolean; stamp?: string } = {}) {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'geek-restore-drill-')));
   roots.push(dir);
   const bin = join(dir, 'bin');
@@ -176,6 +177,7 @@ process.exit(result.status ?? 1);
       GITLAB_DRILL_ROOT: drillRoot,
       GITLAB_COMPOSE_FILE: compose,
       GITLAB_ARCHIVE_TOOL: archiveTool,
+      GITLAB_DRILL_STAMP: options.stamp ?? `test-${process.pid}-${++drillRunSerial}`,
     },
   });
 
@@ -281,6 +283,20 @@ describe('GitLab restore drill failure teardown and image pinning', () => {
 
     expect(result.status, label).not.toBe(0);
     expect(result.stderr).toContain('拒绝解压');
+    expect(f.calls().some(call => call.startsWith('run -d --name gitlab-drill'))).toBe(false);
+  });
+
+  it('refuses to reuse an existing drill directory and never deletes what is in it', () => {
+    // 同一秒重跑或上一次保留的现场：复用目录会让失败清理 rm -rf 掉别人保留的明文密钥与日志。
+    const f = drillFixture({ stamp: 'retained-scene' });
+    mkdirSync(join(f.drillRoot, 'retained-scene'), { recursive: true });
+    writeFileSync(join(f.drillRoot, 'retained-scene/kept.log'), 'retained scene\n');
+
+    const result = f.run();
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('演练目录已存在');
+    expect(readFileSync(join(f.drillRoot, 'retained-scene/kept.log'), 'utf8')).toBe('retained scene\n');
     expect(f.calls().some(call => call.startsWith('run -d --name gitlab-drill'))).toBe(false);
   });
 

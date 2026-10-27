@@ -106,7 +106,7 @@ Compose 固定 `gitlab/gitlab-ce@sha256:bb79dc86267c557fd11e7feb0cd9dd506dd02e99
 
 [backup.sh](../../deploy/gitlab/backup.sh) 使用 `flock`、`umask 077`，由 [timer](../../deploy/gitlab/gitlab-backup.timer) 每日 `03:30 Asia/Shanghai` 调用。它先 `gitlab-backup create SKIP=registry STRATEGY=copy CRON=1`，再分别 GPG 公钥加密数据 tar 与配置 tar，写 `SHA256SUMS`，最后调用共享 [garage-archive.mjs](../../deploy/remote/garage-archive.mjs) 归档。适配器固定 `https://cdn.yangtzeu.work`、region `garage`、path-style 和私有桶 `geek-backup`；上传前完整 GET 已有对象，逐字相同才复用，不同则失败，新增后再次完整 GET 核对 SHA-256。它没有覆盖、删除、移动、sync 或 purge 接口。
 
-- GitLab 路径为 `gitlab/YYYY-MM-DD/<run>/`。恢复必须点名 run：`restore-drill.sh --run YYYY-MM-DD/<run>` 只核对被点名的这一个 run，不带 `--run` 时只列候选并退出 1，**不再**自动挑“字典序最新”的那一个；`--day YYYY-MM-DD` 只是列候选时的过滤器。旧 `gitlab/YYYY-MM-DD/` 单层目录只能列出、不再由新备份写入，也不能直接作为 `--run`。
+- GitLab 路径为 `gitlab/YYYY-MM-DD/<run>/`。恢复必须点名 run：`restore-drill.sh --run YYYY-MM-DD/<run>` 只核对被点名的这一个 run，不带 `--run` 时只列候选并退出 1，**不再**自动挑“字典序最新”的那一个；`--day YYYY-MM-DD` 只是列候选时的过滤器。旧 `gitlab/YYYY-MM-DD/` 单层目录不再由新备份写入，也不会出现在候选列表里（适配器只认 `<日期>/<run>/SHA256SUMS`）；要恢复这类历史对象只能先把它们重新归档成 `<日期>/<run>/` 形状，不能靠改选择器绕过。
 - 凭据只从 `/etc/gitlab-backup/env` 或进程环境的 `GITLAB_BACKUP_S3_ACCESS_KEY_ID`、`GITLAB_BACKUP_S3_SECRET_ACCESS_KEY` 注入；endpoint、region、桶和 path-style 不接受环境改写。凭据不得进入配置归档、日志、argv 或源码。
 - 配置候选恰为 `/srv/gitlab/config`、Compose、backup/restore 两脚本及三个 systemd unit，只归档存在项；不是缺任一项都会失败。`config` 必须含原 `gitlab-secrets.json` 与 `yzgc-oidc-secret`，另含头像恢复副本才能宣称可恢复这些内容。
 - `/etc/gitlab-backup/env`、七牛 AK/SK、GPG 私钥/口令不在配置归档内；GitLab 配置包本身**包含运行 secret**，仅允许加密保存，绝不能导入源码仓库。明文配置 tar 在加密后及退出 trap 中删除；这不是磁盘块级安全擦除。
