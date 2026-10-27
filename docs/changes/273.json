@@ -59,7 +59,6 @@
       "reason": "不新增或升级 crate/npm 依赖；根命令固定 Cargo locked/jobs=2，分发通过 cargo metadata 读取真实 target_directory，并对 OMP profile、显式 harness 目录和安装后二进制可执行性建立明确依赖边界。",
       "evidence": [
         "package.json",
-        "scripts/cli-dist.mjs",
         "app/cli/src/commands/skill.rs"
       ]
     },
@@ -95,7 +94,6 @@
       "reason": "根 cli:build/cli:test/cli:dist 统一指向 app/cli；交叉分发使用锁文件、jobs=2、Cargo 元数据目标目录、sha256 和安装后 --version 检查。没有修改版本、部署工作流或镜像接入；task270仍负责把分发物集成到发布构建。",
       "evidence": [
         "package.json",
-        "scripts/cli-dist.mjs",
         "docs/services/cli/README.md"
       ]
     }
@@ -154,7 +152,6 @@
     {
       "paths": [
         "package.json",
-        "scripts/cli-dist.mjs",
         "tests/tooling/cli-distribution.test.ts",
         "tests/tooling/cli-skill-install.test.ts"
       ],
@@ -208,7 +205,6 @@
     },
     {
       "paths": [
-        "docs/architecture/catalog/ownership.json",
         "docs/architecture/catalog/CATALOG.md",
         "docs/architecture/catalog/catalog.json",
         "docs/architecture/catalog/data-model.md",
