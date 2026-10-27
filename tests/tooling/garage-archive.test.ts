@@ -455,6 +455,61 @@ describe('Garage archive retention (prune-runs)', () => {
     expect(f.calls().filter(call => call.args[0] === 'deletefile')).toHaveLength(0);
   });
 
+  it('uploads SHA256SUMS after every data object so an interrupted upload never leaves a manifest without data', () => {
+    const f = fixture();
+    writeRun(f, day('2026-10-24'), { 'a.gpg': 'a', 'z.gpg': 'z', 'm.gpg': 'm' });
+    const targets = f.calls().filter(call => call.args[0] === 'copyto').map(call => String(call.args[2]));
+    expect(targets).toHaveLength(4);
+    expect(targets.at(-1)).toBe('geekgarage:geek-backup/gitlab/2026-10-24/run1/SHA256SUMS');
+  });
+
+  it('does not count a run whose manifest lists an object that is not there, and keeps it', () => {
+    const f = fixture();
+    seed(f, ['2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24']);
+    rmSync(join(f.objects, 'geek-backup', 'gitlab', '2026-10-23', 'run1', 'b.gpg'));
+    const result = f.run(['prune-runs', '--role', 'gitlab-backup', '--apply']);
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      keptDates: ['2026-10-21', '2026-10-22', '2026-10-24'], unverifiedRuns: [day('2026-10-23')], removedRuns: [day('2026-10-20')],
+    });
+    expect(exists(f, day('2026-10-20'))).toBe(false);
+    for (const date of ['2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24']) expect(exists(f, day(date))).toBe(true);
+  });
+
+  it('does not count a run whose manifest is unreadable as a backup date', () => {
+    const f = fixture();
+    seed(f, ['2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24']);
+    writeFileSync(join(f.objects, 'geek-backup', 'gitlab', '2026-10-22', 'run1', 'SHA256SUMS'), 'not a manifest\n');
+    const result = f.run(['prune-runs', '--role', 'gitlab-backup', '--apply']);
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({ keptDates: ['2026-10-20', '2026-10-21', '2026-10-23', '2026-10-24'].slice(1), unverifiedRuns: [day('2026-10-22')], removedRuns: [day('2026-10-20')] });
+    expect(exists(f, day('2026-10-22'))).toBe(true);
+  });
+
+  it('refuses to delete anything when a run is dated after Beijing today', () => {
+    const f = fixture();
+    seed(f, ['2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23', '2099-01-01']);
+    const result = f.run(['prune-runs', '--role', 'gitlab-backup', '--apply']);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('北京今天');
+    expect(f.calls().filter(call => call.args[0] === 'deletefile')).toHaveLength(0);
+    expect(exists(f, day('2026-10-20'))).toBe(true);
+  });
+
+  it('keeps the platform put-tree and get-tree prefixes pinned to a single run', () => {
+    const f = fixture();
+    const source = join(f.dir, 'platform-src');
+    mkdirSync(source);
+    writeFileSync(join(source, 'platform-backup.tar.gpg'), 'x');
+    for (const environment of ['preview', 'production']) {
+      const role = `platform-${environment}-backup`;
+      const family = `platform/${environment}/`;
+      expect(f.run(['put-tree', '--role', role, '--source', source, '--prefix', family]).status).toBe(1);
+      expect(f.run(['get-tree', '--role', role, '--prefix', family, '--destination', join(f.dir, `out-${environment}`)]).status).toBe(1);
+    }
+    expect(f.calls().filter(call => ['copyto', 'cat', 'lsjson'].includes(call.args[0]))).toHaveLength(0);
+  });
+
   it('leaves other backup families in the same bucket alone', () => {
     const f = fixture();
     seed(f, ['2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23']);

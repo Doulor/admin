@@ -23,12 +23,12 @@ const ROLES = Object.freeze({
   'platform-preview-backup': {
     bucket: 'geek-backup', access: 'PLATFORM_PREVIEW_BACKUP_S3_ACCESS_KEY_ID', secret: 'PLATFORM_PREVIEW_BACKUP_S3_SECRET_ACCESS_KEY',
     key: /^platform\/preview\/\d{4}-\d{2}-\d{2}\/[A-Za-z0-9._-]+\/[A-Za-z0-9._/-]+$/,
-    prefix: /^platform\/preview\/(?:\d{4}-\d{2}-\d{2}\/[A-Za-z0-9._-]+\/)?$/,
+    prefix: /^platform\/preview\/\d{4}-\d{2}-\d{2}\/[A-Za-z0-9._-]+\/$/,
   },
   'platform-production-backup': {
     bucket: 'geek-backup', access: 'PLATFORM_PRODUCTION_BACKUP_S3_ACCESS_KEY_ID', secret: 'PLATFORM_PRODUCTION_BACKUP_S3_SECRET_ACCESS_KEY',
     key: /^platform\/production\/\d{4}-\d{2}-\d{2}\/[A-Za-z0-9._-]+\/[A-Za-z0-9._/-]+$/,
-    prefix: /^platform\/production\/(?:\d{4}-\d{2}-\d{2}\/[A-Za-z0-9._-]+\/)?$/,
+    prefix: /^platform\/production\/\d{4}-\d{2}-\d{2}\/[A-Za-z0-9._-]+\/$/,
   },
   'preview-content-index': {
     bucket: 'geek-preview-private', access: 'PREVIEW_PRIVATE_INDEX_S3_ACCESS_KEY_ID', secret: 'PREVIEW_PRIVATE_INDEX_S3_SECRET_ACCESS_KEY',
@@ -217,13 +217,12 @@ async function putTree(role, source, prefix) {
   assertObjectPath(role, prefix, 'prefix');
   const collected = collectTree(source);
   source = collected.source;
-  const files = collected.files;
+  const items = collected.files.map(file => ({ file, rel: relative(source, file).split(sep).join('/') }));
+  for (const { rel } of items) requireThat(rel && !rel.startsWith('../'), '归档相对路径非法');
+  // 清单最后上传：远端出现 SHA256SUMS 就表示同一 run 的数据对象都已写入并读回核验过，中断的上传只会留下无清单的残缺 run
+  items.sort((a, b) => Number(a.rel === MANIFEST_NAME) - Number(b.rel === MANIFEST_NAME));
   const results = [];
-  for (const file of files) {
-    const rel = relative(source, file).split(sep).join('/');
-    requireThat(rel && !rel.startsWith('../'), '归档相对路径非法');
-    results.push(await putFile(role, file, `${prefix}${rel}`));
-  }
+  for (const { file, rel } of items) results.push(await putFile(role, file, `${prefix}${rel}`));
   return {
     bucket: role.bucket, prefix, total: results.length,
     stored: results.filter(item => item.status === 'stored').length,
@@ -234,6 +233,11 @@ async function putTree(role, source, prefix) {
 
 function listPrefix(role, prefix) {
   assertObjectPath(role, prefix, 'prefix');
+  return listObjects(role, prefix);
+}
+
+// 调用方负责保证 prefix 受信；每个返回对象的键仍要通过角色的 key 正则
+function listObjects(role, prefix) {
   const list = runJson(['lsjson', remotePath(role, prefix), '--recursive', '--files-only', '--no-modtime', '--no-mimetype'], role);
   requireThat(Array.isArray(list), 'rclone lsjson 结果无效');
   return list.map(item => {
@@ -369,15 +373,26 @@ function catText(role, key) {
   return result.stdout;
 }
 
-// 保留最近 N 个「有完整清单的备份日期」，更早的整日 run 删除。
-// 任何前置核对不过都零删除：目录结构意外、有效日期不足 N 个、最新一份 run 的 SHA256SUMS 与对象列表对不上。
+// 保留最近 N 个「清单与对象列表逐项对得上的备份日期」，更早的整日 run 删除。
+// 任何前置核对不过都零删除：目录结构意外、出现晚于北京今天的日期（主机时钟超前会把截止日推后）、
+// 已核验的日期不足 N 个、最新一份带清单的 run 对不上。保留窗口内对不上的旧 run 不计入日期，也不会被删。
 // 每个 run 先删 SHA256SUMS：中途失败时它变成无清单的残缺 run，恢复路径不会再选它，下一次清理会收走剩余对象。
+const beijingToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+
+function runMatchesManifest(role, entry) {
+  let entries;
+  try { entries = parseManifest(catText(role, `${entry.prefix}${MANIFEST_NAME}`)); }
+  catch (error) { if (error instanceof ArchiveError && error.message.startsWith('SHA256SUMS')) return false; throw error; }
+  const listed = new Map(entry.objects.filter(object => object.name !== MANIFEST_NAME).map(object => [object.name, object]));
+  return listed.size === entries.size && [...entries.keys()].every(name => listed.get(name)?.bytes > 0);
+}
+
 function pruneRuns(role, { keepDates = DEFAULT_KEEP_DATES, apply = false } = {}) {
   const family = PRUNE_FAMILIES[role.name];
   requireThat(family, '该角色不支持清理');
   requireThat(Number.isSafeInteger(keepDates) && keepDates >= 1 && keepDates <= 30, '--keep-dates 必须是 1 到 30 的整数');
   const runs = new Map();
-  for (const item of listPrefix(role, family)) {
+  for (const item of listObjects(role, family)) {
     const match = /^(\d{4}-\d{2}-\d{2})\/([A-Za-z0-9._-]+)\/(.+)$/.exec(item.path);
     requireThat(match, `${item.key}：不在 <日期>/<run>/ 结构内，拒绝清理`);
     requireThat(Number.isSafeInteger(item.bytes) && item.bytes >= 0, `${item.key}：对象长度无效`);
@@ -386,18 +401,23 @@ function pruneRuns(role, { keepDates = DEFAULT_KEEP_DATES, apply = false } = {})
     entry.objects.push({ key: item.key, name: match[3], bytes: item.bytes });
     runs.set(id, entry);
   }
-  const byAge = (a, b) => a.date.localeCompare(b.date, 'en') || a.run.localeCompare(b.run, 'en');
-  const complete = [...runs.values()].filter(entry => entry.objects.some(object => object.name === MANIFEST_NAME)).sort(byAge);
-  const validDates = [...new Set(complete.map(entry => entry.date))];
-  const kept = validDates.slice(-keepDates);
-  const result = { bucket: role.bucket, family, mode: apply ? 'apply' : 'dry-run', keepDates, keptDates: kept, removedRuns: [], objects: 0, bytes: 0 };
-  if (validDates.length <= keepDates) return result;
+  const today = beijingToday();
+  for (const entry of runs.values()) requireThat(entry.date <= today, `${entry.prefix}：日期晚于北京今天 ${today}，疑似主机时钟错误，拒绝清理`);
 
-  const newest = complete.at(-1);
-  const entries = parseManifest(catText(role, `${newest.prefix}${MANIFEST_NAME}`));
-  const listed = new Map(newest.objects.filter(object => object.name !== MANIFEST_NAME).map(object => [object.name, object]));
-  requireThat(listed.size === entries.size && [...entries.keys()].every(name => listed.get(name)?.bytes > 0),
-    `${newest.prefix} 最新一份 run 的 SHA256SUMS 与对象列表不一致，拒绝清理`);
+  const byAge = (a, b) => a.date.localeCompare(b.date, 'en') || a.run.localeCompare(b.run, 'en');
+  const withManifest = [...runs.values()].filter(entry => entry.objects.some(object => object.name === MANIFEST_NAME)).sort(byAge);
+  const verifiedDates = new Set();
+  const unverifiedRuns = [];
+  // 从新到旧逐个核验，凑够 N 个日期就停：窗口之外更旧的 run 不需要读清单
+  for (let index = withManifest.length - 1; index >= 0 && verifiedDates.size < keepDates; index -= 1) {
+    const entry = withManifest[index];
+    if (runMatchesManifest(role, entry)) { verifiedDates.add(entry.date); continue; }
+    requireThat(index !== withManifest.length - 1, `${entry.prefix} 最新一份 run 的 SHA256SUMS 与对象列表不一致，拒绝清理`);
+    unverifiedRuns.push(entry.prefix);
+  }
+  const kept = [...verifiedDates].sort();
+  const result = { bucket: role.bucket, family, mode: apply ? 'apply' : 'dry-run', keepDates, keptDates: kept, unverifiedRuns, removedRuns: [], objects: 0, bytes: 0 };
+  if (kept.length < keepDates) return result;
 
   const cutoff = kept[0];
   const doomed = [...runs.values()].filter(entry => entry.date < cutoff).sort(byAge);
