@@ -34,7 +34,7 @@ export type LoginPrompt = 'pick-identity' | 'sign-in' | 'not-member' | 'busy' | 
 export interface ForumAccess {
   /** A write can reach storage: the demo's browser store, or a server that answered. */
   writable: boolean
-  /** The forum server did not answer: the published posts only, every write off. */
+  /** The forum server did not answer: no unconfirmed projection is shown, and every write is off. */
   offline: boolean
   loginPrompt: LoginPrompt
 }
@@ -58,8 +58,8 @@ export function forumAccess(mode: ForumMode, status: ServerStatus, user: User | 
 
 /** The same words wherever a page has to say that nothing can be written right now. */
 export const UNAVAILABLE_COPY = {
-  'offline': { title: '论坛服务暂时连不上', description: '现在只能看帖子，稍后刷新页面再试。' },
-  'busy': { title: '请求太频繁，稍后再试', description: '论坛过一会儿会自动重新加载，现在可以看帖子。' },
+  'offline': { title: '论坛服务暂时连不上', description: '只保留当前身份已确认的内容；没有确认过的帖子不会显示，论坛会自动重试。' },
+  'busy': { title: '请求太频繁，稍后再试', description: '只保留当前身份已确认的内容；论坛过一会儿会自动重新加载。' },
   'not-member': { title: '这个账号现在不能在论坛里发帖', description: '这个极客班账号已经停用，和没登录一样只能看公开的帖子。' },
 } as const satisfies Record<Extract<LoginPrompt, 'offline' | 'busy' | 'not-member'>, { title: string, description: string }>
 

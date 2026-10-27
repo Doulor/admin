@@ -253,17 +253,21 @@ describe('writes against the server', () => {
       expect(await server.toggleBookmark('body-73')).toBeNull()
       await vi.advanceTimersByTimeAsync(0)
       expect(toastStore.items.map(item => item.title)).toEqual(['请求太频繁，稍后再试'])
-      expect(server.status).toBe('ready')
+      expect(server.status).toBe('busy')
       expect(server.viewer).toBeNull()
       expect(session.currentUserId).toBeNull()
-      expect(forum.state).toBe(before)
+      expect(forum.state).not.toBe(before)
+      expect(forum.state.categories).toEqual([])
+      expect(forum.topicById('t1001')).toBeUndefined()
+      expect(forum.state.bookmarks).toEqual([])
+      expect(forum.state.notifications).toEqual([])
     }
     finally {
       vi.useRealTimers()
     }
   })
 
-  it('counts a second write the member had out as the same lapse, not as a guest\'s refusal (#164)', async () => {
+  it('ignores a second refusal from the old projection after the first write ended the sign-in (#164, #272)', async () => {
     const like = held()
     const bookmark = held()
     const { server } = await signedIn(MEMBER_VIEWER, like.answer, bookmark.answer, json(serverBody()))
@@ -274,7 +278,7 @@ describe('writes against the server', () => {
     expect(server.viewer).toBeNull()
     bookmark.release(json({ error: 'signin_required', message: '登录后才能操作' }, 401))
     expect(await bookmarking).toBeNull()
-    expect(server.signinLapse).toEqual({ count: 2, ended: false, failed: '没有加上书签', message: '登录后才能操作' })
+    expect(server.signinLapse).toEqual({ count: 1, ended: false, failed: '没有赞上', message: '登录后才能操作' })
     expect(toastStore.items).toEqual([])
   })
 

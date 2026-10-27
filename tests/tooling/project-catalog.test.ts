@@ -57,7 +57,10 @@ it("extracts actual database columns, foreign keys, indexes and all source capab
 
 it("keeps Nitro/static declarations distinct from observed Fastify registrations", () => {
   const catalog = buildCatalog(runtime, ownership);
-  expect(catalog.supplementalInterfaces).toHaveLength(5);
+  expect(catalog.supplementalInterfaces).toHaveLength(6);
+  expect(catalog.supplementalInterfaces.find(item => item.id === "interface:forum.published-proxy")).toMatchObject({
+    path: "/published/:file", methods: ["GET", "HEAD"], scope: "nitro-and-prerender",
+  });
   expect(catalog.supplementalInterfaces.every(item => item.assessment === "static-declaration-not-runtime-observed")).toBe(true);
   expect(catalog.supplementalInterfaces.find(item => item.path === "/api/local-forum/assets/:hash")?.methods).toEqual(["GET", "HEAD"]);
   expect(catalog.supplementalInterfaces.find(item => item.path === "/llms.txt")?.scope).toBe("nitro-and-prerender");

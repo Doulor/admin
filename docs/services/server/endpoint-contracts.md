@@ -704,7 +704,7 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 权限与资源：游客与成员均可读；通知、书签和真实通知设置仅本人可见，其他用户设置给默认值；关注关系公开。
 
-响应与错误：200 {state}，帖子只有字段和摘要、没有正文；每IP(/64)分钟120次，超额429；显式HEAD回405且不计算state。state.viewer除userId/kind/capabilities外另有level（"public"|"registered"|"member"，levelOf()按分级可见判出，游客恒为public）与nodes（这个账号持有的论坛写权限节点子集，游客恒为空数组，#276团队负责人追加），每个写接口的回答也带同一套viewer。
+响应与错误：200 {state}，帖子只有字段和摘要、没有正文；话题与帖子按 `COALESCE(topic.visibility, category.visibility, 'public')` 过滤；分类仅在自身可读或被合法可读话题引用时下发，用户新增标签、通知与书签不引用隐藏话题；每IP(/64)分钟120次，超额429；显式HEAD回405且不计算state。state.viewer除userId/kind/capabilities外另有level（"public"|"registered"|"member"，levelOf()按分级可见判出，游客恒为public）与nodes（这个账号持有的论坛写权限节点子集，游客恒为空数组，#276团队负责人追加），每个写接口的回答也带同一套viewer。
 
 数据与副作用：读论坛表与公开内容分类；GET也可能通过forumViewer刷新本人用户；不发送邮件、不写帖子。
 
@@ -746,6 +746,36 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 源码：[app/server/src/routes/forum-api/topics.ts:50](../../../app/server/src/routes/forum-api/topics.ts#L50)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
+## 读取site论坛Markdown索引
+
+`GET /forum/llms.txt` · `flow:forum.site-markdown.index`
+
+权限与资源：`forumViewer` 按同源 `sid` 解析游客/注册用户/成员，`levelOf` 与 `/api/forum/state` 共用读取等级；只从当前 viewer 已过滤的 state 生成，不读取静态 `published` JSON。
+
+响应与错误：200 `text/plain; charset=utf-8`；只列当前可见分类、话题与首帖摘要，无可见话题返回空态说明；自动 HEAD；`Cache-Control: private, no-store`、`nosniff`；沿用论坛读取限流。
+
+数据与副作用：不修改话题、正文或 visibility；GET 仍可能按既有 `forumViewer` 规则刷新本人论坛用户。源码：[app/server/src/routes/forum-api/markdown.ts](../../../app/server/src/routes/forum-api/markdown.ts)。验证：[tests/server/forum-category-visibility.test.ts](../../../tests/server/forum-category-visibility.test.ts)。
+
+## 读取site话题Markdown正文
+
+`GET /forum/t/:topic_id.md` · `flow:forum.site-markdown.topic`
+
+权限与资源：先按有效可见性执行正文直链同一守卫，再用同一 viewer 的 state 与 `topicPosts()` 生成；历史显式 public 覆盖保留，分类收紧的继承话题立即隐藏。
+
+响应与错误：200 `text/markdown; charset=utf-8`；未知 id 404；匿名缺所需等级 401 `unauthenticated`，已登录等级不足 403 `forbidden`，拒绝体不带标题或正文；自动 HEAD；`private, no-store`、`nosniff`。
+
+数据与副作用：只读当前核心数据库正文，不读构建时 Markdown。源码与验证同上。
+
+## 下载site旧帖图片
+
+`GET /forum/published/:file` · `flow:forum.site-published.asset`
+
+权限与资源：文件名只接受 16 位小写十六进制加 `.webp`；至少一篇当前 viewer 可见且未删除的正文引用它才可读，同一图片被多话题引用时取最宽有效可见性。
+
+响应与错误：允许时 200 `image/webp`；非法名、磁盘缺文件、无引用或仅隐藏话题引用统一 404，不泄漏附件存在性；自动 HEAD；`private, no-store`、`nosniff`。
+
+数据与副作用：读正文引用和 server 镜像内保留的源图片，不删除源文件、帖子或历史记录。验证：[tests/server/forum-category-visibility.test.ts](../../../tests/server/forum-category-visibility.test.ts)。
+
 ## 话题列表的游标分页（#276 CONTRACT §9）
 
 `GET /api/forum/topics` · `flow:forum.topics.page`
@@ -766,7 +796,7 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 `POST /api/forum/topics` · `flow:forum.topics.create`
 
-权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。
+权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.topic.create 节点。
 
 响应与错误：201 {changes,viewer,topicId,postId}，帖子带正文；非法标题/分类/tag/空正文400，成员限流429。
 
@@ -782,7 +812,7 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 `POST /api/forum/topics/:topic_id/pin` · `flow:forum.topics.pin`
 
-权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 此外必须具备forum.topic.pin，作用于指定话题。
+权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另按指定话题的分类 scope 核对 forum.moderate.pin 节点。
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；缺能力403，话题不存在404。
 
@@ -798,7 +828,7 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 `POST /api/forum/topics/:topic_id/close` · `flow:forum.topics.close`
 
-权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 此外必须具备forum.topic.close，作用于指定话题。
+权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另按指定话题的分类 scope 核对 forum.moderate.close 节点。
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；缺能力403，话题不存在404。
 
@@ -860,7 +890,7 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 `PATCH /api/forum/posts/:post_id` · `flow:forum.posts.edit`
 
-权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 必须是作者本人，或者持有forum.post.moderate；能力不是作者分支的共同前提。
+权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 作者本人可编辑自己的帖子；编辑他人帖子另需目标分类 scope 下的 forum.moderate.edit。
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；帖子正文随changes返回；404不存在、403他人帖子、409 post_deleted、400 empty_content。
 
@@ -876,7 +906,7 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 `DELETE /api/forum/posts/:post_id` · `flow:forum.posts.delete`
 
-权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 作者本人或forum.post.moderate；第一帖禁止删除。
+权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 作者本人可删除自己的回复；删除他人回复另需目标分类 scope 下的 forum.moderate.delete；第一帖禁止删除。
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在、403他人帖子、400 first_post；已软删重试返回现状。
 
@@ -892,7 +922,7 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 `POST /api/forum/posts/:post_id/like` · `flow:forum.posts.like`
 
-权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 点赞主体固定本人，不接受代他人点赞。
+权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.react；点赞主体固定本人，不接受代他人点赞。
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在，409 post_deleted；帖子投影不带全文。
 
@@ -908,7 +938,7 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 `POST /api/forum/posts/:post_id/bookmark` · `flow:forum.posts.bookmark`
 
-权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只能操作本人的书签；handler只检查帖子存在，未禁止为已软删帖子加书签。
+权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.react；仅操作本人书签，handler 检查帖子存在，未禁止为软删帖子加书签。
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在；删除书签用changes.removed反馈。
 
@@ -972,7 +1002,7 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 `POST /api/forum/users/:forum_user_id/follow` · `flow:forum.users.follow`
 
-权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 关注发起人固定本人，目标须存在且不是本人。
+权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.react；关注发起人固定本人，目标须存在且不是本人。
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404未知用户，400 cannot_follow_self。
 
@@ -988,7 +1018,7 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 `POST /api/forum/notifications/:notification_id/read` · `flow:forum.notifications.read`
 
-权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 SQL同时匹配通知id与recipient_id，不能读取/标记他人通知。
+权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 SQL 同时匹配通知 id 与 recipient_id，不能标记他人通知。
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；不存在或属于他人均404。
 
@@ -1004,7 +1034,7 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 `POST /api/forum/notifications/read-all` · `flow:forum.notifications.read_all`
 
-权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 仅recipient_id等于本人。
+权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 仅处理 recipient_id 等于本人的通知。
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；没有未读通知仍返回合法空变更。
 
@@ -1022,7 +1052,7 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 `PATCH /api/forum/me/profile` · `flow:forum.profile.update`
 
-权限与资源：requireMember：有效会话的已登录论坛账号（registered 与邮箱/Google 登录也包含在内，不等于 OIDC 成员资格）；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只修改本人记录；允许昵称、签名、所在地、https网站与通知设置，不接收用户角色授权。
+权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 只修改本人记录；允许昵称、签名、所在地、https网站与通知设置，不接收用户角色授权。
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；400昵称/控制字符/网址等错误；旧昵称未变时不因新昵称规则阻止修改其他字段。
 
@@ -1038,7 +1068,7 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 `PUT /api/forum/me/avatar` · `flow:forum.avatar.upload`
 
-权限与资源：requireMember：有效会话的已登录论坛账号（registered 与邮箱/Google 登录也包含在内，不等于 OIDC 成员资格）；主体由服务端forumViewer确定，客户端userId/role不能赋权。 onRequest阶段即鉴权并消费每小时10次额度，失败解码也算；只改本人头像。
+权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 onRequest 阶段即鉴权并消费每小时 10 次额度，解码失败也计次；只改本人头像。
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；413 avatar_too_large，415 unsupported_media_type，400非法图像/尺寸，429限流。
 
@@ -1054,7 +1084,7 @@ owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active �
 
 `DELETE /api/forum/me/avatar` · `flow:forum.avatar.clear`
 
-权限与资源：requireMember：有效会话的已登录论坛账号（registered 与邮箱/Google 登录也包含在内，不等于 OIDC 成员资格）；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只清本人自定义头像。
+权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 只清本人自定义头像。
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。
 
@@ -1264,34 +1294,37 @@ SQLite读写：无。源码：[app/forum/server/routes/api/local-forum/state.ts]
 
 SQLite读写：无。源码：[app/forum/server/routes/api/local-forum/assets/[hash].ts](../../../app/forum/server/routes/api/local-forum/assets/[hash].ts)。验证入口：[app/forum/tests/local-snapshot.test.ts](../../../app/forum/tests/local-snapshot.test.ts)。
 
-## 提供论坛Markdown索引
+## 提供论坛Markdown索引（Nitro入口）
 
 `interface:forum.llms` · `GET,HEAD /llms.txt` · `flow:forum.markdown.index`
 
-权限与资源：匿名GET/HEAD；只拦截llms.txt；其它方法/路径交后续处理器。
+权限与资源：demo 与明确本机快照模式按本地来源生成；site 开发模式把请求、cookie 和方法代理到核心 `/forum/llms.txt`，不读取 `published` 源正文。
 
-响应与错误：200 text/plain UTF-8加nosniff；快照加载失败503。
+响应与错误：demo/快照 200 `text/plain`；site 原样返回核心的200/429等状态、`private, no-store` 与权限投影，失败不回退静态索引。
 
-数据与副作用：site构建使用siteForumState，开发快照模式读只读投影，否则进程示例种子；预渲染可落成静态文件，不动态读取核心forum_*数据库。
+数据与副作用：demo/快照无SQLite；site 的数据/副作用由上面的核心动态出口承担。生产 site 镜像不携带此文件，外部入口由web直达核心。
 
-验证边界：所列为纯解析、内容转换或配置测试，不是本次启动Nitro或读取真实快照的证明。
+验证：[tests/tooling/forum-site-content.test.ts](../../../tests/tooling/forum-site-content.test.ts)、[app/forum/tests/forum-markdown.test.ts](../../../app/forum/tests/forum-markdown.test.ts)。
 
-SQLite读写：无。源码：[app/forum/server/middleware/forum-markdown.ts](../../../app/forum/server/middleware/forum-markdown.ts)。验证入口：[app/forum/tests/forum-markdown.test.ts](../../../app/forum/tests/forum-markdown.test.ts)、[app/forum/tests/site-state.test.ts](../../../app/forum/tests/site-state.test.ts)、[app/forum/tests/content-source.test.ts](../../../app/forum/tests/content-source.test.ts)。
-
-## 提供话题Markdown正文
+## 提供话题Markdown正文（Nitro入口）
 
 `interface:forum.topic-markdown` · `GET,HEAD /t/:id.md` · `flow:forum.markdown.topic`
 
-权限与资源：匿名GET/HEAD；路径按TOPIC_MARKDOWN匹配，不能二次解码冒充其他路由。
+权限与资源：demo/快照按原本地合同生成；site 开发代理核心 `/forum/t/:id.md`，不能二次解码路径，不能在核心拒绝后回退源正文。
 
-响应与错误：200 text/markdown UTF-8；未知话题404 text/plain；快照失败503。
+响应与错误：demo/快照未知话题404；site原样返回核心的200/401/403/404与缓存头。生产 site 镜像不含 `t/*.md`，直接访问论坛容器返回404。
 
-数据与副作用：与索引同源：site内容/开发快照/示例种子；不包含浏览器新写内容或实时核心数据库帖子，构建静态输出与在线核心API分别取证。
+数据与副作用：demo/快照无SQLite；site由核心按当前viewer读取。验证同上。
 
-验证边界：所列为纯解析、内容转换或配置测试，不是本次启动Nitro或读取真实快照的证明。
+## 代理site旧帖图片（Nitro入口）
 
-SQLite读写：无。源码：[app/forum/server/middleware/forum-markdown.ts](../../../app/forum/server/middleware/forum-markdown.ts)。验证入口：[app/forum/tests/forum-markdown.test.ts](../../../app/forum/tests/forum-markdown.test.ts)、[app/forum/tests/site-state.test.ts](../../../app/forum/tests/site-state.test.ts)。
+`interface:forum.published-proxy` · `GET,HEAD /published/:file` · `flow:forum.published.proxy`
 
+权限与资源：site 开发仅匹配16位小写十六进制webp并代理核心 `/forum/published/:file`；demo继续使用自己的public静态图片。
+
+响应与错误：site原样返回核心200/404和`private, no-store`；失败不回退本地图片。生产 site 镜像删除published目录，外部入口由web直达核心。
+
+数据与副作用：Nitro本身不读写SQLite。验证：[tests/tooling/forum-site-content.test.ts](../../../tests/tooling/forum-site-content.test.ts)。
 
 ## 比赛信息发布
 

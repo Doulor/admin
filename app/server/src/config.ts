@@ -136,6 +136,8 @@ export function createConfig(env: Record<string, string | undefined>) {
     // 论坛的公开内容（分类、标签、公开旧帖），启动时读来播种。不是环境变量：仓库里和镜像里都在同一个相对位置
     // （app/server/Dockerfile 把两份 JSON 复制到 /app/app/forum/content）；测试直接换成夹具目录。
     forumContentDir: resolve(APP_ROOT, "forum/content"),
+    // 公开旧帖里的图片源文件由核心按当前话题可见性提供；forum 静态镜像不再携带这些文件。
+    forumPublishedDir: resolve(APP_ROOT, "forum/public/published"),
     // 内置表情包（#276、#286）：清单 manifest.json 与各包的图片，仓库里的通用素材，不按环境或测试换目录。
     stickerAssetsDir: resolve(APP_ROOT, "server/assets/stickers"),
     // 静态资源 CDN 开关（#146、#286）：构建参数 STATIC_CDN_BASE 由 app/server/Dockerfile 带进运行环境，空 = 同源；

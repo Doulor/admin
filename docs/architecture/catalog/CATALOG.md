@@ -4,18 +4,18 @@
 
 状态：`current` · 更新：2026-10-27 · 自动生成，不手工编辑。
 
-来源摘要：`38ff54027d95740551a5808778579aa936cdbadf27b4450f77e650b33db7d77f`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`08e0cfc2ae5a0d4a0e3771e8cb8196788682101efe4328689918e01cff5aaad9`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
 ## 基线
 
 - 5 个源码应用，3 个运行单元。
-- 297 个已注册方法与路径，其中业务操作 181 个，自动 HEAD 87 个。
-- 69 张应用表，16 个能力，187 条显式业务流程。
-- 响应 Schema：149/297。缺失不等于没有响应；不冒充完整 OpenAPI。
+- 303 个已注册方法与路径，其中业务操作 184 个，自动 HEAD 90 个。
+- 69 张应用表，16 个能力，191 条显式业务流程。
+- 响应 Schema：152/303。缺失不等于没有响应；不冒充完整 OpenAPI。
 
-业务流程关联：181/181 个业务操作；5/5 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
+业务流程关联：184/184 个业务操作；6/6 个补充入口。遗漏关联时生成失败。逐接口响应和错误说明见[接口行为契约](../../services/server/endpoint-contracts.md)。
 
 ## 应用与运行单元
 
@@ -41,7 +41,7 @@
 | 邀请 | 0 | `invite_codes`、`invite_links`、`invite_attempts`、`invitations` | [docs/architecture/API.md](../../../docs/architecture/API.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
 | GitHub 组织代理 | 0 | 无本地表 | [docs/services/console/README.md](../../../docs/services/console/README.md) · [docs/architecture/API.md](../../../docs/architecture/API.md) |
 | GitLab 账号同步 | 12 | `gitlab_accounts` | [docs/services/server/oidc.md](../../../docs/services/server/oidc.md) · [docs/decisions/0005-sso-extend-core-server.md](../../../docs/decisions/0005-sso-extend-core-server.md) |
-| 论坛交流 | 43 | `forum_counters`、`forum_avatars`、`forum_users`、`forum_tags`、`forum_topics`、`forum_posts`、`forum_likes`、`forum_bookmarks`、`forum_follows`、`forum_notifications`、`forum_topic_views`、`forum_rate_events`、`forum_category_settings`、`forum_sticker_packs`、`forum_sticker_files`、`forum_stickers`、`forum_reactions`、`forum_upload_files` | [docs/services/forum/README.md](../../../docs/services/forum/README.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
+| 论坛交流 | 49 | `forum_counters`、`forum_avatars`、`forum_users`、`forum_tags`、`forum_topics`、`forum_posts`、`forum_likes`、`forum_bookmarks`、`forum_follows`、`forum_notifications`、`forum_topic_views`、`forum_rate_events`、`forum_category_settings`、`forum_sticker_packs`、`forum_sticker_files`、`forum_stickers`、`forum_reactions`、`forum_upload_files` | [docs/services/forum/README.md](../../../docs/services/forum/README.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
 | 通知邮件 | 7 | `mail_outbox`、`mail_templates` | [docs/services/server/mail.md](../../../docs/services/server/mail.md) |
 | 审计 | 7 | `audit_logs`、`activity_events` | [docs/architecture/SECURITY.md](../../../docs/architecture/SECURITY.md) · [docs/services/server/data-model.md](../../../docs/services/server/data-model.md) |
 | 公开文档 | 4 | 无本地表 | [docs/conventions/DOCUMENTATION.md](../../../docs/conventions/DOCUMENTATION.md) · [docs/architecture/API.md](../../../docs/architecture/API.md) |
@@ -250,7 +250,7 @@
 - 响应与错误：200 {signed_in:false,level:"visitor",permissions,quota}（访客）或 {signed_in:true,login,user_id,avatar_url,account_id,provider,console_link,email_required,profile_required,real_name,grade,grade_label,level,level_name,department,titles,permissions,quota,prefs,username,display_name,bio,identities}（#274 review round 1：level不带level.前缀，permissions是UI_NODES里实际放行的节点数组，identities是{emails,google,github}）；email_required为true（账号还没有登录邮箱、这个环境又能发信，#273）时官网、论坛、控制台整页跳到/bind-email；#280：real_name 只回本人，grade 是 1–4 或 graduated（由 account_profiles.enrollment_year 按北京时间的学年现算，每年 9 月 1 日升一级），profile_required 在缺姓名或年级时为 true（不看能不能发信），邮箱不缺时官网、论坛、控制台整页跳到/complete-profile；不会再有GitHub token被拒的session_expired分支（这条路径已经不调用GitHub）。
 - 数据与副作用：会话联查账号状态，过期、没有账号或账号不是active的会话按未登录处理并删除（lib/auth.ts的getSession）；级别、部门、称号、permissions、console_link都从新权限引擎（lib/permissions.ts的groupsOf/check，读perm_members/perm_entries/perm_groups/perm_group_parents）现查现算，不缓存、不写回；账号资料缺行时兜底插入account_profiles（ensure()，INSERT OR IGNORE，幂等）；不调用GitHub，不写identity_audit或audit_logs。
 
-源码：[app/server/src/routes/admin/auth.ts:154](../../../app/server/src/routes/admin/auth.ts#L154) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/lib/db.ts:732](../../../app/server/src/lib/db.ts#L732) · [app/console/src/lib/runtime.ts:50](../../../app/console/src/lib/runtime.ts#L50) · [app/console/src/lib/errors.ts:31](../../../app/console/src/lib/errors.ts#L31) · [app/console/src/router.ts:15](../../../app/console/src/router.ts#L15) · [app/web/sites/portal/lib/account.ts:48](../../../app/web/sites/portal/lib/account.ts#L48) · [app/web/sites/portal/components/os/YugcOs.tsx:47](../../../app/web/sites/portal/components/os/YugcOs.tsx#L47) · [app/forum/app/composables/useSiteLinks.ts:17](../../../app/forum/app/composables/useSiteLinks.ts#L17) · [app/forum/app/components/ForumHeader.vue:133](../../../app/forum/app/components/ForumHeader.vue#L133) · [app/forum/app/components/LoginModal.vue:8](../../../app/forum/app/components/LoginModal.vue#L8) · [app/forum/app/components/SignInState.vue:26](../../../app/forum/app/components/SignInState.vue#L26) · [app/forum/app/composables/useSiteAccount.ts:13](../../../app/forum/app/composables/useSiteAccount.ts#L13) · [app/forum/app/data/access.ts:87](../../../app/forum/app/data/access.ts#L87) · [app/forum/app/pages/about.vue:49](../../../app/forum/app/pages/about.vue#L49) · [app/forum/app/pages/new.vue:31](../../../app/forum/app/pages/new.vue#L31) · [app/forum/shared/signin-outcomes.ts:2](../../../app/forum/shared/signin-outcomes.ts#L2) · [app/forum/shared/site-notice.ts:9](../../../app/forum/shared/site-notice.ts#L9) · [app/forum/app/components/AdoptionNotice.vue:41](../../../app/forum/app/components/AdoptionNotice.vue#L41) · [app/server/src/lib/email-gate.ts:19](../../../app/server/src/lib/email-gate.ts#L19) · [app/web/sites/portal/lib/account.ts:158](../../../app/web/sites/portal/lib/account.ts#L158) · [app/forum/shared/site-account.ts:46](../../../app/forum/shared/site-account.ts#L46) · [app/forum/app/composables/useSiteAccount.ts:47](../../../app/forum/app/composables/useSiteAccount.ts#L47) · [app/console/src/pages/Device.vue:112](../../../app/console/src/pages/Device.vue#L112) · [app/web/shared/lib/api.ts:20](../../../app/web/shared/lib/api.ts#L20) · [app/web/sites/portal/lib/shell/index.ts:159](../../../app/web/sites/portal/lib/shell/index.ts#L159) · [app/web/sites/portal/lib/shell/commands.ts:1036](../../../app/web/sites/portal/lib/shell/commands.ts#L1036) · [app/web/sites/portal/components/os/Terminal.tsx:47](../../../app/web/sites/portal/components/os/Terminal.tsx#L47) · [app/server/src/lib/grade.ts:20](../../../app/server/src/lib/grade.ts#L20) · [app/server/src/lib/account-profiles.ts:22](../../../app/server/src/lib/account-profiles.ts#L22)
+源码：[app/server/src/routes/admin/auth.ts:154](../../../app/server/src/routes/admin/auth.ts#L154) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/server/src/lib/auth.ts:63](../../../app/server/src/lib/auth.ts#L63) · [app/server/src/lib/db.ts:732](../../../app/server/src/lib/db.ts#L732) · [app/console/src/lib/runtime.ts:50](../../../app/console/src/lib/runtime.ts#L50) · [app/console/src/lib/errors.ts:31](../../../app/console/src/lib/errors.ts#L31) · [app/console/src/router.ts:15](../../../app/console/src/router.ts#L15) · [app/web/sites/portal/lib/account.ts:48](../../../app/web/sites/portal/lib/account.ts#L48) · [app/web/sites/portal/components/os/YugcOs.tsx:47](../../../app/web/sites/portal/components/os/YugcOs.tsx#L47) · [app/forum/app/composables/useSiteLinks.ts:17](../../../app/forum/app/composables/useSiteLinks.ts#L17) · [app/forum/app/components/ForumHeader.vue:133](../../../app/forum/app/components/ForumHeader.vue#L133) · [app/forum/app/components/LoginModal.vue:8](../../../app/forum/app/components/LoginModal.vue#L8) · [app/forum/app/components/SignInState.vue:26](../../../app/forum/app/components/SignInState.vue#L26) · [app/forum/app/composables/useSiteAccount.ts:12](../../../app/forum/app/composables/useSiteAccount.ts#L12) · [app/forum/app/data/access.ts:87](../../../app/forum/app/data/access.ts#L87) · [app/forum/app/pages/about.vue:49](../../../app/forum/app/pages/about.vue#L49) · [app/forum/app/pages/new.vue:31](../../../app/forum/app/pages/new.vue#L31) · [app/forum/shared/signin-outcomes.ts:2](../../../app/forum/shared/signin-outcomes.ts#L2) · [app/forum/shared/site-notice.ts:9](../../../app/forum/shared/site-notice.ts#L9) · [app/forum/app/components/AdoptionNotice.vue:41](../../../app/forum/app/components/AdoptionNotice.vue#L41) · [app/server/src/lib/email-gate.ts:19](../../../app/server/src/lib/email-gate.ts#L19) · [app/web/sites/portal/lib/account.ts:158](../../../app/web/sites/portal/lib/account.ts#L158) · [app/forum/shared/site-account.ts:46](../../../app/forum/shared/site-account.ts#L46) · [app/forum/app/composables/useSiteAccount.ts:72](../../../app/forum/app/composables/useSiteAccount.ts#L72) · [app/console/src/pages/Device.vue:112](../../../app/console/src/pages/Device.vue#L112) · [app/web/shared/lib/api.ts:20](../../../app/web/shared/lib/api.ts#L20) · [app/web/sites/portal/lib/shell/index.ts:159](../../../app/web/sites/portal/lib/shell/index.ts#L159) · [app/web/sites/portal/lib/shell/commands.ts:1036](../../../app/web/sites/portal/lib/shell/commands.ts#L1036) · [app/web/sites/portal/components/os/Terminal.tsx:47](../../../app/web/sites/portal/components/os/Terminal.tsx#L47) · [app/server/src/lib/grade.ts:20](../../../app/server/src/lib/grade.ts#L20) · [app/server/src/lib/account-profiles.ts:22](../../../app/server/src/lib/account-profiles.ts#L22)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/console.test.ts](../../../tests/server/console.test.ts) · [tests/server/identity.test.ts](../../../tests/server/identity.test.ts) · [tests/server/legacy-database.test.ts](../../../tests/server/legacy-database.test.ts) · [tests/console/signin.test.ts](../../../tests/console/signin.test.ts) · [tests/web/portal-phone.test.tsx](../../../tests/web/portal-phone.test.tsx) · [tests/e2e/workflows.spec.ts](../../../tests/e2e/workflows.spec.ts) · [tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts) · [tests/web/portal-os.test.ts](../../../tests/web/portal-os.test.ts) · [tests/web/portal-account.test.tsx](../../../tests/web/portal-account.test.tsx) · [app/forum/tests/site-account.test.ts](../../../app/forum/tests/site-account.test.ts) · [tests/console/device.test.ts](../../../tests/console/device.test.ts) · [tests/server/real-info.test.ts](../../../tests/server/real-info.test.ts) · [tests/server/grade.test.ts](../../../tests/server/grade.test.ts)。生成器未执行这些测试。
 
@@ -1072,14 +1072,15 @@
 - 读取：`forum_counters`、`forum_users`、`forum_tags`、`forum_topics`、`forum_posts`、`forum_likes`、`forum_notifications`、`forum_bookmarks`、`forum_follows`、`sessions`、`role_assignments`、`departments`、`titles`、`account_profiles`、`users`、`identities`
 - 写入：`forum_users`、`sessions`、`activity_events`、`limit_events`
 - 不入队：
-- 权限与资源：游客与成员均可读；通知、书签和真实通知设置仅本人可见，其他用户设置给默认值；关注关系公开。
-- 响应与错误：200 {state}，帖子只有字段和摘要、没有正文；每IP(/64)分钟120次（路由自带的 FORUM_REQUEST_LIMITS），游客还另外按 SPEC §3.8 的 meta.limit.read.per_minute 限到每分钟60次（成员按等级更松，见 lib/limits.ts），哪个先触发就回哪个 bucket；超额429；显式HEAD回405且不计算state。
-- 数据与副作用：读论坛表与公开内容分类；GET也可能通过forumViewer刷新本人用户；不发送邮件、不写帖子。
+- 权限与资源：游客、注册用户、成员和版务都只收到当前读取等级可见的话题；有效范围为 COALESCE(topic.visibility, category.visibility, public)，历史显式覆盖不因分类后来收紧而失效。
+- 响应与错误：200 {state}，帖子只有摘要；分类只在自身可读或被可读话题引用时下发，用户新增标签、通知和书签不得引用隐藏话题；每IP限流与显式HEAD规则不变。
+- 数据与副作用：读论坛表与公开种子；不删除或改写被隐藏的话题、分类、标签、通知和书签，权限恢复后原记录重新进入投影。
+- 身份与失败：site 客户端初始投影为空；身份变化立即清空旧投影并重读，迟到的读取、搜索、正文和写回答不能恢复旧身份内容；无权威响应时不回退到构建时正文。
 - 身份与资料：登录身份按 account_id 保留既有论坛 id，registered 登录不等于 OIDC 成员资格；历史作者公开资料直接读取 canonical 投影，无 canonical 保留旧值，不创建历史档案。角色/称号仅本人请求刷新，权限节点另行判定。
 
-源码：[app/server/src/routes/forum-api/topics.ts:22](../../../app/server/src/routes/forum-api/topics.ts#L22) · [app/server/src/lib/forum-store.ts:230](../../../app/server/src/lib/forum-store.ts#L230) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/forum/app/app.vue:1](../../../app/forum/app/app.vue#L1) · [app/forum/app/components/TitleBadge.vue:1](../../../app/forum/app/components/TitleBadge.vue#L1) · [app/forum/app/components/TopicListNav.vue:1](../../../app/forum/app/components/TopicListNav.vue#L1) · [app/forum/app/composables/useCurrentUser.ts:16](../../../app/forum/app/composables/useCurrentUser.ts#L16) · [app/forum/app/composables/useForumTheme.ts:20](../../../app/forum/app/composables/useForumTheme.ts#L20) · [app/forum/app/composables/useOrgTitles.ts:16](../../../app/forum/app/composables/useOrgTitles.ts#L16) · [app/forum/app/data/account-badges.ts:16](../../../app/forum/app/data/account-badges.ts#L16) · [app/forum/app/data/permissions.ts:11](../../../app/forum/app/data/permissions.ts#L11) · [app/forum/app/data/titles.ts:27](../../../app/forum/app/data/titles.ts#L27) · [app/forum/app/data/types.ts:12](../../../app/forum/app/data/types.ts#L12) · [app/forum/app/pages/users.vue:1](../../../app/forum/app/pages/users.vue#L1) · [app/forum/app/plugins/opaque-surfaces.ts:12](../../../app/forum/app/plugins/opaque-surfaces.ts#L12) · [app/forum/app/stores/forum-server.ts:47](../../../app/forum/app/stores/forum-server.ts#L47) · [app/forum/shared/forum-api.ts:14](../../../app/forum/shared/forum-api.ts#L14) · [app/server/src/lib/forum-content.ts:181](../../../app/server/src/lib/forum-content.ts#L181) · [app/server/src/lib/public-profile.ts:6](../../../app/server/src/lib/public-profile.ts#L6) · [app/forum/shared/site-state.ts:21](../../../app/forum/shared/site-state.ts#L21)
+源码：[app/server/src/routes/forum-api/topics.ts:22](../../../app/server/src/routes/forum-api/topics.ts#L22) · [app/server/src/lib/forum-store.ts:230](../../../app/server/src/lib/forum-store.ts#L230) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/forum/app/app.vue:1](../../../app/forum/app/app.vue#L1) · [app/forum/app/components/TitleBadge.vue:1](../../../app/forum/app/components/TitleBadge.vue#L1) · [app/forum/app/components/TopicListNav.vue:1](../../../app/forum/app/components/TopicListNav.vue#L1) · [app/forum/app/composables/useCurrentUser.ts:16](../../../app/forum/app/composables/useCurrentUser.ts#L16) · [app/forum/app/composables/useForumTheme.ts:20](../../../app/forum/app/composables/useForumTheme.ts#L20) · [app/forum/app/composables/useOrgTitles.ts:16](../../../app/forum/app/composables/useOrgTitles.ts#L16) · [app/forum/app/data/account-badges.ts:16](../../../app/forum/app/data/account-badges.ts#L16) · [app/forum/app/data/permissions.ts:11](../../../app/forum/app/data/permissions.ts#L11) · [app/forum/app/data/titles.ts:27](../../../app/forum/app/data/titles.ts#L27) · [app/forum/app/data/types.ts:12](../../../app/forum/app/data/types.ts#L12) · [app/forum/app/pages/users.vue:1](../../../app/forum/app/pages/users.vue#L1) · [app/forum/app/plugins/opaque-surfaces.ts:12](../../../app/forum/app/plugins/opaque-surfaces.ts#L12) · [app/forum/app/stores/forum-server.ts:49](../../../app/forum/app/stores/forum-server.ts#L49) · [app/forum/shared/forum-api.ts:14](../../../app/forum/shared/forum-api.ts#L14) · [app/server/src/lib/forum-content.ts:181](../../../app/server/src/lib/forum-content.ts#L181) · [app/server/src/lib/public-profile.ts:6](../../../app/server/src/lib/public-profile.ts#L6) · [app/forum/shared/site-state.ts:10](../../../app/forum/shared/site-state.ts#L10) · [app/forum/app/composables/useContentSource.ts:25](../../../app/forum/app/composables/useContentSource.ts#L25) · [app/forum/app/composables/useSiteAccount.ts:24](../../../app/forum/app/composables/useSiteAccount.ts#L24) · [app/forum/app/data/access.ts:46](../../../app/forum/app/data/access.ts#L46) · [app/forum/app/plugins/site-state.client.ts:15](../../../app/forum/app/plugins/site-state.client.ts#L15) · [app/forum/shared/published.ts:67](../../../app/forum/shared/published.ts#L67) · [app/forum/shared/site-state.ts:10](../../../app/forum/shared/site-state.ts#L10)
 
-测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts) · [tests/server/public-profile-consumers.test.ts](../../../tests/server/public-profile-consumers.test.ts)。生成器未执行这些测试。
+测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts) · [tests/server/public-profile-consumers.test.ts](../../../tests/server/public-profile-consumers.test.ts) · [tests/server/forum-category-visibility.test.ts](../../../tests/server/forum-category-visibility.test.ts) · [app/forum/tests/forum-category-visibility.test.ts](../../../app/forum/tests/forum-category-visibility.test.ts) · [app/forum/tests/forum-server-store.test.ts](../../../app/forum/tests/forum-server-store.test.ts) · [app/forum/tests/site-state.test.ts](../../../app/forum/tests/site-state.test.ts) · [app/forum/tests/site-account.test.ts](../../../app/forum/tests/site-account.test.ts)。生成器未执行这些测试。
 
 ### 阅读单话题帖子正文
 
@@ -1090,14 +1091,14 @@
 - 读取：`forum_topics`、`forum_posts`、`forum_likes`、`sessions`、`role_assignments`、`departments`、`titles`、`forum_users`
 - 写入：`forum_users`、`sessions`、`activity_events`、`limit_events`
 - 不入队：
-- 权限与资源：游客与成员均可读，无额外帖子级权限；与state可见性一致。
+- 权限与资源：与state、搜索和分页共用 COALESCE(topic.visibility, category.visibility, public)；不可见话题在正文直链返回401/403且响应不带标题或正文。
 - 响应与错误：200 {posts}含正文；话题不存在404；每IP分钟60次（路由自带），游客另按 SPEC §3.8 的 meta.limit.read.per_minute 限额（同 /state）。
 - 数据与副作用：按话题读取帖子及点赞投影；软删正文为空；不把全论坛正文再次塞进首屏。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
 源码：[app/server/src/routes/forum-api/topics.ts:34](../../../app/server/src/routes/forum-api/topics.ts#L34) · [app/server/src/lib/forum-store.ts:230](../../../app/server/src/lib/forum-store.ts#L230) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/forum/app/components/ForumMarkdown.vue:1](../../../app/forum/app/components/ForumMarkdown.vue#L1) · [app/forum/app/pages/t/[id].vue:1](../../../app/forum/app/pages/t/[id].vue#L1) · [app/forum/shared/post-markdown.ts:31](../../../app/forum/shared/post-markdown.ts#L31) · [app/server/src/lib/forum-content.ts:181](../../../app/server/src/lib/forum-content.ts#L181) · [app/forum/shared/forum-markdown.ts:131](../../../app/forum/shared/forum-markdown.ts#L131)
 
-测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
+测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts) · [tests/server/forum-category-visibility.test.ts](../../../tests/server/forum-category-visibility.test.ts) · [app/forum/tests/forum-category-visibility.test.ts](../../../app/forum/tests/forum-category-visibility.test.ts)。生成器未执行这些测试。
 
 ### 搜索话题帖子和用户
 
@@ -1108,14 +1109,14 @@
 - 读取：`forum_topics`、`forum_posts`、`forum_users`、`forum_likes`、`sessions`、`role_assignments`、`departments`、`titles`、`account_profiles`、`users`、`identities`
 - 写入：`forum_users`、`sessions`、`activity_events`、`limit_events`
 - 不入队：
-- 权限与资源：游客与成员均可搜索；只本人用户记录显示真实通知设置，不搜索已删帖子正文。
+- 权限与资源：只搜索当前读取等级可见的话题与帖子；身份重置立即丢弃页面上的旧搜索结果，迟到回答不得恢复旧身份内容。
 - 响应与错误：200 {results:{topics,posts,users}}；空词空结果；词过长400 validation_error，每IP分钟60次（路由自带），游客另按 SPEC §3.8 的 meta.limit.search.per_minute 限额；每次真正搜索（非空词）记一条 forum.search 操作记录。
 - 数据与副作用：标题、正文、username/displayName按转义的LIKE搜索，各类限量；返回帖子命中摘要，不将%当通配符。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/topics.ts:50](../../../app/server/src/routes/forum-api/topics.ts#L50) · [app/server/src/lib/forum-store.ts:230](../../../app/server/src/lib/forum-store.ts#L230) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/server/src/lib/public-profile.ts:6](../../../app/server/src/lib/public-profile.ts#L6) · [app/forum/app/pages/search.vue:58](../../../app/forum/app/pages/search.vue#L58)
+源码：[app/server/src/routes/forum-api/topics.ts:50](../../../app/server/src/routes/forum-api/topics.ts#L50) · [app/server/src/lib/forum-store.ts:230](../../../app/server/src/lib/forum-store.ts#L230) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/server/src/lib/public-profile.ts:6](../../../app/server/src/lib/public-profile.ts#L6) · [app/forum/app/pages/search.vue:57](../../../app/forum/app/pages/search.vue#L57)
 
-测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
+测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts) · [tests/server/forum-category-visibility.test.ts](../../../tests/server/forum-category-visibility.test.ts) · [app/forum/tests/forum-category-visibility.test.ts](../../../app/forum/tests/forum-category-visibility.test.ts)。生成器未执行这些测试。
 
 ### 发布成员话题与首帖
 
@@ -1126,7 +1127,7 @@
 - 读取：`forum_topics`、`forum_posts`、`forum_tags`、`forum_users`、`forum_notifications`、`forum_counters`、`forum_rate_events`、`sessions`、`role_assignments`、`departments`、`titles`、`forum_likes`、`account_profiles`、`users`、`identities`
 - 写入：`forum_topics`、`forum_posts`、`forum_tags`、`forum_notifications`、`forum_counters`、`forum_rate_events`、`forum_users`、`sessions`、`activity_events`
 - 不入队：
-- 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。
+- 权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.topic.create 节点。
 - 响应与错误：201 {changes,viewer,guestPolicy,topicId,postId}，帖子带正文；非法标题/分类/tag/空正文400，成员限流429。
 - 数据与副作用：单事务创建话题、首帖、编号和必要新tag，处理最多10个@提及通知；成功后记topic限流事件，不发邮件。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
@@ -1144,7 +1145,7 @@
 - 读取：`forum_topics`、`sessions`、`role_assignments`、`departments`、`titles`、`forum_users`、`forum_likes`、`account_profiles`、`users`、`identities`
 - 写入：`forum_topics`、`activity_events`、`forum_users`、`sessions`
 - 不入队：
-- 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 此外必须具备forum.topic.pin，作用于指定话题。
+- 权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另按指定话题的分类 scope 核对 forum.moderate.pin 节点。
 - 响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；缺能力403，话题不存在404。
 - 数据与副作用：更新pinned；以CONSOLE_ORG记forum.topic.pin审计，只含话题id及开关，不含正文。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
@@ -1162,7 +1163,7 @@
 - 读取：`forum_topics`、`sessions`、`role_assignments`、`departments`、`titles`、`forum_users`、`forum_likes`、`account_profiles`、`users`、`identities`
 - 写入：`forum_topics`、`activity_events`、`forum_users`、`sessions`
 - 不入队：
-- 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 此外必须具备forum.topic.close，作用于指定话题。
+- 权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另按指定话题的分类 scope 核对 forum.moderate.close 节点。
 - 响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；缺能力403，话题不存在404。
 - 数据与副作用：更新closed；以CONSOLE_ORG记forum.topic.close审计，只含话题id及开关，不含正文。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
@@ -1202,7 +1203,7 @@
 - 数据与副作用：事务创建回复并更新最后活动、处理回复与提及通知；游客用户与回复同事务；PoW通过就记该IP尝试额度，成功才记全站额度；冒名检查读指派、历史登录审计及会话；不发送邮件。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/posts.ts:44](../../../app/server/src/routes/forum-api/posts.ts#L44) · [app/server/src/lib/forum-store.ts:230](../../../app/server/src/lib/forum-store.ts#L230) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/server/src/lib/forum-rules.ts:5](../../../app/server/src/lib/forum-rules.ts#L5) · [app/server/src/routes/forum-api/forum-limits.ts:14](../../../app/server/src/routes/forum-api/forum-limits.ts#L14) · [app/server/src/routes/forum-api/index.ts:12](../../../app/server/src/routes/forum-api/index.ts#L12) · [app/forum/app/components/PostEditor.vue:1](../../../app/forum/app/components/PostEditor.vue#L1) · [app/forum/app/components/ReplyComposer.vue:1](../../../app/forum/app/components/ReplyComposer.vue#L1) · [app/forum/app/composables/useForumActions.ts:19](../../../app/forum/app/composables/useForumActions.ts#L19) · [app/forum/app/composables/usePostDraft.ts:10](../../../app/forum/app/composables/usePostDraft.ts#L10) · [app/forum/app/editor/crepe-editor.ts:33](../../../app/forum/app/editor/crepe-editor.ts#L33) · [app/forum/app/editor/inline-stickers.ts:21](../../../app/forum/app/editor/inline-stickers.ts#L21) · [app/forum/shared/post-markdown.ts:63](../../../app/forum/shared/post-markdown.ts#L63)
+源码：[app/server/src/routes/forum-api/posts.ts:44](../../../app/server/src/routes/forum-api/posts.ts#L44) · [app/server/src/lib/forum-store.ts:230](../../../app/server/src/lib/forum-store.ts#L230) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/server/src/lib/forum-rules.ts:5](../../../app/server/src/lib/forum-rules.ts#L5) · [app/server/src/routes/forum-api/forum-limits.ts:14](../../../app/server/src/routes/forum-api/forum-limits.ts#L14) · [app/server/src/routes/forum-api/index.ts:13](../../../app/server/src/routes/forum-api/index.ts#L13) · [app/forum/app/components/PostEditor.vue:1](../../../app/forum/app/components/PostEditor.vue#L1) · [app/forum/app/components/ReplyComposer.vue:1](../../../app/forum/app/components/ReplyComposer.vue#L1) · [app/forum/app/composables/useForumActions.ts:19](../../../app/forum/app/composables/useForumActions.ts#L19) · [app/forum/app/composables/usePostDraft.ts:10](../../../app/forum/app/composables/usePostDraft.ts#L10) · [app/forum/app/editor/crepe-editor.ts:33](../../../app/forum/app/editor/crepe-editor.ts#L33) · [app/forum/app/editor/inline-stickers.ts:21](../../../app/forum/app/editor/inline-stickers.ts#L21) · [app/forum/shared/post-markdown.ts:63](../../../app/forum/shared/post-markdown.ts#L63)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1215,7 +1216,7 @@
 - 读取：`forum_posts`、`sessions`、`role_assignments`、`departments`、`titles`、`forum_users`、`forum_likes`、`account_profiles`、`users`、`identities`
 - 写入：`forum_posts`、`activity_events`、`forum_users`、`sessions`
 - 不入队：
-- 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 必须是作者本人，或者持有forum.post.moderate；能力不是作者分支的共同前提。
+- 权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 作者本人可编辑自己的帖子；编辑他人帖子另需目标分类 scope 下的 forum.moderate.edit。
 - 响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；帖子正文随changes返回；404不存在、403他人帖子、409 post_deleted、400 empty_content。
 - 数据与副作用：只更新正文/edited_at；只有编辑他人帖子才写forum.post.edit审计，不记录正文；不会因编辑重新发送提及通知。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
@@ -1233,7 +1234,7 @@
 - 读取：`forum_posts`、`sessions`、`role_assignments`、`departments`、`titles`、`forum_users`、`forum_likes`、`account_profiles`、`users`、`identities`
 - 写入：`forum_posts`、`activity_events`、`forum_users`、`sessions`
 - 不入队：
-- 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 作者本人或forum.post.moderate；第一帖禁止删除。
+- 权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 作者本人可删除自己的回复；删除他人回复另需目标分类 scope 下的 forum.moderate.delete；第一帖禁止删除。
 - 响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在、403他人帖子、400 first_post；已软删重试返回现状。
 - 数据与副作用：置deleted并清正文，保留点赞和书签；只在删除他人帖子时记forum.post.delete审计；幂等重试不重复执行删除。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
@@ -1251,7 +1252,7 @@
 - 读取：`forum_posts`、`forum_likes`、`forum_users`、`forum_notifications`、`forum_counters`、`sessions`、`role_assignments`、`departments`、`titles`、`account_profiles`、`users`、`identities`
 - 写入：`forum_likes`、`forum_notifications`、`forum_counters`、`forum_users`、`sessions`、`activity_events`
 - 不入队：
-- 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 点赞主体固定本人，不接受代他人点赞。
+- 权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.react；点赞主体固定本人，不接受代他人点赞。
 - 响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在，409 post_deleted；帖子投影不带全文。
 - 数据与副作用：事务切换点赞；新点赞按作者通知设置生成一次通知（同人同帖不重复），取消不撤回已有通知，不写操作审计。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
@@ -1269,7 +1270,7 @@
 - 读取：`forum_posts`、`forum_bookmarks`、`sessions`、`role_assignments`、`departments`、`titles`、`forum_users`、`forum_likes`、`account_profiles`、`users`、`identities`
 - 写入：`forum_bookmarks`、`forum_users`、`sessions`、`activity_events`
 - 不入队：
-- 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只能操作本人的书签；handler只检查帖子存在，未禁止为已软删帖子加书签。
+- 权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.react；仅操作本人书签，handler 检查帖子存在，未禁止为软删帖子加书签。
 - 响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在；删除书签用changes.removed反馈。
 - 数据与副作用：事务按userId/postId切换书签，不通知作者，不修改帖子正文。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
@@ -1287,7 +1288,7 @@
 - 读取：`forum_users`、`forum_follows`、`forum_notifications`、`forum_counters`、`sessions`、`role_assignments`、`departments`、`titles`、`forum_likes`、`account_profiles`、`users`、`identities`
 - 写入：`forum_follows`、`forum_notifications`、`forum_counters`、`forum_users`、`sessions`、`activity_events`
 - 不入队：
-- 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 关注发起人固定本人，目标须存在且不是本人。
+- 权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.react；关注发起人固定本人，目标须存在且不是本人。
 - 响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404未知用户，400 cannot_follow_self。
 - 数据与副作用：事务切换关注；首次关注在对方允许通知且未曾通知时写通知与编号，取消关注不删除旧通知。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
@@ -1305,7 +1306,7 @@
 - 读取：`forum_notifications`、`sessions`、`role_assignments`、`departments`、`titles`、`forum_users`、`forum_likes`、`account_profiles`、`users`、`identities`
 - 写入：`forum_notifications`、`forum_users`、`sessions`、`activity_events`
 - 不入队：
-- 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 SQL同时匹配通知id与recipient_id，不能读取/标记他人通知。
+- 权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 SQL 同时匹配通知 id 与 recipient_id，不能标记他人通知。
 - 响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；不存在或属于他人均404。
 - 数据与副作用：仅更新本人该条read=1，不删通知；其他人的通知设置不下发。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
@@ -1323,7 +1324,7 @@
 - 读取：`forum_notifications`、`sessions`、`role_assignments`、`departments`、`titles`、`forum_users`、`forum_likes`、`account_profiles`、`users`、`identities`
 - 写入：`forum_notifications`、`forum_users`、`sessions`、`activity_events`
 - 不入队：
-- 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 仅recipient_id等于本人。
+- 权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 仅处理 recipient_id 等于本人的通知。
 - 响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；没有未读通知仍返回合法空变更。
 - 数据与副作用：UPDATE本人未读行并RETURNING id，据此只回变动通知，不清除别人的未读数。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
@@ -1341,7 +1342,7 @@
 - 读取：`forum_users`、`role_assignments`、`sessions`、`activity_events`、`departments`、`titles`、`forum_likes`、`account_profiles`、`users`、`identities`
 - 写入：`forum_users`、`sessions`、`activity_events`、`account_profiles`
 - 不入队：
-- 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只修改本人记录；允许昵称、签名、所在地、https网站与通知设置，不接收用户角色授权。
+- 权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 只改本人昵称、简介、所在地、网站与通知设置，不接受客户端授予角色。
 - 响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；400昵称/控制字符/网址等错误；旧昵称未变时不因新昵称规则阻止修改其他字段。
 - 数据与副作用：昵称NFKC与冒名检查后保存；已有 canonical 档案时昵称/简介与 forum_users 同事务写入，缺档历史作者不建档；location/website/notifyPrefs 只写论坛字段。公开投影批量读取当前账号 login/avatar 作为空 canonical 字段的 fallback，不按邮箱合并。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
@@ -1359,7 +1360,7 @@
 - 读取：`forum_avatars`、`forum_users`、`forum_rate_events`、`sessions`、`role_assignments`、`departments`、`titles`、`forum_likes`、`account_profiles`、`users`、`identities`、`account_avatars`
 - 写入：`forum_avatars`、`forum_users`、`forum_rate_events`、`sessions`、`activity_events`、`account_profiles`、`account_avatars`
 - 不入队：
-- 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 onRequest阶段即鉴权并消费每小时10次额度，失败解码也算；只改本人头像。
+- 权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 onRequest 阶段即鉴权并消费每小时 10 次额度，解码失败也计次；只改本人头像。
 - 响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；413 avatar_too_large，415 unsupported_media_type，400非法图像/尺寸，429限流。
 - 数据与副作用：PNG/JPEG/WebP最多2MB、4096×4096；sharp取首帧转256×256 WebP去元数据；写 forum_avatars/forum_users，已有 canonical 档案时同事务写 account_avatars/account_profiles，各自清理无人引用旧图。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
@@ -1377,7 +1378,7 @@
 - 读取：`forum_users`、`forum_avatars`、`sessions`、`role_assignments`、`departments`、`titles`、`forum_likes`、`account_profiles`、`users`、`identities`、`account_avatars`
 - 写入：`forum_users`、`forum_avatars`、`sessions`、`activity_events`、`account_profiles`、`account_avatars`
 - 不入队：
-- 权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只清本人自定义头像。
+- 权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 只清本人自定义头像。
 - 响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。
 - 数据与副作用：事务清除 forum_users 与已有 account_profiles 的 avatar_hash，各自删除无人引用的 forum_avatars/account_avatars；缺 canonical 不建档，公开 fallback 保留当前绑定头像。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
@@ -1482,14 +1483,14 @@
 - 读取：`forum_topics`、`forum_category_settings`、`sessions`、`perm_members`、`perm_entries`、`perm_groups`、`limit_events`、`forum_users`
 - 写入：`forum_users`、`sessions`、`limit_events`
 - 不入队：
-- 权限与资源：谁都能调；按身份的分级可见（CONTRACT §1）过滤（public/registered/member），过滤在 SQL WHERE 里做，不是查出来再筛（和 state()/search() 共用 visibilityWhere()）。
+- 权限与资源：按当前 viewer 的有效可见性在SQL层过滤；与state、搜索、正文及Markdown出口共用 COALESCE(topic.visibility, category.visibility, public)。
 - 响应与错误：200 {topics,nextCursor}；按 last_activity_at DESC, rowid DESC 排序，游标是 base64url 编的排序键，解不出来当没有（从第一页开始）；limit 要求1–50的整数，不是回400 validation_error；q 超过100字400。
 - 数据与副作用：访客翻页上限（SPEC §3.8，CONTRACT §9）——没带 cursor 的第一页不计数，带 cursor 的请求按访客 id（yugc_vid）或IP哈希、北京日历日窗口计最多10次，第11次429 {bucket:"forum.visitor.pages"}；注册用户、成员不限。
 - 身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。
 
 源码：[app/server/src/routes/forum-api/topics.ts:68](../../../app/server/src/routes/forum-api/topics.ts#L68) · [app/server/src/lib/forum-store.ts:230](../../../app/server/src/lib/forum-store.ts#L230) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/permissions.ts:324](../../../app/server/src/lib/permissions.ts#L324) · [app/server/src/lib/forum-rules.ts:113](../../../app/server/src/lib/forum-rules.ts#L113) · [app/server/src/routes/forum-api/forum-limits.ts:67](../../../app/server/src/routes/forum-api/forum-limits.ts#L67)
 
-测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。生成器未执行这些测试。
+测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts) · [tests/server/forum-category-visibility.test.ts](../../../tests/server/forum-category-visibility.test.ts)。生成器未执行这些测试。
 
 ### 按内容哈希取上传的图片
 
@@ -1642,7 +1643,7 @@
 - 响应与错误：201 {id,name}；id 已被占用回409 pack_id_taken；格式不对400。
 - 数据与副作用：插一行 forum_sticker_packs（排在最后）；空包不在公开面板里出现；成功后 invalidate 公开列表缓存，写审计 forum.sticker_pack.create。
 
-源码：[app/server/src/routes/console/forum.ts:47](../../../app/server/src/routes/console/forum.ts#L47) · [app/server/src/lib/forum-store.ts:969](../../../app/server/src/lib/forum-store.ts#L969) · [app/server/src/lib/permissions.ts:324](../../../app/server/src/lib/permissions.ts#L324) · [app/console/src/pages/forum/StickersTab.vue:113](../../../app/console/src/pages/forum/StickersTab.vue#L113) · [app/console/src/lib/forum.ts:104](../../../app/console/src/lib/forum.ts#L104) · [app/console/src/mock/console.ts:895](../../../app/console/src/mock/console.ts#L895)
+源码：[app/server/src/routes/console/forum.ts:47](../../../app/server/src/routes/console/forum.ts#L47) · [app/server/src/lib/forum-store.ts:999](../../../app/server/src/lib/forum-store.ts#L999) · [app/server/src/lib/permissions.ts:324](../../../app/server/src/lib/permissions.ts#L324) · [app/console/src/pages/forum/StickersTab.vue:113](../../../app/console/src/pages/forum/StickersTab.vue#L113) · [app/console/src/lib/forum.ts:104](../../../app/console/src/lib/forum.ts#L104) · [app/console/src/mock/console.ts:895](../../../app/console/src/mock/console.ts#L895)
 
 测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts) · [tests/console/forum.test.ts](../../../tests/console/forum.test.ts)。生成器未执行这些测试。
 
@@ -1677,7 +1678,7 @@
 - 数据与副作用：PNG/JPEG/WebP 统一转 webp（sharp quality 85），GIF 若是动图原样保留；按 sha256 内容寻址存 forum_upload_files，去重不重复存；写审计 forum.upload.image。
 - 身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。
 
-源码：[app/server/src/routes/forum-api/uploads.ts:50](../../../app/server/src/routes/forum-api/uploads.ts#L50) · [app/server/src/lib/forum-store.ts:230](../../../app/server/src/lib/forum-store.ts#L230) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/permissions.ts:324](../../../app/server/src/lib/permissions.ts#L324) · [app/server/src/routes/forum-api/index.ts:24](../../../app/server/src/routes/forum-api/index.ts#L24)
+源码：[app/server/src/routes/forum-api/uploads.ts:50](../../../app/server/src/routes/forum-api/uploads.ts#L50) · [app/server/src/lib/forum-store.ts:230](../../../app/server/src/lib/forum-store.ts#L230) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/permissions.ts:324](../../../app/server/src/lib/permissions.ts#L324) · [app/server/src/routes/forum-api/index.ts:25](../../../app/server/src/routes/forum-api/index.ts#L25)
 
 测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts)。生成器未执行这些测试。
 
@@ -1744,14 +1745,13 @@
 - 读取：
 - 写入：
 - 不入队：
-- 权限与资源：匿名GET/HEAD；只拦截llms.txt；其它方法/路径交后续处理器。
-- 响应与错误：200 text/plain UTF-8加nosniff；快照加载失败503。
-- 数据与副作用：site构建使用siteForumState，开发快照模式读只读投影，否则进程示例种子；预渲染可落成静态文件，不动态读取核心forum_*数据库。
-- 验证边界：所列为纯解析、内容转换或配置测试，不是本次启动Nitro或读取真实快照的证明。
+- 权限与资源：demo和明确本机快照模式继续本地生成；site开发模式把GET/HEAD与同源cookie转给核心 /forum/llms.txt，不读取published源正文。
+- 响应与错误：demo/快照为text/plain UTF-8；site响应、身份错误和限流由核心原样返回，失败不回退静态索引。
+- 数据与副作用：site镜像不预渲染llms.txt；生产入口由web nginx直达核心，论坛静态容器直接访问该路径为404。
 
-源码：[app/forum/server/middleware/forum-markdown.ts:36](../../../app/forum/server/middleware/forum-markdown.ts#L36) · [app/forum/server/middleware/forum-markdown.ts:55](../../../app/forum/server/middleware/forum-markdown.ts#L55)
+源码：[app/forum/server/middleware/forum-markdown.ts:34](../../../app/forum/server/middleware/forum-markdown.ts#L34) · [app/forum/server/middleware/forum-markdown.ts:59](../../../app/forum/server/middleware/forum-markdown.ts#L59)
 
-测试入口：[app/forum/tests/forum-markdown.test.ts](../../../app/forum/tests/forum-markdown.test.ts) · [app/forum/tests/site-state.test.ts](../../../app/forum/tests/site-state.test.ts) · [app/forum/tests/content-source.test.ts](../../../app/forum/tests/content-source.test.ts)。生成器未执行这些测试。
+测试入口：[app/forum/tests/forum-markdown.test.ts](../../../app/forum/tests/forum-markdown.test.ts) · [app/forum/tests/site-state.test.ts](../../../app/forum/tests/site-state.test.ts) · [app/forum/tests/content-source.test.ts](../../../app/forum/tests/content-source.test.ts) · [tests/tooling/forum-site-content.test.ts](../../../tests/tooling/forum-site-content.test.ts)。生成器未执行这些测试。
 
 ### 提供话题Markdown正文
 
@@ -1762,14 +1762,13 @@
 - 读取：
 - 写入：
 - 不入队：
-- 权限与资源：匿名GET/HEAD；路径按TOPIC_MARKDOWN匹配，不能二次解码冒充其他路由。
-- 响应与错误：200 text/markdown UTF-8；未知话题404 text/plain；快照失败503。
-- 数据与副作用：与索引同源：site内容/开发快照/示例种子；不包含浏览器新写内容或实时核心数据库帖子，构建静态输出与在线核心API分别取证。
-- 验证边界：所列为纯解析、内容转换或配置测试，不是本次启动Nitro或读取真实快照的证明。
+- 权限与资源：demo和明确本机快照模式继续本地生成；site开发模式把GET/HEAD与同源cookie转给核心 /forum/t/:id.md。
+- 响应与错误：demo/快照未知话题404；site的200、401、403、404与限流由核心按当前viewer返回，不回退published源正文。
+- 数据与副作用：site镜像不预渲染t/*.md；动态alternate只指向核心授权出口，论坛静态容器直接访问Markdown为404。
 
-源码：[app/forum/server/middleware/forum-markdown.ts:26](../../../app/forum/server/middleware/forum-markdown.ts#L26) · [app/forum/server/middleware/forum-markdown.ts:55](../../../app/forum/server/middleware/forum-markdown.ts#L55)
+源码：[app/forum/server/middleware/forum-markdown.ts:22](../../../app/forum/server/middleware/forum-markdown.ts#L22) · [app/forum/server/middleware/forum-markdown.ts:59](../../../app/forum/server/middleware/forum-markdown.ts#L59)
 
-测试入口：[app/forum/tests/forum-markdown.test.ts](../../../app/forum/tests/forum-markdown.test.ts) · [app/forum/tests/site-state.test.ts](../../../app/forum/tests/site-state.test.ts)。生成器未执行这些测试。
+测试入口：[app/forum/tests/forum-markdown.test.ts](../../../app/forum/tests/forum-markdown.test.ts) · [app/forum/tests/site-state.test.ts](../../../app/forum/tests/site-state.test.ts) · [tests/tooling/forum-site-content.test.ts](../../../tests/tooling/forum-site-content.test.ts)。生成器未执行这些测试。
 
 ### 浏览公开比赛信息
 
@@ -2791,7 +2790,7 @@
 - 响应与错误：签发者 <PUBLIC_ORIGIN>/oidc，协议与主机按 PUBLIC_ORIGIN，不信请求头；未知客户端、错回调 400 中文错误页且不跳转；缺 PKCE 等带 error 回到下游；userinfo 只给 sub（pairwise）、name、preferred_username、picture，有 email scope 时给验证过的 email；账号不再是成员时 401。
 - 数据与副作用：是否登录以本站 sid 为准，不是成员、换了账号或账号还没有登录邮箱（#273，允许过这个应用、签发者会话还在也一样）时进交互；交互、会话与授权码写 oidc_payloads；第一次给某 sector 发 sub 时写 oauth_subjects；不发 refresh token。
 
-源码：[app/server/src/routes/oidc/index.ts:169](../../../app/server/src/routes/oidc/index.ts#L169) · [app/server/src/lib/oidc-provider.ts:74](../../../app/server/src/lib/oidc-provider.ts#L74) · [app/server/src/lib/oidc-store.ts:52](../../../app/server/src/lib/oidc-store.ts#L52) · [app/server/src/lib/account-directory.ts:20](../../../app/server/src/lib/account-directory.ts#L20) · [app/server/src/lib/db.ts:495](../../../app/server/src/lib/db.ts#L495) · [app/server/src/lib/identity-store.ts:809](../../../app/server/src/lib/identity-store.ts#L809) · [app/server/src/lib/forum-store.ts:794](../../../app/server/src/lib/forum-store.ts#L794) · [app/web/sites/portal/lib/links.ts:15](../../../app/web/sites/portal/lib/links.ts#L15) · [app/web/shared/config/index.ts:24](../../../app/web/shared/config/index.ts#L24) · [app/web/sites/portal/components/os/Widgets.tsx:65](../../../app/web/sites/portal/components/os/Widgets.tsx#L65)
+源码：[app/server/src/routes/oidc/index.ts:169](../../../app/server/src/routes/oidc/index.ts#L169) · [app/server/src/lib/oidc-provider.ts:74](../../../app/server/src/lib/oidc-provider.ts#L74) · [app/server/src/lib/oidc-store.ts:52](../../../app/server/src/lib/oidc-store.ts#L52) · [app/server/src/lib/account-directory.ts:20](../../../app/server/src/lib/account-directory.ts#L20) · [app/server/src/lib/db.ts:495](../../../app/server/src/lib/db.ts#L495) · [app/server/src/lib/identity-store.ts:809](../../../app/server/src/lib/identity-store.ts#L809) · [app/server/src/lib/forum-store.ts:808](../../../app/server/src/lib/forum-store.ts#L808) · [app/web/sites/portal/lib/links.ts:15](../../../app/web/sites/portal/lib/links.ts#L15) · [app/web/shared/config/index.ts:24](../../../app/web/shared/config/index.ts#L24) · [app/web/sites/portal/components/os/Widgets.tsx:65](../../../app/web/sites/portal/components/os/Widgets.tsx#L65)
 
 测试入口：[tests/server/oidc.test.ts](../../../tests/server/oidc.test.ts) · [tests/server/oidc-eligibility.test.ts](../../../tests/server/oidc-eligibility.test.ts)。生成器未执行这些测试。
 
@@ -3323,6 +3322,76 @@
 源码：[app/server/src/routes/console/backup.ts:34](../../../app/server/src/routes/console/backup.ts#L34) · [app/server/src/lib/system-backup.ts:106](../../../app/server/src/lib/system-backup.ts#L106) · [app/server/src/lib/tar-stream.ts:91](../../../app/server/src/lib/tar-stream.ts#L91) · [app/server/src/lib/permission-nodes.ts:82](../../../app/server/src/lib/permission-nodes.ts#L82) · [app/console/src/pages/Backup.vue:34](../../../app/console/src/pages/Backup.vue#L34) · [scripts/backup-restore.mjs:62](../../../scripts/backup-restore.mjs#L62)
 
 测试入口：[tests/server/tar-stream.test.ts](../../../tests/server/tar-stream.test.ts) · [tests/server/system-backup.test.ts](../../../tests/server/system-backup.test.ts) · [tests/server/backup-route.test.ts](../../../tests/server/backup-route.test.ts) · [tests/tooling/backup-restore.test.ts](../../../tests/tooling/backup-restore.test.ts) · [tests/console/nav.test.ts](../../../tests/console/nav.test.ts) · [tests/console/permissions.test.ts](../../../tests/console/permissions.test.ts)。生成器未执行这些测试。
+
+### 按当前身份读取论坛Markdown索引
+
+标识：`flow:forum.site-markdown.index`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /forum/llms.txt`
+- 能力：
+- 读取：`forum_counters`、`forum_users`、`forum_tags`、`forum_topics`、`forum_posts`、`forum_likes`、`forum_notifications`、`forum_bookmarks`、`forum_follows`、`forum_category_settings`、`sessions`、`perm_members`、`perm_entries`、`perm_groups`
+- 写入：`forum_users`、`sessions`、`activity_events`、`limit_events`
+- 不入队：
+- 权限与资源：forumViewer解析sid，levelOf计算public/registered/member；索引只使用forum-store本次请求已过滤的state，显式话题覆盖保留COALESCE语义。
+- 响应与错误：GET/自动HEAD返回text/plain UTF-8，private,no-store,nosniff；无可见话题返回空态说明，不包含隐藏标题、摘要或分类。
+- 数据与副作用：不读取论坛静态published JSON；GET可能刷新当前论坛用户并执行既有限流，不改话题、分类或正文。
+- 交付：web nginx保留原始/forum URI和cookie直达核心；forum site镜像及客户端包不携带索引或旧帖正文。
+
+源码：[app/server/src/routes/forum-api/markdown.ts:32](../../../app/server/src/routes/forum-api/markdown.ts#L32) · [app/server/src/lib/forum-markdown.ts:33](../../../app/server/src/lib/forum-markdown.ts#L33) · [app/server/src/lib/forum-store.ts:833](../../../app/server/src/lib/forum-store.ts#L833) · [app/server/src/routes/forum-api/contracts.ts:121](../../../app/server/src/routes/forum-api/contracts.ts#L121) · [app/server/src/routes/forum-api/index.ts:26](../../../app/server/src/routes/forum-api/index.ts#L26) · [app/forum/nuxt.config.ts:29](../../../app/forum/nuxt.config.ts#L29)
+
+测试入口：[tests/server/forum-category-visibility.test.ts](../../../tests/server/forum-category-visibility.test.ts) · [tests/tooling/forum-site-content.test.ts](../../../tests/tooling/forum-site-content.test.ts)。生成器未执行这些测试。
+
+### 按当前身份读取话题Markdown正文
+
+标识：`flow:forum.site-markdown.topic`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /forum/t/:topic_id.md`
+- 能力：
+- 读取：`forum_users`、`forum_topics`、`forum_posts`、`forum_likes`、`forum_tags`、`forum_category_settings`、`sessions`、`perm_members`、`perm_entries`、`perm_groups`
+- 写入：`forum_users`、`sessions`、`activity_events`、`limit_events`
+- 不入队：
+- 权限与资源：先按话题有效可见性执行assertVisible，再从同一viewer的state与topicPosts生成正文；游客、注册和成员拒绝语义与JSON正文接口一致。
+- 响应与错误：可见话题200 text/markdown UTF-8；未知id 404；匿名缺等级401、已登录等级不足403；private,no-store,nosniff。
+- 数据与副作用：只读核心数据库当前正文，不读取构建时Markdown或published JSON，不改变话题visibility或内容。
+- 并发：身份切换由客户端投影版本丢弃迟到读取；外部Markdown请求每次独立按其sid重新授权。
+
+源码：[app/server/src/routes/forum-api/markdown.ts:39](../../../app/server/src/routes/forum-api/markdown.ts#L39) · [app/server/src/lib/forum-markdown.ts:62](../../../app/server/src/lib/forum-markdown.ts#L62) · [app/server/src/lib/forum-store.ts:546](../../../app/server/src/lib/forum-store.ts#L546) · [app/forum/app/pages/t/[id].vue:90](../../../app/forum/app/pages/t/[id].vue#L90)
+
+测试入口：[tests/server/forum-category-visibility.test.ts](../../../tests/server/forum-category-visibility.test.ts) · [tests/tooling/forum-site-content.test.ts](../../../tests/tooling/forum-site-content.test.ts) · [app/forum/tests/forum-category-visibility.test.ts](../../../app/forum/tests/forum-category-visibility.test.ts)。生成器未执行这些测试。
+
+### 按当前身份下载旧帖引用图片
+
+标识：`flow:forum.site-published.asset`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`GET /forum/published/:file`
+- 能力：
+- 读取：`forum_users`、`forum_topics`、`forum_posts`、`forum_category_settings`、`sessions`、`perm_members`、`perm_entries`、`perm_groups`
+- 写入：`forum_users`、`sessions`、`activity_events`
+- 不入队：
+- 权限与资源：只接受16位小写十六进制webp名；至少一篇当前viewer可见且未删除的正文引用该文件才允许读取，多话题复用取最宽有效可见性。
+- 响应与错误：允许时200 image/webp；无引用、仅隐藏话题引用、非法名或磁盘缺文件都统一404，不泄漏附件存在性；private,no-store,nosniff。
+- 数据与副作用：只读核心数据库引用和server镜像内保留的原始图片；forum site镜像删除published目录，不删除源文件或历史帖子。
+
+源码：[app/server/src/routes/forum-api/markdown.ts:52](../../../app/server/src/routes/forum-api/markdown.ts#L52) · [app/server/src/lib/forum-store.ts:557](../../../app/server/src/lib/forum-store.ts#L557) · [app/server/Dockerfile:144](../../../app/server/Dockerfile#L144) · [app/web/Dockerfile:231](../../../app/web/Dockerfile#L231) · [app/forum/Dockerfile:91](../../../app/forum/Dockerfile#L91)
+
+测试入口：[tests/server/forum-category-visibility.test.ts](../../../tests/server/forum-category-visibility.test.ts) · [tests/tooling/forum-site-content.test.ts](../../../tests/tooling/forum-site-content.test.ts) · [tests/tooling/forum-redirects.test.ts](../../../tests/tooling/forum-redirects.test.ts)。生成器未执行这些测试。
+
+### site开发代理旧帖图片到核心授权面
+
+标识：`flow:forum.published.proxy`；性质：显式声明并关联源码，不是自动证明业务正确。
+
+- 操作：`interface:forum.published-proxy`
+- 能力：
+- 读取：
+- 写入：
+- 不入队：
+- 权限与资源：仅site模式由Nitro中间件将GET/HEAD和cookie代理到核心/forum/published/:file；demo模式继续由public静态文件提供。
+- 响应与错误：核心状态码与响应头原样返回；site失败不回退本地图片，非匹配路径交后续处理器。
+- 数据与副作用：不读写本机快照或核心数据库；生产静态镜像删除published目录，外部路径由web nginx直达核心。
+
+源码：[app/forum/server/middleware/forum-markdown.ts:23](../../../app/forum/server/middleware/forum-markdown.ts#L23)
+
+测试入口：[tests/tooling/forum-site-content.test.ts](../../../tests/tooling/forum-site-content.test.ts)。生成器未执行这些测试。
 
 ## 核验边界
 

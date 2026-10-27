@@ -17,10 +17,10 @@ export interface SnapshotInfo {
  * Which data the pages are showing and, for the 极客班 snapshot, whether it
  * has arrived. `load()` replaces the whole store and forces the guest
  * session; it never merges with the demo seed and never falls back to it.
- * `isSite` is 极客班论坛 itself (the deployed images): its data comes from
- * the forum server (`serverMode`). `LocalSnapshotGate` holds the pages until
- * the server answered or failed; after a failure they show the published
- * posts the build shipped, read-only.
+ * `isSite` is 极客班论坛 itself (the deployed images): its data comes only
+ * from the forum server (`serverMode`). `LocalSnapshotGate` holds the pages
+ * until the server answered or failed; site failures never expose a static
+ * topic/body fallback.
  */
 export function useContentSource() {
   const config = useRuntimeConfig()

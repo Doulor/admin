@@ -5,7 +5,7 @@ import {
   COUNTER_START, FORUM_LIMITS, FORUM_RATE_LIMITS, ForumError, POST_EXCERPT_MAX, SEARCH_EXCERPT_MAX, SEARCH_LIMIT, TOPIC_PAGE_SIZE,
   TOPIC_PAGE_SIZE_MAX, VIEW_WINDOW_MS, allowedVisibilities, decodeTopicCursor, encodeTopicCursor, extractMentions, isStricterOrEqual,
   matchExcerpt, nameKey, paletteColor, postExcerpt, tagSlug,
-  type CounterName, type RateBucket, type ViewerLevel,
+  VISIBILITY_LEVELS, type CounterName, type RateBucket, type ViewerLevel,
 } from "./forum-rules.js";
 import { stickerSameOriginUrl } from "./sticker-manifest.js";
 import type { AccountProfileStore } from "./account-profiles.js";
@@ -550,6 +550,20 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
       return (db.prepare("SELECT * FROM forum_posts WHERE topic_id = ? ORDER BY created_at, rowid").all(topicId) as PostRow[])
         .map(row => toPostFull(row, likes.get(row.id) ?? [], visibility, reactions.get(row.id) ?? []));
     },
+    /**
+     * 旧帖图片可被多篇正文复用；只要当前数据库里至少一篇引用它的话题可读，图片就可读。
+     * 返回这些引用里最宽的有效范围（public < registered < member），与话题 COALESCE 语义完全相同。
+     */
+    publishedAssetVisibility(file: string): ViewerLevel | null {
+      const rows = db.prepare(`
+          SELECT ${EFFECTIVE_VISIBILITY_EXPR} AS effective_visibility FROM forum_posts p
+          JOIN forum_topics t ON t.id = p.topic_id ${TOPIC_VISIBILITY_JOIN}
+          WHERE p.deleted = 0 AND instr(p.content, ?) > 0
+        `).all(`published/${file}`) as { effective_visibility: ViewerLevel }[];
+      if (!rows.length) return null;
+      return rows.map(row => row.effective_visibility)
+        .sort((a, b) => VISIBILITY_LEVELS.indexOf(a) - VISIBILITY_LEVELS.indexOf(b))[0] ?? null;
+    },
     /** 搜索（#156，#276）：正文不在浏览器里了，匹配改在服务端做；可见性按身份在 SQL 层过滤，与 `/state` 相同。 */
     search,
     /** 话题列表的游标分页（#276 CONTRACT §9）。 */
@@ -809,7 +823,9 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
 
     /**
      * 整份论坛状态。通知与书签只含 `viewerId` 自己的（游客两者都是空数组），通知设置只有本人的是真实值；关注全部下发。
-     * 分类与精选标签来自 curation.json，后面接用户新建的标签。
+     * 分类本身可读，或被合法可读话题引用时给原 public DTO；闭包外的受限分类不下发。
+     * 显式话题覆盖不因分类收紧而失效，关联例外保留分类导航，不扩大其他话题的读取范围。
+     * 精选标签来自 curation.json；用户新建的标签只下发可见话题引用的项，避免泄漏隐藏话题的元数据。
      * #156：话题带首帖摘要（列表显示它）、帖子只带摘要字段（没有正文）。正文由 `topicPosts()` 进话题页时按话题取。
      * #276 分级可见（CONTRACT §1）：话题、帖子、通知按 `level` 在 SQL 的 WHERE 里过滤，不查出来再筛；
      * 看不到的话题/帖子/相关通知整条不出现。
@@ -818,15 +834,23 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
       const likes = likesByPost();
       const reactions = reactionsByPost(viewerId);
       const visible = visibilityWhere(level);
+      const topics = (db.prepare(`${TOPIC_SELECT} WHERE ${visible.sql} ORDER BY t.created_at, t.rowid`).all(...visible.params) as TopicRow[]).map(toTopic);
+      const referencedCategories = new Set(topics.map(topic => topic.categoryId));
+      const referencedTags = new Set(topics.flatMap(topic => topic.tagIds));
+      const categorySettings = new Map((db.prepare("SELECT category_id, visibility FROM forum_category_settings").all() as { category_id: string; visibility: ViewerLevel }[])
+        .map(row => [row.category_id, row.visibility]));
+      const allowed = allowedVisibilities(level);
       const counters = Object.fromEntries((db.prepare("SELECT name, value FROM forum_counters").all() as { name: CounterName; value: number }[]).map(row => [row.name, row.value]));
       return {
         version: 1,
         seededAt: 0,
         counters: { topic: counters.topic ?? 0, post: counters.post ?? 0, notification: counters.notification ?? 0, tag: counters.tag ?? 0 },
         users: projectUsers(db.prepare("SELECT * FROM forum_users ORDER BY joined_at, rowid").all() as UserRow[], viewerId),
-        categories: content.categories,
-        tags: [...content.tags, ...(db.prepare("SELECT id, slug, name, color FROM forum_tags ORDER BY created_at, rowid").all() as TagRow[])],
-        topics: (db.prepare(`${TOPIC_SELECT} WHERE ${visible.sql} ORDER BY t.created_at, t.rowid`).all(...visible.params) as TopicRow[]).map(toTopic),
+        categories: content.categories.filter(category =>
+          allowed.includes(categorySettings.get(category.id) ?? "public") || referencedCategories.has(category.id)),
+        tags: [...content.tags, ...(db.prepare("SELECT id, slug, name, color FROM forum_tags ORDER BY created_at, rowid").all() as TagRow[])
+          .filter(tag => referencedTags.has(tag.id))],
+        topics,
         posts: (db.prepare(`
             SELECT p.*, ${EFFECTIVE_VISIBILITY_EXPR} AS effective_visibility FROM forum_posts p
             JOIN forum_topics t ON t.id = p.topic_id ${TOPIC_VISIBILITY_JOIN}
@@ -839,7 +863,13 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
             WHERE n.recipient_id = ? AND (n.topic_id IS NULL OR ${visible.sql})
             ORDER BY n.created_at DESC, n.rowid DESC
           `).all(viewerId, ...visible.params) as NotificationRow[]).map(toNotification),
-        bookmarks: viewerId === null ? [] : (db.prepare("SELECT user_id, post_id, created_at FROM forum_bookmarks WHERE user_id = ? ORDER BY created_at, rowid").all(viewerId) as {
+        bookmarks: viewerId === null ? [] : (db.prepare(`
+            SELECT b.user_id, b.post_id, b.created_at FROM forum_bookmarks b
+            JOIN forum_posts p ON p.id = b.post_id
+            JOIN forum_topics t ON t.id = p.topic_id ${TOPIC_VISIBILITY_JOIN}
+            WHERE b.user_id = ? AND ${visible.sql}
+            ORDER BY b.created_at, b.rowid
+          `).all(viewerId, ...visible.params) as {
           user_id: string; post_id: string; created_at: number;
         }[]).map(row => ({ userId: row.user_id, postId: row.post_id, createdAt: row.created_at })),
         follows: (db.prepare("SELECT follower_id, followee_id, created_at FROM forum_follows ORDER BY created_at, rowid").all() as {

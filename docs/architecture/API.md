@@ -225,6 +225,9 @@ OIDC/GitLab 的成员资格统一为 active 且直接属于当前有效 member/a
 | `PUT /api/forum/me/avatar` | 成员 | 每人 10 次/小时，每次上传都计数（解码失败也算） | 200，`changes` 只有自己的用户记录；登录与次数在读请求体之前（onRequest）核对，游客和超了次数的请求体不会被读进内存。请求体是图片本身，`Content-Type` 为 `image/png`、`image/jpeg` 或 `image/webp`，≤2MB。sharp 解码（像素上限 4096×4096，超了在解码前拒绝；动图只取第一帧），按 EXIF 摆正，居中裁成正方形，缩到 256×256 WebP，按内容 sha256 存库；换头像后没人用的旧图删除 | 401；415 `unsupported_media_type`；413 `avatar_too_large`；400 `invalid_image` / `image_too_large`；429 |
 | `DELETE /api/forum/me/avatar` | 成员 | 无 | 200，`changes` 只有自己的用户记录，回到 GitHub 头像 | 401 |
 | `GET /api/forum/avatars/<hash>.webp` | 所有人 | 无 | 200 `image/webp`，`Cache-Control: public, max-age=31536000, immutable`，`Content-Security-Policy: default-src 'none'` | 400（不是 64 位小写十六进制 + `.webp`）；404（`no-store`） |
+| `GET /forum/llms.txt` | 当前 viewer | 与论坛 state 读取同档 | 200 `text/plain`；仅列当前权限可见话题与摘要；`private, no-store` | 429 |
+| `GET /forum/t/:topic_id.md` | 当前 viewer | 与话题正文读取同档 | 200 `text/markdown`；从核心当前 state + 正文生成；`private, no-store` | 401/403（不带标题正文）；404 |
+| `GET /forum/published/<16位hash>.webp` | 当前 viewer | 无 | 200 `image/webp`；仅当前可见正文实际引用的源图片；`private, no-store` | 404（非法名、缺文件、无引用、仅隐藏引用统一） |
 
 表里写 200 没写形状的写接口，回答都是上面「写接口的回答」的 `{ changes, viewer }`。
 

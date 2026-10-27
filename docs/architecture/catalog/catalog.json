@@ -265,15 +265,15 @@
     }
   ],
   "coverage": {
-    "automaticHead": 87,
-    "businessOperations": 181,
-    "businessOperationsWithFlow": 181,
+    "automaticHead": 90,
+    "businessOperations": 184,
+    "businessOperationsWithFlow": 184,
     "capabilities": 16,
-    "declaredFlows": 187,
-    "responseSchemas": 149,
-    "routeMethods": 297,
-    "supplementalInterfaces": 5,
-    "supplementalInterfacesWithFlow": 5,
+    "declaredFlows": 191,
+    "responseSchemas": 152,
+    "routeMethods": 303,
+    "supplementalInterfaces": 6,
+    "supplementalInterfacesWithFlow": 6,
     "tables": 69
   },
   "deploymentStatus": "not-observed",
@@ -1175,7 +1175,7 @@
           "path": "app/forum/app/components/SignInState.vue"
         },
         {
-          "line": 13,
+          "line": 12,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -1215,7 +1215,7 @@
           "path": "app/forum/shared/site-account.ts"
         },
         {
-          "line": 47,
+          "line": 72,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -4252,7 +4252,8 @@
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
+        "docs/architecture/SECURITY.md",
+        "docs/services/forum/README.md"
       ],
       "doesNotEnqueue": [],
       "domain": "forum",
@@ -4322,7 +4323,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -4338,15 +4339,40 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
       "id": "flow:forum.state",
       "invariants": [
-        "权限与资源：游客与成员均可读；通知、书签和真实通知设置仅本人可见，其他用户设置给默认值；关注关系公开。",
-        "响应与错误：200 {state}，帖子只有字段和摘要、没有正文；每IP(/64)分钟120次（路由自带的 FORUM_REQUEST_LIMITS），游客还另外按 SPEC §3.8 的 meta.limit.read.per_minute 限到每分钟60次（成员按等级更松，见 lib/limits.ts），哪个先触发就回哪个 bucket；超额429；显式HEAD回405且不计算state。",
-        "数据与副作用：读论坛表与公开内容分类；GET也可能通过forumViewer刷新本人用户；不发送邮件、不写帖子。",
+        "权限与资源：游客、注册用户、成员和版务都只收到当前读取等级可见的话题；有效范围为 COALESCE(topic.visibility, category.visibility, public)，历史显式覆盖不因分类后来收紧而失效。",
+        "响应与错误：200 {state}，帖子只有摘要；分类只在自身可读或被可读话题引用时下发，用户新增标签、通知和书签不得引用隐藏话题；每IP限流与显式HEAD规则不变。",
+        "数据与副作用：读论坛表与公开种子；不删除或改写被隐藏的话题、分类、标签、通知和书签，权限恢复后原记录重新进入投影。",
+        "身份与失败：site 客户端初始投影为空；身份变化立即清空旧投影并重读，迟到的读取、搜索、正文和写回答不能恢复旧身份内容；无权威响应时不回退到构建时正文。",
         "身份与资料：登录身份按 account_id 保留既有论坛 id，registered 登录不等于 OIDC 成员资格；历史作者公开资料直接读取 canonical 投影，无 canonical 保留旧值，不创建历史档案。角色/称号仅本人请求刷新，权限节点另行判定。"
       ],
       "operation": "GET /api/forum/state",
@@ -4379,7 +4405,12 @@
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
         "tests/server/forum.test.ts",
-        "tests/server/public-profile-consumers.test.ts"
+        "tests/server/public-profile-consumers.test.ts",
+        "tests/server/forum-category-visibility.test.ts",
+        "app/forum/tests/forum-category-visibility.test.ts",
+        "app/forum/tests/forum-server-store.test.ts",
+        "app/forum/tests/site-state.test.ts",
+        "app/forum/tests/site-account.test.ts"
       ],
       "title": "浏览论坛状态与本人私有列表",
       "writes": [
@@ -4439,7 +4470,7 @@
       ],
       "id": "flow:forum.topic_posts",
       "invariants": [
-        "权限与资源：游客与成员均可读，无额外帖子级权限；与state可见性一致。",
+        "权限与资源：与state、搜索和分页共用 COALESCE(topic.visibility, category.visibility, public)；不可见话题在正文直链返回401/403且响应不带标题或正文。",
         "响应与错误：200 {posts}含正文；话题不存在404；每IP分钟60次（路由自带），游客另按 SPEC §3.8 的 meta.limit.read.per_minute 限额（同 /state）。",
         "数据与副作用：按话题读取帖子及点赞投影；软删正文为空；不把全论坛正文再次塞进首屏。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4465,7 +4496,9 @@
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
-        "tests/server/forum.test.ts"
+        "tests/server/forum.test.ts",
+        "tests/server/forum-category-visibility.test.ts",
+        "app/forum/tests/forum-category-visibility.test.ts"
       ],
       "title": "阅读单话题帖子正文",
       "writes": [
@@ -4507,13 +4540,13 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
       "id": "flow:forum.search",
       "invariants": [
-        "权限与资源：游客与成员均可搜索；只本人用户记录显示真实通知设置，不搜索已删帖子正文。",
+        "权限与资源：只搜索当前读取等级可见的话题与帖子；身份重置立即丢弃页面上的旧搜索结果，迟到回答不得恢复旧身份内容。",
         "响应与错误：200 {results:{topics,posts,users}}；空词空结果；词过长400 validation_error，每IP分钟60次（路由自带），游客另按 SPEC §3.8 的 meta.limit.search.per_minute 限额；每次真正搜索（非空词）记一条 forum.search 操作记录。",
         "数据与副作用：标题、正文、username/displayName按转义的LIKE搜索，各类限量；返回帖子命中摘要，不将%当通配符。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4542,7 +4575,9 @@
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
-        "tests/server/forum.test.ts"
+        "tests/server/forum.test.ts",
+        "tests/server/forum-category-visibility.test.ts",
+        "app/forum/tests/forum-category-visibility.test.ts"
       ],
       "title": "搜索话题帖子和用户",
       "writes": [
@@ -4582,7 +4617,7 @@
       ],
       "id": "flow:forum.topics.create",
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。",
+        "权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.topic.create 节点。",
         "响应与错误：201 {changes,viewer,guestPolicy,topicId,postId}，帖子带正文；非法标题/分类/tag/空正文400，成员限流429。",
         "数据与副作用：单事务创建话题、首帖、编号和必要新tag，处理最多10个@提及通知；成功后记topic限流事件，不发邮件。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4661,7 +4696,7 @@
       ],
       "id": "flow:forum.topics.pin",
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 此外必须具备forum.topic.pin，作用于指定话题。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另按指定话题的分类 scope 核对 forum.moderate.pin 节点。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；缺能力403，话题不存在404。",
         "数据与副作用：更新pinned；以CONSOLE_ORG记forum.topic.pin审计，只含话题id及开关，不含正文。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4730,7 +4765,7 @@
       ],
       "id": "flow:forum.topics.close",
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 此外必须具备forum.topic.close，作用于指定话题。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另按指定话题的分类 scope 核对 forum.moderate.close 节点。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；缺能力403，话题不存在404。",
         "数据与副作用：更新closed；以CONSOLE_ORG记forum.topic.close审计，只含话题id及开关，不含正文。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4847,7 +4882,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -4957,7 +4992,7 @@
       ],
       "id": "flow:forum.posts.edit",
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 必须是作者本人，或者持有forum.post.moderate；能力不是作者分支的共同前提。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 作者本人可编辑自己的帖子；编辑他人帖子另需目标分类 scope 下的 forum.moderate.edit。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；帖子正文随changes返回；404不存在、403他人帖子、409 post_deleted、400 empty_content。",
         "数据与副作用：只更新正文/edited_at；只有编辑他人帖子才写forum.post.edit审计，不记录正文；不会因编辑重新发送提及通知。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -5024,7 +5059,7 @@
       ],
       "id": "flow:forum.posts.delete",
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 作者本人或forum.post.moderate；第一帖禁止删除。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 作者本人可删除自己的回复；删除他人回复另需目标分类 scope 下的 forum.moderate.delete；第一帖禁止删除。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在、403他人帖子、400 first_post；已软删重试返回现状。",
         "数据与副作用：置deleted并清正文，保留点赞和书签；只在删除他人帖子时记forum.post.delete审计；幂等重试不重复执行删除。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -5091,7 +5126,7 @@
       ],
       "id": "flow:forum.posts.like",
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 点赞主体固定本人，不接受代他人点赞。",
+        "权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.react；点赞主体固定本人，不接受代他人点赞。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在，409 post_deleted；帖子投影不带全文。",
         "数据与副作用：事务切换点赞；新点赞按作者通知设置生成一次通知（同人同帖不重复），取消不撤回已有通知，不写操作审计。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -5162,7 +5197,7 @@
       ],
       "id": "flow:forum.posts.bookmark",
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只能操作本人的书签；handler只检查帖子存在，未禁止为已软删帖子加书签。",
+        "权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.react；仅操作本人书签，handler 检查帖子存在，未禁止为软删帖子加书签。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在；删除书签用changes.removed反馈。",
         "数据与副作用：事务按userId/postId切换书签，不通知作者，不修改帖子正文。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -5234,7 +5269,7 @@
       ],
       "id": "flow:forum.users.follow",
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 关注发起人固定本人，目标须存在且不是本人。",
+        "权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.react；关注发起人固定本人，目标须存在且不是本人。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404未知用户，400 cannot_follow_self。",
         "数据与副作用：事务切换关注；首次关注在对方允许通知且未曾通知时写通知与编号，取消关注不删除旧通知。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -5305,7 +5340,7 @@
       ],
       "id": "flow:forum.notifications.read",
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 SQL同时匹配通知id与recipient_id，不能读取/标记他人通知。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 SQL 同时匹配通知 id 与 recipient_id，不能标记他人通知。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；不存在或属于他人均404。",
         "数据与副作用：仅更新本人该条read=1，不删通知；其他人的通知设置不下发。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -5372,7 +5407,7 @@
       ],
       "id": "flow:forum.notifications.read_all",
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 仅recipient_id等于本人。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 仅处理 recipient_id 等于本人的通知。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；没有未读通知仍返回合法空变更。",
         "数据与副作用：UPDATE本人未读行并RETURNING id，据此只回变动通知，不清除别人的未读数。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -5451,7 +5486,7 @@
       ],
       "id": "flow:forum.profile.update",
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只修改本人记录；允许昵称、签名、所在地、https网站与通知设置，不接收用户角色授权。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 只改本人昵称、简介、所在地、网站与通知设置，不接受客户端授予角色。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；400昵称/控制字符/网址等错误；旧昵称未变时不因新昵称规则阻止修改其他字段。",
         "数据与副作用：昵称NFKC与冒名检查后保存；已有 canonical 档案时昵称/简介与 forum_users 同事务写入，缺档历史作者不建档；location/website/notifyPrefs 只写论坛字段。公开投影批量读取当前账号 login/avatar 作为空 canonical 字段的 fallback，不按邮箱合并。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -5522,7 +5557,7 @@
       ],
       "id": "flow:forum.avatar.upload",
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 onRequest阶段即鉴权并消费每小时10次额度，失败解码也算；只改本人头像。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 onRequest 阶段即鉴权并消费每小时 10 次额度，解码失败也计次；只改本人头像。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；413 avatar_too_large，415 unsupported_media_type，400非法图像/尺寸，429限流。",
         "数据与副作用：PNG/JPEG/WebP最多2MB、4096×4096；sharp取首帧转256×256 WebP去元数据；写 forum_avatars/forum_users，已有 canonical 档案时同事务写 account_avatars/account_profiles，各自清理无人引用旧图。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -5594,7 +5629,7 @@
       ],
       "id": "flow:forum.avatar.clear",
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只清本人自定义头像。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 只清本人自定义头像。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。",
         "数据与副作用：事务清除 forum_users 与已有 account_profiles 的 avatar_hash，各自删除无人引用的 forum_avatars/account_avatars；缺 canonical 不建档，公开 fallback 保留当前绑定头像。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -6006,7 +6041,7 @@
       ],
       "id": "flow:forum.topics.page",
       "invariants": [
-        "权限与资源：谁都能调；按身份的分级可见（CONTRACT §1）过滤（public/registered/member），过滤在 SQL WHERE 里做，不是查出来再筛（和 state()/search() 共用 visibilityWhere()）。",
+        "权限与资源：按当前 viewer 的有效可见性在SQL层过滤；与state、搜索、正文及Markdown出口共用 COALESCE(topic.visibility, category.visibility, public)。",
         "响应与错误：200 {topics,nextCursor}；按 last_activity_at DESC, rowid DESC 排序，游标是 base64url 编的排序键，解不出来当没有（从第一页开始）；limit 要求1–50的整数，不是回400 validation_error；q 超过100字400。",
         "数据与副作用：访客翻页上限（SPEC §3.8，CONTRACT §9）——没带 cursor 的第一页不计数，带 cursor 的请求按访客 id（yugc_vid）或IP哈希、北京日历日窗口计最多10次，第11次429 {bucket:\"forum.visitor.pages\"}；注册用户、成员不限。",
         "身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。"
@@ -6031,7 +6066,8 @@
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
-        "tests/server/forum-v2-endpoints.test.ts"
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/server/forum-category-visibility.test.ts"
       ],
       "title": "话题列表的游标分页",
       "writes": [
@@ -6538,7 +6574,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 969,
+          "line": 999,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -6680,7 +6716,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 24,
+          "line": 25,
           "path": "app/server/src/routes/forum-api/index.ts"
         }
       ],
@@ -6852,31 +6888,33 @@
       "domain": "public_content",
       "evidence": [
         {
-          "line": 36,
+          "line": 34,
           "path": "app/forum/server/middleware/forum-markdown.ts"
         },
         {
-          "line": 55,
+          "line": 59,
           "path": "app/forum/server/middleware/forum-markdown.ts"
         }
       ],
       "id": "flow:forum.markdown.index",
       "invariants": [
-        "权限与资源：匿名GET/HEAD；只拦截llms.txt；其它方法/路径交后续处理器。",
-        "响应与错误：200 text/plain UTF-8加nosniff；快照加载失败503。",
-        "数据与副作用：site构建使用siteForumState，开发快照模式读只读投影，否则进程示例种子；预渲染可落成静态文件，不动态读取核心forum_*数据库。",
-        "验证边界：所列为纯解析、内容转换或配置测试，不是本次启动Nitro或读取真实快照的证明。"
+        "权限与资源：demo和明确本机快照模式继续本地生成；site开发模式把GET/HEAD与同源cookie转给核心 /forum/llms.txt，不读取published源正文。",
+        "响应与错误：demo/快照为text/plain UTF-8；site响应、身份错误和限流由核心原样返回，失败不回退静态索引。",
+        "数据与副作用：site镜像不预渲染llms.txt；生产入口由web nginx直达核心，论坛静态容器直接访问该路径为404。"
       ],
       "operation": "interface:forum.llms",
       "operationLabel": "GET/HEAD /llms.txt",
       "operationNodeId": "interface:forum.llms",
       "reads": [],
-      "relatedDomains": [],
+      "relatedDomains": [
+        "forum"
+      ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
         "app/forum/tests/forum-markdown.test.ts",
         "app/forum/tests/site-state.test.ts",
-        "app/forum/tests/content-source.test.ts"
+        "app/forum/tests/content-source.test.ts",
+        "tests/tooling/forum-site-content.test.ts"
       ],
       "title": "提供论坛Markdown索引",
       "writes": []
@@ -6892,30 +6930,32 @@
       "domain": "public_content",
       "evidence": [
         {
-          "line": 26,
+          "line": 22,
           "path": "app/forum/server/middleware/forum-markdown.ts"
         },
         {
-          "line": 55,
+          "line": 59,
           "path": "app/forum/server/middleware/forum-markdown.ts"
         }
       ],
       "id": "flow:forum.markdown.topic",
       "invariants": [
-        "权限与资源：匿名GET/HEAD；路径按TOPIC_MARKDOWN匹配，不能二次解码冒充其他路由。",
-        "响应与错误：200 text/markdown UTF-8；未知话题404 text/plain；快照失败503。",
-        "数据与副作用：与索引同源：site内容/开发快照/示例种子；不包含浏览器新写内容或实时核心数据库帖子，构建静态输出与在线核心API分别取证。",
-        "验证边界：所列为纯解析、内容转换或配置测试，不是本次启动Nitro或读取真实快照的证明。"
+        "权限与资源：demo和明确本机快照模式继续本地生成；site开发模式把GET/HEAD与同源cookie转给核心 /forum/t/:id.md。",
+        "响应与错误：demo/快照未知话题404；site的200、401、403、404与限流由核心按当前viewer返回，不回退published源正文。",
+        "数据与副作用：site镜像不预渲染t/*.md；动态alternate只指向核心授权出口，论坛静态容器直接访问Markdown为404。"
       ],
       "operation": "interface:forum.topic-markdown",
       "operationLabel": "GET/HEAD /t/:id.md",
       "operationNodeId": "interface:forum.topic-markdown",
       "reads": [],
-      "relatedDomains": [],
+      "relatedDomains": [
+        "forum"
+      ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
         "app/forum/tests/forum-markdown.test.ts",
-        "app/forum/tests/site-state.test.ts"
+        "app/forum/tests/site-state.test.ts",
+        "tests/tooling/forum-site-content.test.ts"
       ],
       "title": "提供话题Markdown正文",
       "writes": []
@@ -11144,7 +11184,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 794,
+          "line": 808,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -13043,6 +13083,275 @@
         "forum_rate_events",
         "activity_events"
       ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/services/forum/README.md",
+        "docs/services/web/README.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "forum",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "id": "flow:forum.site-markdown.index",
+      "invariants": [
+        "权限与资源：forumViewer解析sid，levelOf计算public/registered/member；索引只使用forum-store本次请求已过滤的state，显式话题覆盖保留COALESCE语义。",
+        "响应与错误：GET/自动HEAD返回text/plain UTF-8，private,no-store,nosniff；无可见话题返回空态说明，不包含隐藏标题、摘要或分类。",
+        "数据与副作用：不读取论坛静态published JSON；GET可能刷新当前论坛用户并执行既有限流，不改话题、分类或正文。",
+        "交付：web nginx保留原始/forum URI和cookie直达核心；forum site镜像及客户端包不携带索引或旧帖正文。"
+      ],
+      "operation": "GET /forum/llms.txt",
+      "operationLabel": "GET /forum/llms.txt",
+      "operationNodeId": "route:GET /forum/llms.txt",
+      "reads": [
+        "forum_counters",
+        "forum_users",
+        "forum_tags",
+        "forum_topics",
+        "forum_posts",
+        "forum_likes",
+        "forum_notifications",
+        "forum_bookmarks",
+        "forum_follows",
+        "forum_category_settings",
+        "sessions",
+        "perm_members",
+        "perm_entries",
+        "perm_groups"
+      ],
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "public_content",
+        "platform",
+        "audit"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/forum-category-visibility.test.ts",
+        "tests/tooling/forum-site-content.test.ts"
+      ],
+      "title": "按当前身份读取论坛Markdown索引",
+      "writes": [
+        "forum_users",
+        "sessions",
+        "activity_events",
+        "limit_events"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/services/forum/README.md",
+        "docs/services/web/README.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "forum",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "id": "flow:forum.site-markdown.topic",
+      "invariants": [
+        "权限与资源：先按话题有效可见性执行assertVisible，再从同一viewer的state与topicPosts生成正文；游客、注册和成员拒绝语义与JSON正文接口一致。",
+        "响应与错误：可见话题200 text/markdown UTF-8；未知id 404；匿名缺等级401、已登录等级不足403；private,no-store,nosniff。",
+        "数据与副作用：只读核心数据库当前正文，不读取构建时Markdown或published JSON，不改变话题visibility或内容。",
+        "并发：身份切换由客户端投影版本丢弃迟到读取；外部Markdown请求每次独立按其sid重新授权。"
+      ],
+      "operation": "GET /forum/t/:topic_id.md",
+      "operationLabel": "GET /forum/t/:topic_id.md",
+      "operationNodeId": "route:GET /forum/t/:topic_id.md",
+      "reads": [
+        "forum_users",
+        "forum_topics",
+        "forum_posts",
+        "forum_likes",
+        "forum_tags",
+        "forum_category_settings",
+        "sessions",
+        "perm_members",
+        "perm_entries",
+        "perm_groups"
+      ],
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "public_content",
+        "platform",
+        "audit"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/forum-category-visibility.test.ts",
+        "tests/tooling/forum-site-content.test.ts",
+        "app/forum/tests/forum-category-visibility.test.ts"
+      ],
+      "title": "按当前身份读取话题Markdown正文",
+      "writes": [
+        "forum_users",
+        "sessions",
+        "activity_events",
+        "limit_events"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/services/forum/README.md",
+        "docs/services/web/README.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "forum",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 557,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 144,
+          "path": "app/server/Dockerfile"
+        },
+        {
+          "line": 231,
+          "path": "app/web/Dockerfile"
+        },
+        {
+          "line": 91,
+          "path": "app/forum/Dockerfile"
+        }
+      ],
+      "id": "flow:forum.site-published.asset",
+      "invariants": [
+        "权限与资源：只接受16位小写十六进制webp名；至少一篇当前viewer可见且未删除的正文引用该文件才允许读取，多话题复用取最宽有效可见性。",
+        "响应与错误：允许时200 image/webp；无引用、仅隐藏话题引用、非法名或磁盘缺文件都统一404，不泄漏附件存在性；private,no-store,nosniff。",
+        "数据与副作用：只读核心数据库引用和server镜像内保留的原始图片；forum site镜像删除published目录，不删除源文件或历史帖子。"
+      ],
+      "operation": "GET /forum/published/:file",
+      "operationLabel": "GET /forum/published/:file",
+      "operationNodeId": "route:GET /forum/published/:file",
+      "reads": [
+        "forum_users",
+        "forum_topics",
+        "forum_posts",
+        "forum_category_settings",
+        "sessions",
+        "perm_members",
+        "perm_entries",
+        "perm_groups"
+      ],
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "public_content",
+        "platform",
+        "audit"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/forum-category-visibility.test.ts",
+        "tests/tooling/forum-site-content.test.ts",
+        "tests/tooling/forum-redirects.test.ts"
+      ],
+      "title": "按当前身份下载旧帖引用图片",
+      "writes": [
+        "forum_users",
+        "sessions",
+        "activity_events"
+      ]
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/forum/README.md",
+        "docs/services/web/README.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "forum",
+      "evidence": [
+        {
+          "line": 23,
+          "path": "app/forum/server/middleware/forum-markdown.ts"
+        }
+      ],
+      "id": "flow:forum.published.proxy",
+      "invariants": [
+        "权限与资源：仅site模式由Nitro中间件将GET/HEAD和cookie代理到核心/forum/published/:file；demo模式继续由public静态文件提供。",
+        "响应与错误：核心状态码与响应头原样返回；site失败不回退本地图片，非匹配路径交后续处理器。",
+        "数据与副作用：不读写本机快照或核心数据库；生产静态镜像删除published目录，外部路径由web nginx直达核心。"
+      ],
+      "operation": "interface:forum.published-proxy",
+      "operationLabel": "GET/HEAD /published/:file",
+      "operationNodeId": "interface:forum.published-proxy",
+      "reads": [],
+      "relatedDomains": [
+        "public_content",
+        "platform"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/tooling/forum-site-content.test.ts"
+      ],
+      "title": "site开发代理旧帖图片到核心授权面",
+      "writes": []
     }
   ],
   "isolation": {
@@ -13868,6 +14177,11 @@
       "title": "修改本人论坛资料"
     },
     {
+      "id": "flow:forum.published.proxy",
+      "kind": "flow",
+      "title": "site开发代理旧帖图片到核心授权面"
+    },
+    {
       "id": "flow:forum.reactions.add",
       "kind": "flow",
       "title": "给帖子加一个表情回应"
@@ -13881,6 +14195,21 @@
       "id": "flow:forum.search",
       "kind": "flow",
       "title": "搜索话题帖子和用户"
+    },
+    {
+      "id": "flow:forum.site-markdown.index",
+      "kind": "flow",
+      "title": "按当前身份读取论坛Markdown索引"
+    },
+    {
+      "id": "flow:forum.site-markdown.topic",
+      "kind": "flow",
+      "title": "按当前身份读取话题Markdown正文"
+    },
+    {
+      "id": "flow:forum.site-published.asset",
+      "kind": "flow",
+      "title": "按当前身份下载旧帖引用图片"
     },
     {
       "id": "flow:forum.state",
@@ -14306,6 +14635,11 @@
       "id": "interface:forum.local-supervisor",
       "kind": "supplemental-interface",
       "title": "/__geek_forum"
+    },
+    {
+      "id": "interface:forum.published-proxy",
+      "kind": "supplemental-interface",
+      "title": "/published/:file"
     },
     {
       "id": "interface:forum.topic-markdown",
@@ -14833,6 +15167,21 @@
       "title": "GET /forum/*"
     },
     {
+      "id": "route:GET /forum/llms.txt",
+      "kind": "route",
+      "title": "GET /forum/llms.txt"
+    },
+    {
+      "id": "route:GET /forum/published/:file",
+      "kind": "route",
+      "title": "GET /forum/published/:file"
+    },
+    {
+      "id": "route:GET /forum/t/:topic_id.md",
+      "kind": "route",
+      "title": "GET /forum/t/:topic_id.md"
+    },
+    {
       "id": "route:GET /forum/u/*",
       "kind": "route",
       "title": "GET /forum/u/*"
@@ -15271,6 +15620,21 @@
       "id": "route:HEAD /forum/*",
       "kind": "route",
       "title": "HEAD /forum/*"
+    },
+    {
+      "id": "route:HEAD /forum/llms.txt",
+      "kind": "route",
+      "title": "HEAD /forum/llms.txt"
+    },
+    {
+      "id": "route:HEAD /forum/published/:file",
+      "kind": "route",
+      "title": "HEAD /forum/published/:file"
+    },
+    {
+      "id": "route:HEAD /forum/t/:topic_id.md",
+      "kind": "route",
+      "title": "HEAD /forum/t/:topic_id.md"
     },
     {
       "id": "route:HEAD /forum/u/*",
@@ -16168,9 +16532,19 @@
       "title": "app/forum/tests/content-source.test.ts"
     },
     {
+      "id": "test:app/forum/tests/forum-category-visibility.test.ts",
+      "kind": "test",
+      "title": "app/forum/tests/forum-category-visibility.test.ts"
+    },
+    {
       "id": "test:app/forum/tests/forum-markdown.test.ts",
       "kind": "test",
       "title": "app/forum/tests/forum-markdown.test.ts"
+    },
+    {
+      "id": "test:app/forum/tests/forum-server-store.test.ts",
+      "kind": "test",
+      "title": "app/forum/tests/forum-server-store.test.ts"
     },
     {
       "id": "test:app/forum/tests/local-curation.test.ts",
@@ -16413,6 +16787,11 @@
       "title": "tests/server/feedback-org.test.ts"
     },
     {
+      "id": "test:tests/server/forum-category-visibility.test.ts",
+      "kind": "test",
+      "title": "tests/server/forum-category-visibility.test.ts"
+    },
+    {
       "id": "test:tests/server/forum-sticker-cdn.test.ts",
       "kind": "test",
       "title": "tests/server/forum-sticker-cdn.test.ts"
@@ -16548,6 +16927,16 @@
       "title": "tests/tooling/contest-site.test.ts"
     },
     {
+      "id": "test:tests/tooling/forum-redirects.test.ts",
+      "kind": "test",
+      "title": "tests/tooling/forum-redirects.test.ts"
+    },
+    {
+      "id": "test:tests/tooling/forum-site-content.test.ts",
+      "kind": "test",
+      "title": "tests/tooling/forum-site-content.test.ts"
+    },
+    {
       "id": "test:tests/tooling/web-nginx.test.ts",
       "kind": "test",
       "title": "tests/tooling/web-nginx.test.ts"
@@ -16615,7 +17004,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "38ff54027d95740551a5808778579aa936cdbadf27b4450f77e650b33db7d77f",
+    "fingerprint": "08e0cfc2ae5a0d4a0e3771e8cb8196788682101efe4328689918e01cff5aaad9",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -17019,7 +17408,7 @@
       },
       {
         "path": "app/forum/Dockerfile",
-        "sha256": "04a2efb90c91d157301ebaf9af5a7e8494c7f678021e1a6486c778dbc0d2f5be"
+        "sha256": "c876705b4e39b19a2590e344ef679b343de5b2bf2134d074def6833e33d838d3"
       },
       {
         "path": "app/forum/app/app.vue",
@@ -17131,7 +17520,7 @@
       },
       {
         "path": "app/forum/app/composables/useContentSource.ts",
-        "sha256": "6bfd109b36abf3ceb1cca3bcce643d35d846a66db9128d5678370803467a23ad"
+        "sha256": "081bf8a580e2a98fb23aecde3cea28894558aafcf410d6c0ef8c7e2d6908e940"
       },
       {
         "path": "app/forum/app/composables/useCurrentUser.ts",
@@ -17171,7 +17560,7 @@
       },
       {
         "path": "app/forum/app/composables/useSiteAccount.ts",
-        "sha256": "7ad6e18c191e5345bb4cb4cf761f13cf36aa6f52d8c6d54b996e26337afb31aa"
+        "sha256": "e8b65fd51ece213b15e9e9b72f887e890640082b7f00c9a5975ef96695485438"
       },
       {
         "path": "app/forum/app/composables/useSiteLinks.ts",
@@ -17187,7 +17576,7 @@
       },
       {
         "path": "app/forum/app/data/access.ts",
-        "sha256": "4531c894d46afc739416371d74811754fa61b5e4a50ac146740fb0b4924a73b4"
+        "sha256": "77fcbde1593eac42eb41c21ebfbfbde09d3cbe52f783bf18fead9422fc2b95cd"
       },
       {
         "path": "app/forum/app/data/account-badges.ts",
@@ -17287,11 +17676,11 @@
       },
       {
         "path": "app/forum/app/pages/search.vue",
-        "sha256": "b7467a0ed1bdbe460b8efc9fd860c17481935f08a5a2d4d5c1c79b353f3cfd00"
+        "sha256": "749335b1c786a9d2f37c7df4f2fd065b39c1dc28218c64ad7974c098c6ac42ce"
       },
       {
         "path": "app/forum/app/pages/t/[id].vue",
-        "sha256": "6e74b3b10aef1d37d35e476020671d9a08f914dca26a67c7557906d9853a2aa4"
+        "sha256": "d1fab563596ac6b8b28f60a62306d141afe2603220c0d2cff0c4bf22f5793a3c"
       },
       {
         "path": "app/forum/app/pages/tag/[slug].vue",
@@ -17331,11 +17720,11 @@
       },
       {
         "path": "app/forum/app/plugins/site-state.client.ts",
-        "sha256": "be882b8be796e9e01b7b87aaeb091630ca728c9415754bee158b8c59832a0d18"
+        "sha256": "fa2fcf7fee333dd5ccd1b8a436a8f569a86e42587793d80d86af50c93ed17359"
       },
       {
         "path": "app/forum/app/stores/forum-server.ts",
-        "sha256": "fc1963d74c7554d9f0b0bd7c5bd2bde450a93fce9dd4ce4660eedfd2a4e81e97"
+        "sha256": "64a016c6d752ae61081b3541944aac3cdc60cabdd144c0bcb4249143021f445d"
       },
       {
         "path": "app/forum/app/stores/forum.ts",
@@ -17359,7 +17748,7 @@
       },
       {
         "path": "app/forum/nuxt.config.ts",
-        "sha256": "88fd663ba4e61bf59b01ddb72d47b84fba86040f70c944080e6dc92825909a4f"
+        "sha256": "4a23e1c04b3eecfc3908c097aefeb0110538226277c3333889ff720fd530ec6b"
       },
       {
         "path": "app/forum/package.json",
@@ -17367,7 +17756,7 @@
       },
       {
         "path": "app/forum/server/middleware/forum-markdown.ts",
-        "sha256": "28ca7e00a2193e833a9c777808cd267405ce1cd98cfa8f21bbeda17d91d43e4a"
+        "sha256": "017a4283d16555e5b7399f64beede1d3a3498f0e99f289498a75fccce7a766c5"
       },
       {
         "path": "app/forum/server/routes/__geek_forum.get.ts",
@@ -17415,7 +17804,7 @@
       },
       {
         "path": "app/forum/shared/published.ts",
-        "sha256": "20d0b77563f0dfffef6dfec0c579a6b45a3a47b3c0305e359f5ffc101929d3c3"
+        "sha256": "a59e06b6d538d7e7d2448b647653883778a257459dd47a53f48268ceb99c9768"
       },
       {
         "path": "app/forum/shared/signin-outcomes.ts",
@@ -17431,7 +17820,7 @@
       },
       {
         "path": "app/forum/shared/site-state.ts",
-        "sha256": "ff1b1337638be9a4bd5e49ece3fd58414de793894718afb2e7ab7a8c77a84e2e"
+        "sha256": "b71c121a8f80dc764f80021537491051b39483eccfd760505cf24657c6204042"
       },
       {
         "path": "app/forum/shared/sticker-css.ts",
@@ -17450,8 +17839,16 @@
         "sha256": "ee98a4e8c7781861120cc08e20f524c11c177e7ddfb006c1b1f63818247e00be"
       },
       {
+        "path": "app/forum/tests/forum-category-visibility.test.ts",
+        "sha256": "e1306cd79f7a7d883044998ae1607f59d72275116f64201294e3adb21ad0c0ab"
+      },
+      {
         "path": "app/forum/tests/forum-markdown.test.ts",
         "sha256": "62c8b80f8c022b237ec664a088ac849cfa6ef534e901c52553be99b48f4359ac"
+      },
+      {
+        "path": "app/forum/tests/forum-server-store.test.ts",
+        "sha256": "d586226e63b389bda13166c68a6bff8a518037a7ceb5369abdf198cf1244a6d3"
       },
       {
         "path": "app/forum/tests/local-curation.test.ts",
@@ -17463,11 +17860,11 @@
       },
       {
         "path": "app/forum/tests/site-account.test.ts",
-        "sha256": "c07101f62294e1aa61ee7d6a375538f691c3d1cb198642109cc33266d27ba2e7"
+        "sha256": "05c5ccb73b13b19412a21d6775e1f2fdf1100dbe5abe069ea382815a68b97172"
       },
       {
         "path": "app/forum/tests/site-state.test.ts",
-        "sha256": "94841a7861584d7a913a1660e85e67ce4e689367f914d629140db02d162e18dc"
+        "sha256": "6ada11c896aab8f9cbe85eda2bd193a254f25482404aa87c271248ce40b7f503"
       },
       {
         "path": "app/forum/tests/sticker-size-css.test.ts",
@@ -17483,7 +17880,7 @@
       },
       {
         "path": "app/server/Dockerfile",
-        "sha256": "93b0977c7ca817e76b81d92e828da2f5882e317d8f1e56071ed34c073fee18fb"
+        "sha256": "c2b470dd372cea3f56e09a12c3f10dd66889581e0e2a9f920f0acc749e6261a1"
       },
       {
         "path": "app/server/package.json",
@@ -17503,7 +17900,7 @@
       },
       {
         "path": "app/server/src/config.ts",
-        "sha256": "0deac3866a3cac267495e378efbc6801630267629f1b615574b21eb2c629a33a"
+        "sha256": "c232778b65744241c44e2578beab7eab9bc97aa9a039fe05993212a4dd65bc9b"
       },
       {
         "path": "app/server/src/index.ts",
@@ -17634,12 +18031,16 @@
         "sha256": "dcc7aad8f9cd92b159e6334b8b4b48e08d8349695cf43dc3d8767e23c0bd1bbf"
       },
       {
+        "path": "app/server/src/lib/forum-markdown.ts",
+        "sha256": "dc44d8b5626a635b69fff5592b107a328898983ca4128fe81f76be7b5d5762d5"
+      },
+      {
         "path": "app/server/src/lib/forum-rules.ts",
         "sha256": "aba3ca547115104c2b0291e0f219b2ca4409a0046ab3425e8ae53ec0df0807d3"
       },
       {
         "path": "app/server/src/lib/forum-store.ts",
-        "sha256": "791545aef0a5aa7c86ab3d1b86568ab52b9b66d0cfb53e61fde0330fbb579556"
+        "sha256": "d0e3a73b2e908c74e348d724e12c7c8e88ffc3195a7e32b0c39089a929734ede"
       },
       {
         "path": "app/server/src/lib/github-http.ts",
@@ -17935,7 +18336,7 @@
       },
       {
         "path": "app/server/src/routes/forum-api/contracts.ts",
-        "sha256": "2b0600253befa9142e1e4bf0b08d2bec350217e664df1355b793b018250a507f"
+        "sha256": "8cec7c2280c865aeda6571eee7f17668d99b7b6c32d127d1368006d9a821e16d"
       },
       {
         "path": "app/server/src/routes/forum-api/forum-limits.ts",
@@ -17943,7 +18344,11 @@
       },
       {
         "path": "app/server/src/routes/forum-api/index.ts",
-        "sha256": "b7e660b51a225bdc5cc9728d65a6af5e0018f858ec5e16eb2f5e0f54759fe875"
+        "sha256": "1839d459e5c794941e64ec671d5eed8b72fdbeda6cb8cc8a1b4eaffd1f3c0e5d"
+      },
+      {
+        "path": "app/server/src/routes/forum-api/markdown.ts",
+        "sha256": "c52a8184ef8ba0a987a2759cab06fb6d4d0c3f8bd7bc3e1211575c538516c142"
       },
       {
         "path": "app/server/src/routes/forum-api/people.ts",
@@ -18067,7 +18472,7 @@
       },
       {
         "path": "app/web/Dockerfile",
-        "sha256": "01fd104d8ae531e1171c9fb102980c6064ba3dea7d8d200b63a5ad9ea8aa9411"
+        "sha256": "6ffc4d03df12ddf4a990ca9ef8df107e7e9d53582bd05f6c697f0e3ae8157c2d"
       },
       {
         "path": "app/web/package.json",
@@ -18519,7 +18924,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "937f2d401a990bc232d15a40736bf72205b0c2661843c0703962865186fd72da"
+        "sha256": "2e6a2d39f4502ab3e1f822cbaa77fc61d49d502c8211136eda88c555f68eaabb"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -18527,11 +18932,11 @@
       },
       {
         "path": "docs/architecture/SECURITY.md",
-        "sha256": "f7eabbcbe8f2a0c6131eb201e45a65468653feec72fe6b14284906e419eb35e5"
+        "sha256": "fe9301f5de02c9891087a0d2817a78eda360869858987c86341ff681df448980"
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "114ec864ba9b3c125aed8b36a2c551e69270346b660a98314797230568a644d3"
+        "sha256": "dacd51b82a9488489a9a0a4c748fe6e10f10ffc715a571a75d929c0e4348ccfa"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -18575,11 +18980,11 @@
       },
       {
         "path": "docs/services/forum/README.md",
-        "sha256": "e24c3efd577f61d8bea6e7bd1150a3c828b6244b9be78f0169b17a6c2e53626b"
+        "sha256": "cb2f424341c8190c428e8cdba246f596f89d3beb4051482424f80c4a33e06e0c"
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "4c01124487a5a2b38882340badde4a400b40fa096734fc6ede194c5e681ea878"
+        "sha256": "6eaabdc13b188e583ff3bcf711c6cfb3186fcc9e17cae1b661306fa4c2e44ada"
       },
       {
         "path": "docs/services/server/competition-rehearsal.md",
@@ -18591,7 +18996,7 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "bcc58af3d2f52bfc2ce1f7aace99ebc54a7aec31f096fade3efbae0d6580c410"
+        "sha256": "c62db9949fe9ec852b7a5adcf01824e0b013a5c38d5cc3e11b2220205cf3f6b8"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -18603,7 +19008,7 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "eb28f421714b1caa6abb9fd96519f2c8e3af95cbae1d7d3736a064d21ad1398e"
+        "sha256": "dd4530c94c64ed3c829f930bdb92f98915656379760ae621d3ceb5ea69ae5ff5"
       },
       {
         "path": "docs/services/web/portal.md",
@@ -18822,6 +19227,10 @@
         "sha256": "0bc1ea97f2dedd9b3f1076cde9e865a34f63cd640cdba8fde3ee484d7cdd20df"
       },
       {
+        "path": "tests/server/forum-category-visibility.test.ts",
+        "sha256": "7f0f14125aaa342c795b3a136dd3897993ae72cb3bea29865dc7dc899b732e8a"
+      },
+      {
         "path": "tests/server/forum-sticker-cdn.test.ts",
         "sha256": "8adb553a6d13d811e2d77e3a673c8f01bd6e0bc3dcf3c5f991166beb4e9a959f"
       },
@@ -18930,6 +19339,14 @@
         "sha256": "f2b0d1af55eeef46a6a72000eb7cfe68ea1fdc9f0c05092074dd92474eee2716"
       },
       {
+        "path": "tests/tooling/forum-redirects.test.ts",
+        "sha256": "efbff10766f1ede2cc2822645e70cd52e5bd925622e7c45b46b09649545e0981"
+      },
+      {
+        "path": "tests/tooling/forum-site-content.test.ts",
+        "sha256": "e89311b06907f5966a7eb8e8557e20c199275032a1f51ac64fce8234c20d7dc6"
+      },
+      {
         "path": "tests/tooling/web-nginx.test.ts",
         "sha256": "1fc03ae860b3590bf3bc6552b0a4b06059ca90019d176795deece808361025b0"
       },
@@ -19012,7 +19429,7 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 36,
+          "line": 34,
           "path": "app/forum/server/middleware/forum-markdown.ts"
         }
       ],
@@ -19060,7 +19477,19 @@
       "basis": "static-evidence",
       "evidence": [
         {
-          "line": 26,
+          "line": 23,
+          "path": "app/forum/server/middleware/forum-markdown.ts"
+        }
+      ],
+      "from": "application:forum",
+      "to": "interface:forum.published-proxy",
+      "type": "declares"
+    },
+    {
+      "basis": "static-evidence",
+      "evidence": [
+        {
+          "line": 22,
           "path": "app/forum/server/middleware/forum-markdown.ts"
         }
       ],
@@ -20338,6 +20767,42 @@
       "basis": "runtime",
       "evidence": [
         {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /forum/llms.txt",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /forum/published/:file",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /forum/t/:topic_id.md",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
           "line": 127,
           "path": "app/server/src/app.ts"
         }
@@ -21388,6 +21853,42 @@
       ],
       "from": "application:server",
       "to": "route:HEAD /forum/*",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /forum/llms.txt",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /forum/published/:file",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /forum/t/:topic_id.md",
       "type": "provides"
     },
     {
@@ -51132,7 +51633,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 969,
+          "line": 999,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51164,7 +51665,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 969,
+          "line": 999,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51196,7 +51697,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 969,
+          "line": 999,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51228,7 +51729,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 969,
+          "line": 999,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51260,7 +51761,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 969,
+          "line": 999,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51292,7 +51793,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 969,
+          "line": 999,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51336,7 +51837,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 969,
+          "line": 999,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51368,7 +51869,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 969,
+          "line": 999,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51400,7 +51901,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 969,
+          "line": 999,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51432,7 +51933,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 969,
+          "line": 999,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -55274,13 +55775,19 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:forum.markdown.index",
+      "to": "test:tests/tooling/forum-site-content.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
       "evidence": [
         {
-          "line": 36,
+          "line": 34,
           "path": "app/forum/server/middleware/forum-markdown.ts"
         },
         {
-          "line": 55,
+          "line": 59,
           "path": "app/forum/server/middleware/forum-markdown.ts"
         }
       ],
@@ -55320,13 +55827,19 @@
     },
     {
       "basis": "declaration",
+      "from": "flow:forum.markdown.topic",
+      "to": "test:tests/tooling/forum-site-content.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
       "evidence": [
         {
-          "line": 26,
+          "line": 22,
           "path": "app/forum/server/middleware/forum-markdown.ts"
         },
         {
-          "line": 55,
+          "line": 59,
           "path": "app/forum/server/middleware/forum-markdown.ts"
         }
       ],
@@ -57846,7 +58359,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -57910,7 +58423,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -57974,7 +58487,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58038,7 +58551,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58102,7 +58615,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58166,7 +58679,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58230,7 +58743,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58294,7 +58807,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58358,7 +58871,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58422,7 +58935,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58486,7 +58999,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58550,7 +59063,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58614,7 +59127,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58678,7 +59191,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58742,7 +59255,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58812,7 +59325,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58876,7 +59389,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -58940,7 +59453,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -59004,7 +59517,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -59068,7 +59581,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -59132,7 +59645,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -59196,7 +59709,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -59260,7 +59773,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -59324,7 +59837,7 @@
           "path": "app/server/src/routes/forum-api/forum-limits.ts"
         },
         {
-          "line": 12,
+          "line": 13,
           "path": "app/server/src/routes/forum-api/index.ts"
         },
         {
@@ -59929,6 +60442,42 @@
       "from": "flow:forum.profile.update",
       "to": "table:sessions",
       "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.published.proxy",
+      "to": "domain:forum",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.published.proxy",
+      "to": "document:docs/services/forum/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.published.proxy",
+      "to": "document:docs/services/web/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.published.proxy",
+      "to": "test:tests/tooling/forum-site-content.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 23,
+          "path": "app/forum/server/middleware/forum-markdown.ts"
+        }
+      ],
+      "from": "flow:forum.published.proxy",
+      "to": "interface:forum.published-proxy",
+      "type": "uses"
     },
     {
       "basis": "declaration",
@@ -60942,7 +61491,7 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
@@ -60974,7 +61523,7 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
@@ -61006,7 +61555,7 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
@@ -61038,7 +61587,7 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
@@ -61070,7 +61619,7 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
@@ -61102,7 +61651,7 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
@@ -61134,7 +61683,7 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
@@ -61166,7 +61715,7 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
@@ -61198,7 +61747,7 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
@@ -61230,7 +61779,7 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
@@ -61262,13 +61811,25 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
       "to": "table:users",
       "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.search",
+      "to": "test:app/forum/tests/forum-category-visibility.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.search",
+      "to": "test:tests/server/forum-category-visibility.test.ts",
+      "type": "test-entry"
     },
     {
       "basis": "declaration",
@@ -61300,7 +61861,7 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
@@ -61332,7 +61893,7 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
@@ -61364,7 +61925,7 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
@@ -61396,7 +61957,7 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
@@ -61428,11 +61989,1489 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 58,
+          "line": 57,
           "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
+      "to": "table:sessions",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.index",
+      "to": "domain:forum",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.index",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.index",
+      "to": "document:docs/architecture/SECURITY.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.index",
+      "to": "document:docs/services/forum/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.index",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.index",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.index",
+      "to": "document:docs/services/web/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:forum_bookmarks",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:forum_category_settings",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:forum_counters",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:forum_follows",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:forum_likes",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:forum_notifications",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:forum_posts",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:forum_tags",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:forum_topics",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:forum_users",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:perm_entries",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:perm_members",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:sessions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.index",
+      "to": "test:tests/server/forum-category-visibility.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.index",
+      "to": "test:tests/tooling/forum-site-content.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "route:GET /forum/llms.txt",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:activity_events",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:forum_users",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:limit_events",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 33,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 833,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 121,
+          "path": "app/server/src/routes/forum-api/contracts.ts"
+        },
+        {
+          "line": 26,
+          "path": "app/server/src/routes/forum-api/index.ts"
+        },
+        {
+          "line": 29,
+          "path": "app/forum/nuxt.config.ts"
+        }
+      ],
+      "from": "flow:forum.site-markdown.index",
+      "to": "table:sessions",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.topic",
+      "to": "domain:forum",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.topic",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.topic",
+      "to": "document:docs/architecture/SECURITY.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.topic",
+      "to": "document:docs/services/forum/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.topic",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.topic",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.topic",
+      "to": "document:docs/services/web/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "table:forum_category_settings",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "table:forum_likes",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "table:forum_posts",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "table:forum_tags",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "table:forum_topics",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "table:forum_users",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "table:perm_entries",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "table:perm_members",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "table:sessions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.topic",
+      "to": "test:app/forum/tests/forum-category-visibility.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.topic",
+      "to": "test:tests/server/forum-category-visibility.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-markdown.topic",
+      "to": "test:tests/tooling/forum-site-content.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "route:GET /forum/t/:topic_id.md",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "table:activity_events",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "table:forum_users",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "table:limit_events",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 39,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 62,
+          "path": "app/server/src/lib/forum-markdown.ts"
+        },
+        {
+          "line": 546,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 90,
+          "path": "app/forum/app/pages/t/[id].vue"
+        }
+      ],
+      "from": "flow:forum.site-markdown.topic",
+      "to": "table:sessions",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-published.asset",
+      "to": "domain:forum",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-published.asset",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-published.asset",
+      "to": "document:docs/architecture/SECURITY.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-published.asset",
+      "to": "document:docs/services/forum/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-published.asset",
+      "to": "document:docs/services/server/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-published.asset",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-published.asset",
+      "to": "document:docs/services/web/README.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 557,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 144,
+          "path": "app/server/Dockerfile"
+        },
+        {
+          "line": 231,
+          "path": "app/web/Dockerfile"
+        },
+        {
+          "line": 91,
+          "path": "app/forum/Dockerfile"
+        }
+      ],
+      "from": "flow:forum.site-published.asset",
+      "to": "table:forum_category_settings",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 557,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 144,
+          "path": "app/server/Dockerfile"
+        },
+        {
+          "line": 231,
+          "path": "app/web/Dockerfile"
+        },
+        {
+          "line": 91,
+          "path": "app/forum/Dockerfile"
+        }
+      ],
+      "from": "flow:forum.site-published.asset",
+      "to": "table:forum_posts",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 557,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 144,
+          "path": "app/server/Dockerfile"
+        },
+        {
+          "line": 231,
+          "path": "app/web/Dockerfile"
+        },
+        {
+          "line": 91,
+          "path": "app/forum/Dockerfile"
+        }
+      ],
+      "from": "flow:forum.site-published.asset",
+      "to": "table:forum_topics",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 557,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 144,
+          "path": "app/server/Dockerfile"
+        },
+        {
+          "line": 231,
+          "path": "app/web/Dockerfile"
+        },
+        {
+          "line": 91,
+          "path": "app/forum/Dockerfile"
+        }
+      ],
+      "from": "flow:forum.site-published.asset",
+      "to": "table:forum_users",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 557,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 144,
+          "path": "app/server/Dockerfile"
+        },
+        {
+          "line": 231,
+          "path": "app/web/Dockerfile"
+        },
+        {
+          "line": 91,
+          "path": "app/forum/Dockerfile"
+        }
+      ],
+      "from": "flow:forum.site-published.asset",
+      "to": "table:perm_entries",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 557,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 144,
+          "path": "app/server/Dockerfile"
+        },
+        {
+          "line": 231,
+          "path": "app/web/Dockerfile"
+        },
+        {
+          "line": 91,
+          "path": "app/forum/Dockerfile"
+        }
+      ],
+      "from": "flow:forum.site-published.asset",
+      "to": "table:perm_groups",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 557,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 144,
+          "path": "app/server/Dockerfile"
+        },
+        {
+          "line": 231,
+          "path": "app/web/Dockerfile"
+        },
+        {
+          "line": 91,
+          "path": "app/forum/Dockerfile"
+        }
+      ],
+      "from": "flow:forum.site-published.asset",
+      "to": "table:perm_members",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 557,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 144,
+          "path": "app/server/Dockerfile"
+        },
+        {
+          "line": 231,
+          "path": "app/web/Dockerfile"
+        },
+        {
+          "line": 91,
+          "path": "app/forum/Dockerfile"
+        }
+      ],
+      "from": "flow:forum.site-published.asset",
+      "to": "table:sessions",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-published.asset",
+      "to": "test:tests/server/forum-category-visibility.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-published.asset",
+      "to": "test:tests/tooling/forum-redirects.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.site-published.asset",
+      "to": "test:tests/tooling/forum-site-content.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 557,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 144,
+          "path": "app/server/Dockerfile"
+        },
+        {
+          "line": 231,
+          "path": "app/web/Dockerfile"
+        },
+        {
+          "line": 91,
+          "path": "app/forum/Dockerfile"
+        }
+      ],
+      "from": "flow:forum.site-published.asset",
+      "to": "route:GET /forum/published/:file",
+      "type": "uses"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 557,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 144,
+          "path": "app/server/Dockerfile"
+        },
+        {
+          "line": 231,
+          "path": "app/web/Dockerfile"
+        },
+        {
+          "line": 91,
+          "path": "app/forum/Dockerfile"
+        }
+      ],
+      "from": "flow:forum.site-published.asset",
+      "to": "table:activity_events",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 557,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 144,
+          "path": "app/server/Dockerfile"
+        },
+        {
+          "line": 231,
+          "path": "app/web/Dockerfile"
+        },
+        {
+          "line": 91,
+          "path": "app/forum/Dockerfile"
+        }
+      ],
+      "from": "flow:forum.site-published.asset",
+      "to": "table:forum_users",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 52,
+          "path": "app/server/src/routes/forum-api/markdown.ts"
+        },
+        {
+          "line": 557,
+          "path": "app/server/src/lib/forum-store.ts"
+        },
+        {
+          "line": 144,
+          "path": "app/server/Dockerfile"
+        },
+        {
+          "line": 231,
+          "path": "app/web/Dockerfile"
+        },
+        {
+          "line": 91,
+          "path": "app/forum/Dockerfile"
+        }
+      ],
+      "from": "flow:forum.site-published.asset",
       "to": "table:sessions",
       "type": "writes"
     },
@@ -61452,6 +63491,12 @@
       "basis": "declaration",
       "from": "flow:forum.state",
       "to": "document:docs/architecture/SECURITY.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.state",
+      "to": "document:docs/services/forum/README.md",
       "type": "documented-by"
     },
     {
@@ -61528,7 +63573,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -61544,7 +63589,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -61620,7 +63689,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -61636,7 +63705,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -61712,7 +63805,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -61728,7 +63821,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -61804,7 +63921,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -61820,7 +63937,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -61896,7 +64037,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -61912,7 +64053,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -61988,7 +64153,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -62004,7 +64169,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -62080,7 +64269,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -62096,7 +64285,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -62172,7 +64385,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -62188,7 +64401,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -62264,7 +64501,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -62280,7 +64517,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -62356,7 +64617,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -62372,7 +64633,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -62448,7 +64733,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -62464,7 +64749,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -62540,7 +64849,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -62556,7 +64865,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -62632,7 +64965,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -62648,7 +64981,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -62724,7 +65081,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -62740,7 +65097,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -62816,7 +65197,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -62832,7 +65213,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -62908,7 +65313,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -62924,13 +65329,67 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
       "to": "table:users",
       "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.state",
+      "to": "test:app/forum/tests/forum-category-visibility.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.state",
+      "to": "test:app/forum/tests/forum-server-store.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.state",
+      "to": "test:app/forum/tests/site-account.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.state",
+      "to": "test:app/forum/tests/site-state.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.state",
+      "to": "test:tests/server/forum-category-visibility.test.ts",
+      "type": "test-entry"
     },
     {
       "basis": "declaration",
@@ -63012,7 +65471,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -63028,7 +65487,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -63104,7 +65587,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -63120,7 +65603,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -63196,7 +65703,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -63212,7 +65719,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -63288,7 +65819,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -63304,7 +65835,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -63380,7 +65935,7 @@
           "path": "app/forum/app/plugins/opaque-surfaces.ts"
         },
         {
-          "line": 47,
+          "line": 49,
           "path": "app/forum/app/stores/forum-server.ts"
         },
         {
@@ -63396,7 +65951,31 @@
           "path": "app/server/src/lib/public-profile.ts"
         },
         {
-          "line": 21,
+          "line": 10,
+          "path": "app/forum/shared/site-state.ts"
+        },
+        {
+          "line": 25,
+          "path": "app/forum/app/composables/useContentSource.ts"
+        },
+        {
+          "line": 24,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
+        },
+        {
+          "line": 46,
+          "path": "app/forum/app/data/access.ts"
+        },
+        {
+          "line": 15,
+          "path": "app/forum/app/plugins/site-state.client.ts"
+        },
+        {
+          "line": 67,
+          "path": "app/forum/shared/published.ts"
+        },
+        {
+          "line": 10,
           "path": "app/forum/shared/site-state.ts"
         }
       ],
@@ -64119,6 +66698,18 @@
       "from": "flow:forum.topic_posts",
       "to": "table:titles",
       "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.topic_posts",
+      "to": "test:app/forum/tests/forum-category-visibility.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.topic_posts",
+      "to": "test:tests/server/forum-category-visibility.test.ts",
+      "type": "test-entry"
     },
     {
       "basis": "declaration",
@@ -65667,6 +68258,12 @@
     {
       "basis": "declaration",
       "from": "flow:forum.topics.page",
+      "to": "test:tests/server/forum-category-visibility.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:forum.topics.page",
       "to": "test:tests/server/forum-v2-endpoints.test.ts",
       "type": "test-entry"
     },
@@ -66924,7 +69521,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 24,
+          "line": 25,
           "path": "app/server/src/routes/forum-api/index.ts"
         }
       ],
@@ -66952,7 +69549,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 24,
+          "line": 25,
           "path": "app/server/src/routes/forum-api/index.ts"
         }
       ],
@@ -66980,7 +69577,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 24,
+          "line": 25,
           "path": "app/server/src/routes/forum-api/index.ts"
         }
       ],
@@ -67008,7 +69605,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 24,
+          "line": 25,
           "path": "app/server/src/routes/forum-api/index.ts"
         }
       ],
@@ -67036,7 +69633,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 24,
+          "line": 25,
           "path": "app/server/src/routes/forum-api/index.ts"
         }
       ],
@@ -67064,7 +69661,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 24,
+          "line": 25,
           "path": "app/server/src/routes/forum-api/index.ts"
         }
       ],
@@ -67098,7 +69695,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 24,
+          "line": 25,
           "path": "app/server/src/routes/forum-api/index.ts"
         }
       ],
@@ -67126,7 +69723,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 24,
+          "line": 25,
           "path": "app/server/src/routes/forum-api/index.ts"
         }
       ],
@@ -67154,7 +69751,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 24,
+          "line": 25,
           "path": "app/server/src/routes/forum-api/index.ts"
         }
       ],
@@ -67182,7 +69779,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 24,
+          "line": 25,
           "path": "app/server/src/routes/forum-api/index.ts"
         }
       ],
@@ -67210,7 +69807,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 24,
+          "line": 25,
           "path": "app/server/src/routes/forum-api/index.ts"
         }
       ],
@@ -67238,7 +69835,7 @@
           "path": "app/server/src/lib/permissions.ts"
         },
         {
-          "line": 24,
+          "line": 25,
           "path": "app/server/src/routes/forum-api/index.ts"
         }
       ],
@@ -73208,7 +75805,7 @@
           "path": "app/forum/app/components/SignInState.vue"
         },
         {
-          "line": 13,
+          "line": 12,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -73248,7 +75845,7 @@
           "path": "app/forum/shared/site-account.ts"
         },
         {
-          "line": 47,
+          "line": 72,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -73340,7 +75937,7 @@
           "path": "app/forum/app/components/SignInState.vue"
         },
         {
-          "line": 13,
+          "line": 12,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -73380,7 +75977,7 @@
           "path": "app/forum/shared/site-account.ts"
         },
         {
-          "line": 47,
+          "line": 72,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -73472,7 +76069,7 @@
           "path": "app/forum/app/components/SignInState.vue"
         },
         {
-          "line": 13,
+          "line": 12,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -73512,7 +76109,7 @@
           "path": "app/forum/shared/site-account.ts"
         },
         {
-          "line": 47,
+          "line": 72,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -73604,7 +76201,7 @@
           "path": "app/forum/app/components/SignInState.vue"
         },
         {
-          "line": 13,
+          "line": 12,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -73644,7 +76241,7 @@
           "path": "app/forum/shared/site-account.ts"
         },
         {
-          "line": 47,
+          "line": 72,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -73736,7 +76333,7 @@
           "path": "app/forum/app/components/SignInState.vue"
         },
         {
-          "line": 13,
+          "line": 12,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -73776,7 +76373,7 @@
           "path": "app/forum/shared/site-account.ts"
         },
         {
-          "line": 47,
+          "line": 72,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -73868,7 +76465,7 @@
           "path": "app/forum/app/components/SignInState.vue"
         },
         {
-          "line": 13,
+          "line": 12,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -73908,7 +76505,7 @@
           "path": "app/forum/shared/site-account.ts"
         },
         {
-          "line": 47,
+          "line": 72,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -74000,7 +76597,7 @@
           "path": "app/forum/app/components/SignInState.vue"
         },
         {
-          "line": 13,
+          "line": 12,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -74040,7 +76637,7 @@
           "path": "app/forum/shared/site-account.ts"
         },
         {
-          "line": 47,
+          "line": 72,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -74132,7 +76729,7 @@
           "path": "app/forum/app/components/SignInState.vue"
         },
         {
-          "line": 13,
+          "line": 12,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -74172,7 +76769,7 @@
           "path": "app/forum/shared/site-account.ts"
         },
         {
-          "line": 47,
+          "line": 72,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -74348,7 +76945,7 @@
           "path": "app/forum/app/components/SignInState.vue"
         },
         {
-          "line": 13,
+          "line": 12,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -74388,7 +76985,7 @@
           "path": "app/forum/shared/site-account.ts"
         },
         {
-          "line": 47,
+          "line": 72,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -74480,7 +77077,7 @@
           "path": "app/forum/app/components/SignInState.vue"
         },
         {
-          "line": 13,
+          "line": 12,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -74520,7 +77117,7 @@
           "path": "app/forum/shared/site-account.ts"
         },
         {
-          "line": 47,
+          "line": 72,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -74612,7 +77209,7 @@
           "path": "app/forum/app/components/SignInState.vue"
         },
         {
-          "line": 13,
+          "line": 12,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -74652,7 +77249,7 @@
           "path": "app/forum/shared/site-account.ts"
         },
         {
-          "line": 47,
+          "line": 72,
           "path": "app/forum/app/composables/useSiteAccount.ts"
         },
         {
@@ -79062,7 +81659,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 794,
+          "line": 808,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -79110,7 +81707,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 794,
+          "line": 808,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -79158,7 +81755,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 794,
+          "line": 808,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -79206,7 +81803,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 794,
+          "line": 808,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -79254,7 +81851,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 794,
+          "line": 808,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -79302,7 +81899,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 794,
+          "line": 808,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -79350,7 +81947,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 794,
+          "line": 808,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -79398,7 +81995,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 794,
+          "line": 808,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -79458,7 +82055,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 794,
+          "line": 808,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -79506,7 +82103,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 794,
+          "line": 808,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -79554,7 +82151,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 794,
+          "line": 808,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -79602,7 +82199,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 794,
+          "line": 808,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -84498,6 +87095,12 @@
     },
     {
       "basis": "declaration",
+      "from": "interface:forum.published-proxy",
+      "to": "domain:forum",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "interface:forum.topic-markdown",
       "to": "domain:public_content",
       "type": "belongs-to"
@@ -85128,6 +87731,24 @@
     },
     {
       "basis": "declaration",
+      "from": "route:GET /forum/llms.txt",
+      "to": "domain:forum",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:GET /forum/published/:file",
+      "to": "domain:forum",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:GET /forum/t/:topic_id.md",
+      "to": "domain:forum",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:GET /forum/u/*",
       "to": "domain:platform",
       "type": "belongs-to"
@@ -85652,6 +88273,24 @@
       "basis": "declaration",
       "from": "route:HEAD /forum/*",
       "to": "domain:platform",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:HEAD /forum/llms.txt",
+      "to": "domain:forum",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:HEAD /forum/published/:file",
+      "to": "domain:forum",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:HEAD /forum/t/:topic_id.md",
+      "to": "domain:forum",
       "type": "belongs-to"
     },
     {
@@ -106842,6 +109481,238 @@
       "authorization": {
         "assessment": "partial-static-evidence",
         "capabilityGroups": [],
+        "checks": [
+          "forumViewer(req)"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "forum",
+      "id": "route:GET /forum/llms.txt",
+      "key": "GET /forum/llms.txt",
+      "kind": "business",
+      "method": "GET",
+      "path": "/forum/llms.txt",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "description": "text/plain; charset=utf-8",
+            "type": "string"
+          }
+        }
+      },
+      "source": {
+        "line": 32,
+        "path": "app/server/src/routes/forum-api/markdown.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [
+          "forumViewer(req)"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "forum",
+      "id": "route:GET /forum/published/:file",
+      "key": "GET /forum/published/:file",
+      "kind": "business",
+      "method": "GET",
+      "path": "/forum/published/:file",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "file"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "description": "image/webp; binary",
+            "type": "string"
+          }
+        }
+      },
+      "source": {
+        "line": 52,
+        "path": "app/server/src/routes/forum-api/markdown.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [
+          "forumViewer(req)"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "forum",
+      "id": "route:GET /forum/t/:topic_id.md",
+      "key": "GET /forum/t/:topic_id.md",
+      "kind": "business",
+      "method": "GET",
+      "path": "/forum/t/:topic_id.md",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "topic_id": {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "topic_id"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "200": {
+            "description": "text/markdown; charset=utf-8",
+            "type": "string"
+          }
+        }
+      },
+      "source": {
+        "line": 39,
+        "path": "app/server/src/routes/forum-api/markdown.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
         "checks": [],
         "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
       },
@@ -112546,6 +115417,220 @@
       "source": {
         "line": 131,
         "path": "app/server/src/app.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [
+          "forumViewer(req)"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "forum",
+      "id": "route:HEAD /forum/llms.txt",
+      "key": "HEAD /forum/llms.txt",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/forum/llms.txt",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 32,
+        "path": "app/server/src/routes/forum-api/markdown.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [
+          "forumViewer(req)"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "forum",
+      "id": "route:HEAD /forum/published/:file",
+      "key": "HEAD /forum/published/:file",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/forum/published/:file",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "file"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 52,
+        "path": "app/server/src/routes/forum-api/markdown.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [
+          "forumViewer(req)"
+        ],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "forum",
+      "id": "route:HEAD /forum/t/:topic_id.md",
+      "key": "HEAD /forum/t/:topic_id.md",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/forum/t/:topic_id.md",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "topic_id": {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "topic_id"
+          ],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 39,
+        "path": "app/server/src/routes/forum-api/markdown.ts"
       }
     },
     {
@@ -131960,6 +135045,7 @@
     },
     {
       "domains": [
+        "forum",
         "public_content"
       ],
       "path": "app/forum/server/middleware/forum-markdown.ts"
@@ -132301,6 +135387,12 @@
         "forum"
       ],
       "path": "app/server/src/lib/forum-content.ts"
+    },
+    {
+      "domains": [
+        "forum"
+      ],
+      "path": "app/server/src/lib/forum-markdown.ts"
     },
     {
       "domains": [
@@ -132920,6 +136012,12 @@
         "forum"
       ],
       "path": "app/server/src/routes/forum-api/index.ts"
+    },
+    {
+      "domains": [
+        "forum"
+      ],
+      "path": "app/server/src/routes/forum-api/markdown.ts"
     },
     {
       "domains": [
@@ -134239,10 +137337,10 @@
       "path": "/llms.txt",
       "scope": "nitro-and-prerender",
       "source": {
-        "line": 36,
+        "line": 34,
         "path": "app/forum/server/middleware/forum-markdown.ts"
       },
-      "summary": "论坛应用相对路径；Nitro 中间件提供，静态镜像使用预渲染文件，不代表动态读取当前核心论坛数据库。"
+      "summary": "demo与本机快照本地生成；site开发代理核心动态授权出口，生产静态镜像不携带该文件。"
     },
     {
       "application": "forum",
@@ -134256,10 +137354,27 @@
       "path": "/t/:id.md",
       "scope": "nitro-and-prerender",
       "source": {
-        "line": 26,
+        "line": 22,
         "path": "app/forum/server/middleware/forum-markdown.ts"
       },
-      "summary": "论坛应用相对路径；源码匹配的 Markdown 视图，部署时可用文件取决于构建时预渲染内容。"
+      "summary": "demo与本机快照本地生成；site开发代理核心动态授权出口，生产静态镜像不携带话题Markdown。"
+    },
+    {
+      "application": "forum",
+      "assessment": "static-declaration-not-runtime-observed",
+      "domain": "forum",
+      "id": "interface:forum.published-proxy",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "path": "/published/:file",
+      "scope": "nitro-and-prerender",
+      "source": {
+        "line": 23,
+        "path": "app/forum/server/middleware/forum-markdown.ts"
+      },
+      "summary": "site开发把旧帖图片转给核心按当前viewer授权；demo保留public静态素材，site镜像删除该目录。"
     }
   ],
   "tables": [
