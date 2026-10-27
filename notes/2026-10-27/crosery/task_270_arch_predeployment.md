@@ -138,3 +138,10 @@
 - 执行者：agent-sonnet-source-delivery
 - 做了什么：保留 task270 工作树中新增的显式 GitLab run 选择、SHA256SUMS 完整集合核对、恢复清理和对应 catalog/合同/测试差异；未采用 integration 旧版自动选择实现
 - 结果：单 worker 定向验证：garage-archive 8/8、gitlab-backup-storage 9/9、deploy-scripts 与 deployment-environment 63/63；git diff --check 通过
+
+## 09:45:17 +08:00 · 返工 · #270 · 按安全审查收口：恢复演练、归档选择与 env 边界
+
+- 执行者：agent-omp-geek-main-01a17ae3（omp，deepseek-v4.1-flash）
+- 做了什么：restore-drill.sh 固定 gitlab-ce digest、失败/中断统一 EXIT 清理容器与含明文 gitlab-secrets.json 的演练目录并保留原退出码；garage-archive.mjs 取消自动挑最新 run、要求显式 --run 且清单集合必须完全相等；deploy-stack.sh/rollback-stack.sh 的重复键改为全文件检查、强制 STACK_ROOT 末段与 COMPOSE_PROJECT_NAME 等于 --environment；deployment-environment.mjs 渲染改 0600 临时文件原子替换并拒绝符号链接；补 4 组回归、更新 DEPLOY/GITLAB 文档与 changes/270.json 覆盖
+- 结果：通过：tests/tooling 49 文件 1052 passed/26 skipped；deploy-scripts 24/24、deployment-environment 40/40、gitlab-backup-storage 9/9、garage-archive 8/8；shellcheck 4 脚本无告警、node --check 两脚本、git diff --check 通过；check:architecture --base gitlab/stage 95 文件4节点通过；check 族运行时/站点/边界/文档/环境/密钥/doc-sync/CLI 全绿。未通过：历史 K10 note（task_276:47）与论坛 typecheck:tests 基线
+- 下一步：提交本轮改动，跑全量 vitest/typecheck/build，整理 MR 正文并向所有者集中申请推送与 MR 授权
