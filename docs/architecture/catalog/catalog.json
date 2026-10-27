@@ -3204,6 +3204,10 @@
         {
           "line": 321,
           "path": "app/server/src/lib/mail/envelope.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/server/src/lib/mail/envelope-pieces.ts"
         }
       ],
       "id": "flow:application.submit",
@@ -16319,7 +16323,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "70cfb06a2c7d4583cc01da65b40739de520fb2653f1f0157a1d10959647c0ebd",
+    "fingerprint": "91a3ebc6b15099740c6e45bdab1ac422c98258e8575a4fff4b288ce83a2b0e9a",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -17143,7 +17147,7 @@
       },
       {
         "path": "app/forum/shared/sticker-url.ts",
-        "sha256": "5a4e6ddc1d52cf06caf15238f3c4dbbe8676548ce116886e77befd485d951ac1"
+        "sha256": "668b757631e885629ca248486dff99b8e7297109cceb6126161455eabf3f1484"
       },
       {
         "path": "app/forum/tests/activity-beacon.test.ts",
@@ -17175,11 +17179,11 @@
       },
       {
         "path": "app/forum/tests/sticker-size-css.test.ts",
-        "sha256": "4cbc84e937d5971a5d48bded6953b53814de5c4205bef082a67a6b07b7e5c26e"
+        "sha256": "0f10e6d33a24433b4c7493c5d67d4e2c8fa7adaae9c231de5d50c6ade6c42aae"
       },
       {
         "path": "app/forum/tests/sticker-url.test.ts",
-        "sha256": "efa561edf2f012affe764acc9c842487cc7f2832a7d860922a8eeb28e6664c60"
+        "sha256": "d81c2b83ef39ac8af3cdd05436a71b06a446f4de8eacc869ab708e434c10d287"
       },
       {
         "path": "app/forum/uno.config.ts",
@@ -17187,7 +17191,7 @@
       },
       {
         "path": "app/server/Dockerfile",
-        "sha256": "30731be3ab3d8d9530ea7f1446162acaf9f38507c66a11db35b32f54038ac53b"
+        "sha256": "93b0977c7ca817e76b81d92e828da2f5882e317d8f1e56071ed34c073fee18fb"
       },
       {
         "path": "app/server/package.json",
@@ -17207,7 +17211,7 @@
       },
       {
         "path": "app/server/src/config.ts",
-        "sha256": "c3072200727810f268ad6f98a29114af5faf97b8f6ed3adf4d6d92af1bda2778"
+        "sha256": "0deac3866a3cac267495e378efbc6801630267629f1b615574b21eb2c629a33a"
       },
       {
         "path": "app/server/src/index.ts",
@@ -17379,11 +17383,11 @@
       },
       {
         "path": "app/server/src/lib/mail/envelope-pieces.ts",
-        "sha256": "61a782cf61d6fd535cd2a12b4341ab0f9fcec8a79cf2064f2bccdc9d47e2306e"
+        "sha256": "b24efdcecd41b00687725dd937830eb0c6c6c91cf9ffbd172b0e9fdc377b58e7"
       },
       {
         "path": "app/server/src/lib/mail/envelope.ts",
-        "sha256": "1279414060ace22b1e0ca20e7f0054af3110294dd65a965f55a470fdfdd066cd"
+        "sha256": "06dc10f1a6699b0ffd2d3fec9274a2d1ebdbb7a80e1ff710dad8e7080877b9e3"
       },
       {
         "path": "app/server/src/lib/mail/login-code.ts",
@@ -17483,7 +17487,7 @@
       },
       {
         "path": "app/server/src/lib/static-cdn.ts",
-        "sha256": "598a5c0ab91b3ba0b8e162515e13ddf167d1f0ea953589c942e5cce671779387"
+        "sha256": "861f2f39976025351277eabc6238038c7f401105d34f4fe2989eaa9424cc7626"
       },
       {
         "path": "app/server/src/lib/sticker-manifest.ts",
@@ -18139,7 +18143,7 @@
       },
       {
         "path": "app/web/sites/portal/lib/promo.ts",
-        "sha256": "6d5e698eb57e60e3fec89c1fdfaf24f4f33c5ab7f82d0680bb50152fddb4203a"
+        "sha256": "c8b076b1e846d0721d5d7f8d1d86ee429c31d98b1127210da88cbee42a162f39"
       },
       {
         "path": "app/web/sites/portal/lib/promoWindow.ts",
@@ -18219,7 +18223,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "74690779ed10bd4d2674cf070c81000679d2cf8a892e5f9ced892e06336e17ec"
+        "sha256": "5ca7c57fb4afc3ce34354e895cebaf45d5b4b55d8a8da88b039b747e037ce69a"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -18231,7 +18235,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "680b94cdc1e159ddc4866385285dc551f0b5ae2dbaf23a1bfbc5ee0ef02fe8a1"
+        "sha256": "8df6e1654a4970a52f89250fea653f10bdfc633082a0cf6674ae270694b4b06b"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -18251,7 +18255,7 @@
       },
       {
         "path": "docs/ops/DEPLOY.md",
-        "sha256": "d9d25fb6d5dee252ac326e29f675f2b4ae1af30a36ce64d33be0b787a334982d"
+        "sha256": "fb71059e906ddb628c6bc056341883da92578dee0ef9d045fc1751084f53bcec"
       },
       {
         "path": "docs/ops/USAGE.md",
@@ -18271,15 +18275,15 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "24bc86e91daa91a692e403e9a3cf4233da836d5dd937988d4b015d7a92aed85c"
+        "sha256": "e25142f91ed99beb88c914f5d3faaa15c033ae83f7ac9482a52f9282cbc75aaf"
       },
       {
         "path": "docs/services/forum/README.md",
-        "sha256": "1463924428cb13bddc9ca01a21395e3fde7b514b60a04a7143490be0ce36c240"
+        "sha256": "e24c3efd577f61d8bea6e7bd1150a3c828b6244b9be78f0169b17a6c2e53626b"
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "5a21f9e2f05554ef29fe5f60965f54561cde657671e99119c4b152a37d3fb367"
+        "sha256": "924d47c80fb134e3e5ecf2bd3dc9229864badb5d8658e12dbc4ee28caced6fe1"
       },
       {
         "path": "docs/services/server/data-model.md",
@@ -18287,11 +18291,11 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "acdaf2ff475f14685c25386c7da711b0432b0ea343e3619c5fbb25f94d791540"
+        "sha256": "cc156fb0dc1b63ae8e1dd31c00bab3ed9aa0871c2974aa918a56b2d3a1b21c52"
       },
       {
         "path": "docs/services/server/mail.md",
-        "sha256": "00b8d9da2cbb4adac1ebb25324f91b3aa3f1c6ce9b442bd0609089e109db26ac"
+        "sha256": "fd35c91ecba5881660dd79331a1397edca9dc981f3bdc337fc41256191bca626"
       },
       {
         "path": "docs/services/server/oidc.md",
@@ -18299,11 +18303,11 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "36b3da6a7e5e7cf65951fa0a4cdc18f2f0acab9c09b6613420208ab930a6c1f9"
+        "sha256": "eb28f421714b1caa6abb9fd96519f2c8e3af95cbae1d7d3736a064d21ad1398e"
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "0fc8b52d248ece624fe5ab8053b674d8ba939e82572961c0996bd31ef5a5ec37"
+        "sha256": "7ab34e708c765aa49b6cb6288d534676bcc312fdc47a977296b62561fca37fdf"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -18419,7 +18423,7 @@
       },
       {
         "path": "tests/e2e/workflows.spec.ts",
-        "sha256": "781d8c64ec536c52160396be5fd894c434744c2f90bf9588b1ea932e1cc7f337"
+        "sha256": "bab3df6ba042a886868dca67bad096f9a6d003681bfdd5f5290db0eabaebb427"
       },
       {
         "path": "tests/server/activity.test.ts",
@@ -18507,7 +18511,7 @@
       },
       {
         "path": "tests/server/forum-sticker-cdn.test.ts",
-        "sha256": "87ed25d2884056965811035d8d01f4e28c0766b073da50a44abe0290ea5cb3fd"
+        "sha256": "8adb553a6d13d811e2d77e3a673c8f01bd6e0bc3dcf3c5f991166beb4e9a959f"
       },
       {
         "path": "tests/server/forum-v2-endpoints.test.ts",
@@ -18515,7 +18519,7 @@
       },
       {
         "path": "tests/server/forum.test.ts",
-        "sha256": "516606e3ce1b35c7eec27326a444c92f72c34a9917f836e15bfc347607b78439"
+        "sha256": "93fc841e5768ebec50b717f7519c606a0e9ba24847828266198a6418abdabbb8"
       },
       {
         "path": "tests/server/gitlab-sync.test.ts",
@@ -18535,15 +18539,15 @@
       },
       {
         "path": "tests/server/mail-envelope.test.ts",
-        "sha256": "4a550e315e4abfaf5a1d3929b24e4fba4b7e9b8479d42497a36514e82ebb3555"
+        "sha256": "322d700bcb5159f7a8fcfa0f22083af476d89d23a7cdc22b9e7dc834689b523e"
       },
       {
         "path": "tests/server/mail-outbox.test.ts",
-        "sha256": "a79db5a929f3ac2db75e0a568a194337d7c9917d6cbace1ac1847eafad643949"
+        "sha256": "f5071edce25dd85bb4247ecb398ab653e3cf4d356d926fc0db929bda778be817"
       },
       {
         "path": "tests/server/mail-template-content.test.ts",
-        "sha256": "47858d1201beef68f388b007f71c0fdb7c52c34004d7087e775a44ece363854b"
+        "sha256": "fdd713441be1bbadbf4d675b8748d0aee3103edc3ca9ed3c8724d42de5595b2e"
       },
       {
         "path": "tests/server/mail-templates.test.ts",
@@ -18599,7 +18603,7 @@
       },
       {
         "path": "tests/tooling/web-nginx.test.ts",
-        "sha256": "cc68a4578b5d6d2d4cf9c364f46a561116336889edc8f7526caec522e0146d35"
+        "sha256": "1fc03ae860b3590bf3bc6552b0a4b06059ca90019d176795deece808361025b0"
       },
       {
         "path": "tests/web/competition-sdk.test.ts",
@@ -24624,6 +24628,10 @@
         {
           "line": 321,
           "path": "app/server/src/lib/mail/envelope.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/server/src/lib/mail/envelope-pieces.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -24688,6 +24696,10 @@
         {
           "line": 321,
           "path": "app/server/src/lib/mail/envelope.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/server/src/lib/mail/envelope-pieces.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -24752,6 +24764,10 @@
         {
           "line": 321,
           "path": "app/server/src/lib/mail/envelope.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/server/src/lib/mail/envelope-pieces.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -24858,6 +24874,10 @@
         {
           "line": 321,
           "path": "app/server/src/lib/mail/envelope.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/server/src/lib/mail/envelope-pieces.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -24922,6 +24942,10 @@
         {
           "line": 321,
           "path": "app/server/src/lib/mail/envelope.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/server/src/lib/mail/envelope-pieces.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -24986,6 +25010,10 @@
         {
           "line": 321,
           "path": "app/server/src/lib/mail/envelope.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/server/src/lib/mail/envelope-pieces.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -25050,6 +25078,10 @@
         {
           "line": 321,
           "path": "app/server/src/lib/mail/envelope.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/server/src/lib/mail/envelope-pieces.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -25114,6 +25146,10 @@
         {
           "line": 321,
           "path": "app/server/src/lib/mail/envelope.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/server/src/lib/mail/envelope-pieces.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -141683,7 +141719,7 @@
     }
   ],
   "unmappedSources": [],
-  "updated": "2026-10-25",
+  "updated": "2026-10-27",
   "version": 1,
   "visibility": "internal-engineering"
 }

@@ -141,7 +141,7 @@ describe('committed env templates are the single source of deploy facts', () => 
     for (const values of [production, preview]) {
       expect(values.get('MAIL_ALIYUN_FROM')).toBe('notify@mail.email-crosery.cn');
       expect(values.get('MAIL_RESEND_FROM')).toBe('notify@email-crosery.cn');
-      expect(values.get('MAIL_ASSET_BASE')).toBe('https://cdn.crosery.com/yzgc/mail/v1/');
+      expect(values.get('MAIL_ASSET_BASE')).toBe('https://cdn.yangtzeu.work/geek-public/mail/v1/');
       expect(values.get('MAIL_REPLY_TO')).toBe('');
     }
     expect(preview.get('MAIL_RECIPIENTS')).toBe('all');
@@ -234,11 +234,11 @@ describe('committed env templates are the single source of deploy facts', () => 
       ['production', '\nMAIL_RECIPIENTS=all\n', '\nMAIL_RECIPIENTS=\n', /MAIL_RECIPIENTS 只能是/],
       ['production', '\nMAIL_RECIPIENTS=all\n', '\n', /缺少字段 MAIL_RECIPIENTS/],
       // 图片前缀：https、以 / 结尾、规范形式。
-      ['production', '\nMAIL_ASSET_BASE=https://cdn.crosery.com/yzgc/mail/v1/\n', '\nMAIL_ASSET_BASE=http://cdn.crosery.com/yzgc/mail/v1/\n', /MAIL_ASSET_BASE 必须是 https/],
-      ['preview', '\nMAIL_ASSET_BASE=https://cdn.crosery.com/yzgc/mail/v1/\n', '\nMAIL_ASSET_BASE=https://cdn.crosery.com/yzgc/mail/v1\n', /MAIL_ASSET_BASE 必须写成规范形式并以 \/ 结尾/],
-      ['preview', '\nMAIL_ASSET_BASE=https://cdn.crosery.com/yzgc/mail/v1/\n', '\nMAIL_ASSET_BASE=https://cdn.crosery.com/yzgc/mail/v1/?v=2\n', /MAIL_ASSET_BASE 不得包含/],
-      ['preview', '\nMAIL_ASSET_BASE=https://cdn.crosery.com/yzgc/mail/v1/\n', '\nMAIL_ASSET_BASE=https://cdn.crosery.com/yzgc/mail/v1/?\n', /MAIL_ASSET_BASE 必须写成规范形式/],
-      ['production', '\nMAIL_ASSET_BASE=https://cdn.crosery.com/yzgc/mail/v1/\n', '\nMAIL_ASSET_BASE=\n', /MAIL_ASSET_BASE 不是合法 URL/],
+      ['production', '\nMAIL_ASSET_BASE=https://cdn.yangtzeu.work/geek-public/mail/v1/\n', '\nMAIL_ASSET_BASE=http://cdn.crosery.com/yzgc/mail/v1/\n', /MAIL_ASSET_BASE 必须是 https/],
+      ['preview', '\nMAIL_ASSET_BASE=https://cdn.yangtzeu.work/geek-public/mail/v1/\n', '\nMAIL_ASSET_BASE=https://cdn.yangtzeu.work/geek-public/mail/v1\n', /MAIL_ASSET_BASE 必须写成规范形式并以 \/ 结尾/],
+      ['preview', '\nMAIL_ASSET_BASE=https://cdn.yangtzeu.work/geek-public/mail/v1/\n', '\nMAIL_ASSET_BASE=https://cdn.yangtzeu.work/geek-public/mail/v1/?v=2\n', /MAIL_ASSET_BASE 不得包含/],
+      ['preview', '\nMAIL_ASSET_BASE=https://cdn.yangtzeu.work/geek-public/mail/v1/\n', '\nMAIL_ASSET_BASE=https://cdn.yangtzeu.work/geek-public/mail/v1/?\n', /MAIL_ASSET_BASE 必须写成规范形式/],
+      ['production', '\nMAIL_ASSET_BASE=https://cdn.yangtzeu.work/geek-public/mail/v1/\n', '\nMAIL_ASSET_BASE=\n', /MAIL_ASSET_BASE 不是合法 URL/],
       // 发件地址不带显示名；回复地址留空或是一个地址。
       ['production', '\nMAIL_ALIYUN_FROM=notify@mail.email-crosery.cn\n', '\nMAIL_ALIYUN_FROM="极客班 <notify@mail.email-crosery.cn>"\n', /MAIL_ALIYUN_FROM 必须是不带显示名的邮箱地址/],
       ['preview', '\nMAIL_RESEND_FROM=notify@email-crosery.cn\n', '\nMAIL_RESEND_FROM=\n', /MAIL_RESEND_FROM 必须是不带显示名的邮箱地址/],
@@ -270,7 +270,7 @@ describe('committed env templates are the single source of deploy facts', () => 
     for (const value of ['', 'a@example.com, b@example.org', 'a@example.com,,b@example.org', 'a@example.com,', 'a@example.com;b@example.org', '"a@example.com"', 'a@example.com#x']) {
       expect(isAddressList(value), value).toBe(false);
     }
-    expect(parseMailAssetBase('https://cdn.crosery.com/yzgc/mail/v1/')).toBe('https://cdn.crosery.com/yzgc/mail/v1/');
+    expect(parseMailAssetBase('https://cdn.yangtzeu.work/geek-public/mail/v1/')).toBe('https://cdn.yangtzeu.work/geek-public/mail/v1/');
     for (const value of ['https://user:pw@cdn.crosery.com/v1/', 'https://cdn.crosery.com:8443/v1/', 'https://CDN.crosery.com/v1/', 'https://cdn.crosery.com/v1/#x', 'https://cdn.crosery.com/a/../v1/']) {
       expect(() => parseMailAssetBase(value), value).toThrow(/MAIL_ASSET_BASE/);
     }

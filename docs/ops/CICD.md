@@ -145,59 +145,22 @@ CI/manual 均从同一 tag 物料分发 `deploy-stack.sh` 和 `rollback-stack.sh
 
 部署 job 的失败关闭行为：镜像 sha256 校验失败、env 校验失败、SSH 失败或健康门失败都让整条流水线失败，**不自动重试到未知状态**。部署脚本内部在 `docker compose up -d` 失败或健康门失败时（两者走同一条路，见 [DEPLOY](DEPLOY.md)「失败即回滚」）会把 `IMAGE_TAG` 切回部署前的值、重新 `compose up -d` 并复检，结果记为 `ROLLED_BACK`（复检也失败记 `ROLLBACK_FAILED`）——这是脚本的环境自愈，不等于发布成功，也不改变「流水线失败」的结论；不写 `approved=true` 之类的放行状态，不自动覆盖更晚的部署。
 
-## 静态资源 CDN（#146）
+## 静态资源 CDN（#295）
 
-带内容哈希的静态文件（官网 `/assets/`、控制台 `/console-assets/`、论坛 `/forum/_nuxt/`）可以改从七牛 CDN `https://cdn.crosery.com` 加载，不再全部从香港源站取。官网桌面壁纸与 iPhone GLB 模型（#206）由代码 import，也带哈希，在 `/assets/` 里一起走。GLB 的类型为 `model/gltf-binary`，由 GLTFLoader 使用 `fetch` 获取，必须通过跨域响应头核对，不能按普通 `<img>` 跳过 CORS。HTML、接口、`release.json` 和不带哈希的文件（看板娘、favicon、论坛的公开旧帖图片与 `llms.txt`）仍走源站。论坛使用说明的截图（#281）不是构建产物：源文件在仓库的 `app/forum/content/guide-images/`，文件名带内容哈希（`<名字>.<sha256 的 base64url 前 8 位>.<webp|png>`），`plan` 和 `upload` 每次都带上它们，键是 `yzgc/static/site/forum/guides/<文件名>`；说明正文直接写 CDN 地址，不随开关切换。论坛内置表情包的图片（#286）同样不是构建产物：源文件在仓库的 `app/server/assets/stickers/<包>/`，`plan` 和 `upload` 每次都带上它们，键是 `yzgc/static/site/forum/stickers/<图片内容 sha256>.webp`（内容相同键相同，同一张图只传一次）。和使用说明截图不同，它们的地址跟着开关走：开关打开时 server 把清单里这些图片的地址给成 CDN 绝对地址；站长在控制台上传的表情不在清单里、CDN 上没有，仍是同源的 `/api/forum/stickers/<哈希>.webp`。
+目的地、桶、公私索引、SigV4、失败关闭和客户端防覆盖限制唯一合同见 [CDN](CDN.md)。旧七牛 token、表单上传、insertOnly 和 qetag 核对已经退役，不能用旧服务的配置记录证明 Garage 能力。
 
-**开关**：一个构建参数 `STATIC_CDN_BASE`。空（默认）与原来一样同源；非空时只能逐字等于 `https://cdn.crosery.com/yzgc/static/site/`，否则构建失败。规则只写在 `scripts/static-cdn-base.mjs` 一处：`app/web`、`app/console` 的 Vite 配置用 `experimental.renderBuiltUrl` 只改写构建资源的地址（`base` 仍是 `/`），`app/forum` 的 Nuxt 配置设 `app.cdnURL`。源站路径与 CDN 对象一一对应：源站 `/X` ↔ 对象 `yzgc/static/site/X`（论坛是 `yzgc/static/site/forum/_nuxt/…`）。预发布与正式共用这个前缀：文件名带内容哈希，内容相同键就相同。镜像里仍有全部文件，开关打开后源站照样能直接访问它们。server 镜像也接这个构建参数（#286）：Dockerfile 的构建阶段先核对（空或上面那个值，别的值构建失败），运行阶段把它写成环境变量 `STATIC_CDN_BASE`，进程启动时再按同一条规则读一次（`app/server/src/lib/static-cdn.ts`）。server 的构建上下文里没有 `scripts/`，所以规则在那里写了一份，`tests/tooling/static-cdn-parity.test.ts` 核对两份一致，构建阶段的核对由 `tests/tooling/static-cdn-switch.test.ts` 直接运行，不依赖 Docker。它只决定表情图片的地址，不是 `deploy/env/` 里的条目，目标机上不用配；不传就是空，全部同源。
-
-**工作流**（两条部署工作流相同，`scripts/static-cdn.mjs` 是唯一实现，零依赖）：
-
-| job | 做什么 | 能看到上传 token 吗 |
+| job | 当前源码接线 | 凭据范围 |
 |---|---|---|
-| `cdn-plan` | 检出这个提交，不安装依赖，运行 `static-cdn.mjs decide --origin <环境 origin>`：没有 token 输出空（同源）；token 的策略不对（不是只写 `crosery:yzgc/static/site/` 前缀、不是只增不改、带回调或持久化处理、没有到期时间、到期时间在 366 天以后）或 90 分钟内到期（后面的 `build` 最长 60 分钟、`cdn-upload` 最长 20 分钟，再留 10 分钟排队）直接失败；线上 CSP（HEAD `<origin>/`）的 `script-src`、`style-src`、`font-src` 还没放行这个前缀时告警并退回同源。剩余有效期不到 30 天时告警 | 能（`environment: static-cdn`） |
-| `build` | 按 `cdn-plan` 的输出给 web、forum、server 三个镜像传 `STATIC_CDN_BASE`（server 里它只决定内置表情图片的地址）；web、forum 的 Dockerfile 在镜像里断言入口页引用的是这个地址。开关打开时从刚构建的镜像里 `docker cp` 出三个产物目录，`static-cdn.mjs plan` 离线挑文件（文件名不是构建产出的形状——官网、控制台是 `<name>-<8 位哈希>.<ext>`，论坛是 `<8 位哈希>.js`、`<name>.<8 位哈希>.<ext>` 与 `builds/meta/<构建 id>.json`——或是源码 `public/` 里原样复制进来的、符号链接、隐藏文件、未知类型或超过 10 MiB 的文件，就失败；另带上仓库里的使用说明截图和内置表情图片，后者要求 `app/server/assets/stickers/manifest.json` 与目录一致，不一致也失败，输出里单独列出 `forum/stickers/` 的对象数和总字节），打成 artifact `yzgc-static-<environment>-<sha12>`（保留 7 天） | 不能：这个 job 运行 `pnpm install` 与 `docker build`，不挂任何 Environment |
-| `cdn-upload` | 第一步只报告开关状态；开关打开时检出、下载上一步的 artifact（`scripts/fetch-artifact.mjs`），`static-cdn.mjs upload` 先确认 token 还剩 20 分钟以上，再逐个表单上传到 `https://up-z2.qiniup.com`，再经 CDN 带 `Referer: <origin>/`、`Origin: <origin>`、`Accept-Encoding: identity` 逐个 HEAD 核对：200、ETag 等于本地算出的七牛 qetag、长度一致、`Content-Type` 对、JS/CSS/字体及 fetch 加载的 JSON/WASM/GLB 带 `Access-Control-Allow-Origin`（`*` 或本环境 origin）。任一不符即失败 | 能（`environment: static-cdn`），同样不安装依赖 |
-| `deploy` | `needs` 加上 `cdn-upload`：上传或核对失败，这次不部署 | — |
+| `cdn-plan` | `static-cdn.mjs decide --origin <环境>`；无凭据或 CSP 未放行仍按原约定同源，部分凭据或 S3 探测失败直接失败 | 仅此 job 与上传 job 注入 S3 两项凭据 |
+| `build` | 同一个新 `STATIC_CDN_BASE` 传给 web/forum/server；镜像仍带全部同源资源；离线 `plan` 只收哈希构建资源、指南截图和内置表情 | 不接密钥，不挂 Environment |
+| `cdn-upload` | 签名 S3 GET 逐字核对已存在对象，缺对象才 PUT；公开 HEAD、完整 GET SHA-256、Range、MIME、CORS 校验；资产通过后写 `indexes/releases/<环境>/<完整提交>/manifest.json`，内容索引只生成私有产物 | `STATIC_CDN_S3_ACCESS_KEY_ID`、`STATIC_CDN_S3_SECRET_ACCESS_KEY`，不写镜像或日志 |
+| `deploy` | 仍依赖 `cdn-upload` 成功，不提前发布引用不存在资源的 HTML | 原有环境权限不变 |
 
-- 上传只写 `yzgc/static/site/{assets,console-assets,forum/_nuxt,forum/guides,forum/stickers}/` 下的键（脚本的前缀守卫 + token 策略两道），`insertOnly`：同名同内容七牛返回 200，算成功；同名不同内容返回 614（键已存在），不覆盖，随后的 CDN 核对发现 ETag 与本地不同，脚本失败并报出这个键。脚本里没有删除、移动、改元信息的调用。
-- 论坛的 `_nuxt/builds/latest.json`（文件名固定、每次内容都变）不上传；开关打开时 Nuxt 的新版本检查（`experimental.checkOutdatedBuildInterval`）关掉，`builds/meta/<构建 id>.json` 每次构建是新键，照常上传。
-- **CDN 上的旧文件不删**：回滚到开关打开时构建的旧镜像，页面引用的仍是那时上传的对象。要清理只能按前缀手工处理，并且确认两个环境的历史镜像都不再引用。
-- `scripts/deploy-manual.mjs` 找镜像归档时同样要求这次运行的 `cdn-upload` 成功（没有这个 job 的旧运行只看 build）。
-- **新增表情包**（#286）：加一个包就是在 `app/server/assets/stickers/` 下加一个目录（`pack.json` 和 `.webp`），再运行 `node scripts/sticker-manifest.mjs write` 重新生成清单，格式见 [forum 服务文档](../services/forum/README.md)「表情包」。图片随下一次开关打开的部署由 `cdn-upload` 上传，上传完才会部署。想在部署之前就让 CDN 上有这些图片：`node scripts/sticker-manifest.mjs urls` 列出每张图的 CDN 地址；用本机的 AK/SK 在进程里签一个 1 小时、同策略的 token 上传（只增不改，`--owner-env-file` 只给本机，CI 拒绝），`<空目录>` 里先建好 `web/assets`、`web/console-assets`、`forum/_nuxt` 三个空目录，这样只上传仓库里的源文件（使用说明截图和表情图片）：
+`STATIC_CDN_S3_ENDPOINT=https://cdn.yangtzeu.work`、region `garage`、bucket `geek-public`、forcePathStyle `true`。凭据只从受保护发布 job 的进程环境读取，不在仓库、业务 `.env`、命令行或构建 job 中出现。两项都不设置时下一次构建同源，现有镜像不会自动切换；宣传片、邮件与指南的固定地址也不跟这个开关走。
 
-  ```bash
-  node scripts/static-cdn.mjs plan --web <空目录>/web --forum <空目录>/forum
-  node scripts/static-cdn.mjs upload --web <空目录>/web --forum <空目录>/forum \
-    --referer https://prev.yangtzeu.work/ --owner-env-file ~/.claude/secrets/.env.cloud
-  ```
+当前基线 `.github/workflows/ci.yml` 仍有无凭据的 `docker-cdn` 构建，两个既有部署工作流的上传调用改传环境、完整 SHA 和提交时间，上传器生成稳定来源清单及独立私有内容索引。没有运行这些工作流，也未证明其环境保护状态。所有者本次以 GitLab 为主：父级 task270 的 GitLab 发版草稿应复用同一个 CLI、参数及“上传验证成功才能部署”门禁，不能把 GitHub 历史 token 步骤复制成新服务的配置能力。
 
-  `plan` 只读、不联网，最后一行是 `forum/stickers/` 的对象数和总字节；`upload` 核对通过后，`urls` 列出的地址都应当在 CDN 上返回 200 和 `image/webp`。
-- **开关打开的构建每次 CI 都跑**：部署工作流要等下面的手工步骤做完才会走开关打开的路，在那之前这条路没有机会在 GitHub 上运行。`ci.yml` 的 `docker-cdn` job 用 `STATIC_CDN_BASE=https://cdn.crosery.com/yzgc/static/site/`（先用 `scripts/static-cdn-base.mjs` 核对这个值）构建 web、forum 两个镜像，Dockerfile 在镜像里断言入口页引用 CDN 地址；再跑部署工作流 `build` job 里同一步「取出要上传 CDN 的带哈希文件」（逐字相同，`tests/tooling/static-cdn-workflows.test.ts` 核对）：`docker cp` 出三个产物目录，`static-cdn.mjs plan` 离线挑文件。它不上传、不需要 token、不挂 Environment，失败会让 `verify` 失败。
-
-**凭据：`STATIC_CDN_UPLOAD_TOKEN`，放在 GitHub Environment `static-cdn` 里**。它是用七牛账号 AK/SK 签出来的上传凭证，不是 AK/SK 本身：策略是 `scope=crosery:yzgc/static/site/`、`isPrefixalScope=1`（只能写这个前缀下的键）、`insertOnly=1`（不能覆盖已有对象）、`fsizeLimit=10 MiB`、带 `deadline`（默认 180 天，最多 366 天），不带回调与持久化处理。泄露后别人只能在到期前往这个前缀下新增对象，不能改、删已有文件，也碰不到桶里别的前缀；七牛的上传凭证签出后不能单独吊销，要作废只能在七牛控制台轮换这对 AK/SK。仓库是公开的，所以不要把账号 AK/SK 放进 GitHub。
-
-按顺序手工做（任一步没做，部署照常同源构建）：
-
-1. 在香港现行 Caddy 配置核对两环境 CSP，变更先 validate 再获批 reload（[DEPLOY](DEPLOY.md)「静态资源 CDN」）；公网确认 `script-src`、`style-src`、`font-src` 放行 `https://cdn.crosery.com/yzgc/static/site/`。不把旧 Nginx 应用模板装回过渡入口。
-2. **合并本改动（#146）之后、打下一个 rc tag 之前**，在仓库 Settings → Environments 新建 `static-cdn`，Deployment branches and tags 选 Selected branches and tags，只加 tag 规则 `v*`（与发布 tag 一致）。顺序不能反：`cdn-plan`、`cdn-upload` 引用这个 Environment，GitHub 运行引用了不存在的 Environment 的工作流时会自动建一个同名的，自动建的没有任何保护规则（官方文档「Managing environments for deployment」）。它已经被某次 tag 运行自动建出来时，先打开它补上这条规则，再做第 5 步。不要在仓库级建同名 secret（环境级缺失时会回落到仓库级）。2026-09-27 只读核对（`gh api repos/Yangtze-University-Geek-Class/admin/environments`）：仓库里只有 `preview`，还没有 `static-cdn`。
-3. **在放 token 之前实测 tag 规则管不管 `deployment: false` 的 job**。两个 job 都写了 `deployment: false`（不产生部署记录）；官方文档（「Deploying with GitHub Actions」）只写了这种 job 照样受 wait timer 与 required reviewers 约束、自定义保护规则会让 job 直接失败，没写 deployment branches and tags 规则，所以第一次要自己看：
-   - 第 2 步之后的第一个 rc tag：`cdn-plan`、`cdn-upload` 照常运行（tag 匹配 `v*`），`cdn-plan` 的日志写没有配置 token、这次同源构建；
-   - 在自己的个人分支（`dev/<GitHub 用户名>`）上临时加一个工作流，只有一个 `environment: { name: static-cdn, deployment: false }`、`run: echo ok` 的 job，推上去。这个 job 应当被环境规则拒绝（job 页写这个分支不允许使用 `static-cdn`）。拒绝了再做第 5 步；照常跑完说明这条规则管不到 `deployment: false` 的 job，不要放 token，先把两个 job 的 `deployment: false` 去掉（让它们按部署走环境规则）再测一次。测完删掉这个临时工作流。
-4. 建议再加一条 tag ruleset，限制谁能建 `v*` tag：Settings → Rules → Rulesets → New tag ruleset，目标 `v*`，勾 Restrict creations（再勾 Restrict updates、Restrict deletions，对应 [RELEASES](../conventions/RELEASES.md)「tag 不可变」），bypass 只留仓库管理员。原因：`static-cdn` 的规则只看 tag 名，tag 触发的又是 tag 所在提交里的工作流文件，任何有写权限的人在自己的分支上改了工作流再推一个 `v*` tag，就能绕过 `plan` 的核对让这两个 job 拿到 token（`preview` 的 `v*.*.*-rc.*` 规则同理）。仓库公开以后 rulesets 可以配：2026-09-27 只读核对 `gh api repos/Yangtze-University-Geek-Class/admin/rulesets` 返回 `[]`（公开前是 403，见下文「平台能力实测」），也就是现在一条都没有。
-5. 在自己的机器上签 token 并直接写进这个 Environment，token 不经过终端、文件或剪贴板：
-
-   ```bash
-   node scripts/static-cdn.mjs mint-token --env-file ~/.claude/secrets/.env.cloud \
-     | gh secret set STATIC_CDN_UPLOAD_TOKEN --env static-cdn --repo Yangtze-University-Geek-Class/admin
-   ```
-
-   `--env-file` 里要有 `QINIU_ACCESS_KEY`、`QINIU_SECRET_KEY`（也可以直接放进进程环境、不给 `--env-file`）；`--days` 改有效期（1–366 天，默认 180）。stdout 是终端时脚本拒绝输出，stderr 只打策略与到期时间。
-6. 下一次打 rc tag：`cdn-plan` 的日志写「CSP 已放行 … 这次带哈希的静态文件从 CDN 加载」，`cdn-upload` 列出上传与核对的文件数。`cdn-plan` 提示快到期时重复第 5 步；剩不到 90 分钟时 `cdn-plan` 直接失败。
-
-2026-10-09 授权后已做完第 1–5 步：宿主 nginx 两份模板已装并 reload（CSP 早已放行 CDN 前缀）；`static-cdn` 环境只允许 tag `v*`；第 3 步实测，临时分支上 `deployment: false` 的 job 被拒绝（`Branch ... is not allowed to deploy to static-cdn`）；tag ruleset `release-tags-immutable` 限制 `v*` 的创建、更新、删除，仅仓库管理员可绕过；`STATIC_CDN_UPLOAD_TOKEN` 已写入，到期 2027-04-07。下一个 rc tag 起部署走 CDN。
-
-要关掉：删掉 `static-cdn` 里的 `STATIC_CDN_UPLOAD_TOKEN`，下一次部署就回到同源。
+新增表情包仍只需维护目录和运行 `sticker-manifest.mjs write/check/urls`；之后由同一套上传链路带上。源文件清单规则见 [forum 合同](../services/forum/README.md)。旧 CDN 资源和发布清单不删除，保证旧镜像回滚。
 
 ## PR 预览（#245）
 
@@ -246,7 +209,7 @@ CI/manual 均从同一 tag 物料分发 `deploy-stack.sh` 和 `rollback-stack.sh
 CI 与部署只用 GitHub 托管 runner（#139）：所有工作流的每个 job 都写 `runs-on: ubuntu-latest`。
 
 - 托管 runner 每个 job 一台新虚拟机，job 结束即销毁：前一个 job（包括别人分支上的 job）改不到后一个 job 的文件系统、工具和本地缓存，部署 job 也一样；Actions 缓存（setup-node 的 `cache: pnpm`、`actions/cache`）不随虚拟机销毁，按 GitHub 的分支作用域在多次运行之间共享，从缓存装进来的包仍按锁文件 integrity 核对。仓库公开（2026-09-26 17:49）以后托管 runner 不计分钟，免费版最多 20 个 job 同时跑。
-- 部署用的密钥只经 GitHub Environment 进 job：`preview` 只放行 `v*.*.*-rc.*` 形状的 tag（见上文「平台能力实测」的 2026-09-26 更新），`static-cdn` 的放行规则见上文「静态资源 CDN」第 2 步；`production` 的密钥只经 `production` Environment 进 job（2026-10-02 只读核对：它有 required reviewers 与自定义部署分支规则，2026-09-27 建；`v0.1.0` 的正式部署运行 36314912545 经批准后在托管 runner 上跑完）。
+- 部署用的密钥只经 GitHub Environment 进 job：`preview` 只放行 `v*.*.*-rc.*` 形状的 tag（见上文「平台能力实测」的 2026-09-26 更新），`static-cdn` 的凭据范围见上文「静态资源 CDN」，环境保护的当前状态需由父级核验；`production` 的密钥只经 `production` Environment 进 job（2026-10-02 只读核对：它有 required reviewers 与自定义部署分支规则，2026-09-27 建；`v0.1.0` 的正式部署运行 36314912545 经批准后在托管 runner 上跑完）。
 - **写成字面量，不读仓库变量**。原来的写法是 `${{ vars.CI_RUNNER || 'ubuntu-latest' }}` 与 `${{ vars.DEPLOY_RUNNER || 'ubuntu-latest' }}`，#139 改掉，理由：两个变量已经删了（#138），留着这种写法只会让人以为还能切回去；改仓库变量不经 PR 与审查，也不进 git 历史，设一个变量就能把带部署私钥的 job 送到别的机器上，写成字面量后换 runner 必须改工作流、经过审查；原来的 runner 组 `yzgc-deploy` 已经不允许公开仓库，设回去 job 也只会排队。`tests/tooling/hosted-runners.test.ts` 核对 `.github/workflows/` 下每个工作流的每个 job 都是 `runs-on: ubuntu-latest`，也没有残留 `vars.CI_RUNNER`、`vars.DEPLOY_RUNNER` 和旧的 runner 标签。
 - 托管 runner 出问题时等 GitHub 恢复后重跑，不再有切到别的机器的退路。以后真要用自托管 runner，先开 issue，重新论证隔离、凭据与公开仓库 fork PR 的边界，再改工作流和上面这条测试；不要靠加标签或设变量切过去。
 

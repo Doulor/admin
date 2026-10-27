@@ -2,7 +2,7 @@
 
 > 极客班控制台前端：Vue 3 + Tuffex 单页应用，按权限节点显示页面；接口全部来自 `app/server`，产物由 web 镜像托管。
 
-状态：`current` · 更新：2026-10-25 · 源码：`app/console/` · 产物：`app/console/dist/`（随 `yzgc/web:<tag>` 镜像发布）
+状态：`current` · 更新：2026-10-27 · 源码：`app/console/` · 产物：`app/console/dist/`（随 `yzgc/web:<tag>` 镜像发布）
 
 ## 为什么是独立的包
 
@@ -261,7 +261,7 @@ app/console/dist/
   console-assets/*.js|css|png   # 带哈希的资源，不与官网的 /assets/ 重名
 ```
 
-`base` 是 `/`，不读 `public/`（favicon 与 logo 作为模块导入进 `console-assets/`）。静态资源 CDN 开关（#146，构建参数 `STATIC_CDN_BASE`）打开时，`vite.config.ts` 用 `experimental.renderBuiltUrl` 把 `console-assets/` 下的文件改写到 `https://cdn.crosery.com/yzgc/static/site/console-assets/…`，入口页与路由仍走源站；为空时同源。规则与 web 相同，见 [web 合同](../web/README.md)「静态资源 CDN 开关」。web 镜像把这份 dist 叠进 nginx 站点根，`/console`、`/console/…`、`/admin`、`/admin/…`、`/signin`、`/device`、`/account`、`/authorize`、`/bind-email` 回落到 `sites/console/index.html`；服务端 `resolveSiteEntry` 与开发态 Vite 的 `/device` 代理同一规则（直连 server 时）。详见 [web 合同](../web/README.md) 与 [DEPLOY](../../ops/DEPLOY.md)。
+`base` 是 `/`，不读 `public/`（favicon 与 logo 作为模块导入进 `console-assets/`）。静态资源 CDN 开关（#146，构建参数 `STATIC_CDN_BASE`）打开时，`vite.config.ts` 用 `experimental.renderBuiltUrl` 把 `console-assets/` 下的文件改写到 `https://cdn.yangtzeu.work/geek-public/static/site/console-assets/…`，入口页与路由仍走源站；为空时同源。规则与 web 相同，见 [web 合同](../web/README.md)「静态资源 CDN 开关」。web 镜像把这份 dist 叠进 nginx 站点根，`/console`、`/console/…`、`/admin`、`/admin/…`、`/signin`、`/device`、`/account`、`/authorize`、`/bind-email` 回落到 `sites/console/index.html`；服务端 `resolveSiteEntry` 与开发态 Vite 的 `/device` 代理同一规则（直连 server 时）。详见 [web 合同](../web/README.md) 与 [DEPLOY](../../ops/DEPLOY.md)。
 
 首次打开的加载提示（#263）：`index.html` 在 `#app` 后面放了一段 `.console-boot`（转圈 +「正在加载控制台」）和它的内联样式，入口页一到就画出来，不等控制台的样式表和脚本；样子和位置照 `ConsoleRoot` 的「正在确认登录状态」，颜色、字体取 `src/styles/theme.css` 的令牌，改令牌时一起改（`tests/console/boot-placeholder.test.ts` 核对）。Vue 挂载后 `#app` 不再为空，`#app:not(:empty) ~ .console-boot` 把提示藏起，交接时不闪白；10 秒后还没挂载，在下方补一句「网络较慢，长时间没有反应可以刷新页面」；减少动态效果时不转圈；禁用 JavaScript 时只显示「控制台需要开启 JavaScript 才能使用。」。线上 CSP 允许内联样式、不允许内联脚本，所以提示只用样式。Vite 默认把样式表链接放进 `<head>`，浏览器要等它下完才开始画（Fast 3G 下约 1.2 秒），所以构建时 `vite.config.ts` 的 `moveStylesheetsToBodyEnd` 把它挪到 `</body>` 前：预加载扫描器照常并行下载，模块脚本按 HTML 规范仍等样式表就绪才执行，挂载时样式已经齐了。开发态（`pnpm dev:console`）样式由脚本注入，不经过这一步。
 
